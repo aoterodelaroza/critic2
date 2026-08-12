@@ -87,7 +87,7 @@ contains
     real(c_float) :: rrgba(4) ! scratch highlight color
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3), lum
-    integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, im, jm, ncon
+    integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, ivadd, im, jm, ncon
     integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
     integer :: natused_bonds ! bonds tab: number of distinct atomic species present
     integer, allocatable :: iat_bonds(:) ! bonds tab: Z values of distinct species
@@ -246,28 +246,46 @@ contains
     end if
     isys = w%isys
 
+    ! the view window this window commands for its picks: the first one
+    ! showing this system's main scene, or zero if there is none
+    iview = 0
+    do i = 1, nwin
+       if (win(i)%isinit .and. win(i)%isopen .and. win(i)%type == wintype_view) then
+          if (win(i)%isys == isys .and. associated(win(i)%sc)) then
+             if (associated(win(i)%sc,sysc(isys)%sc)) then
+                iview = i
+                exit
+             end if
+          end if
+       end if
+    end do
+
+    ! handle an active bond operation commanded to that view
+    call bondmode_poll(w,iview,iview > 0)
+
     ! handle a pending add-bond pick commanded to a view window
     ipickhl = 0
     if (w%geometry_addbond%is_staged()) then
-       iview = w%geometry_addbond_iview
-       oksys = (iview >= 1 .and. iview <= nwin)
-       if (oksys) oksys = win(iview)%isinit .and. win(iview)%isopen .and. win(iview)%type == wintype_view
+       ivadd = w%geometry_addbond_iview
+       oksys = (ivadd >= 1 .and. ivadd <= nwin)
+       if (oksys) oksys = win(ivadd)%isinit .and. win(ivadd)%isopen .and.&
+          win(ivadd)%type == wintype_view
        ok = oksys
-       if (ok) ok = win(iview)%isys == isys .and. win(iview)%vmdata%owner == w%id .and.&
+       if (ok) ok = win(ivadd)%isys == isys .and. win(ivadd)%vmdata%owner == w%id .and.&
           .not.w%geometry_addbond%is_stale(sysc(isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the view is gone, shows another system, another window took over
           ! the pick, or the geometry changed (stale cell-atom ids): cancel
-          if (oksys) call win(iview)%viewmode_release_forced(w%id)
+          if (oksys) call win(ivadd)%viewmode_release_forced(w%id)
           call w%geometry_addbond%clear()
           w%geometry_addbond_iview = 0
-       elseif (win(iview)%viewmode >= 0) then
+       elseif (win(ivadd)%viewmode >= 0) then
           ! the pick finished: add a single bond if a valid atom was clicked
           ! (self-bonds and duplicates are rejected by add_bond)
-          if (win(iview)%vmdata%idx(1) > 0) &
-             call sysc(isys)%add_bond(w%geometry_addbond%idx(1),win(iview)%vmdata%idx(1),&
-                win(iview)%vmdata%idx(2:4),1)
-          win(iview)%vmdata%idx = 0
+          if (win(ivadd)%vmdata%idx(1) > 0) &
+             call sysc(isys)%add_bond(w%geometry_addbond%idx(1),win(ivadd)%vmdata%idx(1),&
+                win(ivadd)%vmdata%idx(2:4),1)
+          win(ivadd)%vmdata%idx = 0
           call w%geometry_addbond%clear()
           w%geometry_addbond_iview = 0
        else
@@ -1511,6 +1529,32 @@ contains
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! check if the tab changed
           call check_changed_tab("bonds")
+
+          ! bond operations driven by clicking in the view window: the same
+          ! three the builder offers, armed on the view showing this system
+          call iw_text("Bond Operations",highlight=.true.)
+          if (iw_button("Create",disabled=(iview == 0),&
+             danger=(w%builder_vm == vm_builder_bond))) then
+             w%errmsg = ""
+             call bondmode_toggle(w,iview,isys,vm_builder_bond)
+          end if
+          call iw_tooltip("Bond two atoms clicked one after the other in the view window."//&
+             " Only the connectivity changes: no atom is moved or deleted",ttshown)
+          if (iw_button("Remove",disabled=(iview == 0),sameline=.true.,&
+             danger=(w%builder_vm == vm_builder_bondremove))) then
+             w%errmsg = ""
+             call bondmode_toggle(w,iview,isys,vm_builder_bondremove)
+          end if
+          call iw_tooltip("Remove the bond clicked in the view window",ttshown)
+          if (iw_button("Change Order",disabled=(iview == 0),sameline=.true.,&
+             danger=(w%builder_vm == vm_builder_bondorder))) then
+             w%errmsg = ""
+             call bondmode_toggle(w,iview,isys,vm_builder_bondorder)
+          end if
+          call iw_tooltip("Cycle the order of the bond clicked in the view window:"//&
+             " single, double, triple, aromatic, dashed",ttshown)
+          if (iview == 0) &
+             call iw_text("(no view window open for this system)",sameline=.true.)
 
           ! blue header
           call iw_text("System Bonds",highlight=.true.)

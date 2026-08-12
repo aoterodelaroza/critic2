@@ -2936,6 +2936,18 @@ contains
     vm_is_builder = (mode >= vm_builder_lo .and. mode <= vm_builder_hi)
   end function vm_is_builder
 
+  !> Whether view mode is one of the bond operations: creating a bond
+  !> (with or without dropping hydrogens), removing one, or cycling its
+  !> order. These share their arming and click handling, and are offered
+  !> by both the builder and the geometry window.
+  pure module function vm_is_bondmode(mode)
+    integer, intent(in) :: mode
+    logical :: vm_is_bondmode
+
+    vm_is_bondmode = (mode == vm_builder_bond .or. mode == vm_builder_bondh .or.&
+       vm_is_bondpick(mode))
+  end function vm_is_bondmode
+
   !> Whether view mode is one of the builder modes that act on the bond
   !> under the cursor. These are the only modes for which the bonds are
   !> drawn into the pick buffer.

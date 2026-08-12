@@ -755,6 +755,24 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_geometry
      !xx! builder submodule !xx!
+     pure module function vm_is_bondmode(mode)
+       integer, intent(in) :: mode
+       logical :: vm_is_bondmode
+     end function vm_is_bondmode
+     module subroutine bondmode_toggle(w,iview,isys,jvm)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview, isys, jvm
+     end subroutine bondmode_toggle
+     module subroutine bondmode_stop(w,iview,goodview)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview
+       logical, intent(in) :: goodview
+     end subroutine bondmode_stop
+     module subroutine bondmode_poll(w,iview,goodview)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: iview
+       logical, intent(in) :: goodview
+     end subroutine bondmode_poll
      module subroutine draw_builder(w)
        class(window), intent(inout), target :: w
      end subroutine draw_builder

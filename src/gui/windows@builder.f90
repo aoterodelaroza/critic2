@@ -57,6 +57,147 @@ submodule (windows) builder
 
 contains
 
+  !> Arm the bond-operation mode jvm on view window iview for system
+  !> isys, or disarm it if it is already the active mode. Arming while
+  !> another mode is active switches to the new one. Shared by the
+  !> builder and the geometry window, which offer the same operations.
+  module subroutine bondmode_toggle(w,iview,isys,jvm)
+    use interfaces_glfw, only: glfwGetTime
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview, isys, jvm
+
+    logical :: goodview
+
+    goodview = (iview >= 1 .and. iview <= nwin)
+    if (goodview) goodview = win(iview)%isinit .and. win(iview)%isopen .and.&
+       win(iview)%type == wintype_view
+    if (.not.goodview) return
+
+    if (w%builder_vm == jvm) then
+       call bondmode_stop(w,iview,.true.)
+    else
+       if (w%builder_vm /= 0) call bondmode_stop(w,iview,.true.)
+       w%builder_vm = jvm
+       w%builder_isys = isys
+       w%builder_time = glfwGetTime()
+       ! no message: the bar shows the hint for this mode (viewmode_text)
+       call win(iview)%viewmode_set_forced(jvm,idcaller=w%id)
+    end if
+
+  end subroutine bondmode_toggle
+
+  !> Release the mode this window commanded to view window iview.
+  !> goodview is whether iview is still a live view window.
+  module subroutine bondmode_stop(w,iview,goodview)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview
+    logical, intent(in) :: goodview
+
+    if (goodview) call win(iview)%viewmode_release_forced(w%id,w%builder_vm)
+    w%builder_vm = 0
+    w%builder_isys = 0
+    call w%builder_bond%clear()
+
+  end subroutine bondmode_stop
+
+  !> Poll the bond operation this window commanded to view window iview:
+  !> release it if the view is gone, shows another system, or was taken
+  !> over, and otherwise apply the edit for a delivered click. Does
+  !> nothing if the active mode is not a bond operation.
+  module subroutine bondmode_poll(w,iview,goodview)
+    use systems, only: sys, sysc
+    use interfaces_glfw, only: glfwGetTime
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview
+    logical, intent(in) :: goodview
+
+    integer :: ibond(5), idxpick(4), imode, k, iord
+    logical :: ok
+
+    real*8, parameter :: stale_gap = 1d0 ! discard clicks older than this (s)
+
+    if (.not.vm_is_bondmode(w%builder_vm)) return
+
+    ! a geometry change since an atom was staged for a new bond
+    ! invalidates its index: drop it (and its highlight)
+    if (w%builder_bond%is_staged()) then
+       if (w%builder_bond%is_stale(sysc(w%builder_isys)%timelastchange_geometry)) &
+          call w%builder_bond%clear()
+    end if
+
+    ok = goodview
+    if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
+       win(iview)%vmdata%owner == w%id .and.&
+       win(iview)%isys == w%builder_isys
+    if (.not.ok) then
+       ! the view is gone, the mode was exited (cancel key, mode combo),
+       ! another window took over the pick, or the view shows another
+       ! system: release the forced mode
+       call bondmode_stop(w,iview,goodview)
+    elseif (win(iview)%vmdata%bidx(1) > 0) then
+       ! A bond click was delivered: apply the edit and stay in the mode.
+       ! The stale-click guard keys on the geometry, which is right here:
+       ! these edits only touch the connectivity and never renumber atoms
+       ibond = win(iview)%vmdata%bidx
+       win(iview)%vmdata%bidx = 0
+       win(iview)%vmdata%flag = 0
+       if (glfwGetTime() - w%builder_time < stale_gap .and.&
+          sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+          ! the connectivity is the authority on whether this is a bond at
+          ! all: the pick buffer can be one edit out of date, and a
+          ! representation can draw contacts (van der Waals, hydrogen bonds)
+          ! that were never in it
+          k = sys(w%builder_isys)%c%find_bond(ibond(1),ibond(2),ibond(3:5))
+          if (k == 0) then
+             w%errmsg = "That contact is not a bond in the system connectivity"
+          elseif (w%builder_vm == vm_builder_bondremove) then
+             call sysc(w%builder_isys)%remove_bond(ibond(1),ibond(2),ibond(3:5))
+          elseif (w%builder_vm == vm_builder_bondorder) then
+             ! single -> double -> triple -> aromatic -> dashed -> single
+             select case (sys(w%builder_isys)%c%nstar(ibond(1))%ordcon(k))
+             case (1)
+                iord = 2
+             case (2)
+                iord = 3
+             case (3)
+                iord = -1
+             case (-1)
+                iord = 0
+             case default
+                iord = 1
+             end select
+             call sysc(w%builder_isys)%set_bond_order(ibond(1),ibond(2),ibond(3:5),iord)
+          end if
+          if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+       end if
+    elseif (win(iview)%vmdata%idx(1) > 0) then
+       ! An atom click was delivered: the first click stages an atom, the
+       ! second bonds the pair; clicking the staged atom again cancels it
+       idxpick = win(iview)%vmdata%idx(1:4)
+       imode = win(iview)%vmdata%flag
+       win(iview)%vmdata%idx = 0
+       if (imode == 1 .and. glfwGetTime() - w%builder_time < stale_gap .and.&
+          sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+          if (.not.w%builder_bond%is_staged()) then
+             call w%builder_bond%stage(idxpick)
+          elseif (w%builder_bond%same(idxpick)) then
+             call w%builder_bond%clear()
+          else
+             call sysc(w%builder_isys)%create_bond(w%builder_bond%idx,idxpick,&
+                w%builder_vm == vm_builder_bondh,w%errmsg)
+             call w%builder_bond%clear()
+          end if
+          ! hold the camera of the view the user is clicking in through
+          ! the rebuild (the edit routines post the geometry event)
+          if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+       end if
+    else
+       ! no click pending: stamp the reference time for the stale-click guard
+       w%builder_time = glfwGetTime()
+    end if
+
+  end subroutine bondmode_poll
+
   !> Draw the builder window. The builder is tied to its parent view
   !> (w%idparent) and operates on the system shown in it.
   module subroutine draw_builder(w)
@@ -122,8 +263,12 @@ contains
        havesys = ok_system(isys,sys_init)
     end if
 
-    ! handle an active builder mode commanded to the parent view
-    if (w%builder_vm /= 0) then
+    ! handle an active builder mode commanded to the parent view. The bond
+    ! operations are shared with the geometry window, which offers the same
+    ! three buttons, so they are polled by the shared routine
+    if (vm_is_bondmode(w%builder_vm)) then
+       call bondmode_poll(w,iview,goodparent)
+    elseif (w%builder_vm /= 0) then
        ! a geometry change since an atom was staged for a new bond
        ! invalidates its index: drop it (and its highlight)
        if (w%builder_bond%is_staged()) then
@@ -171,43 +316,6 @@ contains
              ! no click pending: stamp the reference time
              w%builder_time = glfwGetTime()
           end if
-       elseif (win(iview)%vmdata%bidx(1) > 0) then
-          ! A bond click was delivered: apply the edit and stay in the
-          ! mode. Same stale-click guard as the atom picks below; it keys
-          ! on the geometry, which is right here too, since these edits
-          ! only touch the connectivity and never renumber the atoms
-          ibond = win(iview)%vmdata%bidx
-          win(iview)%vmdata%bidx = 0
-          win(iview)%vmdata%flag = 0
-          if (glfwGetTime() - w%builder_time < stale_gap .and.&
-             sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
-             ! the connectivity is the authority on whether this is a bond at
-             ! all: the pick buffer can be one edit out of date, and a
-             ! representation can draw contacts (van der Waals, hydrogen bonds)
-             ! that were never in it
-             k = sys(w%builder_isys)%c%find_bond(ibond(1),ibond(2),ibond(3:5))
-             if (k == 0) then
-                w%errmsg = "That contact is not a bond in the system connectivity"
-             elseif (w%builder_vm == vm_builder_bondremove) then
-                call sysc(w%builder_isys)%remove_bond(ibond(1),ibond(2),ibond(3:5))
-             else
-                ! single -> double -> triple -> aromatic -> dashed -> single
-                select case (sys(w%builder_isys)%c%nstar(ibond(1))%ordcon(k))
-                case (1)
-                   iord = 2
-                case (2)
-                   iord = 3
-                case (3)
-                   iord = -1
-                case (-1)
-                   iord = 0
-                case default
-                   iord = 1
-                end select
-                call sysc(w%builder_isys)%set_bond_order(ibond(1),ibond(2),ibond(3:5),iord)
-             end if
-             if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
-          end if
        elseif (win(iview)%vmdata%idx(1) > 0) then
           ! An atom click was delivered: apply the edit and stay in
           ! the mode. Discard stale clicks: those delivered while the
@@ -229,20 +337,6 @@ contains
                 ! trim branch (main pick only): the same, plus every
                 ! piece the removal disconnects but the main one
                 call sysc(w%builder_isys)%trim_branch(idxpick(1))
-             elseif ((w%builder_vm == vm_builder_bond .or. w%builder_vm == vm_builder_bondh)&
-                .and. imode == 1) then
-                ! create bond (main pick only): the first click stages
-                ! an atom, the second bonds the pair; clicking the
-                ! staged atom again cancels it
-                if (.not.w%builder_bond%is_staged()) then
-                   call w%builder_bond%stage(idxpick)
-                elseif (w%builder_bond%same(idxpick)) then
-                   call w%builder_bond%clear()
-                else
-                   call sysc(w%builder_isys)%create_bond(w%builder_bond%idx,idxpick,&
-                      w%builder_vm == vm_builder_bondh,w%errmsg)
-                   call w%builder_bond%clear()
-                end if
              end if
              ! hold the camera of the view the user is clicking in through
              ! the rebuild (the edit routines post the geometry event)
@@ -1270,10 +1364,7 @@ contains
     ! and clear the mode state.
     subroutine builder_stop()
 
-      if (goodparent) call win(iview)%viewmode_release_forced(w%id,w%builder_vm)
-      w%builder_vm = 0
-      w%builder_isys = 0
-      call w%builder_bond%clear()
+      call bondmode_stop(w,iview,goodparent)
     end subroutine builder_stop
 
     ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
@@ -1605,16 +1696,7 @@ contains
     subroutine builder_toggle(jvm)
       integer, intent(in) :: jvm
 
-      if (w%builder_vm == jvm) then
-         call builder_stop()
-      else
-         if (w%builder_vm /= 0) call builder_stop()
-         w%builder_vm = jvm
-         w%builder_isys = isys
-         w%builder_time = glfwGetTime()
-         ! no message: the bar shows the hint for this mode (viewmode_text)
-         call win(iview)%viewmode_set_forced(jvm,idcaller=w%id)
-      end if
+      call bondmode_toggle(w,iview,isys,jvm)
     end subroutine builder_toggle
   end subroutine draw_builder
 
