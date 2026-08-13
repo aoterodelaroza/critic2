@@ -265,12 +265,12 @@ contains
        iw_calcwidth, iw_calcheight, iw_setposx_fromend
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS,&
        BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_PICKATOM_EXIT,&
+       BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT,&
        BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
-    use param, only: bohrtoa, pi, eye, newline
+    use param, only: bohrtoa, pi, eye
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel
@@ -906,7 +906,7 @@ contains
       if (itool == it_edit) then
          str = "Edit geometry: change the distance, angle, or dihedral of the atoms"//&
             " selected in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//"):"//&
-            " two atoms for a distance, three for an angle, four for a dihedral (shorcut: "//&
+            " two atoms for a distance, three for an angle, four for a dihedral (shortcut: "//&
             trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//")"
       else
          str = trim(vmnames(itool))
@@ -931,17 +931,47 @@ contains
     end function mode_descr
 
     ! A paragraph of text, wrapped to the width of the panel.
-    subroutine panel_text(str)
+    subroutine panel_text(str,faded)
       character(len=*), intent(in) :: str
+      logical, intent(in), optional :: faded
 
+      logical :: faded_
       character(len=:,kind=c_char), allocatable, target :: strl
 
+      faded_ = .false.
+      if (present(faded)) faded_ = faded
       strl = trim(str) // c_null_char
+      if (faded_) &
+         call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
       call igPushTextWrapPos(0._c_float)
       call igTextWrapped(c_loc(strl))
       call igPopTextWrapPos()
+      if (faded_) call igPopStyleColor(1)
 
     end subroutine panel_text
+
+    ! The ways out of mode itool
+    function mode_exits(itool) result(str)
+      integer, intent(in) :: itool
+      character(len=:), allocatable :: str
+
+      str = "Stop with " // trim(get_bind_keyname(BIND_CANCEL))
+      if (itool == vm_builder_valence) then
+         str = str // ", with " // trim(get_bind_keyname(BIND_PICKATOM_ALT)) //&
+            " away from an atom"
+      else
+         str = str // ", with " // trim(get_bind_keyname(BIND_PICKATOM_ALT))
+      end if
+      if (vm_exits_on_empty(itool)) &
+         str = str // ", with " // trim(get_bind_keyname(BIND_PICKATOM_EXIT)) //&
+         " on empty space"
+      if (itool == vm_builder_addatom) then
+         str = str // ", or by choosing another tool."
+      else
+         str = str // ", by clicking the tool button again, or by choosing another tool."
+      end if
+
+    end function mode_exits
 
     ! Panel for a tool whose only interaction is clicking in the view:
     ! what the click does, and how far along the two-click bond
@@ -955,6 +985,7 @@ contains
 
       descr = mode_descr(itool)
       if (len_trim(descr) > 0) call panel_text(descr)
+      call panel_text(mode_exits(itool),faded=.true.)
       if (vm_is_bondmode(itool) .and. w%builder_bond%is_staged()) then
          iat = w%builder_bond%idx(1)
          okat = havesys
@@ -1155,6 +1186,10 @@ contains
          call iw_tooltip("Dihedral angle of the four atoms (degrees)",ttshown)
          call edit_apply_button("##editdih","dihedral")
       end select
+      call panel_text("Stop editing with "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//&
+         ", with "//trim(get_bind_keyname(BIND_CANCEL))//", with the Apply button, or by"//&
+         " choosing another tool. The atoms keep the geometry they have when it stops.",&
+         faded=.true.)
 
     end subroutine panel_edit
 
