@@ -445,9 +445,7 @@ contains
     end if
 
     ! No tool is on display unless one is running
-    if (w%builder_vm == 0 .and. w%edit_kind == 0 .and.&
-       .not.(w%builder_tool == vm_builder_addfragment .and. w%builder_frag_nat == 0)) &
-       w%builder_tool = it_none
+    if (w%builder_vm == 0 .and. w%edit_kind == 0) w%builder_tool = it_none
 
     ! header: the system this builder operates on
     call iw_text("System",highlight=.true.)
@@ -701,21 +699,27 @@ contains
          disabled = .not.havesys
          call viewmode_icon(itool,itex,fallback)
       end if
-      if (itool == vm_builder_addatom) then
-         ! the button opens the periodic table whether or not it is armed
+      if (itool == vm_builder_addatom .or. itool == vm_builder_addfragment) then
+         ! the button opens the list of what the tool adds, the periodic
+         ! table or the fragment library, whether or not it is armed
          ldum_ = iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
             state=state,disabled=disabled,scale=palscale,popupcontext=lpop,&
             popupflags=ImGuiPopupFlags_MouseButtonLeft)
          if (lpop) then
-            iz = iw_periodictable()
-            if (iz > 0) then
-               w%errmsg = ""
-               w%builder_addatom_z = iz
-               w%builder_addatom_ig = addatom_prefgeom(iz)
-               w%builder_tool = vm_builder_addatom
-               if (w%builder_vm /= vm_builder_addatom) &
-                  call builder_toggle(vm_builder_addatom)
-               call igCloseCurrentPopup()
+            if (itool == vm_builder_addatom) then
+               iz = iw_periodictable()
+               if (iz > 0) then
+                  w%errmsg = ""
+                  w%builder_addatom_z = iz
+                  w%builder_addatom_ig = addatom_prefgeom(iz)
+                  w%builder_tool = vm_builder_addatom
+                  if (w%builder_vm /= vm_builder_addatom) &
+                     call builder_toggle(vm_builder_addatom)
+                  call igCloseCurrentPopup()
+               end if
+            else
+               ! the menu entries arm the tool themselves, on the way out
+               call fragment_library_menu()
             end if
             call igEndPopup()
          end if
@@ -883,14 +887,10 @@ contains
          elseif (w%edit_kind /= 0) then
             call w%edit_stop()
          end if
-      elseif (itool /= vm_builder_addfragment .or. w%builder_frag_nat > 0) then
-         call builder_toggle(itool)
       else
-         ! with no fragment chosen yet there is nothing to arm, but
-         ! whatever the user is leaving must not stay active behind the
-         ! panel (builder_toggle would have ended both)
-         call builder_stop()
-         call w%edit_stop()
+         ! the two add tools never reach this: their buttons open their
+         ! chooser, and the pick there arms them
+         call builder_toggle(itool)
       end if
 
     end subroutine pal_click
@@ -965,7 +965,8 @@ contains
       if (vm_exits_on_empty(itool)) &
          str = str // ", with " // trim(get_bind_keyname(BIND_PICKATOM_EXIT)) //&
          " on empty space"
-      if (itool == vm_builder_addatom) then
+      if (itool == vm_builder_addatom .or. itool == vm_builder_addfragment) then
+         ! their buttons reopen the chooser instead of disarming
          str = str // ", or by choosing another tool."
       else
          str = str // ", by clicking the tool button again, or by choosing another tool."
@@ -1002,37 +1003,24 @@ contains
     ! that each click adds (the element comes from the toolbar button).
     subroutine panel_addatom()
 
-      call igAlignTextToFramePadding()
-      call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
       call panel_pick(vm_builder_addatom)
+      call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
 
     end subroutine panel_addatom
 
-    ! Panel for the add-fragments tool: the library chooser, the name of
-    ! the fragment on deck, and its diagram.
+    ! Panel for the add-fragments tool: the name of the fragment on deck
+    ! and its diagram, which is to this tool what the local geometry is
+    ! to add-atoms (the fragment itself is chosen on the button).
     subroutine panel_addfragment()
 
-      call igAlignTextToFramePadding()
-      call iw_text("Fragment")
-      ldum = iw_button("Choose...##builderfragment",sameline=.true.,disabled=.not.havesys,&
-         popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
-      if (ok) then
-         call fragment_library_menu()
-         call igEndPopup()
-      end if
-      call iw_tooltip("Choose the fragment this tool adds from the library",ttshown)
-      if (allocated(w%builder_frag_name)) then
-         call iw_text(trim(w%builder_frag_name),highlight=.true.,sameline=.true.)
-      else
-         call iw_text("(none chosen)",disabled=.true.,sameline=.true.)
-      end if
-      ! the diagram of the fragment on deck (its own texture slot: the
-      ! chooser evicts the hover slot as the user runs down the menu)
+      call panel_pick(vm_builder_addfragment)
+      if (allocated(w%builder_frag_name)) &
+         call iw_text(trim(w%builder_frag_name),highlight=.true.)
+      ! its own texture slot: running down the chooser evicts the hover one
       if (w%builder_frag_ilib > 0) then
          if (fragimg_ensure(w%builder_frag_ilib,fragslot_sel)) &
             call draw_fragment_diagram(8._c_float*igGetTextLineHeight(),fragslot_sel)
       end if
-      if (w%builder_frag_nat > 0) call panel_pick(vm_builder_addfragment)
 
     end subroutine panel_addfragment
 
