@@ -38,7 +38,7 @@ contains
     use interfaces_cimgui
     use tools_io, only: nameguess, string
     use gui_main, only: g, ColorElement, ColorBlack
-    use param, only: atmass
+    use param, only: elemname
     integer :: iw_periodictable
 
     integer :: irow, icol, iz
@@ -87,7 +87,7 @@ contains
                 return
              end if
              call igPopStyleColor(2)
-             call iw_tooltip("Z = " // string(iz) // "  A = " // string(atmass(iz),'f'))
+             call iw_tooltip(trim(elemname(iz)) // " (Z=" // string(iz) // ")")
           end if
        end do
        call igNewLine()

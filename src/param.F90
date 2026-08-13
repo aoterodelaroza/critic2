@@ -419,6 +419,33 @@ module param
       0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,&
       0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0/)
 
+  ! element names (nameguess gives the symbols); the last five are the
+  ! critical point types that follow the elements in the atomic numbers
+  character(len=13), parameter :: elemname(0:maxzat0) = (/character(len=13) ::&
+     "Ghost atom",& ! 0
+     "Hydrogen","Helium","Lithium","Beryllium","Boron","Carbon","Nitrogen",& ! 1-7
+     "Oxygen","Fluorine","Neon","Sodium","Magnesium","Aluminium","Silicon",& ! 8-14
+     "Phosphorus","Sulfur","Chlorine","Argon","Potassium","Calcium",& ! 15-20
+     "Scandium","Titanium","Vanadium","Chromium","Manganese","Iron",& ! 21-26
+     "Cobalt","Nickel","Copper","Zinc","Gallium","Germanium","Arsenic",& ! 27-33
+     "Selenium","Bromine","Krypton","Rubidium","Strontium","Yttrium",& ! 34-39
+     "Zirconium","Niobium","Molybdenum","Technetium","Ruthenium","Rhodium",& ! 40-45
+     "Palladium","Silver","Cadmium","Indium","Tin","Antimony","Tellurium",& ! 46-52
+     "Iodine","Xenon","Caesium","Barium","Lanthanum","Cerium",& ! 53-58
+     "Praseodymium","Neodymium","Promethium","Samarium","Europium",& ! 59-63
+     "Gadolinium","Terbium","Dysprosium","Holmium","Erbium","Thulium",& ! 64-69
+     "Ytterbium","Lutetium","Hafnium","Tantalum","Tungsten","Rhenium",& ! 70-75
+     "Osmium","Iridium","Platinum","Gold","Mercury","Thallium","Lead",& ! 76-82
+     "Bismuth","Polonium","Astatine","Radon","Francium","Radium","Actinium",& ! 83-89
+     "Thorium","Protactinium","Uranium","Neptunium","Plutonium","Americium",& ! 90-95
+     "Curium","Berkelium","Californium","Einsteinium","Fermium",& ! 96-100
+     "Mendelevium","Nobelium","Lawrencium","Rutherfordium","Dubnium",& ! 101-105
+     "Seaborgium","Bohrium","Hassium","Meitnerium","Darmstadtium",& ! 106-110
+     "Roentgenium","Copernicium","Nihonium","Flerovium","Moscovium",& ! 111-115
+     "Livermorium","Tennessine","Oganesson",& ! 116-118
+     "Nucleus CP","Bond CP","Ring CP","Cage CP","Unclassified"& ! 119-123
+     /)
+
   ! standard atomic weights
   real*8, parameter :: atmass(0:maxzat0) = (/&
         0d0,& ! 0
