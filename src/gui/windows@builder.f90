@@ -41,11 +41,29 @@ submodule (windows) builder
   type(vstring), allocatable :: fraglib_sub(:) ! submenu inside that one (empty = none)
   real*8, allocatable :: fraglib_radius(:) ! fictitious covalent radius, bohr (ligands; <= 0 = substituent)
 
-  ! textures of the fragment diagrams
+  ! The most recently placed add operations, most recent first: one
+  ! click on the row under the Add tools arms the same choice again.
+  ! Shared by the two add tools and by every builder window, and kept
+  ! for as long as the GUI runs.
+  integer, parameter :: maxrecent = 10
+  type recentadd
+     integer :: iz = 0 ! element of the atom added (0 = this entry is a fragment)
+     integer :: ig = 0 ! local geometry of the atom added
+     integer :: ilib = 0 ! library index of the fragment added (0 = this entry is an atom)
+  end type recentadd
+  type(recentadd) :: recent(maxrecent)
+  integer :: nrecent = 0 ! entries of recent(:) in use
+
+  ! Textures of the fragment diagrams, one library fragment per slot:
+  ! the entry hovered in the chooser menu (hovered one at a time), the
+  ! fragment on deck in the tool panel, and one per recent entry. They
+  ! are drawn in the same frame, so they cannot share a slot.
   integer, parameter :: fragslot_hover = 1
   integer, parameter :: fragslot_sel = 2
-  integer :: fragimg_idx(2) = 0 ! library index in each slot (0 = empty)
-  integer(c_int), target :: fragimg_tex(2) = 0 ! GL textures (0 = none)
+  integer, parameter :: fragslot_recent = 2 ! recent entry i uses slot fragslot_recent+i
+  integer, parameter :: nfragslot = fragslot_recent + maxrecent
+  integer :: fragimg_idx(nfragslot) = 0 ! library index in each slot (0 = empty)
+  integer(c_int), target :: fragimg_tex(nfragslot) = 0 ! GL textures (0 = none)
 
   ! most neighbor directions considered when placing a ligand
   integer, parameter :: maxnbcand = 24
@@ -57,6 +75,40 @@ submodule (windows) builder
   integer, parameter :: sty_hash = 2  ! hashed wedge, away from the viewer
 
 contains
+
+  ! Record an add operation at the head of the recent list: an atom of
+  ! element iz with local geometry ig, or the library fragment ilib. An
+  ! operation already in the list moves to the head instead of being
+  ! listed twice, so the row holds the last maxrecent distinct choices.
+  subroutine recent_push(iz,ig,ilib)
+    integer, intent(in) :: iz, ig, ilib
+
+    integer :: i, ipos
+    type(recentadd) :: new
+
+    if (iz <= 0 .and. ilib <= 0) return
+    new%iz = iz
+    new%ig = ig
+    new%ilib = ilib
+
+    ipos = 0
+    do i = 1, nrecent
+       if (recent(i)%iz == new%iz .and. recent(i)%ig == new%ig .and.&
+          recent(i)%ilib == new%ilib) then
+          ipos = i
+          exit
+       end if
+    end do
+    if (ipos == 0) then
+       nrecent = min(nrecent+1,maxrecent)
+       ipos = nrecent
+    end if
+    do i = ipos, 2, -1
+       recent(i) = recent(i-1)
+    end do
+    recent(1) = new
+
+  end subroutine recent_push
 
   !> Arm the bond-operation mode jvm on view window iview for system
   !> isys, or disarm it if it is already the active mode. Arming while
@@ -223,7 +275,7 @@ contains
     integer :: isys, iview, icel, imode, nsel
     integer :: idxpick(4), nrline
     logical :: doquit, goodparent, havesys, ok, ldum, relaxing
-    logical :: lstate, mdshown
+    logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
     type(ImVec2) :: szchild, szrow
     character(len=:), allocatable :: errmsg
@@ -236,6 +288,7 @@ contains
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
     real(c_float), parameter :: palscale = 1.25_c_float ! toolbar icons, in font heights
     real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
+    real(c_float), parameter :: recentscale = 2.1_c_float ! recent-entry squares, in font heights
 
     ! do we have a good parent window (a view)? A hidden view is still
     ! good: the builder survives the hide and the mode can be released
@@ -307,14 +360,18 @@ contains
              win(iview)%vmdata%idx = 0
              if (glfwGetTime() - w%builder_time < stale_gap .and.&
                 sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+                ! what was actually placed goes to the head of the recent
+                ! list, so the same choice is one click away next time
                 if (w%builder_vm == vm_builder_addatom) then
-                   call addatom_apply(xclick,icel)
+                   call addatom_apply(xclick,icel,lplaced)
+                   if (lplaced) call recent_push(w%builder_addatom_z,w%builder_addatom_ig,0)
                 else
                    call frag_place(w%builder_isys,iview,w%builder_frag_nat,&
                       w%builder_frag_z(1:w%builder_frag_nat),&
                       w%builder_frag_x(:,1:w%builder_frag_nat),w%builder_frag_ianchor,&
                       w%builder_frag_iattach,(/1d0,0d0,0d0/),w%builder_frag_radius,&
-                      .true.,xclick,icel)
+                      .true.,xclick,icel,placed=lplaced)
+                   if (lplaced) call recent_push(0,0,w%builder_frag_ilib)
                 end if
                 if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
              end if
@@ -409,6 +466,7 @@ contains
     call row_label("Add")
     call tool_button(vm_builder_addatom,.true.)
     call tool_button(vm_builder_addfragment,.false.)
+    call recent_row()
 
     call row_label("Valence")
     call tool_button(vm_builder_valence,.true.)
@@ -528,9 +586,8 @@ contains
        case (it_edit)
           call panel_edit()
        case (it_none)
-          call panel_text("Choose a tool above to edit the structure by clicking in the"//&
-             " view. Selecting atoms in the view ("//&
-             trim(get_bind_keyname(BIND_NAV_MEASURE))//") enables the geometry editor.")
+          call panel_text("Choose a tool from the panel above to edit the structure. Press "//&
+             trim(get_bind_keyname(BIND_CANCEL))//" to cancel the edit.")
        case default
           call panel_pick(w%builder_tool)
        end select
@@ -626,7 +683,8 @@ contains
       integer, intent(in) :: itool
       logical, intent(in) :: first
 
-      logical :: state, disabled
+      logical :: state, disabled, lpop, ldum_
+      integer :: iz
       integer(c_int) :: itex
       character(len=:), allocatable :: fallback
 
@@ -642,9 +700,30 @@ contains
          disabled = .not.havesys
          call viewmode_icon(itool,itex,fallback)
       end if
-      if (iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
-         state=state,disabled=disabled,scale=palscale)) &
+      if (itool == vm_builder_addatom .and. .not.state) then
+         ! the tool needs an element before it can add anything: the idle
+         ! button opens the periodic table, and picking there arms it.
+         ! Leaving the popup without a pick leaves the tool alone (the
+         ! button carries no state here, so its click does nothing else)
+         ldum_ = iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
+            disabled=disabled,scale=palscale,popupcontext=lpop,&
+            popupflags=ImGuiPopupFlags_MouseButtonLeft)
+         if (lpop) then
+            iz = iw_periodictable()
+            if (iz > 0) then
+               w%errmsg = ""
+               w%builder_addatom_z = iz
+               w%builder_addatom_ig = addatom_prefgeom(iz)
+               w%builder_tool = vm_builder_addatom
+               call builder_toggle(vm_builder_addatom)
+               call igCloseCurrentPopup()
+            end if
+            call igEndPopup()
+         end if
+      elseif (iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
+         state=state,disabled=disabled,scale=palscale)) then
          call pal_click(itool)
+      end if
       ! the tooltip text is only built when it is about to be shown: a
       ! palette of these would rebuild ten of them every frame
       if (tooltip_enabled) then
@@ -654,6 +733,139 @@ contains
       end if
 
     end subroutine tool_button
+
+    ! The row of recently placed atoms and fragments, under the Add
+    ! tools: each entry redraws the choice it stands for (the local
+    ! geometry with the element symbol, or the fragment diagram) and one
+    ! click arms the tool with it again. Nothing is drawn until
+    ! something has been placed.
+    subroutine recent_row()
+      integer :: i
+      real(c_float) :: side, xrun, xmax
+      type(ImVec2) :: sz, p0, p1, szavail
+      type(c_ptr) :: dl
+      integer(c_int) :: col
+      logical :: hovered
+      character(len=:,kind=c_char), allocatable, target :: str1
+
+      if (nrecent == 0) return
+      side = recentscale * fontsize%y
+      sz%x = side
+      sz%y = side
+      dl = igGetWindowDrawList()
+      str1 = "##recentadd" // c_null_char
+      call igGetContentRegionAvail(szavail)
+      xmax = igGetCursorPosX() + szavail%x
+      xrun = xicon
+      do i = 1, nrecent
+         ! first entry, or one that no longer fits: start a row at the
+         ! icon column; the previous entry has already ended the line
+         if (i == 1 .or. xrun + g%Style%ItemSpacing%x + side > xmax) then
+            call igSetCursorPosX(xicon)
+            yrow = igGetCursorPosY()
+            xrun = xicon
+         else
+            call row_cursor(.false.)
+            xrun = xrun + g%Style%ItemSpacing%x
+         end if
+         xrun = xrun + side
+
+         call igPushID_Int(int(i,c_int))
+         if (igInvisibleButton(c_loc(str1),sz,ImGuiButtonFlags_None)) call recent_click(i)
+         hovered = igIsItemHovered(ImGuiHoveredFlags_None)
+         call igGetItemRectMin(p0)
+         p1%x = p0%x + side
+         p1%y = p0%y + side
+         if (hovered) then
+            col = igGetColorU32_Col(ImGuiCol_ButtonHovered,0.6_c_float)
+            call ImDrawList_AddRectFilled(dl,p0,p1,col,0._c_float,0_c_int)
+         end if
+         col = igGetColorU32_Col(ImGuiCol_Border,1._c_float)
+         call ImDrawList_AddRect(dl,p0,p1,col,0._c_float,0_c_int,1._c_float)
+         call recent_paint(i,p0,p1,side,dl)
+         if (hovered) call iw_tooltip(recent_label(i))
+         call igPopID()
+      end do
+
+    end subroutine recent_row
+
+    ! Draw what recent entry i stands for inside the square p0-p1.
+    subroutine recent_paint(i,p0,p1,side,dl)
+      integer, intent(in) :: i
+      type(ImVec2), intent(in) :: p0, p1
+      real(c_float), intent(in) :: side
+      type(c_ptr), intent(in) :: dl
+
+      integer :: islot
+      integer(c_int) :: itex, col
+      type(ImVec2) :: uv0, uv1
+      character(len=:), allocatable :: fallback
+
+      if (recent(i)%ilib > 0) then
+         ! a fragment: its diagram, or the generic glyph if it has none
+         islot = fragslot_recent + i
+         if (fragimg_ensure(recent(i)%ilib,islot)) then
+            uv0%x = 0._c_float
+            uv0%y = 0._c_float
+            uv1%x = 1._c_float
+            uv1%y = 1._c_float
+            col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+            call ImDrawList_AddImage(dl,int(fragimg_tex(islot),c_intptr_t),p0,p1,uv0,uv1,col)
+         else
+            call viewmode_icon(vm_builder_addfragment,itex,fallback)
+            if (itex /= 0) then
+               uv0%x = 0._c_float
+               uv0%y = 0._c_float
+               uv1%x = 1._c_float
+               uv1%y = 1._c_float
+               col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+               call ImDrawList_AddImage(dl,int(itex,c_intptr_t),p0,p1,uv0,uv1,col)
+            end if
+         end if
+      else
+         ! an atom: the local geometry, with the element at its center
+         call addatom_geom_paint(recent(i)%ig,p0,side,dl,iz=recent(i)%iz)
+      end if
+
+    end subroutine recent_paint
+
+    ! The tooltip of recent entry i: the choice it arms.
+    function recent_label(i) result(str)
+      integer, intent(in) :: i
+      character(len=:), allocatable :: str
+
+      str = ""
+      if (recent(i)%ilib > 0) then
+         if (recent(i)%ilib <= nfraglib) &
+            str = "Add " // trim(fraglib_name(recent(i)%ilib)%s) // " again"
+      else
+         str = "Add " // trim(nameguess(recent(i)%iz,.true.)) // " (" //&
+            trim(addgeom_names(recent(i)%ig+1)) // ") again"
+      end if
+
+    end function recent_label
+
+    ! Arm the tool that recent entry i stands for, with the same element
+    ! and local geometry, or the same fragment. The tool already armed
+    ! only changes its choice: this is not a toggle.
+    subroutine recent_click(i)
+      integer, intent(in) :: i
+
+      w%errmsg = ""
+      if (recent(i)%ilib > 0) then
+         if (.not.addfrag_load(recent(i)%ilib)) return
+         w%builder_tool = vm_builder_addfragment
+         if (w%builder_vm /= vm_builder_addfragment) &
+            call builder_toggle(vm_builder_addfragment)
+      else
+         w%builder_addatom_z = recent(i)%iz
+         w%builder_addatom_ig = recent(i)%ig
+         w%builder_tool = vm_builder_addatom
+         if (w%builder_vm /= vm_builder_addatom) &
+            call builder_toggle(vm_builder_addatom)
+      end if
+
+    end subroutine recent_click
 
     ! Handle a click on the palette button of tool itool: show its
     ! options in the panel, and arm it (or disarm it, if it was the
@@ -767,24 +979,6 @@ contains
       integer :: izout
 
       call igAlignTextToFramePadding()
-      call iw_text("Element")
-      ldum = iw_button(trim(nameguess(w%builder_addatom_z,.true.))//"##builderelement",&
-         sameline=.true.,disabled=.not.havesys,popupcontext=ok,&
-         popupflags=ImGuiPopupFlags_MouseButtonLeft)
-      if (ok) then
-         izout = iw_periodictable()
-         if (izout > 0) then
-            w%errmsg = ""
-            w%builder_addatom_z = izout
-            w%builder_addatom_ig = addatom_prefgeom(izout)
-            call igCloseCurrentPopup()
-         end if
-         call igEndPopup()
-      end if
-      call iw_tooltip("Element of the atoms this tool adds: click to choose it from the"//&
-         " periodic table",ttshown)
-      call iw_text("Local geometry",sameline=.true.)
-      call iw_tooltip("Arrangement of the hydrogen substituents around the new atom",ttshown)
       call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
       call panel_pick(vm_builder_addatom)
 
@@ -1578,24 +1772,28 @@ contains
     ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
     ! texture position xpos to the plane parallel to the screen
     ! through the scene center and add the fragment there. On an atom
-    ! (icel > 0), replace it (see addatom_replace).
-    subroutine addatom_apply(xpos,icel)
+    ! (icel > 0), replace it (see addatom_replace). placed is whether
+    ! the structure was actually modified.
+    subroutine addatom_apply(xpos,icel,placed)
       real(c_float), intent(in) :: xpos(2)
       integer, intent(in) :: icel
+      logical, intent(out) :: placed
 
       real*8 :: x0(3), rot(3,3)
       real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1)
       integer :: zat(maxaddsub+1), nsub, nat
       logical :: ok, used(maxaddsub)
 
+      placed = .false.
       call view_click_frame(iview,xpos,x0,rot,ok)
       if (.not.ok) return
 
       ! clicked on an atom: replace it instead
       if (icel > 0) then
-         call addatom_replace(icel,rot)
+         call addatom_replace(icel,rot,placed)
          return
       end if
+      placed = .true.
 
       ! the fragment: central atom plus hydrogens (per-system covalent
       ! radii, same source as change_valence)
@@ -1609,10 +1807,12 @@ contains
 
     end subroutine addatom_apply
 
-    ! Add-atoms mode, click on cell atom icel: replace it with the fragment.
-    subroutine addatom_replace(icel,rcam)
+    ! Add-atoms mode, click on cell atom icel: replace it with the
+    ! fragment. placed is whether the structure was actually modified.
+    subroutine addatom_replace(icel,rcam,placed)
       integer, intent(in) :: icel
       real*8, intent(in) :: rcam(3,3)
+      logical, intent(out) :: placed
 
       integer :: isysl, nsub, m, ndel, nadd, k, ncon, znew, zanchor
       integer :: zat(maxaddsub+1)
@@ -1623,6 +1823,7 @@ contains
       type(substituent), allocatable :: sub(:)
       logical :: used(maxaddsub), lok
 
+      placed = .false.
       isysl = w%builder_isys
       if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
       if (.not.allocated(sys(isysl)%c%nstar)) return
@@ -1664,6 +1865,7 @@ contains
          zat(1) = znew
          xat(:,1) = x0
          call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),1,zat(1:1),xat(:,1:1))
+         placed = .true.
          return
       end if
 
@@ -1690,6 +1892,7 @@ contains
       xat(:,1) = x0
       call addatom_cap_hydrogens(isysl,znew,x0,rot,nsub,tvec,used,nadd,zat,xat)
       call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd))
+      placed = .true.
 
     end subroutine addatom_replace
 
@@ -1995,7 +2198,7 @@ contains
   end subroutine cov_point
 
   subroutine frag_place(isys,iview,nat,z,x,ianchor,iattach,xdir,radius,capattach,xpos,icel,&
-     nstar0)
+     nstar0,placed)
     use systems, only: sys, sysc
     use tools_math, only: cross, perpendicular
     integer, intent(in) :: isys, iview, nat, ianchor, iattach, icel
@@ -2004,6 +2207,7 @@ contains
     logical, intent(in) :: capattach
     real(c_float), intent(in) :: xpos(2)
     type(neighstar), intent(in), optional :: nstar0(nat)
+    logical, intent(out), optional :: placed
 
     integer :: isysl, i, ia, nadd, ndel
     integer, allocatable :: idel(:), zadd(:), fmap(:)
@@ -2012,6 +2216,7 @@ contains
     real*8 :: x0(3), rcam(3,3), e(3,3), rot(3,3), p0(3), t1(3), dattach(3)
     logical :: ok, keepattach
 
+    if (present(placed)) placed = .false.
     isysl = isys
     ia = ianchor
     if (nat <= 0) return
@@ -2072,6 +2277,7 @@ contains
 
     call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:max(ndel,1)),nadd,&
        zadd(1:nadd),xadd(:,1:nadd),nstar0add)
+    if (present(placed)) placed = .true.
 
   contains
     ! Add-fragments mode, click on cell atom icel: the anchor of the

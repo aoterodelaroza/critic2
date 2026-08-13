@@ -1517,7 +1517,17 @@ end subroutine ImDrawList_AddText_Vec2
 !x! void ImDrawList_AddConvexPolyFilled(ImDrawList* self,const ImVec2* points,int num_points,ImU32 col);
 !x! void ImDrawList_AddBezierCubic(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,ImU32 col,float thickness,int num_segments);
 !x! void ImDrawList_AddBezierQuadratic(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,ImU32 col,float thickness,int num_segments);
-!x! void ImDrawList_AddImage(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p_min,const ImVec2 p_max,const ImVec2 uv_min,const ImVec2 uv_max,ImU32 col);
+! void ImDrawList_AddImage(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p_min,const ImVec2 p_max,const ImVec2 uv_min,const ImVec2 uv_max,ImU32 col);
+subroutine ImDrawList_AddImage(self,user_texture_id,p_min,p_max,uv_min,uv_max,col) bind(c,name="ImDrawList_AddImage")
+  import c_ptr, c_intptr_t, ImVec2, c_int
+  type(c_ptr), value :: self
+  integer(c_intptr_t), value :: user_texture_id
+  type(ImVec2), value :: p_min
+  type(ImVec2), value :: p_max
+  type(ImVec2), value :: uv_min
+  type(ImVec2), value :: uv_max
+  integer(c_int), value :: col
+end subroutine ImDrawList_AddImage
 !x! void ImDrawList_AddImageQuad(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,const ImVec2 uv1,const ImVec2 uv2,const ImVec2 uv3,const ImVec2 uv4,ImU32 col);
 !x! void ImDrawList_AddImageRounded(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p_min,const ImVec2 p_max,const ImVec2 uv_min,const ImVec2 uv_max,ImU32 col,float rounding,ImDrawFlags flags);
 !x! void ImDrawList_PathClear(ImDrawList* self);
