@@ -1407,7 +1407,7 @@ contains
        picklbl = "Cycle bond order"
     case (vm_builder_bond,vm_builder_bondh)
        hint = "Click to bond atoms"
-       descr = "Bond two atoms clicked one after the other. "
+       descr = "Click on two atoms to bond them. "
        if (mode == vm_builder_bondh) then
           hint = hint // ", deleting hydrogens"
           descr = descr // "If neither is a hydrogen, each loses a terminal hydrogen"
