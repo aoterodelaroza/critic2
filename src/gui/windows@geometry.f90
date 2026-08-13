@@ -57,7 +57,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
-       iw_inputint3
+       iw_inputint3, iw_icon_togglebutton
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
@@ -1531,28 +1531,18 @@ contains
           call check_changed_tab("bonds")
 
           ! bond operations driven by clicking in the view window: the same
-          ! three the builder offers, armed on the view showing this system
+          ! three the builder offers, armed on the view showing this system,
+          ! and shown as the same icon toggles (highlighted while armed)
+          call igAlignTextToFramePadding()
           call iw_text("Bond Operations",highlight=.true.)
-          if (iw_button("Create",disabled=(iview == 0),&
-             danger=(w%builder_vm == vm_builder_bond))) then
-             w%errmsg = ""
-             call bondmode_toggle(w,iview,isys,vm_builder_bond)
-          end if
-          call iw_tooltip("Bond two atoms clicked one after the other in the view window."//&
-             " Only the connectivity changes: no atom is moved or deleted",ttshown)
-          if (iw_button("Remove",disabled=(iview == 0),sameline=.true.,&
-             danger=(w%builder_vm == vm_builder_bondremove))) then
-             w%errmsg = ""
-             call bondmode_toggle(w,iview,isys,vm_builder_bondremove)
-          end if
-          call iw_tooltip("Remove the bond clicked in the view window",ttshown)
-          if (iw_button("Change Order",disabled=(iview == 0),sameline=.true.,&
-             danger=(w%builder_vm == vm_builder_bondorder))) then
-             w%errmsg = ""
-             call bondmode_toggle(w,iview,isys,vm_builder_bondorder)
-          end if
-          call iw_tooltip("Cycle the order of the bond clicked in the view window:"//&
-             " single, double, triple, aromatic, dashed",ttshown)
+          call bondmode_button("##geombondcreate",vm_builder_bond,&
+             "Create bonds: bond two atoms clicked one after the other in the view"//&
+             " window. Only the connectivity changes: no atom is moved or deleted")
+          call bondmode_button("##geombondremove",vm_builder_bondremove,&
+             "Remove bonds: remove the bond clicked in the view window")
+          call bondmode_button("##geombondorder",vm_builder_bondorder,&
+             "Bond order: cycle the order of the bond clicked in the view window:"//&
+             " single, double, triple, aromatic, dashed")
           if (iview == 0) &
              call iw_text("(no view window open for this system)",sameline=.true.)
 
@@ -2441,6 +2431,28 @@ contains
     end if
 
   contains
+    ! One of the bond operations driven by clicking in the view window:
+    ! an icon toggle showing the mode's own glyph, highlighted while the
+    ! mode is armed on the view showing this system.
+    subroutine bondmode_button(strid,mode,ttip)
+      character(len=*), intent(in) :: strid, ttip
+      integer, intent(in) :: mode
+
+      logical :: lstate
+      integer(c_int) :: itex
+      character(len=:), allocatable :: fallback
+
+      call viewmode_icon(mode,itex,fallback)
+      lstate = (w%builder_vm == mode)
+      if (iw_icon_togglebutton(strid,itex,fallback,state=lstate,disabled=(iview == 0),&
+         sameline=.true.)) then
+         w%errmsg = ""
+         call bondmode_toggle(w,iview,isys,mode)
+      end if
+      call iw_tooltip(ttip,ttshown,whendisabled=.true.)
+
+    end subroutine bondmode_button
+
     ! format a centering vector as "(f1,f2,f3)" with common fractions
     function cell_cen_label(x) result(str)
       real*8, intent(in) :: x(3)

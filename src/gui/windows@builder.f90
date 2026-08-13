@@ -41,10 +41,11 @@ submodule (windows) builder
   type(vstring), allocatable :: fraglib_sub(:) ! submenu inside that one (empty = none)
   real*8, allocatable :: fraglib_radius(:) ! fictitious covalent radius, bohr (ligands; <= 0 = substituent)
 
-  ! texture of the diagram shown in the menu (one slot: the menu is
-  ! hovered one entry at a time)
-  integer :: fragimg_idx = 0 ! library index in the slot (0 = empty)
-  integer(c_int), target :: fragimg_tex = 0 ! GL texture (0 = none)
+  ! textures of the fragment diagrams
+  integer, parameter :: fragslot_hover = 1
+  integer, parameter :: fragslot_sel = 2
+  integer :: fragimg_idx(2) = 0 ! library index in each slot (0 = empty)
+  integer(c_int), target :: fragimg_tex(2) = 0 ! GL textures (0 = none)
 
   ! most neighbor directions considered when placing a ligand
   integer, parameter :: maxnbcand = 24
@@ -205,32 +206,36 @@ contains
        reread_system_from_file, atlisttype_ncel_frac
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default
-    use gui_main, only: ColorHighlightEditDistScene
+    use gui_main, only: g, fontsize, tooltip_enabled, ColorHighlightEditDistScene
+    use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
-       iw_periodictable, iw_menuitem
-    use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
-       BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI,&
-       BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
+       iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_helpermark,&
+       iw_calcwidth, iw_calcheight, iw_setposx_fromend
+    use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS,&
+       BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
     use param, only: bohrtoa, pi, eye
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, j, k
-    integer :: idxpick(4), ibond(5), iord
-    logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
-    real*8 :: dist, ang
-    real(c_float) :: xclick(2)
-    character(len=:), allocatable :: stropt, errmsg
-    character(kind=c_char,len=:), allocatable, target :: strcat, strsub
+    integer :: isys, iview, icel, imode, nsel
+    integer :: idxpick(4), nrline
+    logical :: doquit, goodparent, havesys, ok, ldum, relaxing
+    logical :: lstate, mdshown
+    real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
+    type(ImVec2) :: szchild, szrow
+    character(len=:), allocatable :: errmsg
+    character(kind=c_char,len=:), allocatable, target :: strchild
 
     logical, save :: ttshown = .false. ! tooltip flag
 
     real*8, parameter :: stale_gap = 1d0 ! discard clicks older than this (s)
     ! bond order for each bond-combo index >= 1 (single, double, triple, dashed, aromatic)
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
+    real(c_float), parameter :: palscale = 1.25_c_float ! toolbar icons, in font heights
+    real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
 
     ! do we have a good parent window (a view)? A hidden view is still
     ! good: the builder survives the hide and the mode can be released
@@ -244,6 +249,7 @@ contains
     ! the view sets it right before this window's first draw)
     if (w%firstpass) then
        w%errmsg = ""
+       w%builder_tool = it_none
        w%builder_vm = 0
        w%builder_isys = 0
        w%builder_time = 0d0
@@ -348,170 +354,8 @@ contains
        end if
     end if
 
-    ! header: the system this builder operates on
-    call iw_text("System",highlight=.true.)
-    if (havesys) &
-       call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
-    if (iw_button("Restore",danger=.true.,disabled=.not.havesys)) then
-       w%errmsg = ""
-       ! drop any edit session without rebuilding (the geometry is
-       ! discarded) and treat the system as not ready for the rest of this
-       ! frame: the re-read deallocates sys(isys)%c until the init thread runs
-       w%edit_dirty = .false.
-       call w%edit_stop()
-       call reread_system_from_file(isys)
-       havesys = .false.
-    end if
-    call iw_tooltip("Restore the system to the original geometry it had when it was"//&
-       " first opened ("//trim(get_bind_keyname(BIND_REOPEN))//")",ttshown)
-
-    ! the add section
-    call iw_text("Add",highlight=.true.)
-    if (w%builder_vm == vm_builder_addatom) then
-       ! armed: the button cancels the mode
-       if (iw_button("Add Atoms",danger=.true.)) &
-          call builder_stop()
-       call iw_tooltip("Stop adding atoms ("//trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
-    else
-       ldum = iw_button("Add Atoms",disabled=.not.havesys,popupcontext=ok,&
-          popupflags=ImGuiPopupFlags_MouseButtonLeft)
-       if (ok) then
-          izout = iw_periodictable()
-          if (izout > 0) then
-             w%errmsg = ""
-             w%builder_addatom_z = izout
-             w%builder_addatom_ig = addatom_prefgeom(izout)
-             call builder_toggle(vm_builder_addatom)
-             call igCloseCurrentPopup()
-          end if
-          call igEndPopup()
-       end if
-       call iw_tooltip("Choose an element, then click in the view to add atoms of that"//&
-          " element with the selected local geometry (the substituents are hydrogens)."//&
-          " Clicking an atom replaces it with the new atom, keeping the substituents"//&
-          " that are not terminal hydrogens",ttshown)
-    end if
-    ! the selected element, next to the button
-    call iw_text(trim(nameguess(w%builder_addatom_z,.true.)),sameline=.true.)
-    ! the local geometry selector: a grid of pictograms
-    call iw_text("Local geometry",sameline=.true.)
-    call draw_addatom_geom_grid(w%builder_addatom_ig)
-
-    ! the add fragments section
-    call iw_text("Add fragments",highlight=.true.)
-    if (w%builder_vm == vm_builder_addfragment) then
-       ! armed: the button cancels the mode
-       if (iw_button("Add fragment",danger=.true.)) &
-          call builder_stop()
-       call iw_tooltip("Stop adding fragments ("//trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
-    else
-       ldum = iw_button("Add fragment",disabled=.not.havesys,popupcontext=ok,&
-          popupflags=ImGuiPopupFlags_MouseButtonLeft)
-       if (ok) then
-          call fraglib_ensure()
-          if (nfraglib == 0) then
-             call iw_text("No fragments available")
-          else
-             ! one submenu per category, in order of first appearance, with
-             ! the fragments of a "parent/child" category one level deeper
-             do k = 1, nfraglib
-                ! skip a category whose submenu has already been drawn
-                if (.not.fraglib_isfirst(k,.false.)) cycle
-                strcat = trim(fraglib_cat(k)%s) // c_null_char
-                if (igBeginMenu(c_loc(strcat),.true._c_bool)) then
-                   ! the fragments listed directly under this category
-                   do i = 1, nfraglib
-                      if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
-                      if (len_trim(fraglib_sub(i)%s) > 0) cycle
-                      call fragment_menuitem(i)
-                   end do
-                   ! then one submenu per subcategory
-                   do j = 1, nfraglib
-                      if (fraglib_cat(j)%s /= fraglib_cat(k)%s) cycle
-                      if (len_trim(fraglib_sub(j)%s) == 0) cycle
-                      if (.not.fraglib_isfirst(j,.true.)) cycle
-                      strsub = trim(fraglib_sub(j)%s) // c_null_char
-                      if (igBeginMenu(c_loc(strsub),.true._c_bool)) then
-                         do i = 1, nfraglib
-                            if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
-                            if (fraglib_sub(i)%s /= fraglib_sub(j)%s) cycle
-                            call fragment_menuitem(i)
-                         end do
-                         call igEndMenu()
-                      end if
-                   end do
-                   call igEndMenu()
-                end if
-             end do
-          end if
-          call igEndPopup()
-       end if
-       call iw_tooltip("Choose a fragment, then click in the view to add it.",ttshown)
-    end if
-    ! the selected fragment, next to the button
-    if (allocated(w%builder_frag_name)) &
-       call iw_text(trim(w%builder_frag_name),sameline=.true.)
-
-    ! the atoms section
-    call iw_text("Atoms",highlight=.true.)
-    if (iw_button("Remove atoms",disabled=.not.havesys)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_remove)
-    end if
-    call iw_tooltip("Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") the clicked"//&
-       " atoms in the view, along with their terminal hydrogens",ttshown)
-    if (iw_button("Trim branch",disabled=.not.havesys,sameline=.true.)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_trim)
-    end if
-    call iw_tooltip("Remove atoms, their terminal hydrogens, and all disconnected fragments",ttshown)
-
-    ! the valence section
-    call iw_text("Valence",highlight=.true.)
-    if (iw_button("Change",disabled=.not.havesys)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_valence)
-    end if
-    call iw_tooltip("Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") or remove ("//&
-       trim(get_bind_keyname(BIND_PICKATOM_ALT))//") hydrogens on the clicked atoms in the"//&
-       " view, repositioning the terminal substituents",ttshown)
-
-    ! the bonds section
-    call iw_text("Bonds",highlight=.true.)
-    if (iw_button("Rebond",disabled=.not.havesys)) then
-       w%errmsg = ""
-       call sysc(isys)%rebond()
-    end if
-    call iw_tooltip("Recompute the bond connectivity for this system ("//&
-       trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
-    if (iw_button("Create bond",disabled=.not.havesys,sameline=.true.)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_bond)
-    end if
-    call iw_tooltip("Bond two atoms clicked ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-       ") one after the other in the view. Only the connectivity changes: no atom is moved"//&
-       " or deleted",ttshown)
-    if (iw_button("Create bond (-H)",disabled=.not.havesys,sameline=.true.)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_bondh)
-    end if
-    call iw_tooltip("Same as creating a bond, but if both atoms are not hydrogen, each of"//&
-       " them loses a terminal hydrogen, the one pointing most towards the other atom",ttshown)
-    if (iw_button("Remove bond",disabled=.not.havesys)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_bondremove)
-    end if
-    call iw_tooltip("Remove the clicked bond ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-       ")",ttshown)
-    if (iw_button("Bond order",disabled=.not.havesys,sameline=.true.)) then
-       w%errmsg = ""
-       call builder_toggle(vm_builder_bondorder)
-    end if
-    call iw_tooltip("Cycle the order of the bond clicked ("//&
-       trim(get_bind_keyname(BIND_PICKATOM_SELECT))//"): single, double, triple,"//&
-       " aromatic, dashed.",ttshown)
-
-    ! number of measure-selected atoms in the parent view
+    ! number of measure-selected atoms in the parent view: the geometry
+    ! editor works on them
     nsel = 0
     if (goodparent) then
        if (associated(win(iview)%sc)) nsel = win(iview)%sc%nmsel
@@ -519,13 +363,17 @@ contains
 
     ! the keybinding request toggles an edit session: two selected
     ! atoms toggle edit distance, three edit angle, four edit dihedral,
-    ! and otherwise deactivate the active session, if any
+    ! and otherwise deactivate the active session, if any. Either way
+    ! the geometry editor becomes the tool on display, so the panel
+    ! shows the session this opened.
     if (w%edit_pending .or. (w%focused() .and. is_bind_event(BIND_EDIT_D_A_PHI))) then
        w%edit_pending = .false.
        if (nsel >= 2 .and. nsel <= 4) then
           call edit_toggle(nsel)
+          w%builder_tool = it_edit
        elseif (w%edit_kind /= 0) then
           call w%edit_stop()
+          w%builder_tool = it_edit
        end if
     end if
 
@@ -538,207 +386,89 @@ contains
        end if
     end if
 
-    ! edit distance section
-    call iw_text("Edit distance",highlight=.true.)
-    if (w%edit_kind /= 2) &
-       call iw_text("Select two atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
-       "), then press Edit distance or "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI)))
-    ok = (w%edit_kind == 2) .or. (havesys .and. nsel == 2)
-    if (iw_button("Edit distance",disabled=.not.ok)) then
+    ! header: the system this builder operates on
+    call iw_text("System",highlight=.true.)
+    if (havesys) then
+       call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
+    else
+       call iw_text("none",disabled=.true.,sameline=.true.)
+    end if
+
+    ! the tools, one labelled row per group, with the icons of every row
+    ! aligned in a column. A tool is highlighted while it is armed on the
+    ! view, which the user can end from the view itself; the panel below
+    ! keeps showing the options of the tool last chosen here. The rows are
+    ! packed tighter than the rest of the window: there are seven of them,
+    ! and the space they save goes to the panel
+    xicon = iw_calcwidth(10,0)
+    hicon = palscale * fontsize%y + 2._c_float * g%Style%FramePadding%y
+    szrow%x = g%Style%ItemSpacing%x
+    szrow%y = rowspacing
+    call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,szrow)
+
+    call row_label("Add")
+    call tool_button(vm_builder_addatom,.true.)
+    call tool_button(vm_builder_addfragment,.false.)
+
+    call row_label("Valence")
+    call tool_button(vm_builder_valence,.true.)
+
+    call row_label("Remove")
+    call tool_button(vm_builder_remove,.true.)
+    call tool_button(vm_builder_trim,.false.)
+
+    call row_label("Bonds")
+    call tool_button(vm_builder_bond,.true.)
+    call tool_button(vm_builder_bondh,.false.)
+    call tool_button(vm_builder_bondremove,.false.)
+    call tool_button(vm_builder_bondorder,.false.)
+
+    ! the geometry editor is driven by the atoms selected in the view, so
+    ! this row carries the instructions
+    call row_label("Edit",help="Select two, three, or four atoms in the view ("//&
+       trim(get_bind_keyname(BIND_NAV_MEASURE))//"), then press this button or "//&
+       trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//": two atoms edit a distance, three an"//&
+       " angle, and four a dihedral.")
+    call tool_button(it_edit,.true.)
+
+    call row_label("Symmetry")
+    call row_cursor(.true.)
+    if (iw_icon_togglebutton("##buildersymm",icon_tex(icon_ui_symmetry),"Sy",&
+       disabled=.not.havesys,scale=palscale)) then
        w%errmsg = ""
-       call edit_toggle(2)
+       call sysc(isys)%refine_symmetry(w%errmsg)
+       ! hold the camera on the parent view's scene (the main scene when
+       ! the parent is the main view, its private scene otherwise)
+       if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
     end if
-    call iw_tooltip("Edit the distance and bond between the two selected atoms ("//&
-       trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//"); press again to stop",ttshown)
+    call iw_tooltip("Refine symmetry: move the atoms onto their symmetry positions exactly",&
+       ttshown,whendisabled=.true.)
 
-    if (w%edit_kind == 2) then
-       ! the two atoms
-       call edit_atom_labels()
-
-       ! bond type combo
-       ibold = editdist_bondidx()
-       ibnew = ibold
-       call iw_combo_simple("Bond##editdistbond","None"//c_null_char//"Single"//c_null_char//&
-          "Double"//c_null_char//"Triple"//c_null_char//"Dashed"//c_null_char//&
-          "Aromatic"//c_null_char,ibnew)
-       call iw_tooltip("Type of the bond between the two atoms",ttshown)
-       if (ibnew /= ibold) call editdist_setbond(ibold,ibnew)
-
-       ! per-atom move mode combos
-       do iside = 1, 2
-          stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
-          if (w%edit_fragok(iside)) stropt = stropt // "Translate fragment"//c_null_char
-          call iw_combo_simple("Atom "//string(iside)//"##editdistmove"//string(iside),&
-             stropt,w%edit_imove(iside))
-          call iw_tooltip("What moves when the distance changes: nothing (fixed), the atom,"//&
-             " or the whole fragment attached to it",ttshown)
-       end do
-
-       ! distance drag-float (bohr internally, shown in angstrom, no upper bound)
-       dist = norm2(edit_pos(2) - edit_pos(1))
-       if (all(w%edit_imove == 0)) call igBeginDisabled(.true._c_bool)
-       ldum = iw_dragfloat_real8("Distance (Å)##editdistdrag",x1=dist,speed=0.01d0,&
-          min=0.1d0,scale=bohrtoa,decimal=3,notlive=.true.,committed=lcommit,&
-          flags=ImGuiSliderFlags_AlwaysClamp)
-       if (all(w%edit_imove == 0)) then
-          call igEndDisabled()
-       else
-          if (ldum) call editdist_apply(dist)
-          if (lcommit) call edit_commit()
-       end if
-       call iw_tooltip("Distance between the two atoms (Å)",ttshown)
-
-       ! apply button
-       if (iw_button("Apply",danger=.true.)) then
-          w%errmsg = ""
-          call w%edit_stop()
-       end if
-       call iw_tooltip("Keep the current distance and release the two atoms",ttshown)
-    end if
-
-    ! edit angle section
-    call iw_text("Edit angle",highlight=.true.)
-    if (w%edit_kind /= 3) &
-       call iw_text("Select three atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
-       "), then press Edit angle or "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI)))
-    ok = (w%edit_kind == 3) .or. (havesys .and. nsel == 3)
-    if (iw_button("Edit angle",disabled=.not.ok)) then
-       w%errmsg = ""
-       call edit_toggle(3)
-    end if
-    call iw_tooltip("Edit the angle between the three selected atoms, vertex at the"//&
-       " second atom ("//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//"); press again to stop",ttshown)
-
-    if (w%edit_kind == 3) then
-       ! the three atoms
-       call edit_atom_labels()
-
-       ! central atom combo; while the central atom moves, the
-       ! terminals are held fixed (rotation needs a fixed vertex)
-       stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
-       if (w%edit_fragok(2)) stropt = stropt // "Translate group"//c_null_char
-       call iw_combo_simple("Atom 2 (center)##editangmove2",stropt,w%edit_imove(2))
-       call iw_tooltip("What moves when the angle changes: nothing (fixed), the central"//&
-          " atom, or the whole group attached to it",ttshown)
-       if (w%edit_imove(2) > 0) then
-          w%edit_imove(1) = 0
-          w%edit_imove(3) = 0
-       end if
-
-       ! terminal atom combos (rotation available only with a fixed center)
-       do iside = 1, 3, 2
-          stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
-          if (w%edit_fragok(iside)) stropt = stropt // "Rotate group"//c_null_char
-          if (w%edit_imove(2) > 0) call igBeginDisabled(.true._c_bool)
-          call iw_combo_simple("Atom "//string(iside)//"##editangmove"//string(iside),&
-             stropt,w%edit_imove(iside))
-          if (w%edit_imove(2) > 0) call igEndDisabled()
-          call iw_tooltip("What moves when the angle changes: nothing (fixed), the"//&
-             " terminal atom, or the whole group attached to it, rotating about the"//&
-             " central atom",ttshown)
-       end do
-
-       ! angle drag-float (degrees)
-       ang = editang_angat(edit_pos(2)) * 180d0 / pi
-       if (all(w%edit_imove == 0)) call igBeginDisabled(.true._c_bool)
-       ldum = iw_dragfloat_real8("Angle (°)##editangdrag",x1=ang,speed=0.2d0,&
-          min=0d0,max=180d0,decimal=2,notlive=.true.,committed=lcommit,&
-          flags=ImGuiSliderFlags_AlwaysClamp)
-       if (all(w%edit_imove == 0)) then
-          call igEndDisabled()
-       else
-          if (ldum) call editang_apply(ang)
-          if (lcommit) call edit_commit()
-       end if
-       call iw_tooltip("Angle between the three atoms (degrees)",ttshown)
-
-       ! apply button
-       if (iw_button("Apply##editang",danger=.true.)) then
-          w%errmsg = ""
-          call w%edit_stop()
-       end if
-       call iw_tooltip("Keep the current angle and release the three atoms",ttshown)
-    end if
-
-    ! edit dihedral section
-    call iw_text("Edit dihedral",highlight=.true.)
-    if (w%edit_kind /= 4) &
-       call iw_text("Select four atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
-       "), then press Edit dihedral or "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI)))
-    ok = (w%edit_kind == 4) .or. (havesys .and. nsel == 4)
-    if (iw_button("Edit dihedral",disabled=.not.ok)) then
-       w%errmsg = ""
-       call edit_toggle(4)
-    end if
-    call iw_tooltip("Edit the dihedral angle of the four selected atoms about the 2-3"//&
-       " bond ("//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//"); press again to stop",ttshown)
-
-    if (w%edit_kind == 4) then
-       ! the four atoms
-       call edit_atom_labels()
-
-       ! terminal atom combos (atoms 2 and 3 always stay fixed)
-       do iside = 1, 4, 3
-          stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
-          if (w%edit_fragok(iside)) stropt = stropt // "Rotate group (fix 2-3)"//c_null_char
-          ! fragok(2)/(3) = validity of the half adjacent to terminal 1/4
-          if (w%edit_fragok(merge(2,3,iside == 1))) &
-             stropt = stropt // "Rotate group (move 2-3)"//c_null_char
-          call iw_combo_simple("Atom "//string(iside)//"##editdihmove"//string(iside),&
-             stropt,w%edit_imove(iside))
-          call iw_tooltip("What rotates about the 2-3 axis when the dihedral changes:"//&
-             " nothing (fixed), the terminal atom, the group attached to it (the"//&
-             " substituents of atoms 2 and 3 stay fixed), or the whole half severed"//&
-             " at the 2-3 bond (the environments of atoms 2 and 3 stay rigid)",ttshown)
-       end do
-
-       ! dihedral drag-float (degrees)
-       ang = editdih_val() * 180d0 / pi
-       if (all(w%edit_imove == 0)) call igBeginDisabled(.true._c_bool)
-       ldum = iw_dragfloat_real8("Dihedral (°)##editdihdrag",x1=ang,speed=0.2d0,&
-          min=-180d0,max=180d0,decimal=2,notlive=.true.,committed=lcommit,&
-          flags=ImGuiSliderFlags_AlwaysClamp)
-       if (all(w%edit_imove == 0)) then
-          call igEndDisabled()
-       else
-          if (ldum) call editdih_apply(ang)
-          if (lcommit) call edit_commit()
-       end if
-       call iw_tooltip("Dihedral angle of the four atoms (degrees)",ttshown)
-
-       ! apply button
-       if (iw_button("Apply##editdih",danger=.true.)) then
-          w%errmsg = ""
-          call w%edit_stop()
-       end if
-       call iw_tooltip("Keep the current dihedral and release the four atoms",ttshown)
-    end if
-
-    ! transient highlight of the latched atoms
-    if (w%edit_kind /= 0) &
-       call sysc(w%edit_isys)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
-       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
-
-    ! transient highlight of the atom staged for a new bond
-    if (w%builder_bond%is_staged()) &
-       call sysc(w%builder_isys)%highlight_atoms(.true.,w%builder_bond%idx(1:1),&
-       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
-
-    ! the relax section
-    call iw_text("Relax",highlight=.true.)
+    ! the relaxation: the button starts and stops the run, and the
+    ! method and the convergence threshold follow it on the same row
     relaxing = .false.
+    mdshown = .false.
     if (havesys) then
        relaxing = sysc(isys)%md_run .and. sysc(isys)%md%mode == md_relax
+       mdshown = sysc(isys)%md%ready .and. sysc(isys)%md%nat > 0 .and.&
+          sysc(isys)%md%mode == md_relax
        ! resolve the method before the button (the combo below would
        ! only snap an inapplicable backend after this frame's click)
        if (sysc(isys)%md_backend < 0 .or.&
           .not.ff_backend_applicable(sysc(isys)%md_backend,sys(isys)%c)) &
           sysc(isys)%md_backend = ff_backend_default(sys(isys)%c)
     end if
-    if (.not.relaxing) then
-       ok = havesys
-       if (ok) ok = .not.sysc(isys)%md_run
-       if (iw_button("Relax",danger=.true.,disabled=.not.ok)) then
+    call row_label("Relax")
+    call row_cursor(.true.)
+    lstate = relaxing
+    ok = havesys
+    if (ok) ok = relaxing .or. .not.sysc(isys)%md_run
+    if (iw_icon_togglebutton("##builderrelax",icon_tex(icon_ui_relax),"Rx",state=lstate,&
+       disabled=.not.ok,danger=relaxing,scale=palscale)) then
+       if (relaxing) then
+          call sysc(isys)%md_stop()
+          if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
+       else
           ! release any edit session (a running relaxation ends it anyway)
           call w%edit_stop()
           call sysc(isys)%md_start(md_relax,errmsg)
@@ -747,30 +477,25 @@ contains
              if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
           end if
        end if
-       call iw_tooltip("Relax the geometry to the nearest energy minimum, stopping when"//&
-          " the maximum force falls below the threshold",ttshown)
-    else
-       if (iw_button("Stop",danger=.true.)) then
-          call sysc(isys)%md_stop()
-          if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
-       end if
+    end if
+    if (relaxing) then
        call iw_tooltip("Stop the geometry relaxation ("//&
           trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
+    else
+       call iw_tooltip("Relax the geometry to the nearest energy minimum, stopping when"//&
+          " the maximum force falls below the threshold",ttshown,whendisabled=.true.)
     end if
-
     if (havesys) then
-       ! method combo, next to the button
+       ! method combo and force convergence threshold, next to the button
        call draw_ff_backend_combo(isys,"##builderrelaxmethod",15)
        call iw_tooltip("Method for the calculation of energies and forces",ttshown)
-
-       ! force convergence threshold
-       ldum = iw_dragfloat_real8("Force threshold (eV/Å)##relaxfconv",x1=sysc(isys)%md%fconv,&
-          speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
+       ldum = iw_dragfloat_real8("Fmax (eV/Å)##relaxfconv",x1=sysc(isys)%md%fconv,&
+          speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,sameline=.true.,&
+          flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Stop the relaxation when the maximum force falls below this value",ttshown)
 
        ! live status: energy and maximum force
-       if (sysc(isys)%md%ready .and. sysc(isys)%md%nat > 0 .and.&
-          sysc(isys)%md%mode == md_relax) then
+       if (mdshown) then
           call iw_text("Energy: "//string(sysc(isys)%md%epot,'f',decimal=6)//" Ha")
           call iw_text("Max force: "//string(sysc(isys)%md%maxforce(),'f',decimal=4)//" eV/Å")
           if (.not.sysc(isys)%md_run .and. sysc(isys)%md%converged()) &
@@ -783,22 +508,74 @@ contains
              call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.)
        end if
     end if
+    call igPopStyleVar(1)
 
-    ! the symmetry section
-    call iw_text("Symmetry",highlight=.true.)
-    if (iw_button("Refine symmetry",disabled=.not.havesys)) then
-       w%errmsg = ""
-       call sysc(isys)%refine_symmetry(w%errmsg)
-       ! hold the camera on the parent view's scene (the main scene when
-       ! the parent is the main view, its private scene otherwise)
-       if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+    ! the options of the tool on display, in a child region so that only
+    ! this part scrolls: the footer buttons stay in view
+    call igSeparator()
+    nrline = 0
+    if (len_trim(w%errmsg) > 0) nrline = 1
+    reserve = iw_calcheight(1,nrline,.true.) + 2._c_float*g%Style%ItemSpacing%y
+    strchild = "##buildertoolpanel" // c_null_char
+    szchild%x = 0._c_float
+    szchild%y = -reserve
+    if (igBeginChild_Str(c_loc(strchild),szchild,.false._c_bool,ImGuiWindowFlags_None)) then
+       select case (w%builder_tool)
+       case (vm_builder_addatom)
+          call panel_addatom()
+       case (vm_builder_addfragment)
+          call panel_addfragment()
+       case (it_edit)
+          call panel_edit()
+       case (it_none)
+          call panel_text("Choose a tool above to edit the structure by clicking in the"//&
+             " view. Selecting atoms in the view ("//&
+             trim(get_bind_keyname(BIND_NAV_MEASURE))//") enables the geometry editor.")
+       case default
+          call panel_pick(w%builder_tool)
+       end select
     end if
-    call iw_tooltip("Refine the geometry having atoms occupy their symmetry positions exactly",ttshown)
+    call igEndChild()
+    call igSeparator()
+
+    ! transient highlight of the latched atoms
+    if (w%edit_kind /= 0) &
+       call sysc(w%edit_isys)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
+       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
+
+    ! transient highlight of the atom staged for a new bond
+    if (w%builder_bond%is_staged()) &
+       call sysc(w%builder_isys)%highlight_atoms(.true.,w%builder_bond%idx(1:1),&
+       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
 
     ! error message, if any
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
+    ! the two actions that discard work (the bonds the user made by hand,
+    ! and every edit in the session), then the close button
+    if (iw_button("Rebond",danger=.true.,disabled=.not.havesys)) then
+       w%errmsg = ""
+       call sysc(isys)%rebond()
+    end if
+    call iw_tooltip("Recompute the bond connectivity for this system, discarding the bonds"//&
+       " created or removed by hand ("//trim(get_bind_keyname(BIND_RECALC_BONDS))//")",&
+       ttshown,whendisabled=.true.)
+    if (iw_button("Restore",danger=.true.,disabled=.not.havesys,sameline=.true.)) then
+       w%errmsg = ""
+       ! drop any edit session without rebuilding (the geometry is
+       ! discarded) and treat the system as not ready for the rest of this
+       ! frame: the re-read deallocates sys(isys)%c until the init thread runs
+       w%edit_dirty = .false.
+       call w%edit_stop()
+       call reread_system_from_file(isys)
+       havesys = .false.
+    end if
+    call iw_tooltip("Restore the system to the original geometry it had when it was"//&
+       " first opened, discarding every edit ("//&
+       trim(get_bind_keyname(BIND_REOPEN))//")",ttshown,whendisabled=.true.)
+
     ! close button and binds
+    call iw_setposx_fromend(5,1)
     if (iw_button("Close")) doquit = .true.
     call iw_tooltip("Close this window",ttshown)
     if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
@@ -810,6 +587,433 @@ contains
        call w%end()
 
   contains
+    ! Open a row of the toolbar with its section label, latching the top
+    ! of the row in yrow. The label is centered on the icon buttons,
+    ! which are taller than a text line. help adds a help marker after
+    ! the label, for a row that needs instructions.
+    subroutine row_label(str,help)
+      character(len=*), intent(in) :: str
+      character(len=*), intent(in), optional :: help
+
+      yrow = igGetCursorPosY()
+      call igSetCursorPosY(yrow + 0.5_c_float * (hicon - igGetTextLineHeight()))
+      call iw_text(str,highlight=.true.)
+      if (present(help)) call iw_helpermark(help)
+
+    end subroutine row_label
+
+    ! Place the cursor for the next widget of the current toolbar row: at
+    ! the icon column for the first one, after the previous one
+    ! otherwise, and always at the top of the row. Without the last part
+    ! they would line up with the label, which sits lower to center it on
+    ! the buttons (igSameLine restores the y of the previous line, not of
+    ! the previous item).
+    subroutine row_cursor(first)
+      logical, intent(in) :: first
+
+      if (first) then
+         call igSameLine(xicon,0._c_float)
+      else
+         call igSameLine(0._c_float,-1._c_float)
+      end if
+      call igSetCursorPosY(yrow)
+
+    end subroutine row_cursor
+
+    ! Draw the toolbar button of tool itool, highlighted while the tool
+    ! is armed on the view. first is whether it opens its row.
+    subroutine tool_button(itool,first)
+      integer, intent(in) :: itool
+      logical, intent(in) :: first
+
+      logical :: state, disabled
+      integer(c_int) :: itex
+      character(len=:), allocatable :: fallback
+
+      call row_cursor(first)
+      if (itool == it_edit) then
+         ! the geometry editor needs the atoms selected in the view
+         state = (w%edit_kind /= 0)
+         disabled = .not.(w%edit_kind /= 0 .or. (havesys .and. nsel >= 2 .and. nsel <= 4))
+         itex = icon_tex(icon_ui_editgeom)
+         fallback = "dA"
+      else
+         state = (w%builder_vm == itool)
+         disabled = .not.havesys
+         call viewmode_icon(itool,itex,fallback)
+      end if
+      if (iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
+         state=state,disabled=disabled,scale=palscale)) &
+         call pal_click(itool)
+      ! the tooltip text is only built when it is about to be shown: a
+      ! palette of these would rebuild ten of them every frame
+      if (tooltip_enabled) then
+         if (igIsItemHovered(ior(ImGuiHoveredFlags_AllowWhenBlockedByPopup,&
+            ImGuiHoveredFlags_AllowWhenDisabled))) &
+            call iw_tooltip(tool_tooltip(itool),ttshown,whendisabled=.true.)
+      end if
+
+    end subroutine tool_button
+
+    ! Handle a click on the palette button of tool itool: show its
+    ! options in the panel, and arm it (or disarm it, if it was the
+    ! active tool).
+    subroutine pal_click(itool)
+      integer, intent(in) :: itool
+
+      w%errmsg = ""
+      w%builder_tool = itool
+      if (itool == it_edit) then
+         ! the same dispatch as the keybinding, so the button and the key
+         ! never disagree: the selection chooses the kind, and asking for
+         ! the kind already running stops it
+         if (nsel >= 2 .and. nsel <= 4) then
+            call edit_toggle(nsel)
+         elseif (w%edit_kind /= 0) then
+            call w%edit_stop()
+         end if
+      elseif (itool /= vm_builder_addfragment .or. w%builder_frag_nat > 0) then
+         call builder_toggle(itool)
+      else
+         ! with no fragment chosen yet there is nothing to arm, but
+         ! whatever the user is leaving must not stay active behind the
+         ! panel (builder_toggle would have ended both)
+         call builder_stop()
+         call w%edit_stop()
+      end if
+
+    end subroutine pal_click
+
+    ! The tooltip for the palette button of tool itool: its name and
+    ! what clicking in the view will do.
+    function tool_tooltip(itool) result(str)
+      integer, intent(in) :: itool
+      character(len=:), allocatable :: str
+
+      character(len=:), allocatable :: descr
+
+      if (itool == it_edit) then
+         str = "Edit geometry: change the distance, angle, or dihedral of the atoms"//&
+            " selected in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//"):"//&
+            " two atoms for a distance, three for an angle, four for a dihedral ("//&
+            trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//")"
+      else
+         str = trim(vmnames(itool))
+         descr = mode_descr(itool)
+         if (len_trim(descr) > 0) str = str // ": " // trim(descr)
+      end if
+
+    end function tool_tooltip
+
+    ! What clicking in the view does in mode imode, as the parent view
+    ! itself would announce it (empty if there is no parent view).
+    function mode_descr(jmode) result(descr)
+      integer, intent(in) :: jmode
+      character(len=:), allocatable :: descr
+
+      character(len=:), allocatable :: hint, picklbl, altlbl
+
+      descr = ""
+      if (goodparent) &
+         call viewmode_text(win(iview),jmode,hint,descr,picklbl,altlbl)
+
+    end function mode_descr
+
+    ! A paragraph of text, wrapped to the width of the panel.
+    subroutine panel_text(str)
+      character(len=*), intent(in) :: str
+
+      character(len=:,kind=c_char), allocatable, target :: strl
+
+      strl = trim(str) // c_null_char
+      call igPushTextWrapPos(0._c_float)
+      call igTextWrapped(c_loc(strl))
+      call igPopTextWrapPos()
+
+    end subroutine panel_text
+
+    ! Panel for a tool whose only interaction is clicking in the view:
+    ! what the click does, and how far along the two-click bond
+    ! operations are.
+    subroutine panel_pick(itool)
+      integer, intent(in) :: itool
+
+      integer :: iat
+      logical :: okat
+      character(len=:), allocatable :: descr
+
+      descr = mode_descr(itool)
+      if (len_trim(descr) > 0) call panel_text(descr)
+      if (vm_is_bondmode(itool) .and. w%builder_bond%is_staged()) then
+         iat = w%builder_bond%idx(1)
+         okat = havesys
+         if (okat) okat = (iat >= 1 .and. iat <= sys(isys)%c%ncel)
+         if (okat) &
+            call iw_text("First atom: "//&
+            trim(sys(isys)%c%at(sys(isys)%c%atcel(iat)%idx)%name)//string(iat)//&
+            " (click the second one)",highlight=.true.)
+      end if
+      ! the user can exit the mode from the view itself (cancel key, right
+      ! click), but the panel keeps its options, so one click resumes it
+      if (w%builder_vm /= itool) &
+         call iw_text("Not active: click the tool button to resume",disabled=.true.)
+
+    end subroutine panel_pick
+
+    ! Panel for the add-atoms tool: the element and the local geometry
+    ! of the fragment that each click adds.
+    subroutine panel_addatom()
+
+      integer :: izout
+
+      call igAlignTextToFramePadding()
+      call iw_text("Element")
+      ldum = iw_button(trim(nameguess(w%builder_addatom_z,.true.))//"##builderelement",&
+         sameline=.true.,disabled=.not.havesys,popupcontext=ok,&
+         popupflags=ImGuiPopupFlags_MouseButtonLeft)
+      if (ok) then
+         izout = iw_periodictable()
+         if (izout > 0) then
+            w%errmsg = ""
+            w%builder_addatom_z = izout
+            w%builder_addatom_ig = addatom_prefgeom(izout)
+            call igCloseCurrentPopup()
+         end if
+         call igEndPopup()
+      end if
+      call iw_tooltip("Element of the atoms this tool adds: click to choose it from the"//&
+         " periodic table",ttshown)
+      call iw_text("Local geometry",sameline=.true.)
+      call iw_tooltip("Arrangement of the hydrogen substituents around the new atom",ttshown)
+      call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
+      call panel_pick(vm_builder_addatom)
+
+    end subroutine panel_addatom
+
+    ! Panel for the add-fragments tool: the library chooser, the name of
+    ! the fragment on deck, and its diagram.
+    subroutine panel_addfragment()
+
+      call igAlignTextToFramePadding()
+      call iw_text("Fragment")
+      ldum = iw_button("Choose...##builderfragment",sameline=.true.,disabled=.not.havesys,&
+         popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+      if (ok) then
+         call fragment_library_menu()
+         call igEndPopup()
+      end if
+      call iw_tooltip("Choose the fragment this tool adds from the library",ttshown)
+      if (allocated(w%builder_frag_name)) then
+         call iw_text(trim(w%builder_frag_name),highlight=.true.,sameline=.true.)
+      else
+         call iw_text("(none chosen)",disabled=.true.,sameline=.true.)
+      end if
+      ! the diagram of the fragment on deck (its own texture slot: the
+      ! chooser evicts the hover slot as the user runs down the menu)
+      if (w%builder_frag_ilib > 0) then
+         if (fragimg_ensure(w%builder_frag_ilib,fragslot_sel)) &
+            call draw_fragment_diagram(8._c_float*igGetTextLineHeight(),fragslot_sel)
+      end if
+      if (w%builder_frag_nat > 0) call panel_pick(vm_builder_addfragment)
+
+    end subroutine panel_addfragment
+
+    ! The fragment library as nested menus: one submenu per category, in
+    ! order of first appearance, with the fragments of a "parent/child"
+    ! category one level deeper.
+    subroutine fragment_library_menu()
+
+      integer :: i, j, k
+      character(kind=c_char,len=:), allocatable, target :: strcat, strsub
+
+      call fraglib_ensure()
+      if (nfraglib == 0) then
+         call iw_text("No fragments available")
+         return
+      end if
+      do k = 1, nfraglib
+         ! skip a category whose submenu has already been drawn
+         if (.not.fraglib_isfirst(k,.false.)) cycle
+         strcat = trim(fraglib_cat(k)%s) // c_null_char
+         if (igBeginMenu(c_loc(strcat),.true._c_bool)) then
+            ! the fragments listed directly under this category
+            do i = 1, nfraglib
+               if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
+               if (len_trim(fraglib_sub(i)%s) > 0) cycle
+               call fragment_menuitem(i)
+            end do
+            ! then one submenu per subcategory
+            do j = 1, nfraglib
+               if (fraglib_cat(j)%s /= fraglib_cat(k)%s) cycle
+               if (len_trim(fraglib_sub(j)%s) == 0) cycle
+               if (.not.fraglib_isfirst(j,.true.)) cycle
+               strsub = trim(fraglib_sub(j)%s) // c_null_char
+               if (igBeginMenu(c_loc(strsub),.true._c_bool)) then
+                  do i = 1, nfraglib
+                     if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
+                     if (fraglib_sub(i)%s /= fraglib_sub(j)%s) cycle
+                     call fragment_menuitem(i)
+                  end do
+                  call igEndMenu()
+               end if
+            end do
+            call igEndMenu()
+         end if
+      end do
+
+    end subroutine fragment_library_menu
+
+    ! Panel for the geometry editor: with no session running, how to
+    ! start one; with a session running, the controls for the distance,
+    ! angle, or dihedral being edited (the kind follows from how many
+    ! atoms were selected).
+    subroutine panel_edit()
+
+      integer :: iside, ibold, ibnew
+      real*8 :: dist, ang
+      character(len=:), allocatable :: stropt
+
+      if (w%edit_kind == 0) then
+         call panel_text("Select two atoms in the view ("//&
+            trim(get_bind_keyname(BIND_NAV_MEASURE))//") to edit a distance, three for an"//&
+            " angle, or four for a dihedral, then press "//&
+            trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//" or the tool button.")
+         if (nsel > 0) &
+            call iw_text(string(nsel)//" atoms selected in the view",highlight=.true.)
+         return
+      end if
+
+      ! the latched atoms, common to the three kinds
+      call edit_atom_labels()
+
+      select case (w%edit_kind)
+      case (2)
+         ! bond type combo
+         ibold = editdist_bondidx()
+         ibnew = ibold
+         call iw_combo_simple("Bond##editdistbond","None"//c_null_char//"Single"//c_null_char//&
+            "Double"//c_null_char//"Triple"//c_null_char//"Dashed"//c_null_char//&
+            "Aromatic"//c_null_char,ibnew)
+         call iw_tooltip("Type of the bond between the two atoms",ttshown)
+         if (ibnew /= ibold) call editdist_setbond(ibold,ibnew)
+
+         ! per-atom move mode combos
+         do iside = 1, 2
+            stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
+            if (w%edit_fragok(iside)) stropt = stropt // "Translate fragment"//c_null_char
+            call iw_combo_simple("Atom "//string(iside)//"##editdistmove"//string(iside),&
+               stropt,w%edit_imove(iside))
+            call iw_tooltip("What moves when the distance changes: nothing (fixed), the atom,"//&
+               " or the whole fragment attached to it",ttshown)
+         end do
+
+         ! distance drag-float (bohr internally, shown in angstrom, no upper bound)
+         dist = norm2(edit_pos(2) - edit_pos(1))
+         if (edit_drag("Distance (Å)##editdistdrag",dist,0.01d0,3,0.1d0,scal=bohrtoa)) &
+            call editdist_apply(dist)
+         call iw_tooltip("Distance between the two atoms (Å)",ttshown)
+         call edit_apply_button("","distance")
+      case (3)
+         ! central atom combo; while the central atom moves, the
+         ! terminals are held fixed (rotation needs a fixed vertex)
+         stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
+         if (w%edit_fragok(2)) stropt = stropt // "Translate group"//c_null_char
+         call iw_combo_simple("Atom 2 (center)##editangmove2",stropt,w%edit_imove(2))
+         call iw_tooltip("What moves when the angle changes: nothing (fixed), the central"//&
+            " atom, or the whole group attached to it",ttshown)
+         if (w%edit_imove(2) > 0) then
+            w%edit_imove(1) = 0
+            w%edit_imove(3) = 0
+         end if
+
+         ! terminal atom combos (rotation available only with a fixed center)
+         do iside = 1, 3, 2
+            stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
+            if (w%edit_fragok(iside)) stropt = stropt // "Rotate group"//c_null_char
+            if (w%edit_imove(2) > 0) call igBeginDisabled(.true._c_bool)
+            call iw_combo_simple("Atom "//string(iside)//"##editangmove"//string(iside),&
+               stropt,w%edit_imove(iside))
+            if (w%edit_imove(2) > 0) call igEndDisabled()
+            call iw_tooltip("What moves when the angle changes: nothing (fixed), the"//&
+               " terminal atom, or the whole group attached to it, rotating about the"//&
+               " central atom",ttshown)
+         end do
+
+         ! angle drag-float (degrees)
+         ang = editang_angat(edit_pos(2)) * 180d0 / pi
+         if (edit_drag("Angle (°)##editangdrag",ang,0.2d0,2,0d0,vmax=180d0)) &
+            call editang_apply(ang)
+         call iw_tooltip("Angle between the three atoms (degrees)",ttshown)
+         call edit_apply_button("##editang","angle")
+      case (4)
+         ! terminal atom combos (atoms 2 and 3 always stay fixed)
+         do iside = 1, 4, 3
+            stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
+            if (w%edit_fragok(iside)) stropt = stropt // "Rotate group (fix 2-3)"//c_null_char
+            ! fragok(2)/(3) = validity of the half adjacent to terminal 1/4
+            if (w%edit_fragok(merge(2,3,iside == 1))) &
+               stropt = stropt // "Rotate group (move 2-3)"//c_null_char
+            call iw_combo_simple("Atom "//string(iside)//"##editdihmove"//string(iside),&
+               stropt,w%edit_imove(iside))
+            call iw_tooltip("What rotates about the 2-3 axis when the dihedral changes:"//&
+               " nothing (fixed), the terminal atom, the group attached to it (the"//&
+               " substituents of atoms 2 and 3 stay fixed), or the whole half severed"//&
+               " at the 2-3 bond (the environments of atoms 2 and 3 stay rigid)",ttshown)
+         end do
+
+         ! dihedral drag-float (degrees)
+         ang = editdih_val() * 180d0 / pi
+         if (edit_drag("Dihedral (°)##editdihdrag",ang,0.2d0,2,-180d0,vmax=180d0)) &
+            call editdih_apply(ang)
+         call iw_tooltip("Dihedral angle of the four atoms (degrees)",ttshown)
+         call edit_apply_button("##editdih","dihedral")
+      end select
+
+    end subroutine panel_edit
+
+    ! The drag-float that sets the value of the running edit session. It
+    ! is disabled while nothing is set to move, so that no value can be
+    ! applied then; releasing it commits the edit. Returns whether val
+    ! changed and the caller must apply it.
+    function edit_drag(strid,val,speed,dec,vmin,vmax,scal) result(changed)
+      character(len=*), intent(in) :: strid
+      real*8, intent(inout) :: val
+      real*8, intent(in) :: speed, vmin
+      integer, intent(in) :: dec
+      real*8, intent(in), optional :: vmax, scal
+      logical :: changed
+
+      logical :: locked, lcommit
+
+      locked = all(w%edit_imove == 0)
+      if (locked) call igBeginDisabled(.true._c_bool)
+      changed = iw_dragfloat_real8(strid,x1=val,speed=speed,min=vmin,max=vmax,scale=scal,&
+         decimal=dec,notlive=.true.,committed=lcommit,flags=ImGuiSliderFlags_AlwaysClamp)
+      if (locked) then
+         call igEndDisabled()
+         changed = .false.
+      elseif (lcommit) then
+         call edit_commit()
+      end if
+
+    end function edit_drag
+
+    ! The button that ends the edit session keeping the value it has
+    ! reached. noun is what is being edited (distance, angle, dihedral).
+    subroutine edit_apply_button(strid,noun)
+      character(len=*), intent(in) :: strid, noun
+
+      character(len=*), parameter :: natom(2:4) = (/"two  ","three","four "/)
+
+      if (iw_button("Apply"//strid,danger=.true.)) then
+         w%errmsg = ""
+         call w%edit_stop()
+      end if
+      call iw_tooltip("Keep the current "//noun//" and release the "//&
+         trim(natom(w%edit_kind))//" atoms",ttshown)
+
+    end subroutine edit_apply_button
+
     ! Per-frame validity of the active edit session: the parent view
     ! must show the same system, the latched atoms must exist, dynamics
     ! must not be running, and no external geometry or bond edit may
@@ -876,6 +1080,10 @@ contains
          w%errmsg = "Edit " // kname // " is not available while dynamics is running"
          return
       end if
+      ! the session is going ahead: an armed pick mode and an edit
+      ! session are mutually exclusive, so release it here, past every
+      ! check that can still bail out with the mode left alone
+      if (w%builder_vm /= 0) call builder_stop()
       call edit_latch(ikind)
       call edit_latch_groups(ikind)
 
@@ -1647,9 +1855,9 @@ contains
       ! a skeletal diagram of the fragment while the entry is hovered
       if (tooltip_enabled) then
          if (igIsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup)) then
-            if (fragimg_ensure(i)) then
+            if (fragimg_ensure(i,fragslot_hover)) then
                call igBeginTooltip()
-               call draw_fragment_diagram(10._c_float*igGetTextLineHeight())
+               call draw_fragment_diagram(10._c_float*igGetTextLineHeight(),fragslot_hover)
                call igEndTooltip()
             end if
          end if
@@ -1657,7 +1865,13 @@ contains
 
       if (clicked) then
          w%errmsg = ""
-         if (addfrag_load(i)) call builder_toggle(vm_builder_addfragment)
+         ! picking another fragment while the tool is armed only swaps
+         ! the fragment: toggling would disarm the tool
+         if (addfrag_load(i)) then
+            w%builder_tool = vm_builder_addfragment
+            if (w%builder_vm /= vm_builder_addfragment) &
+               call builder_toggle(vm_builder_addfragment)
+         end if
          call igCloseCurrentPopup()
       end if
 
@@ -1672,8 +1886,12 @@ contains
 
       integer :: nat, ia, it
 
+      ! forget the fragment on deck: the panel must not keep showing the
+      ! name and the diagram of the previous one next to the error
       ok = .false.
       w%builder_frag_nat = 0
+      w%builder_frag_ilib = 0
+      if (allocated(w%builder_frag_name)) deallocate(w%builder_frag_name)
       if (ifrag < 1 .or. ifrag > nfraglib) return
 
       call fraglib_geometry(ifrag,nat,w%builder_frag_z,w%builder_frag_x,ia,it,ok)
@@ -1687,15 +1905,20 @@ contains
       w%builder_frag_iattach = it
       w%builder_frag_radius = fraglib_radius(ifrag)
       w%builder_frag_name = trim(fraglib_name(ifrag)%s)
+      w%builder_frag_ilib = ifrag
 
     end function addfrag_load
 
     ! Toggle builder mode jvm (a vm_* constant): start it on the parent
     ! view, or stop it if it is already the active mode. Starting a mode
-    ! while another one is active switches to the new mode.
+    ! while another one is active switches to the new mode. A pick mode
+    ! and an edit session cannot coexist: the first click of the new mode
+    ! would kill the session anyway (the geometry event trips
+    ! edit_session_ok), so end it here, where the user can see why.
     subroutine builder_toggle(jvm)
       integer, intent(in) :: jvm
 
+      if (w%edit_kind /= 0 .and. w%builder_vm /= jvm) call w%edit_stop()
       call bondmode_toggle(w,iview,isys,jvm)
     end subroutine builder_toggle
   end subroutine draw_builder
@@ -2353,24 +2576,29 @@ contains
 
   !> Draw the add-atoms local-geometry selector: a grid of square
   !> pictograms, one per geometry. ig is the current selection (0-based
-  !> index), updated when an icon is clicked. Hovering an icon shows
-  !> the geometry name.
-  subroutine draw_addatom_geom_grid(ig)
+  !> index), updated when an icon is clicked. sidefac is the side of a
+  !> pictogram, in text line heights. Hovering an icon shows the
+  !> geometry name.
+  subroutine draw_addatom_geom_grid(ig,sidefac)
     use gui_main, only: g
     use utils, only: iw_tooltip
     integer, intent(inout) :: ig
+    real(c_float), intent(in) :: sidefac
 
-    integer :: i
+    integer :: i, ncol
     logical :: hovered
-    type(ImVec2) :: sz, p0, p1
+    type(ImVec2) :: sz, p0, p1, szavail
     type(c_ptr) :: dl
     integer(c_int) :: col
     real(c_float) :: side
     character(len=:,kind=c_char), allocatable, target :: str1
 
-    integer, parameter :: ncol = 7 ! icons per row
+    side = sidefac * igGetTextLineHeightWithSpacing()
 
-    side = 2.2_c_float * igGetTextLineHeightWithSpacing()
+    ! as many icons per row as fit in the available width
+    call igGetContentRegionAvail(szavail)
+    ncol = int((szavail%x + g%Style%ItemInnerSpacing%x) / (side + g%Style%ItemInnerSpacing%x))
+    ncol = max(min(ncol,naddgeom),4)
     sz%x = side
     sz%y = side
     str1 = "##geomicon" // c_null_char
@@ -2688,18 +2916,18 @@ contains
 
   end subroutine fraglib_geometry
 
-  ! Draw the structural diagram of library fragment ifrag as an inline
+  ! Draw the structural diagram held in texture slot islot as an inline
   ! image of the given side length. The diagrams are pre-rendered
-  ! (dat/assets/fragments) and loaded on demand into a one-slot texture
-  ! cache, since the menu is hovered one entry at a time.
-  subroutine draw_fragment_diagram(side)
+  ! (dat/assets/fragments) and loaded on demand by fragimg_ensure.
+  subroutine draw_fragment_diagram(side,islot)
     use interfaces_opengl3
     real(c_float), intent(in) :: side
+    integer, intent(in) :: islot
 
     type(ImVec2) :: sz, uv0, uv1
     type(ImVec4) :: tint, nobord
 
-    if (fragimg_tex == 0) return
+    if (fragimg_tex(islot) == 0) return
     sz%x = side
     sz%y = side
     uv0%x = 0._c_float
@@ -2708,19 +2936,19 @@ contains
     uv1%y = 1._c_float
     tint = ImVec4(1._c_float,1._c_float,1._c_float,1._c_float)
     nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
-    call igImage(int(fragimg_tex,c_intptr_t),sz,uv0,uv1,tint,nobord)
+    call igImage(int(fragimg_tex(islot),c_intptr_t),sz,uv0,uv1,tint,nobord)
 
   end subroutine draw_fragment_diagram
 
-  ! Load the diagram of library fragment ifrag into the one-slot texture
-  ! cache. Returns .false. if the fragment has no image, so the caller
-  ! can skip the tooltip instead of opening an empty one.
-  function fragimg_ensure(ifrag)
+  ! Load the diagram of library fragment ifrag into texture slot islot.
+  ! Returns .false. if the fragment has no image, so the caller can skip
+  ! the tooltip instead of opening an empty one.
+  function fragimg_ensure(ifrag,islot)
     use interfaces_stb, only: stbi_load, stbi_image_free
     use interfaces_opengl3
     use global, only: critic_home
     use param, only: dirsep
-    integer, intent(in) :: ifrag
+    integer, intent(in) :: ifrag, islot
     logical :: fragimg_ensure
 
     integer(c_int) :: iwidth, iheight, ichannel
@@ -2729,21 +2957,21 @@ contains
 
     fragimg_ensure = .false.
     if (ifrag < 1 .or. ifrag > nfraglib) return
-    if (fragimg_idx == ifrag) then
-       fragimg_ensure = (fragimg_tex /= 0)
+    if (fragimg_idx(islot) == ifrag) then
+       fragimg_ensure = (fragimg_tex(islot) /= 0)
        return
     end if
 
-    if (fragimg_tex /= 0) call glDeleteTextures(1,c_loc(fragimg_tex))
-    fragimg_tex = 0
-    fragimg_idx = ifrag
+    if (fragimg_tex(islot) /= 0) call glDeleteTextures(1,c_loc(fragimg_tex(islot)))
+    fragimg_tex(islot) = 0
+    fragimg_idx(islot) = ifrag
     file = trim(critic_home) // dirsep // "assets" // dirsep // "fragments" //&
        dirsep // trim(fraglib_name(ifrag)%s) // ".png" // c_null_char
     pixels = stbi_load(c_loc(file),iwidth,iheight,ichannel,4)
     if (.not.c_associated(pixels)) return
 
-    call glGenTextures(1,c_loc(fragimg_tex))
-    call glBindTexture(GL_TEXTURE_2D,fragimg_tex)
+    call glGenTextures(1,c_loc(fragimg_tex(islot)))
+    call glBindTexture(GL_TEXTURE_2D,fragimg_tex(islot))
     call glPixelStorei(GL_UNPACK_ALIGNMENT,1)
     call glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,iwidth,iheight,0,GL_RGBA,&
        GL_UNSIGNED_BYTE,pixels)

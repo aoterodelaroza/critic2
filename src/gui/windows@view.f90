@@ -1317,8 +1317,9 @@ contains
   !> sentence or two heading the mode tooltip, and picklbl/altlbl are
   !> the tooltip key-table labels for the main and alternate pick binds
   !> (empty picklbl = use the generic bindnames label, empty altlbl =
-  !> the mode has no alternate action).
-  subroutine viewmode_text(w,mode,hint,descr,picklbl,altlbl)
+  !> the mode has no alternate action). w is the view window showing the
+  !> mode (the builder passes its parent view, for the armed-fragment name).
+  module subroutine viewmode_text(w,mode,hint,descr,picklbl,altlbl)
     use keybindings, only: get_bind_keyname, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
        BIND_CANCEL, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES,&
        BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE
@@ -1427,6 +1428,76 @@ contains
     end function kn
   end subroutine viewmode_text
 
+  !> The glyph that stands for view mode mode wherever it is offered or
+  !> announced (the mouse cursor, the builder palette, the geometry
+  !> window): itex is the icon texture (0 if the asset did not load) and
+  !> fallback the short label to draw in its place.
+  module subroutine viewmode_icon(mode,itex,fallback)
+    use icons, only: icon_tex, icon_vm_remove, icon_vm_trim, icon_vm_bond,&
+       icon_vm_fragment, icon_vm_pick, icon_vm_select, icon_vm_move,&
+       icon_vm_mdinteract, icon_vm_bondrm, icon_vm_bondorder, icon_vm_bondh,&
+       icon_vm_valence, icon_vm_addatom
+    integer, intent(in) :: mode
+    integer(c_int), intent(out) :: itex
+    character(len=:), allocatable, intent(out), optional :: fallback
+
+    integer :: iicon
+    character(len=:), allocatable :: fall ! deferred: some glyphs are multi-byte UTF-8
+
+    iicon = 0
+    fall = ""
+    select case (mode)
+    case (vm_select)
+       iicon = icon_vm_select
+       fall = "Se"
+    case (vm_movemol,vm_moveatom)
+       ! moving one atom deforms the molecule, moving a whole one does not
+       iicon = icon_vm_move
+       fall = "Mv"
+    case (vm_mdinteract)
+       iicon = icon_vm_mdinteract
+       fall = "MD"
+    case (vm_pick_atom)
+       iicon = icon_vm_pick
+       fall = "Pk"
+    case (vm_builder_valence)
+       iicon = icon_vm_valence
+       fall = "±H"
+    case (vm_builder_remove)
+       iicon = icon_vm_remove
+       fall = "-A"
+    case (vm_builder_trim)
+       iicon = icon_vm_trim
+       fall = "Tr"
+    case (vm_builder_bondremove)
+       iicon = icon_vm_bondrm
+       fall = "-B"
+    case (vm_builder_bondorder)
+       iicon = icon_vm_bondorder
+       fall = "Or"
+    case (vm_builder_bondh)
+       iicon = icon_vm_bondh
+       fall = "BH"
+    case (vm_builder_bond)
+       iicon = icon_vm_bond
+       fall = "Bo"
+    case (vm_builder_addatom)
+       iicon = icon_vm_addatom
+       fall = "+A"
+    case (vm_builder_addfragment)
+       iicon = icon_vm_fragment
+       fall = "+F"
+    end select
+
+    itex = 0
+    if (iicon > 0) itex = icon_tex(iicon)
+    ! the -H variant deletes a hydrogen from each atom; the plain one
+    ! only adds connectivity
+    if (itex == 0 .and. mode == vm_builder_bondh) itex = icon_tex(icon_vm_bond)
+    if (present(fallback)) fallback = fall
+
+  end subroutine viewmode_icon
+
   !> Returns the one-line identity of the atom under the cursor for
   !> the view bar.
   function hover_identity(w,idx) result(msg)
@@ -1481,9 +1552,6 @@ contains
   !> rather than a glyph (empty = none), and tint is the colour for
   !> either.
   subroutine cursor_icon(w,itex,txt,tint)
-    use icons, only: icon_tex, icon_vm_remove, icon_vm_trim, icon_vm_bond,&
-       icon_vm_fragment, icon_vm_pick, icon_vm_select, icon_vm_move,&
-       icon_vm_mdinteract, icon_vm_bondrm, icon_vm_bondorder
     use tools_io, only: nameguess
     class(window), intent(in) :: w
     integer(c_int), intent(out) :: itex
@@ -1493,45 +1561,21 @@ contains
     real(c_float), parameter :: col_red(4) = (/0.93_c_float,0.24_c_float,0.24_c_float,1._c_float/)
     real(c_float), parameter :: col_black(4) = (/0._c_float,0._c_float,0._c_float,1._c_float/)
 
-    itex = 0
     txt = ""
     tint = col_red
+    call viewmode_icon(w%viewmode,itex)
 
+    ! the modes whose cursor is not just the mode glyph in red
     select case (w%viewmode)
-    case (vm_select)
-       itex = icon_tex(icon_vm_select)
-    case (vm_moveatom)
-       ! moving one atom deforms the molecule, moving a whole one does not
-       itex = icon_tex(icon_vm_move)
-    case (vm_movemol)
-       itex = icon_tex(icon_vm_move)
+    case (vm_movemol,vm_builder_bond)
        tint = col_black
-    case (vm_mdinteract)
-       itex = icon_tex(icon_vm_mdinteract)
-    case (vm_pick_atom)
-       itex = icon_tex(icon_vm_pick)
     case (vm_builder_valence)
-       txt = "±H"
-    case (vm_builder_remove)
-       itex = icon_tex(icon_vm_remove)
-    case (vm_builder_trim)
-       itex = icon_tex(icon_vm_trim)
-    case (vm_builder_bondremove)
-       itex = icon_tex(icon_vm_bondrm)
-    case (vm_builder_bondorder)
-       itex = icon_tex(icon_vm_bondorder)
-    case (vm_builder_bondh)
-       ! the -H variant deletes a hydrogen from each atom; the plain one
-       ! only adds connectivity
-       itex = icon_tex(icon_vm_bond)
-    case (vm_builder_bond)
-       itex = icon_tex(icon_vm_bond)
-       tint = col_black
+       ! the ± sign stands in when the asset is missing
+       if (itex == 0) txt = "±H"
     case (vm_builder_addatom)
-       ! the symbol of the element about to be added
+       ! the symbol of the element about to be added, not the tool glyph
+       itex = 0
        if (w%vmdata%tooltip_iz > 0) txt = trim(nameguess(w%vmdata%tooltip_iz,.true.))
-    case (vm_builder_addfragment)
-       itex = icon_tex(icon_vm_fragment)
     end select
 
   end subroutine cursor_icon

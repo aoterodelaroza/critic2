@@ -612,6 +612,7 @@ contains
     w%editrep_pick_slot = 0
     call w%editrep_pick%clear()
     w%wc_started = .false.
+    w%builder_tool = it_none
     w%builder_vm = 0
     w%builder_isys = 0
     ! (edit-session markers are cleared by the edit_stop call above, and
@@ -841,7 +842,7 @@ contains
           w%name = "Water Cluster Demonstration" // "##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
-          inisize%y = 24 * fontsize%y
+          inisize%y = 30 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_geometry) then
           w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
@@ -864,8 +865,9 @@ contains
        elseif (w%type == wintype_builder) then
           w%name = "Builder##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 45 * fontsize%x
-          inisize%y = 10 * fontsize%y
+          ! wide enough for the tool palette on a single row
+          inisize%x = 63 * fontsize%x
+          inisize%y = 30 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if

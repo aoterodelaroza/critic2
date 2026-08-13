@@ -1363,9 +1363,10 @@ contains
   !> the off style). If popupcontext and popupflags are given, open a
   !> context popup attached to the button and return whether it is
   !> open. If danger, tint the icon red (fallback: danger button
-  !> color).
+  !> color). scale multiplies the icon side (default 1), for palettes
+  !> where the glyph is the only label.
   module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
-     popupcontext,popupflags,danger) result(changed)
+     popupcontext,popupflags,danger,scale) result(changed)
     use interfaces_cimgui
     use gui_main, only: g, fontsize, ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: strid
@@ -1377,9 +1378,11 @@ contains
     logical, intent(inout), optional :: popupcontext
     integer(c_int), intent(in), optional :: popupflags
     logical, intent(in), optional :: danger
+    real(c_float), intent(in), optional :: scale
     logical :: changed
 
     logical :: disabled_, danger_, state_
+    real(c_float) :: side
     type(ImVec2) :: sz, uv0, uv1
     type(ImVec4) :: bgcol, tintcol
     character(kind=c_char,len=:), allocatable, target :: strl
@@ -1390,6 +1393,8 @@ contains
     if (present(danger)) danger_ = danger
     state_ = .false.
     if (present(state)) state_ = state
+    side = fontsize%y
+    if (present(scale)) side = scale * fontsize%y
     if (present(sameline)) then
        if (sameline) call igSameLine(0._c_float,-1._c_float)
     end if
@@ -1403,7 +1408,7 @@ contains
     end if
     call igBeginDisabled(logical(disabled_,c_bool))
     if (tex /= 0) then
-       sz = ImVec2(fontsize%y,fontsize%y)
+       sz = ImVec2(side,side)
        uv0 = ImVec2(0._c_float,0._c_float)
        uv1 = ImVec2(1._c_float,1._c_float)
        bgcol = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
@@ -1416,7 +1421,11 @@ contains
        changed = logical(igImageButtonEx(igGetID_Str(c_loc(strl)),int(tex,c_intptr_t),sz,uv0,uv1,&
           g%Style%FramePadding,bgcol,tintcol))
     else
-       sz = ImVec2(0._c_float,0._c_float)
+       ! same footprint as the icon branch, so a row of these lays out
+       ! identically whether or not the assets loaded (a zero height
+       ! would give the default frame height, ignoring the scale)
+       sz = ImVec2(side + 2._c_float*g%Style%FramePadding%x,&
+          side + 2._c_float*g%Style%FramePadding%y)
        strl = fallback // "###" // strid // c_null_char
        if (danger_) &
           call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
@@ -1448,19 +1457,23 @@ contains
 
   !> Create a wrapped tooltip, maybe with a delay to show. ttshown
   !> activates the delay, and is the show flag for the delayed tooltip.
-  module subroutine iw_tooltip(str,ttshown,rgba,nowrap)
+  !> whendisabled shows the tooltip also for a disabled widget, which is
+  !> where the user most needs to be told why it cannot be used.
+  module subroutine iw_tooltip(str,ttshown,rgba,nowrap,whendisabled)
     use interfaces_cimgui
     use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled, fontsize
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
     real(c_float), intent(in), optional :: rgba(4)
     logical, intent(in), optional :: nowrap
+    logical, intent(in), optional :: whendisabled
 
     character(len=:,kind=c_char), allocatable, target :: strloc
     integer :: flags
     type(ImVec4) :: col
     logical :: nowrap_
 
+    if (.not.tooltip_enabled) return
     nowrap_ = .false.
     if (present(nowrap)) nowrap_ = nowrap
     if (present(rgba)) then
@@ -1471,8 +1484,10 @@ contains
        call igPushStyleColor_Vec4(ImGuiCol_Text,col)
     end if
 
-    if (.not.tooltip_enabled) return
     flags = ImGuiHoveredFlags_AllowWhenBlockedByPopup
+    if (present(whendisabled)) then
+       if (whendisabled) flags = ior(flags,ImGuiHoveredFlags_AllowWhenDisabled)
+    end if
     if (present(ttshown)) then
        if (igIsItemHovered_delayed(flags,tooltip_delay,ttshown)) call show_tooltip()
     else

@@ -57,6 +57,15 @@ module windows
   integer, parameter, public :: vm_builder_lo = vm_builder_bondorder ! lower bound of the builder-mode range
   integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
 
+  ! The tool selected in the builder toolbar (window%builder_tool), which
+  ! chooses what the contextual panel shows. A tool that arms a pick mode
+  ! is identified by its vm_builder_* constant (negative); it_edit is the
+  ! distance/angle/dihedral editor, which is driven by the selection
+  ! instead; it_none is no tool. it_edit sits above the view modes so
+  ! that the two sets of constants never collide.
+  integer, parameter, public :: it_none = 0
+  integer, parameter, public :: it_edit = vm_NUM + 1
+
   character(len=17), parameter, public :: vmnames(vm_builder_lo:vm_NUM) = (/&
      "Bond Order       ",& ! vm_builder_bondorder
      "Remove Bonds     ",& ! vm_builder_bondremove
@@ -228,6 +237,7 @@ module windows
      type(pairpick) :: geometry_addbond ! staged atom waiting for an add-bond pick
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      ! builder parameters
+     integer :: builder_tool = it_none ! tool selected in the palette, whose options the panel shows (it_* or a vm_builder_* mode)
      integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else one of the vm_builder_* modes)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
@@ -235,6 +245,7 @@ module windows
      integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
      integer :: builder_addatom_ig = 6 ! add atoms: local geometry (0-based combo index, 6 = tetrahedral)
      character(len=:), allocatable :: builder_frag_name ! add fragments: name of the selected fragment
+     integer :: builder_frag_ilib = 0 ! add fragments: library index of the selected fragment (0 = none)
      integer :: builder_frag_nat = 0 ! add fragments: number of atoms in the fragment
      integer, allocatable :: builder_frag_z(:) ! add fragments: atomic numbers
      real*8, allocatable :: builder_frag_x(:,:) ! add fragments: Cartesian coordinates (bohr)
@@ -578,6 +589,16 @@ module windows
      module subroutine viewmode_bar_display(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_bar_display
+     module subroutine viewmode_text(w,mode,hint,descr,picklbl,altlbl)
+       class(window), intent(in) :: w
+       integer, intent(in) :: mode
+       character(len=:), allocatable, intent(out) :: hint, descr, picklbl, altlbl
+     end subroutine viewmode_text
+     module subroutine viewmode_icon(mode,itex,fallback)
+       integer, intent(in) :: mode
+       integer(c_int), intent(out) :: itex
+       character(len=:), allocatable, intent(out), optional :: fallback
+     end subroutine viewmode_icon
      module function viewmode_activate_picking(w,hover)
        class(window), intent(inout), target :: w
        logical, intent(in) :: hover

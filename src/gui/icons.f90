@@ -57,7 +57,14 @@ module icons
   integer, parameter, public :: icon_vm_mdinteract = 28 ! interactive dynamics (atom in motion)
   integer, parameter, public :: icon_vm_bondrm = 29  ! remove bonds (a broken bond)
   integer, parameter, public :: icon_vm_bondorder = 30 ! cycle the bond order (a double bond)
-  integer, parameter, public :: icon_NUM = 30
+  integer, parameter, public :: icon_vm_addatom = 31 ! add atoms (an atom and a plus)
+  integer, parameter, public :: icon_vm_valence = 32 ! add or remove hydrogens (±H)
+  integer, parameter, public :: icon_vm_bondh = 33   ! create bonds dropping a hydrogen (bond and -H)
+  ! icon IDs: builder toolbar
+  integer, parameter, public :: icon_ui_editgeom = 34 ! edit distance/angle/dihedral (angle between two bonds)
+  integer, parameter, public :: icon_ui_symmetry = 35 ! refine symmetry (motifs across a mirror plane)
+  integer, parameter, public :: icon_ui_relax = 36    ! relax the geometry (atom in an energy well)
+  integer, parameter, public :: icon_NUM = 36
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90
