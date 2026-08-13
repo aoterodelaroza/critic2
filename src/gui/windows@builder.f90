@@ -579,9 +579,8 @@ contains
     if (igBeginChild_Str(c_loc(strchild),szchild,.false._c_bool,ImGuiWindowFlags_None)) then
        select case (w%builder_tool)
        case (vm_builder_addatom)
-          call panel_addatom()
-       case (vm_builder_addfragment)
-          call panel_addfragment()
+          call panel_pick(vm_builder_addatom)
+          call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
        case (it_edit)
           call panel_edit()
        case (it_none)
@@ -998,31 +997,6 @@ contains
       end if
 
     end subroutine panel_pick
-
-    ! Panel for the add-atoms tool: the local geometry of the fragment
-    ! that each click adds (the element comes from the toolbar button).
-    subroutine panel_addatom()
-
-      call panel_pick(vm_builder_addatom)
-      call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
-
-    end subroutine panel_addatom
-
-    ! Panel for the add-fragments tool: the name of the fragment on deck
-    ! and its diagram, which is to this tool what the local geometry is
-    ! to add-atoms (the fragment itself is chosen on the button).
-    subroutine panel_addfragment()
-
-      call panel_pick(vm_builder_addfragment)
-      if (allocated(w%builder_frag_name)) &
-         call iw_text(trim(w%builder_frag_name),highlight=.true.)
-      ! its own texture slot: running down the chooser evicts the hover one
-      if (w%builder_frag_ilib > 0) then
-         if (fragimg_ensure(w%builder_frag_ilib,fragslot_sel)) &
-            call draw_fragment_diagram(8._c_float*igGetTextLineHeight(),fragslot_sel)
-      end if
-
-    end subroutine panel_addfragment
 
     ! The fragment library as nested menus: one submenu per category, in
     ! order of first appearance, with the fragments of a "parent/child"
