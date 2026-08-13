@@ -265,11 +265,12 @@ contains
        iw_calcwidth, iw_calcheight, iw_setposx_fromend
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS,&
        BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_PICKATOM_EXIT,&
        BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
-    use param, only: bohrtoa, pi, eye
+    use param, only: bohrtoa, pi, eye, newline
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel
@@ -288,7 +289,7 @@ contains
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
     real(c_float), parameter :: palscale = 1.25_c_float ! toolbar icons, in font heights
     real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
-    real(c_float), parameter :: recentscale = 2.1_c_float ! recent-entry squares, in font heights
+    real(c_float), parameter :: recentscale = 2.6_c_float ! recent-entry squares, in font heights
 
     ! do we have a good parent window (a view)? A hidden view is still
     ! good: the builder survives the hide and the mode can be released
@@ -443,6 +444,11 @@ contains
        end if
     end if
 
+    ! No tool is on display unless one is running
+    if (w%builder_vm == 0 .and. w%edit_kind == 0 .and.&
+       .not.(w%builder_tool == vm_builder_addfragment .and. w%builder_frag_nat == 0)) &
+       w%builder_tool = it_none
+
     ! header: the system this builder operates on
     call iw_text("System",highlight=.true.)
     if (havesys) then
@@ -451,12 +457,7 @@ contains
        call iw_text("none",disabled=.true.,sameline=.true.)
     end if
 
-    ! the tools, one labelled row per group, with the icons of every row
-    ! aligned in a column. A tool is highlighted while it is armed on the
-    ! view, which the user can end from the view itself; the panel below
-    ! keeps showing the options of the tool last chosen here. The rows are
-    ! packed tighter than the rest of the window: there are seven of them,
-    ! and the space they save goes to the panel
+    ! the tools, one labelled row per group
     xicon = iw_calcwidth(10,0)
     hicon = palscale * fontsize%y + 2._c_float * g%Style%FramePadding%y
     szrow%x = g%Style%ItemSpacing%x
@@ -700,13 +701,10 @@ contains
          disabled = .not.havesys
          call viewmode_icon(itool,itex,fallback)
       end if
-      if (itool == vm_builder_addatom .and. .not.state) then
-         ! the tool needs an element before it can add anything: the idle
-         ! button opens the periodic table, and picking there arms it.
-         ! Leaving the popup without a pick leaves the tool alone (the
-         ! button carries no state here, so its click does nothing else)
+      if (itool == vm_builder_addatom) then
+         ! the button opens the periodic table whether or not it is armed
          ldum_ = iw_icon_togglebutton("##bldtool"//string(itool),itex,fallback,&
-            disabled=disabled,scale=palscale,popupcontext=lpop,&
+            state=state,disabled=disabled,scale=palscale,popupcontext=lpop,&
             popupflags=ImGuiPopupFlags_MouseButtonLeft)
          if (lpop) then
             iz = iw_periodictable()
@@ -715,7 +713,8 @@ contains
                w%builder_addatom_z = iz
                w%builder_addatom_ig = addatom_prefgeom(iz)
                w%builder_tool = vm_builder_addatom
-               call builder_toggle(vm_builder_addatom)
+               if (w%builder_vm /= vm_builder_addatom) &
+                  call builder_toggle(vm_builder_addatom)
                call igCloseCurrentPopup()
             end if
             call igEndPopup()
@@ -907,7 +906,7 @@ contains
       if (itool == it_edit) then
          str = "Edit geometry: change the distance, angle, or dihedral of the atoms"//&
             " selected in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//"):"//&
-            " two atoms for a distance, three for an angle, four for a dihedral ("//&
+            " two atoms for a distance, three for an angle, four for a dihedral (shorcut: "//&
             trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//")"
       else
          str = trim(vmnames(itool))
@@ -965,18 +964,12 @@ contains
             trim(sys(isys)%c%at(sys(isys)%c%atcel(iat)%idx)%name)//string(iat)//&
             " (click the second one)",highlight=.true.)
       end if
-      ! the user can exit the mode from the view itself (cancel key, right
-      ! click), but the panel keeps its options, so one click resumes it
-      if (w%builder_vm /= itool) &
-         call iw_text("Not active: click the tool button to resume",disabled=.true.)
 
     end subroutine panel_pick
 
-    ! Panel for the add-atoms tool: the element and the local geometry
-    ! of the fragment that each click adds.
+    ! Panel for the add-atoms tool: the local geometry of the fragment
+    ! that each click adds (the element comes from the toolbar button).
     subroutine panel_addatom()
-
-      integer :: izout
 
       call igAlignTextToFramePadding()
       call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
@@ -2861,7 +2854,7 @@ contains
     type(ImVec2) :: cen, pa, pb, q1, q2, tsz
     type(ImVec4) :: cv
     integer(c_int) :: col
-    real(c_float) :: ux, uy, blen, f, hw, rstart, sluma
+    real(c_float) :: ux, uy, blen, f, hw, rstart, rmax, sluma
     character(len=:,kind=c_char), allocatable, target :: str1
 
     real(c_float), parameter :: r0rat = 0.14_c_float ! central circle radius (fraction of side)
@@ -2902,12 +2895,18 @@ contains
        rstart = max(rstart,0.55_c_float * sqrt(tsz%x*tsz%x + tsz%y*tsz%y))
     end if
 
+    ! the bonds must end inside the box, wedges included. The symbol is
+    ! drawn at the font size, so in a small box it can push the start of
+    ! the bonds so far out that the tips would stick out of it
+    rmax = (0.5_c_float - wedgerat) * side
+    rstart = min(rstart,rmax - 0.12_c_float * side)
+
     do k = 1, nb
        ! bond direction on screen (angles counterclockwise from +x, screen y points down)
        a = ang(k) * pi / 180d0
        ux = real(cos(a),c_float)
        uy = -real(sin(a),c_float)
-       blen = rstart + (blrat * real(lfac(k),c_float) - r0rat) * side
+       blen = min(rstart + (blrat * real(lfac(k),c_float) - r0rat) * side,rmax)
        pa%x = cen%x + rstart * ux
        pa%y = cen%y + rstart * uy
        pb%x = cen%x + blen * ux
