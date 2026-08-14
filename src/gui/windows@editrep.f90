@@ -2215,12 +2215,11 @@ contains
   !> Draw the editrep (Object) window, measurements class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_measure(w,ttshown) result(changed)
-    use representations, only: measurement_item, reptype_atoms
+    use representations, only: measurement_item
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_button, iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable
+       iw_button, iw_atom_button, iw_calcheight, iw_close_button, iw_intstepper,&
+       iw_highlight_selectable
     use systems, only: sys, sysc, atlisttype_ncel_frac
-    use gui_main, only: ColorButtonHoverFactor, ColorButtonActiveFactor, lumweights,&
-       ColorBlack, ColorWhite
     use tools_io, only: string
     use param, only: pi, bohrtoa
     use interfaces_glfw, only: glfwGetTime
@@ -2503,42 +2502,23 @@ contains
 
       integer :: cid
       integer(c_int) :: idxfull(4)
-      real(c_float) :: rgb(3), lum
+      real(c_float) :: rgb(3)
       logical :: havergb, clicked
       character(len=:), allocatable :: lbl
-      type(ImVec4) :: col4
 
       idxfull = w%rep%measure%item(iitem)%idx(:,islot)
       cid = idxfull(1)
       havergb = .false.
+      rgb = 0._c_float
       if (cid >= 1 .and. cid <= sys(w%isys)%c%ncel) then
-         lbl = one_atom(idxfull)
-         havergb = atom_view_rgb(cid,rgb)
+         lbl = anchor_label(w%isys,idxfull,"?",species=.true.)
+         havergb = atom_view_rgb(iview,w%isys,atlisttype_ncel_frac,cid,rgb)
       else
          lbl = "?"
       end if
 
-      if (havergb) then
-         col4 = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
-         call igPushStyleColor_Vec4(ImGuiCol_Button,col4)
-         col4 = ImVec4(min(rgb(1)*ColorButtonHoverFactor,1._c_float),&
-            min(rgb(2)*ColorButtonHoverFactor,1._c_float),&
-            min(rgb(3)*ColorButtonHoverFactor,1._c_float),1._c_float)
-         call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,col4)
-         col4 = ImVec4(rgb(1)*ColorButtonActiveFactor,rgb(2)*ColorButtonActiveFactor,&
-            rgb(3)*ColorButtonActiveFactor,1._c_float)
-         call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,col4)
-         ! readable label: black on light atoms, white on dark ones
-         lum = lumweights(1)*rgb(1)+lumweights(2)*rgb(2)+lumweights(3)*rgb(3)
-         if (lum > 0.5_c_float) then
-            col4 = ColorBlack
-         else
-            col4 = ColorWhite
-         end if
-         call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
-      end if
-      clicked = iw_button(lbl // idn,disabled=(w%editrep_pick_item > 0))
-      if (havergb) call igPopStyleColor(4)
+      clicked = iw_atom_button(lbl // idn,rgb,havergb=havergb,&
+         disabled=(w%editrep_pick_item > 0))
       call iw_tooltip("Atom " // lbl // " (click to pick a replacement in the view)",ttshown)
 
       ! command the parent view into pick mode; the poll at the top of
@@ -2551,42 +2531,6 @@ contains
             "Pick the replacement atom",w%id)
       end if
     end subroutine atom_button
-
-    !> Color of cell atom cid from the first shown atoms representation in the
-    !> parent view; returns .true. and fills rgb if found. Mirrors the geometry
-    !> window's color_from_view.
-    function atom_view_rgb(cid,rgb) result(have)
-      integer, intent(in) :: cid
-      real(c_float), intent(out) :: rgb(3)
-      logical :: have
-
-      integer :: iview, jrep, idd
-
-      have = .false.
-      rgb = 0._c_float
-      iview = w%idparent
-      if (iview < 1 .or. iview > nwin) return
-      if (.not.associated(win(iview)%sc)) return
-      do jrep = 1, win(iview)%sc%nrep
-         if (win(iview)%sc%rep(jrep)%type == reptype_atoms .and. win(iview)%sc%rep(jrep)%isinit .and.&
-            win(iview)%sc%rep(jrep)%shown) then
-            idd = sysc(w%isys)%attype_type_id_to_id(atlisttype_ncel_frac,cid,&
-               win(iview)%sc%rep(jrep)%atoms%style%type)
-            if (idd /= 0) then
-               have = .true.
-               rgb = win(iview)%sc%rep(jrep)%atoms%style%rgb(:,idd)
-               return
-            end if
-         end if
-      end do
-    end function atom_view_rgb
-
-    !> Short atom label: name + cell index (+ lattice vector).
-    function one_atom(idx) result(s)
-      integer(c_int), intent(in) :: idx(4)
-      character(len=:), allocatable :: s
-      s = anchor_label(w%isys,idx,"?")
-    end function one_atom
 
     !> Current value of a measurement, formatted with units (or "(stale)" if an
     !> anchor atom no longer exists).
@@ -2623,21 +2567,33 @@ contains
 
   end function draw_editrep_measure
 
-  !> Short atom-anchor label: species name + cell-atom index (+ lattice vector),
-  !> or `notset` when idx does not name a valid cell atom of system isys.
-  !> Submodule-local helper shared by the text and measurement editors.
-  function anchor_label(isys,idx,notset) result(s)
+  !> Short atom-anchor label: atom name + "#" + cell-atom index (+ lattice
+  !> vector), or `notset` when idx does not name a valid cell atom of system
+  !> isys. With species, the species name and a space are used instead, which
+  !> is the shorter form the atom buttons want. Submodule-local helper shared
+  !> by the text and measurement editors.
+  function anchor_label(isys,idx,notset,species) result(s)
     use systems, only: sys
     use tools_io, only: string
     integer, intent(in) :: isys
     integer(c_int), intent(in) :: idx(4)
     character(len=*), intent(in) :: notset
+    logical, intent(in), optional :: species
     character(len=:), allocatable :: s
+
+    logical :: species_
+
+    species_ = .false.
+    if (present(species)) species_ = species
 
     if (idx(1) < 1 .or. idx(1) > sys(isys)%c%ncel) then
        s = notset
     else
-       s = trim(sys(isys)%c%at(sys(isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
+       if (species_) then
+          s = trim(sys(isys)%c%spc(sys(isys)%c%atcel(idx(1))%is)%name) // " " // string(idx(1))
+       else
+          s = trim(sys(isys)%c%at(sys(isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
+       end if
        if (any(idx(2:4) /= 0)) &
           s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
     end if

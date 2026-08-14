@@ -493,6 +493,11 @@ module windows
        integer, intent(in) :: mode
        logical :: vm_exits_on_empty
      end function vm_exits_on_empty
+     module function atom_view_rgb(iview,isys,itype,iat,rgb) result(have)
+       integer, intent(in) :: iview, isys, itype, iat
+       real(c_float), intent(out) :: rgb(3)
+       logical :: have
+     end function atom_view_rgb
      module subroutine windows_init()
      end subroutine windows_init
      module subroutine stack_realloc_maybe()

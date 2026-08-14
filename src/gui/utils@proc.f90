@@ -1308,6 +1308,77 @@ contains
 
   end function iw_button
 
+  !> Draw a button labeled str whose background is the color rgb of the
+  !> atom it stands for, with the label in black or white, whichever
+  !> reads better on it. havergb = the color is known; if false, the
+  !> button keeps the default colors. disabled = grayed out and
+  !> unresponsive. inert = does not react to the mouse and never
+  !> returns pressed, for buttons that only display an atom. Returns
+  !> .true. when clicked.
+  module function iw_atom_button(str,rgb,havergb,sameline,disabled,inert) result(pressed)
+    use interfaces_cimgui
+    use gui_main, only: g, ColorButtonHoverFactor, ColorButtonActiveFactor, lumweights,&
+       ColorBlack, ColorWhite
+    character(len=*,kind=c_char), intent(in) :: str
+    real(c_float), intent(in) :: rgb(3)
+    logical, intent(in) :: havergb
+    logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: disabled
+    logical, intent(in), optional :: inert
+    logical :: pressed
+
+    logical :: inert_
+    integer(c_int) :: npop
+    type(ImVec4) :: cbase, col4
+
+    inert_ = .false.
+    if (present(inert)) inert_ = inert
+
+    ! the background color: the atom's, or the default button color
+    if (havergb) then
+       cbase = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
+    else
+       cbase = g%Style%Colors(ImGuiCol_Button+1)
+    end if
+
+    ! the three button states. An inert button keeps the same color in
+    ! all of them, so it does not light up under the mouse. Nothing
+    ! needs pushing if the color is the default one and it does react.
+    npop = 0
+    if (havergb .or. inert_) then
+       call igPushStyleColor_Vec4(ImGuiCol_Button,cbase)
+       if (inert_) then
+          col4 = cbase
+       else
+          col4 = ImVec4(min(cbase%x*ColorButtonHoverFactor,1._c_float),&
+             min(cbase%y*ColorButtonHoverFactor,1._c_float),&
+             min(cbase%z*ColorButtonHoverFactor,1._c_float),cbase%w)
+       end if
+       call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,col4)
+       if (.not.inert_) &
+          col4 = ImVec4(cbase%x*ColorButtonActiveFactor,cbase%y*ColorButtonActiveFactor,&
+          cbase%z*ColorButtonActiveFactor,cbase%w)
+       call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,col4)
+       npop = 3
+    end if
+
+    ! readable label: black on light atoms, white on dark ones
+    if (havergb) then
+       if (dot_product(lumweights,rgb) > 0.5_c_float) then
+          col4 = ColorBlack
+       else
+          col4 = ColorWhite
+       end if
+       call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
+       npop = npop + 1
+    end if
+
+    pressed = iw_button(str,sameline=sameline,disabled=disabled)
+    if (npop > 0) call igPopStyleColor(npop)
+    if (inert_) pressed = .false.
+
+  end function iw_atom_button
+
   !> Draw a clickable icon button of side fontsize%y: an invisible button
   !> (id from strid) with the tinted texture tex drawn on top, brightened
   !> while hovered. If the texture is unavailable (tex==0), the fallback

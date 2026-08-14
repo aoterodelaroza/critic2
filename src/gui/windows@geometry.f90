@@ -37,7 +37,7 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
-    use representations, only: reptype_atoms, reptype_symelem, repflavor_symelem
+    use representations, only: reptype_symelem, repflavor_symelem
     use crystalmod, only: symop_kind_plane, symop_kind_axis
     use windows, only: iwin_view, iwin_tree
     use interfaces_glfw, only: glfwGetTime
@@ -51,13 +51,11 @@ contains
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
-       ColorHighlightBondScene2,&
-       ColorTableHighlightRow, ColorBlack, ColorWhite, ColorButtonHoverFactor,&
-       ColorButtonActiveFactor, lumweights
-    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
-       iw_inputint3, iw_icon_togglebutton
+       ColorHighlightBondScene2, ColorTableHighlightRow
+    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight,&
+       iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
+       iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
+       iw_inputint, iw_inputint3, iw_icon_togglebutton
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
@@ -86,7 +84,7 @@ contains
     integer :: istate ! scratch selection state
     real(c_float) :: rrgba(4) ! scratch highlight color
     type(ImVec2) :: szavail, szero, sz0
-    real(c_float) :: combowidth, rgb(3), lum
+    real(c_float) :: combowidth, rgb(3)
     integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, ivadd, im, jm, ncon
     integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
     integer :: natused_bonds ! bonds tab: number of distinct atomic species present
@@ -1673,34 +1671,13 @@ contains
                             bondword = "unknown"
                          end select
 
-                         ! color the button with the bonded atom's color from the view
+                         ! the button (colored by the bonded atom's color in the
+                         ! view, prefixed by the bond-type glyph). Left-click
+                         ! opens a menu, right-click removes the bond.
                          havergb_ = color_from_view(atlisttype_ncel_frac,jj,rgb)
-                         if (havergb_) then
-                            col4 = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
-                            call igPushStyleColor_Vec4(ImGuiCol_Button,col4)
-                            col4 = ImVec4(min(rgb(1)*ColorButtonHoverFactor,1._c_float),&
-                               min(rgb(2)*ColorButtonHoverFactor,1._c_float),&
-                               min(rgb(3)*ColorButtonHoverFactor,1._c_float),1._c_float)
-                            call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,col4)
-                            col4 = ImVec4(rgb(1)*ColorButtonActiveFactor,rgb(2)*ColorButtonActiveFactor,&
-                               rgb(3)*ColorButtonActiveFactor,1._c_float)
-                            call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,col4)
-                            ! readable label: black on light atoms, white on dark ones
-                            lum = lumweights(1)*rgb(1)+lumweights(2)*rgb(2)+lumweights(3)*rgb(3)
-                            if (lum > 0.5_c_float) then
-                               col4 = ColorBlack
-                            else
-                               col4 = ColorWhite
-                            end if
-                            call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
-                         end if
-
-                         ! the button (colored by the bonded atom, prefixed by
-                         ! the bond-type glyph). Left-click opens a menu,
-                         ! right-click removes the bond.
-                         ldum = iw_button(bondglyph // " " // string(jj) //&
-                            "##bond" // suffix // "_" // string(j),sameline=.true.)
-                         if (havergb_) call igPopStyleColor(4)
+                         ldum = iw_atom_button(bondglyph // " " // string(jj) //&
+                            "##bond" // suffix // "_" // string(j),rgb,havergb=havergb_,&
+                            sameline=.true.)
 
                          ! hovering highlights the row's atom and marks this
                          ! neighbor, and shows a tooltip with the bond details;
@@ -3136,23 +3113,7 @@ contains
       real(c_float), intent(out) :: rgbo(3)
       logical :: have
 
-      integer :: jrep, idd
-
-      have = .false.
-      rgbo = 0._c_float
-      if (iview > 0) then
-         do jrep = 1, win(iview)%sc%nrep
-            if (win(iview)%sc%rep(jrep)%type == reptype_atoms.and.win(iview)%sc%rep(jrep)%isinit.and.&
-               win(iview)%sc%rep(jrep)%shown) then
-               idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atoms%style%type)
-               if (idd /= 0) then
-                  have = .true.
-                  rgbo = win(iview)%sc%rep(jrep)%atoms%style%rgb(:,idd)
-                  exit
-               end if
-            end if
-         end do
-      end if
+      have = atom_view_rgb(iview,isys,itype,iat,rgbo)
 
     end function color_from_view
 

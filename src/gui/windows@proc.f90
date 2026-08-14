@@ -1118,4 +1118,36 @@ contains
 
   end function pairpick_same
 
+  !> Color of the atom with index iat in the atom list of type itype
+  !> (system isys) as drawn by the first shown atoms representation in
+  !> view window iview. Returns .true. and fills rgb if found. Used to
+  !> paint atom buttons in the windows attached to a view.
+  module function atom_view_rgb(iview,isys,itype,iat,rgb) result(have)
+    use representations, only: reptype_atoms
+    use systems, only: sysc
+    integer, intent(in) :: iview, isys, itype, iat
+    real(c_float), intent(out) :: rgb(3)
+    logical :: have
+
+    integer :: jrep, idd
+
+    have = .false.
+    rgb = 0._c_float
+    if (iview < 1 .or. iview > nwin) return
+    if (.not.win(iview)%isinit) return
+    if (.not.associated(win(iview)%sc)) return
+    do jrep = 1, win(iview)%sc%nrep
+       if (win(iview)%sc%rep(jrep)%type == reptype_atoms .and. win(iview)%sc%rep(jrep)%isinit .and.&
+          win(iview)%sc%rep(jrep)%shown) then
+          idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atoms%style%type)
+          if (idd /= 0) then
+             have = .true.
+             rgb = win(iview)%sc%rep(jrep)%atoms%style%rgb(:,idd)
+             return
+          end if
+       end if
+    end do
+
+  end function atom_view_rgb
+
 end submodule proc

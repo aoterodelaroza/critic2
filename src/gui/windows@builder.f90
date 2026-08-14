@@ -260,9 +260,9 @@ contains
     use energy, only: ff_backend_applicable, ff_backend_default
     use gui_main, only: g, fontsize, tooltip_enabled, ColorHighlightEditDistScene
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
-       iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_helpermark,&
-       iw_calcwidth, iw_calcheight, iw_setposx_fromend
+    use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple,&
+       iw_dragfloat_real8, iw_periodictable, iw_menuitem, iw_icon_togglebutton,&
+       iw_helpermark, iw_calcwidth, iw_calcheight, iw_setposx_fromend
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS,&
        BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT,&
@@ -1287,14 +1287,20 @@ contains
       w%edit_kind = ikind
     end subroutine edit_start
 
-    ! Show the labels of the latched atoms in one row.
+    ! Show the latched atoms in one row, each as a button colored like
+    ! the atom in the view. The buttons are inert: they identify the
+    ! atoms, they are not controls.
     subroutine edit_atom_labels()
-      integer :: is
+      integer :: is, icid
+      real(c_float) :: rgb(3)
+      logical :: havergb
 
       do is = 1, w%edit_kind
-         call iw_text("("//string(is)//") "//&
-            trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,is))%idx)%name)//&
-            string(w%edit_idx(1,is)),sameline=(is > 1))
+         icid = w%edit_idx(1,is)
+         havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,icid,rgb)
+         ldum = iw_atom_button(trim(sys(isys)%c%spc(sys(isys)%c%atcel(icid)%is)%name)//&
+            " "//string(icid)//"##editatom"//string(is),rgb,havergb=havergb,&
+            sameline=(is > 1),inert=.true.)
       end do
     end subroutine edit_atom_labels
 

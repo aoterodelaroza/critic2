@@ -44,6 +44,7 @@ module utils
   public :: iw_checkbox
   public :: iw_text
   public :: iw_button
+  public :: iw_atom_button
   public :: iw_icon_button
   public :: iw_icon_togglebutton
   public :: iw_close_button
@@ -257,6 +258,15 @@ module utils
        integer(c_int), intent(in), optional :: popupflags
        logical :: iw_button
      end function iw_button
+     module function iw_atom_button(str,rgb,havergb,sameline,disabled,inert) result(pressed)
+       character(len=*,kind=c_char), intent(in) :: str
+       real(c_float), intent(in) :: rgb(3)
+       logical, intent(in) :: havergb
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: disabled
+       logical, intent(in), optional :: inert
+       logical :: pressed
+     end function iw_atom_button
      module function iw_icon_button(strid,tex,rgba,fallback) result(pressed)
        character(len=*,kind=c_char), intent(in) :: strid
        integer(c_int), intent(in) :: tex
