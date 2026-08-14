@@ -73,3 +73,6 @@ CLAUDE.md
 
 # windows dependencies
 windows-deps/
+
+# fortran language server config
+.fortlsrc
