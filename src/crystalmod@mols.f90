@@ -716,9 +716,13 @@ contains
   !> bond between cell atoms imask1 and imask2, and between imask3 and
   !> imask4 if given. Returns the number of atoms in the component
   !> (nat), the list of unique cell-atom indices (iat, reallocated as
-  !> needed), and whether the component is discrete. If the
-  !> connectivity is not available, returns the single atom i0.
-  module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete,imask3,imask4)
+  !> needed), and whether the component is discrete. If lvec is given,
+  !> it returns the lattice vector of each atom in the component
+  !> relative to the seed, so the component can be assembled in the
+  !> seed's image (a molecule stored wrapped across the cell boundary
+  !> has non-zero entries). If the connectivity is not available,
+  !> returns the single atom i0.
+  module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete,imask3,imask4,lvec)
     use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: i0, imask1, imask2
@@ -726,19 +730,24 @@ contains
     integer, allocatable, intent(inout) :: iat(:)
     logical, intent(out) :: discrete
     integer, intent(in), optional :: imask3, imask4
+    integer, allocatable, intent(inout), optional :: lvec(:,:)
 
     integer :: nmask
     integer :: skipbond(2,2)
-    integer, allocatable :: imem(:), lvec(:,:)
+    integer, allocatable :: imem(:), lvloc(:,:)
 
     ! initialize the output; return the single seed atom if there is
     ! no connectivity
     nat = 0
     if (.not.allocated(iat)) allocate(iat(10))
+    if (present(lvec)) then
+       if (.not.allocated(lvec)) allocate(lvec(3,10))
+    end if
     discrete = .true.
     if (i0 < 1 .or. i0 > c%ncel) return
     nat = 1
     iat(1) = i0
+    if (present(lvec)) lvec(:,1) = 0
     if (.not.allocated(c%nstar)) return
 
     nmask = 1
@@ -750,8 +759,13 @@ contains
 
     allocate(imem(c%ncel))
     imem = 0
-    call c%walk_component(i0,(/0,0,0/),imem,nat,iat,lvec,discrete,&
+    call c%walk_component(i0,(/0,0,0/),imem,nat,iat,lvloc,discrete,&
        skipbond=skipbond(:,1:nmask))
+
+    if (present(lvec)) then
+       if (size(lvec,2) < nat) call realloc(lvec,3,nat)
+       lvec(:,1:nat) = lvloc(:,1:nat)
+    end if
 
   end subroutine masked_fragment
 

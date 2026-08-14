@@ -260,6 +260,7 @@ module windows
      logical :: edit_fragok(4) = .false. ! whether the fragment/group move option is available per atom
      integer :: edit_nfrag(4) = 0 ! number of atoms in the masked fragment of each atom
      integer, allocatable :: edit_frag(:,:) ! masked-fragment cell atoms of the latched atoms; for dihedrals, columns 2-3 hold the two halves of the severed 2-3 bond
+     integer, allocatable :: edit_fraglv(:,:,:) ! lattice vector of each masked-fragment atom relative to its seed, so the group can be assembled in the latched image
      logical :: edit_dirty = .false. ! in-place moves applied but not yet committed (rebuild pending)
      real*8 :: edit_time = 0d0 ! time of the last edit-free poll (external-change guard)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table

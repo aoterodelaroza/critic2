@@ -1050,6 +1050,7 @@ contains
     subroutine panel_edit()
 
       integer :: iside, ibold, ibnew
+      integer :: nmode, imode, islot, imodes(4)
       real*8 :: dist, ang
       character(len=:), allocatable :: stropt
 
@@ -1126,15 +1127,31 @@ contains
          call iw_tooltip("Angle between the three atoms (degrees)",ttshown)
          call edit_apply_button("##editang","angle")
       case (4)
-         ! terminal atom combos (atoms 2 and 3 always stay fixed)
+         ! terminal atom combos (atoms 2 and 3 always stay fixed). The
+         ! two group modes are offered independently, so imodes maps the
+         ! combo slot to the move mode
          do iside = 1, 4, 3
             stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
-            if (w%edit_fragok(iside)) stropt = stropt // "Rotate group (fix 2-3)"//c_null_char
+            nmode = 2
+            imodes(1:2) = (/0,1/)
+            if (w%edit_fragok(iside)) then
+               stropt = stropt // "Rotate group (fix 2-3)"//c_null_char
+               nmode = nmode + 1
+               imodes(nmode) = 2
+            end if
             ! fragok(2)/(3) = validity of the half adjacent to terminal 1/4
-            if (w%edit_fragok(merge(2,3,iside == 1))) &
+            if (w%edit_fragok(merge(2,3,iside == 1))) then
                stropt = stropt // "Rotate group (move 2-3)"//c_null_char
+               nmode = nmode + 1
+               imodes(nmode) = 3
+            end if
+            islot = 0
+            do imode = 1, nmode
+               if (imodes(imode) == w%edit_imove(iside)) islot = imode - 1
+            end do
             call iw_combo_simple("Atom "//string(iside)//"##editdihmove"//string(iside),&
-               stropt,w%edit_imove(iside))
+               stropt,islot)
+            w%edit_imove(iside) = imodes(islot+1)
             call iw_tooltip("What rotates about the 2-3 axis when the dihedral changes:"//&
                " nothing (fixed), the terminal atom, the group attached to it (the"//&
                " substituents of atoms 2 and 3 stay fixed), or the whole half severed"//&
@@ -1334,14 +1351,18 @@ contains
     ! -dang/nrot and the last by +dang/nrot, which opens the angle or
     ! dihedral by dang. In the dihedral "move 2-3" mode (imove = 3)
     ! the move set is the corresponding half, stored in the interior
-    ! columns.
+    ! columns. The center and the axis live in the frame of the latched
+    ! images, so each atom is carried to that frame (its own lattice
+    ! vector within the group plus the latched vector of the seed),
+    ! rotated there, and carried back: a rotation, unlike a
+    ! translation, does not commute with a lattice shift.
     subroutine edit_rotate_terminals(rnew,center,axis,dang,nrot)
       real*8, intent(inout) :: rnew(:,:)
       real*8, intent(in) :: center(3), axis(3), dang
       integer, intent(in) :: nrot
 
-      integer :: i, k, n, icol
-      real*8 :: rot(3,3)
+      integer :: i, k, n, ia, icol
+      real*8 :: rot(3,3), off(3)
 
       do i = 1, w%edit_kind, w%edit_kind - 1
          if (w%edit_imove(i) == 0) cycle
@@ -1354,7 +1375,9 @@ contains
             n = merge(w%edit_nfrag(i),1,w%edit_imove(i) == 2)
          end if
          do k = 1, n
-            rnew(:,w%edit_frag(k,icol)) = center + matmul(rot,rnew(:,w%edit_frag(k,icol)) - center)
+            ia = w%edit_frag(k,icol)
+            off = sys(isys)%c%x2c(dble(w%edit_fraglv(:,k,icol) + w%edit_idx(2:4,icol)))
+            rnew(:,ia) = center + matmul(rot,rnew(:,ia) + off - center) - off
          end do
       end do
     end subroutine edit_rotate_terminals
@@ -1400,9 +1423,9 @@ contains
 
       integer :: is, js, it, n
       logical :: okf, disc
-      integer, allocatable :: ifr(:), work(:,:)
+      integer, allocatable :: ifr(:), ilv(:,:), work(:,:), worklv(:,:,:)
 
-      allocate(work(sys(isys)%c%ncel,ikind))
+      allocate(work(sys(isys)%c%ncel,ikind),worklv(3,sys(isys)%c%ncel,ikind))
       w%edit_nfrag = 0
       w%edit_fragok = .false.
       do is = 1, ikind
@@ -1413,19 +1436,19 @@ contains
             ! 3-half) and no atom of the other half.
             it = merge(1,4,is == 2)
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,2),&
-               w%edit_idx(1,3),n,ifr,disc)
+               w%edit_idx(1,3),n,ifr,disc,lvec=ilv)
          elseif (is > 1 .and. is < ikind) then
             it = is
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
-               w%edit_idx(1,is-1),n,ifr,disc,w%edit_idx(1,is),w%edit_idx(1,is+1))
+               w%edit_idx(1,is-1),n,ifr,disc,w%edit_idx(1,is),w%edit_idx(1,is+1),lvec=ilv)
          elseif (is > 1) then
             it = is
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
-               w%edit_idx(1,is-1),n,ifr,disc)
+               w%edit_idx(1,is-1),n,ifr,disc,lvec=ilv)
          else
             it = is
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
-               w%edit_idx(1,is+1),n,ifr,disc)
+               w%edit_idx(1,is+1),n,ifr,disc,lvec=ilv)
          end if
          ! valid if discrete, contains the seed's terminal (trivially
          ! true when it = is: the fragment contains its own seed), and
@@ -1437,21 +1460,17 @@ contains
          w%edit_nfrag(is) = n
          w%edit_fragok(is) = okf
          work(1:n,is) = ifr(1:n)
+         worklv(:,1:n,is) = ilv(:,1:n)
       end do
-      if (ikind == 4) then
-         ! offer the "move 2-3" mode only when the plain group mode is
-         ! also available: the combo option lists are built contiguously,
-         ! so entry 3 (move) must not exist without entry 2 (fix). This
-         ! can suppress a valid half when the terminal's own group is
-         ! invalid (e.g. a ring through the terminal-axis bond).
-         if (.not.w%edit_fragok(1)) w%edit_fragok(2) = .false.
-         if (.not.w%edit_fragok(4)) w%edit_fragok(3) = .false.
-      end if
       if (allocated(w%edit_frag)) deallocate(w%edit_frag)
+      if (allocated(w%edit_fraglv)) deallocate(w%edit_fraglv)
       allocate(w%edit_frag(maxval(w%edit_nfrag(1:ikind)),ikind))
+      allocate(w%edit_fraglv(3,maxval(w%edit_nfrag(1:ikind)),ikind))
       w%edit_frag = 0
+      w%edit_fraglv = 0
       do is = 1, ikind
          w%edit_frag(1:w%edit_nfrag(is),is) = work(1:w%edit_nfrag(is),is)
+         w%edit_fraglv(:,1:w%edit_nfrag(is),is) = worklv(:,1:w%edit_nfrag(is),is)
       end do
     end subroutine edit_latch_groups
 

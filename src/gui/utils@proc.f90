@@ -255,7 +255,7 @@ contains
     integer(c_int) :: flags_
     logical :: notlive_
     real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
-    integer :: n, nintdig, decimal_
+    integer :: n, nintdig, nchar, decimal_
     real(c_float) :: width, vmax
     type(ImVec2) :: sz
     logical :: sameline_
@@ -308,7 +308,11 @@ contains
     ! than 3 to preserve the old (4+decimal) default for small-valued fields)
     nintdig = int(log10(vmax) + 1e-4_c_float) + 1
     if (nintdig < 3) nintdig = 3
-    width = (1 + nintdig + decimal_) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
+    ! characters in the widest value: sign, integer digits, decimal
+    ! point (only if there are decimals) and decimals
+    nchar = 1 + nintdig + decimal_
+    if (decimal_ > 0) nchar = nchar + 1
+    width = nchar * sz%x * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
 
     ! draw the float
     call igPushItemWidth(width)
@@ -372,7 +376,7 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
     logical :: notlive_
-    integer :: n, nintdig, decimal_
+    integer :: n, nintdig, nchar, decimal_
     real(c_float) :: width, vmax
     type(ImVec2) :: sz
     logical :: sameline_
@@ -420,7 +424,11 @@ contains
     ! integer digits
     nintdig = int(log10(vmax) + 1e-4_c_float) + 1
     if (nintdig < 3) nintdig = 3
-    width = (1 + nintdig + decimal_) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
+    ! characters in the widest value: sign, integer digits, decimal
+    ! point (only if there are decimals) and decimals
+    nchar = 1 + nintdig + decimal_
+    if (decimal_ > 0) nchar = nchar + 1
+    width = nchar * sz%x * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
 
     ! draw the float
     call igPushItemWidth(width)
