@@ -498,6 +498,13 @@ module windows
        real(c_float), intent(out) :: rgb(3)
        logical :: have
      end function atom_view_rgb
+     module function anchor_label(isys,idx,notset,species) result(s)
+       integer, intent(in) :: isys
+       integer(c_int), intent(in) :: idx(4)
+       character(len=*), intent(in) :: notset
+       logical, intent(in), optional :: species
+       character(len=:), allocatable :: s
+     end function anchor_label
      module subroutine windows_init()
      end subroutine windows_init
      module subroutine stack_realloc_maybe()

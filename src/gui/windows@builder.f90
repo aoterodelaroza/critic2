@@ -1287,21 +1287,46 @@ contains
       w%edit_kind = ikind
     end subroutine edit_start
 
-    ! Show the latched atoms in one row, each as a button colored like
-    ! the atom in the view. The buttons are inert: they identify the
-    ! atoms, they are not controls.
+    ! Show the latched atoms in a one-row table, one column per atom
+    ! headed with the name the combos below use ("Atom 1", "Atom 2",
+    ! ...). Each atom is a button colored like it is in the view. The
+    ! buttons are inert: they identify the atoms, they are not controls.
     subroutine edit_atom_labels()
       integer :: is, icid
+      integer(c_int) :: tflags
       real(c_float) :: rgb(3)
       logical :: havergb
+      type(ImVec2) :: sz0
+      character(len=:), allocatable :: lbl
+      character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+      tflags = ImGuiTableFlags_None
+      tflags = ior(tflags,ImGuiTableFlags_RowBg)
+      tflags = ior(tflags,ImGuiTableFlags_Borders)
+      tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+      tflags = ior(tflags,ImGuiTableFlags_NoHostExtendX) ! only as wide as the columns
+      str1 = "##editatomtable" // c_null_char
+      sz0%x = 0._c_float
+      sz0%y = 0._c_float
+      if (.not.igBeginTable(c_loc(str1),int(w%edit_kind,c_int),tflags,sz0,0._c_float)) return
 
       do is = 1, w%edit_kind
-         icid = w%edit_idx(1,is)
-         havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,icid,rgb)
-         ldum = iw_atom_button(trim(sys(isys)%c%spc(sys(isys)%c%atcel(icid)%is)%name)//&
-            " "//string(icid)//"##editatom"//string(is),rgb,havergb=havergb,&
-            sameline=(is > 1),inert=.true.)
+         str2 = "Atom " // string(is) // c_null_char
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,is)
       end do
+      call igTableHeadersRow()
+
+      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+      do is = 1, w%edit_kind
+         if (.not.igTableSetColumnIndex(int(is-1,c_int))) cycle
+         icid = w%edit_idx(1,is)
+         ! species name, cell index and, out of the (0,0,0) cell, the lattice vector
+         lbl = anchor_label(isys,int(w%edit_idx(:,is),c_int),"?",species=.true.)
+         havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,icid,rgb)
+         ldum = iw_atom_button(lbl//"##editatom"//string(is),rgb,havergb,inert=.true.)
+      end do
+      call igEndTable()
+
     end subroutine edit_atom_labels
 
     ! Rotate the moving terminal atoms (or their groups) about the

@@ -1150,4 +1150,37 @@ contains
 
   end function atom_view_rgb
 
+  !> Short atom-anchor label: atom name + "#" + cell-atom index, or `notset`
+  !> when idx does not name a valid cell atom of system isys. With species,
+  !> the species name and a space are used instead, which is the shorter form
+  !> the atom buttons want. In a crystal, an atom outside the (0,0,0) cell
+  !> carries its lattice vector.
+  module function anchor_label(isys,idx,notset,species) result(s)
+    use systems, only: sys
+    use tools_io, only: string
+    integer, intent(in) :: isys
+    integer(c_int), intent(in) :: idx(4)
+    character(len=*), intent(in) :: notset
+    logical, intent(in), optional :: species
+    character(len=:), allocatable :: s
+
+    logical :: species_
+
+    species_ = .false.
+    if (present(species)) species_ = species
+
+    if (idx(1) < 1 .or. idx(1) > sys(isys)%c%ncel) then
+       s = notset
+    else
+       if (species_) then
+          s = trim(sys(isys)%c%spc(sys(isys)%c%atcel(idx(1))%is)%name) // " " // string(idx(1))
+       else
+          s = trim(sys(isys)%c%at(sys(isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
+       end if
+       if (any(idx(2:4) /= 0)) &
+          s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
+    end if
+
+  end function anchor_label
+
 end submodule proc
