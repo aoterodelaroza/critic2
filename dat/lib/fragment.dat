@@ -1574,6 +1574,7 @@ structure ammine
   endmolecule
   anchor 1
   attach 5
+  radius 0.810
   category Inorganic ligands/Monodentate
 endstructure
 structure aqua
@@ -1585,6 +1586,7 @@ structure aqua
   endmolecule
   anchor 1
   attach 4
+  radius 0.880
   category Inorganic ligands/Monodentate
 endstructure
 structure carbonyl
@@ -1595,6 +1597,7 @@ structure carbonyl
   endmolecule
   anchor 1
   attach 3
+  radius 0.650
   category Inorganic ligands/Monodentate
 endstructure
 structure cyanido
@@ -1605,6 +1608,7 @@ structure cyanido
   endmolecule
   anchor 1
   attach 3
+  radius 0.720
   category Inorganic ligands/Monodentate
 endstructure
 structure nitrosyl
@@ -1615,6 +1619,7 @@ structure nitrosyl
   endmolecule
   anchor 1
   attach 3
+  radius 0.550
   category Inorganic ligands/Monodentate
 endstructure
 structure nitrito-N
@@ -1626,6 +1631,7 @@ structure nitrito-N
   endmolecule
   anchor 1
   attach 4
+  radius 0.750
   category Inorganic ligands/Monodentate
 endstructure
 structure thiocyanato-S
@@ -1637,6 +1643,7 @@ structure thiocyanato-S
   endmolecule
   anchor 1
   attach 4
+  radius 1.150
   category Inorganic ligands/Monodentate
 endstructure
 structure pyridine
@@ -1656,6 +1663,7 @@ structure pyridine
   endmolecule
   anchor 1
   attach 12
+  radius 0.800
   category Inorganic ligands/Monodentate
 endstructure
 structure tetrahydrofuran
@@ -1677,6 +1685,7 @@ structure tetrahydrofuran
   endmolecule
   anchor 1
   attach 14
+  radius 0.900
   category Inorganic ligands/Monodentate
 endstructure
 structure dimethyl_sulfide
@@ -1694,6 +1703,7 @@ structure dimethyl_sulfide
   endmolecule
   anchor 2
   attach 10
+  radius 1.090
   category Inorganic ligands/Monodentate
 endstructure
 structure trimethylphosphine
@@ -1715,6 +1725,7 @@ structure trimethylphosphine
   endmolecule
   anchor 1
   attach 14
+  radius 1.110
   category Inorganic ligands/Monodentate
 endstructure
 structure triphenylphosphine
@@ -1757,6 +1768,7 @@ structure triphenylphosphine
   endmolecule
   anchor 1
   attach 35
+  radius 1.150
   category Inorganic ligands/Monodentate
 endstructure
 structure 8-hydroxyquinolinato
