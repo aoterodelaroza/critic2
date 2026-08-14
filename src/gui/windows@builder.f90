@@ -273,7 +273,7 @@ contains
 
     integer :: isys, iview, icel, imode, nsel
     integer :: idxpick(4), nrline
-    logical :: doquit, goodparent, havesys, ok, ldum, relaxing
+    logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
     type(ImVec2) :: szchild, szrow
@@ -289,12 +289,10 @@ contains
     real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
     real(c_float), parameter :: recentscale = 2.6_c_float ! recent-entry squares, in font heights
 
-    ! do we have a good parent window (a view)? A hidden view is still
-    ! good: the builder survives the hide and the mode can be released
-    iview = w%idparent
-    goodparent = iview > 0 .and. iview <= nwin
-    if (goodparent) goodparent = win(iview)%isinit
-    if (goodparent) goodparent = (win(iview)%type == wintype_view)
+    ! the builder acts on the system shown in its anchor view. A hidden view is
+    ! still a good anchor: the builder survives the hide and the mode can be
+    ! released on it
+    goodparent = w%anchor(iview,isys,syschanged)
     doquit = .not.goodparent
 
     ! initialize the state on first pass (edit_pending is NOT reset:
@@ -313,13 +311,16 @@ contains
        w%edit_time = 0d0
     end if
 
-    ! the builder operates on the system shown in the parent view
-    isys = 0
-    havesys = .false.
-    if (goodparent) then
-       isys = win(iview)%isys
-       havesys = ok_system(isys,sys_init)
+    ! A mode armed on the outgoing system makes no sense on the new one; release
+    ! it and commit any pending edit to the system it was made on. The tool on
+    ! display follows from builder_vm/edit_kind and is cleared further down.
+    if (goodparent .and. syschanged .and. .not.w%firstpass) then
+       call bondmode_stop(w,iview,.true.)
+       call w%edit_stop()
     end if
+
+    havesys = .false.
+    if (goodparent) havesys = ok_system(isys,sys_init)
 
     ! handle an active builder mode commanded to the parent view. The bond
     ! operations are shared with the geometry window, which offers the same

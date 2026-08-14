@@ -682,6 +682,67 @@ contains
 
   end function window_focused
 
+  !> Index in win(:) of the live view window this window is anchored to, taken
+  !> from w%idparent, or zero if the anchor is gone or was never a view window.
+  !> A view that is merely hidden or collapsed is still a good anchor: the tool
+  !> survives the hide, and a forced pick mode can still be released on it.
+  module function window_anchor_view(w) result(iview)
+    class(window), intent(in) :: w
+    integer :: iview
+
+    iview = 0
+    if (w%idparent < 1 .or. w%idparent > nwin) return
+    if (.not.win(w%idparent)%isinit) return
+    if (win(w%idparent)%type /= wintype_view) return
+    iview = w%idparent
+
+  end function window_anchor_view
+
+  !> Resolve this window's anchor: the view window it is bound to (w%idparent)
+  !> and the system that view is currently showing. Returns .false. if the
+  !> anchor is gone or is no longer a view window, in which case the caller
+  !> should close itself. changed is .true. on the frame the anchor view
+  !> switched to a different system, so that the caller can drop the state it
+  !> had cached for the previous one; it also covers a window that was raised
+  !> onto a different view by stack_create_window. The resolved system is cached
+  !> in w%isys. Note the system may be invalid (removed, or not initialized):
+  !> that is not an anchor failure, and it is up to the caller to decide what to
+  !> display for it.
+  module function window_anchor(w,iview,isys,changed) result(ok)
+    class(window), intent(inout) :: w
+    integer, intent(out) :: iview
+    integer, intent(out) :: isys
+    logical, intent(out) :: changed
+    logical :: ok
+
+    iview = w%anchor_view()
+    ok = (iview > 0)
+    isys = 0
+    changed = .false.
+    if (.not.ok) return
+
+    isys = win(iview)%isys
+    changed = (isys /= w%isys)
+    w%isys = isys
+
+  end function window_anchor
+
+  !> Point this window's anchor view at system isys. The tool windows' system
+  !> selectors go through this instead of keeping a system of their own, so a
+  !> tool window and the view it acts on can never disagree about which system
+  !> is being worked on. Does nothing if the anchor is gone.
+  module subroutine window_retarget(w,isys)
+    class(window), intent(inout) :: w
+    integer, intent(in) :: isys
+
+    integer :: iview
+
+    iview = w%anchor_view()
+    if (iview > 0) &
+       call win(iview)%select_view(isys)
+
+  end subroutine window_retarget
+
   !> Draw an ImGui window.
   module subroutine window_draw(w)
     use gui_main, only: fontsize

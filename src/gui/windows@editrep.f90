@@ -29,22 +29,22 @@ contains
   !> Update tasks for the edit representation window, before the
   !> window is created.
   module subroutine update_editrep(w)
-    use windows, only: nwin, win, wintype_view
     use systems, only: sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
     logical :: doquit
 
-    ! check the system and representation are still active
+    ! This window edits one object living in its anchor view's scene, so unlike
+    ! the other view tools it does not follow the view to another system: the
+    ! object belongs to the scene it was created in. Check the anchor, the
+    ! system and the object are all still there, and close otherwise.
     isys = w%isys
-    doquit = .not.ok_system(isys,sys_init)
+    doquit = (w%anchor_view() == 0)
+    if (.not.doquit) doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
-    if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
-    if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
-    if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
 
     ! if they aren't, quit the window
     if (doquit) call w%end()
@@ -55,7 +55,7 @@ contains
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
        reptype_symelem, reptype_text, reptype_measure
-    use windows, only: nwin, win, wintype_view
+    use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
     use utils, only: iw_text, iw_tooltip, iw_button, iw_calcheight, iw_checkbox,&
@@ -63,24 +63,25 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: isys
+    integer :: isys, iview
     logical :: doquit, ok, ldum
     logical :: changed
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! check the system and representation are still active
+    ! check the anchor, the system and the object are all still there (see
+    ! update_editrep); the last test catches the anchor view moving to another
+    ! system, which leaves this object behind in the old scene
     isys = w%isys
-    doquit = .not.ok_system(isys,sys_init)
+    iview = w%anchor_view()
+    doquit = (iview == 0)
+    if (.not.doquit) doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
-    if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
-    if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
-    if (.not.doquit) doquit = .not.(win(w%idparent)%isopen)
-    if (.not.doquit) doquit = .not.associated(win(w%idparent)%sc)
-    if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
-    if (.not.doquit) doquit = (win(w%idparent)%isys /= isys)
+    if (.not.doquit) doquit = .not.win(iview)%isopen
+    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
+    if (.not.doquit) doquit = (win(iview)%isys /= isys)
 
     if (.not.doquit) then
        ! whether the rep has changed
@@ -116,7 +117,7 @@ contains
        end if
 
        ! rebuild draw lists if necessary
-       if (changed) win(w%idparent)%sc%forcebuildlists = .true.
+       if (changed) win(iview)%sc%forcebuildlists = .true.
 
        ! right-align and bottom-align for the rest of the contents
        call iw_setpos_bottomright(10,2)
@@ -124,7 +125,7 @@ contains
        ! reset button
        if (iw_button("Reset",danger=.true.)) then
           call w%rep%set_defaults(0)
-          win(w%idparent)%sc%forcebuildlists = .true.
+          win(iview)%sc%forcebuildlists = .true.
        end if
 
        ! close button
@@ -1037,7 +1038,7 @@ contains
     logical :: changed
 
     logical :: ch
-    integer :: icoord
+    integer :: icoord, iview
     real*8 :: zf
 
     ! initialize
@@ -1102,8 +1103,9 @@ contains
        if (iw_checkbox("Scale with zoom##axesscalewithzoom",w%rep%axes%scalewithzoom)) then
           changed = .true.
           ! keep the apparent on-screen size unchanged across the toggle
-          if (associated(win(w%idparent)%sc)) then
-             zf = real(win(w%idparent)%sc%overlay_zoom_factor(),8)
+          iview = w%anchor_view()
+          if (iview > 0) then
+             zf = real(win(iview)%sc%overlay_zoom_factor(),8)
              if (zf > 1d-10) then
                 if (w%rep%axes%scalewithzoom) then
                    w%rep%axes%scale = w%rep%axes%scale * zf
@@ -1747,7 +1749,7 @@ contains
 
     ! initialize
     changed = .false.
-    iview = w%idparent
+    iview = w%anchor_view()
 
     ! handle a pending atom pick commanded to the parent view
     if (w%editrep_pick_item > 0) then
@@ -2016,7 +2018,7 @@ contains
 
     changed = .false.
     idel = 0
-    iview = w%idparent
+    iview = w%anchor_view()
 
     ! keep the selected item in range
     if (w%rep%measure%isel > w%rep%measure%nitem) w%rep%measure%isel = w%rep%measure%nitem

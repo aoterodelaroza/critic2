@@ -34,8 +34,8 @@ contains
     use param, only: kcal2ha, autofs
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, goodparent, ldum, haspress
-    integer :: isys
+    logical :: doquit, goodsys, goodparent, ldum, haspress, syschanged
+    integer :: isys, iview, isysold
     integer(c_int) :: imode, tflags
     real*8 :: pgpa
     type(ImVec2) :: sz0
@@ -44,35 +44,25 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! do we have a good parent window (a view)?
-    goodparent = w%idparent > 0 .and. w%idparent <= nwin
-    if (goodparent) goodparent = win(w%idparent)%isinit
-    if (goodparent) goodparent = (win(w%idparent)%type == wintype_view)
+    ! this window acts on the system shown in its anchor view. Keep the outgoing
+    ! system: if the view switched, the run on it has to be stopped below
+    isysold = w%isys
+    goodparent = w%anchor(iview,isys,syschanged)
 
     ! initialize state
     if (w%firstpass) w%errmsg = ""
 
     ! resolve the system
-    isys = 0
     doquit = .not.goodparent
-    if (.not.doquit) then
-       if (associated(win(w%idparent)%sc)) then
-          isys = win(w%idparent)%isys
-       else
-          doquit = .true.
-       end if
-    end if
+    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
     goodsys = .false.
     if (.not.doquit) goodsys = ok_system(isys,sys_init)
 
-    ! if the view switched systems, stop the run
-    if (.not.doquit) then
-       if (w%isys /= isys .and. w%isys >= 1 .and. w%isys <= nsys) then
-          if (ok_system(w%isys,sys_init)) then
-             if (sysc(w%isys)%md_run) call sysc(w%isys)%md_stop()
-          end if
+    ! if the view switched systems, stop the run on the one we are leaving
+    if (.not.doquit .and. syschanged .and. isysold >= 1 .and. isysold <= nsys) then
+       if (ok_system(isysold,sys_init)) then
+          if (sysc(isysold)%md_run) call sysc(isysold)%md_stop()
        end if
-       w%isys = isys
     end if
 
     if (goodsys) then
@@ -113,13 +103,13 @@ contains
              call sysc(isys)%md_start(int(imode),errmsg)
              w%errmsg = errmsg
              if (len_trim(w%errmsg) == 0) &
-                win(w%idparent)%forcerender = .true.
+                win(iview)%forcerender = .true.
           end if
           call iw_tooltip("Start the simulation",ttshown)
        else
           if (iw_button("Stop",danger=.true.)) then
              call sysc(isys)%md_stop()
-             win(w%idparent)%forcerender = .true.
+             win(iview)%forcerender = .true.
           end if
           call iw_tooltip("Stop the simulation ("//&
              trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
@@ -130,7 +120,7 @@ contains
           call sysc(isys)%md%reset(sys(isys)%c)
           sysc(isys)%sc%nextbuildlists_fixcam = .true.
           call sysc(isys)%post_event(lastchange_geometry)
-          win(w%idparent)%forcerender = .true.
+          win(iview)%forcerender = .true.
        end if
        call iw_tooltip("Restore the initial geometry and stop all motion",ttshown)
 

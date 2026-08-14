@@ -309,6 +309,9 @@ module windows
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
      procedure :: focused => window_focused ! whether the root window is focused (even if not current)
+     procedure :: anchor_view => window_anchor_view ! the view window this window is anchored to
+     procedure :: anchor => window_anchor ! the anchor view and the system it shows (tool windows)
+     procedure :: retarget => window_retarget ! point the anchor view at a system
      procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
      procedure :: draw_tree
@@ -551,6 +554,21 @@ module windows
        class(window), intent(inout) :: w
        logical :: window_focused
      end function window_focused
+     module function window_anchor_view(w) result(iview)
+       class(window), intent(in) :: w
+       integer :: iview
+     end function window_anchor_view
+     module function window_anchor(w,iview,isys,changed) result(ok)
+       class(window), intent(inout) :: w
+       integer, intent(out) :: iview
+       integer, intent(out) :: isys
+       logical, intent(out) :: changed
+       logical :: ok
+     end function window_anchor
+     module subroutine window_retarget(w,isys)
+       class(window), intent(inout) :: w
+       integer, intent(in) :: isys
+     end subroutine window_retarget
      module subroutine window_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_draw

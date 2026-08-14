@@ -23,7 +23,6 @@ contains
 
   !> Draw the export image window
   module subroutine draw_exportimage(w)
-    use systems, only: ok_system
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir, iw_checkbox,&
        iw_close_event, iw_setpos_bottomright
@@ -32,12 +31,16 @@ contains
     use param, only: dirsep
     class(window), intent(inout), target :: w
 
-    logical :: doquit, ok, okvalid
-    integer :: isys, iaux
+    logical :: doquit, ok, okvalid, syschanged
+    integer :: isys, iview, iaux
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    ! this window renders its anchor view; resolve it first, the first-pass
+    ! default for the render buffer size is taken from it
+    doquit = .not.w%anchor(iview,isys,syschanged)
 
     ! initialize state
     if (w%firstpass) then
@@ -46,19 +49,13 @@ contains
        w%nsample = 16
        w%jpgquality = 90
        w%exportview = .true.
-       w%npixel = win(w%idparent)%FBOside
+       if (.not.doquit) w%npixel = win(iview)%FBOside
        w%transparentbg = .true.
        w%errmsg = ""
     end if
 
-    ! initialize
-    doquit = .false.
-    if (associated(win(w%idparent)%sc)) then
-       isys = win(w%idparent)%isys
-    else
-       isys = win(w%idparent)%isys
-       doquit = .true.
-    end if
+    ! there is nothing to export without a scene
+    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
 
     ! Image file button
     call iw_text("Image File",highlight=.true.)
@@ -115,7 +112,7 @@ contains
     ok = ok .or. iw_button("OK",disabled=.not.okvalid)
     if (ok) then
        ! export the image
-       call win(w%idparent)%export_to_image(w%okfile,w%okfilter,w%nsample,w%npixel,&
+       call win(iview)%export_to_image(w%okfile,w%okfilter,w%nsample,w%npixel,&
           w%transparentbg,w%exportview,w%jpgquality,w%errmsg)
 
        ! quit if no error message

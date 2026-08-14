@@ -37,8 +37,8 @@ contains
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
-    logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset
-    integer :: isys, i, digits, iaux
+    logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset, syschanged
+    integer :: isys, iview, i, digits, iaux
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, strl
     type(ImVec2) :: sz0, szero
@@ -52,55 +52,39 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! do we have a good parent window?
-    goodparent = w%idparent > 0 .and. w%idparent <= nwin
-    if (goodparent) goodparent = win(w%idparent)%isinit
-    if (goodparent) goodparent = (win(w%idparent)%type == wintype_view)
+    ! this window acts on the system shown in its anchor view
+    goodparent = w%anchor(iview,isys,syschanged)
 
     ! initialize state
     if (w%firstpass) then
        w%errmsg = ""
-       if (goodparent) then
-          if (associated(win(w%idparent)%sc)) then
-             win(w%idparent)%sc%iqpt_selected = 0
-             win(w%idparent)%sc%ifreq_selected = 0
-             win(w%idparent)%sc%animation = 0
-          end if
-       end if
        w%ifrequnit = 0
        w%iqptunit = 0
     end if
 
+    ! the mode selection lives in the view's scene, so it is dropped both on the
+    ! first pass and whenever the anchor view moves to a different system
+    if (goodparent .and. (w%firstpass .or. syschanged)) &
+       call clear_mode_selection()
+
     ! initialize
-    isys = 0
     szero%x = 0
     szero%y = 0
-    doquit = .false.
-    if (.not.doquit) doquit = .not.goodparent
-    if (.not.doquit) then
-       if (associated(win(w%idparent)%sc)) then
-          isys = win(w%idparent)%isys
-       else
-          isys = win(w%idparent)%isys
-          doquit = .true.
-       end if
-    end if
+    doquit = .not.goodparent
+    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
 
     ! vibrations ok?
     goodsys = ok_system(isys,sys_init)
     vib_ok = goodsys
     if (vib_ok) vib_ok = sys(isys)%c%vib%hasvibs
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
-    if (vib_ok) vib_ok = associated(win(w%idparent)%sc)
+    if (vib_ok) vib_ok = associated(win(iview)%sc)
 
     ! drop stale mode selections
     if (vib_ok) then
-       if (win(w%idparent)%sc%iqpt_selected > sys(isys)%c%vib%nqpt .or.&
-          win(w%idparent)%sc%ifreq_selected > sys(isys)%c%vib%nfreq) then
-          win(w%idparent)%sc%iqpt_selected = 0
-          win(w%idparent)%sc%ifreq_selected = 0
-          win(w%idparent)%sc%animation = 0
-       end if
+       if (win(iview)%sc%iqpt_selected > sys(isys)%c%vib%nqpt .or.&
+          win(iview)%sc%ifreq_selected > sys(isys)%c%vib%nfreq) &
+          call clear_mode_selection()
     end if
 
     ! header
@@ -114,10 +98,10 @@ contains
 
        if (iw_button("Clear",sameline=.true.,danger=.true.)) then
           call sys(isys)%c%vib%end()
-          win(w%idparent)%sc%iqpt_selected = 0
-          win(w%idparent)%sc%ifreq_selected = 0
-          win(w%idparent)%sc%animation = 0
-          win(w%idparent)%forcerender = .true.
+          win(iview)%sc%iqpt_selected = 0
+          win(iview)%sc%ifreq_selected = 0
+          win(iview)%sc%animation = 0
+          win(iview)%forcerender = .true.
           vib_ok = .false.
        end if
        call iw_tooltip("Clear vibration data for this system",ttshown)
@@ -188,10 +172,10 @@ contains
                    strl = "##selectq" // string(i) // c_null_char
                    flags = ImGuiSelectableFlags_SpanAllColumns
                    flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                   selected = (win(w%idparent)%sc%iqpt_selected == i)
+                   selected = (win(iview)%sc%iqpt_selected == i)
                    if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
-                      win(w%idparent)%sc%iqpt_selected = i
-                      win(w%idparent)%sc%forcebuildlists = .true.
+                      win(iview)%sc%iqpt_selected = i
+                      win(iview)%sc%forcebuildlists = .true.
                    end if
 
                    ! text
@@ -211,7 +195,7 @@ contains
           call igEndGroup()
           call igSameLine(0._c_float,-1._c_float)
        else
-          win(w%idparent)%sc%iqpt_selected = 1
+          win(iview)%sc%iqpt_selected = 1
        end if
 
        ! frequency table
@@ -252,9 +236,9 @@ contains
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
           ! check if the qpt/frequency has been set
-          fset = (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0)
+          fset = (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0)
 
-          if (win(w%idparent)%sc%iqpt_selected > 0) then
+          if (win(iview)%sc%iqpt_selected > 0) then
              ! draw the rows
              do i = 1, sys(isys)%c%vib%nfreq
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -266,10 +250,10 @@ contains
                    strl = "##selectf" // string(i) // c_null_char
                    flags = ImGuiSelectableFlags_SpanAllColumns
                    flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                   selected = (win(w%idparent)%sc%ifreq_selected == i)
+                   selected = (win(iview)%sc%ifreq_selected == i)
                    if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
-                      win(w%idparent)%sc%ifreq_selected = i
-                      win(w%idparent)%sc%forcebuildlists = .true.
+                      win(iview)%sc%ifreq_selected = i
+                      win(iview)%sc%forcebuildlists = .true.
                    end if
 
                    ! text
@@ -278,7 +262,7 @@ contains
 
                 ! frequency
                 if (igTableSetColumnIndex(ic_q_qpt)) then
-                   s = string(sys(isys)%c%vib%freq(i,win(w%idparent)%sc%iqpt_selected)*unitfactor,'f',&
+                   s = string(sys(isys)%c%vib%freq(i,win(iview)%sc%iqpt_selected)*unitfactor,'f',&
                       length=9,decimal=digits,justify=ioj_right)
                    call iw_text(s)
                 end if
@@ -289,68 +273,68 @@ contains
        call igEndGroup()
 
        ! suggested periodicity
-       if (win(w%idparent)%sc%iqpt_selected > 0 .and..not.sys(isys)%c%ismolecule) then
+       if (win(iview)%sc%iqpt_selected > 0 .and..not.sys(isys)%c%ismolecule) then
           call iw_text("Suggested Periodicity:",highlight=.true.,alignframe=.true.)
           do i = 1, 3
-             if (abs(sys(isys)%c%vib%qpt(i,win(w%idparent)%sc%iqpt_selected)) > rational_approx_eps) then
-                call rational_approx(sys(isys)%c%vib%qpt(i,win(w%idparent)%sc%iqpt_selected),q,r(i),rational_approx_eps)
+             if (abs(sys(isys)%c%vib%qpt(i,win(iview)%sc%iqpt_selected)) > rational_approx_eps) then
+                call rational_approx(sys(isys)%c%vib%qpt(i,win(iview)%sc%iqpt_selected),q,r(i),rational_approx_eps)
              else
                 r(i) = 1
              end if
           end do
           call iw_text("[" // string(r(1)) // " " // string(r(2)) // " " // string(r(3)) // "]",sameline=.true.)
           if (iw_button("Set",sameline=.true.)) then
-             win(w%idparent)%sc%nc = int(r)
-             win(w%idparent)%sc%forcebuildlists = .true.
+             win(iview)%sc%nc = int(r)
+             win(iview)%sc%forcebuildlists = .true.
           end if
           call iw_tooltip("Change the number of unit cells represented to the suggested value",ttshown)
        end if
 
        ! set initial value of animation to automatic
-       if (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0 .and.&
-          win(w%idparent)%sc%animation == 0 .and. .not.fset) then
-          win(w%idparent)%sc%animation = 2
-          win(w%idparent)%sc%anim_speed = anim_speed_default
-          win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
+       if (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0 .and.&
+          win(iview)%sc%animation == 0 .and. .not.fset) then
+          win(iview)%sc%animation = 2
+          win(iview)%sc%anim_speed = anim_speed_default
+          win(iview)%sc%anim_amplitude = anim_amplitude_default
        end if
 
        ! animation radio buttons (no animation if no values selected)
        call iw_text("Animation",highlight=.true.)
-       if (iw_radiobutton("None",int=win(w%idparent)%sc%animation,intval=0_c_int)) then
-          win(w%idparent)%forcerender = .true.
+       if (iw_radiobutton("None",int=win(iview)%sc%animation,intval=0_c_int)) then
+          win(iview)%forcerender = .true.
        end if
        call iw_tooltip("Stop the animation",ttshown)
-       if (iw_radiobutton("Automatic",int=win(w%idparent)%sc%animation,intval=2_c_int,sameline=.true.)) then
-          win(w%idparent)%sc%anim_speed = anim_speed_default
-          win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
+       if (iw_radiobutton("Automatic",int=win(iview)%sc%animation,intval=2_c_int,sameline=.true.)) then
+          win(iview)%sc%anim_speed = anim_speed_default
+          win(iview)%sc%anim_amplitude = anim_amplitude_default
        end if
        call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic phase",ttshown)
-       if (iw_radiobutton("Manual/Nudge Structure",int=win(w%idparent)%sc%animation,intval=1_c_int,sameline=.true.)) then
-          win(w%idparent)%sc%anim_amplitude = 0d0
-          win(w%idparent)%sc%anim_phase = 0d0
-          win(w%idparent)%forcerender = .true.
+       if (iw_radiobutton("Manual/Nudge Structure",int=win(iview)%sc%animation,intval=1_c_int,sameline=.true.)) then
+          win(iview)%sc%anim_amplitude = 0d0
+          win(iview)%sc%anim_phase = 0d0
+          win(iview)%forcerender = .true.
        end if
        call iw_tooltip("Animate the scene using a manually set atomic displacement value",ttshown)
 
-       if (win(w%idparent)%sc%animation == 1) then
+       if (win(iview)%sc%animation == 1) then
           ! manual
           if (.not.sys(isys)%c%ismolecule) then
              ! crystals
-             if (iw_dragfloat_real8("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
+             if (iw_dragfloat_real8("Amplitude##amplitude",x1=win(iview)%sc%anim_amplitude,&
                 speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp))&
-                win(w%idparent)%forcerender = .true.
+                win(iview)%forcerender = .true.
              call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-             if (iw_dragfloat_real8("Phase##phase",x1=win(w%idparent)%sc%anim_phase,speed=0.001d0,&
+             if (iw_dragfloat_real8("Phase##phase",x1=win(iview)%sc%anim_phase,speed=0.001d0,&
                 min=-1d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
-                win(w%idparent)%forcerender = .true.
+                win(iview)%forcerender = .true.
              call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
           else
              ! molecules
-             if (iw_dragfloat_real8("Displacement##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
+             if (iw_dragfloat_real8("Displacement##amplitude",x1=win(iview)%sc%anim_amplitude,&
                 speed=0.01d0,min=-anim_amplitude_max,max=anim_amplitude_max,decimal=2,&
                 flags=ImGuiSliderFlags_AlwaysClamp))&
-                win(w%idparent)%forcerender = .true.
+                win(iview)%forcerender = .true.
              call iw_tooltip("Extent of the atomic displacements",ttshown)
           end if
 
@@ -358,23 +342,23 @@ contains
           if (iw_button("Create Nudged System")) then
              if (allocated(seed)) deallocate(seed)
              allocate(seed(1))
-             call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(w%idparent)%sc%iqpt_selected),&
-                sys(isys)%c%vib%vec(:,:,win(w%idparent)%sc%ifreq_selected,win(w%idparent)%sc%iqpt_selected),&
-                win(w%idparent)%sc%anim_amplitude,win(w%idparent)%sc%anim_phase)
+             call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(iview)%sc%iqpt_selected),&
+                sys(isys)%c%vib%vec(:,:,win(iview)%sc%ifreq_selected,win(iview)%sc%iqpt_selected),&
+                win(iview)%sc%anim_amplitude,win(iview)%sc%anim_phase)
              call add_systems_from_seeds(1,seed)
              call launch_initialization_thread()
           end if
           call iw_tooltip("Create a new system with displaced atomic positions as shown in the view",ttshown)
 
-       elseif (win(w%idparent)%sc%animation == 2) then
+       elseif (win(iview)%sc%animation == 2) then
           ! automatic
-          ldum = iw_dragfloat_real8("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
+          ldum = iw_dragfloat_real8("Amplitude##amplitude",x1=win(iview)%sc%anim_amplitude,&
              speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-          if (iw_dragfloat_real8("Speed##speed",x1=win(w%idparent)%sc%anim_speed,speed=0.02d0,min=0.0d0,&
+          if (iw_dragfloat_real8("Speed##speed",x1=win(iview)%sc%anim_speed,speed=0.02d0,min=0.0d0,&
              max=anim_speed_max,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
-             win(w%idparent)%sc%timerefanimation = glfwGetTime()
+             win(iview)%sc%timerefanimation = glfwGetTime()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
        end if
     end if ! vib_ok
@@ -392,6 +376,18 @@ contains
     ! quit = close the window
     if (doquit) &
        call w%end()
+
+  contains
+    !> Drop the vibrational mode selection and stop the animation. The selection
+    !> lives in the anchor view's scene, not in this window.
+    subroutine clear_mode_selection()
+
+      if (.not.associated(win(iview)%sc)) return
+      win(iview)%sc%iqpt_selected = 0
+      win(iview)%sc%ifreq_selected = 0
+      win(iview)%sc%animation = 0
+
+    end subroutine clear_mode_selection
 
   end subroutine draw_vibrations
 
