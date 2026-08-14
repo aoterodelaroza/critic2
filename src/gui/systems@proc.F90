@@ -2589,7 +2589,10 @@ contains
        ish = sys(isys)%c%identify_spc("H")
        if (ish == 0) ish = -1 ! no H species: have add_atom create one (Z = 1)
        dh = sysc%atmcov(z0) + sysc%atmcov(1)
-       call sys(isys)%c%add_atom(ish,r0 + dh * umob(:,nmv),iunit_bohr,.false.,copybonding=.true.)
+       ! the hydrogen bonds to the atom it was added to and to nothing
+       ! else: the rest of the system keeps the bonds it has
+       call sys(isys)%c%add_atom(ish,r0 + dh * umob(:,nmv),iunit_bohr,.false.,&
+          copybonding=.true.,bondto=icel,bondx=r0)
     else
        ! no terminal hydrogen bonded to this atom: nothing to do
        if (ihdel == 0) return
@@ -2857,25 +2860,34 @@ contains
   end subroutine create_bond
 
   !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
-  !> to this system in a single rebuild.
-  module subroutine add_atoms_fragment(sysc,nat,zat,x)
+  !> to this system in a single rebuild. The added atoms are attached to
+  !> the rest by the bonds in newbonds (see replace_atoms_fragment); with
+  !> newbonds absent, by the ones a distance search finds.
+  module subroutine add_atoms_fragment(sysc,nat,zat,x,newbonds,newbondx)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: nat
     integer, intent(in) :: zat(nat)
     real*8, intent(in) :: x(3,nat)
+    integer, intent(in), optional :: newbonds(:,:)
+    real*8, intent(in), optional :: newbondx(:,:)
 
     if (.not.ok_system(sysc%id,sys_init)) return
     if (nat <= 0) return
 
-    call sys(sysc%id)%c%add_fragment(nat,zat,x,copybonding=.true.)
+    call sys(sysc%id)%c%add_fragment(nat,zat,x,copybonding=.true.,newbonds=newbonds,&
+       newbondx=newbondx)
     call sysc%post_event(lastchange_geometry)
 
   end subroutine add_atoms_fragment
 
   !> Delete the ndel cell atoms in idel and add nadd atoms with atomic
-  !> numbers zat and Cartesian coordinates x to this system in a
-  !> single rebuild.
-  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0)
+  !> numbers zat and Cartesian coordinates x to this system in a single
+  !> rebuild. The added atoms bring their internal bonding in nstar0 and
+  !> attach to the rest with the bonds in newbonds: newbonds(:,i) =
+  !> (added atom, pre-edit index of the atom it bonds to), a complete
+  !> list, so an empty newbonds attaches the fragment to nothing. With
+  !> newbonds absent, the bonds a distance search finds are used instead.
+  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0,newbonds,newbondx)
     use types, only: neighstar
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: ndel
@@ -2884,6 +2896,8 @@ contains
     integer, intent(in) :: zat(nadd)
     real*8, intent(in) :: x(3,nadd)
     type(neighstar), intent(in), optional :: nstar0(nadd)
+    integer, intent(in), optional :: newbonds(:,:)
+    real*8, intent(in), optional :: newbondx(:,:)
 
     if (.not.ok_system(sysc%id,sys_init)) return
     if (ndel <= 0 .and. nadd <= 0) return
@@ -2891,7 +2905,7 @@ contains
     if (nadd <= 0 .and. ndel >= sys(sysc%id)%c%ncel) return
 
     call sys(sysc%id)%c%replace_fragment(ndel,idel,nadd,zat,x,copybonding=.true.,&
-       nstar0=nstar0)
+       nstar0=nstar0,newbonds=newbonds,newbondx=newbondx)
     call sysc%post_event(lastchange_geometry)
 
   end subroutine replace_atoms_fragment

@@ -1996,7 +1996,13 @@ contains
   !> Add atom with species is and position x in units of iunit_l (see
   !> global). If is <= 0, add a new species with Z = abs(is) to the
   !> system. If isnneq, replicate the atom by symmetry.
-  module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,ti)
+  !> Add one atom of species is at x (in units iunit_l; isnneq marks it
+  !> as a new non-equivalent atom). copybonding keeps the bonding of the
+  !> structure. The added atom is bonded to whatever a distance search
+  !> finds, unless the caller names the atom it bonds to (bondto, a cell
+  !> atom, at the position bondx if it is one of its periodic images):
+  !> then that is the only bond made, and nothing else is re-bonded.
+  module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc, siteocc
     use tools_io, only: nameguess
@@ -2006,13 +2012,15 @@ contains
     integer, intent(in) :: iunit_l
     logical, intent(in) :: isnneq
     logical, intent(in), optional :: copybonding
+    integer, intent(in), optional :: bondto
+    real*8, intent(in), optional :: bondx(3)
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     type(siteocc), allocatable :: mixaux(:)
     real*8 :: xx(3)
     logical :: copysym, copybonding_
-    integer :: is_
+    integer :: is_, lvec(3)
 
     ! whether to use symmetry; carrying the bonding requires the
     ! one-to-one atom list a symmetric add does not keep
@@ -2066,32 +2074,55 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
-    ! find the bonds of the added atom
-    if (copybonding_) call bonds_attach_new(c,c%ncel-1,.true.)
+    ! the bonds of the added atom: the one the caller asked for, or the
+    ! ones a distance search finds
+    if (copybonding_ .and. present(bondto)) then
+       if (bondto >= 1 .and. bondto < c%ncel) then
+          ! the caller may bond to an image, and the new atom may have
+          ! been wrapped on the rebuild: recover the lattice vector from
+          ! the offset the caller placed it against
+          lvec = 0
+          if (.not.c%ismolecule .and. present(bondx)) &
+             lvec = nint((c%c2x(bondx) - xx) -&
+             (c%atcel(bondto)%x - c%atcel(c%ncel)%x))
+          call c%add_bond(c%ncel,bondto,lvec,1)
+       end if
+    elseif (copybonding_) then
+       call bonds_attach_new(c,c%ncel-1,newnew=.true.,newold=.true.)
+    end if
 
   end subroutine add_atom
 
   !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
   !> to the crystal in a single rebuild.
-  module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,ti)
+  module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,newbonds,newbondx,ti)
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: zat(nat)
     real*8, intent(in) :: x(3,nat)
     logical, intent(in), optional :: copybonding
     type(neighstar), intent(in), optional :: nstar0(nat)
+    integer, intent(in), optional :: newbonds(:,:)
+    real*8, intent(in), optional :: newbondx(:,:)
     type(thread_info), intent(in), optional :: ti
 
-    call c%replace_fragment(0,(/integer::/),nat,zat,x,copybonding,nstar0,ti)
+    call c%replace_fragment(0,(/integer::/),nat,zat,x,copybonding,nstar0,&
+       newbonds=newbonds,newbondx=newbondx,ti=ti)
 
   end subroutine add_fragment
 
   !> Delete the ndel cell atoms in idel and add nadd atoms with atomic
   !> numbers zat and Cartesian coordinates x to the crystal, in a
-  !> single rebuild.
-  module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,copybonding,nstar0,ti)
+  !> single rebuild. With copybonding, the surviving atoms keep their
+  !> bonds and the added atoms bring their internal bonding in nstar0.
+  !> The bonds attaching the added atoms to the rest come from a distance
+  !> search, unless newbonds is given: newbonds(:,i) = (added atom,
+  !> pre-edit index of the atom it bonds to) is then the complete list of
+  !> them, and an empty newbonds attaches the fragment to nothing.
+  module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,copybonding,nstar0,&
+     newbonds,newbondx,ti)
     use crystalseedmod, only: crystalseed
-    use types, only: realloc, siteocc
+    use types, only: realloc, siteocc, star_find
     use tools_io, only: nameguess
     class(crystal), intent(inout) :: c
     integer, intent(in) :: ndel
@@ -2101,14 +2132,17 @@ contains
     real*8, intent(in) :: x(3,nadd)
     logical, intent(in), optional :: copybonding
     type(neighstar), intent(in), optional :: nstar0(nadd)
+    integer, intent(in), optional :: newbonds(:,:)
+    real*8, intent(in), optional :: newbondx(:,:)
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     type(siteocc), allocatable :: mixaux(:)
     logical, allocatable :: keep(:)
     integer, allocatable :: imap(:)
-    integer :: i, j, k, is, nat0
-    logical :: copybonding_
+    integer :: i, j, k, is, nat0, ia, ib, nb
+    integer :: lvec(3)
+    logical :: copybonding_, newnew, newold
 
     if (ndel <= 0 .and. nadd <= 0) return
     copybonding_ = .false.
@@ -2129,7 +2163,9 @@ contains
 
     ! Bonding of the surviving atoms. The added atoms start with their
     ! given internal bonding (nstar0, renumbered) or with no bonds;
-    ! either way their bonds to the rest are found after the rebuild.
+    ! either way their bonds to the rest are found after the rebuild,
+    ! unless the caller gave them (newbonds). imap (the map from the old
+    ! numbering to the new one) is kept for the latter.
     if (copybonding_) then
        allocate(imap(seed%nat))
        nat0 = 0
@@ -2141,7 +2177,6 @@ contains
           end if
        end do
        call c%bonds_subset(imap,seed%nstar)
-       deallocate(imap)
        call realloc(seed%nstar,nat0+nadd)
        if (present(nstar0)) then
           do i = 1, nadd
@@ -2219,9 +2254,41 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
-    ! find the bonds that attach the added atoms to the rest (all their
-    ! bonds, when they did not bring their internal bonding with them)
-    if (copybonding_) call bonds_attach_new(c,seed%nat-nadd,.not.present(nstar0))
+    ! Bonds of the added atoms. Among themselves, a distance search finds
+    ! them unless they brought their own (nstar0); to the rest, likewise
+    ! unless the caller gave them (newbonds).
+    if (copybonding_) then
+       nat0 = seed%nat - nadd
+       newnew = .not.present(nstar0)
+       newold = .not.present(newbonds)
+       if (newnew .or. newold) call bonds_attach_new(c,nat0,newnew,newold)
+       if (present(newbonds)) then
+          nb = 0
+          do i = 1, size(newbonds,2)
+             ia = newbonds(1,i)
+             ib = newbonds(2,i)
+             if (ia < 1 .or. ia > nadd .or. ib < 1 .or. ib > size(imap,1)) cycle
+             if (imap(ib) == 0) cycle
+             ! the atom the caller bonds to may be an image of the one in
+             ! the cell, and both atoms may have been wrapped on the
+             ! rebuild: recover the lattice vector by comparing the offset
+             ! the caller placed the fragment against with the stored one
+             lvec = 0
+             if (.not.c%ismolecule .and. present(newbondx)) &
+                lvec = nint(c%c2x(newbondx(:,i) - x(:,ia)) -&
+                (c%atcel(imap(ib))%x - c%atcel(nat0+ia)%x))
+             ia = nat0 + ia
+             ib = imap(ib)
+             if (ia == ib .and. all(lvec == 0)) cycle
+             if (star_find(c%nstar(ia),ib,lvec) > 0) cycle
+             call star_append(c%nstar(ia),ib,lvec,1)
+             call star_append(c%nstar(ib),ia,-lvec,1)
+             nb = nb + 1
+          end do
+          ! one pass over the whole structure, not one per bond
+          if (nb > 0) call c%refresh_molecular_data()
+       end if
+    end if
 
   end subroutine replace_fragment
 
@@ -2510,15 +2577,18 @@ contains
   !> bonds and add them to c%nstar, then refresh the derived molecular
   !> data. Bonds between two added atoms are included only with newnew
   !> (they are already present when the fragment brought its own
-  !> internal bonding). Bonds among the first nkeep atoms are left
-  !> untouched.
-  subroutine bonds_attach_new(c,nkeep,newnew)
+  !> internal bonding), and bonds from an added atom to one of the first
+  !> nkeep only with newold (a caller that knows how the fragment
+  !> attaches makes those itself). Bonds among the first nkeep atoms are
+  !> left untouched.
+  subroutine bonds_attach_new(c,nkeep,newnew,newold)
     use global, only: bondfactor
     use types, only: neighstar
     use param, only: atmcov
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nkeep
     logical, intent(in) :: newnew
+    logical, intent(in) :: newold
 
     type(neighstar), allocatable :: ns(:)
     integer :: i, k, nb
@@ -2536,6 +2606,7 @@ contains
        do k = 1, ns(i)%ncon
           nb = ns(i)%idcon(k)
           if (nb <= nkeep) then
+             if (.not.newold) cycle
              call star_append(c%nstar(i),nb,ns(i)%lcon(:,k),ns(i)%ordcon(k))
              call star_append(c%nstar(nb),i,-ns(i)%lcon(:,k),ns(i)%ordcon(k))
           elseif (newnew) then

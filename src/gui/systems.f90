@@ -531,13 +531,15 @@ module systems
        logical, intent(in) :: removeh
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine create_bond
-     module subroutine add_atoms_fragment(sysc,nat,zat,x)
+     module subroutine add_atoms_fragment(sysc,nat,zat,x,newbonds,newbondx)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: nat
        integer, intent(in) :: zat(nat)
        real*8, intent(in) :: x(3,nat)
+       integer, intent(in), optional :: newbonds(:,:)
+       real*8, intent(in), optional :: newbondx(:,:)
      end subroutine add_atoms_fragment
-     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0)
+     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0,newbonds,newbondx)
        use types, only: neighstar
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: ndel
@@ -546,6 +548,8 @@ module systems
        integer, intent(in) :: zat(nadd)
        real*8, intent(in) :: x(3,nadd)
        type(neighstar), intent(in), optional :: nstar0(nadd)
+       integer, intent(in), optional :: newbonds(:,:)
+       real*8, intent(in), optional :: newbondx(:,:)
      end subroutine replace_atoms_fragment
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc

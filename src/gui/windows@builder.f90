@@ -1774,6 +1774,8 @@ contains
       integer :: zat(maxaddsub+1), nsub, nat
       logical :: ok, used(maxaddsub)
 
+      integer, parameter :: nobonds(2,0) = 0 ! empty attachment list
+
       placed = .false.
       call view_click_frame(iview,xpos,x0,rot,ok)
       if (.not.ok) return
@@ -1793,7 +1795,10 @@ contains
       xat(:,1) = x0
       used = .false.
       call addatom_cap_hydrogens(w%builder_isys,zat(1),x0,rot,nsub,tvec,used,nat,zat,xat)
-      call sysc(w%builder_isys)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat))
+      ! placed on empty space: it bonds to nothing in the system, and the
+      ! system keeps the bonds it has
+      call sysc(w%builder_isys)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat),&
+         newbonds=nobonds)
 
     end subroutine addatom_apply
 
@@ -1806,10 +1811,10 @@ contains
 
       integer :: isysl, nsub, m, ndel, nadd, k, ncon, znew, zanchor
       integer :: zat(maxaddsub+1)
-      integer, allocatable :: idel(:)
+      integer, allocatable :: idel(:), newbonds(:,:)
       real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1), rot(3,3)
       real*8 :: x0(3), xtmp(3), dir(3), dnorm
-      real*8, allocatable :: ufix(:,:)
+      real*8, allocatable :: ufix(:,:), newbondx(:,:)
       type(substituent), allocatable :: sub(:)
       logical :: used(maxaddsub), lok
 
@@ -1824,7 +1829,8 @@ contains
       ! (a mono-coordinate atom keeps its only neighbor)
       x0 = sys(isysl)%c%atcel(icel)%r
       call sys(isysl)%c%substituents(icel,ncon,sub)
-      allocate(idel(ncon+1),ufix(3,max(ncon,1)))
+      allocate(idel(ncon+1),ufix(3,max(ncon,1)),newbonds(2,max(ncon,1)),&
+         newbondx(3,max(ncon,1)))
       ndel = 1
       idel(1) = icel
       m = 0
@@ -1838,6 +1844,13 @@ contains
          else
             m = m + 1
             ufix(:,m) = sys(isysl)%c%atcel(sub(k)%id)%r + sub(k)%tv
+            ! the new atom takes over the bonds of the one it replaces,
+            ! and makes no others: the rest of the system keeps its
+            ! connectivity
+            ! the image matters: in a small cell the same atom can be a
+            ! neighbor through several of them
+            newbonds(:,m) = (/1,sub(k)%id/)
+            newbondx(:,m) = ufix(:,m)
             zanchor = sub(k)%z
          end if
       end do
@@ -1854,7 +1867,8 @@ contains
       if (m >= nsub) then
          zat(1) = znew
          xat(:,1) = x0
-         call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),1,zat(1:1),xat(:,1:1))
+         call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),1,zat(1:1),xat(:,1:1),&
+            newbonds=newbonds(:,1:m),newbondx=newbondx(:,1:m))
          placed = .true.
          return
       end if
@@ -1881,7 +1895,8 @@ contains
       zat(1) = znew
       xat(:,1) = x0
       call addatom_cap_hydrogens(isysl,znew,x0,rot,nsub,tvec,used,nadd,zat,xat)
-      call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd))
+      call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd),&
+         newbonds=newbonds(:,1:m),newbondx=newbondx(:,1:m))
       placed = .true.
 
     end subroutine addatom_replace
@@ -2199,10 +2214,10 @@ contains
     type(neighstar), intent(in), optional :: nstar0(nat)
     logical, intent(out), optional :: placed
 
-    integer :: isysl, i, ia, nadd, ndel
-    integer, allocatable :: idel(:), zadd(:), fmap(:)
+    integer :: isysl, i, ia, nadd, ndel, nkept
+    integer, allocatable :: idel(:), zadd(:), fmap(:), ikept(:), newbonds(:,:)
     type(neighstar), allocatable :: nstar0add(:)
-    real*8, allocatable :: xadd(:,:)
+    real*8, allocatable :: xadd(:,:), xkept(:,:), newbondx(:,:)
     real*8 :: x0(3), rcam(3,3), e(3,3), rot(3,3), p0(3), t1(3), dattach(3)
     logical :: ok, keepattach
 
@@ -2220,7 +2235,8 @@ contains
     keepattach = .false.
     if (icel == 0 .and. iattach > 0) keepattach = (z(iattach) > 0)
     ndel = 0
-    allocate(idel(1))
+    nkept = 0
+    allocate(idel(1),ikept(1),xkept(3,1))
     if (icel == 0) then
        ! empty space: the attachment points to the left of the screen
        p0 = x0
@@ -2229,8 +2245,11 @@ contains
        ! a ligand: it bonds to the clicked atom instead of replacing it
        call addfrag_ligand_target(icel,rcam,p0,dattach,ok)
        if (.not.ok) return
+       nkept = 1
+       ikept(1) = icel
+       xkept(:,1) = sys(isysl)%c%atcel(icel)%r
     else
-       call addfrag_target(icel,rcam,p0,dattach,ndel,idel,ok)
+       call addfrag_target(icel,rcam,p0,dattach,ndel,idel,nkept,ikept,xkept,ok)
        if (.not.ok) return
     end if
 
@@ -2265,8 +2284,21 @@ contains
     if (present(nstar0)) &
        call nstar_subset(nstar0,fmap,nstar0add)
 
+    ! the fragment is attached by the bonds its placement is built on and
+    ! by no others: the anchor to the clicked atom (a ligand) or to the
+    ! neighbors of the atom it replaces (a substituent), and nothing at
+    ! all on empty space. The rest of the system keeps its bonds. With no
+    ! anchor left to attach, leave newbonds unallocated (absent) and let
+    ! the distance search do it
+    if (fmap(ia) == 0) nkept = 0
+    allocate(newbonds(2,nkept),newbondx(3,nkept))
+    do i = 1, nkept
+       newbonds(1,i) = fmap(ia)
+       newbonds(2,i) = ikept(i)
+       newbondx(:,i) = xkept(:,i)
+    end do
     call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:max(ndel,1)),nadd,&
-       zadd(1:nadd),xadd(:,1:nadd),nstar0add)
+       zadd(1:nadd),xadd(:,1:nadd),nstar0add,newbonds,newbondx)
     if (present(placed)) placed = .true.
 
   contains
@@ -2275,16 +2307,19 @@ contains
     ! direction from the anchor towards the atoms it bonds to (dattach),
     ! and the atoms to delete (icel plus the terminal hydrogens that make
     ! room for the fragment).
-    subroutine addfrag_target(icel,rcam,p0,dattach,ndel,idel,ok)
+    subroutine addfrag_target(icel,rcam,p0,dattach,ndel,idel,nkept,ikept,xkept,ok)
       integer, intent(in) :: icel
       real*8, intent(in) :: rcam(3,3)
       real*8, intent(out) :: p0(3), dattach(3)
       integer, intent(out) :: ndel
       integer, allocatable, intent(inout) :: idel(:)
+      integer, intent(out) :: nkept
+      integer, allocatable, intent(inout) :: ikept(:)
+      real*8, allocatable, intent(inout) :: xkept(:,:)
       logical, intent(out) :: ok
 
       integer :: isysl, ncon, k, nanch, nrem, m, zkept
-      real*8 :: x0(3), xkept(3), dn, sumdir(3)
+      real*8 :: x0(3), dn, sumdir(3)
       type(substituent), allocatable :: sub(:)
 
       ok = .false.
@@ -2298,6 +2333,10 @@ contains
       allocate(idel(ncon+1))
       ndel = 1
       idel(1) = icel
+      if (allocated(ikept)) deallocate(ikept)
+      if (allocated(xkept)) deallocate(xkept)
+      allocate(ikept(max(ncon,1)),xkept(3,max(ncon,1)))
+      nkept = 0
 
       ! a terminal atom is simply replaced; otherwise make room for the
       ! fragment by removing as many terminal hydrogens as connections
@@ -2310,7 +2349,6 @@ contains
       nrem = 0
       zkept = 0
       sumdir = 0d0
-      xkept = 0d0
       do k = 1, ncon
          if (sub(k)%z == 1 .and. sub(k)%terminal .and. nrem < nanch) then
             if (any(idel(1:ndel) == sub(k)%id)) cycle
@@ -2320,8 +2358,13 @@ contains
          else
             m = m + 1
             sumdir = sumdir + sub(k)%u
-            xkept = sys(isysl)%c%atcel(sub(k)%id)%r + sub(k)%tv
             zkept = sub(k)%z
+            ! the anchor takes over the bonds of the atom it replaces,
+            ! one per image: in a small cell the same atom can be a
+            ! neighbor through more than one of them
+            nkept = nkept + 1
+            ikept(nkept) = sub(k)%id
+            xkept(:,nkept) = sys(isysl)%c%atcel(sub(k)%id)%r + sub(k)%tv
          end if
       end do
 
@@ -2335,7 +2378,7 @@ contains
          dattach = sumdir / dn
          ! on a single kept neighbor, re-bond at the sum of covalent radii
          if (m == 1) then
-            call cov_point(isysl,xkept,zkept,x0,z(ianchor),p0,ok)
+            call cov_point(isysl,xkept(:,1),zkept,x0,z(ianchor),p0,ok)
             if (.not.ok) return
          end if
       end if
