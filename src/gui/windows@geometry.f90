@@ -315,8 +315,9 @@ contains
        call clear_sym_cache()
     end if
 
-    ! system combo
-    if (w%firstpass) then
+    ! system combo. The atoms tab opens by default and whenever another
+    ! window asks for it (geometry_seltab, cleared after the tab bar)
+    if (w%firstpass .or. w%geometry_seltab == geomtab_atoms) then
        atompreflags = ImGuiTabItemFlags_SetSelected
     else
        atompreflags = ImGuiTabItemFlags_None
@@ -978,6 +979,7 @@ contains
        if (.not.sys(isys)%c%ismolecule) then
           str2 = "Cell##drawgeometry_celltab" // c_null_char
           flags = ImGuiTabItemFlags_None
+          if (w%geometry_seltab == geomtab_cell) flags = ImGuiTabItemFlags_SetSelected
           if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
              ! check if the tab changed
              call check_changed_tab("cell")
@@ -1524,6 +1526,7 @@ contains
        !! bonds tab !!
        str2 = "Bonds##drawgeometry_bondstab" // c_null_char
        flags = ImGuiTabItemFlags_None
+       if (w%geometry_seltab == geomtab_bonds) flags = ImGuiTabItemFlags_SetSelected
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! check if the tab changed
           call check_changed_tab("bonds")
@@ -1856,6 +1859,7 @@ contains
        !! symmetry tab !!
        str2 = "Symmetry##drawgeometry_symmetrytab" // c_null_char
        flags = ImGuiTabItemFlags_None
+       if (w%geometry_seltab == geomtab_symmetry) flags = ImGuiTabItemFlags_SetSelected
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! check if the tab changed
           call check_changed_tab("symmetry")
@@ -2144,6 +2148,7 @@ contains
 
        call igEndTabBar()
     end if
+    w%geometry_seltab = geomtab_none ! the request has been served
 
     call igEndGroup()
 

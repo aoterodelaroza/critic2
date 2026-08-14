@@ -66,6 +66,14 @@ module windows
   integer, parameter, public :: it_none = 0
   integer, parameter, public :: it_edit = vm_NUM + 1
 
+  ! tabs of the geometry window that another window can ask it to show
+  ! (w%geometry_seltab); only the ones with an external entry point
+  integer, parameter, public :: geomtab_none = 0
+  integer, parameter, public :: geomtab_atoms = 1
+  integer, parameter, public :: geomtab_cell = 2
+  integer, parameter, public :: geomtab_bonds = 3
+  integer, parameter, public :: geomtab_symmetry = 4
+
   character(len=17), parameter, public :: vmnames(vm_builder_lo:vm_NUM) = (/&
      "Bond Order       ",& ! vm_builder_bondorder
      "Remove Bonds     ",& ! vm_builder_bondremove
@@ -232,6 +240,7 @@ module windows
      integer :: geometry_euler_drag_mol = 0 ! molecule whose Euler angles are being dragged (0 = none)
      real*8 :: geometry_euler_drag_val(3) = 0d0 ! unwrapped Euler angles (degrees) during an active drag
      real(c_float) :: geometry_select_rgba(4) ! highlight color
+     integer :: geometry_seltab = geomtab_none ! tab requested by another window, shown and cleared on the next pass
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
      type(pairpick) :: geometry_addbond ! staged atom waiting for an add-bond pick

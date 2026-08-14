@@ -279,7 +279,7 @@ contains
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
     type(ImVec2) :: szchild, szrow
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, strgroup
     character(kind=c_char,len=:), allocatable, target :: strchild
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -501,6 +501,20 @@ contains
     call iw_tooltip("Refine symmetry: move the atoms onto their symmetry positions exactly",&
        ttshown,whendisabled=.true.)
 
+    ! the current group, after the tool: space group in a crystal, point
+    ! group in a molecule
+    if (havesys) then
+       strgroup = "n/a"
+       if (sys(isys)%c%ismolecule) then
+          if (sys(isys)%c%pg%avail) strgroup = trim(sys(isys)%c%pg%symbol)
+       else
+          if (sys(isys)%c%spgavail) strgroup = trim(sys(isys)%c%spg%international_symbol)
+       end if
+       call igSameLine(0._c_float,-1._c_float)
+       call igSetCursorPosY(yrow + 0.5_c_float * (hicon - igGetTextLineHeight()))
+       call iw_text("(" // strgroup // ")")
+    end if
+
     ! the relaxation: the button starts and stops the run, and the
     ! method and the convergence threshold follow it on the same row
     relaxing = .false.
@@ -567,6 +581,42 @@ contains
     end if
     call igPopStyleVar(1)
 
+    ! one text line of air between the tool rows and the buttons below
+    szrow%x = 0._c_float
+    szrow%y = fontsize%y
+    call igDummy(szrow)
+
+    ! the two actions that discard work: the bonds the user made by hand,
+    ! and every edit in the session
+    if (iw_button("Rebond",danger=.true.,disabled=.not.havesys)) then
+       w%errmsg = ""
+       call sysc(isys)%rebond()
+    end if
+    call iw_tooltip("Recompute the bond connectivity for this system, discarding the bonds"//&
+       " created or removed by hand ("//trim(get_bind_keyname(BIND_RECALC_BONDS))//")",&
+       ttshown,whendisabled=.true.)
+    if (iw_button("Restore",danger=.true.,disabled=.not.havesys,sameline=.true.)) then
+       w%errmsg = ""
+       ! drop any edit session without rebuilding (the geometry is
+       ! discarded) and treat the system as not ready for the rest of this
+       ! frame: the re-read deallocates sys(isys)%c until the init thread runs
+       w%edit_dirty = .false.
+       call w%edit_stop()
+       call reread_system_from_file(isys)
+       havesys = .false.
+    end if
+    call iw_tooltip("Restore the system to the original geometry it had when it was"//&
+       " first opened, discarding every edit ("//&
+       trim(get_bind_keyname(BIND_REOPEN))//")",ttshown,whendisabled=.true.)
+
+    ! shortcuts to the windows where the structure can be inspected in
+    ! detail: the tabs of View/Edit Geometry, and Dynamics
+    call window_button("Atoms",geomtab_atoms)
+    call window_button("Cell",geomtab_cell)
+    call window_button("Bonds",geomtab_bonds)
+    call window_button("Symmetry",geomtab_symmetry)
+    call window_button("Dynamics",geomtab_none)
+
     ! the options of the tool on display, in a child region so that only
     ! this part scrolls: the footer buttons stay in view
     call igSeparator()
@@ -606,29 +656,6 @@ contains
     ! error message, if any
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
-    ! the two actions that discard work (the bonds the user made by hand,
-    ! and every edit in the session), then the close button
-    if (iw_button("Rebond",danger=.true.,disabled=.not.havesys)) then
-       w%errmsg = ""
-       call sysc(isys)%rebond()
-    end if
-    call iw_tooltip("Recompute the bond connectivity for this system, discarding the bonds"//&
-       " created or removed by hand ("//trim(get_bind_keyname(BIND_RECALC_BONDS))//")",&
-       ttshown,whendisabled=.true.)
-    if (iw_button("Restore",danger=.true.,disabled=.not.havesys,sameline=.true.)) then
-       w%errmsg = ""
-       ! drop any edit session without rebuilding (the geometry is
-       ! discarded) and treat the system as not ready for the rest of this
-       ! frame: the re-read deallocates sys(isys)%c until the init thread runs
-       w%edit_dirty = .false.
-       call w%edit_stop()
-       call reread_system_from_file(isys)
-       havesys = .false.
-    end if
-    call iw_tooltip("Restore the system to the original geometry it had when it was"//&
-       " first opened, discarding every edit ("//&
-       trim(get_bind_keyname(BIND_REOPEN))//")",ttshown,whendisabled=.true.)
-
     ! close button and binds
     call iw_setposx_fromend(5,1)
     if (iw_button("Close")) doquit = .true.
@@ -646,6 +673,37 @@ contains
     ! of the row in yrow. The label is centered on the icon buttons,
     ! which are taller than a text line. help adds a help marker after
     ! the label, for a row that needs instructions.
+    ! A button that opens the window where the structure can be inspected
+    ! in detail: tab itab of the View/Edit Geometry window, or (for
+    ! geomtab_none) the Dynamics window. The cell tab exists only in
+    ! crystals.
+    subroutine window_button(str,itab)
+      character(len=*), intent(in) :: str
+      integer, intent(in) :: itab
+
+      integer :: idum
+      logical :: ok
+
+      ok = havesys
+      if (ok .and. itab == geomtab_cell) ok = .not.sys(isys)%c%ismolecule
+      if (iw_button(str//"##builderwin"//str,disabled=.not.ok,sameline=.true.)) then
+         if (itab == geomtab_none) then
+            idum = stack_create_window(wintype_dynamics,.true.,idparent=iview,orraise=-1)
+         else
+            idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+            if (idum > 0) win(idum)%geometry_seltab = itab
+         end if
+      end if
+      if (itab == geomtab_none) then
+         call iw_tooltip("Open the Dynamics window: molecular dynamics and interactive"//&
+            " manipulation of this system",ttshown,whendisabled=.true.)
+      else
+         call iw_tooltip("Open the "//str//" tab of the View/Edit Geometry window for this"//&
+            " system",ttshown,whendisabled=.true.)
+      end if
+
+    end subroutine window_button
+
     subroutine row_label(str,help)
       character(len=*), intent(in) :: str
       character(len=*), intent(in), optional :: help
