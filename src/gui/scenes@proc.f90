@@ -2050,49 +2050,37 @@ contains
   !> dihedral. The measurement is appended to the scene's measurement
   !> representation (one is created if none exists).
   module subroutine scene_add_measurement(s,idx)
-    use representations, only: measurement_item
     class(scene), intent(inout), target :: s
     integer, intent(in) :: idx(5)
 
-    integer :: n, irep, ni
+    integer :: n
     integer :: aidx(4,4)
-    type(measurement_item), allocatable :: aux(:)
 
     ! build the ordered atom list (selected anchors + clicked atom);
     ! bail out if there is no valid measurement to make
     if (.not.measure_build_idx(s,idx,aidx,n)) return
-
-    ! find (or create) the measurement representation
-    irep = measure_rep_id(s,.true.)
-    if (irep == 0) return
-
-    ! skip if this exact measurement already exists
-    do ni = 1, s%rep(irep)%measure%nitem
-       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) return
-    end do
-
-    ! append the item
-    ni = s%rep(irep)%measure%nitem
-    if (.not.allocated(s%rep(irep)%measure%item)) then
-       allocate(s%rep(irep)%measure%item(1))
-    elseif (ni >= size(s%rep(irep)%measure%item,1)) then
-       allocate(aux(2*ni))
-       aux(1:ni) = s%rep(irep)%measure%item(1:ni)
-       call move_alloc(aux,s%rep(irep)%measure%item)
-    end if
-    ni = ni + 1
-    s%rep(irep)%measure%nitem = ni
-    associate (it => s%rep(irep)%measure%item(ni))
-       it%shown = .true.
-       it%n = n
-       it%idx = 0
-       it%idx(:,1:n) = aidx(:,1:n)
-       call it%set_defaults(n) ! per-item style from the matching kind defaults
-    end associate
-    s%rep(irep)%measure%isel = ni ! select the new item in the editor
-    s%forcebuildlists = .true.
+    call measure_append(s,aidx,n)
 
   end subroutine scene_add_measurement
+
+  !> Create the measurement made of the selected atoms alone: 2 of them
+  !> -> distance, 3 -> angle (vertex = 2nd selected), 4 -> dihedral. For
+  !> the add binding on empty space, where there is no clicked atom to
+  !> complete the selection. Does nothing with fewer than 2 selected.
+  module subroutine scene_add_measurement_sel(s)
+    class(scene), intent(inout), target :: s
+
+    integer :: n, k
+    integer :: aidx(4,4)
+
+    if (s%nmsel < 2 .or. s%nmsel > 4) return
+    n = s%nmsel
+    do k = 1, n
+       aidx(:,k) = s%msel(1:4,k)
+    end do
+    call measure_append(s,aidx,n)
+
+  end subroutine scene_add_measurement_sel
 
   !> Delete measurements involving the clicked atom idx. With anchor
   !> atoms selected, remove only the exact measurement made of the
@@ -2837,6 +2825,50 @@ contains
     ok = .true.
 
   end function measure_build_idx
+
+  !> Append the measurement made of the ordered atom list aidx(:,1:n)
+  !> to the scene's measurement representation (creating one if there
+  !> is none), unless that exact measurement is already there.
+  subroutine measure_append(s,aidx,n)
+    use representations, only: measurement_item
+    type(scene), intent(inout), target :: s
+    integer, intent(in) :: aidx(4,4)
+    integer, intent(in) :: n
+
+    integer :: irep, ni
+    type(measurement_item), allocatable :: aux(:)
+
+    ! find (or create) the measurement representation
+    irep = measure_rep_id(s,.true.)
+    if (irep == 0) return
+
+    ! skip if this exact measurement already exists
+    do ni = 1, s%rep(irep)%measure%nitem
+       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) return
+    end do
+
+    ! append the item
+    ni = s%rep(irep)%measure%nitem
+    if (.not.allocated(s%rep(irep)%measure%item)) then
+       allocate(s%rep(irep)%measure%item(1))
+    elseif (ni >= size(s%rep(irep)%measure%item,1)) then
+       allocate(aux(2*ni))
+       aux(1:ni) = s%rep(irep)%measure%item(1:ni)
+       call move_alloc(aux,s%rep(irep)%measure%item)
+    end if
+    ni = ni + 1
+    s%rep(irep)%measure%nitem = ni
+    associate (it => s%rep(irep)%measure%item(ni))
+       it%shown = .true.
+       it%n = n
+       it%idx = 0
+       it%idx(:,1:n) = aidx(:,1:n)
+       call it%set_defaults(n) ! per-item style from the matching kind defaults
+    end associate
+    s%rep(irep)%measure%isel = ni ! select the new item in the editor
+    s%forcebuildlists = .true.
+
+  end subroutine measure_append
 
   !> Return the id of the scene's measurement representation. If
   !> create is true and none exists, add one and return its

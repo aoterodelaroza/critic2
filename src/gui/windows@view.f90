@@ -45,6 +45,7 @@ submodule (windows) view
   integer, parameter :: pend_measure_remove = 2 ! remove a measurement (navigation)
   integer, parameter :: pend_pick = 3           ! deliver an atom pick (forced pick modes)
   integer, parameter :: pend_pick_alt = 4       ! deliver an alternate-action pick (builder)
+  integer, parameter :: pend_measure_addsel = 5 ! add the measurement of the selected atoms (navigation)
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
@@ -1914,7 +1915,8 @@ contains
        if (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
     elseif (forcedpick) then
-       if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_remove) &
+       if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_remove .or.&
+          w%measure_pend == pend_measure_addsel) &
           w%measure_pend = pend_none
     else
        w%measure_pend = pend_none
@@ -1965,13 +1967,14 @@ contains
 
           ! measurement: with 1-3 atoms selected, the add/remove binding on another
           ! atom adds/removes the corresponding measurement (distance/angle/dihedral).
-          ! For a mouse-button binding, capture the atom on the press (while the view
-          ! is still hovered) and resolve on release only if the cursor did not drag
-          ! (so a right/middle drag still pans/perp-rotates the camera and the
-          ! right-double click still resets the view); for a non-mouse binding there
-          ! is no drag to disambiguate, so act at once.
-          if (hover .and. w%mousepos_idx(1) > 0) then
-             if (is_bind_event(BIND_NAV_MEASURE_ADD)) then
+          ! On empty space, the add binding closes the measurement with the 2-4
+          ! selected atoms. For a mouse-button binding, capture the atom on
+          ! the press (while the view is still hovered) and resolve on release only
+          ! if the cursor did not drag (so a right/middle drag still pans/perp-rotates
+          ! the camera and the right-double click still resets the view); for a
+          ! non-mouse binding there is no drag to disambiguate, so act at once.
+          if (hover .and. is_bind_event(BIND_NAV_MEASURE_ADD)) then
+             if (w%mousepos_idx(1) > 0) then
                 if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
                    w%measure_pend = pend_measure_add
                    w%measure_pend_idx = w%mousepos_idx
@@ -1980,15 +1983,23 @@ contains
                    call w%sc%add_measurement(w%mousepos_idx)
                    w%forcerender = .true.
                 end if
-             elseif (is_bind_event(BIND_NAV_MEASURE_REMOVE)) then
-                if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
-                   w%measure_pend = pend_measure_remove
-                   w%measure_pend_idx = w%mousepos_idx
+             elseif (w%sc%nmsel >= 2) then
+                if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
+                   w%measure_pend = pend_measure_addsel
                    w%press_p0 = mousepos
                 else
-                   call w%sc%delete_measurement(w%mousepos_idx)
+                   call w%sc%add_measurement_sel()
                    w%forcerender = .true.
                 end if
+             end if
+          elseif (hover .and. w%mousepos_idx(1) > 0 .and. is_bind_event(BIND_NAV_MEASURE_REMOVE)) then
+             if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
+                w%measure_pend = pend_measure_remove
+                w%measure_pend_idx = w%mousepos_idx
+                w%press_p0 = mousepos
+             else
+                call w%sc%delete_measurement(w%mousepos_idx)
+                w%forcerender = .true.
              end if
           end if
        else
@@ -2027,7 +2038,8 @@ contains
        if (w%measure_pend /= pend_none) then
           call igGetMousePos(mousepos)
           ibtn = -1_c_int
-          if (w%measure_pend == pend_measure_add) ibtn = bind_mouse_button(BIND_NAV_MEASURE_ADD)
+          if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_addsel) &
+             ibtn = bind_mouse_button(BIND_NAV_MEASURE_ADD)
           if (w%measure_pend == pend_measure_remove) ibtn = bind_mouse_button(BIND_NAV_MEASURE_REMOVE)
           if (w%measure_pend == pend_pick) ibtn = bind_mouse_button(BIND_PICKATOM_SELECT)
           if (w%measure_pend == pend_pick_alt) ibtn = bind_mouse_button(BIND_PICKATOM_ALT)
@@ -2038,6 +2050,9 @@ contains
                  abs(mousepos%y-w%press_p0%y) <= selrect_thr) then
                 if (w%measure_pend == pend_measure_add) then
                    call w%sc%add_measurement(w%measure_pend_idx)
+                   w%forcerender = .true.
+                elseif (w%measure_pend == pend_measure_addsel) then
+                   call w%sc%add_measurement_sel()
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_measure_remove) then
                    call w%sc%delete_measurement(w%measure_pend_idx)

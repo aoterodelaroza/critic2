@@ -122,6 +122,7 @@ module scenes
      procedure :: align_view_axis
      procedure :: select_atom
      procedure :: add_measurement => scene_add_measurement
+     procedure :: add_measurement_sel => scene_add_measurement_sel
      procedure :: delete_measurement => scene_delete_measurement
      procedure :: add_representation
      procedure :: reap_transient_representations => scene_reap_transient_representations
@@ -213,6 +214,9 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(5)
      end subroutine scene_add_measurement
+     module subroutine scene_add_measurement_sel(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_add_measurement_sel
      module subroutine scene_delete_measurement(s,idx)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(5)
