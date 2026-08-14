@@ -36,8 +36,13 @@ module utils
   public :: iw_clamp_color4
   public :: iw_coloredit
   public :: iw_setposx_fromend
+  public :: iw_setpos_bottomright
   public :: iw_calcheight
   public :: iw_calcwidth
+  public :: iw_table_column
+  public :: iw_beginmenu
+  public :: iw_begintabitem
+  public :: iw_close_event
   public :: iw_combo_simple
   public :: iw_radiobutton
   public :: iw_intstepper
@@ -174,6 +179,34 @@ module utils
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
      end subroutine iw_setposx_fromend
+     module subroutine iw_setpos_bottomright(ntext,nbutton,centered)
+       integer, intent(in) :: ntext
+       integer, intent(in) :: nbutton
+       logical, intent(in), optional :: centered
+     end subroutine iw_setpos_bottomright
+     module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
+       character(len=*,kind=c_char), intent(in) :: label
+       integer(c_int), intent(in), optional :: id
+       integer, intent(inout), optional :: icol
+       integer, intent(in), optional :: sortid
+       integer, intent(inout), optional :: icolsort(0:)
+       integer(c_int), intent(in), optional :: flags
+       real(c_float), intent(in), optional :: width
+     end subroutine iw_table_column
+     module function iw_beginmenu(label,enabled)
+       character(len=*,kind=c_char), intent(in) :: label
+       logical, intent(in), optional :: enabled
+       logical :: iw_beginmenu
+     end function iw_beginmenu
+     module function iw_begintabitem(label,flags)
+       character(len=*,kind=c_char), intent(in) :: label
+       integer(c_int), intent(in), optional :: flags
+       logical :: iw_begintabitem
+     end function iw_begintabitem
+     module function iw_close_event(focused)
+       logical, intent(in) :: focused
+       logical :: iw_close_event
+     end function iw_close_event
      module function iw_calcheight(npadline,nline,endpad)
        integer, intent(in) :: npadline
        integer, intent(in) :: nline
@@ -226,7 +259,7 @@ module utils
        logical :: iw_checkbox
      end function iw_checkbox
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-        noadvance,copy_to_output,centered,rgb,rgba)
+        noadvance,copy_to_output,centered,alignframe,rgb,rgba)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: danger
@@ -236,6 +269,7 @@ module utils
        logical, intent(in), optional :: noadvance
        logical, intent(in), optional :: copy_to_output
        logical, intent(in), optional :: centered
+       logical, intent(in), optional :: alignframe
        real(c_float), intent(in), optional :: rgb(3)
        real(c_float), intent(in), optional :: rgba(4)
      end subroutine iw_text

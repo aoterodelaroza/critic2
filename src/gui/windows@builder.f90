@@ -260,13 +260,11 @@ contains
     use energy, only: ff_backend_applicable, ff_backend_default
     use gui_main, only: g, fontsize, tooltip_enabled, ColorHighlightEditDistScene
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
-    use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple,&
-       iw_dragfloat_real8, iw_periodictable, iw_menuitem, iw_icon_togglebutton,&
-       iw_helpermark, iw_calcwidth, iw_calcheight, iw_setposx_fromend
-    use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS,&
-       BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT,&
-       BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
+    use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+       iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_helpermark, iw_calcwidth, iw_calcheight,&
+       iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
+    use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
+       BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
@@ -660,9 +658,7 @@ contains
     call iw_setposx_fromend(5,1)
     if (iw_button("Close")) doquit = .true.
     call iw_tooltip("Close this window",ttshown)
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit the window (window_end releases the forced mode if still active)
     if (doquit) &
@@ -1062,7 +1058,6 @@ contains
     subroutine fragment_library_menu()
 
       integer :: i, j, k
-      character(kind=c_char,len=:), allocatable, target :: strcat, strsub
 
       call fraglib_ensure()
       if (nfraglib == 0) then
@@ -1072,8 +1067,7 @@ contains
       do k = 1, nfraglib
          ! skip a category whose submenu has already been drawn
          if (.not.fraglib_isfirst(k,.false.)) cycle
-         strcat = trim(fraglib_cat(k)%s) // c_null_char
-         if (igBeginMenu(c_loc(strcat),.true._c_bool)) then
+         if (iw_beginmenu(trim(fraglib_cat(k)%s))) then
             ! the fragments listed directly under this category
             do i = 1, nfraglib
                if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
@@ -1085,8 +1079,7 @@ contains
                if (fraglib_cat(j)%s /= fraglib_cat(k)%s) cycle
                if (len_trim(fraglib_sub(j)%s) == 0) cycle
                if (.not.fraglib_isfirst(j,.true.)) cycle
-               strsub = trim(fraglib_sub(j)%s) // c_null_char
-               if (igBeginMenu(c_loc(strsub),.true._c_bool)) then
+               if (iw_beginmenu(trim(fraglib_sub(j)%s))) then
                   do i = 1, nfraglib
                      if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
                      if (fraglib_sub(i)%s /= fraglib_sub(j)%s) cycle
@@ -1373,7 +1366,7 @@ contains
       logical :: havergb
       type(ImVec2) :: sz0
       character(len=:), allocatable :: lbl
-      character(kind=c_char,len=:), allocatable, target :: str1, str2
+      character(kind=c_char,len=:), allocatable, target :: str1
 
       tflags = ImGuiTableFlags_None
       tflags = ior(tflags,ImGuiTableFlags_RowBg)
@@ -1386,8 +1379,7 @@ contains
       if (.not.igBeginTable(c_loc(str1),int(w%edit_kind,c_int),tflags,sz0,0._c_float)) return
 
       do is = 1, w%edit_kind
-         str2 = "Atom " // string(is) // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,is)
+         call iw_table_column("Atom " // string(is),id=is,flags=ImGuiTableColumnFlags_WidthFixed)
       end do
       call igTableHeadersRow()
 

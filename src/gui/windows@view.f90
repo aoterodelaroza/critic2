@@ -79,9 +79,9 @@ contains
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
        repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text,&
        reptype_measure, repflavor_measure
-    use utils, only: iw_calcheight, iw_calcwidth,&
-       iw_setposx_fromend, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
-       iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton, iw_icon_togglebutton
+    use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
+       iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
+       iw_icon_togglebutton, iw_table_column, iw_beginmenu
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
@@ -93,10 +93,10 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, j, k, nrep, is
+    integer :: i, j, k, nrep, is, istart
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
@@ -105,7 +105,7 @@ contains
     logical :: ch
     integer(c_int) :: flags, idum
     integer(c_int) :: newside, vside
-    real(c_float) :: scal, width, rgba(4)
+    real(c_float) :: scal, rgba(4)
     real(c_float) :: rscale, tmpuv
     logical :: interacting, pickbonds
     real*8 :: time
@@ -113,6 +113,18 @@ contains
     logical :: changedisplay(5) ! 1=atoms, 2=bonds, 3=labels, 4=cell, 5=polyhedra
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    ! camera alignment axes: button label, axis argument for align_view_axis, and
+    ! keybinding. The first three are crystallographic (offered for crystals
+    ! only), the last three Cartesian (always offered).
+    integer, parameter :: naxal = 6
+    integer, parameter :: naxal_cryst = 3
+    character(len=1,kind=c_char), parameter :: axal_label(naxal) = (/"a","b","c","x","y","z"/)
+    character(len=16), parameter :: axal_kind(naxal) = (/"crystallographic","crystallographic",&
+       "crystallographic","Cartesian       ","Cartesian       ","Cartesian       "/)
+    integer, parameter :: axal_arg(naxal) = (/1,2,3,-1,-2,-3/)
+    integer, parameter :: axal_bind(naxal) = (/BIND_VIEW_ALIGN_A_AXIS,BIND_VIEW_ALIGN_B_AXIS,&
+       BIND_VIEW_ALIGN_C_AXIS,BIND_VIEW_ALIGN_X_AXIS,BIND_VIEW_ALIGN_Y_AXIS,BIND_VIEW_ALIGN_Z_AXIS/)
 
     ! coordinate this with objects (representation) menu in scenes module
     integer(c_int), parameter :: ic_closebutton = 0
@@ -288,8 +300,7 @@ contains
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
        if (ok) then
           if (associated(w%sc)) then
-             call igAlignTextToFramePadding()
-             call iw_text("Periodicity",highlight=.true.)
+             call iw_text("Periodicity",highlight=.true.,alignframe=.true.)
              call periodicity_widgets()
           end if
           call igEndPopup()
@@ -319,44 +330,16 @@ contains
 
           ! camera position: align view axis
           call iw_text("Camera Position",highlight=.true.)
-          if (.not.sys(w%isys)%c%ismolecule) then
-             if (iw_button("a")) then
-                call w%sc%align_view_axis(1)
+          istart = 1
+          if (sys(w%isys)%c%ismolecule) istart = naxal_cryst + 1 ! molecules: Cartesian axes only
+          do i = istart, naxal
+             if (iw_button(axal_label(i),sameline=(i > istart))) then
+                call w%sc%align_view_axis(axal_arg(i))
                 chrender = .true.
              end if
-             call iw_tooltip("Align the camera along the crystallographic a axis ("//&
-                trim(get_bind_keyname(BIND_VIEW_ALIGN_A_AXIS)) // ").",ttshown)
-             if (iw_button("b",sameline=.true.)) then
-                call w%sc%align_view_axis(2)
-                chrender = .true.
-             end if
-             call iw_tooltip("Align the camera along the crystallographic b axis ("//&
-                trim(get_bind_keyname(BIND_VIEW_ALIGN_B_AXIS)) // ").",ttshown)
-             if (iw_button("c",sameline=.true.)) then
-                call w%sc%align_view_axis(3)
-                chrender = .true.
-             end if
-             call iw_tooltip("Align the camera along the crystallographic c axis ("//&
-                trim(get_bind_keyname(BIND_VIEW_ALIGN_C_AXIS)) // ").",ttshown)
-          end if
-          if (iw_button("x",sameline=.not.sys(w%isys)%c%ismolecule)) then
-             call w%sc%align_view_axis(-1)
-             chrender = .true.
-          end if
-          call iw_tooltip("Align the camera along the Cartesian x axis ("//&
-             trim(get_bind_keyname(BIND_VIEW_ALIGN_X_AXIS)) // ").",ttshown)
-          if (iw_button("y",sameline=.true.)) then
-             call w%sc%align_view_axis(-2)
-             chrender = .true.
-          end if
-          call iw_tooltip("Align the camera along the Cartesian y axis ("//&
-             trim(get_bind_keyname(BIND_VIEW_ALIGN_Y_AXIS)) // ").",ttshown)
-          if (iw_button("z",sameline=.true.)) then
-             call w%sc%align_view_axis(-3)
-             chrender = .true.
-          end if
-          call iw_tooltip("Align the camera along the Cartesian z axis ("//&
-             trim(get_bind_keyname(BIND_VIEW_ALIGN_Z_AXIS)) // ").",ttshown)
+             call iw_tooltip("Align the camera along the " // trim(axal_kind(i)) // " " // axal_label(i) //&
+                " axis (" // trim(get_bind_keyname(axal_bind(i))) // ").",ttshown)
+          end do
           ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,speed=0.01_c_float,&
              min=0.1_c_float,max=8.0_c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           if (ch) chrender = .true. ! constant-size labels and the gizmo depend on camresetdist
@@ -461,8 +444,7 @@ contains
     if (ok) then
        if (associated(w%sc)) then
           ! atom-based representations submenu
-          str1 = "Atoms, bonds,..." // c_null_char
-          if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          if (iw_beginmenu("Atoms, bonds,...")) then
              if (iw_menuitem("Ball and Stick")) &
                 call add_rep_and_edit(reptype_atoms,repflavor_atoms_ballandstick)
              call iw_tooltip("Draw atoms as balls and bonds as sticks, hide the labels",ttshown)
@@ -534,8 +516,7 @@ contains
     call iw_tooltip("Remove and modify the objects in the view",ttshown)
     if (ok) then
        if (associated(w%sc)) then
-          call igAlignTextToFramePadding()
-          call iw_text("List of Objects",highlight=.true.)
+          call iw_text("List of Objects",highlight=.true.,alignframe=.true.)
 
           ! set table style
           sz%x = 3._c_float
@@ -559,27 +540,15 @@ contains
           nrep = min(nrep,10)
           sz0%y = iw_calcheight(nrep,0,.true.)
           if (igBeginTable(c_loc(str2),5,flags,sz0,0._c_float)) then
-             str3 = "##1closebutton" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             width = max(4._c_float, fontsize%y + 2._c_float)
-             call igTableSetupColumn(c_loc(str3),flags,width,ic_closebutton)
+             call iw_table_column("##1closebutton",id=ic_closebutton,width=max(4._c_float, fontsize%y + 2._c_float))
 
-             str3 = "##1viewbutton" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_viewbutton)
+             call iw_table_column("##1viewbutton",id=ic_viewbutton)
 
-             str3 = "Name##1name" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthStretch
-             call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
+             call iw_table_column("Name##1name",id=ic_name,flags=ImGuiTableColumnFlags_WidthStretch)
 
-             str3 = "Type##1type" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_type)
+             call iw_table_column("Type##1type",id=ic_type)
 
-             str3 = "##1editbutton" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             width = iw_calcwidth(4,1)
-             call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
+             call iw_table_column("##1editbutton",id=ic_editbutton,width=iw_calcwidth(4,1))
 
              ! draw the header
              call igTableHeadersRow()
@@ -856,31 +825,16 @@ contains
                 w%sc%nc = max(w%sc%nc,1)
                 w%sc%forcebuildlists = .true.
              end if
-             if (is_bind_event(BIND_VIEW_ALIGN_A_AXIS)) then
-                call w%sc%align_view_axis(1)
+          end if
+          ! align the camera along an axis (crystallographic ones for crystals only)
+          istart = 1
+          if (sys(w%isys)%c%ismolecule) istart = naxal_cryst + 1
+          do i = istart, naxal
+             if (is_bind_event(axal_bind(i))) then
+                call w%sc%align_view_axis(axal_arg(i))
                 w%forcerender = .true.
              end if
-             if (is_bind_event(BIND_VIEW_ALIGN_B_AXIS)) then
-                call w%sc%align_view_axis(2)
-                w%forcerender = .true.
-             end if
-             if (is_bind_event(BIND_VIEW_ALIGN_C_AXIS)) then
-                call w%sc%align_view_axis(3)
-                w%forcerender = .true.
-             end if
-          end if
-          if (is_bind_event(BIND_VIEW_ALIGN_X_AXIS)) then
-             call w%sc%align_view_axis(-1)
-             w%forcerender = .true.
-          end if
-          if (is_bind_event(BIND_VIEW_ALIGN_Y_AXIS)) then
-             call w%sc%align_view_axis(-2)
-             w%forcerender = .true.
-          end if
-          if (is_bind_event(BIND_VIEW_ALIGN_Z_AXIS)) then
-             call w%sc%align_view_axis(-3)
-             w%forcerender = .true.
-          end if
+          end do
        end if
     end if
 
@@ -3063,7 +3017,7 @@ contains
     integer :: nmsel
     integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
-    real*8 :: x0(3), d, d1, d2, ang
+    real*8 :: d, ang
     integer(c_int) :: itex
     character(len=:), allocatable :: txt
     logical :: domeas, havecue
@@ -3146,20 +3100,8 @@ contains
        else
           idx2 = msel(1:4,2)
        end if
-       x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
-       x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
-       x0 = sys(w%isys)%c%x2c(x0)
-       d = norm2(x0)*bohrtoa
-       if (abs(d) > 1d-14) then
-          call iw_text("d(")
-          call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
-          if (nmsel > 1) then
-             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-          else
-             call iw_text("*",sameline_nospace=.true.)
-          end if
-          call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
-       end if
+       d = pair_distance(idx1,idx2)
+       if (d > 1d-14) call measure_label("d(",1,2,d,.false.)
 
        ! distance and angle with atom 3
        if (nmsel > 1) then
@@ -3172,42 +3114,13 @@ contains
           else
              idx2 = msel(1:4,3)
           end if
-          x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
-          x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
-          x0 = sys(w%isys)%c%x2c(x0)
-          d = norm2(x0)*bohrtoa
-          if (d > 1d-14) then
-             call iw_text("d(")
-             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-             if (nmsel > 2) then
-                call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-             else
-                call iw_text("*",sameline_nospace=.true.)
-             end if
-             call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
-          end if
+          d = pair_distance(idx1,idx2)
+          if (d > 1d-14) call measure_label("d(",2,3,d,.false.)
 
           ! angle 1-2-3
           idx3 = msel(1:4,1)
-          d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-          d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
-             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-          if (d1 > 1d-14 .and. d2 > 1d-14) then
-             ang = sys(w%isys)%c%angle(&
-                sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-                sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
-                sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-             call iw_text(", α(",sameline_nospace=.true.)
-             call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
-             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-             if (nmsel > 2) then
-                call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-             else
-                call iw_text("*",sameline_nospace=.true.)
-             end if
-             call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
-          end if
+          if (triple_angle(idx3,idx1,idx2,ang)) &
+             call measure_label(", α(",1,3,ang,.true.)
        end if
 
        ! distance, angle, dihedral
@@ -3221,42 +3134,13 @@ contains
           else
              idx2 = msel(1:4,4)
           end if
-          x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
-          x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
-          x0 = sys(w%isys)%c%x2c(x0)
-          d = norm2(x0)*bohrtoa
-          if (d > 1d-14) then
-             call iw_text("d(")
-             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-             if (nmsel > 3) then
-                call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
-             else
-                call iw_text("*",sameline_nospace=.true.)
-             end if
-             call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
-          end if
+          d = pair_distance(idx1,idx2)
+          if (d > 1d-14) call measure_label("d(",3,4,d,.false.)
 
           ! angle 2-3-4
           idx3 = msel(1:4,2)
-          d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-          d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
-             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-          if (d1 > 1d-14 .and. d2 > 1d-14) then
-             ang = sys(w%isys)%c%angle(&
-                sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-                sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
-                sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-             call iw_text(", α(",sameline_nospace=.true.)
-             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-             if (nmsel > 3) then
-                call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
-             else
-                call iw_text("*",sameline_nospace=.true.)
-             end if
-             call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
-          end if
+          if (triple_angle(idx3,idx1,idx2,ang)) &
+             call measure_label(", α(",2,4,ang,.true.)
 
           ! dihedral 1-2-3-4
           idx4 = msel(1:4,1)
@@ -3265,16 +3149,7 @@ contains
              sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
              sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
              sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-          call iw_text(", φ(",sameline_nospace=.true.)
-          call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
-          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-          call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-          if (nmsel > 3) then
-             call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
-          else
-             call iw_text("*",sameline_nospace=.true.)
-          end if
-          call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
+          call measure_label(", φ(",1,4,ang,.true.)
        end if
 
     end if
@@ -3294,6 +3169,76 @@ contains
        call igPopTextWrapPos()
        call igEndTooltip()
     end if
+
+  contains
+    !> Distance, in angstrom, between the two atoms given by their (complete
+    !> atom id, lattice vector) index quadruplets.
+    function pair_distance(ia,ib) result(d)
+      integer, intent(in) :: ia(4), ib(4)
+      real*8 :: d
+
+      d = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(ia(1))%x + ia(2:4),&
+         sys(w%isys)%c%atcel(ib(1))%x + ib(2:4)) * bohrtoa
+
+    end function pair_distance
+
+    !> Angle ia-ib-ic, in degrees, returned in ang. Returns false, with ang
+    !> undefined, if either of the two bond lengths is zero.
+    function triple_angle(ia,ib,ic,ang) result(ok)
+      integer, intent(in) :: ia(4), ib(4), ic(4)
+      real*8, intent(out) :: ang
+      logical :: ok
+
+      real*8 :: da, db
+
+      da = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(ia(1))%x + ia(2:4),&
+         sys(w%isys)%c%atcel(ib(1))%x + ib(2:4))
+      db = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(ic(1))%x + ic(2:4),&
+         sys(w%isys)%c%atcel(ib(1))%x + ib(2:4))
+      ok = (da > 1d-14 .and. db > 1d-14)
+      if (ok) &
+         ang = sys(w%isys)%c%angle(&
+            sys(w%isys)%c%atcel(ia(1))%x + ia(2:4),&
+            sys(w%isys)%c%atcel(ib(1))%x + ib(2:4),&
+            sys(w%isys)%c%atcel(ic(1))%x + ic(2:4)) * 180d0 / pi
+
+    end function triple_angle
+
+    !> Write one measurement readout: the leading text lead (e.g. "d(" or
+    !> ", α("), then the selection slots n1 to n2 each in its own selection
+    !> colour -- with a slot beyond the current selection shown as "*", since
+    !> that one is the atom being hovered and not a selected one -- then the
+    !> value val and its unit. isang = val is an angle in degrees, written with
+    !> two decimals and continuing the current line; otherwise it is a distance
+    !> in angstrom, written with four decimals and starting a new line.
+    subroutine measure_label(lead,n1,n2,val,isang)
+      character(len=*,kind=c_char), intent(in) :: lead
+      integer, intent(in) :: n1, n2
+      real*8, intent(in) :: val
+      logical, intent(in) :: isang
+
+      integer :: k, dec
+      character(len=3,kind=c_char) :: unit
+
+      if (isang) then
+         dec = 2
+         unit = "°"
+      else
+         dec = 4
+         unit = " Å"
+      end if
+
+      call iw_text(lead,sameline_nospace=isang)
+      do k = n1, n2
+         if (k <= nmsel) then
+            call iw_text(string(k),rgb=ColorMeasureSelect(1:3,k),sameline_nospace=.true.)
+         else
+            call iw_text("*",sameline_nospace=.true.)
+         end if
+      end do
+      call iw_text(")=" // string(val,'f',decimal=dec) // trim(unit),sameline_nospace=.true.)
+
+    end subroutine measure_label
 
   end subroutine draw_cursor_overlay
 

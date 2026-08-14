@@ -42,8 +42,8 @@ contains
     use commands, only: com, clear_all_commands, nicom, icom, idcom
     use windows, only: stack_create_window, fill_input_ci
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
-       iw_setposx_fromend, iw_calcheight, iw_calcwidth, iw_menuitem
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_setposx_fromend,&
+       iw_calcheight, iw_calcwidth, iw_menuitem
     use tools_io, only: string
     class(window), intent(inout), target :: w
 

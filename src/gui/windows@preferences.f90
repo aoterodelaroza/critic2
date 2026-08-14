@@ -34,7 +34,7 @@ contains
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
-       iw_checkbox, iw_coloredit, iw_dragfloat_realc
+       iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_close_event, iw_table_column
     use param, only: maxzat0
     class(window), intent(inout), target :: w
 
@@ -63,8 +63,7 @@ contains
     szero%y = 0
 
     ! text filter
-    call igAlignTextToFramePadding()
-    call iw_text("Filter")
+    call iw_text("Filter",alignframe=.true.)
     call igSameLine(0._c_float,-1._c_float)
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
@@ -183,8 +182,7 @@ contains
 
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                    if (igTableSetColumnIndex(0)) then
-                      call igAlignTextToFramePadding()
-                      call iw_text(str2)
+                      call iw_text(str2,alignframe=.true.)
                    end if
 
                    if (igTableSetColumnIndex(1)) then
@@ -273,8 +271,7 @@ contains
              & when measuring distances and angles",ColorMeasureSelect(:,4))
 
           ! elements
-          call igAlignTextToFramePadding()
-          call iw_text("Elements",highlight=.true.)
+          call iw_text("Elements",highlight=.true.,alignframe=.true.)
           ldum = iw_checkbox("Apply changes immediately",w%color_preferences_reset_reps,&
              sameline=.true.)
           call iw_tooltip("If checked, changes to the element colors are immediately&
@@ -290,8 +287,7 @@ contains
              call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_None,iw_calcwidth(2,0),0)
              width = iw_calcwidth(5,0)
              do i = 0, 9
-                str = string(i) // c_null_char
-                call igTableSetupColumn(c_loc(str),ImGuiTableColumnFlags_None,width,i+1)
+                call iw_table_column(string(i),id=i+1,width=width)
              end do
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
              call igTableHeadersRow()
@@ -302,9 +298,8 @@ contains
                 if (kmod == 0) then
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                    if (igTableSetColumnIndex(0)) then
-                      call igAlignTextToFramePadding()
                       nrow = nrow + 1
-                      call iw_text(string(nrow))
+                      call iw_text(string(nrow),alignframe=.true.)
                    end if
                 end if
                 if (igTableSetColumnIndex(kmod+1)) then
@@ -349,9 +344,7 @@ contains
     call igEndGroup()
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit the window
     if (doquit) then

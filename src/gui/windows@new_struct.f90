@@ -27,14 +27,13 @@ contains
 
   !> Draw the contents of the new structure window.
   module subroutine draw_new_struct(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g
     use systems, only: add_systems_from_seeds, launch_initialization_thread,&
        system_shorten_names
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox,&
-       iw_inputtext, iw_inputfloat, iw_inputfloat3
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_helpermark, iw_button, iw_text,&
+       iw_calcheight, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox,&
+       iw_inputtext, iw_inputfloat, iw_inputfloat3, iw_close_event, iw_setpos_bottomright
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -204,10 +203,7 @@ contains
     end if
 
     ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(8,2)
 
     ! final buttons: ok
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
@@ -293,9 +289,7 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit the window
     if (doquit) then
@@ -351,7 +345,7 @@ contains
 
   !> Draw a space group table. Entry ispg (Hall number) is selected.
   subroutine draw_spg_table(ispg)
-    use utils, only: iw_text
+    use utils, only: iw_text, iw_table_column
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use tools_io, only: ioj_left, string, deblank, stripchar
     integer, intent(inout) :: ispg
@@ -378,33 +372,19 @@ contains
     sz%y = 8 * igGetTextLineHeightWithSpacing()
     if (igBeginTable(c_loc(str),7,flags,sz,0._c_float)) then
        ! set up columns
-       str = "Hall" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,0)
+       call iw_table_column("Hall",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       str = "ITA" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,1)
+       call iw_table_column("ITA",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       str = "HM short" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,2)
+       call iw_table_column("HM short",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       str = "HM long" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,3)
+       call iw_table_column("HM long",id=3,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       str = "Choice" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,4)
+       call iw_table_column("Choice",id=4,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       str = "System" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,5)
+       call iw_table_column("System",id=5,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       str = "Hall symbol" // c_null_char
-       flags = ImGuiTableColumnFlags_WidthFixed
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,6)
+       call iw_table_column("Hall symbol",id=6,flags=ImGuiTableColumnFlags_WidthFixed)
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
        call igTableHeadersRow()
 

@@ -711,34 +711,23 @@ contains
        w%pos = 0._c_float
        w%isdocked = .false.
        if (w%type == wintype_tree) then
-          w%name = "Tree##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
+          call init_window("Tree")
        elseif (w%type == wintype_view) then
-          w%flags = ImGuiWindowFlags_None
           if (w%ismain) then
-             w%name = "Main View##" // string(w%id)  // c_null_char
+             call init_window("Main View")
           else
-             w%name = "Alternate View##" // string(w%id)  // c_null_char
-             inisize%x = 90 * fontsize%x
-             inisize%y = 30 * fontsize%y
-             call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+             call init_window("Alternate View",90,30)
              call get_nice_next_window_pos(pos)
              pivot%x = 0._c_float
              pivot%y = 0._c_float
              call igSetNextWindowPos(pos,ImGuiCond_None,pivot)
           end if
        elseif (w%type == wintype_console_input) then
-          w%name = "Input##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
+          call init_window("Input")
        elseif (w%type == wintype_console_output) then
-          w%name = "Output##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
+          call init_window("Output")
        elseif (w%type == wintype_about) then
-          w%name = "About##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 52 * fontsize%x
-          inisize%y = 17 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("About",52,17)
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%purpose
@@ -791,84 +780,32 @@ contains
              call ferror('window_draw','unknown dialog purpose',faterr)
           end if
        elseif (w%type == wintype_new_struct) then
-          w%name = "New Structure##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 90 * fontsize%x
-          inisize%y = 40 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("New Structure",90,40)
        elseif (w%type == wintype_new_struct_library) then
-          w%name = "New Structure from Library##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 90 * fontsize%x
-          inisize%y = 30 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("New Structure from Library",90,30)
        elseif (w%type == wintype_load_field) then
-          w%name = "Load Field##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 65 * fontsize%x
-          inisize%y = 16 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Load Field",65,16)
        elseif (w%type == wintype_scfplot) then
-          w%name = "SCF Iterations (" // string(w%isys) // ")##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 45 * fontsize%x
-          inisize%y = inisize%x
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("SCF Iterations (" // string(w%isys) // ")",45,45,square=.true.)
        elseif (w%type == wintype_editrep) then
-          w%name = "Object [" // string(w%rep%name) // "]##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 63 * fontsize%x
-          inisize%y = 46 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Object [" // string(w%rep%name) // "]",63,46)
        elseif (w%type == wintype_exportimage) then
-          w%name = "Export to Image" // "##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 50 * fontsize%x
-          inisize%y = 17 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Export to Image",50,17)
        elseif (w%type == wintype_vibrations) then
-          w%name = "Vibrations" // "##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 62 * fontsize%x
-          inisize%y = 25 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Vibrations",62,25)
        elseif (w%type == wintype_dynamics) then
-          w%name = "Dynamics" // "##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 55 * fontsize%x
-          inisize%y = 22 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Dynamics",55,22)
        elseif (w%type == wintype_water_cluster) then
-          w%name = "Water Cluster Demonstration" // "##" // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 55 * fontsize%x
-          inisize%y = 30 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Water Cluster Demonstration",55,30)
        elseif (w%type == wintype_geometry) then
-          w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 70 * fontsize%x
-          inisize%y = 30 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("View/Edit Geometry",70,30)
        elseif (w%type == wintype_preferences) then
-          w%name = "Preferences##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 81 * fontsize%x
-          inisize%y = 33 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Preferences",81,33)
        elseif (w%type == wintype_treeplot) then
-          w%name = "Plot Tree Data##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 55 * fontsize%x
-          inisize%y = 25 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Plot Tree Data",55,25)
        elseif (w%type == wintype_builder) then
-          w%name = "Builder##" // string(w%id)  // c_null_char
-          w%flags = ImGuiWindowFlags_None
           ! wide enough for the tool palette on a single row
-          inisize%x = 63 * fontsize%x
-          inisize%y = 30 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          call init_window("Builder",63,30)
        end if
     end if
 
@@ -949,6 +886,36 @@ contains
        w%firstpass = .true.
     end if
 
+  contains
+    !> Name the window being created after title (plus the window ID, which
+    !> keeps the ImGui identifier unique), give it the default flags and, if nx
+    !> and ny are present, an initial size of nx by ny characters.
+    subroutine init_window(title,nx,ny,square)
+      character(len=*,kind=c_char), intent(in) :: title
+      integer, intent(in), optional :: nx, ny
+      logical, intent(in), optional :: square
+
+      logical :: square_
+
+      square_ = .false.
+      if (present(square)) square_ = square
+
+      w%name = title // "##" // string(w%id) // c_null_char
+      w%flags = ImGuiWindowFlags_None
+      if (present(nx) .and. present(ny)) then
+         inisize%x = nx * fontsize%x
+         ! square windows measure the height in glyph widths too, so that they
+         ! come out actually square and not one line-height per character
+         if (square_) then
+            inisize%y = ny * fontsize%x
+         else
+            inisize%y = ny * fontsize%y
+         end if
+         call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+      end if
+
+    end subroutine init_window
+
   end subroutine window_draw
 
   !xx! private procedures
@@ -956,8 +923,8 @@ contains
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
-       iw_combo_simple, iw_checkbox, iw_inputfloat
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton, iw_combo_simple,&
+       iw_checkbox, iw_inputfloat
     use interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *

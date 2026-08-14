@@ -29,11 +29,8 @@ contains
        anim_speed_max
     use systems, only: sysc, sys, sys_init, add_systems_from_seeds,&
        launch_initialization_thread, ok_system
-    use gui_main, only: g
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_radiobutton, iw_dragfloat_real8
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth, iw_combo_simple,&
+       iw_radiobutton, iw_dragfloat_real8, iw_close_event, iw_setpos_bottomright, iw_table_column
     use tools_math, only: rational_approx
     use tools_io, only: string, ioj_right
     use param, only: cm1tothz, bohrtoa
@@ -43,8 +40,8 @@ contains
     logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset
     integer :: isys, i, digits, iaux
     integer(c_int) :: flags
-    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
-    type(ImVec2) :: sz0, szero, szavail
+    character(kind=c_char,len=:), allocatable, target :: s, str1, strl
+    type(ImVec2) :: sz0, szero
     real*8 :: unitfactor, xx(3)
     integer*8 :: q, r(3)
     type(crystalseed), allocatable :: seed(:)
@@ -113,8 +110,7 @@ contains
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
 
        ! source of vibration data
-       call igAlignTextToFramePadding()
-       call iw_text("Vibration data",highlight=.true.)
+       call iw_text("Vibration data",highlight=.true.,alignframe=.true.)
 
        if (iw_button("Clear",sameline=.true.,danger=.true.)) then
           call sys(isys)%c%vib%end()
@@ -145,8 +141,7 @@ contains
        if (.not.sys(isys)%c%ismolecule) then
           ! q-points table
           call igBeginGroup()
-          call igAlignTextToFramePadding()
-          call iw_text("Q-points",highlight=.true.)
+          call iw_text("Q-points",highlight=.true.,alignframe=.true.)
           call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
              "1/Å" // c_null_char,w%iqptunit,sameline=.true.)
           call iw_tooltip("Units for the q-points",ttshown)
@@ -162,13 +157,9 @@ contains
           sz0%y = iw_calcheight(5,0,.false.)
           if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
              ! header setup
-             str2 = "Id" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+             call iw_table_column("Id",id=ic_q_id,flags=ImGuiTableColumnFlags_WidthFixed)
 
-             str2 = "Coordinates" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+             call iw_table_column("Coordinates",id=ic_q_qpt,flags=ImGuiTableColumnFlags_WidthFixed)
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! draw the header
@@ -226,8 +217,7 @@ contains
        ! frequency table
        call igBeginGroup()
        ! header
-       call igAlignTextToFramePadding()
-       call iw_text("Frequencies",highlight=.true.)
+       call iw_text("Frequencies",highlight=.true.,alignframe=.true.)
        call iw_combo_simple("##frequnit","1/cm" // c_null_char // "THz" // c_null_char,&
           w%ifrequnit,sameline=.true.)
        call iw_tooltip("Units for the frequencies",ttshown)
@@ -252,13 +242,9 @@ contains
        sz0%y = iw_calcheight(5,0,.false.)
        if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
           ! header setup
-          str2 = "Id" // c_null_char
-          flags = ImGuiTableColumnFlags_WidthFixed
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+          call iw_table_column("Id",id=ic_q_id,flags=ImGuiTableColumnFlags_WidthFixed)
 
-          str2 = "Frequency" // c_null_char
-          flags = ImGuiTableColumnFlags_WidthFixed
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+          call iw_table_column("Frequency",id=ic_q_qpt,flags=ImGuiTableColumnFlags_WidthFixed)
           call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
           ! draw the header
@@ -304,8 +290,7 @@ contains
 
        ! suggested periodicity
        if (win(w%idparent)%sc%iqpt_selected > 0 .and..not.sys(isys)%c%ismolecule) then
-          call igAlignTextToFramePadding()
-          call iw_text("Suggested Periodicity:",highlight=.true.)
+          call iw_text("Suggested Periodicity:",highlight=.true.,alignframe=.true.)
           do i = 1, 3
              if (abs(sys(isys)%c%vib%qpt(i,win(w%idparent)%sc%iqpt_selected)) > rational_approx_eps) then
                 call rational_approx(sys(isys)%c%vib%qpt(i,win(w%idparent)%sc%iqpt_selected),q,r(i),rational_approx_eps)
@@ -395,19 +380,14 @@ contains
     end if ! vib_ok
 
     ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(5,1)
 
     ! final buttons: close
     if (iw_button("Close")) doquit = .true.
     call iw_tooltip("Close this window",ttshown)
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit = close the window
     if (doquit) &

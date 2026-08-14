@@ -25,14 +25,8 @@ contains
   !> Draw the about window
   module subroutine draw_about(w)
     use config, only: istring_version, getstring
-    use gui_main, only: g
-    use utils, only: iw_text, iw_button, iw_calcwidth
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use utils, only: iw_text, iw_button, iw_setpos_bottomright, iw_close_event
     class(window), intent(inout), target :: w
-
-    real(c_float) :: wwidth, twidth
-    type(ImVec2) :: szavail
 
     call iw_text("  ---- critic2 GUI ----",danger=.true.,centered=.true.)
     call iw_text("version " // getstring(istring_version),centered=.true.)
@@ -45,19 +39,12 @@ contains
     call iw_text("Contact: aoterodelaroza@gmail.com",highlight=.true.,centered=.true.)
     call igNewLine()
 
-    ! bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
-    wwidth = igGetWindowWidth()
-    twidth = iw_calcwidth(5,1)
-    call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)
+    ! bottom-align and center the rest of the contents
+    call iw_setpos_bottomright(5,1,centered=.true.)
     if (iw_button("Close")) w%isopen = .false.
 
     ! exit if focused and received the close keybinding
-    if ((w%focused() .and. (is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or. is_bind_event(BIND_OK_FOCUSED_DIALOG))) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS))&
-       w%isopen = .false.
+    if (iw_close_event(w%focused())) w%isopen = .false.
 
   end subroutine draw_about
 

@@ -423,16 +423,13 @@ contains
   !> tempalte, otherwise bring up the help.
   module subroutine draw_keyword_context_menu(textinsert)
     use interfaces_cimgui
-    use utils, only: iw_menuitem
+    use utils, only: iw_menuitem, iw_beginmenu
     logical, intent(in) :: textinsert
-
-    character(kind=c_char,len=:), allocatable, target :: str1
 
     integer :: i, j
 
     do i = 1, isection_NUM
-       str1 = trim(section_titles(i)) // c_null_char
-       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+       if (iw_beginmenu(trim(section_titles(i)))) then
           do j = section_ranges(1,i), section_ranges(2,i)
              ! str2 = trim(keyword_titles(j)) // c_null_char
              if (iw_menuitem(trim(keyword_titles(j)))) &

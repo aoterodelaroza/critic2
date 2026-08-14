@@ -33,8 +33,7 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use systems, only: nsys, sysc, sys, sys_init, ok_system
     use gui_main, only: g
-    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
-       iw_calcwidth
+    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -367,10 +366,7 @@ contains
     end if
 
     ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(8,2)
 
     ! calculated whether we have enough info to continue to ok
     disabled = (len(file1) == 0)

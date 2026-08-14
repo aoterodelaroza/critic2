@@ -1648,7 +1648,7 @@ contains
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
        reptype_text, reptype_measure
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
-       iw_close_button
+       iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: g
     use tools_io, only: string
@@ -1658,7 +1658,7 @@ contains
     logical :: changed
 
     integer :: i, ii, id, idum
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    character(kind=c_char,len=:), allocatable, target :: str1, str3
     logical :: discol, doerase, ok
     type(ImVec2) :: szero
     integer, allocatable :: idx(:)
@@ -1745,8 +1745,7 @@ contains
              call iw_tooltip("Toggle hide/show of this object",ttshown)
 
              ! rename
-             str2 = "Rename" // c_null_char
-             if (igBeginMenu(c_loc(str2),.true._c_bool)) then
+             if (iw_beginmenu("Rename")) then
                 if (iw_inputtext("##inputrenamerep",bufsize=1023,texta=s%rep(i)%name,width=30,grabfocus=.true.,&
                    notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
                    call igCloseCurrentPopup()

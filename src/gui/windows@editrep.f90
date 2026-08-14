@@ -22,6 +22,7 @@ submodule (windows) editrep
 
   !xx! private procedures
   ! function atom_selection_widget() result(changed)
+  ! function periodicity_widgets(w,ttshown,tooltip_automatic) result(changed)
 
 contains
 
@@ -55,19 +56,16 @@ contains
     use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
        reptype_symelem, reptype_text, reptype_measure
     use windows, only: nwin, win, wintype_view
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
-       BIND_CLOSE_ALL_DIALOGS
+    use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
-    use gui_main, only: g
-    use utils, only: iw_text, iw_tooltip, iw_button, iw_calcwidth,&
-       iw_calcheight, iw_checkbox, iw_inputtext
+    use utils, only: iw_text, iw_tooltip, iw_button, iw_calcheight, iw_checkbox,&
+       iw_inputtext, iw_close_event, iw_setpos_bottomright
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     integer :: isys
     logical :: doquit, ok, ldum
     logical :: changed
-    type(ImVec2) :: szavail
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -94,8 +92,7 @@ contains
 
        ! name block (the representation type is fixed at creation and cannot be
        ! changed here)
-       call igAlignTextToFramePadding()
-       call iw_text("Name",highlight=.true.)
+       call iw_text("Name",highlight=.true.,alignframe=.true.)
        ldum = iw_inputtext("##nametextinput",bufsize=1023,texta=w%rep%name,width=30,sameline=.true.)
        call iw_tooltip("Name of this object",ttshown)
 
@@ -122,10 +119,7 @@ contains
        if (changed) win(w%idparent)%sc%forcebuildlists = .true.
 
        ! right-align and bottom-align for the rest of the contents
-       call igGetContentRegionAvail(szavail)
-       call igSetCursorPosX(iw_calcwidth(10,2,from_end=.true.) - g%Style%ScrollbarSize)
-       if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-          call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+       call iw_setpos_bottomright(10,2)
 
        ! reset button
        if (iw_button("Reset",danger=.true.)) then
@@ -140,9 +134,7 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()
@@ -155,23 +147,23 @@ contains
     use representations, only: representation
     use systems, only: sys, sysc, atlisttype_species, atlisttype_ncel_ang, atlisttype_nmol,&
        atlisttype_nneq, atlisttype_ncel_frac
-    use gui_main, only: g, ColorHighlightScene, ColorElement
+    use gui_main, only: ColorHighlightScene, ColorElement
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint
+       iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint, iw_table_column,&
+       iw_begintabitem
     use param, only: atmcov, atmvdw, atmcov0, newline, jmlcol, jmlcol2, bohrtoa
     use global, only: bondfactor_def, bonddelta_def
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: ispc, isys, iz, ipad
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
+    integer :: ispc, isys, iz
+    character(kind=c_char,len=:), allocatable, target :: str1, str3, suffix
     real*8 :: x0(3)
     logical :: ch, ldum
-    integer(c_int) :: nc(3), lst, flags, nspcpair
-    real(c_float) :: sqw
+    integer(c_int) :: lst, flags, nspcpair
     integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
     integer :: itype_combo, newtype
     type(c_ptr), target :: clipper
@@ -214,12 +206,9 @@ contains
     if (igBeginTabBar(c_loc(str1),flags)) then
 
        !!!!! Selection tab !!!!!
-       str1 = "Selection##editrepatoms_selectiontab" // c_null_char
-       flags = ImGuiTabItemFlags_None
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+       if (iw_begintabitem("Selection##editrepatoms_selectiontab")) then
           ! filter
-          call igAlignTextToFramePadding()
-          call iw_text("Filter",highlight=.true.)
+          call iw_text("Filter",highlight=.true.,alignframe=.true.)
           call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. &
              &Structural variables are very useful for filters. Examples:"//newline//&
              "- '@x < 3' = all atoms with x lower than 3"//newline//&
@@ -255,63 +244,12 @@ contains
           if (len_trim(w%rep%sel%errfilter) > 0) &
              call iw_text("Error: " // trim(w%rep%sel%errfilter),danger=.true.)
 
-          ! periodicity
+          ! periodicity (evaluate first: the widgets must be drawn even if
+          ! changed is already true, and .or. is allowed to short-circuit)
           if (.not.sys(isys)%c%ismolecule) then
-             call igAlignTextToFramePadding()
-             call iw_text("Periodicity",highlight=.true.)
-
-             ! radio buttons for the periodicity type
-             changed = changed .or. iw_radiobutton("None",int=w%rep%sel%pertype,intval=0_c_int,sameline=.true.)
-             call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
-             changed = changed .or. iw_radiobutton("Automatic",int=w%rep%sel%pertype,intval=1_c_int,sameline=.true.)
-             call iw_tooltip("Number of periodic cells controlled by the +/- options &
-                &in the 'Scene' button of the view window",ttshown)
-             changed = changed .or. iw_radiobutton("Manual",int=w%rep%sel%pertype,intval=2_c_int,sameline=.true.)
-             call iw_tooltip("Manually set the number of periodic cells",ttshown)
-
-             ! number of periodic cells, if manual
-             if (w%rep%sel%pertype == 2_c_int) then
-                ! calculate widths
-                ipad = ceiling(log10(max(maxval(w%rep%sel%ncell),1) + 0.1))
-                sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
-                call igPushItemWidth(sqw)
-
-                nc = w%rep%sel%ncell
-                call igAlignTextToFramePadding()
-                call iw_text("a:")
-                call igSameLine(0._c_float,0._c_float)
-                if (iw_button("-##aaxis")) w%rep%sel%ncell(1) = max(w%rep%sel%ncell(1)-1,1)
-                call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##aaxis",w%rep%sel%ncell(1),width=ipad,notlive=.true.)
-                call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                if (iw_button("+##aaxis")) w%rep%sel%ncell(1) = w%rep%sel%ncell(1)+1
-
-                call igSameLine(0._c_float,-1._c_float)
-                call iw_text("b:")
-                call igSameLine(0._c_float,0._c_float)
-                if (iw_button("-##baxis")) w%rep%sel%ncell(2) = max(w%rep%sel%ncell(2)-1,1)
-                call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##baxis",w%rep%sel%ncell(2),width=ipad,notlive=.true.)
-                call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                if (iw_button("+##baxis")) w%rep%sel%ncell(2) = w%rep%sel%ncell(2)+1
-
-                call igSameLine(0._c_float,-1._c_float)
-                call iw_text("c:")
-                call igSameLine(0._c_float,0._c_float)
-                if (iw_button("-##caxis")) w%rep%sel%ncell(3) = max(w%rep%sel%ncell(3)-1,1)
-                call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##caxis",w%rep%sel%ncell(3),width=ipad,notlive=.true.)
-                call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                if (iw_button("+##caxis")) w%rep%sel%ncell(3) = w%rep%sel%ncell(3)+1
-                w%rep%sel%ncell = max(w%rep%sel%ncell,1)
-                if (any(nc /= w%rep%sel%ncell)) changed = .true.
-                call igPopItemWidth()
-
-                if (iw_button("Reset",sameline=.true.)) then
-                   w%rep%sel%ncell = 1
-                   changed = .true.
-                end if
-             end if
+             ch = periodicity_widgets(w,ttshown,&
+                "Number of periodic cells controlled by the +/- options in the 'Scene' button of the view window")
+             changed = changed .or. ch
 
              ! checkbox for molecular motif
              changed = changed .or. iw_checkbox("Show connected molecules",w%rep%sel%onemotif)
@@ -349,12 +287,9 @@ contains
 
        !!!!! Atoms tab !!!!!
        if (w%rep%atoms%display) then
-          str1 = "Atoms##editrepatoms_atomstab" // c_null_char
-          flags = ImGuiTabItemFlags_None
-          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+          if (iw_begintabitem("Atoms##editrepatoms_atomstab")) then
              ! global options for atoms
-             call igAlignTextToFramePadding()
-             call iw_text("Global Options",highlight=.true.)
+             call iw_text("Global Options",highlight=.true.,alignframe=.true.)
              if (iw_button("Reset##resetglobalatoms",sameline=.true.,danger=.true.)) then
                 call w%rep%set_defaults(1)
                 changed = .true.
@@ -434,14 +369,11 @@ contains
 
        !!!!! Bonds tab !!!!!
        if (w%rep%bonds%display) then
-          str1 = "Bonds##editrepatoms_bondstab" // c_null_char
-          flags = ImGuiTabItemFlags_None
-          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+          if (iw_begintabitem("Bonds##editrepatoms_bondstab")) then
              !! bonds display !!
 
              !! global options !!
-             call igAlignTextToFramePadding()
-             call iw_text("Global Options",highlight=.true.)
+             call iw_text("Global Options",highlight=.true.,alignframe=.true.)
              if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
                 call w%rep%set_defaults(2)
                 changed = .true.
@@ -450,8 +382,7 @@ contains
 
              ! rest of the options (record changes)
              ch = .false.
-             call igAlignTextToFramePadding()
-             call iw_text("Style")
+             call iw_text("Style",alignframe=.true.)
              call iw_combo_simple("##tablebondstyleglobalselect",&
                 "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bonds%color_style,sameline=.true.,changed=ch)
              call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
@@ -471,8 +402,7 @@ contains
              call iw_tooltip("Color of the border for the bonds",ttshown)
 
              ! color
-             call igAlignTextToFramePadding()
-             call iw_text("Color")
+             call iw_text("Color",alignframe=.true.)
              ch = ch .or. iw_coloredit("##colorbondtableglobal",rgb=w%rep%bonds%rgb,sameline=.true.)
              call iw_tooltip("Color of the bonds",ttshown)
 
@@ -493,8 +423,7 @@ contains
                 &one end-atom is in the scene (unchecked)",ttshown)
 
              ! Jeffrey-Steiner hydrogen-bond strength classification
-             call igAlignTextToFramePadding()
-             call iw_text("Hydrogen bonds")
+             call iw_text("Hydrogen bonds",alignframe=.true.)
              ch = ch .or. iw_checkbox("##hbondclassify",w%rep%bonds%hbond_classify,sameline=.true.)
              call iw_tooltip("Represent only hydrogen bonds and color them by their Jeffrey-Steiner strength.",ttshown)
 
@@ -503,8 +432,7 @@ contains
                 ch = ch .or. iw_coloredit("Moderate##hbmodcolor",rgb=w%rep%bonds%hbond_rgb(:,2),sameline=.true.)
                 ch = ch .or. iw_coloredit("Weak##hbweakcolor",rgb=w%rep%bonds%hbond_rgb(:,3),sameline=.true.)
 
-                call igAlignTextToFramePadding()
-                call iw_text("H...A Distance (Å)")
+                call iw_text("H...A Distance (Å)",alignframe=.true.)
                 ch = ch .or. iw_dragfloat_real8("strong|moderate##hbdist1",x1=w%rep%bonds%hbond_dist(1),speed=0.01d0,&
                    min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("H...A distance class boundaries",ttshown)
@@ -512,8 +440,7 @@ contains
                    min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("H...A distance class boundaries",ttshown)
 
-                call igAlignTextToFramePadding()
-                call iw_text("D-H...A Angle (°)")
+                call iw_text("D-H...A Angle (°)",alignframe=.true.)
                 ch = ch .or. iw_dragfloat_real8("weak|moderate##hbang1",x1=w%rep%bonds%hbond_ang(1),speed=0.5d0,&
                    min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("D-H...A angle class boundaries",ttshown)
@@ -537,17 +464,11 @@ contains
              sz%y = iw_calcheight(nspcpair,0,.false.)
              if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
                 ! header setup
-                str2 = "Atom 1" // c_null_char
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp1)
+                call iw_table_column("Atom 1",id=ic_sp1,flags=ImGuiTableColumnFlags_WidthFixed)
 
-                str2 = "Atom 2" // c_null_char
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
+                call iw_table_column("Atom 2",id=ic_sp2,flags=ImGuiTableColumnFlags_WidthFixed)
 
-                str2 = "Show" // c_null_char
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
+                call iw_table_column("Show",id=ic_shown,flags=ImGuiTableColumnFlags_WidthFixed)
 
                 call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -581,8 +502,7 @@ contains
 
                       ! species
                       if (igTableSetColumnIndex(ic_sp1)) then
-                         call igAlignTextToFramePadding()
-                         call iw_text(trim(sys(isys)%c%spc(i)%name))
+                         call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
                       end if
                       if (igTableSetColumnIndex(ic_sp2)) &
                          call iw_text(trim(sys(isys)%c%spc(j)%name))
@@ -660,12 +580,9 @@ contains
                 sz%x = 0
                 sz%y = iw_calcheight(min(5,sys(isys)%c%nspc)+1,0,.false.)
                 if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
-                   str2 = "Atom" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
-                   str2 = "Z" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
-                   str2 = "Radius (Å)" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+                   call iw_table_column("Atom",id=0)
+                   call iw_table_column("Z",id=1)
+                   call iw_table_column("Radius (Å)",id=2)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
 
@@ -674,12 +591,10 @@ contains
                       if (iz <= 0) cycle
                       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                       if (igTableSetColumnIndex(0)) then
-                         call igAlignTextToFramePadding()
-                         call iw_text(trim(sys(isys)%c%spc(i)%name))
+                         call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
                       end if
                       if (igTableSetColumnIndex(1)) then
-                         call igAlignTextToFramePadding()
-                         call iw_text(string(iz))
+                         call iw_text(string(iz),alignframe=.true.)
                       end if
                       if (igTableSetColumnIndex(2)) then
                          ldum = iw_dragfloat_real8("##tableradius_editrep" // string(i),x1=w%rep%bonds%atmrad(iz),&
@@ -727,15 +642,12 @@ contains
 
        !!!!! Labels tab !!!!!
        if (w%rep%labels%display) then
-          str1 = "Labels##editrepatoms_labelstab" // c_null_char
-          flags = ImGuiTabItemFlags_None
-          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+          if (iw_begintabitem("Labels##editrepatoms_labelstab")) then
              !! labels display !!
 
              ! label styles
              !! global options !!
-             call igAlignTextToFramePadding()
-             call iw_text("Global Options",highlight=.true.)
+             call iw_text("Global Options",highlight=.true.,alignframe=.true.)
              if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
                 w%rep%labels%type = 0
                 call w%rep%set_defaults(3)
@@ -821,32 +733,17 @@ contains
                 ncol = -1
 
                 ! header setup
-                str2 = "Id" // c_null_char
-                ncol = ncol + 1
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+                call iw_table_column("Id",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
 
                 if (intable /= atlisttype_nmol) then
-                   str2 = "Atom" // c_null_char
-                   ncol = ncol + 1
-                   flags = ImGuiTableColumnFlags_WidthFixed
-                   call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+                   call iw_table_column("Atom",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
 
-                   str2 = "Z " // c_null_char
-                   ncol = ncol + 1
-                   flags = ImGuiTableColumnFlags_WidthFixed
-                   call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+                   call iw_table_column("Z ",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
                 end if
 
-                str2 = "Show" // c_null_char
-                ncol = ncol + 1
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+                call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
 
-                str2 = "Text" // c_null_char
-                ncol = ncol + 1
-                flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+                call iw_table_column("Text",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
 
                 call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -871,8 +768,7 @@ contains
                       ! id
                       ncol = ncol + 1
                       if (igTableSetColumnIndex(ncol)) then
-                         call igAlignTextToFramePadding()
-                         call iw_text(string(i))
+                         call iw_text(string(i),alignframe=.true.)
 
                          ! the highlight selectable
                          if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
@@ -940,9 +836,7 @@ contains
 
        !!!!! Polyhedra tab !!!!!
        if (w%rep%poly%display) then
-          str1 = "Polyhedra##editrepatoms_polyhedratab" // c_null_char
-          flags = ImGuiTabItemFlags_None
-          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+          if (iw_begintabitem("Polyhedra##editrepatoms_polyhedratab")) then
              ! make sure the style is initialized and matches the current system
              if (.not.w%rep%poly%style%isinit) then
                 call w%rep%poly%style%reset(w%rep)
@@ -952,8 +846,7 @@ contains
              end if
 
              ! center type selector
-             call igAlignTextToFramePadding()
-             call iw_text("Centers and Corners",highlight=.true.)
+             call iw_text("Centers and Corners",highlight=.true.,alignframe=.true.)
              call iw_helpermark("In the table, each row corresponds to a polyhedron center. &
                 &For each center, the columns show the atom name, whether the polyhedron is shown (Show),&
                 & the distance range to the corners (Min/Max), and which atomic species are allowed as corners.",sameline=.true.)
@@ -985,19 +878,13 @@ contains
              sz%x = 0
              sz%y = iw_calcheight(min(8,w%rep%poly%style%ntype)+1,0,.false.)
              if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
-                str2 = "Id" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
-                str2 = "Atom" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
-                str2 = "Show" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
-                str2 = "Min (Å)" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3)
-                str2 = "Max (Å)" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,4)
+                call iw_table_column("Id",id=0)
+                call iw_table_column("Atom",id=1)
+                call iw_table_column("Show",id=2)
+                call iw_table_column("Min (Å)",id=3)
+                call iw_table_column("Max (Å)",id=4)
                 do j = 1, sys(isys)%c%nspc
-                   str2 = trim(sys(isys)%c%spc(j)%name) // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,4+j)
+                   call iw_table_column(trim(sys(isys)%c%spc(j)%name),id=4+j)
                 end do
                 call igTableSetupScrollFreeze(1,1)
                 call igTableHeadersRow()
@@ -1008,8 +895,7 @@ contains
                    if (iz <= 0) cycle
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                    if (igTableSetColumnIndex(0)) then
-                      call igAlignTextToFramePadding()
-                      call iw_text(string(i))
+                      call iw_text(string(i),alignframe=.true.)
                    end if
                    if (igTableSetColumnIndex(1)) &
                       call iw_text(sysc(isys)%attype_name(w%rep%poly%style%type,i))
@@ -1075,77 +961,23 @@ contains
   !> Draw the editrep window, unit cell class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
-    use gui_main, only: g
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputint
+    use utils, only: iw_text, iw_tooltip, iw_clamp_color3, iw_checkbox,&
+       iw_coloredit, iw_dragfloat_real8
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
-    logical :: changed, ldum
-    integer :: ipad
-    real(c_float) :: sqw
-    integer(c_int) :: nc(3)
+    logical :: changed
 
     logical :: ch
 
     ! initialize
     changed = .false.
 
-    ! periodicity
-    call igAlignTextToFramePadding()
-    call iw_text("Periodicity",highlight=.true.)
-
-    ! radio buttons for the periodicity type
-    changed = changed .or. iw_radiobutton("None",int=w%rep%sel%pertype,intval=0_c_int,sameline=.true.)
-    call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
-    changed = changed .or. iw_radiobutton("Automatic",int=w%rep%sel%pertype,intval=1_c_int,sameline=.true.)
-    call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
-    changed = changed .or. iw_radiobutton("Manual",int=w%rep%sel%pertype,intval=2_c_int,sameline=.true.)
-    call iw_tooltip("Manually set the number of periodic cells",ttshown)
-
-    ! number of periodic cells, if manual
-    if (w%rep%sel%pertype == 2_c_int) then
-       ! calculate widths
-       ipad = ceiling(log10(max(maxval(w%rep%sel%ncell),1) + 0.1))
-       sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
-       call igPushItemWidth(sqw)
-
-       nc = w%rep%sel%ncell
-       call igAlignTextToFramePadding()
-       call iw_text("a:")
-       call igSameLine(0._c_float,0._c_float)
-       if (iw_button("-##aaxis")) w%rep%sel%ncell(1) = max(w%rep%sel%ncell(1)-1,1)
-       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##aaxis",w%rep%sel%ncell(1),width=ipad,notlive=.true.)
-       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       if (iw_button("+##aaxis")) w%rep%sel%ncell(1) = w%rep%sel%ncell(1)+1
-
-       call igSameLine(0._c_float,-1._c_float)
-       call iw_text("b:")
-       call igSameLine(0._c_float,0._c_float)
-       if (iw_button("-##baxis")) w%rep%sel%ncell(2) = max(w%rep%sel%ncell(2)-1,1)
-       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##baxis",w%rep%sel%ncell(2),width=ipad,notlive=.true.)
-       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       if (iw_button("+##baxis")) w%rep%sel%ncell(2) = w%rep%sel%ncell(2)+1
-
-       call igSameLine(0._c_float,-1._c_float)
-       call iw_text("c:")
-       call igSameLine(0._c_float,0._c_float)
-       if (iw_button("-##caxis")) w%rep%sel%ncell(3) = max(w%rep%sel%ncell(3)-1,1)
-       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##caxis",w%rep%sel%ncell(3),width=ipad,notlive=.true.)
-       call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       if (iw_button("+##caxis")) w%rep%sel%ncell(3) = w%rep%sel%ncell(3)+1
-       w%rep%sel%ncell = max(w%rep%sel%ncell,1)
-       if (any(nc /= w%rep%sel%ncell)) changed = .true.
-       call igPopItemWidth()
-
-       if (iw_button("Reset",sameline=.true.)) then
-          w%rep%sel%ncell = 1
-          changed = .true.
-       end if
-    end if
+    ! periodicity (evaluate first: the widgets must be drawn even if changed is
+    ! already true, and .or. is allowed to short-circuit)
+    ch = periodicity_widgets(w,ttshown,&
+       "Number of periodic cells controlled by the +/- options in the view menu")
+    changed = changed .or. ch
 
     !! styles
     call iw_text("Style",highlight=.true.)
@@ -1196,8 +1028,8 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
     use windows, only: win
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_inputtext, iw_radiobutton, iw_combo_simple
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputtext,&
+       iw_radiobutton, iw_combo_simple
     use systems, only: sys
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -1373,9 +1205,9 @@ contains
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_ang,&
        atlisttype_nmol, atlisttype_ncel_frac
     use representations, only: atom_geom_style, mol_geom_style
-    use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
-       iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable,&
-       iw_dragfloat_real8
+    use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox, iw_clamp_color3,&
+       iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable, iw_dragfloat_real8,&
+       iw_table_column
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -1468,56 +1300,33 @@ contains
        icol = -1
 
        ! header setup
-       icol = icol + 1
-       str2 = "Id" // c_null_char
-       flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+       call iw_table_column("Id",icol=icol)
 
-       icol = icol + 1
-       str2 = "Atom" // c_null_char
-       flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+       call iw_table_column("Atom",icol=icol)
 
-       icol = icol + 1
-       str2 = "Z " // c_null_char
-       flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+       call iw_table_column("Z ",icol=icol)
 
        if (showselection) then
-          icol = icol + 1
-          str2 = "Show" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column("Show",icol=icol)
        end if
 
        if (showdrawopts) then
-          icol = icol + 1
-          str2 = "Col" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column("Col",icol=icol)
 
-          icol = icol + 1
-          str2 = "Radius" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column("Radius",icol=icol)
        end if
 
        if (domol) then
-          icol = icol + 1
-          str2 = "Mol" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column("Mol",icol=icol)
        end if
 
        if (docoord) then
-          icol = icol + 1
           if (r%atoms%style%type == atlisttype_ncel_ang) then
-             str2 = "Coordinates (Å)" // c_null_char
+             str2 = "Coordinates (Å)"
           else
-             str2 = "Coordinates (fractional)" // c_null_char
+             str2 = "Coordinates (fractional)"
           end if
-          flags = ImGuiTableColumnFlags_WidthStretch
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column(str2,icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
        end if
 
        ! draw the header
@@ -1543,8 +1352,7 @@ contains
              ! id
              icol = icol + 1
              if (igTableSetColumnIndex(icol)) then
-                call igAlignTextToFramePadding()
-                call iw_text(string(i))
+                call iw_text(string(i),alignframe=.true.)
 
                 ! the highlight selectable
                 if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
@@ -1674,43 +1482,26 @@ contains
           icol = -1
 
           ! header setup
-          icol = icol + 1
-          str2 = "Id" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column("Id",icol=icol)
 
-          icol = icol + 1
-          str2 = "Nat" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column("Nat",icol=icol)
 
           if (showselection) then
-             icol = icol + 1
-             str2 = "Show" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             call iw_table_column("Show",icol=icol)
           end if
 
           if (showdrawopts) then
-             icol = icol + 1
-             str2 = "Tint" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             call iw_table_column("Tint",icol=icol)
 
-             icol = icol + 1
-             str2 = "Scale" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             call iw_table_column("Scale",icol=icol)
           end if
 
-          icol = icol + 1
           if (sys(isys)%c%ismolecule) then
-             str2 = "Center of mass (Å)" // c_null_char
+             str2 = "Center of mass (Å)"
           else
-             str2 = "Center of mass (fractional)" // c_null_char
+             str2 = "Center of mass (fractional)"
           end if
-          flags = ImGuiTableColumnFlags_WidthStretch
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          call iw_table_column(str2,icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
 
           ! draw the header
           call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -1731,8 +1522,7 @@ contains
                 ! id
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   call igAlignTextToFramePadding()
-                   call iw_text(string(i))
+                   call iw_text(string(i),alignframe=.true.)
 
                    ! the highlight selectable
                    if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
@@ -1825,8 +1615,8 @@ contains
   !> Draw the editrep (Object) window, symmetry-elements class. Returns true if
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_symelem(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_combo_simple, iw_button, iw_calcheight
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
+       iw_button, iw_calcheight, iw_table_column
     use systems, only: sys
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1837,7 +1627,7 @@ contains
     integer :: i, icoord, nop
     integer(c_int) :: flags
     type(ImVec2) :: sz0
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=:), allocatable, target :: str1
 
     changed = .false.
 
@@ -1905,12 +1695,9 @@ contains
        sz0%x = 0
        sz0%y = iw_calcheight(min(nop,10)+1,0,.false.)
        if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-          str2 = "Show" // c_null_char
-          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-          str2 = "#" // c_null_char
-          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-          str2 = "Symbol" // c_null_char
-          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+          call iw_table_column("Show",id=0)
+          call iw_table_column("#",id=1)
+          call iw_table_column("Symbol",id=2)
           call igTableSetupScrollFreeze(0,1)
           call igTableHeadersRow()
 
@@ -1942,9 +1729,9 @@ contains
     use representations, only: text_item, textpos_screen, textpos_point, textpos_atom,&
        textpos_bond
     use gui_main, only: ColorLabel_def
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_combo_simple, iw_button, iw_calcheight, iw_inputtext, iw_close_button,&
-       iw_highlight_selectable, iw_radiobutton
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
+       iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
+       iw_table_column
     use systems, only: sys, sysc
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1955,7 +1742,7 @@ contains
     integer :: i, k, iview, isel, idel, ipl
     integer(c_int) :: flags
     type(ImVec2) :: sz0
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=:), allocatable, target :: str1
     type(text_item), allocatable :: taux(:)
 
     ! initialize
@@ -2023,14 +1810,10 @@ contains
     sz0%x = 0
     sz0%y = iw_calcheight(min(w%rep%text%ntext,5)+1,0,.false.)
     if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
-       str2 = "" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
-       str2 = "Show" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
-       str2 = "Text" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,2)
-       str2 = "Placement" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
+       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Text",id=2,flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_column("Placement",id=3,flags=ImGuiTableColumnFlags_WidthFixed)
        call igTableSetupScrollFreeze(0,1)
        call igTableHeadersRow()
 
@@ -2049,13 +1832,11 @@ contains
           end if
           ! the text (first line only; edited in the box below the table)
           if (igTableSetColumnIndex(2)) then
-             call igAlignTextToFramePadding()
-             call iw_text(first_line(w%rep%text%t(i)%str))
+             call iw_text(first_line(w%rep%text%t(i)%str),alignframe=.true.)
           end if
           ! placement summary; a row-spanning selectable picks the edited item,
           ! and the row being edited is shown highlighted
           if (igTableSetColumnIndex(3)) then
-             call igAlignTextToFramePadding()
              if (w%rep%text%t(i)%placement == textpos_screen) then
                 str1 = "on-screen"
              elseif (w%rep%text%t(i)%placement == textpos_point) then
@@ -2065,7 +1846,7 @@ contains
              else
                 str1 = "bond"
              end if
-             call iw_text(str1)
+             call iw_text(str1,alignframe=.true.)
              ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch,&
                 selected=(i == w%lastselected))
              if (ch) w%lastselected = i
@@ -2116,8 +1897,7 @@ contains
        call iw_tooltip("Text of the selected annotation (multiple lines allowed)",ttshown)
 
        ! placement
-       call igAlignTextToFramePadding()
-       call iw_text("Placement",highlight=.true.)
+       call iw_text("Placement",highlight=.true.,alignframe=.true.)
        ipl = w%rep%text%t(isel)%placement
        call iw_combo_simple("##textplacement","On-screen" // c_null_char // "3D position" // c_null_char //&
           "Atom" // c_null_char // "Bond" // c_null_char,ipl,changed=ch,sameline=.true.)
@@ -2216,9 +1996,9 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_measure(w,ttshown) result(changed)
     use representations, only: measurement_item
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_button, iw_atom_button, iw_calcheight, iw_close_button, iw_intstepper,&
-       iw_highlight_selectable, iw_helpermark
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
+       iw_atom_button, iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
+       iw_helpermark, iw_table_column, iw_begintabitem
     use keybindings, only: get_bind_keyname, BIND_NAV_MEASURE, BIND_NAV_MEASURE_ADD
     use systems, only: sys, sysc, atlisttype_ncel_frac
     use tools_io, only: string
@@ -2232,7 +2012,7 @@ contains
     integer :: idel, k, iview, i
     logical :: ok
     type(ImVec2) :: sz0
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=:), allocatable, target :: str1
 
     changed = .false.
     idel = 0
@@ -2281,20 +2061,17 @@ contains
     str1 = "##editrepmeasuretabbar" // c_null_char
     flags = ImGuiTabBarFlags_None
     if (igBeginTabBar(c_loc(str1),flags)) then
-       str1 = "Distances##editrepmeasure_disttab" // c_null_char
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
+       if (iw_begintabitem("Distances##editrepmeasure_disttab")) then
           call cat_table(2,"dist")
           call item_options(2)
           call igEndTabItem()
        end if
-       str1 = "Angles##editrepmeasure_angtab" // c_null_char
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
+       if (iw_begintabitem("Angles##editrepmeasure_angtab")) then
           call cat_table(3,"ang")
           call item_options(3)
           call igEndTabItem()
        end if
-       str1 = "Dihedrals##editrepmeasure_dihtab" // c_null_char
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
+       if (iw_begintabitem("Dihedrals##editrepmeasure_dihtab")) then
           call cat_table(4,"dih")
           call item_options(4)
           call igEndTabItem()
@@ -2359,16 +2136,12 @@ contains
       sz0%x = 0
       sz0%y = iw_calcheight(min(nrow,6)+1,0,.false.)
       if (igBeginTable(c_loc(str1),ncol,tflags,sz0,0._c_float)) then
-         str2 = "" // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
-         str2 = "Show" // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
+         call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
          do k = 1, ncat
-            str2 = "Atom " // string(k) // c_null_char
-            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,k+1)
+            call iw_table_column("Atom " // string(k),id=k+1,flags=ImGuiTableColumnFlags_WidthFixed)
          end do
-         str2 = "Value" // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,icvalue)
+         call iw_table_column("Value",id=icvalue,flags=ImGuiTableColumnFlags_WidthStretch)
          call igTableSetupScrollFreeze(0,1)
          call igTableHeadersRow()
 
@@ -2394,8 +2167,7 @@ contains
             end do
             ! value, plus a row-spanning selectable that picks the edited item
             if (igTableSetColumnIndex(icvalue)) then
-               call igAlignTextToFramePadding()
-               call iw_text(item_value_str(w%rep%measure%item(i)))
+               call iw_text(item_value_str(w%rep%measure%item(i)),alignframe=.true.)
                ldum = iw_highlight_selectable("##measuresel" // tabidn // string(i),&
                   clicked=ch,selected=(i == w%rep%measure%isel))
                if (ch) w%rep%measure%isel = i
@@ -2572,5 +2344,53 @@ contains
     end function item_value_str
 
   end function draw_editrep_measure
+
+  !> Draw the periodicity widgets shared by the atoms and unit-cell object
+  !> editors: the radio buttons for the periodicity type and, when the type is
+  !> manual, the a/b/c cell-number steppers plus a Reset button.
+  !> tooltip_automatic = tooltip for the "Automatic" button, which points at a
+  !> different control in each of the two editors. ttshown = the tooltip flag.
+  !> Returns true if the periodicity changed.
+  function periodicity_widgets(w,ttshown,tooltip_automatic) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_intstepper
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    character(len=*,kind=c_char), intent(in) :: tooltip_automatic
+    logical :: changed
+
+    logical :: ldum
+    integer :: ipad
+    integer(c_int) :: nc(3)
+
+    changed = .false.
+    call iw_text("Periodicity",highlight=.true.,alignframe=.true.)
+
+    ! radio buttons for the periodicity type
+    changed = changed .or. iw_radiobutton("None",int=w%rep%sel%pertype,intval=0_c_int,sameline=.true.)
+    call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
+    changed = changed .or. iw_radiobutton("Automatic",int=w%rep%sel%pertype,intval=1_c_int,sameline=.true.)
+    call iw_tooltip(tooltip_automatic,ttshown)
+    changed = changed .or. iw_radiobutton("Manual",int=w%rep%sel%pertype,intval=2_c_int,sameline=.true.)
+    call iw_tooltip("Manually set the number of periodic cells",ttshown)
+
+    ! number of periodic cells, if manual (all three fields share a digit width)
+    if (w%rep%sel%pertype == 2_c_int) then
+       ipad = ceiling(log10(max(maxval(w%rep%sel%ncell),1) + 0.1))
+       nc = w%rep%sel%ncell
+       ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,ndigit=ipad,notlive=.true.)
+       ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,ndigit=ipad,notlive=.true.,sameline=.true.)
+       ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,ndigit=ipad,notlive=.true.,sameline=.true.)
+       if (any(nc /= w%rep%sel%ncell)) then
+          w%rep%sel%ncell = nc
+          changed = .true.
+       end if
+
+       if (iw_button("Reset",sameline=.true.)) then
+          w%rep%sel%ncell = 1
+          changed = .true.
+       end if
+    end if
+
+  end function periodicity_widgets
 
 end submodule editrep

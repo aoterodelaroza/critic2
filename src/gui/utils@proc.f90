@@ -122,7 +122,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: label_, text_
     character(kind=c_char,len=:), allocatable :: src
     integer :: i, ll
-    logical :: sameline_, notlive_
+    logical :: sameline_, notlive_, editing
     type(ImVec2) :: szml
 
     ! process input options
@@ -188,39 +188,24 @@ contains
     if (present(width)) &
        call igPopItemWidth()
 
+    ! text currently held in the C buffer
+    ll = index(text_,c_null_char)-1
+    if (ll < 0) ll = len(text_)
+
     if (notlive_) then
        ! deferred commit: edit a persistent buffer so texta/textf are left untouched while
-       ! typing and only updated when the value is committed (Enter, Tab, or click-away). Only
-       ! one input is being edited at any time, so a single (id,buffer) pair is enough. We do
+       ! typing and only updated when the value is committed (Enter, Tab, or click-away). We do
        ! not use ImGuiInputTextFlags_EnterReturnsTrue, which would discard the text on Tab/click.
-       if (logical(igIsItemActivated())) input_editid = myid
-       if (myid == input_editid) then
-          ll = index(text_,c_null_char)-1
-          if (ll < 0) ll = len(text_)
-          inputtext_editbuf = text_(1:ll)
-       end if
-       iw_inputtext = .false.
-       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == input_editid) then
-          ll = index(text_,c_null_char)-1
-          if (ll < 0) ll = len(text_)
-          if (present(texta)) then
-             texta = text_(1:ll)
-          else
-             textf = text_(1:ll)
-          end if
-          input_editid = 0_c_int
-          iw_inputtext = .true.
-       end if
-    else
-       ! live: texta/textf update on every change
-       if (iw_inputtext) then
-          ll = index(text_,c_null_char)-1
-          if (ll < 0) ll = len(text_)
-          if (present(texta)) then
-             texta = text_(1:ll)
-          else
-             textf = text_(1:ll)
-          end if
+       call input_edit_update(myid,editing,iw_inputtext)
+       if (editing) inputtext_editbuf = text_(1:ll)
+    end if
+
+    ! write the text out: on commit if deferred, on every change if live
+    if (iw_inputtext) then
+       if (present(texta)) then
+          texta = text_(1:ll)
+       else
+          textf = text_(1:ll)
        end if
     end if
 
@@ -236,7 +221,6 @@ contains
   module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
      sameline,notlive,flags)
     use interfaces_cimgui
-    use gui_main, only: g
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
     real(c_float), intent(inout), optional :: x1
@@ -255,11 +239,9 @@ contains
     integer(c_int) :: flags_
     logical :: notlive_
     real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
-    integer :: n, nintdig, nchar, decimal_
-    real(c_float) :: width, vmax
-    type(ImVec2) :: sz
+    integer :: n, decimal_
+    real(c_float) :: width
     logical :: sameline_
-    character(len=:,kind=c_char), allocatable, target :: strc
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -285,11 +267,7 @@ contains
     if (sameline_) &
        call igSameLine(0._c_float,-1._c_float)
 
-    ! calculate width: reserve room for the integer part of the field's range
-    ! (from min/max) plus the decimals, so a large maximum (e.g. temperature up
-    ! to 10000) is not clipped; small-valued fields keep the previous default
-    strc = "0" // c_null_char
-    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+    ! calculate width
     if (present(x1)) then
        n = 1
     elseif (present(x2)) then
@@ -299,20 +277,7 @@ contains
     elseif (present(x4)) then
        n = 4
     end if
-    ! present() gates the bounds; max/min are dummy-arg names here (shadowing the
-    ! intrinsics), so use plain comparisons rather than the max()/min() intrinsics
-    vmax = 1._c_float
-    if (present(max) .and. abs(max_) > vmax) vmax = abs(max_)
-    if (present(min) .and. abs(min_) > vmax) vmax = abs(min_)
-    ! integer digits (biased up near powers of ten so 10000 gets 5, never fewer
-    ! than 3 to preserve the old (4+decimal) default for small-valued fields)
-    nintdig = int(log10(vmax) + 1e-4_c_float) + 1
-    if (nintdig < 3) nintdig = 3
-    ! characters in the widest value: sign, integer digits, decimal
-    ! point (only if there are decimals) and decimals
-    nchar = 1 + nintdig + decimal_
-    if (decimal_ > 0) nchar = nchar + 1
-    width = nchar * sz%x * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
+    width = dragfloat_width(n,decimal_,min_,max_,present(min),present(max))
 
     ! draw the float
     call igPushItemWidth(width)
@@ -356,7 +321,6 @@ contains
   module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
      sameline,notlive,committed,flags)
     use interfaces_cimgui
-    use gui_main, only: g
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
     real*8, intent(inout), optional :: x1
@@ -376,11 +340,9 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
     logical :: notlive_
-    integer :: n, nintdig, nchar, decimal_
-    real(c_float) :: width, vmax
-    type(ImVec2) :: sz
+    integer :: n, decimal_
+    real(c_float) :: width
     logical :: sameline_
-    character(len=:,kind=c_char), allocatable, target :: strc
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -407,8 +369,6 @@ contains
        call igSameLine(0._c_float,-1._c_float)
 
     ! calculate width
-    strc = "0" // c_null_char
-    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
     if (present(x1)) then
        n = 1
     elseif (present(x2)) then
@@ -418,17 +378,7 @@ contains
     elseif (present(x4)) then
        n = 4
     end if
-    vmax = 1._c_float
-    if (present(max) .and. abs(max_) > vmax) vmax = abs(max_)
-    if (present(min) .and. abs(min_) > vmax) vmax = abs(min_)
-    ! integer digits
-    nintdig = int(log10(vmax) + 1e-4_c_float) + 1
-    if (nintdig < 3) nintdig = 3
-    ! characters in the widest value: sign, integer digits, decimal
-    ! point (only if there are decimals) and decimals
-    nchar = 1 + nintdig + decimal_
-    if (decimal_ > 0) nchar = nchar + 1
-    width = nchar * sz%x * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
+    width = dragfloat_width(n,decimal_,min_,max_,present(min),present(max))
 
     ! draw the float
     call igPushItemWidth(width)
@@ -485,7 +435,7 @@ contains
 
     character(len=:,kind=c_char), allocatable, target :: str_
     integer(c_int) :: flags_, step_, step_fast_, v, myid
-    logical :: sameline_, notlive_
+    logical :: sameline_, notlive_, editing
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -510,8 +460,7 @@ contains
 
     if (notlive_) then
        ! deferred commit: edit a persistent buffer so ival is left untouched while typing and
-       ! only updated when the value is committed (Enter, Tab, or click-away). Only one input
-       ! is being edited at any time, so a single (id,buffer) pair is enough. We do not use
+       ! only updated when the value is committed (Enter, Tab, or click-away). We do not use
        ! ImGuiInputTextFlags_EnterReturnsTrue, which would discard the typed value on Tab/click.
        myid = igGetID_Str(c_loc(str_))
        if (myid == input_editid) then
@@ -520,22 +469,17 @@ contains
           v = ival
        end if
        iw_inputint = logical(igInputInt(c_loc(str_),v,step_,step_fast_,flags_))
-       if (present(width)) &
-          call igPopItemWidth()
-       if (logical(igIsItemActivated())) input_editid = myid
-       if (myid == input_editid) inputint_editbuf = v
-       iw_inputint = .false.
-       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == input_editid) then
-          ival = v
-          input_editid = 0_c_int
-          iw_inputint = .true.
-       end if
+       call input_edit_update(myid,editing,iw_inputint)
+       if (editing) inputint_editbuf = v
+       if (iw_inputint) ival = v
     else
        ! live: ival updates on every change
        iw_inputint = logical(igInputInt(c_loc(str_),ival,step_,step_fast_,flags_))
-       if (present(width)) &
-          call igPopItemWidth()
     end if
+
+    ! pop the width
+    if (present(width)) &
+       call igPopItemWidth()
 
   end function iw_inputint
 
@@ -556,7 +500,7 @@ contains
 
     character(len=:,kind=c_char), allocatable, target :: str_
     integer(c_int) :: flags_, v(3), myid
-    logical :: sameline_, notlive_
+    logical :: sameline_, notlive_, editing
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -576,9 +520,8 @@ contains
        call igPushItemWidth(iw_calcwidth(width,1))
 
     if (notlive_) then
-       ! deferred commit: edit a persistent buffer so ival is left untouched while typing and
-       ! only updated when the value is committed (Enter, Tab, or click-away). Only one input
-       ! is being edited at any time, so a single (id,buffer) pair is enough.
+       ! deferred commit: edit a persistent buffer so ival is left untouched
+       ! while typing (see iw_inputint)
        myid = igGetID_Str(c_loc(str_))
        if (myid == input_editid) then
           v = inputint3_editbuf
@@ -586,22 +529,17 @@ contains
           v = ival
        end if
        iw_inputint3 = logical(igInputInt3(c_loc(str_),v,flags_))
-       if (present(width)) &
-          call igPopItemWidth()
-       if (logical(igIsItemActivated())) input_editid = myid
-       if (myid == input_editid) inputint3_editbuf = v
-       iw_inputint3 = .false.
-       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == input_editid) then
-          ival = v
-          input_editid = 0_c_int
-          iw_inputint3 = .true.
-       end if
+       call input_edit_update(myid,editing,iw_inputint3)
+       if (editing) inputint3_editbuf = v
+       if (iw_inputint3) ival = v
     else
        ! live: ival updates on every change
        iw_inputint3 = logical(igInputInt3(c_loc(str_),ival,flags_))
-       if (present(width)) &
-          call igPopItemWidth()
     end if
+
+    ! pop the width
+    if (present(width)) &
+       call igPopItemWidth()
 
   end function iw_inputint3
 
@@ -628,7 +566,7 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, fmt_
     integer(c_int) :: flags_, myid
     real(c_float) :: step_, step_fast_, v
-    logical :: sameline_, notlive_
+    logical :: sameline_, notlive_, editing
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -654,9 +592,8 @@ contains
        call igPushItemWidth(iw_calcwidth(width,1))
 
     if (notlive_) then
-       ! deferred commit: edit a persistent buffer so val is left untouched while typing and
-       ! only updated when the value is committed (Enter, Tab, or click-away). Only one input
-       ! is being edited at any time, so a single (id,buffer) pair is enough.
+       ! deferred commit: edit a persistent buffer so val is left untouched
+       ! while typing (see iw_inputint)
        myid = igGetID_Str(c_loc(str_))
        if (myid == input_editid) then
           v = inputfloat_editbuf
@@ -664,22 +601,17 @@ contains
           v = val
        end if
        iw_inputfloat = logical(igInputFloat(c_loc(str_),v,step_,step_fast_,c_loc(fmt_),flags_))
-       if (present(width)) &
-          call igPopItemWidth()
-       if (logical(igIsItemActivated())) input_editid = myid
-       if (myid == input_editid) inputfloat_editbuf = v
-       iw_inputfloat = .false.
-       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == input_editid) then
-          val = v
-          input_editid = 0_c_int
-          iw_inputfloat = .true.
-       end if
+       call input_edit_update(myid,editing,iw_inputfloat)
+       if (editing) inputfloat_editbuf = v
+       if (iw_inputfloat) val = v
     else
        ! live: val updates on every change
        iw_inputfloat = logical(igInputFloat(c_loc(str_),val,step_,step_fast_,c_loc(fmt_),flags_))
-       if (present(width)) &
-          call igPopItemWidth()
     end if
+
+    ! pop the width
+    if (present(width)) &
+       call igPopItemWidth()
 
   end function iw_inputfloat
 
@@ -704,7 +636,7 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, fmt_
     integer(c_int) :: flags_, myid
     real(c_float) :: v(3)
-    logical :: sameline_, notlive_
+    logical :: sameline_, notlive_, editing
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -726,7 +658,7 @@ contains
        call igPushItemWidth(iw_calcwidth(width,1))
 
     if (notlive_) then
-       ! deferred commit (see iw_inputfloat)
+       ! deferred commit (see iw_inputint)
        myid = igGetID_Str(c_loc(str_))
        if (myid == input_editid) then
           v = inputfloat3_editbuf
@@ -734,22 +666,17 @@ contains
           v = val
        end if
        iw_inputfloat3 = logical(igInputFloat3(c_loc(str_),v,c_loc(fmt_),flags_))
-       if (present(width)) &
-          call igPopItemWidth()
-       if (logical(igIsItemActivated())) input_editid = myid
-       if (myid == input_editid) inputfloat3_editbuf = v
-       iw_inputfloat3 = .false.
-       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == input_editid) then
-          val = v
-          input_editid = 0_c_int
-          iw_inputfloat3 = .true.
-       end if
+       call input_edit_update(myid,editing,iw_inputfloat3)
+       if (editing) inputfloat3_editbuf = v
+       if (iw_inputfloat3) val = v
     else
        ! live: val updates on every change
        iw_inputfloat3 = logical(igInputFloat3(c_loc(str_),val,c_loc(fmt_),flags_))
-       if (present(width)) &
-          call igPopItemWidth()
     end if
+
+    ! pop the width
+    if (present(width)) &
+       call igPopItemWidth()
 
   end function iw_inputfloat3
 
@@ -832,6 +759,140 @@ contains
        call igSetCursorPosX(posx)
 
   end subroutine iw_setposx_fromend
+
+  !> Move the cursor to the bottom of the window and, unless centered, to the
+  !> right, leaving room for the trailing widget row: ntext characters of text
+  !> and nbutton buttons (as in iw_calcwidth). Used for the final button row of
+  !> a dialog, which sits in the bottom-right corner regardless of how much
+  !> content is above it. If centered, the row is centered horizontally instead.
+  module subroutine iw_setpos_bottomright(ntext,nbutton,centered)
+    use interfaces_cimgui
+    use gui_main, only: g
+    integer, intent(in) :: ntext
+    integer, intent(in) :: nbutton
+    logical, intent(in), optional :: centered
+
+    logical :: centered_
+    type(ImVec2) :: szavail
+
+    centered_ = .false.
+    if (present(centered)) centered_ = centered
+
+    call igGetContentRegionAvail(szavail)
+
+    ! horizontal: right-aligned (leaving room for the scrollbar) or centered
+    if (centered_) then
+       call igSetCursorPosX(0.5_c_float * (igGetWindowWidth() - iw_calcwidth(ntext,nbutton)))
+    else
+       call igSetCursorPosX(iw_calcwidth(ntext,nbutton,from_end=.true.) - g%Style%ScrollbarSize)
+    end if
+
+    ! vertical: skip the remaining space, if there is room for one more line
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - &
+       g%Style%WindowPadding%y)
+
+  end subroutine iw_setpos_bottomright
+
+  !> Set up one column of the current table, wrapping igTableSetupColumn. The
+  !> column is identified either by id, or by icol, a counter that is
+  !> incremented and then used as the id (so successive calls number the columns
+  !> from the caller's starting value). If sortid and icolsort are given, record
+  !> in icolsort the sorting key sortid associated with this column. flags =
+  !> ImGuiTableColumnFlags_* (default: None). width = initial width or weight
+  !> (default: 0, automatic).
+  module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: label
+    integer(c_int), intent(in), optional :: id
+    integer, intent(inout), optional :: icol
+    integer, intent(in), optional :: sortid
+    integer, intent(inout), optional :: icolsort(0:)
+    integer(c_int), intent(in), optional :: flags
+    real(c_float), intent(in), optional :: width
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    integer(c_int) :: flags_, id_
+    real(c_float) :: width_
+
+    ! process options
+    flags_ = ImGuiTableColumnFlags_None
+    if (present(flags)) flags_ = flags
+    width_ = 0._c_float
+    if (present(width)) width_ = width
+
+    ! column id: advance the counter if one was given
+    id_ = 0_c_int
+    if (present(icol)) then
+       icol = icol + 1
+       id_ = int(icol,c_int)
+    elseif (present(id)) then
+       id_ = id
+    end if
+
+    ! record the sorting key for this column
+    if (present(sortid) .and. present(icolsort)) &
+       icolsort(id_) = sortid
+
+    ! not trimmed: some column labels carry a significant trailing blank
+    str1 = label // c_null_char
+    call igTableSetupColumn(c_loc(str1),flags_,width_,id_)
+
+  end subroutine iw_table_column
+
+  !> Begin a menu with the given label, wrapping igBeginMenu. enabled = whether
+  !> the menu can be opened (default: true). If it returns .true., the caller
+  !> must close the menu with igEndMenu.
+  module function iw_beginmenu(label,enabled)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: label
+    logical, intent(in), optional :: enabled
+    logical :: iw_beginmenu
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    logical(c_bool) :: enabled_
+
+    enabled_ = .true._c_bool
+    if (present(enabled)) enabled_ = logical(enabled,c_bool)
+
+    str1 = trim(label) // c_null_char
+    iw_beginmenu = logical(igBeginMenu(c_loc(str1),enabled_))
+
+  end function iw_beginmenu
+
+  !> Begin a tab item with the given label, wrapping igBeginTabItem. flags =
+  !> ImGuiTabItemFlags_* (default: None). If it returns .true., the caller must
+  !> close the tab item with igEndTabItem.
+  module function iw_begintabitem(label,flags)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: label
+    integer(c_int), intent(in), optional :: flags
+    logical :: iw_begintabitem
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    integer(c_int) :: flags_
+
+    flags_ = ImGuiTabItemFlags_None
+    if (present(flags)) flags_ = flags
+
+    str1 = trim(label) // c_null_char
+    iw_begintabitem = logical(igBeginTabItem(c_loc(str1),c_null_ptr,flags_))
+
+  end function iw_begintabitem
+
+  !> Whether the keybinding to close a dialog fired this frame: the OK or close
+  !> binding while the dialog is focused (pass w%focused() in focused), or the
+  !> close-all binding regardless of focus.
+  module function iw_close_event(focused)
+    use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS
+    logical, intent(in) :: focused
+    logical :: iw_close_event
+
+    iw_close_event = (focused .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_FOCUSED_DIALOG))) .or. is_bind_event(BIND_CLOSE_ALL_DIALOGS)
+
+  end function iw_close_event
 
   !> Calculate the height of nline text lines and npadline padded lines:
   !>   frame-line1-frame-itemspace-frame-line2-frame-windowpad
@@ -1077,8 +1138,7 @@ contains
     ! optional left label (tight against the "-" button)
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
     if (present(label)) then
-       call igAlignTextToFramePadding()
-       call iw_text(label)
+       call iw_text(label,alignframe=.true.)
        call igSameLine(0._c_float,g%Style%FramePadding%x)
     end if
 
@@ -1149,26 +1209,27 @@ contains
   !> a comma after the string). centered = center the text in the window.
   !> rgba = use this color for the text.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,copy_to_output,centered,rgb,rgba)
+     noadvance,copy_to_output,centered,alignframe,rgb,rgba)
     use interfaces_cimgui
     use gui_main, only: ColorHighlightText, ColorDangerText
     use tools_io, only: uout
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: highlight
     logical, intent(in), optional :: danger
+    logical, intent(in), optional :: disabled
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: sameline_nospace
-    logical, intent(in), optional :: disabled
     logical, intent(in), optional :: noadvance
     logical, intent(in), optional :: copy_to_output
     logical, intent(in), optional :: centered
+    logical, intent(in), optional :: alignframe
     real(c_float), intent(in), optional :: rgb(3)
     real(c_float), intent(in), optional :: rgba(4)
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
-    logical :: noadvance_,copy_to_output_, centered_
+    logical :: noadvance_,copy_to_output_, centered_, alignframe_
     real(c_float) :: pos, wwidth, twidth
     type(ImVec2) :: sz
     type(ImVec4) :: col
@@ -1181,6 +1242,7 @@ contains
     noadvance_ = .false.
     copy_to_output_ = .false.
     centered_ = .false.
+    alignframe_ = .false.
     if (present(highlight)) highlight_ = highlight
     if (present(danger)) danger_ = danger
     if (present(sameline)) sameline_ = sameline
@@ -1189,8 +1251,10 @@ contains
     if (present(noadvance)) noadvance_ = noadvance
     if (present(copy_to_output)) copy_to_output_ = copy_to_output
     if (present(centered)) centered_ = centered
+    if (present(alignframe)) alignframe_ = alignframe
 
     str1 = str // c_null_char
+    if (alignframe_) call igAlignTextToFramePadding()
     if (noadvance_) pos = igGetCursorPosX()
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
     if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
@@ -1767,5 +1831,71 @@ contains
     get_current_working_dir = strc(1:in)
 
   end function get_current_working_dir
+
+  !xx! private procedures !xx!
+
+  !> Deferred-commit bookkeeping for the notlive iw_input* widgets; call
+  !> immediately after the widget has been drawn. Takes over the edit state if
+  !> the widget was just activated, then reports in editing whether this item is
+  !> the one being edited (so its persistent buffer must be refreshed with the
+  !> value shown this frame) and in commit whether the edit has just been
+  !> finished (Enter, Tab, or click-away), in which case the edit state is
+  !> released and the caller writes the value back to its own variable. Holding
+  !> this in a single place is what enforces the invariant shared by all the
+  !> notlive widgets: only one item is being edited at any time, so a single
+  !> edit ID is enough and only the value buffer differs by type.
+  subroutine input_edit_update(myid,editing,commit)
+    use interfaces_cimgui, only: igIsItemActivated, igIsItemDeactivatedAfterEdit
+    integer(c_int), intent(in) :: myid
+    logical, intent(out) :: editing
+    logical, intent(out) :: commit
+
+    if (logical(igIsItemActivated())) input_editid = myid
+    editing = (myid == input_editid)
+    commit = (editing .and. logical(igIsItemDeactivatedAfterEdit()))
+    if (commit) input_editid = 0_c_int
+
+  end subroutine input_edit_update
+
+  !> Width of a drag-float widget holding n numbers with decimal decimals.
+  !> Reserve room for the integer part of the field's range (taken from the
+  !> bounds vmin/vmax, active only if havemin/havemax) plus the decimals, so a
+  !> large maximum (e.g. a temperature up to 10000) is not clipped; small-valued
+  !> fields keep the previous default of (4+decimal) characters.
+  function dragfloat_width(n,decimal,vmin,vmax,havemin,havemax) result(width)
+    use interfaces_cimgui
+    use gui_main, only: g
+    integer, intent(in) :: n
+    integer, intent(in) :: decimal
+    real(c_float), intent(in) :: vmin, vmax
+    logical, intent(in) :: havemin, havemax
+    real(c_float) :: width
+
+    integer :: nintdig, nchar
+    real(c_float) :: vabs
+    type(ImVec2) :: sz
+    character(len=:,kind=c_char), allocatable, target :: strc
+
+    ! width of a single digit
+    strc = "0" // c_null_char
+    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+
+    ! largest absolute value the field can take
+    vabs = 1._c_float
+    if (havemax .and. abs(vmax) > vabs) vabs = abs(vmax)
+    if (havemin .and. abs(vmin) > vabs) vabs = abs(vmin)
+
+    ! integer digits (biased up near powers of ten so 10000 gets 5, never fewer
+    ! than 3 to preserve the old (4+decimal) default for small-valued fields)
+    nintdig = int(log10(vabs) + 1e-4_c_float) + 1
+    if (nintdig < 3) nintdig = 3
+
+    ! characters in the widest value: sign, integer digits, decimal
+    ! point (only if there are decimals) and decimals
+    nchar = 1 + nintdig + decimal
+    if (decimal > 0) nchar = nchar + 1
+    width = nchar * sz%x * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
+
+  end function dragfloat_width
 
 end submodule proc

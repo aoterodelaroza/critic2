@@ -33,12 +33,12 @@ contains
 
   !> Draw the contents of the new structure from library window.
   module subroutine draw_new_struct_library(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use gui_main, only: g
     use systems, only: add_systems_from_seeds, launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, iw_radiobutton, iw_checkbox, iw_inputfloat, iw_inputtext
+       iw_radiobutton, iw_checkbox, iw_inputfloat, iw_inputtext, iw_close_event,&
+       iw_setpos_bottomright
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -51,7 +51,7 @@ contains
     character(len=:), allocatable :: name, aux
     logical(c_bool) :: ldum, doquit
     logical :: ok, saveismol, doubleclicked
-    type(ImVec2) :: szero, sz, szavail
+    type(ImVec2) :: szero, sz
     integer :: i, j, i1, i2, lp, nseed, idum, nshown, nsel
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
@@ -178,10 +178,7 @@ contains
     end if
 
     ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(8,2)
 
     ! final buttons: ok
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
@@ -224,9 +221,7 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! read the library file
     if (w%okfile_read) then

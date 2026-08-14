@@ -55,7 +55,8 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight,&
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
-       iw_inputint, iw_inputint3, iw_icon_togglebutton
+       iw_inputint, iw_inputint3, iw_icon_togglebutton, iw_setpos_bottomright, iw_table_column,&
+       iw_beginmenu, iw_begintabitem
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
@@ -85,7 +86,7 @@ contains
     real(c_float) :: rrgba(4) ! scratch highlight color
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, ivadd, im, jm, ncon
+    integer :: ii, i, j, jj, isys, icol, isort, ispc, iz, izout, iview, ivadd, im, jm, ncon
     integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
     integer :: natused_bonds ! bonds tab: number of distinct atomic species present
     integer, allocatable :: iat_bonds(:) ! bonds tab: Z values of distinct species
@@ -322,8 +323,7 @@ contains
     else
        atompreflags = ImGuiTabItemFlags_None
     end if
-    call igAlignTextToFramePadding()
-    call iw_text("System",highlight=.true.)
+    call iw_text("System",highlight=.true.,alignframe=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
     combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
@@ -361,9 +361,7 @@ contains
     call igBeginGroup()
     if (igBeginTabBar(c_loc(str1),flags)) then
        !! species tab !!
-       str2 = "Species##drawgeometry_speciestab" // c_null_char
-       flags = ImGuiTabItemFlags_None
-       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+       if (iw_begintabitem("Species##drawgeometry_speciestab")) then
           ! check if the tab changed
           call check_changed_tab("species")
 
@@ -400,25 +398,13 @@ contains
              icol = -1
 
              ! header setup
-             icol = icol + 1
-             str2 = "Id" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_id
+             call iw_table_column("Id",icol=icol,sortid=ic_id,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Atom" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_atom
+             call iw_table_column("Atom",icol=icol,sortid=ic_atom,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Z " // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_zat
+             call iw_table_column("Z ",icol=icol,sortid=ic_zat,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Num. atoms" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_nat
+             call iw_table_column("Num. atoms",icol=icol,sortid=ic_nat,icolsort=icolsort)
 
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -470,8 +456,7 @@ contains
                 ! id
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   call igAlignTextToFramePadding()
-                   call iw_text(string(i,ndigit))
+                   call iw_text(string(i,ndigit),alignframe=.true.)
                 end if
                 ! emit even when column 0 is clipped off-screen
                 call process_selectable_clicks()
@@ -542,9 +527,7 @@ contains
        end if
 
        !! atoms tab !!
-       str2 = "Atoms##drawgeometry_atomstab" // c_null_char
-       flags = atompreflags
-       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+       if (iw_begintabitem("Atoms##drawgeometry_atomstab",flags=atompreflags)) then
           ! check if the tab changed
           call check_changed_tab("atoms")
 
@@ -622,85 +605,56 @@ contains
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
-             ! TableSetupColumn(const char* label, ImGuiTableColumnFlags flags = 0, float init_width_or_weight = 0.0f, ImGuiID user_id = 0);
              ! header setup
-             icol = icol + 1
-             str2 = "Id" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_id
+             call iw_table_column("Id",icol=icol,sortid=ic_id,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Atom" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_atom
+             call iw_table_column("Atom",icol=icol,sortid=ic_atom,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Z " // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_zat
+             call iw_table_column("Z ",icol=icol,sortid=ic_zat,icolsort=icolsort)
 
              if (domol) then
-                icol = icol + 1
-                str2 = "Mol" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_mol
+                call iw_table_column("Mol",icol=icol,sortid=ic_mol,icolsort=icolsort)
              end if
 
              if (dowyc) then
-                icol = icol + 1
                 if (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail) then
-                   str2 = "Wyc" // c_null_char
-                   icolsort(icol) = ic_wyc
+                   str2 = "Wyc"
+                   isort = ic_wyc
                 else
-                   str2 = "Mul" // c_null_char
-                   icolsort(icol) = ic_mul
+                   str2 = "Mul"
+                   isort = ic_mul
                 end if
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+                call iw_table_column(str2,icol=icol,sortid=isort,icolsort=icolsort)
              end if
 
              if (doidx) then
-                icol = icol + 1
-                str2 = "Idx" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_idx
+                call iw_table_column("Idx",icol=icol,sortid=ic_idx,icolsort=icolsort)
              end if
 
              if (doocc) then
-                icol = icol + 1
-                str2 = "Occ." // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_occ
+                call iw_table_column("Occ.",icol=icol,sortid=ic_occ,icolsort=icolsort)
              end if
 
              if (docoord) then
-                icol = icol + 1
                 if (w%geometry_atomtype == atlisttype_ncel_ang .or. w%geometry_atomtype == atlisttype_ncel_bohr) then
                    str2 = "/" // sysc(isys)%attype_coordinates_units(w%geometry_atomtype)
-                   strx = "x" // str2 // c_null_char
-                   stry = "y" // str2 // c_null_char
-                   strz = "z" // str2 // c_null_char
+                   strx = "x" // str2
+                   stry = "y" // str2
+                   strz = "z" // str2
                 else
-                   strx = "x" // c_null_char
-                   stry = "y" // c_null_char
-                   strz = "z" // c_null_char
+                   strx = "x"
+                   stry = "y"
+                   strz = "z"
                 end if
-                call igTableSetupColumn(c_loc(strx),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_x
+                call iw_table_column(strx,icol=icol,sortid=ic_x,icolsort=icolsort)
 
-                icol = icol + 1
-                call igTableSetupColumn(c_loc(stry),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_y
+                call iw_table_column(stry,icol=icol,sortid=ic_y,icolsort=icolsort)
 
-                icol = icol + 1
-                call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_z
+                call iw_table_column(strz,icol=icol,sortid=ic_z,icolsort=icolsort)
              end if
 
              if (haveexpr) then
-                icol = icol + 1
-                str2 = "Expression" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
-                icolsort(icol) = ic_expr
+                call iw_table_column("Expression",icol=icol,sortid=ic_expr,icolsort=icolsort,flags=ImGuiTableColumnFlags_NoSort)
              end if
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -806,8 +760,7 @@ contains
                             end if
                          end do
                          call igSeparator()
-                         str1 = "New" // c_null_char
-                         if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+                         if (iw_beginmenu("New")) then
                             izout = iw_periodictable()
                             if (izout >= 0) then
                                iaction = iaction_add_species_change_atom
@@ -942,8 +895,7 @@ contains
           call draw_edit_buttons()
 
           ! expression row
-          call igAlignTextToFramePadding()
-          call iw_text("Expression",highlight=.true.)
+          call iw_text("Expression",highlight=.true.,alignframe=.true.)
 
           ! filter text input
           call iw_helpermark("Examples:"//newline//&
@@ -977,10 +929,9 @@ contains
 
        !! cell tab !!
        if (.not.sys(isys)%c%ismolecule) then
-          str2 = "Cell##drawgeometry_celltab" // c_null_char
           flags = ImGuiTabItemFlags_None
           if (w%geometry_seltab == geomtab_cell) flags = ImGuiTabItemFlags_SetSelected
-          if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          if (iw_begintabitem("Cell##drawgeometry_celltab",flags=flags)) then
              ! check if the tab changed
              call check_changed_tab("cell")
 
@@ -1001,8 +952,7 @@ contains
              x6(4:6) = sys(isys)%c%bb
              x6old = x6
 
-             call igAlignTextToFramePadding()
-             call iw_text("a/b/c (Å): ")
+             call iw_text("a/b/c (Å): ",alignframe=.true.)
              ch = .false.
              ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
                 notlive=.true.,sameline=.true.)
@@ -1011,8 +961,7 @@ contains
              ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
                 notlive=.true.,sameline=.true.)
 
-             call igAlignTextToFramePadding()
-             call iw_text("α/β/γ (°): ")
+             call iw_text("α/β/γ (°): ",alignframe=.true.)
              ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
                 notlive=.true.)
              ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
@@ -1021,8 +970,7 @@ contains
                 notlive=.true.)
 
              ! cell volume
-             call igAlignTextToFramePadding()
-             call iw_text("Volume (Å³): ")
+             call iw_text("Volume (Å³): ",alignframe=.true.)
              vol = sys(isys)%c%omega * bohrtoa**3
              volold = vol
              chvol = iw_dragfloat_real8("##cellvolume",x1=vol,speed=0.5d0,decimal=4,min=1d-6,&
@@ -1067,8 +1015,7 @@ contains
              call iw_tooltip("Transform to the primitive Delaunay cell",ttshown)
 
              ! cell transformation (simple supercell or general matrix)
-             call igAlignTextToFramePadding()
-             call iw_text("Supercells",highlight=.true.)
+             call iw_text("Supercells",highlight=.true.,alignframe=.true.)
              ldum = iw_radiobutton("Simple",bool=w%geometry_cell_simple,boolval=.true.,sameline=.true.)
              call iw_tooltip("Build a supercell by repeating the cell an integer number of&
                 & times along each lattice vector",ttshown)
@@ -1078,8 +1025,7 @@ contains
 
              if (w%geometry_cell_simple) then
                 ! simple transformation: integer multiples of the a, b, c axes
-                call igAlignTextToFramePadding()
-                call iw_text("na/nb/nc: ")
+                call iw_text("na/nb/nc: ",alignframe=.true.)
                 do jm = 1, 3
                    ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
                       minval=1_c_int,sameline=.true.,&
@@ -1109,13 +1055,12 @@ contains
                 ! track changes to the vectors/origin to clear a stale error message
                 ch = .false.
                 do im = 1, 3
-                   call igAlignTextToFramePadding()
                    if (im == 1) then
-                      call iw_text("a' ")
+                      call iw_text("a' ",alignframe=.true.)
                    elseif (im == 2) then
-                      call iw_text("b' ")
+                      call iw_text("b' ",alignframe=.true.)
                    else
-                      call iw_text("c' ")
+                      call iw_text("c' ",alignframe=.true.)
                    end if
                    ch = ch .or. iw_inputint3("##cellmat" // string(im),&
                       w%geometry_cell_intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
@@ -1127,8 +1072,7 @@ contains
                       call iw_tooltip("Centering vector added to this lattice vector",ttshown)
                    end if
                 end do
-                call igAlignTextToFramePadding()
-                call iw_text("Origin")
+                call iw_text("Origin",alignframe=.true.)
                 do jm = 1, 3
                    ch = ch .or. iw_dragfloat_real8("##cellorigin" // string(jm),&
                       x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
@@ -1190,14 +1134,10 @@ contains
                    g%Style%ScrollbarSize + 4._c_float
                 sz0%y = igGetFrameHeight() + 11._c_float * (igGetTextLineHeight() + 2._c_float*g%Style%CellPadding%y)
                 if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
-                   str2 = "n" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                   str2 = "Rmax (Å)" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-                   str2 = "Niceness" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
-                   str2 = "Transformation" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,3)
+                   call iw_table_column("n",id=0)
+                   call iw_table_column("Rmax (Å)",id=1)
+                   call iw_table_column("Niceness",id=2)
+                   call iw_table_column("Transformation",id=3)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
 
@@ -1239,9 +1179,7 @@ contains
        end if
 
        !! molecules tab !!
-       str2 = "Molecules##drawgeometry_molstab" // c_null_char
-       flags = ImGuiTabItemFlags_None
-       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+       if (iw_begintabitem("Molecules##drawgeometry_molstab")) then
           ! check if the tab changed
           call check_changed_tab("molecules")
 
@@ -1292,61 +1230,34 @@ contains
              icol = -1
 
              ! header setup
-             icol = icol + 1
-             str2 = "Id" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_id
+             call iw_table_column("Id",icol=icol,sortid=ic_id,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Nat" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_nat
+             call iw_table_column("Nat",icol=icol,sortid=ic_nat,icolsort=icolsort)
 
-             icol = icol + 1
-             str2 = "Sym" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
-             icolsort(icol) = ic_sym
+             call iw_table_column("Sym",icol=icol,sortid=ic_sym,icolsort=icolsort,flags=ImGuiTableColumnFlags_NoSort)
 
              if (doidx) then
-                icol = icol + 1
-                str2 = "Idx" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-                icolsort(icol) = ic_idx
+                call iw_table_column("Idx",icol=icol,sortid=ic_idx,icolsort=icolsort)
              end if
 
-             icol = icol + 1
              if (w%geometry_moltype == atlisttype_ncel_ang .or. w%geometry_moltype == atlisttype_ncel_bohr) then
                 str2 = "/" // sysc(isys)%attype_coordinates_units(w%geometry_moltype)
-                strx = "x" // str2 // c_null_char
-                stry = "y" // str2 // c_null_char
-                strz = "z" // str2 // c_null_char
+                strx = "x" // str2
+                stry = "y" // str2
+                strz = "z" // str2
              else
-                strx = "x" // c_null_char
-                stry = "y" // c_null_char
-                strz = "z" // c_null_char
+                strx = "x"
+                stry = "y"
+                strz = "z"
              end if
-             call igTableSetupColumn(c_loc(strx),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_x
-             icol = icol + 1
-             call igTableSetupColumn(c_loc(stry),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_y
-             icol = icol + 1
-             call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_z
+             call iw_table_column(strx,icol=icol,sortid=ic_x,icolsort=icolsort)
+             call iw_table_column(stry,icol=icol,sortid=ic_y,icolsort=icolsort)
+             call iw_table_column(strz,icol=icol,sortid=ic_z,icolsort=icolsort)
 
              ! Euler angles (ZYZ, degrees) of the standard orientation
-             icol = icol + 1
-             str2 = "α/°" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_ea
-             icol = icol + 1
-             str2 = "β/°" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_eb
-             icol = icol + 1
-             str2 = "γ/°" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
-             icolsort(icol) = ic_eg
+             call iw_table_column("α/°",icol=icol,sortid=ic_ea,icolsort=icolsort)
+             call iw_table_column("β/°",icol=icol,sortid=ic_eb,icolsort=icolsort)
+             call iw_table_column("γ/°",icol=icol,sortid=ic_eg,icolsort=icolsort)
 
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -1524,18 +1435,16 @@ contains
        end if
 
        !! bonds tab !!
-       str2 = "Bonds##drawgeometry_bondstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (w%geometry_seltab == geomtab_bonds) flags = ImGuiTabItemFlags_SetSelected
-       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+       if (iw_begintabitem("Bonds##drawgeometry_bondstab",flags=flags)) then
           ! check if the tab changed
           call check_changed_tab("bonds")
 
           ! bond operations driven by clicking in the view window: the same
           ! three the builder offers, armed on the view showing this system,
           ! and shown as the same icon toggles (highlighted while armed)
-          call igAlignTextToFramePadding()
-          call iw_text("Bond Operations",highlight=.true.)
+          call iw_text("Bond Operations",highlight=.true.,alignframe=.true.)
           call bondmode_button("##geombondcreate",vm_builder_bond,&
              "Create bonds: bond two atoms clicked one after the other in the view"//&
              " window. Only the connectivity changes: no atom is moved or deleted")
@@ -1597,12 +1506,9 @@ contains
              - iw_calcheight(3,4,.false.) &
              - iw_calcheight(min(5,natused_bonds)+1,0,.false.)
           if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-             str2 = "Id" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-             str2 = "Atom" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-             str2 = "Bonded atoms" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+             call iw_table_column("Id",id=0)
+             call iw_table_column("Atom",id=1)
+             call iw_table_column("Bonded atoms",id=2)
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
              call igTableHeadersRow()
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -1620,8 +1526,7 @@ contains
                    ! id (with a row-spanning selectable to detect hover)
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      call igAlignTextToFramePadding()
-                      call iw_text(string(i,ndigit))
+                      call iw_text(string(i,ndigit),alignframe=.true.)
                    end if
                    ! emit even when column 0 is clipped off-screen
                    if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
@@ -1629,8 +1534,7 @@ contains
                    ! atom name
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      call igAlignTextToFramePadding()
-                      call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name))
+                      call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name),alignframe=.true.)
                    end if
 
                    ! bonded atoms (one colored button per neighbor)
@@ -1709,8 +1613,7 @@ contains
                          str2 = "##bondmenu" // suffix // "_" // string(j) // c_null_char
                          if (ldum) call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
                          if (igBeginPopup(c_loc(str2),ImGuiWindowFlags_None)) then
-                            str1 = "Order" // c_null_char
-                            if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+                            if (iw_beginmenu("Order")) then
                                ! tick marks the current ordcon value for this bond
                                if (iw_menuitem("Single",selected=(sys(isys)%c%nstar(i)%ordcon(j)==1)))&
                                   call defer_setorder(1)
@@ -1763,15 +1666,11 @@ contains
           sz0%x = 0
           sz0%y = iw_calcheight(min(5,natused_bonds)+1,0,.false.)
           if (igBeginTable(c_loc(str1),3+natused_bonds,flags,sz0,0._c_float)) then
-             str2 = "Atom" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
-             str2 = "Z" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
-             str2 = "Radius (Å)" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+             call iw_table_column("Atom",id=0)
+             call iw_table_column("Z",id=1)
+             call iw_table_column("Radius (Å)",id=2)
              do j = 1, natused_bonds
-                str2 = trim(name_bonds(j)) // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2+j)
+                call iw_table_column(trim(name_bonds(j)),id=2+j)
              end do
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
@@ -1780,12 +1679,10 @@ contains
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                 iz = iat_bonds(i)
                 if (igTableSetColumnIndex(0)) then
-                   call igAlignTextToFramePadding()
-                   call iw_text(trim(name_bonds(i)))
+                   call iw_text(trim(name_bonds(i)),alignframe=.true.)
                 end if
                 if (igTableSetColumnIndex(1)) then
-                   call igAlignTextToFramePadding()
-                   call iw_text(string(iz))
+                   call iw_text(string(iz),alignframe=.true.)
                 end if
                 if (igTableSetColumnIndex(2)) then
                    ldum = iw_dragfloat_real8("##tableradius_geom" // string(i),x1=sysc(isys)%atmcov(iz),&
@@ -1857,10 +1754,9 @@ contains
        end if
 
        !! symmetry tab !!
-       str2 = "Symmetry##drawgeometry_symmetrytab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (w%geometry_seltab == geomtab_symmetry) flags = ImGuiTabItemFlags_SetSelected
-       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+       if (iw_begintabitem("Symmetry##drawgeometry_symmetrytab",flags=flags)) then
           ! check if the tab changed
           call check_changed_tab("symmetry")
 
@@ -1901,12 +1797,9 @@ contains
                 if (sz0%y > szavail%y) sz0%y = szavail%y
                 call symop_ensure_sel(sys(isys)%c%pg%nop)
                 if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-                   str2 = "#" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                   str2 = "Sym" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-                   str2 = "Axis (Å)" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   call iw_table_column("#",id=0)
+                   call iw_table_column("Sym",id=1)
+                   call iw_table_column("Axis (Å)",id=2)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
 
@@ -2013,16 +1906,11 @@ contains
                 sz0%y = iw_calcheight(min(neqv,8)+1,0,.false.)
                 call symop_ensure_sel(neqv)
                 if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
-                   str2 = "#" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                   str2 = "HM" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-                   str2 = "Operation" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
-                   str2 = "Axis (cryst.)" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,3)
-                   str2 = "Axis (Cartesian)" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,4)
+                   call iw_table_column("#",id=0)
+                   call iw_table_column("HM",id=1)
+                   call iw_table_column("Operation",id=2)
+                   call iw_table_column("Axis (cryst.)",id=3)
+                   call iw_table_column("Axis (Cartesian)",id=4)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
 
@@ -2083,10 +1971,8 @@ contains
              sz0%x = 0
              sz0%y = iw_calcheight(min(ncv,4)+1,0,.false.)
              if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
-                str2 = "#" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                str2 = "Coordinates (fractional)" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+                call iw_table_column("#",id=0)
+                call iw_table_column("Coordinates (fractional)",id=1)
                 call igTableSetupScrollFreeze(0,1)
                 call igTableHeadersRow()
                 do i = 1, ncv
@@ -2098,8 +1984,7 @@ contains
              end if
 
              ! space group vs tolerance analysis
-             call igAlignTextToFramePadding()
-             call iw_text("Space Group Analysis",highlight=.true.)
+             call iw_text("Space Group Analysis",highlight=.true.,alignframe=.true.)
              call iw_helpermark("Calculate the space group as a function of the symmetry &
                 &tolerance (symprec). Click a row to adopt that tolerance and recalculate.")
              if (iw_button("Analyze##symanalyze",sameline=.true.)) iaction = iaction_sym_analyze
@@ -2115,12 +2000,9 @@ contains
                 sz0%x = 0
                 sz0%y = iw_calcheight(size(w%geometry_sym_analyze_eps,1)+1,0,.false.)
                 if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-                   str2 = "Symprec" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                   str2 = "Space group" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-                   str2 = "Number" // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   call iw_table_column("Symprec",id=0)
+                   call iw_table_column("Space group",id=1)
+                   call iw_table_column("Number",id=2)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
                    do i = 1, size(w%geometry_sym_analyze_eps,1)
@@ -2271,10 +2153,7 @@ contains
     end if
 
     ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(5,1)
 
     ! close button
     if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
@@ -2641,8 +2520,7 @@ contains
       end if
 
       ! Selection row: all/none/toggle buttons (elements use the default colors)
-      call igAlignTextToFramePadding()
-      call iw_text("Selection",highlight=.true.)
+      call iw_text("Selection",highlight=.true.,alignframe=.true.)
       if (iw_button("All##symselall",sameline=.true.)) then
          w%geometry_sym_sel = .true.
          w%geometry_sym_selgen = w%geometry_sym_selgen + 1
@@ -2722,8 +2600,7 @@ contains
       ! Delete: reduce the crystal symmetry to the largest subgroup that excludes
       ! the selected operations (crystals only; the identity cannot be deleted)
       if (.not.sys(isys)%c%ismolecule) then
-         call igAlignTextToFramePadding()
-         call iw_text("Transform",highlight=.true.)
+         call iw_text("Transform",highlight=.true.,alignframe=.true.)
 
          nsel = 0
          do i = 2, min(nop,size(w%geometry_sym_sel,1))
@@ -3137,8 +3014,7 @@ contains
       integer, allocatable :: tstate(:)
 
       ! highlight color
-      call igAlignTextToFramePadding()
-      call iw_text("Selection",highlight=.true.)
+      call iw_text("Selection",highlight=.true.,alignframe=.true.)
       call igSameLine(0._c_float,-1._c_float)
       ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
       call iw_tooltip("Color used for highlighting atoms")
@@ -3214,8 +3090,7 @@ contains
 
       ! the input position is interpreted in the same coordinate type as
       ! shown in the table, so the new atom's row matches the user input
-      call igAlignTextToFramePadding()
-      call iw_text("Position (" // sysc(isys)%attype_coordinates_units(w%geometry_atomtype) // ")")
+      call iw_text("Position (" // sysc(isys)%attype_coordinates_units(w%geometry_atomtype) // ")",alignframe=.true.)
       ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
          notlive=.true.,sameline=.true.)
       ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&
@@ -3223,8 +3098,7 @@ contains
       ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,&
          notlive=.true.,sameline=.true.)
 
-      call igAlignTextToFramePadding()
-      call iw_text("Species")
+      call iw_text("Species",alignframe=.true.)
       if (w%geometry_input_species > 0) then
          str = string(w%geometry_input_species) // ": " // trim(sys(isys)%c%spc(w%geometry_input_species)%name)
       else
@@ -3241,8 +3115,7 @@ contains
             end if
          end do
          call igSeparator()
-         str1 = "New" // c_null_char
-         if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+         if (iw_beginmenu("New")) then
             izout = iw_periodictable()
             if (izout >= 0) then
                w%geometry_input_species = -izout
@@ -3269,8 +3142,7 @@ contains
       integer :: izout
 
       ! highlight color
-      call igAlignTextToFramePadding()
-      call iw_text("Edit",highlight=.true.)
+      call iw_text("Edit",highlight=.true.,alignframe=.true.)
 
       ! Add button: reset the input fields when the popup opens
       ldum = iw_button("Add##addatom",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
@@ -3328,8 +3200,7 @@ contains
     subroutine draw_mol_edit_buttons()
 
       ! Edit label
-      call igAlignTextToFramePadding()
-      call iw_text("Edit",highlight=.true.)
+      call iw_text("Edit",highlight=.true.,alignframe=.true.)
 
       ! is there a selection?
       havesel = .false.

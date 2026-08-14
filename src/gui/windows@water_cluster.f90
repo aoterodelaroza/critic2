@@ -44,11 +44,8 @@ contains
     use systems, only: sysc, sys, sys_init, ok_system, remove_system
     use dynamics, only: md_relax
     use energy, only: ff_tip4p
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_radiobutton,&
-       iw_intstepper, iw_inputtext
-    use gui_main, only: g
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_intstepper,&
+       iw_inputtext, iw_close_event, iw_setpos_bottomright, iw_table_column
     use tools_io, only: string
     use param, only: kcal2ha, hartokjmol, hartoev, bohrtoa
     class(window), intent(inout), target :: w
@@ -56,8 +53,8 @@ contains
     logical :: doquit, goodparent, ldum, hasref
     integer :: isys, nwat, tflags
     real*8 :: eb_kcal, rec_kcal, score
-    type(ImVec2) :: szavail, sz0
-    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    type(ImVec2) :: sz0
+    character(len=:,kind=c_char), allocatable, target :: str1
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -72,8 +69,7 @@ contains
 
     if (.not.doquit) then
        ! participant name
-       call igAlignTextToFramePadding()
-       call iw_text("Name",highlight=.true.)
+       call iw_text("Name",highlight=.true.,alignframe=.true.)
        ldum = iw_inputtext("##wcname",bufsize=63,texta=w%wc_name,sameline=.true.,width=25)
        call iw_tooltip("Name of the participant, displayed near the score",ttshown)
 
@@ -83,8 +79,7 @@ contains
           ndigit=3,tooltip="Number of water molecules in the cluster (2 to 100; reference energy known up to 21)")
 
        ! initial placement
-       call igAlignTextToFramePadding()
-       call iw_text("Placement",highlight=.true.)
+       call iw_text("Placement",highlight=.true.,alignframe=.true.)
        ldum = iw_radiobutton("Random",int=w%wc_placement,intval=0_c_int,sameline=.true.)
        call iw_tooltip("Scatter the water molecules at random positions",ttshown)
        ldum = iw_radiobutton("In a row",int=w%wc_placement,intval=1_c_int,sameline=.true.)
@@ -97,8 +92,7 @@ contains
           &bonds pointing outwards",ttshown)
 
        ! run mode
-       call igAlignTextToFramePadding()
-       call iw_text("Mode",highlight=.true.)
+       call iw_text("Mode",highlight=.true.,alignframe=.true.)
        if (iw_radiobutton("Timed",int=w%wc_mode,intval=1_c_int,sameline=.true.)) &
           call wc_reset_clock()
        call iw_tooltip("Play against the clock: the timer starts when the first molecule is moved, &
@@ -175,10 +169,8 @@ contains
              sz0%x = 0._c_float
              sz0%y = 0._c_float
              if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
-                str2 = "Property" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0_c_int)
-                str2 = "Value" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1_c_int)
+                call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+                call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
                 call igTableHeadersRow()
 
                 call status_row("Water molecules",string(nwat))
@@ -204,19 +196,14 @@ contains
     end if
 
     ! right-align and bottom-align the close button
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(5,1)
 
     ! close button
     if (iw_button("Close")) doquit = .true.
     call iw_tooltip("Close this window",ttshown)
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit = close the window (the run is stopped and freed in window_end)
     if (doquit) call w%end()

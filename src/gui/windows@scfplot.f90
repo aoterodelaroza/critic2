@@ -38,10 +38,8 @@ contains
 
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
     use systems, only: nsys, sysc, sys_init, ok_system
-    use utils, only: iw_text
+    use utils, only: iw_text, iw_close_event
     use types, only: realloc
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -127,9 +125,7 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     if (doquit) call w%end()
 

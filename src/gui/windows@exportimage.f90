@@ -23,13 +23,11 @@ contains
 
   !> Draw the export image window
   module subroutine draw_exportimage(w)
-    use gui_main, only: g
     use systems, only: ok_system
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir,&
-       iw_checkbox
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
-       BIND_CLOSE_ALL_DIALOGS
+    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir, iw_checkbox,&
+       iw_close_event, iw_setpos_bottomright
+    use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use tools_io, only: ferror, string
     use param, only: dirsep
     class(window), intent(inout), target :: w
@@ -37,7 +35,6 @@ contains
     logical :: doquit, ok, okvalid
     integer :: isys, iaux
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: szavail
     logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -110,10 +107,7 @@ contains
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
     ! right-align and bottom-align for the rest of the contents
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(8,2,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(8,2)
 
     ! final buttons: OK
     okvalid = (len_trim(w%okfile) > 0)
@@ -132,9 +126,7 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()

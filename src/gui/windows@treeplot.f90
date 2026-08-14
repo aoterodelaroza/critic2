@@ -26,9 +26,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
-    use utils, only: iw_calcwidth, iw_combo_simple, iw_tooltip, iw_text
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use utils, only: iw_combo_simple, iw_tooltip, iw_text, iw_close_event
     use tools_io, only: string
     use types, only: realloc
     use param, only: bohrtoa
@@ -124,9 +122,7 @@ contains
     end if
 
     ! close
-    if ((w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))) &
-       call w%end()
+    if (iw_close_event(w%focused())) call w%end()
 
   contains
     ! Get value ic for system i and return it in val. The function returns ok if it

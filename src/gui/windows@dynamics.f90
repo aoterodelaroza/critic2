@@ -27,11 +27,9 @@ contains
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, nsys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
-       iw_dragfloat_real8, iw_radiobutton
-    use gui_main, only: g
-    use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+       iw_radiobutton, iw_close_event, iw_setpos_bottomright, iw_table_column
+    use keybindings, only: get_bind_keyname, BIND_CANCEL
     use tools_io, only: string
     use param, only: kcal2ha, autofs
     class(window), intent(inout), target :: w
@@ -40,9 +38,9 @@ contains
     integer :: isys
     integer(c_int) :: imode, tflags
     real*8 :: pgpa
-    type(ImVec2) :: szavail, sz0
+    type(ImVec2) :: sz0
     character(len=:), allocatable :: errmsg
-    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    character(len=:,kind=c_char), allocatable, target :: str1
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -83,8 +81,7 @@ contains
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
 
        ! method used for MD/relaxation
-       call igAlignTextToFramePadding()
-       call iw_text("Method",highlight=.true.)
+       call iw_text("Method",highlight=.true.,alignframe=.true.)
        call draw_ff_backend_combo(isys,"##dynamicsengine",21)
        call iw_tooltip("Method for the calculation of energies, forces, and stress.",ttshown)
 
@@ -148,10 +145,8 @@ contains
           sz0%x = 0._c_float
           sz0%y = 0._c_float
           if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
-             str2 = "Property" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0_c_int)
-             str2 = "Value" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1_c_int)
+             call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+             call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
              call igTableHeadersRow()
 
              ! temperature: MD only (a relaxation has no meaningful temperature)
@@ -189,19 +184,14 @@ contains
     end if
 
     ! right-align and bottom-align the close button
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+    call iw_setpos_bottomright(5,1)
 
     ! close button
     if (iw_button("Close")) doquit = .true.
     call iw_tooltip("Close this window",ttshown)
 
     ! exit if focused and received the close keybinding
-    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+    if (iw_close_event(w%focused())) doquit = .true.
 
     ! quit = close the window (the MD run is stopped and freed in window_end)
     if (doquit) call w%end()
