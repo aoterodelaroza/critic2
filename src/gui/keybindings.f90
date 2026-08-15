@@ -61,11 +61,11 @@ module keybindings
   integer, parameter, public :: BIND_CLOSE_ALL_DIALOGS = 9 ! close all open dialogs
   integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 10 ! close focused dialog
   integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 11 ! OK focused dialog
-  integer, parameter, public :: BIND_VIEWMODE_SELECT = 12 ! tree: remove system or field
+  integer, parameter, public :: BIND_VIEWMODE_SELECT = 12 ! enter the select view mode (transient)
   integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 13 ! tree: remove system or field
   integer, parameter, public :: BIND_TREE_MOVE_UP = 14 ! tree: move selection up
   integer, parameter, public :: BIND_TREE_MOVE_DOWN = 15 ! tree: move selection down
-  integer, parameter, public :: BIND_INPCON_RUN = 16 ! tree: remove system
+  integer, parameter, public :: BIND_INPCON_RUN = 16 ! input console: run the commands
   integer, parameter, public :: BIND_VIEW_INC_NCELL = 17 ! view: increase number of cells
   integer, parameter, public :: BIND_VIEW_DEC_NCELL = 18 ! view: decrease number of cells
   integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 19 ! view: align view with a axis
@@ -83,7 +83,7 @@ module keybindings
   integer, parameter, public :: BIND_NAV_TRANSLATE = 31 ! navigation: translate the view
   integer, parameter, public :: BIND_NAV_ZOOM = 32 ! navigation: zoom the view
   integer, parameter, public :: BIND_NAV_RESET = 33 ! navigation: reset the view
-  integer, parameter, public :: BIND_NAV_MEASURE = 34 ! navigation: reset the view
+  integer, parameter, public :: BIND_NAV_MEASURE = 34 ! navigation: select atoms for measurements
   integer, parameter, public :: BIND_SELECT_ATOMS = 35 ! select: select single atoms
   integer, parameter, public :: BIND_SELECT_MOLECULES = 36 ! select: select molecules
   integer, parameter, public :: BIND_SELECT_MOLECULES_AND_DESELECT = 37 ! select: select molecules/deselect
@@ -119,7 +119,12 @@ module keybindings
   integer, parameter, public :: BIND_CUT_SELECTION = 67 ! copy the selected atoms to the clipboard and remove them
   integer, parameter, public :: BIND_PASTE = 68 ! paste the clipboard fragment at the mouse position
   integer, parameter, public :: BIND_VIEW_TRANSFORM_SUPERCELL = 69 ! view: make the displayed supercell the new unit cell
-  integer, parameter, public :: BIND_NUM = 69 ! total number of binds
+  integer, parameter, public :: BIND_MANUAL = 70 ! open the critic2 manual in a browser
+  integer, parameter, public :: BIND_EXPORT_IMAGE = 71 ! open the export-to-image dialog
+  integer, parameter, public :: BIND_TOGGLE_TREE = 72 ! show/hide the tree window
+  integer, parameter, public :: BIND_TOGGLE_INPCON = 73 ! show/hide the input console window
+  integer, parameter, public :: BIND_TOGGLE_OUTCON = 74 ! show/hide the output console window
+  integer, parameter, public :: BIND_NUM = 74 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -127,7 +132,7 @@ module keybindings
      "New                             ",& ! BIND_NEW
      "Open file(s)                    ",& ! BIND_OPEN
      "Close current system            ",& ! BIND_CLOSE
-     "Reopen current system           ",& ! BIND_REOPEN
+     "Restore current system          ",& ! BIND_REOPEN
      "View/Edit Geometry              ",& ! BIND_GEOMETRY
      "Save                            ",& ! BIND_SAVE
      "Export to PNG                   ",& ! BIND_EXPORT_NOW
@@ -177,21 +182,26 @@ module keybindings
      "Move a molecule                 ",& ! BIND_MDINTERACT_MOVEMOL
      "Rotate a molecule               ",& ! BIND_MDINTERACT_ROTMOL
      "Pick atom under cursor          ",& ! BIND_PICKATOM_SELECT
-     "Change cell volume/Zoom         ",& ! BIND_MOVEMOL_CHANGECELL
-     "Change cell volume/Zoom         ",& ! BIND_MOVEATOM_CHANGECELL
-     "Camera zoom                     ",& ! BIND_SELECT_ZOOM
-     "Camera zoom                     ",& ! BIND_MDINTERACT_ZOOM
+     "Change cell volume/Zoom (mol.)  ",& ! BIND_MOVEMOL_CHANGECELL
+     "Change cell volume/Zoom (atoms) ",& ! BIND_MOVEATOM_CHANGECELL
+     "Camera zoom (select mode)       ",& ! BIND_SELECT_ZOOM
+     "Camera zoom (interact mode)     ",& ! BIND_MDINTERACT_ZOOM
      "Add/remove measurement          ",& ! BIND_NAV_MEASURE_TOGGLE
      "Pick atom, alternate action     ",& ! BIND_PICKATOM_ALT
      "Edit distance/angle/dihedral    ",& ! BIND_EDIT_D_A_PHI
-     "Exit mode (empty space)         ",& ! BIND_MOVEMOL_EXIT
-     "Exit mode (empty space)         ",& ! BIND_MOVEATOM_EXIT
-     "Exit mode (empty space)         ",& ! BIND_PICKATOM_EXIT
+     "Exit move-molecules mode        ",& ! BIND_MOVEMOL_EXIT
+     "Exit move-atoms mode            ",& ! BIND_MOVEATOM_EXIT
+     "Exit pick mode                  ",& ! BIND_PICKATOM_EXIT
      "New molecule                    ",& ! BIND_NEW_MOLECULE
      "Copy selection                  ",& ! BIND_COPY_SELECTION
      "Cut selection                   ",& ! BIND_CUT_SELECTION
      "Paste                           ",& ! BIND_PASTE
-     "Transform to supercell          "&  ! BIND_VIEW_TRANSFORM_SUPERCELL
+     "Transform to supercell          ",& ! BIND_VIEW_TRANSFORM_SUPERCELL
+     "Critic2 manual                  ",& ! BIND_MANUAL
+     "Export to image                 ",& ! BIND_EXPORT_IMAGE
+     "Show/hide tree window           ",& ! BIND_TOGGLE_TREE
+     "Show/hide input console         ",& ! BIND_TOGGLE_INPCON
+     "Show/hide output console        "&  ! BIND_TOGGLE_OUTCON
      /)
 
   ! The key associated with each bind, bind -> key
@@ -214,7 +224,7 @@ module keybindings
   integer, parameter, public :: group_viewmode = 6            ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_navigation = 7 ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_select = 8     ! view mouse interaction modes
-  integer, parameter, public :: group_editselect = 9          ! if the edit geometry window is active
+  integer, parameter, public :: group_editselect = 9          ! acting on the atom/molecule selection in the view
   integer, parameter, public :: group_viewmode_movemol = 10   ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_moveatom = 11  ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_mdinteract = 12 ! view mouse interaction modes (forced during dynamics)
@@ -312,7 +322,12 @@ module keybindings
      group_global,&              ! BIND_COPY_SELECTION
      group_global,&              ! BIND_CUT_SELECTION
      group_view,&                ! BIND_PASTE
-     group_view/)                ! BIND_VIEW_TRANSFORM_SUPERCELL
+     group_view,&                ! BIND_VIEW_TRANSFORM_SUPERCELL
+     group_global,&              ! BIND_MANUAL
+     group_global,&              ! BIND_EXPORT_IMAGE
+     group_global,&              ! BIND_TOGGLE_TREE
+     group_global,&              ! BIND_TOGGLE_INPCON
+     group_global/)              ! BIND_TOGGLE_OUTCON
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -355,7 +370,7 @@ module keybindings
      0,&  ! BIND_NAV_MEASURE
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_ATOMS
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_MOLECULES
-     BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_AND_DESELECT
+     BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_MOLECULES_AND_DESELECT
      0,&  ! BIND_EDITSELECT_REMOVE
      0,&  ! BIND_CANCEL
      0,&  ! BIND_EDITSELECT_SELECT_ALL
@@ -387,7 +402,12 @@ module keybindings
      0,&  ! BIND_COPY_SELECTION
      0,&  ! BIND_CUT_SELECTION
      0,&  ! BIND_PASTE
-     0/)  ! BIND_VIEW_TRANSFORM_SUPERCELL
+     0,&  ! BIND_VIEW_TRANSFORM_SUPERCELL
+     0,&  ! BIND_MANUAL
+     0,&  ! BIND_EXPORT_IMAGE
+     0,&  ! BIND_TOGGLE_TREE
+     0,&  ! BIND_TOGGLE_INPCON
+     0/)  ! BIND_TOGGLE_OUTCON
 
   ! module procedure interfaces
   interface
@@ -405,10 +425,11 @@ module keybindings
      end function set_bind_from_user_input
      module subroutine set_default_keybindings()
      end subroutine set_default_keybindings
-     module function is_bind_event(bind,held,norepeat)
+     module function is_bind_event(bind,held,norepeat,iview)
        integer, intent(in) :: bind
        logical, intent(in), optional :: held
        logical, intent(in), optional :: norepeat
+       integer, intent(in), optional :: iview
        logical :: is_bind_event
      end function is_bind_event
      module function get_bind_keyname(bind)

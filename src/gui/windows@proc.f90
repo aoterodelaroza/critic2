@@ -36,6 +36,40 @@ submodule (windows) proc
 
 contains
 
+  !> Return the ID of the view window that the view keybindings act
+  !> upon: the focused view, or the parent view of a focused builder or
+  !> dynamics window; if no window has the focus, the main view. If some
+  !> other window is focused, return the main view, or zero if strict.
+  module function view_target_window(strict)
+    logical, intent(in), optional :: strict
+    integer :: view_target_window
+
+    integer :: i
+    logical :: ok, strict_
+
+    strict_ = .false.
+    if (present(strict)) strict_ = strict
+
+    view_target_window = iwin_view
+    do i = 1, nwin
+       if (.not.win(i)%isinit) cycle
+       if (.not.win(i)%focused()) cycle
+       if (win(i)%type == wintype_view) then
+          view_target_window = i
+       elseif (win(i)%type == wintype_builder .or. win(i)%type == wintype_dynamics) then
+          ! these windows drive the view they were opened from
+          ok = win(i)%idparent >= 1 .and. win(i)%idparent <= nwin
+          if (ok) ok = win(win(i)%idparent)%isinit
+          if (ok) ok = win(win(i)%idparent)%type == wintype_view
+          if (ok) view_target_window = win(i)%idparent
+       elseif (strict_) then
+          view_target_window = 0
+       end if
+       exit
+    end do
+
+  end function view_target_window
+
   !> Initialize data required in the windows@proc submodule
   module subroutine windows_init()
     use param

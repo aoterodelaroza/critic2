@@ -190,7 +190,12 @@ contains
     call set_bind(BIND_REOPEN,ImGuiKey_R,mod_ctrl)
     call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
     call set_bind(BIND_SAVE,ImGuiKey_S,mod_ctrl)
-    call set_bind(BIND_EXPORT_NOW,ImGuiKey_P,mod_ctrl)
+    call set_bind(BIND_EXPORT_NOW,ImGuiKey_E,mod_ctrl)
+    call set_bind(BIND_EXPORT_IMAGE,ImGuiKey_E,ior(mod_ctrl,mod_shift))
+    call set_bind(BIND_MANUAL,ImGuiKey_F1,mod_none)
+    call set_bind(BIND_TOGGLE_TREE,ImGuiKey_F2,mod_none)
+    call set_bind(BIND_TOGGLE_INPCON,ImGuiKey_F3,mod_none)
+    call set_bind(BIND_TOGGLE_OUTCON,ImGuiKey_F4,mod_none)
     call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Q,mod_none)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)
@@ -200,7 +205,10 @@ contains
     call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_J,mod_none)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,mod_ctrl)
     call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,mod_none)
-    call set_bind(BIND_VIEW_TRANSFORM_SUPERCELL,ImGuiKey_Space,mod_ctrl)
+    ! BIND_VIEW_TRANSFORM_SUPERCELL is deliberately left unbound (the loop above
+    ! already set it to no key and no modifier): it is a structural edit reachable
+    ! from the periodicity popup, and any ctrl+key default would also trip the
+    ! transient move-molecules mode, whose modifier is ctrl
     call set_bind(BIND_VIEW_DEC_NCELL,ImGuiKey_KeypadSubtract,mod_none)
     call set_bind(BIND_VIEW_ALIGN_A_AXIS,ImGuiKey_A,mod_none)
     call set_bind(BIND_VIEW_ALIGN_B_AXIS,ImGuiKey_B,mod_none)
@@ -231,7 +239,8 @@ contains
     call set_bind(BIND_MOVEMOL_TRANSLATE,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_MOVEMOL_ROTATE,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_MOVEMOL_ROTATE_PERP,ImGuiKey_MouseMiddle,mod_none)
-    call set_bind(BIND_VIEWMODE_MOVEATOM,ImGuiKey_None,mod_alt)
+    ! not alt: most window managers grab alt+drag to move the window
+    call set_bind(BIND_VIEWMODE_MOVEATOM,ImGuiKey_None,ior(mod_ctrl,mod_shift))
     call set_bind(BIND_MOVEATOM_TRANSLATE,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_MDINTERACT_DRAGATOM,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_MDINTERACT_MOVEMOL,ImGuiKey_MouseRight,mod_none)
@@ -255,16 +264,17 @@ contains
   ! false), the event happens only if the button is held down (for
   ! mouse).  If norepeat (default: false) the event happens if the key
   ! press is not repeating.
-  module function is_bind_event(bind,held,norepeat)
+  module function is_bind_event(bind,held,norepeat,iview)
     use gui_main, only: io
-    use windows, only: win, iwin_view
+    use windows, only: win, nwin, iwin_view
     use interfaces_cimgui
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
     logical, intent(in), optional :: norepeat
+    integer, intent(in), optional :: iview
     logical :: is_bind_event
 
-    integer :: key, mod, modnow
+    integer :: key, mod, modnow, iview_
     logical :: held_, norepeat_, oktext
 
     ! process options
@@ -272,6 +282,10 @@ contains
     if (present(held)) held_ = held
     norepeat_ = .false.
     if (present(norepeat)) norepeat_ = norepeat
+    iview_ = iwin_view
+    if (present(iview)) then
+       if (iview >= 1 .and. iview <= nwin) iview_ = iview
+    end if
 
     ! some checks
     is_bind_event = .false.
@@ -286,7 +300,7 @@ contains
     if (key == ImGuiKey_MouseMiddleHold) key = ImGuiKey_MouseMiddle
     mod = modbind(bind)
     if (bindtype(bind) > 0) then
-       if (win(iwin_view)%viewmode_transient) &
+       if (win(iview_)%viewmode_transient) &
           mod = ior(mod,modbind(bindtype(bind)))
     end if
     modnow = get_current_mod()

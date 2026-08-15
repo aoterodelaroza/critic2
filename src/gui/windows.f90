@@ -398,6 +398,7 @@ module windows
   integer, public :: iwin_view
   integer, public :: iwin_about
   public :: windows_init
+  public :: view_target_window
   public :: vm_is_forcedpick
   public :: vm_exits_on_empty
   public :: draw_ff_backend_combo
@@ -515,6 +516,10 @@ module windows
        logical, intent(in), optional :: species
        character(len=:), allocatable :: s
      end function anchor_label
+     module function view_target_window(strict)
+       logical, intent(in), optional :: strict
+       integer :: view_target_window
+     end function view_target_window
      module subroutine windows_init()
      end subroutine windows_init
      module subroutine stack_realloc_maybe()
@@ -606,8 +611,9 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
-     module subroutine viewmode_set_mode(w)
+     module subroutine viewmode_set_mode(w,okmods)
        class(window), intent(inout), target :: w
+       logical, intent(in) :: okmods
      end subroutine viewmode_set_mode
      module subroutine viewmode_set_forced(w,mode,message,idcaller)
        class(window), intent(inout), target :: w

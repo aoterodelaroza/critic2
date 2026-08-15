@@ -88,7 +88,7 @@ contains
        icon_ui_tools, icon_ui_newview
     use crystalmod, only: iperiod_vacthr
     use systems, only: sysc, sys, sys_init, nsys, ok_system
-    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view,&
+    use gui_main, only: g, io, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -100,7 +100,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, needpick, enabled, ispoly, symenabled
+    logical :: isuc, islabelsl, needpick, enabled, ispoly, symenabled, istarget
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, idum
@@ -152,6 +152,11 @@ contains
        call w%select_view(win(iwin_tree)%isys)
     end if
 
+    ! whether this is the view the view keybindings act upon: the focused
+    ! view (or the one driven by a focused builder/dynamics window), else
+    ! the main view. Without this, one keypress would hit every open view.
+    istarget = (w%id == view_target_window())
+
     ! whether the selected view system is a good system, and associate the scene
     goodsys = ok_system(w%isys,sys_init)
     if (goodsys) then
@@ -199,7 +204,7 @@ contains
     end if
 
     ! process shortcut display bindings
-    if (associated(w%sc)) then
+    if (associated(w%sc) .and. istarget) then
        changedisplay = .false.
        if (is_bind_event(BIND_VIEW_TOGGLE_ATOMS)) then
           changedisplay(1) = .true.
@@ -743,12 +748,16 @@ contains
     call igGetItemRectMax(w%v_rmax)
     call igGetMousePos(pos)
 
-    ! set view modes based on user's key presses
-    if (goodsys) call w%viewmode_set_mode()
-
     ! get hover and needpick
     hover = goodsys .and. w%ilock == ilock_no
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
+
+    ! set view modes based on user's key presses. The mode modifiers are
+    ! honored only over this view (or while it holds a drag lock, which
+    ! forces hover off) and never while a text field is taking input,
+    ! since otherwise typing with ctrl held would switch the mode.
+    if (goodsys) call w%viewmode_set_mode((hover .or. w%ilock /= ilock_no) .and. &
+       .not.io%WantTextInput)
     needpick = hover .and. (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4) .and.&
        (w%timelast_view_getpixel + pick_interval < time)
     needpick = needpick .or. w%viewmode_activate_picking(hover)
@@ -807,9 +816,9 @@ contains
     call w%viewmode_process_events(hover)
 
     ! process keybindings
-    !! increase and decrease the number of cells in main view
+    !! increase and decrease the number of cells shown
     if (associated(w%sc)) then
-       if (w%ismain) then
+       if (istarget) then
           if (.not.sys(w%isys)%c%ismolecule) then
              if (is_bind_event(BIND_VIEW_INC_NCELL)) then
                 do i = 1, 3
@@ -844,7 +853,12 @@ contains
     call igSameLine(0._c_float,0._c_float)
     call iw_setposx_fromend(5,1)
 
-    ! keyboard actions on the current atom selection
+    ! Keyboard actions on the current atom selection. Unlike the display
+    ! and camera binds above, these edit the system, so they need this
+    ! view focused and not merely targeted: Delete is also the tree's
+    ! remove-system bind, and Ctrl+A passes the text-input guard, so
+    ! acting from another focused window would fire them twice or while
+    ! the user is typing.
     if (w%focused() .and. ok_system(w%isys,sys_init)) then
        is = w%isys
        if (allocated(sysc(is)%highlight_rgba)) then
@@ -1164,12 +1178,16 @@ contains
 
   end subroutine select_view
 
-  !> Process the user keybindings that set the viewmode
-  module subroutine viewmode_set_mode(w)
+  !> Process the user keybindings that set the viewmode. okmods = whether
+  !> the mode modifiers may be read this frame (the view is under the
+  !> cursor or holds a drag lock, and no text field is taking input);
+  !> the window-forced modes are resolved regardless.
+  module subroutine viewmode_set_mode(w,okmods)
     use keybindings, only: is_bind_event, BIND_VIEWMODE_SELECT, BIND_VIEWMODE_MOVEMOL,&
        BIND_VIEWMODE_MOVEATOM
     use systems, only: nsys, sysc
     class(window), intent(inout), target :: w
+    logical, intent(in) :: okmods
 
     logical :: ok
     integer :: id
@@ -1224,6 +1242,9 @@ contains
 
     ! the window_forced view mode cannot be overridden by keybindings
     if (w%viewmode < 0) return
+
+    ! the mode modifiers are not up for reading this frame
+    if (.not.okmods) return
 
     ! select mode (shift)
     if (is_bind_event(BIND_VIEWMODE_SELECT,held=.true.)) then
@@ -1878,7 +1899,7 @@ contains
        ! zero). The global cancel handler (process_cancel_bind) already
        ! covers this when a view, builder, or dynamics window is focused,
        ! with MD-stop priority; this check gives the binding global reach.
-       if (ok) ok = .not.is_bind_event(BIND_CANCEL)
+       if (ok) ok = .not.is_bind_event(BIND_CANCEL,iview=w%id)
        ! the exit bind on empty space also exits the persistent builder
        ! pick modes (not add-atoms, where every click places a fragment)
        if (ok .and. vm_exits_on_empty(w%viewmode)) &
@@ -1927,7 +1948,7 @@ contains
     ! paste the clipboard fragment: only with the cursor over the view, at the
     ! mouse position and on the atom underneath if there is one
     if (hover .and. .not.io%WantTextInput .and. ok_system(w%isys,sys_init) .and.&
-       is_bind_event(BIND_PASTE,norepeat=.true.)) then
+       is_bind_event(BIND_PASTE,norepeat=.true.,iview=w%id)) then
        call igGetMousePos(mousepos)
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
@@ -1952,7 +1973,7 @@ contains
        ! reset the view; in the valence builder mode, not with the cursor
        ! on an atom, because a rapid succession of alternate picks (removing
        ! hydrogens) would trigger the double-click reset mid-editing
-       if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
+       if (hover .and. is_bind_event(BIND_NAV_RESET,.false.,iview=w%id)) then
           if (.not.(w%viewmode == vm_builder_valence .and. w%mousepos_idx(1) > 0)) then
              call w%sc%reset()
              w%forcerender = .true.
@@ -1962,7 +1983,7 @@ contains
        ! atom selection and measurements are disabled in the forced pick modes
        if (.not.forcedpick) then
           ! atom selection
-          if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
+          if (hover .and. is_bind_event(BIND_NAV_MEASURE,iview=w%id)) then
              call w%sc%select_atom(w%mousepos_idx)
              w%forcerender = .true.
           end if
@@ -1976,7 +1997,7 @@ contains
           ! still pans the camera and the right-double click still resets the
           ! view); for a non-mouse binding there is no drag to disambiguate, so
           ! act at once.
-          if (hover .and. is_bind_event(BIND_NAV_MEASURE_TOGGLE)) then
+          if (hover .and. is_bind_event(BIND_NAV_MEASURE_TOGGLE,iview=w%id)) then
              if (w%mousepos_idx(1) > 0) then
                 if (bind_mouse_button(BIND_NAV_MEASURE_TOGGLE) >= 0) then
                    w%measure_pend = pend_measure
@@ -2004,7 +2025,7 @@ contains
           ! mode, except on an atom in the valence mode, where it removes
           ! a hydrogen instead. For a non-mouse bind there is no drag to
           ! disambiguate, so deliver at once (once per press: norepeat).
-          if (hover .and. is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.)) then
+          if (hover .and. is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.,iview=w%id)) then
              if (bind_mouse_button(BIND_PICKATOM_SELECT) >= 0) then
                 w%measure_pend = pend_pick
                 w%measure_pend_idx = w%mousepos_idx
@@ -2013,7 +2034,7 @@ contains
              else
                 call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,.false.)
              end if
-          elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) then
+          elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.,iview=w%id)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
                 w%measure_pend = pend_pick_alt
                 w%measure_pend_idx = w%mousepos_idx
@@ -2059,7 +2080,7 @@ contains
        end if
 
        ! double click on empty space clears the selection
-       if (.not.forcedpick .and. hover .and. is_bind_event(BIND_NAV_MEASURE) .and.&
+       if (.not.forcedpick .and. hover .and. is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and.&
           w%mousepos_idx(1) == 0) then
           call sysc(w%isys)%highlight_clear(.false.)
           w%forcerender = .true.
@@ -2095,7 +2116,7 @@ contains
        ! select the whole fragment under the mouse with either a right click or
        ! a left double click; a single left click starts a potential rubber band
        if (hover) then
-          if (is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT)) then
+          if (is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT,iview=w%id)) then
              if (w%mousepos_idx(1) > 0) then
                 ! the first click of the pair already toggled this single atom on
                 ! its release; undo it before toggling the fragment
@@ -2107,11 +2128,11 @@ contains
              end if
              w%selrect_active = .false.
              w%forcerender = .true.
-          elseif (is_bind_event(BIND_SELECT_MOLECULES) .and. w%mousepos_idx(1) > 0) then
+          elseif (is_bind_event(BIND_SELECT_MOLECULES,iview=w%id) .and. w%mousepos_idx(1) > 0) then
              call toggle_fragment(w%mousepos_idx(1))
              w%selrect_active = .false.
              w%forcerender = .true.
-          elseif (is_bind_event(BIND_SELECT_ATOMS)) then
+          elseif (is_bind_event(BIND_SELECT_ATOMS,iview=w%id)) then
              ! left click: start a potential rubber-band drag
              w%selrect_active = .true.
              w%press_p0 = mousepos
@@ -2122,7 +2143,7 @@ contains
        if (w%selrect_active) then
           dragged = abs(mousepos%x-w%press_p0%x) > selrect_thr .or.&
              abs(mousepos%y-w%press_p0%y) > selrect_thr
-          if (is_bind_event(BIND_SELECT_ATOMS,.true.)) then
+          if (is_bind_event(BIND_SELECT_ATOMS,.true.,iview=w%id)) then
              ! draw the rubber band once dragged beyond the click/drag threshold
              if (dragged) then
                 pmin%x = min(w%press_p0%x,mousepos%x)
@@ -2215,7 +2236,7 @@ contains
       ! a bond under the cursor is not empty space, even though it leaves
       ! mousepos_idx zero: without this a double-click meant to cycle a bond
       ! order twice would also leave the mode
-      exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.) .and.&
+      exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.,iview=w%id) .and.&
          w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0
 
     end function exit_on_empty
@@ -2283,7 +2304,7 @@ contains
       real(c_float), intent(out) :: delta
 
       delta = 0._c_float
-      if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(bindid,.false.)) then
+      if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(bindid,.false.,iview=w%id)) then
          if (is_bind_mousescroll(bindid)) then
             delta = io%MouseWheel
          else
@@ -2291,7 +2312,7 @@ contains
             w%ilock = ilock_scroll
          end if
       elseif (w%ilock == ilock_scroll) then
-         if (is_bind_event(bindid,.true.)) then
+         if (is_bind_event(bindid,.true.,iview=w%id)) then
             ! 10/a to make it adimensional
             delta = (w%mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
             w%mpos0_s = mousepos%y
@@ -2319,14 +2340,14 @@ contains
       integer, intent(in) :: bindid
       real(c_float) :: vnew(3), vold(3), xc(3)
 
-      if (hover.and.is_bind_event(bindid,.false.).and.(w%ilock == ilock_no.or.w%ilock == ilock_right)) then
+      if (hover.and.is_bind_event(bindid,.false.,iview=w%id).and.(w%ilock == ilock_no.or.w%ilock == ilock_right)) then
          call depth_anchor(w%mpos0_r)
          w%oldview = w%sc%view
          w%ilock = ilock_right
          w%mposlast = mousepos
       elseif (w%ilock == ilock_right) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (is_bind_event(bindid,.true.)) then
+         if (is_bind_event(bindid,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
                call w%texpos_to_view(vnew)
@@ -2348,12 +2369,12 @@ contains
       integer, intent(in) :: bindid
       real(c_float) :: axis(3), ang
 
-      if (hover .and. is_bind_event(bindid,.false.) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
+      if (hover .and. is_bind_event(bindid,.false.,iview=w%id) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
          call arcball_anchor(w%mpos0_l,w%cpos0_l)
          w%ilock = ilock_left
       elseif (w%ilock == ilock_left) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (is_bind_event(bindid,.true.)) then
+         if (is_bind_event(bindid,.true.,iview=w%id)) then
             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
                call arcball_axis_angle(w%mpos0_l,w%cpos0_l,axis,ang)
                call w%sc%cam_rotate(axis,ang)
@@ -2372,13 +2393,13 @@ contains
       real(c_float) :: axis(3), ang
       logical :: okrot
 
-      if (hover .and. is_bind_event(bindid,.false.) .and.&
+      if (hover .and. is_bind_event(bindid,.false.,iview=w%id) .and.&
          (w%ilock == ilock_no .or. w%ilock == ilock_middle)) then
          call perp_anchor(w%sc%scenecenter)
          w%ilock = ilock_middle
       elseif (w%ilock == ilock_middle) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (is_bind_event(bindid,.true.)) then
+         if (is_bind_event(bindid,.true.,iview=w%id)) then
             call perp_axis_angle(axis,ang,okrot)
             if (okrot) then
                call w%sc%cam_rotate(axis,ang)
@@ -2423,7 +2444,7 @@ contains
       real(c_float), intent(inout) :: anchor(3)
       real*8 :: dxbohr(3)
 
-      if (hover.and.is_bind_event(bindid,.false.).and.&
+      if (hover.and.is_bind_event(bindid,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilockval)) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
@@ -2433,7 +2454,7 @@ contains
          end if
       elseif (w%ilock == ilockval) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.)) then
+         if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(anchor,dxbohr)
                call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
@@ -2456,7 +2477,7 @@ contains
     subroutine movemol_translate()
       real*8 :: dxbohr(3)
 
-      if (hover.and.is_bind_event(BIND_MOVEMOL_TRANSLATE,.false.).and.&
+      if (hover.and.is_bind_event(BIND_MOVEMOL_TRANSLATE,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilock_right)) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
@@ -2466,7 +2487,7 @@ contains
          end if
       elseif (w%ilock == ilock_right) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.)) then
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(w%mpos0_r,dxbohr)
                if (w%moveobj_isdiscrete) then
@@ -2493,7 +2514,7 @@ contains
     subroutine movemol_rotate()
       real(c_float) :: axis(3), ang
 
-      if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE,.false.).and.&
+      if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilock_left)) then
          call moveobj_latch()
          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
@@ -2503,7 +2524,7 @@ contains
       elseif (w%ilock == ilock_left) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
-            is_bind_event(BIND_MOVEMOL_ROTATE,.true.)) then
+            is_bind_event(BIND_MOVEMOL_ROTATE,.true.,iview=w%id)) then
             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
                call arcball_axis_angle(w%mpos0_l,w%cpos0_l,axis,ang)
                call movemol_rotate_molecule(axis,ang)
@@ -2523,7 +2544,7 @@ contains
       real(c_float) :: comc(3), comt(3), axis(3), ang
       logical :: okrot
 
-      if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.false.).and.&
+      if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.false.,iview=w%id).and.&
          (w%ilock == ilock_no.or.w%ilock == ilock_middle)) then
          call moveobj_latch()
          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
@@ -2536,7 +2557,7 @@ contains
       elseif (w%ilock == ilock_middle) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
-            is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.)) then
+            is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.,iview=w%id)) then
             call perp_axis_angle(axis,ang,okrot)
             if (okrot) then
                call movemol_rotate_molecule(axis,ang)
@@ -2557,7 +2578,7 @@ contains
       real(c_float) :: vnew(3)
       real*8 :: dxbohr(3)
 
-      if (hover.and.is_bind_event(BIND_MDINTERACT_DRAGATOM,.false.).and.w%ilock == ilock_no.and.&
+      if (hover.and.is_bind_event(BIND_MDINTERACT_DRAGATOM,.false.,iview=w%id).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          sysc(isys)%md%drag_iat = w%mousepos_idx(1)
          sysc(isys)%md%drag_target = sys(isys)%c%atcel(w%mousepos_idx(1))%r
@@ -2568,7 +2589,7 @@ contains
          w%mposlast = mousepos
       elseif (w%ilock == ilock_mddrag) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (is_bind_event(BIND_MDINTERACT_DRAGATOM,.true.)) then
+         if (is_bind_event(BIND_MDINTERACT_DRAGATOM,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(w%mpos0_r,dxbohr)
                sysc(isys)%md%drag_target = sysc(isys)%md%drag_target + dxbohr
@@ -2590,7 +2611,7 @@ contains
     subroutine md_mol_move()
       real*8 :: dxbohr(3)
 
-      if (hover.and.is_bind_event(BIND_MDINTERACT_MOVEMOL,.false.).and.w%ilock == ilock_no.and.&
+      if (hover.and.is_bind_event(BIND_MDINTERACT_MOVEMOL,.false.,iview=w%id).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
@@ -2601,7 +2622,7 @@ contains
          end if
       elseif (w%ilock == ilock_mdmovemol) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_MOVEMOL,.true.)) then
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_MOVEMOL,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(w%mpos0_r,dxbohr)
                call md_move_fragment(dxbohr)
@@ -2625,7 +2646,7 @@ contains
       real*8 :: rmat(3,3)
       logical :: okax
 
-      if (hover.and.is_bind_event(BIND_MDINTERACT_ROTMOL,.false.).and.w%ilock == ilock_no.and.&
+      if (hover.and.is_bind_event(BIND_MDINTERACT_ROTMOL,.false.,iview=w%id).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
@@ -2635,7 +2656,7 @@ contains
          end if
       elseif (w%ilock == ilock_mdrotmol) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_ROTMOL,.true.)) then
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_ROTMOL,.true.,iview=w%id)) then
             if (texpos%x /= w%mpos0_m(1) .or. texpos%y /= w%mpos0_m(2)) then
                ! arcball axis (eye) + angle, same math as the camera rotation,
                ! then axis from eye to world (bohr) and rotate the fragment

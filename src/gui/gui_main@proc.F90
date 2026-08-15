@@ -524,9 +524,16 @@ contains
   !> Reset all user interface settings to their default values
   module subroutine set_default_ui_settings()
     use keybindings, only: set_default_keybindings
-    use param, only: JMLcol
 
-    ! interface settings
+    call set_default_interface_settings()
+    call set_default_keybindings()
+    call set_default_color_settings()
+
+  end subroutine set_default_ui_settings
+
+  !> Reset the interface settings (only) to their default values
+  module subroutine set_default_interface_settings()
+
     io%FontGlobalScale = 1._c_float
     tooltip_enabled = .true.
     tooltip_delay = 0.5_c_float
@@ -534,17 +541,19 @@ contains
     tree_select_updates_inpcon = .true.
     tree_select_updates_view = .true.
 
-    ! key bindings
-    call set_default_keybindings()
+  end subroutine set_default_interface_settings
 
-    ! tree colors
+  !> Reset the interface colors (only) to their default values
+  module subroutine set_default_color_settings()
+    use param, only: JMLcol
+
     ColorTableCellBg = ColorTableCellBg_def
     ColorHighlightScene = ColorHighlightScene_def
     ColorHighlightSelectScene = ColorHighlightSelectScene_def
     ColorMeasureSelect = ColorMeasureSelect_def
     ColorElement = real(JMLcol,c_float) / 255._c_float
 
-  end subroutine set_default_ui_settings
+  end subroutine set_default_color_settings
 
   !> Show the contents of the tools menu for system isys. The caller is
   !> responsible for opening and closing the menu/popup. Child windows
@@ -558,7 +567,7 @@ contains
     use windows, only: stack_create_window, wintype_exportimage, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder
     use utils, only: iw_tooltip, iw_menuitem
-    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
+    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_EXPORT_IMAGE
     integer, intent(in) :: isys
     integer, intent(in) :: idparent
     logical, intent(inout) :: ttshown
@@ -570,7 +579,7 @@ contains
     enabled = ok_system(isys,sys_init)
 
     ! export the view to an image file
-    if (iw_menuitem("Export to Image...",enabled=enabled)) &
+    if (iw_menuitem("Export to Image...",BIND_EXPORT_IMAGE,enabled=enabled)) &
        idum = stack_create_window(wintype_exportimage,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
@@ -633,13 +642,12 @@ contains
 
   ! Process the global cancel keybinding (BIND_CANCEL)
   subroutine process_cancel_bind()
-    use windows, only: win, nwin, iwin_view, wintype_view, wintype_builder,&
-       wintype_dynamics, vm_is_forcedpick
+    use windows, only: win, nwin, wintype_builder, vm_is_forcedpick,&
+       view_target_window
     use systems, only: sysc, ok_system, sys_init
     use keybindings, only: is_bind_event, BIND_CANCEL
 
     integer :: i, iv, isys
-    logical :: ok
 
     if (.not.is_bind_event(BIND_CANCEL,norepeat=.true.)) return
 
@@ -647,23 +655,9 @@ contains
     ! press was used by imgui to close it
     if (popup_open_lastframe) return
 
-    ! choose the target view
-    iv = iwin_view
-    do i = 1, nwin
-       if (.not.win(i)%isinit) cycle
-       if (.not.win(i)%focused()) cycle
-       if (win(i)%type == wintype_view) then
-          iv = i
-       elseif (win(i)%type == wintype_builder .or. win(i)%type == wintype_dynamics) then
-          ok = win(i)%idparent >= 1 .and. win(i)%idparent <= nwin
-          if (ok) ok = win(win(i)%idparent)%isinit
-          if (ok) ok = win(win(i)%idparent)%type == wintype_view
-          if (ok) iv = win(i)%idparent
-       else
-          return
-       end if
-       exit
-    end do
+    ! choose the target view; do nothing if an unrelated window is focused
+    iv = view_target_window(strict=.true.)
+    if (iv == 0) return
 
     ! 1) stop a running dynamics/relaxation on the viewed system
     isys = win(iv)%isys
@@ -765,17 +759,22 @@ contains
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_water_cluster,&
-       paste_clipboard_fragment
+       wintype_about, wintype_geometry, wintype_water_cluster, wintype_exportimage,&
+       paste_clipboard_fragment, view_target_window
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
-       BIND_CUT_SELECTION, BIND_PASTE,&
+       BIND_CUT_SELECTION, BIND_PASTE, BIND_MANUAL, BIND_EXPORT_IMAGE, BIND_TOGGLE_TREE,&
+       BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
     use param, only: isformat_write_from_read, isformat_w_unknown
+
+    ! the critic2 manual, opened by the help menu and its keybinding
+    character(kind=c_char,len=*), parameter :: manual_url = &
+       "https://aoterodelaroza.github.io/critic2/" // c_null_char
 
     ! enum for the dialog types that can be launched from the menu
     integer, parameter :: d_open = 1
@@ -839,6 +838,25 @@ contains
        end if
     end if
 
+    !! show/hide the permanent windows
+    if (is_bind_event(BIND_TOGGLE_TREE,norepeat=.true.)) &
+       win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
+    if (is_bind_event(BIND_TOGGLE_INPCON,norepeat=.true.)) &
+       win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
+    if (is_bind_event(BIND_TOGGLE_OUTCON,norepeat=.true.)) &
+       win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
+
+    !! open the manual in the browser
+    if (is_bind_event(BIND_MANUAL,norepeat=.true.)) then
+       str2 = manual_url
+       call openLink(c_loc(str2))
+    end if
+
+    !! open the export-to-image dialog on the view the bindings act upon
+    if (isysvok .and. is_bind_event(BIND_EXPORT_IMAGE,norepeat=.true.)) &
+       idum = stack_create_window(wintype_exportimage,.true.,idparent=view_target_window(),&
+       orraise=-1)
+
     ! start the menu
     if (igBeginMainMenuBar()) then
        ! File
@@ -877,7 +895,8 @@ contains
           call igSeparator()
 
           ! File -> Export to PNG
-          launch(d_export_now) = launch(d_export_now) .or. iw_menuitem("Export to PNG",BIND_EXPORT_NOW,enabled=isysvok)
+          ok = isysvok
+          launch(d_export_now) = launch(d_export_now) .or. iw_menuitem("Export to PNG",BIND_EXPORT_NOW,enabled=ok)
           if (.not.ok) launch(d_export_now) = .false.
           call iw_tooltip("Export an image for the current system.&
              & Creates a PNG file with the same base name as the source file.",ttshown)
@@ -1032,7 +1051,7 @@ contains
        str1 = "Windows" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Windows -> Tree
-          if (iw_menuitem("Tree",selected=logical(win(iwin_tree)%isopen))) &
+          if (iw_menuitem("Tree",BIND_TOGGLE_TREE,selected=logical(win(iwin_tree)%isopen))) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
           call iw_tooltip("Toggle the display of the tree window",ttshown)
 
@@ -1042,12 +1061,12 @@ contains
           call iw_tooltip("Toggle the display of the main view window",ttshown)
 
           ! Windows -> Input Console
-          if (iw_menuitem("Input Console",selected=logical(win(iwin_console_input)%isopen))) &
+          if (iw_menuitem("Input Console",BIND_TOGGLE_INPCON,selected=logical(win(iwin_console_input)%isopen))) &
              win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
           call iw_tooltip("Toggle the display of the input console window",ttshown)
 
           ! Windows -> Output Console
-          if (iw_menuitem("Output Console",selected=logical(win(iwin_console_output)%isopen))) &
+          if (iw_menuitem("Output Console",BIND_TOGGLE_OUTCON,selected=logical(win(iwin_console_output)%isopen))) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the display of the output console window",ttshown)
 
@@ -1077,8 +1096,8 @@ contains
        str1 = "Help" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Help -> Critic2 Manual
-          if (iw_menuitem("Critic2 Manual...")) then
-             str2 = "https://aoterodelaroza.github.io/critic2/" // c_null_char
+          if (iw_menuitem("Critic2 Manual...",BIND_MANUAL)) then
+             str2 = manual_url
              call openLink(c_loc(str2))
           end if
           call iw_tooltip("Visit the critic2 website for more information about the program",ttshown)

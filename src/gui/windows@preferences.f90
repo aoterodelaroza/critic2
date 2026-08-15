@@ -27,7 +27,8 @@ contains
     use tools_io, only: nameguess, string
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io,&
-       set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
+       set_default_interface_settings, set_default_color_settings,&
+       ColorTableCellBg, ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
        ColorElement, uiscale
     use systems, only: nsys, sysc
@@ -41,7 +42,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
     character(len=:), allocatable, target :: strf
     logical(c_bool) :: ldum, ch
-    logical :: doquit
+    logical :: doquit, anyrow, firstshown
     type(ImVec2) :: sz, szero
     integer :: i, newkey, igroup, kmod, nrow, iwin, isys
     integer(c_int) :: flags
@@ -149,9 +150,24 @@ contains
 
        elseif (catid == 1) then
           !! key bindings
+          firstshown = .true.
           do igroup = 1, group_NUM
+             ! skip the whole group if the filter leaves it without rows,
+             ! so filtering does not print a stack of empty headings
+             anyrow = .false.
+             do i = 1, BIND_NUM
+                if (groupbind(i) /= igroup) cycle
+                str2 = trim(bindnames(i)) // c_null_char
+                if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str2),c_null_ptr)) then
+                   anyrow = .true.
+                   exit
+                end if
+             end do
+             if (.not.anyrow) cycle
+
              call iw_text(trim(groupnames(igroup)),highlight=.true.)
-             if (igroup == 1) then
+             if (firstshown) then
+                firstshown = .false.
                 call iw_helpermark("Left click to assign a new binding. Right-click cycles the mouse action&
                    & (only for mouse input): single click, double click, hold/drag. A hold/drag binding &
                    &shares its button with the plain click, so the same button can drive two events (e.g. &
@@ -334,9 +350,17 @@ contains
     sz%y = 0._c_float
     if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
        call igSetCursorPosX(iw_calcwidth(10,2,from_end=.true.) - g%Style%ScrollbarSize)
-       if (iw_button("Reset",danger=.true.)) &
-          call set_default_ui_settings()
-       call iw_tooltip("Reset to the default settings",ttshown)
+       ! reset only the category on display, so tweaking one does not wipe the others
+       if (iw_button("Reset",danger=.true.)) then
+          if (catid == 0) then
+             call set_default_interface_settings()
+          elseif (catid == 1) then
+             call set_default_keybindings()
+          elseif (catid == 2) then
+             call set_default_color_settings()
+          end if
+       end if
+       call iw_tooltip("Reset the settings in this category to their default values",ttshown)
        if (iw_button("Close",sameline=.true.)) doquit = .true.
        call iw_tooltip("Close this window",ttshown)
     end if
