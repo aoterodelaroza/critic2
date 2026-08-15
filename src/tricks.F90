@@ -1181,7 +1181,9 @@ contains
        end if
 
        ! run wholemols
-       call ci%wholemols()
+       call ci%wholemols(errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("trick_compare_deformed",errmsg,faterr)
 
        ! this structure is active, so write it
        if (outputposcar) then
@@ -4311,7 +4313,9 @@ contains
 
     ! (4) rebuild the (moved) crystal, as done when the GUI dynamics stops
     call md%free()
-    call sy%c%rebuild_after_move()
+    call sy%c%rebuild_after_move(errmsg=errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror("trick_md",errmsg,faterr)
     write (uout,'("  rebuilt crystal: ncel = ",A,", nneq = ",A,", nmol = ",A)') &
        string(sy%c%ncel), string(sy%c%nneq), string(sy%c%nmol)
     write (uout,*)

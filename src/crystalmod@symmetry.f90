@@ -1513,7 +1513,7 @@ contains
     end do
     call c%update_positions(xnew)
     ! the symmetrization only nudges the positions: keep the bonding
-    call c%rebuild_after_move(copybonding=.true.)
+    call c%rebuild_after_move(copybonding=.true.,errmsg=errmsg)
 
   end subroutine symmetrize_molecule
 

@@ -446,12 +446,13 @@ module crystalmod
      pure module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
-     module subroutine struct_new(c,seed,crashfail,noenv,ti)
+     module subroutine struct_new(c,seed,crashfail,noenv,errmsg,ti)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c
        type(crystalseed), intent(in) :: seed
-       logical, intent(in) :: crashfail
+       logical, intent(in), optional :: crashfail
        logical, intent(in), optional :: noenv
+       character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine struct_new
      module subroutine set_haveocc(c)
@@ -895,8 +896,9 @@ module crystalmod
        integer, intent(in) :: iperm(:)
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_species
-     module subroutine wholemols(c,ti)
+     module subroutine wholemols(c,errmsg,ti)
        class(crystal), intent(inout) :: c
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine wholemols
      module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,errmsg,copybonding,ti)
@@ -934,15 +936,16 @@ module crystalmod
        integer, intent(out), optional :: nlvecper
        integer, allocatable, intent(inout), optional :: lvecper(:,:)
      end subroutine walk_component
-     module subroutine change_atom_species(c,nat,iat,is,copybonding,ti)
+     module subroutine change_atom_species(c,nat,iat,is,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        integer, intent(in) :: iat(nat)
        integer, intent(in) :: is
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine change_atom_species
-     module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,ti)
+     module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: idx
        real*8, intent(in) :: x(3)
@@ -950,13 +953,14 @@ module crystalmod
        logical, intent(in) :: isnneq
        logical, intent(in) :: dorelative
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
      module subroutine update_positions(c,rnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)
      end subroutine update_positions
-     module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,newbonds,newbondx,ti)
+     module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,newbonds,newbondx,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        integer, intent(in) :: zat(nat)
@@ -965,10 +969,11 @@ module crystalmod
        type(neighstar), intent(in), optional :: nstar0(nat)
        integer, intent(in), optional :: newbonds(:,:)
        real*8, intent(in), optional :: newbondx(:,:)
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine add_fragment
      module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,copybonding,nstar0,&
-        newbonds,newbondx,ti)
+        newbonds,newbondx,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: ndel
        integer, intent(in) :: idel(ndel)
@@ -979,50 +984,56 @@ module crystalmod
        type(neighstar), intent(in), optional :: nstar0(nadd)
        integer, intent(in), optional :: newbonds(:,:)
        real*8, intent(in), optional :: newbondx(:,:)
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine replace_fragment
      module subroutine update_env_after_move(c)
        class(crystal), intent(inout) :: c
      end subroutine update_env_after_move
-     module subroutine rebuild_after_move(c,copybonding,ti)
+     module subroutine rebuild_after_move(c,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine rebuild_after_move
-     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,ti)
+     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol
        real*8, intent(in) :: x(3)
        integer, intent(in) :: iunit_l
        logical, intent(in) :: dorelative
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_molecule
-     module subroutine rotate_molecule(c,imol,euler,quat,rmat,copybonding,ti)
+     module subroutine rotate_molecule(c,imol,euler,quat,rmat,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol
        real*8, intent(in), optional :: euler(3)
        real*8, intent(in), optional :: quat(4)
        real*8, intent(in), optional :: rmat(3,3)
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine rotate_molecule
-     module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,copybonding,ti)
+     module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iaxis
        real*8, intent(in) :: x
        integer, intent(in) :: iunit_l
        logical, intent(in) :: dorelative, dofraction
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell
-     module subroutine move_cell_all(c,aa,bb,copybonding,ti)
+     module subroutine move_cell_all(c,aa,bb,copybonding,errmsg,ti)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: aa(3), bb(3)
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell_all
-     module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,ti)
+     module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: is
        real*8, intent(in) :: x(3)
@@ -1031,6 +1042,7 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        integer, intent(in), optional :: bondto
        real*8, intent(in), optional :: bondx(3)
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine add_atom
      pure module function find_bond(c,iat1,iat2,lvec)
@@ -1188,11 +1200,12 @@ module crystalmod
      module subroutine struct_report_symmetry(c)
        class(crystal), intent(in) :: c
      end subroutine struct_report_symmetry
-     module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
+     module subroutine struct_report_symxyz(c,strfin,hmsym,axcr,ier)
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
        character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
        real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
+       integer, intent(out), optional :: ier
      end subroutine struct_report_symxyz
      module subroutine list_symops(c,n,kind,dir,order,label)
        class(crystal), intent(in) :: c

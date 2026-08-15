@@ -391,7 +391,7 @@ contains
              if (w%builder_vm == vm_builder_valence) then
                 ! change valence: main pick = add a hydrogen, alternate
                 ! pick = remove one
-                call sysc(w%builder_isys)%change_valence(idxpick(1),imode)
+                call sysc(w%builder_isys)%change_valence(idxpick(1),imode,errmsg=w%errmsg)
              elseif (w%builder_vm == vm_builder_remove .and. imode == 1) then
                 ! remove atoms (main pick only): the atom and its
                 ! terminal hydrogens
@@ -536,7 +536,7 @@ contains
     if (iw_icon_togglebutton("##builderrelax",icon_tex(icon_ui_relax),"Rx",state=lstate,&
        disabled=.not.ok,danger=relaxing,scale=palscale)) then
        if (relaxing) then
-          call sysc(isys)%md_stop()
+          call sysc(isys)%md_stop(errmsg=w%errmsg)
           if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
        else
           ! release any edit session (a running relaxation ends it anyway)
@@ -1842,7 +1842,7 @@ contains
       do i = 1, w%edit_kind
          rl(:,i) = edit_pos(i)
       end do
-      call sys(isys)%c%rebuild_after_move(copybonding=.true.)
+      call sys(isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
       if (.not.sys(isys)%c%ismolecule) then
          do i = 1, w%edit_kind
             w%edit_idx(2:4,i) = nint(sys(isys)%c%c2x(rl(:,i)) -&
@@ -1899,7 +1899,7 @@ contains
       ! placed on empty space: it bonds to nothing in the system, and the
       ! system keeps the bonds it has
       call sysc(w%builder_isys)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat),&
-         newbonds=nobonds)
+         newbonds=nobonds,errmsg=w%errmsg)
 
     end subroutine addatom_apply
 
@@ -1969,7 +1969,7 @@ contains
          zat(1) = znew
          xat(:,1) = x0
          call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),1,zat(1:1),xat(:,1:1),&
-            newbonds=newbonds(:,1:m),newbondx=newbondx(:,1:m))
+            newbonds=newbonds(:,1:m),newbondx=newbondx(:,1:m),errmsg=w%errmsg)
          placed = .true.
          return
       end if
@@ -1997,7 +1997,7 @@ contains
       xat(:,1) = x0
       call addatom_cap_hydrogens(isysl,znew,x0,rot,nsub,tvec,used,nadd,zat,xat)
       call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd),&
-         newbonds=newbonds(:,1:m),newbondx=newbondx(:,1:m))
+         newbonds=newbonds(:,1:m),newbondx=newbondx(:,1:m),errmsg=w%errmsg)
       placed = .true.
 
     end subroutine addatom_replace
@@ -2306,6 +2306,7 @@ contains
   subroutine frag_place(isys,iview,nat,z,x,ianchor,iattach,xdir,radius,capattach,xpos,icel,&
      nstar0,placed)
     use systems, only: sys, sysc
+    use tools_io, only: ferror, warning
     use tools_math, only: cross, perpendicular
     integer, intent(in) :: isys, iview, nat, ianchor, iattach, icel
     integer, intent(in) :: z(nat)
@@ -2321,6 +2322,7 @@ contains
     real*8, allocatable :: xadd(:,:), xkept(:,:), newbondx(:,:)
     real*8 :: x0(3), rcam(3,3), e(3,3), rot(3,3), p0(3), t1(3), dattach(3)
     logical :: ok, keepattach
+    character(len=:), allocatable :: errmsg
 
     if (present(placed)) placed = .false.
     isysl = isys
@@ -2399,7 +2401,9 @@ contains
        newbondx(:,i) = xkept(:,i)
     end do
     call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:max(ndel,1)),nadd,&
-       zadd(1:nadd),xadd(:,1:nadd),nstar0add,newbonds,newbondx)
+       zadd(1:nadd),xadd(:,1:nadd),nstar0add,newbonds,newbondx,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('frag_place','could not place the fragment: '//trim(errmsg),warning)
     if (present(placed)) placed = .true.
 
   contains
@@ -2680,7 +2684,7 @@ contains
     real(c_float), intent(in) :: xpos(2)
     logical, intent(in), optional :: atcenter
 
-    integer :: i, nat
+    integer :: i, nat, ier
     integer, allocatable :: z(:), imap(:)
     real*8, allocatable :: x(:,:)
     real*8 :: x2c(3,3)
@@ -2699,7 +2703,8 @@ contains
     allocate(z(nat),x(3,nat))
     x2c = 0d0
     if (sysclip%seed%useabr == 1) then
-       x2c = m_x2c_from_cellpar(sysclip%seed%aa,sysclip%seed%bb)
+       x2c = m_x2c_from_cellpar(sysclip%seed%aa,sysclip%seed%bb,ier)
+       if (ier /= 0) return ! invalid cell in the clipboard fragment: nothing to paste
     elseif (sysclip%seed%useabr == 2) then
        x2c = sysclip%seed%m_x2c
     end if
@@ -2753,7 +2758,7 @@ contains
 
     if (w%edit_dirty) then
        if (ok_system(w%edit_isys,sys_init)) then
-          call sys(w%edit_isys)%c%rebuild_after_move(copybonding=.true.)
+          call sys(w%edit_isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
           iview = w%idparent
           if (iview >= 1 .and. iview <= nwin) then
              if (win(iview)%isinit) then
@@ -3375,7 +3380,7 @@ contains
     if (.not.allocated(flib_file)) return
     inquire(file=flib_file,exist=ok)
     if (.not.ok) return
-    lu = fopen_read(flib_file,abspath0=.true.)
+    lu = fopen_read(flib_file,abspath0=.true.,errstop=.false.)
     if (lu < 0) return
 
     allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10),fraglib_cat(10),&

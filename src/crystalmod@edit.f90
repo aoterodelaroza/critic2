@@ -995,13 +995,13 @@ contains
   end subroutine reorder_species
 
   !> Re-assign atomic types to have an asymmetric unit with whole molecules
-  module subroutine wholemols(c,ti)
+  module subroutine wholemols(c,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
-    use tools_io, only: ferror, faterr
     use types, only: realloc
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     logical, allocatable :: ismap(:,:), ldone(:)
@@ -1015,6 +1015,8 @@ contains
     integer :: ig, ngroup, ngroupold
 
     real*8, parameter :: eps = 1d-4
+
+    errmsg = ""
 
     ! this is only appropriate for molecular crystals
     if (c%ismolecule) return
@@ -1049,8 +1051,10 @@ contains
                    end do
                 end if
              end do loopk
-             if (.not.found) &
-                call ferror("wholemols","symmetry operations do not form a group",faterr)
+             if (.not.found) then
+                errmsg = "symmetry operations do not form a group"
+                return
+             end if
           end if
        end do
     end do
@@ -1138,8 +1142,10 @@ contains
                 x0 = matmul(c%rotm(1:3,1:3,i),c%atcel(k)%x) + c%rotm(:,4,i) + c%cen(:,j)
                 id = c%identify_atom(x0,icrd_crys)
 
-                if (id == 0) &
-                   call ferror('wholemols','error identifying rotated atom',faterr)
+                if (id == 0) then
+                   errmsg = 'error identifying rotated atom'
+                   return
+                end if
 
                 if (c%idatcelmol(1,k) == c%idatcelmol(1,id)) &
                    ismap(j,i) = .true.
@@ -1170,8 +1176,10 @@ contains
           do k = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,j),c%atcel(i)%x) + c%rotm(:,4,j) + c%cen(:,k)
              id = c%identify_atom(x0,icrd_crys)
-             if (id == 0) &
-                call ferror('wholemols','error identifying rotated atom',faterr)
+             if (id == 0) then
+                errmsg = 'error identifying rotated atom'
+                return
+             end if
              isuse(id) = .true.
           end do
        end do
@@ -1217,7 +1225,7 @@ contains
     ncseed%neqlist = .true.
 
     ! build the new crystal
-    call c%struct_new(ncseed,.true.,ti=ti)
+    call c%struct_new(ncseed,errmsg=errmsg,ti=ti)
 
   end subroutine wholemols
 
@@ -1388,18 +1396,21 @@ contains
   !> Change the atoms with IDs in the array iat(1:nat) from their
   !> current species to is, and reset the atom name to the
   !> corresponding species name.
-  module subroutine change_atom_species(c,nat,iat,is,copybonding,ti)
+  module subroutine change_atom_species(c,nat,iat,is,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: iat(nat)
     integer, intent(in) :: is
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     integer :: i
     logical :: copybonding_
+
+    errmsg = ""
 
     ! return if nothing to do
     if (nat == 0) return
@@ -1418,7 +1429,7 @@ contains
     end do
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
 
   end subroutine change_atom_species
 
@@ -1426,7 +1437,7 @@ contains
   !> iunit_l (see global). If isnneq, move all atoms that are
   !> equivalent by symmetry. If dorelative, the movement is
   !> relative to its current position.
-  module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,ti)
+  module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: idx
@@ -1435,11 +1446,14 @@ contains
     logical, intent(in) :: isnneq
     logical, intent(in) :: dorelative
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: xx(3)
     logical :: copysym, copybonding_
+
+    errmsg = ""
 
     ! whether to use symmetry
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
@@ -1467,7 +1481,7 @@ contains
     end if
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
 
   end subroutine move_atom
 
@@ -1521,14 +1535,17 @@ contains
   !> symmetry with the moved atoms. If copybonding, keep the current
   !> bond connectivity through the rebuild instead of re-deriving it
   !> from the atomic radii.
-  module subroutine rebuild_after_move(c,copybonding,ti)
+  module subroutine rebuild_after_move(c,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     logical :: copybonding_
+
+    errmsg = ""
 
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
@@ -1536,7 +1553,7 @@ contains
     ! copysym=.false. builds the seed from the full cell (the moved atcel), so
     ! symmetry is re-derived from scratch (it is generally broken after motion)
     call makeseed_for_edit(c,seed,.false.,copybonding_)
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
 
   end subroutine rebuild_after_move
 
@@ -1726,7 +1743,7 @@ contains
   !> dorelative, x is interpreted as a displacement of the center of
   !> mass relative to its current position. All atoms in the fragment
   !> are translated by the same vector; symmetry is not preserved (P1).
-  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,ti)
+  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang, iunit_bohr
     use param, only: bohrtoa
@@ -1736,12 +1753,15 @@ contains
     integer, intent(in) :: iunit_l
     logical, intent(in) :: dorelative
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: xx(3), dx(3), dxc(3)
     integer :: k
     logical :: copybonding_
+
+    errmsg = ""
 
     ! consistency checks
     if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
@@ -1785,7 +1805,7 @@ contains
     end if
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
 
   end subroutine move_molecule
 
@@ -1797,7 +1817,7 @@ contains
   !> translations applied), not the cell atoms, so it stays rigid even
   !> when the molecule is split across cell boundaries. Only applies to
   !> discrete fragments. Symmetry is not preserved (P1).
-  module subroutine rotate_molecule(c,imol,euler,quat,rmat,copybonding,ti)
+  module subroutine rotate_molecule(c,imol,euler,quat,rmat,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use tools_math, only: euler2mat, mat2euler, quat2mat
     use tools_io, only: ferror, faterr
@@ -1807,12 +1827,15 @@ contains
     real*8, intent(in), optional :: quat(4)
     real*8, intent(in), optional :: rmat(3,3)
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: rnew(3), amat(3,3), rrot(3,3), xcm(3)
     integer :: j, k, lvec(3), npres
     logical :: copybonding_
+
+    errmsg = ""
 
     ! consistency checks
     if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
@@ -1862,7 +1885,8 @@ contains
     end do
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
 
     ! set the Euler angles explicitly (useful for continuous drag in the GUI)
     ! only if the bonding is preserved - otherwise the molecules may change
@@ -1878,7 +1902,7 @@ contains
   !> parameter is changed to x in units of iunit_l. If dorelative, the
   !> change is relative to the current value. If dofraction, x is
   !> interpreted as the fractional change in the current value.
-  module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,copybonding,ti)
+  module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang
     use param, only: bohrtoa, third
@@ -1888,11 +1912,14 @@ contains
     integer, intent(in) :: iunit_l
     logical, intent(in) :: dorelative, dofraction
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: xx, ref
     logical :: copybonding_
+
+    errmsg = ""
 
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
@@ -1963,21 +1990,24 @@ contains
     end if
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
 
   end subroutine move_cell
 
   !> Modify the unit cell by changing the cell lengths and axes to the
   !> given values.
-  module subroutine move_cell_all(c,aa,bb,copybonding,ti)
+  module subroutine move_cell_all(c,aa,bb,copybonding,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: aa(3), bb(3)
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     logical :: copybonding_
+
+    errmsg = ""
 
     ! make seed from this crystal, preserving bonding if requested
     copybonding_ = .false.
@@ -1989,7 +2019,7 @@ contains
     seed%bb = bb
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
 
   end subroutine move_cell_all
 
@@ -2002,7 +2032,7 @@ contains
   !> finds, unless the caller names the atom it bonds to (bondto, a cell
   !> atom, at the position bondx if it is one of its periodic images):
   !> then that is the only bond made, and nothing else is re-bonded.
-  module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,ti)
+  module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,bondto,bondx,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc, siteocc
     use tools_io, only: nameguess
@@ -2014,6 +2044,7 @@ contains
     logical, intent(in), optional :: copybonding
     integer, intent(in), optional :: bondto
     real*8, intent(in), optional :: bondx(3)
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
@@ -2021,6 +2052,8 @@ contains
     real*8 :: xx(3)
     logical :: copysym, copybonding_
     integer :: is_, lvec(3)
+
+    errmsg = ""
 
     ! whether to use symmetry; carrying the bonding requires the
     ! one-to-one atom list a symmetric add does not keep
@@ -2072,7 +2105,8 @@ contains
     seed%atname(seed%nat) = seed%spc(is_)%name
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
 
     ! the bonds of the added atom: the one the caller asked for, or the
     ! ones a distance search finds
@@ -2095,7 +2129,7 @@ contains
 
   !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
   !> to the crystal in a single rebuild.
-  module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,newbonds,newbondx,ti)
+  module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,newbonds,newbondx,errmsg,ti)
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: zat(nat)
@@ -2104,10 +2138,11 @@ contains
     type(neighstar), intent(in), optional :: nstar0(nat)
     integer, intent(in), optional :: newbonds(:,:)
     real*8, intent(in), optional :: newbondx(:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     call c%replace_fragment(0,(/integer::/),nat,zat,x,copybonding,nstar0,&
-       newbonds=newbonds,newbondx=newbondx,ti=ti)
+       newbonds=newbonds,newbondx=newbondx,errmsg=errmsg,ti=ti)
 
   end subroutine add_fragment
 
@@ -2120,7 +2155,7 @@ contains
   !> pre-edit index of the atom it bonds to) is then the complete list of
   !> them, and an empty newbonds attaches the fragment to nothing.
   module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,copybonding,nstar0,&
-     newbonds,newbondx,ti)
+     newbonds,newbondx,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc, siteocc, star_find
     use tools_io, only: nameguess
@@ -2134,6 +2169,7 @@ contains
     type(neighstar), intent(in), optional :: nstar0(nadd)
     integer, intent(in), optional :: newbonds(:,:)
     real*8, intent(in), optional :: newbondx(:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
@@ -2143,6 +2179,8 @@ contains
     integer :: i, j, k, is, nat0, ia, ib, nb
     integer :: lvec(3)
     logical :: copybonding_, newnew, newold
+
+    errmsg = ""
 
     if (ndel <= 0 .and. nadd <= 0) return
     copybonding_ = .false.
@@ -2252,7 +2290,8 @@ contains
     end do
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.true.,ti=ti)
+    call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
 
     ! Bonds of the added atoms. Among themselves, a distance search finds
     ! them unless they brought their own (nstar0); to the rest, likewise

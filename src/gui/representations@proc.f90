@@ -1939,12 +1939,13 @@ contains
       complex*16 :: dcen(3)
       type(c_ptr) :: ctx
       integer(c_int) :: ier
-      integer :: nf
+      integer :: nf, ierp
       type(dl_cylinder) :: dedge
 
       ! centroid (an interior reference point), best-fit plane unit normal, and
       ! the maximum out-of-plane deviation
-      call plane_from_points(xv,nvv,cen0,nrm,dev)
+      call plane_from_points(xv,nvv,cen0,nrm,dev,ierp)
+      if (ierp /= 0) return ! the fit failed: skip this polygon rather than crash
 
       if (dev < eps .and. norm2(nrm) > 1d-10) then
          ! planar polygon: order vertices by angle about the normal and

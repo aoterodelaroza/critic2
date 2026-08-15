@@ -61,7 +61,7 @@ contains
     ! if the view switched systems, stop the run on the one we are leaving
     if (.not.doquit .and. syschanged .and. isysold >= 1 .and. isysold <= nsys) then
        if (ok_system(isysold,sys_init)) then
-          if (sysc(isysold)%md_run) call sysc(isysold)%md_stop()
+          if (sysc(isysold)%md_run) call sysc(isysold)%md_stop(errmsg=w%errmsg)
        end if
     end if
 
@@ -108,7 +108,7 @@ contains
           call iw_tooltip("Start the simulation",ttshown)
        else
           if (iw_button("Stop",danger=.true.)) then
-             call sysc(isys)%md_stop()
+             call sysc(isys)%md_stop(errmsg=w%errmsg)
              win(iview)%forcerender = .true.
           end if
           call iw_tooltip("Stop the simulation ("//&

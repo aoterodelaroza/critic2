@@ -526,7 +526,11 @@ contains
           call ferror('struct_sym','Cannot apply WHOLEMOLS to a non-molecular crystal',faterr,line,syntax=.true.)
           return
        end if
-       call s%c%wholemols()
+       call s%c%wholemols(errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_sym',errmsg,faterr,line,syntax=.true.)
+          return
+       end if
 
     else
        isempty = .true.
@@ -3591,7 +3595,8 @@ contains
           end do
 
           ! transform
-          call s%c%move_atom(idx,x,iunit_l,usesym,dorelative)
+          call s%c%move_atom(idx,x,iunit_l,usesym,dorelative,errmsg=errmsg)
+          if (len_trim(errmsg) > 0) goto 999
           changed = .true.
 
        elseif (equal(word,"cellmove")) then
@@ -3646,7 +3651,8 @@ contains
           end do
 
           ! transform
-          call s%c%move_cell(iaxis,rdum,iunit_l,dorelative,dofraction)
+          call s%c%move_cell(iaxis,rdum,iunit_l,dorelative,dofraction,errmsg=errmsg)
+          if (len_trim(errmsg) > 0) goto 999
           changed = .true.
 
        elseif (equal(word,"relax")) then
@@ -3777,7 +3783,8 @@ contains
     end do
 
     ! adopt the relaxed geometry (re-derive symmetry and the cell)
-    call s%c%rebuild_after_move()
+    call s%c%rebuild_after_move(errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
 
     if (verbose) then
        write (uout,*)
@@ -5140,7 +5147,11 @@ contains
     if (.not.cx%ismolecule) then
        if (.not.cx%ismol3d) &
           call ferror("struct_molreorder","the target structure is not a molecular crystal",faterr)
-       call cx%wholemols()
+       call cx%wholemols(errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror("struct_molreorder",errmsg,faterr,syntax=.true.)
+          return
+       end if
        if (any(cx%idxmol(1:cx%nmol) < 0)) &
           call ferror("struct_molreorder","the target structure must have whole molecules",faterr)
     end if
@@ -5343,7 +5354,11 @@ contains
        end do
 
        call cx%struct_new(seed,.true.)
-       call cx%wholemols()
+       call cx%wholemols(errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror("struct_molreorder",errmsg,faterr,syntax=.true.)
+          return
+       end if
        call cx%write_any_file(wfile,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_molreorder",errmsg,faterr)

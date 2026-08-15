@@ -50,6 +50,7 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
     logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive, syschanged
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:17)
+    integer :: ier ! error flag for the symmetry-operation analysis
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
     integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
@@ -1849,7 +1850,17 @@ contains
                    allocate(w%geometry_sym_ops(neqv*max(ncv,1)),w%geometry_sym_hm(neqv*max(ncv,1)),&
                       w%geometry_sym_axes(3,neqv*max(ncv,1)))
                    call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,hmsym=w%geometry_sym_hm,&
-                      axcr=w%geometry_sym_axes)
+                      axcr=w%geometry_sym_axes,ier=ier)
+                   if (ier /= 0) then
+                      ! Could not classify the operations. Keep the arrays
+                      ! allocated (the table below indexes them unconditionally,
+                      ! and deallocating would also re-run this every frame) and
+                      ! show placeholders instead of killing the GUI.
+                      w%geometry_sym_ops = "?"
+                      w%geometry_sym_hm = "?"
+                      w%geometry_sym_axes = 0d0
+                      w%errmsg = "Could not analyze the symmetry operations"
+                   end if
                 end if
 
                 flags = ImGuiTableFlags_None
@@ -2125,7 +2136,7 @@ contains
     ! process actions at the end; clear any previous error when a new action runs
     if (iaction /= -1) w%errmsg = ""
     if (iaction == iaction_restore) then
-       call sysc(isys)%reread_geometry_from_file()
+       call sysc(isys)%reread_geometry_from_file(errmsg=w%errmsg)
 
     elseif (iaction == iaction_set_attype_name) then
        call sysc(isys)%set_attype_name(w%geometry_atomtype,iaction_i1,iaction_str)
@@ -2138,11 +2149,11 @@ contains
 
     elseif (iaction == iaction_set_attype_species) then
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i1,iaction_i2,&
-          copybonding=w%geometry_keepbonding)
+          copybonding=w%geometry_keepbonding,errmsg=w%errmsg)
 
     elseif (iaction == iaction_set_atom_position) then
        call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l,&
-          copybonding=w%geometry_keepbonding)
+          copybonding=w%geometry_keepbonding,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_set_atom_occupancy) then
@@ -2152,10 +2163,10 @@ contains
     elseif (iaction == iaction_add_species_change_atom) then
        call sysc(isys)%add_species(iaction_i1)
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc,&
-          copybonding=w%geometry_keepbonding)
+          copybonding=w%geometry_keepbonding,errmsg=w%errmsg)
 
     elseif (iaction == iaction_add_atom) then
-       call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
+       call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_edit_highlighted) then
@@ -2181,11 +2192,11 @@ contains
 
     elseif (iaction == iaction_set_molecule_position) then
        call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,&
-          copybonding=w%geometry_keepbonding)
+          copybonding=w%geometry_keepbonding,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_set_molecule_rotation) then
-       call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,copybonding=w%geometry_keepbonding)
+       call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,copybonding=w%geometry_keepbonding,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_remove_molecules) then
@@ -2197,7 +2208,7 @@ contains
 
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l,&
-          copybonding=w%geometry_keepbonding)
+          copybonding=w%geometry_keepbonding,errmsg=w%errmsg)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_transform_cell) then

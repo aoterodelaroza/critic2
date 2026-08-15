@@ -588,12 +588,13 @@ contains
   !> uout. hmsym, if present, return the Hermann-Mauguin symbol for
   !> the operations. If axcr, return the operation axes in
   !> cryst. coordinates.
-  module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
+  module subroutine struct_report_symxyz(c,strfin,hmsym,axcr,ier)
     use tools_math, only: eig, det3
     use tools_io, only: uout, string, ioj_right, ferror, faterr
     use global, only: symprec
     use param, only: mlen, pi, eye
     class(crystal), intent(in) :: c
+    integer, intent(out), optional :: ier
     character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
     character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
     real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
@@ -610,7 +611,7 @@ contains
     real*8, parameter :: eps = 1d-5
 
     logical :: ok, iszero, axint
-    integer :: i1, i2, i, j, k, idx, rotnum, ord, p, nhalf, ier
+    integer :: i1, i2, i, j, k, idx, rotnum, ord, p, nhalf, ier_
     character(len=mlen) :: strout(c%neqv*c%ncv)
     real*8 :: xtrans, rmat(3,3), eval(3), evali(3), rotaxis(3)
     real*8 :: trace, det, ang, ridx
@@ -619,6 +620,7 @@ contains
     character(len=mlen), allocatable :: rotchar(:)
     real*8, allocatable :: raxc2(:,:)
 
+    if (present(ier)) ier = 0
     ! initialize the output strings
     i = 0
     do i1 = 1, c%ncv
@@ -692,9 +694,14 @@ contains
           tint = matmul(wsum,wvec) / real(ord,8)
 
           ! determine the axis of rotation (eigenvector with eigenvalue = det)
-          call eig(rmat,3,eval,evali,ier)
-          if (ier /= 0) &
+          call eig(rmat,3,eval,evali,ier_)
+          if (ier_ /= 0) then
+             if (present(ier)) then
+                ier = ier_
+                return
+             end if
              call ferror('struct_report_symxyz','Error in diagonalization',faterr)
+          end if
           idx = 0
           do j = 1, 3
              if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then

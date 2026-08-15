@@ -82,7 +82,7 @@ contains
        stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init
     use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
-    use tools_io, only: string, falloc, fdealloc
+    use tools_io, only: string, falloc, fdealloc, ferror, warning
     use param, only: dirsep
     integer(c_int) :: idum, display_w, display_h, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
@@ -96,6 +96,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: strc, file
     integer :: i, j, ludum(10), saveinpcon
     logical :: firstpass, shown
+    character(len=:), allocatable :: errmsg
     integer(c_short), allocatable, target :: range(:)
     type(GLFWimage), target :: icon
 
@@ -356,7 +357,9 @@ contains
 
        ! advance any running interactive dynamics once per system per frame
        do i = 1, nsys
-          call sysc(i)%md_advance()
+          call sysc(i)%md_advance(errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror('gui_start','interactive dynamics: '//trim(errmsg),warning)
        end do
 
        ! process the window stack
@@ -663,6 +666,8 @@ contains
        view_target_window
     use systems, only: sysc, ok_system, sys_init
     use keybindings, only: is_bind_event, BIND_CANCEL
+    use tools_io, only: ferror, warning
+    character(len=:), allocatable :: errmsg
 
     integer :: i, iv, isys
 
@@ -680,7 +685,9 @@ contains
     isys = win(iv)%isys
     if (ok_system(isys,sys_init)) then
        if (sysc(isys)%md_run) then
-          call sysc(isys)%md_stop()
+          call sysc(isys)%md_stop(errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror('process_cancel_bind','could not stop the dynamics run: '//trim(errmsg),warning)
           win(iv)%forcerender = .true.
           return
        end if
@@ -842,8 +849,14 @@ contains
     launchnewmol = is_bind_event(BIND_NEW_MOLECULE,norepeat=.true.)
 
     !! undo/redo the geometry of the view-selected system
-    if (isysvok .and. is_bind_event(BIND_UNDO)) call sysc(isysv)%undo()
-    if (isysvok .and. is_bind_event(BIND_REDO)) call sysc(isysv)%redo()
+    if (isysvok .and. is_bind_event(BIND_UNDO)) then
+       call sysc(isysv)%undo(errmsg)
+       call report_errmsg("undo")
+    end if
+    if (isysvok .and. is_bind_event(BIND_REDO)) then
+       call sysc(isysv)%redo(errmsg)
+       call report_errmsg("redo")
+    end if
 
     !! copy or cut the selected atoms of the view-selected system to the clipboard.
     if (isysvok .and. .not.io%WantTextInput) then
@@ -968,13 +981,17 @@ contains
        str1 = "Edit" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Edit -> Undo
-          if (iw_menuitem("Undo",BIND_UNDO,enabled=okundo)) &
-             call sysc(isysv)%undo()
+          if (iw_menuitem("Undo",BIND_UNDO,enabled=okundo)) then
+             call sysc(isysv)%undo(errmsg)
+             call report_errmsg("undo")
+          end if
           call iw_tooltip("Undo the last change to the geometry of this system",ttshown)
 
           ! Edit -> Redo
-          if (iw_menuitem("Redo",BIND_REDO,enabled=okredo)) &
-             call sysc(isysv)%redo()
+          if (iw_menuitem("Redo",BIND_REDO,enabled=okredo)) then
+             call sysc(isysv)%redo(errmsg)
+             call report_errmsg("redo")
+          end if
           call iw_tooltip("Redo the last undone change to the geometry of this system",ttshown)
 
           ! Edit -> Separator

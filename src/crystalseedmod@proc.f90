@@ -79,11 +79,13 @@ contains
   !> violation aborts the program with faterr.
   module subroutine seed_check(seed,errmsg)
     use tools_io, only: ferror, faterr
+    use tools_math, only: m_x2c_from_cellpar
     class(crystalseed), intent(in) :: seed !< Crystal seed
     character(len=:), allocatable, intent(out), optional :: errmsg !< error message (faterr if absent)
 
     character(len=:), allocatable :: msg
-    integer :: i
+    integer :: i, ier
+    real*8 :: xdum(3,3)
 
     msg = ""
 
@@ -101,6 +103,26 @@ contains
     if (seed%useabr == 0 .and. .not.seed%ismolecule) then
        msg = "useabr=0 (auto bounding box) is only valid for a molecule"
        goto 999
+    end if
+
+    ! The cell parameters must describe a realizable cell. This is checked
+    ! here, before struct_new wipes the caller's crystal with c%init(), so a
+    ! bad cell is reported without destroying the structure being edited.
+    ! Uses the same math as the builder, so the two cannot disagree.
+    if (seed%useabr == 1) then
+       if (any(seed%aa <= 0d0)) then
+          msg = "invalid cell: cell lengths must be positive"
+          goto 999
+       end if
+       if (any(seed%bb <= 0d0) .or. any(seed%bb >= 180d0)) then
+          msg = "invalid cell: cell angles must be between 0 and 180 degrees"
+          goto 999
+       end if
+       xdum = m_x2c_from_cellpar(seed%aa,seed%bb,ier)
+       if (ier /= 0) then
+          msg = "invalid cell: these cell angles do not describe a realizable cell"
+          goto 999
+       end if
     end if
 
     ! atom list kind: a non-equivalent atom list requires symmetry and a crystal.
@@ -352,7 +374,8 @@ contains
           rmat = seed%m_x2c
           call matinv(rmat,3,ier)
           if (ier /= 0) then
-             call ferror('parse_crystal_env','Invalid lattice vectors (matrix not invertible)',faterr)
+             call ferror('parse_crystal_env','Invalid lattice vectors (matrix not invertible)',&
+                faterr,line,syntax=.true.)
              return
           end if
           seed%useabr = 2

@@ -430,7 +430,7 @@ contains
           call check_structure_defined(ok)
           if (.not.ok) cycle
           if (sy%c%ismolecule) then
-             call ferror("critic2","EWALD can not be used with molecules",faterr)
+             call ferror("critic2","EWALD can not be used with molecules",faterr,line,syntax=.true.)
              cycle
           end if
 

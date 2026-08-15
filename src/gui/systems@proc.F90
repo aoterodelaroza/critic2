@@ -771,11 +771,14 @@ contains
   !> is active. Stops the run if the structure was modified externally
   !> since the last step, if the force evaluation fails, or if the
   !> relaxation converged.
-  module subroutine md_advance(sysc)
+  module subroutine md_advance(sysc,errmsg)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: id
+
+    errmsg = ""
 
     id = sysc%id
     if (.not.sysc%md_run .or. .not.sysc%md%ready) return
@@ -793,8 +796,11 @@ contains
           ! rebond-only trigger: the mutator did not rebuild the crystal, but
           ! the run had moved the atoms with display-only updates — rebuild
           ! now, keeping the just-recomputed bonds
-          call sys(id)%c%rebuild_after_move(copybonding=.true.)
+          call sys(id)%c%rebuild_after_move(copybonding=.true.,errmsg=errmsg)
           sysc%sc%nextbuildlists_fixcam = .true.
+          ! the edit failed: do not record a geometry change over a structure
+          ! that was not actually modified (it would capture a bad undo state)
+          if (len_trim(errmsg) > 0) return
           call sysc%post_event(lastchange_geometry)
        end if
        return
@@ -810,7 +816,7 @@ contains
     ! stop the run if the relaxation converged (unless it is a continuous
     ! run, e.g. the water-cluster demo) or if the force evaluation failed
     if (.not.sysc%md%ready .or. (sysc%md%autostop .and. sysc%md%converged())) &
-       call sysc%md_stop()
+       call sysc%md_stop(errmsg)
 
   end subroutine md_advance
 
@@ -828,16 +834,22 @@ contains
 
   !> Stop the MD/relaxation run and rebuild the structure from the
   !> current positions.
-  module subroutine md_stop(sysc)
+  module subroutine md_stop(sysc,errmsg)
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    errmsg = ""
 
     sysc%md_run = .false.
     if (.not.ok_system(sysc%id,sys_init)) return
     if (.not.sysc%md%ready .and. .not.allocated(sysc%md%r)) return
     ! the run only moved atoms: keep the bonding, as the move modes do
     ! (an explicit Rebond recomputes it)
-    call sys(sysc%id)%c%rebuild_after_move(copybonding=.true.)
+    call sys(sysc%id)%c%rebuild_after_move(copybonding=.true.,errmsg=errmsg)
     sysc%sc%nextbuildlists_fixcam = .true.
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine md_stop
@@ -902,22 +914,26 @@ contains
   end subroutine undo_capture
 
   !> Restore the previous geometry state from the undo history.
-  module subroutine undo(sysc)
+  module subroutine undo(sysc,errmsg)
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
 
+    errmsg = ""
     if (.not.sysc%can_undo()) return
     sysc%undo_icur = sysc%undo_icur - 1
-    call undo_restore(sysc)
+    call undo_restore(sysc,errmsg)
 
   end subroutine undo
 
   !> Restore the next geometry state from the redo history.
-  module subroutine redo(sysc)
+  module subroutine redo(sysc,errmsg)
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
 
+    errmsg = ""
     if (.not.sysc%can_redo()) return
     sysc%undo_icur = sysc%undo_icur + 1
-    call undo_restore(sysc)
+    call undo_restore(sysc,errmsg)
 
   end subroutine redo
 
@@ -942,16 +958,19 @@ contains
   !> Rebuild the system's crystal structure from the current state in the
   !> undo history and refresh the scene. Helper for undo/redo; the restore
   !> posts with nocapture so it is not itself recorded as a new history entry.
-  subroutine undo_restore(sysc)
+  subroutine undo_restore(sysc,errmsg)
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
 
+    errmsg = ""
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
     if (sysc%undo_icur < 1 .or. sysc%undo_icur > sysc%undo_n) return
 
-    call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),crashfail=.true.)
+    call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
     sysc%sc%nextbuildlists_fixcam = .true.
     call sysc%post_event(lastchange_geometry,nocapture=.true.)
 
@@ -1333,10 +1352,11 @@ contains
   module subroutine paste_clipboard(molecule)
     use crystalseedmod, only: crystalseed
     use tools_math, only: m_x2c_from_cellpar
+    use tools_io, only: ferror, warning
     use param, only: isformat_r_derived
     logical, intent(in) :: molecule
 
-    integer :: i
+    integer :: i, ier
     type(crystalseed), allocatable :: seed(:)
     real*8 :: x2c(3,3)
 
@@ -1352,7 +1372,11 @@ contains
        ! absolute Cartesian (bohr) before the cell is dropped
        if (seed(1)%useabr > 0) then
           if (seed(1)%useabr == 1) then
-             x2c = m_x2c_from_cellpar(seed(1)%aa,seed(1)%bb)
+             x2c = m_x2c_from_cellpar(seed(1)%aa,seed(1)%bb,ier)
+             if (ier /= 0) then
+                call ferror('paste_clipboard','invalid cell parameters in the copied fragment',warning)
+                return
+             end if
           else
              x2c = seed(1)%m_x2c
           end if
@@ -1415,6 +1439,9 @@ contains
     if (has_errmsg(errmsg)) return
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine edit_highlighted_atoms
@@ -1518,9 +1545,9 @@ contains
        end do
 
        ! build the new crystal
-       call sys(id)%c%struct_new(seed,crashfail=.false.)
-       if (.not.sys(id)%c%isinit) then
-          errmsg = "Could not rebuild the structure after editing the species"
+       call sys(id)%c%struct_new(seed,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) then
+          errmsg = "Could not rebuild the structure after editing the species: " // errmsg
           return
        end if
     end if
@@ -1692,16 +1719,19 @@ contains
   end function attype_species
 
   ! For the given atom type, set the corresponding atomic species.
-  module subroutine set_attype_species(sysc,type,id,is,copybonding)
+  module subroutine set_attype_species(sysc,type,id,is,copybonding,errmsg)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     integer, intent(in) :: is
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys, i, nat
     integer, allocatable :: iat(:)
     logical :: ok, copybonding_
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -1727,9 +1757,12 @@ contains
     end do
 
     ! execute
-    call sys(isys)%c%change_atom_species(nat,iat,is,copybonding=copybonding_)
+    call sys(isys)%c%change_atom_species(nat,iat,is,copybonding=copybonding_,errmsg=errmsg)
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine set_attype_species
@@ -2052,16 +2085,19 @@ contains
 
   !> Add atom of the given atom type with species is and coordinates
   !> x. If is <= 0, add the species with Z = abs(is) to the system.
-  module subroutine attype_add_atom(sysc,type,is,x)
+  module subroutine attype_add_atom(sysc,type,is,x,errmsg)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: is
     real*8, intent(in) :: x(3)
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
     real*8 :: x_(3)
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2072,22 +2108,25 @@ contains
 
     ! add the atom
     if (type == atlisttype_nneq) then
-       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.true.,copybonding=.true.)
+       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.true.,copybonding=.true.,errmsg=errmsg)
     elseif (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.false.,copybonding=.true.)
+       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.false.,copybonding=.true.,errmsg=errmsg)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.,copybonding=.true.)
+       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.,copybonding=.true.,errmsg=errmsg)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.,copybonding=.true.)
+       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.,copybonding=.true.,errmsg=errmsg)
     end if
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine attype_add_atom
@@ -2186,7 +2225,7 @@ contains
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
-  module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding)
+  module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding,errmsg)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
@@ -2195,6 +2234,7 @@ contains
     real*8, intent(in) :: x(3)
     logical, intent(in) :: forcewyc
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys, leqv, i, ichange
     real*8 :: x_(3)
@@ -2203,6 +2243,8 @@ contains
     logical :: copybonding_
 
     real*8, parameter :: tighteps = 1d-7
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2255,23 +2297,26 @@ contains
        end if
 
        ! displace
-       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.true.,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.true.,.false.,copybonding=copybonding_,errmsg=errmsg)
     elseif (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.false.,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.false.,.false.,copybonding=copybonding_,errmsg=errmsg)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) &
           x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.,copybonding=copybonding_,errmsg=errmsg)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.,copybonding=copybonding_,errmsg=errmsg)
     end if
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine set_atom_position
@@ -2279,7 +2324,7 @@ contains
   ! For the molecule identifier id corresponding to the given molecule
   ! coordinate type, rigidly translate the fragment so that its center
   ! of mass is at position x.
-  module subroutine set_molecule_position(sysc,type,id,x,copybonding)
+  module subroutine set_molecule_position(sysc,type,id,x,copybonding,errmsg)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
@@ -2287,10 +2332,13 @@ contains
     integer, intent(in) :: id
     real*8, intent(in) :: x(3)
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
     real*8 :: x_(3)
     logical :: copybonding_
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2301,35 +2349,41 @@ contains
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
     if (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.,copybonding=copybonding_,errmsg=errmsg)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) &
           x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,copybonding=copybonding_,errmsg=errmsg)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,copybonding=copybonding_)
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,copybonding=copybonding_,errmsg=errmsg)
     end if
 
     ! the geometry changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine set_molecule_position
 
   ! Rigidly rotate molecule id about its center of mass so that the
   ! Euler angles (ZYZ, radians) of its standard orientation become euler.
-  module subroutine set_molecule_rotation(sysc,id,euler,copybonding)
+  module subroutine set_molecule_rotation(sysc,id,euler,copybonding,errmsg)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: id
     real*8, intent(in) :: euler(3)
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
     logical :: copybonding_
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2338,9 +2392,12 @@ contains
     ! rotate the molecule
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
-    call sys(isys)%c%rotate_molecule(id,euler=euler,copybonding=copybonding_)
+    call sys(isys)%c%rotate_molecule(id,euler=euler,copybonding=copybonding_,errmsg=errmsg)
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine set_molecule_rotation
@@ -2479,23 +2536,25 @@ contains
   ! so their bond directions are maximally separated from each other
   ! and from the remaining (fixed) substituents. Posts a geometry
   ! change event.
-  module subroutine change_valence(sysc,icel,mode)
+  module subroutine change_valence(sysc,icel,mode,errmsg)
     use global, only: iunit_bohr
     use tools_math, only: cross, perpendicular
     use types, only: substituent
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: icel, mode
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys, i, j, nsub, nvalid, nfix, nmob, nmv, z0, ish, ihdel
     real*8 :: r0(3), u1(3), usum(3), uh(3), v(3), dh, vnorm(3)
     real*8, allocatable :: ufix(:,:), umob(:,:), dmob(:), tvmob(:,:), uall(:,:)
     integer, allocatable :: nbmob(:)
     type(substituent), allocatable :: sub(:)
-    character(len=:), allocatable :: errmsg
     logical :: coplanar
 
     real*8, parameter :: eps_sum = 1d-6 ! degenerate anti-sum threshold
     real*8, parameter :: eps_coplanar = 0.1d0 ! coplanarity threshold (~6 degrees)
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2592,7 +2651,7 @@ contains
        ! the hydrogen bonds to the atom it was added to and to nothing
        ! else: the rest of the system keeps the bonds it has
        call sys(isys)%c%add_atom(ish,r0 + dh * umob(:,nmv),iunit_bohr,.false.,&
-          copybonding=.true.,bondto=icel,bondx=r0)
+          copybonding=.true.,bondto=icel,bondx=r0,errmsg=errmsg)
     else
        ! no terminal hydrogen bonded to this atom: nothing to do
        if (ihdel == 0) return
@@ -2606,6 +2665,9 @@ contains
     end if
 
     ! post the geometry change
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   contains
@@ -2852,6 +2914,9 @@ contains
           return
        end if
        ! the atom list changed, so the geometry event supersedes the rebond
+       ! the edit failed: do not record a geometry change over a structure
+       ! that was not actually modified (it would capture a bad undo state)
+       if (len_trim(errmsg) > 0) return
        call sysc%post_event(lastchange_geometry)
     else
        call sysc%add_bond(i1,i2,lvec,1)
@@ -2863,19 +2928,25 @@ contains
   !> to this system in a single rebuild. The added atoms are attached to
   !> the rest by the bonds in newbonds (see replace_atoms_fragment); with
   !> newbonds absent, by the ones a distance search finds.
-  module subroutine add_atoms_fragment(sysc,nat,zat,x,newbonds,newbondx)
+  module subroutine add_atoms_fragment(sysc,nat,zat,x,newbonds,newbondx,errmsg)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: nat
     integer, intent(in) :: zat(nat)
     real*8, intent(in) :: x(3,nat)
     integer, intent(in), optional :: newbonds(:,:)
     real*8, intent(in), optional :: newbondx(:,:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    errmsg = ""
 
     if (.not.ok_system(sysc%id,sys_init)) return
     if (nat <= 0) return
 
     call sys(sysc%id)%c%add_fragment(nat,zat,x,copybonding=.true.,newbonds=newbonds,&
-       newbondx=newbondx)
+       newbondx=newbondx,errmsg=errmsg)
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine add_atoms_fragment
@@ -2887,7 +2958,7 @@ contains
   !> (added atom, pre-edit index of the atom it bonds to), a complete
   !> list, so an empty newbonds attaches the fragment to nothing. With
   !> newbonds absent, the bonds a distance search finds are used instead.
-  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0,newbonds,newbondx)
+  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0,newbonds,newbondx,errmsg)
     use types, only: neighstar
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: ndel
@@ -2898,6 +2969,9 @@ contains
     type(neighstar), intent(in), optional :: nstar0(nadd)
     integer, intent(in), optional :: newbonds(:,:)
     real*8, intent(in), optional :: newbondx(:,:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    errmsg = ""
 
     if (.not.ok_system(sysc%id,sys_init)) return
     if (ndel <= 0 .and. nadd <= 0) return
@@ -2905,24 +2979,30 @@ contains
     if (nadd <= 0 .and. ndel >= sys(sysc%id)%c%ncel) return
 
     call sys(sysc%id)%c%replace_fragment(ndel,idel,nadd,zat,x,copybonding=.true.,&
-       nstar0=nstar0,newbonds=newbonds,newbondx=newbondx)
+       nstar0=nstar0,newbonds=newbonds,newbondx=newbondx,errmsg=errmsg)
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine replace_atoms_fragment
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
-  module subroutine reread_geometry_from_file(sysc)
+  module subroutine reread_geometry_from_file(sysc,errmsg)
     use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
     use param, only: isformat_r_from_library, isformat_r_derived
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
-    character(len=:), allocatable :: file, errmsg
+    character(len=:), allocatable :: file
     logical :: exist
     integer :: isformat, mol, nseed
     type(crystalseed), allocatable :: seed(:)
     logical :: collapse
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2930,7 +3010,8 @@ contains
 
     ! derived systems
     if (sysc%seed%isformat == isformat_r_derived) then
-       call sys(isys)%c%struct_new(sysc%seed,crashfail=.true.)
+       call sys(isys)%c%struct_new(sysc%seed,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) return
        call sysc%post_event(lastchange_geometry)
        call sysc%undo_reset()
        return
@@ -2968,7 +3049,8 @@ contains
     end if
 
     ! reset the geometry from the seed
-    call sys(isys)%c%struct_new(seed(1),crashfail=.true.)
+    call sys(isys)%c%struct_new(seed(1),errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
@@ -2981,24 +3063,27 @@ contains
   ! Change the unit cell of the system to have cell lengths aa (bohr)
   ! and angles bb (degree). If forcewyc, force the system to keep
   ! symemtry.
-  module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding)
+  module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding,errmsg)
     use crystalmod, only: pointgroup_info
     use tools_math, only: m_x2c_from_cellpar, cellpar_from_metric
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: aa(3), bb(3)
     logical, intent(in) :: forcewyc
     logical, intent(in), optional :: copybonding
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
     real*8 :: aa_(3), bb_(3)
     logical :: copybonding_
-    integer :: leqv, i, n
+    integer :: leqv, i, n, ier
     real*8 :: g(3,3), gavg(3,3), da
     real*8, allocatable :: rotm(:,:,:)
 
     real*8, parameter :: tighteps = 1d-7
     real*8, parameter :: epsconv = 1d-7
     integer, parameter :: maxstep = 200
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -3017,7 +3102,11 @@ contains
        do while (da > epsconv)
           n = n + 1
           if (n > maxstep) exit
-          g = m_x2c_from_cellpar(aa_,bb_)
+          g = m_x2c_from_cellpar(aa_,bb_,ier)
+          if (ier /= 0) then
+             errmsg = "invalid cell parameters"
+             return
+          end if
           g = matmul(transpose(g),g)
 
           ! calculate the symmetrizing matrix
@@ -3057,9 +3146,12 @@ contains
     ! move the unit cell
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
-    call sys(isys)%c%move_cell_all(aa_,bb_,copybonding=copybonding_)
+    call sys(isys)%c%move_cell_all(aa_,bb_,copybonding=copybonding_,errmsg=errmsg)
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine move_cell
@@ -3144,6 +3236,9 @@ contains
     if (has_errmsg(errmsg)) return
 
     ! the geometry has changed
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine transform_cell_matrix
@@ -3306,7 +3401,8 @@ contains
     end if
 
     ! apply wholemols
-    call sys(isys)%c%wholemols()
+    call sys(isys)%c%wholemols(errmsg)
+    if (len_trim(errmsg) > 0) return
 
     ! the non-equivalent atom list has changed
     call sysc%post_event(lastchange_geometry)
@@ -3936,6 +4032,9 @@ contains
        copybonding=.true.)
     if (has_errmsg(errmsg)) return
 
+    ! the edit failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine remove_atom_list

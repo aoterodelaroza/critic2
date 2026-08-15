@@ -147,10 +147,13 @@ contains
   end subroutine struct_end
 
   !> Create a new, complete crystal/molecule from a crystal seed. If
-  !> failed and crashfail is true, crash the program. Otherwise,
-  !> return a the error status through c%isinit. If noenv is present
-  !> and true, do not load the atomic grids or the environment.
-  module subroutine struct_new(c,seed,crashfail,noenv,ti)
+  !> failed and crashfail is present and true, crash the program.
+  !> Otherwise, return the error status through c%isinit. If noenv is
+  !> present and true, do not load the atomic grids or the environment.
+  !> If errmsg is present, never crash: return the reason for the
+  !> failure in errmsg (empty string if successful) and let the caller
+  !> decide; crashfail is then irrelevant and should be omitted.
+  module subroutine struct_new(c,seed,crashfail,noenv,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, molsmall, atomeps_structnew, bondfactor, symprec
@@ -161,8 +164,9 @@ contains
     use param, only: pi, eyet, eye, atmcov
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
-    logical, intent(in) :: crashfail
+    logical, intent(in), optional :: crashfail
     logical, intent(in), optional :: noenv
+    character(len=:), allocatable, intent(out), optional :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
@@ -172,7 +176,7 @@ contains
     integer, allocatable :: irotm(:), icenv(:)
     logical, allocatable :: useatom(:)
     character*10, allocatable :: name(:)
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg0
     logical :: haveatoms
     integer, allocatable :: igroup(:) !< coincident-atom grouping (mixed sites)
     integer, allocatable :: gis(:) !< species of the occupants of one mixed-site group
@@ -180,15 +184,17 @@ contains
     real*8, allocatable :: gocc(:) !< occupancy of the occupants of one mixed-site group
     integer :: ng, m, irep, iz1, iz2
     real*8 :: osum, otmp
+    logical :: crashfail_
+
+    if (present(errmsg)) errmsg = ""
+    crashfail_ = .false.
+    if (present(crashfail)) crashfail_ = crashfail
 
     ! check the seed for internal consistency
-    call seed%check(errmsg)
-    if (len_trim(errmsg) > 0) then
-       if (crashfail) then
-          call ferror("struct_new",errmsg,faterr)
-       else
-          return
-       end if
+    call seed%check(errmsg0)
+    if (len_trim(errmsg0) > 0) then
+       call fail(errmsg0)
+       return
     end if
 
     ! initialize the structure
@@ -327,11 +333,8 @@ contains
                       end if
                    end do
                    if (.not.good2) then
-                      if (crashfail) then
-                         call ferror('struct_new','identity operation in rotm with unknown translation vector',faterr)
-                      else
-                         return
-                      end if
+                      call fail('identity operation in rotm with unknown translation vector')
+                      return
                    end if
                    c%rotm(:,:,i) = c%rotm(:,:,1)
                    c%rotm(:,:,1) = eyet
@@ -340,11 +343,8 @@ contains
                 end if
              end do
              if (.not.good) then
-                if (crashfail) then
-                   call ferror('struct_new','identity operation not found',faterr)
-                else
-                   return
-                end if
+                call fail('identity operation not found')
+                return
              end if
           end if
        end if
@@ -473,11 +473,8 @@ contains
              end do jloop
 
              if (newmult /= c%at(i)%mult) then
-                if (crashfail) then
-                   call ferror('struct_new','inconsistent multiplicity for atom ' // string(i),faterr)
-                else
-                   return
-                end if
+                call fail('inconsistent multiplicity for atom ' // string(i))
+                return
              end if
           end do
           c%ncel = iat
@@ -533,11 +530,8 @@ contains
              c%molborder = max(border - max(2d0,0.8d0 * border),0d0) / (xmax - xmin)
           else
              if (any(abs(c%bb - 90d0) > 1d-3)) then
-                if (crashfail) then
-                   call ferror("struct_new","MOLECULE does not allow non-orthogonal cells",faterr)
-                else
-                   return
-                end if
+                call fail("MOLECULE does not allow non-orthogonal cells")
+                return
              end if
              ! a cell has been given, save the origin
              if (seed%havex0) then
@@ -622,22 +616,23 @@ contains
        end if
 
        ! reduce the complete list to the non-equivalent list with the symmetry
-       call c%reduceatoms(name,errmsg,occ=occcel)
-       if (len_trim(errmsg) > 0) then
+       call c%reduceatoms(name,errmsg0,occ=occcel)
+       if (len_trim(errmsg0) > 0) then
           if (seed%havesym > 0) then
              ! B1: the provided operations are inconsistent with the atom list
-             if (crashfail) then
-                call ferror("struct_new","reduceatoms: "//errmsg,faterr)
-             else
-                return
-             end if
+             call fail("reduceatoms: "//errmsg0)
+             return
           else if (usegui) then
              ! B2: the guessed symmetry is inconsistent - fall back to P1
              call c%clearsym()
-             call c%reduceatoms(name,errmsg,occ=occcel)
-             if (len_trim(errmsg) > 0) call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+             call c%reduceatoms(name,errmsg0,occ=occcel)
+             if (len_trim(errmsg0) > 0) then
+                call fail("reduceatoms: "//errmsg0,always=.true.)
+                return
+             end if
           else
-             call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+             call fail("reduceatoms: "//errmsg0,always=.true.)
+             return
           end if
        end if
 
@@ -654,8 +649,11 @@ contains
           end do
           if (.not.good) then
              call c%clearsym()
-             call c%reduceatoms(name,errmsg,occ=occcel)
-             if (len_trim(errmsg) > 0) call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+             call c%reduceatoms(name,errmsg0,occ=occcel)
+             if (len_trim(errmsg0) > 0) then
+                call fail("reduceatoms: "//errmsg0,always=.true.)
+                return
+             end if
           end if
        end if
 
@@ -679,11 +677,11 @@ contains
     ! overlay the spglib space-group labels, common to both paths (P1 just
     ! resets the Wyckoffs). In path A havesym is always > 0.
     if (c%havesym > 0) then
-       call c%spglib_wrap(c%spg,.false.,errmsg,ti=ti)
-       if (len_trim(errmsg) > 0) then
+       call c%spglib_wrap(c%spg,.false.,errmsg0,ti=ti)
+       if (len_trim(errmsg0) > 0) then
           ! spglib could not analyze the cell -> keep the structure
           ! but without the spglib space-group dataset
-          call ferror("struct_new","spglib could not assign the space group: "//trim(errmsg),warning)
+          call ferror("struct_new","spglib could not assign the space group: "//trim(errmsg0),warning)
           c%spgavail = .false.
           call c%spgtowyc()
        else
@@ -697,8 +695,8 @@ contains
     !! molecular symmetry !!
     if (seed%ismolecule.and.haveatoms) then
        if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= molsmall) then
-          call c%calcmolsym(c%pg,errmsg)
-          if (len(errmsg) > 0) call c%pg%clear()
+          call c%calcmolsym(c%pg,errmsg0)
+          if (len(errmsg0) > 0) call c%pg%clear()
        elseif (seed%findsym == -1) then
           call c%pg%init_as_c1()
        end if
@@ -743,6 +741,28 @@ contains
 
     ! the initialization is done - this crystal is ready to use
     c%isinit = .true.
+
+  contains
+    !> The structure could not be built. If the caller asked for a message,
+    !> hand it back and let it recover (the crystal is left uninitialized);
+    !> otherwise keep the historical behavior: crash if crashfail, or if
+    !> always is set (the reduceatoms paths crashed irrespective of it).
+    subroutine fail(msg,always)
+      character*(*), intent(in) :: msg
+      logical, intent(in), optional :: always
+
+      logical :: always_
+
+      always_ = .false.
+      if (present(always)) always_ = always
+
+      if (present(errmsg)) then
+         errmsg = msg
+      elseif (crashfail_ .or. always_) then
+         call ferror("struct_new",msg,faterr)
+      end if
+
+    end subroutine fail
 
   end subroutine struct_new
 

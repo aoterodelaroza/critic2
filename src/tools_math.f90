@@ -132,8 +132,9 @@ module tools_math
        real*8, intent(in) :: x(:), x0, gamma
        real*8 :: lor(size(x,1))
      end function lorentzian
-     module function m_x2c_from_cellpar(aal,bbl) result(mat)
+     module function m_x2c_from_cellpar(aal,bbl,ier) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
+       integer, intent(out), optional :: ier
        real*8 :: mat(3,3)
      end function m_x2c_from_cellpar
      pure module function m_c2x_from_cellpar(aal,bbl) result(mat)
@@ -337,12 +338,13 @@ module tools_math
        real*8, intent(inout) :: x0(3), x1(3), x2(3)
        real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
      end subroutine plane_scale_extend
-     module subroutine plane_from_points(x,n,xcen,xnor,dev)
+     module subroutine plane_from_points(x,n,xcen,xnor,dev,ier)
        integer, intent(in) :: n
        real*8, intent(in) :: x(3,n)
        real*8, intent(out) :: xcen(3)
        real*8, intent(out) :: xnor(3)
        real*8, intent(out), optional :: dev
+       integer, intent(out), optional :: ier
      end subroutine plane_from_points
      pure module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
        integer, intent(in) :: niso_type

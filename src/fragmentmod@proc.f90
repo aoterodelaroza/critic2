@@ -250,22 +250,24 @@ contains
   !> rotation, which is what makes the frame reproducible. For genuinely
   !> continuous symmetries (single atom, linear molecule) the unconstrained
   !> axes are physically arbitrary and left as returned by the eigensolver.
-  module subroutine fragment_compute_std(fr)
+  module subroutine fragment_compute_std(fr,ier)
     use tools_math, only: eigsym, cross, mat2quat, mat2euler
     use tools_io, only: ferror, faterr
     use param, only: atmass, eye
     class(fragment), intent(inout) :: fr
+    integer, intent(out), optional :: ier
 
     ! relative tolerance for eigenvalue degeneracy/zero (wrt largest moment)
     real*8, parameter :: reltol = 1d-5
     ! relative threshold for "non-vanishing" higher moments
     real*8, parameter :: momtol = 1d-6
 
-    integer :: i, j, k, gs, ge, d, ier
+    integer :: i, j, k, gs, ge, d, ier_
     real*8 :: mass, mtot, pp, tol
     real*8 :: itens(3,3), eval(3), ax(3,3)
     real*8, allocatable :: m(:), pcart(:,:)
 
+    if (present(ier)) ier = 0
     ! defaults: identity frame, no classification
     fr%axes_computed = .true.
     fr%isatom = .false.
@@ -318,9 +320,17 @@ contains
     end do
 
     ! principal moments (ascending) and principal axes (columns)
-    call eigsym(itens,3,eval,ier)
-    if (ier /= 0) &
+    call eigsym(itens,3,eval,ier_)
+    if (ier_ /= 0) then
+       if (present(ier)) then
+          ! leave the identity frame set above, but do not claim it was
+          ! computed, or the caller will keep using the garbage orientation
+          fr%axes_computed = .false.
+          ier = ier_
+          return
+       end if
        call ferror('fragment_compute_std','Error in diagonalization',faterr)
+    end if
     fr%inertia = eval
     ax = itens
 

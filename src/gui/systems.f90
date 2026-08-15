@@ -288,15 +288,17 @@ module systems
        integer, intent(in) :: mode
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine md_start
-     module subroutine md_advance(sysc)
+     module subroutine md_advance(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine md_advance
      module subroutine md_set_mode(sysc,mode)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: mode
      end subroutine md_set_mode
-     module subroutine md_stop(sysc)
+     module subroutine md_stop(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine md_stop
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc
@@ -371,12 +373,13 @@ module systems
        integer, intent(in) :: id
        integer :: attype_species
      end function attype_species
-     module subroutine set_attype_species(sysc,type,id,is,copybonding)
+     module subroutine set_attype_species(sysc,type,id,is,copybonding,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        integer, intent(in) :: is
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine set_attype_species
      module function attype_name(sysc,type,id)
        class(sysconf), intent(inout) :: sysc
@@ -444,11 +447,12 @@ module systems
        integer, intent(in) :: typeout
        integer :: attype_type_id_to_id
      end function attype_type_id_to_id
-     module subroutine attype_add_atom(sysc,type,is,x)
+     module subroutine attype_add_atom(sysc,type,is,x,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: is
        real*8, intent(in) :: x(3)
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine attype_add_atom
      module subroutine attype_reorder(sysc,type,iord)
        class(sysconf), intent(inout) :: sysc
@@ -464,26 +468,29 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: i1, i2
      end subroutine swap_molecules
-     module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding)
+     module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        real*8, intent(in) :: x(3)
        logical, intent(in) :: forcewyc
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine set_atom_position
-     module subroutine set_molecule_position(sysc,type,id,x,copybonding)
+     module subroutine set_molecule_position(sysc,type,id,x,copybonding,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        real*8, intent(in) :: x(3)
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine set_molecule_position
-     module subroutine set_molecule_rotation(sysc,id,euler,copybonding)
+     module subroutine set_molecule_rotation(sysc,id,euler,copybonding,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: id
        real*8, intent(in) :: euler(3)
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine set_molecule_rotation
      module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
        class(sysconf), intent(inout) :: sysc
@@ -513,9 +520,10 @@ module systems
        integer, intent(in) :: lvec(3)
        integer, intent(in) :: order
      end subroutine add_bond
-     module subroutine change_valence(sysc,icel,mode)
+     module subroutine change_valence(sysc,icel,mode,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: icel, mode
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine change_valence
      module subroutine remove_atom_hydrogens(sysc,icel)
        class(sysconf), intent(inout) :: sysc
@@ -531,15 +539,16 @@ module systems
        logical, intent(in) :: removeh
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine create_bond
-     module subroutine add_atoms_fragment(sysc,nat,zat,x,newbonds,newbondx)
+     module subroutine add_atoms_fragment(sysc,nat,zat,x,newbonds,newbondx,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: nat
        integer, intent(in) :: zat(nat)
        real*8, intent(in) :: x(3,nat)
        integer, intent(in), optional :: newbonds(:,:)
        real*8, intent(in), optional :: newbondx(:,:)
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine add_atoms_fragment
-     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0,newbonds,newbondx)
+     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0,newbonds,newbondx,errmsg)
        use types, only: neighstar
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: ndel
@@ -550,15 +559,18 @@ module systems
        type(neighstar), intent(in), optional :: nstar0(nadd)
        integer, intent(in), optional :: newbonds(:,:)
        real*8, intent(in), optional :: newbondx(:,:)
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine replace_atoms_fragment
-     module subroutine reread_geometry_from_file(sysc)
+     module subroutine reread_geometry_from_file(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine reread_geometry_from_file
-     module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding)
+     module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding,errmsg)
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: aa(3), bb(3)
        logical, intent(in) :: forcewyc
        logical, intent(in), optional :: copybonding
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine move_cell
      module subroutine transform_cell(sysc,mode,refine,errmsg,keepcell)
        class(sysconf), intent(inout) :: sysc
@@ -612,11 +624,13 @@ module systems
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: time
      end subroutine undo_capture
-     module subroutine undo(sysc)
+     module subroutine undo(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine undo
-     module subroutine redo(sysc)
+     module subroutine redo(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine redo
      module function can_undo(sysc)
        class(sysconf), intent(in) :: sysc

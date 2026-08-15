@@ -284,7 +284,7 @@ contains
     nst = 0
     inquire(file=libfile,exist=ok)
     if (.not.ok) return
-    lu = fopen_read(libfile)
+    lu = fopen_read(libfile,errstop=.false.)
     if (lu < 0) return
 
     ! preallocate

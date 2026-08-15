@@ -1777,7 +1777,11 @@ contains
     ! grow while hovering; it is plain, being data rather than an
     ! instruction.
     idmsg = hover_identity(w,w%mousepos_idx)
-    if (pickmode .and. allocated(w%vmdata%msg)) then
+    if (len_trim(w%errmsg) > 0) then
+       ! an edit failed (e.g. a drag that could not be applied): the error
+       ! outranks any hint, and stays until the next action clears it
+       call iw_text(w%errmsg,danger=.true.,sameline=.true.)
+    elseif (pickmode .and. allocated(w%vmdata%msg)) then
        call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
     elseif (len_trim(idmsg) > 0) then
        call iw_text(idmsg,sameline=.true.)
@@ -2430,10 +2434,13 @@ contains
          w%forcerender = .true.
       else
          ! rescale the cell volume but keep the current bonds (copybonding)
+         w%errmsg = ""
          call sys(isys)%c%move_cell(0,1d0 + real(mousesens_vol0*delta,8),iunit_bohr,&
-            .false.,.true.,copybonding=.true.)
-         sysc(isys)%sc%nextbuildlists_fixcam = .true.
-         call sysc(isys)%post_event(lastchange_geometry)
+            .false.,.true.,copybonding=.true.,errmsg=w%errmsg)
+         if (len_trim(w%errmsg) == 0) then
+            sysc(isys)%sc%nextbuildlists_fixcam = .true.
+            call sysc(isys)%post_event(lastchange_geometry)
+         end if
          w%forcerender = .true.
       end if
     end subroutine moveobj_scroll
@@ -2459,10 +2466,13 @@ contains
          if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(anchor,dxbohr)
+               w%errmsg = ""
                call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
-                  .false.,.true.,copybonding=.true.)
-               sysc(isys)%sc%nextbuildlists_fixcam = .true.
-               call sysc(isys)%post_event(lastchange_geometry)
+                  .false.,.true.,copybonding=.true.,errmsg=w%errmsg)
+               if (len_trim(w%errmsg) == 0) then
+                  sysc(isys)%sc%nextbuildlists_fixcam = .true.
+                  call sysc(isys)%post_event(lastchange_geometry)
+               end if
                w%forcerender = .true.
                anchor = (/texpos%x,texpos%y,anchor(3)/)
                w%mposlast = mousepos
@@ -2492,15 +2502,18 @@ contains
          if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(w%mpos0_r,dxbohr)
+               w%errmsg = ""
                if (w%moveobj_isdiscrete) then
                   call sys(isys)%c%move_molecule(w%moveobj_imol,dxbohr,iunit_bohr,&
-                     .true.,copybonding=.true.)
+                     .true.,copybonding=.true.,errmsg=w%errmsg)
                else
                   call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
-                     .false.,.true.,copybonding=.true.)
+                     .false.,.true.,copybonding=.true.,errmsg=w%errmsg)
                end if
-               sysc(isys)%sc%nextbuildlists_fixcam = .true.
-               call sysc(isys)%post_event(lastchange_geometry)
+               if (len_trim(w%errmsg) == 0) then
+                  sysc(isys)%sc%nextbuildlists_fixcam = .true.
+                  call sysc(isys)%post_event(lastchange_geometry)
+               end if
                w%forcerender = .true.
                w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
                w%mposlast = mousepos
@@ -2873,8 +2886,10 @@ contains
 
       real(c_float) :: axisw(3)
       real*8 :: rinc(3,3)
-      integer :: imol
+      integer :: imol, ier
       logical :: okax
+
+      w%errmsg = ""
 
       imol = w%moveobj_imol
       if (imol < 1) return
@@ -2886,9 +2901,16 @@ contains
       ! incremental rotation (Rodrigues) about the world-space axis, composed
       ! with the molecule's current standard-frame orientation
       rinc = axisangle2mat(real(axisw,8),real(ang0,8))
-      if (.not.sys(isys)%c%mol(imol)%axes_computed) call sys(isys)%c%mol(imol)%compute_std()
+      if (.not.sys(isys)%c%mol(imol)%axes_computed) then
+         call sys(isys)%c%mol(imol)%compute_std(ier)
+         if (ier /= 0) then
+            w%errmsg = "Could not compute the molecular frame"
+            return
+         end if
+      end if
       rinc = matmul(rinc,euler2mat(sys(isys)%c%mol(imol)%euler_std))
-      call sys(isys)%c%rotate_molecule(imol,rmat=rinc,copybonding=.true.)
+      call sys(isys)%c%rotate_molecule(imol,rmat=rinc,copybonding=.true.,errmsg=w%errmsg)
+      if (len_trim(w%errmsg) > 0) return
       sysc(isys)%sc%nextbuildlists_fixcam = .true.
       call sysc(isys)%post_event(lastchange_geometry)
 

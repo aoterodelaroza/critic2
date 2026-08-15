@@ -493,7 +493,11 @@ contains
 
        ! read the file
        get_keyword_template = ""
-       lu = fopen_read(file)
+       lu = fopen_read(file,errstop=.false.)
+       if (lu < 0) then
+          get_keyword_template = "## Could not read the template file: " // trim(file)
+          return
+       end if
        do while (getline_raw(lu,line,.false.))
           get_keyword_template = get_keyword_template // line // newline
        end do

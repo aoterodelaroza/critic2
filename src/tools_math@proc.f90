@@ -147,15 +147,17 @@ contains
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor. Input angles in degrees.
-  module function m_x2c_from_cellpar(aal,bbl) result(mat)
+  module function m_x2c_from_cellpar(aal,bbl,ier) result(mat)
     use tools_io, only: ferror, faterr
 
     real*8, intent(in) :: aal(3),bbl(3)
+    integer, intent(out), optional :: ier
     real*8 :: mat(3,3)
 
     real*8 :: deg2rad, calphl, cbetal, cgamml, HH1, HH2, HH3
     real*8 :: fac
 
+    if (present(ier)) ier = 0
     deg2rad = atan(1d0) / 45d0
     calphl = cos(bbl(1) * deg2rad)
     cbetal = cos(bbl(2) * deg2rad)
@@ -163,8 +165,15 @@ contains
     HH1 = sqrt(max(1d0-cgamml*cgamml,0d0))
     HH2 = (calphl-cbetal*cgamml) / HH1
     fac = 1d0 - cbetal*cbetal - HH2*HH2
-    if (fac < 0d0) &
+    if (present(ier)) ier = 0
+    if (fac < 0d0) then
+       if (present(ier)) then
+          ier = 1
+          mat = 0d0
+          return
+       end if
        call ferror("m_x2c_from_cellpar","invalid cell",faterr)
+    end if
     HH3 = sqrt(max(1d0 - cbetal*cbetal - HH2*HH2,0d0))
 
     mat = 0d0
@@ -1357,17 +1366,19 @@ contains
   !> plane is defined (n < 3, or all points coincident) xnor is returned as
   !> zero; for collinear points the normal is an arbitrary unit vector
   !> perpendicular to the line.
-  module subroutine plane_from_points(x,n,xcen,xnor,dev)
+  module subroutine plane_from_points(x,n,xcen,xnor,dev,ier)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n
     real*8, intent(in) :: x(3,n)
     real*8, intent(out) :: xcen(3)
     real*8, intent(out) :: xnor(3)
     real*8, intent(out), optional :: dev
+    integer, intent(out), optional :: ier
 
-    integer :: k, ier
+    integer :: k, ier_
     real*8 :: cov(3,3), eval(3), d(3), dd
 
+    if (present(ier)) ier = 0
     xcen = 0d0
     xnor = 0d0
     if (present(dev)) dev = 0d0
@@ -1398,9 +1409,14 @@ contains
 
     ! the normal is the eigenvector with the smallest eigenvalue (eigsym
     ! returns ascending eigenvalues, eigenvectors in the columns)
-    call eigsym(cov,3,eval,ier)
-    if (ier /= 0) &
+    call eigsym(cov,3,eval,ier_)
+    if (ier_ /= 0) then
+       if (present(ier)) then
+          ier = ier_
+          return
+       end if
        call ferror('plane_from_points','Error in diagonalization',faterr)
+    end if
     xnor = cov(:,1)
     dd = norm2(xnor)
     if (dd < 1d-10) then

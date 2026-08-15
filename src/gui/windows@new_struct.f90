@@ -202,6 +202,10 @@ contains
        call igUnindent(0._c_float)
     end if
 
+    ! any error from the last OK (e.g. a scratch file that could not be opened)
+    if (len_trim(w%errmsg) > 0) &
+       call iw_text(w%errmsg,danger=.true.)
+
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(8,2)
 
@@ -210,7 +214,12 @@ contains
     ok = ok .or. iw_button("OK")
     if (ok) then
        ! build the input
-       lu = fopen_scratch("formatted")
+       w%errmsg = ""
+       lu = fopen_scratch("formatted",errstop=.false.)
+       if (lu < 0) then
+          w%errmsg = "Could not open a scratch file to build the structure"
+          return
+       end if
 
        ! symmetry and cell
        if (.not.ismolecule) then

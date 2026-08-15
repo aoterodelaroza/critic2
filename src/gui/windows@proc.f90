@@ -557,9 +557,11 @@ contains
   module subroutine window_end(w)
     use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry, remove_system
     use interfaces_opengl3
+    use tools_io, only: ferror, warning
     class(window), intent(inout), target :: w
 
     integer :: isysd
+    character(len=:), allocatable :: errmsg
 
     ! window-specific destruction
     if (w%isinit) then
@@ -587,7 +589,12 @@ contains
           isysd = w%isys
           if (ok_system(isysd,sys_init)) then
              if (sysc(isysd)%md%ready) then
-                call sys(isysd)%c%rebuild_after_move()
+                ! the window is going away, so its errmsg cannot be shown:
+                ! report a failed rebuild in the output console instead
+                call sys(isysd)%c%rebuild_after_move(errmsg=errmsg)
+                if (len_trim(errmsg) > 0) &
+                   call ferror('window_end','could not rebuild the structure after the '//&
+                   'dynamics run: '//trim(errmsg),warning)
                 call sysc(isysd)%post_event(lastchange_geometry)
              end if
              sysc(isysd)%md_run = .false.
