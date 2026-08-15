@@ -46,7 +46,8 @@ contains
   module subroutine shaders_init()
     use interfaces_opengl3
     use global, only: critic_home
-    use tools_io, only: fopen_read, fclose, getline_raw, ferror, faterr
+    use gui_main, only: gui_fatal_startup
+    use tools_io, only: fopen_read, fclose, getline_raw
     use param, only: dirsep, newline
 
     integer :: i, j, lu
@@ -68,7 +69,7 @@ contains
           file = trim(critic_home) // dirsep // "shaders" // dirsep // trim(shader_file(i)) // "." // prefix(j)
           inquire(file=file,exist=exist)
           if (.not.exist) &
-             call ferror('shaders_init','could not fine shader file: ' // file,faterr)
+             call gui_fatal_startup('shaders_init','could not find shader file: ' // file)
           sprog = ""
           lu = fopen_read(file)
           do while (getline_raw(lu,line))
@@ -84,8 +85,8 @@ contains
           call glGetShaderiv(shad(j), GL_COMPILE_STATUS, success)
           if (success == GL_FALSE) then
              call glGetShaderInfoLog(shad(j), 1023, length, c_loc(infolog))
-             call ferror('shaders_init','error compiling shader '//trim(shader_file(i))//'.'//&
-                prefix(j)//': '//trim(infolog(1:max(length,0))),faterr)
+             call gui_fatal_startup('shaders_init','error compiling shader '//trim(shader_file(i))//'.'//&
+                prefix(j)//': '//trim(infolog(1:max(length,0))))
           end if
        end do
 
@@ -97,8 +98,8 @@ contains
        call glGetProgramiv(ishad_prog(i), GL_LINK_STATUS, success)
        if (success == GL_FALSE) then
           call glGetProgramInfoLog(ishad_prog(i), 1023, length, c_loc(infolog))
-          call ferror('shaders_init','error linking shader '//trim(shader_file(i))//': '//&
-             trim(infolog(1:max(length,0))),faterr)
+          call gui_fatal_startup('shaders_init','error linking shader '//trim(shader_file(i))//': '//&
+             trim(infolog(1:max(length,0))))
        end if
 
        ! detach and delete the shaders

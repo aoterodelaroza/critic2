@@ -270,7 +270,7 @@ contains
        maxcomout, ncom, ncomid, nicom
     use utils, only: get_time_string
     use systems, only: are_threads_running
-    use tools_io, only: uout, getline_raw, string, ferror, faterr
+    use tools_io, only: uout, getline_raw, string, ferror, warning
     use types, only: realloc
     use param, only: newline
     logical, intent(in) :: iscom
@@ -282,7 +282,7 @@ contains
     character(len=:), allocatable :: line, commonstr, showinp
     integer(c_size_t) :: pos, lshift, ll, olob, total, newsize
     integer :: idx, ithis, i
-    logical :: ok
+    logical :: ok, iscom_ok
 
     ! allocate the output buffer if not allocated
     read_output_uout = .false.
@@ -351,11 +351,20 @@ contains
        outputb(lob+1:lob+1) = c_null_char
        rewind(uout)
 
-       if (iscom) then
+       ! A single command whose output does not fit in the command buffer
+       ! cannot be recorded in the command stack. Skip the bookkeeping
+       ! instead of killing the GUI.
+       newsize = lob - olob + 1
+       if (iscom .and. newsize > maxcomout) then
+          call ferror('read_output_uout',&
+             'output of this command is too large to be stored in the command list',warning)
+          iscom_ok = .false.
+       else
+          iscom_ok = iscom
+       end if
+
+       if (iscom_ok) then
           ! try to remove commands if we exceed the size
-          newsize = lob - olob + 1
-          if (newsize > maxcomout) &
-             call ferror('read_output_ci','exceeded output buffer for command',faterr)
           total = newsize
           do i = 1, nicom
              total = total + com(icom(i))%size

@@ -1056,7 +1056,7 @@ contains
   module subroutine create_texture_view(w,atex)
     use interfaces_opengl3
     use gui_main, only: ColorClearTransparent
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, string
     class(window), intent(inout), target :: w
     integer, intent(in) :: atex
 
@@ -1092,14 +1092,16 @@ contains
     call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOtex, 0)
     call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepth)
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
-       call ferror('window_init','framebuffer (draw) is not complete',faterr)
+       call ferror('create_texture_view','framebuffer (draw) is not complete at side ' // &
+       string(atex),faterr)
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
     call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, w%FBOrgba, 0)
     call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, w%FBOdepthp)
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
-       call ferror('window_init','framebuffer (pick) is not complete',faterr)
+       call ferror('create_texture_view','framebuffer (pick) is not complete at side ' // &
+       string(atex),faterr)
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     ! write the texture side

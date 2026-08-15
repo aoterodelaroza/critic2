@@ -370,6 +370,9 @@ contains
        end if
     end if
 
+    ! allocate the stack if this is the first window
+    if (.not.allocated(win)) allocate(win(maxwin))
+
     ! find the first unused window or create a new one
     id = 0
     do i = 1, nwin
@@ -383,9 +386,10 @@ contains
        id = nwin
     end if
 
-    ! reallocate if necessary
-    if (.not.allocated(win)) allocate(win(maxwin))
-
+    ! The stack is grown by stack_realloc_maybe once per frame; it cannot be
+    ! grown here because that would move all the window pointers (see the
+    ! comment in stack_realloc_maybe). Overflowing it means more windows were
+    ! created in a single frame than the slack allows: a bug, not a user error.
     if (nwin > size(win,1)) &
        call ferror('stack_create_window','too many windows',faterr)
 
@@ -476,7 +480,7 @@ contains
     if (present(purpose)) w%purpose = purpose
     w%geometry_expression = ""
 
-    ! type-specific initialization
+    ! Type-specific initialization
     if (type == wintype_dialog) then
        ! dialog
        w%dptr = IGFD_Create()
@@ -869,7 +873,7 @@ contains
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
-             call ferror('window_draw','unknown dialog purpose',faterr)
+             call ferror('window_draw','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
        elseif (w%type == wintype_new_struct) then
           call init_window("New Structure",90,40)

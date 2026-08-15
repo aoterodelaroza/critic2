@@ -1294,7 +1294,7 @@ contains
     use systems, only: sys, sysc, sys_init, sys_empty
     use tools, only: mergesort
     use tools_math, only: invert_permutation
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, string
     use types, only: vstring
     class(window), intent(inout) :: w
 
@@ -1410,7 +1410,7 @@ contains
        call mergesort(sval,iperm,1,n)
        deallocate(sval)
     else
-       call ferror('sort_tree','column sorting not implemented',faterr)
+       call ferror('sort_tree','column sorting not implemented for column ' // string(w%sortcid),faterr)
     end if
     valid = valid(iperm)
 

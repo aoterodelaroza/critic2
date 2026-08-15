@@ -31,7 +31,7 @@ contains
     use systems, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names, sys_init, sys, ok_system
     use c_interface_module, only: C_F_string_alloc, c_free
-    use tools_io, only: ferror, faterr, fopen_write, fclose, uout
+    use tools_io, only: ferror, faterr, string, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
     class(window), intent(inout), target :: w
 
@@ -159,8 +159,8 @@ contains
                    idx = index(str,c_null_char)
                    if (idx == 0) exit
                    call sys(w%isys)%c%vib%read_file(sys(w%isys)%c,str(1:idx-1),"",w%dialog_data%isformat,errmsg)
-                   if (len_trim(w%errmsg) > 0) &
-                      write (uout,'(A)') errmsg
+                   if (len_trim(errmsg) > 0) &
+                      write (uout,'(A)') "WARNING : " // trim(errmsg)
                    str = str(idx+1:)
                 end do
              end if
@@ -179,7 +179,7 @@ contains
              call c_free(cstr)
              win(w%idparent)%okfilter = trim(name)
           else
-             call ferror('draw_dialog','unknown dialog purpose',faterr)
+             call ferror('draw_dialog','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
        end if
 

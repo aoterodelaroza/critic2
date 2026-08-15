@@ -85,7 +85,7 @@ contains
   ! Associate a bind with a key/mod combination
   module subroutine set_bind(bind, key, mod)
     use interfaces_cimgui, only: ImGuiKey_None
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, string
     integer, intent(in) :: bind
     integer(c_int), intent(in) :: key, mod
 
@@ -94,7 +94,7 @@ contains
     character(len=:), allocatable :: hk
 
     if (bind < 1 .or. bind > BIND_NUM) &
-       call ferror('set_bind','BIND number out of range',faterr)
+       call ferror('set_bind','BIND number out of range: ' // string(bind),faterr)
 
     group = groupbind(bind)
 

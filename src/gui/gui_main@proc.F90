@@ -82,7 +82,7 @@ contains
        stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init
     use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
-    use tools_io, only: ferror, faterr, string, falloc, fdealloc
+    use tools_io, only: string, falloc, fdealloc
     use param, only: dirsep
     integer(c_int) :: idum, display_w, display_h, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
@@ -149,7 +149,7 @@ contains
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
     if (glfwInit() == 0) &
-       call ferror('gui_start','Failed to initialize GLFW',faterr)
+       call gui_fatal_startup('gui_start','Failed to initialize GLFW')
     glfw_lenient = .true.
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
@@ -182,7 +182,7 @@ contains
     strc = gui_title
     rootwin = glfwCreateWindow(iwinw, iwinh, c_loc(strc), c_null_ptr, c_null_ptr)
     if (.not.c_associated(rootwin)) &
-       call ferror('gui_start','Failed to create the GUI window.'//gl_fail_hint,faterr)
+       call gui_fatal_startup('gui_start','Failed to create the GUI window.'//gl_fail_hint)
     ! center the window in the work area
     if (monw > 0 .and. monh > 0) &
        call glfwSetWindowPos(rootwin, monx + (monw-iwinw)/2, mony + (monh-iwinh)/2)
@@ -209,7 +209,7 @@ contains
     file = trim(critic_home) // dirsep // "assets" // dirsep // "critic2_icon.png" // c_null_char
     icon%pixels = stbi_load(c_loc(file), icon%width, icon%height, idum, 4)
     if (.not.c_associated(icon%pixels)) &
-       call ferror('gui_start','Could not find GUI assets: have you set CRITIC_HOME?',faterr)
+       call gui_fatal_startup('gui_start','Could not find GUI assets: have you set CRITIC_HOME?')
     glfw_lenient = .true.
     call glfwSetWindowIcon(rootwin, 1, c_loc(icon))
     glfw_lenient = .false.
@@ -218,18 +218,18 @@ contains
     ! set up ImGui context
     ptrc = igCreateContext(c_null_ptr)
     if (.not.c_associated(ptrc)) &
-       call ferror('gui_start','Failed to create ImGui context',faterr)
+       call gui_fatal_startup('gui_start','Failed to create ImGui context')
     ptrc = ipCreateContext()
     if (.not.c_associated(ptrc)) &
-       call ferror('gui_start','Failed to create ImPlot context',faterr)
+       call gui_fatal_startup('gui_start','Failed to create ImPlot context')
 
     ! initialize gl3w
     idum = gl3wInit()
     if (idum /= 0) &
-       call ferror('gui_start','Failed to initialize OpenGL (gl3w).'//gl_fail_hint,faterr)
+       call gui_fatal_startup('gui_start','Failed to initialize OpenGL (gl3w).'//gl_fail_hint)
     if (gl3wIsSupported(opengl_version_major,opengl_version_minor) == 0) &
-       call ferror('gui_start','OpenGL version ' // &
-       string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported.'//gl_fail_hint,faterr)
+       call gui_fatal_startup('gui_start','OpenGL version ' // &
+       string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported.'//gl_fail_hint)
 
     ! set glfw options
     glfw_lenient = .true.
@@ -245,11 +245,11 @@ contains
     ! set up backend and renderer
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
     if (.not.ldum)&
-       call ferror('gui_start','Failed to initialize ImGui (GLFW for OpenGL)',faterr)
+       call gui_fatal_startup('gui_start','Failed to initialize ImGui (GLFW for OpenGL)')
     strc = shader_version
     ldum = ImGui_ImplOpenGL3_Init(c_loc(strc))
     if (.not.ldum)&
-       call ferror('gui_start','Failed to initialize ImGui (OpenGL)',faterr)
+       call gui_fatal_startup('gui_start','Failed to initialize ImGui (OpenGL)')
 
     ! get the ImGUI IO interface and enable docking
     ptrc = igGetIO()
@@ -521,6 +521,23 @@ contains
     end subroutine drop_callback
   end subroutine gui_start
 
+  !> Report a fatal error during GUI start-up and terminate.
+  module subroutine gui_fatal_startup(routine,message)
+    use interfaces_glfw, only: glfwDestroyWindow, glfwTerminate
+    use tools_io, only: ferror, faterr
+    character*(*), intent(in) :: routine
+    character*(*), intent(in) :: message
+
+    ! do not let the GLFW error callback report anything on the way out
+    glfw_lenient = .true.
+    if (c_associated(rootwin)) call glfwDestroyWindow(rootwin)
+    rootwin = c_null_ptr
+    call glfwTerminate()
+
+    call ferror(routine,message,faterr)
+
+  end subroutine gui_fatal_startup
+
   !> Reset all user interface settings to their default values
   module subroutine set_default_ui_settings()
     use keybindings, only: set_default_keybindings
@@ -769,7 +786,7 @@ contains
        BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
-    use tools_io, only: string
+    use tools_io, only: string, ferror, warning
     use param, only: isformat_write_from_read, isformat_w_unknown
 
     ! the critic2 manual, opened by the help menu and its keybinding
@@ -834,6 +851,7 @@ contains
           call sysc(isysv)%copy_highlighted()
        if (is_bind_event(BIND_CUT_SELECTION,norepeat=.true.)) then
           call sysc(isysv)%cut_highlighted(errmsg)
+          call report_errmsg("cut selection")
           sysc(isysv)%sc%nextbuildlists_fixcam = .true.
        end if
     end if
@@ -965,6 +983,7 @@ contains
           ! Edit -> Cut selection
           if (iw_menuitem("Cut",BIND_CUT_SELECTION,enabled=isysvok)) then
              call sysc(isysv)%cut_highlighted(errmsg)
+             call report_errmsg("cut selection")
              sysc(isysv)%sc%nextbuildlists_fixcam = .true.
           end if
           call iw_tooltip("Copy the selected atoms to the clipboard and remove them from the system",ttshown)
@@ -999,6 +1018,7 @@ contains
           ! Edit -> Remove selection
           if (iw_menuitem("Remove Selection",BIND_EDITSELECT_REMOVE,enabled=isysvok)) then
              call sysc(isysv)%edit_highlighted_atoms(remove=.true.,errmsg=errmsg)
+             call report_errmsg("remove selection")
              sysc(isysv)%sc%nextbuildlists_fixcam = .true.
           end if
           call iw_tooltip("Remove the selected atoms from the system",ttshown)
@@ -1167,6 +1187,20 @@ contains
           call kill_initialization_thread()
        call glfwSetWindowShouldClose(rootwin, GLFW_TRUE)
     end if
+
+  contains
+    !> Report a failed menu or keybinding action in the output console and
+    !> clear the message. These actions have no window of their own to show
+    !> an error in, so the console is their sink.
+    subroutine report_errmsg(what)
+      character*(*), intent(in) :: what
+
+      if (.not.allocated(errmsg)) return
+      if (len_trim(errmsg) > 0) &
+         call ferror('show_main_menu',trim(what) // ": " // trim(errmsg),warning)
+      errmsg = ""
+
+    end subroutine report_errmsg
 
   end subroutine show_main_menu
 

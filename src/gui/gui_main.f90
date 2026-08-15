@@ -47,7 +47,7 @@ module gui_main
   type(ImFontAtlas), pointer, public :: fonts ! pointer to IO%Fonts
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
   type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
-  type(c_ptr), public :: rootwin ! the root window pointer (GLFWwindow*)
+  type(c_ptr), public :: rootwin = c_null_ptr ! the root window pointer (GLFWwindow*)
   type(ImVec2), public :: fontsize ! font size (sensitive to scaling)
   real(c_float), parameter, public :: fontbakesize = 16._c_float ! normal bake size (for GUI)
   real(c_float), parameter, public :: fontbakesize_large = 128._c_float ! large bake size (for rendering)
@@ -143,6 +143,7 @@ module gui_main
 
   ! public procedures
   public :: gui_start
+  public :: gui_fatal_startup
   public :: set_default_ui_settings
   public :: set_default_interface_settings
   public :: set_default_color_settings
@@ -151,6 +152,10 @@ module gui_main
   interface
      module subroutine gui_start()
      end subroutine gui_start
+     module subroutine gui_fatal_startup(routine,message)
+       character*(*), intent(in) :: routine
+       character*(*), intent(in) :: message
+     end subroutine gui_fatal_startup
      module subroutine set_default_ui_settings()
      end subroutine set_default_ui_settings
      module subroutine set_default_interface_settings()

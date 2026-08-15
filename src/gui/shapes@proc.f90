@@ -815,7 +815,7 @@ contains
   !> the mesh's triangle count nelem.
   module subroutine glbuffers_draw_mesh(b,role,nelem,n,buf)
     use interfaces_opengl3
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, string
     class(scene_glbuffers), intent(inout) :: b
     integer, intent(in) :: role, nelem, n
     real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
@@ -836,7 +836,7 @@ contains
        call upload_instances(b%coneinstVBOscr,b%conescr_cap,mesh_inst_nf,n,c_loc(buf))
        vao = b%coneinstVAOscr
     case default
-       call ferror('glbuffers_draw_mesh','unknown mesh role',faterr)
+       call ferror('glbuffers_draw_mesh','unknown mesh role: ' // string(role),faterr)
     end select
     call glBindVertexArray(vao)
     call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
@@ -890,7 +890,7 @@ contains
   !> role (glb_cone/plane/tri), with nelem triangles per instance (no upload).
   module subroutine glbuffers_redraw_mesh(b,role,nelem,n)
     use interfaces_opengl3
-    use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr, string
     class(scene_glbuffers), intent(inout) :: b
     integer, intent(in) :: role, nelem, n
     integer(c_int) :: vao
@@ -904,7 +904,7 @@ contains
     case (glb_tri)
        vao = b%triinstVAO
     case default
-       call ferror('glbuffers_redraw_mesh','unknown mesh role',faterr)
+       call ferror('glbuffers_redraw_mesh','unknown mesh role: ' // string(role),faterr)
     end select
     call glBindVertexArray(vao)
     call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))

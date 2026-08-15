@@ -186,7 +186,7 @@ contains
     use systems, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
        sysc, sys_init, nsys, sys, lastchange_geometry, lastchange_buildlists
     use global, only: critic_main
-    use tools_io, only: falloc, uin, fclose, ferror, faterr
+    use tools_io, only: falloc, fdealloc, uin, fclose, ferror, warning
     use iso_fortran_env, only: input_unit
     class(window), intent(inout), target :: w
 
@@ -217,8 +217,16 @@ contains
     ! connect a scratch file to uin, write the commands, rewind, and run
     uin = falloc()
     open(unit=uin,status='scratch',form='formatted',access='stream',iostat=ios)
-    if (ios /= 0) &
-       call ferror("run_commands","cannot open buffer for critic2 input",faterr)
+    if (ios /= 0) then
+       ! do not run anything: report in the output console, restore the
+       ! input unit, and put the initialization threads back
+       call fdealloc(uin)
+       uin = input_unit
+       call ferror("run_commands_ci","cannot open buffer for critic2 input, commands not run",warning)
+       ldum = read_output_uout(.true.)
+       if (reinit) call launch_initialization_thread()
+       return
+    end if
     write (uin,'(A)') inputb(1:idx-1)
     rewind(uin)
     call critic_main()
