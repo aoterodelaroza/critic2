@@ -2001,7 +2001,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
        iw_atom_button, iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
        iw_helpermark, iw_table_column, iw_begintabitem
-    use keybindings, only: get_bind_keyname, BIND_NAV_MEASURE, BIND_NAV_MEASURE_ADD
+    use keybindings, only: get_bind_keyname, BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE
     use systems, only: sys, sysc, atlisttype_ncel_frac
     use tools_io, only: string
     use param, only: pi, bohrtoa
@@ -2056,8 +2056,8 @@ contains
     call iw_helpermark("Measurements are made in the view window. Select the atoms with "//&
        trim(get_bind_keyname(BIND_NAV_MEASURE))//": two for a distance, three for an angle "//&
        "(the second atom is the vertex), four for a dihedral. Then "//&
-       trim(get_bind_keyname(BIND_NAV_MEASURE_ADD))//" on the last atom, or on empty space, "//&
-       "adds the measurement to this table.")
+       trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE))//" on the last atom, or on empty space, "//&
+       "adds the measurement to this table; the same click again removes it.")
     ! one tab per category: a selectable table, then the options for the
     ! selected row underneath
     str1 = "##editrepmeasuretabbar" // c_null_char

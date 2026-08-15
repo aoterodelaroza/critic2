@@ -2048,7 +2048,7 @@ contains
   !> the kind: 1 -> distance, 2 -> angle (vertex = 2nd selected), 3 ->
   !> dihedral. The measurement is appended to the scene's measurement
   !> representation (one is created if none exists).
-  module subroutine scene_add_measurement(s,idx)
+  module subroutine scene_toggle_measurement(s,idx)
     class(scene), intent(inout), target :: s
     integer, intent(in) :: idx(5)
 
@@ -2058,15 +2058,15 @@ contains
     ! build the ordered atom list (selected anchors + clicked atom);
     ! bail out if there is no valid measurement to make
     if (.not.measure_build_idx(s,idx,aidx,n)) return
-    call measure_append(s,aidx,n)
+    call measure_toggle(s,aidx,n)
 
-  end subroutine scene_add_measurement
+  end subroutine scene_toggle_measurement
 
   !> Create the measurement made of the selected atoms alone: 2 of them
   !> -> distance, 3 -> angle (vertex = 2nd selected), 4 -> dihedral. For
   !> the add binding on empty space, where there is no clicked atom to
   !> complete the selection. Does nothing with fewer than 2 selected.
-  module subroutine scene_add_measurement_sel(s)
+  module subroutine scene_toggle_measurement_sel(s)
     class(scene), intent(inout), target :: s
 
     integer :: n, k
@@ -2077,65 +2077,10 @@ contains
     do k = 1, n
        aidx(:,k) = s%msel(1:4,k)
     end do
-    call measure_append(s,aidx,n)
+    call measure_toggle(s,aidx,n)
 
-  end subroutine scene_add_measurement_sel
+  end subroutine scene_toggle_measurement_sel
 
-  !> Delete measurements involving the clicked atom idx. With anchor
-  !> atoms selected, remove only the exact measurement made of the
-  !> selection plus the clicked atom (the inverse of
-  !> scene_add_measurement); with no selection (plain navigation),
-  !> remove every measurement that involves the clicked atom.
-  module subroutine scene_delete_measurement(s,idx)
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: idx(5)
-
-    integer :: n, irep, ni, j
-    integer :: aidx(4,4)
-    logical :: usesel, hit
-
-    if (idx(1) == 0) return
-
-    ! nothing to do if there is no measurement representation
-    irep = measure_rep_id(s,.false.)
-    if (irep == 0) return
-
-    ! with anchors selected, remove only the exact measurement (selection +
-    ! clicked atom); a click that does not complete a valid measurement (repeats
-    ! an anchor, or too many selected) removes nothing. With no selection (plain
-    ! navigation), remove every measurement that involves the clicked atom.
-    if (s%nmsel == 0) then
-       usesel = .false.
-    else
-       if (.not.measure_build_idx(s,idx,aidx,n)) return
-       usesel = .true.
-    end if
-
-    ! iterate top-down so removing an item never shifts a not-yet-visited one
-    do ni = s%rep(irep)%measure%nitem, 1, -1
-       if (usesel) then
-          hit = measure_match(s%rep(irep)%measure%item(ni),aidx,n)
-       else
-          hit = measure_has_atom(s%rep(irep)%measure%item(ni),idx(1:4))
-       end if
-       if (.not.hit) cycle
-       ! remove item ni (only items above ni, already visited, shift down)
-       do j = ni, s%rep(irep)%measure%nitem-1
-          s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
-       end do
-       s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
-       ! keep the editor selection on the same item (mirrors the table
-       ! delete): drop it if it was the deleted one, shift down if it was after
-       if (s%rep(irep)%measure%isel == ni) then
-          s%rep(irep)%measure%isel = 0
-       elseif (s%rep(irep)%measure%isel > ni) then
-          s%rep(irep)%measure%isel = s%rep(irep)%measure%isel - 1
-       end if
-       s%forcebuildlists = .true.
-       if (usesel) return ! exact match: at most one item
-    end do
-
-  end subroutine scene_delete_measurement
 
   !> Add a new representation to the scene with type itype and the
   !> given flavor.  If id is present, it returns the new
@@ -2825,10 +2770,11 @@ contains
 
   end function measure_build_idx
 
-  !> Append the measurement made of the ordered atom list aidx(:,1:n)
-  !> to the scene's measurement representation (creating one if there
-  !> is none), unless that exact measurement is already there.
-  subroutine measure_append(s,aidx,n)
+  !> Toggle the measurement made of the ordered atom list aidx(:,1:n) in the
+  !> scene's measurement representation: remove it if that exact measurement is
+  !> already there, otherwise append it (creating the representation if there is
+  !> none). This is what makes a second click on the same atoms undo the first.
+  subroutine measure_toggle(s,aidx,n)
     use representations, only: measurement_item
     type(scene), intent(inout), target :: s
     integer, intent(in) :: aidx(4,4)
@@ -2841,9 +2787,12 @@ contains
     irep = measure_rep_id(s,.true.)
     if (irep == 0) return
 
-    ! skip if this exact measurement already exists
+    ! this exact measurement is already there: remove it instead
     do ni = 1, s%rep(irep)%measure%nitem
-       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) return
+       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) then
+          call measure_remove_item(s,irep,ni)
+          return
+       end if
     end do
 
     ! append the item
@@ -2867,7 +2816,29 @@ contains
     s%rep(irep)%measure%isel = ni ! select the new item in the editor
     s%forcebuildlists = .true.
 
-  end subroutine measure_append
+  end subroutine measure_toggle
+
+  !> Remove item ni from the measurement representation irep, keeping the
+  !> editor selection on the same item (drop it if it was the removed one,
+  !> shift it down if it was after).
+  subroutine measure_remove_item(s,irep,ni)
+    type(scene), intent(inout), target :: s
+    integer, intent(in) :: irep, ni
+
+    integer :: j
+
+    do j = ni, s%rep(irep)%measure%nitem-1
+       s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
+    end do
+    s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
+    if (s%rep(irep)%measure%isel == ni) then
+       s%rep(irep)%measure%isel = 0
+    elseif (s%rep(irep)%measure%isel > ni) then
+       s%rep(irep)%measure%isel = s%rep(irep)%measure%isel - 1
+    end if
+    s%forcebuildlists = .true.
+
+  end subroutine measure_remove_item
 
   !> Return the id of the scene's measurement representation. If
   !> create is true and none exists, add one and return its

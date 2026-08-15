@@ -108,18 +108,17 @@ module keybindings
   integer, parameter, public :: BIND_MOVEATOM_CHANGECELL = 56 ! move atoms: change cell volume (crystals) / zoom
   integer, parameter, public :: BIND_SELECT_ZOOM = 57 ! select: zoom the camera
   integer, parameter, public :: BIND_MDINTERACT_ZOOM = 58 ! interactive dynamics: zoom the camera
-  integer, parameter, public :: BIND_NAV_MEASURE_ADD = 59 ! navigation: add the measurement for the selected atoms
-  integer, parameter, public :: BIND_NAV_MEASURE_REMOVE = 60 ! navigation: remove the measurement for the selected atoms
-  integer, parameter, public :: BIND_PICKATOM_ALT = 61 ! atom pick: alternate action on the atom under the cursor (builder: remove H)
-  integer, parameter, public :: BIND_EDIT_D_A_PHI = 62 ! view: open the builder and toggle edit distance/angle/dihedral for the measure-selected atoms
-  integer, parameter, public :: BIND_MOVEMOL_EXIT = 63 ! move molecules: exit the mode (on empty space)
-  integer, parameter, public :: BIND_MOVEATOM_EXIT = 64 ! move atoms: exit the mode (on empty space)
-  integer, parameter, public :: BIND_PICKATOM_EXIT = 65 ! persistent builder picks: exit the mode (on empty space)
-  integer, parameter, public :: BIND_NEW_MOLECULE = 66 ! create a new empty molecule
-  integer, parameter, public :: BIND_COPY_SELECTION = 67 ! copy the selected atoms to the clipboard
-  integer, parameter, public :: BIND_CUT_SELECTION = 68 ! copy the selected atoms to the clipboard and remove them
-  integer, parameter, public :: BIND_PASTE = 69 ! paste the clipboard fragment at the mouse position
-  integer, parameter, public :: BIND_NUM = 69 ! total number of binds
+  integer, parameter, public :: BIND_NAV_MEASURE_TOGGLE = 59 ! navigation: add or remove the measurement for the selected atoms
+  integer, parameter, public :: BIND_PICKATOM_ALT = 60 ! atom pick: alternate action on the atom under the cursor (builder: remove H)
+  integer, parameter, public :: BIND_EDIT_D_A_PHI = 61 ! view: open the builder and toggle edit distance/angle/dihedral for the measure-selected atoms
+  integer, parameter, public :: BIND_MOVEMOL_EXIT = 62 ! move molecules: exit the mode (on empty space)
+  integer, parameter, public :: BIND_MOVEATOM_EXIT = 63 ! move atoms: exit the mode (on empty space)
+  integer, parameter, public :: BIND_PICKATOM_EXIT = 64 ! persistent builder picks: exit the mode (on empty space)
+  integer, parameter, public :: BIND_NEW_MOLECULE = 65 ! create a new empty molecule
+  integer, parameter, public :: BIND_COPY_SELECTION = 66 ! copy the selected atoms to the clipboard
+  integer, parameter, public :: BIND_CUT_SELECTION = 67 ! copy the selected atoms to the clipboard and remove them
+  integer, parameter, public :: BIND_PASTE = 68 ! paste the clipboard fragment at the mouse position
+  integer, parameter, public :: BIND_NUM = 68 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -181,8 +180,7 @@ module keybindings
      "Change cell volume/Zoom         ",& ! BIND_MOVEATOM_CHANGECELL
      "Camera zoom                     ",& ! BIND_SELECT_ZOOM
      "Camera zoom                     ",& ! BIND_MDINTERACT_ZOOM
-     "Add measurement                 ",& ! BIND_NAV_MEASURE_ADD
-     "Remove measurement              ",& ! BIND_NAV_MEASURE_REMOVE
+     "Add/remove measurement          ",& ! BIND_NAV_MEASURE_TOGGLE
      "Pick atom, alternate action     ",& ! BIND_PICKATOM_ALT
      "Edit distance/angle/dihedral    ",& ! BIND_EDIT_D_A_PHI
      "Exit mode (empty space)         ",& ! BIND_MOVEMOL_EXIT
@@ -302,8 +300,7 @@ module keybindings
      group_viewmode_moveatom,&   ! BIND_MOVEATOM_CHANGECELL
      group_viewmode_select,&     ! BIND_SELECT_ZOOM
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_ZOOM
-     group_viewmode_navigation,& ! BIND_NAV_MEASURE_ADD
-     group_viewmode_navigation,& ! BIND_NAV_MEASURE_REMOVE
+     group_viewmode_navigation,& ! BIND_NAV_MEASURE_TOGGLE
      group_viewmode_pickatom,&   ! BIND_PICKATOM_ALT
      group_view,&                ! BIND_EDIT_D_A_PHI
      group_viewmode_movemol,&    ! BIND_MOVEMOL_EXIT
@@ -377,8 +374,7 @@ module keybindings
      BIND_VIEWMODE_MOVEATOM,&  ! BIND_MOVEATOM_CHANGECELL
      BIND_VIEWMODE_SELECT,&    ! BIND_SELECT_ZOOM
      0,&  ! BIND_MDINTERACT_ZOOM
-     0,&  ! BIND_NAV_MEASURE_ADD
-     0,&  ! BIND_NAV_MEASURE_REMOVE
+     0,&  ! BIND_NAV_MEASURE_TOGGLE
      0,&  ! BIND_PICKATOM_ALT
      0,&  ! BIND_EDIT_D_A_PHI
      BIND_VIEWMODE_MOVEMOL,&  ! BIND_MOVEMOL_EXIT

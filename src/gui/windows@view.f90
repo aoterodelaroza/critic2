@@ -41,11 +41,10 @@ submodule (windows) view
 
   ! kinds of pending press capture (w%measure_pend), resolved on release
   integer, parameter :: pend_none = 0
-  integer, parameter :: pend_measure_add = 1    ! add a measurement (navigation)
-  integer, parameter :: pend_measure_remove = 2 ! remove a measurement (navigation)
-  integer, parameter :: pend_pick = 3           ! deliver an atom pick (forced pick modes)
-  integer, parameter :: pend_pick_alt = 4       ! deliver an alternate-action pick (builder)
-  integer, parameter :: pend_measure_addsel = 5 ! add the measurement of the selected atoms (navigation)
+  integer, parameter :: pend_measure = 1     ! toggle a measurement (navigation)
+  integer, parameter :: pend_measure_sel = 2 ! toggle the measurement of the selected atoms (navigation)
+  integer, parameter :: pend_pick = 3        ! deliver an atom pick (forced pick modes)
+  integer, parameter :: pend_pick_alt = 4    ! deliver an alternate-action pick (builder)
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
@@ -1543,7 +1542,7 @@ contains
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
        groupbind, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT, BIND_NAV_MEASURE,&
        BIND_PICKATOM_EXIT, BIND_CANCEL,&
-       BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE
+       BIND_NAV_MEASURE_TOGGLE
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1619,8 +1618,8 @@ contains
           allocate(tips(BIND_NUM))
           do i = 1, BIND_NUM
              if (groupbind(i) == mygroup) then
-                if (pickmode .and. (i == BIND_NAV_MEASURE .or. i == BIND_NAV_MEASURE_ADD .or.&
-                   i == BIND_NAV_MEASURE_REMOVE)) cycle
+                if (pickmode .and. (i == BIND_NAV_MEASURE .or.&
+                   i == BIND_NAV_MEASURE_TOGGLE)) cycle
                 n = n + 1
                 tips(n) = i
              end if
@@ -1719,7 +1718,7 @@ contains
   !> whether the view is active and being hovered.
   module function viewmode_activate_picking(w,hover)
     use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT,&
-       BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT,&
+       BIND_NAV_MEASURE_TOGGLE, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_PICKATOM_EXIT, BIND_MOVEMOL_EXIT, BIND_MOVEATOM_EXIT,&
        BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL
     class(window), intent(inout), target :: w
@@ -1746,11 +1745,10 @@ contains
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> when measuring, on a double click (to clear the selection),
        ! or on a right/middle button press (to capture the atom under the cursor
-       ! for a measurement add/remove, resolved on release)
+       ! for a measurement toggle, resolved on release)
        viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE) .or.&
           is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT) .or.&
-          is_bind_event(BIND_NAV_MEASURE_ADD) .or.&
-          is_bind_event(BIND_NAV_MEASURE_REMOVE)
+          is_bind_event(BIND_NAV_MEASURE_TOGGLE)
     elseif (w%viewmode == vm_select .or. w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
        ! select -> on any click, so the atom under the mouse is fresh
        ! move atoms -> on any click, to latch the grabbed atom/molecule;
@@ -1777,8 +1775,8 @@ contains
        BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE,&
        BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL,&
        BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL,&
-       BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_ADD,&
-       BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
+       BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_TOGGLE,&
+       BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
        BIND_CANCEL, BIND_PASTE, bind_mouse_button
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry,&
        ok_system, sys_init
@@ -1869,8 +1867,7 @@ contains
        if (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
     elseif (forcedpick) then
-       if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_remove .or.&
-          w%measure_pend == pend_measure_addsel) &
+       if (w%measure_pend == pend_measure .or. w%measure_pend == pend_measure_sel) &
           w%measure_pend = pend_none
     else
        w%measure_pend = pend_none
@@ -1919,41 +1916,33 @@ contains
              w%forcerender = .true.
           end if
 
-          ! measurement: with 1-3 atoms selected, the add/remove binding on another
-          ! atom adds/removes the corresponding measurement (distance/angle/dihedral).
-          ! On empty space, the add binding closes the measurement with the 2-4
-          ! selected atoms. For a mouse-button binding, capture the atom on
-          ! the press (while the view is still hovered) and resolve on release only
-          ! if the cursor did not drag (so a right/middle drag still pans/perp-rotates
-          ! the camera and the right-double click still resets the view); for a
-          ! non-mouse binding there is no drag to disambiguate, so act at once.
-          if (hover .and. is_bind_event(BIND_NAV_MEASURE_ADD)) then
+          ! measurement: with 1-3 atoms selected, the measure binding on another
+          ! atom toggles the corresponding measurement (distance/angle/dihedral) --
+          ! the same click again removes it. On empty space, it toggles the
+          ! measurement made of the 2-4 selected atoms. For a mouse-button binding,
+          ! capture the atom on the press (while the view is still hovered) and
+          ! resolve on release only if the cursor did not drag (so a right drag
+          ! still pans the camera and the right-double click still resets the
+          ! view); for a non-mouse binding there is no drag to disambiguate, so
+          ! act at once.
+          if (hover .and. is_bind_event(BIND_NAV_MEASURE_TOGGLE)) then
              if (w%mousepos_idx(1) > 0) then
-                if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
-                   w%measure_pend = pend_measure_add
+                if (bind_mouse_button(BIND_NAV_MEASURE_TOGGLE) >= 0) then
+                   w%measure_pend = pend_measure
                    w%measure_pend_idx = w%mousepos_idx
                    w%press_p0 = mousepos
                 else
-                   call w%sc%add_measurement(w%mousepos_idx)
+                   call w%sc%toggle_measurement(w%mousepos_idx)
                    w%forcerender = .true.
                 end if
              elseif (w%sc%nmsel >= 2) then
-                if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
-                   w%measure_pend = pend_measure_addsel
+                if (bind_mouse_button(BIND_NAV_MEASURE_TOGGLE) >= 0) then
+                   w%measure_pend = pend_measure_sel
                    w%press_p0 = mousepos
                 else
-                   call w%sc%add_measurement_sel()
+                   call w%sc%toggle_measurement_sel()
                    w%forcerender = .true.
                 end if
-             end if
-          elseif (hover .and. w%mousepos_idx(1) > 0 .and. is_bind_event(BIND_NAV_MEASURE_REMOVE)) then
-             if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
-                w%measure_pend = pend_measure_remove
-                w%measure_pend_idx = w%mousepos_idx
-                w%press_p0 = mousepos
-             else
-                call w%sc%delete_measurement(w%mousepos_idx)
-                w%forcerender = .true.
              end if
           end if
        else
@@ -1992,9 +1981,8 @@ contains
        if (w%measure_pend /= pend_none) then
           call igGetMousePos(mousepos)
           ibtn = -1_c_int
-          if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_addsel) &
-             ibtn = bind_mouse_button(BIND_NAV_MEASURE_ADD)
-          if (w%measure_pend == pend_measure_remove) ibtn = bind_mouse_button(BIND_NAV_MEASURE_REMOVE)
+          if (w%measure_pend == pend_measure .or. w%measure_pend == pend_measure_sel) &
+             ibtn = bind_mouse_button(BIND_NAV_MEASURE_TOGGLE)
           if (w%measure_pend == pend_pick) ibtn = bind_mouse_button(BIND_PICKATOM_SELECT)
           if (w%measure_pend == pend_pick_alt) ibtn = bind_mouse_button(BIND_PICKATOM_ALT)
           if (ibtn < 0) then
@@ -2002,14 +1990,11 @@ contains
           elseif (igIsMouseReleased(ibtn)) then
              if (abs(mousepos%x-w%press_p0%x) <= selrect_thr .and.&
                  abs(mousepos%y-w%press_p0%y) <= selrect_thr) then
-                if (w%measure_pend == pend_measure_add) then
-                   call w%sc%add_measurement(w%measure_pend_idx)
+                if (w%measure_pend == pend_measure) then
+                   call w%sc%toggle_measurement(w%measure_pend_idx)
                    w%forcerender = .true.
-                elseif (w%measure_pend == pend_measure_addsel) then
-                   call w%sc%add_measurement_sel()
-                   w%forcerender = .true.
-                elseif (w%measure_pend == pend_measure_remove) then
-                   call w%sc%delete_measurement(w%measure_pend_idx)
+                elseif (w%measure_pend == pend_measure_sel) then
+                   call w%sc%toggle_measurement_sel()
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_pick) then
                    call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,.false.)
@@ -3160,7 +3145,7 @@ contains
     ! measurement binds do not fire in the other modes
     if (domeas) then
        call igNewLine()
-       call iw_text("Right/middle-click stamps/removes measurement",&
+       call iw_text("Right-click stamps/removes a measurement",&
           rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
     end if
 
