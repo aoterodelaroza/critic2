@@ -118,7 +118,8 @@ module keybindings
   integer, parameter, public :: BIND_COPY_SELECTION = 66 ! copy the selected atoms to the clipboard
   integer, parameter, public :: BIND_CUT_SELECTION = 67 ! copy the selected atoms to the clipboard and remove them
   integer, parameter, public :: BIND_PASTE = 68 ! paste the clipboard fragment at the mouse position
-  integer, parameter, public :: BIND_NUM = 68 ! total number of binds
+  integer, parameter, public :: BIND_VIEW_TRANSFORM_SUPERCELL = 69 ! view: make the displayed supercell the new unit cell
+  integer, parameter, public :: BIND_NUM = 69 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -189,7 +190,8 @@ module keybindings
      "New molecule                    ",& ! BIND_NEW_MOLECULE
      "Copy selection                  ",& ! BIND_COPY_SELECTION
      "Cut selection                   ",& ! BIND_CUT_SELECTION
-     "Paste                           "&  ! BIND_PASTE
+     "Paste                           ",& ! BIND_PASTE
+     "Transform to supercell          "&  ! BIND_VIEW_TRANSFORM_SUPERCELL
      /)
 
   ! The key associated with each bind, bind -> key
@@ -309,7 +311,8 @@ module keybindings
      group_global,&              ! BIND_NEW_MOLECULE
      group_global,&              ! BIND_COPY_SELECTION
      group_global,&              ! BIND_CUT_SELECTION
-     group_view/)                ! BIND_PASTE
+     group_view,&                ! BIND_PASTE
+     group_view/)                ! BIND_VIEW_TRANSFORM_SUPERCELL
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -383,7 +386,8 @@ module keybindings
      0,&  ! BIND_NEW_MOLECULE
      0,&  ! BIND_COPY_SELECTION
      0,&  ! BIND_CUT_SELECTION
-     0/)  ! BIND_PASTE
+     0,&  ! BIND_PASTE
+     0/)  ! BIND_VIEW_TRANSFORM_SUPERCELL
 
   ! module procedure interfaces
   interface

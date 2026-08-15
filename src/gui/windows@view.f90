@@ -70,6 +70,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA, BIND_RECALC_BONDS,&
+       BIND_VIEW_TRANSFORM_SUPERCELL,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
@@ -823,6 +824,8 @@ contains
                 end do
                 w%sc%nc = max(w%sc%nc,1)
                 w%sc%forcebuildlists = .true.
+             elseif (is_bind_event(BIND_VIEW_TRANSFORM_SUPERCELL)) then
+                call transform_to_supercell()
              end if
           end if
           ! align the camera along an axis (crystallographic ones for crystals only)
@@ -984,7 +987,55 @@ contains
          chbuild = .true.
       end if
 
+      ! make the displayed supercell the new unit cell
+      if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
+         disabled=.not.can_transform_supercell())) &
+         call transform_to_supercell()
+      call iw_tooltip("Apply the displayed periodicity as a cell transformation, so the "//&
+         "supercell on screen becomes the new unit cell ("//&
+         trim(get_bind_keyname(BIND_VIEW_TRANSFORM_SUPERCELL))//")",ttshown)
+      if (len_trim(w%errmsg) > 0) &
+         call iw_text(w%errmsg,danger=.true.)
+
     end subroutine periodicity_widgets
+
+    !> Whether the displayed periodicity can be turned into a cell
+    !> transformation: a crystal showing more than one cell along some axis.
+    function can_transform_supercell() result(ok)
+      logical :: ok
+
+      ok = .false.
+      if (.not.associated(w%sc)) return
+      if (.not.ok_system(w%isys,sys_init)) return
+      if (sys(w%isys)%c%ismolecule) return
+      ok = any(w%sc%nc > 1)
+
+    end function can_transform_supercell
+
+    !> Turn the periodicity currently displayed in this view into a supercell
+    !> transformation of the system (a diagonal newcell). The new cell contains
+    !> everything that was on screen, so the displayed periodicity goes back to
+    !> 1x1x1 and the picture is unchanged.
+    subroutine transform_to_supercell()
+      real*8 :: m(3,3)
+
+      if (.not.can_transform_supercell()) return
+
+      w%errmsg = ""
+      m = 0d0
+      m(1,1) = real(w%sc%nc(1),8)
+      m(2,2) = real(w%sc%nc(2),8)
+      m(3,3) = real(w%sc%nc(3),8)
+      call sysc(w%isys)%transform_cell_matrix(m,(/0d0,0d0,0d0/),.false.,errmsg=w%errmsg)
+      if (len_trim(w%errmsg) > 0) return
+
+      ! the old content is now one cell; keep the camera where it was
+      w%sc%nc = 1
+      w%sc%nextbuildlists_fixcam = .true.
+      sysc(w%isys)%sc%nextbuildlists_fixcam = .true.
+      chbuild = .true.
+
+    end subroutine transform_to_supercell
   end subroutine draw_view
 
   !> Create the texture for the view window, with atex x atex pixels.

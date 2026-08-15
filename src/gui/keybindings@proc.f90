@@ -200,6 +200,7 @@ contains
     call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_J,mod_none)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,mod_ctrl)
     call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,mod_none)
+    call set_bind(BIND_VIEW_TRANSFORM_SUPERCELL,ImGuiKey_Space,mod_ctrl)
     call set_bind(BIND_VIEW_DEC_NCELL,ImGuiKey_KeypadSubtract,mod_none)
     call set_bind(BIND_VIEW_ALIGN_A_AXIS,ImGuiKey_A,mod_none)
     call set_bind(BIND_VIEW_ALIGN_B_AXIS,ImGuiKey_B,mod_none)
