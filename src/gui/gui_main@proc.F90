@@ -581,7 +581,7 @@ contains
     if (present(launchgeometry)) then
        launchgeometry = launchgeometry .or. ok
     elseif (ok) then
-       idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+       idum = stack_create_window(wintype_geometry,.true.,idparent=idparent,orraise=-1)
     end if
     call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
 
@@ -1141,7 +1141,7 @@ contains
     end if
 
     if (launch(d_geometry).and.isysvok) then
-       idum = stack_create_window(wintype_geometry,.true.,isys=isysv,orraise=-1)
+       idum = stack_create_window(wintype_geometry,.true.,idparent=iwin_view,orraise=-1)
     end if
     if (launchquit) then
        if (are_threads_running()) &

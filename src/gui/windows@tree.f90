@@ -861,8 +861,12 @@ contains
          ! geometry submenu (system)
          if (iw_beginmenu("System")) then
             ! Geometry
-            if (iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)) &
-               idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+            ! the geometry window edits what its view shows, so point the main
+            ! view at this row before opening it there
+            if (iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)) then
+               call win(iwin_view)%select_view(isys)
+               idum = stack_create_window(wintype_geometry,.true.,idparent=iwin_view,orraise=-1)
+            end if
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
             ! describe this system in the console output

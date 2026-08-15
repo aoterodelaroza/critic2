@@ -21,25 +21,10 @@ submodule (windows) geometry
   implicit none
 contains
 
-  !> Update tasks for the view/edit geometry window. This is run right
-  !> before the window is created and drawn.
-  module subroutine update_geometry(w)
-    use tools_io, only: string
-    class(window), intent(inout), target :: w
-
-    if (w%firstpass.or.w%tied_to_tree) then
-       w%name = "View/Edit Geometry###view_edit_geometry"  // string(w%id) // c_null_char
-    else
-       w%name = "View/Edit Geometry [detached]###view_edit_geometry"  // string(w%id) // c_null_char
-    end if
-
-  end subroutine update_geometry
-
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
     use representations, only: reptype_symelem, repflavor_symelem
     use crystalmod, only: symop_kind_plane, symop_kind_axis
-    use windows, only: iwin_view, iwin_tree
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
@@ -63,7 +48,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
-    logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive
+    logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive, syschanged
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:17)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
@@ -86,7 +71,7 @@ contains
     real(c_float) :: rrgba(4) ! scratch highlight color
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, jj, isys, icol, isort, ispc, iz, izout, iview, ivadd, im, jm, ncon
+    integer :: ii, i, j, jj, isys, icol, isort, ispc, iz, izout, iview, im, jm, ncon
     integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
     integer :: natused_bonds ! bonds tab: number of distinct atomic species present
     integer, allocatable :: iat_bonds(:) ! bonds tab: Z values of distinct species
@@ -96,7 +81,7 @@ contains
     character(len=:), allocatable :: bondglyph, bondword ! bonds tab: bond-type glyph and word
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, havergb_, ldum, ok, oksys, ballow
+    logical :: havergb, havergb_, ldum, ok, ballow
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res, vol, volold, scal
     real*8 :: occval, occold
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
@@ -203,7 +188,6 @@ contains
 
     ! first pass
     if (w%firstpass) then
-       w%tied_to_tree = (w%isys == win(iwin_tree)%isys)
        call clear_highlights_table()
        call reset_sort()
        w%geometry_select_rgba = ColorHighlightSelectScene
@@ -220,7 +204,6 @@ contains
        w%geometry_input_coord = 0d0
        w%geometry_input_species = 1
        call w%geometry_addbond%clear()
-       w%geometry_addbond_iview = 0
        w%geometry_cell_simple = .true.
        w%geometry_cell_nrep = 1_c_int
        w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
@@ -232,61 +215,43 @@ contains
        call clear_sym_cache()
     end if
 
-    ! if tied to tree, update the isys
-    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%isys)) then
-       call change_system(win(iwin_tree)%isys)
-    end if
-
-    ! check if the system still exists
-    if (.not.ok_system(w%isys,sys_init)) then
-       ! this dialog does not make sense anymore, close it and exit
+    ! This window edits the system shown in its anchor view, and commands that
+    ! same view for its picks. If the view is gone, or it moved to a system that
+    ! no longer exists, the window has nothing left to act on.
+    if (.not.w%anchor(iview,isys,syschanged)) then
        call w%end()
        return
     end if
-    isys = w%isys
+    if (syschanged .and. .not.w%firstpass) &
+       call reset_for_new_system()
+    if (.not.ok_system(isys,sys_init)) then
+       call w%end()
+       return
+    end if
 
-    ! the view window this window commands for its picks: the first one
-    ! showing this system's main scene, or zero if there is none
-    iview = 0
-    do i = 1, nwin
-       if (win(i)%isinit .and. win(i)%isopen .and. win(i)%type == wintype_view) then
-          if (win(i)%isys == isys .and. associated(win(i)%sc)) then
-             if (associated(win(i)%sc,sysc(isys)%sc)) then
-                iview = i
-                exit
-             end if
-          end if
-       end if
-    end do
-
-    ! handle an active bond operation commanded to that view
-    call bondmode_poll(w,iview,iview > 0)
+    ! handle an active bond operation commanded to the anchor view
+    call bondmode_poll(w,iview,.true.)
 
     ! handle a pending add-bond pick commanded to a view window
     ipickhl = 0
     if (w%geometry_addbond%is_staged()) then
-       ivadd = w%geometry_addbond_iview
-       oksys = (ivadd >= 1 .and. ivadd <= nwin)
-       if (oksys) oksys = win(ivadd)%isinit .and. win(ivadd)%isopen .and.&
-          win(ivadd)%type == wintype_view
-       ok = oksys
-       if (ok) ok = win(ivadd)%isys == isys .and. win(ivadd)%vmdata%owner == w%id .and.&
+       ! the isys test matters for the frame after this window retargets its
+       ! view: the picked index would belong to the system the view moved to
+       ok = (win(iview)%isys == isys) .and. (win(iview)%vmdata%owner == w%id) .and.&
           .not.w%geometry_addbond%is_stale(sysc(isys)%timelastchange_geometry)
        if (.not.ok) then
-          ! the view is gone, shows another system, another window took over
-          ! the pick, or the geometry changed (stale cell-atom ids): cancel
-          if (oksys) call win(ivadd)%viewmode_release_forced(w%id)
+          ! the view moved to another system, another window took over the pick,
+          ! or the geometry changed (stale cell-atom ids): cancel
+          call win(iview)%viewmode_release_forced(w%id)
           call w%geometry_addbond%clear()
-          w%geometry_addbond_iview = 0
-       elseif (win(ivadd)%viewmode >= 0) then
+       elseif (win(iview)%viewmode >= 0) then
           ! the pick finished: add a single bond if a valid atom was clicked
           ! (self-bonds and duplicates are rejected by add_bond)
-          if (win(ivadd)%vmdata%idx(1) > 0) &
-             call sysc(isys)%add_bond(w%geometry_addbond%idx(1),win(ivadd)%vmdata%idx(1),&
-                win(ivadd)%vmdata%idx(2:4),1)
-          win(ivadd)%vmdata%idx = 0
+          if (win(iview)%vmdata%idx(1) > 0) &
+             call sysc(isys)%add_bond(w%geometry_addbond%idx(1),win(iview)%vmdata%idx(1),&
+                win(iview)%vmdata%idx(2:4),1)
+          win(iview)%vmdata%idx = 0
           call w%geometry_addbond%clear()
-          w%geometry_addbond_iview = 0
        else
           ! the pick is in progress: highlight the atom receiving the bond
           ! (applied in the hover-highlight section at the end of the draw)
@@ -336,8 +301,9 @@ contains
              is_selected = (isys == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                call change_system(i)
-                isys = w%isys
+                ! move the view this window is anchored to, so that the two can
+                ! never disagree about which system is being edited
+                call w%retarget(i)
                 atompreflags = ImGuiTabItemFlags_SetSelected
              end if
              if (is_selected) &
@@ -422,9 +388,6 @@ contains
              ndigit = ceiling(log10(ntype+0.1d0))
              ndigitm = 0
              ndigitidx = 0
-
-             ! get the current view, if available
-             call get_current_view()
 
              ! draw the rows
              do ii = 1, ntype
@@ -680,9 +643,6 @@ contains
              ndigitidx = 0
              if (domol) ndigitm = ceiling(log10(sys(isys)%c%nmol+0.1d0))
              if (doidx) ndigitidx = ceiling(log10(sys(isys)%c%nneq+0.1d0))
-
-             ! get the current view, if available
-             call get_current_view()
 
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
@@ -1488,9 +1448,6 @@ contains
              end if
           end do
 
-          ! locate the view holding the atom colors for the bonded-atom buttons
-          call get_current_view()
-
           ! bonds table (height leaves room for rebond controls below)
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
@@ -1543,7 +1500,6 @@ contains
                       ! "+" button: pick an atom in the view to add a bond to this atom
                       if (iw_button("+##addbond" // suffix,disabled=(iview == 0))) then
                          call w%geometry_addbond%stage((/i,0,0,0/))
-                         w%geometry_addbond_iview = iview
                          call win(iview)%viewmode_set_forced(vm_pick_atom,&
                             "Pick an atom to bond to atom " // string(i),w%id)
                       end if
@@ -2346,11 +2302,9 @@ contains
     end function frac_str
 
     ! change the system on which the geometry window operates
-    subroutine change_system(i)
-      integer, intent(in) :: i
-
-      ! do nothing if we are already in the same system
-      if (w%isys == i) return
+    !> Drop the state cached for the previous system, after the anchor view has
+    !> moved to a different one.
+    subroutine reset_for_new_system()
 
       ! reset the last-selected row and the table sort
       w%lastselected = 0
@@ -2367,11 +2321,7 @@ contains
       w%geometry_cell_cen = 1
       w%geometry_cell_origin = 0d0
 
-      ! change the system
-      w%isys = i
-      w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%isys)
-
-    end subroutine change_system
+    end subroutine reset_for_new_system
 
     ! deallocate the sort array and force a sort of the table
     subroutine reset_sort()
@@ -2539,55 +2489,44 @@ contains
 
       ! create a persistent symmetry-elements object from the current selection,
       ! or reuse the existing one if there already is a symmetry-elements object
-      if (iw_button("Create Object##symcreateobj",sameline=.true.,disabled=(sysc(isys)%sc%isinit==0))) then
+      ! the object goes into the anchor view's scene, which is the one this
+      ! window commands and the one the editor will be bound to; for an
+      ! alternate view that is its private scene, not sysc(isys)%sc
+      if (iw_button("Create Object##symcreateobj",sameline=.true.,&
+         disabled=(.not.associated(win(iview)%sc)))) then
          idobj = 0
-         do i = 1, sysc(isys)%sc%nrep
-            if (sysc(isys)%sc%rep(i)%isinit .and. sysc(isys)%sc%rep(i)%type == reptype_symelem) then
-               idobj = i
-               exit
-            end if
-         end do
-         idnew = (idobj == 0)
-         if (idnew) &
-            call sysc(isys)%sc%add_representation(reptype_symelem,repflavor_symelem,id=idobj)
-         if (idobj > 0) then
-            ! ensure the operation snapshot/visibility style is initialized
-            call sysc(isys)%sc%rep(idobj)%update()
-            associate (rr => sysc(isys)%sc%rep(idobj))
-              if (rr%symelem%style%isinit) then
-                 if (size(rr%symelem%style%shown,1) == size(w%geometry_sym_sel,1)) then
-                    if (idnew) then
-                       ! new object: show exactly the selected operations
-                       rr%symelem%style%shown = w%geometry_sym_sel
-                    else
-                       ! reuse: mark the selected operations as shown in it
-                       where (w%geometry_sym_sel) rr%symelem%style%shown = .true.
-                    end if
-                    sysc(isys)%sc%forcebuildlists = .true.
-                 end if
+         associate (sc => win(iview)%sc)
+           do i = 1, sc%nrep
+              if (sc%rep(i)%isinit .and. sc%rep(i)%type == reptype_symelem) then
+                 idobj = i
+                 exit
               end if
-            end associate
-         end if
+           end do
+           idnew = (idobj == 0)
+           if (idnew) &
+              call sc%add_representation(reptype_symelem,repflavor_symelem,id=idobj)
+           if (idobj > 0) then
+              ! ensure the operation snapshot/visibility style is initialized
+              call sc%rep(idobj)%update()
+              associate (rr => sc%rep(idobj))
+                if (rr%symelem%style%isinit) then
+                   if (size(rr%symelem%style%shown,1) == size(w%geometry_sym_sel,1)) then
+                      if (idnew) then
+                         ! new object: show exactly the selected operations
+                         rr%symelem%style%shown = w%geometry_sym_sel
+                      else
+                         ! reuse: mark the selected operations as shown in it
+                         where (w%geometry_sym_sel) rr%symelem%style%shown = .true.
+                      end if
+                      sc%forcebuildlists = .true.
+                   end if
+                end if
+              end associate
+           end if
+         end associate
          if (idobj > 0) then
-            ! open the editor if a view window showing this system's main
-            ! scene is available; the object was added to sysc(isys)%sc, so
-            ! a view with a private (alternate) scene neither displays it
-            ! nor can the editor be bound to it (window_init points w%rep
-            ! into the parent view's scene)
-            iview = 0
-            do i = 1, nwin
-               if (win(i)%isinit .and. win(i)%isopen .and. win(i)%type == wintype_view) then
-                  if (win(i)%isys == isys .and. associated(win(i)%sc)) then
-                     if (associated(win(i)%sc,sysc(isys)%sc)) then
-                        iview = i
-                        exit
-                     end if
-                  end if
-               end if
-            end do
-            if (iview > 0) &
-               idobj = stack_create_window(wintype_editrep,.true.,isys=isys,irep=idobj,&
-                  idparent=iview,orraise=-1)
+            idobj = stack_create_window(wintype_editrep,.true.,isys=isys,irep=idobj,&
+               idparent=iview,orraise=-1)
 
             ! clear the table selection so the transient preview does not
             ! duplicate the elements now drawn by the persistent object
@@ -2967,25 +2906,6 @@ contains
       end if
 
     end subroutine fetch_sort_specs
-
-    ! get the view associated with the currently selected system
-    subroutine get_current_view()
-
-      iview = 0
-      if (isys == win(iwin_view)%isys) then
-         iview = iwin_view
-      else
-         do j = 1, nwin
-            if (.not.win(j)%isinit) cycle
-            if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
-            if (isys == win(j)%isys) then
-               iview = j
-               exit
-            end if
-         end do
-      end if
-
-    end subroutine get_current_view
 
     ! color of atom iat (of atom-list type itype) from the first shown atoms
     ! representation in the current view (iview); returns .true. and fills rgbo

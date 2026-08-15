@@ -153,7 +153,6 @@ module windows
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
      integer :: irep = 0 ! the representation on which the window operates
-     logical :: tied_to_tree = .false. ! whether the system in this window is tied to the tree system
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
      integer, allocatable :: iord(:) ! table order (multiple windows)
@@ -244,7 +243,6 @@ module windows
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
      type(pairpick) :: geometry_addbond ! staged atom waiting for an add-bond pick
-     integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      ! builder parameters
      integer :: builder_tool = it_none ! tool selected in the palette, whose options the panel shows (it_* or a vm_builder_* mode)
      integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else one of the vm_builder_* modes)
@@ -382,7 +380,6 @@ module windows
      ! water cluster demonstration
      procedure :: draw_water_cluster
      ! geometry
-     procedure :: update_geometry
      procedure :: draw_geometry
      ! preferences
      procedure :: draw_preferences
@@ -809,9 +806,6 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_water_cluster
      !xx! geometry submodule !xx!
-     module subroutine update_geometry(w)
-       class(window), intent(inout), target :: w
-     end subroutine update_geometry
      module subroutine draw_geometry(w)
        class(window), intent(inout), target :: w
      end subroutine draw_geometry

@@ -53,15 +53,17 @@ contains
     logical :: doquit, goodparent, ldum, hasref
     integer :: isys, nwat, tflags
     real*8 :: eb_kcal, rec_kcal, score
+    integer :: iview
     type(ImVec2) :: sz0
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! do we have a good parent window (a view)?
-    goodparent = w%idparent > 0 .and. w%idparent <= nwin
-    if (goodparent) goodparent = win(w%idparent)%isinit
-    if (goodparent) goodparent = (win(w%idparent)%type == wintype_view)
+    ! This window owns the system it generates, so unlike the other view tools
+    ! it drives its anchor view rather than following it; all it needs from the
+    ! anchor is that it still be a live view.
+    iview = w%anchor_view()
+    goodparent = (iview > 0)
     doquit = .not.goodparent
 
     ! initialize state
@@ -118,6 +120,10 @@ contains
           w%isys = 0
           w%errmsg = ""
           call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%isys,w%errmsg)
+          ! show the new cluster in the anchor view. add_systems_from_seeds
+          ! selects it in the tree, but the main view only follows the tree when
+          ! the "tree selects view system" preference is on
+          if (w%isys > 0) call w%retarget(w%isys)
           w%wc_started = .false.
           call wc_reset_clock()
        end if
@@ -125,7 +131,7 @@ contains
 
        ! zoom buttons (touchscreens may not have a mouse wheel); only once a
        ! cluster exists and the view is displaying it
-       if (ok_system(w%isys,sys_init) .and. w%isys == win(w%idparent)%isys) then
+       if (ok_system(w%isys,sys_init) .and. w%isys == win(iview)%isys) then
           if (iw_button("Zoom +",sameline=.true.)) call wc_zoom(0.15_c_float)
           call iw_tooltip("Zoom in",ttshown)
           if (iw_button("Zoom -",sameline=.true.)) call wc_zoom(-0.15_c_float)
@@ -222,7 +228,7 @@ contains
     subroutine wc_zoom(ratio)
       real(c_float), intent(in) :: ratio
       call sysc(w%isys)%sc%cam_zoom(ratio)
-      win(w%idparent)%forcerender = .true.
+      win(iview)%forcerender = .true.
     end subroutine wc_zoom
 
     !> Timed mode: put the clock back to zero, stopped and waiting for the
@@ -319,7 +325,7 @@ contains
       end if
       ! continuous relaxation: disable autostop
       sysc(is)%md%autostop = .false.
-      win(w%idparent)%forcerender = .true.
+      win(iview)%forcerender = .true.
 
       ! hide the Cartesian axes gizmo
       do i = 1, sysc(is)%sc%nrep

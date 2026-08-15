@@ -310,10 +310,13 @@ contains
                    ok = (win(i)%itoken == itoken)
              end if
              if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
-             if (ok.and.type == wintype_geometry.and.present(isys)) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_geometry.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
                 exit
@@ -505,9 +508,9 @@ contains
        end if
        call w%create_texture_view(initial_texture_side)
     elseif (type == wintype_geometry) then
-       ! geometry window
-       if (.not.present(isys)) &
-          call ferror('window_init','geometry requires isys',faterr)
+       ! geometry window: anchored to the view whose system it edits
+       if (.not.present(idparent)) &
+          call ferror('window_init','geometry requires idparent',faterr)
     end if
 
   end subroutine window_init
@@ -590,7 +593,6 @@ contains
     w%irep = 0
     w%ptr = c_null_ptr
     w%timelast_focused = 0d0
-    w%tied_to_tree = .false.
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0
@@ -607,7 +609,6 @@ contains
     w%geometry_expression_ok = .false.
     w%geometry_expr_error = ""
     call w%geometry_addbond%clear()
-    w%geometry_addbond_iview = 0
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
     call w%editrep_pick%clear()
@@ -682,10 +683,9 @@ contains
 
   end function window_focused
 
-  !> Index in win(:) of the live view window this window is anchored to, taken
-  !> from w%idparent, or zero if the anchor is gone or was never a view window.
-  !> A view that is merely hidden or collapsed is still a good anchor: the tool
-  !> survives the hide, and a forced pick mode can still be released on it.
+  !> Index in of the live view window this window is anchored to,
+  !> taken from w%idparent, or zero if the anchor is gone or was never
+  !> a view window.
   module function window_anchor_view(w) result(iview)
     class(window), intent(in) :: w
     integer :: iview
@@ -698,16 +698,15 @@ contains
 
   end function window_anchor_view
 
-  !> Resolve this window's anchor: the view window it is bound to (w%idparent)
-  !> and the system that view is currently showing. Returns .false. if the
-  !> anchor is gone or is no longer a view window, in which case the caller
-  !> should close itself. changed is .true. on the frame the anchor view
-  !> switched to a different system, so that the caller can drop the state it
-  !> had cached for the previous one; it also covers a window that was raised
-  !> onto a different view by stack_create_window. The resolved system is cached
-  !> in w%isys. Note the system may be invalid (removed, or not initialized):
-  !> that is not an anchor failure, and it is up to the caller to decide what to
-  !> display for it.
+  !> Resolve this window's anchor: the view window it is bound to
+  !> (w%idparent) and the system that view is currently
+  !> showing. Returns .false. if the anchor is gone or is no longer a
+  !> view window, in which case the caller should close
+  !> itself. changed is .true. on the frame the anchor view switched
+  !> to a different system, so that the caller can drop the state it
+  !> had cached for the previous one; it also covers a window that was
+  !> raised onto a different view by stack_create_window. The resolved
+  !> system is cached in w%isys.
   module function window_anchor(w,iview,isys,changed) result(ok)
     class(window), intent(inout) :: w
     integer, intent(out) :: iview
@@ -727,10 +726,8 @@ contains
 
   end function window_anchor
 
-  !> Point this window's anchor view at system isys. The tool windows' system
-  !> selectors go through this instead of keeping a system of their own, so a
-  !> tool window and the view it acts on can never disagree about which system
-  !> is being worked on. Does nothing if the anchor is gone.
+  !> Point this window's anchor view at system isys. Does nothing if
+  !> the anchor is gone.
   module subroutine window_retarget(w,isys)
     class(window), intent(inout) :: w
     integer, intent(in) :: isys
@@ -878,8 +875,6 @@ contains
           call w%update_scfplot()
        elseif (w%type == wintype_editrep) then
           call w%update_editrep()
-       elseif (w%type == wintype_geometry) then
-          call w%update_geometry()
        elseif (w%type == wintype_console_output) then
           call w%update_co()
        end if
@@ -1163,6 +1158,10 @@ contains
     rgb = 0._c_float
     if (iview < 1 .or. iview > nwin) return
     if (.not.win(iview)%isinit) return
+    ! The style index is computed from isys but indexes the view's scene, so the
+    ! two must agree. They can disagree for one frame after a window retargets
+    ! its view, and the style arrays are sized per system.
+    if (win(iview)%isys /= isys) return
     if (.not.associated(win(iview)%sc)) return
     do jrep = 1, win(iview)%sc%nrep
        if (win(iview)%sc%rep(jrep)%type == reptype_atoms .and. win(iview)%sc%rep(jrep)%isinit .and.&

@@ -687,7 +687,7 @@ contains
          if (itab == geomtab_none) then
             idum = stack_create_window(wintype_dynamics,.true.,idparent=iview,orraise=-1)
          else
-            idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+            idum = stack_create_window(wintype_geometry,.true.,idparent=iview,orraise=-1)
             if (idum > 0) win(idum)%geometry_seltab = itab
          end if
       end if
