@@ -416,12 +416,20 @@ contains
     end if
 
     if (present(s0)) then
-       call s0%new_from_seed(seed)
+       call s0%new_from_seed(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_crystal_input',errmsg,faterr,line,syntax=.true.)
+          return
+       end if
        if (verbose) &
           call s0%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
     end if
     if (present(cr0)) then
-       call cr0%struct_new(seed,.true.)
+       call cr0%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_crystal_input',errmsg,faterr,line,syntax=.true.)
+          return
+       end if
        if (verbose) &
           call cr0%report(.true.,.true.)
     end if
@@ -1068,7 +1076,11 @@ contains
     npad = ceiling(log10(nseed+0.1d0))
     do i = 1, nseed
        file = pre // string(i,npad,pad0=.true.) // post
-       call caux%struct_new(seed(i),.true.)
+       call caux%struct_new(seed(i),errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+          return
+       end if
        call caux%write_any_file(file,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_write_bulk",errmsg,faterr)
@@ -1919,7 +1931,11 @@ contains
           if (fname_type(i) == fname_peaks) cycle
           call c(i)%makeseed(seed,.true.)
           call seed%strip_hydrogens()
-          call c(i)%struct_new(seed,.true.)
+          call c(i)%struct_new(seed,errmsg)
+          if (len_trim(errmsg) > 0) then
+             call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+             return
+          end if
        end do
     end if
 
@@ -2477,7 +2493,11 @@ contains
        if (len_trim(errmsg) > 0) &
           call ferror('struct_comparevc_vcpwdf','error reading geometry file: ' // file1,faterr)
        if (noh) call seed%strip_hydrogens()
-       call c1%struct_new(seed,.true.)
+       call c1%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+          return
+       end if
        call c1%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror('struct_comparevc_vcpwdf','error recalculating symmetry: ' // file1,faterr)
@@ -2494,7 +2514,11 @@ contains
        if (len_trim(errmsg) > 0) &
           call ferror('struct_comparevc_vcpwdf','error reading geometry file: ' // file2,faterr)
        if (noh) call seed%strip_hydrogens()
-       call c2%struct_new(seed,.true.)
+       call c2%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+          return
+       end if
        call c2%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror('struct_comparevc_vcpwdf','error recalculating symmetry: ' // file1,faterr)
@@ -2698,7 +2722,11 @@ contains
 
     ! write to output
     if (len(writefile) > 0 .and. imode /= imode_sp) then
-       call c1%struct_new(seed,.true.)
+       call c1%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+          return
+       end if
 
        ! write structure to output
        call c1%write_any_file(writefile,errmsg)
@@ -4388,7 +4416,11 @@ contains
           call s%c%vib%phonon_rattle(s%c,temp,seed)
 
           filename = pre // string(i,npad,pad0=.true.) // post
-          call caux%struct_new(seed,.true.)
+          call caux%struct_new(seed,errmsg)
+          if (len_trim(errmsg) > 0) then
+             call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+             return
+          end if
           call caux%write_any_file(filename,errmsg)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
@@ -5162,7 +5194,11 @@ contains
     do i = 1, ns
        call seed%from_fragment(cx%mol(i),.true.)
        seed%border = 0d0
-       call c(i)%struct_new(seed,.true.)
+       call c(i)%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+          return
+       end if
     end do
 
     ! allocate the use and permutation arrays
@@ -5353,7 +5389,11 @@ contains
           end do
        end do
 
-       call cx%struct_new(seed,.true.)
+       call cx%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+          return
+       end if
        call cx%wholemols(errmsg)
        if (len_trim(errmsg) > 0) then
           call ferror("struct_molreorder",errmsg,faterr,syntax=.true.)
@@ -5528,7 +5568,11 @@ contains
     ! write the final structure
     write (uout,'("+ Final structure: ",A)') string(fname(ns))
     write (uout,*)
-    call cfin%struct_new(seed,.true.)
+    call cfin%struct_new(seed,errmsg)
+    if (len_trim(errmsg) > 0) then
+       call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+       return
+    end if
     call cfin%write_any_file(fname(ns),errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror("struct_molmove",errmsg,faterr)

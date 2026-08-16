@@ -588,13 +588,12 @@ contains
   !> uout. hmsym, if present, return the Hermann-Mauguin symbol for
   !> the operations. If axcr, return the operation axes in
   !> cryst. coordinates.
-  module subroutine struct_report_symxyz(c,strfin,hmsym,axcr,ier)
+  module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
     use tools_math, only: eig, det3
     use tools_io, only: uout, string, ioj_right, ferror, faterr
     use global, only: symprec
     use param, only: mlen, pi, eye
     class(crystal), intent(in) :: c
-    integer, intent(out), optional :: ier
     character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
     character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
     real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
@@ -620,7 +619,6 @@ contains
     character(len=mlen), allocatable :: rotchar(:)
     real*8, allocatable :: raxc2(:,:)
 
-    if (present(ier)) ier = 0
     ! initialize the output strings
     i = 0
     do i1 = 1, c%ncv
@@ -694,21 +692,18 @@ contains
           tint = matmul(wsum,wvec) / real(ord,8)
 
           ! determine the axis of rotation (eigenvector with eigenvalue = det)
+          ! a failed diagonalization leaves idx = 0, i.e. "no axis found",
+          ! which the code below already handles (rotaxis stays zero)
           call eig(rmat,3,eval,evali,ier_)
-          if (ier_ /= 0) then
-             if (present(ier)) then
-                ier = ier_
-                return
-             end if
-             call ferror('struct_report_symxyz','Error in diagonalization',faterr)
-          end if
           idx = 0
-          do j = 1, 3
-             if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then
-                idx = j
-                exit
-             end if
-          end do
+          if (ier_ == 0) then
+             do j = 1, 3
+                if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then
+                   idx = j
+                   exit
+                end if
+             end do
+          end if
           rotaxis = 0d0
           if (idx > 0) then
              rotaxis = rmat(:,idx)

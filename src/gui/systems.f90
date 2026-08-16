@@ -454,19 +454,22 @@ module systems
        real*8, intent(in) :: x(3)
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine attype_add_atom
-     module subroutine attype_reorder(sysc,type,iord)
+     module subroutine attype_reorder(sysc,type,iord,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: iord(:)
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine attype_reorder
-     module subroutine attype_swap_atoms(sysc,type,i1,i2)
+     module subroutine attype_swap_atoms(sysc,type,i1,i2,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: i1, i2
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine attype_swap_atoms
-     module subroutine swap_molecules(sysc,i1,i2)
+     module subroutine swap_molecules(sysc,i1,i2,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: i1, i2
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine swap_molecules
      module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding,errmsg)
        class(sysconf), intent(inout) :: sysc

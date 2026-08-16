@@ -537,8 +537,8 @@ contains
     ncseed%ismolecule = .false.
 
     ! initialize the structure
-    call c%struct_new(ncseed,.false.,noenv,ti=ti)
-    if (.not.c%isinit) errmsg = "Could not create the new crystal structure"
+    call c%struct_new(ncseed,errmsg,noenv,ti=ti)
+    if (len_trim(errmsg) > 0) return
 
     return
 
@@ -858,22 +858,28 @@ contains
   !> Create a new structure by reordering the atoms in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).
-  module subroutine reorder_atoms(c,iperm,isnneq,ti)
+  module subroutine reorder_atoms(c,iperm,isnneq,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iperm(:)
     logical, intent(in) :: isnneq
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     real*8, allocatable :: x(:,:)
     integer, allocatable :: is(:)
     integer :: i
     logical :: copysym
 
+    errmsg = ""
+
     ! make the new seed
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
     call c%makeseed(seed,copysym)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! return if the permutation is not correct
     if (size(iperm,1) /= seed%nat) return
@@ -891,7 +897,13 @@ contains
     if (allocated(seed%mix)) seed%mix = seed%mix(iperm(:))
 
     ! reload the crystal
-    call c%struct_new(seed,.true.,ti=ti)
+    call c%struct_new(seed,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine reorder_atoms
 
@@ -902,16 +914,21 @@ contains
   !> molecules appear in the new order; molecular numbering follows the
   !> order of the atoms, so the reloaded structure has the requested
   !> molecular order.
-  module subroutine reorder_molecules(c,iperm,ti)
+  module subroutine reorder_molecules(c,iperm,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iperm(:)
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     real*8, allocatable :: x(:,:)
     integer, allocatable :: atperm(:)
     integer :: i, k, im, nat
+
+    errmsg = ""
 
     ! the molecular decomposition must be available and the permutation valid
     if (c%nmol == 0 .or. .not.allocated(c%idatcelmol)) return
@@ -919,6 +936,7 @@ contains
 
     ! make the new seed (no symmetry, so seed atoms follow the cell-atom order)
     call c%makeseed(seed,.false.)
+    seed0 = seed ! this seed rebuilds the current structure
     if (seed%nat /= c%ncel) return
 
     ! build the atom permutation: visit molecules in the new order and, for
@@ -950,25 +968,37 @@ contains
     if (allocated(seed%mix)) seed%mix = seed%mix(atperm(:))
 
     ! reload the crystal
-    call c%struct_new(seed,.true.,ti=ti)
+    call c%struct_new(seed,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine reorder_molecules
 
   !> Create a new structure by reordering the species in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).
-  module subroutine reorder_species(c,iperm,ti)
+  module subroutine reorder_species(c,iperm,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iperm(:)
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     integer :: i, j
     integer, allocatable :: iiperm(:)
 
+    errmsg = ""
+
     ! make the new seed
     call c%makeseed(seed,.false.)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! return if the permutation is not correct
     if (size(iperm,1) /= seed%nspc) return
@@ -990,7 +1020,13 @@ contains
     end do
 
     ! reload the crystal
-    call c%struct_new(seed,.true.,ti=ti)
+    call c%struct_new(seed,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine reorder_species
 
@@ -1243,6 +1279,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     logical, allocatable :: useatoms(:), dupatoms(:)
     integer, allocatable :: imap(:)
     integer :: i, ipres, izmax, mergespc, natnew
@@ -1288,6 +1326,7 @@ contains
 
     ! make seed from this crystal
     call c%makeseed(seed,copysym=.false.)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! calculate the position of the merged atom: the heaviest atom in
     ! the list at the average position
@@ -1388,8 +1427,13 @@ contains
     end if
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.false.,ti=ti)
-    if (.not.c%isinit) errmsg = "Could not rebuild the structure after editing the atoms"
+    call c%struct_new(seed,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine edit_atom_list
 
@@ -1407,6 +1451,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     integer :: i
     logical :: copybonding_
 
@@ -1420,6 +1466,7 @@ contains
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
     call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! apply the change; a re-speciated atom is no longer a mixed site
     do i = 1, nat
@@ -1430,6 +1477,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine change_atom_species
 
@@ -1450,6 +1503,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     real*8 :: xx(3)
     logical :: copysym, copybonding_
 
@@ -1462,6 +1517,7 @@ contains
 
     ! make seed from this crystal, preserving bonding if requested
     call makeseed_for_edit(c,seed,copysym,copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! interpret units: internal Cartesian for a molecule, crystallographic otherwise
     xx = edit_seed_coords(c,x,iunit_l)
@@ -1482,6 +1538,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine move_atom
 
@@ -1543,6 +1605,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     logical :: copybonding_
 
     errmsg = ""
@@ -1553,7 +1617,14 @@ contains
     ! copysym=.false. builds the seed from the full cell (the moved atcel), so
     ! symmetry is re-derived from scratch (it is generally broken after motion)
     call makeseed_for_edit(c,seed,.false.,copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine rebuild_after_move
 
@@ -1568,6 +1639,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     logical, allocatable :: lkeep(:), deluse(:)
     integer :: i, k, nkeep
 
@@ -1591,6 +1664,7 @@ contains
 
     ! create seed, then attach the reduced symmetry
     call c%makeseed(seed,copysym=.false.)
+    seed0 = seed ! this seed rebuilds the current structure
     seed%havesym = 1
     seed%findsym = 0
     seed%checkrepeats = .false.
@@ -1610,9 +1684,11 @@ contains
     end do
 
     ! rebuild the crystal
-    call c%struct_new(seed,crashfail=.false.,ti=ti)
-    if (.not.c%isinit) then
-       errmsg = "could not rebuild the structure with the reduced symmetry"
+    call c%struct_new(seed,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
        return
     end if
 
@@ -1757,6 +1833,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     real*8 :: xx(3), dx(3), dxc(3)
     integer :: k
     logical :: copybonding_
@@ -1787,6 +1865,7 @@ contains
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
     ! order), preserving bonding if requested; re-fits the molecular cell
     call makeseed_for_edit(c,seed,.false.,copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
     if (seed%nat /= c%ncel) return
 
     ! translate the atoms belonging to this fragment (Cartesian for molecules,
@@ -1806,6 +1885,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine move_molecule
 
@@ -1831,6 +1916,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     real*8 :: rnew(3), amat(3,3), rrot(3,3), xcm(3)
     integer :: j, k, lvec(3), npres
     logical :: copybonding_
@@ -1869,6 +1956,7 @@ contains
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
     ! order), preserving bonding if requested; re-fits the molecular cell
     call makeseed_for_edit(c,seed,.false.,copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
     if (seed%nat /= c%ncel) return
 
     ! rotate the fragment atoms (whole molecule) and write them to the seed
@@ -1886,7 +1974,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
-    if (len_trim(errmsg) > 0) return
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
     ! set the Euler angles explicitly (useful for continuous drag in the GUI)
     ! only if the bonding is preserved - otherwise the molecules may change
@@ -1916,6 +2009,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     real*8 :: xx, ref
     logical :: copybonding_
 
@@ -1927,6 +2022,7 @@ contains
     ! make seed from this crystal, preserving the connectivity if requested
     if (iaxis /= 0) then
        call c%makeseed(seed,copysym=.false.,useabr=1,copybonding=copybonding_)
+       seed0 = seed ! this seed rebuilds the current structure
     else
        call c%makeseed(seed,copysym=.false.,useabr=2,copybonding=copybonding_)
     end if
@@ -1991,6 +2087,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine move_cell
 
@@ -2005,6 +2107,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     logical :: copybonding_
 
     errmsg = ""
@@ -2013,6 +2117,7 @@ contains
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
     call c%makeseed(seed,copysym=.false.,useabr=1,copybonding=copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! set the new axes
     seed%aa = aa
@@ -2020,6 +2125,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
   end subroutine move_cell_all
 
@@ -2048,6 +2159,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     type(siteocc), allocatable :: mixaux(:)
     real*8 :: xx(3)
     logical :: copysym, copybonding_
@@ -2064,6 +2177,7 @@ contains
 
     ! make seed from this crystal; re-fits the molecular cell to the added atom
     call makeseed_for_edit(c,seed,copysym,copybonding_)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! interpret units: internal Cartesian for a molecule, crystallographic otherwise
     xx = edit_seed_coords(c,x,iunit_l)
@@ -2106,7 +2220,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
-    if (len_trim(errmsg) > 0) return
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
     ! the bonds of the added atom: the one the caller asked for, or the
     ! ones a distance search finds
@@ -2173,6 +2292,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(crystalseed) :: seed0 ! pre-edit snapshot, for rollback
+    character(len=:), allocatable :: errmsg0
     type(siteocc), allocatable :: mixaux(:)
     logical, allocatable :: keep(:)
     integer, allocatable :: imap(:)
@@ -2190,6 +2311,7 @@ contains
     ! make seed from this crystal (atoms in atcel order); re-fits the
     ! molecular cell to the new fragment
     call makeseed_for_edit(c,seed,.false.,.false.)
+    seed0 = seed ! this seed rebuilds the current structure
 
     ! the surviving atoms; they occupy 1..count(keep), in order, of the
     ! new atom list
@@ -2291,7 +2413,12 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,errmsg=errmsg,ti=ti)
-    if (len_trim(errmsg) > 0) return
+    if (len_trim(errmsg) > 0) then
+       ! the rebuild failed and struct_new leaves the crystal wiped:
+       ! restore the pre-edit structure so the edit is a no-op
+       call c%struct_new(seed0,errmsg0,ti=ti)
+       return
+    end if
 
     ! Bonds of the added atoms. Among themselves, a distance search finds
     ! them unless they brought their own (nstar0); to the rest, likewise

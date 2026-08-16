@@ -2357,6 +2357,7 @@ contains
     integer, intent(in) :: luevc(2)
     integer, intent(inout) :: luevc_ibnd(2)
     complex*16, intent(out) :: sij(:,:,:,:)
+    character(len=:), allocatable :: errmsg_sn
 
     integer :: i, is, ibnd1, ibnd2, is_restart, ibnd1_restart, ibnd2_restart
     integer :: imo, imo1, ia, ja, ka, iba, ilata, jmo, jmo1, ib, jb, kb, ibb, ilatb
@@ -2394,7 +2395,9 @@ contains
     ncseed%havesym = 0
     ncseed%findsym = 0
     ncseed%ismolecule = sy%c%ismolecule
-    call nc%struct_new(ncseed,.true.)
+    call nc%struct_new(ncseed,errmsg_sn)
+    if (len_trim(errmsg_sn) > 0) &
+       call ferror('integration',errmsg_sn,faterr)
 
     ! restart
     if (restart) then
@@ -3472,10 +3475,11 @@ contains
     use global, only: iunit, iunitname0, dunit0
     use tools, only: qcksort
     use tools_io, only: uout, string, ioj_left, ioj_right, fopen_read,&
-       fopen_write, fclose
+       fopen_write, fclose, ferror, faterr
     use types, only: basindat, int_result, out_deloc
     type(basindat), intent(in) :: bas
     type(int_result), intent(in) :: res(:)
+    character(len=:), allocatable :: errmsg_sn
 
     integer :: i, j, k, l, m, n, jo, ko, kk
     integer :: fid, natt, nlat(3), nspin, nlattot
@@ -3540,7 +3544,9 @@ contains
        ncseed%havesym = 0
        ncseed%findsym = 0
        ncseed%ismolecule = sy%c%ismolecule
-       call cr1%struct_new(ncseed,.true.)
+       call cr1%struct_new(ncseed,errmsg_sn)
+       if (len_trim(errmsg_sn) > 0) &
+          call ferror('integration',errmsg_sn,faterr)
 
        ! header
        di3 = sy%propi(l)%di3

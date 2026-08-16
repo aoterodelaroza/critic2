@@ -1366,19 +1366,16 @@ contains
   !> plane is defined (n < 3, or all points coincident) xnor is returned as
   !> zero; for collinear points the normal is an arbitrary unit vector
   !> perpendicular to the line.
-  module subroutine plane_from_points(x,n,xcen,xnor,dev,ier)
-    use tools_io, only: ferror, faterr
+  module subroutine plane_from_points(x,n,xcen,xnor,dev)
     integer, intent(in) :: n
     real*8, intent(in) :: x(3,n)
     real*8, intent(out) :: xcen(3)
     real*8, intent(out) :: xnor(3)
     real*8, intent(out), optional :: dev
-    integer, intent(out), optional :: ier
 
     integer :: k, ier_
     real*8 :: cov(3,3), eval(3), d(3), dd
 
-    if (present(ier)) ier = 0
     xcen = 0d0
     xnor = 0d0
     if (present(dev)) dev = 0d0
@@ -1409,14 +1406,10 @@ contains
 
     ! the normal is the eigenvector with the smallest eigenvalue (eigsym
     ! returns ascending eigenvalues, eigenvectors in the columns)
+    ! a failed diagonalization takes the same route as a degenerate point
+    ! set: return the zero normal, which every caller already tests for
     call eigsym(cov,3,eval,ier_)
-    if (ier_ /= 0) then
-       if (present(ier)) then
-          ier = ier_
-          return
-       end if
-       call ferror('plane_from_points','Error in diagonalization',faterr)
-    end if
+    if (ier_ /= 0) return
     xnor = cov(:,1)
     dd = norm2(xnor)
     if (dd < 1d-10) then

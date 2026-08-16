@@ -59,7 +59,7 @@ contains
 
     ! output the crystal
     allocate(crf)
-    call crf%struct_new(seed,.false.)
+    call crf%struct_new(seed,errmsg)
     if (.not.crf%isinit) return
     c2_crystal_from_file = c_loc(crf)
 
@@ -80,6 +80,7 @@ contains
     real(c_double), intent(in) :: position(3,natom)
     integer(c_int), intent(in) :: zat(natom)
     type(c_ptr) :: c2_crystal_from_lattice
+    character(len=:), allocatable :: errmsg
 
     integer :: isused(maxzat0)
     type(crystalseed) :: seed
@@ -126,7 +127,7 @@ contains
 
     ! output the crystal
     allocate(crf)
-    call crf%struct_new(seed,.false.)
+    call crf%struct_new(seed,errmsg)
     if (.not.crf%isinit) return
     c2_crystal_from_lattice = c_loc(crf)
 
@@ -630,7 +631,6 @@ contains
     real(c_double), value :: alpha, lambda, fpol, besteps, max_elong, max_ang
     integer(c_int), value :: maxfeval
     real(c_double) :: c2_compare_vcgpwdf
-
     type(crystal), pointer :: cr, croutf
     type(xrpd_peaklist), pointer :: pk
     integer :: imode
@@ -671,7 +671,7 @@ contains
 
     ! crystal in output
     allocate(croutf)
-    call croutf%struct_new(seed,.false.)
+    call croutf%struct_new(seed,errmsg)
     if (croutf%isinit) then
        crout = c_loc(croutf)
     else

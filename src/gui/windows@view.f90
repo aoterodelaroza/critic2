@@ -2886,7 +2886,7 @@ contains
 
       real(c_float) :: axisw(3)
       real*8 :: rinc(3,3)
-      integer :: imol, ier
+      integer :: imol
       logical :: okax
 
       w%errmsg = ""
@@ -2901,13 +2901,7 @@ contains
       ! incremental rotation (Rodrigues) about the world-space axis, composed
       ! with the molecule's current standard-frame orientation
       rinc = axisangle2mat(real(axisw,8),real(ang0,8))
-      if (.not.sys(isys)%c%mol(imol)%axes_computed) then
-         call sys(isys)%c%mol(imol)%compute_std(ier)
-         if (ier /= 0) then
-            w%errmsg = "Could not compute the molecular frame"
-            return
-         end if
-      end if
+      if (.not.sys(isys)%c%mol(imol)%axes_computed) call sys(isys)%c%mol(imol)%compute_std()
       rinc = matmul(rinc,euler2mat(sys(isys)%c%mol(imol)%euler_std))
       call sys(isys)%c%rotate_molecule(imol,rmat=rinc,copybonding=.true.,errmsg=w%errmsg)
       if (len_trim(w%errmsg) > 0) return

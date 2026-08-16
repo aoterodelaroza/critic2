@@ -157,10 +157,11 @@ module systemmod
        integer, intent(out) :: id
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine add_field
-     module subroutine new_from_seed(s,seed,ti)
+     module subroutine new_from_seed(s,seed,errmsg,ti)
        use crystalseedmod, only: crystalseed
        class(system), intent(inout) :: s
        type(crystalseed), intent(in) :: seed
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine new_from_seed
      module subroutine load_field_string(s,line,verbose,id,errmsg,ti)

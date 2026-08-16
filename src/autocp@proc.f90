@@ -890,6 +890,7 @@ contains
     use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower, string
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
+    character(len=:), allocatable :: errmsg_sn
 
     integer :: lp, n, lp2
     integer :: i, iup, nstep, ier, id, idx, i1, i2, iz1, iz2
@@ -1111,7 +1112,9 @@ contains
 
           ! write the structure to the external file
           call syaux%init()
-          call syaux%c%struct_new(seed,.true.)
+          call syaux%c%struct_new(seed,errmsg_sn)
+          if (len_trim(errmsg_sn) > 0) &
+             call ferror('autocp',errmsg_sn,faterr)
           if (writevmd.and.dopdb) then
              call syaux%c%write_pdb(sy%c,file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
                 ixzassign=ixzassign,pdbstrong=pdbstrong)

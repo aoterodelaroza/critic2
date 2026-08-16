@@ -115,9 +115,8 @@ module fragmentmod
        real*8, intent(out), optional :: quat(4)
        real*8, intent(out), optional :: euler(3)
      end subroutine fragment_standard_axes
-     module subroutine fragment_compute_std(fr,ier)
+     module subroutine fragment_compute_std(fr)
        class(fragment), intent(inout) :: fr
-       integer, intent(out), optional :: ier
      end subroutine fragment_compute_std
      module function fragment_pgsymbol(fr) result(symbol)
        class(fragment), intent(inout) :: fr

@@ -446,13 +446,12 @@ module crystalmod
      pure module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
-     module subroutine struct_new(c,seed,crashfail,noenv,errmsg,ti)
+     module subroutine struct_new(c,seed,errmsg,noenv,ti)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c
        type(crystalseed), intent(in) :: seed
-       logical, intent(in), optional :: crashfail
+       character(len=:), allocatable, intent(out) :: errmsg
        logical, intent(in), optional :: noenv
-       character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine struct_new
      module subroutine set_haveocc(c)
@@ -880,20 +879,23 @@ module crystalmod
        real*8, allocatable, intent(out) :: rmax(:)
        real*8, allocatable, intent(out) :: mmax(:,:,:)
      end subroutine cell_nice_list
-     module subroutine reorder_atoms(c,iperm,isnneq,ti)
+     module subroutine reorder_atoms(c,iperm,isnneq,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
        logical, intent(in) :: isnneq
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_atoms
-     module subroutine reorder_molecules(c,iperm,ti)
+     module subroutine reorder_molecules(c,iperm,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_molecules
-     module subroutine reorder_species(c,iperm,ti)
+     module subroutine reorder_species(c,iperm,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_species
      module subroutine wholemols(c,errmsg,ti)
@@ -1200,12 +1202,11 @@ module crystalmod
      module subroutine struct_report_symmetry(c)
        class(crystal), intent(in) :: c
      end subroutine struct_report_symmetry
-     module subroutine struct_report_symxyz(c,strfin,hmsym,axcr,ier)
+     module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
        character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
        real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
-       integer, intent(out), optional :: ier
      end subroutine struct_report_symxyz
      module subroutine list_symops(c,n,kind,dir,order,label)
        class(crystal), intent(in) :: c

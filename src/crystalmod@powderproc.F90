@@ -1980,7 +1980,8 @@ contains
        seedout%aa = targetaa
        seedout%bb = targetbb
        seedout%findsym = 0
-       call c2out%struct_new(seedout,.true.)
+       call c2out%struct_new(seedout,errmsg)
+       if (len_trim(errmsg) > 0) return
     end if
 
   end subroutine vcpwdf_compare

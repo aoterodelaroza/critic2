@@ -469,14 +469,15 @@ contains
 
   !> Set up a new system using the information contained in a crystal
   !> seed.
-  module subroutine new_from_seed(s,seed,ti)
+  module subroutine new_from_seed(s,seed,errmsg,ti)
     use crystalseedmod, only: crystalseed
     class(system), intent(inout) :: s
     type(crystalseed), intent(in) :: seed
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     call s%init()
-    call s%c%struct_new(seed,.true.,ti=ti)
+    call s%c%struct_new(seed,errmsg,ti=ti)
 
     if (s%c%isinit) then
        s%isinit = .true.

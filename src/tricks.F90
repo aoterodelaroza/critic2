@@ -814,7 +814,9 @@ contains
                 errmsg = "error reading xyz file"
                 goto 999
              end if
-             call xtemplate(ntemplate)%struct_new(molseed,.true.)
+             call xtemplate(ntemplate)%struct_new(molseed,errmsg)
+             if (len_trim(errmsg) > 0) &
+                call ferror('tricks',errmsg,faterr)
           elseif (inpattern) then
              npattern = npattern + 1
              if (npattern > size(pattern,1)) call realloc(pattern,2*npattern)
@@ -1081,7 +1083,9 @@ contains
     main: do ii = 1, nst
        i = iord(ii)
        if (.not.active(i)) cycle
-       call ci%struct_new(seed(i),.true.)
+       call ci%struct_new(seed(i),errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('tricks',errmsg,faterr)
 
        ! powder for structure i
        call ci%powder(0,xrpd_th2ini_def,xrpd_th2end_def,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
@@ -1127,7 +1131,9 @@ contains
              exit
           else if (adh < ediff_thr) then
              ! make structure j
-             call cj%struct_new(seed(j),.true.)
+             call cj%struct_new(seed(j),errmsg)
+             if (len_trim(errmsg) > 0) &
+                call ferror('tricks',errmsg,faterr)
 
              ! powder for structure j
              call cj%powder(0,xrpd_th2ini_def,xrpd_th2end_def,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
@@ -1177,7 +1183,9 @@ contains
              end do
              deallocate(x1,x2)
           end do
-          call ci%struct_new(xseed,.true.)
+          call ci%struct_new(xseed,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror('tricks',errmsg,faterr)
        end if
 
        ! run wholemols
@@ -1291,7 +1299,9 @@ contains
        seed%neqlist = .false.
        seed%findsym = 0
        if (len_trim(errmsg) > 0) goto 999
-       call st(nst)%struct_new(seed,.true.)
+       call st(nst)%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('tricks',errmsg,faterr)
        vst(nst) = st(nst)%omega/real(st(nst)%nmol,8)
        maxlen = max(maxlen,len_trim(st(nst)%file))
     end do
@@ -1698,7 +1708,9 @@ contains
     if (len_trim(errmsg) > 0) then
        call ferror('trick_bfgs','error reading geometry file: ' // filegeom,faterr)
     end if
-    call c%struct_new(seed,.true.)
+    call c%struct_new(seed,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('tricks',errmsg,faterr)
 
     ! initialize
     lwolfe=.false.
@@ -1974,7 +1986,9 @@ contains
     call c%makeseed(seed,.false.)
     seed%m_x2c = h
     forall (k=0:nat-1,i=1:3) seed%x(i,k+1) = pos(3*k+i)
-    call c%struct_new(seed,.true.)
+    call c%struct_new(seed,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('tricks',errmsg,faterr)
     call c%write_any_file(filegeom,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_bfgs',errmsg,faterr)
@@ -2319,7 +2333,9 @@ contains
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error reading geometry file: ' // file1,faterr)
     if (noh) call seed%strip_hydrogens()
-    call c1%struct_new(seed,.true.)
+    call c1%struct_new(seed,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('tricks',errmsg,faterr)
     call c1%calcsym(.false.,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
@@ -2345,7 +2361,9 @@ contains
        if (len_trim(errmsg) > 0) &
           call ferror('trick_compare_deformed','error reading geometry file: ' // file2,faterr)
        if (noh) call seed%strip_hydrogens()
-       call c2%struct_new(seed,.true.)
+       call c2%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('tricks',errmsg,faterr)
        call c2%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror('trick_compare_deformed','error recalculating symmetry: ' // file1,faterr)
@@ -2509,7 +2527,9 @@ contains
        call c2%makeseed(c2seed,.false.)
        c2seed%useabr = 2
        c2seed%m_x2c = m_x2c_from_cellpar(targetaa,targetbb)
-       call c2del%struct_new(c2seed,.true.)
+       call c2del%struct_new(c2seed,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('tricks',errmsg,faterr)
        allocate(iha2(imax_amd))
        call c2del%amd(imax_amd,iha2)
 
@@ -2621,7 +2641,9 @@ contains
                 call c2del%makeseed(c2seed,.false.)
                 c2seed%useabr = 2
                 c2seed%m_x2c = m_x2c_from_cellpar(targetaa,targetbb)
-                call c2del%struct_new(c2seed,.true.)
+                call c2del%struct_new(c2seed,errmsg)
+                if (len_trim(errmsg) > 0) &
+                   call ferror('tricks',errmsg,faterr)
                 call c2del%amd(imax_amd,iha2)
                 diff = maxval(abs(iha1-iha2))
                 if (diff < mindiff) then
@@ -2687,7 +2709,9 @@ contains
        seed%aa = targetaa
        seed%bb = targetbb
        seed%findsym = 0
-       call c2del%struct_new(seed,.true.)
+       call c2del%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('tricks',errmsg,faterr)
 
        ! write both to a res file
        if (.not.usexy) then
@@ -3423,11 +3447,15 @@ contains
     call seed%read_any_file(file1,0,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_calculate_displacements','Error file1: '//errmsg,faterr)
-    call c1%struct_new(seed,.true.)
+    call c1%struct_new(seed,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('tricks',errmsg,faterr)
     call seed%read_any_file(file2,0,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_calculate_displacements','Error file2: '//errmsg,faterr)
-    call c2%struct_new(seed,.true.)
+    call c2%struct_new(seed,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('tricks',errmsg,faterr)
 
     ! check that the cells are identical
     if (any(abs(c1%m_x2c - c2%m_x2c) > 1d-5)) &

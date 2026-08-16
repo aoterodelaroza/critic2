@@ -50,7 +50,6 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
     logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive, syschanged
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:17)
-    integer :: ier ! error flag for the symmetry-operation analysis
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
     integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
@@ -1850,17 +1849,7 @@ contains
                    allocate(w%geometry_sym_ops(neqv*max(ncv,1)),w%geometry_sym_hm(neqv*max(ncv,1)),&
                       w%geometry_sym_axes(3,neqv*max(ncv,1)))
                    call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,hmsym=w%geometry_sym_hm,&
-                      axcr=w%geometry_sym_axes,ier=ier)
-                   if (ier /= 0) then
-                      ! Could not classify the operations. Keep the arrays
-                      ! allocated (the table below indexes them unconditionally,
-                      ! and deallocating would also re-run this every frame) and
-                      ! show placeholders instead of killing the GUI.
-                      w%geometry_sym_ops = "?"
-                      w%geometry_sym_hm = "?"
-                      w%geometry_sym_axes = 0d0
-                      w%errmsg = "Could not analyze the symmetry operations"
-                   end if
+                      axcr=w%geometry_sym_axes)
                 end if
 
                 flags = ImGuiTableFlags_None
@@ -2182,13 +2171,13 @@ contains
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_reorder_highlighted) then
-       call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
+       call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord,w%errmsg)
 
     elseif (iaction == iaction_swap_atom_ids) then
-       call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
+       call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2,w%errmsg)
 
     elseif (iaction == iaction_swap_mol_ids) then
-       call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
+       call sysc(isys)%swap_molecules(iaction_i1,iaction_i2,w%errmsg)
 
     elseif (iaction == iaction_set_molecule_position) then
        call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,&
@@ -2204,7 +2193,7 @@ contains
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_reorder_molecules) then
-       call sysc(isys)%attype_reorder(atlisttype_nmol,w%iord)
+       call sysc(isys)%attype_reorder(atlisttype_nmol,w%iord,w%errmsg)
 
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l,&

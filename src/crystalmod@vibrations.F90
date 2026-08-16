@@ -1986,7 +1986,8 @@ contains
        word = getword(sline,lp)
        call seed%read_any_file(word,-1,errmsg)
        if (len_trim(errmsg) > 0) goto 999
-       call sc%struct_new(seed,.true.)
+       call sc%struct_new(seed,errmsg)
+       if (len_trim(errmsg) > 0) goto 999
        if (sc%ismolecule) then
           errmsg = "Supercell file in VIBRATIONS LOAD is a molecule"
           goto 999

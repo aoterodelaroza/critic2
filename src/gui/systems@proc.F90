@@ -2133,12 +2133,15 @@ contains
 
   !> Reorder the atoms in the system for the given atom types using
   !> the permutation iord.
-  module subroutine attype_reorder(sysc,type,iord)
+  module subroutine attype_reorder(sysc,type,iord,errmsg)
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
     integer, intent(in) :: type
     integer, intent(in) :: iord(:)
 
     integer :: isys
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2146,14 +2149,15 @@ contains
 
     ! reorder
     if (type == atlisttype_nneq) then
-       call sys(isys)%c%reorder_atoms(iord,.true.)
+       call sys(isys)%c%reorder_atoms(iord,.true.,errmsg)
     elseif (type == atlisttype_species) then
-       call sys(isys)%c%reorder_species(iord)
+       call sys(isys)%c%reorder_species(iord,errmsg)
     elseif (type == atlisttype_nmol) then
-       call sys(isys)%c%reorder_molecules(iord)
+       call sys(isys)%c%reorder_molecules(iord,errmsg)
     else
-       call sys(isys)%c%reorder_atoms(iord,.false.)
+       call sys(isys)%c%reorder_atoms(iord,.false.,errmsg)
     end if
+    if (len_trim(errmsg) > 0) return
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
@@ -2162,10 +2166,11 @@ contains
 
   !> Swap two of the atoms in the system with IDs i1 and i2 for the
   !> given atom type.
-  module subroutine attype_swap_atoms(sysc,type,i1,i2)
+  module subroutine attype_swap_atoms(sysc,type,i1,i2,errmsg)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: i1, i2
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys, ntype, i
     integer, allocatable :: iord(:)
@@ -2186,19 +2191,24 @@ contains
     iord(i2) = i1
     iord(i1) = i2
 
+    errmsg = ""
+
     ! reorder
-    call sysc%attype_reorder(type,iord)
+    call sysc%attype_reorder(type,iord,errmsg)
     deallocate(iord)
 
   end subroutine attype_swap_atoms
 
   !> Swap the two molecular fragments in the system with IDs i1 and i2.
-  module subroutine swap_molecules(sysc,i1,i2)
+  module subroutine swap_molecules(sysc,i1,i2,errmsg)
     class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
     integer, intent(in) :: i1, i2
 
     integer :: isys, nmol, i
     integer, allocatable :: iperm(:)
+
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -2217,8 +2227,9 @@ contains
     iperm(i1) = i2
 
     ! reorder the molecules and signal the geometry change
-    call sys(isys)%c%reorder_molecules(iperm)
+    call sys(isys)%c%reorder_molecules(iperm,errmsg)
     deallocate(iperm)
+    if (len_trim(errmsg) > 0) return
     call sysc%post_event(lastchange_geometry)
 
   end subroutine swap_molecules
@@ -3509,7 +3520,11 @@ contains
              if (sysc(i)%status == sys_loaded_not_init.and..not.sysc(i)%hidden) then
                 sysc(i)%status = sys_initializing
                 ! load the seed
-                call sys(i)%new_from_seed(sysc(i)%seed,ti=ti)
+                call sys(i)%new_from_seed(sysc(i)%seed,errmsg,ti=ti)
+                if (len_trim(errmsg) > 0) then
+                   write (uout,'("!! Warning !! Could not build system: ",A)') string(i)
+                   write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+                end if
 
                 ! load any fields
                 if (sysc(i)%has_field) then
