@@ -1,4 +1,5 @@
-<molecule>
+<?xml version="1.0" encoding="UTF-8"?>
+<molecule xmlns="http://www.xml-cml.org/schema" xmlns:units="http://www.xml-cml.org/units/units">
  <crystal>
   <scalar title="a" units="units:angstrom">5.56500000</scalar>
   <scalar title="b" units="units:angstrom">5.56500000</scalar>

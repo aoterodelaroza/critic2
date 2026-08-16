@@ -94,7 +94,7 @@ submodule (windows) saveas
   real(c_float) :: lastrk = 50._c_float
   logical :: lastnosym = .false.
   logical :: lastcartesian = .false.
-  logical :: lastdocell = .false.
+  logical :: lastdocell = .true.
 
 contains
 

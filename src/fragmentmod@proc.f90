@@ -720,7 +720,9 @@ contains
 
     ! write it
     lu = fopen_write(file,ti=ti)
-    write (lu,'("<molecule>")')
+    write (lu,'("<?xml version=""1.0"" encoding=""UTF-8""?>")')
+    write (lu,'("<molecule xmlns=""http://www.xml-cml.org/schema""&
+       & xmlns:units=""http://www.xml-cml.org/units/units"">")')
 
     ! crystal structure
     if (present(r)) then
