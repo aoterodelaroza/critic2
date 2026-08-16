@@ -44,15 +44,15 @@ contains
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
-       iw_radiobutton, iw_dragfloat_realc, iw_inputfloat3, iw_inputint3,&
+       iw_radiobutton, iw_dragfloat_realc, iw_inputint3,&
        iw_close_event, iw_setpos_bottomright
     use tools_io, only: string, uout
-    use param, only: bohrtoa
+    use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
 
     logical :: doquit, okvalid, syschanged, ismol, environok, useenv
     integer :: i, isys, iview, nmol
-    real*8 :: rad, x0(3)
+    real*8 :: rad, x0(3), xlo(3), xhi(3)
     logical(c_bool) :: ldum
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
@@ -80,10 +80,28 @@ contains
     end if
 
     ! default center (cell center for crystals, origin for molecules);
-    ! re-applied when the anchor view changes system
+    ! re-applied when the anchor view changes system. Also compute the
+    ! rough atom number density (bohr^-3) for the atom-count estimate:
+    ! atoms per cell volume for crystals, per bounding box for molecules
     if (w%firstpass .or. syschanged) then
        w%extract_center = merge(0._c_float,0.5_c_float,ismol)
        w%errmsg = ""
+       w%extract_atdens = 0._c_float
+       if (.not.doquit) then
+          if (ismol) then
+             xlo = huge(1d0)
+             xhi = -huge(1d0)
+             do i = 1, sys(isys)%c%ncel
+                xlo = min(xlo,sys(isys)%c%atcel(i)%r)
+                xhi = max(xhi,sys(isys)%c%atcel(i)%r)
+             end do
+             ! pad thin dimensions (e.g. planar molecules)
+             xhi = max(xhi - xlo,4d0)
+             w%extract_atdens = real(sys(isys)%c%ncel / (xhi(1)*xhi(2)*xhi(3)),c_float)
+          elseif (sys(isys)%c%omega > 0d0) then
+             w%extract_atdens = real(sys(isys)%c%ncel / sys(isys)%c%omega,c_float)
+          end if
+       end if
     end if
 
     ! the unit cells region is only available for crystals
@@ -128,11 +146,32 @@ contains
        call iw_tooltip("Cut whole unit cells",ttshown)
     end if
 
+    ! center (all regions except cells)
+    if (w%extract_region /= er_cells) then
+       if (ismol) then
+          call iw_text("Center (Å)")
+       else
+          call iw_text("Center (fractional)")
+       end if
+       call igPushItemWidth(iw_calcwidth(27,1))
+       ldum = iw_dragfloat_realc("##extractcenter",x3=w%extract_center,speed=0.01_c_float,&
+          decimal=4,sameline=.true.)
+       call igPopItemWidth()
+       call iw_tooltip("Center of the region, in fractional coordinates for crystals&
+          & and Å for molecules",ttshown)
+    end if
+
     ! region parameters
     if (w%extract_region == er_sphere) then
        ldum = iw_dragfloat_realc("Radius (Å)##extractrsph",x1=w%extract_rsph,speed=0.1_c_float,&
           min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Radius of the sphere",ttshown)
+       ! rough number of atoms in the sphere from the atom density
+       if (w%extract_atdens > 0._c_float) then
+          rad = real(w%extract_rsph,8) / bohrtoa
+          call iw_text("(~" // string(nint(4d0*pi/3d0 * rad**3 * real(w%extract_atdens,8))) //&
+             " atoms)",sameline=.true.)
+       end if
        if (environok) then
           ldum = iw_checkbox("Whole molecules##extractenviron",w%extract_environ)
           call iw_tooltip("Cut all whole molecules whose center of mass is within the&
@@ -150,18 +189,6 @@ contains
        ldum = iw_checkbox("Include border atoms##extractborder",w%extract_border)
        call iw_tooltip("Include atoms near the boundary of the chosen cells (BORDER&
           & option to WRITE)",ttshown)
-    end if
-
-    ! center (all regions except cells)
-    if (w%extract_region /= er_cells) then
-       if (ismol) then
-          call iw_text("Center (Å)")
-       else
-          call iw_text("Center (fractional)")
-       end if
-       ldum = iw_inputfloat3("##extractcenter",w%extract_center,decimal=4,width=3*9,sameline=.true.)
-       call iw_tooltip("Center of the region, in fractional coordinates for crystals&
-          & and Å for molecules",ttshown)
     end if
 
     ! complete boundary molecules (not applicable to whole-molecule cuts)

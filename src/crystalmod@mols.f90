@@ -622,6 +622,8 @@ contains
              end do
           end do
        end do
+       ! molecules have no periodic images
+       if (c%ismolecule) doagain = .false.
     end do
 
     call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_crys,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c,flvec(:,1:n))

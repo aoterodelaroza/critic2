@@ -249,6 +249,7 @@ module windows
      logical :: extract_molmotif ! complete molecules at the region boundary
      logical :: extract_environ ! sphere region: whole molecules with COM within the radius
      logical :: extract_closeafter ! close the window and focus the new system after extracting
+     real(c_float) :: extract_atdens ! rough atom number density of the system (bohr^-3)
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
