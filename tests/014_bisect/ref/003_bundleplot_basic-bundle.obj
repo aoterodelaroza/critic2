@@ -1,7 +1,7 @@
 # OBJ created by critic2
 mtllib 003_bundleplot_basic-bundle.mtl
 o surf_1
-s on
+s 1
 usemtl mat1
 v   0.223418759266E+01   0.159152734912E+01   0.238729102367E+01  0.50196  0.50196  0.50196 
 v   0.795763674558E+00   0.229611563490E+01   0.238729102367E+01  0.50196  0.50196  0.50196 

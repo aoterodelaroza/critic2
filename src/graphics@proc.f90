@@ -2995,10 +2995,11 @@ contains
   !> Open an obj file (and its mtl companion)
   subroutine obj_open(g,ti)
     use tools_io, only: faterr, ferror, fopen_write
+    use param, only: dirsep
     type(grhandle), intent(inout) :: g
     type(thread_info), intent(in), optional :: ti
 
-    integer :: idx
+    integer :: idx, idir
     character(len=:), allocatable :: filemtl, aux
 
     ! open the obj
@@ -3013,6 +3014,12 @@ contains
 
     ! open the mtl
     g%lumtl = fopen_write(filemtl,ti=ti)
+
+    ! reference the mtl by its base name: the mtl is written next to
+    ! the obj, and a path (particularly an absolute one) in the mtllib
+    ! statement breaks the material load when the files are moved
+    idir = index(filemtl,dirsep,back=.true.)
+    if (idir > 0) filemtl = filemtl(idir+1:)
 
     ! clear and initialize the mtl database
     g%nmtl = 0
@@ -3082,7 +3089,7 @@ contains
     ! write the ball to the obj
     g%nball = g%nball + 1
     write (g%lu,'("o ball_",A)') string(g%nball)
-    write (g%lu,'("s on")')
+    write (g%lu,'("s 1")')
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvsph(lvl)
@@ -3110,7 +3117,7 @@ contains
     n = size(x,2)
     g%npoly = g%npoly + 1
     write (g%lu,'("o face_",A)') string(g%npoly)
-    write (g%lu,'("s on")')
+    write (g%lu,'("s 1")')
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, n
@@ -3167,7 +3174,7 @@ contains
     ! write the stick to the obj
     g%nstick = g%nstick + 1
     write (g%lu,'("o stick_",A)') string(g%nstick)
-    write (g%lu,'("s on")')
+    write (g%lu,'("s 1")')
     imtl = register_texture(g,rgb)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvcyl(lvl)
@@ -3211,7 +3218,7 @@ contains
     ! write the surface to the obj
     g%nsurf = g%nsurf + 1
     write (g%lu,'("o surf_",A)') string(g%nsurf)
-    write (g%lu,'("s on")')
+    write (g%lu,'("s 1")')
     imtl = register_texture(g,rgb_default)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, srf%nv
@@ -3223,7 +3230,7 @@ contains
              z = (fsurf(i) - minf) / (maxf - minf)
              xrgb(1) = sqrt(z)
              xrgb(2) = z**3
-             xrgb(3) = sin(2*z*pi)
+             xrgb(3) = max(sin(2*z*pi),0d0)
           end if
           write (g%lu,'("v ",3(E20.12," "),3(F8.5," "))') x, xrgb
        else
@@ -3262,7 +3269,7 @@ contains
     ! write the surface to the obj
     g%nsurf = g%nsurf + 1
     write (g%lu,'("o surf_",A)') string(g%nsurf)
-    write (g%lu,'("s on")')
+    write (g%lu,'("s 1")')
     imtl = register_texture(g,rgb_default)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nv
@@ -3270,14 +3277,14 @@ contains
           z = (xrho(i) - minf) / (maxf - minf)
           xrgb(1) = sqrt(z)
           xrgb(2) = z**3
-          xrgb(3) = sin(2*z*pi)
+          xrgb(3) = max(sin(2*z*pi),0d0)
           write (g%lu,'("v ",3(E20.12," "),3(F8.5," "))') xv(:,i), xrgb
        else
           write (g%lu,'("v ",3(E20.12," "))') xv(:,i)
        end if
     end do
     do i = 1, nf
-       write (g%lu,'("f ",999(I10," "))') (if(j,i),j=1,3)
+       write (g%lu,'("f ",999(I10," "))') (g%nv+if(j,i),j=1,3)
     end do
     g%nv = g%nv + nv
 
@@ -3535,7 +3542,7 @@ contains
              z = (fsurf(i) - minf) / (maxf - minf)
              xrgb(1) = sqrt(z)
              xrgb(2) = z**3
-             xrgb(3) = sin(2*z*pi)
+             xrgb(3) = max(sin(2*z*pi),0d0)
              rgb = nint(xrgb * 255)
           end if
        endif
@@ -3578,7 +3585,7 @@ contains
           z = (xrho(i) - minf) / (maxf - minf)
           xrgb(1) = sqrt(z)
           xrgb(2) = z**3
-          xrgb(3) = sin(2*z*pi)
+          xrgb(3) = max(sin(2*z*pi),0d0)
           rgb = nint(xrgb * 255)
        end if
        write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(rgb(j)),j=1,3)
@@ -3816,7 +3823,7 @@ contains
              z = (fsurf(i) - minf) / (maxf - minf)
              xrgb(1) = sqrt(z)
              xrgb(2) = z**3
-             xrgb(3) = sin(2*z*pi)
+             xrgb(3) = max(sin(2*z*pi),0d0)
           endif
        endif
        write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
@@ -3858,7 +3865,7 @@ contains
           z = (xrho(i) - minf) / (maxf - minf)
           xrgb(1) = sqrt(z)
           xrgb(2) = z**3
-          xrgb(3) = sin(2*z*pi)
+          xrgb(3) = max(sin(2*z*pi),0d0)
        end if
        write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
     end do
