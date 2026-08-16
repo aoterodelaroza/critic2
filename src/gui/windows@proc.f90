@@ -350,6 +350,7 @@ contains
              if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_saveas.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
@@ -592,6 +593,10 @@ contains
        ! save structure as window
        if (.not.present(idparent)) &
           call ferror('window_init','saveas requires idparent',faterr)
+    elseif (type == wintype_extract) then
+       ! extract cluster as molecule window
+       if (.not.present(idparent)) &
+          call ferror('window_init','extract requires idparent',faterr)
     elseif (type == wintype_vibrations) then
        ! vibrations window
        if (.not.present(idparent)) &
@@ -1015,6 +1020,8 @@ contains
           call init_window("Export to Image",52,21)
        elseif (w%type == wintype_saveas) then
           call init_window("Save As",52,18)
+       elseif (w%type == wintype_extract) then
+          call init_window("Extract Cluster as Molecule",52,18)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62,25)
        elseif (w%type == wintype_dynamics) then
@@ -1079,6 +1086,8 @@ contains
                 call w%draw_exportimage()
              elseif (w%type == wintype_saveas) then
                 call w%draw_saveas()
+             elseif (w%type == wintype_extract) then
+                call w%draw_extract()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
              elseif (w%type == wintype_dynamics) then

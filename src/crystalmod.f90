@@ -286,6 +286,7 @@ module crystalmod
      procedure :: calculate_molecular_equivalence !< Calculate symmetry relations between molecules
      procedure :: calculate_periodicity !< Calculate symmetry relations between molecules
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
+     procedure :: listatoms_environ !< List whole molecules with COM within a distance of a point
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
      procedure :: masked_fragment !< Connected component of an atom skipping the bonds between two atoms
@@ -734,6 +735,12 @@ module crystalmod
        real*8, intent(in), optional :: rcub, xcub(3)
        type(fragment) :: fr
      end function listatoms_sphcub
+     module function listatoms_environ(c,renv,xenv) result(fr)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: renv
+       real*8, intent(in) :: xenv(3)
+       type(fragment) :: fr
+     end function listatoms_environ
      module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
        class(crystal), intent(inout) :: c
        type(fragment), intent(in) :: fri

@@ -171,7 +171,8 @@ contains
   !> other seeds in the tree view. If iafield, load a field from that
   !> seed. If iavib, load vibrational data from that seed. If forceidx
   !> is present, force the system to be in the provided index.
-  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist)
+  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist,&
+     noselect)
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -189,7 +190,9 @@ contains
     integer, intent(in), optional :: iafield, iavib
     integer, intent(in), optional :: forceidx
     integer, allocatable, intent(out), optional :: idlist(:)
+    logical, intent(in), optional :: noselect
 
+    logical :: noselect_
     integer :: i, j, nid, idum
     integer :: iafield_, iavib_, forceidx_
     integer :: iseed, iseed_, idx
@@ -358,8 +361,10 @@ contains
        call sysc(idx)%post_event(lastchange_geometry)
     end do
 
-    ! Select the first new system in the tree
-    if (allocated(win)) then
+    ! Select the first new system in the tree, unless noselect
+    noselect_ = .false.
+    if (present(noselect)) noselect_ = noselect
+    if (.not.noselect_ .and. allocated(win)) then
        if (iwin_tree > 0 .and. iwin_tree <= size(win)) then
           win(iwin_tree)%forceselect = id(1)
           win(iwin_tree)%isys = id(1)

@@ -239,6 +239,16 @@ module windows
      logical :: saveas_nosym ! do not use symmetry in the written file
      logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
      logical :: saveas_docell ! show the unit cell in the written 3D model file
+     ! extract cluster as molecule parameters (defaults set on window firstpass)
+     integer(c_int) :: extract_region ! region shape (0=sphere, 1=cube, 2=cells)
+     real(c_float) :: extract_rsph ! sphere radius (Å)
+     real(c_float) :: extract_rcub ! cube half-edge (Å)
+     real(c_float) :: extract_center(3) ! center (fractional for crystals, Å for molecules)
+     integer(c_int) :: extract_nx(3) ! number of unit cells along a, b, c
+     logical :: extract_border ! include atoms on the border of the cells
+     logical :: extract_molmotif ! complete molecules at the region boundary
+     logical :: extract_environ ! sphere region: whole molecules with COM within the radius
+     logical :: extract_closeafter ! close the window and focus the new system after extracting
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
@@ -388,6 +398,8 @@ module windows
      procedure :: draw_exportimage
      ! save structure as
      procedure :: draw_saveas
+     ! extract cluster as molecule
+     procedure :: draw_extract
      ! vibrations
      procedure :: draw_vibrations
      ! dynamics
@@ -440,6 +452,7 @@ module windows
   integer, parameter, public :: wintype_dynamics = 18
   integer, parameter, public :: wintype_water_cluster = 19
   integer, parameter, public :: wintype_saveas = 20
+  integer, parameter, public :: wintype_extract = 21
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -842,6 +855,10 @@ module windows
      module subroutine draw_saveas(w)
        class(window), intent(inout), target :: w
      end subroutine draw_saveas
+     !xx! extract submodule !xx!
+     module subroutine draw_extract(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_extract
      !xx! vibrations submodule !xx!
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w

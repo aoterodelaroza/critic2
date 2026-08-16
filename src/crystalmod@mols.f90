@@ -629,6 +629,95 @@ contains
 
   end function listatoms_sphcub
 
+  !> Return a fragment containing all whole molecules of the molecular
+  !> motif whose center of mass lies within a distance renv (bohr) of
+  !> the point xenv (crystallographic coordinates), considering all
+  !> lattice translations. Similar to the environment construction in
+  !> the ENVIRON option to WRITE (write_mol), but centered on xenv and
+  !> with the distance criterion applied to the main-cell molecules as
+  !> well (WRITE always includes the whole cell motif). Returns an
+  !> empty fragment if the molecular motif is not available.
+  module function listatoms_environ(c,renv,xenv) result(fr)
+    use fragmentmod, only: fragment, realloc_fragment
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: renv
+    real*8, intent(in) :: xenv(3)
+    type(fragment) :: fr
+
+    integer :: i1, i2, i3, l, icel, ncm, ncm0, lvec0(3)
+    real*8 :: xc(3), xlv(3)
+    real*8, allocatable :: cmc(:,:)
+    type(fragment), allocatable :: fr0(:)
+
+    call fr%init()
+    if (.not.allocated(c%mol) .or. c%nmol == 0) return
+
+    ! wrap the center into the main cell so the expanding-shell walk
+    ! below (anchored on the origin cell) reaches the region; the
+    ! result is translated back at the end
+    lvec0 = 0
+    if (.not.c%ismolecule) lvec0 = floor(xenv)
+
+    ! center of the environment and molecular centers of mass (Cartesian)
+    xc = c%x2c(xenv - real(lvec0,8))
+    allocate(cmc(3,c%nmol))
+    do l = 1, c%nmol
+       cmc(:,l) = c%mol(l)%cmass()
+    end do
+
+    ! molecules in the main cell
+    allocate(fr0(c%nmol))
+    ncm = 0
+    xlv = 0d0
+    do l = 1, c%nmol
+       call addmol(l,(/0,0,0/))
+    end do
+
+    ! molecules in the surrounding cell shells, until a whole shell
+    ! contributes nothing (crystals only)
+    if (.not.c%ismolecule) then
+       icel = 0
+       ncm0 = -1
+       do while (ncm > ncm0)
+          icel = icel + 1
+          ncm0 = ncm
+          do i1 = -icel, icel
+             do i2 = -icel, icel
+                do i3 = -icel, icel
+                   ! shell surface only
+                   if (abs(i1)/=icel .and. abs(i2)/=icel .and. abs(i3)/=icel) cycle
+                   xlv = c%x2c(real((/i1,i2,i3/),8))
+                   do l = 1, c%nmol
+                      call addmol(l,(/i1,i2,i3/))
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end if
+
+    ! merge into a single fragment and undo the center wrapping
+    if (ncm > 0) then
+       call fr%merge_array(fr0(1:ncm),.false.)
+       if (any(lvec0 /= 0)) call fr%translate(lvec0)
+    end if
+
+  contains
+    ! Add molecule il translated by lattice vector lvec if its center
+    ! of mass lies within renv of xc. The host xlv must hold the
+    ! Cartesian offset of lvec.
+    subroutine addmol(il,lvec)
+      integer, intent(in) :: il, lvec(3)
+
+      if (norm2(cmc(:,il) + xlv - xc) > renv) return
+      ncm = ncm + 1
+      if (ncm > size(fr0,1)) call realloc_fragment(fr0,2*ncm)
+      fr0(ncm) = c%mol(il)
+      if (any(lvec /= 0)) call fr0(ncm)%translate(lvec)
+
+    end subroutine addmol
+  end function listatoms_environ
+
   !> List all molecules resulting from completing the initial fragment
   !> fri by adding adjacent atoms that are covalently bonded. Return
   !> the number of fragments (nfrag), the fragments themselves (fr),

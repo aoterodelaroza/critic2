@@ -585,7 +585,7 @@ contains
     use interfaces_cimgui, only: igSeparator
     use systems, only: sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
-       wintype_vibrations, wintype_dynamics, wintype_builder
+       wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
     integer, intent(in) :: isys
@@ -598,6 +598,11 @@ contains
 
     enabled = ok_system(isys,sys_init)
 
+    ! recalculate the bonds
+    if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
+       call sysc(isys)%rebond()
+    call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
+
     ! view/edit the geometry
     ok = iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)
     if (present(launchgeometry)) then
@@ -607,10 +612,11 @@ contains
     end if
     call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
 
-    ! recalculate the bonds
-    if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
-       call sysc(isys)%rebond()
-    call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
+    ! extract a cluster as a new molecular system
+    if (iw_menuitem("Extract Cluster as Molecule...",enabled=enabled)) &
+       idum = stack_create_window(wintype_extract,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Cut a finite piece of this system (sphere, cube, unit cells, or&
+       & molecular environment) and add it as a new molecular system",ttshown)
 
     call igSeparator()
 
