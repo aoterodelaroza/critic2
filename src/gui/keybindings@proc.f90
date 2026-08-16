@@ -190,6 +190,7 @@ contains
     call set_bind(BIND_REOPEN,ImGuiKey_R,mod_ctrl)
     call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
     call set_bind(BIND_SAVE,ImGuiKey_S,mod_ctrl)
+    call set_bind(BIND_SAVE_AS,ImGuiKey_S,ior(mod_ctrl,mod_shift))
     call set_bind(BIND_EXPORT_NOW,ImGuiKey_E,mod_ctrl)
     call set_bind(BIND_EXPORT_IMAGE,ImGuiKey_E,ior(mod_ctrl,mod_shift))
     call set_bind(BIND_MANUAL,ImGuiKey_F1,mod_none)

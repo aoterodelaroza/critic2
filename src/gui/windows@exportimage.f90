@@ -25,7 +25,7 @@ contains
   module subroutine draw_exportimage(w)
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir, iw_checkbox,&
-       iw_close_event, iw_setpos_bottomright
+       iw_close_event, iw_setpos_bottomright, shorten_path_cwd
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use tools_io, only: ferror, string
     use param, only: dirsep
@@ -58,11 +58,11 @@ contains
     if (.not.doquit) doquit = .not.associated(win(iview)%sc)
 
     ! Image file button
-    call iw_text("Image File",highlight=.true.)
+    call iw_text("File Name",highlight=.true.)
     if (iw_button("File",danger=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile,idparent=w%id,orraise=-1)
     call iw_tooltip("Choose the file to save the image to",ttshown)
-    call iw_text(w%okfile,sameline=.true.)
+    call iw_text(shorten_path_cwd(w%okfile),sameline=.true.)
 
     ! render settings
     call iw_text("Render Settings",highlight=.true.)

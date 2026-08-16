@@ -349,6 +349,7 @@ contains
              if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_saveas.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
@@ -511,6 +512,10 @@ contains
        ! export image window
        if (.not.present(idparent)) &
           call ferror('window_init','exportimage requires idparent',faterr)
+    elseif (type == wintype_saveas) then
+       ! save structure as window
+       if (.not.present(idparent)) &
+          call ferror('window_init','saveas requires idparent',faterr)
     elseif (type == wintype_vibrations) then
        ! vibrations window
        if (.not.present(idparent)) &
@@ -879,6 +884,45 @@ contains
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%purpose == wpurp_dialog_savefile) then
+             w%name = "Save Structure File##" // string(w%id) // c_null_char
+             str1 = "&
+                &FHIaims input (*.in) {.in},&
+                &CIF (*.cif) {.cif},&
+                &Quantum ESPRESSO input (*.pwi) {.pwi},&
+                &VASP (*.POSCAR) {.POSCAR},&
+                &SHELX res (*.res) {.res},&
+                &CRYSTAL input (*.d12) {.d12},&
+                &abinit input (*.abin) {.abin},&
+                &elk GEOMETRY.OUT (*.elk) {.elk},&
+                &Gaussian input (*.gjf) {.gjf},&
+                &Gaussian input, periodic (*.gau) {.gau},&
+                &xyz (*.xyz) {.xyz},&
+                &CML (*.cml) {.cml},&
+                &critic2 input (*.cri) {.cri},&
+                &escher/octave (*.m) {.m},&
+                &dcp database (*.db) {.db},&
+                &GULP input (*.gin) {.gin},&
+                &LAMMPS data (*.lammps) {.lammps},&
+                &SIESTA fdf (*.fdf) {.fdf},&
+                &SIESTA STRUCT_IN (*.struct_in) {.struct_in},&
+                &DFTB+ hsd (*.hsd) {.hsd},&
+                &DFTB+ gen (*.gen) {.gen},&
+                &pyscf script (*.pyscf) {.pyscf},&
+                &TINKER frac (*.frac) {.frac},&
+                &tessel (*.tess) {.tess},&
+                &pdb (*.pdb) {.pdb},&
+                &Wavefront obj (*.obj) {.obj},&
+                &PLY (*.ply) {.ply},&
+                &OFF (*.off) {.off},&
+                &All files (*.*){*.*}"// c_null_char
+             str2 = "structure.in" // c_null_char
+             str3 = "./" // c_null_char
+             ! the overwrite flag goes only to the file dialog, not to w%flags: it
+             ! would be reused as ImGuiWindowFlags in IGFD_DisplayDialog
+             call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),&
+                ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
           else
              call ferror('window_draw','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
@@ -894,6 +938,8 @@ contains
           call init_window("Object [" // string(w%rep%name) // "]",63,46)
        elseif (w%type == wintype_exportimage) then
           call init_window("Export to Image",50,17)
+       elseif (w%type == wintype_saveas) then
+          call init_window("Save As",50,15)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62,25)
        elseif (w%type == wintype_dynamics) then
@@ -956,6 +1002,8 @@ contains
                 call w%draw_editrep()
              elseif (w%type == wintype_exportimage) then
                 call w%draw_exportimage()
+             elseif (w%type == wintype_saveas) then
+                call w%draw_saveas()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
              elseif (w%type == wintype_dynamics) then

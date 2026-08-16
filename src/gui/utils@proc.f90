@@ -1832,6 +1832,27 @@ contains
 
   end function get_current_working_dir
 
+  !> Return file with the leading path removed if that path is the
+  !> current working directory (for display purposes). The cwd is
+  !> cached on the first call (the GUI never changes directory).
+  module function shorten_path_cwd(file) result(s)
+    use param, only: dirsep
+    character(len=*), intent(in) :: file
+    character(len=:), allocatable :: s
+
+    character(len=:), allocatable, save :: cwd
+    integer :: idx
+
+    if (.not.allocated(cwd)) cwd = get_current_working_dir()
+
+    s = file
+    idx = index(s,dirsep,back=.true.)
+    if (idx > 0) then
+       if (s(1:idx-1) == cwd) s = s(idx+1:)
+    end if
+
+  end function shorten_path_cwd
+
   !xx! private procedures !xx!
 
   !> Deferred-commit bookkeeping for the notlive iw_input* widgets; call

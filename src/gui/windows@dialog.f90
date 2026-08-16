@@ -56,9 +56,10 @@ contains
        ! open vibrations file dialog => quit if the system is gone
        doquit = (.not.ok_system(w%isys,sys_init))
     elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
-       w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal) then
-       ! open library file, save image file, open field file, open one file modal
-       ! => quit if the caller window is gone
+       w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
+       w%purpose == wpurp_dialog_savefile) then
+       ! open library file, save image file, open field file, open one file modal,
+       ! save structure file => quit if the caller window is gone
        doquit = .not.win(w%idparent)%isinit
     end if
 
@@ -165,8 +166,8 @@ contains
                 end do
              end if
 
-          elseif (w%purpose == wpurp_dialog_saveimagefile) then
-             !! save image file dialog !!
+          elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile) then
+             !! save image file or save structure file dialog !!
              win(w%idparent)%okfile_set = .true.
 
              cstr = IGFD_GetFilePathName(w%dptr)
@@ -174,10 +175,13 @@ contains
              call c_free(cstr)
              win(w%idparent)%okfile = trim(name)
 
-             cstr = IGFD_GetCurrentFilter(w%dptr)
-             call C_F_string_alloc(cstr,name)
-             call c_free(cstr)
-             win(w%idparent)%okfilter = trim(name)
+             ! the filter carries the image format (save image file only)
+             if (w%purpose == wpurp_dialog_saveimagefile) then
+                cstr = IGFD_GetCurrentFilter(w%dptr)
+                call C_F_string_alloc(cstr,name)
+                call c_free(cstr)
+                win(w%idparent)%okfilter = trim(name)
+             end if
           else
              call ferror('draw_dialog','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if

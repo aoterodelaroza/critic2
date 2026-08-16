@@ -62,6 +62,7 @@ module utils
   public :: buffer_to_string_array
   public :: get_nice_next_window_pos
   public :: get_current_working_dir
+  public :: shorten_path_cwd
   !xx! math submodule !xx!
   public :: infiniteperspective
   public :: ortho
@@ -365,6 +366,10 @@ module utils
      module function get_current_working_dir()
        character(len=:), allocatable :: get_current_working_dir
      end function get_current_working_dir
+     module function shorten_path_cwd(file) result(s)
+       character(len=*), intent(in) :: file
+       character(len=:), allocatable :: s
+     end function shorten_path_cwd
      !xx! math submodule !xx!
      module subroutine infiniteperspective(m,fovy,aspect,znear)
        use iso_c_binding, only: c_float

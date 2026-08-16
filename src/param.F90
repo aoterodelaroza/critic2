@@ -170,6 +170,7 @@ module param
   integer, parameter :: isformat_w_pyscf = 26
   integer, parameter :: isformat_w_tinkerfrac = 27
   integer, parameter :: isformat_w_pdb = 28
+  integer, parameter :: isformat_w_max = isformat_w_pdb ! last writing format (update when adding formats)
 
   ! Enumerate for vibration data formats
   integer, parameter :: ivformat_unknown = 0

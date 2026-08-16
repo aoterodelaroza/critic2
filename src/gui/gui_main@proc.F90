@@ -584,10 +584,10 @@ contains
   module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
     use interfaces_cimgui, only: igSeparator
     use systems, only: sysc, sys_init, ok_system
-    use windows, only: stack_create_window, wintype_exportimage, wintype_geometry,&
+    use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder
     use utils, only: iw_tooltip, iw_menuitem
-    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_EXPORT_IMAGE
+    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
     integer, intent(in) :: isys
     integer, intent(in) :: idparent
     logical, intent(inout) :: ttshown
@@ -597,13 +597,6 @@ contains
     logical :: enabled, ok
 
     enabled = ok_system(isys,sys_init)
-
-    ! export the view to an image file
-    if (iw_menuitem("Export to Image...",BIND_EXPORT_IMAGE,enabled=enabled)) &
-       idum = stack_create_window(wintype_exportimage,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Export the current view to an image file (png)",ttshown)
-
-    call igSeparator()
 
     ! view/edit the geometry
     ok = iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)
@@ -784,13 +777,13 @@ contains
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_exportimage,&
-       paste_clipboard_fragment, view_target_window
+       wintype_saveas, paste_clipboard_fragment, view_target_window
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
        BIND_CUT_SELECTION, BIND_PASTE, BIND_MANUAL, BIND_EXPORT_IMAGE, BIND_TOGGLE_TREE,&
-       BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON,&
+       BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON, BIND_SAVE_AS,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string, ferror, warning
@@ -888,6 +881,11 @@ contains
        idum = stack_create_window(wintype_exportimage,.true.,idparent=view_target_window(),&
        orraise=-1)
 
+    !! open the save-as dialog on the view the bindings act upon
+    if (isysvok .and. is_bind_event(BIND_SAVE_AS,norepeat=.true.)) &
+       idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&
+       orraise=-1)
+
     ! start the menu
     if (igBeginMainMenuBar()) then
        ! File
@@ -932,11 +930,23 @@ contains
           call iw_tooltip("Export an image for the current system.&
              & Creates a PNG file with the same base name as the source file.",ttshown)
 
+          ! File -> Export to Image
+          if (iw_menuitem("Export to Image...",BIND_EXPORT_IMAGE,enabled=isysvok)) &
+             idum = stack_create_window(wintype_exportimage,.true.,idparent=view_target_window(),&
+             orraise=-1)
+          call iw_tooltip("Export the current view to an image file (png)",ttshown)
+
           ! File -> Save
-          ok = isysok .and. (isformat_write_from_read(sysc(isys)%seed%isformat) /= isformat_w_unknown)
-          launch(d_save) = launch(d_save) .or. iw_menuitem("Save",BIND_SAVE,enabled=ok)
-          if (.not.ok) launch(d_save) = .false.
-          call iw_tooltip("Save the current system to the file from where it was read (only input files)",ttshown)
+          launch(d_save) = launch(d_save) .or. iw_menuitem("Save",BIND_SAVE,enabled=isysok)
+          if (.not.isysok) launch(d_save) = .false.
+          call iw_tooltip("Save the current system to the file from where it was read (input files);&
+             & for systems read from output files, open the Save As dialog",ttshown)
+
+          ! File -> Save as
+          if (iw_menuitem("Save as...",BIND_SAVE_AS,enabled=isysvok)) &
+             idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&
+             orraise=-1)
+          call iw_tooltip("Write the structure of the current system to a file in a chosen format",ttshown)
 
           ! File -> Separator
           call igSeparator()
@@ -1190,8 +1200,15 @@ contains
           call reread_system_from_file(isys)
        if (launch(d_close)) &
           call remove_system(isys)
-       if (launch(d_save)) &
-          call write_system(isys)
+       if (launch(d_save)) then
+          ! save to the original file; if it was an output file, do Save As instead
+          if (isformat_write_from_read(sysc(isys)%seed%isformat) /= isformat_w_unknown) then
+             call write_system(isys)
+          else
+             idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&
+                orraise=-1)
+          end if
+       end if
        if (launch(d_export_now)) &
           call win(iwin_view)%export_to_png_simple()
     end if

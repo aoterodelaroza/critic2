@@ -30,7 +30,7 @@ set(SOURCES
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
   windows@ci.f90 windows@co.f90 windows@new_struct.f90 windows@new_struct_library.f90
   windows@geometry.f90 windows@treeplot.f90 windows@scfplot.f90
-  windows@load_field.f90 windows@preferences.f90 windows@exportimage.f90
+  windows@load_field.f90 windows@preferences.f90 windows@exportimage.f90 windows@saveas.f90
   windows@vibrations.f90 windows@dynamics.f90 windows@editrep.f90 windows@about.f90
   windows@builder.f90 windows@water_cluster.f90
   utils.f90 utils@proc.f90 utils@math.f90

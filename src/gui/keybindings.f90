@@ -124,7 +124,8 @@ module keybindings
   integer, parameter, public :: BIND_TOGGLE_TREE = 72 ! show/hide the tree window
   integer, parameter, public :: BIND_TOGGLE_INPCON = 73 ! show/hide the input console window
   integer, parameter, public :: BIND_TOGGLE_OUTCON = 74 ! show/hide the output console window
-  integer, parameter, public :: BIND_NUM = 74 ! total number of binds
+  integer, parameter, public :: BIND_SAVE_AS = 75 ! open the save-structure-as dialog
+  integer, parameter, public :: BIND_NUM = 75 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -201,7 +202,8 @@ module keybindings
      "Export to image                 ",& ! BIND_EXPORT_IMAGE
      "Show/hide tree window           ",& ! BIND_TOGGLE_TREE
      "Show/hide input console         ",& ! BIND_TOGGLE_INPCON
-     "Show/hide output console        "&  ! BIND_TOGGLE_OUTCON
+     "Show/hide output console        ",& ! BIND_TOGGLE_OUTCON
+     "Save as                         "&  ! BIND_SAVE_AS
      /)
 
   ! The key associated with each bind, bind -> key
@@ -327,7 +329,8 @@ module keybindings
      group_global,&              ! BIND_EXPORT_IMAGE
      group_global,&              ! BIND_TOGGLE_TREE
      group_global,&              ! BIND_TOGGLE_INPCON
-     group_global/)              ! BIND_TOGGLE_OUTCON
+     group_global,&              ! BIND_TOGGLE_OUTCON
+     group_global/)              ! BIND_SAVE_AS
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -407,7 +410,8 @@ module keybindings
      0,&  ! BIND_EXPORT_IMAGE
      0,&  ! BIND_TOGGLE_TREE
      0,&  ! BIND_TOGGLE_INPCON
-     0/)  ! BIND_TOGGLE_OUTCON
+     0,&  ! BIND_TOGGLE_OUTCON
+     0/)  ! BIND_SAVE_AS
 
   ! module procedure interfaces
   interface

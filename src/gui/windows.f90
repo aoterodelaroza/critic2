@@ -228,6 +228,11 @@ module windows
      logical :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
      logical :: transparentbg ! transparent background
+     ! save structure as parameters (defaults set on window firstpass)
+     integer(c_int) :: saveas_format ! write format combo (0 = auto-detect from extension)
+     real(c_float) :: saveas_rk ! rklength for the k-point grid
+     logical :: saveas_nosym ! do not use symmetry in the written file
+     logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
@@ -373,6 +378,8 @@ module windows
      procedure :: draw_editrep_measure
      ! export image
      procedure :: draw_exportimage
+     ! save structure as
+     procedure :: draw_saveas
      ! vibrations
      procedure :: draw_vibrations
      ! dynamics
@@ -424,6 +431,7 @@ module windows
   integer, parameter, public :: wintype_builder = 17
   integer, parameter, public :: wintype_dynamics = 18
   integer, parameter, public :: wintype_water_cluster = 19
+  integer, parameter, public :: wintype_saveas = 20
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -436,6 +444,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_openvibfile = 7
   integer, parameter, public :: wpurp_view_main = 8
   integer, parameter, public :: wpurp_view_alternate = 9
+  integer, parameter, public :: wpurp_dialog_savefile = 10
 
   ! column ids for the table in the tree widget
   integer(c_int), parameter, public :: ic_tree_closebutton = 0
@@ -799,6 +808,10 @@ module windows
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w
      end subroutine draw_exportimage
+     !xx! saveas submodule !xx!
+     module subroutine draw_saveas(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_saveas
      !xx! vibrations submodule !xx!
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w

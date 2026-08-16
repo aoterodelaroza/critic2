@@ -965,8 +965,13 @@ contains
 
   !> Write the structure to a file. Use the format derived from the
   !> extension of file and use default values for all options. If
-  !> error, return a non-zero errmsg.
-  module subroutine write_any_file(c,file,errmsg,iwformat,ti)
+  !> error, return a non-zero errmsg. The optional arguments apply
+  !> only to the formats that support them: rklength writes a k-point
+  !> grid with that length (espresso, FHIaims), nosym writes the
+  !> structure without using the symmetry (cif, d12, res), and
+  !> cartesian writes Cartesian instead of fractional atomic
+  !> coordinates (FHIaims).
+  module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,ti)
     use tools_io, only: lower, equal
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
@@ -981,9 +986,19 @@ contains
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(inout) :: errmsg
     integer, intent(in), optional :: iwformat
+    real*8, intent(in), optional :: rklength
+    logical, intent(in), optional :: nosym
+    logical, intent(in), optional :: cartesian
     type(thread_info), intent(in), optional :: ti
 
     integer :: isformat
+    logical :: dosym, frac
+
+    ! process the optional arguments
+    dosym = .true.
+    if (present(nosym)) dosym = .not.nosym
+    frac = .true.
+    if (present(cartesian)) frac = .not.cartesian
 
     ! detect the format
     errmsg = ""
@@ -1012,9 +1027,9 @@ contains
     elseif (isformat == isformat_w_gaussian_periodic) then
        call c%write_gaussian(file,ti=ti)
     elseif (isformat == isformat_w_qein) then
-       call c%write_espresso(file,ti=ti)
+       call c%write_espresso(file,rklength=rklength,ti=ti)
     elseif (isformat == isformat_w_aimsin) then
-       call c%write_fhi(file,.true.,ti=ti)
+       call c%write_fhi(file,frac,rklength=rklength,ti=ti)
     elseif (isformat == isformat_w_vasp) then
        call c%write_vasp(file,.false.,ti=ti)
     elseif (isformat == isformat_w_abinit) then
@@ -1026,11 +1041,11 @@ contains
     elseif (isformat == isformat_w_critic) then
        call c%write_critic(file,ti=ti)
     elseif (isformat == isformat_w_cif) then
-       call c%write_cif(file,.true.,ti=ti)
+       call c%write_cif(file,dosym,ti=ti)
     elseif (isformat == isformat_w_crystal) then
-       call c%write_d12(file,.true.,.false.,ti=ti)
+       call c%write_d12(file,dosym,.false.,ti=ti)
     elseif (isformat == isformat_w_shelx) then
-       call c%write_res(file,-1,ti=ti)
+       call c%write_res(file,merge(-1,0,dosym),ti=ti)
     elseif (isformat == isformat_w_octave) then
        call c%write_escher(file,ti=ti)
     elseif (isformat == isformat_w_dcpdb) then
