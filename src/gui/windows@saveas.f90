@@ -25,7 +25,8 @@ submodule (windows) saveas
      isformat_w_shelx, isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp,&
      isformat_w_lammps, isformat_w_siesta_fdf, isformat_w_siesta_struct,&
      isformat_w_dftbp_hsd, isformat_w_dftbp_gen, isformat_w_pyscf,&
-     isformat_w_tinkerfrac, isformat_w_pdb, isformat_w_unknown, isformat_w_max
+     isformat_w_tinkerfrac, isformat_w_pdb, isformat_w_castepcell, isformat_w_alamode,&
+     isformat_w_unknown, isformat_w_max
   implicit none
 
   ! format names, indexed by the isformat_w constants
@@ -57,7 +58,9 @@ submodule (windows) saveas
      "DFTB+ gen (.gen)                ",& ! isformat_w_dftbp_gen
      "pyscf script (.pyscf)           ",& ! isformat_w_pyscf
      "TINKER frac (.frac)             ",& ! isformat_w_tinkerfrac
-     "pdb file (.pdb)                 "/) ! isformat_w_pdb
+     "pdb file (.pdb)                 ",& ! isformat_w_pdb
+     "CASTEP cell (.cell)             ",& ! isformat_w_castepcell
+     "alamode input (.alm.in)         "/) ! isformat_w_alamode
 
   ! canonical extension for each format, indexed by the isformat_w constants
   character(len=9), parameter :: fmtext(isformat_w_max) = (/&
@@ -66,17 +69,17 @@ submodule (windows) saveas
      "abin     ","elk      ","tess     ","cri      ","cif      ",&
      "d12      ","res      ","m        ","db       ","gin      ",&
      "lammps   ","fdf      ","struct_in","hsd      ","gen      ",&
-     "pyscf    ","frac     ","pdb      "/)
+     "pyscf    ","frac     ","pdb      ","cell     ","alm.in   "/)
 
   ! order of the formats in the combo
   integer, parameter :: fmtperm(isformat_w_max) = (/isformat_w_aimsin,isformat_w_cif,&
-     isformat_w_qein,isformat_w_vasp,isformat_w_shelx,isformat_w_crystal,&
-     isformat_w_abinit,isformat_w_elk,isformat_w_gjf,isformat_w_gaussian_periodic,&
-     isformat_w_xyz,isformat_w_cml,isformat_w_critic,isformat_w_octave,&
-     isformat_w_dcpdb,isformat_w_gulp,isformat_w_lammps,isformat_w_siesta_fdf,&
-     isformat_w_siesta_struct,isformat_w_dftbp_hsd,isformat_w_dftbp_gen,&
-     isformat_w_pyscf,isformat_w_tinkerfrac,isformat_w_tessel,isformat_w_pdb,&
-     isformat_w_obj,isformat_w_ply,isformat_w_off/)
+     isformat_w_qein,isformat_w_vasp,isformat_w_castepcell,isformat_w_shelx,&
+     isformat_w_crystal,isformat_w_abinit,isformat_w_elk,isformat_w_gjf,&
+     isformat_w_gaussian_periodic,isformat_w_xyz,isformat_w_cml,isformat_w_alamode,&
+     isformat_w_critic,isformat_w_octave,isformat_w_dcpdb,isformat_w_gulp,&
+     isformat_w_lammps,isformat_w_siesta_fdf,isformat_w_siesta_struct,&
+     isformat_w_dftbp_hsd,isformat_w_dftbp_gen,isformat_w_pyscf,isformat_w_tinkerfrac,&
+     isformat_w_tessel,isformat_w_pdb,isformat_w_obj,isformat_w_ply,isformat_w_off/)
 
   ! options for the format combo (built once on first use)
   character(kind=c_char,len=:), allocatable, target :: combostr
@@ -193,10 +196,11 @@ contains
        call iw_text(trim(merge("molecule","crystal ",ismol)),sameline=.true.)
     end if
 
-    ! the k-point grid (rklength) applies to espresso and to FHIaims
-    ! crystals (for a molecule, FHIaims would write a meaningless
-    ! k-point grid to the companion control file)
-    userk = (ifmt == isformat_w_qein .or. (ifmt == isformat_w_aimsin .and. .not.ismol))
+    ! the k-point grid (rklength) applies to espresso, CASTEP, and to
+    ! FHIaims crystals (for a molecule, FHIaims would write a
+    ! meaningless k-point grid to the companion control file)
+    userk = (ifmt == isformat_w_qein .or. ifmt == isformat_w_castepcell .or.&
+       (ifmt == isformat_w_aimsin .and. .not.ismol))
 
     ! options, only for the formats that support them
     if (userk .or. ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&

@@ -112,6 +112,8 @@ contains
        iwformat = isformat_w_vasp
     elseif (isformat == isformat_r_aimsin) then
        iwformat = isformat_w_aimsin
+    elseif (isformat == isformat_r_castepcell) then
+       iwformat = isformat_w_castepcell
     elseif (isformat == isformat_r_tinkerfrac) then
        iwformat = isformat_w_tinkerfrac
     elseif (isformat == isformat_r_gjf) then

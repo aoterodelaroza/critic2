@@ -966,6 +966,7 @@ contains
                 &CIF (*.cif) {.cif},&
                 &Quantum ESPRESSO input (*.pwi) {.pwi},&
                 &VASP (*.POSCAR) {.POSCAR},&
+                &CASTEP cell (*.cell) {.cell},&
                 &SHELX res (*.res) {.res},&
                 &CRYSTAL input (*.d12) {.d12},&
                 &abinit input (*.abin) {.abin},&

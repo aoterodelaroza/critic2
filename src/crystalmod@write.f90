@@ -967,8 +967,8 @@ contains
   !> extension of file and use default values for all options. If
   !> error, return a non-zero errmsg. The optional arguments apply
   !> only to the formats that support them: rklength writes a k-point
-  !> grid with that length (espresso, FHIaims), nosym writes the
-  !> structure without using the symmetry (cif, d12, res), and
+  !> grid with that length (espresso, FHIaims, CASTEP), nosym writes
+  !> the structure without using the symmetry (cif, d12, res), and
   !> cartesian writes Cartesian instead of fractional atomic
   !> coordinates (FHIaims).
   module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,ti)
@@ -981,7 +981,8 @@ contains
        isformat_w_critic, isformat_w_cif, isformat_w_crystal, isformat_w_shelx,&
        isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp, isformat_w_lammps,&
        isformat_w_siesta_fdf, isformat_w_siesta_struct, isformat_w_dftbp_hsd,&
-       isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb
+       isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb,&
+       isformat_w_castepcell, isformat_w_alamode
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(inout) :: errmsg
@@ -1068,6 +1069,10 @@ contains
        call c%write_tinkerfrac(file,ti=ti)
     elseif (isformat == isformat_w_pdb) then
        call c%write_pdb(c,file,ti=ti)
+    elseif (isformat == isformat_w_castepcell) then
+       call c%write_castep_cell(file,rklength=rklength,ti=ti)
+    elseif (isformat == isformat_w_alamode) then
+       call c%write_alamode(file,ti=ti)
     end if
 
   end subroutine write_any_file
@@ -3796,7 +3801,8 @@ contains
        isformat_w_critic, isformat_w_cif, isformat_w_crystal, isformat_w_shelx,&
        isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp, isformat_w_lammps,&
        isformat_w_siesta_fdf, isformat_w_siesta_struct, isformat_w_dftbp_hsd,&
-       isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb
+       isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb,&
+       isformat_w_castepcell, isformat_w_alamode
     use tools_io, only: equal, lower
     use param, only: dirsep
     character*(*), intent(in) :: file
@@ -3836,12 +3842,16 @@ contains
           wext2 = lower(wroot(idx+1:))
           if (equal(wext2,'scf')) then
              isformat = isformat_w_qein
+          elseif (equal(wext2,'alm')) then
+             isformat = isformat_w_alamode
           else
              idx = 0
           end if
        end if
        if (idx == 0) &
           isformat = isformat_w_aimsin
+    elseif (equal(wext,'cell')) then
+       isformat = isformat_w_castepcell
     elseif (equal(wext,'fhi')) then
        isformat = isformat_w_aimsin
     elseif (equal(wext,'pwi')) then
