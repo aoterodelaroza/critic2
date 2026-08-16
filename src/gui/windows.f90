@@ -120,8 +120,9 @@ module windows
      logical :: frag_isligand = .false. ! the fragment bonds to the clicked atom instead of replacing it (add-fragments mode)
      integer(c_int) :: idx(4) = 0 ! atom identifier under mouse position (cell index + lattice vector)
      integer(c_int) :: bidx(5) = 0 ! bond identifier under mouse position (two cell indices + lattice vector)
-     integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate)
-     real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms mode)
+     integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate; 0 = nothing delivered/cancelled)
+     real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
+     logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
      integer :: owner = 0 ! owner window ID
   end type viewmode_data
 
@@ -250,6 +251,8 @@ module windows
      logical :: extract_environ ! sphere region: whole molecules with COM within the radius
      logical :: extract_closeafter ! close the window and focus the new system after extracting
      real(c_float) :: extract_atdens ! rough atom number density of the system (bohr^-3)
+     logical :: extract_picking ! a center pick in the parent view is pending
+     type(pairpick) :: extract_pick ! stamp for the pending center pick (staleness check)
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
@@ -661,11 +664,12 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: okmods
      end subroutine viewmode_set_mode
-     module subroutine viewmode_set_forced(w,mode,message,idcaller)
+     module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty)
        class(window), intent(inout), target :: w
        integer, intent(in) :: mode
        character(len=*), intent(in), optional :: message
        integer, intent(in) :: idcaller
+       logical, intent(in), optional :: acceptempty
      end subroutine viewmode_set_forced
      module subroutine viewmode_exit_forced(w)
        class(window), intent(inout), target :: w
@@ -743,6 +747,13 @@ module windows
      module subroutine export_to_png_simple(w)
        class(window), intent(inout), target :: w
      end subroutine export_to_png_simple
+     module subroutine view_click_frame(iview,xpos,x0,ok,rcam)
+       integer, intent(in) :: iview
+       real(c_float), intent(in) :: xpos(2)
+       real*8, intent(out) :: x0(3)
+       logical, intent(out) :: ok
+       real*8, intent(out), optional :: rcam(3,3)
+     end subroutine view_click_frame
      module subroutine export_image_size(w,npixel,exportview,width,height,origin)
        class(window), intent(inout), target :: w
        integer(c_int), intent(in) :: npixel

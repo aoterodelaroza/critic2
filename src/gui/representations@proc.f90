@@ -93,6 +93,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Rotation axis"
+    elseif (itype == reptype_shapes) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Shapes"
     elseif (itype == reptype_symelem) then
        r%isinit = .true.
        r%shown = .true.
@@ -530,6 +534,8 @@ contains
     if (allocated(r%text%t)) deallocate(r%text%t)
     r%measure%nitem = 0
     if (allocated(r%measure%item)) deallocate(r%measure%item)
+    r%shapes%nshape = 0
+    if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -1406,6 +1412,23 @@ contains
        dcyl%border = 0._c_float
        dcyl%rgbborder = 0._c_float
        call dl_append(obj%cyl,obj%ncyl,dcyl)
+    elseif (r%type == reptype_shapes) then
+       !!! list of geometric shapes !!!
+       do i = 1, r%shapes%nshape
+          associate (sh => r%shapes%shape(i))
+            ! anchor in cartesian (bohr); for molecules referred to the molecular center
+            uoriginc = sh%x1
+            if (c%ismolecule) uoriginc = uoriginc - c%molx0
+
+            ! sphere is the only shape kind so far; unknown kinds are skipped
+            if (sh%kind == shapekind_sphere) then
+               dsph = dl_sphere(x=real(uoriginc,c_float),r=real(sh%rad,c_float),rgb=sh%rgb,&
+                  idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
+                  rgbborder=0._c_float,alpha=sh%alpha)
+               call dl_append(obj%sph,obj%nsph,dsph)
+            end if
+          end associate
+       end do
     elseif (r%type == reptype_symelem) then
        !!! symmetry elements (planes/axes) !!!
        if (r%symelem%style%isinit) then

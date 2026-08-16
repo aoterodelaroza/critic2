@@ -220,7 +220,8 @@ module representations
   integer, parameter, public :: reptype_symelem = 5 ! symmetry element
   integer, parameter, public :: reptype_text = 6 ! user text annotations
   integer, parameter, public :: reptype_measure = 7 ! measurements (distances/angles/dihedrals)
-  integer, parameter, public :: reptype_NUM = 7
+  integer, parameter, public :: reptype_shapes = 8 ! list of geometric shapes
+  integer, parameter, public :: reptype_NUM = 8
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -238,7 +239,8 @@ module representations
   integer, parameter, public :: repflavor_symelem = 12
   integer, parameter, public :: repflavor_text = 13
   integer, parameter, public :: repflavor_measure = 14
-  integer, parameter, public :: repflavor_NUM = 14
+  integer, parameter, public :: repflavor_shapes = 15
+  integer, parameter, public :: repflavor_NUM = 15
 
   !> Selection of the part of the system that is drawn: periodicity, origin
   !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
@@ -355,6 +357,26 @@ module representations
      real(c_float) :: rgb(3) = 0._c_float ! color of the rotation-axis cylinder
   end type rep_rotaxis
   public :: rep_rotaxis
+
+  ! shape kinds for the shapes representation
+  integer, parameter, public :: shapekind_sphere = 1
+
+  !> A geometric shape in a shapes representation
+  type rep_shape
+     integer :: kind = shapekind_sphere ! shape kind (shapekind_*)
+     real*8 :: x1(3) = 0d0 ! center/anchor (cartesian, bohr; molecules: absolute frame)
+     real*8 :: rad = 1d0 ! radius (bohr)
+     real(c_float) :: rgb(3) = 0._c_float ! color
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+  end type rep_shape
+  public :: rep_shape
+
+  !> Shapes representation options (reptype_shapes; accessed as r%shapes%...)
+  type rep_shapes
+     integer :: nshape = 0 ! number of shapes in the list
+     type(rep_shape), allocatable :: shape(:) ! the shapes
+  end type rep_shapes
+  public :: rep_shapes
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
@@ -473,6 +495,7 @@ module representations
      type(rep_unitcell) :: uc ! unit cell display options
      type(rep_axes) :: axes ! cartesian/crystallographic axes options
      type(rep_rotaxis) :: rotaxis ! rotation axis options
+     type(rep_shapes) :: shapes ! geometric shapes options
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options
      type(rep_text) :: text ! text annotation options

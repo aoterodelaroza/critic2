@@ -655,14 +655,18 @@ contains
     ! decide whether this scene's cached instance buffers must be rebuilt and uploaded
     dobuild = .not.s%gl%inst_valid
 
-    ! draw the atoms
+    ! draw the atoms (blending for translucent non-atom spheres, e.g. the
+    ! transient shape markers; opaque atoms have alpha = 1 and are unaffected)
     if (s%obj%nsph > 0) then
        call setup_shader(shader_sphere)
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        if (dobuild) then
           call draw_all_spheres()
        else
           call s%gl%redraw_spheres(s%gl%nsph_inst)
        end if
+       call glDisable(GL_BLEND)
     end if
 
     ! draw the bonds and the unit-cell edges
@@ -806,7 +810,7 @@ contains
          if (s%obj%sph(i)%ghost) cycle ! invisible pick-only target, not drawn
          n = n + 1
          call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
-            (/s%obj%sph(i)%rgb,1._c_float/),s%obj%sph(i)%border,&
+            (/s%obj%sph(i)%rgb,s%obj%sph(i)%alpha/),s%obj%sph(i)%border,&
             s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr,s%obj%sph(i)%occ,&
             s%obj%sph(i)%occ_empty_rgb,s%obj%sph(i)%pie_cum,s%obj%sph(i)%pie_rgb)
       end do
@@ -2170,6 +2174,46 @@ contains
     s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
 
   end subroutine scene_show_transient_axes
+
+  !> Show a transient sphere of radius rad (bohr) and color rgb at the
+  !> Cartesian (bohr) point x0, given in the absolute frame (for
+  !> molecules, including the molecular origin molx0). alpha is the
+  !> opacity (default 1 = opaque). The sphere is identified by (owner,tag).
+  module subroutine scene_show_transient_sphere(s,owner,tag,x0,rad,rgb,alpha)
+    use representations, only: reptype_shapes, repflavor_shapes, rep_shape, shapekind_sphere
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    real*8, intent(in) :: x0(3)
+    real*8, intent(in) :: rad
+    real(c_float), intent(in) :: rgb(3)
+    real(c_float), intent(in), optional :: alpha
+
+    integer :: id
+    logical :: found, changed
+    real(c_float) :: alpha_
+
+    alpha_ = 1._c_float
+    if (present(alpha)) alpha_ = alpha
+
+    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
+    if (id <= 0) return
+
+    associate (sh => s%reptrans(id)%shapes)
+      ! change detection for an existing slot (a new/retagged one is already dirty)
+      if (found) then
+         changed = sh%nshape /= 1
+         if (.not.changed) &
+            changed = any(abs(sh%shape(1)%x1 - x0) > 1d-10) .or. abs(sh%shape(1)%rad - rad) > 1d-10 .or.&
+               any(abs(sh%shape(1)%rgb - rgb) > 1e-5_c_float) .or. abs(sh%shape(1)%alpha - alpha_) > 1e-5_c_float
+         if (.not.changed) return
+         call transient_dirty(s)
+      end if
+      sh%nshape = 1
+      sh%shape = (/rep_shape(kind=shapekind_sphere,x1=x0,rad=rad,rgb=rgb,alpha=alpha_)/)
+    end associate
+
+  end subroutine scene_show_transient_sphere
 
   !> Show a transient black cylinder marking the rotation axis rotdir
   !> (cartesian unit vector, bohr) through the center of mass xcom, with

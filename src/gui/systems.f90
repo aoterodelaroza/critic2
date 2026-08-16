@@ -232,6 +232,10 @@ module systems
      end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
+     ! Add nseed new systems from the crystal seeds. collapse groups them
+     ! under a tree parent; iafield/iavib attach a field/vibration file;
+     ! forceidx forces the first system ID; idlist returns the assigned
+     ! IDs; noselect leaves the tree/view selection unchanged.
      module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist,&
         noselect)
        integer, intent(in) :: nseed

@@ -1278,17 +1278,20 @@ contains
   !> shows the mode hint from viewmode_text. idcaller is the window
   !> ID (win(:)) of the caller, used by the caller to verify it owns
   !> the pick result.
-  module subroutine viewmode_set_forced(w,mode,message,idcaller)
+  module subroutine viewmode_set_forced(w,mode,message,idcaller,acceptempty)
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
     character(len=*), intent(in), optional :: message
     integer, intent(in) :: idcaller
+    logical, intent(in), optional :: acceptempty
 
     w%viewmode = mode
     w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
     if (allocated(w%vmdata%msg)) deallocate(w%vmdata%msg)
     if (present(message)) w%vmdata%msg = trim(message)
+    w%vmdata%acceptempty = .false.
+    if (present(acceptempty)) w%vmdata%acceptempty = acceptempty
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
     w%vmdata%flag = 0
@@ -1389,9 +1392,16 @@ contains
        descr = "Steer the running dynamics with the mouse: drag an atom, or translate or "//&
           "rotate a whole molecule, while the run is active."
     case (vm_pick_atom)
-       hint = "Pick an atom in the view"
-       descr = "A window is waiting for an atom: click to pick one. Clicking "//&
-          "empty space, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
+       if (w%vmdata%acceptempty) then
+          hint = "Pick a position in the view"
+          descr = "A window is waiting for a position: click an atom to use its position, "//&
+             "or empty space to use the clicked point. Cancelling ("//kn(BIND_CANCEL)//&
+             ") aborts the pick."
+       else
+          hint = "Pick an atom in the view"
+          descr = "A window is waiting for an atom: click to pick one. Clicking "//&
+             "empty space, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
+       end if
     case (vm_builder_valence)
        hint = "Click to add ("//kn(BIND_PICKATOM_SELECT)//") or remove ("//&
           kn(BIND_PICKATOM_ALT)//") hydrogens"
@@ -2284,8 +2294,17 @@ contains
             w%vmdata%flag = 1
          end if
       elseif (w%viewmode == vm_pick_atom) then
+         ! deliver the atom if there is one. An empty-space click is
+         ! delivered (idx = 0, with the click position in texture
+         ! coordinates for unprojection via view_click_frame) only if the
+         ! commanding window accepts it; otherwise it aborts the pick
+         ! (flag stays 0). The mode ends either way.
          w%vmdata%idx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
+         if (idx(1) > 0 .or. w%vmdata%acceptempty) then
+            w%vmdata%flag = 1
+            w%vmdata%xpos = (/texpos%x,texpos%y/)
+         end if
          call viewmode_to_navigate(w)
       elseif (w%viewmode == vm_builder_addatom .or. w%viewmode == vm_builder_addfragment) then
          ! deliver the click position (texture coordinates), even on empty
@@ -3446,6 +3465,54 @@ contains
     call unproject(pos,w%sc%view,w%sc%projection,w%FBOside)
 
   end subroutine texpos_to_world
+
+  !> Unproject the clicked texture position xpos in view iview onto the
+  !> plane parallel to the screen through the scene center: x0 is the
+  !> clicked point in world coordinates and, if rcam is present, its
+  !> columns are the camera axes (screen right, screen up, towards
+  !> the viewer).
+  module subroutine view_click_frame(iview,xpos,x0,ok,rcam)
+    use utils, only: invmult, mult
+    use tools_math, only: cross
+    integer, intent(in) :: iview
+    real(c_float), intent(in) :: xpos(2)
+    real*8, intent(out) :: x0(3)
+    logical, intent(out) :: ok
+    real*8, intent(out), optional :: rcam(3,3)
+
+    real(c_float) :: v0(3), vx(3), vy(3)
+
+    ok = .false.
+    if (.not.associated(win(iview)%sc)) return
+
+    ! depth of the scene center (tworld), then unproject the click
+    ! (texture y points up)
+    call mult(v0,win(iview)%sc%world,win(iview)%sc%scenecenter)
+    call win(iview)%world_to_texpos(v0)
+    vx = (/xpos(1) + 10._c_float, xpos(2), v0(3)/)
+    vy = (/xpos(1), xpos(2) + 10._c_float, v0(3)/)
+    v0 = (/xpos(1), xpos(2), v0(3)/)
+    call win(iview)%texpos_to_world(v0)
+    call invmult(v0,win(iview)%sc%world)
+    x0 = real(v0,8)
+
+    ! camera axes from two offset points, as the columns of a rotation:
+    ! (x,y,z) = (screen right, screen up, toward the viewer)
+    if (present(rcam)) then
+       call win(iview)%texpos_to_world(vx)
+       call win(iview)%texpos_to_world(vy)
+       call invmult(vx,win(iview)%sc%world)
+       call invmult(vy,win(iview)%sc%world)
+       rcam(:,1) = real(vx - v0,8)
+       rcam(:,1) = rcam(:,1) / norm2(rcam(:,1))
+       rcam(:,2) = real(vy - v0,8)
+       rcam(:,2) = rcam(:,2) - dot_product(rcam(:,2),rcam(:,1)) * rcam(:,1)
+       rcam(:,2) = rcam(:,2) / norm2(rcam(:,2))
+       rcam(:,3) = cross(rcam(:,1),rcam(:,2))
+    end if
+    ok = .true.
+
+  end subroutine view_click_frame
 
   !> Export the current view to an image file with currently selected
   !> window options. The file name is file and the file format (PNG,

@@ -35,6 +35,12 @@ submodule (windows) extract
   logical :: lastenviron = .false.
   logical :: lastcloseafter = .true.
 
+  ! transient center marker: color, opacity, and radius limits (bohr)
+  real(c_float), parameter :: center_rgb(3) = (/1.0_c_float,0.6_c_float,0.1_c_float/)
+  real(c_float), parameter :: center_alpha = 0.6_c_float
+  real*8, parameter :: center_radmin = 1.7d0 ! larger than most drawn atoms (0.7*rcov), so it survives burial
+  real*8, parameter :: center_radmax = 3.0d0
+
 contains
 
   !> Draw the extract cluster as molecule window
@@ -50,7 +56,7 @@ contains
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
 
-    logical :: doquit, okvalid, syschanged, ismol, environok, useenv
+    logical :: doquit, syschanged, ismol, environok, useenv, okpick, hovered
     integer :: i, isys, iview, nmol
     real*8 :: rad, x0(3), xlo(3), xhi(3)
     logical(c_bool) :: ldum
@@ -77,6 +83,39 @@ contains
        w%extract_molmotif = lastmolmotif
        w%extract_environ = lastenviron
        w%extract_closeafter = lastcloseafter
+       w%extract_picking = .false.
+    end if
+
+    ! handle a pending center pick commanded to the parent view; the
+    ! anchor-gone and pick-taken-over cases only clear the pending flag
+    ! (the view's owner watchdog releases the mode if this window dies)
+    if (w%extract_picking) then
+       if (doquit) then
+          w%extract_picking = .false.
+       elseif (win(iview)%vmdata%owner /= w%id) then
+          w%extract_picking = .false.
+       elseif (syschanged .or. w%extract_pick%is_stale(sysc(isys)%timelastchange_geometry)) then
+          ! the view moved to another system or the geometry changed (stale
+          ! cell-atom ids): cancel the pick
+          call win(iview)%viewmode_release_forced(w%id)
+          w%extract_picking = .false.
+       elseif (win(iview)%viewmode >= 0) then
+          ! the pick finished (flag = 0 means cancelled)
+          if (win(iview)%vmdata%flag == 1) then
+             if (win(iview)%vmdata%idx(1) > 0) then
+                ! an atom was clicked: use its position
+                i = win(iview)%vmdata%idx(1)
+                call center_from_frac(sys(isys)%c%atcel(i)%x + win(iview)%vmdata%idx(2:4))
+             else
+                ! empty space: unproject the click onto the plane of the scene center
+                call view_click_frame(iview,win(iview)%vmdata%xpos,x0,okpick)
+                if (okpick) call center_from_frac(sys(isys)%c%c2x(x0))
+             end if
+          end if
+          w%extract_picking = .false.
+          win(iview)%vmdata%idx = 0
+          win(iview)%vmdata%flag = 0
+       end if
     end if
 
     ! default center (cell center for crystals, origin for molecules);
@@ -148,23 +187,47 @@ contains
 
     ! center (all regions except cells)
     if (w%extract_region /= er_cells) then
-       if (ismol) then
-          call iw_text("Center (Å)")
-       else
-          call iw_text("Center (fractional)")
+       call iw_text("Center",highlight=.true.,alignframe=.true.)
+       if (iw_button("Pick##extractpick",sameline=.true.,disabled=(w%extract_picking .or. doquit))) then
+          w%extract_picking = .true.
+          call w%extract_pick%arm()
+          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the region center",w%id,&
+             acceptempty=.true.)
        end if
-       call igPushItemWidth(iw_calcwidth(27,1))
+       hovered = logical(igIsItemHovered(ImGuiHoveredFlags_None))
+       call iw_tooltip("Pick the center in the view: click an atom to use its position,&
+          & or empty space to use the clicked point",ttshown)
+       ! call igPushItemWidth(iw_calcwidth(24,1))
        ldum = iw_dragfloat_realc("##extractcenter",x3=w%extract_center,speed=0.01_c_float,&
           decimal=4,sameline=.true.)
-       call igPopItemWidth()
-       call iw_tooltip("Center of the region, in fractional coordinates for crystals&
-          & and Å for molecules",ttshown)
+       ! call igPopItemWidth()
+       hovered = hovered .or. logical(igIsItemHovered(ImGuiHoveredFlags_None)) .or. logical(igIsItemActive())
+       call iw_tooltip("Center of the region",ttshown)
+       if (ismol) then
+          call iw_text(" (Å)",sameline=.true.)
+       else
+          call iw_text(" (frac)",sameline=.true.)
+       end if
+
+       ! transient marker at the center while hovering the Pick button,
+       ! hovering/dragging the coordinates, or picking; show_transient_sphere
+       ! takes the absolute Cartesian frame (with molx0 for molecules); radius
+       ! scaled to the scene so it is visible
+       if ((hovered .or. w%extract_picking) .and. .not.doquit) then
+          if (sysc(isys)%sc%isinit /= 0) then
+             x0 = sys(isys)%c%x2c(center_to_frac())
+             if (ismol) x0 = x0 + sys(isys)%c%molx0
+             rad = min(max(0.05d0 * real(sysc(isys)%sc%scenerad,8),center_radmin),center_radmax)
+             call sysc(isys)%sc%show_transient_sphere(w%id,1,x0,rad,center_rgb,center_alpha)
+          end if
+       end if
     end if
 
     ! region parameters
     if (w%extract_region == er_sphere) then
-       ldum = iw_dragfloat_realc("Radius (Å)##extractrsph",x1=w%extract_rsph,speed=0.1_c_float,&
-          min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_text("Radius",highlight=.true.,alignframe=.true.)
+       ldum = iw_dragfloat_realc("(Å)##extractrsph",x1=w%extract_rsph,speed=0.1_c_float,&
+          min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Radius of the sphere",ttshown)
        ! rough number of atoms in the sphere from the atom density
        if (w%extract_atdens > 0._c_float) then
@@ -205,18 +268,12 @@ contains
     call iw_setpos_bottomright(10,2)
 
     ! final buttons: Extract
-    okvalid = .not.doquit
-    if (iw_button("Extract",disabled=.not.okvalid)) then
+    if (iw_button("Extract",disabled=doquit)) then
        w%errmsg = ""
 
-       ! center of the region: fractional directly for crystals; for
-       ! molecules, Å in the molecular frame -> internal Cartesian ->
-       ! fractional (same conversion as the WRITE keyword)
-       x0 = real(w%extract_center,8)
-       if (ismol) then
-          x0 = x0 / bohrtoa - sys(isys)%c%molx0
-          x0 = sys(isys)%c%c2x(x0)
-       end if
+       ! center of the region in crystallographic coordinates (same
+       ! conversion as the WRITE keyword)
+       x0 = center_to_frac()
 
        ! build the fragment for the selected region (radii in bohr)
        if (w%extract_region == er_sphere) then
@@ -240,7 +297,7 @@ contains
           ! components, which from_fragment cannot handle
           if (.not.useenv .and. w%extract_molmotif) then
              call sys(isys)%c%listmolecules(fr,nmol,fr0,isdiscrete)
-             if (.not.all(isdiscrete(1:nmol))) then
+             if (.not.all(isdiscrete)) then
                 w%errmsg = "The boundary molecules form a periodic network"
              else
                 call fr%merge_array(fr0,.false.)
@@ -290,6 +347,24 @@ contains
     ! quit = close the window
     if (doquit) call w%end()
 
+  contains
+    ! The region center is stored in extract_center as displayed:
+    ! fractional for crystals, Å in the absolute molecular frame for
+    ! molecules. These convert to/from crystallographic coordinates.
+    function center_to_frac() result(x)
+      real*8 :: x(3)
+      x = real(w%extract_center,8)
+      if (ismol) x = sys(isys)%c%c2x(x / bohrtoa - sys(isys)%c%molx0)
+    end function center_to_frac
+
+    subroutine center_from_frac(x)
+      real*8, intent(in) :: x(3)
+      if (ismol) then
+         w%extract_center = real((sys(isys)%c%x2c(x) + sys(isys)%c%molx0) * bohrtoa,c_float)
+      else
+         w%extract_center = real(x,c_float)
+      end if
+    end subroutine center_from_frac
   end subroutine draw_extract
 
 end submodule extract

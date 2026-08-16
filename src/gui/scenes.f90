@@ -127,6 +127,7 @@ module scenes
      procedure :: reap_transient_representations => scene_reap_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
+     procedure :: show_transient_sphere => scene_show_transient_sphere
      procedure :: show_transient_text => scene_show_transient_text
      procedure :: show_transient_symelems => scene_show_transient_symelems
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
@@ -233,6 +234,15 @@ module scenes
        real*8, intent(in) :: rot(3,3)
        real*8, intent(in) :: axlen
      end subroutine scene_show_transient_axes
+     module subroutine scene_show_transient_sphere(s,owner,tag,x0,rad,rgb,alpha)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
+       integer, intent(in) :: tag
+       real*8, intent(in) :: x0(3)
+       real*8, intent(in) :: rad
+       real(c_float), intent(in) :: rgb(3)
+       real(c_float), intent(in), optional :: alpha
+     end subroutine scene_show_transient_sphere
      module subroutine scene_show_transient_rotaxis(s,owner,tag,xcom,rotdir,rotlen)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner

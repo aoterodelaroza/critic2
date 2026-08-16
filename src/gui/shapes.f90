@@ -88,6 +88,7 @@ module shapes
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
      real(c_float) :: border ! border size
      real(c_float) :: rgbborder(3) ! border color
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
      real(c_float) :: occ = 1._c_float ! occupancy of pie sector 1 (representative)
      real(c_float) :: occ_empty_rgb(3) = 0._c_float ! color of the empty (unoccupied) sector
      real(c_float) :: pie_cum(3) = 1._c_float ! cumulative sector boundaries t2,t3,ttot (mixed sites)

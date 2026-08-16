@@ -1878,7 +1878,7 @@ contains
       integer, parameter :: nobonds(2,0) = 0 ! empty attachment list
 
       placed = .false.
-      call view_click_frame(iview,xpos,x0,rot,ok)
+      call view_click_frame(iview,xpos,x0,ok,rot)
       if (.not.ok) return
 
       ! clicked on an atom: replace it instead
@@ -2232,51 +2232,6 @@ contains
     end subroutine builder_toggle
   end subroutine draw_builder
 
-  ! Unproject the clicked texture position xpos onto the plane
-  ! parallel to the screen through the scene center: x0 is the
-  ! clicked point in world coordinates and the columns of rcam are
-  ! the camera axes (screen right, screen up, towards the viewer).
-  subroutine view_click_frame(iview,xpos,x0,rcam,ok)
-    use utils, only: invmult, mult
-    use tools_math, only: cross
-    integer, intent(in) :: iview
-    real(c_float), intent(in) :: xpos(2)
-    real*8, intent(out) :: x0(3), rcam(3,3)
-    logical, intent(out) :: ok
-
-    real(c_float) :: v0(3), vx(3), vy(3)
-
-    ok = .false.
-    if (.not.associated(win(iview)%sc)) return
-
-    ! depth of the scene center (tworld), then unproject the click
-    ! and two offset points to get the placement and camera axes
-    ! (texture y points up)
-    call mult(v0,win(iview)%sc%world,win(iview)%sc%scenecenter)
-    call win(iview)%world_to_texpos(v0)
-    vx = (/xpos(1) + 10._c_float, xpos(2), v0(3)/)
-    vy = (/xpos(1), xpos(2) + 10._c_float, v0(3)/)
-    v0 = (/xpos(1), xpos(2), v0(3)/)
-    call win(iview)%texpos_to_world(v0)
-    call win(iview)%texpos_to_world(vx)
-    call win(iview)%texpos_to_world(vy)
-    ! transform to world coordinates
-    call invmult(v0,win(iview)%sc%world)
-    call invmult(vx,win(iview)%sc%world)
-    call invmult(vy,win(iview)%sc%world)
-    x0 = real(v0,8)
-    ! camera axes as the columns of a rotation: (x,y,z) =
-    ! (screen right, screen up, toward the viewer)
-    rcam(:,1) = real(vx - v0,8)
-    rcam(:,1) = rcam(:,1) / norm2(rcam(:,1))
-    rcam(:,2) = real(vy - v0,8)
-    rcam(:,2) = rcam(:,2) - dot_product(rcam(:,2),rcam(:,1)) * rcam(:,1)
-    rcam(:,2) = rcam(:,2) / norm2(rcam(:,2))
-    rcam(:,3) = cross(rcam(:,1),rcam(:,2))
-    ok = .true.
-
-  end subroutine view_click_frame
-
   ! Add-fragments mode: place the loaded fragment. On empty space
   ! (icel = 0) the fragment goes at the clicked position, camera-aligned
   ! and capped with its placeholder atom. On an atom (icel > 0) the
@@ -2328,7 +2283,7 @@ contains
     isysl = isys
     ia = ianchor
     if (nat <= 0) return
-    call view_click_frame(iview,xpos,x0,rcam,ok)
+    call view_click_frame(iview,xpos,x0,ok,rcam)
     if (.not.ok) return
 
     ! the fragment frame and where the fragment goes
