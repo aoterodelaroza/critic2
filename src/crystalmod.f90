@@ -1222,7 +1222,8 @@ module crystalmod
        type(json_core), intent(inout) :: json
        type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json
-     module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,ti)
+     module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
+        docell,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(inout) :: errmsg
@@ -1230,6 +1231,7 @@ module crystalmod
        real*8, intent(in), optional :: rklength
        logical, intent(in), optional :: nosym
        logical, intent(in), optional :: cartesian
+       logical, intent(in), optional :: docell
        type(thread_info), intent(in), optional :: ti
      end subroutine write_any_file
      module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&

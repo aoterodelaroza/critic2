@@ -94,6 +94,7 @@ submodule (windows) saveas
   real(c_float) :: lastrk = 50._c_float
   logical :: lastnosym = .false.
   logical :: lastcartesian = .false.
+  logical :: lastdocell = .false.
 
 contains
 
@@ -109,7 +110,7 @@ contains
     use tools_io, only: string, uout
     class(window), intent(inout), target :: w
 
-    logical :: doquit, ok, okvalid, syschanged, changed, ismol, userk
+    logical :: doquit, ok, okvalid, syschanged, changed, ismol, userk, usecell
     integer :: i, isys, iview, iaux, ifmt, idetect
     logical(c_bool) :: ldum
 
@@ -135,6 +136,7 @@ contains
        w%saveas_rk = lastrk
        w%saveas_nosym = lastnosym
        w%saveas_cartesian = lastcartesian
+       w%saveas_docell = lastdocell
     end if
 
     ! the system being written
@@ -202,8 +204,13 @@ contains
     userk = (ifmt == isformat_w_qein .or. ifmt == isformat_w_castepcell .or.&
        (ifmt == isformat_w_aimsin .and. .not.ismol))
 
+    ! the unit cell can be shown in 3D model files (crystals only)
+    usecell = (ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or.&
+       ifmt == isformat_w_off) .and. .not.doquit
+    if (usecell) usecell = .not.sys(isys)%c%ismolecule
+
     ! options, only for the formats that support them
-    if (userk .or. ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
+    if (userk .or. usecell .or. ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
        ifmt == isformat_w_shelx) &
        call iw_text("Options",highlight=.true.)
 
@@ -239,6 +246,13 @@ contains
           & fractional coordinates (atom_frac)",ttshown)
     end if
 
+    ! show the unit cell in the 3D model
+    if (usecell) then
+       ldum = iw_checkbox("Show unit cell##saveasdocell",w%saveas_docell)
+       call iw_tooltip("Draw the unit cell edges in the written 3D model file&
+          & (same as the CELL option to WRITE)",ttshown)
+    end if
+
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
@@ -253,10 +267,11 @@ contains
        ! write the structure; pass the rklength only if it applies
        if (userk) then
           call sys(isys)%c%write_any_file(w%okfile,w%errmsg,iwformat=ifmt,&
-             rklength=real(w%saveas_rk,8),nosym=w%saveas_nosym,cartesian=w%saveas_cartesian)
+             rklength=real(w%saveas_rk,8),nosym=w%saveas_nosym,cartesian=w%saveas_cartesian,&
+             docell=w%saveas_docell)
        else
           call sys(isys)%c%write_any_file(w%okfile,w%errmsg,iwformat=ifmt,&
-             nosym=w%saveas_nosym,cartesian=w%saveas_cartesian)
+             nosym=w%saveas_nosym,cartesian=w%saveas_cartesian,docell=w%saveas_docell)
        end if
 
        ! on success, remember the settings, report, and quit
@@ -264,6 +279,7 @@ contains
           lastrk = w%saveas_rk
           lastnosym = w%saveas_nosym
           lastcartesian = w%saveas_cartesian
+          lastdocell = w%saveas_docell
           call okfile_save_dir(w%okfile)
           write (uout,'("Saved structure file: ",A)') trim(w%okfile)
           doquit = .true.

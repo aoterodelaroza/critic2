@@ -968,10 +968,12 @@ contains
   !> error, return a non-zero errmsg. The optional arguments apply
   !> only to the formats that support them: rklength writes a k-point
   !> grid with that length (espresso, FHIaims, CASTEP), nosym writes
-  !> the structure without using the symmetry (cif, d12, res), and
+  !> the structure without using the symmetry (cif, d12, res),
   !> cartesian writes Cartesian instead of fractional atomic
-  !> coordinates (FHIaims).
-  module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,ti)
+  !> coordinates (FHIaims), and docell adds the unit cell to the 3D
+  !> model (obj, ply, off).
+  module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
+     docell,ti)
     use tools_io, only: lower, equal
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
@@ -990,6 +992,7 @@ contains
     real*8, intent(in), optional :: rklength
     logical, intent(in), optional :: nosym
     logical, intent(in), optional :: cartesian
+    logical, intent(in), optional :: docell
     type(thread_info), intent(in), optional :: ti
 
     integer :: isformat
@@ -1020,11 +1023,11 @@ contains
     elseif (isformat == isformat_w_cml) then
        call c%write_mol(file,'cml',ti=ti)
     elseif (isformat == isformat_w_obj) then
-       call c%write_3dmodel(file,'obj',ti=ti)
+       call c%write_3dmodel(file,'obj',docell0=docell,ti=ti)
     elseif (isformat == isformat_w_ply) then
-       call c%write_3dmodel(file,'ply',ti=ti)
+       call c%write_3dmodel(file,'ply',docell0=docell,ti=ti)
     elseif (isformat == isformat_w_off) then
-       call c%write_3dmodel(file,'off',ti=ti)
+       call c%write_3dmodel(file,'off',docell0=docell,ti=ti)
     elseif (isformat == isformat_w_gaussian_periodic) then
        call c%write_gaussian(file,ti=ti)
     elseif (isformat == isformat_w_qein) then

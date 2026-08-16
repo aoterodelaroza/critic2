@@ -238,6 +238,7 @@ module windows
      real(c_float) :: saveas_rk ! rklength for the k-point grid
      logical :: saveas_nosym ! do not use symmetry in the written file
      logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
+     logical :: saveas_docell ! show the unit cell in the written 3D model file
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
