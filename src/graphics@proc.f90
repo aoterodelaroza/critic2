@@ -3334,15 +3334,14 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu
-    character(len=:), allocatable :: file, line
-    logical :: ok
+    character(len=:), allocatable :: line
 
-    ! get the temporary file name from the first line and open
+    ! rewind the scratch file and open the output file
     rewind(g%lu)
     lu = fopen_write(g%file,ti=ti)
 
     ! write the header
-    write (lu,'("ply ")')
+    write (lu,'("ply")')
     write (lu,'("format ascii 1.0")')
     write (lu,'("comment PLY created by critic2")')
     write (lu,'("element vertex ",A)') string(g%nv)
@@ -3366,7 +3365,6 @@ contains
 
     ! transfer the faces
     rewind(g%lu)
-    ok = getline_raw(g%lu,file,.true.)
     do while(getline_raw(g%lu,line))
        if (line(1:1) == "f") then
           write (lu,'(A)') line(2:)
@@ -3404,7 +3402,7 @@ contains
 
     ! write the ball to the ply
     do i = 1, nvsph(lvl)
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') x + r * vsph(:,i,lvl), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, nfsph(lvl)
@@ -3437,10 +3435,10 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
@@ -3492,7 +3490,7 @@ contains
 
     ! write the stick to the ply
     do i = 1, nvcyl(lvl)
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
@@ -3546,7 +3544,7 @@ contains
              rgb = nint(xrgb * 255)
           end if
        endif
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') x,&
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
     do i = 1, srf%nf
@@ -3588,7 +3586,7 @@ contains
           xrgb(3) = max(sin(2*z*pi),0d0)
           rgb = nint(xrgb * 255)
        end if
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(rgb(j)),j=1,3)
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') xv(:,i), (string(rgb(j)),j=1,3)
     end do
     do i = 1, nf
        write (g%lu,'("f",999(A," "))') "3", (string(g%nv+if(j,i)-1),j=1,3)
@@ -3680,7 +3678,7 @@ contains
     ! write the ball to the off
     do i = 1, nvsph(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0.0")') x + r * vsph(:,i,lvl), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') x + r * vsph(:,i,lvl), &
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, nfsph(lvl)
@@ -3713,10 +3711,10 @@ contains
 
     ! write the face to the obj
     do i = 1, n
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x(:,i), &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') x(:,i), &
           string(rgb(1)), string(rgb(2)), string(rgb(3))
     end do
-    write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xcm, &
+    write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') xcm, &
        string(rgb(1)), string(rgb(2)), string(rgb(3))
 
     do i = 1, n
@@ -3770,7 +3768,7 @@ contains
     ! write the stick to the off
     do i = 1, nvcyl(lvl)
        xrgb = real(rgb,8) / 255d0
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') &
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') &
           x1+vcyl(1,i,lvl)*v1+vcyl(2,i,lvl)*v2+vcyl(3,i,lvl)*xd,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
@@ -3826,7 +3824,7 @@ contains
              xrgb(3) = max(sin(2*z*pi),0d0)
           endif
        endif
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') x,&
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') x,&
           string(xrgb(1),"g"), string(xrgb(2),"g"), string(xrgb(3),"g")
     end do
     do i = 1, srf%nf
@@ -3867,7 +3865,7 @@ contains
           xrgb(2) = z**3
           xrgb(3) = max(sin(2*z*pi),0d0)
        end if
-       write (g%lu,'("v",3(F20.12," "),3(A," "),"0")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
+       write (g%lu,'("v",3(F20.12," "),3(A," "),"255")') xv(:,i), (string(xrgb(j),"g"),j=1,3)
     end do
     do i = 1, nf
        write (g%lu,'("f",999(A," "))') "3", (string(g%nv+if(j,i)-1),j=1,3)
