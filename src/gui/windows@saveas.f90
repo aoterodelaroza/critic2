@@ -81,6 +81,17 @@ submodule (windows) saveas
   ! options for the format combo (built once on first use)
   character(kind=c_char,len=:), allocatable, target :: combostr
 
+  ! cached existence check for the FHIaims companion control file
+  character(len=:), allocatable :: lastcontrol
+  logical :: lastcontrol_exists = .false.
+
+  ! settings remembered from the last successful save (this session).
+  ! The 50 rklength default is a deliberate GUI choice (the CLI writers
+  ! default to 40 when no rklength is given).
+  real(c_float) :: lastrk = 50._c_float
+  logical :: lastnosym = .false.
+  logical :: lastcartesian = .false.
+
 contains
 
   !> Draw the save as window
@@ -88,16 +99,15 @@ contains
     use windows, only: wintype_dialog, wpurp_dialog_savefile
     use systems, only: sys, sysc, sys_init, ok_system
     use crystalmod, only: struct_detect_write_format
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir,&
-       iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event, iw_setpos_bottomright,&
-       shorten_path_cwd
+    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
+       iw_combo_simple, iw_dragfloat_realc, iw_close_event, iw_setpos_bottomright,&
+       iw_inputtext, file_name_root
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
-    use tools_io, only: string
-    use param, only: dirsep
+    use tools_io, only: string, uout
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, okvalid, syschanged, changed, ismol, userk
-    integer :: i, idx, isys, iview, iaux, ifmt
+    integer :: i, isys, iview, iaux, ifmt, idetect
     logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -116,12 +126,12 @@ contains
 
     ! initialize state
     if (w%firstpass) then
-       w%okfile = get_current_working_dir() // dirsep // "structure.in"
+       w%okfile = okfile_default(isys,"structure","in")
        w%saveas_format = 0
-       w%saveas_rk = 50._c_float
-       w%saveas_nosym = .false.
-       w%saveas_cartesian = .false.
        w%errmsg = ""
+       w%saveas_rk = lastrk
+       w%saveas_nosym = lastnosym
+       w%saveas_cartesian = lastcartesian
     end if
 
     ! the system being written
@@ -130,13 +140,15 @@ contains
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
     end if
 
-    ! File name button; show only the file name if the path is the
-    ! current working directory
+    ! file name: editable field plus browse button
     call iw_text("File Name",highlight=.true.)
-    if (iw_button("File",danger=.true.)) &
+    ldum = iw_inputtext("##saveasfile",bufsize=1023,texta=w%okfile,width=36)
+    call iw_tooltip("File the structure will be written to (with auto-detect,&
+       & the extension selects the format)",ttshown)
+    if (iw_button("Browse...",sameline=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savefile,idparent=w%id,orraise=-1)
-    call iw_tooltip("Choose the file to write the structure to",ttshown)
-    call iw_text(shorten_path_cwd(w%okfile),sameline=.true.)
+    call iw_tooltip("Choose the file with a file browser",ttshown)
+    call w%okfile_warn_overwrite()
 
     ! format combo
     call igPushItemWidth(iw_calcwidth(45,1))
@@ -146,25 +158,23 @@ contains
        & the format is chosen based on the file extension",ttshown)
 
     ! if the user set a format, change the file extension to match it
-    if (changed .and. w%saveas_format > 0) then
-       idx = index(w%okfile,dirsep,back=.true.)
-       i = index(w%okfile(idx+1:),'.',back=.true.)
-       if (i > 0) then
-          w%okfile = w%okfile(1:idx+i-1)
-       end if
-       w%okfile = w%okfile // "." // trim(fmtext(fmtperm(w%saveas_format)))
-    end if
+    if (changed .and. w%saveas_format > 0) &
+       w%okfile = file_name_root(w%okfile) // "." // trim(fmtext(fmtperm(w%saveas_format)))
 
     ! the write format resulting from the combo selection; the
     ! auto-detected format is FHIaims input if the extension is unknown
+    call struct_detect_write_format(w%okfile,idetect)
     if (w%saveas_format == 0) then
-       call struct_detect_write_format(w%okfile,ifmt)
+       ifmt = idetect
        if (ifmt == isformat_w_unknown) ifmt = isformat_w_aimsin
        ! show the detected format below the combo
        call iw_text("Detected:",highlight=.true.)
        call iw_text(trim(fmtnames(ifmt)),sameline=.true.)
     else
        ifmt = fmtperm(w%saveas_format)
+       ! warn if the file extension does not match the selected format
+       if (idetect /= ifmt) &
+          call iw_text("Extension does not match the selected format",danger=.true.)
     end if
 
     ! whether the write will produce a molecule or a crystal: some
@@ -178,8 +188,6 @@ contains
        elseif (ifmt == isformat_w_aimsin .or. ifmt == isformat_w_pdb .or. ifmt == isformat_w_pyscf .or.&
           ifmt == isformat_w_dftbp_gen .or. ifmt == isformat_w_dftbp_hsd) then
           ismol = sys(isys)%c%ismolecule
-       else
-          ismol = .false.
        end if
        call iw_text("Format:",highlight=.true.)
        call iw_text(trim(merge("molecule","crystal ",ismol)),sameline=.true.)
@@ -200,6 +208,17 @@ contains
        ldum = iw_dragfloat_realc("RKlength##saveasrk",x1=w%saveas_rk,speed=1._c_float,&
           min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
+       if (ifmt == isformat_w_aimsin) then
+          call iw_text("K-point grid written to a companion _control file")
+          ! warn if the companion file exists (check cached on okfile change)
+          if (.not.allocated(lastcontrol)) lastcontrol = ""
+          if (trim(w%okfile) // "_control" /= lastcontrol) then
+             lastcontrol = trim(w%okfile) // "_control"
+             inquire(file=lastcontrol,exist=lastcontrol_exists)
+          end if
+          if (lastcontrol_exists) &
+             call iw_text("The _control file exists and will be overwritten",danger=.true.)
+       end if
     end if
 
     ! do not use symmetry
@@ -209,13 +228,11 @@ contains
        call iw_tooltip("Write the structure without using the space group symmetry (P1)",ttshown)
     end if
 
-    ! Cartesian coordinates (crystals only; sys(isys) is valid only if not doquit)
-    if (ifmt == isformat_w_aimsin .and. .not.doquit) then
-       if (.not.sys(isys)%c%ismolecule) then
-          ldum = iw_checkbox("Cartesian coordinates##saveascartesian",w%saveas_cartesian)
-          call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
-             & fractional coordinates (atom_frac)",ttshown)
-       end if
+    ! Cartesian coordinates (crystals only; ismol is .false. when doquit)
+    if (ifmt == isformat_w_aimsin .and. .not.ismol .and. .not.doquit) then
+       ldum = iw_checkbox("Cartesian coordinates##saveascartesian",w%saveas_cartesian)
+       call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
+          & fractional coordinates (atom_frac)",ttshown)
     end if
 
     ! maybe the error message
@@ -238,8 +255,15 @@ contains
              nosym=w%saveas_nosym,cartesian=w%saveas_cartesian)
        end if
 
-       ! quit if no error message
-       if (len_trim(w%errmsg) == 0) doquit = .true.
+       ! on success, remember the settings, report, and quit
+       if (len_trim(w%errmsg) == 0) then
+          lastrk = w%saveas_rk
+          lastnosym = w%saveas_nosym
+          lastcartesian = w%saveas_cartesian
+          call okfile_save_dir(w%okfile)
+          write (uout,'("Saved structure file: ",A)') trim(w%okfile)
+          doquit = .true.
+       end if
     end if
 
     ! final buttons: cancel

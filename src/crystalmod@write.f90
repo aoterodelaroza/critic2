@@ -3798,14 +3798,24 @@ contains
        isformat_w_siesta_fdf, isformat_w_siesta_struct, isformat_w_dftbp_hsd,&
        isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb
     use tools_io, only: equal, lower
+    use param, only: dirsep
     character*(*), intent(in) :: file
     integer, intent(out) :: isformat
 
     character(len=:), allocatable :: wext, wext2, wroot
-    integer :: idx
+    integer :: idx, idir
 
-    wext = lower(file(index(file,'.',.true.)+1:))
-    wroot = file(:index(file,'.',.true.)-1)
+    ! find the extension in the base name only (a dot in a directory
+    ! name must not be mistaken for the extension separator)
+    idir = index(file,dirsep,back=.true.)
+    idx = index(file(idir+1:),'.',back=.true.)
+    if (idx > 0) then
+       wext = lower(file(idir+idx+1:))
+       wroot = file(:idir+idx-1)
+    else
+       wext = lower(file(idir+1:))
+       wroot = ""
+    end if
     if (equal(wext,'xyz')) then
        isformat = isformat_w_xyz
     elseif (equal(wext,'gjf')) then

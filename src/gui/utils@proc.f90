@@ -151,15 +151,9 @@ contains
 
     ! set up the C buffer from the source string
     allocate(character(len=bufsize+1) :: text_)
-    ll = len(src)
-    do i = 1, bufsize
-       if (i <= ll) then
-          text_(i:i) = src(i:i)
-       else
-          text_(i:i) = c_null_char
-       end if
-    end do
-    text_(bufsize+1:bufsize+1) = c_null_char
+    ll = min(len(src),bufsize)
+    if (ll > 0) text_(1:ll) = src(1:ll)
+    text_(ll+1:) = c_null_char
 
     ! push width
     if (present(width)) &
@@ -1832,26 +1826,36 @@ contains
 
   end function get_current_working_dir
 
-  !> Return file with the leading path removed if that path is the
-  !> current working directory (for display purposes). The cwd is
-  !> cached on the first call (the GUI never changes directory).
-  module function shorten_path_cwd(file) result(s)
+  !> Return file with the extension removed from its base name (the
+  !> path, if any, is kept). For espresso/alamode input files
+  !> (x.scf.in, x.alm.in), remove the double extension (similar to the
+  !> rule in struct_detect_write_format in crystalmod). If the base
+  !> name has no extension, return file unchanged (trimmed).
+  module function file_name_root(file) result(root)
+    use tools_io, only: equal, lower
     use param, only: dirsep
     character(len=*), intent(in) :: file
-    character(len=:), allocatable :: s
+    character(len=:), allocatable :: root
 
-    character(len=:), allocatable, save :: cwd
-    integer :: idx
+    character(len=:), allocatable :: ext
+    integer :: idir, idx
 
-    if (.not.allocated(cwd)) cwd = get_current_working_dir()
-
-    s = file
-    idx = index(s,dirsep,back=.true.)
-    if (idx > 0) then
-       if (s(1:idx-1) == cwd) s = s(idx+1:)
+    root = trim(file)
+    idir = index(root,dirsep,back=.true.)
+    idx = index(root(idir+1:),'.',back=.true.)
+    if (idx == 0) return
+    ext = lower(root(idir+idx+1:))
+    root = root(:idir+idx-1)
+    if (equal(ext,'in')) then
+       idx = index(root(idir+1:),'.',back=.true.)
+       if (idx > 0) then
+          ext = lower(root(idir+idx+1:))
+          if (equal(ext,'scf') .or. equal(ext,'alm')) &
+             root = root(:idir+idx-1)
+       end if
     end if
 
-  end function shorten_path_cwd
+  end function file_name_root
 
   !xx! private procedures !xx!
 

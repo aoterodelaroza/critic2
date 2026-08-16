@@ -405,6 +405,81 @@ contains
 
   end function stack_create_window
 
+  !> Show a danger-colored warning if the window's okfile exists on
+  !> disk. The existence check is cached and re-run only when okfile
+  !> changes.
+  module subroutine okfile_warn_overwrite(w)
+    use utils, only: iw_text
+    class(window), intent(inout) :: w
+
+    if (w%okfile /= w%okfile_lastcheck) then
+       w%okfile_lastcheck = w%okfile
+       if (len_trim(w%okfile) > 0) then
+          inquire(file=w%okfile,exist=w%okfile_exists)
+       else
+          w%okfile_exists = .false.
+       end if
+    end if
+    if (w%okfile_exists) &
+       call iw_text("File exists and will be overwritten",danger=.true.)
+
+  end subroutine okfile_warn_overwrite
+
+  !> Default file name for a save window operating on system isys: the
+  !> root of the system's source file (defname if unavailable) plus
+  !> extension ext. Unless uselastdir is present and false, put the
+  !> file in the last directory recorded by okfile_save_dir (if any)
+  !> instead of the source file's directory.
+  module function okfile_default(isys,defname,ext,uselastdir) result(file)
+    use systems, only: sysc, ok_system, sys_loaded_not_init
+    use utils, only: get_current_working_dir, file_name_root
+    use param, only: dirsep
+    integer, intent(in) :: isys
+    character(len=*), intent(in) :: defname
+    character(len=*), intent(in) :: ext
+    logical, intent(in), optional :: uselastdir
+    character(kind=c_char,len=:), allocatable :: file
+
+    character(len=:), allocatable :: root
+    integer :: idx
+    logical :: uselast
+
+    uselast = .true.
+    if (present(uselastdir)) uselast = uselastdir
+    if (.not.allocated(okfile_lastdir)) okfile_lastdir = ""
+
+    ! root of the system's source file, or defname in the cwd
+    root = ""
+    if (ok_system(isys,sys_loaded_not_init)) then
+       if (len_trim(sysc(isys)%seed%file) > 0) &
+          root = file_name_root(sysc(isys)%seed%file)
+    end if
+    if (len_trim(root) == 0) &
+       root = get_current_working_dir() // dirsep // defname
+
+    ! replace the directory with the last-used one
+    if (uselast .and. len_trim(okfile_lastdir) > 0) then
+       idx = index(root,dirsep,back=.true.)
+       root = okfile_lastdir // dirsep // root(idx+1:)
+    end if
+
+    file = root // "." // trim(ext)
+
+  end function okfile_default
+
+  !> Record the directory of file as the last one used by the save
+  !> windows (used by okfile_default). No-op if file has no path.
+  module subroutine okfile_save_dir(file)
+    use param, only: dirsep
+    character(len=*), intent(in) :: file
+
+    integer :: idx
+
+    idx = index(file,dirsep,back=.true.)
+    if (idx > 1) okfile_lastdir = file(1:idx-1)
+
+  end subroutine okfile_save_dir
+
   !> This routine regenerates all pointers to the widows in the win(:)
   !> structure and its components. It is used when an array size is
   !> exceeded and move_alloc needs to be used to allocate more memory.
@@ -458,6 +533,7 @@ contains
     w%sortcid = 0
     w%sortdir = 1
     w%okfile = ""
+    w%okfile_lastcheck = ""
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     nullify(w%sc)
@@ -880,8 +956,7 @@ contains
           elseif (w%purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
-             str2 = "image.png" // c_null_char
-             str3 = "./" // c_null_char
+             call dialog_initial_file(w%idparent,"image.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_savefile) then
@@ -916,8 +991,7 @@ contains
                 &PLY (*.ply) {.ply},&
                 &OFF (*.off) {.off},&
                 &All files (*.*){*.*}"// c_null_char
-             str2 = "structure.in" // c_null_char
-             str3 = "./" // c_null_char
+             call dialog_initial_file(w%idparent,"structure.in",str2,str3)
              ! the overwrite flag goes only to the file dialog, not to w%flags: it
              ! would be reused as ImGuiWindowFlags in IGFD_DisplayDialog
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
@@ -937,9 +1011,9 @@ contains
        elseif (w%type == wintype_editrep) then
           call init_window("Object [" // string(w%rep%name) // "]",63,46)
        elseif (w%type == wintype_exportimage) then
-          call init_window("Export to Image",50,17)
+          call init_window("Export to Image",52,21)
        elseif (w%type == wintype_saveas) then
-          call init_window("Save As",50,15)
+          call init_window("Save As",52,18)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62,25)
        elseif (w%type == wintype_dynamics) then
@@ -1064,6 +1138,32 @@ contains
       end if
 
     end subroutine init_window
+
+    !> Initial file name and path for a save dialog, taken from the
+    !> caller window's current okfile if available; defname in ./
+    !> otherwise. Both are returned null-terminated.
+    subroutine dialog_initial_file(idparent,defname,file,path)
+      use param, only: dirsep
+      integer, intent(in) :: idparent
+      character(len=*), intent(in) :: defname
+      character(kind=c_char,len=:), allocatable, target, intent(out) :: file, path
+
+      integer :: idx
+      logical :: ok
+
+      file = defname // c_null_char
+      path = "./" // c_null_char
+      ok = (idparent >= 1 .and. idparent <= nwin)
+      if (ok) ok = allocated(win(idparent)%okfile)
+      if (ok) ok = (len_trim(win(idparent)%okfile) > 0)
+      if (ok) then
+         idx = index(win(idparent)%okfile,dirsep,back=.true.)
+         if (idx > 1) path = win(idparent)%okfile(1:idx-1) // c_null_char
+         if (idx < len_trim(win(idparent)%okfile)) &
+            file = trim(win(idparent)%okfile(idx+1:)) // c_null_char
+      end if
+
+    end subroutine dialog_initial_file
 
   end subroutine window_draw
 

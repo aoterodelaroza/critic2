@@ -3473,7 +3473,6 @@ contains
     integer :: isys
     integer :: width, height, origin(2)
     integer(c_signed_char), allocatable, target :: data(:)
-    type(ImVec2) :: x0, x1
     character(kind=c_char,len=:), allocatable, target :: str
     integer(c_int) :: idum
 
@@ -3556,32 +3555,10 @@ contains
 
     ! Read from the regular framebuffer into the data array
     call glBindFramebuffer(GL_FRAMEBUFFER, endFBO)
-    if (.not.exportview) then
-       ! whole texture
-       width = npixel
-       height = npixel
-       allocate(data(4 * width * height))
-       data = 0_c_signed_char
-       call glReadPixels(0, 0, npixel, npixel, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
-    else
-       ! viewport only
-       x0%x = w%v_rmin%x
-       x0%y = w%v_rmin%y
-       x1%x = w%v_rmax%x
-       x1%y = w%v_rmax%y
-       call w%mousepos_to_texpos(x0)
-       call w%mousepos_to_texpos(x1)
-       ! the texture is presented right-side up, so v_rmin (screen top) maps to
-       ! the larger texture row and v_rmax to the smaller; use abs/min so the
-       ! crop rectangle (glReadPixels origin is the lower-left) is well defined
-       width = min(nint(abs(x1%x - x0%x) / real(w%FBOside,8) * npixel),npixel)
-       height = min(nint(abs(x1%y - x0%y) / real(w%FBOside,8) * npixel),npixel)
-       origin(1) = max(nint(min(x0%x,x1%x) / real(w%FBOside,8) * npixel),0)
-       origin(2) = max(nint(min(x0%y,x1%y) / real(w%FBOside,8) * npixel),0)
-       allocate(data(4 * width * height))
-       data = 0_c_signed_char
-       call glReadPixels(origin(1), origin(2), width, height, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
-    end if
+    call w%export_image_size(npixel,exportview,width,height,origin)
+    allocate(data(4 * width * height))
+    data = 0_c_signed_char
+    call glReadPixels(origin(1), origin(2), width, height, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
        errmsg = "Error rendering export image"
@@ -3622,14 +3599,10 @@ contains
   !> Export the current system to a PNG file using the same file name
   !> but with png extension, using all defaults
   module subroutine export_to_png_simple(w)
-    use tools_io, only: equal, lower
-    use systems, only: sys_loaded_not_init, sysc, ok_system
+    use systems, only: sys_loaded_not_init, ok_system
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable :: file, errmsg
-    character(len=:), allocatable :: wext, wroot
-    integer(c_int) :: npixel
-    integer :: isys, idx
 
     character(kind=c_char,len=3), parameter :: fformat = "PNG"
     integer(c_int), parameter :: nsample = 16
@@ -3637,29 +3610,52 @@ contains
     logical, parameter :: exportview = .true.
     logical, parameter :: transparentbg = .true.
 
-    ! initialize
-    npixel = w%FBOside
-
     ! get the root of the file name and append the png extension
-    isys = w%isys
-    if (.not.ok_system(isys,sys_loaded_not_init)) return
-    file = sysc(isys)%seed%file
-    wext = lower(file(index(file,'.',.true.)+1:))
-    wroot = file(:index(file,'.',.true.)-1)
-    if (equal(wext,'in')) then
-       idx = index(wroot,'.',.true.)
-       if (idx > 0) then
-          wext = lower(wroot(idx+1:))
-          if (equal(wext,'scf')) &
-             wroot = file(:index(file,'.',.true.)-1)
-       end if
-    end if
-    file = wroot // ".png"
+    if (.not.ok_system(w%isys,sys_loaded_not_init)) return
+    file = okfile_default(w%isys,"image","png",uselastdir=.false.)
 
     ! export
-    call w%export_to_image(file,fformat,nsample,npixel,transparentbg,exportview,&
+    call w%export_to_image(file,fformat,nsample,w%FBOside,transparentbg,exportview,&
        jpgquality,errmsg)
 
   end subroutine export_to_png_simple
+
+  !> Compute the size in pixels (width x height) of the image that
+  !> export_to_image writes with render buffer size npixel and,
+  !> optionally, the origin of the crop rectangle in the buffer. If
+  !> exportview, the current viewport rectangle is cropped from the
+  !> buffer; otherwise the whole buffer is used.
+  module subroutine export_image_size(w,npixel,exportview,width,height,origin)
+    class(window), intent(inout), target :: w
+    integer(c_int), intent(in) :: npixel
+    logical, intent(in) :: exportview
+    integer, intent(out) :: width, height
+    integer, intent(out), optional :: origin(2)
+
+    type(ImVec2) :: x0, x1
+
+    if (.not.exportview) then
+       ! whole texture
+       width = npixel
+       height = npixel
+       if (present(origin)) origin = 0
+    else
+       ! viewport only
+       x0 = w%v_rmin
+       x1 = w%v_rmax
+       call w%mousepos_to_texpos(x0)
+       call w%mousepos_to_texpos(x1)
+       ! the texture is presented right-side up, so v_rmin (screen top) maps to
+       ! the larger texture row and v_rmax to the smaller; use abs/min so the
+       ! crop rectangle (glReadPixels origin is the lower-left) is well defined
+       width = min(nint(abs(x1%x - x0%x) / real(w%FBOside,8) * npixel),npixel)
+       height = min(nint(abs(x1%y - x0%y) / real(w%FBOside,8) * npixel),npixel)
+       if (present(origin)) then
+          origin(1) = max(nint(min(x0%x,x1%x) / real(w%FBOside,8) * npixel),0)
+          origin(2) = max(nint(min(x0%y,x1%y) / real(w%FBOside,8) * npixel),0)
+       end if
+    end if
+
+  end subroutine export_image_size
 
 end submodule view

@@ -37,6 +37,9 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
+  ! last directory used by the save windows (okfile_default/okfile_save_dir)
+  character(len=:), allocatable :: okfile_lastdir
+
   ! view modes (positive = normal, user-selectable; negative = forced).
   integer, parameter, public :: vm_builder_bondorder = -11 ! forced by builder: cycle the bond order (persistent)
   integer, parameter, public :: vm_builder_bondremove = -10 ! forced by builder: remove bonds (persistent)
@@ -208,6 +211,8 @@ module windows
      ! new structure from library & save image
      character(kind=c_char,len=:), allocatable :: okfile ! ok file
      character(kind=c_char,len=:), allocatable :: okfilter ! ok filter
+     logical :: okfile_exists = .false. ! cached result: okfile exists on disk (save windows)
+     character(kind=c_char,len=:), allocatable :: okfile_lastcheck ! okfile at the last existence check
      logical :: okfile_set = .false. ! whether the library file has been set by the user
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      integer(c_int) :: okfile_format = 0 ! the file format
@@ -315,6 +320,7 @@ module windows
      procedure :: anchor_view => window_anchor_view ! the view window this window is anchored to
      procedure :: anchor => window_anchor ! the anchor view and the system it shows (tool windows)
      procedure :: retarget => window_retarget ! point the anchor view at a system
+     procedure :: okfile_warn_overwrite ! show a warning if okfile exists (save windows)
      procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
      procedure :: draw_tree
@@ -346,6 +352,7 @@ module windows
      procedure :: texpos_to_world ! texture position to world coordinates
      procedure :: export_to_image ! export current scene to an image file
      procedure :: export_to_png_simple ! export to a png file with the same name as system
+     procedure :: export_image_size ! size (and origin) of the exported image in pixels
      ! dialog procedures
      procedure :: draw_dialog
      ! input console procedures
@@ -474,6 +481,8 @@ module windows
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe
   public :: stack_create_window
+  public :: okfile_default
+  public :: okfile_save_dir
   public :: regenerate_window_pointers
   public :: read_output_uout
   public :: fill_input_ci
@@ -545,6 +554,19 @@ module windows
        integer, intent(in), optional :: orraise
        integer :: stack_create_window
      end function stack_create_window
+     module subroutine okfile_warn_overwrite(w)
+       class(window), intent(inout) :: w
+     end subroutine okfile_warn_overwrite
+     module function okfile_default(isys,defname,ext,uselastdir) result(file)
+       integer, intent(in) :: isys
+       character(len=*), intent(in) :: defname
+       character(len=*), intent(in) :: ext
+       logical, intent(in), optional :: uselastdir
+       character(kind=c_char,len=:), allocatable :: file
+     end function okfile_default
+     module subroutine okfile_save_dir(file)
+       character(len=*), intent(in) :: file
+     end subroutine okfile_save_dir
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
@@ -706,6 +728,13 @@ module windows
      module subroutine export_to_png_simple(w)
        class(window), intent(inout), target :: w
      end subroutine export_to_png_simple
+     module subroutine export_image_size(w,npixel,exportview,width,height,origin)
+       class(window), intent(inout), target :: w
+       integer(c_int), intent(in) :: npixel
+       logical, intent(in) :: exportview
+       integer, intent(out) :: width, height
+       integer, intent(out), optional :: origin(2)
+     end subroutine export_image_size
      !xx! dialog submodule !xx!
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
