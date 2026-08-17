@@ -55,14 +55,17 @@ contains
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
-       iw_radiobutton, iw_dragfloat_realc, iw_inputint3,&
+       iw_radiobutton, iw_dragfloat_realc, iw_intstepper,&
        iw_close_event, iw_setpos_bottomright
     use tools_io, only: string, uout
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
 
+    character(len=*,kind=c_char), parameter :: ttnx = &
+       "Number of unit cells along each crystallographic axis"
+
     logical :: doquit, syschanged, ismol, molmotifok, environok, okpick, hovered
-    integer :: i, isys, iview, nmol
+    integer :: i, isys, iview, nmol, ipad
     integer(c_int) :: inc
     real*8 :: rad, x0(3), xlo(3), xhi(3)
     logical(c_bool) :: ldum
@@ -246,10 +249,16 @@ contains
        rad = real(w%extract_rcub,8) / bohrtoa
        call show_atom_estimate(8d0 * rad**3)
     elseif (w%extract_region == er_cells) then
-       call iw_text("Cells along a, b, c",alignframe=.true.)
-       ldum = iw_inputint3("##extractnx",w%extract_nx,width=3*5,sameline=.true.)
-       w%extract_nx = max(min(w%extract_nx,50_c_int),1_c_int)
-       call iw_tooltip("Number of unit cells along each crystallographic axis",ttshown)
+       ! same form as the periodicity widget in the representation editor
+       ! (all three fields share a digit width, and clamp themselves)
+       call iw_text("Cells",highlight=.true.,alignframe=.true.)
+       ipad = ceiling(log10(max(maxval(w%extract_nx),1) + 0.1))
+       ldum = iw_intstepper("aaxis##extractnx",w%extract_nx(1),label="a:",minval=1_c_int,&
+          maxval=50_c_int,ndigit=ipad,notlive=.true.,sameline=.true.,tooltip=ttnx)
+       ldum = iw_intstepper("baxis##extractnx",w%extract_nx(2),label="b:",minval=1_c_int,&
+          maxval=50_c_int,ndigit=ipad,notlive=.true.,sameline=.true.,tooltip=ttnx)
+       ldum = iw_intstepper("caxis##extractnx",w%extract_nx(3),label="c:",minval=1_c_int,&
+          maxval=50_c_int,ndigit=ipad,notlive=.true.,sameline=.true.,tooltip=ttnx)
        ! the border only adds atoms to an atom cut
        if (ei_effective() /= ei_environ) then
           ldum = iw_checkbox("Include border atoms##extractborder",w%extract_border)
@@ -285,7 +294,7 @@ contains
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
     ! right-align and bottom-align for the rest of the contents
-    call iw_setpos_bottomright(10,2)
+    call iw_setpos_bottomright(12,2)
 
     ! final buttons: Extract
     if (iw_button("Extract",disabled=doquit)) then

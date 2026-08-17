@@ -1,0 +1,1073 @@
+! Copyright (c) 2007-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! Routines for editing molecular and crystal structures
+submodule (crystalmod) mols
+  implicit none
+
+contains
+
+  !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
+  !> A fragment object. This routine is thread-safe.
+  module function identify_fragment(c,nat,x0) result(fr)
+    use param, only: icrd_cart
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: nat
+    real*8, intent(in) :: x0(3,nat)
+    type(fragment) :: fr
+
+    integer :: id, i, n
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
+
+    ! gather the atoms that can be identified in the cell
+    allocate(fx(3,nat),fis(nat),fidx(nat),fcidx(nat))
+    n = 0
+    do i = 1, nat
+       id = c%identify_atom(x0(:,i),icrd_cart)
+       if (id > 0) then
+          n = n + 1
+          fx(:,n) = x0(:,i)
+          fcidx(n) = id
+          fidx(n) = c%atcel(id)%idx
+          fis(n) = c%atcel(id)%is
+       end if
+    end do
+
+    ! build the fragment and assign the lattice vectors to the cell atoms
+    call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_cart,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c)
+    do i = 1, fr%nat
+       fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(fr%at(i)%cidx)%x)
+    end do
+    deallocate(fx,fis,fidx,fcidx)
+
+  end function identify_fragment
+
+  !> Identify a fragment in the unit cell from an external xyz
+  !> file. An instance of a fragment object is returned. If any of the
+  !> atoms is not correctly identified, return 0.
+  module function identify_fragment_from_xyz(c,file,errmsg,ti) result(fr)
+    use tools_io, only: fopen_read, string, fclose
+    use param, only: bohrtoa, icrd_cart, mlen
+
+    class(crystal), intent(inout) :: c
+    character*(*) :: file
+    type(thread_info), intent(in), optional :: ti
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(fragment) :: fr
+
+    integer :: lu, nat
+    integer :: id, i
+    real*8 :: x0(3)
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
+    character(len=mlen) :: word
+
+    ! leave an empty fragment in case of error
+    fr%nat = 0
+    fr%nspc = 0
+
+    errmsg = "Error reading xyz file"
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) goto 999
+    read(lu,*,err=999,end=999) nat
+    read(lu,*,err=999,end=999)
+
+    ! gather and identify all the atoms in the xyz file
+    allocate(fx(3,nat),fis(nat),fidx(nat),fcidx(nat))
+    do i = 1, nat
+       read(lu,*,err=999,end=999) word, x0
+       x0 = x0 / bohrtoa - c%molx0
+       id = c%identify_atom(x0,icrd_cart)
+       if (id == 0) then
+          errmsg = "Could not identify fragment from xyz file: " // trim(file)
+          call fclose(lu)
+          return
+       endif
+       fx(:,i) = x0
+       fcidx(i) = id
+       fidx(i) = c%atcel(id)%idx
+       fis(i) = c%atcel(id)%is
+    end do
+    call fclose(lu)
+
+    ! build the fragment and assign the lattice vectors to the cell atoms
+    call fr%build(c%nspc,c%spc,nat,fx,icrd_cart,fis,fidx,fcidx,c%m_x2c)
+    do i = 1, fr%nat
+       fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(fr%at(i)%cidx)%x)
+    end do
+
+    errmsg = ""
+    return
+999 continue
+    if (lu > 0) call fclose(lu)
+
+  end function identify_fragment_from_xyz
+
+  !> Using the calculated asterisms for each atom determine the
+  !> molecules in the system by finding the connected components of
+  !> the graph. This routine also determines whether the crystal is
+  !> extended or molecular. Fills c%nmol and c%mol.
+  module subroutine fill_molecular_fragments(c)
+    use fragmentmod, only: realloc_fragment
+    use tools_math, only: lattice_direction
+    use tools_io, only: ferror, faterr
+    use tools, only: qcksort
+    use types, only: realloc
+    use param, only: icrd_crys
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j, k, nat, mnat, nlv, ntot
+    integer :: nlvec, lwork, info
+    integer, allocatable :: lvec(:,:), lmol(:,:), nlmol(:), lmoloff(:)
+    integer, allocatable :: imem(:), mid(:), mlvec(:,:), lper(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
+    logical, allocatable :: isdiscrete(:)
+    logical :: disc
+    real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
+    real*8, allocatable :: fx(:,:)
+
+    ! initialize
+    c%nmol = 0
+    c%nmoldiscrete = 0
+    c%ismol3d = .false.
+    if (allocated(c%mol)) deallocate(c%mol)
+    if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
+    if (c%ncel == 0) return
+
+    ! checks and allocate
+    if (.not.allocated(c%nstar)) &
+       call ferror('fill_molecular_fragments','no asterisms found',faterr)
+    allocate(c%idatcelmol(2,c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20))
+    allocate(nlmol(20),lmoloff(20),imem(c%ncel))
+    nlmol = 0
+    lmoloff = 0
+    c%idatcelmol = 0
+    imem = 0
+    isdiscrete = .true.
+
+    ! find the connected components; each molecule keeps its own slice
+    ! of the periodicity vectors (lmol, starting at lmoloff)
+    ntot = 0
+    do i = 1, c%ncel
+       if (c%idatcelmol(1,i) > 0) cycle
+
+       c%nmol = c%nmol + 1
+       if (c%nmol > size(isdiscrete,1)) then
+          call realloc(nlmol,2*c%nmol)
+          call realloc(lmoloff,2*c%nmol)
+          call realloc(isdiscrete,2*c%nmol)
+          isdiscrete(c%nmol:) = .true.
+          nlmol(c%nmol:) = 0
+       end if
+       call c%walk_component(i,(/0,0,0/),imem,mnat,mid,mlvec,disc,&
+          nlvecper=nlv,lvecper=lper)
+       isdiscrete(c%nmol) = disc
+       nlmol(c%nmol) = nlv
+       lmoloff(c%nmol) = ntot
+       if (ntot + nlv > size(lmol,2)) call realloc(lmol,3,2*(ntot+nlv))
+       if (nlv > 0) lmol(:,ntot+1:ntot+nlv) = lper(:,1:nlv)
+       ntot = ntot + nlv
+       do j = 1, mnat
+          c%idatcelmol(1,mid(j)) = c%nmol
+          lvec(:,mid(j)) = mlvec(:,j)
+       end do
+    end do
+
+    ! for non-discrete fragments, recompute the per-atom lattice vectors so
+    ! that dangling pieces split off by the cell boundary are translated to
+    ! reconnect with the rest; the periodic core stays in the main cell
+    if (any(.not.isdiscrete(1:c%nmol))) &
+       call reconnect_nondiscrete_pieces()
+
+    ! build the fragment for each molecule by collecting its atoms from
+    ! the complete atom list (work arrays sized to fit any molecule)
+    allocate(c%mol(c%nmol))
+    allocate(fx(3,c%ncel),fis(c%ncel),fidx(c%ncel),fcidx(c%ncel),flvec(3,c%ncel))
+    do i = 1, c%nmol
+       nat = 0
+       do k = 1, c%ncel
+          if (c%idatcelmol(1,k) /= i) cycle
+          nat = nat + 1
+          c%idatcelmol(2,k) = nat
+          fx(:,nat) = c%atcel(k)%x + lvec(:,k)
+          flvec(:,nat) = lvec(:,k)
+          fis(nat) = c%atcel(k)%is
+          fidx(nat) = c%atcel(k)%idx
+          fcidx(nat) = k
+       end do
+       call c%mol(i)%build(c%nspc,c%spc,nat,fx(:,1:nat),icrd_crys,fis(1:nat),&
+          fidx(1:nat),fcidx(1:nat),c%m_x2c,flvec(:,1:nat),&
+          isdiscrete(i),nlmol(i),lmol(:,lmoloff(i)+1:lmoloff(i)+nlmol(i)))
+    end do
+    deallocate(nlmol,lmol,isdiscrete,lvec,fx,fis,fidx,fcidx,flvec)
+
+    ! translate all discrete fragments to the main cell
+    if (.not.c%ismolecule) then
+       do i = 1, c%nmol
+          if (c%mol(i)%discrete) call c%mol(i)%translate_to_main_cell()
+       end do
+    end if
+
+    ! accumulate all the lattice vectors and calculate the vacuum lattice vectors
+    nlvec = 0
+    c%nlvac = 0
+    do i = 1, c%nmol
+       nlvec = nlvec + c%mol(i)%nlvec
+    end do
+    if (nlvec > 0) then
+       allocate(rlvec(3,nlvec))
+       k = 0
+       do i = 1, c%nmol
+          do j = 1, c%mol(i)%nlvec
+             k = k + 1
+             rlvec(:,k) = c%mol(i)%lvec(:,j)
+          end do
+       end do
+
+       lwork = 5*3 + max(nlvec,3)
+       allocate(sigma(3),uvec(3,3),vvec(1,1),work(lwork))
+       sigma = 0d0
+       call dgesvd('A','N',3,k,rlvec,3,sigma,uvec,3,vvec,1,work,lwork,info)
+       if (info /= 0) &
+          call ferror("fill_molecular_fragments","dgesvd failed!",faterr)
+
+       c%nlvac = count(abs(sigma) < 1d-12)
+       c%lvac = 0d0
+       c%lcon = 0d0
+       if (c%nlvac == 2) then
+          c%lvac(:,1) = lattice_direction(uvec(:,3),.true.)
+          c%lvac(:,2) = lattice_direction(uvec(:,2),.true.)
+          c%lcon(:,1) = lattice_direction(uvec(:,1),.true.)
+       elseif (c%nlvac == 1) then
+          c%lvac(:,1) = lattice_direction(uvec(:,3),.true.)
+          c%lcon(:,1) = lattice_direction(uvec(:,2),.true.)
+          c%lcon(:,2) = lattice_direction(uvec(:,1),.true.)
+       end if
+       deallocate(rlvec,sigma,uvec,vvec,work)
+    end if
+
+  contains
+    !> For each non-discrete fragment, find the pieces of the fragment
+    !> that are connected without crossing cell boundaries (bonds with
+    !> lcon = 0).  A piece is a dangler if all its bonds to the rest
+    !> of the structure go to a single other piece with a single
+    !> consistent lattice vector Danglers are peeled off iteratively
+    !> and translated to reconnect with their anchor; everything else
+    !> (the periodic core of the framework) stays wrapped in the main
+    !> cell. Overwrites lvec(:,i) for all atoms in non-discrete
+    !> fragments (zero for the atoms in the core).
+    subroutine reconnect_nondiscrete_pieces()
+      integer :: i, j, k, m, ip, jp, npc, nedge, npeel, ineigh, lab(3)
+      integer :: pnat
+      logical :: changed, pdisc
+      integer, allocatable :: imemp(:), pid(:), plvec(:,:)
+      logical, allocatable :: skipd(:)
+      integer, allocatable :: ipiece(:) ! piece id per cell atom (0 = atom in a discrete fragment)
+      integer, allocatable :: pshift(:,:) ! lattice shift assigned to each piece
+      integer, allocatable :: q(:) ! BFS queue (cell atom ids)
+      integer, allocatable :: estart(:) ! CSR offsets of the piece edge lists
+      integer, allocatable :: eto(:) ! target piece of each directed edge
+      integer, allocatable :: elab(:,:) ! lattice vector of each directed edge
+      logical, allocatable :: alive(:) ! piece not peeled off yet?
+      integer, allocatable :: porder(:) ! pieces in peel order
+      integer, allocatable :: panchor(:) ! anchor piece of each peeled piece
+      integer, allocatable :: plab(:,:) ! lattice vector to the anchor of each peeled piece
+
+      ! find the pieces: connected components of the lcon = 0 subgraph,
+      ! restricted to the atoms of non-discrete fragments
+      allocate(ipiece(c%ncel),q(c%ncel),imemp(c%ncel),skipd(c%ncel))
+      imemp = 0
+      do i = 1, c%ncel
+         skipd(i) = isdiscrete(c%idatcelmol(1,i))
+      end do
+      ipiece = 0
+      npc = 0
+      do i = 1, c%ncel
+         if (skipd(i) .or. ipiece(i) > 0) cycle
+         npc = npc + 1
+         call c%walk_component(i,(/0,0,0/),imemp,pnat,pid,plvec,pdisc,&
+            skipatom=skipd,zeroedge=.true.)
+         do j = 1, pnat
+            ipiece(pid(j)) = npc
+         end do
+      end do
+
+      ! build the piece-level directed edge lists (CSR) from the
+      ! boundary-crossing bonds; a bond i->j with lattice vector lcon
+      ! means piece(j) is drawn connected if shifted by shift(piece(i))+lcon
+      allocate(estart(npc+1))
+      estart = 0
+      do i = 1, c%ncel
+         if (ipiece(i) == 0) cycle
+         do k = 1, c%nstar(i)%ncon
+            if (all(c%nstar(i)%lcon(:,k) == 0)) cycle
+            estart(ipiece(i)+1) = estart(ipiece(i)+1) + 1
+         end do
+      end do
+      estart(1) = 1
+      do ip = 1, npc
+         estart(ip+1) = estart(ip+1) + estart(ip)
+      end do
+      nedge = estart(npc+1) - 1
+      allocate(eto(nedge),elab(3,nedge))
+      q(1:npc) = estart(1:npc) ! next free slot in each piece's edge list
+      do i = 1, c%ncel
+         if (ipiece(i) == 0) cycle
+         ip = ipiece(i)
+         do k = 1, c%nstar(i)%ncon
+            if (all(c%nstar(i)%lcon(:,k) == 0)) cycle
+            eto(q(ip)) = ipiece(c%nstar(i)%idcon(k))
+            elab(:,q(ip)) = c%nstar(i)%lcon(:,k)
+            q(ip) = q(ip) + 1
+         end do
+      end do
+
+      ! iteratively peel off the dangling pieces: a piece can be peeled if
+      ! all its edges to non-peeled pieces go to a single other piece with
+      ! a single lattice vector (moving it reconnects all those bonds at
+      ! once). Pieces with a self-edge or with conflicting edges stay in
+      ! the main cell: they are the periodic core of the framework, or (a
+      ! conservative choice) danglers anchored to more than one piece.
+      allocate(alive(npc),porder(npc),panchor(npc),plab(3,npc))
+      alive = .true.
+      npeel = 0
+      changed = .true.
+      do while (changed)
+         changed = .false.
+         pieces: do ip = 1, npc
+            if (.not.alive(ip)) cycle
+            ineigh = 0
+            do m = estart(ip), estart(ip+1)-1
+               jp = eto(m)
+               if (.not.alive(jp)) cycle
+               if (jp == ip) cycle pieces ! self-edge: this piece is itself periodic
+               if (ineigh == 0) then
+                  ineigh = jp
+                  lab = elab(:,m)
+               elseif (jp /= ineigh .or. any(elab(:,m) /= lab)) then
+                  cycle pieces ! conflicting edges: keep in the main cell
+               end if
+            end do
+            if (ineigh == 0) cycle ! no anchor to peel onto
+            alive(ip) = .false.
+            npeel = npeel + 1
+            porder(npeel) = ip
+            panchor(ip) = ineigh
+            plab(:,ip) = lab
+            changed = .true.
+         end do pieces
+      end do
+
+      ! assign the shifts: core pieces stay in place; peeled pieces, in
+      ! reverse peel order (so the anchor is always assigned first), are
+      ! translated next to their anchor
+      allocate(pshift(3,npc))
+      pshift = 0
+      do m = npeel, 1, -1
+         ip = porder(m)
+         pshift(:,ip) = pshift(:,panchor(ip)) - plab(:,ip)
+      end do
+
+      ! overwrite the per-atom lattice vectors of the non-discrete fragments
+      do i = 1, c%ncel
+         if (ipiece(i) == 0) cycle
+         lvec(:,i) = pshift(:,ipiece(i))
+      end do
+
+      deallocate(ipiece,q,estart,eto,elab,alive,porder,panchor,plab,pshift)
+    end subroutine reconnect_nondiscrete_pieces
+
+  end subroutine fill_molecular_fragments
+
+  !> Calculate whether the crystal is a molecular crystal. If it is,
+  !> for each molecule, calculate whether it is symmetry-unique
+  !> (idxmol = 0) or equivalent to molecule with index idxmol > 0.
+  !> Fills ismol3d and idxmol in c.
+  module subroutine calculate_molecular_equivalence(c)
+    use tools, only: qcksort
+    class(crystal), intent(inout) :: c
+
+    integer :: mmax, i, j, nat
+    integer, allocatable :: midx(:,:)
+
+    if (c%nmol == 0 .or. c%ncel == 0) return
+
+    ! 3d molecular crystals calculations
+    if (allocated(c%idxmol)) deallocate(c%idxmol)
+    c%nmoldiscrete = count(c%mol(1:c%nmol)%discrete)
+    c%ismol3d = (c%nmoldiscrete == c%nmol).and..not.c%ismolecule
+    if (c%ismol3d) then
+       ! assign fractional (-1)/symmetry unique (0)/symmetry equivalent (>0)
+       allocate(c%idxmol(c%nmol))
+       c%idxmol = 0
+
+       ! find the maximum number of atoms
+       mmax = 0
+       do i = 1, c%nmol
+          mmax = max(mmax,c%mol(i)%nat)
+       end do
+
+       ! sort the atomic indices
+       allocate(midx(mmax,c%nmol))
+       do i = 1, c%nmol
+          nat = c%mol(i)%nat
+          do j = 1, nat
+             midx(j,i) = c%mol(i)%at(j)%idx
+          end do
+          call qcksort(midx(1:nat,i))
+       end do
+
+       ! assign idxmol based on the atomic sequence
+       do i = 1, c%nmol
+          nat = c%mol(i)%nat
+          do j = 1, i-1
+             if (all(midx(1:nat,i) == midx(1:nat,j))) then
+                c%idxmol(i) = j
+                exit
+             end if
+          end do
+       end do
+       deallocate(midx)
+    end if
+
+  end subroutine calculate_molecular_equivalence
+
+  !> Calculate the periodicity of this crystal and set c%iperiod.
+  module subroutine calculate_periodicity(c)
+    class(crystal), intent(inout) :: c
+
+    integer :: nvac
+
+    if (c%ismolecule) then
+       if (c%nmol > 1) then
+          c%iperiod = iperiod_mol_cluster
+       else
+          c%iperiod = iperiod_mol_single
+       end if
+    else
+       nvac = count(c%vaclength > iperiod_vacthr)
+       if (nvac == 3) then
+          c%iperiod = iperiod_0d
+       elseif (nvac == 2) then
+          c%iperiod = iperiod_1d
+       elseif (nvac == 1) then
+          c%iperiod = iperiod_2d
+       else
+          if (c%ismol3d .or. c%nlvac == 3) then
+             c%iperiod = iperiod_3d_molecular
+          elseif (c%nlvac == 2) then
+             c%iperiod = iperiod_3d_chain
+          elseif (c%nlvac == 1) then
+             c%iperiod = iperiod_3d_layered
+          else
+             c%iperiod = iperiod_3d_crystal
+          end if
+       end if
+    end if
+
+  end subroutine calculate_periodicity
+
+  !> List atoms in a number of cells around the main cell (nx cells),
+  !> possibly with border (doborder).
+  module function listatoms_cells(c,nx,doborder) result(fr)
+    use param, only: icrd_crys
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: nx(3)
+    logical, intent(in) :: doborder
+    type(fragment) :: fr
+
+    real*8, parameter :: rthr = 0.01d0
+    real*8, parameter :: rthr1 = 1-rthr
+
+    integer :: ix, iy, iz, i, n, nmax
+    logical :: if1
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
+
+    ! work arrays large enough to fit all the atoms (with border)
+    if (doborder) then
+       nmax = (nx(1)+2)*(nx(2)+2)*(nx(3)+2)*c%ncel
+    else
+       nmax = nx(1)*nx(2)*nx(3)*c%ncel
+    end if
+    allocate(fx(3,nmax),fis(nmax),fidx(nmax),fcidx(nmax),flvec(3,nmax))
+
+    ! All atoms in these cells
+    n = 0
+    do ix = 0,nx(1)-1
+       do iy = 0,nx(2)-1
+          do iz = 0,nx(3)-1
+             do i = 1, c%ncel
+                n = n + 1
+                fx(:,n) = c%atcel(i)%x + (/ix,iy,iz/)
+                fcidx(n) = i
+                fidx(n) = c%atcel(i)%idx
+                flvec(:,n) = (/ix,iy,iz/)
+                fis(n) = c%atcel(i)%is
+             end do
+          end do
+       end do
+    end do
+
+    ! border: pick atoms
+    if (doborder) then
+       do ix = -1,nx(1)
+          do iy = -1,nx(2)
+             do iz = -1,nx(3)
+                if (ix > -1 .and. ix < nx(1) .and. iy > -1 .and. iy < nx(2) .and.&
+                   iz > -1 .and. iz < nx(3)) cycle
+                do i = 1, c%ncel
+                   ! border
+                   if1 = (ix == -1 .and. c%atcel(i)%x(1)<rthr1 .or. &
+                      ix == nx(1) .and. c%atcel(i)%x(1)>rthr .or. &
+                      iy == -1 .and. c%atcel(i)%x(2)<rthr1 .or. &
+                      iy == nx(2) .and. c%atcel(i)%x(2)>rthr .or. &
+                      iz == -1 .and. c%atcel(i)%x(3)<rthr1 .or. &
+                      iz == nx(3) .and. c%atcel(i)%x(3)>rthr)
+                   if (.not.if1) then
+                      n = n + 1
+                      fx(:,n) = c%atcel(i)%x + (/ix,iy,iz/)
+                      fcidx(n) = i
+                      fidx(n) = c%atcel(i)%idx
+                      flvec(:,n) = (/ix,iy,iz/)
+                      fis(n) = c%atcel(i)%is
+                      cycle
+                   end if
+                end do
+             end do
+          end do
+       end do
+    end if
+
+    call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_crys,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c,flvec(:,1:n))
+    deallocate(fx,fis,fidx,fcidx,flvec)
+
+  end function listatoms_cells
+
+  !> List atoms inside a sphere of radius rsph and center xsph
+  !> (cryst.)  or a cube of side rcub and center xcub (cryst.). Return
+  !> the list of atomic positions (Cartesian) in x, the atomic numbers
+  !> in z and the number of atoms in nat.
+  module function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
+    use tools_io, only: ferror, faterr
+    use types, only: realloc
+    use param, only: icrd_crys
+    class(crystal), intent(in) :: c
+    real*8, intent(in), optional :: rsph, xsph(3)
+    real*8, intent(in), optional :: rcub, xcub(3)
+    type(fragment) :: fr
+
+    integer :: ix, iy, iz, i, nn, n, lvec0(3)
+    real*8 :: x0(3), d, xcen(3)
+    logical :: doagain, dosph
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
+
+    if (.not.(present(rsph).and.present(xsph)).and..not.(present(rcub).and.present(xcub))) &
+       call ferror("listatoms_sphcub","Need sphere or cube input",faterr)
+    dosph = present(rsph)
+
+    ! wrap the center into the main cell
+    if (dosph) then
+       xcen = xsph
+    else
+       xcen = xcub
+    end if
+    lvec0 = 0
+    if (.not.c%ismolecule) lvec0 = floor(xcen)
+    xcen = xcen - real(lvec0,8)
+
+    n = 0
+    allocate(fx(3,10),fis(10),fidx(10),fcidx(10),flvec(3,10))
+
+    ! all atoms in a sphere
+    doagain = .true.
+    nn = -1
+    do while(doagain)
+       doagain = .false.
+       nn = nn + 1
+       do ix = -nn, nn
+          do iy = -nn, nn
+             do iz = -nn, nn
+                if (abs(ix)/=nn .and. abs(iy)/=nn .and. abs(iz)/=nn) cycle
+                do i = 1, c%ncel
+                   if (dosph) then
+                      x0 = c%x2c(c%atcel(i)%x + (/ix,iy,iz/) - xcen)
+                      if (all(abs(x0) > rsph)) cycle
+                      d = norm2(x0)
+                      if (d >= rsph) cycle
+                   else
+                      x0 = c%x2c(c%atcel(i)%x + (/ix,iy,iz/) - xcen)
+                      if (any(abs(x0) > rcub)) cycle
+                   endif
+
+                   ! add this atom
+                   n = n + 1
+                   if (n > size(fis)) then
+                      call realloc(fx,3,2*n)
+                      call realloc(fis,2*n)
+                      call realloc(fidx,2*n)
+                      call realloc(fcidx,2*n)
+                      call realloc(flvec,3,2*n)
+                   end if
+                   fx(:,n) = c%atcel(i)%x + (/ix,iy,iz/)
+                   fcidx(n) = i
+                   fidx(n) = c%atcel(i)%idx
+                   flvec(:,n) = (/ix,iy,iz/)
+                   fis(n) = c%atcel(i)%is
+                   doagain = .true.
+                end do
+             end do
+          end do
+       end do
+       ! molecules have no periodic images
+       if (c%ismolecule) doagain = .false.
+    end do
+
+    call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_crys,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c,flvec(:,1:n))
+    if (any(lvec0 /= 0)) call fr%translate(lvec0)
+    deallocate(fx,fis,fidx,fcidx,flvec)
+
+  end function listatoms_sphcub
+
+  !> Return a fragment containing all whole molecules of the molecular
+  !> motif whose center of mass lies inside the given region,
+  !> considering all lattice translations. The region is a sphere of
+  !> radius rsph (bohr) around xsph, a cube of half-edge rcub (bohr)
+  !> around xcub (both centers in crystallographic coordinates), or the
+  !> nx(1) x nx(2) x nx(3) block of unit cells at the origin; exactly
+  !> one of the three must be given. These are the same regions as in
+  !> listatoms_sphcub and listatoms_cells, but selecting whole
+  !> molecules by their center of mass instead of atoms. Generalizes
+  !> the environment construction in the ENVIRON option to WRITE
+  !> (write_mol), which measures the distance from the origin and
+  !> always includes the whole cell motif. Returns an empty fragment if
+  !> the molecular motif is not available.
+  module function listatoms_molcenter(c,rsph,xsph,rcub,xcub,nx) result(fr)
+    use fragmentmod, only: fragment
+    use tools_io, only: ferror, faterr
+    use types, only: realloc
+    use param, only: icrd_crys
+    class(crystal), intent(in) :: c
+    real*8, intent(in), optional :: rsph, xsph(3)
+    real*8, intent(in), optional :: rcub, xcub(3)
+    integer, intent(in), optional :: nx(3)
+    type(fragment) :: fr
+
+    integer :: i1, i2, i3, l, icel, n, n0, lvec0(3), lmin(3), lmax(3)
+    real*8 :: xc(3), xlv(3), xcen(3)
+    real*8, allocatable :: cmc(:,:), cmx(:,:), fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
+    logical :: dosph, docub
+
+    dosph = present(rsph) .and. present(xsph)
+    docub = present(rcub) .and. present(xcub)
+    if (count((/dosph,docub,present(nx)/)) /= 1) &
+       call ferror("listatoms_molcenter","Need exactly one of sphere, cube, or cells input",faterr)
+
+    call fr%init()
+    if (.not.allocated(c%mol) .or. c%nmol == 0) return
+
+    ! wrap the region center into the main cell so the shell walk below
+    ! (anchored on the origin cell) reaches the region; the result is
+    ! translated back at the end. The cell block is anchored at the
+    ! origin already
+    lvec0 = 0
+    xc = 0d0
+    if (dosph .or. docub) then
+       if (dosph) then
+          xcen = xsph
+       else
+          xcen = xcub
+       end if
+       if (.not.c%ismolecule) lvec0 = floor(xcen)
+       xc = c%x2c(xcen - real(lvec0,8))
+    end if
+
+    ! molecular centers of mass (Cartesian, and crystallographic for the
+    ! cell block, whose test runs in fractional coordinates)
+    allocate(cmc(3,c%nmol))
+    do l = 1, c%nmol
+       cmc(:,l) = c%mol(l)%cmass()
+    end do
+    if (present(nx)) then
+       allocate(cmx(3,c%nmol))
+       do l = 1, c%nmol
+          cmx(:,l) = c%c2x(cmc(:,l))
+       end do
+    end if
+
+    n = 0
+    allocate(fx(3,10),fis(10),fidx(10),fcidx(10),flvec(3,10))
+
+    if (present(nx)) then
+       ! the cell block is a known range of translations for each
+       ! molecule (0 <= cmx + lvec < nx), so enumerate them directly
+       do l = 1, c%nmol
+          lmin = ceiling(-cmx(:,l))
+          lmax = ceiling(real(nx,8) - cmx(:,l)) - 1
+          do i1 = lmin(1), lmax(1)
+             do i2 = lmin(2), lmax(2)
+                do i3 = lmin(3), lmax(3)
+                   call addmol(l,(/i1,i2,i3/))
+                end do
+             end do
+          end do
+       end do
+    else
+       ! the sphere and the cube have no such bound: walk the main cell
+       ! first, then the surrounding cell shells, until a whole shell
+       ! contributes nothing (crystals only)
+       xlv = 0d0
+       do l = 1, c%nmol
+          call addmol(l,(/0,0,0/))
+       end do
+       if (.not.c%ismolecule) then
+          icel = 0
+          n0 = -1
+          do while (n > n0)
+             icel = icel + 1
+             n0 = n
+             do i1 = -icel, icel
+                do i2 = -icel, icel
+                   do i3 = -icel, icel
+                      ! shell surface only
+                      if (abs(i1)/=icel .and. abs(i2)/=icel .and. abs(i3)/=icel) cycle
+                      xlv = c%x2c(real((/i1,i2,i3/),8))
+                      do l = 1, c%nmol
+                         call addmol(l,(/i1,i2,i3/))
+                      end do
+                   end do
+                end do
+             end do
+          end do
+       end if
+    end if
+
+    ! build the fragment and undo the center wrapping
+    if (n > 0) then
+       call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_crys,fis(1:n),fidx(1:n),fcidx(1:n),&
+          c%m_x2c,flvec(:,1:n))
+       if (any(lvec0 /= 0)) call fr%translate(lvec0)
+    end if
+    deallocate(fx,fis,fidx,fcidx,flvec)
+
+  contains
+    ! Add the atoms of molecule il translated by lattice vector lvec, if
+    ! its center of mass lies inside the region. The host xlv must hold
+    ! the Cartesian offset of lvec. Distinct molecules at distinct
+    ! translations share no atom, so no duplicate check is needed.
+    subroutine addmol(il,lvec)
+      integer, intent(in) :: il, lvec(3)
+
+      integer :: j
+      real*8 :: xd(3)
+
+      if (dosph) then
+         if (norm2(cmc(:,il) + xlv - xc) > rsph) return
+      elseif (docub) then
+         if (any(abs(cmc(:,il) + xlv - xc) > rcub)) return
+      else
+         xd = cmx(:,il) + real(lvec,8)
+         if (any(xd < 0d0) .or. any(xd >= real(nx,8))) return
+      end if
+
+      do j = 1, c%mol(il)%nat
+         n = n + 1
+         if (n > size(fis,1)) then
+            call realloc(fx,3,2*n)
+            call realloc(fis,2*n)
+            call realloc(fidx,2*n)
+            call realloc(fcidx,2*n)
+            call realloc(flvec,3,2*n)
+         end if
+         fx(:,n) = c%mol(il)%at(j)%x + real(lvec,8)
+         fis(n) = c%mol(il)%at(j)%is
+         fidx(n) = c%mol(il)%at(j)%idx
+         fcidx(n) = c%mol(il)%at(j)%cidx
+         flvec(:,n) = c%mol(il)%at(j)%lvec + lvec
+      end do
+
+    end subroutine addmol
+  end function listatoms_molcenter
+
+  !> List all molecules resulting from completing the initial fragment
+  !> fri by adding adjacent atoms that are covalently bonded. Return
+  !> the number of fragments (nfrag), the fragments themselves (fr),
+  !> and whether the fragments are discrete (not connected to copies
+  !> of themselves in a different cell).
+  module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
+    use fragmentmod, only: realloc_fragment
+    use types, only: realloc
+    use param, only: icrd_crys
+    class(crystal), intent(inout) :: c
+    type(fragment), intent(in) :: fri
+    integer, intent(out) :: nfrag
+    type(fragment), intent(out), allocatable :: fr(:)
+    logical, intent(out), allocatable :: isdiscrete(:)
+
+    integer :: i, j, k
+    integer :: nat
+    integer, allocatable :: id(:), lvec(:,:), imem(:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
+    real*8, allocatable :: fx(:,:)
+    logical :: ldist
+    integer :: nseed
+    integer, allocatable :: idseed(:), lseed(:,:)
+    logical, allocatable :: fseed(:)
+
+    ! unwrap the input fragment
+    nseed = fri%nat
+    allocate(idseed(nseed),lseed(3,nseed),fseed(nseed))
+    do j = 1, nseed
+       idseed(j) = fri%at(j)%cidx
+       lseed(:,j) = fri%at(j)%lvec
+    end do
+    fseed = .false.
+
+    ! allocate stuff
+    nfrag = 0
+    allocate(fr(1),isdiscrete(1),id(10),lvec(3,10),imem(c%ncel))
+    isdiscrete = .true.
+
+    do i = 1, nseed
+       if (fseed(i)) cycle
+
+       ! Explore the component of this seed atom, taken at the seed
+       ! lattice vector. The visited map is fresh for every seed: the
+       ! same cell atoms may be walked again for a different image of
+       ! the same molecule.
+       imem = 0
+       call c%walk_component(idseed(i),lseed(:,i),imem,nat,id,lvec,ldist)
+
+       ! add this fragment to the list
+       fseed(i) = .true.
+       nfrag = nfrag + 1
+       if (nfrag > size(fr)) then
+          call realloc_fragment(fr,2*nfrag)
+          call realloc(isdiscrete,2*nfrag)
+       end if
+       isdiscrete(nfrag) = ldist
+       allocate(fx(3,nat),fis(nat),fidx(nat),fcidx(nat))
+       do j = 1, nat
+          ! if not a discrete fragment, do not translate
+          if (.not.ldist) lvec(:,j) = 0
+          fx(:,j) = c%atcel(id(j))%x + lvec(:,j)
+          fcidx(j) = id(j)
+          fidx(j) = c%atcel(id(j))%idx
+          fis(j) = c%atcel(id(j))%is
+       end do
+       call fr(nfrag)%build(c%nspc,c%spc,nat,fx,icrd_crys,fis,fidx,fcidx,c%m_x2c,lvec(:,1:nat))
+       deallocate(fx,fis,fidx,fcidx)
+
+       ! run over all atoms in the new fragment and mark those atoms in the seed
+       do j = 1, nat
+          do k = 1, nseed
+             if (fseed(k)) cycle
+             if (id(j) == idseed(k) .and. all(lvec(:,j) == lseed(:,k))) &
+                fseed(k) = .true.
+          end do
+       end do
+    end do
+    call realloc_fragment(fr,nfrag)
+    call realloc(isdiscrete,nfrag)
+
+  end subroutine listmolecules
+
+  !> Calculate the connected component of cell atom i0, skipping every
+  !> bond between cell atoms imask1 and imask2, and between imask3 and
+  !> imask4 if given. Returns the number of atoms in the component
+  !> (nat), the list of unique cell-atom indices (iat, reallocated as
+  !> needed), and whether the component is discrete. If lvec is given,
+  !> it returns the lattice vector of each atom in the component
+  !> relative to the seed, so the component can be assembled in the
+  !> seed's image (a molecule stored wrapped across the cell boundary
+  !> has non-zero entries). If the connectivity is not available,
+  !> returns the single atom i0.
+  module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete,imask3,imask4,lvec)
+    use types, only: realloc
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: i0, imask1, imask2
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: iat(:)
+    logical, intent(out) :: discrete
+    integer, intent(in), optional :: imask3, imask4
+    integer, allocatable, intent(inout), optional :: lvec(:,:)
+
+    integer :: nmask
+    integer :: skipbond(2,2)
+    integer, allocatable :: imem(:), lvloc(:,:)
+
+    ! initialize the output; return the single seed atom if there is
+    ! no connectivity
+    nat = 0
+    if (.not.allocated(iat)) allocate(iat(10))
+    if (present(lvec)) then
+       if (.not.allocated(lvec)) allocate(lvec(3,10))
+    end if
+    discrete = .true.
+    if (i0 < 1 .or. i0 > c%ncel) return
+    nat = 1
+    iat(1) = i0
+    if (present(lvec)) lvec(:,1) = 0
+    if (.not.allocated(c%nstar)) return
+
+    nmask = 1
+    skipbond(:,1) = (/imask1,imask2/)
+    if (present(imask3) .and. present(imask4)) then
+       nmask = 2
+       skipbond(:,2) = (/imask3,imask4/)
+    end if
+
+    allocate(imem(c%ncel))
+    imem = 0
+    call c%walk_component(i0,(/0,0,0/),imem,nat,iat,lvloc,discrete,&
+       skipbond=skipbond(:,1:nmask))
+
+    if (present(lvec)) then
+       if (size(lvec,2) < nat) call realloc(lvec,3,nat)
+       lvec(:,1:nat) = lvloc(:,1:nat)
+    end if
+
+  end subroutine masked_fragment
+
+  !> Explore the connected component of the bond network (c%nstar)
+  !> containing cell atom i0, taken at lattice offset
+  !> lvec0. imem(ncel) is the visited map (0 = not visited); the
+  !> caller initializes it and may reuse it across walks, since
+  !> disjoint components never consult each other's entries. On
+  !> output, imem(id(j)) = j for the nat atoms of the component,
+  !> listed in id(1:nat) in breadth-first discovery order from i0 with
+  !> per-atom lattice vectors lvec(:,1:nat). discrete = the component
+  !> was never reached at two different lattice vectors.  Optional:
+  !> skipatom(ncel) excludes atoms; skipbond(2,:) excludes bonds by
+  !> unordered cell-atom index pair (all their images); zeroedge
+  !> restricts the walk to bonds with a zero lattice vector;
+  !> nlvecper/lvecper (which must be given together) collect the
+  !> distinct lattice-vector mismatches, sign-canonicalized: these
+  !> span the periodicity lattice of a non-discrete component, but
+  !> which generators come out depends on the order of the
+  !> walk. Returns nat = 0 if i0 is out of range, already visited, or
+  !> skipped.  c%nstar must be allocated.
+  module subroutine walk_component(c,i0,lvec0,imem,nat,id,lvec,discrete,&
+     skipatom,skipbond,zeroedge,nlvecper,lvecper)
+    use types, only: realloc
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: i0, lvec0(3)
+    integer, intent(inout) :: imem(:)
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: id(:), lvec(:,:)
+    logical, intent(out) :: discrete
+    logical, intent(in), optional :: skipatom(:)
+    integer, intent(in), optional :: skipbond(:,:)
+    logical, intent(in), optional :: zeroedge
+    integer, intent(out), optional :: nlvecper
+    integer, allocatable, intent(inout), optional :: lvecper(:,:)
+
+    integer :: i, k, iq, lveci(3)
+    logical :: zeroedge_
+
+    nat = 0
+    discrete = .true.
+    if (present(nlvecper)) nlvecper = 0
+    zeroedge_ = .false.
+    if (present(zeroedge)) zeroedge_ = zeroedge
+    if (i0 < 1 .or. i0 > c%ncel) return
+    if (imem(i0) /= 0) return
+    if (present(skipatom)) then
+       if (skipatom(i0)) return
+    end if
+
+    if (.not.allocated(id)) allocate(id(10))
+    if (.not.allocated(lvec)) allocate(lvec(3,10))
+    if (size(lvec,2) < size(id,1)) call realloc(lvec,3,size(id,1))
+    nat = 1
+    id(1) = i0
+    lvec(:,1) = lvec0
+    imem(i0) = 1
+
+    ! breadth-first walk; the member list doubles as the queue, so no
+    ! auxiliary storage is needed. Do not turn this into a recursive
+    ! descent: large molecules would overflow the stack.
+    iq = 0
+    do while (iq < nat)
+       iq = iq + 1
+       i = id(iq)
+       lveci = lvec(:,iq)
+       do k = 1, c%nstar(i)%ncon
+          call visit_neighbor()
+       end do
+    end do
+
+  contains
+    ! Process neighbor k of atom i (at lattice vector lveci), all three
+    ! taken from the walk loop above: apply the bond and atom masks,
+    ! then either discover the neighbor into the member list or detect a
+    ! lattice-vector mismatch for a visited one.
+    subroutine visit_neighbor()
+      integer :: newid, lnew(3), m
+
+      ! skip boundary-crossing bonds, masked bonds, and skipped atoms
+      newid = c%nstar(i)%idcon(k)
+      if (zeroedge_) then
+         if (any(c%nstar(i)%lcon(:,k) /= 0)) return
+      end if
+      if (present(skipbond)) then
+         if (any((skipbond(1,:) == i .and. skipbond(2,:) == newid) .or.&
+            (skipbond(2,:) == i .and. skipbond(1,:) == newid))) return
+      end if
+      if (present(skipatom)) then
+         if (skipatom(newid)) return
+      end if
+
+      if (imem(newid) == 0) then
+         ! discover newid
+         nat = nat + 1
+         if (nat > size(id,1)) then
+            call realloc(id,2*nat)
+            call realloc(lvec,3,2*nat)
+         end if
+         id(nat) = newid
+         lvec(:,nat) = lveci + c%nstar(i)%lcon(:,k)
+         imem(newid) = nat
+      else
+         ! Reached a visited atom: through a different lattice vector,
+         ! the component is connected to its own periodic images and
+         ! is not discrete. Collect the distinct mismatch vectors.
+         lnew = lveci + c%nstar(i)%lcon(:,k) - lvec(:,imem(newid))
+         if (any(lnew /= 0)) then
+            discrete = .false.
+            if (present(nlvecper)) then
+               ! The same cycle traversed backwards gives -lnew; flip to
+               ! a canonical sign so that both give the same entry.
+               if (lnew(1) < 0 .or. (lnew(1) == 0 .and. lnew(2) < 0) .or.&
+                  (lnew(1) == 0 .and. lnew(2) == 0 .and. lnew(3) < 0)) lnew = -lnew
+               do m = 1, nlvecper
+                  if (all(lvecper(:,m) == lnew)) return
+               end do
+               nlvecper = nlvecper + 1
+               if (.not.allocated(lvecper)) allocate(lvecper(3,10))
+               if (size(lvecper,2) < nlvecper) call realloc(lvecper,3,2*nlvecper)
+               lvecper(:,nlvecper) = lnew
+            end if
+         end if
+      end if
+    end subroutine visit_neighbor
+  end subroutine walk_component
+
+end submodule mols
