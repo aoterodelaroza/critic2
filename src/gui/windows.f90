@@ -247,8 +247,7 @@ module windows
      real(c_float) :: extract_center(3) ! center (fractional for crystals, Å for molecules)
      integer(c_int) :: extract_nx(3) ! number of unit cells along a, b, c
      logical :: extract_border ! include atoms on the border of the cells
-     logical :: extract_molmotif ! complete molecules at the region boundary
-     logical :: extract_environ ! sphere region: whole molecules with COM within the radius
+     integer(c_int) :: extract_include = 0 ! what to take from the region (0=atoms, 1=whole molecules touching it, 2=whole molecules centered in it)
      logical :: extract_closeafter ! close the window and focus the new system after extracting
      real(c_float) :: extract_atdens ! rough atom number density of the system (bohr^-3)
      logical :: extract_picking ! a center pick in the parent view is pending
