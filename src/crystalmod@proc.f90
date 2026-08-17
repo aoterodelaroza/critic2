@@ -89,6 +89,7 @@ contains
 
     ! no molecular fragments
     c%nmol = 0
+    c%nmoldiscrete = 0
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
     c%nlvac = 0
@@ -141,6 +142,7 @@ contains
     c%ws_nf = 0
     c%ws_mnfv = 0
     c%nmol = 0
+    c%nmoldiscrete = 0
     c%nlvac = 0
     c%ismol3d = .false.
 

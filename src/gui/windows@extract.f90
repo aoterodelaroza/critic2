@@ -29,7 +29,7 @@ submodule (windows) extract
   ! keyword, which refuses MOLMOTIF and ENVIRON together)
   integer(c_int), parameter :: ei_atoms = 0 ! the atoms inside the region
   integer(c_int), parameter :: ei_molmotif = 1 ! whole molecules with any atom inside (MOLMOTIF)
-  integer(c_int), parameter :: ei_environ = 2 ! whole molecules with COM inside (ENVIRON, sphere only)
+  integer(c_int), parameter :: ei_environ = 2 ! whole molecules with COM inside (ENVIRON)
 
   ! settings remembered from the last successful extraction (this session)
   integer(c_int) :: lastregion = er_sphere
@@ -61,7 +61,7 @@ contains
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
 
-    logical :: doquit, syschanged, ismol, molok, okpick, hovered
+    logical :: doquit, syschanged, ismol, molmotifok, environok, okpick, hovered
     integer :: i, isys, iview, nmol
     integer(c_int) :: inc
     real*8 :: rad, x0(3), xlo(3), xhi(3)
@@ -152,18 +152,18 @@ contains
     if (ismol .and. w%extract_region == er_cells) &
        w%extract_region = er_sphere
 
-    ! whether the whole-molecule options apply: molecular crystals, or
-    ! molecular systems with more than one molecule. This can change
+    ! which whole-molecule rules this system admits: completing the
+    ! molecules does something as soon as one fragment of the motif is
+    ! discrete (only those are completed), while selecting molecules by
+    ! their center needs every fragment to be discrete. Both can change
     ! without the system changing (recalculating the bonds redoes the
-    ! molecular motif), so it only hides the options; the chosen rule is
+    ! molecular motif), so they only hide options; the chosen rule is
     ! not overwritten, and is read through ei_effective() instead
-    molok = .false.
+    molmotifok = .false.
+    environok = .false.
     if (.not.doquit) then
-       if (ismol) then
-          molok = (sys(isys)%c%nmol > 1)
-       else
-          molok = sys(isys)%c%ismol3d
-       end if
+       molmotifok = (sys(isys)%c%nmoldiscrete > 0)
+       environok = molmotifok .and. (sys(isys)%c%nmoldiscrete == sys(isys)%c%nmol)
     end if
 
     ! the system being cut
@@ -191,13 +191,6 @@ contains
           sameline=.true.)
        call iw_tooltip("Cut whole unit cells",ttshown)
     end if
-
-    ! the center-of-mass rule is spherical: leaving the sphere falls back
-    ! to the any-atom rule. Checked here, right after the region radios,
-    ! so the include group below is drawn consistent with the region
-    ! chosen in this same frame
-    if (molok .and. w%extract_region /= er_sphere .and. w%extract_include == ei_environ) &
-       w%extract_include = ei_molmotif
 
     ! center (all regions except cells)
     if (w%extract_region /= er_cells) then
@@ -258,26 +251,35 @@ contains
        ldum = iw_inputint3("##extractnx",w%extract_nx,width=3*5,sameline=.true.)
        w%extract_nx = max(min(w%extract_nx,50_c_int),1_c_int)
        call iw_tooltip("Number of unit cells along each crystallographic axis",ttshown)
-       ldum = iw_checkbox("Include border atoms##extractborder",w%extract_border)
-       call iw_tooltip("Include atoms near the boundary of the chosen cells (BORDER&
-          & option to WRITE)",ttshown)
+       ! the border only adds atoms to an atom cut
+       if (ei_effective() /= ei_environ) then
+          ldum = iw_checkbox("Include border atoms##extractborder",w%extract_border)
+          call iw_tooltip("Include atoms near the boundary of the chosen cells (BORDER&
+             & option to WRITE)",ttshown)
+       end if
     end if
 
-    ! what is taken from the region?
-    if (molok) then
+    ! what is taken from the region? Only the rules this system admits
+    ! are offered, and if that leaves the atoms rule alone the one-entry
+    ! group would read as broken, so it goes away. The buttons run on the
+    ! rule in force, and only a click writes the choice back
+    if (molmotifok) then
+       inc = ei_effective()
        call iw_text("Include",highlight=.true.,alignframe=.true.)
-       ldum = iw_radiobutton("Atoms in the region##extractinclude",int=w%extract_include,&
-          intval=ei_atoms)
+       if (iw_radiobutton("Atoms in the region##extractinclude",int=inc,&
+          intval=ei_atoms)) w%extract_include = inc
        call iw_tooltip("Extract only atoms inside the region. Molecules crossing the boundary&
           & are left incomplete",ttshown)
-       ldum = iw_radiobutton("Whole molecules with any atom in the region##extractinclude",&
-          int=w%extract_include,intval=ei_molmotif)
+       if (iw_radiobutton("Whole molecules with any atom in the region##extractinclude",&
+          int=inc,intval=ei_molmotif)) w%extract_include = inc
        call iw_tooltip("Extract every molecule that has at least one atom inside the&
           & region, completing it with atoms from outside",ttshown)
-       ldum = iw_radiobutton("Whole molecules centered in the region##extractinclude",&
-          int=w%extract_include,intval=ei_environ,disabled=(w%extract_region /= er_sphere))
-       call iw_tooltip("Extract every molecule whose center of mass&
-          & is in the region, even if some of their atoms stick out.",ttshown,whendisabled=.true.)
+       if (environok) then
+          if (iw_radiobutton("Whole molecules centered in the region##extractinclude",&
+             int=inc,intval=ei_environ)) w%extract_include = inc
+          call iw_tooltip("Extract every molecule whose center of mass&
+             & is in the region, even if some of their atoms stick out.",ttshown)
+       end if
     end if
 
     ! maybe the error message
@@ -296,37 +298,44 @@ contains
        x0 = center_to_frac()
 
        ! build the fragment for the selected region (radii in bohr); the
-       ! center-of-mass rule selects whole molecules by itself, replacing
-       ! the sphere cut
+       ! center-of-mass rule picks whole molecules by itself, replacing
+       ! the atom cut
        if (w%extract_region == er_sphere) then
           rad = real(w%extract_rsph,8) / bohrtoa
           if (inc == ei_environ) then
-             fr = sys(isys)%c%listatoms_environ(rad,x0)
+             fr = sys(isys)%c%listatoms_molcenter(rsph=rad,xsph=x0)
           else
              fr = sys(isys)%c%listatoms_sphcub(rsph=rad,xsph=x0)
           end if
        elseif (w%extract_region == er_cube) then
           rad = real(w%extract_rcub,8) / bohrtoa
-          fr = sys(isys)%c%listatoms_sphcub(rcub=rad,xcub=x0)
+          if (inc == ei_environ) then
+             fr = sys(isys)%c%listatoms_molcenter(rcub=rad,xcub=x0)
+          else
+             fr = sys(isys)%c%listatoms_sphcub(rcub=rad,xcub=x0)
+          end if
        else
-          fr = sys(isys)%c%listatoms_cells(int(w%extract_nx),w%extract_border)
+          if (inc == ei_environ) then
+             fr = sys(isys)%c%listatoms_molcenter(nx=int(w%extract_nx))
+          else
+             fr = sys(isys)%c%listatoms_cells(int(w%extract_nx),w%extract_border)
+          end if
        end if
 
        if (fr%nat == 0) then
           w%errmsg = "No atoms in the region"
        else
-          ! complete the boundary molecules; refuse non-finite (periodic)
-          ! components, which from_fragment cannot handle
+          ! complete the molecules cut by the region boundary. A component
+          ! that extends indefinitely (a framework) cannot be completed
+          ! with a finite number of atoms, so it is left as it was cut:
+          ! merge only the discrete ones, on top of the atoms already in
+          ! the fragment (merge_array discards repeats)
           if (inc == ei_molmotif) then
              call sys(isys)%c%listmolecules(fr,nmol,fr0,isdiscrete)
-             if (.not.all(isdiscrete)) then
-                w%errmsg = "The boundary molecules form a periodic network"
-             else
-                call fr%merge_array(fr0,.false.)
-             end if
+             if (any(isdiscrete(1:nmol))) &
+                call fr%merge_array(pack(fr0(1:nmol),isdiscrete(1:nmol)),.true.)
           end if
-       end if
-       if (len_trim(w%errmsg) == 0) then
+
           ! for molecules, shift back to the user (absolute) Cartesian frame
           if (ismol) then
              do i = 1, fr%nat
@@ -387,13 +396,14 @@ contains
       end if
     end subroutine center_from_frac
 
-    ! The include rule actually in force: without a molecular motif the
-    ! molecule rules are not offered, but the choice is kept (the motif
-    ! may come back on the next rebond), so it is filtered here
+    ! The include rule actually in force. A rule this system does not
+    ! admit falls back to the next one down, but the stored choice is
+    ! kept (the molecular motif may come back on the next rebond)
     function ei_effective() result(ei)
       integer(c_int) :: ei
       ei = w%extract_include
-      if (.not.molok) ei = ei_atoms
+      if (ei == ei_environ .and. .not.environok) ei = ei_molmotif
+      if (ei == ei_molmotif .and. .not.molmotifok) ei = ei_atoms
     end function ei_effective
   end subroutine draw_extract
 

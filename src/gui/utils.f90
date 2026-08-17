@@ -231,14 +231,13 @@ module utils
        logical, intent(in), optional :: noarrow
        logical, intent(in), optional :: startsatone
      end subroutine iw_combo_simple
-     module function iw_radiobutton(str,bool,boolval,int,intval,sameline,disabled)
+     module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout), optional :: bool
        logical, intent(in), optional :: boolval
        integer(c_int), intent(inout), optional :: int
        integer(c_int), intent(in), optional :: intval
        logical, intent(in), optional :: sameline
-       logical, intent(in), optional :: disabled
        logical :: iw_radiobutton
      end function iw_radiobutton
      module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,notlive,flags,tooltip)

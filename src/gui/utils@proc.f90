@@ -1057,8 +1057,8 @@ contains
   !> Draw a radio button with title str. If bool and boolval are given
   !> associated with logical bool and with value boolval. If int and
   !> intval are presented, associated with integer int and with value
-  !> intval. disabled = grayed out and unresponsive.
-  module function iw_radiobutton(str,bool,boolval,int,intval,sameline,disabled)
+  !> intval
+  module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: bool
@@ -1066,22 +1066,18 @@ contains
     integer(c_int), intent(inout), optional :: int
     integer(c_int), intent(in), optional :: intval
     logical, intent(in), optional :: sameline
-    logical, intent(in), optional :: disabled
     logical :: iw_radiobutton
 
     character(len=:,kind=c_char), allocatable, target :: str1
-    logical :: sameline_, disabled_
+    logical :: sameline_
 
     iw_radiobutton = .false.
     sameline_ = .false.
-    disabled_ = .false.
     if (present(sameline)) sameline_ = sameline
-    if (present(disabled)) disabled_ = disabled
 
     if (sameline_) &
        call igSameLine(0._c_float,-1._c_float)
     str1 = str // c_null_char
-    call igBeginDisabled(logical(disabled_,c_bool))
     if (present(bool).and.present(boolval)) then
        if (igRadioButton_Bool(c_loc(str1),logical(bool.eqv.boolval,c_bool))) then
           bool = boolval
@@ -1090,7 +1086,6 @@ contains
     elseif (present(int).and.present(intval)) then
        if (igRadioButton_IntPtr(c_loc(str1),int,intval)) iw_radiobutton = .true.
     end if
-    call igEndDisabled()
 
   end function iw_radiobutton
 
