@@ -179,7 +179,7 @@ contains
        & change",ttshown)
 
     ! region radio buttons
-    call iw_text("Region",highlight=.true.)
+    call iw_text("Region",highlight=.true.,alignframe=.true.)
     ldum = iw_radiobutton("Sphere##extractregion",int=w%extract_region,intval=er_sphere,&
        sameline=.true.)
     call iw_tooltip("Cut all atoms in a sphere around the center",ttshown)
@@ -236,18 +236,17 @@ contains
        ldum = iw_dragfloat_realc("(Å)##extractrsph",x1=w%extract_rsph,speed=0.1_c_float,&
           min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Radius of the sphere",ttshown)
-       ! rough number of atoms in the sphere from the atom density
-       if (w%extract_atdens > 0._c_float) then
-          rad = real(w%extract_rsph,8) / bohrtoa
-          call iw_text("(~" // string(nint(4d0*pi/3d0 * rad**3 * real(w%extract_atdens,8))) //&
-             " atoms)",sameline=.true.)
-       end if
+       rad = real(w%extract_rsph,8) / bohrtoa
+       call show_atom_estimate(4d0*pi/3d0 * rad**3)
     elseif (w%extract_region == er_cube) then
-       ldum = iw_dragfloat_realc("Half-edge (Å)##extractrcub",x1=w%extract_rcub,speed=0.1_c_float,&
-          min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_text("Half-edge",highlight=.true.,alignframe=.true.)
+       ldum = iw_dragfloat_realc("(Å)##extractrcub",x1=w%extract_rcub,speed=0.1_c_float,&
+          min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Half the edge length of the cube",ttshown)
+       rad = real(w%extract_rcub,8) / bohrtoa
+       call show_atom_estimate(8d0 * rad**3)
     elseif (w%extract_region == er_cells) then
-       call iw_text("Cells along a, b, c")
+       call iw_text("Cells along a, b, c",alignframe=.true.)
        ldum = iw_inputint3("##extractnx",w%extract_nx,width=3*5,sameline=.true.)
        w%extract_nx = max(min(w%extract_nx,50_c_int),1_c_int)
        call iw_tooltip("Number of unit cells along each crystallographic axis",ttshown)
@@ -399,6 +398,22 @@ contains
     ! The include rule actually in force. A rule this system does not
     ! admit falls back to the next one down, but the stored choice is
     ! kept (the molecular motif may come back on the next rebond)
+    ! Write, next to the region size, a rough estimate of the number of
+    ! atoms in a region of volume vol (bohr^3), from the atom number
+    ! density of the system. A molecule has no periodic images, so the
+    ! cut cannot contain more atoms than the system itself
+    subroutine show_atom_estimate(vol)
+      real*8, intent(in) :: vol
+
+      integer :: nest
+
+      if (w%extract_atdens <= 0._c_float) return
+      nest = nint(vol * real(w%extract_atdens,8))
+      if (ismol) nest = min(nest,sys(isys)%c%ncel)
+      call iw_text("(~" // string(nest) // " atoms)",sameline=.true.)
+
+    end subroutine show_atom_estimate
+
     function ei_effective() result(ei)
       integer(c_int) :: ei
       ei = w%extract_include

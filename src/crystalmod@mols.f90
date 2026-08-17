@@ -141,8 +141,12 @@ contains
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8, allocatable :: fx(:,:)
 
-    ! initialize
+    ! initialize. The motif-derived flags are reset here, and not only in
+    ! calculate_molecular_equivalence, which returns early (leaving them
+    ! stale) when the rebuilt motif comes out empty
     c%nmol = 0
+    c%nmoldiscrete = 0
+    c%ismol3d = .false.
     if (allocated(c%mol)) deallocate(c%mol)
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
     if (c%ncel == 0) return

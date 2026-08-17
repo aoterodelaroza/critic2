@@ -240,17 +240,17 @@ module windows
      logical :: saveas_nosym ! do not use symmetry in the written file
      logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
      logical :: saveas_docell ! show the unit cell in the written 3D model file
-     ! extract cluster as molecule parameters (defaults set on window firstpass)
-     integer(c_int) :: extract_region ! region shape (0=sphere, 1=cube, 2=cells)
-     real(c_float) :: extract_rsph ! sphere radius (Å)
-     real(c_float) :: extract_rcub ! cube half-edge (Å)
-     real(c_float) :: extract_center(3) ! center (fractional for crystals, Å for molecules)
-     integer(c_int) :: extract_nx(3) ! number of unit cells along a, b, c
-     logical :: extract_border ! include atoms on the border of the cells
-     integer(c_int) :: extract_include = 0 ! what to take from the region (0=atoms, 1=whole molecules touching it, 2=whole molecules centered in it)
-     logical :: extract_closeafter ! close the window and focus the new system after extracting
-     real(c_float) :: extract_atdens ! rough atom number density of the system (bohr^-3)
-     logical :: extract_picking ! a center pick in the parent view is pending
+     ! extract cluster as molecule parameters
+     integer(c_int) :: extract_region = 0 ! region shape (0=sphere, 1=cube, 2=cells)
+     real(c_float) :: extract_rsph = 5._c_float ! sphere radius (Å)
+     real(c_float) :: extract_rcub = 5._c_float ! cube half-edge (Å)
+     real(c_float) :: extract_center(3) = 0.5_c_float ! center (fractional for crystals, Å for molecules)
+     integer(c_int) :: extract_nx(3) = 1_c_int ! number of unit cells along a, b, c
+     logical :: extract_border = .false. ! include atoms on the border of the cells
+     integer(c_int) :: extract_include = 0 ! what to extract (0=atoms, 1=whole molecules touching it, 2=whole molecules centered in it)
+     logical :: extract_closeafter = .true. ! close the window and focus the new system after extracting
+     real(c_float) :: extract_atdens = 0._c_float ! rough atom number density of the system (bohr^-3)
+     logical :: extract_picking = .false. ! a center pick in the parent view is pending
      type(pairpick) :: extract_pick ! stamp for the pending center pick (staleness check)
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
