@@ -655,13 +655,14 @@ contains
   !> nx(1) x nx(2) x nx(3) block of unit cells at the origin; exactly
   !> one of the three must be given. These are the same regions as in
   !> listatoms_sphcub and listatoms_cells, but selecting whole
-  !> molecules by their center of mass instead of atoms. Generalizes
-  !> the environment construction in the ENVIRON option to WRITE
-  !> (write_mol), which measures the distance from the origin and
-  !> always includes the whole cell motif. Returns an empty fragment if
-  !> the molecular motif is not available.
-  module function listatoms_molcenter(c,rsph,xsph,rcub,xcub,nx) result(fr)
-    use fragmentmod, only: fragment
+  !> molecules by their center of mass instead of atoms. If alwaysmain,
+  !> the molecules of the main cell are included whether or not their
+  !> center is inside the region (the behavior of the ENVIRON option to
+  !> WRITE). If fr0 is present, return also the individual molecules, in
+  !> the same order in which their atoms appear in fr. Returns an empty
+  !> fragment if the molecular motif is not available.
+  module function listatoms_molcenter(c,rsph,xsph,rcub,xcub,nx,alwaysmain,fr0) result(fr)
+    use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: ferror, faterr
     use types, only: realloc
     use param, only: icrd_crys
@@ -669,21 +670,31 @@ contains
     real*8, intent(in), optional :: rsph, xsph(3)
     real*8, intent(in), optional :: rcub, xcub(3)
     integer, intent(in), optional :: nx(3)
+    logical, intent(in), optional :: alwaysmain
+    type(fragment), intent(inout), allocatable, optional :: fr0(:)
     type(fragment) :: fr
 
-    integer :: i1, i2, i3, l, icel, n, n0, lvec0(3), lmin(3), lmax(3)
+    integer :: i1, i2, i3, k, l, icel, n, n0, nfr, nlimi, nlimj
+    integer :: lvec(3), lvec0(3), lmin(3), lmax(3)
     real*8 :: xc(3), xlv(3), xcen(3)
     real*8, allocatable :: cmc(:,:), cmx(:,:), fx(:,:)
     integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
-    logical :: dosph, docub
+    logical :: dosph, docub, mainall
 
     dosph = present(rsph) .and. present(xsph)
     docub = present(rcub) .and. present(xcub)
     if (count((/dosph,docub,present(nx)/)) /= 1) &
        call ferror("listatoms_molcenter","Need exactly one of sphere, cube, or cells input",faterr)
+    mainall = .false.
+    if (present(alwaysmain)) mainall = alwaysmain
 
     call fr%init()
-    if (.not.allocated(c%mol) .or. c%nmol == 0) return
+    nfr = 0
+    if (present(fr0)) then
+       if (allocated(fr0)) deallocate(fr0)
+       allocate(fr0(10))
+    end if
+    if (.not.allocated(c%mol) .or. c%nmol == 0) goto 999
 
     ! wrap the region center into the main cell so the shell walk below
     ! (anchored on the origin cell) reaches the region; the result is
@@ -737,7 +748,7 @@ contains
        ! contributes nothing (crystals only)
        xlv = 0d0
        do l = 1, c%nmol
-          call addmol(l,(/0,0,0/))
+          call addmol(l,(/0,0,0/),force=mainall)
        end do
        if (.not.c%ismolecule) then
           icel = 0
@@ -745,14 +756,14 @@ contains
           do while (n > n0)
              icel = icel + 1
              n0 = n
-             do i1 = -icel, icel
-                do i2 = -icel, icel
-                   do i3 = -icel, icel
-                      ! shell surface only
-                      if (abs(i1)/=icel .and. abs(i2)/=icel .and. abs(i3)/=icel) cycle
-                      xlv = c%x2c(real((/i1,i2,i3/),8))
+             do k = 1, 6
+                call shell_face(k,icel,nlimi,nlimj)
+                do i1 = -nlimi, nlimi
+                   do i2 = -nlimj, nlimj
+                      lvec = shell_lvec(k,i1,i2,icel)
+                      xlv = c%x2c(real(lvec,8))
                       do l = 1, c%nmol
-                         call addmol(l,(/i1,i2,i3/))
+                         call addmol(l,lvec)
                       end do
                    end do
                 end do
@@ -769,24 +780,91 @@ contains
     end if
     deallocate(fx,fis,fidx,fcidx,flvec)
 
+999 continue
+    if (present(fr0)) then
+       call realloc_fragment(fr0,nfr)
+       if (any(lvec0 /= 0)) then
+          do l = 1, nfr
+             call fr0(l)%translate(lvec0)
+          end do
+       end if
+    end if
+
   contains
+    ! The i1/i2 bounds of face k of the cubic shell of radius icel: the
+    ! two z faces complete, then the two y faces without the z edges,
+    ! then the two x faces without the y and z edges, so that every
+    ! lattice point of the shell surface is visited exactly once
+    subroutine shell_face(k,icel,nlimi,nlimj)
+      integer, intent(in) :: k, icel
+      integer, intent(out) :: nlimi, nlimj
+
+      if (k <= 2) then
+         nlimi = icel
+         nlimj = icel
+      elseif (k <= 4) then
+         nlimi = icel
+         nlimj = icel-1
+      else
+         nlimi = icel-1
+         nlimj = icel-1
+      end if
+
+    end subroutine shell_face
+
+    ! The lattice vector at position (i1,i2) of face k (see shell_face)
+    function shell_lvec(k,i1,i2,icel)
+      integer, intent(in) :: k, i1, i2, icel
+      integer :: shell_lvec(3)
+
+      shell_lvec = 0
+      if (k == 1) then
+         shell_lvec = (/i1,i2,icel/)
+      elseif (k == 2) then
+         shell_lvec = (/i1,i2,-icel/)
+      elseif (k == 3) then
+         shell_lvec = (/i1,icel,i2/)
+      elseif (k == 4) then
+         shell_lvec = (/i1,-icel,i2/)
+      elseif (k == 5) then
+         shell_lvec = (/icel,i1,i2/)
+      elseif (k == 6) then
+         shell_lvec = (/-icel,i1,i2/)
+      end if
+
+    end function shell_lvec
     ! Add the atoms of molecule il translated by lattice vector lvec, if
     ! its center of mass lies inside the region. The host xlv must hold
     ! the Cartesian offset of lvec. Distinct molecules at distinct
     ! translations share no atom, so no duplicate check is needed.
-    subroutine addmol(il,lvec)
+    subroutine addmol(il,lvec,force)
       integer, intent(in) :: il, lvec(3)
+      logical, intent(in), optional :: force
 
       integer :: j
       real*8 :: xd(3)
+      logical :: force_
 
-      if (dosph) then
-         if (norm2(cmc(:,il) + xlv - xc) > rsph) return
-      elseif (docub) then
-         if (any(abs(cmc(:,il) + xlv - xc) > rcub)) return
-      else
-         xd = cmx(:,il) + real(lvec,8)
-         if (any(xd < 0d0) .or. any(xd >= real(nx,8))) return
+      force_ = .false.
+      if (present(force)) force_ = force
+
+      if (.not.force_) then
+         if (dosph) then
+            if (norm2(cmc(:,il) + xlv - xc) > rsph) return
+         elseif (docub) then
+            if (any(abs(cmc(:,il) + xlv - xc) > rcub)) return
+         else
+            xd = cmx(:,il) + real(lvec,8)
+            if (any(xd < 0d0) .or. any(xd >= real(nx,8))) return
+         end if
+      end if
+
+      ! the molecule as a fragment of its own, if the caller wants them
+      if (present(fr0)) then
+         nfr = nfr + 1
+         if (nfr > size(fr0,1)) call realloc_fragment(fr0,2*nfr)
+         fr0(nfr) = c%mol(il)
+         if (any(lvec /= 0)) call fr0(nfr)%translate(lvec)
       end if
 
       do j = 1, c%mol(il)%nat

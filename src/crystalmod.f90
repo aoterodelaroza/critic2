@@ -736,11 +736,13 @@ module crystalmod
        real*8, intent(in), optional :: rcub, xcub(3)
        type(fragment) :: fr
      end function listatoms_sphcub
-     module function listatoms_molcenter(c,rsph,xsph,rcub,xcub,nx) result(fr)
+     module function listatoms_molcenter(c,rsph,xsph,rcub,xcub,nx,alwaysmain,fr0) result(fr)
        class(crystal), intent(in) :: c
        real*8, intent(in), optional :: rsph, xsph(3)
        real*8, intent(in), optional :: rcub, xcub(3)
        integer, intent(in), optional :: nx(3)
+       logical, intent(in), optional :: alwaysmain
+       type(fragment), intent(inout), allocatable, optional :: fr0(:)
        type(fragment) :: fr
      end function listatoms_molcenter
      module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)

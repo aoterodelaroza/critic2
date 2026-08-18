@@ -1099,8 +1099,7 @@ contains
     use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
        equal
-    use types, only: realloc
-    use fragmentmod, only: fragment, realloc_fragment
+    use fragmentmod, only: fragment
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*3, intent(in) :: fmt
@@ -1118,13 +1117,12 @@ contains
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
-    integer :: i, j, k, l, nmol, icel, lvec(3), ncm
-    integer :: ncomb, nlimi, nlimj, icount, ic, iat
+    integer :: i, j, k, l, nmol
+    integer :: ncomb, nlimj, icount, ic, iat
     integer, allocatable :: icomb(:), origmol(:), idmolf(:), lvecf(:,:), allcon(:,:)
     character(len=:), allocatable :: wroot, file0, froot
-    logical :: doagain
     real*8, allocatable :: cmlist(:,:), comc(:,:)
-    real*8 :: xcm(3), dist
+    real*8 :: xcm(3)
     integer :: ix(3)
     logical :: doborder, onemotif, molmotif, environ
     real*8 :: renv
@@ -1168,61 +1166,16 @@ contains
        fr0 = c%mol
        nmol = c%nmol
     elseif (environ) then
-       ! calculate the centers of mass for all fragments in the molecular motif
-       allocate(cmlist(3,c%nmol),fr0(c%nmol),origmol(c%nmol))
-       nmol = c%nmol
-       fr0 = c%mol
-       do i = 1, c%nmol
-          cmlist(:,i) = c%mol(i)%cmass()
-          origmol(i) = i
+       ! all whole molecules whose center of mass is within renv of the
+       ! origin, plus the whole cell motif; then recover the identity and
+       ! the center of mass of each, for the report below
+       fr = c%listatoms_molcenter(rsph=renv,xsph=(/0d0,0d0,0d0/),alwaysmain=.true.,fr0=fr0)
+       nmol = size(fr0,1)
+       allocate(cmlist(3,nmol),origmol(nmol))
+       do i = 1, nmol
+          cmlist(:,i) = fr0(i)%cmass()
+          origmol(i) = c%idatcelmol(1,fr0(i)%at(1)%cidx)
        end do
-       ncm = c%nmol
-
-       doagain = .true.
-       icel = 0
-       do while(doagain)
-          doagain = .false.
-          icel = icel + 1
-          do k = 1, 6
-             if (k == 1 .or. k == 2) then
-                nlimi = icel
-                nlimj = icel
-             elseif (k == 3 .or. k == 4) then
-                nlimi = icel
-                nlimj = icel-1
-             else
-                nlimi = icel-1
-                nlimj = icel-1
-             end if
-             do i = -nlimi, nlimi
-                do j = -nlimj, nlimj
-                   lvec = icelcomb(k,i,j,icel)
-                   do l = 1, c%nmol
-                      xcm = c%c2x(cmlist(:,l)) + lvec
-                      xcm = c%x2c(xcm)
-                      dist = norm2(xcm)
-                      if (dist <= renv) then
-                         ncm = ncm + 1
-                         if (ncm > size(cmlist,2)) then
-                            call realloc(cmlist,3,2*ncm)
-                            call realloc(origmol,2*ncm)
-                            call realloc_fragment(fr0,2*ncm)
-                         end if
-                         cmlist(:,ncm) = xcm
-                         fr0(ncm) = c%mol(l)
-                         call fr0(ncm)%translate(lvec)
-                         origmol(ncm) = l
-                         doagain = .true.
-                      end if
-                   end do
-                end do
-             end do
-          end do
-       end do
-
-       call realloc_fragment(fr0,ncm)
-       call fr%merge_array(fr0,.false.)
-       nmol = ncm
     else
        if (rcub > 0) then
           fr = c%listatoms_sphcub(rcub=rcub,xcub=xcub)
@@ -1479,26 +1432,6 @@ contains
       write (uout,*)
     end subroutine nmer_disttable
 
-    function icelcomb(idx,i,j,icel)
-      integer, intent(in) :: idx, i, j, icel
-      integer :: icelcomb(3)
-
-      icelcomb = 0
-      if (idx == 1) then
-         icelcomb = (/i,j,icel/)
-      elseif (idx == 2) then
-         icelcomb = (/i,j,-icel/)
-      elseif (idx == 3) then
-         icelcomb = (/i,icel,j/)
-      elseif (idx == 4) then
-         icelcomb = (/i,-icel,j/)
-      elseif (idx == 5) then
-         icelcomb = (/icel,i,j/)
-      elseif (idx == 6) then
-         icelcomb = (/-icel,i,j/)
-      endif
-
-    end function icelcomb
   end subroutine write_mol
 
   !> Write an obj/ply/off file containing the crystal structure. fmt
