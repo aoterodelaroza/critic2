@@ -1021,7 +1021,7 @@ contains
        elseif (w%type == wintype_saveas) then
           call init_window("Save As",52,18)
        elseif (w%type == wintype_extract) then
-          call init_window("Extract as Molecule(s)",52,18)
+          call init_window("Extract as Molecule(s)",52,23)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62,25)
        elseif (w%type == wintype_dynamics) then

@@ -60,8 +60,8 @@ contains
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
-       iw_radiobutton, iw_dragfloat_realc, iw_intstepper,&
-       iw_close_event, iw_setpos_bottomright
+       iw_radiobutton, iw_dragfloat_realc, iw_intstepper, iw_combo_simple,&
+       iw_table_column, iw_close_event, iw_setpos_bottomright
     use tools_io, only: string, uout
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
@@ -71,8 +71,11 @@ contains
 
     logical :: doquit, syschanged, ismol, molmotifok, environok, severalok, okpick, hovered
     integer :: i, isys, iview, nmol, ipad
-    integer(c_int) :: inc, emode
+    integer(c_int) :: inc, emode, tflags
     real*8 :: rad, x0(3), xlo(3), xhi(3)
+    real(c_float) :: dmax
+    type(ImVec2) :: sz0
+    character(len=:,kind=c_char), allocatable, target :: str1
     logical(c_bool) :: ldum
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
@@ -311,9 +314,66 @@ contains
        end if
     end if
 
-    ! n-mer options (not written yet)
-    if (em_effective() == em_several) &
-       call iw_text("(the n-mer options go here)")
+    ! n-mer options: the highest order, then one row per order with
+    ! whether it is generated, how the center-of-mass distance filter is
+    ! applied, and the cut-off itself (capped by the size of the region)
+    if (em_effective() == em_several) then
+       call iw_text("Up to n =",alignframe=.true.)
+       ldum = iw_intstepper("nmer##extractnmer",w%extract_nmer,minval=1_c_int,&
+          maxval=int(nmer_max,c_int),notlive=.true.,sameline=.true.,&
+          tooltip="Highest n-mer order: 2 gives monomers and dimers, 3 adds trimers, and so on")
+       dmax = real(region_diameter() * bohrtoa,c_float)
+
+       tflags = ImGuiTableFlags_None
+       tflags = ior(tflags,ImGuiTableFlags_NoSavedSettings)
+       tflags = ior(tflags,ImGuiTableFlags_RowBg)
+       tflags = ior(tflags,ImGuiTableFlags_Borders)
+       tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##extractnmertable" // c_null_char
+       sz0%x = 0._c_float
+       sz0%y = 0._c_float
+       if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) then
+          call iw_table_column("Nmer",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Write",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Distances",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Cut-off (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call igTableHeadersRow()
+          do i = 1, int(w%extract_nmer)
+             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+             if (igTableSetColumnIndex(0_c_int)) call iw_text(string(i))
+             if (igTableSetColumnIndex(1_c_int)) then
+                ldum = iw_checkbox("##extractnmerdo" // string(i),w%extract_nmer_do(i))
+                call iw_tooltip("Generate the " // trim(nmer_name(i)) // "s",ttshown)
+             end if
+             ! a monomer has no pair of molecules, so it has no distances to filter
+             if (igTableSetColumnIndex(2_c_int)) then
+                if (i == 1) then
+                   call iw_text("--",disabled=.true.)
+                else
+                   call igPushItemWidth(iw_calcwidth(8,1))
+                   call iw_combo_simple("##extractnmerany" // string(i),"all" // c_null_char //&
+                      "any" // c_null_char,w%extract_nmer_any(i))
+                   call igPopItemWidth()
+                   call iw_tooltip("all: keep the " // trim(nmer_name(i)) // " only if every pair of&
+                      & molecules is within the cut-off. any: keep it if at least one pair is",ttshown)
+                end if
+             end if
+             if (igTableSetColumnIndex(3_c_int)) then
+                if (i == 1) then
+                   call iw_text("--",disabled=.true.)
+                else
+                   w%extract_nmer_dist(i) = min(w%extract_nmer_dist(i),dmax)
+                   ldum = iw_dragfloat_realc("##extractnmerdist" // string(i),&
+                      x1=w%extract_nmer_dist(i),speed=0.1_c_float,min=0._c_float,max=dmax,&
+                      decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+                   call iw_tooltip("Maximum distance between the centers of mass of two molecules&
+                      & in the " // trim(nmer_name(i)) // "; at most the size of the region",ttshown)
+                end if
+             end if
+          end do
+          call igEndTable()
+       end if
+    end if
 
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
@@ -448,6 +508,56 @@ contains
       call iw_text("(~" // string(nest) // " atoms)",sameline=.true.)
 
     end subroutine show_atom_estimate
+
+    ! The largest distance between two points of the chosen region
+    ! (bohr): the largest center-of-mass distance a k-mer drawn from it
+    ! can possibly have
+    function region_diameter() result(d)
+      real*8 :: d
+
+      real*8 :: v(3)
+      integer :: i1, i2, i3
+
+      d = 0d0
+      if (doquit) return
+      if (w%extract_region == er_sphere) then
+         d = 2d0 * real(w%extract_rsph,8) / bohrtoa
+      elseif (w%extract_region == er_cube) then
+         d = 2d0 * sqrt(3d0) * real(w%extract_rcub,8) / bohrtoa
+      else
+         ! the longest body diagonal of the cell block
+         do i1 = -1, 1, 2
+            do i2 = -1, 1, 2
+               do i3 = -1, 1, 2
+                  v = sys(isys)%c%x2c(real((/i1,i2,i3/) * int(w%extract_nx),8))
+                  d = max(d,norm2(v))
+               end do
+            end do
+         end do
+      end if
+
+    end function region_diameter
+
+    ! Name of an n-mer of order i
+    function nmer_name(i) result(str)
+      integer, intent(in) :: i
+      character(len=:), allocatable :: str
+
+      if (i == 1) then
+         str = "monomer"
+      elseif (i == 2) then
+         str = "dimer"
+      elseif (i == 3) then
+         str = "trimer"
+      elseif (i == 4) then
+         str = "tetramer"
+      elseif (i == 5) then
+         str = "pentamer"
+      else
+         str = string(i) // "-mer"
+      end if
+
+    end function nmer_name
 
     function em_effective() result(em)
       integer(c_int) :: em

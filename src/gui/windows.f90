@@ -69,6 +69,9 @@ module windows
   integer, parameter, public :: it_none = 0
   integer, parameter, public :: it_edit = vm_NUM + 1
 
+  ! highest n-mer order the extract window can be asked for
+  integer, parameter, public :: nmer_max = 10
+
   ! tabs of the geometry window that another window can ask it to show
   ! (w%geometry_seltab); only the ones with an external entry point
   integer, parameter, public :: geomtab_none = 0
@@ -248,6 +251,10 @@ module windows
      integer(c_int) :: extract_nx(3) = 1_c_int ! number of unit cells along a, b, c
      logical :: extract_border = .false. ! include atoms on the border of the cells
      integer(c_int) :: extract_mode = 0 ! what comes out of the region (0=one molecule, 1=several molecules)
+     integer(c_int) :: extract_nmer = 2 ! highest n-mer order generated
+     logical :: extract_nmer_do(nmer_max) = .true. ! generate the n-mers of this order
+     integer(c_int) :: extract_nmer_any(nmer_max) = 0 ! COM distance filter (0 = all pairs, 1 = at least one pair)
+     real(c_float) :: extract_nmer_dist(nmer_max) = 1e6_c_float ! COM distance cut-off (Å), clamped to the region size
      integer(c_int) :: extract_include = 0 ! what to extract (0=atoms, 1=whole molecules touching it, 2=whole molecules centered in it)
      logical :: extract_closeafter = .true. ! close the window and focus the new system after extracting
      real(c_float) :: extract_atdens = 0._c_float ! rough atom number density of the system (bohr^-3)
