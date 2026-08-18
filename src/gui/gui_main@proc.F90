@@ -613,10 +613,10 @@ contains
     call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
 
     ! extract a cluster as a new molecular system
-    if (iw_menuitem("Extract Cluster as Molecule...",enabled=enabled)) &
+    if (iw_menuitem("Extract Region as Molecule(s)...",enabled=enabled)) &
        idum = stack_create_window(wintype_extract,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Cut a finite piece of this system (sphere, cube, unit cells, or&
-       & molecular environment) and add it as a new molecular system",ttshown)
+    call iw_tooltip("Cut a finite piece of this system and load it as one&
+       & or more new molecular systems",ttshown)
 
     call igSeparator()
 
