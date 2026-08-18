@@ -48,7 +48,8 @@ contains
        ! Header
        if (.not.c%ismolecule) then
           write (uout,'("* Crystal structure")')
-          write (uout,'("  From: ",A)') string(c%file)
+          if (len_trim(c%origin_label()) > 0) &
+             write (uout,'("  From: ",A)') c%origin_label()
           write (uout,'("  Lattice parameters (bohr): ",3(A,"  "))') &
              string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
           write (uout,'("  Lattice parameters (ang): ",3(A,"  "))') &
@@ -57,7 +58,8 @@ contains
              string(c%bb(1),'f',decimal=3), string(c%bb(2),'f',decimal=3), string(c%bb(3),'f',decimal=3)
        else
           write (uout,'("* Molecular structure")')
-          write (uout,'("  From: ",A)') string(c%file)
+          if (len_trim(c%origin_label()) > 0) &
+             write (uout,'("  From: ",A)') c%origin_label()
           write (uout,'("  Encompassing cell dimensions (bohr): ",3(A,"  "))') &
              string(c%aa(1),'f',decimal=6), string(c%aa(2),'f',decimal=6), string(c%aa(3),'f',decimal=6)
           write (uout,'("  Encompassing cell dimensions (ang): ",3(A,"  "))') &
@@ -1682,7 +1684,7 @@ contains
     else
        lu = fopen_write(file,ti=ti)
     end if
-    write (lu,'("critic2 | ",A)') string(c%file)
+    write (lu,'("critic2 | ",A)') c%origin_label()
     write (lu,'("1.0")')
     do i = 1, 3
        write (lu,'(3(F15.10," "))') c%m_x2c(:,i) * bohrtoa
@@ -2380,7 +2382,7 @@ contains
     lu = fopen_write(file,ti=ti)
 
     ! header
-    write (lu,'("TITL critic2 | ",A)') trim(c%file)
+    write (lu,'("TITL critic2 | ",A)') c%origin_label()
     write (lu,'("CELL 0.71073 ",6(A," "))') (string(c%aa(i)*bohrtoa,'f',12,8),i=1,3), &
        (string(c%bb(j),'f',10,6),j=1,3)
     if (usesym) then
@@ -3194,7 +3196,7 @@ contains
        string(c%ncel,5)
 
     ! file name
-    str = trim(adjustl(upper(c%file)))
+    str = trim(adjustl(upper(c%origin_label())))
     icount=0
     do i = 1, len(str), 55
        icount = icount + 1

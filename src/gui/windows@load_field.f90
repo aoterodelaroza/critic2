@@ -195,8 +195,10 @@ contains
              ! default struct file
              if (.not.file2_set) then
                 ll = len_trim(sysc(isys)%seed%file)
-                if (sysc(isys)%seed%file(ll-6:ll) == ".struct") &
-                   file2 = sysc(isys)%seed%file
+                if (ll >= 7) then
+                   if (sysc(isys)%seed%file(ll-6:ll) == ".struct") &
+                      file2 = sysc(isys)%seed%file
+                end if
                 file2_set = .true.
              end if
           case(ifformat_elk)
@@ -205,8 +207,10 @@ contains
              ! default GEOMETRY.OUT file
              if (.not.file2_set) then
                 ll = len_trim(sysc(isys)%seed%file)
-                if (sysc(isys)%seed%file(ll-3:ll) == ".OUT") &
-                   file2 = sysc(isys)%seed%file
+                if (ll >= 4) then
+                   if (sysc(isys)%seed%file(ll-3:ll) == ".OUT") &
+                      file2 = sysc(isys)%seed%file
+                end if
                 file2_set = .true.
              end if
           case(ifformat_pi)

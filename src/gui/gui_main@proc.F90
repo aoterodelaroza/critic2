@@ -1207,8 +1207,11 @@ contains
        if (launch(d_close)) &
           call remove_system(isys)
        if (launch(d_save)) then
-          ! save to the original file; if it was an output file, do Save As instead
-          if (isformat_write_from_read(sysc(isys)%seed%isformat) /= isformat_w_unknown) then
+          ! save to the original file; if there is none (a system generated
+          ! in memory) or it cannot be written back (an output file), do
+          ! Save As instead
+          if (len_trim(sysc(isys)%seed%file) > 0 .and.&
+             isformat_write_from_read(sysc(isys)%seed%isformat) /= isformat_w_unknown) then
              call write_system(isys)
           else
              idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&

@@ -345,6 +345,7 @@ contains
              call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(iview)%sc%iqpt_selected),&
                 sys(isys)%c%vib%vec(:,:,win(iview)%sc%ifreq_selected,win(iview)%sc%iqpt_selected),&
                 win(iview)%sc%anim_amplitude,win(iview)%sc%anim_phase)
+             seed(1)%name = trim(sysc(isys)%seed%name) // " (nudge)"
              call add_systems_from_seeds(1,seed)
              call launch_initialization_thread()
           end if

@@ -105,6 +105,7 @@ contains
 
     ! the crystal is not initialized until struct_new is run
     c%file = ""
+    c%libname = ""
     c%isformat = isformat_r_unknown
     c%isinit = .false.
     c%havesym = 0
@@ -129,6 +130,7 @@ contains
     c%isinit = .false.
     c%havesym = 0
     c%file = ""
+    c%libname = ""
     c%isformat = isformat_r_unknown
     c%nspc = 0
     c%nneq = 0
@@ -147,6 +149,21 @@ contains
     c%ismol3d = .false.
 
   end subroutine struct_end
+
+  !> A short label for where this structure came from: the file it was
+  !> read from or, if it was not read from a file, the library entry
+  !> name. Empty for a structure generated in memory, which has neither.
+  module function origin_label(c) result(str)
+    class(crystal), intent(in) :: c
+    character(len=:), allocatable :: str
+
+    if (len_trim(c%file) > 0) then
+       str = trim(c%file)
+    else
+       str = trim(c%libname)
+    end if
+
+  end function origin_label
 
   !> Create a new, complete crystal/molecule from a crystal seed. This
   !> routine never stops the program: on failure it returns the reason
@@ -198,6 +215,7 @@ contains
     call c%init()
     c%ismolecule = seed%ismolecule
     c%file = seed%file
+    c%libname = seed%libname
     c%isformat = seed%isformat
 
     !! first the cell, then the atoms !!

@@ -142,8 +142,10 @@ module crystalmod
      logical :: isinit = .false. !< has the crystal structure been initialized?
      integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
 
-     ! file name and format for the occasional critic2 trick
+     ! source of the structure: the file it was read from (empty if it was
+     ! not read from one) and, for library structures, the entry name
      character(len=mlen) :: file
+     character(len=mlen) :: libname
      integer :: isformat
 
      !! Initialization level: isinit !!
@@ -239,6 +241,7 @@ module crystalmod
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
+     procedure :: origin_label !< Short label for where this structure came from
      procedure :: set_haveocc !< Recompute the occupancy flag (haveocc)
      procedure :: mix_string !< Format the occupant list of a mixed site
      procedure :: composition !< Occupancy-weighted atom count per species in the cell
@@ -448,6 +451,10 @@ module crystalmod
      pure module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
+     module function origin_label(c) result(str)
+       class(crystal), intent(in) :: c
+       character(len=:), allocatable :: str
+     end function origin_label
      module subroutine struct_new(c,seed,errmsg,noenv,ti)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c

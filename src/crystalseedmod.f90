@@ -30,8 +30,9 @@ module crystalseedmod
   type crystalseed
      ! general
      logical :: isused = .false. !< Is the seed being used?
-     character(len=mlen) :: file = "" !< Source file, if available
-     character(len=mlen) :: name = "" !< Source file, if available
+     character(len=mlen) :: file = "" !< Source file this was read from; empty if not backed by one
+     character(len=mlen) :: name = "" !< Display label for the structure
+     character(len=mlen) :: libname = "" !< Structure name in the library, if it came from one
      integer :: isformat !< source file format
      ! atoms
      logical :: neqlist = .false. !< whether x is the non-equivalent atom list

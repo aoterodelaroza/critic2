@@ -43,6 +43,7 @@ contains
     seed%isused = .false.
     seed%file = ""
     seed%name = ""
+    seed%libname = ""
     seed%isformat = isformat_r_unknown
     seed%nat = 0
     if (allocated(seed%x)) deallocate(seed%x)
@@ -584,7 +585,7 @@ contains
     seed%border = 0d0
     seed%havex0 = .false.
     seed%molx0 = 0d0
-    seed%file = "<input>"
+    seed%file = ""
     seed%name = "<input>"
     seed%isformat = isformat_r_from_input
 
@@ -778,7 +779,7 @@ contains
     seed%border = rborder
     seed%havex0 = .false.
     seed%molx0 = 0d0
-    seed%file = "<input>"
+    seed%file = ""
     seed%name = "<input>"
     seed%isformat = isformat_r_from_input
 
@@ -889,7 +890,8 @@ contains
        call ferror("read_library","error parsing the crystal/molecule keyword",faterr,syntax=.true.)
        return
     endif
-    seed%file = trim(line)
+    seed%file = ""
+    seed%libname = trim(line)
     seed%name = trim(line) // " (library)"
     seed%isformat = isformat_r_from_library
 
@@ -7156,6 +7158,7 @@ contains
     to%isused = from%isused
     to%file = from%file
     to%name = from%name
+    to%libname = from%libname
     to%isformat = from%isformat
     to%nat = from%nat
     if (allocated(from%x)) then

@@ -523,8 +523,11 @@ contains
        seed(1) = sysc(idx)%seed
     else
        ! make sure the file exists
-       file = sysc(idx)%seed%file
-       if (isformat /= isformat_r_from_library) then
+       if (isformat == isformat_r_from_library) then
+          file = sysc(idx)%seed%libname
+       else
+          file = sysc(idx)%seed%file
+          if (len_trim(file) == 0) return
           inquire(file=file,exist=exist)
           if (.not.exist) return
        end if
@@ -574,6 +577,7 @@ contains
   !> Duplicate the given system.
   module subroutine duplicate_system(idx)
     use crystalseedmod, only: crystalseed
+    use param, only: isformat_r_derived
     integer, intent(in) :: idx
 
     type(crystalseed), allocatable :: seed(:)
@@ -581,6 +585,13 @@ contains
     if (.not.ok_system(idx,sys_loaded_not_init)) return
     allocate(seed(1))
     seed(1) = sysc(idx)%seed
+
+    ! the copy is an in-memory system, not the file the original came
+    ! from: saving it must ask for a file name, and restoring it rebuilds
+    ! it from this seed instead of re-reading that file
+    seed(1)%file = ""
+    seed(1)%isformat = isformat_r_derived
+
     call add_systems_from_seeds(1,seed)
     call launch_initialization_thread()
 
@@ -616,20 +627,27 @@ contains
     integer, intent(in) :: idx
 
     integer :: iwformat
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, file
 
     ! only for initialized systems
     if (.not.ok_system(idx,sys_init)) return
+
+    ! the file this system was read from; a system generated in memory has
+    ! none and has to go through Save As instead
+    file = trim(sysc(idx)%seed%file)
+    if (len_trim(file) == 0) return
 
     ! convert to the write format
     iwformat = isformat_write_from_read(sysc(idx)%seed%isformat)
     if (iwformat == isformat_w_unknown) return
 
     ! write the file
-    call sys(idx)%c%write_any_file(sysc(idx)%fullname,errmsg,iwformat=iwformat)
+    call sys(idx)%c%write_any_file(file,errmsg,iwformat=iwformat)
     if (len_trim(errmsg) > 0) then
-       write (uout,'("WARNING : Could not write structures: ",A)') trim(sysc(idx)%fullname)
+       write (uout,'("WARNING : Could not write structure: ",A)') trim(file)
        write (uout,'("WARNING : ",A/)') trim(errmsg)
+    else
+       write (uout,'("Saved structure file: ",A/)') trim(file)
     end if
 
   end subroutine write_system
@@ -3040,8 +3058,11 @@ contains
        mol = 0
     end if
     isformat = sysc%seed%isformat
-    file = sysc%seed%file
-    if (isformat /= isformat_r_from_library) then
+    if (isformat == isformat_r_from_library) then
+       file = sysc%seed%libname
+    else
+       file = sysc%seed%file
+       if (len_trim(file) == 0) return
        inquire(file=file,exist=exist)
        if (.not.exist) return
     end if

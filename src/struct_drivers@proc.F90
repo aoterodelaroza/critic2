@@ -2338,7 +2338,7 @@ contains
     else
        do i = 0, (ns-1)/5
           write (uout,'(99(A," "))') string(tname,15,ioj_center), &
-             (string(c(5*i+j)%file,15,ioj_center),j=1,min(5,ns-i*5))
+             (string(c(5*i+j)%origin_label(),15,ioj_center),j=1,min(5,ns-i*5))
           write (uout,'(99(A," "))') string(difstr,15,ioj_center), &
              (string(5*i+j,15,ioj_center),j=1,min(5,ns-i*5))
           do j = 1, ns
@@ -2348,7 +2348,7 @@ contains
                    if (diff(j,5*i+k) < epsreduce) auxdif(k) = string(" not-calculated")
                 end if
              end do
-             write (uout,'("  ",99(A," "))') string(c(j)%file,15,ioj_left), &
+             write (uout,'("  ",99(A," "))') string(c(j)%origin_label(),15,ioj_left), &
                 (auxdif(k),k=1,min(5,ns-i*5))
           end do
           write (uout,*)
@@ -2361,14 +2361,14 @@ contains
        write (uout,'("+ List of unique structures (",A,"): ")') string(count(irepeat == 0))
        do i = 1, ns
           if (irepeat(i) == 0) write (uout,'(A,": ",A," with multiplicity ",A)') &
-             string(i), trim(c(i)%file), string(count(irepeat == i) + 1)
+             string(i), c(i)%origin_label(), string(count(irepeat == i) + 1)
        end do
        write (uout,*)
 
        write (uout,'("+ List of repeated structures (",A,"): ")') string(ns-count(irepeat == 0))
        do i = 1, ns
           if (irepeat(i) > 0) write (uout,'(A,": ",A," same as ",A,": ",A)') &
-             string(i), trim(c(i)%file), string(irepeat(i)), trim(c(irepeat(i))%file)
+             string(i), c(i)%origin_label(), string(irepeat(i)), c(irepeat(i))%origin_label()
        end do
        write (uout,*)
 
@@ -2484,9 +2484,9 @@ contains
 
     ! read the structures, force symmetry recalculation
     if (equal(file1,".")) then
-       write (uout,'("+ Structure from currently loaded file: ",A)') trim(s%c%file)
+       write (uout,'("+ Structure from currently loaded file: ",A)') s%c%origin_label()
        c1 = s%c
-       file1 = s%c%file
+       file1 = s%c%origin_label()
     else
        write (uout,'("+ Reading the structure from: ",A)') trim(file1)
        call seed%read_any_file(file1,-1,errmsg)
@@ -2505,9 +2505,9 @@ contains
 
     ! read the second structure, force symmetry recalculation
     if (equal(file2,".")) then
-       write (uout,'("+ Structure from currently loaded file: ",A)') trim(s%c%file)
+       write (uout,'("+ Structure from currently loaded file: ",A)') s%c%origin_label()
        c2 = s%c
-       file2 = s%c%file
+       file2 = s%c%origin_label()
     else
        write (uout,'("+ Reading the structure from: ",A)') trim(file2)
        call seed%read_any_file(file2,-1,errmsg)
@@ -5326,7 +5326,7 @@ contains
     deallocate(x1,x2)
 
     ! report on the results
-    write (uout,'("+ Reference structure: ",A)') string(cref%file)
+    write (uout,'("+ Reference structure: ",A)') cref%origin_label()
     write (uout,'("+ Target structure: ",A)') string(fname(2))
     if (cx%ismolecule) then
        write (uout,'("  The target structure is a molecule with ",A," fragments.")') string(ns)

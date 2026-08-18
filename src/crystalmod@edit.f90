@@ -56,6 +56,7 @@ contains
     seed%isused = .true.
     seed%name = ""
     seed%file = c%file
+    seed%libname = c%libname
     seed%isformat = c%isformat
 
     ! atoms
@@ -182,7 +183,7 @@ contains
     ! general. This is an in-memory system derived from another one, not
     ! backed by a file: mark it so that restoring uses the initial seed.
     seed%isused = .true.
-    seed%name = trim(c%file) // " (nudge)"
+    seed%name = trim(c%origin_label()) // " (nudge)"
     seed%file = ""
     seed%isformat = isformat_r_derived
 
@@ -531,6 +532,7 @@ contains
     ! rest of the seed information
     ncseed%isused = .true.
     ncseed%file = c%file
+    ncseed%libname = c%libname
     ncseed%isformat = c%isformat
     ncseed%havesym = 0
     ncseed%findsym = -1
@@ -1254,6 +1256,7 @@ contains
     ncseed%ismolecule = c%ismolecule
     ncseed%isused = .true.
     ncseed%file = c%file
+    ncseed%libname = c%libname
     ncseed%isformat = c%isformat
     ncseed%havesym = 1
     ncseed%findsym = 0
