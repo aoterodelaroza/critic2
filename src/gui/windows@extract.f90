@@ -25,6 +25,10 @@ submodule (windows) extract
   integer(c_int), parameter :: er_cube = 1
   integer(c_int), parameter :: er_cells = 2
 
+  ! how many molecules come out of the region
+  integer(c_int), parameter :: em_one = 0 ! a single molecular system
+  integer(c_int), parameter :: em_several = 1 ! the n-mers it contains (NMER)
+
   ! what is taken from the region (mutually exclusive, as in the WRITE
   ! keyword, which refuses MOLMOTIF and ENVIRON together)
   integer(c_int), parameter :: ei_atoms = 0 ! the atoms inside the region
@@ -37,6 +41,7 @@ submodule (windows) extract
   real(c_float) :: lastrcub = 5._c_float
   integer(c_int) :: lastnx(3) = (/1_c_int,1_c_int,1_c_int/)
   logical :: lastborder = .false.
+  integer(c_int) :: lastmode = em_one
   integer(c_int) :: lastinclude = ei_atoms
   logical :: lastcloseafter = .true.
 
@@ -64,9 +69,9 @@ contains
     character(len=*,kind=c_char), parameter :: ttnx = &
        "Number of unit cells along each crystallographic axis"
 
-    logical :: doquit, syschanged, ismol, molmotifok, environok, okpick, hovered
+    logical :: doquit, syschanged, ismol, molmotifok, environok, severalok, okpick, hovered
     integer :: i, isys, iview, nmol, ipad
-    integer(c_int) :: inc
+    integer(c_int) :: inc, emode
     real*8 :: rad, x0(3), xlo(3), xhi(3)
     logical(c_bool) :: ldum
     type(fragment) :: fr
@@ -89,6 +94,7 @@ contains
        w%extract_rcub = lastrcub
        w%extract_nx = lastnx
        w%extract_border = lastborder
+       w%extract_mode = lastmode
        w%extract_include = lastinclude
        w%extract_closeafter = lastcloseafter
        w%extract_picking = .false.
@@ -164,9 +170,12 @@ contains
     ! not overwritten, and is read through ei_effective() instead
     molmotifok = .false.
     environok = .false.
+    severalok = .false.
     if (.not.doquit) then
        molmotifok = (sys(isys)%c%nmoldiscrete > 0)
        environok = molmotifok .and. (sys(isys)%c%nmoldiscrete == sys(isys)%c%nmol)
+       ! with a single molecule in the system there is nothing to break into n-mers
+       severalok = (sys(isys)%c%nmoldiscrete > 1)
     end if
 
     ! the system being cut
@@ -197,7 +206,7 @@ contains
 
     ! center (all regions except cells)
     if (w%extract_region /= er_cells) then
-       call iw_text("Center",highlight=.true.,alignframe=.true.)
+       call iw_text("Center",alignframe=.true.)
        if (iw_button("Pick##extractpick",sameline=.true.,disabled=(w%extract_picking .or. doquit))) then
           w%extract_picking = .true.
           call w%extract_pick%arm()
@@ -235,14 +244,14 @@ contains
 
     ! region parameters
     if (w%extract_region == er_sphere) then
-       call iw_text("Radius",highlight=.true.,alignframe=.true.)
+       call iw_text("Radius",alignframe=.true.)
        ldum = iw_dragfloat_realc("(Å)##extractrsph",x1=w%extract_rsph,speed=0.1_c_float,&
           min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Radius of the sphere",ttshown)
        rad = real(w%extract_rsph,8) / bohrtoa
        call show_atom_estimate(4d0*pi/3d0 * rad**3)
     elseif (w%extract_region == er_cube) then
-       call iw_text("Half-edge",highlight=.true.,alignframe=.true.)
+       call iw_text("Half-edge",alignframe=.true.)
        ldum = iw_dragfloat_realc("(Å)##extractrcub",x1=w%extract_rcub,speed=0.1_c_float,&
           min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Half the edge length of the cube",ttshown)
@@ -251,7 +260,7 @@ contains
     elseif (w%extract_region == er_cells) then
        ! same form as the periodicity widget in the representation editor
        ! (all three fields share a digit width, and clamp themselves)
-       call iw_text("Cells",highlight=.true.,alignframe=.true.)
+       call iw_text("Cells",alignframe=.true.)
        ipad = ceiling(log10(max(maxval(w%extract_nx),1) + 0.1))
        ldum = iw_intstepper("aaxis##extractnx",w%extract_nx(1),label="a:",minval=1_c_int,&
           maxval=50_c_int,ndigit=ipad,notlive=.true.,sameline=.true.,tooltip=ttnx)
@@ -267,11 +276,23 @@ contains
        end if
     end if
 
+    ! how many molecules come out of the region
+    if (severalok) then
+       emode = em_effective()
+       call iw_text("Extract",highlight=.true.,alignframe=.true.)
+       if (iw_radiobutton("One molecule##extractmode",int=emode,intval=em_one,&
+          sameline=.true.)) w%extract_mode = emode
+       call iw_tooltip("Extract the region as a single molecular system",ttshown)
+       if (iw_radiobutton("Several molecules##extractmode",int=emode,intval=em_several,&
+          sameline=.true.)) w%extract_mode = emode
+       call iw_tooltip("Extract the molecules in the region as monomers, dimers, etc.",ttshown)
+    end if
+
     ! what is taken from the region? Only the rules this system admits
     ! are offered, and if that leaves the atoms rule alone the one-entry
     ! group would read as broken, so it goes away. The buttons run on the
     ! rule in force, and only a click writes the choice back
-    if (molmotifok) then
+    if (molmotifok .and. em_effective() == em_one) then
        inc = ei_effective()
        call iw_text("Include",highlight=.true.,alignframe=.true.)
        if (iw_radiobutton("Atoms in the region##extractinclude",int=inc,&
@@ -290,6 +311,10 @@ contains
        end if
     end if
 
+    ! n-mer options (not written yet)
+    if (em_effective() == em_several) &
+       call iw_text("(the n-mer options go here)")
+
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
@@ -297,7 +322,7 @@ contains
     call iw_setpos_bottomright(12,2)
 
     ! final buttons: Extract
-    if (iw_button("Extract",disabled=doquit)) then
+    if (iw_button("Extract",disabled=(doquit .or. em_effective() == em_several))) then
        w%errmsg = ""
        inc = ei_effective()
 
@@ -367,6 +392,7 @@ contains
           lastrcub = w%extract_rcub
           lastnx = w%extract_nx
           lastborder = w%extract_border
+          lastmode = w%extract_mode
           lastinclude = w%extract_include
           lastcloseafter = w%extract_closeafter
 
@@ -422,6 +448,12 @@ contains
       call iw_text("(~" // string(nest) // " atoms)",sameline=.true.)
 
     end subroutine show_atom_estimate
+
+    function em_effective() result(em)
+      integer(c_int) :: em
+      em = w%extract_mode
+      if (.not.severalok) em = em_one
+    end function em_effective
 
     function ei_effective() result(ei)
       integer(c_int) :: ei
