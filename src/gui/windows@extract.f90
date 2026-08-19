@@ -206,8 +206,7 @@ contains
        call iw_tooltip("Extract the region as a single molecular system",ttshown)
        if (iw_radiobutton("Monomers, dimers, etc.##extractmode",int=emode,intval=em_several,&
           sameline=.true.)) w%extract_mode = emode
-       call iw_tooltip("Extract the molecules in the region as separate systems, one per&
-          & n-mer (NMER option to WRITE)",ttshown)
+       call iw_tooltip("Extract the molecules in the region as separate monomers, dimers, etc.",ttshown)
     end if
 
     ! close after extracting
@@ -294,8 +293,7 @@ contains
        ! the border only adds atoms to an atom cut
        if (ei_effective() /= ei_environ) then
           ldum = iw_checkbox("Include border atoms##extractborder",w%extract_border)
-          call iw_tooltip("Include atoms near the boundary of the chosen cells (BORDER&
-             & option to WRITE)",ttshown)
+          call iw_tooltip("Include atoms near the boundary of the chosen cells",ttshown)
        end if
     end if
 
@@ -346,7 +344,7 @@ contains
           call iw_table_column("Write",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Distances",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Cutoff (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Number (any cutoff)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Number ('any' filter)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call igTableHeadersRow()
           do i = 1, int(w%extract_nmer)
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -385,8 +383,8 @@ contains
                 if (w%extract_nmer_do(i)) then
                    call iw_text("~" // string(nmer_estimate(i)))
                    call iw_tooltip("Rough estimate of how many " // trim(nmer_name(i)) // "s&
-                      & this will make, from the density of molecules in the system. The&
-                      & 'all' filter gives fewer than this",ttshown)
+                      & this operation will make. The&
+                      & 'all' filter gives fewer than this value",ttshown)
                 else
                    call iw_text("--",disabled=.true.)
                 end if
