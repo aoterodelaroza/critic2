@@ -2175,12 +2175,31 @@ contains
 
   end subroutine scene_show_transient_axes
 
+  !> Show a transient wireframe box: the parallelepiped with one corner at
+  !> the Cartesian (bohr) point x0, given in the absolute frame, spanned by
+  !> the three edge vectors v(:,1..3). rad is the thickness of the edges,
+  !> which are always opaque (they are drawn as flat cylinders, and those
+  !> are packed with alpha = 1). Identified by (owner,tag).
+  module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb)
+    use representations, only: rep_shape, shapekind_box
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    real*8, intent(in) :: x0(3)
+    real*8, intent(in) :: v(3,3)
+    real*8, intent(in) :: rad
+    real(c_float), intent(in) :: rgb(3)
+
+    call transient_set_shape(s,owner,tag,rep_shape(kind=shapekind_box,x1=x0,v=v,rad=rad,rgb=rgb))
+
+  end subroutine scene_show_transient_box
+
   !> Show a transient sphere of radius rad (bohr) and color rgb at the
   !> Cartesian (bohr) point x0, given in the absolute frame (for
   !> molecules, including the molecular origin molx0). alpha is the
   !> opacity (default 1 = opaque). The sphere is identified by (owner,tag).
   module subroutine scene_show_transient_sphere(s,owner,tag,x0,rad,rgb,alpha)
-    use representations, only: reptype_shapes, repflavor_shapes, rep_shape, shapekind_sphere
+    use representations, only: rep_shape, shapekind_sphere
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
@@ -2189,29 +2208,13 @@ contains
     real(c_float), intent(in) :: rgb(3)
     real(c_float), intent(in), optional :: alpha
 
-    integer :: id
-    logical :: found, changed
     real(c_float) :: alpha_
 
     alpha_ = 1._c_float
     if (present(alpha)) alpha_ = alpha
 
-    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
-    if (id <= 0) return
-
-    associate (sh => s%reptrans(id)%shapes)
-      ! change detection for an existing slot (a new/retagged one is already dirty)
-      if (found) then
-         changed = sh%nshape /= 1
-         if (.not.changed) &
-            changed = any(abs(sh%shape(1)%x1 - x0) > 1d-10) .or. abs(sh%shape(1)%rad - rad) > 1d-10 .or.&
-               any(abs(sh%shape(1)%rgb - rgb) > 1e-5_c_float) .or. abs(sh%shape(1)%alpha - alpha_) > 1e-5_c_float
-         if (.not.changed) return
-         call transient_dirty(s)
-      end if
-      sh%nshape = 1
-      sh%shape = (/rep_shape(kind=shapekind_sphere,x1=x0,rad=rad,rgb=rgb,alpha=alpha_)/)
-    end associate
+    call transient_set_shape(s,owner,tag,&
+       rep_shape(kind=shapekind_sphere,x1=x0,rad=rad,rgb=rgb,alpha=alpha_))
 
   end subroutine scene_show_transient_sphere
 
@@ -2391,6 +2394,42 @@ contains
 
   end function transient_claim
 
+  !> Arm the transient shapes representation identified by (owner,tag)
+  !> and make it hold shp as its only shape. The draw lists are rebuilt
+  !> only if the representation is new or any field of the shape changed.
+  subroutine transient_set_shape(s,owner,tag,shp)
+    use representations, only: reptype_shapes, repflavor_shapes, rep_shape
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    type(rep_shape), intent(in) :: shp
+
+    integer :: id
+    logical :: found, changed
+
+    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
+    if (id <= 0) return
+
+    associate (sh => s%reptrans(id)%shapes)
+      ! change detection for an existing slot (a new/retagged one is already dirty)
+      if (found) then
+         changed = (sh%nshape /= 1)
+         if (.not.changed) &
+            changed = sh%shape(1)%kind /= shp%kind .or.&
+               any(abs(sh%shape(1)%x1 - shp%x1) > 1d-10) .or.&
+               any(abs(sh%shape(1)%v - shp%v) > 1d-10) .or.&
+               abs(sh%shape(1)%rad - shp%rad) > 1d-10 .or.&
+               any(abs(sh%shape(1)%rgb - shp%rgb) > 1e-5_c_float) .or.&
+               abs(sh%shape(1)%alpha - shp%alpha) > 1e-5_c_float
+         if (.not.changed) return
+         call transient_dirty(s)
+      end if
+      sh%nshape = 1
+      sh%shape = (/shp/)
+    end associate
+
+  end subroutine transient_set_shape
+
   !> Find the transient representation identified by (owner,itag) with
   !> representation type itype and arm it (found=.true.). Otherwise,
   !> retag an unarmed item of the same owner and type if there is one,
@@ -2406,14 +2445,19 @@ contains
     logical, intent(out), optional :: found
     integer :: id
 
-    integer :: i, ifree
+    integer :: i, ifree, ihole
 
     ! single pass: arm and return the item if it exists; otherwise remember
     ! the first retag candidate (an unarmed item of the same owner and type)
+    ! and whether the reaper left a hole we could claim instead
     if (present(found)) found = .false.
     ifree = 0
+    ihole = 0
     do i = 1, s%nreptrans
-       if (.not.s%reptrans(i)%isinit) cycle
+       if (.not.s%reptrans(i)%isinit) then
+          if (ihole == 0) ihole = i
+          cycle
+       end if
        if (s%reptrans(i)%owner /= owner .or. s%reptrans(i)%type /= itype) cycle
        if (s%reptrans(i)%itag == itag) then
           s%reptrans(i)%armed = .true.
@@ -2424,7 +2468,10 @@ contains
        if (ifree == 0 .and. .not.s%reptrans(i)%armed) ifree = i
     end do
 
-    if (ifree > 0) then
+    ! a hole costs nothing, so prefer it: retagging discards the contents of a
+    ! live item, and a window that alternates two tags would evict one of them
+    ! on every frame the other appears
+    if (ifree > 0 .and. ihole == 0) then
        ! retag the candidate
        s%reptrans(ifree)%itag = itag
        s%reptrans(ifree)%armed = .true.

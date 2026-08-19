@@ -360,12 +360,14 @@ module representations
 
   ! shape kinds for the shapes representation
   integer, parameter, public :: shapekind_sphere = 1
+  integer, parameter, public :: shapekind_box = 2
 
   !> A geometric shape in a shapes representation
   type rep_shape
      integer :: kind = shapekind_sphere ! shape kind (shapekind_*)
      real*8 :: x1(3) = 0d0 ! center/anchor (cartesian, bohr; molecules: absolute frame)
-     real*8 :: rad = 1d0 ! radius (bohr)
+     real*8 :: v(3,3) = 0d0 ! box: the three edge vectors from x1 (cartesian, bohr)
+     real*8 :: rad = 1d0 ! sphere: radius; box: thickness of the edges (bohr)
      real(c_float) :: rgb(3) = 0._c_float ! color
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
   end type rep_shape

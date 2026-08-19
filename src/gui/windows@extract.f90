@@ -18,6 +18,7 @@
 ! Routines for the extract cluster as molecule window.
 submodule (windows) extract
   use interfaces_cimgui
+  use param, only: bohrtoa
   implicit none
 
   ! region shapes
@@ -49,6 +50,11 @@ submodule (windows) extract
   real(c_float) :: lastnmer_dist(nmer_max) = 1e6_c_float
   logical :: lastcloseafter = .true.
 
+  ! region preview: color, opacity of the sphere, and thickness of the box edges
+  real(c_float), parameter :: region_rgb(3) = (/0.35_c_float,0.75_c_float,1.0_c_float/)
+  real(c_float), parameter :: region_alpha = 0.12_c_float
+  real*8, parameter :: region_edgerad = 0.06d0 / bohrtoa
+
   ! transient center marker: color, opacity, and radius limits (bohr)
   real(c_float), parameter :: center_rgb(3) = (/1.0_c_float,0.6_c_float,0.1_c_float/)
   real(c_float), parameter :: center_alpha = 0.6_c_float
@@ -68,7 +74,8 @@ contains
        iw_radiobutton, iw_dragfloat_realc, iw_intstepper, iw_combo_simple,&
        iw_table_column, iw_close_event, iw_setpos_bottomright
     use tools_io, only: string, uout
-    use param, only: bohrtoa, pi
+    use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
+    use param, only: pi, eye
     class(window), intent(inout), target :: w
 
     character(len=*,kind=c_char), parameter :: ttnx = &
@@ -77,11 +84,12 @@ contains
     logical :: doquit, syschanged, ismol, molmotifok, environok, severalok, okpick, hovered
     integer :: i, isys, iview, nmol, ipad
     integer(c_int) :: inc, emode, tflags
-    real*8 :: rad, x0(3), xlo(3), xhi(3)
+    real*8 :: rad, x0(3), xlo(3), xhi(3), vbox(3,3)
     real(c_float) :: dmax
     type(ImVec2) :: sz0
     character(len=:,kind=c_char), allocatable, target :: str1
     logical(c_bool) :: ldum
+    logical :: ok
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
@@ -151,6 +159,7 @@ contains
     if (w%firstpass .or. syschanged) then
        w%extract_center = merge(0._c_float,0.5_c_float,ismol)
        w%errmsg = ""
+       w%okmsg = ""
        w%extract_atdens = 0._c_float
        if (.not.doquit) then
           if (ismol) then
@@ -209,12 +218,6 @@ contains
        call iw_tooltip("Extract the molecules in the region as separate monomers, dimers, etc.",ttshown)
     end if
 
-    ! close after extracting
-    ldum = iw_checkbox("Close after extracting##extractcloseafter",w%extract_closeafter)
-    call iw_tooltip("If checked, extracting closes this window and selects the new&
-       & system in the view. Otherwise, the window stays open and the view does not&
-       & change",ttshown)
-
     ! region radio buttons
     call iw_text("Region",highlight=.true.)
     ldum = iw_radiobutton("Sphere##extractregion",int=w%extract_region,intval=er_sphere)
@@ -258,10 +261,35 @@ contains
        ! scaled to the scene so it is visible
        if ((hovered .or. w%extract_picking) .and. .not.doquit) then
           if (sysc(isys)%sc%isinit /= 0) then
-             x0 = sys(isys)%c%x2c(center_to_frac())
-             if (ismol) x0 = x0 + sys(isys)%c%molx0
              rad = min(max(0.05d0 * real(sysc(isys)%sc%scenerad,8),center_radmin),center_radmax)
-             call sysc(isys)%sc%show_transient_sphere(w%id,1,x0,rad,center_rgb,center_alpha)
+             call sysc(isys)%sc%show_transient_sphere(w%id,1,center_to_cart(),rad,center_rgb,center_alpha)
+          end if
+       end if
+    end if
+
+    ! show the chosen region in the view for as long as the window is open:
+    ! a translucent sphere, or the wireframe of the cube or cell block
+    if (.not.doquit) then
+       if (sysc(isys)%sc%isinit /= 0) then
+          if (w%extract_region == er_sphere) then
+             call sysc(isys)%sc%show_transient_sphere(w%id,2,center_to_cart(),&
+                real(w%extract_rsph,8)/bohrtoa,region_rgb,region_alpha)
+          else
+             if (w%extract_region == er_cube) then
+                ! axis-aligned box of side 2*half-edge, centered on the region center
+                rad = real(w%extract_rcub,8) / bohrtoa
+                vbox = 2d0 * rad * eye
+                x0 = center_to_cart() - rad
+             else
+                ! the cell block, anchored at the origin of the main cell; the
+                ! columns of m_x2c are the lattice vectors in cartesian
+                do i = 1, 3
+                   vbox(:,i) = sys(isys)%c%m_x2c(:,i) * int(w%extract_nx(i))
+                end do
+                x0 = 0d0
+                if (ismol) x0 = sys(isys)%c%molx0
+             end if
+             call sysc(isys)%sc%show_transient_box(w%id,2,x0,vbox,region_edgerad,region_rgb)
           end if
        end if
     end if
@@ -290,6 +318,16 @@ contains
           maxval=50_c_int,ndigit=ipad,notlive=.true.,sameline=.true.,tooltip=ttnx)
        ldum = iw_intstepper("caxis##extractnx",w%extract_nx(3),label="c:",minval=1_c_int,&
           maxval=50_c_int,ndigit=ipad,notlive=.true.,sameline=.true.,tooltip=ttnx)
+       ! a whole number of cells has an exact atom count, but only for a plain
+       ! atom cut with no border shell: the border and both molecular rules
+       ! bring in atoms from outside the chosen cells
+       if (.not.doquit) then
+          if (ei_effective() == ei_atoms .and. .not.w%extract_border) then
+             call show_atom_estimate(nexact=sys(isys)%c%ncel * product(int(w%extract_nx)))
+          else
+             call show_atom_estimate(region_volume())
+          end if
+       end if
        ! the border only adds atoms to an atom cut
        if (ei_effective() /= ei_environ) then
           ldum = iw_checkbox("Include border atoms##extractborder",w%extract_border)
@@ -344,7 +382,7 @@ contains
           call iw_table_column("Write",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Distances",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Cutoff (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Number ('any' filter)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Number",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call igTableHeadersRow()
           do i = 1, int(w%extract_nmer)
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -394,15 +432,28 @@ contains
        end if
     end if
 
-    ! maybe the error message
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+    ! the outcome of the last extraction
+    if (len_trim(w%errmsg) > 0) then
+       call iw_text(w%errmsg,danger=.true.)
+    elseif (len_trim(w%okmsg) > 0) then
+       call iw_text(w%okmsg,highlight=.true.)
+    end if
 
     ! right-align and bottom-align for the rest of the contents
-    call iw_setpos_bottomright(12,2)
+    call iw_setpos_bottomright(34,3)
+
+    ! close after extracting, next to the button it applies to
+    ldum = iw_checkbox("Close after extracting##extractcloseafter",w%extract_closeafter)
+    call iw_tooltip("If checked, extracting closes this window and selects the new&
+       & system in the view. Otherwise, the window stays open and the view does not&
+       & change",ttshown)
 
     ! final buttons: Extract
-    if (iw_button("Extract",disabled=doquit)) then
+    ok = iw_button("Extract",disabled=doquit,sameline=.true.)
+    ok = ok .or. (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG) .and. .not.doquit)
+    if (ok) then
        w%errmsg = ""
+       w%okmsg = ""
        if (em_effective() == em_several) then
           call extract_nmers()
        else
@@ -434,8 +485,9 @@ contains
     ! final buttons: close
     if (iw_button("Close",sameline=.true.)) doquit = .true.
 
-    ! exit if focused and received the close keybinding
-    if (iw_close_event(w%focused())) doquit = .true.
+    ! exit if focused and received the close keybinding (the OK binding is
+    ! handled above by the Extract button, and closes only if requested)
+    if (iw_close_event(w%focused(),okcloses=.false.)) doquit = .true.
 
     ! quit = close the window
     if (doquit) call w%end()
@@ -450,6 +502,14 @@ contains
       if (ismol) x = sys(isys)%c%c2x(x / bohrtoa - sys(isys)%c%molx0)
     end function center_to_frac
 
+    ! The region center in the absolute Cartesian frame (bohr), which is
+    ! the frame the scene's transient shapes are drawn in
+    function center_to_cart() result(x)
+      real*8 :: x(3)
+      x = sys(isys)%c%x2c(center_to_frac())
+      if (ismol) x = x + sys(isys)%c%molx0
+    end function center_to_cart
+
     subroutine center_from_frac(x)
       real*8, intent(in) :: x(3)
       if (ismol) then
@@ -459,18 +519,21 @@ contains
       end if
     end subroutine center_from_frac
 
-    ! The include rule actually in force. A rule this system does not
-    ! admit falls back to the next one down, but the stored choice is
-    ! kept (the molecular motif may come back on the next rebond)
-    ! Write, next to the region size, a rough estimate of the number of
-    ! atoms in a region of volume vol (bohr^3), from the atom number
-    ! density of the system. A molecule has no periodic images, so the
-    ! cut cannot contain more atoms than the system itself
-    subroutine show_atom_estimate(vol)
-      real*8, intent(in) :: vol
+    ! Write, next to the region size, the number of atoms the region
+    ! contains: nexact if it is known exactly, otherwise a rough estimate
+    ! from the atom number density of the system and the region volume vol
+    ! (bohr^3). A molecule has no periodic images, so the cut cannot
+    ! contain more atoms than the system itself
+    subroutine show_atom_estimate(vol,nexact)
+      real*8, intent(in), optional :: vol
+      integer, intent(in), optional :: nexact
 
       integer :: nest
 
+      if (present(nexact)) then
+         call iw_text("(" // string(nexact) // " atoms)",sameline=.true.)
+         return
+      end if
       if (w%extract_atdens <= 0._c_float) return
       nest = nint(vol * real(w%extract_atdens,8))
       if (ismol) nest = min(nest,sys(isys)%c%ncel)
@@ -535,6 +598,7 @@ contains
          call launch_initialization_thread()
          write (uout,'("Extracted cluster (",A," atoms) from system ",A,": ",A)') &
             string(fr%nat), string(isys), trim(sysc(isys)%seed%name)
+         w%okmsg = "Extracted one system with " // string(fr%nat) // " atoms"
       end if
 
     end subroutine extract_one
@@ -673,9 +737,11 @@ contains
       call launch_initialization_thread()
       write (uout,'("Extracted ",A," n-mers from system ",A,": ",A)') &
          string(ntotal), string(isys), trim(sysc(isys)%seed%name)
+      w%okmsg = "Extracted " // string(ntotal) // " systems:"
       do k = 1, int(w%extract_nmer)
-         if (icnt(k) > 0) &
-            write (uout,'("  ",A,": ",A)') nmer_name(k) // "s", string(icnt(k))
+         if (icnt(k) == 0) cycle
+         w%okmsg = w%okmsg // " " // string(icnt(k)) // " " // nmer_name(k) // "s"
+         write (uout,'("  ",A,": ",A)') nmer_name(k) // "s", string(icnt(k))
       end do
       write (uout,*)
 
@@ -765,9 +831,6 @@ contains
 
     end function nmer_estimate
 
-    ! The largest distance between two points of the chosen region
-    ! (bohr): the largest center-of-mass distance a k-mer drawn from it
-    ! can possibly have
     ! Volume of the chosen region (bohr^3)
     function region_volume() result(v)
       real*8 :: v
@@ -788,6 +851,9 @@ contains
 
     end function region_volume
 
+    ! The largest distance between two points of the chosen region
+    ! (bohr): the largest center-of-mass distance a k-mer drawn from it
+    ! can possibly have
     function region_diameter() result(d)
       real*8 :: d
 

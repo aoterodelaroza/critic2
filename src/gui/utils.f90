@@ -204,8 +204,9 @@ module utils
        integer(c_int), intent(in), optional :: flags
        logical :: iw_begintabitem
      end function iw_begintabitem
-     module function iw_close_event(focused)
+     module function iw_close_event(focused,okcloses)
        logical, intent(in) :: focused
+       logical, intent(in), optional :: okcloses
        logical :: iw_close_event
      end function iw_close_event
      module function iw_calcheight(npadline,nline,endpad)

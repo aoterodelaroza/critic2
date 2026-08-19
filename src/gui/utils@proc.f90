@@ -876,14 +876,22 @@ contains
 
   !> Whether the keybinding to close a dialog fired this frame: the OK or close
   !> binding while the dialog is focused (pass w%focused() in focused), or the
-  !> close-all binding regardless of focus.
-  module function iw_close_event(focused)
+  !> close-all binding regardless of focus. If okcloses is false, the OK binding
+  !> is not a close event; use it in dialogs whose OK action does not always
+  !> close the window, and that handle the OK binding themselves.
+  module function iw_close_event(focused,okcloses)
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
     logical, intent(in) :: focused
+    logical, intent(in), optional :: okcloses
     logical :: iw_close_event
 
-    iw_close_event = (focused .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
+    logical :: okcloses_
+
+    okcloses_ = .true.
+    if (present(okcloses)) okcloses_ = okcloses
+
+    iw_close_event = (focused .and. ((okcloses_ .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) .or.&
        is_bind_event(BIND_CLOSE_FOCUSED_DIALOG))) .or. is_bind_event(BIND_CLOSE_ALL_DIALOGS)
 
   end function iw_close_event

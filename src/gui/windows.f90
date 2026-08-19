@@ -156,6 +156,7 @@ module windows
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
+     character(kind=c_char,len=:), allocatable :: okmsg ! result of the last successful action
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates

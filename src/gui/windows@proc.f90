@@ -530,6 +530,7 @@ contains
     w%id = -id
     w%name = "" // c_null_char
     w%errmsg = ""
+    w%okmsg = ""
     w%isys = 1
     w%sortcid = 0
     w%sortdir = 1

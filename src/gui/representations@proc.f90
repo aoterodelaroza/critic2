@@ -1420,8 +1420,16 @@ contains
             uoriginc = sh%x1
             if (c%ismolecule) uoriginc = uoriginc - c%molx0
 
-            ! sphere is the only shape kind so far; unknown kinds are skipped
-            if (sh%kind == shapekind_sphere) then
+            ! unknown kinds are skipped
+            if (sh%kind == shapekind_box) then
+               ! the twelve edges of the parallelepiped spanned by sh%v
+               do j = 1, 12
+                  dcyl = dl_cylinder(x1=real(uoriginc + matmul(sh%v,real(uc(:,1,j),8)),c_float),&
+                     x2=real(uoriginc + matmul(sh%v,real(uc(:,2,j),8)),c_float),&
+                     r=real(sh%rad,c_float),rgb=sh%rgb)
+                  call dl_append(obj%cylflat,obj%ncylflat,dcyl)
+               end do
+            elseif (sh%kind == shapekind_sphere) then
                dsph = dl_sphere(x=real(uoriginc,c_float),r=real(sh%rad,c_float),rgb=sh%rgb,&
                   idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
                   rgbborder=0._c_float,alpha=sh%alpha)
