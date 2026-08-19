@@ -49,10 +49,6 @@ submodule (windows) extract
   real(c_float) :: lastnmer_dist(nmer_max) = 1e6_c_float
   logical :: lastcloseafter = .true.
 
-  ! limits on the n-mer construction
-  real*8, parameter :: nmer_maxcomb = 5d6
-  integer, parameter :: nmer_maxsys = 2000
-
   ! transient center marker: color, opacity, and radius limits (bohr)
   real(c_float), parameter :: center_rgb(3) = (/1.0_c_float,0.6_c_float,0.1_c_float/)
   real(c_float), parameter :: center_alpha = 0.6_c_float
@@ -200,6 +196,20 @@ contains
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
     end if
 
+    ! how many molecules come out of the region: the region as a single
+    ! molecule, or the n-mers it contains
+    if (severalok) then
+       emode = em_effective()
+       call iw_text("Extract",highlight=.true.)
+       if (iw_radiobutton("Single molecule##extractmode",int=emode,intval=em_one)) &
+          w%extract_mode = emode
+       call iw_tooltip("Extract the region as a single molecular system",ttshown)
+       if (iw_radiobutton("Monomers, dimers, etc.##extractmode",int=emode,intval=em_several,&
+          sameline=.true.)) w%extract_mode = emode
+       call iw_tooltip("Extract the molecules in the region as separate systems, one per&
+          & n-mer (NMER option to WRITE)",ttshown)
+    end if
+
     ! close after extracting
     ldum = iw_checkbox("Close after extracting##extractcloseafter",w%extract_closeafter)
     call iw_tooltip("If checked, extracting closes this window and selects the new&
@@ -207,9 +217,8 @@ contains
        & change",ttshown)
 
     ! region radio buttons
-    call iw_text("Region",highlight=.true.,alignframe=.true.)
-    ldum = iw_radiobutton("Sphere##extractregion",int=w%extract_region,intval=er_sphere,&
-       sameline=.true.)
+    call iw_text("Region",highlight=.true.)
+    ldum = iw_radiobutton("Sphere##extractregion",int=w%extract_region,intval=er_sphere)
     call iw_tooltip("Cut all atoms in a sphere around the center",ttshown)
     ldum = iw_radiobutton("Cube##extractregion",int=w%extract_region,intval=er_cube,&
        sameline=.true.)
@@ -264,15 +273,13 @@ contains
        ldum = iw_dragfloat_realc("(Å)##extractrsph",x1=w%extract_rsph,speed=0.1_c_float,&
           min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Radius of the sphere",ttshown)
-       rad = real(w%extract_rsph,8) / bohrtoa
-       call show_atom_estimate(4d0*pi/3d0 * rad**3)
+       call show_atom_estimate(region_volume())
     elseif (w%extract_region == er_cube) then
        call iw_text("Half-edge",alignframe=.true.)
        ldum = iw_dragfloat_realc("(Å)##extractrcub",x1=w%extract_rcub,speed=0.1_c_float,&
           min=0.1_c_float,max=500._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Half the edge length of the cube",ttshown)
-       rad = real(w%extract_rcub,8) / bohrtoa
-       call show_atom_estimate(8d0 * rad**3)
+       call show_atom_estimate(region_volume())
     elseif (w%extract_region == er_cells) then
        ! same form as the periodicity widget in the representation editor
        ! (all three fields share a digit width, and clamp themselves)
@@ -292,25 +299,13 @@ contains
        end if
     end if
 
-    ! how many molecules come out of the region
-    if (severalok) then
-       emode = em_effective()
-       call iw_text("Extract",highlight=.true.,alignframe=.true.)
-       if (iw_radiobutton("One molecule##extractmode",int=emode,intval=em_one,&
-          sameline=.true.)) w%extract_mode = emode
-       call iw_tooltip("Extract the region as a single molecular system",ttshown)
-       if (iw_radiobutton("Monomers, dimers, etc.##extractmode",int=emode,intval=em_several,&
-          sameline=.true.)) w%extract_mode = emode
-       call iw_tooltip("Extract the molecules in the region as monomers, dimers, etc.",ttshown)
-    end if
-
     ! what is taken from the region? Only the rules this system admits
     ! are offered, and if that leaves the atoms rule alone the one-entry
     ! group would read as broken, so it goes away. The buttons run on the
     ! rule in force, and only a click writes the choice back
     if (molmotifok .and. em_effective() == em_one) then
        inc = ei_effective()
-       call iw_text("Include",highlight=.true.,alignframe=.true.)
+       call iw_text("Include",highlight=.true.)
        if (iw_radiobutton("Atoms in the region##extractinclude",int=inc,&
           intval=ei_atoms)) w%extract_include = inc
        call iw_tooltip("Extract only atoms inside the region. Molecules crossing the boundary&
@@ -329,8 +324,9 @@ contains
 
     ! n-mer options: the highest order, then one row per order with
     ! whether it is generated, how the center-of-mass distance filter is
-    ! applied, and the cut-off itself (capped by the size of the region)
+    ! applied, and the cutoff itself (capped by the size of the region)
     if (em_effective() == em_several) then
+       call iw_text("Include",highlight=.true.)
        call iw_text("Up to n =",alignframe=.true.)
        ldum = iw_intstepper("nmer##extractnmer",w%extract_nmer,minval=1_c_int,&
           maxval=int(nmer_max,c_int),notlive=.true.,sameline=.true.,&
@@ -345,11 +341,12 @@ contains
        str1 = "##extractnmertable" // c_null_char
        sz0%x = 0._c_float
        sz0%y = 0._c_float
-       if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) then
+       if (igBeginTable(c_loc(str1),5,tflags,sz0,0._c_float)) then
           call iw_table_column("Nmer",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Write",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Distances",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Cut-off (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Cutoff (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Number (any cutoff)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call igTableHeadersRow()
           do i = 1, int(w%extract_nmer)
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -368,7 +365,7 @@ contains
                       "any" // c_null_char,w%extract_nmer_any(i))
                    call igPopItemWidth()
                    call iw_tooltip("all: keep the " // trim(nmer_name(i)) // " only if every pair of&
-                      & molecules is within the cut-off. any: keep it if at least one pair is",ttshown)
+                      & molecules is within the cutoff. any: keep it if at least one pair is",ttshown)
                 end if
              end if
              if (igTableSetColumnIndex(3_c_int)) then
@@ -382,6 +379,16 @@ contains
                       decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
                    call iw_tooltip("Maximum distance between the centers of mass of two molecules&
                       & in the " // trim(nmer_name(i)) // "; at most the size of the region",ttshown)
+                end if
+             end if
+             if (igTableSetColumnIndex(4_c_int)) then
+                if (w%extract_nmer_do(i)) then
+                   call iw_text("~" // string(nmer_estimate(i)))
+                   call iw_tooltip("Rough estimate of how many " // trim(nmer_name(i)) // "s&
+                      & this will make, from the density of molecules in the system. The&
+                      & 'all' filter gives fewer than this",ttshown)
+                else
+                   call iw_text("--",disabled=.true.)
                 end if
              end if
           end do
@@ -591,10 +598,6 @@ contains
          if (.not.w%extract_nmer_do(k) .or. k > npool) cycle
          ntot = ntot + binomial(npool,k)
       end do
-      if (ntot > nmer_maxcomb) then
-         w%errmsg = "Too many molecule combinations to examine; reduce the order or the region"
-         return
-      end if
 
       ! walk the combinations, keeping the ones anchored on the main cell
       ! that pass the distance filter. The first pass only counts, so that a
@@ -631,12 +634,6 @@ contains
                nseed = nseed + 1
                if (ipass == 1) then
                   ntotal = ntotal + 1
-                  if (ntotal > nmer_maxsys) then
-                     w%errmsg = "More than " // string(nmer_maxsys) // " n-mers; reduce the&
-                        & order, the region, or the distance cut-off"
-                     deallocate(icomb)
-                     return
-                  end if
                   cycle
                end if
 
@@ -688,7 +685,7 @@ contains
 
     ! Whether the k-mer made of the pool molecules ic(1:k), with centers
     ! of mass com, passes the distance filter of order k: either every
-    ! pair of molecules is within the cut-off, or at least one pair is
+    ! pair of molecules is within the cutoff, or at least one pair is
     function distok(k,ic,com) result(ok)
       integer, intent(in) :: k, ic(k)
       real*8, intent(in) :: com(:,:)
@@ -729,14 +726,70 @@ contains
       c = 1d0
       do i = 1, k
          c = c * real(n-k+i,8) / real(i,8)
-         if (c > 2d0*nmer_maxcomb) exit
       end do
 
     end function binomial
 
+    ! Rough number of n-mers of order k the current settings would make (any cutoff).
+    function nmer_estimate(k) result(nest)
+      integer, intent(in) :: k
+      integer :: nest
+
+      real*8 :: moldens, npool, nmain, nnear, c
+      integer :: i
+
+      nest = 0
+      if (doquit .or. w%extract_atdens <= 0._c_float) return
+      if (sys(isys)%c%ncel == 0 .or. sys(isys)%c%nmol == 0) return
+
+      ! molecules per bohr^3, and how many of them the region holds
+      moldens = real(w%extract_atdens,8) * sys(isys)%c%nmol / sys(isys)%c%ncel
+      npool = region_volume() * moldens
+      nmain = min(real(sys(isys)%c%nmoldiscrete,8),npool)
+      if (nmain < 1d0) return
+      if (k == 1) then
+         nest = nint(nmain)
+         return
+      end if
+
+      ! partners of an anchor: those within the cutoff, at most the pool
+      nnear = 4d0*pi/3d0 * (real(w%extract_nmer_dist(k),8) / bohrtoa)**3 * moldens
+      nnear = min(nnear,npool) - 1d0
+      if (nnear < real(k-1,8)) return
+
+      ! nmain anchors times the ways of choosing k-1 partners
+      c = 1d0
+      do i = 1, k-1
+         c = c * (nnear - real(k-1-i,8)) / real(i,8)
+         if (c > 1d9) exit
+      end do
+      nest = nint(min(nmain * c,1d9))
+
+    end function nmer_estimate
+
     ! The largest distance between two points of the chosen region
     ! (bohr): the largest center-of-mass distance a k-mer drawn from it
     ! can possibly have
+    ! Volume of the chosen region (bohr^3)
+    function region_volume() result(v)
+      real*8 :: v
+
+      real*8 :: rad0
+
+      v = 0d0
+      if (doquit) return
+      if (w%extract_region == er_sphere) then
+         rad0 = real(w%extract_rsph,8) / bohrtoa
+         v = 4d0*pi/3d0 * rad0**3
+      elseif (w%extract_region == er_cube) then
+         rad0 = real(w%extract_rcub,8) / bohrtoa
+         v = 8d0 * rad0**3
+      else
+         v = sys(isys)%c%omega * product(real(int(w%extract_nx),8))
+      end if
+
+    end function region_volume
+
     function region_diameter() result(d)
       real*8 :: d
 

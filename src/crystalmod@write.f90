@@ -42,6 +42,12 @@ contains
        nm = "pentamer"
     case (6)
        nm = "hexamer"
+    case (7)
+       nm = "heptamer"
+    case (8)
+       nm = "octaamer"
+    case (9)
+       nm = "nonamer"
     case default
        nm = string(isize) // "-mer"
     end select

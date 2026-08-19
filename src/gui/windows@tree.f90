@@ -494,12 +494,19 @@ contains
                 hadenabledcolumn = .false.
 
                 ! close button
-                if (sysc(i)%status == sys_init) then
+                if (sysc(i)%status == sys_init .or. sysc(i)%status == sys_group) then
                    if (igTableSetColumnIndex(ic_tree_closebutton)) then
                       str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i)
                       if (iw_close_button(str)) forceremove = (/i/)
-                      if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-                         tooltipstr = "Close this system"
+                      if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+                         if (sysc(i)%status /= sys_group) then
+                            tooltipstr = "Close this system"
+                         elseif (sysc(i)%collapse == -1) then
+                            tooltipstr = "Close this group and all the systems in it"
+                         else
+                            tooltipstr = "Close this group, keeping its systems"
+                         end if
+                      end if
                    end if
                 end if
 

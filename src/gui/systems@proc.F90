@@ -558,7 +558,7 @@ contains
     integer, intent(in) :: idx
     logical, intent(in), optional :: kill_dependents_if_extended
 
-    integer :: i, imaster
+    integer :: i, imaster, icol
     logical :: kdie
 
     kdie = .false.
@@ -570,6 +570,7 @@ contains
     if (sysc(idx)%status == sys_group) then
        ! free the slot first, so that the last member removed does not come
        ! back here to clean up a header that is already going away
+       icol = sysc(idx)%collapse
        call sysc(idx)%seed%end()
        sysc(idx)%status = sys_empty
        sysc(idx)%collapse = 0
@@ -578,9 +579,16 @@ contains
        sysc(idx)%renamed = .false.
        if (allocated(sysc(idx)%group_label)) deallocate(sysc(idx)%group_label)
        if (allocated(sysc(idx)%group_parent)) deallocate(sysc(idx)%group_parent)
+
+       ! as for a collapsed calculation: a closed group takes its members
+       ! with it, an open one only stops being a group
        do i = 1, nsys
-          if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
+          if (sysc(i)%status == sys_empty .or. sysc(i)%collapse /= idx) cycle
+          if (icol == -1 .or. kdie) then
              call remove_system(i)
+          else
+             sysc(i)%collapse = 0
+          end if
        end do
        return
     end if
