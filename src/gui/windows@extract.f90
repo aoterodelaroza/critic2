@@ -45,6 +45,10 @@ submodule (windows) extract
   integer(c_int) :: lastinclude = ei_atoms
   logical :: lastcloseafter = .true.
 
+  ! limits on the n-mer construction
+  real*8, parameter :: nmer_maxcomb = 5d6
+  integer, parameter :: nmer_maxsys = 2000
+
   ! transient center marker: color, opacity, and radius limits (bohr)
   real(c_float), parameter :: center_rgb(3) = (/1.0_c_float,0.6_c_float,0.1_c_float/)
   real(c_float), parameter :: center_alpha = 0.6_c_float
@@ -382,70 +386,15 @@ contains
     call iw_setpos_bottomright(12,2)
 
     ! final buttons: Extract
-    if (iw_button("Extract",disabled=(doquit .or. em_effective() == em_several))) then
+    if (iw_button("Extract",disabled=doquit)) then
        w%errmsg = ""
-       inc = ei_effective()
-
-       ! center of the region in crystallographic coordinates (same
-       ! conversion as the WRITE keyword)
-       x0 = center_to_frac()
-
-       ! build the fragment for the selected region (radii in bohr); the
-       ! center-of-mass rule picks whole molecules by itself, replacing
-       ! the atom cut
-       if (w%extract_region == er_sphere) then
-          rad = real(w%extract_rsph,8) / bohrtoa
-          if (inc == ei_environ) then
-             fr = sys(isys)%c%listatoms_molcenter(rsph=rad,xsph=x0)
-          else
-             fr = sys(isys)%c%listatoms_sphcub(rsph=rad,xsph=x0)
-          end if
-       elseif (w%extract_region == er_cube) then
-          rad = real(w%extract_rcub,8) / bohrtoa
-          if (inc == ei_environ) then
-             fr = sys(isys)%c%listatoms_molcenter(rcub=rad,xcub=x0)
-          else
-             fr = sys(isys)%c%listatoms_sphcub(rcub=rad,xcub=x0)
-          end if
+       if (em_effective() == em_several) then
+          call extract_nmers()
        else
-          if (inc == ei_environ) then
-             fr = sys(isys)%c%listatoms_molcenter(nx=int(w%extract_nx))
-          else
-             fr = sys(isys)%c%listatoms_cells(int(w%extract_nx),w%extract_border)
-          end if
+          call extract_one()
        end if
 
-       if (fr%nat == 0) then
-          w%errmsg = "No atoms in the region"
-       else
-          ! complete the molecules cut by the region boundary. A component
-          ! that extends indefinitely (a framework) cannot be completed
-          ! with a finite number of atoms, so it is left as it was cut:
-          ! merge only the discrete ones, on top of the atoms already in
-          ! the fragment (merge_array discards repeats)
-          if (inc == ei_molmotif) then
-             call sys(isys)%c%listmolecules(fr,nmol,fr0,isdiscrete)
-             if (any(isdiscrete(1:nmol))) &
-                call fr%merge_array(pack(fr0(1:nmol),isdiscrete(1:nmol)),.true.)
-          end if
-
-          ! for molecules, shift back to the user (absolute) Cartesian frame
-          if (ismol) then
-             do i = 1, fr%nat
-                fr%at(i)%r = fr%at(i)%r + sys(isys)%c%molx0
-             end do
-          end if
-
-          ! build the seed and add the new system; select it in the
-          ! view only if the window closes after extracting
-          allocate(seed(1))
-          call seed(1)%from_fragment(fr)
-          seed(1)%name = trim(sysc(isys)%seed%name) // " (cluster)"
-          call add_systems_from_seeds(1,seed,noselect=.not.w%extract_closeafter)
-          call launch_initialization_thread()
-          write (uout,'("Extracted cluster (",A," atoms) from system ",A,": ",A)') &
-             string(fr%nat), string(isys), trim(sysc(isys)%seed%name)
-
+       if (len_trim(w%errmsg) == 0) then
           ! remember the settings
           lastregion = w%extract_region
           lastrsph = w%extract_rsph
@@ -460,7 +409,8 @@ contains
           if (w%extract_closeafter) doquit = .true.
        end if
     end if
-    call iw_tooltip("Cut the region from the system and add it as a new molecular system",ttshown)
+    call iw_tooltip("Cut the region from the system and add its monomers, dimers,...&
+       & to the tree as new systems",ttshown)
 
     ! final buttons: close
     if (iw_button("Close",sameline=.true.)) doquit = .true.
@@ -508,6 +458,249 @@ contains
       call iw_text("(~" // string(nest) // " atoms)",sameline=.true.)
 
     end subroutine show_atom_estimate
+
+    ! Extract the region as a single molecular system.
+    subroutine extract_one()
+
+      inc = ei_effective()
+
+      ! center of the region in crystallographic coordinates
+      x0 = center_to_frac()
+
+      ! build the fragment for the selected region
+      if (w%extract_region == er_sphere) then
+         rad = real(w%extract_rsph,8) / bohrtoa
+         if (inc == ei_environ) then
+            fr = sys(isys)%c%listatoms_molcenter(rsph=rad,xsph=x0)
+         else
+            fr = sys(isys)%c%listatoms_sphcub(rsph=rad,xsph=x0)
+         end if
+      elseif (w%extract_region == er_cube) then
+         rad = real(w%extract_rcub,8) / bohrtoa
+         if (inc == ei_environ) then
+            fr = sys(isys)%c%listatoms_molcenter(rcub=rad,xcub=x0)
+         else
+            fr = sys(isys)%c%listatoms_sphcub(rcub=rad,xcub=x0)
+         end if
+      else
+         if (inc == ei_environ) then
+            fr = sys(isys)%c%listatoms_molcenter(nx=int(w%extract_nx))
+         else
+            fr = sys(isys)%c%listatoms_cells(int(w%extract_nx),w%extract_border)
+         end if
+      end if
+
+      if (fr%nat == 0) then
+         w%errmsg = "No atoms in the region"
+      else
+         ! complete the molecules cut by the region boundaryj
+         if (inc == ei_molmotif) then
+            call sys(isys)%c%listmolecules(fr,nmol,fr0,isdiscrete)
+            if (any(isdiscrete(1:nmol))) &
+               call fr%merge_array(pack(fr0(1:nmol),isdiscrete(1:nmol)),.true.)
+         end if
+
+         ! for molecules, shift back to the user (absolute) Cartesian frame
+         if (ismol) then
+            do i = 1, fr%nat
+               fr%at(i)%r = fr%at(i)%r + sys(isys)%c%molx0
+            end do
+         end if
+
+         ! build the seed and add the new system; select it in the
+         ! view only if the window closes after extracting
+         allocate(seed(1))
+         call seed(1)%from_fragment(fr)
+         seed(1)%name = trim(sysc(isys)%seed%name) // " (cluster)"
+         call add_systems_from_seeds(1,seed,noselect=.not.w%extract_closeafter)
+         call launch_initialization_thread()
+         write (uout,'("Extracted cluster (",A," atoms) from system ",A,": ",A)') &
+            string(fr%nat), string(isys), trim(sysc(isys)%seed%name)
+      end if
+
+    end subroutine extract_one
+
+    ! Extract the k-mers (k up to extract_nmer) that can be made from
+    ! the molecules whose center of mass is inside the region, subject
+    ! to the per-order center-of-mass distance filter. Every k-mer
+    ! contains at least one main-cell molecule and is built with it
+    ! first, so k-mers related to each other by a lattice translation
+    ! are generated once.
+    subroutine extract_nmers()
+      use crystalseedmod, only: realloc_crystalseed
+      use tools_math, only: nchoosek, comb
+
+      integer :: k, l, j, npool, nseed, imain, ncomb, icnt(nmer_max)
+      integer :: idmol, iat, lvec(3)
+      integer, allocatable :: icomb(:)
+      logical, allocatable :: ismain(:)
+      real*8, allocatable :: com(:,:)
+      type(fragment), allocatable :: frpool(:)
+      type(fragment) :: frk, frdum
+      real*8 :: ntot
+
+      ! the pool: the molecules with their center of mass in the region
+      x0 = center_to_frac()
+      if (w%extract_region == er_sphere) then
+         rad = real(w%extract_rsph,8) / bohrtoa
+         frdum = sys(isys)%c%listatoms_molcenter(rsph=rad,xsph=x0,fr0=frpool)
+      elseif (w%extract_region == er_cube) then
+         rad = real(w%extract_rcub,8) / bohrtoa
+         frdum = sys(isys)%c%listatoms_molcenter(rcub=rad,xcub=x0,fr0=frpool)
+      else
+         frdum = sys(isys)%c%listatoms_molcenter(nx=int(w%extract_nx),fr0=frpool)
+      end if
+      npool = 0
+      if (allocated(frpool)) npool = size(frpool,1)
+      if (npool == 0) then
+         w%errmsg = "No molecule has its center of mass in the region"
+         return
+      end if
+
+      ! which of them come from the main cell, and where their centers are
+      allocate(ismain(npool),com(3,npool))
+      do j = 1, npool
+         idmol = sys(isys)%c%idatcelmol(1,frpool(j)%at(1)%cidx)
+         iat = sys(isys)%c%idatcelmol(2,frpool(j)%at(1)%cidx)
+         lvec = nint(frpool(j)%at(1)%x - sys(isys)%c%mol(idmol)%at(iat)%x)
+         ismain(j) = all(lvec == 0)
+         com(:,j) = frpool(j)%cmass()
+      end do
+      if (.not.any(ismain)) then
+         w%errmsg = "No main-cell molecule has its center of mass in the region"
+         return
+      end if
+
+      ! give up before enumerating if there are too many combinations to walk
+      ntot = 0d0
+      do k = 1, int(w%extract_nmer)
+         if (.not.w%extract_nmer_do(k) .or. k > npool) cycle
+         ntot = ntot + binomial(npool,k)
+      end do
+      if (ntot > nmer_maxcomb) then
+         w%errmsg = "Too many molecule combinations to examine; reduce the order or the region"
+         return
+      end if
+
+      ! walk the combinations, keeping the ones anchored on the main cell
+      ! that pass the distance filter
+      nseed = 0
+      icnt = 0
+      allocate(seed(100))
+      do k = 1, int(w%extract_nmer)
+         if (.not.w%extract_nmer_do(k) .or. k > npool) cycle
+         ncomb = nchoosek(npool,k)
+         allocate(icomb(k))
+         do l = 1, ncomb
+            call comb(npool,k,l,icomb)
+
+            ! anchor the k-mer on the first main-cell molecule it contains
+            imain = 0
+            do j = 1, k
+               if (ismain(icomb(j))) then
+                  imain = j
+                  exit
+               end if
+            end do
+            if (imain == 0) cycle
+            if (k > 1) then
+               if (.not.distok(k,icomb,com)) cycle
+            end if
+
+            ! build the k-mer with the main-cell molecule first
+            frk = frpool(icomb(imain))
+            do j = 1, k
+               if (j == imain) cycle
+               call frk%append(frpool(icomb(j)))
+            end do
+            if (ismol) then
+               do j = 1, frk%nat
+                  frk%at(j)%r = frk%at(j)%r + sys(isys)%c%molx0
+               end do
+            end if
+
+            nseed = nseed + 1
+            if (nseed > nmer_maxsys) then
+               w%errmsg = "More than " // string(nmer_maxsys) // " n-mers; reduce the order,&
+                  & the region, or the distance cut-off"
+               deallocate(icomb)
+               return
+            end if
+            if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
+            icnt(k) = icnt(k) + 1
+            call seed(nseed)%from_fragment(frk)
+            seed(nseed)%name = trim(sysc(isys)%seed%name) // " (" // nmer_name(k) // " " //&
+               string(icnt(k)) // ")"
+         end do
+         deallocate(icomb)
+      end do
+
+      if (nseed == 0) then
+         w%errmsg = "No n-mer passes the distance filter"
+         return
+      end if
+
+      ! add them to the tree as a single collapsed group
+      call realloc_crystalseed(seed,nseed)
+      call add_systems_from_seeds(nseed,seed,collapse=.true.,noselect=.not.w%extract_closeafter)
+      call launch_initialization_thread()
+      write (uout,'("Extracted ",A," n-mers from system ",A,": ",A)') &
+         string(nseed), string(isys), trim(sysc(isys)%seed%name)
+      do k = 1, int(w%extract_nmer)
+         if (icnt(k) > 0) &
+            write (uout,'("  ",A,": ",A)') nmer_name(k) // "s", string(icnt(k))
+      end do
+      write (uout,*)
+
+    end subroutine extract_nmers
+
+    ! Whether the k-mer made of the pool molecules ic(1:k), with centers
+    ! of mass com, passes the distance filter of order k: either every
+    ! pair of molecules is within the cut-off, or at least one pair is
+    function distok(k,ic,com) result(ok)
+      integer, intent(in) :: k, ic(k)
+      real*8, intent(in) :: com(:,:)
+      logical :: ok
+
+      integer :: a, b
+      real*8 :: dcut, d
+      logical :: needall
+
+      dcut = real(w%extract_nmer_dist(k),8) / bohrtoa
+      needall = (w%extract_nmer_any(k) == 0)
+      ok = needall
+      do a = 1, k-1
+         do b = a+1, k
+            d = norm2(com(:,ic(a)) - com(:,ic(b)))
+            if (needall) then
+               if (d > dcut) then
+                  ok = .false.
+                  return
+               end if
+            elseif (d <= dcut) then
+               ok = .true.
+               return
+            end if
+         end do
+      end do
+
+    end function distok
+
+    ! The binomial coefficient in floating point, to size up the
+    ! enumeration without overflowing an integer
+    function binomial(n,k) result(c)
+      integer, intent(in) :: n, k
+      real*8 :: c
+
+      integer :: i
+
+      c = 1d0
+      do i = 1, k
+         c = c * real(n-k+i,8) / real(i,8)
+         if (c > 2d0*nmer_maxcomb) exit
+      end do
+
+    end function binomial
 
     ! The largest distance between two points of the chosen region
     ! (bohr): the largest center-of-mass distance a k-mer drawn from it
