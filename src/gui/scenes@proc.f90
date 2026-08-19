@@ -722,6 +722,19 @@ contains
        end if
     end if
 
+    ! translucent spheres: keep the depth test but disable the depth
+    ! writes, so that the bonds and atoms behind them still show
+    ! through.
+    if (s%gl%nsphtr_inst > 0) then
+       call setup_shader(shader_sphere)
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call glDepthMask(int(GL_FALSE,c_signed_char))
+       call s%gl%draw_spheres(s%gl%nsphtr_inst,s%gl%packsphtr,.true.)
+       call glDepthMask(int(GL_TRUE,c_signed_char))
+       call glDisable(GL_BLEND)
+    end if
+
     ! this scene's cached instance buffers are now current
     s%gl%inst_valid = .true.
 
@@ -801,21 +814,41 @@ contains
 
     ! draw all spheres in the scene
     subroutine draw_all_spheres()
-      integer :: i, n
+      integer :: i, n, ntr
       real(c_float), parameter :: zr(4) = 0._c_float
 
-      call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
+      ! translucent spheres are split off into their own list: they are drawn
+      ! after the opaque geometry and with the depth writes off, so that what
+      ! is behind them (bonds, atoms, labels) is not culled away. Count them
+      ! first: most scenes have none, and the second list then costs nothing
+      ntr = 0
+      do i = 1, s%obj%nsph
+         if (s%obj%sph(i)%ghost) cycle
+         if (s%obj%sph(i)%alpha < 1._c_float) ntr = ntr + 1
+      end do
+      call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph-ntr)
+      if (ntr > 0) call ensure_pack(s%gl%packsphtr,sph_inst_nf,ntr)
       n = 0
+      ntr = 0
       do i = 1, s%obj%nsph
          if (s%obj%sph(i)%ghost) cycle ! invisible pick-only target, not drawn
-         n = n + 1
-         call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
-            (/s%obj%sph(i)%rgb,s%obj%sph(i)%alpha/),s%obj%sph(i)%border,&
-            s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr,s%obj%sph(i)%occ,&
-            s%obj%sph(i)%occ_empty_rgb,s%obj%sph(i)%pie_cum,s%obj%sph(i)%pie_rgb)
+         if (s%obj%sph(i)%alpha < 1._c_float) then
+            ntr = ntr + 1
+            call sphere_pack(s%gl%packsphtr(:,ntr),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+               (/s%obj%sph(i)%rgb,s%obj%sph(i)%alpha/),s%obj%sph(i)%border,&
+               s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr,s%obj%sph(i)%occ,&
+               s%obj%sph(i)%occ_empty_rgb,s%obj%sph(i)%pie_cum,s%obj%sph(i)%pie_rgb)
+         else
+            n = n + 1
+            call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+               (/s%obj%sph(i)%rgb,s%obj%sph(i)%alpha/),s%obj%sph(i)%border,&
+               s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr,s%obj%sph(i)%occ,&
+               s%obj%sph(i)%occ_empty_rgb,s%obj%sph(i)%pie_cum,s%obj%sph(i)%pie_rgb)
+         end if
       end do
       call s%gl%draw_spheres(n,s%gl%packsph,.false.)
       s%gl%nsph_inst = n
+      s%gl%nsphtr_inst = ntr
 
     end subroutine draw_all_spheres
 
@@ -2175,12 +2208,13 @@ contains
 
   end subroutine scene_show_transient_axes
 
-  !> Show a transient wireframe box: the parallelepiped with one corner at
-  !> the Cartesian (bohr) point x0, given in the absolute frame, spanned by
-  !> the three edge vectors v(:,1..3). rad is the thickness of the edges,
-  !> which are always opaque (they are drawn as flat cylinders, and those
-  !> are packed with alpha = 1). Identified by (owner,tag).
-  module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb)
+  !> Show a transient box: the parallelepiped with one corner at the
+  !> Cartesian (bohr) point x0, given in the absolute frame, spanned by the
+  !> three edge vectors v(:,1..3). rad is the thickness of the edges, which
+  !> are always opaque (they are drawn as flat cylinders, and those are
+  !> packed with alpha = 1). alpha is the opacity of the six faces; omit it
+  !> (or pass 0) for a bare wireframe. Identified by (owner,tag).
+  module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb,alpha)
     use representations, only: rep_shape, shapekind_box
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
@@ -2189,8 +2223,15 @@ contains
     real*8, intent(in) :: v(3,3)
     real*8, intent(in) :: rad
     real(c_float), intent(in) :: rgb(3)
+    real(c_float), intent(in), optional :: alpha
 
-    call transient_set_shape(s,owner,tag,rep_shape(kind=shapekind_box,x1=x0,v=v,rad=rad,rgb=rgb))
+    real(c_float) :: alpha_
+
+    alpha_ = 0._c_float
+    if (present(alpha)) alpha_ = alpha
+
+    call transient_set_shape(s,owner,tag,&
+       rep_shape(kind=shapekind_box,x1=x0,v=v,rad=rad,rgb=rgb,alpha=alpha_))
 
   end subroutine scene_show_transient_box
 

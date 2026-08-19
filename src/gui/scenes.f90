@@ -235,7 +235,7 @@ module scenes
        real*8, intent(in) :: rot(3,3)
        real*8, intent(in) :: axlen
      end subroutine scene_show_transient_axes
-     module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb)
+     module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb,alpha)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner
        integer, intent(in) :: tag
@@ -243,6 +243,7 @@ module scenes
        real*8, intent(in) :: v(3,3)
        real*8, intent(in) :: rad
        real(c_float), intent(in) :: rgb(3)
+       real(c_float), intent(in), optional :: alpha
      end subroutine scene_show_transient_box
      module subroutine scene_show_transient_sphere(s,owner,tag,x0,rad,rgb,alpha)
        class(scene), intent(inout), target :: s

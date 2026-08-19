@@ -289,7 +289,7 @@ contains
                 x0 = 0d0
                 if (ismol) x0 = sys(isys)%c%molx0
              end if
-             call sysc(isys)%sc%show_transient_box(w%id,2,x0,vbox,region_edgerad,region_rgb)
+             call sysc(isys)%sc%show_transient_box(w%id,2,x0,vbox,region_edgerad,region_rgb,region_alpha)
           end if
        end if
     end if
@@ -382,7 +382,7 @@ contains
           call iw_table_column("Write",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Distances",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Cutoff (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Number",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Number ('any')",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call igTableHeadersRow()
           do i = 1, int(w%extract_nmer)
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -420,9 +420,6 @@ contains
              if (igTableSetColumnIndex(4_c_int)) then
                 if (w%extract_nmer_do(i)) then
                    call iw_text("~" // string(nmer_estimate(i)))
-                   call iw_tooltip("Rough estimate of how many " // trim(nmer_name(i)) // "s&
-                      & this operation will make. The&
-                      & 'all' filter gives fewer than this value",ttshown)
                 else
                    call iw_text("--",disabled=.true.)
                 end if
@@ -440,7 +437,7 @@ contains
     end if
 
     ! right-align and bottom-align for the rest of the contents
-    call iw_setpos_bottomright(34,3)
+    call iw_setpos_bottomright(34,2,ncheck=1)
 
     ! close after extracting, next to the button it applies to
     ldum = iw_checkbox("Close after extracting##extractcloseafter",w%extract_closeafter)

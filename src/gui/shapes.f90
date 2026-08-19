@@ -248,7 +248,8 @@ module shapes
      integer :: sphscr_cap = 0, cylscr_cap = 0, conescr_cap = 0
      ! persistent CPU pack scratch (grow-only, see ensure_pack): instance data
      ! is packed here before upload, avoiding per-frame allocations
-     real(c_float), allocatable :: packsph(:,:)  ! sphere instances (also selections/highlights/pick)
+     real(c_float), allocatable :: packsph(:,:)  ! opaque sphere instances (also selections/highlights/pick)
+     real(c_float), allocatable :: packsphtr(:,:) ! translucent sphere instances (drawn last, no depth write)
      real(c_float), allocatable :: packcyl(:,:)  ! cylinder instances
      real(c_float), allocatable :: packmesh(:,:) ! mesh instances (cones, then planes, then triangles)
      ! per-scene on-scene-text buffer: the glyph vertices of the scene labels
@@ -269,7 +270,8 @@ module shapes
      real(c_float) :: text_fontsize = -1._c_float ! baked font size at the last text rebuild
      ! cached-buffer validity and instance counts
      logical :: inst_valid = .false. ! true if the cached instance buffers are current
-     integer :: nsph_inst = 0   ! number of cached atom-sphere instances
+     integer :: nsph_inst = 0   ! number of cached opaque atom-sphere instances
+     integer :: nsphtr_inst = 0 ! number of cached translucent atom-sphere instances
      integer :: ncyl_inst = 0   ! number of cached bond/cell-cylinder instances
      integer :: ncone_inst = 0  ! number of cached cone instances
      integer :: nplane_inst = 0 ! number of cached plane instances

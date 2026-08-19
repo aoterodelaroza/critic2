@@ -759,26 +759,30 @@ contains
   !> and nbutton buttons (as in iw_calcwidth). Used for the final button row of
   !> a dialog, which sits in the bottom-right corner regardless of how much
   !> content is above it. If centered, the row is centered horizontally instead.
-  module subroutine iw_setpos_bottomright(ntext,nbutton,centered)
+  module subroutine iw_setpos_bottomright(ntext,nbutton,ncheck,centered)
     use interfaces_cimgui
     use gui_main, only: g
     integer, intent(in) :: ntext
     integer, intent(in) :: nbutton
+    integer, intent(in), optional :: ncheck
     logical, intent(in), optional :: centered
 
     logical :: centered_
+    integer :: ncheck_
     type(ImVec2) :: szavail
 
     centered_ = .false.
     if (present(centered)) centered_ = centered
+    ncheck_ = 0
+    if (present(ncheck)) ncheck_ = ncheck
 
     call igGetContentRegionAvail(szavail)
 
     ! horizontal: right-aligned (leaving room for the scrollbar) or centered
     if (centered_) then
-       call igSetCursorPosX(0.5_c_float * (igGetWindowWidth() - iw_calcwidth(ntext,nbutton)))
+       call igSetCursorPosX(0.5_c_float * (igGetWindowWidth() - iw_calcwidth(ntext,nbutton,ncheck_)))
     else
-       call igSetCursorPosX(iw_calcwidth(ntext,nbutton,from_end=.true.) - g%Style%ScrollbarSize)
+       call igSetCursorPosX(iw_calcwidth(ntext,nbutton,ncheck_,from_end=.true.) - g%Style%ScrollbarSize)
     end if
 
     ! vertical: skip the remaining space, if there is room for one more line
@@ -919,7 +923,9 @@ contains
 
   end function iw_calcheight
 
-  !> Calculate the width of ntext characters and nbutton buttons.
+  !> Calculate the width of ntext characters, nbutton buttons, and ncheck
+  !> checkboxes (a checkbox is a tick box one frame high plus the gap to its
+  !> label, so it is wider than a button with the same label).
   !>
   !> SomeText    |  Button1  |    |  Button2  |  ||--end of window
   !>             ^--^     ^--^    ^--^     ^--^    <-- FramePadding.x
@@ -929,16 +935,21 @@ contains
   !> If from_end, return the position to place the cursor at the
   !> calculated distance from the end of the window, or the current
   !> position if it is negative.
-  module function iw_calcwidth(ntext,nbutton,from_end)
+  module function iw_calcwidth(ntext,nbutton,ncheck,from_end)
     use interfaces_cimgui
     use gui_main, only: g
     integer, intent(in) :: ntext
     integer, intent(in) :: nbutton
+    integer, intent(in), optional :: ncheck
     logical, intent(in), optional :: from_end
     real(c_float) :: iw_calcwidth
 
     type(ImVec2) :: sz
     character(len=:,kind=c_char), allocatable, target :: strc
+    integer :: ncheck_, nitem
+
+    ncheck_ = 0
+    if (present(ncheck)) ncheck_ = ncheck
 
     ! text size
     allocate(character(len=ntext+1,kind=c_char) :: strc)
@@ -946,12 +957,18 @@ contains
     strc(ntext+1:ntext+1) = c_null_char
     call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
-    ! calculate width
+    ! calculate width: the text, plus the frame padding of each button, plus
+    ! the tick box and label gap of each checkbox, plus the spacing between
+    ! consecutive items
     iw_calcwidth = sz%x
-    if (nbutton > 0) then
-       iw_calcwidth = iw_calcwidth + nbutton * (2 * g%Style%FramePadding%x) + &
-          (nbutton - 1) * g%Style%ItemSpacing%x
-    end if
+    nitem = nbutton + ncheck_
+    if (nbutton > 0) &
+       iw_calcwidth = iw_calcwidth + nbutton * (2 * g%Style%FramePadding%x)
+    if (ncheck_ > 0) &
+       iw_calcwidth = iw_calcwidth + ncheck_ * (igGetTextLineHeight() + &
+          2 * g%Style%FramePadding%y + g%Style%ItemInnerSpacing%x)
+    if (nitem > 0) &
+       iw_calcwidth = iw_calcwidth + (nitem - 1) * g%Style%ItemSpacing%x
     if (present(from_end)) then
        if (from_end) then
           iw_calcwidth = igGetWindowWidth() - g%style%WindowPadding%x - iw_calcwidth

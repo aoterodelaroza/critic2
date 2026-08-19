@@ -180,9 +180,10 @@ module utils
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
      end subroutine iw_setposx_fromend
-     module subroutine iw_setpos_bottomright(ntext,nbutton,centered)
+     module subroutine iw_setpos_bottomright(ntext,nbutton,ncheck,centered)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
+       integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: centered
      end subroutine iw_setpos_bottomright
      module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
@@ -215,9 +216,10 @@ module utils
        logical, intent(in), optional :: endpad
        real(c_float) :: iw_calcheight
      end function iw_calcheight
-     module function iw_calcwidth(ntext,nbutton,from_end)
+     module function iw_calcwidth(ntext,nbutton,ncheck,from_end)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
+       integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: from_end
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth

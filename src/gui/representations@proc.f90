@@ -646,6 +646,7 @@ contains
     type(dl_sphere) :: dsph
     type(dl_cylinder) :: dcyl
     type(dl_cylinder_over) :: dcylover
+    type(dl_plane) :: dplane
     type(dl_string) :: dstr
     type(dl_string_over) :: dstrover
     logical :: fixed
@@ -654,7 +655,7 @@ contains
     complex*16, allocatable :: dvpoly(:,:)
     integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
-    integer :: natp, idpoly, kp
+    integer :: natp, idpoly, kp, ka, kb
     logical :: dopoly, corneractive
     integer, allocatable :: cornlist(:,:)
     integer :: ncorn, ica, idc, imolc, ip, ixp(3), nbstate, ihb
@@ -1429,6 +1430,21 @@ contains
                      r=real(sh%rad,c_float),rgb=sh%rgb)
                   call dl_append(obj%cylflat,obj%ncylflat,dcyl)
                end do
+               ! the six faces, if they were asked for: the face perpendicular
+               ! to edge k is spanned by the other two edges, and there is one
+               ! at each end of edge k
+               if (sh%alpha > 0._c_float) then
+                  do j = 1, 3
+                     ka = modulo(j,3) + 1
+                     kb = modulo(j+1,3) + 1
+                     dplane = dl_plane(x=real(uoriginc + 0.5d0*(sh%v(:,ka) + sh%v(:,kb)),c_float),&
+                        e1=real(0.5d0*sh%v(:,ka),c_float),e2=real(0.5d0*sh%v(:,kb),c_float),&
+                        rgb=sh%rgb,alpha=sh%alpha)
+                     call dl_append(obj%plane,obj%nplane,dplane)
+                     dplane%x = dplane%x + real(sh%v(:,j),c_float)
+                     call dl_append(obj%plane,obj%nplane,dplane)
+                  end do
+               end if
             elseif (sh%kind == shapekind_sphere) then
                dsph = dl_sphere(x=real(uoriginc,c_float),r=real(sh%rad,c_float),rgb=sh%rgb,&
                   idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&

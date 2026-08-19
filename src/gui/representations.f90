@@ -369,7 +369,7 @@ module representations
      real*8 :: v(3,3) = 0d0 ! box: the three edge vectors from x1 (cartesian, bohr)
      real*8 :: rad = 1d0 ! sphere: radius; box: thickness of the edges (bohr)
      real(c_float) :: rgb(3) = 0._c_float ! color
-     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+     real(c_float) :: alpha = 1._c_float ! sphere: opacity (1 = opaque); box: opacity of the faces (0 = wireframe only)
   end type rep_shape
   public :: rep_shape
 
