@@ -87,7 +87,7 @@ contains
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
        icon_ui_tools, icon_ui_newview
     use crystalmod, only: iperiod_vacthr
-    use systems, only: sysc, sys, sys_init, nsys, ok_system
+    use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master
     use gui_main, only: g, io, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
     use tools_io, only: string
@@ -364,10 +364,10 @@ contains
 
              if (iw_radiobutton("SCF Only##camlock",int=lockbehavior,intval=1_c_int,sameline=.true.)) then
                 do k = 1, nsys
-                   if (sysc(k)%collapse < 0) then
-                      sysc(k)%sc%lockedcam = k
-                   elseif (sysc(k)%collapse > 0) then
-                      sysc(k)%sc%lockedcam = sysc(k)%collapse
+                   ! only the steps of one calculation share a camera; a group
+                   ! of unrelated systems does not
+                   if (group_is_scf(k)) then
+                      sysc(k)%sc%lockedcam = group_master(k)
                    else
                       sysc(k)%sc%lockedcam = 0
                    end if

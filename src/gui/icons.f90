@@ -64,7 +64,9 @@ module icons
   integer, parameter, public :: icon_ui_editgeom = 34 ! edit distance/angle/dihedral (angle between two bonds)
   integer, parameter, public :: icon_ui_symmetry = 35 ! refine symmetry (motifs across a mirror plane)
   integer, parameter, public :: icon_ui_relax = 36    ! relax the geometry (atom in an energy well)
-  integer, parameter, public :: icon_NUM = 36
+  ! icon IDs: system tree
+  integer, parameter, public :: icon_ui_group = 37    ! a group of systems (folder holding molecules)
+  integer, parameter, public :: icon_NUM = 37
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

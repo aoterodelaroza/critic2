@@ -23,6 +23,31 @@ submodule (crystalmod) write
 
 contains
 
+  !> Name of an n-mer of order isize ("dimer", "trimer", ...).
+  module function nmer_name(isize) result(nm)
+    use tools_io, only: string
+    integer, intent(in) :: isize
+    character(len=:), allocatable :: nm
+
+    select case (isize)
+    case (1)
+       nm = "monomer"
+    case (2)
+       nm = "dimer"
+    case (3)
+       nm = "trimer"
+    case (4)
+       nm = "tetramer"
+    case (5)
+       nm = "pentamer"
+    case (6)
+       nm = "hexamer"
+    case default
+       nm = string(isize) // "-mer"
+    end select
+
+  end function nmer_name
+
   !> Write information about the crystal structure to the output. lcrys =
   !> information about the structure. lq = list of atomic species.
   module subroutine struct_report(c,lcrys,lq)
@@ -1269,8 +1294,10 @@ contains
                 file0 = froot // string(icount) // "." // fmt
                 call dowrite(file0,fr0(j),ti=ti)
              end do
-          elseif (i == nmer) then
-             ! n-mers
+          else
+             ! n-mers of order i: the first monomer is always one from the
+             ! main cell, so that n-mers related to each other by a lattice
+             ! translation are written once
              ncomb = nchoosek(nmol,i-1)
              allocate(icomb(i-1),allcon(i,max(c%nmol*ncomb,1)))
              icount = 0
@@ -1288,23 +1315,6 @@ contains
                    file0 = froot // string(icount) // "." // fmt
                    call dowrite(file0,fr,ti=ti)
                 end do
-             end do
-             deallocate(icomb)
-          else
-             ! everything in between
-             ncomb = nchoosek(nmol,i)
-             allocate(icomb(i),allcon(i,max(ncomb,1)))
-             icount = 0
-             do j = 1, ncomb
-                call comb(nmol,i,j,icomb)
-                icount = icount + 1
-                allcon(1:i,icount) = icomb(1:i)
-                call fr%init()
-                do k = 1, i
-                   call fr%append(fr0(icomb(k)))
-                end do
-                file0 = froot // string(icount) // "." // fmt
-                call dowrite(file0,fr,ti=ti)
              end do
              deallocate(icomb)
           end if
@@ -1339,24 +1349,6 @@ contains
     end subroutine dowrite
 
     !> Singular name of an n-mer of size isize (monomer, dimer, ...).
-    function nmer_name(isize) result(nm)
-      integer, intent(in) :: isize
-      character(len=:), allocatable :: nm
-
-      select case (isize)
-      case (1)
-         nm = "monomer"
-      case (2)
-         nm = "dimer"
-      case (3)
-         nm = "trimer"
-      case (4)
-         nm = "tetramer"
-      case default
-         nm = string(isize) // "-mer"
-      end select
-    end function nmer_name
-
     !> Write the identity table for the n-mers of size isize. con(1:isize,n)
     !> are the constituent monomers (fragment indices) of the n-th n-mer, and
     !> ntot is the number of n-mers. Each row gives the n-mer label and, for

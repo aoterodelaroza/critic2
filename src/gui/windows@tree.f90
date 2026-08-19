@@ -27,6 +27,8 @@ submodule (windows) tree
   real(c_float), parameter :: rgba_reference(4) = (/0.890_c_float,0.706_c_float,0.129_c_float,1._c_float/)
   ! color for the tree expand/collapse control-button icon
   real(c_float), parameter :: rgba_expand(4) = (/0.72_c_float,0.72_c_float,0.78_c_float,1.00_c_float/)
+  ! group headers, which are not systems and are not waiting to initialize
+  real(c_float), parameter :: rgba_group(4) = (/0.95_c_float,0.80_c_float,0.25_c_float,1.00_c_float/)
 
   !xx! private procedures
   ! function tree_system_tooltip(i)
@@ -43,13 +45,13 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext, iw_text,&
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
        iw_close_button, iw_table_column, iw_beginmenu
-    use systems, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
+    use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
     use gui_main, only: ColorTableCellBg, tooltip_delay,&
        ColorFieldSelected, g, fontsize
-    use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX,&
+    use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
        icon_ui_expand, icon_ui_collapse
     use fieldmod, only: type_grid
@@ -75,6 +77,7 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, ok, found, reinit
+    integer :: ndrawn ! icons already drawn in the current cell
     logical :: export
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
@@ -227,6 +230,17 @@ contains
     if (allocated(forceremove)) then
        reinit = any((sysc(forceremove)%status == sys_loaded_not_init.and..not.sysc(forceremove)%hidden).or.&
           sysc(forceremove)%status == sys_initializing)
+       ! closing a group header takes its members with it, so they decide
+       ! whether the initialization thread has to stand down as well
+       if (.not.reinit) then
+          do k = 1, size(forceremove,1)
+             if (sysc(forceremove(k))%status /= sys_group) cycle
+             reinit = any((sysc(1:nsys)%collapse == forceremove(k)) .and. &
+                (sysc(1:nsys)%status == sys_loaded_not_init .or. &
+                sysc(1:nsys)%status == sys_initializing))
+             if (reinit) exit
+          end do
+       end if
        if (reinit) call kill_initialization_thread()
        call remove_systems(forceremove)
        if (reinit) call launch_initialization_thread()
@@ -290,10 +304,20 @@ contains
           end do
        end if
        if (ithis > 0) then
-          if (ithis > 1) &
-             iprev = ishown(ithis - 1)
-          if (ithis < nshown_after_filter) &
-             inext = ishown(ithis + 1)
+          ! neighbors for keyboard navigation: a group header is not a system
+          ! to select, so stepping through the list passes over it
+          do j = ithis-1, 1, -1
+             if (sysc(ishown(j))%status /= sys_group) then
+                iprev = ishown(j)
+                exit
+             end if
+          end do
+          do j = ithis+1, nshown_after_filter
+             if (sysc(ishown(j))%status /= sys_group) then
+                inext = ishown(j)
+                exit
+             end if
+          end do
        end if
     end if
 
@@ -490,14 +514,7 @@ contains
                          itex = icon_tex(icon_ui_collapse)
                          ch = "▼"
                       end if
-                      if (iw_icon_button(str,itex,rgba_expand,ch)) then
-                         ! expand or collapse
-                         if (sysc(i)%collapse == -1) then
-                            call expand_system(i)
-                         else
-                            call collapse_system(i)
-                         end if
-                      end if
+                      if (iw_icon_button(str,itex,rgba_expand,ch)) call toggle_group(i)
                       if (igIsItemHovered(ImGuiHoveredFlags_None)) &
                          tooltipstr = "Expand this system"
                    end if
@@ -520,18 +537,16 @@ contains
                 ! format column
                 if (igTableSetColumnIndex(ic_tree_format)) then
                    call write_maybe_selectable(i,tooltipstr)
-                   ifmt = sysc(i)%seed%isformat
-                   if (ifmt < 0 .or. ifmt > icon_fmt_MAX) ifmt = 0
-                   if (icon_tex_fmt(ifmt) /= 0) then
-                      sz%x = fontsize%y
-                      sz%y = fontsize%y
-                      tintcol = ImVec4(rgba_icon_fmt(1,ifmt),rgba_icon_fmt(2,ifmt),&
-                         rgba_icon_fmt(3,ifmt),rgba_icon_fmt(4,ifmt))
-                      call igImage(int(icon_tex_fmt(ifmt),c_intptr_t),sz,uv0,uv1,tintcol,nobord)
-                      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-                         str = "Format: " // format_name(ifmt) // c_null_char
-                         call igSetTooltip(c_loc(str))
-                      end if
+                   ndrawn = 0
+                   if (sysc(i)%status == sys_group) then
+                      ! a group header has no format: it gets its own icon
+                      call draw_icon_cell(.true.,icon_tex(icon_ui_group),rgba_group,&
+                         "A group of systems",ndrawn)
+                   else
+                      ifmt = sysc(i)%seed%isformat
+                      if (ifmt < 0 .or. ifmt > icon_fmt_MAX) ifmt = 0
+                      call draw_icon_cell(.true.,icon_tex_fmt(ifmt),rgba_icon_fmt(:,ifmt),&
+                         "Format: " // format_name(ifmt),ndrawn)
                    end if
                 end if
 
@@ -581,7 +596,8 @@ contains
                    str = ch // "##" // string(ic_tree_name) // "," // string(i) // c_null_char
                    sz%x = iw_calcwidth(1,1)
                    sz%y = iw_calcheight(1,0)
-                   if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
+                   if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None) .and.&
+                      sysc(i)%status /= sys_group) sysc(i)%showfields = .not.sysc(i)%showfields
 
                    ! the actual name
                    str = ""
@@ -595,7 +611,13 @@ contains
                       str = "├[" // string(sysc(i)%collapse) // "]─"
                    end if
                    str = str // trim(sysc(i)%seed%name)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
+                   if (sysc(i)%status == sys_group) then
+                      ! a group header is not pending initialization: colored
+                      ! instead of grayed out, so it does not read as inactive
+                      call iw_text(str,rgba=rgba_group,sameline_nospace=.true.,copy_to_output=export)
+                   else
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
+                   end if
                 end if
 
                 ! energy
@@ -797,7 +819,8 @@ contains
     end function cell_or_mol
 
     subroutine write_maybe_selectable(isys,tooltipstr)
-      use systems, only: are_threads_running, duplicate_system, reread_system_from_file
+      use systems, only: are_threads_running, duplicate_system, reread_system_from_file,&
+         sys_group, group_is_scf, group_master
       use keybindings, only: BIND_GEOMETRY
       use utils, only: iw_text, iw_inputtext, iw_beginmenu
       use global, only: iunit, iunit_bohr, iunit_ang
@@ -811,7 +834,7 @@ contains
       integer(c_int) :: flags, isyscollapse, idum
       logical(c_bool) :: selected
       logical :: enabled, enabled_no_threads
-      logical :: ok
+      logical :: ok, okmouse
       character(kind=c_char,len=:), allocatable, target :: strl
 
       if (hadenabledcolumn) return
@@ -825,15 +848,26 @@ contains
       selected = (w%isys==isys)
       strl = "##selectable" // string(isys) // c_null_char
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
+      okmouse = ok
       ok = ok .or. (forceselect == isys)
       if (ok) then
-         call w%select_system_tree(isys)
-         if (forceselect > 0) then
+         if (sysc(isys)%status /= sys_group) then
+            call w%select_system_tree(isys)
+            if (forceselect > 0) then
+               forceselect = 0
+               call igSetKeyboardFocusHere(0)
+            end if
+            if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
+               sysc(isys)%showfields = .not.sysc(isys)%showfields
+         elseif (okmouse) then
+            ! a group header is not a system to display: a click on it opens
+            ! or closes the group instead
+            call toggle_group(isys)
+         else
+            ! ... and it is never the current system, so the keyboard moves
+            ! through it instead of stopping on it
             forceselect = 0
-            call igSetKeyboardFocusHere(0)
          end if
-         if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
-            sysc(isys)%showfields = .not.sysc(isys)%showfields
       end if
       call igSameLine(0._c_float,-1._c_float)
       call igSetCursorPosX(pos)
@@ -843,15 +877,13 @@ contains
 
       ! right click to open the context menu
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
-         ! scf energy plot
-         if (sysc(isys)%collapse /= 0) then
+         ! scf energy plot: only for a group of systems that are the steps
+         ! of one calculation, which is headed by the last of those steps.
+         ! A group headed by a header entry has no such sequence
+         isyscollapse = 0
+         if (group_is_scf(isys)) isyscollapse = group_master(isys)
+         if (isyscollapse > 0) then
             if (iw_menuitem("Plot SCF Iterations...",enabled=enabled_no_threads)) then
-               if (sysc(isys)%collapse < 0) then
-                  isyscollapse = isys
-               else
-                  isyscollapse = abs(sysc(isys)%collapse)
-               end if
-
                if (sysc(isyscollapse)%status == sys_init) &
                   iaux = stack_create_window(wintype_scfplot,.true.,isys=isyscollapse,orraise=-1)
             end if
@@ -916,7 +948,7 @@ contains
          end if
 
          ! rename option (system)
-         if (iw_beginmenu("Rename")) then
+         if (iw_beginmenu("Rename",sysc(isys)%status /= sys_group)) then
             if (iw_inputtext("##inputrename",bufsize=mlen-1,textf=sysc(isys)%seed%name,grabfocus=.true.,&
                notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
                sysc(isys)%renamed = .true.
@@ -967,10 +999,15 @@ contains
             call iw_tooltip("Remove all fields in this system",ttshown)
          end if
 
-         ! remove option (system)
-         if (iw_menuitem("Close",enabled=enabled)) &
+         ! remove option (system). A group header can be closed even though
+         ! it is not a system: that closes the systems it heads
+         if (iw_menuitem("Close",enabled=(enabled .or. sysc(isys)%status == sys_group))) &
             forceremove = (/isys/)
-         call iw_tooltip("Close this system",ttshown)
+         if (sysc(isys)%status == sys_group) then
+            call iw_tooltip("Close all the systems in this group",ttshown)
+         else
+            call iw_tooltip("Close this system",ttshown)
+         end if
 
          call igEndPopup()
       end if
@@ -1217,6 +1254,18 @@ contains
 
     end subroutine draw_field_row
 
+    ! open a collapsed group, or close an open one
+    subroutine toggle_group(i)
+      integer, intent(in) :: i
+
+      if (sysc(i)%collapse == -1) then
+         call expand_system(i)
+      elseif (sysc(i)%collapse == -2) then
+         call collapse_system(i)
+      end if
+
+    end subroutine toggle_group
+
     ! un-hide the dependents and set as expanded
     subroutine expand_system(i)
       integer, intent(in) :: i
@@ -1250,7 +1299,7 @@ contains
       sysc(i)%collapse = -1
       ! selected goes to master
       if (w%isys >= 1 .and. w%isys <= nsys) then
-         if (sysc(w%isys)%collapse == i) &
+         if (sysc(w%isys)%collapse == i .and. sysc(i)%status /= sys_group) &
             call w%select_system_tree(i)
       end if
       forceremap = .true.
@@ -1529,7 +1578,7 @@ contains
        iperiod_3d_layered, iperiod_3d_chain, iperiod_3d_molecular,&
        iperiod_2d, iperiod_1d, iperiod_0d, iperiod_mol_single,&
        iperiod_mol_cluster
-    use systems, only: sys, sysc, sys_init, ok_system, sys_empty
+    use systems, only: sys, sysc, sys_init, ok_system, sys_empty, sys_group, group_nmembers
     use gui_main, only: ColorTableCellBg
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
@@ -1537,7 +1586,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str
     real*8, allocatable :: nis(:)
-    integer :: k, iz
+    integer :: k, iz, nsysgroup
     real*8 :: mass, dens
     real(c_float) :: rgba(4)
     real*8 :: nelec
@@ -1546,6 +1595,17 @@ contains
     integer :: izp0
 
     str = ""
+
+    ! a group header is not a system: say what it holds and where it came from
+    if (sysc(i)%status == sys_group) then
+       call igBeginTooltip()
+       call iw_text(trim(sysc(i)%group_label) // " from " // trim(sysc(i)%group_parent),&
+          highlight=.true.)
+       nsysgroup = group_nmembers(i)
+       call iw_text(string(nsysgroup) // " systems in this group")
+       call igEndTooltip()
+       return
+    end if
     if (.not.ok_system(i,sys_empty)) return
 
     ! begin the tooltip

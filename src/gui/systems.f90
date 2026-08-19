@@ -35,6 +35,7 @@ module systems
   type(thread_info), target, allocatable, public :: thread_ti(:)
 
   ! system status (from lower to higher initialization level)
+  integer, parameter, public :: sys_group = -1 ! a collapsed-group header, not a system
   integer, parameter, public :: sys_empty = 0 ! not in use
   integer, parameter, public :: sys_loaded_not_init = 1 ! the seed is available, waiting for initialization
   integer, parameter, public :: sys_initializing = 2 ! the system is initializing
@@ -79,6 +80,8 @@ module systems
      logical :: has_field = .false. ! true if the seed has a field
      logical :: has_vib = .false. ! true if the seed has vibrational data
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
+     character(len=:), allocatable :: group_label ! group header: what it holds, capitalized (e.g. "Dimers")
+     character(len=:), allocatable :: group_parent ! group header: name of the system it was made from
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      ! system name
      character(len=:), allocatable :: fullname ! full-path name
@@ -208,6 +211,11 @@ module systems
   public :: kill_initialization_thread
   public :: are_threads_running
   public :: system_shorten_names
+  public :: is_group_header
+  public :: group_master
+  public :: group_is_scf
+  public :: group_nmembers
+  public :: add_group_master
   public :: add_systems_from_seeds
   public :: add_systems_from_name
   public :: remove_system
@@ -236,8 +244,30 @@ module systems
      ! under a tree parent; iafield/iavib attach a field/vibration file;
      ! forceidx forces the first system ID; idlist returns the assigned
      ! IDs; noselect leaves the tree/view selection unchanged.
+     module function is_group_header(i)
+       integer, intent(in) :: i
+       logical :: is_group_header
+     end function is_group_header
+     module function group_master(i)
+       integer, intent(in) :: i
+       integer :: group_master
+     end function group_master
+     module function group_is_scf(i)
+       integer, intent(in) :: i
+       logical :: group_is_scf
+     end function group_is_scf
+     module function group_nmembers(i)
+       integer, intent(in) :: i
+       integer :: group_nmembers
+     end function group_nmembers
+     module subroutine grow_system_list()
+     end subroutine grow_system_list
+     module subroutine add_group_master(label,parentname,idx)
+       character(len=*), intent(in) :: label, parentname
+       integer, intent(out) :: idx
+     end subroutine add_group_master
      module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist,&
-        noselect)
+        noselect,imaster)
        integer, intent(in) :: nseed
        type(crystalseed), allocatable, intent(in) :: seed(:)
        logical, intent(in), optional :: collapse
@@ -245,6 +275,7 @@ module systems
        integer, intent(in), optional :: forceidx
        integer, allocatable, intent(out), optional :: idlist(:)
        logical, intent(in), optional :: noselect
+       integer, intent(in), optional :: imaster
      end subroutine add_systems_from_seeds
      module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic,&
         forceidx)

@@ -129,6 +129,7 @@ module crystalmod
      procedure :: phonon_rattle => vibrations_phonon_rattle
   end type vibrations
   public :: vibrations
+  public :: nmer_name
 
   ! The molecular point group class.
 
@@ -451,6 +452,10 @@ module crystalmod
      pure module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
+     module function nmer_name(isize) result(nm)
+       integer, intent(in) :: isize
+       character(len=:), allocatable :: nm
+     end function nmer_name
      module function origin_label(c) result(str)
        class(crystal), intent(in) :: c
        character(len=:), allocatable :: str

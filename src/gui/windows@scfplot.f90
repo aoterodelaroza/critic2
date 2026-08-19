@@ -23,7 +23,7 @@ contains
 
   !> Update tasks for the SCF window, before the window is created.
   module subroutine update_scfplot(w)
-    use systems, only: sysc, sys_init, ok_system
+    use systems, only: sysc, sys_init, ok_system, group_nmembers, group_is_scf
     class(window), intent(inout), target :: w
 
     integer :: isys
@@ -38,7 +38,7 @@ contains
 
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
-    use systems, only: nsys, sysc, sys_init, ok_system
+    use systems, only: nsys, sysc, sys_init, ok_system, group_nmembers, group_is_scf
     use utils, only: iw_text, iw_close_event
     use types, only: realloc
     use tools_io, only: string
@@ -57,7 +57,7 @@ contains
 
     isys = w%isys
     doquit = .not.ok_system(isys,sys_init)
-    if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
+    if (.not.doquit) doquit = (sysc(isys)%collapse >= 0) .or. .not.group_is_scf(isys)
     if (w%firstpass) w%plotn = 0
 
     if (.not.doquit) then
@@ -65,7 +65,7 @@ contains
        if (w%firstpass) then
           if (allocated(w%plotx)) deallocate(w%plotx)
           if (allocated(w%ploty)) deallocate(w%ploty)
-          num = count(sysc(1:nsys)%collapse == isys) + 1
+          num = group_nmembers(isys) + 1
           allocate(w%plotx(num),w%ploty(num))
           w%plotn = 0
           do i = 1, nsys

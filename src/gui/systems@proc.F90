@@ -94,7 +94,7 @@ contains
     allocate(plist(nsys))
     np = 0
     do i = 1, nsys
-       if (sysc(i)%status /= sys_empty .and..not.sysc(i)%renamed) then
+       if (sysc(i)%status > sys_empty .and..not.sysc(i)%renamed) then
           np = np + 1
           plist(np) = i
        end if
@@ -166,13 +166,154 @@ contains
     end function laststart
   end subroutine system_shorten_names
 
+  !> .true. if slot i holds a group header: an entry that heads a
+  !> collapsed group of systems but is not a system itself.
+  module function is_group_header(i)
+    integer, intent(in) :: i
+    logical :: is_group_header
+
+    is_group_header = .false.
+    if (i < 1 .or. i > nsys) return
+    is_group_header = (sysc(i)%status == sys_group)
+
+  end function is_group_header
+
+  !> The system that heads the group slot i belongs to, or zero if it
+  !> belongs to no group. A master (real or header) heads itself.
+  module function group_master(i)
+    integer, intent(in) :: i
+    integer :: group_master
+
+    group_master = 0
+    if (i < 1 .or. i > nsys) return
+    if (sysc(i)%status == sys_empty) return
+    if (sysc(i)%collapse < 0) then
+       group_master = i
+    elseif (sysc(i)%collapse > 0) then
+       group_master = sysc(i)%collapse
+    end if
+
+  end function group_master
+
+  !> .true. if slot i belongs to a group of systems that are SCF steps
+  module function group_is_scf(i)
+    integer, intent(in) :: i
+    logical :: group_is_scf
+
+    integer :: im
+
+    im = group_master(i)
+    group_is_scf = .false.
+    if (im > 0) group_is_scf = (sysc(im)%status /= sys_group)
+
+  end function group_is_scf
+
+  !> Number of systems in the group headed by slot i (not counting i
+  !> itself if it is a group header).
+  module function group_nmembers(i)
+    integer, intent(in) :: i
+    integer :: group_nmembers
+
+    group_nmembers = 0
+    if (i < 1 .or. i > nsys) return
+    group_nmembers = count(sysc(1:nsys)%collapse == i .and. sysc(1:nsys)%status /= sys_empty)
+
+  end function group_nmembers
+
+  !> Make room in the system list for at least nsys entries, moving the
+  !> initialization thread out of the way while the arrays are moved.
+  module subroutine grow_system_list()
+    use windows, only: regenerate_window_pointers
+    type(system), allocatable :: syaux(:)
+    type(sysconf), allocatable :: syscaux(:)
+    logical :: isrun
+
+    if (nsys <= size(sys,1)) return
+
+    ! stop the initialization if it's running
+    isrun = are_threads_running()
+    if (isrun) &
+       call kill_initialization_thread()
+
+    allocate(syaux(2*nsys))
+    syaux(1:size(sys,1)) = sys
+    call move_alloc(syaux,sys)
+
+    allocate(syscaux(2*nsys))
+    syscaux(1:size(sysc,1)) = sysc
+    call move_alloc(syscaux,sysc)
+
+    ! refresh system and window pointers
+    call regenerate_system_pointers()
+    call regenerate_window_pointers()
+
+    ! start or restart initializations
+    if (isrun) &
+       call launch_initialization_thread()
+
+  end subroutine grow_system_list
+
+  !> Create a group header: an entry that occupies a slot in the
+  !> system list and heads a collapsed group of systems, but is not a
+  !> system itself. Returns its index in idx.
+  module subroutine add_group_master(label,parentname,idx)
+    use tools_io, only: lower
+    use gui_main, only: reuse_mid_empty_systems
+    character(len=*), intent(in) :: label, parentname
+    integer, intent(out) :: idx
+
+    integer :: i
+
+    ! take a slot the same way add_systems_from_seeds does, so the header
+    ! ends up next to the systems it heads instead of in some earlier hole
+    idx = 0
+    if (reuse_mid_empty_systems) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_empty) then
+             idx = i
+             exit
+          end if
+       end do
+    end if
+    if (idx == 0) then
+       do i = nsys, 1, -1
+          if (sysc(i)%status /= sys_empty) then
+             idx = i
+             exit
+          end if
+       end do
+       idx = idx + 1
+       nsys = max(nsys,idx)
+       if (nsys > size(sys,1)) call grow_system_list()
+    end if
+
+    call sysc(idx)%seed%end()
+    if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
+    if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
+    if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
+    sysc(idx)%id = idx
+    sysc(idx)%seed%name = "(" // lower(label) // ") " // parentname
+    sysc(idx)%group_label = label
+    sysc(idx)%group_parent = parentname
+    sysc(idx)%status = sys_group
+    sysc(idx)%collapse = -1
+    sysc(idx)%hidden = .false.
+    sysc(idx)%showfields = .false.
+    sysc(idx)%renamed = .true.
+    sysc(idx)%idseed = 0
+    sysc(idx)%has_field = .false.
+    sysc(idx)%has_vib = .false.
+    sysc(idx)%fullname = sysc(idx)%seed%name
+
+  end subroutine add_group_master
+
   !> Add systems from the given seeds. If collapse is present and
   !> true, reorder to make the last system be first and collapse the
   !> other seeds in the tree view. If iafield, load a field from that
   !> seed. If iavib, load vibrational data from that seed. If forceidx
   !> is present, force the system to be in the provided index.
   module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist,&
-     noselect)
+     noselect,imaster)
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -191,15 +332,14 @@ contains
     integer, intent(in), optional :: forceidx
     integer, allocatable, intent(out), optional :: idlist(:)
     logical, intent(in), optional :: noselect
+    integer, intent(in), optional :: imaster
 
     logical :: noselect_
     integer :: i, j, nid, idum
     integer :: iafield_, iavib_, forceidx_
     integer :: iseed, iseed_, idx
     character(len=:), allocatable :: errmsg, str
-    type(system), allocatable :: syaux(:)
-    type(sysconf), allocatable :: syscaux(:)
-    logical :: collapse_, isrun, isabspath
+    logical :: collapse_, isabspath
     integer, allocatable :: id(:)
 
     if (nseed == 0) then
@@ -256,28 +396,7 @@ contains
 
     ! increment and reallocate if necessary
     nsys = max(nsys,id(nseed))
-    if (nsys > size(sys,1)) then
-       ! stop the initialization if it's running
-       isrun = are_threads_running()
-       if (isrun) &
-          call kill_initialization_thread()
-
-       allocate(syaux(2*nsys))
-       syaux(1:size(sys,1)) = sys
-       call move_alloc(syaux,sys)
-
-       allocate(syscaux(2*nsys))
-       syscaux(1:size(sysc,1)) = sysc
-       call move_alloc(syscaux,sysc)
-
-       ! refresh system and window pointers
-       call regenerate_system_pointers()
-       call regenerate_window_pointers()
-
-       ! start or restart initializations
-       if (isrun) &
-          call launch_initialization_thread()
-    end if
+    if (nsys > size(sys,1)) call grow_system_list()
 
     do iseed = 1, nseed
        ! re-order if collapse to have the final structure be first, flag them
@@ -317,7 +436,12 @@ contains
 
        ! initialization status
        sysc(idx)%status = sys_loaded_not_init
-       if (collapse_.and.iseed_ == 1) then
+       if (present(imaster)) then
+          ! every system of the batch hangs from the group header, which
+          ! starts collapsed
+          sysc(idx)%collapse = imaster
+          sysc(idx)%hidden = .true.
+       elseif (collapse_.and.iseed_ == 1) then
           ! master
           sysc(idx)%collapse = -1
           sysc(idx)%hidden = .false.
@@ -434,11 +558,33 @@ contains
     integer, intent(in) :: idx
     logical, intent(in), optional :: kill_dependents_if_extended
 
-    integer :: i
+    integer :: i, imaster
     logical :: kdie
 
     kdie = .false.
+    if (idx < 1 .or. idx > nsys) return
     if (present(kill_dependents_if_extended)) kdie = kill_dependents_if_extended
+
+    ! a group header is not a system: closing it closes the systems it
+    ! heads, and it disappears with them
+    if (sysc(idx)%status == sys_group) then
+       ! free the slot first, so that the last member removed does not come
+       ! back here to clean up a header that is already going away
+       call sysc(idx)%seed%end()
+       sysc(idx)%status = sys_empty
+       sysc(idx)%collapse = 0
+       sysc(idx)%hidden = .false.
+       sysc(idx)%showfields = .false.
+       sysc(idx)%renamed = .false.
+       if (allocated(sysc(idx)%group_label)) deallocate(sysc(idx)%group_label)
+       if (allocated(sysc(idx)%group_parent)) deallocate(sysc(idx)%group_parent)
+       do i = 1, nsys
+          if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
+             call remove_system(i)
+       end do
+       return
+    end if
+    imaster = sysc(idx)%collapse
 
     if (.not.ok_system(idx,sys_loaded_not_init)) return
     call sys(idx)%end()
@@ -468,6 +614,13 @@ contains
           if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
              sysc(i)%collapse = 0
        end do
+    end if
+
+    ! a group header with nothing left to head goes away too
+    if (imaster > 0) then
+       if (sysc(imaster)%status == sys_group) then
+          if (group_nmembers(imaster) == 0) call remove_system(imaster)
+       end if
     end if
 
   end subroutine remove_system

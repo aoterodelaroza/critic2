@@ -43,6 +43,10 @@ submodule (windows) extract
   logical :: lastborder = .false.
   integer(c_int) :: lastmode = em_one
   integer(c_int) :: lastinclude = ei_atoms
+  integer(c_int) :: lastnmer = 2
+  logical :: lastnmer_do(nmer_max) = .true.
+  integer(c_int) :: lastnmer_any(nmer_max) = 0
+  real(c_float) :: lastnmer_dist(nmer_max) = 1e6_c_float
   logical :: lastcloseafter = .true.
 
   ! limits on the n-mer construction
@@ -60,7 +64,8 @@ contains
   !> Draw the extract cluster as molecule window
   module subroutine draw_extract(w)
     use systems, only: sys, sysc, sys_init, ok_system, add_systems_from_seeds,&
-       launch_initialization_thread
+       add_group_master, launch_initialization_thread
+    use crystalmod, only: nmer_name
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
@@ -103,6 +108,10 @@ contains
        w%extract_border = lastborder
        w%extract_mode = lastmode
        w%extract_include = lastinclude
+       w%extract_nmer = lastnmer
+       w%extract_nmer_do = lastnmer_do
+       w%extract_nmer_any = lastnmer_any
+       w%extract_nmer_dist = lastnmer_dist
        w%extract_closeafter = lastcloseafter
        w%extract_picking = .false.
     end if
@@ -290,7 +299,7 @@ contains
        if (iw_radiobutton("One molecule##extractmode",int=emode,intval=em_one,&
           sameline=.true.)) w%extract_mode = emode
        call iw_tooltip("Extract the region as a single molecular system",ttshown)
-       if (iw_radiobutton("Several molecules##extractmode",int=emode,intval=em_several,&
+       if (iw_radiobutton("Monomers, dimers, etc.##extractmode",int=emode,intval=em_several,&
           sameline=.true.)) w%extract_mode = emode
        call iw_tooltip("Extract the molecules in the region as monomers, dimers, etc.",ttshown)
     end if
@@ -366,7 +375,8 @@ contains
                 if (i == 1) then
                    call iw_text("--",disabled=.true.)
                 else
-                   w%extract_nmer_dist(i) = min(w%extract_nmer_dist(i),dmax)
+                   if (dmax > 0._c_float) &
+                      w%extract_nmer_dist(i) = min(w%extract_nmer_dist(i),dmax)
                    ldum = iw_dragfloat_realc("##extractnmerdist" // string(i),&
                       x1=w%extract_nmer_dist(i),speed=0.1_c_float,min=0._c_float,max=dmax,&
                       decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
@@ -403,6 +413,10 @@ contains
           lastborder = w%extract_border
           lastmode = w%extract_mode
           lastinclude = w%extract_include
+          lastnmer = w%extract_nmer
+          lastnmer_do = w%extract_nmer_do
+          lastnmer_any = w%extract_nmer_any
+          lastnmer_dist = w%extract_nmer_dist
           lastcloseafter = w%extract_closeafter
 
           ! maybe close the window
@@ -530,7 +544,7 @@ contains
       use crystalseedmod, only: realloc_crystalseed
       use tools_math, only: nchoosek, comb
 
-      integer :: k, l, j, npool, nseed, imain, ncomb, icnt(nmer_max)
+      integer :: k, l, j, npool, nseed, imain, ncomb, icnt(nmer_max), ntotal, imas, ipass
       integer :: idmol, iat, lvec(3)
       integer, allocatable :: icomb(:)
       logical, allocatable :: ismain(:)
@@ -583,69 +597,87 @@ contains
       end if
 
       ! walk the combinations, keeping the ones anchored on the main cell
-      ! that pass the distance filter
-      nseed = 0
+      ! that pass the distance filter. The first pass only counts, so that a
+      ! batch too large for the tree is refused before any of its groups has
+      ! been created; the second pass builds them
+      ntotal = 0
       icnt = 0
-      allocate(seed(100))
-      do k = 1, int(w%extract_nmer)
-         if (.not.w%extract_nmer_do(k) .or. k > npool) cycle
-         ncomb = nchoosek(npool,k)
-         allocate(icomb(k))
-         do l = 1, ncomb
-            call comb(npool,k,l,icomb)
-
-            ! anchor the k-mer on the first main-cell molecule it contains
-            imain = 0
-            do j = 1, k
-               if (ismain(icomb(j))) then
-                  imain = j
-                  exit
-               end if
-            end do
-            if (imain == 0) cycle
-            if (k > 1) then
-               if (.not.distok(k,icomb,com)) cycle
+      do ipass = 1, 2
+         do k = 1, int(w%extract_nmer)
+            if (.not.w%extract_nmer_do(k) .or. k > npool) cycle
+            if (ipass == 2) then
+               if (icnt(k) == 0) cycle
+               if (allocated(seed)) deallocate(seed)
+               allocate(seed(icnt(k)))
             end if
+            nseed = 0
+            ncomb = nchoosek(npool,k)
+            allocate(icomb(k))
+            do l = 1, ncomb
+               call comb(npool,k,l,icomb)
 
-            ! build the k-mer with the main-cell molecule first
-            frk = frpool(icomb(imain))
-            do j = 1, k
-               if (j == imain) cycle
-               call frk%append(frpool(icomb(j)))
-            end do
-            if (ismol) then
-               do j = 1, frk%nat
-                  frk%at(j)%r = frk%at(j)%r + sys(isys)%c%molx0
+               ! anchor the k-mer on the first main-cell molecule it contains
+               imain = 0
+               do j = 1, k
+                  if (ismain(icomb(j))) then
+                     imain = j
+                     exit
+                  end if
                end do
-            end if
+               if (imain == 0) cycle
+               if (k > 1) then
+                  if (.not.distok(k,icomb,com)) cycle
+               end if
+               nseed = nseed + 1
+               if (ipass == 1) then
+                  ntotal = ntotal + 1
+                  if (ntotal > nmer_maxsys) then
+                     w%errmsg = "More than " // string(nmer_maxsys) // " n-mers; reduce the&
+                        & order, the region, or the distance cut-off"
+                     deallocate(icomb)
+                     return
+                  end if
+                  cycle
+               end if
 
-            nseed = nseed + 1
-            if (nseed > nmer_maxsys) then
-               w%errmsg = "More than " // string(nmer_maxsys) // " n-mers; reduce the order,&
-                  & the region, or the distance cut-off"
-               deallocate(icomb)
-               return
+               ! build the k-mer with the main-cell molecule first
+               frk = frpool(icomb(imain))
+               do j = 1, k
+                  if (j == imain) cycle
+                  call frk%append(frpool(icomb(j)))
+               end do
+               if (ismol) then
+                  do j = 1, frk%nat
+                     frk%at(j)%r = frk%at(j)%r + sys(isys)%c%molx0
+                  end do
+               end if
+               if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
+               call seed(nseed)%from_fragment(frk)
+               seed(nseed)%name = trim(sysc(isys)%seed%name) // " (" // nmer_name(k) //&
+                  " " // string(nseed) // ")"
+            end do
+            deallocate(icomb)
+
+            ! this order goes into the tree as its own collapsed group, headed
+            ! by an entry that names it
+            if (ipass == 1) then
+               icnt(k) = nseed
+            else
+               call add_group_master(nmer_name(k) // "s",trim(sysc(isys)%seed%name),imas)
+               call add_systems_from_seeds(nseed,seed,imaster=imas,noselect=.true.)
+               deallocate(seed)
             end if
-            if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
-            icnt(k) = icnt(k) + 1
-            call seed(nseed)%from_fragment(frk)
-            seed(nseed)%name = trim(sysc(isys)%seed%name) // " (" // nmer_name(k) // " " //&
-               string(icnt(k)) // ")"
          end do
-         deallocate(icomb)
+
+         if (ntotal == 0) then
+            w%errmsg = "No n-mer passes the distance filter"
+            return
+         end if
       end do
 
-      if (nseed == 0) then
-         w%errmsg = "No n-mer passes the distance filter"
-         return
-      end if
-
-      ! add them to the tree as a single collapsed group
-      call realloc_crystalseed(seed,nseed)
-      call add_systems_from_seeds(nseed,seed,collapse=.true.,noselect=.not.w%extract_closeafter)
       call launch_initialization_thread()
       write (uout,'("Extracted ",A," n-mers from system ",A,": ",A)') &
-         string(nseed), string(isys), trim(sysc(isys)%seed%name)
+         string(ntotal), string(isys), trim(sysc(isys)%seed%name)
       do k = 1, int(w%extract_nmer)
          if (icnt(k) > 0) &
             write (uout,'("  ",A,": ",A)') nmer_name(k) // "s", string(icnt(k))
@@ -709,7 +741,7 @@ contains
       real*8 :: d
 
       real*8 :: v(3)
-      integer :: i1, i2, i3
+      integer :: i2, i3
 
       d = 0d0
       if (doquit) return
@@ -719,38 +751,16 @@ contains
          d = 2d0 * sqrt(3d0) * real(w%extract_rcub,8) / bohrtoa
       else
          ! the longest body diagonal of the cell block
-         do i1 = -1, 1, 2
-            do i2 = -1, 1, 2
-               do i3 = -1, 1, 2
-                  v = sys(isys)%c%x2c(real((/i1,i2,i3/) * int(w%extract_nx),8))
-                  d = max(d,norm2(v))
-               end do
+         ! the eight body diagonals come in +/- pairs of equal length
+         do i2 = -1, 1, 2
+            do i3 = -1, 1, 2
+               v = sys(isys)%c%x2c(real((/1,i2,i3/) * int(w%extract_nx),8))
+               d = max(d,norm2(v))
             end do
          end do
       end if
 
     end function region_diameter
-
-    ! Name of an n-mer of order i
-    function nmer_name(i) result(str)
-      integer, intent(in) :: i
-      character(len=:), allocatable :: str
-
-      if (i == 1) then
-         str = "monomer"
-      elseif (i == 2) then
-         str = "dimer"
-      elseif (i == 3) then
-         str = "trimer"
-      elseif (i == 4) then
-         str = "tetramer"
-      elseif (i == 5) then
-         str = "pentamer"
-      else
-         str = string(i) // "-mer"
-      end if
-
-    end function nmer_name
 
     function em_effective() result(em)
       integer(c_int) :: em

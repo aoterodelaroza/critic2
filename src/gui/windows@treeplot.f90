@@ -24,7 +24,7 @@ contains
   !> Draw the tree plot window
   module subroutine draw_treeplot(w)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sysc, sys_empty, sys_init, sys
+    use systems, only: sysc, sys_empty, sys_init, sys, is_group_header
     use windows, only: win, iwin_tree
     use utils, only: iw_combo_simple, iw_tooltip, iw_text, iw_close_event
     use tools_io, only: string
@@ -85,6 +85,7 @@ contains
        do j = 1, nshown
           i = win(iwin_tree)%iord(j)
           if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
+          if (is_group_header(i)) cycle
 
           ok = getvalue(valx,ictrans(ic_plotx),i)
           ok = ok .and. getvalue(valy,ictrans(ic_ploty),i)
