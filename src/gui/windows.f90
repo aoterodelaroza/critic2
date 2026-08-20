@@ -22,6 +22,7 @@ module windows
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
+  use crystalseedmod, only: crystalseed
   use param, only: isformat_r_unknown, eye, mlen
   implicit none
 
@@ -261,6 +262,24 @@ module windows
      real(c_float) :: extract_atdens = 0._c_float ! rough atom number density of the system (bohr^-3)
      logical :: extract_picking = .false. ! a center pick in the parent view is pending
      type(pairpick) :: extract_pick ! stamp for the pending center pick (staleness check)
+     ! rattle window parameters
+     integer(c_int) :: rattle_mode = 0 ! how the structures are generated (0=random displacements, 1=MD)
+     integer(c_int) :: rattle_nstruct = 10 ! number of rattled structures
+     real(c_float) :: rattle_mag = 0.02_c_float ! displacement of every atom in a rattled structure (Å)
+     integer(c_int) :: rattle_nini = 1000_c_int ! MD equilibration steps, not sampled
+     integer(c_int) :: rattle_ngen = 100_c_int ! number of MD snapshots collected
+     integer(c_int) :: rattle_nstride = 1_c_int ! MD steps between consecutive snapshots
+     logical :: rattle_closeafter = .true. ! close the window after generating
+     logical :: rattle_running = .false. ! a sampling run is in progress
+     integer :: rattle_isys = 0 ! the system the run is on (a view switch aborts it)
+     integer :: rattle_istep0 = 0 ! mdrun step counter when the run started
+     integer :: rattle_ncoll = 0 ! snapshots collected so far
+     integer :: rattle_nextdue = 0 ! run step at which the next snapshot is due
+     real*8 :: rattle_tinit = -1d0 ! dynamics setup time (s); < 0 = not measured yet
+     real*8 :: rattle_tstep = 0d0 ! wall time per dynamics step (s)
+     integer :: rattle_estbackend = -1 ! force-field backend the measurement was made with
+     real*8 :: rattle_runtemp = 0d0 ! temperature this run was started at (K), for its label
+     type(crystalseed), allocatable :: rattle_seed(:) ! the snapshots collected so far
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
@@ -412,6 +431,7 @@ module windows
      procedure :: draw_saveas
      ! extract cluster as molecule
      procedure :: draw_extract
+     procedure :: draw_rattle
      ! vibrations
      procedure :: draw_vibrations
      ! dynamics
@@ -465,6 +485,7 @@ module windows
   integer, parameter, public :: wintype_water_cluster = 19
   integer, parameter, public :: wintype_saveas = 20
   integer, parameter, public :: wintype_extract = 21
+  integer, parameter, public :: wintype_rattle = 22
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -879,6 +900,9 @@ module windows
      module subroutine draw_extract(w)
        class(window), intent(inout), target :: w
      end subroutine draw_extract
+     module subroutine draw_rattle(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_rattle
      !xx! vibrations submodule !xx!
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w

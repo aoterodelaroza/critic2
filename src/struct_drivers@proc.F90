@@ -915,8 +915,9 @@ contains
 
   ! Write multiple structures to several files.
   module subroutine struct_write_bulk(s,line0)
-    use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed, realloc_crystalseed
+    use crystalmod, only: crystal, bulk_rattle_seeds
+    use dynamics, only: bulk_md_seeds
+    use crystalseedmod, only: crystalseed
     use systemmod, only: system
     use energy, only: ff_name_to_backend
     use tools_io, only: getline, uin, ucopy, lgetword, ferror, faterr, getword, equal,&
@@ -927,11 +928,10 @@ contains
     character*(*), intent(in) :: line0
 
     character(len=:), allocatable :: root, line, word, wff, file, pre, post, errmsg
-    integer :: lp, idx, nseed, nn, i, j, npad
+    integer :: lp, idx, nseed, nn, i, npad
     integer :: backend, method, nini, ngen, nstride
-    type(crystalseed) :: seed0
     type(crystalseed), allocatable :: seed(:)
-    real*8 :: xdelta(3), rattle_mag, temp, dt
+    real*8 :: rattle_mag, temp, dt
     logical :: ok, oneline
     type(crystal) :: caux
 
@@ -985,27 +985,7 @@ contains
              end if
           end do
 
-          ! reallocate if necessary
-          if (nseed + nn > size(seed,1)) &
-             call realloc_crystalseed(seed,2*(nseed + nn))
-
-          ! copy the seed from the current system to the output seeds
-          call s%c%makeseed(seed0,.false.)
-
-          ! rattle the atoms
-          do i = nseed+1, nseed+nn
-             seed(i) = seed0
-
-             ! translate randomly all atoms
-             do j = 1, s%c%ncel
-                call random_number(xdelta)
-                xdelta = xdelta / norm2(xdelta) * rattle_mag
-                seed(i)%x(:,j) = matmul(s%c%m_c2x,s%c%atcel(j)%r + xdelta)
-             end do
-          end do
-
-          ! clean up
-          nseed = nseed + nn
+          call bulk_rattle_seeds(s%c,nn,rattle_mag,seed,nseed)
        elseif (equal(word,"md")) then
           ! MD generation of structures
           wff = lgetword(line,lp)
@@ -1057,7 +1037,7 @@ contains
              return
           end if
 
-          call bulk_md_run(s,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
+          call bulk_md_seeds(s%c,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
           if (len_trim(errmsg) > 0) &
              call ferror('struct_write_bulk',errmsg,faterr)
        elseif (equal(word,"end").or.equal(word,"endwrite")) then
@@ -1087,111 +1067,6 @@ contains
     end do
 
   end subroutine struct_write_bulk
-
-  !> Build a force-field failure message for an MD/relaxation driver
-  function md_fail_message(md,base) result(msg)
-    use dynamics, only: mdrun
-    type(mdrun), intent(in) :: md
-    character(len=*), intent(in) :: base
-    character(len=:), allocatable :: msg
-
-    msg = base
-    if (allocated(md%errmsg)) then
-       if (len_trim(md%errmsg) > 0) msg = msg // ": " // md%errmsg
-    end if
-
-  end function md_fail_message
-
-  !> Run an NVT (Langevin) molecular dynamics with the force field given by
-  !> backend/method on a copy of system s (its geometry is left untouched),
-  !> and append ngen configuration snapshots to seed(1:nseed): one snapshot
-  !> every nstride steps, taken after nini equilibration steps. The per-step
-  !> energy and temperature are echoed to uout. errmsg is set on error.
-  subroutine bulk_md_run(s,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
-    use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed, realloc_crystalseed
-    use dynamics, only: mdrun, md_dynamics
-    use systemmod, only: system
-    use energy, only: ff_backend_applicable, ff_backend_label
-    use tools_io, only: uout, string
-    use param, only: autofs
-    type(system), intent(inout) :: s
-    integer, intent(in) :: backend, method, nini, ngen, nstride
-    real*8, intent(in) :: temp, dt
-    type(crystalseed), allocatable, intent(inout) :: seed(:)
-    integer, intent(inout) :: nseed
-    character(len=:), allocatable, intent(out) :: errmsg
-
-    type(mdrun) :: md
-    type(crystal) :: cmd
-    character(len=:), allocatable :: ffname, snaplabel
-    integer :: istep, ncoll, nsteptot, nprint
-    logical :: collect
-
-    errmsg = ""
-    ffname = ff_backend_label(backend,method)
-    if (.not.ff_backend_applicable(backend,s%c)) then
-       errmsg = "the " // trim(ffname) // " force field is not available for this system"
-       return
-    end if
-    if (s%c%ncel == 0) then
-       errmsg = "there are no atoms for the MD run"
-       return
-    end if
-
-    ! run the MD on a copy so the current system geometry is preserved
-    cmd = s%c
-    call md%init(cmd,backend=backend,method=method,temperature=temp,dt=dt,&
-       mode=md_dynamics,errmsg=errmsg)
-    if (len_trim(errmsg) > 0) then
-       call md%free() ! release any partial calculator state (e.g. tblite/xtb handles)
-       return
-    end if
-
-    write (uout,'("+ Bulk configuration sampling by NVT molecular dynamics (WRITE BULK MD)")')
-    write (uout,'("  force field: ",A)') trim(ffname)
-    write (uout,'("  temperature (K): ",A)') string(temp,'f',decimal=2)
-    write (uout,'("  time step (a.u. / fs): ",A," / ",A)') &
-       string(dt,'f',decimal=2), string(dt*autofs,'f',decimal=4)
-    write (uout,'("  equilibration steps: ",A)') string(nini)
-    write (uout,'("  generation snapshots: ",A," (one every ",A," steps)")') &
-       string(ngen), string(nstride)
-    write (uout,'(/"   step         energy (Ha)        T (K)     snapshot")')
-
-    nsteptot = nini + ngen*nstride
-    nprint = max(1,nsteptot/50) ! keep the equilibration echo to ~50 lines
-    ncoll = 0
-    do istep = 1, nsteptot
-       call md%step(cmd)
-       if (.not.md%ready) then
-          errmsg = md_fail_message(md,"force-field evaluation failed during the MD run")
-          call md%free()
-          return
-       end if
-
-       ! collect a snapshot every nstride steps once equilibration is done
-       collect = (istep > nini .and. mod(istep-nini,nstride) == 0 .and. ncoll < ngen)
-       snaplabel = "-"
-       if (collect) then
-          ncoll = ncoll + 1
-          if (nseed+1 > size(seed,1)) call realloc_crystalseed(seed,2*(nseed+1))
-          call cmd%makeseed(seed(nseed+1),.false.)
-          nseed = nseed + 1
-          snaplabel = string(ncoll)
-       end if
-
-       if (collect .or. mod(istep,nprint) == 0 .or. istep == nsteptot) then
-          write (uout,'(2X,I6,3X,A,3X,A,4X,A)') istep, &
-             string(md%epot,'f',length=18,decimal=10), &
-             string(md%temperature_now(),'f',length=8,decimal=1), snaplabel
-       end if
-    end do
-    write (uout,'(/"  collected ",A," configurations")') string(ncoll)
-    write (uout,*)
-
-    call md%free()
-
-  end subroutine bulk_md_run
 
   !> Relabel atoms based on user's input
   module subroutine struct_atomlabel(s,line)
@@ -3794,7 +3669,7 @@ contains
        if (.not.md%ready) then
           ! a force-field evaluation failed mid-relaxation (e.g. tblite/xtb SCF
           ! non-convergence); abort rather than report a spurious convergence
-          errmsg = md_fail_message(md,"force-field evaluation failed during relaxation")
+          errmsg = md%fail_message("force-field evaluation failed during relaxation")
           call md%free()
           return
        end if

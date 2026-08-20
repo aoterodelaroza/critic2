@@ -1007,7 +1007,7 @@ contains
   !> model (obj, ply, off).
   module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
      docell,ti)
-    use tools_io, only: lower, equal
+    use tools_io, only: lower, equal, fopen_write, fclose
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
        isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
@@ -1028,7 +1028,7 @@ contains
     logical, intent(in), optional :: docell
     type(thread_info), intent(in), optional :: ti
 
-    integer :: isformat
+    integer :: isformat, lu
     logical :: dosym, frac
 
     ! process the optional arguments
@@ -1048,6 +1048,15 @@ contains
           return
        end if
     end if
+
+    ! Check that the destination can be written before handing over to
+    ! the format writers
+    lu = fopen_write(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open file for writing: " // file
+       return
+    end if
+    call fclose(lu)
 
     if (isformat == isformat_w_xyz) then
        call c%write_mol(file,'xyz',ti=ti)

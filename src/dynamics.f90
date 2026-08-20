@@ -23,6 +23,8 @@ module dynamics
   private
 
   public :: mdrun
+  public :: bulk_md_seeds
+  public :: md_benchmark
 
   ! run modes
   integer, parameter, public :: md_dynamics = 0 !< constant-temperature dynamics
@@ -66,6 +68,8 @@ module dynamics
      procedure :: reset => md_reset
      procedure :: init_velocities => md_init_velocities
      procedure :: temperature_now => md_temperature
+     procedure :: rebase => md_rebase
+     procedure :: fail_message => md_fail_message
      procedure :: pressure => md_pressure
      procedure :: maxforce => md_maxforce
      procedure :: converged => md_converged
@@ -101,6 +105,35 @@ module dynamics
        class(mdrun), intent(in) :: md
        real*8 :: t
      end function md_temperature
+     module subroutine md_rebase(md,c)
+       use crystalmod, only: crystal
+       class(mdrun), intent(inout) :: md
+       class(crystal), intent(in) :: c
+     end subroutine md_rebase
+     module function md_fail_message(md,base) result(msg)
+       class(mdrun), intent(in) :: md
+       character(len=*), intent(in) :: base
+       character(len=:), allocatable :: msg
+     end function md_fail_message
+     module subroutine md_benchmark(c,backend,method,temp,dt,nstepmax,tmax,nstep,tinit,tstep,errmsg)
+       use crystalmod, only: crystal
+       type(crystal), intent(in) :: c
+       integer, intent(in) :: backend, method, nstepmax
+       real*8, intent(in) :: temp, dt, tmax
+       integer, intent(out) :: nstep
+       real*8, intent(out) :: tinit, tstep
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine md_benchmark
+     module subroutine bulk_md_seeds(c,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
+       use crystalmod, only: crystal
+       use crystalseedmod, only: crystalseed
+       type(crystal), intent(in) :: c
+       integer, intent(in) :: backend, method, nini, ngen, nstride
+       real*8, intent(in) :: temp, dt
+       type(crystalseed), allocatable, intent(inout) :: seed(:)
+       integer, intent(inout) :: nseed
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine bulk_md_seeds
      module function md_pressure(md,c,ok) result(p)
        use crystalmod, only: crystal
        class(mdrun), intent(in) :: md

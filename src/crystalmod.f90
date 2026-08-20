@@ -435,6 +435,7 @@ module crystalmod
   public :: xrpd_peaklist
 
   ! other crystallography tools that are crystal-independent (symmetry)
+  public :: bulk_rattle_seeds
   public :: search_lattice
   public :: pointgroup_info
   public :: crosscorr_gaussian
@@ -843,6 +844,14 @@ module crystalmod
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)
      end subroutine get_kpoints
+     module subroutine bulk_rattle_seeds(c,nstruct,mag,seed,nseed)
+       use crystalseedmod, only: crystalseed
+       type(crystal), intent(in) :: c
+       integer, intent(in) :: nstruct
+       real*8, intent(in) :: mag
+       type(crystalseed), allocatable, intent(inout) :: seed(:)
+       integer, intent(inout) :: nseed
+     end subroutine bulk_rattle_seeds
      module subroutine makeseed(c,seed,copysym,useabr,copybonding)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(in) :: c

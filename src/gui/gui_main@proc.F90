@@ -585,7 +585,8 @@ contains
     use interfaces_cimgui, only: igSeparator
     use systems, only: sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
-       wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract
+       wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
+       wintype_rattle
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
     integer, intent(in) :: isys
@@ -635,6 +636,12 @@ contains
     if (iw_menuitem("Builder...",enabled=enabled)) &
        idum = stack_create_window(wintype_builder,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Tools to modify the structure in the view",ttshown)
+
+    ! generate rattled/sampled structures from this one
+    if (iw_menuitem("Rattle structure...",enabled=enabled)) &
+       idum = stack_create_window(wintype_rattle,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Generate new systems by displacing the atoms&
+       & randomly or by sampling a molecular-dynamics run",ttshown)
 
   end subroutine show_tools_menu
 

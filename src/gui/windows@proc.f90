@@ -351,6 +351,7 @@ contains
              if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_saveas.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
@@ -598,6 +599,10 @@ contains
        ! extract cluster as molecule window
        if (.not.present(idparent)) &
           call ferror('window_init','extract requires idparent',faterr)
+    elseif (type == wintype_rattle) then
+       ! rattle structure window
+       if (.not.present(idparent)) &
+          call ferror('window_init','rattle requires idparent',faterr)
     elseif (type == wintype_vibrations) then
        ! vibrations window
        if (.not.present(idparent)) &
@@ -691,6 +696,21 @@ contains
                    win(w%idparent)%forcerender = .true.
              end if
           end if
+       elseif (w%type == wintype_rattle) then
+          ! a sampling run belongs to this window: closing it must
+          ! stop the dynamics and put the sampled-from structure back
+          if (w%rattle_running) then
+             isysd = w%rattle_isys
+             w%rattle_running = .false.
+             if (ok_system(isysd,sys_init)) then
+                if (sysc(isysd)%md%ready) call sysc(isysd)%md%reset(sys(isysd)%c)
+                call sysc(isysd)%md_stop(errmsg)
+                if (len_trim(errmsg) > 0) &
+                   call ferror('window_end','could not rebuild the structure after the '//&
+                   'sampling run: '//trim(errmsg),warning)
+             end if
+          end if
+          if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
        elseif (w%type == wintype_water_cluster) then
           ! the demo owns its generated cluster; remove it on close so it does not linger
           isysd = w%isys
@@ -1023,6 +1043,8 @@ contains
           call init_window("Save As",52,18)
        elseif (w%type == wintype_extract) then
           call init_window("Extract as Molecule(s)",52,23)
+       elseif (w%type == wintype_rattle) then
+          call init_window("Rattle Structure",52,24)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62,25)
        elseif (w%type == wintype_dynamics) then
@@ -1089,6 +1111,8 @@ contains
                 call w%draw_saveas()
              elseif (w%type == wintype_extract) then
                 call w%draw_extract()
+             elseif (w%type == wintype_rattle) then
+                call w%draw_rattle()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
              elseif (w%type == wintype_dynamics) then

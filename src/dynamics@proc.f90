@@ -224,6 +224,42 @@ contains
 
   end subroutine md_init_velocities
 
+  !> Rebase the run on the current geometry of c: the positions there become
+  !> the restore point (md%r0) and the velocities are reseeded at the target
+  !> temperature. Use before resuming a run that is still ready but whose
+  !> restore point belongs to an older geometry.
+  module subroutine md_rebase(md,c)
+    use crystalmod, only: crystal
+    class(mdrun), intent(inout) :: md
+    class(crystal), intent(in) :: c
+
+    integer :: i
+
+    if (.not.md%ready .or. md%nat /= c%ncel) return
+    do i = 1, md%nat
+       md%r(:,i) = c%atcel(i)%r
+    end do
+    md%r0 = md%r
+    md%istep = 0
+    md%simtime = 0d0
+    call md%init_velocities()
+
+  end subroutine md_rebase
+
+  !> Build a failure message for this run: base, followed by the dynamics'
+  !> own error message if it has one.
+  module function md_fail_message(md,base) result(msg)
+    class(mdrun), intent(in) :: md
+    character(len=*), intent(in) :: base
+    character(len=:), allocatable :: msg
+
+    msg = base
+    if (allocated(md%errmsg)) then
+       if (len_trim(md%errmsg) > 0) msg = msg // ": " // md%errmsg
+    end if
+
+  end function md_fail_message
+
   !> Instantaneous temperature (K) from the current kinetic energy.
   module function md_temperature(md) result(t)
     class(mdrun), intent(in) :: md
@@ -470,5 +506,171 @@ contains
        md%ekin = md%ekin + 0.5d0*md%mass(i)*sum(md%v(:,i)**2)
     end do
   end subroutine kinetic
+
+  !> Measure how expensive a molecular dynamics is on crystal c with
+  !> the given force field: set up a run on a copy (so c is untouched)
+  !> and take steps until nstepmax of them, or until tmax seconds have
+  !> gone by, whichever comes first. Returns the number of steps timed
+  !> (nstep), the setup time (tinit) and the average wall time per
+  !> step (tstep), all in seconds.  Used to estimate the cost of a
+  !> long run before committing to it.
+  module subroutine md_benchmark(c,backend,method,temp,dt,nstepmax,tmax,nstep,tinit,tstep,errmsg)
+    use crystalmod, only: crystal
+    use energy, only: ff_backend_applicable, ff_backend_label
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: backend, method, nstepmax
+    real*8, intent(in) :: temp, dt, tmax
+    integer, intent(out) :: nstep
+    real*8, intent(out) :: tinit, tstep
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(mdrun) :: md
+    type(crystal) :: cmd
+    integer :: i, c0, c1, c2, rate
+
+    nstep = 0
+    tinit = 0d0
+    tstep = 0d0
+    errmsg = ""
+    if (nstepmax < 1) then
+       errmsg = "no steps to time"
+       return
+    end if
+    if (.not.ff_backend_applicable(backend,c)) then
+       errmsg = "the " // trim(ff_backend_label(backend,method)) //&
+          " force field is not available for this system"
+       return
+    end if
+    if (c%ncel == 0) then
+       errmsg = "there are no atoms for the MD run"
+       return
+    end if
+
+    ! time the setup and the steps on a copy, leaving c alone
+    cmd = c
+    call system_clock(count=c0,count_rate=rate)
+    call md%init(cmd,backend=backend,method=method,temperature=temp,dt=dt,&
+       mode=md_dynamics,errmsg=errmsg)
+    call system_clock(count=c1)
+    if (len_trim(errmsg) > 0) then
+       call md%free()
+       return
+    end if
+
+    ! stop early once the time budget is spent: a step is cheap with a force
+    ! field and slow with a semiempirical hamiltonian, and the caller is
+    ! waiting on this
+    do i = 1, nstepmax
+       call md%step(cmd)
+       if (.not.md%ready) then
+          errmsg = md%fail_message("force-field evaluation failed")
+          call md%free()
+          return
+       end if
+       nstep = i
+       call system_clock(count=c2)
+       if (rate > 0) then
+          if (real(c2-c1,8) / real(rate,8) > tmax) exit
+       end if
+    end do
+    call md%free()
+
+    if (rate > 0 .and. nstep > 0) then
+       tinit = real(c1-c0,8) / real(rate,8)
+       tstep = real(c2-c1,8) / real(rate,8) / real(nstep,8)
+    end if
+
+  end subroutine md_benchmark
+
+  !> Run an NVT (Langevin) molecular dynamics on a copy of crystal c
+  !> with the given force field, temperature (K) and time step (a.u.),
+  !> and append to seed(:) a seed for every snapshot: ngen of them,
+  !> one every nstride steps, after nini equilibration steps. nseed is
+  !> updated. On failure, errmsg.
+  module subroutine bulk_md_seeds(c,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed, realloc_crystalseed
+    use energy, only: ff_backend_applicable, ff_backend_label
+    use tools_io, only: uout, string
+    use param, only: autofs
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: backend, method, nini, ngen, nstride
+    real*8, intent(in) :: temp, dt
+    type(crystalseed), allocatable, intent(inout) :: seed(:)
+    integer, intent(inout) :: nseed
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(mdrun) :: md
+    type(crystal) :: cmd
+    character(len=:), allocatable :: ffname, snaplabel
+    integer :: istep, ncoll, nsteptot, nprint
+    logical :: collect
+
+    errmsg = ""
+    ffname = ff_backend_label(backend,method)
+    if (.not.ff_backend_applicable(backend,c)) then
+       errmsg = "the " // trim(ffname) // " force field is not available for this system"
+       return
+    end if
+    if (c%ncel == 0) then
+       errmsg = "there are no atoms for the MD run"
+       return
+    end if
+
+    if (.not.allocated(seed)) allocate(seed(max(ngen,1)))
+
+    ! run the MD on a copy so the current system geometry is preserved
+    cmd = c
+    call md%init(cmd,backend=backend,method=method,temperature=temp,dt=dt,&
+       mode=md_dynamics,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
+       call md%free() ! release any partial calculator state (e.g. tblite/xtb handles)
+       return
+    end if
+
+    write (uout,'("+ Bulk configuration sampling by NVT molecular dynamics (WRITE BULK MD)")')
+    write (uout,'("  force field: ",A)') trim(ffname)
+    write (uout,'("  temperature (K): ",A)') string(temp,'f',decimal=2)
+    write (uout,'("  time step (a.u. / fs): ",A," / ",A)') &
+       string(dt,'f',decimal=2), string(dt*autofs,'f',decimal=4)
+    write (uout,'("  equilibration steps: ",A)') string(nini)
+    write (uout,'("  generation snapshots: ",A," (one every ",A," steps)")') &
+       string(ngen), string(nstride)
+    write (uout,'(/"   step         energy (Ha)        T (K)     snapshot")')
+
+    nsteptot = nini + ngen*nstride
+    nprint = max(1,nsteptot/50) ! keep the equilibration echo to ~50 lines
+    ncoll = 0
+    do istep = 1, nsteptot
+       call md%step(cmd)
+       if (.not.md%ready) then
+          errmsg = md%fail_message("force-field evaluation failed during the MD run")
+          call md%free()
+          return
+       end if
+
+       ! collect a snapshot every nstride steps once equilibration is done
+       collect = (istep > nini .and. mod(istep-nini,nstride) == 0 .and. ncoll < ngen)
+       snaplabel = "-"
+       if (collect) then
+          ncoll = ncoll + 1
+          if (nseed+1 > size(seed,1)) call realloc_crystalseed(seed,2*(nseed+1))
+          call cmd%makeseed(seed(nseed+1),.false.)
+          nseed = nseed + 1
+          snaplabel = string(ncoll)
+       end if
+
+       if (collect .or. mod(istep,nprint) == 0 .or. istep == nsteptot) then
+          write (uout,'(2X,I6,3X,A,3X,A,4X,A)') istep, &
+             string(md%epot,'f',length=18,decimal=10), &
+             string(md%temperature_now(),'f',length=8,decimal=1), snaplabel
+       end if
+    end do
+    write (uout,'(/"  collected ",A," configurations")') string(ncoll)
+    write (uout,*)
+
+    call md%free()
+
+  end subroutine bulk_md_seeds
 
 end submodule proc

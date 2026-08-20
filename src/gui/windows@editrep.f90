@@ -2197,12 +2197,14 @@ contains
          call iw_tooltip("Color of this measurement",ttshown)
          ! decimals (with a trailing label to match the other options)
          idec = int(it%ndec,c_int)
-         if (iw_intstepper("measureitemdec",idec,minval=0_c_int,maxval=8_c_int,sameline=.true.)) then
+         ! the tooltip goes on the stepper: a plain text has no item id, so a
+         ! delayed (ttshown) tooltip attached to it never fires
+         if (iw_intstepper("measureitemdec",idec,minval=0_c_int,maxval=8_c_int,sameline=.true.,&
+            tooltip="Decimal places shown for this value")) then
             it%ndec = idec
             changed = .true.
          end if
          call iw_text("Decimals",sameline=.true.)
-         call iw_tooltip("Decimal places shown for this value",ttshown)
          ! segment/arm/edge radius
          changed = changed .or. iw_dragfloat_real8("Segment radius (Å)##measureitemrad",&
             x1=it%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&

@@ -257,7 +257,6 @@ contains
   !> system list and heads a collapsed group of systems, but is not a
   !> system itself. Returns its index in idx.
   module subroutine add_group_master(label,parentname,idx)
-    use tools_io, only: lower
     use gui_main, only: reuse_mid_empty_systems
     character(len=*), intent(in) :: label, parentname
     integer, intent(out) :: idx
@@ -292,7 +291,8 @@ contains
     if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
     if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
     sysc(idx)%id = idx
-    sysc(idx)%seed%name = "(" // lower(label) // ") " // parentname
+    ! the label is used as given: it is what the tree shows for the group
+    sysc(idx)%seed%name = "(" // label // ") " // parentname
     sysc(idx)%group_label = label
     sysc(idx)%group_parent = parentname
     sysc(idx)%status = sys_group

@@ -33,7 +33,8 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use systems, only: nsys, sysc, sys, sys_init, ok_system
     use gui_main, only: g
-    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright
+    use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright,&
+       iw_helpermark
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -355,8 +356,10 @@ contains
 
     if (sourceopt == 0 .and. isgrid) then
        call iw_text("Options",highlight=.true.)
+       ! a help marker, not a tooltip on the text: a plain text has no item id,
+       ! so a delayed (ttshown) tooltip attached to it never fires
        call iw_text("Interpolation method")
-       call iw_tooltip("Choose the interpolation method for the grid",ttshown)
+       call iw_helpermark("Choose the interpolation method for the grid")
        ldum = iw_radiobutton("Nearest",int=iginterp,intval=0_c_int)
        call iw_tooltip("Value of the nearest grid point",ttshown)
        ldum = iw_radiobutton("Tri-linear",int=iginterp,intval=1_c_int,sameline=.true.)

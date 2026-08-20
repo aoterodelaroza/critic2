@@ -80,7 +80,7 @@ module systems
      logical :: has_field = .false. ! true if the seed has a field
      logical :: has_vib = .false. ! true if the seed has vibrational data
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
-     character(len=:), allocatable :: group_label ! group header: what it holds, capitalized (e.g. "Dimers")
+     character(len=:), allocatable :: group_label ! group header: what it holds, as the caller wrote it (e.g. "dimers", "NVT MD run, 300 K")
      character(len=:), allocatable :: group_parent ! group header: name of the system it was made from
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      ! system name
