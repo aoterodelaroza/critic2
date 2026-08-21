@@ -764,6 +764,7 @@ contains
              end do ! row indices
           end do ! clipper step
           call ImGuiListClipper_End(clipper)
+          call ImGuiListClipper_destroy(clipper)
        else
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
           if (igTableSetColumnIndex(ic_tree_name)) then

@@ -522,6 +522,7 @@ contains
                 ! end the clipper and the table
                 deallocate(indi,indj)
                 call ImGuiListClipper_End(clipper)
+                call ImGuiListClipper_destroy(clipper)
                 call igEndTable()
              end if ! begintable
 
@@ -811,6 +812,7 @@ contains
 
                 ! end the clipper and the table
                 call ImGuiListClipper_End(clipper)
+                call ImGuiListClipper_destroy(clipper)
                 call igEndTable()
              end if ! begintable
 
@@ -1431,6 +1433,7 @@ contains
 
        ! end the clipper and the table
        call ImGuiListClipper_End(clipper)
+       call ImGuiListClipper_destroy(clipper)
        call igEndTable()
     end if
 
@@ -1587,6 +1590,7 @@ contains
 
           ! end the clipper and the table
           call ImGuiListClipper_End(clipper)
+          call ImGuiListClipper_destroy(clipper)
           call igEndTable()
        end if
 

@@ -829,6 +829,7 @@ contains
 
              ! end the clipper
              call ImGuiListClipper_End(clipper)
+             call ImGuiListClipper_destroy(clipper)
 
              ! last table row (new atom)
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1380,6 +1381,8 @@ contains
                    end if
                 end do
              end do
+             ! Step() ends the clipper on its own, but the object still has to go
+             call ImGuiListClipper_destroy(clipper)
              call igEndTable()
           end if
 
@@ -1592,6 +1595,8 @@ contains
                    end if
                 end do
              end do
+             ! Step() ends the clipper on its own, but the object still has to go
+             call ImGuiListClipper_destroy(clipper)
              call igEndTable()
           end if
 
