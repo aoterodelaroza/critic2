@@ -175,12 +175,11 @@ contains
 
     ! the file name pattern
     call iw_text("File Names",highlight=.true.)
+    call draw_pattern_help()
     ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36,&
        notlive=.true.)
-    call iw_tooltip("Pattern for the file names, without extension. %n is replaced by the&
-       & name of the system, %i by its position in the list (zero-padded), and %s by its&
-       & ID in the tree. A * is the same as %i (as in the ROOT option to WRITE BULK).&
-       & The extension for the chosen format is added automatically.",ttshown)
+    call iw_tooltip("Pattern for the file names, without extension&
+       & (see the help mark for the substitutions)",ttshown)
 
     ! whether the write will produce molecules or crystals: some formats
     ! are inherently molecular, some follow the system, and the rest
@@ -459,6 +458,46 @@ contains
       call iw_tooltip(str2)
 
     end subroutine draw_kind_icon
+
+    !> Draw the help mark for the file name pattern: one tooltip line per
+    !> substitution, laid out in two columns like the view-mode tooltip.
+    subroutine draw_pattern_help()
+      use gui_main, only: tooltip_enabled, tooltip_wrap_factor
+
+      integer, parameter :: nsub = 4
+      character(len=*), parameter :: subkey(nsub) = (/character(len=2) :: &
+         "%n","%i","%s","*"/)
+      character(len=*), parameter :: subtxt(nsub) = (/character(len=48) :: &
+         "Name of the system                              ",&
+         "Position in the list of files, zero-padded      ",&
+         "ID of the system in the tree                    ",&
+         "Same as %i (the ROOT option to WRITE BULK)      "/)
+
+      integer :: i, ll
+
+      call iw_text("(?)",sameline=.true.)
+      if (.not.tooltip_enabled) return
+      if (.not.igIsItemHovered(ImGuiHoveredFlags_None)) return
+
+      ll = 1
+      do i = 1, nsub
+         ll = max(ll,len_trim(subkey(i)))
+      end do
+
+      call igBeginTooltip()
+      call iw_text("File Name Pattern",highlight=.true.)
+      call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+      call iw_text("The name of each file, without extension: the one for the&
+         & chosen format is added automatically.")
+      call igPopTextWrapPos()
+      call iw_text("")
+      do i = 1, nsub
+         call iw_text(string(trim(subkey(i)),length=ll+1),highlight=.true.)
+         call iw_text(trim(subtxt(i)),sameline=.true.)
+      end do
+      call igEndTooltip()
+
+    end subroutine draw_pattern_help
 
   end subroutine draw_save_multiple
 
