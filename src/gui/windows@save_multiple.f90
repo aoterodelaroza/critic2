@@ -21,8 +21,11 @@ submodule (windows) save_multiple
   use param, only: mlen
   implicit none
 
-  ! maximum number of file names listed in the preview
-  integer, parameter :: maxpreview = 100
+  ! columns of the file table; the ids double as the column indices
+  integer(c_int), parameter :: ic_savemult_id = 0
+  integer(c_int), parameter :: ic_savemult_name = 1
+  integer(c_int), parameter :: ic_savemult_file = 2
+  integer(c_int), parameter :: ic_savemult_NUMCOLUMNS = 3
 
   ! characters replaced by an underscore in the name of a system (%n)
   character(len=*), parameter :: badchars = " |/:*?<>" //&
@@ -67,15 +70,19 @@ contains
        launch_initialization_thread
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_calcheight, iw_tooltip,&
        iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event,&
-       iw_setpos_bottomright, iw_inputtext, get_current_working_dir
+       iw_setpos_bottomright, iw_inputtext, iw_table_column, get_current_working_dir
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string, uout
     use param, only: dirsep
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
-    character(len=:), allocatable :: file, firsterr
-    integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip
+    character(len=:), allocatable :: file, firsterr, warnmsg
+    integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip, nbot
+    integer(c_int) :: flags
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+    logical :: warnhidden, dooverwrite
     logical :: doquit, ok, okvalid, ismol, userk, usecell, changed, dirok, direxists
     logical :: anycrystal, thisrk
     logical(c_bool) :: ldum
@@ -130,7 +137,9 @@ contains
 
     ! the output directory
     call iw_text("Directory",highlight=.true.)
-    ldum = iw_inputtext("##savemultdir",bufsize=1023,texta=w%okfile,width=36)
+    ! notlive: rebuilding the file names runs an inquire() per target file,
+    ! which is not something to do on every keystroke
+    ldum = iw_inputtext("##savemultdir",bufsize=1023,texta=w%okfile,width=36,notlive=.true.)
     call iw_tooltip("Directory where the structure files will be written",ttshown)
     if (iw_button("Browse...",sameline=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_selectdir,idparent=w%id,orraise=-1)
@@ -156,7 +165,8 @@ contains
 
     ! the file name pattern
     call iw_text("File Names",highlight=.true.)
-    ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36)
+    ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36,&
+       notlive=.true.)
     call iw_tooltip("Pattern for the file names, without extension. %n is replaced by the&
        & name of the system, %i by its position in the list (zero-padded), and %s by its&
        & ID in the tree. A * is the same as %i (as in the ROOT option to WRITE BULK).&
@@ -239,37 +249,80 @@ contains
           & (same as the CELL option to WRITE)",ttshown)
     end if
 
+    ! the single warning that goes under the table. It is built before the
+    ! table because the table is sized to fill whatever the block below it
+    ! does not use, so its height has to be known first
+    warnmsg = ""
+    warnhidden = .false.
+    dooverwrite = .false.
+    if (nloading > 0) then
+       warnmsg = string(nloading) // " more systems are still loading"
+    elseif (nhidden > 0) then
+       warnmsg = string(nhidden) // " systems in collapsed groups are skipped"
+       warnhidden = .true.
+    elseif (ndup > 0) then
+       warnmsg = string(ndup) // " file names are repeated: add %i to the pattern"
+    elseif (nexist > 0) then
+       warnmsg = string(nexist) // " of these files exist and will be overwritten"
+       dooverwrite = .true.
+    end if
+    nbot = 1 ! the button row
+    if (len_trim(warnmsg) > 0) nbot = nbot + 1
+    if (dooverwrite) nbot = nbot + 1
+    if (len_trim(w%errmsg) > 0 .or. len_trim(w%okmsg) > 0) nbot = nbot + 1
+
     ! the list of files that will be written
     call iw_text("Files (" // string(nnames) // ")",highlight=.true.)
-    str1 = "##savemultpreview" // c_null_char
+    str1 = "##savemulttable" // c_null_char
+    flags = ImGuiTableFlags_Borders
+    flags = ior(flags,ImGuiTableFlags_Resizable)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_RowBg)
     sz%x = 0._c_float
-    sz%y = iw_calcheight(6,0,.false.)
-    if (igBeginChild_Str(c_loc(str1),sz,.true._c_bool,ImGuiWindowFlags_HorizontalScrollbar)) then
-       if (nnames == 0) then
-          call iw_text("No systems to write")
-       else
-          do i = 1, min(nnames,maxpreview)
-             isys = nameidx(i)
-             call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name))
-             call iw_text(" -> " // trim(names(i)),sameline=.true.,danger=nameexists(i))
-          end do
-          if (nnames > maxpreview) &
-             call iw_text("... and " // string(nnames-maxpreview) // " more")
-       end if
-    end if
-    call igEndChild()
+    sz%y = -iw_calcheight(nbot,0,.false.)
+    if (igBeginTable(c_loc(str1),ic_savemult_NUMCOLUMNS,flags,sz,0._c_float)) then
+       call iw_table_column("Id",id=ic_savemult_id,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("System",id=ic_savemult_name,flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_column("File",id=ic_savemult_file,flags=ImGuiTableColumnFlags_WidthStretch)
+       call igTableSetupScrollFreeze(0,1) ! the header row is always visible
+       call igTableHeadersRow()
 
-    ! warn about repeated names and files that would be overwritten
-    if (nloading > 0) then
-       call iw_text(string(nloading) // " more systems are still loading",danger=.true.)
-    elseif (nhidden > 0) then
-       call iw_text(string(nhidden) // " systems in collapsed groups are skipped",danger=.true.)
-       call iw_tooltip("The systems inside a collapsed group are not loaded until the group&
-          & is expanded in the tree, so they cannot be written",ttshown)
-    elseif (ndup > 0) then
-       call iw_text(string(ndup) // " file names are repeated: add %i to the pattern",danger=.true.)
-    elseif (nexist > 0) then
-       call iw_text(string(nexist) // " of these files exist and will be overwritten",danger=.true.)
+       if (nnames > 0) then
+          ! the rows go through a clipper: the list is as long as the tree,
+          ! and only the visible rows need to be emitted
+          clipper = ImGuiListClipper_ImGuiListClipper()
+          call ImGuiListClipper_Begin(clipper,nnames,-1._c_float)
+          do while (ImGuiListClipper_Step(clipper))
+             call c_f_pointer(clipper,clipper_f)
+             do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                isys = nameidx(i)
+                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                if (igTableSetColumnIndex(ic_savemult_id)) &
+                   call iw_text(string(isys))
+                if (igTableSetColumnIndex(ic_savemult_name)) &
+                   call iw_text(trim(sysc(isys)%seed%name))
+                if (igTableSetColumnIndex(ic_savemult_file)) &
+                   call iw_text(trim(names(i)),danger=nameexists(i))
+             end do
+          end do
+          call ImGuiListClipper_End(clipper)
+          call ImGuiListClipper_destroy(clipper)
+       else
+          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+          if (igTableSetColumnIndex(ic_savemult_name)) &
+             call iw_text("No systems to write")
+       end if
+       call igEndTable()
+    end if
+
+    ! the warning, and the overwrite acknowledgement it may need
+    if (len_trim(warnmsg) > 0) then
+       call iw_text(warnmsg,danger=.true.)
+       if (warnhidden) &
+          call iw_tooltip("The systems inside a collapsed group are not loaded until the group&
+             & is expanded in the tree, so they cannot be written",ttshown)
+    end if
+    if (dooverwrite) then
        ldum = iw_checkbox("Overwrite existing files##savemultoverwrite",w%savemult_overwrite)
        call iw_tooltip("Allow writing over the files that already exist in this directory",ttshown)
     end if
