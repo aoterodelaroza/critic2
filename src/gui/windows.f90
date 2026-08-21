@@ -105,7 +105,7 @@ module windows
      isformat_w_tessel,isformat_w_pdb,isformat_w_obj,isformat_w_ply,isformat_w_off/)
 
   ! options for the format combos, built once on first use by
-  ! build_format_combo. The first entry is "Auto-detect"; the format
+  ! build_write_format_combo. The first entry is "Auto-detect"; the format
   ! entries proper start at combostr(icombo_fmt1:), in fmtperm order.
   character(kind=c_char,len=:), allocatable, target :: combostr
   integer :: icombo_fmt1 = 1
@@ -697,8 +697,8 @@ module windows
      module subroutine okfile_save_dir(file)
        character(len=*), intent(in) :: file
      end subroutine okfile_save_dir
-     module subroutine build_format_combo()
-     end subroutine build_format_combo
+     module subroutine build_write_format_combo()
+     end subroutine build_write_format_combo
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)

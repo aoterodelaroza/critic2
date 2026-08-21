@@ -184,18 +184,6 @@ contains
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
 
-       ! multi-selection of systems in the tree
-       if (iw_menuitem("Select All")) forceselaction = sel_all
-       call iw_tooltip("Select all the systems visible in the tree&
-          & (control-click and shift-click select them by hand)",ttshown)
-       if (iw_menuitem("Select None")) then
-          call tree_select_none()
-          w%tree_selanchor = 0
-       end if
-       call iw_tooltip("Deselect all systems in the tree",ttshown)
-       if (iw_menuitem("Invert Selection")) forceselaction = sel_invert
-       call iw_tooltip("Select the visible systems that are not selected, and vice versa",ttshown)
-
        ! button: save multiple
        if (iw_menuitem("Save Multiple...")) &
           iaux = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
@@ -422,7 +410,9 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),ic_tree_NUMCOLUMNS,flags,szero,0._c_float)) then
+    sz%x = 0._c_float
+    sz%y = -igGetFrameHeightWithSpacing()
+    if (igBeginTable(c_loc(str),ic_tree_NUMCOLUMNS,flags,sz,0._c_float)) then
        ! force resize if asked for
        if (forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -784,6 +774,22 @@ contains
     end if
     call igPopStyleVar(3_c_int)
 
+    ! multi-selection buttons, under the table. They carry no label, so
+    ! that they still fit when the tree panel is narrow; the tooltips and
+    ! the "n selected" counter in the header line say what they act on.
+    ! The actions that need the list of shown systems are deferred to the
+    ! next pass, where it is built
+    if (iw_button("All")) forceselaction = sel_all
+    call iw_tooltip("Select all the systems visible in the tree&
+       & (control-click and shift-click select them by hand)",ttshown)
+    if (iw_button("None",sameline=.true.)) then
+       call tree_select_none()
+       w%tree_selanchor = 0
+    end if
+    call iw_tooltip("Deselect all systems in the tree",ttshown)
+    if (iw_button("Toggle",sameline=.true.)) forceselaction = sel_invert
+    call iw_tooltip("Select the visible systems that are not selected, and vice versa",ttshown)
+
     ! drop any pending selection that was not consumed above
     forceselect = 0
 
@@ -897,16 +903,19 @@ contains
       flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
       selected = (w%isys==isys) .or. sysc(isys)%tselected
       strl = "##selectable" // string(isys) // c_null_char
-      ! the default header color washes out against the per-system cell
-      ! background, so use the gold row highlight instead
-      call igPushStyleColor_Vec4(ImGuiCol_Header,ColorTableHighlightRow)
-      col4 = ColorTableHighlightRow
-      col4%w = min(col4%w * 1.4_c_float,1._c_float)
-      call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,col4)
-      col4%w = min(col4%w * 1.4_c_float,1._c_float)
-      call igPushStyleColor_Vec4(ImGuiCol_HeaderActive,col4)
+      ! a row in the multi-selection gets the gold row highlight: the
+      ! default header color is for the current system only, and washes
+      ! out against the per-system cell background anyway
+      if (sysc(isys)%tselected) then
+         call igPushStyleColor_Vec4(ImGuiCol_Header,ColorTableHighlightRow)
+         col4 = ColorTableHighlightRow
+         col4%w = min(col4%w * 1.4_c_float,1._c_float)
+         call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,col4)
+         col4%w = min(col4%w * 1.4_c_float,1._c_float)
+         call igPushStyleColor_Vec4(ImGuiCol_HeaderActive,col4)
+      end if
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
-      call igPopStyleColor(3_c_int)
+      if (sysc(isys)%tselected) call igPopStyleColor(3_c_int)
       okmouse = ok
       ok = ok .or. (forceselect == isys)
 

@@ -53,7 +53,7 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! build the format combo options on first use
-    call build_format_combo()
+    call build_write_format_combo()
 
     ! this window writes the system shown by its anchor view
     doquit = .not.w%anchor(iview,isys,syschanged)

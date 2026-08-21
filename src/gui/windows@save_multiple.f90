@@ -86,7 +86,7 @@ contains
     ! build the format combo options on first use; unlike the save-as
     ! window there is no auto-detect entry, as the pattern carries no
     ! extension, so skip the first entry of the shared combo string
-    call build_format_combo()
+    call build_write_format_combo()
 
     ! this window works on the tree, so it closes when the tree is gone
     doquit = .true.

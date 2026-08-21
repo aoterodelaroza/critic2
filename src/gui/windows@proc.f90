@@ -487,7 +487,7 @@ contains
   !> has been built already. The first entry is "Auto-detect" (used
   !> only by the save-as window) and the rest are the write formats in
   !> fmtperm order, starting at combostr(icombo_fmt1:).
-  module subroutine build_format_combo()
+  module subroutine build_write_format_combo()
 
     integer :: i
 
@@ -498,7 +498,7 @@ contains
        combostr = combostr // trim(fmtnames(fmtperm(i))) // c_null_char
     end do
 
-  end subroutine build_format_combo
+  end subroutine build_write_format_combo
 
   !> This routine regenerates all pointers to the widows in the win(:)
   !> structure and its components. It is used when an array size is
@@ -918,13 +918,14 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
-    use gui_main, only: fontsize
+    use gui_main, only: fontsize, io
     use interfaces_glfw, only: glfwGetTime
-    use utils, only: iw_text, get_nice_next_window_pos
+    use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    real(c_float) :: panewidth
     type(ImVec2) :: inisize, pos, pivot
     type(ImGuiWindow), pointer :: wptr
 
@@ -973,42 +974,55 @@ contains
           str2 = "" // c_null_char ! default path
           inisize%x = 90 * fontsize%x
           inisize%y = 30 * fontsize%y
+          call clamp_to_display(inisize)
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+          ! a file dialog is the widest window in the GUI: center it, or the
+          ! cascade offset pushes its side pane past the edge of the display
+          pos%x = max(0.5_c_float * (io%DisplaySize%x - inisize%x),0._c_float)
+          pos%y = max(0.5_c_float * (io%DisplaySize%y - inisize%y),0._c_float)
+          pivot%x = 0._c_float
+          pivot%y = 0._c_float
+          call igSetNextWindowPos(pos,ImGuiCond_FirstUseEver,pivot)
+
+          ! width of the dialog side pane: wide enough for its longest
+          ! option label at the current font size, so that raising the UI
+          ! scale does not clip the pane contents
+          panewidth = max(280._c_float,iw_calcwidth(28,0,1))
 
           str1 = "All files (*.*){*.*}" // c_null_char
           if (w%purpose == wpurp_dialog_openfiles) then
              ! open dialog
              w%name = "Open File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfiles),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_savelogfile) then
              w%name = "Save Log File##" // string(w%id)  // c_null_char
              str2 = "file.log" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_openfieldfile) then
              w%name = "Open Field File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfieldfile),&
-                c_loc(str2),c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_loc(str2),c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_openvibfile) then
              w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openvibfile),&
-                c_loc(str2),c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
+                c_loc(str2),c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              call dialog_initial_file(w%idparent,"image.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_savefile) then
              w%name = "Save Structure File##" // string(w%id) // c_null_char
              str1 = "&
@@ -1046,7 +1060,7 @@ contains
              ! the overwrite flag goes only to the file dialog, not to w%flags: it
              ! would be reused as ImGuiWindowFlags in IGFD_DisplayDialog
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),&
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
                 ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_selectdir) then
              w%name = "Select Directory##" // string(w%id) // c_null_char
@@ -1060,7 +1074,7 @@ contains
              end if
              ! a null filter list puts the dialog in directory-selection mode
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_null_ptr,c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           else
              call ferror('window_draw','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
@@ -1210,10 +1224,29 @@ contains
          else
             inisize%y = ny * fontsize%y
          end if
+         call clamp_to_display(inisize)
          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
       end if
 
     end subroutine init_window
+
+    !> Clamp an initial window size to what fits in the application
+    !> window, leaving room for the title bar and the drop shadow. A
+    !> window sized in characters overflows the display when the user
+    !> raises the font scale, and whatever sits on its right (the side
+    !> pane of a file dialog, say) is then cut off.
+    subroutine clamp_to_display(siz)
+      use gui_main, only: io
+      type(ImVec2), intent(inout) :: siz
+
+      real(c_float), parameter :: margin = 2._c_float
+
+      if (io%DisplaySize%x > 0._c_float) &
+         siz%x = min(siz%x,io%DisplaySize%x - margin * fontsize%x)
+      if (io%DisplaySize%y > 0._c_float) &
+         siz%y = min(siz%y,io%DisplaySize%y - margin * fontsize%y)
+
+    end subroutine clamp_to_display
 
     !> Initial file name and path for a save dialog, taken from the
     !> caller window's current okfile if available; defname in ./
