@@ -323,7 +323,7 @@ module windows
      logical :: savemult_nosym ! do not use symmetry in the written files
      logical :: savemult_cartesian ! write Cartesian instead of fractional coordinates
      logical :: savemult_docell ! show the unit cell in the written 3D model files
-     logical :: savemult_overwrite ! allow overwriting files that already exist
+     integer(c_int) :: savemult_exist ! target files that exist (0=undecided, 1=overwrite, 2=skip)
      ! extract cluster as molecule parameters
      integer(c_int) :: extract_region = 0 ! region shape (0=sphere, 1=cube, 2=cells)
      real(c_float) :: extract_rsph = 5._c_float ! sphere radius (Å)

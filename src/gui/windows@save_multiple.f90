@@ -52,6 +52,19 @@ submodule (windows) save_multiple
   integer :: nexist = 0 ! how many of them exist on disk already
   integer :: ndup = 0 ! how many of them are repeated in the list
 
+  ! File names typed by hand, keyed by the system they belong to. They
+  ! replace the pattern for that system and survive a rebuild of the list
+  ! (and a change of format, which re-extends them). There are usually
+  ! none or a handful, so a linear scan is enough
+  integer, allocatable :: ovrsys(:)
+  character(len=mlen), allocatable :: ovrname(:)
+  integer :: novr = 0
+
+  ! the system whose file name is being edited in the table (0 = none)
+  integer :: editsys = 0
+  character(len=:), allocatable :: editbuf
+  logical :: editfocus = .false.
+
   ! settings remembered from the last successful save (this session).
   ! The 50 rklength default is a deliberate GUI choice (the CLI writers
   ! default to 40 when no rklength is given).
@@ -71,7 +84,8 @@ contains
        launch_initialization_thread
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_calcheight, iw_tooltip,&
        iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event,&
-       iw_setpos_bottomright, iw_inputtext, iw_table_column, get_current_working_dir
+       iw_setpos_bottomright, iw_inputtext, iw_table_column, iw_radiobutton,&
+       get_current_working_dir
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use icons, only: icon_tex, icon_ui_cell, icon_vm_bond, rgba_fam_crys, rgba_fam_molgeom
     use gui_main, only: fontsize
@@ -81,7 +95,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1
     character(len=:), allocatable :: file, firsterr, warnmsg, savemsg
-    integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip, nbot
+    integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip, nleft, nbot
     integer(c_int) :: flags
     type(ImVec2) :: uv0, uv1
     type(ImVec4) :: nobord
@@ -120,7 +134,9 @@ contains
        w%savemult_nosym = lastnosym
        w%savemult_cartesian = lastcartesian
        w%savemult_docell = lastdocell
-       w%savemult_overwrite = .false.
+       w%savemult_exist = 0
+       novr = 0
+       editsys = 0
        if (allocated(lastpattern)) then
           w%savemult_pattern = lastpattern
        else
@@ -276,7 +292,7 @@ contains
     elseif (ndup > 0) then
        warnmsg = string(ndup) // " file names are repeated: add %i to the pattern"
     elseif (nexist > 0) then
-       warnmsg = string(nexist) // " of these files exist and will be overwritten"
+       warnmsg = string(nexist) // " of these files exist already"
        dooverwrite = .true.
     end if
     ! whether the structures can be written, and if not, the reason. The
@@ -286,7 +302,7 @@ contains
     ! checkbox, which is the price of computing it in a single place
     okvalid = (nnames > 0) .and. (ndup == 0) .and. dirok .and. .not.doquit .and.&
        .not.are_threads_running()
-    if (okvalid) okvalid = (nexist == 0) .or. w%savemult_overwrite
+    if (okvalid) okvalid = (nexist == 0) .or. (w%savemult_exist /= 0)
     savemsg = ""
     if (.not.okvalid .and. .not.doquit) then
        if (are_threads_running()) then
@@ -298,7 +314,7 @@ contains
        elseif (ndup > 0) then
           savemsg = "Cannot write: the file names are not unique"
        else
-          savemsg = "Cannot write: confirm overwriting the files that exist"
+          savemsg = "Cannot write: say what to do with the files that exist"
        end if
     end if
 
@@ -344,7 +360,7 @@ contains
                 if (igTableSetColumnIndex(ic_savemult_name)) &
                    call iw_text(trim(sysc(isys)%seed%name))
                 if (igTableSetColumnIndex(ic_savemult_file)) &
-                   call iw_text(trim(names(i)),danger=nameexists(i))
+                   call draw_file_cell(i,isys,ifmt)
              end do
           end do
           call ImGuiListClipper_End(clipper)
@@ -365,8 +381,13 @@ contains
              & is expanded in the tree, so they cannot be written",ttshown)
     end if
     if (dooverwrite) then
-       ldum = iw_checkbox("Overwrite existing files##savemultoverwrite",w%savemult_overwrite)
-       call iw_tooltip("Allow writing over the files that already exist in this directory",ttshown)
+       call iw_text("Write them?",highlight=.true.)
+       ldum = iw_radiobutton("Overwrite##savemultexist",int=w%savemult_exist,intval=1_c_int,&
+          sameline=.true.)
+       call iw_tooltip("Write over the files that already exist in this directory",ttshown)
+       ldum = iw_radiobutton("Skip##savemultexist",int=w%savemult_exist,intval=2_c_int,&
+          sameline=.true.)
+       call iw_tooltip("Leave the files that already exist alone and write only the others",ttshown)
     end if
 
     ! maybe the error or result message
@@ -392,12 +413,18 @@ contains
        nfail = 0
        nwritten = 0
        nskip = 0
+       nleft = 0
        firsterr = ""
        do i = 1, nnames
           isys = nameidx(i)
           ! a system may have been closed since the list was built
           if (.not.ok_system(isys,sys_init)) then
              nskip = nskip + 1
+             cycle
+          end if
+          ! leave the files that are there already, if that was the choice
+          if (w%savemult_exist == 2 .and. nameexists(i)) then
+             nleft = nleft + 1
              cycle
           end if
           file = savedir(w) // dirsep // trim(names(i))
@@ -435,8 +462,10 @@ contains
        if (nwritten > 0) okfile_lastdir = savedir(w)
        if (nfail == 0) then
           w%okmsg = string(nwritten) // " structure files written"
+          if (nleft > 0) &
+             w%okmsg = w%okmsg // ", " // string(nleft) // " already there"
           if (nskip > 0) &
-             w%okmsg = w%okmsg // " (" // string(nskip) // " systems skipped)"
+             w%okmsg = w%okmsg // ", " // string(nskip) // " not loaded"
           write (uout,'("Saved ",A," structure files to: ",A)') string(nwritten), savedir(w)
        else
           file = string(nfail) // " of " // string(nnames) // " files could not be written"
@@ -445,10 +474,10 @@ contains
        end if
        ! the files on disk changed: refresh the existence check in place
        ! (invalidating the whole cache would wipe the message above). The
-       ! files just written are known to the user, so the overwrite guard
-       ! starts out acknowledged instead of disabling the button
+       ! files just written are known to the user, so a second Save is not
+       ! held up for a choice that has effectively been made
        call update_existence(w)
-       w%savemult_overwrite = .true.
+       if (w%savemult_exist == 0) w%savemult_exist = 1
     end if
 
     ! final buttons: close
@@ -488,6 +517,54 @@ contains
 
     end subroutine draw_kind_icon
 
+    !> Draw the File cell of row i (system isys): the file name, or an
+    !> input box when this is the row being edited. A double-click starts
+    !> the edit, Enter or moving away commits it, and an empty name gives
+    !> the row back to the pattern.
+    subroutine draw_file_cell(i,isys,ifmt)
+      integer, intent(in) :: i, isys, ifmt
+
+      logical :: committed
+      real(c_float) :: pos
+      type(ImVec2) :: szero
+      character(kind=c_char,len=:), allocatable, target :: strl
+
+      szero = ImVec2(0._c_float,0._c_float)
+
+      if (editsys == isys) then
+         call igPushItemWidth(-1._c_float)
+         committed = iw_inputtext("##savemultfile",bufsize=mlen-1,texta=editbuf,&
+            grabfocus=editfocus,flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,&
+            ImGuiInputTextFlags_AutoSelectAll))
+         committed = committed .or. igIsItemDeactivated()
+         call igPopItemWidth()
+         editfocus = .false.
+         if (committed) then
+            call override_set(isys,typed_root(editbuf,ifmt))
+            editsys = 0
+         end if
+      else
+         ! a zero-width selectable under the text: it spans the whole cell
+         ! and, unlike a bare text, carries an ID, so the double-click
+         ! lands reliably. It also highlights the cell on hover, which is
+         ! the affordance that says the name can be typed over
+         pos = igGetCursorPosX()
+         strl = "##savemultfile" // string(isys) // c_null_char
+         if (igSelectable_Bool(c_loc(strl),.false._c_bool,&
+            ImGuiSelectableFlags_AllowDoubleClick,szero)) then
+            if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
+               editsys = isys
+               editbuf = trim(names(i))
+               editfocus = .true.
+            end if
+         end if
+         call igSameLine(0._c_float,-1._c_float)
+         call igSetCursorPosX(pos)
+         call iw_text(trim(names(i)),danger=nameexists(i))
+      end if
+
+    end subroutine draw_file_cell
+
     !> Draw the help mark for the file name pattern: one tooltip line per
     !> substitution, laid out in two columns like the view-mode tooltip.
     subroutine draw_pattern_help()
@@ -520,7 +597,9 @@ contains
       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
       call iw_text("The name of each file, without extension: the one for the&
          & chosen format is added automatically. A compound extension&
-         & (.scf.in, .alm.in) is removed whole by %f.")
+         & (.scf.in, .alm.in, .scf.out) is removed whole by %f. Double-click&
+         & a name in the table to type it by hand, and clear it to hand the&
+         & row back to the pattern.")
       call igPopTextWrapPos()
       call iw_text("")
       do i = 1, nsub
@@ -549,7 +628,7 @@ contains
 
     character(len=:), allocatable :: sig, root, ext
     integer, allocatable :: idx(:)
-    integer :: i, j, n, npad
+    integer :: i, j, k, n, npad
     integer*8 :: ihash
 
     ! the list of systems: a system that is not loaded yet cannot be
@@ -583,6 +662,13 @@ contains
           ihash = mod(ihash * 31 + iachar(sysc(idx(i))%seed%name(j:j)),sighashmod)
        end do
     end do
+    ihash = mod(ihash * 31 + novr,sighashmod)
+    do i = 1, novr
+       ihash = mod(ihash * 31 + ovrsys(i),sighashmod)
+       do j = 1, len_trim(ovrname(i))
+          ihash = mod(ihash * 31 + iachar(ovrname(i)(j:j)),sighashmod)
+       end do
+    end do
     sig = string(ifmt) // "|" // trim(w%okfile) // "|" //&
        trim(w%savemult_pattern) // "|" // string(ihash)
     changed = .true.
@@ -605,7 +691,12 @@ contains
     npad = len_trim(string(max(n,1)))
     ext = "." // trim(fmtext(ifmt))
     do i = 1, n
-       root = expand_pattern(w%savemult_pattern,idx(i),i,npad)
+       k = override_find(idx(i))
+       if (k > 0) then
+          root = trim(ovrname(k))
+       else
+          root = expand_pattern(w%savemult_pattern,idx(i),i,npad)
+       end if
        if (len_trim(root) == 0) root = "structure" // string(i,npad,pad0=.true.)
        ! do not repeat the extension if the pattern already carries it
        if (len(root) > len(ext)) then
@@ -620,7 +711,7 @@ contains
     ! repeated names: only possible if the pattern carries no index. The
     ! count is of the files involved in a collision, not of the repeats
     ndup = 0
-    if (.not.pattern_hasindex(w%savemult_pattern)) then
+    if (novr > 0 .or. .not.pattern_hasindex(w%savemult_pattern)) then
        do i = 1, n
           do j = 1, n
              if (j /= i .and. names(i) == names(j)) then
@@ -686,6 +777,90 @@ contains
     nexist = count(nameexists(1:nnames))
 
   end subroutine update_existence
+
+  !> Index of the hand-typed file name of system isys in the override
+  !> list, or 0 if it does not have one.
+  function override_find(isys)
+    integer, intent(in) :: isys
+    integer :: override_find
+
+    integer :: i
+
+    override_find = 0
+    do i = 1, novr
+       if (ovrsys(i) == isys) then
+          override_find = i
+          return
+       end if
+    end do
+
+  end function override_find
+
+  !> Set the hand-typed file name root of system isys. An empty root
+  !> drops the override, so that the pattern names the row again.
+  subroutine override_set(isys,root)
+    integer, intent(in) :: isys
+    character(len=*), intent(in) :: root
+
+    integer :: i, k
+    integer, allocatable :: iaux(:)
+    character(len=mlen), allocatable :: caux(:)
+
+    k = override_find(isys)
+
+    ! an empty name: forget the override, closing the gap it leaves
+    if (len_trim(root) == 0) then
+       if (k == 0) return
+       do i = k, novr-1
+          ovrsys(i) = ovrsys(i+1)
+          ovrname(i) = ovrname(i+1)
+       end do
+       novr = novr - 1
+       return
+    end if
+
+    ! replace the one that is there, or make room for a new one
+    if (k == 0) then
+       if (.not.allocated(ovrsys)) then
+          allocate(ovrsys(8),ovrname(8))
+       elseif (novr == size(ovrsys,1)) then
+          allocate(iaux(2*novr),caux(2*novr))
+          iaux(1:novr) = ovrsys(1:novr)
+          caux(1:novr) = ovrname(1:novr)
+          call move_alloc(iaux,ovrsys)
+          call move_alloc(caux,ovrname)
+       end if
+       novr = novr + 1
+       k = novr
+       ovrsys(k) = isys
+    end if
+    ovrname(k) = root
+
+  end subroutine override_set
+
+  !> A file name typed by hand, as a root: with the characters that have
+  !> no business in a file name replaced, and with the extension of format
+  !> ifmt removed if it is there, so that changing the format re-extends
+  !> the name instead of stacking a second extension on it.
+  function typed_root(str,ifmt)
+    character(len=*), intent(in) :: str
+    integer, intent(in) :: ifmt
+    character(len=:), allocatable :: typed_root
+
+    character(len=:), allocatable :: ext
+    integer :: k
+
+    typed_root = trim(adjustl(str))
+    do k = 1, len(typed_root)
+       if (index(badchars,typed_root(k:k)) > 0) typed_root(k:k) = "_"
+    end do
+    ext = "." // trim(fmtext(ifmt))
+    if (len(typed_root) > len(ext)) then
+       if (typed_root(len(typed_root)-len(ext)+1:) == ext) &
+          typed_root = typed_root(1:len(typed_root)-len(ext))
+    end if
+
+  end function typed_root
 
   !> Whether the file name pattern carries a token that makes every
   !> expansion unique (%i, %d or *). The pattern is walked the way
