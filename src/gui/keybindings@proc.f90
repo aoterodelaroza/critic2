@@ -204,6 +204,9 @@ contains
     call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,mod_none)
     call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_K,mod_none)
     call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_J,mod_none)
+    ! same key as BIND_EDITSELECT_SELECT_ALL: the tree and the view groups do
+    ! not clash, and each acts only while its own window is focused
+    call set_bind(BIND_TREE_SELECT_ALL,ImGuiKey_A,mod_ctrl)
     call set_bind(BIND_INPCON_RUN,ImGuiKey_Enter,mod_ctrl)
     call set_bind(BIND_VIEW_INC_NCELL,ImGuiKey_KeypadAdd,mod_none)
     ! BIND_VIEW_TRANSFORM_SUPERCELL is deliberately left unbound (the loop above

@@ -48,7 +48,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
-       BIND_TREE_MOVE_DOWN
+       BIND_TREE_MOVE_DOWN, BIND_TREE_SELECT_ALL
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext, iw_text,&
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
        iw_close_button, iw_table_column, iw_beginmenu
@@ -57,7 +57,7 @@ contains
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
     use gui_main, only: ColorTableCellBg, tooltip_delay,&
-       ColorFieldSelected, ColorTableHighlightRow, g, fontsize
+       ColorFieldSelected, ColorTableHighlightRow, g, fontsize, io
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
        icon_ui_expand, icon_ui_collapse
@@ -794,6 +794,10 @@ contains
     forceselect = 0
 
     !! process the keybindings
+    ! select all systems
+    if (is_bind_event(BIND_TREE_SELECT_ALL).and.w%focused().and..not.io%WantTextInput) &
+       forceselaction = sel_all
+
     ! remove system or field
     if (is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD).and.w%focused()) then
        jsel = w%isys
