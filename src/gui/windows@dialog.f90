@@ -57,9 +57,9 @@ contains
        doquit = (.not.ok_system(w%isys,sys_init))
     elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
-       w%purpose == wpurp_dialog_savefile) then
+       w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir) then
        ! open library file, save image file, open field file, open one file modal,
-       ! save structure file => quit if the caller window is gone
+       ! save structure file, select directory => quit if the caller window is gone
        doquit = .not.win(w%idparent)%isinit
     end if
 
@@ -182,6 +182,16 @@ contains
                 call c_free(cstr)
                 win(w%idparent)%okfilter = trim(name)
              end if
+          elseif (w%purpose == wpurp_dialog_selectdir) then
+             !! select directory dialog !!
+             ! in directory mode the dialog has no file name, so the
+             ! selected directory is the current path
+             win(w%idparent)%okfile_set = .true.
+
+             cstr = IGFD_GetCurrentPath(w%dptr)
+             call C_F_string_alloc(cstr,path)
+             call c_free(cstr)
+             win(w%idparent)%okfile = trim(path)
           else
              call ferror('draw_dialog','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if

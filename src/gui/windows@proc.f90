@@ -350,6 +350,7 @@ contains
              if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_saveas.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_save_multiple.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%idparent == idparent)
@@ -482,6 +483,23 @@ contains
 
   end subroutine okfile_save_dir
 
+  !> Build the option string for the write-format combos, unless it
+  !> has been built already. The first entry is "Auto-detect" (used
+  !> only by the save-as window) and the rest are the write formats in
+  !> fmtperm order, starting at combostr(icombo_fmt1:).
+  module subroutine build_format_combo()
+
+    integer :: i
+
+    if (allocated(combostr)) return
+    combostr = "Auto-detect" // c_null_char
+    icombo_fmt1 = len(combostr) + 1
+    do i = 1, isformat_w_max
+       combostr = combostr // trim(fmtnames(fmtperm(i))) // c_null_char
+    end do
+
+  end subroutine build_format_combo
+
   !> This routine regenerates all pointers to the widows in the win(:)
   !> structure and its components. It is used when an array size is
   !> exceeded and move_alloc needs to be used to allocate more memory.
@@ -595,6 +613,10 @@ contains
        ! save structure as window
        if (.not.present(idparent)) &
           call ferror('window_init','saveas requires idparent',faterr)
+    elseif (type == wintype_save_multiple) then
+       ! save multiple structures window
+       if (.not.present(idparent)) &
+          call ferror('window_init','save_multiple requires idparent',faterr)
     elseif (type == wintype_extract) then
        ! extract cluster as molecule window
        if (.not.present(idparent)) &
@@ -711,6 +733,8 @@ contains
              end if
           end if
           if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
+       elseif (w%type == wintype_save_multiple) then
+          if (allocated(w%savemult_pattern)) deallocate(w%savemult_pattern)
        elseif (w%type == wintype_water_cluster) then
           ! the demo owns its generated cluster; remove it on close so it does not linger
           isysd = w%isys
@@ -1024,6 +1048,19 @@ contains
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),&
                 ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_selectdir) then
+             w%name = "Select Directory##" // string(w%id) // c_null_char
+             str2 = "" // c_null_char
+             str3 = "./" // c_null_char
+             if (w%idparent >= 1 .and. w%idparent <= nwin) then
+                if (allocated(win(w%idparent)%okfile)) then
+                   if (len_trim(win(w%idparent)%okfile) > 0) &
+                      str3 = trim(win(w%idparent)%okfile) // c_null_char
+                end if
+             end if
+             ! a null filter list puts the dialog in directory-selection mode
+             call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_null_ptr,c_loc(str3),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           else
              call ferror('window_draw','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
@@ -1041,6 +1078,8 @@ contains
           call init_window("Export to Image",52,21)
        elseif (w%type == wintype_saveas) then
           call init_window("Save As",52,18)
+       elseif (w%type == wintype_save_multiple) then
+          call init_window("Save Multiple Structures",60,36)
        elseif (w%type == wintype_extract) then
           call init_window("Extract as Molecule(s)",52,23)
        elseif (w%type == wintype_rattle) then
@@ -1109,6 +1148,8 @@ contains
                 call w%draw_exportimage()
              elseif (w%type == wintype_saveas) then
                 call w%draw_saveas()
+             elseif (w%type == wintype_save_multiple) then
+                call w%draw_save_multiple()
              elseif (w%type == wintype_extract) then
                 call w%draw_extract()
              elseif (w%type == wintype_rattle) then

@@ -75,6 +75,7 @@ module systems
      integer :: status = sys_empty ! current status
      logical :: hidden = .false. ! whether it is hidden in the tree view (filter)
      logical :: showfields = .false. ! whether to show the fields in the tree view
+     logical :: tselected = .false. ! whether it is selected in the tree (multi-selection)
      type(crystalseed) :: seed ! generating seed
      integer :: idseed ! for systems read from a multi-seed file, the numerical id of the seed
      logical :: has_field = .false. ! true if the seed has a field

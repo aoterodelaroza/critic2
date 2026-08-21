@@ -30,7 +30,14 @@ submodule (windows) tree
   ! group headers, which are not systems and are not waiting to initialize
   real(c_float), parameter :: rgba_group(4) = (/0.95_c_float,0.80_c_float,0.25_c_float,1.00_c_float/)
 
+  ! deferred multi-selection actions: they act on the systems shown in
+  ! the tree, which is known only after the filter has been applied
+  integer, parameter :: sel_none = 0
+  integer, parameter :: sel_all = 1
+  integer, parameter :: sel_invert = 2
+
   !xx! private procedures
+  ! subroutine tree_select_none()
   ! function tree_system_tooltip(i)
   ! function tree_field_tooltip_string(si,fj)
 
@@ -50,7 +57,7 @@ contains
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
     use gui_main, only: ColorTableCellBg, tooltip_delay,&
-       ColorFieldSelected, g, fontsize
+       ColorFieldSelected, ColorTableHighlightRow, g, fontsize
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
        icon_ui_expand, icon_ui_collapse
@@ -92,6 +99,7 @@ contains
     logical, save :: forcesort = .false. ! force a sort of the tree
     logical, save :: forceresize = .false. ! force a resize of the tree columns
     logical, save :: forceinit = .false. ! run the initialization threads
+    integer, save :: forceselaction = sel_none ! deferred multi-selection action
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer, save :: lastmaxprops = -1 ! last max number of simultaneous property icons (to detect resize)
@@ -174,6 +182,24 @@ contains
        if (iw_menuitem("Plot Tree Data...")) &
           iaux = stack_create_window(wintype_treeplot,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Plot the tree data",ttshown)
+       call igSeparator()
+
+       ! multi-selection of systems in the tree
+       if (iw_menuitem("Select All")) forceselaction = sel_all
+       call iw_tooltip("Select all the systems visible in the tree&
+          & (control-click and shift-click select them by hand)",ttshown)
+       if (iw_menuitem("Select None")) then
+          call tree_select_none()
+          w%tree_selanchor = 0
+       end if
+       call iw_tooltip("Deselect all systems in the tree",ttshown)
+       if (iw_menuitem("Invert Selection")) forceselaction = sel_invert
+       call iw_tooltip("Select the visible systems that are not selected, and vice versa",ttshown)
+
+       ! button: save multiple
+       if (iw_menuitem("Save Multiple...")) &
+          iaux = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
+       call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
        call igSeparator()
 
        ! close visible
@@ -354,10 +380,27 @@ contains
        end do
     end if
 
+    ! apply the deferred multi-selection action, now that the list of
+    ! systems shown in the tree is known
+    if (forceselaction /= sel_none) then
+       ! select all starts from an empty selection; invert does not
+       if (forceselaction == sel_all) call tree_select_none()
+       do j = 1, nshown_after_filter
+          i = ishown(j)
+          if (sysc(i)%status == sys_empty) cycle
+          call set_selected(i,(forceselaction == sel_all) .or. .not.sysc(i)%tselected)
+       end do
+       w%tree_selanchor = 0
+       forceselaction = sel_none
+    end if
+
     ! final message in the header line
     if (nshown > 1) then
        call iw_text(" " // string(nshown_after_filter) // "/" // string(nshown) // " shown",&
           sameline=.true.)
+       k = tree_nselected()
+       if (k > 0) &
+          call iw_text(", " // string(k) // " selected",sameline_nospace=.true.)
     end if
 
     ! set up the table, style and flags
@@ -836,7 +879,7 @@ contains
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, intent(in) :: tooltipstr
 
-      integer :: k, idx, iaux
+      integer :: k, idx, iaux, ianchor
       real(c_float) :: pos
       integer(c_int) :: flags, isyscollapse, idum
       logical(c_bool) :: selected
@@ -852,13 +895,41 @@ contains
       flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
       flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
       flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-      selected = (w%isys==isys)
+      selected = (w%isys==isys) .or. sysc(isys)%tselected
       strl = "##selectable" // string(isys) // c_null_char
+      ! the default header color washes out against the per-system cell
+      ! background, so use the gold row highlight instead
+      call igPushStyleColor_Vec4(ImGuiCol_Header,ColorTableHighlightRow)
+      col4 = ColorTableHighlightRow
+      col4%w = min(col4%w * 1.4_c_float,1._c_float)
+      call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,col4)
+      col4%w = min(col4%w * 1.4_c_float,1._c_float)
+      call igPushStyleColor_Vec4(ImGuiCol_HeaderActive,col4)
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
+      call igPopStyleColor(3_c_int)
       okmouse = ok
       ok = ok .or. (forceselect == isys)
-      if (ok) then
+
+      ! multi-selection: control-click toggles one row, shift-click selects
+      ! the range from the anchor. Neither changes the current system.
+      ! the window type starts with isys = 1 and no anchor, so fall back to
+      ! the current system: a shift-click must work on the first click too
+      ianchor = w%tree_selanchor
+      if (ianchor == 0) ianchor = w%isys
+      if (okmouse .and. igIsKeyDown(ImGuiKey_ModShift) .and.&
+         range_is_selectable(ianchor,isys)) then
+         call select_range(ianchor,isys)
+      elseif (okmouse .and. igIsKeyDown(ImGuiKey_ModCtrl)) then
+         call set_selected(isys,.not.sysc(isys)%tselected)
+         w%tree_selanchor = isys
+      elseif (ok) then
+         ! a plain activation selects this row alone and starts a new
+         ! range; a selection forced by another window (a new structure
+         ! being opened, say) leaves the multi-selection alone
+         if (okmouse) call tree_select_none()
+         w%tree_selanchor = isys
          if (sysc(isys)%status /= sys_group) then
+            if (okmouse) call set_selected(isys,.true.)
             call w%select_system_tree(isys)
             if (forceselect > 0) then
                forceselect = 0
@@ -991,6 +1062,11 @@ contains
             call reread_system_from_file(isys)
          end if
          call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
+
+         ! save several systems to files
+         if (iw_menuitem("Save Multiple...",enabled=enabled_no_threads)) &
+            idum = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
+         call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
 
          ! remove option (system)
          ok = enabled
@@ -1260,6 +1336,72 @@ contains
       end if
 
     end subroutine draw_field_row
+
+    ! Set the tree multi-selection flag of system i to val. A group
+    ! header is not a system: selecting it selects all its members.
+    subroutine set_selected(i,val)
+      integer, intent(in) :: i
+      logical, intent(in) :: val
+
+      integer :: k
+
+      sysc(i)%tselected = val
+      if (sysc(i)%status /= sys_group) return
+      do k = 1, nsys
+         if (sysc(k)%status == sys_empty) cycle
+         if (sysc(k)%collapse == i) sysc(k)%tselected = val
+      end do
+
+    end subroutine set_selected
+
+    ! Whether both systems are rows currently shown in the tree, and can
+    ! therefore delimit a selection range
+    function range_is_selectable(ianchor,i)
+      integer, intent(in) :: ianchor, i
+      logical :: range_is_selectable
+
+      integer :: j
+
+      range_is_selectable = .false.
+      if (ianchor == 0) return
+      do j = 1, nshown_after_filter
+         if (ishown(j) == ianchor) then
+            range_is_selectable = .true.
+            exit
+         end if
+      end do
+      if (.not.range_is_selectable) return
+      range_is_selectable = .false.
+      do j = 1, nshown_after_filter
+         if (ishown(j) == i) then
+            range_is_selectable = .true.
+            exit
+         end if
+      end do
+
+    end function range_is_selectable
+
+    ! Select the rows between systems ianchor and i (both included), in
+    ! the order in which they are shown in the tree.
+    subroutine select_range(ianchor,i)
+      integer, intent(in) :: ianchor, i
+
+      integer :: j, j1, j2
+
+      j1 = 0
+      j2 = 0
+      do j = 1, nshown_after_filter
+         if (ishown(j) == ianchor) j1 = j
+         if (ishown(j) == i) j2 = j
+      end do
+      if (j1 == 0 .or. j2 == 0) return
+
+      call tree_select_none()
+      do j = min(j1,j2), max(j1,j2)
+         call set_selected(ishown(j),.true.)
+      end do
+
+    end subroutine select_range
 
     ! open a collapsed group, or close an open one
     subroutine toggle_group(i)
@@ -1571,11 +1713,75 @@ contains
     integer, intent(in) :: idx
 
     w%isys = idx
+    ! the anchor follows the current system, so that a shift-click works
+    ! even when the selection was made by another window (or at startup)
+    w%tree_selanchor = idx
     w%timelast_assign = glfwGetTime()
 
   end subroutine select_system_tree
 
+  !> Number of systems currently selected in the tree (group headers,
+  !> which are not systems, do not count).
+  module function tree_nselected()
+    use systems, only: nsys, sysc, sys_empty, sys_group
+    integer :: tree_nselected
+
+    tree_nselected = count(sysc(1:nsys)%tselected .and. sysc(1:nsys)%status /= sys_empty .and.&
+       sysc(1:nsys)%status /= sys_group)
+
+  end function tree_nselected
+
+  !> Build the list of systems in the tree, in tree order, and return it
+  !> in idx. If onlyselected, include only the systems that are selected
+  !> in the tree. Group headers are not systems and are never included,
+  !> but the members of a collapsed group are: they are not rows of their
+  !> own in the tree (iord skips them) and they would otherwise be lost.
+  module subroutine tree_system_list(idx,onlyselected)
+    use systems, only: nsys, sysc, sys_empty, sys_group
+    use types, only: realloc
+    integer, allocatable, intent(inout) :: idx(:)
+    logical, intent(in) :: onlyselected
+
+    integer :: i, j, k, n
+
+    if (allocated(idx)) deallocate(idx)
+    allocate(idx(nsys))
+    n = 0
+    if (allocated(win(iwin_tree)%iord)) then
+       do j = 1, size(win(iwin_tree)%iord,1)
+          i = win(iwin_tree)%iord(j)
+          if (i < 1 .or. i > nsys) cycle
+          if (sysc(i)%status == sys_empty) cycle
+          if (sysc(i)%status /= sys_group) then
+             if (.not.(onlyselected .and. .not.sysc(i)%tselected)) then
+                n = n + 1
+                idx(n) = i
+             end if
+          end if
+          ! the systems this row heads, if it is a collapsed master
+          if (sysc(i)%collapse /= -1) cycle
+          do k = 1, nsys
+             if (sysc(k)%status == sys_empty .or. sysc(k)%status == sys_group) cycle
+             if (sysc(k)%collapse /= i .or. .not.sysc(k)%hidden) cycle
+             if (onlyselected .and. .not.sysc(k)%tselected) cycle
+             n = n + 1
+             idx(n) = k
+          end do
+       end do
+    end if
+    call realloc(idx,n)
+
+  end subroutine tree_system_list
+
   !xx! private procedures
+
+  ! Clear the tree multi-selection.
+  subroutine tree_select_none()
+    use systems, only: nsys, sysc
+
+    sysc(1:nsys)%tselected = .false.
+
+  end subroutine tree_select_none
 
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system i.

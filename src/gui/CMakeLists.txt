@@ -31,6 +31,7 @@ set(SOURCES
   windows@ci.f90 windows@co.f90 windows@new_struct.f90 windows@new_struct_library.f90
   windows@geometry.f90 windows@treeplot.f90 windows@scfplot.f90
   windows@load_field.f90 windows@preferences.f90 windows@exportimage.f90 windows@saveas.f90
+  windows@save_multiple.f90
   windows@extract.f90
   windows@rattle.f90
   windows@vibrations.f90 windows@dynamics.f90 windows@editrep.f90 windows@about.f90

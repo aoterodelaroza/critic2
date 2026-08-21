@@ -23,7 +23,16 @@ module windows
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
   use crystalseedmod, only: crystalseed
-  use param, only: isformat_r_unknown, eye, mlen
+  use param, only: isformat_r_unknown, eye, mlen,&
+     isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
+     isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
+     isformat_w_aimsin, isformat_w_vasp, isformat_w_abinit, isformat_w_elk,&
+     isformat_w_tessel, isformat_w_critic, isformat_w_cif, isformat_w_crystal,&
+     isformat_w_shelx, isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp,&
+     isformat_w_lammps, isformat_w_siesta_fdf, isformat_w_siesta_struct,&
+     isformat_w_dftbp_hsd, isformat_w_dftbp_gen, isformat_w_pyscf,&
+     isformat_w_tinkerfrac, isformat_w_pdb, isformat_w_castepcell, isformat_w_alamode,&
+     isformat_w_unknown, isformat_w_max
   implicit none
 
   private
@@ -40,6 +49,66 @@ module windows
 
   ! last directory used by the save windows (okfile_default/okfile_save_dir)
   character(len=:), allocatable :: okfile_lastdir
+
+  ! structure write formats, shared by the windows that write structure
+  ! files (saveas, save_multiple).
+  ! format names, indexed by the isformat_w constants
+  character(len=32), parameter :: fmtnames(isformat_w_max) = (/&
+     "xyz file (.xyz)                 ",& ! isformat_w_xyz
+     "Gaussian input (.gjf)           ",& ! isformat_w_gjf
+     "CML file (.cml)                 ",& ! isformat_w_cml
+     "Wavefront obj (.obj)            ",& ! isformat_w_obj
+     "PLY file (.ply)                 ",& ! isformat_w_ply
+     "OFF file (.off)                 ",& ! isformat_w_off
+     "Gaussian input, periodic (.gau) ",& ! isformat_w_gaussian_periodic
+     "Quantum ESPRESSO input (.pwi)   ",& ! isformat_w_qein
+     "FHIaims input (.in)             ",& ! isformat_w_aimsin
+     "VASP POSCAR (.POSCAR)           ",& ! isformat_w_vasp
+     "abinit input (.abin)            ",& ! isformat_w_abinit
+     "elk GEOMETRY.OUT (.elk)         ",& ! isformat_w_elk
+     "tessel input (.tess)            ",& ! isformat_w_tessel
+     "critic2 input (.cri)            ",& ! isformat_w_critic
+     "CIF file (.cif)                 ",& ! isformat_w_cif
+     "CRYSTAL input (.d12)            ",& ! isformat_w_crystal
+     "SHELX res (.res)                ",& ! isformat_w_shelx
+     "escher/octave (.m)              ",& ! isformat_w_octave
+     "dcp database (.db)              ",& ! isformat_w_dcpdb
+     "GULP input (.gin)               ",& ! isformat_w_gulp
+     "LAMMPS data (.lammps)           ",& ! isformat_w_lammps
+     "SIESTA fdf (.fdf)               ",& ! isformat_w_siesta_fdf
+     "SIESTA STRUCT_IN (.struct_in)   ",& ! isformat_w_siesta_struct
+     "DFTB+ hsd (.hsd)                ",& ! isformat_w_dftbp_hsd
+     "DFTB+ gen (.gen)                ",& ! isformat_w_dftbp_gen
+     "pyscf script (.pyscf)           ",& ! isformat_w_pyscf
+     "TINKER frac (.frac)             ",& ! isformat_w_tinkerfrac
+     "pdb file (.pdb)                 ",& ! isformat_w_pdb
+     "CASTEP cell (.cell)             ",& ! isformat_w_castepcell
+     "alamode input (.alm.in)         "/) ! isformat_w_alamode
+
+  ! canonical extension for each format, indexed by the isformat_w constants
+  character(len=9), parameter :: fmtext(isformat_w_max) = (/&
+     "xyz      ","gjf      ","cml      ","obj      ","ply      ",&
+     "off      ","gau      ","pwi      ","in       ","POSCAR   ",&
+     "abin     ","elk      ","tess     ","cri      ","cif      ",&
+     "d12      ","res      ","m        ","db       ","gin      ",&
+     "lammps   ","fdf      ","struct_in","hsd      ","gen      ",&
+     "pyscf    ","frac     ","pdb      ","cell     ","alm.in   "/)
+
+  ! order of the formats in the combo
+  integer, parameter :: fmtperm(isformat_w_max) = (/isformat_w_aimsin,isformat_w_cif,&
+     isformat_w_qein,isformat_w_vasp,isformat_w_castepcell,isformat_w_shelx,&
+     isformat_w_crystal,isformat_w_abinit,isformat_w_elk,isformat_w_gjf,&
+     isformat_w_gaussian_periodic,isformat_w_xyz,isformat_w_cml,isformat_w_alamode,&
+     isformat_w_critic,isformat_w_octave,isformat_w_dcpdb,isformat_w_gulp,&
+     isformat_w_lammps,isformat_w_siesta_fdf,isformat_w_siesta_struct,&
+     isformat_w_dftbp_hsd,isformat_w_dftbp_gen,isformat_w_pyscf,isformat_w_tinkerfrac,&
+     isformat_w_tessel,isformat_w_pdb,isformat_w_obj,isformat_w_ply,isformat_w_off/)
+
+  ! options for the format combos, built once on first use by
+  ! build_format_combo. The first entry is "Auto-detect"; the format
+  ! entries proper start at combostr(icombo_fmt1:), in fmtperm order.
+  character(kind=c_char,len=:), allocatable, target :: combostr
+  integer :: icombo_fmt1 = 1
 
   ! view modes (positive = normal, user-selectable; negative = forced).
   integer, parameter, public :: vm_builder_bondorder = -11 ! forced by builder: cycle the bond order (persistent)
@@ -174,6 +243,7 @@ module windows
      real*8 :: timelast_focused = 0d0 ! time this window was last focused (close-dialog bind)
      ! tree table parameters
      integer :: forceselect = 0 ! make the tree select this system in the next pass
+     integer :: tree_selanchor = 0 ! anchor row for the shift-click range in the tree multi-selection
      real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
      real*8 :: timelast_tree_resize = 0d0 ! time the tree columnes were last resized
      ! view parameters
@@ -239,12 +309,21 @@ module windows
      logical :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
      logical :: transparentbg ! transparent background
-     ! save structure as parameters (defaults set on window firstpass)
+     ! save structure as parameters
      integer(c_int) :: saveas_format ! write format combo (0 = auto-detect from extension)
      real(c_float) :: saveas_rk ! rklength for the k-point grid
      logical :: saveas_nosym ! do not use symmetry in the written file
      logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
      logical :: saveas_docell ! show the unit cell in the written 3D model file
+     ! save multiple structures parameters
+     integer(c_int) :: savemult_scope ! systems written (0=selected in the tree, 1=all in the tree)
+     integer(c_int) :: savemult_format ! write format, as an index into fmtperm
+     character(kind=c_char,len=:), allocatable :: savemult_pattern ! file name pattern (%n, %i, %s)
+     real(c_float) :: savemult_rk ! rklength for the k-point grid
+     logical :: savemult_nosym ! do not use symmetry in the written files
+     logical :: savemult_cartesian ! write Cartesian instead of fractional coordinates
+     logical :: savemult_docell ! show the unit cell in the written 3D model files
+     logical :: savemult_overwrite ! allow overwriting files that already exist
      ! extract cluster as molecule parameters
      integer(c_int) :: extract_region = 0 ! region shape (0=sphere, 1=cube, 2=cells)
      real(c_float) :: extract_rsph = 5._c_float ! sphere radius (Å)
@@ -429,6 +508,8 @@ module windows
      procedure :: draw_exportimage
      ! save structure as
      procedure :: draw_saveas
+     ! save multiple structures
+     procedure :: draw_save_multiple
      ! extract cluster as molecule
      procedure :: draw_extract
      procedure :: draw_rattle
@@ -486,6 +567,7 @@ module windows
   integer, parameter, public :: wintype_saveas = 20
   integer, parameter, public :: wintype_extract = 21
   integer, parameter, public :: wintype_rattle = 22
+  integer, parameter, public :: wintype_save_multiple = 23
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -499,6 +581,7 @@ module windows
   integer, parameter, public :: wpurp_view_main = 8
   integer, parameter, public :: wpurp_view_alternate = 9
   integer, parameter, public :: wpurp_dialog_savefile = 10
+  integer, parameter, public :: wpurp_dialog_selectdir = 11
 
   ! column ids for the table in the tree widget
   integer(c_int), parameter, public :: ic_tree_closebutton = 0
@@ -614,6 +697,8 @@ module windows
      module subroutine okfile_save_dir(file)
        character(len=*), intent(in) :: file
      end subroutine okfile_save_dir
+     module subroutine build_format_combo()
+     end subroutine build_format_combo
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
@@ -670,6 +755,13 @@ module windows
        class(window), intent(inout) :: w
        integer, intent(in) :: idx
      end subroutine select_system_tree
+     module function tree_nselected()
+       integer :: tree_nselected
+     end function tree_nselected
+     module subroutine tree_system_list(idx,onlyselected)
+       integer, allocatable, intent(inout) :: idx(:)
+       logical, intent(in) :: onlyselected
+     end subroutine tree_system_list
      !xx! treeplot submodule !xx!
      module subroutine draw_treeplot(w)
        class(window), intent(inout), target :: w
@@ -896,6 +988,10 @@ module windows
      module subroutine draw_saveas(w)
        class(window), intent(inout), target :: w
      end subroutine draw_saveas
+     !xx! save_multiple submodule !xx!
+     module subroutine draw_save_multiple(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_save_multiple
      !xx! extract submodule !xx!
      module subroutine draw_extract(w)
        class(window), intent(inout), target :: w

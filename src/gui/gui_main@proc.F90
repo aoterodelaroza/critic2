@@ -782,7 +782,7 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use interfaces_cimgui
-    use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
+    use systems, only: sys, sysc, nsys, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
@@ -790,7 +790,7 @@ contains
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_exportimage,&
-       wintype_saveas, paste_clipboard_fragment, view_target_window
+       wintype_saveas, wintype_save_multiple, paste_clipboard_fragment, view_target_window
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
@@ -960,6 +960,12 @@ contains
              idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&
              orraise=-1)
           call iw_tooltip("Write the structure of the current system to a file in a chosen format",ttshown)
+
+          ! File -> Save multiple
+          if (iw_menuitem("Save Multiple...",enabled=(nsys > 0))) &
+             idum = stack_create_window(wintype_save_multiple,.true.,idparent=iwin_tree,orraise=-1)
+          call iw_tooltip("Write the structures of several systems in the tree to files&
+             & in a chosen format",ttshown)
 
           ! File -> Separator
           call igSeparator()

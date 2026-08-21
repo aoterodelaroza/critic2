@@ -998,7 +998,7 @@ contains
       if (faded_) &
          call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
       call igPushTextWrapPos(0._c_float)
-      call igTextWrapped(c_loc(strl))
+      call igTextUnformatted(c_loc(strl),c_null_ptr)
       call igPopTextWrapPos()
       if (faded_) call igPopStyleColor(1)
 

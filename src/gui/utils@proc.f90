@@ -1230,7 +1230,7 @@ contains
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
      noadvance,copy_to_output,centered,alignframe,rgb,rgba)
     use interfaces_cimgui
-    use gui_main, only: ColorHighlightText, ColorDangerText
+    use gui_main, only: g, ColorHighlightText, ColorDangerText
     use tools_io, only: uout
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: highlight
@@ -1249,6 +1249,7 @@ contains
 
     logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
     logical :: noadvance_,copy_to_output_, centered_, alignframe_
+    logical :: pushedcolor
     real(c_float) :: pos, wwidth, twidth
     type(ImVec2) :: sz
     type(ImVec4) :: col
@@ -1283,27 +1284,24 @@ contains
        twidth = sz%x
        call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)
     end if
+    pushedcolor = .true.
     if (disabled_) then
-       call igTextDisabled(c_loc(str1))
+       col = g%Style%Colors(ImGuiCol_TextDisabled+1)
     elseif (highlight_) then
-       call igTextColored(ColorHighlightText,c_loc(str1))
+       col = ColorHighlightText
     elseif (danger_) then
-       call igTextColored(ColorDangerText,c_loc(str1))
+       col = ColorDangerText
     elseif (present(rgb)) then
-       col%x = rgb(1)
-       col%y = rgb(2)
-       col%z = rgb(3)
-       col%w = 1._c_float
-       call igTextColored(col,c_loc(str1))
+       col = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
     elseif (present(rgba)) then
-       col%x = rgba(1)
-       col%y = rgba(2)
-       col%z = rgba(3)
-       col%w = rgba(4)
-       call igTextColored(col,c_loc(str1))
+       col = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
     else
-       call igText(c_loc(str1))
+       pushedcolor = .false.
     end if
+    if (pushedcolor) call igPushStyleColor_Vec4(ImGuiCol_Text,col)
+    ! unformatted: the text is data, not a printf format string
+    call igTextUnformatted(c_loc(str1),c_null_ptr)
+    if (pushedcolor) call igPopStyleColor(1)
     if (noadvance_) then
        call igSameLine(0._c_float,0._c_float)
        call igSetCursorPosX(pos)
@@ -1663,13 +1661,10 @@ contains
     subroutine show_tooltip()
       strloc = trim(str) // c_null_char
       call igBeginTooltip()
-      if (nowrap_) then
-         call igText(c_loc(strloc))
-      else
-         call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
-         call igTextWrapped(c_loc(strloc))
-         call igPopTextWrapPos()
-      end if
+      if (.not.nowrap_) call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+      ! unformatted: the text is data, not a printf format string
+      call igTextUnformatted(c_loc(strloc),c_null_ptr)
+      if (.not.nowrap_) call igPopTextWrapPos()
       call igEndTooltip()
     end subroutine show_tooltip
   end subroutine iw_tooltip

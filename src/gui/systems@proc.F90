@@ -299,6 +299,7 @@ contains
     sysc(idx)%collapse = -1
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
+    sysc(idx)%tselected = .false.
     sysc(idx)%renamed = .true.
     sysc(idx)%idseed = 0
     sysc(idx)%has_field = .false.
@@ -416,6 +417,7 @@ contains
        sysc(idx)%has_vib = .false.
        sysc(idx)%renamed = .false.
        sysc(idx)%showfields = .false.
+       sysc(idx)%tselected = .false.
        if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
        if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
        if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
@@ -576,6 +578,7 @@ contains
        sysc(idx)%collapse = 0
        sysc(idx)%hidden = .false.
        sysc(idx)%showfields = .false.
+       sysc(idx)%tselected = .false.
        sysc(idx)%renamed = .false.
        if (allocated(sysc(idx)%group_label)) deallocate(sysc(idx)%group_label)
        if (allocated(sysc(idx)%group_parent)) deallocate(sysc(idx)%group_parent)
@@ -608,6 +611,7 @@ contains
     sysc(idx)%status = sys_empty
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
+    sysc(idx)%tselected = .false.
     call sysc(idx)%post_event(lastchange_geometry)
 
     if (sysc(idx)%collapse == -1 .or. kdie) then

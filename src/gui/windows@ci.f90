@@ -364,7 +364,7 @@ contains
        end if
        call iw_text("Input:  ",highlight=.true.)
        call igIndent(0._c_float)
-       call igText(c_loc(inputb))
+       call igTextUnformatted(c_loc(inputb),c_null_ptr)
        call igPopStyleVar(1_c_int)
        call igUnindent(0._c_float)
     end if

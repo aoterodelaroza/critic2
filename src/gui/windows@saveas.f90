@@ -18,71 +18,7 @@
 ! Routines for the save as... window.
 submodule (windows) saveas
   use interfaces_cimgui
-  use param, only: isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
-     isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
-     isformat_w_aimsin, isformat_w_vasp, isformat_w_abinit, isformat_w_elk,&
-     isformat_w_tessel, isformat_w_critic, isformat_w_cif, isformat_w_crystal,&
-     isformat_w_shelx, isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp,&
-     isformat_w_lammps, isformat_w_siesta_fdf, isformat_w_siesta_struct,&
-     isformat_w_dftbp_hsd, isformat_w_dftbp_gen, isformat_w_pyscf,&
-     isformat_w_tinkerfrac, isformat_w_pdb, isformat_w_castepcell, isformat_w_alamode,&
-     isformat_w_unknown, isformat_w_max
   implicit none
-
-  ! format names, indexed by the isformat_w constants
-  character(len=32), parameter :: fmtnames(isformat_w_max) = (/&
-     "xyz file (.xyz)                 ",& ! isformat_w_xyz
-     "Gaussian input (.gjf)           ",& ! isformat_w_gjf
-     "CML file (.cml)                 ",& ! isformat_w_cml
-     "Wavefront obj (.obj)            ",& ! isformat_w_obj
-     "PLY file (.ply)                 ",& ! isformat_w_ply
-     "OFF file (.off)                 ",& ! isformat_w_off
-     "Gaussian input, periodic (.gau) ",& ! isformat_w_gaussian_periodic
-     "Quantum ESPRESSO input (.pwi)   ",& ! isformat_w_qein
-     "FHIaims input (.in)             ",& ! isformat_w_aimsin
-     "VASP POSCAR (.POSCAR)           ",& ! isformat_w_vasp
-     "abinit input (.abin)            ",& ! isformat_w_abinit
-     "elk GEOMETRY.OUT (.elk)         ",& ! isformat_w_elk
-     "tessel input (.tess)            ",& ! isformat_w_tessel
-     "critic2 input (.cri)            ",& ! isformat_w_critic
-     "CIF file (.cif)                 ",& ! isformat_w_cif
-     "CRYSTAL input (.d12)            ",& ! isformat_w_crystal
-     "SHELX res (.res)                ",& ! isformat_w_shelx
-     "escher/octave (.m)              ",& ! isformat_w_octave
-     "dcp database (.db)              ",& ! isformat_w_dcpdb
-     "GULP input (.gin)               ",& ! isformat_w_gulp
-     "LAMMPS data (.lammps)           ",& ! isformat_w_lammps
-     "SIESTA fdf (.fdf)               ",& ! isformat_w_siesta_fdf
-     "SIESTA STRUCT_IN (.struct_in)   ",& ! isformat_w_siesta_struct
-     "DFTB+ hsd (.hsd)                ",& ! isformat_w_dftbp_hsd
-     "DFTB+ gen (.gen)                ",& ! isformat_w_dftbp_gen
-     "pyscf script (.pyscf)           ",& ! isformat_w_pyscf
-     "TINKER frac (.frac)             ",& ! isformat_w_tinkerfrac
-     "pdb file (.pdb)                 ",& ! isformat_w_pdb
-     "CASTEP cell (.cell)             ",& ! isformat_w_castepcell
-     "alamode input (.alm.in)         "/) ! isformat_w_alamode
-
-  ! canonical extension for each format, indexed by the isformat_w constants
-  character(len=9), parameter :: fmtext(isformat_w_max) = (/&
-     "xyz      ","gjf      ","cml      ","obj      ","ply      ",&
-     "off      ","gau      ","pwi      ","in       ","POSCAR   ",&
-     "abin     ","elk      ","tess     ","cri      ","cif      ",&
-     "d12      ","res      ","m        ","db       ","gin      ",&
-     "lammps   ","fdf      ","struct_in","hsd      ","gen      ",&
-     "pyscf    ","frac     ","pdb      ","cell     ","alm.in   "/)
-
-  ! order of the formats in the combo
-  integer, parameter :: fmtperm(isformat_w_max) = (/isformat_w_aimsin,isformat_w_cif,&
-     isformat_w_qein,isformat_w_vasp,isformat_w_castepcell,isformat_w_shelx,&
-     isformat_w_crystal,isformat_w_abinit,isformat_w_elk,isformat_w_gjf,&
-     isformat_w_gaussian_periodic,isformat_w_xyz,isformat_w_cml,isformat_w_alamode,&
-     isformat_w_critic,isformat_w_octave,isformat_w_dcpdb,isformat_w_gulp,&
-     isformat_w_lammps,isformat_w_siesta_fdf,isformat_w_siesta_struct,&
-     isformat_w_dftbp_hsd,isformat_w_dftbp_gen,isformat_w_pyscf,isformat_w_tinkerfrac,&
-     isformat_w_tessel,isformat_w_pdb,isformat_w_obj,isformat_w_ply,isformat_w_off/)
-
-  ! options for the format combo (built once on first use)
-  character(kind=c_char,len=:), allocatable, target :: combostr
 
   ! cached existence check for the FHIaims companion control file
   character(len=:), allocatable :: lastcontrol
@@ -111,18 +47,13 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, okvalid, syschanged, changed, ismol, userk, usecell
-    integer :: i, isys, iview, iaux, ifmt, idetect
+    integer :: isys, iview, iaux, ifmt, idetect
     logical(c_bool) :: ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! build the format combo options on first use
-    if (.not.allocated(combostr)) then
-       combostr = "Auto-detect" // c_null_char
-       do i = 1, isformat_w_max
-          combostr = combostr // trim(fmtnames(fmtperm(i))) // c_null_char
-       end do
-    end if
+    call build_format_combo()
 
     ! this window writes the system shown by its anchor view
     doquit = .not.w%anchor(iview,isys,syschanged)
