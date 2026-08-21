@@ -822,6 +822,7 @@ contains
     character(len=:), allocatable :: errmsg
     integer(c_int) :: idum
     logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
+    logical :: nothreads
     logical :: okundo, okredo
     integer :: isys, isysv
 
@@ -830,6 +831,9 @@ contains
     ! isys is the tree selected system, isysv is the view selected system
     isys = win(iwin_tree)%isys
     isysok = ok_system(isys,sys_init)
+    ! actions that add, replace or sweep systems wait for the initialization
+    ! threads, exactly as the equivalent entries in the tree do
+    nothreads = .not.are_threads_running()
     isysv = win(iwin_view)%isys
     isysvok = ok_system(isysv,sys_init)
 
@@ -844,7 +848,7 @@ contains
     !! menu key bindings
     launch(d_open) = is_bind_event(BIND_OPEN)
     launch(d_close) = isysok .and. is_bind_event(BIND_CLOSE)
-    launch(d_reopen) = isysok .and. is_bind_event(BIND_REOPEN)
+    launch(d_reopen) = isysok .and. nothreads .and. is_bind_event(BIND_REOPEN)
     launch(d_new) = is_bind_event(BIND_NEW)
     launch(d_newlib) = .false.
     launch(d_preferences) = .false.
@@ -921,12 +925,13 @@ contains
           call iw_tooltip("Read molecular or crystal structures from external file(s)",ttshown)
 
          ! File -> Duplicate
-          if (iw_menuitem("Duplicate",enabled=isysok)) &
+          if (iw_menuitem("Duplicate",enabled=(isysok .and. nothreads))) &
              call duplicate_system(isys)
           call iw_tooltip("Create a copy of this system",ttshown)
 
           ! File -> Reopen from file
-          launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Restore",BIND_REOPEN,enabled=isysok)
+          launch(d_reopen) = launch(d_reopen) .or. &
+             iw_menuitem("Restore",BIND_REOPEN,enabled=(isysok .and. nothreads))
           call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
 
           ! File -> Close
@@ -962,7 +967,7 @@ contains
           call iw_tooltip("Write the structure of the current system to a file in a chosen format",ttshown)
 
           ! File -> Save multiple
-          if (iw_menuitem("Save Multiple...",enabled=(nsys > 0))) &
+          if (iw_menuitem("Save Multiple...",enabled=(nsys > 0 .and. nothreads))) &
              idum = stack_create_window(wintype_save_multiple,.true.,idparent=iwin_tree,orraise=-1)
           call iw_tooltip("Write the structures of several systems in the tree to files&
              & in a chosen format",ttshown)

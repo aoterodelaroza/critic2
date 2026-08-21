@@ -80,6 +80,12 @@ module icons
   ! filled in icons_init
   real(c_float), public :: rgba_icon_fmt(4,0:icon_fmt_MAX)
 
+  ! tints of the code families
+  real(c_float), parameter, public :: rgba_fam_crys(4) = &
+     (/1.00_c_float,0.65_c_float,0.25_c_float,1.0_c_float/)    ! orange
+  real(c_float), parameter, public :: rgba_fam_molgeom(4) = &
+     (/0.40_c_float,0.70_c_float,1.00_c_float,1.0_c_float/)    ! light blue
+
   public :: icons_init
   public :: icons_end
   public :: format_name

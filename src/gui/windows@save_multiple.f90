@@ -23,9 +23,10 @@ submodule (windows) save_multiple
 
   ! columns of the file table; the ids double as the column indices
   integer(c_int), parameter :: ic_savemult_id = 0
-  integer(c_int), parameter :: ic_savemult_name = 1
-  integer(c_int), parameter :: ic_savemult_file = 2
-  integer(c_int), parameter :: ic_savemult_NUMCOLUMNS = 3
+  integer(c_int), parameter :: ic_savemult_type = 1
+  integer(c_int), parameter :: ic_savemult_name = 2
+  integer(c_int), parameter :: ic_savemult_file = 3
+  integer(c_int), parameter :: ic_savemult_NUMCOLUMNS = 4
 
   ! characters replaced by an underscore in the name of a system (%n)
   character(len=*), parameter :: badchars = " |/:*?<>" //&
@@ -72,6 +73,8 @@ contains
        iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event,&
        iw_setpos_bottomright, iw_inputtext, iw_table_column, get_current_working_dir
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
+    use icons, only: icon_tex, icon_ui_cell, icon_vm_bond, rgba_fam_crys, rgba_fam_molgeom
+    use gui_main, only: fontsize
     use tools_io, only: string, uout
     use param, only: dirsep
     class(window), intent(inout), target :: w
@@ -80,6 +83,8 @@ contains
     character(len=:), allocatable :: file, firsterr, warnmsg
     integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip, nbot
     integer(c_int) :: flags
+    type(ImVec2) :: uv0, uv1
+    type(ImVec4) :: nobord
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: warnhidden, dooverwrite
@@ -89,6 +94,11 @@ contains
     type(ImVec2) :: sz
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    ! whole-texture image, no border (for the kind icons in the table)
+    uv0 = ImVec2(0._c_float,0._c_float)
+    uv1 = ImVec2(1._c_float,1._c_float)
+    nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
 
     ! build the format combo options on first use; unlike the save-as
     ! window there is no auto-detect entry, as the pattern carries no
@@ -282,6 +292,9 @@ contains
     sz%y = -iw_calcheight(nbot,0,.false.)
     if (igBeginTable(c_loc(str1),ic_savemult_NUMCOLUMNS,flags,sz,0._c_float)) then
        call iw_table_column("Id",id=ic_savemult_id,flags=ImGuiTableColumnFlags_WidthFixed)
+       flags = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_NoHeaderLabel)
+       call iw_table_column("(kind)##0savemultkind",id=ic_savemult_type,flags=flags,&
+          width=max(4._c_float,fontsize%y + 2._c_float))
        call iw_table_column("System",id=ic_savemult_name,flags=ImGuiTableColumnFlags_WidthStretch)
        call iw_table_column("File",id=ic_savemult_file,flags=ImGuiTableColumnFlags_WidthStretch)
        call igTableSetupScrollFreeze(0,1) ! the header row is always visible
@@ -299,6 +312,8 @@ contains
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                 if (igTableSetColumnIndex(ic_savemult_id)) &
                    call iw_text(string(isys))
+                if (igTableSetColumnIndex(ic_savemult_type)) &
+                   call draw_kind_icon(ifmt,isys)
                 if (igTableSetColumnIndex(ic_savemult_name)) &
                    call iw_text(trim(sysc(isys)%seed%name))
                 if (igTableSetColumnIndex(ic_savemult_file)) &
@@ -359,9 +374,10 @@ contains
           end if
           file = savedir(w) // dirsep // trim(names(i))
           ! FHIaims writes the k-point grid to a companion control file,
-          ! which is meaningless for a molecule: decide per system
+          ! which is meaningless for a molecule: decide per system, with
+          ! the same test the kind column in the table shows
           thisrk = (ifmt == isformat_w_qein .or. ifmt == isformat_w_castepcell .or.&
-             (ifmt == isformat_w_aimsin .and. .not.sys(isys)%c%ismolecule))
+             (ifmt == isformat_w_aimsin .and. .not.writes_molecule(ifmt,isys)))
           if (thisrk) then
              call sys(isys)%c%write_any_file(file,w%errmsg,iwformat=ifmt,&
                 rklength=real(w%savemult_rk,8),nosym=w%savemult_nosym,&
@@ -415,6 +431,34 @@ contains
 
     ! quit = close the window
     if (doquit) call w%end()
+
+  contains
+    !> Draw the icon that says whether system isys comes out of format
+    !> ifmt as a molecule or as a crystal, in the current table cell.
+    subroutine draw_kind_icon(ifmt,isys)
+      integer, intent(in) :: ifmt, isys
+
+      integer(c_int) :: itex
+      real(c_float) :: rgba(4)
+      character(len=:), allocatable :: str2
+
+      if (writes_molecule(ifmt,isys)) then
+         itex = icon_tex(icon_vm_bond)
+         rgba = rgba_fam_molgeom
+         str2 = "Written as a molecule"
+      else
+         itex = icon_tex(icon_ui_cell)
+         rgba = rgba_fam_crys
+         str2 = "Written as a periodic crystal"
+      end if
+      if (itex == 0) return
+      call igImage(int(itex,c_intptr_t),ImVec2(fontsize%y,fontsize%y),uv0,uv1,&
+         ImVec4(rgba(1),rgba(2),rgba(3),rgba(4)),nobord)
+      ! no ttshown: an image carries no ImGui ID, so HoveredIdTimer never
+      ! runs on it and the delayed form of the tooltip would never fire
+      call iw_tooltip(str2)
+
+    end subroutine draw_kind_icon
 
   end subroutine draw_save_multiple
 
@@ -520,6 +564,27 @@ contains
     call update_existence(w)
 
   end subroutine rebuild_names
+
+  !> Whether system isys is written as a molecule when the write format
+  !> is ifmt. Some formats are inherently molecular, some always write a
+  !> cell, and the rest follow the system.
+  function writes_molecule(ifmt,isys)
+    use systems, only: sys
+    integer, intent(in) :: ifmt, isys
+    logical :: writes_molecule
+
+    if (ifmt == isformat_w_xyz .or. ifmt == isformat_w_gjf .or. ifmt == isformat_w_cml .or.&
+       ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or. ifmt == isformat_w_off) then
+       writes_molecule = .true.
+    elseif (ifmt == isformat_w_aimsin .or. ifmt == isformat_w_pdb .or.&
+       ifmt == isformat_w_pyscf .or. ifmt == isformat_w_dftbp_gen .or.&
+       ifmt == isformat_w_dftbp_hsd) then
+       writes_molecule = sys(isys)%c%ismolecule
+    else
+       writes_molecule = .false.
+    end if
+
+  end function writes_molecule
 
   !> The output directory of window w, without a trailing separator (so
   !> that a user-typed "dir/" does not give "dir//name").

@@ -53,8 +53,6 @@ submodule (icons) proc
 
   ! tint colors for the format icons, by code family
   real(c_float), parameter :: rgba_fam_internal(4) = (/0.70_c_float,0.70_c_float,0.70_c_float,1.0_c_float/) ! grey
-  real(c_float), parameter :: rgba_fam_crys(4) = (/1.00_c_float,0.65_c_float,0.25_c_float,1.0_c_float/)     ! orange
-  real(c_float), parameter :: rgba_fam_molgeom(4) = (/0.40_c_float,0.70_c_float,1.00_c_float,1.0_c_float/)  ! light blue
   real(c_float), parameter :: rgba_fam_qchem(4) = (/0.75_c_float,0.55_c_float,1.00_c_float,1.0_c_float/)    ! violet
   real(c_float), parameter :: rgba_fam_pwdft(4) = (/1.00_c_float,0.45_c_float,0.45_c_float,1.0_c_float/)    ! red
   real(c_float), parameter :: rgba_fam_aedft(4) = (/0.25_c_float,0.85_c_float,0.80_c_float,1.0_c_float/)    ! teal

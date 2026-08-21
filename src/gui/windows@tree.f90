@@ -53,7 +53,7 @@ contains
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
        iw_close_button, iw_table_column, iw_beginmenu
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
-       sys_loaded_not_init, launch_initialization_thread,&
+       sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
     use gui_main, only: ColorTableCellBg, tooltip_delay,&
@@ -184,8 +184,9 @@ contains
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
 
-       ! button: save multiple
-       if (iw_menuitem("Save Multiple...")) &
+       ! button: save multiple. It reads the whole tree, so it waits for
+       ! the initialization threads, like the entry in the row context menu
+       if (iw_menuitem("Save Multiple...",enabled=(nsys > 0 .and..not.are_threads_running()))) &
           iaux = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
        call igSeparator()
