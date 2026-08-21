@@ -197,7 +197,7 @@ contains
     call set_bind(BIND_TOGGLE_TREE,ImGuiKey_F2,mod_none)
     call set_bind(BIND_TOGGLE_INPCON,ImGuiKey_F3,mod_none)
     call set_bind(BIND_TOGGLE_OUTCON,ImGuiKey_F4,mod_none)
-    call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
+    call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_ctrl)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Q,mod_none)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)
     call set_bind(BIND_VIEWMODE_SELECT,ImGuiKey_None,mod_shift)
