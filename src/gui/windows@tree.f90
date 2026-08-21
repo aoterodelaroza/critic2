@@ -1078,11 +1078,6 @@ contains
          end if
          call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
 
-         ! save several systems to files
-         if (iw_menuitem("Save Multiple...",enabled=enabled_no_threads)) &
-            idum = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
-         call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
-
          ! remove option (system)
          ok = enabled
          if (ok) ok = (sys(isys)%nf > 0)
@@ -1106,6 +1101,13 @@ contains
          else
             call iw_tooltip("Close this system",ttshown)
          end if
+
+         ! save several systems to files. It acts on the tree and not on
+         ! this system, so it goes apart from the entries above
+         call igSeparator()
+         if (iw_menuitem("Save Multiple...",enabled=(nsys > 0 .and..not.are_threads_running()))) &
+            idum = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
+         call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
 
          call igEndPopup()
       end if

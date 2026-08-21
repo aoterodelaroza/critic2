@@ -1857,7 +1857,7 @@ contains
     character(len=*), intent(in) :: file
     character(len=:), allocatable :: root
 
-    character(len=:), allocatable :: ext
+    character(len=:), allocatable :: ext, ext0
     integer :: idir, idx
 
     root = trim(file)
@@ -1866,11 +1866,14 @@ contains
     if (idx == 0) return
     ext = lower(root(idir+idx+1:))
     root = root(:idir+idx-1)
-    if (equal(ext,'in')) then
+    ! compound extensions come off whole: .scf.in and .scf.out (quantum
+    ! espresso), .alm.in (alamode)
+    if (equal(ext,'in') .or. equal(ext,'out')) then
+       ext0 = ext
        idx = index(root(idir+1:),'.',back=.true.)
        if (idx > 0) then
           ext = lower(root(idir+idx+1:))
-          if (equal(ext,'scf') .or. equal(ext,'alm')) &
+          if (equal(ext,'scf') .or. (equal(ext,'alm') .and. equal(ext0,'in'))) &
              root = root(:idir+idx-1)
        end if
     end if

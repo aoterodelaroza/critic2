@@ -80,7 +80,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1
-    character(len=:), allocatable :: file, firsterr, warnmsg
+    character(len=:), allocatable :: file, firsterr, warnmsg, savemsg
     integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip, nbot
     integer(c_int) :: flags
     type(ImVec2) :: uv0, uv1
@@ -124,7 +124,7 @@ contains
        if (allocated(lastpattern)) then
           w%savemult_pattern = lastpattern
        else
-          w%savemult_pattern = "%n"
+          w%savemult_pattern = "%f-*"
        end if
        ! write to the last directory used by a save window, or to the cwd
        w%okfile = ""
@@ -232,9 +232,13 @@ contains
     if (userk) then
        ldum = iw_dragfloat_realc("RKlength##savemultrk",x1=w%savemult_rk,speed=1._c_float,&
           min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
-       if (ifmt == isformat_w_aimsin) &
-          call iw_text("K-point grid written to a companion _control file")
+       if (ifmt == isformat_w_aimsin) then
+          call iw_tooltip("Length parameter for calculating the k-point grid, which is&
+             & written to a file named after the structure file plus _control",ttshown)
+          call iw_text("(k-point grid in a _control file)",sameline=.true.)
+       else
+          call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
+       end if
     end if
 
     ! do not use symmetry
@@ -275,10 +279,34 @@ contains
        warnmsg = string(nexist) // " of these files exist and will be overwritten"
        dooverwrite = .true.
     end if
+    ! whether the structures can be written, and if not, the reason. The
+    ! reason goes on the line right above the Save button, where the user
+    ! is looking when the button does not respond. Deciding it here (before
+    ! the overwrite checkbox is drawn) costs one frame of lag on that
+    ! checkbox, which is the price of computing it in a single place
+    okvalid = (nnames > 0) .and. (ndup == 0) .and. dirok .and. .not.doquit .and.&
+       .not.are_threads_running()
+    if (okvalid) okvalid = (nexist == 0) .or. w%savemult_overwrite
+    savemsg = ""
+    if (.not.okvalid .and. .not.doquit) then
+       if (are_threads_running()) then
+          savemsg = "Cannot write yet: the systems are still being loaded"
+       elseif (.not.dirok) then
+          savemsg = "Cannot write: choose a directory first"
+       elseif (nnames == 0) then
+          savemsg = "Cannot write: there are no systems to write"
+       elseif (ndup > 0) then
+          savemsg = "Cannot write: the file names are not unique"
+       else
+          savemsg = "Cannot write: confirm overwriting the files that exist"
+       end if
+    end if
+
     nbot = 1 ! the button row
     if (len_trim(warnmsg) > 0) nbot = nbot + 1
     if (dooverwrite) nbot = nbot + 1
     if (len_trim(w%errmsg) > 0 .or. len_trim(w%okmsg) > 0) nbot = nbot + 1
+    if (len_trim(savemsg) > 0) nbot = nbot + 1
 
     ! the list of files that will be written
     call iw_text("Files (" // string(nnames) // ")",highlight=.true.)
@@ -348,13 +376,14 @@ contains
        call iw_text(w%okmsg,highlight=.true.)
     end if
 
-    ! right-align and bottom-align for the rest of the contents
-    call iw_setpos_bottomright(8,2)
+    ! why the Save button is disabled, on the line just above it
+    if (len_trim(savemsg) > 0) call iw_text(savemsg,danger=.true.)
+
+    ! right-align and bottom-align for the rest of the contents: the two
+    ! buttons of the row below carry 9 characters between them
+    call iw_setpos_bottomright(9,2)
 
     ! final buttons: save
-    okvalid = (nnames > 0) .and. (ndup == 0) .and. dirok .and. .not.doquit .and.&
-       .not.are_threads_running()
-    if (okvalid) okvalid = (nexist == 0) .or. w%savemult_overwrite
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) .and. okvalid
     ok = ok .or. iw_button("Save",disabled=.not.okvalid)
     if (ok) then
@@ -464,13 +493,15 @@ contains
     subroutine draw_pattern_help()
       use gui_main, only: tooltip_enabled, tooltip_wrap_factor
 
-      integer, parameter :: nsub = 4
+      integer, parameter :: nsub = 6
       character(len=*), parameter :: subkey(nsub) = (/character(len=2) :: &
-         "%n","%i","%s","*"/)
+         "%n","%f","%i","%d","%%","*"/)
       character(len=*), parameter :: subtxt(nsub) = (/character(len=48) :: &
          "Name of the system                              ",&
-         "Position in the list of files, zero-padded      ",&
+         "Base name of the file                           ",&
+         "Position in the tree list, zero-padded          ",&
          "ID of the system in the tree                    ",&
+         "A literal percent sign                          ",&
          "Same as %i (the ROOT option to WRITE BULK)      "/)
 
       integer :: i, ll
@@ -488,7 +519,8 @@ contains
       call iw_text("File Name Pattern",highlight=.true.)
       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
       call iw_text("The name of each file, without extension: the one for the&
-         & chosen format is added automatically.")
+         & chosen format is added automatically. A compound extension&
+         & (.scf.in, .alm.in) is removed whole by %f.")
       call igPopTextWrapPos()
       call iw_text("")
       do i = 1, nsub
@@ -656,7 +688,7 @@ contains
   end subroutine update_existence
 
   !> Whether the file name pattern carries a token that makes every
-  !> expansion unique (%i, %s or *). The pattern is walked the way
+  !> expansion unique (%i, %d or *). The pattern is walked the way
   !> expand_pattern does it, so that a literal %%i does not count.
   function pattern_hasindex(pattern)
     character(len=*), intent(in) :: pattern
@@ -669,7 +701,7 @@ contains
     do while (k <= len_trim(pattern))
        if (pattern(k:k) == "*") return
        if (pattern(k:k) == "%" .and. k < len_trim(pattern)) then
-          if (pattern(k+1:k+1) == "i" .or. pattern(k+1:k+1) == "s") return
+          if (pattern(k+1:k+1) == "i" .or. pattern(k+1:k+1) == "d") return
           k = k + 2
        else
           k = k + 1
@@ -681,26 +713,29 @@ contains
 
   !> Expand the file name pattern for system isys, which is number i in
   !> the list of systems being written, with the index zero-padded to
-  !> npad digits. %n is the name of the system, %i the index in the list,
-  !> %s the ID of the system in the tree, and * the same as %i.
+  !> npad digits. The substitutions are %n (name of the system), %f (base
+  !> name of the file it came from), %i (position in the list), %d (ID of
+  !> the system in the tree), %% (a literal percent sign), and * as a
+  !> synonym of %i. Anything else after a % is left as it was written.
   function expand_pattern(pattern,isys,i,npad) result(root)
     use systems, only: sysc
     use utils, only: file_name_root
     use tools_io, only: string
+    use param, only: dirsep
     character(len=*), intent(in) :: pattern
     integer, intent(in) :: isys, i, npad
     character(len=:), allocatable :: root
 
-    character(len=:), allocatable :: name, aux
+    character(len=:), allocatable :: name, fbase, aux
     integer :: k
 
-    ! the name of the system, without the extension and with anything
-    ! that does not belong in a file name replaced by an underscore. The
-    ! whole tree name is used, because it is already the shortest string
-    ! that tells the systems apart: the directory prefix is there only
-    ! when it was needed, and a system read from one of several data
-    ! blocks in a file is named "file.ext|block", where the block names
-    ! alone are often not unique (many CIFs use data_global or data_I)
+    ! %n: the name of the system, without the extension. The whole tree
+    ! name is used, because it is already the shortest string that tells
+    ! the systems apart: the directory prefix is there only when it was
+    ! needed, and a system read from one of several data blocks in a file
+    ! is named "file.ext|block", where the block names alone are often
+    ! not unique (many CIFs use data_global or data_I). It also follows a
+    ! rename in the tree, which the file name below does not
     name = trim(sysc(isys)%seed%name)
     k = index(name,"|")
     if (k > 0) then
@@ -708,10 +743,18 @@ contains
     else
        name = file_name_root(name)
     end if
-    do k = 1, len(name)
-       if (index(badchars,name(k:k)) > 0) name(k:k) = "_"
-    end do
+    call sanitize(name)
     if (len_trim(name) == 0) name = "structure"
+
+    ! %f: the base name of the file the system was read from, without
+    ! directory or extension. A system built in memory has no file, and
+    ! falls back to the name
+    fbase = trim(sysc(isys)%seed%file)
+    k = index(fbase,dirsep,back=.true.)
+    if (k > 0) fbase = fbase(k+1:)
+    fbase = file_name_root(fbase)
+    call sanitize(fbase)
+    if (len_trim(fbase) == 0) fbase = name
 
     ! substitute the tokens, left to right
     root = ""
@@ -723,10 +766,14 @@ contains
        elseif (len(aux) >= 2 .and. aux(1:1) == "%") then
           if (aux(2:2) == "n") then
              root = root // trim(name)
+          elseif (aux(2:2) == "f") then
+             root = root // trim(fbase)
           elseif (aux(2:2) == "i") then
              root = root // string(i,npad,pad0=.true.)
-          elseif (aux(2:2) == "s") then
+          elseif (aux(2:2) == "d") then
              root = root // string(isys)
+          elseif (aux(2:2) == "%") then
+             root = root // "%"
           else
              root = root // aux(1:2)
           end if
@@ -737,6 +784,18 @@ contains
        end if
     end do
 
+  contains
+    !> Replace anything that has no business in a file name by an underscore.
+    subroutine sanitize(str)
+      character(len=:), allocatable, intent(inout) :: str
+
+      integer :: j
+
+      do j = 1, len(str)
+         if (index(badchars,str(j:j)) > 0) str(j:j) = "_"
+      end do
+
+    end subroutine sanitize
   end function expand_pattern
 
 end submodule save_multiple
