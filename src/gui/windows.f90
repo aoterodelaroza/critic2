@@ -106,8 +106,8 @@ module windows
 
   ! options for the format combos, built once on first use by
   ! build_write_format_combo. The first entry is "Auto-detect"; the format
-  ! entries proper start at combostr(icombo_fmt1:), in fmtperm order.
-  character(kind=c_char,len=:), allocatable, target :: combostr
+  ! entries proper start at write_format_combostr(icombo_fmt1:), in fmtperm order.
+  character(kind=c_char,len=:), allocatable, target :: write_format_combostr
   integer :: icombo_fmt1 = 1
 
   ! view modes (positive = normal, user-selectable; negative = forced).

@@ -154,7 +154,7 @@ contains
     end do
 
     !! Permutations for interpreting the format coming out of the dialog combo
-    !! (same sequence as in combostr)
+    !! (same sequence as in combostr_openfiles)
     allocate(isperm_openfiles(0:nn-1))
     isperm_openfiles(0:nn-1) = (/isformat_r_unknown,isformat_r_abinit,isformat_r_bincube,&
        isformat_r_castepcell,isformat_r_castepgeom,isformat_r_cif,isformat_r_crystal,&
@@ -224,7 +224,7 @@ contains
     end do
 
     !! Permutations for interpreting the format coming out of the dialog combo
-    !! (same sequence as in combostr)
+    !! (same sequence as in combostr_openfieldfile)
     allocate(isperm_openfieldfile(0:nn-1))
     isperm_openfieldfile(0:nn-1) = (/ifformat_unknown,ifformat_abinit,ifformat_qub,ifformat_bincube,&
        ifformat_fmt,ifformat_cube,ifformat_dftb,ifformat_elkgrid,ifformat_elk,ifformat_fplogrid,&
@@ -486,16 +486,16 @@ contains
   !> Build the option string for the write-format combos, unless it
   !> has been built already. The first entry is "Auto-detect" (used
   !> only by the save-as window) and the rest are the write formats in
-  !> fmtperm order, starting at combostr(icombo_fmt1:).
+  !> fmtperm order, starting at write_format_combostr(icombo_fmt1:).
   module subroutine build_write_format_combo()
 
     integer :: i
 
-    if (allocated(combostr)) return
-    combostr = "Auto-detect" // c_null_char
-    icombo_fmt1 = len(combostr) + 1
+    if (allocated(write_format_combostr)) return
+    write_format_combostr = "Auto-detect" // c_null_char
+    icombo_fmt1 = len(write_format_combostr) + 1
     do i = 1, isformat_w_max
-       combostr = combostr // trim(fmtnames(fmtperm(i))) // c_null_char
+       write_format_combostr = write_format_combostr // trim(fmtnames(fmtperm(i))) // c_null_char
     end do
 
   end subroutine build_write_format_combo

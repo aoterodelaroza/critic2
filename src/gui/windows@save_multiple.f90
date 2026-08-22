@@ -101,7 +101,7 @@ contains
     type(ImVec4) :: nobord
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: warnhidden, dooverwrite
+    logical :: dooverwrite
     logical :: doquit, ok, okvalid, ismol, userk, usecell, changed, dirok, direxists
     logical :: anycrystal, thisrk
     logical(c_bool) :: ldum
@@ -159,17 +159,15 @@ contains
     call iw_combo_simple("##savemultscope",str1,w%savemult_scope)
     call igPopItemWidth()
     call iw_tooltip("Systems whose structures will be written. Select systems in the&
-       & tree with control-click and shift-click, or with the tree options button",ttshown)
+       & tree with control-click, shift-click, or the buttons",ttshown)
 
     ! the output directory
     call iw_text("Directory",highlight=.true.)
-    ! notlive: rebuilding the file names runs an inquire() per target file,
-    ! which is not something to do on every keystroke
     ldum = iw_inputtext("##savemultdir",bufsize=1023,texta=w%okfile,width=36,notlive=.true.)
     call iw_tooltip("Directory where the structure files will be written",ttshown)
     if (iw_button("Browse...",sameline=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_selectdir,idparent=w%id,orraise=-1)
-    call iw_tooltip("Choose the directory with a file browser",ttshown)
+    call iw_tooltip("Choose the directory in the file browser",ttshown)
     dirok = (len_trim(w%okfile) > 0)
     if (dirok) then
        ! a missing directory is only a warning: inquire() on a directory is
@@ -184,7 +182,7 @@ contains
     ! format combo
     call iw_text("Format",highlight=.true.)
     call igPushItemWidth(iw_calcwidth(45,1))
-    call iw_combo_simple("##savemultformat",combostr(icombo_fmt1:),w%savemult_format,startsatone=.true.)
+    call iw_combo_simple("##savemultformat",write_format_combostr(icombo_fmt1:),w%savemult_format,startsatone=.true.)
     call igPopItemWidth()
     call iw_tooltip("File format for the written structures",ttshown)
     ifmt = fmtperm(max(min(w%savemult_format,isformat_w_max),1))
@@ -195,11 +193,9 @@ contains
     ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36,&
        notlive=.true.)
     call iw_tooltip("Pattern for the file names, without extension&
-       & (see the help mark for the substitutions)",ttshown)
+       & (see the ? for the substitutions)",ttshown)
 
-    ! whether the write will produce molecules or crystals: some formats
-    ! are inherently molecular, some follow the system, and the rest
-    ! always write a cell
+    ! whether the write will produce molecules or crystals
     ismol = (ifmt == isformat_w_xyz .or. ifmt == isformat_w_gjf .or. ifmt == isformat_w_cml .or.&
        ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or. ifmt == isformat_w_off)
 
@@ -248,13 +244,7 @@ contains
     if (userk) then
        ldum = iw_dragfloat_realc("RKlength##savemultrk",x1=w%savemult_rk,speed=1._c_float,&
           min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-       if (ifmt == isformat_w_aimsin) then
-          call iw_tooltip("Length parameter for calculating the k-point grid, which is&
-             & written to a file named after the structure file plus _control",ttshown)
-          call iw_text("(k-point grid in a _control file)",sameline=.true.)
-       else
-          call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
-       end if
+       call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
     end if
 
     ! do not use symmetry
@@ -274,39 +264,33 @@ contains
     ! show the unit cell in the 3D model
     if (usecell) then
        ldum = iw_checkbox("Show unit cell##savemultdocell",w%savemult_docell)
-       call iw_tooltip("Draw the unit cell edges in the written 3D model files&
-          & (same as the CELL option to WRITE)",ttshown)
+       call iw_tooltip("Draw the unit cell edges in the written 3D model files",ttshown)
     end if
 
     ! the single warning that goes under the table. It is built before the
     ! table because the table is sized to fill whatever the block below it
     ! does not use, so its height has to be known first
     warnmsg = ""
-    warnhidden = .false.
     dooverwrite = .false.
     if (nloading > 0) then
        warnmsg = string(nloading) // " more systems are still loading"
     elseif (nhidden > 0) then
        warnmsg = string(nhidden) // " systems in collapsed groups are skipped"
-       warnhidden = .true.
     elseif (ndup > 0) then
        warnmsg = string(ndup) // " file names are repeated: add %i to the pattern"
     elseif (nexist > 0) then
        warnmsg = string(nexist) // " of these files exist already"
        dooverwrite = .true.
     end if
-    ! whether the structures can be written, and if not, the reason. The
-    ! reason goes on the line right above the Save button, where the user
-    ! is looking when the button does not respond. Deciding it here (before
-    ! the overwrite checkbox is drawn) costs one frame of lag on that
-    ! checkbox, which is the price of computing it in a single place
+    ! whether the structures can be written, and if not, the
+    ! reason. Costs one frame of lag on the checkbox.
     okvalid = (nnames > 0) .and. (ndup == 0) .and. dirok .and. .not.doquit .and.&
        .not.are_threads_running()
     if (okvalid) okvalid = (nexist == 0) .or. (w%savemult_exist /= 0)
     savemsg = ""
     if (.not.okvalid .and. .not.doquit) then
        if (are_threads_running()) then
-          savemsg = "Cannot write yet: the systems are still being loaded"
+          savemsg = "Cannot write: the systems are still being loaded"
        elseif (.not.dirok) then
           savemsg = "Cannot write: choose a directory first"
        elseif (nnames == 0) then
@@ -376,9 +360,6 @@ contains
     ! the warning, and the overwrite acknowledgement it may need
     if (len_trim(warnmsg) > 0) then
        call iw_text(warnmsg,danger=.true.)
-       if (warnhidden) &
-          call iw_tooltip("The systems inside a collapsed group are not loaded until the group&
-             & is expanded in the tree, so they cannot be written",ttshown)
     end if
     if (dooverwrite) then
        call iw_text("Write them?",highlight=.true.)
@@ -473,9 +454,6 @@ contains
           w%errmsg = file
        end if
        ! the files on disk changed: refresh the existence check in place
-       ! (invalidating the whole cache would wipe the message above). The
-       ! files just written are known to the user, so a second Save is not
-       ! held up for a choice that has effectively been made
        call update_existence(w)
        if (w%savemult_exist == 0) w%savemult_exist = 1
     end if
@@ -544,10 +522,7 @@ contains
             editsys = 0
          end if
       else
-         ! a zero-width selectable under the text: it spans the whole cell
-         ! and, unlike a bare text, carries an ID, so the double-click
-         ! lands reliably. It also highlights the cell on hover, which is
-         ! the affordance that says the name can be typed over
+         ! a zero-width selectable under the text
          pos = igGetCursorPosX()
          strl = "##savemultfile" // string(isys) // c_null_char
          if (igSelectable_Bool(c_loc(strl),.false._c_bool,&
@@ -573,13 +548,13 @@ contains
       integer, parameter :: nsub = 6
       character(len=*), parameter :: subkey(nsub) = (/character(len=2) :: &
          "%n","%f","%i","%d","%%","*"/)
-      character(len=*), parameter :: subtxt(nsub) = (/character(len=48) :: &
-         "Name of the system                              ",&
-         "Base name of the file                           ",&
-         "Position in the tree list, zero-padded          ",&
-         "ID of the system in the tree                    ",&
-         "A literal percent sign                          ",&
-         "Same as %i (the ROOT option to WRITE BULK)      "/)
+      character(len=*), parameter :: subtxt(nsub) = (/character(len=38) :: &
+         "Name of the system                    ",&
+         "Base name of the file                 ",&
+         "Position in the tree list, zero-padded",&
+         "ID of the system in the tree          ",&
+         "A literal percent sign                ",&
+         "Same as %i                            "/)
 
       integer :: i, ll
 
@@ -595,11 +570,8 @@ contains
       call igBeginTooltip()
       call iw_text("File Name Pattern",highlight=.true.)
       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
-      call iw_text("The name of each file, without extension: the one for the&
-         & chosen format is added automatically. A compound extension&
-         & (.scf.in, .alm.in, .scf.out) is removed whole by %f. Double-click&
-         & a name in the table to type it by hand, and clear it to hand the&
-         & row back to the pattern.")
+      call iw_text("The name of each file: the extension is added automatically. Double-click&
+         & a name in the table to type it by hand.")
       call igPopTextWrapPos()
       call iw_text("")
       do i = 1, nsub
@@ -632,9 +604,8 @@ contains
     integer*8 :: ihash
 
     ! the list of systems: a system that is not loaded yet cannot be
-    ! written. The members of a collapsed group are a case of their own:
-    ! the initialization threads skip hidden systems, so they stay
-    ! unloaded until the user expands the group in the tree
+    ! written. The members of a collapsed group stay unloaded until
+    ! the user expands the group in the tree
     call tree_system_list(idx,(w%savemult_scope == 0))
     n = 0
     nloading = 0
@@ -863,8 +834,7 @@ contains
   end function typed_root
 
   !> Whether the file name pattern carries a token that makes every
-  !> expansion unique (%i, %d or *). The pattern is walked the way
-  !> expand_pattern does it, so that a literal %%i does not count.
+  !> expansion unique (%i, %d or *).
   function pattern_hasindex(pattern)
     character(len=*), intent(in) :: pattern
     logical :: pattern_hasindex
@@ -888,10 +858,7 @@ contains
 
   !> Expand the file name pattern for system isys, which is number i in
   !> the list of systems being written, with the index zero-padded to
-  !> npad digits. The substitutions are %n (name of the system), %f (base
-  !> name of the file it came from), %i (position in the list), %d (ID of
-  !> the system in the tree), %% (a literal percent sign), and * as a
-  !> synonym of %i. Anything else after a % is left as it was written.
+  !> npad digits.
   function expand_pattern(pattern,isys,i,npad) result(root)
     use systems, only: sysc
     use utils, only: file_name_root
@@ -904,13 +871,7 @@ contains
     character(len=:), allocatable :: name, fbase, aux
     integer :: k
 
-    ! %n: the name of the system, without the extension. The whole tree
-    ! name is used, because it is already the shortest string that tells
-    ! the systems apart: the directory prefix is there only when it was
-    ! needed, and a system read from one of several data blocks in a file
-    ! is named "file.ext|block", where the block names alone are often
-    ! not unique (many CIFs use data_global or data_I). It also follows a
-    ! rename in the tree, which the file name below does not
+    ! %n: the name of the system, without the extension
     name = trim(sysc(isys)%seed%name)
     k = index(name,"|")
     if (k > 0) then
@@ -921,9 +882,7 @@ contains
     call sanitize(name)
     if (len_trim(name) == 0) name = "structure"
 
-    ! %f: the base name of the file the system was read from, without
-    ! directory or extension. A system built in memory has no file, and
-    ! falls back to the name
+    ! %f: the base name of the file the system was read from
     fbase = trim(sysc(isys)%seed%file)
     k = index(fbase,dirsep,back=.true.)
     if (k > 0) fbase = fbase(k+1:)

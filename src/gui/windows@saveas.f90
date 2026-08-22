@@ -88,7 +88,7 @@ contains
 
     ! format combo
     call igPushItemWidth(iw_calcwidth(45,1))
-    call iw_combo_simple("Format##saveasformat",combostr,w%saveas_format,changed=changed)
+    call iw_combo_simple("Format##saveasformat",write_format_combostr,w%saveas_format,changed=changed)
     call igPopItemWidth()
     call iw_tooltip("File format for the written structure. If auto-detect,&
        & the format is chosen based on the file extension",ttshown)
