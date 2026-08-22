@@ -20,10 +20,6 @@ submodule (windows) saveas
   use interfaces_cimgui
   implicit none
 
-  ! cached existence check for the FHIaims companion control file
-  character(len=:), allocatable :: lastcontrol
-  logical :: lastcontrol_exists = .false.
-
   ! settings remembered from the last successful save (this session).
   ! The 50 rklength default is a deliberate GUI choice (the CLI writers
   ! default to 40 when no rklength is given).
@@ -153,12 +149,12 @@ contains
        if (ifmt == isformat_w_aimsin) then
           call iw_text("K-point grid written to a companion _control file")
           ! warn if the companion file exists (check cached on okfile change)
-          if (.not.allocated(lastcontrol)) lastcontrol = ""
-          if (trim(w%okfile) // "_control" /= lastcontrol) then
-             lastcontrol = trim(w%okfile) // "_control"
-             inquire(file=lastcontrol,exist=lastcontrol_exists)
+          if (.not.allocated(w%saveas_lastcontrol)) w%saveas_lastcontrol = ""
+          if (trim(w%okfile) // "_control" /= w%saveas_lastcontrol) then
+             w%saveas_lastcontrol = trim(w%okfile) // "_control"
+             inquire(file=w%saveas_lastcontrol,exist=w%saveas_control_exists)
           end if
-          if (lastcontrol_exists) &
+          if (w%saveas_control_exists) &
              call iw_text("The _control file exists and will be overwritten",danger=.true.)
        end if
     end if

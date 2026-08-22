@@ -35,36 +35,6 @@ submodule (windows) save_multiple
   ! modulus for the hash of the system list (keeps it well inside int8)
   integer*8, parameter :: sighashmod = 2147483647_8
 
-  ! The target file names for the current settings, recalculated only
-  ! when the settings they depend on change (lastsig); the signature
-  ! spares the per-frame rebuild of the names and, above all, the
-  ! inquire() on every one of them. This state is module-level because
-  ! only one save-multiple window can exist at a time: all three entry
-  ! points parent it to the tree, and stack_create_window(orraise=-1)
-  ! raises the open one instead of making a second.
-  character(len=:), allocatable :: lastsig
-  character(len=mlen), allocatable :: names(:)
-  integer, allocatable :: nameidx(:)
-  logical, allocatable :: nameexists(:)
-  integer :: nnames = 0 ! number of files that will be written
-  integer :: nloading = 0 ! systems in the list that are still being loaded
-  integer :: nhidden = 0 ! systems in the list held back by a collapsed group
-  integer :: nexist = 0 ! how many of them exist on disk already
-  integer :: ndup = 0 ! how many of them are repeated in the list
-
-  ! File names typed by hand, keyed by the system they belong to. They
-  ! replace the pattern for that system and survive a rebuild of the list
-  ! (and a change of format, which re-extends them). There are usually
-  ! none or a handful, so a linear scan is enough
-  integer, allocatable :: ovrsys(:)
-  character(len=mlen), allocatable :: ovrname(:)
-  integer :: novr = 0
-
-  ! the system whose file name is being edited in the table (0 = none)
-  integer :: editsys = 0
-  character(len=:), allocatable :: editbuf
-  logical :: editfocus = .false.
-
   ! settings remembered from the last successful save (this session).
   ! The 50 rklength default is a deliberate GUI choice (the CLI writers
   ! default to 40 when no rklength is given).
@@ -126,7 +96,7 @@ contains
     ! initialize state; the cache is stale on reopen (the files on disk
     ! may have changed in the meantime), so drop it
     if (w%firstpass) then
-       if (allocated(lastsig)) deallocate(lastsig)
+       if (allocated(w%sm%lastsig)) deallocate(w%sm%lastsig)
        w%errmsg = ""
        w%okmsg = ""
        w%savemult_format = lastfmt
@@ -135,8 +105,8 @@ contains
        w%savemult_cartesian = lastcartesian
        w%savemult_docell = lastdocell
        w%savemult_exist = 0
-       novr = 0
-       editsys = 0
+       w%sm%novr = 0
+       w%sm%editsys = 0
        if (allocated(lastpattern)) then
           w%savemult_pattern = lastpattern
        else
@@ -192,25 +162,25 @@ contains
     call draw_pattern_help()
     ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36,&
        notlive=.true.)
-    call iw_tooltip("Pattern for the file names, without extension&
+    call iw_tooltip("Pattern for the file w%sm%names, without extension&
        & (see the ? for the substitutions)",ttshown)
 
-    ! rebuild the list of target file names, if the settings changed
+    ! rebuild the list of target file w%sm%names, if the settings changed
     call rebuild_names(w,ifmt,changed)
     if (changed) then
        w%okmsg = ""
        w%errmsg = ""
        ! the user asked for these systems, so get the ones that are only
        ! waiting for a worker moving
-       if (nloading > 0 .and. .not.are_threads_running()) call launch_initialization_thread()
+       if (w%sm%nloading > 0 .and. .not.are_threads_running()) call launch_initialization_thread()
     end if
 
     ! the list can mix molecules and crystals, so the options that only
     ! apply to a crystal are offered when at least one of the systems is
     ! one; they are then used only for those systems
     anycrystal = .false.
-    do i = 1, nnames
-       if (.not.sys(nameidx(i))%c%ismolecule) then
+    do i = 1, w%sm%nnames
+       if (.not.sys(w%sm%nameidx(i))%c%ismolecule) then
           anycrystal = .true.
           exit
        end if
@@ -263,33 +233,33 @@ contains
     ! does not use, so its height has to be known first
     warnmsg = ""
     dooverwrite = .false.
-    if (nloading > 0) then
-       warnmsg = string(nloading) // " more systems are still loading"
-    elseif (nhidden > 0) then
-       warnmsg = string(nhidden) // " systems in collapsed groups are skipped"
-    elseif (ndup > 0) then
-       warnmsg = string(ndup) // " file names are repeated: add %i to the pattern"
-    elseif (nexist > 0) then
-       warnmsg = string(nexist) // " of these files exist already"
+    if (w%sm%nloading > 0) then
+       warnmsg = string(w%sm%nloading) // " more systems are still loading"
+    elseif (w%sm%nhidden > 0) then
+       warnmsg = string(w%sm%nhidden) // " systems in collapsed groups are skipped"
+    elseif (w%sm%ndup > 0) then
+       warnmsg = string(w%sm%ndup) // " file w%sm%names are repeated: add %i to the pattern"
+    elseif (w%sm%nexist > 0) then
+       warnmsg = string(w%sm%nexist) // " of these files exist already"
     end if
     ! the choice is asked for whenever files exist, whichever warning won
     ! the chain above: Save gates on it and would otherwise be unanswerable
-    dooverwrite = (nexist > 0)
+    dooverwrite = (w%sm%nexist > 0)
     ! whether the structures can be written, and if not, the
     ! reason. Costs one frame of lag on the checkbox.
-    okvalid = (nnames > 0) .and. (ndup == 0) .and. dirok .and. .not.doquit .and.&
+    okvalid = (w%sm%nnames > 0) .and. (w%sm%ndup == 0) .and. dirok .and. .not.doquit .and.&
        .not.are_threads_running()
-    if (okvalid) okvalid = (nexist == 0) .or. (w%savemult_exist /= 0)
+    if (okvalid) okvalid = (w%sm%nexist == 0) .or. (w%savemult_exist /= 0)
     savemsg = ""
     if (.not.okvalid .and. .not.doquit) then
        if (are_threads_running()) then
           savemsg = "Cannot write: the systems are still being loaded"
        elseif (.not.dirok) then
           savemsg = "Cannot write: choose a directory first"
-       elseif (nnames == 0) then
+       elseif (w%sm%nnames == 0) then
           savemsg = "Cannot write: there are no systems to write"
-       elseif (ndup > 0) then
-          savemsg = "Cannot write: the file names are not unique"
+       elseif (w%sm%ndup > 0) then
+          savemsg = "Cannot write: the file w%sm%names are not unique"
        else
           savemsg = "Cannot write: say what to do with the files that exist"
        end if
@@ -302,7 +272,7 @@ contains
     if (len_trim(savemsg) > 0) nbot = nbot + 1
 
     ! the list of files that will be written
-    call iw_text("Files (" // string(nnames) // ")",highlight=.true.)
+    call iw_text("Files (" // string(w%sm%nnames) // ")",highlight=.true.)
     str1 = "##savemulttable" // c_null_char
     flags = ImGuiTableFlags_Borders
     flags = ior(flags,ImGuiTableFlags_Resizable)
@@ -320,15 +290,15 @@ contains
        call igTableSetupScrollFreeze(0,1) ! the header row is always visible
        call igTableHeadersRow()
 
-       if (nnames > 0) then
+       if (w%sm%nnames > 0) then
           ! the rows go through a clipper: the list is as long as the tree,
           ! and only the visible rows need to be emitted
           clipper = ImGuiListClipper_ImGuiListClipper()
-          call ImGuiListClipper_Begin(clipper,nnames,-1._c_float)
+          call ImGuiListClipper_Begin(clipper,w%sm%nnames,-1._c_float)
           do while (ImGuiListClipper_Step(clipper))
              call c_f_pointer(clipper,clipper_f)
              do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                isys = nameidx(i)
+                isys = w%sm%nameidx(i)
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                 if (igTableSetColumnIndex(ic_savemult_id)) &
                    call iw_text(string(isys))
@@ -389,19 +359,19 @@ contains
        nskip = 0
        nleft = 0
        firsterr = ""
-       do i = 1, nnames
-          isys = nameidx(i)
+       do i = 1, w%sm%nnames
+          isys = w%sm%nameidx(i)
           ! a system may have been closed since the list was built
           if (.not.ok_system(isys,sys_init)) then
              nskip = nskip + 1
              cycle
           end if
           ! leave the files that are there already, if that was the choice
-          if (w%savemult_exist == 2 .and. nameexists(i)) then
+          if (w%savemult_exist == 2 .and. w%sm%nameexists(i)) then
              nleft = nleft + 1
              cycle
           end if
-          file = savedir(w) // dirsep // trim(names(i))
+          file = savedir(w) // dirsep // trim(w%sm%names(i))
           ! FHIaims writes the k-point grid to a companion control file,
           ! which is meaningless for a molecule: decide per system
           thisrk = userk .and. .not.writes_molecule(ifmt,isys)
@@ -440,7 +410,7 @@ contains
              w%okmsg = w%okmsg // ", " // string(nskip) // " not loaded"
           write (uout,'("Saved ",A," structure files to: ",A)') string(nwritten), savedir(w)
        else
-          file = string(nfail) // " of " // string(nnames) // " files could not be written"
+          file = string(nfail) // " of " // string(w%sm%nnames) // " files could not be written"
           if (len_trim(firsterr) > 0) file = file // ": " // trim(firsterr)
           w%errmsg = file
        end if
@@ -500,14 +470,14 @@ contains
 
       szero = ImVec2(0._c_float,0._c_float)
 
-      if (editsys == isys) then
+      if (w%sm%editsys == isys) then
          call igPushItemWidth(-1._c_float)
-         committed = iw_inputtext("##savemultfile",bufsize=mlen-1,texta=editbuf,&
-            grabfocus=editfocus,notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)
-         if (committed) call override_set(isys,typed_root(editbuf,ifmt))
-         if (committed .or. igIsItemDeactivated()) editsys = 0
+         committed = iw_inputtext("##savemultfile",bufsize=mlen-1,texta=w%sm%editbuf,&
+            grabfocus=w%sm%editfocus,notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)
+         if (committed) call override_set(w%sm,isys,typed_root(w%sm%editbuf,ifmt))
+         if (committed .or. igIsItemDeactivated()) w%sm%editsys = 0
          call igPopItemWidth()
-         editfocus = .false.
+         w%sm%editfocus = .false.
       else
          ! a zero-width selectable under the text
          pos = igGetCursorPosX()
@@ -515,14 +485,14 @@ contains
          if (igSelectable_Bool(c_loc(strl),.false._c_bool,&
             ImGuiSelectableFlags_AllowDoubleClick,szero)) then
             if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
-               editsys = isys
-               editbuf = trim(names(i))
-               editfocus = .true.
+               w%sm%editsys = isys
+               w%sm%editbuf = trim(w%sm%names(i))
+               w%sm%editfocus = .true.
             end if
          end if
          call igSameLine(0._c_float,-1._c_float)
          call igSetCursorPosX(pos)
-         call iw_text(trim(names(i)),danger=nameexists(i))
+         call iw_text(trim(w%sm%names(i)),danger=w%sm%nameexists(i))
       end if
 
     end subroutine draw_file_cell
@@ -566,35 +536,17 @@ contains
 
   end subroutine draw_save_multiple
 
-  !> Release the cached file list. Called when the window closes: the
-  !> counters are reset on the next firstpass, but the arrays are as long
-  !> as the tree and would otherwise stay resident for the session.
-  module subroutine savemult_cache_end()
-
-    if (allocated(lastsig)) deallocate(lastsig)
-    if (allocated(names)) deallocate(names)
-    if (allocated(nameidx)) deallocate(nameidx)
-    if (allocated(nameexists)) deallocate(nameexists)
-    if (allocated(ovrsys)) deallocate(ovrsys)
-    if (allocated(ovrname)) deallocate(ovrname)
-    if (allocated(editbuf)) deallocate(editbuf)
-    nnames = 0
-    novr = 0
-    editsys = 0
-
-  end subroutine savemult_cache_end
-
   !xx! private procedures
 
-  !> Rebuild the list of systems and target file names for the current
-  !> window settings and write format ifmt, and count the repeated names
+  !> Rebuild the list of systems and target file w%sm%names for the current
+  !> window settings and write format ifmt, and count the repeated w%sm%names
   !> and the files that exist already. All of this is recalculated only
   !> when the settings it depends on change; changed reports whether it
   !> was recalculated in this pass.
   subroutine rebuild_names(w,ifmt,changed)
     use systems, only: sysc, sys_init, sys_empty, ok_system
     use tools_io, only: string
-    class(window), intent(in) :: w
+    class(window), intent(inout) :: w
     integer, intent(in) :: ifmt
     logical, intent(out) :: changed
 
@@ -605,11 +557,11 @@ contains
 
     ! overrides and the edited cell are keyed by system slot, and a closed
     ! slot is handed to the next structure loaded: drop them before that
-    do i = novr, 1, -1
-       if (sysc(ovrsys(i))%status == sys_empty) call override_set(ovrsys(i),"")
+    do i = w%sm%novr, 1, -1
+       if (sysc(w%sm%ovrsys(i))%status == sys_empty) call override_set(w%sm,w%sm%ovrsys(i),"")
     end do
-    if (editsys > 0) then
-       if (sysc(editsys)%status == sys_empty) editsys = 0
+    if (w%sm%editsys > 0) then
+       if (sysc(w%sm%editsys)%status == sys_empty) w%sm%editsys = 0
     end if
 
     ! the list of systems: a system that is not loaded yet cannot be
@@ -617,14 +569,14 @@ contains
     ! the user expands the group in the tree
     call tree_system_list(idx,(w%savemult_scope == 0))
     n = 0
-    nloading = 0
-    nhidden = 0
+    w%sm%nloading = 0
+    w%sm%nhidden = 0
     do i = 1, size(idx,1)
        if (.not.ok_system(idx(i),sys_init)) then
           if (sysc(idx(i))%hidden) then
-             nhidden = nhidden + 1
+             w%sm%nhidden = w%sm%nhidden + 1
           else
-             nloading = nloading + 1
+             w%sm%nloading = w%sm%nloading + 1
           end if
           cycle
        end if
@@ -632,8 +584,8 @@ contains
        idx(n) = idx(i)
     end do
 
-    ! signature of everything the file names depend on: the settings, and
-    ! a hash of the list of systems and their names (hashing avoids the
+    ! signature of everything the file w%sm%names depend on: the settings, and
+    ! a hash of the list of systems and their w%sm%names (hashing avoids the
     ! string allocations that building the list itself would cost)
     ihash = n
     do i = 1, n
@@ -642,54 +594,54 @@ contains
           ihash = mod(ihash * 31 + iachar(sysc(idx(i))%seed%name(j:j)),sighashmod)
        end do
     end do
-    ihash = mod(ihash * 31 + novr,sighashmod)
-    do i = 1, novr
-       ihash = mod(ihash * 31 + ovrsys(i),sighashmod)
-       do j = 1, len_trim(ovrname(i))
-          ihash = mod(ihash * 31 + iachar(ovrname(i)(j:j)),sighashmod)
+    ihash = mod(ihash * 31 + w%sm%novr,sighashmod)
+    do i = 1, w%sm%novr
+       ihash = mod(ihash * 31 + w%sm%ovrsys(i),sighashmod)
+       do j = 1, len_trim(w%sm%ovrname(i))
+          ihash = mod(ihash * 31 + iachar(w%sm%ovrname(i)(j:j)),sighashmod)
        end do
     end do
     sig = string(ifmt) // "|" // trim(w%okfile) // "|" //&
        trim(w%savemult_pattern) // "|" // string(ihash)
     changed = .true.
-    if (allocated(lastsig)) then
-       if (sig == lastsig) then
+    if (allocated(w%sm%lastsig)) then
+       if (sig == w%sm%lastsig) then
           changed = .false.
           return
        end if
     end if
-    lastsig = sig
+    w%sm%lastsig = sig
 
-    ! build the file names
-    nnames = n
-    if (allocated(names)) deallocate(names)
-    if (allocated(nameidx)) deallocate(nameidx)
-    if (allocated(nameexists)) deallocate(nameexists)
-    allocate(names(n),nameidx(n),nameexists(n))
-    nameexists = .false.
-    nameidx(1:n) = idx(1:n)
+    ! build the file w%sm%names
+    w%sm%nnames = n
+    if (allocated(w%sm%names)) deallocate(w%sm%names)
+    if (allocated(w%sm%nameidx)) deallocate(w%sm%nameidx)
+    if (allocated(w%sm%nameexists)) deallocate(w%sm%nameexists)
+    allocate(w%sm%names(n),w%sm%nameidx(n),w%sm%nameexists(n))
+    w%sm%nameexists = .false.
+    w%sm%nameidx(1:n) = idx(1:n)
     npad = len_trim(string(max(n,1)))
     ext = "." // trim(fmtext(ifmt))
     do i = 1, n
-       k = override_find(idx(i))
+       k = override_find(w%sm,idx(i))
        if (k > 0) then
-          root = trim(ovrname(k))
+          root = trim(w%sm%ovrname(k))
        else
           root = expand_pattern(w%savemult_pattern,idx(i),i,npad)
        end if
        if (len_trim(root) == 0) root = "structure" // string(i,npad,pad0=.true.)
        ! do not repeat the extension if the name already carries it
-       names(i) = strip_ext(root,ext) // ext
+       w%sm%names(i) = strip_ext(root,ext) // ext
     end do
 
-    ! repeated names: only possible if the pattern carries no index. The
+    ! repeated w%sm%names: only possible if the pattern carries no index. The
     ! count is of the files involved in a collision, not of the repeats
-    ndup = 0
-    if (novr > 0 .or. .not.pattern_hasindex(w%savemult_pattern)) then
+    w%sm%ndup = 0
+    if (w%sm%novr > 0 .or. .not.pattern_hasindex(w%savemult_pattern)) then
        do i = 1, n
           do j = 1, n
-             if (j /= i .and. names(i) == names(j)) then
-                ndup = ndup + 1
+             if (j /= i .and. w%sm%names(i) == w%sm%names(j)) then
+                w%sm%ndup = w%sm%ndup + 1
                 exit
              end if
           end do
@@ -741,30 +693,31 @@ contains
   !> of window w, and count them.
   subroutine update_existence(w)
     use param, only: dirsep
-    class(window), intent(in) :: w
+    class(window), intent(inout) :: w
 
     character(len=:), allocatable :: dir
     integer :: i
 
     dir = savedir(w) // dirsep
-    do i = 1, nnames
-       inquire(file=dir // trim(names(i)),exist=nameexists(i))
+    do i = 1, w%sm%nnames
+       inquire(file=dir // trim(w%sm%names(i)),exist=w%sm%nameexists(i))
     end do
-    nexist = count(nameexists(1:nnames))
+    w%sm%nexist = count(w%sm%nameexists(1:w%sm%nnames))
 
   end subroutine update_existence
 
   !> Index of the hand-typed file name of system isys in the override
   !> list, or 0 if it does not have one.
-  function override_find(isys)
+  function override_find(sm,isys)
+    type(savemult_state), intent(in) :: sm
     integer, intent(in) :: isys
     integer :: override_find
 
     integer :: i
 
     override_find = 0
-    do i = 1, novr
-       if (ovrsys(i) == isys) then
+    do i = 1, sm%novr
+       if (sm%ovrsys(i) == isys) then
           override_find = i
           return
        end if
@@ -773,36 +726,37 @@ contains
   end function override_find
 
   !> Set the hand-typed file name root of system isys. An empty root
-  !> drops the override, so that the pattern names the row again.
-  subroutine override_set(isys,root)
+  !> drops the override, so that the pattern sm%names the row again.
+  subroutine override_set(sm,isys,root)
     use types, only: realloc
+    type(savemult_state), intent(inout) :: sm
     integer, intent(in) :: isys
     character(len=*), intent(in) :: root
 
     integer :: i, k
 
-    k = override_find(isys)
+    k = override_find(sm,isys)
 
     ! an empty name: forget the override, closing the gap it leaves
     if (len_trim(root) == 0) then
        if (k == 0) return
-       do i = k, novr-1
-          ovrsys(i) = ovrsys(i+1)
-          ovrname(i) = ovrname(i+1)
+       do i = k, sm%novr-1
+          sm%ovrsys(i) = sm%ovrsys(i+1)
+          sm%ovrname(i) = sm%ovrname(i+1)
        end do
-       novr = novr - 1
+       sm%novr = sm%novr - 1
        return
     end if
 
     ! replace the one that is there, or make room for a new one
     if (k == 0) then
-       novr = novr + 1
-       call realloc(ovrsys,novr)
-       call realloc(ovrname,novr)
-       k = novr
-       ovrsys(k) = isys
+       sm%novr = sm%novr + 1
+       call realloc(sm%ovrsys,sm%novr)
+       call realloc(sm%ovrname,sm%novr)
+       k = sm%novr
+       sm%ovrsys(k) = isys
     end if
-    ovrname(k) = root
+    sm%ovrname(k) = root
 
   end subroutine override_set
 

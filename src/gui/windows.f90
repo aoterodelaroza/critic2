@@ -168,6 +168,41 @@ module windows
      "Move Atoms       "&  ! vm_moveatom
      /)
 
+  !> Per-window state of the save-multiple window
+  type savemult_state
+     character(len=:), allocatable :: lastsig
+     character(len=mlen), allocatable :: names(:) ! target file names
+     integer, allocatable :: nameidx(:) ! the system each one comes from
+     logical, allocatable :: nameexists(:) ! whether it is on disk already
+     integer :: nnames = 0 ! number of files that will be written
+     integer :: nloading = 0 ! systems in the list still being loaded
+     integer :: nhidden = 0 ! systems held back by a collapsed group
+     integer :: nexist = 0 ! how many of the files exist already
+     integer :: ndup = 0 ! how many of the names are repeated
+     integer, allocatable :: ovrsys(:) ! systems with a hand-typed name
+     character(len=mlen), allocatable :: ovrname(:) ! that name, as a root
+     integer :: novr = 0 ! how many of them there are
+     integer :: editsys = 0 ! system whose name is being edited (0 = none)
+     character(len=:), allocatable :: editbuf ! the name being edited
+     logical :: editfocus = .false. ! the edit box still needs the focus
+  end type savemult_state
+  public :: savemult_state
+
+  !> Per-window state of the load-field window
+  type loadfield_state
+     integer(c_int) :: sourceopt = 0_c_int ! 0 = file, 1 = expression
+     character(len=:,kind=c_char), allocatable :: file1 ! first (main) file
+     character(len=:,kind=c_char), allocatable :: file1_fmtstr ! its format string
+     logical :: file1_set = .false.
+     integer :: file1_format = 0
+     character(len=:,kind=c_char), allocatable :: file2 ! first auxiliary file
+     logical :: file2_set = .false.
+     character(len=:,kind=c_char), allocatable :: file3 ! second auxiliary file
+     logical :: file3_set = .false.
+     integer :: iginterp = 3 ! 0=nearest, 1=trilinear, 2=trispline, 3=tricubic, 4=smoothrho
+  end type loadfield_state
+  public :: loadfield_state
+
   ! A staged atom pick for the operations that need two atoms chosen
   ! one after the other (create bond, geometry add-bond, editrep bond
   ! anchor). Holds the first pick and the time it was staged (or the
@@ -293,6 +328,7 @@ module windows
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      integer(c_int) :: okfile_format = 0 ! the file format
      ! load field parameters
+     type(loadfield_state) :: lf ! the form of the load-field window
      ! scf plot and tree plot parameters
      real(c_double) :: ymin, ymax ! y-end of the plot
      integer :: plotn ! number of plot data
@@ -315,6 +351,8 @@ module windows
      logical :: saveas_nosym ! do not use symmetry in the written file
      logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
      logical :: saveas_docell ! show the unit cell in the written 3D model file
+     character(len=:), allocatable :: saveas_lastcontrol ! okfile of the last _control check
+     logical :: saveas_control_exists = .false. ! whether that companion file exists
      ! save multiple structures parameters
      integer(c_int) :: savemult_scope ! systems written (0=selected in the tree, 1=all in the tree)
      integer(c_int) :: savemult_format ! write format, as an index into fmtperm
@@ -324,6 +362,7 @@ module windows
      logical :: savemult_cartesian ! write Cartesian instead of fractional coordinates
      logical :: savemult_docell ! show the unit cell in the written 3D model files
      integer(c_int) :: savemult_exist ! target files that exist (0=undecided, 1=overwrite, 2=skip)
+     type(savemult_state) :: sm ! the file list this window is showing
      ! extract cluster as molecule parameters
      integer(c_int) :: extract_region = 0 ! region shape (0=sphere, 1=cube, 2=cells)
      real(c_float) :: extract_rsph = 5._c_float ! sphere radius (Å)
@@ -992,8 +1031,6 @@ module windows
      module subroutine draw_save_multiple(w)
        class(window), intent(inout), target :: w
      end subroutine draw_save_multiple
-     module subroutine savemult_cache_end()
-     end subroutine savemult_cache_end
      !xx! extract submodule !xx!
      module subroutine draw_extract(w)
        class(window), intent(inout), target :: w

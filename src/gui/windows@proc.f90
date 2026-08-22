@@ -592,6 +592,7 @@ contains
        ! dialog: load field window
        if (.not.present(isys)) &
           call ferror('window_init','load_field requires isys',faterr)
+       w%lf = loadfield_state() ! the slot may carry a previous window's form
     elseif (type == wintype_scfplot) then
        ! SCF plot window
        if (.not.present(isys)) &
@@ -613,10 +614,13 @@ contains
        ! save structure as window
        if (.not.present(idparent)) &
           call ferror('window_init','saveas requires idparent',faterr)
+       if (allocated(w%saveas_lastcontrol)) deallocate(w%saveas_lastcontrol)
+       w%saveas_control_exists = .false.
     elseif (type == wintype_save_multiple) then
        ! save multiple structures window
        if (.not.present(idparent)) &
           call ferror('window_init','save_multiple requires idparent',faterr)
+       w%sm = savemult_state() ! the slot may carry a previous window's list
        ! a collapsed window consumes firstpass without drawing its body, so
        ! these have to be usable before that block ever runs
        w%savemult_pattern = ""
@@ -745,7 +749,7 @@ contains
           if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
        elseif (w%type == wintype_save_multiple) then
           if (allocated(w%savemult_pattern)) deallocate(w%savemult_pattern)
-          call savemult_cache_end()
+          w%sm = savemult_state() ! the file list is this window's, not the session's
        elseif (w%type == wintype_water_cluster) then
           ! the demo owns its generated cluster; remove it on close so it does not linger
           isysd = w%isys
