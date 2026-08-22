@@ -992,6 +992,8 @@ module windows
      module subroutine draw_save_multiple(w)
        class(window), intent(inout), target :: w
      end subroutine draw_save_multiple
+     module subroutine savemult_cache_end()
+     end subroutine savemult_cache_end
      !xx! extract submodule !xx!
      module subroutine draw_extract(w)
        class(window), intent(inout), target :: w

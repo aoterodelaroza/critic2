@@ -617,6 +617,16 @@ contains
        ! save multiple structures window
        if (.not.present(idparent)) &
           call ferror('window_init','save_multiple requires idparent',faterr)
+       ! a collapsed window consumes firstpass without drawing its body, so
+       ! these have to be usable before that block ever runs
+       w%savemult_pattern = ""
+       w%savemult_scope = 0
+       w%savemult_format = 1
+       w%savemult_exist = 0
+       w%savemult_rk = 50._c_float
+       w%savemult_nosym = .false.
+       w%savemult_cartesian = .false.
+       w%savemult_docell = .true.
     elseif (type == wintype_extract) then
        ! extract cluster as molecule window
        if (.not.present(idparent)) &
@@ -735,6 +745,7 @@ contains
           if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
        elseif (w%type == wintype_save_multiple) then
           if (allocated(w%savemult_pattern)) deallocate(w%savemult_pattern)
+          call savemult_cache_end()
        elseif (w%type == wintype_water_cluster) then
           ! the demo owns its generated cluster; remove it on close so it does not linger
           isysd = w%isys

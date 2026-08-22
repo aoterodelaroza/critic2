@@ -102,7 +102,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: dooverwrite
-    logical :: doquit, ok, okvalid, ismol, userk, usecell, changed, dirok, direxists
+    logical :: doquit, ok, okvalid, userk, usecell, changed, dirok, direxists
     logical :: anycrystal, thisrk
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
@@ -195,10 +195,6 @@ contains
     call iw_tooltip("Pattern for the file names, without extension&
        & (see the ? for the substitutions)",ttshown)
 
-    ! whether the write will produce molecules or crystals
-    ismol = (ifmt == isformat_w_xyz .or. ifmt == isformat_w_gjf .or. ifmt == isformat_w_cml .or.&
-       ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or. ifmt == isformat_w_off)
-
     ! rebuild the list of target file names, if the settings changed
     call rebuild_names(w,ifmt,changed)
     if (changed) then
@@ -206,7 +202,7 @@ contains
        w%errmsg = ""
        ! the user asked for these systems, so get the ones that are only
        ! waiting for a worker moving
-       if (nloading > 0) call launch_initialization_thread()
+       if (nloading > 0 .and. .not.are_threads_running()) call launch_initialization_thread()
     end if
 
     ! the list can mix molecules and crystals, so the options that only
@@ -219,11 +215,6 @@ contains
           exit
        end if
     end do
-    if (.not.ismol) then
-       if (ifmt == isformat_w_aimsin .or. ifmt == isformat_w_pdb .or. ifmt == isformat_w_pyscf .or.&
-          ifmt == isformat_w_dftbp_gen .or. ifmt == isformat_w_dftbp_hsd) &
-          ismol = .not.anycrystal
-    end if
 
     ! the k-point grid (rklength) applies to espresso, CASTEP, and to
     ! FHIaims crystals (for a molecule, FHIaims would write a
@@ -280,8 +271,10 @@ contains
        warnmsg = string(ndup) // " file names are repeated: add %i to the pattern"
     elseif (nexist > 0) then
        warnmsg = string(nexist) // " of these files exist already"
-       dooverwrite = .true.
     end if
+    ! the choice is asked for whenever files exist, whichever warning won
+    ! the chain above: Save gates on it and would otherwise be unanswerable
+    dooverwrite = (nexist > 0)
     ! whether the structures can be written, and if not, the
     ! reason. Costs one frame of lag on the checkbox.
     okvalid = (nnames > 0) .and. (ndup == 0) .and. dirok .and. .not.doquit .and.&
@@ -410,10 +403,8 @@ contains
           end if
           file = savedir(w) // dirsep // trim(names(i))
           ! FHIaims writes the k-point grid to a companion control file,
-          ! which is meaningless for a molecule: decide per system, with
-          ! the same test the kind column in the table shows
-          thisrk = (ifmt == isformat_w_qein .or. ifmt == isformat_w_castepcell .or.&
-             (ifmt == isformat_w_aimsin .and. .not.writes_molecule(ifmt,isys)))
+          ! which is meaningless for a molecule: decide per system
+          thisrk = userk .and. .not.writes_molecule(ifmt,isys)
           if (thisrk) then
              call sys(isys)%c%write_any_file(file,w%errmsg,iwformat=ifmt,&
                 rklength=real(w%savemult_rk,8),nosym=w%savemult_nosym,&
@@ -512,15 +503,11 @@ contains
       if (editsys == isys) then
          call igPushItemWidth(-1._c_float)
          committed = iw_inputtext("##savemultfile",bufsize=mlen-1,texta=editbuf,&
-            grabfocus=editfocus,flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,&
-            ImGuiInputTextFlags_AutoSelectAll))
-         committed = committed .or. igIsItemDeactivated()
+            grabfocus=editfocus,notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)
+         if (committed) call override_set(isys,typed_root(editbuf,ifmt))
+         if (committed .or. igIsItemDeactivated()) editsys = 0
          call igPopItemWidth()
          editfocus = .false.
-         if (committed) then
-            call override_set(isys,typed_root(editbuf,ifmt))
-            editsys = 0
-         end if
       else
          ! a zero-width selectable under the text
          pos = igGetCursorPosX()
@@ -556,16 +543,11 @@ contains
          "A literal percent sign                ",&
          "Same as %i                            "/)
 
-      integer :: i, ll
+      integer :: i
 
       call iw_text("(?)",sameline=.true.)
       if (.not.tooltip_enabled) return
       if (.not.igIsItemHovered(ImGuiHoveredFlags_None)) return
-
-      ll = 1
-      do i = 1, nsub
-         ll = max(ll,len_trim(subkey(i)))
-      end do
 
       call igBeginTooltip()
       call iw_text("File Name Pattern",highlight=.true.)
@@ -575,7 +557,7 @@ contains
       call igPopTextWrapPos()
       call iw_text("")
       do i = 1, nsub
-         call iw_text(string(trim(subkey(i)),length=ll+1),highlight=.true.)
+         call iw_text(string(trim(subkey(i)),length=len(subkey)+1),highlight=.true.)
          call iw_text(trim(subtxt(i)),sameline=.true.)
       end do
       call igEndTooltip()
@@ -583,6 +565,24 @@ contains
     end subroutine draw_pattern_help
 
   end subroutine draw_save_multiple
+
+  !> Release the cached file list. Called when the window closes: the
+  !> counters are reset on the next firstpass, but the arrays are as long
+  !> as the tree and would otherwise stay resident for the session.
+  module subroutine savemult_cache_end()
+
+    if (allocated(lastsig)) deallocate(lastsig)
+    if (allocated(names)) deallocate(names)
+    if (allocated(nameidx)) deallocate(nameidx)
+    if (allocated(nameexists)) deallocate(nameexists)
+    if (allocated(ovrsys)) deallocate(ovrsys)
+    if (allocated(ovrname)) deallocate(ovrname)
+    if (allocated(editbuf)) deallocate(editbuf)
+    nnames = 0
+    novr = 0
+    editsys = 0
+
+  end subroutine savemult_cache_end
 
   !xx! private procedures
 
@@ -592,7 +592,7 @@ contains
   !> when the settings it depends on change; changed reports whether it
   !> was recalculated in this pass.
   subroutine rebuild_names(w,ifmt,changed)
-    use systems, only: sysc, sys_init, ok_system
+    use systems, only: sysc, sys_init, sys_empty, ok_system
     use tools_io, only: string
     class(window), intent(in) :: w
     integer, intent(in) :: ifmt
@@ -602,6 +602,15 @@ contains
     integer, allocatable :: idx(:)
     integer :: i, j, k, n, npad
     integer*8 :: ihash
+
+    ! overrides and the edited cell are keyed by system slot, and a closed
+    ! slot is handed to the next structure loaded: drop them before that
+    do i = novr, 1, -1
+       if (sysc(ovrsys(i))%status == sys_empty) call override_set(ovrsys(i),"")
+    end do
+    if (editsys > 0) then
+       if (sysc(editsys)%status == sys_empty) editsys = 0
+    end if
 
     ! the list of systems: a system that is not loaded yet cannot be
     ! written. The members of a collapsed group stay unloaded until
@@ -669,14 +678,8 @@ contains
           root = expand_pattern(w%savemult_pattern,idx(i),i,npad)
        end if
        if (len_trim(root) == 0) root = "structure" // string(i,npad,pad0=.true.)
-       ! do not repeat the extension if the pattern already carries it
-       if (len(root) > len(ext)) then
-          if (root(len(root)-len(ext)+1:) == ext) then
-             names(i) = root
-             cycle
-          end if
-       end if
-       names(i) = root // ext
+       ! do not repeat the extension if the name already carries it
+       names(i) = strip_ext(root,ext) // ext
     end do
 
     ! repeated names: only possible if the pattern carries no index. The
@@ -740,10 +743,12 @@ contains
     use param, only: dirsep
     class(window), intent(in) :: w
 
+    character(len=:), allocatable :: dir
     integer :: i
 
+    dir = savedir(w) // dirsep
     do i = 1, nnames
-       inquire(file=savedir(w) // dirsep // trim(names(i)),exist=nameexists(i))
+       inquire(file=dir // trim(names(i)),exist=nameexists(i))
     end do
     nexist = count(nameexists(1:nnames))
 
@@ -770,12 +775,11 @@ contains
   !> Set the hand-typed file name root of system isys. An empty root
   !> drops the override, so that the pattern names the row again.
   subroutine override_set(isys,root)
+    use types, only: realloc
     integer, intent(in) :: isys
     character(len=*), intent(in) :: root
 
     integer :: i, k
-    integer, allocatable :: iaux(:)
-    character(len=mlen), allocatable :: caux(:)
 
     k = override_find(isys)
 
@@ -792,16 +796,9 @@ contains
 
     ! replace the one that is there, or make room for a new one
     if (k == 0) then
-       if (.not.allocated(ovrsys)) then
-          allocate(ovrsys(8),ovrname(8))
-       elseif (novr == size(ovrsys,1)) then
-          allocate(iaux(2*novr),caux(2*novr))
-          iaux(1:novr) = ovrsys(1:novr)
-          caux(1:novr) = ovrname(1:novr)
-          call move_alloc(iaux,ovrsys)
-          call move_alloc(caux,ovrname)
-       end if
        novr = novr + 1
+       call realloc(ovrsys,novr)
+       call realloc(ovrname,novr)
        k = novr
        ovrsys(k) = isys
     end if
@@ -818,18 +815,9 @@ contains
     integer, intent(in) :: ifmt
     character(len=:), allocatable :: typed_root
 
-    character(len=:), allocatable :: ext
-    integer :: k
-
     typed_root = trim(adjustl(str))
-    do k = 1, len(typed_root)
-       if (index(badchars,typed_root(k:k)) > 0) typed_root(k:k) = "_"
-    end do
-    ext = "." // trim(fmtext(ifmt))
-    if (len(typed_root) > len(ext)) then
-       if (typed_root(len(typed_root)-len(ext)+1:) == ext) &
-          typed_root = typed_root(1:len(typed_root)-len(ext))
-    end if
+    call sanitize(typed_root)
+    typed_root = strip_ext(typed_root,"." // trim(fmtext(ifmt)))
 
   end function typed_root
 
@@ -917,19 +905,34 @@ contains
           aux = aux(2:)
        end if
     end do
+    ! the literal part of the pattern is sanitized too: a separator in it
+    ! would write outside the chosen directory
+    call sanitize(root)
 
-  contains
-    !> Replace anything that has no business in a file name by an underscore.
-    subroutine sanitize(str)
-      character(len=:), allocatable, intent(inout) :: str
-
-      integer :: j
-
-      do j = 1, len(str)
-         if (index(badchars,str(j:j)) > 0) str(j:j) = "_"
-      end do
-
-    end subroutine sanitize
   end function expand_pattern
+
+  !> Replace anything that has no business in a file name by an underscore.
+  subroutine sanitize(str)
+    character(len=:), allocatable, intent(inout) :: str
+
+    integer :: j
+
+    do j = 1, len(str)
+       if (index(badchars,str(j:j)) > 0) str(j:j) = "_"
+    end do
+
+  end subroutine sanitize
+
+  !> str without a trailing ext, if it carries one.
+  function strip_ext(str,ext)
+    character(len=*), intent(in) :: str, ext
+    character(len=:), allocatable :: strip_ext
+
+    strip_ext = str
+    if (len(strip_ext) <= len(ext)) return
+    if (strip_ext(len(strip_ext)-len(ext)+1:) == ext) &
+       strip_ext = strip_ext(1:len(strip_ext)-len(ext))
+
+  end function strip_ext
 
 end submodule save_multiple
