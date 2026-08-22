@@ -191,6 +191,22 @@ contains
        call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
        call igSeparator()
 
+       ! close the selection. A selected group header goes in as well: it
+       ! closes the systems it heads, and remove_system returns early on a
+       ! member that the header already took with it
+       if (iw_menuitem("Close Selected",enabled=(tree_nselected() > 0))) then
+          if (allocated(forceremove)) deallocate(forceremove)
+          allocate(forceremove(nsys))
+          k = 0
+          do i = 1, nsys
+             if (sysc(i)%status == sys_empty .or. .not.sysc(i)%tselected) cycle
+             k = k + 1
+             forceremove(k) = i
+          end do
+          call realloc(forceremove,k)
+       end if
+       call iw_tooltip("Close the systems selected in the tree",ttshown)
+
        ! close visible
        if (iw_menuitem("Close Visible")) then
           if (allocated(forceremove)) deallocate(forceremove)

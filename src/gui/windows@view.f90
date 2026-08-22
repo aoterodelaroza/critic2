@@ -94,6 +94,7 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: i, j, k, nrep, is, istart
+    logical :: onlysel
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2
@@ -394,7 +395,11 @@ contains
     ! toolbar: apply the settings of this scene to all systems
     if (iw_icon_togglebutton("applyallbutton",icon_tex(icon_ui_applyall),"Ap",&
        disabled=.not.enabled,sameline=.true.,danger=.true.)) then
+       ! the tree selection scopes this: with systems selected only those get
+       ! the settings, and with none it falls back to the whole tree
+       onlysel = (tree_nselected() > 0)
        do i = 1, nsys
+          if (onlysel .and. .not.sysc(i)%tselected) cycle
           if (sysc(i)%status == sys_init .and. i /= w%isys) then
              ! atoms, bonds, unit cell
              do j = 1, sysc(i)%sc%nrep
@@ -429,7 +434,8 @@ contains
           call sysc(i)%sc%build_lists()
        end do
     end if
-    call iw_tooltip("Apply the settings of this scene to all systems",ttshown)
+    call iw_tooltip("Apply the settings of this scene to the systems selected in the&
+       & tree, or to all systems if none is selected",ttshown)
 
     ! toolbar: reset this scene to the default settings
     if (iw_icon_togglebutton("resetscenebutton",icon_tex(icon_ui_reset),"Rs",&
