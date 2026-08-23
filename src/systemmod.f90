@@ -46,6 +46,7 @@ module systemmod
      type(crystal), allocatable :: c !< Crystal structure (always allocated)
      integer :: nf = -1 !< Number of fields
      type(field), allocatable :: f(:) !< Fields for this system
+     integer :: fieldgen = 0 !< Generation counter, bumped whenever the field set changes (loaded, copied, unloaded, reset)
      logical :: refset = .false. !< Has the reference been set?
      integer :: iref = 0 !< Reference field
      integer :: npropi = 0 !< Number of integrable properties

@@ -54,7 +54,7 @@ contains
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
-       reptype_symelem, reptype_text, reptype_measure
+       reptype_symelem, reptype_text, reptype_measure, reptype_isosurface
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -114,6 +114,8 @@ contains
           changed = changed .or. w%draw_editrep_text(ttshown)
        elseif (w%rep%type == reptype_measure) then
           changed = changed .or. w%draw_editrep_measure(ttshown)
+       elseif (w%rep%type == reptype_isosurface) then
+          changed = changed .or. w%draw_editrep_isosurface(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -2352,6 +2354,97 @@ contains
     end function item_value_str
 
   end function draw_editrep_measure
+
+  !> Draw the editrep window, isosurface class. Returns true if the
+  !> scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_isosurface(w,ttshown) result(changed)
+    use systems, only: sys
+    use representations, only: iso_default_isovalue, iso_npts_min, iso_npts_max
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_intstepper,&
+       iw_calcwidth
+    use fieldmod, only: type_grid
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    integer :: i, isys
+    logical :: ch, goodf
+    logical(c_bool) :: is_selected
+    real(c_float) :: rgba(4)
+    real*8 :: speed
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: szero
+
+    ! initialize
+    changed = .false.
+    isys = w%isys
+    szero%x = 0
+    szero%y = 0
+
+    ! field selector
+    call iw_text("Field",highlight=.true.)
+    goodf = sys(isys)%goodfield(w%rep%iso%ifield)
+    str1 = "##isofieldcombo" // c_null_char
+    if (goodf) then
+       str2 = string(w%rep%iso%ifield) // ": " // trim(sys(isys)%f(w%rep%iso%ifield)%name) // c_null_char
+    else
+       str2 = "<field not available>" // c_null_char
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+    call igSetNextItemWidth(iw_calcwidth(30,1))
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 0, sys(isys)%nf
+          if (.not.sys(isys)%f(i)%isinit) cycle
+          is_selected = (w%rep%iso%ifield == i)
+          str2 = string(i) // ": " // trim(sys(isys)%f(i)%name) // c_null_char
+          if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+             if (w%rep%iso%ifield /= i) then
+                w%rep%iso%ifield = i
+                w%rep%iso%isoval(1) = iso_default_isovalue(isys,i)
+                changed = .true.
+             end if
+          end if
+          if (is_selected) &
+             call igSetItemDefaultFocus()
+       end do
+       call igEndCombo()
+    end if
+    call iw_tooltip("Field whose isosurface is displayed (selecting a field&
+       & resets the isovalue to a default for that field)",ttshown)
+    if (.not.goodf) then
+       call iw_text("The selected field is not available in this system",danger=.true.)
+       return
+    end if
+
+    ! isovalue, with a drag speed proportional to the current value;
+    ! notlive so the re-triangulation runs on commit, not every drag frame
+    call iw_text("Isosurface",highlight=.true.)
+    speed = max(0.01d0 * abs(w%rep%iso%isoval(1)),1d-4)
+    changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
+       decimal=6,notlive=.true.)
+    call iw_tooltip("Value of the field on the isosurface (atomic units)",ttshown)
+
+    ! color and opacity
+    rgba(1:3) = w%rep%iso%rgb(:,1)
+    rgba(4) = w%rep%iso%alpha(1)
+    ch = iw_coloredit("Color",rgba=rgba,sameline=.true.)
+    call iw_tooltip("Color and opacity of the isosurface",ttshown)
+    if (ch) then
+       w%rep%iso%rgb(:,1) = rgba(1:3)
+       w%rep%iso%alpha(1) = rgba(4)
+       changed = .true.
+    end if
+
+    ! sampling resolution (grid fields are triangulated at their native
+    ! resolution)
+    if (sys(isys)%f(w%rep%iso%ifield)%type /= type_grid) then
+       changed = changed .or. iw_intstepper("##isonpts",w%rep%iso%npts,label="Resolution",&
+          minval=int(iso_npts_min,c_int),maxval=int(iso_npts_max,c_int))
+       call iw_tooltip("Number of field samples along each unit cell direction",ttshown)
+    end if
+
+  end function draw_editrep_isosurface
 
   !> Draw the periodicity widgets shared by the atoms and unit-cell object
   !> editors: the radio buttons for the periodicity type and, when the type is

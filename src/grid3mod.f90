@@ -114,6 +114,7 @@ module grid3mod
      procedure :: read_pwc !< read a pwc file created by pw2critic.x
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
+     procedure :: get_domain !< lattice vectors and Cartesian origin of the grid data domain
      procedure :: interp !< interpolate the grid at an arbitrary point
      procedure :: fft !< grid3 as the FFT of another grid3
      procedure :: resample !< grid3 as a Fourier resampling of another grid3
@@ -272,6 +273,12 @@ module grid3mod
        character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wannier_chk
+     module subroutine get_domain(f,x2cd,x0c,c2xd)
+       class(grid3), intent(in) :: f
+       real*8, intent(out) :: x2cd(3,3)
+       real*8, intent(out) :: x0c(3)
+       real*8, intent(out), optional :: c2xd(3,3)
+     end subroutine get_domain
      module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate
        real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)

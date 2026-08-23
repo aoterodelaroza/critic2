@@ -78,6 +78,10 @@ module shapes
   ! and cones, which are not animated)
   integer(c_int), parameter, public :: mesh_inst_nf = 38 ! floats per mesh instance (16 model + 4 color + 18 deltas)
 
+  ! indexed triangle meshes (isosurfaces): interleaved position + normal
+  ! vertices, drawn non-instanced through an element buffer
+  integer(c_int), parameter, public :: msh_vert_nf = 6 ! floats per mesh vertex (3 position + 3 normal)
+
   !! draw list objects
   !> spheres for the draw list
   type dl_sphere
@@ -170,6 +174,20 @@ module shapes
   end type dl_triangle
   public :: dl_triangle
 
+  !> indexed triangle meshes for the draw list (e.g. isosurfaces): vertices
+  !> with per-vertex normals plus an element list; one color and opacity for
+  !> the whole mesh. Drawn non-instanced with the iso shader.
+  type dl_mesh
+     integer :: nv = 0 ! number of vertices
+     integer :: nf = 0 ! number of triangles
+     real(c_float), allocatable :: x(:,:) ! vertex positions (3,nv)
+     real(c_float), allocatable :: nrm(:,:) ! vertex unit normals (3,nv)
+     integer(c_int), allocatable :: idx(:,:) ! triangle vertex indices, 0-based (3,nf)
+     real(c_float) :: rgb(3) = 0._c_float ! color
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+  end type dl_mesh
+  public :: dl_mesh
+
   !> collection of objects (draw lists) belonging to a scene
   type scene_objects
      integer :: nsph ! number of spheres
@@ -184,6 +202,8 @@ module shapes
      type(dl_plane), allocatable :: plane(:) ! flat rectangle draw list
      integer :: ntriangle ! number of flat triangles
      type(dl_triangle), allocatable :: triangle(:) ! flat triangle draw list
+     integer :: nmsh ! number of indexed triangle meshes
+     type(dl_mesh), allocatable :: msh(:) ! indexed triangle mesh draw list
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: string(:) ! string draw list
      ! window-anchored overlay objects (drawn in a separate overlay pass;
@@ -218,6 +238,7 @@ module shapes
      module procedure dl_append_string_over
      module procedure dl_append_plane
      module procedure dl_append_triangle
+     module procedure dl_append_mesh
   end interface dl_append
   public :: dl_append
 
@@ -236,6 +257,7 @@ module shapes
      integer(c_int) :: coneinstVAO = 0, coneinstVBO = 0  ! cone mesh
      integer(c_int) :: planeinstVAO = 0, planeinstVBO = 0 ! quad mesh
      integer(c_int) :: triinstVAO = 0, triinstVBO = 0    ! triangle mesh
+     integer(c_int) :: mshVAO = 0, mshVBO = 0, mshEBO = 0 ! indexed meshes (isosurfaces)
      ! scratch instance buffers (re-uploaded every frame: measure-selection,
      ! highlights, picking, overlay)
      integer(c_int) :: sphinstVAOscr = 0, sphinstVBOscr = 0
@@ -246,12 +268,20 @@ module shapes
      ! only when the instance count exceeds the capacity.
      integer :: sph_cap = 0, cyl_cap = 0, cone_cap = 0, plane_cap = 0, tri_cap = 0
      integer :: sphscr_cap = 0, cylscr_cap = 0, conescr_cap = 0
+     integer :: msh_vcap = 0 ! vertex capacity of the indexed-mesh VBO storage
+     integer :: msh_ecap = 0 ! index capacity of the indexed-mesh EBO storage
      ! persistent CPU pack scratch (grow-only, see ensure_pack): instance data
      ! is packed here before upload, avoiding per-frame allocations
      real(c_float), allocatable :: packsph(:,:)  ! opaque sphere instances (also selections/highlights/pick)
      real(c_float), allocatable :: packsphtr(:,:) ! translucent sphere instances (drawn last, no depth write)
      real(c_float), allocatable :: packcyl(:,:)  ! cylinder instances
      real(c_float), allocatable :: packmesh(:,:) ! mesh instances (cones, then planes, then triangles)
+     ! indexed-mesh (isosurface) concatenation scratch and per-mesh draw table
+     real(c_float), allocatable :: packmshv(:,:) ! concatenated interleaved mesh vertices (msh_vert_nf,:)
+     integer(c_int), allocatable :: packmshi(:) ! concatenated mesh element indices
+     integer, allocatable :: msh_first(:) ! first element index (0-based) of each mesh in the EBO
+     integer, allocatable :: msh_count(:) ! element index count of each mesh
+     real(c_float), allocatable :: msh_rgba(:,:) ! color and opacity of each mesh (4,:)
      ! per-scene on-scene-text buffer: the glyph vertices of the scene labels
      ! are cached here (and in the VBO) and reused while the camera and the
      ! draw lists do not change
@@ -276,6 +306,7 @@ module shapes
      integer :: ncone_inst = 0  ! number of cached cone instances
      integer :: nplane_inst = 0 ! number of cached plane instances
      integer :: ntri_inst = 0   ! number of cached triangle instances
+     integer :: nmsh_inst = 0   ! number of cached indexed meshes
    contains
      procedure :: init => glbuffers_init
      procedure :: end => glbuffers_end
@@ -283,6 +314,8 @@ module shapes
      procedure :: draw_spheres => glbuffers_draw_spheres
      procedure :: draw_cylinders => glbuffers_draw_cylinders
      procedure :: draw_mesh => glbuffers_draw_mesh
+     procedure :: upload_meshes => glbuffers_upload_meshes
+     procedure :: draw_meshes => glbuffers_draw_meshes
      procedure :: upload_text => glbuffers_upload_text
      procedure :: redraw_spheres => glbuffers_redraw_spheres
      procedure :: redraw_cylinders => glbuffers_redraw_cylinders
@@ -349,6 +382,11 @@ module shapes
        integer, intent(inout) :: n
        type(dl_triangle), intent(in) :: it
      end subroutine dl_append_triangle
+     module subroutine dl_append_mesh(lst,n,it)
+       type(dl_mesh), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_mesh), intent(in) :: it
+     end subroutine dl_append_mesh
      module subroutine glbuffers_init(b)
        class(scene_glbuffers), intent(inout), target :: b
      end subroutine glbuffers_init
@@ -375,6 +413,15 @@ module shapes
        integer, intent(in) :: role, nelem, n
        real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
      end subroutine glbuffers_draw_mesh
+     module subroutine glbuffers_upload_meshes(b,n,msh)
+       class(scene_glbuffers), intent(inout), target :: b
+       integer, intent(in) :: n
+       type(dl_mesh), intent(in) :: msh(:)
+     end subroutine glbuffers_upload_meshes
+     module subroutine glbuffers_draw_meshes(b,opaque)
+       class(scene_glbuffers), intent(inout) :: b
+       logical, intent(in) :: opaque
+     end subroutine glbuffers_draw_meshes
      module subroutine glbuffers_upload_text(b,nvert,buf)
        class(scene_glbuffers), intent(inout) :: b
        integer, intent(in) :: nvert

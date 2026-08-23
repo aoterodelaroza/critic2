@@ -20,7 +20,7 @@ module representations
   use iso_c_binding
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_over, dl_string, dl_string_over,&
-     dl_plane, dl_triangle, scene_objects, dl_append
+     dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append
   use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
   use global, only: bondfactor_def, bonddelta_def
   implicit none
@@ -113,6 +113,17 @@ module representations
   real(c_float), parameter, public :: measure_rgb_dist_def(3) = (/0.90_c_float,0.65_c_float,0.10_c_float/) ! distance color (gold)
   real(c_float), parameter, public :: measure_rgb_ang_def(3) = (/0.10_c_float,0.65_c_float,0.85_c_float/) ! angle color (cyan)
   real(c_float), parameter, public :: measure_rgb_dih_def(3) = (/0.90_c_float,0.30_c_float,0.60_c_float/) ! dihedral color (pink)
+  !--> isosurfaces
+  integer, parameter, public :: iso_maxslot = 2 ! isosurface slots per representation
+  integer, parameter, public :: iso_npts_def = 80 ! default sampling resolution for non-grid fields
+  integer, parameter, public :: iso_npts_min = 20 ! minimum sampling resolution
+  integer, parameter, public :: iso_npts_max = 200 ! maximum sampling resolution
+  real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
+  real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
+  real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
+     0.30_c_float,0.55_c_float,0.90_c_float,&  ! slot 1: blue
+     0.90_c_float,0.45_c_float,0.15_c_float/),& ! slot 2: orange
+     (/3,iso_maxslot/))
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -221,7 +232,8 @@ module representations
   integer, parameter, public :: reptype_text = 6 ! user text annotations
   integer, parameter, public :: reptype_measure = 7 ! measurements (distances/angles/dihedrals)
   integer, parameter, public :: reptype_shapes = 8 ! list of geometric shapes
-  integer, parameter, public :: reptype_NUM = 8
+  integer, parameter, public :: reptype_isosurface = 9 ! isosurface of a scalar field
+  integer, parameter, public :: reptype_NUM = 9
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -240,7 +252,8 @@ module representations
   integer, parameter, public :: repflavor_text = 13
   integer, parameter, public :: repflavor_measure = 14
   integer, parameter, public :: repflavor_shapes = 15
-  integer, parameter, public :: repflavor_NUM = 15
+  integer, parameter, public :: repflavor_isosurface = 16
+  integer, parameter, public :: repflavor_NUM = 16
 
   !> Selection of the part of the system that is drawn: periodicity, origin
   !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
@@ -474,6 +487,26 @@ module representations
   end type rep_measure
   public :: rep_measure
 
+  !> Isosurface display options (reptype_isosurface; accessed as r%iso%...)
+  type rep_isosurface
+     ! user options
+     integer :: ifield = 0 ! field for the isosurface (index in sys(id)%f)
+     integer :: npts = iso_npts_def ! sampling resolution for non-grid fields
+     integer :: niso = 1 ! number of active isosurface slots
+     real*8 :: isoval(iso_maxslot) = 0d0 ! isovalues
+     real(c_float) :: rgb(3,iso_maxslot) = iso_rgb_def ! colors
+     real(c_float) :: alpha(iso_maxslot) = iso_alpha_def ! opacities (1 = opaque)
+     integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
+     integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
+     integer :: npts_built = 0 ! sampling resolution when the meshes were built
+     integer :: niso_built = 0 ! number of slots when the meshes were built
+     real*8 :: isoval_built(iso_maxslot) = 0d0 ! isovalues when the meshes were built
+     real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
+     type(dl_mesh) :: mesh(iso_maxslot) ! the cached meshes, one per slot
+     real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
+  end type rep_isosurface
+  public :: rep_isosurface
+
   !> Representation: objects to draw on the scene
   type representation
      ! main variables
@@ -502,6 +535,7 @@ module representations
      type(rep_poly) :: poly ! coordination polyhedra options
      type(rep_text) :: text ! text annotation options
      type(rep_measure) :: measure ! measurement options
+     type(rep_isosurface) :: iso ! isosurface options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -512,8 +546,15 @@ module representations
   end type representation
   public :: representation
 
+  public :: iso_default_isovalue
+
   ! module procedure interfaces
   interface
+     module function iso_default_isovalue(isys,ifield) result(isoval)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+       real*8 :: isoval
+     end function iso_default_isovalue
      module subroutine representation_init(r,isys,itype,flavor,icount)
        class(representation), intent(inout) :: r
        integer, intent(in) :: isys

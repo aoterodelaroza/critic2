@@ -24,7 +24,8 @@ submodule (shaders) proc
      "text_onscene",& ! shader_text_onscene
      "sphere      ",& ! shader_sphere
      "cylinder    ",& ! shader_cylinder
-     "mesh        "&  ! shader_mesh
+     "mesh        ",& ! shader_mesh
+     "iso         "&  ! shader_iso
      /)
 
   ! shader programs
@@ -38,7 +39,7 @@ submodule (shaders) proc
   integer(c_int) :: ishad_uniloc(u_NUM,shader_NUM)
   character(len=14), parameter :: uniname(u_NUM) = (/ character(len=14) :: &
      "world", "view", "projection", "isortho", "displ", "uPick",&
-     "isanchored", "anchored_ndc", "anchored_scale", "textColor" /)
+     "isanchored", "anchored_ndc", "anchored_scale", "textColor", "rgba" /)
 
 contains
 

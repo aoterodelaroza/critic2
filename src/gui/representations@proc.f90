@@ -109,6 +109,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Measurements"
+    elseif (itype == reptype_isosurface) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Isosurface"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -210,7 +214,8 @@ contains
   !> Set all values to default for the representation. Set a subset of
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
-  !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations).
+  !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
+  !> 11 (measurements), 12 (isosurfaces).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -456,10 +461,63 @@ contains
        r%measure%isel = 0
     end if
 
+    ! isosurfaces: the reference field and a heuristic isovalue from its
+    ! statistics (the full-grid statistics scan only for actual isosurface
+    ! representations; itype = 0 also runs for every other type)
+    if (itype == 0 .or. itype == 12) then
+       r%iso%ifield = max(sys(isys)%iref,0)
+       r%iso%npts = iso_npts_def
+       r%iso%niso = 1
+       r%iso%isoval = 0d0
+       if (r%type == reptype_isosurface) then
+          r%iso%isoval(1) = iso_default_isovalue(isys,r%iso%ifield)
+       else
+          r%iso%isoval(1) = iso_isoval_def
+       end if
+       r%iso%rgb = iso_rgb_def
+       r%iso%alpha = iso_alpha_def
+       r%iso%ifield_built = -1
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
   end subroutine representation_set_defaults
+
+  !> Default isovalue for field ifield of system isys: twice the cell
+  !> average for a non-negative (density-like) grid, twice the RMS for a
+  !> signed grid, clamped to the field range; a fixed fallback for
+  !> non-grid fields, whose statistics are not cheaply available.
+  module function iso_default_isovalue(isys,ifield) result(isoval)
+    use systems, only: sys, sys_init, ok_system
+    use fieldmod, only: type_grid
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+    real*8 :: isoval
+
+    integer :: n
+    real*8 :: fmin, fmax, favg
+
+    isoval = iso_isoval_def
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    if (sys(isys)%f(ifield)%type /= type_grid) return
+    if (.not.sys(isys)%f(ifield)%grid%isinit) return
+
+    associate(g => sys(isys)%f(ifield)%grid)
+      n = product(g%n)
+      fmin = minval(g%f)
+      fmax = maxval(g%f)
+      if (fmin >= 0d0) then
+         favg = sum(g%f) / n
+         isoval = 2d0 * favg
+      else
+         isoval = 2d0 * sqrt(sum(g%f**2) / n)
+      end if
+      if (isoval <= fmin .or. isoval >= fmax) isoval = 0.5d0 * (fmin + fmax)
+    end associate
+
+  end function iso_default_isovalue
 
   !> Set the per-item style of a measurement to the defaults for its
   !> kind (n = 2 distance, 3 angle, 4 dihedral).
@@ -536,6 +594,7 @@ contains
     if (allocated(r%measure%item)) deallocate(r%measure%item)
     r%shapes%nshape = 0
     if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
+    r%iso = rep_isosurface()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -549,7 +608,7 @@ contains
   !> Update the representation styles to respond to changes in the the
   !> associated system.
   module subroutine update_styles(r)
-    use systems, only: sys_ready, ok_system, sysc
+    use systems, only: sys, sys_ready, ok_system, sysc
     class(representation), intent(inout) :: r
 
     logical :: doreset
@@ -595,6 +654,14 @@ contains
        doreset = .not.r%symelem%style%isinit
        doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%symelem%style%timelastreset)
        if (doreset) call r%symelem%style%reset(r)
+
+    elseif (r%type == reptype_isosurface) then
+       ! isosurfaces: fall back to the reference field if the selected field
+       ! is gone. The cached mesh goes stale in add_draw_elements.
+       if (.not.sys(r%id)%goodfield(r%iso%ifield)) then
+          r%iso%ifield = max(sys(r%id)%iref,0)
+          r%iso%isoval(1) = iso_default_isovalue(r%id,r%iso%ifield)
+       end if
     end if
 
   end subroutine update_styles
@@ -1614,8 +1681,127 @@ contains
              end if
           end associate
        end do
+    elseif (r%type == reptype_isosurface) then
+       !!! isosurface of a scalar field !!!
+       call add_isosurface_meshes()
     end if ! reptype
   contains
+
+    !> Build (if stale) and append the isosurface meshes of this
+    !> representation. The field is triangulated over the full unit cell:
+    !> grid fields at their native resolution, other fields sampled on an
+    !> npts**3 fractional grid (OpenMP; the samples are cached so isovalue
+    !> edits do not resample). The cached triangulations in r%iso are
+    !> reused until the field, the isovalue, or the resolution changes.
+    subroutine add_isosurface_meshes()
+      use interfaces_glfw, only: glfwGetTime
+      use isosurfacemod, only: marching_cubes
+      use fieldmod, only: type_grid
+      integer :: i, j, k, l, nn(3), nv, nf
+      logical :: usegrid, resample, rebuild, per0
+      real*8, allocatable :: xv(:,:), nrm(:,:)
+      integer, allocatable :: idx(:,:)
+      real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
+
+      if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
+      usegrid = (sys(r%id)%f(r%iso%ifield)%type == type_grid)
+      if (usegrid) usegrid = sys(r%id)%f(r%iso%ifield)%grid%isinit
+
+      ! decide whether the cached field samples and triangulations are
+      ! stale: the selected field, the resolution, a geometry change, or
+      ! any change to the system's field set (a field reloaded into the
+      ! same slot has the same index but different data)
+      resample = (r%iso%ifield_built /= r%iso%ifield)
+      resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
+      resample = resample .or. (r%iso%npts_built /= r%iso%npts)
+      resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
+      resample = resample .or. (.not.usegrid .and. .not.allocated(r%iso%ff))
+      rebuild = resample
+      rebuild = rebuild .or. (r%iso%niso_built /= r%iso%niso)
+      rebuild = rebuild .or. any(r%iso%isoval_built(1:r%iso%niso) /= r%iso%isoval(1:r%iso%niso))
+
+      ! re-triangulate each active slot
+      if (rebuild) then
+         if (usegrid) then
+            ! grid field: triangulate the grid values at their native
+            ! resolution over the grid's own domain (partial grids span
+            ! only part of the cell and never wrap)
+            associate(g => sys(r%id)%f(r%iso%ifield)%grid)
+              nn = g%n
+              call g%get_domain(xmat,x0c,cmat)
+              per0 = .not.c%ismolecule .and. .not.g%partial
+            end associate
+            if (allocated(r%iso%ff)) deallocate(r%iso%ff)
+            do i = 1, r%iso%niso
+               call marching_cubes(nn,sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,&
+                  r%iso%isoval(i),per0,nv,xv,nrm,nf,idx)
+               call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,x0c)
+            end do
+         else
+            ! other fields: sample the unit cell on an npts**3 grid
+            nn = max(min(r%iso%npts,iso_npts_max),iso_npts_min)
+            if (resample) then
+               if (allocated(r%iso%ff)) deallocate(r%iso%ff)
+               allocate(r%iso%ff(nn(1),nn(2),nn(3)))
+               !$omp parallel do private(xp) schedule(dynamic) collapse(2)
+               do l = 1, nn(3)
+                  do k = 1, nn(2)
+                     do j = 1, nn(1)
+                        xp = c%x2c((/real(j-1,8)/nn(1),real(k-1,8)/nn(2),real(l-1,8)/nn(3)/))
+                        r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=.not.c%ismolecule)
+                     end do
+                  end do
+               end do
+               !$omp end parallel do
+            end if
+            do i = 1, r%iso%niso
+               call marching_cubes(nn,r%iso%ff,c%m_x2c,c%m_c2x,r%iso%isoval(i),&
+                  .not.c%ismolecule,nv,xv,nrm,nf,idx)
+               call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,(/0d0,0d0,0d0/))
+            end do
+         end if
+         r%iso%ifield_built = r%iso%ifield
+         r%iso%fieldgen_built = sys(r%id)%fieldgen
+         r%iso%npts_built = r%iso%npts
+         r%iso%niso_built = r%iso%niso
+         r%iso%isoval_built = r%iso%isoval
+         r%iso%time_built = glfwGetTime()
+      end if
+
+      ! append the cached meshes to the draw list
+      do i = 1, r%iso%niso
+         if (r%iso%mesh(i)%nf == 0) cycle
+         r%iso%mesh(i)%rgb = r%iso%rgb(:,i)
+         r%iso%mesh(i)%alpha = r%iso%alpha(i)
+         call dl_append(obj%msh,obj%nmsh,r%iso%mesh(i))
+      end do
+
+    end subroutine add_isosurface_meshes
+
+    !> Store a triangulation (nv vertices xv/nrm, nf triangles idx, all
+    !> shifted by the domain origin x0c) into dl_mesh m in scene-ready
+    !> form (c_float, 0-based indices).
+    subroutine save_mesh(m,nv,xv,nrm,nf,idx,x0c)
+      type(dl_mesh), intent(inout) :: m
+      integer, intent(in) :: nv, nf
+      real*8, intent(in) :: xv(:,:)
+      real*8, intent(in) :: nrm(:,:)
+      integer, intent(in) :: idx(:,:)
+      real*8, intent(in) :: x0c(3)
+
+      integer :: j
+
+      m%nv = nv
+      m%nf = nf
+      if (allocated(m%x)) deallocate(m%x)
+      allocate(m%x(3,nv))
+      do j = 1, nv
+         m%x(:,j) = real(xv(:,j) + x0c,c_float)
+      end do
+      m%nrm = real(nrm(:,1:nv),c_float)
+      m%idx = int(idx(:,1:nf) - 1,c_int)
+
+    end subroutine save_mesh
 
     !> Append a thin cylinder (a measurement segment/edge) from pa to pb,
     !> radius radv (bohr), solid or dashed.

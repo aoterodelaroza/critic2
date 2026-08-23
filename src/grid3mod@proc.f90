@@ -1690,6 +1690,24 @@ contains
 
   end subroutine read_wannier_chk
 
+  !> Return the geometric domain of the grid data: the lattice vectors
+  !> spanning it (columns of x2cd), its Cartesian origin x0c, and
+  !> optionally the inverse matrix c2xd. For a full-cell grid this is
+  !> the crystal cell with origin zero; for a partial grid (molecules;
+  !> data spanning only part of the cell) it is the grid's own sub-cell.
+  module subroutine get_domain(f,x2cd,x0c,c2xd)
+    class(grid3), intent(in) :: f
+    real*8, intent(out) :: x2cd(3,3)
+    real*8, intent(out) :: x0c(3)
+    real*8, intent(out), optional :: c2xd(3,3)
+
+    ! x0 is zero and x2cl equals x2c when the grid is not partial
+    x2cd = f%x2cl
+    x0c = matmul(f%x2c,f%x0)
+    if (present(c2xd)) c2xd = f%c2xl
+
+  end subroutine get_domain
+
   !> Interpolate the function value, first and second derivative at
   !> point xi (crystallographic coords.) using the grid g.  This
   !> routine is thread-safe.

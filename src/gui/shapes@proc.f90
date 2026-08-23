@@ -230,6 +230,7 @@ contains
     o%ncone = 0
     o%nplane = 0
     o%ntriangle = 0
+    o%nmsh = 0
     o%nstring = 0
     o%ncylover = 0
     o%nconeover = 0
@@ -240,6 +241,7 @@ contains
     if (.not.allocated(o%cone)) allocate(o%cone(10))
     if (.not.allocated(o%plane)) allocate(o%plane(10))
     if (.not.allocated(o%triangle)) allocate(o%triangle(10))
+    if (.not.allocated(o%msh)) allocate(o%msh(10))
     if (.not.allocated(o%string)) allocate(o%string(10))
     if (.not.allocated(o%cylover)) allocate(o%cylover(10))
     if (.not.allocated(o%coneover)) allocate(o%coneover(10))
@@ -299,6 +301,7 @@ contains
     o%ncone = 0
     o%nplane = 0
     o%ntriangle = 0
+    o%nmsh = 0
     o%nstring = 0
     o%ncylover = 0
     o%nconeover = 0
@@ -309,6 +312,7 @@ contains
     if (allocated(o%cone)) deallocate(o%cone)
     if (allocated(o%plane)) deallocate(o%plane)
     if (allocated(o%triangle)) deallocate(o%triangle)
+    if (allocated(o%msh)) deallocate(o%msh)
     if (allocated(o%string)) deallocate(o%string)
     if (allocated(o%cylover)) deallocate(o%cylover)
     if (allocated(o%coneover)) deallocate(o%coneover)
@@ -445,6 +449,24 @@ contains
 
   end subroutine dl_append_triangle
 
+  module subroutine dl_append_mesh(lst,n,it)
+    type(dl_mesh), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_mesh), intent(in) :: it
+    type(dl_mesh), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,10)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_mesh
+
   !> Set the vertex attributes of the on-scene-text layout on the currently
   !> bound VAO/VBO (text_vert_nf floats per vertex: anchor (loc 0, 3),
   !> eye-space shift (1, 3), glyph corner (2, 2), font-atlas UV (3, 2), anchor
@@ -507,6 +529,24 @@ contains
     call setup_mesh_inst(b%triinstVAO, b%triinstVBO, triVBO, triEBO)
     call setup_mesh_inst(b%coneinstVAO, b%coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
     call setup_mesh_inst(b%coneinstVAOscr, b%coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
+
+    ! indexed-mesh VAO (isosurfaces): interleaved position (loc 0) and normal
+    ! (loc 1) vertices from the per-scene mesh VBO, drawn through the per-scene
+    ! EBO (bound while the VAO is active so it sticks to the VAO state)
+    call glGenVertexArrays(1, c_loc(b%mshVAO))
+    call glGenBuffers(1, c_loc(b%mshVBO))
+    call glGenBuffers(1, c_loc(b%mshEBO))
+    call glBindVertexArray(b%mshVAO)
+    call glBindBuffer(GL_ARRAY_BUFFER, b%mshVBO)
+    call glEnableVertexAttribArray(0)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char),&
+       int(msh_vert_nf*c_sizeof(c_float_),c_int), c_null_ptr)
+    call glEnableVertexAttribArray(1)
+    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char),&
+       int(msh_vert_nf*c_sizeof(c_float_),c_int), transfer(3_c_intptr_t * c_sizeof(c_float_), c_ptr_))
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, b%mshEBO)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
 
     ! cached on-scene-text VAO (same text_vert_nf-float vertex layout as textVAOos);
     ! storage is sized on upload (see glbuffers_upload_text)
@@ -653,6 +693,9 @@ contains
     call glDeleteBuffers(1, c_loc(b%cylinstVBOscr))
     call glDeleteVertexArrays(1, c_loc(b%coneinstVAOscr))
     call glDeleteBuffers(1, c_loc(b%coneinstVBOscr))
+    call glDeleteVertexArrays(1, c_loc(b%mshVAO))
+    call glDeleteBuffers(1, c_loc(b%mshVBO))
+    call glDeleteBuffers(1, c_loc(b%mshEBO))
     call glDeleteVertexArrays(1, c_loc(b%textVAO))
     call glDeleteBuffers(1, c_loc(b%textVBO))
 
@@ -691,9 +734,19 @@ contains
     b%sphscr_cap = 0
     b%cylscr_cap = 0
     b%conescr_cap = 0
+    b%mshVAO = 0
+    b%mshVBO = 0
+    b%mshEBO = 0
+    b%msh_vcap = 0
+    b%msh_ecap = 0
     if (allocated(b%packsph)) deallocate(b%packsph)
     if (allocated(b%packcyl)) deallocate(b%packcyl)
     if (allocated(b%packmesh)) deallocate(b%packmesh)
+    if (allocated(b%packmshv)) deallocate(b%packmshv)
+    if (allocated(b%packmshi)) deallocate(b%packmshi)
+    if (allocated(b%msh_first)) deallocate(b%msh_first)
+    if (allocated(b%msh_count)) deallocate(b%msh_count)
+    if (allocated(b%msh_rgba)) deallocate(b%msh_rgba)
     b%textVAO = 0
     b%textVBO = 0
     b%text_cap = 0
@@ -710,6 +763,7 @@ contains
     b%ncone_inst = 0
     b%nplane_inst = 0
     b%ntri_inst = 0
+    b%nmsh_inst = 0
 
   end subroutine glbuffers_detach
 
@@ -911,5 +965,97 @@ contains
     call glBindVertexArray(0)
 
   end subroutine glbuffers_redraw_mesh
+
+  !> Concatenate the n indexed meshes into the per-scene mesh VBO/EBO
+  !> (interleaved position+normal vertices; element indices offset by the
+  !> running vertex base), upload with the orphan+subdata pattern, and
+  !> save the per-mesh draw table for draw_meshes.
+  module subroutine glbuffers_upload_meshes(b,n,msh)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout), target :: b
+    integer, intent(in) :: n
+    type(dl_mesh), intent(in) :: msh(:)
+
+    integer :: i, j, nvtot, netot, iv, ie
+    integer(c_int) :: i_
+
+    ! total vertex and element counts
+    nvtot = 0
+    netot = 0
+    do i = 1, n
+       nvtot = nvtot + msh(i)%nv
+       netot = netot + 3*msh(i)%nf
+    end do
+    if (netot == 0 .or. nvtot == 0) then
+       b%nmsh_inst = 0
+       return
+    end if
+    b%nmsh_inst = n
+
+    ! concatenate the vertices and the vertex-offset element indices, and
+    ! fill the per-mesh draw table
+    call ensure_pack(b%packmshv,int(msh_vert_nf),nvtot)
+    call ensure_pack(b%packmshi,netot)
+    call ensure_pack(b%msh_first,n)
+    call ensure_pack(b%msh_count,n)
+    call ensure_pack(b%msh_rgba,4,n)
+    iv = 0
+    ie = 0
+    do i = 1, n
+       do j = 1, msh(i)%nv
+          b%packmshv(1:3,iv+j) = msh(i)%x(:,j)
+          b%packmshv(4:6,iv+j) = msh(i)%nrm(:,j)
+       end do
+       do j = 1, msh(i)%nf
+          b%packmshi(ie+3*(j-1)+1:ie+3*j) = msh(i)%idx(:,j) + iv
+       end do
+       b%msh_first(i) = ie
+       b%msh_count(i) = 3*msh(i)%nf
+       b%msh_rgba(1:3,i) = msh(i)%rgb
+       b%msh_rgba(4,i) = msh(i)%alpha
+       iv = iv + msh(i)%nv
+       ie = ie + 3*msh(i)%nf
+    end do
+
+    ! upload both buffers. The vertices go through the shared orphan+subdata
+    ! helper; the element buffer is uploaded by hand because its binding
+    ! lives in the VAO state (it must be written with the VAO bound, and
+    ! must not be unbound afterwards).
+    call glBindVertexArray(b%mshVAO)
+    call upload_instances(b%mshVBO,b%msh_vcap,int(msh_vert_nf),nvtot,c_loc(b%packmshv))
+    if (netot > b%msh_ecap) b%msh_ecap = max(netot,2*b%msh_ecap)
+    call glBufferData(GL_ELEMENT_ARRAY_BUFFER, int(b%msh_ecap,c_intptr_t)*c_sizeof(i_),&
+       c_null_ptr, GL_DYNAMIC_DRAW)
+    call glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0_c_intptr_t, int(netot,c_intptr_t)*c_sizeof(i_),&
+       c_loc(b%packmshi))
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_upload_meshes
+
+  !> Draw the uploaded indexed meshes of one opacity class (opaque:
+  !> alpha = 1, otherwise translucent): one glDrawElements per mesh with
+  !> its rgba uniform on the currently bound iso shader. Blend and depth
+  !> state are the caller's responsibility.
+  module subroutine glbuffers_draw_meshes(b,opaque)
+    use interfaces_opengl3
+    use shaders, only: setuniform_vec4, uniloc, u_rgba
+    class(scene_glbuffers), intent(inout) :: b
+    logical, intent(in) :: opaque
+
+    integer :: i
+    integer(c_int) :: i_
+    type(c_ptr) :: c_ptr_
+
+    if (b%nmsh_inst <= 0) return
+    call glBindVertexArray(b%mshVAO)
+    do i = 1, b%nmsh_inst
+       if (opaque .neqv. (b%msh_rgba(4,i) >= 1._c_float)) cycle
+       call setuniform_vec4(b%msh_rgba(:,i),idxi=uniloc(u_rgba))
+       call glDrawElements(GL_TRIANGLES, int(b%msh_count(i),c_int), GL_UNSIGNED_INT,&
+          transfer(int(b%msh_first(i),c_intptr_t) * c_sizeof(i_), c_ptr_))
+    end do
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_draw_meshes
 
 end submodule proc

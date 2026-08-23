@@ -141,6 +141,7 @@ contains
     call s%fh%put("rho0",0)
     call s%set_reference(0,.false.)
     s%refset = .false.
+    s%fieldgen = s%fieldgen + 1
 
   end subroutine reset_fields
 
@@ -870,6 +871,7 @@ contains
        s%nf = s%nf + 1
        id = s%nf
     end if
+    s%fieldgen = s%fieldgen + 1
 
   end function getfieldnum
 
@@ -891,6 +893,7 @@ contains
     s%f(id1) = s%f(id0)
     s%f(id1)%id = id1
     call s%f(id1)%init_cplist
+    s%fieldgen = s%fieldgen + 1
 
   end subroutine field_copy
 
@@ -927,6 +930,7 @@ contains
        call s%set_reference(0,.false.)
        s%refset = .false.
     end if
+    s%fieldgen = s%fieldgen + 1
 
   end subroutine unload_field
 

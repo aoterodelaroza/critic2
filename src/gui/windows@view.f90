@@ -78,7 +78,7 @@ contains
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
        repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text,&
-       reptype_measure, repflavor_measure
+       reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface
     use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu
@@ -502,6 +502,10 @@ contains
           if (iw_menuitem("Axes")) &
              call add_rep_and_edit(reptype_axes,repflavor_axes)
           call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
+
+          if (iw_menuitem("Isosurface")) &
+             call add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
+          call iw_tooltip("Display an isosurface of a scalar field",ttshown)
 
           ! symmetry available for crystals (always) or molecules with a point group
           symenabled = .true.

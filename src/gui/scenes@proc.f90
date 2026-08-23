@@ -596,7 +596,7 @@ contains
     use systems, only: sys, sysc
     use tools_io, only: string
     use shaders, only: shader_text_onscene, shader_sphere, shader_cylinder,&
-       shader_mesh, useshader, setuniform_int, setuniform_float, setuniform_vec3,&
+       shader_mesh, shader_iso, useshader, setuniform_int, setuniform_float, setuniform_vec3,&
        setuniform_mat4,&
        uniloc, u_world, u_view, u_projection, u_isortho, u_displ, u_upick,&
        u_isanchored, u_anchored_ndc, u_anchored_scale, u_textcolor
@@ -682,6 +682,18 @@ contains
        call glDisable(GL_BLEND)
     end if
 
+    ! upload the isosurface meshes and draw the opaque ones.  These
+    ! write depth, so they go before the translucent passes below,
+    ! which do not.
+    if (s%obj%nmsh > 0) then
+       call setup_shader(shader_iso)
+       call glDisable(GL_CULL_FACE)
+       if (dobuild) &
+          call s%gl%upload_meshes(s%obj%nmsh,s%obj%msh)
+       call s%gl%draw_meshes(.true.)
+       call glEnable(GL_CULL_FACE)
+    end if
+
     ! draw the plain meshes (cones, planes, polyhedra triangles)
     if (s%obj%ncone + s%obj%nplane + s%obj%ntriangle > 0) then
        call setup_shader(shader_mesh)
@@ -720,6 +732,20 @@ contains
           call glDisable(GL_BLEND)
           call glEnable(GL_CULL_FACE)
        end if
+    end if
+
+    ! draw the translucent isosurface meshes: keep the depth test but
+    ! disable the depth writes, so objects behind them still show through
+    if (s%obj%nmsh > 0) then
+       call setup_shader(shader_iso)
+       call glDisable(GL_CULL_FACE)
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call glDepthMask(int(GL_FALSE,c_signed_char))
+       call s%gl%draw_meshes(.false.)
+       call glDepthMask(int(GL_TRUE,c_signed_char))
+       call glDisable(GL_BLEND)
+       call glEnable(GL_CULL_FACE)
     end if
 
     ! translucent spheres: keep the depth test but disable the depth
@@ -1683,7 +1709,7 @@ contains
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
-       reptype_text, reptype_measure
+       reptype_text, reptype_measure, reptype_isosurface
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -1816,6 +1842,8 @@ contains
              str3 = "text" // c_null_char
           elseif (s%rep(i)%type == reptype_measure) then
              str3 = "measure" // c_null_char
+          elseif (s%rep(i)%type == reptype_isosurface) then
+             str3 = "isosurf" // c_null_char
           else
              str3 = "???" // c_null_char
           end if

@@ -543,6 +543,7 @@ module windows
      procedure :: draw_editrep_symelem
      procedure :: draw_editrep_text
      procedure :: draw_editrep_measure
+     procedure :: draw_editrep_isosurface
      ! export image
      procedure :: draw_exportimage
      ! save structure as
@@ -1019,6 +1020,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_measure
+     module function draw_editrep_isosurface(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_isosurface
      !xx! exportimage submodule !xx!
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w

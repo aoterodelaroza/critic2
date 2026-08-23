@@ -26,7 +26,8 @@ module shaders
   integer, parameter, public :: shader_sphere = 2
   integer, parameter, public :: shader_cylinder = 3
   integer, parameter, public :: shader_mesh = 4
-  integer, parameter, public :: shader_NUM = 4
+  integer, parameter, public :: shader_iso = 5
+  integer, parameter, public :: shader_NUM = 5
 
   ! cached uniform locations: master list of the uniform names used in the hot
   ! render path; locations are queried once at init and fetched with uniloc()
@@ -40,7 +41,8 @@ module shaders
   integer, parameter, public :: u_anchored_ndc = 8
   integer, parameter, public :: u_anchored_scale = 9
   integer, parameter, public :: u_textcolor = 10
-  integer, parameter, public :: u_NUM = 10
+  integer, parameter, public :: u_rgba = 11
+  integer, parameter, public :: u_NUM = 11
 
   public :: shaders_init
   public :: shaders_end
