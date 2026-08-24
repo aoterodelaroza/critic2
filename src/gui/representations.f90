@@ -520,6 +520,7 @@ module representations
      real*8 :: isoval_built(iso_maxslot) = 0d0 ! isovalues when the meshes were built
      real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
      type(dl_mesh) :: mesh(iso_maxslot) ! the cached meshes, one per slot
+     real*8 :: frange(2) = (/1d0,-1d0/) ! min/max of the data backing the mesh; invalid if frange(1) > frange(2)
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims

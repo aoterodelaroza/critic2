@@ -2469,12 +2469,23 @@ contains
        & recalculation of the field samples)",ttshown)
 
     ! isovalue, with a drag speed proportional to the current value;
-    ! notlive so the re-triangulation runs on commit, not every drag frame
+    ! notlive so the re-triangulation runs on commit, not every drag frame.
+    ! The selectable values are capped by the range of the data backing the
+    ! mesh (stamped by the last build; unclamped until the first build).
     call iw_text("Isosurface",highlight=.true.)
     speed = max(0.01d0 * abs(w%rep%iso%isoval(1)),1d-4)
-    changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
-       decimal=6,notlive=.true.)
-    call iw_tooltip("Value of the field on the isosurface (atomic units)",ttshown)
+    if (w%rep%iso%frange(1) <= w%rep%iso%frange(2)) then
+       changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
+          decimal=6,notlive=.true.,min=w%rep%iso%frange(1),max=w%rep%iso%frange(2),&
+          flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Value of the field on the isosurface, in atomic units&
+          & (grid range: " // string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
+          string(w%rep%iso%frange(2),'e',decimal=4) // ")",ttshown)
+    else
+       changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
+          decimal=6,notlive=.true.)
+       call iw_tooltip("Value of the field on the isosurface (atomic units)",ttshown)
+    end if
 
     ! color and opacity
     rgba(1:3) = w%rep%iso%rgb(:,1)

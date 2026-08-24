@@ -461,9 +461,7 @@ contains
        r%measure%isel = 0
     end if
 
-    ! isosurfaces. The field/level policy (and its full-grid statistics
-    ! scan) runs only for actual isosurface representations; itype = 0
-    ! also runs for every other type and gets inert defaults.
+    ! isosurfaces
     if (itype == 0 .or. itype == 12) then
        r%iso%ifield = max(sys(isys)%iref,0)
        r%iso%ptsang = iso_ptsang_def
@@ -522,8 +520,7 @@ contains
   !> Sampling-grid dimensions for an isosurface of system isys at
   !> coarseness level ilevel: 0 = native grid (returns all-zero),
   !> 1..iso_nlevel = named levels, iso_level_custom = ptsang points per
-  !> angstrom. The counts come from the cell lengths, floored per axis
-  !> and coarsened uniformly when the total exceeds iso_maxpts_total.
+  !> angstrom.
   module function iso_grid_size(isys,ilevel,ptsang,capped,ifield) result(n)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
@@ -1829,6 +1826,10 @@ contains
               per0 = .not.c%ismolecule .and. .not.g%partial
             end associate
             if (allocated(r%iso%ff)) deallocate(r%iso%ff)
+            if (resample) then
+               r%iso%frange(1) = minval(sys(r%id)%f(r%iso%ifield)%grid%f)
+               r%iso%frange(2) = maxval(sys(r%id)%f(r%iso%ifield)%grid%f)
+            end if
             do i = 1, r%iso%niso
                call marching_cubes(nn,sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,&
                   r%iso%isoval(i),per0,nv,xv,nrm,nf,idx)
@@ -1864,6 +1865,8 @@ contains
                   end do
                end do
                !$omp end parallel do
+               r%iso%frange(1) = minval(r%iso%ff)
+               r%iso%frange(2) = maxval(r%iso%ff)
             end if
             do i = 1, r%iso%niso
                call marching_cubes(nn,r%iso%ff,xmat,cmat,r%iso%isoval(i),&
