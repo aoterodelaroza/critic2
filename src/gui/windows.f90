@@ -345,6 +345,7 @@ module windows
      integer :: editrep_pick_item = 0 ! text/measurement item waiting for an atom pick (0 = idle)
      integer :: editrep_pick_slot = 0 ! anchor or measurement atom the pick will fill
      type(pairpick) :: editrep_pick ! pick session stamp + staged first bond atom (committed when the pair completes)
+     integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
      real*8 :: editrep_rgnhover = -1d100 ! last time a Region widget was hovered (isosurface editor);
                                          ! latches the transient box preview across brief hover gaps
      ! export image parameters
