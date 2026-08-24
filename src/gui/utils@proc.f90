@@ -1228,7 +1228,7 @@ contains
   !> a comma after the string). centered = center the text in the window.
   !> rgba = use this color for the text.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,copy_to_output,centered,alignframe,rgb,rgba)
+     noadvance,copy_to_output,centered,alignframe,rgb,rgba,wrap)
     use interfaces_cimgui
     use gui_main, only: g, ColorHighlightText, ColorDangerText
     use tools_io, only: uout
@@ -1244,11 +1244,12 @@ contains
     logical, intent(in), optional :: alignframe
     real(c_float), intent(in), optional :: rgb(3)
     real(c_float), intent(in), optional :: rgba(4)
+    logical, intent(in), optional :: wrap
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
-    logical :: noadvance_,copy_to_output_, centered_, alignframe_
+    logical :: noadvance_,copy_to_output_, centered_, alignframe_, wrap_
     logical :: pushedcolor
     real(c_float) :: pos, wwidth, twidth
     type(ImVec2) :: sz
@@ -1263,6 +1264,8 @@ contains
     copy_to_output_ = .false.
     centered_ = .false.
     alignframe_ = .false.
+    wrap_ = .false.
+    if (present(wrap)) wrap_ = wrap
     if (present(highlight)) highlight_ = highlight
     if (present(danger)) danger_ = danger
     if (present(sameline)) sameline_ = sameline
@@ -1299,8 +1302,11 @@ contains
        pushedcolor = .false.
     end if
     if (pushedcolor) call igPushStyleColor_Vec4(ImGuiCol_Text,col)
+    ! wrap at the window edge if requested
+    if (wrap_) call igPushTextWrapPos(0._c_float)
     ! unformatted: the text is data, not a printf format string
     call igTextUnformatted(c_loc(str1),c_null_ptr)
+    if (wrap_) call igPopTextWrapPos()
     if (pushedcolor) call igPopStyleColor(1)
     if (noadvance_) then
        call igSameLine(0._c_float,0._c_float)
@@ -1759,6 +1765,27 @@ contains
        string(values(2)) // "/" // string(values(3))
 
   end function get_time_string
+
+  !> A duration of t seconds, in whatever unit reads best for its size
+  !> (us/ms/s/min/h).
+  module function duration_string(t) result(str)
+    use tools_io, only: string
+    real*8, intent(in) :: t
+    character(len=:), allocatable :: str
+
+    if (t < 1d-3) then
+       str = string(t*1d6,'f',decimal=0) // " µs"
+    elseif (t < 1d0) then
+       str = string(t*1d3,'f',decimal=1) // " ms"
+    elseif (t < 60d0) then
+       str = string(t,'f',decimal=1) // " s"
+    elseif (t < 3600d0) then
+       str = string(t/60d0,'f',decimal=1) // " min"
+    else
+       str = string(t/3600d0,'f',decimal=1) // " h"
+    end if
+
+  end function duration_string
 
   !> Read the buffer buf line by line up to the null character. Write
   !> the read lines to logical unit LU

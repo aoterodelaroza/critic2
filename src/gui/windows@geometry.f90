@@ -2394,7 +2394,7 @@ contains
     subroutine symop_display_and_buttons(nop)
       integer, intent(in) :: nop
 
-      integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, iview, nsel
+      integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, nsel
       integer, allocatable :: skind(:), sorder(:)
       real*8, allocatable :: sdir(:,:)
       real*8 :: sorig(3), lraxx(3), lraxc(3)

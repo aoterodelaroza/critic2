@@ -55,7 +55,7 @@ contains
     use dynamics, only: md_dynamics, md_benchmark
     use utils, only: iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_checkbox,&
        iw_close_event, iw_setpos_bottomright, iw_intstepper, iw_dragfloat_realc,&
-       iw_dragfloat_real8
+       iw_dragfloat_real8, duration_string
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use tools_io, only: string, uout
     use param, only: autofs
@@ -182,8 +182,8 @@ contains
           & measure the cost and estimate how long the whole run will take",ttshown)
        if (w%rattle_tinit >= 0d0) then
           call iw_text("Estimated cost: " //&
-             time_string(w%rattle_tinit + nsteptot * w%rattle_tstep) // " (" //&
-             time_string(w%rattle_tstep) // " per step)",highlight=.true.)
+             duration_string(w%rattle_tinit + nsteptot * w%rattle_tstep) // " (" //&
+             duration_string(w%rattle_tstep) // " per step)",highlight=.true.)
        end if
     end if
     call igEndDisabled()
@@ -275,25 +275,6 @@ contains
       w%rattle_estbackend = sysc(isys)%md_backend
 
     end subroutine estimate_cost
-
-    ! A duration in seconds, in whatever unit reads best for its size.
-    function time_string(t) result(str)
-      real*8, intent(in) :: t
-      character(len=:), allocatable :: str
-
-      if (t < 1d-3) then
-         str = string(t*1d6,'f',decimal=0) // " µs"
-      elseif (t < 1d0) then
-         str = string(t*1d3,'f',decimal=1) // " ms"
-      elseif (t < 60d0) then
-         str = string(t,'f',decimal=1) // " s"
-      elseif (t < 3600d0) then
-         str = string(t/60d0,'f',decimal=1) // " min"
-      else
-         str = string(t/3600d0,'f',decimal=1) // " h"
-      end if
-
-    end function time_string
 
     ! Remember the settings of a run that completed, and close the window if
     ! that is what the user asked for.

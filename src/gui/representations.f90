@@ -522,8 +522,7 @@ module representations
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
      real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner (column 0) and far corner or
                                   ! edge endpoints (columns 1-3); fractional or user-frame ang, per mode
-     real*8 :: costest = -1d0 ! estimated sampling wall time for the staged grid (seconds; <0 = none)
-     integer :: costest_n(3) = 0 ! staged grid dimensions the cost estimate was computed for
+     real*8 :: costest = -1d0 ! measured field-evaluation cost (seconds per sample point; <0 = none)
      integer :: nptsxyz(3) = 0 ! applied sampling grid; all-zero = native grid (grid fields
                                ! over the whole cell) or not yet generated (sampled fields)
      integer :: iregion_ap = iso_region_cell ! applied region mode (read only as whole-cell vs not)
@@ -550,6 +549,7 @@ module representations
      procedure :: apply_grid => iso_apply_grid ! commit a staged grid + region as the applied state
      procedure :: grid_isapplied => iso_grid_isapplied ! whether a staged grid + region is already applied
      procedure :: sampled_box => iso_sampled_box ! the box sampled by the applied state (domain policy)
+     procedure :: isgenerated => iso_isgenerated ! whether the applied state describes a generated isosurface
   end type rep_isosurface
   public :: rep_isosurface
 
@@ -648,6 +648,19 @@ module representations
        real*8, intent(in) :: x(3,0:3)
        logical :: isap
      end function iso_grid_isapplied
+     module subroutine iso_sample_domain(isys,ifield,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: x(3,0:3)
+       integer, intent(in) :: n(3)
+       real*8, intent(out) :: xmat(3,3)
+       real*8, intent(out) :: x0c(3)
+       real*8, intent(out) :: cmat(3,3)
+       logical, intent(out) :: per0
+       logical, intent(out) :: pereval
+       logical, intent(out) :: ok
+     end subroutine iso_sample_domain
      module subroutine iso_sampled_box(iso,isys,xmat,x0c,cmat,per0,pereval,ok)
        class(rep_isosurface), intent(in) :: iso
        integer, intent(in) :: isys
@@ -658,6 +671,11 @@ module representations
        logical, intent(out) :: pereval
        logical, intent(out) :: ok
      end subroutine iso_sampled_box
+     module function iso_isgenerated(iso,isys) result(gen)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       logical :: gen
+     end function iso_isgenerated
      module function iso_isgridfield(isys,ifield) result(isg)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield

@@ -59,6 +59,7 @@ module utils
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
   public :: get_time_string
+  public :: duration_string
   public :: buffer_to_string_array
   public :: get_nice_next_window_pos
   public :: get_current_working_dir
@@ -263,7 +264,7 @@ module utils
        logical :: iw_checkbox
      end function iw_checkbox
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-        noadvance,copy_to_output,centered,alignframe,rgb,rgba)
+        noadvance,copy_to_output,centered,alignframe,rgb,rgba,wrap)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: danger
@@ -276,6 +277,7 @@ module utils
        logical, intent(in), optional :: alignframe
        real(c_float), intent(in), optional :: rgb(3)
        real(c_float), intent(in), optional :: rgba(4)
+       logical, intent(in), optional :: wrap
      end subroutine iw_text
      module function iw_menuitem(label,keybind,selected,enabled,shortcut_text)
        character(len=*,kind=c_char), intent(in) :: label
@@ -356,6 +358,10 @@ module utils
      module function get_time_string()
        character(len=:), allocatable :: get_time_string
      end function get_time_string
+     module function duration_string(t) result(str)
+       real*8, intent(in) :: t
+       character(len=:), allocatable :: str
+     end function duration_string
      module subroutine buffer_to_string_array(buf,lu,prefix,suffix)
        character*(*), intent(in) :: buf
        integer, intent(in) :: lu

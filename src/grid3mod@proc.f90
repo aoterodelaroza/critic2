@@ -1695,16 +1695,35 @@ contains
   !> optionally the inverse matrix c2xd. For a full-cell grid this is
   !> the crystal cell with origin zero; for a partial grid (molecules;
   !> data spanning only part of the cell) it is the grid's own sub-cell.
-  module subroutine get_domain(f,x2cd,x0c,c2xd)
+  module subroutine get_domain(f,x2cd,x0c,c2xd,flo,fhi)
     class(grid3), intent(in) :: f
     real*8, intent(out) :: x2cd(3,3)
     real*8, intent(out) :: x0c(3)
     real*8, intent(out), optional :: c2xd(3,3)
+    real*8, intent(out), optional :: flo(3)
+    real*8, intent(out), optional :: fhi(3)
+
+    real*8, parameter :: feps = 1d-6 ! inset absorbing round-off at the window edges
 
     ! x0 is zero and x2cl equals x2c when the grid is not partial
     x2cd = f%x2cl
     x0c = matmul(f%x2c,f%x0)
     if (present(c2xd)) c2xd = f%c2xl
+
+    ! window of the domain box (local fractional coordinates) where
+    ! interpolation is guaranteed valid. Non-partial grids wrap, so the
+    ! whole box is valid. Partial grids are bounded by the tricubic
+    ! stencil gate in grinterp_tricubic (grid point index in [2,n-2],
+    ! i.e. fraction in [1/n,(n-2)/n)), the strictest of the
+    ! interpolation modes; empty (flo >= fhi) when n < 4.
+    if (present(flo)) then
+       flo = 0d0
+       if (f%partial) flo = 1d0 / real(f%n,8) + feps
+    end if
+    if (present(fhi)) then
+       fhi = 1d0
+       if (f%partial) fhi = real(f%n-2,8) / real(f%n,8) - feps
+    end if
 
   end subroutine get_domain
 

@@ -1218,8 +1218,9 @@ contains
        ! if outside the main cell and the field is limited to a certain region of
        ! space, nullify the result and exit
        if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. &
-          f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
-          f%type == type_pi) then
+          (f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
+          f%type == type_pi)) then
+          if (present(valid)) valid = .false.
           return
        end if
     end if

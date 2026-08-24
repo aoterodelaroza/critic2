@@ -273,11 +273,13 @@ module grid3mod
        character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wannier_chk
-     module subroutine get_domain(f,x2cd,x0c,c2xd)
+     module subroutine get_domain(f,x2cd,x0c,c2xd,flo,fhi)
        class(grid3), intent(in) :: f
        real*8, intent(out) :: x2cd(3,3)
        real*8, intent(out) :: x0c(3)
        real*8, intent(out), optional :: c2xd(3,3)
+       real*8, intent(out), optional :: flo(3)
+       real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
      module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate

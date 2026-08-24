@@ -532,7 +532,7 @@ contains
     integer :: n(3)
 
     integer :: i, it
-    real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3)
+    real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3), flo(3), fhi(3)
 
     n = 0
     if (present(capped)) capped = .false.
@@ -544,18 +544,22 @@ contains
        pa = max(min(ptsang,iso_ptsang_max),iso_ptsang_min)
     end if
 
-    ! axis lengths of the sampled box: the given region box, else the grid
-    ! domain when the target field is a grid (a partial grid's box does not
-    ! span the cell), else the unit cell
+    ! axis lengths of the sampled box: the given region box, else the
+    ! valid window of the grid domain when the target field is a grid
+    ! (a partial grid's box does not span the cell, and only part of it
+    ! can feed the interpolation; matches iso_sample_domain), else the
+    ! unit cell
     xmat = sys(isys)%c%m_x2c
+    flo = 0d0
+    fhi = 1d0
     if (present(box)) then
        xmat = box(:,1:3)
     elseif (present(ifield)) then
        if (iso_isgridfield(isys,ifield)) &
-          call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c)
+          call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
     end if
     do i = 1, 3
-       alen(i) = norm2(xmat(:,i)) * bohrtoa
+       alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
     end do
 
     do i = 1, 3
@@ -674,14 +678,15 @@ contains
 
   end subroutine iso_region_seed
 
-  !> Estimate the wall time (seconds) of sampling field ifield of system
-  !> isys on an n(1) x n(2) x n(3) grid over the staged region (mode
-  !> iregion, coordinates x): evaluate the field at random points in the
-  !> region -- in batches of increasing size, with the same OpenMP
-  !> parallelism as the real sampling loop, until the benchmark has run
-  !> long enough to be meaningful -- and extrapolate the measured rate
-  !> to the full grid. Returns a negative value if the estimate cannot
-  !> be made (bad system/field or degenerate region).
+  !> Measure the field-evaluation cost (wall seconds per sample point)
+  !> of sampling field ifield of system isys over the staged options
+  !> (region mode iregion, coordinates x, n points per axis): evaluate
+  !> the field at random points of the box the build would sample --
+  !> in batches of increasing size, with the same OpenMP parallelism as
+  !> the real sampling loop, until the benchmark has run long enough to
+  !> be meaningful. The caller multiplies by its point count to show a
+  !> total. Returns a negative value if the estimate cannot be made
+  !> (bad system/field or degenerate region).
   module function iso_estimate_cost(isys,ifield,iregion,x,n) result(secs)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_init, ok_system
@@ -693,42 +698,46 @@ contains
     real*8 :: secs
 
     integer :: i, nb, ntot
-    logical :: okbox, pereval
-    real*8 :: box(3,0:3), xp(3), fsum, ttot, t0
+    logical :: ok, per0, pereval
+    real*8 :: xmat(3,3), cmat(3,3), x0c(3), xp(3), rdum, t
     real*8, allocatable :: xr(:,:)
 
-    real*8, parameter :: timetarget = 0.1d0 ! keep benchmarking until this much time is spent
+    real*8, parameter :: timetarget = 0.1d0 ! benchmark until a batch takes this long
     integer, parameter :: nbatch0 = 32 ! initial batch size (a slow field stops after one batch)
     integer, parameter :: nptsmax = 65536 ! total benchmark points cap (fast fields)
 
     secs = -1d0
     if (.not.ok_system(isys,sys_init)) return
     if (.not.sys(isys)%goodfield(ifield)) return
-    call iso_region_to_box(isys,iregion,x,box,okbox)
-    if (.not.okbox) return
-    pereval = .not.sys(isys)%c%ismolecule
+    ! benchmark over the exact box the build would sample, with the same
+    ! evaluation periodicity (iso_sample_domain owns the domain policy)
+    call iso_sample_domain(isys,ifield,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
+    if (.not.ok) return
 
+    ! batches of growing size: a slow field stops after the first one, a
+    ! fast one grows until the timing is meaningful. The rate comes from
+    ! the last batch alone, so the earlier ones (dominated by OpenMP
+    ! startup) only calibrate the batch size.
     ntot = 0
-    ttot = 0d0
-    fsum = 0d0
     nb = nbatch0
     do while (.true.)
        allocate(xr(3,nb))
        call random_number(xr)
-       t0 = glfwGetTime()
-       !$omp parallel do private(xp) schedule(dynamic) reduction(+:fsum)
+       t = glfwGetTime()
+       !$omp parallel do private(xp,rdum) schedule(static)
        do i = 1, nb
-          xp = box(:,0) + matmul(box(:,1:3),xr(:,i))
-          fsum = fsum + sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
+          xp = x0c + matmul(xmat,xr(:,i))
+          rdum = sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
        end do
        !$omp end parallel do
-       ttot = ttot + (glfwGetTime() - t0)
+       t = glfwGetTime() - t
        ntot = ntot + nb
        deallocate(xr)
-       if (ttot >= timetarget .or. ntot >= nptsmax) exit
+       if (t >= timetarget .or. ntot >= nptsmax) exit
        nb = min(4 * nb,nptsmax - ntot)
     end do
-    secs = ttot / real(ntot,8) * real(n(1),8) * real(n(2),8) * real(n(3),8)
+    ! seconds per sample point; the caller scales by its point count
+    secs = t / real(nb,8)
 
   end function iso_estimate_cost
 
@@ -764,24 +773,93 @@ contains
 
   end function iso_grid_isapplied
 
-  !> The box sampled by the applied state of isosurface iso in system
-  !> isys: the applied region if one is set (derived fresh from its user
-  !> coordinates, so cell edits are tracked), else the grid domain for
-  !> grid fields (a partial grid's box does not span the cell), else the
-  !> unit cell. Returns the box origin x0c, its edge matrix xmat and
-  !> inverse cmat, the mesh periodicity per0 (whether the triangulation
-  !> wraps; a region never does), and the field-evaluation periodicity
-  !> pereval (a property of the system: always periodic in crystals --
-  !> grd aborts otherwise -- so a region can span several cells; never
-  !> periodic in molecules). Region boxes are scaled per axis by
-  !> nn/(nn-1) so the applied nptsxyz samples span them inclusively and
-  !> the surface reaches the region faces; the whole-cell paths keep the
-  !> endpoint-exclusive convention (their faces are not visible, and a
-  !> sample plane at exactly 1 would leave a partial grid's domain).
-  !> ok is false for a degenerate box.
-  module subroutine iso_sampled_box(iso,isys,xmat,x0c,cmat,per0,pereval,ok)
+  !> The box sampled by an isosurface over field ifield of system isys
+  !> with region mode iregion (coordinates x) on an n(1) x n(2) x n(3)
+  !> grid: the region box if one is set, else the valid window of the
+  !> grid domain for grid fields (a partial grid's box does not span
+  !> the cell, and its faces cannot feed the interpolation stencil),
+  !> else the unit cell. Returns the box origin x0c, its edge matrix
+  !> xmat and inverse cmat, the mesh periodicity per0 (whether the
+  !> triangulation wraps; a region never does), and the
+  !> field-evaluation periodicity pereval (a property of the system:
+  !> always periodic in crystals -- grd aborts otherwise -- so a region
+  !> can span several cells; never periodic in molecules). Region and
+  !> partial-grid boxes are scaled per axis by n/(n-1) so the n samples
+  !> span them inclusively and the surface reaches the box faces; the
+  !> periodic whole-cell paths keep the endpoint-exclusive convention.
+  !> ok is false for a degenerate box, an empty interpolation window,
+  !> or fewer than 2 points on an axis that needs the inclusive scaling.
+  module subroutine iso_sample_domain(isys,ifield,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
     use systems, only: sys
     use tools_math, only: matinv
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: x(3,0:3)
+    integer, intent(in) :: n(3)
+    real*8, intent(out) :: xmat(3,3)
+    real*8, intent(out) :: x0c(3)
+    real*8, intent(out) :: cmat(3,3)
+    logical, intent(out) :: per0
+    logical, intent(out) :: pereval
+    logical, intent(out) :: ok
+
+    integer :: i, ier
+    real*8 :: fac(3), box(3,0:3), flo(3), fhi(3)
+
+    ok = .true.
+    fac = 1d0
+    associate(c => sys(isys)%c)
+      pereval = .not.c%ismolecule
+      if (iregion /= iso_region_cell) then
+         call iso_region_to_box(isys,iregion,x,box,ok)
+         x0c = box(:,0)
+         xmat = box(:,1:3)
+         cmat = xmat
+         if (ok) then
+            call matinv(cmat,3,ier)
+            ok = (ier == 0)
+         end if
+         per0 = .false.
+         fac = real(n,8) / real(max(n-1,1),8)
+      elseif (iso_isgridfield(isys,ifield)) then
+         associate(g => sys(isys)%f(ifield)%grid)
+           call g%get_domain(xmat,x0c,cmat,flo=flo,fhi=fhi)
+           per0 = .not.c%ismolecule .and. .not.g%partial
+           if (g%partial) then
+              ! restrict the sampling to the window of the domain box
+              ! where interpolation is valid (get_domain owns that rule)
+              ! and sample it endpoint-inclusively, like a region box
+              ok = all(fhi > flo)
+              x0c = x0c + matmul(xmat,flo)
+              fac = (fhi - flo) * real(n,8) / real(max(n-1,1),8)
+           end if
+         end associate
+      else
+         xmat = c%m_x2c
+         cmat = c%m_c2x
+         x0c = 0d0
+         per0 = .not.c%ismolecule
+      end if
+    end associate
+
+    ! apply the axis scaling; the inclusive paths need at least 2 points
+    ! per axis to place samples on both faces
+    if (any(fac /= 1d0)) ok = ok .and. all(n >= 2)
+    if (ok) then
+       do i = 1, 3
+          xmat(:,i) = xmat(:,i) * fac(i)
+          cmat(i,:) = cmat(i,:) / fac(i)
+       end do
+    end if
+
+  end subroutine iso_sample_domain
+
+  !> The box sampled by the applied state of isosurface iso in system
+  !> isys (derived fresh from the applied user coordinates, so cell
+  !> edits are tracked). Thin wrapper over iso_sample_domain, which
+  !> owns the domain policy.
+  module subroutine iso_sampled_box(iso,isys,xmat,x0c,cmat,per0,pereval,ok)
     class(rep_isosurface), intent(in) :: iso
     integer, intent(in) :: isys
     real*8, intent(out) :: xmat(3,3)
@@ -791,42 +869,8 @@ contains
     logical, intent(out) :: pereval
     logical, intent(out) :: ok
 
-    integer :: i, ier
-    real*8 :: fac, box(3,0:3)
-
-    ok = .true.
-    associate(c => sys(isys)%c)
-      pereval = .not.c%ismolecule
-      if (iso%iregion_ap /= iso_region_cell) then
-         call iso_region_to_box(isys,iso%iregion_ap,iso%rgn_x_ap,box,ok)
-         x0c = box(:,0)
-         xmat = box(:,1:3)
-         cmat = xmat
-         if (ok) then
-            call matinv(cmat,3,ier)
-            ok = (ier == 0)
-         end if
-         per0 = .false.
-         ! endpoint-inclusive sampling (see above)
-         if (ok) then
-            do i = 1, 3
-               fac = real(iso%nptsxyz(i),8) / real(iso%nptsxyz(i)-1,8)
-               xmat(:,i) = xmat(:,i) * fac
-               cmat(i,:) = cmat(i,:) / fac
-            end do
-         end if
-      elseif (iso_isgridfield(isys,iso%ifield)) then
-         associate(g => sys(isys)%f(iso%ifield)%grid)
-           call g%get_domain(xmat,x0c,cmat)
-           per0 = .not.c%ismolecule .and. .not.g%partial
-         end associate
-      else
-         xmat = c%m_x2c
-         cmat = c%m_c2x
-         x0c = 0d0
-         per0 = .not.c%ismolecule
-      end if
-    end associate
+    call iso_sample_domain(isys,iso%ifield,iso%iregion_ap,iso%rgn_x_ap,iso%nptsxyz,&
+       xmat,x0c,cmat,per0,pereval,ok)
 
   end subroutine iso_sampled_box
 
@@ -863,18 +907,37 @@ contains
     else
        iso%ilevel = iso_defaultlevel
     end if
-    ! a field change resets the region to the whole cell and drops any
-    ! staged cost estimate
+    ! a field change resets the region to the whole cell and drops the
+    ! cost estimate and the stale out-of-domain warning
     iso%iregion = iso_region_cell
     call iso_region_seed(isys,iso%iregion,iso%rgn_x)
     iso%costest = -1d0
+    iso%outdomain = .false.
     ! apply an all-zero grid: for a grid field this is the native grid
     ! (cheap, built immediately); for any other field it means "not
     ! generated yet" -- sampling can be expensive, so nothing is built
-    ! until the user commits a grid with the editor's Apply button
+    ! until the user commits a grid with the editor's Calculate grid
+    ! button
     call iso%apply_grid((/0,0,0/),iso%iregion,iso%rgn_x)
 
   end subroutine iso_set_field
+
+  !> Return true if the applied state of isosurface iso in system isys
+  !> describes a generated isosurface: a sampled grid has been
+  !> committed, or the field is a native grid shown over the whole cell
+  !> (built directly from its data). False means nothing is drawn until
+  !> the user commits a grid with the editor's Calculate grid button.
+  !> The single decoder of the all-zero nptsxyz sentinel; the renderer
+  !> and the editor warning both call it.
+  module function iso_isgenerated(iso,isys) result(gen)
+    class(rep_isosurface), intent(in) :: iso
+    integer, intent(in) :: isys
+    logical :: gen
+
+    gen = any(iso%nptsxyz /= 0) .or. &
+       (iso_isgridfield(isys,iso%ifield) .and. iso%iregion_ap == iso_region_cell)
+
+  end function iso_isgenerated
 
   !> Set the per-item style of a measurement to the defaults for its
   !> kind (n = 2 distance, 3 angle, 4 dihedral).
@@ -1021,9 +1084,6 @@ contains
        if (.not.sys(r%id)%goodfield(r%iso%ifield)) then
           call r%iso%set_field(r%id,sys(r%id)%iref)
        elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%ifield)) then
-          call r%iso%set_field(r%id,r%iso%ifield)
-       elseif (r%iso%iregion_ap /= iso_region_cell .and. all(r%iso%nptsxyz == 0)) then
-          ! inconsistent applied state (native grid with a region): reset
           call r%iso%set_field(r%id,r%iso%ifield)
        end if
     end if
@@ -2068,13 +2128,11 @@ contains
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
 
       if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
-      usegrid = iso_isgridfield(r%id,r%iso%ifield) .and. all(r%iso%nptsxyz == 0) .and.&
-         r%iso%iregion_ap == iso_region_cell
 
-      ! a sampled build needs an applied grid: a sampled field with an
-      ! all-zero applied grid is "not generated yet" (sampling can be
-      ! expensive, so it waits for the editor's Apply button)
-      if (.not.usegrid .and. all(r%iso%nptsxyz == 0)) return
+      ! nothing to draw until a grid has been generated: sampling can be
+      ! expensive, so it waits for the editor's Calculate grid button
+      if (.not.r%iso%isgenerated(r%id)) return
+      usegrid = all(r%iso%nptsxyz == 0) ! generated with no sampled grid = native grid
 
       ! decide whether the cached field samples and triangulations are
       ! stale: the selected field, the applied grid, a geometry change, or
@@ -2104,6 +2162,7 @@ contains
               per0 = .not.c%ismolecule .and. .not.g%partial
             end associate
             if (allocated(r%iso%ff)) deallocate(r%iso%ff)
+            r%iso%outdomain = .false. ! native data needs no evaluation
             if (resample) then
                r%iso%frange(1) = minval(sys(r%id)%f(r%iso%ifield)%grid%f)
                r%iso%frange(2) = maxval(sys(r%id)%f(r%iso%ifield)%grid%f)
@@ -2125,8 +2184,10 @@ contains
             if (resample) then
                if (allocated(r%iso%ff)) deallocate(r%iso%ff)
                allocate(r%iso%ff(nn(1),nn(2),nn(3)))
-               ! samples outside the field's domain (e.g. a region beyond
-               ! the cell of a grid field) come back as zeros; remember
+               ! samples where the field cannot be evaluated -- outside
+               ! its domain (e.g. a region beyond the cell of a grid
+               ! field) or too close to a partial grid's edge for the
+               ! interpolation stencil -- come back as zeros; remember
                ! that it happened so the editor can warn
                linvalid = .false.
                !$omp parallel do private(xp,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
