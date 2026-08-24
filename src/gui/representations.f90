@@ -115,9 +115,24 @@ module representations
   real(c_float), parameter, public :: measure_rgb_dih_def(3) = (/0.90_c_float,0.30_c_float,0.60_c_float/) ! dihedral color (pink)
   !--> isosurfaces
   integer, parameter, public :: iso_maxslot = 2 ! isosurface slots per representation
-  integer, parameter, public :: iso_npts_def = 80 ! default sampling resolution for non-grid fields
-  integer, parameter, public :: iso_npts_min = 20 ! minimum sampling resolution
-  integer, parameter, public :: iso_npts_max = 200 ! maximum sampling resolution
+  ! sampling-grid coarseness levels: 0 = native grid (grid fields only),
+  ! 1..iso_nlevel = named levels (points per angstrom), iso_level_custom = custom
+  integer, parameter, public :: iso_nlevel = 4 ! number of named coarseness levels
+  real*8, parameter, public :: iso_level_ptsang(iso_nlevel) = (/2d0,5d0,10d0,20d0/) ! points/ang of the named levels
+  integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom points/ang
+  integer, parameter, public :: iso_level_def = 2 ! default named level (medium)
+  integer, public :: iso_defaultlevel = iso_level_def ! preference: level for newly created isosurfaces
+  real*8, parameter, public :: iso_ptsang_def = 5d0 ! default custom points/ang
+  real*8, parameter, public :: iso_ptsang_min = 0.5d0 ! minimum custom points/ang
+  real*8, parameter, public :: iso_ptsang_max = 40d0 ! maximum custom points/ang
+  integer, parameter, public :: iso_maxpts_total = 4000000 ! total-points cap (~32 MB of cached samples); coarsen uniformly above it
+  integer, parameter, public :: iso_npts_axmin = 16 ! per-axis minimum number of points
+  ! combo option strings for the named levels (keep the densities in sync with iso_level_ptsang)
+  character(len=*), parameter, public :: iso_level_optstr = &
+     "Coarse (2 pts/Å)"//c_null_char//"Medium (5 pts/Å)"//c_null_char//&
+     "Fine (10 pts/Å)"//c_null_char//"Very fine (20 pts/Å)"//c_null_char ! named levels only
+  character(len=*), parameter, public :: iso_level_optstr_custom = &
+     iso_level_optstr//"Custom"//c_null_char ! named levels plus custom
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
   real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
@@ -491,19 +506,23 @@ module representations
   type rep_isosurface
      ! user options
      integer :: ifield = 0 ! field for the isosurface (index in sys(id)%f)
-     integer :: npts = iso_npts_def ! sampling resolution for non-grid fields
+     integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
+     real*8 :: ptsang = iso_ptsang_def ! staged custom sampling density (points/ang; ilevel=custom)
+     integer :: nptsxyz(3) = 0 ! applied sampling grid; all-zero = native grid
      integer :: niso = 1 ! number of active isosurface slots
      real*8 :: isoval(iso_maxslot) = 0d0 ! isovalues
      real(c_float) :: rgb(3,iso_maxslot) = iso_rgb_def ! colors
      real(c_float) :: alpha(iso_maxslot) = iso_alpha_def ! opacities (1 = opaque)
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
-     integer :: npts_built = 0 ! sampling resolution when the meshes were built
+     integer :: npts_built(3) = 0 ! sampling grid when the meshes were built (all-zero = native)
      integer :: niso_built = 0 ! number of slots when the meshes were built
      real*8 :: isoval_built(iso_maxslot) = 0d0 ! isovalues when the meshes were built
      real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
      type(dl_mesh) :: mesh(iso_maxslot) ! the cached meshes, one per slot
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
+   contains
+     procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims
   end type rep_isosurface
   public :: rep_isosurface
 
@@ -547,6 +566,8 @@ module representations
   public :: representation
 
   public :: iso_default_isovalue
+  public :: iso_grid_size
+  public :: iso_isgridfield
 
   ! module procedure interfaces
   interface
@@ -555,6 +576,24 @@ module representations
        integer, intent(in) :: ifield
        real*8 :: isoval
      end function iso_default_isovalue
+     module function iso_grid_size(isys,ilevel,ptsang,capped,ifield) result(n)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ilevel
+       real*8, intent(in) :: ptsang
+       logical, intent(out), optional :: capped
+       integer, intent(in), optional :: ifield
+       integer :: n(3)
+     end function iso_grid_size
+     module function iso_isgridfield(isys,ifield) result(isg)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+       logical :: isg
+     end function iso_isgridfield
+     module subroutine iso_set_field(iso,isys,ifield)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+     end subroutine iso_set_field
      module subroutine representation_init(r,isys,itype,flavor,icount)
        class(representation), intent(inout) :: r
        integer, intent(in) :: isys

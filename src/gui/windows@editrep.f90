@@ -2359,17 +2359,17 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
     use systems, only: sys
-    use representations, only: iso_default_isovalue, iso_npts_min, iso_npts_max
-    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_intstepper,&
-       iw_calcwidth
-    use fieldmod, only: type_grid
+    use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
+       iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
+       iw_calcwidth, iw_combo_simple, iw_button
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys
-    logical :: ch, goodf
+    integer :: i, isys, nstage(3), nshow(3)
+    logical :: ch, ldum, goodf, isgrid, capped
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -2400,8 +2400,9 @@ contains
           str2 = string(i) // ": " // trim(sys(isys)%f(i)%name) // c_null_char
           if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
              if (w%rep%iso%ifield /= i) then
-                w%rep%iso%ifield = i
-                w%rep%iso%isoval(1) = iso_default_isovalue(isys,i)
+                ! set the field with its default isovalue and grid level,
+                ! applied immediately
+                call w%rep%iso%set_field(isys,i)
                 changed = .true.
              end if
           end if
@@ -2416,6 +2417,56 @@ contains
        call iw_text("The selected field is not available in this system",danger=.true.)
        return
     end if
+
+    ! grid section: coarseness of the sampling grid. The level and the
+    ! custom density are staged; the Apply button commits them (an
+    ! expensive resample for slow fields)
+    call iw_text("Grid",highlight=.true.)
+    isgrid = iso_isgridfield(isys,w%rep%iso%ifield)
+    if (.not.isgrid .and. w%rep%iso%ilevel == 0) then
+       ! the field stopped being a grid (e.g. reloaded into the same slot):
+       ! re-run the field policy
+       call w%rep%iso%set_field(isys,w%rep%iso%ifield)
+       changed = .true.
+    end if
+
+    ! coarseness level combo ("Native grid" only for grid fields)
+    if (isgrid) then
+       str1 = "Native grid" // c_null_char // iso_level_optstr_custom
+    else
+       str1 = iso_level_optstr_custom
+    end if
+    call iw_combo_simple("Level##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.isgrid)
+    call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
+       & of the field, a named level, or a custom density",ttshown)
+
+    ! custom sampling density (staged: the result is discarded, Apply commits)
+    if (w%rep%iso%ilevel == iso_level_custom) then
+       ldum = iw_dragfloat_real8("Points/Å##isoptsang",x1=w%rep%iso%ptsang,speed=0.1d0,&
+          min=iso_ptsang_min,max=iso_ptsang_max,decimal=1,sameline=.true.,&
+          flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Number of grid points per angstrom along each cell direction",ttshown)
+    end if
+
+    ! staged grid dimensions and the apply button
+    nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,ifield=w%rep%iso%ifield)
+    nshow = nstage
+    str2 = ""
+    if (all(nstage == 0)) then
+       nshow = sys(isys)%f(w%rep%iso%ifield)%grid%n
+       str2 = " (native)"
+    elseif (capped) then
+       str2 = " (capped)"
+    end if
+    call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
+       string(nshow(3)) // str2)
+    call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
+    if (iw_button("Apply",sameline=.true.,disabled=all(w%rep%iso%nptsxyz == nstage))) then
+       w%rep%iso%nptsxyz = nstage
+       changed = .true.
+    end if
+    call iw_tooltip("Use the selected grid for the isosurface (may require an expensive&
+       & recalculation of the field samples)",ttshown)
 
     ! isovalue, with a drag speed proportional to the current value;
     ! notlive so the re-triangulation runs on commit, not every drag frame
@@ -2434,14 +2485,6 @@ contains
        w%rep%iso%rgb(:,1) = rgba(1:3)
        w%rep%iso%alpha(1) = rgba(4)
        changed = .true.
-    end if
-
-    ! sampling resolution (grid fields are triangulated at their native
-    ! resolution)
-    if (sys(isys)%f(w%rep%iso%ifield)%type /= type_grid) then
-       changed = changed .or. iw_intstepper("##isonpts",w%rep%iso%npts,label="Resolution",&
-          minval=int(iso_npts_min,c_int),maxval=int(iso_npts_max,c_int))
-       call iw_tooltip("Number of field samples along each unit cell direction",ttshown)
     end if
 
   end function draw_editrep_isosurface

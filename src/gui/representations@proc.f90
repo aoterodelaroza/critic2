@@ -461,22 +461,22 @@ contains
        r%measure%isel = 0
     end if
 
-    ! isosurfaces: the reference field and a heuristic isovalue from its
-    ! statistics (the full-grid statistics scan only for actual isosurface
-    ! representations; itype = 0 also runs for every other type)
+    ! isosurfaces. The field/level policy (and its full-grid statistics
+    ! scan) runs only for actual isosurface representations; itype = 0
+    ! also runs for every other type and gets inert defaults.
     if (itype == 0 .or. itype == 12) then
        r%iso%ifield = max(sys(isys)%iref,0)
-       r%iso%npts = iso_npts_def
+       r%iso%ptsang = iso_ptsang_def
+       r%iso%ilevel = iso_defaultlevel
+       r%iso%nptsxyz = 0
        r%iso%niso = 1
        r%iso%isoval = 0d0
-       if (r%type == reptype_isosurface) then
-          r%iso%isoval(1) = iso_default_isovalue(isys,r%iso%ifield)
-       else
-          r%iso%isoval(1) = iso_isoval_def
-       end if
+       r%iso%isoval(1) = iso_isoval_def
        r%iso%rgb = iso_rgb_def
        r%iso%alpha = iso_alpha_def
        r%iso%ifield_built = -1
+       if (r%type == reptype_isosurface) &
+          call r%iso%set_field(isys,r%iso%ifield)
     end if
 
     ! initialize the styles
@@ -518,6 +518,95 @@ contains
     end associate
 
   end function iso_default_isovalue
+
+  !> Sampling-grid dimensions for an isosurface of system isys at
+  !> coarseness level ilevel: 0 = native grid (returns all-zero),
+  !> 1..iso_nlevel = named levels, iso_level_custom = ptsang points per
+  !> angstrom. The counts come from the cell lengths, floored per axis
+  !> and coarsened uniformly when the total exceeds iso_maxpts_total.
+  module function iso_grid_size(isys,ilevel,ptsang,capped,ifield) result(n)
+    use systems, only: sys, sys_init, ok_system
+    integer, intent(in) :: isys
+    integer, intent(in) :: ilevel
+    real*8, intent(in) :: ptsang
+    logical, intent(out), optional :: capped
+    integer, intent(in), optional :: ifield
+    integer :: n(3)
+
+    integer :: i, it
+    real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3)
+
+    n = 0
+    if (present(capped)) capped = .false.
+    if (ilevel <= 0) return
+    if (.not.ok_system(isys,sys_init)) return
+    if (ilevel <= iso_nlevel) then
+       pa = iso_level_ptsang(ilevel)
+    else
+       pa = max(min(ptsang,iso_ptsang_max),iso_ptsang_min)
+    end if
+
+    ! axis lengths of the sampled box: the grid domain when the target
+    ! field is a grid (a partial grid's box does not span the cell), the
+    ! unit cell otherwise
+    alen = sys(isys)%c%aa * bohrtoa
+    if (present(ifield)) then
+       if (iso_isgridfield(isys,ifield)) then
+          call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c)
+          do i = 1, 3
+             alen(i) = norm2(xmat(:,i)) * bohrtoa
+          end do
+       end if
+    end if
+
+    do i = 1, 3
+       n(i) = max(nint(alen(i) * pa),iso_npts_axmin)
+    end do
+    ! total-points cap: re-scale until honest, since the per-axis floor
+    ! can push the total back up in very anisotropic cells
+    do it = 1, 10
+       if (product(real(n,8)) <= real(iso_maxpts_total,8)) exit
+       fac = (real(iso_maxpts_total,8) / product(real(n,8)))**(1d0/3d0)
+       n = max(nint(n * fac),iso_npts_axmin)
+       if (present(capped)) capped = .true.
+    end do
+
+  end function iso_grid_size
+
+  !> Return true if field ifield of system isys is an initialized grid
+  !> field (the predicate behind the "native grid" coarseness level).
+  module function iso_isgridfield(isys,ifield) result(isg)
+    use systems, only: sys
+    use fieldmod, only: type_grid
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+    logical :: isg
+
+    isg = sys(isys)%goodfield(ifield,type=type_grid)
+    if (isg) isg = sys(isys)%f(ifield)%grid%isinit
+
+  end function iso_isgridfield
+
+  !> Select field ifield of system isys for isosurface iso: seed the
+  !> default isovalue and reset the grid coarseness (native for grid
+  !> fields, the preference level otherwise) together with its applied
+  !> dimensions. All paths that change the isosurface field go through
+  !> here, so the level/field invariant lives in one place.
+  module subroutine iso_set_field(iso,isys,ifield)
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+
+    iso%ifield = max(ifield,0)
+    iso%isoval(1) = iso_default_isovalue(isys,iso%ifield)
+    if (iso_isgridfield(isys,iso%ifield)) then
+       iso%ilevel = 0
+    else
+       iso%ilevel = iso_defaultlevel
+    end if
+    iso%nptsxyz = iso_grid_size(isys,iso%ilevel,iso%ptsang,ifield=iso%ifield)
+
+  end subroutine iso_set_field
 
   !> Set the per-item style of a measurement to the defaults for its
   !> kind (n = 2 distance, 3 angle, 4 dihedral).
@@ -656,11 +745,15 @@ contains
        if (doreset) call r%symelem%style%reset(r)
 
     elseif (r%type == reptype_isosurface) then
-       ! isosurfaces: fall back to the reference field if the selected field
-       ! is gone. The cached mesh goes stale in add_draw_elements.
+       ! isosurfaces: re-run the field policy (default isovalue and grid
+       ! level) if the selected field is gone -- falling back to the
+       ! reference field -- or if the native level is selected but the
+       ! field is no longer a grid (e.g. a different field loaded into the
+       ! same slot). The cached mesh goes stale in add_draw_elements.
        if (.not.sys(r%id)%goodfield(r%iso%ifield)) then
-          r%iso%ifield = max(sys(r%id)%iref,0)
-          r%iso%isoval(1) = iso_default_isovalue(r%id,r%iso%ifield)
+          call r%iso%set_field(r%id,sys(r%id)%iref)
+       elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%ifield)) then
+          call r%iso%set_field(r%id,r%iso%ifield)
        end if
     end if
 
@@ -1689,14 +1782,14 @@ contains
 
     !> Build (if stale) and append the isosurface meshes of this
     !> representation. The field is triangulated over the full unit cell:
-    !> grid fields at their native resolution, other fields sampled on an
-    !> npts**3 fractional grid (OpenMP; the samples are cached so isovalue
-    !> edits do not resample). The cached triangulations in r%iso are
-    !> reused until the field, the isovalue, or the resolution changes.
+    !> at the native grid resolution when the applied coarseness is
+    !> "native" (grid fields only), otherwise sampled on the applied
+    !> nptsxyz grid (OpenMP; the samples are cached so isovalue edits do
+    !> not resample). The cached triangulations in r%iso are reused until
+    !> the field, the isovalue, or the applied grid changes.
     subroutine add_isosurface_meshes()
       use interfaces_glfw, only: glfwGetTime
       use isosurfacemod, only: marching_cubes
-      use fieldmod, only: type_grid
       integer :: i, j, k, l, nn(3), nv, nf
       logical :: usegrid, resample, rebuild, per0
       real*8, allocatable :: xv(:,:), nrm(:,:)
@@ -1704,16 +1797,20 @@ contains
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
 
       if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
-      usegrid = (sys(r%id)%f(r%iso%ifield)%type == type_grid)
-      if (usegrid) usegrid = sys(r%id)%f(r%iso%ifield)%grid%isinit
+      usegrid = iso_isgridfield(r%id,r%iso%ifield) .and. all(r%iso%nptsxyz == 0)
+
+      ! a sampled build needs an applied grid; an inconsistent state (e.g.
+      ! "native" left over from a field that is no longer a grid) draws
+      ! nothing until the editor or update_styles repairs it
+      if (.not.usegrid .and. all(r%iso%nptsxyz == 0)) return
 
       ! decide whether the cached field samples and triangulations are
-      ! stale: the selected field, the resolution, a geometry change, or
+      ! stale: the selected field, the applied grid, a geometry change, or
       ! any change to the system's field set (a field reloaded into the
       ! same slot has the same index but different data)
       resample = (r%iso%ifield_built /= r%iso%ifield)
       resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
-      resample = resample .or. (r%iso%npts_built /= r%iso%npts)
+      resample = resample .or. any(r%iso%npts_built /= r%iso%nptsxyz)
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
       resample = resample .or. (.not.usegrid .and. .not.allocated(r%iso%ff))
       rebuild = resample
@@ -1723,7 +1820,7 @@ contains
       ! re-triangulate each active slot
       if (rebuild) then
          if (usegrid) then
-            ! grid field: triangulate the grid values at their native
+            ! native grid: triangulate the grid values at their own
             ! resolution over the grid's own domain (partial grids span
             ! only part of the cell and never wrap)
             associate(g => sys(r%id)%f(r%iso%ifield)%grid)
@@ -1738,8 +1835,22 @@ contains
                call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,x0c)
             end do
          else
-            ! other fields: sample the unit cell on an npts**3 grid
-            nn = max(min(r%iso%npts,iso_npts_max),iso_npts_min)
+            ! sample on the applied grid over the field's own domain: the
+            ! grid domain for grid fields (a partial grid's box does not
+            ! span the cell, and sampling outside it would create artifact
+            ! surfaces at the box faces), the unit cell otherwise
+            nn = r%iso%nptsxyz
+            if (iso_isgridfield(r%id,r%iso%ifield)) then
+               associate(g => sys(r%id)%f(r%iso%ifield)%grid)
+                 call g%get_domain(xmat,x0c,cmat)
+                 per0 = .not.c%ismolecule .and. .not.g%partial
+               end associate
+            else
+               xmat = c%m_x2c
+               cmat = c%m_c2x
+               x0c = 0d0
+               per0 = .not.c%ismolecule
+            end if
             if (resample) then
                if (allocated(r%iso%ff)) deallocate(r%iso%ff)
                allocate(r%iso%ff(nn(1),nn(2),nn(3)))
@@ -1747,22 +1858,22 @@ contains
                do l = 1, nn(3)
                   do k = 1, nn(2)
                      do j = 1, nn(1)
-                        xp = c%x2c((/real(j-1,8)/nn(1),real(k-1,8)/nn(2),real(l-1,8)/nn(3)/))
-                        r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=.not.c%ismolecule)
+                        xp = x0c + matmul(xmat,(/real(j-1,8)/nn(1),real(k-1,8)/nn(2),real(l-1,8)/nn(3)/))
+                        r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=per0)
                      end do
                   end do
                end do
                !$omp end parallel do
             end if
             do i = 1, r%iso%niso
-               call marching_cubes(nn,r%iso%ff,c%m_x2c,c%m_c2x,r%iso%isoval(i),&
-                  .not.c%ismolecule,nv,xv,nrm,nf,idx)
-               call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,(/0d0,0d0,0d0/))
+               call marching_cubes(nn,r%iso%ff,xmat,cmat,r%iso%isoval(i),&
+                  per0,nv,xv,nrm,nf,idx)
+               call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,x0c)
             end do
          end if
          r%iso%ifield_built = r%iso%ifield
          r%iso%fieldgen_built = sys(r%id)%fieldgen
-         r%iso%npts_built = r%iso%npts
+         r%iso%npts_built = r%iso%nptsxyz
          r%iso%niso_built = r%iso%niso
          r%iso%isoval_built = r%iso%isoval
          r%iso%time_built = glfwGetTime()

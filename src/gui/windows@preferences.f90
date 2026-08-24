@@ -31,11 +31,13 @@ contains
        ColorTableCellBg, ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
        ColorElement, uiscale
+    use representations, only: iso_defaultlevel, iso_level_optstr
     use systems, only: nsys, sysc
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
-       iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_close_event, iw_table_column
+       iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_close_event, iw_table_column,&
+       iw_combo_simple
     use param, only: maxzat0
     class(window), intent(inout), target :: w
 
@@ -146,6 +148,12 @@ contains
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = iw_checkbox(str,tree_select_updates_view)
              call iw_tooltip("Selecting a system on the tree changes the system in the view window",ttshown)
+          end if
+
+          str = "Default isosurface grid level" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             call iw_combo_simple(str,iso_level_optstr,iso_defaultlevel,startsatone=.true.)
+             call iw_tooltip("Grid coarseness level used by newly created isosurface objects",ttshown)
           end if
 
        elseif (catid == 1) then

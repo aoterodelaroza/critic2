@@ -553,6 +553,7 @@ contains
 
   !> Reset the interface settings (only) to their default values
   module subroutine set_default_interface_settings()
+    use representations, only: iso_defaultlevel, iso_level_def
 
     io%FontGlobalScale = 1._c_float
     tooltip_enabled = .true.
@@ -560,6 +561,7 @@ contains
     tooltip_wrap_factor = 40._c_float
     tree_select_updates_inpcon = .true.
     tree_select_updates_view = .true.
+    iso_defaultlevel = iso_level_def
 
   end subroutine set_default_interface_settings
 
