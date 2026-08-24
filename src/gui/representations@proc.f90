@@ -521,13 +521,14 @@ contains
   !> coarseness level ilevel: 0 = native grid (returns all-zero),
   !> 1..iso_nlevel = named levels, iso_level_custom = ptsang points per
   !> angstrom.
-  module function iso_grid_size(isys,ilevel,ptsang,capped,ifield) result(n)
+  module function iso_grid_size(isys,ilevel,ptsang,capped,ifield,box) result(n)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
     real*8, intent(in) :: ptsang
     logical, intent(out), optional :: capped
     integer, intent(in), optional :: ifield
+    real*8, intent(in), optional :: box(3,0:3)
     integer :: n(3)
 
     integer :: i, it
@@ -543,18 +544,19 @@ contains
        pa = max(min(ptsang,iso_ptsang_max),iso_ptsang_min)
     end if
 
-    ! axis lengths of the sampled box: the grid domain when the target
-    ! field is a grid (a partial grid's box does not span the cell), the
-    ! unit cell otherwise
-    alen = sys(isys)%c%aa * bohrtoa
-    if (present(ifield)) then
-       if (iso_isgridfield(isys,ifield)) then
+    ! axis lengths of the sampled box: the given region box, else the grid
+    ! domain when the target field is a grid (a partial grid's box does not
+    ! span the cell), else the unit cell
+    xmat = sys(isys)%c%m_x2c
+    if (present(box)) then
+       xmat = box(:,1:3)
+    elseif (present(ifield)) then
+       if (iso_isgridfield(isys,ifield)) &
           call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c)
-          do i = 1, 3
-             alen(i) = norm2(xmat(:,i)) * bohrtoa
-          end do
-       end if
     end if
+    do i = 1, 3
+       alen(i) = norm2(xmat(:,i)) * bohrtoa
+    end do
 
     do i = 1, 3
        n(i) = max(nint(alen(i) * pa),iso_npts_axmin)
@@ -569,6 +571,206 @@ contains
     end do
 
   end function iso_grid_size
+
+  !> Convert the staged region inputs (mode iregion, origin/corner in
+  !> column 0 of x, far corner or edge endpoints in columns 1-3) of
+  !> system isys into the cell-frame Cartesian box (origin in column 0,
+  !> edge vectors in columns 1-3). ok is false if the box is degenerate
+  !> (near-zero volume). Cartesian inputs are in user-frame angstrom
+  !> (the molecular frame for molecules). The frac mode mirrors the CUBE
+  !> keyword's x0/x1 convention (rhoplot_cube).
+  module subroutine iso_region_to_box(isys,iregion,x,box,ok)
+    use systems, only: sys, sys_init, ok_system
+    use tools_math, only: det3
+    integer, intent(in) :: isys
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: x(3,0:3)
+    real*8, intent(out) :: box(3,0:3)
+    logical, intent(out), optional :: ok
+
+    integer :: i
+    real*8 :: u0(3), u1(3)
+
+    real*8, parameter :: voleps = 1d-8 ! minimum region volume relative to the edge lengths
+
+    box = 0d0
+    if (present(ok)) ok = .false.
+    if (.not.ok_system(isys,sys_init)) return
+    associate(c => sys(isys)%c)
+      if (iregion == iso_region_frac) then
+         ! cell-aligned box between fractional points x(:,0) and x(:,1)
+         box(:,0) = c%x2c(x(:,0))
+         do i = 1, 3
+            box(:,i) = c%m_x2c(:,i) * (x(i,1) - x(i,0))
+         end do
+      elseif (iregion == iso_region_ortho) then
+         ! axis-aligned Cartesian box between corners x(:,0) and x(:,1)
+         u0 = x(:,0) / bohrtoa
+         u1 = x(:,1) / bohrtoa
+         if (c%ismolecule) then
+            u0 = u0 - c%molx0
+            u1 = u1 - c%molx0
+         end if
+         box(:,0) = u0
+         do i = 1, 3
+            box(i,i) = u1(i) - u0(i)
+         end do
+      elseif (iregion == iso_region_parallel) then
+         ! origin x(:,0) plus the endpoints of the three edges (the
+         ! molecular frame shift cancels in the edge vectors)
+         box(:,0) = x(:,0) / bohrtoa
+         if (c%ismolecule) box(:,0) = box(:,0) - c%molx0
+         do i = 1, 3
+            box(:,i) = (x(:,i) - x(:,0)) / bohrtoa
+         end do
+      else
+         ! whole cell
+         box(:,1:3) = c%m_x2c
+      end if
+    end associate
+    ! degenerate when the volume is tiny relative to the edge lengths
+    ! (also catches zero-length edges)
+    if (present(ok)) ok = (abs(det3(box(:,1:3))) > &
+       voleps * norm2(box(:,1)) * norm2(box(:,2)) * norm2(box(:,3)))
+
+  end subroutine iso_region_to_box
+
+  !> Seed the staged region inputs of mode iregion for system isys with
+  !> the whole-cell equivalent, so a newly selected mode starts from a
+  !> valid box.
+  module subroutine iso_region_seed(isys,iregion,x)
+    use systems, only: sys, sys_init, ok_system
+    integer, intent(in) :: isys
+    integer, intent(in) :: iregion
+    real*8, intent(out) :: x(3,0:3)
+
+    integer :: i
+    real*8 :: xmin(3), xmax(3), xsh(3)
+
+    x = 0d0
+    if (.not.ok_system(isys,sys_init)) return
+    associate(c => sys(isys)%c)
+      xsh = 0d0
+      if (c%ismolecule) xsh = c%molx0
+      if (iregion == iso_region_frac) then
+         x(:,1) = 1d0
+      elseif (iregion == iso_region_ortho) then
+         ! Cartesian bounding box of the cell, in user-frame angstrom: the
+         ! min/max of each component over the corners is the sum of the
+         ! negative/positive entries of that row of the lattice matrix
+         do i = 1, 3
+            xmin(i) = sum(min(c%m_x2c(i,:),0d0))
+            xmax(i) = sum(max(c%m_x2c(i,:),0d0))
+         end do
+         x(:,0) = (xmin + xsh) * bohrtoa
+         x(:,1) = (xmax + xsh) * bohrtoa
+      elseif (iregion == iso_region_parallel) then
+         x(:,0) = xsh * bohrtoa
+         do i = 1, 3
+            x(:,i) = (c%m_x2c(:,i) + xsh) * bohrtoa
+         end do
+      end if
+    end associate
+
+  end subroutine iso_region_seed
+
+  !> Commit a staged sampling grid (n points per axis, region mode
+  !> iregion with its staged coordinates x) as the applied state of
+  !> isosurface iso. The applied region is stored as user coordinates
+  !> (not as a Cartesian box) so it tracks later cell/molecule edits.
+  !> The counterpart of grid_isapplied; keep the two in sync.
+  module subroutine iso_apply_grid(iso,n,iregion,x)
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: n(3)
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: x(3,0:3)
+
+    iso%nptsxyz = n
+    iso%iregion_ap = iregion
+    iso%rgn_x_ap = x
+
+  end subroutine iso_apply_grid
+
+  !> Return true if the staged sampling grid (n, iregion, x) is already
+  !> the applied state of isosurface iso. The region coordinates are
+  !> irrelevant in whole-cell mode.
+  module function iso_grid_isapplied(iso,n,iregion,x) result(isap)
+    class(rep_isosurface), intent(in) :: iso
+    integer, intent(in) :: n(3)
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: x(3,0:3)
+    logical :: isap
+
+    isap = all(iso%nptsxyz == n) .and. (iso%iregion_ap == iregion)
+    if (isap .and. iregion /= iso_region_cell) isap = all(iso%rgn_x_ap == x)
+
+  end function iso_grid_isapplied
+
+  !> The box sampled by the applied state of isosurface iso in system
+  !> isys: the applied region if one is set (derived fresh from its user
+  !> coordinates, so cell edits are tracked), else the grid domain for
+  !> grid fields (a partial grid's box does not span the cell), else the
+  !> unit cell. Returns the box origin x0c, its edge matrix xmat and
+  !> inverse cmat, the mesh periodicity per0 (whether the triangulation
+  !> wraps; a region never does), and the field-evaluation periodicity
+  !> pereval (a property of the system: always periodic in crystals --
+  !> grd aborts otherwise -- so a region can span several cells; never
+  !> periodic in molecules). Region boxes are scaled per axis by
+  !> nn/(nn-1) so the applied nptsxyz samples span them inclusively and
+  !> the surface reaches the region faces; the whole-cell paths keep the
+  !> endpoint-exclusive convention (their faces are not visible, and a
+  !> sample plane at exactly 1 would leave a partial grid's domain).
+  !> ok is false for a degenerate box.
+  module subroutine iso_sampled_box(iso,isys,xmat,x0c,cmat,per0,pereval,ok)
+    use systems, only: sys
+    use tools_math, only: matinv
+    class(rep_isosurface), intent(in) :: iso
+    integer, intent(in) :: isys
+    real*8, intent(out) :: xmat(3,3)
+    real*8, intent(out) :: x0c(3)
+    real*8, intent(out) :: cmat(3,3)
+    logical, intent(out) :: per0
+    logical, intent(out) :: pereval
+    logical, intent(out) :: ok
+
+    integer :: i, ier
+    real*8 :: fac, box(3,0:3)
+
+    ok = .true.
+    associate(c => sys(isys)%c)
+      pereval = .not.c%ismolecule
+      if (iso%iregion_ap /= iso_region_cell) then
+         call iso_region_to_box(isys,iso%iregion_ap,iso%rgn_x_ap,box,ok)
+         x0c = box(:,0)
+         xmat = box(:,1:3)
+         cmat = xmat
+         if (ok) then
+            call matinv(cmat,3,ier)
+            ok = (ier == 0)
+         end if
+         per0 = .false.
+         ! endpoint-inclusive sampling (see above)
+         if (ok) then
+            do i = 1, 3
+               fac = real(iso%nptsxyz(i),8) / real(iso%nptsxyz(i)-1,8)
+               xmat(:,i) = xmat(:,i) * fac
+               cmat(i,:) = cmat(i,:) / fac
+            end do
+         end if
+      elseif (iso_isgridfield(isys,iso%ifield)) then
+         associate(g => sys(isys)%f(iso%ifield)%grid)
+           call g%get_domain(xmat,x0c,cmat)
+           per0 = .not.c%ismolecule .and. .not.g%partial
+         end associate
+      else
+         xmat = c%m_x2c
+         cmat = c%m_c2x
+         x0c = 0d0
+         per0 = .not.c%ismolecule
+      end if
+    end associate
+
+  end subroutine iso_sampled_box
 
   !> Return true if field ifield of system isys is an initialized grid
   !> field (the predicate behind the "native grid" coarseness level).
@@ -590,10 +792,12 @@ contains
   !> dimensions. All paths that change the isosurface field go through
   !> here, so the level/field invariant lives in one place.
   module subroutine iso_set_field(iso,isys,ifield)
+    use systems, only: sys_init, ok_system
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
 
+    if (.not.ok_system(isys,sys_init)) return
     iso%ifield = max(ifield,0)
     iso%isoval(1) = iso_default_isovalue(isys,iso%ifield)
     if (iso_isgridfield(isys,iso%ifield)) then
@@ -601,7 +805,11 @@ contains
     else
        iso%ilevel = iso_defaultlevel
     end if
-    iso%nptsxyz = iso_grid_size(isys,iso%ilevel,iso%ptsang,ifield=iso%ifield)
+    ! a field change resets the region to the whole cell
+    iso%iregion = iso_region_cell
+    call iso_region_seed(isys,iso%iregion,iso%rgn_x)
+    call iso%apply_grid(iso_grid_size(isys,iso%ilevel,iso%ptsang,ifield=iso%ifield),&
+       iso%iregion,iso%rgn_x)
 
   end subroutine iso_set_field
 
@@ -750,6 +958,9 @@ contains
        if (.not.sys(r%id)%goodfield(r%iso%ifield)) then
           call r%iso%set_field(r%id,sys(r%id)%iref)
        elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%ifield)) then
+          call r%iso%set_field(r%id,r%iso%ifield)
+       elseif (r%iso%iregion_ap /= iso_region_cell .and. all(r%iso%nptsxyz == 0)) then
+          ! inconsistent applied state (native grid with a region): reset
           call r%iso%set_field(r%id,r%iso%ifield)
        end if
     end if
@@ -1788,13 +1999,14 @@ contains
       use interfaces_glfw, only: glfwGetTime
       use isosurfacemod, only: marching_cubes
       integer :: i, j, k, l, nn(3), nv, nf
-      logical :: usegrid, resample, rebuild, per0
+      logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
       real*8, allocatable :: xv(:,:), nrm(:,:)
       integer, allocatable :: idx(:,:)
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
 
       if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
-      usegrid = iso_isgridfield(r%id,r%iso%ifield) .and. all(r%iso%nptsxyz == 0)
+      usegrid = iso_isgridfield(r%id,r%iso%ifield) .and. all(r%iso%nptsxyz == 0) .and.&
+         r%iso%iregion_ap == iso_region_cell
 
       ! a sampled build needs an applied grid; an inconsistent state (e.g.
       ! "native" left over from a field that is no longer a grid) draws
@@ -1808,6 +2020,9 @@ contains
       resample = (r%iso%ifield_built /= r%iso%ifield)
       resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
       resample = resample .or. any(r%iso%npts_built /= r%iso%nptsxyz)
+      resample = resample .or. (r%iso%iregion_built /= r%iso%iregion_ap)
+      resample = resample .or. (r%iso%iregion_ap /= iso_region_cell .and.&
+         any(r%iso%rgn_x_built /= r%iso%rgn_x_ap))
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
       resample = resample .or. (.not.usegrid .and. .not.allocated(r%iso%ff))
       rebuild = resample
@@ -1836,35 +2051,33 @@ contains
                call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,x0c)
             end do
          else
-            ! sample on the applied grid over the field's own domain: the
-            ! grid domain for grid fields (a partial grid's box does not
-            ! span the cell, and sampling outside it would create artifact
-            ! surfaces at the box faces), the unit cell otherwise
+            ! sample on the applied grid; the sampled box, its
+            ! periodicities (mesh and field evaluation), and the
+            ! endpoint-inclusive scaling all come from the domain policy
+            ! in iso_sampled_box
             nn = r%iso%nptsxyz
-            if (iso_isgridfield(r%id,r%iso%ifield)) then
-               associate(g => sys(r%id)%f(r%iso%ifield)%grid)
-                 call g%get_domain(xmat,x0c,cmat)
-                 per0 = .not.c%ismolecule .and. .not.g%partial
-               end associate
-            else
-               xmat = c%m_x2c
-               cmat = c%m_c2x
-               x0c = 0d0
-               per0 = .not.c%ismolecule
-            end if
+            call r%iso%sampled_box(r%id,xmat,x0c,cmat,per0,pereval,okbox)
+            if (.not.okbox) return ! degenerate applied region: draw nothing
+
             if (resample) then
                if (allocated(r%iso%ff)) deallocate(r%iso%ff)
                allocate(r%iso%ff(nn(1),nn(2),nn(3)))
-               !$omp parallel do private(xp) schedule(dynamic) collapse(2)
+               ! samples outside the field's domain (e.g. a region beyond
+               ! the cell of a grid field) come back as zeros; remember
+               ! that it happened so the editor can warn
+               linvalid = .false.
+               !$omp parallel do private(xp,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
                do l = 1, nn(3)
                   do k = 1, nn(2)
                      do j = 1, nn(1)
                         xp = x0c + matmul(xmat,(/real(j-1,8)/nn(1),real(k-1,8)/nn(2),real(l-1,8)/nn(3)/))
-                        r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=per0)
+                        r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=pereval,valid=lval)
+                        linvalid = linvalid .or. .not.lval
                      end do
                   end do
                end do
                !$omp end parallel do
+               r%iso%outdomain = linvalid
                r%iso%frange(1) = minval(r%iso%ff)
                r%iso%frange(2) = maxval(r%iso%ff)
             end if
@@ -1877,6 +2090,8 @@ contains
          r%iso%ifield_built = r%iso%ifield
          r%iso%fieldgen_built = sys(r%id)%fieldgen
          r%iso%npts_built = r%iso%nptsxyz
+         r%iso%iregion_built = r%iso%iregion_ap
+         r%iso%rgn_x_built = r%iso%rgn_x_ap
          r%iso%niso_built = r%iso%niso
          r%iso%isoval_built = r%iso%isoval
          r%iso%time_built = glfwGetTime()

@@ -133,6 +133,17 @@ module representations
      "Fine (10 pts/Å)"//c_null_char//"Very fine (20 pts/Å)"//c_null_char ! named levels only
   character(len=*), parameter, public :: iso_level_optstr_custom = &
      iso_level_optstr//"Custom"//c_null_char ! named levels plus custom
+  ! region modes: the box over which the isosurface is calculated
+  integer, parameter, public :: iso_region_cell = 0 ! whole unit cell (native level allowed; periodic in crystals)
+  integer, parameter, public :: iso_region_frac = 1 ! cell-aligned box between fractional points x0 and x1
+  integer, parameter, public :: iso_region_ortho = 2 ! axis-aligned Cartesian box between corners x0 and x1 (ang)
+  integer, parameter, public :: iso_region_parallel = 3 ! origin x0 plus edge endpoints x1, x2, x3 (ang)
+  character(len=*), parameter, public :: iso_region_optstr = &
+     "Whole cell"//c_null_char//"Cell fractions"//c_null_char//&
+     "Cartesian box"//c_null_char//"Parallelepiped"//c_null_char ! region mode combo options (crystals)
+  character(len=*), parameter, public :: iso_region_optstr_mol = &
+     "Whole cell"//c_null_char//"Cartesian box"//c_null_char//&
+     "Parallelepiped"//c_null_char ! region mode combo options for molecules (no cell fractions)
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
   real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
@@ -508,7 +519,13 @@ module representations
      integer :: ifield = 0 ! field for the isosurface (index in sys(id)%f)
      integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
      real*8 :: ptsang = iso_ptsang_def ! staged custom sampling density (points/ang; ilevel=custom)
+     integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
+     real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner (column 0) and far corner or
+                                  ! edge endpoints (columns 1-3); fractional or user-frame ang, per mode
      integer :: nptsxyz(3) = 0 ! applied sampling grid; all-zero = native grid
+     integer :: iregion_ap = iso_region_cell ! applied region mode (read only as whole-cell vs not)
+     real*8 :: rgn_x_ap(3,0:3) = 0d0 ! applied region coordinates (user units per mode; the
+                                     ! cell-frame box is derived at build time so it tracks cell edits)
      integer :: niso = 1 ! number of active isosurface slots
      real*8 :: isoval(iso_maxslot) = 0d0 ! isovalues
      real(c_float) :: rgb(3,iso_maxslot) = iso_rgb_def ! colors
@@ -516,6 +533,9 @@ module representations
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
      integer :: npts_built(3) = 0 ! sampling grid when the meshes were built (all-zero = native)
+     integer :: iregion_built = iso_region_cell ! region mode when the meshes were built
+     real*8 :: rgn_x_built(3,0:3) = 0d0 ! region coordinates when the meshes were built
+     logical :: outdomain = .false. ! some samples fell outside the field's domain (zeroed) in the last build
      integer :: niso_built = 0 ! number of slots when the meshes were built
      real*8 :: isoval_built(iso_maxslot) = 0d0 ! isovalues when the meshes were built
      real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
@@ -524,6 +544,9 @@ module representations
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims
+     procedure :: apply_grid => iso_apply_grid ! commit a staged grid + region as the applied state
+     procedure :: grid_isapplied => iso_grid_isapplied ! whether a staged grid + region is already applied
+     procedure :: sampled_box => iso_sampled_box ! the box sampled by the applied state (domain policy)
   end type rep_isosurface
   public :: rep_isosurface
 
@@ -569,6 +592,8 @@ module representations
   public :: iso_default_isovalue
   public :: iso_grid_size
   public :: iso_isgridfield
+  public :: iso_region_to_box
+  public :: iso_region_seed
 
   ! module procedure interfaces
   interface
@@ -577,14 +602,50 @@ module representations
        integer, intent(in) :: ifield
        real*8 :: isoval
      end function iso_default_isovalue
-     module function iso_grid_size(isys,ilevel,ptsang,capped,ifield) result(n)
+     module function iso_grid_size(isys,ilevel,ptsang,capped,ifield,box) result(n)
        integer, intent(in) :: isys
        integer, intent(in) :: ilevel
        real*8, intent(in) :: ptsang
        logical, intent(out), optional :: capped
        integer, intent(in), optional :: ifield
+       real*8, intent(in), optional :: box(3,0:3)
        integer :: n(3)
      end function iso_grid_size
+     module subroutine iso_region_to_box(isys,iregion,x,box,ok)
+       integer, intent(in) :: isys
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: x(3,0:3)
+       real*8, intent(out) :: box(3,0:3)
+       logical, intent(out), optional :: ok
+     end subroutine iso_region_to_box
+     module subroutine iso_region_seed(isys,iregion,x)
+       integer, intent(in) :: isys
+       integer, intent(in) :: iregion
+       real*8, intent(out) :: x(3,0:3)
+     end subroutine iso_region_seed
+     module subroutine iso_apply_grid(iso,n,iregion,x)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: n(3)
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: x(3,0:3)
+     end subroutine iso_apply_grid
+     module function iso_grid_isapplied(iso,n,iregion,x) result(isap)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: n(3)
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: x(3,0:3)
+       logical :: isap
+     end function iso_grid_isapplied
+     module subroutine iso_sampled_box(iso,isys,xmat,x0c,cmat,per0,pereval,ok)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       real*8, intent(out) :: xmat(3,3)
+       real*8, intent(out) :: x0c(3)
+       real*8, intent(out) :: cmat(3,3)
+       logical, intent(out) :: per0
+       logical, intent(out) :: pereval
+       logical, intent(out) :: ok
+     end subroutine iso_sampled_box
      module function iso_isgridfield(isys,ifield) result(isg)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield

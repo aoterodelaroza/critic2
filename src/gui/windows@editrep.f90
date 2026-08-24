@@ -2360,7 +2360,9 @@ contains
   module function draw_editrep_isosurface(w,ttshown) result(changed)
     use systems, only: sys
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
-       iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom
+       iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom, iso_defaultlevel,&
+       iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
+       iso_region_optstr, iso_region_optstr_mol, iso_region_to_box, iso_region_seed
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_combo_simple, iw_button
     use tools_io, only: string
@@ -2368,8 +2370,9 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, nstage(3), nshow(3)
-    logical :: ch, ldum, goodf, isgrid, capped
+    integer :: i, isys, nstage(3), nshow(3), nrow, ireg
+    real*8 :: box(3,0:3)
+    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -2419,8 +2422,8 @@ contains
     end if
 
     ! grid section: coarseness of the sampling grid. The level and the
-    ! custom density are staged; the Apply button commits them (an
-    ! expensive resample for slow fields)
+    ! custom density are staged; the Apply button (after the region
+    ! section) commits them
     call iw_text("Grid",highlight=.true.)
     isgrid = iso_isgridfield(isys,w%rep%iso%ifield)
     if (.not.isgrid .and. w%rep%iso%ilevel == 0) then
@@ -2430,13 +2433,17 @@ contains
        changed = .true.
     end if
 
-    ! coarseness level combo ("Native grid" only for grid fields)
-    if (isgrid) then
+    ! coarseness level combo ("Native grid" only for grid fields over the
+    ! whole cell)
+    navail = isgrid .and. (w%rep%iso%iregion == iso_region_cell)
+    if (.not.navail .and. w%rep%iso%ilevel == 0) &
+       w%rep%iso%ilevel = iso_defaultlevel
+    if (navail) then
        str1 = "Native grid" // c_null_char // iso_level_optstr_custom
     else
        str1 = iso_level_optstr_custom
     end if
-    call iw_combo_simple("Level##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.isgrid)
+    call iw_combo_simple("Level##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail)
     call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
        & of the field, a named level, or a custom density",ttshown)
 
@@ -2448,25 +2455,89 @@ contains
        call iw_tooltip("Number of grid points per angstrom along each cell direction",ttshown)
     end if
 
-    ! staged grid dimensions and the apply button
-    nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,ifield=w%rep%iso%ifield)
-    nshow = nstage
-    str2 = ""
-    if (all(nstage == 0)) then
-       nshow = sys(isys)%f(w%rep%iso%ifield)%grid%n
-       str2 = " (native)"
-    elseif (capped) then
-       str2 = " (capped)"
+    ! region section: the box over which the isosurface is calculated;
+    ! staged like the level, committed by the same Apply button. Molecules
+    ! do not offer the cell-fractions mode (their cell is an artifact), so
+    ! their combo skips it and the index maps around the gap.
+    call iw_text("Region",highlight=.true.)
+    if (sys(isys)%c%ismolecule) then
+       if (w%rep%iso%iregion == iso_region_frac) then
+          ! not offered for molecules: reset the staged mode
+          w%rep%iso%iregion = iso_region_cell
+          call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
+       end if
+       ireg = w%rep%iso%iregion
+       if (ireg > iso_region_frac) ireg = ireg - 1
+       call iw_combo_simple("Mode##isoregion",iso_region_optstr_mol,ireg,changed=ch)
+       if (ireg >= iso_region_frac) ireg = ireg + 1
+       call iw_tooltip("Region over which the isosurface is calculated: the whole&
+          & cell, an axis-aligned box between two Cartesian corners, or an arbitrary&
+          & parallelepiped given by its origin and the endpoints of its three edges.&
+          & The region may extend beyond the cell.",ttshown)
+    else
+       ireg = w%rep%iso%iregion
+       call iw_combo_simple("Mode##isoregion",iso_region_optstr,ireg,changed=ch)
+       call iw_tooltip("Region over which the isosurface is calculated: the whole unit&
+          & cell, a cell-aligned box between two points in fractional coordinates, an&
+          & axis-aligned box between two Cartesian corners, or an arbitrary&
+          & parallelepiped given by its origin and the endpoints of its three edges.&
+          & The region may extend beyond the unit cell.",ttshown)
     end if
-    call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
-       string(nshow(3)) // str2)
-    call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
-    if (iw_button("Apply",sameline=.true.,disabled=all(w%rep%iso%nptsxyz == nstage))) then
-       w%rep%iso%nptsxyz = nstage
+    if (ch) then
+       w%rep%iso%iregion = ireg
+       call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
+    end if
+
+    ! staged region coordinates (results discarded, Apply commits)
+    if (w%rep%iso%iregion /= iso_region_cell) then
+       nrow = 1 ! last drag row: the far corner, or the third edge endpoint
+       if (w%rep%iso%iregion == iso_region_parallel) nrow = 3
+       do i = 0, nrow
+          if (w%rep%iso%iregion == iso_region_frac) then
+             str1 = "x" // string(i) // "##isorgn" // string(i)
+             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),speed=0.01d0,decimal=4)
+          else
+             str1 = "x" // string(i) // " (Å)##isorgn" // string(i)
+             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),speed=0.05d0,decimal=3)
+          end if
+          call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
+       end do
+    end if
+
+    ! staged grid dimensions and the apply button (commits level and region)
+    call iso_region_to_box(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,box,okbox)
+    lapply = .false.
+    if (okbox) then
+       if (w%rep%iso%iregion == iso_region_cell) then
+          nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,&
+             ifield=w%rep%iso%ifield)
+       else
+          nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,box=box)
+       end if
+       nshow = nstage
+       str2 = ""
+       if (all(nstage == 0)) then
+          nshow = sys(isys)%f(w%rep%iso%ifield)%grid%n
+          str2 = " (native)"
+       elseif (capped) then
+          str2 = " (capped)"
+       end if
+       call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
+          string(nshow(3)) // str2)
+       call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
+       lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
+    else
+       call iw_text("The region is degenerate (zero volume)",danger=.true.)
+    end if
+    if (iw_button("Apply",sameline=.true.,disabled=.not.lapply)) then
+       call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        changed = .true.
     end if
-    call iw_tooltip("Use the selected grid for the isosurface (may require an expensive&
-       & recalculation of the field samples)",ttshown)
+    call iw_tooltip("Use the selected grid and region for the isosurface (may require&
+       & an expensive recalculation of the field samples)",ttshown)
+    if (w%rep%iso%outdomain) &
+       call iw_text("Part of the region is outside the field's domain (zero there)",&
+          danger=.true.)
 
     ! isovalue, with a drag speed proportional to the current value;
     ! notlive so the re-triangulation runs on commit, not every drag frame.
@@ -2498,6 +2569,35 @@ contains
        changed = .true.
     end if
 
+  contains
+    !> Tooltip text for region coordinate row i (0 = origin/first corner)
+    !> of region mode iregion.
+    function region_point_tooltip(iregion,i) result(str)
+      integer, intent(in) :: iregion
+      integer, intent(in) :: i
+      character(len=:), allocatable :: str
+
+      if (iregion == iso_region_frac) then
+         if (i == 0) then
+            str = "First corner of the region (fractional coordinates)"
+         else
+            str = "Second corner of the region (fractional coordinates)"
+         end if
+      elseif (iregion == iso_region_ortho) then
+         if (i == 0) then
+            str = "First corner of the region (Cartesian coordinates, Å)"
+         else
+            str = "Second corner of the region (Cartesian coordinates, Å)"
+         end if
+      else
+         if (i == 0) then
+            str = "Origin of the region parallelepiped (Cartesian coordinates, Å)"
+         else
+            str = "Endpoint of edge " // string(i) // " of the region parallelepiped (Cartesian, Å)"
+         end if
+      end if
+
+    end function region_point_tooltip
   end function draw_editrep_isosurface
 
   !> Draw the periodicity widgets shared by the atoms and unit-cell object
