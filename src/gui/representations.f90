@@ -522,7 +522,10 @@ module representations
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
      real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner (column 0) and far corner or
                                   ! edge endpoints (columns 1-3); fractional or user-frame ang, per mode
-     integer :: nptsxyz(3) = 0 ! applied sampling grid; all-zero = native grid
+     real*8 :: costest = -1d0 ! estimated sampling wall time for the staged grid (seconds; <0 = none)
+     integer :: costest_n(3) = 0 ! staged grid dimensions the cost estimate was computed for
+     integer :: nptsxyz(3) = 0 ! applied sampling grid; all-zero = native grid (grid fields
+                               ! over the whole cell) or not yet generated (sampled fields)
      integer :: iregion_ap = iso_region_cell ! applied region mode (read only as whole-cell vs not)
      real*8 :: rgn_x_ap(3,0:3) = 0d0 ! applied region coordinates (user units per mode; the
                                      ! cell-frame box is derived at build time so it tracks cell edits)
@@ -594,6 +597,7 @@ module representations
   public :: iso_isgridfield
   public :: iso_region_to_box
   public :: iso_region_seed
+  public :: iso_estimate_cost
 
   ! module procedure interfaces
   interface
@@ -623,6 +627,14 @@ module representations
        integer, intent(in) :: iregion
        real*8, intent(out) :: x(3,0:3)
      end subroutine iso_region_seed
+     module function iso_estimate_cost(isys,ifield,iregion,x,n) result(secs)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: x(3,0:3)
+       integer, intent(in) :: n(3)
+       real*8 :: secs
+     end function iso_estimate_cost
      module subroutine iso_apply_grid(iso,n,iregion,x)
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: n(3)

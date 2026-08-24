@@ -2362,7 +2362,8 @@ contains
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
        iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
-       iso_region_optstr, iso_region_optstr_mol, iso_region_to_box, iso_region_seed
+       iso_region_optstr, iso_region_optstr_mol, iso_region_to_box, iso_region_seed,&
+       iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_combo_simple, iw_button
     use tools_io, only: string
@@ -2507,6 +2508,7 @@ contains
     ! staged grid dimensions and the apply button (commits level and region)
     call iso_region_to_box(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,box,okbox)
     lapply = .false.
+    nstage = 0
     if (okbox) then
        if (w%rep%iso%iregion == iso_region_cell) then
           nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,&
@@ -2529,12 +2531,28 @@ contains
     else
        call iw_text("The region is degenerate (zero volume)",danger=.true.)
     end if
-    if (iw_button("Apply",sameline=.true.,disabled=.not.lapply)) then
+    if (iw_button("Apply",danger=.true.,disabled=.not.lapply)) then
        call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        changed = .true.
     end if
     call iw_tooltip("Use the selected grid and region for the isosurface (may require&
        & an expensive recalculation of the field samples)",ttshown)
+    ! cost estimate for the staged options (nstage is all-zero for the
+    ! native grid or a degenerate region: nothing to sample)
+    if (iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))) then
+       w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
+          w%rep%iso%rgn_x,nstage)
+       w%rep%iso%costest_n = nstage
+    end if
+    call iw_tooltip("Estimate the time needed to sample the field with the selected&
+       & options (evaluates the field at random points in the region and extrapolates&
+       & to the full grid)",ttshown)
+    if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0) .and.&
+       all(w%rep%iso%costest_n == nstage)) &
+       call iw_text("~" // cost_string(w%rep%iso%costest),sameline=.true.)
+    if (.not.isgrid .and. all(w%rep%iso%nptsxyz == 0)) &
+       call iw_text("The isosurface has not been generated yet (press Apply)",&
+          danger=.true.)
     if (w%rep%iso%outdomain) &
        call iw_text("Part of the region is outside the field's domain (zero there)",&
           danger=.true.)
@@ -2570,6 +2588,23 @@ contains
     end if
 
   contains
+    !> Human-readable form of a time estimate in seconds (ms/s/min/h).
+    function cost_string(secs) result(str)
+      real*8, intent(in) :: secs
+      character(len=:), allocatable :: str
+
+      if (secs < 1d0) then
+         str = string(max(nint(secs*1000d0),1)) // " ms"
+      elseif (secs < 60d0) then
+         str = string(secs,'f',decimal=1) // " s"
+      elseif (secs < 3600d0) then
+         str = string(secs/60d0,'f',decimal=1) // " min"
+      else
+         str = string(secs/3600d0,'f',decimal=1) // " h"
+      end if
+
+    end function cost_string
+
     !> Tooltip text for region coordinate row i (0 = origin/first corner)
     !> of region mode iregion.
     function region_point_tooltip(iregion,i) result(str)

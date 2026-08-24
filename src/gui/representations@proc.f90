@@ -674,6 +674,64 @@ contains
 
   end subroutine iso_region_seed
 
+  !> Estimate the wall time (seconds) of sampling field ifield of system
+  !> isys on an n(1) x n(2) x n(3) grid over the staged region (mode
+  !> iregion, coordinates x): evaluate the field at random points in the
+  !> region -- in batches of increasing size, with the same OpenMP
+  !> parallelism as the real sampling loop, until the benchmark has run
+  !> long enough to be meaningful -- and extrapolate the measured rate
+  !> to the full grid. Returns a negative value if the estimate cannot
+  !> be made (bad system/field or degenerate region).
+  module function iso_estimate_cost(isys,ifield,iregion,x,n) result(secs)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys, sys_init, ok_system
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: x(3,0:3)
+    integer, intent(in) :: n(3)
+    real*8 :: secs
+
+    integer :: i, nb, ntot
+    logical :: okbox, pereval
+    real*8 :: box(3,0:3), xp(3), fsum, ttot, t0
+    real*8, allocatable :: xr(:,:)
+
+    real*8, parameter :: timetarget = 0.1d0 ! keep benchmarking until this much time is spent
+    integer, parameter :: nbatch0 = 32 ! initial batch size (a slow field stops after one batch)
+    integer, parameter :: nptsmax = 65536 ! total benchmark points cap (fast fields)
+
+    secs = -1d0
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    call iso_region_to_box(isys,iregion,x,box,okbox)
+    if (.not.okbox) return
+    pereval = .not.sys(isys)%c%ismolecule
+
+    ntot = 0
+    ttot = 0d0
+    fsum = 0d0
+    nb = nbatch0
+    do while (.true.)
+       allocate(xr(3,nb))
+       call random_number(xr)
+       t0 = glfwGetTime()
+       !$omp parallel do private(xp) schedule(dynamic) reduction(+:fsum)
+       do i = 1, nb
+          xp = box(:,0) + matmul(box(:,1:3),xr(:,i))
+          fsum = fsum + sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
+       end do
+       !$omp end parallel do
+       ttot = ttot + (glfwGetTime() - t0)
+       ntot = ntot + nb
+       deallocate(xr)
+       if (ttot >= timetarget .or. ntot >= nptsmax) exit
+       nb = min(4 * nb,nptsmax - ntot)
+    end do
+    secs = ttot / real(ntot,8) * real(n(1),8) * real(n(2),8) * real(n(3),8)
+
+  end function iso_estimate_cost
+
   !> Commit a staged sampling grid (n points per axis, region mode
   !> iregion with its staged coordinates x) as the applied state of
   !> isosurface iso. The applied region is stored as user coordinates
@@ -805,11 +863,16 @@ contains
     else
        iso%ilevel = iso_defaultlevel
     end if
-    ! a field change resets the region to the whole cell
+    ! a field change resets the region to the whole cell and drops any
+    ! staged cost estimate
     iso%iregion = iso_region_cell
     call iso_region_seed(isys,iso%iregion,iso%rgn_x)
-    call iso%apply_grid(iso_grid_size(isys,iso%ilevel,iso%ptsang,ifield=iso%ifield),&
-       iso%iregion,iso%rgn_x)
+    iso%costest = -1d0
+    ! apply an all-zero grid: for a grid field this is the native grid
+    ! (cheap, built immediately); for any other field it means "not
+    ! generated yet" -- sampling can be expensive, so nothing is built
+    ! until the user commits a grid with the editor's Apply button
+    call iso%apply_grid((/0,0,0/),iso%iregion,iso%rgn_x)
 
   end subroutine iso_set_field
 
@@ -2008,9 +2071,9 @@ contains
       usegrid = iso_isgridfield(r%id,r%iso%ifield) .and. all(r%iso%nptsxyz == 0) .and.&
          r%iso%iregion_ap == iso_region_cell
 
-      ! a sampled build needs an applied grid; an inconsistent state (e.g.
-      ! "native" left over from a field that is no longer a grid) draws
-      ! nothing until the editor or update_styles repairs it
+      ! a sampled build needs an applied grid: a sampled field with an
+      ! all-zero applied grid is "not generated yet" (sampling can be
+      ! expensive, so it waits for the editor's Apply button)
       if (.not.usegrid .and. all(r%iso%nptsxyz == 0)) return
 
       ! decide whether the cached field samples and triangulations are
