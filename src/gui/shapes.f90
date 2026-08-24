@@ -185,6 +185,9 @@ module shapes
      integer(c_int), allocatable :: idx(:,:) ! triangle vertex indices, 0-based (3,nf)
      real(c_float) :: rgb(3) = 0._c_float ! color
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+     real(c_float), allocatable :: xrep(:,:) ! offsets of the drawn copies (3,ncopies); the geometry is
+                                             ! uploaded once and drawn shifted by each offset (per-draw
+                                             ! uniform). Unallocated = one copy at zero offset.
   end type dl_mesh
   public :: dl_mesh
 
@@ -282,6 +285,9 @@ module shapes
      integer, allocatable :: msh_first(:) ! first element index (0-based) of each mesh in the EBO
      integer, allocatable :: msh_count(:) ! element index count of each mesh
      real(c_float), allocatable :: msh_rgba(:,:) ! color and opacity of each mesh (4,:)
+     integer, allocatable :: msh_nrep(:) ! number of drawn copies of each mesh
+     integer, allocatable :: msh_repfirst(:) ! first copy of each mesh in msh_xrep (0-based)
+     real(c_float), allocatable :: msh_xrep(:,:) ! concatenated copy offsets of all meshes (3,:)
      ! per-scene on-scene-text buffer: the glyph vertices of the scene labels
      ! are cached here (and in the VBO) and reused while the camera and the
      ! draw lists do not change

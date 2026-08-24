@@ -289,7 +289,9 @@ module representations
 
   !> Selection of the part of the system that is drawn: periodicity, origin
   !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
-  !> and origin also control reptype_unitcell). Accessed as r%sel%...
+  !> and origin also control reptype_unitcell; reptype_isosurface consumes
+  !> pertype and ncell only -- the origin shift does not move the isosurface).
+  !> Accessed as r%sel%...
   type rep_selection
      integer(c_int) :: pertype ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
@@ -299,6 +301,8 @@ module representations
      logical :: onemotif ! draw connected molecules
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      character(kind=c_char,len=:), allocatable :: errfilter ! filter error
+   contains
+     procedure :: ncells => rep_selection_ncells ! number of drawn cells from the periodicity control
   end type rep_selection
   public :: rep_selection
 
@@ -545,6 +549,8 @@ module representations
      integer :: npts_built(3) = 0 ! sampling grid when the meshes were built (all-zero = native)
      integer :: iregion_built = iso_region_cell ! region mode when the meshes were built
      real*8 :: rgn_x_built(3,0:3) = 0d0 ! region coordinates when the meshes were built
+     logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
+                                     ! non-partial data); gates the periodic replication and its editor UI
      logical :: outdomain = .false. ! some samples fell outside the field's domain (zeroed) in the last build
      integer :: niso_built = 0 ! number of slots when the meshes were built
      real*8 :: isoval_built(iso_maxslot) = 0d0 ! isovalues when the meshes were built
@@ -609,6 +615,11 @@ module representations
 
   ! module procedure interfaces
   interface
+     module function rep_selection_ncells(sel,nc) result(n)
+       class(rep_selection), intent(in) :: sel
+       integer, intent(in) :: nc(3)
+       integer :: n(3)
+     end function rep_selection_ncells
      module function iso_default_isovalue(isys,ifield) result(isoval)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield

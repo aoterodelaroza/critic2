@@ -42,7 +42,8 @@ module shaders
   integer, parameter, public :: u_anchored_scale = 9
   integer, parameter, public :: u_textcolor = 10
   integer, parameter, public :: u_rgba = 11
-  integer, parameter, public :: u_NUM = 11
+  integer, parameter, public :: u_xshift = 12
+  integer, parameter, public :: u_NUM = 12
 
   public :: shaders_init
   public :: shaders_end

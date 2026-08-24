@@ -39,7 +39,8 @@ submodule (shaders) proc
   integer(c_int) :: ishad_uniloc(u_NUM,shader_NUM)
   character(len=14), parameter :: uniname(u_NUM) = (/ character(len=14) :: &
      "world", "view", "projection", "isortho", "displ", "uPick",&
-     "isanchored", "anchored_ndc", "anchored_scale", "textColor", "rgba" /)
+     "isanchored", "anchored_ndc", "anchored_scale", "textColor", "rgba",&
+     "xshift" /)
 
 contains
 

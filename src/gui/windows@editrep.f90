@@ -2358,7 +2358,7 @@ contains
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
-    use systems, only: sys, sysc
+    use systems, only: sys
     use interfaces_glfw, only: glfwGetTime
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
        iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom, iso_defaultlevel,&
@@ -2372,7 +2372,7 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, nstage(3), nshow(3), nrow, nmode
+    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, ncp(3)
     integer :: rmodes(size(iso_region_modes_mol))
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3)
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, rhover
@@ -2386,9 +2386,12 @@ contains
     ! (crossing widget spacing) do not churn the transient slot
     real*8, parameter :: rgnprev_grace = 0.25d0 ! seconds
 
-    ! initialize
+    ! initialize (the caller has already checked the anchor view and its
+    ! scene are alive; the edited object lives in that scene, so the
+    ! transient preview and the cell counts use it, not the main view's)
     changed = .false.
     isys = w%isys
+    iview = w%anchor_view()
     szero%x = 0
     szero%y = 0
 
@@ -2512,6 +2515,20 @@ contains
        & (molecules), or a cube given by its center and half-length (molecules).&
        & The region may extend beyond the unit cell.",ttshown)
 
+    ! periodicity of the whole-cell isosurface: number of unit cells the
+    ! mesh is replicated over, same as the other representations. Shown
+    ! when the built mesh is periodic (whole cell of a crystal) -- the
+    ! only case that replicates -- so the control is visible exactly
+    ! while its state is live, regardless of the staged region. It
+    ! applies immediately, unlike the staged region widgets around it.
+    ! (Evaluate first: the widgets must be drawn even if changed is
+    ! already true, and .or. is allowed to short-circuit.)
+    if (w%rep%iso%per0_built) then
+       ch = periodicity_widgets(w,ttshown,&
+          "Number of periodic cells controlled by the +/- options in the 'Scene' button of the view window")
+       changed = changed .or. ch
+    end if
+
     ! staged region coordinates (results discarded, Calculate grid commits)
     if (w%rep%iso%iregion == iso_region_simplebox .or.&
        w%rep%iso%iregion == iso_region_cube) then
@@ -2615,7 +2632,7 @@ contains
     ! (with molx0 for molecules); box and get_domain are cell-frame.
     if (rhover) w%editrep_rgnhover = glfwGetTime()
     if (glfwGetTime() - w%editrep_rgnhover < rgnprev_grace .and. okbox .and.&
-       sysc(isys)%sc%isinit /= 0) then
+       win(iview)%sc%isinit /= 0) then
        if (w%rep%iso%iregion == iso_region_cell .and. isgrid) then
           call sys(isys)%f(w%rep%iso%ifield)%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
           prev0 = prev0 + matmul(prevv,flo)
@@ -2626,8 +2643,17 @@ contains
           prev0 = box(:,0)
           prevv = box(:,1:3)
        end if
+       ! a periodic whole-cell mesh replicates over the drawn cells:
+       ! extend the preview to cover the copies (same gate and cell
+       ! count as the replication itself)
+       if (w%rep%iso%iregion == iso_region_cell .and. w%rep%iso%per0_built) then
+          ncp = w%rep%sel%ncells(win(iview)%sc%nc)
+          do i = 1, 3
+             prevv(:,i) = prevv(:,i) + real(ncp(i)-1,8) * sys(isys)%c%m_x2c(:,i)
+          end do
+       end if
        if (sys(isys)%c%ismolecule) prev0 = prev0 + sys(isys)%c%molx0
-       call sysc(isys)%sc%show_transient_box(w%id,1,prev0,prevv,region_edgerad,&
+       call win(iview)%sc%show_transient_box(w%id,1,prev0,prevv,region_edgerad,&
           region_rgb,region_alpha)
     end if
 
@@ -2715,12 +2741,12 @@ contains
     end function region_point_tooltip
   end function draw_editrep_isosurface
 
-  !> Draw the periodicity widgets shared by the atoms and unit-cell object
-  !> editors: the radio buttons for the periodicity type and, when the type is
-  !> manual, the a/b/c cell-number steppers plus a Reset button.
-  !> tooltip_automatic = tooltip for the "Automatic" button, which points at a
-  !> different control in each of the two editors. ttshown = the tooltip flag.
-  !> Returns true if the periodicity changed.
+  !> Draw the periodicity widgets shared by the atoms, unit-cell, and
+  !> isosurface object editors: the radio buttons for the periodicity type
+  !> and, when the type is manual, the a/b/c cell-number steppers plus a
+  !> Reset button. tooltip_automatic = tooltip for the "Automatic" button,
+  !> which points at a different control in each editor. ttshown = the
+  !> tooltip flag. Returns true if the periodicity changed.
   function periodicity_widgets(w,ttshown,tooltip_automatic) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_intstepper
     class(window), intent(inout), target :: w

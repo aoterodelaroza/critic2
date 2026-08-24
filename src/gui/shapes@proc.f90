@@ -976,15 +976,19 @@ contains
     integer, intent(in) :: n
     type(dl_mesh), intent(in) :: msh(:)
 
-    integer :: i, j, nvtot, netot, iv, ie
+    integer :: i, j, nvtot, netot, iv, ie, irep, nrep, nreptot
     integer(c_int) :: i_
 
-    ! total vertex and element counts
+    ! total vertex, element, and copy counts
     nvtot = 0
     netot = 0
+    nreptot = 0
     do i = 1, n
        nvtot = nvtot + msh(i)%nv
        netot = netot + 3*msh(i)%nf
+       nrep = 1
+       if (allocated(msh(i)%xrep)) nrep = max(size(msh(i)%xrep,2),1)
+       nreptot = nreptot + nrep
     end do
     if (netot == 0 .or. nvtot == 0) then
        b%nmsh_inst = 0
@@ -993,14 +997,19 @@ contains
     b%nmsh_inst = n
 
     ! concatenate the vertices and the vertex-offset element indices, and
-    ! fill the per-mesh draw table
+    ! fill the per-mesh draw table (each mesh is drawn once per copy
+    ! offset, so the geometry is packed only once)
     call ensure_pack(b%packmshv,int(msh_vert_nf),nvtot)
     call ensure_pack(b%packmshi,netot)
     call ensure_pack(b%msh_first,n)
     call ensure_pack(b%msh_count,n)
     call ensure_pack(b%msh_rgba,4,n)
+    call ensure_pack(b%msh_nrep,n)
+    call ensure_pack(b%msh_repfirst,n)
+    call ensure_pack(b%msh_xrep,3,nreptot)
     iv = 0
     ie = 0
+    irep = 0
     do i = 1, n
        do j = 1, msh(i)%nv
           b%packmshv(1:3,iv+j) = msh(i)%x(:,j)
@@ -1013,6 +1022,16 @@ contains
        b%msh_count(i) = 3*msh(i)%nf
        b%msh_rgba(1:3,i) = msh(i)%rgb
        b%msh_rgba(4,i) = msh(i)%alpha
+       nrep = 1
+       if (allocated(msh(i)%xrep)) nrep = max(size(msh(i)%xrep,2),1)
+       b%msh_nrep(i) = nrep
+       b%msh_repfirst(i) = irep
+       if (allocated(msh(i)%xrep)) then
+          b%msh_xrep(:,irep+1:irep+nrep) = msh(i)%xrep(:,1:nrep)
+       else
+          b%msh_xrep(:,irep+1) = 0._c_float
+       end if
+       irep = irep + nrep
        iv = iv + msh(i)%nv
        ie = ie + 3*msh(i)%nf
     end do
@@ -1038,11 +1057,11 @@ contains
   !> state are the caller's responsibility.
   module subroutine glbuffers_draw_meshes(b,opaque)
     use interfaces_opengl3
-    use shaders, only: setuniform_vec4, uniloc, u_rgba
+    use shaders, only: setuniform_vec3, setuniform_vec4, uniloc, u_rgba, u_xshift
     class(scene_glbuffers), intent(inout) :: b
     logical, intent(in) :: opaque
 
-    integer :: i
+    integer :: i, k
     integer(c_int) :: i_
     type(c_ptr) :: c_ptr_
 
@@ -1051,8 +1070,12 @@ contains
     do i = 1, b%nmsh_inst
        if (opaque .neqv. (b%msh_rgba(4,i) >= 1._c_float)) cycle
        call setuniform_vec4(b%msh_rgba(:,i),idxi=uniloc(u_rgba))
-       call glDrawElements(GL_TRIANGLES, int(b%msh_count(i),c_int), GL_UNSIGNED_INT,&
-          transfer(int(b%msh_first(i),c_intptr_t) * c_sizeof(i_), c_ptr_))
+       ! one draw per copy, shifting the shared geometry with the copy offset
+       do k = 1, b%msh_nrep(i)
+          call setuniform_vec3(b%msh_xrep(:,b%msh_repfirst(i)+k),idxi=uniloc(u_xshift))
+          call glDrawElements(GL_TRIANGLES, int(b%msh_count(i),c_int), GL_UNSIGNED_INT,&
+             transfer(int(b%msh_first(i),c_intptr_t) * c_sizeof(i_), c_ptr_))
+       end do
     end do
     call glBindVertexArray(0)
 

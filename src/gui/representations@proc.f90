@@ -787,6 +787,24 @@ contains
 
   end subroutine iso_apply_grid
 
+  !> Number of unit cells a representation is drawn over, from its
+  !> periodicity control: 1 (none), the scene's global cell count nc
+  !> (automatic), or the manual count. The single decoder of
+  !> sel%pertype; all representations and the editors call it.
+  module function rep_selection_ncells(sel,nc) result(n)
+    class(rep_selection), intent(in) :: sel
+    integer, intent(in) :: nc(3)
+    integer :: n(3)
+
+    n = 1
+    if (sel%pertype == 1) then
+       n = nc
+    elseif (sel%pertype == 2) then
+       n = sel%ncell
+    end if
+
+  end function rep_selection_ncells
+
   !> Return true if the staged sampling grid (n, iregion, x) is already
   !> the applied state of isosurface iso. The region coordinates are
   !> irrelevant in whole-cell mode.
@@ -1260,12 +1278,7 @@ contains
        usetshift = any(abs(r%sel%tshift) > 1d-5)
 
        ! calculate the periodicity
-       n = 1
-       if (r%sel%pertype == 1) then
-          n = nc
-       elseif (r%sel%pertype == 2) then
-          n = r%sel%ncell
-       end if
+       n = r%sel%ncells(nc)
 
        ! origin shift
        if (c%ismolecule) then
@@ -1735,12 +1748,7 @@ contains
        !!! unit cell representation !!!
 
        ! number of cells
-       n = 1
-       if (r%sel%pertype == 1) then
-          n = nc
-       elseif (r%sel%pertype == 2) then
-          n = r%sel%ncell
-       end if
+       n = r%sel%ncells(nc)
 
        ! vacuum directions: we have a vacuum and only one cell in that direction
        isvac = .false.
@@ -2150,11 +2158,12 @@ contains
     subroutine add_isosurface_meshes()
       use interfaces_glfw, only: glfwGetTime
       use isosurfacemod, only: marching_cubes
-      integer :: i, j, k, l, nn(3), nv, nf
+      integer :: i, j, k, l, nn(3), nv, nf, ncp(3), i1, i2, i3
       logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
       real*8, allocatable :: xv(:,:), nrm(:,:)
       integer, allocatable :: idx(:,:)
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
+      real(c_float), allocatable :: xrep(:,:)
 
       if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
 
@@ -2245,16 +2254,38 @@ contains
          r%iso%npts_built = r%iso%nptsxyz
          r%iso%iregion_built = r%iso%iregion_ap
          r%iso%rgn_x_built = r%iso%rgn_x_ap
+         r%iso%per0_built = per0
          r%iso%niso_built = r%iso%niso
          r%iso%isoval_built = r%iso%isoval
          r%iso%time_built = glfwGetTime()
       end if
 
-      ! append the cached meshes to the draw list
+      ! periodicity: a periodic (whole-cell, non-partial, crystal) mesh
+      ! is drawn once per cell -- the copies are exact periodic images
+      ! and tile seamlessly -- with the same cell-count policy as the
+      ! other representations. Regions, molecules, and partial-grid
+      ! meshes draw a single copy. The copies are lattice-translation
+      ! offsets applied at draw time (per-copy uniform), so the geometry
+      ! is stored and uploaded only once however many cells are shown.
+      ncp = 1
+      if (r%iso%per0_built) ncp = r%sel%ncells(nc)
+      allocate(xrep(3,product(ncp)))
+      l = 0
+      do i1 = 0, ncp(1)-1
+         do i2 = 0, ncp(2)-1
+            do i3 = 0, ncp(3)-1
+               l = l + 1
+               xrep(:,l) = real(c%x2c(real((/i1,i2,i3/),8)),c_float)
+            end do
+         end do
+      end do
+
+      ! append the cached meshes to the draw list with their copy offsets
       do i = 1, r%iso%niso
          if (r%iso%mesh(i)%nf == 0) cycle
          r%iso%mesh(i)%rgb = r%iso%rgb(:,i)
          r%iso%mesh(i)%alpha = r%iso%alpha(i)
+         r%iso%mesh(i)%xrep = xrep
          call dl_append(obj%msh,obj%nmsh,r%iso%mesh(i))
       end do
 
