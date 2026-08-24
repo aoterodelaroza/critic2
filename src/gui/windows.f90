@@ -32,10 +32,16 @@ module windows
      isformat_w_lammps, isformat_w_siesta_fdf, isformat_w_siesta_struct,&
      isformat_w_dftbp_hsd, isformat_w_dftbp_gen, isformat_w_pyscf,&
      isformat_w_tinkerfrac, isformat_w_pdb, isformat_w_castepcell, isformat_w_alamode,&
-     isformat_w_unknown, isformat_w_max
+     isformat_w_unknown, isformat_w_max, bohrtoa
   implicit none
 
   private
+
+  ! shared style of the transient region-box preview (extract window and
+  ! isosurface editor): color, opacity of the faces, and edge thickness
+  real(c_float), parameter :: region_rgb(3) = (/0.35_c_float,0.75_c_float,1.0_c_float/)
+  real(c_float), parameter :: region_alpha = 0.12_c_float
+  real*8, parameter :: region_edgerad = 0.06d0 / bohrtoa
 
   ! the buffer for the output console
   character(kind=c_char,len=:), allocatable, target :: outputb
@@ -339,6 +345,8 @@ module windows
      integer :: editrep_pick_item = 0 ! text/measurement item waiting for an atom pick (0 = idle)
      integer :: editrep_pick_slot = 0 ! anchor or measurement atom the pick will fill
      type(pairpick) :: editrep_pick ! pick session stamp + staged first bond atom (committed when the pair completes)
+     real*8 :: editrep_rgnhover = -1d100 ! last time a Region widget was hovered (isosurface editor);
+                                         ! latches the transient box preview across brief hover gaps
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality

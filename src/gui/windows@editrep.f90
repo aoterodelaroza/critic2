@@ -2358,12 +2358,13 @@ contains
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
-    use systems, only: sys
+    use systems, only: sys, sysc
+    use interfaces_glfw, only: glfwGetTime
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
        iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
-       iso_region_optstr, iso_region_optstr_mol, iso_region_to_box, iso_region_seed,&
-       iso_estimate_cost
+       iso_region_simplebox, iso_region_cube, iso_region_name, iso_region_modes_cry,&
+       iso_region_modes_mol, iso_region_to_box, iso_region_seed, iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_combo_simple, iw_button, duration_string
     use tools_io, only: string
@@ -2371,14 +2372,19 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, nstage(3), nshow(3), nrow, ireg
-    real*8 :: box(3,0:3)
-    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply
+    integer :: i, isys, nstage(3), nshow(3), nrow, nmode
+    integer :: rmodes(size(iso_region_modes_mol))
+    real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3)
+    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, rhover
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: szero
+
+    ! grace period of the transient region preview: brief hover gaps
+    ! (crossing widget spacing) do not churn the transient slot
+    real*8, parameter :: rgnprev_grace = 0.25d0 ! seconds
 
     ! initialize
     changed = .false.
@@ -2458,40 +2464,73 @@ contains
     end if
 
     ! region section: the box over which the isosurface is calculated;
-    ! staged like the level, committed by the same Calculate grid button. Molecules
-    ! do not offer the cell-fractions mode (their cell is an artifact), so
-    ! their combo skips it and the index maps around the gap.
+    ! staged like the level, committed by the same Calculate grid button.
+    ! The modes offered depend on the system kind (iso_region_modes_*:
+    ! no cell fractions for molecules, whose cell is an artifact; the
+    ! molecule-centered simple box and cube are molecule-only). Hovering
+    ! any region widget shows a transient preview of the staged box in
+    ! the scene (posted at the end of the section).
     call iw_text("Region",highlight=.true.)
     if (sys(isys)%c%ismolecule) then
-       if (w%rep%iso%iregion == iso_region_frac) then
-          ! not offered for molecules: reset the staged mode
-          w%rep%iso%iregion = iso_region_cell
-          call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
-       end if
-       ireg = w%rep%iso%iregion
-       if (ireg > iso_region_frac) ireg = ireg - 1
-       call iw_combo_simple("Mode##isoregion",iso_region_optstr_mol,ireg,changed=ch)
-       if (ireg >= iso_region_frac) ireg = ireg + 1
-       call iw_tooltip("Region over which the isosurface is calculated: the whole&
-          & cell, an axis-aligned box between two Cartesian corners, or an arbitrary&
-          & parallelepiped given by its origin and the endpoints of its three edges.&
-          & The region may extend beyond the cell.",ttshown)
+       nmode = size(iso_region_modes_mol)
+       rmodes(1:nmode) = iso_region_modes_mol
     else
-       ireg = w%rep%iso%iregion
-       call iw_combo_simple("Mode##isoregion",iso_region_optstr,ireg,changed=ch)
-       call iw_tooltip("Region over which the isosurface is calculated: the whole unit&
-          & cell, a cell-aligned box between two points in fractional coordinates, an&
-          & axis-aligned box between two Cartesian corners, or an arbitrary&
-          & parallelepiped given by its origin and the endpoints of its three edges.&
-          & The region may extend beyond the unit cell.",ttshown)
+       nmode = size(iso_region_modes_cry)
+       rmodes(1:nmode) = iso_region_modes_cry
     end if
-    if (ch) then
-       w%rep%iso%iregion = ireg
+    ! reset a staged mode this system kind does not offer
+    if (all(rmodes(1:nmode) /= w%rep%iso%iregion)) then
+       w%rep%iso%iregion = iso_region_cell
        call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
     end if
+    rhover = .false.
+    str1 = "Mode##isoregion" // c_null_char
+    str2 = trim(iso_region_name(w%rep%iso%iregion)) // c_null_char
+    call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nmode
+          is_selected = (w%rep%iso%iregion == rmodes(i))
+          str2 = trim(iso_region_name(rmodes(i))) // c_null_char
+          if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+             if (w%rep%iso%iregion /= rmodes(i)) then
+                w%rep%iso%iregion = rmodes(i)
+                call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
+             end if
+          end if
+          if (is_selected) &
+             call igSetItemDefaultFocus()
+       end do
+       call igEndCombo()
+       rhover = .true. ! keep the preview visible while a mode is being chosen
+    end if
+    call check_region_hover()
+    call iw_tooltip("Region over which the isosurface is calculated: the whole&
+       & unit cell, a cell-aligned box between two fractional points (crystals),&
+       & an axis-aligned box between two Cartesian corners, an arbitrary&
+       & parallelepiped given by its origin and the endpoints of its three&
+       & edges, an axis-aligned box given by its center and half-lengths&
+       & (molecules), or a cube given by its center and half-length (molecules).&
+       & The region may extend beyond the unit cell.",ttshown)
 
     ! staged region coordinates (results discarded, Calculate grid commits)
-    if (w%rep%iso%iregion /= iso_region_cell) then
+    if (w%rep%iso%iregion == iso_region_simplebox .or.&
+       w%rep%iso%iregion == iso_region_cube) then
+       ldum = iw_dragfloat_real8("x0 (Å)##isorgn0",x3=w%rep%iso%rgn_x(:,0),&
+          speed=0.05d0,decimal=3)
+       call check_region_hover()
+       call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,0),ttshown)
+       if (w%rep%iso%iregion == iso_region_cube) then
+          ldum = iw_dragfloat_real8("Half-length (Å)##isorgn1",x1=w%rep%iso%rgn_x(1,1),&
+             speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+          ! the single half-length is stored replicated across rgn_x(:,1)
+          w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
+       else
+          ldum = iw_dragfloat_real8("Half-lengths (Å)##isorgn1",x3=w%rep%iso%rgn_x(:,1),&
+             speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+       end if
+       call check_region_hover()
+       call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,1),ttshown)
+    elseif (w%rep%iso%iregion /= iso_region_cell) then
        nrow = 1 ! last drag row: the far corner, or the third edge endpoint
        if (w%rep%iso%iregion == iso_region_parallel) nrow = 3
        do i = 0, nrow
@@ -2502,6 +2541,7 @@ contains
              str1 = "x" // string(i) // " (Å)##isorgn" // string(i)
              ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),speed=0.05d0,decimal=3)
           end if
+          call check_region_hover()
           call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
        end do
     end if
@@ -2536,6 +2576,7 @@ contains
        call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        changed = .true.
     end if
+    call check_region_hover()
     call iw_tooltip("Use the selected grid and region for the isosurface (may require&
        & an expensive recalculation of the field samples)",ttshown)
     ! cost estimate for the staged options (nstage is all-zero for the
@@ -2545,6 +2586,7 @@ contains
     if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) &
        w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
           w%rep%iso%rgn_x,nstage)
+    call check_region_hover()
     call iw_tooltip("Estimate the time needed to sample the field with the selected&
        & options (evaluates the field at random points of the sampled box and&
        & extrapolates to the full grid)",ttshown)
@@ -2563,6 +2605,31 @@ contains
     if (w%rep%iso%outdomain) &
        call iw_text("The field could not be evaluated in part of the region (zero there)",&
           danger=.true.,wrap=.true.)
+
+    ! transient preview of the sampled box while any region widget is
+    ! hovered, latched over brief hover gaps so the transient slot is
+    ! not churned. In whole-cell mode with a grid field the sampled
+    ! domain is the valid window of the grid's own box (matching the
+    ! grid dimensions above), not the artificial cell; otherwise it is
+    ! the staged region box. show_transient_box takes the user frame
+    ! (with molx0 for molecules); box and get_domain are cell-frame.
+    if (rhover) w%editrep_rgnhover = glfwGetTime()
+    if (glfwGetTime() - w%editrep_rgnhover < rgnprev_grace .and. okbox .and.&
+       sysc(isys)%sc%isinit /= 0) then
+       if (w%rep%iso%iregion == iso_region_cell .and. isgrid) then
+          call sys(isys)%f(w%rep%iso%ifield)%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
+          prev0 = prev0 + matmul(prevv,flo)
+          do i = 1, 3
+             prevv(:,i) = prevv(:,i) * (fhi(i) - flo(i))
+          end do
+       else
+          prev0 = box(:,0)
+          prevv = box(:,1:3)
+       end if
+       if (sys(isys)%c%ismolecule) prev0 = prev0 + sys(isys)%c%molx0
+       call sysc(isys)%sc%show_transient_box(w%id,1,prev0,prevv,region_edgerad,&
+          region_rgb,region_alpha)
+    end if
 
     ! isovalue, with a drag speed proportional to the current value;
     ! notlive so the re-triangulation runs on commit, not every drag frame.
@@ -2595,8 +2662,19 @@ contains
     end if
 
   contains
-    !> Tooltip text for region coordinate row i (0 = origin/first corner)
-    !> of region mode iregion.
+    !> Accumulate into rhover whether the last drawn widget is hovered
+    !> (also while its drag is active with the pointer off it, and while
+    !> disabled), for the transient region-box preview. Call right after
+    !> every widget of the region section.
+    subroutine check_region_hover()
+
+      rhover = rhover .or. logical(igIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) .or.&
+         logical(igIsItemActive())
+
+    end subroutine check_region_hover
+
+    !> Tooltip text for region coordinate row i (0 = origin/first
+    !> corner/center) of region mode iregion.
     function region_point_tooltip(iregion,i) result(str)
       integer, intent(in) :: iregion
       integer, intent(in) :: i
@@ -2614,11 +2692,23 @@ contains
          else
             str = "Second corner of the region (Cartesian coordinates, Å)"
          end if
-      else
+      elseif (iregion == iso_region_parallel) then
          if (i == 0) then
             str = "Origin of the region parallelepiped (Cartesian coordinates, Å)"
          else
             str = "Endpoint of edge " // string(i) // " of the region parallelepiped (Cartesian, Å)"
+         end if
+      elseif (iregion == iso_region_cube) then
+         if (i == 0) then
+            str = "Center of the region (Cartesian coordinates, Å); seeded with the molecular centroid"
+         else
+            str = "Half the edge length of the cube"
+         end if
+      else ! iso_region_simplebox
+         if (i == 0) then
+            str = "Center of the region (Cartesian coordinates, Å); seeded with the molecular centroid"
+         else
+            str = "Half the box length along each Cartesian axis"
          end if
       end if
 

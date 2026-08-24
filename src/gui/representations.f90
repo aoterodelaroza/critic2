@@ -135,15 +135,21 @@ module representations
      iso_level_optstr//"Custom"//c_null_char ! named levels plus custom
   ! region modes: the box over which the isosurface is calculated
   integer, parameter, public :: iso_region_cell = 0 ! whole unit cell (native level allowed; periodic in crystals)
-  integer, parameter, public :: iso_region_frac = 1 ! cell-aligned box between fractional points x0 and x1
+  integer, parameter, public :: iso_region_frac = 1 ! cell-aligned box between fractional points x0 and x1 (crystals)
   integer, parameter, public :: iso_region_ortho = 2 ! axis-aligned Cartesian box between corners x0 and x1 (ang)
   integer, parameter, public :: iso_region_parallel = 3 ! origin x0 plus edge endpoints x1, x2, x3 (ang)
-  character(len=*), parameter, public :: iso_region_optstr = &
-     "Whole cell"//c_null_char//"Cell fractions"//c_null_char//&
-     "Cartesian box"//c_null_char//"Parallelepiped"//c_null_char ! region mode combo options (crystals)
-  character(len=*), parameter, public :: iso_region_optstr_mol = &
-     "Whole cell"//c_null_char//"Cartesian box"//c_null_char//&
-     "Parallelepiped"//c_null_char ! region mode combo options for molecules (no cell fractions)
+  integer, parameter, public :: iso_region_simplebox = 4 ! axis-aligned box: center x0, half-lengths x1 (ang; molecules)
+  integer, parameter, public :: iso_region_cube = 5 ! cube: center x0, half-length x(1,1) (ang; molecules)
+  character(len=14), parameter, public :: iso_region_name(0:5) = (/&
+     "Whole cell    ","Cell fractions","Cartesian box ","Parallelepiped",&
+     "Simple box    ","Cube          "/) ! region mode display names
+  ! region modes offered to each system kind, in combo order; the editor
+  ! builds its combo from these, so a new mode only needs a name and a
+  ! slot in the list(s) where it applies
+  integer, parameter, public :: iso_region_modes_cry(4) = (/iso_region_cell,&
+     iso_region_frac,iso_region_ortho,iso_region_parallel/)
+  integer, parameter, public :: iso_region_modes_mol(5) = (/iso_region_cell,&
+     iso_region_ortho,iso_region_parallel,iso_region_simplebox,iso_region_cube/)
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
   real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
@@ -520,8 +526,10 @@ module representations
      integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
      real*8 :: ptsang = iso_ptsang_def ! staged custom sampling density (points/ang; ilevel=custom)
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
-     real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner (column 0) and far corner or
-                                  ! edge endpoints (columns 1-3); fractional or user-frame ang, per mode
+     real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner/center (column 0) and far
+                                  ! corner, edge endpoints, or half-lengths (columns 1-3); fractional or
+                                  ! user-frame ang, per mode. The cube's single half-length is stored
+                                  ! replicated across column 1, so all consumers read it generically.
      real*8 :: costest = -1d0 ! measured field-evaluation cost (seconds per sample point; <0 = none)
      integer :: nptsxyz(3) = 0 ! applied sampling grid; all-zero = native grid (grid fields
                                ! over the whole cell) or not yet generated (sampled fields)

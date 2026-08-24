@@ -50,10 +50,8 @@ submodule (windows) extract
   real(c_float) :: lastnmer_dist(nmer_max) = 1e6_c_float
   logical :: lastcloseafter = .true.
 
-  ! region preview: color, opacity of the sphere, and thickness of the box edges
-  real(c_float), parameter :: region_rgb(3) = (/0.35_c_float,0.75_c_float,1.0_c_float/)
-  real(c_float), parameter :: region_alpha = 0.12_c_float
-  real*8, parameter :: region_edgerad = 0.06d0 / bohrtoa
+  ! the region preview style (region_rgb/region_alpha/region_edgerad) is
+  ! shared with the isosurface editor and lives in the windows module
 
   ! transient center marker: color, opacity, and radius limits (bohr)
   real(c_float), parameter :: center_rgb(3) = (/1.0_c_float,0.6_c_float,0.1_c_float/)

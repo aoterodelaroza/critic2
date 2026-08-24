@@ -576,12 +576,13 @@ contains
 
   end function iso_grid_size
 
-  !> Convert the staged region inputs (mode iregion, origin/corner in
-  !> column 0 of x, far corner or edge endpoints in columns 1-3) of
-  !> system isys into the cell-frame Cartesian box (origin in column 0,
-  !> edge vectors in columns 1-3). ok is false if the box is degenerate
-  !> (near-zero volume). Cartesian inputs are in user-frame angstrom
-  !> (the molecular frame for molecules). The frac mode mirrors the CUBE
+  !> Convert the staged region inputs (mode iregion, origin/corner or
+  !> center in column 0 of x; far corner, edge endpoints, or
+  !> half-lengths in columns 1-3, per mode) of system isys into the
+  !> cell-frame Cartesian box (origin in column 0, edge vectors in
+  !> columns 1-3). ok is false if the box is degenerate (near-zero
+  !> volume). Cartesian inputs are in user-frame angstrom (the
+  !> molecular frame for molecules). The frac mode mirrors the CUBE
   !> keyword's x0/x1 convention (rhoplot_cube).
   module subroutine iso_region_to_box(isys,iregion,x,box,ok)
     use systems, only: sys, sys_init, ok_system
@@ -607,10 +608,19 @@ contains
          do i = 1, 3
             box(:,i) = c%m_x2c(:,i) * (x(i,1) - x(i,0))
          end do
-      elseif (iregion == iso_region_ortho) then
-         ! axis-aligned Cartesian box between corners x(:,0) and x(:,1)
-         u0 = x(:,0) / bohrtoa
-         u1 = x(:,1) / bohrtoa
+      elseif (iregion == iso_region_ortho .or. iregion == iso_region_simplebox .or.&
+         iregion == iso_region_cube) then
+         ! axis-aligned Cartesian box, between corners x(:,0) and x(:,1)
+         ! (ortho) or centered on x(:,0) with half-lengths x(:,1)
+         ! (simple box and cube; the cube's single half-length is
+         ! replicated across x(:,1) by its writers)
+         if (iregion == iso_region_ortho) then
+            u0 = x(:,0) / bohrtoa
+            u1 = x(:,1) / bohrtoa
+         else
+            u0 = (x(:,0) - x(:,1)) / bohrtoa
+            u1 = (x(:,0) + x(:,1)) / bohrtoa
+         end if
          if (c%ismolecule) then
             u0 = u0 - c%molx0
             u1 = u1 - c%molx0
@@ -640,8 +650,9 @@ contains
   end subroutine iso_region_to_box
 
   !> Seed the staged region inputs of mode iregion for system isys with
-  !> the whole-cell equivalent, so a newly selected mode starts from a
-  !> valid box.
+  !> a sensible starting box: the whole-cell equivalent, except for the
+  !> molecule-centered modes (simple box and cube), which start centered
+  !> on the molecular centroid and covering the atoms plus a margin.
   module subroutine iso_region_seed(isys,iregion,x)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
@@ -649,7 +660,9 @@ contains
     real*8, intent(out) :: x(3,0:3)
 
     integer :: i
-    real*8 :: xmin(3), xmax(3), xsh(3)
+    real*8 :: xmin(3), xmax(3), xsh(3), xc(3), hl(3)
+
+    real*8, parameter :: molmargin = 3d0 ! half-length margin beyond the atoms (ang)
 
     x = 0d0
     if (.not.ok_system(isys,sys_init)) return
@@ -673,6 +686,22 @@ contains
          do i = 1, 3
             x(:,i) = (c%m_x2c(:,i) + xsh) * bohrtoa
          end do
+      elseif (iregion == iso_region_simplebox .or. iregion == iso_region_cube) then
+         ! origin at the molecular centroid; half-lengths covering the
+         ! atoms plus a margin
+         xc = 0d0
+         do i = 1, c%ncel
+            xc = xc + c%atcel(i)%r
+         end do
+         if (c%ncel > 0) xc = xc / real(c%ncel,8)
+         hl = 0d0
+         do i = 1, c%ncel
+            hl = max(hl,abs(c%atcel(i)%r - xc))
+         end do
+         x(:,0) = (xc + xsh) * bohrtoa
+         x(:,1) = hl * bohrtoa + molmargin
+         ! the cube's single half-length is stored replicated in x(:,1)
+         if (iregion == iso_region_cube) x(:,1) = maxval(x(:,1))
       end if
     end associate
 
