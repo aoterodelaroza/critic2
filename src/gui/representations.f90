@@ -115,7 +115,6 @@ module representations
   real(c_float), parameter, public :: measure_rgb_ang_def(3) = (/0.10_c_float,0.65_c_float,0.85_c_float/) ! angle color (cyan)
   real(c_float), parameter, public :: measure_rgb_dih_def(3) = (/0.90_c_float,0.30_c_float,0.60_c_float/) ! dihedral color (pink)
   !--> isosurfaces
-  integer, parameter, public :: iso_maxslot = 2 ! isosurface slots per representation
   ! sampling-grid coarseness levels: 0 = native grid (grid fields only),
   ! 1..iso_nlevel = named levels (points per angstrom), iso_level_custom = custom
   integer, parameter, public :: iso_nlevel = 4 ! number of named coarseness levels
@@ -175,10 +174,22 @@ module representations
   ! (which exists to handle values that change sign) does not apply there
   integer, parameter, public :: iso_hscale_y(2) = (/hscale_linear, hscale_log/)
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
-  real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
-     0.30_c_float,0.55_c_float,0.90_c_float,&  ! slot 1: blue
-     0.90_c_float,0.45_c_float,0.15_c_float/),& ! slot 2: orange
-     (/3,iso_maxslot/))
+  ! palette for new isosurfaces: a new one takes the first color of the
+  ! palette that no isosurface in the same object is using, so a second
+  ! surface is visibly distinct from the first without the user picking
+  integer, parameter, public :: iso_npalette = 8 ! number of palette colors
+  real(c_float), parameter, public :: iso_rgb_palette(3,iso_npalette) = reshape((/&
+     0.30_c_float,0.55_c_float,0.90_c_float,& ! blue
+     0.90_c_float,0.45_c_float,0.15_c_float,& ! orange
+     0.25_c_float,0.70_c_float,0.35_c_float,& ! green
+     0.85_c_float,0.25_c_float,0.25_c_float,& ! red
+     0.60_c_float,0.35_c_float,0.80_c_float,& ! purple
+     0.20_c_float,0.75_c_float,0.80_c_float,& ! cyan
+     0.90_c_float,0.75_c_float,0.20_c_float,& ! yellow
+     0.90_c_float,0.45_c_float,0.70_c_float/),& ! pink
+     (/3,iso_npalette/))
+  real(c_float), parameter, public :: iso_rgb_def(3) = iso_rgb_palette(:,1) ! color of the first isosurface
+  real(c_float), parameter, public :: iso_rgb_tol = 0.05_c_float ! two colors closer than this count as the same
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -546,6 +557,20 @@ module representations
   end type rep_measure
   public :: rep_measure
 
+  !> One isosurface of the isosurface object: the level, how it is drawn,
+  !> and the triangulation cached for it. The build stamp is on the
+  !> isosurface itself, so isosurfaces can be added, removed, and
+  !> re-leveled without disturbing the meshes of the others.
+  type iso_slot
+     real*8 :: isoval = 0d0 ! isovalue
+     real(c_float) :: rgb(3) = iso_rgb_def ! color
+     real(c_float) :: alpha = iso_alpha_def ! opacity (1 = opaque)
+     type(dl_mesh) :: mesh ! the cached triangulation
+     logical :: built = .false. ! whether mesh holds a triangulation
+     real*8 :: isoval_built = 0d0 ! isovalue the mesh was built at
+  end type iso_slot
+  public :: iso_slot
+
   !> Isosurface display options (reptype_isosurface; accessed as r%iso%...)
   type rep_isosurface
      ! user options
@@ -563,10 +588,8 @@ module representations
      integer :: iregion_ap = iso_region_cell ! applied region mode (read only as whole-cell vs not)
      real*8 :: rgn_x_ap(3,0:3) = 0d0 ! applied region coordinates (user units per mode; the
                                      ! cell-frame box is derived at build time so it tracks cell edits)
-     integer :: niso = 1 ! number of active isosurface slots
-     real*8 :: isoval(iso_maxslot) = 0d0 ! isovalues
-     real(c_float) :: rgb(3,iso_maxslot) = iso_rgb_def ! colors
-     real(c_float) :: alpha(iso_maxslot) = iso_alpha_def ! opacities (1 = opaque)
+     integer :: niso = 0 ! number of isosurfaces
+     type(iso_slot), allocatable :: slot(:) ! the isosurfaces (niso of them)
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
      integer :: npts_built(3) = 0 ! sampling grid when the meshes were built (all-zero = native)
@@ -575,10 +598,7 @@ module representations
      logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
                                      ! non-partial data); gates the periodic replication and its editor UI
      logical :: outdomain = .false. ! some samples fell outside the field's domain (zeroed) in the last build
-     integer :: niso_built = 0 ! number of slots when the meshes were built
-     real*8 :: isoval_built(iso_maxslot) = 0d0 ! isovalues when the meshes were built
      real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
-     type(dl_mesh) :: mesh(iso_maxslot) ! the cached meshes, one per slot
      real*8 :: frange(2) = (/1d0,-1d0/) ! min/max of the data backing the mesh; invalid if frange(1) > frange(2)
      ! histogram of the data backing the mesh, ready to plot as a staircase (2 points per bin):
      ! hist_x in field units, hist_y = number of points in the bin. Stamped with the build, like frange
@@ -600,6 +620,8 @@ module representations
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims
+     procedure :: add_iso => iso_add_iso ! add an isosurface (isovalue and color chosen if not given)
+     procedure :: del_iso => iso_del_iso ! remove an isosurface
      procedure :: apply_grid => iso_apply_grid ! commit a staged grid + region as the applied state
      procedure :: grid_isapplied => iso_grid_isapplied ! whether a staged grid + region is already applied
      procedure :: sampled_box => iso_sampled_box ! the box sampled by the applied state (domain policy)
@@ -752,6 +774,15 @@ module representations
        integer, intent(in) :: isys
        integer, intent(in) :: ifield
      end subroutine iso_set_field
+     module subroutine iso_add_iso(iso,isoval,rgb)
+       class(rep_isosurface), intent(inout) :: iso
+       real*8, intent(in), optional :: isoval
+       real(c_float), intent(in), optional :: rgb(3)
+     end subroutine iso_add_iso
+     module subroutine iso_del_iso(iso,i)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: i
+     end subroutine iso_del_iso
      module subroutine representation_init(r,isys,itype,flavor,icount)
        class(representation), intent(inout) :: r
        integer, intent(in) :: isys

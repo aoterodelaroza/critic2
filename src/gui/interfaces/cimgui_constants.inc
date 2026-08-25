@@ -996,6 +996,8 @@
   integer(c_int), bind(C,name="const_ImPlotScale_Linear") :: ImPlotScale_Linear
   integer(c_int), bind(C,name="const_ImPlotScale_Log10") :: ImPlotScale_Log10
   integer(c_int), bind(C,name="const_ImPlotScale_SymLog") :: ImPlotScale_SymLog
+  integer(c_int), bind(C,name="const_ImPlotDragToolFlags_None") :: ImPlotDragToolFlags_None
+  integer(c_int), bind(C,name="const_ImPlotDragToolFlags_NoInputs") :: ImPlotDragToolFlags_NoInputs
   integer(c_int), bind(C,name="const_ImPlotFlags_None") :: ImPlotFlags_None
   integer(c_int), bind(C,name="const_ImPlotFlags_NoTitle") :: ImPlotFlags_NoTitle
   integer(c_int), bind(C,name="const_ImPlotFlags_NoLegend") :: ImPlotFlags_NoLegend

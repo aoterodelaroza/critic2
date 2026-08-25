@@ -49,6 +49,11 @@ CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlo
 CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags){
   return ImPlot::DragLineX(id,x,col,thickness,flags);
 }
+CIMGUI_API void ipGetPlotMousePos(double *x, double *y, ImAxis x_axis, ImAxis y_axis){
+  ImPlotPoint p = ImPlot::GetPlotMousePos(x_axis,y_axis);
+  *x = p.x;
+  *y = p.y;
+}
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);
 }

@@ -467,11 +467,9 @@ contains
        r%iso%nptscustom = 0
        r%iso%ilevel = iso_defaultlevel
        r%iso%nptsxyz = 0
-       r%iso%niso = 1
-       r%iso%isoval = 0d0
-       r%iso%isoval(1) = iso_isoval_def
-       r%iso%rgb = iso_rgb_def
-       r%iso%alpha = iso_alpha_def
+       r%iso%niso = 0
+       if (allocated(r%iso%slot)) deallocate(r%iso%slot)
+       call r%iso%add_iso() ! the last-resort default level; set_field overwrites it below
        r%iso%ifield_built = -1
        if (r%type == reptype_isosurface) &
           call r%iso%set_field(isys,r%iso%ifield)
@@ -1030,7 +1028,12 @@ contains
 
     if (.not.ok_system(isys,sys_init)) return
     iso%ifield = max(ifield,0)
-    iso%isoval(1) = iso_default_isovalue(isys,iso%ifield)
+    ! the isovalues of the previous field mean nothing for this one: keep
+    ! a single isosurface (with its color) at the new default level
+    if (iso%niso < 1) call iso%add_iso()
+    iso%niso = 1
+    iso%slot(1)%isoval = iso_default_isovalue(isys,iso%ifield)
+    iso%slot(1)%built = .false.
     isgrid = iso_isgridfield(isys,iso%ifield)
     if (isgrid) then
        iso%ilevel = 0
@@ -1063,6 +1066,101 @@ contains
     call iso%apply_grid((/0,0,0/),iso%iregion,iso%rgn_x)
 
   end subroutine iso_set_field
+
+  !> Add an isosurface to isosurface object iso. Without isoval, the new
+  !> level is chosen from the ones already there: the negative
+  !> counterpart of the last isovalue if the data reach that far and no
+  !> negative level is shown yet (the +/- pair of an orbital or a
+  !> deformation density), otherwise half of it; the first isosurface of
+  !> all takes the last-resort default. Without rgb, the color is the
+  !> first one of the palette that no isosurface is using, so a new
+  !> isosurface is visibly distinct from the others without the user
+  !> having to pick.
+  module subroutine iso_add_iso(iso,isoval,rgb)
+    class(rep_isosurface), intent(inout) :: iso
+    real*8, intent(in), optional :: isoval
+    real(c_float), intent(in), optional :: rgb(3)
+
+    integer :: i, j
+    real*8 :: val
+    logical :: used, haverange
+    type(iso_slot), allocatable :: aux(:)
+
+    ! grow the list
+    if (.not.allocated(iso%slot)) allocate(iso%slot(4))
+    if (iso%niso >= size(iso%slot)) then
+       allocate(aux(2*size(iso%slot)))
+       aux(1:iso%niso) = iso%slot(1:iso%niso)
+       call move_alloc(aux,iso%slot)
+    end if
+    iso%niso = iso%niso + 1
+
+    ! the level
+    haverange = (iso%frange(1) <= iso%frange(2))
+    if (present(isoval)) then
+       val = isoval
+    elseif (iso%niso == 1) then
+       val = iso_isoval_def
+    else
+       val = iso%slot(iso%niso-1)%isoval
+       if (haverange .and. all(iso%slot(1:iso%niso-1)%isoval > 0d0) .and. -val > iso%frange(1)) then
+          val = -val
+       else
+          val = 0.5d0 * val
+       end if
+       ! a derived level outside the data shows nothing: fall back to
+       ! halfway between the data limit and the outermost level there
+       ! already, which is inside the data and distinct from all of them.
+       ! (Not the middle of the range: value distributions are strongly
+       ! skewed -- the reason the default level is a charge quantile --
+       ! so the midpoint of a density is deep in the nuclear cusps.)
+       if (haverange) then
+          if (val <= iso%frange(1)) &
+             val = 0.5d0 * (iso%frange(1) + minval(iso%slot(1:iso%niso-1)%isoval))
+          if (val >= iso%frange(2)) &
+             val = 0.5d0 * (iso%frange(2) + maxval(iso%slot(1:iso%niso-1)%isoval))
+       end if
+    end if
+
+    ! the color: first palette entry no other isosurface is using
+    iso%slot(iso%niso) = iso_slot(isoval=val)
+    if (present(rgb)) then
+       iso%slot(iso%niso)%rgb = rgb
+    else
+       do i = 1, iso_npalette
+          used = .false.
+          do j = 1, iso%niso-1
+             used = used .or. all(abs(iso%slot(j)%rgb - iso_rgb_palette(:,i)) < iso_rgb_tol)
+          end do
+          if (.not.used) exit
+       end do
+       if (i > iso_npalette) i = 1 ! all of them are in use: start over
+       iso%slot(iso%niso)%rgb = iso_rgb_palette(:,i)
+    end if
+
+  end subroutine iso_add_iso
+
+  !> Remove isosurface i from isosurface object iso. The isosurfaces
+  !> above it move down whole (mesh and build stamp included), so they
+  !> are not rebuilt. An isosurface object with no isosurfaces left is
+  !> valid but draws nothing, so the caller decides whether to keep the
+  !> last one (the editor does).
+  module subroutine iso_del_iso(iso,i)
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: i
+
+    integer :: j
+
+    if (i < 1 .or. i > iso%niso) return
+    do j = i, iso%niso-1
+       iso%slot(j) = iso%slot(j+1)
+    end do
+    iso%niso = iso%niso - 1
+    ! the vacated entry still holds a copy of the triangulation that moved
+    ! down; drop it instead of keeping a whole mesh alive unreachable
+    iso%slot(iso%niso+1) = iso_slot()
+
+  end subroutine iso_del_iso
 
   !> Return true if the applied state of isosurface iso in system isys
   !> describes a generated isosurface: a sampled grid has been
@@ -2252,11 +2350,8 @@ contains
     !> the field, the isovalue, or the applied grid changes.
     subroutine add_isosurface_meshes()
       use interfaces_glfw, only: glfwGetTime
-      use isosurfacemod, only: marching_cubes
-      integer :: i, j, k, l, nn(3), nv, nf, ncp(3), i1, i2, i3
+      integer :: i, j, k, l, nn(3), ncp(3), i1, i2, i3
       logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
-      real*8, allocatable :: xv(:,:), nrm(:,:)
-      integer, allocatable :: idx(:,:)
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
       real(c_float), allocatable :: xrep(:,:)
 
@@ -2280,17 +2375,19 @@ contains
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
       resample = resample .or. (.not.usegrid .and. .not.allocated(r%iso%ff))
       rebuild = resample
-      rebuild = rebuild .or. (r%iso%niso_built /= r%iso%niso)
-      rebuild = rebuild .or. any(r%iso%isoval_built(1:r%iso%niso) /= r%iso%isoval(1:r%iso%niso))
+      do i = 1, r%iso%niso
+         rebuild = rebuild .or. slot_stale(r%iso%slot(i))
+      end do
 
-      ! re-triangulate each active slot
+      ! re-triangulate the isosurfaces that are stale (all of them if the
+      ! data were resampled); the others keep their meshes, so dragging
+      ! one level does not re-triangulate the rest
       if (rebuild) then
          if (usegrid) then
             ! native grid: triangulate the grid values at their own
             ! resolution over the grid's own domain (partial grids span
             ! only part of the cell and never wrap)
             associate(g => sys(r%id)%f(r%iso%ifield)%grid)
-              nn = g%n
               call g%get_domain(xmat,x0c,cmat)
               per0 = .not.c%ismolecule .and. .not.g%partial
             end associate
@@ -2298,11 +2395,7 @@ contains
             r%iso%outdomain = .false. ! native data needs no evaluation
             if (resample) &
                call stamp_histogram(sys(r%id)%f(r%iso%ifield)%grid%f)
-            do i = 1, r%iso%niso
-               call marching_cubes(nn,sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,&
-                  r%iso%isoval(i),per0,nv,xv,nrm,nf,idx)
-               call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,x0c)
-            end do
+            call triangulate(sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,x0c,per0,resample)
          else
             ! sample on the applied grid; the sampled box, its
             ! periodicities (mesh and field evaluation), and the
@@ -2335,11 +2428,7 @@ contains
                r%iso%outdomain = linvalid
                call stamp_histogram(r%iso%ff)
             end if
-            do i = 1, r%iso%niso
-               call marching_cubes(nn,r%iso%ff,xmat,cmat,r%iso%isoval(i),&
-                  per0,nv,xv,nrm,nf,idx)
-               call save_mesh(r%iso%mesh(i),nv,xv,nrm,nf,idx,x0c)
-            end do
+            call triangulate(r%iso%ff,xmat,cmat,x0c,per0,resample)
          end if
          r%iso%ifield_built = r%iso%ifield
          r%iso%fieldgen_built = sys(r%id)%fieldgen
@@ -2347,8 +2436,6 @@ contains
          r%iso%iregion_built = r%iso%iregion_ap
          r%iso%rgn_x_built = r%iso%rgn_x_ap
          r%iso%per0_built = per0
-         r%iso%niso_built = r%iso%niso
-         r%iso%isoval_built = r%iso%isoval
          r%iso%time_built = glfwGetTime()
       end if
 
@@ -2374,14 +2461,52 @@ contains
 
       ! append the cached meshes to the draw list with their copy offsets
       do i = 1, r%iso%niso
-         if (r%iso%mesh(i)%nf == 0) cycle
-         r%iso%mesh(i)%rgb = r%iso%rgb(:,i)
-         r%iso%mesh(i)%alpha = r%iso%alpha(i)
-         r%iso%mesh(i)%xrep = xrep
-         call dl_append(obj%msh,obj%nmsh,r%iso%mesh(i))
+         if (r%iso%slot(i)%mesh%nf == 0) cycle
+         r%iso%slot(i)%mesh%rgb = r%iso%slot(i)%rgb
+         r%iso%slot(i)%mesh%alpha = r%iso%slot(i)%alpha
+         r%iso%slot(i)%mesh%xrep = xrep
+         call dl_append(obj%msh,obj%nmsh,r%iso%slot(i)%mesh)
       end do
 
     end subroutine add_isosurface_meshes
+
+    !> Whether isosurface s needs to be triangulated again: it never has
+    !> been, or its level changed since it was. The single staleness test
+    !> -- the gate below and triangulate's per-isosurface skip both use it.
+    function slot_stale(s) result(stale)
+      type(iso_slot), intent(in) :: s
+      logical :: stale
+
+      stale = .not.s%built .or. (s%isoval_built /= s%isoval)
+
+    end function slot_stale
+
+    !> Triangulate the isosurfaces of this object over the data ff
+    !> (domain vectors xmat and their inverse cmat, Cartesian origin x0c,
+    !> per0 = periodic data). Only the isosurfaces whose level changed
+    !> are rebuilt, unless force (the data itself changed, so every mesh
+    !> is stale).
+    subroutine triangulate(ff,xmat,cmat,x0c,per0,force)
+      use isosurfacemod, only: marching_cubes
+      real*8, intent(in), contiguous :: ff(:,:,:)
+      real*8, intent(in) :: xmat(3,3), cmat(3,3), x0c(3)
+      logical, intent(in) :: per0, force
+
+      integer :: i, nv, nf
+      real*8, allocatable :: xv(:,:), nrm(:,:)
+      integer, allocatable :: idx(:,:)
+
+      do i = 1, r%iso%niso
+         associate (s => r%iso%slot(i))
+           if (.not.force .and. .not.slot_stale(s)) cycle
+           call marching_cubes(int(shape(ff)),ff,xmat,cmat,s%isoval,per0,nv,xv,nrm,nf,idx)
+           call save_mesh(s%mesh,nv,xv,nrm,nf,idx,x0c)
+           s%isoval_built = s%isoval
+           s%built = .true.
+         end associate
+      end do
+
+    end subroutine triangulate
 
     !> Stamp the range and the value histogram of the data ff backing
     !> the mesh (the native grid or the sampled values), for the

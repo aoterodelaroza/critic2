@@ -2371,27 +2371,30 @@ contains
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
-       duration_string
+       iw_close_button, iw_table_column, duration_string
+    use gui_main, only: fontsize
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
-    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num)
-    integer(c_int) :: ncus(3)
+    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline
+    integer(c_int) :: ncus(3), tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
     real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
-    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, isodrag
+    real*8 :: xnew, dx, dmin
+    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
-    real(c_double) :: xdrag, yref
+    real(c_double) :: xdrag, xmouse, ymouse
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: szero, szplot
+    character(len=:), allocatable :: str3
+    type(ImVec2) :: szero, szplot, sztab
     type(ImVec4) :: colline, colhist
 
     ! initialize (the caller has already checked the anchor view and its
@@ -2705,15 +2708,13 @@ contains
 
     call iw_text("Isosurface",highlight=.true.)
 
-    ! histogram of the values backing the mesh, with the isovalue as a
-    ! draggable line: the number of points per bin against the value.
+    ! histogram of the values backing the mesh, with one draggable line
+    ! per isosurface: the number of points per bin against the value.
     ! Both axes default to logarithmic (the counts span orders of
     ! magnitude, and so do the values of a density) and the user can
     ! switch either; the data are binned both ways at build time, so the
     ! x switch shows bins that match the axis instead of bunching them.
-    ! Dragging the line stages the isovalue and commits it on release,
-    ! like the drag below. Only available once there is data.
-    isodrag = .false.
+    ! Only available once there is data.
     if (w%rep%iso%nhist > 0) then
        str1 = "##isohistogram" // c_null_char
        szplot%x = -1._c_float
@@ -2769,19 +2770,58 @@ contains
           call ipPlotLine(c_loc(str1),c_loc(hx),c_loc(hy),&
              int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
 
-          ! the draggable isovalue line, in the colour of the isosurface
-          ! it controls (staged while held, committed on release)
-          xdrag = real(w%rep%iso%isoval(1),c_double)
-          colline = ImVec4(w%rep%iso%rgb(1,1),w%rep%iso%rgb(2,1),w%rep%iso%rgb(3,1),1._c_float)
-          if (logical(ipDragLineX(0_c_int,xdrag,colline,hist_lwdrag,0_c_int))) then
-             w%rep%iso%isoval(1) = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
-             w%editrep_isodrag = .true.
-             isodrag = .true.
+          ! one draggable line per isosurface, in its own colour. The
+          ! isovalue follows the line while it is held (the isosurface is
+          ! re-triangulated as it slides, and only that one is).
+          !
+          ! Exactly one line takes mouse input: the one being dragged, or
+          ! the one nearest the cursor when no drag is under way. Each
+          ! line grabs over a few pixels around itself and the calls are
+          ! independent, so two levels that land close together on the
+          ! axis would otherwise both grab, the last one drawn winning --
+          ! the user aims at one isosurface and moves another. Nearness
+          ! is measured on the axis as drawn (log/arcsinh), which is what
+          ! decides whether the lines overlap on screen.
+          call ipGetPlotMousePos(xmouse,ymouse,ImAxis_X1,ImAxis_Y1)
+          iline = w%editrep_isoline
+          if (iline < 1 .or. iline > w%rep%iso%niso) then
+             iline = 1
+             dmin = huge(dmin)
+             do i = 1, w%rep%iso%niso
+                dx = abs(axis_coord(w%rep%iso%slot(i)%isoval) - axis_coord(real(xmouse,8)))
+                if (dx < dmin) then
+                   dmin = dx
+                   iline = i
+                end if
+             end do
           end if
+          w%editrep_isoline = 0
+          do i = 1, w%rep%iso%niso
+             associate (s => w%rep%iso%slot(i))
+               xdrag = real(s%isoval,c_double)
+               colline = ImVec4(s%rgb(1),s%rgb(2),s%rgb(3),1._c_float)
+               dtflags = ImPlotDragToolFlags_None
+               if (i /= iline) dtflags = ImPlotDragToolFlags_NoInputs
+               if (logical(ipDragLineX(int(i-1,c_int),xdrag,colline,hist_lwdrag,dtflags))) then
+                  ! keep the grab on this line for as long as it is held,
+                  ! wherever the cursor goes (the level is capped by the
+                  ! data range, so the cursor can run past the line)
+                  w%editrep_isoline = i
+                  xnew = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
+                  ! a held but motionless line changes nothing: rebuilding
+                  ! the scene for it would be pure waste
+                  if (xnew /= s%isoval) then
+                     s%isoval = xnew
+                     changed = .true.
+                  end if
+               end if
+             end associate
+          end do
           call ipEndPlot()
        end if
        call iw_tooltip("Distribution of the values of the field over the data that&
-          & backs the isosurface. Drag the vertical line to change the isovalue.",ttshown)
+          & backs the isosurfaces. Drag a vertical line to change the isovalue of&
+          & the isosurface drawn in that color.",ttshown)
 
        ! axis scales: only those the data allow are offered on the value
        ! axis (a logarithmic axis needs positive values, arcsinh is for
@@ -2813,47 +2853,105 @@ contains
        call iw_combo_simple("##isohistyscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
        if (ch) w%rep%iso%hist_yscale = iso_hscale_y(max(min(isc,size(iso_hscale_y)),1))
        call iw_tooltip("Scale of the count axis",ttshown)
-
-       ! what the current isovalue encloses (from the same histogram)
-       ihb = hist_bin(w%rep%iso%isoval(1))
-       if (ihb >= 1) &
-          call iw_text("Encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
-          "% of the field, " // string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) //&
-          "% of the volume")
     end if
 
-    ! a drag that ended commits here, whether or not the plot was drawn
-    ! this frame (it is skipped when clipped or scrolled out of view)
-    if (w%editrep_isodrag .and. .not.isodrag) then
-       w%editrep_isodrag = .false.
-       changed = .true.
-    end if
+    ! the isosurfaces of this object: one row each (remove, color, level)
+    ! plus the row that adds a new one. The row order is the drawing
+    ! order, so a later (usually inner) isosurface draws over an earlier
+    ! one
+    idel = 0
+    tflags = ImGuiTableFlags_None
+    tflags = ior(tflags,ImGuiTableFlags_RowBg)
+    tflags = ior(tflags,ImGuiTableFlags_Borders)
+    tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+    str1 = "##isotable" // c_null_char
+    ! the table grows with the list instead of scrolling inside a fixed
+    ! frame: the Add row is the last one, and it has to stay reachable
+    ! however many isosurfaces there are (this is the last section of the
+    ! window, which scrolls as a whole)
+    sztab%x = 0
+    sztab%y = 0
+    ! the range prefix of the level tooltips does not depend on the row
+    haverange = (w%rep%iso%frange(1) <= w%rep%iso%frange(2))
+    if (haverange) &
+       str3 = "Value of the field on this isosurface, in atomic units (data range: " //&
+       string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
+       string(w%rep%iso%frange(2),'e',decimal=4) // ")"
+    if (igBeginTable(c_loc(str1),3,tflags,sztab,0._c_float)) then
+       ! the first column keeps a fixed width -- wide enough for both of
+       ! the things that go in it, the per-row delete button and the Add
+       ! button of the last row -- so the rows do not shift as
+       ! isosurfaces come and go (the delete buttons are gone entirely
+       ! when there is a single isosurface)
+       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed,&
+          width=max(fontsize%y + 2._c_float,iw_calcwidth(3,1)))
+       call iw_table_column("Col",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Isovalue",id=2,flags=ImGuiTableColumnFlags_WidthStretch)
+       call igTableHeadersRow()
 
-    ! isovalue drag: notlive so the re-triangulation runs on commit, not
-    ! on every frame of the drag; the value is capped by the range of the
-    ! data backing the mesh (unclamped until the first build)
-    speed = max(0.01d0 * abs(w%rep%iso%isoval(1)),1d-4)
-    if (w%rep%iso%frange(1) <= w%rep%iso%frange(2)) then
-       changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
-          decimal=6,notlive=.true.,min=w%rep%iso%frange(1),max=w%rep%iso%frange(2),&
-          flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Value of the field on the isosurface, in atomic units&
-          & (grid range: " // string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
-          string(w%rep%iso%frange(2),'e',decimal=4) // ")",ttshown)
-    else
-       changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
-          decimal=6,notlive=.true.)
-       call iw_tooltip("Value of the field on the isosurface (atomic units)",ttshown)
-    end if
+       do i = 1, w%rep%iso%niso
+          associate (s => w%rep%iso%slot(i))
+            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+            ! remove this isosurface (never the last one: an isosurface
+            ! object with no isosurfaces has nothing to show)
+            if (igTableSetColumnIndex(0)) then
+               if (w%rep%iso%niso > 1) then
+                  call igAlignTextToFramePadding()
+                  if (iw_close_button("##isodel" // string(i))) idel = i
+                  call iw_tooltip("Remove this isosurface",ttshown)
+               end if
+            end if
+            ! color and opacity
+            if (igTableSetColumnIndex(1)) then
+               rgba(1:3) = s%rgb
+               rgba(4) = s%alpha
+               if (iw_coloredit("##isocol" // string(i),rgba=rgba)) then
+                  s%rgb = rgba(1:3)
+                  s%alpha = rgba(4)
+                  changed = .true.
+               end if
+               call iw_tooltip("Color and opacity of this isosurface",ttshown)
+            end if
+            ! the level: this widget is notlive, so its re-triangulation
+            ! runs on commit rather than on every frame of the drag (the
+            ! histogram line above is live instead); capped by the range
+            ! of the data backing the mesh (unclamped until the first build)
+            if (igTableSetColumnIndex(2)) then
+               speed = max(0.01d0 * abs(s%isoval),1d-4)
+               if (haverange) then
+                  changed = changed .or. iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
+                     speed=speed,decimal=6,notlive=.true.,min=w%rep%iso%frange(1),&
+                     max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp)
+                  str2 = str3
+                  ihb = hist_bin(s%isoval)
+                  if (ihb >= 1) &
+                     str2 = str2 // ". Encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
+                     "% of the field and " // string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) //&
+                     "% of the volume"
+                  call iw_tooltip(str2,ttshown)
+               else
+                  changed = changed .or. iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
+                     speed=speed,decimal=6,notlive=.true.)
+                  call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
+               end if
+            end if
+          end associate
+       end do
 
-    ! color and opacity
-    rgba(1:3) = w%rep%iso%rgb(:,1)
-    rgba(4) = w%rep%iso%alpha(1)
-    ch = iw_coloredit("Color",rgba=rgba,sameline=.true.)
-    call iw_tooltip("Color and opacity of the isosurface",ttshown)
-    if (ch) then
-       w%rep%iso%rgb(:,1) = rgba(1:3)
-       w%rep%iso%alpha(1) = rgba(4)
+       ! the last row adds an isosurface, with a level and a color picked
+       ! from the ones already there
+       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+       if (igTableSetColumnIndex(0)) then
+          if (iw_button("Add##isoadd")) then
+             call w%rep%iso%add_iso()
+             changed = .true.
+          end if
+          call iw_tooltip("Add an isosurface to this object",ttshown)
+       end if
+       call igEndTable()
+    end if
+    if (idel > 0) then
+       call w%rep%iso%del_iso(idel)
        changed = .true.
     end if
 
@@ -2873,6 +2971,33 @@ contains
 
     end function implot_scale
 
+    !> The value x in the units of one of the hscale_* scales (the same
+    !> transform the histogram bins in and ImPlot draws the axis with).
+    function scale_coord(x,is) result(tv)
+      real*8, intent(in) :: x
+      integer, intent(in) :: is
+      real*8 :: tv
+
+      if (is == hscale_log) then
+         tv = log10(max(x,tiny(x)))
+      elseif (is == hscale_asinh) then
+         tv = 2d0 * asinh(0.5d0*x)
+      else
+         tv = x
+      end if
+
+    end function scale_coord
+
+    !> The value x in the units of the value axis as it is drawn, for
+    !> measuring how close two levels are on screen.
+    function axis_coord(x) result(tv)
+      real*8, intent(in) :: x
+      real*8 :: tv
+
+      tv = scale_coord(x,w%rep%iso%hist_xscale)
+
+    end function axis_coord
+
     !> Index of the histogram bin that contains the value x, in the
     !> binning the cumulative arrays use (0 if x is out of range).
     function hist_bin(x) result(ib)
@@ -2883,16 +3008,10 @@ contains
 
       ib = 0
       if (w%rep%iso%nhist <= 0) return
+      if (w%rep%iso%hist_qscale == hscale_log .and. x <= 0d0) return
       lo = w%rep%iso%hist_range(1,w%rep%iso%hist_qscale)
       hi = w%rep%iso%hist_range(2,w%rep%iso%hist_qscale)
-      if (w%rep%iso%hist_qscale == hscale_log) then
-         if (x <= 0d0) return
-         tv = log10(x)
-      elseif (w%rep%iso%hist_qscale == hscale_asinh) then
-         tv = 2d0 * asinh(0.5d0*x)
-      else
-         tv = x
-      end if
+      tv = scale_coord(x,w%rep%iso%hist_qscale)
       t = (tv - lo) / max(hi - lo,1d-30)
       ib = min(max(1 + int(t * iso_nhist),1),iso_nhist)
 

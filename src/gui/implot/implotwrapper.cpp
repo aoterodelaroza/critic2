@@ -40,6 +40,9 @@ const int const_ImPlotCond_Once = ImPlotCond_Once;
 const int const_ImPlotScale_Linear = ImPlotScale_Linear;
 const int const_ImPlotScale_Log10 = ImPlotScale_Log10;
 const int const_ImPlotScale_SymLog = ImPlotScale_SymLog;
+// enum ImPlotDragToolFlags_
+const int const_ImPlotDragToolFlags_None = ImPlotDragToolFlags_None;
+const int const_ImPlotDragToolFlags_NoInputs = ImPlotDragToolFlags_NoInputs;
 // enum ImPlotFlags_
 const int const_ImPlotFlags_None = ImPlotFlags_None;
 const int const_ImPlotFlags_NoTitle = ImPlotFlags_NoTitle;

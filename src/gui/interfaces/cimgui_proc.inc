@@ -2700,6 +2700,14 @@ function ipDragLineX(id,x,col,thickness,flags) bind(c,name="ipDragLineX")
   integer(c_int), value :: flags
   logical(c_bool) :: ipDragLineX
 end function ipDragLineX
+! void ipGetPlotMousePos(double *x, double *y, ImAxis x_axis, ImAxis y_axis);
+subroutine ipGetPlotMousePos(x,y,x_axis,y_axis) bind(c,name="ipGetPlotMousePos")
+  import c_int, c_double
+  real(c_double) :: x
+  real(c_double) :: y
+  integer(c_int), value :: x_axis
+  integer(c_int), value :: y_axis
+end subroutine ipGetPlotMousePos
 ! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
   import c_ptr, c_int
