@@ -464,7 +464,7 @@ contains
     ! isosurfaces
     if (itype == 0 .or. itype == 12) then
        r%iso%ifield = max(sys(isys)%iref,0)
-       r%iso%ptsang = iso_ptsang_def
+       r%iso%nptscustom = 0
        r%iso%ilevel = iso_defaultlevel
        r%iso%nptsxyz = 0
        r%iso%niso = 1
@@ -519,58 +519,61 @@ contains
 
   !> Sampling-grid dimensions for an isosurface of system isys at
   !> coarseness level ilevel: 0 = native grid (returns all-zero),
-  !> 1..iso_nlevel = named levels, iso_level_custom = ptsang points per
-  !> angstrom.
-  module function iso_grid_size(isys,ilevel,ptsang,capped,ifield,box) result(n)
+  !> 1..iso_nlevel = named levels (points per angstrom over the sampled
+  !> box), iso_level_custom = the ncustom dimensions given by the user.
+  !> Never returns all-zero for a non-native level (that value is the
+  !> native-grid sentinel).
+  module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box) result(n)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
-    real*8, intent(in) :: ptsang
+    integer, intent(in) :: ncustom(3)
     logical, intent(out), optional :: capped
     integer, intent(in), optional :: ifield
     real*8, intent(in), optional :: box(3,0:3)
     integer :: n(3)
 
-    integer :: i, it
+    integer :: i, it, nmin
     real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3), flo(3), fhi(3)
 
     n = 0
     if (present(capped)) capped = .false.
     if (ilevel <= 0) return
     if (.not.ok_system(isys,sys_init)) return
-    if (ilevel <= iso_nlevel) then
-       pa = iso_level_ptsang(ilevel)
+
+    if (ilevel > iso_nlevel) then
+       ! custom: the dimensions come straight from the user
+       nmin = iso_npts_custom_min
+       n = min(max(ncustom,nmin),iso_npts_custom_max)
     else
-       pa = max(min(ptsang,iso_ptsang_max),iso_ptsang_min)
+       ! named level: points per angstrom along the axes of the sampled
+       ! box, which is the given region box, else the valid window of
+       ! the grid domain when the target field is a grid (a partial
+       ! grid's box does not span the cell, and only part of it can feed
+       ! the interpolation; matches iso_sample_domain), else the unit cell
+       nmin = iso_npts_axmin
+       pa = iso_level_ptsang(ilevel)
+       xmat = sys(isys)%c%m_x2c
+       flo = 0d0
+       fhi = 1d0
+       if (present(box)) then
+          xmat = box(:,1:3)
+       elseif (present(ifield)) then
+          if (iso_isgridfield(isys,ifield)) &
+             call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
+       end if
+       do i = 1, 3
+          alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
+          n(i) = max(nint(alen(i) * pa),nmin)
+       end do
     end if
 
-    ! axis lengths of the sampled box: the given region box, else the
-    ! valid window of the grid domain when the target field is a grid
-    ! (a partial grid's box does not span the cell, and only part of it
-    ! can feed the interpolation; matches iso_sample_domain), else the
-    ! unit cell
-    xmat = sys(isys)%c%m_x2c
-    flo = 0d0
-    fhi = 1d0
-    if (present(box)) then
-       xmat = box(:,1:3)
-    elseif (present(ifield)) then
-       if (iso_isgridfield(isys,ifield)) &
-          call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
-    end if
-    do i = 1, 3
-       alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
-    end do
-
-    do i = 1, 3
-       n(i) = max(nint(alen(i) * pa),iso_npts_axmin)
-    end do
     ! total-points cap: re-scale until honest, since the per-axis floor
     ! can push the total back up in very anisotropic cells
     do it = 1, 10
        if (product(real(n,8)) <= real(iso_maxpts_total,8)) exit
        fac = (real(iso_maxpts_total,8) / product(real(n,8)))**(1d0/3d0)
-       n = max(nint(n * fac),iso_npts_axmin)
+       n = max(nint(n * fac),nmin)
        if (present(capped)) capped = .true.
     end do
 

@@ -122,9 +122,8 @@ module representations
   integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom points/ang
   integer, parameter, public :: iso_level_def = 2 ! default named level (medium)
   integer, public :: iso_defaultlevel = iso_level_def ! preference: level for newly created isosurfaces
-  real*8, parameter, public :: iso_ptsang_def = 5d0 ! default custom points/ang
-  real*8, parameter, public :: iso_ptsang_min = 0.5d0 ! minimum custom points/ang
-  real*8, parameter, public :: iso_ptsang_max = 40d0 ! maximum custom points/ang
+  integer, parameter, public :: iso_npts_custom_min = 2 ! minimum points per axis (custom level)
+  integer, parameter, public :: iso_npts_custom_max = 512 ! maximum points per axis (custom level)
   integer, parameter, public :: iso_maxpts_total = 4000000 ! total-points cap (~32 MB of cached samples); coarsen uniformly above it
   integer, parameter, public :: iso_npts_axmin = 16 ! per-axis minimum number of points
   ! combo option strings for the named levels (keep the densities in sync with iso_level_ptsang)
@@ -528,7 +527,7 @@ module representations
      ! user options
      integer :: ifield = 0 ! field for the isosurface (index in sys(id)%f)
      integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
-     real*8 :: ptsang = iso_ptsang_def ! staged custom sampling density (points/ang; ilevel=custom)
+     integer :: nptscustom(3) = 0 ! staged custom grid dimensions (ilevel = custom; seeded when it is selected)
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
      real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner/center (column 0) and far
                                   ! corner, edge endpoints, or half-lengths (columns 1-3); fractional or
@@ -626,10 +625,10 @@ module representations
        integer, intent(in) :: ifield
        real*8 :: isoval
      end function iso_default_isovalue
-     module function iso_grid_size(isys,ilevel,ptsang,capped,ifield,box) result(n)
+     module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box) result(n)
        integer, intent(in) :: isys
        integer, intent(in) :: ilevel
-       real*8, intent(in) :: ptsang
+       integer, intent(in) :: ncustom(3)
        logical, intent(out), optional :: capped
        integer, intent(in), optional :: ifield
        real*8, intent(in), optional :: box(3,0:3)

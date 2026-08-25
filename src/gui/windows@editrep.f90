@@ -22,7 +22,7 @@ submodule (windows) editrep
 
   !xx! private procedures
   ! function atom_selection_widget() result(changed)
-  ! function periodicity_widgets(w,ttshown,tooltip_automatic) result(changed)
+  ! function periodicity_widgets(w,ttshown,tooltip_automatic,highlight) result(changed)
 
 contains
 
@@ -2360,20 +2360,21 @@ contains
   module function draw_editrep_isosurface(w,ttshown) result(changed)
     use systems, only: sys
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
-       iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom, iso_defaultlevel,&
+       iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_name, iso_region_modes_cry,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
-       iw_calcwidth, iw_combo_simple, iw_button, duration_string
+       iw_calcwidth, iw_combo_simple, iw_button, iw_intstepper, duration_string
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat
+    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad
     integer :: rmodes(size(iso_region_modes_mol))
+    integer(c_int) :: ncus(3)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3)
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply
     logical(c_bool) :: is_selected
@@ -2447,39 +2448,13 @@ contains
        return
     end if
 
-    ! grid section: coarseness of the sampling grid. The level and the
-    ! custom density are staged; the Calculate grid button (after the
-    ! region section) commits them
-    call iw_text("Grid",highlight=.true.)
+    ! field policy repair, before the sections below read it: the field
+    ! may have stopped being a grid (e.g. a different field reloaded into
+    ! the same slot), which invalidates the native level
     isgrid = iso_isgridfield(isys,w%rep%iso%ifield)
     if (.not.isgrid .and. w%rep%iso%ilevel == 0) then
-       ! the field stopped being a grid (e.g. reloaded into the same slot):
-       ! re-run the field policy
        call w%rep%iso%set_field(isys,w%rep%iso%ifield)
        changed = .true.
-    end if
-
-    ! coarseness level combo ("Native grid" only for grid fields over the
-    ! whole cell)
-    navail = isgrid .and. (w%rep%iso%iregion == iso_region_cell)
-    if (.not.navail .and. w%rep%iso%ilevel == 0) &
-       w%rep%iso%ilevel = iso_defaultlevel
-    if (navail) then
-       str1 = "Native grid" // c_null_char // iso_level_optstr_custom
-    else
-       str1 = iso_level_optstr_custom
-    end if
-    call iw_combo_simple("Level##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail)
-    call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
-       & of the field, a named level, or a custom density",ttshown)
-
-    ! custom sampling density (staged: the result is discarded and
-    ! committed by Calculate grid)
-    if (w%rep%iso%ilevel == iso_level_custom) then
-       ldum = iw_dragfloat_real8("Points/Å##isoptsang",x1=w%rep%iso%ptsang,speed=0.1d0,&
-          min=iso_ptsang_min,max=iso_ptsang_max,decimal=1,sameline=.true.,&
-          flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Number of grid points per angstrom along each cell direction",ttshown)
     end if
 
     ! region section: the box over which the isosurface is calculated;
@@ -2538,7 +2513,8 @@ contains
     ! already true, and .or. is allowed to short-circuit.)
     if (w%rep%iso%per0_built) then
        ch = periodicity_widgets(w,ttshown,&
-          "Number of periodic cells controlled by the +/- options in the 'Scene' button of the view window")
+          "Number of periodic cells controlled by the +/- options in the 'Scene' button of the view window",&
+          highlight=.false.)
        changed = changed .or. ch
     end if
 
@@ -2577,17 +2553,61 @@ contains
        end do
     end if
 
-    ! staged grid dimensions and the Calculate grid button (commits level and region)
+    ! the staged region box; a degenerate one blocks the grid below
     call iso_region_to_box(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,box,okbox)
+    if (.not.okbox) &
+       call iw_text("The region is degenerate (zero volume)",danger=.true.,wrap=.true.)
+
+    ! grid section: coarseness of the grid that supports the isosurface
+    ! over the region above, the resulting dimensions, and the buttons
+    ! that commit the staged grid and region
+    call iw_text("Grid",highlight=.true.)
+
+    ! coarseness level combo ("Native grid" only for grid fields over the
+    ! whole cell)
+    navail = isgrid .and. (w%rep%iso%iregion == iso_region_cell)
+    if (.not.navail .and. w%rep%iso%ilevel == 0) &
+       w%rep%iso%ilevel = iso_defaultlevel
+    if (navail) then
+       str1 = "Native grid" // c_null_char // iso_level_optstr_custom
+    else
+       str1 = iso_level_optstr_custom
+    end if
+    ilevprev = w%rep%iso%ilevel
+    call iw_combo_simple("Level##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
+       changed=ch)
+    call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
+       & of the field, a named density of points per angstrom, or a custom number of&
+       & points",ttshown)
+
+    ! custom level: the dimensions are given by the user, seeded with
+    ! those of the level that was showing when Custom was selected
+    ! (staged: committed by Calculate grid)
+    if (w%rep%iso%ilevel == iso_level_custom) then
+       if (ch .and. ilevprev /= iso_level_custom) then
+          if (ilevprev == 0) then
+             w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%ifield)%grid%n
+          elseif (okbox) then
+             w%rep%iso%nptscustom = level_grid_size(ilevprev)
+          end if
+       end if
+       ncus = w%rep%iso%nptscustom
+       ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
+       ldum = iw_intstepper("n1##isonpts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
+          maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.)
+       ldum = iw_intstepper("n2##isonpts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
+          maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+       ldum = iw_intstepper("n3##isonpts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
+          maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+       call iw_tooltip("Number of grid points along each axis of the sampled region",ttshown)
+       w%rep%iso%nptscustom = ncus
+    end if
+
+    ! staged grid dimensions
     lapply = .false.
     nstage = 0
     if (okbox) then
-       if (w%rep%iso%iregion == iso_region_cell) then
-          nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,&
-             ifield=w%rep%iso%ifield)
-       else
-          nstage = iso_grid_size(isys,w%rep%iso%ilevel,w%rep%iso%ptsang,capped,box=box)
-       end if
+       nstage = level_grid_size(w%rep%iso%ilevel)
        nshow = nstage
        str2 = ""
        if (all(nstage == 0)) then
@@ -2596,12 +2616,14 @@ contains
        elseif (capped) then
           str2 = " (capped)"
        end if
-       call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
-          string(nshow(3)) // str2)
-       call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
+       ! the custom level shows its dimensions in the steppers above, so
+       ! the line is only needed there when the cap trimmed them
+       if (w%rep%iso%ilevel /= iso_level_custom .or. capped) then
+          call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
+             string(nshow(3)) // str2)
+          call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
+       end if
        lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
-    else
-       call iw_text("The region is degenerate (zero volume)",danger=.true.,wrap=.true.)
     end if
     if (iw_button("Calculate grid",danger=.true.,disabled=.not.lapply)) then
        call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
@@ -2692,6 +2714,21 @@ contains
     end if
 
   contains
+    !> Dimensions of the grid that coarseness level ilev gives over the
+    !> staged region (host-associated box, valid only when okbox); also
+    !> reports through capped whether the total-points cap trimmed them.
+    function level_grid_size(ilev) result(nn)
+      integer, intent(in) :: ilev
+      integer :: nn(3)
+
+      if (w%rep%iso%iregion == iso_region_cell) then
+         nn = iso_grid_size(isys,ilev,w%rep%iso%nptscustom,capped,ifield=w%rep%iso%ifield)
+      else
+         nn = iso_grid_size(isys,ilev,w%rep%iso%nptscustom,capped,box=box)
+      end if
+
+    end function level_grid_size
+
     !> Draw the Pick button of region coordinate row irow: arms a pick
     !> in the anchor view that fills the row with the clicked position
     !> (an atom, or the unprojected point for empty space); the result
@@ -2761,20 +2798,26 @@ contains
   !> and, when the type is manual, the a/b/c cell-number steppers plus a
   !> Reset button. tooltip_automatic = tooltip for the "Automatic" button,
   !> which points at a different control in each editor. ttshown = the
-  !> tooltip flag. Returns true if the periodicity changed.
-  function periodicity_widgets(w,ttshown,tooltip_automatic) result(changed)
+  !> tooltip flag. highlight = draw the "Periodicity" label as a section
+  !> header (default; false where it is an item inside another section).
+  !> Returns true if the periodicity changed.
+  function periodicity_widgets(w,ttshown,tooltip_automatic,highlight) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_intstepper
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     character(len=*,kind=c_char), intent(in) :: tooltip_automatic
+    logical, intent(in), optional :: highlight
     logical :: changed
 
-    logical :: ldum
+    logical :: ldum, highlight_
     integer :: ipad
     integer(c_int) :: nc(3)
 
+    highlight_ = .true.
+    if (present(highlight)) highlight_ = highlight
+
     changed = .false.
-    call iw_text("Periodicity",highlight=.true.,alignframe=.true.)
+    call iw_text("Periodicity",highlight=highlight_,alignframe=.true.)
 
     ! radio buttons for the periodicity type
     changed = changed .or. iw_radiobutton("None",int=w%rep%sel%pertype,intval=0_c_int,sameline=.true.)
