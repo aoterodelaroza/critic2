@@ -2358,14 +2358,13 @@ contains
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
-    use systems, only: sys, sysc
-    use interfaces_glfw, only: glfwGetTime
-    use param, only: bohrtoa
+    use systems, only: sys
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
        iso_ptsang_min, iso_ptsang_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_name, iso_region_modes_cry,&
-       iso_region_modes_mol, iso_region_to_box, iso_region_seed, iso_estimate_cost
+       iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
+       iso_region_point_from_cart, iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_combo_simple, iw_button, duration_string
     use tools_io, only: string
@@ -2373,19 +2372,15 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, ncp(3)
+    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat
     integer :: rmodes(size(iso_region_modes_mol))
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3)
-    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, rhover, okpick
+    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: szero
-
-    ! grace period of the transient region preview: brief hover gaps
-    ! (crossing widget spacing) do not churn the transient slot
-    real*8, parameter :: rgnprev_grace = 0.25d0 ! seconds
 
     ! initialize (the caller has already checked the anchor view and its
     ! scene are alive; the edited object lives in that scene, so the
@@ -2397,43 +2392,22 @@ contains
     szero%y = 0
 
     ! handle a pending region-point pick commanded to the anchor view
-    ! (armed by the Pick buttons in the Region section). The picked
-    ! point arrives in cell-frame Cartesian and is stored in the staged
-    ! coordinates in the units of the current region mode; the pick is
-    ! cancelled if the mode or the field changes while it is pending.
+    ! (armed by the Pick buttons in the Region section). The pick is
+    ! self-validating: if the staged region mode no longer matches the
+    ! one it was armed under -- any field change also resets the mode --
+    ! or the field is gone, the picked point has no row to land in and
+    ! the pick is cancelled, wherever the change came from.
     if (w%editrep_isopick >= 0) then
-       if (win(iview)%vmdata%owner /= w%id) then
-          ! the pick was taken over by someone else
-          w%editrep_isopick = -1
-       elseif (w%editrep_pick%is_stale(sysc(isys)%timelastchange_geometry)) then
-          ! the geometry changed (stale cell-atom ids): cancel the pick
+       if (w%rep%iso%iregion /= w%editrep_isopick_mode .or.&
+          .not.sys(isys)%goodfield(w%rep%iso%ifield)) then
           call win(iview)%viewmode_release_forced(w%id)
           w%editrep_isopick = -1
-       elseif (win(iview)%viewmode >= 0) then
-          ! the pick finished (flag = 0 means cancelled)
-          if (win(iview)%vmdata%flag == 1) then
-             okpick = .false.
-             if (win(iview)%vmdata%idx(1) > 0) then
-                ! an atom was clicked: use its position
-                xpick = sys(isys)%c%x2c(sys(isys)%c%atcel(win(iview)%vmdata%idx(1))%x +&
-                   win(iview)%vmdata%idx(2:4))
-                okpick = .true.
-             else
-                ! empty space: unproject the click onto the plane of the scene center
-                call view_click_frame(iview,win(iview)%vmdata%xpos,xpick,okpick)
-             end if
-             if (okpick) then
-                if (w%rep%iso%iregion == iso_region_frac) then
-                   w%rep%iso%rgn_x(:,w%editrep_isopick) = sys(isys)%c%c2x(xpick)
-                else
-                   if (sys(isys)%c%ismolecule) xpick = xpick + sys(isys)%c%molx0
-                   w%rep%iso%rgn_x(:,w%editrep_isopick) = xpick * bohrtoa
-                end if
-             end if
-          end if
-          w%editrep_isopick = -1
-          win(iview)%vmdata%idx = 0
-          win(iview)%vmdata%flag = 0
+       else
+          call view_pick_result(iview,w%id,isys,w%editrep_pick,istat,xpick)
+          if (istat == ipick_point) &
+             call iso_region_point_from_cart(isys,w%rep%iso%iregion,xpick,&
+                w%rep%iso%rgn_x(:,w%editrep_isopick))
+          if (istat /= ipick_pending) w%editrep_isopick = -1
        end if
     end if
 
@@ -2458,7 +2432,6 @@ contains
                 ! set the field with its default isovalue and grid level,
                 ! applied immediately
                 call w%rep%iso%set_field(isys,i)
-                call cancel_region_pick()
                 changed = .true.
              end if
           end if
@@ -2483,7 +2456,6 @@ contains
        ! the field stopped being a grid (e.g. reloaded into the same slot):
        ! re-run the field policy
        call w%rep%iso%set_field(isys,w%rep%iso%ifield)
-       call cancel_region_pick()
        changed = .true.
     end if
 
@@ -2514,9 +2486,9 @@ contains
     ! staged like the level, committed by the same Calculate grid button.
     ! The modes offered depend on the system kind (iso_region_modes_*:
     ! no cell fractions for molecules, whose cell is an artifact; the
-    ! molecule-centered simple box and cube are molecule-only). Hovering
-    ! any region widget shows a transient preview of the staged box in
-    ! the scene (posted at the end of the section).
+    ! molecule-centered simple box and cube are molecule-only). The
+    ! staged box is shown in the view while this editor is open (posted
+    ! at the end of the section).
     call iw_text("Region",highlight=.true.)
     if (sys(isys)%c%ismolecule) then
        nmode = size(iso_region_modes_mol)
@@ -2529,9 +2501,7 @@ contains
     if (all(rmodes(1:nmode) /= w%rep%iso%iregion)) then
        w%rep%iso%iregion = iso_region_cell
        call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
-       call cancel_region_pick()
     end if
-    rhover = .false.
     str1 = "Mode##isoregion" // c_null_char
     str2 = trim(iso_region_name(w%rep%iso%iregion)) // c_null_char
     call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
@@ -2543,16 +2513,13 @@ contains
              if (w%rep%iso%iregion /= rmodes(i)) then
                 w%rep%iso%iregion = rmodes(i)
                 call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
-                call cancel_region_pick()
              end if
           end if
           if (is_selected) &
              call igSetItemDefaultFocus()
        end do
        call igEndCombo()
-       rhover = .true. ! keep the preview visible while a mode is being chosen
     end if
-    call check_region_hover()
     call iw_tooltip("Region over which the isosurface is calculated: the whole&
        & unit cell, a cell-aligned box between two fractional points (crystals),&
        & an axis-aligned box between two Cartesian corners, an arbitrary&
@@ -2576,12 +2543,12 @@ contains
     end if
 
     ! staged region coordinates (results discarded, Calculate grid commits);
-    ! every coordinate row gets a Pick button that fills it from the view
+    ! every point row gets a Pick button that fills it from the view (the
+    ! half-length rows are lengths, not points)
     if (w%rep%iso%iregion == iso_region_simplebox .or.&
        w%rep%iso%iregion == iso_region_cube) then
        ldum = iw_dragfloat_real8("x0 (Å)##isorgn0",x3=w%rep%iso%rgn_x(:,0),&
           speed=0.05d0,decimal=3)
-       call check_region_hover()
        call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,0),ttshown)
        call region_pick_button(0)
        if (w%rep%iso%iregion == iso_region_cube) then
@@ -2593,7 +2560,6 @@ contains
           ldum = iw_dragfloat_real8("Half-lengths (Å)##isorgn1",x3=w%rep%iso%rgn_x(:,1),&
              speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
        end if
-       call check_region_hover()
        call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,1),ttshown)
     elseif (w%rep%iso%iregion /= iso_region_cell) then
        nrow = 1 ! last drag row: the far corner, or the third edge endpoint
@@ -2606,7 +2572,6 @@ contains
              str1 = "x" // string(i) // " (Å)##isorgn" // string(i)
              ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),speed=0.05d0,decimal=3)
           end if
-          call check_region_hover()
           call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
           call region_pick_button(i)
        end do
@@ -2642,7 +2607,6 @@ contains
        call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        changed = .true.
     end if
-    call check_region_hover()
     call iw_tooltip("Use the selected grid and region for the isosurface (may require&
        & an expensive recalculation of the field samples)",ttshown)
     ! cost estimate for the staged options (nstage is all-zero for the
@@ -2652,7 +2616,6 @@ contains
     if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) &
        w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
           w%rep%iso%rgn_x,nstage)
-    call check_region_hover()
     call iw_tooltip("Estimate the time needed to sample the field with the selected&
        & options (evaluates the field at random points of the sampled box and&
        & extrapolates to the full grid)",ttshown)
@@ -2672,17 +2635,17 @@ contains
        call iw_text("The field could not be evaluated in part of the region (zero there)",&
           danger=.true.,wrap=.true.)
 
-    ! transient preview of the sampled box while any region widget is
-    ! hovered, latched over brief hover gaps so the transient slot is
-    ! not churned. In whole-cell mode with a grid field the sampled
-    ! domain is the valid window of the grid's own box (matching the
-    ! grid dimensions above), not the artificial cell; otherwise it is
-    ! the staged region box. show_transient_box takes the user frame
-    ! (with molx0 for molecules); box and get_domain are cell-frame.
-    rhover = rhover .or. (w%editrep_isopick >= 0) ! keep the preview while picking
-    if (rhover) w%editrep_rgnhover = glfwGetTime()
-    if (glfwGetTime() - w%editrep_rgnhover < rgnprev_grace .and. okbox .and.&
-       win(iview)%sc%isinit /= 0) then
+    ! show the staged region in the view for as long as this editor is
+    ! open (a transient box, rearmed every frame) -- except for a
+    ! crystal in whole-cell mode, where the region is the cell itself
+    ! and the box would only duplicate the unit-cell representation. In
+    ! whole-cell mode with a molecular grid field the box is the valid
+    ! window of the grid's own domain (matching the grid dimensions
+    ! above), not the artificial cell; otherwise it is the staged
+    ! region box. show_transient_box takes the user frame (with molx0
+    ! for molecules); box and get_domain are cell-frame.
+    if (okbox .and. win(iview)%sc%isinit /= 0 .and.&
+       .not.(w%rep%iso%iregion == iso_region_cell .and. .not.sys(isys)%c%ismolecule)) then
        if (w%rep%iso%iregion == iso_region_cell .and. isgrid) then
           call sys(isys)%f(w%rep%iso%ifield)%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
           prev0 = prev0 + matmul(prevv,flo)
@@ -2692,15 +2655,6 @@ contains
        else
           prev0 = box(:,0)
           prevv = box(:,1:3)
-       end if
-       ! a periodic whole-cell mesh replicates over the drawn cells:
-       ! extend the preview to cover the copies (same gate and cell
-       ! count as the replication itself)
-       if (w%rep%iso%iregion == iso_region_cell .and. w%rep%iso%per0_built) then
-          ncp = w%rep%sel%ncells(win(iview)%sc%nc)
-          do i = 1, 3
-             prevv(:,i) = prevv(:,i) + real(ncp(i)-1,8) * sys(isys)%c%m_x2c(:,i)
-          end do
        end if
        if (sys(isys)%c%ismolecule) prev0 = prev0 + sys(isys)%c%molx0
        call win(iview)%sc%show_transient_box(w%id,1,prev0,prevv,region_edgerad,&
@@ -2741,45 +2695,24 @@ contains
     !> Draw the Pick button of region coordinate row irow: arms a pick
     !> in the anchor view that fills the row with the clicked position
     !> (an atom, or the unprojected point for empty space); the result
-    !> is received at the top of draw_editrep_isosurface. One pick can
-    !> be pending at a time.
+    !> is received at the top of draw_editrep_isosurface, which also
+    !> cancels the pick if the region mode stops matching the one
+    !> stamped here. One pick can be pending at a time.
     subroutine region_pick_button(irow)
       integer, intent(in) :: irow
 
       if (iw_button("Pick##isorgnpick" // string(irow),sameline=.true.,&
          disabled=(w%editrep_isopick >= 0))) then
          w%editrep_isopick = irow
+         w%editrep_isopick_mode = w%rep%iso%iregion
          call w%editrep_pick%arm()
          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the region point",w%id,&
             acceptempty=.true.)
       end if
-      call check_region_hover()
       call iw_tooltip("Pick this point in the view: click an atom to use its position,&
          & or empty space to use the clicked point",ttshown)
 
     end subroutine region_pick_button
-
-    !> Cancel a pending region-point pick (the region mode or the field
-    !> changed, so the picked point no longer has a row to land in).
-    subroutine cancel_region_pick()
-
-      if (w%editrep_isopick < 0) return
-      if (win(iview)%vmdata%owner == w%id) &
-         call win(iview)%viewmode_release_forced(w%id)
-      w%editrep_isopick = -1
-
-    end subroutine cancel_region_pick
-
-    !> Accumulate into rhover whether the last drawn widget is hovered
-    !> (also while its drag is active with the pointer off it, and while
-    !> disabled), for the transient region-box preview. Call right after
-    !> every widget of the region section.
-    subroutine check_region_hover()
-
-      rhover = rhover .or. logical(igIsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) .or.&
-         logical(igIsItemActive())
-
-    end subroutine check_region_hover
 
     !> Tooltip text for region coordinate row i (0 = origin/first
     !> corner/center) of region mode iregion.

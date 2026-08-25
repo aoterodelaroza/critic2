@@ -611,6 +611,7 @@ module representations
   public :: iso_isgridfield
   public :: iso_region_to_box
   public :: iso_region_seed
+  public :: iso_region_point_from_cart
   public :: iso_estimate_cost
 
   ! module procedure interfaces
@@ -646,6 +647,12 @@ module representations
        integer, intent(in) :: iregion
        real*8, intent(out) :: x(3,0:3)
      end subroutine iso_region_seed
+     module subroutine iso_region_point_from_cart(isys,iregion,xc,x)
+       integer, intent(in) :: isys
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: xc(3)
+       real*8, intent(out) :: x(3)
+     end subroutine iso_region_point_from_cart
      module function iso_estimate_cost(isys,ifield,iregion,x,n) result(secs)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield

@@ -707,6 +707,32 @@ contains
 
   end subroutine iso_region_seed
 
+  !> Store the cell-frame Cartesian point xc (bohr) into a staged
+  !> region coordinate row x of mode iregion, converting to the mode's
+  !> units (fractional for cell fractions, user-frame angstrom
+  !> otherwise): the inverse of iso_region_to_box's point convention,
+  !> kept next to it so the units of rgn_x live in this module only.
+  module subroutine iso_region_point_from_cart(isys,iregion,xc,x)
+    use systems, only: sys, sys_init, ok_system
+    integer, intent(in) :: isys
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: xc(3)
+    real*8, intent(out) :: x(3)
+
+    x = 0d0
+    if (.not.ok_system(isys,sys_init)) return
+    associate(c => sys(isys)%c)
+      if (iregion == iso_region_frac) then
+         x = c%c2x(xc)
+      elseif (c%ismolecule) then
+         x = (xc + c%molx0) * bohrtoa
+      else
+         x = xc * bohrtoa
+      end if
+    end associate
+
+  end subroutine iso_region_point_from_cart
+
   !> Measure the field-evaluation cost (wall seconds per sample point)
   !> of sampling field ifield of system isys over the staged options
   !> (region mode iregion, coordinates x, n points per axis): evaluate

@@ -3524,6 +3524,61 @@ contains
 
   end subroutine view_click_frame
 
+  !> Read and retire the result of a forced atom/point pick that window
+  !> idcaller commanded on view iview (viewmode_set_forced with
+  !> vm_pick_atom), for system isys with pick session stamp pick.
+  !> istat: ipick_pending (still picking), ipick_lost (taken over by
+  !> another window, view moved to another system, or the geometry
+  !> changed -- the caller should forget the pick), ipick_cancelled
+  !> (finished without a point), or ipick_point (finished; xc = picked
+  !> point in cell-frame Cartesian bohr: a clicked atom's position
+  !> including its lattice translation, or the empty-space click
+  !> unprojected onto the plane of the scene center). Releases the
+  !> forced mode and resets the view's pick data as needed; the caller
+  !> keeps only its own pending marker and the destination of the point.
+  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc)
+    use systems, only: sys, sysc
+    integer, intent(in) :: iview
+    integer, intent(in) :: idcaller
+    integer, intent(in) :: isys
+    type(pairpick), intent(in) :: pick
+    integer, intent(out) :: istat
+    real*8, intent(out) :: xc(3)
+
+    logical :: okp
+
+    istat = ipick_pending
+    xc = 0d0
+    associate(v => win(iview))
+      if (v%vmdata%owner /= idcaller) then
+         ! the pick was taken over by another window
+         istat = ipick_lost
+      elseif (v%isys /= isys .or. pick%is_stale(sysc(isys)%timelastchange_geometry)) then
+         ! the view moved to another system or the geometry changed
+         ! (stale cell-atom ids): cancel the pick
+         call v%viewmode_release_forced(idcaller)
+         istat = ipick_lost
+      elseif (v%viewmode >= 0) then
+         ! the pick finished (flag = 0 means cancelled)
+         istat = ipick_cancelled
+         if (v%vmdata%flag == 1) then
+            if (v%vmdata%idx(1) > 0) then
+               ! an atom was clicked: use its position
+               xc = sys(isys)%c%x2c(sys(isys)%c%atcel(v%vmdata%idx(1))%x + v%vmdata%idx(2:4))
+               istat = ipick_point
+            else
+               ! empty space: unproject the click onto the plane of the scene center
+               call view_click_frame(iview,v%vmdata%xpos,xc,okp)
+               if (okp) istat = ipick_point
+            end if
+         end if
+         v%vmdata%idx = 0
+         v%vmdata%flag = 0
+      end if
+    end associate
+
+  end subroutine view_pick_result
+
   !> Export the current view to an image file with currently selected
   !> window options. The file name is file and the file format (PNG,
   !> BMP, TGA, JPE) is fformat. nsample = number of samples for

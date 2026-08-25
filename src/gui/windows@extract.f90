@@ -79,8 +79,8 @@ contains
     character(len=*,kind=c_char), parameter :: ttnx = &
        "Number of unit cells along each crystallographic axis"
 
-    logical :: doquit, syschanged, ismol, molmotifok, environok, severalok, okpick, hovered
-    integer :: i, isys, iview, nmol, ipad
+    logical :: doquit, syschanged, ismol, molmotifok, environok, severalok, hovered
+    integer :: i, isys, iview, nmol, ipad, istat
     integer(c_int) :: inc, emode, tflags
     real*8 :: rad, x0(3), xlo(3), xhi(3), vbox(3,3)
     real(c_float) :: dmax
@@ -119,34 +119,15 @@ contains
     end if
 
     ! handle a pending center pick commanded to the parent view; the
-    ! anchor-gone and pick-taken-over cases only clear the pending flag
-    ! (the view's owner watchdog releases the mode if this window dies)
+    ! anchor-gone case only clears the pending flag (the view's owner
+    ! watchdog releases the mode if this window dies)
     if (w%extract_picking) then
        if (doquit) then
           w%extract_picking = .false.
-       elseif (win(iview)%vmdata%owner /= w%id) then
-          w%extract_picking = .false.
-       elseif (syschanged .or. w%extract_pick%is_stale(sysc(isys)%timelastchange_geometry)) then
-          ! the view moved to another system or the geometry changed (stale
-          ! cell-atom ids): cancel the pick
-          call win(iview)%viewmode_release_forced(w%id)
-          w%extract_picking = .false.
-       elseif (win(iview)%viewmode >= 0) then
-          ! the pick finished (flag = 0 means cancelled)
-          if (win(iview)%vmdata%flag == 1) then
-             if (win(iview)%vmdata%idx(1) > 0) then
-                ! an atom was clicked: use its position
-                i = win(iview)%vmdata%idx(1)
-                call center_from_frac(sys(isys)%c%atcel(i)%x + win(iview)%vmdata%idx(2:4))
-             else
-                ! empty space: unproject the click onto the plane of the scene center
-                call view_click_frame(iview,win(iview)%vmdata%xpos,x0,okpick)
-                if (okpick) call center_from_frac(sys(isys)%c%c2x(x0))
-             end if
-          end if
-          w%extract_picking = .false.
-          win(iview)%vmdata%idx = 0
-          win(iview)%vmdata%flag = 0
+       else
+          call view_pick_result(iview,w%id,isys,w%extract_pick,istat,x0)
+          if (istat == ipick_point) call center_from_frac(sys(isys)%c%c2x(x0))
+          if (istat /= ipick_pending) w%extract_picking = .false.
        end if
     end if
 

@@ -43,6 +43,12 @@ module windows
   real(c_float), parameter :: region_alpha = 0.12_c_float
   real*8, parameter :: region_edgerad = 0.06d0 / bohrtoa
 
+  ! outcomes of a forced view pick (view_pick_result)
+  integer, parameter :: ipick_pending = 0 ! the pick has not finished yet
+  integer, parameter :: ipick_lost = 1 ! taken over, view moved to another system, or stale geometry
+  integer, parameter :: ipick_cancelled = 2 ! finished without delivering a point
+  integer, parameter :: ipick_point = 3 ! finished; the picked point was delivered
+
   ! the buffer for the output console
   character(kind=c_char,len=:), allocatable, target :: outputb
   integer(c_size_t) :: lob = 0
@@ -344,10 +350,11 @@ module windows
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      integer :: editrep_pick_item = 0 ! text/measurement item waiting for an atom pick (0 = idle)
      integer :: editrep_pick_slot = 0 ! anchor or measurement atom the pick will fill
-     type(pairpick) :: editrep_pick ! pick session stamp + staged first bond atom (committed when the pair completes)
+     type(pairpick) :: editrep_pick ! pick session stamp + staged first bond atom (committed when the
+                                    ! pair completes); the isosurface region pick uses only the stamp
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
-     real*8 :: editrep_rgnhover = -1d100 ! last time a Region widget was hovered (isosurface editor);
-                                         ! latches the transient box preview across brief hover gaps
+     integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
+                                         ! if the staged mode no longer matches)
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
@@ -924,6 +931,14 @@ module windows
        logical, intent(out) :: ok
        real*8, intent(out), optional :: rcam(3,3)
      end subroutine view_click_frame
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc)
+       integer, intent(in) :: iview
+       integer, intent(in) :: idcaller
+       integer, intent(in) :: isys
+       type(pairpick), intent(in) :: pick
+       integer, intent(out) :: istat
+       real*8, intent(out) :: xc(3)
+     end subroutine view_pick_result
      module subroutine export_image_size(w,npixel,exportview,width,height,origin)
        class(window), intent(inout), target :: w
        integer(c_int), intent(in) :: npixel
