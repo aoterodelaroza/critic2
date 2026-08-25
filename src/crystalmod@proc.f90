@@ -66,6 +66,7 @@ contains
     ! no molecule
     c%ismolecule = .false.
     c%molx0 = 0d0
+    c%x0file = 0d0
     c%molborder = 0d0
 
     ! no ws
@@ -139,6 +140,7 @@ contains
     c%ncv = 0
     c%ismolecule = .false.
     c%molx0 = 0d0
+    c%x0file = 0d0
     c%molborder = 0d0
     c%ws_nv = 0
     c%ws_nf = 0
@@ -524,6 +526,12 @@ contains
              occcel(i) = 1d0
           end if
        end do
+
+       ! a structure read from a file with an origin (a cube) has that origin
+       ! subtracted from its atomic positions, so a grid read from the same
+       ! file has to be shifted by it. Molecules carry the same information in
+       ! molx0 (set below), so this is only for crystals.
+       if (.not.seed%ismolecule .and. seed%havex0) c%x0file = seed%molx0
 
        ! transform the coordinates for a molecule and fill the molecular fields
        ! (a molecule always has neqlist=.false., so this only runs here)

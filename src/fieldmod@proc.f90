@@ -383,14 +383,14 @@ contains
     elseif (seed%iff == ifformat_cube) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_cube(c_loc(c),seed%file(1),c%m_x2c,c%molx0,errmsg,ti=ti)
+       call f%grid%read_cube(c_loc(c),seed%file(1),c%m_x2c,c%molx0+c%x0file,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_bincube(c_loc(c),seed%file(1),c%m_x2c,c%molx0,errmsg,ti=ti)
+       call f%grid%read_bincube(c_loc(c),seed%file(1),c%m_x2c,c%molx0+c%x0file,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 

@@ -194,6 +194,7 @@ module crystalmod
      ! variables for molecular systems
      logical :: ismolecule = .false. !< is it a molecule?
      real*8 :: molx0(3) !< centering vector for the molecule
+     real*8 :: x0file(3) !< origin of the file the structure came from; a grid read from that file is shifted by it (crystals only; molecules use molx0)
      real*8 :: molborder(3) !< molecular cell border (cryst coords)
      ! wigner-seitz cell
      integer :: ws_nv !< number of vertices
