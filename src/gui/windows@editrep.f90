@@ -60,6 +60,7 @@ contains
     use systems, only: sysc, sys_init, ok_system
     use utils, only: iw_text, iw_tooltip, iw_button, iw_calcheight, iw_checkbox,&
        iw_inputtext, iw_close_event, iw_setpos_bottomright
+    use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -2363,9 +2364,11 @@ contains
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
-       iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_nhist,&
+       iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_nhist, iso_hscale_name,&
+       iso_hscale_y,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
+    use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        duration_string
@@ -2375,12 +2378,12 @@ contains
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
-    integer :: rmodes(size(iso_region_modes_mol)), iknd
+    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num)
     integer(c_int) :: ncus(3)
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
     real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
-    real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3)
+    real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, isodrag
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
@@ -2389,7 +2392,7 @@ contains
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: szero, szplot
-    type(ImVec4) :: colline, colauto
+    type(ImVec4) :: colline, colhist
 
     ! initialize (the caller has already checked the anchor view and its
     ! scene are alive; the edited object lives in that scene, so the
@@ -2715,35 +2718,42 @@ contains
        str1 = "##isohistogram" // c_null_char
        szplot%x = -1._c_float
        szplot%y = iw_calcheight(1,5,.false.)
-       if (ipBeginPlot(c_loc(str1),szplot,ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend))) then
+       if (ipBeginPlot(c_loc(str1),szplot,ior(ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend),&
+          ior(ImPlotFlags_NoInputs,ImPlotFlags_NoMouseText)))) then
           str1 = "Field value" // c_null_char
           str2 = "Points" // c_null_char
           call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-          if (w%rep%iso%hist_xlog) &
-             call ipSetupAxisScale(ImAxis_X1,ImPlotScale_Log10)
-          if (w%rep%iso%hist_ylog) &
-             call ipSetupAxisScale(ImAxis_Y1,ImPlotScale_Log10)
+          call ipSetupAxisScale(ImAxis_X1,implot_scale(w%rep%iso%hist_xscale))
+          call ipSetupAxisScale(ImAxis_Y1,implot_scale(w%rep%iso%hist_yscale))
 
-          ! the staircase binned to match the axis
-          if (w%rep%iso%hist_xlog) then
-             hx = w%rep%iso%hist_x
-             hy = w%rep%iso%hist_y
-          else
-             hx = w%rep%iso%histl_x
-             hy = w%rep%iso%histl_y
-          end if
+          ! the staircase binned to match the value axis
+          hx = w%rep%iso%hist_x(:,w%rep%iso%hist_xscale)
+          hy = w%rep%iso%hist_y(:,w%rep%iso%hist_xscale)
 
           ! explicit limits, locked (Always): autofit does not survive the
-          ! log transform, and a fixed frame keeps the mapping from the
+          ! axis transforms, and a fixed frame keeps the mapping from the
           ! line position to the isovalue stable while dragging
-          call ipSetupAxisLimits(ImAxis_X1,real(w%rep%iso%frange(1),c_double),&
-             real(w%rep%iso%frange(2),c_double),ImPlotCond_Always)
-          if (w%rep%iso%hist_ylog) then
-             yref = 0.5_c_double
-             call ipSetupAxisLimits(ImAxis_Y1,yref,real(maxval(hy)*2d0,c_double),ImPlotCond_Always)
+          ! ImPlot's symlog tick locator only handles a range that crosses
+          ! zero (or lies inside +-1); anything else it hands to the log10
+          ! locator, which takes log10 of zero or of a negative number and
+          ! emits no ticks at all. Widen the limits by a hair so the range
+          ! always straddles zero -- invisible on an arcsinh axis, which is
+          ! linear there.
+          xlo = w%rep%iso%frange(1)
+          xhi = w%rep%iso%frange(2)
+          if (w%rep%iso%hist_xscale == hscale_asinh .and. xlo*xhi >= 0d0) then
+             xeps = 1d-6 * max(abs(xlo),abs(xhi))
+             xlo = min(xlo,-xeps)
+             xhi = max(xhi,xeps)
+          end if
+          call ipSetupAxisLimits(ImAxis_X1,real(xlo,c_double),real(xhi,c_double),&
+             ImPlotCond_Always)
+          if (w%rep%iso%hist_yscale == hscale_log) then
+             call ipSetupAxisLimits(ImAxis_Y1,0.5_c_double,real(maxval(hy)*2d0,c_double),&
+                ImPlotCond_Always)
           else
-             yref = 0._c_double
-             call ipSetupAxisLimits(ImAxis_Y1,yref,real(maxval(hy)*1.05d0,c_double),ImPlotCond_Always)
+             call ipSetupAxisLimits(ImAxis_Y1,0._c_double,real(maxval(hy)*1.05d0,c_double),&
+                ImPlotCond_Always)
           end if
 
           ! outline only: ImPlot's shaded fill (PlotShaded, and the Shaded
@@ -2754,14 +2764,15 @@ contains
           ! by zero on essentially every bin -- silent NaN vertices in a
           ! normal build, SIGFPE in this one (-ffpe-trap=zero).
           str1 = "Distribution" // c_null_char
-          colauto = ImVec4(0._c_float,0._c_float,0._c_float,-1._c_float) ! IMPLOT_AUTO_COL
-          call ipSetNextLineStyle(colauto,hist_lwidth)
+          colhist = ImVec4(0.78_c_float,0.78_c_float,0.78_c_float,1._c_float) ! neutral: the isovalue line carries the isosurface colour
+          call ipSetNextLineStyle(colhist,hist_lwidth)
           call ipPlotLine(c_loc(str1),c_loc(hx),c_loc(hy),&
              int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
 
-          ! the draggable isovalue line (staged while held, committed on release)
+          ! the draggable isovalue line, in the colour of the isosurface
+          ! it controls (staged while held, committed on release)
           xdrag = real(w%rep%iso%isoval(1),c_double)
-          colline = ImVec4(1._c_float,0.6_c_float,0.1_c_float,1._c_float)
+          colline = ImVec4(w%rep%iso%rgb(1,1),w%rep%iso%rgb(2,1),w%rep%iso%rgb(3,1),1._c_float)
           if (logical(ipDragLineX(0_c_int,xdrag,colline,hist_lwdrag,0_c_int))) then
              w%rep%iso%isoval(1) = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
              w%editrep_isodrag = .true.
@@ -2772,21 +2783,43 @@ contains
        call iw_tooltip("Distribution of the values of the field over the data that&
           & backs the isosurface. Drag the vertical line to change the isovalue.",ttshown)
 
-       ! axis scales; a logarithmic value axis needs positive data
-       call iw_text("Log:")
-       call igBeginDisabled(logical(.not.w%rep%iso%hist_haslog,c_bool))
-       ldum = iw_checkbox("x##isohistxlog",w%rep%iso%hist_xlog,sameline=.true.)
-       call igEndDisabled()
-       call iw_tooltip("Logarithmic value axis (only for fields with positive values)",ttshown)
-       ldum = iw_checkbox("y##isohistylog",w%rep%iso%hist_ylog,sameline=.true.)
-       call iw_tooltip("Logarithmic count axis",ttshown)
+       ! axis scales: only those the data allow are offered on the value
+       ! axis (a logarithmic axis needs positive values, arcsinh is for
+       ! data that change sign); the count axis takes any of them
+       call iw_text("Scale x:",alignframe=.true.)
+       nsc = 0
+       do i = 1, hscale_num
+          if (.not.w%rep%iso%hist_have(i)) cycle
+          nsc = nsc + 1
+          scmap(nsc) = i
+          if (i == w%rep%iso%hist_xscale) isc = nsc
+       end do
+       str1 = ""
+       do i = 1, nsc
+          str1 = str1 // trim(iso_hscale_name(scmap(i))) // c_null_char
+       end do
+       call iw_combo_simple("##isohistxscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
+       if (ch) w%rep%iso%hist_xscale = scmap(max(min(isc,nsc),1))
+       call iw_tooltip("Scale of the value axis. arcsinh is linear near zero and&
+          & logarithmic away from it, so it works for fields that change sign.",ttshown)
+
+       call iw_text("y:",sameline=.true.,alignframe=.true.)
+       isc = 1
+       str1 = ""
+       do i = 1, size(iso_hscale_y)
+          str1 = str1 // trim(iso_hscale_name(iso_hscale_y(i))) // c_null_char
+          if (iso_hscale_y(i) == w%rep%iso%hist_yscale) isc = i
+       end do
+       call iw_combo_simple("##isohistyscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
+       if (ch) w%rep%iso%hist_yscale = iso_hscale_y(max(min(isc,size(iso_hscale_y)),1))
+       call iw_tooltip("Scale of the count axis",ttshown)
 
        ! what the current isovalue encloses (from the same histogram)
        ihb = hist_bin(w%rep%iso%isoval(1))
        if (ihb >= 1) &
-          call iw_text("| encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
+          call iw_text("Encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
           "% of the field, " // string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) //&
-          "% of the volume",sameline=.true.)
+          "% of the volume")
     end if
 
     ! a drag that ended commits here, whether or not the plot was drawn
@@ -2825,24 +2858,42 @@ contains
     end if
 
   contains
-    !> Index of the histogram bin that contains the value x (0 if it is
-    !> outside the range of the data backing the mesh).
+    !> ImPlot axis scale for one of the hscale_* ids.
+    function implot_scale(is) result(isc_)
+      integer, intent(in) :: is
+      integer(c_int) :: isc_
+
+      if (is == hscale_log) then
+         isc_ = ImPlotScale_Log10
+      elseif (is == hscale_asinh) then
+         isc_ = ImPlotScale_SymLog
+      else
+         isc_ = ImPlotScale_Linear
+      end if
+
+    end function implot_scale
+
+    !> Index of the histogram bin that contains the value x, in the
+    !> binning the cumulative arrays use (0 if x is out of range).
     function hist_bin(x) result(ib)
       real*8, intent(in) :: x
       integer :: ib
 
-      real*8 :: t
+      real*8 :: t, tv, lo, hi
 
       ib = 0
       if (w%rep%iso%nhist <= 0) return
-      if (w%rep%iso%hist_haslog) then
-         if (x <= 0d0 .or. w%rep%iso%frange(1) <= 0d0) return
-         t = (log10(x) - log10(w%rep%iso%frange(1))) /&
-            max(log10(w%rep%iso%frange(2)) - log10(w%rep%iso%frange(1)),1d-30)
+      lo = w%rep%iso%hist_range(1,w%rep%iso%hist_qscale)
+      hi = w%rep%iso%hist_range(2,w%rep%iso%hist_qscale)
+      if (w%rep%iso%hist_qscale == hscale_log) then
+         if (x <= 0d0) return
+         tv = log10(x)
+      elseif (w%rep%iso%hist_qscale == hscale_asinh) then
+         tv = 2d0 * asinh(0.5d0*x)
       else
-         t = (x - w%rep%iso%frange(1)) /&
-            max(w%rep%iso%frange(2) - w%rep%iso%frange(1),1d-30)
+         tv = x
       end if
+      t = (tv - lo) / max(hi - lo,1d-30)
       ib = min(max(1 + int(t * iso_nhist),1),iso_nhist)
 
     end function hist_bin

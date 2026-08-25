@@ -1728,20 +1728,20 @@ contains
   end subroutine get_domain
 
   !> Statistics of the values of grid f; field_stats does the work.
-  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
+  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
     class(grid3), intent(in) :: f
     real*8, intent(out), optional :: fmin, fmax
     real*8, intent(out), optional :: fmean, famean, frms
     real*8, intent(out), optional :: qlevel
     real*8, intent(in), optional :: qfrac
-    real*8, intent(out), optional :: hist(:)
-    real*8, intent(out), optional :: hrange(2)
-    logical, intent(out), optional :: hlog
+    real*8, intent(out), optional :: hist(:,:)
+    real*8, intent(out), optional :: hrange(2,hscale_num)
+    logical, intent(out), optional :: hhave(hscale_num)
     real*8, intent(out), optional :: hmass(:)
-    real*8, intent(out), optional :: hlin(:)
-    real*8, intent(out), optional :: hlinrange(2)
+    integer, intent(out), optional :: hqscale
+    integer, intent(out), optional :: hdef
 
-    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
+    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
 
   end subroutine stats
 
@@ -1757,29 +1757,30 @@ contains
   !> values are positive and span several decades (hrange = log10 of
   !> the limits), linearly otherwise. One pass over the data after the
   !> range, with no copy and no sort.
-  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
+  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
     real*8, intent(in) :: f(:,:,:)
     real*8, intent(out), optional :: fmin, fmax
     real*8, intent(out), optional :: fmean, famean, frms
     real*8, intent(out), optional :: qlevel
     real*8, intent(in), optional :: qfrac
-    real*8, intent(out), optional :: hist(:)
-    real*8, intent(out), optional :: hrange(2)
-    logical, intent(out), optional :: hlog
+    real*8, intent(out), optional :: hist(:,:)
+    real*8, intent(out), optional :: hrange(2,hscale_num)
+    logical, intent(out), optional :: hhave(hscale_num)
     real*8, intent(out), optional :: hmass(:)
-    real*8, intent(out), optional :: hlin(:)
-    real*8, intent(out), optional :: hlinrange(2)
+    integer, intent(out), optional :: hqscale
+    integer, intent(out), optional :: hdef
 
     integer, parameter :: nqbin = 512 ! bins of the mass histogram (quantile)
     real*8, parameter :: qdec = 12d0 ! decades below the maximum |f| it spans
     real*8, parameter :: qfrac_def = 0.95d0 ! default enclosed fraction
     real*8, parameter :: hist_logdec = 100d0 ! fmax/fmin above which the display bins are logarithmic
 
-    integer :: i, j, k, ib, n, nh, nl
-    real*8 :: fmin_, fmax_, amax, af, qf, sumf, sumaf, sum2
-    real*8 :: xlo, xhi, dx, lamax, acum, atarget, xllo, xlhi
+    integer :: i, j, k, ib, n, nh, is, iq
+    real*8 :: fmin_, fmax_, amax, af, qf, sumf, sumaf, sum2, tv
+    real*8 :: dx, lamax, acum, atarget
+    real*8 :: hlo(hscale_num), hhi(hscale_num)
     real*8 :: qmass(nqbin)
-    logical :: dolog, dolevel
+    logical :: have(hscale_num), dolevel
 
     n = size(f,1) * size(f,2) * size(f,3)
     if (n > 0) then
@@ -1800,42 +1801,69 @@ contains
     if (present(qlevel)) qlevel = 0d0
     if (present(hist)) hist = 0d0
     if (present(hmass)) hmass = 0d0
-    if (present(hlin)) hlin = 0d0
-    if (present(hlinrange)) hlinrange = (/0d0,1d0/)
-    if (present(hrange)) hrange = (/0d0,1d0/)
-    if (present(hlog)) hlog = .false.
+    if (present(hhave)) hhave = .false.
+    if (present(hqscale)) hqscale = hscale_linear
+    if (present(hdef)) hdef = hscale_linear
+    if (present(hrange)) then
+       hrange(1,:) = 0d0
+       hrange(2,:) = 1d0
+    end if
     if (n == 0 .or. amax == 0d0) return
 
-    ! binning of the display histogram
+    ! binning of the display histogram, in each scale the data allow: a
+    ! logarithmic axis needs positive values; the arcsinh one (the same
+    ! 2*asinh(x/2) ImPlot uses for its symlog axis) always works, and is
+    ! the only one that shows data crossing zero. The bins are uniform in the
+    ! transformed variable, so the bars match whichever axis is shown.
     nh = 0
+    have = .false.
+    hlo = 0d0
+    hhi = 1d0
     if (present(hist)) then
        nh = size(hist,1)
        if (present(hmass)) nh = min(nh,size(hmass,1))
-       dolog = (fmin_ > 0d0) .and. (fmax_ > fmin_ * hist_logdec)
-       if (dolog) then
-          xlo = log10(fmin_)
-          xhi = log10(fmax_)
-       else
-          xlo = fmin_
-          xhi = fmax_
+       have(hscale_linear) = .true.
+       hlo(hscale_linear) = fmin_
+       hhi(hscale_linear) = fmax_
+       if (fmin_ > 0d0) then
+          ! a logarithmic axis needs strictly positive values
+          have(hscale_log) = .true.
+          hlo(hscale_log) = log10(fmin_)
+          hhi(hscale_log) = log10(fmax_)
        end if
-       ! a constant field has no distribution to show: skip the display
-       ! histogram rather than binning over a zero-width range
-       if (xhi - xlo <= spacing(max(abs(xlo),abs(xhi)))) nh = 0
-       if (present(hrange)) hrange = (/xlo,xhi/)
-       if (present(hlog)) hlog = dolog
+       have(hscale_asinh) = .true.
+       hlo(hscale_asinh) = 2d0 * asinh(0.5d0 * fmin_)
+       hhi(hscale_asinh) = 2d0 * asinh(0.5d0 * fmax_)
+       ! a constant field has no distribution to show
+       do is = 1, hscale_num
+          if (have(is)) then
+             if (hhi(is) - hlo(is) <= spacing(max(abs(hlo(is)),abs(hhi(is))))) have(is) = .false.
+          end if
+       end do
+       if (.not.any(have)) nh = 0
+       if (present(hrange)) then
+          hrange(1,:) = hlo
+          hrange(2,:) = hhi
+       end if
+       if (present(hhave)) hhave = have
+    end if
+    ! suggested scale for the value axis: logarithmic for positive data
+    ! spanning decades, arcsinh when the values change sign (the only one
+    ! that shows both), linear otherwise
+    if (present(hdef)) then
+       hdef = hscale_linear
+       if (fmin_ < 0d0 .and. have(hscale_asinh)) hdef = hscale_asinh
+       if (have(hscale_log) .and. fmax_ > fmin_ * hist_logdec) hdef = hscale_log
     end if
 
-    ! the same data binned linearly, so the editor can offer both axis
-    ! scales without rebinning (identical to the above when dolog is false)
-    nl = 0
-    xllo = fmin_
-    xlhi = fmax_
-    if (present(hlin)) then
-       nl = size(hlin,1)
-       if (xlhi - xllo <= spacing(max(abs(xllo),abs(xlhi)))) nl = 0
-       if (present(hlinrange)) hlinrange = (/xllo,xlhi/)
-    end if
+    ! the cumulative mass follows the bins with the best resolution where
+    ! the interesting values are: logarithmic if the data allow it, else
+    ! arcsinh, and only linear as a last resort (linear bins over a range
+    ! that spans decades put everything in the first bin)
+    iq = hscale_linear
+    if (have(hscale_asinh)) iq = hscale_asinh
+    if (have(hscale_log)) iq = hscale_log
+    if (present(hqscale)) hqscale = iq
 
     ! one pass: the totals, the mass histogram behind the quantile
     ! (always logarithmic, spanning qdec decades below the largest |f|),
@@ -1858,25 +1886,24 @@ contains
                 ib = nqbin - int((lamax - log10(af)) / dx)
                 if (ib >= 1) qmass(min(ib,nqbin)) = qmass(min(ib,nqbin)) + af
              end if
-             if (nl > 0) then
-                ib = min(max(1 + int((f(i,j,k) - xllo) / (xlhi - xllo) * nl),1),nl)
-                hlin(ib) = hlin(ib) + 1d0
-             end if
              if (nh > 0) then
-                ! clamp into the range: a value exactly at the top edge
-                ! would fall outside, and in a cusped density that one
-                ! point carries a sizable part of the mass
-                ib = 0
-                if (dolog) then
-                   if (f(i,j,k) > 0d0) &
-                      ib = min(max(1 + int((log10(f(i,j,k)) - xlo) / (xhi - xlo) * nh),1),nh)
-                else
-                   ib = min(max(1 + int((f(i,j,k) - xlo) / (xhi - xlo) * nh),1),nh)
-                end if
-                if (ib >= 1 .and. ib <= nh) then
-                   hist(ib) = hist(ib) + 1d0
-                   if (present(hmass)) hmass(ib) = hmass(ib) + af
-                end if
+                do is = 1, hscale_num
+                   if (.not.have(is)) cycle
+                   if (is == hscale_log) then
+                      if (f(i,j,k) <= 0d0) cycle
+                      tv = log10(f(i,j,k))
+                   elseif (is == hscale_asinh) then
+                      tv = 2d0 * asinh(0.5d0 * f(i,j,k))
+                   else
+                      tv = f(i,j,k)
+                   end if
+                   ! clamp into the range: a value exactly at the top edge
+                   ! would fall outside, and in a cusped density that one
+                   ! point carries a sizable part of the mass
+                   ib = min(max(1 + int((tv - hlo(is)) / (hhi(is) - hlo(is)) * nh),1),nh)
+                   hist(ib,is) = hist(ib,is) + 1d0
+                   if (present(hmass) .and. is == iq) hmass(ib) = hmass(ib) + af
+                end do
              end if
           end do
        end do

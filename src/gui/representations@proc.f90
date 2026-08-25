@@ -1053,6 +1053,7 @@ contains
     iso%outdomain = .false.
     ! the histogram and the range describe the previous field's data
     iso%nhist = 0
+    iso%hist_xscale = 0 ! the new field suggests its own axis scale
     iso%frange = (/1d0,-1d0/)
     ! apply an all-zero grid: for a grid field this is the native grid
     ! (cheap, built immediately); for any other field it means "not
@@ -2391,34 +2392,42 @@ contains
       use grid3mod, only: field_stats
       real*8, intent(in) :: ff(:,:,:)
 
-      integer :: i
-      real*8 :: hy(iso_nhist), hm(iso_nhist), hyl(iso_nhist), hr(2), hrl(2), dh, qtot, vtot
+      integer :: i, is, idef
+      real*8 :: hy(iso_nhist,hscale_num), hm(iso_nhist), dh, qtot, vtot, e1, e2
 
-      call field_stats(ff,fmin=r%iso%frange(1),fmax=r%iso%frange(2),hist=hy,hrange=hr,&
-         hlog=r%iso%hist_haslog,hmass=hm,hlin=hyl,hlinrange=hrl)
-      if (.not.r%iso%hist_haslog) r%iso%hist_xlog = .false.
-      dh = (hr(2) - hr(1)) / real(iso_nhist,8)
-      do i = 1, iso_nhist
-         ! staircase: the bin spans [hr(1)+(i-1)*dh, hr(1)+i*dh]
-         if (r%iso%hist_haslog) then
-            r%iso%hist_x(2*i-1) = real(10d0**(hr(1) + real(i-1,8)*dh),c_double)
-            r%iso%hist_x(2*i) = real(10d0**(hr(1) + real(i,8)*dh),c_double)
-         else
-            r%iso%hist_x(2*i-1) = real(hr(1) + real(i-1,8)*dh,c_double)
-            r%iso%hist_x(2*i) = real(hr(1) + real(i,8)*dh,c_double)
-         end if
-         r%iso%hist_y(2*i-1) = real(max(hy(i),0.5d0),c_double)
-         r%iso%hist_y(2*i) = real(max(hy(i),0.5d0),c_double)
+      call field_stats(ff,fmin=r%iso%frange(1),fmax=r%iso%frange(2),hist=hy,&
+         hrange=r%iso%hist_range,hhave=r%iso%hist_have,hmass=hm,&
+         hqscale=r%iso%hist_qscale,hdef=idef)
+      ! take the suggested scale while the user has not chosen one, and
+      ! whenever the chosen one is not available for this data
+      if (r%iso%hist_xscale < 1 .or. r%iso%hist_xscale > hscale_num) then
+         r%iso%hist_xscale = idef
+      elseif (.not.r%iso%hist_have(r%iso%hist_xscale)) then
+         r%iso%hist_xscale = idef
+      end if
+      ! staircase per scale, in field units (the axis applies the transform)
+      do is = 1, hscale_num
+         if (.not.r%iso%hist_have(is)) cycle
+         dh = (r%iso%hist_range(2,is) - r%iso%hist_range(1,is)) / real(iso_nhist,8)
+         do i = 1, iso_nhist
+            e1 = r%iso%hist_range(1,is) + real(i-1,8)*dh
+            e2 = r%iso%hist_range(1,is) + real(i,8)*dh
+            if (is == hscale_log) then
+               e1 = 10d0**e1
+               e2 = 10d0**e2
+            elseif (is == hscale_asinh) then
+               e1 = 2d0 * sinh(0.5d0*e1)
+               e2 = 2d0 * sinh(0.5d0*e2)
+            end if
+            r%iso%hist_x(2*i-1,is) = real(e1,c_double)
+            r%iso%hist_x(2*i,is) = real(e2,c_double)
+            r%iso%hist_y(2*i-1,is) = real(max(hy(i,is),0.5d0),c_double)
+            r%iso%hist_y(2*i,is) = real(max(hy(i,is),0.5d0),c_double)
+         end do
       end do
-      dh = (hrl(2) - hrl(1)) / real(iso_nhist,8)
-      do i = 1, iso_nhist
-         r%iso%histl_x(2*i-1) = real(hrl(1) + real(i-1,8)*dh,c_double)
-         r%iso%histl_x(2*i) = real(hrl(1) + real(i,8)*dh,c_double)
-         r%iso%histl_y(2*i-1) = real(max(hyl(i),0.5d0),c_double)
-         r%iso%histl_y(2*i) = real(max(hyl(i),0.5d0),c_double)
-      end do
+      hy(:,1) = hy(:,r%iso%hist_qscale) ! the cumulative uses the same bins as hmass
       ! a constant (or empty) field has no distribution to show
-      if (r%iso%frange(2) > r%iso%frange(1)) then
+      if (any(r%iso%hist_have)) then
          r%iso%nhist = 2*iso_nhist
       else
          r%iso%nhist = 0
@@ -2426,12 +2435,12 @@ contains
 
       ! fractions of the |f| integral and of the volume above each bin edge
       qtot = max(sum(hm),1d-300)
-      vtot = max(sum(hy),1d-300)
+      vtot = max(sum(hy(:,1)),1d-300)
       r%iso%hist_q(iso_nhist) = hm(iso_nhist) / qtot
-      r%iso%hist_v(iso_nhist) = hy(iso_nhist) / vtot
+      r%iso%hist_v(iso_nhist) = hy(iso_nhist,1) / vtot
       do i = iso_nhist-1, 1, -1
          r%iso%hist_q(i) = r%iso%hist_q(i+1) + hm(i) / qtot
-         r%iso%hist_v(i) = r%iso%hist_v(i+1) + hy(i) / vtot
+         r%iso%hist_v(i) = r%iso%hist_v(i+1) + hy(i,1) / vtot
       end do
 
     end subroutine stamp_histogram

@@ -22,6 +22,7 @@ module representations
   use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_over, dl_string, dl_string_over,&
      dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append
   use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
+  use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use global, only: bondfactor_def, bonddelta_def
   implicit none
 
@@ -167,6 +168,12 @@ module representations
   real*8, parameter, public :: iso_qcharge_def = 0.9d0 ! fraction of the |f| integral enclosed by the default level
   real*8, parameter, public :: iso_spikeratio = 10d0 ! max|f|/mean|f| above which the field is spike-dominated
   integer, parameter, public :: iso_nhist = 96 ! bins of the value histogram shown in the editor
+  ! names of the histogram axis scales, indexed by hscale_* (grid3mod)
+  character(len=8), parameter, public :: iso_hscale_name(hscale_num) = &
+     (/ character(len=8) :: "Linear", "Log", "arcsinh" /)
+  ! scales the count axis can take: counts are never negative, so arcsinh
+  ! (which exists to handle values that change sign) does not apply there
+  integer, parameter, public :: iso_hscale_y(2) = (/hscale_linear, hscale_log/)
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
   real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
      0.30_c_float,0.55_c_float,0.90_c_float,&  ! slot 1: blue
@@ -575,16 +582,16 @@ module representations
      real*8 :: frange(2) = (/1d0,-1d0/) ! min/max of the data backing the mesh; invalid if frange(1) > frange(2)
      ! histogram of the data backing the mesh, ready to plot as a staircase (2 points per bin):
      ! hist_x in field units, hist_y = number of points in the bin. Stamped with the build, like frange
-     real(c_double) :: hist_x(2*iso_nhist) = 0._c_double
-     real(c_double) :: hist_y(2*iso_nhist) = 0._c_double
-     ! the same data binned linearly, for the linear x axis (identical to the above
-     ! when the data do not allow logarithmic bins)
-     real(c_double) :: histl_x(2*iso_nhist) = 0._c_double
-     real(c_double) :: histl_y(2*iso_nhist) = 0._c_double
+     ! one staircase per axis scale (hscale_*): the bins are uniform in the transformed
+     ! variable, so the bars match whichever axis the user selects
+     real(c_double) :: hist_x(2*iso_nhist,hscale_num) = 0._c_double
+     real(c_double) :: hist_y(2*iso_nhist,hscale_num) = 0._c_double
+     logical :: hist_have(hscale_num) = .false. ! which scales the data allow
+     real*8 :: hist_range(2,hscale_num) = 0d0 ! bin limits of each, in transformed units
      integer :: nhist = 0 ! number of staircase points (0 = no histogram yet)
-     logical :: hist_haslog = .false. ! the log-binned staircase is available (the data are positive)
-     logical :: hist_xlog = .true. ! user: logarithmic x axis (only if hist_haslog)
-     logical :: hist_ylog = .true. ! user: logarithmic y axis
+     integer :: hist_qscale = hscale_linear ! scale the cumulative arrays below are binned in
+     integer :: hist_xscale = 0 ! user: value-axis scale (0 = follow the suggested default)
+     integer :: hist_yscale = hscale_log ! user: count-axis scale
      ! fraction of the integral of |f| (hist_q) and of the volume (hist_v) above the lower edge
      ! of each bin, for the readout of what the current isovalue encloses; binned like the
      ! log staircase when hist_haslog, linearly otherwise

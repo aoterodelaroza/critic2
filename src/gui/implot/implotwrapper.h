@@ -37,6 +37,7 @@ extern "C" const int const_ImPlotCond_Always;
 extern "C" const int const_ImPlotCond_Once;
 extern "C" const int const_ImPlotScale_Linear;
 extern "C" const int const_ImPlotScale_Log10;
+extern "C" const int const_ImPlotScale_SymLog;
 extern "C" const int const_ImPlotFlags_None;
 extern "C" const int const_ImPlotFlags_NoTitle;
 extern "C" const int const_ImPlotFlags_NoLegend;

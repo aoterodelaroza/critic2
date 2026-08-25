@@ -32,6 +32,12 @@ module grid3mod
   integer, parameter, public :: mode_smr = 5 !< smoothrho
   integer, parameter, public :: mode_default = mode_tricubic
 
+  ! axis scales the value histogram of field_stats can be binned in
+  integer, parameter, public :: hscale_num = 3
+  integer, parameter, public :: hscale_linear = 1 ! x
+  integer, parameter, public :: hscale_log = 2 ! log10(x); needs positive values
+  integer, parameter, public :: hscale_asinh = 3 ! 2*asinh(x/2), same as ImPlot's symlog; handles any sign
+
   !> Information for QE Kohn-Sham states, maybe plus wannier functions
   type qedat
      integer :: nks !< Number of k-points (nk1*nk2*nk3)
@@ -283,31 +289,31 @@ module grid3mod
        real*8, intent(out), optional :: flo(3)
        real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
-     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
+     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
        class(grid3), intent(in) :: f
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
        real*8, intent(out), optional :: qlevel
        real*8, intent(in), optional :: qfrac
-       real*8, intent(out), optional :: hist(:)
-       real*8, intent(out), optional :: hrange(2)
-       logical, intent(out), optional :: hlog
+       real*8, intent(out), optional :: hist(:,:)
+       real*8, intent(out), optional :: hrange(2,hscale_num)
+       logical, intent(out), optional :: hhave(hscale_num)
        real*8, intent(out), optional :: hmass(:)
-       real*8, intent(out), optional :: hlin(:)
-       real*8, intent(out), optional :: hlinrange(2)
+       integer, intent(out), optional :: hqscale
+       integer, intent(out), optional :: hdef
      end subroutine stats
-     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
+     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
        real*8, intent(in) :: f(:,:,:)
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
        real*8, intent(out), optional :: qlevel
        real*8, intent(in), optional :: qfrac
-       real*8, intent(out), optional :: hist(:)
-       real*8, intent(out), optional :: hrange(2)
-       logical, intent(out), optional :: hlog
+       real*8, intent(out), optional :: hist(:,:)
+       real*8, intent(out), optional :: hrange(2,hscale_num)
+       logical, intent(out), optional :: hhave(hscale_num)
        real*8, intent(out), optional :: hmass(:)
-       real*8, intent(out), optional :: hlin(:)
-       real*8, intent(out), optional :: hlinrange(2)
+       integer, intent(out), optional :: hqscale
+       integer, intent(out), optional :: hdef
      end subroutine field_stats
      module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate

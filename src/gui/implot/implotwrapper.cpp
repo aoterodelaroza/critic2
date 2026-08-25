@@ -39,6 +39,7 @@ const int const_ImPlotCond_Once = ImPlotCond_Once;
 // enum ImPlotScale_
 const int const_ImPlotScale_Linear = ImPlotScale_Linear;
 const int const_ImPlotScale_Log10 = ImPlotScale_Log10;
+const int const_ImPlotScale_SymLog = ImPlotScale_SymLog;
 // enum ImPlotFlags_
 const int const_ImPlotFlags_None = ImPlotFlags_None;
 const int const_ImPlotFlags_NoTitle = ImPlotFlags_NoTitle;
