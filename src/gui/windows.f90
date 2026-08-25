@@ -355,6 +355,8 @@ module windows
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
      integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
                                          ! if the staged mode no longer matches)
+     logical :: editrep_isodrag = .false. ! the isovalue line in the histogram is being dragged
+                                          ! (isosurface editor; commits the value on release)
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality

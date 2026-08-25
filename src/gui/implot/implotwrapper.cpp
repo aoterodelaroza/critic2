@@ -30,11 +30,17 @@ const int const_ImAxis_X3 = ImAxis_X3;
 const int const_ImAxis_Y1 = ImAxis_Y1;
 const int const_ImAxis_Y2 = ImAxis_Y2;
 const int const_ImAxis_Y3 = ImAxis_Y3;
+// enum ImPlotCond_
+const int const_ImPlotCond_Always = ImPlotCond_Always;
+const int const_ImPlotCond_Once = ImPlotCond_Once;
+// enum ImPlotScale_
+const int const_ImPlotScale_Linear = ImPlotScale_Linear;
+const int const_ImPlotScale_Log10 = ImPlotScale_Log10;
 // enum ImPlotFlags_
 const int const_ImPlotFlags_None = ImPlotFlags_None;
 const int const_ImPlotFlags_NoTitle = ImPlotFlags_NoTitle;
 const int const_ImPlotFlags_NoLegend = ImPlotFlags_NoLegend;
-const int const_ImPlotFlags_NoMouseText = ImPlotFlags_NoLegend;
+const int const_ImPlotFlags_NoMouseText = ImPlotFlags_NoMouseText;
 const int const_ImPlotFlags_NoInputs = ImPlotFlags_NoInputs;
 const int const_ImPlotFlags_NoMenus = ImPlotFlags_NoMenus;
 const int const_ImPlotFlags_NoBoxSelect = ImPlotFlags_NoBoxSelect;

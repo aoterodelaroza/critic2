@@ -482,38 +482,68 @@ contains
 
   end subroutine representation_set_defaults
 
-  !> Default isovalue for field ifield of system isys: twice the cell
-  !> average for a non-negative (density-like) grid, twice the RMS for a
-  !> signed grid, clamped to the field range; a fixed fallback for
-  !> non-grid fields, whose statistics are not cheaply available.
+  !> Default isovalue for field ifield of system isys. The policy, in
+  !> order:
+  !>
+  !> - a promolecular density is a density by construction: in a
+  !>   molecule use the conventional contour (iso_isoval_dens). A grid
+  !>   field is not tested for being a density: only a smooth
+  !>   pseudo-density integrates to the electron count on its grid (an
+  !>   all-electron one is tens of percent off, since a uniform grid
+  !>   samples the nuclear cusps badly), and the valence charge is only
+  !>   known if the user set the pseudopotential charges.
+  !> - a spike-dominated grid (large max|f| over mean|f|: all-electron
+  !>   or molecular densities, orbitals, laplacians) uses the level that
+  !>   encloses iso_qcharge_def of the integral of |f|. Unlike the mean
+  !>   it is not inflated by the core cusps, and unlike a plain value
+  !>   quantile it does not follow the amount of vacuum in the box.
+  !> - anything flat or bounded (ELF and the like, smooth valence
+  !>   densities) keeps the old rule: twice the average of a
+  !>   non-negative field, twice its rms if it is signed.
+  !>
+  !> The result is clamped to the range of the field. Non-grid fields
+  !> other than the promolecular density have no cheap statistics, and
+  !> fall back to a fixed value.
   module function iso_default_isovalue(isys,ifield) result(isoval)
     use systems, only: sys, sys_init, ok_system
-    use fieldmod, only: type_grid
+    use fieldmod, only: type_grid, type_promol, type_promol_frag
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
     real*8 :: isoval
 
-    integer :: n
-    real*8 :: fmin, fmax, favg
+    real*8 :: fmin, fmax, fmean, frms, qlevel, amean
 
     isoval = iso_isoval_def
     if (.not.ok_system(isys,sys_init)) return
     if (.not.sys(isys)%goodfield(ifield)) return
+
+    ! the promolecular density is known to be a density
+    if (sys(isys)%f(ifield)%type == type_promol .or.&
+       sys(isys)%f(ifield)%type == type_promol_frag) then
+       if (sys(isys)%c%ismolecule) isoval = iso_isoval_dens
+       return
+    end if
+
+    ! everything else needs grid statistics
     if (sys(isys)%f(ifield)%type /= type_grid) return
     if (.not.sys(isys)%f(ifield)%grid%isinit) return
+    call sys(isys)%f(ifield)%grid%stats(fmin=fmin,fmax=fmax,fmean=fmean,famean=amean,&
+       frms=frms,qlevel=qlevel,qfrac=iso_qcharge_def)
+    if (fmax <= fmin) return
 
-    associate(g => sys(isys)%f(ifield)%grid)
-      n = product(g%n)
-      fmin = minval(g%f)
-      fmax = maxval(g%f)
-      if (fmin >= 0d0) then
-         favg = sum(g%f) / n
-         isoval = 2d0 * favg
-      else
-         isoval = 2d0 * sqrt(sum(g%f**2) / n)
-      end if
-      if (isoval <= fmin .or. isoval >= fmax) isoval = 0.5d0 * (fmin + fmax)
-    end associate
+    if (max(abs(fmin),abs(fmax)) > iso_spikeratio * amean) then
+       ! qlevel is a level of |f|: use it on the side the field lives on
+       if (fmax > 0d0) then
+          isoval = qlevel
+       else
+          isoval = -qlevel
+       end if
+    elseif (fmin >= 0d0) then
+       isoval = 2d0 * fmean
+    else
+       isoval = 2d0 * frms
+    end if
+    if (isoval <= fmin .or. isoval >= fmax) isoval = 0.5d0 * (fmin + fmax)
 
   end function iso_default_isovalue
 
@@ -989,6 +1019,9 @@ contains
     call iso_region_seed(isys,iso%iregion,iso%rgn_x)
     iso%costest = -1d0
     iso%outdomain = .false.
+    ! the histogram and the range describe the previous field's data
+    iso%nhist = 0
+    iso%frange = (/1d0,-1d0/)
     ! apply an all-zero grid: for a grid field this is the native grid
     ! (cheap, built immediately); for any other field it means "not
     ! generated yet" -- sampling can be expensive, so nothing is built
@@ -2230,10 +2263,8 @@ contains
             end associate
             if (allocated(r%iso%ff)) deallocate(r%iso%ff)
             r%iso%outdomain = .false. ! native data needs no evaluation
-            if (resample) then
-               r%iso%frange(1) = minval(sys(r%id)%f(r%iso%ifield)%grid%f)
-               r%iso%frange(2) = maxval(sys(r%id)%f(r%iso%ifield)%grid%f)
-            end if
+            if (resample) &
+               call stamp_histogram(sys(r%id)%f(r%iso%ifield)%grid%f)
             do i = 1, r%iso%niso
                call marching_cubes(nn,sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,&
                   r%iso%isoval(i),per0,nv,xv,nrm,nf,idx)
@@ -2269,8 +2300,7 @@ contains
                end do
                !$omp end parallel do
                r%iso%outdomain = linvalid
-               r%iso%frange(1) = minval(r%iso%ff)
-               r%iso%frange(2) = maxval(r%iso%ff)
+               call stamp_histogram(r%iso%ff)
             end if
             do i = 1, r%iso%niso
                call marching_cubes(nn,r%iso%ff,xmat,cmat,r%iso%isoval(i),&
@@ -2319,6 +2349,52 @@ contains
       end do
 
     end subroutine add_isosurface_meshes
+
+    !> Stamp the range and the value histogram of the data ff backing
+    !> the mesh (the native grid or the sampled values), for the
+    !> isovalue clamp and for the histogram the editor draws. The
+    !> histogram is stored as a staircase (two points per bin) ready to
+    !> plot, in field units.
+    subroutine stamp_histogram(ff)
+      use grid3mod, only: field_stats
+      real*8, intent(in) :: ff(:,:,:)
+
+      integer :: i
+      real*8 :: hy(iso_nhist), hm(iso_nhist), hr(2), dh, qtot, vtot
+
+      call field_stats(ff,fmin=r%iso%frange(1),fmax=r%iso%frange(2),hist=hy,hrange=hr,&
+         hlog=r%iso%hist_log,hmass=hm)
+      dh = (hr(2) - hr(1)) / real(iso_nhist,8)
+      do i = 1, iso_nhist
+         ! staircase: the bin spans [hr(1)+(i-1)*dh, hr(1)+i*dh]
+         if (r%iso%hist_log) then
+            r%iso%hist_x(2*i-1) = real(10d0**(hr(1) + real(i-1,8)*dh),c_double)
+            r%iso%hist_x(2*i) = real(10d0**(hr(1) + real(i,8)*dh),c_double)
+         else
+            r%iso%hist_x(2*i-1) = real(hr(1) + real(i-1,8)*dh,c_double)
+            r%iso%hist_x(2*i) = real(hr(1) + real(i,8)*dh,c_double)
+         end if
+         r%iso%hist_y(2*i-1) = real(max(hy(i),0.5d0),c_double)
+         r%iso%hist_y(2*i) = real(max(hy(i),0.5d0),c_double)
+      end do
+      ! a constant (or empty) field has no distribution to show
+      if (r%iso%frange(2) > r%iso%frange(1)) then
+         r%iso%nhist = 2*iso_nhist
+      else
+         r%iso%nhist = 0
+      end if
+
+      ! fractions of the |f| integral and of the volume above each bin edge
+      qtot = max(sum(hm),1d-300)
+      vtot = max(sum(hy),1d-300)
+      r%iso%hist_q(iso_nhist) = hm(iso_nhist) / qtot
+      r%iso%hist_v(iso_nhist) = hy(iso_nhist) / vtot
+      do i = iso_nhist-1, 1, -1
+         r%iso%hist_q(i) = r%iso%hist_q(i+1) + hm(i) / qtot
+         r%iso%hist_v(i) = r%iso%hist_v(i+1) + hy(i) / vtot
+      end do
+
+    end subroutine stamp_histogram
 
     !> Store a triangulation (nv vertices xv/nrm, nf triangles idx, all
     !> shifted by the domain origin x0c) into dl_mesh m in scene-ready

@@ -150,6 +150,11 @@ module representations
   integer, parameter, public :: iso_region_modes_mol(5) = (/iso_region_cell,&
      iso_region_ortho,iso_region_parallel,iso_region_simplebox,iso_region_cube/)
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
+  ! default-isovalue policy (iso_default_isovalue)
+  real*8, parameter, public :: iso_isoval_dens = 1d-3 ! conventional molecular density contour (a.u.; same as SIGMAHOLE)
+  real*8, parameter, public :: iso_qcharge_def = 0.9d0 ! fraction of the |f| integral enclosed by the default level
+  real*8, parameter, public :: iso_spikeratio = 10d0 ! max|f|/mean|f| above which the field is spike-dominated
+  integer, parameter, public :: iso_nhist = 96 ! bins of the value histogram shown in the editor
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
   real(c_float), parameter, public :: iso_rgb_def(3,iso_maxslot) = reshape((/&
      0.30_c_float,0.55_c_float,0.90_c_float,&  ! slot 1: blue
@@ -556,6 +561,16 @@ module representations
      real*8 :: time_built = -1d0 ! time the meshes were built (vs sysc timelastchange)
      type(dl_mesh) :: mesh(iso_maxslot) ! the cached meshes, one per slot
      real*8 :: frange(2) = (/1d0,-1d0/) ! min/max of the data backing the mesh; invalid if frange(1) > frange(2)
+     ! histogram of the data backing the mesh, ready to plot as a staircase (2 points per bin):
+     ! hist_x in field units, hist_y = number of points in the bin. Stamped with the build, like frange
+     real(c_double) :: hist_x(2*iso_nhist) = 0._c_double
+     real(c_double) :: hist_y(2*iso_nhist) = 0._c_double
+     integer :: nhist = 0 ! number of staircase points (0 = no histogram yet)
+     logical :: hist_log = .false. ! the histogram bins (and so the plot axis) are logarithmic
+     ! fraction of the integral of |f| (hist_q) and of the volume (hist_v) above the lower edge
+     ! of each bin, for the readout of what the current isovalue encloses
+     real*8 :: hist_q(iso_nhist) = 0d0
+     real*8 :: hist_v(iso_nhist) = 0d0
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims

@@ -1727,6 +1727,169 @@ contains
 
   end subroutine get_domain
 
+  !> Statistics of the values of grid f; field_stats does the work.
+  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+    class(grid3), intent(in) :: f
+    real*8, intent(out), optional :: fmin, fmax
+    real*8, intent(out), optional :: fmean, famean, frms
+    real*8, intent(out), optional :: qlevel
+    real*8, intent(in), optional :: qfrac
+    real*8, intent(out), optional :: hist(:)
+    real*8, intent(out), optional :: hrange(2)
+    logical, intent(out), optional :: hlog
+    real*8, intent(out), optional :: hmass(:)
+
+    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+
+  end subroutine stats
+
+  !> Statistics of the values of the scalar field f sampled on a
+  !> regular grid. All results are optional: the range (fmin, fmax),
+  !> the mean of the values and of their absolute value (fmean,
+  !> famean), their rms (frms), and qlevel, the value that encloses a
+  !> fraction qfrac (default qfrac_def) of
+  !> the integral of |f| -- the level such that the region where |f|
+  !> exceeds it carries that fraction of the total "mass". hist
+  !> receives a histogram of the values for display over the range
+  !> hrange: number of points per bin, binned in log10(f) when the
+  !> values are positive and span several decades (hrange = log10 of
+  !> the limits), linearly otherwise. One pass over the data after the
+  !> range, with no copy and no sort.
+  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+    real*8, intent(in) :: f(:,:,:)
+    real*8, intent(out), optional :: fmin, fmax
+    real*8, intent(out), optional :: fmean, famean, frms
+    real*8, intent(out), optional :: qlevel
+    real*8, intent(in), optional :: qfrac
+    real*8, intent(out), optional :: hist(:)
+    real*8, intent(out), optional :: hrange(2)
+    logical, intent(out), optional :: hlog
+    real*8, intent(out), optional :: hmass(:)
+
+    integer, parameter :: nqbin = 512 ! bins of the mass histogram (quantile)
+    real*8, parameter :: qdec = 12d0 ! decades below the maximum |f| it spans
+    real*8, parameter :: qfrac_def = 0.95d0 ! default enclosed fraction
+    real*8, parameter :: hist_logdec = 100d0 ! fmax/fmin above which the display bins are logarithmic
+
+    integer :: i, j, k, ib, n, nh
+    real*8 :: fmin_, fmax_, amax, af, qf, sumf, sumaf, sum2
+    real*8 :: xlo, xhi, dx, lamax, acum, atarget
+    real*8 :: qmass(nqbin)
+    logical :: dolog, dolevel
+
+    n = size(f,1) * size(f,2) * size(f,3)
+    if (n > 0) then
+       fmin_ = minval(f)
+       fmax_ = maxval(f)
+    else
+       fmin_ = 0d0
+       fmax_ = 0d0
+    end if
+    amax = max(abs(fmin_),abs(fmax_))
+    if (present(fmin)) fmin = fmin_
+    if (present(fmax)) fmax = fmax_
+
+    ! defaults, also the answer for a degenerate (empty or all-zero) field
+    if (present(fmean)) fmean = 0d0
+    if (present(famean)) famean = 0d0
+    if (present(frms)) frms = 0d0
+    if (present(qlevel)) qlevel = 0d0
+    if (present(hist)) hist = 0d0
+    if (present(hmass)) hmass = 0d0
+    if (present(hrange)) hrange = (/0d0,1d0/)
+    if (present(hlog)) hlog = .false.
+    if (n == 0 .or. amax == 0d0) return
+
+    ! binning of the display histogram
+    nh = 0
+    if (present(hist)) then
+       nh = size(hist,1)
+       if (present(hmass)) nh = min(nh,size(hmass,1))
+       dolog = (fmin_ > 0d0) .and. (fmax_ > fmin_ * hist_logdec)
+       if (dolog) then
+          xlo = log10(fmin_)
+          xhi = log10(fmax_)
+       else
+          xlo = fmin_
+          xhi = fmax_
+       end if
+       ! a constant field has no distribution to show: skip the display
+       ! histogram rather than binning over a zero-width range
+       if (xhi - xlo <= spacing(max(abs(xlo),abs(xhi)))) nh = 0
+       if (present(hrange)) hrange = (/xlo,xhi/)
+       if (present(hlog)) hlog = dolog
+    end if
+
+    ! one pass: the totals, the mass histogram behind the quantile
+    ! (always logarithmic, spanning qdec decades below the largest |f|),
+    ! and the display histogram
+    sumf = 0d0
+    sumaf = 0d0
+    sum2 = 0d0
+    qmass = 0d0
+    dolevel = present(qlevel) ! the log10 per point is only for the quantile
+    lamax = log10(amax)
+    dx = qdec / real(nqbin,8)
+    do k = 1, size(f,3)
+       do j = 1, size(f,2)
+          do i = 1, size(f,1)
+             af = abs(f(i,j,k))
+             sumf = sumf + f(i,j,k)
+             sumaf = sumaf + af
+             sum2 = sum2 + f(i,j,k) * f(i,j,k)
+             if (dolevel .and. af > 0d0) then
+                ib = nqbin - int((lamax - log10(af)) / dx)
+                if (ib >= 1) qmass(min(ib,nqbin)) = qmass(min(ib,nqbin)) + af
+             end if
+             if (nh > 0) then
+                ! clamp into the range: a value exactly at the top edge
+                ! would fall outside, and in a cusped density that one
+                ! point carries a sizable part of the mass
+                ib = 0
+                if (dolog) then
+                   if (f(i,j,k) > 0d0) &
+                      ib = min(max(1 + int((log10(f(i,j,k)) - xlo) / (xhi - xlo) * nh),1),nh)
+                else
+                   ib = min(max(1 + int((f(i,j,k) - xlo) / (xhi - xlo) * nh),1),nh)
+                end if
+                if (ib >= 1 .and. ib <= nh) then
+                   hist(ib) = hist(ib) + 1d0
+                   if (present(hmass)) hmass(ib) = hmass(ib) + af
+                end if
+             end if
+          end do
+       end do
+    end do
+
+    if (present(fmean)) fmean = sumf / real(n,8)
+    if (present(famean)) famean = sumaf / real(n,8)
+    if (present(frms)) frms = sqrt(sum2 / real(n,8))
+
+    ! the level enclosing qfrac of the |f| mass: walk the bins from the
+    ! largest values down until the accumulated mass crosses the target,
+    ! interpolating inside the crossing bin
+    if (present(qlevel)) then
+       qf = qfrac_def
+       if (present(qfrac)) qf = min(max(qfrac,0d0),1d0)
+       atarget = qf * sumaf
+       acum = 0d0
+       qlevel = amax
+       do ib = nqbin, 1, -1
+          if (acum + qmass(ib) >= atarget) then
+             if (qmass(ib) > 0d0) then
+                qlevel = 10d0**(lamax - dx * (real(nqbin-ib,8) + (atarget-acum) / qmass(ib)))
+             else
+                qlevel = 10d0**(lamax - dx * real(nqbin-ib,8))
+             end if
+             exit
+          end if
+          acum = acum + qmass(ib)
+          qlevel = 10d0**(lamax - dx * real(nqbin-ib+1,8))
+       end do
+    end if
+
+  end subroutine field_stats
+
   !> Interpolate the function value, first and second derivative at
   !> point xi (crystallographic coords.) using the grid g.  This
   !> routine is thread-safe.

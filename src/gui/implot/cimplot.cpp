@@ -40,6 +40,15 @@ CIMGUI_API void ipSetupAxisFormat(ImAxis axis, const char* fmt){
 CIMGUI_API void ipSetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks){
   ImPlot::SetupAxisTicks(axis,v_min,v_max,n_ticks);
 }
+CIMGUI_API void ipSetupAxisScale(ImAxis axis, ImPlotScale scale){
+  ImPlot::SetupAxisScale(axis,scale);
+}
+CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlotCond cond){
+  ImPlot::SetupAxisLimits(axis,v_min,v_max,cond);
+}
+CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags){
+  return ImPlot::DragLineX(id,x,col,thickness,flags);
+}
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);
 }

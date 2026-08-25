@@ -803,6 +803,7 @@ contains
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
     w%editrep_isopick = -1
+    w%editrep_isodrag = .false.
     call w%editrep_pick%clear()
     w%wc_started = .false.
     w%builder_tool = it_none

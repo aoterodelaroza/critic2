@@ -2676,6 +2676,30 @@ subroutine ipSetupAxisTicks(axis,v_min,v_max,n_ticks) bind(c,name="ipSetupAxisTi
   real(c_double), value :: v_max
   integer(c_int), value :: n_ticks
 end subroutine ipSetupAxisTicks
+! void ipSetupAxisScale(ImAxis axis, ImPlotScale scale);
+subroutine ipSetupAxisScale(axis,scale) bind(c,name="ipSetupAxisScale")
+  import c_int
+  integer(c_int), value :: axis
+  integer(c_int), value :: scale
+end subroutine ipSetupAxisScale
+! void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlotCond cond);
+subroutine ipSetupAxisLimits(axis,v_min,v_max,cond) bind(c,name="ipSetupAxisLimits")
+  import c_int, c_double
+  integer(c_int), value :: axis
+  real(c_double), value :: v_min
+  real(c_double), value :: v_max
+  integer(c_int), value :: cond
+end subroutine ipSetupAxisLimits
+! bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
+function ipDragLineX(id,x,col,thickness,flags) bind(c,name="ipDragLineX")
+  import c_int, c_double, c_float, c_bool, ImVec4
+  integer(c_int), value :: id
+  real(c_double) :: x
+  type(ImVec4), intent(in), value :: col
+  real(c_float), value :: thickness
+  integer(c_int), value :: flags
+  logical(c_bool) :: ipDragLineX
+end function ipDragLineX
 ! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
   import c_ptr, c_int

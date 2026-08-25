@@ -115,6 +115,7 @@ module grid3mod
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
      procedure :: get_domain !< lattice vectors and Cartesian origin of the grid data domain
+     procedure :: stats !< statistics of the grid values (range, mean, rms, integral, quantile level)
      procedure :: interp !< interpolate the grid at an arbitrary point
      procedure :: fft !< grid3 as the FFT of another grid3
      procedure :: resample !< grid3 as a Fourier resampling of another grid3
@@ -125,6 +126,7 @@ module grid3mod
      procedure :: new_eval !< grid3 from an arithmetic expression
   end type grid3
   public :: grid3
+  public :: field_stats
 
   interface
      module subroutine new_eval(f,sptr,cptr,n,expr,x2c)
@@ -281,6 +283,28 @@ module grid3mod
        real*8, intent(out), optional :: flo(3)
        real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
+     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+       class(grid3), intent(in) :: f
+       real*8, intent(out), optional :: fmin, fmax
+       real*8, intent(out), optional :: fmean, famean, frms
+       real*8, intent(out), optional :: qlevel
+       real*8, intent(in), optional :: qfrac
+       real*8, intent(out), optional :: hist(:)
+       real*8, intent(out), optional :: hrange(2)
+       logical, intent(out), optional :: hlog
+       real*8, intent(out), optional :: hmass(:)
+     end subroutine stats
+     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+       real*8, intent(in) :: f(:,:,:)
+       real*8, intent(out), optional :: fmin, fmax
+       real*8, intent(out), optional :: fmean, famean, frms
+       real*8, intent(out), optional :: qlevel
+       real*8, intent(in), optional :: qfrac
+       real*8, intent(out), optional :: hist(:)
+       real*8, intent(out), optional :: hrange(2)
+       logical, intent(out), optional :: hlog
+       real*8, intent(out), optional :: hmass(:)
+     end subroutine field_stats
      module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate
        real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)

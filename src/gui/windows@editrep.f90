@@ -2362,26 +2362,30 @@ contains
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
-       iso_region_simplebox, iso_region_cube, iso_region_name, iso_region_modes_cry,&
+       iso_region_simplebox, iso_region_cube, iso_region_name, iso_region_modes_cry, iso_nhist,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
-       iw_calcwidth, iw_combo_simple, iw_button, iw_intstepper, duration_string
+       iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper,&
+       duration_string
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad
+    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
     integer :: rmodes(size(iso_region_modes_mol))
     integer(c_int) :: ncus(3)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3)
-    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply
+    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, isodrag
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
+    real(c_double) :: xdrag
+    real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: szero
+    type(ImVec2) :: szero, szplot
+    type(ImVec4) :: colline
 
     ! initialize (the caller has already checked the anchor view and its
     ! scene are alive; the edited object lives in that scene, so the
@@ -2683,11 +2687,71 @@ contains
           region_rgb,region_alpha)
     end if
 
-    ! isovalue, with a drag speed proportional to the current value;
-    ! notlive so the re-triangulation runs on commit, not every drag frame.
-    ! The selectable values are capped by the range of the data backing the
-    ! mesh (stamped by the last build; unclamped until the first build).
     call iw_text("Isosurface",highlight=.true.)
+
+    ! histogram of the values backing the mesh, with the isovalue as a
+    ! draggable line: the number of points per bin (log y, since the
+    ! high-value bins hold very few points), against the value (log x
+    ! when the data are positive and span decades). Dragging the line
+    ! stages the isovalue and commits it on release, like the drag
+    ! below. Only available once there is data (after the first build).
+    isodrag = .false.
+    if (w%rep%iso%nhist > 0) then
+       str1 = "##isohistogram" // c_null_char
+       szplot%x = -1._c_float
+       szplot%y = iw_calcheight(1,4,.false.)
+       if (ipBeginPlot(c_loc(str1),szplot,ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend))) then
+          str1 = "Field value" // c_null_char
+          str2 = "Points" // c_null_char
+          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+          if (w%rep%iso%hist_log) &
+             call ipSetupAxisScale(ImAxis_X1,ImPlotScale_Log10)
+          call ipSetupAxisScale(ImAxis_Y1,ImPlotScale_Log10)
+          ! explicit limits, locked (Always): autofit does not survive the
+          ! log transform, and a fixed frame keeps the mapping from the
+          ! line position to the isovalue stable while dragging
+          call ipSetupAxisLimits(ImAxis_X1,real(w%rep%iso%frange(1),c_double),&
+             real(w%rep%iso%frange(2),c_double),ImPlotCond_Always)
+          call ipSetupAxisLimits(ImAxis_Y1,0.5_c_double,&
+             real(maxval(w%rep%iso%hist_y)*2d0,c_double),ImPlotCond_Always)
+
+          str1 = "Distribution" // c_null_char
+          hx = w%rep%iso%hist_x
+          hy = w%rep%iso%hist_y
+          call ipPlotLine(c_loc(str1),c_loc(hx),c_loc(hy),&
+             int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
+
+          ! the draggable isovalue line (staged while held, committed on release)
+          xdrag = real(w%rep%iso%isoval(1),c_double)
+          colline = ImVec4(1._c_float,0.6_c_float,0.1_c_float,1._c_float)
+          if (logical(ipDragLineX(0_c_int,xdrag,colline,2._c_float,0_c_int))) then
+             w%rep%iso%isoval(1) = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
+             w%editrep_isodrag = .true.
+             isodrag = .true.
+          end if
+          call ipEndPlot()
+       end if
+       call iw_tooltip("Distribution of the values of the field over the data that&
+          & backs the isosurface. Drag the vertical line to change the isovalue.",ttshown)
+
+       ! what the current isovalue encloses (from the same histogram)
+       ihb = hist_bin(w%rep%iso%isoval(1))
+       if (ihb >= 1) &
+          call iw_text("Encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
+          "% of the field, " // string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) //&
+          "% of the volume")
+    end if
+
+    ! a drag that ended commits here, whether or not the plot was drawn
+    ! this frame (it is skipped when clipped or scrolled out of view)
+    if (w%editrep_isodrag .and. .not.isodrag) then
+       w%editrep_isodrag = .false.
+       changed = .true.
+    end if
+
+    ! isovalue drag: notlive so the re-triangulation runs on commit, not
+    ! on every frame of the drag; the value is capped by the range of the
+    ! data backing the mesh (unclamped until the first build)
     speed = max(0.01d0 * abs(w%rep%iso%isoval(1)),1d-4)
     if (w%rep%iso%frange(1) <= w%rep%iso%frange(2)) then
        changed = changed .or. iw_dragfloat_real8("Isovalue",x1=w%rep%iso%isoval(1),speed=speed,&
@@ -2714,6 +2778,28 @@ contains
     end if
 
   contains
+    !> Index of the histogram bin that contains the value x (0 if it is
+    !> outside the range of the data backing the mesh).
+    function hist_bin(x) result(ib)
+      real*8, intent(in) :: x
+      integer :: ib
+
+      real*8 :: t
+
+      ib = 0
+      if (w%rep%iso%nhist <= 0) return
+      if (w%rep%iso%hist_log) then
+         if (x <= 0d0 .or. w%rep%iso%frange(1) <= 0d0) return
+         t = (log10(x) - log10(w%rep%iso%frange(1))) /&
+            max(log10(w%rep%iso%frange(2)) - log10(w%rep%iso%frange(1)),1d-30)
+      else
+         t = (x - w%rep%iso%frange(1)) /&
+            max(w%rep%iso%frange(2) - w%rep%iso%frange(1),1d-30)
+      end if
+      ib = min(max(1 + int(t * iso_nhist),1),iso_nhist)
+
+    end function hist_bin
+
     !> Dimensions of the grid that coarseness level ilev gives over the
     !> staged region (host-associated box, valid only when okbox); also
     !> reports through capped whether the total-points cap trimmed them.

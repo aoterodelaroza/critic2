@@ -27,6 +27,9 @@ typedef int ImPlotFlags;
 typedef int ImPlotAxisFlags;
 typedef int ImPlotLineFlags;
 typedef int ImPlotMarker;
+typedef int ImPlotScale;
+typedef int ImPlotCond;
+typedef int ImPlotDragToolFlags;
 
 // prototypes
 CIMGUI_API ImPlotContext* ipCreateContext();
@@ -35,6 +38,9 @@ CIMGUI_API bool ipBeginPlot(const char* title_id, const ImVec2 size, ImPlotFlags
 CIMGUI_API void ipEndPlot();
 CIMGUI_API void ipSetupAxisFormat(ImAxis axis, const char* fmt);
 CIMGUI_API void ipSetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_ticks);
+CIMGUI_API void ipSetupAxisScale(ImAxis axis, ImPlotScale scale);
+CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlotCond cond);
+CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
 CIMGUI_API void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax);
