@@ -2362,7 +2362,8 @@ contains
     use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
-       iso_region_simplebox, iso_region_cube, iso_region_name, iso_region_modes_cry, iso_nhist,&
+       iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
+       iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_nhist,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
@@ -2374,7 +2375,7 @@ contains
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
-    integer :: rmodes(size(iso_region_modes_mol))
+    integer :: rmodes(size(iso_region_modes_mol)), iknd
     integer(c_int) :: ncus(3)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3)
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, isodrag
@@ -2470,24 +2471,26 @@ contains
     ! at the end of the section).
     call iw_text("Region",highlight=.true.)
     if (sys(isys)%c%ismolecule) then
+       iknd = iso_knd_mol
        nmode = size(iso_region_modes_mol)
        rmodes(1:nmode) = iso_region_modes_mol
     else
+       iknd = iso_knd_cry
        nmode = size(iso_region_modes_cry)
        rmodes(1:nmode) = iso_region_modes_cry
     end if
     ! reset a staged mode this system kind does not offer
     if (all(rmodes(1:nmode) /= w%rep%iso%iregion)) then
-       w%rep%iso%iregion = iso_region_cell
+       w%rep%iso%iregion = rmodes(1)
        call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
     end if
     str1 = "Mode##isoregion" // c_null_char
-    str2 = trim(iso_region_name(w%rep%iso%iregion)) // c_null_char
+    str2 = trim(iso_region_name(w%rep%iso%iregion,iknd)) // c_null_char
     call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nmode
           is_selected = (w%rep%iso%iregion == rmodes(i))
-          str2 = trim(iso_region_name(rmodes(i))) // c_null_char
+          str2 = trim(iso_region_name(rmodes(i),iknd)) // c_null_char
           if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
              if (w%rep%iso%iregion /= rmodes(i)) then
                 w%rep%iso%iregion = rmodes(i)
@@ -2525,7 +2528,14 @@ contains
     ! staged region coordinates (results discarded, Calculate grid commits);
     ! every point row gets a Pick button that fills it from the view (the
     ! half-length rows are lengths, not points)
-    if (w%rep%iso%iregion == iso_region_simplebox .or.&
+    if (w%rep%iso%iregion == iso_region_bbox) then
+       ldum = iw_dragfloat_real8("Buffer (Å)##isorgnbuf",x1=w%rep%iso%rgn_x(1,1),&
+          speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+       ! stored replicated, like the cube's half-length
+       w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
+       call iw_tooltip("Distance added around the bounding box of the atoms, in&
+          & every direction",ttshown)
+    elseif (w%rep%iso%iregion == iso_region_simplebox .or.&
        w%rep%iso%iregion == iso_region_cube) then
        ldum = iw_dragfloat_real8("x0 (Å)##isorgn0",x3=w%rep%iso%rgn_x(:,0),&
           speed=0.05d0,decimal=3)

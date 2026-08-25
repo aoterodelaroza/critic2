@@ -139,16 +139,28 @@ module representations
   integer, parameter, public :: iso_region_parallel = 3 ! origin x0 plus edge endpoints x1, x2, x3 (ang)
   integer, parameter, public :: iso_region_simplebox = 4 ! axis-aligned box: center x0, half-lengths x1 (ang; molecules)
   integer, parameter, public :: iso_region_cube = 5 ! cube: center x0, half-length x(1,1) (ang; molecules)
-  character(len=14), parameter, public :: iso_region_name(0:5) = (/&
-     "Whole cell    ","Cell fractions","Cartesian box ","Parallelepiped",&
-     "Simple box    ","Cube          "/) ! region mode display names
+  integer, parameter, public :: iso_region_bbox = 6 ! bounding box of the atoms plus a buffer x(1,1) (ang; molecules)
+  integer, parameter, public :: iso_region_NUM = 6 ! highest region mode
+  ! display names, by mode and system kind (1 = crystal, 2 = molecule); a
+  ! mode not offered to a kind has no name there
+  integer, parameter, public :: iso_knd_cry = 1
+  integer, parameter, public :: iso_knd_mol = 2
+  character(len=33), parameter, public :: iso_region_name(0:iso_region_NUM,2) = &
+     reshape((/ character(len=33) :: &
+     "Unit Cell", "Cell fractions", "Box (2 corners)",&
+     "Parallelepiped (origin + 3 sides)", "", "", "",&
+     "Cell", "", "Box (2 corners)", "Parallelepiped (origin + 3 sides)",&
+     "Box (center + 3 half-lengths)", "Cube (center + half-length)",&
+     "Expanded bounding box" /),(/iso_region_NUM+1,2/))
   ! region modes offered to each system kind, in combo order; the editor
   ! builds its combo from these, so a new mode only needs a name and a
   ! slot in the list(s) where it applies
   integer, parameter, public :: iso_region_modes_cry(4) = (/iso_region_cell,&
      iso_region_frac,iso_region_ortho,iso_region_parallel/)
-  integer, parameter, public :: iso_region_modes_mol(5) = (/iso_region_cell,&
-     iso_region_ortho,iso_region_parallel,iso_region_simplebox,iso_region_cube/)
+  integer, parameter, public :: iso_region_modes_mol(6) = (/iso_region_bbox,&
+     iso_region_cell,iso_region_ortho,iso_region_parallel,iso_region_simplebox,&
+     iso_region_cube/)
+  real*8, parameter, public :: iso_bbox_buffer_def = 5d0 ! default buffer around the bounding box (ang)
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
   ! default-isovalue policy (iso_default_isovalue)
   real*8, parameter, public :: iso_isoval_dens = 1d-3 ! conventional molecular density contour (a.u.; same as SIGMAHOLE)

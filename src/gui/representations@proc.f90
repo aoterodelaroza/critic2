@@ -662,6 +662,24 @@ contains
          do i = 1, 3
             box(i,i) = u1(i) - u0(i)
          end do
+      elseif (iregion == iso_region_bbox) then
+         ! bounding box of the atoms, grown by the buffer x(1,1) in every
+         ! direction. Derived from the atoms on every call, so it follows
+         ! geometry edits; only the buffer is user state.
+         if (c%ncel > 0) then
+            u0 = c%atcel(1)%r
+            u1 = c%atcel(1)%r
+            do i = 2, c%ncel
+               u0 = min(u0,c%atcel(i)%r)
+               u1 = max(u1,c%atcel(i)%r)
+            end do
+            u0 = u0 - max(x(1,1),0d0) / bohrtoa
+            u1 = u1 + max(x(1,1),0d0) / bohrtoa
+            box(:,0) = u0
+            do i = 1, 3
+               box(i,i) = u1(i) - u0(i)
+            end do
+         end if
       elseif (iregion == iso_region_parallel) then
          ! origin x(:,0) plus the endpoints of the three edges (the
          ! molecular frame shift cancels in the edge vectors)
@@ -719,6 +737,9 @@ contains
          do i = 1, 3
             x(:,i) = (c%m_x2c(:,i) + xsh) * bohrtoa
          end do
+      elseif (iregion == iso_region_bbox) then
+         ! only the buffer is stored; the box itself comes from the atoms
+         x(:,1) = iso_bbox_buffer_def
       elseif (iregion == iso_region_simplebox .or. iregion == iso_region_cube) then
          ! origin at the molecular centroid; half-lengths covering the
          ! atoms plus a margin
@@ -1000,22 +1021,33 @@ contains
   !> dimensions. All paths that change the isosurface field go through
   !> here, so the level/field invariant lives in one place.
   module subroutine iso_set_field(iso,isys,ifield)
-    use systems, only: sys_init, ok_system
+    use systems, only: sys, sys_init, ok_system
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
 
+    logical :: isgrid
+
     if (.not.ok_system(isys,sys_init)) return
     iso%ifield = max(ifield,0)
     iso%isoval(1) = iso_default_isovalue(isys,iso%ifield)
-    if (iso_isgridfield(isys,iso%ifield)) then
+    isgrid = iso_isgridfield(isys,iso%ifield)
+    if (isgrid) then
        iso%ilevel = 0
     else
        iso%ilevel = iso_defaultlevel
     end if
-    ! a field change resets the region to the whole cell and drops the
-    ! cost estimate and the stale out-of-domain warning
-    iso%iregion = iso_region_cell
+    ! a field change resets the region to the default for this system
+    ! kind, and drops the cost estimate and the stale out-of-domain
+    ! warning. A grid field comes with its own data domain, so the whole
+    ! cell shows it at its native resolution right away; a field that
+    ! has to be sampled gets, in a molecule (whose cell is an artifact),
+    ! the box around the atoms instead of that cell
+    if (isgrid .or. .not.sys(isys)%c%ismolecule) then
+       iso%iregion = iso_region_cell
+    else
+       iso%iregion = iso_region_bbox
+    end if
     call iso_region_seed(isys,iso%iregion,iso%rgn_x)
     iso%costest = -1d0
     iso%outdomain = .false.
