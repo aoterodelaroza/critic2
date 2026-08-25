@@ -31,6 +31,8 @@ extern "C" const int const_ImAxis_Y1;
 extern "C" const int const_ImAxis_Y2;
 extern "C" const int const_ImAxis_Y3;
 // enum ImPlotFlags_
+extern "C" const int const_ImPlotStairsFlags_None;
+extern "C" const int const_ImPlotStairsFlags_Shaded;
 extern "C" const int const_ImPlotCond_Always;
 extern "C" const int const_ImPlotCond_Once;
 extern "C" const int const_ImPlotScale_Linear;

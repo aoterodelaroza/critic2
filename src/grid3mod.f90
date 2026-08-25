@@ -283,7 +283,7 @@ module grid3mod
        real*8, intent(out), optional :: flo(3)
        real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
-     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
        class(grid3), intent(in) :: f
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
@@ -293,8 +293,10 @@ module grid3mod
        real*8, intent(out), optional :: hrange(2)
        logical, intent(out), optional :: hlog
        real*8, intent(out), optional :: hmass(:)
+       real*8, intent(out), optional :: hlin(:)
+       real*8, intent(out), optional :: hlinrange(2)
      end subroutine stats
-     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
        real*8, intent(in) :: f(:,:,:)
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
@@ -304,6 +306,8 @@ module grid3mod
        real*8, intent(out), optional :: hrange(2)
        logical, intent(out), optional :: hlog
        real*8, intent(out), optional :: hmass(:)
+       real*8, intent(out), optional :: hlin(:)
+       real*8, intent(out), optional :: hlinrange(2)
      end subroutine field_stats
      module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate

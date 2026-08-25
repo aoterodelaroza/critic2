@@ -1728,7 +1728,7 @@ contains
   end subroutine get_domain
 
   !> Statistics of the values of grid f; field_stats does the work.
-  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
     class(grid3), intent(in) :: f
     real*8, intent(out), optional :: fmin, fmax
     real*8, intent(out), optional :: fmean, famean, frms
@@ -1738,8 +1738,10 @@ contains
     real*8, intent(out), optional :: hrange(2)
     logical, intent(out), optional :: hlog
     real*8, intent(out), optional :: hmass(:)
+    real*8, intent(out), optional :: hlin(:)
+    real*8, intent(out), optional :: hlinrange(2)
 
-    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
 
   end subroutine stats
 
@@ -1755,7 +1757,7 @@ contains
   !> values are positive and span several decades (hrange = log10 of
   !> the limits), linearly otherwise. One pass over the data after the
   !> range, with no copy and no sort.
-  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass)
+  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hlog,hmass,hlin,hlinrange)
     real*8, intent(in) :: f(:,:,:)
     real*8, intent(out), optional :: fmin, fmax
     real*8, intent(out), optional :: fmean, famean, frms
@@ -1765,15 +1767,17 @@ contains
     real*8, intent(out), optional :: hrange(2)
     logical, intent(out), optional :: hlog
     real*8, intent(out), optional :: hmass(:)
+    real*8, intent(out), optional :: hlin(:)
+    real*8, intent(out), optional :: hlinrange(2)
 
     integer, parameter :: nqbin = 512 ! bins of the mass histogram (quantile)
     real*8, parameter :: qdec = 12d0 ! decades below the maximum |f| it spans
     real*8, parameter :: qfrac_def = 0.95d0 ! default enclosed fraction
     real*8, parameter :: hist_logdec = 100d0 ! fmax/fmin above which the display bins are logarithmic
 
-    integer :: i, j, k, ib, n, nh
+    integer :: i, j, k, ib, n, nh, nl
     real*8 :: fmin_, fmax_, amax, af, qf, sumf, sumaf, sum2
-    real*8 :: xlo, xhi, dx, lamax, acum, atarget
+    real*8 :: xlo, xhi, dx, lamax, acum, atarget, xllo, xlhi
     real*8 :: qmass(nqbin)
     logical :: dolog, dolevel
 
@@ -1796,6 +1800,8 @@ contains
     if (present(qlevel)) qlevel = 0d0
     if (present(hist)) hist = 0d0
     if (present(hmass)) hmass = 0d0
+    if (present(hlin)) hlin = 0d0
+    if (present(hlinrange)) hlinrange = (/0d0,1d0/)
     if (present(hrange)) hrange = (/0d0,1d0/)
     if (present(hlog)) hlog = .false.
     if (n == 0 .or. amax == 0d0) return
@@ -1820,6 +1826,17 @@ contains
        if (present(hlog)) hlog = dolog
     end if
 
+    ! the same data binned linearly, so the editor can offer both axis
+    ! scales without rebinning (identical to the above when dolog is false)
+    nl = 0
+    xllo = fmin_
+    xlhi = fmax_
+    if (present(hlin)) then
+       nl = size(hlin,1)
+       if (xlhi - xllo <= spacing(max(abs(xllo),abs(xlhi)))) nl = 0
+       if (present(hlinrange)) hlinrange = (/xllo,xlhi/)
+    end if
+
     ! one pass: the totals, the mass histogram behind the quantile
     ! (always logarithmic, spanning qdec decades below the largest |f|),
     ! and the display histogram
@@ -1840,6 +1857,10 @@ contains
              if (dolevel .and. af > 0d0) then
                 ib = nqbin - int((lamax - log10(af)) / dx)
                 if (ib >= 1) qmass(min(ib,nqbin)) = qmass(min(ib,nqbin)) + af
+             end if
+             if (nl > 0) then
+                ib = min(max(1 + int((f(i,j,k) - xllo) / (xlhi - xllo) * nl),1),nl)
+                hlin(ib) = hlin(ib) + 1d0
              end if
              if (nh > 0) then
                 ! clamp into the range: a value exactly at the top edge

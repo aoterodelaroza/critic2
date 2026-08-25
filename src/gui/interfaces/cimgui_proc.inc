@@ -2718,11 +2718,27 @@ subroutine ipPlotLine(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotLine
   integer(c_int), value :: flags
   integer(c_int), value :: offset
 end subroutine ipPlotLine
+! void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset);
+subroutine ipPlotStairs(label_id,xs,ys,count,flags,offset) bind(c,name="ipPlotStairs")
+  import c_ptr, c_int
+  type(c_ptr), intent(in), value :: label_id
+  type(c_ptr), intent(in), value :: xs
+  type(c_ptr), intent(in), value :: ys
+  integer(c_int), value :: count
+  integer(c_int), value :: flags
+  integer(c_int), value :: offset
+end subroutine ipPlotStairs
 ! void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax);
 subroutine ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax) bind(c,name="ipGetPlotCurrentLimits")
   import c_double
   real(c_double) :: xmin, xmax, ymin, ymax
 end subroutine ipGetPlotCurrentLimits
+! void ipSetNextLineStyle(const ImVec4 col, float weight);
+subroutine ipSetNextLineStyle(col,weight) bind(c,name="ipSetNextLineStyle")
+  import c_float, ImVec4
+  type(ImVec4), intent(in), value :: col
+  real(c_float), value :: weight
+end subroutine ipSetNextLineStyle
 ! void SetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline);
 subroutine ipSetNextMarkerStyle(marker,size,fill,weight,outline) bind(c,name="ipSetNextMarkerStyle")
   import c_int, c_float, ImVec4

@@ -2367,7 +2367,7 @@ contains
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
-       iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper,&
+       iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        duration_string
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2377,16 +2377,19 @@ contains
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
     integer :: rmodes(size(iso_region_modes_mol)), iknd
     integer(c_int) :: ncus(3)
+
+    real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
+    real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3)
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, isodrag
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
-    real(c_double) :: xdrag
+    real(c_double) :: xdrag, yref
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     type(ImVec2) :: szero, szplot
-    type(ImVec4) :: colline
+    type(ImVec4) :: colline, colauto
 
     ! initialize (the caller has already checked the anchor view and its
     ! scene are alive; the edited object lives in that scene, so the
@@ -2700,41 +2703,66 @@ contains
     call iw_text("Isosurface",highlight=.true.)
 
     ! histogram of the values backing the mesh, with the isovalue as a
-    ! draggable line: the number of points per bin (log y, since the
-    ! high-value bins hold very few points), against the value (log x
-    ! when the data are positive and span decades). Dragging the line
-    ! stages the isovalue and commits it on release, like the drag
-    ! below. Only available once there is data (after the first build).
+    ! draggable line: the number of points per bin against the value.
+    ! Both axes default to logarithmic (the counts span orders of
+    ! magnitude, and so do the values of a density) and the user can
+    ! switch either; the data are binned both ways at build time, so the
+    ! x switch shows bins that match the axis instead of bunching them.
+    ! Dragging the line stages the isovalue and commits it on release,
+    ! like the drag below. Only available once there is data.
     isodrag = .false.
     if (w%rep%iso%nhist > 0) then
        str1 = "##isohistogram" // c_null_char
        szplot%x = -1._c_float
-       szplot%y = iw_calcheight(1,4,.false.)
+       szplot%y = iw_calcheight(1,5,.false.)
        if (ipBeginPlot(c_loc(str1),szplot,ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend))) then
           str1 = "Field value" // c_null_char
           str2 = "Points" // c_null_char
           call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-          if (w%rep%iso%hist_log) &
+          if (w%rep%iso%hist_xlog) &
              call ipSetupAxisScale(ImAxis_X1,ImPlotScale_Log10)
-          call ipSetupAxisScale(ImAxis_Y1,ImPlotScale_Log10)
+          if (w%rep%iso%hist_ylog) &
+             call ipSetupAxisScale(ImAxis_Y1,ImPlotScale_Log10)
+
+          ! the staircase binned to match the axis
+          if (w%rep%iso%hist_xlog) then
+             hx = w%rep%iso%hist_x
+             hy = w%rep%iso%hist_y
+          else
+             hx = w%rep%iso%histl_x
+             hy = w%rep%iso%histl_y
+          end if
+
           ! explicit limits, locked (Always): autofit does not survive the
           ! log transform, and a fixed frame keeps the mapping from the
           ! line position to the isovalue stable while dragging
           call ipSetupAxisLimits(ImAxis_X1,real(w%rep%iso%frange(1),c_double),&
              real(w%rep%iso%frange(2),c_double),ImPlotCond_Always)
-          call ipSetupAxisLimits(ImAxis_Y1,0.5_c_double,&
-             real(maxval(w%rep%iso%hist_y)*2d0,c_double),ImPlotCond_Always)
+          if (w%rep%iso%hist_ylog) then
+             yref = 0.5_c_double
+             call ipSetupAxisLimits(ImAxis_Y1,yref,real(maxval(hy)*2d0,c_double),ImPlotCond_Always)
+          else
+             yref = 0._c_double
+             call ipSetupAxisLimits(ImAxis_Y1,yref,real(maxval(hy)*1.05d0,c_double),ImPlotCond_Always)
+          end if
 
+          ! outline only: ImPlot's shaded fill (PlotShaded, and the Shaded
+          ! line flag) calls Intersection() on every segment whether or
+          ! not it crosses the reference line, and that routine divides
+          ! by a determinant that vanishes for segments parallel to it.
+          ! A staircase is all horizontal segments, so the fill divides
+          ! by zero on essentially every bin -- silent NaN vertices in a
+          ! normal build, SIGFPE in this one (-ffpe-trap=zero).
           str1 = "Distribution" // c_null_char
-          hx = w%rep%iso%hist_x
-          hy = w%rep%iso%hist_y
+          colauto = ImVec4(0._c_float,0._c_float,0._c_float,-1._c_float) ! IMPLOT_AUTO_COL
+          call ipSetNextLineStyle(colauto,hist_lwidth)
           call ipPlotLine(c_loc(str1),c_loc(hx),c_loc(hy),&
              int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
 
           ! the draggable isovalue line (staged while held, committed on release)
           xdrag = real(w%rep%iso%isoval(1),c_double)
           colline = ImVec4(1._c_float,0.6_c_float,0.1_c_float,1._c_float)
-          if (logical(ipDragLineX(0_c_int,xdrag,colline,2._c_float,0_c_int))) then
+          if (logical(ipDragLineX(0_c_int,xdrag,colline,hist_lwdrag,0_c_int))) then
              w%rep%iso%isoval(1) = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
              w%editrep_isodrag = .true.
              isodrag = .true.
@@ -2744,12 +2772,21 @@ contains
        call iw_tooltip("Distribution of the values of the field over the data that&
           & backs the isosurface. Drag the vertical line to change the isovalue.",ttshown)
 
+       ! axis scales; a logarithmic value axis needs positive data
+       call iw_text("Log:")
+       call igBeginDisabled(logical(.not.w%rep%iso%hist_haslog,c_bool))
+       ldum = iw_checkbox("x##isohistxlog",w%rep%iso%hist_xlog,sameline=.true.)
+       call igEndDisabled()
+       call iw_tooltip("Logarithmic value axis (only for fields with positive values)",ttshown)
+       ldum = iw_checkbox("y##isohistylog",w%rep%iso%hist_ylog,sameline=.true.)
+       call iw_tooltip("Logarithmic count axis",ttshown)
+
        ! what the current isovalue encloses (from the same histogram)
        ihb = hist_bin(w%rep%iso%isoval(1))
        if (ihb >= 1) &
-          call iw_text("Encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
+          call iw_text("| encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
           "% of the field, " // string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) //&
-          "% of the volume")
+          "% of the volume",sameline=.true.)
     end if
 
     ! a drag that ended commits here, whether or not the plot was drawn
@@ -2798,7 +2835,7 @@ contains
 
       ib = 0
       if (w%rep%iso%nhist <= 0) return
-      if (w%rep%iso%hist_log) then
+      if (w%rep%iso%hist_haslog) then
          if (x <= 0d0 .or. w%rep%iso%frange(1) <= 0d0) return
          t = (log10(x) - log10(w%rep%iso%frange(1))) /&
             max(log10(w%rep%iso%frange(2)) - log10(w%rep%iso%frange(1)),1d-30)

@@ -30,6 +30,9 @@ const int const_ImAxis_X3 = ImAxis_X3;
 const int const_ImAxis_Y1 = ImAxis_Y1;
 const int const_ImAxis_Y2 = ImAxis_Y2;
 const int const_ImAxis_Y3 = ImAxis_Y3;
+// enum ImPlotStairsFlags_
+const int const_ImPlotStairsFlags_None = ImPlotStairsFlags_None;
+const int const_ImPlotStairsFlags_Shaded = ImPlotStairsFlags_Shaded;
 // enum ImPlotCond_
 const int const_ImPlotCond_Always = ImPlotCond_Always;
 const int const_ImPlotCond_Once = ImPlotCond_Once;

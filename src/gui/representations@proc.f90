@@ -2392,14 +2392,15 @@ contains
       real*8, intent(in) :: ff(:,:,:)
 
       integer :: i
-      real*8 :: hy(iso_nhist), hm(iso_nhist), hr(2), dh, qtot, vtot
+      real*8 :: hy(iso_nhist), hm(iso_nhist), hyl(iso_nhist), hr(2), hrl(2), dh, qtot, vtot
 
       call field_stats(ff,fmin=r%iso%frange(1),fmax=r%iso%frange(2),hist=hy,hrange=hr,&
-         hlog=r%iso%hist_log,hmass=hm)
+         hlog=r%iso%hist_haslog,hmass=hm,hlin=hyl,hlinrange=hrl)
+      if (.not.r%iso%hist_haslog) r%iso%hist_xlog = .false.
       dh = (hr(2) - hr(1)) / real(iso_nhist,8)
       do i = 1, iso_nhist
          ! staircase: the bin spans [hr(1)+(i-1)*dh, hr(1)+i*dh]
-         if (r%iso%hist_log) then
+         if (r%iso%hist_haslog) then
             r%iso%hist_x(2*i-1) = real(10d0**(hr(1) + real(i-1,8)*dh),c_double)
             r%iso%hist_x(2*i) = real(10d0**(hr(1) + real(i,8)*dh),c_double)
          else
@@ -2408,6 +2409,13 @@ contains
          end if
          r%iso%hist_y(2*i-1) = real(max(hy(i),0.5d0),c_double)
          r%iso%hist_y(2*i) = real(max(hy(i),0.5d0),c_double)
+      end do
+      dh = (hrl(2) - hrl(1)) / real(iso_nhist,8)
+      do i = 1, iso_nhist
+         r%iso%histl_x(2*i-1) = real(hrl(1) + real(i-1,8)*dh,c_double)
+         r%iso%histl_x(2*i) = real(hrl(1) + real(i,8)*dh,c_double)
+         r%iso%histl_y(2*i-1) = real(max(hyl(i),0.5d0),c_double)
+         r%iso%histl_y(2*i) = real(max(hyl(i),0.5d0),c_double)
       end do
       ! a constant (or empty) field has no distribution to show
       if (r%iso%frange(2) > r%iso%frange(1)) then

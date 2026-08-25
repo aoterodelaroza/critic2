@@ -55,12 +55,18 @@ CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxis
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset){
   ImPlot::PlotLine(label_id,xs,ys,count,flags,offset,sizeof(double));
 }
+CIMGUI_API void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset){
+  ImPlot::PlotStairs(label_id,xs,ys,count,flags,offset,sizeof(double));
+}
 CIMGUI_API void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax){
   ImPlotRect im = ImPlot::GetPlotLimits();
   *xmin = im.X.Min;
   *xmax = im.X.Max;
   *ymin = im.Y.Min;
   *ymax = im.Y.Max;
+}
+CIMGUI_API void ipSetNextLineStyle(const ImVec4 col, float weight){
+  ImPlot::SetNextLineStyle(col,weight);
 }
 CIMGUI_API void ipSetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline){
   ImPlot::SetNextMarkerStyle(marker,size,fill,weight,outline);

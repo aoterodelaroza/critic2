@@ -26,6 +26,7 @@
 typedef int ImPlotFlags;
 typedef int ImPlotAxisFlags;
 typedef int ImPlotLineFlags;
+typedef int ImPlotStairsFlags;
 typedef int ImPlotMarker;
 typedef int ImPlotScale;
 typedef int ImPlotCond;
@@ -43,7 +44,9 @@ CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlo
 CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
+CIMGUI_API void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset);
 CIMGUI_API void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax);
+CIMGUI_API void ipSetNextLineStyle(const ImVec4 col, float weight);
 CIMGUI_API void ipSetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline);
 CIMGUI_API void ipShowDemoWindow(bool* p_open);
 

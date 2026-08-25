@@ -577,10 +577,17 @@ module representations
      ! hist_x in field units, hist_y = number of points in the bin. Stamped with the build, like frange
      real(c_double) :: hist_x(2*iso_nhist) = 0._c_double
      real(c_double) :: hist_y(2*iso_nhist) = 0._c_double
+     ! the same data binned linearly, for the linear x axis (identical to the above
+     ! when the data do not allow logarithmic bins)
+     real(c_double) :: histl_x(2*iso_nhist) = 0._c_double
+     real(c_double) :: histl_y(2*iso_nhist) = 0._c_double
      integer :: nhist = 0 ! number of staircase points (0 = no histogram yet)
-     logical :: hist_log = .false. ! the histogram bins (and so the plot axis) are logarithmic
+     logical :: hist_haslog = .false. ! the log-binned staircase is available (the data are positive)
+     logical :: hist_xlog = .true. ! user: logarithmic x axis (only if hist_haslog)
+     logical :: hist_ylog = .true. ! user: logarithmic y axis
      ! fraction of the integral of |f| (hist_q) and of the volume (hist_v) above the lower edge
-     ! of each bin, for the readout of what the current isovalue encloses
+     ! of each bin, for the readout of what the current isovalue encloses; binned like the
+     ! log staircase when hist_haslog, linearly otherwise
      real*8 :: hist_q(iso_nhist) = 0d0
      real*8 :: hist_v(iso_nhist) = 0d0
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
