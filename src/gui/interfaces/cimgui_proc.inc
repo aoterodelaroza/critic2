@@ -382,7 +382,11 @@ subroutine igSetCursorPosY(local_y) bind(c,name="igSetCursorPosY")
   real(c_float), value :: local_y
 end subroutine igSetCursorPosY
 !x! void igGetCursorStartPos(ImVec2 *pOut);
-!x! void igGetCursorScreenPos(ImVec2 *pOut);
+! void igGetCursorScreenPos(ImVec2 *pOut);
+subroutine igGetCursorScreenPos(pOut) bind(c,name="igGetCursorScreenPos")
+  import ImVec2
+  type(ImVec2) :: pOut
+end subroutine igGetCursorScreenPos
 !x! void igSetCursorScreenPos(const ImVec2 pos);
 ! void igAlignTextToFramePadding(void);
 subroutine igAlignTextToFramePadding() bind(c,name="igAlignTextToFramePadding")
@@ -2717,18 +2721,14 @@ subroutine ipSampleColormap(t,cmap,out) bind(c,name="ipSampleColormap")
   integer(c_int), value :: cmap
   type(ImVec4) :: out
 end subroutine ipSampleColormap
-! void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size,
-!                      const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap);
-subroutine ipColormapScale(label,scale_min,scale_max,size,format,flags,cmap) bind(c,name="ipColormapScale")
-  import c_ptr, c_double, c_int, ImVec2
-  type(c_ptr), intent(in), value :: label
-  real(c_double), value :: scale_min
-  real(c_double), value :: scale_max
-  type(ImVec2), intent(in), value :: size
-  type(c_ptr), intent(in), value :: format
-  integer(c_int), value :: flags
-  integer(c_int), value :: cmap
-end subroutine ipColormapScale
+! void ipSetupAxisTicksValues(ImAxis axis, const double* values, int n_ticks, bool keep_default);
+subroutine ipSetupAxisTicksValues(axis,values,n_ticks,keep_default) bind(c,name="ipSetupAxisTicksValues")
+  import c_int, c_ptr, c_bool
+  integer(c_int), value :: axis
+  type(c_ptr), intent(in), value :: values
+  integer(c_int), value :: n_ticks
+  logical(c_bool), value :: keep_default
+end subroutine ipSetupAxisTicksValues
 ! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
   import c_ptr, c_int

@@ -57,9 +57,8 @@ CIMGUI_API void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis,
 CIMGUI_API void ipSampleColormap(float t, ImPlotColormap cmap, ImVec4 *out){
   *out = ImPlot::SampleColormap(t,cmap);
 }
-CIMGUI_API void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size,
-                                const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap){
-  ImPlot::ColormapScale(label,scale_min,scale_max,size,format,flags,cmap);
+CIMGUI_API void ipSetupAxisTicksValues(ImAxis axis, const double* values, int n_ticks, bool keep_default){
+  ImPlot::SetupAxisTicks(axis,values,n_ticks,NULL,keep_default);
 }
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);

@@ -2372,7 +2372,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable, iw_colormap_id,&
-       iw_field_combo, iw_cmap_optstr, iw_ncmap, duration_string
+       iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, duration_string
     use gui_main, only: fontsize
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2380,7 +2380,7 @@ contains
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
-    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield
+    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
     integer(c_int) :: ncus(3), tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
@@ -2396,7 +2396,9 @@ contains
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable :: str3
-    type(ImVec2) :: szero, szplot, sztab, mpos
+    type(ImVec2) :: szero, szplot, sztab, mpos, szavail
+    real(c_float) :: plotw
+    real(c_double), target :: tickv(32)
     type(ImVec4) :: colline, colhist
 
     ! initialize (the caller has already checked the anchor view and its
@@ -2691,7 +2693,7 @@ contains
           region_rgb,region_alpha)
     end if
 
-    call iw_text("Isosurface",highlight=.true.)
+    call iw_text("Isosurface(s)",highlight=.true.)
 
     ! histogram of the values backing the mesh, with one draggable line
     ! per isosurface: the number of points per bin against the value.
@@ -2701,14 +2703,22 @@ contains
     ! x switch shows bins that match the axis instead of bunching them.
     ! Only available once there is data.
     if (w%rep%iso%nhist > 0) then
+       ! the width the value axis will get, for the tick spacing below
+       call igGetContentRegionAvail(szavail)
+       plotw = szavail%x - iw_calcwidth(8,0)
        str1 = "##isohistogram" // c_null_char
        szplot%x = -1._c_float
        szplot%y = iw_calcheight(1,5,.false.)
        if (ipBeginPlot(c_loc(str1),szplot,ior(ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend),&
           ior(ImPlotFlags_NoInputs,ImPlotFlags_NoMouseText)))) then
+          ! no tick marks: the minor ones are ten per interval, which on a
+          ! logarithmic axis spanning many decades (or on any axis in a
+          ! narrow window) draws them as a solid band along the frame. The
+          ! labels and the grid lines carry the scale on their own
           str1 = "Field value" // c_null_char
           str2 = "Points" // c_null_char
-          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_NoTickMarks,&
+             ImPlotAxisFlags_NoTickMarks)
           call ipSetupAxisScale(ImAxis_X1,implot_scale(w%rep%iso%hist_xscale))
           call ipSetupAxisScale(ImAxis_Y1,implot_scale(w%rep%iso%hist_yscale))
 
@@ -2734,6 +2744,17 @@ contains
           end if
           call ipSetupAxisLimits(ImAxis_X1,real(xlo,c_double),real(xhi,c_double),&
              ImPlotCond_Always)
+
+          ! decade ticks, spaced so their labels do not run into each
+          ! other. implot's own rule for a logarithmic axis divides the
+          ! number of decades by a tick target that grows with the width,
+          ! so a wide plot over many decades ends up labelling every
+          ! single decade: eighteen labels shoulder to shoulder
+          if (w%rep%iso%hist_xscale == hscale_log .and. xlo > 0d0) then
+             ntick = log_ticks(xlo,xhi,plotw,tickv)
+             if (ntick >= 2) &
+                call ipSetupAxisTicksValues(ImAxis_X1,c_loc(tickv),int(ntick,c_int),.false._c_bool)
+          end if
           if (w%rep%iso%hist_yscale == hscale_log) then
              call ipSetupAxisLimits(ImAxis_Y1,0.5_c_double,real(maxval(hy)*2d0,c_double),&
                 ImPlotCond_Always)
@@ -2876,15 +2897,13 @@ contains
        string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
        string(w%rep%iso%frange(2),'e',decimal=4) // ")"
     if (igBeginTable(c_loc(str1),4,tflags,sztab,0._c_float)) then
-       ! the first column keeps a fixed width -- wide enough for both of
-       ! the things that go in it, the per-row delete button and the Add
-       ! button of the last row -- so the rows do not shift as
-       ! isosurfaces come and go (the delete buttons are gone entirely
-       ! when there is a single isosurface)
+       ! the delete column keeps the width of its button even when it is
+       ! empty (a single isosurface), so the rows do not shift as
+       ! isosurfaces come and go
        call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed,&
-          width=max(fontsize%y + 2._c_float,iw_calcwidth(3,1)))
+          width=max(4._c_float,fontsize%y + 2._c_float))
        call iw_table_column("Mode",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Col",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
+       call iw_table_column("Color",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
           width=iw_calcwidth(14,1))
        call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
        call igTableHeadersRow()
@@ -2974,7 +2993,7 @@ contains
        ! the last row adds an isosurface, with a level and a color picked
        ! from the ones already there
        call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-       if (igTableSetColumnIndex(0)) then
+       if (igTableSetColumnIndex(1)) then
           if (iw_button("Add##isoadd")) then
              call w%rep%iso%add_iso()
              changed = .true.
@@ -2997,6 +3016,138 @@ contains
     call map_options()
 
   contains
+    !> A "nice" step (1, 2 or 5 times a power of ten) that divides span
+    !> into about ntarget intervals.
+    function nice_step(span,ntarget) result(step)
+      real*8, intent(in) :: span
+      integer, intent(in) :: ntarget
+      real*8 :: step
+
+      real*8 :: raw, f
+      integer :: ie
+
+      step = 1d0
+      if (span <= 0d0) return
+      raw = span / real(max(ntarget,1),8)
+      ie = floor(log10(raw))
+      f = raw / 10d0**ie
+      if (f <= 1d0) then
+         step = 10d0**ie
+      elseif (f <= 2d0) then
+         step = 2d0 * 10d0**ie
+      elseif (f <= 5d0) then
+         step = 5d0 * 10d0**ie
+      else
+         step = 10d0**(ie+1)
+      end if
+
+    end function nice_step
+
+    !> Decade tick values between vlo and vhi (both positive) for a
+    !> logarithmic axis wpix pixels long, thinned so that the labels do
+    !> not overlap. Returns how many were written into tv.
+    function log_ticks(vlo,vhi,wpix,tv) result(nt)
+      real*8, intent(in) :: vlo, vhi
+      real(c_float), intent(in) :: wpix
+      real(c_double), intent(out) :: tv(:)
+      integer :: nt
+
+      integer :: e, emin, emax, estep, nmax
+
+      nt = 0
+      if (vlo <= 0d0 .or. vhi <= vlo) return
+      emin = ceiling(log10(vlo) - 1d-10)
+      emax = floor(log10(vhi) + 1d-10)
+      if (emax < emin) return
+
+      ! how many labels fit: a decade label is about six characters wide,
+      ! and they need a gap of their own between them
+      nmax = max(int(wpix / iw_calcwidth(9,0)),2)
+      estep = max((emax - emin + nmax - 1) / nmax,1)
+
+      do e = emin, emax, estep
+         if (nt >= size(tv)) exit
+         nt = nt + 1
+         tv(nt) = 10d0**e
+      end do
+      if (nt < 2) nt = 0
+
+    end function log_ticks
+
+    !> Draw the color legend of a field map: the colormap icmap as a
+    !> vertical bar from vlo (bottom) to vhi (top), with tick labels at
+    !> round values beside it. Drawn here rather than with implot's
+    !> ColormapScale, which labels the ticks its locator places outside
+    !> the range and then clips them against the frame.
+    subroutine draw_colorbar(icmap,vlo,vhi)
+      integer, intent(in) :: icmap
+      real*8, intent(in) :: vlo, vhi
+
+      integer, parameter :: nband = 64 ! bands the gradient is drawn with
+
+      integer :: i, ndec, nlab
+      logical :: usesci
+      real*8 :: step, v, span
+      real(c_float) :: barw, barh, pad, y0, y1
+      real(c_float) :: lut(3,nband)
+      type(ImVec2) :: p0, pa, pb, szdum
+      type(ImVec4) :: col
+      type(c_ptr) :: dl
+      character(kind=c_char,len=:), allocatable, target :: strl
+
+      span = vhi - vlo
+      if (span <= 0d0) return
+      call iw_colormap_lut(icmap,lut)
+
+      barw = 1.4_c_float * fontsize%y
+      barh = iw_calcheight(6,0,.false.)
+      pad = 0.4_c_float * fontsize%x
+      call igGetCursorScreenPos(p0)
+      dl = igGetWindowDrawList()
+
+      ! the gradient, in bands from the top (vhi) down
+      do i = 1, nband
+         y0 = p0%y + barh * real(i-1,c_float) / real(nband,c_float)
+         y1 = p0%y + barh * real(i,c_float) / real(nband,c_float)
+         pa = ImVec2(p0%x,y0)
+         pb = ImVec2(p0%x + barw,y1 + 1._c_float)
+         col = ImVec4(lut(1,nband-i+1),lut(2,nband-i+1),lut(3,nband-i+1),1._c_float)
+         call ImDrawList_AddRectFilled(dl,pa,pb,igGetColorU32_Vec4(col),0._c_float,0_c_int)
+      end do
+      pa = ImVec2(p0%x,p0%y)
+      pb = ImVec2(p0%x + barw,p0%y + barh)
+      call ImDrawList_AddRect(dl,pa,pb,igGetColorU32_Col(ImGuiCol_Border,1._c_float),&
+         0._c_float,0_c_int,1._c_float)
+
+      ! labels at round values: as many as fit without touching
+      nlab = max(int(barh / (2._c_float * fontsize%y)),1)
+      step = nice_step(span,nlab)
+      ! one format for the whole scale, so the labels read as one column:
+      ! the values are round multiples of the step, so fixed point needs
+      ! exactly the step's decimals; very large or very small ones go
+      ! scientific instead of growing a tail of zeros
+      ndec = max(-floor(log10(step)),0)
+      usesci = (ndec > 8 .or. max(abs(vlo),abs(vhi)) >= 1d5)
+      do i = ceiling(vlo/step - 1d-10), floor(vhi/step + 1d-10)
+         v = real(i,8) * step
+         if (v < vlo .or. v > vhi) cycle
+         if (usesci) then
+            strl = string(v,'e',decimal=2) // c_null_char
+         else
+            strl = string(v,'f',decimal=ndec) // c_null_char
+         end if
+         y0 = p0%y + barh * real((vhi - v) / span,c_float) - 0.5_c_float * fontsize%y
+         pa = ImVec2(p0%x + barw + pad,y0)
+         call ImDrawList_AddText_Vec2(dl,pa,igGetColorU32_Col(ImGuiCol_Text,1._c_float),&
+            c_loc(strl),c_null_ptr)
+      end do
+
+      ! reserve the space the bar and its labels occupy
+      szdum = ImVec2(barw + pad + iw_calcwidth(10,0),barh)
+      call igDummy(szdum)
+
+    end subroutine draw_colorbar
+
     !> Draw the options of the field map of the selected isosurface,
     !> underneath the table: colormap, opacity, the range the colormap
     !> spans and its legend. Only for a selected isosurface that is
@@ -3007,10 +3158,6 @@ contains
       w%rep%iso%isel = max(min(w%rep%iso%isel,w%rep%iso%niso),1)
       associate (s => w%rep%iso%slot(w%rep%iso%isel))
          if (s%imap_mode == iso_map_field .and. sys(isys)%goodfield(s%imap)) then
-            call iw_text("Field map",highlight=.true.)
-            if (w%rep%iso%niso > 1) &
-               call iw_text("(isosurface " // string(w%rep%iso%isel) // ")",sameline=.true.)
-
             ! colormap
             call iw_text("Colormap",alignframe=.true.)
             isc = max(min(s%icmap,iw_ncmap),1)
@@ -3065,12 +3212,7 @@ contains
                rlo = rlo - reps
                rhi = rhi + reps
             end if
-            str1 = "##isomapscale" // c_null_char
-            szplot%x = iw_calcwidth(10,1)
-            szplot%y = iw_calcheight(4,0,.false.)
-            str2 = "%g" // c_null_char
-            call ipColormapScale(c_loc(str1),real(rlo,c_double),real(rhi,c_double),&
-               szplot,c_loc(str2),ImPlotColormapScaleFlags_None,iw_colormap_id(s%icmap))
+            call draw_colorbar(s%icmap,rlo,rhi)
 
             if (s%mapoutdomain) &
                call iw_text("Some of this isosurface is outside the domain of the map field&

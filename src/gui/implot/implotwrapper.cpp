@@ -52,11 +52,6 @@ const int const_ImPlotColormap_Jet = ImPlotColormap_Jet;
 const int const_ImPlotColormap_RdBu = ImPlotColormap_RdBu;
 const int const_ImPlotColormap_Spectral = ImPlotColormap_Spectral;
 const int const_ImPlotColormap_Greys = ImPlotColormap_Greys;
-// enum ImPlotColormapScaleFlags_
-const int const_ImPlotColormapScaleFlags_None = ImPlotColormapScaleFlags_None;
-const int const_ImPlotColormapScaleFlags_NoLabel = ImPlotColormapScaleFlags_NoLabel;
-const int const_ImPlotColormapScaleFlags_Opposite = ImPlotColormapScaleFlags_Opposite;
-const int const_ImPlotColormapScaleFlags_Invert = ImPlotColormapScaleFlags_Invert;
 // enum ImPlotFlags_
 const int const_ImPlotFlags_None = ImPlotFlags_None;
 const int const_ImPlotFlags_NoTitle = ImPlotFlags_NoTitle;
