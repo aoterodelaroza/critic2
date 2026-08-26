@@ -2522,10 +2522,12 @@ contains
     !> emits one vertex per crossed edge, so there are one or two orders of
     !> magnitude fewer of them than there are grid points.
     subroutine color_slots()
+      use arithmetic, only: pretokenize
       integer :: i, j, nv
       logical :: pereval, lval, linvalid, doval, docol, goodmap
       real*8 :: lo, hi, vmin, vmax, t
       real(c_float) :: lut(3,iso_nlut)
+      character(len=:), allocatable :: lerrmsg
 
       ! the mesh vertices are in the same Cartesian frame the field sampler
       ! uses (save_mesh has already added the domain origin), and a crystal
@@ -2536,8 +2538,16 @@ contains
          associate (s => r%iso%slot(i))
            if (.not.s%built) cycle
            nv = s%mesh%nv
-           goodmap = (s%imap_mode == iso_map_field .and. nv > 0)
-           if (goodmap) goodmap = sys(r%id)%goodfield(s%imap)
+           goodmap = (nv > 0)
+           if (goodmap) then
+              if (s%imap_mode == iso_map_field) then
+                 goodmap = sys(r%id)%goodfield(s%imap)
+              elseif (s%imap_mode == iso_map_expr) then
+                 goodmap = (len_trim(s%mapexpr) > 0)
+              else
+                 goodmap = .false.
+              end if
+           end if
 
            ! nothing to color: a flat isosurface (the renderer repeats the
            ! mesh color, and dropping the array keeps it out of the
@@ -2549,27 +2559,68 @@ contains
               if (allocated(s%mapok)) deallocate(s%mapok)
               s%mapoutdomain = .false.
               s%imap_built = -1
+              s%mapexpr_built = ""
               cycle
            end if
 
-           ! stage 1: the values of the map field at the vertices
+           ! stage 1: the values that color the surface, at the vertices
            doval = (s%imap_built /= s%imap)
+           doval = doval .or. (s%mapexpr_built /= s%mapexpr)
            doval = doval .or. .not.allocated(s%mapval)
            if (.not.doval) doval = (size(s%mapval) /= nv)
            if (doval) then
               call ensure_size(s%mapval,s%mapok,nv)
               linvalid = .false.
-              associate (fmap => sys(r%id)%f(s%imap))
-                !$omp parallel do private(lval) schedule(dynamic) reduction(.or.:linvalid)
-                do j = 1, nv
-                   s%mapval(j) = fmap%grd0(real(s%mesh%x(:,j),8),periodic=pereval,valid=lval)
-                   s%mapok(j) = logical(lval,c_bool)
-                   linvalid = linvalid .or. .not.lval
-                end do
-                !$omp end parallel do
-              end associate
+              if (s%imap_mode == iso_map_expr) then
+                 ! the expression is parsed once and the token list reused
+                 ! at every vertex, as the grid evaluator does; parsing it
+                 ! per vertex would dominate the cost
+                 syptr => sys(r%id)
+                 errmsg = ""
+                 call pretokenize(trim(s%mapexpr),toklist,errmsg,c_loc(syptr))
+                 if (len_trim(errmsg) > 0) then
+                    s%maperr = errmsg
+                    if (allocated(s%mesh%rgbv)) deallocate(s%mesh%rgbv)
+                    s%mapexpr_built = s%mapexpr
+                    cycle
+                 end if
+                 ! a trial evaluation: an expression that is well formed
+                 ! but cannot be evaluated (a field that does not exist, an
+                 ! operator without its operand) fails at every vertex, and
+                 ! this is where its message comes from -- the parallel
+                 ! loop below has nowhere to put one
+                 errmsg = ""
+                 t = sys(r%id)%eval(trim(s%mapexpr),errmsg,real(s%mesh%x(:,1),8),toklist)
+                 if (len_trim(errmsg) > 0) then
+                    s%maperr = errmsg
+                    if (allocated(s%mesh%rgbv)) deallocate(s%mesh%rgbv)
+                    s%mapexpr_built = s%mapexpr
+                    cycle
+                 end if
+                 s%maperr = ""
+                 !$omp parallel do private(lerrmsg) schedule(dynamic) reduction(.or.:linvalid)
+                 do j = 1, nv
+                    lerrmsg = ""
+                    s%mapval(j) = sys(r%id)%eval(trim(s%mapexpr),lerrmsg,&
+                       real(s%mesh%x(:,j),8),toklist)
+                    s%mapok(j) = logical(len_trim(lerrmsg) == 0,c_bool)
+                    linvalid = linvalid .or. (len_trim(lerrmsg) > 0)
+                 end do
+                 !$omp end parallel do
+              else
+                 associate (fmap => sys(r%id)%f(s%imap))
+                   !$omp parallel do private(lval) schedule(dynamic) reduction(.or.:linvalid)
+                   do j = 1, nv
+                      s%mapval(j) = fmap%grd0(real(s%mesh%x(:,j),8),periodic=pereval,valid=lval)
+                      s%mapok(j) = logical(lval,c_bool)
+                      linvalid = linvalid .or. .not.lval
+                   end do
+                   !$omp end parallel do
+                 end associate
+              end if
               s%mapoutdomain = linvalid
               s%imap_built = s%imap
+              s%mapexpr_built = s%mapexpr
            end if
 
            ! the colormap and the range the values are mapped through. A map

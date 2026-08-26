@@ -19,9 +19,21 @@
 ! math utilities adapted from the glm library,...
 module utils
   use iso_c_binding
+  use param, only: newline
   implicit none
 
   private
+
+  ! What an arithmetic expression can contain, for the tooltips of the
+  ! places that take one (the atom filter, the isosurface color map,...)
+  character(len=*), parameter, public :: iw_arith_help = &
+     "An arithmetic expression over the fields of this system ($0 is the promolecular density,&
+     & $1 the first field loaded,...), the structural variables (@x, @y, @z,...), and the usual&
+     & operators and functions. Examples:"//newline//&
+     "- '$1' = the value of field 1"//newline//&
+     "- '$1-$2' = the difference between two fields"//newline//&
+     "- 'log(abs($1))' = a function of a field"//newline//&
+     "- '@x < 3' = a comparison (non-zero is true)"
 
   ! Continuous colormaps offered by the GUI, in the order they are shown. They
   ! are implot's own, so a mapped surface and an implot color legend come from

@@ -153,7 +153,7 @@ contains
        atlisttype_nneq, atlisttype_ncel_frac
     use gui_main, only: ColorHighlightScene, ColorElement
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
+    use utils, only: iw_text, iw_tooltip, iw_arith_help, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint, iw_table_column,&
        iw_begintabitem
@@ -213,12 +213,9 @@ contains
        if (iw_begintabitem("Selection##editrepatoms_selectiontab")) then
           ! filter
           call iw_text("Filter",highlight=.true.,alignframe=.true.)
-          call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. &
-             &Structural variables are very useful for filters. Examples:"//newline//&
-             "- '@x < 3' = all atoms with x lower than 3"//newline//&
-             "- 'log($0) > 1' = log of the promolecular density higher than 1"//newline//&
-             "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
-             "Click the Help button for more info.")
+          call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at&
+             & the atomic position; structural variables are very useful for filters."//newline//&
+             iw_arith_help//newline//"Click the Help button for more info.")
           if (iw_button("Help##helpfilter",sameline=.true.)) then
              str3 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
              call openLink(c_loc(str3))
@@ -2365,15 +2362,17 @@ contains
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
        iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_nhist, iso_hscale_name,&
-       iso_hscale_y, iso_map_field, iso_map_optstr,&
+       iso_hscale_y, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable, iw_colormap_id,&
-       iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, duration_string
+       iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
+       iw_inputtext, duration_string
     use gui_main, only: fontsize
+    use param, only: newline
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -2935,7 +2934,8 @@ contains
                call iw_tooltip("Whether this isosurface has a single color or takes it&
                   & from the values of another field",ttshown)
             end if
-            ! the color itself: a swatch, or the field that maps onto it
+            ! the color itself: a swatch, the field that maps onto it, or
+            ! the expression whose values do
             if (igTableSetColumnIndex(2)) then
                if (s%imap_mode == iso_map_field) then
                   if (iw_field_combo("##isomapfield" // string(i),isys,s%imap)) then
@@ -2948,6 +2948,20 @@ contains
                      changed = .true.
                   end if
                   call iw_tooltip("Field whose values color this isosurface",ttshown)
+               elseif (s%imap_mode == iso_map_expr) then
+                  call igGetContentRegionAvail(szavail)
+                  call igSetNextItemWidth(szavail%x)
+                  if (iw_inputtext("##isomapexpr" // string(i),bufsize=iso_explen,&
+                     textf=s%mapexpr,notlive=.true.)) then
+                     ! a new expression is a new quantity, like a new field
+                     s%maperr = ""
+                     s%icmap_auto = .true.
+                     s%maprange_auto = .true.
+                     w%rep%iso%isel = i
+                     changed = .true.
+                  end if
+                  call iw_tooltip("Expression whose values color this isosurface."//newline//&
+                     iw_arith_help,ttshown)
                else
                   rgba(1:3) = s%rgb
                   rgba(4) = s%alpha
@@ -3133,6 +3147,8 @@ contains
          if (v < vlo .or. v > vhi) cycle
          if (usesci) then
             strl = string(v,'e',decimal=2) // c_null_char
+         elseif (ndec == 0) then
+            strl = string(nint(v)) // c_null_char ! whole numbers, without a trailing dot
          else
             strl = string(v,'f',decimal=ndec) // c_null_char
          end if
@@ -3157,7 +3173,12 @@ contains
       if (w%rep%iso%niso < 1) return
       w%rep%iso%isel = max(min(w%rep%iso%isel,w%rep%iso%niso),1)
       associate (s => w%rep%iso%slot(w%rep%iso%isel))
-         if (s%imap_mode == iso_map_field .and. sys(isys)%goodfield(s%imap)) then
+         ldum = (s%imap_mode == iso_map_field)
+         if (ldum) ldum = sys(isys)%goodfield(s%imap)
+         if (s%imap_mode == iso_map_expr) ldum = (len_trim(s%mapexpr) > 0)
+         if (ldum) then
+            if (len_trim(s%maperr) > 0) &
+               call iw_text("Error: " // trim(s%maperr),danger=.true.,wrap=.true.)
             ! colormap
             call iw_text("Colormap",alignframe=.true.)
             isc = max(min(s%icmap,iw_ncmap),1)
@@ -3214,9 +3235,15 @@ contains
             end if
             call draw_colorbar(s%icmap,rlo,rhi)
 
-            if (s%mapoutdomain) &
-               call iw_text("Some of this isosurface is outside the domain of the map field&
-               & (shown in grey)",danger=.true.,wrap=.true.)
+            if (s%mapoutdomain) then
+               if (s%imap_mode == iso_map_expr) then
+                  call iw_text("The expression could not be evaluated on part of this&
+                     & isosurface (shown in grey)",danger=.true.,wrap=.true.)
+               else
+                  call iw_text("Some of this isosurface is outside the domain of the map&
+                     & field (shown in grey)",danger=.true.,wrap=.true.)
+               end if
+            end if
          end if
       end associate
 

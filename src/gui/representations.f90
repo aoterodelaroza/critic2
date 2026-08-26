@@ -177,8 +177,10 @@ module representations
   real(c_float), parameter, public :: iso_rgb_tol = 0.05_c_float ! two colors closer than this count as the same
   integer, parameter, public :: iso_map_color = 0 ! isosurface color: a single color for the whole surface
   integer, parameter, public :: iso_map_field = 1 ! the values of another field, through a colormap
+  integer, parameter, public :: iso_map_expr = 2 ! the values of an arithmetic expression
   character(len=*), parameter, public :: iso_map_optstr = &
-     "Color"//c_null_char//"Field map"//c_null_char ! combo options, in iso_map_* order
+     "Color"//c_null_char//"Field map"//c_null_char//"Expression"//c_null_char ! in iso_map_* order
+  integer, parameter, public :: iso_explen = 255 ! length of the expression that colors a surface
   integer, parameter, public :: iso_cmap_seq = iw_cmap_viridis ! colormap from utils (iw_cmap_*)
   integer, parameter, public :: iso_cmap_div = iw_cmap_rdbu
   integer, parameter, public :: iso_nlut = 256 ! entries of the colormap look-up table
@@ -561,6 +563,8 @@ module representations
      ! coloring by the values of another field (imap_mode = iso_map_field)
      integer :: imap_mode = iso_map_color ! where the color comes from (iso_map_*)
      integer :: imap = -1 ! field whose values color the surface (-1 = none chosen yet)
+     character(len=iso_explen) :: mapexpr = "" ! expression whose values color the surface
+     character(len=iso_explen) :: maperr = "" ! why that expression could not be used (empty = it could)
      integer :: icmap = iso_cmap_seq ! colormap (index into iw_cmap_name)
      logical :: icmap_auto = .true. ! colormap follows the values (sequential/diverging) until the user picks one
      real*8 :: maprange(2) = (/0d0,1d0/) ! values at the two ends of the colormap
@@ -572,6 +576,7 @@ module representations
      logical :: built = .false. ! whether mesh holds a triangulation
      real*8 :: isoval_built = 0d0 ! isovalue the mesh was built at
      integer :: imap_built = -1 ! map field the values were evaluated for (-1 = none)
+     character(len=iso_explen) :: mapexpr_built = "" ! expression the values were evaluated for
      ! state the vertex colors were computed for; a change here recolors the mesh
      integer :: icmap_built = -1
      real*8 :: maprange_built(2) = 0d0
