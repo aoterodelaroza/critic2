@@ -1962,6 +1962,8 @@ contains
     ! if partial, check the point is in the domain; if not, periodic wrap
     if (.not.f%partial) then
        x0 = modulo(xi,1d0)
+       ! modulo returns exactly 1 for a tiny negative argument (1-eps rounds to 1)
+       where (x0 >= 1d0) x0 = 0d0
     else
        ! transform input coordinates into coordinates local to the grid
        nratio = real(f%n-1,8)/real(f%n,8)

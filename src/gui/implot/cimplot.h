@@ -42,7 +42,10 @@ CIMGUI_API void ipSetupAxisTicks(ImAxis axis, double v_min, double v_max, int n_
 CIMGUI_API void ipSetupAxisScale(ImAxis axis, ImPlotScale scale);
 CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlotCond cond);
 CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags);
-CIMGUI_API void ipGetPlotMousePos(double *x, double *y, ImAxis x_axis, ImAxis y_axis);
+CIMGUI_API void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis, float *px, float *py);
+CIMGUI_API void ipSampleColormap(float t, ImPlotColormap cmap, ImVec4 *out);
+CIMGUI_API void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size,
+                                const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap);
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 CIMGUI_API void ipPlotLine(const char* label_id, const double* xs, const double* ys, int count, ImPlotLineFlags flags, int offset);
 CIMGUI_API void ipPlotStairs(const char* label_id, const double* xs, const double* ys, int count, ImPlotStairsFlags flags, int offset);

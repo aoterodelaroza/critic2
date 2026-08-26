@@ -530,9 +530,10 @@ contains
     call setup_mesh_inst(b%coneinstVAO, b%coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
     call setup_mesh_inst(b%coneinstVAOscr, b%coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
 
-    ! indexed-mesh VAO (isosurfaces): interleaved position (loc 0) and normal
-    ! (loc 1) vertices from the per-scene mesh VBO, drawn through the per-scene
-    ! EBO (bound while the VAO is active so it sticks to the VAO state)
+    ! indexed-mesh VAO (isosurfaces): interleaved position (loc 0), normal
+    ! (loc 1) and color (loc 2) vertices from the per-scene mesh VBO, drawn
+    ! through the per-scene EBO (bound while the VAO is active so it sticks
+    ! to the VAO state)
     call glGenVertexArrays(1, c_loc(b%mshVAO))
     call glGenBuffers(1, c_loc(b%mshVBO))
     call glGenBuffers(1, c_loc(b%mshEBO))
@@ -544,6 +545,9 @@ contains
     call glEnableVertexAttribArray(1)
     call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char),&
        int(msh_vert_nf*c_sizeof(c_float_),c_int), transfer(3_c_intptr_t * c_sizeof(c_float_), c_ptr_))
+    call glEnableVertexAttribArray(2)
+    call glVertexAttribPointer(2, 3, GL_FLOAT, int(GL_FALSE,c_signed_char),&
+       int(msh_vert_nf*c_sizeof(c_float_),c_int), transfer(6_c_intptr_t * c_sizeof(c_float_), c_ptr_))
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, b%mshEBO)
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
@@ -1011,16 +1015,20 @@ contains
     ie = 0
     irep = 0
     do i = 1, n
+       ! the color is a vertex attribute; a flat mesh repeats its single color
        do j = 1, msh(i)%nv
           b%packmshv(1:3,iv+j) = msh(i)%x(:,j)
           b%packmshv(4:6,iv+j) = msh(i)%nrm(:,j)
+          b%packmshv(7:9,iv+j) = msh(i)%rgb
        end do
+       if (allocated(msh(i)%rgbv)) &
+          b%packmshv(7:9,iv+1:iv+msh(i)%nv) = msh(i)%rgbv(:,1:msh(i)%nv)
        do j = 1, msh(i)%nf
           b%packmshi(ie+3*(j-1)+1:ie+3*j) = msh(i)%idx(:,j) + iv
        end do
        b%msh_first(i) = ie
        b%msh_count(i) = 3*msh(i)%nf
-       b%msh_rgba(1:3,i) = msh(i)%rgb
+       b%msh_rgba(1:3,i) = msh(i)%rgb ! the shader takes the color from the vertex; this is the opacity carrier
        b%msh_rgba(4,i) = msh(i)%alpha
        nrep = 1
        if (allocated(msh(i)%xrep)) nrep = max(size(msh(i)%xrep,2),1)

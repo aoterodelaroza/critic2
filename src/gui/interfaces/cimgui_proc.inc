@@ -2700,14 +2700,35 @@ function ipDragLineX(id,x,col,thickness,flags) bind(c,name="ipDragLineX")
   integer(c_int), value :: flags
   logical(c_bool) :: ipDragLineX
 end function ipDragLineX
-! void ipGetPlotMousePos(double *x, double *y, ImAxis x_axis, ImAxis y_axis);
-subroutine ipGetPlotMousePos(x,y,x_axis,y_axis) bind(c,name="ipGetPlotMousePos")
-  import c_int, c_double
-  real(c_double) :: x
-  real(c_double) :: y
+! void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis, float *px, float *py);
+subroutine ipPlotToPixels(x,y,x_axis,y_axis,px,py) bind(c,name="ipPlotToPixels")
+  import c_int, c_double, c_float
+  real(c_double), value :: x
+  real(c_double), value :: y
   integer(c_int), value :: x_axis
   integer(c_int), value :: y_axis
-end subroutine ipGetPlotMousePos
+  real(c_float) :: px
+  real(c_float) :: py
+end subroutine ipPlotToPixels
+! void ipSampleColormap(float t, ImPlotColormap cmap, ImVec4 *out);
+subroutine ipSampleColormap(t,cmap,out) bind(c,name="ipSampleColormap")
+  import c_float, c_int, ImVec4
+  real(c_float), value :: t
+  integer(c_int), value :: cmap
+  type(ImVec4) :: out
+end subroutine ipSampleColormap
+! void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size,
+!                      const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap);
+subroutine ipColormapScale(label,scale_min,scale_max,size,format,flags,cmap) bind(c,name="ipColormapScale")
+  import c_ptr, c_double, c_int, ImVec2
+  type(c_ptr), intent(in), value :: label
+  real(c_double), value :: scale_min
+  real(c_double), value :: scale_max
+  type(ImVec2), intent(in), value :: size
+  type(c_ptr), intent(in), value :: format
+  integer(c_int), value :: flags
+  integer(c_int), value :: cmap
+end subroutine ipColormapScale
 ! void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags);
 subroutine ipSetupAxes(x_label,y_label,x_flags,y_flags) bind(c,name="ipSetupAxes")
   import c_ptr, c_int

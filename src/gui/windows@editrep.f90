@@ -2365,13 +2365,14 @@ contains
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
        iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_nhist, iso_hscale_name,&
-       iso_hscale_y,&
+       iso_hscale_y, iso_map_field, iso_map_optstr,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
-       iw_close_button, iw_table_column, duration_string
+       iw_close_button, iw_table_column, iw_highlight_selectable, iw_colormap_id,&
+       iw_field_combo, iw_cmap_optstr, iw_ncmap, duration_string
     use gui_main, only: fontsize
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2379,22 +2380,23 @@ contains
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
-    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline
+    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield
     integer(c_int) :: ncus(3), tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
     real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
-    real*8 :: xnew, dx, dmin
+    real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
-    real(c_double) :: xdrag, xmouse, ymouse
+    real(c_double) :: xdrag
+    real(c_float) :: pxline, pyline
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable :: str3
-    type(ImVec2) :: szero, szplot, sztab
+    type(ImVec2) :: szero, szplot, sztab, mpos
     type(ImVec4) :: colline, colhist
 
     ! initialize (the caller has already checked the anchor view and its
@@ -2429,31 +2431,14 @@ contains
     ! field selector
     call iw_text("Field",highlight=.true.)
     goodf = sys(isys)%goodfield(w%rep%iso%ifield)
-    str1 = "##isofieldcombo" // c_null_char
-    if (goodf) then
-       str2 = string(w%rep%iso%ifield) // ": " // trim(sys(isys)%f(w%rep%iso%ifield)%name) // c_null_char
-    else
-       str2 = "<field not available>" // c_null_char
-    end if
     call igSameLine(0._c_float,-1._c_float)
-    call igSetNextItemWidth(iw_calcwidth(30,1))
-    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
-       do i = 0, sys(isys)%nf
-          if (.not.sys(isys)%f(i)%isinit) cycle
-          is_selected = (w%rep%iso%ifield == i)
-          str2 = string(i) // ": " // trim(sys(isys)%f(i)%name) // c_null_char
-          if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-             if (w%rep%iso%ifield /= i) then
-                ! set the field with its default isovalue and grid level,
-                ! applied immediately
-                call w%rep%iso%set_field(isys,i)
-                changed = .true.
-             end if
-          end if
-          if (is_selected) &
-             call igSetItemDefaultFocus()
-       end do
-       call igEndCombo()
+    ifield = w%rep%iso%ifield
+    if (iw_field_combo("##isofieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+       nonestr="<field not available>")) then
+       ! set the field with its default isovalue and grid level, applied
+       ! immediately
+       call w%rep%iso%set_field(isys,ifield)
+       changed = .true.
     end if
     call iw_tooltip("Field whose isosurface is displayed (selecting a field&
        & resets the isovalue to a default for that field)",ttshown)
@@ -2779,16 +2764,29 @@ contains
           ! line grabs over a few pixels around itself and the calls are
           ! independent, so two levels that land close together on the
           ! axis would otherwise both grab, the last one drawn winning --
-          ! the user aims at one isosurface and moves another. Nearness
-          ! is measured on the axis as drawn (log/arcsinh), which is what
-          ! decides whether the lines overlap on screen.
-          call ipGetPlotMousePos(xmouse,ymouse,ImAxis_X1,ImAxis_Y1)
+          ! the user aims at one isosurface and moves another.
+          !
+          ! Nearness is measured in pixels, by mapping each isovalue
+          ! forward onto the axis as drawn. Going the other way (asking
+          ! ImPlot where the cursor is in field units) is what a natural
+          ! reading suggests, but its inverse transform is a pow(10,...)
+          ! on a logarithmic axis whose exponent grows without bound as
+          ! the cursor moves away from the plot: it overflows, and this
+          ! build traps that (SIGFPE). The forward transform of a value
+          ! inside the axis range cannot overflow.
           iline = w%editrep_isoline
           if (iline < 1 .or. iline > w%rep%iso%niso) then
              iline = 1
+             call igGetMousePos(mpos)
              dmin = huge(dmin)
              do i = 1, w%rep%iso%niso
-                dx = abs(axis_coord(w%rep%iso%slot(i)%isoval) - axis_coord(real(xmouse,8)))
+                ! the y argument goes through the count axis, which is
+                ! logarithmic by default: it must be a value that axis can
+                ! represent (log10 of zero is a trapped divide-by-zero),
+                ! and only the x pixel is used
+                call ipPlotToPixels(real(w%rep%iso%slot(i)%isoval,c_double),1._c_double,&
+                   ImAxis_X1,ImAxis_Y1,pxline,pyline)
+                dx = abs(real(pxline - mpos%x,8))
                 if (dx < dmin) then
                    dmin = dx
                    iline = i
@@ -2877,7 +2875,7 @@ contains
        str3 = "Value of the field on this isosurface, in atomic units (data range: " //&
        string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
        string(w%rep%iso%frange(2),'e',decimal=4) // ")"
-    if (igBeginTable(c_loc(str1),3,tflags,sztab,0._c_float)) then
+    if (igBeginTable(c_loc(str1),4,tflags,sztab,0._c_float)) then
        ! the first column keeps a fixed width -- wide enough for both of
        ! the things that go in it, the per-row delete button and the Add
        ! button of the last row -- so the rows do not shift as
@@ -2885,8 +2883,10 @@ contains
        ! when there is a single isosurface)
        call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed,&
           width=max(fontsize%y + 2._c_float,iw_calcwidth(3,1)))
-       call iw_table_column("Col",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Isovalue",id=2,flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_column("Mode",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Col",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
+          width=iw_calcwidth(14,1))
+       call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
        call igTableHeadersRow()
 
        do i = 1, w%rep%iso%niso
@@ -2901,22 +2901,50 @@ contains
                   call iw_tooltip("Remove this isosurface",ttshown)
                end if
             end if
-            ! color and opacity
+            ! where the color of this isosurface comes from
             if (igTableSetColumnIndex(1)) then
-               rgba(1:3) = s%rgb
-               rgba(4) = s%alpha
-               if (iw_coloredit("##isocol" // string(i),rgba=rgba)) then
-                  s%rgb = rgba(1:3)
-                  s%alpha = rgba(4)
+               imode = s%imap_mode
+               call iw_combo_simple("##isomapmode" // string(i),iso_map_optstr,imode,changed=ch)
+               if (ch .and. imode /= s%imap_mode) then
+                  s%imap_mode = imode
+                  ! first time this isosurface is mapped: start from the
+                  ! field it is an isosurface of, which always exists
+                  if (s%imap_mode == iso_map_field .and. s%imap < 0) s%imap = w%rep%iso%ifield
+                  w%rep%iso%isel = i
                   changed = .true.
                end if
-               call iw_tooltip("Color and opacity of this isosurface",ttshown)
+               call iw_tooltip("Whether this isosurface has a single color or takes it&
+                  & from the values of another field",ttshown)
+            end if
+            ! the color itself: a swatch, or the field that maps onto it
+            if (igTableSetColumnIndex(2)) then
+               if (s%imap_mode == iso_map_field) then
+                  if (iw_field_combo("##isomapfield" // string(i),isys,s%imap)) then
+                     ! a different field is a different quantity: its own
+                     ! colormap and range are suggested afresh, the way a
+                     ! new field re-picks the histogram axis scale
+                     s%icmap_auto = .true.
+                     s%maprange_auto = .true.
+                     w%rep%iso%isel = i
+                     changed = .true.
+                  end if
+                  call iw_tooltip("Field whose values color this isosurface",ttshown)
+               else
+                  rgba(1:3) = s%rgb
+                  rgba(4) = s%alpha
+                  if (iw_coloredit("##isocol" // string(i),rgba=rgba)) then
+                     s%rgb = rgba(1:3)
+                     s%alpha = rgba(4)
+                     changed = .true.
+                  end if
+                  call iw_tooltip("Color and opacity of this isosurface",ttshown)
+               end if
             end if
             ! the level: this widget is notlive, so its re-triangulation
             ! runs on commit rather than on every frame of the drag (the
             ! histogram line above is live instead); capped by the range
             ! of the data backing the mesh (unclamped until the first build)
-            if (igTableSetColumnIndex(2)) then
+            if (igTableSetColumnIndex(3)) then
                speed = max(0.01d0 * abs(s%isoval),1d-4)
                if (haverange) then
                   changed = changed .or. iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
@@ -2934,6 +2962,11 @@ contains
                      speed=speed,decimal=6,notlive=.true.)
                   call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
                end if
+               ! a row-spanning selectable picks the isosurface whose map
+               ! options are shown under the table
+               ldum = iw_highlight_selectable("##isosel" // string(i),clicked=ch,&
+                  selected=(i == w%rep%iso%isel))
+               if (ch) w%rep%iso%isel = i
             end if
           end associate
        end do
@@ -2952,10 +2985,101 @@ contains
     end if
     if (idel > 0) then
        call w%rep%iso%del_iso(idel)
+       ! the slots above the deleted one moved down: the options block has
+       ! to follow its isosurface instead of landing on a different one
+       if (idel < w%rep%iso%isel) w%rep%iso%isel = w%rep%iso%isel - 1
        changed = .true.
     end if
 
+    ! the options of the field map of the selected isosurface. They are too
+    ! many for a table row, so they go underneath for one isosurface at a
+    ! time, the way the measurement editor handles its per-item style
+    call map_options()
+
   contains
+    !> Draw the options of the field map of the selected isosurface,
+    !> underneath the table: colormap, opacity, the range the colormap
+    !> spans and its legend. Only for a selected isosurface that is
+    !> actually mapped (a flat one carries color and opacity in its
+    !> table swatch).
+    subroutine map_options()
+      if (w%rep%iso%niso < 1) return
+      w%rep%iso%isel = max(min(w%rep%iso%isel,w%rep%iso%niso),1)
+      associate (s => w%rep%iso%slot(w%rep%iso%isel))
+         if (s%imap_mode == iso_map_field .and. sys(isys)%goodfield(s%imap)) then
+            call iw_text("Field map",highlight=.true.)
+            if (w%rep%iso%niso > 1) &
+               call iw_text("(isosurface " // string(w%rep%iso%isel) // ")",sameline=.true.)
+
+            ! colormap
+            call iw_text("Colormap",alignframe=.true.)
+            isc = max(min(s%icmap,iw_ncmap),1)
+            call iw_combo_simple("##isocmap",iw_cmap_optstr,isc,sameline=.true.,changed=ch,startsatone=.true.)
+            if (ch) then
+               s%icmap = isc
+               s%icmap_auto = .false. ! the user has chosen: stop suggesting
+               changed = .true.
+            end if
+            call iw_tooltip("Colors the values of the map field are drawn with. Until you&
+               & pick one, it follows the values: sequential for values of one sign,&
+               & diverging for values that change sign.",ttshown)
+
+            ! opacity (in color mode this lives in the color picker)
+            alpha8 = real(s%alpha,8)
+            if (iw_dragfloat_real8("Opacity##isomapalpha",x1=alpha8,speed=0.01d0,min=0d0,max=1d0,&
+               decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) then
+               s%alpha = real(alpha8,c_float)
+               changed = .true.
+            end if
+            call iw_tooltip("Opacity of this isosurface (1 = opaque)",ttshown)
+
+            ! the range the colormap spans, and whether it follows the data
+            ch = iw_checkbox("Auto range##isomapauto",s%maprange_auto)
+            if (ch) then
+               ! the range is recomputed by the pass that evaluates the map
+               ! field, so switching it back on asks for that pass again
+               if (s%maprange_auto) s%imap_built = -1
+               changed = .true.
+            end if
+            call iw_tooltip("Span the colormap over the values the map field takes on this&
+               & isosurface, recomputed whenever the surface changes",ttshown)
+            if (.not.s%maprange_auto) then
+               maprspeed = max(0.01d0 * maxval(abs(s%maprange)),1d-6)
+               if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,decimal=6,&
+                  sameline=.true.)) changed = .true.
+               call iw_tooltip("Values at the two ends of the colormap",ttshown)
+            else
+               call iw_text("[" // string(s%maprange(1),'e',decimal=4) // ", " //&
+                  string(s%maprange(2),'e',decimal=4) // "]",sameline=.true.)
+            end if
+
+            ! the legend, sampled from the same colormap as the surface.
+            ! Its ends are nudged apart if they coincide (a constant map
+            ! field, or both ends dragged together): implot places the
+            ! ticks by taking logarithms of the span, and a zero span is a
+            ! trapped divide-by-zero in this build
+            rlo = s%maprange(1)
+            rhi = s%maprange(2)
+            if (rhi <= rlo) then
+               reps = max(1d-6 * abs(rlo),1d-12)
+               rlo = rlo - reps
+               rhi = rhi + reps
+            end if
+            str1 = "##isomapscale" // c_null_char
+            szplot%x = iw_calcwidth(10,1)
+            szplot%y = iw_calcheight(4,0,.false.)
+            str2 = "%g" // c_null_char
+            call ipColormapScale(c_loc(str1),real(rlo,c_double),real(rhi,c_double),&
+               szplot,c_loc(str2),ImPlotColormapScaleFlags_None,iw_colormap_id(s%icmap))
+
+            if (s%mapoutdomain) &
+               call iw_text("Some of this isosurface is outside the domain of the map field&
+               & (shown in grey)",danger=.true.,wrap=.true.)
+         end if
+      end associate
+
+    end subroutine map_options
+
     !> ImPlot axis scale for one of the hscale_* ids.
     function implot_scale(is) result(isc_)
       integer, intent(in) :: is
@@ -2987,16 +3111,6 @@ contains
       end if
 
     end function scale_coord
-
-    !> The value x in the units of the value axis as it is drawn, for
-    !> measuring how close two levels are on screen.
-    function axis_coord(x) result(tv)
-      real*8, intent(in) :: x
-      real*8 :: tv
-
-      tv = scale_coord(x,w%rep%iso%hist_xscale)
-
-    end function axis_coord
 
     !> Index of the histogram bin that contains the value x, in the
     !> binning the cumulative arrays use (0 if x is out of range).

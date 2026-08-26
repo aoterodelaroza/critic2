@@ -1973,4 +1973,117 @@ contains
 
   end function dragfloat_width
 
+  !> Combo that selects one of the fields of system isys (including the
+  !> promolecular field 0), listing only the initialized ones. ifield is
+  !> updated and the result is true when the selection changed. width is
+  !> the widget width (the available content region if absent, which is
+  !> what a table cell wants); nonestr is the preview shown when ifield is
+  !> not a field of this system.
+  module function iw_field_combo(strid,isys,ifield,width,nonestr) result(ch)
+    use interfaces_cimgui
+    use systems, only: sys
+    use tools_io, only: string
+    character(len=*,kind=c_char), intent(in) :: strid
+    integer, intent(in) :: isys
+    integer, intent(inout) :: ifield
+    real(c_float), intent(in), optional :: width
+    character(len=*), intent(in), optional :: nonestr
+    logical :: ch
+
+    integer :: i
+    type(ImVec2) :: szero, szavail
+    logical(c_bool) :: issel
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+    ch = .false.
+    szero%x = 0
+    szero%y = 0
+    if (sys(isys)%goodfield(ifield)) then
+       str2 = string(ifield) // ": " // trim(sys(isys)%f(ifield)%name) // c_null_char
+    elseif (present(nonestr)) then
+       str2 = nonestr // c_null_char
+    else
+       str2 = "<none>" // c_null_char
+    end if
+    str1 = strid // c_null_char
+    if (present(width)) then
+       call igSetNextItemWidth(width)
+    else
+       call igGetContentRegionAvail(szavail)
+       call igSetNextItemWidth(szavail%x)
+    end if
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 0, sys(isys)%nf
+          if (.not.sys(isys)%f(i)%isinit) cycle
+          issel = (ifield == i)
+          str2 = string(i) // ": " // trim(sys(isys)%f(i)%name) // c_null_char
+          if (igSelectable_Bool(c_loc(str2),issel,ImGuiSelectableFlags_None,szero)) then
+             if (ifield /= i) then
+                ifield = i
+                ch = .true.
+             end if
+          end if
+          if (issel) &
+             call igSetItemDefaultFocus()
+       end do
+       call igEndCombo()
+    end if
+
+  end function iw_field_combo
+
+  !> Fill lut (3,n) with n colors evenly sampled from colormap icmap (an
+  !> index into iw_cmap_name), from the low end of the map to the high end.
+  !> Sampling into a table once is much cheaper than asking implot for every
+  !> value to be colored, and the table is what the surface and the legend
+  !> share.
+  module subroutine iw_colormap_lut(icmap,lut)
+    use interfaces_cimgui
+    integer, intent(in) :: icmap
+    real(c_float), intent(out) :: lut(:,:)
+
+    integer :: i, n
+    real(c_float) :: t
+    type(ImVec4) :: col
+
+    n = size(lut,2)
+    do i = 1, n
+       t = 0._c_float
+       if (n > 1) t = real(i-1,c_float) / real(n-1,c_float)
+       call ipSampleColormap(t,iw_colormap_id(icmap),col)
+       lut(1,i) = col%x
+       lut(2,i) = col%y
+       lut(3,i) = col%z
+    end do
+
+  end subroutine iw_colormap_lut
+
+  !> The implot id of colormap icmap (an index into iw_cmap_name).
+  module function iw_colormap_id(icmap) result(id)
+    use interfaces_cimgui
+    integer, intent(in) :: icmap
+    integer(c_int) :: id
+
+    ! the implot constants are bind(c) variables, so this cannot be a
+    ! parameter table; keep the order the same as iw_cmap_name
+    select case (icmap)
+    case (2)
+       id = ImPlotColormap_Plasma
+    case (3)
+       id = ImPlotColormap_Hot
+    case (4)
+       id = ImPlotColormap_Cool
+    case (5)
+       id = ImPlotColormap_Jet
+    case (6)
+       id = ImPlotColormap_RdBu
+    case (7)
+       id = ImPlotColormap_Spectral
+    case (8)
+       id = ImPlotColormap_Greys
+    case default
+       id = ImPlotColormap_Viridis
+    end select
+
+  end function iw_colormap_id
+
 end submodule proc

@@ -2459,6 +2459,9 @@ contains
          end do
       end do
 
+      ! vertex colors: flat, or from the values of another field
+      call color_slots()
+
       ! append the cached meshes to the draw list with their copy offsets
       do i = 1, r%iso%niso
          if (r%iso%slot(i)%mesh%nf == 0) cycle
@@ -2503,10 +2506,164 @@ contains
            call save_mesh(s%mesh,nv,xv,nrm,nf,idx,x0c)
            s%isoval_built = s%isoval
            s%built = .true.
+           s%imap_built = -1 ! new vertices: the map values belong to the old ones
          end associate
       end do
 
     end subroutine triangulate
+
+    !> Give every isosurface of this object its vertex colors: flat, or the
+    !> values of another field through a colormap. Two stamped stages, so
+    !> the expensive one runs only when it must: the map field is evaluated
+    !> at the mesh vertices (only when the vertices or the field changed),
+    !> and the values are turned into colors (only when the colormap, the
+    !> range, or the values changed). Evaluating at the vertices rather
+    !> than on the sampling grid is what makes this cheap: marching cubes
+    !> emits one vertex per crossed edge, so there are one or two orders of
+    !> magnitude fewer of them than there are grid points.
+    subroutine color_slots()
+      integer :: i, j, nv
+      logical :: pereval, lval, linvalid, doval, docol, goodmap
+      real*8 :: lo, hi, vmin, vmax, t
+      real(c_float) :: lut(3,iso_nlut)
+
+      ! the mesh vertices are in the same Cartesian frame the field sampler
+      ! uses (save_mesh has already added the domain origin), and a crystal
+      ! field is evaluated periodically, exactly as when it was sampled
+      pereval = .not.c%ismolecule
+
+      do i = 1, r%iso%niso
+         associate (s => r%iso%slot(i))
+           if (.not.s%built) cycle
+           nv = s%mesh%nv
+           goodmap = (s%imap_mode == iso_map_field .and. nv > 0)
+           if (goodmap) goodmap = sys(r%id)%goodfield(s%imap)
+
+           ! nothing to color: a flat isosurface (the renderer repeats the
+           ! mesh color, and dropping the array keeps it out of the
+           ! per-frame draw-list copy) or an empty surface, whose values
+           ! belong to the mesh it had before
+           if (.not.goodmap) then
+              if (allocated(s%mesh%rgbv)) deallocate(s%mesh%rgbv)
+              if (allocated(s%mapval)) deallocate(s%mapval)
+              if (allocated(s%mapok)) deallocate(s%mapok)
+              s%mapoutdomain = .false.
+              s%imap_built = -1
+              cycle
+           end if
+
+           ! stage 1: the values of the map field at the vertices
+           doval = (s%imap_built /= s%imap)
+           doval = doval .or. .not.allocated(s%mapval)
+           if (.not.doval) doval = (size(s%mapval) /= nv)
+           if (doval) then
+              call ensure_size(s%mapval,s%mapok,nv)
+              linvalid = .false.
+              associate (fmap => sys(r%id)%f(s%imap))
+                !$omp parallel do private(lval) schedule(dynamic) reduction(.or.:linvalid)
+                do j = 1, nv
+                   s%mapval(j) = fmap%grd0(real(s%mesh%x(:,j),8),periodic=pereval,valid=lval)
+                   s%mapok(j) = logical(lval,c_bool)
+                   linvalid = linvalid .or. .not.lval
+                end do
+                !$omp end parallel do
+              end associate
+              s%mapoutdomain = linvalid
+              s%imap_built = s%imap
+           end if
+
+           ! the colormap and the range the values are mapped through. A map
+           ! that has just been chosen suggests both from the values it finds
+           ! on the surface: values of one sign get a sequential map over
+           ! their own range, values that change sign a diverging one over a
+           ! range symmetric about zero, so the neutral middle sits at zero.
+           ! Both keep following the values until the user sets them (the
+           ! editor asks for a fresh pass when auto is switched back on)
+           if (doval .and. (s%icmap_auto .or. s%maprange_auto)) then
+              vmin = 0d0
+              vmax = 0d0
+              if (any(s%mapok)) then
+                 vmin = minval(s%mapval,mask=s%mapok)
+                 vmax = maxval(s%mapval,mask=s%mapok)
+              end if
+              if (s%icmap_auto) then
+                 if (vmin < 0d0 .and. vmax > 0d0) then
+                    s%icmap = iso_cmap_div
+                 else
+                    s%icmap = iso_cmap_seq
+                 end if
+              end if
+              if (s%maprange_auto) then
+                 if (vmin < 0d0 .and. vmax > 0d0) then
+                    s%maprange(2) = max(abs(vmin),abs(vmax))
+                    s%maprange(1) = -s%maprange(2)
+                 else
+                    s%maprange = (/vmin,vmax/)
+                 end if
+              end if
+           end if
+
+           ! stage 2: the colors
+           docol = doval
+           docol = docol .or. .not.allocated(s%mesh%rgbv)
+           if (.not.docol) docol = (size(s%mesh%rgbv,2) /= nv)
+           docol = docol .or. (s%icmap_built /= s%icmap)
+           docol = docol .or. any(s%maprange_built /= s%maprange)
+           if (.not.docol) cycle
+
+           call ensure_size_rgb(s%mesh%rgbv,nv)
+           call iw_colormap_lut(s%icmap,lut)
+           lo = min(s%maprange(1),s%maprange(2))
+           hi = max(s%maprange(1),s%maprange(2))
+           do j = 1, nv
+              if (.not.s%mapok(j)) then
+                 s%mesh%rgbv(:,j) = iso_rgb_invalid
+              else
+                 ! clamped before the index arithmetic: a degenerate range
+                 ! (both ends dragged together) would otherwise send t to
+                 ! 1e30 and overflow the nint
+                 t = min(max((s%mapval(j) - lo) / max(hi - lo,1d-30),0d0),1d0)
+                 s%mesh%rgbv(:,j) = lut(:,min(1+nint(t*(iso_nlut-1)),iso_nlut))
+              end if
+           end do
+           s%icmap_built = s%icmap
+           s%maprange_built = s%maprange
+         end associate
+      end do
+
+    end subroutine color_slots
+
+    !> Make the per-vertex value and validity arrays hold exactly n
+    !> entries, reallocating only when the size actually changed.
+    subroutine ensure_size(val,ok,n)
+      real*8, allocatable, intent(inout) :: val(:)
+      logical(c_bool), allocatable, intent(inout) :: ok(:)
+      integer, intent(in) :: n
+
+      if (allocated(val)) then
+         if (size(val) /= n) deallocate(val)
+      end if
+      if (allocated(ok)) then
+         if (size(ok) /= n) deallocate(ok)
+      end if
+      if (.not.allocated(val)) allocate(val(n))
+      if (.not.allocated(ok)) allocate(ok(n))
+
+    end subroutine ensure_size
+
+    !> Make the per-vertex color array hold exactly n colors, reallocating
+    !> only when the size actually changed (a colormap or range edit
+    !> recolors the same vertices).
+    subroutine ensure_size_rgb(rgb,n)
+      real(c_float), allocatable, intent(inout) :: rgb(:,:)
+      integer, intent(in) :: n
+
+      if (allocated(rgb)) then
+         if (size(rgb,2) /= n) deallocate(rgb)
+      end if
+      if (.not.allocated(rgb)) allocate(rgb(3,n))
+
+    end subroutine ensure_size_rgb
 
     !> Stamp the range and the value histogram of the data ff backing
     !> the mesh (the native grid or the sampled values), for the

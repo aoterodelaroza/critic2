@@ -49,10 +49,17 @@ CIMGUI_API void ipSetupAxisLimits(ImAxis axis, double v_min, double v_max, ImPlo
 CIMGUI_API bool ipDragLineX(int id, double* x, const ImVec4 col, float thickness, ImPlotDragToolFlags flags){
   return ImPlot::DragLineX(id,x,col,thickness,flags);
 }
-CIMGUI_API void ipGetPlotMousePos(double *x, double *y, ImAxis x_axis, ImAxis y_axis){
-  ImPlotPoint p = ImPlot::GetPlotMousePos(x_axis,y_axis);
-  *x = p.x;
-  *y = p.y;
+CIMGUI_API void ipPlotToPixels(double x, double y, ImAxis x_axis, ImAxis y_axis, float *px, float *py){
+  ImVec2 p = ImPlot::PlotToPixels(x,y,x_axis,y_axis);
+  *px = p.x;
+  *py = p.y;
+}
+CIMGUI_API void ipSampleColormap(float t, ImPlotColormap cmap, ImVec4 *out){
+  *out = ImPlot::SampleColormap(t,cmap);
+}
+CIMGUI_API void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size,
+                                const char* format, ImPlotColormapScaleFlags flags, ImPlotColormap cmap){
+  ImPlot::ColormapScale(label,scale_min,scale_max,size,format,flags,cmap);
 }
 CIMGUI_API void ipSetupAxes(const char* x_label, const char* y_label, ImPlotAxisFlags x_flags, ImPlotAxisFlags y_flags){
   ImPlot::SetupAxes(x_label,y_label,x_flags,y_flags);

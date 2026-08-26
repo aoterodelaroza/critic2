@@ -78,9 +78,9 @@ module shapes
   ! and cones, which are not animated)
   integer(c_int), parameter, public :: mesh_inst_nf = 38 ! floats per mesh instance (16 model + 4 color + 18 deltas)
 
-  ! indexed triangle meshes (isosurfaces): interleaved position + normal
-  ! vertices, drawn non-instanced through an element buffer
-  integer(c_int), parameter, public :: msh_vert_nf = 6 ! floats per mesh vertex (3 position + 3 normal)
+  ! indexed triangle meshes (isosurfaces): interleaved position + normal +
+  ! color vertices, drawn non-instanced through an element buffer
+  integer(c_int), parameter, public :: msh_vert_nf = 9 ! floats per mesh vertex (3 position + 3 normal + 3 color)
 
   !! draw list objects
   !> spheres for the draw list
@@ -175,15 +175,18 @@ module shapes
   public :: dl_triangle
 
   !> indexed triangle meshes for the draw list (e.g. isosurfaces): vertices
-  !> with per-vertex normals plus an element list; one color and opacity for
-  !> the whole mesh. Drawn non-instanced with the iso shader.
+  !> with per-vertex normals plus an element list; one opacity for the whole
+  !> mesh and a color that is either flat or per vertex. Drawn non-instanced
+  !> with the iso shader.
   type dl_mesh
      integer :: nv = 0 ! number of vertices
      integer :: nf = 0 ! number of triangles
      real(c_float), allocatable :: x(:,:) ! vertex positions (3,nv)
      real(c_float), allocatable :: nrm(:,:) ! vertex unit normals (3,nv)
      integer(c_int), allocatable :: idx(:,:) ! triangle vertex indices, 0-based (3,nf)
-     real(c_float) :: rgb(3) = 0._c_float ! color
+     real(c_float) :: rgb(3) = 0._c_float ! color of the whole mesh (used when rgbv is not allocated)
+     real(c_float), allocatable :: rgbv(:,:) ! per-vertex colors (3,nv); overrides rgb when allocated
+                                             ! (an isosurface colored by the values of another field)
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
      real(c_float), allocatable :: xrep(:,:) ! offsets of the drawn copies (3,ncopies); the geometry is
                                              ! uploaded once and drawn shifted by each offset (per-draw

@@ -23,6 +23,20 @@ module utils
 
   private
 
+  ! Continuous colormaps offered by the GUI, in the order they are shown. They
+  ! are implot's own, so a mapped surface and an implot color legend come from
+  ! the same table. The implot ids are bind(c) variables (not parameters), so
+  ! the mapping from these indices to them is resolved at run time in
+  ! iw_colormap_id.
+  integer, parameter, public :: iw_ncmap = 8
+  character(len=8), parameter, public :: iw_cmap_name(iw_ncmap) = &
+     (/ character(len=8) :: "Viridis", "Plasma", "Hot", "Cool", "Jet", "RdBu", "Spectral", "Greys" /)
+  character(len=*), parameter, public :: iw_cmap_optstr = &
+     "Viridis"//c_null_char//"Plasma"//c_null_char//"Hot"//c_null_char//"Cool"//c_null_char//&
+     "Jet"//c_null_char//"RdBu"//c_null_char//"Spectral"//c_null_char//"Greys"//c_null_char
+  integer, parameter, public :: iw_cmap_viridis = 1 ! perceptual sequential (the usual default)
+  integer, parameter, public :: iw_cmap_rdbu = 6 ! diverging, for values that change sign
+
   !xx! proc submodule !xx!
   public :: iw_periodictable
   public :: iw_inputtext
@@ -35,6 +49,9 @@ module utils
   public :: iw_clamp_color3
   public :: iw_clamp_color4
   public :: iw_coloredit
+  public :: iw_colormap_lut
+  public :: iw_field_combo
+  public :: iw_colormap_id
   public :: iw_setposx_fromend
   public :: iw_setpos_bottomright
   public :: iw_calcheight
@@ -211,6 +228,22 @@ module utils
        logical, intent(in), optional :: okcloses
        logical :: iw_close_event
      end function iw_close_event
+     module function iw_field_combo(strid,isys,ifield,width,nonestr) result(ch)
+       character(len=*,kind=c_char), intent(in) :: strid
+       integer, intent(in) :: isys
+       integer, intent(inout) :: ifield
+       real(c_float), intent(in), optional :: width
+       character(len=*), intent(in), optional :: nonestr
+       logical :: ch
+     end function iw_field_combo
+     module subroutine iw_colormap_lut(icmap,lut)
+       integer, intent(in) :: icmap
+       real(c_float), intent(out) :: lut(:,:)
+     end subroutine iw_colormap_lut
+     module function iw_colormap_id(icmap) result(id)
+       integer, intent(in) :: icmap
+       integer(c_int) :: id
+     end function iw_colormap_id
      module function iw_calcheight(npadline,nline,endpad)
        integer, intent(in) :: npadline
        integer, intent(in) :: nline

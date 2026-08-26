@@ -23,6 +23,7 @@ module representations
      dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append
   use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
+  use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
   use global, only: bondfactor_def, bonddelta_def
   implicit none
 
@@ -115,9 +116,7 @@ module representations
   real(c_float), parameter, public :: measure_rgb_ang_def(3) = (/0.10_c_float,0.65_c_float,0.85_c_float/) ! angle color (cyan)
   real(c_float), parameter, public :: measure_rgb_dih_def(3) = (/0.90_c_float,0.30_c_float,0.60_c_float/) ! dihedral color (pink)
   !--> isosurfaces
-  ! sampling-grid coarseness levels: 0 = native grid (grid fields only),
-  ! 1..iso_nlevel = named levels (points per angstrom), iso_level_custom = custom
-  integer, parameter, public :: iso_nlevel = 4 ! number of named coarseness levels
+  integer, parameter, public :: iso_nlevel = 4 ! number of named coarseness levels (0 = native; 1..nlevel, set level)
   real*8, parameter, public :: iso_level_ptsang(iso_nlevel) = (/2d0,5d0,10d0,20d0/) ! points/ang of the named levels
   integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom points/ang
   integer, parameter, public :: iso_level_def = 2 ! default named level (medium)
@@ -126,14 +125,12 @@ module representations
   integer, parameter, public :: iso_npts_custom_max = 512 ! maximum points per axis (custom level)
   integer, parameter, public :: iso_maxpts_total = 4000000 ! total-points cap (~32 MB of cached samples); coarsen uniformly above it
   integer, parameter, public :: iso_npts_axmin = 16 ! per-axis minimum number of points
-  ! combo option strings for the named levels (keep the densities in sync with iso_level_ptsang)
   character(len=*), parameter, public :: iso_level_optstr = &
      "Coarse (2 pts/Å)"//c_null_char//"Medium (5 pts/Å)"//c_null_char//&
-     "Fine (10 pts/Å)"//c_null_char//"Very fine (20 pts/Å)"//c_null_char ! named levels only
+     "Fine (10 pts/Å)"//c_null_char//"Very fine (20 pts/Å)"//c_null_char ! named levels
   character(len=*), parameter, public :: iso_level_optstr_custom = &
      iso_level_optstr//"Custom"//c_null_char ! named levels plus custom
-  ! region modes: the box over which the isosurface is calculated
-  integer, parameter, public :: iso_region_cell = 0 ! whole unit cell (native level allowed; periodic in crystals)
+  integer, parameter, public :: iso_region_cell = 0 ! region modes: whole unit cell (native level allowed; periodic in crystals)
   integer, parameter, public :: iso_region_frac = 1 ! cell-aligned box between fractional points x0 and x1 (crystals)
   integer, parameter, public :: iso_region_ortho = 2 ! axis-aligned Cartesian box between corners x0 and x1 (ang)
   integer, parameter, public :: iso_region_parallel = 3 ! origin x0 plus edge endpoints x1, x2, x3 (ang)
@@ -141,9 +138,7 @@ module representations
   integer, parameter, public :: iso_region_cube = 5 ! cube: center x0, half-length x(1,1) (ang; molecules)
   integer, parameter, public :: iso_region_bbox = 6 ! bounding box of the atoms plus a buffer x(1,1) (ang; molecules)
   integer, parameter, public :: iso_region_NUM = 6 ! highest region mode
-  ! display names, by mode and system kind (1 = crystal, 2 = molecule); a
-  ! mode not offered to a kind has no name there
-  integer, parameter, public :: iso_knd_cry = 1
+  integer, parameter, public :: iso_knd_cry = 1 ! display names, by mode and system kind (1 = crystal, 2 = molecule)
   integer, parameter, public :: iso_knd_mol = 2
   character(len=33), parameter, public :: iso_region_name(0:iso_region_NUM,2) = &
      reshape((/ character(len=33) :: &
@@ -152,31 +147,21 @@ module representations
      "Cell", "", "Box (2 corners)", "Parallelepiped (origin + 3 sides)",&
      "Box (center + 3 half-lengths)", "Cube (center + half-length)",&
      "Expanded bounding box" /),(/iso_region_NUM+1,2/))
-  ! region modes offered to each system kind, in combo order; the editor
-  ! builds its combo from these, so a new mode only needs a name and a
-  ! slot in the list(s) where it applies
   integer, parameter, public :: iso_region_modes_cry(4) = (/iso_region_cell,&
-     iso_region_frac,iso_region_ortho,iso_region_parallel/)
+     iso_region_frac,iso_region_ortho,iso_region_parallel/) ! region modes offered to each system kind
   integer, parameter, public :: iso_region_modes_mol(6) = (/iso_region_bbox,&
      iso_region_cell,iso_region_ortho,iso_region_parallel,iso_region_simplebox,&
      iso_region_cube/)
   real*8, parameter, public :: iso_bbox_buffer_def = 5d0 ! default buffer around the bounding box (ang)
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
-  ! default-isovalue policy (iso_default_isovalue)
-  real*8, parameter, public :: iso_isoval_dens = 1d-3 ! conventional molecular density contour (a.u.; same as SIGMAHOLE)
+  real*8, parameter, public :: iso_isoval_dens = 1d-3 ! default-isovalue policy: conventional molecular density contour (a.u.; same as SIGMAHOLE)
   real*8, parameter, public :: iso_qcharge_def = 0.9d0 ! fraction of the |f| integral enclosed by the default level
   real*8, parameter, public :: iso_spikeratio = 10d0 ! max|f|/mean|f| above which the field is spike-dominated
   integer, parameter, public :: iso_nhist = 96 ! bins of the value histogram shown in the editor
-  ! names of the histogram axis scales, indexed by hscale_* (grid3mod)
   character(len=8), parameter, public :: iso_hscale_name(hscale_num) = &
-     (/ character(len=8) :: "Linear", "Log", "arcsinh" /)
-  ! scales the count axis can take: counts are never negative, so arcsinh
-  ! (which exists to handle values that change sign) does not apply there
-  integer, parameter, public :: iso_hscale_y(2) = (/hscale_linear, hscale_log/)
+     (/ character(len=8) :: "Linear", "Log", "arcsinh" /) ! names of the histogram axis scales
+  integer, parameter, public :: iso_hscale_y(2) = (/hscale_linear, hscale_log/) ! count axis scales
   real(c_float), parameter, public :: iso_alpha_def = 0.75_c_float ! default opacity
-  ! palette for new isosurfaces: a new one takes the first color of the
-  ! palette that no isosurface in the same object is using, so a second
-  ! surface is visibly distinct from the first without the user picking
   integer, parameter, public :: iso_npalette = 8 ! number of palette colors
   real(c_float), parameter, public :: iso_rgb_palette(3,iso_npalette) = reshape((/&
      0.30_c_float,0.55_c_float,0.90_c_float,& ! blue
@@ -190,6 +175,14 @@ module representations
      (/3,iso_npalette/))
   real(c_float), parameter, public :: iso_rgb_def(3) = iso_rgb_palette(:,1) ! color of the first isosurface
   real(c_float), parameter, public :: iso_rgb_tol = 0.05_c_float ! two colors closer than this count as the same
+  integer, parameter, public :: iso_map_color = 0 ! isosurface color: a single color for the whole surface
+  integer, parameter, public :: iso_map_field = 1 ! the values of another field, through a colormap
+  character(len=*), parameter, public :: iso_map_optstr = &
+     "Color"//c_null_char//"Field map"//c_null_char ! combo options, in iso_map_* order
+  integer, parameter, public :: iso_cmap_seq = iw_cmap_viridis ! colormap from utils (iw_cmap_*)
+  integer, parameter, public :: iso_cmap_div = iw_cmap_rdbu
+  integer, parameter, public :: iso_nlut = 256 ! entries of the colormap look-up table
+  real(c_float), parameter, public :: iso_rgb_invalid(3) = 0.5_c_float ! color of a vertex outside the map field
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -563,11 +556,25 @@ module representations
   !> re-leveled without disturbing the meshes of the others.
   type iso_slot
      real*8 :: isoval = 0d0 ! isovalue
-     real(c_float) :: rgb(3) = iso_rgb_def ! color
+     real(c_float) :: rgb(3) = iso_rgb_def ! color (imap_mode = iso_map_color)
      real(c_float) :: alpha = iso_alpha_def ! opacity (1 = opaque)
+     ! coloring by the values of another field (imap_mode = iso_map_field)
+     integer :: imap_mode = iso_map_color ! where the color comes from (iso_map_*)
+     integer :: imap = -1 ! field whose values color the surface (-1 = none chosen yet)
+     integer :: icmap = iso_cmap_seq ! colormap (index into iw_cmap_name)
+     logical :: icmap_auto = .true. ! colormap follows the values (sequential/diverging) until the user picks one
+     real*8 :: maprange(2) = (/0d0,1d0/) ! values at the two ends of the colormap
+     logical :: maprange_auto = .true. ! range follows the values on the surface until the user sets it
+     real*8, allocatable :: mapval(:) ! values of the map field at the vertices (nv)
+     logical(c_bool), allocatable :: mapok(:) ! whether each vertex is inside the map field's domain (nv)
+     logical :: mapoutdomain = .false. ! some vertices fell outside the map field's domain
      type(dl_mesh) :: mesh ! the cached triangulation
      logical :: built = .false. ! whether mesh holds a triangulation
      real*8 :: isoval_built = 0d0 ! isovalue the mesh was built at
+     integer :: imap_built = -1 ! map field the values were evaluated for (-1 = none)
+     ! state the vertex colors were computed for; a change here recolors the mesh
+     integer :: icmap_built = -1
+     real*8 :: maprange_built(2) = 0d0
   end type iso_slot
   public :: iso_slot
 
@@ -590,6 +597,7 @@ module representations
                                      ! cell-frame box is derived at build time so it tracks cell edits)
      integer :: niso = 0 ! number of isosurfaces
      type(iso_slot), allocatable :: slot(:) ! the isosurfaces (niso of them)
+     integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
      integer :: npts_built(3) = 0 ! sampling grid when the meshes were built (all-zero = native)
