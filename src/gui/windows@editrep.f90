@@ -2942,9 +2942,7 @@ contains
              s%icmap_auto = .false. ! the user has chosen: stop suggesting
              changed = .true.
           end if
-          call iw_tooltip("Colors the values of the map field are drawn with. Until you&
-             & pick one, it follows the values: sequential for values of one sign,&
-             & diverging for values that change sign.",ttshown)
+          call iw_tooltip("Colors the values of the map field are drawn with",ttshown)
 
           ! opacity (in color mode this lives in the color picker)
           alpha8 = real(s%alpha,8)
@@ -2963,8 +2961,7 @@ contains
              if (s%maprange_auto) s%imap_built = -1
              changed = .true.
           end if
-          call iw_tooltip("Span the colormap over the values the map field takes on this&
-             & isosurface, recomputed whenever the surface changes",ttshown)
+          call iw_tooltip("Span the colormap over the values the map field takes on this isosurface",ttshown)
           if (.not.s%maprange_auto) then
              maprspeed = max(0.01d0 * maxval(abs(s%maprange)),1d-6)
              if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,decimal=6,&
@@ -2975,11 +2972,7 @@ contains
                 string(s%maprange(2),'e',decimal=4) // "]",sameline=.true.)
           end if
 
-          ! the legend, sampled from the same colormap as the surface.
-          ! Its ends are nudged apart if they coincide (a constant map
-          ! field, or both ends dragged together): implot places the
-          ! ticks by taking logarithms of the span, and a zero span is a
-          ! trapped divide-by-zero in this build
+          ! the legend
           rlo = s%maprange(1)
           rhi = s%maprange(2)
           if (rhi <= rlo) then
