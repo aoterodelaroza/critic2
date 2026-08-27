@@ -466,7 +466,9 @@ contains
        r%iso%ifield = max(sys(isys)%iref,0)
        r%iso%nptscustom = 0
        r%iso%ilevel = iso_defaultlevel
-       r%iso%nptsxyz = 0
+       ! through apply_grid, so that the stamp of the applied state is
+       ! written here too (set_field re-applies it for an isosurface)
+       call r%iso%apply_grid((/0,0,0/),r%iso%iregion,r%iso%rgn_x)
        r%iso%niso = 0
        if (allocated(r%iso%slot)) deallocate(r%iso%slot)
        call r%iso%add_iso() ! the last-resort default level; set_field overwrites it below

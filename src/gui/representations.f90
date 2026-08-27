@@ -640,7 +640,7 @@ module representations
      ! log staircase when hist_haslog, linearly otherwise
      real*8 :: hist_q(iso_nhist) = 0d0
      real*8 :: hist_v(iso_nhist) = 0d0
-     real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built/npts_built)
+     real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built and the applied-grid stamp)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims
      procedure :: add_iso => iso_add_iso ! add an isosurface (isovalue and color chosen if not given)

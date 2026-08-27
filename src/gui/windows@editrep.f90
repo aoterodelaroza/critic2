@@ -2380,7 +2380,7 @@ contains
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
-    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick, ll
+    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
     integer(c_int) :: ncus(3), tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
@@ -2486,10 +2486,6 @@ contains
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
           g%LastItemData%NavRect%max,.false._c_bool)) then
-          ll = 1
-          do i = 1, nmode
-             ll = max(ll,len_trim(iso_region_name(rmodes(i),iknd)))
-          end do
           call igBeginTooltip()
           call iw_text("Region over which the isosurface is calculated:")
           call iw_text("")
