@@ -126,7 +126,15 @@ contains
           w%extract_picking = .false.
        else
           call view_pick_result(iview,w%id,isys,w%extract_pick,istat,x0)
-          if (istat == ipick_point) call center_from_frac(sys(isys)%c%c2x(x0))
+          if (istat == ipick_point) then
+             ! the picked point (cell-frame Cartesian) in the units the
+             ! center boxes are shown in
+             if (ismol) then
+                w%extract_center = real((x0 + sys(isys)%c%molx0) * bohrtoa,c_float)
+             else
+                w%extract_center = real(sys(isys)%c%c2x(x0),c_float)
+             end if
+          end if
           if (istat /= ipick_pending) w%extract_picking = .false.
        end if
     end if
@@ -485,15 +493,6 @@ contains
       x = sys(isys)%c%x2c(center_to_frac())
       if (ismol) x = x + sys(isys)%c%molx0
     end function center_to_cart
-
-    subroutine center_from_frac(x)
-      real*8, intent(in) :: x(3)
-      if (ismol) then
-         w%extract_center = real((sys(isys)%c%x2c(x) + sys(isys)%c%molx0) * bohrtoa,c_float)
-      else
-         w%extract_center = real(x,c_float)
-      end if
-    end subroutine center_from_frac
 
     ! Write, next to the region size, the number of atoms the region
     ! contains: nexact if it is known exactly, otherwise a rough estimate

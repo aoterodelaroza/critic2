@@ -2572,7 +2572,16 @@ contains
            doval = doval .or. .not.allocated(s%mapval)
            if (.not.doval) doval = (size(s%mapval) /= nv)
            if (doval) then
-              call ensure_size(s%mapval,s%mapok,nv)
+              ! the per-vertex value and validity arrays, reallocated
+              ! only when the vertex count actually changed
+              if (allocated(s%mapval)) then
+                 if (size(s%mapval) /= nv) deallocate(s%mapval)
+              end if
+              if (allocated(s%mapok)) then
+                 if (size(s%mapok) /= nv) deallocate(s%mapok)
+              end if
+              if (.not.allocated(s%mapval)) allocate(s%mapval(nv))
+              if (.not.allocated(s%mapok)) allocate(s%mapok(nv))
               linvalid = .false.
               if (s%imap_mode == iso_map_expr) then
                  ! the expression is parsed once and the token list reused
@@ -2665,7 +2674,12 @@ contains
            docol = docol .or. any(s%maprange_built /= s%maprange)
            if (.not.docol) cycle
 
-           call ensure_size_rgb(s%mesh%rgbv,nv)
+           ! the per-vertex color array, reallocated only when the vertex
+           ! count changed (a colormap or range edit recolors in place)
+           if (allocated(s%mesh%rgbv)) then
+              if (size(s%mesh%rgbv,2) /= nv) deallocate(s%mesh%rgbv)
+           end if
+           if (.not.allocated(s%mesh%rgbv)) allocate(s%mesh%rgbv(3,nv))
            call iw_colormap_lut(s%icmap,lut)
            lo = min(s%maprange(1),s%maprange(2))
            hi = max(s%maprange(1),s%maprange(2))
@@ -2686,38 +2700,6 @@ contains
       end do
 
     end subroutine color_slots
-
-    !> Make the per-vertex value and validity arrays hold exactly n
-    !> entries, reallocating only when the size actually changed.
-    subroutine ensure_size(val,ok,n)
-      real*8, allocatable, intent(inout) :: val(:)
-      logical(c_bool), allocatable, intent(inout) :: ok(:)
-      integer, intent(in) :: n
-
-      if (allocated(val)) then
-         if (size(val) /= n) deallocate(val)
-      end if
-      if (allocated(ok)) then
-         if (size(ok) /= n) deallocate(ok)
-      end if
-      if (.not.allocated(val)) allocate(val(n))
-      if (.not.allocated(ok)) allocate(ok(n))
-
-    end subroutine ensure_size
-
-    !> Make the per-vertex color array hold exactly n colors, reallocating
-    !> only when the size actually changed (a colormap or range edit
-    !> recolors the same vertices).
-    subroutine ensure_size_rgb(rgb,n)
-      real(c_float), allocatable, intent(inout) :: rgb(:,:)
-      integer, intent(in) :: n
-
-      if (allocated(rgb)) then
-         if (size(rgb,2) /= n) deallocate(rgb)
-      end if
-      if (.not.allocated(rgb)) allocate(rgb(3,n))
-
-    end subroutine ensure_size_rgb
 
     !> Stamp the range and the value histogram of the data ff backing
     !> the mesh (the native grid or the sampled values), for the
@@ -2877,15 +2859,6 @@ contains
       call append_triangle(pa,pc,pb,z3,z3,z3,rgbc,alpha)
     end subroutine measure_triangle
 
-    !> Append a double-sided filled quadrilateral with corners
-    !> pa,pb,pc,pd given in cyclic order.
-    subroutine measure_quad(pa,pb,pc,pd,rgbc,alpha)
-      real*8, intent(in) :: pa(3), pb(3), pc(3), pd(3), alpha
-      real(c_float), intent(in) :: rgbc(3)
-      call measure_triangle(pa,pb,pc,rgbc,alpha)
-      call measure_triangle(pa,pc,pd,rgbc,alpha)
-    end subroutine measure_quad
-
     !> Append a filled rectangle for a dihedral half-plane. hb-hc is
     !> the shared (B-C) hinge; term is the terminal atom (A or D). The
     !> rectangle is the right-angled bounding box of {hb,hc,term} in
@@ -2924,7 +2897,9 @@ contains
       p2 = hb + u1*u + w0*w
       p3 = hb + u1*u + w1*w
       p4 = hb + u0*u + w1*w
-      call measure_quad(p1,p2,p3,p4,rgbc,alpha)
+      ! the two triangles of the quadrilateral p1-p2-p3-p4
+      call measure_triangle(p1,p2,p3,rgbc,alpha)
+      call measure_triangle(p1,p3,p4,rgbc,alpha)
     end subroutine measure_plane_rect
 
     !> Append a filled circular sector of radius radius at vertex vertexc,

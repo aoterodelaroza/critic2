@@ -3144,23 +3144,6 @@ contains
 
     end function implot_scale
 
-    !> The value x in the units of one of the hscale_* scales (the same
-    !> transform the histogram bins in and ImPlot draws the axis with).
-    function scale_coord(x,is) result(tv)
-      real*8, intent(in) :: x
-      integer, intent(in) :: is
-      real*8 :: tv
-
-      if (is == hscale_log) then
-         tv = log10(max(x,tiny(x)))
-      elseif (is == hscale_asinh) then
-         tv = 2d0 * asinh(0.5d0*x)
-      else
-         tv = x
-      end if
-
-    end function scale_coord
-
     !> Index of the histogram bin that contains the value x, in the
     !> binning the cumulative arrays use (0 if x is out of range).
     function hist_bin(x) result(ib)
@@ -3174,7 +3157,13 @@ contains
       if (w%rep%iso%hist_qscale == hscale_log .and. x <= 0d0) return
       lo = w%rep%iso%hist_range(1,w%rep%iso%hist_qscale)
       hi = w%rep%iso%hist_range(2,w%rep%iso%hist_qscale)
-      tv = scale_coord(x,w%rep%iso%hist_qscale)
+      if (w%rep%iso%hist_qscale == hscale_log) then
+         tv = log10(max(x,tiny(x)))
+      elseif (w%rep%iso%hist_qscale == hscale_asinh) then
+         tv = 2d0 * asinh(0.5d0*x)
+      else
+         tv = x
+      end if
       t = (tv - lo) / max(hi - lo,1d-30)
       ib = min(max(1 + int(t * iso_nhist),1),iso_nhist)
 
