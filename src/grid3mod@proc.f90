@@ -3324,7 +3324,7 @@ contains
          call c%list_near_lattice_points(x0,icrd_crys,.true.,nat,dist=dist,&
             lvec=lvec,x2c=f%x2cl,ndiv=f%n,up2n=1)
          allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
-         i0list(:,1) = lvec(:,i)
+         i0list(:,1) = lvec(:,1)
          wei(1) = 1d0
          weip(1) = 0d0
          weipp(1) = 0d0
