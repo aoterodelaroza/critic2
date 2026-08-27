@@ -854,6 +854,7 @@ contains
   !> (not as a Cartesian box) so it tracks later cell/molecule edits.
   !> The counterpart of grid_isapplied; keep the two in sync.
   module subroutine iso_apply_grid(iso,n,iregion,x)
+    use interfaces_glfw, only: glfwGetTime
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: n(3)
     integer, intent(in) :: iregion
@@ -862,6 +863,9 @@ contains
     iso%nptsxyz = n
     iso%iregion_ap = iregion
     iso%rgn_x_ap = x
+    ! the single writer of the applied state, so one stamp here is all the
+    ! renderer needs to know its samples are for an older grid or region
+    iso%timelastapply_grid = glfwGetTime()
 
   end subroutine iso_apply_grid
 
@@ -2368,10 +2372,7 @@ contains
       ! same slot has the same index but different data)
       resample = (r%iso%ifield_built /= r%iso%ifield)
       resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
-      resample = resample .or. any(r%iso%npts_built /= r%iso%nptsxyz)
-      resample = resample .or. (r%iso%iregion_built /= r%iso%iregion_ap)
-      resample = resample .or. (r%iso%iregion_ap /= iso_region_cell .and.&
-         any(r%iso%rgn_x_built /= r%iso%rgn_x_ap))
+      resample = resample .or. (r%iso%timelastapply_grid > r%iso%time_built)
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
       resample = resample .or. (.not.usegrid .and. .not.allocated(r%iso%ff))
       rebuild = resample
@@ -2430,13 +2431,15 @@ contains
             end if
             call triangulate(r%iso%ff,xmat,cmat,x0c,per0,resample)
          end if
-         r%iso%ifield_built = r%iso%ifield
-         r%iso%fieldgen_built = sys(r%id)%fieldgen
-         r%iso%npts_built = r%iso%nptsxyz
-         r%iso%iregion_built = r%iso%iregion_ap
-         r%iso%rgn_x_built = r%iso%rgn_x_ap
+         ! each key is refreshed by the event it describes: these three
+         ! answer "were the samples taken from this field, at this time?",
+         ! and this block also runs for a rebuild that only re-triangulated
          r%iso%per0_built = per0
-         r%iso%time_built = glfwGetTime()
+         if (resample) then
+            r%iso%ifield_built = r%iso%ifield
+            r%iso%fieldgen_built = sys(r%id)%fieldgen
+            r%iso%time_built = glfwGetTime()
+         end if
       end if
 
       ! periodicity: a periodic (whole-cell, non-partial, crystal) mesh

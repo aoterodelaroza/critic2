@@ -63,6 +63,7 @@ module utils
   public :: iw_coloredit
   public :: iw_colormap_lut
   public :: iw_field_combo
+  public :: iw_periodicity_widget
   public :: iw_colormap_id
   public :: iw_setposx_fromend
   public :: iw_setpos_bottomright
@@ -240,6 +241,12 @@ module utils
        logical, intent(in), optional :: okcloses
        logical :: iw_close_event
      end function iw_close_event
+     module function iw_periodicity_widget(nc,ttshown,pertype) result(changed)
+       integer(c_int), intent(inout) :: nc(3)
+       logical, intent(inout), optional :: ttshown
+       integer(c_int), intent(inout), optional :: pertype
+       logical :: changed
+     end function iw_periodicity_widget
      module function iw_field_combo(strid,isys,ifield,width,nonestr) result(ch)
        character(len=*,kind=c_char), intent(in) :: strid
        integer, intent(in) :: isys

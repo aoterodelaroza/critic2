@@ -81,7 +81,7 @@ contains
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface
     use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
-       iw_icon_togglebutton, iw_table_column, iw_beginmenu
+       iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
@@ -306,8 +306,17 @@ contains
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
        if (ok) then
           if (associated(w%sc)) then
-             call iw_text("Periodicity",highlight=.true.,alignframe=.true.)
-             call periodicity_widgets()
+             if (iw_periodicity_widget(w%sc%nc,ttshown)) chbuild = .true.
+
+             ! make the displayed supercell the new unit cell
+             if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
+                disabled=.not.can_transform_supercell())) &
+                call transform_to_supercell()
+             call iw_tooltip("Apply the displayed periodicity as a cell transformation, so the "//&
+                "supercell on screen becomes the new unit cell ("//&
+                trim(get_bind_keyname(BIND_VIEW_TRANSFORM_SUPERCELL))//")",ttshown)
+             if (len_trim(w%errmsg) > 0) &
+                call iw_text(w%errmsg,danger=.true.)
           end if
           call igEndPopup()
        end if
@@ -985,43 +994,6 @@ contains
       chbuild = .true.
 
     end subroutine add_rep_and_edit
-
-    !> Draw the periodicity widgets (reset button and a/b/c cell-number
-    !> steppers), shared by the Scene menu and the toolbar periodicity
-    !> popup. Sets chbuild if the number of cells changes.
-    subroutine periodicity_widgets()
-      integer(c_int) :: nc(3)
-
-      if (iw_button("Reset##periodicity",sameline=.true.)) then
-         w%sc%nc = 1
-         chbuild = .true.
-      end if
-      call iw_tooltip("Reset the number of cells to one",ttshown)
-
-      ! number of cells in each direction (shared digit width)
-      nc = w%sc%nc
-      ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,notlive=.true.,&
-         tooltip="Number of cells represented along the a crystallographic axis")
-      ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,sameline=.true.,notlive=.true.,&
-         tooltip="Number of cells represented along the b crystallographic axis")
-      ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,sameline=.true.,notlive=.true.,&
-         tooltip="Number of cells represented along the c crystallographic axis")
-      if (any(nc /= w%sc%nc)) then
-         w%sc%nc = nc
-         chbuild = .true.
-      end if
-
-      ! make the displayed supercell the new unit cell
-      if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
-         disabled=.not.can_transform_supercell())) &
-         call transform_to_supercell()
-      call iw_tooltip("Apply the displayed periodicity as a cell transformation, so the "//&
-         "supercell on screen becomes the new unit cell ("//&
-         trim(get_bind_keyname(BIND_VIEW_TRANSFORM_SUPERCELL))//")",ttshown)
-      if (len_trim(w%errmsg) > 0) &
-         call iw_text(w%errmsg,danger=.true.)
-
-    end subroutine periodicity_widgets
 
     !> Whether the displayed periodicity can be turned into a cell
     !> transformation: a crystal showing more than one cell along some axis.

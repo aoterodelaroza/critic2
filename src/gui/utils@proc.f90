@@ -1973,6 +1973,63 @@ contains
 
   end function dragfloat_width
 
+  !> Draw the periodicity controls: the "Periodicity" label, the
+  !> None/Automatic/Manual radio buttons over pertype when it is given, and
+  !> the a/b/c cell-count steppers over nc with a Reset button. Without
+  !> pertype the steppers are always drawn (a scene, which always has an
+  !> explicit cell count); with it they appear only in manual mode.
+  !> Returns true if the periodicity changed.
+  module function iw_periodicity_widget(nc,ttshown,pertype) result(changed)
+    integer(c_int), intent(inout) :: nc(3)
+    logical, intent(inout), optional :: ttshown
+    integer(c_int), intent(inout), optional :: pertype
+    logical :: changed
+
+    logical :: ldum, dosteppers
+    integer :: ipad
+    integer(c_int) :: nc_(3)
+
+    changed = .false.
+
+    call iw_text("Periodicity",highlight=.true.,alignframe=.true.)
+
+    ! the periodicity type, where the caller has one
+    dosteppers = .true.
+    if (present(pertype)) then
+       changed = changed .or. iw_radiobutton("None",int=pertype,intval=0_c_int,sameline=.true.)
+       call iw_tooltip("This object is represented only in the main cell and not repeated by translation",&
+          ttshown)
+       changed = changed .or. iw_radiobutton("Automatic",int=pertype,intval=1_c_int,sameline=.true.)
+       call iw_tooltip("Number of periodic cells controlled by the +/- options in the view window",ttshown)
+       changed = changed .or. iw_radiobutton("Manual",int=pertype,intval=2_c_int,sameline=.true.)
+       call iw_tooltip("Manually set the number of periodic cells",ttshown)
+       dosteppers = (pertype == 2_c_int)
+    end if
+    if (.not.dosteppers) return
+
+    ! number of cells along each axis (all three share a digit width, so
+    ! they do not jump around as the counts grow), then the reset
+    ipad = ceiling(log10(max(maxval(nc),1) + 0.1))
+    nc_ = nc
+    ldum = iw_intstepper("aaxis",nc_(1),label="a:",minval=1_c_int,ndigit=ipad,notlive=.true.,&
+       tooltip="Number of cells represented along the a crystallographic axis")
+    ldum = iw_intstepper("baxis",nc_(2),label="b:",minval=1_c_int,ndigit=ipad,notlive=.true.,&
+       sameline=.true.,tooltip="Number of cells represented along the b crystallographic axis")
+    ldum = iw_intstepper("caxis",nc_(3),label="c:",minval=1_c_int,ndigit=ipad,notlive=.true.,&
+       sameline=.true.,tooltip="Number of cells represented along the c crystallographic axis")
+    if (any(nc_ /= nc)) then
+       nc = nc_
+       changed = .true.
+    end if
+
+    if (iw_button("Reset##periodicity",sameline=.true.)) then
+       nc = 1
+       changed = .true.
+    end if
+    call iw_tooltip("Reset the number of cells to one",ttshown)
+
+  end function iw_periodicity_widget
+
   !> Combo that selects one of the fields of system isys (including the
   !> promolecular field 0), listing only the initialized ones. ifield is
   !> updated and the result is true when the selection changed. width is

@@ -147,6 +147,18 @@ module representations
      "Cell", "", "Box (2 corners)", "Parallelepiped (origin + 3 sides)",&
      "Box (center + 3 half-lengths)", "Cube (center + half-length)",&
      "Expanded bounding box" /),(/iso_region_NUM+1,2/))
+  ! one-line explanation of each mode, for the editor's tooltip. Kind-
+  ! independent, unlike the names: every mode whose meaning differs between
+  ! a crystal and a molecule is offered to only one of the two anyway
+  character(len=64), parameter, public :: iso_region_desc(0:iso_region_NUM) = &
+     (/ character(len=64) :: &
+     "The whole cell (in a molecule, the box built around it)",&
+     "A cell-aligned box between two points in fractional coordinates",&
+     "An axis-aligned box between two Cartesian corners",&
+     "An origin and the endpoints of the three edges",&
+     "A center and a half-length along each axis",&
+     "A center and a half-length",&
+     "The box bounding the atoms, grown by a buffer on every side" /)
   integer, parameter, public :: iso_region_modes_cry(4) = (/iso_region_cell,&
      iso_region_frac,iso_region_ortho,iso_region_parallel/) ! region modes offered to each system kind
   integer, parameter, public :: iso_region_modes_mol(6) = (/iso_region_bbox,&
@@ -603,11 +615,9 @@ module representations
      integer :: niso = 0 ! number of isosurfaces
      type(iso_slot), allocatable :: slot(:) ! the isosurfaces (niso of them)
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
+     real*8 :: timelastapply_grid = -1d0 ! time the grid + region were last applied (vs time_built)
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
-     integer :: npts_built(3) = 0 ! sampling grid when the meshes were built (all-zero = native)
-     integer :: iregion_built = iso_region_cell ! region mode when the meshes were built
-     real*8 :: rgn_x_built(3,0:3) = 0d0 ! region coordinates when the meshes were built
      logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
                                      ! non-partial data); gates the periodic replication and its editor UI
      logical :: outdomain = .false. ! some samples fell outside the field's domain (zeroed) in the last build
