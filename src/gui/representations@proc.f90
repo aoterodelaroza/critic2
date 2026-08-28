@@ -1040,6 +1040,17 @@ contains
     iso%niso = 1
     iso%slot(1)%isoval = iso_default_isovalue(isys,iso%ifield)
     iso%slot(1)%built = .false.
+    ! the colors mapped on the previous field's surface describe values that
+    ! are gone. Dropping them is the whole statement: it is what the editor
+    ! reads to know it has no legend to draw, and the rest of the map state
+    ! (the values, the stamps) is rebuilt by color_slots on the resample this
+    ! field change forces. A new quantity does get its colormap and its range
+    ! suggested again
+    if (allocated(iso%slot(1)%mesh%rgbv)) deallocate(iso%slot(1)%mesh%rgbv)
+    iso%slot(1)%shown = .true. ! the surviving isosurface is the only one there is
+    iso%slot(1)%icmap_auto = .true.
+    iso%slot(1)%maprange_auto = .true.
+    iso%slot(1)%maperr = ""
     isgrid = iso_isgridfield(isys,iso%ifield)
     if (isgrid) then
        iso%ilevel = 0
@@ -2469,7 +2480,7 @@ contains
 
       ! append the cached meshes to the draw list with their copy offsets
       do i = 1, r%iso%niso
-         if (r%iso%slot(i)%mesh%nf == 0) cycle
+         if (r%iso%slot(i)%mesh%nf == 0 .or. .not.r%iso%slot(i)%shown) cycle
          r%iso%slot(i)%mesh%rgb = r%iso%slot(i)%rgb
          r%iso%slot(i)%mesh%alpha = r%iso%slot(i)%alpha
          r%iso%slot(i)%mesh%xrep = xrep

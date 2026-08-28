@@ -152,7 +152,8 @@ contains
        atlisttype_nneq, atlisttype_ncel_frac
     use gui_main, only: ColorHighlightScene, ColorElement
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_arith_help, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
+    use utils, only: iw_text, iw_tooltip, iw_arith_help, iw_arith_help_button, iw_helpermark,&
+       iw_combo_simple, iw_button, iw_calcwidth,&
        iw_periodicity_widget,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint, iw_table_column,&
@@ -216,11 +217,7 @@ contains
           call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at&
              & the atomic position; structural variables are very useful for filters."//newline//&
              iw_arith_help//newline//"Click the Help button for more info.")
-          if (iw_button("Help##helpfilter",sameline=.true.)) then
-             str3 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
-             call openLink(c_loc(str3))
-          end if
-          call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
+          call iw_arith_help_button("##helpfilter",ttshown)
 
           ! filter text input
           if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%sel%filter,notlive=.true.)) then
@@ -2362,16 +2359,17 @@ contains
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
        iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_region_desc, iso_nhist,&
        iso_hscale_name,&
-       iso_hscale_y, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
+       iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_estimate_cost
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
-       iw_close_button, iw_table_column, iw_highlight_selectable, iw_colormap_id,&
+       iw_close_button, iw_table_column, iw_highlight_selectable,&
        iw_periodicity_widget,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
-       iw_inputtext, igIsItemHovered_delayed, duration_string
+       iw_arith_help_button, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
+       duration_string
     use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
     use param, only: newline
     use tools_io, only: string
@@ -2379,7 +2377,7 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb
+    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb, iheld
     integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
     integer(c_int) :: ncus(3), tflags, dtflags
 
@@ -2388,6 +2386,7 @@ contains
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
+    logical :: ismapped, hascolors
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -2464,8 +2463,10 @@ contains
        w%rep%iso%iregion = rmodes(1)
        call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
     end if
-    str1 = "Mode##isoregion" // c_null_char
+    call iw_text("Mode",alignframe=.true.)
+    str1 = "##isoregion" // c_null_char
     str2 = trim(iso_region_name(w%rep%iso%iregion,iknd)) // c_null_char
+    call igSameLine(0._c_float,-1._c_float)
     call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nmode
@@ -2497,31 +2498,35 @@ contains
        end if
     end if
 
-    ! periodicity of the whole-cell isosurface
-    if (w%rep%iso%per0_built) then
-       ch = iw_periodicity_widget(w%rep%sel%ncell,ttshown,pertype=w%rep%sel%pertype)
-       changed = changed .or. ch
-    end if
-
     ! Region coordinates
     if (w%rep%iso%iregion == iso_region_bbox) then
-       ldum = iw_dragfloat_real8("Buffer (Å)##isorgnbuf",x1=w%rep%iso%rgn_x(1,1),&
+       call iw_text("Buffer (Å)",alignframe=.true.)
+       ldum = iw_dragfloat_real8("##isorgnbuf",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
           speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
        w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
        call iw_tooltip("Distance added around the bounding box of the atoms, in&
           & every direction",ttshown)
     elseif (w%rep%iso%iregion == iso_region_simplebox .or.&
        w%rep%iso%iregion == iso_region_cube) then
-       ldum = iw_dragfloat_real8("x0 (Å)##isorgn0",x3=w%rep%iso%rgn_x(:,0),&
+       ! both labels padded to the width of the longest, so the drags line up
+       ! and do not shift when the mode changes
+       if (w%rep%iso%iregion == iso_region_cube) then
+          str3 = "Half-length (Å)"
+       else
+          str3 = "Half-lengths (Å)"
+       end if
+       call iw_text(string("x0 (Å)",length=len("Half-lengths (Å)")),alignframe=.true.)
+       ldum = iw_dragfloat_real8("##isorgn0",x3=w%rep%iso%rgn_x(:,0),sameline=.true.,&
           speed=0.05d0,decimal=3)
        call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,0),ttshown)
        call region_pick_button(0)
+       call iw_text(string(str3,length=len("Half-lengths (Å)")),alignframe=.true.)
        if (w%rep%iso%iregion == iso_region_cube) then
-          ldum = iw_dragfloat_real8("Half-length (Å)##isorgn1",x1=w%rep%iso%rgn_x(1,1),&
+          ldum = iw_dragfloat_real8("##isorgn1",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
              speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
           w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
        else
-          ldum = iw_dragfloat_real8("Half-lengths (Å)##isorgn1",x3=w%rep%iso%rgn_x(:,1),&
+          ldum = iw_dragfloat_real8("##isorgn1",x3=w%rep%iso%rgn_x(:,1),sameline=.true.,&
              speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
        end if
        call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,1),ttshown)
@@ -2529,12 +2534,15 @@ contains
        nrow = 1 ! last drag row: the far corner, or the third edge endpoint
        if (w%rep%iso%iregion == iso_region_parallel) nrow = 3
        do i = 0, nrow
+          str1 = "##isorgn" // string(i)
           if (w%rep%iso%iregion == iso_region_frac) then
-             str1 = "x" // string(i) // "##isorgn" // string(i)
-             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),speed=0.01d0,decimal=4)
+             call iw_text("x" // string(i),alignframe=.true.)
+             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
+                speed=0.01d0,decimal=4)
           else
-             str1 = "x" // string(i) // " (Å)##isorgn" // string(i)
-             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),speed=0.05d0,decimal=3)
+             call iw_text("x" // string(i) // " (Å)",alignframe=.true.)
+             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
+                speed=0.05d0,decimal=3)
           end if
           call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
           call region_pick_button(i)
@@ -2560,8 +2568,9 @@ contains
        str1 = iso_level_optstr_custom
     end if
     ilevprev = w%rep%iso%ilevel
-    call iw_combo_simple("Level##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
-       changed=ch)
+    call iw_text("Level",alignframe=.true.)
+    call iw_combo_simple("##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
+       sameline=.true.,changed=ch)
     call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
        & of the field, a named density of points per angstrom, or a custom number of&
        & points",ttshown)
@@ -2611,7 +2620,8 @@ contains
        call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        changed = .true.
     end if
-    call iw_tooltip("Use the selected grid and region for the isosurface",ttshown)
+    call iw_tooltip("Use the selected grid and region for the isosurface. The options&
+       & above have no effect on the isosurface until this button is pressed",ttshown)
     ! cost estimate
     if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) &
        w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
@@ -2621,17 +2631,24 @@ contains
        call iw_text("~" // duration_string(w%rep%iso%costest * product(real(nstage,8))),&
           sameline=.true.)
 
-    ! red state warnings
+    ! the state of the options, on the same line as the button that fixes it
     if (okbox .and. .not.w%rep%iso%isgenerated(isys)) then
-       call iw_text("The isosurface has not been generated yet (press Calculate grid)",&
-          danger=.true.,wrap=.true.)
+       call iw_text("not generated",danger=.true.,sameline=.true.)
     elseif (lapply) then ! false for a degenerate region
-       call iw_text("The grid and region options do not match the displayed isosurface&
-          & (press Calculate grid)",danger=.true.,wrap=.true.)
+       call iw_text("settings changed",danger=.true.,sameline=.true.)
     end if
     if (w%rep%iso%outdomain) &
        call iw_text("The field could not be evaluated in part of the region",&
           danger=.true.,wrap=.true.)
+
+    ! how the isosurface on screen is replicated. Only a whole-cell mesh is
+    ! periodic (iso_sample_domain makes per0 false for every other region), so
+    ! per0_built is the whole condition; it belongs here, with the state of the
+    ! build, rather than under a staged Region mode it does not follow
+    if (w%rep%iso%per0_built) then
+       ch = iw_periodicity_widget(w%rep%sel%ncell,ttshown,pertype=w%rep%sel%pertype)
+       changed = changed .or. ch
+    end if
 
     ! show the staged region in the view for as long as this editor is
     ! open
@@ -2654,6 +2671,11 @@ contains
 
     ! isosurface
     call iw_text("Isosurface(s)",highlight=.true.)
+    call iw_helpermark("One row per isosurface: whether it is drawn, where its color&
+       & comes from, the value of the field on it, and what it encloses -- the fraction&
+       & of the integral of |f| and the fraction of the volume, both over the region&
+       & the isosurface was calculated on. Click a row&
+       & to edit the colors of a mapped isosurface underneath the table.",sameline=.true.)
 
     ! histogram of the values backing the mesh, with one draggable line
     ! per isosurface
@@ -2711,7 +2733,8 @@ contains
              int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
 
           ! one draggable line per isosurface, in its own colour
-          iline = w%editrep_isoline
+          iheld = w%editrep_isoline ! the line held in the previous frame (0 = none)
+          iline = iheld
           if (iline < 1 .or. iline > w%rep%iso%niso) then
              iline = 1
              call igGetMousePos(mpos)
@@ -2742,11 +2765,21 @@ contains
                   ! the scene for it would be pure waste
                   if (xnew /= s%isoval) then
                      s%isoval = xnew
-                     changed = .true.
+                     ! a flat isosurface is only re-triangulated, and follows
+                     ! the line as it slides. A mapped one also pays a map
+                     ! evaluation at every vertex of the new mesh, which is too
+                     ! much for every frame of a drag: it waits for the release
+                     if (s%imap_mode == iso_map_color) changed = .true.
                   end if
                end if
              end associate
           end do
+          ! the level of a mapped isosurface lands when its line is let go
+          if (iheld >= 1 .and. w%editrep_isoline == 0) then
+             if (iheld <= w%rep%iso%niso) then
+                if (w%rep%iso%slot(iheld)%imap_mode /= iso_map_color) changed = .true.
+             end if
+          end if
           call ipEndPlot()
        end if
        call iw_tooltip("Distribution of the values of the field over the grid data.&
@@ -2779,6 +2812,9 @@ contains
        call iw_combo_simple("##isohistyscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
        if (ch) w%rep%iso%hist_yscale = iso_hscale_y(max(min(isc,size(iso_hscale_y)),1))
        call iw_tooltip("Scale of the count axis",ttshown)
+    else
+       call iw_text("The distribution of the values of the field appears here once the&
+          & grid has been calculated",wrap=.true.)
     end if
 
     ! the isosurfaces of this object: one row each
@@ -2797,23 +2833,29 @@ contains
        str3 = "Value of the field on this isosurface, in atomic units (data range: " //&
        string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
        string(w%rep%iso%frange(2),'e',decimal=4) // ")"
-    if (igBeginTable(c_loc(str1),4,tflags,sztab,0._c_float)) then
-       ! the delete column keeps the width of its button even when it is empty
+    if (igBeginTable(c_loc(str1),5,tflags,sztab,0._c_float)) then
+       ! the row-control column keeps the width of its widgets even when it is empty
        call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed,&
-          width=max(4._c_float,fontsize%y + 2._c_float))
+          width=max(4._c_float,iw_calcwidth(1,1,ncheck=1)))
        call iw_table_column("Mode",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Color",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
-          width=iw_calcwidth(14,1))
+       call iw_table_column("Color/map",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
+          width=iw_calcwidth(12,1))
+       ! the isovalue drag sizes itself from the integer digits of the data
+       ! range, so it takes the slack; the readout beside it is a fixed width
        call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_column("Encloses",id=4,flags=ImGuiTableColumnFlags_WidthFixed,&
+          width=iw_calcwidth(13,0))
        call igTableHeadersRow()
 
        do i = 1, w%rep%iso%niso
           associate (s => w%rep%iso%slot(i))
             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-            ! remove this isosurface (never the last one)
+            ! draw this isosurface, and remove it (never the last one)
             if (igTableSetColumnIndex(0)) then
+               if (iw_checkbox("##isoshown" // string(i),s%shown)) changed = .true.
+               call iw_tooltip("Draw this isosurface in the view",ttshown)
                if (w%rep%iso%niso > 1) then
-                  call igAlignTextToFramePadding()
+                  call igSameLine(0._c_float,-1._c_float)
                   if (iw_close_button("##isodel" // string(i))) idel = i
                   call iw_tooltip("Remove this isosurface",ttshown)
                end if
@@ -2872,21 +2914,32 @@ contains
             ! runs on commit rather than on every frame of the drag
             if (igTableSetColumnIndex(3)) then
                speed = max(0.01d0 * abs(s%isoval),1d-4)
+               ! same as the histogram line: a mapped isosurface is rebuilt on
+               ! the commit (the drag let go, or the typed value entered),
+               ! a flat one on every step of the drag
                if (haverange) then
-                  changed = changed .or. iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
+                  ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
                      speed=speed,decimal=6,notlive=.true.,min=w%rep%iso%frange(1),&
-                     max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp)
-                  str2 = str3
-                  ihb = hist_bin(s%isoval)
-                  if (ihb >= 1) &
-                     str2 = str2 // ". Encloses " // string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) //&
-                     "% of the field and " // string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) //&
-                     "% of the volume"
-                  call iw_tooltip(str2,ttshown)
+                     max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp,committed=ch)
+                  if (s%imap_mode /= iso_map_color) ldum = ch
+                  changed = changed .or. ldum
+                  call iw_tooltip(str3,ttshown)
                else
-                  changed = changed .or. iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
-                     speed=speed,decimal=6,notlive=.true.)
+                  ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
+                     speed=speed,decimal=6,notlive=.true.,committed=ch)
+                  if (s%imap_mode /= iso_map_color) ldum = ch
+                  changed = changed .or. ldum
                   call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
+               end if
+            end if
+            ! what this isosurface encloses, the number that decides a level
+            if (igTableSetColumnIndex(4)) then
+               ihb = hist_bin(s%isoval)
+               if (ihb >= 1) then
+                  call iw_text(string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) // "%/" //&
+                     string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) // "%",alignframe=.true.)
+               else
+                  call iw_text("--",alignframe=.true.)
                end if
                ! a row-spanning selectable picks the isosurface whose map
                ! options are shown under the table
@@ -2918,74 +2971,99 @@ contains
 
     ! the options of the field map of the selected isosurface, underneath the
     ! table: colormap, opacity, the range the colormap spans and its legend.
-    ! Only for a selected isosurface that is actually mapped (a flat one
-    ! carries its color and opacity in the table swatch)
+    ! Only a mapped isosurface has any (a flat one carries its color and
+    ! opacity in the table swatch), but the block is drawn either way, greyed
+    ! out: its height must not depend on which row is selected, or picking a
+    ! row would shift everything under it. Only an expression adds a line to
+    ! it, for the help of what is being written
     if (w%rep%iso%niso < 1) return
     w%rep%iso%isel = max(min(w%rep%iso%isel,w%rep%iso%niso),1)
     associate (s => w%rep%iso%slot(w%rep%iso%isel))
-       ldum = (s%imap_mode == iso_map_field)
-       if (ldum) ldum = sys(isys)%goodfield(s%imap)
-       if (s%imap_mode == iso_map_expr) ldum = (len_trim(s%mapexpr) > 0)
-       if (ldum) then
-          if (len_trim(s%maperr) > 0) &
-             call iw_text("Error: " // trim(s%maperr),danger=.true.,wrap=.true.)
-          ! colormap
-          call iw_text("Colormap",alignframe=.true.)
-          isc = max(min(s%icmap,iw_ncmap),1)
-          call iw_combo_simple("##isocmap",iw_cmap_optstr,isc,sameline=.true.,changed=ch,startsatone=.true.)
-          if (ch) then
-             s%icmap = isc
-             s%icmap_auto = .false. ! the user has chosen: stop suggesting
-             changed = .true.
-          end if
-          call iw_tooltip("Colors the values of the map field are drawn with",ttshown)
+       ! two questions, and they are not the same one. Whether this isosurface
+       ! is mapped at all decides what the user may edit -- the colormap, the
+       ! opacity (which in map mode lives nowhere else) and the range policy
+       ! stay editable while the surface is hidden or not yet calculated.
+       ! Whether its colors have actually been computed decides what may be
+       ! reported: asking the state, rather than clearing it wherever it could
+       ! go stale, is what keeps the legend from describing a surface that is
+       ! gone -- a field change, or a grid that has not been calculated yet
+       ismapped = (s%imap_mode == iso_map_field)
+       if (ismapped) ismapped = sys(isys)%goodfield(s%imap)
+       if (s%imap_mode == iso_map_expr) ismapped = (len_trim(s%mapexpr) > 0)
+       hascolors = ismapped
+       if (hascolors) hascolors = s%built .and. allocated(s%mesh%rgbv)
 
-          ! opacity (in color mode this lives in the color picker)
-          alpha8 = real(s%alpha,8)
-          if (iw_dragfloat_real8("Opacity##isomapalpha",x1=alpha8,speed=0.01d0,min=0d0,max=1d0,&
-             decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) then
-             s%alpha = real(alpha8,c_float)
-             changed = .true.
-          end if
-          call iw_tooltip("Opacity of this isosurface (1 = opaque)",ttshown)
+       ! the help and the error are messages: they stay legible
+       if (s%imap_mode == iso_map_expr) then
+          call iw_text("Expression",alignframe=.true.)
+          call iw_helpermark(iw_arith_help)
+          call iw_arith_help_button("##isoexprhelp",ttshown)
+       end if
+       if (len_trim(s%maperr) > 0) &
+          call iw_text("Error: " // trim(s%maperr),danger=.true.,wrap=.true.)
 
-          ! the range the colormap spans, and whether it follows the data
-          ch = iw_checkbox("Auto range##isomapauto",s%maprange_auto)
-          if (ch) then
-             ! the range is recomputed by the pass that evaluates the map
-             ! field, so switching it back on asks for that pass again
-             if (s%maprange_auto) s%imap_built = -1
-             changed = .true.
-          end if
-          call iw_tooltip("Span the colormap over the values the map field takes on this isosurface",ttshown)
-          if (.not.s%maprange_auto) then
-             maprspeed = max(0.01d0 * maxval(abs(s%maprange)),1d-6)
-             if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,decimal=6,&
-                sameline=.true.)) changed = .true.
-             call iw_tooltip("Values at the two ends of the colormap",ttshown)
+       if (.not.ismapped) call igBeginDisabled(.true._c_bool)
+       ! colormap
+       call iw_text("Colormap",alignframe=.true.)
+       isc = max(min(s%icmap,iw_ncmap),1)
+       call iw_combo_simple("##isocmap",iw_cmap_optstr,isc,sameline=.true.,changed=ch,startsatone=.true.)
+       if (ch) then
+          s%icmap = isc
+          s%icmap_auto = .false. ! the user has chosen: stop suggesting
+          changed = .true.
+       end if
+       call iw_tooltip("Colors the values of the map field are drawn with",ttshown)
+
+       ! opacity (in color mode this lives in the color picker)
+       alpha8 = real(s%alpha,8)
+       call iw_text("Opacity",sameline=.true.,alignframe=.true.)
+       if (iw_dragfloat_real8("##isomapalpha",x1=alpha8,speed=0.01d0,min=0d0,max=1d0,&
+          decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) then
+          s%alpha = real(alpha8,c_float)
+          changed = .true.
+       end if
+       call iw_tooltip("Opacity of this isosurface (1 = opaque)",ttshown)
+
+       ! the range the colormap spans, and whether it follows the data
+       ch = iw_checkbox("Auto range##isomapauto",s%maprange_auto)
+       if (ch) then
+          ! the range is recomputed by the pass that evaluates the map
+          ! field, so switching it back on asks for that pass again
+          if (s%maprange_auto) s%imap_built = -1
+          changed = .true.
+       end if
+       call iw_tooltip("Span the colormap over the values the map field takes on this isosurface",ttshown)
+       if (.not.s%maprange_auto) then
+          maprspeed = max(0.01d0 * maxval(abs(s%maprange)),1d-6)
+          if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,decimal=6,&
+             sameline=.true.)) changed = .true.
+          call iw_tooltip("Values at the two ends of the colormap",ttshown)
+       elseif (hascolors) then
+          call iw_text("[" // string(s%maprange(1),'e',decimal=4) // ", " //&
+             string(s%maprange(2),'e',decimal=4) // "]",sameline=.true.)
+       else
+          call iw_text("[--, --]",sameline=.true.)
+       end if
+
+       ! the legend
+       rlo = s%maprange(1)
+       rhi = s%maprange(2)
+       if (rhi <= rlo) then
+          reps = max(1d-6 * abs(rlo),1d-12)
+          rlo = rlo - reps
+          rhi = rhi + reps
+       end if
+       call draw_colorbar(s%icmap,rlo,rhi,hascolors)
+       if (.not.ismapped) call igEndDisabled()
+
+       ! what the colors could not cover, where there are colors
+       if (hascolors .and. s%mapoutdomain) then
+          if (s%imap_mode == iso_map_expr) then
+             call iw_text("The expression could not be evaluated on part of this&
+                & isosurface (shown in grey)",danger=.true.,wrap=.true.)
           else
-             call iw_text("[" // string(s%maprange(1),'e',decimal=4) // ", " //&
-                string(s%maprange(2),'e',decimal=4) // "]",sameline=.true.)
-          end if
-
-          ! the legend
-          rlo = s%maprange(1)
-          rhi = s%maprange(2)
-          if (rhi <= rlo) then
-             reps = max(1d-6 * abs(rlo),1d-12)
-             rlo = rlo - reps
-             rhi = rhi + reps
-          end if
-          call draw_colorbar(s%icmap,rlo,rhi)
-
-          if (s%mapoutdomain) then
-             if (s%imap_mode == iso_map_expr) then
-                call iw_text("The expression could not be evaluated on part of this&
-                   & isosurface (shown in grey)",danger=.true.,wrap=.true.)
-             else
-                call iw_text("Some of this isosurface is outside the domain of the map&
-                   & field (shown in grey)",danger=.true.,wrap=.true.)
-             end if
+             call iw_text("Some of this isosurface is outside the domain of the map&
+                & field (shown in grey)",danger=.true.,wrap=.true.)
           end if
        end if
     end associate
@@ -3050,77 +3128,88 @@ contains
     end function log_ticks
 
     !> Draw the color legend of a field map: the colormap icmap as a
-    !> vertical bar from vlo (bottom) to vhi (top), with tick labels at
-    !> round values beside it. Drawn here rather than with implot's
-    !> ColormapScale, which labels the ticks its locator places outside
-    !> the range and then clips them against the frame.
-    subroutine draw_colorbar(icmap,vlo,vhi)
+    !> horizontal bar from vlo (left) to vhi (right), with tick labels at
+    !> round values underneath. With filled false the bar is drawn empty:
+    !> nothing is mapped, but the legend keeps its height so that picking
+    !> a row in the table does not shift what is under it. Drawn here
+    !> rather than with implot's ColormapScale, which labels the ticks its
+    !> locator places outside the range and then clips them.
+    subroutine draw_colorbar(icmap,vlo,vhi,filled)
       integer, intent(in) :: icmap
       real*8, intent(in) :: vlo, vhi
+      logical, intent(in) :: filled
 
       integer, parameter :: nband = 64 ! bands the gradient is drawn with
 
       integer :: i, ndec, nlab
       logical :: usesci
       real*8 :: step, v, span
-      real(c_float) :: barw, barh, pad, y0, y1
+      real(c_float) :: barw, barh, pad, xa, xb
       real(c_float) :: lut(3,nband)
-      type(ImVec2) :: p0, pa, pb, szdum
+      type(ImVec2) :: p0, pa, pb, szdum, szt
       type(ImVec4) :: col
       type(c_ptr) :: dl
       character(kind=c_char,len=:), allocatable, target :: strl
 
       span = vhi - vlo
-      if (span <= 0d0) return
-      call iw_colormap_lut(icmap,lut)
 
-      barw = 1.4_c_float * fontsize%y
-      barh = iw_calcheight(6,0,.false.)
-      pad = 0.4_c_float * fontsize%x
+      ! a wide, short bar: the window is short of height, not of width
+      barh = 1.2_c_float * fontsize%y
+      pad = 0.3_c_float * fontsize%y
+      call igGetContentRegionAvail(szdum)
+      barw = max(szdum%x - 2._c_float * fontsize%x,iw_calcwidth(20,0))
       call igGetCursorScreenPos(p0)
       dl = igGetWindowDrawList()
 
-      ! the gradient, in bands from the top (vhi) down
-      do i = 1, nband
-         y0 = p0%y + barh * real(i-1,c_float) / real(nband,c_float)
-         y1 = p0%y + barh * real(i,c_float) / real(nband,c_float)
-         pa = ImVec2(p0%x,y0)
-         pb = ImVec2(p0%x + barw,y1 + 1._c_float)
-         col = ImVec4(lut(1,nband-i+1),lut(2,nband-i+1),lut(3,nband-i+1),1._c_float)
-         call ImDrawList_AddRectFilled(dl,pa,pb,igGetColorU32_Vec4(col),0._c_float,0_c_int)
-      end do
+      ! the gradient, in bands from the left (vlo) to the right (vhi), then
+      ! labels at round values under the bar: as many as fit without touching,
+      ! centered on their value but kept inside the bar, so the ends are not
+      ! cut off. One format for the whole scale, so they read as one row: the
+      ! values are round multiples of the step, so fixed point needs exactly
+      ! the step's decimals; very large or very small ones go scientific
+      ! instead of growing a tail of zeros
+      if (filled .and. span > 0d0) then
+         call iw_colormap_lut(icmap,lut)
+         do i = 1, nband
+            xa = p0%x + barw * real(i-1,c_float) / real(nband,c_float)
+            xb = p0%x + barw * real(i,c_float) / real(nband,c_float)
+            pa = ImVec2(xa,p0%y)
+            pb = ImVec2(xb + 1._c_float,p0%y + barh)
+            col = ImVec4(lut(1,i),lut(2,i),lut(3,i),1._c_float)
+            call ImDrawList_AddRectFilled(dl,pa,pb,igGetColorU32_Vec4(col),0._c_float,0_c_int)
+         end do
+
+         nlab = max(int(barw / iw_calcwidth(12,0)),1)
+         step = nice_step(span,nlab)
+         ndec = max(-floor(log10(step)),0)
+         usesci = (ndec > 8 .or. max(abs(vlo),abs(vhi)) >= 1d5)
+         do i = ceiling(vlo/step - 1d-10), floor(vhi/step + 1d-10)
+            v = real(i,8) * step
+            if (v < vlo .or. v > vhi) cycle
+            if (usesci) then
+               strl = string(v,'e',decimal=2) // c_null_char
+            elseif (ndec == 0) then
+               strl = string(nint(v)) // c_null_char ! whole numbers, without a trailing dot
+            else
+               strl = string(v,'f',decimal=ndec) // c_null_char
+            end if
+            call igCalcTextSize(szt,c_loc(strl),c_null_ptr,.false._c_bool,-1._c_float)
+            xa = p0%x + barw * real((v - vlo) / span,c_float) - 0.5_c_float * szt%x
+            xa = min(max(xa,p0%x),p0%x + barw - szt%x)
+            pa = ImVec2(xa,p0%y + barh + pad)
+            call ImDrawList_AddText_Vec2(dl,pa,igGetColorU32_Col(ImGuiCol_Text,1._c_float),&
+               c_loc(strl),c_null_ptr)
+         end do
+      end if
+
+      ! the frame goes on top of the bands, and stands alone when there are none
       pa = ImVec2(p0%x,p0%y)
       pb = ImVec2(p0%x + barw,p0%y + barh)
       call ImDrawList_AddRect(dl,pa,pb,igGetColorU32_Col(ImGuiCol_Border,1._c_float),&
          0._c_float,0_c_int,1._c_float)
 
-      ! labels at round values: as many as fit without touching
-      nlab = max(int(barh / (2._c_float * fontsize%y)),1)
-      step = nice_step(span,nlab)
-      ! one format for the whole scale, so the labels read as one column:
-      ! the values are round multiples of the step, so fixed point needs
-      ! exactly the step's decimals; very large or very small ones go
-      ! scientific instead of growing a tail of zeros
-      ndec = max(-floor(log10(step)),0)
-      usesci = (ndec > 8 .or. max(abs(vlo),abs(vhi)) >= 1d5)
-      do i = ceiling(vlo/step - 1d-10), floor(vhi/step + 1d-10)
-         v = real(i,8) * step
-         if (v < vlo .or. v > vhi) cycle
-         if (usesci) then
-            strl = string(v,'e',decimal=2) // c_null_char
-         elseif (ndec == 0) then
-            strl = string(nint(v)) // c_null_char ! whole numbers, without a trailing dot
-         else
-            strl = string(v,'f',decimal=ndec) // c_null_char
-         end if
-         y0 = p0%y + barh * real((vhi - v) / span,c_float) - 0.5_c_float * fontsize%y
-         pa = ImVec2(p0%x + barw + pad,y0)
-         call ImDrawList_AddText_Vec2(dl,pa,igGetColorU32_Col(ImGuiCol_Text,1._c_float),&
-            c_loc(strl),c_null_ptr)
-      end do
-
       ! reserve the space the bar and its labels occupy
-      szdum = ImVec2(barw + pad + iw_calcwidth(10,0),barh)
+      szdum = ImVec2(barw,barh + pad + fontsize%y)
       call igDummy(szdum)
 
     end subroutine draw_colorbar

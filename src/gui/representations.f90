@@ -570,6 +570,7 @@ module representations
   !> re-leveled without disturbing the meshes of the others.
   type iso_slot
      real*8 :: isoval = 0d0 ! isovalue
+     logical :: shown = .true. ! whether this isosurface is drawn in the scene
      real(c_float) :: rgb(3) = iso_rgb_def ! color (imap_mode = iso_map_color)
      real(c_float) :: alpha = iso_alpha_def ! opacity (1 = opaque)
      ! coloring by the values of another field (imap_mode = iso_map_field)

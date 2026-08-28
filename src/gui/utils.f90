@@ -86,6 +86,7 @@ module utils
   public :: iw_menuitem
   public :: iw_tooltip
   public :: iw_helpermark
+  public :: iw_arith_help_button
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
   public :: get_time_string
@@ -395,6 +396,10 @@ module utils
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: sameline
      end subroutine iw_helpermark
+     module subroutine iw_arith_help_button(strid,ttshown)
+       character(len=*,kind=c_char), intent(in) :: strid
+       logical, intent(inout), optional :: ttshown
+     end subroutine iw_arith_help_button
      module function iw_highlight_selectable(str,clicked,selected)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(out), optional :: clicked

@@ -1691,6 +1691,25 @@ contains
 
   end subroutine iw_helpermark
 
+  !> A button that opens the arithmetic expressions page of the manual,
+  !> for the widgets that take an expression from the user. strid is the
+  !> ImGui id suffix ("##...") that tells this button from the others in
+  !> the window. Companion of the iw_arith_help text.
+  module subroutine iw_arith_help_button(strid,ttshown)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: strid
+    logical, intent(inout), optional :: ttshown
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+
+    if (iw_button("Help" // strid,sameline=.true.)) then
+       str1 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
+       call openLink(c_loc(str1))
+    end if
+    call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
+
+  end subroutine iw_arith_help_button
+
   !> Create a selectable that highlights the current row. Return true
   !> if the selectable is hovered. If clicked is present, return .true.
   !> if clicked.

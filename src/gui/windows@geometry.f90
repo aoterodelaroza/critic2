@@ -37,7 +37,8 @@ contains
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
        ColorHighlightBondScene2, ColorTableHighlightRow
-    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight,&
+    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_arith_help_button, iw_calcwidth,&
+       iw_button, iw_calcheight,&
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
        iw_inputint, iw_inputint3, iw_icon_togglebutton, iw_setpos_bottomright, iw_table_column,&
@@ -871,11 +872,7 @@ contains
              w%geometry_expr_error = ""
           end if
           call iw_tooltip("Show on the table the result of using this expression at the atomic positions.",ttshown)
-          if (iw_button("Help##helpfilter",sameline=.true.)) then
-             str2 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
-             call openLink(c_loc(str2))
-          end if
-          call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
+          call iw_arith_help_button("##helpfilter",ttshown)
           if (iw_button("Clear",sameline=.true.)) then
              w%geometry_expression_ok = .false.
              w%geometry_expression = ""
