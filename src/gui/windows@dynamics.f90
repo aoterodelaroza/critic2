@@ -165,12 +165,12 @@ contains
        ! errors and auto-stop notices from the run itself
        if (allocated(sysc(isys)%md%errmsg)) then
           if (len_trim(sysc(isys)%md%errmsg) > 0) &
-             call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.)
+             call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.,wrap=.true.)
        end if
 
        ! error message
        if (len_trim(w%errmsg) > 0) &
-          call iw_text(trim(w%errmsg),danger=.true.)
+          call iw_text(trim(w%errmsg),danger=.true.,wrap=.true.)
     end if
 
     ! right-align and bottom-align the close button

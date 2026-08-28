@@ -101,7 +101,7 @@ contains
     call iw_text("Structures to load from the library file",highlight=.true.)
 
     ! filter, matched against the name and all the aliases
-    call iw_text("Filter",highlight=.true.)
+    call iw_text("Filter",highlight=.true.,alignframe=.true.)
     ldum = iw_inputtext("##libraryfilter",bufsize=255,texta=filter,width=20,sameline=.true.)
     call iw_tooltip("Show only the structures whose name or aliases contain this text",ttshown)
     if (iw_button("Clear",sameline=.true.,disabled=(len_trim(filter) == 0))) filter = ""

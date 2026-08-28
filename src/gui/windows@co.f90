@@ -76,7 +76,7 @@ contains
     xavail = szavail%x
 
     ! first line: text
-    call iw_text("Output",highlight=.true.)
+    call iw_text("Output",highlight=.true.,alignframe=.true.)
 
     ! first line: clear button
     if (idcom == 0) then

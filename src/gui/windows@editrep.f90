@@ -240,7 +240,7 @@ contains
           end if
           call iw_tooltip("Clear the filter",ttshown)
           if (len_trim(w%rep%sel%errfilter) > 0) &
-             call iw_text("Error: " // trim(w%rep%sel%errfilter),danger=.true.)
+             call iw_text("Error: " // trim(w%rep%sel%errfilter),danger=.true.,wrap=.true.)
 
           ! periodicity (evaluate first: the widgets must be drawn even if
           ! changed is already true, and .or. is allowed to short-circuit)
@@ -2434,7 +2434,7 @@ contains
     end if
     call iw_tooltip("Field whose isosurface is displayed",ttshown)
     if (.not.goodf) then
-       call iw_text("The selected field is not available in this system",danger=.true.)
+       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
        return
     end if
 
@@ -3229,27 +3229,24 @@ contains
 
     end function implot_scale
 
-    !> Index of the histogram bin that contains the value x, in the
-    !> binning the cumulative arrays use (0 if x is out of range).
+    !> Index of the bin containing the value x in the binning the
+    !> cumulative arrays use: logarithmic in |x| over hist_cumrange.
+    !> Returns 0 when there is no histogram or x is zero (a zero
+    !> isosurface encloses everything, which the caller reports as
+    !> unavailable rather than as 100%).
     function hist_bin(x) result(ib)
       real*8, intent(in) :: x
       integer :: ib
 
-      real*8 :: t, tv, lo, hi
+      real*8 :: t, lo, hi
 
       ib = 0
       if (w%rep%iso%nhist <= 0) return
-      if (w%rep%iso%hist_qscale == hscale_log .and. x <= 0d0) return
-      lo = w%rep%iso%hist_range(1,w%rep%iso%hist_qscale)
-      hi = w%rep%iso%hist_range(2,w%rep%iso%hist_qscale)
-      if (w%rep%iso%hist_qscale == hscale_log) then
-         tv = log10(max(x,tiny(x)))
-      elseif (w%rep%iso%hist_qscale == hscale_asinh) then
-         tv = 2d0 * asinh(0.5d0*x)
-      else
-         tv = x
-      end if
-      t = (tv - lo) / max(hi - lo,1d-30)
+      if (x == 0d0) return
+      lo = w%rep%iso%hist_cumrange(1)
+      hi = w%rep%iso%hist_cumrange(2)
+      if (hi <= lo) return
+      t = (log10(abs(x)) - lo) / (hi - lo)
       ib = min(max(1 + int(t * iso_nhist),1),iso_nhist)
 
     end function hist_bin

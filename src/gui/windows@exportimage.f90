@@ -82,7 +82,8 @@ contains
     call iw_tooltip("Choose the image file with a file browser",ttshown)
     call w%okfile_warn_overwrite()
     if (len_trim(filter_from_extension()) == 0) &
-       call iw_text("Unknown image extension, writing " // trim(w%okfilter) // " format",danger=.true.)
+       call iw_text("Unknown image extension, writing " // trim(w%okfilter) // " format",&
+          danger=.true.,wrap=.true.)
 
     ! render settings
     call iw_text("Render Settings",highlight=.true.)
@@ -95,7 +96,7 @@ contains
 
     ! render buffer size presets, relative to the view size
     if (.not.doquit) then
-       call iw_text("Presets:")
+       call iw_text("Presets:",alignframe=.true.)
        if (iw_button("1x",sameline=.true.)) w%npixel = win(iview)%FBOside
        call iw_tooltip("Same resolution as the current view",ttshown)
        if (iw_button("2x",sameline=.true.)) w%npixel = 2 * win(iview)%FBOside
@@ -139,7 +140,7 @@ contains
     end if
 
     ! maybe the error message
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(8,2)

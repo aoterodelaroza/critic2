@@ -106,7 +106,7 @@ contains
        ifmt = fmtperm(w%saveas_format)
        ! warn if the file extension does not match the selected format
        if (idetect /= ifmt) &
-          call iw_text("Extension does not match the selected format",danger=.true.)
+          call iw_text("Extension does not match the selected format",danger=.true.,wrap=.true.)
     end if
 
     ! whether the write will produce a molecule or a crystal: some
@@ -155,7 +155,7 @@ contains
              inquire(file=w%saveas_lastcontrol,exist=w%saveas_control_exists)
           end if
           if (w%saveas_control_exists) &
-             call iw_text("The _control file exists and will be overwritten",danger=.true.)
+             call iw_text("The _control file exists and will be overwritten",danger=.true.,wrap=.true.)
        end if
     end if
 
@@ -181,7 +181,7 @@ contains
     end if
 
     ! maybe the error message
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(8,2)

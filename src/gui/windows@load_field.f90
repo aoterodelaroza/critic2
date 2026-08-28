@@ -336,7 +336,7 @@ contains
        end select
 
        ! error message, if applicable
-       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     elseif (w%lf%sourceopt == 1) then
        ! from expression

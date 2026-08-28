@@ -633,14 +633,15 @@ module representations
      logical :: hist_have(hscale_num) = .false. ! which scales the data allow
      real*8 :: hist_range(2,hscale_num) = 0d0 ! bin limits of each, in transformed units
      integer :: nhist = 0 ! number of staircase points (0 = no histogram yet)
-     integer :: hist_qscale = hscale_linear ! scale the cumulative arrays below are binned in
      integer :: hist_xscale = 0 ! user: value-axis scale (0 = follow the suggested default)
      integer :: hist_yscale = hscale_log ! user: count-axis scale
-     ! fraction of the integral of |f| (hist_q) and of the volume (hist_v) above the lower edge
-     ! of each bin, for the readout of what the current isovalue encloses; binned like the
-     ! log staircase when hist_haslog, linearly otherwise
+     ! fraction of the integral of |f| (hist_q) and of the whole box volume (hist_v) at or above
+     ! the lower edge of each bin, for the readout of what the current isovalue encloses. Binned
+     ! logarithmically in |f| over hist_cumrange (log10 limits), independently of the staircase
+     ! above: the display bins follow the axis on screen, and near zero those are too coarse
      real*8 :: hist_q(iso_nhist) = 0d0
      real*8 :: hist_v(iso_nhist) = 0d0
+     real*8 :: hist_cumrange(2) = 0d0
      real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built and the applied-grid stamp)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims

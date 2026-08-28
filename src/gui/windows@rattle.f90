@@ -171,7 +171,7 @@ contains
        ! the cost of the run, which is what the user is really choosing: the
        ! dynamics advances one step per frame, so this is also a frame count
        nsteptot = int(w%rattle_nini) + int(w%rattle_ngen) * int(w%rattle_nstride)
-       call iw_text("(" // string(nsteptot) // " steps in total)")
+       call iw_text("(" // string(nsteptot) // " steps in total)",alignframe=.true.)
 
        ! measure what a step of this dynamics costs, and turn it into an
        ! estimate for the whole run. The measurement is kept, so the estimate
@@ -202,9 +202,9 @@ contains
 
     ! the outcome of the last run
     if (len_trim(w%errmsg) > 0) then
-       call iw_text(w%errmsg,danger=.true.)
+       call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     elseif (len_trim(w%okmsg) > 0) then
-       call iw_text(w%okmsg,highlight=.true.)
+       call iw_text(w%okmsg,highlight=.true.,wrap=.true.)
     end if
 
     ! right-align and bottom-align for the rest of the contents: the checkbox

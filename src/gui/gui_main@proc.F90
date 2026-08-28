@@ -1197,7 +1197,7 @@ contains
        str2 = string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
           string(io%Framerate,'f',decimal=1) // " FPS)"
        call igSetCursorPosX(iw_calcwidth(len(str2) + len(str1) + 2,0,from_end=.true.))
-       call iw_text(str2)
+       call iw_text(str2,alignframe=.true.)
        if (len(str1) > 0) then
           if (iw_button(str1,sameline=.true.)) call clipboard_clear()
           call iw_tooltip("Contents of the clipboard. Click to empty",ttshown)

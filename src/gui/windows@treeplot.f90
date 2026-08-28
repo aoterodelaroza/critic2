@@ -65,12 +65,12 @@ contains
        "Number of molecules"//c_null_char//"a (Å)"//c_null_char//&
        "b (Å)"//c_null_char//"c (Å)"//c_null_char//"α (°)"//c_null_char//"β (°)"//c_null_char//&
        "γ (°)"//c_null_char//"Energy/Z (Ha)"//c_null_char//"Pressure (GPa)"//c_null_char//c_null_char
-    call iw_text("x: ")
+    call iw_text("x: ",alignframe=.true.)
     call iw_combo_simple("##xselect",str1,ic_plotx,changed=ch,sameline=.true.)
     call iw_tooltip("Property to represent on the x-axis",ttshown)
     forceupdate = forceupdate .or. ch
 
-    call iw_text("y: ")
+    call iw_text("y: ",alignframe=.true.)
     call iw_combo_simple("##yselect",str1,ic_ploty,changed=ch,sameline=.true.)
     call iw_tooltip("Property to represent on the y-axis",ttshown)
     forceupdate = forceupdate .or. ch

@@ -575,7 +575,7 @@ contains
        ! surface force-evaluation errors from the run
        if (allocated(sysc(isys)%md%errmsg)) then
           if (len_trim(sysc(isys)%md%errmsg) > 0) &
-             call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.)
+             call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.,wrap=.true.)
        end if
     end if
     call igPopStyleVar(1)
@@ -653,7 +653,7 @@ contains
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
 
     ! error message, if any
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! close button and binds
     call iw_setposx_fromend(5,1)

@@ -424,7 +424,7 @@ contains
        end if
     end if
     if (w%okfile_exists) &
-       call iw_text("File exists and will be overwritten",danger=.true.)
+       call iw_text("File exists and will be overwritten",danger=.true.,wrap=.true.)
 
   end subroutine okfile_warn_overwrite
 

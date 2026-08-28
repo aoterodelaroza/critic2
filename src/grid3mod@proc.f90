@@ -1728,7 +1728,8 @@ contains
   end subroutine get_domain
 
   !> Statistics of the values of grid f; field_stats does the work.
-  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
+  module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
+     hcumq,hcumv,hcumrange,hdef)
     class(grid3), intent(in) :: f
     real*8, intent(out), optional :: fmin, fmax
     real*8, intent(out), optional :: fmean, famean, frms
@@ -1737,11 +1738,13 @@ contains
     real*8, intent(out), optional :: hist(:,:)
     real*8, intent(out), optional :: hrange(2,hscale_num)
     logical, intent(out), optional :: hhave(hscale_num)
-    real*8, intent(out), optional :: hmass(:)
-    integer, intent(out), optional :: hqscale
+    real*8, intent(out), optional :: hcumq(:)
+    real*8, intent(out), optional :: hcumv(:)
+    real*8, intent(out), optional :: hcumrange(2)
     integer, intent(out), optional :: hdef
 
-    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
+    call field_stats(f%f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
+       hcumq,hcumv,hcumrange,hdef)
 
   end subroutine stats
 
@@ -1757,7 +1760,8 @@ contains
   !> values are positive and span several decades (hrange = log10 of
   !> the limits), linearly otherwise. One pass over the data after the
   !> range, with no copy and no sort.
-  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
+  module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
+     hcumq,hcumv,hcumrange,hdef)
     real*8, intent(in) :: f(:,:,:)
     real*8, intent(out), optional :: fmin, fmax
     real*8, intent(out), optional :: fmean, famean, frms
@@ -1766,8 +1770,9 @@ contains
     real*8, intent(out), optional :: hist(:,:)
     real*8, intent(out), optional :: hrange(2,hscale_num)
     logical, intent(out), optional :: hhave(hscale_num)
-    real*8, intent(out), optional :: hmass(:)
-    integer, intent(out), optional :: hqscale
+    real*8, intent(out), optional :: hcumq(:)
+    real*8, intent(out), optional :: hcumv(:)
+    real*8, intent(out), optional :: hcumrange(2)
     integer, intent(out), optional :: hdef
 
     integer, parameter :: nqbin = 512 ! bins of the mass histogram (quantile)
@@ -1775,12 +1780,13 @@ contains
     real*8, parameter :: qfrac_def = 0.95d0 ! default enclosed fraction
     real*8, parameter :: hist_logdec = 100d0 ! fmax/fmin above which the display bins are logarithmic
 
-    integer :: i, j, k, ib, n, nh, is, iq
-    real*8 :: fmin_, fmax_, amax, af, qf, sumf, sumaf, sum2, tv
-    real*8 :: dx, lamax, acum, atarget
+    integer :: i, j, k, ib, n, nh, is, nc
+    real*8 :: fmin_, fmax_, amax, af, qf, sumf, sumaf, sum2, tv, laf
+    real*8 :: dx, lamax, acum, atarget, clo, chi
     real*8 :: hlo(hscale_num), hhi(hscale_num)
     real*8 :: qmass(nqbin)
-    logical :: have(hscale_num), dolevel
+    real*8, allocatable :: cmass(:), ccnt(:)
+    logical :: have(hscale_num), dolevel, docum
 
     n = size(f,1) * size(f,2) * size(f,3)
     if (n > 0) then
@@ -1800,9 +1806,13 @@ contains
     if (present(frms)) frms = 0d0
     if (present(qlevel)) qlevel = 0d0
     if (present(hist)) hist = 0d0
-    if (present(hmass)) hmass = 0d0
+    if (present(hcumq)) hcumq = 0d0
+    if (present(hcumv)) hcumv = 0d0
     if (present(hhave)) hhave = .false.
-    if (present(hqscale)) hqscale = hscale_linear
+    if (present(hcumrange)) then
+       hcumrange(1) = 0d0
+       hcumrange(2) = 1d0
+    end if
     if (present(hdef)) hdef = hscale_linear
     if (present(hrange)) then
        hrange(1,:) = 0d0
@@ -1821,7 +1831,6 @@ contains
     hhi = 1d0
     if (present(hist)) then
        nh = size(hist,1)
-       if (present(hmass)) nh = min(nh,size(hmass,1))
        have(hscale_linear) = .true.
        hlo(hscale_linear) = fmin_
        hhi(hscale_linear) = fmax_
@@ -1856,14 +1865,37 @@ contains
        if (have(hscale_log) .and. fmax_ > fmin_ * hist_logdec) hdef = hscale_log
     end if
 
-    ! the cumulative mass follows the bins with the best resolution where
-    ! the interesting values are: logarithmic if the data allow it, else
-    ! arcsinh, and only linear as a last resort (linear bins over a range
-    ! that spans decades put everything in the first bin)
-    iq = hscale_linear
-    if (have(hscale_asinh)) iq = hscale_asinh
-    if (have(hscale_log)) iq = hscale_log
-    if (present(hqscale)) hqscale = iq
+    ! Bins for the cumulative mass and volume. These are always
+    ! logarithmic in |f| over qdec decades below the largest |f|, which is
+    ! the only binning that resolves the low values isosurfaces are drawn
+    ! at. They are deliberately independent of the display bins above: the
+    ! display ones must line up with whichever axis is on screen, and both
+    ! the linear and the arcsinh axis are near-linear near zero, so a
+    ! single bin would swallow every isovalue of interest. Points at zero
+    ! (a third of the grid, in a promolecular density with atomic cutoffs)
+    ! and below the range are in neither bin but still count in the totals,
+    ! since they lie below any positive isovalue.
+    nc = 0
+    docum = present(hcumq) .or. present(hcumv)
+    clo = 0d0
+    chi = 1d0
+    if (docum) then
+       nc = huge(nc)
+       if (present(hcumq)) nc = min(nc,size(hcumq,1))
+       if (present(hcumv)) nc = min(nc,size(hcumv,1))
+       docum = (nc > 0)
+    end if
+    if (docum) then
+       clo = log10(amax) - qdec
+       chi = log10(amax)
+       allocate(cmass(nc),ccnt(nc))
+       cmass = 0d0
+       ccnt = 0d0
+    end if
+    if (present(hcumrange)) then
+       hcumrange(1) = clo
+       hcumrange(2) = chi
+    end if
 
     ! one pass: the totals, the mass histogram behind the quantile
     ! (always logarithmic, spanning qdec decades below the largest |f|),
@@ -1882,9 +1914,20 @@ contains
              sumf = sumf + f(i,j,k)
              sumaf = sumaf + af
              sum2 = sum2 + f(i,j,k) * f(i,j,k)
-             if (dolevel .and. af > 0d0) then
-                ib = nqbin - int((lamax - log10(af)) / dx)
-                if (ib >= 1) qmass(min(ib,nqbin)) = qmass(min(ib,nqbin)) + af
+             if ((dolevel .or. docum) .and. af > 0d0) then
+                laf = log10(af)
+                if (dolevel) then
+                   ib = nqbin - int((lamax - laf) / dx)
+                   if (ib >= 1) qmass(min(ib,nqbin)) = qmass(min(ib,nqbin)) + af
+                end if
+                if (docum) then
+                   ib = 1 + int((laf - clo) / (chi - clo) * nc)
+                   if (ib >= 1) then
+                      ib = min(ib,nc)
+                      cmass(ib) = cmass(ib) + af
+                      ccnt(ib) = ccnt(ib) + 1d0
+                   end if
+                end if
              end if
              if (nh > 0) then
                 do is = 1, hscale_num
@@ -1902,7 +1945,6 @@ contains
                    ! point carries a sizable part of the mass
                    ib = min(max(1 + int((tv - hlo(is)) / (hhi(is) - hlo(is)) * nh),1),nh)
                    hist(ib,is) = hist(ib,is) + 1d0
-                   if (present(hmass) .and. is == iq) hmass(ib) = hmass(ib) + af
                 end do
              end if
           end do
@@ -1912,6 +1954,21 @@ contains
     if (present(fmean)) fmean = sumf / real(n,8)
     if (present(famean)) famean = sumaf / real(n,8)
     if (present(frms)) frms = sqrt(sum2 / real(n,8))
+
+    ! fractions at or above the lower edge of each cumulative bin, running
+    ! down from the top. The denominators are the totals over every point,
+    ! so the volume fraction is a fraction of the whole box
+    if (docum) then
+       do ib = nc-1, 1, -1
+          cmass(ib) = cmass(ib) + cmass(ib+1)
+          ccnt(ib) = ccnt(ib) + ccnt(ib+1)
+       end do
+       if (present(hcumq)) then
+          if (sumaf > 0d0) hcumq(1:nc) = cmass / sumaf
+       end if
+       if (present(hcumv)) hcumv(1:nc) = ccnt / real(n,8)
+       deallocate(cmass,ccnt)
+    end if
 
     ! the level enclosing qfrac of the |f| mass: walk the bins from the
     ! largest values down until the accumulated mass crosses the target,

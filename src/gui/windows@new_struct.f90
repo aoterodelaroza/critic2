@@ -134,11 +134,11 @@ contains
        ! lattice: body
        if (cellopt == 1) then
           ! cell lengths
-          call iw_text("Cell lengths (Å): ")
+          call iw_text("Cell lengths (Å): ",alignframe=.true.)
           ldum = iw_inputfloat3("##celllength3",aa,width=3*8,sameline=.true.)
 
           ! cell angles
-          call iw_text("Cell angles (°):  ")
+          call iw_text("Cell angles (°):  ",alignframe=.true.)
           ldum = iw_inputfloat3("##cellangle3",bb,width=3*8,sameline=.true.)
        else
           ! lattice vectors
@@ -204,7 +204,7 @@ contains
 
     ! any error from the last OK (e.g. a scratch file that could not be opened)
     if (len_trim(w%errmsg) > 0) &
-       call iw_text(w%errmsg,danger=.true.)
+       call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(8,2)

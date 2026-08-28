@@ -289,7 +289,8 @@ module grid3mod
        real*8, intent(out), optional :: flo(3)
        real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
-     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
+     module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
+       hcumq,hcumv,hcumrange,hdef)
        class(grid3), intent(in) :: f
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
@@ -298,11 +299,13 @@ module grid3mod
        real*8, intent(out), optional :: hist(:,:)
        real*8, intent(out), optional :: hrange(2,hscale_num)
        logical, intent(out), optional :: hhave(hscale_num)
-       real*8, intent(out), optional :: hmass(:)
-       integer, intent(out), optional :: hqscale
+       real*8, intent(out), optional :: hcumq(:)
+       real*8, intent(out), optional :: hcumv(:)
+       real*8, intent(out), optional :: hcumrange(2)
        integer, intent(out), optional :: hdef
      end subroutine stats
-     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,hmass,hqscale,hdef)
+     module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
+       hcumq,hcumv,hcumrange,hdef)
        real*8, intent(in) :: f(:,:,:)
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
@@ -311,8 +314,9 @@ module grid3mod
        real*8, intent(out), optional :: hist(:,:)
        real*8, intent(out), optional :: hrange(2,hscale_num)
        logical, intent(out), optional :: hhave(hscale_num)
-       real*8, intent(out), optional :: hmass(:)
-       integer, intent(out), optional :: hqscale
+       real*8, intent(out), optional :: hcumq(:)
+       real*8, intent(out), optional :: hcumv(:)
+       real*8, intent(out), optional :: hcumrange(2)
        integer, intent(out), optional :: hdef
      end subroutine field_stats
      module subroutine interp(f,xi,y,yp,ypp,valid)

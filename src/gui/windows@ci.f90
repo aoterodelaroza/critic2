@@ -60,7 +60,7 @@ contains
     end if
 
     ! first line: text
-    call iw_text("Input",highlight=.true.)
+    call iw_text("Input",highlight=.true.,alignframe=.true.)
 
     ! first line: clear button
     if (iw_button("Clear",sameline=.true.)) &

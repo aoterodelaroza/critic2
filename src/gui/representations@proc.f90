@@ -2724,11 +2724,11 @@ contains
       real*8, intent(in) :: ff(:,:,:)
 
       integer :: i, is, idef
-      real*8 :: hy(iso_nhist,hscale_num), hm(iso_nhist), dh, qtot, vtot, e1, e2
+      real*8 :: hy(iso_nhist,hscale_num), dh, e1, e2
 
       call field_stats(ff,fmin=r%iso%frange(1),fmax=r%iso%frange(2),hist=hy,&
-         hrange=r%iso%hist_range,hhave=r%iso%hist_have,hmass=hm,&
-         hqscale=r%iso%hist_qscale,hdef=idef)
+         hrange=r%iso%hist_range,hhave=r%iso%hist_have,hcumq=r%iso%hist_q,&
+         hcumv=r%iso%hist_v,hcumrange=r%iso%hist_cumrange,hdef=idef)
       ! take the suggested scale while the user has not chosen one, and
       ! whenever the chosen one is not available for this data
       if (r%iso%hist_xscale < 1 .or. r%iso%hist_xscale > hscale_num) then
@@ -2756,23 +2756,12 @@ contains
             r%iso%hist_y(2*i,is) = real(max(hy(i,is),0.5d0),c_double)
          end do
       end do
-      hy(:,1) = hy(:,r%iso%hist_qscale) ! the cumulative uses the same bins as hmass
       ! a constant (or empty) field has no distribution to show
       if (any(r%iso%hist_have)) then
          r%iso%nhist = 2*iso_nhist
       else
          r%iso%nhist = 0
       end if
-
-      ! fractions of the |f| integral and of the volume above each bin edge
-      qtot = max(sum(hm),1d-300)
-      vtot = max(sum(hy(:,1)),1d-300)
-      r%iso%hist_q(iso_nhist) = hm(iso_nhist) / qtot
-      r%iso%hist_v(iso_nhist) = hy(iso_nhist,1) / vtot
-      do i = iso_nhist-1, 1, -1
-         r%iso%hist_q(i) = r%iso%hist_q(i+1) + hm(i) / qtot
-         r%iso%hist_v(i) = r%iso%hist_v(i+1) + hy(i,1) / vtot
-      end do
 
     end subroutine stamp_histogram
 

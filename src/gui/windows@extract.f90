@@ -418,9 +418,9 @@ contains
 
     ! the outcome of the last extraction
     if (len_trim(w%errmsg) > 0) then
-       call iw_text(w%errmsg,danger=.true.)
+       call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     elseif (len_trim(w%okmsg) > 0) then
-       call iw_text(w%okmsg,highlight=.true.)
+       call iw_text(w%okmsg,highlight=.true.,wrap=.true.)
     end if
 
     ! right-align and bottom-align for the rest of the contents

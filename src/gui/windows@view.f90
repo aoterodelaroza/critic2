@@ -316,7 +316,7 @@ contains
                 "supercell on screen becomes the new unit cell ("//&
                 trim(get_bind_keyname(BIND_VIEW_TRANSFORM_SUPERCELL))//")",ttshown)
              if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.)
+                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
           end if
           call igEndPopup()
        end if

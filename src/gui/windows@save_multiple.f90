@@ -144,9 +144,9 @@ contains
        ! not portable, and the write itself reports the real error
        inquire(file=savedir(w),exist=direxists)
        if (.not.direxists) &
-          call iw_text("This directory does not exist",danger=.true.)
+          call iw_text("This directory does not exist",danger=.true.,wrap=.true.)
     else
-       call iw_text("Choose a directory to write the files to",danger=.true.)
+       call iw_text("Choose a directory to write the files to",danger=.true.,wrap=.true.)
     end if
 
     ! format combo
@@ -322,10 +322,10 @@ contains
 
     ! the warning, and the overwrite acknowledgement it may need
     if (len_trim(warnmsg) > 0) then
-       call iw_text(warnmsg,danger=.true.)
+       call iw_text(warnmsg,danger=.true.,wrap=.true.)
     end if
     if (dooverwrite) then
-       call iw_text("Write them?",highlight=.true.)
+       call iw_text("Write them?",highlight=.true.,alignframe=.true.)
        ldum = iw_radiobutton("Overwrite##savemultexist",int=w%savemult_exist,intval=1_c_int,&
           sameline=.true.)
        call iw_tooltip("Write over the files that already exist in this directory",ttshown)
@@ -336,13 +336,13 @@ contains
 
     ! maybe the error or result message
     if (len_trim(w%errmsg) > 0) then
-       call iw_text(w%errmsg,danger=.true.)
+       call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     elseif (len_trim(w%okmsg) > 0) then
-       call iw_text(w%okmsg,highlight=.true.)
+       call iw_text(w%okmsg,highlight=.true.,wrap=.true.)
     end if
 
     ! why the Save button is disabled, on the line just above it
-    if (len_trim(savemsg) > 0) call iw_text(savemsg,danger=.true.)
+    if (len_trim(savemsg) > 0) call iw_text(savemsg,danger=.true.,wrap=.true.)
 
     ! right-align and bottom-align for the rest of the contents: the two
     ! buttons of the row below carry 9 characters between them

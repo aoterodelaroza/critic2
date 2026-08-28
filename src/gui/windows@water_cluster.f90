@@ -198,7 +198,7 @@ contains
 
        ! error message
        if (len_trim(w%errmsg) > 0) &
-          call iw_text(trim(w%errmsg),danger=.true.)
+          call iw_text(trim(w%errmsg),danger=.true.,wrap=.true.)
     end if
 
     ! right-align and bottom-align the close button

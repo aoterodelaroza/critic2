@@ -117,7 +117,7 @@ contains
     end if
 
     ! maybe the error message
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! rest of animation stuff
     if (vib_ok) then

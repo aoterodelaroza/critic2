@@ -880,7 +880,7 @@ contains
           end if
           call iw_tooltip("Clear the expression",ttshown)
           if (len_trim(w%geometry_expr_error) > 0) then
-             call iw_text("Error: " // trim(w%geometry_expr_error),danger=.true.)
+             call iw_text("Error: " // trim(w%geometry_expr_error),danger=.true.,wrap=.true.)
           end if
           call igEndTabItem()
        end if
@@ -1059,7 +1059,7 @@ contains
                 iaction_l = .false.
              end if
              if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.,sameline=.true.)
+                call iw_text(w%errmsg,danger=.true.,sameline=.true.,wrap=.true.)
 
              ! nice supercell search
              call iw_text("Nice supercells",highlight=.true.)
@@ -1731,7 +1731,7 @@ contains
              if (iw_button("Refine##symrefinemol")) iaction = iaction_sym_refine
              call iw_tooltip("Move atoms to occupy their symmetry positions exactly",ttshown)
              if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.)
+                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
              ! symmetry operations table
              if (sys(isys)%c%pg%avail) then
@@ -1825,7 +1825,7 @@ contains
              call iw_tooltip("Choose a symmetry subgroup such that the asymmetric unit contains whole molecules &
                 &(molecular crystals only)",ttshown)
              if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.)
+                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
              ! symmetry operations table
              neqv = sys(isys)%c%neqv
