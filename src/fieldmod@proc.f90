@@ -1545,6 +1545,7 @@ contains
     character(len=:), allocatable :: str, aux
     integer :: i, is, j, k, n(3)
     real*8 :: x0(3)
+    real*8 :: gmin, gmax, gmean, grms, rnp
 
     ! header
     if (.not.f%isinit) then
@@ -1586,18 +1587,23 @@ contains
           write (uout,'("  First elements... ",3(A,"  "))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
           write (uout,'("  Last elements... ",3(A,"  "))') &
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
-          write (uout,'("  Sum of elements... ",A)') string(sum(f%grid%f(:,:,:)),'e',decimal=12)
-          write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%grid%f(:,:,:)**2),'e',decimal=12)
+          ! every quantity below comes from a single pass over the grid;
+          ! the sum is n times the mean and the sum of squares n times the
+          ! mean square, so the integrals are just the mean times a volume
+          call f%grid%stats(fmin=gmin,fmax=gmax,fmean=gmean,frms=grms)
+          rnp = real(product(n),8)
+          write (uout,'("  Sum of elements... ",A)') string(gmean * rnp,'e',decimal=12)
+          write (uout,'("  Sum of squares of elements... ",A)') string(grms * grms * rnp,'e',decimal=12)
 
           omega = det3(f%grid%x2cl)
           write (uout,'("  Grid domain/cell volume = ",A,"/",A)') string(omega,'f',decimal=4), string(f%c%omega,'f',decimal=4)
           write (uout,'("  Grid domain integral (",A,") = ",A)') string(f%id),&
-             string(sum(f%grid%f) * omega / real(product(n),8),'f',decimal=8)
+             string(gmean * omega,'f',decimal=8)
           write (uout,'("  Cell integral (",A,") = ",A)') string(f%id),&
-             string(sum(f%grid%f) * f%c%omega / real(product(n),8),'f',decimal=8)
-          write (uout,'("  Min: ",A)') string(minval(f%grid%f),'e',decimal=8)
-          write (uout,'("  Average: ",A)') string(sum(f%grid%f) / real(product(n),8),'e',decimal=8)
-          write (uout,'("  Max: ",A)') string(maxval(f%grid%f),'e',decimal=8)
+             string(gmean * f%c%omega,'f',decimal=8)
+          write (uout,'("  Min: ",A)') string(gmin,'e',decimal=8)
+          write (uout,'("  Average: ",A)') string(gmean,'e',decimal=8)
+          write (uout,'("  Max: ",A)') string(gmax,'e',decimal=8)
        end if
        if (isset) then
           write (uout,'("  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): ",A)') string(f%grid%mode)
