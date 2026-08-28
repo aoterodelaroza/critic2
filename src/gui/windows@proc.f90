@@ -631,6 +631,8 @@ contains
        w%savemult_nosym = .false.
        w%savemult_cartesian = .false.
        w%savemult_docell = .true.
+       if (allocated(w%savemult_lastcheck)) deallocate(w%savemult_lastcheck)
+       w%savemult_direxists = .false.
     elseif (type == wintype_extract) then
        ! extract cluster as molecule window
        if (.not.present(idparent)) &

@@ -380,6 +380,8 @@ module windows
      logical :: savemult_cartesian ! write Cartesian instead of fractional coordinates
      logical :: savemult_docell ! show the unit cell in the written 3D model files
      integer(c_int) :: savemult_exist ! target files that exist (0=undecided, 1=overwrite, 2=skip)
+     character(kind=c_char,len=:), allocatable :: savemult_lastcheck ! okfile at the last directory check
+     logical :: savemult_direxists = .false. ! cached result: the output directory exists
      type(savemult_state) :: sm ! the file list this window is showing
      ! extract cluster as molecule parameters
      integer(c_int) :: extract_region = 0 ! region shape (0=sphere, 1=cube, 2=cells)

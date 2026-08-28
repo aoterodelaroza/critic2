@@ -72,7 +72,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: dooverwrite
-    logical :: doquit, ok, okvalid, userk, usecell, changed, dirok, direxists
+    logical :: doquit, ok, okvalid, userk, usecell, changed, dirok
     logical :: anycrystal, thisrk
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
@@ -141,9 +141,15 @@ contains
     dirok = (len_trim(w%okfile) > 0)
     if (dirok) then
        ! a missing directory is only a warning: inquire() on a directory is
-       ! not portable, and the write itself reports the real error
-       inquire(file=savedir(w),exist=direxists)
-       if (.not.direxists) &
+       ! not portable, and the write itself reports the real error. Cached
+       ! on okfile, like the other existence checks: this runs every frame,
+       ! and a stat() per frame stalls the render thread on a slow mount
+       if (.not.allocated(w%savemult_lastcheck)) w%savemult_lastcheck = ""
+       if (w%okfile /= w%savemult_lastcheck) then
+          w%savemult_lastcheck = w%okfile
+          inquire(file=savedir(w),exist=w%savemult_direxists)
+       end if
+       if (.not.w%savemult_direxists) &
           call iw_text("This directory does not exist",danger=.true.,wrap=.true.)
     else
        call iw_text("Choose a directory to write the files to",danger=.true.,wrap=.true.)
