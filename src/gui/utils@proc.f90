@@ -1735,7 +1735,8 @@ contains
     sz1%x = g%Style%ItemSpacing%x
     sz1%y = g%Style%ItemSpacing%y + g%Style%CellPadding%y + g%Style%FramePadding%y
     call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz1)
-    call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,ColorTableHighlightRow)
+    call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,ImVec4(ColorTableHighlightRow(1),&
+       ColorTableHighlightRow(2),ColorTableHighlightRow(3),ColorTableHighlightRow(4)))
     pos = igGetCursorPosX()
     flags = ImGuiSelectableFlags_SpanAllColumns
     flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)

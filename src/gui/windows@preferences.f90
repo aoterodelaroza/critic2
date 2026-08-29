@@ -28,7 +28,9 @@ contains
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_interface_settings, set_default_color_settings,&
-       ColorTableCellBg, ColorHighlightScene,&
+       ColorTableCellBg, ColorFieldSelected, ColorTableHighlightRow,&
+       ColorTableSelectedBorder,&
+       ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
        ColorElement, uiscale
     use representations, only: iso_defaultlevel, iso_level_optstr
@@ -277,6 +279,12 @@ contains
           call color_edit4("Molecule in a box","A molecule in a large periodic box",ColorTableCellBg(:,6))
           call color_edit4("Molecule","A molecule",ColorTableCellBg(:,7))
           call color_edit4("Molecular cluster","A molecular cluster",ColorTableCellBg(:,8))
+          call color_edit4("Selected system (border)","Border around the system currently&
+             & shown in the view, input console, and other windows",ColorTableSelectedBorder)
+          call color_edit4("Multi-selected systems","Systems selected in the tree&
+             & with click, control-click, or shift-click",ColorTableHighlightRow)
+          call color_edit4("Reference field (border)","Border around the reference field in&
+             & the field list shown under each expanded system",ColorFieldSelected)
 
           ! atom selection and highlights
           call iw_text("Atom selection and highlights",highlight=.true.)

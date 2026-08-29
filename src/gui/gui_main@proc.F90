@@ -570,6 +570,9 @@ contains
     use param, only: JMLcol
 
     ColorTableCellBg = ColorTableCellBg_def
+    ColorFieldSelected = ColorFieldSelected_def
+    ColorTableHighlightRow = ColorTableHighlightRow_def
+    ColorTableSelectedBorder = ColorTableSelectedBorder_def
     ColorHighlightScene = ColorHighlightScene_def
     ColorHighlightSelectScene = ColorHighlightSelectScene_def
     ColorMeasureSelect = ColorMeasureSelect_def

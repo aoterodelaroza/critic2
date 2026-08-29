@@ -57,7 +57,8 @@ contains
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
     use gui_main, only: ColorTableCellBg, tooltip_delay,&
-       ColorFieldSelected, ColorTableHighlightRow, g, fontsize, io
+       ColorFieldSelected, ColorTableHighlightRow,&
+       ColorTableSelectedBorder, g, fontsize, io
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
        icon_ui_expand, icon_ui_collapse
@@ -74,6 +75,9 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz, uv0, uv1
+    type(ImVec2) :: selrect_min, selrect_max, fieldrect_min, fieldrect_max
+    logical :: havesel, havefield
+    type(c_ptr) :: tabledl
     type(ImVec4) :: col4, tintcol, nobord
     integer(c_int) :: flags, color, itex
     integer :: i, j, k, jsel, iref, inext, iprev, ithis, iaux, ifmt
@@ -354,6 +358,8 @@ contains
 
     ! Build the flattened list of table rows: one row per shown system,
     ! plus one row per initialized field of the expanded systems.
+    havesel = .false.
+    havefield = .false.
     nrow = 0
     ithis_row = 0
     if (nshown_after_filter > 0) then
@@ -430,6 +436,9 @@ contains
     sz%x = 0._c_float
     sz%y = -igGetFrameHeightWithSpacing()
     if (igBeginTable(c_loc(str),ic_tree_NUMCOLUMNS,flags,sz,0._c_float)) then
+       ! the table scrolls, so it is its own child window: its draw
+       ! list is captured for the selection borders drawn at the end
+       tabledl = igGetWindowDrawList()
        ! force resize if asked for
        if (forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -621,7 +630,13 @@ contains
                    ! icons, then pad to maxprops
                    nprop = 0
                    call draw_icon_cell(hasfield,icon_tex(icon_prop_fields),rgba_fields,&
-                      "Scalar fields loaded",nprop)
+                      "Scalar fields loaded (click to show or hide the field list)",nprop)
+                   if (hasfield) then
+                      if (igIsItemHovered(ImGuiHoveredFlags_None) .and.&
+                         igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool) .and.&
+                         sysc(i)%status /= sys_group) &
+                         sysc(i)%showfields = .not.sysc(i)%showfields
+                   end if
                    call draw_icon_cell(hasvib,icon_tex(icon_prop_vib),rgba_vibrations,&
                       "Vibration data available",nprop)
                    call draw_icon_cell(hasocc,icon_tex(icon_prop_occ),rgba_partialocc,&
@@ -789,6 +804,11 @@ contains
           end if
        end if
        call igEndTable()
+
+       ! selection borders, drawn over the finished table; the system
+       ! border comes last so it stays on top of the field border
+       if (havefield) call draw_selection_border(fieldrect_min,fieldrect_max,ColorFieldSelected)
+       if (havesel) call draw_selection_border(selrect_min,selrect_max,ColorTableSelectedBorder)
     end if
     call igPopStyleVar(3_c_int)
 
@@ -910,6 +930,7 @@ contains
       integer :: k, idx, iaux, ianchor
       real(c_float) :: pos
       integer(c_int) :: flags, isyscollapse, idum
+      integer :: npop
       logical(c_bool) :: selected
       logical :: enabled, enabled_no_threads
       logical :: ok, okmouse
@@ -925,19 +946,32 @@ contains
       flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
       selected = (w%isys==isys) .or. sysc(isys)%tselected
       strl = "##selectable" // string(isys) // c_null_char
-      ! a row in the multi-selection gets the gold row highlight: the
-      ! default header color is for the current system only, and washes
-      ! out against the per-system cell background anyway
+      ! any row in the multi-selection gets the highlight-row fill; the
+      ! current system, when not selected, gets no fill. It also gets a
+      ! border (drawn after the table, so it lands on top of everything)
       if (sysc(isys)%tselected) then
-         call igPushStyleColor_Vec4(ImGuiCol_Header,ColorTableHighlightRow)
-         col4 = ColorTableHighlightRow
+         col4 = ImVec4(ColorTableHighlightRow(1),ColorTableHighlightRow(2),&
+            ColorTableHighlightRow(3),ColorTableHighlightRow(4))
+         call igPushStyleColor_Vec4(ImGuiCol_Header,col4)
          col4%w = min(col4%w * 1.4_c_float,1._c_float)
          call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,col4)
          col4%w = min(col4%w * 1.4_c_float,1._c_float)
          call igPushStyleColor_Vec4(ImGuiCol_HeaderActive,col4)
+         npop = 3
+      elseif (w%isys == isys) then
+         col4 = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+         call igPushStyleColor_Vec4(ImGuiCol_Header,col4)
+         npop = 1
+      else
+         npop = 0
       end if
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
-      if (sysc(isys)%tselected) call igPopStyleColor(3_c_int)
+      if (npop > 0) call igPopStyleColor(int(npop,c_int))
+      if (w%isys == isys) then
+         call igGetItemRectMin(selrect_min)
+         call igGetItemRectMax(selrect_max)
+         havesel = .true.
+      end if
       okmouse = ok
       ok = ok .or. (forceselect == isys)
 
@@ -1179,6 +1213,29 @@ contains
 
     end subroutine draw_icon_cell
 
+    ! Draw a border around a row of the tree table given by its corners
+    ! (pmin,pmax) in the color rgba. The thickness is 8% of the row
+    ! height, so it scales with the font size and the DPI, with a
+    ! 2-pixel floor so the line does not vanish into the table's row
+    ! separators. The draw list is clipped to the current column, so the
+    ! clip rect is overridden while the border is drawn.
+    subroutine draw_selection_border(pmin,pmax,rgba)
+      type(ImVec2), intent(in) :: pmin, pmax
+      real(c_float), intent(in) :: rgba(4)
+
+      type(ImVec4) :: colb
+      real(c_float) :: thick
+
+      thick = max(2._c_float,0.12_c_float * (pmax%y - pmin%y))
+      colb = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
+      call ImDrawList_PushClipRect(tabledl,ImVec2(pmin%x-thick,pmin%y-thick),&
+         ImVec2(pmax%x+thick,pmax%y+thick),.false._c_bool)
+      call ImDrawList_AddRect(tabledl,pmin,pmax,igGetColorU32_Vec4(colb),&
+         0._c_float,0_c_int,thick)
+      call ImDrawList_PopClipRect(tabledl)
+
+    end subroutine draw_selection_border
+
     !> Draw the table row corresponding to field k of system i (one of
     !> the rows below an expanded system). The row contains a
     !> full-width selectable in the name column with the field name,
@@ -1201,28 +1258,48 @@ contains
          color = igGetColorU32_Vec4(col4)
          call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_tree_name)
       end if
+
+      ! red X to remove this field, in the properties column; the
+      ! promolecular field (0) cannot be removed
+      if (k > 0) then
+         if (igTableSetColumnIndex(ic_tree_props)) then
+            str = "##fieldclose" // string(i) // "," // string(k)
+            if (iw_close_button(str)) then
+               call sys(i)%unload_field(k)
+               return
+            end if
+            call iw_tooltip("Remove this field",ttshown)
+         end if
+      end if
+
       if (.not.igTableSetColumnIndex(ic_tree_name)) return
 
-      ! selectable
-      call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
+      ! selectable; the indent leaves the vertical bar of the corner
+      ! character aligned with the expand triangle of the system row
+      call igSetCursorPosX(igGetCursorPosX() + 2._c_float * g%Style%FramePadding%x)
       isend = (k == sys(i)%nf)
       if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
       if (.not.isend) call iw_text("┌",noadvance=.true.)
-      if (sys(i)%iref == k) then
-         str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
-            string(i) // "," // string(k) // c_null_char
-      else
-         str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
-            string(i) // "," // string(k) // c_null_char
-      end if
+      ! the reference field carries no text marker: the border marks it
+      str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
+         string(i) // "," // string(k) // c_null_char
       isel = (w%isys==i) .and. (sys(i)%iref == k)
-      call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
+      col4 = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+      call igPushStyleColor_Vec4(ImGuiCol_Header,col4)
       flags = ImGuiSelectableFlags_SpanAllColumns
       if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
          call w%select_system_tree(i)
          call sys(i)%set_reference(k,.false.)
       end if
       call igPopStyleColor(1)
+
+      ! the reference field of the current system gets a border, drawn
+      ! after the table so the system border lands on top of it
+      if (isel) then
+         call igGetItemRectMin(fieldrect_min)
+         call igGetItemRectMax(fieldrect_max)
+         havefield = .true.
+      end if
 
       ! right click to open the field context menu
       if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then

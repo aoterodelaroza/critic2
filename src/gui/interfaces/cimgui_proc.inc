@@ -1058,8 +1058,15 @@ end subroutine igBeginDisabled
 ! void igEndDisabled(void);
 subroutine igEndDisabled() bind(c,name="igEndDisabled")
 end subroutine igEndDisabled
-!x! void igPushClipRect(const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
-!x! void igPopClipRect(void);
+! void igPushClipRect(const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
+subroutine igPushClipRect(clip_rect_min,clip_rect_max,intersect_with_current_clip_rect) bind(c,name="igPushClipRect")
+  import ImVec2, c_bool
+  type(ImVec2), value :: clip_rect_min, clip_rect_max
+  logical(c_bool), value :: intersect_with_current_clip_rect
+end subroutine igPushClipRect
+! void igPopClipRect(void);
+subroutine igPopClipRect() bind(c,name="igPopClipRect")
+end subroutine igPopClipRect
 ! void igSetItemDefaultFocus(void);
 subroutine igSetItemDefaultFocus() bind(c,name="igSetItemDefaultFocus")
 end subroutine igSetItemDefaultFocus
@@ -1441,9 +1448,20 @@ end subroutine ImGuiListClipper_ForceDisplayRangeByIndices
 !x! void ImDrawListSplitter_SetCurrentChannel(ImDrawListSplitter* self,ImDrawList* draw_list,int channel_idx);
 !x! ImDrawList* ImDrawList_ImDrawList(const ImDrawListSharedData* shared_data);
 !x! void ImDrawList_destroy(ImDrawList* self);
-!x! void ImDrawList_PushClipRect(ImDrawList* self,const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
+! void ImDrawList_PushClipRect(ImDrawList* self,const ImVec2 clip_rect_min,const ImVec2 clip_rect_max,bool intersect_with_current_clip_rect);
+subroutine ImDrawList_PushClipRect(self,clip_rect_min,clip_rect_max,intersect_with_current_clip_rect) &
+   bind(c,name="ImDrawList_PushClipRect")
+  import c_ptr, ImVec2, c_bool
+  type(c_ptr), value :: self
+  type(ImVec2), value :: clip_rect_min, clip_rect_max
+  logical(c_bool), value :: intersect_with_current_clip_rect
+end subroutine ImDrawList_PushClipRect
 !x! void ImDrawList_PushClipRectFullScreen(ImDrawList* self);
-!x! void ImDrawList_PopClipRect(ImDrawList* self);
+! void ImDrawList_PopClipRect(ImDrawList* self);
+subroutine ImDrawList_PopClipRect(self) bind(c,name="ImDrawList_PopClipRect")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImDrawList_PopClipRect
 !x! void ImDrawList_PushTextureID(ImDrawList* self,ImTextureID texture_id);
 !x! void ImDrawList_PopTextureID(ImDrawList* self);
 !x! void ImDrawList_GetClipRectMin(ImVec2 *pOut,ImDrawList* self);

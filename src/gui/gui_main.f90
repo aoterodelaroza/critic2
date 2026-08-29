@@ -96,9 +96,13 @@ module gui_main
   type(ImVec4), parameter, public :: ColorDangerText = ImVec4(0.80, 0.08, 0.08, 1.0) ! important text
   type(ImVec4), parameter, public :: ColorWaitBg = ImVec4(0.80, 0.80, 0.80, 0.6) ! dim the background while waiting
   type(ImVec4), parameter, public :: ColorFrameBgAlt = ImVec4(0.29,0.16,0.48,0.54) ! alternate framebg
-  type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! selected field
-  type(ImVec4), parameter, public :: ColorTableHighlightRow = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float) ! selectable highlight color
+  real(c_float), parameter, public :: ColorFieldSelected_def(4) = (/0.90_c_float,0.20_c_float,0.20_c_float,1.00_c_float/) ! border of the selected field (tree)
+  real(c_float), parameter, public :: ColorTableHighlightRow_def(4) = (/0.65_c_float,0.65_c_float,0.65_c_float,0.50_c_float/) ! multi-selected rows (tree)
+  real(c_float), parameter, public :: ColorTableSelectedBorder_def(4) = (/0.20_c_float,0.75_c_float,1.00_c_float,1.00_c_float/) ! border of the selected system (tree)
   real(c_float), public :: ColorHighlightScene(4)
+  real(c_float), public :: ColorFieldSelected(4)
+  real(c_float), public :: ColorTableHighlightRow(4)
+  real(c_float), public :: ColorTableSelectedBorder(4)
   real(c_float), public :: ColorHighlightSelectScene(4)
   real(c_float), public :: ColorMeasureSelect(4,4)
 

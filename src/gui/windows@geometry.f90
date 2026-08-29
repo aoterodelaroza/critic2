@@ -1547,7 +1547,9 @@ contains
                             ihlbond = i
                             ihlbtn = jj
                             ! highlight the row in the table
-                            color = igGetColorU32_Vec4(ColorTableHighlightRow)
+                            color = igGetColorU32_Vec4(ImVec4(ColorTableHighlightRow(1),&
+                               ColorTableHighlightRow(2),ColorTableHighlightRow(3),&
+                               ColorTableHighlightRow(4)))
                             call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, -1)
                             ! bond distance and sum of covalent radii (in angstrom)
                             dbond = norm2(sys(isys)%c%atcel(jj)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(i)%lcon(:,j))) -&
