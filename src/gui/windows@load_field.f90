@@ -100,7 +100,7 @@ contains
     end if
 
     ! system combo
-    call iw_text("System",highlight=.true.)
+    call iw_text("System",highlight=.true.,alignframe=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
     combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
@@ -386,7 +386,7 @@ contains
     !> Draw the contents of the expression tab.
     subroutine draw_source_expression()
 
-      call iw_text("Expression",highlight=.true.)
+      call iw_text("Expression",highlight=.true.,alignframe=.true.)
       call iw_helpermark("Arithmetic expression used to compute the new field, typically&
          & involving the other fields of this system (e.g. $1+$2)."//newline//&
          iw_arith_help//newline//"Click the Help button for more info.")
@@ -468,7 +468,7 @@ contains
       integer, intent(inout) :: fid
       logical, intent(in) :: onlygrid
 
-      call iw_text(label)
+      call iw_text(label,alignframe=.true.)
       call igSameLine(0._c_float,-1._c_float)
       ldum = iw_field_combo(strid,isys,fid,width=iw_calcwidth(30,1),onlygrid=onlygrid)
       call iw_tooltip(tip,ttshown)
