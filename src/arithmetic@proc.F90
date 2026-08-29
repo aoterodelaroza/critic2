@@ -181,6 +181,35 @@ contains
   !> list provided by the user instead of the expression. This routine
   !> is thread-safe.
   recursive module function eval(expr,errmsg,x0,sptr,periodic,toklistin)
+    use ieee_arithmetic, only: ieee_is_finite
+    use ieee_exceptions, only: ieee_get_halting_mode, ieee_set_halting_mode, ieee_usual
+    use iso_c_binding, only: c_ptr
+    real*8 :: eval
+    character(*), intent(in) :: expr
+    character(len=:), allocatable, intent(inout) :: errmsg
+    real*8, intent(in), optional :: x0(3)
+    type(c_ptr), intent(in), optional :: sptr
+    logical, intent(in), optional :: periodic
+    type(token), intent(in), optional, target :: toklistin(:)
+
+    logical :: usual_halt(3)
+
+    ! Suspend FPE halting while the expression is evaluated: the guarded
+    ! operations report an error instead, and the remaining ones (power,
+    ! modulo, overflows, ...) must not abort the program on a
+    ! user-provided expression. The result is checked for finiteness.
+    call ieee_get_halting_mode(ieee_usual,usual_halt)
+    call ieee_set_halting_mode(ieee_usual,.false.)
+    eval = eval_core(expr,errmsg,x0,sptr,periodic,toklistin)
+    call ieee_set_halting_mode(ieee_usual,usual_halt)
+    if (len_trim(errmsg) == 0) then
+       if (.not.ieee_is_finite(eval)) &
+          errmsg = 'expression evaluates to a non-finite value (Inf/NaN): ' // trim(expr)
+    end if
+
+  end function eval
+
+  recursive function eval_core(expr,errmsg,x0,sptr,periodic,toklistin) result(eval)
     use systemmod, only: system
     use iso_c_binding, only: c_ptr, c_f_pointer
     use hashmod, only: hash
@@ -317,15 +346,18 @@ contains
     end do
     eval = q(1)
 
-  end function eval
+  end function eval_core
 
   !> Evaluate an arithmetic expression (expr) on a grid with
   !> dimensions n. sptr = C pointer to the system. Returns the grid
   !> of values in f (and iok=.true.) if success, or zero and iok=.false.
   !> if failed.
   module subroutine eval_grid(n,expr,sptr,f,iok)
+    use ieee_arithmetic, only: ieee_is_finite
+    use ieee_exceptions, only: ieee_get_halting_mode, ieee_set_halting_mode, ieee_usual
     use systemmod, only: system
     use types, only: realloc
+    use tools_io, only: uout, string
     use iso_c_binding, only: c_ptr, c_f_pointer
     integer, intent(in) :: n(3)
     character(*), intent(in) :: expr
@@ -340,6 +372,12 @@ contains
     real*8, allocatable :: q(:,:,:,:)
     type(token), allocatable :: toklist(:)
     type(system), pointer :: syl
+    logical :: usual_halt(3)
+    integer :: nbad
+
+    ! suspend FPE halting while the expression is evaluated (see eval)
+    call ieee_get_halting_mode(ieee_usual,usual_halt)
+    call ieee_set_halting_mode(ieee_usual,.false.)
 
     ! recover the system pointer
     syl => null()
@@ -448,9 +486,17 @@ contains
     end do
     f = q(:,:,:,1)
     if (allocated(q)) deallocate(q)
+    call ieee_set_halting_mode(ieee_usual,usual_halt)
+
+    ! warn about non-finite values in the result
+    nbad = count(.not.ieee_is_finite(f))
+    if (nbad > 0) &
+       write (uout,'("!! Warning !! expression generated ",A," non-finite values (Inf/NaN) out of ",A,&
+          &" grid points: ",A)') string(nbad), string(n(1)*n(2)*n(3)), trim(expr)
 
     return
 999 continue
+    call ieee_set_halting_mode(ieee_usual,usual_halt)
     iok = .false.
     if (allocated(q)) deallocate(q)
     f = 0d0

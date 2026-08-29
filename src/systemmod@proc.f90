@@ -498,7 +498,7 @@ contains
     use tools_io, only: getword, lgetword, equal, uout, string
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
-    use arithmetic, only: fields_in_eval
+    use arithmetic, only: fields_in_eval, eval
     use param, only: ifformat_copy, ifformat_as_clm, ifformat_promolecular_fragment,&
        ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_promolecular,&
        ifformat_as_core, ifformat_promolecular,&
@@ -518,7 +518,8 @@ contains
     logical :: ok, isnewref
     type(fieldseed) :: seed
     integer :: idx
-    character(len=:), allocatable :: str, aux
+    real*8 :: xtest(3), fdum
+    character(len=:), allocatable :: str, aux, erreval
     character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
 
@@ -743,6 +744,20 @@ contains
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
           return
+       end if
+
+       ! ghost fields: test-evaluate the expression at an arbitrary point.
+       ! An invalid expression (wrong syntax, unknown function or field,
+       ! ...) is refused here; otherwise it would abort the program the
+       ! first time the field is evaluated
+       if (seed%iff == ifformat_as_ghost) then
+          xtest = s%c%x2c((/0.109d0,0.217d0,0.313d0/))
+          fdum = eval(seed%expr,erreval,xtest,c_loc(syl),.not.s%c%ismolecule)
+          if (len_trim(erreval) > 0) then
+             errmsg = "invalid expression in ghost field: " // trim(erreval)
+             call s%f(id)%end()
+             return
+          end if
        end if
     end if
 
