@@ -51,7 +51,7 @@ contains
        BIND_TREE_MOVE_DOWN, BIND_TREE_SELECT_ALL
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext, iw_text,&
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
-       iw_close_button, iw_table_column, iw_beginmenu
+       iw_close_button, iw_table_column, iw_beginmenu, iw_inputfloat, iw_inputint, iw_checkbox
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
@@ -62,8 +62,9 @@ contains
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
        icon_ui_expand, icon_ui_collapse
-    use fieldmod, only: type_grid
-    use tools_io, only: string, uout
+    use fieldmod, only: type_grid, type_wien, type_pi, type_dftb
+    use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic, mode_smr
+    use tools_io, only: string, uout, nameguess
     use types, only: realloc
     use param, only: mlen, bohrtoa, ifformat_as_resample, ifformat_as_ft_x, ifformat_as_ft_y,&
        ifformat_as_ft_z, ifformat_as_ft_xx, ifformat_as_ft_xy, ifformat_as_ft_xz,&
@@ -108,6 +109,9 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
     integer, save :: lastmaxprops = -1 ! last max number of simultaneous property icons (to detect resize)
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
+    real(c_float), save :: fieldnorm = 1._c_float ! for the field normalize menu option
+    logical, save :: fielddocore = .false. ! for the field core-augmentation menu option
+    integer(c_int), allocatable, save :: fieldzpsp(:) ! for the field core-augmentation menu option
 
     ! initialize
     hadenabledcolumn = .false.
@@ -1213,6 +1217,20 @@ contains
 
     end subroutine draw_icon_cell
 
+    !> Apply a SETFIELD-style option string opt to field k of system i,
+    !> reporting any error to the output console.
+    subroutine field_setopt(i,k,opt)
+      integer, intent(in) :: i, k
+      character(len=*), intent(in) :: opt
+
+      character(len=:), allocatable :: errmsg
+
+      call sys(i)%f(k)%set_options(opt,errmsg)
+      if (len_trim(errmsg) > 0) &
+         write (uout,'("!! Warning !! Error setting field option: ",A)') trim(errmsg)
+
+    end subroutine field_setopt
+
     ! Draw a border around a row of the tree table given by its corners
     ! (pmin,pmax) in the color rgba. The thickness is 8% of the row
     ! height, so it scales with the font size and the DPI, with a
@@ -1245,10 +1263,10 @@ contains
 
       character(kind=c_char,len=:), allocatable, target :: str
       logical(c_bool) :: isel, ldum
-      logical :: isend
+      logical :: isend, okz
       integer(c_int) :: flags, color
       type(ImVec4) :: col4
-      integer :: id
+      integer :: id, is
 
       ! start the row and color the name cell like the parent system's
       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1330,6 +1348,145 @@ contains
             sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)
+
+         !! field settings !!
+         call igSeparator()
+
+         ! interpolation mode and normalization (grids)
+         if (sys(i)%f(k)%type == type_grid) then
+            if (iw_beginmenu("Interpolation")) then
+               if (iw_menuitem("Nearest",selected=(sys(i)%f(k)%grid%mode == mode_nearest))) &
+                  call field_setopt(i,k,"nearest")
+               call iw_tooltip("Value of the nearest grid point",ttshown)
+               if (iw_menuitem("Tri-linear",selected=(sys(i)%f(k)%grid%mode == mode_trilinear))) &
+                  call field_setopt(i,k,"trilinear")
+               call iw_tooltip("Three-dimensional linear interpolation",ttshown)
+               if (iw_menuitem("Tri-spline",selected=(sys(i)%f(k)%grid%mode == mode_trispline))) &
+                  call field_setopt(i,k,"trispline")
+               call iw_tooltip("Three-dimensional spline interpolation",ttshown)
+               if (iw_menuitem("Tri-cubic",selected=(sys(i)%f(k)%grid%mode == mode_tricubic))) &
+                  call field_setopt(i,k,"tricubic")
+               call iw_tooltip("Three-dimensional cubic polynomial interpolation",ttshown)
+               if (iw_menuitem("Smoothrho",selected=(sys(i)%f(k)%grid%mode == mode_smr))) &
+                  call field_setopt(i,k,"smoothrho")
+               call iw_tooltip("Polyharmonic splines + smoothing, all-electron densities&
+                  & only (recommended for them)",ttshown)
+               call igEndMenu()
+            end if
+            call iw_tooltip("Interpolation method used to evaluate the grid between its points",ttshown)
+
+            if (iw_beginmenu("Normalize")) then
+               ldum = iw_inputfloat("Value##fieldmenunorm",fieldnorm,width=10)
+               if (iw_menuitem("OK##fieldmenunormok")) &
+                  call field_setopt(i,k,"normalize " // string(fieldnorm,'f',decimal=6))
+               call igEndMenu()
+            end if
+            call iw_tooltip("Rescale the grid values so its cell integral equals the given value",ttshown)
+         end if
+
+         ! core augmentation (any field type)
+         if (iw_beginmenu("Core Augmentation")) then
+            ldum = iw_checkbox("Activate core augmentation##fieldmenudocore",fielddocore)
+            call iw_tooltip("Augment the field with core density contributions, built from&
+               & the pseudopotential charges (ZPSP) below: the number of valence electrons&
+               & of each species (leave at -1 to skip a species)",ttshown)
+            if (fielddocore) then
+               do is = 1, sys(i)%c%nspc
+                  ldum = iw_inputint(trim(sys(i)%c%spc(is)%name) // "##fieldmenuzpsp" // string(is),&
+                     fieldzpsp(is),width=5)
+               end do
+            end if
+            okz = .not.fielddocore
+            if (.not.okz) okz = any(fieldzpsp >= 0)
+            if (iw_menuitem("OK##fieldmenucoreok",enabled=okz)) then
+               if (fielddocore) then
+                  ! the SETFIELD parser accepts species names or element symbols;
+                  ! emit one pair per element (first species wins)
+                  str = "zpsp"
+                  do is = 1, sys(i)%c%nspc
+                     if (fieldzpsp(is) < 0) cycle
+                     if (any(sys(i)%c%spc(1:is-1)%z == sys(i)%c%spc(is)%z .and. fieldzpsp(1:is-1) >= 0)) cycle
+                     str = str // " " // trim(nameguess(sys(i)%c%spc(is)%z,.true.)) // " " //&
+                        string(fieldzpsp(is))
+                  end do
+                  call field_setopt(i,k,str)
+               else
+                  call field_setopt(i,k,"nocore")
+               end if
+            end if
+            call igEndMenu()
+         else
+            ! seed the menu state from the field while the menu is closed
+            fielddocore = sys(i)%f(k)%usecore
+            if (allocated(fieldzpsp)) then
+               if (size(fieldzpsp,1) /= sys(i)%c%nspc) deallocate(fieldzpsp)
+            end if
+            if (.not.allocated(fieldzpsp)) allocate(fieldzpsp(sys(i)%c%nspc))
+            fieldzpsp = -1
+            if (allocated(sys(i)%f(k)%zpsp)) then
+               is = min(size(sys(i)%f(k)%zpsp,1),sys(i)%c%nspc)
+               fieldzpsp(1:is) = sys(i)%f(k)%zpsp(1:is)
+            end if
+         end if
+         call iw_tooltip("Augment the field with core density contributions",ttshown)
+
+         ! derivatives
+         if (iw_beginmenu("Derivatives")) then
+            if (iw_menuitem("Numerical",selected=sys(i)%f(k)%numerical)) &
+               call field_setopt(i,k,"numerical")
+            call iw_tooltip("Calculate the field derivatives numerically",ttshown)
+            if (iw_menuitem("Analytical",selected=.not.sys(i)%f(k)%numerical)) &
+               call field_setopt(i,k,"analytical")
+            call iw_tooltip("Calculate the field derivatives analytically (or with&
+               & the interpolation)",ttshown)
+            call igEndMenu()
+         end if
+         call iw_tooltip("Method for calculating the field derivatives",ttshown)
+
+         ! typnuc
+         if (iw_beginmenu("Nuclear CP Signature (TYPNUC)")) then
+            if (iw_menuitem("-3 (maximum)",selected=(sys(i)%f(k)%typnuc == -3))) &
+               call field_setopt(i,k,"typnuc -3")
+            if (iw_menuitem("-1",selected=(sys(i)%f(k)%typnuc == -1))) &
+               call field_setopt(i,k,"typnuc -1")
+            if (iw_menuitem("+1",selected=(sys(i)%f(k)%typnuc == 1))) &
+               call field_setopt(i,k,"typnuc 1")
+            if (iw_menuitem("+3 (minimum)",selected=(sys(i)%f(k)%typnuc == 3))) &
+               call field_setopt(i,k,"typnuc 3")
+            call igEndMenu()
+         end if
+         call iw_tooltip("Signature of the critical points at the nuclear positions&
+            & (-3 for fields with maxima at the nuclei, like the density)",ttshown)
+
+         ! exact/approximate sums (aiPI and DFTB+)
+         if (sys(i)%f(k)%type == type_pi .or. sys(i)%f(k)%type == type_dftb) then
+            if (iw_beginmenu("Sum Evaluation")) then
+               if (iw_menuitem("Exact",selected=sys(i)%f(k)%exact)) &
+                  call field_setopt(i,k,"exact")
+               if (iw_menuitem("Approximate",selected=.not.sys(i)%f(k)%exact)) &
+                  call field_setopt(i,k,"approximate")
+               call igEndMenu()
+            end if
+            call iw_tooltip("Evaluate the lattice sums exactly or approximately",ttshown)
+         end if
+
+         ! wien2k normalization convention
+         if (sys(i)%f(k)%type == type_wien) then
+            if (allocated(sys(i)%f(k)%wien)) then
+               if (iw_beginmenu("Normalization Convention")) then
+                  if (iw_menuitem("Density (RHONORM)",selected=sys(i)%f(k)%wien%cnorm)) &
+                     call field_setopt(i,k,"rhonorm")
+                  if (iw_menuitem("Potential (VNORM)",selected=.not.sys(i)%f(k)%wien%cnorm)) &
+                     call field_setopt(i,k,"vnorm")
+                  call igEndMenu()
+               end if
+               call iw_tooltip("Normalization convention of the WIEN2k field&
+                  & (density-style or potential-style)",ttshown)
+            end if
+         end if
+
+         !! load new field options !!
+         call igSeparator()
 
          ! grid calculation options
          if (sys(i)%f(k)%type == type_grid) then
