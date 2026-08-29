@@ -36,11 +36,12 @@ contains
        iw_helpermark, iw_begintabitem, iw_inputtext, iw_inputint, iw_inputint3,&
        iw_inputfloat, iw_checkbox, iw_combo_simple, iw_field_combo, iw_arith_help,&
        iw_arith_help_button, iw_calcwidth
-    use tools_io, only: string, nameguess
+    use tools_io, only: string, nameguess, quoteword
     class(window), intent(inout), target :: w
 
-    logical :: oksys, ok, doquit, disabled, resetsys
+    logical :: oksys, ok, doquit, disabled, resetsys, gotofile
     integer :: isys, i, j, ll, idx, iff, iaux, sourceopt
+    integer(c_int) :: tabflags
     type(ImVec2) :: szavail, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected
@@ -174,10 +175,21 @@ contains
     end if
     w%okfile_set = .false.
 
+    ! an external request (Load Field From File...) selects the From File
+    ! tab and pops the file dialog, as if the File button had been pressed
+    gotofile = w%lf%gotofile
+    w%lf%gotofile = .false.
+    if (gotofile) then
+       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile,&
+          idparent=w%id,itoken=itoken_file1)
+    end if
+
     ! the source tabs
     str1 = "##loadfieldtabbar" // c_null_char
+    tabflags = ImGuiTabItemFlags_None
+    if (gotofile) tabflags = ImGuiTabItemFlags_SetSelected
     if (igBeginTabBar(c_loc(str1),ImGuiTabBarFlags_None)) then
-       if (iw_begintabitem("From File##loadfieldtab_file")) then
+       if (iw_begintabitem("From File##loadfieldtab_file",flags=tabflags)) then
           sourceopt = 0
           call draw_source_file()
           call igEndTabItem()
@@ -738,12 +750,12 @@ contains
       lstr = ""
       select case (sourceopt)
       case (0)
-         ! from a file; paths with spaces are not supported (the LOAD
-         ! parser reads space-delimited words)
+         ! from a file; paths with blanks are quoted (getword strips a
+         ! leading-quote-delimited token)
          jff = fileformat()
          call field_format_string(jff,fmtkey,fmtdesc,fmtgrid)
-         lstr = fmtkey // " " // trim(w%lf%file1) // " " // trim(w%lf%file2) //&
-            " " // trim(w%lf%file3)
+         lstr = fmtkey // " " // qfile(w%lf%file1) // " " // qfile(w%lf%file2) //&
+            " " // qfile(w%lf%file3)
 
          ! per-format options
          if (jff == ifformat_vasp .or. jff == ifformat_vaspnov) then
@@ -799,10 +811,10 @@ contains
          ! promolecular / core
          if (w%lf%promopt == 0) then
             lstr = "promolecular"
-            if (w%lf%usefrag) lstr = lstr // " fragment " // trim(w%lf%fragfile)
+            if (w%lf%usefrag) lstr = lstr // " fragment " // qfile(w%lf%fragfile)
          elseif (w%lf%promopt == 1) then
             lstr = "as promolecular " // sizestring()
-            if (w%lf%usefrag) lstr = lstr // " fragment " // trim(w%lf%fragfile)
+            if (w%lf%usefrag) lstr = lstr // " fragment " // qfile(w%lf%fragfile)
          else
             lstr = "as core " // sizestring()
          end if
@@ -868,6 +880,18 @@ contains
       end if
 
     end function build_load_string
+
+    !> Quote a file path for the LOAD command if it contains blanks.
+    !> Sets w%errmsg if the path cannot be represented.
+    function qfile(file) result(qf)
+      character(len=*,kind=c_char), intent(in) :: file
+      character(len=:,kind=c_char), allocatable :: qf
+
+      qf = quoteword(file)
+      if (index(qf," ") > 0 .and. qf(1:1) /= '"' .and. qf(1:1) /= "'") &
+         w%errmsg = "A file path cannot contain blanks and both quote characters: " // qf
+
+    end function qfile
 
     !> String for the shared grid-size widget (explicit numbers or a
     !> SIZEOF clause).

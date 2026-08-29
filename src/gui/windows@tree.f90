@@ -1036,6 +1036,14 @@ contains
                iaux = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Load a scalar field for this system",ttshown)
 
+            ! load field from file
+            if (iw_menuitem("Load Field From File...",enabled=enabled)) then
+               iaux = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
+               win(iaux)%lf%gotofile = .true.
+            end if
+            call iw_tooltip("Load a scalar field for this system from a file,&
+               & choosing the file first",ttshown)
+
             call igEndMenu()
          end if
 

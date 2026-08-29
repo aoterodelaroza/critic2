@@ -943,6 +943,7 @@ contains
     integer, intent(inout) :: lp !< Pointer to position on input line, updated after reading.
     character(len=:), allocatable :: word !< Word read
 
+    character*1 :: quote
     integer :: len0, wp, i
 
     len0 = len(line)
@@ -955,14 +956,52 @@ contains
        if (i > len0) return
     enddo
 
-    wp = i
-    do while (i<len0 .and. line(i:i)/=" ")
-       i = i+1
-    enddo
-    word = line(wp:i)
-    lp = i+1
+    if (line(i:i) == '"' .or. line(i:i) == "'") then
+       ! a token with a leading quote runs to the matching quote (or to the
+       ! end of the line if unmatched) and may contain blanks; the quotes
+       ! are not part of the word
+       quote = line(i:i)
+       wp = i + 1
+       i = wp
+       do while (i <= len0)
+          if (line(i:i) == quote) exit
+          i = i + 1
+       end do
+       if (i <= len0) then
+          word = line(wp:i-1)
+       elseif (wp <= len0) then
+          word = line(wp:len0)
+       end if
+       lp = i+1
+    else
+       wp = i
+       do while (i<len0 .and. line(i:i)/=" ")
+          i = i+1
+       enddo
+       word = line(wp:i)
+       lp = i+1
+    end if
 
   end function getword
+
+  !> Quote a word (typically a file path) so that getword reads it back
+  !> as a single token even if it contains blanks. The word is returned
+  !> unchanged if it contains no blanks, and quoted with " (or with ' if
+  !> it contains a ") otherwise. A word with blanks and both quote
+  !> characters cannot be represented and is returned unchanged.
+  module function quoteword(word) result(str)
+    character*(*), intent(in) :: word !< Input word
+    character(len=:), allocatable :: str !< Quoted word
+
+    str = trim(word)
+    if (index(str," ") == 0) return
+    if (index(str,'"') == 0) then
+       str = '"' // str // '"'
+    elseif (index(str,"'") == 0) then
+       str = "'" // str // "'"
+    end if
+
+  end function quoteword
 
   ! Same as getword, but convert to lowercase
   module function lgetword (line,lp) result(word)

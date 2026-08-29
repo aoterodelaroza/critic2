@@ -37,6 +37,7 @@ module tools_io
   public :: upper
   public :: lower
   public :: getword
+  public :: quoteword
   public :: lgetword
   public :: isletter
   public :: isdigit
@@ -212,6 +213,10 @@ module tools_io
        integer, intent(inout) :: lp
        character(len=:), allocatable :: word
      end function getword
+     module function quoteword(word) result(str)
+       character*(*), intent(in) :: word
+       character(len=:), allocatable :: str
+     end function quoteword
      module function lgetword (line,lp) result(word)
        character*(*), intent(in) :: line
        integer, intent(inout) :: lp

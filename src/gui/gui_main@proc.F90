@@ -982,6 +982,14 @@ contains
              idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
           call iw_tooltip("Load a scalar field for the current system",ttshown)
 
+          ! File -> Load Field From File
+          if (iw_menuitem("Load Field From File...",enabled=isysok)) then
+             idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
+             win(idum)%lf%gotofile = .true.
+          end if
+          call iw_tooltip("Load a scalar field for the current system from a file,&
+             & choosing the file first",ttshown)
+
           ! File -> Separator
           call igSeparator()
 

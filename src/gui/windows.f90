@@ -203,6 +203,7 @@ module windows
   !> Per-window state of the load-field window
   type loadfield_state
      integer :: isys_last = 0 ! system the per-system widgets were last initialized for
+     logical :: gotofile = .false. ! request: select the From File tab and pop the file dialog
      ! from a file
      character(len=:,kind=c_char), allocatable :: file1 ! first (main) file
      integer :: file1_format = 0

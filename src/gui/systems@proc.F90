@@ -3675,7 +3675,7 @@ contains
   function initialization_thread_worker(arg) bind(c)
     use gui_main, only: force_quit_threads
     use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
-    use tools_io, only: string, uout
+    use tools_io, only: string, uout, quoteword
     use param, only: isformat_r_crystal, isformat_r_fchk, isformat_r_gaussian, ivformat_crystal_out,&
        ivformat_gaussian_log, ivformat_gaussian_fchk, ivformat_unknown
     type(c_ptr), value :: arg
@@ -3719,7 +3719,8 @@ contains
 
                 ! load any fields
                 if (sysc(i)%has_field) then
-                   call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
+                   ! quoted so a path with blanks survives the LOAD tokenizer
+                   call sys(i)%load_field_string(quoteword(sysc(i)%seed%file),.false.,iff,errmsg,ti=ti)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                       write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)

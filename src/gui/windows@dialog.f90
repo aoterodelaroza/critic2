@@ -83,6 +83,15 @@ contains
                 call add_systems_from_name(name,w%dialog_data%mol,w%dialog_data%isformat,&
                    readlastonly,w%dialog_data%rborder/bohrtoa,logical(w%dialog_data%molcubic))
              end do
+             if (sel%count == 0) then
+                ! nothing clicked in the list: use the typed file name
+                name = typed_filename()
+                if (len(name) > 0) then
+                   readlastonly = w%dialog_data%readlastonly
+                   call add_systems_from_name(name,w%dialog_data%mol,w%dialog_data%isformat,&
+                      readlastonly,w%dialog_data%rborder/bohrtoa,logical(w%dialog_data%molcubic))
+                end if
+             end if
 
              ! initialize
              call launch_initialization_thread()
@@ -135,6 +144,10 @@ contains
                 if (i < sel%count) &
                    win(w%idparent)%okfile = win(w%idparent)%okfile // c_null_char
              end do
+             if (sel%count == 0) then
+                ! nothing clicked in the list: use the typed file name
+                win(w%idparent)%okfile = typed_filename()
+             end if
              win(w%idparent)%okfile_format = w%dialog_data%isformat
 
           elseif (w%purpose == wpurp_dialog_openvibfile) then
@@ -151,6 +164,11 @@ contains
                 name = trim(path) // dirsep // trim(name)
                 w%okfile = w%okfile // name // c_null_char
              end do
+             if (sel%count == 0) then
+                ! nothing clicked in the list: use the typed file name
+                name = typed_filename()
+                if (len(name) > 0) w%okfile = name // c_null_char
+             end if
 
              ! open the vibrations file
              if (ok_system(w%isys,sys_init)) then
@@ -211,6 +229,33 @@ contains
     if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) &
        call IGFD_ForceOK(w%dptr)
 
+  contains
+    !> The file name typed in the dialog's File Name box, for when the
+    !> selection is empty (no row was clicked in the list). An absolute
+    !> typed name is used as is; a relative one is composed with the
+    !> current path by the dialog. Empty if nothing was typed.
+    function typed_filename() result(fname)
+      character(len=:), allocatable :: fname
+
+      type(c_ptr) :: cstr_
+      logical :: isabs
+
+      cstr_ = IGFD_GetCurrentFileName(w%dptr)
+      call C_F_string_alloc(cstr_,fname)
+      call c_free(cstr_)
+      fname = trim(fname)
+      if (len(fname) == 0) return
+
+      isabs = (fname(1:1) == "/" .or. fname(1:1) == dirsep)
+      if (.not.isabs .and. len(fname) >= 2) isabs = (fname(2:2) == ":")
+      if (.not.isabs) then
+         cstr_ = IGFD_GetFilePathName(w%dptr)
+         call C_F_string_alloc(cstr_,fname)
+         call c_free(cstr_)
+         fname = trim(fname)
+      end if
+
+    end function typed_filename
   end subroutine draw_dialog
 
 end submodule dialog
