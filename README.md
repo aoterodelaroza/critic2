@@ -22,6 +22,10 @@ can be used to:
 * Apply chemical bonding analysis tools: non-covalent interaction
   (NCI) plots, ELF plots, and others.
 
+* Partition the electron density into atomic populations and volumes
+  using Hirshfeld and iterative Hirshfeld (Hirshfeld-I,
+  `HIRSHFELD_I`); see [`doc/HIRSHFELD_I.md`](doc/HIRSHFELD_I.md).
+
 Critic2 provides an abstraction layer on top of the underlying quantum
 chemical calculation because it interfaces with many electronic
 structure programs: WIEN2k, elk, PI, Quantum ESPRESSO, abinit, VASP,
