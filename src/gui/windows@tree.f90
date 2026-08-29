@@ -2102,8 +2102,7 @@ contains
        wfn_rhf, wfn_uhf, wfn_frac
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic,&
        mode_smr
-    use tools_io, only: string, nameguess
-    use param, only: maxzat0
+    use tools_io, only: string
     integer, intent(in) :: si, fj
 
     character(kind=c_char,len=:), allocatable, target :: str, aux
@@ -2301,15 +2300,18 @@ contains
 
     call iw_text("Use core densities: ",highlight=.true.)
     call iw_text(string(f%usecore),sameline_nospace=.true.)
-    if (any(f%zpsp > 0)) then
-       call iw_text("Core charges (ZPSP): ",highlight=.true.)
-       str = ""
-       do i = 1, maxzat0
-          if (f%zpsp(i) > 0) then
-             str = str // string(nameguess(i,.true.)) // "(" // string(f%zpsp(i)) // ") "
-          end if
-       end do
-       call iw_text(str,sameline_nospace=.true.)
+    if (allocated(f%zpsp)) then
+       ! f%zpsp is indexed by species (1:nspc), not by atomic number
+       if (any(f%zpsp > 0)) then
+          call iw_text("Core charges (ZPSP): ",highlight=.true.)
+          str = ""
+          do i = 1, min(size(f%zpsp,1),sys(si)%c%nspc)
+             if (f%zpsp(i) > 0) then
+                str = str // trim(sys(si)%c%spc(i)%name) // "(" // string(f%zpsp(i)) // ") "
+             end if
+          end do
+          call iw_text(str,sameline_nospace=.true.)
+       end if
     end if
     call iw_text("Numerical derivatives: ",highlight=.true.)
     call iw_text(string(f%numerical),sameline_nospace=.true.)

@@ -51,7 +51,6 @@ contains
     integer, parameter :: itoken_file1 = 1
     integer, parameter :: itoken_file2 = 2
     integer, parameter :: itoken_file3 = 3
-    integer, parameter :: itoken_frag = 4
 
     ! FFT operations, in the order of the lf%ifftop combo
     character*4, parameter :: fftopname(0:11) = (/"gx  ","gy  ","gz  ","hxx ","hxy ",&
@@ -138,7 +137,6 @@ contains
        w%lf%file3 = ""
        w%lf%file3_set = .false.
        w%lf%sourcefid = -1
-       w%lf%sourcefid2 = -1
        w%lf%sizeoffid = -1
        if (allocated(w%lf%zpsp)) deallocate(w%lf%zpsp)
        allocate(w%lf%zpsp(sys(isys)%c%nspc))
@@ -169,8 +167,6 @@ contains
        elseif (w%itoken == itoken_file3) then
           w%lf%file3 = w%okfile
           w%lf%file3_set = .true.
-       elseif (w%itoken == itoken_frag) then
-          w%lf%fragfile = w%okfile
        end if
     end if
     w%okfile_set = .false.
@@ -419,21 +415,14 @@ contains
       ldum = iw_radiobutton("Promolecular on a grid",int=w%lf%promopt,intval=1_c_int,sameline=.true.)
       call iw_tooltip("Sum of in-vacuo atomic densities, evaluated once on a grid",ttshown)
       ldum = iw_radiobutton("Core on a grid",int=w%lf%promopt,intval=2_c_int,sameline=.true.)
-      call iw_tooltip("Sum of atomic core densities on a grid; requires the ZPSP charges&
-         & (Advanced options)",ttshown)
+      call iw_tooltip("Sum of atomic core densities on a grid; requires activating the&
+         & core augmentation (Advanced options)",ttshown)
 
       if (w%lf%promopt >= 1) &
          call draw_grid_size()
-      if (w%lf%promopt <= 1) then
-         ldum = iw_checkbox("Restrict to a fragment##loadfieldusefrag",w%lf%usefrag)
-         call iw_tooltip("Use only the atoms in a fragment, read from an xyz file&
-            & (Cartesian coordinates, angstrom)",ttshown)
-         if (w%lf%usefrag) &
-            call aux_file_row("File (.xyz)","xyz file with the fragment atoms",&
-            itoken_frag,w%lf%fragfile,danger=(len_trim(w%lf%fragfile)==0))
-      end if
       if (w%lf%promopt == 2 .and. .not.goodzpsp()) &
-         call iw_text("Core densities require the ZPSP charges (Advanced options)",danger=.true.)
+         call iw_text("Core densities require activating the core augmentation&
+            & (Advanced options)",danger=.true.,wrap=.true.)
 
     end subroutine draw_source_promol
 
@@ -445,8 +434,7 @@ contains
     subroutine draw_source_transform()
 
       call iw_combo_simple("Transform##loadfieldgtransf","Fourier-transform derivative"//c_null_char//&
-         "Resample grid"//c_null_char//"Add LAPW densities (CLM)"//c_null_char//&
-         "Subtract LAPW densities (CLM)"//c_null_char,w%lf%gtransf)
+         "Resample grid"//c_null_char,w%lf%gtransf)
       call iw_tooltip("Operation that generates the new field",ttshown)
 
       select case (w%lf%gtransf)
@@ -470,12 +458,6 @@ contains
          call field_row("Source field","##loadfieldresamplesource",w%lf%sourcefid,&
             "Grid field to be resampled",onlygrid=.true.)
          call draw_grid_size()
-      case (2,3)
-         ! clm add/sub
-         call field_row("Field 1","##loadfieldclmsource1",w%lf%sourcefid,&
-            "First field in the CLM operation (must be WIEN2k or elk)",onlygrid=.false.)
-         call field_row("Field 2","##loadfieldclmsource2",w%lf%sourcefid2,&
-            "Second field in the CLM operation (must be WIEN2k or elk)",onlygrid=.false.)
       end select
 
     end subroutine draw_source_transform
@@ -626,15 +608,12 @@ contains
             call iw_tooltip("Maximum distance factor for the smoothrho environment (0 = default)",ttshown)
          end if
 
-         ! nocore
-         ldum = iw_checkbox("Deactivate core augmentation (NOCORE)##loadfieldnocore",w%lf%nocore)
-         call iw_tooltip("Do not augment the field with core density contributions",ttshown)
-
-         ! zpsp
-         ldum = iw_checkbox("Pseudopotential charges (ZPSP)##loadfieldusezpsp",w%lf%usezpsp)
-         call iw_tooltip("Number of valence electrons per species in the pseudopotential;&
-            & used to augment the field with core densities (leave at -1 to skip a species)",ttshown)
-         if (w%lf%usezpsp) then
+         ! core augmentation and pseudopotential charges
+         ldum = iw_checkbox("Activate core augmentation##loadfielddocore",w%lf%docore)
+         call iw_tooltip("Augment the field with core density contributions, built from&
+            & the pseudopotential charges (ZPSP) below: the number of valence electrons&
+            & of each species (leave at -1 to skip a species)",ttshown)
+         if (w%lf%docore) then
             do i = 1, sys(isys)%c%nspc
                ldum = iw_inputint(trim(sys(isys)%c%spc(i)%name) // "##loadfieldzpsp" // string(i),&
                   w%lf%zpsp(i),width=5)
@@ -699,8 +678,6 @@ contains
       case (2)
          ! promolecular / core
          if (w%lf%promopt >= 1) dis = badsize()
-         if (w%lf%promopt <= 1 .and. w%lf%usefrag) &
-            dis = dis .or. (len_trim(w%lf%fragfile) == 0)
          if (w%lf%promopt == 2) dis = dis .or. .not.goodzpsp()
       case (3)
          ! grid transform
@@ -709,11 +686,12 @@ contains
             dis = .not.sys(isys)%goodfield(w%lf%sourcefid,type=type_grid)
          case (1)
             dis = .not.sys(isys)%goodfield(w%lf%sourcefid,type=type_grid) .or. badsize()
-         case (2,3)
-            dis = .not.sys(isys)%goodfield(w%lf%sourcefid) .or.&
-               .not.sys(isys)%goodfield(w%lf%sourcefid2)
          end select
       end select
+
+      ! an activated core augmentation needs at least one ZPSP charge (the
+      ! grid-transform tab does not use the advanced options)
+      if (.not.dis .and. sourceopt /= 3 .and. w%lf%docore) dis = .not.goodzpsp()
 
     end function ok_disabled
 
@@ -729,11 +707,11 @@ contains
 
     end function badsize
 
-    !> Whether usable ZPSP charges have been set.
+    !> Whether the core augmentation is active with usable ZPSP charges.
     function goodzpsp() result(good)
       logical :: good
 
-      good = w%lf%usezpsp .and. allocated(w%lf%zpsp)
+      good = w%lf%docore .and. allocated(w%lf%zpsp)
       if (good) good = any(w%lf%zpsp >= 0)
 
     end function goodzpsp
@@ -811,10 +789,8 @@ contains
          ! promolecular / core
          if (w%lf%promopt == 0) then
             lstr = "promolecular"
-            if (w%lf%usefrag) lstr = lstr // " fragment " // qfile(w%lf%fragfile)
          elseif (w%lf%promopt == 1) then
             lstr = "as promolecular " // sizestring()
-            if (w%lf%usefrag) lstr = lstr // " fragment " // qfile(w%lf%fragfile)
          else
             lstr = "as core " // sizestring()
          end if
@@ -826,10 +802,6 @@ contains
             if (w%lf%ifftop == 11 .and. w%lf%fftry) lstr = lstr // " ry"
          case (1)
             lstr = "as resample " // string(w%lf%sourcefid) // " " // sizestring()
-         case (2)
-            lstr = "as clm add " // string(w%lf%sourcefid) // " " // string(w%lf%sourcefid2)
-         case (3)
-            lstr = "as clm sub " // string(w%lf%sourcefid) // " " // string(w%lf%sourcefid2)
          end select
       end select
 
@@ -866,7 +838,6 @@ contains
       elseif (w%lf%inumana == 2) then
          lstr = lstr // " analytical"
       end if
-      if (w%lf%nocore) lstr = lstr // " nocore"
       if (goodzpsp()) then
          ! the LOAD parser only accepts short element symbols in ZPSP, not
          ! species labels; emit one pair per element (first species wins)
@@ -877,6 +848,9 @@ contains
             lstr = lstr // " " // trim(nameguess(sys(isys)%c%spc(k)%z,.true.)) // " " //&
                string(w%lf%zpsp(k))
          end do
+      else
+         ! core augmentation is deactivated by default
+         lstr = lstr // " nocore"
       end if
 
     end function build_load_string
@@ -915,7 +889,6 @@ contains
       w%lf%file2 = ""
       w%lf%file3 = ""
       w%lf%expr = ""
-      w%lf%fragfile = ""
       w%lf%name = ""
       w%lf%pwckpt = ""
       w%lf%pwcband = ""

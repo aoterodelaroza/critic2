@@ -216,14 +216,11 @@ module windows
      integer(c_int) :: exprdom = 0_c_int ! 0=automatic, 1=ghost, 2=grid size, 3=sizeof field
      ! promolecular / core
      integer(c_int) :: promopt = 0_c_int ! 0=analytic promolecular, 1=promolecular grid, 2=core grid
-     logical :: usefrag = .false. ! restrict promolecular to a fragment
-     character(len=:,kind=c_char), allocatable :: fragfile ! the fragment (xyz) file
      ! grid transform
-     integer(c_int) :: gtransf = 0_c_int ! 0=fft, 1=resample, 2=clm add, 3=clm sub
+     integer(c_int) :: gtransf = 0_c_int ! 0=fft, 1=resample
      integer(c_int) :: ifftop = 10_c_int ! fft operation (0-11 = gx,gy,gz,hxx,hxy,hxz,hyy,hyz,hzz,gmod,lap,pot)
      logical :: fftry = .false. ! potential in Ry units (fft pot only)
-     integer :: sourcefid = -1 ! source field for fft/resample/clm/sizeof
-     integer :: sourcefid2 = -1 ! second source field (clm)
+     integer :: sourcefid = -1 ! source field for fft/resample/sizeof
      ! shared grid-size widget (expression, promolecular/core, resample)
      integer(c_int) :: ngridopt = 0_c_int ! 0=explicit size, 1=same size as field
      integer(c_int) :: ngrid(3) = (/40_c_int,40_c_int,40_c_int/) ! explicit grid size
@@ -235,9 +232,8 @@ module windows
      real(c_float) :: normval = 1._c_float ! normalization value
      ! advanced options
      integer(c_int) :: itypnuc = 0_c_int ! nuclear CP type (0-3 = -3,-1,1,3)
-     logical :: usezpsp = .false. ! set the pseudopotential charges
+     logical :: docore = .false. ! activate core augmentation (with the zpsp charges)
      integer(c_int), allocatable :: zpsp(:) ! pseudopotential charges per species (-1 = unset)
-     logical :: nocore = .false. ! deactivate core augmentation
      integer(c_int) :: inumana = 0_c_int ! derivatives: 0=default, 1=numerical, 2=analytical
      integer(c_int) :: iexact = 0_c_int ! sum evaluation: 0=default, 1=exact, 2=approximate
      integer(c_int) :: iwiennorm = 0_c_int ! wien2k normalization: 0=default, 1=rhonorm, 2=vnorm
