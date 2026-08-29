@@ -2054,24 +2054,29 @@ contains
   !> updated and the result is true when the selection changed. width is
   !> the widget width (the available content region if absent, which is
   !> what a table cell wants); nonestr is the preview shown when ifield is
-  !> not a field of this system.
-  module function iw_field_combo(strid,isys,ifield,width,nonestr) result(ch)
+  !> not a field of this system. If onlygrid, list only grid fields.
+  module function iw_field_combo(strid,isys,ifield,width,nonestr,onlygrid) result(ch)
     use interfaces_cimgui
     use systems, only: sys
+    use fieldmod, only: type_grid
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: strid
     integer, intent(in) :: isys
     integer, intent(inout) :: ifield
     real(c_float), intent(in), optional :: width
     character(len=*), intent(in), optional :: nonestr
+    logical, intent(in), optional :: onlygrid
     logical :: ch
 
     integer :: i
     type(ImVec2) :: szero, szavail
     logical(c_bool) :: issel
+    logical :: onlygrid_
     character(kind=c_char,len=:), allocatable, target :: str1, str2
 
     ch = .false.
+    onlygrid_ = .false.
+    if (present(onlygrid)) onlygrid_ = onlygrid
     szero%x = 0
     szero%y = 0
     if (sys(isys)%goodfield(ifield)) then
@@ -2091,6 +2096,7 @@ contains
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 0, sys(isys)%nf
           if (.not.sys(isys)%f(i)%isinit) cycle
+          if (onlygrid_ .and. .not.sys(isys)%goodfield(i,type=type_grid)) cycle
           issel = (ifield == i)
           str2 = string(i) // ": " // trim(sys(isys)%f(i)%name) // c_null_char
           if (igSelectable_Bool(c_loc(str2),issel,ImGuiSelectableFlags_None,szero)) then

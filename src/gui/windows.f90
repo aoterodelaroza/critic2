@@ -202,16 +202,57 @@ module windows
 
   !> Per-window state of the load-field window
   type loadfield_state
-     integer(c_int) :: sourceopt = 0_c_int ! 0 = file, 1 = expression
+     integer :: isys_last = 0 ! system the per-system widgets were last initialized for
+     ! from a file
      character(len=:,kind=c_char), allocatable :: file1 ! first (main) file
-     character(len=:,kind=c_char), allocatable :: file1_fmtstr ! its format string
-     logical :: file1_set = .false.
      integer :: file1_format = 0
      character(len=:,kind=c_char), allocatable :: file2 ! first auxiliary file
      logical :: file2_set = .false.
      character(len=:,kind=c_char), allocatable :: file3 ! second auxiliary file
      logical :: file3_set = .false.
+     ! from an expression
+     character(len=:,kind=c_char), allocatable :: expr ! the expression
+     integer(c_int) :: exprdom = 0_c_int ! 0=automatic, 1=ghost, 2=grid size, 3=sizeof field
+     ! promolecular / core
+     integer(c_int) :: promopt = 0_c_int ! 0=analytic promolecular, 1=promolecular grid, 2=core grid
+     logical :: usefrag = .false. ! restrict promolecular to a fragment
+     character(len=:,kind=c_char), allocatable :: fragfile ! the fragment (xyz) file
+     ! grid transform
+     integer(c_int) :: gtransf = 0_c_int ! 0=fft, 1=resample, 2=clm add, 3=clm sub
+     integer(c_int) :: ifftop = 10_c_int ! fft operation (0-11 = gx,gy,gz,hxx,hxy,hxz,hyy,hyz,hzz,gmod,lap,pot)
+     logical :: fftry = .false. ! potential in Ry units (fft pot only)
+     integer :: sourcefid = -1 ! source field for fft/resample/clm/sizeof
+     integer :: sourcefid2 = -1 ! second source field (clm)
+     ! shared grid-size widget (expression, promolecular/core, resample)
+     integer(c_int) :: ngridopt = 0_c_int ! 0=explicit size, 1=same size as field
+     integer(c_int) :: ngrid(3) = (/40_c_int,40_c_int,40_c_int/) ! explicit grid size
+     integer :: sizeoffid = -1 ! field for the SIZEOF size
+     ! common options
+     character(len=:,kind=c_char), allocatable :: name ! name of the new field
      integer :: iginterp = 3 ! 0=nearest, 1=trilinear, 2=trispline, 3=tricubic, 4=smoothrho
+     logical :: donorm = .false. ! normalize the grid
+     real(c_float) :: normval = 1._c_float ! normalization value
+     ! advanced options
+     integer(c_int) :: itypnuc = 0_c_int ! nuclear CP type (0-3 = -3,-1,1,3)
+     logical :: usezpsp = .false. ! set the pseudopotential charges
+     integer(c_int), allocatable :: zpsp(:) ! pseudopotential charges per species (-1 = unset)
+     logical :: nocore = .false. ! deactivate core augmentation
+     integer(c_int) :: inumana = 0_c_int ! derivatives: 0=default, 1=numerical, 2=analytical
+     integer(c_int) :: iexact = 0_c_int ! sum evaluation: 0=default, 1=exact, 2=approximate
+     integer(c_int) :: iwiennorm = 0_c_int ! wien2k normalization: 0=default, 1=rhonorm, 2=vnorm
+     logical :: testrmt = .false. ! test muffin-tin discontinuity (wien/elk)
+     logical :: readvirtual = .false. ! read virtual orbitals (fchk/molden)
+     integer(c_int) :: nenv = 0_c_int ! smoothrho: number of environment points (0 = default)
+     real(c_float) :: fdmax = 0._c_float ! smoothrho: max distance factor (0 = default)
+     ! per-format options
+     integer(c_int) :: vaspblk = 0_c_int ! vasp block (0-3 = blocks 1-4)
+     integer(c_int) :: pwcspin = 0_c_int ! pwc spin (0=both, 1=up, 2=down)
+     character(len=:,kind=c_char), allocatable :: pwckpt ! pwc k-point list
+     character(len=:,kind=c_char), allocatable :: pwcband ! pwc band list
+     logical :: pwcuserange = .false. ! pwc: use energy range
+     real(c_float) :: pwcemin = -1._c_float ! pwc energy range minimum (eV)
+     real(c_float) :: pwcemax = 1._c_float ! pwc energy range maximum (eV)
+     integer(c_int) :: moldendialect = 0_c_int ! molden dialect (0=auto, 1=psi4, 2=orca)
   end type loadfield_state
   public :: loadfield_state
 

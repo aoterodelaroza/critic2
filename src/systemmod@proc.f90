@@ -612,11 +612,14 @@ contains
        seed%iff == ifformat_as_ft_pot) then
 
        ! load as lap/grad/pot id.s
-       ! load as resample id.s n1.i n2.i n3.i
+       ! load as resample id.s {n1.i n2.i n3.i|sizeof id2.s}
        oid = s%fieldname_to_idx(seed%ids)
        if (.not.s%goodfield(oid)) then
           errmsg = "wrong source field in LOAD AS LAP/GRAD/POT/RESAMPLE"
           return
+       end if
+       if (seed%iff == ifformat_as_resample .and. len_trim(seed%ids2) > 0) then
+          if (.not.resolve_sizeof(seed%ids2,seed%n)) return
        end if
        if (s%f(oid)%type == type_grid) then
           if (.not.s%f(oid)%grid%isinit) then
@@ -725,20 +728,7 @@ contains
        id = s%getfieldnum()
 
        if (len_trim(seed%ids) > 0) then
-          oid = s%fieldname_to_idx(seed%ids)
-          if (.not.s%goodfield(oid)) then
-             errmsg = "wrong field in SIZEOF"
-             return
-          end if
-          if (s%f(oid)%type /= type_grid) then
-             errmsg = "field in SIZEOF is not a grid"
-             return
-          end if
-          if (.not.s%f(oid)%grid%isinit.or..not.allocated(s%f(oid)%grid%f)) then
-             errmsg = "field in SIZEOF is not initialized"
-             return
-          end if
-          seed%n = s%f(oid)%grid%n
+          if (.not.resolve_sizeof(seed%ids,seed%n)) return
        end if
 
        syl => s
@@ -782,6 +772,34 @@ contains
     if (seed%testrmt) &
        call s%f(id)%testrmt(0,aux,ti=ti)
 
+  contains
+    !> Resolve a SIZEOF field reference into an explicit grid size (n).
+    !> Sets errmsg and returns .false. on error.
+    function resolve_sizeof(idstr,n) result(ok)
+      character*(*), intent(in) :: idstr
+      integer, intent(out) :: n(3)
+      logical :: ok
+
+      integer :: oid0
+
+      ok = .false.
+      oid0 = s%fieldname_to_idx(idstr)
+      if (.not.s%goodfield(oid0)) then
+         errmsg = "wrong field in SIZEOF"
+         return
+      end if
+      if (s%f(oid0)%type /= type_grid) then
+         errmsg = "field in SIZEOF is not a grid"
+         return
+      end if
+      if (.not.s%f(oid0)%grid%isinit.or..not.allocated(s%f(oid0)%grid%f)) then
+         errmsg = "field in SIZEOF is not initialized"
+         return
+      end if
+      n = s%f(oid0)%grid%n
+      ok = .true.
+
+    end function resolve_sizeof
   end subroutine load_field_string
 
   !> Returns true if the field is initialized. The field can be

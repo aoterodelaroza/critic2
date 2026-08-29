@@ -290,7 +290,7 @@ module grid3mod
        real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
      module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
-       hcumq,hcumv,hcumrange,hdef)
+        hcumq,hcumv,hcumrange,hdef)
        class(grid3), intent(in) :: f
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms
@@ -305,7 +305,7 @@ module grid3mod
        integer, intent(out), optional :: hdef
      end subroutine stats
      module subroutine field_stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
-       hcumq,hcumv,hcumrange,hdef)
+        hcumq,hcumv,hcumrange,hdef)
        real*8, intent(in) :: f(:,:,:)
        real*8, intent(out), optional :: fmin, fmax
        real*8, intent(out), optional :: fmean, famean, frms

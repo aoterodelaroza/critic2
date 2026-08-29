@@ -53,7 +53,7 @@ contains
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
-       reptype_symelem, reptype_text, reptype_measure, reptype_isosurface
+       reptype_symelem, reptype_text, reptype_measure, reptype_isosurface, iso_map_color
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -139,8 +139,21 @@ contains
     ! exit if focused and received the close keybinding
     if (iw_close_event(w%focused())) doquit = .true.
 
-    ! quit = close the window
-    if (doquit) call w%end()
+    ! quit = close the window; a mapped-isosurface line still held commits
+    ! its pending rebuild here, because the release edge never fires once
+    ! the window is gone
+    if (doquit) then
+       if (w%editrep_isoline >= 1 .and. iview > 0 .and. associated(w%rep)) then
+          if (w%rep%isinit .and. w%rep%type == reptype_isosurface .and.&
+             win(iview)%isopen .and. associated(win(iview)%sc)) then
+             if (w%editrep_isoline <= w%rep%iso%niso) then
+                if (w%rep%iso%slot(w%editrep_isoline)%imap_mode /= iso_map_color) &
+                   win(iview)%sc%forcebuildlists = .true.
+             end if
+          end if
+       end if
+       call w%end()
+    end if
 
   end subroutine draw_editrep
 
@@ -2386,7 +2399,7 @@ contains
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
     logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
-    logical :: ismapped, hascolors
+    logical :: ismapped, hascolors, plotted
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -2430,11 +2443,13 @@ contains
     if (iw_field_combo("##isofieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
        nonestr="<field not available>")) then
        call w%rep%iso%set_field(isys,ifield)
+       w%editrep_isoline = 0
        changed = .true.
     end if
     call iw_tooltip("Field whose isosurface is displayed",ttshown)
     if (.not.goodf) then
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+       w%editrep_isoline = 0
        return
     end if
 
@@ -2444,6 +2459,7 @@ contains
     isgrid = iso_isgridfield(isys,w%rep%iso%ifield)
     if (.not.isgrid .and. w%rep%iso%ilevel == 0) then
        call w%rep%iso%set_field(isys,w%rep%iso%ifield)
+       w%editrep_isoline = 0
        changed = .true.
     end if
 
@@ -2679,6 +2695,7 @@ contains
 
     ! histogram of the values backing the mesh, with one draggable line
     ! per isosurface
+    plotted = .false.
     if (w%rep%iso%nhist > 0) then
        ! the width the value axis will get, for the tick spacing below
        call igGetContentRegionAvail(szavail)
@@ -2688,6 +2705,7 @@ contains
        szplot%y = iw_calcheight(1,5,.false.)
        if (ipBeginPlot(c_loc(str1),szplot,ior(ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend),&
           ior(ImPlotFlags_NoInputs,ImPlotFlags_NoMouseText)))) then
+          plotted = .true.
           ! no tick marks
           str1 = "Field value" // c_null_char
           str2 = "Points" // c_null_char
@@ -2784,6 +2802,16 @@ contains
        end if
        call iw_tooltip("Distribution of the values of the field over the grid data.&
           & Drag the vertical line to change the isovalue of the isosurface drawn in that color.",ttshown)
+    end if
+    if (.not.plotted .and. w%editrep_isoline /= 0) then
+       ! the histogram did not draw this frame: treat the held line as
+       ! released so a mapped isosurface commits its pending rebuild
+       if (w%editrep_isoline >= 1 .and. w%editrep_isoline <= w%rep%iso%niso) then
+          if (w%rep%iso%slot(w%editrep_isoline)%imap_mode /= iso_map_color) changed = .true.
+       end if
+       w%editrep_isoline = 0
+    end if
+    if (w%rep%iso%nhist > 0) then
 
        ! axis scales
        call iw_text("Scale x:",alignframe=.true.)
@@ -3142,6 +3170,7 @@ contains
       integer, parameter :: nband = 64 ! bands the gradient is drawn with
 
       integer :: i, ndec, nlab
+      integer*8 :: i8
       logical :: usesci
       real*8 :: step, v, span
       real(c_float) :: barw, barh, pad, xa, xb
@@ -3183,8 +3212,10 @@ contains
          step = nice_step(span,nlab)
          ndec = max(-floor(log10(step)),0)
          usesci = (ndec > 8 .or. max(abs(vlo),abs(vhi)) >= 1d5)
-         do i = ceiling(vlo/step - 1d-10), floor(vhi/step + 1d-10)
-            v = real(i,8) * step
+         ! 64-bit bounds: v/step is unbounded for a small user-typed range
+         ! at a large offset, even though the tick count itself is bounded
+         do i8 = ceiling(vlo/step - 1d-10,8), floor(vhi/step + 1d-10,8)
+            v = real(i8,8) * step
             if (v < vlo .or. v > vhi) cycle
             if (usesci) then
                strl = string(v,'e',decimal=2) // c_null_char

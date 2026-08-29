@@ -823,7 +823,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable :: errmsg
     integer(c_int) :: idum
-    logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
+    logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ok
     logical :: nothreads
     logical :: okundo, okredo
     integer :: isys, isysv
@@ -981,13 +981,6 @@ contains
           if (iw_menuitem("Load Field...",enabled=isysok)) &
              idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
           call iw_tooltip("Load a scalar field for the current system",ttshown)
-
-          ! File -> Remove Field
-          ifieldok = isysok
-          if (ifieldok) ifieldok = (sys(isys)%iref /= 0)
-          if (iw_menuitem("Remove Field",enabled=ifieldok)) &
-             call sys(isys)%unload_field(sys(isys)%iref)
-          call iw_tooltip("Remove the reference field from the current system",ttshown)
 
           ! File -> Separator
           call igSeparator()

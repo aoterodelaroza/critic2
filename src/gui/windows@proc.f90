@@ -72,9 +72,13 @@ contains
 
   !> Initialize data required in the windows@proc submodule
   module subroutine windows_init()
+    use fieldseedmod, only: field_format_string
     use param
 
     integer :: i, nn
+    integer, allocatable :: itmp(:)
+    character(len=:), allocatable :: fmtkey, fmtdesc
+    logical :: isg
 
     ! open structure file
     !! for the dialog: list of extensions "seen"
@@ -183,12 +187,14 @@ contains
                 &Binary cube file (bincube){.bincube},&
                 &CASTEP grid file (fmt){.fmt},&
                 &Cube file (cube){.cube},&
+                &DAT grid (DAT){.DAT},&
                 &DFTB+ (detailed.xml){.xml},&
                 &elk (grid){.grid},&
                 &elk STATE.OUT (OUT){.OUT},&
                 &FPLO grid (001){.001},&
                 &Gaussian wavefunction (wfn|wfx|fchk){.wfn,.wfx,.fchk},&
                 &Molden-style file (molden){.molden},&
+                &Plain text grid (txt){.txt},&
                 &Quantum ESPRESSO pwc file (pwc){.pwc},&
                 &SIESTA (RHO...) {(RHO|BADER|DRHO|LDOS|VT|VH)},&
                 &VASP ELFCAR{(ELFCAR)},&
@@ -197,39 +203,24 @@ contains
                 &Xcrysden (xsf|axsf) {.xsf,.axsf},&
                 &"// c_null_char
 
-    combostr_openfieldfile = "" &
-       // "Auto-detect" // c_null_char &              ! ifformat_unknown
-       // "ABINIT DEN-style file" // c_null_char &    ! ifformat_abinit
-       // "Aimpac qub" // c_null_char &               ! ifformat_qub
-       // "Binary cube" // c_null_char &              ! ifformat_bincube
-       // "CASTEP grid file" // c_null_char &         ! ifformat_fmt
-       // "Cube file" // c_null_char &                ! ifformat_cube
-       // "DFTB+ detailed.xml" // c_null_char &       ! ifformat_dftb
-       // "elk grid" // c_null_char &                 ! ifformat_elkgrid
-       // "elk STATE.OUT" // c_null_char &            ! ifformat_elk
-       // "FPLO grid" // c_null_char &                ! ifformat_fplogrid
-       // "Gaussian wfn" // c_null_char &             ! ifformat_wfn
-       // "Gaussian wfx" // c_null_char &             ! ifformat_wfx
-       // "Gaussian fchk" // c_null_char &            ! ifformat_fchk
-       // "Molden file" // c_null_char &              ! ifformat_molden
-       // "Quantum ESPRESSO pwc" // c_null_char &     ! ifformat_pwc
-       // "SIESTA RHO-style file" // c_null_char &    ! ifformat_siestagrid
-       // "VASP ELFCAR-style file" // c_null_char &   ! ifformat_vaspnov
-       // "VASP CHGCAR-style file" // c_null_char &   ! ifformat_vasp
-       // "WIEN2k clmsum-style file" // c_null_char & ! ifformat_wien
-       // "Xcrysden xsf" // c_null_char               ! ifformat_xsf
-    nn = 0
-    do i = 1,len(combostr_openfieldfile)
-       if (combostr_openfieldfile(i:i) == c_null_char) nn = nn + 1
-    end do
-
-    !! Permutations for interpreting the format coming out of the dialog combo
-    !! (same sequence as in combostr_openfieldfile)
+    !! Formats offered in the dialog combo, in display order (Auto-detect
+    !! first). This list is the only owner of the order; the display names
+    !! come from field_format_string, so a new format needs only the
+    !! fieldseedmod table, an entry here, and (optionally) the extension
+    !! filter above
+    itmp = (/ifformat_unknown,ifformat_abinit,ifformat_qub,ifformat_bincube,&
+       ifformat_fmt,ifformat_cube,ifformat_dat,ifformat_dftb,ifformat_elkgrid,ifformat_elk,&
+       ifformat_fplogrid,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,ifformat_txt,&
+       ifformat_pwc,ifformat_siestagrid,ifformat_vaspnov,ifformat_vasp,ifformat_wien,ifformat_xsf/)
+    nn = size(itmp,1)
     allocate(isperm_openfieldfile(0:nn-1))
-    isperm_openfieldfile(0:nn-1) = (/ifformat_unknown,ifformat_abinit,ifformat_qub,ifformat_bincube,&
-       ifformat_fmt,ifformat_cube,ifformat_dftb,ifformat_elkgrid,ifformat_elk,ifformat_fplogrid,&
-       ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,ifformat_pwc,ifformat_siestagrid,&
-       ifformat_vaspnov,ifformat_vasp,ifformat_wien,ifformat_xsf/)
+    isperm_openfieldfile(0:nn-1) = itmp
+    deallocate(itmp)
+    combostr_openfieldfile = "Auto-detect" // c_null_char
+    do i = 1, nn-1
+       call field_format_string(isperm_openfieldfile(i),fmtkey,fmtdesc,isg)
+       combostr_openfieldfile = combostr_openfieldfile // fmtdesc // c_null_char
+    end do
 
     !! Inverse of the permutation above
     allocate(isperm_inv_openfieldfile(0:maxval(isperm_openfieldfile)))
@@ -1102,7 +1093,7 @@ contains
        elseif (w%type == wintype_new_struct_library) then
           call init_window("New Structure from Library",90,30)
        elseif (w%type == wintype_load_field) then
-          call init_window("Load Field",65,16)
+          call init_window("Load Field",65,30)
        elseif (w%type == wintype_scfplot) then
           call init_window("SCF Iterations (" // string(w%isys) // ")",45,45,square=.true.)
        elseif (w%type == wintype_editrep) then

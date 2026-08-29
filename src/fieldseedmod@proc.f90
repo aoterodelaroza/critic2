@@ -127,7 +127,7 @@ contains
     elseif (equal(lfile,"txt")) then
        f%iff = ifformat_txt
        call read_next_as_file()
-    elseif (equal(lfile,"DAT")) then
+    elseif (equal(lfile,"dat")) then
        f%iff = ifformat_dat
        call read_next_as_file()
     elseif (equal(lfile,"elkgrid")) then
@@ -393,7 +393,7 @@ contains
                 f%errmsg = "wrong sizeof in load as"
                 return
              end if
-             f%ids = word
+             f%ids2 = word
           else
              call backtrack()
              ok = eval_next(f%n(1),line,lp)
@@ -766,5 +766,116 @@ contains
     end if
 
   end function field_detect_format
+
+  !> Return the LOAD keyword, a human-readable description, and whether
+  !> the resulting field is a grid for a file-based field format
+  !> (ifformat_*). Unknown or non-file formats return empty strings.
+  module subroutine field_format_string(iff,keyword,description,isgrid)
+    use param, only: ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
+       ifformat_bincube, ifformat_abinit, ifformat_vasp, ifformat_vaspnov,&
+       ifformat_qub, ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid,&
+       ifformat_fplogrid, ifformat_dftb, ifformat_pwc, ifformat_wfn, ifformat_wfx,&
+       ifformat_fchk, ifformat_molden, ifformat_fmt, ifformat_txt, ifformat_dat
+    integer, intent(in) :: iff
+    character(len=:), allocatable, intent(out) :: keyword
+    character(len=:), allocatable, intent(out) :: description
+    logical, intent(out) :: isgrid
+
+    select case (iff)
+    case(ifformat_wien)
+       keyword = "WIEN"
+       description = "WIEN2k clmsum-style file (LAPW)"
+       isgrid = .false.
+    case(ifformat_elk)
+       keyword = "ELK"
+       description = "elk STATE.OUT file (LAPW)"
+       isgrid = .false.
+    case(ifformat_pi)
+       keyword = "PI"
+       description = "aiPI ion files (LCAO)"
+       isgrid = .false.
+    case(ifformat_cube)
+       keyword = "CUBE"
+       description = "Cube file (grid)"
+       isgrid = .true.
+    case(ifformat_bincube)
+       keyword = "BINCUBE"
+       description = "Binary cube file (grid)"
+       isgrid = .true.
+    case(ifformat_abinit)
+       keyword = "ABINIT"
+       description = "Abinit DEN-style file (grid)"
+       isgrid = .true.
+    case(ifformat_vasp)
+       keyword = "VASP"
+       description = "VASP CHGCAR-style file (grid)"
+       isgrid = .true.
+    case(ifformat_vaspnov)
+       keyword = "VASPNOV"
+       description = "VASP ELFCAR-style file (grid)"
+       isgrid = .true.
+    case(ifformat_qub)
+       keyword = "QUB"
+       description = "Aimpac qub file (grid)"
+       isgrid = .true.
+    case(ifformat_xsf)
+       keyword = "XSF"
+       description = "Xcrysden xsf-style file (grid)"
+       isgrid = .true.
+    case(ifformat_elkgrid)
+       keyword = "ELKGRID"
+       description = "elk grid file (grid)"
+       isgrid = .true.
+    case(ifformat_siestagrid)
+       keyword = "SIESTA"
+       description = "SIESTA RHO-style file (grid)"
+       isgrid = .true.
+    case(ifformat_fplogrid)
+       keyword = "FPLO"
+       description = "FPLO grid file (grid)"
+       isgrid = .true.
+    case(ifformat_dftb)
+       keyword = "DFTB"
+       description = "DFTB+ wavefunction (LCAO)"
+       isgrid = .false.
+    case(ifformat_pwc)
+       keyword = "PWC"
+       description = "Quantum ESPRESSO pwc file (grid+wfn)"
+       isgrid = .true.
+    case(ifformat_wfn)
+       keyword = "WFN"
+       description = "Gaussian wfn wavefunction file (molecular wfn)"
+       isgrid = .false.
+    case(ifformat_wfx)
+       keyword = "WFX"
+       description = "Gaussian wfx wavefunction file (molecular wfn)"
+       isgrid = .false.
+    case(ifformat_fchk)
+       keyword = "FCHK"
+       description = "Gaussian fchk wavefunction file (molecular wfn+basis set)"
+       isgrid = .false.
+    case(ifformat_molden)
+       keyword = "MOLDEN"
+       description = "molden wavefunction file (molecular wfn+basis set)"
+       isgrid = .false.
+    case(ifformat_fmt)
+       keyword = "FMT"
+       description = "CASTEP fmt-style file (grid)"
+       isgrid = .true.
+    case(ifformat_txt)
+       keyword = "TXT"
+       description = "Plain text file (grid)"
+       isgrid = .true.
+    case(ifformat_dat)
+       keyword = "DAT"
+       description = "DAT-style file (grid)"
+       isgrid = .true.
+    case default
+       keyword = ""
+       description = ""
+       isgrid = .false.
+    end select
+
+  end subroutine field_format_string
 
 end submodule proc

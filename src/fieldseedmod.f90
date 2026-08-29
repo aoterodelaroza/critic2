@@ -37,7 +37,7 @@ module fieldseedmod
      logical :: isry = .false. !< use rydberg units in LOAD AS POT
      integer :: clm1, clm2 !< clm fields for add and sub
      character(len=mlen) :: ids = "" !< sizeof for load as promolecular/core; id.s for lap/grad; id1.s in clm
-     character(len=mlen) :: ids2 = "" !< id2.s in clm
+     character(len=mlen) :: ids2 = "" !< id2.s in clm; sizeof target in load as resample
      character(len=mmlen) :: expr = "" !< expression in load as
      character(len=mmlen) :: elseopt = "" !< options to be handled elsewhere
      logical :: testrmt = .true. !< whether to test rmt (wien/elk)
@@ -61,6 +61,7 @@ module fieldseedmod
   public :: fieldseed
 
   public :: field_detect_format
+  public :: field_format_string
 
   interface
      module subroutine fieldseed_end(f)
@@ -82,6 +83,12 @@ module fieldseedmod
        integer, intent(out), optional :: molden_type
        integer :: field_detect_format
      end function field_detect_format
+     module subroutine field_format_string(iff,keyword,description,isgrid)
+       integer, intent(in) :: iff
+       character(len=:), allocatable, intent(out) :: keyword
+       character(len=:), allocatable, intent(out) :: description
+       logical, intent(out) :: isgrid
+     end subroutine field_format_string
   end interface
 
 end module fieldseedmod

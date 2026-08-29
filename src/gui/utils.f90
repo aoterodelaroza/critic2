@@ -248,12 +248,13 @@ module utils
        integer(c_int), intent(inout), optional :: pertype
        logical :: changed
      end function iw_periodicity_widget
-     module function iw_field_combo(strid,isys,ifield,width,nonestr) result(ch)
+     module function iw_field_combo(strid,isys,ifield,width,nonestr,onlygrid) result(ch)
        character(len=*,kind=c_char), intent(in) :: strid
        integer, intent(in) :: isys
        integer, intent(inout) :: ifield
        real(c_float), intent(in), optional :: width
        character(len=*), intent(in), optional :: nonestr
+       logical, intent(in), optional :: onlygrid
        logical :: ch
      end function iw_field_combo
      module subroutine iw_colormap_lut(icmap,lut)

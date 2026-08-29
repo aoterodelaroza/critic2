@@ -360,6 +360,9 @@ contains
     if (ok) then
        w%errmsg = ""
        w%okmsg = ""
+       ! re-check the directory warning next frame: the write may have
+       ! materialized the directory (or the user created it meanwhile)
+       w%savemult_lastcheck = ""
        nfail = 0
        nwritten = 0
        nskip = 0

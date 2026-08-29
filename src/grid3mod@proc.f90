@@ -1921,7 +1921,7 @@ contains
                    if (ib >= 1) qmass(min(ib,nqbin)) = qmass(min(ib,nqbin)) + af
                 end if
                 if (docum) then
-                   ib = 1 + int((laf - clo) / (chi - clo) * nc)
+                   ib = 1 + floor((laf - clo) / (chi - clo) * nc)
                    if (ib >= 1) then
                       ib = min(ib,nc)
                       cmass(ib) = cmass(ib) + af
