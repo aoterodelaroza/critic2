@@ -368,10 +368,17 @@ contains
        end do
 
        ! Reap the transient representations that were not re-armed
-       ! during the window draws above
+       ! during the window draws above (the main-view scenes and the
+       ! private scenes of the alternate views)
        do i = 1, nsys
           if (sysc(i)%sc%nreptrans > 0) &
              call sysc(i)%sc%reap_transient_representations()
+       end do
+       do i = 1, nwin
+          if (.not.win(i)%isinit .or. win(i)%type /= wintype_view) cycle
+          if (win(i)%ismain .or. .not.associated(win(i)%sc)) cycle
+          if (win(i)%sc%nreptrans > 0) &
+             call win(i)%sc%reap_transient_representations()
        end do
 
        ! first pass: use the dock builder routines to place the windows
@@ -588,12 +595,13 @@ contains
   !> set to .true. and the caller is responsible for creating it.
   module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
     use interfaces_cimgui, only: igSeparator
-    use systems, only: sysc, sys_init, ok_system
+    use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle
+       wintype_rattle, wintype_mo
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
+    use types, only: field_evaluation_avail, fieldeval_category_mo
     integer, intent(in) :: isys
     integer, intent(in) :: idparent
     logical, intent(inout) :: ttshown
@@ -601,6 +609,7 @@ contains
 
     integer(c_int) :: idum
     logical :: enabled, ok
+    type(field_evaluation_avail) :: av
 
     enabled = ok_system(isys,sys_init)
 
@@ -625,6 +634,18 @@ contains
        & or more new molecular systems",ttshown)
 
     call igSeparator()
+
+    ! molecular orbitals: enabled only if the reference field of the
+    ! system can calculate them
+    ok = enabled
+    if (ok) ok = sys(isys)%goodfield(sys(isys)%iref)
+    if (ok) then
+       call sys(isys)%f(sys(isys)%iref)%eval_avail(av)
+       ok = av%avail(fieldeval_category_mo)
+    end if
+    if (iw_menuitem("Molecular Orbitals...",enabled=ok)) &
+       idum = stack_create_window(wintype_mo,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Display the molecular orbitals of the reference field for this system",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

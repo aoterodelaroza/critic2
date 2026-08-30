@@ -131,6 +131,7 @@ module scenes
      procedure :: show_transient_box => scene_show_transient_box
      procedure :: show_transient_text => scene_show_transient_text
      procedure :: show_transient_symelems => scene_show_transient_symelems
+     procedure :: show_transient_iso => scene_show_transient_iso
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
   end type scene
   public :: scene
@@ -281,6 +282,13 @@ module scenes
        real*8, intent(in) :: dir(3,n)
        integer, intent(in) :: order(n)
      end subroutine scene_show_transient_symelems
+     module subroutine scene_show_transient_iso(s,owner,tag,id,found)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
+       integer, intent(in) :: tag
+       integer, intent(out) :: id
+       logical, intent(out) :: found
+     end subroutine scene_show_transient_iso
   end interface
 
 end module scenes

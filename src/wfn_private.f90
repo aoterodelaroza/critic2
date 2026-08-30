@@ -98,6 +98,7 @@ module wfn_private
      integer :: wfntyp !< type of wavefunction (rhf, uhf, fractional occ)
      logical :: issto !< are the primitives GTOs or STOs?
      logical :: hasvirtual !< are the virtual orbitals known?
+     logical :: hasene = .false. !< are the MO energies known?
      integer :: ixmaxsto(4) !< maximum exponent for x, y, z, and r in STOs
      integer :: molden_type !< type of source molden file
      integer, allocatable :: icenter(:) !< primitive center
@@ -109,6 +110,7 @@ module wfn_private
      real*8, allocatable :: dran(:) !< maximum d^2 (GTO) or d (STO) to discard the primitive
      real*8, allocatable :: e(:) !< primitive exponents
      real*8, allocatable :: occ(:) !< MO occupation numbers
+     real*8, allocatable :: ene(:) !< MO energies (Hartree, packed MO order), if hasene
      real*8, allocatable :: cmo(:,:) !< MO coefficients
      integer :: nedf !< number of EDFs (electron density functions - core density for ECPs)
      integer, allocatable :: icenter_edf(:) !< EDF centers
@@ -138,6 +140,7 @@ module wfn_private
      procedure :: uslater !< calculate the Slater potential
      procedure :: xhole !< calculate the exchange hole
      procedure :: calculate_mo !< calculate the MO values at a point (driver)
+     procedure :: get_mo_info !< label, spin, occupation, and energy of a packed MO index
   end type molwfn
   public :: molwfn
 
@@ -333,6 +336,14 @@ module wfn_private
        integer, intent(in) :: idx
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine calculate_mo
+     module subroutine get_mo_info(f,imo,label,spin,occup,ener)
+       class(molwfn), intent(in) :: f
+       integer, intent(in) :: imo
+       character(len=:), allocatable, intent(out) :: label
+       integer, intent(out), optional :: spin
+       real*8, intent(out), optional :: occup
+       real*8, intent(out), optional :: ener
+     end subroutine get_mo_info
   end interface
 
 end module wfn_private

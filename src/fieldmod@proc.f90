@@ -1170,6 +1170,41 @@ contains
 
   end subroutine grd
 
+  !> Report in av the property categories field f is able, in
+  !> principle, to evaluate: the request/response counterpart of the
+  !> per-type dispatch in grd (keep the two in sync). Categories other
+  !> than the field and its derivatives require a molecular
+  !> wavefunction (type_wfn), except the kinetic energy density, which
+  !> a DFTB+ field also provides.
+  module subroutine eval_avail(f,av)
+    use types, only: field_evaluation_avail, fieldeval_category_gkin,&
+       fieldeval_category_fder1, fieldeval_category_fder2
+    class(field), intent(in) :: f
+    type(field_evaluation_avail), intent(out) :: av
+
+    call av%clear()
+    if (.not.f%isinit) return
+    select case (f%type)
+    case (type_grid,type_wien,type_elk,type_pi,type_promol,type_promol_frag)
+       call av%field_nder2()
+    case (type_wfn)
+       av%avail = .true.
+    case (type_dftb)
+       call av%field_nder2()
+       av%avail(fieldeval_category_gkin) = .true.
+    case (type_ghost)
+       call av%field_only()
+    end select
+
+    ! numerical differentiation provides the first and second
+    ! derivatives whatever the field type (ghost fields always use it)
+    if (f%numerical) then
+       av%avail(fieldeval_category_fder1) = .true.
+       av%avail(fieldeval_category_fder2) = .true.
+    end if
+
+  end subroutine eval_avail
+
   !> Calculate only the value of the scalar field at the given point
   !> (v in Cartesian). If periodic is present and false, consider the
   !> field is defined in a non-periodic system. This routine is

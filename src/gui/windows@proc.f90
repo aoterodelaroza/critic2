@@ -339,6 +339,7 @@ contains
              if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_geometry.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_mo.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
@@ -645,6 +646,10 @@ contains
        ! vibrations window
        if (.not.present(idparent)) &
           call ferror('window_init','vibrations requires idparent',faterr)
+    elseif (type == wintype_mo) then
+       ! molecular orbitals window
+       if (.not.present(idparent)) &
+          call ferror('window_init','mo requires idparent',faterr)
     elseif (type == wintype_dynamics) then
        ! dynamics window
        if (.not.present(idparent)) &
@@ -1122,6 +1127,8 @@ contains
           call init_window("Rattle Structure",52)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62)
+       elseif (w%type == wintype_mo) then
+          call init_window("Molecular Orbitals",62)
        elseif (w%type == wintype_dynamics) then
           call init_window("Dynamics",55)
        elseif (w%type == wintype_water_cluster) then
@@ -1233,6 +1240,8 @@ contains
                 call w%draw_rattle()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
+             elseif (w%type == wintype_mo) then
+                call w%draw_mo()
              elseif (w%type == wintype_dynamics) then
                 call w%draw_dynamics()
              elseif (w%type == wintype_water_cluster) then

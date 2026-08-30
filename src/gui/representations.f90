@@ -166,6 +166,7 @@ module representations
      iso_region_cube/)
   real*8, parameter, public :: iso_bbox_buffer_def = 5d0 ! default buffer around the bounding box (ang)
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
+  real*8, parameter, public :: iso_isoval_mo = 0.02d0 ! default isovalue for molecular orbitals (a.u.; the convention across molecular viewers)
   real*8, parameter, public :: iso_isoval_dens = 1d-3 ! default-isovalue policy: conventional molecular density contour (a.u.; same as SIGMAHOLE)
   real*8, parameter, public :: iso_qcharge_def = 0.9d0 ! fraction of the |f| integral enclosed by the default level
   real*8, parameter, public :: iso_spikeratio = 10d0 ! max|f|/mean|f| above which the field is spike-dominated
@@ -600,6 +601,9 @@ module representations
   type rep_isosurface
      ! user options
      integer :: ifield = 0 ! field for the isosurface (index in sys(id)%f)
+     integer :: imosel = 0 ! sample a molecular orbital of the field instead of the field itself:
+                           ! an id_mo_* selector from the types module (all negative), or 0 = the field
+     integer :: imoidx = 0 ! MO index accompanying imosel (id_mo_a, id_mo_b, id_mo_id)
      integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
      integer :: nptscustom(3) = 0 ! staged custom grid dimensions (ilevel = custom; seeded when it is selected)
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
@@ -618,6 +622,8 @@ module representations
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
      real*8 :: timelastapply_grid = -1d0 ! time the grid + region were last applied (vs time_built)
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
+     integer :: imosel_built = 0 ! MO selector when the samples were taken
+     integer :: imoidx_built = 0 ! MO index when the samples were taken
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
      logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
                                      ! non-partial data); gates the periodic replication and its editor UI

@@ -464,6 +464,14 @@ module windows
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
+     ! molecular orbitals window parameters
+     integer(c_int) :: mo_ieneunit = 0 ! energy unit in the MO table (0 = Hartree, 1 = eV)
+     integer :: mo_selected = 0 ! selected MO (packed wavefunction index; 0 = none)
+     logical :: mo_scrolled = .false. ! the MO table has been scrolled to the HOMO
+     integer(c_int) :: mo_ilevel = 0 ! grid coarseness level of the MO isosurface (iso_level_*)
+     real*8 :: mo_isoval = 0d0 ! isovalue of the +/- MO isosurface pair (a.u.)
+     real(c_float) :: mo_rgb(3,2) = 0._c_float ! colors of the positive/negative lobes
+     real(c_float) :: mo_alpha = 0._c_float ! opacity of the MO isosurfaces
      ! geometry parameters
      integer(c_int) :: geometry_atomtype = 1 ! coord type for atoms [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
      integer(c_int) :: geometry_moltype = 3 ! coord type for molecules [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
@@ -619,6 +627,7 @@ module windows
      procedure :: draw_rattle
      ! vibrations
      procedure :: draw_vibrations
+     procedure :: draw_mo
      ! dynamics
      procedure :: draw_dynamics
      ! water cluster demonstration
@@ -672,6 +681,7 @@ module windows
   integer, parameter, public :: wintype_extract = 21
   integer, parameter, public :: wintype_rattle = 22
   integer, parameter, public :: wintype_save_multiple = 23
+  integer, parameter, public :: wintype_mo = 24
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1128,6 +1138,10 @@ module windows
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
+     !xx! mo submodule !xx!
+     module subroutine draw_mo(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_mo
      !xx! dynamics submodule !xx!
      module subroutine draw_dynamics(w)
        class(window), intent(inout), target :: w

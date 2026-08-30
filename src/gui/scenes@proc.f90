@@ -2396,6 +2396,25 @@ contains
 
   end subroutine scene_show_transient_symelems
 
+  !> Show a transient isosurface representation, identified by
+  !> (owner,tag). Unlike the other transient producers, the content is
+  !> not configured here: the slot index is returned in id (0 = could
+  !> not be created) and found says whether the slot already existed,
+  !> so the producer window configures and updates the r%iso options
+  !> directly. Calling this every frame keeps the item alive; the
+  !> cached samples and meshes in the slot survive with it.
+  module subroutine scene_show_transient_iso(s,owner,tag,id,found)
+    use representations, only: reptype_isosurface, repflavor_isosurface
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    integer, intent(out) :: id
+    logical, intent(out) :: found
+
+    id = transient_slot(s,owner,tag,reptype_isosurface,repflavor_isosurface,found)
+
+  end subroutine scene_show_transient_iso
+
   !xx! private procedures: transient representations
 
   !> Mark the scene as dirty after a transient-representation change:

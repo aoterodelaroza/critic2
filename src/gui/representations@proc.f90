@@ -1034,6 +1034,9 @@ contains
 
     if (.not.ok_system(isys,sys_init)) return
     iso%ifield = max(ifield,0)
+    ! an MO selection belongs to the previous field
+    iso%imosel = 0
+    iso%imoidx = 0
     ! the isovalues of the previous field mean nothing for this one: keep
     ! a single isosurface (with its color) at the new default level
     if (iso%niso < 1) call iso%add_iso()
@@ -2367,10 +2370,13 @@ contains
     !> the field, the isovalue, or the applied grid changes.
     subroutine add_isosurface_meshes()
       use interfaces_glfw, only: glfwGetTime
+      use types, only: scalar_value, field_evaluation_avail, fieldeval_category_mo
       integer :: i, j, k, l, nn(3), ncp(3), i1, i2, i3
       logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
       real(c_float), allocatable :: xrep(:,:)
+      type(scalar_value) :: res
+      type(field_evaluation_avail) :: request
 
       if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
 
@@ -2384,6 +2390,8 @@ contains
       ! any change to the system's field set (a field reloaded into the
       ! same slot has the same index but different data)
       resample = (r%iso%ifield_built /= r%iso%ifield)
+      resample = resample .or. (r%iso%imosel_built /= r%iso%imosel)
+      resample = resample .or. (r%iso%imoidx_built /= r%iso%imoidx)
       resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
       resample = resample .or. (r%iso%timelastapply_grid > r%iso%time_built)
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
@@ -2427,13 +2435,30 @@ contains
                ! field) or too close to a partial grid's edge for the
                ! interpolation stencil -- come back as zeros; remember
                ! that it happened so the editor can warn
+               ! an MO selection samples an orbital of the field
+               ! instead of the field itself; an MO-only request makes
+               ! grd skip the density work
+               call request%clear()
+               request%avail(fieldeval_category_mo) = .true.
+               request%moini = r%iso%imosel
+               request%moend = r%iso%imoidx
                linvalid = .false.
-               !$omp parallel do private(xp,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
+               !$omp parallel do private(xp,res,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
                do l = 1, nn(3)
                   do k = 1, nn(2)
                      do j = 1, nn(1)
                         xp = x0c + matmul(xmat,(/real(j-1,8)/nn(1),real(k-1,8)/nn(2),real(l-1,8)/nn(3)/))
-                        r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=pereval,valid=lval)
+                        if (r%iso%imosel /= 0) then
+                           call sys(r%id)%f(r%iso%ifield)%grd(xp,request,res,periodic=pereval)
+                           lval = res%satisfied
+                           if (lval) then
+                              r%iso%ff(j,k,l) = res%fspc
+                           else
+                              r%iso%ff(j,k,l) = 0d0
+                           end if
+                        else
+                           r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=pereval,valid=lval)
+                        end if
                         linvalid = linvalid .or. .not.lval
                      end do
                   end do
@@ -2450,6 +2475,8 @@ contains
          r%iso%per0_built = per0
          if (resample) then
             r%iso%ifield_built = r%iso%ifield
+            r%iso%imosel_built = r%iso%imosel
+            r%iso%imoidx_built = r%iso%imoidx
             r%iso%fieldgen_built = sys(r%id)%fieldgen
             r%iso%time_built = glfwGetTime()
          end if

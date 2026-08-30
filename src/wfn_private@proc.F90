@@ -189,6 +189,7 @@ contains
     if (allocated(f%dran)) deallocate(f%dran)
     if (allocated(f%e)) deallocate(f%e)
     if (allocated(f%occ)) deallocate(f%occ)
+    if (allocated(f%ene)) deallocate(f%ene)
     if (allocated(f%cmo)) deallocate(f%cmo)
     if (allocated(f%icenter_edf)) deallocate(f%icenter_edf)
     if (allocated(f%icord_edf)) deallocate(f%icord_edf)
@@ -1047,6 +1048,10 @@ contains
     if (allocated(f%occ)) deallocate(f%occ)
     allocate(f%occ(f%nmoocc),stat=istat)
     if (istat /= 0) goto 999
+    if (allocated(f%ene)) deallocate(f%ene)
+    allocate(f%ene(f%nmoocc),stat=istat)
+    if (istat /= 0) goto 999
+    f%hasene = .true.
     if (allocated(f%cmo)) deallocate(f%cmo)
     allocate(f%cmo(f%nmoocc,f%npri),stat=istat)
     if (istat /= 0) goto 999
@@ -1059,6 +1064,7 @@ contains
     do i = 1, f%nmoocc
        read(luwfn,104,err=999,end=999) f%occ(i), ene
        read(luwfn,105,err=999,end=999) (f%cmo(i,j),j=1,f%npri)
+       f%ene(i) = ene
        ioc = nint(f%occ(i))
        if (abs(ioc-f%occ(i)) > 1d-10) then
           isfrac = .true.
@@ -1181,6 +1187,9 @@ contains
     allocate(f%itype(f%npri))
     allocate(f%e(f%npri))
     allocate(f%occ(f%nmoocc))
+    allocate(f%ene(f%nmoocc))
+    f%ene = 0d0
+    f%hasene = .false.
     allocate(f%cmo(f%nmoocc,f%npri))
     if (f%nedf > 0) then
        allocate(f%icenter_edf(f%nedf))
@@ -1209,6 +1218,9 @@ contains
              f%e = wfx_read_reals1(luwfn,f%npri,errmsg2)
           elseif (trim(line) == "<Molecular Orbital Occupation Numbers>") then
              f%occ = wfx_read_reals1(luwfn,f%nmoocc,errmsg2)
+          elseif (trim(line) == "<Molecular Orbital Energies>") then
+             f%ene = wfx_read_reals1(luwfn,f%nmoocc,errmsg2)
+             f%hasene = .true. ! a read error aborts the whole load below
           elseif (trim(line) == "<Molecular Orbital Primitive Coefficients>") then
              read(luwfn,*,err=999,end=999)
              do i = 1, f%nmoocc
@@ -1307,7 +1319,7 @@ contains
     real*8 :: norm
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
     real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:), mosph(:,:)
-    real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:)
+    real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:), enea(:), eneb(:)
     logical, allocatable :: icdup(:)
 #ifdef HAVE_CINT
     type(crystal), pointer :: c
@@ -1368,6 +1380,7 @@ contains
     f%useecp = .false.
     f%issto = .false.
     f%nedf = 0
+    f%hasene = .false.
 
     ! first pass: dimensions
     luwfn = fopen_read(file,ti=ti)
@@ -1471,6 +1484,9 @@ contains
 
     ! second pass
     allocate(motemp(nbassph*nmoread))
+    allocate(enea(nmoalla),eneb(nmoallb))
+    enea = 0d0
+    eneb = 0d0
     do while (getline_raw(luwfn,line,.false.))
        lp = 45
        if (equalsub(line,1,11,"Shell types")) then
@@ -1497,6 +1513,10 @@ contains
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (pccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
+       elseif (equalsub(line,1,22,"Alpha Orbital Energies")) then
+          read(luwfn,'(5E16.8)',err=999,end=999) (enea(i),i=1,nmoalla)
+       elseif (equalsub(line,1,21,"Beta Orbital Energies")) then
+          read(luwfn,'(5E16.8)',err=999,end=999) (eneb(i),i=1,nmoallb)
        elseif (equalsub(line,1,21,"Alpha MO coefficients")) then
           read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=1,namoread*nbassph)
        elseif (equalsub(line,1,21,"Beta MO coefficients")) then
@@ -1507,6 +1527,14 @@ contains
     ! we are done with the file
     call fclose(luwfn)
     luwfn = -1
+
+    ! store the orbital energies in the same packed MO order as the
+    ! coefficient rows read above (alpha block, then beta block)
+    allocate(f%ene(nmoread))
+    f%ene(1:namoread) = enea(1:namoread)
+    f%ene(namoread+1:nmoread) = eneb(1:nmoread-namoread)
+    f%hasene = .true.
+    deallocate(enea,eneb)
 
     ! unfold sp shells next
     allocate(icdup(ncshel))
@@ -1835,7 +1863,7 @@ contains
     integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
     integer :: idum, lp, lp2, lnmoa, lnmob, lnmo, lnmoav, lnmobv, ix, iy, iz, ir, nmf
-    real*8 :: rdum, norm
+    real*8 :: rdum, norm, enel
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:)
     real*8, allocatable :: exppri(:), ccontr(:), motemp(:), cpri(:), mocoef(:,:), cnorm(:)
 
@@ -2100,6 +2128,9 @@ contains
     ! allocate stuff
     allocate(f%occ(f%nmoall))
     f%occ = 0d0
+    allocate(f%ene(f%nmoall))
+    f%ene = 0d0
+    f%hasene = .true.
 
     ! type of wavefunction -> occupations
     if (f%wfntyp == wfn_uhf) then
@@ -2228,10 +2259,17 @@ contains
     lnmob = nalpha
     lnmoav = f%nmoocc
     lnmobv = f%nmoocc + f%nalpha_virt
+    enel = 0d0
     main: do while(.true.)
        ok = getline_raw(luwfn,line,.false.)
        if (.not.ok) exit main
        if (index(lower(line),"molden format") /= 0) exit
+
+       ! the orbital energy (comes before the occupation in each MO block)
+       lp = index(lower(line),"ene=")
+       if (lp > 0) then
+          read (line(lp+4:),*,err=999) enel
+       end if
 
        ! is this an alpha electron?
        if (index(lower(line),"spin=") /= 0 .and. f%wfntyp /= wfn_rhf) then
@@ -2265,6 +2303,8 @@ contains
                 lnmobv = lnmobv + 1
                 lnmo = lnmobv
              end if
+             f%ene(lnmo) = enel
+             enel = 0d0 ! do not carry this energy over to a block without Ene=
 
              do while (.true.)
                 ok = getline_raw(luwfn,line,.false.)
@@ -3033,6 +3073,87 @@ contains
     phi = phi_(1,1)
 
   end subroutine calculate_mo
+
+  !> Return descriptive information for the MO with packed index imo
+  !> (1 to nmoall, in the internal MO ordering documented in the
+  !> molwfn type): a frontier-orbital label ("HOMO-1", "LUMO", ...,
+  !> relative to the orbital's own spin channel), the spin channel
+  !> (0 = paired/none, 1 = alpha, 2 = beta), the occupation, and the
+  !> orbital energy in Hartree (0 if hasene is false).
+  module subroutine get_mo_info(f,imo,label,spin,occup,ener)
+    use tools_io, only: string
+    class(molwfn), intent(in) :: f
+    integer, intent(in) :: imo
+    character(len=:), allocatable, intent(out) :: label
+    integer, intent(out), optional :: spin
+    real*8, intent(out), optional :: occup
+    real*8, intent(out), optional :: ener
+
+    integer :: k, ispin
+    logical :: isocc, haslabel
+
+    label = ""
+    if (present(spin)) spin = 0
+    if (present(occup)) occup = 0d0
+    if (present(ener)) ener = 0d0
+    if (imo < 1 .or. imo > f%nmoall) return
+    if (present(occup) .and. allocated(f%occ)) then
+       if (imo <= size(f%occ,1)) occup = f%occ(imo)
+    end if
+    if (present(ener) .and. f%hasene .and. allocated(f%ene)) then
+       if (imo <= size(f%ene,1)) ener = f%ene(imo)
+    end if
+
+    ! locate imo relative to the frontier of its spin channel
+    ispin = 0
+    k = 0
+    isocc = (imo <= f%nmoocc)
+    haslabel = .true.
+    if (f%wfntyp == wfn_rhf) then
+       if (isocc) then
+          k = f%nmoocc - imo
+       else
+          k = imo - f%nmoocc - 1
+       end if
+    elseif (f%wfntyp == wfn_uhf) then
+       if (imo <= f%nalpha) then
+          ispin = 1
+          k = f%nalpha - imo
+       elseif (isocc) then
+          ispin = 2
+          k = f%nmoocc - imo
+       elseif (imo <= f%nmoocc + f%nalpha_virt) then
+          ispin = 1
+          k = imo - f%nmoocc - 1
+       else
+          ispin = 2
+          k = imo - (f%nmoocc + f%nalpha_virt) - 1
+       end if
+    elseif (f%wfntyp == wfn_rohf) then
+       ! 1..nalpha doubly occupied, nalpha+1..nmoocc singly occupied
+       ! (alpha), then the virtuals
+       if (isocc) then
+          if (imo > f%nalpha) ispin = 1
+          k = f%nmoocc - imo
+       else
+          k = imo - f%nmoocc - 1
+       end if
+    else
+       ! fractional occupations: no frontier labels
+       haslabel = .false.
+    end if
+    if (haslabel) then
+       if (isocc) then
+          label = "HOMO"
+          if (k > 0) label = "HOMO-" // string(k)
+       else
+          label = "LUMO"
+          if (k > 0) label = "LUMO+" // string(k)
+       end if
+    end if
+    if (present(spin)) spin = ispin
+
+  end subroutine get_mo_info
 
   !xx! private procedures
 
