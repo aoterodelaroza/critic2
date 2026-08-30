@@ -319,6 +319,8 @@ module windows
      integer :: irep = 0 ! the representation on which the window operates
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
+     logical :: growtofit = .false. ! grow the window to fit its content (height-only; width-only init_window)
+     real(c_float) :: needheight = 0._c_float ! window height that shows all content; >0 while it overflows
      integer, allocatable :: iord(:) ! table order (multiple windows)
      integer :: lastselected = 0 ! selectable, last element selected (multiple windows)
      character(len=:), allocatable :: tabselected ! which tab is selected (multiple windows)

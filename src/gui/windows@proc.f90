@@ -545,6 +545,8 @@ contains
     w%errmsg = ""
     w%okmsg = ""
     w%isys = 1
+    w%growtofit = .false.
+    w%needheight = 0._c_float
     w%sortcid = 0
     w%sortdir = 1
     w%okfile = ""
@@ -943,7 +945,8 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     real(c_float) :: panewidth
-    type(ImVec2) :: inisize, pos, pivot
+    type(ImVec2) :: inisize, pos, pivot, szmin, szmax
+    real(c_float) :: scrmax
     type(ImGuiWindow), pointer :: wptr
 
     if (.not.w%isinit) return
@@ -979,7 +982,7 @@ contains
        elseif (w%type == wintype_console_output) then
           call init_window("Output")
        elseif (w%type == wintype_about) then
-          call init_window("About",52,17)
+          call init_window("About",52)
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%purpose
@@ -1102,25 +1105,25 @@ contains
        elseif (w%type == wintype_new_struct_library) then
           call init_window("New Structure from Library",90,30)
        elseif (w%type == wintype_load_field) then
-          call init_window("Load Field",65,30)
+          call init_window("Load Field",65)
        elseif (w%type == wintype_scfplot) then
           call init_window("SCF Iterations (" // string(w%isys) // ")",45,45,square=.true.)
        elseif (w%type == wintype_editrep) then
           call init_window("Object [" // string(w%rep%name) // "]",63,46)
        elseif (w%type == wintype_exportimage) then
-          call init_window("Export to Image",52,21)
+          call init_window("Export to Image",52)
        elseif (w%type == wintype_saveas) then
-          call init_window("Save As",52,18)
+          call init_window("Save As",52)
        elseif (w%type == wintype_save_multiple) then
           call init_window("Save Multiple Structures",60,36)
        elseif (w%type == wintype_extract) then
-          call init_window("Extract as Molecule(s)",52,23)
+          call init_window("Extract as Molecule(s)",52)
        elseif (w%type == wintype_rattle) then
-          call init_window("Rattle Structure",52,24)
+          call init_window("Rattle Structure",52)
        elseif (w%type == wintype_vibrations) then
-          call init_window("Vibrations",62,25)
+          call init_window("Vibrations",62)
        elseif (w%type == wintype_dynamics) then
-          call init_window("Dynamics",55,22)
+          call init_window("Dynamics",55)
        elseif (w%type == wintype_water_cluster) then
           call init_window("Water Cluster Demonstration",55,30)
        elseif (w%type == wintype_geometry) then
@@ -1155,8 +1158,49 @@ contains
           w%ptr = IGFD_GetCurrentWindow(w%dptr)
           call w%draw_dialog()
        else
+          ! keep floating windows within a usable size range: at least a
+          ! few glyphs, at most the display (docked windows follow their
+          ! dock node and are left alone). In a grow-to-fit window whose
+          ! content overflowed last frame, raise the minimum to the
+          ! height of the content, which grows the window to show all of
+          ! it; manual resizing works otherwise, so the window can never
+          ! stay shorter than its content but keeps its size when the
+          ! content shrinks. If not even the display is tall enough for
+          ! the content, the grow disengages and the window scrolls.
+          if (.not.w%isdocked) then
+             szmax%x = huge(1._c_float)
+             szmax%y = huge(1._c_float)
+             call clamp_to_display(szmax)
+             szmin%x = min(25._c_float * fontsize%x,szmax%x)
+             szmin%y = min(6._c_float * fontsize%y,szmax%y)
+             if (w%needheight > 0._c_float .and. w%needheight <= szmax%y) then
+                szmin%y = max(szmin%y,w%needheight)
+                ! the buttons are anchored to the window's bottom: raise
+                ! the window if the grown window would stick out under
+                ! the bottom edge of the display
+                call c_f_pointer(w%ptr,wptr)
+                if (wptr%Pos%y + w%needheight > szmax%y) then
+                   pos%x = wptr%Pos%x
+                   pos%y = max(szmax%y - w%needheight,0._c_float)
+                   pivot%x = 0._c_float
+                   pivot%y = 0._c_float
+                   call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
+                end if
+             end if
+             call igSetNextWindowSizeConstraints(szmin,szmax,c_null_funptr,c_null_ptr)
+          end if
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
+             if (w%growtofit .and. .not.w%isdocked) then
+                ! the window height that shows all of this window's
+                ! content, for the grow-to-fit constraint (next frame)
+                scrmax = igGetScrollMaxY()
+                if (scrmax > 0._c_float) then
+                   w%needheight = igGetWindowHeight() + scrmax
+                else
+                   w%needheight = 0._c_float
+                end if
+             end if
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
@@ -1221,7 +1265,9 @@ contains
   contains
     !> Name the window being created after title (plus the window ID, which
     !> keeps the ImGui identifier unique), give it the default flags and, if nx
-    !> and ny are present, an initial size of nx by ny characters.
+    !> and ny are present, an initial size of nx by ny characters. If only nx
+    !> is present, fit the initial height to the first frame's content and grow
+    !> the window whenever its content overflows it (grow-to-fit).
     subroutine init_window(title,nx,ny,square)
       character(len=*,kind=c_char), intent(in) :: title
       integer, intent(in), optional :: nx, ny
@@ -1234,14 +1280,24 @@ contains
 
       w%name = title // "##" // string(w%id) // c_null_char
       w%flags = ImGuiWindowFlags_None
-      if (present(nx) .and. present(ny)) then
+      if (present(nx)) then
          inisize%x = nx * fontsize%x
-         ! square windows measure the height in glyph widths too, so that they
-         ! come out actually square and not one line-height per character
-         if (square_) then
-            inisize%y = ny * fontsize%x
+         if (present(ny)) then
+            ! square windows measure the height in glyph widths too, so that
+            ! they come out actually square and not one line-height per
+            ! character
+            if (square_) then
+               inisize%y = ny * fontsize%x
+            else
+               inisize%y = ny * fontsize%y
+            end if
          else
-            inisize%y = ny * fontsize%y
+            ! no height given: fit the height to the content on the first
+            ! frame (a zero axis means auto-fit) and grow the window when
+            ! its content overflows it (see the size constraints before
+            ! igBegin)
+            w%growtofit = .true.
+            inisize%y = 0._c_float
          end if
          call clamp_to_display(inisize)
          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
