@@ -3759,4 +3759,17 @@ contains
 
    end subroutine crystalmod_promolecular
 
+  !> Cell integral of the grid field: mean value times the cell
+  !> volume omega.
+  module function cell_integral(f,omega)
+    class(grid3), intent(in) :: f
+    real*8, intent(in) :: omega
+    real*8 :: cell_integral
+
+    cell_integral = 0d0
+    if (.not.f%isinit .or. .not.allocated(f%f)) return
+    cell_integral = sum(f%f) * omega / real(product(f%n),8)
+
+  end function cell_integral
+
 end submodule proc

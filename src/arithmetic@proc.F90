@@ -1528,6 +1528,7 @@ contains
     ll = len_trim(expr)
     isnumber = .false.
     rval = 0d0
+    if (lp < 1 .or. lp > len(expr)) return
     i = lp
     do while (isdigit(expr(i:i)))
        i = i + 1
@@ -1835,16 +1836,11 @@ contains
     isidentifier = .false.
     lpo = lp
     ll = len_trim(expr)
-    if (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
-       expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
-       expr(lp:lp) >= '0' .and. expr(lp:lp)<='9' .or. &
-       expr(lp:lp) == '_') then
+    if (lp < 1 .or. lp > len(expr)) return
+    if (isletter(expr(lp:lp)) .or. isdigit(expr(lp:lp)) .or. expr(lp:lp) == '_') then
        ! read the identifier
        word = ""
-       do while (expr(lp:lp) >= 'a' .and. expr(lp:lp)<='z' .or. &
-          expr(lp:lp) >= 'A' .and. expr(lp:lp)<='Z' .or. &
-          expr(lp:lp) >= '0' .and. expr(lp:lp)<='9' .or. &
-          expr(lp:lp) == '_')
+       do while (isletter(expr(lp:lp)) .or. isdigit(expr(lp:lp)) .or. expr(lp:lp) == '_')
           word = trim(word) // expr(lp:lp)
           lp = lp + 1
           if (lp > ll) exit
@@ -1862,9 +1858,9 @@ contains
           if (expr(lp:lp) == ":") then
              lp = lp + 1
              i = lp
-             do while (isletter(expr(i:i)).or.isdigit(expr(i:i)))
+             do while (i <= ll)
+                if (.not.(isletter(expr(i:i)).or.isdigit(expr(i:i)))) exit
                 i = i + 1
-                if (i > ll) exit
              enddo
              fder = expr(lp:i-1)
              lp = i

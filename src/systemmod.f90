@@ -75,6 +75,7 @@ module systemmod
      procedure :: new_integrable_string !< Define a field as integrable from a command
      procedure :: new_pointprop_string !< Define a field as point prop from a command
      procedure :: eval => system_eval_expression !< Evaluate an arithmetic expression using the system's fields
+     procedure :: check_expression => system_check_expression !< Validate an expression by evaluating it at a probe point
      procedure :: propty !< Calculate the properties of a field or all fields at a point
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
@@ -225,6 +226,11 @@ module systemmod
        type(token), intent(in), optional :: toklist(:)
        real*8 :: system_eval_expression
      end function system_eval_expression
+     module subroutine system_check_expression(s,expr,errmsg)
+       class(system), intent(inout), target :: s
+       character(*), intent(in) :: expr
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine system_check_expression
      module subroutine propty(s,id,x0,res,resinput,verbose,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s

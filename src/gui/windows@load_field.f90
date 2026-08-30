@@ -41,6 +41,7 @@ contains
 
     logical :: oksys, ok, doquit, disabled, resetsys, gotofile
     integer :: isys, i, j, ll, idx, iff, iaux, sourceopt
+    character(len=:,kind=c_char), allocatable :: reason
     integer(c_int) :: tabflags
     type(ImVec2) :: szavail, szero
     real(c_float) :: combowidth
@@ -142,6 +143,7 @@ contains
        allocate(w%lf%zpsp(sys(isys)%c%nspc))
        w%lf%zpsp = -1
        w%lf%isys_last = isys
+       call validate_expr()
     end if
 
     ! if a new file arrived from a file dialog, process it
@@ -149,18 +151,7 @@ contains
        w%errmsg = ""
        if (w%itoken == itoken_file1) then
           w%lf%file1 = w%okfile
-          w%lf%file1_format = w%okfile_format
-          if (w%lf%file1_format == 0) &
-             w%lf%file1_format = -field_detect_format(file=w%okfile)
-          if (abs(w%lf%file1_format) == ifformat_pi) w%lf%file1_format = 0 ! aiPI deactivated for now
-          if (w%lf%file1_format == 0) then
-             w%errmsg = "Unknown field file extension"
-             w%okfile = ""
-          end if
-          w%lf%file2 = ""
-          w%lf%file2_set = .false.
-          w%lf%file3 = ""
-          w%lf%file3_set = .false.
+          call intake_file1(w%okfile_format)
        elseif (w%itoken == itoken_file2) then
           w%lf%file2 = w%okfile
           w%lf%file2_set = .true.
@@ -183,7 +174,7 @@ contains
     ! the source tabs
     str1 = "##loadfieldtabbar" // c_null_char
     tabflags = ImGuiTabItemFlags_None
-    if (gotofile) tabflags = ImGuiTabItemFlags_SetSelected
+    if (gotofile .or. w%firstpass) tabflags = ImGuiTabItemFlags_SetSelected
     if (igBeginTabBar(c_loc(str1),ImGuiTabBarFlags_None)) then
        if (iw_begintabitem("From File##loadfieldtab_file",flags=tabflags)) then
           sourceopt = 0
@@ -216,11 +207,14 @@ contains
     ! error message, if applicable
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
+    ! calculate whether we have enough info to continue to ok, and say
+    ! why not
+    reason = ok_reason()
+    disabled = (len_trim(reason) > 0)
+    if (disabled) call iw_text(reason,disabled=.true.,wrap=.true.)
+
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(8,2)
-
-    ! calculate whether we have enough info to continue to ok
-    disabled = ok_disabled()
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
     ok = ok .or. iw_button("OK",disabled=disabled)
     if (ok .and..not.disabled) then
@@ -228,7 +222,11 @@ contains
        loadstr = build_load_string()
        if (len_trim(w%errmsg) == 0) then
           call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg)
-          if (len_trim(w%errmsg) == 0) doquit = .true.
+          if (len_trim(w%errmsg) == 0) then
+             ! expand the field list so the new field is visible
+             sysc(isys)%showfields = .true.
+             doquit = .true.
+          end if
        end if
     end if
 
@@ -259,15 +257,20 @@ contains
       call iw_tooltip("File from where the field is read",ttshown)
       if (len(w%lf%file1) > 0) then
          if (iw_button("Clear##clearfile1",sameline=.true.,danger=.true.)) then
-            w%lf%file1_format = 0
             w%lf%file1 = ""
-            w%lf%file2 = ""
-            w%lf%file2_set = .false.
-            w%lf%file3 = ""
-            w%lf%file3_set = .false.
+            call intake_file1()
          end if
+         call iw_tooltip("Clear the file",ttshown)
       end if
-      call iw_text(w%lf%file1,sameline=.true.)
+      ! editable path: a typed or pasted path is accepted on enter
+      if (iw_inputtext("##loadfieldpath",bufsize=4095,texta=w%lf%file1,width=45,&
+         sameline=.true.,notlive=.true.)) &
+         call intake_file1()
+      if (len_trim(w%lf%file1) > 0) then
+         call iw_tooltip(trim(w%lf%file1),ttshown)
+      else
+         call iw_tooltip("Path to the field file (type it or use the File button)",ttshown)
+      end if
 
       if (w%lf%file1_format /= 0) then
          call field_format_string(abs(w%lf%file1_format),fmtkey,fmtdesc,fmtgrid)
@@ -327,25 +330,29 @@ contains
       case(ifformat_wien)
          call aux_file_row("File (.struct)","WIEN2k structure file (.struct) used to&
             & interpret the clmsum-style file",itoken_file2,w%lf%file2,w%lf%file2_set,&
-            danger=.not.w%lf%file2_set)
+            danger=.not.w%lf%file2_set,filter="WIEN2k struct (struct){.struct}")
       case(ifformat_elk)
          call aux_file_row("File (GEOMETRY.OUT)","GEOMETRY.OUT structure file used to&
             & interpret the STATE.OUT",itoken_file2,w%lf%file2,w%lf%file2_set,&
-            danger=.not.w%lf%file2_set)
+            danger=.not.w%lf%file2_set,filter="elk (OUT){.OUT}")
          call aux_file_row("File (extra .OUT)","Additional elk .OUT file with more&
-            & scalar field data (optional)",itoken_file3,w%lf%file3,w%lf%file3_set)
+            & scalar field data (optional)",itoken_file3,w%lf%file3,w%lf%file3_set,&
+            filter="elk (OUT){.OUT}")
       case(ifformat_dftb)
          call aux_file_row("File (.bin)","eigenvec.bin file for reading the DFTB+&
             & wavefunction",itoken_file2,w%lf%file2,w%lf%file2_set,&
-            danger=.not.w%lf%file2_set)
+            danger=.not.w%lf%file2_set,filter="eigenvector file (bin){.bin}")
          call aux_file_row("File (.hsd)","hsd file for reading the DFTB+ wavefunction",&
-            itoken_file3,w%lf%file3,w%lf%file3_set,danger=.not.w%lf%file3_set)
+            itoken_file3,w%lf%file3,w%lf%file3_set,danger=.not.w%lf%file3_set,&
+            filter="hsd file (hsd){.hsd}")
       case(ifformat_pwc)
          call aux_file_row("File (.chk, up)","wannier90 checkpoint file for the spin-up&
-            & (or only) channel (optional)",itoken_file2,w%lf%file2,w%lf%file2_set)
+            & (or only) channel (optional)",itoken_file2,w%lf%file2,w%lf%file2_set,&
+            filter="wannier90 checkpoint (chk){.chk}")
          if (len(w%lf%file2) > 0) then
             call aux_file_row("File (.chk, down)","wannier90 checkpoint file for the&
-               & spin-down channel (optional)",itoken_file3,w%lf%file3,w%lf%file3_set)
+               & spin-down channel (optional)",itoken_file3,w%lf%file3,w%lf%file3_set,&
+               filter="wannier90 checkpoint (chk){.chk}")
          elseif (len(w%lf%file3) > 0) then
             ! the down chk makes no sense without the up chk
             w%lf%file3 = ""
@@ -391,7 +398,15 @@ contains
          & involving the other fields of this system (e.g. $1+$2)."//newline//&
          iw_arith_help//newline//"Click the Help button for more info.")
       call iw_arith_help_button("##loadfieldexprhelp",ttshown)
-      ldum = iw_inputtext("##loadfieldexprtext",bufsize=2047,texta=w%lf%expr)
+      if (iw_inputtext("##loadfieldexprtext",bufsize=2047,texta=w%lf%expr)) &
+         call validate_expr()
+      if (len_trim(w%lf%expr) > 0) then
+         if (len_trim(w%lf%exprerr) > 0) then
+            call iw_text(w%lf%exprerr,danger=.true.,wrap=.true.)
+         else
+            call iw_text("valid expression",disabled=.true.)
+         end if
+      end if
 
       call iw_text("Domain",highlight=.true.)
       ldum = iw_radiobutton("Automatic",int=w%lf%exprdom,intval=0_c_int)
@@ -479,12 +494,13 @@ contains
     !> auxiliary file. Opens a modal file dialog with token itok whose
     !> result lands in file. Clearing resets fileset (if present) so a
     !> default is re-proposed.
-    subroutine aux_file_row(label,tip,itok,file,fileset,danger)
+    subroutine aux_file_row(label,tip,itok,file,fileset,danger,filter)
       character(len=*,kind=c_char), intent(in) :: label, tip
       integer, intent(in) :: itok
       character(len=:,kind=c_char), allocatable, intent(inout) :: file
       logical, intent(inout), optional :: fileset
       logical, intent(in), optional :: danger
+      character(len=*,kind=c_char), intent(in), optional :: filter
 
       logical :: danger_
 
@@ -492,7 +508,7 @@ contains
       if (present(danger)) danger_ = danger
       if (iw_button(label,danger=danger_)) then
          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
-            idparent=w%id,itoken=itok)
+            idparent=w%id,itoken=itok,dialog_filter=filter)
       end if
       call iw_tooltip(tip,ttshown)
       if (len(file) > 0) then
@@ -502,9 +518,60 @@ contains
          end if
          call iw_tooltip("Clear the file",ttshown)
       end if
-      call iw_text(file,sameline=.true.)
+      ! long paths show their tail; the full path goes in a tooltip
+      call iw_text(pathtail(file),sameline=.true.)
+      if (len_trim(file) > 0) &
+         call iw_tooltip(trim(file),ttshown)
 
     end subroutine aux_file_row
+
+    !> Tail of a long path, prefixed with an ellipsis, for display.
+    function pathtail(file) result(str)
+      character(len=*,kind=c_char), intent(in) :: file
+      character(len=:,kind=c_char), allocatable :: str
+
+      integer, parameter :: maxlen = 40
+
+      if (len_trim(file) <= maxlen) then
+         str = trim(file)
+      else
+         str = "..." // file(len_trim(file)-maxlen+1:len_trim(file))
+      end if
+
+    end function pathtail
+
+    !> Process a new main file (from the file dialog, the path input, or
+    !> the Clear button): set the format (iforce, if given and nonzero,
+    !> else by extension) and reset the auxiliary files.
+    subroutine intake_file1(iforce)
+      integer, intent(in), optional :: iforce
+
+      w%errmsg = ""
+      w%lf%file1_format = 0
+      if (present(iforce)) w%lf%file1_format = iforce
+      if (w%lf%file1_format == 0 .and. len_trim(w%lf%file1) > 0) then
+         w%lf%file1_format = -field_detect_format(file=w%lf%file1)
+         if (abs(w%lf%file1_format) == ifformat_pi) w%lf%file1_format = 0 ! aiPI deactivated for now
+         if (w%lf%file1_format == 0) w%errmsg = "Unknown field file extension"
+      end if
+      w%lf%file2 = ""
+      w%lf%file2_set = .false.
+      w%lf%file3 = ""
+      w%lf%file3_set = .false.
+
+    end subroutine intake_file1
+
+    !> Probe-evaluate the expression against the current system and
+    !> store the error message (empty = valid) in the state.
+    subroutine validate_expr()
+      character(len=:), allocatable :: errm
+
+      w%lf%exprerr = ""
+      if (len_trim(w%lf%expr) == 0) return
+      call sys(isys)%check_expression(w%lf%expr,errm)
+      if (len_trim(errm) > 0) w%lf%exprerr = trim(errm)
+
+    end subroutine validate_expr
 
     !> Draw the shared grid-size widget (explicit size or same size as
     !> an existing grid field).
@@ -554,8 +621,10 @@ contains
          ! normalization
          ldum = iw_checkbox("Normalize##loadfielddonorm",w%lf%donorm)
          call iw_tooltip("Rescale the grid values so its cell integral equals this value",ttshown)
-         if (w%lf%donorm) &
+         if (w%lf%donorm) then
             ldum = iw_inputfloat("##loadfieldnormval",w%lf%normval,width=10,sameline=.true.)
+            call iw_tooltip("Target value of the cell integral of the grid",ttshown)
+         end if
       end if
 
     end subroutine draw_common_options
@@ -653,59 +722,75 @@ contains
 
     end function producesgrid
 
-    !> Whether the OK button must be disabled (not enough information to
-    !> build the LOAD command).
-    function ok_disabled() result(dis)
-      logical :: dis
+    !> Why the OK button must be disabled (not enough information to
+    !> build the LOAD command); empty = OK is enabled.
+    function ok_reason() result(reason)
+      character(len=:,kind=c_char), allocatable :: reason
+
       integer :: jff
 
-      dis = .false.
+      character(len=*,kind=c_char), parameter :: zpspmsg =&
+         "Set at least one ZPSP charge (Advanced options) to enable OK"
+
+      reason = ""
       select case (sourceopt)
       case (0)
          ! from a file
-         dis = (len(w%lf%file1) == 0) .or. (w%lf%file1_format == 0)
-         if (.not.dis) then
+         if (len(w%lf%file1) == 0) then
+            reason = "Choose a source file to enable OK"
+         elseif (w%lf%file1_format == 0) then
+            reason = "The format of the source file is unknown"
+         else
             jff = fileformat()
-            if (jff == ifformat_wien .or. jff == ifformat_elk .or. jff == ifformat_dftb) &
-               dis = dis .or. (len(w%lf%file2) == 0)
-            if (jff == ifformat_dftb) &
-               dis = dis .or. (len(w%lf%file3) == 0)
+            if ((jff == ifformat_wien .or. jff == ifformat_elk .or. jff == ifformat_dftb) .and.&
+               len(w%lf%file2) == 0 .or. jff == ifformat_dftb .and. len(w%lf%file3) == 0) &
+               reason = "Choose the auxiliary file(s) to enable OK"
          end if
       case (1)
-         ! expression
-         dis = (len_trim(w%lf%expr) == 0)
-         if (w%lf%exprdom == 2) dis = dis .or. badsize()
+         ! expression; a failed probe blocks OK only for ghost fields,
+         ! where the load would be refused anyway (a grid can still be
+         ! valid if the expression is only singular at the probe point)
+         if (len_trim(w%lf%expr) == 0) then
+            reason = "Enter an expression to enable OK"
+         elseif (w%lf%exprdom == 1 .and. len_trim(w%lf%exprerr) > 0) then
+            reason = "The expression is invalid"
+         elseif (w%lf%exprdom == 2) then
+            reason = sizereason()
+         end if
       case (2)
          ! promolecular / core
-         if (w%lf%promopt >= 1) dis = badsize()
-         if (w%lf%promopt == 2) dis = dis .or. .not.goodzpsp()
+         if (w%lf%promopt >= 1) reason = sizereason()
+         if (len_trim(reason) == 0 .and. w%lf%promopt == 2 .and. .not.goodzpsp()) &
+            reason = zpspmsg
       case (3)
          ! grid transform
-         select case (w%lf%gtransf)
-         case (0)
-            dis = .not.sys(isys)%goodfield(w%lf%sourcefid,type=type_grid)
-         case (1)
-            dis = .not.sys(isys)%goodfield(w%lf%sourcefid,type=type_grid) .or. badsize()
-         end select
+         if (.not.sys(isys)%goodfield(w%lf%sourcefid,type=type_grid)) then
+            reason = "Select a source field to enable OK"
+         elseif (w%lf%gtransf == 1) then
+            reason = sizereason()
+         end if
       end select
 
       ! an activated core augmentation needs at least one ZPSP charge (the
       ! grid-transform tab does not use the advanced options)
-      if (.not.dis .and. sourceopt /= 3 .and. w%lf%docore) dis = .not.goodzpsp()
+      if (len_trim(reason) == 0 .and. sourceopt /= 3 .and. w%lf%docore .and. .not.goodzpsp()) &
+         reason = zpspmsg
 
-    end function ok_disabled
+    end function ok_reason
 
-    !> Whether the shared grid-size widget holds an invalid size.
-    function badsize() result(bad)
-      logical :: bad
+    !> Why the shared grid-size widget holds an invalid size; empty =
+    !> the size is valid.
+    function sizereason() result(reason)
+      character(len=:,kind=c_char), allocatable :: reason
 
+      reason = ""
       if (w%lf%ngridopt == 0) then
-         bad = any(w%lf%ngrid <= 0)
-      else
-         bad = .not.sys(isys)%goodfield(w%lf%sizeoffid,type=type_grid)
+         if (any(w%lf%ngrid <= 0)) reason = "The grid size must be positive"
+      elseif (.not.sys(isys)%goodfield(w%lf%sizeoffid,type=type_grid)) then
+         reason = "Select a grid field for the size to enable OK"
       end if
 
-    end function badsize
+    end function sizereason
 
     !> Whether the core augmentation is active with usable ZPSP charges.
     function goodzpsp() result(good)
@@ -889,6 +974,7 @@ contains
       w%lf%file2 = ""
       w%lf%file3 = ""
       w%lf%expr = ""
+      w%lf%exprerr = ""
       w%lf%name = ""
       w%lf%pwckpt = ""
       w%lf%pwcband = ""

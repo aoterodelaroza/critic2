@@ -466,36 +466,36 @@ contains
           ! atom-based representations submenu
           if (iw_beginmenu("Atoms, bonds,...")) then
              if (iw_menuitem("Ball and Stick")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_ballandstick)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_ballandstick)
              call iw_tooltip("Draw atoms as balls and bonds as sticks, hide the labels",ttshown)
 
              if (iw_menuitem("Bonds")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_sticks)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_sticks)
              call iw_tooltip("Draw bonds as sticks, hide atoms and labels",ttshown)
 
              if (iw_menuitem("Licorice")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_licorice)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_licorice)
              call iw_tooltip("Draw atoms and bonds with the same radius, hide labels",ttshown)
 
              if (iw_menuitem("Van der Waals Contacts")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_vdwcontacts)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_vdwcontacts)
              call iw_tooltip("Display contacts between nonbonded atoms closer than the sum &
                 &of their van der Waals radii",ttshown)
 
              if (iw_menuitem("Hydrogen Bonds")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_hbonds)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_hbonds)
              call iw_tooltip("Display contacts between hydrogen bonded atoms",ttshown)
 
              if (iw_menuitem("Critical Points")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_criticalpoints)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_criticalpoints)
              call iw_tooltip("Draw dummy atoms representing critical points (Xn, Xb,... atoms)",ttshown)
 
              if (iw_menuitem("Gradient Paths")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_gradientpaths)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_gradientpaths)
              call iw_tooltip("Draw dummy atoms representing gradient paths (Xz atoms)",ttshown)
 
              if (iw_menuitem("Coordination Polyhedra")) &
-                call add_rep_and_edit(reptype_atoms,repflavor_atoms_polyhedra)
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_polyhedra)
              call iw_tooltip("Draw coordination polyhedra around the center atoms",ttshown)
 
              call igEndMenu()
@@ -504,31 +504,31 @@ contains
 
           if (.not.sys(w%isys)%c%ismolecule) then
              if (iw_menuitem("Unit Cell")) &
-                call add_rep_and_edit(reptype_unitcell,repflavor_unitcell_basic)
+                call w%add_rep_and_edit(reptype_unitcell,repflavor_unitcell_basic)
              call iw_tooltip("Display the unit cell",ttshown)
           end if
 
           if (iw_menuitem("Axes")) &
-             call add_rep_and_edit(reptype_axes,repflavor_axes)
+             call w%add_rep_and_edit(reptype_axes,repflavor_axes)
           call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
 
           if (iw_menuitem("Isosurface")) &
-             call add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
+             call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
           call iw_tooltip("Display an isosurface of a scalar field",ttshown)
 
           ! symmetry available for crystals (always) or molecules with a point group
           symenabled = .true.
           if (sys(w%isys)%c%ismolecule) symenabled = sys(w%isys)%c%pg%avail
           if (iw_menuitem("Symmetry Elements",enabled=symenabled)) &
-             call add_rep_and_edit(reptype_symelem,repflavor_symelem)
+             call w%add_rep_and_edit(reptype_symelem,repflavor_symelem)
           call iw_tooltip("Display symmetry elements",ttshown)
 
           if (iw_menuitem("Text")) &
-             call add_rep_and_edit(reptype_text,repflavor_text)
+             call w%add_rep_and_edit(reptype_text,repflavor_text)
           call iw_tooltip("Add text annotations to the view",ttshown)
 
           if (iw_menuitem("Measurements")) &
-             call add_rep_and_edit(reptype_measure,repflavor_measure)
+             call w%add_rep_and_edit(reptype_measure,repflavor_measure)
           call iw_tooltip("Measure and display distances, angles, and dihedrals",ttshown)
        end if
        call igEndPopup()
@@ -979,21 +979,6 @@ contains
       islabelsl = (islabels >= 0)
 
     end subroutine cycle_labels
-
-    !> Add a new representation with the given type and flavor to the
-    !> current scene, then open the edit representation window for it.
-    !> Used by the items in the toolbar draw button popup.
-    subroutine add_rep_and_edit(itype,flavor)
-      integer, intent(in) :: itype, flavor
-
-      integer :: irep, idw
-
-      call w%sc%add_representation(itype,flavor,id=irep)
-      idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
-         idparent=w%id,orraise=-1)
-      chbuild = .true.
-
-    end subroutine add_rep_and_edit
 
     !> Whether the displayed periodicity can be turned into a cell
     !> transformation: a crystal showing more than one cell along some axis.
@@ -3761,5 +3746,26 @@ contains
     end if
 
   end subroutine export_image_size
+
+  !> Add a new representation with the given type and flavor to this
+  !> view window's scene, then open the edit representation window for
+  !> it. Returns the new representation id in id (0 if the scene is not
+  !> available). add_representation flags the scene for rebuild.
+  module subroutine add_rep_and_edit(w,itype,flavor,id)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: itype, flavor
+    integer, intent(out), optional :: id
+
+    integer :: irep, idw
+
+    if (present(id)) id = 0
+    if (.not.associated(w%sc)) return
+    if (w%sc%isinit == 0) call w%sc%init(w%isys)
+    call w%sc%add_representation(itype,flavor,id=irep)
+    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
+       idparent=w%id,orraise=-1)
+    if (present(id)) id = irep
+
+  end subroutine add_rep_and_edit
 
 end submodule view

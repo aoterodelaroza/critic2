@@ -498,7 +498,7 @@ contains
     use tools_io, only: getword, lgetword, equal, uout, string
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
-    use arithmetic, only: fields_in_eval, eval
+    use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_clm, ifformat_promolecular_fragment,&
        ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_promolecular,&
        ifformat_as_core, ifformat_promolecular,&
@@ -518,7 +518,6 @@ contains
     logical :: ok, isnewref
     type(fieldseed) :: seed
     integer :: idx
-    real*8 :: xtest(3), fdum
     character(len=:), allocatable :: str, aux, erreval
     character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
@@ -751,8 +750,7 @@ contains
        ! ...) is refused here; otherwise it would abort the program the
        ! first time the field is evaluated
        if (seed%iff == ifformat_as_ghost) then
-          xtest = s%c%x2c((/0.109d0,0.217d0,0.313d0/))
-          fdum = eval(seed%expr,erreval,xtest,c_loc(syl),.not.s%c%ismolecule)
+          call s%check_expression(seed%expr,erreval)
           if (len_trim(erreval) > 0) then
              errmsg = "invalid expression in ghost field: " // trim(erreval)
              call s%f(id)%end()
@@ -1355,6 +1353,25 @@ contains
     system_eval_expression = eval(expr,errmsg,x0,c_loc(syl),.not.syl%c%ismolecule,toklist)
 
   end function system_eval_expression
+
+  !> Validate an arithmetic expression by evaluating it at an arbitrary
+  !> probe point of the system. Returns a non-empty errmsg if the
+  !> expression is invalid (wrong syntax, unknown function or field, or
+  !> a non-finite result at the probe point).
+  module subroutine system_check_expression(s,expr,errmsg)
+    class(system), intent(inout), target :: s
+    character(*), intent(in) :: expr
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    real*8 :: xtest(3), fdum
+
+    ! an arbitrary off-symmetry point
+    real*8, parameter :: xprobe(3) = (/0.109d0,0.217d0,0.313d0/)
+
+    xtest = s%c%x2c(xprobe)
+    fdum = s%eval(expr,errmsg,xtest)
+
+  end subroutine system_check_expression
 
   !> Calculate the properties of a field or all fields at a point plus
   !> the defined point properties of the system. The properties at

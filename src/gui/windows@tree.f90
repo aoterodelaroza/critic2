@@ -56,13 +56,15 @@ contains
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
-    use gui_main, only: ColorTableCellBg, tooltip_delay,&
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: ColorTableCellBg, tooltip_delay, errmsg_linger,&
        ColorFieldSelected, ColorTableHighlightRow,&
        ColorTableSelectedBorder, g, fontsize, io
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
        icon_ui_expand, icon_ui_collapse
     use fieldmod, only: type_grid, type_wien, type_pi, type_dftb
+    use representations, only: reptype_isosurface, repflavor_isosurface
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic, mode_smr
     use tools_io, only: string, uout, nameguess
     use types, only: realloc
@@ -110,6 +112,8 @@ contains
     integer, save :: lastmaxprops = -1 ! last max number of simultaneous property icons (to detect resize)
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     real(c_float), save :: fieldnorm = 1._c_float ! for the field normalize menu option
+    real*8, save :: fieldintg = 0d0 ! current integral shown in the normalize menu option
+    logical, save :: fieldintg_open = .false. ! whether the normalize menu was open last frame
     logical, save :: fielddocore = .false. ! for the field core-augmentation menu option
     integer(c_int), allocatable, save :: fieldzpsp(:) ! for the field core-augmentation menu option
 
@@ -816,6 +820,10 @@ contains
     end if
     call igPopStyleVar(3_c_int)
 
+    ! transient error from the field-settings menu items
+    if (len_trim(w%errmsg) > 0 .and. glfwGetTime() - w%timelast_errmsg < errmsg_linger) &
+       call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+
     ! multi-selection buttons, under the table. They carry no label, so
     ! that they still fit when the tree panel is narrow; the tooltips and
     ! the "n selected" counter in the header line say what they act on.
@@ -1226,8 +1234,12 @@ contains
       character(len=:), allocatable :: errmsg
 
       call sys(i)%f(k)%set_options(opt,errmsg)
-      if (len_trim(errmsg) > 0) &
+      if (len_trim(errmsg) > 0) then
          write (uout,'("!! Warning !! Error setting field option: ",A)') trim(errmsg)
+         ! show the error transiently in the tree window, too
+         w%errmsg = "Error setting option for field " // string(k) // ": " // trim(errmsg)
+         w%timelast_errmsg = glfwGetTime()
+      end if
 
     end subroutine field_setopt
 
@@ -1266,7 +1278,7 @@ contains
       logical :: isend, okz
       integer(c_int) :: flags, color
       type(ImVec4) :: col4
-      integer :: id, is
+      integer :: id, is, irep
 
       ! start the row and color the name cell like the parent system's
       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1321,12 +1333,12 @@ contains
 
       ! right click to open the field context menu
       if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
-         ! remove option (fields)
-         if (k > 0) then
-            if (iw_menuitem("Remove")) &
-               call sys(i)%unload_field(k)
-            call iw_tooltip("Remove this field",ttshown)
+         ! set as reference (same as a left-click on the row)
+         if (iw_menuitem("Set as Reference",selected=(sys(i)%iref == k))) then
+            call w%select_system_tree(i)
+            call sys(i)%set_reference(k,.false.)
          end if
+         call iw_tooltip("Make this the reference field of the system",ttshown)
 
          ! rename option (fields)
          if (iw_beginmenu("Rename")) then
@@ -1337,7 +1349,6 @@ contains
          end if
          call iw_tooltip("Rename this field",ttshown)
 
-         !! now the load new field options !!
          call igSeparator()
 
          ! duplicate option (fields)
@@ -1345,12 +1356,13 @@ contains
             id = sys(i)%getfieldnum()
             call sys(i)%field_copy(k,id)
             sys(i)%f(id)%id = id
-            sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
+            sys(i)%f(id)%name = trim(sys(i)%f(k)%name) // " (copy)"
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)
 
          !! field settings !!
          call igSeparator()
+         ldum = iw_menuitem("[Settings]",enabled=.false.)
 
          ! interpolation mode and normalization (grids)
          if (sys(i)%f(k)%type == type_grid) then
@@ -1376,10 +1388,20 @@ contains
             call iw_tooltip("Interpolation method used to evaluate the grid between its points",ttshown)
 
             if (iw_beginmenu("Normalize")) then
+               ! seed the displayed integral and the value when the
+               ! submenu opens (a full pass over the grid)
+               if (.not.fieldintg_open) then
+                  fieldintg = sys(i)%f(k)%grid%cell_integral(sys(i)%c%omega)
+                  fieldnorm = real(fieldintg,c_float)
+                  fieldintg_open = .true.
+               end if
+               call iw_text("Current integral: " // string(fieldintg,'f',decimal=6))
                ldum = iw_inputfloat("Value##fieldmenunorm",fieldnorm,width=10)
                if (iw_menuitem("OK##fieldmenunormok")) &
                   call field_setopt(i,k,"normalize " // string(fieldnorm,'f',decimal=6))
                call igEndMenu()
+            else
+               fieldintg_open = .false.
             end if
             call iw_tooltip("Rescale the grid values so its cell integral equals the given value",ttshown)
          end if
@@ -1487,6 +1509,7 @@ contains
 
          !! load new field options !!
          call igSeparator()
+         ldum = iw_menuitem("[New field from this one]",enabled=.false.)
 
          ! grid calculation options
          if (sys(i)%f(k)%type == type_grid) then
@@ -1597,6 +1620,27 @@ contains
             end if
             call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
 
+         end if
+
+         ! new isosurface object bound to this field
+         if (iw_menuitem("New Isosurface Object",enabled=ok_system(i,sys_init))) then
+            ! the main view must show this system: the object lives in
+            ! its scene and the object editor follows the view
+            call win(iwin_view)%select_view(i)
+            call w%select_system_tree(i)
+            call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface,id=irep)
+            if (irep > 0) call win(iwin_view)%sc%rep(irep)%iso%set_field(i,k)
+         end if
+         call iw_tooltip("Display an isosurface of this field in the view,&
+            & and open its object editor",ttshown)
+
+         ! remove option (fields), at the bottom and in red: it destroys
+         ! the field with no confirmation
+         if (k > 0) then
+            call igSeparator()
+            if (iw_menuitem("Remove",danger=.true.)) &
+               call sys(i)%unload_field(k)
+            call iw_tooltip("Remove this field",ttshown)
          end if
 
          call igEndPopup()
@@ -2339,7 +2383,7 @@ contains
        call iw_text("Longest Voronoi vector (bohr): ",highlight=.true.)
        call iw_text(string(f%grid%dmax,'f',decimal=5),sameline_nospace=.true.)
        call iw_text("Grid integral: ",highlight=.true.)
-       call iw_text(string(sum(f%grid%f) * f%c%omega / real(product(f%grid%n),4),'f',decimal=8),sameline_nospace=.true.)
+       call iw_text(string(f%grid%cell_integral(f%c%omega),'f',decimal=8),sameline_nospace=.true.)
        call iw_text("Minimum value: ",highlight=.true.)
        call iw_text(string(minval(f%grid%f),'e',decimal=4),sameline_nospace=.true.)
        call iw_text("Average: ",highlight=.true.)

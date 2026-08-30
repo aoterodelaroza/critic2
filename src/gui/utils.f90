@@ -333,12 +333,13 @@ module utils
        real(c_float), intent(in), optional :: rgba(4)
        logical, intent(in), optional :: wrap
      end subroutine iw_text
-     module function iw_menuitem(label,keybind,selected,enabled,shortcut_text)
+     module function iw_menuitem(label,keybind,selected,enabled,shortcut_text,danger)
        character(len=*,kind=c_char), intent(in) :: label
        integer, intent(in), optional :: keybind
        logical, intent(in), optional :: selected
        logical, intent(in), optional :: enabled
        character(len=*,kind=c_char), intent(in), optional :: shortcut_text
+       logical, intent(in), optional :: danger
        logical :: iw_menuitem
      end function iw_menuitem
      module function iw_button(str,danger,sameline,disabled,siz,&

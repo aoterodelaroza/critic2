@@ -58,6 +58,7 @@ module gui_main
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples
   logical, public :: tooltip_enabled = .true. ! whether tooltips are enabled
   real(c_float), public :: tooltip_delay = 0.5_c_float ! tooltip delay, in seconds
+  real*8, parameter, public :: errmsg_linger = 6d0 ! seconds a transient error message stays shown
   real(c_float), public :: tooltip_wrap_factor = 40._c_float ! tooltip wrap factor (fontsize)
   logical, parameter, public :: reuse_mid_empty_systems = .false. ! whether to reuse the empty systems in the middle
   logical, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console

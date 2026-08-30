@@ -214,6 +214,7 @@ module windows
      ! from an expression
      character(len=:,kind=c_char), allocatable :: expr ! the expression
      integer(c_int) :: exprdom = 0_c_int ! 0=automatic, 1=ghost, 2=grid size, 3=sizeof field
+     character(len=:,kind=c_char), allocatable :: exprerr ! expression validation error (empty = valid)
      ! promolecular / core
      integer(c_int) :: promopt = 0_c_int ! 0=analytic promolecular, 1=promolecular grid, 2=core grid
      ! grid transform
@@ -331,6 +332,7 @@ module windows
      integer :: tree_selanchor = 0 ! anchor row for the shift-click range in the tree multi-selection
      real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
      real*8 :: timelast_tree_resize = 0d0 ! time the tree columnes were last resized
+     real*8 :: timelast_errmsg = -1d30 ! time the transient errmsg was generated
      ! view parameters
      logical :: ismain ! whether this is the main view or an alternate
      type(scene), pointer :: sc ! pointer to the view scene
@@ -367,6 +369,7 @@ module windows
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
      type(dialog_userdata) :: dialog_data ! for the side pane callback
+     character(len=:,kind=c_char), allocatable :: dialog_filter ! file filter for one-file dialogs
      ! input console parameters
      ! output console parameters
      ! new structure from library & save image
@@ -560,6 +563,7 @@ module windows
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
      procedure :: select_view ! select the system to show in a view
+     procedure :: add_rep_and_edit ! add a representation to the view's scene and open its editor
      procedure :: draw_cursor_overlay ! draw the overlay at the mouse cursor (mode icon + measurement)
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
@@ -770,7 +774,8 @@ module windows
      end subroutine windows_init
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise)
+     module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise,&
+        dialog_filter)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
@@ -780,6 +785,7 @@ module windows
        integer, intent(in), optional :: itoken
        logical, intent(in), optional :: permanent
        integer, intent(in), optional :: orraise
+       character(len=*,kind=c_char), intent(in), optional :: dialog_filter
        integer :: stack_create_window
      end function stack_create_window
      module subroutine okfile_warn_overwrite(w)
@@ -799,7 +805,7 @@ module windows
      end subroutine build_write_format_combo
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
-     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
+     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
@@ -809,6 +815,7 @@ module windows
        integer, intent(in), optional :: irep
        integer, intent(in), optional :: idparent
        integer, intent(in), optional :: itoken
+       character(len=*,kind=c_char), intent(in), optional :: dialog_filter
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout), target :: w
@@ -879,6 +886,11 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
+     module subroutine add_rep_and_edit(w,itype,flavor,id)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: itype, flavor
+       integer, intent(out), optional :: id
+     end subroutine add_rep_and_edit
      module subroutine viewmode_set_mode(w,okmods)
        class(window), intent(inout), target :: w
        logical, intent(in) :: okmods

@@ -302,7 +302,8 @@ contains
   !> orraise = if this is a valid window ID, raise the window instead
   !> of creating a new one; if orraise < 0, raise the first window
   !> from the stack with the same type as type.
-  module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise)
+  module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise,&
+     dialog_filter)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
@@ -314,6 +315,7 @@ contains
     integer, intent(in), optional :: itoken
     logical, intent(in), optional :: permanent
     integer, intent(in), optional :: orraise
+    character(len=*,kind=c_char), intent(in), optional :: dialog_filter
 
     integer :: stack_create_window
 
@@ -389,7 +391,7 @@ contains
        call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
-    call win(id)%init(type,isopen,id,purpose,isys,irep,idparent,itoken)
+    call win(id)%init(type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
     if (present(permanent)) then
        win(id)%permanent = permanent
     else
@@ -515,7 +517,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
+  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
@@ -529,6 +531,7 @@ contains
     integer, intent(in), optional :: irep
     integer, intent(in), optional :: idparent
     integer, intent(in), optional :: itoken
+    character(len=*,kind=c_char), intent(in), optional :: dialog_filter
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -545,6 +548,10 @@ contains
     w%sortcid = 0
     w%sortdir = 1
     w%okfile = ""
+    ! only the one-file modal dialog (wpurp_dialog_openonefilemodal)
+    ! honors dialog_filter; other purposes use their own filter lists
+    if (allocated(w%dialog_filter)) deallocate(w%dialog_filter)
+    if (present(dialog_filter)) w%dialog_filter = dialog_filter
     w%okfile_lastcheck = ""
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
@@ -1025,6 +1032,8 @@ contains
                 c_loc(str2),c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
+             if (allocated(w%dialog_filter)) &
+                str1 = w%dialog_filter // ",All files (*.*){*.*}" // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_saveimagefile) then

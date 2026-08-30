@@ -1321,19 +1321,22 @@ contains
   !> use the key bind text as shortcut. If selected, mark the menu
   !> item as selected (default = false). If enabled, mark the menu
   !> item as enabled (default = true).
-  module function iw_menuitem(label,keybind,selected,enabled,shortcut_text)
+  module function iw_menuitem(label,keybind,selected,enabled,shortcut_text,danger)
     use interfaces_cimgui
     use keybindings, only: get_bind_keyname
+    use gui_main, only: ColorDangerText
     character(len=*,kind=c_char), intent(in) :: label
     integer, intent(in), optional :: keybind
     logical, intent(in), optional :: selected
     logical, intent(in), optional :: enabled
     character(len=*,kind=c_char), intent(in), optional :: shortcut_text
+    logical, intent(in), optional :: danger
     logical :: iw_menuitem
 
     character(len=:,kind=c_char), allocatable, target :: str1, str2
     type(c_ptr) :: shortcutptr
     logical(c_bool) :: selected_, enabled_
+    logical :: danger_
 
     str1 = trim(label) // c_null_char
     if (present(keybind)) then
@@ -1349,8 +1352,12 @@ contains
     if (present(selected)) selected_ = selected
     enabled_ = .true._c_bool
     if (present(enabled)) enabled_ = enabled
+    danger_ = .false.
+    if (present(danger)) danger_ = danger
 
+    if (danger_) call igPushStyleColor_Vec4(ImGuiCol_Text,ColorDangerText)
     iw_menuitem = igMenuItem_Bool(c_loc(str1),shortcutptr,selected_,enabled_)
+    if (danger_) call igPopStyleColor(1_c_int)
 
   end function iw_menuitem
 

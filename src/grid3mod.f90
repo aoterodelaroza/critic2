@@ -121,6 +121,7 @@ module grid3mod
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
      procedure :: get_domain !< lattice vectors and Cartesian origin of the grid data domain
+     procedure :: cell_integral
      procedure :: stats !< statistics of the grid values (range, mean, rms, integral, quantile level)
      procedure :: interp !< interpolate the grid at an arbitrary point
      procedure :: fft !< grid3 as the FFT of another grid3
@@ -289,6 +290,11 @@ module grid3mod
        real*8, intent(out), optional :: flo(3)
        real*8, intent(out), optional :: fhi(3)
      end subroutine get_domain
+     module function cell_integral(f,omega)
+       class(grid3), intent(in) :: f
+       real*8, intent(in) :: omega
+       real*8 :: cell_integral
+     end function cell_integral
      module subroutine stats(f,fmin,fmax,fmean,famean,frms,qlevel,qfrac,hist,hrange,hhave,&
         hcumq,hcumv,hcumrange,hdef)
        class(grid3), intent(in) :: f
