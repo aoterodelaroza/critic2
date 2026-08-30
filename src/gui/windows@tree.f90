@@ -1032,6 +1032,41 @@ contains
 
       ! right click to open the context menu
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
+         ! set as current system, with a mark on the current one
+         if (iw_menuitem("Set as Current System",enabled=enabled_no_threads,&
+            selected=(w%isys == isys))) &
+            call w%select_system_tree(isys)
+         call iw_tooltip("Set this system as the current system",ttshown)
+
+         ! rename option (system)
+         if (iw_beginmenu("Rename",sysc(isys)%status /= sys_group)) then
+            if (iw_inputtext("##inputrename",bufsize=mlen-1,textf=sysc(isys)%seed%name,grabfocus=.true.,&
+               notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
+               sysc(isys)%renamed = .true.
+               call igCloseCurrentPopup()
+            end if
+            call igEndMenu()
+         end if
+         call iw_tooltip("Rename this system",ttshown)
+
+         call igSeparator()
+
+         ! duplicate system
+         if (iw_menuitem("Duplicate",enabled=enabled_no_threads)) &
+            call duplicate_system(isys)
+         call iw_tooltip("Create a copy of this system",ttshown)
+
+         ! display in a new view window
+         if (iw_menuitem("Display in New View",enabled=enabled_no_threads)) then
+            idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
+            win(idum)%sc = sysc(isys)%sc
+            ! the value copy aliased the source scene's GL handles; detach so the
+            ! new view lazily builds its own instance buffers
+            call win(idum)%sc%gl%detach()
+            win(idum)%isys = isys
+         end if
+         call iw_tooltip("Display this system in a new view window",ttshown)
+
          ! scf energy plot: only for a group of systems that are the steps
          ! of one calculation, which is headed by the last of those steps.
          ! A group headed by a header entry has no such sequence
@@ -1045,35 +1080,32 @@ contains
             call iw_tooltip("Plot the energy and other properties as a function of SCF cycle iterations",ttshown)
          end if
 
-         ! geometry submenu (system)
-         if (iw_beginmenu("System")) then
-            ! Geometry
-            ! the geometry window edits what its view shows, so point the main
-            ! view at this row before opening it there
-            if (iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)) then
-               call win(iwin_view)%select_view(isys)
-               idum = stack_create_window(wintype_geometry,.true.,idparent=iwin_view,orraise=-1)
-            end if
-            call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+         call igSeparator()
+         ldum = iw_menuitem("[Contents]",enabled=.false.)
 
-            ! describe this system in the console output
-            if (iw_menuitem("Describe in Output Window",enabled=enabled)) then
-               idx = index(sysc(isys)%seed%name,c_null_char)
-               strl = "### Describe system (" // string(isys) // "): " // trim(sysc(isys)%seed%name(1:idx-1))
-               write (uout,'(/A/)') trim(strl)
-               if (sys(isys)%c%ismolecule) then
-                  iunit = iunit_ang
-               else
-                  iunit = iunit_bohr
-               end if
-               call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
-               iunit = iunit_bohr
-               ldum = read_output_uout(.true.,"[Describe system " // string(isys) // "]")
-            end if
-            call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
-
-            call igEndMenu()
+         ! geometry: the geometry window edits what its view shows, so
+         ! point the main view at this row before opening it there
+         if (iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)) then
+            call win(iwin_view)%select_view(isys)
+            idum = stack_create_window(wintype_geometry,.true.,idparent=iwin_view,orraise=-1)
          end if
+         call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+
+         ! describe this system in the console output
+         if (iw_menuitem("Describe in Output Window",enabled=enabled)) then
+            idx = index(sysc(isys)%seed%name,c_null_char)
+            strl = "### Describe system (" // string(isys) // "): " // trim(sysc(isys)%seed%name(1:idx-1))
+            write (uout,'(/A/)') trim(strl)
+            if (sys(isys)%c%ismolecule) then
+               iunit = iunit_ang
+            else
+               iunit = iunit_bohr
+            end if
+            call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+            iunit = iunit_bohr
+            ldum = read_output_uout(.true.,"[Describe system " // string(isys) // "]")
+         end if
+         call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
 
          ! fields submenu (system)
          if (iw_beginmenu("Fields")) then
@@ -1090,6 +1122,18 @@ contains
             call iw_tooltip("Load a scalar field for this system from a file,&
                & choosing the file first",ttshown)
 
+            ! remove all fields, destructive
+            ok = enabled
+            if (ok) ok = (sys(isys)%nf > 0)
+            if (ok) ok = any(sys(isys)%f(1:sys(isys)%nf)%isinit)
+            if (iw_menuitem("Remove All Fields",enabled=ok,danger=.true.)) then
+               do k = 1, sys(isys)%nf
+                  if (.not.sys(isys)%f(k)%isinit) cycle
+                  call sys(isys)%unload_field(k)
+               end do
+            end if
+            call iw_tooltip("Remove all fields in this system",ttshown)
+
             call igEndMenu()
          end if
 
@@ -1102,75 +1146,24 @@ contains
             end if
             call iw_tooltip("Load vibration data from an external file for this system",ttshown)
 
-            ! clear vibration data
-            if (iw_menuitem("Clear Vibration Data",enabled=enabled)) &
+            ! clear vibration data, destructive
+            if (iw_menuitem("Clear Vibration Data",enabled=enabled,danger=.true.)) &
                call sys(isys)%c%vib%end()
             call iw_tooltip("Clear the vibration data for this system",ttshown)
 
             call igEndMenu()
          end if
 
-         ! rename option (system)
-         if (iw_beginmenu("Rename",sysc(isys)%status /= sys_group)) then
-            if (iw_inputtext("##inputrename",bufsize=mlen-1,textf=sysc(isys)%seed%name,grabfocus=.true.,&
-               notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
-               sysc(isys)%renamed = .true.
-               call igCloseCurrentPopup()
-            end if
-            call igEndMenu()
-         end if
-         call iw_tooltip("Rename this system",ttshown)
-
-         ! set as current system option
-         if (iw_menuitem("Set as Current System",enabled=enabled_no_threads)) &
+         ! new isosurface of the reference field: the new object defaults
+         ! to the reference field, so pointing the view at this system
+         ! before adding the representation is all that is needed
+         if (iw_menuitem("New Isosurface",enabled=enabled)) then
+            call win(iwin_view)%select_view(isys)
             call w%select_system_tree(isys)
-         call iw_tooltip("Set this system as the current system",ttshown)
-
-         ! set as current system option
-         if (iw_menuitem("Display in New View",enabled=enabled_no_threads)) then
-            idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
-            win(idum)%sc = sysc(isys)%sc
-            ! the value copy aliased the source scene's GL handles; detach so the
-            ! new view lazily builds its own instance buffers
-            call win(idum)%sc%gl%detach()
-            win(idum)%isys = isys
+            call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
          end if
-         call iw_tooltip("Display this system in a new view window",ttshown)
-
-         ! duplicate system
-         if (iw_menuitem("Duplicate",enabled=enabled_no_threads)) &
-            call duplicate_system(isys)
-         call iw_tooltip("Create a copy of this system",ttshown)
-
-         ! reopen from file
-         if (iw_menuitem("Restore from File",enabled=enabled_no_threads)) then
-            call reread_system_from_file(isys)
-         end if
-         call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
-
-         ! remove option (system)
-         ok = enabled
-         if (ok) ok = (sys(isys)%nf > 0)
-         if (ok) ok = any(sys(isys)%f(1:sys(isys)%nf)%isinit)
-         if (ok) then
-            if (iw_menuitem("Remove All Fields")) then
-               do k = 1, sys(isys)%nf
-                  if (.not.sys(isys)%f(k)%isinit) cycle
-                  call sys(isys)%unload_field(k)
-               end do
-            end if
-            call iw_tooltip("Remove all fields in this system",ttshown)
-         end if
-
-         ! remove option (system). A group header can be closed even though
-         ! it is not a system: that closes the systems it heads
-         if (iw_menuitem("Close",enabled=(enabled .or. sysc(isys)%status == sys_group))) &
-            forceremove = (/isys/)
-         if (sysc(isys)%status == sys_group) then
-            call iw_tooltip("Close all the systems in this group",ttshown)
-         else
-            call iw_tooltip("Close this system",ttshown)
-         end if
+         call iw_tooltip("Display an isosurface of the reference field in the view,&
+            & and open its object editor",ttshown)
 
          ! save several systems to files. It acts on the tree and not on
          ! this system, so it goes apart from the entries above
@@ -1178,6 +1171,27 @@ contains
          if (iw_menuitem("Save Multiple...",enabled=(nsys > 0 .and..not.are_threads_running()))) &
             idum = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
          call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
+
+         ! destructive actions, in red at the bottom
+         call igSeparator()
+
+         ! reopen from file
+         if (iw_menuitem("Restore from File",enabled=enabled_no_threads,danger=.true.)) then
+            call reread_system_from_file(isys)
+         end if
+         call iw_tooltip("Read the file for this system and reopen it, discarding&
+            & the current structure (only the last structure is read)",ttshown)
+
+         ! close option (system). A group header can be closed even though
+         ! it is not a system: that closes the systems it heads
+         if (iw_menuitem("Close",enabled=(enabled .or. sysc(isys)%status == sys_group),&
+            danger=.true.)) &
+            forceremove = (/isys/)
+         if (sysc(isys)%status == sys_group) then
+            call iw_tooltip("Close all the systems in this group",ttshown)
+         else
+            call iw_tooltip("Close this system",ttshown)
+         end if
 
          call igEndPopup()
       end if
@@ -1623,7 +1637,7 @@ contains
          end if
 
          ! new isosurface object bound to this field
-         if (iw_menuitem("New Isosurface Object",enabled=ok_system(i,sys_init))) then
+         if (iw_menuitem("New Isosurface",enabled=ok_system(i,sys_init))) then
             ! the main view must show this system: the object lives in
             ! its scene and the object editor follows the view
             call win(iwin_view)%select_view(i)
