@@ -636,7 +636,7 @@ contains
       strad = "Advanced options##loadfieldadvanced" // c_null_char
       if (igTreeNodeEx_Str(c_loc(strad),ImGuiTreeNodeFlags_None)) then
          ! typnuc
-         call iw_combo_simple("Nuclear CP signature (TYPNUC)##loadfieldtypnuc",&
+         call iw_combo_simple("Nuclear critical point signature##loadfieldtypnuc",&
             "-3 (maximum)"//c_null_char//"-1"//c_null_char//"+1"//c_null_char//&
             "+3 (minimum)"//c_null_char,w%lf%itypnuc)
          call iw_tooltip("Signature of the critical points at the nuclear positions&

@@ -1162,8 +1162,7 @@ contains
             call w%select_system_tree(isys)
             call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
          end if
-         call iw_tooltip("Display an isosurface of the reference field in the view,&
-            & and open its object editor",ttshown)
+         call iw_tooltip("Display an isosurface of the reference field in the view",ttshown)
 
          ! save several systems to files. It acts on the tree and not on
          ! this system, so it goes apart from the entries above
@@ -1473,14 +1472,13 @@ contains
             call iw_tooltip("Calculate the field derivatives numerically",ttshown)
             if (iw_menuitem("Analytical",selected=.not.sys(i)%f(k)%numerical)) &
                call field_setopt(i,k,"analytical")
-            call iw_tooltip("Calculate the field derivatives analytically (or with&
-               & the interpolation)",ttshown)
+            call iw_tooltip("Calculate the field derivatives analytically",ttshown)
             call igEndMenu()
          end if
          call iw_tooltip("Method for calculating the field derivatives",ttshown)
 
          ! typnuc
-         if (iw_beginmenu("Nuclear CP Signature (TYPNUC)")) then
+         if (iw_beginmenu("Nuclear critical point signature")) then
             if (iw_menuitem("-3 (maximum)",selected=(sys(i)%f(k)%typnuc == -3))) &
                call field_setopt(i,k,"typnuc -3")
             if (iw_menuitem("-1",selected=(sys(i)%f(k)%typnuc == -1))) &
@@ -1645,8 +1643,7 @@ contains
             call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface,id=irep)
             if (irep > 0) call win(iwin_view)%sc%rep(irep)%iso%set_field(i,k)
          end if
-         call iw_tooltip("Display an isosurface of this field in the view,&
-            & and open its object editor",ttshown)
+         call iw_tooltip("Display an isosurface of this field in the view",ttshown)
 
          ! remove option (fields), at the bottom and in red: it destroys
          ! the field with no confirmation
