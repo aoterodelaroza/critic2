@@ -860,6 +860,85 @@ contains
 
   end function ok_system
 
+  !> Reload field ifield of system isys from its source file, this
+  !> time reading the virtual orbitals (fchk and molden files). The
+  !> reloaded field replaces the old one in the same slot, keeping its
+  !> name and the system's reference field selection. On error, errmsg
+  !> is non-empty and the old field is untouched.
+  module subroutine reload_field_with_virtuals(isys,ifield,errmsg)
+    use wfn_private, only: molden_type_psi4, molden_type_orca
+    use tools_io, only: quoteword
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: idnew, irefsave, typnuc
+    logical :: usecore, numerical, exact
+    integer, allocatable :: zpsp(:)
+    character(len=:), allocatable :: name, file, lstr
+
+    errmsg = ""
+    if (.not.ok_system(isys,sys_init)) then
+       errmsg = "invalid system"
+       return
+    end if
+    if (.not.sys(isys)%goodfield(ifield)) then
+       errmsg = "invalid field"
+       return
+    end if
+    file = trim(sys(isys)%f(ifield)%file)
+    if (len_trim(file) == 0) then
+       errmsg = "the field does not come from a file"
+       return
+    end if
+    name = trim(sys(isys)%f(ifield)%name)
+    irefsave = sys(isys)%iref
+
+    ! the load options that are not part of the file name, so the
+    ! reloaded field is the same field plus the virtual orbitals: the
+    ! molden dialect changes how the file is read (it is re-stated
+    ! explicitly, whether the user chose it or it was auto-detected),
+    ! and the rest are field options applied after the load
+    lstr = quoteword(file) // " readvirtual"
+    if (sys(isys)%f(ifield)%wfn%molden_type == molden_type_psi4) then
+       lstr = lstr // " psi4"
+    elseif (sys(isys)%f(ifield)%wfn%molden_type == molden_type_orca) then
+       lstr = lstr // " orca"
+    end if
+    usecore = sys(isys)%f(ifield)%usecore
+    numerical = sys(isys)%f(ifield)%numerical
+    exact = sys(isys)%f(ifield)%exact
+    typnuc = sys(isys)%f(ifield)%typnuc
+    if (allocated(sys(isys)%f(ifield)%zpsp)) zpsp = sys(isys)%f(ifield)%zpsp
+
+    ! load the file into a new slot
+    call sys(isys)%load_field_string(lstr,.false.,idnew,errmsg)
+    if (has_errmsg(errmsg)) return
+    if (.not.sys(isys)%goodfield(idnew)) then
+       errmsg = "could not reload the field"
+       return
+    end if
+
+    ! move the new field into the original slot, restoring the name and
+    ! the options that did not come from the file, and drop the extra slot
+    call sys(isys)%field_copy(idnew,ifield)
+    sys(isys)%f(ifield)%name = name
+    sys(isys)%f(ifield)%usecore = usecore
+    sys(isys)%f(ifield)%numerical = numerical
+    sys(isys)%f(ifield)%exact = exact
+    sys(isys)%f(ifield)%typnuc = typnuc
+    if (allocated(zpsp)) sys(isys)%f(ifield)%zpsp = zpsp
+    call sys(isys)%unload_field(idnew)
+
+    ! the reference does not normally move (load_field_string only sets
+    ! it if the system has none), but restore it if it did. This is
+    ! conditional because set_reference resets the integrable and
+    ! point-property lists, which are the user's to keep
+    if (sys(isys)%iref /= irefsave) &
+       call sys(isys)%set_reference(irefsave,.false.)
+
+  end subroutine reload_field_with_virtuals
+
   !> Return .true. if the (optional) errmsg is present and non-empty.
   function has_errmsg(errmsg)
     character(len=:), allocatable, intent(in), optional :: errmsg
@@ -3685,7 +3764,7 @@ contains
     integer :: i, i0, i1
     integer(c_int) :: idum
     integer :: iff, ivformat
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, str
 
     ! written by the main thread (kill_initialization_thread); the volatile
     ! attribute must be repeated here so the poll below is not optimized away
@@ -3719,8 +3798,12 @@ contains
 
                 ! load any fields
                 if (sysc(i)%has_field) then
-                   ! quoted so a path with blanks survives the LOAD tokenizer
-                   call sys(i)%load_field_string(quoteword(sysc(i)%seed%file),.false.,iff,errmsg,ti=ti)
+                   ! quoted so a path with blanks survives the LOAD tokenizer;
+                   ! honor the read-the-virtuals preference (a no-op for
+                   ! formats without virtual orbitals)
+                   str = quoteword(sysc(i)%seed%file)
+                   if (always_read_virtuals) str = str // " readvirtual"
+                   call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                       write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)

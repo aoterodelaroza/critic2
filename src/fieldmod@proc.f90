@@ -1205,6 +1205,22 @@ contains
 
   end subroutine eval_avail
 
+  !> Return .true. if this is a molecular wavefunction field whose
+  !> source file contains virtual (unoccupied) orbitals that were not
+  !> read, i.e. if re-reading the file with the readvirtual option
+  !> would make the virtual orbitals available.
+  module function has_unread_virtuals(f)
+    class(field), intent(in) :: f
+    logical :: has_unread_virtuals
+
+    has_unread_virtuals = .false.
+    if (.not.f%isinit) return
+    if (f%type /= type_wfn) return
+    if (.not.allocated(f%wfn)) return
+    has_unread_virtuals = f%wfn%virtinfile .and. .not.f%wfn%hasvirtual
+
+  end function has_unread_virtuals
+
   !> Calculate only the value of the scalar field at the given point
   !> (v in Cartesian). If periodic is present and false, consider the
   !> field is defined in a non-periodic system. This routine is

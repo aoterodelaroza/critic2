@@ -55,7 +55,7 @@ contains
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
-       remove_systems
+       remove_systems, reload_field_with_virtuals
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: ColorTableCellBg, tooltip_delay, errmsg_linger,&
        ColorFieldSelected, ColorTableHighlightRow,&
@@ -1287,6 +1287,7 @@ contains
       integer, intent(in) :: i, k
 
       character(kind=c_char,len=:), allocatable, target :: str
+      character(len=:), allocatable :: errmsg
       logical(c_bool) :: isel, ldum
       logical :: isend, okz
       integer(c_int) :: flags, color
@@ -1372,6 +1373,20 @@ contains
             sys(i)%f(id)%name = trim(sys(i)%f(k)%name) // " (copy)"
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)
+
+         ! reload with virtual orbitals (wavefunction fields whose file
+         ! has virtuals that were not read)
+         if (iw_menuitem("Reload with Virtual Orbitals",enabled=sys(i)%f(k)%has_unread_virtuals())) then
+            call reload_field_with_virtuals(i,k,errmsg)
+            if (len_trim(errmsg) > 0) then
+               write (uout,'("!! Warning !! Could not reload the field: ",A)') trim(errmsg)
+               ! show the error transiently in the tree window, too
+               w%errmsg = "Error reloading field " // string(k) // ": " // trim(errmsg)
+               w%timelast_errmsg = glfwGetTime()
+            end if
+         end if
+         call iw_tooltip("Re-read the wavefunction file for this field, this time&
+            & including the virtual (unoccupied) orbitals",ttshown)
 
          !! field settings !!
          call igSeparator()

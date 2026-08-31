@@ -28,13 +28,14 @@ contains
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_interface_settings, set_default_color_settings,&
+       set_default_reader_settings,&
        ColorTableCellBg, ColorFieldSelected, ColorTableHighlightRow,&
        ColorTableSelectedBorder,&
        ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
        ColorElement, uiscale
     use representations, only: iso_defaultlevel, iso_level_optstr
-    use systems, only: nsys, sysc
+    use systems, only: nsys, sysc, always_read_virtuals
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
@@ -54,7 +55,7 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
-    integer(c_int), save :: catid = 0 ! category ID (from left panel) 0=interface,1=keybinding,2=colors
+    integer(c_int), save :: catid = 0 ! category ID (from left panel) 0=interface,1=keybinding,2=colors,3=readers
     integer(c_int), save :: getbind = -1 ! get binding flag
 
     real(c_float), parameter :: wleft = 200._c_float
@@ -97,6 +98,9 @@ contains
        str = "Colors" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 2,c_bool),ImGuiSelectableFlags_None,szero)) catid = 2
        call iw_tooltip("Background colors for the systems in the tree window",ttshown)
+       str = "Readers" // c_null_char
+       if (igSelectable_Bool(c_loc(str),logical(catid == 3,c_bool),ImGuiSelectableFlags_None,szero)) catid = 3
+       call iw_tooltip("Options for reading structure and field files",ttshown)
     end if
     call igEndChild()
     call igSameLine(0._c_float,-1._c_float)
@@ -356,6 +360,18 @@ contains
              call igEndTable()
           end if
 
+       elseif (catid == 3) then
+          !! readers
+          call iw_text("Readers",highlight=.true.)
+          call igSeparator()
+
+          str = "Always read the virtual orbitals" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = iw_checkbox(str,always_read_virtuals)
+             call iw_tooltip("Read the virtual (unoccupied) molecular orbitals whenever&
+                & a molecular wavefunction file (fchk, molden) is loaded as a field",ttshown)
+          end if
+
        end if
     end if
     call igEndChild()
@@ -374,6 +390,8 @@ contains
              call set_default_keybindings()
           elseif (catid == 2) then
              call set_default_color_settings()
+          elseif (catid == 3) then
+             call set_default_reader_settings()
           end if
        end if
        call iw_tooltip("Reset the settings in this category to their default values",ttshown)

@@ -28,7 +28,7 @@ contains
   !> selection or the window goes away). The Create Isosurface Object
   !> button copies the transient into a permanent representation.
   module subroutine draw_mo(w)
-    use systems, only: sysc, sys, sys_init, ok_system
+    use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_defaultlevel, iso_level_optstr, iso_alpha_def, iso_rgb_palette,&
        iso_grid_size, iso_region_to_box
@@ -69,6 +69,7 @@ contains
        w%mo_alpha = iso_alpha_def
     end if
     if (w%firstpass .or. syschanged) then
+       w%errmsg = "" ! the error, if any, was about the previous system
        w%mo_selected = 0
        w%mo_scrolled = .false.
     end if
@@ -110,6 +111,9 @@ contains
           call iw_text("The reference field cannot provide molecular orbitals",danger=.true.,wrap=.true.)
     end if
 
+    ! maybe the error message
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+
     if (mo_ok) then
        associate (wfn => sys(isys)%f(iref)%wfn)
          ! wavefunction description
@@ -124,12 +128,23 @@ contains
          end if
          call iw_text("Wavefunction",highlight=.true.)
          call iw_text(s // ", " // string(wfn%nmoocc) // " occupied MOs",sameline=.true.)
-         if (wfn%hasvirtual) then
+         if (wfn%hasvirtual) &
             call iw_text(", " // string(wfn%nmoall-wfn%nmoocc) // " virtual",sameline_nospace=.true.)
-         else
-            call iw_text(" (no virtuals available)",sameline_nospace=.true.)
-         end if
+       end associate
 
+       ! virtual orbitals: if the file has them but they were not read,
+       ! offer to re-read it. The reload replaces the field, so it can
+       ! not run inside an associate block that aliases it
+       if (sys(isys)%f(iref)%has_unread_virtuals()) then
+          if (iw_button("Reload with Virtual Orbitals",danger=.true.)) &
+             call reload_field_with_virtuals(isys,iref,w%errmsg)
+          call iw_tooltip("Re-read the wavefunction file for the reference field,&
+             & this time including the virtual (unoccupied) orbitals",ttshown)
+       elseif (.not.sys(isys)%f(iref)%wfn%hasvirtual) then
+          call iw_text("No virtuals available")
+       end if
+
+       associate (wfn => sys(isys)%f(iref)%wfn)
          ! drop a stale selection
          if (w%mo_selected > wfn%nmoall) w%mo_selected = 0
          ihomo = wfn%nmoocc

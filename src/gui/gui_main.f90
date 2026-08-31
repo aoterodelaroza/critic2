@@ -152,6 +152,7 @@ module gui_main
   public :: set_default_ui_settings
   public :: set_default_interface_settings
   public :: set_default_color_settings
+  public :: set_default_reader_settings
   public :: show_tools_menu
 
   interface
@@ -167,6 +168,8 @@ module gui_main
      end subroutine set_default_interface_settings
      module subroutine set_default_color_settings()
      end subroutine set_default_color_settings
+     module subroutine set_default_reader_settings()
+     end subroutine set_default_reader_settings
      module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
        integer, intent(in) :: isys
        integer, intent(in) :: idparent

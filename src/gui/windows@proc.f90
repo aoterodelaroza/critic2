@@ -521,6 +521,7 @@ contains
   module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
+    use systems, only: always_read_virtuals
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -594,6 +595,7 @@ contains
        if (.not.present(isys)) &
           call ferror('window_init','load_field requires isys',faterr)
        w%lf = loadfield_state() ! the slot may carry a previous window's form
+       w%lf%readvirtual = always_read_virtuals
     elseif (type == wintype_scfplot) then
        ! SCF plot window
        if (.not.present(isys)) &

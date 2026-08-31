@@ -1000,6 +1000,7 @@ contains
     f%useecp = .false.
     f%issto = .false.
     f%hasvirtual = .false.
+    f%virtinfile = .false.
     f%nedf = 0
 
     ! read number of atoms, primitives, orbitals
@@ -1144,6 +1145,7 @@ contains
     f%useecp = .false.
     f%issto = .false.
     f%hasvirtual = .false.
+    f%virtinfile = .false.
     f%nalpha_virt = 0
 
     ! first pass
@@ -1320,6 +1322,8 @@ contains
     integer, allocatable :: ishlt(:), ishlpri(:), ishlat(:), itemp(:,:)
     real*8, allocatable :: exppri(:), ccontr(:), pccontr(:), motemp(:), mocoef(:,:), mosph(:,:)
     real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:), enea(:), eneb(:)
+    real*8, allocatable :: motemp2(:), ene2(:)
+    integer, allocatable :: iord(:)
     logical, allocatable :: icdup(:)
 #ifdef HAVE_CINT
     type(crystal), pointer :: c
@@ -1448,6 +1452,9 @@ contains
        namoread = nmoalla
     endif
 
+    ! does the file contain virtual orbitals?
+    f%virtinfile = (nmoalla + nmoallb > f%nmoocc)
+
     if (.not.readvirtual) then
        nmoread = f%nmoocc
        if (f%wfntyp == wfn_rohf) then
@@ -1535,6 +1542,37 @@ contains
     f%ene(namoread+1:nmoread) = eneb(1:nmoread-namoread)
     f%hasene = .true.
     deallocate(enea,eneb)
+
+    ! An unrestricted fchk lists all the alpha orbitals (occupied, then
+    ! virtual) followed by all the beta orbitals, but the internal
+    ! ordering is occupied (alpha, then beta) followed by virtual
+    ! (alpha, then beta). Reorder the coefficient rows and their
+    ! energies. Without the virtuals only the occupied blocks are read,
+    ! and those are already in the internal order.
+    if (f%wfntyp == wfn_uhf .and. readvirtual) then
+       allocate(iord(nmoread))
+       do i = 1, f%nalpha ! occupied alpha
+          iord(i) = i
+       end do
+       do i = 1, f%nmoocc - f%nalpha ! occupied beta
+          iord(f%nalpha+i) = nmoalla + i
+       end do
+       do i = 1, f%nalpha_virt ! virtual alpha
+          iord(f%nmoocc+i) = f%nalpha + i
+       end do
+       do i = 1, nmoread - f%nmoocc - f%nalpha_virt ! virtual beta
+          iord(f%nmoocc+f%nalpha_virt+i) = nmoalla + (f%nmoocc - f%nalpha) + i
+       end do
+
+       allocate(motemp2(nbassph*nmoread),ene2(nmoread))
+       do i = 1, nmoread
+          motemp2((i-1)*nbassph+1:i*nbassph) = motemp((iord(i)-1)*nbassph+1:iord(i)*nbassph)
+          ene2(i) = f%ene(iord(i))
+       end do
+       call move_alloc(motemp2,motemp)
+       call move_alloc(ene2,f%ene)
+       deallocate(iord)
+    end if
 
     ! unfold sp shells next
     allocate(icdup(ncshel))
@@ -2115,6 +2153,10 @@ contains
        f%nmoocc = nelec / 2
     end if
     f%nalpha = nalpha
+
+    ! does the file contain virtual orbitals?
+    f%virtinfile = (nalphamo + nbetamo > f%nmoocc)
+
     if (readvirtual) then
        f%nmoall = nalphamo + nbetamo
        f%hasvirtual = (f%nmoall /= f%nmoocc)

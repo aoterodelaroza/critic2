@@ -195,6 +195,11 @@ module systems
   type(system), allocatable, target, public :: sys(:)
   type(sysconf), allocatable, target, public :: sysc(:)
 
+  ! preference: read the virtual orbitals whenever a wavefunction file
+  ! (fchk, molden) is loaded as a field
+  logical, parameter, public :: always_read_virtuals_def = .false.
+  logical, public :: always_read_virtuals = always_read_virtuals_def
+
   ! System clipboard
   type, public :: sysclipboard
      logical :: isfilled = .false. ! whether there is anything to paste
@@ -227,6 +232,7 @@ module systems
   public :: add_system_empty_molecule
   public :: regenerate_system_pointers
   public :: ok_system
+  public :: reload_field_with_virtuals
   public :: paste_clipboard
   public :: clipboard_clear
 
@@ -312,6 +318,11 @@ module systems
        integer, intent(in) :: isys, level
        logical :: ok_system
      end function ok_system
+     module subroutine reload_field_with_virtuals(isys,ifield,errmsg)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine reload_field_with_virtuals
      module subroutine post_event(sysc,level,keepfields,nocapture)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level

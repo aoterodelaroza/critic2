@@ -98,6 +98,7 @@ module wfn_private
      integer :: wfntyp !< type of wavefunction (rhf, uhf, fractional occ)
      logical :: issto !< are the primitives GTOs or STOs?
      logical :: hasvirtual !< are the virtual orbitals known?
+     logical :: virtinfile = .false. !< does the source file contain virtual orbitals?
      logical :: hasene = .false. !< are the MO energies known?
      integer :: ixmaxsto(4) !< maximum exponent for x, y, z, and r in STOs
      integer :: molden_type !< type of source molden file

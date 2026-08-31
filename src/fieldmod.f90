@@ -98,6 +98,7 @@ module fieldmod
      procedure :: grd !< Calculate field value and its derivatives at a point
      procedure :: grd0 !< Calculate only the field value at a given point
      procedure :: eval_avail !< Report the property categories this field can evaluate
+     procedure :: has_unread_virtuals !< Does the source file have virtual orbitals that were not read?
      procedure :: der1i !< Numerical first derivatives of the field
      procedure :: der2ii !< Numerical second derivatives (diagonal)
      procedure :: der2ij !< Numerical second derivatives (mixed)
@@ -194,6 +195,10 @@ module fieldmod
        class(field), intent(in) :: f
        type(field_evaluation_avail), intent(out) :: av
      end subroutine eval_avail
+     module function has_unread_virtuals(f)
+       class(field), intent(in) :: f
+       logical :: has_unread_virtuals
+     end function has_unread_virtuals
      recursive module function der1i(f,dir,x,h,errcnv,pool,periodic)
        class(field), intent(inout) :: f
        real*8, intent(in) :: dir(3)

@@ -555,6 +555,7 @@ contains
     call set_default_interface_settings()
     call set_default_keybindings()
     call set_default_color_settings()
+    call set_default_reader_settings()
 
   end subroutine set_default_ui_settings
 
@@ -586,6 +587,14 @@ contains
     ColorElement = real(JMLcol,c_float) / 255._c_float
 
   end subroutine set_default_color_settings
+
+  !> Reset the file reader settings (only) to their default values
+  module subroutine set_default_reader_settings()
+    use systems, only: always_read_virtuals, always_read_virtuals_def
+
+    always_read_virtuals = always_read_virtuals_def
+
+  end subroutine set_default_reader_settings
 
   !> Show the contents of the tools menu for system isys. The caller is
   !> responsible for opening and closing the menu/popup. Child windows
