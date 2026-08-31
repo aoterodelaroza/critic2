@@ -23,6 +23,8 @@ submodule (windows) mo
   real(c_float), parameter :: mo_cached_rgb(3) = (/0.45_c_float,0.75_c_float,0.45_c_float/) ! cached-grid marker
   real(c_float), parameter :: mo_mark_frac = 0.35_c_float ! cached-grid mark radius, as a fraction of the row height
   real(c_float), parameter :: mo_sep_frac = 0.25_c_float ! HOMO/LUMO separator height, as a fraction of the row height
+  character(len=5), parameter :: mo_spin_name(0:2) = &
+     (/ character(len=5) :: "Both", "Alpha", "Beta" /) ! how a spin channel is named
   real(c_float), parameter :: mo_sep_rgb(3) = (/0.85_c_float,0.15_c_float,0.15_c_float/) ! HOMO/LUMO separator color
 
 contains
@@ -72,30 +74,26 @@ contains
   !> selection or the window goes away). The Create Isosurface Object
   !> button copies the transient into a permanent representation.
   module subroutine draw_mo(w)
+    use gui_main, only: g, fontsize
     use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_defaultlevel, iso_level_optstr, iso_alpha_def, iso_rgb_palette,&
        iso_grid_size, iso_region_to_box
-    use wfn_private, only: wfn_rhf, wfn_uhf, wfn_rohf
+    use wfn_private, only: wfn_rhf, wfn_uhf, wfn_rohf, wfn_spin_all, wfn_spin_alpha, wfn_spin_beta
     use types, only: id_mo_id, field_evaluation_avail, fieldeval_category_mo
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_combo_simple,&
-       iw_dragfloat_real8, iw_coloredit, iw_close_event, iw_setpos_bottomright,&
-       iw_table_column
-    use tools_io, only: string, ioj_right
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple,&
+       iw_dragfloat_real8, iw_coloredit, iw_close_event, iw_setpos_bottomright
+    use tools_io, only: string
     use param, only: hartoev
     class(window), intent(inout), target :: w
 
-    logical(c_bool) :: selected
-    logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, hasspin
-    integer :: isys, iview, iref, i, j, nrow, jsep, jscroll, itrep, irep, ihomo, spin, ncol, digits
-    integer :: icid, iccache, iclabel, icspin, icocc, icene
-    integer(c_int) :: flags
-    character(kind=c_char,len=:), allocatable, target :: s, str1, strl
+    logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum
+    integer :: isys, iview, iref, itrep, irep, spin, digits, kspin
+    character(kind=c_char,len=:), allocatable, target :: s
     character(len=:), allocatable :: label
-    type(ImVec2) :: sz0, szero, sz1, p0, p1
-    type(c_ptr), target :: clipper
-    type(ImGuiListClipper), pointer :: clipper_f
-    real*8 :: occup, ener, unitfactor, alpha8
+    type(ImVec2) :: szavail
+    real(c_float) :: width
+    real*8 :: unitfactor, alpha8
     type(field_evaluation_avail) :: av
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -120,8 +118,6 @@ contains
     end if
 
     ! initialize
-    szero%x = 0
-    szero%y = 0
     changed = .false.
     itrep = 0
     doquit = .not.goodparent
@@ -204,7 +200,6 @@ contains
        associate (wfn => sys(isys)%f(iref)%wfn)
          ! drop a stale selection
          if (w%mo_selected > wfn%nmoall) w%mo_selected = 0
-         ihomo = wfn%nmoocc
 
          ! orbital table header and energy units
          call iw_text("Orbitals",highlight=.true.,alignframe=.true.)
@@ -221,177 +216,27 @@ contains
             digits = 3
          end if
 
-         ! the orbitals table; the spin and energy columns appear only
-         ! when the wavefunction provides them
-         hasspin = (wfn%wfntyp == wfn_uhf .or. wfn%wfntyp == wfn_rohf)
-         icid = 0
-         iccache = 1
-         iclabel = 2
-         ncol = 3
-         icspin = -1
-         if (hasspin) then
-            icspin = ncol
-            ncol = ncol + 1
-         end if
-         icocc = ncol
-         ncol = ncol + 1
-         icene = -1
-         if (wfn%hasene) then
-            icene = ncol
-            ncol = ncol + 1
-         end if
-
-         ! The table runs in orbital order, lowest first. When there are
-         ! virtuals, a separator row marks the HOMO/LUMO gap and the
-         ! one-shot centering puts that boundary in the middle of the
-         ! table; without virtuals there is no gap, and the HOMO (the
-         ! last row) is centered instead.
-         nrow = wfn%nmoall
-         jsep = 0
-         if (wfn%nmoall > wfn%nmoocc) then
-            jsep = wfn%nmoocc + 1
-            nrow = nrow + 1
-            jscroll = jsep
+         ! One table per spin channel when the wavefunction has two of
+         ! them (unrestricted); a single combined table otherwise
+         if (wfn%get_mo_nchannels() > 1) then
+            call igGetContentRegionAvail(szavail)
+            ! half the room each, but never down to zero: ImGui reads a
+            ! width of zero as "use all the space left", which would give
+            ! the whole line to the alpha table and push the beta one out
+            ! of the window
+            width = max(0.5_c_float * (szavail%x - g%Style%ItemSpacing%x),4._c_float*fontsize%x)
+            call igBeginGroup()
+            call iw_text(trim(mo_spin_name(wfn_spin_alpha)),highlight=.true.)
+            call mo_draw_table(w,wfn,wfn_spin_alpha,width,unitfactor,digits,changed)
+            call igEndGroup()
+            call igSameLine(0._c_float,-1._c_float)
+            call igBeginGroup()
+            call iw_text(trim(mo_spin_name(wfn_spin_beta)),highlight=.true.)
+            call mo_draw_table(w,wfn,wfn_spin_beta,0._c_float,unitfactor,digits,changed)
+            call igEndGroup()
          else
-            jscroll = ihomo
+            call mo_draw_table(w,wfn,wfn_spin_all,0._c_float,unitfactor,digits,changed)
          end if
-
-         flags = ImGuiTableFlags_None
-         flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-         flags = ior(flags,ImGuiTableFlags_RowBg)
-         flags = ior(flags,ImGuiTableFlags_Borders)
-         flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-         flags = ior(flags,ImGuiTableFlags_ScrollY)
-         str1 = "##tablemolecularorbitals" // c_null_char
-         sz0%x = 0._c_float
-         sz0%y = iw_calcheight(10,0,.false.)
-         if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
-            ! header setup
-            call iw_table_column("Id",id=icid,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("",id=iccache,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("Label",id=iclabel,flags=ImGuiTableColumnFlags_WidthFixed)
-            if (hasspin) &
-               call iw_table_column("Spin",id=icspin,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("Occ.",id=icocc,flags=ImGuiTableColumnFlags_WidthFixed)
-            if (wfn%hasene) &
-               call iw_table_column("Energy",id=icene,flags=ImGuiTableColumnFlags_WidthFixed)
-            call igTableSetupScrollFreeze(0, 1) ! top row always visible
-
-            ! draw the header
-            call igTableHeadersRow()
-            call igTableSetColumnWidthAutoAll(igGetCurrentTable())
-
-            ! draw the rows through a clipper (the wavefunction may
-            ! have thousands of MOs); while the one-shot centering on
-            ! the HOMO is pending, force its row in so it can anchor
-            ! the scroll
-            clipper = ImGuiListClipper_ImGuiListClipper()
-            call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
-            if (.not.w%mo_scrolled) &
-               call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,jscroll-1,jscroll)
-            do while (ImGuiListClipper_Step(clipper))
-               call c_f_pointer(clipper,clipper_f)
-               do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                  ! the HOMO/LUMO gap: a thick line across the table
-                  if (j == jsep) then
-                     call igTableNextRow(ImGuiTableRowFlags_None,mo_sep_frac*igGetFrameHeight())
-                     call igTableSetBgColor(ImGuiTableBgTarget_RowBg0,&
-                        igGetColorU32_Vec4(ImVec4(mo_sep_rgb(1),mo_sep_rgb(2),mo_sep_rgb(3),&
-                        1._c_float)),-1_c_int)
-                     if (.not.w%mo_scrolled .and. j == jscroll) then
-                        if (igTableSetColumnIndex(icid)) call igSetScrollHereY(0.5_c_float)
-                        w%mo_scrolled = .true.
-                     end if
-                     cycle
-                  end if
-
-                  ! display row to orbital (the rows below the separator
-                  ! are shifted by it)
-                  i = j
-                  if (jsep > 0 .and. j > jsep) i = i - 1
-
-                  call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                  call wfn%get_mo_info(i,label,spin,occup,ener)
-
-                  ! id
-                  if (igTableSetColumnIndex(icid)) then
-                     ! selectable; clicking the selected row again deselects it
-                     call igAlignTextToFramePadding()
-                     strl = "##selectmo" // string(i) // c_null_char
-                     flags = ImGuiSelectableFlags_SpanAllColumns
-                     flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                     selected = (w%mo_selected == i)
-                     if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
-                        if (w%mo_selected == i) then
-                           w%mo_selected = 0
-                        else
-                           w%mo_selected = i
-                        end if
-                        changed = .true.
-                     end if
-
-                     ! center the table on the HOMO/LUMO boundary once
-                     if (.not.w%mo_scrolled .and. j == jscroll) then
-                        call igSetScrollHereY(0.5_c_float)
-                        w%mo_scrolled = .true.
-                     end if
-
-                     ! text
-                     call iw_text(string(i),sameline=.true.)
-                  end if
-
-                  ! whether this orbital's sampling grid is in the cache:
-                  ! a dot as tall as it is wide, filling the height of the
-                  ! row. Drawn on top of the row selectable (emitted in the
-                  ! id column, before this one) so it survives the
-                  ! selection highlight; the dummy reserves the width the
-                  ! column is auto-sized to
-                  if (igTableSetColumnIndex(iccache)) then
-                     sz1%x = igGetFrameHeight()
-                     sz1%y = sz1%x
-                     call igGetCursorScreenPos(p0)
-                     call igDummy(sz1)
-                     if (w%mo_cache%iscached(i)) then
-                        p1%x = p0%x + 0.5_c_float * sz1%x
-                        p1%y = p0%y + 0.5_c_float * sz1%y
-                        call ImDrawList_AddCircleFilled(igGetWindowDrawList(),p1,&
-                           mo_mark_frac * sz1%x,igGetColorU32_Vec4(ImVec4(mo_cached_rgb(1),&
-                           mo_cached_rgb(2),mo_cached_rgb(3),1._c_float)),0_c_int)
-                     end if
-                  end if
-
-                  ! label (HOMO-1, LUMO, ...)
-                  if (igTableSetColumnIndex(iclabel)) &
-                     call iw_text(label)
-
-                  ! spin channel
-                  if (hasspin) then
-                     if (igTableSetColumnIndex(icspin)) then
-                        if (spin == 1) then
-                           call iw_text("alpha")
-                        elseif (spin == 2) then
-                           call iw_text("beta")
-                        else
-                           call iw_text("both")
-                        end if
-                     end if
-                  end if
-
-                  ! occupation
-                  if (igTableSetColumnIndex(icocc)) &
-                     call iw_text(string(occup,'f',length=6,decimal=2,justify=ioj_right))
-
-                  ! energy
-                  if (wfn%hasene) then
-                     if (igTableSetColumnIndex(icene)) &
-                        call iw_text(string(ener*unitfactor,'f',length=12,decimal=digits,justify=ioj_right))
-                  end if
-               end do ! clipper range
-            end do ! clipper step
-            call ImGuiListClipper_End(clipper)
-            call ImGuiListClipper_destroy(clipper)
-            call igEndTable()
-         end if ! igBeginTable
 
          ! display options
          call iw_text("Display",highlight=.true.)
@@ -473,11 +318,11 @@ contains
             if (irep > 0 .and. itrep > 0) then
                call wfn%get_mo_info(w%mo_selected,label)
                win(iview)%sc%rep(irep)%iso = win(iview)%sc%reptrans(itrep)%iso
-               if (len_trim(label) > 0) then
-                  win(iview)%sc%rep(irep)%name = "MO " // string(w%mo_selected) // " (" // trim(label) // ")"
-               else
-                  win(iview)%sc%rep(irep)%name = "MO " // string(w%mo_selected)
-               end if
+               ! named the way the orbital is written in the tables and in
+               ! the field modifiers (a<n>/b<n>, or the packed index)
+               s = "MO " // wfn%get_mo_name(w%mo_selected)
+               if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
+               win(iview)%sc%rep(irep)%name = s
                win(iview)%sc%forcebuildlists = .true.
             end if
          end if
@@ -621,5 +466,250 @@ contains
     ok = allocated(c%g(imo)%ff)
 
   end function mo_cache_iscached
+
+
+  !> Draw one molecular-orbital table for wavefunction wfn: the whole
+  !> packed orbital list (ispin = 0) or a single spin channel (1 =
+  !> alpha, 2 = beta, only meaningful for an unrestricted wavefunction).
+  !> width is the table width (0 = fill the available region). The rows
+  !> run in orbital order, lowest first, with a separator row at the
+  !> channel's HOMO/LUMO gap; the table is centered on that boundary
+  !> once, tracked by w%mo_scrolled. The selection is the packed index
+  !> w%mo_selected, so a split pair of tables can only ever have one
+  !> orbital selected between them; changed is set when it moves.
+  subroutine mo_draw_table(w,wfn,ispin,width,unitfactor,digits,changed)
+    use gui_main, only: g
+    use wfn_private, only: molwfn, wfn_uhf, wfn_rohf, wfn_spin_all
+    use utils, only: iw_text, iw_tooltip, iw_calcheight, iw_calcwidth, iw_table_column
+    use tools_io, only: string, ioj_right, lower
+    type(window), intent(inout) :: w
+    type(molwfn), intent(in) :: wfn
+    integer, intent(in) :: ispin
+    real(c_float), intent(in) :: width
+    real*8, intent(in) :: unitfactor
+    integer, intent(in) :: digits
+    logical, intent(inout) :: changed
+
+    logical(c_bool) :: selected
+    logical :: hasspin
+    integer :: i, j, k, nocc, nrow, jsep, jscroll, ischan, spin, ncol, ndig, nlab
+    integer :: icid, iccache, iclabel, icspin, icocc, icene
+    real(c_float) :: cellpad, wid_id, wid_lab
+    integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: str1, strl
+    character(len=:), allocatable :: label
+    type(ImVec2) :: sz0, szero, sz1, p0, p1
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+    real*8 :: occup, ener
+
+    logical, save :: ttshown = .false. ! tooltip flag
+
+    szero%x = 0
+    szero%y = 0
+
+    ! the number of orbitals in this channel and where its HOMO/LUMO
+    ! gap falls (ispin = 0 gives the whole packed list)
+    ischan = max(ispin,1)
+    nrow = wfn%get_mo_nspin(ispin,nocc)
+
+    ! the spin and energy columns appear only when the wavefunction
+    ! provides them; a split table needs no spin column, since the table
+    ! the row is in already says which channel it belongs to
+    hasspin = (ispin == 0 .and. (wfn%wfntyp == wfn_uhf .or. wfn%wfntyp == wfn_rohf))
+    icid = 0
+    iccache = 1
+    iclabel = 2
+    ncol = 3
+    icspin = -1
+    if (hasspin) then
+       icspin = ncol
+       ncol = ncol + 1
+    end if
+    icocc = ncol
+    ncol = ncol + 1
+    icene = -1
+    if (wfn%hasene) then
+       icene = ncol
+       ncol = ncol + 1
+    end if
+
+    ! The table runs in orbital order, lowest first. When the channel
+    ! has virtuals, a separator row marks its HOMO/LUMO gap and the
+    ! one-shot centering puts that boundary in the middle of the
+    ! table; without virtuals there is no gap, and the HOMO (the
+    ! last row) is centered instead.
+    jsep = 0
+    if (nrow > nocc .and. nocc > 0) then
+       jsep = nocc + 1
+       nrow = nrow + 1
+       jscroll = jsep
+    else
+       jscroll = max(nocc,1)
+    end if
+
+    ! The id and label columns are given the width of the widest entry
+    ! this channel can ever show. Their content is the only one that
+    ! varies from row to row, and the clipper only ever submits the
+    ! visible rows: left to auto-fit, these two columns -- and everything
+    ! drawn to their right -- shift whenever the visible set changes,
+    ! which reads as the table trembling while it is scrolled or resized.
+    ! The remaining columns hold fixed-length formatted strings, so their
+    ! initial auto-fit is already the same on every row.
+    cellpad = 2._c_float * g%Style%CellPadding%x
+    if (ispin == wfn_spin_all) then
+       ndig = len_trim(string(max(wfn%nmoall,1)))
+    else
+       ndig = len_trim(string(max(nrow,1)))
+    end if
+    nlab = 5 + len_trim(string(max(max(nocc-1,nrow-nocc-1),1)))
+    wid_id = iw_calcwidth(max(ndig,2),0) + cellpad
+    wid_lab = iw_calcwidth(max(nlab,5),0) + cellpad
+
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiTableFlags_RowBg)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    str1 = "##tablemolecularorbitals" // string(ispin) // c_null_char
+    sz0%x = width
+    sz0%y = iw_calcheight(10,0,.false.)
+    if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+       ! header setup, with the widths fixed above
+       call iw_table_column("Id",id=icid,flags=ImGuiTableColumnFlags_WidthFixed,width=wid_id)
+       call iw_table_column("",id=iccache,flags=ImGuiTableColumnFlags_WidthFixed,&
+          width=igGetFrameHeight()+cellpad)
+       call iw_table_column("Label",id=iclabel,flags=ImGuiTableColumnFlags_WidthFixed,width=wid_lab)
+       if (hasspin) &
+          call iw_table_column("Spin",id=icspin,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Occ.",id=icocc,flags=ImGuiTableColumnFlags_WidthFixed)
+       if (wfn%hasene) &
+          call iw_table_column("Energy",id=icene,flags=ImGuiTableColumnFlags_WidthFixed)
+       call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+       ! draw the header
+       call igTableHeadersRow()
+
+       ! an empty channel draws the header only; the one-shot centering
+       ! has nothing to anchor on, so retire it
+       if (nrow == 0) w%mo_scrolled(ischan) = .true.
+
+       ! draw the rows through a clipper (the wavefunction may have
+       ! thousands of MOs); while the one-shot centering is pending,
+       ! force its row in so it can anchor the scroll
+       clipper = ImGuiListClipper_ImGuiListClipper()
+       call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+       if (.not.w%mo_scrolled(ischan)) &
+          call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,jscroll-1,jscroll)
+       do while (ImGuiListClipper_Step(clipper))
+          call c_f_pointer(clipper,clipper_f)
+          do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+             ! the HOMO/LUMO gap: a thick line across the table
+             if (j == jsep) then
+                call igTableNextRow(ImGuiTableRowFlags_None,mo_sep_frac*igGetFrameHeight())
+                call igTableSetBgColor(ImGuiTableBgTarget_RowBg0,&
+                   igGetColorU32_Vec4(ImVec4(mo_sep_rgb(1),mo_sep_rgb(2),mo_sep_rgb(3),&
+                   1._c_float)),-1_c_int)
+                if (.not.w%mo_scrolled(ischan)) then
+                   if (igTableSetColumnIndex(icid)) then
+                      call igSetScrollHereY(0.5_c_float)
+                      w%mo_scrolled(ischan) = .true.
+                   end if
+                end if
+                cycle
+             end if
+
+             ! display row to orbital: the rows below the separator are
+             ! shifted by it, then the channel index becomes a packed one
+             k = j
+             if (jsep > 0 .and. j > jsep) k = k - 1
+             i = wfn%get_mo_index(ispin,k)
+             if (i == 0) cycle
+
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             call wfn%get_mo_info(i,label,spin,occup,ener)
+
+             ! id
+             if (igTableSetColumnIndex(icid)) then
+                ! selectable; clicking the selected row again deselects it
+                call igAlignTextToFramePadding()
+                strl = "##selectmo" // string(i) // c_null_char
+                flags = ImGuiSelectableFlags_SpanAllColumns
+                flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+                selected = (w%mo_selected == i)
+                if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
+                   if (w%mo_selected == i) then
+                      w%mo_selected = 0
+                   else
+                      w%mo_selected = i
+                   end if
+                   changed = .true.
+                end if
+
+                ! center the table on the HOMO/LUMO boundary once
+                if (.not.w%mo_scrolled(ischan) .and. j == jscroll) then
+                   call igSetScrollHereY(0.5_c_float)
+                   w%mo_scrolled(ischan) = .true.
+                end if
+
+                ! text: the packed index in the combined table, the
+                ! number within the channel in a split one (which is
+                ! what the a<n>/b<n> field modifiers take)
+                if (ispin == 0) then
+                   call iw_text(string(i),sameline=.true.)
+                else
+                   call iw_text(string(k),sameline=.true.)
+                   call iw_tooltip("Orbital " // string(i) // " of the wavefunction",ttshown)
+                end if
+             end if
+
+             ! whether this orbital's sampling grid is in the cache:
+             ! a dot as tall as it is wide, filling the height of the
+             ! row. Drawn on top of the row selectable (emitted in the
+             ! id column, before this one) so it survives the
+             ! selection highlight; the dummy reserves the width the
+             ! column is auto-sized to
+             if (igTableSetColumnIndex(iccache)) then
+                sz1%x = igGetFrameHeight()
+                sz1%y = sz1%x
+                call igGetCursorScreenPos(p0)
+                call igDummy(sz1)
+                if (w%mo_cache%iscached(i)) then
+                   p1%x = p0%x + 0.5_c_float * sz1%x
+                   p1%y = p0%y + 0.5_c_float * sz1%y
+                   call ImDrawList_AddCircleFilled(igGetWindowDrawList(),p1,&
+                      mo_mark_frac * sz1%x,igGetColorU32_Vec4(ImVec4(mo_cached_rgb(1),&
+                      mo_cached_rgb(2),mo_cached_rgb(3),1._c_float)),0_c_int)
+                end if
+             end if
+
+             ! label (HOMO-1, LUMO, ...)
+             if (igTableSetColumnIndex(iclabel)) &
+                call iw_text(label)
+
+             ! spin channel
+             if (hasspin) then
+                if (igTableSetColumnIndex(icspin)) &
+                   call iw_text(lower(trim(mo_spin_name(spin))))
+             end if
+
+             ! occupation
+             if (igTableSetColumnIndex(icocc)) &
+                call iw_text(string(occup,'f',length=6,decimal=2,justify=ioj_right))
+
+             ! energy
+             if (wfn%hasene) then
+                if (igTableSetColumnIndex(icene)) &
+                   call iw_text(string(ener*unitfactor,'f',length=12,decimal=digits,justify=ioj_right))
+             end if
+          end do ! clipper range
+       end do ! clipper step
+       call ImGuiListClipper_End(clipper)
+       call ImGuiListClipper_destroy(clipper)
+       call igEndTable()
+    end if ! igBeginTable
+
+  end subroutine mo_draw_table
 
 end submodule mo

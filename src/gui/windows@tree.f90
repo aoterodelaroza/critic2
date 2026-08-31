@@ -2335,7 +2335,7 @@ contains
     integer, intent(in) :: si, fj
 
     character(kind=c_char,len=:), allocatable, target :: str, aux
-    integer :: i, nal
+    integer :: i, nal, nmoa, nmob, nocca, noccb
     type(field), pointer :: f
 
     str = ""
@@ -2484,13 +2484,14 @@ contains
        elseif (f%wfn%wfntyp == wfn_uhf) then
           call iw_text("Wavefunction type: ",highlight=.true.)
           call iw_text("unrestricted",sameline_nospace=.true.)
+          nmoa = f%wfn%get_mo_nspin(1,nocca)
+          nmob = f%wfn%get_mo_nspin(2,noccb)
           call iw_text("Number of MOs (total): ",highlight=.true.)
           call iw_text(string(f%wfn%nmoall) //&
-             " (alpha=" // string(f%wfn%nalpha+f%wfn%nalpha_virt) // ",beta=" //&
-             string(f%wfn%nmoall-(f%wfn%nalpha+f%wfn%nalpha_virt)),sameline_nospace=.true.)
+             " (alpha=" // string(nmoa) // ",beta=" // string(nmob) // ")",sameline_nospace=.true.)
           call iw_text("Number of MOs (occupied): ",highlight=.true.)
-          call iw_text(string(f%wfn%nmoocc) // " (alpha=" // string(f%wfn%nalpha) //&
-             ",beta=" // string(f%wfn%nmoocc-f%wfn%nalpha),sameline_nospace=.true.)
+          call iw_text(string(f%wfn%nmoocc) // " (alpha=" // string(nocca) //&
+             ",beta=" // string(noccb) // ")",sameline_nospace=.true.)
        elseif (f%wfn%wfntyp == wfn_frac) then
           call iw_text("Wavefunction type: ",highlight=.true.)
           call iw_text("fractional occupation",sameline_nospace=.true.)

@@ -3024,7 +3024,7 @@ contains
     integer, intent(in) :: idx !< index to go with the identifier
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: imo
+    integer :: imo, idum, nocc
     real*8 :: phi_(1,1), rho, grad(3), hh(6)
     integer :: nenv
     integer, allocatable :: eid(:)
@@ -3042,57 +3042,23 @@ contains
           imo = f%nmoocc + 1
        end if
     elseif (id_mo == id_mo_ahomo) then
-       if (f%wfntyp == wfn_rhf) then
-          imo = f%nmoocc
-       elseif (f%wfntyp == wfn_rohf) then
-          imo = f%nmoocc
-       elseif (f%wfntyp == wfn_uhf) then
-          imo = f%nalpha
-       end if
+       ! the frontier of a spin channel: its last occupied orbital and
+       ! the one above it (id_mo_homo/lumo above are rhf-only by design)
+       idum = f%get_mo_nspin(wfn_spin_alpha,nocc)
+       imo = f%get_mo_index(wfn_spin_alpha,nocc)
     elseif (id_mo == id_mo_alumo) then
-       if (f%wfntyp == wfn_rhf) then
-          imo = f%nmoocc + 1
-       elseif (f%wfntyp == wfn_rohf) then
-          imo = f%nmoocc + 1
-       elseif (f%wfntyp == wfn_uhf) then
-          imo = f%nmoocc + 1
-       end if
+       idum = f%get_mo_nspin(wfn_spin_alpha,nocc)
+       imo = f%get_mo_index(wfn_spin_alpha,nocc+1)
     elseif (id_mo == id_mo_bhomo) then
-       if (f%wfntyp == wfn_rhf) then
-          imo = f%nmoocc
-       elseif (f%wfntyp == wfn_rohf) then
-          imo = f%nalpha
-       elseif (f%wfntyp == wfn_uhf) then
-          imo = f%nmoocc
-       end if
+       idum = f%get_mo_nspin(wfn_spin_beta,nocc)
+       imo = f%get_mo_index(wfn_spin_beta,nocc)
     elseif (id_mo == id_mo_blumo) then
-       if (f%wfntyp == wfn_rhf) then
-          imo = f%nmoocc + 1
-       elseif (f%wfntyp == wfn_rohf) then
-          imo = f%nalpha+1
-       elseif (f%wfntyp == wfn_uhf) then
-          imo = f%nmoocc + f%nalpha_virt + 1
-       end if
+       idum = f%get_mo_nspin(wfn_spin_beta,nocc)
+       imo = f%get_mo_index(wfn_spin_beta,nocc+1)
     elseif (id_mo == id_mo_a) then
-       if (f%wfntyp == wfn_rhf .or. f%wfntyp == wfn_rohf) then
-          imo = idx
-       elseif (f%wfntyp == wfn_uhf) then
-          if (idx <= f%nalpha) then
-             imo = idx
-          elseif (idx <= f%nalpha + f%nalpha_virt) then
-             imo = f%nmoocc + (idx - f%nalpha)
-          end if
-       end if
+       imo = f%get_mo_index(wfn_spin_alpha,idx)
     elseif (id_mo == id_mo_b) then
-       if (f%wfntyp == wfn_rhf .or. f%wfntyp == wfn_rohf) then
-          imo = idx
-       elseif (f%wfntyp == wfn_uhf) then
-          if (idx <= f%nmoocc - f%nalpha) then
-             imo = f%nalpha + idx
-          else
-             imo = f%nalpha_virt + f%nalpha + idx
-          end if
-       end if
+       imo = f%get_mo_index(wfn_spin_beta,idx)
     elseif (id_mo == id_mo_id) then
        ! no translation
        imo = idx
@@ -3196,6 +3162,130 @@ contains
     if (present(spin)) spin = ispin
 
   end subroutine get_mo_info
+
+  !> Number of molecular orbitals in a spin channel of wavefunction f:
+  !> ispin = 1 for alpha, 2 for beta, and 0 for the whole packed list
+  !> (which is also what the channels collapse to when the wavefunction
+  !> is not unrestricted, since then the two channels share the same
+  !> spatial orbitals). nocc returns how many of them are occupied, the
+  !> position of the HOMO/LUMO gap in that channel.
+  module function get_mo_nspin(f,ispin,nocc) result(n)
+    class(molwfn), intent(in) :: f
+    integer, intent(in) :: ispin
+    integer, intent(out), optional :: nocc
+    integer :: n
+
+    integer :: nocc_
+
+    if (f%wfntyp == wfn_uhf .and. ispin == wfn_spin_alpha) then
+       n = f%nalpha + f%nalpha_virt
+       nocc_ = f%nalpha
+    elseif (f%wfntyp == wfn_uhf .and. ispin == wfn_spin_beta) then
+       n = f%nmoall - f%nalpha - f%nalpha_virt
+       nocc_ = f%nmoocc - f%nalpha
+    elseif (f%wfntyp == wfn_rohf .and. ispin == wfn_spin_beta) then
+       ! the beta channel occupies only the doubly occupied block
+       n = f%nmoall
+       nocc_ = f%nalpha
+    elseif (ispin /= wfn_spin_all .and. f%wfntyp /= wfn_rhf .and. f%wfntyp /= wfn_rohf) then
+       ! no spin channels to speak of (fractional occupations): keep the
+       ! pair coherent, get_mo_index has no orbital to return either
+       n = 0
+       nocc_ = 0
+    else
+       n = f%nmoall
+       nocc_ = f%nmoocc
+    end if
+    if (present(nocc)) nocc = nocc_
+
+  end function get_mo_nspin
+
+  !> Packed index of the idx-th molecular orbital of a spin channel of
+  !> wavefunction f (ispin as in get_mo_nspin). Returns 0 if there is no
+  !> such orbital. This is the mapping behind the a<n> and b<n> field
+  !> modifiers, and the inverse of the ispinidx output of get_mo_info.
+  pure module function get_mo_index(f,ispin,idx) result(imo)
+    class(molwfn), intent(in) :: f
+    integer, intent(in) :: ispin
+    integer, intent(in) :: idx
+    integer :: imo
+
+    imo = 0
+    if (ispin == wfn_spin_all) then
+       ! the whole packed list, no translation
+       imo = idx
+    elseif (f%wfntyp == wfn_rhf .or. f%wfntyp == wfn_rohf) then
+       ! both channels are the same set of spatial orbitals
+       imo = idx
+    elseif (f%wfntyp == wfn_uhf) then
+       if (ispin == wfn_spin_alpha) then
+          ! the upper bound matters: without it an out-of-range alpha
+          ! index lands in the beta virtual block and passes the check
+          ! below, silently naming the wrong orbital
+          if (idx <= f%nalpha) then
+             imo = idx
+          elseif (idx <= f%nalpha + f%nalpha_virt) then
+             imo = f%nmoocc + (idx - f%nalpha)
+          end if
+       elseif (ispin == wfn_spin_beta) then
+          if (idx <= f%nmoocc - f%nalpha) then
+             imo = f%nalpha + idx
+          elseif (idx <= f%nmoall - f%nalpha - f%nalpha_virt) then
+             imo = f%nalpha_virt + f%nalpha + idx
+          end if
+       end if
+    end if
+    if (imo < 1 .or. imo > f%nmoall) imo = 0
+
+  end function get_mo_index
+
+  !> Number of spin channels of wavefunction f that are worth presenting
+  !> separately: two for an unrestricted wavefunction, whose alpha and
+  !> beta orbitals are distinct sets, and one otherwise -- the channels
+  !> of every other type are the same spatial orbitals differing only in
+  !> occupation, so splitting them would list each orbital twice.
+  pure module function get_mo_nchannels(f) result(n)
+    class(molwfn), intent(in) :: f
+    integer :: n
+
+    if (f%wfntyp == wfn_uhf) then
+       n = 2
+    else
+       n = 1
+    end if
+
+  end function get_mo_nchannels
+
+  !> How the molecular orbital with packed index imo is written: the
+  !> number within its spin channel prefixed by a or b when the
+  !> wavefunction has two channels (the spelling the a<n> and b<n> field
+  !> modifiers take), the packed index itself otherwise.
+  module function get_mo_name(f,imo) result(str)
+    use tools_io, only: string
+    class(molwfn), intent(in) :: f
+    integer, intent(in) :: imo
+    character(len=:), allocatable :: str
+
+    integer :: ispin, k, n, nocc
+
+    str = string(imo)
+    if (f%get_mo_nchannels() < 2) return
+
+    ! find the channel imo belongs to and its number within it
+    do ispin = wfn_spin_alpha, wfn_spin_beta
+       n = f%get_mo_nspin(ispin,nocc)
+       do k = 1, n
+          if (f%get_mo_index(ispin,k) /= imo) cycle
+          if (ispin == wfn_spin_alpha) then
+             str = "a" // string(k)
+          else
+             str = "b" // string(k)
+          end if
+          return
+       end do
+    end do
+
+  end function get_mo_name
 
   !xx! private procedures
 

@@ -1594,7 +1594,7 @@ contains
     real*8 :: fspin, omega
 
     character(len=:), allocatable :: str, aux
-    integer :: i, is, j, k, n(3)
+    integer :: i, is, j, k, n(3), nmoa, nmob, nocca, noccb
     real*8 :: x0(3)
     real*8 :: gmin, gmax, gmean, grms, rnp
 
@@ -1724,10 +1724,12 @@ contains
              write (uout,'("  Number of MOs (doubly-occupied): ",A)') string(f%wfn%nalpha)
           elseif (f%wfn%wfntyp == wfn_uhf) then
              write (uout,'("  Wavefunction type: unrestricted")')
+             nmoa = f%wfn%get_mo_nspin(1,nocca)
+             nmob = f%wfn%get_mo_nspin(2,noccb)
              write (uout,'("  Number of MOs (total): ",A," (alpha=",A,",beta=",A,")")') &
-                string(f%wfn%nmoall), string(f%wfn%nalpha+f%wfn%nalpha_virt), string(f%wfn%nmoall-(f%wfn%nalpha+f%wfn%nalpha_virt))
+                string(f%wfn%nmoall), string(nmoa), string(nmob)
              write (uout,'("  Number of MOs (occupied): ",A," (alpha=",A,",beta=",A,")")') &
-                string(f%wfn%nmoocc), string(f%wfn%nalpha), string(f%wfn%nmoocc-f%wfn%nalpha)
+                string(f%wfn%nmoocc), string(nocca), string(noccb)
           elseif (f%wfn%wfntyp == wfn_frac) then
              write (uout,'("  Wavefunction type: fractional occupation")')
              write (uout,'("  Number of MOs: ",A)') string(f%wfn%nmoocc)

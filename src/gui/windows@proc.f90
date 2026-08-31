@@ -969,7 +969,7 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
-    use gui_main, only: fontsize, io
+    use gui_main, only: fontsize, io, g
     use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth
     use tools_io, only: string, ferror, faterr
@@ -978,7 +978,6 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     real(c_float) :: panewidth
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax
-    real(c_float) :: scrmax
     type(ImGuiWindow), pointer :: wptr
 
     if (.not.w%isinit) return
@@ -1155,7 +1154,8 @@ contains
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62)
        elseif (w%type == wintype_mo) then
-          call init_window("Molecular Orbitals",62)
+          ! wide enough for the two spin tables of an unrestricted wavefunction
+          call init_window("Molecular Orbitals",84)
        elseif (w%type == wintype_dynamics) then
           call init_window("Dynamics",55)
        elseif (w%type == wintype_water_cluster) then
@@ -1225,16 +1225,6 @@ contains
           end if
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
-             if (w%growtofit .and. .not.w%isdocked) then
-                ! the window height that shows all of this window's
-                ! content, for the grow-to-fit constraint (next frame)
-                scrmax = igGetScrollMaxY()
-                if (scrmax > 0._c_float) then
-                   w%needheight = igGetWindowHeight() + scrmax
-                else
-                   w%needheight = 0._c_float
-                end if
-             end if
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
@@ -1282,6 +1272,16 @@ contains
              elseif (w%type == wintype_builder) then
                 call w%draw_builder()
              end if
+
+             ! The window height that shows all of this window's content,
+             ! for the grow-to-fit constraint of the next frame. Measured
+             ! from the laid-out content rather than from the scrollbar:
+             ! a scrollbar only exists while the window is too short, so
+             ! deriving the height from it makes the constraint switch
+             ! itself off as soon as it has worked, and the window then
+             ! flips between the two sizes on alternate frames.
+             if (w%growtofit .and. .not.w%isdocked) &
+                w%needheight = igGetCursorPosY() + g%Style%WindowPadding%y
           end if
           call igEnd()
        end if

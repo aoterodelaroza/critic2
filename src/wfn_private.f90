@@ -88,6 +88,9 @@ module wfn_private
   !
   ! In rhf and uhf wavefunctions, the virtual orbitals (nmoocc to
   ! nmoall) are only available if hasvirtual = .true.
+  !
+  ! Use get_mo_nspin/get_mo_index (and get_mo_info/get_mo_name) to walk
+  ! this layout rather than reproducing the arithmetic below.
   type molwfn
      logical :: useecp !< this wavefunction comes from a calc with ECPs
      integer :: nmoall !< number of molecular orbitals (occupied and virtual)
@@ -142,6 +145,10 @@ module wfn_private
      procedure :: xhole !< calculate the exchange hole
      procedure :: calculate_mo !< calculate the MO values at a point (driver)
      procedure :: get_mo_info !< label, spin, occupation, and energy of a packed MO index
+     procedure :: get_mo_nspin !< number of MOs (and occupied MOs) in a spin channel
+     procedure :: get_mo_index !< packed index of the idx-th MO of a spin channel
+     procedure :: get_mo_nchannels !< number of spin channels to present separately
+     procedure :: get_mo_name !< how a packed MO index is written (a5, b3, 12,...)
   end type molwfn
   public :: molwfn
 
@@ -155,6 +162,13 @@ module wfn_private
   public :: wfn_read_dat_geometry
   public :: wfn_read_pgout_geometry
   public :: wfn_read_orca_geometry
+
+  ! spin channel selectors for the get_mo_* routines: a wavefunction
+  ! whose two channels are the same set of spatial orbitals has only
+  ! the "all" channel, which is also the whole packed orbital list
+  integer, parameter, public :: wfn_spin_all = 0
+  integer, parameter, public :: wfn_spin_alpha = 1
+  integer, parameter, public :: wfn_spin_beta = 2
 
   ! wfn type identifier
   integer, parameter, public :: wfn_rhf = 0
@@ -345,6 +359,27 @@ module wfn_private
        real*8, intent(out), optional :: occup
        real*8, intent(out), optional :: ener
      end subroutine get_mo_info
+     pure module function get_mo_nchannels(f) result(n)
+       class(molwfn), intent(in) :: f
+       integer :: n
+     end function get_mo_nchannels
+     module function get_mo_name(f,imo) result(str)
+       class(molwfn), intent(in) :: f
+       integer, intent(in) :: imo
+       character(len=:), allocatable :: str
+     end function get_mo_name
+     module function get_mo_nspin(f,ispin,nocc) result(n)
+       class(molwfn), intent(in) :: f
+       integer, intent(in) :: ispin
+       integer, intent(out), optional :: nocc
+       integer :: n
+     end function get_mo_nspin
+     pure module function get_mo_index(f,ispin,idx) result(imo)
+       class(molwfn), intent(in) :: f
+       integer, intent(in) :: ispin
+       integer, intent(in) :: idx
+       integer :: imo
+     end function get_mo_index
   end interface
 
 end module wfn_private

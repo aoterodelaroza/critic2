@@ -498,7 +498,8 @@ module windows
      ! molecular orbitals window parameters
      integer(c_int) :: mo_ieneunit = 0 ! energy unit in the MO table (0 = Hartree, 1 = eV)
      integer :: mo_selected = 0 ! selected MO (packed wavefunction index; 0 = none)
-     logical :: mo_scrolled = .false. ! the MO table has been scrolled to the HOMO/LUMO boundary
+     logical :: mo_scrolled(2) = .false. ! the MO tables have been centered on their HOMO/LUMO boundary
+                                         ! (1 = the combined or alpha table, 2 = the beta table)
      integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
      integer(c_int) :: mo_ilevel = 0 ! grid coarseness level of the MO isosurface (iso_level_*)
      type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
