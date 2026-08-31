@@ -1378,6 +1378,8 @@ contains
          ! has virtuals that were not read)
          if (iw_menuitem("Reload with Virtual Orbitals",enabled=sys(i)%f(k)%has_unread_virtuals())) then
             call reload_field_with_virtuals(i,k,errmsg)
+            ! the occupied orbitals are unchanged: keep their cached grids
+            if (len_trim(errmsg) == 0) call mo_cache_keep_after_reload(i,k)
             if (len_trim(errmsg) > 0) then
                write (uout,'("!! Warning !! Could not reload the field: ",A)') trim(errmsg)
                ! show the error transiently in the tree window, too

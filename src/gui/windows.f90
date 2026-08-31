@@ -498,7 +498,8 @@ module windows
      ! molecular orbitals window parameters
      integer(c_int) :: mo_ieneunit = 0 ! energy unit in the MO table (0 = Hartree, 1 = eV)
      integer :: mo_selected = 0 ! selected MO (packed wavefunction index; 0 = none)
-     logical :: mo_scrolled = .false. ! the MO table has been scrolled to the HOMO
+     logical :: mo_scrolled = .false. ! the MO table has been scrolled to the HOMO/LUMO boundary
+     integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
      integer(c_int) :: mo_ilevel = 0 ! grid coarseness level of the MO isosurface (iso_level_*)
      type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
      real*8 :: mo_isoval = 0d0 ! isovalue of the +/- MO isosurface pair (a.u.)
@@ -758,6 +759,7 @@ module windows
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe
   public :: stack_create_window
+  public :: mo_cache_keep_after_reload
   public :: okfile_default
   public :: okfile_save_dir
   public :: regenerate_window_pointers
@@ -1186,6 +1188,10 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
      !xx! mo submodule !xx!
+     module subroutine mo_cache_keep_after_reload(isys,ifield)
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+     end subroutine mo_cache_keep_after_reload
      module subroutine draw_mo(w)
        class(window), intent(inout), target :: w
      end subroutine draw_mo

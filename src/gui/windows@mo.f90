@@ -22,8 +22,48 @@ submodule (windows) mo
 
   real(c_float), parameter :: mo_cached_rgb(3) = (/0.45_c_float,0.75_c_float,0.45_c_float/) ! cached-grid marker
   real(c_float), parameter :: mo_mark_frac = 0.35_c_float ! cached-grid mark radius, as a fraction of the row height
+  real(c_float), parameter :: mo_sep_frac = 0.25_c_float ! HOMO/LUMO separator height, as a fraction of the row height
+  real(c_float), parameter :: mo_sep_rgb(3) = (/0.85_c_float,0.15_c_float,0.15_c_float/) ! HOMO/LUMO separator color
 
 contains
+
+  !> Carry the cached orbital grids of any molecular-orbitals window
+  !> over a reload of field ifield of system isys that only added the
+  !> virtual orbitals. The occupied orbitals come back from the file
+  !> unchanged (same coefficients, same packed indices 1..nmoocc), so
+  !> their grids are still valid even though the reload counts as a
+  !> change of the field set. Without this the whole cache -- possibly
+  !> minutes of sampling -- would be dropped by the reload.
+  module subroutine mo_cache_keep_after_reload(isys,ifield)
+    use systems, only: sys, sys_init, ok_system
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+
+    integer :: i, nmoall
+    type(mo_gridcache), allocatable :: gaux(:)
+
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    nmoall = sys(isys)%f(ifield)%wfn%nmoall
+
+    do i = 1, nwin
+       if (.not.win(i)%isinit .or. win(i)%type /= wintype_mo) cycle
+       if (win(i)%isys /= isys) cycle
+       if (.not.allocated(win(i)%mo_cache%g)) cycle
+       if (win(i)%mo_cache%ifield /= ifield) cycle
+
+       ! the grids describe this field's occupied orbitals still
+       win(i)%mo_cache%fieldgen = sys(isys)%fieldgen
+
+       ! grow the table so the orbitals that just appeared can be cached
+       if (size(win(i)%mo_cache%g,1) < nmoall) then
+          allocate(gaux(nmoall))
+          gaux(1:size(win(i)%mo_cache%g,1)) = win(i)%mo_cache%g
+          call move_alloc(gaux,win(i)%mo_cache%g)
+       end if
+    end do
+
+  end subroutine mo_cache_keep_after_reload
 
   !> Draw the molecular orbitals window. The window lists the MOs of
   !> the reference field of the system in its anchor view; selecting
@@ -47,7 +87,7 @@ contains
 
     logical(c_bool) :: selected
     logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, hasspin
-    integer :: isys, iview, iref, i, itrep, irep, ihomo, spin, ncol, digits
+    integer :: isys, iview, iref, i, j, nrow, jsep, jscroll, itrep, irep, ihomo, spin, ncol, digits
     integer :: icid, iccache, iclabel, icspin, icocc, icene
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, strl
@@ -101,6 +141,15 @@ contains
     end if
     if (mo_ok) mo_ok = associated(win(iview)%sc)
 
+    ! a reloaded wavefunction (virtual orbitals read, say) is a different
+    ! set of orbitals: centre the table on the new boundary again
+    if (mo_ok) then
+       if (w%mo_fieldgen /= sys(isys)%fieldgen) then
+          w%mo_scrolled = .false.
+          w%mo_fieldgen = sys(isys)%fieldgen
+       end if
+    end if
+
     ! header
     if (goodsys) then
        ! system name
@@ -141,8 +190,11 @@ contains
        ! offer to re-read it. The reload replaces the field, so it can
        ! not run inside an associate block that aliases it
        if (sys(isys)%f(iref)%has_unread_virtuals()) then
-          if (iw_button("Reload with Virtual Orbitals",danger=.true.)) &
+          if (iw_button("Reload with Virtual Orbitals",danger=.true.)) then
              call reload_field_with_virtuals(isys,iref,w%errmsg)
+             ! the occupied orbitals are unchanged: keep their grids
+             if (len_trim(w%errmsg) == 0) call mo_cache_keep_after_reload(isys,iref)
+          end if
           call iw_tooltip("Re-read the wavefunction file for the reference field,&
              & this time including the virtual (unoccupied) orbitals",ttshown)
        elseif (.not.sys(isys)%f(iref)%wfn%hasvirtual) then
@@ -189,6 +241,21 @@ contains
             ncol = ncol + 1
          end if
 
+         ! The table runs in orbital order, lowest first. When there are
+         ! virtuals, a separator row marks the HOMO/LUMO gap and the
+         ! one-shot centering puts that boundary in the middle of the
+         ! table; without virtuals there is no gap, and the HOMO (the
+         ! last row) is centered instead.
+         nrow = wfn%nmoall
+         jsep = 0
+         if (wfn%nmoall > wfn%nmoocc) then
+            jsep = wfn%nmoocc + 1
+            nrow = nrow + 1
+            jscroll = jsep
+         else
+            jscroll = ihomo
+         end if
+
          flags = ImGuiTableFlags_None
          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
          flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -219,12 +286,30 @@ contains
             ! the HOMO is pending, force its row in so it can anchor
             ! the scroll
             clipper = ImGuiListClipper_ImGuiListClipper()
-            call ImGuiListClipper_Begin(clipper,wfn%nmoall,-1._c_float)
+            call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
             if (.not.w%mo_scrolled) &
-               call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,ihomo-1,ihomo)
+               call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,jscroll-1,jscroll)
             do while (ImGuiListClipper_Step(clipper))
                call c_f_pointer(clipper,clipper_f)
-               do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+               do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                  ! the HOMO/LUMO gap: a thick line across the table
+                  if (j == jsep) then
+                     call igTableNextRow(ImGuiTableRowFlags_None,mo_sep_frac*igGetFrameHeight())
+                     call igTableSetBgColor(ImGuiTableBgTarget_RowBg0,&
+                        igGetColorU32_Vec4(ImVec4(mo_sep_rgb(1),mo_sep_rgb(2),mo_sep_rgb(3),&
+                        1._c_float)),-1_c_int)
+                     if (.not.w%mo_scrolled .and. j == jscroll) then
+                        if (igTableSetColumnIndex(icid)) call igSetScrollHereY(0.5_c_float)
+                        w%mo_scrolled = .true.
+                     end if
+                     cycle
+                  end if
+
+                  ! display row to orbital (the rows below the separator
+                  ! are shifted by it)
+                  i = j
+                  if (jsep > 0 .and. j > jsep) i = i - 1
+
                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                   call wfn%get_mo_info(i,label,spin,occup,ener)
 
@@ -245,8 +330,8 @@ contains
                         changed = .true.
                      end if
 
-                     ! center the table on the HOMO the first time it is drawn
-                     if (.not.w%mo_scrolled .and. i == ihomo) then
+                     ! center the table on the HOMO/LUMO boundary once
+                     if (.not.w%mo_scrolled .and. j == jscroll) then
                         call igSetScrollHereY(0.5_c_float)
                         w%mo_scrolled = .true.
                      end if
