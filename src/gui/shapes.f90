@@ -231,6 +231,8 @@ module shapes
   !> extent (grow-only; the contents are scratch and are not preserved).
   interface ensure_pack
      module procedure ensure_pack_realc2
+     module procedure ensure_pack_realc1
+     module procedure ensure_pack_int2
      module procedure ensure_pack_int1
   end interface ensure_pack
   public :: ensure_pack
@@ -291,6 +293,25 @@ module shapes
      integer, allocatable :: msh_nrep(:) ! number of drawn copies of each mesh
      integer, allocatable :: msh_repfirst(:) ! first copy of each mesh in msh_xrep (0-based)
      real(c_float), allocatable :: msh_xrep(:,:) ! concatenated copy offsets of all meshes (3,:)
+     real(c_float), allocatable :: msh_ctd(:,:) ! triangle centroids of all meshes (3,:), cached at upload
+     integer(c_int), allocatable :: msh_ipris(:) ! pristine upload-order copy of the base element region;
+                                                 ! every sort reads from it, so the triangle keyed by
+                                                 ! msh_ctd(:,t) is always the one at slot t
+     integer :: msh_ebase = 0 ! elements in the base (upload-order) region of the EBO
+     integer :: msh_etr = 0 ! elements reserved after the base region for the interleaved
+                            ! translucent sequence (0 = use the per-mesh fallback)
+     integer, allocatable :: msh_runs(:,:) ! interleaved draw runs, back-to-front (4,:): mesh, copy,
+                                           ! first element (0-based), element count
+     integer :: msh_nruns = 0 ! number of runs (0 = no interleaved order available)
+     integer, allocatable :: msh_order(:) ! fallback: the translucent meshes, back-to-front
+     integer :: msh_nord = 0 ! number of meshes in msh_order (0 = no sorted order available)
+     ! per-call scratch of sort_meshes (contents meaningless between calls)
+     real(c_float), allocatable :: msh_tz(:) ! per-triangle depth scratch of the sort
+     integer, allocatable :: msh_pair(:,:) ! interleave scratch: mesh and copy of each pair (2,:)
+     real(c_float), allocatable :: msh_pairz(:) ! interleave scratch: pair depth offset
+     integer, allocatable :: msh_bp(:,:) ! interleave scratch: slab-by-pair occupancy, then cursors
+     logical :: msh_sortvalid = .false. ! the current element order matches msh_sortrow
+     real(c_float) :: msh_sortrow(3) = 0._c_float ! view*world depth row the order was built for
      ! per-scene on-scene-text buffer: the glyph vertices of the scene labels
      ! are cached here (and in the VBO) and reused while the camera and the
      ! draw lists do not change
@@ -324,6 +345,7 @@ module shapes
      procedure :: draw_cylinders => glbuffers_draw_cylinders
      procedure :: draw_mesh => glbuffers_draw_mesh
      procedure :: upload_meshes => glbuffers_upload_meshes
+     procedure :: sort_meshes => glbuffers_sort_meshes
      procedure :: draw_meshes => glbuffers_draw_meshes
      procedure :: upload_text => glbuffers_upload_text
      procedure :: redraw_spheres => glbuffers_redraw_spheres
@@ -352,6 +374,14 @@ module shapes
        real(c_float), allocatable, intent(inout) :: arr(:,:)
        integer, intent(in) :: nf, n
      end subroutine ensure_pack_realc2
+     module subroutine ensure_pack_realc1(arr,n)
+       real(c_float), allocatable, intent(inout) :: arr(:)
+       integer, intent(in) :: n
+     end subroutine ensure_pack_realc1
+     module subroutine ensure_pack_int2(arr,nf,n)
+       integer, allocatable, intent(inout) :: arr(:,:)
+       integer, intent(in) :: nf, n
+     end subroutine ensure_pack_int2
      module subroutine ensure_pack_int1(arr,n)
        integer, allocatable, intent(inout) :: arr(:)
        integer, intent(in) :: n
@@ -427,6 +457,10 @@ module shapes
        integer, intent(in) :: n
        type(dl_mesh), intent(in) :: msh(:)
      end subroutine glbuffers_upload_meshes
+     module subroutine glbuffers_sort_meshes(b,vw3)
+       class(scene_glbuffers), intent(inout), target :: b
+       real(c_float), intent(in) :: vw3(3)
+     end subroutine glbuffers_sort_meshes
      module subroutine glbuffers_draw_meshes(b,opaque)
        class(scene_glbuffers), intent(inout) :: b
        logical, intent(in) :: opaque

@@ -24,6 +24,13 @@ submodule (shapes) proc
   real(c_float), allocatable, target :: conv(:,:) ! vertices (1:3)
   integer(c_int), allocatable, target :: coni(:,:) ! faces
 
+  ! translucent-triangle depth sort
+  integer, parameter :: msh_nbucket_mesh = 1024 ! per-mesh fallback buckets
+  integer, parameter :: msh_nbucket_ilv = 512 ! max interleave depth slabs
+  integer, parameter :: msh_maxruns_ilv = 8192 ! target cap on interleave draw runs (slabs*pairs)
+  integer, parameter :: msh_minbucket_ilv = 32 ! interleave depth slabs are never fewer than this
+  integer, parameter :: msh_maxel_ilv = 8000000 ! max elements of the interleaved sequence (~32 MB)
+
 contains
 
   !> Create and initialize the buffers for the basic shapes
@@ -751,6 +758,22 @@ contains
     if (allocated(b%msh_first)) deallocate(b%msh_first)
     if (allocated(b%msh_count)) deallocate(b%msh_count)
     if (allocated(b%msh_rgba)) deallocate(b%msh_rgba)
+    if (allocated(b%msh_nrep)) deallocate(b%msh_nrep)
+    if (allocated(b%msh_repfirst)) deallocate(b%msh_repfirst)
+    if (allocated(b%msh_xrep)) deallocate(b%msh_xrep)
+    if (allocated(b%msh_ctd)) deallocate(b%msh_ctd)
+    if (allocated(b%msh_ipris)) deallocate(b%msh_ipris)
+    if (allocated(b%msh_runs)) deallocate(b%msh_runs)
+    if (allocated(b%msh_order)) deallocate(b%msh_order)
+    if (allocated(b%msh_tz)) deallocate(b%msh_tz)
+    if (allocated(b%msh_pair)) deallocate(b%msh_pair)
+    if (allocated(b%msh_pairz)) deallocate(b%msh_pairz)
+    if (allocated(b%msh_bp)) deallocate(b%msh_bp)
+    b%msh_nord = 0
+    b%msh_nruns = 0
+    b%msh_ebase = 0
+    b%msh_etr = 0
+    b%msh_sortvalid = .false.
     b%textVAO = 0
     b%textVBO = 0
     b%text_cap = 0
@@ -783,6 +806,32 @@ contains
     if (.not.allocated(arr)) allocate(arr(nf,max(n,1)))
 
   end subroutine ensure_pack_realc2
+
+  !> Ensure the real pack scratch array holds at least n elements
+  !> (grow-only; contents are not preserved).
+  module subroutine ensure_pack_realc1(arr,n)
+    real(c_float), allocatable, intent(inout) :: arr(:)
+    integer, intent(in) :: n
+
+    if (allocated(arr)) then
+       if (size(arr,1) < n) deallocate(arr)
+    end if
+    if (.not.allocated(arr)) allocate(arr(max(n,1)))
+
+  end subroutine ensure_pack_realc1
+
+  !> Ensure the (nf,:) integer pack scratch array holds at least n
+  !> columns (grow-only; contents are not preserved).
+  module subroutine ensure_pack_int2(arr,nf,n)
+    integer, allocatable, intent(inout) :: arr(:,:)
+    integer, intent(in) :: nf, n
+
+    if (allocated(arr)) then
+       if (size(arr,1) /= nf .or. size(arr,2) < n) deallocate(arr)
+    end if
+    if (.not.allocated(arr)) allocate(arr(nf,max(n,1)))
+
+  end subroutine ensure_pack_int2
 
   !> Ensure the integer pack scratch array holds at least n elements
   !> (grow-only; contents are not preserved).
@@ -980,20 +1029,35 @@ contains
     integer, intent(in) :: n
     type(dl_mesh), intent(in) :: msh(:)
 
-    integer :: i, j, nvtot, netot, iv, ie, irep, nrep, nreptot
+    integer :: i, j, nvtot, netot, iv, ie, irep, nrep, nreptot, netr
+    integer*8 :: netr8
     integer(c_int) :: i_
 
-    ! total vertex, element, and copy counts
+    ! total vertex, element, and copy counts; the translucent meshes
+    ! also reserve room for the depth-interleaved element sequence (one
+    ! copy of their elements per drawn copy), unless the job is too big
+    ! for it and the sort falls back to the per-mesh scheme
     nvtot = 0
     netot = 0
     nreptot = 0
+    netr8 = 0
     do i = 1, n
        nvtot = nvtot + msh(i)%nv
        netot = netot + 3*msh(i)%nf
        nrep = 1
        if (allocated(msh(i)%xrep)) nrep = max(size(msh(i)%xrep,2),1)
        nreptot = nreptot + nrep
+       if (msh(i)%alpha < 1._c_float .and. msh(i)%nf > 0) &
+          netr8 = netr8 + 3_8 * int(msh(i)%nf,8) * int(nrep,8)
     end do
+    netr = 0
+    if (netr8 <= msh_maxel_ilv) netr = int(netr8)
+    ! any previous depth-sorted order describes the old contents
+    b%msh_sortvalid = .false.
+    b%msh_nord = 0
+    b%msh_nruns = 0
+    b%msh_ebase = netot
+    b%msh_etr = netr
     if (netot == 0 .or. nvtot == 0) then
        b%nmsh_inst = 0
        return
@@ -1004,13 +1068,14 @@ contains
     ! fill the per-mesh draw table (each mesh is drawn once per copy
     ! offset, so the geometry is packed only once)
     call ensure_pack(b%packmshv,int(msh_vert_nf),nvtot)
-    call ensure_pack(b%packmshi,netot)
+    call ensure_pack(b%packmshi,netot+netr)
     call ensure_pack(b%msh_first,n)
     call ensure_pack(b%msh_count,n)
     call ensure_pack(b%msh_rgba,4,n)
     call ensure_pack(b%msh_nrep,n)
     call ensure_pack(b%msh_repfirst,n)
     call ensure_pack(b%msh_xrep,3,nreptot)
+    call ensure_pack(b%msh_ctd,3,netot/3)
     iv = 0
     ie = 0
     irep = 0
@@ -1026,6 +1091,14 @@ contains
        do j = 1, msh(i)%nf
           b%packmshi(ie+3*(j-1)+1:ie+3*j) = msh(i)%idx(:,j) + iv
        end do
+       ! triangle centroids, for the translucent depth sort (the
+       ! opaque slots are never read)
+       if (msh(i)%alpha < 1._c_float) then
+          do j = 1, msh(i)%nf
+             b%msh_ctd(:,ie/3+j) = (msh(i)%x(:,msh(i)%idx(1,j)+1) + msh(i)%x(:,msh(i)%idx(2,j)+1) +&
+                msh(i)%x(:,msh(i)%idx(3,j)+1)) / 3._c_float
+          end do
+       end if
        b%msh_first(i) = ie
        b%msh_count(i) = 3*msh(i)%nf
        b%msh_rgba(1:3,i) = msh(i)%rgb ! the shader takes the color from the vertex; this is the opacity carrier
@@ -1044,13 +1117,22 @@ contains
        ie = ie + 3*msh(i)%nf
     end do
 
+    ! pristine copy of the element indices, needed only by the per-mesh
+    ! fallback sort (which permutes the base region in place but keys on
+    ! the upload-order centroids); the interleave never touches the base
+    ! region and reads it directly
+    if (netr == 0) then
+       call ensure_pack(b%msh_ipris,netot)
+       b%msh_ipris(1:netot) = b%packmshi(1:netot)
+    end if
+
     ! upload both buffers. The vertices go through the shared orphan+subdata
     ! helper; the element buffer is uploaded by hand because its binding
     ! lives in the VAO state (it must be written with the VAO bound, and
     ! must not be unbound afterwards).
     call glBindVertexArray(b%mshVAO)
     call upload_instances(b%mshVBO,b%msh_vcap,int(msh_vert_nf),nvtot,c_loc(b%packmshv))
-    if (netot > b%msh_ecap) b%msh_ecap = max(netot,2*b%msh_ecap)
+    if (netot+netr > b%msh_ecap) b%msh_ecap = max(netot+netr,2*b%msh_ecap)
     call glBufferData(GL_ELEMENT_ARRAY_BUFFER, int(b%msh_ecap,c_intptr_t)*c_sizeof(i_),&
        c_null_ptr, GL_DYNAMIC_DRAW)
     call glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0_c_intptr_t, int(netot,c_intptr_t)*c_sizeof(i_),&
@@ -1059,34 +1141,316 @@ contains
 
   end subroutine glbuffers_upload_meshes
 
+  !> Reorder the translucent meshes for back-to-front blending under
+  !> the current camera. vw3 holds the first three components of the
+  !> third row of view*world, so the view-space depth of a model point
+  !> p is dot(vw3,p) up to a constant offset (which cannot change the
+  !> order), more negative = farther from the camera. The triangles of every
+  !> translucent mesh are sorted by depth (a stable bucket sort over
+  !> the centroids cached at upload) and the element buffer is
+  !> re-uploaded; the translucent meshes and the copy offsets of each
+  !> are sorted the same way, giving the order draw_meshes uses. A
+  !> no-op if the current order was already built for this camera. The
+  !> opaque meshes are depth-tested with depth writes, so their
+  !> element ranges are left alone.
+  module subroutine glbuffers_sort_meshes(b,vw3)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout), target :: b
+    real(c_float), intent(in) :: vw3(3)
+
+    integer :: i, j, k, l, p, r, t, nt, t0, e0, r0, ib, pos, ncur, cnt, npairs, nb
+    integer*8 :: needed8
+    integer :: bcount(msh_nbucket_mesh)
+    real(c_float) :: zmn(b%nmsh_inst), zmx(b%nmsh_inst), zkey(b%nmsh_inst)
+    real(c_float) :: zmin, zmax, fac, z, xk(3)
+    integer(c_int) :: i_
+
+    if (b%nmsh_inst <= 0) return
+    if (b%msh_sortvalid) then
+       if (all(b%msh_sortrow == vw3)) return
+    end if
+
+    ! the translucent meshes, in list order for now
+    call ensure_pack(b%msh_order,b%nmsh_inst)
+    b%msh_nord = 0
+    b%msh_nruns = 0
+    do i = 1, b%nmsh_inst
+       if (b%msh_rgba(4,i) >= 1._c_float .or. b%msh_count(i) <= 0) cycle
+       b%msh_nord = b%msh_nord + 1
+       b%msh_order(b%msh_nord) = i
+    end do
+    b%msh_sortvalid = .true.
+    b%msh_sortrow = vw3
+    if (b%msh_nord == 0) return
+
+    ! depths of all translucent triangles, at the same slots as their
+    ! cached centroids, and the per-mesh depth range
+    call ensure_pack(b%msh_tz,b%msh_ebase/3)
+    do j = 1, b%msh_nord
+       i = b%msh_order(j)
+       t0 = b%msh_first(i) / 3
+       nt = b%msh_count(i) / 3
+       zmin = huge(zmin)
+       zmax = -huge(zmax)
+       do t = 1, nt
+          z = dot_product(vw3,b%msh_ctd(:,t0+t))
+          b%msh_tz(t0+t) = z
+          zmin = min(zmin,z)
+          zmax = max(zmax,z)
+       end do
+       zmn(i) = zmin
+       zmx(i) = zmax
+       zkey(i) = zmin + zmax ! per-mesh ordering key (twice the depth midpoint)
+    end do
+
+    ! the (mesh,copy) pairs of the interleave and the elements they
+    ! need; the defensive re-count keeps the bound local to this
+    ! routine. If the reserved region cannot hold them (it should:
+    ! upload reserved from the same meshes), downgrade this upload
+    ! generation to the per-mesh fallback, taking the pristine copy
+    ! the fallback keys on now, while the base region is untouched
+    npairs = 0
+    needed8 = 0
+    do j = 1, b%msh_nord
+       i = b%msh_order(j)
+       npairs = npairs + b%msh_nrep(i)
+       needed8 = needed8 + int(b%msh_count(i),8) * int(b%msh_nrep(i),8)
+    end do
+    if (b%msh_etr > 0 .and. needed8 > int(b%msh_etr,8)) then
+       call ensure_pack(b%msh_ipris,b%msh_ebase)
+       b%msh_ipris(1:b%msh_ebase) = b%packmshi(1:b%msh_ebase)
+       b%msh_etr = 0
+    end if
+    if (b%msh_etr > 0) then
+       ! Global interleave: every (mesh,copy) pair's triangles are
+       ! binned together into depth slabs over the whole translucent
+       ! set, and the elements are written slab by slab (farthest
+       ! first) into the region after the pristine base, grouped into
+       ! per-pair draw runs. This gets the between-mesh (and
+       ! between-copy) order right where the meshes interleave in
+       ! depth, which whole-mesh ordering cannot. The slab count
+       ! shrinks as the pair count grows, keeping the number of draw
+       ! runs at about msh_maxruns_ilv or less.
+       nb = min(msh_nbucket_ilv,max(msh_maxruns_ilv/npairs,msh_minbucket_ilv))
+       call ensure_pack(b%msh_pair,2,npairs)
+       call ensure_pack(b%msh_pairz,npairs)
+       call ensure_pack(b%msh_bp,nb,npairs)
+       p = 0
+       zmin = huge(zmin)
+       zmax = -huge(zmax)
+       do j = 1, b%msh_nord
+          i = b%msh_order(j)
+          r0 = b%msh_repfirst(i)
+          do k = 1, b%msh_nrep(i)
+             p = p + 1
+             b%msh_pair(1,p) = i
+             b%msh_pair(2,p) = k
+             b%msh_pairz(p) = dot_product(vw3,b%msh_xrep(:,r0+k))
+             zmin = min(zmin,zmn(i) + b%msh_pairz(p))
+             zmax = max(zmax,zmx(i) + b%msh_pairz(p))
+          end do
+       end do
+
+       ! bin the (triangle,pair) depths into the slabs
+       fac = 0._c_float
+       if (zmax > zmin) fac = real(nb-1,c_float) / (zmax - zmin)
+       b%msh_bp(1:nb,1:npairs) = 0
+       do p = 1, npairs
+          i = b%msh_pair(1,p)
+          t0 = b%msh_first(i) / 3
+          nt = b%msh_count(i) / 3
+          do t = 1, nt
+             ib = ibucket(b%msh_tz(t0+t)+b%msh_pairz(p),zmin,fac,nb)
+             b%msh_bp(ib,p) = b%msh_bp(ib,p) + 1
+          end do
+       end do
+
+       ! build the run table (farthest slab first, fixed pair order
+       ! within a slab) and turn the occupancies into element cursors
+       call ensure_pack(b%msh_runs,4,count(b%msh_bp(1:nb,1:npairs) > 0))
+       ncur = b%msh_ebase
+       r = 0
+       do ib = 1, nb
+          do p = 1, npairs
+             cnt = b%msh_bp(ib,p)
+             if (cnt == 0) cycle
+             r = r + 1
+             b%msh_runs(1:2,r) = b%msh_pair(:,p)
+             b%msh_runs(3,r) = ncur
+             b%msh_runs(4,r) = 3*cnt
+             b%msh_bp(ib,p) = ncur
+             ncur = ncur + 3*cnt
+          end do
+       end do
+       b%msh_nruns = r
+
+       ! write the interleaved element sequence, reading from the base
+       ! region (never permuted on this path, so it is the upload order
+       ! the cached centroids describe)
+       do p = 1, npairs
+          i = b%msh_pair(1,p)
+          e0 = b%msh_first(i)
+          t0 = e0 / 3
+          nt = b%msh_count(i) / 3
+          do t = 1, nt
+             ib = ibucket(b%msh_tz(t0+t)+b%msh_pairz(p),zmin,fac,nb)
+             pos = b%msh_bp(ib,p)
+             b%packmshi(pos+1:pos+3) = b%packmshi(e0+3*t-2:e0+3*t)
+             b%msh_bp(ib,p) = pos + 3
+          end do
+       end do
+
+       ! upload the interleaved region (the EBO binding lives in the VAO state)
+       call glBindVertexArray(b%mshVAO)
+       call glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, int(b%msh_ebase,c_intptr_t)*c_sizeof(i_),&
+          int(ncur-b%msh_ebase,c_intptr_t)*c_sizeof(i_), c_loc(b%packmshi(b%msh_ebase+1)))
+       call glBindVertexArray(0)
+    else
+       ! Fallback for very large jobs: sort within each mesh (into the
+       ! base element region) and order whole meshes and their copies
+       ! by depth key. Correct within a mesh; approximate between them.
+       call glBindVertexArray(b%mshVAO)
+       do j = 1, b%msh_nord
+          i = b%msh_order(j)
+          e0 = b%msh_first(i)
+          t0 = e0 / 3
+          nt = b%msh_count(i) / 3
+
+          ! stable bucket sort of this mesh's element range, farthest
+          ! first: the triangles are read from the pristine upload-order
+          ! copy (which the cached centroids describe), written to the
+          ! live element buffer in sorted order, and re-uploaded (only
+          ! this mesh's range; the EBO binding lives in the VAO state)
+          if (zmx(i) > zmn(i)) then
+             fac = real(msh_nbucket_mesh-1,c_float) / (zmx(i) - zmn(i))
+             bcount = 0
+             do t = 1, nt
+                ib = ibucket(b%msh_tz(t0+t),zmn(i),fac,msh_nbucket_mesh)
+                bcount(ib) = bcount(ib) + 1
+             end do
+             ! turn the occupancies into write cursors, in place (the
+             ! same idiom as the interleave's run table)
+             pos = 0
+             do ib = 1, msh_nbucket_mesh
+                cnt = bcount(ib)
+                bcount(ib) = pos
+                pos = pos + cnt
+             end do
+             do t = 1, nt
+                ib = ibucket(b%msh_tz(t0+t),zmn(i),fac,msh_nbucket_mesh)
+                bcount(ib) = bcount(ib) + 1
+                b%packmshi(e0+3*bcount(ib)-2:e0+3*bcount(ib)) = b%msh_ipris(e0+3*t-2:e0+3*t)
+             end do
+             call glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, int(e0,c_intptr_t)*c_sizeof(i_),&
+                int(3*nt,c_intptr_t)*c_sizeof(i_), c_loc(b%packmshi(e0+1)))
+          end if
+
+          ! the copy offsets of this mesh, farthest first (insertion
+          ! sort; there is only a handful of copies). This permutes the
+          ! shared copy-offset table in place, which is fine while
+          ! nothing maps a copy index back to the source mesh
+          r0 = b%msh_repfirst(i)
+          do k = 2, b%msh_nrep(i)
+             xk = b%msh_xrep(:,r0+k)
+             z = dot_product(vw3,xk)
+             l = k - 1
+             do while (l >= 1)
+                if (dot_product(vw3,b%msh_xrep(:,r0+l)) <= z) exit
+                b%msh_xrep(:,r0+l+1) = b%msh_xrep(:,r0+l)
+                l = l - 1
+             end do
+             b%msh_xrep(:,r0+l+1) = xk
+          end do
+       end do
+       call glBindVertexArray(0)
+
+       ! the translucent meshes themselves, farthest first (insertion sort)
+       do j = 2, b%msh_nord
+          i = b%msh_order(j)
+          z = zkey(i)
+          k = j - 1
+          do while (k >= 1)
+             if (zkey(b%msh_order(k)) <= z) exit
+             b%msh_order(k+1) = b%msh_order(k)
+             k = k - 1
+          end do
+          b%msh_order(k+1) = i
+       end do
+    end if
+
+  contains
+    !> Depth slab of depth z: buckets 1 to nb over the range starting
+    !> at z0 with scale fac, clamped. The counting and writing passes
+    !> of both sorting schemes must bin identically, so this is the
+    !> only place the bin of a depth is computed.
+    pure function ibucket(zval,z0,fac0,nb0) result(ibr)
+      real(c_float), intent(in) :: zval, z0, fac0
+      integer, intent(in) :: nb0
+      integer :: ibr
+
+      ibr = min(max(int((zval-z0) * fac0) + 1,1),nb0)
+
+    end function ibucket
+  end subroutine glbuffers_sort_meshes
+
   !> Draw the uploaded indexed meshes of one opacity class (opaque:
-  !> alpha = 1, otherwise translucent): one glDrawElements per mesh with
-  !> its rgba uniform on the currently bound iso shader. Blend and depth
-  !> state are the caller's responsibility.
+  !> alpha = 1, otherwise translucent) on the currently bound iso
+  !> shader. Blend and depth state are the caller's responsibility. The
+  !> translucent meshes are drawn back to front in the order built by
+  !> sort_meshes: the globally interleaved runs when available,
+  !> otherwise whole meshes by depth key (in list order if no sorted
+  !> order exists at all).
   module subroutine glbuffers_draw_meshes(b,opaque)
     use interfaces_opengl3
     use shaders, only: setuniform_vec3, setuniform_vec4, uniloc, u_rgba, u_xshift
     class(scene_glbuffers), intent(inout) :: b
     logical, intent(in) :: opaque
 
-    integer :: i, k
+    integer :: i, k, r, iprev
     integer(c_int) :: i_
     type(c_ptr) :: c_ptr_
 
     if (b%nmsh_inst <= 0) return
     call glBindVertexArray(b%mshVAO)
-    do i = 1, b%nmsh_inst
-       if (opaque .neqv. (b%msh_rgba(4,i) >= 1._c_float)) cycle
-       call setuniform_vec4(b%msh_rgba(:,i),idxi=uniloc(u_rgba))
-       ! one draw per copy, shifting the shared geometry with the copy offset
-       do k = 1, b%msh_nrep(i)
-          call setuniform_vec3(b%msh_xrep(:,b%msh_repfirst(i)+k),idxi=uniloc(u_xshift))
-          call glDrawElements(GL_TRIANGLES, int(b%msh_count(i),c_int), GL_UNSIGNED_INT,&
-             transfer(int(b%msh_first(i),c_intptr_t) * c_sizeof(i_), c_ptr_))
+    if (.not.opaque .and. b%msh_nruns > 0) then
+       ! interleaved runs: consecutive elements of one (mesh,copy) pair
+       iprev = 0
+       do r = 1, b%msh_nruns
+          i = b%msh_runs(1,r)
+          if (i /= iprev) call setuniform_vec4(b%msh_rgba(:,i),idxi=uniloc(u_rgba))
+          iprev = i
+          call setuniform_vec3(b%msh_xrep(:,b%msh_repfirst(i)+b%msh_runs(2,r)),idxi=uniloc(u_xshift))
+          call glDrawElements(GL_TRIANGLES, int(b%msh_runs(4,r),c_int), GL_UNSIGNED_INT,&
+             transfer(int(b%msh_runs(3,r),c_intptr_t) * c_sizeof(i_), c_ptr_))
        end do
-    end do
+    elseif (.not.opaque .and. b%msh_nord > 0) then
+       do k = 1, b%msh_nord
+          call draw_one_mesh(b%msh_order(k))
+       end do
+    else
+       do i = 1, b%nmsh_inst
+          if (opaque .neqv. (b%msh_rgba(4,i) >= 1._c_float)) cycle
+          call draw_one_mesh(i)
+       end do
+    end if
     call glBindVertexArray(0)
 
+  contains
+    !> Draw mesh im, once per copy, shifting the shared geometry with
+    !> the copy offset.
+    subroutine draw_one_mesh(im)
+      integer, intent(in) :: im
+
+      integer :: kk
+
+      call setuniform_vec4(b%msh_rgba(:,im),idxi=uniloc(u_rgba))
+      do kk = 1, b%msh_nrep(im)
+         call setuniform_vec3(b%msh_xrep(:,b%msh_repfirst(im)+kk),idxi=uniloc(u_xshift))
+         call glDrawElements(GL_TRIANGLES, int(b%msh_count(im),c_int), GL_UNSIGNED_INT,&
+            transfer(int(b%msh_first(im),c_intptr_t) * c_sizeof(i_), c_ptr_))
+      end do
+
+    end subroutine draw_one_mesh
   end subroutine glbuffers_draw_meshes
 
 end submodule proc

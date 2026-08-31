@@ -603,7 +603,7 @@ contains
     use param, only: img, pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: xsel(3,4), radsel(4)
+    real(c_float) :: xsel(3,4), radsel(4), vw(4,4), vw3(3)
     complex(c_float_complex) :: displ
     real*8 :: deltat, fac, time
     logical :: doit, dobuild
@@ -631,6 +631,9 @@ contains
 
     ! buffers, draw lists, camera lock, camera reset
     call scene_render_prepare(s)
+
+    ! view*world for this frame (fixed for the rest of the render)
+    vw = matmul(s%view,s%world)
 
     ! get the time
     time = glfwGetTime()
@@ -735,8 +738,12 @@ contains
     end if
 
     ! draw the translucent isosurface meshes: keep the depth test but
-    ! disable the depth writes, so objects behind them still show through
+    ! disable the depth writes, so objects behind them still show through.
+    ! Blending is order-dependent, so their triangles are depth-sorted
+    ! back to front for the current camera first
     if (s%obj%nmsh > 0) then
+       vw3 = vw(3,1:3) ! contiguous copy of the depth row (a row section would make a temporary)
+       call s%gl%sort_meshes(vw3)
        call setup_shader(shader_iso)
        call glDisable(GL_CULL_FACE)
        call glEnable(GL_BLEND)
@@ -1337,7 +1344,7 @@ contains
     !> reset-zoom half-side, baked font size).
     subroutine draw_all_text()
       integer :: i, nvert, nv0
-      real(c_float) :: hside, siz, x(3), vw(4,4), wclip, href
+      real(c_float) :: hside, siz, x(3), wclip, href
       real(c_float) :: p4(4), c4(4), ndc1(2), ndc2(2), dir(2), perp(2), off2(2), theta, dn, offmag
       logical :: rebuild
 
@@ -1347,10 +1354,6 @@ contains
       real(c_float), parameter :: fixedscreen_hmax = 8._c_float
 
       if (s%obj%nstring <= 0) return
-
-      ! view*world, used to get the anchor's clip-space w (= 1 in orthographic,
-      ! = view depth in perspective) for projection-aware label sizing
-      vw = matmul(s%view,s%world)
 
       ! half-window size at the reset zoom (constant on-screen size labels)
       hside = reset_zoom_hside(s)
@@ -1458,14 +1461,11 @@ contains
     !> through the shared on-scene text buffer every frame (not cached).
     subroutine draw_selection_text()
       integer :: j
-      real(c_float) :: siz, vw(4,4), wclip
+      real(c_float) :: siz, wclip
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
 
-      ! view*world, for the anchor clip-space w (projection-aware sizing; see
-      ! draw_all_text). These labels always scale with zoom.
-      vw = matmul(s%view,s%world)
-
+      ! these labels always scale with zoom (no constant-size clamp)
       call glBindVertexArray(textVAOos)
       call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
       do j = 1, s%nmsel
