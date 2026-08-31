@@ -657,6 +657,9 @@ module representations
      procedure :: grid_isapplied => iso_grid_isapplied ! whether a staged grid + region is already applied
      procedure :: sampled_box => iso_sampled_box ! the box sampled by the applied state (domain policy)
      procedure :: isgenerated => iso_isgenerated ! whether the applied state describes a generated isosurface
+     procedure :: stamp_histogram => iso_stamp_histogram ! recompute the value range and histogram from data
+     procedure :: stamp_built => iso_stamp_built ! stamp the keys that say the samples are current
+     procedure :: set_samples => iso_set_samples ! install externally supplied field samples
   end type rep_isosurface
   public :: rep_isosurface
 
@@ -790,6 +793,20 @@ module representations
        logical, intent(out) :: pereval
        logical, intent(out) :: ok
      end subroutine iso_sampled_box
+     module subroutine iso_stamp_histogram(iso,ff)
+       class(rep_isosurface), intent(inout) :: iso
+       real*8, intent(in) :: ff(:,:,:)
+     end subroutine iso_stamp_histogram
+     module subroutine iso_stamp_built(iso,isys)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: isys
+     end subroutine iso_stamp_built
+     module subroutine iso_set_samples(iso,isys,ff,outdomain)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: isys
+       real*8, intent(in) :: ff(:,:,:)
+       logical, intent(in) :: outdomain
+     end subroutine iso_set_samples
      module function iso_isgenerated(iso,isys) result(gen)
        class(rep_isosurface), intent(in) :: iso
        integer, intent(in) :: isys

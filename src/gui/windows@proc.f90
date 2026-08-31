@@ -283,9 +283,17 @@ contains
   module subroutine stack_realloc_maybe()
     type(window), allocatable :: winaux(:)
 
+    integer :: i
+
     integer, parameter :: iroom = 5
 
     if (nwin+iroom > size(win,1)) then
+       ! the window array is deep-copied below, so drop the caches that
+       ! can be rebuilt: an MO window can be holding hundreds of MB of
+       ! sampling grids, and copying them to grow the stack is pure cost
+       do i = 1, nwin
+          call win(i)%drop_caches()
+       end do
        allocate(winaux(2*(nwin+iroom)))
        winaux(1:size(win,1)) = win
        call move_alloc(winaux,win)
@@ -690,6 +698,20 @@ contains
 
   end subroutine window_init
 
+  !> Release the caches this window can rebuild on demand, without
+  !> otherwise changing what it shows. Used before the window stack is
+  !> deep-copied to grow it, where carrying the caches along is pure
+  !> cost.
+  module subroutine window_drop_caches(w)
+    class(window), intent(inout) :: w
+
+    if (w%type == wintype_mo) then
+       ! the per-orbital sampling grids, resampled on demand
+       w%mo_cache = mo_cache_state()
+    end if
+
+  end subroutine window_drop_caches
+
   !> End a window and deallocate the data.
   module subroutine window_end(w)
     use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry, remove_system
@@ -711,6 +733,9 @@ contains
           if (.not.w%ismain) then
              if (associated(w%sc)) deallocate(w%sc)
           end if
+       elseif (w%type == wintype_mo) then
+          ! release the cached orbital sampling grids
+          w%mo_cache = mo_cache_state()
        elseif (w%type == wintype_vibrations) then
           ! reset the animation status of the parent
           if (w%idparent > 0 .and. w%idparent <= nwin) then

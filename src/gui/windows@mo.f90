@@ -19,6 +19,10 @@
 submodule (windows) mo
   use interfaces_cimgui
   implicit none
+
+  real(c_float), parameter :: mo_cached_rgb(3) = (/0.45_c_float,0.75_c_float,0.45_c_float/) ! cached-grid marker
+  real(c_float), parameter :: mo_mark_frac = 0.35_c_float ! cached-grid mark radius, as a fraction of the row height
+
 contains
 
   !> Draw the molecular orbitals window. The window lists the MOs of
@@ -44,11 +48,11 @@ contains
     logical(c_bool) :: selected
     logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, hasspin
     integer :: isys, iview, iref, i, itrep, irep, ihomo, spin, ncol, digits
-    integer :: icid, iclabel, icspin, icocc, icene
+    integer :: icid, iccache, iclabel, icspin, icocc, icene
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, strl
     character(len=:), allocatable :: label
-    type(ImVec2) :: sz0, szero
+    type(ImVec2) :: sz0, szero, sz1, p0, p1
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     real*8 :: occup, ener, unitfactor, alpha8
@@ -72,6 +76,7 @@ contains
        w%errmsg = "" ! the error, if any, was about the previous system
        w%mo_selected = 0
        w%mo_scrolled = .false.
+       w%mo_cache = mo_cache_state() ! the grids belong to the previous system
     end if
 
     ! initialize
@@ -168,8 +173,9 @@ contains
          ! when the wavefunction provides them
          hasspin = (wfn%wfntyp == wfn_uhf .or. wfn%wfntyp == wfn_rohf)
          icid = 0
-         iclabel = 1
-         ncol = 2
+         iccache = 1
+         iclabel = 2
+         ncol = 3
          icspin = -1
          if (hasspin) then
             icspin = ncol
@@ -195,6 +201,7 @@ contains
          if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
             ! header setup
             call iw_table_column("Id",id=icid,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("",id=iccache,flags=ImGuiTableColumnFlags_WidthFixed)
             call iw_table_column("Label",id=iclabel,flags=ImGuiTableColumnFlags_WidthFixed)
             if (hasspin) &
                call iw_table_column("Spin",id=icspin,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -246,6 +253,26 @@ contains
 
                      ! text
                      call iw_text(string(i),sameline=.true.)
+                  end if
+
+                  ! whether this orbital's sampling grid is in the cache:
+                  ! a dot as tall as it is wide, filling the height of the
+                  ! row. Drawn on top of the row selectable (emitted in the
+                  ! id column, before this one) so it survives the
+                  ! selection highlight; the dummy reserves the width the
+                  ! column is auto-sized to
+                  if (igTableSetColumnIndex(iccache)) then
+                     sz1%x = igGetFrameHeight()
+                     sz1%y = sz1%x
+                     call igGetCursorScreenPos(p0)
+                     call igDummy(sz1)
+                     if (w%mo_cache%iscached(i)) then
+                        p1%x = p0%x + 0.5_c_float * sz1%x
+                        p1%y = p0%y + 0.5_c_float * sz1%y
+                        call ImDrawList_AddCircleFilled(igGetWindowDrawList(),p1,&
+                           mo_mark_frac * sz1%x,igGetColorU32_Vec4(ImVec4(mo_cached_rgb(1),&
+                           mo_cached_rgb(2),mo_cached_rgb(3),1._c_float)),0_c_int)
+                     end if
                   end if
 
                   ! label (HOMO-1, LUMO, ...)
@@ -345,6 +372,12 @@ contains
                     end if
                     win(iview)%sc%forcebuildlists = .true.
                  end if
+
+                 ! keep the per-orbital grid cache in step: save what the
+                 ! renderer sampled, and hand back a grid it already has
+                 ! for the orbital now selected
+                 call w%mo_cache%sync(isys,win(iview)%sc%reptrans(itrep),&
+                    win(iview)%sc%forcebuildlists)
                end associate
             end if
          end if
@@ -401,5 +434,107 @@ contains
     end subroutine commit_grid
 
   end subroutine draw_mo
+
+  !> Keep the per-orbital sampling-grid cache c, for system isys, in
+  !> step with representation r: drop every grid when the field, its
+  !> data, the sampling grid, or the geometry changed under them; store
+  !> the samples the renderer just took; and install the cached grid of
+  !> the selected orbital, so that an orbital is evaluated once and
+  !> revisiting it only re-triangulates. Sets forcebuild when a cached
+  !> grid was installed and the scene has to be rebuilt.
+  module subroutine mo_cache_sync(c,isys,r,forcebuild)
+    use systems, only: sys, sysc
+    use types, only: id_mo_id
+    class(mo_cache_state), intent(inout) :: c
+    integer, intent(in) :: isys
+    type(representation), intent(inout) :: r
+    logical, intent(inout) :: forcebuild
+
+    integer :: i, k, ilru
+    logical :: ok
+
+    ! the cache describes one field, one generation of its data, one
+    ! applied grid, and one geometry
+    ok = allocated(c%g)
+    if (ok) ok = (c%ifield == r%iso%ifield) .and.&
+       (c%fieldgen == sys(isys)%fieldgen) .and.&
+       (c%timegeom == sysc(isys)%timelastchange_geometry) .and.&
+       r%iso%grid_isapplied(c%n,c%iregion,c%rgn_x)
+    if (.not.ok) then
+       if (allocated(c%g)) deallocate(c%g)
+       c%npts = 0
+       c%iuse = 0
+       if (sys(isys)%goodfield(r%iso%ifield) .and. all(r%iso%nptsxyz > 0)) then
+          allocate(c%g(sys(isys)%f(r%iso%ifield)%wfn%nmoall))
+          c%ifield = r%iso%ifield
+          c%fieldgen = sys(isys)%fieldgen
+          c%timegeom = sysc(isys)%timelastchange_geometry
+          c%n = r%iso%nptsxyz
+          c%iregion = r%iso%iregion_ap
+          c%rgn_x = r%iso%rgn_x_ap
+       end if
+    end if
+    if (.not.allocated(c%g)) return
+
+    ! store the samples the renderer took for the orbital it built,
+    ! if they are still the ones the current state describes
+    k = r%iso%imoidx_built
+    if (k >= 1 .and. k <= size(c%g) .and. allocated(r%iso%ff)) then
+       if (.not.allocated(c%g(k)%ff) .and. r%iso%imosel_built == id_mo_id .and.&
+          r%iso%ifield_built == r%iso%ifield .and. r%iso%fieldgen_built == sys(isys)%fieldgen .and.&
+          r%iso%time_built >= r%iso%timelastapply_grid .and.&
+          r%iso%time_built >= sysc(isys)%timelastchange_geometry .and.&
+          all(shape(r%iso%ff) == c%n)) then
+          c%g(k)%ff = r%iso%ff
+          c%g(k)%outdomain = r%iso%outdomain
+          c%npts = c%npts + size(c%g(k)%ff,kind=8)
+          c%iuse = c%iuse + 1
+          c%g(k)%iuse = c%iuse
+       end if
+    end if
+
+    ! install the cached grid of the selected orbital, sparing the
+    ! renderer the sampling pass it would otherwise run
+    k = r%iso%imoidx
+    if (r%iso%imosel == id_mo_id .and. c%iscached(k)) then
+       if (r%iso%imoidx_built /= k) then
+          call r%iso%set_samples(isys,c%g(k)%ff,c%g(k)%outdomain)
+          forcebuild = .true.
+       end if
+       c%iuse = c%iuse + 1
+       c%g(k)%iuse = c%iuse
+    end if
+
+    ! keep the cache within its budget, dropping the grids that have
+    ! gone longest without use (never the one on display)
+    do while (c%npts > mo_cache_maxpts)
+       ilru = 0
+       do i = 1, size(c%g)
+          if (.not.allocated(c%g(i)%ff) .or. i == r%iso%imoidx) cycle
+          if (ilru == 0) then
+             ilru = i
+          elseif (c%g(i)%iuse < c%g(ilru)%iuse) then
+             ilru = i
+          end if
+       end do
+       if (ilru == 0) exit
+       c%npts = c%npts - size(c%g(ilru)%ff,kind=8)
+       deallocate(c%g(ilru)%ff)
+    end do
+
+  end subroutine mo_cache_sync
+
+  !> Whether the sampling grid of orbital imo is in cache c.
+  pure module function mo_cache_iscached(c,imo) result(ok)
+    class(mo_cache_state), intent(in) :: c
+    integer, intent(in) :: imo
+    logical :: ok
+
+    ok = .false.
+    if (.not.allocated(c%g)) return
+    if (imo < 1 .or. imo > size(c%g)) return
+    ok = allocated(c%g(imo)%ff)
+
+  end function mo_cache_iscached
 
 end submodule mo

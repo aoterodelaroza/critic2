@@ -1182,6 +1182,106 @@ contains
 
   end subroutine iso_del_iso
 
+  !> Recompute the value range and the plottable histogram of
+  !> isosurface object iso from the data ff. Stamped with the samples,
+  !> so it describes whatever the meshes were last built from.
+  module subroutine iso_stamp_histogram(iso,ff)
+    use grid3mod, only: field_stats
+    class(rep_isosurface), intent(inout) :: iso
+    real*8, intent(in) :: ff(:,:,:)
+
+    integer :: i, is, idef
+    real*8 :: hy(iso_nhist,hscale_num), dh, e1, e2
+
+    call field_stats(ff,fmin=iso%frange(1),fmax=iso%frange(2),hist=hy,&
+       hrange=iso%hist_range,hhave=iso%hist_have,hcumq=iso%hist_q,&
+       hcumv=iso%hist_v,hcumrange=iso%hist_cumrange,hdef=idef)
+    ! take the suggested scale while the user has not chosen one, and
+    ! whenever the chosen one is not available for this data
+    if (iso%hist_xscale < 1 .or. iso%hist_xscale > hscale_num) then
+       iso%hist_xscale = idef
+    elseif (.not.iso%hist_have(iso%hist_xscale)) then
+       iso%hist_xscale = idef
+    end if
+    ! staircase per scale, in field units (the axis applies the transform)
+    do is = 1, hscale_num
+       if (.not.iso%hist_have(is)) cycle
+       dh = (iso%hist_range(2,is) - iso%hist_range(1,is)) / real(iso_nhist,8)
+       do i = 1, iso_nhist
+          e1 = iso%hist_range(1,is) + real(i-1,8)*dh
+          e2 = iso%hist_range(1,is) + real(i,8)*dh
+          if (is == hscale_log) then
+             e1 = 10d0**e1
+             e2 = 10d0**e2
+          elseif (is == hscale_asinh) then
+             e1 = 2d0 * sinh(0.5d0*e1)
+             e2 = 2d0 * sinh(0.5d0*e2)
+          end if
+          iso%hist_x(2*i-1,is) = real(e1,c_double)
+          iso%hist_x(2*i,is) = real(e2,c_double)
+          iso%hist_y(2*i-1,is) = real(max(hy(i,is),0.5d0),c_double)
+          iso%hist_y(2*i,is) = real(max(hy(i,is),0.5d0),c_double)
+       end do
+    end do
+    ! a constant (or empty) field has no distribution to show
+    if (any(iso%hist_have)) then
+       iso%nhist = 2*iso_nhist
+    else
+       iso%nhist = 0
+    end if
+
+  end subroutine iso_stamp_histogram
+
+  !> Stamp the keys of isosurface object iso in system isys that say
+  !> its field samples are current: the field they were taken from, the
+  !> MO they show, the generation of the system's field set, and the
+  !> time. The single writer of the sample state, read back by the
+  !> staleness test in add_isosurface_meshes.
+  module subroutine iso_stamp_built(iso,isys)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: isys
+
+    iso%ifield_built = iso%ifield
+    iso%imosel_built = iso%imosel
+    iso%imoidx_built = iso%imoidx
+    iso%fieldgen_built = sys(isys)%fieldgen
+    iso%time_built = glfwGetTime()
+
+  end subroutine iso_stamp_built
+
+  !> Install ff as the field samples of isosurface object iso in system
+  !> isys, as if the renderer had just taken them: refresh the
+  !> histogram, stamp the keys that say the samples are current for the
+  !> selected field, MO, and applied grid, and drop the cached
+  !> triangulations (the data changed even though the levels did not).
+  !> The counterpart of the sampling loop in add_draw_elements, for a
+  !> producer that keeps its own grids -- the molecular-orbitals window
+  !> caches one per orbital.
+  module subroutine iso_set_samples(iso,isys,ff,outdomain)
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: isys
+    real*8, intent(in) :: ff(:,:,:)
+    logical, intent(in) :: outdomain
+
+    integer :: i
+
+    iso%ff = ff
+    iso%outdomain = outdomain
+    call iso%stamp_histogram(ff)
+
+    ! the samples describe this field, this MO, and this applied grid
+    call iso%stamp_built(isys)
+
+    ! the levels did not move but the data under them did (slot may be
+    ! unallocated, so no array section here)
+    do i = 1, iso%niso
+       iso%slot(i)%built = .false.
+    end do
+
+  end subroutine iso_set_samples
+
   !> Return true if the applied state of isosurface iso in system isys
   !> describes a generated isosurface: a sampled grid has been
   !> committed, or the field is a native grid shown over the whole cell
@@ -2369,7 +2469,6 @@ contains
     !> not resample). The cached triangulations in r%iso are reused until
     !> the field, the isovalue, or the applied grid changes.
     subroutine add_isosurface_meshes()
-      use interfaces_glfw, only: glfwGetTime
       use types, only: scalar_value, field_evaluation_avail, fieldeval_category_mo
       integer :: i, j, k, l, nn(3), ncp(3), i1, i2, i3
       logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
@@ -2416,7 +2515,7 @@ contains
             if (allocated(r%iso%ff)) deallocate(r%iso%ff)
             r%iso%outdomain = .false. ! native data needs no evaluation
             if (resample) &
-               call stamp_histogram(sys(r%id)%f(r%iso%ifield)%grid%f)
+               call r%iso%stamp_histogram(sys(r%id)%f(r%iso%ifield)%grid%f)
             call triangulate(sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,x0c,per0,resample)
          else
             ! sample on the applied grid; the sampled box, its
@@ -2465,7 +2564,7 @@ contains
                end do
                !$omp end parallel do
                r%iso%outdomain = linvalid
-               call stamp_histogram(r%iso%ff)
+               call r%iso%stamp_histogram(r%iso%ff)
             end if
             call triangulate(r%iso%ff,xmat,cmat,x0c,per0,resample)
          end if
@@ -2473,13 +2572,8 @@ contains
          ! answer "were the samples taken from this field, at this time?",
          ! and this block also runs for a rebuild that only re-triangulated
          r%iso%per0_built = per0
-         if (resample) then
-            r%iso%ifield_built = r%iso%ifield
-            r%iso%imosel_built = r%iso%imosel
-            r%iso%imoidx_built = r%iso%imoidx
-            r%iso%fieldgen_built = sys(r%id)%fieldgen
-            r%iso%time_built = glfwGetTime()
-         end if
+         if (resample) &
+            call r%iso%stamp_built(r%id)
       end if
 
       ! periodicity: a periodic (whole-cell, non-partial, crystal) mesh
@@ -2740,57 +2834,6 @@ contains
       end do
 
     end subroutine color_slots
-
-    !> Stamp the range and the value histogram of the data ff backing
-    !> the mesh (the native grid or the sampled values), for the
-    !> isovalue clamp and for the histogram the editor draws. The
-    !> histogram is stored as a staircase (two points per bin) ready to
-    !> plot, in field units.
-    subroutine stamp_histogram(ff)
-      use grid3mod, only: field_stats
-      real*8, intent(in) :: ff(:,:,:)
-
-      integer :: i, is, idef
-      real*8 :: hy(iso_nhist,hscale_num), dh, e1, e2
-
-      call field_stats(ff,fmin=r%iso%frange(1),fmax=r%iso%frange(2),hist=hy,&
-         hrange=r%iso%hist_range,hhave=r%iso%hist_have,hcumq=r%iso%hist_q,&
-         hcumv=r%iso%hist_v,hcumrange=r%iso%hist_cumrange,hdef=idef)
-      ! take the suggested scale while the user has not chosen one, and
-      ! whenever the chosen one is not available for this data
-      if (r%iso%hist_xscale < 1 .or. r%iso%hist_xscale > hscale_num) then
-         r%iso%hist_xscale = idef
-      elseif (.not.r%iso%hist_have(r%iso%hist_xscale)) then
-         r%iso%hist_xscale = idef
-      end if
-      ! staircase per scale, in field units (the axis applies the transform)
-      do is = 1, hscale_num
-         if (.not.r%iso%hist_have(is)) cycle
-         dh = (r%iso%hist_range(2,is) - r%iso%hist_range(1,is)) / real(iso_nhist,8)
-         do i = 1, iso_nhist
-            e1 = r%iso%hist_range(1,is) + real(i-1,8)*dh
-            e2 = r%iso%hist_range(1,is) + real(i,8)*dh
-            if (is == hscale_log) then
-               e1 = 10d0**e1
-               e2 = 10d0**e2
-            elseif (is == hscale_asinh) then
-               e1 = 2d0 * sinh(0.5d0*e1)
-               e2 = 2d0 * sinh(0.5d0*e2)
-            end if
-            r%iso%hist_x(2*i-1,is) = real(e1,c_double)
-            r%iso%hist_x(2*i,is) = real(e2,c_double)
-            r%iso%hist_y(2*i-1,is) = real(max(hy(i,is),0.5d0),c_double)
-            r%iso%hist_y(2*i,is) = real(max(hy(i,is),0.5d0),c_double)
-         end do
-      end do
-      ! a constant (or empty) field has no distribution to show
-      if (any(r%iso%hist_have)) then
-         r%iso%nhist = 2*iso_nhist
-      else
-         r%iso%nhist = 0
-      end if
-
-    end subroutine stamp_histogram
 
     !> Store a triangulation (nv vertices xv/nrm, nf triangles idx, all
     !> shifted by the domain origin x0c) into dl_mesh m in scene-ready

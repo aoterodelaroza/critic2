@@ -271,6 +271,37 @@ module windows
      procedure :: same => pairpick_same ! the staged atom equals this pick
   end type pairpick
 
+  ! Sampling grids cached by the molecular-orbitals window, one per
+  ! orbital.
+  integer, parameter :: mo_cache_maxpts = 32000000 ! total-points budget (~256 MB of samples)
+
+  ! One cached orbital
+  type mo_gridcache
+     real*8, allocatable :: ff(:,:,:) ! the samples (unallocated = nothing cached)
+     logical :: outdomain = .false. ! some samples fell outside the field's domain
+     integer :: iuse = 0 ! use stamp, for the least-recently-used eviction
+  end type mo_gridcache
+
+  !> The cache and the state it is valid for: any change to the field,
+  !> the field data, the sampling grid, or the geometry invalidates all
+  !> of the grids at once. The keys below describe the grids in g, and
+  !> are meaningful only while g is allocated.
+  type mo_cache_state
+     type(mo_gridcache), allocatable :: g(:) ! one entry per MO (1:nmoall)
+     integer :: ifield = -1 ! field the grids were sampled from
+     integer :: fieldgen = -1 ! system field-set generation they were sampled at
+     real*8 :: timegeom = -1d0 ! geometry-change stamp they were sampled at
+     integer :: n(3) = 0 ! dimensions of the cached grids
+     integer :: iregion = -1 ! applied region mode of the cached grids
+     real*8 :: rgn_x(3,0:3) = 0d0 ! applied region coordinates of the cached grids
+     integer :: iuse = 0 ! use counter, incremented on every cache hit or fill
+     integer*8 :: npts = 0 ! samples currently held, maintained against mo_cache_maxpts
+   contains
+     procedure :: sync => mo_cache_sync ! refresh, fill, and install grids for a representation
+     procedure :: iscached => mo_cache_iscached ! orbital imo has a cached grid
+  end type mo_cache_state
+  public :: mo_cache_state
+
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! caller-supplied prompt shown in the view bar (pick-atom mode only)
@@ -469,6 +500,7 @@ module windows
      integer :: mo_selected = 0 ! selected MO (packed wavefunction index; 0 = none)
      logical :: mo_scrolled = .false. ! the MO table has been scrolled to the HOMO
      integer(c_int) :: mo_ilevel = 0 ! grid coarseness level of the MO isosurface (iso_level_*)
+     type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
      real*8 :: mo_isoval = 0d0 ! isovalue of the +/- MO isosurface pair (a.u.)
      real(c_float) :: mo_rgb(3,2) = 0._c_float ! colors of the positive/negative lobes
      real(c_float) :: mo_alpha = 0._c_float ! opacity of the MO isosurfaces
@@ -547,6 +579,7 @@ module windows
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
+     procedure :: drop_caches => window_drop_caches ! release the caches the window can rebuild
      procedure :: focused => window_focused ! whether the root window is focused (even if not current)
      procedure :: anchor_view => window_anchor_view ! the view window this window is anchored to
      procedure :: anchor => window_anchor ! the anchor view and the system it shows (tool windows)
@@ -758,6 +791,17 @@ module windows
        integer, intent(in) :: idx(4)
        logical :: pairpick_same
      end function pairpick_same
+     module subroutine mo_cache_sync(c,isys,r,forcebuild)
+       class(mo_cache_state), intent(inout) :: c
+       integer, intent(in) :: isys
+       type(representation), intent(inout) :: r
+       logical, intent(inout) :: forcebuild
+     end subroutine mo_cache_sync
+     pure module function mo_cache_iscached(c,imo) result(ok)
+       class(mo_cache_state), intent(in) :: c
+       integer, intent(in) :: imo
+       logical :: ok
+     end function mo_cache_iscached
      pure module function vm_is_forcedpick(mode)
        integer, intent(in) :: mode
        logical :: vm_is_forcedpick
@@ -832,6 +876,9 @@ module windows
      module subroutine window_end(w)
        class(window), intent(inout), target :: w
      end subroutine window_end
+     module subroutine window_drop_caches(w)
+       class(window), intent(inout) :: w
+     end subroutine window_drop_caches
      module function window_focused(w)
        class(window), intent(inout) :: w
        logical :: window_focused
