@@ -23,6 +23,20 @@ submodule (windows) mo
   real(c_float), parameter :: mo_cached_rgb(3) = (/0.45_c_float,0.75_c_float,0.45_c_float/) ! cached-grid marker
   real(c_float), parameter :: mo_mark_frac = 0.35_c_float ! cached-grid mark radius, as a fraction of the row height
   real(c_float), parameter :: mo_sep_frac = 0.25_c_float ! HOMO/LUMO separator height, as a fraction of the row height
+  ! The display settings, kept across a close and reopen. They are the
+  ! user's choices, not properties of the system, and a window slot is
+  ! recycled unpredictably, so holding them here rather than on the
+  ! window is what makes them survive. Seeded from the defaults the first
+  ! time any window asks
+  logical :: mo_kept_valid = .false.
+  integer(c_int) :: mo_kept_ieneunit = 0
+  integer(c_int) :: mo_kept_ilevel = 0
+  real*8 :: mo_kept_isoval = 0d0
+  real(c_float) :: mo_kept_rgb(3,2) = 0._c_float
+  real(c_float) :: mo_kept_alpha = 0._c_float
+
+  character(len=2), parameter :: mo_eneunit_name(0:1) = &
+     (/ character(len=2) :: "Ha", "eV" /) ! how the energy units are written
   character(len=5), parameter :: mo_spin_name(0:2) = &
      (/ character(len=5) :: "Both", "Alpha", "Beta" /) ! how a spin channel is named
   real(c_float), parameter :: mo_sep_rgb(3) = (/0.85_c_float,0.15_c_float,0.15_c_float/) ! HOMO/LUMO separator color
@@ -93,7 +107,8 @@ contains
   !> selection or the window goes away). The Create Isosurface Object
   !> button copies the transient into a permanent representation.
   module subroutine draw_mo(w)
-    use gui_main, only: g, fontsize
+    use gui_main, only: g, fontsize, errmsg_linger
+    use interfaces_glfw, only: glfwGetTime
     use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_alpha_def, iso_rgb_palette,&
@@ -112,10 +127,11 @@ contains
     integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev
     real*8 :: tsel, tdum
     character(kind=c_char,len=:), allocatable, target :: s
-    character(len=:), allocatable :: label
+    character(len=:), allocatable :: label, whynot
     type(ImVec2) :: szavail
-    real(c_float) :: width, wdiag, szrow, wtab, wid(6)
-    real*8 :: unitfactor, alpha8
+    real(c_float) :: width, wdiag, szrow, szrowmin, szrowtab, szbut, wtab, wid(6)
+    type(ImVec2) :: szdummy
+    real*8 :: unitfactor, alpha8, occup, ener
     type(field_evaluation_avail) :: av
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -125,12 +141,20 @@ contains
 
     ! initialize state
     if (w%firstpass) then
-       w%mo_ieneunit = 0
-       w%mo_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
-       w%mo_isoval = iso_isoval_mo
-       w%mo_rgb(:,1) = iso_rgb_palette(:,1) ! positive lobe: blue
-       w%mo_rgb(:,2) = iso_rgb_palette(:,4) ! negative lobe: red
-       w%mo_alpha = iso_alpha_def
+       if (.not.mo_kept_valid) then
+          mo_kept_ieneunit = 0
+          mo_kept_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
+          mo_kept_isoval = iso_isoval_mo
+          mo_kept_rgb(:,1) = iso_rgb_palette(:,1) ! positive lobe: blue
+          mo_kept_rgb(:,2) = iso_rgb_palette(:,4) ! negative lobe: red
+          mo_kept_alpha = iso_alpha_def
+          mo_kept_valid = .true.
+       end if
+       w%mo_ieneunit = mo_kept_ieneunit
+       w%mo_ilevel = mo_kept_ilevel
+       w%mo_isoval = mo_kept_isoval
+       w%mo_rgb = mo_kept_rgb
+       w%mo_alpha = mo_kept_alpha
     end if
     if (w%firstpass .or. syschanged) then
        w%errmsg = "" ! the error, if any, was about the previous system
@@ -148,19 +172,33 @@ contains
     doquit = .not.goodparent
     if (.not.doquit) doquit = .not.associated(win(iview)%sc)
 
-    ! can the reference field of this system provide molecular orbitals?
+    ! Can the reference field of this system provide molecular orbitals?
+    ! Each way of failing gets its own reason: they used to be folded
+    ! together and reported as a fault of the field, which is wrong for
+    ! two of the three and leaves the third with no message at all
     goodsys = ok_system(isys,sys_init)
     mo_ok = goodsys
     iref = 0
-    if (mo_ok) then
+    whynot = ""
+    if (.not.goodsys) then
+       whynot = "No system to show. Select an initialized system in the tree"
+    else
        iref = sys(isys)%iref
        mo_ok = sys(isys)%goodfield(iref)
+       if (.not.mo_ok) then
+          whynot = "The reference field of this system is not available"
+       else
+          call sys(isys)%f(iref)%eval_avail(av)
+          mo_ok = av%avail(fieldeval_category_mo)
+          if (.not.mo_ok) then
+             whynot = "The reference field cannot provide molecular orbitals. Load a &
+                &molecular wavefunction (wfn, wfx, fchk, molden) and make it the reference"
+          else
+             mo_ok = associated(win(iview)%sc)
+             if (.not.mo_ok) whynot = "The parent view has no scene to draw the orbital in"
+          end if
+       end if
     end if
-    if (mo_ok) then
-       call sys(isys)%f(iref)%eval_avail(av)
-       mo_ok = av%avail(fieldeval_category_mo)
-    end if
-    if (mo_ok) mo_ok = associated(win(iview)%sc)
 
     ! a reloaded wavefunction (virtual orbitals read, say) is a different
     ! set of orbitals: centre the table on the new boundary again
@@ -182,12 +220,19 @@ contains
        if (sys(isys)%goodfield(iref)) then
           call iw_text("(" // string(iref) // ") " // trim(sys(isys)%f(iref)%name),sameline=.true.)
        end if
-       if (.not.mo_ok) &
-          call iw_text("The reference field cannot provide molecular orbitals",danger=.true.,wrap=.true.)
     end if
+    if (.not.mo_ok) call iw_text(whynot,danger=.true.,wrap=.true.)
 
-    ! maybe the error message
-    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+    ! Messages, dropped once they have been up long enough to read: they
+    ! report an action that is over, not a state, so leaving one on the
+    ! window makes it describe something that is no longer true
+    if (len_trim(w%errmsg) > 0) then
+       if (glfwGetTime() - w%timelast_errmsg < errmsg_linger) then
+          call iw_text(w%errmsg,danger=w%mo_msgbad,wrap=.true.)
+       else
+          w%errmsg = ""
+       end if
+    end if
 
     if (mo_ok) then
        associate (wfn => sys(isys)%f(iref)%wfn)
@@ -213,8 +258,13 @@ contains
        if (sys(isys)%f(iref)%has_unread_virtuals()) then
           if (iw_button("Reload with Virtual Orbitals",danger=.true.)) then
              call reload_field_with_virtuals(isys,iref,w%errmsg)
-             ! the occupied orbitals are unchanged: keep their grids
-             if (len_trim(w%errmsg) == 0) call mo_cache_keep_after_reload(isys,iref)
+             if (len_trim(w%errmsg) > 0) then
+                call mo_message(w,w%errmsg,.true.)
+             else
+                ! the occupied orbitals are unchanged: keep their grids
+                call mo_cache_keep_after_reload(isys,iref)
+                call mo_message(w,"Re-read the wavefunction with its virtual orbitals",.false.)
+             end if
           end if
           call iw_tooltip("Re-read the wavefunction file for the reference field,&
              & this time including the virtual (unoccupied) orbitals",ttshown)
@@ -235,6 +285,7 @@ contains
             ldum = iw_checkbox("Diagram##moshowdiag",w%mo_showdiag,sameline=.true.)
             call iw_tooltip("Show the energy-level diagram beside the orbital table",ttshown)
          end if
+
          if (w%mo_ieneunit == 0) then
             unitfactor = 1d0
             digits = 4
@@ -243,13 +294,40 @@ contains
             digits = 3
          end if
 
+         ! What is selected, in words. The tables highlight the row and
+         ! the diagram thickens the level, but both can be scrolled out of
+         ! sight, and for an unrestricted wavefunction this is the only
+         ! place that says which spin channel the orbital belongs to
+         call iw_text("Selected",highlight=.true.)
+         if (w%mo_selected > 0) then
+            call wfn%get_mo_info(w%mo_selected,label,occup=occup,ener=ener)
+            s = wfn%get_mo_name(w%mo_selected)
+            if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
+            s = s // ", occ. " // string(occup,'f',decimal=2)
+            if (wfn%hasene) s = s // ", " // string(ener*unitfactor,'f',decimal=digits) //&
+               " " // trim(mo_eneunit_name(w%mo_ieneunit))
+            call iw_text(s,sameline=.true.)
+         else
+            call iw_text("none",disabled=.true.,sameline=.true.)
+         end if
+
          ! The energy-level diagram, then the orbital table: one table
          ! per spin channel when the wavefunction has two of them
          ! (unrestricted), a single combined table otherwise. Every panel
          ! is a group with exactly one heading line, so they line up, and
          ! they are all given the same height.
+         ! The panels take the height the window has left, with the old
+         ! ten rows as the floor: hard-coding the height meant a taller
+         ! window bought nothing but empty space, which is worst exactly
+         ! when there are enough orbitals to want a taller window. The
+         ! reserve is counted, not measured from the laid-out content --
+         ! measuring it would make it depend on the thing it is sizing.
+         ! Below the panels: the Display heading, its four framed rows,
+         ! the Create button, and the Close row
          call igGetContentRegionAvail(szavail)
-         szrow = iw_calcheight(10,0,.false.)
+         szrowmin = iw_calcheight(10,0,.false.)
+         szrow = max(szavail%y - iw_calcheight(6,1,.true.) - g%Style%ItemSpacing%y,szrowmin)
+         w%heightslack = szrow - szrowmin
          if (w%mo_showdiag .and. wfn%hasene) then
             ! The tables are as wide as their own columns, so the diagram
             ! takes everything they leave rather than a fixed share: a
@@ -280,6 +358,16 @@ contains
          else
             w%mo_diag%ipress = 0 ! no diagram this frame, so no press can be pending
          end if
+         ! The table panel carries a button row under its heading, in the
+         ! same place the diagram carries Frontier/All, so the table is
+         ! shortened by that row to keep the two panels level at the
+         ! bottom. A split pair shares the one button -- it re-centers
+         ! both channels -- so the beta panel spaces its row instead
+         szbut = igGetFrameHeight() + g%Style%ItemSpacing%y
+         szrowtab = max(szrow - szbut,4._c_float*fontsize%y)
+         szdummy%x = 0._c_float
+         szdummy%y = igGetFrameHeight()
+
          iselold = w%mo_selected
          if (wfn%get_mo_nchannels() > 1) then
             ! neither table is capped: each is drawn at the width of its
@@ -287,17 +375,20 @@ contains
             ! its energy column whenever the two channels differ in width
             call igBeginGroup()
             call iw_text(trim(mo_spin_name(wfn_spin_alpha)),highlight=.true.)
-            call mo_draw_table(w,wfn,wfn_spin_alpha,0._c_float,szrow,unitfactor,digits,changed)
+            call mo_frontier_button(w,ttshown)
+            call mo_draw_table(w,wfn,wfn_spin_alpha,0._c_float,szrowtab,unitfactor,digits,changed)
             call igEndGroup()
             call igSameLine(0._c_float,-1._c_float)
             call igBeginGroup()
             call iw_text(trim(mo_spin_name(wfn_spin_beta)),highlight=.true.)
-            call mo_draw_table(w,wfn,wfn_spin_beta,0._c_float,szrow,unitfactor,digits,changed)
+            call igDummy(szdummy)
+            call mo_draw_table(w,wfn,wfn_spin_beta,0._c_float,szrowtab,unitfactor,digits,changed)
             call igEndGroup()
          else
             call igBeginGroup()
             call iw_text("Orbitals",highlight=.true.)
-            call mo_draw_table(w,wfn,wfn_spin_all,0._c_float,szrow,unitfactor,digits,changed)
+            call mo_frontier_button(w,ttshown)
+            call mo_draw_table(w,wfn,wfn_spin_all,0._c_float,szrowtab,unitfactor,digits,changed)
             call igEndGroup()
          end if
 
@@ -441,12 +532,26 @@ contains
                if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
                win(iview)%sc%rep(irep)%name = s
                win(iview)%sc%forcebuildlists = .true.
+               ! the view does not change -- the transient was already
+               ! drawing this very surface -- so without a word there is
+               ! nothing at all to show the press did anything
+               call mo_message(w,"Created object " // s,.false.)
+            else
+               call mo_message(w,"Could not create the isosurface object",.true.)
             end if
          end if
          call iw_tooltip("Copy the displayed orbital into a permanent isosurface object,&
-            & editable from the Objects menu of the view",ttshown)
+            & editable from the Objects menu of the view. Select an orbital first",ttshown,&
+            whendisabled=.true.)
        end associate
     end if ! mo_ok
+
+    ! carry the display choices to the next window that opens
+    mo_kept_ieneunit = w%mo_ieneunit
+    mo_kept_ilevel = w%mo_ilevel
+    mo_kept_isoval = w%mo_isoval
+    mo_kept_rgb = w%mo_rgb
+    mo_kept_alpha = w%mo_alpha
 
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(5,1)
@@ -481,7 +586,7 @@ contains
       ok = .false.
       call iso_region_to_box(isys,r%iso%iregion,r%iso%rgn_x,box,okbox)
       if (.not.okbox) then
-         w%errmsg = "Could not work out the region to sample this orbital on"
+         call mo_message(w,"Could not work out the region to sample this orbital on",.true.)
          return
       end if
       w%mo_cost%box = box
@@ -927,8 +1032,12 @@ contains
     nch = w%mo_diag%nch
 
     ! the two canned views
-    if (iw_button("Frontier##modiagfit1")) w%mo_diag%ifit = 1
-    call iw_tooltip("Show the region around the HOMO/LUMO gap",ttshown)
+    if (iw_button("Frontier##modiagfit1")) then
+       w%mo_diag%ifit = 1
+       w%mo_scrolled = .false. ! one control, both panels
+    end if
+    call iw_tooltip("Show the region around the HOMO/LUMO gap, in the diagram and the table",&
+       ttshown)
     if (iw_button("All##modiagfit2",sameline=.true.)) w%mo_diag%ifit = 2
     call iw_tooltip("Show every orbital level (double-clicking the diagram does the same)",ttshown)
 
@@ -1633,6 +1742,36 @@ contains
     wtot = sum(wid) + real(ncol,c_float) * cellpad + real(ncol+1,c_float) + g%Style%ScrollbarSize
 
   end subroutine mo_table_widths
+
+  !> The button that puts the orbital table back on the HOMO/LUMO
+  !> boundary. The one-shot centering that runs when the window opens is
+  !> the only other thing that ever takes the table there, so once it has
+  !> been scrolled away this is the way back -- and re-arming that flag is
+  !> the whole implementation.
+  subroutine mo_frontier_button(w,ttshown)
+    use utils, only: iw_button, iw_tooltip
+    type(window), intent(inout) :: w
+    logical, intent(inout) :: ttshown
+
+    if (iw_button("Frontier##mofrontier")) w%mo_scrolled = .false.
+    call iw_tooltip("Scroll the table back to the HOMO/LUMO boundary",ttshown)
+
+  end subroutine mo_frontier_button
+
+  !> Show str on window w until it has been up long enough to read. Set
+  !> bad for a failure (shown in the danger color) and clear it for a
+  !> report of something that worked.
+  subroutine mo_message(w,str,bad)
+    use interfaces_glfw, only: glfwGetTime
+    type(window), intent(inout) :: w
+    character(len=*), intent(in) :: str
+    logical, intent(in) :: bad
+
+    w%errmsg = str
+    w%mo_msgbad = bad
+    w%timelast_errmsg = glfwGetTime()
+
+  end subroutine mo_message
 
   !> Whether the cost measurement in c still describes field ifield of
   !> system isys: same system, same field, same field-set generation, and

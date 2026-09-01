@@ -397,6 +397,7 @@ module windows
      logical :: isdocked = .false. ! whether the window is docked
      logical :: growtofit = .false. ! grow the window to fit its content (height-only; width-only init_window)
      real(c_float) :: needheight = 0._c_float ! window height that shows all content; >0 while it overflows
+     real(c_float) :: heightslack = 0._c_float ! elastic height the body added beyond its minimum layout
      real(c_float) :: needwidth = 0._c_float ! one-shot: set the window to this width, then clear (see draw_mo)
      integer, allocatable :: iord(:) ! table order (multiple windows)
      integer :: lastselected = 0 ! selectable, last element selected (multiple windows)
@@ -549,6 +550,7 @@ module windows
      integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
      integer(c_int) :: mo_ilevel = 0 ! grid quality of the MO isosurface (0 = automatic, else iso_level_*)
      type(mo_cost_state) :: mo_cost ! what sampling one orbital costs, and what that describes
+     logical :: mo_msgbad = .true. ! the transient message reports a failure, not a success
      type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
      type(mo_diagram_state) :: mo_diag ! level list and view state of the MO energy-level diagram
      logical :: mo_showdiag = .true. ! show the energy-level diagram beside the MO tables

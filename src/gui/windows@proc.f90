@@ -980,7 +980,7 @@ contains
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
-    real(c_float) :: panewidth
+    real(c_float) :: panewidth, hneed
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
     type(ImGuiWindow), pointer :: wptr
 
@@ -1205,23 +1205,27 @@ contains
           ! height of the content, which grows the window to show all of
           ! it; manual resizing works otherwise, so the window can never
           ! stay shorter than its content but keeps its size when the
-          ! content shrinks. If not even the display is tall enough for
-          ! the content, the grow disengages and the window scrolls.
+          ! content shrinks. Content taller than the display grows the
+          ! window to the display and scrolls for the rest: giving up on
+          ! the grow instead would leave the window at whatever size it
+          ! happened to have, which on a small display is the bare
+          ! minimum -- a couple of header lines and a scroll bar.
           if (.not.w%isdocked) then
              szmax%x = huge(1._c_float)
              szmax%y = huge(1._c_float)
              call clamp_to_display(szmax)
              szmin%x = min(25._c_float * fontsize%x,szmax%x)
              szmin%y = min(6._c_float * fontsize%y,szmax%y)
-             if (w%needheight > 0._c_float .and. w%needheight <= szmax%y) then
-                szmin%y = max(szmin%y,w%needheight)
+             if (w%needheight > 0._c_float) then
+                hneed = min(w%needheight,szmax%y)
+                szmin%y = max(szmin%y,hneed)
                 ! the buttons are anchored to the window's bottom: raise
                 ! the window if the grown window would stick out under
                 ! the bottom edge of the display
                 call c_f_pointer(w%ptr,wptr)
-                if (wptr%Pos%y + w%needheight > szmax%y) then
+                if (wptr%Pos%y + hneed > szmax%y) then
                    pos%x = wptr%Pos%x
-                   pos%y = max(szmax%y - w%needheight,0._c_float)
+                   pos%y = max(szmax%y - hneed,0._c_float)
                    pivot%x = 0._c_float
                    pivot%y = 0._c_float
                    call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
@@ -1247,6 +1251,7 @@ contains
           w%needwidth = 0._c_float
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
+             w%heightslack = 0._c_float ! only a body that stretches to fill sets this
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
@@ -1302,8 +1307,13 @@ contains
              ! deriving the height from it makes the constraint switch
              ! itself off as soon as it has worked, and the window then
              ! flips between the two sizes on alternate frames.
+             ! A body that stretches part of itself to fill the window
+             ! reports how much it added: measured with the stretch in it,
+             ! the content would grow with the window, the minimum would
+             ! ratchet up to whatever height the user last set, and the
+             ! window could never be made smaller again
              if (w%growtofit .and. .not.w%isdocked) &
-                w%needheight = igGetCursorPosY() + g%Style%WindowPadding%y
+                w%needheight = igGetCursorPosY() + g%Style%WindowPadding%y - w%heightslack
           end if
           call igEnd()
        end if
