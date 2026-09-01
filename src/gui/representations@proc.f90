@@ -553,7 +553,7 @@ contains
   !> box), iso_level_custom = the ncustom dimensions given by the user.
   !> Never returns all-zero for a non-native level (that value is the
   !> native-grid sentinel).
-  module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box) result(n)
+  module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang,alen) result(n)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
@@ -561,13 +561,16 @@ contains
     logical, intent(out), optional :: capped
     integer, intent(in), optional :: ifield
     real*8, intent(in), optional :: box(3,0:3)
+    real*8, intent(in), optional :: ptsang
+    real*8, intent(out), optional :: alen(3)
     integer :: n(3)
 
     integer :: i, it, nmin
-    real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3), flo(3), fhi(3)
+    real*8 :: pa, fac, alen_(3), xmat(3,3), x0c(3), flo(3), fhi(3)
 
     n = 0
     if (present(capped)) capped = .false.
+    if (present(alen)) alen = 0d0
     if (ilevel <= 0) return
     if (.not.ok_system(isys,sys_init)) return
 
@@ -583,6 +586,10 @@ contains
        ! the interpolation; matches iso_sample_domain), else the unit cell
        nmin = iso_npts_axmin
        pa = iso_level_ptsang(ilevel)
+       ! a caller with a points-per-angstrom budget of its own overrides
+       ! the level's table value; everything below, including the total
+       ! cap and the per-axis floor, applies to it just the same
+       if (present(ptsang)) pa = ptsang
        xmat = sys(isys)%c%m_x2c
        flo = 0d0
        fhi = 1d0
@@ -593,9 +600,10 @@ contains
              call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
        end if
        do i = 1, 3
-          alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
-          n(i) = max(nint(alen(i) * pa),nmin)
+          alen_(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
+          n(i) = max(nint(alen_(i) * pa),nmin)
        end do
+       if (present(alen)) alen = alen_
     end if
 
     ! total-points cap: re-scale until honest, since the per-axis floor
@@ -796,20 +804,23 @@ contains
   !> be meaningful. The caller multiplies by its point count to show a
   !> total. Returns a negative value if the estimate cannot be made
   !> (bad system/field or degenerate region).
-  module function iso_estimate_cost(isys,ifield,iregion,x,n) result(secs)
+  module function iso_estimate_cost(isys,ifield,iregion,x,n,request) result(secs)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_init, ok_system
+    use types, only: field_evaluation_avail, scalar_value
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
     integer, intent(in) :: iregion
     real*8, intent(in) :: x(3,0:3)
     integer, intent(in) :: n(3)
+    type(field_evaluation_avail), intent(in), optional :: request
     real*8 :: secs
 
     integer :: i, nb, ntot
-    logical :: ok, per0, pereval
+    logical :: ok, per0, pereval, useres
     real*8 :: xmat(3,3), cmat(3,3), x0c(3), xp(3), rdum, t
     real*8, allocatable :: xr(:,:)
+    type(scalar_value) :: res
 
     real*8, parameter :: timetarget = 0.1d0 ! benchmark until a batch takes this long
     integer, parameter :: nbatch0 = 32 ! initial batch size (a slow field stops after one batch)
@@ -827,18 +838,31 @@ contains
     ! fast one grows until the timing is meaningful. The rate comes from
     ! the last batch alone, so the earlier ones (dominated by OpenMP
     ! startup) only calibrate the batch size.
+    ! a caller that samples something other than the plain field -- a
+    ! single molecular orbital, say -- passes the same request the real
+    ! loop uses, or the benchmark would time the wrong quantity
+    useres = present(request)
     ntot = 0
     nb = nbatch0
     do while (.true.)
        allocate(xr(3,nb))
        call random_number(xr)
        t = glfwGetTime()
-       !$omp parallel do private(xp,rdum) schedule(static)
-       do i = 1, nb
-          xp = x0c + matmul(xmat,xr(:,i))
-          rdum = sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
-       end do
-       !$omp end parallel do
+       if (useres) then
+          !$omp parallel do private(xp,res) schedule(static)
+          do i = 1, nb
+             xp = x0c + matmul(xmat,xr(:,i))
+             call sys(isys)%f(ifield)%grd(xp,request,res,periodic=pereval)
+          end do
+          !$omp end parallel do
+       else
+          !$omp parallel do private(xp,rdum) schedule(static)
+          do i = 1, nb
+             xp = x0c + matmul(xmat,xr(:,i))
+             rdum = sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
+          end do
+          !$omp end parallel do
+       end if
        t = glfwGetTime() - t
        ntot = ntot + nb
        deallocate(xr)

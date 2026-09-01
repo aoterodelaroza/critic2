@@ -42,6 +42,8 @@ submodule (windows) mo
   real(c_float), parameter :: mo_diag_wpref = 26._c_float ! diagram width the window opens at, in characters
   real(c_float), parameter :: mo_diag_hitpx = 6._c_float ! how close (pixels) the mouse must be to a level
   real*8, parameter :: mo_diag_occtol = 1d-6 ! occupation below which a level counts as empty
+  real*8, parameter :: mo_time_budget = 2d0 ! seconds of sampling the automatic quality aims for
+  integer, parameter :: nczero(3) = 0 ! iso_grid_size's custom dimensions, unused at a named level
   integer, parameter :: mo_occ_len = 5 ! width of the occupation entry, in characters
   integer, parameter :: mo_ene_len = 10 ! width of the energy entry, in characters
 
@@ -95,19 +97,21 @@ contains
     use gui_main, only: g, fontsize
     use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
-       iso_isoval_mo, iso_defaultlevel, iso_level_optstr, iso_alpha_def, iso_rgb_palette,&
-       iso_grid_size, iso_region_to_box
+       iso_isoval_mo, iso_level_optstr, iso_alpha_def, iso_rgb_palette,&
+       iso_grid_size, iso_region_to_box, iso_level_custom, iso_nlevel, iso_defaultlevel,&
+       iso_npts_custom_min, iso_npts_custom_max
     use wfn_private, only: wfn_rhf, wfn_uhf, wfn_rohf, wfn_spin_all, wfn_spin_alpha, wfn_spin_beta
     use types, only: id_mo_id, field_evaluation_avail, fieldeval_category_mo
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_checkbox,&
        iw_dragfloat_real8, iw_coloredit, iw_close_event, iw_setpos_bottomright,&
-       iw_calcheight, iw_calcwidth
+       iw_calcheight, iw_calcwidth, duration_string
     use tools_io, only: string
     use param, only: hartoev
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum
-    integer :: isys, iview, iref, itrep, irep, digits, iselold
+    logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, havecost
+    integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), i1, i2
+    real*8 :: tsel, tdum
     character(kind=c_char,len=:), allocatable, target :: s
     character(len=:), allocatable :: label
     type(ImVec2) :: szavail
@@ -123,7 +127,7 @@ contains
     ! initialize state
     if (w%firstpass) then
        w%mo_ieneunit = 0
-       w%mo_ilevel = iso_defaultlevel
+       w%mo_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
        w%mo_isoval = iso_isoval_mo
        w%mo_rgb(:,1) = iso_rgb_palette(:,1) ! positive lobe: blue
        w%mo_rgb(:,2) = iso_rgb_palette(:,4) ! negative lobe: red
@@ -136,6 +140,9 @@ contains
        w%mo_scrollto = 0
        w%mo_cache = mo_cache_state() ! the grids belong to the previous system
        w%mo_diag = mo_diagram_state() ! ditto for the level list
+       w%mo_ilevel_built = -1
+       w%mo_costest = -1d0
+       w%mo_boxok = .false.
     end if
 
     ! initialize
@@ -308,12 +315,51 @@ contains
          ! display options
          call iw_text("Display",highlight=.true.)
 
-         ! grid quality
+         ! Grid quality. The automatic setting comes first and is the
+         ! default: on a large wavefunction a named level can mean a
+         ! minutes-long freeze, since the sampling runs on the render
+         ! thread. Index 0 is automatic, 1 to iso_nlevel the named levels
          call iw_text("Quality",alignframe=.true.)
-         call iw_combo_simple("##molevel",iso_level_optstr,w%mo_ilevel,startsatone=.true.,&
-            sameline=.true.,changed=ldum)
+
+         ! Each option carries what it would cost, so that an expensive
+         ! grid is turned down before it is paid for rather than after:
+         ! picking a level resamples immediately, and on a large
+         ! wavefunction that is a minutes-long freeze. The costs appear
+         ! once the box and the per-point cost are known, which is after
+         ! the first orbital -- and the first one is safe by construction,
+         ! since Automatic is the default.
+         havecost = w%mo_boxok .and. w%mo_costest > 0d0
+         tsel = 0d0
+         s = "Automatic"
+         if (havecost) then
+            tsel = mo_quality_cost(w,isys,0,nq)
+            s = s // " (~" // duration_string(tsel) // ")"
+         end if
+         s = s // c_null_char
+         i1 = 1
+         do irep = 1, iso_nlevel
+            i2 = index(iso_level_optstr(i1:),c_null_char) + i1 - 1
+            s = s // iso_level_optstr(i1:i2-1)
+            if (havecost) then
+               tdum = mo_quality_cost(w,isys,irep,nq)
+               s = s // " (~" // duration_string(tdum) // ")"
+               if (w%mo_ilevel == irep) tsel = tdum
+            end if
+            s = s // c_null_char
+            i1 = i2 + 1
+         end do
+         call iw_combo_simple("##molevel",s,w%mo_ilevel,sameline=.true.,changed=ldum)
          changed = changed .or. ldum
-         call iw_tooltip("Density of the grid used to calculate the MO isosurface",ttshown)
+         call iw_tooltip("Density of the grid used to calculate the MO isosurface. Automatic &
+            &uses the default quality, coarsened if sampling one orbital would take longer &
+            &than about " // string(nint(mo_time_budget)) // " seconds",ttshown)
+
+         ! a choice well past the budget is worth saying out loud
+         if (havecost .and. tsel > 2d0 * mo_time_budget) then
+            call iw_text("slow",danger=.true.,sameline=.true.)
+            call iw_tooltip("Sampling one orbital at this quality takes about " //&
+               duration_string(tsel) // ", and the window does not respond while it runs",ttshown)
+         end if
 
          ! isovalue
          if (iw_dragfloat_real8("Isovalue (a.u.)##moisoval",x1=w%mo_isoval,speed=0.001d0,&
@@ -363,9 +409,17 @@ contains
                     r%iso%slot(2)%isoval = -w%mo_isoval
                     r%iso%slot(2)%rgb = w%mo_rgb(:,2)
                     r%iso%slot(2)%alpha = w%mo_alpha
-                    if (r%iso%ilevel /= w%mo_ilevel .or. .not.r%iso%isgenerated(isys)) then
-                       r%iso%ilevel = w%mo_ilevel
+                    ! The automatic quality resolves to a custom grid, so
+                    ! r%iso%ilevel cannot stand in for the window setting.
+                    ! Recommitting on a field or geometry change is what
+                    ! keeps the box and the measured cost -- which the
+                    ! quality combo now prices with -- from going stale:
+                    ! isgenerated stays true once anything has been built
+                    if (w%mo_ilevel_built /= w%mo_ilevel .or. .not.r%iso%isgenerated(isys) .or.&
+                       w%mo_cost_gen /= sys(isys)%fieldgen .or.&
+                       w%mo_cost_timegeom /= sysc(isys)%timelastchange_geometry) then
                        call commit_grid(win(iview)%sc%reptrans(itrep))
+                       w%mo_ilevel_built = w%mo_ilevel
                     end if
                     win(iview)%sc%forcebuildlists = .true.
                  end if
@@ -420,12 +474,35 @@ contains
       type(representation), intent(inout) :: r
 
       integer :: n(3)
-      real*8 :: box(3,0:3)
+      real*8 :: box(3,0:3), alen(3)
       logical :: okbox
 
       call iso_region_to_box(isys,r%iso%iregion,r%iso%rgn_x,box,okbox)
       if (.not.okbox) return
-      n = iso_grid_size(isys,r%iso%ilevel,r%iso%nptscustom,box=box)
+      w%mo_box = box
+      w%mo_boxok = .true.
+
+      ! A first pass at the default quality, for the box edge lengths and
+      ! a sane point count for the benchmark's domain scaling; then the
+      ! cost of one sample point. Measured whichever quality is selected,
+      ! since the combo prices every one of them, not just the automatic
+      n = iso_grid_size(isys,iso_defaultlevel,nczero,box=box,alen=alen)
+      call mo_measure_cost(w,isys,iref,r,n)
+
+      if (w%mo_ilevel == 0) then
+         ! automatic: the default quality, coarsened to fit the budget,
+         ! recorded as a custom grid so an object created from it reads
+         ! back right -- within the bounds the editor's own custom grid
+         ! obeys, or the object would come back on a different grid
+         n = iso_grid_size(isys,iso_defaultlevel,nczero,box=box,&
+            ptsang=mo_auto_ptsang(w%mo_costest,alen))
+         n = min(max(n,iso_npts_custom_min),iso_npts_custom_max)
+         r%iso%ilevel = iso_level_custom
+         r%iso%nptscustom = n
+      else
+         n = iso_grid_size(isys,w%mo_ilevel,nczero,box=box)
+         r%iso%ilevel = w%mo_ilevel
+      end if
       call r%iso%apply_grid(n,r%iso%iregion,r%iso%rgn_x)
 
     end subroutine commit_grid
@@ -1553,6 +1630,98 @@ contains
     wtot = sum(wid) + real(ncol,c_float) * cellpad + real(ncol+1,c_float) + g%Style%ScrollbarSize
 
   end subroutine mo_table_widths
+
+  !> Seconds to sample one orbital of the field window w is showing at
+  !> quality ilevel (0 = automatic, else a named level), and the grid n
+  !> that quality resolves to. Uses the box and the per-point cost the
+  !> window has already measured, so it prices a setting without
+  !> committing to it.
+  function mo_quality_cost(w,isys,ilevel,n) result(secs)
+    use representations, only: iso_grid_size, iso_defaultlevel, iso_npts_custom_min,&
+       iso_npts_custom_max
+    type(window), intent(in) :: w
+    integer, intent(in) :: isys
+    integer, intent(in) :: ilevel
+    integer, intent(out) :: n(3)
+    real*8 :: secs
+
+    real*8 :: alen(3)
+
+    if (ilevel == 0) then
+       n = iso_grid_size(isys,iso_defaultlevel,nczero,box=w%mo_box,alen=alen)
+       n = iso_grid_size(isys,iso_defaultlevel,nczero,box=w%mo_box,&
+          ptsang=mo_auto_ptsang(w%mo_costest,alen))
+       n = min(max(n,iso_npts_custom_min),iso_npts_custom_max)
+    else
+       n = iso_grid_size(isys,ilevel,nczero,box=w%mo_box)
+    end if
+    secs = w%mo_costest * product(real(n,8))
+
+  end function mo_quality_cost
+
+  !> Points per angstrom the automatic quality uses to sample one orbital
+  !> over a box of edge lengths alen (angstrom), given costest, the
+  !> measured cost of one sample point in seconds.
+  !>
+  !> The automatic quality only ever COARSENS: it is the user's default
+  !> quality (the iso_defaultlevel preference), dropped to whatever the
+  !> time budget allows when that level would take too long. Letting the
+  !> budget also raise the resolution would make a small molecule spend
+  !> the whole budget on a grid far finer than its isosurface needs --
+  !> slower than the plain default, for a case that was never the
+  !> problem. How coarse it can get is bounded from below by
+  !> iso_grid_size's own per-axis floor, so on a pathologically slow
+  !> field the budget can still be exceeded; the combo says so.
+  function mo_auto_ptsang(costest,alen) result(ppa)
+    use representations, only: iso_level_ptsang, iso_defaultlevel
+    real*8, intent(in) :: costest
+    real*8, intent(in) :: alen(3)
+    real*8 :: ppa
+
+    real*8 :: vol
+
+    ppa = iso_level_ptsang(iso_defaultlevel)
+    if (costest <= 0d0) return
+    vol = alen(1) * alen(2) * alen(3)
+    if (vol <= 0d0) return
+    ppa = min((mo_time_budget / costest / vol)**(1d0/3d0),ppa)
+
+  end function mo_auto_ptsang
+
+  !> Measure the cost of one sample point of an MO of field ifield of
+  !> system isys, over the box representation r samples with n points per
+  !> axis, and keep it on window w. Measured once per field and geometry:
+  !> the benchmark itself costs about a tenth of a second, and the answer
+  !> only changes when the wavefunction or the box does.
+  subroutine mo_measure_cost(w,isys,ifield,r,n)
+    use systems, only: sys, sysc
+    use representations, only: representation, iso_estimate_cost
+    use types, only: field_evaluation_avail, fieldeval_category_mo
+    type(window), intent(inout) :: w
+    integer, intent(in) :: isys
+    integer, intent(in) :: ifield
+    type(representation), intent(in) :: r
+    integer, intent(in) :: n(3)
+
+    type(field_evaluation_avail) :: request
+
+    ! keyed without looking at the result: a field the benchmark cannot
+    ! measure must be remembered as such, or it is retried every frame
+    if (w%mo_cost_gen == sys(isys)%fieldgen .and. w%mo_cost_ifield == ifield .and.&
+       w%mo_cost_timegeom == sysc(isys)%timelastchange_geometry) return
+
+    ! benchmark what the sampling loop actually evaluates: one orbital,
+    ! not the density, which costs several times more per point
+    call request%clear()
+    request%avail(fieldeval_category_mo) = .true.
+    request%moini = r%iso%imosel
+    request%moend = r%iso%imoidx
+    w%mo_costest = iso_estimate_cost(isys,ifield,r%iso%iregion,r%iso%rgn_x,n,request)
+    w%mo_cost_gen = sys(isys)%fieldgen
+    w%mo_cost_ifield = ifield
+    w%mo_cost_timegeom = sysc(isys)%timelastchange_geometry
+
+  end subroutine mo_measure_cost
 
   !> The rectangle that marks a level bar running from x0 to x1 at
   !> height y as selected or hovered.

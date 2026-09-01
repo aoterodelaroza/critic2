@@ -722,13 +722,15 @@ module representations
        integer, intent(in) :: ifield
        real*8 :: isoval
      end function iso_default_isovalue
-     module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box) result(n)
+     module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang,alen) result(n)
        integer, intent(in) :: isys
        integer, intent(in) :: ilevel
        integer, intent(in) :: ncustom(3)
        logical, intent(out), optional :: capped
        integer, intent(in), optional :: ifield
        real*8, intent(in), optional :: box(3,0:3)
+       real*8, intent(in), optional :: ptsang
+       real*8, intent(out), optional :: alen(3)
        integer :: n(3)
      end function iso_grid_size
      module subroutine iso_region_to_box(isys,iregion,x,box,ok)
@@ -749,12 +751,14 @@ module representations
        real*8, intent(in) :: xc(3)
        real*8, intent(out) :: x(3)
      end subroutine iso_region_point_from_cart
-     module function iso_estimate_cost(isys,ifield,iregion,x,n) result(secs)
+     module function iso_estimate_cost(isys,ifield,iregion,x,n,request) result(secs)
+       use types, only: field_evaluation_avail
        integer, intent(in) :: isys
        integer, intent(in) :: ifield
        integer, intent(in) :: iregion
        real*8, intent(in) :: x(3,0:3)
        integer, intent(in) :: n(3)
+       type(field_evaluation_avail), intent(in), optional :: request
        real*8 :: secs
      end function iso_estimate_cost
      module subroutine iso_apply_grid(iso,n,iregion,x)

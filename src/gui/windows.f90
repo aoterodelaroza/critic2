@@ -529,7 +529,14 @@ module windows
      logical :: mo_scrolled(2) = .false. ! the MO tables have been centered on their HOMO/LUMO boundary
                                          ! (1 = the combined or alpha table, 2 = the beta table)
      integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
-     integer(c_int) :: mo_ilevel = 0 ! grid coarseness level of the MO isosurface (iso_level_*)
+     integer(c_int) :: mo_ilevel = 0 ! grid quality of the MO isosurface (0 = automatic, else iso_level_*)
+     integer :: mo_ilevel_built = -1 ! the mo_ilevel the transient grid was built for
+     real*8 :: mo_costest = -1d0 ! measured cost of one sample point, seconds (< 0 = not measured)
+     integer :: mo_cost_gen = -1 ! field-set generation the cost was measured at
+     integer :: mo_cost_ifield = -1 ! field the cost was measured for
+     real*8 :: mo_cost_timegeom = -1d0 ! geometry stamp the cost was measured at
+     real*8 :: mo_box(3,0:3) = 0d0 ! box the transient isosurface samples (axes and origin)
+     logical :: mo_boxok = .false. ! mo_box holds a valid box
      type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
      type(mo_diagram_state) :: mo_diag ! level list and view state of the MO energy-level diagram
      logical :: mo_showdiag = .true. ! show the energy-level diagram beside the MO tables

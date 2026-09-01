@@ -2384,12 +2384,14 @@ contains
        iw_arith_help_button, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
        duration_string
     use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
+    use types, only: field_evaluation_avail, fieldeval_category_mo
     use param, only: newline
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
+    type(field_evaluation_avail) :: request
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb, iheld
     integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
     integer(c_int) :: ncus(3), tflags, dtflags
@@ -2638,10 +2640,23 @@ contains
     end if
     call iw_tooltip("Use the selected grid and region for the isosurface. The options&
        & above have no effect on the isosurface until this button is pressed",ttshown)
-    ! cost estimate
-    if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) &
-       w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
-          w%rep%iso%rgn_x,nstage)
+    ! Cost estimate. An isosurface of a single molecular orbital is
+    ! sampled with an MO request, not the plain field, and costs several
+    ! times less per point, so the benchmark has to be given the same
+    ! request or it prices the density instead
+    if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) then
+       if (w%rep%iso%imosel /= 0) then
+          call request%clear()
+          request%avail(fieldeval_category_mo) = .true.
+          request%moini = w%rep%iso%imosel
+          request%moend = w%rep%iso%imoidx
+          w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
+             w%rep%iso%rgn_x,nstage,request)
+       else
+          w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
+             w%rep%iso%rgn_x,nstage)
+       end if
+    end if
     call iw_tooltip("Estimate the time needed to sample the field with the selected options",ttshown)
     if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0)) &
        call iw_text("~" // duration_string(w%rep%iso%costest * product(real(nstage,8))),&
