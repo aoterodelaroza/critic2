@@ -192,7 +192,7 @@ contains
           mo_ok = av%avail(fieldeval_category_mo)
           if (.not.mo_ok) then
              whynot = "The reference field cannot provide molecular orbitals. Load a &
-                &molecular wavefunction (wfn, wfx, fchk, molden) and make it the reference"
+                &molecular wavefunction and make it the reference field"
           else
              mo_ok = associated(win(iview)%sc)
              if (.not.mo_ok) whynot = "The parent view has no scene to draw the orbital in"
@@ -1039,7 +1039,7 @@ contains
     call iw_tooltip("Show the region around the HOMO/LUMO gap, in the diagram and the table",&
        ttshown)
     if (iw_button("All##modiagfit2",sameline=.true.)) w%mo_diag%ifit = 2
-    call iw_tooltip("Show every orbital level (double-clicking the diagram does the same)",ttshown)
+    call iw_tooltip("Show every orbital level",ttshown)
 
     strid = "##modiagram" // c_null_char
     strext = "##modiagextent" // c_null_char
