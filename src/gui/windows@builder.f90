@@ -258,7 +258,8 @@ contains
        reread_system_from_file, atlisttype_ncel_frac
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default
-    use gui_main, only: g, fontsize, tooltip_enabled, ColorHighlightEditDistScene
+    use gui_main, only: g, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
+       ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
     use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_helpermark, iw_calcwidth, iw_calcheight,&
@@ -268,7 +269,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
-    use param, only: bohrtoa, pi, eye
+    use param, only: bohrtoa, pi, eye, maxzat0
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel
@@ -287,7 +288,11 @@ contains
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
     real(c_float), parameter :: palscale = 1.25_c_float ! toolbar icons, in font heights
     real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
-    real(c_float), parameter :: recentscale = 2.6_c_float ! recent-entry squares, in font heights
+    real(c_float), parameter :: geomscale = 1.9_c_float ! local-geometry and recent squares, in text line heights
+    real(c_float), parameter :: recent_bg(3) = 1._c_float ! ground of the recent squares (the fragment diagrams are white)
+    real(c_float), parameter :: geom_sub = 0.68_c_float ! geometry diagram, as a fraction of the recent square
+    real(c_float), parameter :: chip_sub = 0.45_c_float ! element chip, as a fraction of the recent square
+    real(c_float), parameter :: chip_pad = 1._c_float ! pixels kept clear inside the chip
 
     ! the builder acts on the system shown in its anchor view. A hidden view is
     ! still a good anchor: the builder survives the hide and the mode can be
@@ -464,6 +469,15 @@ contains
     call row_label("Add")
     call tool_button(vm_builder_addatom,.true.)
     call tool_button(vm_builder_addfragment,.false.)
+
+    ! The local geometry of the atom being added, on its own line at the
+    ! left margin, below the Add row and above the recently used entries.
+    ! It used to sit at the end of the scrolling panel below, after the
+    ! explanatory text, where a window auto-resized to something short
+    ! hides it -- and it is a control, not a footnote
+    if (w%builder_tool == vm_builder_addatom) &
+       call draw_addatom_geom_grid(w%builder_addatom_ig,geomscale)
+
     call recent_row()
 
     call row_label("Valence")
@@ -627,9 +641,6 @@ contains
     szchild%y = -reserve
     if (igBeginChild_Str(c_loc(strchild),szchild,.false._c_bool,ImGuiWindowFlags_None)) then
        select case (w%builder_tool)
-       case (vm_builder_addatom)
-          call panel_pick(vm_builder_addatom)
-          call draw_addatom_geom_grid(w%builder_addatom_ig,1.9_c_float)
        case (it_edit)
           call panel_edit()
        case (it_none)
@@ -752,6 +763,13 @@ contains
          state = (w%builder_vm == itool)
          disabled = .not.havesys
          call viewmode_icon(itool,itex,fallback)
+         ! once the tool is armed the element it will place says more
+         ! than the generic glyph: a zero texture makes the button fall
+         ! back on its label, which is where the symbol goes
+         if (itool == vm_builder_addatom .and. state) then
+            itex = 0
+            fallback = trim(nameguess(w%builder_addatom_z,.true.))
+         end if
       end if
       if (itool == vm_builder_addatom .or. itool == vm_builder_addfragment) then
          ! the button opens the list of what the tool adds, the periodic
@@ -798,30 +816,50 @@ contains
     ! something has been placed.
     subroutine recent_row()
       integer :: i
-      real(c_float) :: side, xrun, xmax
-      type(ImVec2) :: sz, p0, p1, szavail
+      real(c_float) :: side, xrun, xmax, xstart
+      type(ImVec2) :: sz, p0, p1, szavail, tsz
       type(c_ptr) :: dl
       integer(c_int) :: col
-      logical :: hovered
-      character(len=:,kind=c_char), allocatable, target :: str1
+      logical :: hovered, inlab
+      character(len=:,kind=c_char), allocatable, target :: str1, strlab
 
       if (nrecent == 0) return
-      side = recentscale * fontsize%y
+      side = geomscale * igGetTextLineHeightWithSpacing()
       sz%x = side
       sz%y = side
       dl = igGetWindowDrawList()
       str1 = "##recentadd" // c_null_char
+
+      ! The label, then the entries after it, on the same line while the
+      ! label leaves room for at least one square -- otherwise the
+      ! squares take the next line to themselves, or the first one would
+      ! be drawn past the edge with no wrap test of its own to catch it.
+      ! Inline, the label is centered against the taller squares
+      strlab = "Recent:" // c_null_char
       call igGetContentRegionAvail(szavail)
-      xmax = igGetCursorPosX() + szavail%x
-      xrun = xicon
+      call igCalcTextSize(tsz,c_loc(strlab),c_null_ptr,.false._c_bool,-1._c_float)
+      inlab = (tsz%x + g%Style%ItemSpacing%x + side <= szavail%x)
+
+      yrow = igGetCursorPosY()
+      if (inlab) call igSetCursorPosY(yrow + 0.5_c_float * (side - igGetTextLineHeight()))
+      call iw_text("Recent:")
+      if (inlab) then
+         call igSameLine(0._c_float,-1._c_float)
+         call igSetCursorPosY(yrow)
+      end if
+      xstart = igGetCursorPosX()
+      yrow = igGetCursorPosY()
+      call igGetContentRegionAvail(szavail)
+      xmax = xstart + szavail%x
+      xrun = xstart
       do i = 1, nrecent
-         ! first entry, or one that no longer fits: start a row at the
-         ! icon column; the previous entry has already ended the line
-         if (i == 1 .or. xrun + g%Style%ItemSpacing%x + side > xmax) then
-            call igSetCursorPosX(xicon)
+         ! an entry that no longer fits starts a row under the first one;
+         ! the previous entry has already ended the line
+         if (i > 1 .and. xrun + g%Style%ItemSpacing%x + side > xmax) then
+            call igSetCursorPosX(xstart)
             yrow = igGetCursorPosY()
-            xrun = xicon
-         else
+            xrun = xstart
+         elseif (i > 1) then
             call row_cursor(.false.)
             xrun = xrun + g%Style%ItemSpacing%x
          end if
@@ -833,13 +871,18 @@ contains
          call igGetItemRectMin(p0)
          p1%x = p0%x + side
          p1%y = p0%y + side
+         ! The white ground the fragment diagrams are drawn on, so the
+         ! atom diagrams beside them sit on the same one. The hover tint
+         ! goes OVER the art: under it, an opaque fragment image hides it
+         col = igGetColorU32_Vec4(ImVec4(recent_bg(1),recent_bg(2),recent_bg(3),1._c_float))
+         call ImDrawList_AddRectFilled(dl,p0,p1,col,0._c_float,0_c_int)
+         call recent_paint(i,p0,p1,side,dl)
          if (hovered) then
-            col = igGetColorU32_Col(ImGuiCol_ButtonHovered,0.6_c_float)
+            col = igGetColorU32_Col(ImGuiCol_ButtonHovered,0.35_c_float)
             call ImDrawList_AddRectFilled(dl,p0,p1,col,0._c_float,0_c_int)
          end if
          col = igGetColorU32_Col(ImGuiCol_Border,1._c_float)
          call ImDrawList_AddRect(dl,p0,p1,col,0._c_float,0_c_int,1._c_float)
-         call recent_paint(i,p0,p1,side,dl)
          if (hovered) call iw_tooltip(recent_label(i))
          call igPopID()
       end do
@@ -853,10 +896,13 @@ contains
       real(c_float), intent(in) :: side
       type(c_ptr), intent(in) :: dl
 
-      integer :: islot
+      integer :: islot, iz
       integer(c_int) :: itex, col
-      type(ImVec2) :: uv0, uv1
+      type(ImVec2) :: uv0, uv1, q0, q1, tsz
+      type(ImVec4) :: cv
+      real(c_float) :: cside, fs, rgb(3)
       character(len=:), allocatable :: fallback
+      character(len=:,kind=c_char), allocatable, target :: strsym
 
       if (recent(i)%ilib > 0) then
          ! a fragment: its diagram, or the generic glyph if it has none
@@ -875,13 +921,58 @@ contains
                uv0%y = 0._c_float
                uv1%x = 1._c_float
                uv1%y = 1._c_float
-               col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+               ! tinted dark: the fallback glyph is white artwork, and
+               ! the ground under it here is white
+               col = igGetColorU32_Vec4(ImVec4(0.15_c_float,0.15_c_float,0.15_c_float,1._c_float))
                call ImDrawList_AddImage(dl,int(itex,c_intptr_t),p0,p1,uv0,uv1,col)
             end if
          end if
       else
-         ! an atom: the local geometry, with the element at its center
-         call addatom_geom_paint(recent(i)%ig,p0,side,dl,iz=recent(i)%iz)
+         ! An atom: the two things the badge says are the shape and the
+         ! element, so they get a place each. The diagram is drawn into a
+         ! smaller square at the same origin -- everything in
+         ! addatom_geom_paint scales off side, so that lands it in the
+         ! top left -- and without iz, which leaves a plain dot at its
+         ! center instead of the symbol the chip below now carries
+         call addatom_geom_paint(recent(i)%ig,p0,geom_sub*side,dl,bgrgb=recent_bg)
+
+         ! the element chip, bottom right, in the color the periodic
+         ! table gave it. ColorElement, not the jmlcol table
+         ! addatom_geom_paint uses: only the former follows the element
+         ! colors edited in the preferences
+         iz = min(max(recent(i)%iz,0),maxzat0)
+         cside = chip_sub * side
+         q0%x = p1%x - cside
+         q0%y = p1%y - cside
+         rgb = ColorElement(:,iz)
+         call ImDrawList_AddRectFilled(dl,q0,p1,&
+            igGetColorU32_Vec4(ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)),0._c_float,0_c_int)
+
+         ! Ink that reads on this chip, by the rule iw_atom_button uses.
+         ! The border is not decoration: hydrogen is pure white, and
+         ! without it the chip would vanish into the white ground
+         if (dot_product(lumweights,rgb) > 0.5_c_float) then
+            cv = ColorBlack
+         else
+            cv = ColorWhite
+         end if
+         col = igGetColorU32_Vec4(cv)
+         call ImDrawList_AddRect(dl,q0,p1,col,0._c_float,0_c_int,1._c_float)
+
+         ! the symbol, shrunk to fit: two characters do not go into the
+         ! chip at the interface font size. ImGui scales text linearly in
+         ! font_size, so the measurement scales with it
+         strsym = trim(nameguess(iz,.true.)) // c_null_char
+         call igCalcTextSize(tsz,c_loc(strsym),c_null_ptr,.false._c_bool,-1._c_float)
+         fs = g%FontSize * min(1._c_float,&
+            (cside - 2._c_float*chip_pad) / max(tsz%x,1._c_float),&
+            (cside - 2._c_float*chip_pad) / max(tsz%y,1._c_float))
+         tsz%x = tsz%x * fs / g%FontSize
+         tsz%y = tsz%y * fs / g%FontSize
+         q1%x = 0.5_c_float * (q0%x + p1%x - tsz%x)
+         q1%y = 0.5_c_float * (q0%y + p1%y - tsz%y)
+         call ImDrawList_AddText_FontPtr(dl,g%Font,fs,q1,col,c_loc(strsym),c_null_ptr,&
+            0._c_float,c_null_ptr)
       end if
 
     end subroutine recent_paint

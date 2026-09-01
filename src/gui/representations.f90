@@ -660,6 +660,7 @@ module representations
      procedure :: stamp_histogram => iso_stamp_histogram ! recompute the value range and histogram from data
      procedure :: stamp_built => iso_stamp_built ! stamp the keys that say the samples are current
      procedure :: set_samples => iso_set_samples ! install externally supplied field samples
+     procedure :: mo_request => iso_mo_request ! the field-evaluation request that samples the selected MO
   end type rep_isosurface
   public :: rep_isosurface
 
@@ -704,6 +705,7 @@ module representations
 
   public :: iso_default_isovalue
   public :: iso_grid_size
+  public :: iso_level_label
   public :: iso_isgridfield
   public :: iso_region_to_box
   public :: iso_region_seed
@@ -722,17 +724,25 @@ module representations
        integer, intent(in) :: ifield
        real*8 :: isoval
      end function iso_default_isovalue
-     module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang,alen) result(n)
+     module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang) result(n)
        integer, intent(in) :: isys
        integer, intent(in) :: ilevel
-       integer, intent(in) :: ncustom(3)
+       integer, intent(in), optional :: ncustom(3)
        logical, intent(out), optional :: capped
        integer, intent(in), optional :: ifield
        real*8, intent(in), optional :: box(3,0:3)
        real*8, intent(in), optional :: ptsang
-       real*8, intent(out), optional :: alen(3)
        integer :: n(3)
      end function iso_grid_size
+     module function iso_level_label(ilevel) result(str)
+       integer, intent(in) :: ilevel
+       character(len=:), allocatable :: str
+     end function iso_level_label
+     module function iso_mo_request(r) result(request)
+       use types, only: field_evaluation_avail
+       class(rep_isosurface), intent(in) :: r
+       type(field_evaluation_avail) :: request
+     end function iso_mo_request
      module subroutine iso_region_to_box(isys,iregion,x,box,ok)
        integer, intent(in) :: isys
        integer, intent(in) :: iregion

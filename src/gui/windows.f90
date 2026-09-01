@@ -302,6 +302,24 @@ module windows
   end type mo_cache_state
   public :: mo_cache_state
 
+  !> What the MO window measured about the cost of sampling one orbital,
+  !> and the state that measurement describes. Grouped so that a system
+  !> change resets it in one assignment: leaving part of the key behind
+  !> lets a new system whose field generation and geometry stamp happen
+  !> to coincide with the old one skip the measurement altogether.
+  type mo_cost_state
+     real*8 :: secs = -1d0 ! cost of one sample point, seconds (< 0 = not measured)
+     integer :: isys = 0 ! system it was measured for
+     integer :: ifield = -1 ! field it was measured for
+     integer :: gen = -1 ! field-set generation it was measured at
+     real*8 :: timegeom = -1d0 ! geometry stamp it was measured at
+     real*8 :: box(3,0:3) = 0d0 ! box the transient isosurface samples
+     integer :: ilevel_built = -1 ! the mo_ilevel the transient grid was built for
+   contains
+     procedure :: matches => mo_cost_matches ! the measurement still describes this system and field
+  end type mo_cost_state
+  public :: mo_cost_state
+
   !> The level list behind the MO energy-level diagram, and the state
   !> it is valid for. It is rebuilt only when the wavefunction or the
   !> energy unit change; everything that depends on the zoom is
@@ -530,13 +548,7 @@ module windows
                                          ! (1 = the combined or alpha table, 2 = the beta table)
      integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
      integer(c_int) :: mo_ilevel = 0 ! grid quality of the MO isosurface (0 = automatic, else iso_level_*)
-     integer :: mo_ilevel_built = -1 ! the mo_ilevel the transient grid was built for
-     real*8 :: mo_costest = -1d0 ! measured cost of one sample point, seconds (< 0 = not measured)
-     integer :: mo_cost_gen = -1 ! field-set generation the cost was measured at
-     integer :: mo_cost_ifield = -1 ! field the cost was measured for
-     real*8 :: mo_cost_timegeom = -1d0 ! geometry stamp the cost was measured at
-     real*8 :: mo_box(3,0:3) = 0d0 ! box the transient isosurface samples (axes and origin)
-     logical :: mo_boxok = .false. ! mo_box holds a valid box
+     type(mo_cost_state) :: mo_cost ! what sampling one orbital costs, and what that describes
      type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
      type(mo_diagram_state) :: mo_diag ! level list and view state of the MO energy-level diagram
      logical :: mo_showdiag = .true. ! show the energy-level diagram beside the MO tables
@@ -1227,6 +1239,12 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
      !xx! mo submodule !xx!
+     module function mo_cost_matches(c,isys,ifield)
+       class(mo_cost_state), intent(in) :: c
+       integer, intent(in) :: isys
+       integer, intent(in) :: ifield
+       logical :: mo_cost_matches
+     end function mo_cost_matches
      module subroutine mo_cache_keep_after_reload(isys,ifield)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield

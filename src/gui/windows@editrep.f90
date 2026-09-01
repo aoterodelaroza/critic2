@@ -2384,7 +2384,7 @@ contains
        iw_arith_help_button, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
        duration_string
     use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
-    use types, only: field_evaluation_avail, fieldeval_category_mo
+    use types, only: field_evaluation_avail
     use param, only: newline
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2646,10 +2646,7 @@ contains
     ! request or it prices the density instead
     if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) then
        if (w%rep%iso%imosel /= 0) then
-          call request%clear()
-          request%avail(fieldeval_category_mo) = .true.
-          request%moini = w%rep%iso%imosel
-          request%moend = w%rep%iso%imoidx
+          request = w%rep%iso%mo_request()
           w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
              w%rep%iso%rgn_x,nstage,request)
        else

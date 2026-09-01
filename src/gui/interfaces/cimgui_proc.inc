@@ -1539,7 +1539,20 @@ subroutine ImDrawList_AddText_Vec2(self,pos,col,text_begin,text_end) bind(c,name
   type(c_ptr), intent(in), value :: text_begin
   type(c_ptr), intent(in), value :: text_end
 end subroutine ImDrawList_AddText_Vec2
-!x! void ImDrawList_AddText_FontPtr(ImDrawList* self,const ImFont* font,float font_size,const ImVec2 pos,ImU32 col,const char* text_begin,const char* text_end,float wrap_width,const ImVec4* cpu_fine_clip_rect);
+! void ImDrawList_AddText_FontPtr(ImDrawList* self,const ImFont* font,float font_size,const ImVec2 pos,ImU32 col,const char* text_begin,const char* text_end,float wrap_width,const ImVec4* cpu_fine_clip_rect);
+subroutine ImDrawList_AddText_FontPtr(self,font,font_size,pos,col,text_begin,text_end,&
+   wrap_width,cpu_fine_clip_rect) bind(c,name="ImDrawList_AddText_FontPtr")
+  import c_ptr, c_float, ImVec2, c_int
+  type(c_ptr), value :: self
+  type(c_ptr), intent(in), value :: font
+  real(c_float), value :: font_size
+  type(ImVec2), value :: pos
+  integer(c_int), value :: col
+  type(c_ptr), intent(in), value :: text_begin
+  type(c_ptr), intent(in), value :: text_end
+  real(c_float), value :: wrap_width ! 0 = no wrapping
+  type(c_ptr), intent(in), value :: cpu_fine_clip_rect ! c_null_ptr = no clipping
+end subroutine ImDrawList_AddText_FontPtr
 !x! void ImDrawList_AddPolyline(ImDrawList* self,const ImVec2* points,int num_points,ImU32 col,ImDrawFlags flags,float thickness);
 !x! void ImDrawList_AddConvexPolyFilled(ImDrawList* self,const ImVec2* points,int num_points,ImU32 col);
 !x! void ImDrawList_AddBezierCubic(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,ImU32 col,float thickness,int num_segments);

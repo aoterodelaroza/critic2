@@ -553,31 +553,34 @@ contains
   !> box), iso_level_custom = the ncustom dimensions given by the user.
   !> Never returns all-zero for a non-native level (that value is the
   !> native-grid sentinel).
-  module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang,alen) result(n)
+  module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang) result(n)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
-    integer, intent(in) :: ncustom(3)
+    integer, intent(in), optional :: ncustom(3)
     logical, intent(out), optional :: capped
     integer, intent(in), optional :: ifield
     real*8, intent(in), optional :: box(3,0:3)
     real*8, intent(in), optional :: ptsang
-    real*8, intent(out), optional :: alen(3)
     integer :: n(3)
 
-    integer :: i, it, nmin
-    real*8 :: pa, fac, alen_(3), xmat(3,3), x0c(3), flo(3), fhi(3)
+    integer :: i, it, nmin, nc(3)
+    real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3), flo(3), fhi(3)
 
     n = 0
     if (present(capped)) capped = .false.
-    if (present(alen)) alen = 0d0
     if (ilevel <= 0) return
     if (.not.ok_system(isys,sys_init)) return
 
     if (ilevel > iso_nlevel) then
-       ! custom: the dimensions come straight from the user
+       ! custom: the dimensions come straight from the user, and asking
+       ! for a custom level without them is a caller error -- answer with
+       ! the same "no grid" zero a non-positive level gives, rather than
+       ! silently returning a useless minimum-sized one
+       if (.not.present(ncustom)) return
        nmin = iso_npts_custom_min
-       n = min(max(ncustom,nmin),iso_npts_custom_max)
+       nc = ncustom
+       n = min(max(nc,nmin),iso_npts_custom_max)
     else
        ! named level: points per angstrom along the axes of the sampled
        ! box, which is the given region box, else the valid window of
@@ -600,10 +603,9 @@ contains
              call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
        end if
        do i = 1, 3
-          alen_(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
-          n(i) = max(nint(alen_(i) * pa),nmin)
+          alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
+          n(i) = max(nint(alen(i) * pa),nmin)
        end do
-       if (present(alen)) alen = alen_
     end if
 
     ! total-points cap: re-scale until honest, since the per-axis floor
@@ -616,6 +618,43 @@ contains
     end do
 
   end function iso_grid_size
+
+  !> Name of the named coarseness level ilevel, as it appears in
+  !> iso_level_optstr. That string is the one place the names live; this
+  !> unpacks one of them so callers building their own option list do not
+  !> have to know it is null-separated.
+  module function iso_level_label(ilevel) result(str)
+    integer, intent(in) :: ilevel
+    character(len=:), allocatable :: str
+
+    integer :: i, i0, i1
+
+    str = ""
+    if (ilevel < 1 .or. ilevel > iso_nlevel) return
+    i0 = 1
+    do i = 1, ilevel
+       i1 = index(iso_level_optstr(i0:),c_null_char) + i0 - 1
+       if (i == ilevel) str = iso_level_optstr(i0:i1-1)
+       i0 = i1 + 1
+    end do
+
+  end function iso_level_label
+
+  !> The field-evaluation request that samples the molecular orbital
+  !> selected on this isosurface. Meaningful only when imosel is nonzero;
+  !> the sampling loop, the cost benchmark and the MO window all have to
+  !> ask for exactly the same thing or they describe different work.
+  module function iso_mo_request(r) result(request)
+    use types, only: field_evaluation_avail, fieldeval_category_mo
+    class(rep_isosurface), intent(in) :: r
+    type(field_evaluation_avail) :: request
+
+    call request%clear()
+    request%avail(fieldeval_category_mo) = .true.
+    request%moini = r%imosel
+    request%moend = r%imoidx
+
+  end function iso_mo_request
 
   !> Convert the staged region inputs (mode iregion, origin/corner or
   !> center in column 0 of x; far corner, edge endpoints, or
@@ -848,21 +887,16 @@ contains
        allocate(xr(3,nb))
        call random_number(xr)
        t = glfwGetTime()
-       if (useres) then
-          !$omp parallel do private(xp,res) schedule(static)
-          do i = 1, nb
-             xp = x0c + matmul(xmat,xr(:,i))
+       !$omp parallel do private(xp,res,rdum) schedule(static)
+       do i = 1, nb
+          xp = x0c + matmul(xmat,xr(:,i))
+          if (useres) then
              call sys(isys)%f(ifield)%grd(xp,request,res,periodic=pereval)
-          end do
-          !$omp end parallel do
-       else
-          !$omp parallel do private(xp,rdum) schedule(static)
-          do i = 1, nb
-             xp = x0c + matmul(xmat,xr(:,i))
+          else
              rdum = sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
-          end do
-          !$omp end parallel do
-       end if
+          end if
+       end do
+       !$omp end parallel do
        t = glfwGetTime() - t
        ntot = ntot + nb
        deallocate(xr)
@@ -2493,7 +2527,7 @@ contains
     !> not resample). The cached triangulations in r%iso are reused until
     !> the field, the isovalue, or the applied grid changes.
     subroutine add_isosurface_meshes()
-      use types, only: scalar_value, field_evaluation_avail, fieldeval_category_mo
+      use types, only: scalar_value, field_evaluation_avail
       integer :: i, j, k, l, nn(3), ncp(3), i1, i2, i3
       logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
       real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
@@ -2561,10 +2595,7 @@ contains
                ! an MO selection samples an orbital of the field
                ! instead of the field itself; an MO-only request makes
                ! grd skip the density work
-               call request%clear()
-               request%avail(fieldeval_category_mo) = .true.
-               request%moini = r%iso%imosel
-               request%moend = r%iso%imoidx
+               request = r%iso%mo_request()
                linvalid = .false.
                !$omp parallel do private(xp,res,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
                do l = 1, nn(3)
