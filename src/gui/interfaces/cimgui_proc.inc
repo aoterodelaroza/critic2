@@ -104,7 +104,12 @@ function igIsWindowFocused(flags) bind(c,name="igIsWindowFocused")
   integer(c_int), value :: flags
   logical(c_bool) :: igIsWindowFocused
 end function igIsWindowFocused
-!x! bool igIsWindowHovered(ImGuiHoveredFlags flags);
+! bool igIsWindowHovered(ImGuiHoveredFlags flags);
+function igIsWindowHovered(flags) bind(c,name="igIsWindowHovered")
+  import c_int, c_bool
+  integer(c_int), value :: flags
+  logical(c_bool) :: igIsWindowHovered
+end function igIsWindowHovered
 ! ImDrawList* igGetWindowDrawList(void);
 function igGetWindowDrawList() bind(c,name="igGetWindowDrawList")
   import c_ptr

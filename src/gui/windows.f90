@@ -302,6 +302,33 @@ module windows
   end type mo_cache_state
   public :: mo_cache_state
 
+  !> The level list behind the MO energy-level diagram, and the state
+  !> it is valid for. It is rebuilt only when the wavefunction or the
+  !> energy unit change; everything that depends on the zoom is
+  !> recomputed every frame from the arrays below.
+  type mo_diagram_state
+     integer :: isys = 0 ! system the list was built for
+     integer :: gen = -1 ! field-set generation it was built at
+     integer :: ifield = -1 ! field it was built from
+     integer :: ieneunit = -1 ! energy unit the energies below are in
+     integer :: n = 0 ! number of levels
+     integer :: nch = 0 ! spin channels (1 or 2)
+     integer :: ich0(3) = 0 ! first level of channel i, plus the end marker
+     integer, allocatable :: imo(:) ! packed MO index of each level
+     real(c_double), allocatable :: ene(:) ! level energy, display units, sorted within a channel
+     real*8, allocatable :: occ(:) ! occupation of each level
+     real*8 :: homo(2) = huge(1d0) ! HOMO energy of each channel (huge = the channel has none)
+     real*8 :: lumo(2) = huge(1d0) ! LUMO energy of each channel (huge = the channel has none)
+     real*8 :: erange(2) = 0d0 ! lowest and highest level energy
+     integer :: ipress = 0 ! level latched at the mouse press (0 = none)
+     logical :: moved = .false. ! that press turned into a pan, so it must not select
+     logical :: dbl = .false. ! that press was the second of a double click, so it must not select
+     integer :: ifit = 1 ! pending y-range request (0 = none, 1 = frontier, 2 = all, 3 = fitr)
+     real(c_double) :: fitr(2) = 0d0 ! the energy range requested by ifit = 3
+     real(c_double) :: ylim(2) = 0d0 ! energy range the diagram showed on the last frame
+  end type mo_diagram_state
+  public :: mo_diagram_state
+
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! caller-supplied prompt shown in the view bar (pick-atom mode only)
@@ -352,6 +379,7 @@ module windows
      logical :: isdocked = .false. ! whether the window is docked
      logical :: growtofit = .false. ! grow the window to fit its content (height-only; width-only init_window)
      real(c_float) :: needheight = 0._c_float ! window height that shows all content; >0 while it overflows
+     real(c_float) :: needwidth = 0._c_float ! one-shot: set the window to this width, then clear (see draw_mo)
      integer, allocatable :: iord(:) ! table order (multiple windows)
      integer :: lastselected = 0 ! selectable, last element selected (multiple windows)
      character(len=:), allocatable :: tabselected ! which tab is selected (multiple windows)
@@ -503,6 +531,9 @@ module windows
      integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
      integer(c_int) :: mo_ilevel = 0 ! grid coarseness level of the MO isosurface (iso_level_*)
      type(mo_cache_state) :: mo_cache ! per-orbital sampling grids, so an orbital is evaluated once
+     type(mo_diagram_state) :: mo_diag ! level list and view state of the MO energy-level diagram
+     logical :: mo_showdiag = .true. ! show the energy-level diagram beside the MO tables
+     integer :: mo_scrollto = 0 ! scroll the MO table to this packed index (0 = none)
      real*8 :: mo_isoval = 0d0 ! isovalue of the +/- MO isosurface pair (a.u.)
      real(c_float) :: mo_rgb(3,2) = 0._c_float ! colors of the positive/negative lobes
      real(c_float) :: mo_alpha = 0._c_float ! opacity of the MO isosurfaces

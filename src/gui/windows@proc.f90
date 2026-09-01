@@ -557,6 +557,7 @@ contains
     w%isys = 1
     w%growtofit = .false.
     w%needheight = 0._c_float
+    w%needwidth = 0._c_float
     w%sortcid = 0
     w%sortdir = 1
     w%okfile = ""
@@ -706,8 +707,10 @@ contains
     class(window), intent(inout) :: w
 
     if (w%type == wintype_mo) then
-       ! the per-orbital sampling grids, resampled on demand
+       ! the per-orbital sampling grids and the diagram's level list,
+       ! both rebuilt on demand
        w%mo_cache = mo_cache_state()
+       w%mo_diag = mo_diagram_state()
     end if
 
   end subroutine window_drop_caches
@@ -734,8 +737,9 @@ contains
              if (associated(w%sc)) deallocate(w%sc)
           end if
        elseif (w%type == wintype_mo) then
-          ! release the cached orbital sampling grids
+          ! release the cached orbital sampling grids and the level list
           w%mo_cache = mo_cache_state()
+          w%mo_diag = mo_diagram_state()
        elseif (w%type == wintype_vibrations) then
           ! reset the animation status of the parent
           if (w%idparent > 0 .and. w%idparent <= nwin) then
@@ -977,7 +981,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     real(c_float) :: panewidth
-    type(ImVec2) :: inisize, pos, pivot, szmin, szmax
+    type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
     type(ImGuiWindow), pointer :: wptr
 
     if (.not.w%isinit) return
@@ -1154,8 +1158,10 @@ contains
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62)
        elseif (w%type == wintype_mo) then
-          ! wide enough for the two spin tables of an unrestricted wavefunction
-          call init_window("Molecular Orbitals",84)
+          ! a starting point only: draw_mo asks for a width that fits
+          ! the diagram and however many spin tables this wavefunction
+          ! turns out to need, as soon as it knows
+          call init_window("Molecular Orbitals",70)
        elseif (w%type == wintype_dynamics) then
           call init_window("Dynamics",55)
        elseif (w%type == wintype_water_cluster) then
@@ -1222,7 +1228,23 @@ contains
                 end if
              end if
              call igSetNextWindowSizeConstraints(szmin,szmax,c_null_funptr,c_null_ptr)
+
+             ! a one-shot width, asked for by the window's own content
+             ! once it knows how wide it wants to be (the initial width
+             ! passed to init_window is fixed before the content is
+             ! known). Applied once and cleared, so the user can resize
+             ! the window afterwards and keep the size.
+             if (w%needwidth > 0._c_float .and. c_associated(w%ptr)) then
+                call c_f_pointer(w%ptr,wptr)
+                szwant%x = min(max(w%needwidth,szmin%x),szmax%x)
+                szwant%y = wptr%Size%y
+                call igSetNextWindowSize(szwant,ImGuiCond_Always)
+             end if
           end if
+          ! cleared whether or not it could be applied: a docked window
+          ! must not keep the request and spring to that width the first
+          ! time it is undocked, long after the user has sized it
+          w%needwidth = 0._c_float
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
              if (w%type == wintype_tree) then
