@@ -319,6 +319,7 @@ contains
     iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
 
+
     ! start initializing the systems from the command line
     call launch_initialization_thread()
 
@@ -744,7 +745,7 @@ contains
     do i = 1, nwin
        if (.not.win(i)%isinit) cycle
        if (win(i)%type /= wintype_builder) cycle
-       if (win(i)%idparent /= iv) cycle
+       if (win(i)%anchor_view() /= iv) cycle
        if (win(i)%edit_kind == 0) cycle
        call win(i)%edit_stop()
        return

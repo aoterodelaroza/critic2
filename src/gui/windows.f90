@@ -383,6 +383,8 @@ module windows
      integer :: type ! the window type
      integer(c_int) :: id ! internal ID for this window (index from win(:))
      integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
+     integer :: serial = 0 ! serial number of this window, never reused (see window_lastserial)
+     integer :: idparent_serial = 0 ! serial of the caller window, to detect its slot being reused
      integer :: itoken = 0 ! parent token for some dialogs functions
      integer :: purpose ! purpose of the window at creation (dialogs: wpurp_dialog_*; views: wpurp_view_*)
      integer(c_int) :: flags ! window flags
@@ -448,7 +450,7 @@ module windows
      integer :: measure_pend_bidx(5) = 0 ! bond captured at the press for the pending pick
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
-     type(dialog_userdata) :: dialog_data ! for the side pane callback
+     type(dialog_userdata), pointer :: dialog_data => null() ! for the side pane callback
      character(len=:,kind=c_char), allocatable :: dialog_filter ! file filter for one-file dialogs
      ! input console parameters
      ! output console parameters
@@ -635,6 +637,7 @@ module windows
      procedure :: end => window_end ! finalize the window
      procedure :: drop_caches => window_drop_caches ! release the caches the window can rebuild
      procedure :: focused => window_focused ! whether the root window is focused (even if not current)
+     procedure :: parent => window_parent ! the window that created this one (0 if it is gone)
      procedure :: anchor_view => window_anchor_view ! the view window this window is anchored to
      procedure :: anchor => window_anchor ! the anchor view and the system it shows (tool windows)
      procedure :: retarget => window_retarget ! point the anchor view at a system
@@ -729,6 +732,9 @@ module windows
   end type window
   public :: window
 
+  ! Serial numbers handed out to the windows, never reused.
+  integer :: window_lastserial = 0
+
   ! the window stack and named windows
   integer, public :: nwin
   type(window), allocatable, target, public :: win(:)
@@ -816,6 +822,7 @@ module windows
   public :: okfile_default
   public :: okfile_save_dir
   public :: regenerate_window_pointers
+  public :: invalidate_scene_reps
   public :: read_output_uout
   public :: fill_input_ci
 
@@ -916,6 +923,9 @@ module windows
      end subroutine build_write_format_combo
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
+     module subroutine invalidate_scene_reps(s)
+       type(scene), intent(in), target :: s
+     end subroutine invalidate_scene_reps
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
@@ -938,6 +948,10 @@ module windows
        class(window), intent(inout) :: w
        logical :: window_focused
      end function window_focused
+     module function window_parent(w) result(ip)
+       class(window), intent(in) :: w
+       integer :: ip
+     end function window_parent
      module function window_anchor_view(w) result(iview)
        class(window), intent(in) :: w
        integer :: iview

@@ -1160,6 +1160,7 @@ contains
 
     logical :: ok
     integer :: id
+    integer :: idp ! the view a dynamics window is anchored to
 
     ! While a run driven by a dynamics window is active on the viewed
     ! system, force the dedicated MD interaction mode in all views of
@@ -1171,8 +1172,9 @@ contains
              if (.not.win(id)%isinit .or. .not.win(id)%isopen) cycle
              if (win(id)%type == wintype_dynamics) then
                 ! a dynamics window drives the system its parent view shows
-                if (win(id)%idparent < 1 .or. win(id)%idparent > nwin) cycle
-                if (win(win(id)%idparent)%isys /= w%isys) cycle
+                idp = win(id)%anchor_view()
+                if (idp == 0) cycle
+                if (win(idp)%isys /= w%isys) cycle
              elseif (win(id)%type == wintype_water_cluster) then
                 ! the demo drives the run on its own generated system
                 if (win(id)%isys /= w%isys) cycle

@@ -29,9 +29,10 @@ contains
   !> window is created.
   module subroutine update_editrep(w)
     use systems, only: sys_init, ok_system
+    use windows, only: win
     class(window), intent(inout), target :: w
 
-    integer :: isys
+    integer :: isys, iview
     logical :: doquit
 
     ! This window edits one object living in its anchor view's scene, so unlike
@@ -39,8 +40,14 @@ contains
     ! object belongs to the scene it was created in. Check the anchor, the
     ! system and the object are all still there, and close otherwise.
     isys = w%isys
-    doquit = (w%anchor_view() == 0)
+    iview = w%anchor_view()
+    doquit = (iview == 0)
     if (.not.doquit) doquit = .not.ok_system(isys,sys_init)
+    ! the scene has to be checked before the representation: the view
+    ! owns the list rep points into, and tearing it down (another
+    ! system in this view, a scene reset) does not clear the pointer
+    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
+    if (.not.doquit) doquit = (win(iview)%isys /= isys)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
@@ -76,12 +83,13 @@ contains
     iview = w%anchor_view()
     doquit = (iview == 0)
     if (.not.doquit) doquit = .not.ok_system(isys,sys_init)
+    if (.not.doquit) doquit = .not.win(iview)%isopen
+    ! the scene has to be checked before the representation (see update_editrep)
+    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
+    if (.not.doquit) doquit = (win(iview)%isys /= isys)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
-    if (.not.doquit) doquit = .not.win(iview)%isopen
-    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
-    if (.not.doquit) doquit = (win(iview)%isys /= isys)
 
     if (.not.doquit) then
        ! whether the rep has changed

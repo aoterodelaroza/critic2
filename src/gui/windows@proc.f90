@@ -44,8 +44,8 @@ contains
     logical, intent(in), optional :: strict
     integer :: view_target_window
 
-    integer :: i
-    logical :: ok, strict_
+    integer :: i, iv
+    logical :: strict_
 
     strict_ = .false.
     if (present(strict)) strict_ = strict
@@ -58,10 +58,8 @@ contains
           view_target_window = i
        elseif (win(i)%type == wintype_builder .or. win(i)%type == wintype_dynamics) then
           ! these windows drive the view they were opened from
-          ok = win(i)%idparent >= 1 .and. win(i)%idparent <= nwin
-          if (ok) ok = win(win(i)%idparent)%isinit
-          if (ok) ok = win(win(i)%idparent)%type == wintype_view
-          if (ok) view_target_window = win(i)%idparent
+          iv = win(i)%anchor_view()
+          if (iv > 0) view_target_window = iv
        elseif (strict_) then
           view_target_window = 0
        end if
@@ -340,22 +338,22 @@ contains
              ! specific tests according to type
              if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%purpose == purpose)
              if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idparent)) then
-                ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%idparent == idparent)
+                ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%parent() == idparent)
                 if (ok.and.present(itoken)) &
                    ok = (win(i)%itoken == itoken)
              end if
              if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
-             if (ok.and.type == wintype_geometry.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_mo.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_saveas.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_save_multiple.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%idparent == idparent)
-             if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_geometry.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_mo.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_exportimage.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_saveas.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_save_multiple.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
@@ -369,7 +367,12 @@ contains
           stack_create_window = raiseid
           if (present(isys)) win(raiseid)%isys = isys
           if (present(irep)) win(raiseid)%irep = irep
-          if (present(idparent)) win(raiseid)%idparent = idparent
+          if (present(idparent)) then
+             win(raiseid)%idparent = idparent
+             win(raiseid)%idparent_serial = 0
+             if (idparent >= 1 .and. idparent <= nwin) &
+                win(raiseid)%idparent_serial = win(idparent)%serial
+          end if
           if (present(itoken)) win(raiseid)%itoken = itoken
           call igSetWindowFocus_Str(c_loc(win(raiseid)%name))
           return
@@ -502,24 +505,74 @@ contains
 
   end subroutine build_write_format_combo
 
-  !> This routine regenerates all pointers to the widows in the win(:)
-  !> structure and its components. It is used when an array size is
-  !> exceeded and move_alloc needs to be used to allocate more memory.
+  !> Drop the representation pointer of every edit-object window that
+  !> edits a representation of scene s.
+  module subroutine invalidate_scene_reps(s)
+    type(scene), intent(in), target :: s
+
+    integer :: i, idp
+
+    if (.not.allocated(win)) return
+    do i = 1, nwin
+       if (.not.win(i)%isinit) cycle
+       if (win(i)%type /= wintype_editrep) cycle
+       idp = win(i)%idparent
+       if (idp < 1 .or. idp > nwin) cycle
+       if (.not.associated(win(idp)%sc,s)) cycle
+       nullify(win(i)%rep)
+    end do
+
+  end subroutine invalidate_scene_reps
+
+  !> Regenerate the pointers the windows hold into arrays that may have
+  !> been moved by a move_alloc: the system list (sysc), a scene's
+  !> representation list (sc%rep), or the window stack itself. Called
+  !> right after any of those three grows.
+  !>
+  !> The scenes are re-pointed first because the edit-representation
+  !> windows point into them: doing both in one pass would make an
+  !> editrep window whose parent view comes later in the stack follow
+  !> the parent's stale scene pointer.
   module subroutine regenerate_window_pointers()
     use systems, only: sysc, sys_init, ok_system
 
-    integer :: i, iv
+    integer :: i, iv, idp
 
+    ! the scene shown by each view window
     do i = 1, nwin
-       if (win(i)%type == wintype_editrep .and. win(i)%irep > 0) then
-          win(i)%rep => win(win(i)%idparent)%sc%rep(win(i)%irep)
-       elseif (win(i)%type == wintype_view) then
-          win(i)%sc => null()
-          iv = win(i)%isys
-          if (ok_system(iv,sys_init)) then
-             if (win(i)%ismain) win(i)%sc => sysc(iv)%sc
-          end if
-       end if
+       if (.not.win(i)%isinit) cycle
+       if (win(i)%type /= wintype_view) cycle
+
+       ! An alternate view owns its scene: it was allocated on the heap
+       ! by window_init and is released by window_end, so it does not
+       ! travel with any of the arrays and must be left alone. Clearing
+       ! it here would leak the scene and blank the view.
+       if (.not.win(i)%ismain) cycle
+
+       ! The main view shows the scene of its system, which lives inside
+       ! the sysc array and moves with it.
+       nullify(win(i)%sc)
+       iv = win(i)%isys
+       if (ok_system(iv,sys_init)) win(i)%sc => sysc(iv)%sc
+    end do
+
+    ! the representation edited by each edit-representation window; if
+    ! it cannot be resolved the pointer is left null, and update_editrep
+    ! closes the window on the next pass
+    do i = 1, nwin
+       if (.not.win(i)%isinit) cycle
+       if (win(i)%type /= wintype_editrep) cycle
+
+       nullify(win(i)%rep)
+       idp = win(i)%idparent
+       if (win(i)%irep < 1) cycle
+       if (idp < 1 .or. idp > nwin) cycle
+       if (.not.win(idp)%isinit) cycle
+       if (win(idp)%type /= wintype_view) cycle
+       if (.not.associated(win(idp)%sc)) cycle
+       if (.not.allocated(win(idp)%sc%rep)) cycle
+       if (win(i)%irep > size(win(idp)%sc%rep,1)) cycle
+       win(i)%rep => win(idp)%sc%rep(win(i)%irep)
     end do
 
   end subroutine regenerate_window_pointers
@@ -573,6 +626,10 @@ contains
     if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0
     w%tabselected = ""
+    ! the side-pane callback data lives on the heap: the file dialog is
+    ! given its address and keeps it while the dialog is open, so it
+    ! must not move with the window stack (see the type declaration)
+    if (.not.associated(w%dialog_data)) allocate(w%dialog_data)
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
     w%dialog_data%showhidden = .false._c_bool
@@ -582,9 +639,17 @@ contains
     w%dialog_data%molcubic = .false.
     w%dialog_data%rborder = rborder_def*bohrtoa
     w%plotn = 0
+    ! a serial that is never reused, so that children of this window can
+    ! tell it apart from whatever window takes its slot later
+    window_lastserial = window_lastserial + 1
+    w%serial = window_lastserial
     if (present(isys)) w%isys = isys
     if (present(irep)) w%irep = irep
-    if (present(idparent)) w%idparent = idparent
+    w%idparent_serial = 0
+    if (present(idparent)) then
+       w%idparent = idparent
+       if (idparent >= 1 .and. idparent <= nwin) w%idparent_serial = win(idparent)%serial
+    end if
     if (present(itoken)) w%itoken = itoken
     if (present(purpose)) w%purpose = purpose
     w%geometry_expression = ""
@@ -617,7 +682,17 @@ contains
           call ferror('window_init','editrep requires irep',faterr)
        if (.not.present(idparent)) &
           call ferror('window_init','editrep requires idparent',faterr)
-       w%rep => win(idparent)%sc%rep(irep)
+       ! only point at the object if the parent view has it; otherwise
+       ! leave the pointer null and update_editrep closes the window
+       nullify(w%rep)
+       if (idparent >= 1 .and. idparent <= nwin) then
+          if (associated(win(idparent)%sc)) then
+             if (allocated(win(idparent)%sc%rep)) then
+                if (irep >= 1 .and. irep <= size(win(idparent)%sc%rep,1)) &
+                   w%rep => win(idparent)%sc%rep(irep)
+             end if
+          end if
+       end if
     elseif (type == wintype_exportimage) then
        ! export image window
        if (.not.present(idparent)) &
@@ -722,7 +797,7 @@ contains
     use tools_io, only: ferror, warning
     class(window), intent(inout), target :: w
 
-    integer :: isysd
+    integer :: isysd, iv
     character(len=:), allocatable :: errmsg
 
     ! window-specific destruction
@@ -730,24 +805,22 @@ contains
        if (w%type == wintype_dialog .and. c_associated(w%dptr)) then
           ! destroy the dialog
           call IGFD_Destroy(w%dptr)
+          w%dptr = c_null_ptr
        elseif (w%type == wintype_view) then
           ! delete the texture and deallocate the scene if not the main view
           call w%delete_texture_view()
           if (.not.w%ismain) then
              if (associated(w%sc)) deallocate(w%sc)
           end if
-       elseif (w%type == wintype_mo) then
-          ! release the cached orbital sampling grids and the level list
-          w%mo_cache = mo_cache_state()
-          w%mo_diag = mo_diagram_state()
        elseif (w%type == wintype_vibrations) then
           ! reset the animation status of the parent
-          if (w%idparent > 0 .and. w%idparent <= nwin) then
-             if (associated(win(w%idparent)%sc)) then
-                win(w%idparent)%sc%iqpt_selected = 0
-                win(w%idparent)%sc%ifreq_selected = 0
-                win(w%idparent)%sc%animation = 0
-                win(w%idparent)%forcerender = .true.
+          isysd = w%anchor_view()
+          if (isysd > 0) then
+             if (associated(win(isysd)%sc)) then
+                win(isysd)%sc%iqpt_selected = 0
+                win(isysd)%sc%ifreq_selected = 0
+                win(isysd)%sc%animation = 0
+                win(isysd)%forcerender = .true.
              end if
           end if
        elseif (w%type == wintype_dynamics) then
@@ -765,9 +838,9 @@ contains
              end if
              sysc(isysd)%md_run = .false.
              call sysc(isysd)%md%free()
-             if (w%idparent > 0 .and. w%idparent <= nwin) then
-                if (associated(win(w%idparent)%sc)) &
-                   win(w%idparent)%forcerender = .true.
+             iv = w%anchor_view()
+             if (iv > 0) then
+                if (associated(win(iv)%sc)) win(iv)%forcerender = .true.
              end if
           end if
        elseif (w%type == wintype_rattle) then
@@ -784,10 +857,6 @@ contains
                    'sampling run: '//trim(errmsg),warning)
              end if
           end if
-          if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
-       elseif (w%type == wintype_save_multiple) then
-          if (allocated(w%savemult_pattern)) deallocate(w%savemult_pattern)
-          w%sm = savemult_state() ! the file list is this window's, not the session's
        elseif (w%type == wintype_water_cluster) then
           ! the demo owns its generated cluster; remove it on close so it does not linger
           isysd = w%isys
@@ -798,10 +867,9 @@ contains
           end if
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
-          if (w%builder_vm /= 0 .and. w%idparent >= 1 .and. w%idparent <= nwin) then
-             if (win(w%idparent)%isinit) &
-                call win(w%idparent)%viewmode_release_forced(w%id,w%builder_vm)
-          end if
+          iv = w%anchor_view()
+          if (w%builder_vm /= 0 .and. iv > 0) &
+             call win(iv)%viewmode_release_forced(w%id,w%builder_vm)
           ! stop the edit session
           call w%edit_stop()
        elseif (w%type == wintype_geometry) then
@@ -811,7 +879,7 @@ contains
        end if
     end if
 
-    ! deallocate the rest of the data
+    ! reset the scalar state
     w%firstpass = .true.
     w%isinit = .false.
     w%isopen = .false.
@@ -822,21 +890,12 @@ contains
     w%irep = 0
     w%ptr = c_null_ptr
     w%timelast_focused = 0d0
-    w%name = "" // c_null_char
-    if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0
-    w%tabselected = ""
     w%plotn = 0
-    if (allocated(w%plotx)) deallocate(w%plotx)
-    if (allocated(w%ploty)) deallocate(w%ploty)
     nullify(w%rep)
-    w%irep = 0
     w%viewmode = vm_navigate
     w%viewmode_transient = .false.
-    w%vmdata = viewmode_data() ! drop the stale forced-mode owner and pick data
-    w%geometry_expression = ""
     w%geometry_expression_ok = .false.
-    w%geometry_expr_error = ""
     call w%geometry_addbond%clear()
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
@@ -851,7 +910,60 @@ contains
     ! the session payload is re-seeded by the start routines)
     w%edit_pending = .false.
     w%edit_time = 0d0
+
+    ! Release every allocatable this window can be holding. A closed
+    ! window keeps its slot until the slot is reused, so anything left
+    ! allocated here stays in memory for the rest of the session; some
+    ! of it is large (the MO sampling grids, the rattle snapshots, the
+    ! symmetry tables). The name is kept as an empty C string because
+    ! its address is taken with c_loc.
+    w%name = "" // c_null_char
+    if (allocated(w%errmsg)) deallocate(w%errmsg)
+    if (allocated(w%okmsg)) deallocate(w%okmsg)
+    if (allocated(w%iord)) deallocate(w%iord)
+    if (allocated(w%tabselected)) deallocate(w%tabselected)
+    if (allocated(w%dialog_filter)) deallocate(w%dialog_filter)
+    if (allocated(w%okfile)) deallocate(w%okfile)
+    if (allocated(w%okfilter)) deallocate(w%okfilter)
+    if (allocated(w%okfile_lastcheck)) deallocate(w%okfile_lastcheck)
+    if (allocated(w%plotx)) deallocate(w%plotx)
+    if (allocated(w%ploty)) deallocate(w%ploty)
+    if (allocated(w%saveas_lastcontrol)) deallocate(w%saveas_lastcontrol)
+    if (allocated(w%savemult_pattern)) deallocate(w%savemult_pattern)
+    if (allocated(w%savemult_lastcheck)) deallocate(w%savemult_lastcheck)
+    if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
+    if (allocated(w%builder_frag_name)) deallocate(w%builder_frag_name)
+    if (allocated(w%builder_frag_z)) deallocate(w%builder_frag_z)
+    if (allocated(w%builder_frag_x)) deallocate(w%builder_frag_x)
     if (allocated(w%edit_frag)) deallocate(w%edit_frag)
+    if (allocated(w%edit_fraglv)) deallocate(w%edit_fraglv)
+    if (allocated(w%geometry_expression)) deallocate(w%geometry_expression)
+    if (allocated(w%geometry_expr_error)) deallocate(w%geometry_expr_error)
+    if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
+    if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+    if (allocated(w%geometry_sym_ops)) deallocate(w%geometry_sym_ops)
+    if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
+    if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
+    if (allocated(w%geometry_sym_sel)) deallocate(w%geometry_sym_sel)
+    if (allocated(w%geometry_sym_analyze_eps)) deallocate(w%geometry_sym_analyze_eps)
+    if (allocated(w%geometry_sym_analyze_sym)) deallocate(w%geometry_sym_analyze_sym)
+    if (allocated(w%geometry_sym_analyze_num)) deallocate(w%geometry_sym_analyze_num)
+    if (allocated(w%wc_name)) deallocate(w%wc_name)
+
+    ! The components that are derived types with allocatables of their
+    ! own: assigning the default value deallocates everything inside
+    ! them (the MO grids, the file list, the level diagram, the pick
+    ! prompt strings).
+    w%vmdata = viewmode_data() ! drops the stale forced-mode owner and pick data
+    w%lf = loadfield_state()
+    w%sm = savemult_state()
+    w%mo_cache = mo_cache_state()
+    w%mo_diag = mo_diagram_state()
+
+    ! the side-pane callback data lives on the heap (see the type
+    ! declaration); the dialog that was given its address is destroyed
+    ! above, so it can go now
+    if (associated(w%dialog_data)) deallocate(w%dialog_data)
 
   end subroutine window_end
 
@@ -917,15 +1029,31 @@ contains
   !> Index in of the live view window this window is anchored to,
   !> taken from w%idparent, or zero if the anchor is gone or was never
   !> a view window.
+  !> Index in win(:) of the window that created this one, or zero if
+  !> that window is gone. The slot index alone is not enough: an ended
+  !> window's slot is handed to the next window created, so the
+  !> parent's serial, recorded at creation, has to match as well.
+  module function window_parent(w) result(ip)
+    class(window), intent(in) :: w
+    integer :: ip
+
+    ip = 0
+    if (w%idparent < 1 .or. w%idparent > nwin) return
+    if (.not.win(w%idparent)%isinit) return
+    if (win(w%idparent)%serial /= w%idparent_serial) return
+    ip = w%idparent
+
+  end function window_parent
+
+  !> Index in win(:) of the view window this window is anchored to, or
+  !> zero if the anchor is gone or is no longer a view.
   module function window_anchor_view(w) result(iview)
     class(window), intent(in) :: w
     integer :: iview
 
-    iview = 0
-    if (w%idparent < 1 .or. w%idparent > nwin) return
-    if (.not.win(w%idparent)%isinit) return
-    if (win(w%idparent)%type /= wintype_view) return
-    iview = w%idparent
+    iview = w%parent()
+    if (iview == 0) return
+    if (win(iview)%type /= wintype_view) iview = 0
 
   end function window_anchor_view
 
@@ -978,6 +1106,8 @@ contains
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
+
+    integer :: idp ! the window that opened this dialog, if still there
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     real(c_float) :: panewidth, hneed
@@ -1077,7 +1207,7 @@ contains
           elseif (w%purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
-             call dialog_initial_file(w%idparent,"image.png",str2,str3)
+             call dialog_initial_file(w%parent(),"image.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%purpose == wpurp_dialog_savefile) then
@@ -1113,7 +1243,7 @@ contains
                 &PLY (*.ply) {.ply},&
                 &OFF (*.off) {.off},&
                 &All files (*.*){*.*}"// c_null_char
-             call dialog_initial_file(w%idparent,"structure.in",str2,str3)
+             call dialog_initial_file(w%parent(),"structure.in",str2,str3)
              ! the overwrite flag goes only to the file dialog, not to w%flags: it
              ! would be reused as ImGuiWindowFlags in IGFD_DisplayDialog
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
@@ -1123,10 +1253,11 @@ contains
              w%name = "Select Directory##" // string(w%id) // c_null_char
              str2 = "" // c_null_char
              str3 = "./" // c_null_char
-             if (w%idparent >= 1 .and. w%idparent <= nwin) then
-                if (allocated(win(w%idparent)%okfile)) then
-                   if (len_trim(win(w%idparent)%okfile) > 0) &
-                      str3 = trim(win(w%idparent)%okfile) // c_null_char
+             idp = w%parent()
+       if (idp > 0) then
+                if (allocated(win(idp)%okfile)) then
+                   if (len_trim(win(idp)%okfile) > 0) &
+                      str3 = trim(win(idp)%okfile) // c_null_char
                 end if
              end if
              ! a null filter list puts the dialog in directory-selection mode

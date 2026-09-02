@@ -224,11 +224,28 @@ contains
   !> initialization thread out of the way while the arrays are moved.
   module subroutine grow_system_list()
     use windows, only: regenerate_window_pointers
+    use systemmod, only: sy
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
     logical :: isrun
+    integer :: i, isy
 
     if (nsys <= size(sys,1)) return
+
+    ! The global current-system pointer points into sys(:) while the
+    ! input console runs commands, and a command that loads systems can
+    ! land here in the middle of that. Note which system it is on: the
+    ! move below invalidates the pointer, and it cannot be recovered
+    ! afterwards because the array it pointed into is gone. (In the
+    ! command-line version sy points into sy_ instead, and no system
+    ! matches, so the pointer is left alone.)
+    isy = 0
+    do i = 1, size(sys,1)
+       if (associated(sy,sys(i))) then
+          isy = i
+          exit
+       end if
+    end do
 
     ! stop the initialization if it's running
     isrun = are_threads_running()
@@ -242,6 +259,9 @@ contains
     allocate(syscaux(2*nsys))
     syscaux(1:size(sysc,1)) = sysc
     call move_alloc(syscaux,sysc)
+
+    ! put the global current-system pointer back on the same system
+    if (isy > 0) sy => sys(isy)
 
     ! refresh system and window pointers
     call regenerate_system_pointers()
@@ -826,9 +846,10 @@ contains
 
     integer :: i, j
 
-    ! refresh pointers in the systems after the move_alloc
+    ! refresh pointers in the systems after the move_alloc; field 0 is
+    ! the promolecular density, and it points at the crystal too
     do i = 1, nsys
-       do j = 1, sys(i)%nf
+       do j = 0, sys(i)%nf
           sys(i)%f(j)%sptr = c_loc(sys(i))
           sys(i)%f(j)%c => sys(i)%c
 

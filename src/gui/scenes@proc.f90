@@ -149,6 +149,7 @@ contains
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
+    use windows, only: invalidate_scene_reps
     use param, only: maxzat, maxzat0
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
@@ -181,7 +182,9 @@ contains
     s%nmsel = 0
     s%msel = 0
 
-    ! initialize representations
+    ! initialize representations; any edit-object window pointing into
+    ! the old list must let go of it first
+    call invalidate_scene_reps(s)
     if (allocated(s%rep)) deallocate(s%rep)
     allocate(s%rep(20))
     s%nrep = 0
@@ -251,6 +254,7 @@ contains
 
   !> Terminate a scene object
   module subroutine scene_end(s)
+    use windows, only: invalidate_scene_reps
     class(scene), intent(inout), target :: s
 
     s%isinit = 0
@@ -258,6 +262,7 @@ contains
     s%id = 0
     call s%gl%end()
     call s%obj%end()
+    call invalidate_scene_reps(s)
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
     if (allocated(s%iord)) deallocate(s%iord)

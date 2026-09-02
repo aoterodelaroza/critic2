@@ -42,13 +42,16 @@ contains
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path, str, errmsg
     logical :: readlastonly, doquit
-    integer :: lu, ios, idx
+    integer :: lu, ios, idx, idp
 
     ! set initial, minimum, and maximum sizes
     minsize%x = 0._c_float
     minsize%y = 0._c_float
     maxsize%x = 1e10_c_float
     maxsize%y = 1e10_c_float
+
+    ! the window that opened this dialog, if it is still there
+    idp = w%parent()
 
     ! handle cases when the dialog must quit
     doquit = .false.
@@ -60,7 +63,8 @@ contains
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir) then
        ! open library file, save image file, open field file, open one file modal,
        ! save structure file, select directory => quit if the caller window is gone
-       doquit = .not.win(w%idparent)%isinit
+       doquit = .true.
+       doquit = (idp == 0)
     end if
 
     ! process the dialog
@@ -126,10 +130,10 @@ contains
              ! call C_F_string_alloc(cstr,name)
              ! call c_free(cstr)
              ! w%okfile = trim(name)
-             win(w%idparent)%okfile_set = .true.
-             win(w%idparent)%okfile_read = .true.
-             win(w%idparent)%okfile = ""
-             win(w%idparent)%itoken = w%itoken
+             win(idp)%okfile_set = .true.
+             win(idp)%okfile_read = .true.
+             win(idp)%okfile = ""
+             win(idp)%itoken = w%itoken
 
              ! open all files selected and add the new systems
              sel = IGFD_GetSelection(w%dptr)
@@ -140,15 +144,15 @@ contains
              do i = 1, sel%count
                 call C_F_string_alloc(s(i)%fileName,name)
                 name = trim(path) // dirsep // trim(name)
-                win(w%idparent)%okfile = win(w%idparent)%okfile // name
+                win(idp)%okfile = win(idp)%okfile // name
                 if (i < sel%count) &
-                   win(w%idparent)%okfile = win(w%idparent)%okfile // c_null_char
+                   win(idp)%okfile = win(idp)%okfile // c_null_char
              end do
              if (sel%count == 0) then
                 ! nothing clicked in the list: use the typed file name
-                win(w%idparent)%okfile = typed_filename()
+                win(idp)%okfile = typed_filename()
              end if
-             win(w%idparent)%okfile_format = w%dialog_data%isformat
+             win(idp)%okfile_format = w%dialog_data%isformat
 
           elseif (w%purpose == wpurp_dialog_openvibfile) then
              w%okfile = ""
@@ -186,30 +190,30 @@ contains
 
           elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile) then
              !! save image file or save structure file dialog !!
-             win(w%idparent)%okfile_set = .true.
+             win(idp)%okfile_set = .true.
 
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             win(w%idparent)%okfile = trim(name)
+             win(idp)%okfile = trim(name)
 
              ! the filter carries the image format (save image file only)
              if (w%purpose == wpurp_dialog_saveimagefile) then
                 cstr = IGFD_GetCurrentFilter(w%dptr)
                 call C_F_string_alloc(cstr,name)
                 call c_free(cstr)
-                win(w%idparent)%okfilter = trim(name)
+                win(idp)%okfilter = trim(name)
              end if
           elseif (w%purpose == wpurp_dialog_selectdir) then
              !! select directory dialog !!
              ! in directory mode the dialog has no file name, so the
              ! selected directory is the current path
-             win(w%idparent)%okfile_set = .true.
+             win(idp)%okfile_set = .true.
 
              cstr = IGFD_GetCurrentPath(w%dptr)
              call C_F_string_alloc(cstr,path)
              call c_free(cstr)
-             win(w%idparent)%okfile = trim(path)
+             win(idp)%okfile = trim(path)
           else
              call ferror('draw_dialog','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if

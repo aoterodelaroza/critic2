@@ -90,8 +90,7 @@ contains
     call build_write_format_combo()
 
     ! this window works on the tree, so it closes when the tree is gone
-    doquit = .true.
-    if (w%idparent >= 1 .and. w%idparent <= nwin) doquit = .not.win(w%idparent)%isinit
+    doquit = (w%parent() == 0)
 
     ! initialize state; the cache is stale on reopen (the files on disk
     ! may have changed in the meantime), so drop it
