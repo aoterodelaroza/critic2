@@ -187,7 +187,7 @@ skip to section 3; sections 1 and 2 explain what goes into it and why.
    Verify what you got before packaging -- the configure summary lists every
    library, and the built binary reports the same set on startup:
 
-     features: LAPACK(external) LibXC-7.0.0 CINT Readline NLopt xtb GUI
+     features: LAPACK(external) LibXC-7.0.0 CINT Readline NLopt xtb GUI(freetype)
 
    Notes:
    * Drop -DMESA_DIR to omit the software fallback (the GUI then needs the target

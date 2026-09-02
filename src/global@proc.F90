@@ -981,7 +981,7 @@ contains
     str = str // " HDF5"
 #endif
 #ifdef HAVE_GUI
-#ifdef FREETYPE_FOUND
+#ifdef HAVE_FREETYPE
     str = str // " GUI(freetype)"
 #else
     str = str // " GUI"

@@ -234,6 +234,14 @@ if (ENABLE_GUI)
 
   ## add the HAVE_GUI definition
   target_compile_definitions(critic2_defs INTERFACE HAVE_GUI)
+
+  ## freetype is linked into fgui (gui/CMakeLists.txt), which also defines
+  ## IMGUI_ENABLE_FREETYPE -- but only on that target, so the startup banner
+  ## in global@proc.F90 (compiled into critic2_core) cannot see it. This is
+  ## what lets the banner say whether the GUI has freetype font rendering.
+  if (FREETYPE_FOUND)
+    target_compile_definitions(critic2_defs INTERFACE HAVE_FREETYPE)
+  endif()
 endif()
 
 ## cross-compilation for windows, add the flag (only needed for the
