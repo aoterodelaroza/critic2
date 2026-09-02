@@ -22,19 +22,7 @@ submodule (windows) mo
 
   real(c_float), parameter :: mo_cached_rgb(3) = (/0.45_c_float,0.75_c_float,0.45_c_float/) ! cached-grid marker
   real(c_float), parameter :: mo_mark_frac = 0.35_c_float ! cached-grid mark radius, as a fraction of the row height
-  real(c_float), parameter :: mo_sep_frac = 0.25_c_float ! HOMO/LUMO separator height, as a fraction of the row height
-  ! The display settings, kept across a close and reopen. They are the
-  ! user's choices, not properties of the system, and a window slot is
-  ! recycled unpredictably, so holding them here rather than on the
-  ! window is what makes them survive. Seeded from the defaults the first
-  ! time any window asks
-  logical :: mo_kept_valid = .false.
-  integer(c_int) :: mo_kept_ieneunit = 0
-  integer(c_int) :: mo_kept_ilevel = 0
-  real*8 :: mo_kept_isoval = 0d0
-  real(c_float) :: mo_kept_rgb(3,2) = 0._c_float
-  real(c_float) :: mo_kept_alpha = 0._c_float
-
+  real(c_float), parameter :: mo_sep_frac = 0.20_c_float ! HOMO/LUMO separator height, as a fraction of the row height
   character(len=2), parameter :: mo_eneunit_name(0:1) = &
      (/ character(len=2) :: "Ha", "eV" /) ! how the energy units are written
   character(len=5), parameter :: mo_spin_name(0:2) = &
@@ -141,20 +129,14 @@ contains
 
     ! initialize state
     if (w%firstpass) then
-       if (.not.mo_kept_valid) then
-          mo_kept_ieneunit = 0
-          mo_kept_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
-          mo_kept_isoval = iso_isoval_mo
-          mo_kept_rgb(:,1) = iso_rgb_palette(:,1) ! positive lobe: blue
-          mo_kept_rgb(:,2) = iso_rgb_palette(:,4) ! negative lobe: red
-          mo_kept_alpha = iso_alpha_def
-          mo_kept_valid = .true.
-       end if
-       w%mo_ieneunit = mo_kept_ieneunit
-       w%mo_ilevel = mo_kept_ilevel
-       w%mo_isoval = mo_kept_isoval
-       w%mo_rgb = mo_kept_rgb
-       w%mo_alpha = mo_kept_alpha
+       ! the display settings belong to this window: every open window
+       ! has its own, and they start from the defaults
+       w%mo_ieneunit = 0
+       w%mo_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
+       w%mo_isoval = iso_isoval_mo
+       w%mo_rgb(:,1) = iso_rgb_palette(:,1) ! positive lobe: blue
+       w%mo_rgb(:,2) = iso_rgb_palette(:,4) ! negative lobe: red
+       w%mo_alpha = iso_alpha_def
     end if
     if (w%firstpass .or. syschanged) then
        w%errmsg = "" ! the error, if any, was about the previous system
@@ -545,13 +527,6 @@ contains
             whendisabled=.true.)
        end associate
     end if ! mo_ok
-
-    ! carry the display choices to the next window that opens
-    mo_kept_ieneunit = w%mo_ieneunit
-    mo_kept_ilevel = w%mo_ilevel
-    mo_kept_isoval = w%mo_isoval
-    mo_kept_rgb = w%mo_rgb
-    mo_kept_alpha = w%mo_alpha
 
     ! right-align and bottom-align for the rest of the contents
     call iw_setpos_bottomright(5,1)
