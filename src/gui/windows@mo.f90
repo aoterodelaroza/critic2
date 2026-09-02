@@ -32,10 +32,10 @@ submodule (windows) mo
   ! energy-level diagram
   real(c_float), parameter :: mo_diag_occ_rgb(3) = (/0.25_c_float,0.55_c_float,0.90_c_float/) ! occupied level color
   real(c_float), parameter :: mo_diag_vir_rgb(3) = (/0.55_c_float,0.55_c_float,0.60_c_float/) ! virtual level color
-  real(c_float), parameter :: mo_diag_barthick = 2.5_c_float ! level line weight (pixels)
-  real(c_float), parameter :: mo_diag_selthick = 4.5_c_float ! selected level line weight (pixels)
+  real(c_float), parameter :: mo_diag_barthick = 4.5_c_float ! level line weight (pixels)
+  real(c_float), parameter :: mo_diag_selthick = 6.5_c_float ! selected level line weight (pixels)
   real(c_float), parameter :: mo_diag_bandfrac = 0.72_c_float ! fraction of a channel band the levels span
-  real(c_float), parameter :: mo_diag_seppx = 4._c_float ! levels closer than this (pixels) are drawn side by side
+  real(c_float), parameter :: mo_diag_seppx = 5.5_c_float ! levels closer than this (pixels) are drawn side by side
   integer, parameter :: mo_diag_nstagmax = 6 ! most levels drawn side by side in one group
   integer, parameter :: mo_diag_nshow = 4 ! levels either side of the gap in the default view
   integer, parameter :: mo_diag_maxbars = 4000 ! most levels drawn in one frame
@@ -88,12 +88,7 @@ contains
 
   end subroutine mo_cache_keep_after_reload
 
-  !> Draw the molecular orbitals window. The window lists the MOs of
-  !> the reference field of the system in its anchor view; selecting
-  !> one shows it as a transient +/- isosurface pair in that view
-  !> (kept alive by re-arming it every frame, and reaped when the
-  !> selection or the window goes away). The Create Isosurface Object
-  !> button copies the transient into a permanent representation.
+  !> Draw the molecular orbitals window.
   module subroutine draw_mo(w)
     use gui_main, only: g, fontsize, errmsg_linger
     use interfaces_glfw, only: glfwGetTime
@@ -129,8 +124,6 @@ contains
 
     ! initialize state
     if (w%firstpass) then
-       ! the display settings belong to this window: every open window
-       ! has its own, and they start from the defaults
        w%mo_ieneunit = 0
        w%mo_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
        w%mo_isoval = iso_isoval_mo
@@ -155,9 +148,6 @@ contains
     if (.not.doquit) doquit = .not.associated(win(iview)%sc)
 
     ! Can the reference field of this system provide molecular orbitals?
-    ! Each way of failing gets its own reason: they used to be folded
-    ! together and reported as a fault of the field, which is wrong for
-    ! two of the three and leaves the third with no message at all
     goodsys = ok_system(isys,sys_init)
     mo_ok = goodsys
     iref = 0
@@ -182,8 +172,7 @@ contains
        end if
     end if
 
-    ! a reloaded wavefunction (virtual orbitals read, say) is a different
-    ! set of orbitals: centre the table on the new boundary again
+    ! a reloaded wavefunction: centre the table on the new boundary again
     if (mo_ok) then
        if (w%mo_fieldgen /= sys(isys)%fieldgen) then
           w%mo_scrolled = .false.
@@ -205,9 +194,7 @@ contains
     end if
     if (.not.mo_ok) call iw_text(whynot,danger=.true.,wrap=.true.)
 
-    ! Messages, dropped once they have been up long enough to read: they
-    ! report an action that is over, not a state, so leaving one on the
-    ! window makes it describe something that is no longer true
+    ! warning messages
     if (len_trim(w%errmsg) > 0) then
        if (glfwGetTime() - w%timelast_errmsg < errmsg_linger) then
           call iw_text(w%errmsg,danger=w%mo_msgbad,wrap=.true.)
@@ -234,9 +221,7 @@ contains
             call iw_text(", " // string(wfn%nmoall-wfn%nmoocc) // " virtual",sameline_nospace=.true.)
        end associate
 
-       ! virtual orbitals: if the file has them but they were not read,
-       ! offer to re-read it. The reload replaces the field, so it can
-       ! not run inside an associate block that aliases it
+       ! virtual orbitals: offer to re-read them
        if (sys(isys)%f(iref)%has_unread_virtuals()) then
           if (iw_button("Reload with Virtual Orbitals",danger=.true.)) then
              call reload_field_with_virtuals(isys,iref,w%errmsg)
@@ -276,10 +261,7 @@ contains
             digits = 3
          end if
 
-         ! What is selected, in words. The tables highlight the row and
-         ! the diagram thickens the level, but both can be scrolled out of
-         ! sight, and for an unrestricted wavefunction this is the only
-         ! place that says which spin channel the orbital belongs to
+         ! Current selection
          call iw_text("Selected",highlight=.true.)
          if (w%mo_selected > 0) then
             call wfn%get_mo_info(w%mo_selected,label,occup=occup,ener=ener)
@@ -294,28 +276,14 @@ contains
          end if
 
          ! The energy-level diagram, then the orbital table: one table
-         ! per spin channel when the wavefunction has two of them
-         ! (unrestricted), a single combined table otherwise. Every panel
-         ! is a group with exactly one heading line, so they line up, and
-         ! they are all given the same height.
-         ! The panels take the height the window has left, with the old
-         ! ten rows as the floor: hard-coding the height meant a taller
-         ! window bought nothing but empty space, which is worst exactly
-         ! when there are enough orbitals to want a taller window. The
-         ! reserve is counted, not measured from the laid-out content --
-         ! measuring it would make it depend on the thing it is sizing.
-         ! Below the panels: the Display heading, its four framed rows,
-         ! the Create button, and the Close row
+         ! per spin channel
          call igGetContentRegionAvail(szavail)
          szrowmin = iw_calcheight(10,0,.false.)
          szrow = max(szavail%y - iw_calcheight(6,1,.true.) - g%Style%ItemSpacing%y,szrowmin)
          w%heightslack = szrow - szrowmin
          if (w%mo_showdiag .and. wfn%hasene) then
             ! The tables are as wide as their own columns, so the diagram
-            ! takes everything they leave rather than a fixed share: a
-            ! fixed share would strand the difference as dead space to
-            ! the right of a single table, at any window width. Never
-            ! narrower than its own toolbar, though.
+            ! takes everything they leave rather than a fixed share
             if (wfn%get_mo_nchannels() > 1) then
                call mo_table_widths(wfn,wfn_spin_alpha,wid,wtab)
                call mo_table_widths(wfn,wfn_spin_beta,wid,width)
@@ -340,11 +308,7 @@ contains
          else
             w%mo_diag%ipress = 0 ! no diagram this frame, so no press can be pending
          end if
-         ! The table panel carries a button row under its heading, in the
-         ! same place the diagram carries Frontier/All, so the table is
-         ! shortened by that row to keep the two panels level at the
-         ! bottom. A split pair shares the one button -- it re-centers
-         ! both channels -- so the beta panel spaces its row instead
+         ! The table panel carries a button row under its heading
          szbut = igGetFrameHeight() + g%Style%ItemSpacing%y
          szrowtab = max(szrow - szbut,4._c_float*fontsize%y)
          szdummy%x = 0._c_float
@@ -352,9 +316,7 @@ contains
 
          iselold = w%mo_selected
          if (wfn%get_mo_nchannels() > 1) then
-            ! neither table is capped: each is drawn at the width of its
-            ! own columns. Capping the first at half the room would clip
-            ! its energy column whenever the two channels differ in width
+            ! neither table is capped
             call igBeginGroup()
             call iw_text(trim(mo_spin_name(wfn_spin_alpha)),highlight=.true.)
             call mo_frontier_button(w,ttshown)
@@ -385,19 +347,10 @@ contains
          ! display options
          call iw_text("Display",highlight=.true.)
 
-         ! Grid quality. The automatic setting comes first and is the
-         ! default: on a large wavefunction a named level can mean a
-         ! minutes-long freeze, since the sampling runs on the render
-         ! thread. Index 0 is automatic, 1 to iso_nlevel the named levels
+         ! Grid quality
          call iw_text("Quality",alignframe=.true.)
 
-         ! Each option carries what it would cost, so that an expensive
-         ! grid is turned down before it is paid for rather than after:
-         ! picking a level resamples immediately, and on a large
-         ! wavefunction that is a minutes-long freeze. The costs appear
-         ! once the box and the per-point cost are known, which is after
-         ! the first orbital -- and the first one is safe by construction,
-         ! since Automatic is the default.
+         ! cost calculations
          havecost = w%mo_cost%secs > 0d0
          if (havecost) havecost = w%mo_cost%matches(isys,iref)
          tsel = 0d0
@@ -448,10 +401,7 @@ contains
          end if
          call iw_tooltip("Opacity of the orbital isosurfaces (1 = opaque)",ttshown)
 
-         ! the transient isosurface representation: created or re-armed
-         ! every frame an orbital is selected; when the selection (or
-         ! this window) goes away it stops being armed and the scene
-         ! reaps it
+         ! transient isosurface representation
          if (w%mo_selected > 0) then
             call win(iview)%sc%show_transient_iso(w%id,1,itrep,found)
             if (itrep > 0) then
@@ -480,13 +430,7 @@ contains
                     win(iview)%sc%forcebuildlists = .true.
                  end if
 
-                 ! The grid, tested every frame rather than only when
-                 ! something else changed: a field reload or a geometry
-                 ! edit moves the box and the per-point cost under us and
-                 ! sets nothing, and the quality combo prices with both.
-                 ! The automatic quality resolves to a custom grid, so
-                 ! r%iso%ilevel cannot stand in for the window setting,
-                 ! and isgenerated stays true once anything is built
+                 ! The grid, tested every frame rather than only when something else changed
                  if (w%mo_cost%ilevel_built /= w%mo_ilevel .or. .not.r%iso%isgenerated(isys) .or.&
                     .not.w%mo_cost%matches(isys,iref)) then
                     call commit_grid(win(iview)%sc%reptrans(itrep),okgrid)
@@ -514,16 +458,13 @@ contains
                if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
                win(iview)%sc%rep(irep)%name = s
                win(iview)%sc%forcebuildlists = .true.
-               ! the view does not change -- the transient was already
-               ! drawing this very surface -- so without a word there is
-               ! nothing at all to show the press did anything
                call mo_message(w,"Created object " // s,.false.)
             else
                call mo_message(w,"Could not create the isosurface object",.true.)
             end if
          end if
          call iw_tooltip("Copy the displayed orbital into a permanent isosurface object,&
-            & editable from the Objects menu of the view. Select an orbital first",ttshown,&
+            & editable from the Objects menu of the view",ttshown,&
             whendisabled=.true.)
        end associate
     end if ! mo_ok
@@ -554,10 +495,7 @@ contains
       real*8 :: box(3,0:3), tdum
       logical :: okbox
 
-      ! A degenerate region leaves nothing to sample. Say so: this path
-      ! is retried every frame (the guard that calls us cannot clear
-      ! without a box), and the only other symptom would be a quality
-      ! combo that has quietly lost all of its cost estimates
+      ! A degenerate region leaves nothing to sample.
       ok = .false.
       call iso_region_to_box(isys,r%iso%iregion,r%iso%rgn_x,box,okbox)
       if (.not.okbox) then
@@ -566,15 +504,9 @@ contains
       end if
       w%mo_cost%box = box
 
-      ! the cost of one sample point, on a grid of the default quality:
-      ! measured whichever quality is selected, since the combo prices
-      ! every one of them and not just the automatic
+      ! the cost of one sample point, on a grid of the default quality
       n = iso_grid_size(isys,iso_defaultlevel,box=box)
       call mo_measure_cost(w,isys,iref,r,n)
-
-      ! the grid this quality resolves to, from the routine the combo
-      ! prices with, so that the advertised time and the grid actually
-      ! built can never describe different things
       tdum = mo_quality_cost(w,isys,w%mo_ilevel,n)
       if (w%mo_ilevel == 0) then
          ! the automatic grid is recorded as a custom one, so that an
@@ -694,18 +626,18 @@ contains
 
   end function mo_cache_iscached
 
-
   !> Draw one molecular-orbital table for wavefunction wfn: the whole
   !> packed orbital list (ispin = 0) or a single spin channel (1 =
-  !> alpha, 2 = beta, only meaningful for an unrestricted wavefunction).
-  !> width caps the table width (0 = no cap; the table is never wider
-  !> than its own columns) and height is its height. The rows run in orbital order, lowest first, with a
-  !> separator row at the channel's HOMO/LUMO gap; the table is centered
-  !> on that boundary once, tracked by w%mo_scrolled, and on the orbital
-  !> requested by w%mo_scrollto (the diagram's half of the selection
-  !> sync) whenever that is set. The selection is the packed index
-  !> w%mo_selected, so a split pair of tables can only ever have one
-  !> orbital selected between them; changed is set when it moves.
+  !> alpha, 2 = beta, only meaningful for an unrestricted
+  !> wavefunction).  width caps the table width (0 = no cap; the table
+  !> is never wider than its own columns) and height is its
+  !> height. The rows run in orbital order, lowest first, with a
+  !> separator row at the channel's HOMO/LUMO gap; the table is
+  !> centered on that boundary once, tracked by w%mo_scrolled, and on
+  !> the orbital requested by w%mo_scrollto (the diagram's half of the
+  !> selection sync) whenever that is set. The selection is the packed
+  !> index w%mo_selected, so a split pair of tables can only ever have
+  !> one orbital selected between them; changed is set when it moves.
   subroutine mo_draw_table(w,wfn,ispin,width,height,unitfactor,digits,changed)
     use wfn_private, only: molwfn, wfn_uhf, wfn_rohf
     use utils, only: iw_text, iw_tooltip, iw_table_column
@@ -737,8 +669,8 @@ contains
     szero%x = 0
     szero%y = 0
 
-    ! the number of orbitals in this channel and where its HOMO/LUMO
-    ! gap falls (ispin = 0 gives the whole packed list)
+    ! number of orbitals in this channel and where its HOMO/LUMO gap
+    ! falls (ispin = 0 gives the whole packed list)
     ischan = max(ispin,1)
     nrow = wfn%get_mo_nspin(ispin,nocc)
 
@@ -810,10 +742,9 @@ contains
        ! has nothing to anchor on, so retire it
        if (nrow == 0) w%mo_scrolled(ischan) = .true.
 
-       ! draw the rows through a clipper (the wavefunction may have
-       ! thousands of MOs); while the one-shot centering is pending,
-       ! force its row in so it can anchor the scroll
-       ! a scroll-to request from the diagram: find the row the orbital
+       ! draw the rows through a clipper; while the one-shot centering
+       ! is pending, force its row in so it can anchor the scroll a
+       ! scroll-to request from the diagram: find the row the orbital
        ! falls on in this channel, if it is in this channel at all
        jto = 0
        if (w%mo_scrollto > 0) then
@@ -905,12 +836,7 @@ contains
                 end if
              end if
 
-             ! whether this orbital's sampling grid is in the cache:
-             ! a dot as tall as it is wide, filling the height of the
-             ! row. Drawn on top of the row selectable (emitted in the
-             ! id column, before this one) so it survives the
-             ! selection highlight; the dummy reserves the width the
-             ! column is auto-sized to
+             ! whether this orbital's sampling grid is in the cache
              if (igTableSetColumnIndex(iccache)) then
                 sz1%x = 0.75_c_float * igGetFrameHeight()
                 sz1%y = sz1%x
