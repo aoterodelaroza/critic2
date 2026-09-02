@@ -1,6 +1,11 @@
 ## CPack configuration for the critic2 installation packages.
 set(CPACK_PACKAGE_NAME "critic2")
 set(CPACK_PACKAGE_VENDOR "Alberto Otero de la Roza")
+## Escape CPACK_* values when they are written into CPackConfig.cmake, so a
+## value survives the second lexing pass intact and can be written here as the
+## literal text it should end up as (see the NSIS shortcut block below).
+set(CPACK_VERBATIM_VARIABLES TRUE)
+
 set(CPACK_PACKAGE_CONTACT "${critic2_EMAIL}")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${critic2_DESCRIPTION}")
 set(CPACK_PACKAGE_HOMEPAGE_URL "${critic2_URL}")
@@ -70,15 +75,26 @@ elseif (WIN32)
 endif()
 
 ## Software-rendering shortcut.
+##
+## CPACK_VERBATIM_VARIABLES above is what lets these be written as plain NSIS.
+## CPack does not use these variables during this configure: it copies their
+## values into CPackConfig.cmake and re-parses that file at package time, so
+## without VERBATIM every backslash would have to be written four times to
+## survive two passes of the CMake lexer -- and getting that wrong is not
+## cosmetic. On CMake >= 4 the second pass rejects the leftover \c outright
+## ("Invalid character escape") and the whole packaging step fails; before
+## that it silently ate the separators, giving shortcut paths such as
+## "$SMPROGRAMS$STARTMENU_FOLDERcritic2 ...". The bracket arguments keep the
+## text byte-for-byte what NSIS should see.
 if (WIN32 AND CRITIC2_HAVE_MESA)
   set(CPACK_NSIS_CREATE_ICONS_EXTRA
-    "CreateShortCut '$SMPROGRAMS\\$STARTMENU_FOLDER\\critic2 (software rendering).lnk' '$INSTDIR\\critic2 (software rendering).exe'
+[[CreateShortCut '$SMPROGRAMS\$STARTMENU_FOLDER\critic2 (software rendering).lnk' '$INSTDIR\critic2 (software rendering).exe'
   StrCmp '$INSTALL_DESKTOP' '1' 0 +2
-    CreateShortCut '$DESKTOP\\critic2 (software rendering).lnk' '$INSTDIR\\critic2 (software rendering).exe'")
+    CreateShortCut '$DESKTOP\critic2 (software rendering).lnk' '$INSTDIR\critic2 (software rendering).exe']])
   set(CPACK_NSIS_DELETE_ICONS_EXTRA
-    "Delete '$SMPROGRAMS\\$MUI_TEMP\\critic2 (software rendering).lnk'
+[[Delete '$SMPROGRAMS\$MUI_TEMP\critic2 (software rendering).lnk'
   StrCmp '$INSTALL_DESKTOP' '1' 0 +2
-    Delete '$DESKTOP\\critic2 (software rendering).lnk'")
+    Delete '$DESKTOP\critic2 (software rendering).lnk']])
 endif()
 
 ## Every component (program, data files) is mandatory: drop the

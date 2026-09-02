@@ -971,6 +971,12 @@ contains
 #ifdef HAVE_NLOPT
     str = str // " NLopt"
 #endif
+#ifdef HAVE_TBLITE
+    str = str // " tblite"
+#endif
+#ifdef HAVE_XTB
+    str = str // " xtb"
+#endif
 #ifdef HAVE_HDF5
     str = str // " HDF5"
 #endif

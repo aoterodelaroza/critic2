@@ -43,7 +43,8 @@ endif()
 ## Get libcint version
 if(LIBCINT_INCLUDE_DIRS)
   file(READ "${LIBCINT_INCLUDE_DIRS}/cint.h" _libcint_version_header)
-  string(REGEX MATCH "define[ \t]+CINT_VERSION[ \t]+([0-9\\.]+)" LIBCINT_VERSION "${_libcint_version_header}")
+  ## the version is a quoted string: #define CINT_VERSION "6.1.1"
+  string(REGEX MATCH "define[ \t]+CINT_VERSION[ \t]+\"?([0-9\\.]+)" LIBCINT_VERSION "${_libcint_version_header}")
   string(REGEX MATCH "([0-9\\.]+)" LIBCINT_VERSION "${LIBCINT_VERSION}")
   unset(_libcint_version_header)
 endif()

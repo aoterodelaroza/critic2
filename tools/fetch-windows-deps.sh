@@ -7,23 +7,42 @@
 #   * Mesa           (optional) -- software-OpenGL fallback for machines with
 #                                  no GPU / OpenGL < 3.3
 #   * OpenBLAS       (optional) -- fast external LAPACK/BLAS
-#   * FreeType       (optional) -- higher-quality GUI font rendering. It has no
-#                                  MinGW prebuilt binary, so it is cross-built
-#                                  from source into a minimal (dependency-free)
-#                                  DLL; needs the MinGW toolchain + cmake and is
-#                                  skipped gracefully if either is missing.
+#
+# None of the following has a MinGW prebuilt binary, so each is cross-built
+# from source. They all need the MinGW toolchain + cmake on the host, and each
+# is skipped gracefully (the package is simply built without it) when those are
+# missing or the build fails:
+#   * FreeType       (optional) -- higher-quality GUI font rendering. Built as a
+#                                  minimal, dependency-free DLL.
 #   * readline       (optional) -- interactive command-line editing/history.
 #                                  GNU readline does not build for MinGW, so
 #                                  this cross-builds wineditline (a BSD-licensed
 #                                  readline-API-compatible library) and exposes
-#                                  it under a readline-compatible prefix. Also
-#                                  needs the toolchain + cmake; skipped if absent.
+#                                  it under a readline-compatible prefix.
+#   * libxc          (optional) -- exchange-correlation energies and potentials.
+#                                  critic2 uses the Fortran 2003 interface, and
+#                                  its .mod files have to come from the same
+#                                  gfortran that builds critic2 -- so a prebuilt
+#                                  binary would not have served here anyway.
+#   * nlopt          (optional) -- global optimization: variable-cell structure
+#                                  comparison and XRPD profile fitting.
+#   * libcint        (optional) -- molecular integrals over Gaussian functions.
+#   * xtb            (optional) -- GFN-FF energies and forces for the
+#                                  interactive dynamics. critic2 drives it
+#                                  through its C API only, so no Fortran module
+#                                  files have to match; xtb itself is Fortran
+#                                  and pulls in two build-time-only libraries
+#                                  of its own (see the xtb section below).
 # OpenMP needs no download: it ships with the MinGW toolchain (libgomp), so it
 # is simply enabled in the printed configure line.
 #
-# The other optional libraries critic2 can use (libxc, HDF5, nlopt, libcint,
-# tblite) have no MinGW-compatible prebuilt Windows binaries; using them would
-# require cross-building each from source, so they are left OFF here.
+# Two optional libraries are still left OFF. HDF5 decides its type conversions
+# by running probe programs, which a cross build cannot execute. tblite does
+# cross-build, but it needs a five-library chain of its own (toml-f,
+# multicharge, s-dftd3, dftd4 and mctc-lib) and two upstream workarounds -- its
+# driver executable cannot link against a DLL that re-exports its own static
+# dependencies, and its install rules have no RUNTIME DESTINATION, so the DLL
+# never leaves the build tree.
 #
 # On success the script prints a ready-to-paste configure/build/package recipe.
 # See also the "Windows builds" section of INSTALL.
@@ -37,11 +56,22 @@
 #   MESA_VERSION      Mesa version to fetch       (default 24.1.5; 24.x is Win7-safe)
 #   OPENBLAS_VERSION  OpenBLAS version to fetch   (default 0.3.34)
 #   FREETYPE_VERSION  FreeType version to build   (default 2.13.3)
+#   LIBXC_VERSION     libxc version to build      (default 7.0.0)
+#   NLOPT_VERSION     nlopt version to build      (default 2.10.0)
+#   LIBCINT_VERSION   libcint version to build    (default 6.1.2)
+#   XTB_VERSION       xtb version to build        (default 6.7.1)
+#   MCTCLIB_VERSION   mctc-lib version (for xtb)  (default 0.4.1)
+#   TESTDRIVE_VERSION test-drive version (for xtb) (default 0.5.0)
 #   WINEDITLINE_VERSION  wineditline (readline) version to build (default 2.206)
 #   FETCH_MESA        set to 0 to skip Mesa       (default 1)
 #   FETCH_LAPACK      set to 0 to skip OpenBLAS   (default 1)
 #   FETCH_FREETYPE    set to 0 to skip FreeType   (default 1)
 #   FETCH_READLINE    set to 0 to skip readline   (default 1)
+#   FETCH_LIBXC       set to 0 to skip libxc      (default 1)
+#   FETCH_NLOPT       set to 0 to skip nlopt      (default 1)
+#   FETCH_LIBCINT     set to 0 to skip libcint    (default 1)
+#   FETCH_XTB         set to 0 to skip xtb        (default 1)
+#   JOBS              parallel compile jobs       (default: nproc)
 
 set -euo pipefail
 
@@ -54,10 +84,20 @@ MESA_VERSION="${MESA_VERSION:-24.1.5}"
 OPENBLAS_VERSION="${OPENBLAS_VERSION:-0.3.34}"
 FREETYPE_VERSION="${FREETYPE_VERSION:-2.13.3}"
 WINEDITLINE_VERSION="${WINEDITLINE_VERSION:-2.206}"
+LIBXC_VERSION="${LIBXC_VERSION:-7.0.0}"
+NLOPT_VERSION="${NLOPT_VERSION:-2.10.0}"
+LIBCINT_VERSION="${LIBCINT_VERSION:-6.1.2}"
+XTB_VERSION="${XTB_VERSION:-6.7.1}"
+MCTCLIB_VERSION="${MCTCLIB_VERSION:-0.4.1}"
+TESTDRIVE_VERSION="${TESTDRIVE_VERSION:-0.5.0}"
 FETCH_MESA="${FETCH_MESA:-1}"
 FETCH_LAPACK="${FETCH_LAPACK:-1}"
 FETCH_FREETYPE="${FETCH_FREETYPE:-1}"
 FETCH_READLINE="${FETCH_READLINE:-1}"
+FETCH_LIBXC="${FETCH_LIBXC:-1}"
+FETCH_NLOPT="${FETCH_NLOPT:-1}"
+FETCH_LIBCINT="${FETCH_LIBCINT:-1}"
+FETCH_XTB="${FETCH_XTB:-1}"
 DEST="${1:-$(pwd)/windows-deps}"
 
 # required tools
@@ -136,75 +176,167 @@ if [ "$FETCH_LAPACK" = 1 ]; then
    have_lapack=1
 fi
 
-# --- FreeType (optional, cross-built from source) ---
+# --- the cross-built dependencies -----------------------------------------
+# Everything from here on has no MinGW prebuilt binary and is built from
+# source with the same toolchain that will build critic2. Each is optional:
+# if the host lacks the toolchain or cmake, or the build fails, the recipe
+# printed at the end simply turns that library OFF.
+mingw_cc="$(command -v x86_64-w64-mingw32-gcc-posix 2>/dev/null \
+         || command -v x86_64-w64-mingw32-gcc 2>/dev/null || true)"
+# Debian splits the MinGW C and Fortran compilers into separate packages, and
+# libxc and nlopt both need the Fortran one (ENABLE_FORTRAN / NLOPT_FORTRAN).
+# Probed separately so a host with only gcc-mingw-w64 says so up front instead
+# of downloading ~70 MB of libxc and failing inside cmake.
+mingw_fc="$(command -v x86_64-w64-mingw32-gfortran-posix 2>/dev/null \
+         || command -v x86_64-w64-mingw32-gfortran 2>/dev/null || true)"
+have_cmake="$(command -v cmake 2>/dev/null || true)"
+# Bounded parallelism. "cmake --build -j" with no number passes a bare "-j" to
+# make, which is NOT "one job per core" but unlimited: every object of a target
+# compiles at once. That is harmless for a small dependency and ruinous for
+# libxc, which is one target of ~1000 generated C files.
+jobs="${JOBS:-$( (nproc 2>/dev/null || echo 4) )}"
+
+# Configure arguments shared by every cross-built dependency. The policy
+# minimum sets a floor, so it is a no-op for any project that already declares
+# cmake_minimum_required(VERSION >= 3.5) and applies only to the ones below it
+# -- do not narrow it to the dependency that happens to need it today.
+# CMake >= 4 dropped compatibility with those older declarations, and without
+# this wineditline fails to configure and the package silently loses readline.
+cmake_cross=(
+   -DCMAKE_TOOLCHAIN_FILE="$REPO_ROOT/cmake/toolchains/x86_64-w64-mingw32.cmake"
+   -DCMAKE_BUILD_TYPE=Release
+   -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+)
+
+# needs_fortran TAG -- true for the dependencies built with a Fortran compiler
+needs_fortran() {
+   case "$1" in
+      libxc|nlopt|xtb) return 0 ;;
+      *)           return 1 ;;
+   esac
+}
+
+# have_markers FILE... -- true when every one of them exists
+have_markers() {
+   local m
+   for m in "$@"; do
+      if [ ! -f "$m" ]; then
+         return 1
+      fi
+   done
+}
+
+# cross_build TAG NAME LOST MARKER...
+#   Builds the dependency by calling build_TAG, which logs to $log. The build
+#   is skipped when every MARKER is already there, and counts as failed unless
+#   they are all there afterwards -- the same test either way, so a prefix that
+#   got as far as the import library but not the Fortran module is never
+#   mistaken on the next run for one that is ready to use. Returns 0 when the
+#   dependency ends up available; LOST says, in the warning, what the package
+#   does without it.
+cross_build() {
+   local tag="$1" name="$2" lost="$3"
+   shift 3
+   log="$DEST/$tag-build.log"                     # written by build_$tag
+   if have_markers "$@"; then
+      return 0                                    # already built
+   elif [ -z "$mingw_cc" ]; then
+      echo ">> skipping $name: MinGW-w64 toolchain (x86_64-w64-mingw32-gcc) not found" >&2
+   elif [ -z "$mingw_fc" ] && needs_fortran "$tag"; then
+      echo ">> skipping $name: MinGW-w64 Fortran compiler (x86_64-w64-mingw32-gfortran) not found" >&2
+   elif [ -z "$have_cmake" ]; then
+      echo ">> skipping $name: cmake not found" >&2
+   else
+      : >"$log"
+      if "build_$tag" && have_markers "$@"; then
+         return 0
+      fi
+      echo "warning: $name cross-build failed (see $log);" >&2
+      echo "         continuing without it -- $lost" >&2
+   fi
+   return 1
+}
+
+# fetch_source URL DIR
+#   Download and unpack into $DEST, unless DIR is already there. Keeping an
+#   existing tree lets an interrupted or failed build resume incrementally
+#   (its build-mingw/ lives inside DIR) instead of re-downloading and
+#   recompiling from scratch; DIR carries the version, so bumping a version
+#   still fetches. Delete DIR to force a clean rebuild.
+fetch_source() {
+   local url="$1" dir="$2"
+   local file="${url##*/}"          # separate: one local expands all its words first
+   if [ -d "$dir" ]; then
+      return 0
+   fi
+   # noted in the log so that "see <log>" still explains a download failure,
+   # which happens before the build has written anything there
+   echo "fetching $url" >>"$log"
+   if ! curl -fL --progress-bar -o "$file" "$url"; then
+      echo "download failed: $url" >>"$log"
+      rm -f "$file"
+      return 1
+   fi
+   case "$file" in
+      *.zip) unzip -q -o "$file" || { rm -f "$file"; return 1; } ;;
+      *)     tar xf "$file"      || { rm -f "$file"; return 1; } ;;
+   esac
+   rm -f "$file"
+}
+
+# cmake_cross_build SRC PREFIX [-D...]
+#   The configure/build/install cycle every dependency but wineditline shares.
+cmake_cross_build() {
+   local src="$1" prefix="$2"
+   shift 2
+   cmake -S "$src" -B "$src/build-mingw" "${cmake_cross[@]}" \
+      -DCMAKE_INSTALL_PREFIX="$prefix" "$@" >>"$log" 2>&1 || return 1
+   cmake --build "$src/build-mingw" -j "$jobs" >>"$log" 2>&1 || return 1
+   cmake --install "$src/build-mingw" >>"$log" 2>&1
+}
+
+# --- FreeType (optional) ---
 # imgui_freetype only needs FreeType's core API, so we build a minimal DLL with
 # zlib/bzip2/png/harfbuzz/brotli all disabled: the result is a single small
 # libfreetype DLL with no extra runtime dependencies.
 ft_root="$DEST/freetype-${FREETYPE_VERSION}-mingw"
-have_freetype=0
 
 build_freetype() {
    local src="$DEST/freetype-${FREETYPE_VERSION}"
-   local tar="freetype-${FREETYPE_VERSION}.tar.xz"
    echo ">> downloading and cross-building FreeType ${FREETYPE_VERSION} ..." >&2
-   curl -fL --progress-bar -o "$tar" \
-      "https://download.savannah.gnu.org/releases/freetype/${tar}" || return 1
-   rm -rf "$src"
-   tar xf "$tar" || return 1
-   rm -f "$tar"
-   cmake -S "$src" -B "$src/build-mingw" \
-      -DCMAKE_TOOLCHAIN_FILE="$REPO_ROOT/cmake/toolchains/x86_64-w64-mingw32.cmake" \
-      -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
-      -DCMAKE_INSTALL_PREFIX="$ft_root" \
+   fetch_source "https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz" \
+      "$src" || return 1
+   cmake_cross_build "$src" "$ft_root" \
+      -DBUILD_SHARED_LIBS=ON \
       -DFT_DISABLE_ZLIB=ON -DFT_DISABLE_BZIP2=ON -DFT_DISABLE_PNG=ON \
-      -DFT_DISABLE_HARFBUZZ=ON -DFT_DISABLE_BROTLI=ON \
-      >"$DEST/freetype-build.log" 2>&1 || return 1
-   cmake --build "$src/build-mingw" -j >>"$DEST/freetype-build.log" 2>&1 || return 1
-   cmake --install "$src/build-mingw" >>"$DEST/freetype-build.log" 2>&1 || return 1
-   [ -f "$ft_root/lib/libfreetype.dll.a" ] || return 1
+      -DFT_DISABLE_HARFBUZZ=ON -DFT_DISABLE_BROTLI=ON
 }
 
-if [ "$FETCH_FREETYPE" = 1 ]; then
-   mingw_cc="$(command -v x86_64-w64-mingw32-gcc-posix 2>/dev/null \
-            || command -v x86_64-w64-mingw32-gcc 2>/dev/null || true)"
-   if [ -f "$ft_root/lib/libfreetype.dll.a" ]; then
-      have_freetype=1                              # already built
-   elif [ -z "$mingw_cc" ]; then
-      echo ">> skipping FreeType: MinGW-w64 toolchain (x86_64-w64-mingw32-gcc) not found" >&2
-   elif ! command -v cmake >/dev/null 2>&1; then
-      echo ">> skipping FreeType: cmake not found" >&2
-   elif build_freetype; then
-      have_freetype=1
-   else
-      echo "warning: FreeType cross-build failed (see $DEST/freetype-build.log);" >&2
-      echo "         continuing without it -- the GUI will use its built-in font rasterizer" >&2
-   fi
+have_freetype=0
+if [ "$FETCH_FREETYPE" = 1 ] && cross_build freetype "FreeType" \
+   "the GUI will use its built-in font rasterizer" \
+   "$ft_root/lib/libfreetype.dll.a"; then
+   have_freetype=1
 fi
 
-# --- readline (optional, via wineditline, cross-built from source) ---
+# --- readline (optional, via wineditline) ---
 # GNU readline needs termcap/termios and does not build for Windows. wineditline
 # is a BSD-licensed, readline-API-compatible replacement (its edit.dll exports
 # readline/add_history/read_history/write_history, exactly what critic2 links).
 # We build it and expose it under a readline-compatible prefix (lib/libreadline
 # import lib + include/readline/readline.h) so critic2's FindREADLINE finds it.
+# This one does not use cmake_cross_build: it has no usable install step.
 rl_root="$DEST/wineditline-${WINEDITLINE_VERSION}-mingw"
-have_readline=0
 
 build_readline() {
    local src="$DEST/wineditline-${WINEDITLINE_VERSION}"
-   local zip="wineditline-${WINEDITLINE_VERSION}.zip"
    echo ">> downloading and cross-building wineditline ${WINEDITLINE_VERSION} (readline) ..." >&2
-   curl -fL --progress-bar -o "$zip" \
-      "https://downloads.sourceforge.net/project/mingweditline/${zip}" || return 1
-   rm -rf "$src"
-   unzip -q -o "$zip" || return 1
-   rm -f "$zip"
+   fetch_source "https://downloads.sourceforge.net/project/mingweditline/wineditline-${WINEDITLINE_VERSION}.zip" \
+      "$src" || return 1
    # MinGW-on-Linux is case-sensitive: the header is strsafe.h, not Strsafe.h
    sed -i 's/#include <Strsafe.h>/#include <strsafe.h>/' "$src/src/fn_complete.c" || return 1
-   cmake -S "$src" -B "$src/build-mingw" \
-      -DCMAKE_TOOLCHAIN_FILE="$REPO_ROOT/cmake/toolchains/x86_64-w64-mingw32.cmake" \
-      -DCMAKE_BUILD_TYPE=Release >"$DEST/readline-build.log" 2>&1 || return 1
-   cmake --build "$src/build-mingw" --target edit -j >>"$DEST/readline-build.log" 2>&1 || return 1
+   cmake -S "$src" -B "$src/build-mingw" "${cmake_cross[@]}" >>"$log" 2>&1 || return 1
+   cmake --build "$src/build-mingw" --target edit -j "$jobs" >>"$log" 2>&1 || return 1
    # wineditline's install() hardcodes bin64/ (pre-populated with MSVC binaries),
    # so assemble a clean readline-compatible prefix from the fresh build output
    rm -rf "$rl_root"
@@ -212,23 +344,147 @@ build_readline() {
    cp -f "$src/build-mingw/src/edit.dll"      "$rl_root/bin/"                        || return 1
    cp -f "$src/build-mingw/src/libedit.dll.a" "$rl_root/lib/libreadline.dll.a"       || return 1
    cp -f "$src/src/editline/readline.h"       "$rl_root/include/readline/readline.h" || return 1
-   [ -f "$rl_root/lib/libreadline.dll.a" ]
 }
 
-if [ "$FETCH_READLINE" = 1 ]; then
-   mingw_cc="$(command -v x86_64-w64-mingw32-gcc-posix 2>/dev/null \
-            || command -v x86_64-w64-mingw32-gcc 2>/dev/null || true)"
-   if [ -f "$rl_root/lib/libreadline.dll.a" ]; then
-      have_readline=1                              # already built
-   elif [ -z "$mingw_cc" ]; then
-      echo ">> skipping readline: MinGW-w64 toolchain (x86_64-w64-mingw32-gcc) not found" >&2
-   elif ! command -v cmake >/dev/null 2>&1; then
-      echo ">> skipping readline: cmake not found" >&2
-   elif build_readline; then
-      have_readline=1
-   else
-      echo "warning: readline (wineditline) cross-build failed (see $DEST/readline-build.log);" >&2
-      echo "         continuing without it -- the CLI will use the plain console line editor" >&2
+have_readline=0
+if [ "$FETCH_READLINE" = 1 ] && cross_build readline "readline (wineditline)" \
+   "the CLI will use the plain console line editor" \
+   "$rl_root/lib/libreadline.dll.a"; then
+   have_readline=1
+fi
+
+# --- libxc (optional) ---
+# critic2 calls libxc through its Fortran 2003 interface, so the build must
+# enable it (ENABLE_FORTRAN) and the resulting xc_f03_lib_m.mod must come from
+# the same gfortran that compiles critic2 -- .mod files are not portable
+# between compilers or major versions.
+libxc_root="$DEST/libxc-${LIBXC_VERSION}-mingw"
+
+build_libxc() {
+   local src="$DEST/libxc-${LIBXC_VERSION}"
+   echo ">> downloading and cross-building libxc ${LIBXC_VERSION} ..." >&2
+   fetch_source "https://gitlab.com/libxc/libxc/-/archive/${LIBXC_VERSION}/libxc-${LIBXC_VERSION}.tar.gz" \
+      "$src" || return 1
+   cmake_cross_build "$src" "$libxc_root" \
+      -DBUILD_SHARED_LIBS=ON -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON \
+      -DENABLE_FORTRAN=ON -DENABLE_PYTHON=OFF -DBUILD_TESTING=OFF
+}
+
+have_libxc=0
+if [ "$FETCH_LIBXC" = 1 ] && cross_build libxc "libxc" \
+   "the LIBXC keyword will be unavailable" \
+   "$libxc_root/lib/libxcf03.dll.a" "$libxc_root/include/xc_f03_lib_m.mod"; then
+   have_libxc=1
+fi
+
+# --- nlopt (optional) ---
+# critic2 uses the F77 interface (include 'nlopt.f'), which is only generated
+# and installed when NLOPT_FORTRAN is on -- hence nlopt.f is a marker below,
+# not just the import library. The C++ half of nlopt is off: the algorithms
+# critic2 asks for (SLSQP, MLSL_LDS, PRAXIS, CCSAQ, MMA) are all in the C core,
+# and leaving it out keeps libstdc++ off the CLI's DLL list.
+nlopt_root="$DEST/nlopt-${NLOPT_VERSION}-mingw"
+
+build_nlopt() {
+   local src="$DEST/nlopt-${NLOPT_VERSION}"
+   echo ">> downloading and cross-building nlopt ${NLOPT_VERSION} ..." >&2
+   fetch_source "https://github.com/stevengj/nlopt/archive/refs/tags/v${NLOPT_VERSION}.tar.gz" \
+      "$src" || return 1
+   cmake_cross_build "$src" "$nlopt_root" \
+      -DBUILD_SHARED_LIBS=ON \
+      -DNLOPT_FORTRAN=ON -DNLOPT_CXX=OFF \
+      -DNLOPT_PYTHON=OFF -DNLOPT_OCTAVE=OFF -DNLOPT_MATLAB=OFF \
+      -DNLOPT_GUILE=OFF -DNLOPT_SWIG=OFF -DNLOPT_TESTS=OFF
+}
+
+have_nlopt=0
+if [ "$FETCH_NLOPT" = 1 ] && cross_build nlopt "nlopt" \
+   "COMPAREVC and the XRPD profile fits will be unavailable" \
+   "$nlopt_root/lib/libnlopt.dll.a" "$nlopt_root/include/nlopt.f"; then
+   have_nlopt=1
+fi
+
+# --- libcint (optional) ---
+# libcint predates C23 and declares old-style function pointers (int (*f)()),
+# which gcc >= 15 rejects under its default -std=gnu23, so pin the C dialect.
+libcint_root="$DEST/libcint-${LIBCINT_VERSION}-mingw"
+
+build_libcint() {
+   local src="$DEST/libcint-${LIBCINT_VERSION}"
+   echo ">> downloading and cross-building libcint ${LIBCINT_VERSION} ..." >&2
+   fetch_source "https://github.com/sunqm/libcint/archive/refs/tags/v${LIBCINT_VERSION}.tar.gz" \
+      "$src" || return 1
+   cmake_cross_build "$src" "$libcint_root" \
+      -DBUILD_SHARED_LIBS=1 -DCMAKE_C_FLAGS="-std=gnu17" \
+      -DWITH_FORTRAN=on -DWITH_CINT2_INTERFACE=on \
+      -DENABLE_EXAMPLE=0 -DENABLE_TEST=0
+}
+
+have_libcint=0
+if [ "$FETCH_LIBCINT" = 1 ] && cross_build libcint "libcint" \
+   "molecular integrals over Gaussians will be unavailable" \
+   "$libcint_root/lib/libcint.dll.a"; then
+   have_libcint=1
+fi
+
+# --- xtb (optional) ---
+# critic2 drives xtb through its C API only (bind(c,name="xtb_...")), so unlike
+# libxc there are no Fortran module files that have to match. xtb itself is
+# Fortran, though, and needs two libraries of its own at build time. Those are
+# built static and end up absorbed into libxtb.dll, so nothing extra ships.
+#
+# They have to be supplied rather than left to xtb's own FetchContent fallback:
+# that clones mctc-lib's HEAD, which now defines the mctc-lib::mctc-lib alias
+# that xtb then tries to create itself, and configuring dies with "another
+# target with the same name already exists". Passing *_FIND_METHOD=cmake stops
+# the search at the prefix built here, which also pins the versions instead of
+# tracking a moving HEAD.
+#
+# -std=gnu17 is needed for the same reason as libcint: symmetry_i.c defines its
+# own true/false, which gcc >= 15 rejects under its default -std=gnu23.
+xtb_root="$DEST/xtb-${XTB_VERSION}-mingw"
+xtb_deps="$DEST/xtb-deps-mingw"
+
+# xtb_prereq NAME URL DIR -- a static, build-time-only dependency of xtb
+xtb_prereq() {
+   local name="$1" url="$2" dir="$3"
+   if [ -f "$xtb_deps/lib/lib$name.a" ]; then
+      return 0
+   fi
+   echo ">>   ... $name (build-time dependency of xtb)" >&2
+   fetch_source "$url" "$dir" || return 1
+   cmake_cross_build "$dir" "$xtb_deps" -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
+}
+
+build_xtb() {
+   local src="$DEST/xtb-${XTB_VERSION}"
+   echo ">> downloading and cross-building xtb ${XTB_VERSION} ..." >&2
+   xtb_prereq mctc-lib \
+      "https://github.com/grimme-lab/mctc-lib/archive/refs/tags/v${MCTCLIB_VERSION}.tar.gz" \
+      "$DEST/mctc-lib-${MCTCLIB_VERSION}" || return 1
+   xtb_prereq test-drive \
+      "https://github.com/fortran-lang/test-drive/archive/refs/tags/v${TESTDRIVE_VERSION}.tar.gz" \
+      "$DEST/test-drive-${TESTDRIVE_VERSION}" || return 1
+   fetch_source "https://github.com/grimme-lab/xtb/archive/refs/tags/v${XTB_VERSION}.tar.gz" \
+      "$src" || return 1
+   cmake_cross_build "$src" "$xtb_root" \
+      -DBUILD_SHARED_LIBS=ON -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=ON \
+      -DCMAKE_C_FLAGS="-std=gnu17" \
+      -DWITH_TBLITE=OFF -DWITH_CPCMX=OFF -DBUILD_TESTING=OFF \
+      -DMCTCLIB_FIND_METHOD=cmake -DTESTDRIVE_FIND_METHOD=cmake \
+      -DBLA_VENDOR=OpenBLAS \
+      -DCRITIC2_FIND_ROOT="$openblas_dir;$xtb_deps"
+}
+
+have_xtb=0
+if [ "$FETCH_XTB" = 1 ]; then
+   if [ "$have_lapack" != 1 ]; then
+      # xtb's build does find_package(LAPACK REQUIRED), and in a cross build the
+      # only LAPACK around is the OpenBLAS fetched above
+      echo ">> skipping xtb: it needs LAPACK/BLAS, and OpenBLAS was not fetched" >&2
+   elif cross_build xtb "xtb" "the GFN-FF backend of the dynamics will be unavailable" \
+      "$xtb_root/lib/libxtb.dll.a"; then
+      have_xtb=1
    fi
 fi
 
@@ -238,12 +494,31 @@ find_roots=()
 [ "$have_lapack" = 1 ]   && find_roots+=("$openblas_dir")
 [ "$have_freetype" = 1 ] && find_roots+=("$ft_root")
 [ "$have_readline" = 1 ] && find_roots+=("$rl_root")
+[ "$have_libxc" = 1 ]    && find_roots+=("$libxc_root")
+[ "$have_nlopt" = 1 ]    && find_roots+=("$nlopt_root")
+[ "$have_libcint" = 1 ]  && find_roots+=("$libcint_root")
+[ "$have_xtb" = 1 ]      && find_roots+=("$xtb_root")
 _oldifs=$IFS; IFS=';'; find_roots_joined="${find_roots[*]}"; IFS=$_oldifs
 
 # the still-unavailable optional libraries (built ones drop off this list)
-notfetched="libxc, HDF5, nlopt, libcint, tblite"
-[ "$have_readline" = 1 ] || notfetched="readline, $notfetched"
-[ "$have_freetype" = 1 ] || notfetched="freetype, $notfetched"
+notfetched=""
+missing() { notfetched="${notfetched:+$notfetched, }$1"; }
+[ "$have_freetype" = 1 ] || missing freetype
+[ "$have_readline" = 1 ] || missing readline
+[ "$have_libxc" = 1 ]    || missing libxc
+[ "$have_nlopt" = 1 ]    || missing nlopt
+[ "$have_libcint" = 1 ]  || missing libcint
+[ "$have_xtb" = 1 ]      || missing xtb
+missing "HDF5, tblite"
+
+# useflag NAME HAVE -- one -DUSE_<NAME>=ON/OFF line of the printed recipe
+useflag() {
+   if [ "$2" = 1 ]; then
+      echo "    -DUSE_$1=ON \\"
+   else
+      echo "    -DUSE_$1=OFF \\"
+   fi
+}
 
 {
    echo ""
@@ -254,9 +529,12 @@ notfetched="libxc, HDF5, nlopt, libcint, tblite"
    [ "$have_lapack" = 1 ]  && echo "  OpenBLAS ${OPENBLAS_VERSION} (external LAPACK/BLAS)"
    [ "$have_freetype" = 1 ] && echo "  FreeType ${FREETYPE_VERSION} (GUI font rendering)"
    [ "$have_readline" = 1 ] && echo "  readline ${WINEDITLINE_VERSION} (wineditline; CLI editing/history)"
+   [ "$have_libxc" = 1 ]    && echo "  libxc    ${LIBXC_VERSION} (exchange-correlation functionals)"
+   [ "$have_nlopt" = 1 ]    && echo "  nlopt    ${NLOPT_VERSION} (COMPAREVC, XRPD profile fitting)"
+   [ "$have_libcint" = 1 ]  && echo "  libcint  ${LIBCINT_VERSION} (molecular integrals over Gaussians)"
+   [ "$have_xtb" = 1 ]      && echo "  xtb      ${XTB_VERSION} (GFN-FF energies and forces)"
    echo ""
-   echo "Optional libraries NOT included (no MinGW prebuilt binaries -- would"
-   echo "need cross-building from source): ${notfetched}."
+   echo "Optional libraries NOT included: ${notfetched}."
    echo "They stay OFF in the configure line below."
    echo "======================================================================"
    echo ""
@@ -278,21 +556,16 @@ notfetched="libxc, HDF5, nlopt, libcint, tblite"
    else
       echo "    -DUSE_EXTERNAL_LAPACK=OFF \\"
    fi
-   if [ "$have_freetype" = 1 ]; then
-      echo "    -DUSE_FREETYPE=ON \\"
-   else
-      echo "    -DUSE_FREETYPE=OFF \\"
-   fi
-   if [ "$have_readline" = 1 ]; then
-      echo "    -DUSE_READLINE=ON \\"
-   else
-      echo "    -DUSE_READLINE=OFF \\"
-   fi
+   useflag FREETYPE "$have_freetype"
+   useflag READLINE "$have_readline"
+   useflag LIBXC    "$have_libxc"
+   useflag NLOPT    "$have_nlopt"
+   useflag LIBCINT  "$have_libcint"
+   useflag XTB      "$have_xtb"
    if [ -n "$find_roots_joined" ]; then
       echo "    -DCRITIC2_FIND_ROOT=\"$find_roots_joined\" \\"
    fi
-   echo "    -DUSE_LIBXC=OFF -DUSE_HDF5=OFF -DUSE_NLOPT=OFF \\"
-   echo "    -DUSE_LIBCINT=OFF -DUSE_TBLITE=OFF"
+   echo "    -DUSE_HDF5=OFF -DUSE_TBLITE=OFF"
    echo ""
    echo "  # 2. build (produces bin/critic2.exe and bin/critic2-gui.exe)"
    echo "  cmake --build build-win -j"
