@@ -1469,8 +1469,18 @@ subroutine ImDrawList_PopClipRect(self) bind(c,name="ImDrawList_PopClipRect")
 end subroutine ImDrawList_PopClipRect
 !x! void ImDrawList_PushTextureID(ImDrawList* self,ImTextureID texture_id);
 !x! void ImDrawList_PopTextureID(ImDrawList* self);
-!x! void ImDrawList_GetClipRectMin(ImVec2 *pOut,ImDrawList* self);
-!x! void ImDrawList_GetClipRectMax(ImVec2 *pOut,ImDrawList* self);
+! void ImDrawList_GetClipRectMin(ImVec2 *pOut,ImDrawList* self);
+subroutine ImDrawList_GetClipRectMin(pOut,self) bind(c,name="ImDrawList_GetClipRectMin")
+  import c_ptr, ImVec2
+  type(ImVec2) :: pOut
+  type(c_ptr), value :: self
+end subroutine ImDrawList_GetClipRectMin
+! void ImDrawList_GetClipRectMax(ImVec2 *pOut,ImDrawList* self);
+subroutine ImDrawList_GetClipRectMax(pOut,self) bind(c,name="ImDrawList_GetClipRectMax")
+  import c_ptr, ImVec2
+  type(ImVec2) :: pOut
+  type(c_ptr), value :: self
+end subroutine ImDrawList_GetClipRectMax
 ! void ImDrawList_AddLine(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,ImU32 col,float thickness);
 subroutine ImDrawList_AddLine(self,p1,p2,col,thickness) bind(c,name="ImDrawList_AddLine")
   import c_ptr, ImVec2, c_int, c_float

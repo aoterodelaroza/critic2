@@ -1526,22 +1526,24 @@ contains
 
   end function iw_icon_button
 
-  !> Draw an icon toggle button of standard frame height: the tinted
-  !> texture tex on a button whose background is highlighted while
-  !> state is on and transparent while off. If the texture is
-  !> unavailable (tex==0), a text button with the fallback glyph is
-  !> drawn instead, so the control keeps working with no icon assets.
+  !> Draw an icon toggle button: the tinted texture tex on a button
+  !> whose background is highlighted while state is on and transparent
+  !> while off. The icon side is iconscale text line heights (a little
+  !> over one, because the artwork is line art and reads as spindly at
+  !> exactly the height of a glyph). If the texture is unavailable
+  !> (tex==0), a text button with the fallback glyph is drawn instead,
+  !> so the control keeps working with no icon assets.
   !> Clicking flips state; returns .true. when that happens. If state
   !> is absent, the button is a momentary flat button (always drawn in
   !> the off style). If popupcontext and popupflags are given, open a
   !> context popup attached to the button and return whether it is
   !> open. If danger, tint the icon red (fallback: danger button
-  !> color). scale multiplies the icon side (default 1), for palettes
-  !> where the glyph is the only label.
+  !> color). scale further multiplies the icon side (default 1), for
+  !> palettes where the glyph is the only label.
   module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
      popupcontext,popupflags,danger,scale) result(changed)
     use interfaces_cimgui
-    use gui_main, only: g, fontsize, ColorDangerButton
+    use gui_main, only: g, fontsize, iconscale, ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: strid
     integer(c_int), intent(in) :: tex
     character(len=*,kind=c_char), intent(in) :: fallback
@@ -1566,8 +1568,8 @@ contains
     if (present(danger)) danger_ = danger
     state_ = .false.
     if (present(state)) state_ = state
-    side = fontsize%y
-    if (present(scale)) side = scale * fontsize%y
+    side = iconscale * fontsize%y
+    if (present(scale)) side = scale * iconscale * fontsize%y
     if (present(sameline)) then
        if (sameline) call igSameLine(0._c_float,-1._c_float)
     end if
@@ -1614,6 +1616,21 @@ contains
        popupcontext = igBeginPopupContextItem(c_null_ptr,popupflags)
 
   end function iw_icon_togglebutton
+
+  !> Height of the frame that iw_icon_togglebutton draws, for laying
+  !> out whatever has to line up with a row of them (a row label, say).
+  !> scale is the same optional multiplier that function takes.
+  module function iw_iconbutton_height(scale) result(h)
+    use interfaces_cimgui
+    use gui_main, only: g, fontsize, iconscale
+    real(c_float), intent(in), optional :: scale
+    real(c_float) :: h
+
+    h = iconscale * fontsize%y
+    if (present(scale)) h = scale * h
+    h = h + 2._c_float * g%Style%FramePadding%y
+
+  end function iw_iconbutton_height
 
   !> Draw the standard close button (a red X icon) with the given id.
   !> Returns .true. when clicked.

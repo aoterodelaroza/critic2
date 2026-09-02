@@ -30,6 +30,11 @@ submodule (windows) tree
   ! group headers, which are not systems and are not waiting to initialize
   real(c_float), parameter :: rgba_group(4) = (/0.95_c_float,0.80_c_float,0.25_c_float,1.00_c_float/)
 
+  ! vertical item spacing pushed around the systems table; the height
+  ! reserved under the table has to use it too, because ImGui puts one
+  ! of these gaps between the table and whatever follows it
+  real(c_float), parameter :: table_itemspacing_y = 5._c_float
+
   ! deferred multi-selection actions: they act on the systems shown in
   ! the tree, which is known only after the filter has been applied
   integer, parameter :: sel_none = 0
@@ -79,6 +84,7 @@ contains
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz, uv0, uv1
     type(ImVec2) :: selrect_min, selrect_max, fieldrect_min, fieldrect_max
+    type(ImVec2) :: tableclip_min, tableclip_max
     logical :: havesel, havefield
     type(c_ptr) :: tabledl
     type(ImVec4) :: col4, tintcol, nobord
@@ -93,7 +99,7 @@ contains
     logical :: hadenabledcolumn, ok, found, reinit
     integer :: ndrawn ! icons already drawn in the current cell
     logical :: export
-    real(c_float) :: width, pos
+    real(c_float) :: width, pos, hbottom
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: ishown(:)
@@ -422,12 +428,22 @@ contains
           call iw_text(", " // string(k) // " selected",sameline_nospace=.true.)
     end if
 
+    ! Height to keep free under the table for the row of buttons. Each
+    ! half of it has to be measured with the style that is in force
+    ! where it is actually drawn, which is not the same style: the
+    ! button comes after the table's style has been popped again, so it
+    ! has the window's frame height, while the gap above it is the
+    ! spacing the table itself pushed. Getting either from the other's
+    ! style leaves the content a few pixels too tall for the window,
+    ! and the window grows a scroll bar that has no business there.
+    hbottom = igGetFrameHeight() + table_itemspacing_y
+
     ! set up the table, style and flags
     sz%x = 3._c_float
     sz%y = 1._c_float
     call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,sz)
     sz%x = 8._c_float
-    sz%y = 5._c_float
+    sz%y = table_itemspacing_y
     call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
     sz%x = 2._c_float
     sz%y = 2._c_float
@@ -442,11 +458,18 @@ contains
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     sz%x = 0._c_float
-    sz%y = -igGetFrameHeightWithSpacing()
+    sz%y = -hbottom
     if (igBeginTable(c_loc(str),ic_tree_NUMCOLUMNS,flags,sz,0._c_float)) then
-       ! the table scrolls, so it is its own child window: its draw
-       ! list is captured for the selection borders drawn at the end
+       ! The table scrolls, so it is its own child window: its draw
+       ! list is captured for the selection borders drawn at the end,
+       ! and with it the clip rect in force here, which is the table's
+       ! visible area. By the time the borders are drawn the table has
+       ! ended and that clip rect is gone from the list, so a selected
+       ! row scrolled out of sight would otherwise put its border over
+       ! the tab bar above the table.
        tabledl = igGetWindowDrawList()
+       call ImDrawList_GetClipRectMin(tableclip_min,tabledl)
+       call ImDrawList_GetClipRectMax(tableclip_max,tabledl)
        ! force resize if asked for
        if (forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -1261,18 +1284,26 @@ contains
     ! height, so it scales with the font size and the DPI, with a
     ! 2-pixel floor so the line does not vanish into the table's row
     ! separators. The draw list is clipped to the current column, so the
-    ! clip rect is overridden while the border is drawn.
+    ! clip rect is overridden while the border is drawn -- but only
+    ! within the table's own visible area, or a row scrolled out of
+    ! sight would draw its border on the widgets above or below the
+    ! table. Nothing is drawn once the row has scrolled out entirely.
     subroutine draw_selection_border(pmin,pmax,rgba)
       type(ImVec2), intent(in) :: pmin, pmax
       real(c_float), intent(in) :: rgba(4)
 
       type(ImVec4) :: colb
       real(c_float) :: thick
+      type(ImVec2) :: cmin, cmax
 
       thick = max(2._c_float,0.12_c_float * (pmax%y - pmin%y))
+      cmin%x = max(pmin%x-thick,tableclip_min%x)
+      cmin%y = max(pmin%y-thick,tableclip_min%y)
+      cmax%x = min(pmax%x+thick,tableclip_max%x)
+      cmax%y = min(pmax%y+thick,tableclip_max%y)
+      if (cmax%x <= cmin%x .or. cmax%y <= cmin%y) return
       colb = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
-      call ImDrawList_PushClipRect(tabledl,ImVec2(pmin%x-thick,pmin%y-thick),&
-         ImVec2(pmax%x+thick,pmax%y+thick),.false._c_bool)
+      call ImDrawList_PushClipRect(tabledl,cmin,cmax,.false._c_bool)
       call ImDrawList_AddRect(tabledl,pmin,pmax,igGetColorU32_Vec4(colb),&
          0._c_float,0_c_int,thick)
       call ImDrawList_PopClipRect(tabledl)

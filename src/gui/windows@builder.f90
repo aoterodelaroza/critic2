@@ -262,8 +262,8 @@ contains
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
     use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
-       iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_helpermark, iw_calcwidth, iw_calcheight,&
-       iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
+       iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
+       iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
        BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
@@ -286,7 +286,7 @@ contains
     real*8, parameter :: stale_gap = 1d0 ! discard clicks older than this (s)
     ! bond order for each bond-combo index >= 1 (single, double, triple, dashed, aromatic)
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
-    real(c_float), parameter :: palscale = 1.25_c_float ! toolbar icons, in font heights
+    real(c_float), parameter :: palscale = 1.25_c_float ! palette icons, in standard icon sides
     real(c_float), parameter :: rowspacing = 2._c_float ! vertical gap between toolbar rows (pixels)
     real(c_float), parameter :: geomscale = 1.9_c_float ! local-geometry and recent squares, in text line heights
     real(c_float), parameter :: recent_bg(3) = 1._c_float ! ground of the recent squares (the fragment diagrams are white)
@@ -461,7 +461,7 @@ contains
 
     ! the tools, one labelled row per group
     xicon = iw_calcwidth(10,0)
-    hicon = palscale * fontsize%y + 2._c_float * g%Style%FramePadding%y
+    hicon = iw_iconbutton_height(palscale)
     szrow%x = g%Style%ItemSpacing%x
     szrow%y = rowspacing
     call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,szrow)
