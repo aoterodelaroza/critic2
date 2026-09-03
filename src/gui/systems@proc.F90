@@ -375,7 +375,7 @@ contains
     iafield_ = 0
     if (present(iafield)) iafield_ = iafield
     iavib_ = 0
-    if (present(iafield)) iavib_ = iavib
+    if (present(iavib)) iavib_ = iavib
     forceidx_ = -1
     if (present(forceidx)) forceidx_ = forceidx
 

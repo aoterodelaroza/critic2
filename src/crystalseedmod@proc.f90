@@ -32,6 +32,7 @@ submodule (crystalseedmod) proc
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
   ! function string_to_symop(str)
+  ! subroutine qe_read_namelists(lu,calculation,ibrav,celldm,nat,ntyp,space_group,uniqueb,rhombohedral,origin_choice,errmsg)
 
 contains
 
@@ -4003,169 +4004,15 @@ contains
     integer, allocatable :: ityptot(:)
     logical :: ok
 
-    integer, parameter :: ntypx = 10
-    integer, parameter :: nsx = ntypx
-    integer, parameter :: nspinx = 2
-    integer, parameter :: lmaxx = 3
-    integer, parameter :: lqmax = 2*lmaxx+1
-
-    !!! Up to date with quantum espresso 6.3. More recent versions may
-    !!! need additional keywords.
-
-    ! from QE
-    ! namelist control
-    character(len=80) :: title, calculation, verbosity, restart_mode,&
-       disk_io, memory
-    character(len=10) :: point_label_type
-    character(len=256) :: input_xml_schema_file
-    integer :: nstep, iprint, isave, ndr, ndw, gdir, nppstr, nberrycyc, &
-       printwfc
-    logical :: tstress, tprnfor, tefield, tefield2, lelfield, dipfield, &
-       lberry, wf_collect, saverho, tabps, lkpoint_dir, use_wannier, &
-       lecrpa, tqmmm, lorbm, lfcpopt, lfcpdyn, gate
-    real*8 :: dt, refg, max_seconds, ekin_conv_thr, etot_conv_thr, &
-       forc_conv_thr
-    character(len=256) :: outdir, prefix, pseudo_dir, wfcdir, vdw_table_name
-    namelist /control/ title, calculation, verbosity, restart_mode,  &
-       nstep, iprint, isave, tstress, tprnfor, dt, ndr, ndw, outdir,   &
-       prefix, wfcdir, max_seconds, ekin_conv_thr, etot_conv_thr,      &
-       forc_conv_thr, pseudo_dir, disk_io, tefield, dipfield, lberry,  &
-       gdir, nppstr, wf_collect, printwfc, lelfield, nberrycyc, refg,  &
-       tefield2, saverho, tabps, lkpoint_dir, use_wannier, lecrpa,     &
-       vdw_table_name, tqmmm, lorbm, memory, point_label_type,         &
-       lfcpopt, lfcpdyn, input_xml_schema_file, gate
-
-    ! namelist system
-    integer :: ibrav
+    ! Namelist variables used below. The rest of the QE input is ignored.
+    ! A real Fortran namelist read is not used because it aborts on any
+    ! variable the declaration does not know about, and every QE version
+    ! (and every locally patched QE) has its own extra keywords. Instead,
+    ! the namelist groups are scanned by qe_read_namelists.
+    character(len=80) :: calculation
+    integer :: ibrav, nat, ntyp, origin_choice, space_group
     real*8 :: celldm(6)
-    real*8 :: a, b, c, cosab, cosac, cosbc
-    integer :: nat
-    integer :: ntyp
-    integer :: origin_choice
-    integer :: space_group
-    logical :: rhombohedral
-    logical :: uniqueb
-    real*8 :: tot_charge, tot_magnetization, ecutwfc, ecutrho, degauss, &
-       ecfixed, qcutz, q2sigma, starting_magnetization(nsx), &
-       starting_ns_eigenvalue(lqmax,nspinx,nsx), hubbard_u(nsx), &
-       hubbard_alpha(nsx), a_pen(10,nspinx), sigma_pen(10), alpha_pen(10), &
-       emaxpos, eopreg, eamp, lambda, fixed_magnetization(3), angle1(nsx), &
-       angle2(nsx), b_field(3), sic_epsilon, sic_alpha, london_s6, london_rcut, &
-       xdm_a1, xdm_a2, ts_sr, esm_efield, esm_w, &
-       block_1, block_2, block_height, ecutfock, ecutvcut, esm_a, esm_zb, exx_fraction, &
-       fcp_mass, fcp_mdiis_step, fcp_mu, fcp_relax_crit, fcp_relax_step, fcp_tempw, &
-       hubbard_beta(nsx), hubbard_j0(nsx), hubbard_j(3,nsx), localization_thr, london_c6(nsx), &
-       london_rvdw(nsx), ref_alat, scdmden, scdmgrd, screening_parameter, starting_charge(nsx), &
-       ts_vdw_econv_thr, yukawa, zgate
-    integer :: nbnd, nr1, nr2, nr3, nr1s, nr2s, nr3s, nr1b, nr2b, nr3b, &
-       nspin, edir, report, xdm_usehigh, esm_nfit, esm_debug_gpmax, &
-       dftd3_version, fcp_mdiis_size, lda_plus_u_kind, n_proj, nqx1, &
-       nqx2, nqx3
-    character(len=80) :: occupations, smearing, input_dft, u_projection_type, &
-       constrained_magnetization, sic, assume_isolated
-    logical :: nosym, noinv, nosym_evc, force_symmorphic, lda_plus_u, la2f, &
-       step_pen, noncolin, lspinorb, starting_spin_angle, no_t_rev, force_pairing, &
-       spline_ps, one_atom_occupations, london, xdm, xdm_onlyc, xdm_fixc6, &
-       xdm_usec9, ts, ts_onlyc, esm_debug, &
-       ace, block, dftd3_threebody, lforcet, relaxz, scdm, ts_vdw, ts_vdw_isolated, &
-       use_all_frac, x_gamma_extrapolation
-    character(len=3) :: esm_bc
-    character(len=80) :: exxdiv_treatment, vdw_corr
-    character(len=8) :: fcp_relax
-
-    namelist /system/ ibrav, celldm, a, b, c, cosab, cosac, cosbc, nat,     &
-       ntyp, nbnd, ecutwfc, ecutrho, nr1, nr2, nr3, nr1s, nr2s, nr3s, nr1b, &
-       nr2b, nr3b, nosym, nosym_evc, noinv, force_symmorphic, starting_magnetization, &
-       occupations, degauss, nspin, ecfixed, qcutz, q2sigma, lda_plus_u, &
-       hubbard_u, hubbard_alpha, edir, emaxpos, eopreg, eamp, smearing, &
-       starting_ns_eigenvalue, u_projection_type, input_dft, la2f, assume_isolated, &
-       noncolin, lspinorb, starting_spin_angle, lambda, angle1, angle2, report, &
-       constrained_magnetization, b_field, fixed_magnetization, sic, sic_epsilon, &
-       force_pairing, sic_alpha, tot_charge, tot_magnetization, spline_ps, &
-       one_atom_occupations, london, london_s6, london_rcut, xdm, xdm_onlyc, &
-       xdm_fixc6, xdm_usec9, xdm_usehigh, xdm_a1, xdm_a2, ts, ts_onlyc, ts_sr, &
-       step_pen, a_pen, sigma_pen, alpha_pen, no_t_rev, esm_bc, esm_efield, &
-       esm_w, esm_nfit, esm_debug, esm_debug_gpmax, use_all_frac, starting_charge, &
-       lda_plus_u_kind, hubbard_j, hubbard_j0, hubbard_beta, nqx1, nqx2, nqx3, &
-       ecutfock, localization_thr, scdm, ace, scdmden, scdmgrd, n_proj, exxdiv_treatment, &
-       x_gamma_extrapolation, yukawa, ecutvcut, exx_fraction, screening_parameter, &
-       ref_alat, lforcet, vdw_corr, london_c6, london_rvdw, dftd3_version, dftd3_threebody, &
-       ts_vdw, ts_vdw_isolated, ts_vdw_econv_thr, esm_a, esm_zb, fcp_mu, fcp_mass, &
-       fcp_tempw, fcp_relax, fcp_relax_step, fcp_relax_crit, fcp_mdiis_size, &
-       fcp_mdiis_step, space_group, uniqueb, origin_choice, rhombohedral, &
-       zgate, relaxz, block, block_1, block_2, block_height
-
-    ! namelist electrons
-    real*8 :: emass, emass_cutoff, ortho_eps, electron_damping, ekincw, fnosee, &
-       ampre, grease, diis_hcut, diis_wthr, diis_delt, diis_fthr, diis_temp, &
-       diis_achmix, diis_g0chmix, diis_g1chmix, diis_rothr, diis_ethr, mixing_beta,&
-       diago_thr_init, conv_thr, lambda_cold, fermi_energy, rotmass, occmass,&
-       occupation_damping, rotation_damping, etresh, passop, efield, efield_cart(3),&
-       efield2, emass_emin, emass_cutoff_emin, electron_damping_emin, dt_emin
-    character(len=80) :: orthogonalization, electron_dynamics, electron_velocities,&
-       electron_temperature, startingwfc, mixing_mode, diagonalization, startingpot,&
-       rotation_dynamics, occupation_dynamics, efield_phase
-    integer :: ortho_max, electron_maxstep, diis_size, diis_nreset, diis_maxstep, &
-       diis_nchmix, diis_nrot(3), mixing_ndim, diago_cg_maxiter, diago_david_ndim, &
-       mixing_fixed_ns, n_inner, niter_cold_restart, maxiter, niter_cg_restart, &
-       epol, epol2
-    logical :: diis_rot, diis_chguess, diago_full_acc, tcg, real_space, tqr,&
-       occupation_constraints, &
-       scf_must_converge, tq_smoothing, tbeta_smoothing, adaptive_thr, tcpbo
-    namelist /electrons/ emass, emass_cutoff, orthogonalization, &
-       electron_maxstep, ortho_eps, ortho_max, electron_dynamics,   &
-       electron_damping, electron_velocities, electron_temperature, &
-       ekincw, fnosee, ampre, grease,                               &
-       diis_size, diis_nreset, diis_hcut,                           &
-       diis_wthr, diis_delt, diis_maxstep, diis_rot, diis_fthr,     &
-       diis_temp, diis_achmix, diis_g0chmix, diis_g1chmix,          &
-       diis_nchmix, diis_nrot, diis_rothr, diis_ethr, diis_chguess, &
-       mixing_mode, mixing_beta, mixing_ndim, mixing_fixed_ns,      &
-       tqr, diago_cg_maxiter, diago_david_ndim, diagonalization ,   &
-       startingpot, startingwfc , conv_thr,                         &
-       diago_thr_init, n_inner, fermi_energy, rotmass, occmass,     &
-       rotation_damping, occupation_damping, rotation_dynamics,     &
-       occupation_dynamics, tcg, maxiter, etresh, passop, epol,     &
-       efield, epol2, efield2, diago_full_acc,                      &
-       occupation_constraints, niter_cg_restart,                    &
-       niter_cold_restart, lambda_cold, efield_cart, real_space,    &
-       scf_must_converge, tq_smoothing, tbeta_smoothing, adaptive_thr, &
-       tcpbo,emass_emin, emass_cutoff_emin, electron_damping_emin,  &
-       dt_emin, efield_phase
-
-    ! namelist ions
-    character(len=80) :: phase_space, ion_dynamics, ion_positions, ion_velocities,&
-       ion_temperature, pot_extrapolation, wfc_extrapolation
-    integer, parameter :: nhclm   = 4
-    integer, parameter :: max_nconstr = 100
-    integer :: nhpcl, nhptyp, nhgrp(nsx), ndega, ion_nstepe, ion_maxstep, nraise,&
-       bfgs_ndim, fe_nstep, sw_nstep, eq_nstep, n_muller, np_muller
-    real*8 :: ion_radius(nsx), ion_damping, tempw, fnosep(nhclm), tolp, fnhscl(nsx),&
-       amprp(nsx), greasp, upscale, delta_t, trust_radius_max, trust_radius_min,&
-       trust_radius_ini, w_1, w_2, sic_rloc, g_amplitude, fe_step(max_nconstr)
-    logical :: tranp(nsx), refold_pos, remove_rigid_rot, l_mplathe, l_exit_muller
-
-    namelist /ions/ phase_space, ion_dynamics, ion_radius, ion_damping,  &
-       ion_positions, ion_velocities, ion_temperature,      &
-       tempw, fnosep, nhgrp, fnhscl, nhpcl, nhptyp, ndega, tranp,   &
-       amprp, greasp, tolp, ion_nstepe, ion_maxstep,        &
-       refold_pos, upscale, delta_t, pot_extrapolation,     &
-       wfc_extrapolation, nraise, remove_rigid_rot,         &
-       trust_radius_max, trust_radius_min,                  &
-       trust_radius_ini, w_1, w_2, bfgs_ndim, sic_rloc,     &
-       fe_step, fe_nstep, sw_nstep, eq_nstep, g_amplitude, &
-       l_mplathe, n_muller, np_muller, l_exit_muller
-
-    ! namelist cell
-    character(len=80) :: cell_parameters, cell_dynamics, cell_velocities, &
-       cell_temperature, cell_dofree
-    real(dp) :: press, wmass, temph, fnoseh, greash, cell_factor, cell_damping,&
-       press_conv_thr
-    integer :: cell_nstepe
-    namelist /cell/ cell_parameters, cell_dynamics, cell_velocities, &
-       press, wmass, cell_temperature, temph, fnoseh,   &
-       cell_dofree, greash, cell_factor, cell_nstepe,   &
-       cell_damping, press_conv_thr
+    logical :: rhombohedral, uniqueb
 
     ! local to this routine
     integer :: lu, ios, lp, i, j, ier
@@ -4191,7 +4038,6 @@ contains
     space_group = 0
     rhombohedral = .false.
     uniqueb = .false.
-    cell_nstepe = 1
 
     ! open
     errmsg = ""
@@ -4203,40 +4049,10 @@ contains
     r = 0d0
     calculation = ""
 
-    ! read the namelists
-    read(lu,control,iostat=ios)
-    if (ios /= 0) then
-       errmsg = "Wrong namelist control."
-       goto 999
-    end if
-    read(lu,system,iostat=ios)
-    if (ios/=0) then
-       errmsg = "Wrong namelist system."
-       goto 999
-    end if
-    read(lu,electrons,iostat=ios)
-    if (ios/=0) then
-       errmsg = "Wrong namelist electrons."
-       goto 999
-    end if
-    if (trim(calculation)=='relax'.or.trim(calculation)=='md'.or.&
-       trim(calculation)=='vc-relax'.or.trim(calculation)=='vc-md'.or.&
-       trim(calculation)=='cp'.or.trim(calculation)=='vc-cp'.or.&
-       trim(calculation)=='smd'.or.trim(calculation)=='cp-wf') then
-       read(lu,ions,iostat=ios)
-       if (ios/=0) then
-          errmsg = "Wrong namelist ions."
-          goto 999
-       end if
-    endif
-    if (trim(calculation)=='vc-relax'.or.trim(calculation)=='vc-md'.or.&
-       trim(calculation)=='vc-cp') then
-       read(lu,cell,iostat=ios)
-       if (ios/=0) then
-          errmsg = "Wrong namelist ions."
-          goto 999
-       end if
-    end if
+    ! read the namelists (tolerant scan; see qe_read_namelists)
+    call qe_read_namelists(lu,calculation,ibrav,celldm,nat,ntyp,space_group,&
+       uniqueb,rhombohedral,origin_choice,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     ! allocate space for atoms
     seed%nat = nat
@@ -10466,5 +10282,222 @@ contains
     call fclose(lu)
 
   end function ismol_cube
+
+  !> Read the namelist groups of a Quantum ESPRESSO input file (unit lu,
+  !> positioned at the beginning of the file) and return the handful of
+  !> variables critic2 uses. A Fortran namelist read is not used here
+  !> because it fails on any variable outside the declaration, and QE
+  !> inputs routinely carry keywords from newer or locally patched
+  !> versions of the code; in this scan, unknown variables and unknown
+  !> groups are simply ignored. On output the file is left positioned on
+  !> the first line after the last namelist group, ready for the card
+  !> parsing. Non-zero errmsg if no namelist group was found.
+  subroutine qe_read_namelists(lu,calculation,ibrav,celldm,nat,ntyp,space_group,&
+     uniqueb,rhombohedral,origin_choice,errmsg)
+    use tools_io, only: getline_raw, lower, isinteger, isreal
+    integer, intent(in) :: lu
+    character(len=80), intent(inout) :: calculation
+    integer, intent(inout) :: ibrav, nat, ntyp, space_group, origin_choice
+    real*8, intent(inout) :: celldm(6)
+    logical, intent(inout) :: uniqueb, rhombohedral
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    character(len=*), parameter :: namechar = &
+       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+
+    character(len=:), allocatable :: line, grp, word
+    character*1 :: ch, quote
+    integer :: iline, ip, i0, len0, nline, ngrp
+    logical :: ok, ingrp
+
+    errmsg = ""
+    grp = ""
+    ingrp = .false.
+    nline = 0
+    ngrp = 0
+    iline = 0
+    main: do while (getline_raw(lu,line))
+       iline = iline + 1
+
+       ! remove the trailing comment, if any (only outside quotes)
+       quote = " "
+       len0 = len(line)
+       do ip = 1, len0
+          ch = line(ip:ip)
+          if (quote /= " ") then
+             if (ch == quote) quote = " "
+          elseif (ch == "'" .or. ch == '"') then
+             quote = ch
+          elseif (ch == "!" .or. ch == "#") then
+             line = line(1:ip-1)
+             exit
+          end if
+       end do
+       if (len_trim(line) == 0) cycle
+
+       ! walk the line, item by item
+       ip = 1
+       len0 = len(line)
+       do while (ip <= len0)
+          ch = line(ip:ip)
+          if (ch == " " .or. ch == char(9) .or. ch == ",") then
+             ip = ip + 1
+          elseif (ch == "&") then
+             ! a group delimiter: &name opens, &end closes
+             i0 = ip + 1
+             ip = i0
+             do while (ip <= len0)
+                if (index(namechar,line(ip:ip)) == 0) exit
+                ip = ip + 1
+             end do
+             word = lower(line(i0:ip-1))
+             if (word == "end") then
+                ingrp = .false.
+                nline = iline
+             else
+                if (.not.ingrp) ngrp = ngrp + 1
+                grp = word
+                ingrp = .true.
+             end if
+          elseif (ch == "/") then
+             ! end of the group
+             ingrp = .false.
+             nline = iline
+             ip = ip + 1
+          elseif (.not.ingrp) then
+             ! outside a group and not a group opener: the cards start here
+             exit main
+          else
+             ! an assignment, up to the next unquoted comma or slash
+             i0 = ip
+             quote = " "
+             do while (ip <= len0)
+                ch = line(ip:ip)
+                if (quote /= " ") then
+                   if (ch == quote) quote = " "
+                elseif (ch == "'" .or. ch == '"') then
+                   quote = ch
+                elseif (ch == "," .or. ch == "/") then
+                   exit
+                end if
+                ip = ip + 1
+             end do
+             call qe_nml_assign(line(i0:ip-1))
+          end if
+       end do
+    end do main
+
+    if (ngrp == 0) then
+       errmsg = "No namelist group (&control, &system, ...) found in the file"
+       return
+    end if
+    if (ingrp) then
+       errmsg = "Unterminated namelist group &" // trim(grp) // " in the file"
+       return
+    end if
+
+    ! rewind and skip the namelist section, so the caller reads the cards
+    rewind(lu)
+    do ip = 1, nline
+       ok = getline_raw(lu,line)
+       if (.not.ok) exit
+    end do
+
+  contains
+    !> Interpret one "name = value" assignment belonging to namelist
+    !> group grp. Names critic2 does not use are ignored.
+    subroutine qe_nml_assign(str)
+      character*(*), intent(in) :: str
+
+      character(len=:), allocatable :: nam, val
+      integer :: ieq, ipar, jpar, lp, idum, idx
+      real*8 :: rdum
+      logical :: lok
+
+      ieq = index(str,"=")
+      if (ieq <= 1) return
+      nam = lower(trim(adjustl(str(1:ieq-1))))
+      val = trim(adjustl(str(ieq+1:)))
+      if (len_trim(nam) == 0 .or. len_trim(val) == 0) return
+
+      ! split off the array index, if any (celldm(1), ...)
+      idx = 0
+      ipar = index(nam,"(")
+      if (ipar > 1) then
+         jpar = index(nam,")")
+         if (jpar > ipar+1) then
+            lp = 1
+            if (.not.isinteger(idx,nam(ipar+1:jpar-1),lp)) idx = 0
+         end if
+         nam = nam(1:ipar-1)
+      end if
+
+      lp = 1
+      if (grp == "control") then
+         if (nam == "calculation") calculation = lower(qe_nml_string(val))
+      elseif (grp == "system") then
+         if (nam == "ibrav") then
+            if (isinteger(idum,val,lp)) ibrav = idum
+         elseif (nam == "nat") then
+            if (isinteger(idum,val,lp)) nat = idum
+         elseif (nam == "ntyp") then
+            if (isinteger(idum,val,lp)) ntyp = idum
+         elseif (nam == "space_group") then
+            if (isinteger(idum,val,lp)) space_group = idum
+         elseif (nam == "origin_choice") then
+            if (isinteger(idum,val,lp)) origin_choice = idum
+         elseif (nam == "celldm") then
+            if (idx >= 1 .and. idx <= 6) then
+               if (isreal(rdum,val,lp)) celldm(idx) = rdum
+            end if
+         elseif (nam == "uniqueb") then
+            if (qe_nml_logical(val,lok)) uniqueb = lok
+         elseif (nam == "rhombohedral") then
+            if (qe_nml_logical(val,lok)) rhombohedral = lok
+         end if
+      end if
+
+    end subroutine qe_nml_assign
+
+    !> Value of a character variable, with the surrounding quotes removed.
+    function qe_nml_string(str) result(res)
+      character*(*), intent(in) :: str
+      character(len=:), allocatable :: res
+
+      integer :: n
+
+      res = trim(adjustl(str))
+      n = len(res)
+      if (n >= 2) then
+         if ((res(1:1) == "'" .and. res(n:n) == "'") .or.&
+            (res(1:1) == '"' .and. res(n:n) == '"')) res = res(2:n-1)
+      end if
+
+    end function qe_nml_string
+
+    !> Value of a logical variable. Returns false if str is not a logical.
+    function qe_nml_logical(str,val) result(isok)
+      character*(*), intent(in) :: str
+      logical, intent(out) :: val
+      logical :: isok
+
+      character(len=:), allocatable :: s
+
+      isok = .false.
+      val = .false.
+      s = lower(trim(adjustl(str)))
+      if (len_trim(s) == 0) return
+      if (s(1:1) == ".") s = s(2:)
+      if (len_trim(s) == 0) return
+      if (s(1:1) == "t") then
+         val = .true.
+         isok = .true.
+      elseif (s(1:1) == "f") then
+         isok = .true.
+      end if
+
+    end function qe_nml_logical
+
+  end subroutine qe_read_namelists
 
 end submodule proc

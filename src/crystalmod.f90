@@ -95,9 +95,22 @@ module crystalmod
      !! source file and format
      character(len=mlen) :: file ! source of vibration data
      integer :: ivformat ! format for the vibration data
-     !! 2nd-order force constants
+     !! 2nd-order force constants, in the cell-compact layout:
+     !!   fc2(:,:,ia,js) with:
+     !!      ia = 1..ncel over the atoms of the cell (atcel order)
+     !!      js = 1..fc2_nsat over the atoms of the supercell, in phonopy's atom-major order js = (ia-1)*fc2_nlat + il
+     !!      where il indexes the lattice point fc2_lvec(:,il).
      logical :: hasfc2 = .false. ! true if FC2 is available
-     real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+     character(len=mlen) :: fc2_file = "" ! source file of the force constants
+     real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,ncel,fc2_nsat), Hartree/bohr^2
+     integer :: fc2_smat(3,3) = reshape((/1,0,0,0,1,0,0,0,1/),(/3,3/)) ! supercell matrix, rows = supercell vectors
+     integer :: fc2_madj(3,3) = reshape((/1,0,0,0,1,0,0,0,1/),(/3,3/)) ! adjugate of fc2_smat (fc2_madj*fc2_smat = fc2_nlat*I)
+     integer :: fc2_nlat = 0 ! number of lattice points in the supercell = det(fc2_smat)
+     integer :: fc2_nsat = 0 ! number of supercell atoms = ncel * fc2_nlat
+     integer :: fc2_ncel = 0 ! number of cell atoms when the FC2 was read (staleness check)
+     logical :: fc2_iscompact = .false. ! true if the source file was in compact (p2s) form
+     integer, allocatable :: fc2_lvec(:,:) ! (3,fc2_nlat) lattice points, integer cell fractional coords
+     integer, allocatable :: fc2_lkey(:,:) ! (3,fc2_nlat) residue keys of fc2_lvec modulo the supercell
      integer :: fc2_acoustic(3) = -1 ! acoustic branches for vs calculation
      real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
      real*8 :: fc2_vs_center = -1d0 ! center for calculation of sound velocities (bohr-1)
@@ -108,8 +121,7 @@ module crystalmod
      integer :: nfreq ! number of frequencies
      real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt) (cm-1)
      complex*16, allocatable :: vec(:,:,:,:) ! phonon eigenvector (3,nat,nfreq,nqpt)
-     ! note: these are the vectors that come out of the dynamical
-     ! matrix diagonalization and they must be orthonormal. For the
+     ! note: these are the vectors that come out of the dynamical matrix diagonalization and they must be orthonormal. For the
      ! displacements, divide by the sqrt(m_j).
    contains
      procedure :: end => vibrations_end !< terminate the vibrations object
@@ -118,6 +130,7 @@ module crystalmod
      procedure :: print_freq => vibrations_print_freq !< print frequency info
      procedure :: print_eigenvector => vibrations_print_eigenvector !< print eigvec info
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
+     procedure :: check_fc2 => vibrations_check_fc2 !< numerical sanity checks on the FC2
      procedure :: apply_acoustic => vibrations_apply_acoustic !< apply acoustic sum rules to FC2
      procedure :: write_fc2 => vibrations_write_fc2 !< write FC2
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
@@ -1462,9 +1475,10 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
      !xx! vibrations type
-     module subroutine vibrations_end(v,keepfc2)
+     module subroutine vibrations_end(v,keepfc2,keepvibs)
        class(vibrations), intent(inout) :: v
        logical, intent(in), optional :: keepfc2
+       logical, intent(in), optional :: keepvibs
      end subroutine vibrations_end
      module subroutine vibrations_read_file(v,c,file,sline,ivformat,errmsg,ti)
        class(vibrations), intent(inout) :: v
@@ -1493,15 +1507,22 @@ module crystalmod
        integer, intent(in) :: ifreq, idq
        logical, intent(in) :: cartesian
      end subroutine vibrations_print_eigenvector
+     module subroutine vibrations_check_fc2(v,c,verbose,errmsg)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine vibrations_check_fc2
      module subroutine vibrations_apply_acoustic(v,c,verbose)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        logical, intent(in), optional :: verbose
      end subroutine vibrations_apply_acoustic
-     module subroutine vibrations_write_fc2(v,c,file,verbose)
+     module subroutine vibrations_write_fc2(v,c,file,full,verbose)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        character(len=:), allocatable, intent(in), optional :: file
+       logical, intent(in), optional :: full
        logical, intent(in), optional :: verbose
      end subroutine vibrations_write_fc2
      module subroutine vibrations_calculate_q(v,c,q,freqo,veco)

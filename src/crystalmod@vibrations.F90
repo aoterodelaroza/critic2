@@ -35,6 +35,37 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: amu_to_me = 1.66053906660e-27 / 9.1093837015e-31 ! CODATA2018
   real*8, parameter :: cminv_to_angfreq_au = 4.556335252903557d-06 ! 100 * c * a0 * sqrt(me / Ha) * 2 * pi, using CODATA2018 values
 
+  ! Force-constant units of the codes that can generate a phonopy
+  ! FORCE_CONSTANTS file, and the factor that converts them to the
+  ! internal units (Hartree/bohr^2).
+  integer, parameter :: fc2_nunit = 6
+  character*20, parameter :: fc2_unitname(fc2_nunit) = (/&
+     "eV/ang^2            ", "eV/(ang*bohr)       ", "Ry/bohr^2           ",&
+     "mRy/bohr^2          ", "Hartree/bohr^2      ", "Hartree/(ang*bohr)  "/)
+  integer, parameter :: fc2_ngen = 22
+  character*10, parameter :: fc2_genname(fc2_ngen) = (/&
+     "vasp      ", "aims      ", "fhiaims   ", "lammps    ", "pwmat     ",&
+     "crystal   ", "castep    ", "alamode   ",&
+     "abinit    ", "siesta    ", "abacus    ",&
+     "qe        ", "pwscf     ", "espresso  ",&
+     "wien2k    ", "wien      ",&
+     "elk       ", "dftb+     ", "dftbp     ", "turbomole ", "fleur     ",&
+     "cp2k      "/)
+  integer, parameter :: fc2_genunit(fc2_ngen) = (/&
+     1, 1, 1, 1, 1,&
+     1, 1, 1,&
+     2, 2, 2,&
+     3, 3, 3,&
+     4, 4,&
+     5, 5, 5, 5, 5,&
+     6/)
+
+  ! tolerances used when reading force constants
+  real*8, parameter :: fc2_epsint = 1d-3 ! integrality of the supercell matrix
+  real*8, parameter :: fc2_epsmetric = 1d-4 ! relative consistency of the supercell metric
+  real*8, parameter :: fc2_epspos = 1d-2 ! atom identification distance (bohr)
+  real*8, parameter :: fc2_epssym = 1d-2 ! relative tolerance for the transpose-symmetry check
+
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
   ! subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
@@ -43,6 +74,10 @@ submodule (crystalmod) vibrationsmod
   ! subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
   ! subroutine read_phonopy_hdf5(v,c,file,errmsg)
   ! subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
+  ! function fc2_generator_index(sline)
+  ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+  ! function fc2_ilat(nlat,lkey,madj,lv)
+  ! function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)
   ! subroutine read_crystal_out(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_log(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
@@ -51,30 +86,44 @@ submodule (crystalmod) vibrationsmod
 contains
 
   !> Terminate a vibrations object
-  module subroutine vibrations_end(v,keepfc2)
+  module subroutine vibrations_end(v,keepfc2,keepvibs)
     use param, only: ivformat_unknown
     class(vibrations), intent(inout) :: v
     logical, intent(in), optional :: keepfc2
+    logical, intent(in), optional :: keepvibs
 
-    logical :: keepfc2_
+    logical :: keepfc2_, keepvibs_
 
     keepfc2_ = .false.
     if (present(keepfc2)) keepfc2_ = keepfc2
+    keepvibs_ = .false.
+    if (present(keepvibs)) keepvibs_ = keepvibs
 
-    v%hasvibs = .false.
-    v%file = ""
-    v%ivformat = ivformat_unknown
-    v%nqpt = 0
-    if (allocated(v%qpt)) deallocate(v%qpt)
-    if (allocated(v%freq)) deallocate(v%freq)
-    if (allocated(v%vec)) deallocate(v%vec)
-    v%nfreq = 0
+    if (.not.keepvibs_) then
+       v%hasvibs = .false.
+       v%file = ""
+       v%ivformat = ivformat_unknown
+       v%nqpt = 0
+       if (allocated(v%qpt)) deallocate(v%qpt)
+       if (allocated(v%freq)) deallocate(v%freq)
+       if (allocated(v%vec)) deallocate(v%vec)
+       v%nfreq = 0
+    end if
     if (.not.keepfc2_) then
        v%hasfc2 = .false.
+       v%fc2_file = ""
+       v%fc2_smat = reshape((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+       v%fc2_madj = reshape((/1,0,0,0,1,0,0,0,1/),(/3,3/))
+       v%fc2_nlat = 0
+       v%fc2_nsat = 0
+       v%fc2_ncel = 0
+       v%fc2_iscompact = .false.
        v%fc2_acoustic = -1
        v%fc2_vs_center = -1d0
        v%fc2_vs_delta = -1d0
        if (allocated(v%fc2)) deallocate(v%fc2)
+       if (allocated(v%fc2_lvec)) deallocate(v%fc2_lvec)
+       if (allocated(v%fc2_lkey)) deallocate(v%fc2_lkey)
     end if
 
   end subroutine vibrations_end
@@ -99,19 +148,31 @@ contains
 
     integer :: ivf
 
-    ! detect the format
+    ! detect the format. A generator keyword at the start of the option
+    ! string means this is a phonopy FORCE_CONSTANTS file, whatever the
+    ! file happens to be called.
     if (ivformat == ivformat_unknown) then
-       call vibrations_detect_format(file,ivf)
-       if (ivf == ivformat_unknown) then
-          errmsg = "Unknown vibration file format: " // trim(file)
-          return
+       if (fc2_generator_index(sline) > 0) then
+          ivf = ivformat_phonopy_fc2
+       else
+          call vibrations_detect_format(file,ivf)
+          if (ivf == ivformat_unknown) then
+             errmsg = "Unknown vibration file format: " // trim(file)
+             return
+          end if
        end if
     else
        ivf = ivformat
     end if
 
-    ! initialize
-    call v%end()
+    ! Clear only the half of the object this format provides, so that
+    ! force constants and frequencies/modes from different files can
+    ! coexist (see the hasfc2/hasvibs comment in the type definition).
+    if (ivf == ivformat_phonopy_fc2) then
+       call v%end(keepvibs=.true.)
+    else
+       call v%end(keepfc2=.true.)
+    end if
 
     ! read the vibrations
     if (ivf == ivformat_matdynmodes .or. ivf == ivformat_matdyneig) then
@@ -211,6 +272,24 @@ contains
     if (v%hasfc2) then
        write (uout,*)
        write (uout,'("# Second-order force constants available")')
+       write (uout,'("  File: ",A)') trim(v%fc2_file)
+       if (v%fc2_iscompact) then
+          write (uout,'("  Format: phonopy FORCE_CONSTANTS (compact)")')
+       else
+          write (uout,'("  Format: phonopy FORCE_CONSTANTS (full)")')
+       end if
+       write (uout,'("  Supercell matrix (rows = supercell lattice vectors):")')
+       do i = 1, 3
+          write (uout,'("    ",3(A," "))') (string(v%fc2_smat(i,j),4,ioj_right),j=1,3)
+       end do
+       write (uout,'("  Number of lattice points in the supercell: ",A)') string(v%fc2_nlat)
+       write (uout,'("  Number of atoms in the cell: ",A)') string(v%fc2_ncel)
+       write (uout,'("  Number of atoms in the supercell: ",A)') string(v%fc2_nsat)
+       write (uout,'("  Size of the force constant matrix (Mb): ",A)') &
+          string(72d0*v%fc2_ncel*v%fc2_nsat/1024d0**2,'f',10,2)
+       write (uout,'("  Units: Hartree/bohr^2")')
+       write (uout,'("  Note: the Cartesian components of the force constants are assumed to be")')
+       write (uout,'("        in the same frame as the current structure.")')
     else
        write (uout,*)
        write (uout,'("# Second-order force constants NOT available")')
@@ -221,6 +300,7 @@ contains
   !> Print information about the stored FC2 to the standard output.
   !> The structural info comes from crystal structures c.
   module subroutine vibrations_print_fc2(v,c,disteps,fc2eps,environ)
+    use tools_io, only: ferror, faterr
     use tools_io, only: uout, ioj_center, ioj_right, string
     use global, only: iunit, iunitname0, dunit0
     use tools, only: mergesort
@@ -230,145 +310,151 @@ contains
     real*8, intent(in), optional :: disteps, fc2eps
     logical, intent(in), optional :: environ
 
-    integer :: i, j, k, idum, jdum, id
-    integer :: npair, cidx, nidx
-    real*8 :: maxdisteps, dist, disteps_, fc2eps_, up2d, xx(3), norm
-    logical :: isintra, environ_
-    real*8, allocatable :: dista(:)
-    integer, allocatable :: idx(:), i2(:,:), pair(:,:)
-    logical, allocatable :: isdone(:), isdonej(:)
-    integer :: nat
-    integer, allocatable :: eid(:)
-    real*8, allocatable :: distr(:)
-    integer, allocatable :: lvec(:,:)
+    !! NOT REIMPLEMENTED YET. This routine assumed the old fc2(3,3,ncel,ncel)
+    !! layout, in which both indices ran over the atoms of the cell. The body
+    !! is kept commented out below until it is rewritten for the cell-compact
+    !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    call ferror('vibrations_print_fc2','not yet reimplemented for the cell-compact force constants',faterr)
 
-    ! header and checks
-    write (uout,'("+ PRINT 2nd-order force constant information (FC2)")')
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) then
-       write (uout,'("!! No FC2 info has been loaded, exiting.")')
-       return
-    end if
-
-    ! process options
-    disteps_ = huge(1d0)
-    fc2eps_ = 0d0
-    environ_ = .false.
-    if (present(disteps)) then
-       disteps_ = disteps
-       if (disteps_ < huge(1d0)) &
-          write (uout,'("# Cutoff distance for pairs = ",A," ",A)') &
-             string(disteps_,'f',decimal=5), iunitname0(iunit)
-    end if
-    if (present(fc2eps)) then
-       fc2eps_ = fc2eps
-       if (fc2eps_ > 0d0) &
-          write (uout,'("# Cutoff for FC2 values = ",A)') string(fc2eps_,'e',decimal=5)
-    end if
-    if (present(environ)) environ_ = environ
-
-    ! allocate information about atom pairs, and sort by distance
-    npair = c%ncel*(c%ncel + 1) / 2
-    allocate(dista(npair),idx(npair),i2(2,npair))
-    allocate(pair(2,npair))
-    k = 0
-    do i = 1, c%ncel
-       do j = i, c%ncel
-          k = k + 1
-          dista(k) = c%eql_distance(c%atcel(i)%x, c%atcel(j)%x)
-          idx(k) = k
-          i2(1,k) = i
-          i2(2,k) = j
-       end do
-    end do
-    maxdisteps = maxval(dista)
-    call mergesort(dista,idx,1,npair)
-
-    if (.not.environ) then
-       ! print the whole fc2 matrix
-       write (uout,'("# Id1,Id2 = complete cell IDs. At1,At2 = atomic symbols. isintra = is intramolecular?")')
-       write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
-       write (uout,'("# All FC2 in Hartree/bohr^2.")')
-       write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra FC2: norm      xx              xy              xz   &
-          &           yx              yy              yz              zx              zy              zz   ")')
-       k = 0
-       do idum = 1, c%ncel
-          do jdum = idum, c%ncel
-             k = k + 1
-             i = i2(1,idx(k))
-             j = i2(2,idx(k))
-             dist = dista(idx(k))
-             isintra = (c%idatcelmol(1, i) == c%idatcelmol(1, j))
-             norm = sqrt(sum(v%fc2(:,:,i,j)**2))
-             if (dist <= disteps_ .and. norm >= fc2eps_) then
-                write (uout,'(99(A," "))') string(i, 5, ioj_center), string(c%spc(c%atcel(i)%is)%name,2),&
-                   string(j, 5, ioj_center), string(c%spc(c%atcel(j)%is)%name,2),&
-                   string(dist*dunit0(iunit),'f',12,6,ioj_right), string(isintra), string(norm,'e',15,8,ioj_right),&
-                   string(v%fc2(1,1,i,j),'e',15,8,ioj_right), string(v%fc2(1,2,i,j),'e',15,8,ioj_right),&
-                   string(v%fc2(1,3,i,j),'e',15,8,ioj_right), string(v%fc2(2,1,i,j),'e',15,8,ioj_right),&
-                   string(v%fc2(2,2,i,j),'e',15,8,ioj_right), string(v%fc2(2,3,i,j),'e',15,8,ioj_right),&
-                   string(v%fc2(3,1,i,j),'e',15,8,ioj_right), string(v%fc2(3,2,i,j),'e',15,8,ioj_right),&
-                   string(v%fc2(3,3,i,j),'e',15,8,ioj_right)
-             end if
-          end do
-       end do
-    else
-       ! print the FC2 in environments of nneq atoms
-       allocate(isdone(c%nneq),isdonej(c%ncel))
-       isdone = .false.
-       up2d = min(disteps_,maxdisteps+1d-4)
-
-       ! run over non-equivalent atoms, i is the complete list index
-       write (uout,*)
-       do i = 1, c%ncel
-          id = c%atcel(i)%idx
-          if (isdone(id)) cycle
-          isdone(id) = .true.
-
-          ! find the atomic environment
-          call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,eid,distr,lvec,up2d=up2d)
-
-          write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A," "))') &
-             string(i), string(c%spc(c%at(id)%is)%name), string(id), &
-             (string(c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3)
-          write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
-          write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
-          write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
-          write (uout,'("# name = atomic name. dist = distance. isintra = is intramolecular?")')
-          write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
-          write (uout,'("# All FC2 in Hartree/bohr^2.")')
-          write (uout,'("#nid   id      lvec     name  dist(",A,")  isintra FC2: norm        xx              &
-             &xy              xz              yx              yy              yz              &
-             &zx              zy              zz")') iunitname0(iunit)
-          isdonej = .false.
-          do j = 1, nat
-             cidx = eid(j)
-             if (isdonej(cidx)) cycle
-             isdonej(cidx) = .true.
-
-             nidx = c%atcel(cidx)%idx
-             if (c%ismolecule) then
-                xx = (c%atcel(cidx)%r + c%molx0) * dunit0(iunit)
-             else
-                xx = c%atcel(cidx)%x + lvec(:,j)
-             end if
-
-             isintra = (c%idatcelmol(1,i) == c%idatcelmol(1,cidx))
-             norm = sqrt(sum(v%fc2(:,:,i,cidx)**2))
-             if (distr(j) <= disteps_ .and. norm >= fc2eps_) then
-                write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
-                   (string(lvec(k,j),2,ioj_right),k=1,3), string(c%spc(c%atcel(cidx)%is)%name,7,ioj_center),&
-                   string(distr(j)*dunit0(iunit),'f',12,6,4), string(isintra), string(norm,'e',15,8,ioj_right),&
-                   string(v%fc2(1,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(1,2,i,cidx),'e',15,8,ioj_right),&
-                   string(v%fc2(1,3,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,1,i,cidx),'e',15,8,ioj_right),&
-                   string(v%fc2(2,2,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,3,i,cidx),'e',15,8,ioj_right),&
-                   string(v%fc2(3,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(3,2,i,cidx),'e',15,8,ioj_right),&
-                   string(v%fc2(3,3,i,cidx),'e',15,8,ioj_right)
-             end if
-          end do
-          write (uout,*)
-       end do
-    end if
-
+!!    integer :: i, j, k, idum, jdum, id
+!!    integer :: npair, cidx, nidx
+!!    real*8 :: maxdisteps, dist, disteps_, fc2eps_, up2d, xx(3), norm
+!!    logical :: isintra, environ_
+!!    real*8, allocatable :: dista(:)
+!!    integer, allocatable :: idx(:), i2(:,:), pair(:,:)
+!!    logical, allocatable :: isdone(:), isdonej(:)
+!!    integer :: nat
+!!    integer, allocatable :: eid(:)
+!!    real*8, allocatable :: distr(:)
+!!    integer, allocatable :: lvec(:,:)
+!!
+!!    ! header and checks
+!!    write (uout,'("+ PRINT 2nd-order force constant information (FC2)")')
+!!    if (.not.v%hasfc2.or..not.allocated(v%fc2)) then
+!!       write (uout,'("!! No FC2 info has been loaded, exiting.")')
+!!       return
+!!    end if
+!!
+!!    ! process options
+!!    disteps_ = huge(1d0)
+!!    fc2eps_ = 0d0
+!!    environ_ = .false.
+!!    if (present(disteps)) then
+!!       disteps_ = disteps
+!!       if (disteps_ < huge(1d0)) &
+!!          write (uout,'("# Cutoff distance for pairs = ",A," ",A)') &
+!!             string(disteps_,'f',decimal=5), iunitname0(iunit)
+!!    end if
+!!    if (present(fc2eps)) then
+!!       fc2eps_ = fc2eps
+!!       if (fc2eps_ > 0d0) &
+!!          write (uout,'("# Cutoff for FC2 values = ",A)') string(fc2eps_,'e',decimal=5)
+!!    end if
+!!    if (present(environ)) environ_ = environ
+!!
+!!    ! allocate information about atom pairs, and sort by distance
+!!    npair = c%ncel*(c%ncel + 1) / 2
+!!    allocate(dista(npair),idx(npair),i2(2,npair))
+!!    allocate(pair(2,npair))
+!!    k = 0
+!!    do i = 1, c%ncel
+!!       do j = i, c%ncel
+!!          k = k + 1
+!!          dista(k) = c%eql_distance(c%atcel(i)%x, c%atcel(j)%x)
+!!          idx(k) = k
+!!          i2(1,k) = i
+!!          i2(2,k) = j
+!!       end do
+!!    end do
+!!    maxdisteps = maxval(dista)
+!!    call mergesort(dista,idx,1,npair)
+!!
+!!    if (.not.environ) then
+!!       ! print the whole fc2 matrix
+!!       write (uout,'("# Id1,Id2 = complete cell IDs. At1,At2 = atomic symbols. isintra = is intramolecular?")')
+!!       write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
+!!       write (uout,'("# All FC2 in Hartree/bohr^2.")')
+!!       write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra FC2: norm      xx              xy              xz   &
+!!          &           yx              yy              yz              zx              zy              zz   ")')
+!!       k = 0
+!!       do idum = 1, c%ncel
+!!          do jdum = idum, c%ncel
+!!             k = k + 1
+!!             i = i2(1,idx(k))
+!!             j = i2(2,idx(k))
+!!             dist = dista(idx(k))
+!!             isintra = (c%idatcelmol(1, i) == c%idatcelmol(1, j))
+!!             norm = sqrt(sum(v%fc2(:,:,i,j)**2))
+!!             if (dist <= disteps_ .and. norm >= fc2eps_) then
+!!                write (uout,'(99(A," "))') string(i, 5, ioj_center), string(c%spc(c%atcel(i)%is)%name,2),&
+!!                   string(j, 5, ioj_center), string(c%spc(c%atcel(j)%is)%name,2),&
+!!                   string(dist*dunit0(iunit),'f',12,6,ioj_right), string(isintra), string(norm,'e',15,8,ioj_right),&
+!!                   string(v%fc2(1,1,i,j),'e',15,8,ioj_right), string(v%fc2(1,2,i,j),'e',15,8,ioj_right),&
+!!                   string(v%fc2(1,3,i,j),'e',15,8,ioj_right), string(v%fc2(2,1,i,j),'e',15,8,ioj_right),&
+!!                   string(v%fc2(2,2,i,j),'e',15,8,ioj_right), string(v%fc2(2,3,i,j),'e',15,8,ioj_right),&
+!!                   string(v%fc2(3,1,i,j),'e',15,8,ioj_right), string(v%fc2(3,2,i,j),'e',15,8,ioj_right),&
+!!                   string(v%fc2(3,3,i,j),'e',15,8,ioj_right)
+!!             end if
+!!          end do
+!!       end do
+!!    else
+!!       ! print the FC2 in environments of nneq atoms
+!!       allocate(isdone(c%nneq),isdonej(c%ncel))
+!!       isdone = .false.
+!!       up2d = min(disteps_,maxdisteps+1d-4)
+!!
+!!       ! run over non-equivalent atoms, i is the complete list index
+!!       write (uout,*)
+!!       do i = 1, c%ncel
+!!          id = c%atcel(i)%idx
+!!          if (isdone(id)) cycle
+!!          isdone(id) = .true.
+!!
+!!          ! find the atomic environment
+!!          call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,eid,distr,lvec,up2d=up2d)
+!!
+!!          write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A," "))') &
+!!             string(i), string(c%spc(c%at(id)%is)%name), string(id), &
+!!             (string(c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3)
+!!          write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
+!!          write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
+!!          write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
+!!          write (uout,'("# name = atomic name. dist = distance. isintra = is intramolecular?")')
+!!          write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
+!!          write (uout,'("# All FC2 in Hartree/bohr^2.")')
+!!          write (uout,'("#nid   id      lvec     name  dist(",A,")  isintra FC2: norm        xx              &
+!!             &xy              xz              yx              yy              yz              &
+!!             &zx              zy              zz")') iunitname0(iunit)
+!!          isdonej = .false.
+!!          do j = 1, nat
+!!             cidx = eid(j)
+!!             if (isdonej(cidx)) cycle
+!!             isdonej(cidx) = .true.
+!!
+!!             nidx = c%atcel(cidx)%idx
+!!             if (c%ismolecule) then
+!!                xx = (c%atcel(cidx)%r + c%molx0) * dunit0(iunit)
+!!             else
+!!                xx = c%atcel(cidx)%x + lvec(:,j)
+!!             end if
+!!
+!!             isintra = (c%idatcelmol(1,i) == c%idatcelmol(1,cidx))
+!!             norm = sqrt(sum(v%fc2(:,:,i,cidx)**2))
+!!             if (distr(j) <= disteps_ .and. norm >= fc2eps_) then
+!!                write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
+!!                   (string(lvec(k,j),2,ioj_right),k=1,3), string(c%spc(c%atcel(cidx)%is)%name,7,ioj_center),&
+!!                   string(distr(j)*dunit0(iunit),'f',12,6,4), string(isintra), string(norm,'e',15,8,ioj_right),&
+!!                   string(v%fc2(1,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(1,2,i,cidx),'e',15,8,ioj_right),&
+!!                   string(v%fc2(1,3,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,1,i,cidx),'e',15,8,ioj_right),&
+!!                   string(v%fc2(2,2,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,3,i,cidx),'e',15,8,ioj_right),&
+!!                   string(v%fc2(3,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(3,2,i,cidx),'e',15,8,ioj_right),&
+!!                   string(v%fc2(3,3,i,cidx),'e',15,8,ioj_right)
+!!             end if
+!!          end do
+!!          write (uout,*)
+!!       end do
+!!    end if
+!!
   end subroutine vibrations_print_fc2
 
   !> Print frequency information about a particular q-point with given
@@ -454,8 +540,8 @@ contains
     type(crystal), intent(inout) :: c
     logical, intent(in), optional :: verbose
 
-    integer :: i, j, iat, jat
-    real*8 :: summ
+    integer :: i, j, ia, is
+    real*8 :: summ(3,3), drift
     logical :: verbose_
 
     ! return if no FC2 is available
@@ -465,52 +551,50 @@ contains
     verbose_ = .false.
     if (present(verbose)) verbose_ = verbose
 
-    ! apply acoustic sum rules
-    do iat = 1, c%ncel
-       do i = 1, 3
-          do j = 1, 3
-             summ = sum(v%fc2(i,j,iat,:)) / c%ncel
-             v%fc2(i,j,iat,:) = v%fc2(i,j,iat,:) - summ
-          end do
+    ! Enforce sum_j Phi(i,j) = 0 exactly, by moving the whole residual
+    ! into the self term (phonopy's set_translational_symmetry_compact_fc,
+    ! c/phonopy.c). The other direction, sum_i Phi(i,j) = 0, then follows
+    ! from the translational symmetry of the full array.
+    drift = 0d0
+    do ia = 1, c%ncel
+       is = (ia-1)*v%fc2_nlat + 1
+       summ = 0d0
+       do j = 1, v%fc2_nsat
+          if (j == is) cycle
+          summ = summ + v%fc2(:,:,ia,j)
        end do
-    end do
-    do iat = 1, c%ncel
+       drift = max(drift,maxval(abs(summ + v%fc2(:,:,ia,is))))
        do i = 1, 3
           do j = 1, 3
-             summ = sum(v%fc2(i,j,:,iat)) / c%ncel
-             v%fc2(i,j,:,iat) = v%fc2(i,j,:,iat) - summ
+             v%fc2(i,j,ia,is) = -0.5d0 * (summ(i,j) + summ(j,i))
           end do
        end do
     end do
 
-    do iat = 1, c%ncel
-       do jat = iat+1, c%ncel
-          do i = 1, 3
-             do j = 1, 3
-                v%fc2(i,j,iat,jat) = 0.5d0 * (v%fc2(i,j,iat,jat) + v%fc2(j,i,jat,iat))
-                v%fc2(j,i,jat,iat) = v%fc2(i,j,iat,jat)
-             end do
-          end do
-       end do
-    end do
     if (verbose_) then
-       write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply acoustic sum rules to FC2")')
-       write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%fc2),'e',10,5)
+       write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply the acoustic sum rule to the force constants")')
+       write (uout,'("  Sum rule violation before (Hartree/bohr^2) = ",A)') string(drift,'e',12,4)
     end if
 
   end subroutine vibrations_apply_acoustic
 
-  !> Write the FC2 to a phonopy-style file. If no file is given or if
-  !> file is empty, use FORCE_CONSTANTS.
-  module subroutine vibrations_write_fc2(v,c,file,verbose)
+  !> Write the FC2 to a phonopy FORCE_CONSTANTS file, in the compact
+  !> format and in the units of the given generator (default: qe,
+  !> Ry/bohr^2). If no file is given or if file is empty, use
+  !> FORCE_CONSTANTS. The array written is exactly phonopy's compact
+  !> force constants for a primitive cell equal to the current cell, so
+  !> it can be compared directly against phonopy's own output.
+  module subroutine vibrations_write_fc2(v,c,file,full,verbose)
     use tools_io, only: fopen_write, fclose, uout, string, ioj_right
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     character(len=:), allocatable, intent(in), optional :: file
+    logical, intent(in), optional :: full
     logical, intent(in), optional :: verbose
 
-    integer :: lu, i, j, k
-    logical :: verbose_
+    integer :: lu, ia, ja, il, jl, kl, is, js, ks, k, igen, nrow
+    real*8 :: fac
+    logical :: verbose_, full_
     character(len=:), allocatable :: file_
 
     ! return if no FC2 is available
@@ -519,27 +603,158 @@ contains
     ! optional parameters
     verbose_ = .false.
     if (present(verbose)) verbose_ = verbose
+    full_ = .false.
+    if (present(full)) full_ = full
     file_ = "FORCE_CONSTANTS"
     if (present(file)) then
        if (len(file) > 0) file_ = file
     end if
 
-    ! write the file
+    ! written in QE units (Ry/bohr^2), like the previous version of this routine
+    igen = 3
+    fac = 2d0
+
+    if (full_) then
+       nrow = v%fc2_nsat
+    else
+       nrow = c%ncel
+    end if
+
     lu = fopen_write(file_)
-    write (lu,'(A,X,A)') string(c%ncel), string(c%ncel)
-    do i = 1, c%ncel
-       do j = 1, c%ncel
-          write (lu,'(A,X,A)') string(i), string(j)
-          write (lu,'(3(A,X))') (string(2*v%fc2(1,k,i,j),'f',22,15,ioj_right),k=1,3)
-          write (lu,'(3(A,X))') (string(2*v%fc2(2,k,i,j),'f',22,15,ioj_right),k=1,3)
-          write (lu,'(3(A,X))') (string(2*v%fc2(3,k,i,j),'f',22,15,ioj_right),k=1,3)
+    write (lu,'(A,X,A)') string(nrow), string(v%fc2_nsat)
+    do ia = 1, c%ncel
+       do il = 1, v%fc2_nlat
+          is = (ia-1)*v%fc2_nlat + il
+
+          ! in the compact format only the images at the origin are written
+          if (.not.full_ .and. il > 1) cycle
+
+          do js = 1, v%fc2_nsat
+             ! Phi(ia at L_il, ja at L_jl) = Phi(ia at 0, ja at L_jl - L_il),
+             ! by translational invariance; in the compact case L_il = 0 and
+             ! this is just ks = js.
+             ja = (js-1)/v%fc2_nlat + 1
+             jl = js - (ja-1)*v%fc2_nlat
+             kl = fc2_ilat(v%fc2_nlat,v%fc2_lkey,v%fc2_madj,v%fc2_lvec(:,jl)-v%fc2_lvec(:,il))
+             ks = (ja-1)*v%fc2_nlat + kl
+
+             write (lu,'(A,X,A)') string(is), string(js)
+             write (lu,'(3(A,X))') (string(fac*v%fc2(1,k,ia,ks),'f',22,15,ioj_right),k=1,3)
+             write (lu,'(3(A,X))') (string(fac*v%fc2(2,k,ia,ks),'f',22,15,ioj_right),k=1,3)
+             write (lu,'(3(A,X))') (string(fac*v%fc2(3,k,ia,ks),'f',22,15,ioj_right),k=1,3)
+          end do
        end do
     end do
     call fclose(lu)
 
-    write (uout,'("+ Written FC2 file (QE format, Ry/bohr^2): ",A)') file_
+    if (verbose_) then
+       if (full_) then
+          write (uout,'("+ Written FC2 file (",A,", full format): ",A)') &
+             trim(fc2_unitname(igen)), file_
+       else
+          write (uout,'("+ Written FC2 file (",A,", compact format): ",A)') &
+             trim(fc2_unitname(igen)), file_
+       end if
+    end if
 
   end subroutine vibrations_write_fc2
+
+  !> Numerical checks on the force constants, meant to catch a wrong
+  !> atom ordering or a wrong unit factor right after a read. Reports
+  !> to standard output if verbose. Returns non-zero errmsg only if the
+  !> force constants are certainly wrong.
+  module subroutine vibrations_check_fc2(v,c,verbose,errmsg)
+    use tools_math, only: eigsym
+    use tools_io, only: uout, string, ioj_right
+    use param, only: atmass
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: ia, ja, il, jl, is, js, ier
+    integer :: lv(3)
+    real*8 :: fmax, dsym, dasr, summ(3,3), blk(3,3), eval(3), emin, omin, omax, om
+
+    errmsg = ""
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    fmax = maxval(abs(v%fc2))
+    if (fmax <= 0d0) then
+       errmsg = "The force constants read are all zero"
+       return
+    end if
+
+    ! Transpose symmetry: Phi(ia at 0, ja at L) = Phi(ja at 0, ia at -L)^t.
+    ! This is the sharpest test available: it is scale-free (so a wrong
+    ! unit factor does not affect it) but any permutation of the
+    ! supercell atoms breaks it by an amount of order one.
+    dsym = 0d0
+    do ia = 1, c%ncel
+       do js = 1, v%fc2_nsat
+          ja = (js-1)/v%fc2_nlat + 1
+          jl = js - (ja-1)*v%fc2_nlat
+          lv = -v%fc2_lvec(:,jl)
+          il = fc2_ilat(v%fc2_nlat,v%fc2_lkey,v%fc2_madj,lv)
+          if (il == 0) cycle
+          is = (ia-1)*v%fc2_nlat + il
+          dsym = max(dsym,maxval(abs(v%fc2(:,:,ia,js) - transpose(v%fc2(:,:,ja,is)))))
+       end do
+    end do
+    dsym = dsym / fmax
+
+    ! Acoustic sum rule drift. Blind to a permutation of the columns
+    ! (it sums over all of them), but it catches a truncated read, a
+    ! wrong supercell size or a badly completed compact file.
+    dasr = 0d0
+    do ia = 1, c%ncel
+       summ = 0d0
+       do js = 1, v%fc2_nsat
+          summ = summ + v%fc2(:,:,ia,js)
+       end do
+       dasr = max(dasr,maxval(abs(summ)))
+    end do
+    dasr = dasr / fmax
+
+    ! Self blocks: symmetric and positive definite for a stable
+    ! structure. Also gives an order-of-magnitude frequency, which is
+    ! an unmistakable check on the unit conversion factor.
+    emin = huge(1d0)
+    omin = huge(1d0)
+    omax = 0d0
+    do ia = 1, c%ncel
+       is = (ia-1)*v%fc2_nlat + 1
+       blk = 0.5d0 * (v%fc2(:,:,ia,is) + transpose(v%fc2(:,:,ia,is)))
+       om = blk(1,1) + blk(2,2) + blk(3,3)
+       call eigsym(blk,3,eval,ier)
+       if (ier == 0) emin = min(emin,eval(1))
+       om = sqrt(max(om,0d0) / 3d0 / atmass(c%spc(c%atcel(ia)%is)%z)) * freqfactor
+       omin = min(omin,om)
+       omax = max(omax,om)
+    end do
+
+    if (verbose) then
+       write (uout,'("+ Checks on the force constants")')
+       write (uout,'("  Largest |FC2| element (Hartree/bohr^2) = ",A)') string(fmax,'e',12,4)
+       write (uout,'("  Transpose symmetry violation (relative) = ",A)') string(dsym,'e',12,4)
+       write (uout,'("  Acoustic sum rule violation (relative) = ",A)') string(dasr,'e',12,4)
+       write (uout,'("  Lowest eigenvalue of the self blocks (Hartree/bohr^2) = ",A)') string(emin,'e',12,4)
+       write (uout,'("  Estimated frequency range (cm^-1) = ",A," to ",A)') &
+          string(omin,'f',10,2), string(omax,'f',10,2)
+       if (dsym > fc2_epssym) &
+          write (uout,'("  WARNING: the transpose symmetry is badly violated; the atom ordering,")')
+       if (dsym > fc2_epssym) &
+          write (uout,'("           the supercell or the structure are probably wrong")')
+       if (emin < 0d0) &
+          write (uout,'("  WARNING: a self block is not positive definite")')
+    end if
+
+    if (dsym > 1d0) &
+       errmsg = "The force constants violate the transpose symmetry Phi(i,j) = Phi(j,i)^t by " //&
+          string(dsym,'e',12,4) // " (relative). The atom ordering, the supercell, or the structure &
+          &do not correspond to the file"
+
+  end subroutine vibrations_check_fc2
 
   !> Calculate frequencies and eigenvectors from the FC2 for a single
   !> q (fractional coordiantes in reciprocal space); adds the
@@ -549,6 +764,7 @@ contains
   !> overwriting the vibrational info in v. Frequencies in output are
   !> in ascending order.
   module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
+    use tools_io, only: ferror, faterr
     use param, only: icrd_crys, atmass, tpi, img
     use types, only: realloc
     use tools_math, only: eigherm
@@ -559,99 +775,105 @@ contains
     real*8, intent(inout), allocatable, optional :: freqo(:)
     complex*16, intent(inout), allocatable, optional :: veco(:,:)
 
-    complex*16 :: dm_local(3,3), phase
-    real*8 :: sqrt_ij
-    integer :: nat
-    real*8 :: x1(3), x2(3), maxdisteps
-    integer :: i, jj, j, ier
-    integer, allocatable :: nida(:), lvec(:,:), mult(:)
-    real*8, allocatable:: eval(:), dist(:), freq(:), rused(:)
-    complex*16, allocatable :: dm(:,:)
-    logical :: varoutput
+    !! NOT REIMPLEMENTED YET. This routine assumed the old fc2(3,3,ncel,ncel)
+    !! layout, in which both indices ran over the atoms of the cell. The body
+    !! is kept commented out below until it is rewritten for the cell-compact
+    !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    call ferror('vibrations_calculate_q','not yet reimplemented for the cell-compact force constants',faterr)
 
-    real*8, parameter :: epsgen = 1d-4
-    real*8, parameter :: epsneigh = 1d-5
-
-    ! return if no FC2 is available
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
-
-    ! process input arguments
-    varoutput = present(freqo) .or. present(veco)
-
-    ! maximum distance of all pairs of atoms in the unit cell
-    maxdisteps = 0d0
-    do i = 1, c%ncel
-       do j = i+1, c%ncel
-          maxdisteps = max(maxdisteps,c%eql_distance(c%atcel(i)%x, c%atcel(j)%x))
-       end do
-    end do
-
-    ! build the dynamical matrix for this q-point (Parlinski's recipe)
-    allocate(dm(c%ncel*3,c%ncel*3),rused(c%ncel),mult(c%ncel))
-    dm = 0d0
-    do i = 1, c%ncel
-       rused = huge(1d0)
-       mult = 0
-       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,nida,dist=dist,lvec=lvec,up2d=maxdisteps+epsgen)
-       do jj = 1, nat
-          j = nida(jj)
-          if (dist(jj) <= rused(j) + epsneigh) then
-             x1 = c%atcel(i)%x
-             x2 = c%atcel(j)%x + lvec(:,jj)
-
-             sqrt_ij = sqrt(atmass(c%spc(c%atcel(i)%is)%z) * atmass(c%spc(c%atcel(j)%is)%z))
-             phase = exp(-tpi * img * dot_product(q,x1 - x2))
-
-             dm_local = v%fc2(:,:,i,j) * phase / sqrt_ij
-             dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
-
-             rused(j) = min(rused(j),dist(jj))
-             mult(j) = mult(j) + 1
-          end if
-       end do
-
-       ! apply the multiplicities
-       do j = 1, c%ncel
-          dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) / mult(j)
-       end do
-    end do
-
-    ! impose hermiticity
-    dm = (dm + transpose(conjg(dm)))/2
-
-    ! diagonalize
-    allocate(eval(c%ncel*3),freq(c%ncel*3))
-    call eigherm(dm,c%ncel*3,eval,ier)
-    if (ier /= 0) &
-       call ferror('vibrations_calculate_q','Error in diagonalization',faterr)
-
-    ! calculate the frequencies
-    freq = sign(sqrt(abs(eval)) * freqfactor,eval)
-
-    ! save output
-    if (varoutput) then
-       if (present(freqo)) freqo = freq
-       if (present(veco)) veco = dm
-    else
-       ! save the info
-       v%nqpt = v%nqpt + 1
-       if (.not.allocated(v%qpt)) allocate(v%qpt(3,v%nqpt))
-       if (.not.allocated(v%freq)) then
-          v%nfreq = 3 * c%ncel
-          allocate(v%freq(3*c%ncel,v%nqpt))
-       end if
-       if (.not.allocated(v%vec)) allocate(v%vec(3,c%ncel,3*c%ncel,v%nqpt))
-       if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
-       if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
-       if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
-       v%qpt(:,v%nqpt) = q
-       v%freq(:,v%nqpt) = freq
-       do i = 1, 3*c%ncel
-          v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
-       end do
-       v%hasvibs = .true.
-    end if
-
+!!    complex*16 :: dm_local(3,3), phase
+!!    real*8 :: sqrt_ij
+!!    integer :: nat
+!!    real*8 :: x1(3), x2(3), maxdisteps
+!!    integer :: i, jj, j, ier
+!!    integer, allocatable :: nida(:), lvec(:,:), mult(:)
+!!    real*8, allocatable:: eval(:), dist(:), freq(:), rused(:)
+!!    complex*16, allocatable :: dm(:,:)
+!!    logical :: varoutput
+!!
+!!    real*8, parameter :: epsgen = 1d-4
+!!    real*8, parameter :: epsneigh = 1d-5
+!!
+!!    ! return if no FC2 is available
+!!    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+!!
+!!    ! process input arguments
+!!    varoutput = present(freqo) .or. present(veco)
+!!
+!!    ! maximum distance of all pairs of atoms in the unit cell
+!!    maxdisteps = 0d0
+!!    do i = 1, c%ncel
+!!       do j = i+1, c%ncel
+!!          maxdisteps = max(maxdisteps,c%eql_distance(c%atcel(i)%x, c%atcel(j)%x))
+!!       end do
+!!    end do
+!!
+!!    ! build the dynamical matrix for this q-point (Parlinski's recipe)
+!!    allocate(dm(c%ncel*3,c%ncel*3),rused(c%ncel),mult(c%ncel))
+!!    dm = 0d0
+!!    do i = 1, c%ncel
+!!       rused = huge(1d0)
+!!       mult = 0
+!!       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,nida,dist=dist,lvec=lvec,up2d=maxdisteps+epsgen)
+!!       do jj = 1, nat
+!!          j = nida(jj)
+!!          if (dist(jj) <= rused(j) + epsneigh) then
+!!             x1 = c%atcel(i)%x
+!!             x2 = c%atcel(j)%x + lvec(:,jj)
+!!
+!!             sqrt_ij = sqrt(atmass(c%spc(c%atcel(i)%is)%z) * atmass(c%spc(c%atcel(j)%is)%z))
+!!             phase = exp(-tpi * img * dot_product(q,x1 - x2))
+!!
+!!             dm_local = v%fc2(:,:,i,j) * phase / sqrt_ij
+!!             dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
+!!
+!!             rused(j) = min(rused(j),dist(jj))
+!!             mult(j) = mult(j) + 1
+!!          end if
+!!       end do
+!!
+!!       ! apply the multiplicities
+!!       do j = 1, c%ncel
+!!          dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) / mult(j)
+!!       end do
+!!    end do
+!!
+!!    ! impose hermiticity
+!!    dm = (dm + transpose(conjg(dm)))/2
+!!
+!!    ! diagonalize
+!!    allocate(eval(c%ncel*3),freq(c%ncel*3))
+!!    call eigherm(dm,c%ncel*3,eval,ier)
+!!    if (ier /= 0) &
+!!       call ferror('vibrations_calculate_q','Error in diagonalization',faterr)
+!!
+!!    ! calculate the frequencies
+!!    freq = sign(sqrt(abs(eval)) * freqfactor,eval)
+!!
+!!    ! save output
+!!    if (varoutput) then
+!!       if (present(freqo)) freqo = freq
+!!       if (present(veco)) veco = dm
+!!    else
+!!       ! save the info
+!!       v%nqpt = v%nqpt + 1
+!!       if (.not.allocated(v%qpt)) allocate(v%qpt(3,v%nqpt))
+!!       if (.not.allocated(v%freq)) then
+!!          v%nfreq = 3 * c%ncel
+!!          allocate(v%freq(3*c%ncel,v%nqpt))
+!!       end if
+!!       if (.not.allocated(v%vec)) allocate(v%vec(3,c%ncel,3*c%ncel,v%nqpt))
+!!       if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
+!!       if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
+!!       if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
+!!       v%qpt(:,v%nqpt) = q
+!!       v%freq(:,v%nqpt) = freq
+!!       do i = 1, 3*c%ncel
+!!          v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
+!!       end do
+!!       v%hasvibs = .true.
+!!    end if
+!!
   end subroutine vibrations_calculate_q
 
   !> Calculate sound velocities in the reciprocal space direction
@@ -662,47 +884,54 @@ contains
   !> order and in units of m/s.
   module subroutine vibrations_calculate_vs(v,c,q,vs)
     use tools_io, only: ferror, faterr
+    use tools_io, only: ferror, faterr
     use param, only: cm1tohz, bohrtom
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: q(3)
     real*8, intent(out) :: vs(3)
 
-    real*8 :: normq, qn(3), qthis(3) !, h, fd0(3), fdn, ratio, fdiff(3)
-    integer :: i, j
-    real*8, allocatable :: freq(:)
-    real*8 :: fcur(3,3)
+    !! NOT REIMPLEMENTED YET. This routine assumed the old fc2(3,3,ncel,ncel)
+    !! layout, in which both indices ran over the atoms of the cell. The body
+    !! is kept commented out below until it is rewritten for the cell-compact
+    !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    call ferror('vibrations_calculate_vs','not yet reimplemented for the cell-compact force constants',faterr)
 
-    real*8, parameter :: epsnq = 1d-10 ! cutoff for zero q-point
-
-    ! return if no FC2 is available
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
-
-    ! normalize q
-    normq = norm2(q)
-    if (normq < epsnq) &
-       call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
-    qn = q / normq
-
-    ! prepare for the vs calculation if not already done
-    if (any(v%fc2_acoustic < 0)) &
-       call v%calculate_vs_prepare(c,q,vs,.true.)
-
-    ! calculate the frequencies for the finite difference
-    do i = -1, 1
-       qthis = (v%fc2_vs_center + i * v%fc2_vs_delta) * qn
-       qthis = c%rc2rx(qthis)
-       call v%calculate_q(c,qthis,freqo=freq)
-       fcur(i+2,:) = freq(v%fc2_acoustic)
-    end do
-
-    ! first calculation of vs
-    vs = 0d0
-    do j = 1, 3
-       vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * v%fc2_vs_delta)
-    end do
-    vs = vs * cm1tohz * bohrtom
-
+!!    real*8 :: normq, qn(3), qthis(3) !, h, fd0(3), fdn, ratio, fdiff(3)
+!!    integer :: i, j
+!!    real*8, allocatable :: freq(:)
+!!    real*8 :: fcur(3,3)
+!!
+!!    real*8, parameter :: epsnq = 1d-10 ! cutoff for zero q-point
+!!
+!!    ! return if no FC2 is available
+!!    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+!!
+!!    ! normalize q
+!!    normq = norm2(q)
+!!    if (normq < epsnq) &
+!!       call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
+!!    qn = q / normq
+!!
+!!    ! prepare for the vs calculation if not already done
+!!    if (any(v%fc2_acoustic < 0)) &
+!!       call v%calculate_vs_prepare(c,q,vs,.true.)
+!!
+!!    ! calculate the frequencies for the finite difference
+!!    do i = -1, 1
+!!       qthis = (v%fc2_vs_center + i * v%fc2_vs_delta) * qn
+!!       qthis = c%rc2rx(qthis)
+!!       call v%calculate_q(c,qthis,freqo=freq)
+!!       fcur(i+2,:) = freq(v%fc2_acoustic)
+!!    end do
+!!
+!!    ! first calculation of vs
+!!    vs = 0d0
+!!    do j = 1, 3
+!!       vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * v%fc2_vs_delta)
+!!    end do
+!!    vs = vs * cm1tohz * bohrtom
+!!
   end subroutine vibrations_calculate_vs
 
   !> Prepare for the calculation of sound velocities by locating the
@@ -715,6 +944,7 @@ contains
   !> FC2. Sound velocities are in ascending order and in units of m/s.
   !> If verbose, write progress to standard output.
   module subroutine vibrations_calculate_vs_prepare(v,c,q,vs,verbose)
+    use tools_io, only: ferror, faterr
     use tools_io, only: ferror, faterr, uout, string
     use param, only: cm1tohz, bohrtom
     class(vibrations), intent(inout) :: v
@@ -723,134 +953,140 @@ contains
     real*8, intent(out) :: vs(3)
     logical, intent(in) :: verbose
 
-    real*8 :: normq, qn(3), qthis(3)!, h, fd0(3), fdn, ratio, fdiff(3)
-    integer :: i, j, idx(3), iminlast
-    real*8, allocatable :: freq(:)!, ff(:,:)
-    real*8 :: fcur(3,3), f2, f2min
+    !! NOT REIMPLEMENTED YET. This routine assumed the old fc2(3,3,ncel,ncel)
+    !! layout, in which both indices ran over the atoms of the cell. The body
+    !! is kept commented out below until it is rewritten for the cell-compact
+    !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    call ferror('vibrations_calculate_vs_prepare','not yet reimplemented for the cell-compact force constants',faterr)
 
-    real*8, parameter :: ac_thr = 0.01d0 ! threshold for acoustic ident, cm-1
-    real*8, parameter :: epsnq = 1d-10 ! cutoff for zero q-point
-    real*8, parameter :: hstep = 1d-4 ! step for the bracketing
-    integer, parameter :: isafesteps = 10 ! number of steps after minimum before exiting
-
-    ! return if no FC2 is available
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
-
-    ! header
-    if (verbose) &
-       write (uout,'("+ Preparing for sound velocity calculation")')
-
-    ! normalize q
-    normq = norm2(q)
-    if (normq < epsnq) &
-       call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
-    qn = q / normq
-    if (verbose) then
-       qthis = c%rc2rx(qn)
-       qthis = qthis / norm2(qthis)
-       write (uout,'("  Direction (rec-cryst): ",3(A," "))') (string(qthis(i),'f',10,5),i=1,3)
-    end if
-
-    ! apply acoustic sum rules
-    if (verbose) &
-       write (uout,'("  Applying acoustic sum rules...")')
-    call v%apply_acoustic(c)
-
-    ! calculate the frequencies at gamma, locate the acoustic branches
-    qthis = 0d0
-    call v%calculate_q(c,qthis,freqo=freq)
-    idx = 0
-    j = 0
-    do i = 1, size(freq,1)
-       if (abs(freq(i)) < ac_thr) then
-          j = j + 1
-          if (j > 3) &
-             call ferror('vibrations_calculate_vs','too many zero frequencies',faterr)
-          idx(j) = i
-       end if
-    end do
-    if (any(idx == 0)) &
-       call ferror('vibrations_calculate_vs','too few zero frequencies',faterr)
-    if (verbose) then
-       write (uout,'("  Acoustic branches: ",2(A," (",A,"), "),A," (",A,")")') &
-          string(idx(1)), string(freq(idx(1)),'f',decimal=8),&
-          string(idx(2)), string(freq(idx(2)),'f',decimal=8),&
-          string(idx(3)), string(freq(idx(3)),'f',decimal=8)
-    end if
-    v%fc2_acoustic = idx
-
-    ! initialize the vs bracketing
-    if (verbose) &
-       write (uout,'("# h(bohr-1)  ---- frequencies (cm-1)    ----  ----- sound velocities (m/s) -----   curvature (au)")')
-    do i = 1, 3
-       qthis = i * hstep * qn
-       qthis = c%rc2rx(qthis)
-       call v%calculate_q(c,qthis,freqo=freq)
-       fcur(i,:) = freq(idx)
-       if (verbose .and. i < 3) &
-          write (uout,'("  "4(A," "))') string(i * hstep,'e',10,3), (string(freq(idx(j)),'e',10,3),j=1,3)
-    end do
-
-    ! first calculation of vs
-    vs = 0d0
-    f2 = 0d0
-    do j = 1, 3
-       vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * hstep)
-       f2 = f2 + abs(sum(fcur(:,j) * der_coef2) / (hstep * hstep))
-    end do
-    vs = vs * cm1tohz * bohrtom
-    if (verbose) then
-       write (uout,'("  "8(A," ")," (best)")') string(3 * hstep,'e',10,3),&
-          (string(freq(idx(j)),'e',10,3),j=1,3),&
-          (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
-    end if
-    f2min = f2
-    iminlast = 3
-
-    ! continue taking steps until we find a minimum of f2
-    i = 3
-    do while (.true.)
-       i = i + 1
-       qthis = i * hstep * qn
-       qthis = c%rc2rx(qthis)
-       call v%calculate_q(c,qthis,freqo=freq)
-       fcur(1:2,:) = fcur(2:3,:)
-       fcur(3,:) = freq(idx)
-
-       vs = 0d0
-       f2 = 0d0
-       do j = 1, 3
-          vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * hstep)
-          f2 = f2 + abs(sum(fcur(:,j) * der_coef2) / (hstep * hstep))
-       end do
-       vs = vs * cm1tohz * bohrtom
-       if (verbose) then
-          if (f2 < f2min) then
-             write (uout,'("  "8(A," ")," (best)")') string(i * hstep,'e',10,3),&
-                (string(freq(idx(j)),'e',10,3),j=1,3),&
-                (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
-          else
-             write (uout,'("  "8(A," "))') string(i * hstep,'e',10,3), (string(freq(idx(j)),'e',10,3),j=1,3),&
-                (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
-          end if
-       end if
-       if (f2 < f2min) then
-          f2min = f2
-          iminlast = i
-       end if
-
-       if (iminlast > 0 .and. (i-iminlast) > isafesteps) exit
-    end do
-
-    ! save the info and final message
-    v%fc2_vs_delta = hstep
-    v%fc2_vs_center = (iminlast-1) * hstep
-    if (verbose) then
-       write (uout,'("# Finite difference distances (bohr-1): ",3(A," ")/)') &
-          string((iminlast-2) * hstep,'e',10,3), string((iminlast-1) * hstep,'e',10,3),&
-          string(iminlast * hstep,'e',10,3)
-    end if
-
+!!    real*8 :: normq, qn(3), qthis(3)!, h, fd0(3), fdn, ratio, fdiff(3)
+!!    integer :: i, j, idx(3), iminlast
+!!    real*8, allocatable :: freq(:)!, ff(:,:)
+!!    real*8 :: fcur(3,3), f2, f2min
+!!
+!!    real*8, parameter :: ac_thr = 0.01d0 ! threshold for acoustic ident, cm-1
+!!    real*8, parameter :: epsnq = 1d-10 ! cutoff for zero q-point
+!!    real*8, parameter :: hstep = 1d-4 ! step for the bracketing
+!!    integer, parameter :: isafesteps = 10 ! number of steps after minimum before exiting
+!!
+!!    ! return if no FC2 is available
+!!    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+!!
+!!    ! header
+!!    if (verbose) &
+!!       write (uout,'("+ Preparing for sound velocity calculation")')
+!!
+!!    ! normalize q
+!!    normq = norm2(q)
+!!    if (normq < epsnq) &
+!!       call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
+!!    qn = q / normq
+!!    if (verbose) then
+!!       qthis = c%rc2rx(qn)
+!!       qthis = qthis / norm2(qthis)
+!!       write (uout,'("  Direction (rec-cryst): ",3(A," "))') (string(qthis(i),'f',10,5),i=1,3)
+!!    end if
+!!
+!!    ! apply acoustic sum rules
+!!    if (verbose) &
+!!       write (uout,'("  Applying acoustic sum rules...")')
+!!    call v%apply_acoustic(c)
+!!
+!!    ! calculate the frequencies at gamma, locate the acoustic branches
+!!    qthis = 0d0
+!!    call v%calculate_q(c,qthis,freqo=freq)
+!!    idx = 0
+!!    j = 0
+!!    do i = 1, size(freq,1)
+!!       if (abs(freq(i)) < ac_thr) then
+!!          j = j + 1
+!!          if (j > 3) &
+!!             call ferror('vibrations_calculate_vs','too many zero frequencies',faterr)
+!!          idx(j) = i
+!!       end if
+!!    end do
+!!    if (any(idx == 0)) &
+!!       call ferror('vibrations_calculate_vs','too few zero frequencies',faterr)
+!!    if (verbose) then
+!!       write (uout,'("  Acoustic branches: ",2(A," (",A,"), "),A," (",A,")")') &
+!!          string(idx(1)), string(freq(idx(1)),'f',decimal=8),&
+!!          string(idx(2)), string(freq(idx(2)),'f',decimal=8),&
+!!          string(idx(3)), string(freq(idx(3)),'f',decimal=8)
+!!    end if
+!!    v%fc2_acoustic = idx
+!!
+!!    ! initialize the vs bracketing
+!!    if (verbose) &
+!!       write (uout,'("# h(bohr-1)  ---- frequencies (cm-1)    ----  ----- sound velocities (m/s) -----   curvature (au)")')
+!!    do i = 1, 3
+!!       qthis = i * hstep * qn
+!!       qthis = c%rc2rx(qthis)
+!!       call v%calculate_q(c,qthis,freqo=freq)
+!!       fcur(i,:) = freq(idx)
+!!       if (verbose .and. i < 3) &
+!!          write (uout,'("  "4(A," "))') string(i * hstep,'e',10,3), (string(freq(idx(j)),'e',10,3),j=1,3)
+!!    end do
+!!
+!!    ! first calculation of vs
+!!    vs = 0d0
+!!    f2 = 0d0
+!!    do j = 1, 3
+!!       vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * hstep)
+!!       f2 = f2 + abs(sum(fcur(:,j) * der_coef2) / (hstep * hstep))
+!!    end do
+!!    vs = vs * cm1tohz * bohrtom
+!!    if (verbose) then
+!!       write (uout,'("  "8(A," ")," (best)")') string(3 * hstep,'e',10,3),&
+!!          (string(freq(idx(j)),'e',10,3),j=1,3),&
+!!          (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
+!!    end if
+!!    f2min = f2
+!!    iminlast = 3
+!!
+!!    ! continue taking steps until we find a minimum of f2
+!!    i = 3
+!!    do while (.true.)
+!!       i = i + 1
+!!       qthis = i * hstep * qn
+!!       qthis = c%rc2rx(qthis)
+!!       call v%calculate_q(c,qthis,freqo=freq)
+!!       fcur(1:2,:) = fcur(2:3,:)
+!!       fcur(3,:) = freq(idx)
+!!
+!!       vs = 0d0
+!!       f2 = 0d0
+!!       do j = 1, 3
+!!          vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * hstep)
+!!          f2 = f2 + abs(sum(fcur(:,j) * der_coef2) / (hstep * hstep))
+!!       end do
+!!       vs = vs * cm1tohz * bohrtom
+!!       if (verbose) then
+!!          if (f2 < f2min) then
+!!             write (uout,'("  "8(A," ")," (best)")') string(i * hstep,'e',10,3),&
+!!                (string(freq(idx(j)),'e',10,3),j=1,3),&
+!!                (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
+!!          else
+!!             write (uout,'("  "8(A," "))') string(i * hstep,'e',10,3), (string(freq(idx(j)),'e',10,3),j=1,3),&
+!!                (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
+!!          end if
+!!       end if
+!!       if (f2 < f2min) then
+!!          f2min = f2
+!!          iminlast = i
+!!       end if
+!!
+!!       if (iminlast > 0 .and. (i-iminlast) > isafesteps) exit
+!!    end do
+!!
+!!    ! save the info and final message
+!!    v%fc2_vs_delta = hstep
+!!    v%fc2_vs_center = (iminlast-1) * hstep
+!!    if (verbose) then
+!!       write (uout,'("# Finite difference distances (bohr-1): ",3(A," ")/)') &
+!!          string((iminlast-2) * hstep,'e',10,3), string((iminlast-1) * hstep,'e',10,3),&
+!!          string(iminlast * hstep,'e',10,3)
+!!    end if
+!!
   end subroutine vibrations_calculate_vs_prepare
 
   !> Calculate thermodynamic properties at temperature T using the
@@ -931,45 +1167,52 @@ contains
   !> Nullify the FC2 elements where the atoms are farther apart
   !> than dist.
   module subroutine vibrations_trim_fc2(v,c,dist,verbose)
+    use tools_io, only: ferror, faterr
     use tools_io, only: uout, string
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: dist
     logical, intent(in), optional :: verbose
 
-    logical :: verbose_
-    integer :: i, j, n, nmax
-    real*8 :: dthis, perc
+    !! NOT REIMPLEMENTED YET. This routine assumed the old fc2(3,3,ncel,ncel)
+    !! layout, in which both indices ran over the atoms of the cell. The body
+    !! is kept commented out below until it is rewritten for the cell-compact
+    !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    call ferror('vibrations_trim_fc2','not yet reimplemented for the cell-compact force constants',faterr)
 
-    ! return if no FC2 is available
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
-
-    ! optional parameters
-    verbose_ = .false.
-    if (present(verbose)) verbose_ = verbose
-
-    ! nullify
-    n = 0
-    do i = 1, c%ncel
-       do j = i+1, c%ncel
-          dthis = c%eql_distance(c%atcel(i)%x, c%atcel(j)%x)
-          if (dthis >= dist) then
-             v%fc2(:,:,i,j) = 0d0
-             v%fc2(:,:,j,i) = 0d0
-             n = n + 1
-          end if
-       end do
-    end do
-
-    ! final message
-    if (verbose_) then
-       nmax = 3 * 3 * c%ncel * c%ncel
-       perc = real(2 * n * 3 * 3,8) / real(nmax,8) * 100d0
-       write (uout,'("+ FC2 TRIM: nullify all FC components beyond a distance")')
-       write (uout,'("  Number of terms made zero = ",A," out of ",A," (",A,"%)")') &
-          string(n), string(nmax), string(perc,'f',decimal=2)
-    end if
-
+!!    logical :: verbose_
+!!    integer :: i, j, n, nmax
+!!    real*8 :: dthis, perc
+!!
+!!    ! return if no FC2 is available
+!!    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+!!
+!!    ! optional parameters
+!!    verbose_ = .false.
+!!    if (present(verbose)) verbose_ = verbose
+!!
+!!    ! nullify
+!!    n = 0
+!!    do i = 1, c%ncel
+!!       do j = i+1, c%ncel
+!!          dthis = c%eql_distance(c%atcel(i)%x, c%atcel(j)%x)
+!!          if (dthis >= dist) then
+!!             v%fc2(:,:,i,j) = 0d0
+!!             v%fc2(:,:,j,i) = 0d0
+!!             n = n + 1
+!!          end if
+!!       end do
+!!    end do
+!!
+!!    ! final message
+!!    if (verbose_) then
+!!       nmax = 3 * 3 * c%ncel * v%fc2_nsat
+!!       perc = real(2 * n * 3 * 3,8) / real(nmax,8) * 100d0
+!!       write (uout,'("+ FC2 TRIM: nullify all FC components beyond a distance")')
+!!       write (uout,'("  Number of terms made zero = ",A," out of ",A," (",A,"%)")') &
+!!          string(n), string(nmax), string(perc,'f',decimal=2)
+!!    end if
+!!
   end subroutine vibrations_trim_fc2
 
   !> Nullify the FC2 elements whose absolute value is below eps0.
@@ -993,7 +1236,7 @@ contains
 
     ! nullify
     n = 0
-    do j = 1, c%ncel
+    do j = 1, v%fc2_nsat
        do i = 1, c%ncel
           do l = 1, 3
              do k = 1, 3
@@ -1008,7 +1251,7 @@ contains
 
     ! final message
     if (verbose_) then
-       nmax = 3 * 3 * c%ncel * c%ncel
+       nmax = 3 * 3 * c%ncel * v%fc2_nsat
        perc = real(n,8) / real(nmax,8) * 100d0
        write (uout,'("+ FC2 ZERO: nullify all FC components with abs lower than a value")')
        write (uout,'("  Number of terms made zero = ",A," out of ",A," (",A,"%)")') &
@@ -1904,240 +2147,551 @@ contains
   !> Read the force constants from a phonopy FORCE_CONSTANTS file and
   !> populate v. Use the structure information in the crystal
   !> structure c. If error, return non-zero errmsg.
+  !> Read the 2nd-order force constants from a phonopy FORCE_CONSTANTS
+  !> file (text format) and return them in v, for the crystal structure
+  !> c, which must be the unit cell phonopy was run with. sline carries
+  !> the options from the VIBRATIONS LOAD line: a mandatory generator
+  !> keyword (the code that wrote the file, which fixes the units), an
+  !> optional supercell specification (three integers for a diagonal
+  !> supercell, nine integers for a general one in phonopy DIM order, or
+  !> the name of a file containing the supercell; default is no
+  !> supercell), and the optional keyword ASR to enforce the acoustic
+  !> sum rule after reading. If error, return non-zero errmsg.
+  !>
+  !> The file carries no atomic positions, so the supercell atom order
+  !> is reconstructed following phonopy (structure/cells.py): atom-major
+  !> (all lattice images of cell atom 1, then those of cell atom 2, and
+  !> so on) with the lattice points enumerated over the surrounding
+  !> frame of the supercell matrix, first axis fastest, keeping the
+  !> first occurrence of each class modulo the supercell lattice. A
+  !> compact file (fewer rows than supercell atoms) gives the force
+  !> constants only for the atoms of phonopy's primitive cell; the rows
+  !> for the remaining atoms of the cell are generated with the pure
+  !> translations of the crystal, which is all that is needed (a
+  !> rotation would not commute with the supercell lattice).
   subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
     use crystalseedmod, only: crystalseed
-    use global, only: eval_next
-    use types, only: realloc
-    use tools_math, only: matinv, det3
-    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal, getword
-    use param, only: ivformat_phonopy_fc2, hartoev, bohrtoa
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, getword, equal,&
+       isinteger, string
+    use tools_math, only: matinv
+    use param, only: hartoev, bohrtoa
     type(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file, sline
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: word
-    integer :: lp, lp2, lu, nat, mat, i, j, idum, jdum
-    real*8 :: fc2factor, rdum(4), x0(3,3), rmat(3,3)
-    logical :: ok
-    integer :: isin ! 0 = full; 1 = left is cell; 2 = right is cell
-    integer, allocatable :: atop(:,:,:), ineq(:), ineqrot(:), ineqcen(:)
+    character(len=:), allocatable :: word, line, scfile
+    integer :: lu, lp, lp0, i, j, ia, il, ip, jp, is, js, iap, ilp, irow, idum
+    integer :: igen, ndim, nlat, nsat, nrow, n1, n2, ierr
+    integer :: smat(3,3), madj(3,3), idim(9), lv(3)
+    real*8 :: fc2factor, rmat(3,3), gsc(3,3), guc(3,3), gchk(3,3), dev
+    real*8 :: t(3), xsc(3), dx(3), rminv(3,3)
+    logical :: iscompact, haveseed, doasr, found
+    integer, allocatable :: lvec(:,:), lkey(:,:), p2s(:), s2row(:), perm(:)
+    logical, allocatable :: coldone(:)
+    real*8, allocatable :: fcrow(:,:,:,:)
     type(crystal) :: sc
     type(crystalseed) :: seed
-    logical, allocatable :: done(:,:), dneq(:)
-    real*8, allocatable :: rotc(:,:,:)
-    integer :: irot, icv
-    real*8 :: fc2_(3,3), rot(3,3)
-    real*8 :: xi_(3), xj_(3), xdif(3)
 
     ! initialize
     errmsg = "Error reading FORCE_CONSTANTS file: " // trim(file)
     lu = -1
-
-    ! interpret format and set conversion factor
-    lp = 1
-    word = lgetword(sline,lp)
-    if (equal(word,"qe")) then
-       fc2factor = 0.5d0
-    elseif (equal(word,"alamode")) then
-       fc2factor = bohrtoa**2 / hartoev
-    elseif (equal(word,"vasp")) then
-       write (*,*) "fixme: vasp in FC2 reader"
-       stop 1
-    elseif (equal(word,"aims").or.equal(word,"fhiaims")) then
-       fc2factor = bohrtoa**2 / hartoev
-    else
-       errmsg = "A generator keyword (qe,vasp,fhiaims,...) is required to read FORCE_CONSTANTS"
+    scfile = ""
+    if (c%ismolecule) then
+       errmsg = "FORCE_CONSTANTS (phonopy) files can only be read for crystals"
        goto 999
     end if
 
-    ! read the supercell transformation or the supercell file
-    lp2 = lp
-    x0 = 0d0
-    ok = eval_next(rdum(1),sline,lp)
-    ok = ok .and. eval_next(rdum(2),sline,lp)
-    ok = ok .and. eval_next(rdum(3),sline,lp)
-    if (ok) then
-       ok = eval_next(rdum(4),sline,lp)
-       if (ok) then
-          x0(:,1) = rdum(1:3)
-          x0(1,2) = rdum(4)
-          ok = eval_next(x0(2,2),sline,lp)
-          ok = ok .and. eval_next(x0(3,2),sline,lp)
-          ok = ok .and. eval_next(x0(1,3),sline,lp)
-          ok = ok .and. eval_next(x0(2,3),sline,lp)
-          ok = ok .and. eval_next(x0(3,3),sline,lp)
-          if (.not.ok) then
-             errmsg = "Wrong syntax for supercell transformation"
+    ! generator keyword: mandatory, gives the units of the file
+    lp = 1
+    word = lgetword(sline,lp)
+    igen = fc2_generator_index(sline)
+    if (igen == 0) then
+       errmsg = "A generator keyword (vasp, qe, aims, alamode, ...) is required to read FORCE_CONSTANTS"
+       goto 999
+    end if
+    select case (fc2_genunit(igen))
+    case (1)
+       fc2factor = bohrtoa**2 / hartoev ! eV/ang^2
+    case (2)
+       fc2factor = bohrtoa / hartoev ! eV/(ang*bohr)
+    case (3)
+       fc2factor = 0.5d0 ! Ry/bohr^2
+    case (4)
+       fc2factor = 0.5d-3 ! mRy/bohr^2
+    case (5)
+       fc2factor = 1d0 ! Hartree/bohr^2
+    case (6)
+       fc2factor = bohrtoa ! Hartree/(ang*bohr)
+    end select
+
+    ! supercell specification and options
+    ndim = 0
+    haveseed = .false.
+    doasr = .false.
+    do while (.true.)
+       lp0 = lp
+       if (isinteger(idum,sline,lp)) then
+          ndim = ndim + 1
+          if (ndim > 9) then
+             errmsg = "Too many integers in the supercell specification (VIBRATIONS LOAD)"
              goto 999
           end if
-       else
-          do i = 1, 3
-             x0(i,i) = rdum(i)
-          end do
+          idim(ndim) = idum
+          cycle
        end if
-       ! create the supercell
-       sc = c
-       call sc%newcell(x0,errmsg=errmsg)
-       if (len_trim(errmsg) > 0) return
-    else
-       lp = lp2
-       word = getword(sline,lp)
-       call seed%read_any_file(word,-1,errmsg)
-       if (len_trim(errmsg) > 0) goto 999
-       call sc%struct_new(seed,errmsg)
-       if (len_trim(errmsg) > 0) goto 999
-       if (sc%ismolecule) then
-          errmsg = "Supercell file in VIBRATIONS LOAD is a molecule"
+       word = lgetword(sline,lp)
+       if (len_trim(word) == 0) exit
+       if (equal(word,"asr").or.equal(word,"acoustic").or.equal(word,"acoustic_sum_rules")) then
+          doasr = .true.
+       elseif (haveseed) then
+          errmsg = "Unknown keyword in VIBRATIONS LOAD (FORCE_CONSTANTS): " // trim(word)
+          goto 999
+       else
+          ! the supercell, read from a structure file
+          lp = lp0
+          scfile = getword(sline,lp)
+          call seed%read_any_file(scfile,-1,errmsg,ti=ti)
+          if (len_trim(errmsg) > 0) goto 999
+          call sc%struct_new(seed,errmsg,noenv=.true.,ti=ti)
+          if (len_trim(errmsg) > 0) goto 999
+          if (sc%ismolecule) then
+             errmsg = "The supercell file in VIBRATIONS LOAD is a molecule"
+             goto 999
+          end if
+          haveseed = .true.
+       end if
+    end do
+
+    ! build the supercell matrix (rows = supercell lattice vectors, in
+    ! units of the cell vectors; this is phonopy's convention)
+    smat = 0
+    do i = 1, 3
+       smat(i,i) = 1
+    end do
+    if (haveseed) then
+       if (ndim > 0) then
+          errmsg = "Give either the supercell matrix or a supercell file in VIBRATIONS LOAD, not both"
           goto 999
        end if
+
+       ! columns of m_c2x*sc%m_x2c are the supercell vectors in cell coordinates
+       rmat = transpose(matmul(c%m_c2x,sc%m_x2c))
+       smat = nint(rmat)
+       dev = maxval(abs(rmat - real(smat,8)))
+       if (dev > fc2_epsint) then
+          errmsg = "The cell in " // trim(scfile) // " is not an integer supercell of the current &
+             &structure (deviation " // string(dev,'e',12,4) // ")"
+          goto 999
+       end if
+
+       ! the product above assumes both cells use the same Cartesian
+       ! frame; the metric identity G_sc = smat*G_uc*smat^t does not
+       guc = matmul(transpose(c%m_x2c),c%m_x2c)
+       gsc = matmul(transpose(sc%m_x2c),sc%m_x2c)
+       gchk = matmul(real(smat,8),matmul(guc,transpose(real(smat,8))))
+       dev = maxval(abs(gchk - gsc)) / max(maxval(abs(gsc)),1d-10)
+       if (dev > fc2_epsmetric) then
+          errmsg = "The supercell matrix deduced from " // trim(scfile) // " is inconsistent with the &
+             &cell metric (relative deviation " // string(dev,'e',12,4) // "); the two structures may &
+             &be given in different Cartesian frames"
+          goto 999
+       end if
+    elseif (ndim == 3) then
+       smat = 0
+       do i = 1, 3
+          smat(i,i) = idim(i)
+       end do
+    elseif (ndim == 9) then
+       ! Same order as phonopy's DIM keyword. Note that phonopy reshapes
+       ! those nine integers row-wise into its supercell matrix M, but
+       ! then builds the supercell with lattice vectors given by the rows
+       ! of transpose(M) (structure/cells.py, _trim_cell with the old
+       ! style, which is the default). smat is the latter, so the nine
+       ! integers fill it column-wise.
+       smat = reshape(idim,(/3,3/))
+    elseif (ndim /= 0) then
+       errmsg = "The supercell specification needs 3 or 9 integers (found " // string(ndim) // ")"
+       goto 999
     end if
 
-    ! open file
+    ! lattice points of the supercell, in phonopy order
+    call fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
+    nsat = c%ncel * nlat
+
+    ! open the file and read the header
     lu = fopen_read(file,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
     end if
+    errmsg = "Error reading the header of FORCE_CONSTANTS file: " // trim(file)
+    if (.not.getline_raw(lu,line,.false.)) goto 999
+    lp = 1
+    if (.not.isinteger(n1,line,lp)) goto 999
+    if (.not.isinteger(n2,line,lp)) n2 = n1
 
-    ! read the number of atoms from the fc2 file
-    read(lu,*,err=999,end=999) nat, mat
-    isin = -1
-    if (nat == mat .and. nat == c%ncel) then
-       isin = 0
-    elseif (nat /= mat .and. mat == c%ncel) then
-       isin = 1
-    elseif (nat /= mat .and. nat == c%ncel) then
-       isin = 2
-       write (*,*) "fixme!! isin = 2"
-       stop 1
+    if (n1 == n2 .and. n1 == nsat) then
+       iscompact = .false.
+       nrow = nsat
+    elseif (n1 < n2 .and. n2 == nsat) then
+       iscompact = .true.
+       nrow = n1
     else
-       errmsg = 'Inconsistent atom number in FORCE_CONSTANTS file'
+       errmsg = "Inconsistent number of atoms in " // trim(file) // ": the file has (" // string(n1) //&
+          "," // string(n2) // ") but the structure and the supercell give " // string(c%ncel) // "*" //&
+          string(nlat) // " = " // string(nsat) // " supercell atoms"
        goto 999
     end if
 
-    ! read the fc2 matrix
-    if (isin > 0) then
-       allocate(done(mat,mat))
-       done = .false.
+    ! read the force constants
+    allocate(fcrow(3,3,nrow,nsat),p2s(nrow),s2row(nsat),coldone(nsat),stat=ierr)
+    if (ierr /= 0) then
+       errmsg = "Could not allocate " // string(nint(72d0*nrow*nsat/1024d0**2)) //&
+          " Mb to read the force constants"
+       goto 999
     end if
-    errmsg = "Error reading force constants from FORCE_CONSTANTS file"
-    if (allocated(v%fc2)) deallocate(v%fc2)
-    allocate(v%fc2(3,3,mat,mat))
-    v%fc2 = 0d0
-    do idum = 1, nat
-       do jdum = 1, mat
+    s2row = 0
+    errmsg = "Error reading the force constants from file: " // trim(file)
+    do irow = 1, nrow
+       coldone = .false.
+       do jp = 1, nsat
           read (lu,*,err=999,end=999) i, j
+          if (i < 1 .or. i > nsat .or. j < 1 .or. j > nsat) then
+             errmsg = "Atom index out of range in FORCE_CONSTANTS block " // string(irow) // "," // string(jp)
+             goto 999
+          end if
+          if (jp == 1) then
+             p2s(irow) = i
+             if (s2row(i) /= 0) then
+                errmsg = "Repeated row atom index " // string(i) // " in FORCE_CONSTANTS"
+                goto 999
+             end if
+             s2row(i) = irow
+          elseif (i /= p2s(irow)) then
+             errmsg = "Inconsistent row atom index in FORCE_CONSTANTS block " // string(irow) // "," // string(jp)
+             goto 999
+          end if
+          if (coldone(j)) then
+             errmsg = "Repeated column atom index " // string(j) // " in FORCE_CONSTANTS row " // string(irow)
+             goto 999
+          end if
+          coldone(j) = .true.
           read (lu,*,err=999,end=999) rmat(1,:)
           read (lu,*,err=999,end=999) rmat(2,:)
           read (lu,*,err=999,end=999) rmat(3,:)
+          fcrow(:,:,irow,j) = rmat
+       end do
+       if (.not.all(coldone)) then
+          errmsg = "Incomplete set of columns in FORCE_CONSTANTS row " // string(irow)
+          goto 999
+       end if
+       if (.not.iscompact .and. p2s(irow) /= irow) then
+          errmsg = "Full FORCE_CONSTANTS file with a non-identity row map, at row " // string(irow)
+          goto 999
+       end if
+    end do
+    call fclose(lu)
+    lu = -1
+    fcrow = fcrow * fc2factor
 
-          v%fc2(:,:,i,j) = rmat
-          if (isin > 0) done(i,j) = .true.
+    ! build the cell-compact array: rows for all the atoms of the cell
+    if (allocated(v%fc2)) deallocate(v%fc2)
+    allocate(v%fc2(3,3,c%ncel,nsat),perm(nsat),stat=ierr)
+    if (ierr /= 0) then
+       errmsg = "Could not allocate " // string(nint(72d0*c%ncel*nsat/1024d0**2)) //&
+          " Mb for the force constants"
+       goto 999
+    end if
+    v%fc2 = 0d0
+    do ia = 1, c%ncel
+       ! the source is the image of cell atom ia at the origin
+       is = (ia-1)*nlat + 1
+       irow = s2row(is)
+       if (irow > 0) then
+          v%fc2(:,:,ia,:) = fcrow(:,:,irow,:)
+          cycle
+       end if
+
+       ! not in the file: find a pure translation carrying it to an atom that is
+       found = .false.
+       do ip = 1, nrow
+          js = p2s(ip)
+          iap = (js-1)/nlat + 1
+          ilp = js - (iap-1)*nlat
+          if (c%spc(c%atcel(iap)%is)%z /= c%spc(c%atcel(ia)%is)%z) cycle
+          t = c%atcel(iap)%x + real(lvec(:,ilp),8) - c%atcel(ia)%x
+          if (.not.fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)) cycle
+          if (perm(is) /= js) cycle
+          found = .true.
+          exit
+       end do
+       if (.not.found) then
+          errmsg = "No pure translation carries atom " // string(ia) // " onto any of the atoms in the &
+             &compact FORCE_CONSTANTS file. The current structure may not be the unit cell used by &
+             &phonopy, or phonopy used incompatible primitive axes; rerun it with &
+             &FULL_FORCE_CONSTANTS = .TRUE."
+          goto 999
+       end if
+       do js = 1, nsat
+          v%fc2(:,:,ia,js) = fcrow(:,:,ip,perm(js))
        end do
     end do
-    v%fc2 = v%fc2 * fc2factor
 
-    ! for which atoms do we have full FC2 info?
-    allocate(dneq(c%ncel))
-    if (isin > 0) then
-       dneq = .false.
-       do i = 1, c%ncel
-          dneq(i) = all(done(i,:))
-       end do
-       deallocate(done)
-    else
-       dneq = .true.
-    end if
-
-    ! isin == 1 corresponds to the case when the crystal structure is
-    ! a supercell and we are only given the force constants for the
-    ! non-equivalent atoms on the left atom.
-    if (isin == 1) then
-       ! calculate the effect of every symmetry operation on every atom
-       ! xxxx FIXME?
-       allocate(atop(c%ncel,c%neqv,c%ncv))
-       atop = 0
-       do i = 1, c%ncel
-          do irot = 1, c%neqv
-             xj_ = matmul(c%rotm(1:3,1:3,irot),c%atcel(i)%x) + c%rotm(:,4,irot)
-             do icv = 1, c%ncv
-                xi_ = xj_ + c%cen(:,icv)
-                do j = 1, c%ncel
-                   xdif = c%atcel(j)%x - xi_
-                   if (all(abs(xdif - nint(xdif)) < 1d-2)) then
-                      atop(i,irot,icv) = j
-                      exit
-                   end if
-                end do
-             end do
-          end do
-       end do
-       if (any(atop == 0)) then
-          errmsg = "Error calculating atom mapping from symmetry operations; check structure"
-          return
+    ! if a supercell file was given, check the atom ordering against it.
+    ! This validates the lattice-point table, the atom-major convention
+    ! and the atom order of the current structure, all at once.
+    if (haveseed) then
+       if (seed%nat /= nsat) then
+          errmsg = "The supercell file " // trim(scfile) // " has " // string(seed%nat) //&
+             " atoms, but " // string(nsat) // " were expected"
+          goto 999
        end if
-
-       ! calculate the representative atoms
-       ! calculate the symmetry operations that lead to each atom from the representatives
-       !   ineqrot(i) and ineqcen(i) are the symmetry operation IDs such that:
-       !   rot * i + cen = j
-       allocate(ineq(c%ncel),ineqrot(c%ncel),ineqcen(c%ncel))
-       ineq = c%ncel + 1
-       do icv = 1, c%ncv
-          do irot = 1, c%neqv
-             do i = 1, c%ncel
-                j = atop(i,irot,icv)
-                if (dneq(j) .and. j < ineq(i)) then
-                   ineq(i) = j
-                   ineqrot(i) = irot
-                   ineqcen(i) = icv
-                end if
-             end do
-          end do
-       end do
-       if (any(ineq == c%ncel + 1)) then
-          errmsg = "Error calculating non-equivalent atom mapping; check structure"
-          return
+       rminv = real(smat,8)
+       call matinv(rminv,3,ierr)
+       if (ierr /= 0) then
+          errmsg = "Singular supercell matrix"
+          goto 999
        end if
-
-       ! calculate the rotation matrices in cartesian coordinates
-       allocate(rotc(3,3,c%neqv))
-       do irot = 1, c%neqv
-          rotc(:,:,irot) = matmul(c%m_x2c,matmul(c%rotm(1:3,1:3,irot),c%m_c2x))
-       end do
-
-       ! calculate all remaining fc2
-       do i = 1, c%ncel
-          if (dneq(i)) cycle
-          rot = rotc(:,:,ineqrot(i))
-          do j = 1, c%ncel
-             fc2_ = matmul(transpose(rot),matmul(v%fc2(:,:,ineq(i),atop(j,ineqrot(i),ineqcen(i))),rot))
-             v%fc2(:,:,i,j) = fc2_
+       do ia = 1, c%ncel
+          do il = 1, nlat
+             is = (ia-1)*nlat + il
+             xsc = matmul(c%atcel(ia)%x + real(lvec(:,il),8),rminv)
+             if (seed%spc(seed%is(is))%z /= c%spc(c%atcel(ia)%is)%z) then
+                errmsg = "Species mismatch at atom " // string(is) // " of the supercell file " //&
+                   trim(scfile) // ": its atom ordering is not phonopy's, or the current structure is &
+                   &not the phonopy unit cell"
+                goto 999
+             end if
+             dx = xsc - seed%x(:,is)
+             dx = dx - nint(dx)
+             dev = norm2(matmul(sc%m_x2c,dx))
+             if (dev > fc2_epspos) then
+                errmsg = "Atom " // string(is) // " of the supercell file " // trim(scfile) //&
+                   " is " // string(dev,'e',12,4) // " bohr away from its expected phonopy position; &
+                   &check the atom order of the current structure"
+                goto 999
+             end if
           end do
        end do
-
-       ! clean up
-       deallocate(atop,ineq,ineqrot,ineqcen,rotc,dneq)
     end if
 
     ! wrap up
-    v%file = file
-    v%ivformat = ivformat_phonopy_fc2
+    v%fc2_file = file
     v%hasfc2 = .true.
+    v%fc2_smat = smat
+    v%fc2_madj = madj
+    v%fc2_nlat = nlat
+    v%fc2_nsat = nsat
+    v%fc2_ncel = c%ncel
+    v%fc2_iscompact = iscompact
+    if (allocated(v%fc2_lvec)) deallocate(v%fc2_lvec)
+    if (allocated(v%fc2_lkey)) deallocate(v%fc2_lkey)
+    call move_alloc(lvec,v%fc2_lvec)
+    call move_alloc(lkey,v%fc2_lkey)
     v%fc2_acoustic = -1
     v%fc2_vs_center = -1d0
     v%fc2_vs_delta = -1d0
-    v%hasvibs = .false.
-    errmsg = ""
-    call fclose(lu)
 
+    ! apply the acoustic sum rule, if requested
+    if (doasr) &
+       call v%apply_acoustic(c,.false.)
+
+    errmsg = ""
     return
+
 999 continue
-    if (lu >= 0) call fclose(lu)
+    if (lu > 0) call fclose(lu)
+    call v%end(keepvibs=.true.)
 
   end subroutine read_phonopy_fc2
+
+  !> Lattice points of the supercell defined by the integer supercell
+  !> matrix smat (rows = supercell lattice vectors in units of the cell
+  !> vectors), in phonopy's order (structure/cells.py): the surrounding
+  !> frame of the matrix is swept with the first axis fastest and the
+  !> first occurrence of each class modulo the supercell lattice is
+  !> kept. Returns the number of lattice points (nlat = det(smat)), the
+  !> integer adjugate of smat (madj, with smat*madj = nlat*I), the
+  !> lattice points in cell fractional coordinates (lvec) and their
+  !> residue keys modulo the supercell lattice (lkey). Two lattice
+  !> points are equivalent modulo the supercell lattice if and only if
+  !> they have the same key, and the key is exact integer arithmetic.
+  subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+    use tools_io, only: string
+    integer, intent(in) :: smat(3,3)
+    integer, intent(out) :: nlat
+    integer, intent(out) :: madj(3,3)
+    integer, allocatable, intent(inout) :: lvec(:,:), lkey(:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, k, ia, ib, ic, nl
+    integer :: cmin(3), cmax(3), frame(3), vv(3), ll(3), kk(3)
+    logical :: found
+
+    errmsg = ""
+
+    ! determinant and adjugate, in exact integer arithmetic
+    nlat = smat(1,1)*(smat(2,2)*smat(3,3)-smat(2,3)*smat(3,2))&
+       - smat(1,2)*(smat(2,1)*smat(3,3)-smat(2,3)*smat(3,1))&
+       + smat(1,3)*(smat(2,1)*smat(3,2)-smat(2,2)*smat(3,1))
+    if (nlat <= 0) then
+       errmsg = "The supercell matrix must have positive determinant (found " // string(nlat) // ")"
+       return
+    end if
+    madj(1,1) = smat(2,2)*smat(3,3) - smat(2,3)*smat(3,2)
+    madj(1,2) = -smat(1,2)*smat(3,3) + smat(1,3)*smat(3,2)
+    madj(1,3) = smat(1,2)*smat(2,3) - smat(1,3)*smat(2,2)
+    madj(2,1) = -smat(2,1)*smat(3,3) + smat(2,3)*smat(3,1)
+    madj(2,2) = smat(1,1)*smat(3,3) - smat(1,3)*smat(3,1)
+    madj(2,3) = -smat(1,1)*smat(2,3) + smat(1,3)*smat(2,1)
+    madj(3,1) = smat(2,1)*smat(3,2) - smat(2,2)*smat(3,1)
+    madj(3,2) = -smat(1,1)*smat(3,2) + smat(1,2)*smat(3,1)
+    madj(3,3) = smat(1,1)*smat(2,2) - smat(1,2)*smat(2,1)
+
+    ! the surrounding frame: bounding box of the eight corners of the supercell
+    cmin = 0
+    cmax = 0
+    do k = 0, 7
+       vv = 0
+       if (btest(k,0)) vv = vv + smat(1,:)
+       if (btest(k,1)) vv = vv + smat(2,:)
+       if (btest(k,2)) vv = vv + smat(3,:)
+       cmin = min(cmin,vv)
+       cmax = max(cmax,vv)
+    end do
+    frame = cmax - cmin
+
+    ! sweep the frame with the first axis fastest, keeping first occurrences
+    if (allocated(lvec)) deallocate(lvec)
+    if (allocated(lkey)) deallocate(lkey)
+    allocate(lvec(3,nlat),lkey(3,nlat))
+    nl = 0
+    loopc: do ic = 0, frame(3)-1
+       do ib = 0, frame(2)-1
+          do ia = 0, frame(1)-1
+             ll = (/ia,ib,ic/)
+             kk = modulo(matmul(ll,madj),nlat)
+             found = .false.
+             do i = 1, nl
+                if (all(kk == lkey(:,i))) then
+                   found = .true.
+                   exit
+                end if
+             end do
+             if (found) cycle
+             nl = nl + 1
+             lvec(:,nl) = ll
+             lkey(:,nl) = kk
+             if (nl == nlat) exit loopc
+          end do
+       end do
+    end do loopc
+    if (nl /= nlat) then
+       errmsg = "Could only generate " // string(nl) // " of the " // string(nlat) // " supercell &
+          &lattice points; the supercell matrix may be invalid"
+       return
+    end if
+
+  end subroutine fc2_lattice_points
+
+  !> Index of the generator (the code that wrote the file, which fixes
+  !> the units of the force constants) named by the first word of sline.
+  !> Zero if the first word is not a known generator.
+  function fc2_generator_index(sline) result(igen)
+    use tools_io, only: lgetword, equal
+    character*(*), intent(in) :: sline
+    integer :: igen
+
+    integer :: i, lp
+    character(len=:), allocatable :: word
+
+    lp = 1
+    word = lgetword(sline,lp)
+    igen = 0
+    do i = 1, fc2_ngen
+       if (equal(word,trim(fc2_genname(i)))) then
+          igen = i
+          return
+       end if
+    end do
+
+  end function fc2_generator_index
+
+  !> Index in the lattice-point table of the point equivalent to lv
+  !> (integer vector in cell fractional coordinates) modulo the
+  !> supercell lattice. Zero if not found, which cannot happen for a
+  !> complete table.
+  function fc2_ilat(nlat,lkey,madj,lv) result(il)
+    integer, intent(in) :: nlat
+    integer, intent(in) :: lkey(:,:)
+    integer, intent(in) :: madj(3,3)
+    integer, intent(in) :: lv(3)
+    integer :: il
+
+    integer :: i, kk(3)
+
+    kk = modulo(matmul(lv,madj),nlat)
+    do i = 1, nlat
+       if (all(kk == lkey(:,i))) then
+          il = i
+          return
+       end if
+    end do
+    il = 0
+
+  end function fc2_ilat
+
+  !> Is the vector t (cell fractional coordinates) a pure translation of
+  !> the crystal c? Checking the atoms of the cell is enough: if t maps
+  !> the cell onto itself then the induced map of the supercell atoms,
+  !> (ia,L) -> (ja,L+n), is automatically a permutation, because adding
+  !> a fixed integer vector commutes with the reduction modulo the
+  !> supercell lattice. If t is a translation, return that permutation
+  !> of the supercell atoms (perm) and the largest position mismatch
+  !> found (dev, bohr).
+  function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev) result(ok)
+    use param, only: icrd_crys
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: t(3)
+    integer, intent(in) :: nlat
+    integer, intent(in) :: lvec(:,:), lkey(:,:)
+    integer, intent(in) :: madj(3,3)
+    integer, intent(out) :: perm(:)
+    real*8, intent(out) :: dev
+    logical :: ok
+
+    integer :: ia, ja, il, jl, is
+    integer :: lv(3), at2(c%ncel), lv2(3,c%ncel)
+    real*8 :: dd
+
+    ok = .false.
+    dev = 0d0
+    do ia = 1, c%ncel
+       ja = c%identify_atom(c%atcel(ia)%x + t,icrd_crys,lvec=lv,dist=dd,distmax=fc2_epspos)
+       if (ja == 0) return
+       if (dd > fc2_epspos) return
+       if (c%spc(c%atcel(ja)%is)%z /= c%spc(c%atcel(ia)%is)%z) return
+       at2(ia) = ja
+       lv2(:,ia) = lv
+       dev = max(dev,dd)
+    end do
+
+    ! the permutation of the supercell atoms induced by t
+    do ia = 1, c%ncel
+       ja = at2(ia)
+       do il = 1, nlat
+          is = (ia-1)*nlat + il
+          jl = fc2_ilat(nlat,lkey,madj,lv2(:,ia) + lvec(:,il))
+          if (jl == 0) return
+          perm(is) = (ja-1)*nlat + jl
+       end do
+    end do
+    ok = .true.
+
+  end function fc2_pure_translation
 
   !> Read vibration data from a crystal output file, and return it in
   !> vib. If error, return non-zero errmsg.

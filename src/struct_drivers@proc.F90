@@ -3898,30 +3898,15 @@ contains
 
   !> Driver for operations on crystal or molecular vibrations.
   module subroutine struct_vibrations(s,line,verbose)
-    use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed
-    use global, only: eval_next, iunitname0, iunit, iunit_ang, dunit0, fileroot
-    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
-       uin, ucopy, getline, string, ioj_right, ioj_left
-    use tools_math, only: good_lebedev, select_lebedev
-    use types, only: realloc
-    use param, only: ivformat_unknown, bohrtoa, fourpi
+    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal
+    use param, only: ivformat_unknown
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: filename, word, mode, sline, errmsg, pre, post, root
-    integer :: idx, npad
-    integer :: lp, lpo, idq, ifreq, npts, n(3)
-    real*8 :: dist, eps, disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
-    real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3), temp
-    logical :: ok, environ, cartesian
-    integer :: nq, i, j, k, fini, fend, nstruct
-    real*8, allocatable :: qlist(:,:), wlist(:)
-    real*8, allocatable :: xleb(:), yleb(:), zleb(:), wleb(:)
-    logical :: didlebedev, didother, calcavg
-    type(crystalseed) :: seed
-    type(crystal) :: caux
+    character(len=:), allocatable :: filename, word, mode, sline, errmsg
+    integer :: lp
+    logical :: dofull
 
     ! header
     if (verbose) &
@@ -3947,392 +3932,499 @@ contains
        if (len_trim(errmsg) > 0) &
           call ferror("struct_vibrations",errmsg,faterr)
 
+       ! numerical checks on the force constants, if any were read
+       if (s%c%vib%hasfc2) then
+          call s%c%vib%check_fc2(s%c,verbose,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_vibrations",errmsg,faterr)
+       end if
+
     elseif (equal(word,'clear')) then
        call s%c%vib%end()
 
     elseif (equal(word,'print')) then
-       ! print information from the stored vibration data: get the mode and initialize
        mode = lgetword(line,lp)
-       disteps = huge(1d0)
-       fc2eps = 0d0
-       environ = .false.
-       cartesian = .false.
-
-       ! parse the options
-       do while (.true.)
-          lpo = lp
-          word = lgetword(line,lp)
-          if (equal(word,'disteps')) then
-             ok = eval_next(disteps,line,lp)
-             if (.not.ok) &
-                call ferror('struct_vibrations','Error reading DISTEPS',faterr,syntax=.true.)
-          elseif (equal(word,'fc2eps')) then
-             ok = eval_next(fc2eps,line,lp)
-             if (.not.ok) &
-                call ferror('struct_vibrations','Error reading FC2EPS',faterr,syntax=.true.)
-          elseif (equal(word,'environ')) then
-             environ = .true.
-          elseif (equal(word,'cartesian')) then
-             cartesian = .true.
-          else
-             lp = lpo
-             exit
-          end if
-       end do
-
-       ! execute the print
        if (equal(mode,'summary')) then
           call s%c%vib%print_summary()
-       elseif (equal(mode,'fc2')) then
-          call s%c%vib%print_fc2(s%c,disteps,fc2eps,environ)
-       elseif (equal(mode,'freq').or.equal(mode,'frequency').or.equal(mode,'frequencies')) then
-          call readq()
-          if (idq <= 0) &
-             call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
-          call s%c%vib%print_freq(idq)
-       elseif (equal(mode,'eigenvector').or.equal(mode,'eigenvectors')) then
-          if (.not.isinteger(ifreq,line,lp)) &
-             call ferror('struct_vibrations','Error reading freq index in PRINT EIGENVECTOR',faterr,syntax=.true.)
-          call readq()
-          if (idq <= 0) &
-             call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
-          call s%c%vib%print_eigenvector(s%c,ifreq,idq,cartesian)
        else
-          call ferror('vibrations_print_freq','unknown keyword in PRINT SUMMARY',faterr,syntax=.true.)
+          call ferror('struct_vibrations','only PRINT SUMMARY is available while VIBRATIONS is being &
+             &reimplemented',faterr,syntax=.true.)
        end if
-    elseif (equal(word,'calcq')) then
-       nq = 0
-       allocate(qlist(3,10))
-
-       ! read the initial and final frequency to print
-       fini = -1
-       fend = -1
-       ok = isinteger(fini,line,lp)
-       ok = ok .and. isinteger(fend,line,lp)
-
-       do while (getline(uin,sline,ucopy=ucopy))
-          lp = 1
-          word = lgetword(sline,lp)
-          if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
-             exit
-          elseif (equal(word,'q')) then
-             ok = isreal(q(1),sline,lp)
-             ok = ok.and.isreal(q(2),sline,lp)
-             ok = ok.and.isreal(q(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
-             nq = nq + 1
-             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-             qlist(:,nq) = q
-          elseif (equal(word,'line')) then
-             ok = isreal(q1(1),sline,lp)
-             ok = ok.and.isreal(q1(2),sline,lp)
-             ok = ok.and.isreal(q1(3),sline,lp)
-             ok = ok.and.isreal(q2(1),sline,lp)
-             ok = ok.and.isreal(q2(2),sline,lp)
-             ok = ok.and.isreal(q2(3),sline,lp)
-             ok = ok.and.isinteger(npts,sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/LINE',faterr)
-             do i = 1, npts
-                q = q1 + real(i-1,8) / real(max(npts-1,1),8) * (q2 - q1)
-                nq = nq + 1
-                if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-                qlist(:,nq) = q
-             end do
-          elseif (equal(word,'mesh')) then
-             ok = isinteger(n(1),sline,lp)
-             ok = ok.and.isinteger(n(2),sline,lp)
-             ok = ok.and.isinteger(n(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/MESH',faterr)
-             do i = 1, n(1)
-                do j = 1, n(2)
-                   do k = 1, n(3)
-                      q = (/real(i-1,8)/real(n(1),8), real(j-1,8)/real(n(2),8), real(k-1,8)/real(n(3),8)/)
-                      nq = nq + 1
-                      if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-                      qlist(:,nq) = q
-                   end do
-                end do
-             end do
-          else
-             ! this must be a q, wihtout the q
-             lp = 1
-             ok = isreal(q(1),sline,lp)
-             ok = ok.and.isreal(q(2),sline,lp)
-             ok = ok.and.isreal(q(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
-             nq = nq + 1
-             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-             qlist(:,nq) = q
-          end if
-       end do
-
-       ! calculate the frequencies and eigenvectors
-       call s%c%vib%end(keepfc2=.true.)
-       if (fini > 0 .and. fend > 0) then
-          write (uout,'("+ Calculation of frequencies at points in reciprocal space (CALCQ)")')
-          write (uout,'("# id      -----     q (fractional)   -----       ----  q (Cartesian,",A,"^-1)&
-             & ----       frequencies (cm^-1)")') iunitname0(iunit)
-
-          if (iunit == iunit_ang) then
-             fac = 1d0/bohrtoa
-          else
-             fac = 1d0
-          end if
-       end if
-       do i = 1, nq
-          call s%c%vib%calculate_q(s%c,qlist(:,i))
-          if (fini > 0 .and. fend > 0) then
-             q = s%c%rx2rc(qlist(:,i))
-             write (uout,'(999(A,X))') string(i,5,ioj_left),&
-                (string(qlist(j,i),'f',12,8,4),j=1,3),&
-                (string(q(j) * fac,'f',12,8,4),j=1,3),&
-                (string(s%c%vib%freq(j,s%c%vib%nqpt),'f',12,4,5),j=fini,fend)
-          end if
-       end do
 
     elseif (equal(word,'fc2')) then
-
        word = lgetword(line,lp)
-       if (equal(word,'acoustic_sum_rules')) then
-          call s%c%vib%apply_acoustic(s%c,verbose=.true.)
-
-       elseif (equal(word,'write')) then
+       if (equal(word,'write')) then
           word = getword(line,lp)
-          call s%c%vib%write_fc2(s%c,word,verbose=.true.)
-
-       elseif (equal(word,'trim')) then
-          ok = eval_next(dist,line,lp)
-          if (.not.ok) call ferror('struct_vibrations','FC2 TRIM needs distance',faterr)
-          dist = dist / dunit0(iunit)
-          call s%c%vib%trim_fc2(s%c,dist,verbose=.true.)
-
-       elseif (equal(word,'zero')) then
-          ok = eval_next(eps,line,lp)
-          if (.not.ok) call ferror('struct_vibrations','FC2 ZERO needs eps',faterr)
-          call s%c%vib%zero_fc2(s%c,eps,verbose=.true.)
-
-       else
-          call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
-       end if
-
-    elseif (equal(word,'thermo')) then
-       ok = isreal(tini,line,lp)
-       if (.not.ok) &
-          call ferror('struct_vibrations','Error reading temperature in THERMO',faterr,syntax=.true.)
-       if (ok) then
-          lpo = lp
-          ok = isreal(tend,line,lp)
-          ok = ok .and. isinteger(npts,line,lp)
-          if (.not.ok) then
-             lp = lpo
-             tend = tini
-             npts = 1
-          end if
-          write (uout,'("+ Calculation of thermodynamic properties in the harmonic approximation (THERMO)")')
-          write (uout,'("# Number of frequencies = ",A)') string(s%c%vib%nfreq * s%c%vib%nqpt)
-          write (uout,'("# T in K, ZPE and Fvib in kJ/mol, Svib and CV in J/K/mol.")')
-          write (uout,'("##  Temperature      ZPE              Fvib             Svib             CV")')
-          do i = 1, npts
-             t = tini + real(i-1,8) / real(max(npts-1,1),8) * (tend - tini)
-             call s%c%vib%calculate_thermo(t,zpe,fvib,svib,cv)
-             write (uout,'("  ",99(A," "))') string(t,'f',10,3,ioj_right),&
-                string(zpe,'f',16,7,ioj_right), string(fvib,'f',16,7,ioj_right),&
-                string(svib,'f',16,7,ioj_right), string(cv,'f',16,7,ioj_right)
+          dofull = .false.
+          do while (.true.)
+             mode = lgetword(line,lp)
+             if (len_trim(mode) == 0) exit
+             if (equal(mode,'full')) then
+                dofull = .true.
+             else
+                call ferror('struct_vibrations','unknown keyword in FC2 WRITE: ' // trim(mode),&
+                   faterr,syntax=.true.)
+             end if
           end do
-       end if
-    elseif (equal(word,'sound_velocities')) then
-
-       ! check we have the FC2 to calculate the sound velocities
-       if (.not.s%c%vib%hasfc2.or..not.allocated(s%c%vib%fc2)) &
-          call ferror('struct_vibrations','SOUND_VELOCITIES requires FC2',faterr)
-
-       ! parse initial line
-       word = lgetword(line,lp)
-       cartesian = (equal(word,'cartesian'))
-
-       ! parse coordinate block
-       didlebedev = .false.
-       didother = .false.
-       nq = 0
-       allocate(qlist(3,10),wlist(10))
-       do while (getline(uin,sline,ucopy=ucopy))
-          lp = 1
-          word = lgetword(sline,lp)
-          if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
-             exit
-          elseif (equal(word,'q')) then
-             didother = .true.
-             ok = isreal(q(1),sline,lp)
-             ok = ok.and.isreal(q(2),sline,lp)
-             ok = ok.and.isreal(q(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
-
-             if (.not.cartesian) q = s%c%rx2rc(q)
-             nq = nq + 1
-             if (nq > size(qlist,2)) then
-                call realloc(qlist,3,2*nq)
-                call realloc(wlist,2*nq)
-             end if
-             qlist(:,nq) = q
-             wlist(nq) = 1d0
-          elseif (equal(word,'lebedev')) then
-             if (didlebedev) didother = .true.
-             didlebedev = .true.
-             ok = isinteger(npts,sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/LEBEDEV',faterr)
-             call good_lebedev(npts)
-
-             ! write (uout,'("  Adding Lebedev mesh: ",A)') string(npts)
-             allocate(xleb(npts),yleb(npts),zleb(npts),wleb(npts))
-             call select_lebedev(npts,xleb,yleb,zleb,wleb)
-             if (nq + npts > size(qlist,2)) then
-                call realloc(qlist,3,nq + npts + 1)
-                call realloc(wlist,nq + npts + 1)
-             end if
-             do i = 1, npts
-                qlist(1,nq+i) = xleb(i)
-                qlist(2,nq+i) = yleb(i)
-                qlist(3,nq+i) = zleb(i)
-                wlist(nq+i) = wleb(i)
-             end do
-             deallocate(xleb,yleb,zleb,wleb)
-             nq = nq + npts
-          else
-             ! this must be a q, wihtout the q
-             didother = .true.
-             lp = 1
-             ok = isreal(q(1),sline,lp)
-             ok = ok.and.isreal(q(2),sline,lp)
-             ok = ok.and.isreal(q(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
-             if (.not.cartesian) q = s%c%rx2rc(q)
-             nq = nq + 1
-             if (nq > size(qlist,2)) then
-                call realloc(qlist,3,2*nq)
-                call realloc(wlist,2*nq)
-             end if
-             qlist(:,nq) = q
-             wlist(nq) = 1d0
-          end if
-       end do
-       calcavg = (didlebedev.and..not.didother)
-
-       ! check we have the FC2 to calculate the sound velocities
-       if (nq <= 0) &
-          call ferror('struct_vibrations','No directions given in SOUND_VELOCITIES',faterr)
-
-       ! header
-       write (uout,'("+ Calculation of sound velocities in reciprocal space directions (SOUND_VELOCITIES)")')
-
-       ! prepare for the calculation of sound velocities
-       call s%c%vib%calculate_vs_prepare(s%c,qlist(:,1),vs,.true.)
-
-       ! print sound velocities to output
-       vsavg = 0d0
-       write (uout,'("+ Sound velocities")')
-       write (uout,'("# id    -----     q (fractional)   -----        ----  q (Cartesian,",A,"^-1)&
-          & ----    ----- sound velocities (m/s)  -----")') iunitname0(iunit)
-       if (iunit == iunit_ang) then
-          fac = 1d0/bohrtoa
+          call s%c%vib%write_fc2(s%c,word,full=dofull,verbose=.true.)
        else
-          fac = 1d0
-       end if
-       do i = 1, nq
-          call s%c%vib%calculate_vs(s%c,qlist(:,i),vs)
-          q = s%c%rc2rx(qlist(:,i))
-          q = q / norm2(q)
-          write (uout,'(99(A,X))') string(i,5,ioj_left), (string(q(j),'f',12,8,4),j=1,3),&
-             (string(qlist(j,i) * fac,'f',12,8,4),j=1,3), (string(vs(j),'f',12,3),j=1,3)
-          if (calcavg) then
-             vsavg = vsavg + wlist(i) * vs
-          end if
-       end do
-       if (calcavg) then
-          vsavg = vsavg / fourpi
-          write (uout,'("# Average sound velocities (m/s) = ",3(A,X))') (string(vsavg(j),'f',12,3),j=1,3)
-       end if
-       write (uout,*)
-
-    elseif (equal(word,'phonon_rattle')) then
-       ! number of structures and temperature
-       ok = isinteger(nstruct,line,lp)
-       ok = isreal(temp,line,lp)
-       if (.not.ok) &
-          call ferror('struct_vibrations','Error reading options in PHONON_RATTLE',faterr,syntax=.true.)
-       if (nstruct <= 0) &
-          call ferror('struct_vibrations','Need positive NSTRUCT in PHONON_RATTLE',faterr,syntax=.true.)
-       if (temp < 0) &
-          call ferror('struct_vibrations','Need positive TEMP in PHONON_RATTLE',faterr,syntax=.true.)
-
-       ! optional parameters
-       if (s%c%ismolecule) then
-          root = trim(fileroot) // "-*.xyz"
-       else
-          root = trim(fileroot) // "-*.in"
-       end if
-       idx = index(root,'*')
-       word = lgetword(line,lp)
-       if (equal(word,"root")) then
-          root = getword(line,lp)
-          idx = index(root,'*')
-          if (idx == 0) then
-             call ferror('struct_vibrations','ROOT must contain a * character',faterr,line,syntax=.true.)
-             return
-          end if
+          call ferror('struct_vibrations','only FC2 WRITE is available while VIBRATIONS is being &
+             &reimplemented',faterr,syntax=.true.)
        end if
 
-       ! naming
-       pre = root(:idx-1)
-       post = root(idx+1:)
-       npad = ceiling(log10(nstruct+0.1d0))
-
-       ! create nstruct structures
-       do i = 1, nstruct
-          call s%c%vib%phonon_rattle(s%c,temp,seed)
-
-          filename = pre // string(i,npad,pad0=.true.) // post
-          call caux%struct_new(seed,errmsg)
-          if (len_trim(errmsg) > 0) then
-             call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
-             return
-          end if
-          call caux%write_any_file(filename,errmsg)
-          if (len_trim(errmsg) > 0) &
-             call ferror("struct_vibrations",errmsg,faterr)
-       end do
+    else
+       call ferror('struct_vibrations','unknown or not yet reimplemented VIBRATIONS keyword: ' //&
+          trim(word),faterr,syntax=.true.)
     end if
 
     ! wrap up
     if (verbose) &
        write (uout,*)
 
-  contains
-    !> Read a q-point, either from coordinates or from ID. Returns idq = -1
-    !> if not found.
-    subroutine readq()
-      real*8, parameter :: eps = 1d-3
-      integer :: i
-
-      idq = -1
-      lpo = lp
-      ok = eval_next(q(1),line,lp)
-      ok = ok .and. eval_next(q(2),line,lp)
-      ok = ok .and. eval_next(q(3),line,lp)
-      if (ok) then
-         do i = 1, s%c%vib%nqpt
-            if (all(abs(q - s%c%vib%qpt(:,i)) < eps)) then
-               idq = i
-               return
-            end if
-         end do
-      else
-         lp = lpo
-         ok = isinteger(idq,line,lp)
-         if (.not.ok) idq = -1
-      end if
-
-    end subroutine readq
   end subroutine struct_vibrations
+
+  !! The rest of the VIBRATIONS keyword (PRINT FC2/FREQ/EIGENVECTOR, CALCQ,
+  !! THERMO, SOUND_VELOCITIES, PHONON_RATTLE) is kept commented out below
+  !! while the keyword is being reimplemented one piece at a time. The
+  !! second-order force constants are now stored in the cell-compact layout
+  !! fc2(3,3,ncel,nsat), so all of this code needs to be revisited.
+  !!
+!!  module subroutine struct_vibrations(s,line,verbose)
+!!    use crystalmod, only: crystal
+!!    use crystalseedmod, only: crystalseed
+!!    use global, only: eval_next, iunitname0, iunit, iunit_ang, dunit0, fileroot
+!!    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
+!!       uin, ucopy, getline, string, ioj_right, ioj_left
+!!    use tools_math, only: good_lebedev, select_lebedev
+!!    use types, only: realloc
+!!    use param, only: ivformat_unknown, bohrtoa, fourpi
+!!    type(system), intent(inout) :: s
+!!    character*(*), intent(in) :: line
+!!    logical, intent(in) :: verbose
+!!
+!!    character(len=:), allocatable :: filename, word, mode, sline, errmsg, pre, post, root
+!!    integer :: idx, npad
+!!    integer :: lp, lpo, idq, ifreq, npts, n(3)
+!!    real*8 :: dist, eps, disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
+!!    real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3), temp
+!!    logical :: ok, environ, cartesian
+!!    integer :: nq, i, j, k, fini, fend, nstruct
+!!    real*8, allocatable :: qlist(:,:), wlist(:)
+!!    real*8, allocatable :: xleb(:), yleb(:), zleb(:), wleb(:)
+!!    logical :: didlebedev, didother, calcavg
+!!    type(crystalseed) :: seed
+!!    type(crystal) :: caux
+!!
+!!    ! header
+!!    if (verbose) &
+!!       write (uout,'("* VIBRATIONS: operations with vibrational frequencies and modes")')
+!!
+!!    ! checks
+!!    if (.not.s%isinit) &
+!!       call ferror('struct_vibrations','System is not initialized',faterr)
+!!    if (.not.s%c%isinit) &
+!!       call ferror('struct_vibrations','A structure is required for VIBRATIONS',faterr)
+!!
+!!    ! parse the line
+!!    lp = 1
+!!    word = lgetword(line,lp)
+!!    if (equal(word,'load')) then
+!!       ! load a vibrations file
+!!       filename = getword(line,lp)
+!!       if (verbose) &
+!!          write (uout,'("  Loading vibrations file: ",A)') trim(filename)
+!!       sline = line(lp:)
+!!
+!!       call s%c%vib%read_file(s%c,filename,sline,ivformat_unknown,errmsg)
+!!       if (len_trim(errmsg) > 0) &
+!!          call ferror("struct_vibrations",errmsg,faterr)
+!!
+!!    elseif (equal(word,'clear')) then
+!!       call s%c%vib%end()
+!!
+!!    elseif (equal(word,'print')) then
+!!       ! print information from the stored vibration data: get the mode and initialize
+!!       mode = lgetword(line,lp)
+!!       disteps = huge(1d0)
+!!       fc2eps = 0d0
+!!       environ = .false.
+!!       cartesian = .false.
+!!
+!!       ! parse the options
+!!       do while (.true.)
+!!          lpo = lp
+!!          word = lgetword(line,lp)
+!!          if (equal(word,'disteps')) then
+!!             ok = eval_next(disteps,line,lp)
+!!             if (.not.ok) &
+!!                call ferror('struct_vibrations','Error reading DISTEPS',faterr,syntax=.true.)
+!!          elseif (equal(word,'fc2eps')) then
+!!             ok = eval_next(fc2eps,line,lp)
+!!             if (.not.ok) &
+!!                call ferror('struct_vibrations','Error reading FC2EPS',faterr,syntax=.true.)
+!!          elseif (equal(word,'environ')) then
+!!             environ = .true.
+!!          elseif (equal(word,'cartesian')) then
+!!             cartesian = .true.
+!!          else
+!!             lp = lpo
+!!             exit
+!!          end if
+!!       end do
+!!
+!!       ! execute the print
+!!       if (equal(mode,'summary')) then
+!!          call s%c%vib%print_summary()
+!!       elseif (equal(mode,'fc2')) then
+!!          call s%c%vib%print_fc2(s%c,disteps,fc2eps,environ)
+!!       elseif (equal(mode,'freq').or.equal(mode,'frequency').or.equal(mode,'frequencies')) then
+!!          call readq()
+!!          if (idq <= 0) &
+!!             call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
+!!          call s%c%vib%print_freq(idq)
+!!       elseif (equal(mode,'eigenvector').or.equal(mode,'eigenvectors')) then
+!!          if (.not.isinteger(ifreq,line,lp)) &
+!!             call ferror('struct_vibrations','Error reading freq index in PRINT EIGENVECTOR',faterr,syntax=.true.)
+!!          call readq()
+!!          if (idq <= 0) &
+!!             call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
+!!          call s%c%vib%print_eigenvector(s%c,ifreq,idq,cartesian)
+!!       else
+!!          call ferror('vibrations_print_freq','unknown keyword in PRINT SUMMARY',faterr,syntax=.true.)
+!!       end if
+!!    elseif (equal(word,'calcq')) then
+!!       nq = 0
+!!       allocate(qlist(3,10))
+!!
+!!       ! read the initial and final frequency to print
+!!       fini = -1
+!!       fend = -1
+!!       ok = isinteger(fini,line,lp)
+!!       ok = ok .and. isinteger(fend,line,lp)
+!!
+!!       do while (getline(uin,sline,ucopy=ucopy))
+!!          lp = 1
+!!          word = lgetword(sline,lp)
+!!          if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
+!!             exit
+!!          elseif (equal(word,'q')) then
+!!             ok = isreal(q(1),sline,lp)
+!!             ok = ok.and.isreal(q(2),sline,lp)
+!!             ok = ok.and.isreal(q(3),sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
+!!             nq = nq + 1
+!!             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+!!             qlist(:,nq) = q
+!!          elseif (equal(word,'line')) then
+!!             ok = isreal(q1(1),sline,lp)
+!!             ok = ok.and.isreal(q1(2),sline,lp)
+!!             ok = ok.and.isreal(q1(3),sline,lp)
+!!             ok = ok.and.isreal(q2(1),sline,lp)
+!!             ok = ok.and.isreal(q2(2),sline,lp)
+!!             ok = ok.and.isreal(q2(3),sline,lp)
+!!             ok = ok.and.isinteger(npts,sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/LINE',faterr)
+!!             do i = 1, npts
+!!                q = q1 + real(i-1,8) / real(max(npts-1,1),8) * (q2 - q1)
+!!                nq = nq + 1
+!!                if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+!!                qlist(:,nq) = q
+!!             end do
+!!          elseif (equal(word,'mesh')) then
+!!             ok = isinteger(n(1),sline,lp)
+!!             ok = ok.and.isinteger(n(2),sline,lp)
+!!             ok = ok.and.isinteger(n(3),sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/MESH',faterr)
+!!             do i = 1, n(1)
+!!                do j = 1, n(2)
+!!                   do k = 1, n(3)
+!!                      q = (/real(i-1,8)/real(n(1),8), real(j-1,8)/real(n(2),8), real(k-1,8)/real(n(3),8)/)
+!!                      nq = nq + 1
+!!                      if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+!!                      qlist(:,nq) = q
+!!                   end do
+!!                end do
+!!             end do
+!!          else
+!!             ! this must be a q, wihtout the q
+!!             lp = 1
+!!             ok = isreal(q(1),sline,lp)
+!!             ok = ok.and.isreal(q(2),sline,lp)
+!!             ok = ok.and.isreal(q(3),sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
+!!             nq = nq + 1
+!!             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+!!             qlist(:,nq) = q
+!!          end if
+!!       end do
+!!
+!!       ! calculate the frequencies and eigenvectors
+!!       call s%c%vib%end(keepfc2=.true.)
+!!       if (fini > 0 .and. fend > 0) then
+!!          write (uout,'("+ Calculation of frequencies at points in reciprocal space (CALCQ)")')
+!!          write (uout,'("# id      -----     q (fractional)   -----       ----  q (Cartesian,",A,"^-1)&
+!!             & ----       frequencies (cm^-1)")') iunitname0(iunit)
+!!
+!!          if (iunit == iunit_ang) then
+!!             fac = 1d0/bohrtoa
+!!          else
+!!             fac = 1d0
+!!          end if
+!!       end if
+!!       do i = 1, nq
+!!          call s%c%vib%calculate_q(s%c,qlist(:,i))
+!!          if (fini > 0 .and. fend > 0) then
+!!             q = s%c%rx2rc(qlist(:,i))
+!!             write (uout,'(999(A,X))') string(i,5,ioj_left),&
+!!                (string(qlist(j,i),'f',12,8,4),j=1,3),&
+!!                (string(q(j) * fac,'f',12,8,4),j=1,3),&
+!!                (string(s%c%vib%freq(j,s%c%vib%nqpt),'f',12,4,5),j=fini,fend)
+!!          end if
+!!       end do
+!!
+!!    elseif (equal(word,'fc2')) then
+!!
+!!       word = lgetword(line,lp)
+!!       if (equal(word,'acoustic_sum_rules')) then
+!!          call s%c%vib%apply_acoustic(s%c,verbose=.true.)
+!!
+!!       elseif (equal(word,'write')) then
+!!          word = getword(line,lp)
+!!          call s%c%vib%write_fc2(s%c,word,verbose=.true.)
+!!
+!!       elseif (equal(word,'trim')) then
+!!          ok = eval_next(dist,line,lp)
+!!          if (.not.ok) call ferror('struct_vibrations','FC2 TRIM needs distance',faterr)
+!!          dist = dist / dunit0(iunit)
+!!          call s%c%vib%trim_fc2(s%c,dist,verbose=.true.)
+!!
+!!       elseif (equal(word,'zero')) then
+!!          ok = eval_next(eps,line,lp)
+!!          if (.not.ok) call ferror('struct_vibrations','FC2 ZERO needs eps',faterr)
+!!          call s%c%vib%zero_fc2(s%c,eps,verbose=.true.)
+!!
+!!       else
+!!          call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
+!!       end if
+!!
+!!    elseif (equal(word,'thermo')) then
+!!       ok = isreal(tini,line,lp)
+!!       if (.not.ok) &
+!!          call ferror('struct_vibrations','Error reading temperature in THERMO',faterr,syntax=.true.)
+!!       if (ok) then
+!!          lpo = lp
+!!          ok = isreal(tend,line,lp)
+!!          ok = ok .and. isinteger(npts,line,lp)
+!!          if (.not.ok) then
+!!             lp = lpo
+!!             tend = tini
+!!             npts = 1
+!!          end if
+!!          write (uout,'("+ Calculation of thermodynamic properties in the harmonic approximation (THERMO)")')
+!!          write (uout,'("# Number of frequencies = ",A)') string(s%c%vib%nfreq * s%c%vib%nqpt)
+!!          write (uout,'("# T in K, ZPE and Fvib in kJ/mol, Svib and CV in J/K/mol.")')
+!!          write (uout,'("##  Temperature      ZPE              Fvib             Svib             CV")')
+!!          do i = 1, npts
+!!             t = tini + real(i-1,8) / real(max(npts-1,1),8) * (tend - tini)
+!!             call s%c%vib%calculate_thermo(t,zpe,fvib,svib,cv)
+!!             write (uout,'("  ",99(A," "))') string(t,'f',10,3,ioj_right),&
+!!                string(zpe,'f',16,7,ioj_right), string(fvib,'f',16,7,ioj_right),&
+!!                string(svib,'f',16,7,ioj_right), string(cv,'f',16,7,ioj_right)
+!!          end do
+!!       end if
+!!    elseif (equal(word,'sound_velocities')) then
+!!
+!!       ! check we have the FC2 to calculate the sound velocities
+!!       if (.not.s%c%vib%hasfc2.or..not.allocated(s%c%vib%fc2)) &
+!!          call ferror('struct_vibrations','SOUND_VELOCITIES requires FC2',faterr)
+!!
+!!       ! parse initial line
+!!       word = lgetword(line,lp)
+!!       cartesian = (equal(word,'cartesian'))
+!!
+!!       ! parse coordinate block
+!!       didlebedev = .false.
+!!       didother = .false.
+!!       nq = 0
+!!       allocate(qlist(3,10),wlist(10))
+!!       do while (getline(uin,sline,ucopy=ucopy))
+!!          lp = 1
+!!          word = lgetword(sline,lp)
+!!          if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
+!!             exit
+!!          elseif (equal(word,'q')) then
+!!             didother = .true.
+!!             ok = isreal(q(1),sline,lp)
+!!             ok = ok.and.isreal(q(2),sline,lp)
+!!             ok = ok.and.isreal(q(3),sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
+!!
+!!             if (.not.cartesian) q = s%c%rx2rc(q)
+!!             nq = nq + 1
+!!             if (nq > size(qlist,2)) then
+!!                call realloc(qlist,3,2*nq)
+!!                call realloc(wlist,2*nq)
+!!             end if
+!!             qlist(:,nq) = q
+!!             wlist(nq) = 1d0
+!!          elseif (equal(word,'lebedev')) then
+!!             if (didlebedev) didother = .true.
+!!             didlebedev = .true.
+!!             ok = isinteger(npts,sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/LEBEDEV',faterr)
+!!             call good_lebedev(npts)
+!!
+!!             ! write (uout,'("  Adding Lebedev mesh: ",A)') string(npts)
+!!             allocate(xleb(npts),yleb(npts),zleb(npts),wleb(npts))
+!!             call select_lebedev(npts,xleb,yleb,zleb,wleb)
+!!             if (nq + npts > size(qlist,2)) then
+!!                call realloc(qlist,3,nq + npts + 1)
+!!                call realloc(wlist,nq + npts + 1)
+!!             end if
+!!             do i = 1, npts
+!!                qlist(1,nq+i) = xleb(i)
+!!                qlist(2,nq+i) = yleb(i)
+!!                qlist(3,nq+i) = zleb(i)
+!!                wlist(nq+i) = wleb(i)
+!!             end do
+!!             deallocate(xleb,yleb,zleb,wleb)
+!!             nq = nq + npts
+!!          else
+!!             ! this must be a q, wihtout the q
+!!             didother = .true.
+!!             lp = 1
+!!             ok = isreal(q(1),sline,lp)
+!!             ok = ok.and.isreal(q(2),sline,lp)
+!!             ok = ok.and.isreal(q(3),sline,lp)
+!!             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
+!!             if (.not.cartesian) q = s%c%rx2rc(q)
+!!             nq = nq + 1
+!!             if (nq > size(qlist,2)) then
+!!                call realloc(qlist,3,2*nq)
+!!                call realloc(wlist,2*nq)
+!!             end if
+!!             qlist(:,nq) = q
+!!             wlist(nq) = 1d0
+!!          end if
+!!       end do
+!!       calcavg = (didlebedev.and..not.didother)
+!!
+!!       ! check we have the FC2 to calculate the sound velocities
+!!       if (nq <= 0) &
+!!          call ferror('struct_vibrations','No directions given in SOUND_VELOCITIES',faterr)
+!!
+!!       ! header
+!!       write (uout,'("+ Calculation of sound velocities in reciprocal space directions (SOUND_VELOCITIES)")')
+!!
+!!       ! prepare for the calculation of sound velocities
+!!       call s%c%vib%calculate_vs_prepare(s%c,qlist(:,1),vs,.true.)
+!!
+!!       ! print sound velocities to output
+!!       vsavg = 0d0
+!!       write (uout,'("+ Sound velocities")')
+!!       write (uout,'("# id    -----     q (fractional)   -----        ----  q (Cartesian,",A,"^-1)&
+!!          & ----    ----- sound velocities (m/s)  -----")') iunitname0(iunit)
+!!       if (iunit == iunit_ang) then
+!!          fac = 1d0/bohrtoa
+!!       else
+!!          fac = 1d0
+!!       end if
+!!       do i = 1, nq
+!!          call s%c%vib%calculate_vs(s%c,qlist(:,i),vs)
+!!          q = s%c%rc2rx(qlist(:,i))
+!!          q = q / norm2(q)
+!!          write (uout,'(99(A,X))') string(i,5,ioj_left), (string(q(j),'f',12,8,4),j=1,3),&
+!!             (string(qlist(j,i) * fac,'f',12,8,4),j=1,3), (string(vs(j),'f',12,3),j=1,3)
+!!          if (calcavg) then
+!!             vsavg = vsavg + wlist(i) * vs
+!!          end if
+!!       end do
+!!       if (calcavg) then
+!!          vsavg = vsavg / fourpi
+!!          write (uout,'("# Average sound velocities (m/s) = ",3(A,X))') (string(vsavg(j),'f',12,3),j=1,3)
+!!       end if
+!!       write (uout,*)
+!!
+!!    elseif (equal(word,'phonon_rattle')) then
+!!       ! number of structures and temperature
+!!       ok = isinteger(nstruct,line,lp)
+!!       ok = isreal(temp,line,lp)
+!!       if (.not.ok) &
+!!          call ferror('struct_vibrations','Error reading options in PHONON_RATTLE',faterr,syntax=.true.)
+!!       if (nstruct <= 0) &
+!!          call ferror('struct_vibrations','Need positive NSTRUCT in PHONON_RATTLE',faterr,syntax=.true.)
+!!       if (temp < 0) &
+!!          call ferror('struct_vibrations','Need positive TEMP in PHONON_RATTLE',faterr,syntax=.true.)
+!!
+!!       ! optional parameters
+!!       if (s%c%ismolecule) then
+!!          root = trim(fileroot) // "-*.xyz"
+!!       else
+!!          root = trim(fileroot) // "-*.in"
+!!       end if
+!!       idx = index(root,'*')
+!!       word = lgetword(line,lp)
+!!       if (equal(word,"root")) then
+!!          root = getword(line,lp)
+!!          idx = index(root,'*')
+!!          if (idx == 0) then
+!!             call ferror('struct_vibrations','ROOT must contain a * character',faterr,line,syntax=.true.)
+!!             return
+!!          end if
+!!       end if
+!!
+!!       ! naming
+!!       pre = root(:idx-1)
+!!       post = root(idx+1:)
+!!       npad = ceiling(log10(nstruct+0.1d0))
+!!
+!!       ! create nstruct structures
+!!       do i = 1, nstruct
+!!          call s%c%vib%phonon_rattle(s%c,temp,seed)
+!!
+!!          filename = pre // string(i,npad,pad0=.true.) // post
+!!          call caux%struct_new(seed,errmsg)
+!!          if (len_trim(errmsg) > 0) then
+!!             call ferror('struct_drivers',errmsg,faterr,syntax=.true.)
+!!             return
+!!          end if
+!!          call caux%write_any_file(filename,errmsg)
+!!          if (len_trim(errmsg) > 0) &
+!!             call ferror("struct_vibrations",errmsg,faterr)
+!!       end do
+!!    end if
+!!
+!!    ! wrap up
+!!    if (verbose) &
+!!       write (uout,*)
+!!
+!!  contains
+!!    !> Read a q-point, either from coordinates or from ID. Returns idq = -1
+!!    !> if not found.
+!!    subroutine readq()
+!!      real*8, parameter :: eps = 1d-3
+!!      integer :: i
+!!
+!!      idq = -1
+!!      lpo = lp
+!!      ok = eval_next(q(1),line,lp)
+!!      ok = ok .and. eval_next(q(2),line,lp)
+!!      ok = ok .and. eval_next(q(3),line,lp)
+!!      if (ok) then
+!!         do i = 1, s%c%vib%nqpt
+!!            if (all(abs(q - s%c%vib%qpt(:,i)) < eps)) then
+!!               idq = i
+!!               return
+!!            end if
+!!         end do
+!!      else
+!!         lp = lpo
+!!         ok = isinteger(idq,line,lp)
+!!         if (.not.ok) idq = -1
+!!      end if
+!!
+!!    end subroutine readq
+!!  end subroutine struct_vibrations
 
   !> Try to determine the molecular cell from the crystal geometry
   module subroutine struct_molcell(s,line)
