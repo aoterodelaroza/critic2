@@ -1006,7 +1006,7 @@ contains
   !> coordinates (FHIaims), and docell adds the unit cell to the 3D
   !> model (obj, ply, off).
   module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
-     docell,ti)
+     docell,ti,forces)
     use tools_io, only: lower, equal, fopen_write, fclose
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
@@ -1027,6 +1027,7 @@ contains
     logical, intent(in), optional :: cartesian
     logical, intent(in), optional :: docell
     type(thread_info), intent(in), optional :: ti
+    logical, intent(in), optional :: forces
 
     integer :: isformat, lu
     logical :: dosym, frac
@@ -1073,7 +1074,7 @@ contains
     elseif (isformat == isformat_w_gaussian_periodic) then
        call c%write_gaussian(file,ti=ti)
     elseif (isformat == isformat_w_qein) then
-       call c%write_espresso(file,rklength=rklength,ti=ti)
+       call c%write_espresso(file,rklength=rklength,ti=ti,forces=forces)
     elseif (isformat == isformat_w_aimsin) then
        call c%write_fhi(file,frac,rklength=rklength,ti=ti)
     elseif (isformat == isformat_w_vasp) then
@@ -1609,26 +1610,36 @@ contains
   end subroutine write_3dmodel
 
   !> Write a quantum espresso input template
-  module subroutine write_espresso(c,file,rklength,ti)
+  module subroutine write_espresso(c,file,rklength,ti,forces)
     use tools_io, only: fopen_write, lower, fclose, string
     use param, only: atmass
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     real*8, intent(in), optional :: rklength
     type(thread_info), intent(in), optional :: ti
+    logical, intent(in), optional :: forces
 
     integer :: i, lu, nk(3)
     real*8 :: rk
+    logical :: forces_
 
     rk = 40d0
     if (present(rklength)) rk = rklength
+    forces_ = .false.
+    if (present(forces)) forces_ = forces
 
     lu = fopen_write(file,ti=ti)
     write (lu,'("&control")')
     write (lu,'(" title=''crystal'',")')
     write (lu,'(" prefix=''crystal'',")')
     write (lu,'(" pseudo_dir=''.'',")')
-    write (lu,'(" calculation=''vc-relax'',")')
+    if (forces_) then
+       ! a single-point calculation with forces (displaced structures)
+       write (lu,'(" calculation=''scf'',")')
+       write (lu,'(" tprnfor=.true.,")')
+    else
+       write (lu,'(" calculation=''vc-relax'',")')
+    end if
     write (lu,'("/")')
     write (lu,'("&system")')
     write (lu,'(" ibrav=0,")')
@@ -1639,8 +1650,10 @@ contains
     write (lu,'(" xdm=.true.,")')
     write (lu,'("/")')
     write (lu,'("&electrons"/" conv_thr = 1d-8,"/"/")')
-    write (lu,'("&ions"/"/")')
-    write (lu,'("&cell"/"/")')
+    if (.not.forces_) then
+       write (lu,'("&ions"/"/")')
+       write (lu,'("&cell"/"/")')
+    end if
     write (lu,'("ATOMIC_SPECIES")')
     do i = 1, c%nspc
        write (lu,'(A," ",F12.6," ",A,".UPF")') trim(c%spc(i)%name), atmass(c%spc(i)%z), trim(lower(c%spc(i)%name))

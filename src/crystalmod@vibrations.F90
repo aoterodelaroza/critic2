@@ -65,6 +65,10 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: fc2_epsmetric = 1d-4 ! relative consistency of the supercell metric
   real*8, parameter :: fc2_epspos = 1d-2 ! atom identification distance (bohr)
   real*8, parameter :: fc2_epssym = 1d-2 ! relative tolerance for the transpose-symmetry check
+  real*8, parameter :: fc2_epsdisp = 1d-4 ! displacement mismatch in a force file (bohr)
+  real*8, parameter :: fc2_epscond = 1d-10 ! smallest eigenvalue ratio of the least-squares matrix
+  real*8, parameter :: fc2_epssvec = 1d-4 ! same-length tolerance for the shortest supercell images (bohr)
+  real*8, parameter :: fc2_epsgeo = 1d-8 ! geometry change that invalidates the force constants
 
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
@@ -75,9 +79,19 @@ submodule (crystalmod) vibrationsmod
   ! subroutine read_phonopy_hdf5(v,c,file,errmsg)
   ! subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
   ! function fc2_generator_index(sline)
+  ! subroutine disp_default_template(c,template,template_,iwf)
+  ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti)
+  ! function fc2_dispvec(sc,ddir,dist)
+  ! function fc2_expand_star(template,i,npad)
+  ! subroutine fc2_atom_perm(c,io,icv,perm,ok)
+  ! subroutine fc2_check_disp(file,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
+  ! subroutine fc2_read_forces(file,nat,f,errmsg,ti)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+  ! function fc2_scpos(x,lv,madj,nlat)
   ! function fc2_ilat(nlat,lkey,madj,lv)
   ! function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)
+  ! subroutine fc2_stamp_geometry(v,c)
+  ! subroutine fc2_build_svec(v,c,errmsg)
   ! subroutine read_crystal_out(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_log(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
@@ -124,6 +138,10 @@ contains
        if (allocated(v%fc2)) deallocate(v%fc2)
        if (allocated(v%fc2_lvec)) deallocate(v%fc2_lvec)
        if (allocated(v%fc2_lkey)) deallocate(v%fc2_lkey)
+       if (allocated(v%fc2_x)) deallocate(v%fc2_x)
+       v%fc2_m = 0d0
+       if (allocated(v%fc2_svec)) deallocate(v%fc2_svec)
+       if (allocated(v%fc2_sptr)) deallocate(v%fc2_sptr)
     end if
 
   end subroutine vibrations_end
@@ -230,7 +248,11 @@ contains
     if (v%hasvibs) then
        write (uout,*)
        write (uout,'("# Dynamical matrices available")')
-       write (uout,'("  File: ",A)') trim(v%file)
+       if (len_trim(v%file) > 0) then
+          write (uout,'("  File: ",A)') trim(v%file)
+       else
+          write (uout,'("  Source: calculated from the force constants (CALCQ)")')
+       end if
        if (v%ivformat == ivformat_matdynmodes) then
           write (uout,'("  Format: QE matdyn.modes")')
        elseif (v%ivformat == ivformat_matdyneig) then
@@ -274,9 +296,9 @@ contains
        write (uout,'("# Second-order force constants available")')
        write (uout,'("  File: ",A)') trim(v%fc2_file)
        if (v%fc2_iscompact) then
-          write (uout,'("  Format: phonopy FORCE_CONSTANTS (compact)")')
+          write (uout,'("  Format: compact")')
        else
-          write (uout,'("  Format: phonopy FORCE_CONSTANTS (full)")')
+          write (uout,'("  Format: full")')
        end if
        write (uout,'("  Supercell matrix (rows = supercell lattice vectors):")')
        do i = 1, 3
@@ -296,6 +318,933 @@ contains
     end if
 
   end subroutine vibrations_print_summary
+
+  !> Supercell matrix from the integers given in the input: ndim = 1
+  !> (an n x n x n supercell), 3 (a diagonal supercell) or 9 (a
+  !> general transformation). By default the nine integers are in the
+  !> NEWCELL order: they fill, column by column, the matrix whose
+  !> columns are the new lattice vectors in cell coordinates. If
+  !> phonopy is true they are in the order of phonopy's DIM tag
+  !> instead. Returns smat, rows = supercell lattice vectors in units
+  !> of the cell vectors. Non-zero errmsg if error.
+  module subroutine supercell_matrix_from_ints(ndim,idim,phonopy,smat,flipped,errmsg)
+    use tools_math, only: idet3
+    use tools_io, only: string
+    integer, intent(in) :: ndim
+    integer, intent(in) :: idim(:)
+    logical, intent(in) :: phonopy
+    integer, intent(out) :: smat(3,3)
+    logical, intent(out) :: flipped
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i
+
+    errmsg = ""
+    flipped = .false.
+    smat = 0
+    if (ndim == 1 .or. ndim == 3) then
+       do i = 1, 3
+          smat(i,i) = idim(min(i,ndim))
+       end do
+    elseif (ndim == 9) then
+       if (phonopy) then
+          ! phonopy reshapes the nine integers row-wise into its matrix M
+          ! and builds the supercell with the rows of transpose(M)
+          smat = reshape(idim(1:9),(/3,3/))
+       else
+          ! NEWCELL: the columns of reshape(idim) are the new lattice vectors
+          smat = transpose(reshape(idim(1:9),(/3,3/)))
+       end if
+    else
+       errmsg = "The supercell needs 1, 3 or 9 integers (found " // string(ndim) // ")"
+       return
+    end if
+    if (idet3(smat) == 0) then
+       errmsg = "The supercell matrix is singular"
+    elseif (idet3(smat) < 0) then
+       smat = -smat
+       flipped = .true.
+    end if
+
+  end subroutine supercell_matrix_from_ints
+
+  !> Build everything the finite-difference force-constant calculation
+  !> needs from the structure c and the supercell matrix smat: the
+  !> supercell (sc), its lattice-point table (nlat, madj, lvec, lkey), the
+  !> independent atoms (nindep, indep) and the list of displacements
+  !> (ndisp, datom = supercell atom displaced, ddir = direction in
+  !> supercell fractional coordinates). dist is the displacement length
+  !> (bohr). If error, return non-zero errmsg.
+  !>
+  !> This routine was adapted from phonopy, by A. Togo.
+  subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
+     nindep,indep,ndisp,datom,ddir,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: symprec
+    use tools_io, only: uout, string, ioj_left, ioj_right
+    use tools_math, only: idet3
+    use param, only: bohrtoa
+    type(crystal), intent(inout) :: c
+    integer, intent(in) :: smat(3,3)
+    real*8, intent(in) :: dist
+    logical, intent(in) :: verbose
+    type(crystal), intent(inout) :: sc
+    type(crystalseed), intent(inout) :: seed
+    integer, intent(out) :: nlat, nsat, madj(3,3)
+    integer, allocatable, intent(inout) :: lvec(:,:), lkey(:,:)
+    integer, intent(out) :: nindep
+    integer, allocatable, intent(inout) :: indep(:)
+    integer, intent(out) :: ndisp
+    integer, allocatable, intent(inout) :: datom(:), ddir(:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    ! phonopy's directions_diag, tried in this order
+    integer, parameter :: ndirs = 13
+    integer, parameter :: dirs(3,ndirs) = reshape((/&
+       1,0,0, 0,1,0, 0,0,1, 1,1,0, 1,0,1, 0,1,1, 1,-1,0, 1,0,-1, 0,1,-1,&
+       1,1,1, 1,1,-1, 1,-1,1, -1,1,1/),(/3,ndirs/))
+
+    character*3 :: pgsymb
+    integer :: nopfull, ia, il, is, i, k, k1, k2, id, jd
+    integer :: nsym, nsel, isel(3), ndisp0
+    integer :: irot(3,3,48), rd(3,48,ndirs)
+    real*8 :: rotm(3,3,48)
+    logical :: isminus
+    logical, allocatable :: del(:)
+
+    errmsg = ""
+    if (c%ismolecule) then
+       errmsg = "the finite-difference force constants can only be used with crystals"
+       return
+    end if
+    if (dist <= 0d0) then
+       errmsg = "The displacement length must be positive"
+       return
+    end if
+
+    ! the supercell, in phonopy order (see read_phonopy_fc2)
+    call fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+    if (len_trim(errmsg) > 0) return
+    nsat = c%ncel * nlat
+
+    call seed%end()
+    seed%isused = .true.
+    seed%file = c%file
+    seed%name = "supercell"
+    seed%isformat = c%isformat
+    seed%nspc = c%nspc
+    allocate(seed%spc(c%nspc))
+    seed%spc = c%spc
+    seed%useabr = 2
+    seed%m_x2c = matmul(c%m_x2c,transpose(real(smat,8)))
+    seed%nat = nsat
+    allocate(seed%x(3,nsat),seed%is(nsat),seed%atname(nsat))
+    do ia = 1, c%ncel
+       do il = 1, nlat
+          is = (ia-1)*nlat + il
+          seed%x(:,is) = fc2_scpos(c%atcel(ia)%x,lvec(:,il),madj,nlat)
+          seed%is(is) = c%atcel(ia)%is
+          seed%atname(is) = c%spc(c%atcel(ia)%is)%name
+       end do
+    end do
+    seed%findsym = 1 ! always find the symmetry, however big the supercell
+    call sc%struct_new(seed,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
+
+    ! keep only the operations compatible with the supercell lattice
+    ! (integer rotation in the supercell basis); the centering vectors
+    ! are pure translations and always compatible. reduce_symmetry
+    ! rebuilds the supercell with that subgroup, so its orbits and site
+    ! symmetries are the ones of the periodic supercell.
+    nopfull = sc%neqv * sc%ncv
+    allocate(del(sc%neqv))
+    do k = 1, sc%neqv
+       del(k) = any(abs(sc%rotm(1:3,1:3,k) - nint(sc%rotm(1:3,1:3,k))) > 1d-6)
+    end do
+    if (any(del)) then
+       call sc%reduce_symmetry(del,errmsg,ti=ti)
+       if (len_trim(errmsg) > 0) return
+    end if
+
+    ! independent atoms: the first atom of each orbit (reduceatoms
+    ! creates the orbits in cell order, so this list is increasing)
+    nindep = sc%nneq
+    if (allocated(indep)) deallocate(indep)
+    allocate(indep(nindep))
+    indep = 0
+    do i = 1, sc%ncel
+       if (indep(sc%atcel(i)%idx) == 0) indep(sc%atcel(i)%idx) = i
+    end do
+
+    if (verbose) then
+       write (uout,'("+ Supercell matrix (rows = supercell lattice vectors):")')
+       do i = 1, 3
+          write (uout,'("    ",3(A," "))') (string(smat(i,k),4,ioj_right),k=1,3)
+       end do
+       write (uout,'("  Number of lattice points in the supercell: ",A)') string(nlat)
+       write (uout,'("  Number of atoms in the supercell: ",A)') string(nsat)
+       write (uout,'("  Symmetry operations of the crystal found in the supercell: ",A)') string(nopfull)
+       write (uout,'("  Of those, compatible with the supercell lattice (used here): ",A)') &
+          string(sc%neqv*sc%ncv)
+       if (sc%spgavail) &
+          write (uout,'("  Space group of the periodic supercell (H-M): ",A," (",A,")")') &
+             string(sc%spg%international_symbol), string(sc%spg%spacegroup_number)
+       write (uout,'("  Displacement length (bohr): ",A," (",A," ang)")') &
+          string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
+       write (uout,'("  Number of independent atoms: ",A)') string(nindep)
+       write (uout,'("# List of independent atoms")')
+       write (uout,'("# id     atom  site symmetry  nsite  ndisp")')
+    end if
+
+    ! displacements for each independent atom
+    ndisp = 0
+    if (allocated(datom)) deallocate(datom)
+    if (allocated(ddir)) deallocate(ddir)
+    allocate(datom(6*nindep),ddir(3,6*nindep))
+    do i = 1, nindep
+       is = indep(i)
+       pgsymb = sc%sitesymm(sc%atcel(is)%x,max(fc2_epspos,symprec),nsym,rotm)
+       irot(:,:,1:nsym) = nint(rotm(:,:,1:nsym))
+
+       ! images of all the candidate directions under the site symmetry
+       do id = 1, ndirs
+          do k = 1, nsym
+             rd(:,k,id) = matmul(irot(:,:,k),dirs(:,id))
+          end do
+       end do
+
+       ! one direction whose images span space
+       nsel = 0
+       one: do id = 1, ndirs
+          do k1 = 1, nsym-1
+             do k2 = k1+1, nsym
+                if (idet3(reshape((/dirs(:,id),rd(:,k1,id),rd(:,k2,id)/),(/3,3/))) /= 0) then
+                   nsel = 1
+                   isel(1) = id
+                   exit one
+                end if
+             end do
+          end do
+       end do one
+
+       ! two directions
+       if (nsel == 0) then
+          two: do id = 1, ndirs
+             do k1 = 1, nsym
+                do jd = 1, ndirs
+                   if (idet3(reshape((/dirs(:,id),rd(:,k1,id),dirs(:,jd)/),(/3,3/))) /= 0) then
+                      nsel = 2
+                      isel(1) = id
+                      isel(2) = jd
+                      exit two
+                   end if
+                end do
+             end do
+          end do two
+       end if
+
+       ! three directions: the axes
+       if (nsel == 0) then
+          nsel = 3
+          isel = (/1,2,3/)
+       end if
+
+       ! add the opposite displacement if no site operation reverses it
+       ndisp0 = ndisp
+       do k1 = 1, nsel
+          id = isel(k1)
+          ndisp = ndisp + 1
+          datom(ndisp) = is
+          ddir(:,ndisp) = dirs(:,id)
+          isminus = .true.
+          do k = 1, nsym
+             if (all(rd(:,k,id) == -dirs(:,id))) then
+                isminus = .false.
+                exit
+             end if
+          end do
+          if (isminus) then
+             ndisp = ndisp + 1
+             datom(ndisp) = is
+             ddir(:,ndisp) = -dirs(:,id)
+          end if
+       end do
+       if (verbose) &
+          write (uout,'(2X,A,X,A,X,A,X,A,X,A)') string(i,4), string(is,8), string(pgsymb,14,ioj_left),&
+             string(nsym,6), string(ndisp-ndisp0,6)
+    end do
+
+  end subroutine fc2_disp_setup
+
+  !> Write the supercell and the displaced supercells needed to
+  !> compute the second-order force constants by finite
+  !> differences. smat is the supercell matrix. template is the file
+  !> name pattern, with the character * replaced by the zero-padded
+  !> index of the displacement (0 = the undisplaced supercell); if
+  !> empty, the name and format are chosen from the source file of the
+  !> structure. rklength is passed to the writers that generate a
+  !> k-point grid (QE, FHIaims, CASTEP); since the supercell is larger
+  !> than the cell, the same rklength gives a coarser grid than in the
+  !> cell. If error, return non-zero errmsg.
+  !>
+  !> This routine was adapted from phonopy, by A. Togo.
+  module subroutine create_displacements(c,smat,dist,template,verbose,errmsg,ti,rklength)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: uout, string, ioj_right
+    use param, only: isformat_w_unknown, isformat_w_vasp, isformat_w_abinit,&
+       isformat_w_elk, isformat_w_siesta_struct, isformat_w_dftbp_hsd
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: smat(3,3)
+    real*8, intent(in) :: dist
+    character*(*), intent(in) :: template
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+    real*8, intent(in), optional :: rklength
+
+    character(len=:), allocatable :: template_, fname
+    integer :: iwf, nlat, nsat, madj(3,3), is, i, k, nindep, ndisp, npad, nk(3)
+    real*8 :: y(3), dc(3)
+    logical :: seen(c%nspc)
+    integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
+    type(crystalseed) :: seed
+    type(crystal) :: sc, scd
+
+    errmsg = ""
+
+    ! file names and format
+    call disp_default_template(c,template,template_,iwf)
+    if (index(template_,'*') == 0) then
+       errmsg = "The template for the displaced structures must contain a * character"
+       return
+    end if
+    if (iwf == isformat_w_unknown) then
+       errmsg = "Unknown file extension in the template for the displaced structures: " // template_
+       return
+    end if
+
+    ! Some formats write the atoms grouped by species; the file order would
+    ! then differ from the order used here and in the FORCE_CONSTANTS reader,
+    ! so refuse them unless the atoms are already grouped
+    if (iwf == isformat_w_vasp .or. iwf == isformat_w_abinit .or. iwf == isformat_w_elk .or.&
+       iwf == isformat_w_siesta_struct .or. iwf == isformat_w_dftbp_hsd) then
+       seen = .false.
+       do i = 1, c%ncel
+          if (i > 1) then
+             if (c%atcel(i)%is /= c%atcel(i-1)%is .and. seen(c%atcel(i)%is)) then
+                errmsg = "This file format writes the atoms grouped by species, which would change the &
+                   &atom order of the displaced structures; reorder the atoms by species first or &
+                   &use a template with a format that keeps the order (QE, cif, FHIaims, ...)"
+                return
+             end if
+          end if
+          seen(c%atcel(i)%is) = .true.
+       end do
+    end if
+
+    ! the supercell and the displacement list
+    call fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
+       nindep,indep,ndisp,datom,ddir,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+
+    if (verbose .and. present(rklength)) then
+       call sc%get_kpoints(rklength,nk)
+       write (uout,'("  K-point grid for the supercell (RKLENGTH = ",A,"): ",3(A," "))') &
+          string(rklength,'f',10,2), (string(nk(k)),k=1,3)
+    end if
+
+    ! write the undisplaced supercell and then the displaced ones,
+    ! displacing one atom of the seed at a time and restoring it. QE
+    ! inputs are written for a single-point calculation with forces.
+    npad = max(3,len(string(ndisp)))
+    fname = fc2_expand_star(template_,0,npad)
+    call sc%write_any_file(fname,errmsg,iwformat=iwf,nosym=.true.,ti=ti,forces=.true.,&
+       rklength=rklength)
+    if (len_trim(errmsg) > 0) return
+    if (verbose) then
+       write (uout,'("+ Undisplaced supercell written to: ",A)') fname
+       write (uout,'("+ List of displacements")')
+       write (uout,'("# id  atom  --direction (frac)--  ------ displacement (Cartesian, bohr) ------  file")')
+    end if
+    seed%findsym = 0
+    do i = 1, ndisp
+       dc = fc2_dispvec(sc,ddir(:,i),dist)
+       is = datom(i)
+       y = seed%x(:,is)
+       seed%x(:,is) = y + sc%c2x(dc)
+       call scd%struct_new(seed,errmsg,ti=ti)
+       seed%x(:,is) = y
+       if (len_trim(errmsg) > 0) return
+       fname = fc2_expand_star(template_,i,npad)
+       call scd%write_any_file(fname,errmsg,iwformat=iwf,nosym=.true.,ti=ti,forces=.true.,&
+          rklength=rklength)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) &
+          write (uout,'(2X,A,X,A,2X,3(A,X),X,3(A,X),X,A)') string(i,4), string(is,5),&
+             (string(ddir(k,i),4),k=1,3), (string(dc(k),'f',14,10,ioj_right),k=1,3), trim(fname)
+    end do
+    if (verbose) &
+       write (uout,'("+ Written ",A," displaced supercells")') string(ndisp)
+
+  end subroutine create_displacements
+
+  !> Cartesian displacement (bohr) of length dist along the integer
+  !> direction ddir, given in fractional coordinates of the supercell sc.
+  function fc2_dispvec(sc,ddir,dist) result(dc)
+    type(crystal), intent(in) :: sc
+    integer, intent(in) :: ddir(3)
+    real*8, intent(in) :: dist
+    real*8 :: dc(3)
+
+    dc = matmul(sc%m_x2c,real(ddir,8))
+    dc = dc * dist / norm2(dc)
+
+  end function fc2_dispvec
+
+  !> Expand a file name template by replacing every * with the integer
+  !> i, zero-padded to npad digits. Several stars are allowed (and all
+  !> get the same index), so a template like "supercell-* /supercell-*.in"
+  !> names one file per displacement inside its own directory.
+  function fc2_expand_star(template,i,npad) result(fname)
+    use tools_io, only: string
+    character*(*), intent(in) :: template
+    integer, intent(in) :: i, npad
+    character(len=:), allocatable :: fname
+
+    character(len=:), allocatable :: rest
+    integer :: istar
+
+    fname = ""
+    rest = template
+    do while (.true.)
+       istar = index(rest,'*')
+       if (istar == 0) exit
+       fname = fname // rest(1:istar-1) // string(i,npad,pad0=.true.)
+       rest = rest(istar+1:)
+    end do
+    fname = fname // rest
+
+  end function fc2_expand_star
+
+  !> Permutation of the complete atom list of c induced by the symmetry
+  !> operation with rotation io and centering vector icv: perm(i) is the
+  !> atom that the operation maps atom i onto. ok is false if some image
+  !> could not be identified.
+  subroutine fc2_atom_perm(c,io,icv,perm,ok)
+    use global, only: symprec
+    use param, only: icrd_crys
+    type(crystal), intent(inout) :: c
+    integer, intent(in) :: io, icv
+    integer, intent(out) :: perm(:)
+    logical, intent(out) :: ok
+
+    integer :: i, j
+    real*8 :: xx(3), dd
+
+    ok = .false.
+    do i = 1, c%ncel
+       xx = matmul(c%rotm(1:3,1:3,io),c%atcel(i)%x) + c%rotm(:,4,io) + c%cen(:,icv)
+       j = c%identify_atom(xx,icrd_crys,dist=dd,distmax=max(fc2_epspos,symprec))
+       if (j == 0) return
+       perm(i) = j
+    end do
+    ok = .true.
+
+  end subroutine fc2_atom_perm
+
+  !> Read the structure of a displaced supercell from file and compare
+  !> it with the undisplaced supercell sc/seed: return in jmax the atom
+  !> that moved the most and in dmax the difference (bohr) between that
+  !> displacement and the expected one (dexp, Cartesian, on atom iat).
+  !> If the file could not be read, return non-zero errmsg.
+  subroutine fc2_check_disp(file,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: string
+    character*(*), intent(in) :: file
+    type(crystal), intent(in) :: sc
+    type(crystalseed), intent(in) :: seed
+    integer, intent(in) :: iat
+    real*8, intent(in) :: dexp(3)
+    integer, intent(out) :: jmax
+    real*8, intent(out) :: dmax
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: dseed
+    integer :: j
+    real*8 :: dx(3), dd, dmx
+
+    jmax = 0
+    dmax = huge(1d0)
+    call dseed%read_any_file(file,0,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) then
+       errmsg = "Could not read the structure from " // trim(file) // ": " // errmsg
+       return
+    end if
+    if (dseed%nat /= seed%nat) then
+       errmsg = "The structure in " // trim(file) // " has " // string(dseed%nat) //&
+          " atoms, but the supercell has " // string(seed%nat)
+       return
+    end if
+
+    ! the atom that moved the most from the undisplaced supercell
+    dmx = -1d0
+    do j = 1, dseed%nat
+       dx = dseed%x(:,j) - seed%x(:,j)
+       dx = dx - nint(dx)
+       dd = norm2(matmul(sc%m_x2c,dx))
+       if (dd > dmx) then
+          dmx = dd
+          jmax = j
+       end if
+    end do
+
+    ! how far that displacement is from the expected one
+    dx = dseed%x(:,iat) - seed%x(:,iat)
+    dx = dx - nint(dx)
+    dmax = norm2(matmul(sc%m_x2c,dx) - dexp)
+
+  end subroutine fc2_check_disp
+
+  !> Read the forces on the nat atoms of a supercell from the output
+  !> of a Quantum ESPRESSO calculation, in Hartree/bohr and in the
+  !> atom order of the input. The last force block in the file is
+  !> used. The mean force over the atoms (the drift) is subtracted. If
+  !> error, return non-zero errmsg.
+  subroutine fc2_read_forces(file,nat,f,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal, isreal, string
+    character*(*), intent(in) :: file
+    integer, intent(in) :: nat
+    real*8, intent(out) :: f(3,nat)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line, word
+    integer :: lu, n, lp, i
+    real*8 :: fx(3), fmean(3)
+    logical :: found, ok
+
+    ! Ry/bohr (QE) to Hartree/bohr
+    real*8, parameter :: fac = 0.5d0
+
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu <= 0) then
+       errmsg = "Could not open the force file: " // trim(file)
+       return
+    end if
+
+    found = .false.
+    do while (getline_raw(lu,line))
+       if (index(line,"Forces acting on atoms") == 0) cycle
+
+       n = 0
+       do while (getline_raw(lu,line))
+          if (len_trim(line) == 0) then
+             if (n > 0) exit
+             cycle
+          end if
+          lp = 1
+          word = lgetword(line,lp)
+          if (.not.equal(word,"atom")) exit
+          lp = index(line,"=")
+          if (lp == 0) exit
+          lp = lp + 1
+          ok = isreal(fx(1),line,lp)
+          ok = ok .and. isreal(fx(2),line,lp)
+          ok = ok .and. isreal(fx(3),line,lp)
+          if (.not.ok) then
+             errmsg = "Error reading a force line in " // trim(file) // ": " // trim(line)
+             goto 999
+          end if
+          n = n + 1
+          if (n <= nat) f(:,n) = fx * fac
+       end do
+
+       if (n /= nat) then
+          errmsg = "The force block in " // trim(file) // " has " // string(n) // " atoms, but " //&
+             string(nat) // " were expected for this supercell"
+          goto 999
+       end if
+       found = .true.
+    end do
+    call fclose(lu)
+    lu = -1
+
+    if (.not.found) then
+       errmsg = "No force block found in " // trim(file) // ". Only Quantum ESPRESSO outputs &
+          &(with tprnfor) can be read for now"
+       return
+    end if
+
+    ! subtract the drift
+    do i = 1, 3
+       fmean(i) = sum(f(i,1:nat)) / real(nat,8)
+       f(i,1:nat) = f(i,1:nat) - fmean(i)
+    end do
+
+    return
+999 continue
+    if (lu > 0) call fclose(lu)
+
+  end subroutine fc2_read_forces
+
+  !> Calculate the second-order force constants by finite differences
+  !> from the forces of a set of already-run displaced supercells, and
+  !> store them in c%vib. smat and dist must be the same supercell
+  !> matrix and displacement length used to write the displaced
+  !> structures with create_displacements. file locates the outputs:
+  !> if it contains a *, it is a template with the * replaced by the
+  !> zero-padded displacement index, and otherwise it is a text file
+  !> with one file name per line, in displacement order.
+  !> If error, return non-zero errmsg.
+  module subroutine create_forces(c,smat,dist,file,verbose,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: uout, string, ioj_right, fopen_read, fclose, getline_raw, getword
+    use tools_math, only: matinv, eigsym
+    use param, only: mlen
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: smat(3,3)
+    real*8, intent(in) :: dist
+    character*(*), intent(in) :: file
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line, word
+    character(len=mlen), allocatable :: fname(:)
+    integer :: nlat, nsat, madj(3,3), nindep, ndisp, nop
+    integer :: i, j, k, m, ia, is, js, id, ip, iq, io, icv, ier, npad, lu, nf, lp
+    integer :: nd, ns, jmax
+    real*8 :: gg(3,3), ggev(3,3), eval(3), atb(3,3), dc(3), rr(3,3), blk(3,3), dmax
+    logical :: ok
+    integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
+    integer, allocatable :: perm(:,:), isite(:), ipsite(:,:)
+    real*8, allocatable :: fall(:,:,:), rcart(:,:,:), amat(:,:), bmat(:,:), fcs(:,:,:,:)
+    type(crystal) :: sc
+    type(crystalseed) :: seed
+
+    ! the supercell and the displacement list, exactly as create_displacements built them
+    call fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
+       nindep,indep,ndisp,datom,ddir,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+
+    ! the files with the forces, one per displacement
+    allocate(fname(ndisp))
+    npad = max(3,len(string(ndisp)))
+    if (index(file,'*') > 0) then
+       do i = 1, ndisp
+          fname(i) = fc2_expand_star(file,i,npad)
+       end do
+    else
+       lu = fopen_read(file,errstop=.false.,ti=ti)
+       if (lu <= 0) then
+          errmsg = "Could not open the list of force files: " // trim(file)
+          return
+       end if
+       nf = 0
+       do while (getline_raw(lu,line))
+          i = index(line,'#')
+          if (i > 0) line = line(1:i-1)
+          if (len_trim(line) == 0) cycle
+          nf = nf + 1
+          if (nf <= ndisp) then
+             lp = 1
+             fname(nf) = getword(line,lp)
+          end if
+       end do
+       call fclose(lu)
+       if (nf /= ndisp) then
+          errmsg = "The list in " // trim(file) // " has " // string(nf) // " file names, but " //&
+             string(ndisp) // " displacements were generated for this supercell"
+          return
+       end if
+    end if
+
+    ! read the forces
+    allocate(fall(3,nsat,ndisp))
+    if (verbose) then
+       write (uout,'("+ List of displacements and force files")')
+       write (uout,'("# id  atom  --direction (frac)--  file")')
+    end if
+    do i = 1, ndisp
+       call fc2_read_forces(fname(i),nsat,fall(:,:,i),errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+
+       ! check the geometry in the file is the displacement we think it is;
+       ! this catches a wrong supercell, a wrong displacement length, and
+       ! files given in the wrong order
+       call fc2_check_disp(fname(i),sc,seed,datom(i),fc2_dispvec(sc,ddir(:,i),dist),&
+          jmax,dmax,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       if (jmax /= datom(i) .or. dmax > fc2_epsdisp) then
+          errmsg = "The structure in " // trim(fname(i)) // " is not the displacement expected for &
+             &file " // string(i) // " (atom " // string(datom(i)) // " displaced by " //&
+             string(norm2(fc2_dispvec(sc,ddir(:,i),dist)),'f',10,6) // " bohr): the largest &
+             &displacement found is " // string(dmax,'e',12,4) // " bohr on atom " // string(jmax) //&
+             ". Check the supercell, the DISTANCE and the order of the files"
+          return
+       end if
+
+       if (verbose) &
+          write (uout,'(2X,A,X,A,2X,3(A,X),X,A)') string(i,4), string(datom(i),5),&
+             (string(ddir(k,i),4),k=1,3), trim(fname(i))
+    end do
+
+    ! the atom permutations induced by the operations of the supercell
+    nop = sc%neqv * sc%ncv
+    allocate(perm(nsat,nop),rcart(3,3,nop),stat=ier)
+    if (ier /= 0) then
+       errmsg = "Could not allocate the symmetry permutation table (" //&
+          string(nint(4d0*nsat*nop/1024d0**2)) // " Mb)"
+       return
+    end if
+    k = 0
+    do io = 1, sc%neqv
+       do icv = 1, sc%ncv
+          k = k + 1
+          call fc2_atom_perm(sc,io,icv,perm(:,k),ok)
+          if (.not.ok) then
+             errmsg = "Could not build the atom permutation of a supercell symmetry operation"
+             return
+          end if
+          rcart(:,:,k) = matmul(sc%m_x2c,matmul(sc%rotm(1:3,1:3,io),sc%m_c2x))
+       end do
+    end do
+
+    ! solve for the rows of the independent atoms
+    allocate(fcs(3,3,nindep,nsat),isite(nop),stat=ier)
+    if (ier /= 0) then
+       errmsg = "Could not allocate " // string(nint(72d0*nindep*nsat/1024d0**2)) //&
+          " Mb for the force constants"
+       return
+    end if
+    do i = 1, nindep
+       is = indep(i)
+
+       ! the operations that leave this atom in place (its site symmetry)
+       ns = 0
+       do k = 1, nop
+          if (perm(is,k) == is) then
+             ns = ns + 1
+             isite(ns) = k
+          end if
+       end do
+
+       ! the atom each site operation sends onto every other atom
+       if (allocated(ipsite)) deallocate(ipsite)
+       allocate(ipsite(nsat,ns))
+       do k = 1, ns
+          do j = 1, nsat
+             ipsite(perm(j,isite(k)),k) = j
+          end do
+       end do
+
+       ! the rotated displacements and the normal-equation matrix
+       nd = count(datom(1:ndisp) == is)
+       if (allocated(amat)) deallocate(amat)
+       if (allocated(bmat)) deallocate(bmat)
+       allocate(amat(3,nd*ns),bmat(3,nd*ns))
+       m = 0
+       do id = 1, ndisp
+          if (datom(id) /= is) cycle
+          dc = fc2_dispvec(sc,ddir(:,id),dist)
+          do k = 1, ns
+             m = m + 1
+             amat(:,m) = matmul(rcart(:,:,isite(k)),dc)
+          end do
+       end do
+       gg = matmul(amat,transpose(amat))
+
+       ! guard the conditioning: matinv only fails on an exactly zero
+       ! pivot, and gg is full rank by construction but can still be
+       ! badly conditioned for an oblique supercell with a low-symmetry site
+       ggev = gg
+       call eigsym(ggev,3,eval,ier)
+       if (ier /= 0 .or. eval(3) <= 0d0 .or. eval(1)/eval(3) < fc2_epscond) then
+          errmsg = "Ill-conditioned least-squares matrix for the displacements of supercell atom " //&
+             string(is) // " (eigenvalue ratio " // string(eval(1)/max(eval(3),tiny(1d0)),'e',12,4) //&
+             "); the displacement directions do not span space well enough"
+          return
+       end if
+       call matinv(gg,3,ier)
+       if (ier /= 0) then
+          errmsg = "Singular least-squares matrix for the displacements of supercell atom " // string(is)
+          return
+       end if
+
+       ! solve for every atom of the supercell
+       do js = 1, nsat
+          m = 0
+          do id = 1, ndisp
+             if (datom(id) /= is) cycle
+             do k = 1, ns
+                m = m + 1
+                bmat(:,m) = matmul(rcart(:,:,isite(k)),fall(:,ipsite(js,k),id))
+             end do
+          end do
+          atb = matmul(amat,transpose(bmat))
+          fcs(:,:,i,js) = -matmul(gg,atb)
+       end do
+    end do
+
+    ! the rows of the remaining atoms of the cell, by symmetry
+    call c%vib%end(keepvibs=.true.)
+    allocate(c%vib%fc2(3,3,c%ncel,nsat),stat=ier)
+    if (ier /= 0) then
+       errmsg = "Could not allocate " // string(nint(72d0*c%ncel*nsat/1024d0**2)) //&
+          " Mb for the force constants"
+       return
+    end if
+    do ia = 1, c%ncel
+       is = (ia-1)*nlat + 1
+
+       ! this atom may be one of the independent ones
+       ip = 0
+       do i = 1, nindep
+          if (indep(i) == is) then
+             ip = i
+             exit
+          end if
+       end do
+       if (ip > 0) then
+          c%vib%fc2(:,:,ia,:) = fcs(:,:,ip,:)
+          cycle
+       end if
+
+       ! otherwise, an operation carrying it onto an independent atom
+       iq = 0
+       oper: do k = 1, nop
+          do i = 1, nindep
+             if (perm(is,k) == indep(i)) then
+                iq = k
+                ip = i
+                exit oper
+             end if
+          end do
+       end do oper
+       if (iq == 0) then
+          errmsg = "No symmetry operation carries atom " // string(is) // " of the supercell onto &
+             &an atom whose force constants were calculated"
+          return
+       end if
+       rr = rcart(:,:,iq)
+       do js = 1, nsat
+          blk = fcs(:,:,ip,perm(js,iq))
+          c%vib%fc2(:,:,ia,js) = matmul(transpose(rr),matmul(blk,rr))
+       end do
+    end do
+
+    ! wrap up
+    c%vib%fc2_file = file
+    c%vib%hasfc2 = .true.
+    c%vib%fc2_smat = smat
+    c%vib%fc2_madj = madj
+    c%vib%fc2_nlat = nlat
+    c%vib%fc2_nsat = nsat
+    c%vib%fc2_ncel = c%ncel
+    c%vib%fc2_iscompact = (c%ncel < nsat)
+    if (allocated(c%vib%fc2_lvec)) deallocate(c%vib%fc2_lvec)
+    if (allocated(c%vib%fc2_lkey)) deallocate(c%vib%fc2_lkey)
+    call move_alloc(lvec,c%vib%fc2_lvec)
+    call move_alloc(lkey,c%vib%fc2_lkey)
+    c%vib%fc2_acoustic = -1
+    c%vib%fc2_vs_center = -1d0
+    c%vib%fc2_vs_delta = -1d0
+    call fc2_stamp_geometry(c%vib,c)
+
+    if (verbose) &
+       write (uout,'("+ Force constants calculated from ",A," displaced supercells")') string(ndisp)
+
+  end subroutine create_forces
+
+  !> Default file name template and format for the displaced
+  !> structures written by create_displacements. If template is not
+  !> empty, it is used as is and the format is detected from its
+  !> extension. Otherwise both are chosen from the source
+  !> file of the structure c: the same or a related format when critic2
+  !> can write it (for instance, a QE output gives QE inputs), and
+  !> FHIaims geometry (geometry.in) otherwise. The root of the name is
+  !> the source file name without its extension (also without a .scf or
+  !> similar QE infix), followed by "-*".
+  subroutine disp_default_template(c,template,template_,iwf)
+    use tools_io, only: lower
+    use param, only: dirsep, isformat_w_qein, isformat_w_vasp,&
+       isformat_w_cif, isformat_w_abinit, isformat_w_elk, isformat_w_siesta_struct,&
+       isformat_w_castepcell, isformat_w_crystal, isformat_w_dftbp_hsd, isformat_w_aimsin,&
+       isformat_r_qein, isformat_r_qeout, isformat_r_vasp, isformat_r_cif, isformat_r_abinit,&
+       isformat_r_elk, isformat_r_siesta, isformat_r_castepcell, isformat_r_castepgeom,&
+       isformat_r_crystal, isformat_r_dmain
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: template
+    character(len=:), allocatable, intent(out) :: template_
+    integer, intent(out) :: iwf
+
+    character(len=:), allocatable :: root, ext
+    integer :: idx, istar
+
+    if (len_trim(template) > 0) then
+       ! detect the format from the template, with the * filled in (unknown
+       ! extension -> isformat_w_unknown, the caller decides)
+       template_ = trim(template)
+       call struct_detect_write_format(fc2_expand_star(template_,0,3),iwf)
+       return
+    end if
+
+    ! the root: source file name without directory and extension
+    root = trim(c%file)
+    idx = index(root,dirsep,back=.true.)
+    if (idx > 0) root = root(idx+1:)
+    if (len_trim(root) == 0) root = "supercell"
+    idx = index(root,'.',back=.true.)
+    if (idx > 1) root = root(1:idx-1)
+
+    ! format and extension from the source format
+    select case (c%isformat)
+    case (isformat_r_qein, isformat_r_qeout)
+       ! drop a .scf/.relax/... infix, so that x.scf.out gives x-*.scf.in
+       idx = index(root,'.',back=.true.)
+       if (idx > 1) then
+          select case (lower(root(idx+1:)))
+          case ("scf","relax","vc-relax","nscf","md","vc-md","pw")
+             root = root(1:idx-1)
+          end select
+       end if
+       ext = ".scf.in"
+       iwf = isformat_w_qein
+    case (isformat_r_vasp)
+       ext = ""
+       iwf = isformat_w_vasp
+    case (isformat_r_cif)
+       ext = ".cif"
+       iwf = isformat_w_cif
+    case (isformat_r_abinit)
+       ext = ".abin"
+       iwf = isformat_w_abinit
+    case (isformat_r_elk)
+       ext = ".elk"
+       iwf = isformat_w_elk
+    case (isformat_r_siesta)
+       ext = ".STRUCT_IN"
+       iwf = isformat_w_siesta_struct
+    case (isformat_r_castepcell, isformat_r_castepgeom)
+       ext = ".cell"
+       iwf = isformat_w_castepcell
+    case (isformat_r_crystal)
+       ext = ".d12"
+       iwf = isformat_w_crystal
+    case (isformat_r_dmain)
+       ext = ".hsd"
+       iwf = isformat_w_dftbp_hsd
+    case default
+       ! FHIaims geometry (also for aims inputs and outputs)
+       ext = ".in"
+       iwf = isformat_w_aimsin
+    end select
+    template_ = root // "-*" // ext
+
+  end subroutine disp_default_template
 
   !> Print information about the stored FC2 to the standard output.
   !> The structural info comes from crystal structures c.
@@ -458,28 +1407,38 @@ contains
   end subroutine vibrations_print_fc2
 
   !> Print frequency information about a particular q-point with given
-  !> id.
-  module subroutine vibrations_print_freq(v,id)
+  !> Print the frequencies at the q-point with index id: the
+  !> coordinates of the point, fractional and Cartesian, and the
+  !> frequency of every mode in cm-1 and THz. A negative frequency is
+  !> an imaginary (unstable) mode.
+  module subroutine vibrations_print_freq(v,c,id)
+    use global, only: iunit, iunitname0, dunit0
     use tools_io, only: uout, ferror, faterr, string, ioj_right
+    use param, only: cm1tothz
     class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     integer, intent(in) :: id
 
     integer :: i, j
-
-    ! header
-    write (uout,'("+ PRINT frequency info for a given q-point")')
+    real*8 :: qc(3)
 
     ! check the q-point id
     if (id <= 0 .or. id > v%nqpt) &
        call ferror('vibrations_print_freq','q-point index out of range',faterr)
-    write (uout,'("# q-point (",A,", cryst. coords.) = ",3(A," "))') string(id), &
-       (string(v%qpt(j,id),'f',decimal=8,justify=ioj_right),j=1,3)
 
-    ! write the info
-    write (uout,'("# List of frequencies: ",A)') string(v%nfreq)
-    write (uout,'("#Id      Frequency(cm^-1)")')
+    ! the q-point, in fractional and Cartesian coordinates
+    qc = c%rx2rc(v%qpt(:,id)) / dunit0(iunit)
+    write (uout,'("# q-point ",A,": ",3(A," "),"(fractional)")') string(id),&
+       (string(v%qpt(j,id),'f',12,7,ioj_right),j=1,3)
+    write (uout,'("#",11X,3(A," "),"(Cartesian, ",A,"^-1)")') &
+       (string(qc(j),'f',12,7,ioj_right),j=1,3), iunitname0(iunit)
+
+    ! the frequencies
+    write (uout,'("#Id   Frequency(cm^-1)   Frequency(THz)")')
     do i = 1, v%nfreq
-       write (uout,'(4(A," "))') string(i,5), string(v%freq(i,id),'f',decimal=8,justify=ioj_right)
+       write (uout,'(3(A," "))') string(i,4,ioj_right),&
+          string(v%freq(i,id),'f',16,6,ioj_right),&
+          string(v%freq(i,id) * cm1tothz,'f',16,6,ioj_right)
     end do
 
   end subroutine vibrations_print_freq
@@ -552,9 +1511,7 @@ contains
     if (present(verbose)) verbose_ = verbose
 
     ! Enforce sum_j Phi(i,j) = 0 exactly, by moving the whole residual
-    ! into the self term (phonopy's set_translational_symmetry_compact_fc,
-    ! c/phonopy.c). The other direction, sum_i Phi(i,j) = 0, then follows
-    ! from the translational symmetry of the full array.
+    ! into the self term.
     drift = 0d0
     do ia = 1, c%ncel
        is = (ia-1)*v%fc2_nlat + 1
@@ -756,124 +1713,242 @@ contains
 
   end subroutine vibrations_check_fc2
 
-  !> Calculate frequencies and eigenvectors from the FC2 for a single
-  !> q (fractional coordiantes in reciprocal space); adds the
-  !> resulting frequencies and eigenvectors to the v type.  If the
-  !> optional arguments freqo or veco are present, return the
-  !> frequencies and/or eigenvectors in these variables instead of
-  !> overwriting the vibrational info in v. Frequencies in output are
-  !> in ascending order.
-  module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
-    use tools_io, only: ferror, faterr
-    use param, only: icrd_crys, atmass, tpi, img
+  !> Record the geometry the force constants were obtained for, so that
+  !> calculate_q can refuse to use them after the structure changes.
+  subroutine fc2_stamp_geometry(v,c)
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+
+    integer :: i
+
+    if (allocated(v%fc2_x)) deallocate(v%fc2_x)
+    allocate(v%fc2_x(3,c%ncel))
+    do i = 1, c%ncel
+       v%fc2_x(:,i) = c%atcel(i)%x
+    end do
+    v%fc2_m = c%m_x2c
+
+  end subroutine fc2_stamp_geometry
+
+  !> Build the table of shortest images of the vectors going from the
+  !> atoms of the cell to the atoms of the supercell in which the force
+  !> constants were calculated; the dynamical matrix needs them. For the
+  !> pair (ia,js) it finds the images of the vector from cell atom ia to
+  !> supercell atom js having the smallest length, over all translations
+  !> by the supercell lattice, and stores them in cell fractional
+  !> coordinates in v%fc2_svec (see the type for the indexing).
+  !> If error, return non-zero errmsg.
+  !>
+  !> This routine was adapted from phonopy, by A. Togo.
+  subroutine fc2_build_svec(v,c,errmsg)
+    use tools, only: delaunay_reduction
     use types, only: realloc
+    use tools_io, only: string
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: ia, ja, jl, js, ip, k, n1, n2, n3, n4, nc, nsv, ier
+    integer :: ncel, nlat, nsat
+    real*8 :: scx2c(3,3), smatr(3,3), rmat(3,4), tt(3), y(3), yx(3), r0(3), dmin
+    real*8 :: tcand(3,3**4), tcandx(3,3**4), dcand(3**4)
+    real*8, allocatable :: sv(:,:)
+    logical :: found
+
+    errmsg = ""
+    ncel = c%ncel
+    nlat = v%fc2_nlat
+    nsat = v%fc2_nsat
+    smatr = real(v%fc2_smat,8)
+    scx2c = matmul(c%m_x2c,transpose(smatr))
+
+    ! the candidate translations: the four Delaunay vectors of the supercell
+    ! lattice with coefficients -1, 0 and 1.
+    call delaunay_reduction(scx2c,rmat)
+    nc = 0
+    do n1 = -1, 1
+       do n2 = -1, 1
+          do n3 = -1, 1
+             do n4 = -1, 1
+                tt = matmul(scx2c,n1*rmat(:,1) + n2*rmat(:,2) + n3*rmat(:,3) + n4*rmat(:,4))
+                found = .false.
+                do k = 1, nc
+                   found = all(abs(tt - tcand(:,k)) < fc2_epssvec)
+                   if (found) exit
+                end do
+                if (found) cycle
+                nc = nc + 1
+                tcand(:,nc) = tt
+                tcandx(:,nc) = c%c2x(tt)
+             end do
+          end do
+       end do
+    end do
+
+    ! allocate; the initial guess for the number of images is four per pair
+    if (allocated(v%fc2_sptr)) deallocate(v%fc2_sptr)
+    allocate(v%fc2_sptr(ncel*nsat+1),sv(3,4*ncel*nsat),stat=ier)
+    if (ier /= 0) then
+       errmsg = "Could not allocate the table of shortest images (" //&
+          string(nint(52d0*ncel*nsat/1024d0**2)) // " Mb)"
+       return
+    end if
+
+    nsv = 0
+    do js = 1, nsat
+       ja = (js-1)/nlat + 1
+       jl = js - (ja-1)*nlat
+       do ia = 1, ncel
+          ip = (js-1)*ncel + ia
+          v%fc2_sptr(ip) = nsv + 1
+
+          ! the vector from atom ia to atom js, reduced into the supercell
+          y = fc2_scpos(c%atcel(ja)%x - c%atcel(ia)%x,v%fc2_lvec(:,jl),v%fc2_madj,nlat)
+          y = y - nint(y)
+          r0 = matmul(scx2c,y)
+          yx = matmul(y,smatr)
+
+          ! keep the images at the smallest distance
+          dmin = huge(1d0)
+          do k = 1, nc
+             dcand(k) = norm2(r0 + tcand(:,k))
+             dmin = min(dmin,dcand(k))
+          end do
+          do k = 1, nc
+             if (dcand(k) > dmin + fc2_epssvec) cycle
+             nsv = nsv + 1
+             if (nsv > size(sv,2)) call realloc(sv,3,2*nsv)
+             sv(:,nsv) = yx + tcandx(:,k)
+          end do
+       end do
+    end do
+    v%fc2_sptr(ncel*nsat+1) = nsv + 1
+
+    call realloc(sv,3,nsv)
+    call move_alloc(sv,v%fc2_svec)
+
+  end subroutine fc2_build_svec
+
+  !> Calculate frequencies and eigenvectors from the FC2 at a single
+  !> q-point (fractional coordinates in reciprocal space). If the
+  !> optional arguments freqo or veco are present, return the
+  !> frequencies (cm-1, ascending order) in freqo and the whole
+  !> (3*ncel,3*ncel) eigenvector matrix in veco (columns = modes), and
+  !> leave v alone. Otherwise, add the q-point to v, where the
+  !> eigenvectors are reshaped to (3,ncel) per mode. If error, return
+  !> non-zero errmsg.
+  module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco)
     use tools_math, only: eigherm
-    use tools_io, only: ferror, faterr
+    use tools_io, only: string
+    use types, only: realloc
+    use param, only: atmass, tpi, img
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: q(3)
+    character(len=:), allocatable, intent(out) :: errmsg
     real*8, intent(inout), allocatable, optional :: freqo(:)
     complex*16, intent(inout), allocatable, optional :: veco(:,:)
 
-    !! NOT REIMPLEMENTED YET. This routine assumed the old fc2(3,3,ncel,ncel)
-    !! layout, in which both indices ran over the atoms of the cell. The body
-    !! is kept commented out below until it is rewritten for the cell-compact
-    !! fc2(3,3,ncel,nsat) array (second index over the supercell).
-    call ferror('vibrations_calculate_q','not yet reimplemented for the cell-compact force constants',faterr)
+    integer :: ia, ja, jl, js, ip, i, k, ier, ncel, nlat, nfreq
+    real*8 :: dx(3)
+    complex*16 :: phase, dd(3,3)
+    real*8, allocatable :: eval(:), sqrtm(:)
+    complex*16, allocatable :: dm(:,:)
 
-!!    complex*16 :: dm_local(3,3), phase
-!!    real*8 :: sqrt_ij
-!!    integer :: nat
-!!    real*8 :: x1(3), x2(3), maxdisteps
-!!    integer :: i, jj, j, ier
-!!    integer, allocatable :: nida(:), lvec(:,:), mult(:)
-!!    real*8, allocatable:: eval(:), dist(:), freq(:), rused(:)
-!!    complex*16, allocatable :: dm(:,:)
-!!    logical :: varoutput
-!!
-!!    real*8, parameter :: epsgen = 1d-4
-!!    real*8, parameter :: epsneigh = 1d-5
-!!
-!!    ! return if no FC2 is available
-!!    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
-!!
-!!    ! process input arguments
-!!    varoutput = present(freqo) .or. present(veco)
-!!
-!!    ! maximum distance of all pairs of atoms in the unit cell
-!!    maxdisteps = 0d0
-!!    do i = 1, c%ncel
-!!       do j = i+1, c%ncel
-!!          maxdisteps = max(maxdisteps,c%eql_distance(c%atcel(i)%x, c%atcel(j)%x))
-!!       end do
-!!    end do
-!!
-!!    ! build the dynamical matrix for this q-point (Parlinski's recipe)
-!!    allocate(dm(c%ncel*3,c%ncel*3),rused(c%ncel),mult(c%ncel))
-!!    dm = 0d0
-!!    do i = 1, c%ncel
-!!       rused = huge(1d0)
-!!       mult = 0
-!!       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,nida,dist=dist,lvec=lvec,up2d=maxdisteps+epsgen)
-!!       do jj = 1, nat
-!!          j = nida(jj)
-!!          if (dist(jj) <= rused(j) + epsneigh) then
-!!             x1 = c%atcel(i)%x
-!!             x2 = c%atcel(j)%x + lvec(:,jj)
-!!
-!!             sqrt_ij = sqrt(atmass(c%spc(c%atcel(i)%is)%z) * atmass(c%spc(c%atcel(j)%is)%z))
-!!             phase = exp(-tpi * img * dot_product(q,x1 - x2))
-!!
-!!             dm_local = v%fc2(:,:,i,j) * phase / sqrt_ij
-!!             dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
-!!
-!!             rused(j) = min(rused(j),dist(jj))
-!!             mult(j) = mult(j) + 1
-!!          end if
-!!       end do
-!!
-!!       ! apply the multiplicities
-!!       do j = 1, c%ncel
-!!          dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) / mult(j)
-!!       end do
-!!    end do
-!!
-!!    ! impose hermiticity
-!!    dm = (dm + transpose(conjg(dm)))/2
-!!
-!!    ! diagonalize
-!!    allocate(eval(c%ncel*3),freq(c%ncel*3))
-!!    call eigherm(dm,c%ncel*3,eval,ier)
-!!    if (ier /= 0) &
-!!       call ferror('vibrations_calculate_q','Error in diagonalization',faterr)
-!!
-!!    ! calculate the frequencies
-!!    freq = sign(sqrt(abs(eval)) * freqfactor,eval)
-!!
-!!    ! save output
-!!    if (varoutput) then
-!!       if (present(freqo)) freqo = freq
-!!       if (present(veco)) veco = dm
-!!    else
-!!       ! save the info
-!!       v%nqpt = v%nqpt + 1
-!!       if (.not.allocated(v%qpt)) allocate(v%qpt(3,v%nqpt))
-!!       if (.not.allocated(v%freq)) then
-!!          v%nfreq = 3 * c%ncel
-!!          allocate(v%freq(3*c%ncel,v%nqpt))
-!!       end if
-!!       if (.not.allocated(v%vec)) allocate(v%vec(3,c%ncel,3*c%ncel,v%nqpt))
-!!       if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
-!!       if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
-!!       if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
-!!       v%qpt(:,v%nqpt) = q
-!!       v%freq(:,v%nqpt) = freq
-!!       do i = 1, 3*c%ncel
-!!          v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
-!!       end do
-!!       v%hasvibs = .true.
-!!    end if
-!!
+    errmsg = ""
+
+    ! checks
+    if (.not.v%hasfc2 .or..not.allocated(v%fc2)) then
+       errmsg = "No force constants available; use VIBRATIONS LOAD or VIBRATIONS FORCES first"
+       return
+    end if
+    if (v%fc2_ncel /= c%ncel .or..not.allocated(v%fc2_x)) then
+       errmsg = "The force constants correspond to a structure with " // string(v%fc2_ncel) //&
+          " atoms in the cell but this one has " // string(c%ncel) // "; load them again"
+       return
+    end if
+    if (any(abs(v%fc2_m - c%m_x2c) > fc2_epsgeo)) then
+       errmsg = "The lattice has changed since the force constants were obtained; load them again"
+       return
+    end if
+    do i = 1, c%ncel
+       dx = v%fc2_x(:,i) - c%atcel(i)%x
+       dx = dx - nint(dx)
+       if (any(abs(dx) > fc2_epsgeo)) then
+          errmsg = "Atom " // string(i) // " has moved since the force constants were obtained; &
+             &load them again"
+          return
+       end if
+    end do
+    ncel = c%ncel
+    nlat = v%fc2_nlat
+    nfreq = 3 * ncel
+
+    ! the shortest images, calculated once and kept with the force constants
+    if (.not.allocated(v%fc2_svec)) then
+       call fc2_build_svec(v,c,errmsg)
+       if (len_trim(errmsg) > 0) return
+    end if
+
+    ! build the dynamical matrix
+    allocate(dm(nfreq,nfreq),eval(nfreq),sqrtm(ncel),stat=ier)
+    if (ier /= 0) then
+       errmsg = "Could not allocate the dynamical matrix"
+       return
+    end if
+    do ia = 1, ncel
+       sqrtm(ia) = sqrt(atmass(c%spc(c%atcel(ia)%is)%z))
+    end do
+    do ia = 1, ncel
+       do ja = 1, ncel
+          dd = 0d0
+          do jl = 1, nlat
+             js = (ja-1)*nlat + jl
+             ip = (js-1)*ncel + ia
+
+             ! average the phases of the images at the same distance
+             phase = 0d0
+             do k = v%fc2_sptr(ip), v%fc2_sptr(ip+1)-1
+                phase = phase + exp(img * tpi * dot_product(q,v%fc2_svec(:,k)))
+             end do
+             dd = dd + v%fc2(:,:,ia,js) * (phase / real(v%fc2_sptr(ip+1)-v%fc2_sptr(ip),8))
+          end do
+          dm(3*ia-2:3*ia,3*ja-2:3*ja) = dd / (sqrtm(ia) * sqrtm(ja))
+       end do
+    end do
+
+    ! impose hermiticity and diagonalize
+    dm = 0.5d0 * (dm + transpose(conjg(dm)))
+    call eigherm(dm,nfreq,eval,ier)
+    if (ier /= 0) then
+       errmsg = "Error diagonalizing the dynamical matrix at q = " //&
+          string(q(1),'f',12,7) // string(q(2),'f',12,7) // string(q(3),'f',12,7)
+       return
+    end if
+    eval = sign(sqrt(abs(eval)) * freqfactor,eval)
+
+    ! return the result, or add the q-point to the vibrations object
+    if (present(freqo).or.present(veco)) then
+       if (present(freqo)) freqo = eval
+       if (present(veco)) veco = dm
+    else
+       v%nqpt = v%nqpt + 1
+       v%nfreq = nfreq
+       if (.not.allocated(v%qpt)) then
+          allocate(v%qpt(3,v%nqpt),v%freq(nfreq,v%nqpt),v%vec(3,ncel,nfreq,v%nqpt))
+       elseif (v%nqpt > size(v%qpt,2)) then
+          call realloc(v%qpt,3,2*v%nqpt)
+          call realloc(v%freq,nfreq,2*v%nqpt)
+          call realloc(v%vec,3,ncel,nfreq,2*v%nqpt)
+       end if
+       v%qpt(:,v%nqpt) = q
+       v%freq(:,v%nqpt) = eval
+       do i = 1, nfreq
+          v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,ncel/))
+       end do
+       v%hasvibs = .true.
+    end if
+
   end subroutine vibrations_calculate_q
 
   !> Calculate sound velocities in the reciprocal space direction
@@ -1280,6 +2355,7 @@ contains
     real*8, intent(in) :: temp
     type(crystalseed), intent(out) :: seed
 
+    character(len=:), allocatable :: errmsg
     real*8, allocatable :: xat(:,:)
     real*8 :: ff, fterm, xn
     real*8 :: qsq
@@ -1308,7 +2384,8 @@ contains
        ! if no gamma q-point is available, check if we have the FC2
        if (iqpt < 0 .and. v%hasfc2 .and. allocated(v%fc2)) then
           ! get the frequencies (cm-1) and eigenvectors at Gamma
-          call v%calculate_q(c,(/0d0,0d0,0d0/))
+          call v%calculate_q(c,(/0d0,0d0,0d0/),errmsg)
+          if (len_trim(errmsg) > 0) return
           iqpt = v%nqpt
        end if
 
@@ -2152,11 +3229,13 @@ contains
   !> c, which must be the unit cell phonopy was run with. sline carries
   !> the options from the VIBRATIONS LOAD line: a mandatory generator
   !> keyword (the code that wrote the file, which fixes the units), an
-  !> optional supercell specification (three integers for a diagonal
-  !> supercell, nine integers for a general one in phonopy DIM order, or
-  !> the name of a file containing the supercell; default is no
-  !> supercell), and the optional keyword ASR to enforce the acoustic
-  !> sum rule after reading. If error, return non-zero errmsg.
+  !> optional supercell specification (one integer for an n x n x n
+  !> supercell, three for a diagonal one, nine for a general one in the
+  !> NEWCELL order, or in phonopy's DIM order if the keyword PHONOPY is
+  !> also given; or the name of a file containing the supercell;
+  !> default is no supercell), and the optional keyword ASR to enforce
+  !> the acoustic sum rule after reading. If error, return non-zero
+  !> errmsg.
   !>
   !> The file carries no atomic positions, so the supercell atom order
   !> is reconstructed following phonopy (structure/cells.py): atom-major
@@ -2173,7 +3252,6 @@ contains
     use crystalseedmod, only: crystalseed
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, getword, equal,&
        isinteger, string
-    use tools_math, only: matinv
     use param, only: hartoev, bohrtoa
     type(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -2186,8 +3264,8 @@ contains
     integer :: igen, ndim, nlat, nsat, nrow, n1, n2, ierr
     integer :: smat(3,3), madj(3,3), idim(9), lv(3)
     real*8 :: fc2factor, rmat(3,3), gsc(3,3), guc(3,3), gchk(3,3), dev
-    real*8 :: t(3), xsc(3), dx(3), rminv(3,3)
-    logical :: iscompact, haveseed, doasr, found
+    real*8 :: t(3), xsc(3), dx(3)
+    logical :: iscompact, haveseed, doasr, found, phonopydim, flipped
     integer, allocatable :: lvec(:,:), lkey(:,:), p2s(:), s2row(:), perm(:)
     logical, allocatable :: coldone(:)
     real*8, allocatable :: fcrow(:,:,:,:)
@@ -2230,6 +3308,7 @@ contains
     ndim = 0
     haveseed = .false.
     doasr = .false.
+    phonopydim = .false.
     do while (.true.)
        lp0 = lp
        if (isinteger(idum,sline,lp)) then
@@ -2245,6 +3324,8 @@ contains
        if (len_trim(word) == 0) exit
        if (equal(word,"asr").or.equal(word,"acoustic").or.equal(word,"acoustic_sum_rules")) then
           doasr = .true.
+       elseif (equal(word,"phonopy")) then
+          phonopydim = .true.
        elseif (haveseed) then
           errmsg = "Unknown keyword in VIBRATIONS LOAD (FORCE_CONSTANTS): " // trim(word)
           goto 999
@@ -2298,22 +3379,13 @@ contains
              &be given in different Cartesian frames"
           goto 999
        end if
-    elseif (ndim == 3) then
-       smat = 0
-       do i = 1, 3
-          smat(i,i) = idim(i)
-       end do
-    elseif (ndim == 9) then
-       ! Same order as phonopy's DIM keyword. Note that phonopy reshapes
-       ! those nine integers row-wise into its supercell matrix M, but
-       ! then builds the supercell with lattice vectors given by the rows
-       ! of transpose(M) (structure/cells.py, _trim_cell with the old
-       ! style, which is the default). smat is the latter, so the nine
-       ! integers fill it column-wise.
-       smat = reshape(idim,(/3,3/))
-    elseif (ndim /= 0) then
-       errmsg = "The supercell specification needs 3 or 9 integers (found " // string(ndim) // ")"
-       goto 999
+    elseif (ndim > 0) then
+       call supercell_matrix_from_ints(ndim,idim,phonopydim,smat,flipped,errmsg)
+       if (len_trim(errmsg) > 0) goto 999
+       if (flipped) then
+          errmsg = "The supercell matrix has negative determinant; phonopy requires a positive one"
+          goto 999
+       end if
     end if
 
     ! lattice points of the supercell, in phonopy order
@@ -2449,16 +3521,10 @@ contains
              " atoms, but " // string(nsat) // " were expected"
           goto 999
        end if
-       rminv = real(smat,8)
-       call matinv(rminv,3,ierr)
-       if (ierr /= 0) then
-          errmsg = "Singular supercell matrix"
-          goto 999
-       end if
        do ia = 1, c%ncel
           do il = 1, nlat
              is = (ia-1)*nlat + il
-             xsc = matmul(c%atcel(ia)%x + real(lvec(:,il),8),rminv)
+             xsc = fc2_scpos(c%atcel(ia)%x,lvec(:,il),madj,nlat)
              if (seed%spc(seed%is(is))%z /= c%spc(c%atcel(ia)%is)%z) then
                 errmsg = "Species mismatch at atom " // string(is) // " of the supercell file " //&
                    trim(scfile) // ": its atom ordering is not phonopy's, or the current structure is &
@@ -2494,6 +3560,7 @@ contains
     v%fc2_acoustic = -1
     v%fc2_vs_center = -1d0
     v%fc2_vs_delta = -1d0
+    call fc2_stamp_geometry(v,c)
 
     ! apply the acoustic sum rule, if requested
     if (doasr) &
@@ -2509,18 +3576,15 @@ contains
   end subroutine read_phonopy_fc2
 
   !> Lattice points of the supercell defined by the integer supercell
-  !> matrix smat (rows = supercell lattice vectors in units of the cell
-  !> vectors), in phonopy's order (structure/cells.py): the surrounding
-  !> frame of the matrix is swept with the first axis fastest and the
-  !> first occurrence of each class modulo the supercell lattice is
-  !> kept. Returns the number of lattice points (nlat = det(smat)), the
+  !> matrix smat. Returns the number of lattice points (nlat = det(smat)), the
   !> integer adjugate of smat (madj, with smat*madj = nlat*I), the
   !> lattice points in cell fractional coordinates (lvec) and their
   !> residue keys modulo the supercell lattice (lkey). Two lattice
   !> points are equivalent modulo the supercell lattice if and only if
-  !> they have the same key, and the key is exact integer arithmetic.
+  !> they have the same key.
   subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
     use tools_io, only: string
+    use tools_math, only: idet3
     integer, intent(in) :: smat(3,3)
     integer, intent(out) :: nlat
     integer, intent(out) :: madj(3,3)
@@ -2533,10 +3597,8 @@ contains
 
     errmsg = ""
 
-    ! determinant and adjugate, in exact integer arithmetic
-    nlat = smat(1,1)*(smat(2,2)*smat(3,3)-smat(2,3)*smat(3,2))&
-       - smat(1,2)*(smat(2,1)*smat(3,3)-smat(2,3)*smat(3,1))&
-       + smat(1,3)*(smat(2,1)*smat(3,2)-smat(2,2)*smat(3,1))
+    ! determinant and adjugate
+    nlat = idet3(smat)
     if (nlat <= 0) then
        errmsg = "The supercell matrix must have positive determinant (found " // string(nlat) // ")"
        return
@@ -2619,6 +3681,23 @@ contains
     end do
 
   end function fc2_generator_index
+
+  !> Position, in fractional coordinates of the supercell, of the image
+  !> of the cell atom at x (cell fractional coordinates) at the lattice
+  !> point lv. madj and nlat are the adjugate and determinant of the
+  !> supercell matrix (see fc2_lattice_points), so madj/nlat is its
+  !> exact inverse. This is the position convention shared by
+  !> create_displacements and the FORCE_CONSTANTS reader.
+  pure function fc2_scpos(x,lv,madj,nlat) result(xs)
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: lv(3)
+    integer, intent(in) :: madj(3,3)
+    integer, intent(in) :: nlat
+    real*8 :: xs(3)
+
+    xs = matmul(x + real(lv,8),real(madj,8)) / real(nlat,8)
+
+  end function fc2_scpos
 
   !> Index in the lattice-point table of the point equivalent to lv
   !> (integer vector in cell fractional coordinates) modulo the

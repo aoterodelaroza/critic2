@@ -90,16 +90,17 @@ module crystalmod
   real*8, parameter, public :: xrpd_max_ang_def_safe = 10d0
   real*8, parameter, public :: xrpd_max_ang_def_quick = 5d0
 
+  ! Second-order force constants fc2(:,:,ia,js):
+  !   ia = 1..ncel over the atoms of the unit cell
+  !   js = 1..fc2_nsat over the atoms in the supercell, js = (ia-1)*fc2_nlat + il
+  !     with il indexing the lattice point fc2_lvec(:,il).
+
   !> Class for molecular or crystal vibrations
   type vibrations
-     !! source file and format
+     ! source file and format
      character(len=mlen) :: file ! source of vibration data
      integer :: ivformat ! format for the vibration data
-     !! 2nd-order force constants, in the cell-compact layout:
-     !!   fc2(:,:,ia,js) with:
-     !!      ia = 1..ncel over the atoms of the cell (atcel order)
-     !!      js = 1..fc2_nsat over the atoms of the supercell, in phonopy's atom-major order js = (ia-1)*fc2_nlat + il
-     !!      where il indexes the lattice point fc2_lvec(:,il).
+     ! second-order force constants
      logical :: hasfc2 = .false. ! true if FC2 is available
      character(len=mlen) :: fc2_file = "" ! source file of the force constants
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,ncel,fc2_nsat), Hartree/bohr^2
@@ -111,18 +112,23 @@ module crystalmod
      logical :: fc2_iscompact = .false. ! true if the source file was in compact (p2s) form
      integer, allocatable :: fc2_lvec(:,:) ! (3,fc2_nlat) lattice points, integer cell fractional coords
      integer, allocatable :: fc2_lkey(:,:) ! (3,fc2_nlat) residue keys of fc2_lvec modulo the supercell
-     integer :: fc2_acoustic(3) = -1 ! acoustic branches for vs calculation
+     real*8, allocatable :: fc2_x(:,:) ! (3,ncel) reference atomic positions, cell fractional coords
+     real*8 :: fc2_m(3,3) = 0d0 ! reference crystallographic to Cartesian matrix
+     ! shortest-image vectors going from cell atoms to supercell atoms: the images of the pair (ia,js) are
+     ! fc2_svec(:,k) for k in fc2_sptr(ip):fc2_sptr(ip+1)-1, with ip = (js-1)*ncel + ia.
+     real*8, allocatable :: fc2_svec(:,:) ! (3,*) shortest images, cell fractional coords
+     integer, allocatable :: fc2_sptr(:) ! (ncel*fc2_nsat+1) index of the first image of each pair
+     ! sound velocity calculations
+     integer :: fc2_acoustic(3) = -1 ! acoustic branches for sound velocity calculation
      real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
      real*8 :: fc2_vs_center = -1d0 ! center for calculation of sound velocities (bohr-1)
-     !! frequencies and eigenvectors
+     ! frequencies and eigenvectors (orthonormal; for displacements, divide by sqrt(m_j))
      logical :: hasvibs = .false. ! true if frequencies/eigenvectors are available
-     integer :: nqpt ! number of q-points
+     integer :: nqpt = 0 ! number of q-points
      real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
-     integer :: nfreq ! number of frequencies
+     integer :: nfreq = 0 ! number of frequencies
      real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt) (cm-1)
      complex*16, allocatable :: vec(:,:,:,:) ! phonon eigenvector (3,nat,nfreq,nqpt)
-     ! note: these are the vectors that come out of the dynamical matrix diagonalization and they must be orthonormal. For the
-     ! displacements, divide by the sqrt(m_j).
    contains
      procedure :: end => vibrations_end !< terminate the vibrations object
      procedure :: print_summary => vibrations_print_summary !< print summary of vibs
@@ -143,6 +149,7 @@ module crystalmod
   end type vibrations
   public :: vibrations
   public :: nmer_name
+  public :: supercell_matrix_from_ints
 
   ! The molecular point group class.
 
@@ -325,6 +332,8 @@ module crystalmod
      procedure :: makeseed !< make a crystal seed from a crystal
      procedure :: makeseed_nudged !< make a crystal seed, displaced by a phonon
      procedure :: newcell !< Change the unit cell and rebuild the crystal
+     procedure :: create_displacements !< Write the displaced supercells for a force-constant calculation
+     procedure :: create_forces !< Calculate the force constants from the forces of the displaced supercells
      procedure :: cell_standard !< Transform the the standard cell (possibly primitive)
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
@@ -894,6 +903,33 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine newcell
+     module subroutine supercell_matrix_from_ints(ndim,idim,phonopy,smat,flipped,errmsg)
+       integer, intent(in) :: ndim
+       integer, intent(in) :: idim(:)
+       logical, intent(in) :: phonopy
+       integer, intent(out) :: smat(3,3)
+       logical, intent(out) :: flipped
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine supercell_matrix_from_ints
+     module subroutine create_displacements(c,smat,dist,template,verbose,errmsg,ti,rklength)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: smat(3,3)
+       real*8, intent(in) :: dist
+       character*(*), intent(in) :: template
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+       real*8, intent(in), optional :: rklength
+     end subroutine create_displacements
+     module subroutine create_forces(c,smat,dist,file,verbose,errmsg,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: smat(3,3)
+       real*8, intent(in) :: dist
+       character*(*), intent(in) :: file
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine create_forces
      module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti,keepcell) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
@@ -1269,7 +1305,7 @@ module crystalmod
        type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json
      module subroutine write_any_file(c,file,errmsg,iwformat,rklength,nosym,cartesian,&
-        docell,ti)
+        docell,ti,forces)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(inout) :: errmsg
@@ -1279,6 +1315,7 @@ module crystalmod
        logical, intent(in), optional :: cartesian
        logical, intent(in), optional :: docell
        type(thread_info), intent(in), optional :: ti
+       logical, intent(in), optional :: forces
      end subroutine write_any_file
      module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
         environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
@@ -1310,11 +1347,12 @@ module crystalmod
        type(grhandle), intent(out), optional :: gr0
        type(thread_info), intent(in), optional :: ti
      end subroutine write_3dmodel
-     module subroutine write_espresso(c,file,rklength,ti)
+     module subroutine write_espresso(c,file,rklength,ti,forces)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        real*8, intent(in), optional :: rklength
        type(thread_info), intent(in), optional :: ti
+       logical, intent(in), optional :: forces
      end subroutine write_espresso
      module subroutine write_vasp(c,file,verbose,append,ti)
        class(crystal), intent(in) :: c
@@ -1497,8 +1535,9 @@ module crystalmod
        real*8, intent(in), optional :: disteps, fc2eps
        logical, intent(in), optional :: environ
      end subroutine vibrations_print_fc2
-     module subroutine vibrations_print_freq(v,id)
+     module subroutine vibrations_print_freq(v,c,id)
        class(vibrations), intent(inout) :: v
+       type(crystal), intent(in) :: c
        integer, intent(in) :: id
      end subroutine vibrations_print_freq
      module subroutine vibrations_print_eigenvector(v,c,ifreq,idq,cartesian)
@@ -1525,10 +1564,11 @@ module crystalmod
        logical, intent(in), optional :: full
        logical, intent(in), optional :: verbose
      end subroutine vibrations_write_fc2
-     module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
+     module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        real*8, intent(in) :: q(3)
+       character(len=:), allocatable, intent(out) :: errmsg
        real*8, intent(inout), allocatable, optional :: freqo(:)
        complex*16, intent(inout), allocatable, optional :: veco(:,:)
      end subroutine vibrations_calculate_q

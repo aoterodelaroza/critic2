@@ -134,9 +134,9 @@ module struct_drivers
        character*(*), intent(in) :: line
        logical, intent(in) :: verbose
      end subroutine struct_newcell
-     module subroutine struct_vibrations(s,line,verbose)
+     module subroutine struct_vibrations(s,line0,verbose)
        type(system), intent(inout) :: s
-       character*(*), intent(in) :: line
+       character*(*), intent(in) :: line0
        logical, intent(in) :: verbose
      end subroutine struct_vibrations
      module subroutine struct_molcell(s,line)

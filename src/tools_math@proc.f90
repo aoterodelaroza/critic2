@@ -1198,6 +1198,17 @@ contains
 
   end function det3
 
+  !> Determinant of a 3x3 integer matrix, in exact integer arithmetic.
+  pure module function idet3(m)
+    integer, intent(in) :: m(3,3) !< Input matrix
+    integer :: idet3
+
+    idet3 = m(1,1) * (m(2,2) * m(3,3) - m(2,3) * m(3,2)) + &
+       m(1,2) * (m(2,3) * m(3,1) - m(2,1) * m(3,3)) + &
+       m(1,3) * (m(2,1) * m(3,2) - m(2,2) * m(3,1))
+
+  end function idet3
+
   !> Invert an nxn double general matrix. Uses LAPACK. If ier = 0, no
   !> error; otherwise, ier contains the LAPACK error code.
   module subroutine matinv(m,n0,ier)
