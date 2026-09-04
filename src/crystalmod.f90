@@ -924,15 +924,12 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8, intent(in), optional :: rklength
      end subroutine create_displacements
-     module subroutine create_forces(c,file,dataset,verbose,errmsg,smat0,dist0,scfile,ti)
+     module subroutine create_forces(c,file,dataset,verbose,errmsg,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character*(*), intent(in) :: dataset
        logical, intent(in) :: verbose
        character(len=:), allocatable, intent(out) :: errmsg
-       integer, intent(in) :: smat0(3,3)
-       real*8, intent(in) :: dist0
-       character*(*), intent(in) :: scfile
        type(thread_info), intent(in), optional :: ti
      end subroutine create_forces
      module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti,keepcell) result(x0)

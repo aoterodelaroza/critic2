@@ -197,18 +197,19 @@ contains
 
     integer :: ivf
 
-    ! detect the format. A units keyword at the start of the option
-    ! string means this is a phonopy FORCE_CONSTANTS file, whatever the
-    ! file happens to be called.
+    ! Detect the format from the file name. Force constants are read
+    ! only through VIBRATIONS LOAD_FC2, which passes the format
+    ! explicitly, because the file carries neither units nor positions
+    ! and both have to be given on the keyword line.
     if (ivformat == ivformat_unknown) then
-       if (fc2_unit_index(sline) /= 0) then
-          ivf = ivformat_phonopy_fc2
-       else
-          call vibrations_detect_format(file,ivf)
-          if (ivf == ivformat_unknown) then
-             errmsg = "Unknown vibration file format: " // trim(file)
-             return
-          end if
+       call vibrations_detect_format(file,ivf)
+       if (ivf == ivformat_unknown) then
+          errmsg = "Unknown vibration file format: " // trim(file)
+          return
+       elseif (ivf == ivformat_phonopy_fc2) then
+          errmsg = "Force constants are read with VIBRATIONS LOAD_FC2 (which also takes their units &
+             &and the supercell), not with VIBRATIONS LOAD"
+          return
        end if
     else
        ivf = ivformat
@@ -732,21 +733,19 @@ contains
     if (verbose) &
        write (uout,'("+ Written ",A," displaced supercells")') string(ndisp)
 
-    ! the dataset file: everything READ_FORCES needs to interpret the
-    ! forces of these structures, so the user does not have to repeat
-    ! the supercell and the displacement length in a later run
-    if (len_trim(dataset) > 0) then
-       call fc2_write_dataset(c,dataset,smat,dist,template_,ndisp,datom,ddir,fnames,errmsg,ti)
-       if (len_trim(errmsg) > 0) return
-       if (verbose) then
-          write (uout,'("+ Displacement dataset written to: ",A)') trim(dataset)
-          call fc2_output_template(template_,otemplate,errmsg2)
-          if (len_trim(errmsg2) > 0) then
-             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
-          else
-             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
-             write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
-          end if
+    ! The dataset file: everything READ_FORCES needs to interpret the
+    ! forces of these structures. Without it they cannot be read back,
+    ! so it is always written.
+    call fc2_write_dataset(c,dataset,smat,dist,template_,ndisp,datom,ddir,fnames,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+    if (verbose) then
+       write (uout,'("+ Displacement dataset written to: ",A)') trim(dataset)
+       call fc2_output_template(template_,otemplate,errmsg2)
+       if (len_trim(errmsg2) > 0) then
+          write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
+       else
+          write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
+          write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
        end if
     end if
 
@@ -1371,7 +1370,7 @@ contains
   !> zero-padded displacement index, and otherwise it is a text file
   !> with one file name per line, in displacement order.
   !> If error, return non-zero errmsg.
-  module subroutine create_forces(c,file,dataset,verbose,errmsg,smat0,dist0,scfile,ti)
+  module subroutine create_forces(c,file,dataset,verbose,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use tools_io, only: uout, string, fopen_read, fclose, getline_raw, getword
     use tools_math, only: matinv, eigsym
@@ -1381,9 +1380,6 @@ contains
     character*(*), intent(in) :: dataset
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
-    integer, intent(in) :: smat0(3,3)
-    real*8, intent(in) :: dist0
-    character*(*), intent(in) :: scfile
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, file_
@@ -1392,7 +1388,7 @@ contains
     integer :: i, j, k, m, ia, is, js, id, ip, iq, io, icv, ier, npad, lu, nf, lp
     integer :: nd, ns, jmax
     real*8 :: gg(3,3), ggev(3,3), eval(3), atb(3,3), dc(3), rr(3,3), blk(3,3), dmax, dist
-    logical :: ok, haveds
+    logical :: ok
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
     integer, allocatable :: perm(:,:), isite(:), ipsite(:,:)
     real*8, allocatable :: fall(:,:,:), rcart(:,:,:), amat(:,:), bmat(:,:), fcs(:,:,:,:)
@@ -1400,48 +1396,18 @@ contains
     type(crystalseed) :: seed
     type(fc2_dataset) :: ds
 
-    ! the displacement dataset written by create_displacements, if any:
-    ! it supplies the supercell, the displacement length and the names
-    ! of the structure files when they were not given explicitly
-    haveds = (len_trim(dataset) > 0)
-    if (haveds) then
-       call fc2_read_dataset(dataset,ds,errmsg,ti)
-       if (len_trim(errmsg) > 0) return
-       if (verbose) &
-          write (uout,'("+ Displacement dataset read from: ",A)') trim(dataset)
-    end if
-
-    ! The supercell and the displacement length: explicit if given,
-    ! from the dataset otherwise. A zero matrix, a non-positive length
-    ! and an empty file name are the "not given" markers (a singular
-    ! supercell and a non-positive displacement are errors anyway).
-    if (any(smat0 /= 0)) then
-       smat = smat0
-    elseif (len_trim(scfile) > 0) then
-       call fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
-       if (len_trim(errmsg) > 0) return
-       if (verbose) &
-          write (uout,'("  Supercell read from: ",A)') trim(scfile)
-    elseif (haveds) then
-       smat = ds%smat
-       if (verbose) &
-          write (uout,'("  Supercell taken from the dataset")')
-    else
-       errmsg = "No supercell given and no displacement dataset available; give the supercell in the &
-          &READ_FORCES line or the dataset file written by CREATE_DISPLACEMENTS (DATASET)"
-       return
-    end if
-    if (dist0 > 0d0) then
-       dist = dist0
-    elseif (haveds) then
-       dist = ds%dist
-       if (verbose) &
-          write (uout,'("  Displacement length taken from the dataset: ",A," bohr (",A," ang)")') &
-             string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
-    else
-       errmsg = "No displacement length given and no displacement dataset available; give DISTANCE in &
-          &the READ_FORCES line or the dataset file written by CREATE_DISPLACEMENTS (DATASET)"
-       return
+    ! The displacement dataset written by create_displacements says how
+    ! the displaced structures were generated: the supercell, the
+    ! displacement length, the reference structure and the list of
+    ! displacements. It is the only source of that information.
+    call fc2_read_dataset(dataset,ds,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+    smat = ds%smat
+    dist = ds%dist
+    if (verbose) then
+       write (uout,'("+ Displacement dataset read from: ",A)') trim(dataset)
+       write (uout,'("  Displacement length: ",A," bohr (",A," ang)")') &
+          string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
     end if
 
     ! the supercell and the displacement list, exactly as create_displacements built them
@@ -1451,26 +1417,21 @@ contains
 
     ! the dataset knows the structure and the displacements the forces
     ! were calculated for; check they are the ones regenerated here
-    if (haveds) then
-       call fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
-       if (len_trim(errmsg) > 0) then
-          errmsg = trim(errmsg) // " (displacement dataset " // trim(dataset) // ")"
-          return
-       end if
+    call fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
+    if (len_trim(errmsg) > 0) then
+       errmsg = trim(errmsg) // " (displacement dataset " // trim(dataset) // ")"
+       return
     end if
 
     ! where the outputs are: the argument if given, otherwise guessed
     ! from the template of the displaced structures in the dataset
     if (len_trim(file) > 0) then
        file_ = file
-    elseif (haveds) then
+    else
        call fc2_output_template(ds%template,file_,errmsg)
        if (len_trim(errmsg) > 0) return
        if (verbose) &
           write (uout,'("  Output files guessed from the dataset template: ",A)') trim(file_)
-    else
-       errmsg = "No force files given (a list or a * template) and no displacement dataset available"
-       return
     end if
 
     ! the files with the forces, one per displacement
@@ -1526,7 +1487,8 @@ contains
              &file " // string(i) // " (atom " // string(datom(i)) // " displaced by " //&
              string(norm2(fc2_dispvec(sc,ddir(:,i),dist)),'f',10,6) // " bohr): the largest &
              &displacement found is " // string(dmax,'e',12,4) // " bohr on atom " // string(jmax) //&
-             ". Check the supercell, the DISTANCE and the order of the files"
+             ". Check the order of the files, and that they belong to the run described by the &
+             &displacement dataset"
           return
        end if
 
