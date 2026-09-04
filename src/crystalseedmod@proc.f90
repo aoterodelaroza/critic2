@@ -9416,16 +9416,18 @@ contains
     do while(getline_raw(lu,line))
        line = trim(adjustl(line))
        ll = len(line)
-       if (line(ll-4:ll) == "<-- E") then
-          nseed = nseed + 1
-       elseif (nseed == 1) then
-          if (line(ll-4:ll) == "<-- R") then
-             nat = nat + 1
-             lp = 1
-             word = lgetword(line,lp)
-             if (.not.usen%iskey(word)) then
-                nspc = nspc + 1
-                call usen%put(word,nspc)
+       if (ll > 4) then
+          if (line(ll-4:ll) == "<-- E") then
+             nseed = nseed + 1
+          elseif (nseed == 1) then
+             if (line(ll-4:ll) == "<-- R") then
+                nat = nat + 1
+                lp = 1
+                word = lgetword(line,lp)
+                if (.not.usen%iskey(word)) then
+                   nspc = nspc + 1
+                   call usen%put(word,nspc)
+                end if
              end if
           end if
        end if
@@ -9450,44 +9452,46 @@ contains
     do while(getline_raw(lu,line))
        line = trim(adjustl(line))
        ll = len(line)
-       if (line(ll-4:ll) == "<-- E") then
-          nseed = nseed + 1
-          nat = 0
-          read(line,*,err=999,end=999) seed(nseed)%energy
-       elseif (line(ll-4:ll) == "<-- h") then
-          read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,1)
-          if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,2)
-          if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,3)
-       elseif (line(ll-4:ll) == "<-- R") then
-          nat = nat + 1
-          lp = 1
-          word = getword(line,lp)
-          lword = lower(word)
-          ok = isinteger(idum,line,lp)
-          ok = ok .and. isreal(seed(nseed)%x(1,nat),line,lp)
-          ok = ok .and. isreal(seed(nseed)%x(2,nat),line,lp)
-          ok = ok .and. isreal(seed(nseed)%x(3,nat),line,lp)
-          if (.not.ok) goto 999
-          seed(nseed)%atname(nat) = ""
+       if (ll > 4) then
+          if (line(ll-4:ll) == "<-- E") then
+             nseed = nseed + 1
+             nat = 0
+             read(line,*,err=999,end=999) seed(nseed)%energy
+          elseif (line(ll-4:ll) == "<-- h") then
+             read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,1)
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,2)
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,3)
+          elseif (line(ll-4:ll) == "<-- R") then
+             nat = nat + 1
+             lp = 1
+             word = getword(line,lp)
+             lword = lower(word)
+             ok = isinteger(idum,line,lp)
+             ok = ok .and. isreal(seed(nseed)%x(1,nat),line,lp)
+             ok = ok .and. isreal(seed(nseed)%x(2,nat),line,lp)
+             ok = ok .and. isreal(seed(nseed)%x(3,nat),line,lp)
+             if (.not.ok) goto 999
+             seed(nseed)%atname(nat) = ""
 
-          is = usen%get(lword,1)
-          seed(nseed)%is(nat) = is
-          if (.not.usespc(is)) then
-             seed(1)%spc(is)%name = trim(word)
-             if (isinteger(idum,word)) then
-                seed(1)%spc(is)%z = idum
-             else
-                seed(1)%spc(is)%z = zatguess(word)
-                if (seed(1)%spc(is)%z < 0) then
-                   errmsg = "Unknown atomic symbol: " // word
-                   goto 999
+             is = usen%get(lword,1)
+             seed(nseed)%is(nat) = is
+             if (.not.usespc(is)) then
+                seed(1)%spc(is)%name = trim(word)
+                if (isinteger(idum,word)) then
+                   seed(1)%spc(is)%z = idum
+                else
+                   seed(1)%spc(is)%z = zatguess(word)
+                   if (seed(1)%spc(is)%z < 0) then
+                      errmsg = "Unknown atomic symbol: " // word
+                      goto 999
+                   end if
                 end if
+                usespc(is) = .true.
              end if
-             usespc(is) = .true.
+             seed(nseed)%atname = word
           end if
-          seed(nseed)%atname = word
        end if
     end do
 
