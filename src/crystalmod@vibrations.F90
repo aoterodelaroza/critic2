@@ -42,6 +42,8 @@ submodule (crystalmod) vibrationsmod
   character*20, parameter :: fc2_unitname(fc2_nunit) = (/&
      "eV/ang^2            ", "eV/(ang*bohr)       ", "Ry/bohr^2           ",&
      "mRy/bohr^2          ", "Hartree/bohr^2      ", "Hartree/(ang*bohr)  "/)
+  character(len=*), parameter :: fc2_unitlist = "eV/ang^2, eV/(ang*bohr), Ry/bohr^2, &
+     &mRy/bohr^2, Hartree/bohr^2, Hartree/(ang*bohr)"
   integer, parameter :: fc2_ngen = 22
   character*10, parameter :: fc2_genname(fc2_ngen) = (/&
      "vasp      ", "aims      ", "fhiaims   ", "lammps    ", "pwmat     ",&
@@ -69,6 +71,28 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: fc2_epscond = 1d-10 ! smallest eigenvalue ratio of the least-squares matrix
   real*8, parameter :: fc2_epssvec = 1d-4 ! same-length tolerance for the shortest supercell images (bohr)
   real*8, parameter :: fc2_epsgeo = 1d-8 ! geometry change that invalidates the force constants
+  real*8, parameter :: fc2_epsdataset = 1d-6 ! structure mismatch with the displacement dataset
+
+  ! Displacement dataset file: everything create_forces needs to
+  ! interpret the forces of the displaced supercells, written by
+  ! create_displacements so that the two keywords can be run in
+  ! different critic2 sessions without the user having to remember the
+  ! supercell and the displacement length. The reference structure is
+  ! recorded as well, so a re-relaxed or reordered cell is caught.
+  type fc2_dataset
+     integer :: version = 0 ! version of the dataset file format
+     integer :: smat(3,3) = 0 ! supercell matrix (rows = supercell lattice vectors)
+     real*8 :: dist = 0d0 ! displacement length (bohr)
+     character(len=mlen) :: template = "" ! file name template of the displaced structures
+     integer :: ndisp = 0 ! number of displacements
+     integer :: nat = 0 ! number of atoms in the reference cell
+     real*8 :: m_x2c(3,3) = 0d0 ! reference crystal-to-Cartesian matrix (bohr)
+     integer, allocatable :: z(:) ! (nat) atomic numbers of the reference cell
+     real*8, allocatable :: x(:,:) ! (3,nat) fractional coordinates of the reference cell
+     integer, allocatable :: datom(:) ! (ndisp) displaced supercell atom
+     integer, allocatable :: ddir(:,:) ! (3,ndisp) displacement direction (supercell fractional)
+     character(len=mlen), allocatable :: fname(:) ! (ndisp) file written for each displacement
+  end type fc2_dataset
 
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
@@ -78,13 +102,20 @@ submodule (crystalmod) vibrationsmod
   ! subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
   ! subroutine read_phonopy_hdf5(v,c,file,errmsg)
   ! subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
-  ! function fc2_generator_index(sline)
+  ! function fc2_unit_index(sline,lp)
+  ! function fc2_unit_factor(iunit)
   ! subroutine disp_default_template(c,template,template_,iwf)
   ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti)
   ! function fc2_dispvec(sc,ddir,dist)
   ! function fc2_expand_star(template,i,npad)
   ! subroutine fc2_atom_perm(c,io,icv,perm,ok)
   ! subroutine fc2_check_disp(file,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
+  ! subroutine fc2_write_dataset(c,file,smat,dist,template,ndisp,datom,ddir,fname,errmsg,ti)
+  ! subroutine fc2_read_dataset(file,ds,errmsg,ti)
+  ! subroutine fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
+  ! function fc2_smatstr(m)
+  ! subroutine fc2_output_template(template,otemplate,errmsg)
+  ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
   ! subroutine fc2_read_forces(file,nat,f,errmsg,ti)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
   ! function fc2_scpos(x,lv,madj,nlat)
@@ -166,11 +197,11 @@ contains
 
     integer :: ivf
 
-    ! detect the format. A generator keyword at the start of the option
+    ! detect the format. A units keyword at the start of the option
     ! string means this is a phonopy FORCE_CONSTANTS file, whatever the
     ! file happens to be called.
     if (ivformat == ivformat_unknown) then
-       if (fc2_generator_index(sline) > 0) then
+       if (fc2_unit_index(sline) /= 0) then
           ivf = ivformat_phonopy_fc2
        else
           call vibrations_detect_format(file,ivf)
@@ -589,22 +620,25 @@ contains
   !> cell. If error, return non-zero errmsg.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
-  module subroutine create_displacements(c,smat,dist,template,verbose,errmsg,ti,rklength)
+  module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength)
     use crystalseedmod, only: crystalseed
     use tools_io, only: uout, string, ioj_right
     use param, only: isformat_w_unknown, isformat_w_vasp, isformat_w_abinit,&
        isformat_w_elk, isformat_w_siesta_struct, isformat_w_dftbp_hsd
     class(crystal), intent(inout) :: c
-    integer, intent(in) :: smat(3,3)
+    integer, intent(in) :: smat0(3,3)
     real*8, intent(in) :: dist
     character*(*), intent(in) :: template
+    character*(*), intent(in) :: dataset
+    character*(*), intent(in) :: scfile
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     real*8, intent(in), optional :: rklength
 
-    character(len=:), allocatable :: template_, fname
-    integer :: iwf, nlat, nsat, madj(3,3), is, i, k, nindep, ndisp, npad, nk(3)
+    character(len=:), allocatable :: template_, fname, otemplate, errmsg2
+    character(len=mlen), allocatable :: fnames(:)
+    integer :: iwf, nlat, nsat, madj(3,3), is, i, k, nindep, ndisp, npad, nk(3), smat(3,3)
     real*8 :: y(3), dc(3)
     logical :: seen(c%nspc)
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
@@ -612,6 +646,15 @@ contains
     type(crystal) :: sc, scd
 
     errmsg = ""
+
+    ! the supercell: from a structure file if one was given
+    smat = smat0
+    if (len_trim(scfile) > 0) then
+       call fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) &
+          write (uout,'("+ Supercell read from: ",A)') trim(scfile)
+    end if
 
     ! file names and format
     call disp_default_template(c,template,template_,iwf)
@@ -668,6 +711,7 @@ contains
        write (uout,'("# id  atom  --direction (frac)--  ------ displacement (Cartesian, bohr) ------  file")')
     end if
     seed%findsym = 0
+    allocate(fnames(ndisp))
     do i = 1, ndisp
        dc = fc2_dispvec(sc,ddir(:,i),dist)
        is = datom(i)
@@ -677,6 +721,7 @@ contains
        seed%x(:,is) = y
        if (len_trim(errmsg) > 0) return
        fname = fc2_expand_star(template_,i,npad)
+       fnames(i) = fname
        call scd%write_any_file(fname,errmsg,iwformat=iwf,nosym=.true.,ti=ti,forces=.true.,&
           rklength=rklength)
        if (len_trim(errmsg) > 0) return
@@ -686,6 +731,24 @@ contains
     end do
     if (verbose) &
        write (uout,'("+ Written ",A," displaced supercells")') string(ndisp)
+
+    ! the dataset file: everything READ_FORCES needs to interpret the
+    ! forces of these structures, so the user does not have to repeat
+    ! the supercell and the displacement length in a later run
+    if (len_trim(dataset) > 0) then
+       call fc2_write_dataset(c,dataset,smat,dist,template_,ndisp,datom,ddir,fnames,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) then
+          write (uout,'("+ Displacement dataset written to: ",A)') trim(dataset)
+          call fc2_output_template(template_,otemplate,errmsg2)
+          if (len_trim(errmsg2) > 0) then
+             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
+          else
+             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
+             write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
+          end if
+       end if
+    end if
 
   end subroutine create_displacements
 
@@ -807,6 +870,415 @@ contains
 
   end subroutine fc2_check_disp
 
+  !> Write the displacement dataset file for a set of displaced
+  !> structures just created: the reference structure c, the supercell
+  !> matrix smat, the displacement length dist (bohr), the file name
+  !> template, and the list of ndisp displacements (displaced supercell
+  !> atom datom, direction ddir in supercell fractional coordinates,
+  !> and the file written for each displacement). This is the file
+  !> create_forces reads to know how the forces it is given were
+  !> generated.
+  subroutine fc2_write_dataset(c,file,smat,dist,template,ndisp,datom,ddir,fname,errmsg,ti)
+    use tools_io, only: fopen_write, fclose, string, ioj_right
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    integer, intent(in) :: smat(3,3)
+    real*8, intent(in) :: dist
+    character*(*), intent(in) :: template
+    integer, intent(in) :: ndisp
+    integer, intent(in) :: datom(ndisp)
+    integer, intent(in) :: ddir(3,ndisp)
+    character(len=mlen), intent(in) :: fname(ndisp)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, i, k
+
+    errmsg = ""
+    lu = fopen_write(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open the displacement dataset file for writing: " // trim(file)
+       return
+    end if
+
+    write (lu,'("# critic2 VIBRATIONS displacement dataset")')
+    write (lu,'("# the forces of these displaced structures are read back with VIBRATIONS READ_FORCES")')
+    write (lu,'("VERSION 1")')
+    write (lu,'("STRUCTURE ! the cell the displacements were generated from")')
+    write (lu,'("  LATTICE ! lattice vectors, one per row, in bohr")')
+    do i = 1, 3
+       write (lu,'(4X,3(A," "))') (string(c%m_x2c(k,i),'f',22,14,ioj_right),k=1,3)
+    end do
+    write (lu,'("  NATOMS ",A)') string(c%ncel)
+    do i = 1, c%ncel
+       write (lu,'("  ATOM ",A,X,3(A," "))') string(c%spc(c%atcel(i)%is)%z,3,ioj_right),&
+          (string(c%atcel(i)%x(k),'f',22,14,ioj_right),k=1,3)
+    end do
+    write (lu,'("ENDSTRUCTURE")')
+    write (lu,'("SUPERCELL ! rows = supercell lattice vectors, in units of the cell vectors")')
+    do i = 1, 3
+       write (lu,'(4X,3(A," "))') (string(smat(i,k),4,ioj_right),k=1,3)
+    end do
+    write (lu,'("DISTANCE ",A," ! displacement length, always in bohr")') string(dist,'f',22,14)
+    write (lu,'("TEMPLATE ",A)') trim(template)
+    write (lu,'("NDISP ",A)') string(ndisp)
+    write (lu,'("DISPLACEMENTS")')
+    write (lu,'("# id  atom  --direction (frac)--  file")')
+    do i = 1, ndisp
+       write (lu,'(2X,A,X,A,2X,3(A,X),X,A)') string(i,4), string(datom(i),5),&
+          (string(ddir(k,i),4),k=1,3), trim(fname(i))
+    end do
+    write (lu,'("ENDDISPLACEMENTS")')
+    call fclose(lu)
+
+  end subroutine fc2_write_dataset
+
+  !> Read a displacement dataset file written by fc2_write_dataset into
+  !> ds. Returns non-empty errmsg on error.
+  subroutine fc2_read_dataset(file,ds,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline, lgetword, getword, isinteger,&
+       isreal, equal, string
+    character*(*), intent(in) :: file
+    type(fc2_dataset), intent(out) :: ds
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line, word
+    integer :: lu, lp, i, k, idx, idum
+    logical :: ok
+
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open the displacement dataset file: " // trim(file)
+       return
+    end if
+    errmsg = "Error reading the displacement dataset file: " // trim(file)
+
+    do while (getline(lu,line))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"version")) then
+          if (.not.isinteger(ds%version,line,lp)) goto 999
+          if (ds%version /= 1) then
+             errmsg = "Unknown version (" // string(ds%version) // ") of the displacement dataset file: " //&
+                trim(file)
+             goto 999
+          end if
+       elseif (equal(word,"structure")) then
+          i = 0
+          do while (getline(lu,line))
+             lp = 1
+             word = lgetword(line,lp)
+             if (equal(word,"endstructure")) then
+                exit
+             elseif (equal(word,"lattice")) then
+                do idx = 1, 3
+                   if (.not.getline(lu,line)) goto 999
+                   lp = 1
+                   do k = 1, 3
+                      if (.not.isreal(ds%m_x2c(k,idx),line,lp)) goto 999
+                   end do
+                end do
+             elseif (equal(word,"natoms")) then
+                if (allocated(ds%z)) then
+                   errmsg = "Repeated NATOMS in the displacement dataset file: " // trim(file)
+                   goto 999
+                end if
+                if (.not.isinteger(ds%nat,line,lp)) goto 999
+                if (ds%nat < 1) goto 999
+                allocate(ds%z(ds%nat),ds%x(3,ds%nat))
+                ds%z = 0
+                ds%x = 0d0
+             elseif (equal(word,"atom")) then
+                if (.not.allocated(ds%z)) then
+                   errmsg = "ATOM before NATOMS in the displacement dataset file: " // trim(file)
+                   goto 999
+                end if
+                i = i + 1
+                if (i > ds%nat) then
+                   errmsg = "Too many ATOM lines in the displacement dataset file: " // trim(file)
+                   goto 999
+                end if
+                if (.not.isinteger(ds%z(i),line,lp)) goto 999
+                do k = 1, 3
+                   if (.not.isreal(ds%x(k,i),line,lp)) goto 999
+                end do
+             else
+                errmsg = "Unknown keyword (" // trim(word) // ") in the STRUCTURE block of the &
+                   &displacement dataset file: " // trim(file)
+                goto 999
+             end if
+          end do
+          if (.not.allocated(ds%z)) goto 999
+          if (i /= ds%nat) then
+             errmsg = "The STRUCTURE block of " // trim(file) // " announces " // string(ds%nat) //&
+                " atoms but has " // string(i)
+             goto 999
+          end if
+       elseif (equal(word,"supercell")) then
+          do i = 1, 3
+             if (.not.getline(lu,line)) goto 999
+             lp = 1
+             do k = 1, 3
+                if (.not.isinteger(ds%smat(i,k),line,lp)) goto 999
+             end do
+          end do
+       elseif (equal(word,"distance")) then
+          if (.not.isreal(ds%dist,line,lp)) goto 999
+       elseif (equal(word,"template")) then
+          ds%template = getword(line,lp)
+       elseif (equal(word,"ndisp")) then
+          if (.not.isinteger(ds%ndisp,line,lp)) goto 999
+          if (ds%ndisp < 1) goto 999
+       elseif (equal(word,"displacements")) then
+          if (ds%ndisp < 1) then
+             errmsg = "DISPLACEMENTS before NDISP in the displacement dataset file: " // trim(file)
+             goto 999
+          end if
+          if (allocated(ds%datom)) deallocate(ds%datom)
+          if (allocated(ds%ddir)) deallocate(ds%ddir)
+          if (allocated(ds%fname)) deallocate(ds%fname)
+          allocate(ds%datom(ds%ndisp),ds%ddir(3,ds%ndisp),ds%fname(ds%ndisp))
+          i = 0
+          do while (getline(lu,line))
+             lp = 1
+             word = lgetword(line,lp)
+             if (equal(word,"enddisplacements")) exit
+             i = i + 1
+             if (i > ds%ndisp) then
+                errmsg = "Too many displacements in the displacement dataset file: " // trim(file)
+                goto 999
+             end if
+             lp = 1
+             ok = isinteger(idum,line,lp)
+             ok = ok .and. isinteger(ds%datom(i),line,lp)
+             do k = 1, 3
+                ok = ok .and. isinteger(ds%ddir(k,i),line,lp)
+             end do
+             if (.not.ok) goto 999
+             if (idum /= i) then
+                errmsg = "The displacements in " // trim(file) // " are not in order (found index " //&
+                   string(idum) // " on displacement " // string(i) // ")"
+                goto 999
+             end if
+             ds%fname(i) = getword(line,lp)
+          end do
+          if (i /= ds%ndisp) then
+             errmsg = "The displacement dataset file " // trim(file) // " announces " // string(ds%ndisp) //&
+                " displacements but has " // string(i)
+             goto 999
+          end if
+       else
+          errmsg = "Unknown keyword (" // trim(word) // ") in the displacement dataset file: " // trim(file)
+          goto 999
+       end if
+    end do
+    call fclose(lu)
+
+    ! everything must be there
+    errmsg = ""
+    if (ds%version == 0) then
+       errmsg = "No VERSION in the displacement dataset file: " // trim(file)
+    elseif (ds%nat == 0) then
+       errmsg = "No STRUCTURE in the displacement dataset file: " // trim(file)
+    elseif (all(ds%smat == 0)) then
+       errmsg = "No SUPERCELL in the displacement dataset file: " // trim(file)
+    elseif (ds%dist <= 0d0) then
+       errmsg = "No (or non-positive) DISTANCE in the displacement dataset file: " // trim(file)
+    elseif (.not.allocated(ds%datom)) then
+       errmsg = "No DISPLACEMENTS in the displacement dataset file: " // trim(file)
+    end if
+    return
+
+999 continue
+    call fclose(lu)
+
+  end subroutine fc2_read_dataset
+
+  !> Check the displacement dataset ds against the current structure c
+  !> and against the supercell matrix smat, displacement length dist,
+  !> and displacement list (ndisp,datom,ddir) regenerated by
+  !> fc2_disp_setup. Returns non-empty errmsg if any of them disagrees.
+  subroutine fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
+    use tools_io, only: string
+    type(crystal), intent(in) :: c
+    type(fc2_dataset), intent(in) :: ds
+    integer, intent(in) :: smat(3,3)
+    real*8, intent(in) :: dist
+    integer, intent(in) :: ndisp
+    integer, intent(in) :: datom(ndisp)
+    integer, intent(in) :: ddir(3,ndisp)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i
+    real*8 :: dev, x(3)
+
+    errmsg = ""
+
+    ! the reference structure
+    if (ds%nat /= c%ncel) then
+       errmsg = "The dataset was generated from a cell with " // string(ds%nat) // " atoms, but the &
+          &current structure has " // string(c%ncel)
+       return
+    end if
+    dev = maxval(abs(ds%m_x2c - c%m_x2c)) / max(maxval(abs(c%m_x2c)),1d-10)
+    if (dev > fc2_epsdataset) then
+       errmsg = "The lattice of the current structure differs from the one the displacements were &
+          &generated from (relative deviation " // string(dev,'e',12,4) // ")"
+       return
+    end if
+    do i = 1, c%ncel
+       if (ds%z(i) /= c%spc(c%atcel(i)%is)%z) then
+          errmsg = "Atom " // string(i) // " is " // string(c%spc(c%atcel(i)%is)%z) // " in the current &
+             &structure but " // string(ds%z(i)) // " in the dataset; the atom order must be the same"
+          return
+       end if
+       x = ds%x(:,i) - c%atcel(i)%x
+       x = x - nint(x)
+       if (any(abs(x) > fc2_epsdataset)) then
+          errmsg = "Atom " // string(i) // " has moved since the displacements were generated (by " //&
+             string(norm2(matmul(c%m_x2c,x)),'e',12,4) // " bohr)"
+          return
+       end if
+    end do
+
+    ! the supercell and the displacement length
+    if (any(ds%smat /= smat)) then
+       errmsg = "The supercell given (" // fc2_smatstr(smat) // ") is not the one in the dataset (" //&
+          fc2_smatstr(ds%smat) // ")"
+       return
+    end if
+    if (abs(ds%dist - dist) > fc2_epsdisp) then
+       errmsg = "The displacement length given (" // string(dist,'f',12,8) // " bohr) is not the one in &
+          &the dataset (" // string(ds%dist,'f',12,8) // " bohr)"
+       return
+    end if
+
+    ! the displacement list
+    if (ds%ndisp /= ndisp) then
+       errmsg = "The dataset has " // string(ds%ndisp) // " displacements but " // string(ndisp) //&
+          " were regenerated for this supercell; the symmetry determination may have changed (SYMPREC?)"
+       return
+    end if
+    do i = 1, ndisp
+       if (ds%datom(i) /= datom(i) .or. any(ds%ddir(:,i) /= ddir(:,i))) then
+          errmsg = "Displacement " // string(i) // " in the dataset (atom " // string(ds%datom(i)) //&
+             ", direction " // string(ds%ddir(1,i)) // " " // string(ds%ddir(2,i)) // " " //&
+             string(ds%ddir(3,i)) // ") is not the one regenerated here (atom " // string(datom(i)) //&
+             ", direction " // string(ddir(1,i)) // " " // string(ddir(2,i)) // " " //&
+             string(ddir(3,i)) // "); the symmetry determination may have changed (SYMPREC?)"
+          return
+       end if
+    end do
+
+  end subroutine fc2_check_dataset
+
+  !> A supercell matrix written on one line, for an error message.
+  function fc2_smatstr(m) result(str)
+    use tools_io, only: string
+    integer, intent(in) :: m(3,3)
+    character(len=:), allocatable :: str
+
+    integer :: i, k
+
+    str = ""
+    do i = 1, 3
+       if (i > 1) str = str // " /"
+       do k = 1, 3
+          str = str // " " // string(m(i,k))
+       end do
+    end do
+    str = adjustl(str)
+
+  end function fc2_smatstr
+
+  !> Guess the file name template of the outputs of a set of displaced
+  !> structure files whose template is template: the same template with
+  !> the extension of the input replaced by the extension of the
+  !> corresponding output. Only Quantum ESPRESSO is known here, which
+  !> is also the only code whose forces can be read.
+  subroutine fc2_output_template(template,otemplate,errmsg)
+    use tools_io, only: lower
+    character*(*), intent(in) :: template
+    character(len=:), allocatable, intent(out) :: otemplate
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: idx
+    character(len=:), allocatable :: aux
+
+    errmsg = ""
+    otemplate = ""
+    aux = lower(trim(template))
+    idx = len_trim(aux) - 2
+    if (idx > 0) then
+       if (aux(idx:) == ".in") then
+          otemplate = template(1:idx-1) // ".out"
+          return
+       end if
+    end if
+    errmsg = "Could not guess the name of the output files from the template in the dataset (" //&
+       trim(template) // "); give the outputs with TEMPLATE or LIST"
+
+  end subroutine fc2_output_template
+
+  !> Deduce the supercell matrix (rows = supercell lattice vectors, in
+  !> units of the cell vectors, which is phonopy's convention) from the
+  !> structure in file scfile, an integer supercell of c. Checks that
+  !> the transformation is integer and that the two metrics are
+  !> consistent. Returns non-empty errmsg on error.
+  subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti,sco,seedo)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: string
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: scfile
+    integer, intent(out) :: smat(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+    type(crystal), intent(inout), optional :: sco
+    type(crystalseed), intent(inout), optional :: seedo
+
+    real*8 :: rmat(3,3), guc(3,3), gsc(3,3), gchk(3,3), dev
+    type(crystal) :: sc
+    type(crystalseed) :: seed
+
+    smat = 0
+    call seed%read_any_file(scfile,-1,errmsg,ti=ti)
+    if (len_trim(errmsg) > 0) return
+    call sc%struct_new(seed,errmsg,noenv=.true.,ti=ti)
+    if (len_trim(errmsg) > 0) return
+    if (present(seedo)) seedo = seed
+    if (present(sco)) sco = sc
+    if (sc%ismolecule) then
+       errmsg = "The supercell file " // trim(scfile) // " is a molecule"
+       return
+    end if
+
+    ! columns of m_c2x*sc%m_x2c are the supercell vectors in cell coordinates
+    rmat = transpose(matmul(c%m_c2x,sc%m_x2c))
+    smat = nint(rmat)
+    dev = maxval(abs(rmat - real(smat,8)))
+    if (dev > fc2_epsint) then
+       errmsg = "The cell in " // trim(scfile) // " is not an integer supercell of the current &
+          &structure (deviation " // string(dev,'e',12,4) // ")"
+       return
+    end if
+
+    ! the product above assumes both cells use the same Cartesian
+    ! frame; the metric identity G_sc = smat*G_uc*smat^t does not
+    guc = matmul(transpose(c%m_x2c),c%m_x2c)
+    gsc = matmul(transpose(sc%m_x2c),sc%m_x2c)
+    gchk = matmul(real(smat,8),matmul(guc,transpose(real(smat,8))))
+    dev = maxval(abs(gchk - gsc)) / max(maxval(abs(gsc)),1d-10)
+    if (dev > fc2_epsmetric) then
+       errmsg = "The supercell matrix deduced from " // trim(scfile) // " is inconsistent with the &
+          &cell metric (relative deviation " // string(dev,'e',12,4) // "); the two structures may &
+          &be given in different Cartesian frames"
+       return
+    end if
+
+  end subroutine fc2_smat_from_cell
+
   !> Read the forces on the nat atoms of a supercell from the output
   !> of a Quantum ESPRESSO calculation, in Hartree/bohr and in the
   !> atom order of the input. The last force block in the file is
@@ -899,48 +1371,119 @@ contains
   !> zero-padded displacement index, and otherwise it is a text file
   !> with one file name per line, in displacement order.
   !> If error, return non-zero errmsg.
-  module subroutine create_forces(c,smat,dist,file,verbose,errmsg,ti)
+  module subroutine create_forces(c,file,dataset,verbose,errmsg,smat0,dist0,scfile,ti)
     use crystalseedmod, only: crystalseed
-    use tools_io, only: uout, string, ioj_right, fopen_read, fclose, getline_raw, getword
+    use tools_io, only: uout, string, fopen_read, fclose, getline_raw, getword
     use tools_math, only: matinv, eigsym
-    use param, only: mlen
+    use param, only: bohrtoa
     class(crystal), intent(inout) :: c
-    integer, intent(in) :: smat(3,3)
-    real*8, intent(in) :: dist
     character*(*), intent(in) :: file
+    character*(*), intent(in) :: dataset
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
+    integer, intent(in) :: smat0(3,3)
+    real*8, intent(in) :: dist0
+    character*(*), intent(in) :: scfile
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: line, word
+    character(len=:), allocatable :: line, file_
     character(len=mlen), allocatable :: fname(:)
-    integer :: nlat, nsat, madj(3,3), nindep, ndisp, nop
+    integer :: nlat, nsat, madj(3,3), nindep, ndisp, nop, smat(3,3)
     integer :: i, j, k, m, ia, is, js, id, ip, iq, io, icv, ier, npad, lu, nf, lp
     integer :: nd, ns, jmax
-    real*8 :: gg(3,3), ggev(3,3), eval(3), atb(3,3), dc(3), rr(3,3), blk(3,3), dmax
-    logical :: ok
+    real*8 :: gg(3,3), ggev(3,3), eval(3), atb(3,3), dc(3), rr(3,3), blk(3,3), dmax, dist
+    logical :: ok, haveds
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
     integer, allocatable :: perm(:,:), isite(:), ipsite(:,:)
     real*8, allocatable :: fall(:,:,:), rcart(:,:,:), amat(:,:), bmat(:,:), fcs(:,:,:,:)
     type(crystal) :: sc
     type(crystalseed) :: seed
+    type(fc2_dataset) :: ds
+
+    ! the displacement dataset written by create_displacements, if any:
+    ! it supplies the supercell, the displacement length and the names
+    ! of the structure files when they were not given explicitly
+    haveds = (len_trim(dataset) > 0)
+    if (haveds) then
+       call fc2_read_dataset(dataset,ds,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) &
+          write (uout,'("+ Displacement dataset read from: ",A)') trim(dataset)
+    end if
+
+    ! The supercell and the displacement length: explicit if given,
+    ! from the dataset otherwise. A zero matrix, a non-positive length
+    ! and an empty file name are the "not given" markers (a singular
+    ! supercell and a non-positive displacement are errors anyway).
+    if (any(smat0 /= 0)) then
+       smat = smat0
+    elseif (len_trim(scfile) > 0) then
+       call fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) &
+          write (uout,'("  Supercell read from: ",A)') trim(scfile)
+    elseif (haveds) then
+       smat = ds%smat
+       if (verbose) &
+          write (uout,'("  Supercell taken from the dataset")')
+    else
+       errmsg = "No supercell given and no displacement dataset available; give the supercell in the &
+          &READ_FORCES line or the dataset file written by CREATE_DISPLACEMENTS (DATASET)"
+       return
+    end if
+    if (dist0 > 0d0) then
+       dist = dist0
+    elseif (haveds) then
+       dist = ds%dist
+       if (verbose) &
+          write (uout,'("  Displacement length taken from the dataset: ",A," bohr (",A," ang)")') &
+             string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
+    else
+       errmsg = "No displacement length given and no displacement dataset available; give DISTANCE in &
+          &the READ_FORCES line or the dataset file written by CREATE_DISPLACEMENTS (DATASET)"
+       return
+    end if
 
     ! the supercell and the displacement list, exactly as create_displacements built them
     call fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
        nindep,indep,ndisp,datom,ddir,errmsg,ti)
     if (len_trim(errmsg) > 0) return
 
+    ! the dataset knows the structure and the displacements the forces
+    ! were calculated for; check they are the ones regenerated here
+    if (haveds) then
+       call fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
+       if (len_trim(errmsg) > 0) then
+          errmsg = trim(errmsg) // " (displacement dataset " // trim(dataset) // ")"
+          return
+       end if
+    end if
+
+    ! where the outputs are: the argument if given, otherwise guessed
+    ! from the template of the displaced structures in the dataset
+    if (len_trim(file) > 0) then
+       file_ = file
+    elseif (haveds) then
+       call fc2_output_template(ds%template,file_,errmsg)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) &
+          write (uout,'("  Output files guessed from the dataset template: ",A)') trim(file_)
+    else
+       errmsg = "No force files given (a list or a * template) and no displacement dataset available"
+       return
+    end if
+
     ! the files with the forces, one per displacement
     allocate(fname(ndisp))
     npad = max(3,len(string(ndisp)))
-    if (index(file,'*') > 0) then
+    if (index(file_,'*') > 0) then
        do i = 1, ndisp
-          fname(i) = fc2_expand_star(file,i,npad)
+          fname(i) = fc2_expand_star(file_,i,npad)
        end do
     else
-       lu = fopen_read(file,errstop=.false.,ti=ti)
+       lu = fopen_read(file_,errstop=.false.,ti=ti)
        if (lu <= 0) then
-          errmsg = "Could not open the list of force files: " // trim(file)
+          errmsg = "Could not open the list of force files: " // trim(file_)
           return
        end if
        nf = 0
@@ -956,7 +1499,7 @@ contains
        end do
        call fclose(lu)
        if (nf /= ndisp) then
-          errmsg = "The list in " // trim(file) // " has " // string(nf) // " file names, but " //&
+          errmsg = "The list in " // trim(file_) // " has " // string(nf) // " file names, but " //&
              string(ndisp) // " displacements were generated for this supercell"
           return
        end if
@@ -1137,7 +1680,7 @@ contains
     end do
 
     ! wrap up
-    c%vib%fc2_file = file
+    c%vib%fc2_file = file_
     c%vib%hasfc2 = .true.
     c%vib%fc2_smat = smat
     c%vib%fc2_madj = madj
@@ -1443,6 +1986,53 @@ contains
 
   end subroutine vibrations_print_freq
 
+  !> Write the q-points and frequencies currently stored to a file, as
+  !> a table ready for plotting: the cumulative distance in reciprocal
+  !> space (bohr^-1, the abscissa of a dispersion plot), the q-point in
+  !> fractional coordinates, and the frequencies in cm^-1, one row per
+  !> q-point. Returns non-empty errmsg on error.
+  module subroutine vibrations_write_freq(v,c,file,verbose,errmsg)
+    use tools_io, only: fopen_write, fclose, uout, string, ioj_right
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, i, j
+    real*8 :: dq, qc(3), qcold(3)
+
+    errmsg = ""
+    if (.not.v%hasvibs .or. v%nqpt < 1) then
+       errmsg = "No frequencies available to write"
+       return
+    end if
+
+    lu = fopen_write(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open the frequency file for writing: " // trim(file)
+       return
+    end if
+    write (lu,'("# q-point frequencies calculated by critic2")')
+    write (lu,'("# column 1: cumulative distance along the list of q-points (bohr^-1)")')
+    write (lu,'("# columns 2-4: q-point (fractional coordinates of the reciprocal cell)")')
+    write (lu,'("# columns 5-",A,": frequencies (cm^-1)")') string(4+v%nfreq)
+    dq = 0d0
+    do i = 1, v%nqpt
+       qc = c%rx2rc(v%qpt(:,i))
+       if (i > 1) dq = dq + norm2(qc - qcold)
+       qcold = qc
+       write (lu,'(*(A," "))') string(dq,'f',16,10,ioj_right),&
+          (string(v%qpt(j,i),'f',14,8,ioj_right),j=1,3),&
+          (string(v%freq(j,i),'f',16,6,ioj_right),j=1,v%nfreq)
+    end do
+    call fclose(lu)
+
+    if (verbose) &
+       write (uout,'("+ Frequencies of ",A," q-points written to: ",A)') string(v%nqpt), trim(file)
+
+  end subroutine vibrations_write_freq
+
   !> Print information about a particular eigenvector with band index
   !> ifreq and q-point index idq. If cartesian, convert to Cartesian
   !> coordinates by dividing by sqrt(mass); otherwise, mass-weighted
@@ -1541,35 +2131,64 @@ contains
   !> FORCE_CONSTANTS. The array written is exactly phonopy's compact
   !> force constants for a primitive cell equal to the current cell, so
   !> it can be compared directly against phonopy's own output.
-  module subroutine vibrations_write_fc2(v,c,file,full,verbose)
-    use tools_io, only: fopen_write, fclose, uout, string, ioj_right
+  module subroutine vibrations_write_fc2(v,c,sline,verbose,errmsg)
+    use tools_io, only: fopen_write, fclose, uout, string, ioj_right, lgetword, getword, equal
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
-    character(len=:), allocatable, intent(in), optional :: file
-    logical, intent(in), optional :: full
-    logical, intent(in), optional :: verbose
+    character*(*), intent(in) :: sline
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: lu, ia, ja, il, jl, kl, is, js, ks, k, igen, nrow
+    integer :: lu, ia, ja, il, jl, kl, is, js, ks, k, iunitfc, nrow, lp, lp0
     real*8 :: fac
-    logical :: verbose_, full_
-    character(len=:), allocatable :: file_
+    logical :: full_
+    character(len=:), allocatable :: file_, word
 
-    ! return if no FC2 is available
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
-
-    ! optional parameters
-    verbose_ = .false.
-    if (present(verbose)) verbose_ = verbose
-    full_ = .false.
-    if (present(full)) full_ = full
-    file_ = "FORCE_CONSTANTS"
-    if (present(file)) then
-       if (len(file) > 0) file_ = file
+    errmsg = ""
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) then
+       errmsg = "No force constants available to write"
+       return
     end if
 
-    ! written in QE units (Ry/bohr^2), like the previous version of this routine
-    igen = 3
-    fac = 2d0
+    ! The file name: the first word, unless it is one of the options,
+    ! in which case phonopy's default name is used.
+    lp = 1
+    if (fc2_unit_index(sline) /= 0) then
+       file_ = "FORCE_CONSTANTS"
+    else
+       lp0 = lp
+       word = lgetword(sline,lp0)
+       if (len_trim(word) == 0 .or. equal(word,"full")) then
+          file_ = "FORCE_CONSTANTS"
+       else
+          file_ = getword(sline,lp)
+       end if
+    end if
+
+    ! options: the units of the file (Ry/bohr^2 by default, phonopy's
+    ! units for Quantum ESPRESSO) and whether to write the full array
+    iunitfc = 3
+    full_ = .false.
+    do while (.true.)
+       lp0 = lp
+       k = fc2_unit_index(sline,lp)
+       if (k > 0) then
+          iunitfc = k
+          cycle
+       elseif (k < 0) then
+          errmsg = "Unknown force-constant units in UNITS; known units are " // fc2_unitlist
+          return
+       end if
+       word = lgetword(sline,lp)
+       if (len_trim(word) == 0) exit
+       if (equal(word,"full")) then
+          full_ = .true.
+       else
+          errmsg = "Unknown keyword in WRITE_FC2: " // trim(word)
+          return
+       end if
+    end do
+    fac = 1d0 / fc2_unit_factor(iunitfc)
 
     if (full_) then
        nrow = v%fc2_nsat
@@ -1577,7 +2196,11 @@ contains
        nrow = c%ncel
     end if
 
-    lu = fopen_write(file_)
+    lu = fopen_write(file_,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open the force-constant file for writing: " // trim(file_)
+       return
+    end if
     write (lu,'(A,X,A)') string(nrow), string(v%fc2_nsat)
     do ia = 1, c%ncel
        do il = 1, v%fc2_nlat
@@ -1604,13 +2227,13 @@ contains
     end do
     call fclose(lu)
 
-    if (verbose_) then
+    if (verbose) then
        if (full_) then
           write (uout,'("+ Written FC2 file (",A,", full format): ",A)') &
-             trim(fc2_unitname(igen)), file_
+             trim(fc2_unitname(iunitfc)), file_
        else
           write (uout,'("+ Written FC2 file (",A,", compact format): ",A)') &
-             trim(fc2_unitname(igen)), file_
+             trim(fc2_unitname(iunitfc)), file_
        end if
     end if
 
@@ -1859,7 +2482,7 @@ contains
 
     ! checks
     if (.not.v%hasfc2 .or..not.allocated(v%fc2)) then
-       errmsg = "No force constants available; use VIBRATIONS LOAD or VIBRATIONS FORCES first"
+       errmsg = "No force constants available; use VIBRATIONS LOAD or VIBRATIONS READ_FORCES first"
        return
     end if
     if (v%fc2_ncel /= c%ncel .or..not.allocated(v%fc2_x)) then
@@ -3252,18 +3875,17 @@ contains
     use crystalseedmod, only: crystalseed
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, getword, equal,&
        isinteger, string
-    use param, only: hartoev, bohrtoa
     type(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file, sline
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: word, line, scfile
+    character(len=:), allocatable :: word, line, scfile, file_
     integer :: lu, lp, lp0, i, j, ia, il, ip, jp, is, js, iap, ilp, irow, idum
-    integer :: igen, ndim, nlat, nsat, nrow, n1, n2, ierr
-    integer :: smat(3,3), madj(3,3), idim(9), lv(3)
-    real*8 :: fc2factor, rmat(3,3), gsc(3,3), guc(3,3), gchk(3,3), dev
+    integer :: iunitfc, iun, ndim, nlat, nsat, nrow, n1, n2, ierr
+    integer :: smat(3,3), madj(3,3), idim(9)
+    real*8 :: fc2factor, rmat(3,3), dev
     real*8 :: t(3), xsc(3), dx(3)
     logical :: iscompact, haveseed, doasr, found, phonopydim, flipped
     integer, allocatable :: lvec(:,:), lkey(:,:), p2s(:), s2row(:), perm(:)
@@ -3273,39 +3895,43 @@ contains
     type(crystalseed) :: seed
 
     ! initialize
-    errmsg = "Error reading FORCE_CONSTANTS file: " // trim(file)
     lu = -1
     scfile = ""
     if (c%ismolecule) then
        errmsg = "FORCE_CONSTANTS (phonopy) files can only be read for crystals"
-       goto 999
+       return
     end if
 
-    ! generator keyword: mandatory, gives the units of the file
+    ! The file name. It is empty when the FC2 keyword was used: then
+    ! the first word of the option string is the file name, unless it
+    ! is one of the options, in which case phonopy's default name is
+    ! taken.
     lp = 1
-    word = lgetword(sline,lp)
-    igen = fc2_generator_index(sline)
-    if (igen == 0) then
-       errmsg = "A generator keyword (vasp, qe, aims, alamode, ...) is required to read FORCE_CONSTANTS"
-       goto 999
+    file_ = file
+    if (len_trim(file_) == 0) then
+       if (fc2_unit_index(sline) /= 0) then
+          file_ = "FORCE_CONSTANTS"
+       else
+          lp0 = lp
+          word = lgetword(sline,lp0)
+          if (len_trim(word) == 0 .or. equal(word,"phonopy") .or. equal(word,"asr") .or.&
+             equal(word,"acoustic") .or. equal(word,"acoustic_sum_rules")) then
+             file_ = "FORCE_CONSTANTS"
+          else
+             lp0 = lp
+             if (isinteger(idum,sline,lp0)) then
+                file_ = "FORCE_CONSTANTS"
+             else
+                file_ = getword(sline,lp)
+             end if
+          end if
+       end if
     end if
-    select case (fc2_genunit(igen))
-    case (1)
-       fc2factor = bohrtoa**2 / hartoev ! eV/ang^2
-    case (2)
-       fc2factor = bohrtoa / hartoev ! eV/(ang*bohr)
-    case (3)
-       fc2factor = 0.5d0 ! Ry/bohr^2
-    case (4)
-       fc2factor = 0.5d-3 ! mRy/bohr^2
-    case (5)
-       fc2factor = 1d0 ! Hartree/bohr^2
-    case (6)
-       fc2factor = bohrtoa ! Hartree/(ang*bohr)
-    end select
+    errmsg = "Error reading FORCE_CONSTANTS file: " // trim(file_)
 
-    ! supercell specification and options
+    ! supercell specification and options, in any order
     ndim = 0
+    iunitfc = 0
     haveseed = .false.
     doasr = .false.
     phonopydim = .false.
@@ -3320,6 +3946,17 @@ contains
           idim(ndim) = idum
           cycle
        end if
+
+       ! the units of the file: mandatory, the file does not carry them
+       iun = fc2_unit_index(sline,lp)
+       if (iun > 0) then
+          iunitfc = iun
+          cycle
+       elseif (iun < 0) then
+          errmsg = "Unknown force-constant units in UNITS; known units are " // fc2_unitlist
+          goto 999
+       end if
+
        word = lgetword(sline,lp)
        if (len_trim(word) == 0) exit
        if (equal(word,"asr").or.equal(word,"acoustic").or.equal(word,"acoustic_sum_rules")) then
@@ -3333,17 +3970,16 @@ contains
           ! the supercell, read from a structure file
           lp = lp0
           scfile = getword(sline,lp)
-          call seed%read_any_file(scfile,-1,errmsg,ti=ti)
-          if (len_trim(errmsg) > 0) goto 999
-          call sc%struct_new(seed,errmsg,noenv=.true.,ti=ti)
-          if (len_trim(errmsg) > 0) goto 999
-          if (sc%ismolecule) then
-             errmsg = "The supercell file in VIBRATIONS LOAD is a molecule"
-             goto 999
-          end if
           haveseed = .true.
        end if
     end do
+    if (iunitfc == 0) then
+       errmsg = "The units of the force constants are required: give the code that wrote the file &
+          &(vasp, qe, aims, alamode, ...) or UNITS followed by the units themselves (" //&
+          fc2_unitlist // ")"
+       goto 999
+    end if
+    fc2factor = fc2_unit_factor(iunitfc)
 
     ! build the supercell matrix (rows = supercell lattice vectors, in
     ! units of the cell vectors; this is phonopy's convention)
@@ -3356,29 +3992,8 @@ contains
           errmsg = "Give either the supercell matrix or a supercell file in VIBRATIONS LOAD, not both"
           goto 999
        end if
-
-       ! columns of m_c2x*sc%m_x2c are the supercell vectors in cell coordinates
-       rmat = transpose(matmul(c%m_c2x,sc%m_x2c))
-       smat = nint(rmat)
-       dev = maxval(abs(rmat - real(smat,8)))
-       if (dev > fc2_epsint) then
-          errmsg = "The cell in " // trim(scfile) // " is not an integer supercell of the current &
-             &structure (deviation " // string(dev,'e',12,4) // ")"
-          goto 999
-       end if
-
-       ! the product above assumes both cells use the same Cartesian
-       ! frame; the metric identity G_sc = smat*G_uc*smat^t does not
-       guc = matmul(transpose(c%m_x2c),c%m_x2c)
-       gsc = matmul(transpose(sc%m_x2c),sc%m_x2c)
-       gchk = matmul(real(smat,8),matmul(guc,transpose(real(smat,8))))
-       dev = maxval(abs(gchk - gsc)) / max(maxval(abs(gsc)),1d-10)
-       if (dev > fc2_epsmetric) then
-          errmsg = "The supercell matrix deduced from " // trim(scfile) // " is inconsistent with the &
-             &cell metric (relative deviation " // string(dev,'e',12,4) // "); the two structures may &
-             &be given in different Cartesian frames"
-          goto 999
-       end if
+       call fc2_smat_from_cell(c,scfile,smat,errmsg,ti,sco=sc,seedo=seed)
+       if (len_trim(errmsg) > 0) goto 999
     elseif (ndim > 0) then
        call supercell_matrix_from_ints(ndim,idim,phonopydim,smat,flipped,errmsg)
        if (len_trim(errmsg) > 0) goto 999
@@ -3394,12 +4009,12 @@ contains
     nsat = c%ncel * nlat
 
     ! open the file and read the header
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file_,ti=ti)
     if (lu <= 0) then
-       errmsg = "File not found: " // trim(file)
+       errmsg = "File not found: " // trim(file_)
        goto 999
     end if
-    errmsg = "Error reading the header of FORCE_CONSTANTS file: " // trim(file)
+    errmsg = "Error reading the header of FORCE_CONSTANTS file: " // trim(file_)
     if (.not.getline_raw(lu,line,.false.)) goto 999
     lp = 1
     if (.not.isinteger(n1,line,lp)) goto 999
@@ -3412,7 +4027,7 @@ contains
        iscompact = .true.
        nrow = n1
     else
-       errmsg = "Inconsistent number of atoms in " // trim(file) // ": the file has (" // string(n1) //&
+       errmsg = "Inconsistent number of atoms in " // trim(file_) // ": the file has (" // string(n1) //&
           "," // string(n2) // ") but the structure and the supercell give " // string(c%ncel) // "*" //&
           string(nlat) // " = " // string(nsat) // " supercell atoms"
        goto 999
@@ -3426,7 +4041,7 @@ contains
        goto 999
     end if
     s2row = 0
-    errmsg = "Error reading the force constants from file: " // trim(file)
+    errmsg = "Error reading the force constants from file: " // trim(file_)
     do irow = 1, nrow
        coldone = .false.
        do jp = 1, nsat
@@ -3545,7 +4160,7 @@ contains
     end if
 
     ! wrap up
-    v%fc2_file = file
+    v%fc2_file = file_
     v%hasfc2 = .true.
     v%fc2_smat = smat
     v%fc2_madj = madj
@@ -3659,28 +4274,77 @@ contains
 
   end subroutine fc2_lattice_points
 
-  !> Index of the generator (the code that wrote the file, which fixes
-  !> the units of the force constants) named by the first word of sline.
-  !> Zero if the first word is not a known generator.
-  function fc2_generator_index(sline) result(igen)
-    use tools_io, only: lgetword, equal
+  !> Index (in fc2_unitname) of the units of a force-constant file,
+  !> named at position lp of sline: either the code that wrote the file
+  !> (vasp, qe, aims, ...), the units themselves (eV/ang^2,
+  !> Ry/bohr^2, ...), or the keyword UNITS followed by either of the
+  !> two. Returns zero if the word is neither, and -1 if UNITS is
+  !> followed by something unknown. If lp is present, the search starts
+  !> there and lp is advanced past the words consumed (left untouched
+  !> if the result is zero).
+  function fc2_unit_index(sline,lp) result(iunit)
+    use tools_io, only: lgetword, equal, lower
     character*(*), intent(in) :: sline
-    integer :: igen
+    integer, intent(inout), optional :: lp
+    integer :: iunit
 
-    integer :: i, lp
+    integer :: i, lp_
+    logical :: haveunits
     character(len=:), allocatable :: word
 
-    lp = 1
-    word = lgetword(sline,lp)
-    igen = 0
+    iunit = 0
+    lp_ = 1
+    if (present(lp)) lp_ = lp
+    word = lgetword(sline,lp_)
+    haveunits = equal(word,"units")
+    if (haveunits) word = lgetword(sline,lp_)
+
     do i = 1, fc2_ngen
        if (equal(word,trim(fc2_genname(i)))) then
-          igen = i
+          iunit = fc2_genunit(i)
+          if (present(lp)) lp = lp_
           return
        end if
     end do
+    do i = 1, fc2_nunit
+       if (equal(word,lower(trim(fc2_unitname(i))))) then
+          iunit = i
+          if (present(lp)) lp = lp_
+          return
+       end if
+    end do
+    if (haveunits) then
+       iunit = -1
+       if (present(lp)) lp = lp_
+    end if
 
-  end function fc2_generator_index
+  end function fc2_unit_index
+
+  !> Factor that converts force constants in the units iunit (an index
+  !> into fc2_unitname) to the internal units (Hartree/bohr^2).
+  function fc2_unit_factor(iunit) result(fac)
+    use param, only: hartoev, bohrtoa
+    integer, intent(in) :: iunit
+    real*8 :: fac
+
+    select case (iunit)
+    case (1)
+       fac = bohrtoa**2 / hartoev ! eV/ang^2
+    case (2)
+       fac = bohrtoa / hartoev ! eV/(ang*bohr)
+    case (3)
+       fac = 0.5d0 ! Ry/bohr^2
+    case (4)
+       fac = 0.5d-3 ! mRy/bohr^2
+    case (5)
+       fac = 1d0 ! Hartree/bohr^2
+    case (6)
+       fac = bohrtoa ! Hartree/(ang*bohr)
+    case default
+       fac = 1d0
+    end select
+
+  end function fc2_unit_factor
 
   !> Position, in fractional coordinates of the supercell, of the image
   !> of the cell atom at x (cell fractional coordinates) at the lattice

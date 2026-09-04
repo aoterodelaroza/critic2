@@ -133,7 +133,8 @@ module crystalmod
      procedure :: end => vibrations_end !< terminate the vibrations object
      procedure :: print_summary => vibrations_print_summary !< print summary of vibs
      procedure :: print_fc2 => vibrations_print_fc2 !< print info about the FC2
-     procedure :: print_freq => vibrations_print_freq !< print frequency info
+     procedure :: print_freq => vibrations_print_freq !< print frequencies at a q-point
+     procedure :: write_freq => vibrations_write_freq !< write the q-points and frequencies to a file
      procedure :: print_eigenvector => vibrations_print_eigenvector !< print eigvec info
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
      procedure :: check_fc2 => vibrations_check_fc2 !< numerical sanity checks on the FC2
@@ -911,23 +912,27 @@ module crystalmod
        logical, intent(out) :: flipped
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine supercell_matrix_from_ints
-     module subroutine create_displacements(c,smat,dist,template,verbose,errmsg,ti,rklength)
+     module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength)
        class(crystal), intent(inout) :: c
-       integer, intent(in) :: smat(3,3)
+       integer, intent(in) :: smat0(3,3)
        real*8, intent(in) :: dist
        character*(*), intent(in) :: template
+       character*(*), intent(in) :: dataset
+       character*(*), intent(in) :: scfile
        logical, intent(in) :: verbose
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        real*8, intent(in), optional :: rklength
      end subroutine create_displacements
-     module subroutine create_forces(c,smat,dist,file,verbose,errmsg,ti)
+     module subroutine create_forces(c,file,dataset,verbose,errmsg,smat0,dist0,scfile,ti)
        class(crystal), intent(inout) :: c
-       integer, intent(in) :: smat(3,3)
-       real*8, intent(in) :: dist
        character*(*), intent(in) :: file
+       character*(*), intent(in) :: dataset
        logical, intent(in) :: verbose
        character(len=:), allocatable, intent(out) :: errmsg
+       integer, intent(in) :: smat0(3,3)
+       real*8, intent(in) :: dist0
+       character*(*), intent(in) :: scfile
        type(thread_info), intent(in), optional :: ti
      end subroutine create_forces
      module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti,keepcell) result(x0)
@@ -1540,6 +1545,13 @@ module crystalmod
        type(crystal), intent(in) :: c
        integer, intent(in) :: id
      end subroutine vibrations_print_freq
+     module subroutine vibrations_write_freq(v,c,file,verbose,errmsg)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine vibrations_write_freq
      module subroutine vibrations_print_eigenvector(v,c,ifreq,idq,cartesian)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(in) :: c
@@ -1557,12 +1569,12 @@ module crystalmod
        type(crystal), intent(inout) :: c
        logical, intent(in), optional :: verbose
      end subroutine vibrations_apply_acoustic
-     module subroutine vibrations_write_fc2(v,c,file,full,verbose)
+     module subroutine vibrations_write_fc2(v,c,sline,verbose,errmsg)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
-       character(len=:), allocatable, intent(in), optional :: file
-       logical, intent(in), optional :: full
-       logical, intent(in), optional :: verbose
+       character*(*), intent(in) :: sline
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine vibrations_write_fc2
      module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco)
        class(vibrations), intent(inout) :: v

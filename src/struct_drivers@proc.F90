@@ -3907,16 +3907,24 @@ contains
        equal, isinteger, string
     use crystalmod, only: supercell_matrix_from_ints
     use types, only: realloc
-    use param, only: ivformat_unknown
+    use param, only: ivformat_unknown, ivformat_phonopy_fc2
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line0
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: line, filename, word, mode, sline, errmsg, template
-    integer :: lp, ndim, idum, idim(9), smat(3,3), i, nq
-    real*8 :: dist, rk, q(3)
+    character(len=:), allocatable :: dataset, scfile, kwname
+    integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq, ivf
+    integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
+    real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
+    character(len=:), allocatable :: qfile
     real*8, allocatable :: qlist(:,:)
-    logical :: dofull, flipped, oneline, ok
+    logical, allocatable :: qprint(:)
+    logical :: flipped, oneline, ok, havedist, usedist, doappend, havedataset
+
+    ! default name of the file where CREATE_DISPLACEMENTS records how the
+    ! displaced structures were generated, and where READ_FORCES looks for it
+    character(len=*), parameter :: dataset_default = "critic2_disp.txt"
 
     ! header
     if (verbose) &
@@ -3945,14 +3953,30 @@ contains
           ! blank line inside the environment
        elseif (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
           exit
-       elseif (equal(word,'load')) then
-          ! load a vibrations file
-          filename = getword(line,lp)
-          if (verbose) &
+       elseif (equal(word,'load').or.equal(word,'read_fc2')) then
+          ! load a vibrations file. LOAD FC2 (or READ_FC2, or LOAD
+          ! FORCE_CONSTANTS) forces the phonopy force-constant reader;
+          ! the file name is then optional and resolved there.
+          if (equal(word,'read_fc2')) then
+             ivf = ivformat_phonopy_fc2
+             filename = ""
+          else
+             lp0 = lp
+             mode = lgetword(line,lp)
+             if (equal(mode,'fc2').or.equal(mode,'force_constants')) then
+                ivf = ivformat_phonopy_fc2
+                filename = ""
+             else
+                lp = lp0
+                ivf = ivformat_unknown
+                filename = getword(line,lp)
+             end if
+          end if
+          if (verbose .and. len_trim(filename) > 0) &
              write (uout,'("  Loading vibrations file: ",A)') trim(filename)
           sline = line(lp:)
 
-          call s%c%vib%read_file(s%c,filename,sline,ivformat_unknown,errmsg)
+          call s%c%vib%read_file(s%c,filename,sline,ivf,errmsg)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
@@ -3964,92 +3988,103 @@ contains
           end if
 
        elseif (equal(word,'clear')) then
-          call s%c%vib%end()
+          ! CLEAR alone wipes everything; CLEAR FC2 and CLEAR FREQ
+          ! wipe one half of the object, mirroring what LOAD does
+          mode = lgetword(line,lp)
+          if (len_trim(mode) == 0) then
+             call s%c%vib%end()
+          elseif (equal(mode,'fc2').or.equal(mode,'force_constants')) then
+             call s%c%vib%end(keepvibs=.true.)
+          elseif (equal(mode,'freq').or.equal(mode,'frequencies')) then
+             call s%c%vib%end(keepfc2=.true.)
+          else
+             call ferror('struct_vibrations','unknown keyword in CLEAR: ' // trim(mode),&
+                faterr,line,syntax=.true.)
+          end if
 
-       elseif (equal(word,'create_displacements')) then
-          ! the supercell: n, n1 n2 n3, or a NEWCELL transformation (9 integers)
-          ndim = 0
-          do while (isinteger(idum,line,lp))
-             ndim = ndim + 1
-             if (ndim > 9) &
-                call ferror('struct_vibrations','too many integers in CREATE_DISPLACEMENTS',faterr,line,syntax=.true.)
-             idim(ndim) = idum
-          end do
-          call supercell_matrix_from_ints(ndim,idim,.false.,smat,flipped,errmsg)
-          if (len_trim(errmsg) > 0) &
-             call ferror('struct_vibrations',errmsg,faterr,line,syntax=.true.)
-          if (flipped .and. verbose) &
-             write (uout,'("  Note: the supercell transformation has negative determinant; sign flipped")')
-
-          ! options
-          dist = 0.02d0 ! bohr, phonopy's default for bohr-based codes
+       elseif (equal(word,'create_displacements').or.equal(word,'displacements')) then
+          ! the supercell (1, 3 or 9 integers, or SUPERCELL file), the
+          ! displacement length, the dataset file, and the options of
+          ! this sub-command
+          kwname = 'CREATE_DISPLACEMENTS'
+          call dispinit()
           rk = -1d0
           template = ""
           do while (.true.)
+             if (dispopt()) cycle
              mode = lgetword(line,lp)
              if (len_trim(mode) == 0) exit
              if (equal(mode,'template')) then
                 template = getword(line,lp)
-             elseif (equal(mode,'distance')) then
-                if (.not.eval_next(dist,line,lp)) &
-                   call ferror('struct_vibrations','error reading DISTANCE in CREATE_DISPLACEMENTS',faterr,line,syntax=.true.)
-                dist = dist / dunit0(iunit)
+                if (len_trim(template) == 0) &
+                   call ferror('struct_vibrations','TEMPLATE needs a file name',faterr,line,syntax=.true.)
              elseif (equal(mode,'rklength').or.equal(mode,'rk')) then
                 if (.not.eval_next(rk,line,lp)) &
-                   call ferror('struct_vibrations','error reading RKLENGTH in CREATE_DISPLACEMENTS',faterr,line,syntax=.true.)
+                   call ferror('struct_vibrations','error reading RKLENGTH in ' // kwname,faterr,line,syntax=.true.)
                 if (rk <= 0d0) &
                    call ferror('struct_vibrations','RKLENGTH must be positive',faterr,line,syntax=.true.)
              else
-                call ferror('struct_vibrations','unknown keyword in CREATE_DISPLACEMENTS: ' // trim(mode),&
+                call ferror('struct_vibrations','unknown keyword in ' // kwname // ': ' // trim(mode),&
                    faterr,line,syntax=.true.)
              end if
           end do
+          call dispsmat()
 
           if (rk > 0d0) then
-             call s%c%create_displacements(smat,dist,template,verbose,errmsg,rklength=rk)
+             call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg,rklength=rk)
           else
-             call s%c%create_displacements(smat,dist,template,verbose,errmsg)
+             call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg)
           end if
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
-       elseif (equal(word,'forces')) then
-          ! the file locating the calculated supercells
-          filename = getword(line,lp)
-          if (len_trim(filename) == 0) &
-             call ferror('struct_vibrations','FORCES needs a file name (a list or a * template)',&
-                faterr,line,syntax=.true.)
-
-          ! the supercell, same syntax as CREATE_DISPLACEMENTS
-          ndim = 0
-          do while (isinteger(idum,line,lp))
-             ndim = ndim + 1
-             if (ndim > 9) &
-                call ferror('struct_vibrations','too many integers in FORCES',faterr,line,syntax=.true.)
-             idim(ndim) = idum
-          end do
-          call supercell_matrix_from_ints(ndim,idim,.false.,smat,flipped,errmsg)
-          if (len_trim(errmsg) > 0) &
-             call ferror('struct_vibrations',errmsg,faterr,line,syntax=.true.)
-          if (flipped .and. verbose) &
-             write (uout,'("  Note: the supercell transformation has negative determinant; sign flipped")')
-
-          ! options
-          dist = 0.02d0 ! bohr, the same default as CREATE_DISPLACEMENTS
+       elseif (equal(word,'read_forces')) then
+          ! the supercell (as in CREATE_DISPLACEMENTS), the file that
+          ! locates the calculated supercells (a list or a * template,
+          ! with or without the TEMPLATE/LIST keyword), and the
+          ! options. Everything is optional: what is not given comes
+          ! from the displacement dataset file.
+          kwname = 'READ_FORCES'
+          call dispinit()
+          filename = ""
           do while (.true.)
+             lp0 = lp
+             if (dispopt()) cycle
              mode = lgetword(line,lp)
              if (len_trim(mode) == 0) exit
-             if (equal(mode,'distance')) then
-                if (.not.eval_next(dist,line,lp)) &
-                   call ferror('struct_vibrations','error reading DISTANCE in FORCES',faterr,line,syntax=.true.)
-                dist = dist / dunit0(iunit)
+             if (equal(mode,'template').or.equal(mode,'list')) then
+                filename = getword(line,lp)
+                if (len_trim(filename) == 0) &
+                   call ferror('struct_vibrations','TEMPLATE/LIST needs a file name',faterr,line,syntax=.true.)
+             elseif (len_trim(filename) == 0) then
+                ! the file name, given without a keyword
+                lp = lp0
+                filename = getword(line,lp)
              else
-                call ferror('struct_vibrations','unknown keyword in FORCES: ' // trim(mode),&
+                call ferror('struct_vibrations','unknown keyword in ' // kwname // ': ' // trim(mode),&
                    faterr,line,syntax=.true.)
              end if
           end do
 
-          call s%c%create_forces(smat,dist,filename,verbose,errmsg)
+          ! the default dataset is used only if it is there; one named with DATASET must exist
+          if (len_trim(dataset) > 0) then
+             inquire(file=dataset,exist=ok)
+             if (.not.ok) then
+                if (havedataset) then
+                   call ferror('struct_vibrations','displacement dataset file not found: ' // trim(dataset),&
+                      faterr,line,syntax=.true.)
+                else
+                   dataset = ""
+                end if
+             end if
+          end if
+          call dispsmat()
+
+          ! without a dataset there is nothing to take the displacement
+          ! length from, so fall back to the default
+          if (.not.havedist .and. len_trim(dataset) > 0) dist = -1d0
+
+          call s%c%create_forces(filename,dataset,verbose,errmsg,smat,dist,scfile)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
@@ -4059,44 +4094,151 @@ contains
              call ferror("struct_vibrations",errmsg,faterr)
 
        elseif (equal(word,'calcq')) then
-          ! read the list of q-points from the input, until ENDCALCQ. Only
-          ! ENDCALCQ closes it: a bare END would be ambiguous with the one
-          ! closing the VIBRATIONS environment
+          ! One q-point on the CALCQ line, or a list read from the
+          ! input until ENDCALCQ. Only ENDCALCQ closes the list: a bare
+          ! END would be ambiguous with the one closing the VIBRATIONS
+          ! environment.
           nq = 0
           if (allocated(qlist)) deallocate(qlist) ! CALCQ can be given more than once
-          allocate(qlist(3,10))
-          do while (getline(uin,sline,ucopy=ucopy))
-             lp = 1
-             word = lgetword(sline,lp)
-             if (equal(word,'endcalcq')) then
-                exit
-             elseif (len_trim(word) == 0) then
-                cycle
-             elseif (.not.equal(word,'q')) then
-                lp = 1 ! the Q keyword is optional
+          if (allocated(qprint)) deallocate(qprint)
+          allocate(qlist(3,10),qprint(10))
+          qfile = ""
+          doappend = .false.
+
+          ! a q-point on the CALCQ line itself
+          lp0 = lp
+          if (get3(line,lp,q)) then
+             call addq(q,.true.)
+          else
+             lp = lp0
+          end if
+
+          ! options on the CALCQ line
+          do while (.true.)
+             mode = lgetword(line,lp)
+             if (len_trim(mode) == 0) exit
+             if (equal(mode,'file')) then
+                qfile = getword(line,lp)
+                if (len_trim(qfile) == 0) &
+                   call ferror('struct_vibrations','FILE needs a file name in CALCQ',faterr,line,syntax=.true.)
+             elseif (equal(mode,'append')) then
+                doappend = .true.
+             else
+                call ferror('struct_vibrations','unknown keyword in CALCQ: ' // trim(mode),&
+                   faterr,line,syntax=.true.)
              end if
-             ok = eval_next(q(1),sline,lp)
-             ok = ok .and. eval_next(q(2),sline,lp)
-             ok = ok .and. eval_next(q(3),sline,lp)
-             if (.not.ok) &
-                call ferror('struct_vibrations','error reading a q-point in CALCQ (the list of &
-                   &q-points is closed by ENDCALCQ)',faterr,sline,syntax=.true.)
-             nq = nq + 1
-             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-             qlist(:,nq) = q
           end do
 
-          ! calculate the frequencies and eigenvectors, replacing the old ones
-          call s%c%vib%end(keepfc2=.true.)
+          ! the list of q-points, unless one was given on the CALCQ line
+          if (nq == 0) then
+             do while (getline(uin,sline,ucopy=ucopy))
+                lp = 1
+                mode = lgetword(sline,lp)
+                if (equal(mode,'endcalcq')) then
+                   exit
+                elseif (len_trim(mode) == 0) then
+                   cycle
+                elseif (equal(mode,'line')) then
+                   ! a segment of a band path: two ends and the number of points
+                   ok = get3(sline,lp,q0)
+                   ok = ok .and. get3(sline,lp,q1)
+                   ok = ok .and. eval_next(np,sline,lp)
+                   if (.not.ok) &
+                      call ferror('struct_vibrations','syntax is LINE q0x q0y q0z q1x q1y q1z npoints',&
+                         faterr,sline,syntax=.true.)
+                   np = max(np,2)
+                   do k = 1, np
+                      call addq(q0 + (q1 - q0) * real(k-1,8) / real(np-1,8),.false.)
+                   end do
+                elseif (equal(mode,'mesh')) then
+                   ! a uniform grid, optionally shifted
+                   ok = eval_next(nk(1),sline,lp)
+                   ok = ok .and. eval_next(nk(2),sline,lp)
+                   ok = ok .and. eval_next(nk(3),sline,lp)
+                   if (.not.ok) &
+                      call ferror('struct_vibrations','syntax is MESH n1 n2 n3 [SHIFT s1 s2 s3]',&
+                         faterr,sline,syntax=.true.)
+                   if (any(nk <= 0)) &
+                      call ferror('struct_vibrations','the MESH divisions must be positive',&
+                         faterr,sline,syntax=.true.)
+                   qshift = 0d0
+                   mode = lgetword(sline,lp)
+                   if (equal(mode,'shift')) then
+                      if (.not.get3(sline,lp,qshift)) &
+                         call ferror('struct_vibrations','error reading SHIFT in MESH',faterr,sline,syntax=.true.)
+                   elseif (len_trim(mode) > 0) then
+                      call ferror('struct_vibrations','unknown keyword in MESH: ' // trim(mode),&
+                         faterr,sline,syntax=.true.)
+                   end if
+                   do i1 = 1, nk(1)
+                      do i2 = 1, nk(2)
+                         do i3 = 1, nk(3)
+                            q = (real((/i1,i2,i3/)-1,8) + qshift) / real(nk,8)
+                            call addq(q,.false.)
+                         end do
+                      end do
+                   end do
+                else
+                   ! a single q-point; the Q keyword is optional
+                   if (.not.equal(mode,'q')) lp = 1
+                   if (.not.get3(sline,lp,q)) &
+                      call ferror('struct_vibrations','error reading a q-point in CALCQ (the list of &
+                         &q-points is closed by ENDCALCQ)',faterr,sline,syntax=.true.)
+                   call addq(q,.true.)
+                end if
+             end do
+          end if
+
+          ! the eigenvectors of a long list can be a lot of memory; the arrays
+          ! grow by doubling, so the peak is twice what the list itself needs
+          if (doappend) then
+             i = s%c%vib%nqpt + nq
+          else
+             i = nq
+          end if
+          if (2d0 * real(i,8) * 144d0 * real(s%c%ncel,8)**2 > 2d9) &
+             call ferror('struct_vibrations','the eigenvectors of this many q-points require more than &
+                &2 Gb of memory',faterr)
+
+          ! calculate the frequencies and eigenvectors, replacing the
+          ! old ones unless APPEND was given
+          if (.not.doappend) call s%c%vib%end(keepfc2=.true.)
+          nq0 = s%c%vib%nqpt
           if (verbose .and. nq > 0) &
              write (uout,'("+ Frequencies and eigenvectors at ",A," q-points (CALCQ)")') string(nq)
           do i = 1, nq
              call s%c%vib%calculate_q(s%c,qlist(:,i),errmsg)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
-             if (verbose) &
-                call s%c%vib%print_freq(s%c,i)
+             if (verbose .and. qprint(i)) &
+                call s%c%vib%print_freq(s%c,nq0+i)
           end do
+
+          ! a summary of the q-points that were not printed one by one
+          if (verbose .and. nq > 0 .and. any(.not.qprint(1:nq))) then
+             fmin = huge(1d0)
+             fmax = -huge(1d0)
+             nimag = 0
+             do i = 1, nq
+                if (qprint(i)) cycle
+                fmin = min(fmin,minval(s%c%vib%freq(:,nq0+i)))
+                fmax = max(fmax,maxval(s%c%vib%freq(:,nq0+i)))
+                nimag = nimag + count(s%c%vib%freq(:,nq0+i) < 0d0)
+             end do
+             write (uout,'("  Number of q-points calculated but not listed: ",A)') &
+                string(count(.not.qprint(1:nq)))
+             write (uout,'("  Frequency range of those (cm^-1): ",A," to ",A)') &
+                string(fmin,'f',12,4), string(fmax,'f',12,4)
+             write (uout,'("  Number of imaginary (negative) frequencies in those: ",A)') &
+                string(nimag)
+          end if
+
+          ! write the frequencies to a file, if asked to
+          if (len_trim(qfile) > 0) then
+             call s%c%vib%write_freq(s%c,qfile,verbose,errmsg)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+          end if
 
        elseif (equal(word,'print')) then
           mode = lgetword(line,lp)
@@ -4107,26 +4249,11 @@ contains
                 &reimplemented',faterr,syntax=.true.)
           end if
 
-       elseif (equal(word,'fc2')) then
-          word = lgetword(line,lp)
-          if (equal(word,'write')) then
-             word = getword(line,lp)
-             dofull = .false.
-             do while (.true.)
-                mode = lgetword(line,lp)
-                if (len_trim(mode) == 0) exit
-                if (equal(mode,'full')) then
-                   dofull = .true.
-                else
-                   call ferror('struct_vibrations','unknown keyword in FC2 WRITE: ' // trim(mode),&
-                      faterr,syntax=.true.)
-                end if
-             end do
-             call s%c%vib%write_fc2(s%c,word,full=dofull,verbose=.true.)
-          else
-             call ferror('struct_vibrations','only FC2 WRITE is available while VIBRATIONS is being &
-                &reimplemented',faterr,syntax=.true.)
-          end if
+       elseif (equal(word,'write_fc2')) then
+          sline = line(lp:)
+          call s%c%vib%write_fc2(s%c,sline,.true.,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_vibrations",errmsg,faterr,line,syntax=.true.)
 
        else
           call ferror('struct_vibrations','unknown or not yet reimplemented VIBRATIONS keyword: ' //&
@@ -4138,6 +4265,119 @@ contains
     ! wrap up
     if (verbose) &
        write (uout,*)
+
+  contains
+
+    !> Defaults for the options shared by CREATE_DISPLACEMENTS and READ_FORCES.
+    subroutine dispinit()
+
+      ndim = 0
+      scfile = ""
+      dataset = dataset_default
+      havedataset = .false.
+      dist = 0.02d0 ! bohr, phonopy's default for bohr-based codes
+      havedist = .false.
+
+    end subroutine dispinit
+
+    !> Read one option shared by CREATE_DISPLACEMENTS and READ_FORCES at
+    !> position lp of line: an integer of the supercell specification,
+    !> SUPERCELL, DISTANCE, DATASET or NODATASET. Returns .true. if it
+    !> consumed one, and leaves lp untouched otherwise, so the caller can
+    !> go on to the options that are its own.
+    function dispopt()
+      logical :: dispopt
+
+      integer :: lps
+
+      dispopt = .true.
+      if (isinteger(idum,line,lp)) then
+         ndim = ndim + 1
+         if (ndim > 9) &
+            call ferror('struct_vibrations','too many integers in ' // kwname,faterr,line,syntax=.true.)
+         idim(ndim) = idum
+         return
+      end if
+
+      lps = lp
+      mode = lgetword(line,lp)
+      if (equal(mode,'supercell')) then
+         scfile = getword(line,lp)
+         if (len_trim(scfile) == 0) &
+            call ferror('struct_vibrations','SUPERCELL needs a file name',faterr,line,syntax=.true.)
+      elseif (equal(mode,'distance')) then
+         if (.not.eval_next(dist,line,lp)) &
+            call ferror('struct_vibrations','error reading DISTANCE in ' // kwname,faterr,line,syntax=.true.)
+         dist = dist / dunit0(iunit)
+         havedist = .true.
+      elseif (equal(mode,'dataset')) then
+         dataset = getword(line,lp)
+         havedataset = .true.
+         if (len_trim(dataset) == 0) &
+            call ferror('struct_vibrations','DATASET needs a file name',faterr,line,syntax=.true.)
+      elseif (equal(mode,'nodataset')) then
+         dataset = ""
+         havedataset = .false.
+      else
+         lp = lps
+         dispopt = .false.
+      end if
+
+    end function dispopt
+
+    !> Read three reals (a q-point, a shift) at position lp of sl. Returns
+    !> .false. if any of them is missing, in which case lp is meaningless
+    !> and the caller must restore it if it wants to try something else.
+    function get3(sl,lp,x)
+      character*(*), intent(in) :: sl
+      integer, intent(inout) :: lp
+      real*8, intent(out) :: x(3)
+      logical :: get3
+
+      integer :: k
+
+      get3 = .true.
+      do k = 1, 3
+         get3 = get3 .and. eval_next(x(k),sl,lp)
+      end do
+
+    end function get3
+
+    !> Add one q-point to the CALCQ list, growing it as needed. pr is
+    !> .true. for the points to be printed one by one (those the user
+    !> wrote out) and .false. for the ones generated by LINE or MESH,
+    !> which are only summarized.
+    subroutine addq(qv,pr)
+      real*8, intent(in) :: qv(3)
+      logical, intent(in) :: pr
+
+      nq = nq + 1
+      if (nq > size(qlist,2)) then
+         call realloc(qlist,3,2*nq)
+         call realloc(qprint,2*nq)
+      end if
+      qlist(:,nq) = qv
+      qprint(nq) = pr
+
+    end subroutine addq
+
+    !> The supercell matrix of CREATE_DISPLACEMENTS and READ_FORCES from
+    !> the integers collected by dispopt. Zero (the "not given" marker)
+    !> if it comes from a structure file instead, or if neither was given.
+    subroutine dispsmat()
+
+      smat = 0
+      if (ndim == 0) return
+      if (len_trim(scfile) > 0) &
+         call ferror('struct_vibrations','give either the supercell matrix or SUPERCELL, not both',&
+            faterr,line,syntax=.true.)
+      call supercell_matrix_from_ints(ndim,idim,.false.,smat,flipped,errmsg)
+      if (len_trim(errmsg) > 0) &
+         call ferror('struct_vibrations',errmsg,faterr,line,syntax=.true.)
+      if (flipped .and. verbose) &
+         write (uout,'("  Note: the supercell transformation has negative determinant; sign flipped")')
+
+    end subroutine dispsmat
 
   end subroutine struct_vibrations
 
