@@ -1072,25 +1072,14 @@ contains
                 "ratio between the radius of the inscribed sphere and the maximum possible "//&
                 "ratio, equal to that of a cubic cell. Select the maximum value of n "//&
                 "and click search to find all the transformations (expensive for large maximum "//&
-                "values). Supercells related by a symmetry "//&
-                "operation of the crystal are considered only once, and among equally nice supercells "//&
-                "the one keeping the most symmetry operations is chosen. With MINDISP, the supercell "//&
-                "of each size that needs the fewest displaced structures in a finite-difference "//&
-                "phonon calculation (VIBRATIONS CREATE_DISPLACEMENTS) is chosen instead, the nicest "//&
-                "one if several tie; the table then also shows the number of symmetry operations "//&
-                "of the crystal compatible with the supercell (Nops) and the number of displaced "//&
-                "structures (Ndisp). A supercell keeps only the operations that map its lattice onto "//&
-                "itself, and fewer operations means more displacements, so the MINDISP choice can be "//&
-                "much less nice than the default, and its search is slower for large low-symmetry "//&
-                "cells. Click on any of the table rows to effect the transformation.")
+                "values). Click on any of the table rows to effect the transformation.")
              ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int,&
                 tooltip="Maximum supercell size (number of times the current cell) to consider in the search")
              ! the criterion changed: the results (and the columns) would no longer match it
-             if (iw_checkbox("MINDISP##cellnicemindisp",w%geometry_cell_mindisp,sameline=.true.)) &
+             if (iw_checkbox("Min. displacements##cellnicemindisp",w%geometry_cell_mindisp,sameline=.true.)) &
                 call clear_nice_results()
              call iw_tooltip("Choose, for each size, the supercell with the fewest phonon displacements&
-                & (the nicest if several tie) instead of the nicest supercell (slower for large&
-                & low-symmetry cells)",ttshown)
+                & (the nicest if several tie) instead of the nicest supercell",ttshown)
              if (iw_button("Search##cellnicesearch",sameline=.true.)) then
                 w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
                 w%errmsg = ""
