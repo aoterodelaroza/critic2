@@ -3904,7 +3904,7 @@ contains
   module subroutine struct_vibrations(s,line0,verbose)
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
-       equal, isinteger, string
+       equal, isinteger, string, ioj_right, fopen_write, fclose, warning
     use crystalmod, only: supercell_matrix_from_ints
     use types, only: realloc
     use param, only: ivformat_unknown, ivformat_phonopy_fc2
@@ -3916,11 +3916,13 @@ contains
     character(len=:), allocatable :: dataset, scfile
     integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
+    integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid
     real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
-    character(len=:), allocatable :: qfile
-    real*8, allocatable :: qlist(:,:)
+    real*8 :: tmin, tmax, tstep, cutoff, sigma, rdum, zpe, fvib, svib, cv
+    character(len=:), allocatable :: qfile, dosfile
+    real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:)
     logical, allocatable :: qprint(:)
-    logical :: flipped, oneline, ok, doappend
+    logical :: flipped, oneline, ok, doappend, domesh, dodos
 
     ! default name of the file where CREATE_DISPLACEMENTS records how the
     ! displaced structures were generated, and where READ_FORCES looks for it
@@ -4272,6 +4274,234 @@ contains
                 &reimplemented',faterr,syntax=.true.)
           end if
 
+       elseif (equal(word,'thermo')) then
+          ! Thermodynamic properties in the harmonic approximation. The
+          ! frequencies come from a mesh calculated here (MESH), or from
+          ! the ones already stored, which is what makes this work for a
+          ! molecule or a gamma-only cell.
+          domesh = .false.
+          nk = 0
+          qshift = 0d0
+          tmin = 0d0
+          tmax = 1000d0
+          tstep = 10d0
+          cutoff = 1d0 ! cm^-1
+          qfile = ""
+          dosfile = ""
+          dodos = .false.
+          sigma = -1d0 ! negative: use the tetrahedron method
+          npts = 500
+          nt = 0
+          if (allocated(tlist)) deallocate(tlist)
+          allocate(tlist(10))
+
+          ! a single temperature on the THERMO line
+          lp0 = lp
+          if (eval_next(rdum,line,lp)) then
+             nt = 1
+             tlist(1) = rdum
+          else
+             lp = lp0
+          end if
+
+          do while (.true.)
+             mode = lgetword(line,lp)
+             if (len_trim(mode) == 0) exit
+             if (equal(mode,'mesh')) then
+                ok = eval_next(nk(1),line,lp)
+                ok = ok .and. eval_next(nk(2),line,lp)
+                ok = ok .and. eval_next(nk(3),line,lp)
+                if (.not.ok) then
+                   call ferror('struct_vibrations','syntax is MESH n1 n2 n3 in THERMO',faterr,line,syntax=.true.)
+                elseif (any(nk <= 0)) then
+                   call ferror('struct_vibrations','the MESH divisions must be positive',faterr,line,syntax=.true.)
+                else
+                   domesh = .true.
+                end if
+             elseif (equal(mode,'shift')) then
+                if (.not.get3(line,lp,qshift)) &
+                   call ferror('struct_vibrations','error reading SHIFT in THERMO',faterr,line,syntax=.true.)
+             elseif (equal(mode,'tmin')) then
+                if (.not.eval_next(tmin,line,lp)) &
+                   call ferror('struct_vibrations','error reading TMIN in THERMO',faterr,line,syntax=.true.)
+             elseif (equal(mode,'tmax')) then
+                if (.not.eval_next(tmax,line,lp)) &
+                   call ferror('struct_vibrations','error reading TMAX in THERMO',faterr,line,syntax=.true.)
+             elseif (equal(mode,'tstep')) then
+                if (.not.eval_next(tstep,line,lp)) &
+                   call ferror('struct_vibrations','error reading TSTEP in THERMO',faterr,line,syntax=.true.)
+                if (tstep <= 0d0) &
+                   call ferror('struct_vibrations','TSTEP must be positive',faterr,line,syntax=.true.)
+             elseif (equal(mode,'temperature').or.equal(mode,'temperatures')) then
+                nt = 0
+                do while (.true.)
+                   lp0 = lp
+                   if (.not.eval_next(rdum,line,lp)) then
+                      lp = lp0
+                      exit
+                   end if
+                   nt = nt + 1
+                   if (nt > size(tlist,1)) call realloc(tlist,2*nt)
+                   tlist(nt) = rdum
+                end do
+                if (nt == 0) &
+                   call ferror('struct_vibrations','TEMPERATURE needs at least one value',faterr,line,syntax=.true.)
+             elseif (equal(mode,'cutoff')) then
+                if (.not.eval_next(cutoff,line,lp)) then
+                   call ferror('struct_vibrations','error reading CUTOFF in THERMO',faterr,line,syntax=.true.)
+                elseif (cutoff < 0d0) then
+                   call ferror('struct_vibrations','CUTOFF must not be negative',faterr,line,syntax=.true.)
+                end if
+             elseif (equal(mode,'file')) then
+                qfile = getword(line,lp)
+                if (len_trim(qfile) == 0) &
+                   call ferror('struct_vibrations','FILE needs a file name in THERMO',faterr,line,syntax=.true.)
+             elseif (equal(mode,'dos')) then
+                dodos = .true.
+             elseif (equal(mode,'dosfile')) then
+                dosfile = getword(line,lp)
+                if (len_trim(dosfile) == 0) &
+                   call ferror('struct_vibrations','DOSFILE needs a file name in THERMO',faterr,line,syntax=.true.)
+                dodos = .true.
+             elseif (equal(mode,'sigma')) then
+                if (.not.eval_next(sigma,line,lp)) then
+                   call ferror('struct_vibrations','error reading SIGMA in THERMO',faterr,line,syntax=.true.)
+                elseif (sigma <= 0d0) then
+                   call ferror('struct_vibrations','SIGMA must be positive',faterr,line,syntax=.true.)
+                end if
+                dodos = .true.
+             elseif (equal(mode,'tetrahedra').or.equal(mode,'tetrahedron')) then
+                sigma = -1d0
+                dodos = .true.
+             elseif (equal(mode,'npts')) then
+                if (.not.eval_next(npts,line,lp)) &
+                   call ferror('struct_vibrations','error reading NPTS in THERMO',faterr,line,syntax=.true.)
+                if (npts < 2) &
+                   call ferror('struct_vibrations','NPTS must be at least 2',faterr,line,syntax=.true.)
+             else
+                call ferror('struct_vibrations','unknown keyword in THERMO: ' // trim(mode),&
+                   faterr,line,syntax=.true.)
+             end if
+          end do
+
+          ! the list of temperatures
+          if (nt == 0) then
+             if (tmax < tmin) &
+                call ferror('struct_vibrations','TMAX must not be lower than TMIN',faterr,line,syntax=.true.)
+             if ((tmax - tmin) / tstep > 1d6) &
+                call ferror('struct_vibrations','more than a million temperatures in THERMO; increase TSTEP',&
+                   faterr,line,syntax=.true.)
+             nt = int((tmax - tmin) / tstep + 1d-10) + 1
+             if (nt > size(tlist,1)) call realloc(tlist,nt)
+             do i = 1, nt
+                tlist(i) = tmin + real(i-1,8) * tstep
+             end do
+          end if
+          if (any(tlist(1:nt) < 0d0)) &
+             call ferror('struct_vibrations','the temperatures must not be negative',faterr,line,syntax=.true.)
+
+          ! The frequencies: sampled here on a mesh, or the ones stored.
+          ! The stored set carries no weights, so it can only be used
+          ! when it is a single q-point: a molecule, or a gamma-only
+          ! calculation of a crystal. Anything else is THERMO MESH.
+          nrigid = 0
+          if (domesh) then
+             if (.not.s%c%vib%hasfc2) &
+                call ferror('struct_vibrations','THERMO MESH needs force constants (LOAD_FC2 or READ_FORCES)',&
+                   faterr)
+             call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+          else
+             if (dodos) &
+                call ferror('struct_vibrations','THERMO DOS needs a MESH',faterr,line,syntax=.true.)
+             if (.not.s%c%vib%hasvibs .or. s%c%vib%nqpt < 1) &
+                call ferror('struct_vibrations','no frequencies available for THERMO; give a MESH or &
+                   &load them first',faterr)
+             if (s%c%vib%nqpt > 1) &
+                call ferror('struct_vibrations','THERMO on stored frequencies needs a single q-point (a &
+                   &molecule, or a gamma-only calculation); ' // string(s%c%vib%nqpt) // ' q-points are &
+                   &stored and they carry no weights, so they cannot be averaged. Use THERMO MESH',faterr)
+             if (allocated(tfreq)) deallocate(tfreq)
+             allocate(tfreq(s%c%vib%nfreq,1))
+             tfreq(:,1) = s%c%vib%freq(1:s%c%vib%nfreq,1)
+
+             ! the rigid-body modes of a molecule are not vibrations; a
+             ! reader that keeps all 3N modes (QE, phonopy, CRYSTAL,
+             ! CASTEP) leaves them in at a few tens of cm^-1 of either
+             ! sign, well above the cutoff, so they have to be taken out
+             ! by construction: the lowest |nu| ones
+             if (s%c%ismolecule .and. s%c%vib%nfreq == 3*s%c%ncel) then
+                nrigid = rigid_modes(s%c)
+                call drop_lowest(tfreq(:,1),nrigid)
+             end if
+          end if
+          nqt = size(tfreq,2)
+
+          ! the number of formula units in the cell
+          nz = s%c%formula_units()
+
+          if (verbose) then
+             write (uout,'("+ Thermodynamic properties in the harmonic approximation (THERMO)")')
+             if (domesh) then
+                if (all(abs(qshift) < 1d-10)) then
+                   write (uout,'("  Brillouin zone sampling: ",3(A," "),"gamma-centered mesh")') &
+                      (string(nk(k)),k=1,3)
+                else
+                   write (uout,'("  Brillouin zone sampling: ",3(A," "),"mesh, shifted by ",&
+                      &3(A," "),"of a mesh step")') (string(nk(k)),k=1,3),&
+                      (string(qshift(k),'f',8,4),k=1,3)
+                end if
+             else
+                write (uout,'("  Using the frequencies stored at the single q-point")')
+             end if
+             write (uout,'("  Number of q-points: ",A)') string(nqt)
+             write (uout,'("  Cutoff frequency (cm^-1): ",A)') string(cutoff,'f',decimal=4)
+             write (uout,'("  Formula units in the cell (Z): ",A)') string(nz)
+             if (nrigid > 0) &
+                write (uout,'("  Rigid-body modes of the molecule left out (lowest |nu|): ",A)') string(nrigid)
+          end if
+
+          ! the zero-point energy and the mode counts do not depend on the
+          ! temperature, so report them before the table
+          call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq)
+          if (nusedm == 0) &
+             call ferror('struct_vibrations','no modes above the cutoff were available for THERMO',faterr)
+          if (nimagm > 0) &
+             call ferror('struct_vibrations','THERMO left out ' // string(nimagm) // ' imaginary &
+                &frequencies; the thermodynamic properties are not reliable',warning)
+
+          if (len_trim(qfile) > 0) then
+             lu = fopen_write(qfile,errstop=.false.)
+             if (lu < 0) &
+                call ferror('struct_vibrations','could not open the THERMO file for writing: ' // trim(qfile),faterr)
+             write (lu,'("# Thermodynamic properties in the harmonic approximation, calculated by critic2")')
+             call thermo_header(lu)
+          else
+             lu = -1
+          end if
+          if (verbose) call thermo_header(uout)
+
+          ! the properties, temperature by temperature
+          do i = 1, nt
+             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq)
+             if (verbose) call thermo_row(uout,tlist(i),fvib,svib,cv)
+             if (lu > 0) call thermo_row(lu,tlist(i),fvib,svib,cv)
+          end do
+          if (lu > 0) then
+             call fclose(lu)
+             if (verbose) &
+                write (uout,'("+ Thermodynamic properties written to: ",A)') trim(qfile)
+          end if
+
+          ! the phonon density of states from the same sampling
+          if (dodos .and. domesh .and. allocated(tfreq)) then
+             if (len_trim(dosfile) == 0) dosfile = "critic2_dos.dat"
+             call s%c%vib%write_dos(s%c,dosfile,nk,qshift,sigma,npts,verbose,errmsg,freqo=tfreq)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+          end if
+
        elseif (equal(word,'write_fc2')) then
           sline = line(lp:)
           call s%c%vib%write_fc2(s%c,sline,.true.,errmsg)
@@ -4290,6 +4520,94 @@ contains
        write (uout,*)
 
   contains
+
+    !> Header of the THERMO table, written to unit u: the zero-point
+    !> energy, the mode counts, the units and the column names. Uses the
+    !> zpe, nusedm, ntotm, nimagm and nz of the host.
+    subroutine thermo_header(u)
+      integer, intent(in) :: u
+
+      write (u,'("# ZPE (kJ/mol) = ",A," per cell, ",A," per formula unit (Z = ",A,")")') &
+         string(zpe,'f',decimal=7), string(zpe/real(nz,8),'f',decimal=7), string(nz)
+      write (u,'("# modes integrated = ",A," of ",A,"; imaginary modes left out = ",A)') &
+         string(nusedm), string(ntotm), string(nimagm)
+      write (u,'("# T in K; Fvib in kJ/mol; Svib and Cv in J/K/mol; columns 2-4 per unit cell, &
+         &columns 5-7 per formula unit")')
+      write (u,'("#      T          Fvib/cell        Svib/cell         Cv/cell        &
+         &Fvib/Z           Svib/Z            Cv/Z")')
+
+    end subroutine thermo_header
+
+    !> One row of the THERMO table, at temperature t, written to unit u.
+    subroutine thermo_row(u,t,fvib,svib,cv)
+      integer, intent(in) :: u
+      real*8, intent(in) :: t, fvib, svib, cv
+
+      write (u,'(99(A," "))') string(t,'f',10,3,ioj_right),&
+         string(fvib,'f',16,7,ioj_right), string(svib,'f',16,7,ioj_right),&
+         string(cv,'f',16,7,ioj_right), string(fvib/real(nz,8),'f',16,7,ioj_right),&
+         string(svib/real(nz,8),'f',16,7,ioj_right), string(cv/real(nz,8),'f',16,7,ioj_right)
+
+    end subroutine thermo_row
+
+    !> Number of rigid-body modes of the molecule c: 3 for an atom, 5 for
+    !> a linear molecule, 6 otherwise.
+    function rigid_modes(c)
+      use crystalmod, only: crystal
+      type(crystal), intent(in) :: c
+      integer :: rigid_modes
+
+      integer :: i, iref
+      real*8 :: v(3), w(3), cr(3)
+
+      if (c%ncel <= 1) then
+         rigid_modes = 3
+         return
+      end if
+      rigid_modes = 5
+      ! linear if every atom lies on the line through the first two
+      ! distinct atoms
+      iref = 0
+      do i = 2, c%ncel
+         v = c%atcel(i)%r - c%atcel(1)%r
+         if (norm2(v) > 1d-6) then
+            iref = i
+            exit
+         end if
+      end do
+      if (iref == 0) return
+      do i = 2, c%ncel
+         w = c%atcel(i)%r - c%atcel(1)%r
+         cr(1) = v(2)*w(3) - v(3)*w(2)
+         cr(2) = v(3)*w(1) - v(1)*w(3)
+         cr(3) = v(1)*w(2) - v(2)*w(1)
+         if (norm2(cr) > 1d-6 * norm2(v)) then
+            rigid_modes = 6
+            return
+         end if
+      end do
+
+    end function rigid_modes
+
+    !> Set the n entries of f with the smallest absolute value to zero,
+    !> so that THERMO leaves them out without counting them as
+    !> imaginary.
+    subroutine drop_lowest(f,n)
+      real*8, intent(inout) :: f(:)
+      integer, intent(in) :: n
+
+      integer :: i, k
+
+      do i = 1, min(n,size(f))
+         k = minloc(abs(f),1)
+         f(k) = 0d0
+         ! a zero is now the smallest; make it not the next pick
+         if (i < n) f(k) = huge(1d0)
+      end do
+      where (f == huge(1d0)) f = 0d0
+
+    end subroutine drop_lowest
+
 
     !> Read three reals (a q-point, a shift) at position lp of sl. Returns
     !> .false. if any of them is missing, in which case lp is meaningless
@@ -4553,31 +4871,6 @@ contains
 !!          call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
 !!       end if
 !!
-!!    elseif (equal(word,'thermo')) then
-!!       ok = isreal(tini,line,lp)
-!!       if (.not.ok) &
-!!          call ferror('struct_vibrations','Error reading temperature in THERMO',faterr,syntax=.true.)
-!!       if (ok) then
-!!          lpo = lp
-!!          ok = isreal(tend,line,lp)
-!!          ok = ok .and. isinteger(npts,line,lp)
-!!          if (.not.ok) then
-!!             lp = lpo
-!!             tend = tini
-!!             npts = 1
-!!          end if
-!!          write (uout,'("+ Calculation of thermodynamic properties in the harmonic approximation (THERMO)")')
-!!          write (uout,'("# Number of frequencies = ",A)') string(s%c%vib%nfreq * s%c%vib%nqpt)
-!!          write (uout,'("# T in K, ZPE and Fvib in kJ/mol, Svib and CV in J/K/mol.")')
-!!          write (uout,'("##  Temperature      ZPE              Fvib             Svib             CV")')
-!!          do i = 1, npts
-!!             t = tini + real(i-1,8) / real(max(npts-1,1),8) * (tend - tini)
-!!             call s%c%vib%calculate_thermo(t,zpe,fvib,svib,cv)
-!!             write (uout,'("  ",99(A," "))') string(t,'f',10,3,ioj_right),&
-!!                string(zpe,'f',16,7,ioj_right), string(fvib,'f',16,7,ioj_right),&
-!!                string(svib,'f',16,7,ioj_right), string(cv,'f',16,7,ioj_right)
-!!          end do
-!!       end if
 !!    elseif (equal(word,'sound_velocities')) then
 !!
 !!       ! check we have the FC2 to calculate the sound velocities

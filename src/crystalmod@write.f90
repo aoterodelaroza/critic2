@@ -493,6 +493,88 @@ contains
 
   end subroutine composition
 
+  !> Number of formula units Z in the cell. For a crystal with partial
+  !> occupancies, the greatest common divisor of the occupancy-weighted
+  !> atom counts per element when they are all near-integer, and 1
+  !> otherwise. For a molecular crystal whose molecules are all the
+  !> same, the number of molecules. For a molecule, 1. Otherwise the
+  !> greatest common divisor of the atom counts per element, that is,
+  !> the multiplicity of the empirical formula.
+  module function formula_units(c) result(nz)
+    use tools_math, only: gcd
+    use param, only: maxzat
+    class(crystal), intent(in) :: c
+    integer :: nz
+
+    integer :: i, j, iz, natmol
+    integer :: nat(maxzat), nat1(maxzat)
+    real*8 :: atcf(maxzat)
+    real*8, allocatable :: rnis(:)
+    logical :: same
+
+    nz = 1
+    if (c%ismolecule) return
+
+    if (c%haveocc) then
+       ! partial occupancies: occupancy-weighted counts, integer or nothing
+       call c%composition(rnis)
+       atcf = 0d0
+       do i = 1, c%nspc
+          iz = c%spc(i)%z
+          if (iz > 0 .and. iz <= maxzat) atcf(iz) = atcf(iz) + rnis(i)
+       end do
+       if (.not.all(abs(atcf - anint(atcf)) < 1d-4)) return
+       nat = nint(atcf)
+    else
+       ! a molecular crystal made of one kind of molecule: Z is the
+       ! number of molecules
+       same = c%ismol3d .and. c%nmol > 0
+       if (same) then
+          do i = 1, c%nmol
+             nat1 = 0
+             do j = 1, c%mol(i)%nat
+                iz = c%mol(i)%spc(c%mol(i)%at(j)%is)%z
+                if (iz > 0 .and. iz <= maxzat) nat1(iz) = nat1(iz) + 1
+             end do
+             if (i == 1) then
+                nat = nat1
+             elseif (any(nat1 /= nat)) then
+                same = .false.
+                exit
+             end if
+          end do
+       end if
+       if (same) then
+          natmol = sum(nat)
+          if (natmol > 0 .and. modulo(c%ncel,natmol) == 0) then
+             nz = c%ncel / natmol
+             return
+          end if
+       end if
+
+       ! anything else: count the atoms of each element
+       nat = 0
+       do i = 1, c%ncel
+          iz = c%spc(c%atcel(i)%is)%z
+          if (iz > 0 .and. iz <= maxzat) nat(iz) = nat(iz) + 1
+       end do
+    end if
+
+    ! the multiplicity of the empirical formula
+    nz = 0
+    do i = 1, maxzat
+       if (nat(i) > 0) then
+          if (nz == 0) then
+             nz = nat(i)
+          else
+             nz = gcd(nz,nat(i))
+          end if
+       end if
+    end do
+    nz = max(nz,1)
+
+  end function formula_units
+
   !> Return the empirical formula as a string, weighted by site occupancy.
   module function formula_string(c,useparen) result(str)
     use tools_math, only: gcd
@@ -1983,7 +2065,6 @@ contains
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
        ferror, faterr, ioj_left
     use param, only: bohrtoa, maxzat
-    use tools_math, only: gcd
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: usesym0
@@ -1995,8 +2076,8 @@ contains
     character*2 :: sym
     character*3 :: schpg
     character(len=:), allocatable :: str
-    integer :: holo, laue, natmol
-    logical :: usesym, doz, inti
+    integer :: holo, laue
+    logical :: usesym
     integer :: datvalues(8)
     integer, allocatable :: atc(:,:), addlabel(:), spcuse(:)
     real*8, allocatable :: atcf(:), rnis(:)
@@ -2028,49 +2109,19 @@ contains
 
     ! formula (Hill order) and formula units Z, written to str + gcdz below
     if (.not.c%haveocc) then
-       ! formula: count the number of element types
-       allocate(atc(maxzat,c%nmol))
-       doz = c%ismol3d
+       ! formula: count the atoms of each element in the cell, and divide
+       ! by the number of formula units to get the formula unit
+       allocate(atc(maxzat,1))
        atc = 0
        do i = 1, c%nmol
           do j = 1, c%mol(i)%nat
              if (c%mol(i)%spc(c%mol(i)%at(j)%is)%z > 0 .and. c%mol(i)%spc(c%mol(i)%at(j)%is)%z <= maxzat) then
-                atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
+                atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,1) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,1) + 1
              end if
           end do
-          if (i > 1) then
-             if (any(atc(:,i) - atc(:,1) /= 0)) then
-                doz = .false.
-             end if
-          end if
        end do
-
-       ! formula
-       if (.not.doz) then
-          ! not a molecular crystal or different types of molecules,
-          ! collect all atc then calculate gdc of all non-zero
-          ! numbers. atc(:,1) is now the formula unit and gcdz = Z.
-          do i = 2, c%nmol
-             atc(:,1) = atc(:,1) + atc(:,i)
-          end do
-          gcdz = -1
-          do i = 1, maxzat
-             if (atc(i,1) > 0) then
-                if (gcdz < 0) then
-                   gcdz = atc(i,1)
-                else
-                   gcdz = gcd(gcdz,atc(i,1))
-                end if
-             end if
-          end do
-          atc(:,1) = atc(:,1) / gcdz
-       else
-          ! a molecular crystal with always the same molecule: gcdz = Z
-          natmol = sum(atc(:,1))
-          if (abs(real(c%ncel,8)/real(natmol,8) - c%ncel/natmol) > 1d-10) &
-             call ferror('write_cif','inconsistent number of atoms in fragment',faterr)
-          gcdz = c%ncel / natmol
-       end if
+       gcdz = c%formula_units()
+       atc(:,1) = atc(:,1) / gcdz
 
        ! formula: build the molecular formula/formula unit
        str = ""
@@ -2098,21 +2149,7 @@ contains
           iz = c%spc(i)%z
           if (iz > 0 .and. iz <= maxzat) atcf(iz) = atcf(iz) + rnis(i)
        end do
-       inti = all(abs(atcf - anint(atcf)) < 1d-4)
-       gcdz = 1
-       if (inti) then
-          gcdz = -1
-          do i = 1, maxzat
-             if (nint(atcf(i)) > 0) then
-                if (gcdz < 0) then
-                   gcdz = nint(atcf(i))
-                else
-                   gcdz = gcd(gcdz,nint(atcf(i)))
-                end if
-             end if
-          end do
-          if (gcdz <= 0) gcdz = 1
-       end if
+       gcdz = c%formula_units()
        str = ""
        do i = 1, maxzat
           idx = hillord(i)

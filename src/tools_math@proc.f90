@@ -961,23 +961,32 @@ contains
   !> eigenvalues, in ascending order, are returned in eval. If ier is
   !> present, return the LAPACK error code in it instead of aborting
   !> when the diagonalization fails.
-  module subroutine eigherm(mat,n0,eval,ier)
+  module subroutine eigherm(mat,n0,eval,ier,vectors)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n0
     complex*16, intent(inout) :: mat(n0,n0)
     real*8, intent(out) :: eval(n0)
     integer, intent(out), optional :: ier
+    logical, intent(in), optional :: vectors
 
     complex*16 :: onework(1)
     integer :: lwork, info, n
+    character*1 :: jobz
     complex*16, allocatable :: work(:)
     real*8, allocatable :: rwork(:)
+
+    ! eigenvectors are returned in mat unless vectors is .false., which
+    ! is considerably cheaper when only the eigenvalues are wanted
+    jobz = 'V'
+    if (present(vectors)) then
+       if (.not.vectors) jobz = 'N'
+    end if
 
     if (present(ier)) ier = 0
     n = n0
     lwork = -1
     allocate(rwork(max(1,3*n-2)))
-    call zheev('V','U',n,mat,n,eval,onework,lwork,rwork,info)
+    call zheev(jobz,'U',n,mat,n,eval,onework,lwork,rwork,info)
     if (info /= 0) then
        if (present(ier)) then
           ier = info
@@ -987,7 +996,7 @@ contains
     end if
     lwork = nint(real(onework(1),8))
     allocate(work(lwork))
-    call zheev('V','U',n,mat,n,eval,work,lwork,rwork,info)
+    call zheev(jobz,'U',n,mat,n,eval,work,lwork,rwork,info)
     if (info /= 0) then
        if (present(ier)) then
           ier = info

@@ -149,6 +149,7 @@ contains
     c%nmoldiscrete = 0
     c%nlvac = 0
     c%ismol3d = .false.
+    call c%vib%end()
 
   end subroutine struct_end
 

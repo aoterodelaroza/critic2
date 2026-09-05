@@ -144,6 +144,8 @@ module crystalmod
      procedure :: calculate_vs => vibrations_calculate_vs !< calculate freqs and vec for a single q
      procedure :: calculate_vs_prepare => vibrations_calculate_vs_prepare !< prepare vs calculation
      procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
+     procedure :: mesh_freqs => vibrations_mesh_freqs !< frequencies on a uniform q-point mesh
+     procedure :: write_dos => vibrations_write_dos !< write the phonon density of states to a file
      procedure :: trim_fc2 => vibrations_trim_fc2
      procedure :: zero_fc2 => vibrations_zero_fc2
      procedure :: phonon_rattle => vibrations_phonon_rattle
@@ -268,6 +270,7 @@ module crystalmod
      procedure :: set_haveocc !< Recompute the occupancy flag (haveocc)
      procedure :: mix_string !< Format the occupant list of a mixed site
      procedure :: composition !< Occupancy-weighted atom count per species in the cell
+     procedure :: formula_units !< Number of formula units Z in the cell
      procedure :: formula_string !< Format the (occupancy-weighted) empirical formula
      procedure :: calc_vacuum_lengths !< Calculate the vacuum lengths and slab limits
      procedure :: recompute_molecular_cell !< Re-fit the molecular cell to the current atoms (molecules)
@@ -502,6 +505,10 @@ module crystalmod
        integer, intent(in), optional :: decimal
        character(len=:), allocatable :: str
      end function mix_string
+     module function formula_units(c) result(nz)
+       class(crystal), intent(in) :: c
+       integer :: nz
+     end function formula_units
      module subroutine composition(c,nis)
        class(crystal), intent(in) :: c
        real*8, allocatable, intent(inout) :: nis(:)
@@ -1515,7 +1522,7 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
      !xx! vibrations type
-     module subroutine vibrations_end(v,keepfc2,keepvibs)
+     pure module subroutine vibrations_end(v,keepfc2,keepvibs)
        class(vibrations), intent(inout) :: v
        logical, intent(in), optional :: keepfc2
        logical, intent(in), optional :: keepvibs
@@ -1594,11 +1601,34 @@ module crystalmod
        real*8, intent(out) :: vs(3)
        logical, intent(in) :: verbose
      end subroutine vibrations_calculate_vs_prepare
-     module subroutine vibrations_calculate_thermo(v,t,zpe,fvib,svib,cv)
+     module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo)
        class(vibrations), intent(inout) :: v
        real*8, intent(in) :: t
+       real*8, intent(in) :: cutoff
        real*8, intent(out) :: zpe, fvib, svib, cv
+       integer, intent(out) :: nused, ntot, nimag
+       real*8, intent(in), optional :: freqo(:,:)
      end subroutine vibrations_calculate_thermo
+     module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       integer, intent(in) :: nk(3)
+       real*8, intent(in) :: qshift(3)
+       real*8, allocatable, intent(inout) :: freq(:,:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine vibrations_mesh_freqs
+     module subroutine vibrations_write_dos(v,c,file,nk,qshift,sigma,npts,verbose,errmsg,freqo)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       integer, intent(in) :: nk(3)
+       real*8, intent(in) :: qshift(3)
+       real*8, intent(in) :: sigma
+       integer, intent(in) :: npts
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+       real*8, intent(in), optional :: freqo(:,:)
+     end subroutine vibrations_write_dos
      module subroutine vibrations_trim_fc2(v,c,dist,verbose)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c

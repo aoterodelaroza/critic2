@@ -16,6 +16,12 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Routines for reading and handling molecular and crystal vibrations.
+!
+! The routines that deal with the second-order force constants (reading,
+! calculating, creating displacements, building the dynamical matrix, etc.)
+! have been adapted from phonopy (version 2.38.2), by Atsushi Togo.
+! https://github.com/phonopy/phonopy
+! Phonopy is Copyright (c) 2014-2024, Phonopy. All rights reserved.
 submodule (crystalmod) vibrationsmod
   implicit none
 
@@ -72,6 +78,8 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: fc2_epssvec = 1d-4 ! same-length tolerance for the shortest supercell images (bohr)
   real*8, parameter :: fc2_epsgeo = 1d-8 ! geometry change that invalidates the force constants
   real*8, parameter :: fc2_epsdataset = 1d-6 ! structure mismatch with the displacement dataset
+  real*8, parameter :: thermo_epszero = 1d-2 ! floor of the THERMO cutoff: |nu| below this is a numerical zero (cm^-1)
+  real*8, parameter :: thermo_epsimag = 1d0 ! a mode below -this is imaginary, not a numerical zero (cm^-1)
 
   ! Displacement dataset file: everything create_forces needs to
   ! interpret the forces of the displaced supercells, written by
@@ -116,6 +124,11 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_smatstr(m)
   ! subroutine fc2_output_template(template,otemplate,errmsg)
   ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
+  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nint,ntot,nimag)
+  ! subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg)
+  ! subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
+  ! subroutine dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
+  ! function tetra_nstates(om,e)
   ! subroutine fc2_read_forces(file,nat,f,errmsg,ti)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
   ! function fc2_scpos(x,lv,madj,nlat)
@@ -123,6 +136,7 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)
   ! subroutine fc2_stamp_geometry(v,c)
   ! subroutine fc2_build_svec(v,c,errmsg)
+  ! subroutine fc2_check_current(v,c,errmsg)
   ! subroutine read_crystal_out(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_log(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
@@ -130,8 +144,8 @@ submodule (crystalmod) vibrationsmod
 
 contains
 
-  !> Terminate a vibrations object
-  module subroutine vibrations_end(v,keepfc2,keepvibs)
+  !> Terminate a vibrations object.
+  pure module subroutine vibrations_end(v,keepfc2,keepvibs)
     use param, only: ivformat_unknown
     class(vibrations), intent(inout) :: v
     logical, intent(in), optional :: keepfc2
@@ -2414,6 +2428,44 @@ contains
 
   end subroutine fc2_build_svec
 
+  !> Check that the force constants stored in v are available and
+  !> correspond to the structure c as it is now: same number of atoms,
+  !> same lattice.
+  subroutine fc2_check_current(v,c,errmsg)
+    use tools_io, only: string
+    type(vibrations), intent(in) :: v
+    type(crystal), intent(in) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i
+    real*8 :: dx(3)
+
+    errmsg = ""
+    if (.not.v%hasfc2 .or..not.allocated(v%fc2)) then
+       errmsg = "No force constants available; use VIBRATIONS LOAD_FC2 or VIBRATIONS READ_FORCES first"
+       return
+    end if
+    if (v%fc2_ncel /= c%ncel .or..not.allocated(v%fc2_x)) then
+       errmsg = "The force constants correspond to a structure with " // string(v%fc2_ncel) //&
+          " atoms in the cell but this one has " // string(c%ncel) // "; load them again"
+       return
+    end if
+    if (any(abs(v%fc2_m - c%m_x2c) > fc2_epsgeo)) then
+       errmsg = "The lattice has changed since the force constants were obtained; load them again"
+       return
+    end if
+    do i = 1, c%ncel
+       dx = v%fc2_x(:,i) - c%atcel(i)%x
+       dx = dx - nint(dx)
+       if (any(abs(dx) > fc2_epsgeo)) then
+          errmsg = "Atom " // string(i) // " has moved since the force constants were obtained; &
+             &load them again"
+          return
+       end if
+    end do
+
+  end subroutine fc2_check_current
+
   !> Calculate frequencies and eigenvectors from the FC2 at a single
   !> q-point (fractional coordinates in reciprocal space). If the
   !> optional arguments freqo or veco are present, return the
@@ -2435,36 +2487,15 @@ contains
     complex*16, intent(inout), allocatable, optional :: veco(:,:)
 
     integer :: ia, ja, jl, js, ip, i, k, ier, ncel, nlat, nfreq
-    real*8 :: dx(3)
     complex*16 :: phase, dd(3,3)
     real*8, allocatable :: eval(:), sqrtm(:)
     complex*16, allocatable :: dm(:,:)
 
     errmsg = ""
 
-    ! checks
-    if (.not.v%hasfc2 .or..not.allocated(v%fc2)) then
-       errmsg = "No force constants available; use VIBRATIONS LOAD or VIBRATIONS READ_FORCES first"
-       return
-    end if
-    if (v%fc2_ncel /= c%ncel .or..not.allocated(v%fc2_x)) then
-       errmsg = "The force constants correspond to a structure with " // string(v%fc2_ncel) //&
-          " atoms in the cell but this one has " // string(c%ncel) // "; load them again"
-       return
-    end if
-    if (any(abs(v%fc2_m - c%m_x2c) > fc2_epsgeo)) then
-       errmsg = "The lattice has changed since the force constants were obtained; load them again"
-       return
-    end if
-    do i = 1, c%ncel
-       dx = v%fc2_x(:,i) - c%atcel(i)%x
-       dx = dx - nint(dx)
-       if (any(abs(dx) > fc2_epsgeo)) then
-          errmsg = "Atom " // string(i) // " has moved since the force constants were obtained; &
-             &load them again"
-          return
-       end if
-    end do
+    ! the force constants have to belong to the structure at hand
+    call fc2_check_current(v,c,errmsg)
+    if (len_trim(errmsg) > 0) return
     ncel = c%ncel
     nlat = v%fc2_nlat
     nfreq = 3 * ncel
@@ -2502,9 +2533,10 @@ contains
        end do
     end do
 
-    ! impose hermiticity and diagonalize
+    ! impose hermiticity and diagonalize; the eigenvectors are skipped
+    ! when only the frequencies were asked for (the mesh sampling)
     dm = 0.5d0 * (dm + transpose(conjg(dm)))
-    call eigherm(dm,nfreq,eval,ier)
+    call eigherm(dm,nfreq,eval,ier,vectors=(present(veco).or..not.present(freqo)))
     if (ier /= 0) then
        errmsg = "Error diagonalizing the dynamical matrix at q = " //&
           string(q(1),'f',12,7) // string(q(2),'f',12,7) // string(q(3),'f',12,7)
@@ -2752,77 +2784,494 @@ contains
   !> Calculate thermodynamic properties at temperature T using the
   !> vibrational frequencies in v. The routine assumes the frequencies
   !> have all equal weight (i.e. it is a mesh)
-  module subroutine vibrations_calculate_thermo(v,t,zpe,fvib,svib,cv)
-    use tools_io, only: ferror, faterr
+  module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo)
     class(vibrations), intent(inout) :: v
     real*8, intent(in) :: t
+    real*8, intent(in) :: cutoff
     real*8, intent(out) :: zpe, fvib, svib, cv
+    integer, intent(out) :: nused, ntot, nimag
+    real*8, intent(in), optional :: freqo(:,:)
 
-    integer :: i, j, ncount
-    real*8 :: nu, x, y, nut, nue, rt, ff, l1mx, nutdiv
-    real*8 :: ym1
-    real*8, parameter :: cutoff_frequency = 1d0 ! cutoff frequency, cm-1
+    if (present(freqo)) then
+       call thermo_sum(freqo,size(freqo,1),size(freqo,2),t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag)
+    else
+       call thermo_sum(v%freq,v%nfreq,v%nqpt,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag)
+    end if
 
-    real*8, parameter :: R = 8.314462618d0 ! molar gas constant (kB/NA, J/K/mol)
+  end subroutine vibrations_calculate_thermo
+
+  !> Calculate the harmonic thermodynamic properties at temperature t
+  !> (K) from the frequencies freq(1:nf,1:nq) (cm^-1), which are a
+  !> sampling of the Brillouin zone with equal weights. Returns the
+  !> zero-point energy and the vibrational Helmholtz free energy in
+  !> kJ/mol, and the entropy and constant-volume heat capacity in
+  !> J/K/mol, all per unit cell. Modes at or below the cutoff (cm^-1)
+  !> are left out. The cutoff has a floor of thermo_epszero. nimag
+  !> counts the modes below -max(cutoff,thermo_epsimag), which are
+  !> genuinely imaginary rather than numerical zeros.
+  !>
+  !> This routine was adapted from phonopy, by A. Togo.
+  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag)
+    use param, only: Rgas
+    real*8, intent(in) :: freq(:,:)
+    integer, intent(in) :: nf, nq
+    real*8, intent(in) :: t, cutoff
+    real*8, intent(out) :: zpe, fvib, svib, cv
+    integer, intent(out) :: nused, ntot, nimag
+
+    integer :: i, j
+    real*8 :: nu, x, y, nut, nue, rt, l1mx, nutdiv, ym1, ff, cut, cutimag
+
     real*8, parameter :: small1 = 50000d0 * cminv_to_K / huge(1d0) ! protection against zerodiv in nu/(kB*T)
     real*8, parameter :: small2 = 0.5d0 * log(huge(1d0)) ! protection against overflow in exp(nu/kB*T)**2
     real*8, parameter :: small3 = 1d0 / sqrt(huge(1d0)) ! protection against 1/(e^(nu/kt)-1)^2 overflow
 
-    ! calculate the thermodynamic properties
     zpe = 0d0
     fvib = 0d0
     svib = 0d0
     cv = 0d0
-    ncount = 0
-    do i = 1, v%nqpt
-       do j = 1, v%nfreq
-          ! prepare and cycle if this is a low frequency
-          nu = v%freq(j,i)
+    nused = 0
+    ntot = nf * nq
+    nimag = 0
+    rt = Rgas / 1000d0 * t ! RT in kJ/mol
+    cut = max(cutoff,thermo_epszero)
+    cutimag = max(cutoff,thermo_epsimag)
+
+    do i = 1, nq
+       do j = 1, nf
+          ! leave out the modes at or below the cutoff (the acoustic
+          ! branches at gamma, and any imaginary mode) without
+          ! compensating for them
+          nu = freq(j,i)
+          if (nu < -cutimag) nimag = nimag + 1
+          if (nu <= cut) cycle
+          nused = nused + 1
           nut = nu * cminv_to_K      ! frequency in K
-          nue = nu * cminv_to_kJmol ! frequency in kJ/mol
-          rt = R / 1000d0 * t        ! RT in kJ/mol
-          if (nu < cutoff_frequency) cycle
-          ncount = ncount + 1
+          nue = nu * cminv_to_kJmol  ! frequency in kJ/mol
 
           ! some quantities we will need, with protection
           if (t < small1) then
              x = 0d0
+             nutdiv = huge(1d0)
           else
              nutdiv = nut / t
              x = exp(-nutdiv)
           end if
           l1mx = log(1d0 - x)
 
-          ! fvib and zpe calculation
+          ! zero-point energy and free energy
           zpe = zpe + 0.5d0 * nue
-          fvib = fvib + 0.5d0 * nue + rt * log(1d0 - x)
+          fvib = fvib + 0.5d0 * nue + rt * l1mx
 
-          ! svib
-          if (t > small1) then
-             svib = svib + R * (-l1mx + nutdiv * x / (1d0 - x))
-          end if
+          ! entropy
+          if (t > small1) &
+             svib = svib + Rgas * (-l1mx + nutdiv * x / (1d0 - x))
 
-          ! cv
-          if (nutdiv <= small2) then
+          ! heat capacity
+          if (t > small1 .and. nutdiv <= small2) then
              y = exp(nutdiv)
-             ym1 = y - 1
-             if (ym1 >= small3) then
-                cv = cv + R * nutdiv * nutdiv * y / ((y-1) * (y-1))
-             end if
+             ym1 = y - 1d0
+             if (ym1 >= small3) &
+                cv = cv + Rgas * nutdiv * nutdiv * y / (ym1 * ym1)
           end if
        end do
     end do
-    if (ncount == 0) &
-       call ferror('vibrations_calculate_thermo','no frequencies available for THERMO',faterr)
 
-    ! renormalize after taking out the zero frequencies
-    ff = real(v%nfreq,8) / real(ncount,8)
+    ! per unit cell: the q-points all have the same weight
+    ff = 1d0 / real(max(nq,1),8)
     zpe = zpe * ff
     fvib = fvib * ff
     svib = svib * ff
     cv = cv * ff
 
-  end subroutine vibrations_calculate_thermo
+  end subroutine thermo_sum
+
+  !> Calculate frequencies (cm^-1) on the uniform mesh nk(3), q = (i -
+  !> 1 + qshift)/nk in fractional coordinates of the reciprocal cell.
+  !> Returns freq(3*ncel,nk(1)*nk(2)*nk(3)). No frequencies are stored
+  !> in v.
+  module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg)
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    integer, intent(in) :: nk(3)
+    real*8, intent(in) :: qshift(3)
+    real*8, allocatable, intent(inout) :: freq(:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i1, i2, i3, iq, nq, ierr
+    real*8 :: q(3)
+    real*8, allocatable :: f1(:)
+    character(len=:), allocatable :: errmsg1, errmsg2
+
+    errmsg = ""
+    nq = nk(1) * nk(2) * nk(3)
+    if (allocated(freq)) deallocate(freq)
+    allocate(freq(3*c%ncel,nq),stat=ierr)
+    if (ierr /= 0) then
+       errmsg = "Could not allocate the frequencies of the mesh"
+       return
+    end if
+
+    ! the force constants have to belong to the structure at hand; this
+    ! is calculate_q's check, and it has to happen here too because
+    ! fc2_build_svec below indexes the cell atoms with the force-constant
+    ! dimensions
+    call fc2_check_current(v,c,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! calculate_q builds the shortest-image table the first time it is
+    ! called; do it here, or the threads below race to build it
+    if (.not.allocated(v%fc2_svec)) then
+       call fc2_build_svec(v,c,errmsg)
+       if (len_trim(errmsg) > 0) return
+    end if
+
+    ! every (i1,i2,i3) writes its own column of freq, so only the error
+    ! report needs serializing
+    errmsg1 = ""
+    !$omp parallel do collapse(3) private(i1,i2,i3,iq,q,f1,errmsg2) schedule(dynamic)
+    do i1 = 1, nk(1)
+       do i2 = 1, nk(2)
+          do i3 = 1, nk(3)
+             iq = ((i1-1)*nk(2) + (i2-1))*nk(3) + i3
+             q = (real((/i1,i2,i3/)-1,8) + qshift) / real(nk,8)
+             call v%calculate_q(c,q,errmsg2,freqo=f1)
+             if (len_trim(errmsg2) > 0) then
+                !$omp critical (meshfreq)
+                errmsg1 = errmsg2
+                !$omp end critical (meshfreq)
+             else
+                freq(:,iq) = f1
+             end if
+          end do
+       end do
+    end do
+    !$omp end parallel do
+    errmsg = errmsg1
+
+  end subroutine vibrations_mesh_freqs
+
+  !> Write the phonon density of states obtained from the frequencies
+  !> freq(:,1:nq) (cm^-1) by Gaussian smearing of width sigma (cm^-1),
+  !> on npts points spanning the sampled range with a margin. The
+  !> integral of the DOS is the number of modes of the cell.
+  module subroutine vibrations_write_dos(v,c,file,nk,qshift,sigma,npts,verbose,errmsg,freqo)
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    integer, intent(in) :: nk(3)
+    real*8, intent(in) :: qshift(3)
+    real*8, intent(in) :: sigma
+    integer, intent(in) :: npts
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+    real*8, intent(in), optional :: freqo(:,:)
+
+    if (present(freqo)) then
+       call dos_run(c,freqo,size(freqo,1),size(freqo,2),file,nk,qshift,sigma,npts,verbose,errmsg)
+    else
+       call dos_run(c,v%freq,v%nfreq,v%nqpt,file,nk,qshift,sigma,npts,verbose,errmsg)
+    end if
+
+  end subroutine vibrations_write_dos
+
+  !> Write the phonon density of states of the frequencies
+  !> freq(1:nf,1:nq) (cm^-1) to a file, on npts points. A positive
+  !> sigma smears every mode with a Gaussian of that width (cm^-1);
+  !> otherwise the linear tetrahedron method is used, which needs the
+  !> frequencies to be those of the uniform mesh nk(3), in the order
+  !> vibrations_mesh_freqs generates them. The density is normalized so
+  !> that its integral is the number of modes of the cell.
+  subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg)
+    use tools_io, only: fopen_write, fclose, uout, string, ioj_right
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: freq(:,:)
+    integer, intent(in) :: nf, nq
+    character*(*), intent(in) :: file
+    integer, intent(in) :: nk(3)
+    real*8, intent(in) :: qshift(3)
+    real*8, intent(in) :: sigma
+    integer, intent(in) :: npts
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: k, lu, ierr
+    real*8 :: fmin, fmax, step, sums
+    logical :: dotetra
+    real*8, allocatable :: dos(:)
+
+    errmsg = ""
+    if (nq < 1 .or. nf < 1) then
+       errmsg = "No frequencies available for the phonon DOS"
+       return
+    end if
+    if (npts < 2) then
+       errmsg = "The DOS needs at least two points"
+       return
+    end if
+
+    ! the tetrahedron method needs the mesh and its connectivity; a
+    ! positive smearing width asks for Gaussians instead
+    dotetra = (sigma <= 0d0)
+    if (dotetra) then
+       if (any(nk <= 0) .or. nk(1)*nk(2)*nk(3) /= nq) then
+          errmsg = "The tetrahedron method needs the frequencies of a uniform mesh"
+          return
+       end if
+    end if
+
+    ! the range of the output grid
+    fmin = minval(freq(1:nf,1:nq))
+    fmax = maxval(freq(1:nf,1:nq))
+    if (dotetra) then
+       step = 0.02d0 * (fmax - fmin) + 1d-3
+    else
+       step = 5d0 * sigma
+       fmin = min(fmin,0d0)
+    end if
+    fmin = fmin - step
+    fmax = fmax + step
+    step = (fmax - fmin) / real(npts-1,8)
+
+    allocate(dos(npts),stat=ierr)
+    if (ierr /= 0) then
+       errmsg = "Could not allocate the phonon DOS"
+       return
+    end if
+    dos = 0d0
+
+    if (dotetra) then
+       call dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
+    else
+       call dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
+    end if
+
+    ! write it out
+    lu = fopen_write(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "Could not open the phonon DOS file for writing: " // trim(file)
+       return
+    end if
+    sums = sum(dos) * step
+    write (lu,'("# Phonon density of states calculated by critic2")')
+    if (all(abs(qshift) < 1d-10)) then
+       write (lu,'("# ",A," q-points (",A,"x",A,"x",A," gamma-centered mesh), ",A," modes per cell")') &
+          string(nq), (string(nk(k)),k=1,3), string(nf)
+    else
+       write (lu,'("# ",A," q-points (",A,"x",A,"x",A," mesh shifted by ",3(A," "),&
+          &"of a mesh step), ",A," modes per cell")') string(nq), (string(nk(k)),k=1,3),&
+          (string(qshift(k),'f',8,4),k=1,3), string(nf)
+    end if
+    if (dotetra) then
+       write (lu,'("# linear tetrahedron method")')
+    else
+       write (lu,'("# Gaussian smearing of ",A," cm^-1")') string(sigma,'f',10,4)
+    end if
+    write (lu,'("# integral of the density = ",A," (should be the ",A," modes of the cell)")') &
+       string(sums,'f',12,6), string(nf)
+    write (lu,'("# column 1: frequency (cm^-1)   column 2: density of states (1/cm^-1, per cell)")')
+    do k = 1, npts
+       write (lu,'(2(A," "))') string(fmin + real(k-1,8)*step,'f',16,6,ioj_right),&
+          string(dos(k),'f',18,10,ioj_right)
+    end do
+    call fclose(lu)
+
+    if (verbose) then
+       if (dotetra) then
+          write (uout,'("+ Phonon DOS (linear tetrahedron method) written to: ",A)') trim(file)
+       else
+          write (uout,'("+ Phonon DOS (Gaussian smearing, sigma = ",A," cm^-1) written to: ",A)') &
+             string(sigma,'f',10,4), trim(file)
+       end if
+       write (uout,'("  Integral of the density: ",A," (",A," modes per cell)")') &
+          string(sums,'f',12,6), string(nf)
+    end if
+
+  end subroutine dos_run
+
+  !> Accumulate the density of states of the frequencies
+  !> freq(1:nf,1:nq) (cm^-1) on the npts-point grid that starts at
+  !> fmin with spacing step, by Gaussian smearing of width sigma. Bin
+  !> k spans half a step on either side of its frequency. The
+  !> normalization is one state per mode and per cell.
+  subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
+    real*8, intent(in) :: freq(:,:)
+    integer, intent(in) :: nf, nq
+    real*8, intent(in) :: sigma, fmin, step
+    integer, intent(in) :: npts
+    real*8, intent(inout) :: dos(npts)
+
+    integer :: i, j, k, k0, k1
+    real*8 :: fac, s2, elo, ehi
+
+    fac = 0.5d0 / (real(nq,8) * step)
+    s2 = sigma * sqrt(2d0)
+    do i = 1, nq
+       do j = 1, nf
+          k0 = max(int((freq(j,i) - 5d0*sigma - fmin) / step),1)
+          k1 = min(int((freq(j,i) + 5d0*sigma - fmin) / step) + 2,npts)
+          elo = erf((fmin + (real(k0,8)-1.5d0)*step - freq(j,i)) / s2)
+          do k = k0, k1
+             ehi = erf((fmin + (real(k,8)-0.5d0)*step - freq(j,i)) / s2)
+             dos(k) = dos(k) + fac * (ehi - elo)
+             elo = ehi
+          end do
+       end do
+    end do
+
+  end subroutine dos_gaussian
+
+  !> Accumulate the density of states of the frequencies freq(1:nf,1:nq)
+  !> (cm^-1) of the uniform mesh nk(3) with the linear tetrahedron
+  !> method (Lehmann and Taut; Jepsen and Andersen; Bloechl, Jepsen and
+  !> Andersen, Phys. Rev. B 49, 16223 (1994), appendix A). Each cell of
+  !> the mesh is cut into six tetrahedra sharing the shortest of its
+  !> four body diagonals, the frequency is taken to be linear inside
+  !> each of them.
+  subroutine dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: freq(:,:)
+    integer, intent(in) :: nf, nq, nk(3)
+    real*8, intent(in) :: fmin, step
+    integer, intent(in) :: npts
+    real*8, intent(inout) :: dos(npts)
+
+    ! the six tetrahedra of a cell are the six ways of going from one
+    ! end of the main diagonal to the other along the cell edges
+    integer, parameter :: ntetra = 6
+    integer, parameter :: perm(3,ntetra) = reshape((/&
+       1,2,3, 1,3,2, 2,1,3, 2,3,1, 3,1,2, 3,2,1/),(/3,ntetra/))
+    real*8, parameter :: epsdeg = 1d-8 ! degenerate corner frequencies (cm^-1)
+
+    integer :: i, j, k, ic, it, ib, j1, j2, j3, id, k0, k1
+    integer :: off(3,4,ntetra), flip(3), iq(4), ix(3)
+    real*8 :: am(3,3), dg(3), dlen, dmin, x(3)
+    real*8 :: e(4), om, nlo, nhi, fac
+
+    ! the lattice vectors of one cell of the mesh, in Cartesian
+    ! reciprocal coordinates
+    do k = 1, 3
+       x = 0d0
+       x(k) = 1d0 / real(nk(k),8)
+       am(:,k) = c%rx2rc(x)
+    end do
+
+    ! the main diagonal: the shortest of the four, so that the
+    ! tetrahedra are as regular as the mesh allows
+    id = 0
+    dmin = huge(1d0)
+    do i = 0, 3
+       dg = am(:,1) + am(:,2) + am(:,3)
+       if (i > 0) dg = dg - 2d0 * am(:,i)
+       dlen = dot_product(dg,dg)
+       if (dlen < dmin) then
+          dmin = dlen
+          id = i
+       end if
+    end do
+    flip = 0
+    if (id > 0) flip(id) = 1
+
+    ! the corner offsets of the six tetrahedra, in the frame where the
+    ! main diagonal runs from (0,0,0) to (1,1,1), then reflected onto
+    ! the diagonal actually chosen
+    do it = 1, ntetra
+       off(:,1,it) = 0
+       off(:,2,it) = 0
+       off(perm(1,it),2,it) = 1
+       off(:,3,it) = off(:,2,it)
+       off(perm(2,it),3,it) = 1
+       off(:,4,it) = 1
+       do ic = 1, 4
+          do k = 1, 3
+             if (flip(k) == 1) off(k,ic,it) = 1 - off(k,ic,it)
+          end do
+       end do
+    end do
+
+    ! every tetrahedron is one sixth of one cell of the mesh
+    fac = 1d0 / (6d0 * real(nq,8))
+
+    do j1 = 0, nk(1)-1
+       do j2 = 0, nk(2)-1
+          do j3 = 0, nk(3)-1
+             do it = 1, ntetra
+                ! the four corners, wrapped around the mesh
+                do ic = 1, 4
+                   ix(1) = modulo(j1 + off(1,ic,it),nk(1))
+                   ix(2) = modulo(j2 + off(2,ic,it),nk(2))
+                   ix(3) = modulo(j3 + off(3,ic,it),nk(3))
+                   iq(ic) = (ix(1)*nk(2) + ix(2))*nk(3) + ix(3) + 1
+                end do
+
+                do ib = 1, nf
+                   ! the corner frequencies, sorted
+                   do ic = 1, 4
+                      e(ic) = freq(ib,iq(ic))
+                   end do
+                   do i = 2, 4
+                      om = e(i)
+                      j = i - 1
+                      do while (j >= 1)
+                         if (e(j) <= om) exit
+                         e(j+1) = e(j)
+                         j = j - 1
+                      end do
+                      e(j+1) = om
+                   end do
+
+                   ! a completely flat tetrahedron is a delta function
+                   if (e(4) - e(1) < epsdeg) then
+                      k = nint((e(1) - fmin) / step) + 1
+                      if (k >= 1 .and. k <= npts) dos(k) = dos(k) + fac / step
+                      cycle
+                   end if
+
+                   ! Add the exact number of states the tetrahedron puts
+                   ! in each bin, so that the sum rule holds whatever the
+                   ! spacing of the output grid: bin k spans half a step
+                   ! on either side of its frequency.
+                   k0 = max(int((e(1) - fmin) / step),1)
+                   k1 = min(int((e(4) - fmin) / step) + 2,npts)
+                   nlo = tetra_nstates(fmin + (real(k0,8)-1.5d0)*step,e)
+                   do k = k0, k1
+                      nhi = tetra_nstates(fmin + (real(k,8)-0.5d0)*step,e)
+                      dos(k) = dos(k) + fac * (nhi - nlo) / step
+                      nlo = nhi
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+
+  end subroutine dos_tetrahedra
+
+  !> Fraction of a tetrahedron whose frequency is below om, given its
+  !> four corner frequencies e(4) sorted in ascending order and not all
+  !> equal.
+  pure function tetra_nstates(om,e) result(n)
+    real*8, intent(in) :: om, e(4)
+    real*8 :: n
+
+    if (om <= e(1)) then
+       n = 0d0
+    elseif (om < e(2)) then
+       ! e1 < om < e2, so e2-e1 > 0 and the other differences are larger
+       n = (om - e(1))**3 / ((e(2)-e(1)) * (e(3)-e(1)) * (e(4)-e(1)))
+    elseif (om < e(3)) then
+       ! e2 <= om < e3, so e3-e2 > 0 and e3-e1, e4-e2, e4-e1 are larger
+       n = (om - e(2))**2 / ((e(4)-e(2)) * (e(3)-e(2))) +&
+          (om - e(1)) * (e(4) - om) * (om - e(2)) / ((e(4)-e(1)) * (e(4)-e(2)) * (e(3)-e(2))) +&
+          (om - e(1))**2 * (e(3) - om) / ((e(4)-e(1)) * (e(3)-e(1)) * (e(3)-e(2)))
+    elseif (om < e(4)) then
+       ! e3 <= om < e4, so e4-e3 > 0 and e4-e2, e4-e1 are larger
+       n = 1d0 - (e(4) - om)**3 / ((e(4)-e(1)) * (e(4)-e(2)) * (e(4)-e(3)))
+    else
+       n = 1d0
+    end if
+
+  end function tetra_nstates
 
   !> Nullify the FC2 elements where the atoms are farther apart
   !> than dist.
