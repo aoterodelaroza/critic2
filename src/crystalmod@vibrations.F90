@@ -114,6 +114,7 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_unit_factor(iunit)
   ! subroutine disp_default_template(c,template,template_,iwf)
   ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti)
+  ! subroutine fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
   ! function fc2_dispvec(sc,ddir,dist)
   ! function fc2_expand_star(template,i,npad)
   ! subroutine fc2_atom_perm(c,io,icv,perm,ok)
@@ -131,6 +132,7 @@ submodule (crystalmod) vibrationsmod
   ! function tetra_nstates(om,e)
   ! subroutine fc2_read_forces(file,nat,f,errmsg,ti)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+  ! subroutine fc2_site_directions(nsym,irot,nd,dsel)
   ! function fc2_scpos(x,lv,madj,nlat)
   ! function fc2_ilat(nlat,lkey,madj,lv)
   ! function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)
@@ -427,7 +429,7 @@ contains
      nindep,indep,ndisp,datom,ddir,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use global, only: symprec
-    use tools_io, only: uout, string, ioj_left, ioj_right
+    use tools_io, only: uout, string, ioj_left, ioj_right, ferror, warning
     use tools_math, only: idet3
     use param, only: bohrtoa
     type(crystal), intent(inout) :: c
@@ -445,19 +447,10 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    ! phonopy's directions_diag, tried in this order
-    integer, parameter :: ndirs = 13
-    integer, parameter :: dirs(3,ndirs) = reshape((/&
-       1,0,0, 0,1,0, 0,0,1, 1,1,0, 1,0,1, 0,1,1, 1,-1,0, 1,0,-1, 0,1,-1,&
-       1,1,1, 1,1,-1, 1,-1,1, -1,1,1/),(/3,ndirs/))
-
     character*3 :: pgsymb
-    integer :: nopfull, ia, il, is, i, k, k1, k2, id, jd
-    integer :: nsym, nsel, isel(3), ndisp0
-    integer :: irot(3,3,48), rd(3,48,ndirs)
-    real*8 :: rotm(3,3,48)
-    logical :: isminus
-    logical, allocatable :: del(:)
+    integer :: nopfull, ia, il, is, i, k, nsym, nd, nkeep
+    integer :: irot(3,3,48), dsel(3,6), ikeep(48), rp(3,3,48)
+    real*8 :: rotm(3,3,48), tt(3)
 
     errmsg = ""
     if (c%ismolecule) then
@@ -494,24 +487,44 @@ contains
           seed%atname(is) = c%spc(c%atcel(ia)%is)%name
        end do
     end do
-    seed%findsym = 1 ! always find the symmetry, however big the supercell
+
+    ! The symmetry of the supercell is the current symmetry of the
+    ! crystal (as loaded, or set with SYM), not re-detected: the
+    ! operations compatible with the supercell lattice
+    ! (fc2_compatible_ops), their translations mapped to the supercell
+    ! basis, and as centering vectors the lattice points of the cell
+    ! inside the supercell combined with the centering vectors of the
+    ! cell. The kept operations are closed under products and inverses,
+    ! so they form a group, and struct_new builds the orbits of the
+    ! periodic supercell from them.
+    nopfull = c%neqv * c%ncv * nlat
+    call fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
+    seed%havesym = 1
+    seed%findsym = 0
+    seed%checkrepeats = .false.
+    seed%neqlist = .false.
+    if (allocated(seed%rotm)) deallocate(seed%rotm)
+    if (allocated(seed%cen)) deallocate(seed%cen)
+    allocate(seed%rotm(3,4,nkeep),seed%cen(3,c%ncv*nlat))
+    seed%neqv = nkeep
+    do k = 1, nkeep
+       seed%rotm(1:3,1:3,k) = rp(:,:,k)
+       tt = fc2_scpos(c%rotm(1:3,4,ikeep(k)),(/0,0,0/),madj,nlat)
+       seed%rotm(1:3,4,k) = tt - floor(tt)
+    end do
+    seed%ncv = 0
+    do k = 1, c%ncv
+       do il = 1, nlat
+          seed%ncv = seed%ncv + 1
+          tt = fc2_scpos(c%cen(:,k),lvec(:,il),madj,nlat)
+          seed%cen(:,seed%ncv) = tt - floor(tt)
+       end do
+    end do
     call sc%struct_new(seed,errmsg,ti=ti)
     if (len_trim(errmsg) > 0) return
-
-    ! keep only the operations compatible with the supercell lattice
-    ! (integer rotation in the supercell basis); the centering vectors
-    ! are pure translations and always compatible. reduce_symmetry
-    ! rebuilds the supercell with that subgroup, so its orbits and site
-    ! symmetries are the ones of the periodic supercell.
-    nopfull = sc%neqv * sc%ncv
-    allocate(del(sc%neqv))
-    do k = 1, sc%neqv
-       del(k) = any(abs(sc%rotm(1:3,1:3,k) - nint(sc%rotm(1:3,1:3,k))) > 1d-6)
-    end do
-    if (any(del)) then
-       call sc%reduce_symmetry(del,errmsg,ti=ti)
-       if (len_trim(errmsg) > 0) return
-    end if
+    if (c%neqv == 1 .and. c%ncv == 1) &
+       call ferror('fc2_disp_setup','the crystal has no symmetry, so every atom is displaced along six &
+          &directions; use SYM to find it before this step',warning)
 
     ! independent atoms: the first atom of each orbit (reduceatoms
     ! creates the orbits in cell order, so this list is increasing)
@@ -530,12 +543,12 @@ contains
        end do
        write (uout,'("  Number of lattice points in the supercell: ",A)') string(nlat)
        write (uout,'("  Number of atoms in the supercell: ",A)') string(nsat)
-       write (uout,'("  Symmetry operations of the crystal found in the supercell: ",A)') string(nopfull)
+       write (uout,'("  Symmetry operations of the crystal in the supercell: ",A)') string(nopfull)
        write (uout,'("  Of those, compatible with the supercell lattice (used here): ",A)') &
           string(sc%neqv*sc%ncv)
-       if (sc%spgavail) &
-          write (uout,'("  Space group of the periodic supercell (H-M): ",A," (",A,")")') &
-             string(sc%spg%international_symbol), string(sc%spg%spacegroup_number)
+       rotm(:,:,1:sc%neqv) = sc%rotm(1:3,1:3,1:sc%neqv)
+       write (uout,'("  Point group of the symmetry compatible with the supercell: ",A)') &
+          trim(pointgroup_symbol(sc%neqv,rotm(:,:,1:sc%neqv)))
        write (uout,'("  Displacement length (bohr): ",A," (",A," ang)")') &
           string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
        write (uout,'("  Number of independent atoms: ",A)') string(nindep)
@@ -553,19 +566,57 @@ contains
        pgsymb = sc%sitesymm(sc%atcel(is)%x,max(fc2_epspos,symprec),nsym,rotm)
        irot(:,:,1:nsym) = nint(rotm(:,:,1:nsym))
 
-       ! images of all the candidate directions under the site symmetry
-       do id = 1, ndirs
-          do k = 1, nsym
-             rd(:,k,id) = matmul(irot(:,:,k),dirs(:,id))
-          end do
-       end do
+       call fc2_site_directions(nsym,irot(:,:,1:nsym),nd,dsel)
+       datom(ndisp+1:ndisp+nd) = is
+       ddir(:,ndisp+1:ndisp+nd) = dsel(:,1:nd)
+       ndisp = ndisp + nd
+       if (verbose) &
+          write (uout,'(2X,A,X,A,X,A,X,A,X,A)') string(i,4), string(is,8), string(pgsymb,14,ioj_left),&
+             string(nsym,6), string(nd,6)
+    end do
 
-       ! one direction whose images span space
-       nsel = 0
+  end subroutine fc2_disp_setup
+
+  !> phonopy's choice of displacement directions for a site whose
+  !> site-symmetry rotations are the nsym integer matrices irot (in
+  !> the supercell basis): the nd directions dsel(:,1:nd) (integer,
+  !> fractional coordinates of the supercell), including the opposite
+  !> of each direction when no site operation reverses it. Every
+  !> displacement count in critic2 (CREATE_DISPLACEMENTS, NEWCELL NICE)
+  !> goes through this routine. Note that the result depends on the
+  !> supercell basis, not only on the lattice, because the candidate
+  !> directions are fixed integer triples in that basis.
+  pure subroutine fc2_site_directions(nsym,irot,nd,dsel)
+    integer, intent(in) :: nsym
+    integer, intent(in) :: irot(3,3,nsym)
+    integer, intent(out) :: nd
+    integer, intent(out) :: dsel(3,6)
+
+    ! phonopy's directions_diag, tried in this order
+    integer, parameter :: ndirs = 13
+    integer, parameter :: dirs(3,ndirs) = reshape((/&
+       1,0,0, 0,1,0, 0,0,1, 1,1,0, 1,0,1, 0,1,1, 1,-1,0, 1,0,-1, 0,1,-1,&
+       1,1,1, 1,1,-1, 1,-1,1, -1,1,1/),(/3,ndirs/))
+
+    integer :: id, jd, k, k1, k2, nsel, isel(3)
+    integer :: rd(3,nsym,ndirs)
+    logical :: isminus
+
+    ! images of all the candidate directions under the site symmetry
+    do id = 1, ndirs
+       do k = 1, nsym
+          rd(:,k,id) = matmul(irot(:,:,k),dirs(:,id))
+       end do
+    end do
+
+    ! one direction whose images span space (needs two operations
+    ! besides the identity)
+    nsel = 0
+    if (nsym >= 3) then
        one: do id = 1, ndirs
           do k1 = 1, nsym-1
              do k2 = k1+1, nsym
-                if (idet3(reshape((/dirs(:,id),rd(:,k1,id),rd(:,k2,id)/),(/3,3/))) /= 0) then
+                if (itriple(dirs(:,id),rd(:,k1,id),rd(:,k2,id)) /= 0) then
                    nsel = 1
                    isel(1) = id
                    exit one
@@ -573,55 +624,91 @@ contains
              end do
           end do
        end do one
+    end if
 
-       ! two directions
-       if (nsel == 0) then
-          two: do id = 1, ndirs
-             do k1 = 1, nsym
-                do jd = 1, ndirs
-                   if (idet3(reshape((/dirs(:,id),rd(:,k1,id),dirs(:,jd)/),(/3,3/))) /= 0) then
-                      nsel = 2
-                      isel(1) = id
-                      isel(2) = jd
-                      exit two
-                   end if
-                end do
+    ! two directions (needs one operation besides the identity)
+    if (nsel == 0 .and. nsym >= 2) then
+       two: do id = 1, ndirs
+          do k1 = 1, nsym
+             do jd = 1, ndirs
+                if (itriple(dirs(:,id),rd(:,k1,id),dirs(:,jd)) /= 0) then
+                   nsel = 2
+                   isel(1) = id
+                   isel(2) = jd
+                   exit two
+                end if
              end do
-          end do two
-       end if
-
-       ! three directions: the axes
-       if (nsel == 0) then
-          nsel = 3
-          isel = (/1,2,3/)
-       end if
-
-       ! add the opposite displacement if no site operation reverses it
-       ndisp0 = ndisp
-       do k1 = 1, nsel
-          id = isel(k1)
-          ndisp = ndisp + 1
-          datom(ndisp) = is
-          ddir(:,ndisp) = dirs(:,id)
-          isminus = .true.
-          do k = 1, nsym
-             if (all(rd(:,k,id) == -dirs(:,id))) then
-                isminus = .false.
-                exit
-             end if
           end do
-          if (isminus) then
-             ndisp = ndisp + 1
-             datom(ndisp) = is
-             ddir(:,ndisp) = -dirs(:,id)
+       end do two
+    end if
+
+    ! three directions: the axes
+    if (nsel == 0) then
+       nsel = 3
+       isel = (/1,2,3/)
+    end if
+
+    ! add the opposite displacement if no site operation reverses it
+    nd = 0
+    do k1 = 1, nsel
+       id = isel(k1)
+       nd = nd + 1
+       dsel(:,nd) = dirs(:,id)
+       isminus = .true.
+       do k = 1, nsym
+          if (all(rd(:,k,id) == -dirs(:,id))) then
+             isminus = .false.
+             exit
           end if
        end do
-       if (verbose) &
-          write (uout,'(2X,A,X,A,X,A,X,A,X,A)') string(i,4), string(is,8), string(pgsymb,14,ioj_left),&
-             string(nsym,6), string(ndisp-ndisp0,6)
+       if (isminus) then
+          nd = nd + 1
+          dsel(:,nd) = -dirs(:,id)
+       end if
     end do
 
-  end subroutine fc2_disp_setup
+  contains
+    ! determinant of the matrix with columns a, b, c (no temporaries)
+    pure function itriple(a,b,c)
+      integer, intent(in) :: a(3), b(3), c(3)
+      integer :: itriple
+
+      itriple = a(1) * (b(2)*c(3) - b(3)*c(2)) + a(2) * (b(3)*c(1) - b(1)*c(3)) + &
+         a(3) * (b(1)*c(2) - b(2)*c(1))
+
+    end function itriple
+  end subroutine fc2_site_directions
+
+  !> The symmetry operations of the crystal compatible with the
+  !> supercell lattice given by smat (rows = supercell vectors in cell
+  !> units): those whose rotation is an integer matrix in the supercell
+  !> basis, R' = S^-T R S^T with S^-1 = adj(S)/n. Returns the size n of
+  !> the supercell (nlat) and adj(S) (madj), and the nkeep compatible
+  !> operations: their indices in c%rotm (ikeep) and their rotations in
+  !> the supercell basis (rp). The kept set is closed under products
+  !> and inverses (integer unimodular matrices), so it is a group.
+  subroutine fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
+    use tools_math, only: idet3, iadj3
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: smat(3,3)
+    integer, intent(out) :: nlat, madj(3,3), nkeep
+    integer, intent(out) :: ikeep(48), rp(3,3,48)
+
+    integer :: k
+    real*8 :: rr(3,3)
+
+    nlat = idet3(smat)
+    madj = iadj3(smat)
+    nkeep = 0
+    do k = 1, c%neqv
+       rr = matmul(transpose(real(madj,8)),matmul(c%rotm(1:3,1:3,k),transpose(real(smat,8)))) / real(nlat,8)
+       if (any(abs(rr - nint(rr)) > 1d-6)) cycle
+       nkeep = nkeep + 1
+       ikeep(nkeep) = k
+       rp(:,:,nkeep) = nint(rr)
+    end do
+
+  end subroutine fc2_compatible_ops
 
   !> Write the supercell and the displaced supercells needed to
   !> compute the second-order force constants by finite
@@ -725,6 +812,7 @@ contains
        write (uout,'("+ List of displacements")')
        write (uout,'("# id  atom  --direction (frac)--  ------ displacement (Cartesian, bohr) ------  file")')
     end if
+    seed%havesym = 0 ! the displaced structures do not have the symmetry of the supercell
     seed%findsym = 0
     allocate(fnames(ndisp))
     do i = 1, ndisp
@@ -1171,7 +1259,7 @@ contains
     ! the displacement list
     if (ds%ndisp /= ndisp) then
        errmsg = "The dataset has " // string(ds%ndisp) // " displacements but " // string(ndisp) //&
-          " were regenerated for this supercell; the symmetry determination may have changed (SYMPREC?)"
+          " were regenerated for this supercell; the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?)"
        return
     end if
     do i = 1, ndisp
@@ -1180,7 +1268,7 @@ contains
              ", direction " // string(ds%ddir(1,i)) // " " // string(ds%ddir(2,i)) // " " //&
              string(ds%ddir(3,i)) // ") is not the one regenerated here (atom " // string(datom(i)) //&
              ", direction " // string(ddir(1,i)) // " " // string(ddir(2,i)) // " " //&
-             string(ddir(3,i)) // "); the symmetry determination may have changed (SYMPREC?)"
+             string(ddir(3,i)) // "); the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?)"
           return
        end if
     end do
@@ -1677,6 +1765,69 @@ contains
        write (uout,'("+ Force constants calculated from ",A," displaced supercells")') string(ndisp)
 
   end subroutine create_forces
+
+  !> What CREATE_DISPLACEMENTS would generate in the supercell smat
+  !> (rows = supercell vectors in cell units), without building it: the
+  !> number of displacements (ndisp) and of independent atoms
+  !> (nindep).
+  module subroutine disp_count(c,smat,ndisp,nindep,errmsg)
+    use global, only: symprec
+    use tools_math, only: idet3
+    use param, only: icrd_crys
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: smat(3,3)
+    integer, intent(out) :: ndisp, nindep
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: nlat, madj(3,3), nkeep, k, m, ia, id, nsym, nd
+    integer :: ikeep(48), rp(3,3,48), irot(3,3,48), dsel(3,6)
+    real*8 :: x0(3)
+    logical :: issite
+    logical, allocatable :: done(:)
+
+    errmsg = ""
+    ndisp = 0
+    nindep = 0
+    if (c%ismolecule) then
+       errmsg = "the finite-difference force constants can only be used with crystals"
+       return
+    end if
+    if (idet3(smat) <= 0) then
+       errmsg = "The supercell matrix must have positive determinant"
+       return
+    end if
+    call fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
+
+    ! orbits, representatives and site symmetries (the same tolerance
+    ! as reduceatoms uses to build the orbits of the supercell)
+    allocate(done(c%ncel))
+    done = .false.
+    do ia = 1, c%ncel
+       if (done(ia)) cycle
+       nindep = nindep + 1
+       nsym = 0
+       do k = 1, nkeep
+          issite = .false.
+          do m = 1, c%ncv
+             x0 = matmul(c%rotm(1:3,1:3,ikeep(k)),c%atcel(ia)%x) + c%rotm(1:3,4,ikeep(k)) + c%cen(:,m)
+             id = c%identify_atom(x0,icrd_crys,distmax=symprec)
+             if (id == 0) then
+                errmsg = "a symmetry operation does not map the atoms onto themselves"
+                return
+             end if
+             done(id) = .true.
+             issite = issite .or. (id == ia)
+          end do
+          if (issite) then
+             nsym = nsym + 1
+             irot(:,:,nsym) = rp(:,:,k)
+          end if
+       end do
+       call fc2_site_directions(nsym,irot(:,:,1:nsym),nd,dsel)
+       ndisp = ndisp + nd
+    end do
+
+  end subroutine disp_count
 
   !> Default file name template and format for the displaced
   !> structures written by create_displacements. If template is not
@@ -4610,7 +4761,7 @@ contains
   !> they have the same key.
   subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
     use tools_io, only: string
-    use tools_math, only: idet3
+    use tools_math, only: idet3, iadj3
     integer, intent(in) :: smat(3,3)
     integer, intent(out) :: nlat
     integer, intent(out) :: madj(3,3)
@@ -4629,15 +4780,7 @@ contains
        errmsg = "The supercell matrix must have positive determinant (found " // string(nlat) // ")"
        return
     end if
-    madj(1,1) = smat(2,2)*smat(3,3) - smat(2,3)*smat(3,2)
-    madj(1,2) = -smat(1,2)*smat(3,3) + smat(1,3)*smat(3,2)
-    madj(1,3) = smat(1,2)*smat(2,3) - smat(1,3)*smat(2,2)
-    madj(2,1) = -smat(2,1)*smat(3,3) + smat(2,3)*smat(3,1)
-    madj(2,2) = smat(1,1)*smat(3,3) - smat(1,3)*smat(3,1)
-    madj(2,3) = -smat(1,1)*smat(2,3) + smat(1,3)*smat(2,1)
-    madj(3,1) = smat(2,1)*smat(3,2) - smat(2,2)*smat(3,1)
-    madj(3,2) = -smat(1,1)*smat(3,2) + smat(1,2)*smat(3,1)
-    madj(3,3) = smat(1,1)*smat(2,2) - smat(1,2)*smat(2,1)
+    madj = iadj3(smat)
 
     ! the surrounding frame: bounding box of the eight corners of the supercell
     cmin = 0

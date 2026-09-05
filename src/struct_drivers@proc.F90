@@ -20,12 +20,14 @@ submodule (struct_drivers) proc
   implicit none
 
   !xx! private routines
+  ! subroutine nice_select(c,cand,icrit,ibest,errmsg)
   ! subroutine struct_comparevc_vcpwdf(s,line)
   ! subroutine struct_comparevc_vcgpwdf(s,line)
 
 contains
 
   !xx! top-level routines
+
   !> Parse the input of the crystal keyword (line) and return an
   !> initialized crystal c. mol0=1, interpret the structure as a
   !> molecule; mol0=0, a crystal, mol0=-1, guess. If allownofile
@@ -2285,6 +2287,65 @@ contains
 
   end subroutine struct_comparevc
 
+  !> Choose among the candidate supercells of one size given by
+  !> cell_nice_list (cand, sorted by decreasing niceness; the
+  !> displacement counts are filled in here as needed with
+  !> disp_count). icrit = 0: the nicest cell, ties (radii equal to
+  !> rounding) going to the most symmetric and then to the fewest
+  !> displacements. icrit = 1 (MINDISP): the nicest cell among those
+  !> with the fewest displacements of this size, ties going to the most
+  !> symmetric. Returns the index of the choice (0 if there are no
+  !> candidates).
+  subroutine nice_select(c,cand,icrit,ibest,errmsg)
+    use crystalmod, only: crystal, nice_cell
+    type(crystal), intent(inout) :: c
+    type(nice_cell), intent(inout) :: cand(:)
+    integer, intent(in) :: icrit
+    integer, intent(out) :: ibest
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: k, klast, nopsmax, smat(3,3)
+    logical :: better, nicer, rtie
+
+    errmsg = ""
+    ibest = 0
+    if (size(cand,1) < 1) return
+
+    ! the eligible candidates: all of them (MINDISP) or the nicest ones,
+    ! within rounding of the first, with the most operations
+    klast = size(cand,1)
+    nopsmax = 0
+    if (icrit /= 1) then
+       klast = 1
+       do while (klast < size(cand,1))
+          if (abs(cand(klast+1)%r - cand(1)%r) > 1d-8 * cand(1)%r) exit
+          klast = klast + 1
+       end do
+       nopsmax = maxval(cand(1:klast)%nops)
+    end if
+
+    do k = 1, klast
+       if (cand(k)%nops < nopsmax) cycle
+       if (cand(k)%ndisp < 0) then
+          smat = transpose(cand(k)%m)
+          call c%disp_count(smat,cand(k)%ndisp,cand(k)%nindep,errmsg)
+          if (len_trim(errmsg) > 0) return
+       end if
+       if (ibest == 0) then
+          better = .true.
+       elseif (icrit == 1) then
+          rtie = abs(cand(k)%r - cand(ibest)%r) < 1d-8 * cand(ibest)%r
+          nicer = cand(k)%r > cand(ibest)%r .and. .not.rtie
+          better = (cand(k)%ndisp < cand(ibest)%ndisp) .or. (cand(k)%ndisp == cand(ibest)%ndisp .and. &
+             (nicer .or. (rtie .and. cand(k)%nops > cand(ibest)%nops)))
+       else
+          better = (cand(k)%ndisp < cand(ibest)%ndisp)
+       end if
+       if (better) ibest = k
+    end do
+
+  end subroutine nice_select
+
   !> COMPAREVC: vcpwdf version. Transform both cells to the primitive, then
   !> calculate the deformation that brings one into agreement with the other.
   !> Returns the minimal powder diffraction pattern (de Gelder) overlap. See:
@@ -3709,6 +3770,7 @@ contains
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
+    use crystalmod, only: nice_cell
     use tools_math, only: matinv
     use global, only: iunitname0, dunit0, iunit, eval_next
     use tools_io, only: uout, ferror, faterr, lgetword, equal, string, isinteger, ioj_left,&
@@ -3720,10 +3782,12 @@ contains
 
     character(len=:), allocatable :: word, errmsg
     logical :: ok, doprim, doforce, donice, changed
-    integer :: lp, lp2, dotyp, i, j, k, inice
+    integer :: lp, lp2, dotyp, i, j, k, inice, icrit, ibest, ib
+    character(len=:), allocatable :: srmax0
+    integer, allocatable :: nc(:), ic0(:)
+    type(nice_cell), allocatable :: cand(:)
     real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv, dorefine
-    real*8, allocatable :: rmax(:), mmax(:,:,:)
 
     integer, parameter :: inice_def = 64
 
@@ -3742,6 +3806,7 @@ contains
     dorefine = .false.
     donice = .false.
     inice = inice_def
+    icrit = 0 ! the nicest cell by default
     dotyp = 0
     do while (.true.)
        word = lgetword(line,lp)
@@ -3771,6 +3836,8 @@ contains
              inice = inice_def
           end if
           inice = max(inice,1)
+       elseif (donice .and. equal(word,"mindisp")) then
+          icrit = 1
        else
           lp = 1
           exit
@@ -3779,19 +3846,45 @@ contains
 
     ! search for a nice cell
     if (donice) then
-       call s%c%cell_nice_list(inice,rmax,mmax)
+       call s%c%cell_nice_list(inice,nc,ic0,cand,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_newcell",errmsg,faterr)
 
        write (uout,'("+ List of nice cells with increasing size")')
        write (uout,'("# n = size of the supercell is n times the input cell.")')
        write (uout,'("# rmax = radius of the largest sphere that fits in the supercell (",A,").")') &
           string(iunitname0(iunit))
        write (uout,'("# niceness = inverse of the cell skewness, higher is nicer, cubic cell = 1")')
+       if (icrit > 0) &
+          write (uout,'("# rmax0 = rmax of the nicest cell of that size, for comparison")')
+       write (uout,'("# nops = symmetry operations of the crystal compatible with the supercell lattice;")')
+       write (uout,'("#        nindep, ndisp = independent atoms and displacements CREATE_DISPLACEMENTS")')
+       write (uout,'("#        would generate for this supercell")')
+       if (icrit == 1) then
+          write (uout,'("# For each size, the NICEST cell among those with the FEWEST DISPLACEMENTS of that")')
+          write (uout,'("# size (MINDISP); the most symmetric one when several tie.")')
+       else
+          write (uout,'("# For each size, over all the sublattices of that size, the NICEST cell; the most")')
+          write (uout,'("# symmetric one when several tie. MINDISP chooses the nicest with the fewest ndisp.")')
+       end if
        write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain this cell")')
-       write (uout,'("#n   rmax   niceness  -- NEWCELL transformation --")')
+       srmax0 = ""
+       if (icrit > 0) srmax0 = "rmax0   "
+       write (uout,'("#n   rmax   niceness  ",A,"nops nindep ndisp  -- NEWCELL transformation --")') srmax0
        do i = 1, inice
-          write (uout,'(3(A," ")," ",3(3(A," ")," "))') string(i,3,ioj_left),&
-             string(rmax(i)*dunit0(iunit),'f',7,3), string(8d0 * rmax(i)**3 / (i*s%c%omega),'f',7,5),&
-             ((string(nint(mmax(j,k,i)),length=2,justify=ioj_right),j=1,3),k=1,3)
+          call nice_select(s%c,cand(ic0(i)+1:ic0(i)+nc(i)),icrit,ibest,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_newcell",errmsg,faterr)
+          if (ibest == 0) cycle
+          ib = ic0(i) + ibest
+          srmax0 = ""
+          if (icrit > 0) srmax0 = string(cand(ic0(i)+1)%r*dunit0(iunit),'f',7,3) // " "
+          write (uout,'(3(A," "),2A," ",2(A," ")," ",3(3(A," ")," "))') string(i,3,ioj_left),&
+             string(cand(ib)%r*dunit0(iunit),'f',7,3),&
+             string(8d0 * cand(ib)%r**3 / (i*s%c%omega),'f',7,5),&
+             srmax0, string(cand(ib)%nops,4,ioj_right),&
+             string(cand(ib)%nindep,6,ioj_right), string(cand(ib)%ndisp,5,ioj_right),&
+             ((string(cand(ib)%m(j,k),length=2,justify=ioj_right),j=1,3),k=1,3)
        end do
        write (uout,*)
        return
@@ -3902,10 +3995,10 @@ contains
   !> VIBRATIONS ... ENDVIBRATIONS environment); this allows several
   !> operations on the same vibration data in one keyword.
   module subroutine struct_vibrations(s,line0,verbose)
-    use global, only: eval_next, dunit0, iunit
+    use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
        equal, isinteger, string, ioj_right, fopen_write, fclose, warning
-    use crystalmod, only: supercell_matrix_from_ints
+    use crystalmod, only: supercell_matrix_from_ints, nice_cell
     use types, only: realloc
     use param, only: ivformat_unknown, ivformat_phonopy_fc2
     type(system), intent(inout) :: s
@@ -3916,7 +4009,9 @@ contains
     character(len=:), allocatable :: dataset, scfile
     integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
-    integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid
+    integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest
+    integer, allocatable :: nc(:), ic0(:)
+    type(nice_cell), allocatable :: cand(:)
     real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
     real*8 :: tmin, tmax, tstep, cutoff, sigma, rdum, zpe, fvib, svib, cv
     character(len=:), allocatable :: qfile, dosfile
@@ -4008,6 +4103,8 @@ contains
           template = ""
           scfile = ""
           dataset = dataset_default
+          inice = 0
+          icrit = 0 ! the nicest cell by default
           do while (.true.)
              if (isinteger(idum,line,lp)) then
                 ndim = ndim + 1
@@ -4019,7 +4116,15 @@ contains
              end if
              mode = lgetword(line,lp)
              if (len_trim(mode) == 0) exit
-             if (equal(mode,'template')) then
+             if (equal(mode,'nice')) then
+                ! choose the supercell of this size as NEWCELL NICE would
+                if (.not.eval_next(inice,line,lp)) &
+                   call ferror('struct_vibrations','NICE needs the size of the supercell',faterr,line,syntax=.true.)
+                if (inice < 1) &
+                   call ferror('struct_vibrations','the NICE size must be positive',faterr,line,syntax=.true.)
+             elseif (equal(mode,'mindisp')) then
+                icrit = 1
+             elseif (equal(mode,'template')) then
                 template = getword(line,lp)
                 if (len_trim(template) == 0) &
                    call ferror('struct_vibrations','TEMPLATE needs a file name',faterr,line,syntax=.true.)
@@ -4047,6 +4152,37 @@ contains
                    faterr,line,syntax=.true.)
              end if
           end do
+
+          ! NICE: pick the supercell of the requested size, as NEWCELL NICE
+          ! would, and continue as if its nine integers had been typed
+          if (inice > 0) then
+             if (ndim > 0 .or. len_trim(scfile) > 0) then
+                call ferror('struct_vibrations','NICE cannot be combined with the supercell matrix or &
+                   &SUPERCELL',faterr,line,syntax=.true.)
+                return
+             end if
+             call s%c%cell_nice_list(inice,nc,ic0,cand,errmsg,nmin=inice)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+             call nice_select(s%c,cand(ic0(inice)+1:ic0(inice)+nc(inice)),icrit,ibest,errmsg)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+             if (ibest == 0) &
+                call ferror('struct_vibrations','no supercell of size ' // string(inice) // ' found',faterr)
+             ibest = ic0(inice) + ibest
+             ndim = 9
+             idim = reshape(cand(ibest)%m,(/9/))
+             ! (the compatible operations, point group and independent
+             ! atoms are reported by the displacement generation below)
+             if (verbose) then
+                write (uout,'("+ Supercell chosen by NICE ",A,": ",A," displacements; rmax of this cell ",&
+                   &A," ",A,", of the nicest cell of this size ",A," ",A)') string(inice),&
+                   string(cand(ibest)%ndisp),&
+                   string(cand(ibest)%r*dunit0(iunit),'f',decimal=3), iunitname0(iunit),&
+                   string(cand(ic0(inice)+1)%r*dunit0(iunit),'f',decimal=3), iunitname0(iunit)
+                write (uout,'("  NEWCELL transformation: ",9(A," "))') (string(idim(k)),k=1,9)
+             end if
+          end if
 
           ! the supercell matrix, zero when it comes from a structure file
           smat = 0

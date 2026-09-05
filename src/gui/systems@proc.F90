@@ -3550,10 +3550,16 @@ contains
   !> return the inscribed-sphere radii (rmax) and transformation matrices
   !> (mmax) for the nicest cell of each size.
   module subroutine cell_nice_list(sysc,inice,rmax,mmax)
+    use crystalmod, only: nice_cell
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: inice
     real*8, allocatable, intent(out) :: rmax(:)
     real*8, allocatable, intent(out) :: mmax(:,:,:)
+
+    integer :: n
+    integer, allocatable :: nc(:), ic0(:)
+    type(nice_cell), allocatable :: cand(:)
+    character(len=:), allocatable :: errmsg
 
     integer :: isys
 
@@ -3561,7 +3567,16 @@ contains
     if (.not.ok_system(isys,sys_init)) return
     if (sys(isys)%c%ismolecule) return
 
-    call sys(isys)%c%cell_nice_list(inice,rmax,mmax)
+    ! the GUI wants the nicest cell of each size (the first candidate)
+    call sys(isys)%c%cell_nice_list(inice,nc,ic0,cand,errmsg)
+    allocate(rmax(inice),mmax(3,3,inice))
+    rmax = 0d0
+    mmax = 0d0
+    do n = 1, inice
+       if (nc(n) < 1) cycle
+       rmax(n) = cand(ic0(n)+1)%r
+       mmax(:,:,n) = real(cand(ic0(n)+1)%m,8)
+    end do
 
   end subroutine cell_nice_list
 

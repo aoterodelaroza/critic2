@@ -800,61 +800,259 @@ contains
 
   end function cell_delaunay
 
-  !> Search for "nice" supercells of the current cell, of increasing
-  !> size from 1 up to inice times the input cell. For each size n,
-  !> return in rmax(n) the radius of the largest sphere that fits in
-  !> the nicest supercell of that size, and in mmax(:,:,n) the
-  !> corresponding NEWCELL transformation matrix (lattice vectors of
-  !> the supercell in the old setting, crystallographic coordinates).
-  !> rmax(n) is zero if no supercell of that size was found.
-  module subroutine cell_nice_list(c,inice,rmax,mmax)
-    use tools_math, only: cross, det3
-    use param, only: icrd_crys
+  !> Search the supercells of the current cell of every size from nmin
+  !> (default 1) to inice. The candidates of size n are the distinct
+  !> sublattices of index n, enumerated through their Hermite normal
+  !> forms so that each appears exactly once (Hart and Forcade, PRB
+  !> 77, 224115 (2008)). Each is reported in the basis that maximizes
+  !> the radius of the inscribed sphere (its niceness): the basis
+  !> whose reciprocal basis is Niggli-reduced. All of them are
+  !> returned, in one flat list: the nc(n) cells of size n are
+  !> cand(ic0(n)+1:ic0(n)+nc(n)), sorted by decreasing niceness (the
+  !> first is the nicest cell of that size), each with the number of
+  !> operations of the crystal compatible with the supercell lattice.
+  module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin)
+    use spglib, only: spg_niggli_reduce
+    use global, only: symprec
+    use tools, only: mergesort
+    use tools_math, only: idet3
     class(crystal), intent(inout) :: c
     integer, intent(in) :: inice
-    real*8, allocatable, intent(out) :: rmax(:)
-    real*8, allocatable, intent(out) :: mmax(:,:,:)
+    integer, allocatable, intent(out) :: nc(:), ic0(:)
+    type(nice_cell), allocatable, intent(out) :: cand(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    integer, intent(in), optional :: nmin
 
-    integer :: i, j, k, n, nat
-    real*8 :: dmax0, mm(3,3), dd, x2c(3,3), r
-    integer, allocatable :: lvec(:,:)
+    integer :: n, n0, ia, ib, ic, id, ie, if_, i, j, leqv, ntot, nstab
+    integer :: mm(3,3), irot(3,3)
+    integer, allocatable :: irotm(:,:,:), iord(:)
+    type(nice_cell), allocatable :: tmp(:)
 
-    allocate(rmax(inice),mmax(3,3,inice))
-    rmax = 0d0
-    mmax = 0d0
-    if (c%ismolecule) return
+    allocate(nc(inice),ic0(inice),cand(256))
+    nc = 0
+    ic0 = 0
+    ntot = 0
+    errmsg = ""
+    if (c%ismolecule) then
+       errmsg = "supercells can only be searched for crystals"
+       return
+    end if
+    n0 = 1
+    if (present(nmin)) n0 = max(nmin,1)
 
-    dmax0 = 1.2d0 * real(inice,8)**(1d0/3d0) * max(norm2(c%m_xr2c(:,1)),norm2(c%m_xr2c(:,2)),&
-       norm2(c%m_xr2c(:,3))) + 1d-1
-    call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,&
-       lvec=lvec,up2d=dmax0,nozero=.true.)
-
-    do i = 1, nat
-       mm(:,1) = lvec(:,i)
-       do j = i+1, nat
-          mm(:,2) = lvec(:,j)
-          do k = j+1, nat
-             mm(:,3) = lvec(:,k)
-
-             dd = det3(mm)
-             if (dd < 0d0) mm = -mm
-             dd = abs(dd)
-             if (dd < 1d-2 .or. dd > (inice+0.5d0)) cycle
-             n = nint(dd)
-             if (n > inice) cycle
-
-             x2c = matmul(c%m_x2c,mm)
-
-             r = 0.5d0 * n * c%omega / max(norm2(cross(x2c(:,1),x2c(:,2))),&
-                norm2(cross(x2c(:,1),x2c(:,3))),norm2(cross(x2c(:,2),x2c(:,3))))
-             if (r > rmax(n)) then
-                rmax(n) = r
-                mmax(:,:,n) = mm
-             end if
-          end do
+    ! the distinct rotations of the crystal's current symmetry
+    ! operations, in crystallographic coordinates (integer matrices);
+    ! the same operations disp_count and CREATE_DISPLACEMENTS use
+    allocate(irotm(3,3,c%neqv))
+    leqv = 0
+    do i = 1, c%neqv
+       irot = nint(c%rotm(1:3,1:3,i))
+       do j = 1, leqv
+          if (all(irotm(:,:,j) == irot)) exit
        end do
+       if (j <= leqv) cycle
+       leqv = leqv + 1
+       irotm(:,:,leqv) = irot
     end do
 
+    ! enumerate the sublattices of each size
+    do n = n0, inice
+       ic0(n) = ntot
+       ! Hermite normal forms of determinant n, with the lattice vectors
+       ! as columns: (a,d,e), (0,b,f), (0,0,c) with abc = n, 0 <= d < b,
+       ! 0 <= e,f < c; each sublattice of index n has exactly one, and
+       ! there are sum_{abc=n} b c^2 of them
+       do ia = 1, n
+          if (mod(n,ia) /= 0) cycle
+          do ib = 1, n / ia
+             if (mod(n/ia,ib) /= 0) cycle
+             ic = n / (ia * ib)
+             do id = 0, ib-1
+                do ie = 0, ic-1
+                   do if_ = 0, ic-1
+                      mm(:,1) = (/ia,id,ie/)
+                      mm(:,2) = (/0,ib,if_/)
+                      mm(:,3) = (/0,0,ic/)
+                      if (is_orbit_rep(mm,nstab)) call add_candidate(n,mm,nstab*c%ncv*n)
+                   end do
+                end do
+             end do
+          end do
+       end do
+
+       ! sort the cells of this size by decreasing niceness (stable, so
+       ! ties keep the order of discovery)
+       if (nc(n) > 1) then
+          allocate(iord(nc(n)),tmp(nc(n)))
+          do i = 1, nc(n)
+             iord(i) = i
+          end do
+          call mergesort(-cand(ic0(n)+1:ic0(n)+nc(n))%r,iord,1,nc(n))
+          tmp = cand(ic0(n)+1:ic0(n)+nc(n))
+          do i = 1, nc(n)
+             cand(ic0(n)+i) = tmp(iord(i))
+          end do
+          deallocate(iord,tmp)
+       end if
+    end do
+    cand = cand(1:max(ntot,1))
+
+  contains
+    ! Is the sublattice spanned by the columns of mm the first of its
+    ! orbit under the point group in the enumeration order? The rotated
+    ! sublattice R L has Hermite normal form hnf(R M); if that form
+    ! comes earlier in the enumeration, the orbit has already been
+    ! processed. Also returns the number of rotations that give back M,
+    ! the stabilizer of the lattice (the subgroup compatible with the
+    ! supercell).
+    function is_orbit_rep(mm,nstab)
+      integer, intent(in) :: mm(3,3)
+      integer, intent(out) :: nstab
+      logical :: is_orbit_rep
+
+      integer :: k, i, j, rm(3,3), hh(3,3)
+
+      is_orbit_rep = .true.
+      nstab = 0
+      do k = 1, leqv
+         do j = 1, 3
+            do i = 1, 3
+               rm(i,j) = irotm(i,1,k) * mm(1,j) + irotm(i,2,k) * mm(2,j) + irotm(i,3,k) * mm(3,j)
+            end do
+         end do
+         call hnf(rm,hh)
+         if (all(hh == mm)) then
+            nstab = nstab + 1
+         elseif (hnf_before(hh,mm)) then
+            is_orbit_rep = .false.
+            return
+         end if
+      end do
+
+    end function is_orbit_rep
+
+    ! Bring the sublattice of size n spanned by the columns of mm, with
+    ! nops compatible operations, to the basis with the largest
+    ! inscribed sphere, compute its niceness, and append it to the list.
+    subroutine add_candidate(n,mm,nops)
+      integer, intent(in) :: n, mm(3,3), nops
+
+      integer :: ier, mred(3,3)
+      real*8 :: x2c(3,3), rmat(3,3), r, scal
+
+      ! The inscribed sphere has radius 1/(2 max|g_i|) with g_i the
+      ! reciprocal vectors of the basis, so the nicest basis of the
+      ! lattice is the one whose reciprocal basis is Niggli-reduced
+      ! (shortest longest vector). Reciprocal vectors are scaled to the
+      ! size of the direct ones for the reduction tolerance.
+      x2c = matmul(c%m_x2c,real(mm,8))
+      scal = (n * c%omega)**(2d0/3d0)
+      rmat = transpose(recip(x2c)) * scal
+      ier = spg_niggli_reduce(rmat,symprec)
+      if (ier == 0) return
+      r = 0.5d0 * scal / max(norm2(rmat(1,:)),norm2(rmat(2,:)),norm2(rmat(3,:)))
+      x2c = recip(transpose(rmat) / scal)
+
+      ! back to integers in the cell setting, right-handed
+      rmat = matmul(c%m_c2x,x2c)
+      mred = nint(rmat)
+      if (maxval(abs(rmat - real(mred,8))) > 1d-6) return
+      if (idet3(mred) < 0) mred = -mred
+
+      ! append
+      if (ntot == size(cand,1)) then
+         allocate(tmp(2*ntot))
+         tmp(1:ntot) = cand(1:ntot)
+         call move_alloc(tmp,cand)
+      end if
+      ntot = ntot + 1
+      nc(n) = nc(n) + 1
+      cand(ntot) = nice_cell(r=r,m=mred,nops=nops)
+
+    end subroutine add_candidate
+
+    ! Hermite normal form h of the lattice spanned by the columns of the
+    ! integer matrix m0 (nonzero determinant): lower triangular, positive
+    ! diagonal, 0 <= h(2,1) < h(2,2), 0 <= h(3,1),h(3,2) < h(3,3). Column
+    ! operations only, so h spans the same lattice.
+    pure subroutine hnf(m0,h)
+      integer, intent(in) :: m0(3,3)
+      integer, intent(out) :: h(3,3)
+
+      integer :: q
+
+      h = m0
+      ! zero the first row except (1,1), then the second except (2,2)
+      call zero_entry(h,1,1,2)
+      call zero_entry(h,1,1,3)
+      call zero_entry(h,2,2,3)
+      ! positive diagonal
+      if (h(1,1) < 0) h(:,1) = -h(:,1)
+      if (h(2,2) < 0) h(:,2) = -h(:,2)
+      if (h(3,3) < 0) h(:,3) = -h(:,3)
+      ! reduce the entries below the diagonal
+      q = (h(2,1) - modulo(h(2,1),h(2,2))) / h(2,2)
+      h(:,1) = h(:,1) - q * h(:,2)
+      q = (h(3,1) - modulo(h(3,1),h(3,3))) / h(3,3)
+      h(:,1) = h(:,1) - q * h(:,3)
+      q = (h(3,2) - modulo(h(3,2),h(3,3))) / h(3,3)
+      h(:,2) = h(:,2) - q * h(:,3)
+
+    end subroutine hnf
+
+    ! Euclid's algorithm on row r of h between columns i and j: on exit
+    ! h(r,j) = 0 and h(r,i) = +-gcd, the lattice unchanged.
+    pure subroutine zero_entry(h,r,i,j)
+      integer, intent(inout) :: h(3,3)
+      integer, intent(in) :: r, i, j
+
+      integer :: q, t(3)
+
+      do while (h(r,j) /= 0)
+         q = h(r,i) / h(r,j)
+         h(:,i) = h(:,i) - q * h(:,j)
+         t = h(:,i)
+         h(:,i) = h(:,j)
+         h(:,j) = t
+      end do
+
+    end subroutine zero_entry
+
+    ! Does the Hermite normal form h come before m in the enumeration
+    ! order (a, then b, d, e, f)?
+    pure function hnf_before(h,m)
+      integer, intent(in) :: h(3,3), m(3,3)
+      logical :: hnf_before
+
+      integer :: kh(5), km(5), i
+
+      kh = (/h(1,1),h(2,2),h(2,1),h(3,1),h(3,2)/)
+      km = (/m(1,1),m(2,2),m(2,1),m(3,1),m(3,2)/)
+      hnf_before = .false.
+      do i = 1, 5
+         if (kh(i) /= km(i)) then
+            hnf_before = (kh(i) < km(i))
+            return
+         end if
+      end do
+
+    end function hnf_before
+
+    ! Reciprocal basis (columns) of the basis a (columns), without the
+    ! 2 pi: recip(recip(a)) = a.
+    pure function recip(a) result(g)
+      use tools_math, only: cross, det3
+      real*8, intent(in) :: a(3,3)
+      real*8 :: g(3,3)
+
+      real*8 :: v
+
+      v = det3(a)
+      g(:,1) = cross(a(:,2),a(:,3)) / v
+      g(:,2) = cross(a(:,3),a(:,1)) / v
+      g(:,3) = cross(a(:,1),a(:,2)) / v
+
+    end function recip
   end subroutine cell_nice_list
 
   !> Create a new structure by reordering the atoms in the current

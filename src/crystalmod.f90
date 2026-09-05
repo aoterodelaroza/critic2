@@ -338,6 +338,7 @@ module crystalmod
      procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: create_displacements !< Write the displaced supercells for a force-constant calculation
      procedure :: create_forces !< Calculate the force constants from the forces of the displaced supercells
+     procedure :: disp_count !< Displacements and independent atoms CREATE_DISPLACEMENTS would generate in a supercell
      procedure :: cell_standard !< Transform the the standard cell (possibly primitive)
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
@@ -433,6 +434,16 @@ module crystalmod
   end type crystal
   public :: crystal
 
+  !> A supercell candidate found by cell_nice_list
+  type nice_cell
+     real*8 :: r = 0d0 ! inscribed radius
+     integer :: m(3,3) = 0 ! newcell transformation
+     integer :: nops = 0 ! number of symmetry operations
+     integer :: nindep = -1 ! number of independent atoms
+     integer :: ndisp = -1 ! number of displacements
+  end type nice_cell
+  public :: nice_cell
+
   !> Class for XRPD peak information
   type xrpd_peaklist
      integer :: npeak = 0 ! number of peaks
@@ -465,6 +476,7 @@ module crystalmod
   public :: bulk_rattle_seeds
   public :: search_lattice
   public :: pointgroup_info
+  public :: pointgroup_symbol
   public :: crosscorr_gaussian
   public :: vcpwdf_compare
   public :: gaussian_compare
@@ -931,6 +943,12 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8, intent(in), optional :: rklength
      end subroutine create_displacements
+     module subroutine disp_count(c,smat,ndisp,nindep,errmsg)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: smat(3,3)
+       integer, intent(out) :: ndisp, nindep
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine disp_count
      module subroutine create_forces(c,file,dataset,verbose,errmsg,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
@@ -964,11 +982,13 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
-     module subroutine cell_nice_list(c,inice,rmax,mmax)
+     module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: inice
-       real*8, allocatable, intent(out) :: rmax(:)
-       real*8, allocatable, intent(out) :: mmax(:,:,:)
+       integer, allocatable, intent(out) :: nc(:), ic0(:)
+       type(nice_cell), allocatable, intent(out) :: cand(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+       integer, intent(in), optional :: nmin
      end subroutine cell_nice_list
      module subroutine reorder_atoms(c,iperm,isnneq,errmsg,ti)
        class(crystal), intent(inout) :: c
@@ -1166,6 +1186,11 @@ module crystalmod
        integer, intent(out) :: leqv
        real*8, allocatable, intent(inout) :: rotm(:,:,:)
      end subroutine pointgroup
+     module function pointgroup_symbol(nops,rotm) result(symb)
+       integer, intent(in) :: nops
+       real*8, intent(in) :: rotm(3,3,nops)
+       character*3 :: symb
+     end function pointgroup_symbol
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

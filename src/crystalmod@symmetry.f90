@@ -86,7 +86,6 @@ contains
   !> number of operations in this group (leqv) and the rotation
   !> operations (lrotm)
   module function sitesymm(c,x0,eps0,leqv,lrotm)
-    use tools_io, only: string
     use param, only: eye
     class(crystal), intent(in) :: c !< Input crystal
     real*8, intent(in) :: x0(3) !< Input point in cryst. coords.
@@ -95,13 +94,10 @@ contains
     integer, optional :: leqv !< Number of operations in the group
     real*8, optional :: lrotm(3,3,48) !< Point group operations
 
-    integer :: i, m
-    real*8 :: dumy(3), dist2, eps, vec(3)
-    integer :: type
+    integer :: i, m, nnsym
+    real*8 :: dumy(3), dist2, eps
+    real*8 :: lrot(3,3,c%neqv)
     logical :: ok
-    integer :: highest, highests
-    integer :: nnsym, order
-    integer :: ordersym(c%neqv), masksym(0:9)
 
     real*8, parameter :: eps_default = 1d-2
 
@@ -120,10 +116,8 @@ contains
        eps = eps_default
     end if
 
-    ! Run over all proper symmetry elements of symmetry
+    ! collect the operations that leave x0 in place
     nnsym = 0
-    masksym = 0
-    ordersym = 0
     do i = 1, c%neqv
        ok = .false.
        do m = 1, c%ncv
@@ -134,34 +128,58 @@ contains
           if (ok) exit
        end do
        if (ok) then
-          ! A symmetry operation at location x has been found.
-          nnsym = nnsym+1
-          call typeop(c%rotm(:,:,i),type,vec,order)
-          ordersym(nnsym) = order
-          masksym(type) = masksym(type) + 1
-          if (present(leqv).and.present(lrotm)) then
-             leqv = nnsym
-             lrotm(:,:,leqv) = c%rotm(1:3,1:3,i)
-          end if
+          nnsym = nnsym + 1
+          lrot(:,:,nnsym) = c%rotm(1:3,1:3,i)
        endif
     enddo
+    if (present(leqv).and.present(lrotm)) then
+       leqv = nnsym
+       lrotm(:,:,1:nnsym) = lrot(:,:,1:nnsym)
+    end if
+
+    ! and name the group they form
+    sitesymm = pointgroup_symbol(nnsym,lrot(:,:,1:nnsym))
+
+  end function sitesymm
+
+  !> Schoenflies symbol of the point group formed by the nops rotations
+  !> rotm(3,3,nops) (the set must be a group). The site symmetry of a point and the symmetry
+  !> compatible with a supercell lattice are both named through this.
+  module function pointgroup_symbol(nops,rotm) result(symb)
+    use tools_io, only: string
+    integer, intent(in) :: nops
+    real*8, intent(in) :: rotm(3,3,nops)
+    character*3 :: symb
+
+    integer :: i, type, order, highest, highests
+    integer :: masksym(0:9)
+    real*8 :: vec(3), op(3,4)
+
+    ! count the operations of each type (typeop only reads the rotation)
+    masksym = 0
+    op = 0d0
+    do i = 1, nops
+       op(:,1:3) = rotm(:,:,i)
+       call typeop(op,type,vec,order)
+       masksym(type) = masksym(type) + 1
+    end do
 
     ! calculate the point group
-    sitesymm = ""
+    symb = ""
     if (masksym(c3) > 2) then
        ! cubic groups
        if (masksym(c4) /= 0) then
           if (masksym(inv) /= 0) then
-             sitesymm='Oh'
+             symb='Oh'
           else
-             sitesymm='O'
+             symb='O'
           endif
        elseif (masksym(s4).ne.0) then
-          sitesymm= 'Td'
+          symb= 'Td'
        elseif (masksym(inv).ne.0) then
-          sitesymm = 'Th'
+          symb = 'Th'
        else
-          sitesymm = 'T'
+          symb = 'T'
        endif
     else
        !Compute highest order proper axis.
@@ -176,42 +194,42 @@ contains
        if (masksym(s6) /= 0) highests=6
        if (highest == 0) then
           if (masksym(inv) /= 0) then
-             sitesymm='i'
+             symb='i'
           elseif (masksym(sigma) /= 0) then
-             sitesymm='Cs'
+             symb='Cs'
           else
-             sitesymm='C1'
+             symb='C1'
           endif
        elseif (masksym(c2) >= highest) then
           if (masksym(sigma) == 0) then
-             sitesymm='D' // string(highest)
+             symb='D' // string(highest)
           elseif (masksym(inv) .eq. 1) then
              if (highest == 3) then
-                sitesymm= 'D3d'
+                symb= 'D3d'
              else
-                sitesymm= 'D' // string(highest) // 'h'
+                symb= 'D' // string(highest) // 'h'
              endif
           else
              if (highest .eq. 3) then
-                sitesymm= 'D3h'
+                symb= 'D3h'
              else
-                sitesymm= 'D' // string(highest) // 'd'
+                symb= 'D' // string(highest) // 'd'
              endif
           endif
        elseif (masksym(sigma) == 0) then
           if (highests /= 0) then
-             sitesymm= 'S' // string(highests/2)
+             symb = 'S' // string(highests)
           else
-             sitesymm= 'C' // string(highest)
+             symb= 'C' // string(highest)
           endif
        elseif (masksym(sigma) .lt. highest) then
-          sitesymm= 'C' // string(highest) // 'h'
+          symb= 'C' // string(highest) // 'h'
        else
-          sitesymm= 'C' // string(highest) // 'v'
+          symb= 'C' // string(highest) // 'v'
        endif
     endif
 
-  end function sitesymm
+  end function pointgroup_symbol
 
   !> Obtain symmetry equivalent positions of xp0 and write them to
   !> vec. Write the multiplicity of the xp0 position to mmult. xp0 and
@@ -1036,7 +1054,7 @@ contains
   subroutine typeop(rot,type,vec,order)
     use tools_math, only: eig
     use tools_io, only: ferror, faterr
-    use param, only: tpi, eye
+    use param, only: tpi
 
     real*8, intent(in) :: rot(3,4) !< rotm operation
     integer, intent(out) :: type !< output type
@@ -1049,7 +1067,7 @@ contains
     integer :: ier
     real*8 :: trace, tone
     real*8, dimension(3) :: eigen, eigeni
-    real*8, dimension(3,3) :: mat, mat3
+    real*8, dimension(3,3) :: mat
     integer :: nm, nones, nminusones
     integer :: i
 
@@ -1124,18 +1142,15 @@ contains
           do i = 1,3
              vec(i) = mat(i,iord(2,1))
           enddo
+          ! the order of the rotoinversion as a group element: a 6-bar
+          ! axis (-C6) has order 3 (S3), a 4-bar (-C4) order 4 (S4) and
+          ! a 3-bar (-C3) order 6 (S6)
           if (order .eq. 3) then
              type = s3
           elseif (order .eq. 4) then
              type = s4
           elseif (order .eq. 6) then
-             mat3 = rot(1:3,1:3)
-             mat3 = matmul(matmul(mat3,mat3),mat3)
-             if (all(abs(mat3+eye) < 1d-5)) then
-                type = s3
-             else
-                type = s6
-             end if
+             type = s6
           else
              call ferror ('typeop','Axis unknown',faterr)
           endif

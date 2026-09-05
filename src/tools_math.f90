@@ -53,6 +53,7 @@ module tools_math
   public :: det3sym
   public :: det3
   public :: idet3
+  public :: iadj3
   public :: mat2quat
   public :: quat2mat
   public :: mat2euler
@@ -304,6 +305,10 @@ module tools_math
        integer, intent(in) :: m(3,3)
        integer :: idet3
      end function idet3
+     pure module function iadj3(m)
+       integer, intent(in) :: m(3,3)
+       integer :: iadj3(3,3)
+     end function iadj3
      module function mat2quat(r) result(q)
        real*8, intent(in) :: r(3,3)
        real*8 :: q(4)
