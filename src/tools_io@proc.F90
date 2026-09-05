@@ -1567,6 +1567,48 @@ contains
 
   end subroutine fclose
 
+  !> Create the directory path (and every missing parent, like mkdir
+  !> -p). Nothing happens if it already exists. Both / and the
+  !> platform separator are understood. Returns non-empty errmsg on
+  !> failure.
+  module subroutine mkpath(path,errmsg)
+    use iso_c_binding, only: c_char, c_int, c_null_char
+    use param, only: dirsep
+    character*(*), intent(in) :: path
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    interface
+       function critic2_mkdir(path) bind(C,name="critic2_mkdir")
+         import :: c_char, c_int
+         character(kind=c_char), intent(in) :: path(*)
+         integer(c_int) :: critic2_mkdir
+       end function critic2_mkdir
+    end interface
+
+    integer :: i, n
+
+    ! every prefix that ends right before a separator, and the whole
+    ! path, is a directory to create; a prefix that is itself a
+    ! separator (the root, a doubled separator) or a Windows drive
+    ! letter is not
+    errmsg = ""
+    n = len_trim(path)
+    do i = 1, n
+       if (i < n) then
+          if (path(i+1:i+1) /= "/" .and. path(i+1:i+1) /= dirsep) cycle
+       end if
+       if (path(i:i) == "/" .or. path(i:i) == dirsep) cycle
+       if (i == 2) then
+          if (path(2:2) == ":") cycle
+       end if
+       if (critic2_mkdir(path(1:i) // c_null_char) /= 0) then
+          errmsg = "Could not create directory: " // path(1:i)
+          return
+       end if
+    end do
+
+  end subroutine mkpath
+
   !> Allocate a logical unit
   module function falloc(ti)
     integer :: falloc

@@ -23,6 +23,9 @@
 ! https://github.com/phonopy/phonopy
 ! Phonopy is Copyright (c) 2014-2024, Phonopy. All rights reserved.
 submodule (crystalmod) vibrationsmod
+  use param, only: vcalc_max, isformat_w_qein, isformat_w_aimsin, isformat_w_vasp,&
+     isformat_w_crystal, isformat_w_castepcell, isformat_w_abinit, isformat_w_siesta_struct,&
+     isformat_w_elk, isformat_w_dftbp_hsd, bohrtoa, hartoev
   implicit none
 
   ! abramowitz, stegun, numerical differentiation formulas, table 25.2 (1st and 2nd derivatives)
@@ -41,32 +44,55 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: amu_to_me = 1.66053906660e-27 / 9.1093837015e-31 ! CODATA2018
   real*8, parameter :: cminv_to_angfreq_au = 4.556335252903557d-06 ! 100 * c * a0 * sqrt(me / Ha) * 2 * pi, using CODATA2018 values
 
-  ! Force-constant units of the codes that can generate a phonopy
-  ! FORCE_CONSTANTS file, and the factor that converts them to the
-  ! internal units (Hartree/bohr^2).
+  ! Force-constant units of phonopy FORCE_CONSTANTS files; the factor
+  ! that converts them to the internal units (Hartree/bohr^2) is in
+  ! fc2_unit_factor
   integer, parameter :: fc2_nunit = 6
   character*20, parameter :: fc2_unitname(fc2_nunit) = (/&
      "eV/ang^2            ", "eV/(ang*bohr)       ", "Ry/bohr^2           ",&
      "mRy/bohr^2          ", "Hartree/bohr^2      ", "Hartree/(ang*bohr)  "/)
-  character(len=*), parameter :: fc2_unitlist = "eV/ang^2, eV/(ang*bohr), Ry/bohr^2, &
-     &mRy/bohr^2, Hartree/bohr^2, Hartree/(ang*bohr)"
-  integer, parameter :: fc2_ngen = 22
-  character*10, parameter :: fc2_genname(fc2_ngen) = (/&
-     "vasp      ", "aims      ", "fhiaims   ", "lammps    ", "pwmat     ",&
-     "crystal   ", "castep    ", "alamode   ",&
-     "abinit    ", "siesta    ", "abacus    ",&
-     "qe        ", "pwscf     ", "espresso  ",&
-     "wien2k    ", "wien      ",&
-     "elk       ", "dftb+     ", "dftbp     ", "turbomole ", "fleur     ",&
-     "cp2k      "/)
-  integer, parameter :: fc2_genunit(fc2_ngen) = (/&
-     1, 1, 1, 1, 1,&
-     1, 1, 1,&
-     2, 2, 2,&
-     3, 3, 3,&
-     4, 4,&
-     5, 5, 5, 5, 5,&
-     6/)
+
+  ! Everything the vibrations code knows about each calculator
+  ! (VIBRATIONS CALCULATOR; ids vcalc_* in param, one row per id): the
+  ! name used in messages and datasets, the accepted names, the units of
+  ! the FORCE_CONSTANTS files phonopy writes for that code (index in
+  ! fc2_unitname), the format of the displaced structures
+  ! CREATE_DISPLACEMENTS writes (0 = none: a TEMPLATE with a format
+  ! critic2 can write is required) and their name pattern after the
+  ! root, the header of the force block in the outputs and the factor
+  ! from its units to hartree/bohr ("" = forces cannot be read), and
+  ! the extension of the output files when the code has a fixed one
+  ! ("" = give the outputs with TEMPLATE or LIST).
+  type vcalc_info
+     character*10 :: name
+     character*40 :: syn
+     integer :: iunit
+     integer :: iwformat
+     character*16 :: ext
+     character*24 :: fhead
+     real*8 :: ffac
+     character*8 :: oext
+  end type vcalc_info
+  type(vcalc_info), parameter :: vcalc(vcalc_max) = (/&
+     vcalc_info("qe","qe pwscf espresso quantum-espresso",3,isformat_w_qein,"-*.scf.in",&
+        "Forces acting on atoms",0.5d0,".out"),&
+     vcalc_info("aims","aims fhiaims fhi-aims",1,isformat_w_aimsin,"-*/geometry.in",&
+        "Total atomic forces",bohrtoa/hartoev,""),&
+     vcalc_info("vasp","vasp",1,isformat_w_vasp,"-*","",0d0,""),&
+     vcalc_info("lammps","lammps",1,0,"","",0d0,""),&
+     vcalc_info("pwmat","pwmat",1,0,"","",0d0,""),&
+     vcalc_info("crystal","crystal",1,isformat_w_crystal,"-*.d12","",0d0,""),&
+     vcalc_info("castep","castep",1,isformat_w_castepcell,"-*.cell","",0d0,""),&
+     vcalc_info("alamode","alamode",1,0,"","",0d0,""),&
+     vcalc_info("abinit","abinit",2,isformat_w_abinit,"-*.abin","",0d0,""),&
+     vcalc_info("siesta","siesta",2,isformat_w_siesta_struct,"-*.STRUCT_IN","",0d0,""),&
+     vcalc_info("abacus","abacus",2,0,"","",0d0,""),&
+     vcalc_info("wien2k","wien2k wien",4,0,"","",0d0,""),&
+     vcalc_info("elk","elk",5,isformat_w_elk,"-*.elk","",0d0,""),&
+     vcalc_info("dftb+","dftb+ dftbp dftb",5,isformat_w_dftbp_hsd,"-*.hsd","",0d0,""),&
+     vcalc_info("turbomole","turbomole",5,0,"","",0d0,""),&
+     vcalc_info("fleur","fleur",5,0,"","",0d0,""),&
+     vcalc_info("cp2k","cp2k",6,0,"","",0d0,"")/)
 
   ! tolerances used when reading force constants
   real*8, parameter :: fc2_epsint = 1d-3 ! integrality of the supercell matrix
@@ -92,6 +118,7 @@ submodule (crystalmod) vibrationsmod
      integer :: smat(3,3) = 0 ! supercell matrix (rows = supercell lattice vectors)
      real*8 :: dist = 0d0 ! displacement length (bohr)
      character(len=mlen) :: template = "" ! file name template of the displaced structures
+     integer :: calc = 0 ! calculator the structures were written for (vcalc_*, 0 = none)
      integer :: ndisp = 0 ! number of displacements
      integer :: nat = 0 ! number of atoms in the reference cell
      real*8 :: m_x2c(3,3) = 0d0 ! reference crystal-to-Cartesian matrix (bohr)
@@ -110,7 +137,8 @@ submodule (crystalmod) vibrationsmod
   ! subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
   ! subroutine read_phonopy_hdf5(v,c,file,errmsg)
   ! subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
-  ! function fc2_unit_index(sline,lp)
+  ! function fc2_calc_unit(errmsg)
+  ! function fc2_is_units_word(word)
   ! function fc2_unit_factor(iunit)
   ! subroutine disp_default_template(c,template,template_,iwf)
   ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti)
@@ -118,19 +146,20 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_dispvec(sc,ddir,dist)
   ! function fc2_expand_star(template,i,npad)
   ! subroutine fc2_atom_perm(c,io,icv,perm,ok)
-  ! subroutine fc2_check_disp(file,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
-  ! subroutine fc2_write_dataset(c,file,smat,dist,template,ndisp,datom,ddir,fname,errmsg,ti)
+  ! subroutine fc2_check_disp(file,icalc,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
+  ! subroutine fc2_write_dataset(c,file,smat,dist,template,calc,ndisp,datom,ddir,fname,errmsg,ti)
   ! subroutine fc2_read_dataset(file,ds,errmsg,ti)
   ! subroutine fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
   ! function fc2_smatstr(m)
-  ! subroutine fc2_output_template(template,otemplate,errmsg)
+  ! subroutine fc2_output_template(template,icalc,otemplate,errmsg)
   ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
   ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nint,ntot,nimag)
   ! subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg)
   ! subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
   ! subroutine dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
   ! function tetra_nstates(om,e)
-  ! subroutine fc2_read_forces(file,nat,f,errmsg,ti)
+  ! subroutine fc2_read_forces(file,nat,f,icalc,errmsg,ti)
+  ! subroutine fc2_makedir(fname,errmsg)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
   ! subroutine fc2_site_directions(nsym,irot,nd,dsel)
   ! function fc2_scpos(x,lv,madj,nlat)
@@ -215,16 +244,16 @@ contains
 
     ! Detect the format from the file name. Force constants are read
     ! only through VIBRATIONS LOAD_FC2, which passes the format
-    ! explicitly, because the file carries neither units nor positions
-    ! and both have to be given on the keyword line.
+    ! explicitly, because the file carries no atomic positions and the
+    ! supercell has to be given on the keyword line.
     if (ivformat == ivformat_unknown) then
        call vibrations_detect_format(file,ivf)
        if (ivf == ivformat_unknown) then
           errmsg = "Unknown vibration file format: " // trim(file)
           return
        elseif (ivf == ivformat_phonopy_fc2) then
-          errmsg = "Force constants are read with VIBRATIONS LOAD_FC2 (which also takes their units &
-             &and the supercell), not with VIBRATIONS LOAD"
+          errmsg = "Force constants are read with VIBRATIONS LOAD_FC2 (which also takes the supercell; &
+             &the units are those of VIBRATIONS CALCULATOR), not with VIBRATIONS LOAD"
           return
        end if
     else
@@ -281,6 +310,7 @@ contains
 
   !> Print a summary of the vibrational info.
   module subroutine vibrations_print_summary(v)
+    use global, only: vib_calculator
     use tools_io, only: uout, string, ioj_right
     use param, only: ivformat_matdynmodes, ivformat_matdyneig, ivformat_qedyn,&
        ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
@@ -291,6 +321,7 @@ contains
     integer :: i, j
 
     write (uout,'("+ PRINT summary")')
+    write (uout,'("  Calculator: ",A)') vib_calculator_name(vib_calculator)
 
     ! dynamical matrices
     if (v%hasvibs) then
@@ -724,8 +755,9 @@ contains
   !> This routine was adapted from phonopy, by A. Togo.
   module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength)
     use crystalseedmod, only: crystalseed
+    use global, only: vib_calculator
     use tools_io, only: uout, string, ioj_right
-    use param, only: isformat_w_unknown, isformat_w_vasp, isformat_w_abinit,&
+    use param, only: vcalc_none, isformat_w_unknown, isformat_w_vasp, isformat_w_abinit,&
        isformat_w_elk, isformat_w_siesta_struct, isformat_w_dftbp_hsd
     class(crystal), intent(inout) :: c
     integer, intent(in) :: smat0(3,3)
@@ -760,6 +792,16 @@ contains
 
     ! file names and format
     call disp_default_template(c,template,template_,iwf)
+    if (len_trim(template_) == 0) then
+       if (vib_calculator == vcalc_none) then
+          errmsg = "No calculator set: give a TEMPLATE for the displaced structures (the format follows &
+             &from its extension) or set the calculator with VIBRATIONS CALCULATOR (qe, aims, vasp, ...)"
+       else
+          errmsg = "critic2 cannot write the input files of the " // vib_calculator_name(vib_calculator) //&
+             " calculator: give a TEMPLATE with an extension it can write"
+       end if
+       return
+    end if
     if (index(template_,'*') == 0) then
        errmsg = "The template for the displaced structures must contain a * character"
        return
@@ -802,8 +844,11 @@ contains
     ! write the undisplaced supercell and then the displaced ones,
     ! displacing one atom of the seed at a time and restoring it. QE
     ! inputs are written for a single-point calculation with forces.
+    ! The directories in the template are created if they do not exist.
     npad = max(3,len(string(ndisp)))
     fname = fc2_expand_star(template_,0,npad)
+    call fc2_makedir(fname,errmsg)
+    if (len_trim(errmsg) > 0) return
     call sc%write_any_file(fname,errmsg,iwformat=iwf,nosym=.true.,ti=ti,forces=.true.,&
        rklength=rklength)
     if (len_trim(errmsg) > 0) return
@@ -825,6 +870,8 @@ contains
        if (len_trim(errmsg) > 0) return
        fname = fc2_expand_star(template_,i,npad)
        fnames(i) = fname
+       call fc2_makedir(fname,errmsg)
+       if (len_trim(errmsg) > 0) return
        call scd%write_any_file(fname,errmsg,iwformat=iwf,nosym=.true.,ti=ti,forces=.true.,&
           rklength=rklength)
        if (len_trim(errmsg) > 0) return
@@ -838,11 +885,11 @@ contains
     ! The dataset file: everything READ_FORCES needs to interpret the
     ! forces of these structures. Without it they cannot be read back,
     ! so it is always written.
-    call fc2_write_dataset(c,dataset,smat,dist,template_,ndisp,datom,ddir,fnames,errmsg,ti)
+    call fc2_write_dataset(c,dataset,smat,dist,template_,vib_calculator,ndisp,datom,ddir,fnames,errmsg,ti)
     if (len_trim(errmsg) > 0) return
     if (verbose) then
        write (uout,'("+ Displacement dataset written to: ",A)') trim(dataset)
-       call fc2_output_template(template_,otemplate,errmsg2)
+       call fc2_output_template(template_,vib_calculator,otemplate,errmsg2)
        if (len_trim(errmsg2) > 0) then
           write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
        else
@@ -891,6 +938,24 @@ contains
 
   end function fc2_expand_star
 
+  !> Create the directory part of the file name fname (every missing
+  !> level), so that a template like "run-*/geometry.in" can be written
+  !> without preparing the directories by hand. Non-empty errmsg on
+  !> failure.
+  subroutine fc2_makedir(fname,errmsg)
+    use tools_io, only: mkpath
+    use param, only: dirsep
+    character*(*), intent(in) :: fname
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: idx
+
+    errmsg = ""
+    idx = max(index(fname,"/",back=.true.),index(fname,dirsep,back=.true.))
+    if (idx > 1) call mkpath(fname(1:idx-1),errmsg)
+
+  end subroutine fc2_makedir
+
   !> Permutation of the complete atom list of c induced by the symmetry
   !> operation with rotation io and centering vector icv: perm(i) is the
   !> atom that the operation maps atom i onto. ok is false if some image
@@ -917,15 +982,18 @@ contains
 
   end subroutine fc2_atom_perm
 
-  !> Read the structure of a displaced supercell from file and compare
-  !> it with the undisplaced supercell sc/seed: return in jmax the atom
-  !> that moved the most and in dmax the difference (bohr) between that
-  !> displacement and the expected one (dexp, Cartesian, on atom iat).
-  !> If the file could not be read, return non-zero errmsg.
-  subroutine fc2_check_disp(file,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
+  !> Read the structure in the output file of a displaced supercell
+  !> (with the reader of calculator icalc) and compare it with the
+  !> undisplaced supercell sc (seed): jmax is the atom that moved the
+  !> most, and dmax how far the displacement of atom iat is from the
+  !> expected Cartesian displacement dexp (bohr).
+  subroutine fc2_check_disp(file,icalc,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
     use crystalseedmod, only: crystalseed
+    use global, only: rborder_def
     use tools_io, only: string
+    use param, only: vcalc_qe, vcalc_aims
     character*(*), intent(in) :: file
+    integer, intent(in) :: icalc
     type(crystal), intent(in) :: sc
     type(crystalseed), intent(in) :: seed
     integer, intent(in) :: iat
@@ -939,9 +1007,19 @@ contains
     integer :: j
     real*8 :: dx(3), dd, dmx
 
+    ! the structure in the output, read with the reader of the
+    ! calculator (the file name says nothing about the format: an
+    ! FHI-aims output is whatever the run was redirected to)
     jmax = 0
     dmax = huge(1d0)
-    call dseed%read_any_file(file,0,errmsg,ti=ti)
+    select case (icalc)
+    case (vcalc_qe)
+       call dseed%read_qeout(file,.false.,0,errmsg,ti=ti)
+    case (vcalc_aims)
+       call dseed%read_aimsout(file,.false.,rborder_def,.false.,errmsg,ti=ti)
+    case default
+       call dseed%read_any_file(file,0,errmsg,ti=ti)
+    end select
     if (len_trim(errmsg) > 0) then
        errmsg = "Could not read the structure from " // trim(file) // ": " // errmsg
        return
@@ -979,14 +1057,14 @@ contains
   !> and the file written for each displacement). This is the file
   !> create_forces reads to know how the forces it is given were
   !> generated.
-  subroutine fc2_write_dataset(c,file,smat,dist,template,ndisp,datom,ddir,fname,errmsg,ti)
+  subroutine fc2_write_dataset(c,file,smat,dist,template,calc,ndisp,datom,ddir,fname,errmsg,ti)
     use tools_io, only: fopen_write, fclose, string, ioj_right
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: smat(3,3)
     real*8, intent(in) :: dist
     character*(*), intent(in) :: template
-    integer, intent(in) :: ndisp
+    integer, intent(in) :: calc, ndisp
     integer, intent(in) :: datom(ndisp)
     integer, intent(in) :: ddir(3,ndisp)
     character(len=mlen), intent(in) :: fname(ndisp)
@@ -1022,6 +1100,8 @@ contains
     end do
     write (lu,'("DISTANCE ",A," ! displacement length, always in bohr")') string(dist,'f',22,14)
     write (lu,'("TEMPLATE ",A)') trim(template)
+    write (lu,'("CALCULATOR ",A," ! the code the structures were written for (none = not set)")') &
+       vib_calculator_name(calc)
     write (lu,'("NDISP ",A)') string(ndisp)
     write (lu,'("DISPLACEMENTS")')
     write (lu,'("# id  atom  --direction (frac)--  file")')
@@ -1039,6 +1119,7 @@ contains
   subroutine fc2_read_dataset(file,ds,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline, lgetword, getword, isinteger,&
        isreal, equal, string
+    use param, only: vcalc_none
     character*(*), intent(in) :: file
     type(fc2_dataset), intent(out) :: ds
     character(len=:), allocatable, intent(out) :: errmsg
@@ -1129,6 +1210,13 @@ contains
           if (.not.isreal(ds%dist,line,lp)) goto 999
        elseif (equal(word,"template")) then
           ds%template = getword(line,lp)
+       elseif (equal(word,"calculator")) then
+          word = lgetword(line,lp)
+          ds%calc = vib_calculator_from_name(word)
+          if (ds%calc == vcalc_none .and. .not.equal(word,"none")) then
+             errmsg = "Unknown calculator (" // trim(word) // ") in the displacement dataset file: " // trim(file)
+             goto 999
+          end if
        elseif (equal(word,"ndisp")) then
           if (.not.isinteger(ds%ndisp,line,lp)) goto 999
           if (ds%ndisp < 1) goto 999
@@ -1294,14 +1382,15 @@ contains
 
   end function fc2_smatstr
 
-  !> Guess the file name template of the outputs of a set of displaced
-  !> structure files whose template is template: the same template with
-  !> the extension of the input replaced by the extension of the
-  !> corresponding output. Only Quantum ESPRESSO is known here, which
-  !> is also the only code whose forces can be read.
-  subroutine fc2_output_template(template,otemplate,errmsg)
+  !> Guess the names of the output files of calculator icalc from the
+  !> template of the inputs recorded in the dataset, for the codes with
+  !> a fixed output extension (Quantum ESPRESSO: .in becomes .out). The
+  !> others (FHI-aims writes to standard output) give an empty otemplate
+  !> and an errmsg asking for TEMPLATE or LIST.
+  subroutine fc2_output_template(template,icalc,otemplate,errmsg)
     use tools_io, only: lower
     character*(*), intent(in) :: template
+    integer, intent(in) :: icalc
     character(len=:), allocatable, intent(out) :: otemplate
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -1310,16 +1399,21 @@ contains
 
     errmsg = ""
     otemplate = ""
-    aux = lower(trim(template))
-    idx = len_trim(aux) - 2
-    if (idx > 0) then
-       if (aux(idx:) == ".in") then
-          otemplate = template(1:idx-1) // ".out"
-          return
+    if (icalc >= 1 .and. icalc <= vcalc_max) then
+       if (len_trim(vcalc(icalc)%oext) > 0) then
+          aux = lower(trim(template))
+          idx = len_trim(aux) - 2
+          if (idx > 0) then
+             if (aux(idx:) == ".in") then
+                otemplate = template(1:idx-1) // trim(vcalc(icalc)%oext)
+                return
+             end if
+          end if
        end if
     end if
-    errmsg = "Could not guess the name of the output files from the template in the dataset (" //&
-       trim(template) // "); give the outputs with TEMPLATE or LIST"
+    errmsg = "Could not guess the name of the output files of the " // vib_calculator_name(icalc) //&
+       " calculator from the template in the dataset (" // trim(template) // "); give the outputs with &
+       &TEMPLATE or LIST (e.g. TEMPLATE run-*/aims.out)"
 
   end subroutine fc2_output_template
 
@@ -1380,16 +1474,19 @@ contains
 
   end subroutine fc2_smat_from_cell
 
-  !> Read the forces on the nat atoms of a supercell from the output
-  !> of a Quantum ESPRESSO calculation, in Hartree/bohr and in the
-  !> atom order of the input. The last force block in the file is
-  !> used. The mean force over the atoms (the drift) is subtracted. If
-  !> error, return non-zero errmsg.
-  subroutine fc2_read_forces(file,nat,f,errmsg,ti)
+  !> Read the forces on the nat atoms of a displaced supercell from an
+  !> output of calculator icalc, in hartree/bohr, and remove the drift
+  !> (the mean force). The header of the force block and the unit
+  !> factor come from the calculator table; the layout of the force
+  !> lines is the only code-specific part. The last force block in the
+  !> file is used (a relaxation writes one per ionic step).
+  subroutine fc2_read_forces(file,nat,f,icalc,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal, isreal, string
+    use param, only: vcalc_qe, vcalc_aims
     character*(*), intent(in) :: file
     integer, intent(in) :: nat
     real*8, intent(out) :: f(3,nat)
+    integer, intent(in) :: icalc
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -1398,10 +1495,16 @@ contains
     real*8 :: fx(3), fmean(3)
     logical :: found, ok
 
-    ! Ry/bohr (QE) to Hartree/bohr
-    real*8, parameter :: fac = 0.5d0
-
     errmsg = ""
+    if (icalc < 1 .or. icalc > vcalc_max) then
+       errmsg = "No calculator set (VIBRATIONS CALCULATOR): the forces are read according to the code &
+          &that produced them"
+       return
+    elseif (len_trim(vcalc(icalc)%fhead) == 0) then
+       errmsg = "Forces cannot be read from " // trim(vcalc(icalc)%name) // " outputs yet (Quantum &
+          &ESPRESSO and FHI-aims only)"
+       return
+    end if
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "Could not open the force file: " // trim(file)
@@ -1410,7 +1513,7 @@ contains
 
     found = .false.
     do while (getline_raw(lu,line))
-       if (index(line,"Forces acting on atoms") == 0) cycle
+       if (index(line,trim(vcalc(icalc)%fhead)) == 0) cycle
 
        n = 0
        do while (getline_raw(lu,line))
@@ -1418,12 +1521,23 @@ contains
              if (n > 0) exit
              cycle
           end if
+          ! the force line of each code, up to the three components
           lp = 1
-          word = lgetword(line,lp)
-          if (.not.equal(word,"atom")) exit
-          lp = index(line,"=")
-          if (lp == 0) exit
-          lp = lp + 1
+          select case (icalc)
+          case (vcalc_qe)
+             ! atom    1 type  1   force =   fx   fy   fz
+             word = lgetword(line,lp)
+             if (.not.equal(word,"atom")) exit
+             lp = index(line,"=")
+             if (lp == 0) exit
+             lp = lp + 1
+          case (vcalc_aims)
+             ! |    1   fx   fy   fz
+             lp = index(line,"|")
+             if (lp == 0) exit
+             lp = lp + 1
+             word = lgetword(line,lp)
+          end select
           ok = isreal(fx(1),line,lp)
           ok = ok .and. isreal(fx(2),line,lp)
           ok = ok .and. isreal(fx(3),line,lp)
@@ -1432,7 +1546,7 @@ contains
              goto 999
           end if
           n = n + 1
-          if (n <= nat) f(:,n) = fx * fac
+          if (n <= nat) f(:,n) = fx * vcalc(icalc)%ffac
        end do
 
        if (n /= nat) then
@@ -1446,8 +1560,8 @@ contains
     lu = -1
 
     if (.not.found) then
-       errmsg = "No force block found in " // trim(file) // ". Only Quantum ESPRESSO outputs &
-          &(with tprnfor) can be read for now"
+       errmsg = "No force block (" // trim(vcalc(icalc)%fhead) // ") found in " // trim(file) //&
+          "; is it a " // trim(vcalc(icalc)%name) // " output with forces?"
        return
     end if
 
@@ -1456,8 +1570,8 @@ contains
        fmean(i) = sum(f(i,1:nat)) / real(nat,8)
        f(i,1:nat) = f(i,1:nat) - fmean(i)
     end do
-
     return
+
 999 continue
     if (lu > 0) call fclose(lu)
 
@@ -1476,7 +1590,8 @@ contains
     use crystalseedmod, only: crystalseed
     use tools_io, only: uout, string, fopen_read, fclose, getline_raw, getword
     use tools_math, only: matinv, eigsym
-    use param, only: bohrtoa
+    use global, only: vib_calculator
+    use param, only: bohrtoa, vcalc_none
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*(*), intent(in) :: dataset
@@ -1488,7 +1603,7 @@ contains
     character(len=mlen), allocatable :: fname(:)
     integer :: nlat, nsat, madj(3,3), nindep, ndisp, nop, smat(3,3)
     integer :: i, j, k, m, ia, is, js, id, ip, iq, io, icv, ier, npad, lu, nf, lp
-    integer :: nd, ns, jmax
+    integer :: nd, ns, jmax, icalc
     real*8 :: gg(3,3), ggev(3,3), eval(3), atb(3,3), dc(3), rr(3,3), blk(3,3), dmax, dist
     logical :: ok
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
@@ -1525,12 +1640,36 @@ contains
        return
     end if
 
+    ! the calculator: the one recorded in the dataset when the
+    ! structures were written; VIBRATIONS CALCULATOR must agree with it
+    ! (and supplies it if the dataset has none)
+    icalc = ds%calc
+    if (icalc == vcalc_none) then
+       icalc = vib_calculator
+    elseif (vib_calculator == vcalc_none) then
+       ! adopt it, so that WRITE_FC2 and the rest of the workflow need
+       ! no CALCULATOR line either
+       vib_calculator = icalc
+       if (verbose) &
+          write (uout,'("+ Calculator taken from the dataset: ",A)') vib_calculator_name(icalc)
+    elseif (vib_calculator /= icalc) then
+       errmsg = "The displaced structures were written for the " // vib_calculator_name(ds%calc) //&
+          " calculator but the current calculator is " // vib_calculator_name(vib_calculator) //&
+          " (VIBRATIONS CALCULATOR)"
+       return
+    end if
+    if (icalc == vcalc_none) then
+       errmsg = "No calculator set: the forces are read according to the code that produced them; use &
+          &VIBRATIONS CALCULATOR (qe, aims) first"
+       return
+    end if
+
     ! where the outputs are: the argument if given, otherwise guessed
     ! from the template of the displaced structures in the dataset
     if (len_trim(file) > 0) then
        file_ = file
     else
-       call fc2_output_template(ds%template,file_,errmsg)
+       call fc2_output_template(ds%template,icalc,file_,errmsg)
        if (len_trim(errmsg) > 0) return
        if (verbose) &
           write (uout,'("  Output files guessed from the dataset template: ",A)') trim(file_)
@@ -1575,13 +1714,13 @@ contains
        write (uout,'("# id  atom  --direction (frac)--  file")')
     end if
     do i = 1, ndisp
-       call fc2_read_forces(fname(i),nsat,fall(:,:,i),errmsg,ti)
+       call fc2_read_forces(fname(i),nsat,fall(:,:,i),icalc,errmsg,ti)
        if (len_trim(errmsg) > 0) return
 
        ! check the geometry in the file is the displacement we think it is;
        ! this catches a wrong supercell, a wrong displacement length, and
        ! files given in the wrong order
-       call fc2_check_disp(fname(i),sc,seed,datom(i),fc2_dispvec(sc,ddir(:,i),dist),&
+       call fc2_check_disp(fname(i),icalc,sc,seed,datom(i),fc2_dispvec(sc,ddir(:,i),dist),&
           jmax,dmax,errmsg,ti)
        if (len_trim(errmsg) > 0) return
        if (jmax /= datom(i) .or. dmax > fc2_epsdisp) then
@@ -1829,30 +1968,28 @@ contains
 
   end subroutine disp_count
 
-  !> Default file name template and format for the displaced
-  !> structures written by create_displacements. If template is not
-  !> empty, it is used as is and the format is detected from its
-  !> extension. Otherwise both are chosen from the source
-  !> file of the structure c: the same or a related format when critic2
-  !> can write it (for instance, a QE output gives QE inputs), and
-  !> FHIaims geometry (geometry.in) otherwise. The root of the name is
-  !> the source file name without its extension (also without a .scf or
-  !> similar QE infix), followed by "-*".
+  !> File name template and format for the displaced structures
+  !> written by create_displacements. If template is not empty, it is
+  !> used as is and the format is detected from its extension.
+  !> Otherwise both come from the current calculator (VIBRATIONS
+  !> CALCULATOR): the root of the name is the source file of the
+  !> structure c without directory and extension (and without a .scf
+  !> or similar QE infix), followed by the calculator's pattern (QE:
+  !> root-*.scf.in; FHI-aims: root-*/geometry.in; ...; vcalc%ext). Calculators
+  !> whose input critic2 cannot write, or no calculator, give
+  !> isformat_w_unknown and an empty template_ (the caller asks for a
+  !> TEMPLATE).
   subroutine disp_default_template(c,template,template_,iwf)
+    use global, only: vib_calculator
     use tools_io, only: lower
-    use param, only: dirsep, isformat_w_qein, isformat_w_vasp,&
-       isformat_w_cif, isformat_w_abinit, isformat_w_elk, isformat_w_siesta_struct,&
-       isformat_w_castepcell, isformat_w_crystal, isformat_w_dftbp_hsd, isformat_w_aimsin,&
-       isformat_r_qein, isformat_r_qeout, isformat_r_vasp, isformat_r_cif, isformat_r_abinit,&
-       isformat_r_elk, isformat_r_siesta, isformat_r_castepcell, isformat_r_castepgeom,&
-       isformat_r_crystal, isformat_r_dmain
+    use param, only: dirsep, isformat_w_unknown, vcalc_none
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: template
     character(len=:), allocatable, intent(out) :: template_
     integer, intent(out) :: iwf
 
-    character(len=:), allocatable :: root, ext
-    integer :: idx, istar
+    character(len=:), allocatable :: root
+    integer :: idx
 
     if (len_trim(template) > 0) then
        ! detect the format from the template, with the * filled in (unknown
@@ -1862,6 +1999,12 @@ contains
        return
     end if
 
+    ! no calculator, or one whose input files cannot be written
+    template_ = ""
+    iwf = isformat_w_unknown
+    if (vib_calculator == vcalc_none) return
+    if (vcalc(vib_calculator)%iwformat == 0) return
+
     ! the root: source file name without directory and extension
     root = trim(c%file)
     idx = index(root,dirsep,back=.true.)
@@ -1869,50 +2012,16 @@ contains
     if (len_trim(root) == 0) root = "supercell"
     idx = index(root,'.',back=.true.)
     if (idx > 1) root = root(1:idx-1)
-
-    ! format and extension from the source format
-    select case (c%isformat)
-    case (isformat_r_qein, isformat_r_qeout)
-       ! drop a .scf/.relax/... infix, so that x.scf.out gives x-*.scf.in
-       idx = index(root,'.',back=.true.)
-       if (idx > 1) then
-          select case (lower(root(idx+1:)))
-          case ("scf","relax","vc-relax","nscf","md","vc-md","pw")
-             root = root(1:idx-1)
-          end select
-       end if
-       ext = ".scf.in"
-       iwf = isformat_w_qein
-    case (isformat_r_vasp)
-       ext = ""
-       iwf = isformat_w_vasp
-    case (isformat_r_cif)
-       ext = ".cif"
-       iwf = isformat_w_cif
-    case (isformat_r_abinit)
-       ext = ".abin"
-       iwf = isformat_w_abinit
-    case (isformat_r_elk)
-       ext = ".elk"
-       iwf = isformat_w_elk
-    case (isformat_r_siesta)
-       ext = ".STRUCT_IN"
-       iwf = isformat_w_siesta_struct
-    case (isformat_r_castepcell, isformat_r_castepgeom)
-       ext = ".cell"
-       iwf = isformat_w_castepcell
-    case (isformat_r_crystal)
-       ext = ".d12"
-       iwf = isformat_w_crystal
-    case (isformat_r_dmain)
-       ext = ".hsd"
-       iwf = isformat_w_dftbp_hsd
-    case default
-       ! FHIaims geometry (also for aims inputs and outputs)
-       ext = ".in"
-       iwf = isformat_w_aimsin
-    end select
-    template_ = root // "-*" // ext
+    ! drop a QE .scf/.relax/... infix, so that x.scf.out gives x-*.scf.in
+    idx = index(root,'.',back=.true.)
+    if (idx > 1) then
+       select case (lower(root(idx+1:)))
+       case ("scf","relax","vc-relax","nscf","md","vc-md","pw")
+          root = root(1:idx-1)
+       end select
+    end if
+    iwf = vcalc(vib_calculator)%iwformat
+    template_ = root // trim(vcalc(vib_calculator)%ext)
 
   end subroutine disp_default_template
 
@@ -2253,9 +2362,9 @@ contains
   end subroutine vibrations_apply_acoustic
 
   !> Write the FC2 to a phonopy FORCE_CONSTANTS file, in the compact
-  !> format and in the units of the given generator (default: qe,
-  !> Ry/bohr^2). If no file is given or if file is empty, use
-  !> FORCE_CONSTANTS. The array written is exactly phonopy's compact
+  !> format and in the units phonopy uses for the current calculator
+  !> (VIBRATIONS CALCULATOR). If no file is given or if file is empty,
+  !> use FORCE_CONSTANTS. The array written is exactly phonopy's compact
   !> force constants for a primitive cell equal to the current cell, so
   !> it can be compared directly against phonopy's own output.
   module subroutine vibrations_write_fc2(v,c,sline,verbose,errmsg)
@@ -2277,39 +2386,35 @@ contains
        return
     end if
 
+    ! the units of the file: those of the calculator
+    iunitfc = fc2_calc_unit(errmsg)
+    if (len_trim(errmsg) > 0) return
+
     ! The file name: the first word, unless it is one of the options,
     ! in which case phonopy's default name is used.
     lp = 1
-    if (fc2_unit_index(sline) /= 0) then
+    lp0 = lp
+    word = lgetword(sline,lp0)
+    if (fc2_is_units_word(word)) then
+       errmsg = "WRITE_FC2 takes no units: they are those of the calculator (VIBRATIONS CALCULATOR)"
+       return
+    end if
+    if (len_trim(word) == 0 .or. equal(word,"full")) then
        file_ = "FORCE_CONSTANTS"
     else
-       lp0 = lp
-       word = lgetword(sline,lp0)
-       if (len_trim(word) == 0 .or. equal(word,"full")) then
-          file_ = "FORCE_CONSTANTS"
-       else
-          file_ = getword(sline,lp)
-       end if
+       file_ = getword(sline,lp)
     end if
 
-    ! options: the units of the file (Ry/bohr^2 by default, phonopy's
-    ! units for Quantum ESPRESSO) and whether to write the full array
-    iunitfc = 3
+    ! options: whether to write the full array
     full_ = .false.
     do while (.true.)
-       lp0 = lp
-       k = fc2_unit_index(sline,lp)
-       if (k > 0) then
-          iunitfc = k
-          cycle
-       elseif (k < 0) then
-          errmsg = "Unknown force-constant units in UNITS; known units are " // fc2_unitlist
-          return
-       end if
        word = lgetword(sline,lp)
        if (len_trim(word) == 0) exit
        if (equal(word,"full")) then
           full_ = .true.
+       elseif (fc2_is_units_word(word)) then
+          errmsg = "WRITE_FC2 takes no units: they are those of the calculator (VIBRATIONS CALCULATOR)"
+          return
        else
           errmsg = "Unknown keyword in WRITE_FC2: " // trim(word)
           return
@@ -4406,15 +4511,12 @@ contains
 
   end subroutine read_phonopy_hdf5
 
-  !> Read the force constants from a phonopy FORCE_CONSTANTS file and
-  !> populate v. Use the structure information in the crystal
-  !> structure c. If error, return non-zero errmsg.
   !> Read the 2nd-order force constants from a phonopy FORCE_CONSTANTS
   !> file (text format) and return them in v, for the crystal structure
-  !> c, which must be the unit cell phonopy was run with. sline carries
-  !> the options from the VIBRATIONS LOAD line: a mandatory generator
-  !> keyword (the code that wrote the file, which fixes the units), an
-  !> optional supercell specification (one integer for an n x n x n
+  !> c, which must be the unit cell phonopy was run with. The units are
+  !> those of the current calculator (VIBRATIONS CALCULATOR). sline
+  !> carries the options from the VIBRATIONS LOAD_FC2 line: an optional
+  !> supercell specification (one integer for an n x n x n
   !> supercell, three for a diagonal one, nine for a general one in the
   !> NEWCELL order, or in phonopy's DIM order if the keyword PHONOPY is
   !> also given; or the name of a file containing the supercell;
@@ -4445,7 +4547,7 @@ contains
 
     character(len=:), allocatable :: word, line, scfile, file_
     integer :: lu, lp, lp0, i, j, ia, il, ip, jp, is, js, iap, ilp, irow, idum
-    integer :: iunitfc, iun, ndim, nlat, nsat, nrow, n1, n2, ierr
+    integer :: iunitfc, ndim, nlat, nsat, nrow, n1, n2, ierr
     integer :: smat(3,3), madj(3,3), idim(9)
     real*8 :: fc2factor, rmat(3,3), dev
     real*8 :: t(3), xsc(3), dx(3)
@@ -4464,6 +4566,11 @@ contains
        return
     end if
 
+    ! the units of the file: those of the calculator
+    iunitfc = fc2_calc_unit(errmsg)
+    if (len_trim(errmsg) > 0) return
+    fc2factor = fc2_unit_factor(iunitfc)
+
     ! The file name. It is empty when the FC2 keyword was used: then
     ! the first word of the option string is the file name, unless it
     ! is one of the options, in which case phonopy's default name is
@@ -4471,21 +4578,21 @@ contains
     lp = 1
     file_ = file
     if (len_trim(file_) == 0) then
-       if (fc2_unit_index(sline) /= 0) then
+       lp0 = lp
+       word = lgetword(sline,lp0)
+       if (fc2_is_units_word(word)) then
+          errmsg = "LOAD_FC2 takes no units: they are those of the calculator (VIBRATIONS CALCULATOR)"
+          return
+       end if
+       if (len_trim(word) == 0 .or. equal(word,"phonopy") .or. equal(word,"asr") .or.&
+          equal(word,"acoustic") .or. equal(word,"acoustic_sum_rules")) then
           file_ = "FORCE_CONSTANTS"
        else
           lp0 = lp
-          word = lgetword(sline,lp0)
-          if (len_trim(word) == 0 .or. equal(word,"phonopy") .or. equal(word,"asr") .or.&
-             equal(word,"acoustic") .or. equal(word,"acoustic_sum_rules")) then
+          if (isinteger(idum,sline,lp0)) then
              file_ = "FORCE_CONSTANTS"
           else
-             lp0 = lp
-             if (isinteger(idum,sline,lp0)) then
-                file_ = "FORCE_CONSTANTS"
-             else
-                file_ = getword(sline,lp)
-             end if
+             file_ = getword(sline,lp)
           end if
        end if
     end if
@@ -4493,7 +4600,6 @@ contains
 
     ! supercell specification and options, in any order
     ndim = 0
-    iunitfc = 0
     haveseed = .false.
     doasr = .false.
     phonopydim = .false.
@@ -4509,24 +4615,17 @@ contains
           cycle
        end if
 
-       ! the units of the file: mandatory, the file does not carry them
-       iun = fc2_unit_index(sline,lp)
-       if (iun > 0) then
-          iunitfc = iun
-          cycle
-       elseif (iun < 0) then
-          errmsg = "Unknown force-constant units in UNITS; known units are " // fc2_unitlist
-          goto 999
-       end if
-
        word = lgetword(sline,lp)
        if (len_trim(word) == 0) exit
        if (equal(word,"asr").or.equal(word,"acoustic").or.equal(word,"acoustic_sum_rules")) then
           doasr = .true.
        elseif (equal(word,"phonopy")) then
           phonopydim = .true.
+       elseif (fc2_is_units_word(word)) then
+          errmsg = "LOAD_FC2 takes no units: they are those of the calculator (VIBRATIONS CALCULATOR)"
+          goto 999
        elseif (haveseed) then
-          errmsg = "Unknown keyword in VIBRATIONS LOAD (FORCE_CONSTANTS): " // trim(word)
+          errmsg = "Unknown keyword in VIBRATIONS LOAD_FC2: " // trim(word)
           goto 999
        else
           ! the supercell, read from a structure file
@@ -4535,14 +4634,6 @@ contains
           haveseed = .true.
        end if
     end do
-    if (iunitfc == 0) then
-       errmsg = "The units of the force constants are required: give the code that wrote the file &
-          &(vasp, qe, aims, alamode, ...) or UNITS followed by the units themselves (" //&
-          fc2_unitlist // ")"
-       goto 999
-    end if
-    fc2factor = fc2_unit_factor(iunitfc)
-
     ! build the supercell matrix (rows = supercell lattice vectors, in
     ! units of the cell vectors; this is phonopy's convention)
     smat = 0
@@ -4828,51 +4919,77 @@ contains
 
   end subroutine fc2_lattice_points
 
-  !> Index (in fc2_unitname) of the units of a force-constant file,
-  !> named at position lp of sline: either the code that wrote the file
-  !> (vasp, qe, aims, ...), the units themselves (eV/ang^2,
-  !> Ry/bohr^2, ...), or the keyword UNITS followed by either of the
-  !> two. Returns zero if the word is neither, and -1 if UNITS is
-  !> followed by something unknown. If lp is present, the search starts
-  !> there and lp is advanced past the words consumed (left untouched
-  !> if the result is zero).
-  function fc2_unit_index(sline,lp) result(iunit)
-    use tools_io, only: lgetword, equal, lower
-    character*(*), intent(in) :: sline
-    integer, intent(inout), optional :: lp
+  !> Units (index in fc2_unitname) of the phonopy FORCE_CONSTANTS files
+  !> of the current calculator (VIBRATIONS CALCULATOR); non-empty
+  !> errmsg and 0 if no calculator has been set.
+  function fc2_calc_unit(errmsg) result(iunit)
+    use global, only: vib_calculator
+    use param, only: vcalc_none
+    character(len=:), allocatable, intent(out) :: errmsg
     integer :: iunit
 
-    integer :: i, lp_
-    logical :: haveunits
-    character(len=:), allocatable :: word
-
+    errmsg = ""
     iunit = 0
-    lp_ = 1
-    if (present(lp)) lp_ = lp
-    word = lgetword(sline,lp_)
-    haveunits = equal(word,"units")
-    if (haveunits) word = lgetword(sline,lp_)
+    if (vib_calculator == vcalc_none) then
+       errmsg = "No calculator set: the force-constant units are those of the code that wrote the &
+          &file, so use VIBRATIONS CALCULATOR (qe, aims, vasp, ...) first"
+       return
+    end if
+    iunit = vcalc(vib_calculator)%iunit
 
-    do i = 1, fc2_ngen
-       if (equal(word,trim(fc2_genname(i)))) then
-          iunit = fc2_genunit(i)
-          if (present(lp)) lp = lp_
-          return
-       end if
-    end do
+  end function fc2_calc_unit
+
+  !> Is word one of the words of the units syntax LOAD_FC2 and
+  !> WRITE_FC2 used to take (a calculator name, a unit name or UNITS)?
+  !> Used to refuse it with a message pointing at CALCULATOR.
+  function fc2_is_units_word(word)
+    use tools_io, only: lower, equal
+    use param, only: vcalc_none
+    character*(*), intent(in) :: word
+    logical :: fc2_is_units_word
+
+    integer :: i
+
+    fc2_is_units_word = (vib_calculator_from_name(word) /= vcalc_none) .or. equal(lower(word),"units")
     do i = 1, fc2_nunit
-       if (equal(word,lower(trim(fc2_unitname(i))))) then
-          iunit = i
-          if (present(lp)) lp = lp_
+       if (equal(lower(word),lower(trim(fc2_unitname(i))))) fc2_is_units_word = .true.
+    end do
+
+  end function fc2_is_units_word
+
+  !> The calculator id (vcalc_* in param) named by word (any of the
+  !> accepted names in the table, case-insensitive), or vcalc_none if
+  !> the name is not known.
+  module function vib_calculator_from_name(word) result(id)
+    use tools_io, only: lower
+    use param, only: vcalc_none
+    character*(*), intent(in) :: word
+    integer :: id
+
+    integer :: i
+
+    id = vcalc_none
+    do i = 1, vcalc_max
+       if (index(" " // trim(vcalc(i)%syn) // " "," " // lower(trim(word)) // " ") > 0) then
+          id = i
           return
        end if
     end do
-    if (haveunits) then
-       iunit = -1
-       if (present(lp)) lp = lp_
+
+  end function vib_calculator_from_name
+
+  !> The name of calculator id ("none" for vcalc_none).
+  module function vib_calculator_name(id) result(name)
+    integer, intent(in) :: id
+    character(len=:), allocatable :: name
+
+    if (id >= 1 .and. id <= vcalc_max) then
+       name = trim(vcalc(id)%name)
+    else
+       name = "none"
     end if
 
-  end function fc2_unit_index
+  end function vib_calculator_name
 
   !> Factor that converts force constants in the units iunit (an index
   !> into fc2_unitname) to the internal units (Hartree/bohr^2).

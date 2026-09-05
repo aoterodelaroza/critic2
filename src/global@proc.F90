@@ -838,6 +838,7 @@ contains
   !> Set the default values for all the global variables
   module subroutine global_set_defaults()
     use meshmod, only: mesh_type_franchini, mesh_level_good
+    use param, only: vcalc_none
 
     ! global flags
     precisecube = .true.
@@ -853,6 +854,9 @@ contains
     ! units
     iunit = iunit_bohr
     iunit_isdef = .true.
+
+    ! vibrations calculator
+    vib_calculator = vcalc_none
 
     ! navigation
     NAV_stepper = NAV_stepper_bs

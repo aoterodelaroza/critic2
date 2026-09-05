@@ -3935,12 +3935,13 @@ contains
   !> VIBRATIONS ... ENDVIBRATIONS environment); this allows several
   !> operations on the same vibration data in one keyword.
   module subroutine struct_vibrations(s,line0,verbose)
-    use global, only: eval_next, dunit0, iunit, iunitname0
+    use global, only: eval_next, dunit0, iunit, iunitname0, vib_calculator
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
        equal, isinteger, string, ioj_right, fopen_write, fclose, warning
-    use crystalmod, only: supercell_matrix_from_ints, nice_cell
+    use crystalmod, only: supercell_matrix_from_ints, nice_cell, vib_calculator_from_name,&
+       vib_calculator_name
     use types, only: realloc
-    use param, only: ivformat_unknown, ivformat_phonopy_fc2
+    use param, only: ivformat_unknown, ivformat_phonopy_fc2, vcalc_none
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line0
     logical, intent(in) :: verbose
@@ -4005,10 +4006,25 @@ contains
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
+       elseif (equal(word,'calculator')) then
+          ! the electronic structure code: force-constant units, force
+          ! outputs and default input format all follow from it
+          mode = lgetword(line,lp)
+          if (len_trim(mode) == 0) &
+             call ferror('struct_vibrations','CALCULATOR needs the name of the code (qe, aims, vasp, ...)',&
+                faterr,line,syntax=.true.)
+          i = vib_calculator_from_name(mode)
+          if (i == vcalc_none) &
+             call ferror('struct_vibrations','unknown calculator: ' // trim(mode),faterr,line,syntax=.true.)
+          vib_calculator = i
+          if (verbose) &
+             write (uout,'("+ Calculator set to: ",A)') vib_calculator_name(i)
+
        elseif (equal(word,'load_fc2')) then
           ! load a phonopy FORCE_CONSTANTS file. The file name is
           ! optional (it defaults to FORCE_CONSTANTS) and is resolved
-          ! by the reader, together with the units and the supercell.
+          ! by the reader, together with the supercell; the units are
+          ! those of the calculator.
           sline = line(lp:)
           call s%c%vib%read_file(s%c,"",sline,ivformat_phonopy_fc2,errmsg)
           if (len_trim(errmsg) > 0) &

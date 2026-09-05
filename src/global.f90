@@ -127,6 +127,10 @@ module global
   ! symmetry precision (spglib)
   real*8 :: symprec = 1d-2
 
+  ! electronic structure code for VIBRATIONS (vcalc_* in param, set
+  ! with VIBRATIONS CALCULATOR; none by default)
+  integer :: vib_calculator = 0
+
   ! A molecule/crystal is considered small if they have less than this
   ! number of atoms in the cell (skips symmetry detection).
   integer :: crsmall = 2000

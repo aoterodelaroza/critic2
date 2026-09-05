@@ -53,6 +53,7 @@ module tools_io
   public :: fopen_append
   public :: fopen_scratch
   public :: fclose
+  public :: mkpath
   public :: falloc
   public :: fdealloc
   public :: ferror
@@ -305,6 +306,10 @@ module tools_io
      module subroutine fclose(lu)
        integer, intent(in) :: lu
      end subroutine fclose
+     module subroutine mkpath(path,errmsg)
+       character*(*), intent(in) :: path
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine mkpath
      module function falloc(ti)
        type(thread_info), intent(in), optional :: ti
        integer :: falloc

@@ -39,7 +39,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   tools_io@proc.F90 wfn_private@proc.F90
   "${CMAKE_CURRENT_BINARY_DIR}/config@proc.F90"
   )
-set(SOURCES_C doqhull.c)
+set(SOURCES_C doqhull.c mkdir_c.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES_Fortran_Library libcritic2.f90 libcritic2@proc.f90)
 

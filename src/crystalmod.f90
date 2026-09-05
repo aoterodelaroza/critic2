@@ -153,6 +153,8 @@ module crystalmod
   public :: vibrations
   public :: nmer_name
   public :: supercell_matrix_from_ints
+  public :: vib_calculator_from_name
+  public :: vib_calculator_name
 
   ! The molecular point group class.
 
@@ -932,6 +934,14 @@ module crystalmod
        logical, intent(out) :: flipped
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine supercell_matrix_from_ints
+     module function vib_calculator_from_name(word) result(id)
+       character*(*), intent(in) :: word
+       integer :: id
+     end function vib_calculator_from_name
+     module function vib_calculator_name(id) result(name)
+       integer, intent(in) :: id
+       character(len=:), allocatable :: name
+     end function vib_calculator_name
      module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: smat0(3,3)
