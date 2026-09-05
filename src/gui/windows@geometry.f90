@@ -211,8 +211,8 @@ contains
        w%geometry_cell_cen = 1
        w%geometry_cell_origin = 0d0
        w%geometry_cell_inice = 10
-       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
-       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+       w%geometry_cell_mindisp = .false.
+       call clear_nice_results()
        call clear_sym_cache()
     end if
 
@@ -278,8 +278,11 @@ contains
        ! system selection and force the window cache to be rebuilt
        call sysc(isys)%highlight_clear(.false.)
        call clear_highlights_table()
-       ! the symmetry-vs-epsilon analysis is now stale
+       ! the symmetry-vs-epsilon analysis and the nice-supercell search
+       ! (its symmetry counts depend on the operations and the atoms)
+       ! are now stale
        call clear_sym_cache()
+       call clear_nice_results()
     end if
 
     ! system combo. The atoms tab opens by default and whenever another
@@ -1064,23 +1067,40 @@ contains
              ! nice supercell search
              call iw_text("Nice supercells",highlight=.true.)
              call iw_helpermark(&
-                "For a given n, search for the supercell containing n primitive cells that "//&
+                "For a given n, search for the supercell containing n current cells that "//&
                 "fits inside the largest possible sphere (with radius rmax). The niceness is defined as the "//&
                 "ratio between the radius of the inscribed sphere and the maximum possible "//&
                 "ratio, equal to that of a cubic cell. Select the maximum value of n "//&
                 "and click search to find all the transformations (expensive for large maximum "//&
-                "values). Click on any of the table rows to effect the transformation.")
+                "values). Supercells related by a symmetry "//&
+                "operation of the crystal are considered only once, and among equally nice supercells "//&
+                "the one keeping the most symmetry operations is chosen. With MINDISP, the supercell "//&
+                "of each size that needs the fewest displaced structures in a finite-difference "//&
+                "phonon calculation (VIBRATIONS CREATE_DISPLACEMENTS) is chosen instead, the nicest "//&
+                "one if several tie; the table then also shows the number of symmetry operations "//&
+                "of the crystal compatible with the supercell (Nops) and the number of displaced "//&
+                "structures (Ndisp). A supercell keeps only the operations that map its lattice onto "//&
+                "itself, and fewer operations means more displacements, so the MINDISP choice can be "//&
+                "much less nice than the default, and its search is slower for large low-symmetry "//&
+                "cells. Click on any of the table rows to effect the transformation.")
              ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int,&
                 tooltip="Maximum supercell size (number of times the current cell) to consider in the search")
+             ! the criterion changed: the results (and the columns) would no longer match it
+             if (iw_checkbox("MINDISP##cellnicemindisp",w%geometry_cell_mindisp,sameline=.true.)) &
+                call clear_nice_results()
+             call iw_tooltip("Choose, for each size, the supercell with the fewest phonon displacements&
+                & (the nicest if several tie) instead of the nicest supercell (slower for large&
+                & low-symmetry cells)",ttshown)
              if (iw_button("Search##cellnicesearch",sameline=.true.)) then
                 w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
-                call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&
-                   w%geometry_cell_nice_rmax,w%geometry_cell_nice_mmax)
+                w%errmsg = ""
+                call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),w%geometry_cell_mindisp,&
+                   w%geometry_cell_nice,w%errmsg)
              end if
-             call iw_tooltip("Search for the nicest shells up to the indicated&
+             call iw_tooltip("Search for the nicest supercells up to the indicated&
                 & maximum size (can be expensive)",ttshown)
 
-             if (allocated(w%geometry_cell_nice_rmax)) then
+             if (allocated(w%geometry_cell_nice)) then
                 flags = ImGuiTableFlags_RowBg
                 flags = ior(flags,ImGuiTableFlags_Borders)
                 flags = ior(flags,ImGuiTableFlags_ScrollY)
@@ -1088,17 +1108,26 @@ contains
                 str1 = "##cellnicetable" // c_null_char
                 sz0%x = iw_calcwidth(2,1) + iw_calcwidth(8,1) + iw_calcwidth(8,1) + iw_calcwidth(27,1) +&
                    g%Style%ScrollbarSize + 4._c_float
+                ncol = 4
+                if (w%geometry_cell_mindisp) then
+                   ncol = 6
+                   sz0%x = sz0%x + iw_calcwidth(5,1) + iw_calcwidth(5,1)
+                end if
                 sz0%y = igGetFrameHeight() + 11._c_float * (igGetTextLineHeight() + 2._c_float*g%Style%CellPadding%y)
-                if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+                if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
                    call iw_table_column("n",id=0)
                    call iw_table_column("Rmax (Å)",id=1)
                    call iw_table_column("Niceness",id=2)
-                   call iw_table_column("Transformation",id=3)
+                   if (w%geometry_cell_mindisp) then
+                      call iw_table_column("Nops",id=3)
+                      call iw_table_column("Ndisp",id=4)
+                   end if
+                   call iw_table_column("Transformation",id=ncol-1)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
 
-                   do i = 1, size(w%geometry_cell_nice_rmax,1)
-                      if (w%geometry_cell_nice_rmax(i) <= 0d0) cycle
+                   do i = 1, size(w%geometry_cell_nice,1)
+                      if (w%geometry_cell_nice(i)%r <= 0d0) cycle
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
 
                       ! clickable row spanning all columns: apply this supercell
@@ -1107,20 +1136,26 @@ contains
                          if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
                             ImGuiSelectableFlags_SpanAllColumns,szero)) then
                             iaction = iaction_transform_matrix
-                            iaction_m = w%geometry_cell_nice_mmax(:,:,i)
+                            iaction_m = real(w%geometry_cell_nice(i)%m,8)
                             iaction_x = 0d0
                             iaction_l = .false.
                          end if
                       end if
                       if (igTableSetColumnIndex(1)) &
-                         call iw_text(string(w%geometry_cell_nice_rmax(i)*bohrtoa,'f',7,3))
+                         call iw_text(string(w%geometry_cell_nice(i)%r*bohrtoa,'f',7,3))
                       if (igTableSetColumnIndex(2)) &
-                         call iw_text(string(8d0*w%geometry_cell_nice_rmax(i)**3/(i*sys(isys)%c%omega),'f',7,5))
-                      if (igTableSetColumnIndex(3)) then
+                         call iw_text(string(8d0*w%geometry_cell_nice(i)%r**3/(i*sys(isys)%c%omega),'f',7,5))
+                      if (w%geometry_cell_mindisp) then
+                         if (igTableSetColumnIndex(3)) &
+                            call iw_text(string(w%geometry_cell_nice(i)%nops))
+                         if (igTableSetColumnIndex(4)) &
+                            call iw_text(string(w%geometry_cell_nice(i)%ndisp))
+                      end if
+                      if (igTableSetColumnIndex(ncol-1)) then
                          s = ""
                          do im = 1, 3
                             do jm = 1, 3
-                               s = s // string(nint(w%geometry_cell_nice_mmax(jm,im,i)),length=3,justify=ioj_right)
+                               s = s // string(w%geometry_cell_nice(i)%m(jm,im),length=3,justify=ioj_right)
                             end do
                          end do
                          call iw_text(s)
@@ -2204,14 +2239,10 @@ contains
 
     elseif (iaction == iaction_transform_cell) then
        call sysc(isys)%transform_cell(iaction_i1,.false.,errmsg=w%errmsg)
-       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
-       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_transform_matrix) then
        call sysc(isys)%transform_cell_matrix(iaction_m,iaction_x,iaction_l,errmsg=w%errmsg)
-       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
-       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_sym_recalc) then
@@ -2224,10 +2255,6 @@ contains
 
     elseif (iaction == iaction_sym_refine) then
        call sysc(isys)%refine_symmetry(w%errmsg)
-       ! refine changes the cell metric and atomic positions, so the
-       ! nice-supercell search results are stale
-       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
-       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_sym_wholemols) then
@@ -2312,8 +2339,7 @@ contains
       w%lastselected = 0
 
       ! remove the cached cell-transformation data and reorder the table
-      if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
-      if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+      call clear_nice_results()
       call clear_sym_cache()
       call reset_sort()
 
@@ -2554,6 +2580,14 @@ contains
       end if
 
     end subroutine symop_display_and_buttons
+
+    ! deallocate the results of the nice-supercell search (stale after
+    ! any change of the cell)
+    subroutine clear_nice_results()
+
+      if (allocated(w%geometry_cell_nice)) deallocate(w%geometry_cell_nice)
+
+    end subroutine clear_nice_results
 
     ! deallocate the cached symmetry data (operations table, selection, and the
     ! symmetry-vs-epsilon analysis arrays), so they are rebuilt on next use

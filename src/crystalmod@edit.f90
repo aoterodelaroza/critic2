@@ -1055,6 +1055,65 @@ contains
     end function recip
   end subroutine cell_nice_list
 
+  !> Choose among the candidate supercells of one size given by
+  !> cell_nice_list (cand, sorted by decreasing niceness; the
+  !> displacement counts are filled in here as needed with
+  !> disp_count). icrit = 0: the nicest cell, ties (radii equal to
+  !> rounding) going to the most symmetric and then to the fewest
+  !> displacements. icrit = 1 (MINDISP): the nicest cell among those
+  !> with the fewest displacements of this size, ties going to the most
+  !> symmetric. Returns the index of the choice (0 if there are no
+  !> candidates).
+  module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg)
+    class(crystal), intent(inout) :: c
+    type(nice_cell), intent(inout) :: cand(:)
+    integer, intent(in) :: icrit
+    integer, intent(out) :: ibest
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: k, klast, nopsmax, smat(3,3)
+    logical :: rtie
+
+    errmsg = ""
+    ibest = 0
+    if (size(cand,1) < 1) return
+
+    ! the eligible candidates: all of them (MINDISP) or the nicest ones,
+    ! within rounding of the first, with the most operations
+    klast = size(cand,1)
+    nopsmax = 0
+    if (icrit /= 1) then
+       klast = 1
+       do while (klast < size(cand,1))
+          if (abs(cand(klast+1)%r - cand(1)%r) > 1d-8 * cand(1)%r) exit
+          klast = klast + 1
+       end do
+       nopsmax = maxval(cand(1:klast)%nops)
+    end if
+
+    do k = 1, klast
+       if (cand(k)%nops < nopsmax) cycle
+       if (cand(k)%ndisp < 0) then
+          smat = transpose(cand(k)%m)
+          call c%disp_count(smat,cand(k)%ndisp,cand(k)%nindep,errmsg)
+          if (len_trim(errmsg) > 0) return
+       end if
+       ! the candidates come sorted by decreasing niceness, so the
+       ! earlier of two is at least as nice: a later one wins only with
+       ! fewer displacements, or the same number and more operations at
+       ! the same niceness (within rounding)
+       if (ibest == 0) then
+          ibest = k
+       else
+          rtie = abs(cand(k)%r - cand(ibest)%r) < 1d-8 * cand(ibest)%r
+          if (cand(k)%ndisp < cand(ibest)%ndisp .or. (cand(k)%ndisp == cand(ibest)%ndisp .and. &
+             rtie .and. cand(k)%nops > cand(ibest)%nops)) ibest = k
+       end if
+    end do
+
+  end subroutine cell_nice_select
+
+
   !> Create a new structure by reordering the atoms in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).

@@ -20,7 +20,6 @@ submodule (struct_drivers) proc
   implicit none
 
   !xx! private routines
-  ! subroutine nice_select(c,cand,icrit,ibest,errmsg)
   ! subroutine struct_comparevc_vcpwdf(s,line)
   ! subroutine struct_comparevc_vcgpwdf(s,line)
 
@@ -2287,65 +2286,6 @@ contains
 
   end subroutine struct_comparevc
 
-  !> Choose among the candidate supercells of one size given by
-  !> cell_nice_list (cand, sorted by decreasing niceness; the
-  !> displacement counts are filled in here as needed with
-  !> disp_count). icrit = 0: the nicest cell, ties (radii equal to
-  !> rounding) going to the most symmetric and then to the fewest
-  !> displacements. icrit = 1 (MINDISP): the nicest cell among those
-  !> with the fewest displacements of this size, ties going to the most
-  !> symmetric. Returns the index of the choice (0 if there are no
-  !> candidates).
-  subroutine nice_select(c,cand,icrit,ibest,errmsg)
-    use crystalmod, only: crystal, nice_cell
-    type(crystal), intent(inout) :: c
-    type(nice_cell), intent(inout) :: cand(:)
-    integer, intent(in) :: icrit
-    integer, intent(out) :: ibest
-    character(len=:), allocatable, intent(out) :: errmsg
-
-    integer :: k, klast, nopsmax, smat(3,3)
-    logical :: better, nicer, rtie
-
-    errmsg = ""
-    ibest = 0
-    if (size(cand,1) < 1) return
-
-    ! the eligible candidates: all of them (MINDISP) or the nicest ones,
-    ! within rounding of the first, with the most operations
-    klast = size(cand,1)
-    nopsmax = 0
-    if (icrit /= 1) then
-       klast = 1
-       do while (klast < size(cand,1))
-          if (abs(cand(klast+1)%r - cand(1)%r) > 1d-8 * cand(1)%r) exit
-          klast = klast + 1
-       end do
-       nopsmax = maxval(cand(1:klast)%nops)
-    end if
-
-    do k = 1, klast
-       if (cand(k)%nops < nopsmax) cycle
-       if (cand(k)%ndisp < 0) then
-          smat = transpose(cand(k)%m)
-          call c%disp_count(smat,cand(k)%ndisp,cand(k)%nindep,errmsg)
-          if (len_trim(errmsg) > 0) return
-       end if
-       if (ibest == 0) then
-          better = .true.
-       elseif (icrit == 1) then
-          rtie = abs(cand(k)%r - cand(ibest)%r) < 1d-8 * cand(ibest)%r
-          nicer = cand(k)%r > cand(ibest)%r .and. .not.rtie
-          better = (cand(k)%ndisp < cand(ibest)%ndisp) .or. (cand(k)%ndisp == cand(ibest)%ndisp .and. &
-             (nicer .or. (rtie .and. cand(k)%nops > cand(ibest)%nops)))
-       else
-          better = (cand(k)%ndisp < cand(ibest)%ndisp)
-       end if
-       if (better) ibest = k
-    end do
-
-  end subroutine nice_select
-
   !> COMPAREVC: vcpwdf version. Transform both cells to the primitive, then
   !> calculate the deformation that brings one into agreement with the other.
   !> Returns the minimal powder diffraction pattern (de Gelder) overlap. See:
@@ -3872,7 +3812,7 @@ contains
        if (icrit > 0) srmax0 = "rmax0   "
        write (uout,'("#n   rmax   niceness  ",A,"nops nindep ndisp  -- NEWCELL transformation --")') srmax0
        do i = 1, inice
-          call nice_select(s%c,cand(ic0(i)+1:ic0(i)+nc(i)),icrit,ibest,errmsg)
+          call s%c%cell_nice_select(cand(ic0(i)+1:ic0(i)+nc(i)),icrit,ibest,errmsg)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_newcell",errmsg,faterr)
           if (ibest == 0) cycle
@@ -4164,7 +4104,7 @@ contains
              call s%c%cell_nice_list(inice,nc,ic0,cand,errmsg,nmin=inice)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
-             call nice_select(s%c,cand(ic0(inice)+1:ic0(inice)+nc(inice)),icrit,ibest,errmsg)
+             call s%c%cell_nice_select(cand(ic0(inice)+1:ic0(inice)+nc(inice)),icrit,ibest,errmsg)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
              if (ibest == 0) &

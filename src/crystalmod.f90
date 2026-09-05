@@ -343,6 +343,7 @@ module crystalmod
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: cell_nice_list !< Search for nice supercells of increasing size
+     procedure :: cell_nice_select !< Choose among the nice supercells of one size
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
      procedure :: reorder_molecules !< reorder the molecular fragments in the crystal/molecule
      procedure :: reorder_species !< reorder the species in the crystal/molecule
@@ -990,6 +991,13 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(in), optional :: nmin
      end subroutine cell_nice_list
+     module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg)
+       class(crystal), intent(inout) :: c
+       type(nice_cell), intent(inout) :: cand(:)
+       integer, intent(in) :: icrit
+       integer, intent(out) :: ibest
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine cell_nice_select
      module subroutine reorder_atoms(c,iperm,isnneq,errmsg,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)

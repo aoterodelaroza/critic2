@@ -637,11 +637,13 @@ module systems
        logical, intent(in) :: doinv
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine transform_cell_matrix
-     module subroutine cell_nice_list(sysc,inice,rmax,mmax)
+     module subroutine cell_nice_list(sysc,inice,mindisp,best,errmsg)
+       use crystalmod, only: nice_cell
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: inice
-       real*8, allocatable, intent(out) :: rmax(:)
-       real*8, allocatable, intent(out) :: mmax(:,:,:)
+       logical, intent(in) :: mindisp
+       type(nice_cell), allocatable, intent(out) :: best(:)
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine cell_nice_list
      module subroutine recalc_symmetry(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc

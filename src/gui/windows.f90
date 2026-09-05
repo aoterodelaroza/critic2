@@ -17,6 +17,7 @@
 
 ! The class to handle ImGui windows.
 module windows
+  use crystalmod, only: nice_cell
   use iso_c_binding
   use representations, only: representation
   use scenes, only: scene
@@ -609,8 +610,8 @@ module windows
      integer :: geometry_cell_cen(3) = 1 ! per-row centering index added to the full transformation matrix (1 = zero centering)
      real*8 :: geometry_cell_origin(3) = 0d0 ! origin shift for the matrix transformation
      integer(c_int) :: geometry_cell_inice = 10 ! maximum supercell size for the nice cell search
-     real*8, allocatable :: geometry_cell_nice_rmax(:) ! inscribed-sphere radii from the nice search
-     real*8, allocatable :: geometry_cell_nice_mmax(:,:,:) ! transformation matrices from the nice search
+     logical :: geometry_cell_mindisp = .false. ! nice search: fewest phonon displacements first (MINDISP)
+     type(nice_cell), allocatable :: geometry_cell_nice(:) ! nice search results, one cell per size (r = 0: none)
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
      real*8, allocatable :: geometry_sym_axes(:,:) ! cached rotation axes (crystallographic coordinates)

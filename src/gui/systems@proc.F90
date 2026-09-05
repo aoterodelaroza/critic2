@@ -3545,21 +3545,23 @@ contains
 
   end subroutine transform_cell_matrix
 
-  !> Read-only passthrough to crystal%cell_nice_list: search for nice
-  !> supercells of increasing size up to inice times the input cell and
-  !> return the inscribed-sphere radii (rmax) and transformation matrices
-  !> (mmax) for the nicest cell of each size.
-  module subroutine cell_nice_list(sysc,inice,rmax,mmax)
+  !> Passthrough to crystal%cell_nice_list and cell_nice_select: search
+  !> the supercells of increasing size up to inice times the input cell
+  !> and return, for each size, the chosen cell (best(n)): the nicest,
+  !> or with mindisp the nicest among those with the fewest phonon
+  !> displacements. Sizes with no cell have best(n)%r = 0. On error,
+  !> best is left unallocated and errmsg is set.
+  module subroutine cell_nice_list(sysc,inice,mindisp,best,errmsg)
     use crystalmod, only: nice_cell
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: inice
-    real*8, allocatable, intent(out) :: rmax(:)
-    real*8, allocatable, intent(out) :: mmax(:,:,:)
+    logical, intent(in) :: mindisp
+    type(nice_cell), allocatable, intent(out) :: best(:)
+    character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: n
+    integer :: n, ibest
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
-    character(len=:), allocatable :: errmsg
 
     integer :: isys
 
@@ -3567,15 +3569,17 @@ contains
     if (.not.ok_system(isys,sys_init)) return
     if (sys(isys)%c%ismolecule) return
 
-    ! the GUI wants the nicest cell of each size (the first candidate)
     call sys(isys)%c%cell_nice_list(inice,nc,ic0,cand,errmsg)
-    allocate(rmax(inice),mmax(3,3,inice))
-    rmax = 0d0
-    mmax = 0d0
+    if (has_errmsg(errmsg)) return
+    allocate(best(inice))
     do n = 1, inice
        if (nc(n) < 1) cycle
-       rmax(n) = cand(ic0(n)+1)%r
-       mmax(:,:,n) = real(cand(ic0(n)+1)%m,8)
+       call sys(isys)%c%cell_nice_select(cand(ic0(n)+1:ic0(n)+nc(n)),merge(1,0,mindisp),ibest,errmsg)
+       if (has_errmsg(errmsg)) then
+          deallocate(best)
+          return
+       end if
+       if (ibest > 0) best(n) = cand(ic0(n)+ibest)
     end do
 
   end subroutine cell_nice_list
