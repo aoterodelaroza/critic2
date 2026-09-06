@@ -151,6 +151,7 @@ module types
      integer :: ir   !< rotation matrix to the representative equivalent atom
      integer :: ic   !< translation vector to the representative equivalent atom
      integer :: inext = 0 !< next atom in the atomic environment block
+     integer :: lwrap(3) = 0 !< lattice translation added to the input coordinates to bring x into 0->1
   end type celatom
 
   ! Field evaluation categories: these are used to ask for specific

@@ -586,10 +586,14 @@ contains
        if (copybonds) allocate(deltasave(3,c%ncel))
        do i = 1, c%ncel
           if (.not.seed%ismolecule) then
+             ! the shift is kept (lwrap): the input coordinates matter
+             ! when reproducing the atom order of another code's supercell
              delta = -floor(c%atcel(i)%x)
              c%atcel(i)%x = c%atcel(i)%x + delta
+             c%atcel(i)%lwrap = nint(delta)
              if (copybonds) deltasave(:,i) = delta
           else
+             c%atcel(i)%lwrap = 0
              if (copybonds) deltasave(:,i) = 0d0
           end if
           c%atcel(i)%r = c%x2c(c%atcel(i)%x)

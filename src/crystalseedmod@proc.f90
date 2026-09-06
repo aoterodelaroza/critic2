@@ -4208,7 +4208,8 @@ contains
        elseif (iunit == iang) then
           seed%x(:,i) = matmul(r,seed%x(:,i) / bohrtoa)
        endif
-       seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+       ! not wrapped into the main cell: the coordinates as given are
+       ! kept until the crystal is built (struct_new records the shift)
     end do
 
     errmsg = ""
@@ -8595,7 +8596,6 @@ contains
                    if (tox) then
                       seed(iuse)%x(:,i) = matmul(r,seed(iuse)%x(:,i))
                    end if
-                   seed(iuse)%x(:,i) = seed(iuse)%x(:,i) - floor(seed(iuse)%x(:,i))
                 end do
 
                 seed(iuse)%havesym = 0

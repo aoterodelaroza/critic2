@@ -162,6 +162,7 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_makedir(fname,errmsg)
   ! subroutine fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
   ! subroutine fc2_site_directions(nsym,irot,nd,dsel)
+  ! function fc2_xin(c,ia)
   ! function fc2_scpos(x,lv,madj,nlat)
   ! function fc2_ilat(nlat,lkey,madj,lv)
   ! function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)
@@ -513,7 +514,7 @@ contains
     do ia = 1, c%ncel
        do il = 1, nlat
           is = (ia-1)*nlat + il
-          seed%x(:,is) = fc2_scpos(c%atcel(ia)%x,lvec(:,il),madj,nlat)
+          seed%x(:,is) = fc2_scpos(fc2_xin(c,ia),lvec(:,il),madj,nlat)
           seed%is(is) = c%atcel(ia)%is
           seed%atname(is) = c%spc(c%atcel(ia)%is)%name
        end do
@@ -2658,7 +2659,7 @@ contains
           v%fc2_sptr(ip) = nsv + 1
 
           ! the vector from atom ia to atom js, reduced into the supercell
-          y = fc2_scpos(c%atcel(ja)%x - c%atcel(ia)%x,v%fc2_lvec(:,jl),v%fc2_madj,nlat)
+          y = fc2_scpos(fc2_xin(c,ja) - fc2_xin(c,ia),v%fc2_lvec(:,jl),v%fc2_madj,nlat)
           y = y - nint(y)
           r0 = matmul(scx2c,y)
           yx = matmul(y,smatr)
@@ -4762,7 +4763,7 @@ contains
           iap = (js-1)/nlat + 1
           ilp = js - (iap-1)*nlat
           if (c%spc(c%atcel(iap)%is)%z /= c%spc(c%atcel(ia)%is)%z) cycle
-          t = c%atcel(iap)%x + real(lvec(:,ilp),8) - c%atcel(ia)%x
+          t = fc2_xin(c,iap) + real(lvec(:,ilp),8) - fc2_xin(c,ia)
           if (.not.fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)) cycle
           if (perm(is) /= js) cycle
           found = .true.
@@ -4792,7 +4793,7 @@ contains
        do ia = 1, c%ncel
           do il = 1, nlat
              is = (ia-1)*nlat + il
-             xsc = fc2_scpos(c%atcel(ia)%x,lvec(:,il),madj,nlat)
+             xsc = fc2_scpos(fc2_xin(c,ia),lvec(:,il),madj,nlat)
              if (seed%spc(seed%is(is))%z /= c%spc(c%atcel(ia)%is)%z) then
                 errmsg = "Species mismatch at atom " // string(is) // " of the supercell file " //&
                    trim(scfile) // ": its atom ordering is not phonopy's, or the current structure is &
@@ -5017,6 +5018,21 @@ contains
 
   end function fc2_unit_factor
 
+  !> The fractional coordinates of cell atom ia as they were given in
+  !> the input, before critic2 wrapped them into the main cell. phonopy
+  !> builds its supercell from the coordinates as given, so this, and
+  !> not atcel%x, is what fixes the order of the lattice images of an
+  !> atom in a phonopy supercell (an atom at x = -0.01 has its first
+  !> image at the top of the supercell, one at x = 0.99 at the bottom).
+  pure function fc2_xin(c,ia) result(x)
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: ia
+    real*8 :: x(3)
+
+    x = c%atcel(ia)%x - real(c%atcel(ia)%lwrap,8)
+
+  end function fc2_xin
+
   !> Position, in fractional coordinates of the supercell, of the image
   !> of the cell atom at x (cell fractional coordinates) at the lattice
   !> point lv. madj and nlat are the adjugate and determinant of the
@@ -5084,12 +5100,15 @@ contains
     ok = .false.
     dev = 0d0
     do ia = 1, c%ncel
-       ja = c%identify_atom(c%atcel(ia)%x + t,icrd_crys,lvec=lv,dist=dd,distmax=fc2_epspos)
+       ! identify_atom works with the wrapped positions and returns the
+       ! lattice vector to them; the supercell images are built from the
+       ! input coordinates (fc2_xin), hence the lwrap correction
+       ja = c%identify_atom(fc2_xin(c,ia) + t,icrd_crys,lvec=lv,dist=dd,distmax=fc2_epspos)
        if (ja == 0) return
        if (dd > fc2_epspos) return
        if (c%spc(c%atcel(ja)%is)%z /= c%spc(c%atcel(ia)%is)%z) return
        at2(ia) = ja
-       lv2(:,ia) = lv
+       lv2(:,ia) = lv + c%atcel(ja)%lwrap
        dev = max(dev,dd)
     end do
 
