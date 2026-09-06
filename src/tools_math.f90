@@ -32,6 +32,7 @@ module tools_math
   public :: factorial
   public :: gauss_random
   public :: random_unit_vector
+  public :: debye3
   public :: genrlm_real
   public :: genylm
   public :: tosphere
@@ -385,6 +386,10 @@ module tools_math
        real*8, intent(out), optional :: s
        integer, intent(out), optional :: ier
      end subroutine rotation_horn
+     pure module function debye3(x) result(d3)
+       real*8, intent(in) :: x
+       real*8 :: d3
+     end function debye3
      pure module subroutine gauleg (x1,x2,x,w,n)
        real*8, intent(in) :: x1
        real*8, intent(in) :: x2

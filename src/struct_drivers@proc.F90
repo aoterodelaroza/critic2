@@ -3943,9 +3943,10 @@ contains
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
        equal, isinteger, string, ioj_right, fopen_write, fclose, warning
     use crystalmod, only: supercell_matrix_from_ints, nice_cell, vib_calculator_from_name,&
+       xdebye_select, xdebye_eval, xdebye_line,&
        vib_calculator_name
     use types, only: realloc
-    use param, only: ivformat_unknown, ivformat_phonopy_fc2, vcalc_none
+    use param, only: ivformat_unknown, ivformat_phonopy_fc2, vcalc_none, hartokjmol
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line0
     logical, intent(in) :: verbose
@@ -3961,8 +3962,12 @@ contains
     type(nice_cell), allocatable :: cand(:)
     real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
     real*8 :: tmin, tmax, tstep, cutoff, sigma, rdum, zpe, fvib, svib, cv
-    character(len=:), allocatable :: qfile, dosfile
+    integer :: xdnp, xdne, xdnp0, xdne0
+    real*8 :: xdr2, xddf, xddfkj, xdf0, xdfv, xdsv, xdcvv, xddsmax, xddcvmax
+    logical :: doxdebye, xdasked, havexd
+    character(len=:), allocatable :: qfile, dosfile, xdline
     real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:)
+    real*8, allocatable :: fvibl(:), svibl(:), cvl(:), xdfl(:), xdsl(:), xdcvl(:), xdpar(:)
     logical, allocatable :: qprint(:)
     logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus
 
@@ -4421,6 +4426,10 @@ contains
           sigma = -1d0 ! negative: use the tetrahedron method
           npts = 500
           nt = 0
+          doxdebye = .true.
+          xdasked = .false.
+          xdnp0 = -1
+          xdne0 = -1
           if (allocated(tlist)) deallocate(tlist)
           allocate(tlist(10))
 
@@ -4499,6 +4508,30 @@ contains
                    call ferror('struct_vibrations','SIGMA must be positive',faterr,line,syntax=.true.)
                 end if
                 dodos = .true.
+             elseif (equal(mode,'xdebye')) then
+                ! with two integers, the size of the model is fixed;
+                ! without them, it is chosen automatically (the default)
+                doxdebye = .true.
+                xdasked = .true.
+                lp0 = lp
+                if (isinteger(idum,line,lp)) then
+                   xdnp0 = idum
+                   if (.not.isinteger(xdne0,line,lp)) then
+                      call ferror('struct_vibrations','XDEBYE takes two integers: the number of &
+                         &polynomial coefficients and the number of Einstein terms',faterr,line,syntax=.true.)
+                      return
+                   end if
+                   if (xdnp0 < 0 .or. xdne0 < 0) then
+                      call ferror('struct_vibrations','the XDEBYE numbers must not be negative',&
+                         faterr,line,syntax=.true.)
+                      return
+                   end if
+                else
+                   lp = lp0
+                end if
+             elseif (equal(mode,'noxdebye')) then
+                doxdebye = .false.
+                xdasked = .true.
              elseif (equal(mode,'tetrahedra').or.equal(mode,'tetrahedron')) then
                 sigma = -1d0
                 dodos = .true.
@@ -4554,6 +4587,9 @@ contains
              if (allocated(tfreq)) deallocate(tfreq)
              allocate(tfreq(s%c%vib%nfreq,1))
              tfreq(:,1) = s%c%vib%freq(1:s%c%vib%nfreq,1)
+             if (allocated(wq)) deallocate(wq)
+             allocate(wq(1))
+             wq = 1
 
              ! the rigid-body modes of a molecule are not vibrations; a
              ! reader that keeps all 3N modes (QE, phonopy, CRYSTAL,
@@ -4600,24 +4636,76 @@ contains
           call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
           if (nusedm == 0) &
              call ferror('struct_vibrations','no modes above the cutoff were available for THERMO',faterr)
+          havexd = .false.
+          if (verbose) call thermo_header(uout)
+
+          ! the properties, temperature by temperature
+          if (allocated(fvibl)) deallocate(fvibl,svibl,cvl)
+          allocate(fvibl(nt),svibl(nt),cvl(nt))
+          do i = 1, nt
+             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
+             fvibl(i) = fvib
+             svibl(i) = svib
+             cvl(i) = cv
+             if (verbose) call thermo_row(uout,i,.false.)
+          end do
+
+          ! Fit the free energy to the extended Debye-Einstein model:
+          ! its parameters are what gibbs2 needs to run a quasiharmonic
+          ! calculation from these results (TMODEL DEBYE_EXTENDED).
+          if (doxdebye .and. (verbose .or. len_trim(qfile) > 0)) then
+             xdf0 = zpe / hartokjmol
+             call xdebye_select(nt,tlist,fvibl/hartokjmol,s%c%ncel,xdf0,tfreq,wq,verbose,&
+                xdnp,xdne,xdpar,xdr2,xddf,errmsg,xdnp0,xdne0)
+             if (len_trim(errmsg) > 0) then
+                ! the fit runs by default, so a THERMO that cannot be fitted
+                ! (a single temperature, no NLOPT) only says so if it was asked for
+                if (verbose .and. xdasked) &
+                   write (uout,'("+ No extended Debye-Einstein fit: ",A)') trim(errmsg)
+                errmsg = ""
+             else
+                havexd = .true.
+                xdline = xdebye_line(xdf0,xdnp,xdne,xdpar)
+                xddfkj = xddf * real(s%c%ncel,8) * hartokjmol
+
+                ! the model on the same temperatures, for the table and
+                ! to see how well it reproduces S and Cv, which were not fitted
+                if (verbose .or. len_trim(qfile) > 0) then
+                   if (allocated(xdfl)) deallocate(xdfl,xdsl,xdcvl)
+                   allocate(xdfl(nt),xdsl(nt),xdcvl(nt))
+                   xddsmax = 0d0
+                   xddcvmax = 0d0
+                   do i = 1, nt
+                      call xdebye_eval(tlist(i),s%c%ncel,xdf0,xdnp,xdne,xdpar,xdfv,xdsv,xdcvv)
+                      xdfl(i) = xdfv * hartokjmol
+                      xdsl(i) = xdsv * hartokjmol * 1d3
+                      xdcvl(i) = xdcvv * hartokjmol * 1d3
+                      xddsmax = max(xddsmax,abs(xdsl(i) - svibl(i)))
+                      xddcvmax = max(xddcvmax,abs(xdcvl(i) - cvl(i)))
+                   end do
+                end if
+
+                if (verbose) then
+                   write (uout,'("  Quality of the fit: r2 = ",A,", max|dF| = ",A," kJ/mol")') &
+                      string(xdr2,'f',decimal=10), string(xddfkj,'e',decimal=4)
+                   write (uout,'("  The model also reproduces (not fitted): max|dS| = ",A,&
+                      &", max|dCv| = ",A," J/K/mol")') string(xddsmax,'e',decimal=4),&
+                      string(xddcvmax,'e',decimal=4)
+                   call xdebye_gibbs2(uout,"+ ","  ")
+                end if
+             end if
+          end if
+
+          ! the table file
           if (len_trim(qfile) > 0) then
              lu = fopen_write(qfile,errstop=.false.)
              if (lu < 0) &
                 call ferror('struct_vibrations','could not open the THERMO file for writing: ' // trim(qfile),faterr)
              write (lu,'("# Thermodynamic properties in the harmonic approximation, calculated by critic2")')
              call thermo_header(lu)
-          else
-             lu = -1
-          end if
-          if (verbose) call thermo_header(uout)
-
-          ! the properties, temperature by temperature
-          do i = 1, nt
-             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
-             if (verbose) call thermo_row(uout,tlist(i),fvib,svib,cv)
-             if (lu > 0) call thermo_row(lu,tlist(i),fvib,svib,cv)
-          end do
-          if (lu > 0) then
+             do i = 1, nt
+                call thermo_row(lu,i,havexd)
+             end do
              call fclose(lu)
              if (verbose) &
                 write (uout,'("+ Thermodynamic properties written to: ",A)') trim(qfile)
@@ -4662,22 +4750,56 @@ contains
          string(nusedm), string(ntotm), string(nimagm)
       write (u,'("# T in K; Fvib in kJ/mol; Svib and Cv in J/K/mol; columns 2-4 per unit cell, &
          &columns 5-7 per formula unit")')
-      write (u,'("#      T          Fvib/cell        Svib/cell         Cv/cell        &
-         &Fvib/Z           Svib/Z            Cv/Z")')
+      if (havexd) then
+         write (u,'("# Columns 8-10 are the extended Debye-Einstein model fitted to Fvib, per unit &
+            &cell and in the units of columns 2-4.")')
+         write (u,'("# Model: ",A," polynomial coefficients, ",A," Einstein terms; r2 = ",A,", &
+            &max|dF| = ",A," kJ/mol")') string(xdnp), string(xdne), string(xdr2,'f',decimal=10),&
+            string(xddfkj,'e',decimal=4)
+         call xdebye_gibbs2(u,"# ","# ")
+         write (u,'("#      T          Fvib/cell        Svib/cell         Cv/cell        &
+            &Fvib/Z           Svib/Z            Cv/Z          Ffit/cell        Sfit/cell        Cvfit/cell")')
+      else
+         write (u,'("#      T          Fvib/cell        Svib/cell         Cv/cell        &
+            &Fvib/Z           Svib/Z            Cv/Z")')
+      end if
 
     end subroutine thermo_header
 
-    !> One row of the THERMO table, at temperature t, written to unit u.
-    subroutine thermo_row(u,t,fvib,svib,cv)
-      integer, intent(in) :: u
-      real*8, intent(in) :: t, fvib, svib, cv
+    !> Row i of the THERMO table, written to unit u. With dofit, the
+    !> columns of the fitted model are appended.
+    subroutine thermo_row(u,i,dofit)
+      integer, intent(in) :: u, i
+      logical, intent(in) :: dofit
 
-      write (u,'(99(A," "))') string(t,'f',10,3,ioj_right),&
-         string(fvib,'f',16,7,ioj_right), string(svib,'f',16,7,ioj_right),&
-         string(cv,'f',16,7,ioj_right), string(fvib/real(nz,8),'f',16,7,ioj_right),&
-         string(svib/real(nz,8),'f',16,7,ioj_right), string(cv/real(nz,8),'f',16,7,ioj_right)
+      character(len=:), allocatable :: aux
+
+      aux = string(tlist(i),'f',10,3,ioj_right) // " " //&
+         string(fvibl(i),'f',16,7,ioj_right) // " " // string(svibl(i),'f',16,7,ioj_right) // " " //&
+         string(cvl(i),'f',16,7,ioj_right) // " " // string(fvibl(i)/real(nz,8),'f',16,7,ioj_right) //&
+         " " // string(svibl(i)/real(nz,8),'f',16,7,ioj_right) // " " //&
+         string(cvl(i)/real(nz,8),'f',16,7,ioj_right)
+      if (dofit) &
+         aux = aux // " " // string(xdfl(i),'f',16,7,ioj_right) // " " //&
+         string(xdsl(i),'f',16,7,ioj_right) // " " // string(xdcvl(i),'f',16,7,ioj_right)
+      write (u,'(A)') aux
 
     end subroutine thermo_row
+
+    !> How to use the fitted model in gibbs2, written to unit u; pre1
+    !> prefixes the first line and pre the rest.
+    subroutine xdebye_gibbs2(u,pre1,pre)
+      integer, intent(in) :: u
+      character*(*), intent(in) :: pre1, pre
+
+      write (u,'(A,"Parameters for gibbs2 (TMODEL DEBYE_EXTENDED ",A," ",A,"), to be used with Z = 1 &
+         &and ",A," atoms")') pre1, string(xdnp), string(xdne), string(s%c%ncel)
+      write (u,'(A,"per cell: the zero-point energy (Ha), the Debye temperature, the polynomial &
+         &coefficients,")') pre
+      write (u,'(A,"the Einstein weights and the Einstein temperatures.")') pre
+      write (u,'(A,A)') pre, xdline
+
+    end subroutine xdebye_gibbs2
 
     !> Number of rigid-body modes of the molecule c: 3 for an atom, 5 for
     !> a linear molecule, 6 otherwise.

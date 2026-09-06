@@ -1817,6 +1817,64 @@ contains
 
   end subroutine rotation_horn
 
+  !> Third-order Debye function,
+  !>   D3(x) = (3/x^3) * int_0^x t^3/(exp(t)-1) dt,
+  !> with D3(0) = 1 and D3(x) -> pi^4/(5 x^3) for large x. Below x =
+  !> xseries the Maclaurin series is used (the coefficients are
+  !> 3*B_(2n)/((2n+3)*(2n)!) with B the Bernoulli numbers); above it,
+  !> the integral is split as int_0^inf - int_x^inf, the first being
+  !> pi^4/15 and the second the exponential sum
+  !>   sum_k exp(-k*x) * (x^3/k + 3x^2/k^2 + 6x/k^3 + 6/k^4),
+  !> which converges geometrically. Accurate to ~1e-13 relative
+  !> everywhere.
+  pure module function debye3(x) result(d3)
+    use param, only: pi
+    real*8, intent(in) :: x
+    real*8 :: d3
+
+    ! series coefficients for x^2, x^4, ..., x^18
+    real*8, parameter :: cser(9) = (/&
+       5.00000000000000d-02, -5.95238095238095d-04,  1.10229276895944d-05,&
+      -2.25468952110276d-07,  4.81759884058484d-09, -1.05684096637437d-10,&
+       2.36160164478622d-12, -5.35169166569113d-14,  1.22637000283682d-15/)
+    real*8, parameter :: xseries = 1d0 ! below this, use the series
+    real*8, parameter :: pi4_15 = pi**4 / 15d0 ! int_0^inf t^3/(exp(t)-1) dt
+    real*8, parameter :: epsk = 1d-15 ! stop the exponential sum at this term (~1e-16 relative)
+    integer, parameter :: kmax = 300 ! maximum number of terms in the sum
+
+    integer :: i, k
+    real*8 :: x2, x3, xp, ssum, term, ekx, rk
+
+    if (x <= 0d0) then
+       d3 = 1d0
+    elseif (x < xseries) then
+       x2 = x * x
+       xp = x2
+       d3 = 1d0 - 0.375d0 * x
+       do i = 1, size(cser,1)
+          d3 = d3 + cser(i) * xp
+          xp = xp * x2
+       end do
+    elseif (x > 1d20) then
+       ! the tail is negligible and x**3 would overflow further up
+       d3 = 0d0
+    else
+       ! int_x^inf t^3/(exp(t)-1) dt, term by term in exp(-k*x)
+       x3 = x * x * x
+       ssum = 0d0
+       ekx = exp(-x)
+       term = 1d0
+       do k = 1, kmax
+          rk = 1d0 / real(k,8)
+          term = term * ekx
+          ssum = ssum + term * rk * (((x + 3d0*rk) * x + 6d0*rk*rk) * x + 6d0*rk**3)
+          if (term * (x3 + 6d0) < epsk) exit
+       end do
+       d3 = 3d0 * (pi4_15 - ssum) / x3
+    end if
+
+  end function debye3
+
   !> Find the Gauss-Legendre nodes and weights for an interval.
   pure module subroutine gauleg(x1,x2,x,w,n)
     use param, only: pi

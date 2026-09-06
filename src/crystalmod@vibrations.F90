@@ -97,6 +97,22 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: thermo_epszero = 1d-2 ! floor of the THERMO cutoff: |nu| below this is a numerical zero (cm^-1)
   real*8, parameter :: thermo_epsimag = 1d0 ! a mode below -this is imaginary, not a numerical zero (cm^-1)
 
+  ! Extended Debye-Einstein fit of the vibrational free energy, run at
+  ! the end of THERMO to give gibbs2 its DEBYE_EXTENDED parameters.
+  real*8, parameter :: xdebye_cmin = 1d-3 ! smallest meaningful weight of a term in the model
+  real*8, parameter :: xdebye_tlow = 10d0 ! smallest meaningful temperature in the model (K)
+  real*8, parameter :: xdebye_tsmall = 1d-6 ! a temperature below this is zero (K)
+  real*8, parameter :: xdebye_explim = 0.5d0 * log(huge(1d0)) ! largest exponent evaluated in the model
+  character*(*), parameter :: xdebye_nonlopt = "the extended Debye-Einstein fit can only be used if &
+     &the NLOPT library is available"
+  ! status of a candidate model
+  integer, parameter :: xdebye_stat_ok = 0 ! usable
+  integer, parameter :: xdebye_stat_nodata = 1 ! too few temperatures for its parameters
+  integer, parameter :: xdebye_stat_failed = 2 ! the fit did not converge
+  integer, parameter :: xdebye_stat_czero = 3 ! a term of the model carries no weight
+  integer, parameter :: xdebye_stat_tlow = 4 ! a temperature of the model is below xdebye_tlow
+  integer, parameter :: xdebye_stat_tsame = 5 ! two Einstein terms have the same temperature
+
   ! Displacement dataset file: everything create_forces needs to
   ! interpret the forces of the displaced supercells, written by
   ! create_displacements so that the two keywords can be run in
@@ -151,6 +167,13 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_output_template(template,icalc,otemplate,errmsg)
   ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
   ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq)
+  ! subroutine xdebye_core(t,npoly,nein,par,f,s,cv,dfdp)
+  ! subroutine xdebye_exp(z,em,om,l1em)
+  ! subroutine xdebye_fit(nt,t,fdat,npoly,nein,tref,par,rms,dfmax,errmsg)
+  ! function xdebye_npar(npoly,nein)
+  ! function xdebye_r2(rms,nt,sstot)
+  ! function xdebye_tquantile(hist,wtot,tmax,q)
+  ! function xdebye_statname(istat)
   ! subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg,wq)
   ! subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos,wq)
   ! subroutine dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
@@ -3314,6 +3337,717 @@ contains
     cv = cv * ff
 
   end subroutine thermo_sum
+
+  !> Extended Debye-Einstein model of the vibrational free energy at
+  !> temperature t (K), per atom and without the zero-point term: free
+  !> energy f (Hartree), entropy s and heat capacity cv (Hartree/K).
+  !> The parameters are the Debye temperature par(1), the npoly
+  !> coefficients of the polynomial correction par(2:npoly+1), and the
+  !> nein pairs (multiplier, temperature) in
+  !> par(npoly+2:npoly+1+2*nein). The Debye and polynomial terms carry
+  !> the weight 1 - sum(multipliers). If dfdp is present, it receives
+  !> the derivatives of f with respect to the parameters. These are
+  !> the same expressions as gibbs2's thermal_debye_extended (TMODEL
+  !> DEBYE_EXTENDED), so the parameters can be handed to gibbs2.
+  subroutine xdebye_core(t,npoly,nein,par,f,s,cv,dfdp)
+    use tools_math, only: debye3
+    use param, only: kboltz
+    real*8, intent(in) :: t
+    integer, intent(in) :: npoly, nein
+    real*8, intent(in) :: par(:)
+    real*8, intent(out) :: f
+    real*8, intent(out), optional :: s, cv
+    real*8, intent(out), optional :: dfdp(:)
+
+    integer :: i, j, ip
+    real*8 :: td, x, y, yi, d3, emx, omx, l1emx
+    real*8 :: fdp, sdp, cvdp, termf, terms, termcv, dtermf
+    real*8 :: sumc, ci, tei, z, emz, omz, l1emz, fej, fe, se, cve
+    logical :: dosc
+
+    ! T -> 0: the free energy is the zero-point energy alone (which the
+    ! caller adds), and the entropy and heat capacity vanish
+    dosc = present(s) .or. present(cv)
+    f = 0d0
+    if (present(s)) s = 0d0
+    if (present(cv)) cv = 0d0
+    if (t < xdebye_tsmall) then
+       if (present(dfdp)) dfdp = 0d0
+       return
+    end if
+
+    ! the Debye term
+    td = max(par(1),xdebye_tsmall)
+    x = td / t
+    d3 = debye3(x)
+    call xdebye_exp(x,emx,omx,l1emx)
+    fdp = kboltz * t * (-d3 + 3d0 * l1emx)
+    if (dosc) then
+       sdp = kboltz * (4d0 * d3 - 3d0 * l1emx)
+       cvdp = kboltz * (12d0 * d3 - 9d0 * x * emx / omx)
+    end if
+
+    ! the polynomial correction, in y = T/TD
+    y = t / td
+    termf = 0d0
+    terms = 0d0
+    termcv = 0d0
+    dtermf = 0d0
+    yi = 1d0
+    do i = 1, npoly
+       yi = yi * y
+       termf = termf - par(i+1) * yi / real(i+1,8)
+       dtermf = dtermf + par(i+1) * yi * real(i,8) / real(i+1,8)
+       if (dosc) then
+          terms = terms + par(i+1) * yi
+          termcv = termcv + par(i+1) * yi * real(i,8)
+       end if
+       if (present(dfdp)) dfdp(i+1) = -kboltz * t * yi / real(i+1,8)
+    end do
+    fdp = fdp + kboltz * t * termf
+    if (dosc) then
+       sdp = sdp + kboltz * terms
+       cvdp = cvdp + kboltz * termcv
+    end if
+    if (present(dfdp)) dfdp(1) = kboltz * t / td * (3d0 * d3 + dtermf)
+
+    ! the Einstein terms
+    sumc = 0d0
+    fe = 0d0
+    se = 0d0
+    cve = 0d0
+    do j = 1, nein
+       ip = npoly + 2 * j
+       ci = par(ip)
+       tei = max(par(ip+1),xdebye_tsmall)
+       z = tei / t
+       call xdebye_exp(z,emz,omz,l1emz)
+       fej = kboltz * t * l1emz
+       fe = fe + ci * fej
+       sumc = sumc + ci
+       if (dosc) then
+          se = se - ci * kboltz * (l1emz - z * emz / omz)
+          cve = cve + ci * kboltz * z * z * emz / (omz * omz)
+       end if
+       if (present(dfdp)) then
+          dfdp(ip) = fej - fdp
+          dfdp(ip+1) = ci * kboltz * emz / omz
+       end if
+    end do
+
+    ! the Debye and polynomial terms carry the remaining weight
+    f = (1d0 - sumc) * fdp + fe
+    if (present(s)) s = (1d0 - sumc) * sdp + se
+    if (present(cv)) cv = (1d0 - sumc) * cvdp + cve
+    if (present(dfdp)) dfdp(1:npoly+1) = (1d0 - sumc) * dfdp(1:npoly+1)
+
+  end subroutine xdebye_core
+
+  !> The exponential factors of a harmonic term at reduced temperature
+  !> z = theta/T: em = exp(-z), om = 1 - em, and l1em = log(om) taken
+  !> to its limit -em when the exponential is negligible.
+  pure subroutine xdebye_exp(z,em,om,l1em)
+    real*8, intent(in) :: z
+    real*8, intent(out) :: em, om, l1em
+
+    em = exp(-min(z,xdebye_explim))
+    om = 1d0 - em
+    if (em < 1d-16) then
+       l1em = -em
+    else
+       l1em = log(om)
+    end if
+
+  end subroutine xdebye_exp
+
+  !> Extended Debye-Einstein model (see xdebye_core) for a cell with
+  !> natom atoms and zero-point energy f0 (Hartree): free energy f
+  !> (Hartree, including f0), entropy s and heat capacity cv
+  !> (Hartree/K), all per cell.
+  module subroutine xdebye_eval(t,natom,f0,npoly,nein,par,f,s,cv)
+    real*8, intent(in) :: t
+    integer, intent(in) :: natom
+    real*8, intent(in) :: f0
+    integer, intent(in) :: npoly, nein
+    real*8, intent(in) :: par(:)
+    real*8, intent(out) :: f, s, cv
+
+    call xdebye_core(t,npoly,nein,par,f,s,cv)
+    f = f0 + real(natom,8) * f
+    s = real(natom,8) * s
+    cv = real(natom,8) * cv
+
+  end subroutine xdebye_eval
+
+  !> The gibbs2 DEBYE_EXTENDED parameter line for the model
+  !> (npoly,nein) with parameters par and zero-point energy f0
+  !> (Hartree/cell): f0, the Debye temperature, the npoly polynomial
+  !> coefficients, the nein Einstein multipliers and the nein Einstein
+  !> temperatures, in that order.
+  module function xdebye_line(f0,npoly,nein,par) result(line)
+    use tools_io, only: string
+    real*8, intent(in) :: f0
+    integer, intent(in) :: npoly, nein
+    real*8, intent(in) :: par(:)
+    character(len=:), allocatable :: line
+
+    integer :: i
+
+    line = string(f0,'e',decimal=12)
+    do i = 1, npoly + 1
+       line = line // " " // string(par(i),'e',decimal=12)
+    end do
+    do i = 1, nein
+       line = line // " " // string(par(npoly+2*i),'e',decimal=12)
+    end do
+    do i = 1, nein
+       line = line // " " // string(par(npoly+2*i+1),'e',decimal=12)
+    end do
+
+  end function xdebye_line
+
+  !> Fit the extended Debye-Einstein model with npoly polynomial
+  !> coefficients and nein Einstein terms to the nt free energies
+  !> fdat (Hartree per atom, zero-point removed) at temperatures t
+  !> (K, all positive). par contains the starting parameters on input
+  !> and the fitted ones on output; tref (K) is the temperature scale
+  !> used to condition the fit. Returns the root-mean-square and
+  !> maximum absolute deviation of the fit (Hartree per atom). The
+  !> minimization is done by NLOPT; errmsg is non-empty if it failed
+  !> or if NLOPT is not available.
+  subroutine xdebye_fit(nt,t,fdat,npoly,nein,tref,par,rms,dfmax,errmsg)
+    use tools_io, only: string
+    integer, intent(in) :: nt
+    real*8, intent(in) :: t(nt), fdat(nt)
+    integer, intent(in) :: npoly, nein
+    real*8, intent(in) :: tref
+    real*8, intent(inout) :: par(:)
+    real*8, intent(out) :: rms, dfmax
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    ! bail out if NLOPT is not available
+#ifndef HAVE_NLOPT
+    errmsg = xdebye_nonlopt
+    rms = huge(1d0)
+    dfmax = huge(1d0)
+    return
+#else
+    integer :: i, j, ip, nprm, ires
+    integer*8 :: opt
+    real*8 :: ssq, fm, r
+    real*8, allocatable :: scal(:), lb(:), ub(:), u(:)
+
+    include 'nlopt.f'
+
+    integer, parameter :: maxeval = 5000 ! largest number of objective evaluations
+    real*8, parameter :: ftol = 1d-14 ! relative tolerance on the sum of squares
+    real*8, parameter :: xtol = 1d-12 ! relative tolerance on the parameters
+    real*8, parameter :: tbig = 1d6 ! upper bound for the temperatures (K)
+    real*8, parameter :: abig = 1d3 ! bound for the polynomial coefficients
+
+    errmsg = ""
+    rms = huge(1d0)
+    dfmax = huge(1d0)
+    nprm = 1 + npoly + 2 * nein
+    allocate(scal(nprm),lb(nprm),ub(nprm),u(nprm))
+
+    ! scale the parameters so that they are all of order one: the
+    ! temperatures in units of tref, the coefficients as they are
+    scal = 1d0
+    scal(1) = tref
+    lb(1) = xdebye_tsmall / tref
+    ub(1) = tbig / tref
+    do i = 1, npoly
+       lb(i+1) = -abig
+       ub(i+1) = abig
+    end do
+    do j = 1, nein
+       ip = npoly + 2 * j
+       lb(ip) = 0d0
+       ub(ip) = 1d0
+       scal(ip+1) = tref
+       lb(ip+1) = xdebye_tsmall / tref
+       ub(ip+1) = tbig / tref
+    end do
+    u = min(max(par(1:nprm) / scal,lb),ub)
+
+    ! run the minimization
+    call nlo_create(opt, NLOPT_LD_SLSQP, nprm)
+    call nlo_set_lower_bounds(ires, opt, lb)
+    call nlo_set_upper_bounds(ires, opt, ub)
+    call nlo_set_min_objective(ires, opt, ffit, 0)
+    call nlo_set_ftol_rel(ires, opt, ftol)
+    call nlo_set_xtol_rel(ires, opt, xtol)
+    call nlo_set_maxeval(ires, opt, maxeval)
+    call nlo_optimize(ires, opt, u, ssq)
+    call nlo_destroy(opt)
+    if (ires < 0 .and. ires /= NLOPT_ROUNDOFF_LIMITED) then
+       errmsg = "NLOPT error " // string(ires) // " in the extended Debye-Einstein fit"
+       return
+    end if
+
+    ! the deviations of the fitted model
+    par(1:nprm) = u * scal
+    rms = 0d0
+    dfmax = 0d0
+    do i = 1, nt
+       call xdebye_core(t(i),npoly,nein,par,fm)
+       r = fdat(i) - fm
+       rms = rms + r * r
+       dfmax = max(dfmax,abs(r))
+    end do
+    rms = sqrt(rms / real(nt,8))
+
+  contains
+    !> NLOPT objective: sum of the squares of the deviations of the
+    !> model with scaled parameters prm, and its gradient.
+    subroutine ffit(val, nprm, prm, grad, need_gradient, f_data)
+      real*8 :: val, prm(nprm), grad(nprm)
+      integer :: nprm, need_gradient
+      real :: f_data
+
+      integer :: i
+      real*8 :: fm, r
+      real*8 :: p(nprm), dfdp(nprm)
+
+      p = prm * scal
+      val = 0d0
+      if (need_gradient /= 0) grad = 0d0
+      do i = 1, nt
+         if (need_gradient /= 0) then
+            call xdebye_core(t(i),npoly,nein,p,fm,dfdp=dfdp)
+         else
+            call xdebye_core(t(i),npoly,nein,p,fm)
+         end if
+         r = fdat(i) - fm
+         val = val + r * r
+         if (need_gradient /= 0) grad = grad - r * dfdp
+      end do
+      if (need_gradient /= 0) grad = 2d0 * grad * scal
+
+    end subroutine ffit
+#endif
+  end subroutine xdebye_fit
+
+  !> Choose and fit the extended Debye-Einstein model that best
+  !> describes the vibrational free energies fvib (Hartree per cell,
+  !> including the zero-point energy f0) at the nt temperatures t (K)
+  !> of a cell with natom atoms. The frequencies freq (cm^-1) and
+  !> their q-point weights wq are the ones the free energies came
+  !> from; they are used to place the initial Einstein temperatures.
+  !> Every model with up to xdebye_npmax polynomial coefficients and
+  !> xdebye_nemax Einstein terms is fitted, the degenerate ones are
+  !> discarded, and the simplest one that reproduces the data within
+  !> the tolerance is returned in npoly, nein and par (the most
+  !> accurate one if none does). r2 and dfmax are the correlation
+  !> coefficient and the maximum deviation (Hartree per atom) of the
+  !> chosen model. If verbose, all the candidates are listed. errmsg
+  !> is non-empty if no model could be fitted.
+  module subroutine xdebye_select(nt,t,fvib,natom,f0,freq,wq,verbose,npoly,nein,par,r2,dfmax,errmsg,&
+     npfix,nefix)
+    use tools_io, only: uout, string, ioj_right
+    integer, intent(in) :: nt
+    real*8, intent(in) :: t(nt), fvib(nt)
+    integer, intent(in) :: natom
+    real*8, intent(in) :: f0
+    real*8, intent(in) :: freq(:,:)
+    integer, intent(in) :: wq(:)
+    logical, intent(in) :: verbose
+    integer, intent(out) :: npoly, nein
+    real*8, allocatable, intent(out) :: par(:)
+    real*8, intent(out) :: r2, dfmax
+    character(len=:), allocatable, intent(out) :: errmsg
+    integer, intent(in) :: npfix, nefix
+
+    integer :: i, j, k, iq, ib, inp, ine, nprm, ntf, ncand, ncmax, ibest, istart, nstart
+    integer :: npmin, npmax, nemin, nemax, nprmax
+    real*8 :: frange, fmean, sstot, tmean, tmodemax, wtot, w, tm, tref, td0, sumc, fac
+    real*8 :: rms, dfm, rmsbest, tol, ci, tei, tej
+    logical :: ok, dofix
+    character(len=:), allocatable :: errmsg0
+    integer, allocatable :: cnp(:), cne(:), cstat(:)
+    real*8, allocatable :: cpar(:,:), crms(:), cdfm(:)
+    real*8, allocatable :: tf(:), ff(:), par0(:), hist(:)
+
+    integer, parameter :: npmax_auto = 3 ! polynomial coefficients tried when choosing
+    integer, parameter :: nemax_auto = 3 ! Einstein terms tried when choosing
+    integer, parameter :: nfixmax = 10 ! largest model that can be asked for
+    integer, parameter :: ntmin = 8 ! fewest temperatures that can be fitted
+    integer, parameter :: nhist = 500 ! bins in the mode-temperature histogram
+    real*8, parameter :: rmsfac = 3d0 ! a model within this factor of the best rms is good enough
+    real*8, parameter :: tolabs = 1d-7 ! ... and so is one with this rms (Hartree/atom)
+    real*8, parameter :: tolrel = 1d-5 ! ... or with this fraction of the free-energy range
+    real*8, parameter :: tdegen = 5d-2 ! relative distance below which two Einstein terms are the same
+    real*8, parameter :: cstart = 1d-40 ! starting weight of an Einstein term
+
+    errmsg = ""
+    npoly = 0
+    nein = 0
+    r2 = 0d0
+    dfmax = huge(1d0)
+    ibest = 0
+    tol = 0d0
+#ifndef HAVE_NLOPT
+    errmsg = xdebye_nonlopt
+    return
+#endif
+
+    if (size(wq,1) < size(freq,2)) then
+       errmsg = "the extended Debye-Einstein fit was given fewer q-point weights than q-points"
+       return
+    end if
+
+    ! the models to try: the one asked for, or all of them
+    dofix = (npfix >= 0 .and. nefix >= 0)
+    if (dofix) then
+       if (npfix > nfixmax .or. nefix > nfixmax) then
+          errmsg = "at most " // string(nfixmax) // " polynomial coefficients and Einstein terms can &
+             &be asked for in the extended Debye-Einstein fit"
+          return
+       end if
+       npmin = npfix
+       npmax = npfix
+       nemin = nefix
+       nemax = nefix
+    else
+       npmin = 0
+       npmax = npmax_auto
+       nemin = 0
+       nemax = nemax_auto
+    end if
+    ncmax = (npmax - npmin + 1) * (nemax - nemin + 1)
+    nprmax = 1 + npmax + 2 * nemax
+    allocate(cnp(ncmax),cne(ncmax),cstat(ncmax),cpar(nprmax,ncmax),crms(ncmax),cdfm(ncmax))
+
+    ! the data: skip zero temperatures, per atom and without the zero point
+    ntf = count(t > xdebye_tsmall)
+    if (ntf < ntmin) then
+       errmsg = "at least " // string(ntmin) // " non-zero temperatures are needed for the &
+          &extended Debye-Einstein fit (" // string(ntf) // " available)"
+       return
+    end if
+    allocate(tf(ntf),ff(ntf))
+    k = 0
+    do i = 1, nt
+       if (t(i) <= xdebye_tsmall) cycle
+       k = k + 1
+       tf(k) = t(i)
+       ff(k) = (fvib(i) - f0) / real(natom,8)
+    end do
+    frange = maxval(ff) - minval(ff)
+    fmean = sum(ff) / real(ntf,8)
+    sstot = sum((ff - fmean)**2)
+
+    ! the distribution of mode temperatures (h*nu/kB), as a histogram:
+    ! its mean sets the initial Debye temperature and its quantiles the
+    ! initial Einstein temperatures
+    tmodemax = maxval(freq) * cminv_to_K
+    if (tmodemax < xdebye_tlow) then
+       errmsg = "no positive frequencies available for the extended Debye-Einstein fit"
+       return
+    end if
+    allocate(hist(nhist))
+    hist = 0d0
+    wtot = 0d0
+    tmean = 0d0
+    fac = real(nhist,8) * cminv_to_K / tmodemax
+    do iq = 1, size(freq,2)
+       w = real(wq(iq),8)
+       if (w <= 0d0) cycle
+       do i = 1, size(freq,1)
+          if (freq(i,iq) <= 0d0) cycle
+          tm = freq(i,iq) * cminv_to_K
+          ib = min(int(freq(i,iq) * fac) + 1,nhist)
+          hist(ib) = hist(ib) + w
+          wtot = wtot + w
+          tmean = tmean + w * tm
+       end do
+    end do
+    if (wtot <= 0d0) then
+       errmsg = "no positive frequencies available for the extended Debye-Einstein fit"
+       return
+    end if
+    tmean = tmean / wtot
+    tref = max(tmean,1d0)
+
+    ! the Debye temperature of the plain Debye model, as a starting
+    ! point: for a Debye spectrum the mean mode temperature is (3/4)*TD
+    allocate(par0(nprmax))
+    par0 = 0d0
+    par0(1) = 4d0 / 3d0 * tmean
+    call xdebye_fit(ntf,tf,ff,0,0,tref,par0,rms,dfm,errmsg0)
+    if (len_trim(errmsg0) > 0) then
+       errmsg = errmsg0
+       return
+    end if
+    td0 = par0(1)
+
+    ! fit every model, from two starting points: the Einstein
+    ! multipliers all negligible (the Debye model plus a perturbation)
+    ! and all equal (the Einstein terms carrying most of the weight)
+    ncand = 0
+    do ine = nemin, nemax
+       do inp = npmin, npmax
+          nprm = xdebye_npar(inp,ine)
+          ncand = ncand + 1
+          cnp(ncand) = inp
+          cne(ncand) = ine
+          cstat(ncand) = xdebye_stat_nodata
+          crms(ncand) = huge(1d0)
+          cdfm(ncand) = huge(1d0)
+          cpar(:,ncand) = 0d0
+          if (ntf < nprm + 2) cycle
+
+          ! without Einstein terms the two starting points are the same
+          nstart = 2
+          if (ine == 0) nstart = 1
+          rmsbest = huge(1d0)
+          ok = .false.
+          do istart = 1, nstart
+             par0 = 0d0
+             par0(1) = td0
+             do j = 1, ine
+                if (istart == 1) then
+                   par0(inp+2*j) = cstart
+                else
+                   par0(inp+2*j) = 1d0 / real(ine+1,8)
+                end if
+                par0(inp+2*j+1) = xdebye_tquantile(hist,wtot,tmodemax,&
+                   (real(j,8) - 0.5d0) / real(ine,8))
+             end do
+             call xdebye_fit(ntf,tf,ff,inp,ine,tref,par0,rms,dfm,errmsg0)
+             if (len_trim(errmsg0) > 0) cycle
+             ok = .true.
+             if (rms < rmsbest) then
+                rmsbest = rms
+                cdfm(ncand) = dfm
+                cpar(1:nprm,ncand) = par0(1:nprm)
+             end if
+          end do
+          if (.not.ok) then
+             cstat(ncand) = xdebye_stat_failed
+             cycle
+          end if
+          crms(ncand) = rmsbest
+
+          ! reject the degenerate solutions: a term that carries no
+          ! weight, a Debye part that carries no weight, a temperature
+          ! below the physical range, or two equal Einstein terms
+          cstat(ncand) = xdebye_stat_ok
+          sumc = 0d0
+          do j = 1, ine
+             ci = cpar(inp+2*j,ncand)
+             tei = cpar(inp+2*j+1,ncand)
+             sumc = sumc + ci
+             if (ci < xdebye_cmin) cstat(ncand) = xdebye_stat_czero
+             if (tei < xdebye_tlow) cstat(ncand) = xdebye_stat_tlow
+             do k = j+1, ine
+                tej = cpar(inp+2*k+1,ncand)
+                if (abs(tei-tej) < tdegen * max(tei,tej)) cstat(ncand) = xdebye_stat_tsame
+             end do
+          end do
+          if (1d0 - sumc < xdebye_cmin) cstat(ncand) = xdebye_stat_czero
+          if (cpar(1,ncand) < xdebye_tlow) cstat(ncand) = xdebye_stat_tlow
+       end do
+    end do
+
+    if (dofix) then
+       ! a model that was asked for is used even if its solution is
+       ! degenerate; the report says what is wrong with it
+       ibest = 1
+       if (cstat(1) == xdebye_stat_nodata .or. cstat(1) == xdebye_stat_failed) ibest = 0
+    else
+       ! The target accuracy: what the best model achieves, unless that
+       ! is already better than the tolerance. Adding parameters always
+       ! improves the fit, since the data carry no noise, so the
+       ! criterion is diminishing returns and not the residual alone.
+       rmsbest = huge(1d0)
+       do i = 1, ncand
+          if (cstat(i) == xdebye_stat_ok) rmsbest = min(rmsbest,crms(i))
+       end do
+       if (rmsbest < huge(1d0)) then
+          tol = max(rmsfac * rmsbest,tolabs,tolrel * frange)
+
+          ! the simplest model that reaches the target
+          do i = 1, ncand
+             if (cstat(i) /= xdebye_stat_ok .or. crms(i) > tol) cycle
+             if (ibest == 0) then
+                ibest = i
+             else
+                nprm = xdebye_npar(cnp(i),cne(i))
+                j = xdebye_npar(cnp(ibest),cne(ibest))
+                if (nprm < j .or. (nprm == j .and. crms(i) < crms(ibest))) ibest = i
+             end if
+          end do
+       end if
+    end if
+
+    ! the report
+    if (verbose) call xdebye_report()
+    if (ibest == 0) then
+       if (dofix) then
+          errmsg = "the extended Debye-Einstein model with " // string(npmin) // " polynomial &
+             &coefficients and " // string(nemin) // " Einstein terms could not be fitted"
+       else
+          errmsg = "no acceptable extended Debye-Einstein model was found"
+       end if
+       return
+    end if
+
+    ! the chosen model
+    npoly = cnp(ibest)
+    nein = cne(ibest)
+    nprm = xdebye_npar(npoly,nein)
+    allocate(par(nprm))
+    par = cpar(1:nprm,ibest)
+    dfmax = cdfm(ibest)
+    r2 = xdebye_r2(crms(ibest),ntf,sstot)
+
+  contains
+    !> List the candidate models with their accuracy, and the
+    !> parameters of the one chosen.
+    subroutine xdebye_report()
+
+      integer :: i, nprm
+      character(len=:), allocatable :: stat
+
+      write (uout,'("+ Extended Debye-Einstein fit of the vibrational free energy")')
+      write (uout,'("  Temperatures fitted: ",A," (",A," to ",A," K)")') string(ntf),&
+         string(minval(tf),'f',decimal=3), string(maxval(tf),'f',decimal=3)
+      write (uout,'("  Atoms in the cell: ",A,"; zero-point energy (Ha): ",A)') string(natom),&
+         string(f0,'f',decimal=10)
+      write (uout,'("  Initial Debye temperature (K): ",A,"; mean mode temperature (K): ",A)') &
+         string(td0,'f',decimal=3), string(tmean,'f',decimal=3)
+      if (dofix) then
+         write (uout,'("  Model requested: ",A," polynomial coefficients and ",A," Einstein terms")') &
+            string(npmin), string(nemin)
+      else
+         write (uout,'("  Target rms of the fit (Ha/atom): ",A)') string(tol,'e',decimal=4)
+      end if
+
+      ! the candidates
+      write (uout,'("# npoly nein npar   rms(Ha/atom)  maxdev(Ha/atom)      r2       status")')
+      do i = 1, ncand
+         nprm = xdebye_npar(cnp(i),cne(i))
+         stat = xdebye_statname(cstat(i))
+         if (len_trim(stat) > 0) then
+            if (dofix) then
+               stat = "note: " // stat
+            else
+               stat = "rejected: " // stat
+            end if
+         end if
+         if (i == ibest) then
+            if (len_trim(stat) > 0) stat = "; " // stat
+            stat = "chosen" // stat
+         end if
+         if (crms(i) == huge(1d0)) then
+            write (uout,'(2X,A,3X,A,3X,A,3X,A,3X,A,3X,A,3X,A)') string(cnp(i),3,ioj_right),&
+               string(cne(i),3,ioj_right), string(nprm,3,ioj_right), string("--",14,ioj_right),&
+               string("--",14,ioj_right), string("--",11,ioj_right), stat
+         else
+            write (uout,'(2X,A,3X,A,3X,A,3X,A,3X,A,3X,A,3X,A)') string(cnp(i),3,ioj_right),&
+               string(cne(i),3,ioj_right), string(nprm,3,ioj_right),&
+               string(crms(i),'e',14,4,ioj_right), string(cdfm(i),'e',14,4,ioj_right),&
+               string(xdebye_r2(crms(i),ntf,sstot),'f',11,8,ioj_right), stat
+         end if
+      end do
+      if (ibest == 0) return
+
+      ! the parameters of the chosen model
+      if (dofix) then
+         write (uout,'("  Model used (requested): ",A," polynomial coefficients and ",A,&
+            &" Einstein terms")') string(cnp(ibest)), string(cne(ibest))
+      else
+         write (uout,'("  Model chosen: ",A," polynomial coefficients and ",A," Einstein terms")') &
+            string(cnp(ibest)), string(cne(ibest))
+      end if
+      write (uout,'("  Debye temperature (K): ",A," (weight of the Debye and polynomial terms: ",A,")")') &
+         string(cpar(1,ibest),'f',decimal=4),&
+         string(1d0 - sum(cpar(cnp(ibest)+2:cnp(ibest)+2*cne(ibest):2,ibest)),'f',decimal=7)
+      if (cnp(ibest) > 0) &
+         write (uout,'("  Polynomial coefficients: ",99(A," "))') &
+         (string(cpar(1+i,ibest),'f',decimal=7),i=1,cnp(ibest))
+      do i = 1, cne(ibest)
+         write (uout,'("  Einstein term ",A,": weight ",A,", temperature (K) ",A)') string(i),&
+            string(cpar(cnp(ibest)+2*i,ibest),'f',decimal=7),&
+            string(cpar(cnp(ibest)+2*i+1,ibest),'f',decimal=4)
+      end do
+
+    end subroutine xdebye_report
+
+  end subroutine xdebye_select
+
+  !> Number of parameters of the extended Debye-Einstein model with
+  !> npoly polynomial coefficients and nein Einstein terms.
+  pure function xdebye_npar(npoly,nein) result(npar)
+    integer, intent(in) :: npoly, nein
+    integer :: npar
+
+    npar = 1 + npoly + 2 * nein
+
+  end function xdebye_npar
+
+  !> Correlation coefficient of a fit of nt points with total sum of
+  !> squares sstot that reached a root-mean-square deviation of rms.
+  pure function xdebye_r2(rms,nt,sstot) result(r2)
+    real*8, intent(in) :: rms
+    integer, intent(in) :: nt
+    real*8, intent(in) :: sstot
+    real*8 :: r2
+
+    r2 = 1d0 - rms * rms * real(nt,8) / max(sstot,1d-40)
+
+  end function xdebye_r2
+
+  !> The q quantile (0 to 1) of the mode-temperature distribution
+  !> given as the histogram hist of total weight wtot over the range 0
+  !> to tmax.
+  function xdebye_tquantile(hist,wtot,tmax,q) result(tq)
+    real*8, intent(in) :: hist(:)
+    real*8, intent(in) :: wtot, tmax, q
+    real*8 :: tq
+
+    integer :: ib, n
+    real*8 :: acc, tgt, step
+
+    n = size(hist,1)
+    step = tmax / real(n,8)
+    tgt = q * wtot
+    acc = 0d0
+    do ib = 1, n
+       if (acc + hist(ib) >= tgt .and. hist(ib) > 0d0) then
+          tq = (real(ib-1,8) + (tgt - acc) / hist(ib)) * step
+          return
+       end if
+       acc = acc + hist(ib)
+    end do
+    tq = tmax
+
+  end function xdebye_tquantile
+
+  !> Why a candidate model of the extended Debye-Einstein fit is not
+  !> usable (xdebye_stat_*), or an empty string if it is.
+  pure function xdebye_statname(istat) result(name)
+    integer, intent(in) :: istat
+    character(len=:), allocatable :: name
+
+    select case (istat)
+    case (xdebye_stat_nodata)
+       name = "too few temperatures"
+    case (xdebye_stat_failed)
+       name = "the fit did not converge"
+    case (xdebye_stat_czero)
+       name = "a term carries no weight"
+    case (xdebye_stat_tlow)
+       name = "a temperature is too low"
+    case (xdebye_stat_tsame)
+       name = "two Einstein terms are the same"
+    case default
+       name = ""
+    end select
+
+  end function xdebye_statname
 
   !> Calculate frequencies (cm^-1) on the uniform mesh nk(3), q = (i -
   !> 1 + qshift)/nk in fractional coordinates of the reciprocal cell.

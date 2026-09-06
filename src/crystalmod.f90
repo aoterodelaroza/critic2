@@ -477,6 +477,9 @@ module crystalmod
 
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: bulk_rattle_seeds
+  public :: xdebye_select
+  public :: xdebye_eval
+  public :: xdebye_line
   public :: search_lattice
   public :: pointgroup_info
   public :: pointgroup_symbol
@@ -1657,6 +1660,35 @@ module crystalmod
        real*8, intent(in), optional :: freqo(:,:)
        integer, intent(in), optional :: wq(:)
      end subroutine vibrations_calculate_thermo
+     module subroutine xdebye_select(nt,t,fvib,natom,f0,freq,wq,verbose,npoly,nein,par,r2,dfmax,errmsg,&
+        npfix,nefix)
+       integer, intent(in) :: nt
+       real*8, intent(in) :: t(nt), fvib(nt)
+       integer, intent(in) :: natom
+       real*8, intent(in) :: f0
+       real*8, intent(in) :: freq(:,:)
+       integer, intent(in) :: wq(:)
+       logical, intent(in) :: verbose
+       integer, intent(out) :: npoly, nein
+       real*8, allocatable, intent(out) :: par(:)
+       real*8, intent(out) :: r2, dfmax
+       character(len=:), allocatable, intent(out) :: errmsg
+       integer, intent(in) :: npfix, nefix
+     end subroutine xdebye_select
+     module subroutine xdebye_eval(t,natom,f0,npoly,nein,par,f,s,cv)
+       real*8, intent(in) :: t
+       integer, intent(in) :: natom
+       real*8, intent(in) :: f0
+       integer, intent(in) :: npoly, nein
+       real*8, intent(in) :: par(:)
+       real*8, intent(out) :: f, s, cv
+     end subroutine xdebye_eval
+     module function xdebye_line(f0,npoly,nein,par) result(line)
+       real*8, intent(in) :: f0
+       integer, intent(in) :: npoly, nein
+       real*8, intent(in) :: par(:)
+       character(len=:), allocatable :: line
+     end function xdebye_line
      module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg,wq,nirr,nopmesh,nopfc2)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
