@@ -39,6 +39,25 @@ contains
 
   end function gauss_random
 
+  !> Random direction uniformly distributed on the unit sphere: three
+  !> standard-normal deviates, normalized (a degenerate draw is repeated).
+  module subroutine random_unit_vector(x)
+    real*8, intent(out) :: x(3)
+
+    integer :: k
+    real*8 :: dnorm
+
+    do while (.true.)
+       do k = 1, 3
+          x(k) = gauss_random()
+       end do
+       dnorm = norm2(x)
+       if (dnorm > 1d-10) exit
+    end do
+    x = x / dnorm
+
+  end subroutine random_unit_vector
+
   !> Calculate the cross-correlation between two functions with
   !> triangle weight. For similarity measures between spectra, as
   !> proposed here:

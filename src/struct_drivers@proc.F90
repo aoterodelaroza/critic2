@@ -924,12 +924,12 @@ contains
     use tools_io, only: getline, uin, ucopy, lgetword, ferror, faterr, getword, equal,&
        string
     use global, only: fileroot, eval_next, dunit0, iunit
-    use param, only: bohrtoa
+    use param, only: bohrtoa, random_seed_set
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line0
 
     character(len=:), allocatable :: root, line, word, wff, file, pre, post, errmsg
-    integer :: lp, idx, nseed, nn, i, npad
+    integer :: lp, idx, nseed, nn, i, npad, iseed
     integer :: backend, method, nini, ngen, nstride
     type(crystalseed), allocatable :: seed(:)
     real*8 :: rattle_mag, temp, dt
@@ -977,7 +977,11 @@ contains
                 if (.not.ok) &
                    call ferror('struct_write_bulk','Incorrect value in MAG',faterr,line,syntax=.true.)
                 rattle_mag = rattle_mag / dunit0(iunit)
-
+             elseif (equal(word,"seed")) then
+                ok = eval_next(iseed,line,lp)
+                if (.not.ok) &
+                   call ferror('struct_write_bulk','Incorrect value in SEED',faterr,line,syntax=.true.)
+                call random_seed_set(iseed)
              elseif (len_trim(word) > 0) then
                 call ferror('struct_write_bulk','Unknown extra keyword',faterr,line,syntax=.true.)
                 return
@@ -3950,7 +3954,7 @@ contains
     character(len=:), allocatable :: dataset, scfile
     integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
-    integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest
+    integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest, nrandom, rseed
     integer :: nirr, nopmesh, nopfc2
     integer, allocatable :: wq(:)
     integer, allocatable :: nc(:), ic0(:)
@@ -3960,7 +3964,7 @@ contains
     character(len=:), allocatable :: qfile, dosfile
     real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:)
     logical, allocatable :: qprint(:)
-    logical :: flipped, oneline, ok, doappend, domesh, dodos
+    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus
 
     ! default name of the file where CREATE_DISPLACEMENTS records how the
     ! displaced structures were generated, and where READ_FORCES looks for it
@@ -4063,6 +4067,9 @@ contains
           dataset = dataset_default
           inice = 0
           icrit = 0 ! the nicest cell by default
+          nrandom = 0
+          rseed = -1
+          plusminus = .false.
           do while (.true.)
              if (isinteger(idum,line,lp)) then
                 ndim = ndim + 1
@@ -4074,7 +4081,29 @@ contains
              end if
              mode = lgetword(line,lp)
              if (len_trim(mode) == 0) exit
-             if (equal(mode,'nice')) then
+             if (equal(mode,'random')) then
+                ! random displacements of all atoms instead of the finite-difference list
+                if (.not.eval_next(nrandom,line,lp)) then
+                   call ferror('struct_vibrations','RANDOM needs the number of snapshots',faterr,line,syntax=.true.)
+                   return
+                end if
+                if (nrandom < 1) then
+                   call ferror('struct_vibrations','the number of RANDOM snapshots must be positive',&
+                      faterr,line,syntax=.true.)
+                   return
+                end if
+             elseif (equal(mode,'seed')) then
+                if (.not.eval_next(rseed,line,lp)) then
+                   call ferror('struct_vibrations','SEED needs an integer',faterr,line,syntax=.true.)
+                   return
+                end if
+                if (rseed < 0) then
+                   call ferror('struct_vibrations','the SEED must be a non-negative integer',faterr,line,syntax=.true.)
+                   return
+                end if
+             elseif (equal(mode,'plusminus')) then
+                plusminus = .true.
+             elseif (equal(mode,'nice')) then
                 ! choose the supercell of this size as NEWCELL NICE would
                 if (.not.eval_next(inice,line,lp)) &
                    call ferror('struct_vibrations','NICE needs the size of the supercell',faterr,line,syntax=.true.)
@@ -4110,6 +4139,10 @@ contains
                    faterr,line,syntax=.true.)
              end if
           end do
+
+          if (nrandom == 0 .and. (rseed >= 0 .or. plusminus)) &
+             call ferror('struct_vibrations','SEED and PLUSMINUS need RANDOM in CREATE_DISPLACEMENTS',&
+                faterr,line,syntax=.true.)
 
           ! NICE: pick the supercell of the requested size, as NEWCELL NICE
           ! would, and continue as if its nine integers had been typed
@@ -4159,9 +4192,11 @@ contains
           end if
 
           if (rk > 0d0) then
-             call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg,rklength=rk)
+             call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg,rklength=rk,&
+                nrandom=nrandom,rseed=rseed,plusminus=plusminus)
           else
-             call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg)
+             call s%c%create_displacements(smat,dist,template,dataset,scfile,verbose,errmsg,&
+                nrandom=nrandom,rseed=rseed,plusminus=plusminus)
           end if
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)

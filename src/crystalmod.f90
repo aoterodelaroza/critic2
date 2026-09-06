@@ -942,7 +942,8 @@ module crystalmod
        integer, intent(in) :: id
        character(len=:), allocatable :: name
      end function vib_calculator_name
-     module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength)
+     module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength,&
+        nrandom,rseed,plusminus)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: smat0(3,3)
        real*8, intent(in) :: dist
@@ -953,6 +954,9 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        real*8, intent(in), optional :: rklength
+       integer, intent(in) :: nrandom
+       integer, intent(in) :: rseed
+       logical, intent(in) :: plusminus
      end subroutine create_displacements
      module subroutine disp_count(c,smat,ndisp,nindep,errmsg)
        class(crystal), intent(inout) :: c

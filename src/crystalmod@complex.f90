@@ -577,7 +577,7 @@ contains
   !> nseed is the number of seeds already in the list, and is updated.
   module subroutine bulk_rattle_seeds(c,nstruct,mag,seed,nseed)
     use crystalseedmod, only: crystalseed, realloc_crystalseed
-    use tools_math, only: gauss_random
+    use tools_math, only: random_unit_vector
     type(crystal), intent(in) :: c
     integer, intent(in) :: nstruct
     real*8, intent(in) :: mag
@@ -585,8 +585,8 @@ contains
     integer, intent(inout) :: nseed
 
     type(crystalseed) :: seed0
-    real*8 :: xdelta(3), dnorm
-    integer :: i, j, k
+    real*8 :: xdelta(3)
+    integer :: i, j
 
     if (nstruct < 1) return
     if (.not.allocated(seed)) then
@@ -601,16 +601,8 @@ contains
     do i = nseed+1, nseed+nstruct
        seed(i) = seed0
        do j = 1, c%ncel
-          ! an isotropic random direction, from three gaussian deviates
-          do while (.true.)
-             do k = 1, 3
-                xdelta(k) = gauss_random()
-             end do
-             dnorm = norm2(xdelta)
-             if (dnorm > 1d-10) exit
-          end do
-          xdelta = xdelta / dnorm * mag
-          seed(i)%x(:,j) = c%c2x(c%atcel(j)%r + xdelta)
+          call random_unit_vector(xdelta)
+          seed(i)%x(:,j) = c%c2x(c%atcel(j)%r + mag * xdelta)
        end do
     end do
     nseed = nseed + nstruct

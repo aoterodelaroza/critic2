@@ -57,7 +57,6 @@ contains
 
     errmsg = ""
     call md%free()
-    call random_seed()
     md%autostop = .true.
     if (present(temperature)) md%temperature = temperature
     if (present(dt)) md%dt = dt

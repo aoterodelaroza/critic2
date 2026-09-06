@@ -31,6 +31,7 @@ module tools_math
   public :: cellpar_from_metric
   public :: factorial
   public :: gauss_random
+  public :: random_unit_vector
   public :: genrlm_real
   public :: genylm
   public :: tosphere
@@ -155,6 +156,9 @@ module tools_math
      module function gauss_random() result(g)
        real*8 :: g
      end function gauss_random
+     module subroutine random_unit_vector(x)
+       real*8, intent(out) :: x(3)
+     end subroutine random_unit_vector
      module subroutine genrlm_real(lmax,r,tp,rrlm)
        integer, intent(in) :: lmax
        real*8, intent(in) :: r

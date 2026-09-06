@@ -29,8 +29,7 @@ contains
   module subroutine param_init()
 
     integer :: i
-    integer :: n, clock
-    integer, dimension(:), allocatable :: seed
+    integer :: clock
 
     ! factorial matrix
     fact(0)=1d0
@@ -38,13 +37,9 @@ contains
        fact(i)=i*fact(i-1)
     end do
 
-    ! random seed
-    call random_seed(size = n)
-    allocate(seed(n))
+    ! random seed, from the clock
     call system_clock(count=clock)
-    seed = clock + 37 * (/ (i - 1, i = 1, n) /)
-    call random_seed(put = seed)
-    deallocate(seed)
+    call random_seed_set(clock)
 
     ! machine constants
     do i = 1, 5
@@ -84,6 +79,25 @@ contains
     call vh%put("eps",epsilon(1d0))
 
   end subroutine param_init
+
+  !> Seed the intrinsic random number generator from the single integer
+  !> iseed, so that the sequence that follows is reproducible (with the
+  !> same compiler and runtime). param_init calls this with the clock;
+  !> the SEED options of WRITE BULK RATTLE and CREATE_DISPLACEMENTS
+  !> RANDOM call it with the user's integer.
+  module subroutine random_seed_set(iseed)
+    integer, intent(in) :: iseed
+
+    integer :: n, i
+    integer, allocatable :: seed(:)
+
+    call random_seed(size = n)
+    allocate(seed(n))
+    seed = iseed + 37 * (/ (i - 1, i = 1, n) /)
+    call random_seed(put = seed)
+    deallocate(seed)
+
+  end subroutine random_seed_set
 
   !> Convert a structure format for reading to a format for writing.
   !> Returns isformat_w_unknown if not possible.

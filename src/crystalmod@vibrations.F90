@@ -103,8 +103,13 @@ submodule (crystalmod) vibrationsmod
   ! different critic2 sessions without the user having to remember the
   ! supercell and the displacement length. The reference structure is
   ! recorded as well, so a re-relaxed or reordered cell is caught.
+  integer, parameter :: fc2_kind_fd = 1 ! one atom per structure, along phonopy's directions
+  integer, parameter :: fc2_kind_random = 2 ! every atom of every structure, random directions
   type fc2_dataset
      integer :: version = 0 ! version of the dataset file format
+     integer :: kind = fc2_kind_fd ! kind of displacements (fc2_kind_*)
+     integer :: rseed = -1 ! random seed the displacements were generated with (-1 = none given)
+     logical :: plusminus = .false. ! random kind: snapshot ndisp/2+i is the negative of snapshot i
      integer :: smat(3,3) = 0 ! supercell matrix (rows = supercell lattice vectors)
      real*8 :: dist = 0d0 ! displacement length (bohr)
      character(len=mlen) :: template = "" ! file name template of the displaced structures
@@ -114,8 +119,9 @@ submodule (crystalmod) vibrationsmod
      real*8 :: m_x2c(3,3) = 0d0 ! reference crystal-to-Cartesian matrix (bohr)
      integer, allocatable :: z(:) ! (nat) atomic numbers of the reference cell
      real*8, allocatable :: x(:,:) ! (3,nat) fractional coordinates of the reference cell
-     integer, allocatable :: datom(:) ! (ndisp) displaced supercell atom
-     integer, allocatable :: ddir(:,:) ! (3,ndisp) displacement direction (supercell fractional)
+     integer, allocatable :: datom(:) ! (ndisp) displaced supercell atom (fd kind)
+     integer, allocatable :: ddir(:,:) ! (3,ndisp) displacement direction (supercell fractional, fd kind)
+     real*8, allocatable :: disp(:,:,:) ! (3,nsat,ndisp) displacement of every atom (Cartesian, bohr, random kind)
      character(len=mlen), allocatable :: fname(:) ! (ndisp) file written for each displacement
   end type fc2_dataset
 
@@ -134,10 +140,11 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti)
   ! subroutine fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
   ! function fc2_dispvec(sc,ddir,dist)
+  ! subroutine fc2_random_disps(nsat,nsnap,dist,plusminus,disp)
   ! function fc2_expand_star(template,i,npad)
   ! subroutine fc2_atom_perm(c,io,icv,perm,ok)
   ! subroutine fc2_check_disp(file,icalc,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
-  ! subroutine fc2_write_dataset(c,file,smat,dist,template,calc,ndisp,datom,ddir,fname,errmsg,ti)
+  ! subroutine fc2_write_dataset(file,ds,errmsg,ti)
   ! subroutine fc2_read_dataset(file,ds,errmsg,ti)
   ! subroutine fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
   ! function fc2_smatstr(m)
@@ -744,12 +751,13 @@ contains
   !> cell. If error, return non-zero errmsg.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
-  module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength)
+  module subroutine create_displacements(c,smat0,dist,template,dataset,scfile,verbose,errmsg,ti,rklength,&
+     nrandom,rseed,plusminus)
     use crystalseedmod, only: crystalseed
     use global, only: vib_calculator
     use tools_io, only: uout, string, ioj_right
     use param, only: vcalc_none, isformat_w_unknown, isformat_w_vasp, isformat_w_abinit,&
-       isformat_w_elk, isformat_w_siesta_struct, isformat_w_dftbp_hsd
+       isformat_w_elk, isformat_w_siesta_struct, isformat_w_dftbp_hsd, random_seed_set
     class(crystal), intent(inout) :: c
     integer, intent(in) :: smat0(3,3)
     real*8, intent(in) :: dist
@@ -760,15 +768,20 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     real*8, intent(in), optional :: rklength
+    integer, intent(in) :: nrandom
+    integer, intent(in) :: rseed
+    logical, intent(in) :: plusminus
 
     character(len=:), allocatable :: template_, fname, otemplate, errmsg2
-    character(len=mlen), allocatable :: fnames(:)
     integer :: iwf, nlat, nsat, madj(3,3), is, i, k, nindep, ndisp, npad, nk(3), smat(3,3)
-    real*8 :: y(3), dc(3)
+    integer :: nstruct
+    real*8 :: dc(3)
     logical :: seen(c%nspc), noenv
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
+    real*8, allocatable :: x0(:,:), disp(:,:,:)
     type(crystalseed) :: seed
     type(crystal) :: sc, scd
+    type(fc2_dataset) :: ds
 
     errmsg = ""
 
@@ -832,12 +845,16 @@ contains
           string(rklength,'f',10,2), (string(nk(k)),k=1,3)
     end if
 
-    ! write the undisplaced supercell and then the displaced ones,
-    ! displacing one atom of the seed at a time and restoring it. QE
-    ! inputs are written for a single-point calculation with forces.
-    ! The directories in the template are created if they do not exist.
+    ! write the undisplaced supercell and then the displaced ones
     noenv = any(vcalc(:)%iwformat == iwf)
-    npad = max(3,len(string(ndisp)))
+    if (nrandom > 0) then
+       if (rseed >= 0) call random_seed_set(rseed)
+       call fc2_random_disps(nsat,nrandom,dist,plusminus,disp)
+       nstruct = size(disp,3)
+    else
+       nstruct = ndisp
+    end if
+    npad = max(3,len(string(nstruct)))
     fname = fc2_expand_star(template_,0,npad)
     call fc2_makedir(fname,errmsg)
     if (len_trim(errmsg) > 0) return
@@ -846,51 +863,106 @@ contains
     if (len_trim(errmsg) > 0) return
     if (verbose) then
        write (uout,'("+ Undisplaced supercell written to: ",A)') fname
-       write (uout,'("+ List of displacements")')
-       write (uout,'("# id  atom  --direction (frac)--  ------ displacement (Cartesian, bohr) ------  file")')
+       if (nrandom > 0) then
+          if (plusminus) then
+             write (uout,'("+ Random displacements of all atoms (",A," snapshots, plus their negatives)")') &
+                string(nrandom)
+          else
+             write (uout,'("+ Random displacements of all atoms (",A," snapshots)")') string(nrandom)
+          end if
+          if (rseed >= 0) then
+             write (uout,'("  Random seed: ",A)') string(rseed)
+          else
+             write (uout,'("  Random seed: none given (give SEED for a reproducible set)")')
+          end if
+          write (uout,'("  (A finite-difference set for this supercell would need ",A," displacements)")') &
+             string(ndisp)
+          write (uout,'("+ List of snapshots")')
+          write (uout,'("# id  sign  file")')
+       else
+          write (uout,'("+ List of displacements")')
+          write (uout,'("# id  atom  --direction (frac)--  ------ displacement (Cartesian, bohr) ------  file")')
+       end if
     end if
     seed%havesym = 0 ! the displaced structures do not have the symmetry of the supercell
     seed%findsym = 0
-    allocate(fnames(ndisp))
-    do i = 1, ndisp
-       dc = fc2_dispvec(sc,ddir(:,i),dist)
-       is = datom(i)
-       y = seed%x(:,is)
-       seed%x(:,is) = y + sc%c2x(dc)
+    allocate(ds%fname(nstruct))
+    x0 = seed%x
+    do i = 1, nstruct
+       if (nrandom > 0) then
+          seed%x = x0 + matmul(sc%m_c2x,disp(:,:,i))
+       else
+          dc = fc2_dispvec(sc,ddir(:,i),dist)
+          is = datom(i)
+          seed%x(:,is) = x0(:,is) + sc%c2x(dc)
+       end if
        ! the atomic environments and molecular fragments are skipped
        ! for the calculator input formats (the vcalc table), whose
        ! writers do not use them (cif, pdb and tinker frac do: formula,
        ! Z, bonds)
        call scd%struct_new(seed,errmsg,noenv=noenv,ti=ti)
-       seed%x(:,is) = y
        if (len_trim(errmsg) > 0) return
+       if (nrandom == 0) seed%x(:,is) = x0(:,is)
        fname = fc2_expand_star(template_,i,npad)
-       fnames(i) = fname
+       ds%fname(i) = fname
        call fc2_makedir(fname,errmsg)
        if (len_trim(errmsg) > 0) return
        call scd%write_any_file(fname,errmsg,iwformat=iwf,nosym=.true.,ti=ti,forces=.true.,&
           rklength=rklength)
        if (len_trim(errmsg) > 0) return
-       if (verbose) &
-          write (uout,'(2X,A,X,A,2X,3(A,X),X,3(A,X),X,A)') string(i,4), string(is,5),&
-             (string(ddir(k,i),4),k=1,3), (string(dc(k),'f',14,10,ioj_right),k=1,3), trim(fname)
+       if (verbose) then
+          if (nrandom > 0) then
+             write (uout,'(2X,A,X,A,2X,A)') string(i,4), merge("   -","   +",i > nrandom), trim(fname)
+          else
+             write (uout,'(2X,A,X,A,2X,3(A,X),X,3(A,X),X,A)') string(i,4), string(is,5),&
+                (string(ddir(k,i),4),k=1,3), (string(dc(k),'f',14,10,ioj_right),k=1,3), trim(fname)
+          end if
+       end if
     end do
     if (verbose) &
-       write (uout,'("+ Written ",A," displaced supercells")') string(ndisp)
+       write (uout,'("+ Written ",A," displaced supercells")') string(nstruct)
 
     ! The dataset file: everything READ_FORCES needs to interpret the
     ! forces of these structures. Without it they cannot be read back,
     ! so it is always written.
-    call fc2_write_dataset(c,dataset,smat,dist,template_,vib_calculator,ndisp,datom,ddir,fnames,errmsg,ti)
+    ds%version = 1
+    ds%smat = smat
+    ds%dist = dist
+    ds%template = template_
+    ds%calc = vib_calculator
+    ds%ndisp = nstruct
+    ds%nat = c%ncel
+    ds%m_x2c = c%m_x2c
+    allocate(ds%z(c%ncel),ds%x(3,c%ncel))
+    do i = 1, c%ncel
+       ds%z(i) = c%spc(c%atcel(i)%is)%z
+       ds%x(:,i) = c%atcel(i)%x
+    end do
+    if (nrandom > 0) then
+       ds%kind = fc2_kind_random
+       ds%rseed = rseed
+       ds%plusminus = plusminus
+       call move_alloc(disp,ds%disp)
+    else
+       ds%kind = fc2_kind_fd
+       ds%datom = datom(1:ndisp)
+       ds%ddir = ddir(:,1:ndisp)
+    end if
+    call fc2_write_dataset(dataset,ds,errmsg,ti)
     if (len_trim(errmsg) > 0) return
     if (verbose) then
        write (uout,'("+ Displacement dataset written to: ",A)') trim(dataset)
-       call fc2_output_template(template_,vib_calculator,otemplate,errmsg2)
-       if (len_trim(errmsg2) > 0) then
-          write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
+       if (nrandom > 0) then
+          write (uout,'("  (READ_FORCES cannot use random displacements yet: the fit by regression &
+             &is not implemented)")')
        else
-          write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
-          write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
+          call fc2_output_template(template_,vib_calculator,otemplate,errmsg2)
+          if (len_trim(errmsg2) > 0) then
+             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
+          else
+             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
+             write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
+          end if
        end if
     end if
 
@@ -908,6 +980,35 @@ contains
     dc = dc * dist / norm2(dc)
 
   end function fc2_dispvec
+
+  !> Random displacements of every atom for nsnap snapshots of a
+  !> supercell with nsat atoms: disp(:,j,i) is a vector of length dist
+  !> (Cartesian, bohr) in a direction uniformly distributed on the
+  !> sphere, independent for every atom and snapshot. If plusminus,
+  !> snapshot nsnap+i is the negative of snapshot i, so disp has 2*nsnap
+  !> snapshots.
+  subroutine fc2_random_disps(nsat,nsnap,dist,plusminus,disp)
+    use tools_math, only: random_unit_vector
+    integer, intent(in) :: nsat, nsnap
+    real*8, intent(in) :: dist
+    logical, intent(in) :: plusminus
+    real*8, allocatable, intent(out) :: disp(:,:,:)
+
+    integer :: i, j, nstruct
+    real*8 :: x(3)
+
+    nstruct = nsnap
+    if (plusminus) nstruct = 2 * nsnap
+    allocate(disp(3,nsat,nstruct))
+    do i = 1, nsnap
+       do j = 1, nsat
+          call random_unit_vector(x)
+          disp(:,j,i) = dist * x
+       end do
+    end do
+    if (plusminus) disp(:,:,nsnap+1:nstruct) = -disp(:,:,1:nsnap)
+
+  end subroutine fc2_random_disps
 
   !> Expand a file name template by replacing every * with the integer
   !> i, zero-padded to npad digits. Several stars are allowed (and all
@@ -1053,21 +1154,14 @@ contains
   !> and the file written for each displacement). This is the file
   !> create_forces reads to know how the forces it is given were
   !> generated.
-  subroutine fc2_write_dataset(c,file,smat,dist,template,calc,ndisp,datom,ddir,fname,errmsg,ti)
+  subroutine fc2_write_dataset(file,ds,errmsg,ti)
     use tools_io, only: fopen_write, fclose, string, ioj_right
-    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
-    integer, intent(in) :: smat(3,3)
-    real*8, intent(in) :: dist
-    character*(*), intent(in) :: template
-    integer, intent(in) :: calc, ndisp
-    integer, intent(in) :: datom(ndisp)
-    integer, intent(in) :: ddir(3,ndisp)
-    character(len=mlen), intent(in) :: fname(ndisp)
+    type(fc2_dataset), intent(in) :: ds
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, i, k
+    integer :: lu, i, j, k
 
     errmsg = ""
     lu = fopen_write(file,errstop=.false.,ti=ti)
@@ -1078,33 +1172,50 @@ contains
 
     write (lu,'("# critic2 VIBRATIONS displacement dataset")')
     write (lu,'("# the forces of these displaced structures are read back with VIBRATIONS READ_FORCES")')
-    write (lu,'("VERSION 1")')
+    write (lu,'("VERSION ",A)') string(ds%version)
     write (lu,'("STRUCTURE ! the cell the displacements were generated from")')
     write (lu,'("  LATTICE ! lattice vectors, one per row, in bohr")')
     do i = 1, 3
-       write (lu,'(4X,3(A," "))') (string(c%m_x2c(k,i),'f',22,14,ioj_right),k=1,3)
+       write (lu,'(4X,3(A," "))') (string(ds%m_x2c(k,i),'f',22,14,ioj_right),k=1,3)
     end do
-    write (lu,'("  NATOMS ",A)') string(c%ncel)
-    do i = 1, c%ncel
-       write (lu,'("  ATOM ",A,X,3(A," "))') string(c%spc(c%atcel(i)%is)%z,3,ioj_right),&
-          (string(c%atcel(i)%x(k),'f',22,14,ioj_right),k=1,3)
+    write (lu,'("  NATOMS ",A)') string(ds%nat)
+    do i = 1, ds%nat
+       write (lu,'("  ATOM ",A,X,3(A," "))') string(ds%z(i),3,ioj_right),&
+          (string(ds%x(k,i),'f',22,14,ioj_right),k=1,3)
     end do
     write (lu,'("ENDSTRUCTURE")')
     write (lu,'("SUPERCELL ! rows = supercell lattice vectors, in units of the cell vectors")')
     do i = 1, 3
-       write (lu,'(4X,3(A," "))') (string(smat(i,k),4,ioj_right),k=1,3)
+       write (lu,'(4X,3(A," "))') (string(ds%smat(i,k),4,ioj_right),k=1,3)
     end do
-    write (lu,'("DISTANCE ",A," ! displacement length, always in bohr")') string(dist,'f',22,14)
-    write (lu,'("TEMPLATE ",A)') trim(template)
+    write (lu,'("DISTANCE ",A," ! displacement length, always in bohr")') string(ds%dist,'f',22,14)
+    write (lu,'("TEMPLATE ",A)') trim(ds%template)
     write (lu,'("CALCULATOR ",A," ! the code the structures were written for (none = not set)")') &
-       vib_calculator_name(calc)
-    write (lu,'("NDISP ",A)') string(ndisp)
-    write (lu,'("DISPLACEMENTS")')
-    write (lu,'("# id  atom  --direction (frac)--  file")')
-    do i = 1, ndisp
-       write (lu,'(2X,A,X,A,2X,3(A,X),X,A)') string(i,4), string(datom(i),5),&
-          (string(ddir(k,i),4),k=1,3), trim(fname(i))
-    end do
+       vib_calculator_name(ds%calc)
+    if (ds%kind == fc2_kind_random) then
+       ! random displacements of all atoms: one block per snapshot
+       write (lu,'("KIND RANDOM ! every atom displaced by DISTANCE in a random direction")')
+       if (ds%rseed >= 0) write (lu,'("SEED ",A)') string(ds%rseed)
+       if (ds%plusminus) write (lu,'("PLUSMINUS ! the second half of the snapshots are the negatives of the first")')
+       write (lu,'("NDISP ",A," ! number of snapshots")') string(ds%ndisp)
+       write (lu,'("DISPLACEMENTS")')
+       write (lu,'("# id  file, then one line per supercell atom: atom, displacement (Cartesian, bohr)")')
+       do i = 1, ds%ndisp
+          write (lu,'(2X,A,2X,A)') string(i,4), trim(ds%fname(i))
+          do j = 1, size(ds%disp,2)
+             write (lu,'(4X,I6,2X,3(F20.14,X))') j, ds%disp(:,j,i)
+          end do
+       end do
+    else
+       write (lu,'("KIND FINITE_DIFFERENCE ! one atom per structure, along phonopy''s directions")')
+       write (lu,'("NDISP ",A)') string(ds%ndisp)
+       write (lu,'("DISPLACEMENTS")')
+       write (lu,'("# id  atom  --direction (frac)--  file")')
+       do i = 1, ds%ndisp
+          write (lu,'(2X,A,X,A,2X,3(A,X),X,A)') string(i,4), string(ds%datom(i),5),&
+             (string(ds%ddir(k,i),4),k=1,3), trim(ds%fname(i))
+       end do
+    end if
     write (lu,'("ENDDISPLACEMENTS")')
     call fclose(lu)
 
@@ -1115,6 +1226,7 @@ contains
   subroutine fc2_read_dataset(file,ds,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline, lgetword, getword, isinteger,&
        isreal, equal, string
+    use tools_math, only: idet3
     use param, only: vcalc_none
     character*(*), intent(in) :: file
     type(fc2_dataset), intent(out) :: ds
@@ -1122,7 +1234,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word
-    integer :: lu, lp, i, k, idx, idum
+    integer :: lu, lp, i, j, k, idx, idum, nsat
     logical :: ok
 
     errmsg = ""
@@ -1213,6 +1325,24 @@ contains
              errmsg = "Unknown calculator (" // trim(word) // ") in the displacement dataset file: " // trim(file)
              goto 999
           end if
+       elseif (equal(word,"kind")) then
+          if (allocated(ds%fname)) then
+             errmsg = "KIND after DISPLACEMENTS in the displacement dataset file: " // trim(file)
+             goto 999
+          end if
+          word = lgetword(line,lp)
+          if (equal(word,"random")) then
+             ds%kind = fc2_kind_random
+          elseif (equal(word,"finite_difference")) then
+             ds%kind = fc2_kind_fd
+          else
+             errmsg = "Unknown KIND (" // trim(word) // ") in the displacement dataset file: " // trim(file)
+             goto 999
+          end if
+       elseif (equal(word,"seed")) then
+          if (.not.isinteger(ds%rseed,line,lp)) goto 999
+       elseif (equal(word,"plusminus")) then
+          ds%plusminus = .true.
        elseif (equal(word,"ndisp")) then
           if (.not.isinteger(ds%ndisp,line,lp)) goto 999
           if (ds%ndisp < 1) goto 999
@@ -1223,8 +1353,21 @@ contains
           end if
           if (allocated(ds%datom)) deallocate(ds%datom)
           if (allocated(ds%ddir)) deallocate(ds%ddir)
+          if (allocated(ds%disp)) deallocate(ds%disp)
           if (allocated(ds%fname)) deallocate(ds%fname)
-          allocate(ds%datom(ds%ndisp),ds%ddir(3,ds%ndisp),ds%fname(ds%ndisp))
+          allocate(ds%fname(ds%ndisp))
+          if (ds%kind == fc2_kind_random) then
+             ! the number of supercell atoms follows from the cell and the supercell
+             if (ds%nat < 1 .or. all(ds%smat == 0)) then
+                errmsg = "DISPLACEMENTS before STRUCTURE or SUPERCELL in the displacement dataset file: " //&
+                   trim(file)
+                goto 999
+             end if
+             nsat = ds%nat * abs(idet3(ds%smat))
+             allocate(ds%disp(3,nsat,ds%ndisp))
+          else
+             allocate(ds%datom(ds%ndisp),ds%ddir(3,ds%ndisp))
+          end if
           i = 0
           do while (getline(lu,line))
              lp = 1
@@ -1237,17 +1380,37 @@ contains
              end if
              lp = 1
              ok = isinteger(idum,line,lp)
-             ok = ok .and. isinteger(ds%datom(i),line,lp)
-             do k = 1, 3
-                ok = ok .and. isinteger(ds%ddir(k,i),line,lp)
-             end do
              if (.not.ok) goto 999
              if (idum /= i) then
                 errmsg = "The displacements in " // trim(file) // " are not in order (found index " //&
                    string(idum) // " on displacement " // string(i) // ")"
                 goto 999
              end if
-             ds%fname(i) = getword(line,lp)
+             if (ds%kind == fc2_kind_random) then
+                ! the file, then one line per supercell atom
+                ds%fname(i) = getword(line,lp)
+                do j = 1, nsat
+                   if (.not.getline(lu,line)) goto 999
+                   lp = 1
+                   ok = isinteger(idum,line,lp)
+                   do k = 1, 3
+                      ok = ok .and. isreal(ds%disp(k,j,i),line,lp)
+                   end do
+                   if (.not.ok) goto 999
+                   if (idum /= j) then
+                      errmsg = "The atoms of displacement " // string(i) // " in " // trim(file) //&
+                         " are not in order (found atom " // string(idum) // " on line " // string(j) // ")"
+                      goto 999
+                   end if
+                end do
+             else
+                ok = isinteger(ds%datom(i),line,lp)
+                do k = 1, 3
+                   ok = ok .and. isinteger(ds%ddir(k,i),line,lp)
+                end do
+                if (.not.ok) goto 999
+                ds%fname(i) = getword(line,lp)
+             end if
           end do
           if (i /= ds%ndisp) then
              errmsg = "The displacement dataset file " // trim(file) // " announces " // string(ds%ndisp) //&
@@ -1271,7 +1434,7 @@ contains
        errmsg = "No SUPERCELL in the displacement dataset file: " // trim(file)
     elseif (ds%dist <= 0d0) then
        errmsg = "No (or non-positive) DISTANCE in the displacement dataset file: " // trim(file)
-    elseif (.not.allocated(ds%datom)) then
+    elseif (.not.allocated(ds%fname)) then
        errmsg = "No DISPLACEMENTS in the displacement dataset file: " // trim(file)
     end if
     return
@@ -1615,6 +1778,11 @@ contains
     ! displacements. It is the only source of that information.
     call fc2_read_dataset(dataset,ds,errmsg,ti)
     if (len_trim(errmsg) > 0) return
+    if (ds%kind == fc2_kind_random) then
+       errmsg = "The dataset " // trim(dataset) // " holds random displacements of all atoms (" //&
+          string(ds%ndisp) // " snapshots); the force-constant fit by regression is not implemented yet"
+       return
+    end if
     smat = ds%smat
     dist = ds%dist
     if (verbose) then

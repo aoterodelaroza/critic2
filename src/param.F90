@@ -748,6 +748,9 @@ module param
      !xx! proc submodule
      module subroutine param_init()
      end subroutine param_init
+     module subroutine random_seed_set(iseed)
+       integer, intent(in) :: iseed
+     end subroutine random_seed_set
      pure module function isformat_write_from_read(isformat) result(iwformat)
        integer, intent(in) :: isformat
        integer :: iwformat
