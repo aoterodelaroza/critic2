@@ -4600,10 +4600,6 @@ contains
           call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
           if (nusedm == 0) &
              call ferror('struct_vibrations','no modes above the cutoff were available for THERMO',faterr)
-          if (nimagm > 0) &
-             call ferror('struct_vibrations','THERMO left out ' // string(nimagm) // ' imaginary &
-                &frequencies; the thermodynamic properties are not reliable',warning)
-
           if (len_trim(qfile) > 0) then
              lu = fopen_write(qfile,errstop=.false.)
              if (lu < 0) &
