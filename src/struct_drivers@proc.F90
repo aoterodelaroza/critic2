@@ -3802,14 +3802,13 @@ contains
        if (icrit > 0) &
           write (uout,'("# rmax0 = rmax of the nicest cell of that size, for comparison")')
        write (uout,'("# nops = symmetry operations of the crystal compatible with the supercell lattice;")')
-       write (uout,'("#        nindep, ndisp = independent atoms and displacements CREATE_DISPLACEMENTS")')
-       write (uout,'("#        would generate for this supercell")')
+       write (uout,'("# nindep, ndisp = independent atoms and displacements")')
        if (icrit == 1) then
           write (uout,'("# For each size, the NICEST cell among those with the FEWEST DISPLACEMENTS of that")')
-          write (uout,'("# size (MINDISP); the most symmetric one when several tie.")')
+          write (uout,'("# size.")')
        else
           write (uout,'("# For each size, over all the sublattices of that size, the NICEST cell; the most")')
-          write (uout,'("# symmetric one when several tie. MINDISP chooses the nicest with the fewest ndisp.")')
+          write (uout,'("# symmetric one when several tie.")')
        end if
        write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain this cell")')
        srmax0 = ""
