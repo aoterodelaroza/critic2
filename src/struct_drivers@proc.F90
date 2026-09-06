@@ -3951,6 +3951,8 @@ contains
     integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
     integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest
+    integer :: nirr, nopmesh, nopfc2
+    integer, allocatable :: wq(:)
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
     real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
@@ -4501,7 +4503,7 @@ contains
              if (.not.s%c%vib%hasfc2) &
                 call ferror('struct_vibrations','THERMO MESH needs force constants (LOAD_FC2 or READ_FORCES)',&
                    faterr)
-             call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg)
+             call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg,wq=wq,nirr=nirr,nopmesh=nopmesh,nopfc2=nopfc2)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
           else
@@ -4544,10 +4546,14 @@ contains
                       &3(A," "),"of a mesh step")') (string(nk(k)),k=1,3),&
                       (string(qshift(k),'f',8,4),k=1,3)
                 end if
+                write (uout,'("  Number of q-points: ",A," (",A," irreducible)")') string(nqt), string(nirr)
+                if (nopmesh < nopfc2) &
+                   write (uout,'("  Note: the mesh does not have the full symmetry of the force constants &
+                      &(only ",A," of ",A," operations map it onto itself)")') string(nopmesh), string(nopfc2)
              else
                 write (uout,'("  Using the frequencies stored at the single q-point")')
+                write (uout,'("  Number of q-points: ",A)') string(nqt)
              end if
-             write (uout,'("  Number of q-points: ",A)') string(nqt)
              write (uout,'("  Cutoff frequency (cm^-1): ",A)') string(cutoff,'f',decimal=4)
              write (uout,'("  Formula units in the cell (Z): ",A)') string(nz)
              if (nrigid > 0) &
@@ -4556,7 +4562,7 @@ contains
 
           ! the zero-point energy and the mode counts do not depend on the
           ! temperature, so report them before the table
-          call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq)
+          call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
           if (nusedm == 0) &
              call ferror('struct_vibrations','no modes above the cutoff were available for THERMO',faterr)
           if (nimagm > 0) &
@@ -4576,7 +4582,7 @@ contains
 
           ! the properties, temperature by temperature
           do i = 1, nt
-             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq)
+             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
              if (verbose) call thermo_row(uout,tlist(i),fvib,svib,cv)
              if (lu > 0) call thermo_row(lu,tlist(i),fvib,svib,cv)
           end do
@@ -4589,7 +4595,7 @@ contains
           ! the phonon density of states from the same sampling
           if (dodos .and. domesh .and. allocated(tfreq)) then
              if (len_trim(dosfile) == 0) dosfile = "critic2_dos.dat"
-             call s%c%vib%write_dos(s%c,dosfile,nk,qshift,sigma,npts,verbose,errmsg,freqo=tfreq)
+             call s%c%vib%write_dos(s%c,dosfile,nk,qshift,sigma,npts,verbose,errmsg,freqo=tfreq,wq=wq)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
           end if

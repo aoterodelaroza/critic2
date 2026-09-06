@@ -52,26 +52,16 @@ submodule (crystalmod) vibrationsmod
      "eV/ang^2            ", "eV/(ang*bohr)       ", "Ry/bohr^2           ",&
      "mRy/bohr^2          ", "Hartree/bohr^2      ", "Hartree/(ang*bohr)  "/)
 
-  ! Everything the vibrations code knows about each calculator
-  ! (VIBRATIONS CALCULATOR; ids vcalc_* in param, one row per id): the
-  ! name used in messages and datasets, the accepted names, the units of
-  ! the FORCE_CONSTANTS files phonopy writes for that code (index in
-  ! fc2_unitname), the format of the displaced structures
-  ! CREATE_DISPLACEMENTS writes (0 = none: a TEMPLATE with a format
-  ! critic2 can write is required) and their name pattern after the
-  ! root, the header of the force block in the outputs and the factor
-  ! from its units to hartree/bohr ("" = forces cannot be read), and
-  ! the extension of the output files when the code has a fixed one
-  ! ("" = give the outputs with TEMPLATE or LIST).
+  ! Information about each force calculator
   type vcalc_info
-     character*10 :: name
-     character*40 :: syn
-     integer :: iunit
-     integer :: iwformat
-     character*16 :: ext
-     character*24 :: fhead
-     real*8 :: ffac
-     character*8 :: oext
+     character*10 :: name ! name used in messages and datasets
+     character*40 :: syn ! synonyms
+     integer :: iunit ! units of the force constants (index in fc2_unitname)
+     integer :: iwformat ! format of the displaced structures
+     character*16 :: ext ! extension of the input files
+     character*24 :: fhead ! header of the force block in the outputs
+     real*8 :: ffac ! factor from force units to hartree/bohr
+     character*8 :: oext ! extension of the output files
   end type vcalc_info
   type(vcalc_info), parameter :: vcalc(vcalc_max) = (/&
      vcalc_info("qe","qe pwscf espresso quantum-espresso",3,isformat_w_qein,"-*.scf.in",&
@@ -153,9 +143,9 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_smatstr(m)
   ! subroutine fc2_output_template(template,icalc,otemplate,errmsg)
   ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
-  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nint,ntot,nimag)
-  ! subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg)
-  ! subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
+  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq)
+  ! subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg,wq)
+  ! subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos,wq)
   ! subroutine dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
   ! function tetra_nstates(om,e)
   ! subroutine fc2_read_forces(file,nat,f,icalc,errmsg,ti)
@@ -775,7 +765,7 @@ contains
     character(len=mlen), allocatable :: fnames(:)
     integer :: iwf, nlat, nsat, madj(3,3), is, i, k, nindep, ndisp, npad, nk(3), smat(3,3)
     real*8 :: y(3), dc(3)
-    logical :: seen(c%nspc)
+    logical :: seen(c%nspc), noenv
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
     type(crystalseed) :: seed
     type(crystal) :: sc, scd
@@ -846,6 +836,7 @@ contains
     ! displacing one atom of the seed at a time and restoring it. QE
     ! inputs are written for a single-point calculation with forces.
     ! The directories in the template are created if they do not exist.
+    noenv = any(vcalc(:)%iwformat == iwf)
     npad = max(3,len(string(ndisp)))
     fname = fc2_expand_star(template_,0,npad)
     call fc2_makedir(fname,errmsg)
@@ -866,7 +857,11 @@ contains
        is = datom(i)
        y = seed%x(:,is)
        seed%x(:,is) = y + sc%c2x(dc)
-       call scd%struct_new(seed,errmsg,ti=ti)
+       ! the atomic environments and molecular fragments are skipped
+       ! for the calculator input formats (the vcalc table), whose
+       ! writers do not use them (cif, pdb and tinker frac do: formula,
+       ! Z, bonds)
+       call scd%struct_new(seed,errmsg,noenv=noenv,ti=ti)
        seed%x(:,is) = y
        if (len_trim(errmsg) > 0) return
        fname = fc2_expand_star(template_,i,npad)
@@ -3041,16 +3036,17 @@ contains
   !> Calculate thermodynamic properties at temperature T using the
   !> vibrational frequencies in v. The routine assumes the frequencies
   !> have all equal weight (i.e. it is a mesh)
-  module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo)
+  module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq)
     class(vibrations), intent(inout) :: v
     real*8, intent(in) :: t
     real*8, intent(in) :: cutoff
     real*8, intent(out) :: zpe, fvib, svib, cv
     integer, intent(out) :: nused, ntot, nimag
     real*8, intent(in), optional :: freqo(:,:)
+    integer, intent(in), optional :: wq(:)
 
     if (present(freqo)) then
-       call thermo_sum(freqo,size(freqo,1),size(freqo,2),t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag)
+       call thermo_sum(freqo,size(freqo,1),size(freqo,2),t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq)
     else
        call thermo_sum(v%freq,v%nfreq,v%nqpt,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag)
     end if
@@ -3068,16 +3064,17 @@ contains
   !> genuinely imaginary rather than numerical zeros.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
-  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag)
+  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq)
     use param, only: Rgas
     real*8, intent(in) :: freq(:,:)
     integer, intent(in) :: nf, nq
     real*8, intent(in) :: t, cutoff
     real*8, intent(out) :: zpe, fvib, svib, cv
     integer, intent(out) :: nused, ntot, nimag
+    integer, intent(in), optional :: wq(:)
 
-    integer :: i, j
-    real*8 :: nu, x, y, nut, nue, rt, l1mx, nutdiv, ym1, ff, cut, cutimag
+    integer :: i, j, w
+    real*8 :: nu, x, y, nut, nue, rt, l1mx, nutdiv, ym1, ff, cut, cutimag, rw
 
     real*8, parameter :: small1 = 50000d0 * cminv_to_K / huge(1d0) ! protection against zerodiv in nu/(kB*T)
     real*8, parameter :: small2 = 0.5d0 * log(huge(1d0)) ! protection against overflow in exp(nu/kB*T)**2
@@ -3094,15 +3091,22 @@ contains
     cut = max(cutoff,thermo_epszero)
     cutimag = max(cutoff,thermo_epsimag)
 
+    ! With weights (a symmetry-reduced mesh, vibrations_mesh_freqs), a
+    ! column stands for wq(i) q-points and the zero-weight columns are
+    ! skipped; the result is the plain average over the whole mesh.
     do i = 1, nq
+       w = 1
+       if (present(wq)) w = wq(i)
+       if (w == 0) cycle
+       rw = real(w,8)
        do j = 1, nf
           ! leave out the modes at or below the cutoff (the acoustic
           ! branches at gamma, and any imaginary mode) without
           ! compensating for them
           nu = freq(j,i)
-          if (nu < -cutimag) nimag = nimag + 1
+          if (nu < -cutimag) nimag = nimag + w
           if (nu <= cut) cycle
-          nused = nused + 1
+          nused = nused + w
           nut = nu * cminv_to_K      ! frequency in K
           nue = nu * cminv_to_kJmol  ! frequency in kJ/mol
 
@@ -3117,19 +3121,19 @@ contains
           l1mx = log(1d0 - x)
 
           ! zero-point energy and free energy
-          zpe = zpe + 0.5d0 * nue
-          fvib = fvib + 0.5d0 * nue + rt * l1mx
+          zpe = zpe + rw * 0.5d0 * nue
+          fvib = fvib + rw * (0.5d0 * nue + rt * l1mx)
 
           ! entropy
           if (t > small1) &
-             svib = svib + Rgas * (-l1mx + nutdiv * x / (1d0 - x))
+             svib = svib + rw * Rgas * (-l1mx + nutdiv * x / (1d0 - x))
 
           ! heat capacity
           if (t > small1 .and. nutdiv <= small2) then
              y = exp(nutdiv)
              ym1 = y - 1d0
              if (ym1 >= small3) &
-                cv = cv + Rgas * nutdiv * nutdiv * y / (ym1 * ym1)
+                cv = cv + rw * Rgas * nutdiv * nutdiv * y / (ym1 * ym1)
           end if
        end do
     end do
@@ -3147,17 +3151,23 @@ contains
   !> 1 + qshift)/nk in fractional coordinates of the reciprocal cell.
   !> Returns freq(3*ncel,nk(1)*nk(2)*nk(3)). No frequencies are stored
   !> in v.
-  module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg)
+  module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg,wq,nirr,nopmesh,nopfc2)
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     integer, intent(in) :: nk(3)
     real*8, intent(in) :: qshift(3)
     real*8, allocatable, intent(inout) :: freq(:,:)
     character(len=:), allocatable, intent(out) :: errmsg
+    integer, allocatable, intent(out), optional :: wq(:)
+    integer, intent(out), optional :: nirr
+    integer, intent(out), optional :: nopmesh, nopfc2
 
-    integer :: i1, i2, i3, iq, nq, ierr
-    real*8 :: q(3)
+    integer :: iq, jq, nq, ierr, k, isg, nu, m(3), mm(3), nr, nkeep, nlat, madj(3,3), i, nopm
+    integer :: ikeep(48), rp(3,3,48)
+    integer, allocatable :: irep(:)
+    real*8 :: q(3), rq(3), rt(3,3,96)
     real*8, allocatable :: f1(:)
+    logical :: ok
     character(len=:), allocatable :: errmsg1, errmsg2
 
     errmsg = ""
@@ -3183,36 +3193,98 @@ contains
        if (len_trim(errmsg) > 0) return
     end if
 
-    ! every (i1,i2,i3) writes its own column of freq, so only the error
-    ! report needs serializing
-    errmsg1 = ""
-    !$omp parallel do collapse(3) private(i1,i2,i3,iq,q,f1,errmsg2) schedule(dynamic)
-    do i1 = 1, nk(1)
-       do i2 = 1, nk(2)
-          do i3 = 1, nk(3)
-             iq = ((i1-1)*nk(2) + (i2-1))*nk(3) + i3
-             q = (real((/i1,i2,i3/)-1,8) + qshift) / real(nk,8)
-             call v%calculate_q(c,q,errmsg2,freqo=f1)
-             if (len_trim(errmsg2) > 0) then
-                !$omp critical (meshfreq)
-                errmsg1 = errmsg2
-                !$omp end critical (meshfreq)
-             else
-                freq(:,iq) = f1
-             end if
+    ! The frequencies are the same at symmetry-related q-points, so only
+    ! one point of each star is diagonalized and the others copied. Same
+    ! symmetry as the force constants.
+    call fc2_compatible_ops(c,v%fc2_smat,nlat,madj,nkeep,ikeep,rp)
+    nr = 0
+    nopm = 0
+    do k = 1, nkeep
+       do isg = 1, -1, -2
+          ok = .true.
+          do i = 0, 3
+             m = 0
+             if (i > 0) m(i) = 1
+             rq = isg * matmul(transpose(c%rotm(1:3,1:3,ikeep(k))),(real(m,8) + qshift) / real(nk,8)) *&
+                real(nk,8) - qshift
+             ok = ok .and. all(abs(rq - real(nint(rq),8)) < 1d-6)
           end do
+          if (.not.ok) cycle
+          nr = nr + 1
+          rt(:,:,nr) = isg * transpose(c%rotm(1:3,1:3,ikeep(k)))
+          if (isg == 1) nopm = nopm + 1
        end do
+    end do
+    if (present(nopmesh)) nopmesh = nopm
+    if (present(nopfc2)) nopfc2 = nkeep
+
+    allocate(irep(nq))
+    irep = 0
+    nu = 0
+    do iq = 1, nq
+       if (irep(iq) /= 0) cycle
+       nu = nu + 1
+       irep(iq) = iq
+       q = (real(mesh_m(iq),8) + qshift) / real(nk,8)
+       do k = 1, nr
+          rq = matmul(rt(:,:,k),q) * real(nk,8) - qshift
+          mm = modulo(nint(rq),nk)
+          jq = (mm(1)*nk(2) + mm(2))*nk(3) + mm(3) + 1
+          if (irep(jq) == 0) irep(jq) = iq
+       end do
+    end do
+    if (present(nirr)) nirr = nu
+    if (present(wq)) then
+       ! the weight of each representative is the size of its star
+       allocate(wq(nq))
+       wq = 0
+       do iq = 1, nq
+          wq(irep(iq)) = wq(irep(iq)) + 1
+       end do
+    end if
+
+    ! every representative writes its own column of freq, so only the
+    ! error report needs serializing
+    errmsg1 = ""
+    !$omp parallel do private(iq,q,f1,errmsg2) schedule(dynamic)
+    do iq = 1, nq
+       if (irep(iq) /= iq) cycle
+       q = (real(mesh_m(iq),8) + qshift) / real(nk,8)
+       call v%calculate_q(c,q,errmsg2,freqo=f1)
+       if (len_trim(errmsg2) > 0) then
+          !$omp critical (meshfreq)
+          errmsg1 = errmsg2
+          !$omp end critical (meshfreq)
+       else
+          freq(:,iq) = f1
+       end if
     end do
     !$omp end parallel do
     errmsg = errmsg1
+    if (len_trim(errmsg) > 0) return
 
+    ! the rest of each star
+    do iq = 1, nq
+       if (irep(iq) /= iq) freq(:,iq) = freq(:,irep(iq))
+    end do
+
+  contains
+    ! the (0-based) mesh indices of point iq, the inverse of
+    ! iq = (m1*nk2 + m2)*nk3 + m3 + 1
+    pure function mesh_m(iq) result(m)
+      integer, intent(in) :: iq
+      integer :: m(3)
+
+      m = (/(iq-1)/(nk(3)*nk(2)), mod((iq-1)/nk(3),nk(2)), mod(iq-1,nk(3))/)
+
+    end function mesh_m
   end subroutine vibrations_mesh_freqs
 
   !> Write the phonon density of states obtained from the frequencies
   !> freq(:,1:nq) (cm^-1) by Gaussian smearing of width sigma (cm^-1),
   !> on npts points spanning the sampled range with a margin. The
   !> integral of the DOS is the number of modes of the cell.
-  module subroutine vibrations_write_dos(v,c,file,nk,qshift,sigma,npts,verbose,errmsg,freqo)
+  module subroutine vibrations_write_dos(v,c,file,nk,qshift,sigma,npts,verbose,errmsg,freqo,wq)
     class(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -3223,9 +3295,10 @@ contains
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
     real*8, intent(in), optional :: freqo(:,:)
+    integer, intent(in), optional :: wq(:)
 
     if (present(freqo)) then
-       call dos_run(c,freqo,size(freqo,1),size(freqo,2),file,nk,qshift,sigma,npts,verbose,errmsg)
+       call dos_run(c,freqo,size(freqo,1),size(freqo,2),file,nk,qshift,sigma,npts,verbose,errmsg,wq)
     else
        call dos_run(c,v%freq,v%nfreq,v%nqpt,file,nk,qshift,sigma,npts,verbose,errmsg)
     end if
@@ -3239,7 +3312,7 @@ contains
   !> frequencies to be those of the uniform mesh nk(3), in the order
   !> vibrations_mesh_freqs generates them. The density is normalized so
   !> that its integral is the number of modes of the cell.
-  subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg)
+  subroutine dos_run(c,freq,nf,nq,file,nk,qshift,sigma,npts,verbose,errmsg,wq)
     use tools_io, only: fopen_write, fclose, uout, string, ioj_right
     type(crystal), intent(in) :: c
     real*8, intent(in) :: freq(:,:)
@@ -3251,6 +3324,7 @@ contains
     integer, intent(in) :: npts
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
+    integer, intent(in), optional :: wq(:)
 
     integer :: k, lu, ierr
     real*8 :: fmin, fmax, step, sums
@@ -3300,7 +3374,7 @@ contains
     if (dotetra) then
        call dos_tetrahedra(c,freq,nf,nq,nk,fmin,step,npts,dos)
     else
-       call dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
+       call dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos,wq)
     end if
 
     ! write it out
@@ -3351,19 +3425,27 @@ contains
   !> fmin with spacing step, by Gaussian smearing of width sigma. Bin
   !> k spans half a step on either side of its frequency. The
   !> normalization is one state per mode and per cell.
-  subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos)
+  subroutine dos_gaussian(freq,nf,nq,sigma,fmin,step,npts,dos,wq)
     real*8, intent(in) :: freq(:,:)
     integer, intent(in) :: nf, nq
     real*8, intent(in) :: sigma, fmin, step
     integer, intent(in) :: npts
     real*8, intent(inout) :: dos(npts)
+    integer, intent(in), optional :: wq(:)
 
     integer :: i, j, k, k0, k1
-    real*8 :: fac, s2, elo, ehi
+    real*8 :: fac, fac0, s2, elo, ehi
 
-    fac = 0.5d0 / (real(nq,8) * step)
+    ! with weights (symmetry-reduced mesh) a column stands for wq(i)
+    ! q-points and the zero-weight ones are skipped
+    fac0 = 0.5d0 / (real(nq,8) * step)
     s2 = sigma * sqrt(2d0)
     do i = 1, nq
+       fac = fac0
+       if (present(wq)) then
+          if (wq(i) == 0) cycle
+          fac = fac0 * real(wq(i),8)
+       end if
        do j = 1, nf
           k0 = max(int((freq(j,i) - 5d0*sigma - fmin) / step),1)
           k1 = min(int((freq(j,i) + 5d0*sigma - fmin) / step) + 2,npts)

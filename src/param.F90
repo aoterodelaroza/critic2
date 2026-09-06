@@ -176,8 +176,6 @@ module param
   integer, parameter :: isformat_w_max = isformat_w_alamode ! last writing format (update when adding formats)
 
   ! Enumerate for the electronic structure codes VIBRATIONS works with
-  ! (VIBRATIONS CALCULATOR): force-constant units, force outputs, and the
-  ! format of the displaced structures depend on it
   integer, parameter :: vcalc_none = 0
   integer, parameter :: vcalc_qe = 1
   integer, parameter :: vcalc_aims = 2
@@ -196,7 +194,7 @@ module param
   integer, parameter :: vcalc_turbomole = 15
   integer, parameter :: vcalc_fleur = 16
   integer, parameter :: vcalc_cp2k = 17
-  integer, parameter :: vcalc_max = vcalc_cp2k ! last calculator (update when adding codes)
+  integer, parameter :: vcalc_max = vcalc_cp2k ! last calculator
 
   ! Enumerate for vibration data formats
   integer, parameter :: ivformat_unknown = 0

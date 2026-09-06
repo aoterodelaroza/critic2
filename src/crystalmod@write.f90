@@ -3298,7 +3298,7 @@ contains
     end if
 
     ! count equivalent CPs
-    allocate(icountneq(c%nneq),assignneq(c%nneq))
+    allocate(icountneq(c%nneq),assignneq(c%ncel))
     icountneq = -1
     assignneq = -1
 
