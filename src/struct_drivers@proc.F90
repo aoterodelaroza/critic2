@@ -4796,7 +4796,7 @@ contains
       write (u,'(A,"per cell: the zero-point energy (Ha), the Debye temperature, the polynomial &
          &coefficients,")') pre
       write (u,'(A,"the Einstein weights and the Einstein temperatures.")') pre
-      write (u,'(A,A)') pre, xdline
+      write (u,'(A,"xx # ",A)') pre, xdline
 
     end subroutine xdebye_gibbs2
 
