@@ -198,6 +198,7 @@ module representations
   integer, parameter, public :: iso_cmap_div = iw_cmap_rdbu
   integer, parameter, public :: iso_nlut = 256 ! entries of the colormap look-up table
   real(c_float), parameter, public :: iso_rgb_invalid(3) = 0.5_c_float ! color of a vertex outside the map field
+  real(c_float), parameter, public :: iso_rgb_hl(3) = (/1._c_float,0.5_c_float,0._c_float/) ! highlighted group
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -619,8 +620,12 @@ module representations
                                      ! cell-frame box is derived at build time so it tracks cell edits)
      integer :: niso = 0 ! number of isosurfaces
      type(iso_slot), allocatable :: slot(:) ! the isosurfaces (niso of them)
+     integer, allocatable :: lbl(:,:,:) ! grouping of the sampled grid points (0 or unallocated = none)
+     integer :: ihighlight = 0 ! group drawn in rgbhl (0 = none)
+     real(c_float) :: rgbhl(3) = iso_rgb_hl ! color of the highlighted group
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
      real*8 :: timelastapply_grid = -1d0 ! time the grid + region were last applied (vs time_built)
+     integer :: ihighlight_built = -1 ! highlighted group the vertex colors were made for
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: imosel_built = 0 ! MO selector when the samples were taken
      integer :: imoidx_built = 0 ! MO index when the samples were taken

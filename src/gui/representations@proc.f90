@@ -2730,6 +2730,18 @@ contains
          associate (s => r%iso%slot(i))
            if (.not.s%built) cycle
            nv = s%mesh%nv
+
+           ! a producer-supplied grouping of the grid points takes over the coloring
+           if (allocated(r%iso%lbl) .and. nv > 0) then
+              if (r%iso%ihighlight > 0) then
+                 call color_by_group(s,nv)
+              elseif (allocated(s%mesh%rgbv)) then
+                 ! nothing highlighted any more: back to the flat color
+                 deallocate(s%mesh%rgbv)
+              end if
+              cycle
+           end if
+
            goodmap = (nv > 0)
            if (goodmap) then
               if (s%imap_mode == iso_map_field) then
@@ -2889,6 +2901,58 @@ contains
       end do
 
     end subroutine color_slots
+
+    !> Color the vertices of slot s by the grid-point grouping in
+    !> r%iso%lbl: the group r%iso%ihighlight in r%iso%rgbhl, the rest in
+    !> the slot color. nv is the vertex count.
+    subroutine color_by_group(s,nv)
+      type(iso_slot), intent(inout) :: s
+      integer, intent(in) :: nv
+
+      integer :: j, k1, k2, k3, ilb, ibest, i0(3), ic(3), nl(3)
+      real*8 :: xf(3), g(3), d, dbest
+
+      nl = shape(r%iso%lbl)
+      if (any(nl < 1)) return
+
+      if (allocated(s%mesh%rgbv)) then
+         if (size(s%mesh%rgbv,2) /= nv) deallocate(s%mesh%rgbv)
+      end if
+      if (.not.allocated(s%mesh%rgbv)) allocate(s%mesh%rgbv(3,nv))
+
+      do j = 1, nv
+         ! the mesh vertex is Cartesian in the cell frame; the grid runs
+         ! over the cell with point (i,j,k) at fractional (i-1)/n, so the
+         ! grid coordinate of a point is one less than its index
+         xf = c%c2x(real(s%mesh%x(:,j),8))
+         g = xf * real(nl,8)
+         i0 = floor(g)
+
+         ibest = 0
+         dbest = huge(1d0)
+         do k1 = 0, 1
+            do k2 = 0, 1
+               do k3 = 0, 1
+                  ic = modulo(i0 + (/k1,k2,k3/),nl) + 1
+                  ilb = r%iso%lbl(ic(1),ic(2),ic(3))
+                  if (ilb == 0) cycle
+                  d = sum((g - real(i0 + (/k1,k2,k3/),8))**2)
+                  if (d < dbest) then
+                     dbest = d
+                     ibest = ilb
+                  end if
+               end do
+            end do
+         end do
+
+         if (ibest == r%iso%ihighlight) then
+            s%mesh%rgbv(:,j) = r%iso%rgbhl
+         else
+            s%mesh%rgbv(:,j) = s%rgb
+         end if
+      end do
+
+    end subroutine color_by_group
 
     !> Store a triangulation (nv vertices xv/nrm, nf triangles idx, all
     !> shifted by the domain origin x0c) into dl_mesh m in scene-ready

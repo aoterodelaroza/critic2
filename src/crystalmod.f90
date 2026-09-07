@@ -883,7 +883,7 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_array3
-     module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
+     module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg,ilbl)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: f(:,:,:)
        real*8, intent(in) :: isoval
@@ -893,6 +893,7 @@ module crystalmod
        real*8, allocatable, intent(out) :: xdeep(:,:)
        real*8, allocatable, intent(out) :: rhodeep(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       integer, allocatable, intent(inout), optional :: ilbl(:,:,:)
      end subroutine void_domains
      module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
        class(crystal), intent(inout) :: c

@@ -194,9 +194,11 @@ module windows
      logical :: iso_show = .true. ! show the isosurface in the anchor view while this window is open
      logical :: iso_built = .false. ! whether Calculate has sampled a grid to work from
      integer :: iso_n_built(3) = 0 ! the grid it sampled
-     real*8, allocatable :: iso_f(:,:,:) ! the promolecular density on that grid, kept so that
-                                         ! moving the isovalue costs only the flood fill (dropped
-                                         ! by drop_caches, and then sampled again on demand)
+     real*8, allocatable :: iso_f(:,:,:) ! the promolecular density on that grid
+     integer, allocatable :: iso_lbl(:,:,:) ! the void each point of that grid belongs to (0 = none)
+     integer :: iso_hover = 0 ! void whose row the mouse is on (0 = none), rearmed every frame
+     integer :: iso_lblgen = 0 ! bumped whenever the labels are recalculated
+     integer :: iso_lblpushed = -1 ! iso_lblgen of the labels handed to the isosurface
      real*8 :: iso_secs = -1d0 ! measured cost of one grid point, seconds (< 0 = could not be measured)
      integer :: iso_secs_ncel = -1 ! number of atoms iso_secs was measured for (-1 = not measured yet)
      ! isosurface tab: the results

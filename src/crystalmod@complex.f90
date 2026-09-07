@@ -480,7 +480,7 @@ contains
   !> deepest point (xdeep, crystallographic coordinates), and the
   !> value of the field at that point (rhodeep). errmsg is non-empty
   !> in case of error.
-  module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
+  module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg,ilbl)
     use tools, only: qcksort
     use types, only: realloc
     use tools_io, only: string
@@ -493,8 +493,10 @@ contains
     real*8, allocatable, intent(out) :: xdeep(:,:)
     real*8, allocatable, intent(out) :: rhodeep(:)
     character(len=:), allocatable, intent(out) :: errmsg
+    integer, allocatable, intent(inout), optional :: ilbl(:,:,:)
 
     integer :: i, j, k, l, m, ii, jd, nn, nstack, n(3)
+    integer, allocatable :: irank(:)
     integer :: ijk(3), jjk(3)
     integer*8 :: nn8
     real*8 :: dvol, rho
@@ -509,13 +511,14 @@ contains
     n = shape(f)
 
     ! the flood fill addresses the grid points with a default-integer linear
-    ! index, so the point count has to fit in one. Count in integer*8 first:
-    ! the product of three innocuous-looking grid dimensions overflows well
-    ! before the calculation becomes impossible to ask for
+    ! index
     nn8 = int(n(1),8) * int(n(2),8) * int(n(3),8)
     if (any(n < 1) .or. nn8 > int(huge(nn),8)) then
        errmsg = "grid too large for the void analysis (" // string(nn8) // " points)"
        allocate(vol(0),xdeep(3,0),rhodeep(0))
+       if (present(ilbl)) then
+          if (allocated(ilbl)) deallocate(ilbl)
+       end if
        return
     end if
     nn = int(nn8)
@@ -523,10 +526,6 @@ contains
 
     ! ilabel = -1 if the grid point is not in a void, 0 if it is in a void
     ! that has not been reached yet, and the ID of its void once it has.
-    ! Marking the non-void points up front means the flood fill below reads
-    ! the density only for the points it actually visits. A point is pushed
-    ! on the stack at the same time as it is labeled, so it enters the fill
-    ! exactly once and istack is never longer than the number of points
     allocate(ilabel(n(1),n(2),n(3)),istack(nn))
     ilabel = 0
     where (f >= isoval) ilabel = -1
@@ -581,7 +580,7 @@ contains
           end do
        end do
     end do
-    deallocate(ilabel,istack)
+    deallocate(istack)
 
     ! total void volume
     vtot = real(sum(ncount(1:nvoid)),8) * dvol
@@ -599,6 +598,28 @@ contains
        xdeep(:,i) = real(imin(:,ii)-1,8) / real(n,8)
        rhodeep(i) = rmin(ii)
     end do
+
+    ! return the labels if requested
+    if (present(ilbl)) then
+       allocate(irank(nvoid))
+       do i = 1, nvoid
+          irank(iord(nvoid-i+1)) = i
+       end do
+       if (allocated(ilbl)) deallocate(ilbl)
+       allocate(ilbl(n(1),n(2),n(3)))
+       do k = 1, n(3)
+          do j = 1, n(2)
+             do i = 1, n(1)
+                if (ilabel(i,j,k) > 0) then
+                   ilbl(i,j,k) = irank(ilabel(i,j,k))
+                else
+                   ilbl(i,j,k) = 0
+                end if
+             end do
+          end do
+       end do
+    end if
+    deallocate(ilabel)
 
   end subroutine void_domains
 

@@ -141,8 +141,10 @@ contains
       w%vd%iso_done = .false.
       w%vd%pol_done = .false.
       w%vd%pck_done = .false.
-      ! the sampled grid describes the geometry it was taken on
+      ! the sampled grid and its labels describe the geometry they were
+      ! taken on
       if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
+      if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
       w%vd%timelast = sysc(isys)%timelastchange_geometry
       w%errmsg = ""
 
@@ -159,7 +161,7 @@ contains
     use representations, only: iso_estimate_cost, iso_region_cell, reptype_isosurface,&
        repflavor_isosurface
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_table_column, iw_checkbox, duration_string
+       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -167,6 +169,7 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: expensive, found, changed, hasview, ldum, isovalchanged
+    integer :: ihoverlast
     integer :: i, n(3), itrep, irep
     integer*8 :: npts
     real*8 :: tcost, rdum, xdum(3,0:3)
@@ -243,6 +246,10 @@ contains
        end if
     end if
 
+    ! the hovered row is picked up again every frame the table is drawn
+    ihoverlast = w%vd%iso_hover
+    w%vd%iso_hover = 0
+
     ! run the calculation
     if (iw_button("Calculate##voidsisocalc",danger=.true.)) call run_isosurface()
     call iw_tooltip("Calculate the promolecular density on the grid and group the points&
@@ -287,6 +294,22 @@ contains
                if (.not.r%iso%grid_isapplied(w%vd%iso_n_built,iso_region_cell,xdum)) then
                   xdum = 0d0
                   call r%iso%apply_grid(w%vd%iso_n_built,iso_region_cell,xdum)
+                  changed = .true.
+               end if
+               ! which void each grid point belongs to, so that the surface
+               ! can pick one out. Copied only when the labels are not the
+               ! ones already there: it is as big as the grid
+               if (allocated(w%vd%iso_lbl)) then
+                  if (.not.found .or. w%vd%iso_lblpushed /= w%vd%iso_lblgen) then
+                     r%iso%lbl = w%vd%iso_lbl
+                     w%vd%iso_lblpushed = w%vd%iso_lblgen
+                     changed = .true.
+                  end if
+               end if
+               ! the void under the cursor, as of the last frame the table
+               ! was drawn (this runs above it)
+               if (r%iso%ihighlight /= ihoverlast) then
+                  r%iso%ihighlight = ihoverlast
                   changed = .true.
                end if
                if (changed) win(iview)%sc%forcebuildlists = .true.
@@ -337,7 +360,9 @@ contains
        flags = ior(flags,ImGuiTableFlags_Borders)
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
-       flags = ior(flags,ImGuiTableFlags_ScrollX)
+       ! no ScrollX: the row-spanning selectable that reports the hover does
+       ! not survive a horizontally scrolling table (the columns come out
+       ! empty), which is why no table with one of those uses it
        str1 = "##tablevoidsiso" // c_null_char
        sz0%x = 0
        sz0%y = iw_calcheight(min(w%vd%iso_nvoid,10)+1,0,.false.)
@@ -360,8 +385,17 @@ contains
              call c_f_pointer(clipper,clipper_f)
              do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                if (igTableSetColumnIndex(ic_iso_id)) &
+                if (igTableSetColumnIndex(ic_iso_id)) then
+                   ! the selectable spans the row so that hovering anywhere
+                   ! in it picks the void out in the view. It goes after the
+                   ! text: iw_highlight_selectable places itself on the same
+                   ! line as whatever precedes it and then puts the cursor
+                   ! back, and starting a cell with it makes this column
+                   ! measure as wide as the whole row
                    call iw_text(string(i))
+                   if (iw_highlight_selectable("##voidsrow" // string(i))) &
+                      w%vd%iso_hover = i
+                end if
                 if (igTableSetColumnIndex(ic_iso_vol)) &
                    call iw_text(string(w%vd%iso_vol(i)*fac3,'f',length=12,decimal=5,justify=ioj_right))
                 if (igTableSetColumnIndex(ic_iso_pct)) &
@@ -407,9 +441,11 @@ contains
 
       ! which of its points are void, and how they group into domains
       call sys(isys)%c%void_domains(w%vd%iso_f,w%vd%iso_isoval,w%vd%iso_vtot,w%vd%iso_nvoid,&
-         w%vd%iso_vol,w%vd%iso_x,w%vd%iso_rho,errmsg)
+         w%vd%iso_vol,w%vd%iso_x,w%vd%iso_rho,errmsg,ilbl=w%vd%iso_lbl)
       w%errmsg = errmsg
       w%vd%iso_done = (len_trim(errmsg) == 0)
+      ! the labels are new, so the copy the isosurface holds is not these
+      w%vd%iso_lblgen = w%vd%iso_lblgen + 1
 
     end subroutine run_isosurface
 

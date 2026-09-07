@@ -795,6 +795,7 @@ contains
        ! the sampled promolecular density; the voids window takes it again
        ! the next time it needs one
        if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
+       if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
     end if
 
   end subroutine window_drop_caches
