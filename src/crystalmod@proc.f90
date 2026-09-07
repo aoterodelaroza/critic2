@@ -182,7 +182,7 @@ contains
        cellpar_from_metric
     use tools_io, only: ferror, faterr, warning, string, usegui
     use types, only: realloc
-    use param, only: pi, eyet, eye, atmcov
+    use param, only: pi, eyet, eye, atmcov, icrd_crys
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     character(len=:), allocatable, intent(out) :: errmsg
@@ -191,9 +191,9 @@ contains
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
     logical :: good, good2, doenv, copybonds, envbuilt, hascoinc
-    integer :: i, j, k, l, iat, newmult
+    integer :: i, j, k, l, iat, newmult, nclose
     real*8, allocatable :: atpos(:,:), deltasave(:,:), occcel(:)
-    integer, allocatable :: irotm(:), icenv(:)
+    integer, allocatable :: irotm(:), icenv(:), eidclose(:)
     logical, allocatable :: useatom(:)
     character*10, allocatable :: name(:)
     character(len=:), allocatable :: errmsg0
@@ -615,12 +615,18 @@ contains
           (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
           ! candidate for symmetry guessing (B2), but atoms closer than the
           ! symmetry distance tolerance (symprec) cannot be told apart by the
-          ! symmetry search (spglib rejects them as "too close"), so detect them
-          ! by nearest-lattice-image distance and fall back to P1
+          ! symmetry search (spglib rejects them as "too close"), so detect
+          ! them.
+          call c%build_env()
+          envbuilt = .true.
           hascoinc = .false.
           cloop: do i = 1, c%ncel
-             do j = i+1, c%ncel
-                if (c%are_lclose(c%atcel(i)%x,c%atcel(j)%x,symprec)) then
+             call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nclose,eid=eidclose,&
+                up2d=symprec)
+             do j = 1, nclose
+                ! the atom itself is in the list at zero distance; any other
+                ! atom or lattice image within symprec is a coincidence
+                if (eidclose(j) /= i) then
                    hascoinc = .true.
                    exit cloop
                 end if
@@ -632,8 +638,6 @@ contains
              call c%clearsym()
           else
              ! B2: find the symmetry from the complete cell geometry
-             call c%build_env()
-             envbuilt = .true.
              c%havesym = 0
              call c%guess_spg(2)
              c%havesym = 1

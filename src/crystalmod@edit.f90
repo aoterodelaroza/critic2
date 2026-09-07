@@ -1809,7 +1809,7 @@ contains
 
   !> Displace cell atom icel by dx (Cartesian, bohr) in place. This is
   !> the cheap counterpart of move_atom, meant for real-time dragging:
-  !> it moves the atom and refreshes the environment, but does NOT
+  !> it moves the atom and refreshes the environment, but does not
   !> rebuild the symmetry, the connectivity, or the molecular
   !> fragments, and does not wrap the atom into the main cell. The
   !> non-equivalent atom list is not touched either. The caller must
@@ -1835,7 +1835,7 @@ contains
           c%mol(im)%pg_computed = .false.
        end if
     end if
-    call c%update_env_after_move()
+    call refresh_after_inplace_move(c)
 
   end subroutine move_atom_inplace
 
@@ -1858,7 +1858,7 @@ contains
     ! the cached standard frame rides along: the orientation does not change,
     ! only the center of mass
     if (c%mol(imol)%axes_computed) c%mol(imol)%xcm = c%mol(imol)%xcm + dx
-    call c%update_env_after_move()
+    call refresh_after_inplace_move(c)
 
   end subroutine move_molecule_inplace
 
@@ -1888,7 +1888,7 @@ contains
        call set_cellatom_r(c,icel,rnew - rlvec)
     end do
     call c%mol(imol)%rotate_std(drot)
-    call c%update_env_after_move()
+    call refresh_after_inplace_move(c)
 
   end subroutine rotate_molecule_inplace
 
@@ -2123,7 +2123,9 @@ contains
     end if
 
     ! rebuild the block-grid neighbor environment for the new cell/positions
-    call c%build_env()
+    ! (through update_env_after_move, so the reduced-cell coordinates the
+    ! neighbor queries use are refreshed along with the block hash)
+    call c%update_env_after_move()
 
     ! recompute the vacuum descriptors for the new cell
     call c%calc_vacuum_lengths()
@@ -3006,6 +3008,32 @@ contains
   end subroutine refresh_molecular_data
 
   !xx! private procedures
+
+  ! Refresh the derived data after an in-place edit. For a molecule,
+  ! grow the encompassing cell first if the edit pushed an atom out of
+  ! it or up against its border: the block environment wraps
+  ! coordinates into the cell, so an atom outside it would be binned
+  ! against the opposite face and go missing from the neighbor queries
+  ! around its true position.
+  subroutine refresh_after_inplace_move(c)
+    class(crystal), intent(inout) :: c
+
+    integer :: k
+
+    real*8, parameter :: margin = 1d-3 ! fraction of the cell edge
+
+    if (c%ismolecule) then
+       do k = 1, c%ncel
+          if (any(c%atcel(k)%x < margin) .or. any(c%atcel(k)%x > 1d0-margin)) then
+             ! this refreshes the environment for the new cell itself
+             call c%recompute_molecular_cell()
+             return
+          end if
+       end do
+    end if
+    call c%update_env_after_move()
+
+  end subroutine refresh_after_inplace_move
 
   ! Set the position of cell atom icel to rnew (Cartesian, bohr),
   ! keeping the cached molecular fragment consistent with it (see the
