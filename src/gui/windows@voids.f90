@@ -29,12 +29,9 @@ submodule (windows) voids
   ! bohr^3 to Å^3, for the volumes reported by every tab
   real*8, parameter :: fac3 = bohrtoa**3
 
-  ! grids larger than this are refused
-  integer, parameter :: maxgridpts = 2000000
-
-  ! a run expected to last longer than this says so next to the button, and
-  ! a grid of more than bigwarngridpts points does too when the cost of a
-  ! point could not be measured
+  ! A run expected to last longer than this is flagged in red, and so is a
+  ! grid of more than bigwarngridpts points when the cost of a point could
+  ! not be measured.
   real*8, parameter :: bigwarn_secs = 3d0
   integer, parameter :: bigwarngridpts = 500000
 
@@ -164,7 +161,7 @@ contains
     integer, intent(in) :: isys
     logical, intent(inout) :: ttshown
 
-    logical :: toobig
+    logical :: expensive
     integer :: i, n(3)
     integer*8 :: npts
     real*8 :: tcost, rdum, xdum(3,0:3)
@@ -199,49 +196,48 @@ contains
        & which the promolecular density is calculated. A finer grid resolves the shape of&
        & the voids better but takes longer",ttshown)
 
-    ! the point count is counted in integer*8: three grid dimensions that the
-    ! spacing slider can reach overflow a default integer, and a wrapped
-    ! negative count would sail past the size check below
+    ! the point count is counted in integer*8: three grid dimensions the
+    ! spacing slider can reach overflow a default integer
     call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
     npts = int(n(1),8) * int(n(2),8) * int(n(3),8)
-    toobig = (npts > int(maxgridpts,8))
-    call iw_text("(" // string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
-       " = " // string(npts) // " points)",alignframe=.true.,danger=toobig)
 
-    ! grid point cost estimation
-    if (.not.toobig) then
-       ! re-measure when there is no measurement yet, or when the atom count
-       ! has moved enough to matter
-       if (w%vd%iso_secs <= 0d0 .or. &
-          abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
-          xdum = 0d0
-          rdum = iso_estimate_cost(isys,0,iso_region_cell,xdum,n)
-          ! a failed measurement is not recorded, so it is retried; its
-          ! failure paths return before the benchmark loop and cost nothing
-          if (rdum > 0d0) then
-             w%vd%iso_secs = rdum
-             w%vd%iso_secs_ncel = sys(isys)%c%ncel
-          end if
+    ! re-measure the cost of a grid point when there is no measurement yet,
+    ! or when the atom count has moved enough to matter
+    if (w%vd%iso_secs <= 0d0 .or. &
+       abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
+       xdum = 0d0
+       rdum = iso_estimate_cost(isys,0,iso_region_cell,xdum,n)
+       ! a failed measurement is not recorded, so it is retried; its
+       ! failure paths return before the benchmark loop and cost nothing
+       if (rdum > 0d0) then
+          w%vd%iso_secs = rdum
+          w%vd%iso_secs_ncel = sys(isys)%c%ncel
        end if
     end if
 
+    ! what the grid is going to cost, and whether that is enough to warn
+    ! about. With no measurement to go on, the point count stands in for it
+    tcost = -1d0
+    if (w%vd%iso_secs > 0d0) tcost = real(npts,8) * w%vd%iso_secs
+    if (tcost > 0d0) then
+       expensive = (tcost > bigwarn_secs)
+    else
+       expensive = (npts > int(bigwarngridpts,8))
+    end if
+
+    ! the grid, red when it is going to cost a lot
+    call iw_text("(" // string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
+       " = " // string(npts) // " points)",alignframe=.true.,danger=expensive)
+
     ! run the calculation
-    if (iw_button("Calculate##voidsisocalc",danger=.true.,disabled=toobig)) call run_isosurface()
+    if (iw_button("Calculate##voidsisocalc",danger=.true.)) call run_isosurface()
     call iw_tooltip("Calculate the promolecular density on the grid and group the points&
        & below the isovalue into voids. The window does not respond while it runs",ttshown)
-    if (toobig) then
-       call iw_text("Too many grid points; increase the grid spacing",danger=.true.,&
-          sameline=.true.)
-    elseif (w%vd%iso_secs > 0d0) then
-       tcost = real(npts,8) * w%vd%iso_secs
+    if (tcost > 0d0) then
        s = "(~" // duration_string(tcost)
-       if (tcost > bigwarn_secs) s = s // ", with the window frozen until it is done"
-       call iw_text(s // ")",sameline=.true.,danger=(tcost > bigwarn_secs))
-    elseif (npts > int(bigwarngridpts,8)) then
-       ! the cost could not be measured: fall back on the point count, so a
-       ! grid that will freeze the window for a long time still says so
-       call iw_text("(a grid this size takes a while, with the window frozen&
-          & until it is done)",sameline=.true.,danger=.true.)
+       call iw_text(s // ")",sameline=.true.,danger=expensive)
+    elseif (expensive) then
+       call iw_text("(a grid this size takes a while to calculate)",sameline=.true.,danger=.true.)
     end if
 
     ! the results of the last run
