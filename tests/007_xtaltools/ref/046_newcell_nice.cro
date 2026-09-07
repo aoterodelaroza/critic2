@@ -5,10 +5,9 @@
 # rmax = radius of the largest sphere that fits in the supercell (bohr).
 # niceness = inverse of the cell skewness, higher is nicer, cubic cell = 1
 # nops = symmetry operations of the crystal compatible with the supercell lattice;
-#        nindep, ndisp = independent atoms and displacements CREATE_DISPLACEMENTS
-#        would generate for this supercell
+# nindep, ndisp = independent atoms and displacements
 # For each size, over all the sublattices of that size, the NICEST cell; the most
-# symmetric one when several tie. MINDISP chooses the nicest with the fewest ndisp.
+# symmetric one when several tie.
 # newcell transformation = use these parameters in a NEWCELL command to obtain this cell
 #n   rmax   niceness  nops nindep ndisp  -- NEWCELL transformation --
 1   3.979   1.00000  192      2     2   1  0  0   0  1  0   0  0  1  
