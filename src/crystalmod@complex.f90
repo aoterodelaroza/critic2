@@ -469,6 +469,237 @@ contains
 
   end subroutine promolecular_array3
 
+  !> Find the voids in the unit cell, understood as the connected regions
+  !> where the promolecular density is lower than isoval. The density is
+  !> sampled on a uniform grid with n(:) points and two points belong to
+  !> the same void if they are neighbors along one of the three lattice
+  !> directions (the cell edges wrap around). Returns the total void
+  !> volume (vtot, bohr^3) and the number of voids found (nvoid). For
+  !> each void, in order of decreasing volume: its volume (vol, bohr^3),
+  !> the position of its deepest point (xdeep, crystallographic
+  !> coordinates), and the promolecular density at that point (rhodeep).
+  !> errmsg is non-empty in case of error.
+  module subroutine promolecular_voids(c,n,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
+    use tools, only: qcksort
+    use types, only: realloc
+    use tools_io, only: string
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: n(3)
+    real*8, intent(in) :: isoval
+    real*8, intent(out) :: vtot
+    integer, intent(out) :: nvoid
+    real*8, allocatable, intent(out) :: vol(:)
+    real*8, allocatable, intent(out) :: xdeep(:,:)
+    real*8, allocatable, intent(out) :: rhodeep(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, j, k, l, m, ii, jd, nn, nstack
+    integer :: ijk(3), jjk(3)
+    integer*8 :: nn8
+    real*8 :: dvol, rho
+    real*8, allocatable :: f(:,:,:), rmin(:)
+    integer, allocatable :: ilabel(:,:,:), istack(:), iord(:), ncount(:), imin(:,:)
+
+    integer, parameter :: nlabel_init = 10 ! initial size of the per-void arrays
+
+    errmsg = ""
+    vtot = 0d0
+    nvoid = 0
+
+    ! the flood fill addresses the grid points with a default-integer linear
+    ! index, so the point count has to fit in one. Count in integer*8 first:
+    ! the product of three innocuous-looking grid dimensions overflows well
+    ! before the calculation becomes impossible to ask for
+    nn8 = int(n(1),8) * int(n(2),8) * int(n(3),8)
+    if (any(n < 1) .or. nn8 > int(huge(nn),8)) then
+       errmsg = "grid too large for the void analysis (" // string(nn8) // " points)"
+       allocate(vol(0),xdeep(3,0),rhodeep(0))
+       return
+    end if
+    nn = int(nn8)
+
+    ! the promolecular density on the grid
+    call c%promolecular_array3(f,n)
+    dvol = c%omega / real(nn,8)
+
+    ! ilabel = -1 if the grid point is not in a void, 0 if it is in a void
+    ! that has not been reached yet, and the ID of its void once it has.
+    ! Marking the non-void points up front means the flood fill below reads
+    ! the density only for the points it actually visits. A point is pushed
+    ! on the stack at the same time as it is labeled, so it enters the fill
+    ! exactly once and istack is never longer than the number of points
+    allocate(ilabel(n(1),n(2),n(3)),istack(nn))
+    ilabel = 0
+    where (f >= isoval) ilabel = -1
+    allocate(ncount(nlabel_init),imin(3,nlabel_init),rmin(nlabel_init))
+    nvoid = 0
+    do k = 1, n(3)
+       do j = 1, n(2)
+          do i = 1, n(1)
+             if (ilabel(i,j,k) /= 0) cycle
+
+             ! a grid point in a void that has not been seen yet: flood-fill
+             ! the whole void starting from it
+             nvoid = nvoid + 1
+             if (nvoid > size(ncount,1)) then
+                call realloc(ncount,2*nvoid)
+                call realloc(imin,3,2*nvoid)
+                call realloc(rmin,2*nvoid)
+             end if
+             ncount(nvoid) = 0
+             rmin(nvoid) = huge(1d0)
+             ilabel(i,j,k) = nvoid
+             nstack = 1
+             istack(1) = i + (j-1)*n(1) + (k-1)*n(1)*n(2)
+             do while (nstack > 0)
+                jd = istack(nstack)
+                nstack = nstack - 1
+
+                ! unpack the linear index and accumulate this point
+                ijk(3) = (jd-1) / (n(1)*n(2))
+                ijk(2) = (jd-1 - ijk(3)*n(1)*n(2)) / n(1)
+                ijk(1) = jd - 1 - ijk(3)*n(1)*n(2) - ijk(2)*n(1)
+                ijk = ijk + 1
+                ncount(nvoid) = ncount(nvoid) + 1
+                rho = f(ijk(1),ijk(2),ijk(3))
+                if (rho < rmin(nvoid)) then
+                   rmin(nvoid) = rho
+                   imin(:,nvoid) = ijk
+                end if
+
+                ! the six neighbors, wrapping around the cell edges
+                do l = 1, 3
+                   do m = -1, 1, 2
+                      jjk = ijk
+                      jjk(l) = modulo(ijk(l)-1+m,n(l)) + 1
+                      if (ilabel(jjk(1),jjk(2),jjk(3)) /= 0) cycle
+                      ilabel(jjk(1),jjk(2),jjk(3)) = nvoid
+                      nstack = nstack + 1
+                      istack(nstack) = jjk(1) + (jjk(2)-1)*n(1) + (jjk(3)-1)*n(1)*n(2)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+    deallocate(ilabel,istack,f)
+
+    ! total void volume
+    vtot = real(sum(ncount(1:nvoid)),8) * dvol
+
+    ! hand over the voids, largest first
+    allocate(vol(nvoid),xdeep(3,nvoid),rhodeep(nvoid))
+    allocate(iord(nvoid))
+    do i = 1, nvoid
+       iord(i) = i
+    end do
+    if (nvoid > 1) call qcksort(ncount,iord,1,nvoid)
+    do i = 1, nvoid
+       ii = iord(nvoid-i+1)
+       vol(i) = real(ncount(ii),8) * dvol
+       xdeep(:,i) = real(imin(:,ii)-1,8) / real(n,8)
+       rhodeep(i) = rmin(ii)
+    end do
+
+  end subroutine promolecular_voids
+
+  !> Calculate the coordination polyhedron centered on point x0
+  !> (crystallographic coordinates). The vertices of the polyhedron are
+  !> the atoms of species is0 (or, if is0 is zero, the atoms with atomic
+  !> number iz0) at a distance between rmin and rmax (bohr) from the
+  !> center; the atom at the center itself, if there is one, is not a
+  !> vertex. Returns the number of vertices (nat), the shortest and
+  !> longest vertex distance (dmin and dmax, bohr), the number of faces
+  !> (nf), and the volume of the polyhedron (vol, bohr^3). ier is non-zero
+  !> if the triangulation failed. Fewer than three vertices in range is not
+  !> an error: it gives nat <= 2 and a zero volume, and no polyhedron.
+  module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
+    use tools_math, only: mixed
+    use param, only: icrd_crys
+    use iso_c_binding, only: c_int, c_double, c_ptr
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: is0
+    integer, intent(in) :: iz0
+    real*8, intent(in) :: rmin
+    real*8, intent(in) :: rmax
+    integer, intent(out) :: nat
+    real*8, intent(out) :: dmin
+    real*8, intent(out) :: dmax
+    integer, intent(out) :: nf
+    real*8, intent(out) :: vol
+    integer, intent(out) :: ier
+
+    integer :: i, j, nat0
+    integer, allocatable :: eid(:), lvec(:,:), iface(:,:)
+    real*8, allocatable :: dist(:), xstar(:,:)
+    real*8 :: xc(3), xp1(3), xp2(3), xp3(3)
+    type(c_ptr) :: ctx
+
+    interface
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
+         import c_int, c_double, c_ptr
+         integer(c_int), value :: n
+         real(c_double) :: x0(3)
+         real(c_double) :: xvert(3,n)
+         integer(c_int) :: nf
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
+       end subroutine runqhull_basintriangulate_step1
+       subroutine runqhull_basintriangulate_step2(nf,iface,ctx) bind(c)
+         import c_int, c_double, c_ptr
+         integer(c_int), value :: nf
+         integer(c_int) :: iface(3,nf)
+         type(c_ptr), value :: ctx
+       end subroutine runqhull_basintriangulate_step2
+    end interface
+
+    nat = 0
+    dmin = 0d0
+    dmax = 0d0
+    nf = 0
+    vol = 0d0
+    ier = 0
+
+    ! the atoms that make up the vertices
+    if (is0 /= 0) then
+       call c%list_near_atoms(x0,icrd_crys,.true.,nat0,eid=eid,dist=dist,lvec=lvec,&
+          up2d=rmax,ispc0=is0,nozero=.true.)
+    else
+       call c%list_near_atoms(x0,icrd_crys,.true.,nat0,eid=eid,dist=dist,lvec=lvec,&
+          up2d=rmax,iz0=iz0,nozero=.true.)
+    end if
+
+    ! discard the atoms closer than rmin (the list comes sorted by distance)
+    allocate(xstar(3,nat0))
+    xc = c%x2c(x0)
+    do i = 1, nat0
+       if (dist(i) < rmin) cycle
+       nat = nat + 1
+       xstar(:,nat) = c%x2c(c%atcel(eid(i))%x + lvec(:,i))
+       if (nat == 1) dmin = dist(i)
+       dmax = dist(i)
+    end do
+    if (nat <= 2) return
+
+    ! project on a sphere and triangulate the convex polyhedron. The context
+    ! is allocated by step1 even if it fails, and freed by step2
+    call runqhull_basintriangulate_step1(nat,xc,xstar,nf,ctx,ier)
+    allocate(iface(3,max(nf,1)))
+    call runqhull_basintriangulate_step2(nf,iface,ctx)
+    if (ier /= 0) return
+
+    ! the volume of the polyhedron, as the sum of the tetrahedra that join
+    ! its faces to the center
+    do j = 1, nf
+       xp1 = xstar(:,iface(1,j)) - xc
+       xp2 = xstar(:,iface(2,j)) - xc
+       xp3 = xstar(:,iface(3,j)) - xc
+       vol = vol + abs(mixed(xp1,xp2,xp3)) / 6d0
+    end do
+
+  end subroutine coord_polyhedron
+
   !> Calculate the packing ratio (in %) using the nearest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance
   !> to its nearest neighbor.
@@ -492,13 +723,13 @@ contains
   !> Calculate the vdw volume in a molecule or crystal by Monte-Carlo
   !> sampling.  relerr = use enough points to obtain a standard
   !> deviation divided by the volume equal to this value. If
-  !> rtable(1:maxzat0) is present, use those radii instead of the
+  !> rtable(0:maxzat0) is present, use those radii instead of the
   !> van der walls radii
   module function vdw_volume(c,relerr,rtable) result(vvdw)
-    use param, only: VBIG, atmvdw, icrd_cart
+    use param, only: VBIG, atmvdw, icrd_cart, maxzat0
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: relerr
-    real*8, intent(in), optional :: rtable(:)
+    real*8, intent(in), optional :: rtable(0:maxzat0)
     real*8 :: vvdw
 
     real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp

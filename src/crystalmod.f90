@@ -330,6 +330,8 @@ module crystalmod
      procedure :: ewald_matrix !< periodic Ewald 1/r interaction matrix (per-atom)
      procedure :: ewald_energy_grad !< Ewald 1/r energy, forces and virial (per-atom)
      procedure :: promolecular_array3 !< calculate core and promolecular densities on a grid
+     procedure :: promolecular_voids !< Find the voids (low promolecular density regions) in the cell
+     procedure :: coord_polyhedron !< Calculate the coordination polyhedron around a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: vdw_volume !< Calculate the van der waals volume
      procedure :: get_kpoints !< k-point grid for a given rklength
@@ -881,14 +883,40 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_array3
+     module subroutine promolecular_voids(c,n,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: n(3)
+       real*8, intent(in) :: isoval
+       real*8, intent(out) :: vtot
+       integer, intent(out) :: nvoid
+       real*8, allocatable, intent(out) :: vol(:)
+       real*8, allocatable, intent(out) :: xdeep(:,:)
+       real*8, allocatable, intent(out) :: rhodeep(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine promolecular_voids
+     module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: x0(3)
+       integer, intent(in) :: is0
+       integer, intent(in) :: iz0
+       real*8, intent(in) :: rmin
+       real*8, intent(in) :: rmax
+       integer, intent(out) :: nat
+       real*8, intent(out) :: dmin
+       real*8, intent(out) :: dmax
+       integer, intent(out) :: nf
+       real*8, intent(out) :: vol
+       integer, intent(out) :: ier
+     end subroutine coord_polyhedron
      module function get_pack_ratio(c) result (px)
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
      module function vdw_volume(c,relerr,rtable) result(vvdw)
+       use param, only: maxzat0
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: relerr
-       real*8, intent(in), optional :: rtable(:)
+       real*8, intent(in), optional :: rtable(0:maxzat0)
        real*8 :: vvdw
      end function vdw_volume
      pure module subroutine get_kpoints(c,rk,nk)

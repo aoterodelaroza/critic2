@@ -181,6 +181,47 @@ module windows
      "Move Atoms       "&  ! vm_moveatom
      /)
 
+  !> Per-window state of the crystal voids window. Each tab keeps the
+  !> form it was last run with and the results of that run; the results
+  !> are dropped when the window moves to another system (reported by
+  !> w%anchor) or the geometry of the current one changes underneath them.
+  type voids_state
+     real*8 :: timelast = 0d0 ! geometry-change time of the system when they were calculated
+     ! isosurface tab: the form
+     real*8 :: iso_isoval = 0.01d0 ! promolecular density isovalue (a.u.)
+     real*8 :: iso_spacing = 0.10d0 ! target spacing of the sampling grid (Å)
+     ! isosurface tab: the results
+     logical :: iso_done = .false. ! whether there are results to show
+     integer :: iso_nvoid = 0 ! number of disjoint voids
+     real*8 :: iso_vtot = 0d0 ! total void volume (bohr^3)
+     real*8, allocatable :: iso_vol(:) ! volume of each void (bohr^3)
+     real*8, allocatable :: iso_x(:,:) ! deepest point of each void (crystallographic)
+     real*8, allocatable :: iso_rho(:) ! promolecular density at that point (a.u.)
+     ! polyhedra tab: the form
+     integer :: pol_ic = 0 ! species at the center of the polyhedra (0 = not set yet)
+     integer :: pol_iv = 0 ! species at the vertices (0 = not set yet)
+     real*8 :: pol_rmin = 0d0 ! shortest center-vertex distance (Å)
+     real*8 :: pol_rmax = 0d0 ! longest center-vertex distance (Å); < 0 = not set yet
+     ! polyhedra tab: the results
+     logical :: pol_done = .false. ! whether there are results to show
+     integer :: pol_n = 0 ! number of polyhedra
+     real*8 :: pol_vtot = 0d0 ! volume of all the polyhedra in the cell (bohr^3)
+     integer, allocatable :: pol_id(:) ! non-equivalent atom at the center
+     integer, allocatable :: pol_nv(:) ! number of vertices
+     integer, allocatable :: pol_nf(:) ! number of faces
+     real*8, allocatable :: pol_dmin(:) ! shortest vertex distance (bohr)
+     real*8, allocatable :: pol_dmax(:) ! longest vertex distance (bohr)
+     real*8, allocatable :: pol_vol(:) ! volume of the polyhedron (bohr^3)
+     ! packing tab: the form
+     integer :: pck_radii = 0 ! atomic radii (see vdrad_* in windows@voids.f90)
+     real*8 :: pck_prec = 1d-2 ! target relative error of the Monte Carlo volume
+     ! packing tab: the results
+     logical :: pck_done = .false. ! whether there are results to show
+     real*8 :: pck_vfill = 0d0 ! volume covered by the atomic spheres (bohr^3)
+     real*8 :: pck_err = 0d0 ! standard deviation of that volume (bohr^3)
+  end type voids_state
+  public :: voids_state
+
   !> Per-window state of the save-multiple window
   type savemult_state
      character(len=:), allocatable :: lastsig
@@ -624,6 +665,8 @@ module windows
      integer, allocatable :: geometry_sym_analyze_num(:) ! space group numbers from the analysis
      ! preferences parameters
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
+     ! crystal voids parameters
+     type(voids_state) :: vd ! the form and results of the crystal voids window
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -723,6 +766,8 @@ module windows
      procedure :: draw_mo
      ! dynamics
      procedure :: draw_dynamics
+     ! crystal voids
+     procedure :: draw_voids
      ! water cluster demonstration
      procedure :: draw_water_cluster
      ! geometry
@@ -778,6 +823,7 @@ module windows
   integer, parameter, public :: wintype_rattle = 22
   integer, parameter, public :: wintype_save_multiple = 23
   integer, parameter, public :: wintype_mo = 24
+  integer, parameter, public :: wintype_voids = 25
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1253,6 +1299,10 @@ module windows
      module subroutine draw_rattle(w)
        class(window), intent(inout), target :: w
      end subroutine draw_rattle
+     !xx! voids submodule !xx!
+     module subroutine draw_voids(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_voids
      !xx! vibrations submodule !xx!
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w

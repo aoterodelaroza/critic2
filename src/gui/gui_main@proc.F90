@@ -608,7 +608,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo
+       wintype_rattle, wintype_mo, wintype_voids
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -678,6 +678,14 @@ contains
        idum = stack_create_window(wintype_rattle,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Generate new systems by displacing the atoms&
        & randomly or by sampling a molecular-dynamics run",ttshown)
+
+    ! measure the empty space in the crystal
+    ok = enabled
+    if (ok) ok = .not.sys(isys)%c%ismolecule
+    if (iw_menuitem("Crystal voids...",enabled=ok)) &
+       idum = stack_create_window(wintype_voids,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Measure the volume of the empty space in this crystal, from the&
+       & promolecular density, the coordination polyhedra, or the atomic spheres",ttshown)
 
   end subroutine show_tools_menu
 

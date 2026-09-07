@@ -353,6 +353,7 @@ contains
              if (ok.and.type == wintype_save_multiple.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
@@ -728,6 +729,10 @@ contains
        ! rattle structure window
        if (.not.present(idparent)) &
           call ferror('window_init','rattle requires idparent',faterr)
+    elseif (type == wintype_voids) then
+       ! crystal voids window
+       if (.not.present(idparent)) &
+          call ferror('window_init','voids requires idparent',faterr)
     elseif (type == wintype_vibrations) then
        ! vibrations window
        if (.not.present(idparent)) &
@@ -1285,6 +1290,8 @@ contains
           call init_window("Extract as Molecule(s)",52)
        elseif (w%type == wintype_rattle) then
           call init_window("Rattle Structure",52)
+       elseif (w%type == wintype_voids) then
+          call init_window("Crystal Voids",90,35)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62)
        elseif (w%type == wintype_mo) then
@@ -1412,6 +1419,8 @@ contains
                 call w%draw_extract()
              elseif (w%type == wintype_rattle) then
                 call w%draw_rattle()
+             elseif (w%type == wintype_voids) then
+                call w%draw_voids()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
              elseif (w%type == wintype_mo) then
