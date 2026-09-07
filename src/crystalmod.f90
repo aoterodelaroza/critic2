@@ -330,7 +330,7 @@ module crystalmod
      procedure :: ewald_matrix !< periodic Ewald 1/r interaction matrix (per-atom)
      procedure :: ewald_energy_grad !< Ewald 1/r energy, forces and virial (per-atom)
      procedure :: promolecular_array3 !< calculate core and promolecular densities on a grid
-     procedure :: promolecular_voids !< Find the voids (low promolecular density regions) in the cell
+     procedure :: void_domains !< Find the voids (low-field connected regions) in a grid over the cell
      procedure :: coord_polyhedron !< Calculate the coordination polyhedron around a point
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: vdw_volume !< Calculate the van der waals volume
@@ -883,9 +883,9 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_array3
-     module subroutine promolecular_voids(c,n,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
+     module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
        class(crystal), intent(inout) :: c
-       integer, intent(in) :: n(3)
+       real*8, intent(in) :: f(:,:,:)
        real*8, intent(in) :: isoval
        real*8, intent(out) :: vtot
        integer, intent(out) :: nvoid
@@ -893,7 +893,7 @@ module crystalmod
        real*8, allocatable, intent(out) :: xdeep(:,:)
        real*8, allocatable, intent(out) :: rhodeep(:)
        character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine promolecular_voids
+     end subroutine void_domains
      module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)

@@ -75,6 +75,7 @@ contains
           w%vd%pol_ic = 0
           w%vd%iso_secs = -1d0
           w%vd%iso_secs_ncel = -1
+          w%vd%iso_built = .false.
           w%vd%isys = isys
           call drop_results()
        elseif (w%vd%timelast /= sysc(isys)%timelastchange_geometry) then
@@ -100,7 +101,7 @@ contains
        flags = ImGuiTabBarFlags_None
        if (igBeginTabBar(c_loc(str1),flags)) then
           if (iw_begintabitem("Isosurface##drawvoids_isotab")) then
-             call draw_isosurface_tab(w,isys,ttshown)
+             call draw_isosurface_tab(w,isys,iview,ttshown)
              call igEndTabItem()
           end if
           call iw_tooltip("The voids are the regions where the promolecular density is low",ttshown)
@@ -140,6 +141,8 @@ contains
       w%vd%iso_done = .false.
       w%vd%pol_done = .false.
       w%vd%pck_done = .false.
+      ! the sampled grid describes the geometry it was taken on
+      if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
       w%vd%timelast = sysc(isys)%timelastchange_geometry
       w%errmsg = ""
 
@@ -151,18 +154,20 @@ contains
 
   !> Draw the isosurface tab: the voids are the connected regions where the
   !> promolecular density is lower than the isovalue.
-  subroutine draw_isosurface_tab(w,isys,ttshown)
+  subroutine draw_isosurface_tab(w,isys,iview,ttshown)
     use systems, only: sys
-    use representations, only: iso_estimate_cost, iso_region_cell
+    use representations, only: iso_estimate_cost, iso_region_cell, reptype_isosurface,&
+       repflavor_isosurface
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_table_column, duration_string
+       iw_table_column, iw_checkbox, duration_string
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
+    integer, intent(in) :: iview
     logical, intent(inout) :: ttshown
 
-    logical :: expensive
-    integer :: i, n(3)
+    logical :: expensive, found, changed, hasview, ldum, isovalchanged
+    integer :: i, n(3), itrep, irep
     integer*8 :: npts
     real*8 :: tcost, rdum, xdum(3,0:3)
     integer(c_int) :: flags
@@ -181,9 +186,9 @@ contains
     ! either of the two settings makes the results on screen stale, so they
     ! go away until the user asks for the calculation again
     call iw_text("Isovalue",highlight=.true.,alignframe=.true.)
-    if (iw_dragfloat_real8("(a.u.)##voidsisoval",x1=w%vd%iso_isoval,speed=1d-4,&
-       min=1d-6,max=1d0,decimal=5,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
-       w%vd%iso_done = .false.
+    ! acted on below, once the grid the form asks for is known
+    isovalchanged = iw_dragfloat_real8("(a.u.)##voidsisoval",x1=w%vd%iso_isoval,speed=1d-4,&
+       min=1d-6,max=1d0,decimal=5,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
     call iw_tooltip("A point belongs to a void if the promolecular density (the sum of&
        & the in-vacuo atomic densities) at that point is lower than this value",ttshown)
 
@@ -229,6 +234,15 @@ contains
     call iw_text("(" // string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
        " = " // string(npts) // " points)",alignframe=.true.,danger=expensive)
 
+    ! The isovalue does not change the grid
+    if (isovalchanged) then
+       if (w%vd%iso_built .and. all(w%vd%iso_n_built == n)) then
+          call run_isosurface()
+       else
+          w%vd%iso_done = .false.
+       end if
+    end if
+
     ! run the calculation
     if (iw_button("Calculate##voidsisocalc",danger=.true.)) call run_isosurface()
     call iw_tooltip("Calculate the promolecular density on the grid and group the points&
@@ -238,6 +252,71 @@ contains
        call iw_text(s // ")",sameline=.true.,danger=expensive)
     elseif (expensive) then
        call iw_text("(a grid this size takes a while to calculate)",sameline=.true.,danger=.true.)
+    end if
+
+    ! Show the isosurface that bounds the voids in the view.
+    hasview = (iview > 0)
+    if (hasview) hasview = associated(win(iview)%sc)
+    itrep = 0
+    changed = .false.
+    if (w%vd%iso_built) then
+       ldum = iw_checkbox("Visualize isosurface##voidsisoshow",w%vd%iso_show)
+       call iw_tooltip("Draw the isosurface calculated by the button above in the view, for&
+          & as long as this window is open and the box is checked. It is the surface that&
+          & bounds the voids in the table below",ttshown)
+
+       if (w%vd%iso_show .and. hasview) then
+          call win(iview)%sc%show_transient_iso(w%id,1,itrep,found)
+          if (itrep > 0) then
+             associate (r => win(iview)%sc%reptrans(itrep))
+               ! a fresh slot, or one bound to another field: field 0 is the
+               ! promolecular density, which is what the voids are defined on.
+               ! set_field leaves exactly one isosurface behind, which is the
+               ! one wanted here
+               if (.not.found .or. r%iso%ifield /= 0) then
+                  call r%iso%set_field(isys,0)
+                  r%name = "Crystal voids"
+                  changed = .true.
+               end if
+               ! the isovalue and grid of the last calculation, not the ones
+               ! in the form above
+               if (r%iso%slot(1)%isoval /= w%vd%iso_isoval) then
+                  r%iso%slot(1)%isoval = w%vd%iso_isoval
+                  changed = .true.
+               end if
+               if (.not.r%iso%grid_isapplied(w%vd%iso_n_built,iso_region_cell,xdum)) then
+                  xdum = 0d0
+                  call r%iso%apply_grid(w%vd%iso_n_built,iso_region_cell,xdum)
+                  changed = .true.
+               end if
+               if (changed) win(iview)%sc%forcebuildlists = .true.
+             end associate
+          end if
+       end if
+
+       ! copy the transient isosurface into a permanent object
+       if (iw_button("Create Object##voidsisocreate",sameline=.true.,disabled=(itrep == 0))) then
+          call win(iview)%sc%add_representation(reptype_isosurface,repflavor_isosurface,id=irep)
+          if (irep > 0) then
+             win(iview)%sc%rep(irep)%iso = win(iview)%sc%reptrans(itrep)%iso
+             win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
+                string(w%vd%iso_isoval,'f',decimal=5) // ")"
+             win(iview)%sc%forcebuildlists = .true.
+          else
+             w%errmsg = "Could not create the isosurface object"
+          end if
+       end if
+       call iw_tooltip("Copy the isosurface being shown into a permanent object, editable&
+          & from the Objects menu of the view and kept after this window is closed",ttshown,&
+          whendisabled=.true.)
+
+       ! The grid is the expensive half and only Calculate samples it, so a
+       ! grid the form has moved away from is stale until Calculate is
+       ! pressed again; worded as the isosurface editor words it. The
+       ! isovalue is not in this: it costs nothing to change and is applied
+       ! as it moves
+       if (w%vd%iso_show .and. any(w%vd%iso_n_built /= n)) &
+          call iw_text("settings changed",danger=.true.,sameline=.true.)
     end if
 
     ! the results of the last run
@@ -309,8 +388,25 @@ contains
     subroutine run_isosurface()
       character(len=:), allocatable :: errmsg
 
+      logical :: havegrid
+
       w%vd%iso_done = .false.
-      call sys(isys)%c%promolecular_voids(n,w%vd%iso_isoval,w%vd%iso_vtot,w%vd%iso_nvoid,&
+      w%errmsg = ""
+
+      ! sample the promolecular density, unless the grid on hand is already
+      ! the one asked for (an isovalue change, or a Calculate that repeats
+      ! the previous grid). This is the expensive half and the only reason
+      ! the button is worth pressing
+      havegrid = allocated(w%vd%iso_f)
+      if (havegrid) havegrid = all(shape(w%vd%iso_f) == n)
+      if (.not.havegrid) then
+         call sys(isys)%c%promolecular_array3(w%vd%iso_f,n)
+         w%vd%iso_built = .true.
+         w%vd%iso_n_built = n
+      end if
+
+      ! which of its points are void, and how they group into domains
+      call sys(isys)%c%void_domains(w%vd%iso_f,w%vd%iso_isoval,w%vd%iso_vtot,w%vd%iso_nvoid,&
          w%vd%iso_vol,w%vd%iso_x,w%vd%iso_rho,errmsg)
       w%errmsg = errmsg
       w%vd%iso_done = (len_trim(errmsg) == 0)

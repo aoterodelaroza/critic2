@@ -469,22 +469,23 @@ contains
 
   end subroutine promolecular_array3
 
-  !> Find the voids in the unit cell, understood as the connected regions
-  !> where the promolecular density is lower than isoval. The density is
-  !> sampled on a uniform grid with n(:) points and two points belong to
-  !> the same void if they are neighbors along one of the three lattice
-  !> directions (the cell edges wrap around). Returns the total void
-  !> volume (vtot, bohr^3) and the number of voids found (nvoid). For
-  !> each void, in order of decreasing volume: its volume (vol, bohr^3),
-  !> the position of its deepest point (xdeep, crystallographic
-  !> coordinates), and the promolecular density at that point (rhodeep).
-  !> errmsg is non-empty in case of error.
-  module subroutine promolecular_voids(c,n,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
+  !> Find the voids in a scalar field sampled over the unit cell,
+  !> understood as the connected regions where the field is lower than
+  !> isoval. f is the field on a uniform grid spanning the cell (from
+  !> promolecular_array3, say); two of its points belong to the same
+  !> void if they are neighbors along one of the three lattice
+  !> directions. Returns the total void volume (vtot, bohr^3) and the
+  !> number of voids found (nvoid). For each void, in order of
+  !> decreasing volume: its volume (vol, bohr^3), the position of its
+  !> deepest point (xdeep, crystallographic coordinates), and the
+  !> value of the field at that point (rhodeep). errmsg is non-empty
+  !> in case of error.
+  module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg)
     use tools, only: qcksort
     use types, only: realloc
     use tools_io, only: string
     class(crystal), intent(inout) :: c
-    integer, intent(in) :: n(3)
+    real*8, intent(in) :: f(:,:,:)
     real*8, intent(in) :: isoval
     real*8, intent(out) :: vtot
     integer, intent(out) :: nvoid
@@ -493,11 +494,11 @@ contains
     real*8, allocatable, intent(out) :: rhodeep(:)
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: i, j, k, l, m, ii, jd, nn, nstack
+    integer :: i, j, k, l, m, ii, jd, nn, nstack, n(3)
     integer :: ijk(3), jjk(3)
     integer*8 :: nn8
     real*8 :: dvol, rho
-    real*8, allocatable :: f(:,:,:), rmin(:)
+    real*8, allocatable :: rmin(:)
     integer, allocatable :: ilabel(:,:,:), istack(:), iord(:), ncount(:), imin(:,:)
 
     integer, parameter :: nlabel_init = 10 ! initial size of the per-void arrays
@@ -505,6 +506,7 @@ contains
     errmsg = ""
     vtot = 0d0
     nvoid = 0
+    n = shape(f)
 
     ! the flood fill addresses the grid points with a default-integer linear
     ! index, so the point count has to fit in one. Count in integer*8 first:
@@ -517,9 +519,6 @@ contains
        return
     end if
     nn = int(nn8)
-
-    ! the promolecular density on the grid
-    call c%promolecular_array3(f,n)
     dvol = c%omega / real(nn,8)
 
     ! ilabel = -1 if the grid point is not in a void, 0 if it is in a void
@@ -582,7 +581,7 @@ contains
           end do
        end do
     end do
-    deallocate(ilabel,istack,f)
+    deallocate(ilabel,istack)
 
     ! total void volume
     vtot = real(sum(ncount(1:nvoid)),8) * dvol
@@ -601,7 +600,7 @@ contains
        rhodeep(i) = rmin(ii)
     end do
 
-  end subroutine promolecular_voids
+  end subroutine void_domains
 
   !> Calculate the coordination polyhedron centered on point x0
   !> (crystallographic coordinates). The vertices of the polyhedron are

@@ -791,6 +791,10 @@ contains
        ! both rebuilt on demand
        w%mo_cache = mo_cache_state()
        w%mo_diag = mo_diagram_state()
+    elseif (w%type == wintype_voids) then
+       ! the sampled promolecular density; the voids window takes it again
+       ! the next time it needs one
+       if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
     end if
 
   end subroutine window_drop_caches
