@@ -368,6 +368,9 @@ module crystalmod
      procedure :: set_bond_order !< Set the bond order of a single bond between two cell atoms
      procedure :: add_bond !< Add a single bond between two cell atoms
      procedure :: reduce_symmetry !< Delete symmetry operations and rebuild with the reduced subgroup
+     procedure :: move_atom_inplace !< Displace one atom in place (fast, no rebuild)
+     procedure :: move_molecule_inplace !< Translate a molecular fragment in place (fast, no rebuild)
+     procedure :: rotate_molecule_inplace !< Rotate a molecular fragment in place, incrementally (fast, no rebuild)
      procedure :: update_positions !< Overwrite all cell-atom positions in place (fast, no rebuild)
      procedure :: update_env_after_move !< Refresh rxc and the environment block hash after update_positions
      procedure :: rebuild_after_move !< Rebuild the crystal from the current (moved) cell positions
@@ -1094,6 +1097,21 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
+     module subroutine move_atom_inplace(c,icel,dx)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: icel
+       real*8, intent(in) :: dx(3)
+     end subroutine move_atom_inplace
+     module subroutine move_molecule_inplace(c,imol,dx)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: imol
+       real*8, intent(in) :: dx(3)
+     end subroutine move_molecule_inplace
+     module subroutine rotate_molecule_inplace(c,imol,drot)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: imol
+       real*8, intent(in) :: drot(3,3)
+     end subroutine rotate_molecule_inplace
      module subroutine update_positions(c,rnew)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)

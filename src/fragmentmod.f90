@@ -58,6 +58,7 @@ module fragmentmod
      procedure :: translate_to_main_cell => fragment_translate_to_main_cell ! move the fragment to the main cell
      procedure :: standard_axes => fragment_standard_axes ! accessor for the standard (canonical) frame
      procedure :: compute_std => fragment_compute_std ! compute and cache the standard frame
+     procedure :: rotate_std => fragment_rotate_std ! rotate the cached standard frame with the fragment
      procedure :: pgsymbol => fragment_pgsymbol ! accessor for the point-group symbol (lazy)
      procedure :: append ! append a fragment to this fragment
      procedure :: merge_array ! merge several fragments
@@ -118,6 +119,10 @@ module fragmentmod
      module subroutine fragment_compute_std(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_compute_std
+     module subroutine fragment_rotate_std(fr,rmat)
+       class(fragment), intent(inout) :: fr
+       real*8, intent(in) :: rmat(3,3)
+     end subroutine fragment_rotate_std
      module function fragment_pgsymbol(fr) result(symbol)
        class(fragment), intent(inout) :: fr
        character(len=:), allocatable :: symbol

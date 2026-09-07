@@ -1807,13 +1807,100 @@ contains
 
   end subroutine move_atom
 
+  !> Displace cell atom icel by dx (Cartesian, bohr) in place. This is
+  !> the cheap counterpart of move_atom, meant for real-time dragging:
+  !> it moves the atom and refreshes the environment, but does NOT
+  !> rebuild the symmetry, the connectivity, or the molecular
+  !> fragments, and does not wrap the atom into the main cell. The
+  !> non-equivalent atom list is not touched either. The caller must
+  !> restore full consistency with rebuild_after_move once the
+  !> interactive edit is over.
+  module subroutine move_atom_inplace(c,icel,dx)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: icel
+    real*8, intent(in) :: dx(3)
+
+    integer :: im
+
+    if (icel < 1 .or. icel > c%ncel) return
+    call set_cellatom_r(c,icel,c%atcel(icel)%r + dx)
+
+    ! moving a single atom is not a rigid motion of its fragment, so the
+    ! lazily cached molecular data (center of mass, inertia, standard frame,
+    ! point group) is stale: drop it and let it be recomputed on demand
+    if (allocated(c%idatcelmol) .and. allocated(c%mol)) then
+       im = c%idatcelmol(1,icel)
+       if (im >= 1 .and. im <= c%nmol) then
+          c%mol(im)%axes_computed = .false.
+          c%mol(im)%pg_computed = .false.
+       end if
+    end if
+    call c%update_env_after_move()
+
+  end subroutine move_atom_inplace
+
+  !> Rigidly translate molecular fragment imol by dx (Cartesian, bohr)
+  !> in place. Same notes as move_atom_inplace. The caller must call
+  !> rebuild_after_move when the interactive edit is over.
+  module subroutine move_molecule_inplace(c,imol,dx)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: imol
+    real*8, intent(in) :: dx(3)
+
+    integer :: k, icel
+
+    if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%mol)) return
+    do k = 1, c%mol(imol)%nat
+       icel = c%mol(imol)%at(k)%cidx
+       call set_cellatom_r(c,icel,c%atcel(icel)%r + dx)
+    end do
+
+    ! the cached standard frame rides along: the orientation does not change,
+    ! only the center of mass
+    if (c%mol(imol)%axes_computed) c%mol(imol)%xcm = c%mol(imol)%xcm + dx
+    call c%update_env_after_move()
+
+  end subroutine move_molecule_inplace
+
+  !> Rigidly rotate molecular fragment imol about its center of mass in
+  !> place. drot is the incremental rotation to apply (Cartesian).
+  !> Same notes as move_atom_inplace. The caller must call
+  !> rebuild_after_move when the interactive edit is over.
+  module subroutine rotate_molecule_inplace(c,imol,drot)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: imol
+    real*8, intent(in) :: drot(3,3)
+
+    integer :: k, icel
+    real*8 :: xcm(3), rnew(3), rlvec(3)
+
+    if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%mol)) return
+    if (.not.c%mol(imol)%discrete) return
+
+    ! the rotation is applied in the fragment frame (the whole molecule, with
+    ! its atoms translated by the per-atom lattice vectors); the cell atoms
+    ! are the fragment positions minus those lattice vectors
+    xcm = c%mol(imol)%cmass()
+    do k = 1, c%mol(imol)%nat
+       icel = c%mol(imol)%at(k)%cidx
+       rlvec = c%x2c(real(c%mol(imol)%at(k)%lvec,8))
+       rnew = xcm + matmul(drot,c%mol(imol)%at(k)%r - xcm)
+       call set_cellatom_r(c,icel,rnew - rlvec)
+    end do
+    call c%mol(imol)%rotate_std(drot)
+    call c%update_env_after_move()
+
+  end subroutine rotate_molecule_inplace
+
   !> Overwrite the Cartesian positions of all atoms in the main cell
   !> with rnew (3,ncel, bohr), updating the fractional coordinates
   !> accordingly. This is a fast in-place update intended for
   !> real-time animation (molecular dynamics, dragging): it does NOT
   !> rebuild the environment, symmetry, molecular fragments, or
-  !> connectivity. Callers that need those refreshed (e.g. after
-  !> stopping an animation) must rebuild the crystal explicitly with
+  !> connectivity. In particular the cached fragment coordinates in
+  !> c%mol go stale (unlike in the *_inplace editors, which keep them
+  !> in step). Callers that need those refreshed (e.g. after stopping
+  !> an animation) must rebuild the crystal explicitly with
   !> rebuild_after_move.
   module subroutine update_positions(c,rnew)
     use tools_io, only: ferror, faterr
@@ -2919,6 +3006,27 @@ contains
   end subroutine refresh_molecular_data
 
   !xx! private procedures
+
+  ! Set the position of cell atom icel to rnew (Cartesian, bohr),
+  ! keeping the cached molecular fragment consistent with it (see the
+  ! idatcelmol invariant in crystalmod.f90). Used by the in-place
+  ! interactive editors; rnew is not wrapped into the main cell.
+  subroutine set_cellatom_r(c,icel,rnew)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: icel
+    real*8, intent(in) :: rnew(3)
+
+    integer :: im, ia
+
+    c%atcel(icel)%r = rnew
+    c%atcel(icel)%x = c%c2x(rnew)
+    if (.not.allocated(c%idatcelmol) .or. .not.allocated(c%mol)) return
+    im = c%idatcelmol(1,icel)
+    ia = c%idatcelmol(2,icel)
+    c%mol(im)%at(ia)%x = c%atcel(icel)%x + c%mol(im)%at(ia)%lvec
+    c%mol(im)%at(ia)%r = c%x2c(c%mol(im)%at(ia)%x)
+
+  end subroutine set_cellatom_r
 
   ! Make a seed for an edit-and-rebuild operation. For a molecule, use
   ! an absolute-Cartesian seed (useabr=0) so struct_new re-fits the

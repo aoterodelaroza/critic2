@@ -486,6 +486,23 @@ contains
 
   end subroutine fragment_compute_std
 
+  !> Carry the cached standard frame through a rigid rotation of the
+  !> fragment by rmat (Cartesian): the principal axes rotate with the
+  !> molecule while the moments of inertia and the center of mass do
+  !> not. Keeps the m_std/quat_std/euler_std triple consistent, as
+  !> compute_std does.
+  module subroutine fragment_rotate_std(fr,rmat)
+    use tools_math, only: mat2quat, mat2euler
+    class(fragment), intent(inout) :: fr
+    real*8, intent(in) :: rmat(3,3)
+
+    if (.not.fr%axes_computed) return
+    fr%m_std = matmul(rmat,fr%m_std)
+    fr%quat_std = mat2quat(fr%m_std)
+    fr%euler_std = mat2euler(fr%m_std)
+
+  end subroutine fragment_rotate_std
+
   !> Return the molecular point-group symbol of the fragment. The point
   !> group is computed lazily on first access from the fragment atoms
   !> (the whole molecule, with lattice translations applied) and cached.

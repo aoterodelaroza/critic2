@@ -444,6 +444,8 @@ module windows
      integer :: moveobj_icel = 0 ! cell atom in a move (molecules/atoms) drag
      integer :: moveobj_imol = 0 ! molecule in a move drag
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
+     logical :: moveobj_dirty = .false. ! in-place move drag pending a rebuild (see moveobj_end_drag)
+     integer :: moveobj_isys = 0 ! system the pending in-place drag belongs to (may not be the one shown)
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: press_p0 ! press position (mouse/screen coords): click-vs-drag test and rubber-band anchor
      integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick, 4=alternate pick)

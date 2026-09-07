@@ -1122,6 +1122,13 @@ contains
        sysc(w%isys)%md%interacting = .false.
     end if
 
+    ! close any in-place move drag: it belongs to the outgoing system, which
+    ! would otherwise keep the moved atoms without a rebuild
+    call moveobj_end_drag(w)
+    w%moveobj_icel = 0
+    w%moveobj_imol = 0
+    w%moveobj_isdiscrete = .false.
+
     ! select and render the new scene
     w%isys = isys
     if (w%ismain) then
@@ -1311,6 +1318,33 @@ contains
     w%viewmode_transient = .false.
 
   end subroutine viewmode_to_navigate
+
+  !> End an in-place move drag on the system it was started on
+  !> (moveobj_isys, not necessarily the one displayed now): rebuild the
+  !> crystal once (symmetry, environment, molecular fragments) keeping
+  !> the bonds, then post the geometry event that resets the fields and
+  !> captures the undo state. A no-op if no in-place edit is pending.
+  subroutine moveobj_end_drag(w)
+    use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry
+    class(window), intent(inout) :: w
+
+    integer :: isys
+
+    if (.not.w%moveobj_dirty) return
+    w%moveobj_dirty = .false.
+    isys = w%moveobj_isys
+    if (.not.ok_system(isys,sys_init)) return
+
+    w%errmsg = ""
+    call sys(isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
+    sysc(isys)%sc%nextbuildlists_fixcam = .true.
+    ! the rebuild failed: do not record a geometry change over a structure
+    ! that was not actually modified (it would capture a bad undo state)
+    if (len_trim(w%errmsg) > 0) return
+    call sysc(isys)%post_event(lastchange_geometry)
+    w%forcerender = .true.
+
+  end subroutine moveobj_end_drag
 
   !> The user-facing text for view mode mode: hint is the one-line
   !> message shown in the bar next to the mode combo, descr is the
@@ -1836,7 +1870,7 @@ contains
        BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
        BIND_CANCEL, BIND_PASTE, bind_mouse_button
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry,&
-       ok_system, sys_init
+       lastchange_buildlists, ok_system, sys_init
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
     class(window), intent(inout), target :: w
@@ -1894,6 +1928,14 @@ contains
           return
        end if
     end if
+
+    ! an in-place move drag leaves the crystal without a consistent symmetry,
+    ! environment, or fragment list: close it as soon as the drag is over or
+    ! the move mode is gone (the normal release path calls this from the drag
+    ! handler; this catches the drag ending any other way). Before the checks
+    ! below, which would otherwise skip the rebuild if the scene goes away.
+    if (w%ilock == ilock_no .or. &
+       (w%viewmode /= vm_movemol .and. w%viewmode /= vm_moveatom)) call moveobj_end_drag(w)
 
     ! only process if there is an associated system is viewed and scene is initialized
     if (w%isys < 1 .or. w%isys > nsys) return
@@ -2174,7 +2216,7 @@ contains
 
        ! translate (right mouse): whole molecule if the fragment is discrete,
        ! otherwise just the single atom; the grabbed atom stays under the cursor
-       call movemol_translate()
+       call moveobj_translate(BIND_MOVEMOL_TRANSLATE,ilock_right,w%mpos0_r,.true.)
 
        ! rotate the molecule about its COM (left mouse), discrete fragments only
        call movemol_rotate()
@@ -2201,7 +2243,7 @@ contains
        call moveobj_scroll(BIND_MOVEATOM_CHANGECELL)
 
        ! translate the single atom under the cursor (left mouse)
-       call moveatom_translate(BIND_MOVEATOM_TRANSLATE,ilock_left,w%mpos0_l)
+       call moveobj_translate(BIND_MOVEATOM_TRANSLATE,ilock_left,w%mpos0_l,.false.)
     end if
 
     ! if this is a transient view mode, reset to default (navigation); the
@@ -2408,7 +2450,9 @@ contains
     ! change-cell bind while in a move mode: change the cell volume isotropically
     ! for a crystal, otherwise fall back to the camera zoom. bindid is bound to
     ! the mouse scroll by default, but supports a held key + vertical drag too
-    ! (same two behaviors as the navigation zoom).
+    ! (same two behaviors as the navigation zoom). Unlike the atom/molecule
+    ! drags this stays on the seed-rebuild path: rescaling changes the lattice,
+    ! so there is no in-place counterpart, and the wheel fires per notch.
     subroutine moveobj_scroll(bindid)
       integer, intent(in) :: bindid
       real(c_float) :: delta, rr
@@ -2433,12 +2477,15 @@ contains
       end if
     end subroutine moveobj_scroll
 
-    ! translate the single latched atom by dragging with the given mouse bind;
-    ! ilockval and anchor are the per-button lock state and drag anchor. Always
-    ! moves just the one atom (used by the move-atoms mode)
-    subroutine moveatom_translate(bindid,ilockval,anchor)
+    ! translate the latched object by dragging with the given mouse bind;
+    ! ilockval and anchor are the per-button lock state and drag anchor. With
+    ! domol, a discrete fragment moves as a whole (move-molecules mode);
+    ! otherwise only the grabbed atom moves (move-atoms mode). Either way the
+    ! grabbed atom stays under the cursor.
+    subroutine moveobj_translate(bindid,ilockval,anchor,domol)
       integer, intent(in) :: bindid, ilockval
       real(c_float), intent(inout) :: anchor(3)
+      logical, intent(in) :: domol
       real*8 :: dxbohr(3)
 
       if (hover.and.is_bind_event(bindid,.false.,iview=w%id).and.&
@@ -2454,63 +2501,21 @@ contains
          if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.,iview=w%id)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(anchor,dxbohr)
-               w%errmsg = ""
-               call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
-                  .false.,.true.,copybonding=.true.,errmsg=w%errmsg)
-               if (len_trim(w%errmsg) == 0) then
-                  sysc(isys)%sc%nextbuildlists_fixcam = .true.
-                  call sysc(isys)%post_event(lastchange_geometry)
+               if (domol .and. w%moveobj_isdiscrete) then
+                  call sys(isys)%c%move_molecule_inplace(w%moveobj_imol,dxbohr)
+               else
+                  call sys(isys)%c%move_atom_inplace(w%moveobj_icel,dxbohr)
                end if
-               w%forcerender = .true.
+               call moveobj_frame_event()
                anchor = (/texpos%x,texpos%y,anchor(3)/)
                w%mposlast = mousepos
             end if
          else
+            call moveobj_end_drag(w)
             w%ilock = ilock_no
          end if
       end if
-    end subroutine moveatom_translate
-
-    ! move-molecules mode: translate the latched object by dragging with the
-    ! right mouse bind: the whole molecule if the fragment is discrete,
-    ! otherwise just the single atom; the grabbed atom stays under the cursor
-    subroutine movemol_translate()
-      real*8 :: dxbohr(3)
-
-      if (hover.and.is_bind_event(BIND_MOVEMOL_TRANSLATE,.false.,iview=w%id).and.&
-         (w%ilock == ilock_no.or.w%ilock == ilock_right)) then
-         call moveobj_latch()
-         if (w%moveobj_icel > 0) then
-            call depth_anchor(w%mpos0_r)
-            w%ilock = ilock_right
-            w%mposlast = mousepos
-         end if
-      elseif (w%ilock == ilock_right) then
-         call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.,iview=w%id)) then
-            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-               call drag_delta_world(w%mpos0_r,dxbohr)
-               w%errmsg = ""
-               if (w%moveobj_isdiscrete) then
-                  call sys(isys)%c%move_molecule(w%moveobj_imol,dxbohr,iunit_bohr,&
-                     .true.,copybonding=.true.,errmsg=w%errmsg)
-               else
-                  call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
-                     .false.,.true.,copybonding=.true.,errmsg=w%errmsg)
-               end if
-               if (len_trim(w%errmsg) == 0) then
-                  sysc(isys)%sc%nextbuildlists_fixcam = .true.
-                  call sysc(isys)%post_event(lastchange_geometry)
-               end if
-               w%forcerender = .true.
-               w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
-               w%mposlast = mousepos
-            end if
-         else
-            w%ilock = ilock_no
-         end if
-      end if
-    end subroutine movemol_translate
+    end subroutine moveobj_translate
 
     ! move-molecules mode: rotate the latched molecule about its COM by
     ! dragging with the left mouse bind, arcball-style; discrete fragments only
@@ -2531,10 +2536,10 @@ contains
             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
                call arcball_axis_angle(w%mpos0_l,w%cpos0_l,axis,ang)
                call movemol_rotate_molecule(axis,ang)
-               w%forcerender = .true.
                call arcball_anchor(w%mpos0_l,w%cpos0_l)
             end if
          else
+            call moveobj_end_drag(w)
             w%ilock = ilock_no
          end if
       end if
@@ -2562,11 +2567,9 @@ contains
          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
             is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.,iview=w%id)) then
             call perp_axis_angle(axis,ang,okrot)
-            if (okrot) then
-               call movemol_rotate_molecule(axis,ang)
-               w%forcerender = .true.
-            end if
+            if (okrot) call movemol_rotate_molecule(axis,ang)
          else
+            call moveobj_end_drag(w)
             w%ilock = ilock_no
          end if
       end if
@@ -2850,6 +2853,7 @@ contains
     subroutine moveobj_latch()
       integer :: jmol
 
+      call moveobj_end_drag(w)
       w%moveobj_icel = 0
       w%moveobj_imol = 0
       w%moveobj_isdiscrete = .false.
@@ -2863,12 +2867,11 @@ contains
       end if
     end subroutine moveobj_latch
 
-    ! rotate the latched molecule rigidly about its center of mass,
-    ! preserving bonding. axis0 is in eye/view coordinates (as
-    ! produced by the navigation arcball math); ang0 is the rotation
-    ! angle (radians).
+    ! rotate the latched molecule rigidly about its center of mass.
+    ! axis0 is in eye/view coordinates (as produced by the navigation
+    ! arcball math); ang0 is the rotation angle (radians).
     subroutine movemol_rotate_molecule(axis0,ang0)
-      use tools_math, only: euler2mat, axisangle2mat
+      use tools_math, only: axisangle2mat
       real(c_float), intent(in) :: axis0(3)
       real(c_float), intent(in) :: ang0
 
@@ -2877,8 +2880,6 @@ contains
       integer :: imol
       logical :: okax
 
-      w%errmsg = ""
-
       imol = w%moveobj_imol
       if (imol < 1) return
 
@@ -2886,17 +2887,27 @@ contains
       call axis_eye_to_world(axis0,axisw,okax)
       if (.not.okax) return
 
-      ! incremental rotation (Rodrigues) about the world-space axis, composed
-      ! with the molecule's current standard-frame orientation
+      ! incremental rotation (Rodrigues) about the world-space axis; the
+      ! in-place rotation carries the cached standard frame along with it
       rinc = axisangle2mat(real(axisw,8),real(ang0,8))
-      if (.not.sys(isys)%c%mol(imol)%axes_computed) call sys(isys)%c%mol(imol)%compute_std()
-      rinc = matmul(rinc,euler2mat(sys(isys)%c%mol(imol)%euler_std))
-      call sys(isys)%c%rotate_molecule(imol,rmat=rinc,copybonding=.true.,errmsg=w%errmsg)
-      if (len_trim(w%errmsg) > 0) return
-      sysc(isys)%sc%nextbuildlists_fixcam = .true.
-      call sysc(isys)%post_event(lastchange_geometry)
+      call sys(isys)%c%rotate_molecule_inplace(imol,rinc)
+      call moveobj_frame_event()
 
     end subroutine movemol_rotate_molecule
+
+    ! One frame of an in-place move drag: the atom positions changed, so the
+    ! scene draw lists have to be rebuilt, but the crystal is left without a
+    ! consistent symmetry, environment, or fragment list until the drag ends
+    ! (see moveobj_end_drag). The atom ids do not change during the drag, so
+    ! the selection, the measurements, and the loaded fields are not discarded
+    ! frame by frame; they are reset once by the geometry event at the end.
+    subroutine moveobj_frame_event()
+      w%moveobj_dirty = .true.
+      w%moveobj_isys = isys
+      sysc(isys)%sc%nextbuildlists_fixcam = .true.
+      call sysc(isys)%post_event(lastchange_buildlists)
+      w%forcerender = .true.
+    end subroutine moveobj_frame_event
 
     ! whether cell atom icel is currently in the persistent selection
     function cellatom_selected(icel)
