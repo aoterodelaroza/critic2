@@ -186,10 +186,13 @@ module windows
   !> are dropped when the window moves to another system (reported by
   !> w%anchor) or the geometry of the current one changes underneath them.
   type voids_state
+     integer :: isys = 0 ! system the dataset refers to (0 = none)
      real*8 :: timelast = 0d0 ! geometry-change time of the system when they were calculated
      ! isosurface tab: the form
      real*8 :: iso_isoval = 0.01d0 ! promolecular density isovalue (a.u.)
      real*8 :: iso_spacing = 0.10d0 ! target spacing of the sampling grid (Å)
+     real*8 :: iso_secs = -1d0 ! measured cost of one grid point, seconds (< 0 = could not be measured)
+     integer :: iso_secs_ncel = -1 ! number of atoms iso_secs was measured for (-1 = not measured yet)
      ! isosurface tab: the results
      logical :: iso_done = .false. ! whether there are results to show
      integer :: iso_nvoid = 0 ! number of disjoint voids

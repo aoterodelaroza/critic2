@@ -29,12 +29,13 @@ submodule (windows) voids
   ! bohr^3 to Å^3, for the volumes reported by every tab
   real*8, parameter :: fac3 = bohrtoa**3
 
-  ! grids larger than maxgridpts are refused and grids larger than
-  ! bigwarngridpts are flagged: the calculation runs synchronously in the
-  ! draw call, so the whole interface is frozen while it goes. How long
-  ! that is depends on the build and the number of threads, so the warning
-  ! says that it happens and not for how long
+  ! grids larger than this are refused
   integer, parameter :: maxgridpts = 2000000
+
+  ! a run expected to last longer than this says so next to the button, and
+  ! a grid of more than bigwarngridpts points does too when the cost of a
+  ! point could not be measured
+  real*8, parameter :: bigwarn_secs = 3d0
   integer, parameter :: bigwarngridpts = 500000
 
 contains
@@ -69,21 +70,21 @@ contains
        w%errmsg = ""
     end if
 
-    ! the results describe one geometry of one system: drop them when either
-    ! changes underneath them
+    ! The results describe one geometry of one system: drop them when either
+    ! changes underneath them.
     if (goodsys) then
-       if (syschanged .or. w%vd%timelast /= sysc(isys)%timelastchange_geometry) then
-          w%vd%iso_done = .false.
-          w%vd%pol_done = .false.
-          w%vd%pck_done = .false.
-          w%vd%timelast = sysc(isys)%timelastchange_geometry
-          w%errmsg = ""
+       if (w%vd%isys /= isys) then
+          ! a different system: everything measured for the old one goes
+          w%vd%pol_ic = 0
+          w%vd%iso_secs = -1d0
+          w%vd%iso_secs_ncel = -1
+          w%vd%isys = isys
+          call drop_results()
+       elseif (w%vd%timelast /= sysc(isys)%timelastchange_geometry) then
+          ! the same system moved: the results are stale but the cost of a
+          ! grid point is not
+          call drop_results()
        end if
-       ! a species index means nothing in a different system: a system with
-       ! as many species keeps the indices but they are other elements now,
-       ! so hand the polyhedra tab back its defaults (pol_ic = 0 is out of
-       ! range for any system, which is what that tab re-defaults on)
-       if (syschanged) w%vd%pol_ic = 0
     end if
 
     ! the system the voids are measured in
@@ -126,7 +127,7 @@ contains
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! close button
-    call iw_setpos_bottomright(0,1)
+    call iw_setpos_bottomright(5,1)
     if (iw_button("Close")) doquit = .true.
 
     ! exit if focused and received the close keybinding
@@ -134,6 +135,18 @@ contains
 
     ! quit = close the window
     if (doquit) call w%end()
+
+  contains
+    ! Forget what every tab calculated, and the message that came with it.
+    subroutine drop_results()
+
+      w%vd%iso_done = .false.
+      w%vd%pol_done = .false.
+      w%vd%pck_done = .false.
+      w%vd%timelast = sysc(isys)%timelastchange_geometry
+      w%errmsg = ""
+
+    end subroutine drop_results
 
   end subroutine draw_voids
 
@@ -143,8 +156,9 @@ contains
   !> promolecular density is lower than the isovalue.
   subroutine draw_isosurface_tab(w,isys,ttshown)
     use systems, only: sys
+    use representations, only: iso_estimate_cost, iso_region_cell
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_table_column
+       iw_table_column, duration_string
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -153,6 +167,7 @@ contains
     logical :: toobig
     integer :: i, n(3)
     integer*8 :: npts
+    real*8 :: tcost, rdum, xdum(3,0:3)
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1, s
     type(ImVec2) :: sz0
@@ -193,16 +208,40 @@ contains
     call iw_text("(" // string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
        " = " // string(npts) // " points)",alignframe=.true.,danger=toobig)
 
+    ! grid point cost estimation
+    if (.not.toobig) then
+       ! re-measure when there is no measurement yet, or when the atom count
+       ! has moved enough to matter
+       if (w%vd%iso_secs <= 0d0 .or. &
+          abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
+          xdum = 0d0
+          rdum = iso_estimate_cost(isys,0,iso_region_cell,xdum,n)
+          ! a failed measurement is not recorded, so it is retried; its
+          ! failure paths return before the benchmark loop and cost nothing
+          if (rdum > 0d0) then
+             w%vd%iso_secs = rdum
+             w%vd%iso_secs_ncel = sys(isys)%c%ncel
+          end if
+       end if
+    end if
+
     ! run the calculation
-    if (iw_button("Calculate##voidsisocalc",disabled=toobig)) call run_isosurface()
+    if (iw_button("Calculate##voidsisocalc",danger=.true.,disabled=toobig)) call run_isosurface()
     call iw_tooltip("Calculate the promolecular density on the grid and group the points&
-       & below the isovalue into voids",ttshown)
+       & below the isovalue into voids. The window does not respond while it runs",ttshown)
     if (toobig) then
        call iw_text("Too many grid points; increase the grid spacing",danger=.true.,&
           sameline=.true.)
+    elseif (w%vd%iso_secs > 0d0) then
+       tcost = real(npts,8) * w%vd%iso_secs
+       s = "(~" // duration_string(tcost)
+       if (tcost > bigwarn_secs) s = s // ", with the window frozen until it is done"
+       call iw_text(s // ")",sameline=.true.,danger=(tcost > bigwarn_secs))
     elseif (npts > int(bigwarngridpts,8)) then
+       ! the cost could not be measured: fall back on the point count, so a
+       ! grid that will freeze the window for a long time still says so
        call iw_text("(a grid this size takes a while, with the window frozen&
-          & until it is done)",sameline=.true.)
+          & until it is done)",sameline=.true.,danger=.true.)
     end if
 
     ! the results of the last run
@@ -370,7 +409,7 @@ contains
        & the sum of covalent radii times the bond factor)",ttshown)
 
     ! run the calculation
-    if (iw_button("Calculate##voidspolcalc")) call run_polyhedra()
+    if (iw_button("Calculate##voidspolcalc",danger=.true.)) call run_polyhedra()
     call iw_tooltip("Build the coordination polyhedron of every non-equivalent atom of the&
        & center species and calculate its volume",ttshown)
 
@@ -549,7 +588,7 @@ contains
     call igEndDisabled()
 
     ! run the calculation
-    if (iw_button("Calculate##voidspckcalc")) call run_packing()
+    if (iw_button("Calculate##voidspckcalc",danger=.true.)) call run_packing()
     call iw_tooltip("Calculate the volume covered by the atomic spheres and the empty space&
        & left outside them",ttshown)
 

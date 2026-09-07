@@ -454,7 +454,7 @@ contains
        xdelta(i,i) = 1d0 / real(n(i),8)
     end do
 
-    !$omp parallel do private(x,rho,rdum1,rdum2)
+    !$omp parallel do private(x,rho,rdum1,rdum2) collapse(3)
     do k = 1, n(3)
        do j = 1, n(2)
           do i = 1, n(1)
