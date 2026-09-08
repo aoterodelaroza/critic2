@@ -294,11 +294,15 @@ contains
                if (.not.r%iso%grid_isapplied(w%vd%iso_n_built,iso_region_cell,xdum)) then
                   xdum = 0d0
                   call r%iso%apply_grid(w%vd%iso_n_built,iso_region_cell,xdum)
+                  ! prevent the representation from calculating the grid again
+                  if (allocated(w%vd%iso_f)) then
+                     r%iso%ff = w%vd%iso_f
+                     call r%iso%stamp_histogram(r%iso%ff)
+                     call r%iso%stamp_built(isys)
+                  end if
                   changed = .true.
                end if
-               ! which void each grid point belongs to, so that the surface
-               ! can pick one out. Copied only when the labels are not the
-               ! ones already there: it is as big as the grid
+               ! which void each grid point belongs to, so that the surface can pick one out.
                if (allocated(w%vd%iso_lbl)) then
                   if (.not.found .or. w%vd%iso_lblpushed /= w%vd%iso_lblgen) then
                      r%iso%lbl = w%vd%iso_lbl
@@ -306,8 +310,7 @@ contains
                      changed = .true.
                   end if
                end if
-               ! the void under the cursor, as of the last frame the table
-               ! was drawn (this runs above it)
+               ! the void under the cursor, as of the last frame the table was drawn
                if (r%iso%ihighlight /= ihoverlast) then
                   r%iso%ihighlight = ihoverlast
                   changed = .true.
