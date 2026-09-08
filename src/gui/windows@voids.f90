@@ -168,8 +168,9 @@ contains
     use systems, only: sys
     use representations, only: iso_estimate_cost, iso_region_cell, reptype_isosurface,&
        repflavor_isosurface
+    use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
+       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -183,7 +184,9 @@ contains
     real*8 :: tcost, rdum, xdum(3,0:3)
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1, s
-    type(ImVec2) :: sz0
+    character(len=:), allocatable :: sid, svol, spct, sxyz, srho
+    real(c_float) :: wcol(5)
+    type(ImVec2) :: sz0, szavail
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
 
@@ -376,47 +379,65 @@ contains
        flags = ior(flags,ImGuiTableFlags_Borders)
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
-       ! no ScrollX: the row-spanning selectable that reports the hover does
-       ! not survive a horizontally scrolling table (the columns come out
-       ! empty), which is why no table with one of those uses it
+       ! Each column is as wide as the wider of its header and its widest
+       ! value, measured in the font. Nothing is guessed, so nothing clips,
+       ! and the widths exist before the first row is submitted, which is
+       ! what keeps the table from coming up collapsed on the frame that
+       ! Calculate hands the interface back. The rows are sorted by volume,
+       ! so the widest volume and percentage are the first row's and there
+       ! is no need to walk the others
+       if (w%vd%iso_nvoid > 0) then
+          sid = string(w%vd%iso_nvoid)
+          svol = string(w%vd%iso_vol(1)*fac3,'f',decimal=5)
+          spct = string(w%vd%iso_vol(1)/sys(isys)%c%omega*100d0,'f',decimal=3)
+          sxyz = string(w%vd%iso_x(1,1),'f',length=8,decimal=5,justify=ioj_right) //&
+             string(w%vd%iso_x(2,1),'f',length=8,decimal=5,justify=ioj_right) //&
+             string(w%vd%iso_x(3,1),'f',length=8,decimal=5,justify=ioj_right)
+          srho = string(w%vd%iso_rho(1),'e',decimal=4)
+       else
+          sid = ""
+          svol = ""
+          spct = ""
+          sxyz = ""
+          srho = ""
+       end if
+       wcol(1) = colwidth("Id",sid)
+       wcol(2) = colwidth("Volume (Å³)",svol)
+       wcol(3) = colwidth("% cell",spct)
+       wcol(4) = colwidth("Minimum position (frac.)",sxyz)
+       wcol(5) = colwidth("ρ (a.u.)",srho)
+
+       ! the table ends where its columns do, instead of trailing an empty
+       ! strip out to the edge of the window
        str1 = "##tablevoidsiso" // c_null_char
-       sz0%x = 0
+       call igGetContentRegionAvail(szavail)
+       sz0%x = sum(wcol(1:5)) + 5._c_float * 2._c_float * g%Style%CellPadding%x
+       ! room for the scroll bar only when there will be one to make room for
+       if (w%vd%iso_nvoid > 10) sz0%x = sz0%x + g%Style%ScrollbarSize
+       ! The window opens at a modest width, before it can know what the
+       ! table will need; now that the table has said, ask for the width
+       ! that shows it whole rather than clipping the last column. This is
+       ! a one-shot request, so it fires until the window is wide enough
+       ! and then stops, and the user can resize afterwards
+       if (sz0%x > szavail%x) &
+          w%needwidth = igGetWindowWidth() + (sz0%x - szavail%x)
+       sz0%x = min(sz0%x,szavail%x)
        sz0%y = iw_calcheight(min(w%vd%iso_nvoid,10)+1,0,.false.)
        if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
-          ! Each column is given its width outright instead of being left to
-          ! be measured. ImGui caches a table's layout under its ID, so a
-          ! measured table is only wrong on the very first frame it is ever
-          ! drawn -- but that frame is the one presented as Calculate lets go
-          ! of the interface, and it shows the columns collapsed to a few
-          ! pixels. It looks right ever after, in this window and in the next
-          ! one opened, which is what makes it a first-run-only puzzle
           call iw_table_column("Id",id=ic_iso_id,flags=ImGuiTableColumnFlags_WidthFixed,&
-             width=iw_calcwidth(4,0))
-          call iw_table_column("V (Å³)",id=ic_iso_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
-             width=iw_calcwidth(9,0))
+             width=wcol(1))
+          call iw_table_column("Volume (Å³)",id=ic_iso_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=wcol(2))
           call iw_table_column("% cell",id=ic_iso_pct,flags=ImGuiTableColumnFlags_WidthFixed,&
-             width=iw_calcwidth(7,0))
+             width=wcol(3))
           call iw_table_column("Minimum position (frac.)",id=ic_iso_x,&
-             flags=ImGuiTableColumnFlags_WidthFixed,width=iw_calcwidth(24,0))
+             flags=ImGuiTableColumnFlags_WidthFixed,width=wcol(4))
           call iw_table_column("ρ (a.u.)",id=ic_iso_rho,flags=ImGuiTableColumnFlags_WidthFixed,&
-             width=iw_calcwidth(10,0))
+             width=wcol(5))
           call igTableSetupScrollFreeze(0,1)
           call igTableHeadersRow()
-          ! No igTableSetColumnWidthAutoAll here: SizingFixedFit already
-          ! sizes each column to its contents, while that call is the "size
-          ! all columns to fit" command and queues a refit spread over the
-          ! following frames. Asking for it every frame kept the table in a
-          ! permanent refit, and the frame that first shows it -- the one
-          ! presented as Calculate lets go of the interface -- came out with
-          ! the columns collapsed to a few pixels
-          ! the rows go through a clipper: there is one void per connected
-          ! region and only the visible rows need to be emitted
+
           clipper = ImGuiListClipper_ImGuiListClipper()
-          ! the row height is given rather than left to be measured (which
-          ! is what -1 asks for elsewhere): a clipper that has to measure
-          ! renders nothing useful on the first frame of the table, and here
-          ! that frame is the one presented right after Calculate has held
-          ! the interface for seconds, so the blank shows
           call ImGuiListClipper_Begin(clipper,w%vd%iso_nvoid,igGetTextLineHeightWithSpacing())
           do while (ImGuiListClipper_Step(clipper))
              call c_f_pointer(clipper,clipper_f)
@@ -513,8 +534,9 @@ contains
   !> the part of the cell they do not cover.
   subroutine draw_polyhedra_tab(w,isys,ttshown)
     use systems, only: sys
+    use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_calcwidth, iw_table_column
+       iw_calcheight, iw_table_column
     use global, only: bondfactor
     use tools_io, only: string, ioj_right, ioj_center
     use param, only: atmcov
@@ -523,11 +545,12 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: changed
-    integer :: i, j, iz1, iz2, nat, nf, ier, nspc
+    integer :: i, j, jj, iz1, iz2, nat, nf, ier, nspc
     integer(c_int) :: flags
     real*8 :: dmin, dmax, vol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, s
-    type(ImVec2) :: sz0
+    real(c_float) :: wcol(8)
+    type(ImVec2) :: sz0, szavail
 
     integer, parameter :: ic_pol_id = 0
     integer, parameter :: ic_pol_at = 1
@@ -633,27 +656,56 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_ScrollX)
+          ! column widths from the widest value each one holds, as in the
+          ! isosurface tab. These rows are in no particular order, so the
+          ! extremes are taken over all of them -- there is one row per
+          ! non-equivalent atom, so the pass is short
+          jj = w%vd%pol_id(1)
+          do i = 1, w%vd%pol_n
+             if (len_trim(sys(isys)%c%at(w%vd%pol_id(i))%name) >&
+                len_trim(sys(isys)%c%at(jj)%name)) jj = w%vd%pol_id(i)
+          end do
+          wcol(1) = colwidth("Id",string(maxval(w%vd%pol_id(1:w%vd%pol_n))))
+          wcol(2) = colwidth("Atom",trim(sys(isys)%c%at(jj)%name))
+          wcol(3) = colwidth("Mult",string(maxval(sys(isys)%c%at(w%vd%pol_id(1:w%vd%pol_n))%mult)))
+          wcol(4) = colwidth("Coordinates (fractional)",&
+             repeat(" ",8) // repeat(" ",8) // "-0.00000")
+          wcol(5) = colwidth("nv",string(maxval(w%vd%pol_nv(1:w%vd%pol_n))))
+          wcol(6) = colwidth("Distances (Å)",&
+             string(maxval(w%vd%pol_dmin(1:w%vd%pol_n))*bohrtoa,'f',decimal=4) // " to " //&
+             string(maxval(w%vd%pol_dmax(1:w%vd%pol_n))*bohrtoa,'f',decimal=4))
+          wcol(7) = colwidth("nf",string(maxval(w%vd%pol_nf(1:w%vd%pol_n))))
+          wcol(8) = colwidth("Volume (Å³)",&
+             string(maxval(w%vd%pol_vol(1:w%vd%pol_n))*fac3,'f',decimal=5))
+
           str1 = "##tablevoidspol" // c_null_char
-          sz0%x = 0
+          call igGetContentRegionAvail(szavail)
+          sz0%x = sum(wcol(1:8)) + 8._c_float * 2._c_float * g%Style%CellPadding%x
+          if (w%vd%pol_n > 10) sz0%x = sz0%x + g%Style%ScrollbarSize
+          ! this table is the wider of the two, so the window is asked to
+          ! grow to it only when this tab is the one being looked at; it
+          ! keeps the narrow width until then (see the isosurface tab)
+          if (sz0%x > szavail%x) &
+             w%needwidth = igGetWindowWidth() + (sz0%x - szavail%x)
+          sz0%x = min(sz0%x,szavail%x)
           sz0%y = iw_calcheight(min(w%vd%pol_n,10)+1,0,.false.)
           if (igBeginTable(c_loc(str1),8,flags,sz0,0._c_float)) then
-             ! widths given outright, for the reason in the isosurface tab
              call iw_table_column("Id",id=ic_pol_id,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(4,0))
+                width=wcol(1))
              call iw_table_column("Atom",id=ic_pol_at,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(5,0))
+                width=wcol(2))
              call iw_table_column("Mult",id=ic_pol_mult,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(5,0))
+                width=wcol(3))
              call iw_table_column("Coordinates (fractional)",id=ic_pol_x,&
-                flags=ImGuiTableColumnFlags_WidthFixed,width=iw_calcwidth(24,0))
+                flags=ImGuiTableColumnFlags_WidthFixed,width=wcol(4))
              call iw_table_column("nv",id=ic_pol_nv,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(3,0))
+                width=wcol(5))
              call iw_table_column("Distances (Å)",id=ic_pol_d,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(17,0))
+                width=wcol(6))
              call iw_table_column("nf",id=ic_pol_nf,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(3,0))
+                width=wcol(7))
              call iw_table_column("Volume (Å³)",id=ic_pol_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=iw_calcwidth(11,0))
+                width=wcol(8))
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
 
@@ -853,6 +905,29 @@ contains
     call iw_text(str)
 
   end subroutine cell_right
+
+  !> Width for a table column that has to hold both header and value: the
+  !> wider of the two as the font actually draws them, plus the padding a
+  !> cell puts around its contents. Measured rather than counted, so a
+  !> multi-byte glyph (Å, ³, ρ) counts as the one column it occupies and
+  !> not as its bytes, and so the answer follows the font size.
+  function colwidth(header,value) result(wd)
+    use gui_main, only: g
+    character(len=*), intent(in) :: header
+    character(len=*), intent(in) :: value
+    real(c_float) :: wd
+
+    type(ImVec2) :: sz
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    str = header // c_null_char
+    call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+    wd = sz%x
+    str = value // c_null_char
+    call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
+    wd = max(wd,sz%x)
+
+  end function colwidth
 
   !> Number of grid points along each lattice vector that comes closest to
   !> the target spacing (in Å) for a cell with lengths aa (in bohr). At
