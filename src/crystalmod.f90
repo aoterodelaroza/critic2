@@ -999,10 +999,12 @@ module crystalmod
        integer, intent(out) :: ndisp, nindep
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine disp_count
-     module subroutine create_forces(c,file,dataset,verbose,errmsg,ti)
+     module subroutine create_forces(c,file,dataset,npairs,ridge,verbose,errmsg,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        character*(*), intent(in) :: dataset
+       integer, intent(in) :: npairs
+       real*8, intent(in) :: ridge
        logical, intent(in) :: verbose
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti

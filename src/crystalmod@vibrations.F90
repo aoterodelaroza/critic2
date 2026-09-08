@@ -141,6 +141,45 @@ submodule (crystalmod) vibrationsmod
      character(len=mlen), allocatable :: fname(:) ! (ndisp) file written for each displacement
   end type fc2_dataset
 
+  ! Regression of the force constants from random displacements
+  type fc2_scmap
+     integer :: ncel = 0 ! atoms in the cell
+     integer :: nsat = 0 ! atoms in the supercell
+     integer :: nlat = 0 ! lattice points in the supercell (the origin is point 1)
+     integer, allocatable :: iac(:) ! (nsat) cell atom of the supercell atom
+     integer, allocatable :: ilat(:) ! (nsat) lattice point of the supercell atom
+     integer, allocatable :: jtr(:,:) ! (nsat,nlat) the atom translated by lattice point il
+     integer, allocatable :: ilneg(:) ! (nlat) the opposite lattice point
+  end type fc2_scmap
+  type fc2_orbits
+     integer :: npair = 0 ! compact pairs (ia,js)
+     integer :: norb = 0 ! orbits of pairs under the symmetry and the transpose
+     integer :: npar = 0 ! independent force constants
+     integer, allocatable :: iorb(:,:) ! (ncel,nsat) orbit of the pair
+     real*8, allocatable :: trot(:,:,:,:) ! (3,3,ncel,nsat) rotation carrying the representative block onto the pair
+     logical, allocatable :: itr(:,:) ! (ncel,nsat) transposed after the rotation
+     integer, allocatable :: omem(:,:) ! (2,npair) members (ia,js), orbit by orbit (the first is the representative)
+     integer, allocatable :: optr(:) ! (norb+1) first member of each orbit in omem
+     integer, allocatable :: nb(:) ! (norb) parameters of the orbit (0 for a self pair)
+     integer, allocatable :: ioff(:) ! (norb+1) offset of the parameters of the orbit
+     real*8, allocatable :: basis(:,:,:) ! (9,9,norb) orthonormal basis of the invariant blocks (columns 1:nb)
+     real*8, allocatable :: rdist(:) ! (norb) distance of the pair (bohr)
+  end type fc2_orbits
+  type fc2_fitdata
+     integer :: n3 = 0 ! force components per datum (3*nsat)
+     integer :: nd = 0 ! data
+     integer :: nbatch = 0 ! batches
+     integer :: nbmax = 0 ! largest batch
+     logical :: inmem = .true. ! held in memory (the buffers are the storage) or streamed from scratch files
+     integer :: lu(4) = -1 ! scratch units of u, f, r, q
+     real*8, allocatable :: ub(:,:), fb(:,:), rb(:,:), qb(:,:) ! (n3,nbmax) displacements, force data, residuals, model products
+     real*8, allocatable :: up(:,:) ! (n3,nbmax) work: displacements translated by a lattice point
+     real*8, allocatable :: tb(:,:) ! (3*ncel,nbmax) work: the rows of the cell atoms at one lattice point
+     real*8, allocatable :: pmat(:,:), gmat(:,:) ! (3*ncel,3*nsat) work: compact force constants and gradient as matrices
+     integer, allocatable :: iact(:) ! (nbmax) work: the selected columns of a batch
+     integer, allocatable :: ib0(:) ! (nbatch+1) first datum of each batch
+  end type fc2_fitdata
+
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
   ! subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
@@ -153,7 +192,7 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_is_units_word(word)
   ! function fc2_unit_factor(iunit)
   ! subroutine disp_default_template(c,template,template_,iwf)
-  ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti)
+  ! subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist)
   ! subroutine fc2_compatible_ops(c,smat,nlat,madj,nkeep,ikeep,rp)
   ! function fc2_dispvec(sc,ddir,dist)
   ! subroutine fc2_random_disps(nsat,nsnap,dist,plusminus,disp)
@@ -165,7 +204,7 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
   ! function fc2_smatstr(m)
   ! subroutine fc2_output_template(template,icalc,otemplate,errmsg)
-  ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti)
+  ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti,sco,seedo)
   ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq)
   ! subroutine xdebye_core(t,npoly,nein,par,f,s,cv,dfdp)
   ! subroutine xdebye_exp(z,em,om,l1em)
@@ -187,6 +226,39 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_ilat(nlat,lkey,madj,lv)
   ! function fc2_pure_translation(c,t,nlat,lvec,lkey,madj,perm,dev)
   ! subroutine fc2_stamp_geometry(v,c)
+  ! subroutine fc2_calculator_select(ds,verbose,icalc,errmsg)
+  ! subroutine fc2_force_files(file,ds,icalc,nfile,verbose,file_,fname,errmsg,ti)
+  ! subroutine fc2_read_snapshot(file,icalc,sc,seed,dread,errmsg,ti)
+  ! subroutine fc2_supercell_ops(sc,nop,perm,rcart,errmsg)
+  ! subroutine fc2_store(v,c,file,smat,madj,nlat,nsat,iscompact,lvec,lkey)
+  ! subroutine fc2_forces_random(c,file,dataset,ds,verbose,npairs,ridge,errmsg,ti)
+  ! subroutine fc2_scmap_build(ncel,nsat,nlat,lvec,lkey,madj,map,errmsg)
+  ! function fc2_scmap_i0(map,ia)
+  ! function fc2_scmap_rel(map,a,b)
+  ! function fc2_block_transform(r,tr,q)
+  ! subroutine fc2_pair_orbits(sc,map,nop,perm,rcart,orb,errmsg)
+  ! subroutine fc2_par2phi(orb,map,p,phic)
+  ! subroutine fc2_phi2par(orb,map,gc,p)
+  ! subroutine fc2_compact_to_mat(map,phic,pmat)
+  ! subroutine fc2_mat_to_compact(map,gmat,gc)
+  ! subroutine fc2_full_matrix(map,phic,mfull)
+  ! function fc2_memstr(bytes)
+  ! function fc2_fitdata_perdatum(ncel,n3)
+  ! function fc2_fitdata_pos(dat,i)
+  ! subroutine fc2_fitdata_init(dat,ncel,n3,nd,u,f,membytes,errmsg,ti)
+  ! subroutine fc2_fitdata_end(dat)
+  ! subroutine fc2_fitdata_batch(dat,ib,mask,i0,i1,n,na)
+  ! subroutine fc2_fitdata_get(dat,iarr,ib)
+  ! subroutine fc2_fitdata_put(dat,iarr,ib)
+  ! subroutine fc2_fitdata_reset(dat)
+  ! subroutine fc2_fit_forward(dat,orb,map,p,mask,phic,qq)
+  ! subroutine fc2_fit_adjoint(dat,orb,map,alpha,active,gc,g)
+  ! subroutine fc2_fit_heldout(dat,mask)
+  ! subroutine fc2_fit_resid(dat,mask,rms,ncomp)
+  ! subroutine fc2_cgls(dat,orb,map,lam,active,phic,gc,tol,gref,maxit,p,niter,g0,gfin)
+  ! subroutine fc2_fit_random(sc,map,orb,nd,ndfit,u,f,lam0,membytes,verbose,phic,errmsg,ti)
+  ! subroutine fc2_fit_pseudorandom(z)
+  ! subroutine fc2_rigid_split(sc,dat,active)
   ! subroutine fc2_build_svec(v,c,errmsg)
   ! subroutine fc2_check_current(v,c,errmsg)
   ! subroutine read_crystal_out(v,c,file,errmsg,ti)
@@ -478,7 +550,7 @@ contains
   !>
   !> This routine was adapted from phonopy, by A. Togo.
   subroutine fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
-     nindep,indep,ndisp,datom,ddir,errmsg,ti)
+     nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist)
     use crystalseedmod, only: crystalseed
     use global, only: symprec
     use tools_io, only: uout, string, ioj_left, ioj_right, ferror, warning
@@ -498,13 +570,17 @@ contains
     integer, allocatable, intent(inout) :: datom(:), ddir(:,:)
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
+    logical, intent(in), optional :: fdlist
 
+    logical :: dolist
     character*3 :: pgsymb
     integer :: nopfull, ia, il, is, i, k, nsym, nd, nkeep
     integer :: irot(3,3,48), dsel(3,6), ikeep(48), rp(3,3,48)
     real*8 :: rotm(3,3,48), tt(3)
 
     errmsg = ""
+    dolist = .true.
+    if (present(fdlist)) dolist = fdlist
     if (c%ismolecule) then
        errmsg = "the finite-difference force constants can only be used with crystals"
        return
@@ -574,7 +650,7 @@ contains
     end do
     call sc%struct_new(seed,errmsg,ti=ti)
     if (len_trim(errmsg) > 0) return
-    if (c%neqv == 1 .and. c%ncv == 1) &
+    if (c%neqv == 1 .and. c%ncv == 1 .and. dolist) &
        call ferror('fc2_disp_setup','the crystal has no symmetry, so every atom is displaced along six &
           &directions; use SYM to find it before this step',warning)
 
@@ -603,16 +679,20 @@ contains
           trim(pointgroup_symbol(sc%neqv,rotm(:,:,1:sc%neqv)))
        write (uout,'("  Displacement length (bohr): ",A," (",A," ang)")') &
           string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
-       write (uout,'("  Number of independent atoms: ",A)') string(nindep)
-       write (uout,'("# List of independent atoms")')
-       write (uout,'("# id     atom  site symmetry  nsite  ndisp")')
     end if
 
-    ! displacements for each independent atom
+    ! displacements for each independent atom (not for a random
+    ! dataset, which displaces every atom at once)
     ndisp = 0
     if (allocated(datom)) deallocate(datom)
     if (allocated(ddir)) deallocate(ddir)
     allocate(datom(6*nindep),ddir(3,6*nindep))
+    if (.not.dolist) return
+    if (verbose) then
+       write (uout,'("  Number of independent atoms: ",A)') string(nindep)
+       write (uout,'("# List of independent atoms")')
+       write (uout,'("# id     atom  site symmetry  nsite  ndisp")')
+    end if
     do i = 1, nindep
        is = indep(i)
        pgsymb = sc%sitesymm(sc%atcel(is)%x,max(fc2_epspos,symprec),nsym,rotm)
@@ -975,18 +1055,15 @@ contains
     if (len_trim(errmsg) > 0) return
     if (verbose) then
        write (uout,'("+ Displacement dataset written to: ",A)') trim(dataset)
-       if (nrandom > 0) then
-          write (uout,'("  (READ_FORCES cannot use random displacements yet: the fit by regression &
-             &is not implemented)")')
+       call fc2_output_template(template_,vib_calculator,otemplate,errmsg2)
+       if (len_trim(errmsg2) > 0) then
+          write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
        else
-          call fc2_output_template(template_,vib_calculator,otemplate,errmsg2)
-          if (len_trim(errmsg2) > 0) then
-             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES TEMPLATE <outputs>")')
-          else
-             write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
-             write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
-          end if
+          write (uout,'("  Read the forces back with: VIBRATIONS READ_FORCES")')
+          write (uout,'("  (the outputs are expected in: ",A,")")') trim(otemplate)
        end if
+       if (nrandom > 0) &
+          write (uout,'("  (READ_FORCES fits the force constants of a random set by regression)")')
     end if
 
   end subroutine create_displacements
@@ -1109,9 +1186,6 @@ contains
   !> expected Cartesian displacement dexp (bohr).
   subroutine fc2_check_disp(file,icalc,sc,seed,iat,dexp,jmax,dmax,errmsg,ti)
     use crystalseedmod, only: crystalseed
-    use global, only: rborder_def
-    use tools_io, only: string
-    use param, only: vcalc_qe, vcalc_aims
     character*(*), intent(in) :: file
     integer, intent(in) :: icalc
     type(crystal), intent(in) :: sc
@@ -1123,49 +1197,15 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    type(crystalseed) :: dseed
-    integer :: j
-    real*8 :: dx(3), dd, dmx
+    real*8, allocatable :: dread(:,:)
 
-    ! the structure in the output, read with the reader of the
-    ! calculator (the file name says nothing about the format: an
-    ! FHI-aims output is whatever the run was redirected to)
     jmax = 0
     dmax = huge(1d0)
-    select case (icalc)
-    case (vcalc_qe)
-       call dseed%read_qeout(file,.false.,0,errmsg,ti=ti)
-    case (vcalc_aims)
-       call dseed%read_aimsout(file,.false.,rborder_def,.false.,errmsg,ti=ti)
-    case default
-       call dseed%read_any_file(file,0,errmsg,ti=ti)
-    end select
-    if (len_trim(errmsg) > 0) then
-       errmsg = "Could not read the structure from " // trim(file) // ": " // errmsg
-       return
-    end if
-    if (dseed%nat /= seed%nat) then
-       errmsg = "The structure in " // trim(file) // " has " // string(dseed%nat) //&
-          " atoms, but the supercell has " // string(seed%nat)
-       return
-    end if
-
-    ! the atom that moved the most from the undisplaced supercell
-    dmx = -1d0
-    do j = 1, dseed%nat
-       dx = dseed%x(:,j) - seed%x(:,j)
-       dx = dx - nint(dx)
-       dd = norm2(matmul(sc%m_x2c,dx))
-       if (dd > dmx) then
-          dmx = dd
-          jmax = j
-       end if
-    end do
-
-    ! how far that displacement is from the expected one
-    dx = dseed%x(:,iat) - seed%x(:,iat)
-    dx = dx - nint(dx)
-    dmax = norm2(matmul(sc%m_x2c,dx) - dexp)
+    allocate(dread(3,seed%nat))
+    call fc2_read_snapshot(file,icalc,sc,seed,dread,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+    jmax = maxloc(norm2(dread,dim=1),1)
+    dmax = norm2(dread(:,iat) - dexp)
 
   end subroutine fc2_check_disp
 
@@ -1470,7 +1510,8 @@ contains
   !> Check the displacement dataset ds against the current structure c
   !> and against the supercell matrix smat, displacement length dist,
   !> and displacement list (ndisp,datom,ddir) regenerated by
-  !> fc2_disp_setup. Returns non-empty errmsg if any of them disagrees.
+  !> fc2_disp_setup (for a random dataset, the displacements of every
+  !> supercell atom). Returns non-empty errmsg if any of them disagrees.
   subroutine fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
     use tools_io, only: string
     type(crystal), intent(in) :: c
@@ -1482,7 +1523,7 @@ contains
     integer, intent(in) :: ddir(3,ndisp)
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: i
+    integer :: i, nsat
     real*8 :: dev, x(3)
 
     errmsg = ""
@@ -1526,7 +1567,22 @@ contains
        return
     end if
 
-    ! the displacement list
+    ! the displacements: of every supercell atom for a random dataset,
+    ! the regenerated list otherwise
+    if (ds%kind == fc2_kind_random) then
+       nsat = c%ncel * abs(smat(1,1)*(smat(2,2)*smat(3,3)-smat(2,3)*smat(3,2)) -&
+          smat(1,2)*(smat(2,1)*smat(3,3)-smat(2,3)*smat(3,1)) + smat(1,3)*(smat(2,1)*smat(3,2)-smat(2,2)*smat(3,1)))
+       if (size(ds%disp,2) /= nsat) then
+          errmsg = "The dataset has displacements for " // string(size(ds%disp,2)) // " supercell atoms &
+             &but the supercell has " // string(nsat)
+          return
+       end if
+       if (ds%plusminus .and. mod(ds%ndisp,2) /= 0) then
+          errmsg = "The dataset has PLUSMINUS but an odd number of snapshots (" // string(ds%ndisp) // ")"
+          return
+       end if
+       return
+    end if
     if (ds%ndisp /= ndisp) then
        errmsg = "The dataset has " // string(ds%ndisp) // " displacements but " // string(ndisp) //&
           " were regenerated for this supercell; the symmetry may have changed between the two runs (SYMPREC, SYM, NOSYM?)"
@@ -1768,26 +1824,26 @@ contains
   !> zero-padded displacement index, and otherwise it is a text file
   !> with one file name per line, in displacement order.
   !> If error, return non-zero errmsg.
-  module subroutine create_forces(c,file,dataset,verbose,errmsg,ti)
+  module subroutine create_forces(c,file,dataset,npairs,ridge,verbose,errmsg,ti)
     use crystalseedmod, only: crystalseed
-    use tools_io, only: uout, string, fopen_read, fclose, getline_raw, getword
+    use tools_io, only: uout, string
     use tools_math, only: matinv, eigsym
-    use global, only: vib_calculator
-    use param, only: bohrtoa, vcalc_none
+    use param, only: bohrtoa
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character*(*), intent(in) :: dataset
+    integer, intent(in) :: npairs
+    real*8, intent(in) :: ridge
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: line, file_
+    character(len=:), allocatable :: file_
     character(len=mlen), allocatable :: fname(:)
     integer :: nlat, nsat, madj(3,3), nindep, ndisp, nop, smat(3,3)
-    integer :: i, j, k, m, ia, is, js, id, ip, iq, io, icv, ier, npad, lu, nf, lp
+    integer :: i, j, k, m, ia, is, js, id, ip, iq, ier
     integer :: nd, ns, jmax, icalc
     real*8 :: gg(3,3), ggev(3,3), eval(3), atb(3,3), dc(3), rr(3,3), blk(3,3), dmax, dist
-    logical :: ok
     integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:)
     integer, allocatable :: perm(:,:), isite(:), ipsite(:,:)
     real*8, allocatable :: fall(:,:,:), rcart(:,:,:), amat(:,:), bmat(:,:), fcs(:,:,:,:)
@@ -1802,8 +1858,11 @@ contains
     call fc2_read_dataset(dataset,ds,errmsg,ti)
     if (len_trim(errmsg) > 0) return
     if (ds%kind == fc2_kind_random) then
-       errmsg = "The dataset " // trim(dataset) // " holds random displacements of all atoms (" //&
-          string(ds%ndisp) // " snapshots); the force-constant fit by regression is not implemented yet"
+       call fc2_forces_random(c,file,dataset,ds,verbose,npairs,ridge,errmsg,ti)
+       return
+    elseif (npairs > 0 .or. ridge >= 0d0) then
+       errmsg = "PAIRS, RIDGE and NORIDGE apply to the regression from random displacements, and " //&
+          trim(dataset) // " holds finite differences"
        return
     end if
     smat = ds%smat
@@ -1827,72 +1886,11 @@ contains
        return
     end if
 
-    ! the calculator: the one recorded in the dataset when the
-    ! structures were written; VIBRATIONS CALCULATOR must agree with it
-    ! (and supplies it if the dataset has none)
-    icalc = ds%calc
-    if (icalc == vcalc_none) then
-       icalc = vib_calculator
-    elseif (vib_calculator == vcalc_none) then
-       ! adopt it, so that WRITE_FC2 and the rest of the workflow need
-       ! no CALCULATOR line either
-       vib_calculator = icalc
-       if (verbose) &
-          write (uout,'("+ Calculator taken from the dataset: ",A)') vib_calculator_name(icalc)
-    elseif (vib_calculator /= icalc) then
-       errmsg = "The displaced structures were written for the " // vib_calculator_name(ds%calc) //&
-          " calculator but the current calculator is " // vib_calculator_name(vib_calculator) //&
-          " (VIBRATIONS CALCULATOR)"
-       return
-    end if
-    if (icalc == vcalc_none) then
-       errmsg = "No calculator set: the forces are read according to the code that produced them; use &
-          &VIBRATIONS CALCULATOR (qe, aims) first"
-       return
-    end if
-
-    ! where the outputs are: the argument if given, otherwise guessed
-    ! from the template of the displaced structures in the dataset
-    if (len_trim(file) > 0) then
-       file_ = file
-    else
-       call fc2_output_template(ds%template,icalc,file_,errmsg)
-       if (len_trim(errmsg) > 0) return
-       if (verbose) &
-          write (uout,'("  Output files guessed from the dataset template: ",A)') trim(file_)
-    end if
-
-    ! the files with the forces, one per displacement
-    allocate(fname(ndisp))
-    npad = max(3,len(string(ndisp)))
-    if (index(file_,'*') > 0) then
-       do i = 1, ndisp
-          fname(i) = fc2_expand_star(file_,i,npad)
-       end do
-    else
-       lu = fopen_read(file_,errstop=.false.,ti=ti)
-       if (lu <= 0) then
-          errmsg = "Could not open the list of force files: " // trim(file_)
-          return
-       end if
-       nf = 0
-       do while (getline_raw(lu,line))
-          i = index(line,'#')
-          if (i > 0) line = line(1:i-1)
-          if (len_trim(line) == 0) cycle
-          nf = nf + 1
-          if (nf <= ndisp) then
-             lp = 1
-             fname(nf) = getword(line,lp)
-          end if
-       end do
-       call fclose(lu)
-       if (nf /= ndisp) then
-          errmsg = "The list in " // trim(file_) // " has " // string(nf) // " file names, but " //&
-             string(ndisp) // " displacements were generated for this supercell"
-          return
-       end if
-    end if
+    ! the calculator, and the files with the forces, one per displacement
+    call fc2_calculator_select(ds,verbose,icalc,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call fc2_force_files(file,ds,icalc,ndisp,verbose,file_,fname,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
 
     ! read the forces
     allocate(fall(3,nsat,ndisp))
@@ -1926,25 +1924,8 @@ contains
     end do
 
     ! the atom permutations induced by the operations of the supercell
-    nop = sc%neqv * sc%ncv
-    allocate(perm(nsat,nop),rcart(3,3,nop),stat=ier)
-    if (ier /= 0) then
-       errmsg = "Could not allocate the symmetry permutation table (" //&
-          string(nint(4d0*nsat*nop/1024d0**2)) // " Mb)"
-       return
-    end if
-    k = 0
-    do io = 1, sc%neqv
-       do icv = 1, sc%ncv
-          k = k + 1
-          call fc2_atom_perm(sc,io,icv,perm(:,k),ok)
-          if (.not.ok) then
-             errmsg = "Could not build the atom permutation of a supercell symmetry operation"
-             return
-          end if
-          rcart(:,:,k) = matmul(sc%m_x2c,matmul(sc%rotm(1:3,1:3,io),sc%m_c2x))
-       end do
-    end do
+    call fc2_supercell_ops(sc,nop,perm,rcart,errmsg)
+    if (len_trim(errmsg) > 0) return
 
     ! solve for the rows of the independent atoms
     allocate(fcs(3,3,nindep,nsat),isite(nop),stat=ier)
@@ -2070,27 +2051,1640 @@ contains
     end do
 
     ! wrap up
-    c%vib%fc2_file = file_
-    c%vib%hasfc2 = .true.
-    c%vib%fc2_smat = smat
-    c%vib%fc2_madj = madj
-    c%vib%fc2_nlat = nlat
-    c%vib%fc2_nsat = nsat
-    c%vib%fc2_ncel = c%ncel
-    c%vib%fc2_iscompact = (c%ncel < nsat)
-    if (allocated(c%vib%fc2_lvec)) deallocate(c%vib%fc2_lvec)
-    if (allocated(c%vib%fc2_lkey)) deallocate(c%vib%fc2_lkey)
-    call move_alloc(lvec,c%vib%fc2_lvec)
-    call move_alloc(lkey,c%vib%fc2_lkey)
-    c%vib%fc2_acoustic = -1
-    c%vib%fc2_vs_center = -1d0
-    c%vib%fc2_vs_delta = -1d0
-    call fc2_stamp_geometry(c%vib,c)
-
+    call fc2_store(c%vib,c,file_,smat,madj,nlat,nsat,(c%ncel < nsat),lvec,lkey)
     if (verbose) &
        write (uout,'("+ Force constants calculated from ",A," displaced supercells")') string(ndisp)
 
   end subroutine create_forces
+
+  !> The calculator the forces of a dataset are read with: the one
+  !> recorded in the dataset when the structures were written, which
+  !> VIBRATIONS CALCULATOR must agree with (and is adopted if none is
+  !> set); or the current one if the dataset has none.
+  subroutine fc2_calculator_select(ds,verbose,icalc,errmsg)
+    use global, only: vib_calculator
+    use tools_io, only: uout
+    use param, only: vcalc_none
+    type(fc2_dataset), intent(in) :: ds
+    logical, intent(in) :: verbose
+    integer, intent(out) :: icalc
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    errmsg = ""
+    icalc = ds%calc
+    if (icalc == vcalc_none) then
+       icalc = vib_calculator
+    elseif (vib_calculator == vcalc_none) then
+       ! adopt it, so that WRITE_FC2 and the rest of the workflow need
+       ! no CALCULATOR line either
+       vib_calculator = icalc
+       if (verbose) &
+          write (uout,'("+ Calculator taken from the dataset: ",A)') vib_calculator_name(icalc)
+    elseif (vib_calculator /= icalc) then
+       errmsg = "The displaced structures were written for the " // vib_calculator_name(ds%calc) //&
+          " calculator but the current calculator is " // vib_calculator_name(vib_calculator) //&
+          " (VIBRATIONS CALCULATOR)"
+       return
+    end if
+    if (icalc == vcalc_none) &
+       errmsg = "No calculator set: the forces are read according to the code that produced them; use &
+          &VIBRATIONS CALCULATOR (qe, aims) first"
+
+  end subroutine fc2_calculator_select
+
+  !> The nfile files with the forces of the displaced structures of a
+  !> dataset: from the argument file (a * template, or a list file with
+  !> one name per line) or, if empty, guessed from the dataset template.
+  !> file_ is the pattern actually used.
+  subroutine fc2_force_files(file,ds,icalc,nfile,verbose,file_,fname,errmsg,ti)
+    use tools_io, only: uout, string, fopen_read, fclose, getline_raw, getword
+    character*(*), intent(in) :: file
+    type(fc2_dataset), intent(in) :: ds
+    integer, intent(in) :: icalc, nfile
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: file_
+    character(len=mlen), allocatable, intent(inout) :: fname(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line
+    integer :: i, npad, lu, nf, lp
+
+    errmsg = ""
+    if (len_trim(file) > 0) then
+       file_ = file
+    else
+       call fc2_output_template(ds%template,icalc,file_,errmsg)
+       if (len_trim(errmsg) > 0) return
+       if (verbose) &
+          write (uout,'("  Output files guessed from the dataset template: ",A)') trim(file_)
+    end if
+    if (allocated(fname)) deallocate(fname)
+    allocate(fname(nfile))
+    npad = max(3,len(string(nfile)))
+    if (index(file_,'*') > 0) then
+       do i = 1, nfile
+          fname(i) = fc2_expand_star(file_,i,npad)
+       end do
+    else
+       lu = fopen_read(file_,errstop=.false.,ti=ti)
+       if (lu <= 0) then
+          errmsg = "Could not open the list of force files: " // trim(file_)
+          return
+       end if
+       nf = 0
+       do while (getline_raw(lu,line))
+          i = index(line,'#')
+          if (i > 0) line = line(1:i-1)
+          if (len_trim(line) == 0) cycle
+          nf = nf + 1
+          if (nf <= nfile) then
+             lp = 1
+             fname(nf) = getword(line,lp)
+          end if
+       end do
+       call fclose(lu)
+       if (nf /= nfile) then
+          errmsg = "The list in " // trim(file_) // " has " // string(nf) // " file names, but " //&
+             string(nfile) // " displaced structures were generated for this supercell"
+          return
+       end if
+    end if
+
+  end subroutine fc2_force_files
+
+  !> Read the structure in the output file with the reader of the
+  !> calculator and return the Cartesian displacement (bohr) of every
+  !> atom from the undisplaced supercell seed.
+  subroutine fc2_read_snapshot(file,icalc,sc,seed,dread,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: rborder_def
+    use tools_io, only: string
+    use param, only: vcalc_qe, vcalc_aims
+    character*(*), intent(in) :: file
+    integer, intent(in) :: icalc
+    type(crystal), intent(in) :: sc
+    type(crystalseed), intent(in) :: seed
+    real*8, intent(out) :: dread(:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: dseed
+    integer :: j
+    real*8 :: dx(3)
+
+    ! the file name says nothing about the format: an FHI-aims output
+    ! is whatever the run was redirected to
+    select case (icalc)
+    case (vcalc_qe)
+       call dseed%read_qeout(file,.false.,0,errmsg,ti=ti)
+    case (vcalc_aims)
+       call dseed%read_aimsout(file,.false.,rborder_def,.false.,errmsg,ti=ti)
+    case default
+       call dseed%read_any_file(file,0,errmsg,ti=ti)
+    end select
+    if (len_trim(errmsg) > 0) then
+       errmsg = "Could not read the structure from " // trim(file) // ": " // errmsg
+       return
+    end if
+    if (dseed%nat /= seed%nat) then
+       errmsg = "The structure in " // trim(file) // " has " // string(dseed%nat) //&
+          " atoms, but the supercell has " // string(seed%nat)
+       return
+    end if
+    do j = 1, dseed%nat
+       dx = dseed%x(:,j) - seed%x(:,j)
+       dx = dx - nint(dx)
+       dread(:,j) = matmul(sc%m_x2c,dx)
+    end do
+
+  end subroutine fc2_read_snapshot
+
+  !> The operations of the supercell sc as atom permutations (perm)
+  !> and Cartesian rotations (rcart).
+  subroutine fc2_supercell_ops(sc,nop,perm,rcart,errmsg)
+    use tools_io, only: string
+    type(crystal), intent(inout) :: sc
+    integer, intent(out) :: nop
+    integer, allocatable, intent(inout) :: perm(:,:)
+    real*8, allocatable, intent(inout) :: rcart(:,:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: io, icv, k, ier
+    logical :: ok
+
+    errmsg = ""
+    nop = sc%neqv * sc%ncv
+    if (allocated(perm)) deallocate(perm)
+    if (allocated(rcart)) deallocate(rcart)
+    allocate(perm(sc%ncel,nop),rcart(3,3,nop),stat=ier)
+    if (ier /= 0) then
+       errmsg = "Could not allocate the symmetry permutation table (" //&
+          string(nint(4d0*sc%ncel*nop/1024d0**2)) // " Mb)"
+       return
+    end if
+    k = 0
+    do io = 1, sc%neqv
+       do icv = 1, sc%ncv
+          k = k + 1
+          call fc2_atom_perm(sc,io,icv,perm(:,k),ok)
+          if (.not.ok) then
+             errmsg = "Could not build the atom permutation of a supercell symmetry operation"
+             return
+          end if
+          rcart(:,:,k) = matmul(sc%m_x2c,matmul(sc%rotm(1:3,1:3,io),sc%m_c2x))
+       end do
+    end do
+
+  end subroutine fc2_supercell_ops
+
+  !> Record in v the supercell bookkeeping of the force constants just
+  !> stored in v%fc2 (file, supercell matrix and lattice points, layout)
+  !> and stamp the geometry they belong to. lvec and lkey are moved.
+  subroutine fc2_store(v,c,file,smat,madj,nlat,nsat,iscompact,lvec,lkey)
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    integer, intent(in) :: smat(3,3), madj(3,3), nlat, nsat
+    logical, intent(in) :: iscompact
+    integer, allocatable, intent(inout) :: lvec(:,:), lkey(:,:)
+
+    v%fc2_file = file
+    v%hasfc2 = .true.
+    v%fc2_smat = smat
+    v%fc2_madj = madj
+    v%fc2_nlat = nlat
+    v%fc2_nsat = nsat
+    v%fc2_ncel = c%ncel
+    v%fc2_iscompact = iscompact
+    if (allocated(v%fc2_lvec)) deallocate(v%fc2_lvec)
+    if (allocated(v%fc2_lkey)) deallocate(v%fc2_lkey)
+    call move_alloc(lvec,v%fc2_lvec)
+    call move_alloc(lkey,v%fc2_lkey)
+    v%fc2_acoustic = -1
+    v%fc2_vs_center = -1d0
+    v%fc2_vs_delta = -1d0
+    call fc2_stamp_geometry(v,c)
+
+  end subroutine fc2_store
+
+  !> READ_FORCES on a dataset of random displacements: read the forces
+  !> of every snapshot, pair them (F(+u)-F(-u))/2 when the dataset has
+  !> PLUSMINUS, build the pair orbits of the force constants under the
+  !> symmetry of the supercell, and fit them to the forces by
+  !> regression (fc2_fit_random). The first npairs pairs are fitted
+  !> (all if npairs = 0), with ridge strength ridge (< 0: chosen by
+  !> cross-validation; 0: none).
+  subroutine fc2_forces_random(c,file,dataset,ds,verbose,npairs,ridge,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: vib_memory
+    use tools_io, only: uout, string
+    use param, only: bohrtoa
+    class(crystal), intent(inout) :: c
+    character*(*), intent(in) :: file
+    character*(*), intent(in) :: dataset
+    type(fc2_dataset), intent(in) :: ds
+    logical, intent(in) :: verbose
+    integer, intent(in) :: npairs
+    real*8, intent(in) :: ridge
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: file_
+    character(len=mlen), allocatable :: fname(:)
+    integer :: nlat, nsat, madj(3,3), nindep, ndisp, nop, smat(3,3), nsnap, nd, ndfit
+    integer :: i, j, icalc, n3, jmax
+    real*8 :: dist, dmax, dd
+    integer, allocatable :: lvec(:,:), lkey(:,:), indep(:), datom(:), ddir(:,:), perm(:,:)
+    real*8, allocatable :: fall(:,:,:), rcart(:,:,:), dread(:,:), u(:,:), f(:,:), phic(:,:,:,:), f0(:,:), u0(:,:)
+    type(crystal) :: sc
+    type(crystalseed) :: seed
+    type(fc2_scmap) :: map
+    type(fc2_orbits) :: orb
+
+    errmsg = ""
+    smat = ds%smat
+    dist = ds%dist
+    nsnap = ds%ndisp
+    if (verbose) then
+       write (uout,'("+ Displacement dataset read from: ",A)') trim(dataset)
+       write (uout,'("  Random displacements of every atom, ",A," snapshots, length ",A," bohr (",A," ang)")') &
+          string(nsnap), string(dist,'f',10,6), string(dist*bohrtoa,'f',10,6)
+       if (ds%plusminus) &
+          write (uout,'("  The second half of the snapshots are the negatives of the first (PLUSMINUS)")')
+    end if
+
+    ! the supercell, exactly as create_displacements built it, and the
+    ! dataset checked against it
+    call fc2_disp_setup(c,smat,dist,verbose,sc,seed,nlat,nsat,madj,lvec,lkey,&
+       nindep,indep,ndisp,datom,ddir,errmsg,ti,fdlist=.false.)
+    if (len_trim(errmsg) > 0) return
+    call fc2_check_dataset(c,ds,smat,dist,ndisp,datom,ddir,errmsg)
+    if (len_trim(errmsg) > 0) then
+       errmsg = trim(errmsg) // " (displacement dataset " // trim(dataset) // ")"
+       return
+    end if
+    n3 = 3 * nsat
+
+    ! the calculator and the force files
+    call fc2_calculator_select(ds,verbose,icalc,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call fc2_force_files(file,ds,icalc,nsnap,verbose,file_,fname,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+
+    ! read the forces of every snapshot, checking that the geometry in
+    ! the output is the snapshot the dataset describes
+    allocate(fall(3,nsat,nsnap),dread(3,nsat))
+    if (verbose) &
+       write (uout,'("+ Reading the forces of ",A," snapshots (largest deviation of the geometries &
+          &from the dataset, bohr)")') string(nsnap)
+    dmax = 0d0
+    jmax = 0
+    do i = 1, nsnap
+       call fc2_read_forces(fname(i),nsat,fall(:,:,i),icalc,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       call fc2_read_snapshot(fname(i),icalc,sc,seed,dread,errmsg,ti)
+       if (len_trim(errmsg) > 0) return
+       dd = 0d0
+       do j = 1, nsat
+          dd = max(dd,norm2(dread(:,j) - ds%disp(:,j,i)))
+       end do
+       if (dd > fc2_epsdisp) then
+          errmsg = "The structure in " // trim(fname(i)) // " is not snapshot " // string(i) //&
+             " of the dataset: an atom is " // string(dd,'e',12,4) // " bohr away from where the &
+             &dataset puts it. Check the order of the files, and that they belong to the run described &
+             &by the displacement dataset"
+          return
+       end if
+       if (dd > dmax) then
+          dmax = dd
+          jmax = i
+       end if
+    end do
+    if (verbose) &
+       write (uout,'("  Largest deviation: ",A," bohr (snapshot ",A,")")') string(dmax,'e',12,4), string(jmax)
+
+    ! the data: with PLUSMINUS every pair gives (F(+u)-F(-u))/2 with
+    ! the +u displacement, which cancels the undisplaced force and the
+    ! cubic term exactly; otherwise every snapshot, with the means over
+    ! the snapshots removed from the forces (an estimate of the
+    ! undisplaced force) and from the displacements (so that the
+    ! centred forces are the model of the centred displacements)
+    if (ds%plusminus) then
+       nd = nsnap / 2
+       allocate(u(n3,nd),f(n3,nd))
+       do i = 1, nd
+          u(:,i) = reshape(ds%disp(:,:,i),(/n3/))
+          f(:,i) = 0.5d0 * reshape(fall(:,:,i) - fall(:,:,nd+i),(/n3/))
+       end do
+    else
+       nd = nsnap
+       allocate(u(n3,nd),f(n3,nd),f0(3,nsat),u0(3,nsat))
+       f0 = sum(fall,dim=3) / real(nsnap,8)
+       u0 = sum(ds%disp,dim=3) / real(nsnap,8)
+       do i = 1, nd
+          u(:,i) = reshape(ds%disp(:,:,i) - u0,(/n3/))
+          f(:,i) = reshape(fall(:,:,i) - f0,(/n3/))
+       end do
+       if (verbose) &
+          write (uout,'("  No PLUSMINUS pairs: the mean force over the snapshots is taken as the &
+             &undisplaced force and removed")')
+    end if
+    deallocate(fall)
+    ndfit = nd
+    if (npairs > 0) then
+       if (npairs > nd) then
+          errmsg = "PAIRS " // string(npairs) // " asks for more data than the dataset has (" //&
+             string(nd) // ")"
+          return
+       end if
+       ndfit = npairs
+    end if
+
+    ! the supercell operations and the pair orbits: the parameters
+    call fc2_supercell_ops(sc,nop,perm,rcart,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call fc2_scmap_build(c%ncel,nsat,nlat,lvec,lkey,madj,map,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call fc2_pair_orbits(sc,map,nop,perm,rcart,orb,errmsg)
+    if (len_trim(errmsg) > 0) return
+    deallocate(perm,rcart)
+    if (verbose) then
+       write (uout,'("+ Independent force constants of the supercell")')
+       write (uout,'("  Pairs (cell atom, supercell atom): ",A,"; orbits under the ",A," operations and &
+          &the transpose: ",A)') string(orb%npair), string(nop), string(orb%norb)
+       write (uout,'("  Self pairs, fixed by the acoustic sum rule: ",A," orbits")') string(count(orb%nb == 0))
+       write (uout,'("  Independent force constants (the fit parameters): ",A)') string(orb%npar)
+    end if
+    if (orb%npar == 0) then
+       errmsg = "No independent force constants to fit"
+       return
+    end if
+
+    ! the fit
+    call fc2_fit_random(sc,map,orb,nd,ndfit,u,f,ridge,vib_memory*1024d0**3,verbose,phic,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+
+    ! wrap up, as the finite differences do
+    call c%vib%end(keepvibs=.true.)
+    call move_alloc(phic,c%vib%fc2)
+    call fc2_store(c%vib,c,file_,smat,madj,nlat,nsat,(c%ncel < nsat),lvec,lkey)
+    if (verbose) &
+       write (uout,'("+ Force constants fitted to ",A," data from ",A," snapshots")') string(ndfit), string(nsnap)
+
+  end subroutine fc2_forces_random
+
+  !xx! force constants by regression from random displacements !xx!
+
+  !> Index maps of a supercell, for the regression: cell atom and
+  !> lattice point of every supercell atom, the atom every lattice
+  !> translation carries it to, and the opposite of every lattice point.
+  subroutine fc2_scmap_build(ncel,nsat,nlat,lvec,lkey,madj,map,errmsg)
+    use tools_io, only: string
+    integer, intent(in) :: ncel, nsat, nlat
+    integer, intent(in) :: lvec(:,:), lkey(:,:), madj(3,3)
+    type(fc2_scmap), intent(out) :: map
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: js, il, jl
+
+    errmsg = ""
+    map%ncel = ncel
+    map%nsat = nsat
+    map%nlat = nlat
+    if (any(lvec(:,1) /= 0)) then
+       errmsg = "the origin is not the first lattice point of the supercell"
+       return
+    end if
+    allocate(map%iac(nsat),map%ilat(nsat),map%jtr(nsat,nlat),map%ilneg(nlat))
+    do js = 1, nsat
+       map%iac(js) = (js-1) / nlat + 1
+       map%ilat(js) = js - (map%iac(js)-1) * nlat
+    end do
+    do il = 1, nlat
+       map%ilneg(il) = fc2_ilat(nlat,lkey,madj,-lvec(:,il))
+       if (map%ilneg(il) == 0) then
+          errmsg = "the opposite of lattice point " // string(il) // " is not in the supercell table"
+          return
+       end if
+    end do
+    do js = 1, nsat
+       do il = 1, nlat
+          jl = fc2_ilat(nlat,lkey,madj,lvec(:,map%ilat(js)) + lvec(:,il))
+          if (jl == 0) then
+             errmsg = "a translated lattice point is not in the supercell table"
+             return
+          end if
+          map%jtr(js,il) = (map%iac(js)-1) * nlat + jl
+       end do
+    end do
+
+  end subroutine fc2_scmap_build
+
+  !> The supercell atom that is the origin image of cell atom ia (the
+  !> origin is the first lattice point).
+  pure function fc2_scmap_i0(map,ia) result(js)
+    type(fc2_scmap), intent(in) :: map
+    integer, intent(in) :: ia
+    integer :: js
+
+    js = (ia-1) * map%nlat + 1
+
+  end function fc2_scmap_i0
+
+  !> Supercell atom b translated by minus the lattice point of atom a,
+  !> so that Phi(a,b) = Phi(iac(a),fc2_scmap_rel(a,b)) in compact form.
+  pure function fc2_scmap_rel(map,a,b) result(js)
+    type(fc2_scmap), intent(in) :: map
+    integer, intent(in) :: a, b
+    integer :: js
+
+    js = map%jtr(b,map%ilneg(map%ilat(a)))
+
+  end function fc2_scmap_rel
+
+  !> Apply the transform (rotation r, transpose if tr) to the 3x3 block
+  !> q: r*q*r^T, transposed afterwards if tr.
+  pure function fc2_block_transform(r,tr,q) result(x)
+    real*8, intent(in) :: r(3,3), q(3,3)
+    logical, intent(in) :: tr
+    real*8 :: x(3,3)
+
+    x = matmul(r,matmul(q,transpose(r)))
+    if (tr) x = transpose(x)
+
+  end function fc2_block_transform
+
+  !> Build the orbits of the compact force-constant pairs (ia,js) under
+  !> the nop operations of the supercell (atom permutations perm and
+  !> Cartesian rotations rcart) and the transpose symmetry
+  !> Phi(i,j) = Phi(j,i)^T. Every pair gets its orbit and the transform
+  !> (rotation, transposition) that carries the representative block
+  !> onto it, every orbit an orthonormal basis of the blocks invariant
+  !> under its stabilizer (the fit parameters), and the self pairs
+  !> (ia,i0) no parameters at all, since the acoustic sum rule fixes
+  !> them from the others. The parameter count is the number of
+  !> independent force constants of the supercell.
+  subroutine fc2_pair_orbits(sc,map,nop,perm,rcart,orb,errmsg)
+    use tools_math, only: eigsym
+    use tools_io, only: string
+    use types, only: realloc
+    use param, only: eye
+    type(crystal), intent(in) :: sc
+    type(fc2_scmap), intent(in) :: map
+    integer, intent(in) :: nop
+    integer, intent(in) :: perm(:,:)
+    real*8, intent(in) :: rcart(:,:,:)
+    type(fc2_orbits), intent(out) :: orb
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: ncel, nsat, ia, js, ax, bx, ay, by, k, g, nmem, o, nstab, i, j, n, ier
+    logical :: tg, ts, isnew
+    real*8 :: rg(3,3), rs(3,3), aorb(9,9), mm(9,9), eval(9), xx(3)
+    real*8, allocatable :: stabrot(:,:,:)
+    logical, allocatable :: stabtr(:)
+
+    errmsg = ""
+    ncel = map%ncel
+    nsat = map%nsat
+    orb%npair = ncel * nsat
+    allocate(orb%iorb(ncel,nsat),orb%trot(3,3,ncel,nsat),orb%itr(ncel,nsat))
+    allocate(orb%omem(2,orb%npair),orb%optr(orb%npair+1))
+
+    ! the orbits, by breadth-first search from every unvisited pair:
+    ! the operations and the transpose are applied to each member as it
+    ! is reached, and omem is the queue (Phi(y) = g Phi(x) = g T_x Phi(rep))
+    orb%iorb = 0
+    orb%norb = 0
+    nmem = 0
+    do ia = 1, ncel
+       do js = 1, nsat
+          if (orb%iorb(ia,js) /= 0) cycle
+          orb%norb = orb%norb + 1
+          orb%optr(orb%norb) = nmem + 1
+          call visit(ia,js,eye,.false.)
+          k = orb%optr(orb%norb)
+          do while (k <= nmem)
+             ax = orb%omem(1,k)
+             bx = orb%omem(2,k)
+             do g = 1, nop + 1
+                call apply(g,ax,bx,ay,by,rg,tg)
+                if (orb%iorb(ay,by) == 0) &
+                   call visit(ay,by,matmul(rg,orb%trot(:,:,ax,bx)),orb%itr(ax,bx) .neqv. tg)
+             end do
+             k = k + 1
+          end do
+       end do
+    end do
+    orb%optr(orb%norb+1) = nmem + 1
+    call realloc(orb%optr,orb%norb+1)
+
+    ! the stabilizer of every representative: every operation g sends
+    ! it to a member y, and T_y^-1 g fixes it (all of the stabilizer is
+    ! reached this way). The invariant blocks are the null space of
+    ! sum (M_s-1)^T (M_s-1) over the distinct non-identity elements.
+    allocate(orb%nb(orb%norb),orb%ioff(orb%norb+1),orb%basis(9,9,orb%norb),orb%rdist(orb%norb))
+    allocate(stabrot(3,3,2*nop),stabtr(2*nop))
+    orb%ioff(1) = 0
+    do o = 1, orb%norb
+       ia = orb%omem(1,orb%optr(o))
+       js = orb%omem(2,orb%optr(o))
+
+       ! the distance of the pair, closest image in the supercell
+       xx = sc%atcel(js)%x - sc%atcel(fc2_scmap_i0(map,ia))%x
+       call sc%shortest(xx,orb%rdist(o))
+
+       ! a self pair has no parameters
+       orb%basis(:,:,o) = 0d0
+       if (js == fc2_scmap_i0(map,ia)) then
+          orb%nb(o) = 0
+          orb%ioff(o+1) = orb%ioff(o)
+          cycle
+       end if
+
+       ! the distinct stabilizer elements and their constraint matrix
+       nstab = 0
+       aorb = 0d0
+       do g = 1, nop + 1
+          call apply(g,ia,js,ay,by,rg,tg)
+          rs = matmul(transpose(orb%trot(:,:,ay,by)),rg)
+          ts = orb%itr(ay,by) .neqv. tg
+          if (.not.ts .and. all(abs(rs - eye) < 1d-8)) cycle
+          isnew = .true.
+          do i = 1, nstab
+             if (stabtr(i) .eqv. ts) then
+                if (all(abs(stabrot(:,:,i) - rs) < 1d-8)) then
+                   isnew = .false.
+                   exit
+                end if
+             end if
+          end do
+          if (.not.isnew) cycle
+          nstab = nstab + 1
+          stabrot(:,:,nstab) = rs
+          stabtr(nstab) = ts
+          call transform_matrix(rs,ts,mm)
+          do j = 1, 9
+             mm(j,j) = mm(j,j) - 1d0
+          end do
+          aorb = aorb + matmul(transpose(mm),mm)
+       end do
+
+       ! the invariant blocks
+       if (nstab == 0) then
+          orb%nb(o) = 9
+          orb%basis(:,:,o) = 0d0
+          do i = 1, 9
+             orb%basis(i,i,o) = 1d0
+          end do
+       else
+          call eigsym(aorb,9,eval,ier)
+          if (ier /= 0) then
+             errmsg = "could not diagonalize the stabilizer constraints of pair orbit " // string(o)
+             return
+          end if
+          n = 0
+          do i = 1, 9
+             if (eval(i) < 1d-8) then
+                n = n + 1
+                orb%basis(:,n,o) = aorb(:,i)
+             end if
+          end do
+          orb%nb(o) = n
+       end if
+       orb%ioff(o+1) = orb%ioff(o) + orb%nb(o)
+    end do
+    orb%npar = orb%ioff(orb%norb+1)
+
+  contains
+    !> Add pair (xa,xb) to the current orbit with transform (r,tr) from
+    !> the representative.
+    subroutine visit(xa,xb,r,tr)
+      integer, intent(in) :: xa, xb
+      real*8, intent(in) :: r(3,3)
+      logical, intent(in) :: tr
+
+      nmem = nmem + 1
+      orb%omem(1,nmem) = xa
+      orb%omem(2,nmem) = xb
+      orb%iorb(xa,xb) = orb%norb
+      orb%trot(:,:,xa,xb) = r
+      orb%itr(xa,xb) = tr
+
+    end subroutine visit
+
+    !> The image (ya,yb) of pair (xa,xb) under element ig (1:nop the
+    !> supercell operations, nop+1 the transpose), and the transform
+    !> (rg,tg) of the block: Phi(y) = T^tg rg Phi(x) rg^T.
+    subroutine apply(ig,xa,xb,ya,yb,rg,tg)
+      integer, intent(in) :: ig, xa, xb
+      integer, intent(out) :: ya, yb
+      real*8, intent(out) :: rg(3,3)
+      logical, intent(out) :: tg
+
+      integer :: a2
+
+      if (ig <= nop) then
+         ! (i0,js) -> (perm(i0),perm(js)), the first atom brought back
+         ! to its origin image by a cell translation, which leaves the
+         ! block unchanged
+         a2 = perm(fc2_scmap_i0(map,xa),ig)
+         ya = map%iac(a2)
+         yb = fc2_scmap_rel(map,a2,perm(xb,ig))
+         rg = rcart(:,:,ig)
+         tg = .false.
+      else
+         ! the transpose: Phi(i0,js) = Phi(js,i0)^T -> (jc, i0 - l_j)
+         ya = map%iac(xb)
+         yb = fc2_scmap_rel(map,xb,fc2_scmap_i0(map,xa))
+         rg = eye
+         tg = .true.
+      end if
+
+    end subroutine apply
+
+    !> The 9x9 matrix of the transform (r,tr) on the blocks stored
+    !> column-major as 9-vectors.
+    subroutine transform_matrix(r,tr,m)
+      real*8, intent(in) :: r(3,3)
+      logical, intent(in) :: tr
+      real*8, intent(out) :: m(9,9)
+
+      integer :: j
+      real*8 :: e(3,3), x(3,3)
+
+      do j = 1, 9
+         e = 0d0
+         e(mod(j-1,3)+1,(j-1)/3+1) = 1d0
+         x = fc2_block_transform(r,tr,e)
+         m(:,j) = reshape(x,(/9/))
+      end do
+
+    end subroutine transform_matrix
+
+  end subroutine fc2_pair_orbits
+
+  !> Force constants (compact, 3,3,ncel,nsat) from the fit parameters p:
+  !> every pair is its orbit's block transformed, and the self blocks
+  !> follow from the acoustic sum rule.
+  subroutine fc2_par2phi(orb,map,p,phic)
+    type(fc2_orbits), intent(in) :: orb
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: p(:)
+    real*8, intent(out) :: phic(:,:,:,:)
+
+    integer :: o, k, ia, js
+    real*8 :: q(3,3)
+
+    !$omp parallel do private(o,k,ia,js,q)
+    do o = 1, orb%norb
+       if (orb%nb(o) > 0) then
+          q = reshape(matmul(orb%basis(:,1:orb%nb(o),o),p(orb%ioff(o)+1:orb%ioff(o+1))),(/3,3/))
+       else
+          q = 0d0
+       end if
+       do k = orb%optr(o), orb%optr(o+1)-1
+          ia = orb%omem(1,k)
+          js = orb%omem(2,k)
+          phic(:,:,ia,js) = fc2_block_transform(orb%trot(:,:,ia,js),orb%itr(ia,js),q)
+       end do
+    end do
+    !$omp end parallel do
+    ! the acoustic sum rule fixes the self blocks
+    !$omp parallel do private(ia,js)
+    do ia = 1, map%ncel
+       js = fc2_scmap_i0(map,ia)
+       phic(:,:,ia,js) = 0d0
+       phic(:,:,ia,js) = -sum(phic(:,:,ia,:),dim=3)
+    end do
+    !$omp end parallel do
+
+  end subroutine fc2_par2phi
+
+  !> Adjoint of fc2_par2phi: the gradient with respect to the fit
+  !> parameters from the gradient gc with respect to the compact force
+  !> constants. gc is destroyed.
+  subroutine fc2_phi2par(orb,map,gc,p)
+    type(fc2_orbits), intent(in) :: orb
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(inout) :: gc(:,:,:,:)
+    real*8, intent(out) :: p(:)
+
+    integer :: o, k, ia, js
+    real*8 :: g(3,3), qsum(3,3), rt(3,3)
+
+    ! the self block is minus the sum of the others
+    !$omp parallel do private(ia,js,g,k)
+    do ia = 1, map%ncel
+       js = fc2_scmap_i0(map,ia)
+       g = gc(:,:,ia,js)
+       do k = 1, map%nsat
+          gc(:,:,ia,k) = gc(:,:,ia,k) - g
+       end do
+       gc(:,:,ia,js) = 0d0
+    end do
+    !$omp end parallel do
+    ! sum the members of every orbit, transported back to the
+    ! representative with the inverse transform (r^T, same transposition)
+    !$omp parallel do private(o,k,ia,js,qsum,rt)
+    do o = 1, orb%norb
+       if (orb%nb(o) == 0) cycle
+       qsum = 0d0
+       do k = orb%optr(o), orb%optr(o+1)-1
+          ia = orb%omem(1,k)
+          js = orb%omem(2,k)
+          rt = transpose(orb%trot(:,:,ia,js))
+          qsum = qsum + fc2_block_transform(rt,orb%itr(ia,js),gc(:,:,ia,js))
+       end do
+       p(orb%ioff(o)+1:orb%ioff(o+1)) = matmul(transpose(orb%basis(:,1:orb%nb(o),o)),reshape(qsum,(/9/)))
+    end do
+    !$omp end parallel do
+
+  end subroutine fc2_phi2par
+
+  !> The compact force constants as the (3*ncel,3*nsat) matrix pmat
+  !> (rows: the cell atoms at the origin; columns: the supercell atoms).
+  subroutine fc2_compact_to_mat(map,phic,pmat)
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: phic(:,:,:,:)
+    real*8, intent(out) :: pmat(:,:)
+
+    integer :: ia, js
+
+    !$omp parallel do private(ia,js)
+    do js = 1, map%nsat
+       do ia = 1, map%ncel
+          pmat(3*ia-2:3*ia,3*js-2:3*js) = phic(:,:,ia,js)
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine fc2_compact_to_mat
+
+  !> Inverse of fc2_compact_to_mat.
+  subroutine fc2_mat_to_compact(map,gmat,gc)
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: gmat(:,:)
+    real*8, intent(out) :: gc(:,:,:,:)
+
+    integer :: ia, js
+
+    !$omp parallel do private(ia,js)
+    do js = 1, map%nsat
+       do ia = 1, map%ncel
+          gc(:,:,ia,js) = gmat(3*ia-2:3*ia,3*js-2:3*js)
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine fc2_mat_to_compact
+
+  !> The full force-constant matrix of the supercell (3*nsat,3*nsat)
+  !> from the compact one, by cell translation.
+  subroutine fc2_full_matrix(map,phic,mfull)
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: phic(:,:,:,:)
+    real*8, intent(out) :: mfull(:,:)
+
+    integer :: a, b
+
+    !$omp parallel do private(a,b)
+    do b = 1, map%nsat
+       do a = 1, map%nsat
+          mfull(3*a-2:3*a,3*b-2:3*b) = phic(:,:,map%iac(a),fc2_scmap_rel(map,a,b))
+       end do
+    end do
+    !$omp end parallel do
+
+  end subroutine fc2_full_matrix
+
+  !> Memory size in KB, MB or GB, for the reports.
+  function fc2_memstr(bytes) result(str)
+    use tools_io, only: string
+    real*8, intent(in) :: bytes
+    character(len=:), allocatable :: str
+
+    if (bytes >= 1024d0**3) then
+       str = string(bytes/1024d0**3,'f',decimal=3) // " GB"
+    elseif (bytes >= 1024d0**2) then
+       str = string(bytes/1024d0**2,'f',decimal=1) // " MB"
+    else
+       str = string(bytes/1024d0,'f',decimal=1) // " KB"
+    end if
+
+  end function fc2_memstr
+
+  !> Bytes per datum of the data object (the u, f, r, q columns and the
+  !> work buffers), for the memory plan.
+  pure function fc2_fitdata_perdatum(ncel,n3) result(bytes)
+    integer, intent(in) :: ncel, n3
+    real*8 :: bytes
+
+    bytes = 8d0 * (5d0 * real(n3,8) + 3d0 * real(ncel,8))
+
+  end function fc2_fitdata_perdatum
+
+  !> Byte position of datum i in the scratch files (64-bit: the files
+  !> exceed 2 GB for exactly the sets that are streamed).
+  pure function fc2_fitdata_pos(dat,i) result(pos)
+    type(fc2_fitdata), intent(in) :: dat
+    integer, intent(in) :: i
+    integer*8 :: pos
+
+    pos = int(i-1,8) * int(dat%n3,8) * 8_8 + 1_8
+
+  end function fc2_fitdata_pos
+
+  !> Set up the data object of the regression from the displacements u
+  !> and the force data f of the nd data (both moved into the object or
+  !> onto scratch files, and deallocated). In memory, the batch buffers
+  !> are the storage; otherwise the data are streamed from scratch
+  !> files in batches sized by the budget membytes.
+  subroutine fc2_fitdata_init(dat,ncel,n3,nd,u,f,membytes,errmsg,ti)
+    use tools_io, only: fopen_scratch
+    type(fc2_fitdata), intent(out) :: dat
+    integer, intent(in) :: ncel, n3, nd
+    real*8, allocatable, intent(inout) :: u(:,:), f(:,:)
+    real*8, intent(in) :: membytes
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: i, ib
+    real*8 :: perdatum
+
+    errmsg = ""
+    dat%n3 = n3
+    dat%nd = nd
+    perdatum = fc2_fitdata_perdatum(ncel,n3)
+    dat%inmem = (perdatum * real(nd,8) <= membytes)
+    if (dat%inmem) then
+       dat%nbatch = 1
+       dat%nbmax = nd
+       call move_alloc(u,dat%ub)
+       call move_alloc(f,dat%fb)
+       allocate(dat%rb(n3,nd),dat%qb(n3,nd))
+    else
+       dat%nbmax = int(membytes / perdatum)
+       if (dat%nbmax < 1) then
+          errmsg = "not enough memory for the forces of even one snapshot (" // fc2_memstr(perdatum) //&
+             "); raise VIBRATIONS MEMORY"
+          return
+       end if
+       dat%nbmax = min(dat%nbmax,nd)
+       dat%nbatch = (nd - 1) / dat%nbmax + 1
+       do i = 1, 4
+          dat%lu(i) = fopen_scratch("unformatted",errstop=.false.,ti=ti)
+          if (dat%lu(i) < 0) then
+             errmsg = "could not open a scratch file for the regression data"
+             call fc2_fitdata_end(dat)
+             return
+          end if
+       end do
+       do i = 1, nd
+          write (dat%lu(1),pos=fc2_fitdata_pos(dat,i)) u(:,i)
+          write (dat%lu(2),pos=fc2_fitdata_pos(dat,i)) f(:,i)
+       end do
+       deallocate(u,f)
+       allocate(dat%ub(n3,dat%nbmax),dat%fb(n3,dat%nbmax),dat%rb(n3,dat%nbmax),dat%qb(n3,dat%nbmax))
+    end if
+    allocate(dat%ib0(dat%nbatch+1))
+    do ib = 1, dat%nbatch
+       dat%ib0(ib) = (ib-1) * dat%nbmax + 1
+    end do
+    dat%ib0(dat%nbatch+1) = nd + 1
+    allocate(dat%up(n3,dat%nbmax),dat%tb(3*ncel,dat%nbmax),dat%iact(dat%nbmax))
+    allocate(dat%pmat(3*ncel,n3),dat%gmat(3*ncel,n3))
+
+  end subroutine fc2_fitdata_init
+
+  !> Close the scratch files of the data object.
+  subroutine fc2_fitdata_end(dat)
+    use tools_io, only: fclose
+    type(fc2_fitdata), intent(inout) :: dat
+
+    integer :: i
+
+    if (.not.dat%inmem) then
+       do i = 1, 4
+          if (dat%lu(i) > 0) call fclose(dat%lu(i))
+       end do
+    end if
+
+  end subroutine fc2_fitdata_end
+
+  !> The data of batch ib: first and last, and how many; and the
+  !> list dat%iact(1:na) of the buffer columns selected by mask.
+  subroutine fc2_fitdata_batch(dat,ib,mask,i0,i1,n,na)
+    type(fc2_fitdata), intent(inout) :: dat
+    integer, intent(in) :: ib
+    logical, intent(in) :: mask(:)
+    integer, intent(out) :: i0, i1, n, na
+
+    integer :: i
+
+    i0 = dat%ib0(ib)
+    i1 = dat%ib0(ib+1) - 1
+    n = i1 - i0 + 1
+    na = 0
+    do i = 1, n
+       if (mask(i0+i-1)) then
+          na = na + 1
+          dat%iact(na) = i
+       end if
+    end do
+
+  end subroutine fc2_fitdata_batch
+
+  !> Load batch ib of array iarr (1 = u, 2 = f, 3 = r, 4 = q) into its
+  !> buffer (nothing to do when the data are in memory).
+  subroutine fc2_fitdata_get(dat,iarr,ib)
+    type(fc2_fitdata), intent(inout) :: dat
+    integer, intent(in) :: iarr, ib
+
+    integer :: n
+
+    if (dat%inmem) return
+    n = dat%ib0(ib+1) - dat%ib0(ib)
+    select case (iarr)
+    case (1)
+       read (dat%lu(1),pos=fc2_fitdata_pos(dat,dat%ib0(ib))) dat%ub(:,1:n)
+    case (2)
+       read (dat%lu(2),pos=fc2_fitdata_pos(dat,dat%ib0(ib))) dat%fb(:,1:n)
+    case (3)
+       read (dat%lu(3),pos=fc2_fitdata_pos(dat,dat%ib0(ib))) dat%rb(:,1:n)
+    case (4)
+       read (dat%lu(4),pos=fc2_fitdata_pos(dat,dat%ib0(ib))) dat%qb(:,1:n)
+    end select
+
+  end subroutine fc2_fitdata_get
+
+  !> Store the buffer of array iarr (3 = r, 4 = q) as batch ib (nothing
+  !> to do when the data are in memory).
+  subroutine fc2_fitdata_put(dat,iarr,ib)
+    type(fc2_fitdata), intent(inout) :: dat
+    integer, intent(in) :: iarr, ib
+
+    integer :: n
+
+    if (dat%inmem) return
+    n = dat%ib0(ib+1) - dat%ib0(ib)
+    if (iarr == 3) then
+       write (dat%lu(3),pos=fc2_fitdata_pos(dat,dat%ib0(ib))) dat%rb(:,1:n)
+    else
+       write (dat%lu(4),pos=fc2_fitdata_pos(dat,dat%ib0(ib))) dat%qb(:,1:n)
+    end if
+
+  end subroutine fc2_fitdata_put
+
+  !> Reset the residual to the force data, i.e. the residual of the
+  !> zero solution.
+  subroutine fc2_fitdata_reset(dat)
+    type(fc2_fitdata), intent(inout) :: dat
+
+    integer :: ib, n
+
+    do ib = 1, dat%nbatch
+       n = dat%ib0(ib+1) - dat%ib0(ib)
+       call fc2_fitdata_get(dat,2,ib)
+       dat%rb(:,1:n) = dat%fb(:,1:n)
+       call fc2_fitdata_put(dat,3,ib)
+    end do
+
+  end subroutine fc2_fitdata_reset
+
+  !> Apply the model to the parameter vector p: q = X p for the data
+  !> selected by mask, stored in the q array (the other columns are
+  !> left alone); returns |X p|^2 over them. The compact force
+  !> constants of p are left in phic. The product goes lattice point by
+  !> lattice point: the forces on the images of the cell atoms at
+  !> lattice point l are -Phi_c times the displacements translated by
+  !> -l, one BLAS product each, so the full supercell matrix is never
+  !> built.
+  subroutine fc2_fit_forward(dat,orb,map,p,mask,phic,qq)
+    type(fc2_fitdata), intent(inout) :: dat
+    type(fc2_orbits), intent(in) :: orb
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: p(:)
+    logical, intent(in) :: mask(:)
+    real*8, intent(inout) :: phic(:,:,:,:)
+    real*8, intent(out) :: qq
+
+    integer :: ib, i0, i1, n, na, il, j, i, ia, a, b
+
+    call fc2_par2phi(orb,map,p,phic)
+    call fc2_compact_to_mat(map,phic,dat%pmat)
+    qq = 0d0
+    do ib = 1, dat%nbatch
+       call fc2_fitdata_batch(dat,ib,mask,i0,i1,n,na)
+       if (na == 0) cycle
+       call fc2_fitdata_get(dat,1,ib)
+       do il = 1, map%nlat
+          !$omp parallel do private(j,i,b)
+          do j = 1, na
+             i = dat%iact(j)
+             do b = 1, map%nsat
+                dat%up(3*b-2:3*b,j) = dat%ub(3*map%jtr(b,il)-2:3*map%jtr(b,il),i)
+             end do
+          end do
+          !$omp end parallel do
+          dat%tb(:,1:na) = matmul(dat%pmat,dat%up(:,1:na))
+          !$omp parallel do private(j,i,ia,a)
+          do j = 1, na
+             i = dat%iact(j)
+             do ia = 1, map%ncel
+                a = (ia-1) * map%nlat + il
+                dat%qb(3*a-2:3*a,i) = -dat%tb(3*ia-2:3*ia,j)
+             end do
+          end do
+          !$omp end parallel do
+       end do
+       do j = 1, na
+          qq = qq + sum(dat%qb(:,dat%iact(j))**2)
+       end do
+       call fc2_fitdata_put(dat,4,ib)
+    end do
+
+  end subroutine fc2_fit_forward
+
+  !> Update the residual r <- r - alpha q of the active data (skipped
+  !> if alpha is zero) and accumulate the gradient g = X^T r of the
+  !> active data (in parameter space); the adjoint of fc2_fit_forward.
+  !> gc is scratch.
+  subroutine fc2_fit_adjoint(dat,orb,map,alpha,active,gc,g)
+    type(fc2_fitdata), intent(inout) :: dat
+    type(fc2_orbits), intent(in) :: orb
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: alpha
+    logical, intent(in) :: active(:)
+    real*8, intent(inout) :: gc(:,:,:,:)
+    real*8, intent(out) :: g(:)
+
+    integer :: ib, i0, i1, n, na, il, j, i, ia, a, b
+
+    dat%gmat = 0d0
+    do ib = 1, dat%nbatch
+       call fc2_fitdata_batch(dat,ib,active,i0,i1,n,na)
+       if (na == 0) cycle
+       call fc2_fitdata_get(dat,1,ib)
+       call fc2_fitdata_get(dat,3,ib)
+       if (alpha /= 0d0) then
+          call fc2_fitdata_get(dat,4,ib)
+          do j = 1, na
+             i = dat%iact(j)
+             dat%rb(:,i) = dat%rb(:,i) - alpha * dat%qb(:,i)
+          end do
+          call fc2_fitdata_put(dat,3,ib)
+       end if
+       do il = 1, map%nlat
+          !$omp parallel do private(j,i,b,ia,a)
+          do j = 1, na
+             i = dat%iact(j)
+             do b = 1, map%nsat
+                dat%up(3*b-2:3*b,j) = dat%ub(3*map%jtr(b,il)-2:3*map%jtr(b,il),i)
+             end do
+             do ia = 1, map%ncel
+                a = (ia-1) * map%nlat + il
+                dat%tb(3*ia-2:3*ia,j) = -dat%rb(3*a-2:3*a,i)
+             end do
+          end do
+          !$omp end parallel do
+          dat%gmat = dat%gmat + matmul(dat%tb(:,1:na),transpose(dat%up(:,1:na)))
+       end do
+    end do
+    call fc2_mat_to_compact(map,dat%gmat,gc)
+    call fc2_phi2par(orb,map,gc,g)
+
+  end subroutine fc2_fit_adjoint
+
+  !> Set the residual of the data selected by mask to f - q, from the
+  !> model products q of the last fc2_fit_forward.
+  subroutine fc2_fit_heldout(dat,mask)
+    type(fc2_fitdata), intent(inout) :: dat
+    logical, intent(in) :: mask(:)
+
+    integer :: ib, i0, i1, n, na, j, i
+
+    do ib = 1, dat%nbatch
+       call fc2_fitdata_batch(dat,ib,mask,i0,i1,n,na)
+       if (na == 0) cycle
+       call fc2_fitdata_get(dat,2,ib)
+       call fc2_fitdata_get(dat,3,ib)
+       call fc2_fitdata_get(dat,4,ib)
+       do j = 1, na
+          i = dat%iact(j)
+          dat%rb(:,i) = dat%fb(:,i) - dat%qb(:,i)
+       end do
+       call fc2_fitdata_put(dat,3,ib)
+    end do
+
+  end subroutine fc2_fit_heldout
+
+  !> Root-mean-square of the residual over the data selected by mask
+  !> (per force component), and the number of components.
+  subroutine fc2_fit_resid(dat,mask,rms,ncomp)
+    type(fc2_fitdata), intent(inout) :: dat
+    logical, intent(in) :: mask(:)
+    real*8, intent(out) :: rms
+    integer, intent(out) :: ncomp
+
+    integer :: ib, i0, i1, n, na, j
+    real*8 :: ssq
+
+    ssq = 0d0
+    ncomp = 0
+    do ib = 1, dat%nbatch
+       call fc2_fitdata_batch(dat,ib,mask,i0,i1,n,na)
+       if (na == 0) cycle
+       call fc2_fitdata_get(dat,3,ib)
+       do j = 1, na
+          ssq = ssq + sum(dat%rb(:,dat%iact(j))**2)
+       end do
+       ncomp = ncomp + na * dat%n3
+    end do
+    rms = 0d0
+    if (ncomp > 0) rms = sqrt(ssq / real(ncomp,8))
+
+  end subroutine fc2_fit_resid
+
+  !> Solve min |X p - f|^2 + sum lam p^2 over the active data by
+  !> conjugate gradients on the normal equations (CGLS), starting from
+  !> the p given. Stops when the gradient norm falls below tol times
+  !> gref (or times the initial gradient norm if gref <= 0), or after
+  !> maxit iterations. On exit p is the solution and the residual
+  !> r = f - X p of every datum (active or not) is in the data object.
+  !> Returns the iterations, the initial and final gradient norms.
+  subroutine fc2_cgls(dat,orb,map,lam,active,phic,gc,tol,gref,maxit,p,niter,g0,gfin)
+    type(fc2_fitdata), intent(inout) :: dat
+    type(fc2_orbits), intent(in) :: orb
+    type(fc2_scmap), intent(in) :: map
+    real*8, intent(in) :: lam(:)
+    logical, intent(in) :: active(:)
+    real*8, intent(inout) :: phic(:,:,:,:), gc(:,:,:,:)
+    real*8, intent(in) :: tol, gref
+    integer, intent(in) :: maxit
+    real*8, intent(inout) :: p(:)
+    integer, intent(out) :: niter
+    real*8, intent(out) :: g0, gfin
+
+    integer :: it, npar
+    real*8 :: qq, alpha, gamma, gnew, gstop
+    real*8, allocatable :: s(:), pdir(:)
+
+    npar = size(p,1)
+    allocate(s(npar),pdir(npar))
+
+    ! the residual and gradient of the starting point: r = f - X p
+    call fc2_fitdata_reset(dat)
+    call fc2_fit_forward(dat,orb,map,p,active,phic,qq)
+    call fc2_fit_adjoint(dat,orb,map,1d0,active,gc,s)
+    s = s - lam * p
+    pdir = s
+    gamma = dot_product(s,s)
+    g0 = sqrt(gamma)
+    gfin = g0
+    gstop = tol * merge(gref,g0,gref > 0d0)
+    niter = 0
+    do it = 1, maxit
+       if (gfin <= gstop) exit
+       call fc2_fit_forward(dat,orb,map,pdir,active,phic,qq)
+       alpha = gamma / (qq + dot_product(lam*pdir,pdir))
+       p = p + alpha * pdir
+       call fc2_fit_adjoint(dat,orb,map,alpha,active,gc,s)
+       s = s - lam * p
+       gnew = dot_product(s,s)
+       niter = it
+       gfin = sqrt(gnew)
+       pdir = s + (gnew / gamma) * pdir
+       gamma = gnew
+    end do
+
+    ! the residual of the data left out: f - X p
+    if (.not.all(active)) then
+       call fc2_fit_forward(dat,orb,map,p,.not.active,phic,qq)
+       call fc2_fit_heldout(dat,.not.active)
+    end if
+
+  end subroutine fc2_cgls
+
+  !> The regression itself: choose the ridge strength (by
+  !> cross-validation unless given), fit the force constants of the
+  !> cell (phic, compact) to the nd data, and report. u and f are the
+  !> displacements and force data (bohr, Hartree/bohr, 3*nsat rows),
+  !> the first ndfit of which are fitted; both are consumed. lam0 < 0
+  !> asks for the cross-validation, 0 for plain least squares.
+  subroutine fc2_fit_random(sc,map,orb,nd,ndfit,u,f,lam0,membytes,verbose,phic,errmsg,ti)
+    use tools_io, only: uout, string, ioj_right
+    use tools_math, only: eigsym
+    use param, only: atmass
+    type(crystal), intent(in) :: sc
+    type(fc2_scmap), intent(in) :: map
+    type(fc2_orbits), intent(in) :: orb
+    integer, intent(in) :: nd, ndfit
+    real*8, allocatable, intent(inout) :: u(:,:), f(:,:)
+    real*8, intent(in) :: lam0
+    real*8, intent(in) :: membytes
+    logical, intent(in) :: verbose
+    real*8, allocatable, intent(inout) :: phic(:,:,:,:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer, parameter :: nfold = 5 ! cross-validation folds
+    integer, parameter :: maxit = 3000 ! largest number of CG iterations
+    real*8, parameter :: tolfinal = 1d-10 ! gradient reduction of the final fit
+    real*8, parameter :: tolcv = 1d-7 ! ... and of the cross-validation fits (relative to the zero solution)
+    real*8, parameter :: lamgrid(6) = (/0d0, 1d-4, 1d-3, 1d-2, 1d-1, 1d0/) ! dimensionless ridge grid
+    integer, parameter :: mxrefine = 4 ! refinement rounds around the minimum
+    integer, parameter :: mxlam = size(lamgrid,1) + 2 * mxrefine
+
+    type(fc2_fitdata) :: dat
+    integer :: n3, npar, ncel, nsat, i, o, nlam, niter, ncomp, ibest, nimag, ier, iref, ilast, k
+    real*8 :: qq, scale, r0, g0, gfin, sig, sigfit, lamsel, rmstrain, rmstest, ssq, memfix, memdat
+    real*8 :: lamtry(mxlam), cvtrain(mxlam), cvtest(mxlam), cvse(mxlam)
+    logical, allocatable :: active(:), mask(:)
+    real*8, allocatable :: gc(:,:,:,:), mfull(:,:), lam(:), p(:), w(:), z(:), freq(:), mw(:)
+
+    errmsg = ""
+    n3 = 3 * map%nsat
+    npar = orb%npar
+    ncel = map%ncel
+    nsat = map%nsat
+
+    ! the signal
+    ssq = 0d0
+    do i = 1, ndfit
+       ssq = ssq + sum(f(:,i)**2)
+    end do
+    sigfit = sqrt(ssq / real(ndfit*n3,8))
+    ssq = 0d0
+    do i = 1, nd
+       ssq = ssq + sum(f(:,i)**2)
+    end do
+    sig = sqrt(ssq / real(nd*n3,8))
+
+    ! memory plan: the fixed part (the compact force constants and
+    ! gradient, the orbit tables, the matrix work arrays and the
+    ! parameter vectors), then the data in what is left
+    memfix = 8d0 * (45d0 * real(ncel,8) * real(nsat,8) + 7d0 * real(npar,8)) + 16d0 * real(orb%npair,8)
+    if (memfix > membytes) then
+       errmsg = "the force-constant tables alone need " // fc2_memstr(memfix) //&
+          ", more than VIBRATIONS MEMORY allows (" // fc2_memstr(membytes) // ")"
+       return
+    end if
+    call fc2_fitdata_init(dat,ncel,n3,nd,u,f,membytes - memfix,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+    memdat = fc2_fitdata_perdatum(ncel,n3) * real(dat%nbmax,8)
+    if (verbose) then
+       write (uout,'("+ Memory plan (VIBRATIONS MEMORY = ",A,")")') fc2_memstr(membytes)
+       write (uout,'("  Force-constant tables and parameter vectors: ",A)') fc2_memstr(memfix)
+       write (uout,'("  Data (displacements, forces, residuals, products) and work buffers: ",A,&
+          &" per snapshot")') fc2_memstr(fc2_fitdata_perdatum(ncel,n3))
+       if (dat%inmem) then
+          write (uout,'("  The ",A," data are held in memory (",A,"), no batches")') string(nd), fc2_memstr(memdat)
+       else
+          write (uout,'("  The data are streamed from scratch files in ",A," batches of up to ",A,&
+             &" snapshots (",A,")")') string(dat%nbatch), string(dat%nbmax), fc2_memstr(memdat)
+       end if
+    end if
+    allocate(gc(3,3,ncel,nsat),p(npar),lam(npar),w(npar),z(npar),active(nd),mask(nd))
+    if (.not.allocated(phic)) allocate(phic(3,3,ncel,nsat))
+
+    ! the ridge weights: (r/r0)^2 with r0 the shortest pair, times the
+    ! scale of the normal matrix (its mean eigenvalue, estimated as
+    ! |X z|^2/|z|^2 for a fixed random z)
+    r0 = huge(1d0)
+    do o = 1, orb%norb
+       if (orb%nb(o) > 0) r0 = min(r0,orb%rdist(o))
+    end do
+    do o = 1, orb%norb
+       w(orb%ioff(o)+1:orb%ioff(o+1)) = (orb%rdist(o) / r0)**2
+    end do
+    active = .false.
+    active(1:ndfit) = .true.
+    call fc2_fit_pseudorandom(z)
+    call fc2_fit_forward(dat,orb,map,z,active,phic,qq)
+    scale = qq / dot_product(z,z)
+    if (verbose) then
+       write (uout,'("+ Regression of the force constants")')
+       write (uout,'("  Data fitted: ",A," of ",A,"; equations: ",A,"; independent force constants: ",A)') &
+          string(ndfit), string(nd), string(ndfit*n3), string(npar)
+       write (uout,'("  Equations per parameter: ",A)') string(real(ndfit*n3,8)/real(npar,8),'f',decimal=2)
+       write (uout,'("  Signal (rms force datum, Hartree/bohr): ",A)') string(sigfit,'e',decimal=4)
+       write (uout,'("  Ridge weight (r/r0)^2 with r0 = ",A," bohr; scale of the normal matrix: ",A)') &
+          string(r0,'f',decimal=4), string(scale,'e',decimal=4)
+    end if
+
+    ! the ridge strength
+    p = 0d0
+    if (lam0 == 0d0) then
+       lamsel = 0d0
+       if (verbose) write (uout,'("  No ridge (RIDGE 0 or NORIDGE)")')
+    elseif (lam0 > 0d0) then
+       lamsel = lam0
+       if (verbose) write (uout,'("  Ridge strength given (RIDGE): lambda0 = ",A)') string(lam0,'e',decimal=4)
+    else
+       ! leave-data-out cross-validation on a log grid, refined by
+       ! factors of 3 around the minimum until it is interior; then the
+       ! one-standard-error rule: the largest ridge whose held-out error
+       ! is within one standard error (over the folds) of the minimum,
+       ! since the curve is flat near the minimum and the stronger
+       ! ridge is the safer model
+       if (ndfit < 2 * nfold) then
+          errmsg = "at least " // string(2*nfold) // " data are needed for the cross-validation of the &
+             &ridge; give RIDGE or NORIDGE"
+          call fc2_fitdata_end(dat)
+          return
+       end if
+       if (verbose) then
+          write (uout,'("+ Ridge strength by ",A,"-fold leave-data-out cross-validation")') string(nfold)
+          write (uout,'("# lambda0     training rms   held-out rms   (% of signal)   std. error")')
+       end if
+       nlam = size(lamgrid,1)
+       lamtry(1:nlam) = lamgrid
+       call cvrun(1,nlam)
+       ibest = minloc(cvtest(1:nlam),1)
+       do iref = 1, mxrefine
+          if (lamtry(ibest) == 0d0) exit
+          ilast = ibest
+          lamtry(nlam+1) = lamtry(ibest) / 3d0
+          lamtry(nlam+2) = lamtry(ibest) * 3d0
+          call cvrun(nlam+1,nlam+2)
+          nlam = nlam + 2
+          ibest = minloc(cvtest(1:nlam),1)
+          if (ibest == ilast) exit
+       end do
+       lamsel = lamtry(ibest)
+       do k = 1, nlam
+          if (cvtest(k) <= cvtest(ibest) + cvse(ibest)) lamsel = max(lamsel,lamtry(k))
+       end do
+       if (verbose) then
+          write (uout,'("  Minimum at lambda0 = ",A,"; chosen (largest within one standard error): ",A)') &
+             string(lamtry(ibest),'e',decimal=4), string(lamsel,'e',decimal=4)
+       end if
+    end if
+
+    ! the final fit on all the fitted data
+    lam = lamsel * scale * w
+    p = 0d0
+    call fc2_cgls(dat,orb,map,lam,active,phic,gc,tolfinal,0d0,maxit,p,niter,g0,gfin)
+    call fc2_fit_resid(dat,active,rmstrain,ncomp)
+    if (verbose) then
+       write (uout,'("+ Final fit: ",A," conjugate-gradient iterations, gradient reduced by ",A)') &
+          string(niter), string(gfin/max(g0,tiny(1d0)),'e',decimal=2)
+       if (niter >= maxit) &
+          write (uout,'("  WARNING: the conjugate gradients did not converge")')
+       write (uout,'("  Training force residual (rms, Hartree/bohr): ",A," (",A,"% of the signal)")') &
+          string(rmstrain,'e',decimal=4), pct(rmstrain,sigfit)
+       if (ndfit < nd) then
+          mask = .not.active
+          call fc2_fit_resid(dat,mask,rmstest,ncomp)
+          write (uout,'("  Held-out data not fitted (",A,"): force residual ",A," (",A,"% of the signal)")') &
+             string(nd-ndfit), string(rmstest,'e',decimal=4), pct(rmstest,sig)
+       end if
+    end if
+    call fc2_par2phi(orb,map,p,phic)
+
+    ! the frequencies at the Gamma point of the supercell, which are
+    ! all the commensurate q-points of the cell
+    if (verbose) then
+       if (memfix + memdat + 8d0 * real(n3,8)**2 <= membytes) then
+          allocate(mfull(n3,n3),mw(nsat),freq(n3))
+          call fc2_full_matrix(map,phic,mfull)
+          do i = 1, nsat
+             mw(i) = sqrt(atmass(sc%spc(sc%atcel(i)%is)%z))
+          end do
+          do i = 1, nsat
+             do o = 1, nsat
+                mfull(3*i-2:3*i,3*o-2:3*o) = mfull(3*i-2:3*i,3*o-2:3*o) / (mw(i) * mw(o))
+             end do
+          end do
+          mfull = 0.5d0 * (mfull + transpose(mfull))
+          call eigsym(mfull,n3,freq,ier)
+          if (ier == 0) then
+             do i = 1, n3
+                freq(i) = sign(sqrt(abs(freq(i))),freq(i)) * freqfactor
+             end do
+             nimag = count(freq < -thermo_epsimag)
+             write (uout,'("+ Frequencies at the commensurate q-points (supercell Gamma, cm^-1)")')
+             write (uout,'("  Lowest: ",8(A," "))') (string(freq(i),'f',decimal=2),i=1,min(8,n3))
+             write (uout,'("  Highest: ",A,"; imaginary (below ",A," cm^-1): ",A,&
+                &" (the 3 acoustic modes should be ~0)")') string(freq(n3),'f',decimal=2),&
+                string(-thermo_epsimag,'f',decimal=1), string(nimag)
+          end if
+          deallocate(mfull,mw,freq)
+       else
+          write (uout,'("  (supercell-Gamma frequencies skipped: the full matrix, ",A,", does not fit MEMORY)")') &
+             fc2_memstr(8d0 * real(n3,8)**2)
+       end if
+    end if
+
+    ! the rigid-body split of the residual, for a molecular crystal
+    if (verbose .and. sc%ismol3d) call fc2_rigid_split(sc,dat,active)
+
+    call fc2_fitdata_end(dat)
+
+  contains
+    !> A residual as a percentage of the signal, for the reports.
+    function pct(x,s) result(str)
+      real*8, intent(in) :: x, s
+      character(len=:), allocatable :: str
+
+      str = string(100d0*x/max(s,tiny(1d0)),'f',decimal=3)
+
+    end function pct
+
+    !> Cross-validation of ridge points k1:k2 of lamtry: for every fold,
+    !> fit its complement at each ridge in turn (warm-started, the
+    !> convergence measured against the gradient of the zero solution)
+    !> and test on the fold, accumulating the training and held-out
+    !> residuals.
+    subroutine cvrun(k1,k2)
+      integer, intent(in) :: k1, k2
+
+      integer :: ifold, i, k, nc1, nc2, nt(mxlam), nh(mxlam)
+      real*8 :: r1, r2, st(mxlam), sh(mxlam), gref, rf(mxlam,nfold)
+
+      st = 0d0
+      sh = 0d0
+      nt = 0
+      nh = 0
+      rf = 0d0
+      do ifold = 1, nfold
+         do i = 1, nd
+            active(i) = (i <= ndfit) .and. (mod(i-1,nfold) /= ifold-1)
+            mask(i) = (i <= ndfit) .and. (mod(i-1,nfold) == ifold-1)
+         end do
+         call fc2_fitdata_reset(dat)
+         call fc2_fit_adjoint(dat,orb,map,0d0,active,gc,z)
+         gref = norm2(z)
+         do k = k1, k2
+            lam = lamtry(k) * scale * w
+            call fc2_cgls(dat,orb,map,lam,active,phic,gc,tolcv,gref,maxit,p,niter,g0,gfin)
+            call fc2_fit_resid(dat,active,r1,nc1)
+            call fc2_fit_resid(dat,mask,r2,nc2)
+            st(k) = st(k) + r1**2 * real(nc1,8)
+            nt(k) = nt(k) + nc1
+            sh(k) = sh(k) + r2**2 * real(nc2,8)
+            nh(k) = nh(k) + nc2
+            rf(k,ifold) = r2
+         end do
+      end do
+      do k = k1, k2
+         cvtrain(k) = sqrt(st(k) / real(nt(k),8))
+         cvtest(k) = sqrt(sh(k) / real(nh(k),8))
+         ! standard error of the held-out rms over the folds
+         cvse(k) = sqrt(sum((rf(k,:) - sum(rf(k,:))/real(nfold,8))**2) / real(nfold-1,8) / real(nfold,8))
+         if (verbose) &
+            write (uout,'(2X,A,3X,A,3X,A,3X,A,3X,A)') string(lamtry(k),'e',10,3,ioj_right),&
+            string(cvtrain(k),'e',12,4,ioj_right), string(cvtest(k),'e',12,4,ioj_right),&
+            string(100d0*cvtest(k)/max(sigfit,tiny(1d0)),'f',10,3,ioj_right),&
+            string(cvse(k),'e',12,4,ioj_right)
+      end do
+      active = .false.
+      active(1:ndfit) = .true.
+
+    end subroutine cvrun
+
+  end subroutine fc2_fit_random
+
+  !> A fixed pseudo-random vector with entries in (-1,1) (Park-Miller
+  !> minimal standard generator, so that every run gives the same
+  !> vector).
+  subroutine fc2_fit_pseudorandom(z)
+    real*8, intent(out) :: z(:)
+
+    integer*8, parameter :: a = 16807_8, m = 2147483647_8
+
+    integer :: i
+    integer*8 :: state
+
+    state = 20260908_8
+    do i = 1, size(z,1)
+       state = mod(a * state, m)
+       z(i) = 2d0 * real(state,8) / real(m,8) - 1d0
+    end do
+
+  end subroutine fc2_fit_pseudorandom
+
+  !> Split the force data and the fit residual of the active data into
+  !> the rigid-body motions of the molecules of the supercell (the
+  !> lattice modes) and their complement, and report the rms of each
+  !> part. The rigid-body space is spanned by the three translations
+  !> and the three rotations about the centre of mass of every discrete
+  !> molecule, in mass-weighted coordinates (sqrt(m) times the
+  !> Cartesian displacement), orthonormalized.
+  subroutine fc2_rigid_split(sc,dat,active)
+    use tools_io, only: uout, string
+    use tools_math, only: cross
+    use param, only: atmass
+    type(crystal), intent(in) :: sc
+    type(fc2_fitdata), intent(inout) :: dat
+    logical, intent(in) :: active(:)
+
+    integer :: n3, nsat, im, k, j, ia, nrig, n0, i, ib, i0, i1, n, na, id, nact
+    real*8 :: xcm(3), e(3), nrm, srig, sint, rrig, rint
+    real*8, allocatable :: bas(:,:), sm(:), g(:), vec(:)
+
+    n3 = dat%n3
+    nsat = sc%ncel
+    allocate(sm(nsat))
+    do i = 1, nsat
+       sm(i) = sqrt(atmass(sc%spc(sc%atcel(i)%is)%z))
+    end do
+
+    ! the rigid-body basis: 3 translations and 3 rotations about the
+    ! centre of mass of every molecule, orthonormalized in
+    ! mass-weighted coordinates (molecules have disjoint supports, so
+    ! only the vectors of the same molecule need orthogonalizing)
+    allocate(bas(n3,6*sc%nmol),vec(n3),g(n3))
+    nrig = 0
+    do im = 1, sc%nmol
+       if (.not.sc%mol(im)%discrete) cycle
+       xcm = sc%mol(im)%cmass()
+       n0 = nrig
+       do j = 1, 6
+          vec = 0d0
+          e = 0d0
+          if (j <= 3) then
+             e(j) = 1d0
+             do k = 1, sc%mol(im)%nat
+                ia = sc%mol(im)%at(k)%cidx
+                vec(3*ia-2:3*ia) = sm(ia) * e
+             end do
+          else
+             e(j-3) = 1d0
+             do k = 1, sc%mol(im)%nat
+                ia = sc%mol(im)%at(k)%cidx
+                vec(3*ia-2:3*ia) = sm(ia) * cross(e,sc%mol(im)%at(k)%r - xcm)
+             end do
+          end if
+          do i = n0+1, nrig
+             vec = vec - dot_product(bas(:,i),vec) * bas(:,i)
+          end do
+          nrm = norm2(vec)
+          if (nrm > 1d-8) then
+             nrig = nrig + 1
+             bas(:,nrig) = vec / nrm
+          end if
+       end do
+    end do
+    if (nrig == 0) return
+
+    ! project the signal and the residual of the fitted data
+    srig = 0d0
+    sint = 0d0
+    rrig = 0d0
+    rint = 0d0
+    nact = 0
+    do ib = 1, dat%nbatch
+       call fc2_fitdata_batch(dat,ib,active,i0,i1,n,na)
+       if (na == 0) cycle
+       call fc2_fitdata_get(dat,2,ib)
+       call fc2_fitdata_get(dat,3,ib)
+       do j = 1, na
+          id = dat%iact(j)
+          nact = nact + 1
+          call project(dat%fb(:,id),srig,sint)
+          call project(dat%rb(:,id),rrig,rint)
+       end do
+    end do
+    if (nact == 0) return
+    srig = sqrt(srig / real(nact,8))
+    sint = sqrt(sint / real(nact,8))
+    rrig = sqrt(rrig / real(nact,8))
+    rint = sqrt(rint / real(nact,8))
+    write (uout,'("+ Rigid-body (lattice-mode) and internal parts of the forces")')
+    write (uout,'("  Molecules in the supercell: ",A,"; rigid-body dimension: ",A," of ",A)') &
+       string(sc%nmoldiscrete), string(nrig), string(n3)
+    write (uout,'("  Norms in mass-weighted units, per datum:")')
+    write (uout,'("#                    rigid        internal")')
+    write (uout,'("  signal        ",2(A,X))') string(srig,'e',12,4), string(sint,'e',12,4)
+    write (uout,'("  fit residual  ",2(A,X))') string(rrig,'e',12,4), string(rint,'e',12,4)
+    write (uout,'("  residual/signal ",2(A,X))') string(rrig/max(srig,tiny(1d0)),'f',12,5),&
+       string(rint/max(sint,tiny(1d0)),'f',12,5)
+    write (uout,'("  (the rigid block carries ",A,"% of the force; an error eps on the force constants is ~",&
+       &A," eps on the lattice modes)")') string(100d0*srig/sqrt(srig**2+sint**2),'f',decimal=3),&
+       string(sqrt(srig**2+sint**2)/max(srig,tiny(1d0)),'f',decimal=0)
+
+  contains
+    !> Accumulate the squared norms of the rigid and internal parts of
+    !> the force vector v (mass-weighted).
+    subroutine project(v,arig,aint)
+      real*8, intent(in) :: v(:)
+      real*8, intent(inout) :: arig, aint
+
+      integer :: ii
+      real*8 :: pr(n3)
+
+      do ii = 1, nsat
+         g(3*ii-2:3*ii) = v(3*ii-2:3*ii) / sm(ii)
+      end do
+      pr = matmul(bas(:,1:nrig),matmul(g,bas(:,1:nrig)))
+      arig = arig + sum(pr**2)
+      aint = aint + sum((g-pr)**2)
+
+    end subroutine project
+
+  end subroutine fc2_rigid_split
 
   !> What CREATE_DISPLACEMENTS would generate in the supercell smat
   !> (rows = supercell vectors in cell units), without building it: the
@@ -5798,22 +7392,7 @@ contains
     end if
 
     ! wrap up
-    v%fc2_file = file_
-    v%hasfc2 = .true.
-    v%fc2_smat = smat
-    v%fc2_madj = madj
-    v%fc2_nlat = nlat
-    v%fc2_nsat = nsat
-    v%fc2_ncel = c%ncel
-    v%fc2_iscompact = iscompact
-    if (allocated(v%fc2_lvec)) deallocate(v%fc2_lvec)
-    if (allocated(v%fc2_lkey)) deallocate(v%fc2_lkey)
-    call move_alloc(lvec,v%fc2_lvec)
-    call move_alloc(lkey,v%fc2_lkey)
-    v%fc2_acoustic = -1
-    v%fc2_vs_center = -1d0
-    v%fc2_vs_delta = -1d0
-    call fc2_stamp_geometry(v,c)
+    call fc2_store(v,c,file_,smat,madj,nlat,nsat,iscompact,lvec,lkey)
 
     ! apply the acoustic sum rule, if requested
     if (doasr) &

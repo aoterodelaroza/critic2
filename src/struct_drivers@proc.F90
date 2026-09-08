@@ -3877,7 +3877,7 @@ contains
   !> VIBRATIONS ... ENDVIBRATIONS environment); this allows several
   !> operations on the same vibration data in one keyword.
   module subroutine struct_vibrations(s,line0,verbose)
-    use global, only: eval_next, dunit0, iunit, iunitname0, vib_calculator
+    use global, only: eval_next, dunit0, iunit, iunitname0, vib_calculator, vib_memory
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
        equal, isinteger, string, ioj_right, fopen_write, fclose, warning
     use crystalmod, only: supercell_matrix_from_ints, nice_cell, vib_calculator_from_name,&
@@ -3900,7 +3900,9 @@ contains
     type(nice_cell), allocatable :: cand(:)
     real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
     real*8 :: tmin, tmax, tstep, cutoff, sigma, rdum, zpe, fvib, svib, cv
-    integer :: xdnp, xdne, xdnp0, xdne0
+    integer :: xdnp, xdne, xdnp0, xdne0, npairs
+    real*8 :: ridge
+    logical :: noridge
     real*8 :: xdr2, xddf, xddfkj, xdf0, xdfv, xdsv, xdcvv, xddsmax, xddcvmax
     logical :: doxdebye, xdasked, havexd
     character(len=:), allocatable :: qfile, dosfile, xdline
@@ -3968,6 +3970,25 @@ contains
           vib_calculator = i
           if (verbose) &
              write (uout,'("+ Calculator set to: ",A)') vib_calculator_name(i)
+
+       elseif (equal(word,'memory')) then
+          ! the memory the force-constant regression may use, in GB
+          ! unless the MB word follows
+          if (.not.eval_next(rdum,line,lp)) &
+             call ferror('struct_vibrations','MEMORY needs the amount of memory (GB, or MB with the MB word)',&
+                faterr,line,syntax=.true.)
+          if (rdum <= 0d0) &
+             call ferror('struct_vibrations','the MEMORY must be positive',faterr,line,syntax=.true.)
+          mode = lgetword(line,lp)
+          if (equal(mode,'mb')) then
+             rdum = rdum / 1024d0
+          elseif (len_trim(mode) > 0 .and. .not.equal(mode,'gb')) then
+             call ferror('struct_vibrations','unknown memory unit in MEMORY: ' // trim(mode),faterr,line,syntax=.true.)
+          end if
+          vib_memory = rdum
+          if (verbose) &
+             write (uout,'("+ Memory available to the force-constant regression: ",A," GB")') &
+             string(vib_memory,'f',decimal=3)
 
        elseif (equal(word,'load_fc2')) then
           ! load a phonopy FORCE_CONSTANTS file. The file name is
@@ -4152,6 +4173,9 @@ contains
           ! and the displacement list --- comes from the dataset.
           filename = ""
           dataset = dataset_default
+          npairs = 0
+          ridge = -1d0
+          noridge = .false.
           do while (.true.)
              lp0 = lp
              mode = lgetword(line,lp)
@@ -4160,6 +4184,19 @@ contains
                 filename = getword(line,lp)
                 if (len_trim(filename) == 0) &
                    call ferror('struct_vibrations','TEMPLATE/LIST needs a file name',faterr,line,syntax=.true.)
+             elseif (equal(mode,'pairs')) then
+                ! fit only the first n data of a random dataset
+                if (.not.eval_next(npairs,line,lp)) &
+                   call ferror('struct_vibrations','PAIRS needs the number of pairs',faterr,line,syntax=.true.)
+                if (npairs < 1) &
+                   call ferror('struct_vibrations','PAIRS must be positive',faterr,line,syntax=.true.)
+             elseif (equal(mode,'ridge')) then
+                if (.not.eval_next(ridge,line,lp)) &
+                   call ferror('struct_vibrations','RIDGE needs the ridge strength',faterr,line,syntax=.true.)
+                if (ridge < 0d0) &
+                   call ferror('struct_vibrations','the RIDGE strength must not be negative',faterr,line,syntax=.true.)
+             elseif (equal(mode,'noridge')) then
+                noridge = .true.
              elseif (equal(mode,'dataset')) then
                 dataset = getword(line,lp)
                 if (len_trim(dataset) == 0) &
@@ -4174,6 +4211,13 @@ contains
              end if
           end do
 
+          ! no ridge is a ridge of zero strength
+          if (noridge) then
+             if (ridge >= 0d0) &
+                call ferror('struct_vibrations','RIDGE and NORIDGE are mutually exclusive',faterr,line,syntax=.true.)
+             ridge = 0d0
+          end if
+
           ! the dataset is what makes the displaced structures readable back
           inquire(file=dataset,exist=ok)
           if (.not.ok) &
@@ -4181,7 +4225,7 @@ contains
                 '. It is written by CREATE_DISPLACEMENTS; give another one with DATASET',&
                 faterr,line,syntax=.true.)
 
-          call s%c%create_forces(filename,dataset,verbose,errmsg)
+          call s%c%create_forces(filename,dataset,npairs,ridge,verbose,errmsg)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 

@@ -857,6 +857,7 @@ contains
 
     ! vibrations calculator
     vib_calculator = vcalc_none
+    vib_memory = 1d0
 
     ! navigation
     NAV_stepper = NAV_stepper_bs
