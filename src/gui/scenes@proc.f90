@@ -569,6 +569,7 @@ contains
     ! Transient representations: built last so they do not perturb the camera or scene size.
     do i = 1, s%nreptrans
        if (.not.s%reptrans(i)%isinit) cycle
+       call s%reptrans(i)%update()
        if (s%reptrans(i)%type == reptype_symelem) then
           s%reptrans(i)%symelem%size = real(s%scenerad,8)
           s%reptrans(i)%symelem%cen = real(s%scenecenter,8)
@@ -2419,6 +2420,67 @@ contains
     id = transient_slot(s,owner,tag,reptype_isosurface,repflavor_isosurface,found)
 
   end subroutine scene_show_transient_iso
+
+  !> Show the coordination polyhedra centered on the atoms of species ic
+  !> with vertices on the atoms of species iv at a distance between rmin
+  !> and rmax (bohr) as a transient representation identified by
+  !> (owner,tag).
+  module subroutine scene_show_transient_polyhedra(s,owner,tag,ic,iv,rmin,rmax)
+    use representations, only: reptype_atoms, repflavor_atoms_polyhedra
+    use systems, only: sys, atlisttype_species
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    integer, intent(in) :: ic
+    integer, intent(in) :: iv
+    real*8, intent(in) :: rmin
+    real*8, intent(in) :: rmax
+
+    integer :: id, nspc
+    logical :: found, changed
+
+    ! the species must exist in the system this scene shows
+    if (s%id <= 0) return
+    nspc = sys(s%id)%c%nspc
+    if (ic < 1 .or. ic > nspc .or. iv < 1 .or. iv > nspc) return
+
+    id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_polyhedra,found)
+    if (id <= 0) return
+
+    ! static configuration, stamped when the item is (re)created: the
+    ! polyhedra alone, over the atoms the scene draws already
+    if (.not.found) then
+       s%reptrans(id)%atoms%display = .false.
+       s%reptrans(id)%bonds%display = .false.
+       s%reptrans(id)%labels%display = .false.
+       s%reptrans(id)%poly%display = .true.
+    end if
+
+    associate (d => s%reptrans(id)%poly%style)
+      ! the centers are enumerated by species, one entry per species
+      changed = .not.d%isinit .or. d%type /= atlisttype_species .or. d%ntype /= nspc
+      if (changed) then
+         d%type = atlisttype_species
+         call d%alloc(nspc,nspc)
+      end if
+
+      ! the center, corner and distance window asked for; a fresh or
+      ! retagged item is dirty already, an existing one only if they moved
+      if (.not.changed) changed = .not.d%shown(ic) .or. count(d%shown) /= 1 .or.&
+         .not.all(d%corner(iv,:)) .or. count(d%corner) /= d%ntype .or.&
+         any(d%dmin /= rmin) .or. any(d%dmax /= rmax)
+      if (changed) then
+         d%shown = .false.
+         d%shown(ic) = .true.
+         d%corner = .false.
+         d%corner(iv,:) = .true.
+         d%dmin = rmin
+         d%dmax = rmax
+         if (found) call transient_dirty(s)
+      end if
+    end associate
+
+  end subroutine scene_show_transient_polyhedra
 
   !xx! private procedures: transient representations
 

@@ -1482,16 +1482,23 @@ contains
        doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%labels%style%timelastreset)
        if (doreset) call r%labels%style%reset(r)
 
-       ! coordination polyhedra: if the geometry changed
-       doreset = .not.r%poly%style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%poly%style%timelastreset)
-       if (doreset) call r%poly%style%reset(r)
+       ! coordination polyhedra
+       if (r%owner == 0) then
+          doreset = .not.r%poly%style%isinit
+          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%poly%style%timelastreset)
+          if (doreset) call r%poly%style%reset(r)
+       elseif (r%poly%style%isinit) then
+          if (r%poly%style%ntype /= sysc(r%id)%attype_number(r%poly%style%type) .or.&
+             size(r%poly%style%corner,1) /= sys(r%id)%c%nspc) &
+             call r%poly%style%end()
+       end if
 
     elseif (r%type == reptype_symelem) then
-       ! symmetry elements: if the geometry changed
+       ! symmetry elements: if the geometry changed (transient items are the
+       ! producer's, as above)
        doreset = .not.r%symelem%style%isinit
        doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%symelem%style%timelastreset)
-       if (doreset) call r%symelem%style%reset(r)
+       if (doreset .and. r%owner == 0) call r%symelem%style%reset(r)
 
     elseif (r%type == reptype_isosurface) then
        ! isosurfaces: re-run the field policy (default isovalue and grid
@@ -4040,56 +4047,109 @@ contains
 
   end subroutine label_style_end
 
+  !> Allocate a coordination-polyhedra style with room for ntype center
+  !> types and nspc species acting as corners.
+  module subroutine coordpoly_style_alloc(d,ntype,nspc)
+    use interfaces_glfw, only: glfwGetTime
+    class(coordpoly_geom_style), intent(inout) :: d
+    integer, intent(in) :: ntype
+    integer, intent(in) :: nspc
+
+    call d%end()
+    d%timelastreset = glfwGetTime()
+    d%ntype = ntype
+    allocate(d%shown(ntype),d%corner(nspc,ntype),d%dmin(ntype),d%dmax(ntype))
+    d%shown = .false.
+    d%corner = .false.
+    d%dmin = 0d0
+    d%dmax = 0d0
+    d%isinit = .true.
+
+  end subroutine coordpoly_style_alloc
+
   !> Reset the coordination-polyhedra style to defaults from the
   !> system pointed at by representation r.
   module subroutine coordpoly_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
-    use param, only: atmcov0, atmeneg, maxzat
+    use param, only: atmcov0
     use global, only: bondfactor_def
     class(coordpoly_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
-    ! typical-anion species used as default corners: N, O, F, S, Cl, Br, I
-    integer, parameter :: zanion(7) = (/7,8,9,16,17,35,53/)
-
-    integer :: i, j, ispc, iz, jz, nspc, navg, nvalid
-    real*8 :: dd, avgeneg
-    logical :: useavg
+    integer :: i, j, ispc, iz, jz, nspc
+    real*8 :: dd
     logical, allocatable :: spccenter(:), spccorner(:)
 
     ! if not initialized, set type
     if (.not.d%isinit) d%type = atlisttype_species
 
-    ! reset the style to zero
-    d%ntype = 0
-    d%isinit = .false.
-    if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%corner)) deallocate(d%corner)
-    if (allocated(d%dmin)) deallocate(d%dmin)
-    if (allocated(d%dmax)) deallocate(d%dmax)
-
-    ! reset the time
+    ! reset the style to zero and reset the time
+    call d%end()
     d%timelastreset = glfwGetTime()
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! count the number of species that can act as centers or corners
+    ! which species act as polyhedron centers and which as corners
+    call coordpoly_classify_species(r%id,spccenter,spccorner)
+
+    ! fill the style, use the rcov sum times bondfactor as the distance cutoff
     nspc = sys(r%id)%c%nspc
+    call d%alloc(sysc(r%id)%attype_number(d%type),nspc)
+    do i = 1, d%ntype
+       ispc = sysc(r%id)%attype_species(d%type,i)
+       iz = sys(r%id)%c%spc(ispc)%z
+       d%shown(i) = spccenter(ispc)
+       do j = 1, nspc
+          d%corner(j,i) = spccorner(j)
+          if (d%corner(j,i)) then
+             jz = sys(r%id)%c%spc(j)%z
+             dd = (atmcov0(iz) + atmcov0(jz)) * bondfactor_def
+             d%dmax(i) = max(d%dmax(i),dd)
+          end if
+       end do
+    end do
+
+  end subroutine coordpoly_style_reset
+
+  !> Classify the species of system isys into the ones that can sit at
+  !> the center of a coordination polyhedron (spccenter) and the ones
+  !> that can act as its corners (spccorner); both are allocated to the
+  !> number of species.
+  module subroutine coordpoly_classify_species(isys,spccenter,spccorner)
+    use systems, only: sys, sys_ready, ok_system
+    use param, only: atmeneg, maxzat
+    integer, intent(in) :: isys
+    logical, allocatable, intent(inout) :: spccenter(:)
+    logical, allocatable, intent(inout) :: spccorner(:)
+
+    ! typical-anion species used as default corners: N, O, F, S, Cl, Br, I
+    integer, parameter :: zanion(7) = (/7,8,9,16,17,35,53/)
+
+    integer :: j, jz, nspc, navg, nvalid
+    real*8 :: avgeneg
+    logical :: useavg
+
+    if (allocated(spccenter)) deallocate(spccenter)
+    if (allocated(spccorner)) deallocate(spccorner)
+    if (.not.ok_system(isys,sys_ready)) return
+
+    ! count the number of species that can act as centers or corners
+    nspc = sys(isys)%c%nspc
     allocate(spccenter(nspc),spccorner(nspc))
     spccenter = .false.
     spccorner = .false.
     nvalid = 0
     do j = 1, nspc
-       jz = sys(r%id)%c%spc(j)%z
+       jz = sys(isys)%c%spc(j)%z
        if (jz > 0 .and. jz <= maxzat) nvalid = nvalid + 1
     end do
 
     if (nvalid == 1) then
        ! single species: it acts as both center and corner
        do j = 1, nspc
-          jz = sys(r%id)%c%spc(j)%z
+          jz = sys(isys)%c%spc(j)%z
           if (jz > 0 .and. jz <= maxzat) then
              spccenter(j) = .true.
              spccorner(j) = .true.
@@ -4101,7 +4161,7 @@ contains
        ! determine centers and corners.
        useavg = .true.
        do j = 1, nspc
-          jz = sys(r%id)%c%spc(j)%z
+          jz = sys(isys)%c%spc(j)%z
           if (jz > 0 .and. jz <= maxzat .and. any(zanion == jz)) then
              useavg = .false.
              exit
@@ -4111,7 +4171,7 @@ contains
        if (.not.useavg) then
           ! corners are the anions, centers are everyone else
           do j = 1, nspc
-             jz = sys(r%id)%c%spc(j)%z
+             jz = sys(isys)%c%spc(j)%z
              if (jz > 0 .and. jz <= maxzat) then
                 spccorner(j) = any(zanion == jz)
                 spccenter(j) = .not.spccorner(j)
@@ -4130,7 +4190,7 @@ contains
           avgeneg = 0d0
           navg = 0
           do j = 1, nspc
-             jz = sys(r%id)%c%spc(j)%z
+             jz = sys(isys)%c%spc(j)%z
              if (jz > 0 .and. jz <= maxzat) then
                 if (atmeneg(jz) > 0d0) then
                    avgeneg = avgeneg + atmeneg(jz)
@@ -4140,7 +4200,7 @@ contains
           end do
           if (navg > 0) avgeneg = avgeneg / navg
           do j = 1, nspc
-             jz = sys(r%id)%c%spc(j)%z
+             jz = sys(isys)%c%spc(j)%z
              if (jz > 0 .and. jz <= maxzat) then
                 if (atmeneg(jz) > 0d0) then
                    spccenter(j) = atmeneg(jz) < avgeneg
@@ -4151,27 +4211,42 @@ contains
        end if
     end if
 
-    ! fill the style, use the rcov sum times bondfactor as the distance cutoff
-    d%ntype = sysc(r%id)%attype_number(d%type)
-    allocate(d%shown(d%ntype),d%corner(nspc,d%ntype),d%dmin(d%ntype),d%dmax(d%ntype))
-    d%dmin = 0d0
-    d%dmax = 0d0
-    do i = 1, d%ntype
-       ispc = sysc(r%id)%attype_species(d%type,i)
-       iz = sys(r%id)%c%spc(ispc)%z
-       d%shown(i) = spccenter(ispc)
-       do j = 1, nspc
-          d%corner(j,i) = spccorner(j)
-          if (d%corner(j,i)) then
-             jz = sys(r%id)%c%spc(j)%z
-             dd = (atmcov0(iz) + atmcov0(jz)) * bondfactor_def
-             d%dmax(i) = max(d%dmax(i),dd)
-          end if
-       end do
-    end do
-    d%isinit = .true.
+  end subroutine coordpoly_classify_species
 
-  end subroutine coordpoly_style_reset
+  !> Default pair of species for a single coordination polyhedron in
+  !> system isys: ic is the species most likely to sit at the center and
+  !> iv the species most likely to sit at the corners.
+  module subroutine coordpoly_default_pair(isys,ic,iv)
+    use systems, only: sys
+    use param, only: atmeneg, maxzat
+    integer, intent(in) :: isys
+    integer, intent(inout) :: ic
+    integer, intent(inout) :: iv
+
+    integer :: j, jz
+    real*8 :: emaxc, emaxv
+    logical, allocatable :: spccenter(:), spccorner(:)
+
+    call coordpoly_classify_species(isys,spccenter,spccorner)
+    if (.not.allocated(spccenter)) return
+
+    emaxc = 0d0
+    emaxv = 0d0
+    do j = 1, size(spccenter,1)
+       jz = sys(isys)%c%spc(j)%z
+       if (jz < 1 .or. jz > maxzat) cycle
+       if (atmeneg(jz) <= 0d0) cycle
+       if (spccenter(j) .and. atmeneg(jz) > emaxc) then
+          emaxc = atmeneg(jz)
+          ic = j
+       end if
+       if (spccorner(j) .and. atmeneg(jz) > emaxv) then
+          emaxv = atmeneg(jz)
+          iv = j
+       end if
+    end do
+
+  end subroutine coordpoly_default_pair
 
   !> Deallocate all arrays and end the coordination-polyhedra style.
   module subroutine coordpoly_style_end(d)

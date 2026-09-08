@@ -216,7 +216,9 @@ module windows
      integer :: pol_ic = 0 ! species at the center of the polyhedra (0 = not set yet)
      integer :: pol_iv = 0 ! species at the vertices (0 = not set yet)
      real*8 :: pol_rmin = 0d0 ! shortest center-vertex distance (Å)
-     real*8 :: pol_rmax = 0d0 ! longest center-vertex distance (Å); < 0 = not set yet
+     real*8 :: pol_rmax = 0d0 ! longest center-vertex distance (Å)
+     logical :: pol_show = .true. ! show the polyhedra in the anchor view while this tab is open
+     character(len=:), allocatable :: pol_errmsg ! error from the last polyhedra run (empty = none)
      ! polyhedra tab: the results
      logical :: pol_done = .false. ! whether there are results to show
      integer :: pol_n = 0 ! number of polyhedra

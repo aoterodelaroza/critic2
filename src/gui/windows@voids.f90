@@ -42,6 +42,10 @@ submodule (windows) voids
   real*8, parameter :: voids_spacing_max = 1d0
   integer, parameter :: bigwarngridpts = 500000
 
+  ! Longest center-vertex distance the polyhedra tab accepts (Å).
+  ! triangulation) reasonable.
+  real*8, parameter :: voids_pol_rmax_max = 10d0
+
 contains
 
   !> Draw the crystal voids window: measure the empty space in the system
@@ -114,7 +118,7 @@ contains
           call iw_tooltip("The voids are the regions where the promolecular density is low",ttshown)
 
           if (iw_begintabitem("Polyhedra##drawvoids_poltab")) then
-             call draw_polyhedra_tab(w,isys,ttshown)
+             call draw_polyhedra_tab(w,isys,iview,ttshown)
              call igEndTabItem()
           end if
           call iw_tooltip("The empty space is whatever the coordination polyhedra do not cover",ttshown)
@@ -153,6 +157,7 @@ contains
       if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
       if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
       w%vd%timelast = sysc(isys)%timelastchange_geometry
+      w%vd%pol_errmsg = ""
       w%errmsg = ""
 
     end subroutine drop_results
@@ -524,24 +529,25 @@ contains
 
   !> Draw the polyhedra tab: the volume of the coordination polyhedra, and
   !> the part of the cell they do not cover.
-  subroutine draw_polyhedra_tab(w,isys,ttshown)
-    use systems, only: sys
+  subroutine draw_polyhedra_tab(w,isys,iview,ttshown)
+    use systems, only: sys, sysc
     use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_table_column
+       iw_calcheight, iw_table_column, iw_checkbox
     use global, only: bondfactor
     use tools_io, only: string, ioj_right, ioj_center
     use param, only: atmcov
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
+    integer, intent(in) :: iview
     logical, intent(inout) :: ttshown
 
-    logical :: changed
-    integer :: i, j, jj, imax, iz1, iz2, nat, nf, ier, nspc
+    logical :: changed, hasview, ldum
+    integer :: i, j, jj, imax, nat, nf, ier, nspc
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer(c_int) :: flags
-    real*8 :: dmin, dmax, vol
+    real*8 :: dmin, dmax, vol, rminold, rmaxold
     character(kind=c_char,len=:), allocatable, target :: str1, str2, s
     real(c_float) :: wcol(8)
     type(ImVec2) :: sz0, szavail
@@ -557,30 +563,23 @@ contains
 
     nspc = sys(isys)%c%nspc
 
-    ! the species selection, defaulted the first time this system is seen
-    if (w%vd%pol_ic < 1 .or. w%vd%pol_ic > nspc .or. w%vd%pol_iv < 1 .or. w%vd%pol_iv > nspc) then
-       w%vd%pol_ic = 1
-       w%vd%pol_iv = min(2,nspc)
-       w%vd%pol_rmax = -1d0
-    end if
-    iz1 = sys(isys)%c%spc(w%vd%pol_ic)%z
-    iz2 = sys(isys)%c%spc(w%vd%pol_iv)%z
-
-    ! the distance range follows the species until the user changes it
-    if (w%vd%pol_rmax < 0d0) call reset_distance_range()
+    ! the species and their distance range, defaulted the first time this
+    ! system is seen (pol_ic is zeroed when the window moves to another one)
+    if (w%vd%pol_ic < 1 .or. w%vd%pol_ic > nspc .or. w%vd%pol_iv < 1 .or. w%vd%pol_iv > nspc) &
+       call reset_species()
 
     ! the species at the center of the polyhedra and at their vertices
     str2 = ""
     do i = 1, nspc
        str2 = str2 // trim(sys(isys)%c%spc(i)%name) // c_null_char
     end do
-    ! changing any of these makes the results on screen stale, so they go
-    ! away until the user asks for the calculation again
+    ! changing any of these makes the results on screen stale, so they are
+    ! calculated again; the distance range follows the two species
     call iw_text("Center",highlight=.true.,alignframe=.true.)
     call iw_combo_simple("##voidspolcenter",str2,w%vd%pol_ic,sameline=.true.,&
        changed=changed,startsatone=.true.)
     if (changed) then
-       w%vd%pol_rmax = -1d0
+       call reset_distance_range()
        w%vd%pol_done = .false.
     end if
     call iw_tooltip("Species of the atom at the center of the coordination polyhedra",ttshown)
@@ -589,32 +588,81 @@ contains
     call iw_combo_simple("##voidspolvertex",str2,w%vd%pol_iv,sameline=.true.,&
        changed=changed,startsatone=.true.)
     if (changed) then
-       w%vd%pol_rmax = -1d0
+       call reset_distance_range()
        w%vd%pol_done = .false.
     end if
     call iw_tooltip("Species of the atoms at the vertices of the coordination polyhedra",ttshown)
 
-    ! the distance range that decides which atoms are vertices
+    ! The distance range that decides which atoms are vertices. The value
+    ! follows the drag (so the polyhedra in the view do too), but the
+    ! volumes are recalculated when the drag is let go or the typed value
+    ! entered: the triangulation is too slow to run on every frame
     call iw_text("Distance range",highlight=.true.,alignframe=.true.)
-    if (iw_dragfloat_real8("##voidspolrmin",x1=w%vd%pol_rmin,speed=0.01d0,min=0d0,&
-       max=1d2,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
-       w%vd%pol_done = .false.
+    rminold = w%vd%pol_rmin
+    rmaxold = w%vd%pol_rmax
+    ldum = iw_dragfloat_real8("##voidspolrmin",x1=w%vd%pol_rmin,speed=0.01d0,min=0d0,&
+       max=voids_pol_rmax_max,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
+       notlive=.true.,committed=changed,sameline=.true.)
+    if (changed) w%vd%pol_done = .false.
     call iw_tooltip("Shortest center-vertex distance (Å)",ttshown)
-    if (iw_dragfloat_real8("(Å)##voidspolrmax",x1=w%vd%pol_rmax,speed=0.01d0,min=0d0,&
-       max=1d2,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
-       w%vd%pol_done = .false.
+    ldum = iw_dragfloat_real8("(Å)##voidspolrmax",x1=w%vd%pol_rmax,speed=0.01d0,min=0d0,&
+       max=voids_pol_rmax_max,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
+       notlive=.true.,committed=changed,sameline=.true.)
+    if (changed) w%vd%pol_done = .false.
     call iw_tooltip("Longest center-vertex distance (Å)",ttshown)
+    ! An inverted range selects no vertices at all, which looks like a
+    ! system with no polyhedra in it. Instead of letting the two cross, the
+    ! one the user moved pushes the other along. Which one moved is the one
+    ! whose value changed in this frame: a value typed into the ctrl+click
+    ! box is written without the widget reporting a drag, so the return of
+    ! the widget does not say
+    if (w%vd%pol_rmin > w%vd%pol_rmax) then
+       if (w%vd%pol_rmax /= rmaxold) then
+          w%vd%pol_rmin = w%vd%pol_rmax
+       else
+          w%vd%pol_rmax = w%vd%pol_rmin
+       end if
+    end if
     if (iw_button("Reset##voidspolreset",sameline=.true.)) then
-       call reset_distance_range()
+       call reset_species()
        w%vd%pol_done = .false.
     end if
-    call iw_tooltip("Restore the default distance range for these two species (from zero to&
-       & the sum of covalent radii times the bond factor)",ttshown)
+    call iw_tooltip("Restore the defaults for this system: the species most likely to sit&
+       & at the center and at the corners of a coordination polyhedron, and a distance range&
+       & from zero to the sum of their covalent radii times the bond factor",ttshown)
 
-    ! run the calculation
-    if (iw_button("Calculate##voidspolcalc",danger=.true.)) call run_polyhedra()
-    call iw_tooltip("Build the coordination polyhedron of every non-equivalent atom of the&
-       & center species and calculate its volume",ttshown)
+    ! Show the polyhedra in the view. The transient representation lives
+    ! for as long as this tab keeps re-arming it, so it goes away when the
+    ! window is closed or another tab is selected
+    hasview = (iview > 0)
+    if (hasview) hasview = associated(win(iview)%sc)
+    ldum = iw_checkbox("Visualize polyhedra##voidspolshow",w%vd%pol_show)
+    call iw_tooltip("Draw the coordination polyhedra described by the settings above in the&
+       & view, for as long as this tab is open and the box is checked",ttshown)
+    if (w%vd%pol_show .and. hasview) &
+       call win(iview)%sc%show_transient_polyhedra(w%id,2,w%vd%pol_ic,w%vd%pol_iv,&
+          w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa)
+
+    ! There is no calculate button: the volumes are recalculated as soon as
+    ! any of the settings above changes (pol_done is the flag that says the
+    ! results describe the current form). The exception is a live dynamics
+    ! run, which moves the atoms on every frame: the polyhedra would be
+    ! rebuilt at that rate for numbers that are stale as soon as they are
+    ! read, so the table waits until the run stops
+    if (.not.w%vd%pol_done) then
+       if (sysc(isys)%md_run) then
+          call iw_text("The volumes are not calculated while the dynamics run is active",&
+             danger=.true.,wrap=.true.)
+       else
+          call run_polyhedra()
+       end if
+    end if
+
+    ! what went wrong in the last run, if anything
+    if (allocated(w%vd%pol_errmsg)) then
+       if (len_trim(w%vd%pol_errmsg) > 0) &
+          call iw_text(w%vd%pol_errmsg,danger=.true.,wrap=.true.)
+    end if
 
     ! the results of the last run
     if (w%vd%pol_done) then
@@ -749,12 +797,31 @@ contains
     end if
 
   contains
+    ! The default center and vertex species for this system, from the same
+    ! split into polyhedron centers and corners that the coordination
+    ! polyhedra of a representation start from, plus the distance range
+    ! that goes with them.
+    subroutine reset_species()
+      use representations, only: coordpoly_default_pair
+
+      ! the first two species are the fallback, in case the classification
+      ! has nothing to say about this system
+      w%vd%pol_ic = 1
+      w%vd%pol_iv = min(2,nspc)
+      call coordpoly_default_pair(isys,w%vd%pol_ic,w%vd%pol_iv)
+      call reset_distance_range()
+
+    end subroutine reset_species
+
     ! The default distance range for the two selected species: from zero to
     ! the sum of covalent radii times the bond factor, as in POLYHEDRA.
     subroutine reset_distance_range()
+      integer :: kz1, kz2
 
+      kz1 = sys(isys)%c%spc(w%vd%pol_ic)%z
+      kz2 = sys(isys)%c%spc(w%vd%pol_iv)%z
       w%vd%pol_rmin = 0d0
-      w%vd%pol_rmax = (atmcov(iz1) + atmcov(iz2)) * bondfactor * bohrtoa
+      w%vd%pol_rmax = min((atmcov(kz1) + atmcov(kz2)) * bondfactor * bohrtoa,voids_pol_rmax_max)
 
     end subroutine reset_distance_range
 
@@ -763,7 +830,7 @@ contains
     subroutine run_polyhedra()
       integer :: k
 
-      w%errmsg = ""
+      w%vd%pol_errmsg = ""
       w%vd%pol_done = .false.
       w%vd%pol_n = 0
       w%vd%pol_vtot = 0d0
@@ -783,7 +850,8 @@ contains
             w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,nat,dmin,dmax,nf,vol,ier)
          if (nat <= 2) cycle ! fewer than three vertices in range: no polyhedron
          if (ier /= 0) then
-            w%errmsg = "Failed to triangulate the coordination polyhedron of atom " // string(k)
+            w%vd%pol_errmsg = "Failed to triangulate the coordination polyhedron of atom " //&
+               string(k)
             cycle
          end if
          w%vd%pol_n = w%vd%pol_n + 1

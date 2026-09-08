@@ -265,13 +265,14 @@ module representations
   type coordpoly_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
-     integer :: type ! center atom-list type (atlisttype_* in systems module)
+     integer :: type = 0 ! center atom-list type (atlisttype_* in systems module; 0 = unset)
      integer :: ntype = 0 ! number of center types
      logical, allocatable :: shown(:) ! draw polyhedra for this center type (ntype)
      logical, allocatable :: corner(:,:) ! species j is a corner of center type i (nspc,ntype)
      real*8, allocatable :: dmin(:) ! min center-corner distance per center type (ntype, bohr)
      real*8, allocatable :: dmax(:) ! max center-corner distance per center type (ntype, bohr)
    contains
+     procedure :: alloc => coordpoly_style_alloc
      procedure :: reset => coordpoly_style_reset
      procedure :: end => coordpoly_style_end
   end type coordpoly_geom_style
@@ -716,6 +717,7 @@ module representations
   public :: iso_region_seed
   public :: iso_region_point_from_cart
   public :: iso_estimate_cost
+  public :: coordpoly_default_pair
 
   ! module procedure interfaces
   interface
@@ -930,6 +932,11 @@ module representations
      module subroutine label_style_end(d)
        class(label_geom_style), intent(inout) :: d
      end subroutine label_style_end
+     module subroutine coordpoly_style_alloc(d,ntype,nspc)
+       class(coordpoly_geom_style), intent(inout) :: d
+       integer, intent(in) :: ntype
+       integer, intent(in) :: nspc
+     end subroutine coordpoly_style_alloc
      module subroutine coordpoly_style_reset(d,r)
        class(coordpoly_geom_style), intent(inout) :: d
        type(representation), intent(in) :: r
@@ -937,6 +944,16 @@ module representations
      module subroutine coordpoly_style_end(d)
        class(coordpoly_geom_style), intent(inout) :: d
      end subroutine coordpoly_style_end
+     module subroutine coordpoly_classify_species(isys,spccenter,spccorner)
+       integer, intent(in) :: isys
+       logical, allocatable, intent(inout) :: spccenter(:)
+       logical, allocatable, intent(inout) :: spccorner(:)
+     end subroutine coordpoly_classify_species
+     module subroutine coordpoly_default_pair(isys,ic,iv)
+       integer, intent(in) :: isys
+       integer, intent(inout) :: ic
+       integer, intent(inout) :: iv
+     end subroutine coordpoly_default_pair
      module subroutine symelem_style_alloc(d,nop)
        class(symelem_style), intent(inout) :: d
        integer, intent(in) :: nop
