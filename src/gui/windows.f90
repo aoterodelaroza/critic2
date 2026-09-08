@@ -191,6 +191,7 @@ module windows
      ! isosurface tab: the form
      real*8 :: iso_isoval = 0.01d0 ! promolecular density isovalue (a.u.)
      real*8 :: iso_spacing = 0.15d0 ! target spacing of the sampling grid (Å)
+     logical :: iso_spacing_auto = .true. ! whether the spacing is default or set by the user
      logical :: iso_show = .true. ! show the isosurface in the anchor view while this window is open
      logical :: iso_built = .false. ! whether Calculate has sampled a grid to work from
      integer :: iso_n_built(3) = 0 ! the grid it sampled

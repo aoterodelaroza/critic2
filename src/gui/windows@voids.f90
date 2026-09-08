@@ -29,10 +29,16 @@ submodule (windows) voids
   ! bohr^3 to Å^3, for the volumes reported by every tab
   real*8, parameter :: fac3 = bohrtoa**3
 
+  ! Grid spacing the isosurface tab starts from (Å)
+  real*8, parameter :: iso_spacing_def = 0.15d0
+
   ! A run expected to last longer than this is flagged in red, and so is a
   ! grid of more than bigwarngridpts points when the cost of a point could
   ! not be measured.
   real*8, parameter :: bigwarn_secs = 3d0
+
+  ! range of the grid spacing control (Å)
+  real*8, parameter :: spacing_max = 1d0
   integer, parameter :: bigwarngridpts = 500000
 
 contains
@@ -73,6 +79,8 @@ contains
        if (w%vd%isys /= isys) then
           ! a different system: everything measured for the old one goes
           w%vd%pol_ic = 0
+          w%vd%iso_spacing = iso_spacing_def
+          w%vd%iso_spacing_auto = .true.
           w%vd%iso_secs = -1d0
           w%vd%iso_secs_ncel = -1
           w%vd%iso_built = .false.
@@ -185,6 +193,23 @@ contains
     integer, parameter :: ic_iso_x = 3
     integer, parameter :: ic_iso_rho = 4
 
+    ! The cost of a grid point, and the spacing that cost affords. Both are
+    ! settled before the form is drawn, so the spacing shown is the one the
+    ! grid below is built from
+    call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
+    if (w%vd%iso_secs <= 0d0 .or. &
+       abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
+       xdum = 0d0
+       rdum = iso_estimate_cost(isys,0,iso_region_cell,xdum,n)
+       ! a failed measurement is not recorded, so it is retried; its
+       ! failure paths return before the benchmark loop and cost nothing
+       if (rdum > 0d0) then
+          w%vd%iso_secs = rdum
+          w%vd%iso_secs_ncel = sys(isys)%c%ncel
+       end if
+    end if
+    if (w%vd%iso_spacing_auto .and. w%vd%iso_secs > 0d0) call autoset_spacing()
+
     ! the isovalue that separates a void from the rest of the cell. Changing
     ! either of the two settings makes the results on screen stale, so they
     ! go away until the user asks for the calculation again
@@ -198,8 +223,10 @@ contains
     ! the grid the density is sampled on, chosen by its spacing
     call iw_text("Grid spacing",highlight=.true.,alignframe=.true.)
     if (iw_dragfloat_real8("(Å)##voidsspacing",x1=w%vd%iso_spacing,speed=0.005d0,&
-       min=0.02d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
+       min=0.02d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) then
        w%vd%iso_done = .false.
+       w%vd%iso_spacing_auto = .false. ! the user's now; stop choosing it for them
+    end if
     call iw_tooltip("Approximate distance between two consecutive points of the grid on&
        & which the promolecular density is calculated. A finer grid resolves the shape of&
        & the voids better but takes longer",ttshown)
@@ -208,20 +235,6 @@ contains
     ! spacing slider can reach overflow a default integer
     call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
     npts = int(n(1),8) * int(n(2),8) * int(n(3),8)
-
-    ! re-measure the cost of a grid point when there is no measurement yet,
-    ! or when the atom count has moved enough to matter
-    if (w%vd%iso_secs <= 0d0 .or. &
-       abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
-       xdum = 0d0
-       rdum = iso_estimate_cost(isys,0,iso_region_cell,xdum,n)
-       ! a failed measurement is not recorded, so it is retried; its
-       ! failure paths return before the benchmark loop and cost nothing
-       if (rdum > 0d0) then
-          w%vd%iso_secs = rdum
-          w%vd%iso_secs_ncel = sys(isys)%c%ncel
-       end if
-    end if
 
     ! what the grid is going to cost, and whether that is enough to warn
     ! about. With no measurement to go on, the point count stands in for it
@@ -438,6 +451,31 @@ contains
     end if
 
   contains
+    ! Choose the grid spacing this system can afford
+    subroutine autoset_spacing()
+      integer :: it, na(3)
+      real*8 :: sp
+      integer*8 :: np
+
+      real*8, parameter :: coarsen_min = 1.05d0 ! smallest step, so the loop always advances
+      integer, parameter :: maxit = 30
+
+      sp = iso_spacing_def
+      do it = 1, maxit
+         call grid_from_spacing(sys(isys)%c%aa,sp,na)
+         np = int(na(1),8) * int(na(2),8) * int(na(3),8)
+         if (real(np,8) * w%vd%iso_secs <= bigwarn_secs) exit
+         if (sp >= spacing_max) exit
+         ! the point count goes as the inverse cube of the spacing, so this
+         ! lands on the budget in one step; the loop is for the rounding and
+         ! the two-point-per-axis floor
+         sp = min(sp * max((real(np,8) * w%vd%iso_secs / bigwarn_secs)**(1d0/3d0),&
+            coarsen_min),spacing_max)
+      end do
+      w%vd%iso_spacing = sp
+
+    end subroutine autoset_spacing
+
     ! Sample the promolecular density and collect the voids in it.
     subroutine run_isosurface()
       character(len=:), allocatable :: errmsg
