@@ -792,8 +792,8 @@ contains
        w%mo_cache = mo_cache_state()
        w%mo_diag = mo_diagram_state()
     elseif (w%type == wintype_voids) then
-       ! the sampled promolecular density; the voids window takes it again
-       ! the next time it needs one
+       ! the sampled promolecular density; the voids window notices it is
+       ! gone (it asks allocated(), not a flag) and takes it again
        if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
        if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
     end if
@@ -968,6 +968,7 @@ contains
     w%sm = savemult_state()
     w%mo_cache = mo_cache_state()
     w%mo_diag = mo_diagram_state()
+    w%vd = voids_state() ! the sampled grid and its labels, one per point of it
 
     ! the side-pane callback data lives on the heap (see the type
     ! declaration); the dialog that was given its address is destroyed

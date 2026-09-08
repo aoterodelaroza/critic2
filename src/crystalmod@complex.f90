@@ -495,7 +495,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     integer, allocatable, intent(inout), optional :: ilbl(:,:,:)
 
-    integer :: i, j, k, l, m, ii, jd, nn, nstack, n(3)
+    integer :: i, j, k, l, m, ii, jd, nn, nstack, ier, n(3)
     integer, allocatable :: irank(:)
     integer :: ijk(3), jjk(3)
     integer*8 :: nn8
@@ -526,7 +526,17 @@ contains
 
     ! ilabel = -1 if the grid point is not in a void, 0 if it is in a void
     ! that has not been reached yet, and the ID of its void once it has.
-    allocate(ilabel(n(1),n(2),n(3)),istack(nn))
+    ! the grid is the caller's to choose and can be very large, so a
+    ! failure here is reported rather than left to abort the program
+    allocate(ilabel(n(1),n(2),n(3)),istack(nn),stat=ier)
+    if (ier /= 0) then
+       errmsg = "not enough memory for the void analysis (" // string(nn) // " points)"
+       allocate(vol(0),xdeep(3,0),rhodeep(0))
+       if (present(ilbl)) then
+          if (allocated(ilbl)) deallocate(ilbl)
+       end if
+       return
+    end if
     ilabel = 0
     where (f >= isoval) ilabel = -1
     allocate(ncount(nlabel_init),imin(3,nlabel_init),rmin(nlabel_init))

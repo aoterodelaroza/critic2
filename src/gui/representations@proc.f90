@@ -2699,6 +2699,7 @@ contains
            s%isoval_built = s%isoval
            s%built = .true.
            s%imap_built = -1 ! new vertices: the map values belong to the old ones
+           r%iso%ihighlight_built = -1 ! and so do the group colors
          end associate
       end do
 
@@ -2734,10 +2735,18 @@ contains
            ! a producer-supplied grouping of the grid points takes over the coloring
            if (allocated(r%iso%lbl) .and. nv > 0) then
               if (r%iso%ihighlight > 0) then
-                 call color_by_group(s,nv)
+                 ! only when the highlighted group or the mesh changed
+                 docol = (r%iso%ihighlight_built /= r%iso%ihighlight)
+                 docol = docol .or. .not.allocated(s%mesh%rgbv)
+                 if (.not.docol) docol = (size(s%mesh%rgbv,2) /= nv)
+                 if (docol) then
+                    call color_by_group(s,nv)
+                    r%iso%ihighlight_built = r%iso%ihighlight
+                 end if
               elseif (allocated(s%mesh%rgbv)) then
                  ! nothing highlighted any more: back to the flat color
                  deallocate(s%mesh%rgbv)
+                 r%iso%ihighlight_built = 0
               end if
               cycle
            end if

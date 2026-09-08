@@ -181,6 +181,11 @@ module windows
      "Move Atoms       "&  ! vm_moveatom
      /)
 
+  ! Grid spacing the crystal voids window starts from (Å)
+  real*8, parameter, public :: voids_spacing_def = 0.15d0
+  ! range of that window's grid spacing control (Å)
+  real*8, parameter, public :: voids_spacing_max = 1d0
+
   !> Per-window state of the crystal voids window. Each tab keeps the
   !> form it was last run with and the results of that run; the results
   !> are dropped when the window moves to another system (reported by
@@ -190,16 +195,14 @@ module windows
      real*8 :: timelast = 0d0 ! geometry-change time of the system when they were calculated
      ! isosurface tab: the form
      real*8 :: iso_isoval = 0.01d0 ! promolecular density isovalue (a.u.)
-     real*8 :: iso_spacing = 0.15d0 ! target spacing of the sampling grid (Å)
+     real*8 :: iso_spacing = voids_spacing_def ! target spacing of the sampling grid (Å)
      logical :: iso_spacing_auto = .true. ! whether the spacing is default or set by the user
      logical :: iso_show = .true. ! show the isosurface in the anchor view while this window is open
-     logical :: iso_built = .false. ! whether Calculate has sampled a grid to work from
-     integer :: iso_n_built(3) = 0 ! the grid it sampled
      real*8, allocatable :: iso_f(:,:,:) ! the promolecular density on that grid
      integer, allocatable :: iso_lbl(:,:,:) ! the void each point of that grid belongs to (0 = none)
      integer :: iso_hover = 0 ! void whose row the mouse is on (0 = none), rearmed every frame
-     integer :: iso_lblgen = 0 ! bumped whenever the labels are recalculated
-     integer :: iso_lblpushed = -1 ! iso_lblgen of the labels handed to the isosurface
+     real(c_float) :: widthreq = 0._c_float ! window width already asked for, so it is asked once
+     logical :: iso_lbl_dirty = .false. ! the labels are newer than the isosurface's copy
      real*8 :: iso_secs = -1d0 ! measured cost of one grid point, seconds (< 0 = could not be measured)
      integer :: iso_secs_ncel = -1 ! number of atoms iso_secs was measured for (-1 = not measured yet)
      ! isosurface tab: the results
@@ -230,7 +233,6 @@ module windows
      ! packing tab: the results
      logical :: pck_done = .false. ! whether there are results to show
      real*8 :: pck_vfill = 0d0 ! volume covered by the atomic spheres (bohr^3)
-     real*8 :: pck_err = 0d0 ! standard deviation of that volume (bohr^3)
   end type voids_state
   public :: voids_state
 

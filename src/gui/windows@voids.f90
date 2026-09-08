@@ -29,16 +29,17 @@ submodule (windows) voids
   ! bohr^3 to Å^3, for the volumes reported by every tab
   real*8, parameter :: fac3 = bohrtoa**3
 
-  ! Grid spacing the isosurface tab starts from (Å)
-  real*8, parameter :: iso_spacing_def = 0.15d0
-
   ! A run expected to last longer than this is flagged in red, and so is a
   ! grid of more than bigwarngridpts points when the cost of a point could
   ! not be measured.
   real*8, parameter :: bigwarn_secs = 3d0
 
+  ! the whole-cell region takes no coordinates, but the calls that stage a
+  ! region want an argument for them
+  real*8, parameter :: xnull(3,0:3) = 0d0
+
   ! range of the grid spacing control (Å)
-  real*8, parameter :: spacing_max = 1d0
+  real*8, parameter :: voids_spacing_max = 1d0
   integer, parameter :: bigwarngridpts = 500000
 
 contains
@@ -79,17 +80,15 @@ contains
        if (w%vd%isys /= isys) then
           ! a different system: everything measured for the old one goes
           w%vd%pol_ic = 0
-          w%vd%iso_spacing = iso_spacing_def
+          w%vd%iso_spacing = voids_spacing_def
           w%vd%iso_spacing_auto = .true.
           w%vd%iso_secs = -1d0
           w%vd%iso_secs_ncel = -1
-          w%vd%iso_built = .false.
           w%vd%isys = isys
           call drop_results()
        elseif (w%vd%timelast /= sysc(isys)%timelastchange_geometry) then
           ! the same system changed, recalculate
           call drop_results()
-          w%vd%iso_built = .false.
        end if
     end if
 
@@ -181,7 +180,7 @@ contains
     integer :: ihoverlast
     integer :: i, n(3), itrep, irep
     integer*8 :: npts
-    real*8 :: tcost, rdum, xdum(3,0:3)
+    real*8 :: tcost, rdum
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1, s
     character(len=:), allocatable :: sid, svol, spct, sxyz, srho
@@ -202,8 +201,7 @@ contains
     call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
     if (w%vd%iso_secs <= 0d0 .or. &
        abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
-       xdum = 0d0
-       rdum = iso_estimate_cost(isys,0,iso_region_cell,xdum,n)
+       rdum = iso_estimate_cost(isys,0,iso_region_cell,xnull,n)
        ! a failed measurement is not recorded, so it is retried; its
        ! failure paths return before the benchmark loop and cost nothing
        if (rdum > 0d0) then
@@ -226,7 +224,7 @@ contains
     ! the grid the density is sampled on, chosen by its spacing
     call iw_text("Grid spacing",highlight=.true.,alignframe=.true.)
     if (iw_dragfloat_real8("(Å)##voidsspacing",x1=w%vd%iso_spacing,speed=0.005d0,&
-       min=0.02d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) then
+       min=0.02d0,max=voids_spacing_max,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) then
        w%vd%iso_done = .false.
        w%vd%iso_spacing_auto = .false. ! the user's now; stop choosing it for them
     end if
@@ -255,7 +253,7 @@ contains
 
     ! The isovalue does not change the grid
     if (isovalchanged) then
-       if (w%vd%iso_built .and. all(w%vd%iso_n_built == n)) then
+       if (have_grid(w,n)) then
           call run_isosurface()
        else
           w%vd%iso_done = .false.
@@ -282,7 +280,7 @@ contains
     if (hasview) hasview = associated(win(iview)%sc)
     itrep = 0
     changed = .false.
-    if (w%vd%iso_built) then
+    if (allocated(w%vd%iso_f)) then
        ldum = iw_checkbox("Visualize isosurface##voidsisoshow",w%vd%iso_show)
        call iw_tooltip("Draw the isosurface calculated by the button above in the view, for&
           & as long as this window is open and the box is checked. It is the surface that&
@@ -307,22 +305,17 @@ contains
                   r%iso%slot(1)%isoval = w%vd%iso_isoval
                   changed = .true.
                end if
-               if (.not.r%iso%grid_isapplied(w%vd%iso_n_built,iso_region_cell,xdum)) then
-                  xdum = 0d0
-                  call r%iso%apply_grid(w%vd%iso_n_built,iso_region_cell,xdum)
-                  ! prevent the representation from calculating the grid again
-                  if (allocated(w%vd%iso_f)) then
-                     r%iso%ff = w%vd%iso_f
-                     call r%iso%stamp_histogram(r%iso%ff)
-                     call r%iso%stamp_built(isys)
-                  end if
+               if (.not.r%iso%grid_isapplied(shape(w%vd%iso_f),iso_region_cell,xnull)) then
+                  call r%iso%apply_grid(shape(w%vd%iso_f),iso_region_cell,xnull)
+                  ! hand over the samples instead of letting the representation calculate again
+                  call r%iso%set_samples(isys,w%vd%iso_f,.false.)
                   changed = .true.
                end if
                ! which void each grid point belongs to, so that the surface can pick one out.
                if (allocated(w%vd%iso_lbl)) then
-                  if (.not.found .or. w%vd%iso_lblpushed /= w%vd%iso_lblgen) then
+                  if (.not.found .or. w%vd%iso_lbl_dirty) then
                      r%iso%lbl = w%vd%iso_lbl
-                     w%vd%iso_lblpushed = w%vd%iso_lblgen
+                     w%vd%iso_lbl_dirty = .false.
                      changed = .true.
                   end if
                end if
@@ -341,6 +334,11 @@ contains
           call win(iview)%sc%add_representation(reptype_isosurface,repflavor_isosurface,id=irep)
           if (irep > 0) then
              win(iview)%sc%rep(irep)%iso = win(iview)%sc%reptrans(itrep)%iso
+             ! The object outlives this window, so it must not carry the window's void labels
+             if (allocated(win(iview)%sc%rep(irep)%iso%lbl)) &
+                deallocate(win(iview)%sc%rep(irep)%iso%lbl)
+             win(iview)%sc%rep(irep)%iso%ihighlight = 0
+             win(iview)%sc%rep(irep)%iso%ihighlight_built = -1
              win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
                 string(w%vd%iso_isoval,'f',decimal=5) // ")"
              win(iview)%sc%forcebuildlists = .true.
@@ -357,7 +355,7 @@ contains
        ! pressed again; worded as the isosurface editor words it. The
        ! isovalue is not in this: it costs nothing to change and is applied
        ! as it moves
-       if (w%vd%iso_show .and. any(w%vd%iso_n_built /= n)) &
+       if (w%vd%iso_show .and. .not.have_grid(w,n)) &
           call iw_text("settings changed",danger=.true.,sameline=.true.)
     end if
 
@@ -420,7 +418,7 @@ contains
        ! a one-shot request, so it fires until the window is wide enough
        ! and then stops, and the user can resize afterwards
        if (sz0%x > szavail%x) &
-          w%needwidth = igGetWindowWidth() + (sz0%x - szavail%x)
+          call ask_width(w,igGetWindowWidth() + (sz0%x - szavail%x))
        sz0%x = min(sz0%x,szavail%x)
        sz0%y = iw_calcheight(min(w%vd%iso_nvoid,10)+1,0,.false.)
        if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
@@ -481,17 +479,17 @@ contains
       real*8, parameter :: coarsen_min = 1.05d0 ! smallest step, so the loop always advances
       integer, parameter :: maxit = 30
 
-      sp = iso_spacing_def
+      sp = voids_spacing_def
       do it = 1, maxit
          call grid_from_spacing(sys(isys)%c%aa,sp,na)
          np = int(na(1),8) * int(na(2),8) * int(na(3),8)
          if (real(np,8) * w%vd%iso_secs <= bigwarn_secs) exit
-         if (sp >= spacing_max) exit
+         if (sp >= voids_spacing_max) exit
          ! the point count goes as the inverse cube of the spacing, so this
          ! lands on the budget in one step; the loop is for the rounding and
          ! the two-point-per-axis floor
          sp = min(sp * max((real(np,8) * w%vd%iso_secs / bigwarn_secs)**(1d0/3d0),&
-            coarsen_min),spacing_max)
+            coarsen_min),voids_spacing_max)
       end do
       w%vd%iso_spacing = sp
 
@@ -501,7 +499,6 @@ contains
     subroutine run_isosurface()
       character(len=:), allocatable :: errmsg
 
-      logical :: havegrid
 
       w%vd%iso_done = .false.
       w%errmsg = ""
@@ -510,13 +507,8 @@ contains
       ! the one asked for (an isovalue change, or a Calculate that repeats
       ! the previous grid). This is the expensive half and the only reason
       ! the button is worth pressing
-      havegrid = allocated(w%vd%iso_f)
-      if (havegrid) havegrid = all(shape(w%vd%iso_f) == n)
-      if (.not.havegrid) then
+      if (.not.have_grid(w,n)) &
          call sys(isys)%c%promolecular_array3(w%vd%iso_f,n)
-         w%vd%iso_built = .true.
-         w%vd%iso_n_built = n
-      end if
 
       ! which of its points are void, and how they group into domains
       call sys(isys)%c%void_domains(w%vd%iso_f,w%vd%iso_isoval,w%vd%iso_vtot,w%vd%iso_nvoid,&
@@ -524,7 +516,7 @@ contains
       w%errmsg = errmsg
       w%vd%iso_done = (len_trim(errmsg) == 0)
       ! the labels are new, so the copy the isosurface holds is not these
-      w%vd%iso_lblgen = w%vd%iso_lblgen + 1
+      w%vd%iso_lbl_dirty = .true.
 
     end subroutine run_isosurface
 
@@ -545,7 +537,9 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: changed
-    integer :: i, j, jj, iz1, iz2, nat, nf, ier, nspc
+    integer :: i, j, jj, imax, iz1, iz2, nat, nf, ier, nspc
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
     integer(c_int) :: flags
     real*8 :: dmin, dmax, vol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, s
@@ -667,7 +661,11 @@ contains
           end do
           wcol(1) = colwidth("Id",string(maxval(w%vd%pol_id(1:w%vd%pol_n))))
           wcol(2) = colwidth("Atom",trim(sys(isys)%c%at(jj)%name))
-          wcol(3) = colwidth("Mult",string(maxval(sys(isys)%c%at(w%vd%pol_id(1:w%vd%pol_n))%mult)))
+          imax = 0
+          do i = 1, w%vd%pol_n
+             imax = max(imax,sys(isys)%c%at(w%vd%pol_id(i))%mult)
+          end do
+          wcol(3) = colwidth("Mult",string(imax))
           wcol(4) = colwidth("Coordinates (fractional)",&
              repeat(" ",8) // repeat(" ",8) // "-0.00000")
           wcol(5) = colwidth("nv",string(maxval(w%vd%pol_nv(1:w%vd%pol_n))))
@@ -686,7 +684,7 @@ contains
           ! grow to it only when this tab is the one being looked at; it
           ! keeps the narrow width until then (see the isosurface tab)
           if (sz0%x > szavail%x) &
-             w%needwidth = igGetWindowWidth() + (sz0%x - szavail%x)
+             call ask_width(w,igGetWindowWidth() + (sz0%x - szavail%x))
           sz0%x = min(sz0%x,szavail%x)
           sz0%y = iw_calcheight(min(w%vd%pol_n,10)+1,0,.false.)
           if (igBeginTable(c_loc(str1),8,flags,sz0,0._c_float)) then
@@ -709,7 +707,12 @@ contains
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
 
-             do i = 1, w%vd%pol_n
+             ! the rows go through a clipper
+             clipper = ImGuiListClipper_ImGuiListClipper()
+             call ImGuiListClipper_Begin(clipper,w%vd%pol_n,igGetTextLineHeightWithSpacing())
+             do while (ImGuiListClipper_Step(clipper))
+                call c_f_pointer(clipper,clipper_f)
+                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                 j = w%vd%pol_id(i)
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                 if (igTableSetColumnIndex(ic_pol_id)) &
@@ -736,7 +739,10 @@ contains
                    call cell_right(string(w%vd%pol_nf(i)))
                 if (igTableSetColumnIndex(ic_pol_vol)) &
                    call cell_right(string(w%vd%pol_vol(i)*fac3,'f',decimal=5))
+                end do
              end do
+             call ImGuiListClipper_End(clipper)
+             call ImGuiListClipper_destroy(clipper)
              call igEndTable()
           end if
        end if
@@ -807,7 +813,7 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: changed, ismc
-    real*8 :: vvoid
+    real*8 :: vvoid, perr
 
     ! which spheres the atoms are. The nearest-neighbor spheres never overlap,
     ! so their volume is a sum and there is nothing to sample
@@ -840,18 +846,23 @@ contains
     ! the results of the last run
     if (w%vd%pck_done) then
        vvoid = sys(isys)%c%omega - w%vd%pck_vfill
+       ! vdw_volume samples until the standard deviation falls to this
+       ! fraction of the volume; the nearest-neighbor spheres are summed
+       ! exactly and have none
+       perr = 0d0
+       if (w%vd%pck_radii /= vdrad_nnm) perr = w%vd%pck_prec * w%vd%pck_vfill
 
        call iw_text("Volume inside the spheres",highlight=.true.)
-       call iw_text(string(w%vd%pck_vfill*fac3,'f',decimal=4) // pmstring(w%vd%pck_err*fac3) //&
+       call iw_text(string(w%vd%pck_vfill*fac3,'f',decimal=4) // pmstring(perr*fac3) //&
           " Å³",sameline=.true.)
        call iw_text("Void (interstitial) volume",highlight=.true.)
-       call iw_text(string(vvoid*fac3,'f',decimal=4) // pmstring(w%vd%pck_err*fac3) // " Å³",&
+       call iw_text(string(vvoid*fac3,'f',decimal=4) // pmstring(perr*fac3) // " Å³",&
           sameline=.true.)
        call iw_text("Cell volume",highlight=.true.)
        call iw_text(string(sys(isys)%c%omega*fac3,'f',decimal=4) // " Å³",sameline=.true.)
        call iw_text("Packing ratio",highlight=.true.)
        call iw_text(string(w%vd%pck_vfill/sys(isys)%c%omega*100d0,'f',decimal=4) //&
-          pmstring(w%vd%pck_err/sys(isys)%c%omega*100d0) // "%",sameline=.true.)
+          pmstring(perr/sys(isys)%c%omega*100d0) // "%",sameline=.true.)
     end if
 
   contains
@@ -873,13 +884,10 @@ contains
       case (vdrad_nnm)
          ! the spheres do not overlap: the volume is the sum of their volumes
          w%vd%pck_vfill = sys(isys)%c%get_pack_ratio() / 100d0 * sys(isys)%c%omega
-         w%vd%pck_err = 0d0
       case (vdrad_cov)
          w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,atmcov)
-         w%vd%pck_err = w%vd%pck_prec * w%vd%pck_vfill
       case default ! vdrad_vdw
          w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,atmvdw)
-         w%vd%pck_err = w%vd%pck_prec * w%vd%pck_vfill
       end select
       w%vd%pck_done = .true.
 
@@ -906,11 +914,31 @@ contains
 
   end subroutine cell_right
 
+  !> Ask the window to grow to width wd
+  subroutine ask_width(w,wd)
+    type(window), intent(inout) :: w
+    real(c_float), intent(in) :: wd
+
+    if (abs(wd - w%vd%widthreq) < 1._c_float) return
+    w%vd%widthreq = wd
+    w%needwidth = wd
+
+  end subroutine ask_width
+
+  !> Whether the window is holding the promolecular density sampled on the
+  !> grid n.
+  function have_grid(w,n) result(ok)
+    type(window), intent(in) :: w
+    integer, intent(in) :: n(3)
+    logical :: ok
+
+    ok = allocated(w%vd%iso_f)
+    if (ok) ok = all(shape(w%vd%iso_f) == n)
+
+  end function have_grid
+
   !> Width for a table column that has to hold both header and value: the
-  !> wider of the two as the font actually draws them, plus the padding a
-  !> cell puts around its contents. Measured rather than counted, so a
-  !> multi-byte glyph (Å, ³, ρ) counts as the one column it occupies and
-  !> not as its bytes, and so the answer follows the font size.
+  !> wider of the two as the font actually draws them.
   function colwidth(header,value) result(wd)
     use gui_main, only: g
     character(len=*), intent(in) :: header
