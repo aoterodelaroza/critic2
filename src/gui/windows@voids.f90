@@ -161,7 +161,7 @@ contains
     use representations, only: iso_estimate_cost, iso_region_cell, reptype_isosurface,&
        repflavor_isosurface
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
+       iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -367,48 +367,65 @@ contains
        sz0%x = 0
        sz0%y = iw_calcheight(min(w%vd%iso_nvoid,10)+1,0,.false.)
        if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
-          call iw_table_column("Id",id=ic_iso_id,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Volume (Å³)",id=ic_iso_vol,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("% cell",id=ic_iso_pct,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Deepest point (fractional)",id=ic_iso_x,&
-             flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("ρ (a.u.)",id=ic_iso_rho,flags=ImGuiTableColumnFlags_WidthFixed)
+          ! Each column is given its width outright instead of being left to
+          ! be measured. ImGui caches a table's layout under its ID, so a
+          ! measured table is only wrong on the very first frame it is ever
+          ! drawn -- but that frame is the one presented as Calculate lets go
+          ! of the interface, and it shows the columns collapsed to a few
+          ! pixels. It looks right ever after, in this window and in the next
+          ! one opened, which is what makes it a first-run-only puzzle
+          call iw_table_column("Id",id=ic_iso_id,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=iw_calcwidth(4,0))
+          call iw_table_column("V (Å³)",id=ic_iso_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=iw_calcwidth(9,0))
+          call iw_table_column("% cell",id=ic_iso_pct,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=iw_calcwidth(7,0))
+          call iw_table_column("Minimum position (frac.)",id=ic_iso_x,&
+             flags=ImGuiTableColumnFlags_WidthFixed,width=iw_calcwidth(24,0))
+          call iw_table_column("ρ (a.u.)",id=ic_iso_rho,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=iw_calcwidth(10,0))
           call igTableSetupScrollFreeze(0,1)
           call igTableHeadersRow()
-          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
-
+          ! No igTableSetColumnWidthAutoAll here: SizingFixedFit already
+          ! sizes each column to its contents, while that call is the "size
+          ! all columns to fit" command and queues a refit spread over the
+          ! following frames. Asking for it every frame kept the table in a
+          ! permanent refit, and the frame that first shows it -- the one
+          ! presented as Calculate lets go of the interface -- came out with
+          ! the columns collapsed to a few pixels
           ! the rows go through a clipper: there is one void per connected
           ! region and only the visible rows need to be emitted
           clipper = ImGuiListClipper_ImGuiListClipper()
-          call ImGuiListClipper_Begin(clipper,w%vd%iso_nvoid,-1._c_float)
+          ! the row height is given rather than left to be measured (which
+          ! is what -1 asks for elsewhere): a clipper that has to measure
+          ! renders nothing useful on the first frame of the table, and here
+          ! that frame is the one presented right after Calculate has held
+          ! the interface for seconds, so the blank shows
+          call ImGuiListClipper_Begin(clipper,w%vd%iso_nvoid,igGetTextLineHeightWithSpacing())
           do while (ImGuiListClipper_Step(clipper))
              call c_f_pointer(clipper,clipper_f)
              do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                 if (igTableSetColumnIndex(ic_iso_id)) then
-                   ! the selectable spans the row so that hovering anywhere
-                   ! in it picks the void out in the view. It goes after the
-                   ! text: iw_highlight_selectable places itself on the same
-                   ! line as whatever precedes it and then puts the cursor
-                   ! back, and starting a cell with it makes this column
-                   ! measure as wide as the whole row
+                   ! selectable spans the row
                    call iw_text(string(i))
                    if (iw_highlight_selectable("##voidsrow" // string(i))) &
                       w%vd%iso_hover = i
                 end if
                 if (igTableSetColumnIndex(ic_iso_vol)) &
-                   call iw_text(string(w%vd%iso_vol(i)*fac3,'f',length=12,decimal=5,justify=ioj_right))
+                   call cell_right(string(w%vd%iso_vol(i)*fac3,'f',decimal=5))
                 if (igTableSetColumnIndex(ic_iso_pct)) &
-                   call iw_text(string(w%vd%iso_vol(i)/sys(isys)%c%omega*100d0,'f',length=8,&
-                   decimal=3,justify=ioj_right))
+                   call cell_right(string(w%vd%iso_vol(i)/sys(isys)%c%omega*100d0,'f',decimal=3))
                 if (igTableSetColumnIndex(ic_iso_x)) then
-                   s = string(w%vd%iso_x(1,i),'f',length=9,decimal=5,justify=ioj_right) //&
-                      string(w%vd%iso_x(2,i),'f',length=9,decimal=5,justify=ioj_right) //&
-                      string(w%vd%iso_x(3,i),'f',length=9,decimal=5,justify=ioj_right)
-                   call iw_text(s)
+                   ! the three coordinates are all in [0,1], so a common
+                   ! width lines them up without padding the column out
+                   s = string(w%vd%iso_x(1,i),'f',length=8,decimal=5,justify=ioj_right) //&
+                      string(w%vd%iso_x(2,i),'f',length=8,decimal=5,justify=ioj_right) //&
+                      string(w%vd%iso_x(3,i),'f',length=8,decimal=5,justify=ioj_right)
+                   call cell_right(s)
                 end if
                 if (igTableSetColumnIndex(ic_iso_rho)) &
-                   call iw_text(string(w%vd%iso_rho(i),'e',decimal=4))
+                   call cell_right(string(w%vd%iso_rho(i),'e',decimal=4))
              end do
           end do
           call ImGuiListClipper_End(clipper)
@@ -456,7 +473,7 @@ contains
   subroutine draw_polyhedra_tab(w,isys,ttshown)
     use systems, only: sys
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_table_column
+       iw_calcheight, iw_calcwidth, iw_table_column
     use global, only: bondfactor
     use tools_io, only: string, ioj_right, ioj_center
     use param, only: atmcov
@@ -543,11 +560,11 @@ contains
 
     ! the results of the last run
     if (w%vd%pol_done) then
-       call iw_text("Volume inside the polyhedra",highlight=.true.)
+       call iw_text("Inside the polyhedra",highlight=.true.)
        call iw_text(string(w%vd%pol_vtot*fac3,'f',decimal=4) // " Å³ (" //&
           string(w%vd%pol_vtot/sys(isys)%c%omega*100d0,'f',decimal=2) // "% of the cell)",&
           sameline=.true.)
-       call iw_text("Volume outside the polyhedra",highlight=.true.)
+       call iw_text("Outside the polyhedra",highlight=.true.)
        call iw_text(string((sys(isys)%c%omega-w%vd%pol_vtot)*fac3,'f',decimal=4) // " Å³ (" //&
           string((1d0-w%vd%pol_vtot/sys(isys)%c%omega)*100d0,'f',decimal=2) // "% of the cell)",&
           sameline=.true.)
@@ -579,18 +596,25 @@ contains
           sz0%x = 0
           sz0%y = iw_calcheight(min(w%vd%pol_n,10)+1,0,.false.)
           if (igBeginTable(c_loc(str1),8,flags,sz0,0._c_float)) then
-             call iw_table_column("Id",id=ic_pol_id,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("Atom",id=ic_pol_at,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("Mult",id=ic_pol_mult,flags=ImGuiTableColumnFlags_WidthFixed)
+             ! widths given outright, for the reason in the isosurface tab
+             call iw_table_column("Id",id=ic_pol_id,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(4,0))
+             call iw_table_column("Atom",id=ic_pol_at,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(5,0))
+             call iw_table_column("Mult",id=ic_pol_mult,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(5,0))
              call iw_table_column("Coordinates (fractional)",id=ic_pol_x,&
-                flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("nv",id=ic_pol_nv,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("Distances (Å)",id=ic_pol_d,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("nf",id=ic_pol_nf,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_column("Volume (Å³)",id=ic_pol_vol,flags=ImGuiTableColumnFlags_WidthFixed)
+                flags=ImGuiTableColumnFlags_WidthFixed,width=iw_calcwidth(24,0))
+             call iw_table_column("nv",id=ic_pol_nv,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(3,0))
+             call iw_table_column("Distances (Å)",id=ic_pol_d,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(17,0))
+             call iw_table_column("nf",id=ic_pol_nf,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(3,0))
+             call iw_table_column("Volume (Å³)",id=ic_pol_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
+                width=iw_calcwidth(11,0))
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
              do i = 1, w%vd%pol_n
                 j = w%vd%pol_id(i)
@@ -600,25 +624,25 @@ contains
                 if (igTableSetColumnIndex(ic_pol_at)) &
                    call iw_text(string(sys(isys)%c%at(j)%name,4,ioj_center))
                 if (igTableSetColumnIndex(ic_pol_mult)) &
-                   call iw_text(string(sys(isys)%c%at(j)%mult))
+                   call cell_right(string(sys(isys)%c%at(j)%mult))
                 if (igTableSetColumnIndex(ic_pol_x)) then
-                   s = string(sys(isys)%c%at(j)%x(1),'f',length=9,decimal=5,justify=ioj_right) //&
-                      string(sys(isys)%c%at(j)%x(2),'f',length=9,decimal=5,justify=ioj_right) //&
-                      string(sys(isys)%c%at(j)%x(3),'f',length=9,decimal=5,justify=ioj_right)
-                   call iw_text(s)
+                   ! a common width lines the three coordinates up
+                   s = string(sys(isys)%c%at(j)%x(1),'f',length=8,decimal=5,justify=ioj_right) //&
+                      string(sys(isys)%c%at(j)%x(2),'f',length=8,decimal=5,justify=ioj_right) //&
+                      string(sys(isys)%c%at(j)%x(3),'f',length=8,decimal=5,justify=ioj_right)
+                   call cell_right(s)
                 end if
                 if (igTableSetColumnIndex(ic_pol_nv)) &
-                   call iw_text(string(w%vd%pol_nv(i)))
+                   call cell_right(string(w%vd%pol_nv(i)))
                 if (igTableSetColumnIndex(ic_pol_d)) then
-                   s = string(w%vd%pol_dmin(i)*bohrtoa,'f',length=8,decimal=4,justify=ioj_right) //&
-                      " to " //&
-                      string(w%vd%pol_dmax(i)*bohrtoa,'f',length=8,decimal=4,justify=ioj_right)
-                   call iw_text(s)
+                   s = string(w%vd%pol_dmin(i)*bohrtoa,'f',decimal=4) // " to " //&
+                      string(w%vd%pol_dmax(i)*bohrtoa,'f',decimal=4)
+                   call cell_right(s)
                 end if
                 if (igTableSetColumnIndex(ic_pol_nf)) &
-                   call iw_text(string(w%vd%pol_nf(i)))
+                   call cell_right(string(w%vd%pol_nf(i)))
                 if (igTableSetColumnIndex(ic_pol_vol)) &
-                   call iw_text(string(w%vd%pol_vol(i)*fac3,'f',length=12,decimal=5,justify=ioj_right))
+                   call cell_right(string(w%vd%pol_vol(i)*fac3,'f',decimal=5))
              end do
              call igEndTable()
           end if
@@ -769,6 +793,25 @@ contains
     end subroutine run_packing
 
   end subroutine draw_packing_tab
+
+  !> Write str in the current table cell flush with its right edge. A
+  !> numeric column reads much better that way: the digits line up under
+  !> each other and under the end of the header, instead of floating in
+  !> the middle of a column padded out to a fixed width.
+  subroutine cell_right(str)
+    use utils, only: iw_text
+    character(len=*), intent(in) :: str
+
+    type(ImVec2) :: szavail, sztext
+    character(kind=c_char,len=:), allocatable, target :: strc
+
+    strc = str // c_null_char
+    call igGetContentRegionAvail(szavail)
+    call igCalcTextSize(sztext,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+    call igSetCursorPosX(igGetCursorPosX() + max(szavail%x - sztext%x,0._c_float))
+    call iw_text(str)
+
+  end subroutine cell_right
 
   !> Number of grid points along each lattice vector that comes closest to
   !> the target spacing (in Å) for a cell with lengths aa (in bohr). At

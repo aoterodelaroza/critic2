@@ -1296,7 +1296,7 @@ contains
        elseif (w%type == wintype_rattle) then
           call init_window("Rattle Structure",52)
        elseif (w%type == wintype_voids) then
-          call init_window("Crystal Voids",90,35)
+          call init_window("Crystal Voids",62,35)
        elseif (w%type == wintype_vibrations) then
           call init_window("Vibrations",62)
        elseif (w%type == wintype_mo) then
