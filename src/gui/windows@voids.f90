@@ -87,9 +87,9 @@ contains
           w%vd%isys = isys
           call drop_results()
        elseif (w%vd%timelast /= sysc(isys)%timelastchange_geometry) then
-          ! the same system moved: the results are stale but the cost of a
-          ! grid point is not
+          ! the same system changed, recalculate
           call drop_results()
+          w%vd%iso_built = .false.
        end if
     end if
 
