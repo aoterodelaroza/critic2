@@ -1458,10 +1458,13 @@ contains
     if (.not.ok_system(r%id,sys_ready)) return
 
     if (r%type == reptype_atoms) then
-       ! check if we need to reset the representation styles
-       ! atoms
+       ! check if we need to reset the representation styles atoms
        doreset = .not.r%atoms%style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atoms%style%timelastreset)
+       if (r%owner == 0) then
+          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atoms%style%timelastreset)
+       else
+          doreset = doreset .or. (r%atoms%style%ntype /= sysc(r%id)%attype_number(r%atoms%style%type))
+       end if
        if (doreset) call r%atoms%style%reset(r)
 
        ! bonds: if the geometry changed

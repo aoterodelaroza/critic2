@@ -2502,6 +2502,62 @@ contains
 
   end subroutine scene_show_transient_polyhedra
 
+  !> Draw the atoms of the system as spheres of radius rad (bohr), one
+  !> entry per non-equivalent atom, as a transient representation
+  !> identified by (owner,tag).
+  module subroutine scene_show_transient_spacefill(s,owner,tag,rad)
+    use representations, only: reptype_atoms, repflavor_atoms_ballandstick
+    use systems, only: sys, atlisttype_nneq
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    real*8, intent(in) :: rad(:)
+
+    integer :: id, nneq
+    logical :: found, changed
+
+    ! the radii must cover the non-equivalent atoms of the system this
+    ! scene shows
+    if (s%id <= 0) return
+    nneq = sys(s%id)%c%nneq
+    if (size(rad,1) /= nneq) return
+
+    id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_ballandstick,found)
+    if (id <= 0) return
+
+    ! static configuration, stamped when the item is (re)created: the
+    ! spheres alone, over the cell and its border. A whole-molecule
+    ! selection would draw a different set of atoms than the one the
+    ! volume is measured over
+    if (.not.found) then
+       s%reptrans(id)%atoms%display = .true.
+       s%reptrans(id)%bonds%display = .false.
+       s%reptrans(id)%labels%display = .false.
+       s%reptrans(id)%poly%display = .false.
+       s%reptrans(id)%sel%onemotif = .false.
+       s%reptrans(id)%sel%border = .true.
+    end if
+
+    associate (d => s%reptrans(id)%atoms%style)
+      ! one entry per non-equivalent atom: the nearest-neighbor radii are
+      ! not a function of the species
+      changed = .not.d%isinit .or. d%type /= atlisttype_nneq .or. d%ntype /= nneq
+      if (changed) then
+         d%type = atlisttype_nneq
+         call d%reset(s%reptrans(id))
+      end if
+
+      ! the radii asked for; a fresh or retagged item is dirty already, an
+      ! existing one only if they changed
+      if (.not.changed) changed = any(d%rad /= rad)
+      if (changed) then
+         d%rad = rad
+         if (found) call transient_dirty(s)
+      end if
+    end associate
+
+  end subroutine scene_show_transient_spacefill
+
   !xx! private procedures: transient representations
 
   !> Mark the scene as dirty after a transient-representation change:
@@ -2623,8 +2679,11 @@ contains
     integer :: i, ifree, ihole
 
     ! single pass: arm and return the item if it exists; otherwise remember
-    ! the first retag candidate (an unarmed item of the same owner and type)
-    ! and whether the reaper left a hole we could claim instead
+    ! the first retag candidate (an unarmed item of the same owner, type and
+    ! flavor) and whether the reaper left a hole we could claim instead. The
+    ! flavor has to match: it is stamped at init and carries the display
+    ! defaults of the item, so retagging across flavors would hand the
+    ! producer a slot configured for something else
     if (present(found)) found = .false.
     ifree = 0
     ihole = 0
@@ -2640,7 +2699,7 @@ contains
           id = i
           return
        end if
-       if (ifree == 0 .and. .not.s%reptrans(i)%armed) ifree = i
+       if (ifree == 0 .and. .not.s%reptrans(i)%armed .and. s%reptrans(i)%flavor == flavor) ifree = i
     end do
 
     ! a hole costs nothing, so prefer it: retagging discards the contents of a

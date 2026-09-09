@@ -132,7 +132,7 @@ contains
           call iw_tooltip("The empty space is whatever the coordination polyhedra do not cover",ttshown)
 
           if (iw_begintabitem("Packing##drawvoids_pcktab")) then
-             call draw_packing_tab(w,isys,ttshown)
+             call draw_packing_tab(w,isys,iview,ttshown)
              call igEndTabItem()
           end if
           call iw_tooltip("The empty space is whatever falls outside the atomic spheres",ttshown)
@@ -173,6 +173,7 @@ contains
       w%vd%pck_secs = -1d0
       w%vd%pck_pin = -1d0
       w%vd%pck_secs_ncel = -1
+      if (allocated(w%vd%pck_rnn2)) deallocate(w%vd%pck_rnn2)
       w%vd%timelast = sysc(isys)%timelastchange_geometry
       w%vd%pol_errmsg = ""
       w%errmsg = ""
@@ -948,17 +949,18 @@ contains
 
   !> Draw the packing tab: the atoms are spheres and the void is whatever
   !> falls outside all of them.
-  subroutine draw_packing_tab(w,isys,ttshown)
+  subroutine draw_packing_tab(w,isys,iview,ttshown)
     use systems, only: sys, sysc
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       duration_string
+       iw_checkbox, duration_string
     use tools_io, only: string
     use param, only: atmvdw, atmcov, maxzat0
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
+    integer, intent(in) :: iview
     logical, intent(inout) :: ttshown
 
-    logical :: changed, scalechanged, ismc, expensive
+    logical :: changed, scalechanged, ismc, expensive, hasview, ldum
     real*8 :: vvoid, perr, tcost
 
     ! which spheres the atoms are
@@ -1015,6 +1017,18 @@ contains
     if (tcost > 0d0) &
        call iw_text("(~" // duration_string(tcost) // ")",sameline=.true.,danger=expensive)
 
+    ! Show the spheres in the view. The transient representation lives for
+    ! as long as this tab keeps re-arming it, so it goes away when the
+    ! window is closed or another tab is selected
+    hasview = (iview > 0)
+    if (hasview) hasview = associated(win(iview)%sc)
+    ldum = iw_checkbox("Visualize spheres##voidspckshow",w%vd%pck_show)
+    call iw_tooltip("Draw the atomic spheres whose volume is measured (the space-filling&
+       & model of the settings above) in the view, for as long as this tab is open and the&
+       & box is checked",ttshown)
+    if (w%vd%pck_show .and. hasview) &
+       call win(iview)%sc%show_transient_spacefill(w%id,3,nneq_radii())
+
     ! the results of the last run
     if (w%vd%pck_done) then
        vvoid = sys(isys)%c%omega - w%vd%pck_vfill
@@ -1061,31 +1075,48 @@ contains
 
     end function radii_table
 
+    ! The radius of every non-equivalent atom for the current form (bohr).
+    function nneq_radii() result(rneq)
+      real*8, allocatable :: rneq(:)
+
+      integer :: i
+      real*8 :: rt(0:maxzat0)
+
+      allocate(rneq(sys(isys)%c%nneq))
+      if (w%vd%pck_radii == vdrad_nnm) then
+         ! get_rnn2 runs a neighbor search per atom and its result changes
+         ! only with the geometry, so it is kept between frames
+         if (allocated(w%vd%pck_rnn2)) then
+            if (size(w%vd%pck_rnn2,1) /= sys(isys)%c%nneq) deallocate(w%vd%pck_rnn2)
+         end if
+         if (.not.allocated(w%vd%pck_rnn2)) then
+            allocate(w%vd%pck_rnn2(sys(isys)%c%nneq))
+            do i = 1, sys(isys)%c%nneq
+               w%vd%pck_rnn2(i) = sys(isys)%c%get_rnn2(i)
+            end do
+         end if
+         rneq = w%vd%pck_rnn2 * w%vd%pck_scale
+      else
+         rt = radii_table()
+         do i = 1, sys(isys)%c%nneq
+            rneq(i) = rt(sys(isys)%c%spc(sys(isys)%c%at(i)%is)%z)
+         end do
+      end if
+
+    end function nneq_radii
+
     ! The radius of every atom in the cell for the current form (bohr).
     subroutine atom_radii(ratom)
       real*8, allocatable, intent(out) :: ratom(:)
 
       integer :: i
-      real*8 :: rt(0:maxzat0)
-      real*8, allocatable :: rnn2(:)
+      real*8, allocatable :: rneq(:)
 
+      rneq = nneq_radii()
       allocate(ratom(sys(isys)%c%ncel))
-      if (w%vd%pck_radii == vdrad_nnm) then
-         ! get_rnn2 runs a neighbor search and depends only on the
-         ! non-equivalent atom, so build the table over those and index it
-         allocate(rnn2(sys(isys)%c%nneq))
-         do i = 1, sys(isys)%c%nneq
-            rnn2(i) = sys(isys)%c%get_rnn2(i)
-         end do
-         do i = 1, sys(isys)%c%ncel
-            ratom(i) = rnn2(sys(isys)%c%atcel(i)%idx) * w%vd%pck_scale
-         end do
-      else
-         rt = radii_table()
-         do i = 1, sys(isys)%c%ncel
-            ratom(i) = rt(sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z)
-         end do
-      end if
+      do i = 1, sys(isys)%c%ncel
+         ratom(i) = rneq(sys(isys)%c%atcel(i)%idx)
+      end do
 
     end subroutine atom_radii
 

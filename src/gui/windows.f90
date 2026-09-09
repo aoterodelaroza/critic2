@@ -239,6 +239,8 @@ module windows
      integer :: pck_secs_ncel = -1 ! number of atoms pck_secs was measured for
      integer :: pck_secs_radii = -1 ! radii pck_secs was measured for
      real*8 :: pck_secs_scale = 0d0 ! radius scale pck_secs was measured for
+     logical :: pck_show = .true. ! show the atomic spheres in the anchor view while this tab is open
+     real*8, allocatable :: pck_rnn2(:) ! half the nearest-neighbor distance of each non-equivalent atom (bohr)
      ! packing tab: the results
      logical :: pck_done = .false. ! whether there are results to show
      real*8 :: pck_vfill = 0d0 ! volume covered by the atomic spheres (bohr^3)

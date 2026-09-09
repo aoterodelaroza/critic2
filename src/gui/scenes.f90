@@ -133,6 +133,7 @@ module scenes
      procedure :: show_transient_symelems => scene_show_transient_symelems
      procedure :: show_transient_iso => scene_show_transient_iso
      procedure :: show_transient_polyhedra => scene_show_transient_polyhedra
+     procedure :: show_transient_spacefill => scene_show_transient_spacefill
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
   end type scene
   public :: scene
@@ -300,6 +301,12 @@ module scenes
        real*8, intent(in) :: rmax
        integer, intent(in), optional :: ihighlight
      end subroutine scene_show_transient_polyhedra
+     module subroutine scene_show_transient_spacefill(s,owner,tag,rad)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
+       integer, intent(in) :: tag
+       real*8, intent(in) :: rad(:)
+     end subroutine scene_show_transient_spacefill
   end interface
 
 end module scenes

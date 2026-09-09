@@ -792,10 +792,12 @@ contains
        w%mo_cache = mo_cache_state()
        w%mo_diag = mo_diagram_state()
     elseif (w%type == wintype_voids) then
-       ! the sampled promolecular density; the voids window notices it is
-       ! gone (it asks allocated(), not a flag) and takes it again
+       ! the sampled promolecular density and the nearest-neighbor radii;
+       ! the voids window notices they are gone (it asks allocated(), not a
+       ! flag) and takes them again
        if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
        if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
+       if (allocated(w%vd%pck_rnn2)) deallocate(w%vd%pck_rnn2)
     end if
 
   end subroutine window_drop_caches
