@@ -636,9 +636,9 @@ contains
   !> Calculate the coordination polyhedron centered on point x0
   !> (crystallographic coordinates). The vertices of the polyhedron are
   !> the atoms of species is0 (or, if is0 is zero, the atoms with atomic
-  !> number iz0) at a distance between rmin and rmax (bohr) from the
-  !> center; the atom at the center itself, if there is one, is not a
-  !> vertex. Returns the number of vertices (nat), the shortest and
+  !> number iz0; or, if ispc is present, the atoms of any species flagged
+  !> in it) at a distance between rmin and rmax (bohr) from the center;
+  !> the atom at the center itself, if there is one, is not a vertex. Returns the number of vertices (nat), the shortest and
   !> longest vertex distance (dmin and dmax, bohr), the number of faces
   !> (nf), and the volume of the polyhedron (vol, bohr^3). If dev is
   !> present, it returns the maximum distance from a vertex to the best-fit
@@ -647,7 +647,7 @@ contains
   !> not calculated. ier is non-zero if the triangulation failed. Fewer than
   !> four vertices in range is not an error: it gives nat <= 3 and a zero
   !> volume, and no polyhedron.
-  module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier,dev)
+  module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier,dev,ispc)
     use tools_math, only: mixed, plane_from_points
     use param, only: icrd_crys
     use iso_c_binding, only: c_int, c_double, c_ptr
@@ -664,10 +664,11 @@ contains
     real*8, intent(out) :: vol
     integer, intent(out) :: ier
     real*8, intent(out), optional :: dev
+    logical, intent(in), optional :: ispc(:)
 
     integer :: i, j, nat0
     integer, allocatable :: eid(:), lvec(:,:), iface(:,:)
-    real*8, allocatable :: dist(:), xstar(:,:)
+    real*8, allocatable :: dist(:), xstar(:,:), up2dsp(:,:)
     real*8 :: xc(3), xp1(3), xp2(3), xp3(3), xcen(3), xnor(3)
     type(c_ptr) :: ctx
 
@@ -698,7 +699,18 @@ contains
     if (present(dev)) dev = 0d0
 
     ! the atoms that make up the vertices
-    if (is0 /= 0) then
+    if (present(ispc)) then
+       ! several species at once: a distance window per species, zero for the
+       ! ones that are not vertices (the same way the GUI collects its corners)
+       allocate(up2dsp(c%nspc,2))
+       up2dsp = 0d0
+       do i = 1, min(c%nspc,size(ispc,1))
+          if (ispc(i)) up2dsp(i,2) = rmax
+       end do
+       call c%list_near_atoms(x0,icrd_crys,.true.,nat0,eid=eid,dist=dist,lvec=lvec,&
+          up2dsp=up2dsp,nozero=.true.)
+       deallocate(up2dsp)
+    elseif (is0 /= 0) then
        call c%list_near_atoms(x0,icrd_crys,.true.,nat0,eid=eid,dist=dist,lvec=lvec,&
           up2d=rmax,ispc0=is0,nozero=.true.)
     else

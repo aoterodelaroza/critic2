@@ -4219,41 +4219,6 @@ contains
 
   end subroutine coordpoly_classify_species
 
-  !> Default pair of species for a single coordination polyhedron in
-  !> system isys: ic is the species most likely to sit at the center and
-  !> iv the species most likely to sit at the corners.
-  module subroutine coordpoly_default_pair(isys,ic,iv)
-    use systems, only: sys
-    use param, only: atmeneg, maxzat
-    integer, intent(in) :: isys
-    integer, intent(inout) :: ic
-    integer, intent(inout) :: iv
-
-    integer :: j, jz
-    real*8 :: emaxc, emaxv
-    logical, allocatable :: spccenter(:), spccorner(:)
-
-    call coordpoly_classify_species(isys,spccenter,spccorner)
-    if (.not.allocated(spccenter)) return
-
-    emaxc = 0d0
-    emaxv = 0d0
-    do j = 1, size(spccenter,1)
-       jz = sys(isys)%c%spc(j)%z
-       if (jz < 1 .or. jz > maxzat) cycle
-       if (atmeneg(jz) <= 0d0) cycle
-       if (spccenter(j) .and. atmeneg(jz) > emaxc) then
-          emaxc = atmeneg(jz)
-          ic = j
-       end if
-       if (spccorner(j) .and. atmeneg(jz) > emaxv) then
-          emaxv = atmeneg(jz)
-          iv = j
-       end if
-    end do
-
-  end subroutine coordpoly_default_pair
-
   !> Deallocate all arrays and end the coordination-polyhedra style.
   module subroutine coordpoly_style_end(d)
     class(coordpoly_geom_style), intent(inout) :: d

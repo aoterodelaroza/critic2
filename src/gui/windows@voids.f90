@@ -83,7 +83,8 @@ contains
     if (goodsys) then
        if (w%vd%isys /= isys) then
           ! a different system: everything measured for the old one goes
-          w%vd%pol_ic = 0
+          if (allocated(w%vd%pol_isc)) deallocate(w%vd%pol_isc)
+          if (allocated(w%vd%pol_isv)) deallocate(w%vd%pol_isv)
           w%vd%iso_spacing = voids_spacing_def
           w%vd%iso_spacing_auto = .true.
           w%vd%iso_secs = -1d0
@@ -537,7 +538,7 @@ contains
     use gui_main, only: g
     use representations, only: polycoplanar_def
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_table_column, iw_checkbox, iw_highlight_selectable
+       iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable
     use global, only: bondfactor
     use tools_io, only: string, ioj_center
     use param, only: atmcov
@@ -546,13 +547,13 @@ contains
     integer, intent(in) :: iview
     logical, intent(inout) :: ttshown
 
-    logical :: changed, hasview, ldum
+    logical :: changed, hasview, ldum, havesel
     integer :: i, j, jj, imax, nat, nf, ier, nspc, ihoverlast, ihighlight
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer(c_int) :: flags
     real*8 :: dmin, dmax, vol, dev, rminold, rmaxold
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, s
+    character(kind=c_char,len=:), allocatable, target :: str1, s
     real(c_float) :: wcol(6)
     type(ImVec2) :: sz0, szavail
 
@@ -566,29 +567,26 @@ contains
     nspc = sys(isys)%c%nspc
 
     ! the species and their distance range, defaulted the first time this
-    ! system is seen (pol_ic is zeroed when the window moves to another one)
-    if (w%vd%pol_ic < 1 .or. w%vd%pol_ic > nspc .or. w%vd%pol_iv < 1 .or. w%vd%pol_iv > nspc) &
-       call reset_species()
+    ! system is seen (the masks are dropped when the window moves to another
+    ! one, and they are sized for the species of this one)
+    havesel = allocated(w%vd%pol_isc) .and. allocated(w%vd%pol_isv)
+    if (havesel) havesel = (size(w%vd%pol_isc,1) == nspc .and. size(w%vd%pol_isv,1) == nspc)
+    if (.not.havesel) call reset_species()
 
-    ! the species at the center of the polyhedra and at their vertices
-    str2 = ""
-    do i = 1, nspc
-       str2 = str2 // trim(sys(isys)%c%spc(i)%name) // c_null_char
-    end do
-    ! changing any of these makes the results on screen stale, so they are
-    ! calculated again; the distance range follows the two species
+    ! the species at the center of the polyhedra and at their vertices; any
+    ! number of them can be picked at either end. Changing the selection makes
+    ! the results on screen stale, so they are calculated again, and the
+    ! distance range follows the species
     call iw_text("Center",highlight=.true.,alignframe=.true.)
-    call iw_combo_simple("##voidspolcenter",str2,w%vd%pol_ic,sameline=.true.,&
-       changed=changed,startsatone=.true.)
+    call species_combo("##voidspolcenter",w%vd%pol_isc,changed)
     if (changed) then
        call reset_distance_range()
        w%vd%pol_done = .false.
     end if
-    call iw_tooltip("Species of the atom at the center of the coordination polyhedra",ttshown)
+    call iw_tooltip("Species of the atoms at the center of the coordination polyhedra",ttshown)
 
     call iw_text("Vertices",highlight=.true.,alignframe=.true.,sameline=.true.)
-    call iw_combo_simple("##voidspolvertex",str2,w%vd%pol_iv,sameline=.true.,&
-       changed=changed,startsatone=.true.)
+    call species_combo("##voidspolvertex",w%vd%pol_isv,changed)
     if (changed) then
        call reset_distance_range()
        w%vd%pol_done = .false.
@@ -650,7 +648,7 @@ contains
        & view, for as long as this tab is open and the box is checked. Hovering a row of&
        & the table below picks that atom's polyhedra out of the rest",ttshown)
     if (w%vd%pol_show .and. hasview) &
-       call win(iview)%sc%show_transient_polyhedra(w%id,2,w%vd%pol_ic,w%vd%pol_iv,&
+       call win(iview)%sc%show_transient_polyhedra(w%id,2,w%vd%pol_isc,w%vd%pol_isv,&
           w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,ihighlight=ihighlight)
 
     ! There is no calculate button: the volumes are recalculated as soon as
@@ -806,26 +804,91 @@ contains
     ! polyhedra of a representation start from, plus the distance range
     ! that goes with them.
     subroutine reset_species()
-      use representations, only: coordpoly_default_pair
+      use representations, only: coordpoly_classify_species
 
-      ! the first two species are the fallback, in case the classification
-      ! has nothing to say about this system
-      w%vd%pol_ic = 1
-      w%vd%pol_iv = min(2,nspc)
-      call coordpoly_default_pair(isys,w%vd%pol_ic,w%vd%pol_iv)
+      logical, allocatable :: spccenter(:), spccorner(:)
+
+      if (allocated(w%vd%pol_isc)) deallocate(w%vd%pol_isc)
+      if (allocated(w%vd%pol_isv)) deallocate(w%vd%pol_isv)
+      allocate(w%vd%pol_isc(nspc),w%vd%pol_isv(nspc))
+
+      ! the same split into centers and corners the coordination polyhedra of
+      ! a representation start from; every species on either side is taken
+      call coordpoly_classify_species(isys,spccenter,spccorner)
+      if (allocated(spccenter)) then
+         w%vd%pol_isc = spccenter
+         w%vd%pol_isv = spccorner
+      else
+         w%vd%pol_isc = .true.
+         w%vd%pol_isv = .true.
+      end if
+      ! every species at both ends, in case the classification has nothing to
+      ! say about this system (unknown atomic numbers, say)
+      if (.not.any(w%vd%pol_isc) .or. .not.any(w%vd%pol_isv)) then
+         w%vd%pol_isc = .true.
+         w%vd%pol_isv = .true.
+      end if
       call reset_distance_range()
 
     end subroutine reset_species
 
-    ! The default distance range for the two selected species: from zero to
-    ! the sum of covalent radii times the bond factor, as in POLYHEDRA.
-    subroutine reset_distance_range()
-      integer :: kz1, kz2
+    ! A combo that picks any number of species: the button shows the ones
+    ! chosen and the popup carries a checkbox per species. Returns whether
+    ! the selection changed.
+    subroutine species_combo(str,mask,ch)
+      character(len=*,kind=c_char), intent(in) :: str
+      logical, intent(inout) :: mask(:)
+      logical, intent(out) :: ch
 
-      kz1 = sys(isys)%c%spc(w%vd%pol_ic)%z
-      kz2 = sys(isys)%c%spc(w%vd%pol_iv)%z
+      integer :: k, maxlen
+      character(kind=c_char,len=:), allocatable, target :: strl, prev
+
+      ! the names of the selected species, and the width of the longest text
+      ! the button can end up holding (so it does not resize as they are picked)
+      ch = .false.
+      prev = ""
+      maxlen = 4 ! "none"
+      do k = 1, nspc
+         if (mask(k)) then
+            if (len_trim(prev) > 0) prev = prev // ","
+            prev = prev // trim(sys(isys)%c%spc(k)%name)
+         end if
+         maxlen = maxlen + len_trim(sys(isys)%c%spc(k)%name) + 1
+      end do
+      if (len_trim(prev) == 0) prev = "none"
+      prev = prev // c_null_char
+      strl = str // c_null_char
+
+      call igSetNextItemWidth(iw_calcwidth(min(maxlen,16)+4,0))
+      call igSameLine(0._c_float,-1._c_float)
+      if (igBeginCombo(c_loc(strl),c_loc(prev),ImGuiComboFlags_None)) then
+         do k = 1, nspc
+            if (iw_checkbox(trim(sys(isys)%c%spc(k)%name) // str // "_" // string(k),mask(k))) &
+               ch = .true.
+         end do
+         call igEndCombo()
+      end if
+
+    end subroutine species_combo
+
+    ! The default distance range for the selected species: from zero to the
+    ! largest sum of covalent radii times the bond factor over the selected
+    ! center-vertex pairs, as the coordination polyhedra of a representation do.
+    subroutine reset_distance_range()
+      integer :: k1, k2, kz1, kz2
+
       w%vd%pol_rmin = 0d0
-      w%vd%pol_rmax = min((atmcov(kz1) + atmcov(kz2)) * bondfactor * bohrtoa,voids_pol_rmax_max)
+      w%vd%pol_rmax = 0d0
+      do k1 = 1, nspc
+         if (.not.w%vd%pol_isc(k1)) cycle
+         kz1 = sys(isys)%c%spc(k1)%z
+         do k2 = 1, nspc
+            if (.not.w%vd%pol_isv(k2)) cycle
+            kz2 = sys(isys)%c%spc(k2)%z
+            w%vd%pol_rmax = max(w%vd%pol_rmax,(atmcov(kz1) + atmcov(kz2)) * bondfactor * bohrtoa)
+         end do
+      end do
+      w%vd%pol_rmax = min(w%vd%pol_rmax,voids_pol_rmax_max)
 
     end subroutine reset_distance_range
 
@@ -849,9 +912,10 @@ contains
       allocate(w%vd%pol_vol(sys(isys)%c%nneq))
 
       do k = 1, sys(isys)%c%nneq
-         if (sys(isys)%c%at(k)%is /= w%vd%pol_ic) cycle
-         call sys(isys)%c%coord_polyhedron(sys(isys)%c%at(k)%x,w%vd%pol_iv,0,&
-            w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,nat,dmin,dmax,nf,vol,ier,dev=dev)
+         if (.not.w%vd%pol_isc(sys(isys)%c%at(k)%is)) cycle
+         call sys(isys)%c%coord_polyhedron(sys(isys)%c%at(k)%x,0,0,&
+            w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,nat,dmin,dmax,nf,vol,ier,dev=dev,&
+            ispc=w%vd%pol_isv)
          ! a center encloses a volume only if it has four vertices or more and
          ! they do not all lie in one plane (same coplanarity tolerance the
          ! view draws with, so the table and the scene agree)

@@ -2421,30 +2421,33 @@ contains
 
   end subroutine scene_show_transient_iso
 
-  !> Show the coordination polyhedra centered on the atoms of species ic
-  !> with vertices on the atoms of species iv at a distance between rmin
-  !> and rmax (bohr) as a transient representation identified by
-  !> (owner,tag). ihighlight is the non-equivalent atom whose polyhedra are
+  !> Show the coordination polyhedra centered on the atoms of the species
+  !> flagged in isc, with vertices on the atoms of the species flagged in
+  !> isv, at a distance between rmin and rmax (bohr), as a transient
+  !> representation identified by (owner,tag). Both masks run over the
+  !> species of the system. ihighlight is the non-equivalent atom whose polyhedra are
   !> drawn in the highlight color (0 or absent = none).
-  module subroutine scene_show_transient_polyhedra(s,owner,tag,ic,iv,rmin,rmax,ihighlight)
+  module subroutine scene_show_transient_polyhedra(s,owner,tag,isc,isv,rmin,rmax,ihighlight)
     use representations, only: reptype_atoms, repflavor_atoms_polyhedra
     use systems, only: sys, atlisttype_species
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
-    integer, intent(in) :: ic
-    integer, intent(in) :: iv
+    logical, intent(in) :: isc(:)
+    logical, intent(in) :: isv(:)
     real*8, intent(in) :: rmin
     real*8, intent(in) :: rmax
     integer, intent(in), optional :: ihighlight
 
-    integer :: id, nspc, ihl
+    integer :: id, nspc, ihl, i
     logical :: found, changed
 
-    ! the species must exist in the system this scene shows
+    ! the masks must cover the species of the system this scene shows, and
+    ! there is nothing to draw unless both ends of the polyhedra are chosen
     if (s%id <= 0) return
     nspc = sys(s%id)%c%nspc
-    if (ic < 1 .or. ic > nspc .or. iv < 1 .or. iv > nspc) return
+    if (size(isc,1) /= nspc .or. size(isv,1) /= nspc) return
+    if (.not.any(isc) .or. .not.any(isv)) return
 
     id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_polyhedra,found)
     if (id <= 0) return
@@ -2466,16 +2469,23 @@ contains
          call d%alloc(nspc,nspc)
       end if
 
-      ! the center, corner and distance window asked for; a fresh or
+      ! the centers, corners and distance window asked for; a fresh or
       ! retagged item is dirty already, an existing one only if they moved
-      if (.not.changed) changed = .not.d%shown(ic) .or. count(d%shown) /= 1 .or.&
-         .not.all(d%corner(iv,:)) .or. count(d%corner) /= d%ntype .or.&
+      if (.not.changed) changed = any(d%shown .neqv. isc) .or.&
          any(d%dmin /= rmin) .or. any(d%dmax /= rmax)
+      if (.not.changed) then
+         do i = 1, d%ntype
+            if (any(d%corner(:,i) .neqv. isv)) then
+               changed = .true.
+               exit
+            end if
+         end do
+      end if
       if (changed) then
-         d%shown = .false.
-         d%shown(ic) = .true.
-         d%corner = .false.
-         d%corner(iv,:) = .true.
+         d%shown = isc
+         do i = 1, d%ntype
+            d%corner(:,i) = isv
+         end do
          d%dmin = rmin
          d%dmax = rmax
          if (found) call transient_dirty(s)

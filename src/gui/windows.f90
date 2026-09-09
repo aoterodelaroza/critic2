@@ -213,8 +213,8 @@ module windows
      real*8, allocatable :: iso_x(:,:) ! deepest point of each void (crystallographic)
      real*8, allocatable :: iso_rho(:) ! promolecular density at that point (a.u.)
      ! polyhedra tab: the form
-     integer :: pol_ic = 0 ! species at the center of the polyhedra (0 = not set yet)
-     integer :: pol_iv = 0 ! species at the vertices (0 = not set yet)
+     logical, allocatable :: pol_isc(:) ! species at the center of the polyhedra (nspc; unallocated = not set yet)
+     logical, allocatable :: pol_isv(:) ! species at the vertices of the polyhedra (nspc)
      real*8 :: pol_rmin = 0d0 ! shortest center-vertex distance (Å)
      real*8 :: pol_rmax = 0d0 ! longest center-vertex distance (Å)
      logical :: pol_show = .true. ! show the polyhedra in the anchor view while this tab is open

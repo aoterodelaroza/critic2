@@ -719,7 +719,7 @@ module representations
   public :: iso_region_seed
   public :: iso_region_point_from_cart
   public :: iso_estimate_cost
-  public :: coordpoly_default_pair
+  public :: coordpoly_classify_species
 
   ! module procedure interfaces
   interface
@@ -951,11 +951,6 @@ module representations
        logical, allocatable, intent(inout) :: spccenter(:)
        logical, allocatable, intent(inout) :: spccorner(:)
      end subroutine coordpoly_classify_species
-     module subroutine coordpoly_default_pair(isys,ic,iv)
-       integer, intent(in) :: isys
-       integer, intent(inout) :: ic
-       integer, intent(inout) :: iv
-     end subroutine coordpoly_default_pair
      module subroutine symelem_style_alloc(d,nop)
        class(symelem_style), intent(inout) :: d
        integer, intent(in) :: nop
