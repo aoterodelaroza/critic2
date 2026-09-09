@@ -535,6 +535,7 @@ contains
   subroutine draw_polyhedra_tab(w,isys,iview,ttshown)
     use systems, only: sys, sysc
     use gui_main, only: g
+    use representations, only: polycoplanar_def
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
        iw_calcheight, iw_table_column, iw_checkbox, iw_highlight_selectable
     use global, only: bondfactor
@@ -550,7 +551,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer(c_int) :: flags
-    real*8 :: dmin, dmax, vol, rminold, rmaxold
+    real*8 :: dmin, dmax, vol, dev, rminold, rmaxold
     character(kind=c_char,len=:), allocatable, target :: str1, str2, s
     real(c_float) :: wcol(6)
     type(ImVec2) :: sz0, szavail
@@ -697,11 +698,12 @@ contains
              & each other, so the volume outside them is not meaningful. Use a shorter&
              & maximum distance",danger=.true.,wrap=.true.)
        end if
-       ! a center with three vertices or fewer spans a triangle at most, so it
-       ! encloses no volume and is left out of the table; the view draws it
+       ! a center whose vertices span a plane at most encloses no volume, so
+       ! it is left out of the table; the view still draws it flat
        if (w%vd%pol_nfew > 0) &
-          call iw_text(string(w%vd%pol_nfew) // " center(s) have fewer than four vertices&
-          & in this range, which is not enough to enclose a volume",wrap=.true.)
+          call iw_text(string(w%vd%pol_nfew) // " center(s) enclose no volume in this&
+          & range (fewer than four vertices, or all of them in one plane) and are&
+          & left out",wrap=.true.)
 
        ! one row per polyhedron
        if (w%vd%pol_n > 0) then
@@ -849,9 +851,11 @@ contains
       do k = 1, sys(isys)%c%nneq
          if (sys(isys)%c%at(k)%is /= w%vd%pol_ic) cycle
          call sys(isys)%c%coord_polyhedron(sys(isys)%c%at(k)%x,w%vd%pol_iv,0,&
-            w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,nat,dmin,dmax,nf,vol,ier)
-         if (nat <= 3) then
-            ! fewer than four vertices in range: no polyhedron to measure
+            w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,nat,dmin,dmax,nf,vol,ier,dev=dev)
+         ! a center encloses a volume only if it has four vertices or more and
+         ! they do not all lie in one plane (same coplanarity tolerance the
+         ! view draws with, so the table and the scene agree)
+         if (nat <= 3 .or. dev < polycoplanar_def) then
             if (nat > 0) w%vd%pol_nfew = w%vd%pol_nfew + 1
             cycle
          end if

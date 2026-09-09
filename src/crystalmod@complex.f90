@@ -640,11 +640,15 @@ contains
   !> center; the atom at the center itself, if there is one, is not a
   !> vertex. Returns the number of vertices (nat), the shortest and
   !> longest vertex distance (dmin and dmax, bohr), the number of faces
-  !> (nf), and the volume of the polyhedron (vol, bohr^3). ier is non-zero
-  !> if the triangulation failed. Fewer than four vertices in range is not
-  !> an error: it gives nat <= 3 and a zero volume, and no polyhedron.
-  module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
-    use tools_math, only: mixed
+  !> (nf), and the volume of the polyhedron (vol, bohr^3). If dev is
+  !> present, it returns the maximum distance from a vertex to the best-fit
+  !> plane of all of them (bohr), zero if they are coplanar and the
+  !> polyhedron is therefore flat; dev is also zero if nat <= 3, when it is
+  !> not calculated. ier is non-zero if the triangulation failed. Fewer than
+  !> four vertices in range is not an error: it gives nat <= 3 and a zero
+  !> volume, and no polyhedron.
+  module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier,dev)
+    use tools_math, only: mixed, plane_from_points
     use param, only: icrd_crys
     use iso_c_binding, only: c_int, c_double, c_ptr
     class(crystal), intent(inout) :: c
@@ -659,11 +663,12 @@ contains
     integer, intent(out) :: nf
     real*8, intent(out) :: vol
     integer, intent(out) :: ier
+    real*8, intent(out), optional :: dev
 
     integer :: i, j, nat0
     integer, allocatable :: eid(:), lvec(:,:), iface(:,:)
     real*8, allocatable :: dist(:), xstar(:,:)
-    real*8 :: xc(3), xp1(3), xp2(3), xp3(3)
+    real*8 :: xc(3), xp1(3), xp2(3), xp3(3), xcen(3), xnor(3)
     type(c_ptr) :: ctx
 
     interface
@@ -690,6 +695,7 @@ contains
     nf = 0
     vol = 0d0
     ier = 0
+    if (present(dev)) dev = 0d0
 
     ! the atoms that make up the vertices
     if (is0 /= 0) then
@@ -713,6 +719,9 @@ contains
     ! a solid needs four vertices; three or fewer are not passed to the
     ! triangulation, which cannot build an initial simplex out of them
     if (nat <= 3) return
+
+    ! how far the vertices stray from a common plane
+    if (present(dev)) call plane_from_points(xstar(:,1:nat),nat,xcen,xnor,dev)
 
     ! project on a sphere and triangulate the convex polyhedron. The context
     ! is allocated by step1 even if it fails, and freed by step2

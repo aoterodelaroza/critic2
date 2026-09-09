@@ -222,7 +222,7 @@ module windows
      ! polyhedra tab: the results
      logical :: pol_done = .false. ! whether there are results to show
      integer :: pol_n = 0 ! number of polyhedra
-     integer :: pol_nfew = 0 ! centers left out for having fewer than four vertices
+     integer :: pol_nfew = 0 ! centers left out for enclosing no volume (< 4 vertices, or coplanar)
      real*8 :: pol_vtot = 0d0 ! volume of all the polyhedra in the cell (bohr^3)
      integer :: pol_hover = 0 ! row of the table the mouse is on (0 = none), rearmed every frame
      integer, allocatable :: pol_id(:) ! non-equivalent atom at the center

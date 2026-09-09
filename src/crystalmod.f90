@@ -895,7 +895,7 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        integer, allocatable, intent(inout), optional :: ilbl(:,:,:)
      end subroutine void_domains
-     module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
+     module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier,dev)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
        integer, intent(in) :: is0
@@ -908,6 +908,7 @@ module crystalmod
        integer, intent(out) :: nf
        real*8, intent(out) :: vol
        integer, intent(out) :: ier
+       real*8, intent(out), optional :: dev
      end subroutine coord_polyhedron
      module function get_pack_ratio(c) result (px)
        class(crystal), intent(inout) :: c
