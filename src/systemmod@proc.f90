@@ -102,14 +102,15 @@ contains
     do i = 0, s%nf
        if (s%f(i)%isinit) then
           call realloc(s%f(i)%cp,s%f(i)%ncpcel)
+          ! every CP in the cell becomes its own non-equivalent CP
           do j = 1, s%f(i)%ncpcel
-             s%f(i)%cp(j) = s%f(i)%cpcel(j)
-             s%f(i)%cp(j)%mult = 1
-             s%f(i)%cp(j)%pg = 'C1'
-             s%f(i)%cpcel(j)%pg = 'C1'
+             s%f(i)%cpcel(j)%idx = j
              s%f(i)%cpcel(j)%ir = 1
              s%f(i)%cpcel(j)%ic = 1
              s%f(i)%cpcel(j)%lvec = 0
+             s%f(i)%cpcel(j)%pg = 'C1'
+             s%f(i)%cp(j) = s%f(i)%cpcel(j)
+             s%f(i)%cp(j)%mult = 1
           end do
           s%f(i)%ncp = s%f(i)%ncpcel
        end if

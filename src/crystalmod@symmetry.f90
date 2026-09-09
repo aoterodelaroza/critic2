@@ -604,7 +604,7 @@ contains
     logical, intent(in), optional :: cel2neq
 
     type(neqatom), allocatable :: aux(:)
-    integer :: i
+    integer :: i, j
     character*10, allocatable :: name(:)
     logical :: cel2neq_
 
@@ -640,15 +640,33 @@ contains
        aux = c%at(1:c%nneq)
        c%nneq = c%ncel
        call realloc(c%at,c%ncel)
+       ! every cell atom becomes its own non-equivalent atom
        do i = 1, c%ncel
           c%at(i) = aux(c%atcel(i)%idx)
           c%at(i)%x = c%atcel(i)%x
+          c%at(i)%r = c%atcel(i)%r
           c%at(i)%is = c%atcel(i)%is
           c%at(i)%mult = 1
           c%at(i)%wyc = "?"
           c%at(i)%name = name(i)
+          c%atcel(i)%idx = i
+          c%atcel(i)%cidx = i
+          c%atcel(i)%lvec = 0
+          c%atcel(i)%ir = 1
+          c%atcel(i)%ic = 1
        end do
        deallocate(aux,name)
+
+       ! the molecular fragments carry their own copy of the mapping to the
+       ! non-equivalent list
+       if (allocated(c%mol) .and. c%nmol > 0) then
+          do i = 1, c%nmol
+             do j = 1, c%mol(i)%nat
+                c%mol(i)%at(j)%idx = c%mol(i)%at(j)%cidx
+             end do
+          end do
+          call c%calculate_molecular_equivalence()
+       end if
     end if
 
   end subroutine clearsym

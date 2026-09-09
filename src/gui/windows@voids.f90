@@ -42,6 +42,9 @@ submodule (windows) voids
   real*8, parameter :: voids_spacing_max = 1d0
   integer, parameter :: bigwarngridpts = 500000
 
+  ! Width of a vertical border line in a table
+  real(c_float), parameter :: tblborder = 1._c_float
+
   ! Longest center-vertex distance the polyhedra tab accepts (Å).
   ! triangulation) reasonable.
   real*8, parameter :: voids_pol_rmax_max = 10d0
@@ -386,13 +389,6 @@ contains
        flags = ior(flags,ImGuiTableFlags_Borders)
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
-       ! Each column is as wide as the wider of its header and its widest
-       ! value, measured in the font. Nothing is guessed, so nothing clips,
-       ! and the widths exist before the first row is submitted, which is
-       ! what keeps the table from coming up collapsed on the frame that
-       ! Calculate hands the interface back. The rows are sorted by volume,
-       ! so the widest volume and percentage are the first row's and there
-       ! is no need to walk the others
        if (w%vd%iso_nvoid > 0) then
           sid = string(w%vd%iso_nvoid)
           svol = string(w%vd%iso_vol(1)*fac3,'f',decimal=5)
@@ -418,7 +414,7 @@ contains
        ! strip out to the edge of the window
        str1 = "##tablevoidsiso" // c_null_char
        call igGetContentRegionAvail(szavail)
-       sz0%x = sum(wcol(1:5)) + 5._c_float * 2._c_float * g%Style%CellPadding%x
+       sz0%x = tblwidth(wcol(1:5))
        ! room for the scroll bar only when there will be one to make room for
        if (w%vd%iso_nvoid > 10) sz0%x = sz0%x + g%Style%ScrollbarSize
        ! The window opens at a modest width, before it can know what the
@@ -711,7 +707,6 @@ contains
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
-          flags = ior(flags,ImGuiTableFlags_ScrollX)
           ! column widths from the widest value each one holds, as in the
           ! isosurface tab. These rows are in no particular order, so the
           ! extremes are taken over all of them -- there is one row per
@@ -737,13 +732,12 @@ contains
 
           str1 = "##tablevoidspol" // c_null_char
           call igGetContentRegionAvail(szavail)
-          sz0%x = sum(wcol(1:6)) + 6._c_float * 2._c_float * g%Style%CellPadding%x
+          sz0%x = tblwidth(wcol(1:6))
           if (w%vd%pol_n > 10) sz0%x = sz0%x + g%Style%ScrollbarSize
-          ! this table is the wider of the two, so the window is asked to
-          ! grow to it only when this tab is the one being looked at; it
-          ! keeps the narrow width until then (see the isosurface tab)
-          if (sz0%x > szavail%x) &
+          if (sz0%x > szavail%x) then
              call ask_width(w,igGetWindowWidth() + (sz0%x - szavail%x))
+             flags = ior(flags,ImGuiTableFlags_ScrollX)
+          end if
           sz0%x = min(sz0%x,szavail%x)
           sz0%y = iw_calcheight(min(w%vd%pol_n,10)+1,0,.false.)
           if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
@@ -772,8 +766,8 @@ contains
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                 if (igTableSetColumnIndex(ic_pol_id)) &
                    call iw_text(string(j))
-                ! the selectable spans the row; emit it even when column 0 is
-                ! clipped off-screen, or the hover is lost when the table scrolls
+                ! the selectable spans the row; emit it outside the column
+                ! block so it survives column 0 being clipped
                 if (iw_highlight_selectable("##voidspolrow" // string(i))) &
                    w%vd%pol_hover = i
                 if (igTableSetColumnIndex(ic_pol_at)) &
@@ -1097,6 +1091,20 @@ contains
     wd = max(wd,sz%x)
 
   end function colwidth
+
+  !> Width of a table whose columns have the given widths
+  function tblwidth(wcol) result(wd)
+    use gui_main, only: g
+    real(c_float), intent(in) :: wcol(:)
+    real(c_float) :: wd
+
+    integer :: ncol
+
+    ncol = size(wcol,1)
+    wd = sum(wcol) + real(ncol,c_float) * 2._c_float * g%Style%CellPadding%x +&
+       real(ncol+1,c_float) * tblborder
+
+  end function tblwidth
 
   !> Number of grid points along each lattice vector that comes closest to
   !> the target spacing (in Å) for a cell with lengths aa (in bohr). At
