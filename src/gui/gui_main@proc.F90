@@ -52,8 +52,12 @@ submodule (gui_main) proc
   ! the dockspace ID
   integer(c_int) :: iddock = 0
 
-  ! whether glfw errors are fatal
-  logical :: glfw_lenient = .false.
+  ! how an error reported by the glfw error callback is handled: fatal (the
+  ! default), a warning, or silently ignored.
+  integer, parameter :: glfwerr_fatal = 0
+  integer, parameter :: glfwerr_warn = 1
+  integer, parameter :: glfwerr_ignore = 2
+  integer :: glfw_errmode = glfwerr_fatal
 
   !xx! private procedures
   ! subroutine process_arguments()
@@ -151,12 +155,12 @@ contains
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
     if (glfwInit() == 0) &
        call gui_fatal_startup('gui_start','Failed to initialize GLFW')
-    glfw_lenient = .true.
+    glfw_errmode = glfwerr_warn
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
-    glfw_lenient = .false.
+    glfw_errmode = glfwerr_fatal
     ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
 
     ! create the window hidden and reveal it only once the first properly
@@ -184,9 +188,12 @@ contains
     rootwin = glfwCreateWindow(iwinw, iwinh, c_loc(strc), c_null_ptr, c_null_ptr)
     if (.not.c_associated(rootwin)) &
        call gui_fatal_startup('gui_start','Failed to create the GUI window.'//gl_fail_hint)
-    ! center the window in the work area
+    ! center the window in the work area; not supported under Wayland (the
+    ! compositor places the window), so ignore the error there
+    glfw_errmode = glfwerr_ignore
     if (monw > 0 .and. monh > 0) &
        call glfwSetWindowPos(rootwin, monx + (monw-iwinw)/2, mony + (monh-iwinh)/2)
+    glfw_errmode = glfwerr_fatal
     fdum = glfwSetDropCallback(rootwin,c_funloc(drop_callback))
     call glfwMakeContextCurrent(rootwin)
     call glfwSwapInterval(1) ! enable vsync
@@ -211,9 +218,10 @@ contains
     icon%pixels = stbi_load(c_loc(file), icon%width, icon%height, idum, 4)
     if (.not.c_associated(icon%pixels)) &
        call gui_fatal_startup('gui_start','Could not find GUI assets: have you set CRITIC_HOME?')
-    glfw_lenient = .true.
+    ! not supported under Wayland (the icon comes from the .desktop file)
+    glfw_errmode = glfwerr_ignore
     call glfwSetWindowIcon(rootwin, 1, c_loc(icon))
-    glfw_lenient = .false.
+    glfw_errmode = glfwerr_fatal
     call stbi_image_free(icon%pixels)
 
     ! set up ImGui context
@@ -233,9 +241,9 @@ contains
        string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported.'//gl_fail_hint)
 
     ! set glfw options
-    glfw_lenient = .true.
+    glfw_errmode = glfwerr_warn
     call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
-    glfw_lenient = .false.
+    glfw_errmode = glfwerr_fatal
 
     ! set opengl options
     call glEnable(GL_DEPTH_TEST)
@@ -243,8 +251,11 @@ contains
     call glDisable(GL_BLEND)
     call glEnable(GL_MULTISAMPLE)
 
-    ! set up backend and renderer
+    ! set up backend and renderer; the backend creates the standard mouse
+    ! cursors, some of which may be missing from the cursor theme
+    glfw_errmode = glfwerr_warn
     ldum = ImGui_ImplGlfw_InitForOpenGL(rootwin, .true._c_bool)
+    glfw_errmode = glfwerr_fatal
     if (.not.ldum)&
        call gui_fatal_startup('gui_start','Failed to initialize ImGui (GLFW for OpenGL)')
     strc = shader_version
@@ -484,10 +495,10 @@ contains
 #endif
 
     ! terminate
-    glfw_lenient = .true.
+    glfw_errmode = glfwerr_ignore
     call glfwDestroyWindow(rootwin)
     call glfwTerminate()
-    glfw_lenient = .false.
+    glfw_errmode = glfwerr_fatal
 
   contains
     ! typedef void(* GLFWerrorfun) (int, const char *)
@@ -499,8 +510,10 @@ contains
 
       character(len=:), allocatable :: msg
 
+      if (glfw_errmode == glfwerr_ignore) return
+
       call c_f_string_alloc(description,msg)
-      if (glfw_lenient) then
+      if (glfw_errmode == glfwerr_warn) then
          call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),warning)
       else
          call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg)//gl_fail_hint,faterr)
@@ -540,7 +553,7 @@ contains
     character*(*), intent(in) :: message
 
     ! do not let the GLFW error callback report anything on the way out
-    glfw_lenient = .true.
+    glfw_errmode = glfwerr_ignore
     if (c_associated(rootwin)) call glfwDestroyWindow(rootwin)
     rootwin = c_null_ptr
     call glfwTerminate()
