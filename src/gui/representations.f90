@@ -503,6 +503,8 @@ module representations
      logical :: usecentercolor_edge = poly_usecentercolor_edge_def ! edges take the central atom color
      real*8 :: coplanar_eps = polycoplanar_def ! coplanarity tolerance for the planar-polygon path (bohr)
      logical :: showcorners = poly_showcorners_def ! also draw the corner atoms, even if outside the selection
+     integer :: ihighlight = 0 ! non-equivalent atom whose polyhedra are drawn in rgbhl (0 = none)
+     real(c_float) :: rgbhl(3) = iso_rgb_hl ! face color of the highlighted polyhedra
   end type rep_poly
   public :: rep_poly
 

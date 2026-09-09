@@ -222,10 +222,11 @@ module windows
      ! polyhedra tab: the results
      logical :: pol_done = .false. ! whether there are results to show
      integer :: pol_n = 0 ! number of polyhedra
+     integer :: pol_nfew = 0 ! centers left out for having fewer than four vertices
      real*8 :: pol_vtot = 0d0 ! volume of all the polyhedra in the cell (bohr^3)
+     integer :: pol_hover = 0 ! row of the table the mouse is on (0 = none), rearmed every frame
      integer, allocatable :: pol_id(:) ! non-equivalent atom at the center
      integer, allocatable :: pol_nv(:) ! number of vertices
-     integer, allocatable :: pol_nf(:) ! number of faces
      real*8, allocatable :: pol_dmin(:) ! shortest vertex distance (bohr)
      real*8, allocatable :: pol_dmax(:) ! longest vertex distance (bohr)
      real*8, allocatable :: pol_vol(:) ! volume of the polyhedron (bohr^3)

@@ -420,6 +420,8 @@ contains
        r%poly%usecentercolor_edge = poly_usecentercolor_edge_def
        r%poly%coplanar_eps = polycoplanar_def
        r%poly%showcorners = poly_showcorners_def
+       r%poly%ihighlight = 0
+       r%poly%rgbhl = iso_rgb_hl
     end if
 
     ! symmetry elements
@@ -1848,6 +1850,10 @@ contains
                       rgbedge = rgb
                    else
                       rgbedge = r%poly%edge_rgb
+                   end if
+                   if (c%atcel(i)%idx == r%poly%ihighlight) then
+                      rgbface = r%poly%rgbhl
+                      rgbedge = r%poly%rgbhl
                    end if
                 end if
              end if
@@ -3404,10 +3410,10 @@ contains
 
       ! 3D convex hull of the vertices, seen from the interior centroid
       call runqhull_basintriangulate_step1(nvv,cen0,xv,nf,ctx,ier)
-      if (ier /= 0 .or. nf <= 0) return
       ntri = nf
-      allocate(itri(3,ntri))
+      allocate(itri(3,max(ntri,1)))
       call runqhull_basintriangulate_step2(ntri,itri,ctx)
+      if (ier /= 0 .or. ntri <= 0) return
 
       ! faces
       do a = 1, ntri

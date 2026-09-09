@@ -641,8 +641,8 @@ contains
   !> vertex. Returns the number of vertices (nat), the shortest and
   !> longest vertex distance (dmin and dmax, bohr), the number of faces
   !> (nf), and the volume of the polyhedron (vol, bohr^3). ier is non-zero
-  !> if the triangulation failed. Fewer than three vertices in range is not
-  !> an error: it gives nat <= 2 and a zero volume, and no polyhedron.
+  !> if the triangulation failed. Fewer than four vertices in range is not
+  !> an error: it gives nat <= 3 and a zero volume, and no polyhedron.
   module subroutine coord_polyhedron(c,x0,is0,iz0,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
     use tools_math, only: mixed
     use param, only: icrd_crys
@@ -710,7 +710,9 @@ contains
        if (nat == 1) dmin = dist(i)
        dmax = dist(i)
     end do
-    if (nat <= 2) return
+    ! a solid needs four vertices; three or fewer are not passed to the
+    ! triangulation, which cannot build an initial simplex out of them
+    if (nat <= 3) return
 
     ! project on a sphere and triangulate the convex polyhedron. The context
     ! is allocated by step1 even if it fails, and freed by step2

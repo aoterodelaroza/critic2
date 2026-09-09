@@ -89,6 +89,23 @@ static void voronoi_collect(qhT *qh, FILE *fp, vertexT *vertex, vertexT *vertexA
   c->nf++;
 }
 
+// qhull writes its errors and warnings to a FILE* of our choosing. critic2
+// reports the failure through the return code instead -- the GUI has no
+// terminal to read a qhull message in -- so it is handed the null device.
+// Falls back to stderr if that cannot be opened. The stream is opened once
+// and kept for the life of the process.
+static FILE *qhull_errfile(void){
+  static FILE *fp = NULL;
+
+  if (!fp)
+#ifdef _WIN32
+    fp = fopen("NUL","w");
+#else
+    fp = fopen("/dev/null","w");
+#endif
+  return fp ? fp : stderr;
+}
+
 // From a list of n vertices (xstar), calculate the Voronoi polyhedron of the
 // origin (added as input site 0) and return its number of faces (nf), number
 // of vertices (nv), maximum number of vertices per face (mnfv), and a context
@@ -122,8 +139,8 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
   // v + Qbb: Voronoi; QV0: cell of the first point (origin); Qs: search for
   // the initial simplex. (Fv/p only set internal output state; nothing is
   // printed because no output file is given.)
-  qh_zero(qh, stderr);
-  exitcode = qh_new_qhull(qh, 3, n+1, points, False, "qhull v Qbb QV0 Fv p Qs", NULL, stderr);
+  qh_zero(qh, qhull_errfile());
+  exitcode = qh_new_qhull(qh, 3, n+1, points, False, "qhull v Qbb QV0 Fv p Qs", NULL, qhull_errfile());
   if (!exitcode){
     exitcode = setjmp(qh->errexit);
     if (!exitcode){
@@ -267,8 +284,8 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3],
 
   // (no options = convex hull) Qt: triangulated output; Pp: no precision
   // warnings; QJ: joggle the input to avoid precision problems.
-  qh_zero(qh, stderr);
-  exitcode = qh_new_qhull(qh, 3, nactual, points, False, "qhull Qt Pp QJ", NULL, stderr);
+  qh_zero(qh, qhull_errfile());
+  exitcode = qh_new_qhull(qh, 3, nactual, points, False, "qhull Qt Pp QJ", NULL, qhull_errfile());
   if (!exitcode){
     exitcode = setjmp(qh->errexit);
     if (!exitcode){

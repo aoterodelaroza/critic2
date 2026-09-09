@@ -3149,7 +3149,7 @@ contains
 
        ! build the coordination polyhedron around this atom
        call s%c%coord_polyhedron(s%c%at(i)%x,is2,iz2,rmin,rmax,nat,dmin,dmax,nf,vol,ier)
-       if (nat <= 2) cycle
+       if (nat <= 3) cycle ! fewer than four vertices in range: no polyhedron
        if (ier /= 0) &
           call ferror("struct_polyhedra","qhull failed to triangulate the polyhedron.",faterr)
 

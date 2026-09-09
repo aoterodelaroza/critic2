@@ -290,7 +290,7 @@ module scenes
        integer, intent(out) :: id
        logical, intent(out) :: found
      end subroutine scene_show_transient_iso
-     module subroutine scene_show_transient_polyhedra(s,owner,tag,ic,iv,rmin,rmax)
+     module subroutine scene_show_transient_polyhedra(s,owner,tag,ic,iv,rmin,rmax,ihighlight)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner
        integer, intent(in) :: tag
@@ -298,6 +298,7 @@ module scenes
        integer, intent(in) :: iv
        real*8, intent(in) :: rmin
        real*8, intent(in) :: rmax
+       integer, intent(in), optional :: ihighlight
      end subroutine scene_show_transient_polyhedra
   end interface
 

@@ -2424,8 +2424,9 @@ contains
   !> Show the coordination polyhedra centered on the atoms of species ic
   !> with vertices on the atoms of species iv at a distance between rmin
   !> and rmax (bohr) as a transient representation identified by
-  !> (owner,tag).
-  module subroutine scene_show_transient_polyhedra(s,owner,tag,ic,iv,rmin,rmax)
+  !> (owner,tag). ihighlight is the non-equivalent atom whose polyhedra are
+  !> drawn in the highlight color (0 or absent = none).
+  module subroutine scene_show_transient_polyhedra(s,owner,tag,ic,iv,rmin,rmax,ihighlight)
     use representations, only: reptype_atoms, repflavor_atoms_polyhedra
     use systems, only: sys, atlisttype_species
     class(scene), intent(inout), target :: s
@@ -2435,8 +2436,9 @@ contains
     integer, intent(in) :: iv
     real*8, intent(in) :: rmin
     real*8, intent(in) :: rmax
+    integer, intent(in), optional :: ihighlight
 
-    integer :: id, nspc
+    integer :: id, nspc, ihl
     logical :: found, changed
 
     ! the species must exist in the system this scene shows
@@ -2479,6 +2481,14 @@ contains
          if (found) call transient_dirty(s)
       end if
     end associate
+
+    ! the center whose polyhedra are picked out of the rest
+    ihl = 0
+    if (present(ihighlight)) ihl = ihighlight
+    if (s%reptrans(id)%poly%ihighlight /= ihl) then
+       s%reptrans(id)%poly%ihighlight = ihl
+       if (found) call transient_dirty(s)
+    end if
 
   end subroutine scene_show_transient_polyhedra
 

@@ -152,6 +152,9 @@ contains
       w%vd%iso_done = .false.
       w%vd%pol_done = .false.
       w%vd%pck_done = .false.
+      ! the hovered row indexes the results that are going away
+      w%vd%pol_n = 0
+      w%vd%pol_hover = 0
       ! the sampled grid and its labels describe the geometry they were
       ! taken on
       if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
@@ -533,9 +536,9 @@ contains
     use systems, only: sys, sysc
     use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_table_column, iw_checkbox
+       iw_calcheight, iw_table_column, iw_checkbox, iw_highlight_selectable
     use global, only: bondfactor
-    use tools_io, only: string, ioj_right, ioj_center
+    use tools_io, only: string, ioj_center
     use param, only: atmcov
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -543,23 +546,21 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: changed, hasview, ldum
-    integer :: i, j, jj, imax, nat, nf, ier, nspc
+    integer :: i, j, jj, imax, nat, nf, ier, nspc, ihoverlast, ihighlight
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer(c_int) :: flags
     real*8 :: dmin, dmax, vol, rminold, rmaxold
     character(kind=c_char,len=:), allocatable, target :: str1, str2, s
-    real(c_float) :: wcol(8)
+    real(c_float) :: wcol(6)
     type(ImVec2) :: sz0, szavail
 
     integer, parameter :: ic_pol_id = 0
     integer, parameter :: ic_pol_at = 1
     integer, parameter :: ic_pol_mult = 2
-    integer, parameter :: ic_pol_x = 3
-    integer, parameter :: ic_pol_nv = 4
-    integer, parameter :: ic_pol_d = 5
-    integer, parameter :: ic_pol_nf = 6
-    integer, parameter :: ic_pol_vol = 7
+    integer, parameter :: ic_pol_nv = 3
+    integer, parameter :: ic_pol_d = 4
+    integer, parameter :: ic_pol_vol = 5
 
     nspc = sys(isys)%c%nspc
 
@@ -631,6 +632,13 @@ contains
        & at the center and at the corners of a coordination polyhedron, and a distance range&
        & from zero to the sum of their covalent radii times the bond factor",ttshown)
 
+    ! the row the mouse was on when the table was last drawn: its polyhedra
+    ! are the ones picked out in the view
+    ihoverlast = w%vd%pol_hover
+    w%vd%pol_hover = 0
+    ihighlight = 0
+    if (ihoverlast > 0 .and. ihoverlast <= w%vd%pol_n) ihighlight = w%vd%pol_id(ihoverlast)
+
     ! Show the polyhedra in the view. The transient representation lives
     ! for as long as this tab keeps re-arming it, so it goes away when the
     ! window is closed or another tab is selected
@@ -638,10 +646,11 @@ contains
     if (hasview) hasview = associated(win(iview)%sc)
     ldum = iw_checkbox("Visualize polyhedra##voidspolshow",w%vd%pol_show)
     call iw_tooltip("Draw the coordination polyhedra described by the settings above in the&
-       & view, for as long as this tab is open and the box is checked",ttshown)
+       & view, for as long as this tab is open and the box is checked. Hovering a row of&
+       & the table below picks that atom's polyhedra out of the rest",ttshown)
     if (w%vd%pol_show .and. hasview) &
        call win(iview)%sc%show_transient_polyhedra(w%id,2,w%vd%pol_ic,w%vd%pol_iv,&
-          w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa)
+          w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,ihighlight=ihighlight)
 
     ! There is no calculate button: the volumes are recalculated as soon as
     ! any of the settings above changes (pol_done is the flag that says the
@@ -688,6 +697,11 @@ contains
              & each other, so the volume outside them is not meaningful. Use a shorter&
              & maximum distance",danger=.true.,wrap=.true.)
        end if
+       ! a center with three vertices or fewer spans a triangle at most, so it
+       ! encloses no volume and is left out of the table; the view draws it
+       if (w%vd%pol_nfew > 0) &
+          call iw_text(string(w%vd%pol_nfew) // " center(s) have fewer than four vertices&
+          & in this range, which is not enough to enclose a volume",wrap=.true.)
 
        ! one row per polyhedron
        if (w%vd%pol_n > 0) then
@@ -714,19 +728,16 @@ contains
              imax = max(imax,sys(isys)%c%at(w%vd%pol_id(i))%mult)
           end do
           wcol(3) = colwidth("Mult",string(imax))
-          wcol(4) = colwidth("Coordinates (fractional)",&
-             repeat(" ",8) // repeat(" ",8) // "-0.00000")
-          wcol(5) = colwidth("nv",string(maxval(w%vd%pol_nv(1:w%vd%pol_n))))
-          wcol(6) = colwidth("Distances (Å)",&
+          wcol(4) = colwidth("nv",string(maxval(w%vd%pol_nv(1:w%vd%pol_n))))
+          wcol(5) = colwidth("Distances (Å)",&
              string(maxval(w%vd%pol_dmin(1:w%vd%pol_n))*bohrtoa,'f',decimal=4) // " to " //&
              string(maxval(w%vd%pol_dmax(1:w%vd%pol_n))*bohrtoa,'f',decimal=4))
-          wcol(7) = colwidth("nf",string(maxval(w%vd%pol_nf(1:w%vd%pol_n))))
-          wcol(8) = colwidth("Volume (Å³)",&
+          wcol(6) = colwidth("Volume (Å³)",&
              string(maxval(w%vd%pol_vol(1:w%vd%pol_n))*fac3,'f',decimal=5))
 
           str1 = "##tablevoidspol" // c_null_char
           call igGetContentRegionAvail(szavail)
-          sz0%x = sum(wcol(1:8)) + 8._c_float * 2._c_float * g%Style%CellPadding%x
+          sz0%x = sum(wcol(1:6)) + 6._c_float * 2._c_float * g%Style%CellPadding%x
           if (w%vd%pol_n > 10) sz0%x = sz0%x + g%Style%ScrollbarSize
           ! this table is the wider of the two, so the window is asked to
           ! grow to it only when this tab is the one being looked at; it
@@ -735,23 +746,19 @@ contains
              call ask_width(w,igGetWindowWidth() + (sz0%x - szavail%x))
           sz0%x = min(sz0%x,szavail%x)
           sz0%y = iw_calcheight(min(w%vd%pol_n,10)+1,0,.false.)
-          if (igBeginTable(c_loc(str1),8,flags,sz0,0._c_float)) then
+          if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
              call iw_table_column("Id",id=ic_pol_id,flags=ImGuiTableColumnFlags_WidthFixed,&
                 width=wcol(1))
              call iw_table_column("Atom",id=ic_pol_at,flags=ImGuiTableColumnFlags_WidthFixed,&
                 width=wcol(2))
              call iw_table_column("Mult",id=ic_pol_mult,flags=ImGuiTableColumnFlags_WidthFixed,&
                 width=wcol(3))
-             call iw_table_column("Coordinates (fractional)",id=ic_pol_x,&
-                flags=ImGuiTableColumnFlags_WidthFixed,width=wcol(4))
              call iw_table_column("nv",id=ic_pol_nv,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=wcol(5))
+                width=wcol(4))
              call iw_table_column("Distances (Å)",id=ic_pol_d,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=wcol(6))
-             call iw_table_column("nf",id=ic_pol_nf,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=wcol(7))
+                width=wcol(5))
              call iw_table_column("Volume (Å³)",id=ic_pol_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
-                width=wcol(8))
+                width=wcol(6))
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
 
@@ -765,17 +772,14 @@ contains
                 call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                 if (igTableSetColumnIndex(ic_pol_id)) &
                    call iw_text(string(j))
+                ! the selectable spans the row; emit it even when column 0 is
+                ! clipped off-screen, or the hover is lost when the table scrolls
+                if (iw_highlight_selectable("##voidspolrow" // string(i))) &
+                   w%vd%pol_hover = i
                 if (igTableSetColumnIndex(ic_pol_at)) &
                    call iw_text(string(sys(isys)%c%at(j)%name,4,ioj_center))
                 if (igTableSetColumnIndex(ic_pol_mult)) &
                    call cell_right(string(sys(isys)%c%at(j)%mult))
-                if (igTableSetColumnIndex(ic_pol_x)) then
-                   ! a common width lines the three coordinates up
-                   s = string(sys(isys)%c%at(j)%x(1),'f',length=8,decimal=5,justify=ioj_right) //&
-                      string(sys(isys)%c%at(j)%x(2),'f',length=8,decimal=5,justify=ioj_right) //&
-                      string(sys(isys)%c%at(j)%x(3),'f',length=8,decimal=5,justify=ioj_right)
-                   call cell_right(s)
-                end if
                 if (igTableSetColumnIndex(ic_pol_nv)) &
                    call cell_right(string(w%vd%pol_nv(i)))
                 if (igTableSetColumnIndex(ic_pol_d)) then
@@ -783,8 +787,6 @@ contains
                       string(w%vd%pol_dmax(i)*bohrtoa,'f',decimal=4)
                    call cell_right(s)
                 end if
-                if (igTableSetColumnIndex(ic_pol_nf)) &
-                   call cell_right(string(w%vd%pol_nf(i)))
                 if (igTableSetColumnIndex(ic_pol_vol)) &
                    call cell_right(string(w%vd%pol_vol(i)*fac3,'f',decimal=5))
                 end do
@@ -833,22 +835,26 @@ contains
       w%vd%pol_errmsg = ""
       w%vd%pol_done = .false.
       w%vd%pol_n = 0
+      w%vd%pol_nfew = 0
       w%vd%pol_vtot = 0d0
       if (allocated(w%vd%pol_id)) deallocate(w%vd%pol_id)
       if (allocated(w%vd%pol_nv)) deallocate(w%vd%pol_nv)
-      if (allocated(w%vd%pol_nf)) deallocate(w%vd%pol_nf)
       if (allocated(w%vd%pol_dmin)) deallocate(w%vd%pol_dmin)
       if (allocated(w%vd%pol_dmax)) deallocate(w%vd%pol_dmax)
       if (allocated(w%vd%pol_vol)) deallocate(w%vd%pol_vol)
       allocate(w%vd%pol_id(sys(isys)%c%nneq),w%vd%pol_nv(sys(isys)%c%nneq))
-      allocate(w%vd%pol_nf(sys(isys)%c%nneq),w%vd%pol_dmin(sys(isys)%c%nneq))
-      allocate(w%vd%pol_dmax(sys(isys)%c%nneq),w%vd%pol_vol(sys(isys)%c%nneq))
+      allocate(w%vd%pol_dmin(sys(isys)%c%nneq),w%vd%pol_dmax(sys(isys)%c%nneq))
+      allocate(w%vd%pol_vol(sys(isys)%c%nneq))
 
       do k = 1, sys(isys)%c%nneq
          if (sys(isys)%c%at(k)%is /= w%vd%pol_ic) cycle
          call sys(isys)%c%coord_polyhedron(sys(isys)%c%at(k)%x,w%vd%pol_iv,0,&
             w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,nat,dmin,dmax,nf,vol,ier)
-         if (nat <= 2) cycle ! fewer than three vertices in range: no polyhedron
+         if (nat <= 3) then
+            ! fewer than four vertices in range: no polyhedron to measure
+            if (nat > 0) w%vd%pol_nfew = w%vd%pol_nfew + 1
+            cycle
+         end if
          if (ier /= 0) then
             w%vd%pol_errmsg = "Failed to triangulate the coordination polyhedron of atom " //&
                string(k)
@@ -857,7 +863,6 @@ contains
          w%vd%pol_n = w%vd%pol_n + 1
          w%vd%pol_id(w%vd%pol_n) = k
          w%vd%pol_nv(w%vd%pol_n) = nat
-         w%vd%pol_nf(w%vd%pol_n) = nf
          w%vd%pol_dmin(w%vd%pol_n) = dmin
          w%vd%pol_dmax(w%vd%pol_n) = dmax
          w%vd%pol_vol(w%vd%pol_n) = vol
