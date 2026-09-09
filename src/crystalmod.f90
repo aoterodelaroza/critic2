@@ -915,11 +915,12 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8 :: px
      end function get_pack_ratio
-     module function vdw_volume(c,relerr,rtable) result(vvdw)
+     module function vdw_volume(c,relerr,rtable,ratom) result(vvdw)
        use param, only: maxzat0
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: relerr
        real*8, intent(in), optional :: rtable(0:maxzat0)
+       real*8, intent(in), optional :: ratom(1:c%ncel)
        real*8 :: vvdw
      end function vdw_volume
      pure module subroutine get_kpoints(c,rk,nk)

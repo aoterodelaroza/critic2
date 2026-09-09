@@ -49,6 +49,10 @@ submodule (windows) voids
   ! triangulation) reasonable.
   real*8, parameter :: voids_pol_rmax_max = 10d0
 
+  ! range of the factor scaling the atomic radii in the packing tab
+  real*8, parameter :: voids_pck_scale_min = 0.1d0
+  real*8, parameter :: voids_pck_scale_max = 3d0
+
 contains
 
   !> Draw the crystal voids window: measure the empty space in the system
@@ -163,6 +167,12 @@ contains
       ! taken on
       if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
       if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
+      ! the packing benchmark measures a fraction of the cell, so unlike
+      ! the field-evaluation rate of the isosurface tab it describes the
+      ! geometry it was taken on
+      w%vd%pck_secs = -1d0
+      w%vd%pck_pin = -1d0
+      w%vd%pck_secs_ncel = -1
       w%vd%timelast = sysc(isys)%timelastchange_geometry
       w%vd%pol_errmsg = ""
       w%errmsg = ""
@@ -939,28 +949,42 @@ contains
   !> Draw the packing tab: the atoms are spheres and the void is whatever
   !> falls outside all of them.
   subroutine draw_packing_tab(w,isys,ttshown)
-    use systems, only: sys
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple
+    use systems, only: sys, sysc
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
+       duration_string
     use tools_io, only: string
-    use param, only: atmvdw, atmcov
+    use param, only: atmvdw, atmcov, maxzat0
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
     logical, intent(inout) :: ttshown
 
-    logical :: changed, ismc
-    real*8 :: vvoid, perr
+    logical :: changed, scalechanged, ismc, expensive
+    real*8 :: vvoid, perr, tcost
 
-    ! which spheres the atoms are. The nearest-neighbor spheres never overlap,
-    ! so their volume is a sum and there is nothing to sample
+    ! which spheres the atoms are
     call iw_text("Atomic radii",highlight=.true.,alignframe=.true.)
-    call iw_combo_simple("##voidspckradii","van der Waals" // c_null_char // "covalent" //&
-       c_null_char // "half the nearest-neighbor distance" // c_null_char,w%vd%pck_radii,&
+    call iw_combo_simple("##voidspckradii","Van der Waals" // c_null_char // "Covalent" //&
+       c_null_char // "Half the nearest-neighbor distance" // c_null_char,w%vd%pck_radii,&
        sameline=.true.,changed=changed)
     if (changed) w%vd%pck_done = .false.
     call iw_tooltip("Radius assigned to each atom. The van der Waals and covalent radii&
        & come from critic2's internal tables and the spheres may overlap; half the distance&
        & to the nearest neighbor gives spheres that never do",ttshown)
-    ismc = (w%vd%pck_radii /= vdrad_nnm)
+
+    ! every radius is multiplied by this factor
+    call iw_text("Scale",alignframe=.true.)
+    scalechanged = iw_dragfloat_real8("##voidspckscale",x1=w%vd%pck_scale,speed=0.01d0,&
+       min=voids_pck_scale_min,max=voids_pck_scale_max,decimal=3,&
+       flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+    if (scalechanged) w%vd%pck_done = .false.
+    call iw_tooltip("Factor multiplying the radius of every atom. A scale of one uses the&
+       & radii above unchanged; scaled up, even the nearest-neighbor spheres overlap and&
+       & the volume they cover has to be sampled",ttshown)
+
+    ! The nearest-neighbor spheres never overlap, so their volume is a sum
+    ! and there is nothing to sample. Scaled up they do overlap, and the
+    ! volume is sampled like it is for the other two radii
+    ismc = (w%vd%pck_radii /= vdrad_nnm) .or. (w%vd%pck_scale > 1d0)
 
     ! the Monte Carlo sampling stops when it reaches this relative error
     call igBeginDisabled(logical(.not.ismc,c_bool))
@@ -973,10 +997,23 @@ contains
        & reaches this value. A smaller value takes longer",ttshown)
     call igEndDisabled()
 
+    ! what the sampling is going to cost: the number of points it takes to
+    ! reach the requested precision times the measured cost of one point
+    tcost = -1d0
+    if (ismc) then
+       ! not while the scale slider is being dragged: the benchmark blocks
+       ! the frame and a drag crosses several measurement bands
+       if (.not.scalechanged) call measure_cost()
+       if (w%vd%pck_secs > 0d0) tcost = mc_npoints() * w%vd%pck_secs
+    end if
+    expensive = (tcost > bigwarn_secs)
+
     ! run the calculation
     if (iw_button("Calculate##voidspckcalc",danger=.true.)) call run_packing()
     call iw_tooltip("Calculate the volume covered by the atomic spheres and the empty space&
        & left outside them",ttshown)
+    if (tcost > 0d0) &
+       call iw_text("(~" // duration_string(tcost) // ")",sameline=.true.,danger=expensive)
 
     ! the results of the last run
     if (w%vd%pck_done) then
@@ -985,7 +1022,7 @@ contains
        ! fraction of the volume; the nearest-neighbor spheres are summed
        ! exactly and have none
        perr = 0d0
-       if (w%vd%pck_radii /= vdrad_nnm) perr = w%vd%pck_prec * w%vd%pck_vfill
+       if (ismc) perr = w%vd%pck_prec * w%vd%pck_vfill
 
        call iw_text("Volume inside the spheres",highlight=.true.)
        call iw_text(string(w%vd%pck_vfill*fac3,'f',decimal=4) // pmstring(perr*fac3) //&
@@ -1011,19 +1048,167 @@ contains
 
     end function pmstring
 
+    ! The radii of the current form as a table indexed by atomic number
+    ! (bohr), for the two that are a function of it.
+    function radii_table() result(rt)
+      real*8 :: rt(0:maxzat0)
+
+      if (w%vd%pck_radii == vdrad_cov) then
+         rt = atmcov * w%vd%pck_scale
+      else ! vdrad_vdw
+         rt = atmvdw * w%vd%pck_scale
+      end if
+
+    end function radii_table
+
+    ! The radius of every atom in the cell for the current form (bohr).
+    subroutine atom_radii(ratom)
+      real*8, allocatable, intent(out) :: ratom(:)
+
+      integer :: i
+      real*8 :: rt(0:maxzat0)
+      real*8, allocatable :: rnn2(:)
+
+      allocate(ratom(sys(isys)%c%ncel))
+      if (w%vd%pck_radii == vdrad_nnm) then
+         ! get_rnn2 runs a neighbor search and depends only on the
+         ! non-equivalent atom, so build the table over those and index it
+         allocate(rnn2(sys(isys)%c%nneq))
+         do i = 1, sys(isys)%c%nneq
+            rnn2(i) = sys(isys)%c%get_rnn2(i)
+         end do
+         do i = 1, sys(isys)%c%ncel
+            ratom(i) = rnn2(sys(isys)%c%atcel(i)%idx) * w%vd%pck_scale
+         end do
+      else
+         rt = radii_table()
+         do i = 1, sys(isys)%c%ncel
+            ratom(i) = rt(sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z)
+         end do
+      end if
+
+    end subroutine atom_radii
+
+    ! Measure the cost of one Monte Carlo sample point (seconds) and the
+    ! fraction of the points that fall inside the spheres, by running the
+    ! sampling loop of vdw_volume on batches of random points of growing
+    ! size until the timing is meaningful. Both are kept in the window
+    ! state and measured again only when the system or the radii change
+    ! enough for the numbers in hand to be out of date.
+    subroutine measure_cost()
+      use interfaces_glfw, only: glfwGetTime
+      use param, only: icrd_cart
+
+      logical :: peratom
+      integer :: i, nb, ntot, nin, nat
+      real*8 :: t, x(3), rt(0:maxzat0)
+      real*8, allocatable :: ratom(:), rsp(:,:)
+
+      real*8, parameter :: timetarget = 0.05d0 ! benchmark until a batch takes this long
+      integer, parameter :: nbatch0 = 64 ! initial batch size (a slow system stops after one)
+      integer, parameter :: nptsmax = 16384 ! total benchmark points cap (fast systems)
+
+      ! a dynamics run moves the atoms on every frame and the benchmark
+      ! blocks the frame it runs in: wait until the run stops
+      if (sysc(isys)%md_run) return
+
+      ! the measurement in hand describes this form well enough if it was
+      ! taken for a system of a similar size and radii of a similar length
+      if (w%vd%pck_secs > 0d0 .and. w%vd%pck_secs_radii == w%vd%pck_radii) then
+         if (abs(sys(isys)%c%ncel - w%vd%pck_secs_ncel) <= max(1,w%vd%pck_secs_ncel/4) .and.&
+            w%vd%pck_scale > 0.8d0 * w%vd%pck_secs_scale .and.&
+            w%vd%pck_scale < 1.25d0 * w%vd%pck_secs_scale) return
+      end if
+
+      ! the same loop the sampling runs, on random points of the cell, and
+      ! with the same cutoffs
+      peratom = (w%vd%pck_radii == vdrad_nnm)
+      if (peratom) then
+         call atom_radii(ratom)
+      else
+         rt = radii_table()
+         allocate(rsp(sys(isys)%c%nspc,2))
+         rsp(:,1) = 0d0
+         do i = 1, sys(isys)%c%nspc
+            rsp(i,2) = rt(sys(isys)%c%spc(i)%z)
+         end do
+      end if
+      ntot = 0
+      nin = 0
+      nb = nbatch0
+      do while (.true.)
+         t = glfwGetTime()
+         do i = 1, nb
+            call random_number(x)
+            x = sys(isys)%c%x2c(x)
+            if (peratom) then
+               call sys(isys)%c%list_near_atoms(x,icrd_cart,.false.,nat,up2dcidx=ratom)
+            else
+               call sys(isys)%c%list_near_atoms(x,icrd_cart,.false.,nat,up2dsp=rsp)
+            end if
+            if (nat > 0) nin = nin + 1
+         end do
+         t = glfwGetTime() - t
+         ntot = ntot + nb
+         if (t >= timetarget .or. ntot >= nptsmax) exit
+         nb = min(4 * nb,nptsmax - ntot)
+      end do
+
+      ! seconds per sample point, and the fraction of them inside the
+      ! spheres. A batch too fast for the clock to resolve would leave
+      ! pck_secs at zero and have the benchmark run again every frame,
+      ! so keep it strictly positive
+      w%vd%pck_secs = max(t,epsilon(1d0)) / real(nb,8)
+      w%vd%pck_pin = real(nin,8) / real(ntot,8)
+      w%vd%pck_secs_ncel = sys(isys)%c%ncel
+      w%vd%pck_secs_radii = w%vd%pck_radii
+      w%vd%pck_secs_scale = w%vd%pck_scale
+
+    end subroutine measure_cost
+
+    ! Number of points the Monte Carlo sampling needs to reach the requested
+    ! precision. It stops when the standard deviation of the volume divided
+    ! by the volume itself falls below it, which for a fraction p of the
+    ! points inside the spheres happens after (1-p)/(p*prec^2) points. This
+    ! has to track the stopping test in vdw_volume (crystalmod@complex.f90),
+    ! including its floor of 100 points.
+    function mc_npoints() result(n)
+      real*8 :: n
+
+      real*8 :: p
+
+      ! with no point inside any sphere the volume and its deviation are
+      ! both zero and the sampling stops as soon as the floor allows
+      p = w%vd%pck_pin
+      if (p <= 0d0) then
+         n = 100d0
+      else
+         n = max((1d0 - p) / (p * w%vd%pck_prec**2),100d0)
+      end if
+
+    end function mc_npoints
+
     ! Calculate the volume covered by the atomic spheres.
     subroutine run_packing()
+      use param, only: pi
+
+      real*8, allocatable :: ratom(:)
 
       w%errmsg = ""
-      select case (w%vd%pck_radii)
-      case (vdrad_nnm)
-         ! the spheres do not overlap: the volume is the sum of their volumes
-         w%vd%pck_vfill = sys(isys)%c%get_pack_ratio() / 100d0 * sys(isys)%c%omega
-      case (vdrad_cov)
-         w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,atmcov)
-      case default ! vdrad_vdw
-         w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,atmvdw)
-      end select
+      if (w%vd%pck_radii == vdrad_nnm) then
+         ! these radii are not a function of the atomic number, so they go
+         ! one per atom
+         call atom_radii(ratom)
+         if (ismc) then
+            w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,ratom=ratom)
+         else
+            ! the spheres do not overlap: the volume is the sum of theirs
+            w%vd%pck_vfill = sum(4d0/3d0 * pi * ratom**3)
+         end if
+      else
+         ! per-species cutoffs: cheaper per sample point than one per atom
+         w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,rtable=radii_table())
+      end if
       w%vd%pck_done = .true.
 
     end subroutine run_packing

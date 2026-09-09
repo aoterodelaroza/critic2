@@ -774,33 +774,43 @@ contains
   end function get_pack_ratio
 
   !> Calculate the vdw volume in a molecule or crystal by Monte-Carlo
-  !> sampling.  relerr = use enough points to obtain a standard
+  !> sampling. relerr = use enough points to obtain a standard
   !> deviation divided by the volume equal to this value. If
   !> rtable(0:maxzat0) is present, use those radii instead of the
-  !> van der walls radii
-  module function vdw_volume(c,relerr,rtable) result(vvdw)
+  !> van der walls radii. If ratom(1:c%ncel) is present, use those
+  !> radii, one per atom in the complete list (takes precedence over
+  !> rtable; for radii that cannot be written as a function of the
+  !> atomic number, like half the nearest-neighbor distance).
+  module function vdw_volume(c,relerr,rtable,ratom) result(vvdw)
     use param, only: VBIG, atmvdw, icrd_cart, maxzat0
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: relerr
     real*8, intent(in), optional :: rtable(0:maxzat0)
+    real*8, intent(in), optional :: ratom(1:c%ncel)
     real*8 :: vvdw
 
-    real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp
+    real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp, rmax
     integer :: i, nat
     real*8, allocatable :: rvdw(:,:)
     integer*8 :: nin, ntot
-    logical :: again
+    logical :: again, peratom
 
     ! build the list of atomic radii
-    allocate(rvdw(c%nspc,2))
-    do i = 1, c%nspc
-       rvdw(i,1) = 0d0
-       if (present(rtable)) then
-          rvdw(i,2) = rtable(c%spc(i)%z)
-       else
-          rvdw(i,2) = atmvdw(c%spc(i)%z)
-       end if
-    end do
+    peratom = present(ratom)
+    if (peratom) then
+       rmax = maxval(ratom)
+    else
+       allocate(rvdw(c%nspc,2))
+       do i = 1, c%nspc
+          rvdw(i,1) = 0d0
+          if (present(rtable)) then
+             rvdw(i,2) = rtable(c%spc(i)%z)
+          else
+             rvdw(i,2) = atmvdw(c%spc(i)%z)
+          end if
+       end do
+       rmax = maxval(rvdw(:,2))
+    end if
 
     ! calculate the encompassing box
     if (c%ismolecule) then
@@ -810,8 +820,8 @@ contains
           xmin = min(xmin,c%atcel(i)%r)
           xmax = max(xmax,c%atcel(i)%r)
        end do
-       xmin = xmin - maxval(rvdw(:,2))
-       xmax = xmax + maxval(rvdw(:,2))
+       xmin = xmin - rmax
+       xmax = xmax + rmax
        vtot = product(xmax-xmin)
     else
        vtot = c%omega
@@ -830,7 +840,11 @@ contains
        else
           x = c%x2c(x)
        end if
-       call c%list_near_atoms(x,icrd_cart,.false.,nat,up2dsp=rvdw)
+       if (peratom) then
+          call c%list_near_atoms(x,icrd_cart,.false.,nat,up2dcidx=ratom)
+       else
+          call c%list_near_atoms(x,icrd_cart,.false.,nat,up2dsp=rvdw)
+       end if
        if (nat > 0) then
           nin = nin + 1
        end if

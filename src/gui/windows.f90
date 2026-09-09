@@ -232,7 +232,13 @@ module windows
      real*8, allocatable :: pol_vol(:) ! volume of the polyhedron (bohr^3)
      ! packing tab: the form
      integer :: pck_radii = 0 ! atomic radii (see vdrad_* in windows@voids.f90)
+     real*8 :: pck_scale = 1d0 ! factor multiplying those radii
      real*8 :: pck_prec = 1d-2 ! target relative error of the Monte Carlo volume
+     real*8 :: pck_secs = -1d0 ! measured cost of one sample point, seconds (< 0 = not measured)
+     real*8 :: pck_pin = -1d0 ! fraction of the sample points inside the spheres (< 0 = unknown)
+     integer :: pck_secs_ncel = -1 ! number of atoms pck_secs was measured for
+     integer :: pck_secs_radii = -1 ! radii pck_secs was measured for
+     real*8 :: pck_secs_scale = 0d0 ! radius scale pck_secs was measured for
      ! packing tab: the results
      logical :: pck_done = .false. ! whether there are results to show
      real*8 :: pck_vfill = 0d0 ! volume covered by the atomic spheres (bohr^3)
