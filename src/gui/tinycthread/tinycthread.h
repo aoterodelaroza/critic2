@@ -81,6 +81,9 @@ extern "C" {
 
 /* Generic includes */
 #include <time.h>
+/* glibc >= 2.42 declares C23's once_flag/call_once in stdlib.h; include it
+   here so the check below can see them (see the once_flag block at the end). */
+#include <stdlib.h>
 
 /* Platform specific includes */
 #if defined(_TTHREAD_POSIX_)
@@ -450,13 +453,21 @@ void *tss_get(tss_t key);
 */
 int tss_set(tss_t key, void *val);
 
+/* The C library may already provide C11/C23's once_flag and call_once (glibc
+   >= 2.42 declares them in <stdlib.h> when compiling for C23, which is the
+   default in gcc >= 15). Defining our macros on top of them rewrites those
+   declarations and breaks the build, so use the system versions instead. */
+#if !defined(_TTHREAD_WIN32_) && defined(ONCE_FLAG_INIT)
+  #define _TTHREAD_HAS_LIBC_ONCE_
+#endif
+
 #if defined(_TTHREAD_WIN32_)
   typedef struct {
     LONG volatile status;
     CRITICAL_SECTION lock;
   } once_flag;
   #define ONCE_FLAG_INIT {0,}
-#else
+#elif !defined(_TTHREAD_HAS_LIBC_ONCE_)
   #define once_flag pthread_once_t
   #define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
 #endif
@@ -468,7 +479,7 @@ int tss_set(tss_t key, void *val);
  */
 #if defined(_TTHREAD_WIN32_)
   void call_once(once_flag *flag, void (*func)(void));
-#else
+#elif !defined(_TTHREAD_HAS_LIBC_ONCE_)
   #define call_once(flag,func) pthread_once(flag,func)
 #endif
 
