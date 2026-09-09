@@ -218,6 +218,9 @@ contains
     integer, parameter :: ic_iso_x = 3
     integer, parameter :: ic_iso_rho = 4
 
+    call tab_explanation("Calculate the size of the voids in the crystal from &
+       &the isosurfaces of the promolecular density, sampled on a grid.")
+
     ! The cost of a grid point, and the spacing that cost affords. Both are
     ! settled before the form is drawn, so the spacing shown is the one the
     ! grid below is built from
@@ -572,6 +575,9 @@ contains
     integer, parameter :: ic_pol_vol = 5
 
     nspc = sys(isys)%c%nspc
+
+    call tab_explanation("Calculate the size of the voids in the crystal from &
+       &the volume of the coordination polyhedra.")
 
     ! the species and their distance range, defaulted the first time this
     ! system is seen (the masks are dropped when the window moves to another
@@ -963,6 +969,9 @@ contains
     logical :: changed, scalechanged, ismc, expensive, hasview, ldum
     real*8 :: vvoid, perr, tcost
 
+    call tab_explanation("Calculate the size of the voids in the crystal from &
+       &the volume of overlapping atomic spheres.")
+
     ! which spheres the atoms are
     call iw_text("Atomic radii",highlight=.true.,alignframe=.true.)
     call iw_combo_simple("##voidspckradii","Van der Waals" // c_null_char // "Covalent" //&
@@ -1245,6 +1254,18 @@ contains
     end subroutine run_packing
 
   end subroutine draw_packing_tab
+
+  !> Write the paragraph that says what a tab does, at the top of the tab
+  !> and above its controls. Faded, so it reads as a caption and does not
+  !> compete with the labels of the form below it.
+  subroutine tab_explanation(str)
+    use utils, only: iw_text
+    character(len=*), intent(in) :: str
+
+    call iw_text(str,disabled=.true.,wrap=.true.)
+    call igSeparator()
+
+  end subroutine tab_explanation
 
   !> Write str in the current table cell flush with its right edge. A
   !> numeric column reads much better that way: the digits line up under
