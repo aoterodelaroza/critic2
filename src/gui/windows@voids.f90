@@ -123,13 +123,15 @@ contains
              call draw_isosurface_tab(w,isys,iview,ttshown)
              call igEndTabItem()
           end if
-          call iw_tooltip("The voids are the regions where the promolecular density is low",ttshown)
+          call iw_tooltip("Define the crystal voids as the regions where the promolecular&
+             & density is low",ttshown)
 
           if (iw_begintabitem("Polyhedra##drawvoids_poltab")) then
              call draw_polyhedra_tab(w,isys,iview,ttshown)
              call igEndTabItem()
           end if
-          call iw_tooltip("The empty space is whatever the coordination polyhedra do not cover",ttshown)
+          call iw_tooltip("Define the crystal voids as the left-over space from drawing&
+             & the coordination polyhedra",ttshown)
 
           if (iw_begintabitem("Packing##drawvoids_pcktab")) then
              call draw_packing_tab(w,isys,iview,ttshown)
@@ -274,8 +276,8 @@ contains
     end if
 
     ! the grid, red when it is going to cost a lot
-    call iw_text("(" // string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
-       " = " // string(npts) // " points)",alignframe=.true.,danger=expensive)
+    call iw_text(string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
+       " = " // string(npts) // " points",alignframe=.true.,danger=expensive)
 
     ! The isovalue does not change the grid
     if (isovalchanged) then
@@ -293,7 +295,7 @@ contains
     ! run the calculation
     if (iw_button("Calculate##voidsisocalc",danger=.true.)) call run_isosurface()
     call iw_tooltip("Calculate the promolecular density on the grid and group the points&
-       & below the isovalue into voids. The window does not respond while it runs",ttshown)
+       & below the isovalue into voids",ttshown)
     if (tcost > 0d0) then
        s = "(~" // duration_string(tcost)
        call iw_text(s // ")",sameline=.true.,danger=expensive)
@@ -308,9 +310,7 @@ contains
     changed = .false.
     if (allocated(w%vd%iso_f)) then
        ldum = iw_checkbox("Visualize isosurface##voidsisoshow",w%vd%iso_show)
-       call iw_tooltip("Draw the isosurface calculated by the button above in the view, for&
-          & as long as this window is open and the box is checked. It is the surface that&
-          & bounds the voids in the table below",ttshown)
+       call iw_tooltip("Draw the isosurface that determines the voids in the view",ttshown)
 
        if (w%vd%iso_show .and. hasview) then
           call win(iview)%sc%show_transient_iso(w%id,1,itrep,found)
@@ -640,9 +640,8 @@ contains
        call reset_species()
        w%vd%pol_done = .false.
     end if
-    call iw_tooltip("Restore the defaults for this system: the species most likely to sit&
-       & at the center and at the corners of a coordination polyhedron, and a distance range&
-       & from zero to the sum of their covalent radii times the bond factor",ttshown)
+    call iw_tooltip("Restore the defaults for this system: the species at the center and&
+       & corners, and the distance range",ttshown)
 
     ! the row the mouse was on when the table was last drawn: its polyhedra
     ! are the ones picked out in the view
@@ -657,9 +656,7 @@ contains
     hasview = (iview > 0)
     if (hasview) hasview = associated(win(iview)%sc)
     ldum = iw_checkbox("Visualize polyhedra##voidspolshow",w%vd%pol_show)
-    call iw_tooltip("Draw the coordination polyhedra described by the settings above in the&
-       & view, for as long as this tab is open and the box is checked. Hovering a row of&
-       & the table below picks that atom's polyhedra out of the rest",ttshown)
+    call iw_tooltip("Draw the coordination polyhedra in the view",ttshown)
     if (w%vd%pol_show .and. hasview) &
        call win(iview)%sc%show_transient_polyhedra(w%id,2,w%vd%pol_isc,w%vd%pol_isv,&
           w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,ihighlight=ihighlight)
@@ -672,7 +669,7 @@ contains
     ! read, so the table waits until the run stops
     if (.not.w%vd%pol_done) then
        if (sysc(isys)%md_run) then
-          call iw_text("The volumes are not calculated while the dynamics run is active",&
+          call iw_text("The volumes are not calculated while a dynamics run is active",&
              danger=.true.,wrap=.true.)
        else
           call run_polyhedra()
@@ -705,16 +702,14 @@ contains
           ! measures the empty space if the polyhedra do not overlap. They
           ! add up to more than the cell when they do, and the difference
           ! below is then not a volume of anything
-          call iw_text("The polyhedra add up to more than the cell volume: they overlap&
-             & each other, so the volume outside them is not meaningful. Use a shorter&
-             & maximum distance",danger=.true.,wrap=.true.)
+          call iw_text("The polyhedra add up to more than the cell volume, so the volume&
+             & outside them is not meaningful",danger=.true.,wrap=.true.)
        end if
        ! a center whose vertices span a plane at most encloses no volume, so
        ! it is left out of the table; the view still draws it flat
        if (w%vd%pol_nfew > 0) &
           call iw_text(string(w%vd%pol_nfew) // " center(s) enclose no volume in this&
-          & range (fewer than four vertices, or all of them in one plane) and are&
-          & left out",wrap=.true.)
+          & range",wrap=.true.)
 
        ! one row per polyhedron
        if (w%vd%pol_n > 0) then
@@ -978,9 +973,7 @@ contains
        c_null_char // "Half the nearest-neighbor distance" // c_null_char,w%vd%pck_radii,&
        sameline=.true.,changed=changed)
     if (changed) w%vd%pck_done = .false.
-    call iw_tooltip("Radius assigned to each atom. The van der Waals and covalent radii&
-       & come from critic2's internal tables and the spheres may overlap; half the distance&
-       & to the nearest neighbor gives spheres that never do",ttshown)
+    call iw_tooltip("Radius assigned to each atom (the spheres may overlap)",ttshown)
 
     ! every radius is multiplied by this factor
     call iw_text("Scale",alignframe=.true.)
@@ -988,9 +981,7 @@ contains
        min=voids_pck_scale_min,max=voids_pck_scale_max,decimal=3,&
        flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
     if (scalechanged) w%vd%pck_done = .false.
-    call iw_tooltip("Factor multiplying the radius of every atom. A scale of one uses the&
-       & radii above unchanged; scaled up, even the nearest-neighbor spheres overlap and&
-       & the volume they cover has to be sampled",ttshown)
+    call iw_tooltip("Factor multiplying the radius of every atom",ttshown)
 
     ! The nearest-neighbor spheres never overlap, so their volume is a sum
     ! and there is nothing to sample. Scaled up they do overlap, and the
@@ -1032,9 +1023,7 @@ contains
     hasview = (iview > 0)
     if (hasview) hasview = associated(win(iview)%sc)
     ldum = iw_checkbox("Visualize spheres##voidspckshow",w%vd%pck_show)
-    call iw_tooltip("Draw the atomic spheres whose volume is measured (the space-filling&
-       & model of the settings above) in the view, for as long as this tab is open and the&
-       & box is checked",ttshown)
+    call iw_tooltip("Draw the atomic spheres whose volume is measured in the view",ttshown)
     if (w%vd%pck_show .and. hasview) &
        call win(iview)%sc%show_transient_spacefill(w%id,3,nneq_radii())
 

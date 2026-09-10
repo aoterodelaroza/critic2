@@ -697,8 +697,7 @@ contains
     if (ok) ok = .not.sys(isys)%c%ismolecule
     if (iw_menuitem("Crystal voids...",enabled=ok)) &
        idum = stack_create_window(wintype_voids,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Measure the volume of the empty space in this crystal, from the&
-       & promolecular density, the coordination polyhedra, or the atomic spheres",ttshown)
+    call iw_tooltip("Measure the volume of the empty space (voids) in this crystal",ttshown)
 
   end subroutine show_tools_menu
 
