@@ -44,7 +44,6 @@ submodule (windows) mo
   real(c_float), parameter :: mo_diag_wpref = 26._c_float ! diagram width the window opens at, in characters
   real(c_float), parameter :: mo_diag_hitpx = 6._c_float ! how close (pixels) the mouse must be to a level
   real*8, parameter :: mo_diag_occtol = 1d-6 ! occupation below which a level counts as empty
-  real*8, parameter :: mo_time_budget = 2d0 ! seconds of sampling the automatic quality aims for
   integer, parameter :: mo_occ_len = 5 ! width of the occupation entry, in characters
   integer, parameter :: mo_ene_len = 10 ! width of the energy entry, in characters
 
@@ -96,7 +95,7 @@ contains
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_alpha_def, iso_rgb_palette,&
        iso_grid_size, iso_region_to_box, iso_level_custom, iso_nlevel, iso_defaultlevel,&
-       iso_level_label
+       iso_level_label, iso_autogrid_secs
     use wfn_private, only: wfn_rhf, wfn_uhf, wfn_rohf, wfn_spin_all, wfn_spin_alpha, wfn_spin_beta
     use types, only: id_mo_id, field_evaluation_avail, fieldeval_category_mo
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_checkbox,&
@@ -125,7 +124,7 @@ contains
     ! initialize state
     if (w%firstpass) then
        w%mo_ieneunit = 0
-       w%mo_ilevel = 0 ! automatic: fit the sampling into mo_time_budget
+       w%mo_ilevel = 0 ! automatic: fit the sampling into iso_autogrid_secs
        w%mo_isoval = iso_isoval_mo
        w%mo_rgb(:,1) = iso_rgb_palette(:,1) ! positive lobe: blue
        w%mo_rgb(:,2) = iso_rgb_palette(:,4) ! negative lobe: red
@@ -373,10 +372,10 @@ contains
          changed = changed .or. ldum
          call iw_tooltip("Density of the grid used to calculate the MO isosurface. Automatic &
             &uses the default quality, coarsened if sampling one orbital would take longer &
-            &than about " // string(nint(mo_time_budget)) // " seconds",ttshown)
+            &than about " // string(nint(iso_autogrid_secs)) // " seconds",ttshown)
 
          ! a choice well past the budget is worth saying out loud
-         if (havecost .and. tsel > 2d0 * mo_time_budget) then
+         if (havecost .and. tsel > 2d0 * iso_autogrid_secs) then
             call iw_text("slow",danger=.true.,sameline=.true.)
             call iw_tooltip("Sampling one orbital at this quality takes about " //&
                duration_string(tsel) // ", and the window does not respond while it runs",ttshown)
@@ -1699,7 +1698,7 @@ contains
   !> committing to it.
   function mo_quality_cost(w,isys,ilevel,n) result(secs)
     use representations, only: iso_grid_size, iso_defaultlevel, iso_npts_custom_min,&
-       iso_npts_custom_max
+       iso_npts_custom_max, iso_auto_ptsang, iso_level_ptsang
     use param, only: bohrtoa
     type(window), intent(in) :: w
     integer, intent(in) :: isys
@@ -1716,7 +1715,7 @@ contains
           alen(i) = norm2(w%mo_cost%box(:,i)) * bohrtoa
        end do
        n = iso_grid_size(isys,iso_defaultlevel,box=w%mo_cost%box,&
-          ptsang=mo_auto_ptsang(w%mo_cost%secs,alen))
+          ptsang=iso_auto_ptsang(w%mo_cost%secs,alen,iso_level_ptsang(iso_defaultlevel)))
        ! within the bounds a custom grid obeys, since that is what the
        ! automatic quality is recorded as
        n = min(max(n,iso_npts_custom_min),iso_npts_custom_max)
@@ -1726,35 +1725,6 @@ contains
     secs = w%mo_cost%secs * product(real(n,8))
 
   end function mo_quality_cost
-
-  !> Points per angstrom the automatic quality uses to sample one orbital
-  !> over a box of edge lengths alen (angstrom), given costest, the
-  !> measured cost of one sample point in seconds.
-  !>
-  !> The automatic quality only ever COARSENS: it is the user's default
-  !> quality (the iso_defaultlevel preference), dropped to whatever the
-  !> time budget allows when that level would take too long. Letting the
-  !> budget also raise the resolution would make a small molecule spend
-  !> the whole budget on a grid far finer than its isosurface needs --
-  !> slower than the plain default, for a case that was never the
-  !> problem. How coarse it can get is bounded from below by
-  !> iso_grid_size's own per-axis floor, so on a pathologically slow
-  !> field the budget can still be exceeded; the combo says so.
-  function mo_auto_ptsang(costest,alen) result(ppa)
-    use representations, only: iso_level_ptsang, iso_defaultlevel
-    real*8, intent(in) :: costest
-    real*8, intent(in) :: alen(3)
-    real*8 :: ppa
-
-    real*8 :: vol
-
-    ppa = iso_level_ptsang(iso_defaultlevel)
-    if (costest <= 0d0) return
-    vol = alen(1) * alen(2) * alen(3)
-    if (vol <= 0d0) return
-    ppa = min((mo_time_budget / costest / vol)**(1d0/3d0),ppa)
-
-  end function mo_auto_ptsang
 
   !> Measure the cost of one sample point of an MO of field ifield of
   !> system isys, over the box representation r samples with n points per

@@ -2382,7 +2382,9 @@ contains
        iso_hscale_name,&
        iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
-       iso_region_point_from_cart, iso_estimate_cost
+       iso_region_point_from_cart, iso_estimate_cost, iso_nlevel, iso_level_ptsang,&
+       iso_custom_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
+       iso_box_lengths
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
@@ -2408,7 +2410,7 @@ contains
     real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
-    logical :: ch, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
+    logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
     logical :: ismapped, hascolors, plotted
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
@@ -2601,25 +2603,54 @@ contains
        & of the field, a named density of points per angstrom, or a custom number of&
        & points",ttshown)
 
-    ! custom level: dimensions given by the user
+    ! custom level: the grid given by the user, either as the number of
+    ! points along each axis or as a resolution in points per angstrom
     if (w%rep%iso%ilevel == iso_level_custom) then
+       ! arriving at the custom level: start from the grid that was on
+       ! screen, written both ways, so either mode continues it
        if (ch .and. ilevprev /= iso_level_custom) then
           if (ilevprev == 0) then
              w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%ifield)%grid%n
+             w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
           elseif (okbox) then
              w%rep%iso%nptscustom = level_grid_size(ilevprev)
+             w%rep%iso%ptsangcustom = iso_level_ptsang(ilevprev)
           end if
        end if
-       ncus = w%rep%iso%nptscustom
-       ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
-       ldum = iw_intstepper("n1##isonpts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
-          maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.)
-       ldum = iw_intstepper("n2##isonpts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
-          maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-       ldum = iw_intstepper("n3##isonpts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
-          maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-       call iw_tooltip("Number of grid points along each axis of the grid",ttshown)
-       w%rep%iso%nptscustom = ncus
+
+       call iw_text("Given as",alignframe=.true.)
+       call iw_combo_simple("##isocustom",iso_custom_optstr,w%rep%iso%icustom,&
+          sameline=.true.,changed=ch2)
+       call iw_tooltip("Whether the custom grid is given as the number of points along&
+          & each axis or as a density of points per angstrom",ttshown)
+       ! switching between the two carries the grid over, so the mode
+       ! change by itself does not move the isosurface
+       if (ch2 .and. okbox) then
+          if (w%rep%iso%icustom == iso_custom_ptsang) then
+             w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
+          else
+             w%rep%iso%nptscustom = ptsang_grid_size(w%rep%iso%ptsangcustom)
+          end if
+       end if
+
+       if (w%rep%iso%icustom == iso_custom_ptsang) then
+          call iw_text("Resolution (pts/Å)",alignframe=.true.)
+          ldum = iw_dragfloat_real8("##isoptsang",x1=w%rep%iso%ptsangcustom,sameline=.true.,&
+             speed=0.05d0,decimal=2,min=iso_ptsang_min,max=iso_ptsang_max,&
+             flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Number of grid points per angstrom along each axis of the grid",ttshown)
+       else
+          ncus = w%rep%iso%nptscustom
+          ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
+          ldum = iw_intstepper("n1##isonpts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
+             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.)
+          ldum = iw_intstepper("n2##isonpts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
+             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+          ldum = iw_intstepper("n3##isonpts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
+             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+          call iw_tooltip("Number of grid points along each axis of the grid",ttshown)
+          w%rep%iso%nptscustom = ncus
+       end if
     end if
 
     ! grid dimensions
@@ -2635,7 +2666,8 @@ contains
        elseif (capped) then
           str2 = " (capped)"
        end if
-       if (w%rep%iso%ilevel /= iso_level_custom .or. capped) then
+       if (w%rep%iso%ilevel /= iso_level_custom .or.&
+          w%rep%iso%icustom == iso_custom_ptsang .or. capped) then
           call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
              string(nshow(3)) // str2)
           call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
@@ -3309,13 +3341,52 @@ contains
       integer, intent(in) :: ilev
       integer :: nn(3)
 
-      if (w%rep%iso%iregion == iso_region_cell) then
+      if (ilev > iso_nlevel .and. w%rep%iso%icustom == iso_custom_ptsang) then
+         nn = ptsang_grid_size(w%rep%iso%ptsangcustom)
+      elseif (w%rep%iso%iregion == iso_region_cell) then
          nn = iso_grid_size(isys,ilev,w%rep%iso%nptscustom,capped,ifield=w%rep%iso%ifield)
       else
          nn = iso_grid_size(isys,ilev,w%rep%iso%nptscustom,capped,box=box)
       end if
 
     end function level_grid_size
+
+    !> Grid dimensions of a custom resolution pa (points per angstrom)
+    !> over the staged region.
+    function ptsang_grid_size(pa) result(nn)
+      real*8, intent(in) :: pa
+      integer :: nn(3)
+
+      if (w%rep%iso%iregion == iso_region_cell) then
+         nn = iso_grid_size(isys,iso_level_custom,capped=capped,ptsang=pa,&
+            ifield=w%rep%iso%ifield)
+      else
+         nn = iso_grid_size(isys,iso_level_custom,capped=capped,ptsang=pa,box=box)
+      end if
+
+    end function ptsang_grid_size
+
+    !> The resolution (points per angstrom) that grid dimensions nn
+    !> amount to over the staged region: the cube root of the point
+    !> density, so the two ways of writing a custom grid agree on the
+    !> total number of points.
+    function npts_to_ptsang(nn) result(pa)
+      integer, intent(in) :: nn(3)
+      real*8 :: pa
+
+      real*8 :: alen(3), vol
+
+      pa = iso_level_ptsang(iso_defaultlevel)
+      if (w%rep%iso%iregion == iso_region_cell) then
+         alen = iso_box_lengths(isys,ifield=w%rep%iso%ifield)
+      else
+         alen = iso_box_lengths(isys,box=box)
+      end if
+      vol = alen(1) * alen(2) * alen(3)
+      if (vol <= 0d0) return
+      pa = min(max((product(real(nn,8)) / vol)**(1d0/3d0),iso_ptsang_min),iso_ptsang_max)
+
+    end function npts_to_ptsang
 
     !> Draw the Pick button of region coordinate row irow: arms a pick
     !> in the anchor view that fills the row with the clicked position

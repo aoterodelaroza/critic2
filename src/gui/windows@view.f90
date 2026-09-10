@@ -3765,6 +3765,7 @@ contains
   !> it. Returns the new representation id in id (0 if the scene is not
   !> available). add_representation flags the scene for rebuild.
   module subroutine add_rep_and_edit(w,itype,flavor,id)
+    use representations, only: reptype_isosurface
     class(window), intent(inout), target :: w
     integer, intent(in) :: itype, flavor
     integer, intent(out), optional :: id
@@ -3775,6 +3776,10 @@ contains
     if (.not.associated(w%sc)) return
     if (w%sc%isinit == 0) call w%sc%init(w%isys)
     call w%sc%add_representation(itype,flavor,id=irep)
+    ! a new isosurface picks a grid it can sample quickly and draws
+    ! right away, instead of waiting for the user to commit one
+    if (irep > 0 .and. itype == reptype_isosurface) &
+       call w%sc%rep(irep)%iso%autogrid(w%isys)
     idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
        idparent=w%id,orraise=-1)
     if (present(id)) id = irep

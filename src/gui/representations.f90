@@ -118,13 +118,20 @@ module representations
   !--> isosurfaces
   integer, parameter, public :: iso_nlevel = 4 ! number of named coarseness levels (0 = native; 1..nlevel, set level)
   real*8, parameter, public :: iso_level_ptsang(iso_nlevel) = (/2d0,5d0,10d0,20d0/) ! points/ang of the named levels
-  integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom points/ang
+  integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom grid
+  integer, parameter, public :: iso_custom_npts = 0 ! custom grid given as the number of points per axis
+  integer, parameter, public :: iso_custom_ptsang = 1 ! custom grid given as a resolution (points/ang)
+  character(len=*), parameter, public :: iso_custom_optstr = &
+     "Points"//c_null_char//"Resolution"//c_null_char ! how a custom grid is given
+  real*8, parameter, public :: iso_ptsang_min = 0.05d0 ! bounds of a custom resolution (points/ang)
+  real*8, parameter, public :: iso_ptsang_max = 100d0
   integer, parameter, public :: iso_level_def = 2 ! default named level (medium)
   integer, public :: iso_defaultlevel = iso_level_def ! preference: level for newly created isosurfaces
   integer, parameter, public :: iso_npts_custom_min = 2 ! minimum points per axis (custom level)
   integer, parameter, public :: iso_npts_custom_max = 512 ! maximum points per axis (custom level)
   integer, parameter, public :: iso_maxpts_total = 4000000 ! total-points cap (~32 MB of cached samples); coarsen uniformly above it
   integer, parameter, public :: iso_npts_axmin = 16 ! per-axis minimum number of points
+  real*8, parameter, public :: iso_autogrid_secs = 2d0 ! sampling-time budget of the grid a new isosurface picks for itself (s)
   character(len=*), parameter, public :: iso_level_optstr = &
      "Coarse (2 pts/Å)"//c_null_char//"Medium (5 pts/Å)"//c_null_char//&
      "Fine (10 pts/Å)"//c_null_char//"Very fine (20 pts/Å)"//c_null_char ! named levels
@@ -609,7 +616,9 @@ module representations
                            ! an id_mo_* selector from the types module (all negative), or 0 = the field
      integer :: imoidx = 0 ! MO index accompanying imosel (id_mo_a, id_mo_b, id_mo_id)
      integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
-     integer :: nptscustom(3) = 0 ! staged custom grid dimensions (ilevel = custom; seeded when it is selected)
+     integer :: icustom = iso_custom_npts ! how the staged custom grid is given (iso_custom_*)
+     integer :: nptscustom(3) = 0 ! staged custom grid dimensions (ilevel = custom, points mode; seeded when it is selected)
+     real*8 :: ptsangcustom = 0d0 ! staged custom grid resolution (ilevel = custom, resolution mode; points/ang)
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
      real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner/center (column 0) and far
                                   ! corner, edge endpoints, or half-lengths (columns 1-3); fractional or
@@ -662,6 +671,7 @@ module representations
      procedure :: add_iso => iso_add_iso ! add an isosurface (isovalue and color chosen if not given)
      procedure :: del_iso => iso_del_iso ! remove an isosurface
      procedure :: apply_grid => iso_apply_grid ! commit a staged grid + region as the applied state
+     procedure :: autogrid => iso_autogrid ! stage and apply the finest grid the field can afford
      procedure :: grid_isapplied => iso_grid_isapplied ! whether a staged grid + region is already applied
      procedure :: sampled_box => iso_sampled_box ! the box sampled by the applied state (domain policy)
      procedure :: isgenerated => iso_isgenerated ! whether the applied state describes a generated isosurface
@@ -715,6 +725,8 @@ module representations
   public :: iso_grid_size
   public :: iso_level_label
   public :: iso_isgridfield
+  public :: iso_box_lengths
+  public :: iso_auto_ptsang
   public :: iso_region_to_box
   public :: iso_region_seed
   public :: iso_region_point_from_cart
@@ -743,6 +755,18 @@ module representations
        real*8, intent(in), optional :: ptsang
        integer :: n(3)
      end function iso_grid_size
+     module function iso_box_lengths(isys,ifield,box) result(alen)
+       integer, intent(in) :: isys
+       integer, intent(in), optional :: ifield
+       real*8, intent(in), optional :: box(3,0:3)
+       real*8 :: alen(3)
+     end function iso_box_lengths
+     module function iso_auto_ptsang(costest,alen,pamax) result(ppa)
+       real*8, intent(in) :: costest
+       real*8, intent(in) :: alen(3)
+       real*8, intent(in) :: pamax
+       real*8 :: ppa
+     end function iso_auto_ptsang
      module function iso_level_label(ilevel) result(str)
        integer, intent(in) :: ilevel
        character(len=:), allocatable :: str
@@ -786,6 +810,10 @@ module representations
        integer, intent(in) :: iregion
        real*8, intent(in) :: x(3,0:3)
      end subroutine iso_apply_grid
+     module subroutine iso_autogrid(iso,isys)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: isys
+     end subroutine iso_autogrid
      module function iso_grid_isapplied(iso,n,iregion,x) result(isap)
        class(rep_isosurface), intent(in) :: iso
        integer, intent(in) :: n(3)

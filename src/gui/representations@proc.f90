@@ -549,14 +549,51 @@ contains
 
   end function iso_default_isovalue
 
+  !> Edge lengths (angstrom) of the box an isosurface of system isys
+  !> samples: the given region box, else the valid window of the grid
+  !> domain when the target field is a grid (a partial grid's box does
+  !> not span the cell, and only part of it can feed the interpolation;
+  !> matches iso_sample_domain), else the unit cell. Zero if the system
+  !> is not available.
+  module function iso_box_lengths(isys,ifield,box) result(alen)
+    use systems, only: sys, sys_init, ok_system
+    integer, intent(in) :: isys
+    integer, intent(in), optional :: ifield
+    real*8, intent(in), optional :: box(3,0:3)
+    real*8 :: alen(3)
+
+    integer :: i
+    real*8 :: xmat(3,3), x0c(3), flo(3), fhi(3)
+
+    alen = 0d0
+    if (.not.ok_system(isys,sys_init)) return
+
+    xmat = sys(isys)%c%m_x2c
+    flo = 0d0
+    fhi = 1d0
+    if (present(box)) then
+       xmat = box(:,1:3)
+    elseif (present(ifield)) then
+       if (iso_isgridfield(isys,ifield)) &
+          call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
+    end if
+    do i = 1, 3
+       alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
+    end do
+
+  end function iso_box_lengths
+
   !> Sampling-grid dimensions for an isosurface of system isys at
   !> coarseness level ilevel: 0 = native grid (returns all-zero),
   !> 1..iso_nlevel = named levels (points per angstrom over the sampled
-  !> box), iso_level_custom = the ncustom dimensions given by the user.
-  !> Never returns all-zero for a non-native level (that value is the
-  !> native-grid sentinel).
+  !> box), iso_level_custom = a custom grid, given either as the
+  !> ncustom dimensions or, if ptsang is present, as a resolution in
+  !> points per angstrom. On a named level ptsang instead overrides the
+  !> level's tabulated resolution, for a caller working to a budget of
+  !> its own. Never returns all-zero for a non-native level (that value
+  !> is the native-grid sentinel).
   module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang) result(n)
-    use systems, only: sys, sys_init, ok_system
+    use systems, only: sys_init, ok_system
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
     integer, intent(in), optional :: ncustom(3)
@@ -566,47 +603,42 @@ contains
     real*8, intent(in), optional :: ptsang
     integer :: n(3)
 
-    integer :: i, it, nmin, nc(3)
-    real*8 :: pa, fac, alen(3), xmat(3,3), x0c(3), flo(3), fhi(3)
+    integer :: i, it, nmin, nmax, nc(3)
+    real*8 :: pa, fac, alen(3)
 
     n = 0
     if (present(capped)) capped = .false.
     if (ilevel <= 0) return
     if (.not.ok_system(isys,sys_init)) return
 
-    if (ilevel > iso_nlevel) then
-       ! custom: the dimensions come straight from the user, and asking
-       ! for a custom level without them is a caller error -- answer with
-       ! the same "no grid" zero a non-positive level gives, rather than
-       ! silently returning a useless minimum-sized one
+    if (ilevel > iso_nlevel .and. .not.present(ptsang)) then
+       ! custom, points mode: the dimensions come straight from the
+       ! user, and asking for a custom level without them (and without a
+       ! resolution) is a caller error -- answer with the same "no grid"
+       ! zero a non-positive level gives, rather than silently returning
+       ! a useless minimum-sized one
        if (.not.present(ncustom)) return
        nmin = iso_npts_custom_min
        nc = ncustom
        n = min(max(nc,nmin),iso_npts_custom_max)
     else
-       ! named level: points per angstrom along the axes of the sampled
-       ! box, which is the given region box, else the valid window of
-       ! the grid domain when the target field is a grid (a partial
-       ! grid's box does not span the cell, and only part of it can feed
-       ! the interpolation; matches iso_sample_domain), else the unit cell
-       nmin = iso_npts_axmin
-       pa = iso_level_ptsang(ilevel)
-       ! a caller with a points-per-angstrom budget of its own overrides
-       ! the level's table value; everything below, including the total
-       ! cap and the per-axis floor, applies to it just the same
-       if (present(ptsang)) pa = ptsang
-       xmat = sys(isys)%c%m_x2c
-       flo = 0d0
-       fhi = 1d0
-       if (present(box)) then
-          xmat = box(:,1:3)
-       elseif (present(ifield)) then
-          if (iso_isgridfield(isys,ifield)) &
-             call sys(isys)%f(ifield)%grid%get_domain(xmat,x0c,flo=flo,fhi=fhi)
+       ! points per angstrom along the axes of the sampled box: the
+       ! level's tabulated value, or the one the caller gives. A custom
+       ! resolution is taken literally, down to the floor a custom grid
+       ! obeys; a named level keeps the coarser floor of the presets
+       if (ilevel > iso_nlevel) then
+          nmin = iso_npts_custom_min
+          nmax = iso_npts_custom_max
+          pa = ptsang
+       else
+          nmin = iso_npts_axmin
+          nmax = huge(1)
+          pa = iso_level_ptsang(ilevel)
+          if (present(ptsang)) pa = ptsang
        end if
+       alen = iso_box_lengths(isys,ifield=ifield,box=box)
        do i = 1, 3
-          alen(i) = norm2(xmat(:,i)) * max(fhi(i)-flo(i),0d0) * bohrtoa
-          n(i) = max(nint(alen(i) * pa),nmin)
+          n(i) = min(max(nint(alen(i) * pa),nmin),nmax)
        end do
     end if
 
@@ -620,6 +652,28 @@ contains
     end do
 
   end function iso_grid_size
+
+  !> Points per angstrom to sample a box of edge lengths alen
+  !> (angstrom) within the iso_autogrid_secs budget, given costest,
+  !> the measured cost of one sample point in seconds.  The budget
+  !> only ever coarsens: the answer is pamax, the resolution the
+  !> caller would use anyway, dropped to whatever the budget allows
+  !> when that would take too long.
+  module function iso_auto_ptsang(costest,alen,pamax) result(ppa)
+    real*8, intent(in) :: costest
+    real*8, intent(in) :: alen(3)
+    real*8, intent(in) :: pamax
+    real*8 :: ppa
+
+    real*8 :: vol
+
+    ppa = pamax
+    if (costest <= 0d0) return
+    vol = alen(1) * alen(2) * alen(3)
+    if (vol <= 0d0) return
+    ppa = min((iso_autogrid_secs / costest / vol)**(1d0/3d0),pamax)
+
+  end function iso_auto_ptsang
 
   !> Name of the named coarseness level ilevel, as it appears in
   !> iso_level_optstr. That string is the one place the names live; this
@@ -930,6 +984,95 @@ contains
     iso%timelastapply_grid = glfwGetTime()
 
   end subroutine iso_apply_grid
+
+  !> Stage and apply the sampling grid of isosurface iso (system isys)
+  !> so that a newly created isosurface draws by itself, without the
+  !> user having to commit one with the editor's Calculate grid
+  !> button.
+  module subroutine iso_autogrid(iso,isys)
+    use systems, only: sys, sys_init, ok_system
+    use types, only: field_evaluation_avail
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: isys
+
+    integer :: ilev0, n(3)
+    real*8 :: box(3,0:3), alen(3), secs, pamax, pa
+    logical :: okbox
+    type(field_evaluation_avail) :: request
+
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.sys(isys)%goodfield(iso%ifield)) return
+    if (iso_isgridfield(isys,iso%ifield)) return
+
+    ! the box the sampling covers
+    okbox = .true.
+    if (iso%iregion /= iso_region_cell) then
+       call iso_region_to_box(isys,iso%iregion,iso%rgn_x,box,okbox)
+       if (.not.okbox) return
+    end if
+
+    ! the level the isosurface was created with is the ceiling: this
+    ! only coarsens a grid that would take too long, it does not
+    ! override the preference with a finer one
+    ilev0 = max(min(iso%ilevel,iso_nlevel),1)
+    n = level_size(ilev0)
+    if (all(n == 0)) return
+
+    ! seconds per sample point, measured on what the sampling loop
+    ! evaluates: a single molecular orbital costs several times less
+    ! than the density, and pricing the wrong one buys the wrong grid
+    if (iso%imosel /= 0) then
+       request = iso%mo_request()
+       secs = iso_estimate_cost(isys,iso%ifield,iso%iregion,iso%rgn_x,n,request)
+    else
+       secs = iso_estimate_cost(isys,iso%ifield,iso%iregion,iso%rgn_x,n)
+    end if
+    if (secs < 0d0) return
+    iso%costest = secs
+
+    ! the resolution the budget affords. If it is the level's own, that
+    ! level is what gets applied -- a named level says more in the
+    ! editor than the same grid spelled out as a custom one
+    pamax = iso_level_ptsang(ilev0)
+    if (iso%iregion == iso_region_cell) then
+       alen = iso_box_lengths(isys,ifield=iso%ifield)
+    else
+       alen = iso_box_lengths(isys,box=box)
+    end if
+    pa = iso_auto_ptsang(secs,alen,pamax)
+    if (pa < pamax) then
+       iso%ilevel = iso_level_custom
+       iso%icustom = iso_custom_ptsang
+       iso%ptsangcustom = min(max(pa,iso_ptsang_min),iso_ptsang_max)
+       n = level_size(iso_level_custom)
+    else
+       iso%ilevel = ilev0
+    end if
+    if (all(n == 0)) return
+    call iso%apply_grid(n,iso%iregion,iso%rgn_x)
+
+  contains
+
+    !> Grid dimensions of coarseness level ilev over the staged region.
+    function level_size(ilev) result(nn)
+      integer, intent(in) :: ilev
+      integer :: nn(3)
+
+      if (ilev > iso_nlevel) then
+         if (iso%iregion == iso_region_cell) then
+            nn = iso_grid_size(isys,ilev,ptsang=iso%ptsangcustom,ifield=iso%ifield)
+         else
+            nn = iso_grid_size(isys,ilev,ptsang=iso%ptsangcustom,box=box)
+         end if
+      elseif (iso%iregion == iso_region_cell) then
+         nn = iso_grid_size(isys,ilev,ifield=iso%ifield)
+      else
+         nn = iso_grid_size(isys,ilev,box=box)
+      end if
+
+    end function level_size
+
+  end subroutine iso_autogrid
 
   !> Number of unit cells a representation is drawn over, from its
   !> periodicity control: 1 (none), the scene's global cell count nc

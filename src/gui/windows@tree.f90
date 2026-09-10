@@ -1689,7 +1689,12 @@ contains
             call win(iwin_view)%select_view(i)
             call w%select_system_tree(i)
             call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface,id=irep)
-            if (irep > 0) call win(iwin_view)%sc%rep(irep)%iso%set_field(i,k)
+            ! set_field re-stages an ungenerated grid, so the object has
+            ! to pick an affordable one for this field again
+            if (irep > 0) then
+               call win(iwin_view)%sc%rep(irep)%iso%set_field(i,k)
+               call win(iwin_view)%sc%rep(irep)%iso%autogrid(i)
+            end if
          end if
          call iw_tooltip("Display an isosurface of this field in the view",ttshown)
 
