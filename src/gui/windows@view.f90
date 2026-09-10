@@ -81,7 +81,8 @@ contains
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface
     use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
-       iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget
+       iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
+       iw_push_iconrow_frame, iw_pop_iconrow_frame
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
@@ -99,7 +100,7 @@ contains
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable, target :: msg
-    logical(c_bool) :: is_selected
+    logical(c_bool) :: is_selected, lcombo
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
     logical :: isuc, islabelsl, needpick, enabled, ispoly, symenabled, istarget
     integer :: islabels
@@ -301,8 +302,13 @@ contains
           msg = "1×1×1"
        end if
        call igSameLine(0._c_float,2._c_float * g%Style%ItemSpacing%x)
+       ! as tall as the icon buttons it sits between, or it would be a
+       ! short frame in the middle of the row (popped before the popup
+       ! below, which is not part of the toolbar row)
+       call iw_push_iconrow_frame()
        ldum = iw_button(msg // "###viewperiodicity",disabled=.not.enabled,popupcontext=ok,&
           popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       call iw_pop_iconrow_frame()
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
        if (ok) then
           if (associated(w%sc)) then
@@ -616,7 +622,11 @@ contains
        str2 = string(w%isys) // ": " // trim(sysc(w%isys)%seed%name) // c_null_char
     end if
     str1 = "##systemcombo" // c_null_char
-    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+    ! as tall as the icon buttons it shares the toolbar with
+    call iw_push_iconrow_frame()
+    lcombo = igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)
+    call iw_pop_iconrow_frame()
+    if (lcombo) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
              is_selected = (w%isys == i)

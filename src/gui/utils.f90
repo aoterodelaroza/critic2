@@ -83,6 +83,8 @@ module utils
   public :: iw_icon_button
   public :: iw_icon_togglebutton
   public :: iw_iconbutton_height
+  public :: iw_push_iconrow_frame
+  public :: iw_pop_iconrow_frame
   public :: iw_close_button
   public :: iw_menuitem
   public :: iw_tooltip
@@ -384,6 +386,11 @@ module utils
        real(c_float), intent(in), optional :: scale
        logical :: changed
      end function iw_icon_togglebutton
+     module subroutine iw_push_iconrow_frame(scale)
+       real(c_float), intent(in), optional :: scale
+     end subroutine iw_push_iconrow_frame
+     module subroutine iw_pop_iconrow_frame()
+     end subroutine iw_pop_iconrow_frame
      module function iw_iconbutton_height(scale) result(h)
        real(c_float), intent(in), optional :: scale
        real(c_float) :: h

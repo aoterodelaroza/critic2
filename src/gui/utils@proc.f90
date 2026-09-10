@@ -1632,6 +1632,35 @@ contains
 
   end function iw_iconbutton_height
 
+  !> Push a frame padding that makes the standard-height framed
+  !> widgets of a toolbar row (buttons, combos, inputs) as tall as the
+  !> icon buttons they sit next to, so their frames line up instead of
+  !> the shorter one floating inside the row. scale is the same
+  !> optional multiplier iw_icon_togglebutton takes. Pair with
+  !> iw_pop_iconrow_frame, and pop before drawing anything the row
+  !> itself does not contain (the contents of a popup the button
+  !> opens, say).
+  module subroutine iw_push_iconrow_frame(scale)
+    use interfaces_cimgui
+    use gui_main, only: g, fontsize
+    real(c_float), intent(in), optional :: scale
+
+    type(ImVec2) :: sz
+
+    sz%x = g%Style%FramePadding%x
+    sz%y = max(0.5_c_float * (iw_iconbutton_height(scale) - fontsize%y),0._c_float)
+    call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,sz)
+
+  end subroutine iw_push_iconrow_frame
+
+  !> Undo iw_push_iconrow_frame.
+  module subroutine iw_pop_iconrow_frame()
+    use interfaces_cimgui
+
+    call igPopStyleVar(1)
+
+  end subroutine iw_pop_iconrow_frame
+
   !> Draw the standard close button (a red X icon) with the given id.
   !> Returns .true. when clicked.
   module function iw_close_button(strid) result(pressed)

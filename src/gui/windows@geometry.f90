@@ -1436,7 +1436,8 @@ contains
              "Bond order: cycle the order of the bond clicked in the view window:"//&
              " single, double, triple, aromatic, dashed")
           if (iview == 0) &
-             call iw_text("(no view window open for this system)",sameline=.true.)
+             call iw_text("(no view window open for this system)",sameline=.true.,&
+                alignframe=.true.)
 
           ! blue header
           call iw_text("System Bonds",highlight=.true.)
