@@ -1577,7 +1577,7 @@ contains
     integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
     integer :: natp, idpoly, kp, ka, kb
-    logical :: dopoly, corneractive
+    logical :: dopoly, corneractive, okpoly
     integer, allocatable :: cornlist(:,:)
     integer :: ncorn, ica, idc, imolc, ip, ixp(3), nbstate, ihb
 
@@ -1904,12 +1904,12 @@ contains
                          xvpoly(:,kp) = c%x2c(xpolyc) + uoriginc
                          dvpoly(:,kp) = vibdelta(eidp(kp),lvecp(:,kp)+ix) ! per-corner vibration delta
                       end do
-                      call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,rgbface,rgbedge,&
-                         r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps)
+                      call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,xc+uoriginc,&
+                         rgbface,rgbedge,r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps,okpoly)
 
                       ! collect this polyhedron's corner atom images to force
                       ! them visible after the main loop (deduplicated there)
-                      if (corneractive) then
+                      if (okpoly .and. corneractive) then
                          do kp = 1, natp
                             ncorn = ncorn + 1
                             if (ncorn > size(cornlist,2)) call realloc(cornlist,4,2*ncorn)
@@ -3343,51 +3343,92 @@ contains
     end subroutine draw_symmetry_element
 
     !> Build a coordination polyhedron from nvv vertex positions xv
-    !> (cartesian, bohr). The vertex centroid is used as the interior
-    !> reference point. Adds translucent triangular faces (color rgbf,
-    !> opacity alphaf) and opaque edge cylinders (color rgbe, radius
-    !> rade) to the draw lists. If the vertices are coplanar to within
-    !> eps, a filled polygon is drawn instead of a 3D convex hull.
-    subroutine build_polyhedron(xv,dv,nvv,rgbf,rgbe,alphaf,rade,eps)
+    !> (cartesian, bohr) around the center atom at xcen. Adds
+    !> translucent triangular faces (color rgbf, opacity alphaf) and
+    !> opaque edge cylinders (color rgbe, radius rade) to the draw
+    !> lists. If the vertices are coplanar to within eps, a filled
+    !> polygon is drawn instead of a 3D convex hull, but only if the
+    !> center atom lies in the polygon plane (to within eps) and
+    !> inside the polygon. Returns ok = .true. if anything was drawn.
+    subroutine build_polyhedron(xv,dv,nvv,xcen,rgbf,rgbe,alphaf,rade,eps,ok)
       use iso_c_binding, only: c_ptr, c_int, c_float_complex
       integer, intent(in) :: nvv
       real*8, intent(in) :: xv(3,nvv)
       complex*16, intent(in) :: dv(3,nvv) ! per-vertex vibration deltas
+      real*8, intent(in) :: xcen(3)
       real(c_float), intent(in) :: rgbf(3), rgbe(3)
       real*8, intent(in) :: alphaf, rade, eps
+      logical, intent(out) :: ok
 
       real*8, parameter :: edge_coplanar_cos = 0.9986d0 ! ~3 degrees
+      real*8, parameter :: onedge_eps2 = 1d-12 ! squared in-plane distance to an edge (bohr^2)
 
       integer :: a, b, k, kk, ntri, nedge, ip, iq, e
       integer, allocatable :: itri(:,:), edgei(:,:), iord_(:)
-      real*8, allocatable :: edgenrm(:,:), ang(:)
+      real*8, allocatable :: edgenrm(:,:), ang(:), uv(:,:)
       logical, allocatable :: edgekeep(:)
       real*8 :: cen0(3), nrm(3), dev, e1u(3), e2u(3), cc, nrm_a(3)
+      real*8 :: xcd(3), u0, v0, edu, edv, edd, tt
+      logical :: inside
       complex*16 :: dcen(3)
       type(c_ptr) :: ctx
       integer(c_int) :: ier
       integer :: nf
       type(dl_cylinder) :: dedge
 
+      ok = .false.
+
       ! centroid (an interior reference point), best-fit plane unit normal, and
       ! the maximum out-of-plane deviation
       call plane_from_points(xv,nvv,cen0,nrm,dev)
 
       if (dev < eps .and. norm2(nrm) > 1d-10) then
-         ! planar polygon: order vertices by angle about the normal and
-         ! fan-triangulate from the centroid
+         ! planar polygon: only drawn if the center atom is in the plane
+         xcd = xcen - cen0
+         if (abs(dot_product(xcd,nrm)) > eps) return
+
+         ! order vertices by angle about the normal and fan-triangulate
+         ! from the centroid
          e1u = xv(:,1) - cen0
          e1u = e1u - dot_product(e1u,nrm)*nrm
          if (norm2(e1u) < 1d-10) return
          e1u = e1u / norm2(e1u)
          e2u = cross(nrm,e1u)
 
-         allocate(ang(nvv),iord_(nvv))
+         allocate(ang(nvv),iord_(nvv),uv(2,nvv))
          do k = 1, nvv
-            ang(k) = atan2(dot_product(xv(:,k)-cen0,e2u),dot_product(xv(:,k)-cen0,e1u))
+            uv(1,k) = dot_product(xv(:,k)-cen0,e1u) ! in-plane coordinates, reused below
+            uv(2,k) = dot_product(xv(:,k)-cen0,e2u)
+            ang(k) = atan2(uv(2,k),uv(1,k))
             iord_(k) = k
          end do
          call mergesort(ang,iord_,1,nvv)
+
+         ! only drawn if the center atom is inside the polygon
+         u0 = dot_product(xcd,e1u)
+         v0 = dot_product(xcd,e2u)
+         inside = .false.
+         do k = 1, nvv
+            a = iord_(k)
+            b = iord_(mod(k,nvv)+1)
+
+            ! distance from the projected center to this edge
+            edu = uv(1,b) - uv(1,a)
+            edv = uv(2,b) - uv(2,a)
+            edd = edu*edu + edv*edv
+            if (edd > 1d-20) then
+               tt = min(max(((u0-uv(1,a))*edu + (v0-uv(2,a))*edv) / edd,0d0),1d0)
+               if ((u0-uv(1,a)-tt*edu)**2 + (v0-uv(2,a)-tt*edv)**2 < onedge_eps2) then
+                  inside = .true.
+                  exit
+               end if
+            end if
+
+            if ((uv(2,a) > v0) .neqv. (uv(2,b) > v0)) then
+               if (u0 < uv(1,a) + (v0-uv(2,a))/(uv(2,b)-uv(2,a))*(uv(1,b)-uv(1,a))) inside = .not.inside
+            end if
+         end do
+         if (.not.inside) return
 
          ! the fan apex sits at the centroid; animate it by the mean vertex delta
          dcen = 0d0
@@ -3408,6 +3449,7 @@ contains
             dedge%x2delta = cmplx(dv(:,iord_(kk)),kind=c_float_complex)
             call dl_append(obj%cylflat,obj%ncylflat,dedge)
          end do
+         ok = .true.
          return
       end if
 
@@ -3468,6 +3510,7 @@ contains
          dedge%x2delta = cmplx(dv(:,edgei(2,e)),kind=c_float_complex)
          call dl_append(obj%cylflat,obj%ncylflat,dedge)
       end do
+      ok = .true.
 
     end subroutine build_polyhedron
 
