@@ -1088,10 +1088,10 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
-     module subroutine add_rep_and_edit(w,itype,flavor,id)
+     module subroutine add_rep_and_edit(w,itype,flavor,ifield)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itype, flavor
-       integer, intent(out), optional :: id
+       integer, intent(in), optional :: ifield
      end subroutine add_rep_and_edit
      module subroutine viewmode_set_mode(w,okmods)
        class(window), intent(inout), target :: w
@@ -1388,9 +1388,10 @@ module windows
      module subroutine edit_stop(w)
        class(window), intent(inout) :: w
      end subroutine edit_stop
-     module subroutine draw_ff_backend_combo(isys,strid,nchars)
+     module subroutine draw_ff_backend_combo(isys,strid,nchars,sameline)
        integer, intent(in) :: isys, nchars
        character(len=*), intent(in) :: strid
+       logical, intent(in), optional :: sameline
      end subroutine draw_ff_backend_combo
      module subroutine addatom_geom_paint(ig,p0,side,dl,iz,bgrgb)
        integer, intent(in) :: ig

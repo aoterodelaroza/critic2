@@ -1323,7 +1323,7 @@ contains
       logical :: isend, okz
       integer(c_int) :: flags, color
       type(ImVec4) :: col4
-      integer :: id, is, irep
+      integer :: id, is
 
       ! start the row and color the name cell like the parent system's
       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1688,13 +1688,8 @@ contains
             ! its scene and the object editor follows the view
             call win(iwin_view)%select_view(i)
             call w%select_system_tree(i)
-            call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface,id=irep)
-            ! set_field re-stages an ungenerated grid, so the object has
-            ! to pick an affordable one for this field again
-            if (irep > 0) then
-               call win(iwin_view)%sc%rep(irep)%iso%set_field(i,k)
-               call win(iwin_view)%sc%rep(irep)%iso%autogrid(i)
-            end if
+            call win(iwin_view)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface,&
+               ifield=k)
          end if
          call iw_tooltip("Display an isosurface of this field in the view",ttshown)
 

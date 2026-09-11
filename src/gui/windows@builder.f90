@@ -263,7 +263,6 @@ contains
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
     use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
-       iw_push_iconrow_frame, iw_pop_iconrow_frame,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
        BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL
@@ -571,15 +570,14 @@ contains
           " the maximum force falls below the threshold",ttshown,whendisabled=.true.)
     end if
     if (havesys) then
-       ! method combo and force convergence threshold, next to the button
-       ! and as tall as it, so the three frames of the row line up
-       call iw_push_iconrow_frame(palscale)
+       ! method combo and force convergence threshold
+       call row_cursor_frame()
        call draw_ff_backend_combo(isys,"##builderrelaxmethod",15)
        call iw_tooltip("Method for the calculation of energies and forces",ttshown)
+       call row_cursor_frame()
        ldum = iw_dragfloat_real8("Fmax (eV/Å)##relaxfconv",x1=sysc(isys)%md%fconv,&
-          speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,sameline=.true.,&
+          speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,&
           flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_pop_iconrow_frame()
        call iw_tooltip("Stop the relaxation when the maximum force falls below this value",ttshown)
 
        ! live status: energy and maximum force
@@ -744,6 +742,13 @@ contains
       call igSetCursorPosY(yrow)
 
     end subroutine row_cursor
+
+    subroutine row_cursor_frame()
+
+      call igSameLine(0._c_float,-1._c_float)
+      call igSetCursorPosY(yrow + 0.5_c_float * (hicon - igGetFrameHeight()))
+
+    end subroutine row_cursor_frame
 
     ! Draw the toolbar button of tool itool, highlighted while the tool
     ! is armed on the view. first is whether it opens its row.

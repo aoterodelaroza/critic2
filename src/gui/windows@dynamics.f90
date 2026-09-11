@@ -72,7 +72,7 @@ contains
 
        ! method used for MD/relaxation
        call iw_text("Method",highlight=.true.,alignframe=.true.)
-       call draw_ff_backend_combo(isys,"##dynamicsengine",21)
+       call draw_ff_backend_combo(isys,"##dynamicsengine",21,sameline=.true.)
        call iw_tooltip("Method for the calculation of energies, forces, and stress.",ttshown)
 
        ! mode (dynamics vs relaxation), bound live to the run: two radio buttons

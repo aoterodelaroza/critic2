@@ -121,7 +121,7 @@ module representations
   integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom grid
   integer, parameter, public :: iso_custom_npts = 0 ! custom grid given as the number of points per axis
   integer, parameter, public :: iso_custom_ptsang = 1 ! custom grid given as a resolution (points/ang)
-  character(len=*), parameter, public :: iso_custom_optstr = &
+  character(len=*), parameter, public :: iso_custom_mode_optstr = &
      "Points"//c_null_char//"Resolution"//c_null_char ! how a custom grid is given
   real*8, parameter, public :: iso_ptsang_min = 0.05d0 ! bounds of a custom resolution (points/ang)
   real*8, parameter, public :: iso_ptsang_max = 100d0
@@ -617,8 +617,11 @@ module representations
      integer :: imoidx = 0 ! MO index accompanying imosel (id_mo_a, id_mo_b, id_mo_id)
      integer :: ilevel = iso_level_def ! staged grid coarseness level (0=native, 1..4=named, 5=custom)
      integer :: icustom = iso_custom_npts ! how the staged custom grid is given (iso_custom_*)
-     integer :: nptscustom(3) = 0 ! staged custom grid dimensions (ilevel = custom, points mode; seeded when it is selected)
-     real*8 :: ptsangcustom = 0d0 ! staged custom grid resolution (ilevel = custom, resolution mode; points/ang)
+     integer :: nptscustom(3) = iso_npts_custom_min ! staged custom grid dimensions (ilevel = custom, points
+                                  ! mode). Seeded valid, and re-seeded from the grid on screen when the custom
+                                  ! level is picked
+     real*8 :: ptsangcustom = iso_level_ptsang(iso_level_def) ! staged custom grid resolution (ilevel =
+                                  ! custom, resolution mode; points/ang). Seeded and re-seeded like nptscustom
      integer :: iregion = iso_region_cell ! staged region mode (iso_region_*)
      real*8 :: rgn_x(3,0:3) = 0d0 ! staged region coordinates: origin/corner/center (column 0) and far
                                   ! corner, edge endpoints, or half-lengths (columns 1-3); fractional or
@@ -672,6 +675,9 @@ module representations
      procedure :: del_iso => iso_del_iso ! remove an isosurface
      procedure :: apply_grid => iso_apply_grid ! commit a staged grid + region as the applied state
      procedure :: autogrid => iso_autogrid ! stage and apply the finest grid the field can afford
+     procedure :: staged_grid_size => iso_staged_grid_size ! dimensions a level gives over the staged options
+     procedure :: staged_box_lengths => iso_staged_box_lengths ! edge lengths of the box the staged options sample
+     procedure :: measure_cost => iso_measure_cost ! benchmark the staged sampling, in seconds per point
      procedure :: grid_isapplied => iso_grid_isapplied ! whether a staged grid + region is already applied
      procedure :: sampled_box => iso_sampled_box ! the box sampled by the applied state (domain policy)
      procedure :: isgenerated => iso_isgenerated ! whether the applied state describes a generated isosurface
@@ -727,6 +733,7 @@ module representations
   public :: iso_isgridfield
   public :: iso_box_lengths
   public :: iso_auto_ptsang
+  public :: iso_ptsang_from_npts
   public :: iso_region_to_box
   public :: iso_region_seed
   public :: iso_region_point_from_cart
@@ -767,6 +774,11 @@ module representations
        real*8, intent(in) :: pamax
        real*8 :: ppa
      end function iso_auto_ptsang
+     module function iso_ptsang_from_npts(ntot,alen) result(ppa)
+       real*8, intent(in) :: ntot
+       real*8, intent(in) :: alen(3)
+       real*8 :: ppa
+     end function iso_ptsang_from_npts
      module function iso_level_label(ilevel) result(str)
        integer, intent(in) :: ilevel
        character(len=:), allocatable :: str
@@ -814,6 +826,27 @@ module representations
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys
      end subroutine iso_autogrid
+     module function iso_staged_grid_size(iso,isys,ilevel,box,capped,icustom) result(n)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       integer, intent(in) :: ilevel
+       real*8, intent(in) :: box(3,0:3)
+       logical, intent(out), optional :: capped
+       integer, intent(in), optional :: icustom
+       integer :: n(3)
+     end function iso_staged_grid_size
+     module function iso_staged_box_lengths(iso,isys,box) result(alen)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       real*8, intent(in) :: box(3,0:3)
+       real*8 :: alen(3)
+     end function iso_staged_box_lengths
+     module function iso_measure_cost(iso,isys,n) result(secs)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       integer, intent(in) :: n(3)
+       real*8 :: secs
+     end function iso_measure_cost
      module function iso_grid_isapplied(iso,n,iregion,x) result(isap)
        class(rep_isosurface), intent(in) :: iso
        integer, intent(in) :: n(3)

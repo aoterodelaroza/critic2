@@ -2374,7 +2374,7 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
     use systems, only: sys
-    use representations, only: iso_grid_size, iso_isgridfield, iso_level_custom,&
+    use representations, only: iso_isgridfield, iso_level_custom,&
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
@@ -2382,9 +2382,9 @@ contains
        iso_hscale_name,&
        iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
-       iso_region_point_from_cart, iso_estimate_cost, iso_nlevel, iso_level_ptsang,&
-       iso_custom_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
-       iso_box_lengths
+       iso_region_point_from_cart, iso_level_ptsang,&
+       iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
+       iso_ptsang_from_npts
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
@@ -2394,14 +2394,12 @@ contains
        iw_arith_help_button, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
        duration_string
     use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
-    use types, only: field_evaluation_avail
     use param, only: newline
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    type(field_evaluation_avail) :: request
     integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb, iheld
     integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
     integer(c_int) :: ncus(3), tflags, dtflags
@@ -2600,26 +2598,31 @@ contains
     call iw_combo_simple("##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
        sameline=.true.,changed=ch)
     call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
-       & of the field, a named density of points per angstrom, or a custom number of&
-       & points",ttshown)
+       & of the field, a named density of points per angstrom, or a custom grid",ttshown)
 
     ! custom level: the grid given by the user, either as the number of
     ! points along each axis or as a resolution in points per angstrom
     if (w%rep%iso%ilevel == iso_level_custom) then
        ! arriving at the custom level: start from the grid that was on
-       ! screen, written both ways, so either mode continues it
+       ! screen, written both ways, so either mode continues it. The
+       ! resolution is the one those dimensions amount to, not the
+       ! level's tabulated value: a named level is floored per axis and
+       ! capped in total, so the two need not describe the same grid
        if (ch .and. ilevprev /= iso_level_custom) then
           if (ilevprev == 0) then
              w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%ifield)%grid%n
-             w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
           elseif (okbox) then
-             w%rep%iso%nptscustom = level_grid_size(ilevprev)
-             w%rep%iso%ptsangcustom = iso_level_ptsang(ilevprev)
+             w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,ilevprev,box)
           end if
+          ! only where the dimensions were re-seeded: a degenerate region
+          ! leaves both alone, rather than deriving one from the other's
+          ! stale value over a zero-volume box
+          if (okbox .or. ilevprev == 0) &
+             w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
        end if
 
        call iw_text("Given as",alignframe=.true.)
-       call iw_combo_simple("##isocustom",iso_custom_optstr,w%rep%iso%icustom,&
+       call iw_combo_simple("##isocustom",iso_custom_mode_optstr,w%rep%iso%icustom,&
           sameline=.true.,changed=ch2)
        call iw_tooltip("Whether the custom grid is given as the number of points along&
           & each axis or as a density of points per angstrom",ttshown)
@@ -2629,7 +2632,10 @@ contains
           if (w%rep%iso%icustom == iso_custom_ptsang) then
              w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
           else
-             w%rep%iso%nptscustom = ptsang_grid_size(w%rep%iso%ptsangcustom)
+             ! the dimensions the resolution on screen gives, which the
+             ! staged options no longer decode to now that the mode changed
+             w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,iso_level_custom,box,&
+                icustom=iso_custom_ptsang)
           end if
        end if
 
@@ -2657,7 +2663,7 @@ contains
     lapply = .false.
     nstage = 0
     if (okbox) then
-       nstage = level_grid_size(w%rep%iso%ilevel)
+       nstage = w%rep%iso%staged_grid_size(isys,w%rep%iso%ilevel,box,capped=capped)
        nshow = nstage
        str2 = ""
        if (all(nstage == 0)) then
@@ -2680,20 +2686,8 @@ contains
     end if
     call iw_tooltip("Use the selected grid and region for the isosurface. The options&
        & above have no effect on the isosurface until this button is pressed",ttshown)
-    ! Cost estimate. An isosurface of a single molecular orbital is
-    ! sampled with an MO request, not the plain field, and costs several
-    ! times less per point, so the benchmark has to be given the same
-    ! request or it prices the density instead
-    if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) then
-       if (w%rep%iso%imosel /= 0) then
-          request = w%rep%iso%mo_request()
-          w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
-             w%rep%iso%rgn_x,nstage,request)
-       else
-          w%rep%iso%costest = iso_estimate_cost(isys,w%rep%iso%ifield,w%rep%iso%iregion,&
-             w%rep%iso%rgn_x,nstage)
-       end if
-    end if
+    if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) &
+       w%rep%iso%costest = w%rep%iso%measure_cost(isys,nstage)
     call iw_tooltip("Estimate the time needed to sample the field with the selected options",ttshown)
     if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0)) &
        call iw_text("~" // duration_string(w%rep%iso%costest * product(real(nstage,8))),&
@@ -3334,57 +3328,18 @@ contains
 
     end function hist_bin
 
-    !> Dimensions of the grid that coarseness level ilev gives over the
-    !> staged region (host-associated box, valid only when okbox); also
-    !> reports through capped whether the total-points cap trimmed them.
-    function level_grid_size(ilev) result(nn)
-      integer, intent(in) :: ilev
-      integer :: nn(3)
-
-      if (ilev > iso_nlevel .and. w%rep%iso%icustom == iso_custom_ptsang) then
-         nn = ptsang_grid_size(w%rep%iso%ptsangcustom)
-      elseif (w%rep%iso%iregion == iso_region_cell) then
-         nn = iso_grid_size(isys,ilev,w%rep%iso%nptscustom,capped,ifield=w%rep%iso%ifield)
-      else
-         nn = iso_grid_size(isys,ilev,w%rep%iso%nptscustom,capped,box=box)
-      end if
-
-    end function level_grid_size
-
-    !> Grid dimensions of a custom resolution pa (points per angstrom)
-    !> over the staged region.
-    function ptsang_grid_size(pa) result(nn)
-      real*8, intent(in) :: pa
-      integer :: nn(3)
-
-      if (w%rep%iso%iregion == iso_region_cell) then
-         nn = iso_grid_size(isys,iso_level_custom,capped=capped,ptsang=pa,&
-            ifield=w%rep%iso%ifield)
-      else
-         nn = iso_grid_size(isys,iso_level_custom,capped=capped,ptsang=pa,box=box)
-      end if
-
-    end function ptsang_grid_size
-
     !> The resolution (points per angstrom) that grid dimensions nn
-    !> amount to over the staged region: the cube root of the point
-    !> density, so the two ways of writing a custom grid agree on the
-    !> total number of points.
+    !> amount to over the staged region, within the bounds a custom
+    !> resolution obeys, so the two ways of writing a custom grid agree
+    !> on the total number of points.
     function npts_to_ptsang(nn) result(pa)
       integer, intent(in) :: nn(3)
       real*8 :: pa
 
-      real*8 :: alen(3), vol
-
-      pa = iso_level_ptsang(iso_defaultlevel)
-      if (w%rep%iso%iregion == iso_region_cell) then
-         alen = iso_box_lengths(isys,ifield=w%rep%iso%ifield)
-      else
-         alen = iso_box_lengths(isys,box=box)
-      end if
-      vol = alen(1) * alen(2) * alen(3)
-      if (vol <= 0d0) return
-      pa = min(max((product(real(nn,8)) / vol)**(1d0/3d0),iso_ptsang_min),iso_ptsang_max)
+      pa = iso_ptsang_from_npts(product(real(nn,8)),&
+         w%rep%iso%staged_box_lengths(isys,box))
+      if (pa <= 0d0) pa = iso_level_ptsang(iso_defaultlevel)
+      pa = min(max(pa,iso_ptsang_min),iso_ptsang_max)
 
     end function npts_to_ptsang
 

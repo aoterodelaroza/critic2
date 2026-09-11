@@ -95,7 +95,7 @@ contains
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_alpha_def, iso_rgb_palette,&
        iso_grid_size, iso_region_to_box, iso_level_custom, iso_nlevel, iso_defaultlevel,&
-       iso_level_label, iso_autogrid_secs
+       iso_level_label, iso_autogrid_secs, iso_custom_npts
     use wfn_private, only: wfn_rhf, wfn_uhf, wfn_rohf, wfn_spin_all, wfn_spin_alpha, wfn_spin_beta
     use types, only: id_mo_id, field_evaluation_avail, fieldeval_category_mo
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_checkbox,&
@@ -505,12 +505,14 @@ contains
 
       ! the cost of one sample point, on a grid of the default quality
       n = iso_grid_size(isys,iso_defaultlevel,box=box)
-      call mo_measure_cost(w,isys,iref,r,n)
+      call mo_measure_cost(w,isys,r,n)
       tdum = mo_quality_cost(w,isys,w%mo_ilevel,n)
       if (w%mo_ilevel == 0) then
          ! the automatic grid is recorded as a custom one, so that an
-         ! object created from it reads back as what was drawn
+         ! object created from it reads back as what was drawn: as the
+         ! dimensions themselves, which a resolution need not reproduce
          r%iso%ilevel = iso_level_custom
+         r%iso%icustom = iso_custom_npts
          r%iso%nptscustom = n
       else
          r%iso%ilevel = w%mo_ilevel
@@ -1698,24 +1700,17 @@ contains
   !> committing to it.
   function mo_quality_cost(w,isys,ilevel,n) result(secs)
     use representations, only: iso_grid_size, iso_defaultlevel, iso_npts_custom_min,&
-       iso_npts_custom_max, iso_auto_ptsang, iso_level_ptsang
-    use param, only: bohrtoa
+       iso_npts_custom_max, iso_auto_ptsang, iso_level_ptsang, iso_box_lengths
     type(window), intent(in) :: w
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
     integer, intent(out) :: n(3)
     real*8 :: secs
 
-    integer :: i
-    real*8 :: alen(3)
-
     if (ilevel == 0) then
-       ! the box edge lengths, in angstrom, are the box itself
-       do i = 1, 3
-          alen(i) = norm2(w%mo_cost%box(:,i)) * bohrtoa
-       end do
        n = iso_grid_size(isys,iso_defaultlevel,box=w%mo_cost%box,&
-          ptsang=iso_auto_ptsang(w%mo_cost%secs,alen,iso_level_ptsang(iso_defaultlevel)))
+          ptsang=iso_auto_ptsang(w%mo_cost%secs,&
+          iso_box_lengths(isys,box=w%mo_cost%box),iso_level_ptsang(iso_defaultlevel)))
        ! within the bounds a custom grid obeys, since that is what the
        ! automatic quality is recorded as
        n = min(max(n,iso_npts_custom_min),iso_npts_custom_max)
@@ -1726,30 +1721,31 @@ contains
 
   end function mo_quality_cost
 
-  !> Measure the cost of one sample point of an MO of field ifield of
-  !> system isys, over the box representation r samples with n points per
-  !> axis, and keep it on window w. Measured once per field and geometry:
+  !> Measure the cost of one sample point of an MO of system isys, over
+  !> the box representation r samples with n points per axis, and keep it
+  !> on window w, keyed by the field r is bound to. Measured once per
+  !> field and geometry:
   !> the benchmark itself costs about a tenth of a second, and the answer
   !> only changes when the wavefunction or the box does.
-  subroutine mo_measure_cost(w,isys,ifield,r,n)
+  subroutine mo_measure_cost(w,isys,r,n)
     use systems, only: sys, sysc
-    use representations, only: representation, iso_estimate_cost
+    use representations, only: representation
     type(window), intent(inout) :: w
     integer, intent(in) :: isys
-    integer, intent(in) :: ifield
     type(representation), intent(in) :: r
     integer, intent(in) :: n(3)
 
     ! keyed without looking at the result: a field the benchmark cannot
-    ! measure must be remembered as such, or it is retried every frame
-    if (w%mo_cost%matches(isys,ifield)) return
+    ! measure must be remembered as such, or it is retried every frame.
+    ! The key is read off the representation that is benchmarked, so the
+    ! cost cannot be stored under a field other than the one measured
+    if (w%mo_cost%matches(isys,r%iso%ifield)) return
 
-    ! benchmark what the sampling loop actually evaluates: one orbital,
-    ! not the density, which costs several times more per point
-    w%mo_cost%secs = iso_estimate_cost(isys,ifield,r%iso%iregion,r%iso%rgn_x,n,&
-       r%iso%mo_request())
+    ! through the representation, which prices what its own sampling
+    ! loop evaluates: one orbital, not the density
+    w%mo_cost%secs = r%iso%measure_cost(isys,n)
     w%mo_cost%isys = isys
-    w%mo_cost%ifield = ifield
+    w%mo_cost%ifield = r%iso%ifield
     w%mo_cost%gen = sys(isys)%fieldgen
     w%mo_cost%timegeom = sysc(isys)%timelastchange_geometry
 

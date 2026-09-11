@@ -3772,27 +3772,31 @@ contains
 
   !> Add a new representation with the given type and flavor to this
   !> view window's scene, then open the edit representation window for
-  !> it. Returns the new representation id in id (0 if the scene is not
-  !> available). add_representation flags the scene for rebuild.
-  module subroutine add_rep_and_edit(w,itype,flavor,id)
+  !> it. An isosurface is bound to field ifield, if given, instead of
+  !> the reference field. Does nothing if the scene is not available.
+  !> add_representation flags the scene for rebuild.
+  module subroutine add_rep_and_edit(w,itype,flavor,ifield)
     use representations, only: reptype_isosurface
     class(window), intent(inout), target :: w
     integer, intent(in) :: itype, flavor
-    integer, intent(out), optional :: id
+    integer, intent(in), optional :: ifield
 
     integer :: irep, idw
 
-    if (present(id)) id = 0
     if (.not.associated(w%sc)) return
     if (w%sc%isinit == 0) call w%sc%init(w%isys)
     call w%sc%add_representation(itype,flavor,id=irep)
-    ! a new isosurface picks a grid it can sample quickly and draws
-    ! right away, instead of waiting for the user to commit one
-    if (irep > 0 .and. itype == reptype_isosurface) &
+    if (irep > 0 .and. itype == reptype_isosurface) then
+       ! bind the field first: set_field re-stages an ungenerated grid,
+       ! and benchmarking the reference field would price one never drawn
+       if (present(ifield)) &
+          call w%sc%rep(irep)%iso%set_field(w%isys,ifield)
+       ! a new isosurface picks a grid it can sample quickly and draws
+       ! right away, instead of waiting for the user to commit one
        call w%sc%rep(irep)%iso%autogrid(w%isys)
+    end if
     idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
        idparent=w%id,orraise=-1)
-    if (present(id)) id = irep
 
   end subroutine add_rep_and_edit
 

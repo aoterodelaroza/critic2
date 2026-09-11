@@ -135,7 +135,7 @@ contains
           & different for each atom",ttshown)
     elseif (.not.doquit) then
        call iw_text("Force field",alignframe=.true.)
-       call draw_ff_backend_combo(isys,"##rattleff",21)
+       call draw_ff_backend_combo(isys,"##rattleff",21,sameline=.true.)
 
        ! the run parameters live on the system, shared with the dynamics window
        call iw_text("Temperature",alignframe=.true.)

@@ -980,12 +980,13 @@ contains
   end subroutine window_end
 
   !> Draw the energy-backend combo for system isys.
-  module subroutine draw_ff_backend_combo(isys,strid,nchars)
+  module subroutine draw_ff_backend_combo(isys,strid,nchars,sameline)
     use systems, only: sys, sysc
     use energy, only: ff_list, ff_backend_applicable, ff_backend_label, ff_backend_default
     use utils, only: iw_combo_simple, iw_calcwidth
     integer, intent(in) :: isys, nchars
     character(len=*), intent(in) :: strid
+    logical, intent(in), optional :: sameline
 
     integer :: i, nback, icombo, backids(size(ff_list))
     character(len=:), allocatable :: str
@@ -1010,9 +1011,8 @@ contains
     do i = 1, nback
        if (backids(i) == sysc(isys)%md_backend) icombo = i - 1
     end do
-    call igSameLine(0._c_float,-1._c_float)
     call igPushItemWidth(iw_calcwidth(nchars,1))
-    call iw_combo_simple(strid,str,icombo)
+    call iw_combo_simple(strid,str,icombo,sameline=sameline)
     call igPopItemWidth()
 
     ! persist the selection
