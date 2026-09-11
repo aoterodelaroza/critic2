@@ -792,28 +792,19 @@ contains
 
   end subroutine iw_setpos_bottomright
 
-  !> Set up one column of the current table, wrapping igTableSetupColumn. The
-  !> column is identified either by id, or by icol, a counter that is
-  !> incremented and then used as the id (so successive calls number the columns
-  !> from the caller's starting value). If sortid and icolsort are given, record
-  !> in icolsort the sorting key sortid associated with this column. flags =
-  !> ImGuiTableColumnFlags_* (default: None). width = initial width or weight
-  !> (default: 0, automatic).
   !> Draw the header row of the current table, as igTableHeadersRow
-  !> does, except that the header of column icol reads short instead of
-  !> the name the column was set up with. ImGui takes the header label
-  !> and the name in the column-visibility popup from the same
-  !> igTableSetupColumn string, so a header that has to be shorter than
-  !> its menu entry needs the row drawn by hand. Without icol/short this
-  !> is igTableHeadersRow.
-  module subroutine iw_table_headers_row(icol,short)
+  !> does, except that the headers of the columns listed in icol read
+  !> the corresponding entry of shorts -- a list of null-terminated
+  !> labels -- instead of the names those columns were set up
+  !> with.
+  module subroutine iw_table_headers_row(icol,shorts)
     use interfaces_cimgui
-    integer(c_int), intent(in), optional :: icol
-    character(len=*,kind=c_char), intent(in), optional :: short
+    integer(c_int), intent(in), optional :: icol(:)
+    character(len=*,kind=c_char), intent(in), optional :: shorts
 
     integer(c_int) :: i, ncol
+    integer :: k, kshort
     real(c_float) :: rowh, y1
-    logical :: isshort
     type(ImVec2) :: pos, mpos
     character(len=:,kind=c_char), allocatable, target :: str
 
@@ -828,13 +819,23 @@ contains
        if (.not.igTableSetColumnIndex(i)) cycle
        ! an id of its own, so that columns with no label do not collide
        call igPushID_Int(i)
-       isshort = .false.
-       if (present(icol) .and. present(short)) isshort = (i == icol)
+
+       ! which override this column takes, if any
+       kshort = 0
+       if (present(icol) .and. present(shorts)) then
+          do k = 1, size(icol)
+             if (icol(k) == i) then
+                kshort = k
+                exit
+             end if
+          end do
+       end if
+
        if (iand(igTableGetColumnFlags(i),ImGuiTableColumnFlags_NoHeaderLabel) /= 0) then
           str = c_null_char
           call igTableHeader(c_loc(str))
-       elseif (isshort) then
-          str = short // c_null_char
+       elseif (kshort > 0) then
+          str = nth_label(shorts,kshort) // c_null_char
           call igTableHeader(c_loc(str))
        else
           ! the column's own name, handed straight to imgui
@@ -851,8 +852,43 @@ contains
           call igTableOpenContextMenu(-1_c_int)
     end if
 
+  contains
+    !> The k-th label (1-based) of a list of null-terminated labels.
+    !> Empty if the list has fewer than k of them.
+    function nth_label(str,k) result(sub)
+      character(len=*,kind=c_char), intent(in) :: str
+      integer, intent(in) :: k
+      character(len=:,kind=c_char), allocatable :: sub
+
+      integer :: i0, idx, n
+
+      sub = ""
+      i0 = 1
+      do n = 1, k
+         idx = index(str(i0:),c_null_char)
+         if (idx == 0) return
+         if (n == k) then
+            sub = str(i0:i0+idx-2)
+            return
+         end if
+         i0 = i0 + idx
+      end do
+
+    end function nth_label
+
   end subroutine iw_table_headers_row
 
+  !> Set up one column of the current table, wrapping
+  !> igTableSetupColumn. The column is identified either by id, or by
+  !> icol, a counter that is incremented and then used as the id (so
+  !> successive calls number the columns from the caller's starting
+  !> value). If sortid and icolsort are given, record in icolsort the
+  !> sorting key sortid associated with this column. flags =
+  !> ImGuiTableColumnFlags_* (default: None). width = initial width or
+  !> weight (default: 0, automatic). label is both the header of the
+  !> column and its entry in the popup that shows and hides columns;
+  !> iw_table_headers_row draws a header shorter than that entry,
+  !> where the two have to differ.
   module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: label

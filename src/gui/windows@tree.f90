@@ -498,24 +498,22 @@ contains
        flags = ior(flags,ImGuiTableColumnFlags_NoSort)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
-       call iw_table_column("format##0",id=ic_tree_format,flags=flags,&
+       call iw_table_column("File Format##0",id=ic_tree_format,flags=flags,&
           width=max(4._c_float, fontsize%y + 4._c_float))
 
-       call iw_table_column("Properties##0",id=ic_tree_props,flags=flags)
+       call iw_table_column("System Properties##0",id=ic_tree_props,flags=flags)
 
        call iw_table_column("Name##0",id=ic_tree_name,flags=ImGuiTableColumnFlags_WidthStretch)
 
-       ! the popup that shows and hides columns says Symmetry; the header
-       ! itself only has room for Sym (see iw_table_headers_row below)
        call iw_table_column("Symmetry##0",id=ic_tree_spg,flags=ImGuiTableColumnFlags_DefaultHide)
 
-       call iw_table_column("V/Å³##0",id=ic_tree_v,flags=ImGuiTableColumnFlags_DefaultHide)
+       call iw_table_column("Volume/Å³##0",id=ic_tree_v,flags=ImGuiTableColumnFlags_DefaultHide)
 
-       call iw_table_column("(V/Z)/Å³##0",id=ic_tree_vmol,flags=ImGuiTableColumnFlags_DefaultHide)
+       call iw_table_column("(Volume/Z)/Å³##0",id=ic_tree_vmol,flags=ImGuiTableColumnFlags_DefaultHide)
 
-       call iw_table_column("Nneq##0",id=ic_tree_nneq,flags=ImGuiTableColumnFlags_DefaultHide)
+       call iw_table_column("Number of symmetry-unique atoms (nneq)##0",id=ic_tree_nneq,flags=ImGuiTableColumnFlags_DefaultHide)
 
-       call iw_table_column("Nat/ncel##0",id=ic_tree_ncel,flags=ImGuiTableColumnFlags_DefaultHide)
+       call iw_table_column("Number of atoms (nat/ncel)##0",id=ic_tree_ncel,flags=ImGuiTableColumnFlags_DefaultHide)
 
        call iw_table_column("Z##0",id=ic_tree_nmol,flags=ImGuiTableColumnFlags_DefaultHide)
 
@@ -559,8 +557,15 @@ contains
           end if
        end if
 
-       ! draw the header
-       call iw_table_headers_row(ic_tree_spg,"Sym")
+       ! draw the header: one row, with the headers that have to be
+       ! shorter than the names the column-visibility popup shows for them
+       call iw_table_headers_row(&
+          (/ic_tree_spg,ic_tree_v,ic_tree_vmol,ic_tree_nneq,ic_tree_ncel/),&
+          "Sym"//c_null_char//&
+          "V/Å³"//c_null_char//&
+          "(V/Z)/Å³"//c_null_char//&
+          "nneq"//c_null_char//&
+          "nat"//c_null_char)
 
        ! the big table
        if (allocated(w%iord) .and. nshown_after_filter > 0) then

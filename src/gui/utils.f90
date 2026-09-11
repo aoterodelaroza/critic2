@@ -222,9 +222,9 @@ module utils
        integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: centered
      end subroutine iw_setpos_bottomright
-     module subroutine iw_table_headers_row(icol,short)
-       integer(c_int), intent(in), optional :: icol
-       character(len=*,kind=c_char), intent(in), optional :: short
+     module subroutine iw_table_headers_row(icol,shorts)
+       integer(c_int), intent(in), optional :: icol(:)
+       character(len=*,kind=c_char), intent(in), optional :: shorts
      end subroutine iw_table_headers_row
      module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
        character(len=*,kind=c_char), intent(in) :: label
