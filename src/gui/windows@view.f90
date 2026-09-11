@@ -3092,7 +3092,7 @@ contains
     use interfaces_cimgui
     use utils, only: iw_text
     use systems, only: sys
-    use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor, g
+    use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor, uiscale
     use tools_io, only: string
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
@@ -3108,7 +3108,7 @@ contains
     real(c_float) :: tint(4)
     type(ImVec2) :: sz, mpos
 
-    ! how far from the cursor hotspot the image sits, in pixels
+    ! how far from the cursor hotspot the image sits, in pixels at 100% scale
     real(c_float), parameter :: cursoroffx = 14._c_float
     real(c_float), parameter :: cursoroffy = 29._c_float
 
@@ -3135,13 +3135,10 @@ contains
     ! it. It never coincides with the measurement readout below: the
     ! modes that show an image are exactly the ones that do not measure.
     if (havecue) then
-       ! place it ourselves, just off the cursor hotspot: the tooltip's own
-       ! placement leaves room for the mouse cursor imgui draws, which is
-       ! further away than this image wants to be (imgui.cpp:6744 applies
-       ! the tooltip position only when the caller sets none)
+       ! place it ourselves, just off the cursor hotspot
        call igGetMousePos(mpos)
-       mpos%x = mpos%x + cursoroffx * g%Style%MouseCursorScale
-       mpos%y = mpos%y + cursoroffy * g%Style%MouseCursorScale
+       mpos%x = mpos%x + cursoroffx * uiscale
+       mpos%y = mpos%y + cursoroffy * uiscale
        call igSetNextWindowPos(mpos,ImGuiCond_Always,ImVec2(0._c_float,0._c_float))
        call igPushStyleColor_Vec4(ImGuiCol_PopupBg,&
           ImVec4(0._c_float,0._c_float,0._c_float,0._c_float))

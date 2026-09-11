@@ -268,7 +268,7 @@ contains
     call c_f_pointer(ptrc,io)
     ptrc = io%Fonts
     call c_f_pointer(ptrc,fonts)
-    io%MouseDrawCursor = .true. ! can't get anything other than the arrow otherwise
+    io%MouseDrawCursor = .false. ! let the system draw the cursor
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DpiEnableScaleFonts)
     io%configflags = ior(io%configflags,ImGuiConfigFlags_NavEnableKeyboard)
