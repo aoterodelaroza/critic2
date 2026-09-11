@@ -658,6 +658,7 @@ module windows
      integer :: builder_frag_iattach = 0 ! add fragments: placeholder atom marking the attachment direction
      real*8 :: builder_frag_radius = 0d0 ! add fragments: fictitious covalent radius, bohr (ligand; <= 0 = substituent)
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
+     real(c_float) :: builder_panelh = 0._c_float ! content height of the tool panel, for sizing the window to it
      integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
      integer :: edit_isys = 0 ! system latched for the edit session
      integer :: edit_idx(4,4) = 0 ! latched atoms (cell atom + lattice vector); for angles, column 2 is the vertex; for dihedrals, columns 2-3 are the axis

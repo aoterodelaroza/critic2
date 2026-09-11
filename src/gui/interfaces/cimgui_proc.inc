@@ -171,7 +171,12 @@ subroutine igSetNextWindowBgAlpha(alpha) bind(c,name="igSetNextWindowBgAlpha")
 end subroutine igSetNextWindowBgAlpha
 !x! void igSetNextWindowViewport(ImGuiID viewport_id);
 !x! void igSetWindowPos_Vec2(const ImVec2 pos,ImGuiCond cond);
-!x! void igSetWindowSize_Vec2(const ImVec2 size,ImGuiCond cond);
+! void igSetWindowSize_Vec2(const ImVec2 size,ImGuiCond cond);
+subroutine igSetWindowSize_Vec2(size, cond) bind(c,name="igSetWindowSize_Vec2")
+  import ImVec2, c_int
+  type(ImVec2), value :: size
+  integer(c_int), value :: cond
+end subroutine igSetWindowSize_Vec2
 !x! void igSetWindowCollapsed_Bool(bool collapsed,ImGuiCond cond);
 ! void igSetWindowFocus_Nil(void);
 subroutine igSetWindowFocus_Nil() bind(c,name="igSetWindowFocus_Nil")

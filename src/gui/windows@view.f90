@@ -45,6 +45,7 @@ submodule (windows) view
   integer, parameter :: pend_measure_sel = 2 ! toggle the measurement of the selected atoms (navigation)
   integer, parameter :: pend_pick = 3        ! deliver an atom pick (forced pick modes)
   integer, parameter :: pend_pick_alt = 4    ! deliver an alternate-action pick (builder)
+  integer, parameter :: pend_editexit = 5    ! end the builder's geometry edit session (navigation)
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
@@ -1887,9 +1888,9 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos, pmin, pmax
-    integer :: isys
+    integer :: isys, ibedit
     integer(c_int) :: col, ibtn
-    logical :: ok, dragged, forcedpick
+    logical :: ok, dragged, forcedpick, editexit
 
     integer(c_int), parameter :: izero5(5) = 0_c_int ! "no bond", for the picks that cannot target one
 
@@ -2017,8 +2018,28 @@ contains
           end if
        end if
 
+       ! Geometry edit session claims the exit clicks
+       editexit = .false.
+       if (hover .and. .not.forcedpick) then
+          ibedit = builder_editing()
+          if (ibedit > 0) then
+             if (is_bind_event(BIND_NAV_MEASURE,iview=w%id)) then
+                call win(ibedit)%edit_stop()
+                editexit = .true.
+             elseif (is_bind_event(BIND_NAV_MEASURE_TOGGLE,iview=w%id)) then
+                if (bind_mouse_button(BIND_NAV_MEASURE_TOGGLE) >= 0) then
+                   w%measure_pend = pend_editexit
+                   w%press_p0 = mousepos
+                else
+                   call win(ibedit)%edit_stop()
+                end if
+                editexit = .true.
+             end if
+          end if
+       end if
+
        ! atom selection and measurements are disabled in the forced pick modes
-       if (.not.forcedpick) then
+       if (.not.forcedpick .and. .not.editexit) then
           ! atom selection
           if (hover .and. is_bind_event(BIND_NAV_MEASURE,iview=w%id)) then
              call w%sc%select_atom(w%mousepos_idx)
@@ -2054,7 +2075,7 @@ contains
                 end if
              end if
           end if
-       else
+       elseif (forcedpick) then
           ! forced pick modes: capture the atom under the cursor (possibly
           ! none) on a pick-bind press, resolved on release if the cursor
           ! did not drag past the threshold (so a left/right drag still
@@ -2090,7 +2111,8 @@ contains
        if (w%measure_pend /= pend_none) then
           call igGetMousePos(mousepos)
           ibtn = -1_c_int
-          if (w%measure_pend == pend_measure .or. w%measure_pend == pend_measure_sel) &
+          if (w%measure_pend == pend_measure .or. w%measure_pend == pend_measure_sel .or.&
+             w%measure_pend == pend_editexit) &
              ibtn = bind_mouse_button(BIND_NAV_MEASURE_TOGGLE)
           if (w%measure_pend == pend_pick) ibtn = bind_mouse_button(BIND_PICKATOM_SELECT)
           if (w%measure_pend == pend_pick_alt) ibtn = bind_mouse_button(BIND_PICKATOM_ALT)
@@ -2110,6 +2132,9 @@ contains
                 elseif (w%measure_pend == pend_pick_alt) then
                    w%measure_pend = pend_none
                    if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
+                elseif (w%measure_pend == pend_editexit) then
+                   ibedit = builder_editing()
+                   if (ibedit > 0) call win(ibedit)%edit_stop()
                 end if
              end if
              w%measure_pend = pend_none
@@ -2117,8 +2142,8 @@ contains
        end if
 
        ! double click on empty space clears the selection
-       if (.not.forcedpick .and. hover .and. is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and.&
-          w%mousepos_idx(1) == 0) then
+       if (.not.forcedpick .and. .not.editexit .and. hover .and.&
+          is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and. w%mousepos_idx(1) == 0) then
           call sysc(w%isys)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
@@ -2263,6 +2288,25 @@ contains
        call viewmode_to_navigate(w)
 
   contains
+    !> The builder window running a geometry edit session on the system
+    !> this view shows, or 0 if there is none.
+    function builder_editing() result(ib)
+      integer :: ib
+
+      integer :: i
+
+      ib = 0
+      do i = 1, nwin
+         if (.not.win(i)%isinit .or. .not.win(i)%isopen) cycle
+         if (win(i)%type /= wintype_builder) cycle
+         if (win(i)%edit_kind == 0) cycle
+         if (win(i)%edit_isys /= w%isys) cycle
+         ib = i
+         return
+      end do
+
+    end function builder_editing
+
     ! whether the given view-mode exit bind fired on empty space this
     ! frame (the exit gesture for the move modes and the persistent
     ! builder pick modes)
@@ -3093,6 +3137,7 @@ contains
     use utils, only: iw_text
     use systems, only: sys
     use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor, uiscale
+    use keybindings, only: get_bind_keyname, BIND_EDIT_D_A_PHI
     use tools_io, only: string
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
@@ -3170,7 +3215,6 @@ contains
 
     if (domeas) then
        call igBeginTooltip()
-       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
        call iw_text("Distance (d), angle (α), dihedral (φ)")
 
        ! distance 1-2
@@ -3240,18 +3284,33 @@ contains
     ! persistent measurement, or remove it. Only in navigation: the
     ! measurement binds do not fire in the other modes
     if (domeas) then
+       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
        call igNewLine()
        call iw_text("Right-click stamps/removes a measurement",&
           rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
+       if (nmsel >= 2 .and. nmsel <= 4) then
+          call iw_text(trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//" edits the "//&
+             trim(editnoun(nmsel)),rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
+       end if
+       call igPopTextWrapPos()
     end if
 
     ! finish the measurement readout (the image above closed its own)
-    if (domeas) then
-       call igPopTextWrapPos()
+    if (domeas) &
        call igEndTooltip()
-    end if
 
   contains
+    !> What an edit of nsel selected atoms changes, for the usage hint.
+    function editnoun(nsel) result(str)
+      integer, intent(in) :: nsel
+      character(len=:), allocatable :: str
+
+      character(len=*), parameter :: noun(2:4) = (/"distance","angle   ","dihedral"/)
+
+      str = trim(noun(min(max(nsel,2),4)))
+
+    end function editnoun
+
     !> Distance, in angstrom, between the two atoms given by their (complete
     !> atom id, lattice vector) index quadruplets.
     function pair_distance(ia,ib) result(d)

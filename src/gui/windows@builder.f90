@@ -258,14 +258,15 @@ contains
        reread_system_from_file, atlisttype_ncel_frac
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default
-    use gui_main, only: g, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
+    use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
     use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
-       BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL
+       BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL,&
+       BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
@@ -277,7 +278,8 @@ contains
     logical :: doquit, goodparent, havesys, ok, ldum, relaxing, syschanged
     logical :: lstate, mdshown, lplaced
     real(c_float) :: xclick(2), xicon, hicon, yrow, reserve
-    type(ImVec2) :: szchild, szrow
+    type(ImVec2) :: szchild, szrow, szwin
+    real(c_float) :: ypanel, hneed
     character(len=:), allocatable :: errmsg, strgroup
     character(kind=c_char,len=:), allocatable, target :: strchild
 
@@ -641,6 +643,7 @@ contains
     strchild = "##buildertoolpanel" // c_null_char
     szchild%x = 0._c_float
     szchild%y = -reserve
+    ypanel = igGetCursorPosY()
     if (igBeginChild_Str(c_loc(strchild),szchild,.false._c_bool,ImGuiWindowFlags_None)) then
        select case (w%builder_tool)
        case (it_edit)
@@ -651,9 +654,26 @@ contains
        case default
           call panel_pick(w%builder_tool)
        end select
+       ! how tall the panel is, kept on the window: a child clipped away
+       ! by a window too short to show it draws nothing, so the frame
+       ! that has to grow is exactly the one that cannot measure this
+       w%builder_panelh = igGetCursorPosY()
     end if
     call igEndChild()
     call igSeparator()
+
+    ! A tool panel taller than the window would be left scrolling inside
+    ! its child, with the controls at the bottom out of sight. Grow the
+    ! window to the panel instead: everything above it, the panel itself,
+    ! and the footer the child already reserves room for. It only grows,
+    ! and never past the display -- a panel taller than the screen still
+    ! scrolls, there being nowhere else to put it
+    hneed = ypanel + w%builder_panelh + reserve + 2._c_float*g%Style%WindowPadding%y
+    call igGetWindowSize(szwin)
+    if (szwin%y < hneed) then
+       szwin%y = min(hneed,io%DisplaySize%y)
+       call igSetWindowSize_Vec2(szwin,ImGuiCond_Always)
+    end if
 
     ! transient highlight of the latched atoms
     if (w%edit_kind /= 0) &
@@ -1318,9 +1338,11 @@ contains
          call edit_apply_button("##editdih","dihedral")
       end select
       call panel_text("Stop editing with "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//&
-         ", with "//trim(get_bind_keyname(BIND_CANCEL))//", with the Apply button, or by"//&
-         " choosing another tool. The atoms keep the geometry they have when it stops.",&
-         faded=.true.)
+         ", with "//trim(get_bind_keyname(BIND_CANCEL))//", with "//&
+         trim(get_bind_keyname(BIND_NAV_MEASURE))//" or "//&
+         trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE))//" in the view, with the Apply"//&
+         " button, or by choosing another tool. The atoms keep the geometry they have"//&
+         " when it stops.",faded=.true.)
 
     end subroutine panel_edit
 
