@@ -799,6 +799,60 @@ contains
   !> in icolsort the sorting key sortid associated with this column. flags =
   !> ImGuiTableColumnFlags_* (default: None). width = initial width or weight
   !> (default: 0, automatic).
+  !> Draw the header row of the current table, as igTableHeadersRow
+  !> does, except that the header of column icol reads short instead of
+  !> the name the column was set up with. ImGui takes the header label
+  !> and the name in the column-visibility popup from the same
+  !> igTableSetupColumn string, so a header that has to be shorter than
+  !> its menu entry needs the row drawn by hand. Without icol/short this
+  !> is igTableHeadersRow.
+  module subroutine iw_table_headers_row(icol,short)
+    use interfaces_cimgui
+    integer(c_int), intent(in), optional :: icol
+    character(len=*,kind=c_char), intent(in), optional :: short
+
+    integer(c_int) :: i, ncol
+    real(c_float) :: rowh, y1
+    logical :: isshort
+    type(ImVec2) :: pos, mpos
+    character(len=:,kind=c_char), allocatable, target :: str
+
+    ! open the header row
+    call igGetCursorScreenPos(pos)
+    y1 = pos%y
+    rowh = igTableGetHeaderRowHeight()
+    call igTableNextRow(ImGuiTableRowFlags_Headers,rowh)
+
+    ncol = igTableGetColumnCount()
+    do i = 0_c_int, ncol-1_c_int
+       if (.not.igTableSetColumnIndex(i)) cycle
+       ! an id of its own, so that columns with no label do not collide
+       call igPushID_Int(i)
+       isshort = .false.
+       if (present(icol) .and. present(short)) isshort = (i == icol)
+       if (iand(igTableGetColumnFlags(i),ImGuiTableColumnFlags_NoHeaderLabel) /= 0) then
+          str = c_null_char
+          call igTableHeader(c_loc(str))
+       elseif (isshort) then
+          str = short // c_null_char
+          call igTableHeader(c_loc(str))
+       else
+          ! the column's own name, handed straight to imgui
+          call igTableHeader(igTableGetColumnName_Int(i))
+       end if
+       call igPopID()
+    end do
+
+    ! right-clicking the strip past the last column opens the popup that
+    ! belongs to no column, as it does in igTableHeadersRow
+    call igGetMousePos(mpos)
+    if (igIsMouseReleased(1_c_int) .and. igTableGetHoveredColumn() == ncol) then
+       if (mpos%y >= y1 .and. mpos%y < y1 + rowh) &
+          call igTableOpenContextMenu(-1_c_int)
+    end if
+
+  end subroutine iw_table_headers_row
+
   module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: label

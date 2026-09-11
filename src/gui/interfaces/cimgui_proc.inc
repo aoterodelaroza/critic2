@@ -965,16 +965,29 @@ end subroutine igTableSetupScrollFreeze
 ! void igTableHeadersRow(void);
 subroutine igTableHeadersRow() bind(c,name="igTableHeadersRow")
 end subroutine igTableHeadersRow
-!x! void igTableHeader(const char* label);
+! void igTableHeader(const char* label);
+subroutine igTableHeader(label) bind(c,name="igTableHeader")
+  import c_ptr
+  type(c_ptr), intent(in), value :: label
+end subroutine igTableHeader
 ! ImGuiTableSortSpecs* igTableGetSortSpecs(void);
 function igTableGetSortSpecs() bind(c,name="igTableGetSortSpecs")
   import c_ptr
   type(c_ptr) :: igTableGetSortSpecs
 end function igTableGetSortSpecs
-!x! int igTableGetColumnCount(void);
+! int igTableGetColumnCount(void);
+function igTableGetColumnCount() bind(c,name="igTableGetColumnCount")
+  import c_int
+  integer(c_int) :: igTableGetColumnCount
+end function igTableGetColumnCount
 !x! int igTableGetColumnIndex(void);
 !x! int igTableGetRowIndex(void);
-!x! const char* igTableGetColumnName_Int(int column_n);
+! const char* igTableGetColumnName_Int(int column_n);
+function igTableGetColumnName_Int(column_n) bind(c,name="igTableGetColumnName_Int")
+  import c_int, c_ptr
+  integer(c_int), value :: column_n
+  type(c_ptr) :: igTableGetColumnName_Int
+end function igTableGetColumnName_Int
 ! ImGuiTableColumnFlags igTableGetColumnFlags(int column_n);
 function  igTableGetColumnFlags(column_n) bind(c,name="igTableGetColumnFlags")
   import c_int
@@ -2274,11 +2287,23 @@ end subroutine igDockBuilderFinish
 !x! ImGuiOldColumns* igFindOrCreateColumns(ImGuiWindow* window,ImGuiID id);
 !x! float igGetColumnOffsetFromNorm(const ImGuiOldColumns* columns,float offset_norm);
 !x! float igGetColumnNormFromOffset(const ImGuiOldColumns* columns,float offset);
-!x! void igTableOpenContextMenu(int column_n);
+! void igTableOpenContextMenu(int column_n);
+subroutine igTableOpenContextMenu(column_n) bind(c,name="igTableOpenContextMenu")
+  import c_int
+  integer(c_int), value :: column_n
+end subroutine igTableOpenContextMenu
 !x! void igTableSetColumnWidth(int column_n,float width);
 !x! void igTableSetColumnSortDirection(int column_n,ImGuiSortDirection sort_direction,bool append_to_sort_specs);
-!x! int igTableGetHoveredColumn(void);
-!x! float igTableGetHeaderRowHeight(void);
+! int igTableGetHoveredColumn(void);
+function igTableGetHoveredColumn() bind(c,name="igTableGetHoveredColumn")
+  import c_int
+  integer(c_int) :: igTableGetHoveredColumn
+end function igTableGetHoveredColumn
+! float igTableGetHeaderRowHeight(void);
+function igTableGetHeaderRowHeight() bind(c,name="igTableGetHeaderRowHeight")
+  import c_float
+  real(c_float) :: igTableGetHeaderRowHeight
+end function igTableGetHeaderRowHeight
 !x! void igTablePushBackgroundChannel(void);
 !x! void igTablePopBackgroundChannel(void);
 ! ImGuiTable* igGetCurrentTable(void);

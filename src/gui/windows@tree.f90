@@ -56,7 +56,8 @@ contains
        BIND_TREE_MOVE_DOWN, BIND_TREE_SELECT_ALL
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext, iw_text,&
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
-       iw_close_button, iw_table_column, iw_beginmenu, iw_inputfloat, iw_inputint, iw_checkbox
+       iw_close_button, iw_table_column, iw_table_headers_row, iw_beginmenu, iw_inputfloat,&
+       iw_inputint, iw_checkbox
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
@@ -504,7 +505,9 @@ contains
 
        call iw_table_column("Name##0",id=ic_tree_name,flags=ImGuiTableColumnFlags_WidthStretch)
 
-       call iw_table_column("Sym##0",id=ic_tree_spg,flags=ImGuiTableColumnFlags_DefaultHide)
+       ! the popup that shows and hides columns says Symmetry; the header
+       ! itself only has room for Sym (see iw_table_headers_row below)
+       call iw_table_column("Symmetry##0",id=ic_tree_spg,flags=ImGuiTableColumnFlags_DefaultHide)
 
        call iw_table_column("V/Å³##0",id=ic_tree_v,flags=ImGuiTableColumnFlags_DefaultHide)
 
@@ -557,7 +560,7 @@ contains
        end if
 
        ! draw the header
-       call igTableHeadersRow()
+       call iw_table_headers_row(ic_tree_spg,"Sym")
 
        ! the big table
        if (allocated(w%iord) .and. nshown_after_filter > 0) then
