@@ -24,6 +24,7 @@ module representations
   use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
+  use display, only: scene_display, rep_display
   use global, only: bondfactor_def, bonddelta_def
   implicit none
 
@@ -207,13 +208,19 @@ module representations
   real(c_float), parameter, public :: iso_rgb_invalid(3) = 0.5_c_float ! color of a vertex outside the map field
   real(c_float), parameter, public :: iso_rgb_hl(3) = (/1._c_float,0.5_c_float,0._c_float/) ! highlighted group
 
+  ! Species classes an atoms object draws (rep_atoms%spcclass): the real
+  ! atoms, the dummy critical-point species of CPREPORT-written structures
+  ! (Xn/Xb/Xr/Xc), or the dummy gradient-path species (Xz)
+  integer, parameter, public :: atomspc_real = 0
+  integer, parameter, public :: atomspc_cp = 1
+  integer, parameter, public :: atomspc_gp = 2
+
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: type ! atom style type (attlisttype_* in systems module)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
-     logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
      real*8, allocatable :: rad(:) ! radius (ntype)
    contains
@@ -228,7 +235,6 @@ module representations
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
-     logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
      real*8, allocatable :: scale_rad(:) ! scale radius (ntype)
    contains
@@ -338,28 +344,10 @@ module representations
   integer, parameter, public :: repflavor_isosurface = 16
   integer, parameter, public :: repflavor_NUM = 16
 
-  !> Selection of the part of the system that is drawn: periodicity, origin
-  !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
-  !> and origin also control reptype_unitcell; reptype_isosurface consumes
-  !> pertype and ncell only -- the origin shift does not move the isosurface).
-  !> Accessed as r%sel%...
-  type rep_selection
-     integer(c_int) :: pertype ! periodicity control: 0=none, 1=auto, 2=manual
-     integer(c_int) :: ncell(3) ! number of unit cells drawn
-     real*8 :: origin(3) ! origin shift of the representation
-     real*8 :: tshift(3) ! origin of the unit cell display region
-     logical :: border ! draw atoms at the border of the unit cell
-     logical :: onemotif ! draw connected molecules
-     character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
-     character(kind=c_char,len=:), allocatable :: errfilter ! filter error
-   contains
-     procedure :: ncells => rep_selection_ncells ! number of drawn cells from the periodicity control
-  end type rep_selection
-  public :: rep_selection
-
   !> Atom display options (reptype_atoms; accessed as r%atoms%...)
   type rep_atoms
      logical :: display ! whether to draw the atoms
+     integer :: spcclass = atomspc_real ! species drawn: real atoms, or the dummy species of CPREPORT structures (atomspc_*)
      type(atom_geom_style) :: style ! atom styles (geometry-dependent)
      integer(c_int) :: radii_type ! option to reset radii: 0=covalent,1=vdw,2=constant
      real*8 :: radii_scale ! reset radii, scale factor
@@ -703,7 +691,7 @@ module representations
      integer :: itag = 0 ! producer-local content tag, for dedup/update-in-place
      logical :: armed = .false. ! re-armed this frame by the producer (otherwise reaped)
      ! per-object option groups
-     type(rep_selection) :: sel ! which part of the system is drawn
+     type(rep_display) :: disp ! periodicity override of the scene Display
      type(rep_atoms) :: atoms ! atom display options
      type(rep_bonds) :: bonds ! bond display options
      type(rep_labels) :: labels ! label display options
@@ -724,6 +712,7 @@ module representations
      procedure :: update => update_styles
      procedure :: add_draw_elements
      procedure :: reset_all_styles
+     procedure :: uses_periodicity => representation_uses_periodicity
   end type representation
   public :: representation
 
@@ -742,11 +731,10 @@ module representations
 
   ! module procedure interfaces
   interface
-     module function rep_selection_ncells(sel,nc) result(n)
-       class(rep_selection), intent(in) :: sel
-       integer, intent(in) :: nc(3)
-       integer :: n(3)
-     end function rep_selection_ncells
+     module function representation_uses_periodicity(r) result(ok)
+       class(representation), intent(in) :: r
+       logical :: ok
+     end function representation_uses_periodicity
      module function iso_default_isovalue(isys,ifield) result(isoval)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield
@@ -940,9 +928,9 @@ module representations
      module subroutine update_styles(r)
        class(representation), intent(inout) :: r
      end subroutine update_styles
-     module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
+     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq)
        class(representation), intent(inout) :: r
-       integer, intent(in) :: nc(3)
+       type(scene_display), intent(inout) :: disp
        type(scene_objects), intent(inout) :: obj
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq

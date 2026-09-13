@@ -87,7 +87,7 @@ contains
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
-       icon_ui_tools, icon_ui_newview
+       icon_ui_tools, icon_ui_newview, icon_ui_display
     use crystalmod, only: iperiod_vacthr
     use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master
     use gui_main, only: g, io, fontsize, lockbehavior, tree_select_updates_view,&
@@ -298,7 +298,8 @@ contains
     ! toolbar: periodicity button with live a×b×c label
     if (.not.enabled .or. .not.ismol) then
        if (associated(w%sc)) then
-          msg = string(w%sc%nc(1)) // "×" // string(w%sc%nc(2)) // "×" // string(w%sc%nc(3))
+          msg = string(w%sc%disp%ncell(1)) // "×" // string(w%sc%disp%ncell(2)) // "×" //&
+             string(w%sc%disp%ncell(3))
        else
           msg = "1×1×1"
        end if
@@ -313,7 +314,7 @@ contains
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
        if (ok) then
           if (associated(w%sc)) then
-             if (iw_periodicity_widget(w%sc%nc,ttshown)) chbuild = .true.
+             if (iw_periodicity_widget(w%sc%disp%ncell,ttshown)) chbuild = .true.
 
              ! make the displayed supercell the new unit cell
              if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
@@ -440,14 +441,17 @@ contains
                 end if
              end do
              ! rest
-             if (.not.sys(w%isys)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
-                sysc(i)%sc%nc = w%sc%nc
+             ! the Display settings (the Show masks are sized for each system)
+             call sysc(i)%sc%disp%copy_settings(w%sc%disp,&
+                .not.sys(w%isys)%c%ismolecule.and..not.sys(i)%c%ismolecule)
              sysc(i)%sc%bgcolor = w%sc%bgcolor
              sysc(i)%sc%camresetdist = w%sc%camresetdist
              sysc(i)%sc%isortho = w%sc%isortho
              if (sysc(i)%sc%iscaminit) call sysc(i)%sc%update_projection_matrix()
+             ! only an initialized system: the initialization thread may be
+             ! setting up the scene of any other
+             call sysc(i)%sc%build_lists()
           end if
-          call sysc(i)%sc%build_lists()
        end do
     end if
     call iw_tooltip("Apply the settings of this scene to the systems selected in the&
@@ -461,11 +465,17 @@ contains
     end if
     call iw_tooltip("Reset this scene to the default settings",ttshown)
 
-    ! toolbar: draw button, with a popup for adding new objects to the view
+    ! toolbar: display selection button, opens the window that chooses the
+    ! part of the system the objects of this view are drawn over
     call igSameLine(0._c_float,-1._c_float)
     call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
-    call igSameLine(0._c_float,-1._c_float)
-    ldum = iw_icon_togglebutton("drawbutton",icon_tex(icon_ui_draw),"Dw",&
+    if (iw_icon_togglebutton("displaybutton",icon_tex(icon_ui_display),"Ds",&
+       disabled=.not.enabled,sameline=.true.)) &
+       idum = stack_create_window(wintype_display,.true.,idparent=w%id,orraise=-1)
+    call iw_tooltip("Select the part of the system displayed in this view",ttshown)
+
+    ! toolbar: draw button, with a popup for adding new objects to the view
+    ldum = iw_icon_togglebutton("drawbutton",icon_tex(icon_ui_draw),"Dw",sameline=.true.,&
        disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
     call iw_tooltip("Add a new object to the view",ttshown)
     if (ok) then
@@ -853,15 +863,15 @@ contains
              if (is_bind_event(BIND_VIEW_INC_NCELL)) then
                 do i = 1, 3
                    if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
-                      w%sc%nc(i) = w%sc%nc(i) + 1
+                      w%sc%disp%ncell(i) = w%sc%disp%ncell(i) + 1
                 end do
                 w%sc%forcebuildlists = .true.
              elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
                 do i = 1, 3
                    if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
-                      w%sc%nc(i) = w%sc%nc(i) - 1
+                      w%sc%disp%ncell(i) = w%sc%disp%ncell(i) - 1
                 end do
-                w%sc%nc = max(w%sc%nc,1)
+                w%sc%disp%ncell = max(w%sc%disp%ncell,1)
                 w%sc%forcebuildlists = .true.
              elseif (is_bind_event(BIND_VIEW_TRANSFORM_SUPERCELL)) then
                 call transform_to_supercell()
@@ -1000,7 +1010,7 @@ contains
       if (.not.associated(w%sc)) return
       if (.not.ok_system(w%isys,sys_init)) return
       if (sys(w%isys)%c%ismolecule) return
-      ok = any(w%sc%nc > 1)
+      ok = any(w%sc%disp%ncell > 1)
 
     end function can_transform_supercell
 
@@ -1015,14 +1025,14 @@ contains
 
       w%errmsg = ""
       m = 0d0
-      m(1,1) = real(w%sc%nc(1),8)
-      m(2,2) = real(w%sc%nc(2),8)
-      m(3,3) = real(w%sc%nc(3),8)
+      m(1,1) = real(w%sc%disp%ncell(1),8)
+      m(2,2) = real(w%sc%disp%ncell(2),8)
+      m(3,3) = real(w%sc%disp%ncell(3),8)
       call sysc(w%isys)%transform_cell_matrix(m,(/0d0,0d0,0d0/),.false.,errmsg=w%errmsg)
       if (len_trim(w%errmsg) > 0) return
 
       ! the old content is now one cell; keep the camera where it was
-      w%sc%nc = 1
+      w%sc%disp%ncell = 1
       w%sc%nextbuildlists_fixcam = .true.
       sysc(w%isys)%sc%nextbuildlists_fixcam = .true.
       chbuild = .true.

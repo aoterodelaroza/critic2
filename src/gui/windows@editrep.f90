@@ -20,9 +20,6 @@ submodule (windows) editrep
   use interfaces_cimgui
   implicit none
 
-  !xx! private procedures
-  ! function atom_selection_widget() result(changed)
-
 contains
 
   !> Update tasks for the edit representation window, before the
@@ -63,15 +60,15 @@ contains
        reptype_symelem, reptype_text, reptype_measure, reptype_isosurface, iso_map_color
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
-    use systems, only: sysc, sys_init, ok_system
+    use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_tooltip, iw_button, iw_calcheight, iw_checkbox,&
-       iw_inputtext, iw_close_event, iw_setpos_bottomright
+       iw_inputtext, iw_close_event, iw_setpos_bottomright, iw_periodicity_widget
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     integer :: isys, iview
-    logical :: doquit, ok, ldum
+    logical :: doquit, ok, ldum, doper, ch
     logical :: changed
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -108,6 +105,15 @@ contains
        ! shown checkbox
        changed = changed .or. iw_checkbox("Show",w%rep%shown,sameline=.true.)
        call iw_tooltip("Toggle show/hide this object",ttshown)
+
+       ! periodicity override, for the objects drawn over the cells of the
+       ! Display (atoms, unit cell, and a whole-cell isosurface) in crystals
+       doper = .not.sys(isys)%c%ismolecule
+       if (doper) doper = w%rep%uses_periodicity()
+       if (doper) then
+          ch = iw_periodicity_widget(w%rep%disp%ncell,ttshown,pertype=w%rep%disp%pertype)
+          changed = changed .or. ch
+       end if
 
        ! type-dependent items
        if (w%rep%type == reptype_atoms) then
@@ -173,10 +179,9 @@ contains
        atlisttype_nneq, atlisttype_ncel_frac
     use gui_main, only: ColorHighlightScene, ColorElement
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_arith_help, iw_arith_help_button, iw_helpermark,&
+    use utils, only: iw_text, iw_tooltip, iw_helpermark,&
        iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_periodicity_widget,&
-       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
+       iw_radiobutton, iw_calcheight, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint, iw_table_column,&
        iw_begintabitem
     use param, only: atmcov, atmvdw, atmcov0, newline, jmlcol, jmlcol2, bohrtoa
@@ -186,9 +191,8 @@ contains
     logical :: changed
 
     integer :: ispc, isys, iz
-    character(kind=c_char,len=:), allocatable, target :: str1, str3, suffix
-    real*8 :: x0(3)
-    logical :: ch, ldum
+    character(kind=c_char,len=:), allocatable, target :: str1, suffix
+    logical :: ch, ldum, typechanged
     integer(c_int) :: lst, flags, nspcpair
     integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
     integer :: itype_combo, newtype
@@ -230,79 +234,6 @@ contains
     flags = ImGuiTabBarFlags_Reorderable
     flags = ior(flags,ImGuiTabBarFlags_AutoSelectNewTabs)
     if (igBeginTabBar(c_loc(str1),flags)) then
-
-       !!!!! Selection tab !!!!!
-       if (iw_begintabitem("Selection##editrepatoms_selectiontab")) then
-          ! filter
-          call iw_text("Filter",highlight=.true.,alignframe=.true.)
-          call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at&
-             & the atomic position; structural variables are very useful for filters."//newline//&
-             iw_arith_help//newline//"Click the Help button for more info.")
-          call iw_arith_help_button("##helpfilter",ttshown)
-
-          ! filter text input
-          if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%sel%filter,notlive=.true.)) then
-             ! test the filter
-             if (sys(isys)%c%ncel > 0) then
-                x0 = sys(isys)%c%atcel(1)%r
-             else
-                x0 = 0d0
-             end if
-             changed = .true.
-             w%rep%sel%errfilter = ""
-          end if
-          if (len_trim(w%rep%sel%filter) == 0) w%rep%sel%errfilter = ""
-          call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",&
-             ttshown)
-          if (iw_button("Clear",sameline=.true.)) then
-             w%rep%sel%filter = ""
-             w%rep%sel%errfilter = ""
-             changed = .true.
-          end if
-          call iw_tooltip("Clear the filter",ttshown)
-          if (len_trim(w%rep%sel%errfilter) > 0) &
-             call iw_text("Error: " // trim(w%rep%sel%errfilter),danger=.true.,wrap=.true.)
-
-          ! periodicity (evaluate first: the widgets must be drawn even if
-          ! changed is already true, and .or. is allowed to short-circuit)
-          if (.not.sys(isys)%c%ismolecule) then
-             ch = iw_periodicity_widget(w%rep%sel%ncell,ttshown,pertype=w%rep%sel%pertype)
-             changed = changed .or. ch
-
-             ! checkbox for molecular motif
-             changed = changed .or. iw_checkbox("Show connected molecules",w%rep%sel%onemotif)
-             call iw_tooltip("Translate atoms to display whole molecules",ttshown)
-
-             ! checkbox for border
-             changed = changed .or. iw_checkbox("Show atoms at cell edges",w%rep%sel%border,sameline=.true.)
-             call iw_tooltip("Display atoms near the unit cell edges",ttshown)
-          end if
-
-          ! origin of the atoms
-          if (.not.sys(isys)%c%ismolecule) then
-             ! origin translation
-             changed = changed .or. iw_dragfloat_real8("Translate Origin (fractional)##originatom",x3=w%rep%sel%origin,&
-                speed=0.001d0,decimal=5)
-             call iw_tooltip("Translation vector for the contents of the unit cell.",ttshown)
-
-             ! origin shift
-             changed = changed .or. iw_dragfloat_real8("Cell Origin Shift (fractional)##origincell",x3=w%rep%sel%tshift,&
-                speed=0.001d0,decimal=5)
-             call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
-          end if
-
-          ! show the corner atoms of coordination polyhedra
-          changed = changed .or. iw_checkbox("Show atoms at polyhedra corners##polyshowcorners",&
-             w%rep%poly%showcorners)
-          call iw_tooltip("When coordination polyhedra are displayed and atoms are shown, also "//&
-             "draw the atoms at the polyhedra corners, even if they fall outside the current selection.",ttshown)
-
-          ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(isys,w%rep,.true.,.false.,ihighlight,highlight_type)
-
-          call igEndTabItem()
-       end if ! begin tab item (selection)
-
        !!!!! Atoms tab !!!!!
        if (w%rep%atoms%display) then
           if (iw_begintabitem("Atoms##editrepatoms_atomstab")) then
@@ -377,9 +308,29 @@ contains
              changed = changed .or. iw_coloredit("Border Color",rgb=w%rep%atoms%border_rgb,sameline=.true.)
              call iw_tooltip("Color of the border for the atoms",ttshown)
 
-             ! draw the atom selection widget
-             changed = changed .or. atom_selection_widget(isys,w%rep,&
-                .false.,.true.,ihighlight,highlight_type)
+             ! occupancy sectors
+             if (sys(isys)%c%haveocc) then
+                changed = changed .or. iw_checkbox("Occupancy sectors",w%rep%atoms%occ_sectors)
+                call iw_tooltip("Draw partially occupied sites as spheres with a filled "//&
+                   "sector proportional to the occupancy",ttshown)
+                if (w%rep%atoms%occ_sectors) then
+                   changed = changed .or. iw_coloredit("Vacancy color",rgb=w%rep%atoms%occ_empty_rgb,sameline=.true.)
+                   call iw_tooltip("Color of the sector corresponding to a vacancy drawn on partially occupied atoms",&
+                      ttshown)
+                end if
+             end if
+
+             ! the atom and molecule style tables (a change of grouping
+             ! remakes the style arrays, and the table is drawn next frame)
+             ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
+                rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)
+             if (typechanged) call w%rep%atoms%style%reset(w%rep)
+             changed = changed .or. ch
+             if (w%rep%mols%style%isinit) then
+                ch = mol_table_widget(isys,ihighlight,highlight_type,&
+                   tint=w%rep%mols%style%tint_rgb,scale=w%rep%mols%style%scale_rad)
+                changed = changed .or. ch
+             end if
 
              call igEndTabItem()
           end if ! begin tab item (atoms)
@@ -834,21 +785,8 @@ contains
              end if ! begintable
 
              ! style buttons: show/hide
-             if (iw_button("Show All##showalllabels")) then
-                w%rep%labels%style%shown = .true.
-                changed = .true.
-             end if
-             call iw_tooltip("Show all labels",ttshown)
-             if (iw_button("Hide All##hidealllabels",sameline=.true.)) then
-                w%rep%labels%style%shown = .false.
-                changed = .true.
-             end if
-             call iw_tooltip("Hide all labels",ttshown)
-             if (iw_button("Toggle Show/Hide##togglealllabels",sameline=.true.)) then
-                w%rep%labels%style%shown = .not.w%rep%labels%style%shown
-                changed = .true.
-             end if
-             call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
+             ch = showhide_buttons(w%rep%labels%style%shown,"labels","labels",ttshown)
+             changed = changed .or. ch
 
              call igEndTabItem()
           end if ! begin tab item (labels)
@@ -864,6 +802,12 @@ contains
                 size(w%rep%poly%style%corner,1) /= sys(isys)%c%nspc) then
                 call w%rep%poly%style%reset(w%rep)
              end if
+
+             ! show the corner atoms of coordination polyhedra
+             changed = changed .or. iw_checkbox("Show atoms at polyhedra corners##polyshowcorners",&
+                w%rep%poly%showcorners)
+             call iw_tooltip("When atoms are shown, also draw the atoms at the polyhedra corners, "//&
+                "even if they fall outside the current selection.",ttshown)
 
              ! center type selector
              call iw_text("Centers and Corners",highlight=.true.,alignframe=.true.)
@@ -982,7 +926,6 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_clamp_color3, iw_checkbox,&
-       iw_periodicity_widget,&
        iw_coloredit, iw_dragfloat_real8
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -993,11 +936,6 @@ contains
 
     ! initialize
     changed = .false.
-
-    ! periodicity (evaluate first: the widgets must be drawn even if changed is
-    ! already true, and .or. is allowed to short-circuit)
-    ch = iw_periodicity_widget(w%rep%sel%ncell,ttshown,pertype=w%rep%sel%pertype)
-    changed = changed .or. ch
 
     !! styles
     call iw_text("Style",highlight=.true.)
@@ -1036,11 +974,6 @@ contains
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
        end if
     end if
-
-    ! origin of the unit cell
-    call iw_text("Origin Shift",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("##originucx",x3=w%rep%sel%origin,speed=0.001d0,decimal=5)
-    call iw_tooltip("Coordinates for the origin shift of the unit cell",ttshown)
 
   end function draw_editrep_unitcell
 
@@ -1213,41 +1146,42 @@ contains
 
   end function draw_editrep_axes
 
-  !xx! private procedures
+  !xx! shared table widgets (also used by the display window)
 
-  !> Draw the atom selection table for crystal c on representation r
-  !> and return whether any item has been changed.  idparent = ID of
-  !> the parent window who owns the correpsonding scene.
-  !> showselection = show the selection tab columns in the tables.
-  !> showdrawopts = show the atoms tab columns (draw) in the tables.
-  !> dohighlight = return true if highlight has been done
-  function atom_selection_widget(isys,r,showselection,showdrawopts,ihighlight,highlight_type) &
+  !> Draw the table of atom groups of system isys, grouped by itype
+  !> (atlisttype_*), with the columns the caller asks for: a Show
+  !> checkbox column when shown is given (with Show All / Hide All /
+  !> Toggle buttons under the table), and Col / Radius columns when rgb
+  !> and rad are given. Returns whether anything changed. A change of
+  !> grouping is reported in typechanged, and the table is still drawn
+  !> over the previous grouping (which the arrays describe); the caller
+  !> remakes its arrays for the new one. ihighlight/highlight_type are set to the
+  !> row under the mouse (and its grouping) for the scene highlight, and
+  !> left alone otherwise.
+  module function atom_table_widget(isys,itype,typechanged,ihighlight,highlight_type,shown,rgb,rad) &
      result(changed)
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_ang,&
-       atlisttype_nmol, atlisttype_ncel_frac
-    use representations, only: atom_geom_style, mol_geom_style
-    use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox, iw_clamp_color3,&
-       iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable, iw_dragfloat_real8,&
-       iw_table_column
-    use crystalmod, only: crystal
-    use global, only: iunit_ang, dunit0
+       atlisttype_ncel_frac
+    use utils, only: iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
+       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column
     use tools_io, only: string, ioj_right
     use param, only: bohrtoa
     integer, intent(in) :: isys
-    type(representation), intent(inout) :: r
-    logical, intent(in) :: showselection
-    logical, intent(in) :: showdrawopts
-    integer, intent(out) :: ihighlight
-    integer, intent(out) :: highlight_type
+    integer, intent(inout) :: itype
+    logical, intent(out) :: typechanged
+    integer, intent(inout) :: ihighlight
+    integer, intent(inout) :: highlight_type
+    logical, intent(inout), optional :: shown(:)
+    real(c_float), intent(inout), optional :: rgb(:,:)
+    real*8, intent(inout), optional :: rad(:)
     logical :: changed
 
-    logical :: domol, docoord
-    logical :: ch
+    logical :: domol, docoord, doshown, dostyle, ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     real*8 :: x0(3)
-    type(ImVec2) :: sz0, szero
-    integer :: ispc, i, iz, ncol, icol
+    type(ImVec2) :: sz0
+    integer :: ispc, i, iz, ncol, icol, ntype, itab
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
 
@@ -1259,13 +1193,13 @@ contains
     integer, allocatable :: atlisttype_allowed(:)
 
     ! initialize
-    ihighlight = 0
-    highlight_type = 0
-    szero%x = 0
-    szero%y = 0
-    if (showselection) then
-       call iw_text("Atom Selection",highlight=.true.)
-    elseif (showdrawopts) then
+    changed = .false.
+    typechanged = .false.
+    doshown = present(shown)
+    dostyle = present(rgb) .and. present(rad)
+    if (doshown) then
+       call iw_text("Shown Atoms",highlight=.true.)
+    elseif (dostyle) then
        call iw_text("Atom Style",highlight=.true.)
     end if
     if (sys(isys)%c%ismolecule) then
@@ -1274,39 +1208,33 @@ contains
        atlisttype_allowed = atlisttype_allowed_crys
     end if
 
-    ! selector and reset
-    changed = .false.
-
-    ! occupancy sectors
-    if (showdrawopts .and. sys(isys)%c%haveocc) then
-       changed = changed .or. iw_checkbox("Occupancy sectors",r%atoms%occ_sectors)
-       call iw_tooltip("Draw partially occupied sites as spheres with a filled "//&
-          "sector proportional to the occupancy",ttshown)
-       if (r%atoms%occ_sectors) then
-          changed = changed .or. iw_coloredit("Vacancy color",rgb=r%atoms%occ_empty_rgb,sameline=.true.)
-          call iw_tooltip("Color of the sector corresponding to a vacancy drawn on partially occupied atoms",ttshown)
-       end if
-    end if
-
-    ch = sysc(isys)%attype_combo_simple("Atom types##atomtypeselection",r%atoms%style%type,&
+    ! the grouping; a change is the caller's to apply, so this frame the
+    ! table is still drawn over the grouping the arrays describe
+    itab = itype
+    typechanged = sysc(isys)%attype_combo_simple("Atom types##atomtypeselection",itype,&
        atlisttype_allowed,units=.false.)
     call iw_tooltip("Group atoms by these categories",ttshown)
-    if (ch) then
-       call r%atoms%style%reset(r)
-       changed = .true.
+    changed = changed .or. typechanged
+
+    ! the arrays must describe this grouping
+    ntype = sysc(isys)%attype_number(itab)
+    if (doshown) then
+       if (size(shown,1) /= ntype) return
+    end if
+    if (dostyle) then
+       if (size(rgb,2) /= ntype .or. size(rad,1) /= ntype) return
     end if
 
     ! whether to do the molecule column and the coordinates
-    domol = (r%atoms%style%type == atlisttype_ncel_ang)
-    docoord = (r%atoms%style%type == atlisttype_nneq .or. r%atoms%style%type == atlisttype_ncel_ang .or.&
-       r%atoms%style%type == atlisttype_ncel_frac)
+    domol = (itab == atlisttype_ncel_ang)
+    docoord = (itab == atlisttype_nneq .or. itab == atlisttype_ncel_ang .or. itab == atlisttype_ncel_frac)
     ncol = 3
-    if (showselection) ncol = ncol + 1 ! show
-    if (showdrawopts) ncol = ncol + 2 ! col, radius
+    if (doshown) ncol = ncol + 1 ! show
+    if (dostyle) ncol = ncol + 2 ! col, radius
     if (domol) ncol = ncol + 1 ! mol
     if (docoord) ncol = ncol + 1 ! coordinates
 
-    ! atom style table, for atoms
+    ! atom table
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
@@ -1316,34 +1244,23 @@ contains
     flags = ior(flags,ImGuiTableFlags_ScrollY)
     str1="##tableatomstyles" // c_null_char
     sz0%x = 0
-    sz0%y = iw_calcheight(min(5,r%atoms%style%ntype)+1,0,.false.)
+    sz0%y = iw_calcheight(min(5,ntype)+1,0,.false.)
     if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
        icol = -1
 
        ! header setup
        call iw_table_column("Id",icol=icol)
-
        call iw_table_column("Atom",icol=icol)
-
        call iw_table_column("Z ",icol=icol)
-
-       if (showselection) then
-          call iw_table_column("Show",icol=icol)
-       end if
-
-       if (showdrawopts) then
+       if (doshown) call iw_table_column("Show",icol=icol)
+       if (dostyle) then
           call iw_table_column("Col",icol=icol)
-
           call iw_table_column("Radius",icol=icol)
        end if
-
-       if (domol) then
-          call iw_table_column("Mol",icol=icol)
-       end if
-
+       if (domol) call iw_table_column("Mol",icol=icol)
        if (docoord) then
-          if (r%atoms%style%type == atlisttype_ncel_ang) then
-             str2 = "Coordinates (Å)"
+          if (itab == atlisttype_ncel_ang) then
+             str2 = "Coordinates (Å)"
           else
              str2 = "Coordinates (fractional)"
           end if
@@ -1357,7 +1274,7 @@ contains
 
        ! start the clipper
        clipper = ImGuiListClipper_ImGuiListClipper()
-       call ImGuiListClipper_Begin(clipper,r%atoms%style%ntype,-1._c_float)
+       call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
 
        ! draw the rows
        do while(ImGuiListClipper_Step(clipper))
@@ -1367,7 +1284,7 @@ contains
              icol = -1
 
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             ispc = sysc(isys)%attype_species(r%atoms%style%type,i)
+             ispc = sysc(isys)%attype_species(itab,i)
              iz = sys(isys)%c%spc(ispc)%z
 
              ! id
@@ -1376,50 +1293,45 @@ contains
                 call iw_text(string(i),alignframe=.true.)
 
                 ! the highlight selectable
-                if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
+                if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
                    ihighlight = i
-                   highlight_type = r%atoms%style%type
+                   highlight_type = itab
                 end if
              end if
 
              ! name
              icol = icol + 1
-             if (igTableSetColumnIndex(icol)) call iw_text(sysc(isys)%attype_name(r%atoms%style%type,i))
+             if (igTableSetColumnIndex(icol)) call iw_text(sysc(isys)%attype_name(itab,i))
 
              ! Z
              icol = icol + 1
              if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
 
              ! shown
-             if (showselection) then
+             if (doshown) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   changed = changed .or. iw_checkbox("##tableshown" // suffix ,r%atoms%style%shown(i))
+                   changed = changed .or. iw_checkbox("##tableshown" // suffix ,shown(i))
                    call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
                 end if
              end if
 
-             ! color
-             if (showdrawopts) then
+             ! color and radius
+             if (dostyle) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   ch = iw_coloredit("##tablecolor" // suffix,rgb=r%atoms%style%rgb(:,i))
+                   ch = iw_coloredit("##tablecolor" // suffix,rgb=rgb(:,i))
                    call iw_tooltip("Atom color",ttshown)
-                   if (ch) then
-                      r%atoms%style%rgb(:,i) = min(r%atoms%style%rgb(:,i),1._c_float)
-                      r%atoms%style%rgb(:,i) = max(r%atoms%style%rgb(:,i),0._c_float)
-                      changed = .true.
-                   end if
+                   changed = changed .or. ch
                 end if
 
-                ! radius
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   ch = iw_dragfloat_real8("##tableradius" // string(i),x1=r%atoms%style%rad(i),speed=0.01d0,&
+                   ch = iw_dragfloat_real8("##tableradius" // string(i),x1=rad(i),speed=0.01d0,&
                       min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
                    call iw_tooltip("Radius of the sphere representing the atom",ttshown)
                    if (ch) then
-                      r%atoms%style%rad(i) = max(r%atoms%style%rad(i),0d0)
+                      rad(i) = max(rad(i),0d0)
                       changed = .true.
                    end if
                 end if
@@ -1432,13 +1344,13 @@ contains
                 if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idatcelmol(1,i)))
              end if
 
-             ! rest of info
+             ! coordinates
              if (docoord) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
                    s = ""
-                   if (r%atoms%style%type > 0) then
-                      x0 = sysc(isys)%attype_coordinates(r%atoms%style%type,i)
+                   if (itab > 0) then
+                      x0 = sysc(isys)%attype_coordinates(itab,i)
                       s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
                          string(x0(3),'f',8,4,ioj_right)
                    end if
@@ -1454,186 +1366,212 @@ contains
        call igEndTable()
     end if
 
-    if (showselection) then
-       ! style buttons: show/hide
-       if (iw_button("Show All##showallatoms")) then
-          r%atoms%style%shown = .true.
-          changed = .true.
-       end if
-       call iw_tooltip("Show all atoms/bonds/labels in the system",ttshown)
-       if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
-          r%atoms%style%shown = .false.
-          changed = .true.
-       end if
-       call iw_tooltip("Hide all atoms/bonds/labels in the system",ttshown)
-       if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
-          do i = 1, r%atoms%style%ntype
-             r%atoms%style%shown(i) = .not.r%atoms%style%shown(i)
-          end do
-          changed = .true.
-       end if
-       call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
+    ! show/hide buttons
+    if (doshown) changed = changed .or. showhide_buttons(shown,"atoms","atoms/bonds/labels",ttshown)
+
+  end function atom_table_widget
+
+  !> Draw the table of molecules of system isys (nothing if it has one
+  !> molecule or fewer), with the columns the caller asks for: a Show
+  !> checkbox column when shown is given (with Show All / Hide All /
+  !> Toggle buttons under the table), and Tint / Scale columns when tint
+  !> and scale are given. Returns whether anything changed.
+  !> ihighlight/highlight_type are set to the row under the mouse (and
+  !> the molecule grouping), and left alone otherwise.
+  module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
+    use systems, only: sys, atlisttype_nmol
+    use utils, only: iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
+       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column
+    use global, only: iunit_ang, dunit0
+    use tools_io, only: string, ioj_right
+    integer, intent(in) :: isys
+    integer, intent(inout) :: ihighlight
+    integer, intent(inout) :: highlight_type
+    logical, intent(inout), optional :: shown(:)
+    real(c_float), intent(inout), optional :: tint(:,:)
+    real*8, intent(inout), optional :: scale(:)
+    logical :: changed
+
+    logical :: doshown, dostyle, ch
+    integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: s, str1, str2
+    real*8 :: x0(3)
+    type(ImVec2) :: sz0
+    integer :: i, ncol, icol, nmol
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+
+    logical, save :: ttshown = .false. ! tooltip flag
+
+    ! initialize
+    changed = .false.
+    doshown = present(shown)
+    dostyle = present(tint) .and. present(scale)
+    nmol = sys(isys)%c%nmol
+    if (nmol <= 1) return
+    if (doshown) then
+       if (size(shown,1) /= nmol) return
+    end if
+    if (dostyle) then
+       if (size(tint,2) /= nmol .or. size(scale,1) /= nmol) return
+    end if
+    if (doshown) then
+       call iw_text("Shown Molecules",highlight=.true.)
+    elseif (dostyle) then
+       call iw_text("Molecule Style",highlight=.true.)
     end if
 
-    ! molecule selection
-    ! initialized and more than one molecule
-    if (r%mols%style%isinit .and. r%mols%style%ntype > 1) then
-       if (showselection) then
-          call iw_text("Molecule Selection",highlight=.true.)
-       elseif (showdrawopts) then
-          call iw_text("Molecule Style",highlight=.true.)
+    ncol = 2
+    if (doshown) ncol = ncol + 1 ! show
+    if (dostyle) ncol = ncol + 2 ! tint, scale
+    ncol = ncol + 1 ! center of mass
+
+    ! molecule table
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_Resizable)
+    flags = ior(flags,ImGuiTableFlags_Reorderable)
+    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    str1="##tablemolstyles" // c_null_char
+    sz0%x = 0
+    sz0%y = iw_calcheight(min(5,nmol)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+       icol = -1
+
+       ! header setup
+       call iw_table_column("Id",icol=icol)
+       call iw_table_column("Nat",icol=icol)
+       if (doshown) call iw_table_column("Show",icol=icol)
+       if (dostyle) then
+          call iw_table_column("Tint",icol=icol)
+          call iw_table_column("Scale",icol=icol)
        end if
+       if (sys(isys)%c%ismolecule) then
+          str2 = "Center of mass (Å)"
+       else
+          str2 = "Center of mass (fractional)"
+       end if
+       call iw_table_column(str2,icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
 
-       ncol = 2
-       if (showselection) ncol = ncol + 1 ! show
-       if (showdrawopts) ncol = ncol + 2 ! tint, scale
-       ncol = ncol + 1 ! center of mass
+       ! draw the header
+       call igTableSetupScrollFreeze(0, 1) ! top row always visible
+       call igTableHeadersRow()
+       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
-       ! molecule style table, for molecules
-       flags = ImGuiTableFlags_None
-       flags = ior(flags,ImGuiTableFlags_Resizable)
-       flags = ior(flags,ImGuiTableFlags_Reorderable)
-       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-       flags = ior(flags,ImGuiTableFlags_Borders)
-       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-       flags = ior(flags,ImGuiTableFlags_ScrollY)
-       str1="##tablemolstyles" // c_null_char
-       sz0%x = 0
-       sz0%y = iw_calcheight(min(5,r%mols%style%ntype)+1,0,.false.)
-       if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
-          icol = -1
+       ! start the clipper
+       clipper = ImGuiListClipper_ImGuiListClipper()
+       call ImGuiListClipper_Begin(clipper,nmol,-1._c_float)
 
-          ! header setup
-          call iw_table_column("Id",icol=icol)
+       ! draw the rows
+       do while(ImGuiListClipper_Step(clipper))
+          call c_f_pointer(clipper,clipper_f)
+          do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+             icol = -1
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-          call iw_table_column("Nat",icol=icol)
+             ! id
+             icol = icol + 1
+             if (igTableSetColumnIndex(icol)) then
+                call iw_text(string(i),alignframe=.true.)
 
-          if (showselection) then
-             call iw_table_column("Show",icol=icol)
-          end if
+                ! the highlight selectable
+                if (iw_highlight_selectable("##selectablemoltable_" // string(i))) then
+                   ihighlight = i
+                   highlight_type = atlisttype_nmol
+                end if
+             end if
 
-          if (showdrawopts) then
-             call iw_table_column("Tint",icol=icol)
+             ! nat
+             icol = icol + 1
+             if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
 
-             call iw_table_column("Scale",icol=icol)
-          end if
-
-          if (sys(isys)%c%ismolecule) then
-             str2 = "Center of mass (Å)"
-          else
-             str2 = "Center of mass (fractional)"
-          end if
-          call iw_table_column(str2,icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
-
-          ! draw the header
-          call igTableSetupScrollFreeze(0, 1) ! top row always visible
-          call igTableHeadersRow()
-          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
-
-          ! start the clipper
-          clipper = ImGuiListClipper_ImGuiListClipper()
-          call ImGuiListClipper_Begin(clipper,r%mols%style%ntype,-1._c_float)
-
-          ! draw the rows
-          do while(ImGuiListClipper_Step(clipper))
-             call c_f_pointer(clipper,clipper_f)
-             do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                icol = -1
-                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-
-                ! id
+             ! shown
+             if (doshown) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   call iw_text(string(i),alignframe=.true.)
-
-                   ! the highlight selectable
-                   if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
-                      ihighlight = i
-                      highlight_type = atlisttype_nmol
-                   end if
+                   changed = changed .or. iw_checkbox("##tablemolshown" // string(i),shown(i))
+                   call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
                 end if
+             end if
 
-                ! nat
-                icol = icol + 1
-                if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
-
-                ! shown
-                if (showselection) then
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      changed = changed .or. iw_checkbox("##tablemolshown" // string(i) ,r%mols%style%shown(i))
-                      call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
-                   end if
-                end if
-
-                ! color
-                if (showdrawopts) then
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      ch = iw_coloredit("##tablemolcolor" // string(i),rgb=r%mols%style%tint_rgb(:,i))
-                      call iw_tooltip("Molecule color tint",ttshown)
-                      if (ch) then
-                         r%mols%style%tint_rgb(:,i) = min(r%mols%style%tint_rgb(:,i),1._c_float)
-                         r%mols%style%tint_rgb(:,i) = max(r%mols%style%tint_rgb(:,i),0._c_float)
-                         changed = .true.
-                      end if
-                   end if
-
-                   ! radius
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      changed = changed .or. iw_dragfloat_real8("##tablemolradius" // string(i),&
-                         x1=r%mols%style%scale_rad(i),speed=0.005d0,min=0d0,max=5d0,decimal=3,&
-                         flags=ImGuiSliderFlags_AlwaysClamp)
-                      call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
-                   end if
-                end if
-
-                ! rest of info
+             ! tint and scale
+             if (dostyle) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   x0 = sys(isys)%c%mol(i)%cmass(.false.)
-                   if (sys(isys)%c%ismolecule) then
-                      x0 = (x0+sys(isys)%c%molx0) * dunit0(iunit_ang)
-                   else
-                      x0 = sys(isys)%c%c2x(x0)
-                   endif
-                   s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
-                      string(x0(3),'f',8,4,ioj_right)
-                   call iw_text(s)
+                   ch = iw_coloredit("##tablemolcolor" // string(i),rgb=tint(:,i))
+                   call iw_tooltip("Molecule color tint",ttshown)
+                   changed = changed .or. ch
                 end if
-             end do ! clipper indices
-          end do ! clipper step
 
-          ! end the clipper and the table
-          call ImGuiListClipper_End(clipper)
-          call ImGuiListClipper_destroy(clipper)
-          call igEndTable()
-       end if
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   changed = changed .or. iw_dragfloat_real8("##tablemolradius" // string(i),&
+                      x1=scale(i),speed=0.005d0,min=0d0,max=5d0,decimal=3,&
+                      flags=ImGuiSliderFlags_AlwaysClamp)
+                   call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
+                end if
+             end if
 
-       if (showselection) then
-          ! style buttons: show/hide
-          if (iw_button("Show All##showallmolecules")) then
-             r%mols%style%shown = .true.
-             changed = .true.
-          end if
-          call iw_tooltip("Show all molecules in the system",ttshown)
-          if (iw_button("Hide All##hideallmolecules",sameline=.true.)) then
-             r%mols%style%shown = .false.
-             changed = .true.
-          end if
-          call iw_tooltip("Hide all molecules in the system",ttshown)
-          if (iw_button("Toggle Show/Hide##toggleallmolecules",sameline=.true.)) then
-             do i = 1, r%mols%style%ntype
-                r%mols%style%shown(i) = .not.r%mols%style%shown(i)
-             end do
-             changed = .true.
-          end if
-          call iw_tooltip("Toggle the show/hide status for all molecules",ttshown)
-       end if
+             ! center of mass
+             icol = icol + 1
+             if (igTableSetColumnIndex(icol)) then
+                x0 = sys(isys)%c%mol(i)%cmass(.false.)
+                if (sys(isys)%c%ismolecule) then
+                   x0 = (x0+sys(isys)%c%molx0) * dunit0(iunit_ang)
+                else
+                   x0 = sys(isys)%c%c2x(x0)
+                endif
+                s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+                   string(x0(3),'f',8,4,ioj_right)
+                call iw_text(s)
+             end if
+          end do ! clipper indices
+       end do ! clipper step
+
+       ! end the clipper and the table
+       call ImGuiListClipper_End(clipper)
+       call ImGuiListClipper_destroy(clipper)
+       call igEndTable()
     end if
 
-  end function atom_selection_widget
+    ! show/hide buttons
+    if (doshown) changed = changed .or. showhide_buttons(shown,"molecules","molecules",ttshown)
+
+  end function mol_table_widget
+
+  !xx! private procedures
+
+  !> The Show All / Hide All / Toggle Show/Hide button row over the mask
+  !> shown; idsuffix makes the button IDs unique and what names the
+  !> items in the tooltips. Returns whether the mask changed.
+  function showhide_buttons(shown,idsuffix,what,ttshown) result(changed)
+    use utils, only: iw_button, iw_tooltip
+    logical, intent(inout) :: shown(:)
+    character(len=*), intent(in) :: idsuffix
+    character(len=*), intent(in) :: what
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    changed = .false.
+    if (iw_button("Show All##showall" // idsuffix)) then
+       shown = .true.
+       changed = .true.
+    end if
+    call iw_tooltip("Show all " // what // " in the system",ttshown)
+    if (iw_button("Hide All##hideall" // idsuffix,sameline=.true.)) then
+       shown = .false.
+       changed = .true.
+    end if
+    call iw_tooltip("Hide all " // what // " in the system",ttshown)
+    if (iw_button("Toggle Show/Hide##toggleall" // idsuffix,sameline=.true.)) then
+       shown = .not.shown
+       changed = .true.
+    end if
+    call iw_tooltip("Toggle the show/hide status for all " // what,ttshown)
+
+  end function showhide_buttons
 
   !> Draw the editrep (Object) window, symmetry-elements class. Returns true if
   !> the scene needs rendering again. ttshown = the tooltip flag.
@@ -2389,7 +2327,6 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable,&
-       iw_periodicity_widget,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
        iw_arith_help_button, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
        duration_string
@@ -2702,15 +2639,6 @@ contains
     if (w%rep%iso%outdomain) &
        call iw_text("The field could not be evaluated in part of the region",&
           danger=.true.,wrap=.true.)
-
-    ! how the isosurface on screen is replicated. Only a whole-cell mesh is
-    ! periodic (iso_sample_domain makes per0 false for every other region), so
-    ! per0_built is the whole condition; it belongs here, with the state of the
-    ! build, rather than under a staged Region mode it does not follow
-    if (w%rep%iso%per0_built) then
-       ch = iw_periodicity_widget(w%rep%sel%ncell,ttshown,pertype=w%rep%sel%pertype)
-       changed = changed .or. ch
-    end if
 
     ! show the staged region in the view for as long as this editor is
     ! open

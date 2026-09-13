@@ -33,7 +33,7 @@ set(SOURCES
   windows@load_field.f90 windows@preferences.f90 windows@exportimage.f90 windows@saveas.f90
   windows@save_multiple.f90
   windows@extract.f90
-  windows@rattle.f90 windows@voids.f90
+  windows@rattle.f90 windows@voids.f90 windows@display.f90
   windows@vibrations.f90 windows@mo.f90 windows@dynamics.f90 windows@editrep.f90 windows@about.f90
   windows@builder.f90 windows@water_cluster.f90
   utils.f90 utils@proc.f90 utils@math.f90
@@ -43,6 +43,7 @@ set(SOURCES
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
   representations.f90 representations@proc.f90
+  display.f90 display@proc.f90
   )
 
 ## freetype

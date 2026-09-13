@@ -841,7 +841,7 @@ contains
     use systems, only: sys, sysc, nsys, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
-    use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
+    use windows, only: win, iwin_tree, iwin_view, iwin_console_input, wintype_display,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
@@ -1200,6 +1200,11 @@ contains
 
           ! Windows -> Separator
           call igSeparator()
+
+          ! Windows -> Display selection of the main view
+          if (iw_menuitem("Display Settings",enabled=logical(win(iwin_view)%isopen))) &
+             idum = stack_create_window(wintype_display,.true.,idparent=iwin_view,orraise=-1)
+          call iw_tooltip("Select the part of the system displayed in the main view",ttshown)
 
           ! Windows -> Alternate view
           if (iw_menuitem("New View Window")) &

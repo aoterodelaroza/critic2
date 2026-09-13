@@ -161,7 +161,7 @@ contains
     s%id = isys
     s%isinit = 1
     s%iscaminit = .false.
-    s%nc = 1
+    call s%disp%init(isys)
     s%scenerad = 10d0
     s%scenecenter = 0d0
     s%scenexmin = 0d0
@@ -263,6 +263,7 @@ contains
     call s%gl%end()
     call s%obj%end()
     call invalidate_scene_reps(s)
+    call s%disp%end()
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
     if (allocated(s%iord)) deallocate(s%iord)
@@ -362,6 +363,9 @@ contains
     ! reset the draw lists
     call s%obj%reset()
 
+    ! update the display
+    call s%disp%update(s%id)
+
     ! add the items by representation; defer reps that need the scene radius
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
@@ -370,7 +374,7 @@ contains
        ! add draw elements
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
-       call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+       call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
     ! Keep the measure selection across rebuilds. msel(1:4) is the
@@ -553,7 +557,7 @@ contains
              s%rep(i)%axes%scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes%length,1d-10)
              s%rep(i)%axes%scale_auto = .false.
           end if
-          call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+          call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
     end do
 
@@ -562,7 +566,7 @@ contains
        if (s%rep(i)%type == reptype_symelem) then
           s%rep(i)%symelem%size = real(s%scenerad,8)
           s%rep(i)%symelem%cen = real(s%scenecenter,8)
-          call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+          call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
     end do
 
@@ -574,7 +578,7 @@ contains
           s%reptrans(i)%symelem%size = real(s%scenerad,8)
           s%reptrans(i)%symelem%cen = real(s%scenecenter,8)
        end if
-       call s%reptrans(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+       call s%reptrans(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
     ! flag whether any object is anchored to the window borders (the view
@@ -798,7 +802,7 @@ contains
     call glDisable(GL_CULL_FACE)
     call draw_all_text()
     if (s%nmsel > 0) &
-       call draw_selection_text()
+       call draw_display_text()
     call glEnable(GL_CULL_FACE)
     call glEnable(GL_MULTISAMPLE)
     call glDisable(GL_BLEND)
@@ -1293,7 +1297,7 @@ contains
       call ensure_pack(s%gl%packsph,sph_inst_nf,s%nmsel)
       do j = 1, s%nmsel
          i = s%msel(5,j)
-         ! CPU-displaced label anchor for draw_selection_text (displ is zero
+         ! CPU-displaced label anchor for draw_display_text (displ is zero
          ! when no animation is running)
          x = s%obj%sph(i)%x + real(displ * s%obj%sph(i)%xdelta,c_float)
          call sphere_pack(s%gl%packsph(:,j),s%obj%sph(i)%x,s%obj%sph(i)%r + msel_thickness,&
@@ -1465,7 +1469,7 @@ contains
 
     !> Draw the measure-selection numerals. At most 4 short strings, streamed
     !> through the shared on-scene text buffer every frame (not cached).
-    subroutine draw_selection_text()
+    subroutine draw_display_text()
       integer :: j
       real(c_float) :: siz, wclip
       integer(c_int) :: nvert
@@ -1489,7 +1493,7 @@ contains
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
       call glBindVertexArray(0)
 
-    end subroutine draw_selection_text
+    end subroutine draw_display_text
 
   end subroutine scene_render
 
@@ -2525,17 +2529,13 @@ contains
     id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_ballandstick,found)
     if (id <= 0) return
 
-    ! static configuration, stamped when the item is (re)created: the
-    ! spheres alone, over the cell and its border. A whole-molecule
-    ! selection would draw a different set of atoms than the one the
-    ! volume is measured over
+    ! static configuration, stamped when the item is (re)created
     if (.not.found) then
        s%reptrans(id)%atoms%display = .true.
        s%reptrans(id)%bonds%display = .false.
        s%reptrans(id)%labels%display = .false.
        s%reptrans(id)%poly%display = .false.
-       s%reptrans(id)%sel%onemotif = .false.
-       s%reptrans(id)%sel%border = .true.
+       s%reptrans(id)%disp%ignoresel = .true.
     end if
 
     associate (d => s%reptrans(id)%atoms%style)

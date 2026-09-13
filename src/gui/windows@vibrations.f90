@@ -284,7 +284,7 @@ contains
           end do
           call iw_text("[" // string(r(1)) // " " // string(r(2)) // " " // string(r(3)) // "]",sameline=.true.)
           if (iw_button("Set",sameline=.true.)) then
-             win(iview)%sc%nc = int(r)
+             win(iview)%sc%disp%ncell = int(r)
              win(iview)%sc%forcebuildlists = .true.
           end if
           call iw_tooltip("Change the number of unit cells represented to the suggested value",ttshown)

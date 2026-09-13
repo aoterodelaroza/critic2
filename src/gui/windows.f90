@@ -794,6 +794,8 @@ module windows
      procedure :: draw_dynamics
      ! crystal voids
      procedure :: draw_voids
+     ! selection
+     procedure :: draw_display
      ! water cluster demonstration
      procedure :: draw_water_cluster
      ! geometry
@@ -850,6 +852,7 @@ module windows
   integer, parameter, public :: wintype_save_multiple = 23
   integer, parameter, public :: wintype_mo = 24
   integer, parameter, public :: wintype_voids = 25
+  integer, parameter, public :: wintype_display = 26
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1265,6 +1268,27 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_scfplot
      !xx! editrep submodule !xx!
+     module function atom_table_widget(isys,itype,typechanged,ihighlight,highlight_type,shown,rgb,rad) &
+        result(changed)
+       integer, intent(in) :: isys
+       integer, intent(inout) :: itype
+       logical, intent(out) :: typechanged
+       integer, intent(inout) :: ihighlight
+       integer, intent(inout) :: highlight_type
+       logical, intent(inout), optional :: shown(:)
+       real(c_float), intent(inout), optional :: rgb(:,:)
+       real*8, intent(inout), optional :: rad(:)
+       logical :: changed
+     end function atom_table_widget
+     module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
+       integer, intent(in) :: isys
+       integer, intent(inout) :: ihighlight
+       integer, intent(inout) :: highlight_type
+       logical, intent(inout), optional :: shown(:)
+       real(c_float), intent(inout), optional :: tint(:,:)
+       real*8, intent(inout), optional :: scale(:)
+       logical :: changed
+     end function mol_table_widget
      module subroutine update_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine update_editrep
@@ -1329,6 +1353,10 @@ module windows
      module subroutine draw_voids(w)
        class(window), intent(inout), target :: w
      end subroutine draw_voids
+     !xx! display submodule !xx!
+     module subroutine draw_display(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_display
      !xx! vibrations submodule !xx!
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w

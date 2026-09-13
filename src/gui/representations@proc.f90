@@ -47,6 +47,7 @@ contains
 
     ! default display options
     r%atoms%display = .true.
+    r%atoms%spcclass = atomspc_real
     r%bonds%display = .true.
     r%labels%display = .false.
     r%poly%display = .false.
@@ -72,10 +73,12 @@ contains
           r%name = "Critical Points"
           r%bonds%display = .false.
           r%labels%display = .true.
+          r%atoms%spcclass = atomspc_cp
        elseif (flavor == repflavor_atoms_gradientpaths) then
           r%name = "Gradient Paths"
           r%bonds%display = .false.
           r%labels%display = .false.
+          r%atoms%spcclass = atomspc_gp
        elseif (flavor == repflavor_atoms_polyhedra) then
           r%name = "Polyhedra"
           r%bonds%display = .false.
@@ -227,7 +230,7 @@ contains
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
-    integer :: isys, imol, iat
+    integer :: isys
 
     ! check the system is sane
     isys = r%id
@@ -235,38 +238,8 @@ contains
 
     !! initialize an empty representation
     if (itype == 0) then
-       ! selection group
-       r%sel%pertype = 1
-       if (sys(isys)%c%ismolecule) then
-          r%sel%ncell = 0
-       else
-          r%sel%ncell = 1
-       end if
-       r%sel%origin = 0d0
-       r%sel%tshift = 0d0
-       r%sel%filter = ""
-       r%sel%errfilter = ""
-       if (sys(isys)%c%ismolecule) then
-          r%sel%border = .false.
-          r%sel%onemotif = .false.
-       else
-          r%sel%border = .true.
-          ! show connected molecules by default if there is more than one
-          ! fragment, or if a non-discrete fragment carries reconnection
-          ! lattice vectors (dangling pieces split by the cell boundary)
-          r%sel%onemotif = (sys(isys)%c%nmol > 1)
-          if (.not.r%sel%onemotif) then
-             moldangler: do imol = 1, sys(isys)%c%nmol
-                if (sys(isys)%c%mol(imol)%discrete) cycle
-                do iat = 1, sys(isys)%c%mol(imol)%nat
-                   if (any(sys(isys)%c%mol(imol)%at(iat)%lvec /= 0)) then
-                      r%sel%onemotif = .true.
-                      exit moldangler
-                   end if
-                end do
-             end do moldangler
-          end if
-       end if
+       ! the periodicity override: follow the scene Display
+       r%disp = rep_display()
     end if
 
     !--> atoms
@@ -1135,23 +1108,15 @@ contains
 
   end function iso_measure_cost
 
-  !> Number of unit cells a representation is drawn over, from its
-  !> periodicity control: 1 (none), the scene's global cell count nc
-  !> (automatic), or the manual count. The single decoder of
-  !> sel%pertype; all representations and the editors call it.
-  module function rep_selection_ncells(sel,nc) result(n)
-    class(rep_selection), intent(in) :: sel
-    integer, intent(in) :: nc(3)
-    integer :: n(3)
+  !> Whether this representation is drawn over the cells of the Display
+  module function representation_uses_periodicity(r) result(ok)
+    class(representation), intent(in) :: r
+    logical :: ok
 
-    n = 1
-    if (sel%pertype == 1) then
-       n = nc
-    elseif (sel%pertype == 2) then
-       n = sel%ncell
-    end if
+    ok = (r%type == reptype_atoms .or. r%type == reptype_unitcell .or. r%type == reptype_symelem)
+    if (r%type == reptype_isosurface) ok = r%iso%per0_built
 
-  end function rep_selection_ncells
+  end function representation_uses_periodicity
 
   !> Return true if the staged sampling grid (n, iregion, x) is already
   !> the applied state of isosurface iso. The region coordinates are
@@ -1630,8 +1595,7 @@ contains
     r%itag = 0
     r%armed = .false.
     r%name = ""
-    r%sel%filter = ""
-    r%sel%errfilter = ""
+    r%disp = rep_display()
     r%text%ntext = 0
     if (allocated(r%text%t)) deallocate(r%text%t)
     r%measure%nitem = 0
@@ -1727,7 +1691,7 @@ contains
   !> Add the spheres, cylinder, etc. to the draw lists. Use nc number
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation.
-  module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
+  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq)
     use systems, only: sys, sysc
     use systemmod, only: system
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane
@@ -1738,9 +1702,9 @@ contains
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
     use tools, only: mergesort
-    use param, only: tpi, img, atmass, icrd_crys, pi
+    use param, only: tpi, img, atmass, icrd_crys, pi, maxzat, maxzat0
     class(representation), intent(inout) :: r
-    integer, intent(in) :: nc(3)
+    type(scene_display), intent(inout) :: disp
     type(scene_objects), intent(inout) :: obj
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
@@ -1749,7 +1713,7 @@ contains
     ! 2 = polyhedron-corner shown, 3 = corner whose bonds have been emitted
     integer, allocatable :: lshown(:,:,:,:)
     logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
-    logical :: isvacdir, docycle, dovac(3)
+    logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks
     integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
@@ -1850,28 +1814,39 @@ contains
        !!! atoms and bonds representation !!!
 
        !! first, the atoms
+       border = disp%border
+       onemotif = disp%onemotif
+       usemasks = allocated(disp%ashown) .and. allocated(disp%mshown)
+       havefilter = (len_trim(disp%filter) > 0) .and. (len_trim(disp%errfilter) == 0)
+       usetshift = any(abs(disp%tshift) > 1d-5)
+       if (r%disp%ignoresel) then
+          border = .true.
+          onemotif = .false.
+          usemasks = .false.
+          havefilter = .false.
+          usetshift = .false.
+       end if
+
        ! do we have a filter? If so, tokenize it once here; the evaluation for
        ! each atom image below reuses the token list (skips the string parsing)
-       havefilter = (len_trim(r%sel%filter) > 0) .and. (len_trim(r%sel%errfilter) == 0)
        if (havefilter) then
           syptr => sys(r%id)
           errmsg = ""
-          call pretokenize(r%sel%filter,toklist,errmsg,c_loc(syptr))
+          call pretokenize(disp%filter,toklist,errmsg,c_loc(syptr))
           if (len_trim(errmsg) > 0) then
              havefilter = .false.
-             r%sel%errfilter = errmsg
+             disp%errfilter = errmsg
           end if
        end if
-       usetshift = any(abs(r%sel%tshift) > 1d-5)
 
        ! calculate the periodicity
-       n = r%sel%ncells(nc)
+       n = disp%ncells(r%disp)
 
        ! origin shift
        if (c%ismolecule) then
-          uoriginc = r%sel%origin / bohrtoa
+          uoriginc = disp%origin / bohrtoa
        else
-          uoriginc = c%x2c(r%sel%origin)
+          uoriginc = c%x2c(disp%origin)
        end if
 
        ! whether we will force the polyhedra corner atoms to be drawn (only when
@@ -1893,8 +1868,8 @@ contains
           ! bounded by this; that path keeps using check_lshown, which grows
           ! the array as needed.
           mb = 1
-          if (usetshift) mb = mb + maxval(ceiling(abs(r%sel%tshift))) + 1
-          if (r%sel%onemotif) then
+          if (usetshift) mb = mb + maxval(ceiling(abs(disp%tshift))) + 1
+          if (onemotif) then
              mbb = 0
              do imol = 1, c%nmol
                 do k = 1, c%mol(imol)%nat
@@ -1946,7 +1921,7 @@ contains
        i = 0
        imol = 0
        do while(.true.)
-          if (r%sel%onemotif) then
+          if (onemotif) then
              ! this is a new molecule if there are no molecules or this is the last atom
              ! in the previous one
              step = (imol == 0)
@@ -1973,18 +1948,23 @@ contains
           ! i is current atom from the complete atom list
           ! imol is the corresponding molecule
 
-          ! skip hidden atoms
-          id = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,i)
-          if (.not.r%atoms%style%shown(id)) cycle
+          ! skip the atoms and molecules hidden in the Display
+          if (usemasks) then
+             if (.not.disp%ashown(sysc(r%id)%attype_celatom_to_id(disp%atype,i))) cycle
+             if (.not.disp%mshown(imol)) cycle
+          end if
 
-          ! skip hidden molecules
-          if (.not.r%mols%style%shown(imol)) cycle
+          ! skip the species this object does not draw
+          if (species_class(c%spc(c%atcel(i)%is)%z) /= r%atoms%spcclass) cycle
+
+          ! the style entry of this atom
+          id = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,i)
 
           ! calculate the border
           xx = c%atcel(i)%x
           n0 = 0
           n1 = n-1
-          if (r%sel%border.and..not.r%sel%onemotif) then
+          if (border.and..not.onemotif) then
              do j = 1, 3
                 ! not in a vacuum direction
                 if (.not.dovac(j)) then
@@ -2082,8 +2062,8 @@ contains
                 do i3 = n0(3), n1(3)
                    ix = (/i1,i2,i3/) + lvec + vacshift
                    if (usetshift) then
-                      xx = c%atcel(i)%x - r%sel%tshift
-                      ix = ix + nint(xx - floor(xx) + r%sel%tshift - c%atcel(i)%x)
+                      xx = c%atcel(i)%x - disp%tshift
+                      ix = ix + nint(xx - floor(xx) + disp%tshift - c%atcel(i)%x)
                    end if
 
                    xx = c%atcel(i)%x + ix
@@ -2091,12 +2071,12 @@ contains
 
                    ! apply the filter
                    if (havefilter) then
-                      res = sys(r%id)%eval(r%sel%filter,errmsg,xc,toklist)
+                      res = sys(r%id)%eval(disp%filter,errmsg,xc,toklist)
                       if (len_trim(errmsg) == 0) then
                          if (res == 0d0) cycle
                       else
                          havefilter = .false.
-                         r%sel%errfilter = errmsg
+                         disp%errfilter = errmsg
                       end if
                    end if
 
@@ -2339,7 +2319,7 @@ contains
        !!! unit cell representation !!!
 
        ! number of cells
-       n = r%sel%ncells(nc)
+       n = disp%ncells(r%disp)
 
        ! vacuum directions: we have a vacuum and only one cell in that direction
        isvac = .false.
@@ -2859,7 +2839,7 @@ contains
       ! offsets applied at draw time (per-copy uniform), so the geometry
       ! is stored and uploaded only once however many cells are shown.
       ncp = 1
-      if (r%iso%per0_built) ncp = r%sel%ncells(nc)
+      if (r%iso%per0_built) ncp = disp%ncells(r%disp)
       allocate(xrep(3,product(ncp)))
       l = 0
       do i1 = 0, ncp(1)-1
@@ -3530,7 +3510,7 @@ contains
 
          lres = symelem_margin * r%symelem%size
          m1 = 0
-         if (.not.c%ismolecule) m1 = nc
+         if (.not.c%ismolecule) m1 = disp%ncells(r%disp)
          do j1 = 0, m1(1)
             do j2 = 0, m1(2)
                do j3 = 0, m1(3)
@@ -3829,12 +3809,28 @@ contains
       end if
 
       ! stick ends
-      x1 = ucini + r%sel%origin
+      x1 = ucini + disp%origin
       x1 = c%x2c(x1)
-      x2 = ucend + r%sel%origin
+      x2 = ucend + disp%origin
       x2 = c%x2c(x2)
 
     end subroutine process_vacuum_uc_sticks
+
+    !> Species class (atomspc_*) of atomic number iz: a real atom, a
+    !> dummy critical-point species, or the dummy gradient-path species.
+    function species_class(iz) result(iclass)
+      integer, intent(in) :: iz
+      integer :: iclass
+
+      if (iz == maxzat0) then
+         iclass = atomspc_gp
+      elseif (iz > maxzat) then
+         iclass = atomspc_cp
+      else
+         iclass = atomspc_real
+      end if
+
+    end function species_class
 
     !> Emit the cylinder(s) for one bond from a center atom image to
     !> the neighbor image (ineigh,ixn). Cartesian endpoint x1 (bohr,
@@ -3973,7 +3969,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
     use gui_main, only: ColorElement
-    use param, only: atmcov, atmvdw, jmlcol, jmlcol2, maxzat, maxzat0
+    use param, only: atmcov, atmvdw, jmlcol, jmlcol2
     class(atom_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -3985,7 +3981,6 @@ contains
     ! set the atom style to zero
     d%ntype = 0
     d%isinit = .false.
-    if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
 
@@ -3997,8 +3992,7 @@ contains
 
     ! fill data
     d%ntype = sysc(r%id)%attype_number(d%type)
-    allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
-    d%shown = .true.
+    allocate(d%rgb(3,d%ntype),d%rad(d%ntype))
     do i = 1, d%ntype
        ispc = sysc(r%id)%attype_species(d%type,i)
        iz = sys(r%id)%c%spc(ispc)%z
@@ -4020,17 +4014,6 @@ contains
        else
           d%rad(i) = r%atoms%radii_value
        endif
-
-       if (r%flavor == repflavor_atoms_criticalpoints) then
-          ! show only the critical point atoms
-          if (iz <= maxzat .or. iz == maxzat0) d%shown(i) = .false.
-       elseif (r%flavor == repflavor_atoms_gradientpaths) then
-          ! show only the gradient paths
-          if (iz /= maxzat0) d%shown(i) = .false.
-       else
-          ! do not shown the critical point atoms
-          if (iz > maxzat) d%shown(i) = .false.
-       end if
     end do
     d%isinit = .true.
 
@@ -4063,7 +4046,6 @@ contains
 
     d%isinit = .false.
     d%timelastreset = 0d0
-    if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
 
@@ -4082,7 +4064,6 @@ contains
     ! set the atom style to zero
     d%ntype = 0
     d%isinit = .false.
-    if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%tint_rgb)) deallocate(d%tint_rgb)
     if (allocated(d%scale_rad)) deallocate(d%scale_rad)
 
@@ -4094,13 +4075,12 @@ contains
 
     ! fill
     d%ntype = sys(r%id)%c%nmol
-    allocate(d%shown(d%ntype),d%tint_rgb(3,d%ntype))
+    allocate(d%tint_rgb(3,d%ntype))
     allocate(d%scale_rad(d%ntype))
     do i = 1, sys(r%id)%c%nmol
        d%tint_rgb(:,i) = 1._c_float
        d%scale_rad(i) = 1d0
     end do
-    d%shown = .true.
     d%isinit = .true.
 
   end subroutine mol_style_reset
@@ -4111,7 +4091,6 @@ contains
 
     d%isinit = .false.
     d%timelastreset = 0d0
-    if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%tint_rgb)) deallocate(d%tint_rgb)
     if (allocated(d%scale_rad)) deallocate(d%scale_rad)
 

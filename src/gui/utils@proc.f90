@@ -2137,12 +2137,14 @@ contains
   end function dragfloat_width
 
   !> Draw the periodicity controls: the "Periodicity" label, the
-  !> None/Automatic/Manual radio buttons over pertype when it is given, and
-  !> the a/b/c cell-count steppers over nc with a Reset button. Without
-  !> pertype the steppers are always drawn (a scene, which always has an
-  !> explicit cell count); with it they appear only in manual mode.
-  !> Returns true if the periodicity changed.
+  !> Follow-selection/Main-cell-only/Manual radio buttons over pertype
+  !> when it is given, and the a/b/c cell-count steppers over nc with a
+  !> Reset button. Without pertype the steppers are always drawn (the
+  !> Display object of a view, which always has an explicit cell
+  !> count); with it they appear only in manual mode. Returns true if
+  !> the periodicity changed.
   module function iw_periodicity_widget(nc,ttshown,pertype) result(changed)
+    use display, only: pertype_follow, pertype_none, pertype_manual
     integer(c_int), intent(inout) :: nc(3)
     logical, intent(inout), optional :: ttshown
     integer(c_int), intent(inout), optional :: pertype
@@ -2159,14 +2161,14 @@ contains
     ! the periodicity type, where the caller has one
     dosteppers = .true.
     if (present(pertype)) then
-       changed = changed .or. iw_radiobutton("None",int=pertype,intval=0_c_int,sameline=.true.)
+       changed = changed .or. iw_radiobutton("Follow selection",int=pertype,intval=pertype_follow)
+       call iw_tooltip("This object is drawn over the cells set in the Display object of the view",ttshown)
+       changed = changed .or. iw_radiobutton("Main cell only",int=pertype,intval=pertype_none,sameline=.true.)
        call iw_tooltip("This object is represented only in the main cell and not repeated by translation",&
           ttshown)
-       changed = changed .or. iw_radiobutton("Automatic",int=pertype,intval=1_c_int,sameline=.true.)
-       call iw_tooltip("Number of periodic cells controlled by the +/- options in the view window",ttshown)
-       changed = changed .or. iw_radiobutton("Manual",int=pertype,intval=2_c_int,sameline=.true.)
-       call iw_tooltip("Manually set the number of periodic cells",ttshown)
-       dosteppers = (pertype == 2_c_int)
+       changed = changed .or. iw_radiobutton("Manual",int=pertype,intval=pertype_manual,sameline=.true.)
+       call iw_tooltip("Set the number of periodic cells for this object alone",ttshown)
+       dosteppers = (pertype == pertype_manual)
     end if
     if (.not.dosteppers) return
 

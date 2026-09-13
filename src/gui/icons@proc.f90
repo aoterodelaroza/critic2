@@ -34,7 +34,7 @@ submodule (icons) proc
      "vm_bondrm.png","vm_bondorder.png",&
      "vm_addatom.png","vm_valence.png","vm_bondh.png",&
      "ui_editgeom.png","ui_symmetry.png","ui_relax.png",&
-     "ui_group.png"/)
+     "ui_group.png","ui_display.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&
