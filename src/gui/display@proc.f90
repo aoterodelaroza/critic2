@@ -21,8 +21,8 @@ submodule (display) proc
 
 contains
 
-  !> Defaults of the Display for system isys: one cell, no shifts,
-  !> no filter; in a crystal, atoms at the cell faces drawn on both
+  !> Defaults of the Display for system isys: one cell, no shifts;
+  !> in a crystal, atoms at the cell faces drawn on both
   !> faces, and whole molecules if there is more than one fragment or a
   !> non-discrete fragment carries reconnection lattice vectors
   !> (dangling pieces split by the cell boundary). Everything shown.
@@ -42,8 +42,6 @@ contains
     disp%tshift = 0d0
     disp%border = .false.
     disp%onemotif = .false.
-    disp%filter = ""
-    disp%errfilter = ""
     if (.not.ok_system(isys,sys_ready)) return
     if (.not.sys(isys)%c%ismolecule) then
        disp%border = .true.
@@ -110,33 +108,21 @@ contains
     disp%timelastreset = 0d0
     if (allocated(disp%ashown)) deallocate(disp%ashown)
     if (allocated(disp%mshown)) deallocate(disp%mshown)
-    if (allocated(disp%filter)) deallocate(disp%filter)
-    if (allocated(disp%errfilter)) deallocate(disp%errfilter)
 
   end subroutine scene_display_end
 
-  !> Take the settings of another Display src, leaving the Show masks
-  !> (sized for this system) alone: the filter always, and the periodic
-  !> settings (cells, shifts, border, whole molecules) only if periodic,
-  !> i.e. when both systems are crystals.
-  module subroutine scene_display_copy_settings(disp,src,periodic)
+  !> Take the periodic settings of another Display src (cells, shifts,
+  !> border, whole molecules), leaving the Show masks (sized for this
+  !> system) alone. Meant for two crystals.
+  module subroutine scene_display_copy_settings(disp,src)
     class(scene_display), intent(inout) :: disp
     type(scene_display), intent(in) :: src
-    logical, intent(in) :: periodic
 
-    if (allocated(src%filter)) then
-       disp%filter = src%filter
-    else
-       disp%filter = ""
-    end if
-    disp%errfilter = ""
-    if (periodic) then
-       disp%ncell = src%ncell
-       disp%origin = src%origin
-       disp%tshift = src%tshift
-       disp%border = src%border
-       disp%onemotif = src%onemotif
-    end if
+    disp%ncell = src%ncell
+    disp%origin = src%origin
+    disp%tshift = src%tshift
+    disp%border = src%border
+    disp%onemotif = src%onemotif
 
   end subroutine scene_display_copy_settings
 

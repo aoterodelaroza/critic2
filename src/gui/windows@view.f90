@@ -441,9 +441,10 @@ contains
                 end if
              end do
              ! rest
-             ! the Display settings (the Show masks are sized for each system)
-             call sysc(i)%sc%disp%copy_settings(w%sc%disp,&
-                .not.sys(w%isys)%c%ismolecule.and..not.sys(i)%c%ismolecule)
+             ! the Display settings between crystals (the Show masks are
+             ! sized for each system)
+             if (.not.sys(w%isys)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
+                call sysc(i)%sc%disp%copy_settings(w%sc%disp)
              sysc(i)%sc%bgcolor = w%sc%bgcolor
              sysc(i)%sc%camresetdist = w%sc%camresetdist
              sysc(i)%sc%isortho = w%sc%isortho

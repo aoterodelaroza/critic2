@@ -1693,9 +1693,7 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq)
     use systems, only: sys, sysc
-    use systemmod, only: system
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane
-    use arithmetic, only: pretokenize, token
     use gui_main, only: ColorAxes_def, ColorElement
     use shapes, only: maxpie
     use tools_io, only: string
@@ -1704,7 +1702,7 @@ contains
     use tools, only: mergesort
     use param, only: tpi, img, atmass, icrd_crys, pi, maxzat, maxzat0
     class(representation), intent(inout) :: r
-    type(scene_display), intent(inout) :: disp
+    type(scene_display), intent(in) :: disp
     type(scene_objects), intent(inout) :: obj
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
@@ -1712,7 +1710,7 @@ contains
     ! per atom-image display state: 0 = not shown, 1 = selection-shown,
     ! 2 = polyhedron-corner shown, 3 = corner whose bonds have been emitted
     integer, allocatable :: lshown(:,:,:,:)
-    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
+    logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
     logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks
     integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
@@ -1723,10 +1721,8 @@ contains
     integer, allocatable :: hbcat(:) ! per-bond H-bond class cache for the current atom
     real(c_float) :: bondrgb(3)
     type(crystal), pointer :: c ! the system's crystal structure (sys(r%id)%c)
-    type(system), pointer :: syptr
-    type(token), allocatable :: toklist(:) ! pre-tokenized filter expression
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
-    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
+    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3)
     real*8 :: xmeas(3,4), xfmeas(3,4), dval
     integer :: iat, natm
@@ -1817,26 +1813,12 @@ contains
        border = disp%border
        onemotif = disp%onemotif
        usemasks = allocated(disp%ashown) .and. allocated(disp%mshown)
-       havefilter = (len_trim(disp%filter) > 0) .and. (len_trim(disp%errfilter) == 0)
        usetshift = any(abs(disp%tshift) > 1d-5)
        if (r%disp%ignoresel) then
           border = .true.
           onemotif = .false.
           usemasks = .false.
-          havefilter = .false.
           usetshift = .false.
-       end if
-
-       ! do we have a filter? If so, tokenize it once here; the evaluation for
-       ! each atom image below reuses the token list (skips the string parsing)
-       if (havefilter) then
-          syptr => sys(r%id)
-          errmsg = ""
-          call pretokenize(disp%filter,toklist,errmsg,c_loc(syptr))
-          if (len_trim(errmsg) > 0) then
-             havefilter = .false.
-             disp%errfilter = errmsg
-          end if
        end if
 
        ! calculate the periodicity
@@ -2068,17 +2050,6 @@ contains
 
                    xx = c%atcel(i)%x + ix
                    xc = c%x2c(xx)
-
-                   ! apply the filter
-                   if (havefilter) then
-                      res = sys(r%id)%eval(disp%filter,errmsg,xc,toklist)
-                      if (len_trim(errmsg) == 0) then
-                         if (res == 0d0) cycle
-                      else
-                         havefilter = .false.
-                         disp%errfilter = errmsg
-                      end if
-                   end if
 
                    ! draw the coordination polyhedron for this center image
                    ! (corners are the search result translated to this image)
@@ -2915,8 +2886,11 @@ contains
     !> emits one vertex per crossed edge, so there are one or two orders of
     !> magnitude fewer of them than there are grid points.
     subroutine color_slots()
-      use arithmetic, only: pretokenize
+      use arithmetic, only: pretokenize, token
+      use systemmod, only: system
       integer :: i, j, nv
+      type(system), pointer :: syptr
+      type(token), allocatable :: toklist(:) ! pre-tokenized map expression
       logical :: pereval, lval, linvalid, doval, docol, goodmap
       real*8 :: lo, hi, vmin, vmax, t
       real(c_float) :: lut(3,iso_nlut)

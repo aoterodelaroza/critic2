@@ -930,7 +930,7 @@ module representations
      end subroutine update_styles
      module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq)
        class(representation), intent(inout) :: r
-       type(scene_display), intent(inout) :: disp
+       type(scene_display), intent(in) :: disp
        type(scene_objects), intent(inout) :: obj
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq

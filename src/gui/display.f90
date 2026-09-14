@@ -36,8 +36,6 @@ module display
      real*8 :: tshift(3) = 0d0 ! origin of the display region (fractional)
      logical :: border = .false. ! atoms at the cell faces are drawn on both faces
      logical :: onemotif = .false. ! translate atoms to display whole molecules
-     character(kind=c_char,len=:), allocatable :: filter ! atom filter expression
-     character(kind=c_char,len=:), allocatable :: errfilter ! why the filter cannot be used (empty = it can)
      ! which atoms and molecules are drawn (the masks exist once allocated)
      integer :: atype = 1 ! grouping of the atom Show mask (atlisttype_* in systems; 1 = species)
      logical, allocatable :: ashown(:) ! atom group shown, by group of atype
@@ -48,7 +46,7 @@ module display
      procedure :: reset_shown => scene_display_reset_shown ! (re)make the Show masks, everything shown
      procedure :: update => scene_display_update ! remake the Show masks if the system changed under them
      procedure :: end => scene_display_end
-     procedure :: copy_settings => scene_display_copy_settings ! take another Display's settings (not its masks)
+     procedure :: copy_settings => scene_display_copy_settings ! take another Display's periodic settings (not its masks)
      procedure :: ncells => scene_display_ncells ! cells an object draws, honoring its override
   end type scene_display
   public :: scene_display
@@ -58,7 +56,7 @@ module display
   !> the main cell only, or a count of its own. ignoresel is for the
   !> transient representations that must draw a fixed atom set
   !> regardless of the Display (the packing preview): the whole cell
-  !> contents with a border, no whole molecules, no filter, no
+  !> contents with a border, no whole molecules, no
   !> display-region shift, no Show masks; the cell count and the origin
   !> translation are kept, so the spheres stay on the atoms.
   type rep_display
@@ -85,10 +83,9 @@ module display
      module subroutine scene_display_end(disp)
        class(scene_display), intent(inout) :: disp
      end subroutine scene_display_end
-     module subroutine scene_display_copy_settings(disp,src,periodic)
+     module subroutine scene_display_copy_settings(disp,src)
        class(scene_display), intent(inout) :: disp
        type(scene_display), intent(in) :: src
-       logical, intent(in) :: periodic
      end subroutine scene_display_copy_settings
      module function scene_display_ncells(disp,ovr) result(n)
        class(scene_display), intent(in) :: disp

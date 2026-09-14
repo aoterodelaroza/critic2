@@ -27,10 +27,8 @@ contains
     use systems, only: sys, sysc, ok_system, sys_init
     use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
-       iw_checkbox, iw_dragfloat_real8, iw_inputtext, iw_arith_help, iw_arith_help_button,&
-       iw_helpermark, iw_periodicity_widget
+       iw_checkbox, iw_dragfloat_real8, iw_periodicity_widget
     use tools_io, only: string
-    use param, only: newline
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, changed, ch, typechanged
@@ -56,28 +54,6 @@ contains
        associate (disp => win(iview)%sc%disp)
          ! the Show masks must describe this system before they are edited
          call disp%update(isys)
-
-         ! filter
-         call iw_text("Filter",highlight=.true.,alignframe=.true.)
-         call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at&
-            & the atomic position; structural variables are very useful for filters."//newline//&
-            iw_arith_help//newline//"Click the Help button for more info.")
-         call iw_arith_help_button("##helpfilter",ttshown)
-         if (iw_inputtext("##filtertext",bufsize=1023,texta=disp%filter,notlive=.true.)) then
-            disp%errfilter = ""
-            changed = .true.
-         end if
-         if (len_trim(disp%filter) == 0) disp%errfilter = ""
-         call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",&
-            ttshown)
-         if (iw_button("Clear",sameline=.true.)) then
-            disp%filter = ""
-            disp%errfilter = ""
-            changed = .true.
-         end if
-         call iw_tooltip("Clear the filter",ttshown)
-         if (len_trim(disp%errfilter) > 0) &
-            call iw_text("Error: " // trim(disp%errfilter),danger=.true.,wrap=.true.)
 
          if (.not.sys(isys)%c%ismolecule) then
             ! periodicity (evaluate first: the widgets must be drawn even if
