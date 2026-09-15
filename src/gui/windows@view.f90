@@ -414,9 +414,8 @@ contains
     ! toolbar: apply the settings of this scene to all systems
     if (iw_icon_togglebutton("applyallbutton",icon_tex(icon_ui_applyall),"Ap",&
        disabled=.not.enabled,sameline=.true.,danger=.true.)) then
-       ! the tree selection scopes this: with systems selected only those get
-       ! the settings, and with none it falls back to the whole tree
-       onlysel = (tree_nselected() > 0)
+       ! only a multi-selection scopes
+       onlysel = (tree_nselected() > 1)
        do i = 1, nsys
           if (onlysel .and. .not.sysc(i)%tselected) cycle
           if (sysc(i)%status == sys_init .and. i /= w%isys) then
@@ -439,7 +438,7 @@ contains
        end do
     end if
     call iw_tooltip("Apply the settings of this scene to the systems selected in the&
-       & tree, or to all systems if none is selected",ttshown)
+       & tree, or to all systems if fewer than two are selected",ttshown)
 
     ! toolbar: reset this scene to the default settings
     if (iw_icon_togglebutton("resetscenebutton",icon_tex(icon_ui_reset),"Rs",&
