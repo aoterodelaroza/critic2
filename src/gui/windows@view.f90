@@ -74,11 +74,12 @@ contains
        BIND_VIEW_TRANSFORM_SUPERCELL,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
-       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
-       repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
-       repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
-       repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text,&
+    use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
+       reptype_unitcell, reptype_axes, reptype_symelem, repflavor_atoms_basic,&
+       repflavor_atoms_licorice, repflavor_bonds_basic, repflavor_bonds_sticks,&
+       repflavor_bonds_licorice, repflavor_bonds_vdwcontacts, repflavor_bonds_hbonds,&
+       repflavor_labels_basic, repflavor_polyhedra_basic, repflavor_unitcell_basic,&
+       repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface
     use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
@@ -95,7 +96,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, j, k, nrep, is, istart
+    integer :: i, k, nrep, is, istart
     logical :: onlysel
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
@@ -191,15 +192,17 @@ contains
     if (associated(w%sc)) then
        do i = 1, w%sc%nrep
           if (w%sc%rep(i)%isinit) then
+             if (.not.w%sc%rep(i)%shown) cycle
              if (w%sc%rep(i)%type == reptype_atoms) then
-                isatom = isatom .or. w%sc%rep(i)%atoms%display
-                isbond = isbond .or. w%sc%rep(i)%bonds%display
-                ispoly = ispoly .or. w%sc%rep(i)%poly%display
-                if (w%sc%rep(i)%labels%display .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
-                   w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) &
-                   islabels = w%sc%rep(i)%labels%type
+                isatom = .true.
+             elseif (w%sc%rep(i)%type == reptype_bonds) then
+                isbond = .true.
+             elseif (w%sc%rep(i)%type == reptype_polyhedra) then
+                ispoly = .true.
+             elseif (w%sc%rep(i)%type == reptype_labels) then
+                islabels = w%sc%rep(i)%labels%type
              elseif (w%sc%rep(i)%type == reptype_unitcell) then
-                isuc = isuc .or. w%sc%rep(i)%shown
+                isuc = .true.
              end if
           end if
        end do
@@ -233,8 +236,7 @@ contains
           call sysc(w%isys)%rebond()
        if (any(changedisplay)) then
           call apply_displayflags(atoms=changedisplay(1),bonds=changedisplay(2),&
-             labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5),&
-             settype=.true.)
+             labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5))
           chbuild = .true.
        end if
     end if
@@ -248,7 +250,7 @@ contains
        call apply_displayflags(atoms=.true.)
        chbuild = .true.
     end if
-    call iw_tooltip("Toggle display atoms in all objects ("//&
+    call iw_tooltip("Show or hide the atoms ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
     if (iw_icon_togglebutton("bondstoggle",icon_tex(icon_ui_bonds),"Bn",isbond,disabled=.not.enabled,&
@@ -256,7 +258,7 @@ contains
        call apply_displayflags(bonds=.true.)
        chbuild = .true.
     end if
-    call iw_tooltip("Toggle display bonds in all objects ("//&
+    call iw_tooltip("Show or hide the bonds ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
 
     ! labels button: cycle through the label types, with an icon showing
@@ -271,10 +273,10 @@ contains
     if (iw_icon_togglebutton("labelstoggle",icon_tex(idum),"Lb",islabelsl,disabled=.not.enabled,&
        sameline=.true.)) then
        call cycle_labels()
-       call apply_displayflags(labels=.true.,settype=.true.)
+       call apply_displayflags(labels=.true.)
        chbuild = .true.
     end if
-    call iw_tooltip("Cycle the labels in all objects: none, atom name, atom index, Wyckoff site ("//&
+    call iw_tooltip("Cycle the labels objects: none, atom name, atom index, Wyckoff site ("//&
        trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
 
     if (.not.enabled .or. .not.ismol) then
@@ -283,7 +285,7 @@ contains
           call apply_displayflags(cell=.true.)
           chbuild = .true.
        end if
-       call iw_tooltip("Toggle display unit cell in all objects ("//&
+       call iw_tooltip("Show or hide the unit cell ("//&
           trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
     end if
 
@@ -292,7 +294,7 @@ contains
        call apply_displayflags(poly=.true.)
        chbuild = .true.
     end if
-    call iw_tooltip("Toggle display polyhedra in all objects ("//&
+    call iw_tooltip("Show or hide the atomic polyhedra ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
 
     ! toolbar: periodicity button with live a×b×c label
@@ -418,28 +420,9 @@ contains
        do i = 1, nsys
           if (onlysel .and. .not.sysc(i)%tselected) cycle
           if (sysc(i)%status == sys_init .and. i /= w%isys) then
-             ! atoms, bonds, unit cell
-             do j = 1, sysc(i)%sc%nrep
-                if (sysc(i)%sc%rep(j)%isinit) then
-                   if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
-                      sysc(i)%sc%rep(j)%atoms%display = isatom
-                      sysc(i)%sc%rep(j)%bonds%display = isbond
-                      sysc(i)%sc%rep(j)%poly%display = ispoly
-                      sysc(i)%sc%rep(j)%labels%display = islabelsl
-                      if (islabelsl) then
-                         if (sys(i)%c%ismolecule.and.islabels == 8) then
-                            sysc(i)%sc%rep(j)%labels%type = 0
-                         else
-                            sysc(i)%sc%rep(j)%labels%type = islabels
-                         end if
-                         call sysc(i)%sc%rep(j)%labels%style%reset(sysc(i)%sc%rep(j))
-                      end if
-                   elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
-                      .not.sys(w%isys)%c%ismolecule) then
-                      sysc(i)%sc%rep(j)%shown = isuc
-                   end if
-                end if
-             end do
+             ! which kinds of objects are shown (atoms, bonds, labels,
+             ! polyhedra, unit cell)
+             call apply_kinds(sysc(i)%sc,i,.true.,.true.,.true.,.true.,.true.)
              ! rest
              ! the Display settings between crystals (the Show masks are
              ! sized for each system)
@@ -481,44 +464,54 @@ contains
     call iw_tooltip("Add a new object to the view",ttshown)
     if (ok) then
        if (associated(w%sc)) then
-          ! atom-based representations submenu
-          if (iw_beginmenu("Atoms, bonds,...")) then
-             if (iw_menuitem("Ball and Stick")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_ballandstick)
-             call iw_tooltip("Draw atoms as balls and bonds as sticks, hide the labels",ttshown)
-
-             if (iw_menuitem("Bonds")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_sticks)
-             call iw_tooltip("Draw bonds as sticks, hide atoms and labels",ttshown)
+          ! atoms submenu
+          if (iw_beginmenu("Atoms")) then
+             if (iw_menuitem("Atoms")) &
+                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_basic)
+             call iw_tooltip("Draw the atoms as balls, with covalent radii",ttshown)
 
              if (iw_menuitem("Licorice")) &
                 call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_licorice)
-             call iw_tooltip("Draw atoms and bonds with the same radius, hide labels",ttshown)
+             call iw_tooltip("Draw the atoms with the same radius as the licorice bonds",ttshown)
+
+             call igEndMenu()
+          end if
+          call iw_tooltip("Add an object drawing the atoms of the system",ttshown)
+
+          ! bonds submenu
+          if (iw_beginmenu("Bonds")) then
+             if (iw_menuitem("Bonds")) &
+                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_basic)
+             call iw_tooltip("Draw the bonds as sticks of a single color",ttshown)
+
+             if (iw_menuitem("Sticks")) &
+                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_sticks)
+             call iw_tooltip("Draw the bonds as sticks colored by the two atoms they join",ttshown)
+
+             if (iw_menuitem("Licorice")) &
+                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_licorice)
+             call iw_tooltip("Draw the bonds with the same radius as the licorice atoms",ttshown)
 
              if (iw_menuitem("Van der Waals Contacts")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_vdwcontacts)
+                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_vdwcontacts)
              call iw_tooltip("Display contacts between nonbonded atoms closer than the sum &
                 &of their van der Waals radii",ttshown)
 
              if (iw_menuitem("Hydrogen Bonds")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_hbonds)
+                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_hbonds)
              call iw_tooltip("Display contacts between hydrogen bonded atoms",ttshown)
-
-             if (iw_menuitem("Critical Points")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_criticalpoints)
-             call iw_tooltip("Draw dummy atoms representing critical points (Xn, Xb,... atoms)",ttshown)
-
-             if (iw_menuitem("Gradient Paths")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_gradientpaths)
-             call iw_tooltip("Draw dummy atoms representing gradient paths (Xz atoms)",ttshown)
-
-             if (iw_menuitem("Coordination Polyhedra")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_polyhedra)
-             call iw_tooltip("Draw coordination polyhedra around the center atoms",ttshown)
 
              call igEndMenu()
           end if
-          call iw_tooltip("Add atoms, bonds, labels, and other atom-based objects",ttshown)
+          call iw_tooltip("Add an object drawing bonds or contacts between the atoms",ttshown)
+
+          if (iw_menuitem("Labels")) &
+             call w%add_rep_and_edit(reptype_labels,repflavor_labels_basic)
+          call iw_tooltip("Draw labels on the atoms",ttshown)
+
+          if (iw_menuitem("Coordination Polyhedra")) &
+             call w%add_rep_and_edit(reptype_polyhedra,repflavor_polyhedra_basic)
+          call iw_tooltip("Draw coordination polyhedra around the center atoms",ttshown)
 
           if (.not.sys(w%isys)%c%ismolecule) then
              if (iw_menuitem("Unit Cell")) &
@@ -939,15 +932,14 @@ contains
 
   contains
     !> Copy the display shortcut flags (isatom, isbond, islabelsl, isuc,
-    !> ispoly host variables) to all initialized representations of the
-    !> current scene. Each optional argument selects one flag, applied if
-    !> present and true. If settype (with labels), also set the label
-    !> type from islabels and reset the label style.
-    subroutine apply_displayflags(atoms,bonds,labels,cell,poly,settype)
-      logical, intent(in), optional :: atoms, bonds, labels, cell, poly, settype
+    !> ispoly host variables) to the objects of the current scene: every
+    !> object of a kind is shown or hidden together, and a kind that is
+    !> shown with no object of it in the scene gets a new one. Each
+    !> optional argument selects one flag, applied if present and true.
+    subroutine apply_displayflags(atoms,bonds,labels,cell,poly)
+      logical, intent(in), optional :: atoms, bonds, labels, cell, poly
 
-      integer :: i
-      logical :: doatoms, dobonds, dolabels, docell, dopoly, dosettype
+      logical :: doatoms, dobonds, dolabels, docell, dopoly
 
       doatoms = .false.
       if (present(atoms)) doatoms = atoms
@@ -959,29 +951,39 @@ contains
       if (present(cell)) docell = cell
       dopoly = .false.
       if (present(poly)) dopoly = poly
-      dosettype = .false.
-      if (present(settype)) dosettype = settype
 
-      do i = 1, w%sc%nrep
-         if (.not.w%sc%rep(i)%isinit) cycle
-         if (w%sc%rep(i)%type == reptype_atoms) then
-            if (doatoms) w%sc%rep(i)%atoms%display = isatom
-            if (dobonds) w%sc%rep(i)%bonds%display = isbond
-            if (dopoly) w%sc%rep(i)%poly%display = ispoly
-            if (dolabels .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
-               w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) then
-               w%sc%rep(i)%labels%display = islabelsl
-               if (dosettype .and. islabelsl) then
-                  w%sc%rep(i)%labels%type = islabels
-                  call w%sc%rep(i)%labels%style%reset(w%sc%rep(i))
-               end if
-            end if
-         elseif (w%sc%rep(i)%type == reptype_unitcell) then
-            if (docell) w%sc%rep(i)%shown = isuc
-         end if
-      end do
+      call apply_kinds(w%sc,w%isys,doatoms,dobonds,dolabels,docell,dopoly)
 
     end subroutine apply_displayflags
+
+    !> Show or hide the objects of scene sc (of system isys) according to
+    !> the display shortcut flags (isatom, isbond, islabelsl, islabels,
+    !> isuc, ispoly host variables); each logical selects one kind. A kind
+    !> that is shown with no object of it in the scene gets a new one.
+    !> Shared by the toolbar buttons (on the current scene) and by the
+    !> apply-to-all-systems button (on every other scene).
+    subroutine apply_kinds(sc,isys,doatoms,dobonds,dolabels,docell,dopoly)
+      type(scene), intent(inout) :: sc
+      integer, intent(in) :: isys
+      logical, intent(in) :: doatoms, dobonds, dolabels, docell, dopoly
+
+      integer :: ltype
+
+      if (doatoms) call sc%set_kind_shown(reptype_atoms,repflavor_atoms_basic,isatom)
+      if (dobonds) call sc%set_kind_shown(reptype_bonds,repflavor_bonds_basic,isbond)
+      if (dopoly) call sc%set_kind_shown(reptype_polyhedra,repflavor_polyhedra_basic,ispoly)
+      ! the unit cell: only between crystals (a molecule has none, and its
+      ! scene must not switch off the cell of a crystal)
+      if (docell .and. .not.sys(isys)%c%ismolecule .and. .not.sys(w%isys)%c%ismolecule) &
+         call sc%set_kind_shown(reptype_unitcell,repflavor_unitcell_basic,isuc)
+      if (dolabels) then
+         ! a molecule has no Wyckoff positions: fall back to the atom names
+         ltype = islabels
+         if (sys(isys)%c%ismolecule .and. ltype == 8) ltype = 0
+         call sc%set_kind_shown(reptype_labels,repflavor_labels_basic,islabelsl,labeltype=ltype)
+      end if
+
+    end subroutine apply_kinds
 
     !> Advance the label state (islabels, islabelsl host variables) one
     !> step in the cycle: none -> atom name -> atom index -> Wyckoff

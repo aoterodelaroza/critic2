@@ -51,18 +51,10 @@ module display
   end type scene_display
   public :: scene_display
 
-  !> Per-object periodicity override of the scene Display (accessed as
-  !> r%disp%...): whether the object draws the cells the Display draws,
-  !> the main cell only, or a count of its own. ignoresel is for the
-  !> transient representations that must draw a fixed atom set
-  !> regardless of the Display (the packing preview): the whole cell
-  !> contents with a border, no whole molecules, no
-  !> display-region shift, no Show masks; the cell count and the origin
-  !> translation are kept, so the spheres stay on the atoms.
   type rep_display
-     integer(c_int) :: pertype = pertype_follow ! pertype_follow / pertype_none / pertype_manual
+     integer(c_int) :: pertype = pertype_follow ! periodicity type (follow, none, manual)
      integer(c_int) :: ncell(3) = 1 ! number of unit cells drawn (pertype_manual)
-     logical :: ignoresel = .false. ! transients only: draw the whole cell contents (see above)
+     logical :: ignoresel = .false. ! transients only: draw fixed atom set regardless of display
   end type rep_display
   public :: rep_display
 

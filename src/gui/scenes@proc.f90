@@ -143,14 +143,13 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
-       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
-       repflavor_atoms_sticks, repflavor_unitcell_basic, repflavor_axes, repflavor_NUM
+    use representations, only: reptype_atoms, reptype_bonds, reptype_unitcell, reptype_axes,&
+       repflavor_atoms_basic, repflavor_bonds_basic, repflavor_bonds_sticks,&
+       repflavor_unitcell_basic, repflavor_axes, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
     use windows, only: invalidate_scene_reps
-    use param, only: maxzat, maxzat0
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -199,11 +198,12 @@ contains
     if (allocated(s%reptrans)) deallocate(s%reptrans)
     s%nreptrans = 0
 
-    ! atoms
+    ! atoms and bonds (only the bonds in a large system)
     if (sys(isys)%c%ncel <= crsmall) then
-       call s%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
+       call s%add_representation(reptype_atoms,repflavor_atoms_basic)
+       call s%add_representation(reptype_bonds,repflavor_bonds_basic)
     else
-       call s%add_representation(reptype_atoms,repflavor_atoms_sticks)
+       call s%add_representation(reptype_bonds,repflavor_bonds_sticks)
     end if
 
     ! unit cell
@@ -213,16 +213,6 @@ contains
     ! cartesian axes (shown by default for molecules)
     if (sys(isys)%c%ismolecule) &
        call s%add_representation(reptype_axes,repflavor_axes)
-
-    ! critical points
-    if (any(sys(isys)%c%spc(:)%z > maxzat)) then
-       call s%add_representation(reptype_atoms,repflavor_atoms_criticalpoints)
-    end if
-
-    ! gradient paths
-    if (any(sys(isys)%c%spc(:)%z == maxzat0)) then
-       call s%add_representation(reptype_atoms,repflavor_atoms_gradientpaths)
-    end if
 
     ! reset the camera later
     s%camresetdist = 1.5_c_float
@@ -346,7 +336,8 @@ contains
 
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
-    use representations, only: reptype_atoms, reptype_axes, reptype_symelem, axes_winfrac_def
+    use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
+       axes_winfrac_def
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc
@@ -354,6 +345,7 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i, j, isph, nsel, nsph, k, ier
+    integer :: atomcells(3)
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
 
@@ -366,6 +358,14 @@ contains
     ! update the display
     call s%disp%update(s%id)
 
+    ! how many cells already have their atoms drawn
+    atomcells = 0
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit .or. .not.s%rep(i)%shown) cycle
+       if (s%rep(i)%type /= reptype_atoms) cycle
+       atomcells = max(atomcells,s%disp%ncells(s%rep(i)%disp))
+    end do
+
     ! add the items by representation; defer reps that need the scene radius
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
@@ -374,7 +374,8 @@ contains
        ! add draw elements
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
-       call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+       call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
+          noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
     end do
 
     ! Keep the measure selection across rebuilds. msel(1:4) is the
@@ -408,7 +409,8 @@ contains
     ! recalculate scene radius
     maxrad = 0._c_float
     do i = 1, s%nrep
-       if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) then
+       if (s%rep(i)%shown .and. (s%rep(i)%type == reptype_atoms .or.&
+          (s%rep(i)%type == reptype_polyhedra .and. s%rep(i)%poly%showcorners))) then
           if (s%rep(i)%atoms%style%ntype > 0) then
              maxrad = max(maxrad,real(maxval(s%rep(i)%atoms%style%rad(1:s%rep(i)%atoms%style%ntype)),c_float))
           end if
@@ -1718,8 +1720,9 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
-       reptype_text, reptype_measure, reptype_isosurface
+    use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
+       reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
+       reptype_isosurface
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -1842,6 +1845,12 @@ contains
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
           if (s%rep(i)%type == reptype_atoms) then
              str3 = "atoms" // c_null_char
+          elseif (s%rep(i)%type == reptype_bonds) then
+             str3 = "bonds" // c_null_char
+          elseif (s%rep(i)%type == reptype_labels) then
+             str3 = "labels" // c_null_char
+          elseif (s%rep(i)%type == reptype_polyhedra) then
+             str3 = "polyhedra" // c_null_char
           elseif (s%rep(i)%type == reptype_unitcell) then
              str3 = "cell" // c_null_char
           elseif (s%rep(i)%type == reptype_axes) then
@@ -2176,6 +2185,53 @@ contains
 
   end subroutine add_representation
 
+  !> Show (shown = .true.) or hide every object of kind itype in this
+  !> scene. If labeltype is given and the objects are being shown, it
+  !> also becomes their label text type. If the kind is being shown and
+  !> the scene has no object of it, one is created with the given flavor.
+  module subroutine scene_set_kind_shown(s,itype,flavor,shown,labeltype)
+    use representations, only: reptype_labels
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: itype
+    integer, intent(in) :: flavor
+    logical, intent(in) :: shown
+    integer, intent(in), optional :: labeltype
+
+    integer :: i, id
+    logical :: found, changed, dotype
+
+    ! the label text type is set on the objects being shown
+    dotype = .false.
+    if (present(labeltype)) dotype = shown .and. (itype == reptype_labels)
+
+    found = .false.
+    changed = .false.
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit) cycle
+       if (s%rep(i)%type /= itype) cycle
+       found = .true.
+       changed = changed .or. (s%rep(i)%shown .neqv. shown)
+       s%rep(i)%shown = shown
+       if (dotype) then
+          changed = changed .or. (s%rep(i)%labels%type /= labeltype)
+          s%rep(i)%labels%type = labeltype
+          call s%rep(i)%labels%style%reset(s%rep(i))
+       end if
+    end do
+
+    ! no object of this kind yet: create one if the kind is being shown
+    if (shown .and. .not.found) then
+       call s%add_representation(itype,flavor,id=id) ! sets forcebuildlists
+       if (dotype) then
+          s%rep(id)%labels%type = labeltype
+          call s%rep(id)%labels%style%reset(s%rep(id))
+       end if
+    elseif (changed) then
+       s%forcebuildlists = .true.
+    end if
+
+  end subroutine scene_set_kind_shown
+
   !> Reap the transient representations: end the items that were not
   !> re-armed by their producer and disarm the survivors for the next
   !> frame.
@@ -2432,7 +2488,7 @@ contains
   !> species of the system. ihighlight is the non-equivalent atom whose polyhedra are
   !> drawn in the highlight color (0 or absent = none).
   module subroutine scene_show_transient_polyhedra(s,owner,tag,isc,isv,rmin,rmax,ihighlight)
-    use representations, only: reptype_atoms, repflavor_atoms_polyhedra
+    use representations, only: reptype_polyhedra, repflavor_polyhedra_basic
     use systems, only: sys, atlisttype_species
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
@@ -2453,17 +2509,12 @@ contains
     if (size(isc,1) /= nspc .or. size(isv,1) /= nspc) return
     if (.not.any(isc) .or. .not.any(isv)) return
 
-    id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_polyhedra,found)
+    id = transient_slot(s,owner,tag,reptype_polyhedra,repflavor_polyhedra_basic,found)
     if (id <= 0) return
 
     ! static configuration, stamped when the item is (re)created: the
     ! polyhedra alone, over the atoms the scene draws already
-    if (.not.found) then
-       s%reptrans(id)%atoms%display = .false.
-       s%reptrans(id)%bonds%display = .false.
-       s%reptrans(id)%labels%display = .false.
-       s%reptrans(id)%poly%display = .true.
-    end if
+    if (.not.found) s%reptrans(id)%poly%showcorners = .false.
 
     associate (d => s%reptrans(id)%poly%style)
       ! the centers are enumerated by species, one entry per species
@@ -2510,7 +2561,7 @@ contains
   !> entry per non-equivalent atom, as a transient representation
   !> identified by (owner,tag).
   module subroutine scene_show_transient_spacefill(s,owner,tag,rad)
-    use representations, only: reptype_atoms, repflavor_atoms_ballandstick
+    use representations, only: reptype_atoms, repflavor_atoms_basic
     use systems, only: sys, atlisttype_nneq
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
@@ -2526,17 +2577,12 @@ contains
     nneq = sys(s%id)%c%nneq
     if (size(rad,1) /= nneq) return
 
-    id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_ballandstick,found)
+    id = transient_slot(s,owner,tag,reptype_atoms,repflavor_atoms_basic,found)
     if (id <= 0) return
 
-    ! static configuration, stamped when the item is (re)created
-    if (.not.found) then
-       s%reptrans(id)%atoms%display = .true.
-       s%reptrans(id)%bonds%display = .false.
-       s%reptrans(id)%labels%display = .false.
-       s%reptrans(id)%poly%display = .false.
-       s%reptrans(id)%disp%ignoresel = .true.
-    end if
+    ! static configuration, stamped when the item is (re)created: the
+    ! atom set the packing was measured over, ignoring the Display
+    if (.not.found) s%reptrans(id)%disp%ignoresel = .true.
 
     associate (d => s%reptrans(id)%atoms%style)
       ! one entry per non-equivalent atom: the nearest-neighbor radii are

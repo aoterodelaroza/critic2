@@ -45,80 +45,13 @@ contains
     r%type = itype
     r%flavor = flavor
 
-    ! default display options
-    r%atoms%display = .true.
-    r%atoms%spcclass = atomspc_real
-    r%bonds%display = .true.
-    r%labels%display = .false.
-    r%poly%display = .false.
-
-    ! if type was given, mark as initialized and set name
-    if (itype == reptype_atoms) then
-       r%isinit = .true.
-       r%shown = .true.
-       if (flavor == repflavor_atoms_ballandstick) then
-          r%name = "Ball and Stick"
-       elseif (flavor == repflavor_atoms_sticks) then
-          r%name = "Bonds"
-          r%atoms%display = .false.
-       elseif (flavor == repflavor_atoms_licorice) then
-          r%name = "Licorice"
-       elseif (flavor == repflavor_atoms_vdwcontacts) then
-          r%name = "VdW Contacts"
-          r%atoms%display = .false.
-       elseif (flavor == repflavor_atoms_hbonds) then
-          r%name = "Hydrogen Bonds"
-          r%atoms%display = .false.
-       elseif (flavor == repflavor_atoms_criticalpoints) then
-          r%name = "Critical Points"
-          r%bonds%display = .false.
-          r%labels%display = .true.
-          r%atoms%spcclass = atomspc_cp
-       elseif (flavor == repflavor_atoms_gradientpaths) then
-          r%name = "Gradient Paths"
-          r%bonds%display = .false.
-          r%labels%display = .false.
-          r%atoms%spcclass = atomspc_gp
-       elseif (flavor == repflavor_atoms_polyhedra) then
-          r%name = "Polyhedra"
-          r%bonds%display = .false.
-          r%poly%display = .true.
-       end if
-    elseif (itype == reptype_unitcell) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Unit Cell"
-    elseif (itype == reptype_axes) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Axes"
-    elseif (itype == reptype_rotaxis) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Rotation axis"
-    elseif (itype == reptype_shapes) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Shapes"
-    elseif (itype == reptype_symelem) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Symmetry elements"
-    elseif (itype == reptype_text) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Text"
-    elseif (itype == reptype_measure) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Measurements"
-    elseif (itype == reptype_isosurface) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Isosurface"
+    ! a valid type marks the object as initialized; the name comes from
+    ! the flavor, which belongs to exactly one kind
+    r%isinit = (itype >= reptype_atoms .and. itype <= reptype_NUM)
+    r%shown = r%isinit
+    if (r%isinit .and. flavor >= 0 .and. flavor <= repflavor_NUM) then
+       r%name = trim(repflavor_name(flavor))
     else
-       r%isinit = .false.
-       r%shown = .false.
        r%name = ""
     end if
 
@@ -238,7 +171,7 @@ contains
 
     !! initialize an empty representation
     if (itype == 0) then
-       ! the periodicity override: follow the scene Display
+       ! the view of the scene Display: follow its periodicity
        r%disp = rep_display()
     end if
 
@@ -252,17 +185,9 @@ contains
        r%atoms%border_rgb = ColorAtomBorder_def
        r%atoms%occ_sectors = occ_sectors_def
        r%atoms%occ_empty_rgb = ColorOccEmpty_def
-       if (r%flavor == repflavor_atoms_licorice) then
+       if (r%flavor == repflavor_atoms_licorice .or. r%flavor == repflavor_bonds_licorice) then
           r%atoms%radii_type = 2
           r%atoms%radii_value = atomrad_licorice_def
-       elseif (r%flavor == repflavor_atoms_criticalpoints) then
-          r%atoms%radii_type = 2
-          r%atoms%radii_value = atomrad_criticalpoints_def
-          r%atoms%border_size = atomborder_criticalpoints_def
-       elseif (r%flavor == repflavor_atoms_gradientpaths) then
-          r%atoms%radii_type = 2
-          r%atoms%radii_value = atomrad_gradientpaths_def
-          r%atoms%border_size = atomborder_gradientpaths_def
        end if
     end if
 
@@ -280,13 +205,13 @@ contains
        r%bonds%imol = 0
        r%bonds%bothends = .true.
        r%bonds%hbond_classify = hbond_classify_def
-       if (r%flavor == repflavor_atoms_sticks) then
+       if (r%flavor == repflavor_bonds_sticks) then
           r%bonds%color_style = 1
           r%bonds%border_size = bondborder_stickflav_def
-       elseif (r%flavor == repflavor_atoms_licorice) then
+       elseif (r%flavor == repflavor_bonds_licorice) then
           r%bonds%color_style = 1
           r%bonds%rad = bondrad_licorice_def
-       elseif (r%flavor == repflavor_atoms_vdwcontacts) then
+       elseif (r%flavor == repflavor_bonds_vdwcontacts) then
           ! van der waals contacts: dashed, intermolecular-only bonds using
           ! the sum of the van der Waals radii as the distance cutoff
           r%bonds%atmrad = atmvdw0
@@ -297,7 +222,7 @@ contains
           r%bonds%rad = bondrad_vdwcontacts_def
           r%bonds%border_size = 0d0
           r%bonds%rgb = ColorVdwContacts_def
-       elseif (r%flavor == repflavor_atoms_hbonds) then
+       elseif (r%flavor == repflavor_bonds_hbonds) then
           ! hydrogen bonds: dashed, intermolecular-only contacts.
           ! Jeffrey-Steiner strength classification (distance + D-H...A angle) is applied at render time.
           r%bonds%atmrad = atmvdw0
@@ -324,11 +249,6 @@ contains
        r%labels%rgb = ColorLabel_def
        r%labels%const_size = .false.
        r%labels%offset = (/0d0,0d0,0d0/)
-       if (r%flavor == repflavor_atoms_criticalpoints) then
-          r%labels%type = 2 ! cell atom
-          r%labels%scale = label_scale_criticalpoints_def
-          r%labels%offset = label_offset_criticalpoints_def
-       end if
     end if
 
     ! unit cell
@@ -1113,10 +1033,21 @@ contains
     class(representation), intent(in) :: r
     logical :: ok
 
-    ok = (r%type == reptype_atoms .or. r%type == reptype_unitcell .or. r%type == reptype_symelem)
+    ok = reptype_is_atombased(r%type) .or. r%type == reptype_unitcell .or. r%type == reptype_symelem
     if (r%type == reptype_isosurface) ok = r%iso%per0_built
 
   end function representation_uses_periodicity
+
+  !> Whether this representation kind is drawn over the atoms of the
+  !> system: the kinds that consume the scene Display
+  module function reptype_is_atombased(itype) result(ok)
+    integer, intent(in) :: itype
+    logical :: ok
+
+    ok = (itype == reptype_atoms .or. itype == reptype_bonds .or.&
+       itype == reptype_labels .or. itype == reptype_polyhedra)
+
+  end function reptype_is_atombased
 
   !> Return true if the staged sampling grid (n, iregion, x) is already
   !> the applied state of isosurface iso. The region coordinates are
@@ -1625,7 +1556,7 @@ contains
     if (.not.r%isinit .or. r%id == 0) return
     if (.not.ok_system(r%id,sys_ready)) return
 
-    if (r%type == reptype_atoms) then
+    if (reptype_is_atombased(r%type)) then
        ! check if we need to reset the representation styles atoms
        doreset = .not.r%atoms%style%isinit
        if (r%owner == 0) then
@@ -1635,35 +1566,38 @@ contains
        end if
        if (doreset) call r%atoms%style%reset(r)
 
-       ! bonds: if the geometry changed
-       doreset = .not.r%bonds%style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bonds%style%timelastreset)
-       if (doreset) call r%bonds%style%reset(r)
-
-       ! bonds: if the system has been rebonded and this representation tracks
-       ! the bonds in the system (%use_sys_nstar), recalculate the bond style
-       doreset = r%bonds%style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bonds%style%timelastreset)
-       if (doreset) call r%bonds%style%copy_neighstars_from_system(r%id)
-
        ! molecules: if the geometry or the bonds changed
        doreset = .not.r%mols%style%isinit
        doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mols%style%timelastreset)
        if (doreset) call r%mols%style%reset(r)
 
-       ! labels: if the geometry changed
-       doreset = .not.r%labels%style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%labels%style%timelastreset)
-       if (doreset) call r%labels%style%reset(r)
+       ! styles of a single kind
+       if (r%type == reptype_bonds) then
+          ! bonds: if the geometry changed
+          doreset = .not.r%bonds%style%isinit
+          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bonds%style%timelastreset)
+          if (doreset) call r%bonds%style%reset(r)
 
-       ! coordination polyhedra
-       if (r%owner == 0) then
-          doreset = .not.r%poly%style%isinit
-          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%poly%style%timelastreset)
-          if (doreset) call r%poly%style%reset(r)
-       elseif (r%poly%style%isinit) then
-          if (r%poly%style%ntype /= sysc(r%id)%attype_number(r%poly%style%type) .or.&
-             size(r%poly%style%corner,1) /= sys(r%id)%c%nspc) &
-             call r%poly%style%end()
+          ! bonds: if the system has been rebonded and this representation tracks
+          ! the bonds in the system (%use_sys_nstar), recalculate the bond style
+          doreset = r%bonds%style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bonds%style%timelastreset)
+          if (doreset) call r%bonds%style%copy_neighstars_from_system(r%id)
+       elseif (r%type == reptype_labels) then
+          ! labels: if the geometry changed
+          doreset = .not.r%labels%style%isinit
+          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%labels%style%timelastreset)
+          if (doreset) call r%labels%style%reset(r)
+       elseif (r%type == reptype_polyhedra) then
+          ! coordination polyhedra
+          if (r%owner == 0) then
+             doreset = .not.r%poly%style%isinit
+             doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%poly%style%timelastreset)
+             if (doreset) call r%poly%style%reset(r)
+          elseif (r%poly%style%isinit) then
+             if (r%poly%style%ntype /= sysc(r%id)%attype_number(r%poly%style%type) .or.&
+                size(r%poly%style%corner,1) /= sys(r%id)%c%nspc) &
+                call r%poly%style%end()
+          end if
        end if
 
     elseif (r%type == reptype_symelem) then
@@ -1691,7 +1625,7 @@ contains
   !> Add the spheres, cylinder, etc. to the draw lists. Use nc number
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation.
-  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq)
+  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost)
     use systems, only: sys, sysc
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane
     use gui_main, only: ColorAxes_def, ColorElement
@@ -1700,17 +1634,18 @@ contains
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
     use tools, only: mergesort
-    use param, only: tpi, img, atmass, icrd_crys, pi, maxzat, maxzat0
+    use param, only: tpi, img, atmass, icrd_crys, pi
     class(representation), intent(inout) :: r
     type(scene_display), intent(in) :: disp
     type(scene_objects), intent(inout) :: obj
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
+    logical, intent(in), optional :: noghost
 
-    ! per atom-image display state: 0 = not shown, 1 = selection-shown,
-    ! 2 = polyhedron-corner shown, 3 = corner whose bonds have been emitted
-    integer, allocatable :: lshown(:,:,:,:)
+    logical, allocatable :: lshown(:,:,:,:)
     logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
+    logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost
+    logical :: atomsdrawn, markdisplay
     logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks
     integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
@@ -1743,7 +1678,7 @@ contains
     integer :: natp, idpoly, kp, ka, kb
     logical :: dopoly, corneractive, okpoly
     integer, allocatable :: cornlist(:,:)
-    integer :: ncorn, ica, idc, imolc, ip, ixp(3), nbstate, ihb
+    integer :: ncorn, ica, idc, imolc
 
     interface
        subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
@@ -1806,7 +1741,7 @@ contains
        end do
     end if
 
-    if (r%type == reptype_atoms) then
+    if (reptype_is_atombased(r%type)) then
        !!! atoms and bonds representation !!!
 
        !! first, the atoms
@@ -1831,15 +1766,23 @@ contains
           uoriginc = c%x2c(disp%origin)
        end if
 
-       ! whether we will force the polyhedra corner atoms to be drawn (only when
-       ! the representation displays atoms, so lshown tracks visible spheres)
-       corneractive = r%poly%display .and. r%poly%showcorners .and. r%atoms%display .and.&
-          r%poly%style%isinit
+       ! what this object draws, from its kind
+       doatoms = (r%type == reptype_atoms)
+       dolabels = (r%type == reptype_labels) .and. r%labels%style%isinit
+       dobonds = (r%type == reptype_bonds) .and. r%bonds%style%isinit
+       dopolyhedra = (r%type == reptype_polyhedra) .and. r%poly%style%isinit
+       atomsdrawn = .false.
+       if (present(noghost)) atomsdrawn = noghost
+       doghost = dobonds .and. .not.atomsdrawn
 
-       ! whether we'll be doing bonds, allocate array to check whether
-       ! an atom has been drawn (also used to deduplicate forced corner atoms)
-       dobonds = r%bonds%display .and. r%bonds%style%isinit
-       if (dobonds .or. corneractive) then
+       ! whether we will force the polyhedra corner atoms to be drawn
+       corneractive = dopolyhedra .and. r%poly%showcorners
+       markdisplay = dobonds .or. (corneractive .and. atomsdrawn)
+
+       ! allocate the array that checks whether an atom image has been
+       ! drawn (bonds), also used to deduplicate the forced corner atoms
+       uselshown = dobonds .or. corneractive
+       if (uselshown) then
           ! bound the lattice translations reachable by the loops below so the
           ! atom and bond sites can index lshown directly (no bounds checks):
           ! the base image range is [-1,n] (border), plus the vacuum shift (1),
@@ -1869,15 +1812,15 @@ contains
              mb = mb + mbb
           end if
           allocate(lshown(c%ncel,-1-mb:n(1)+mb,-1-mb:n(2)+mb,-1-mb:n(3)+mb))
-          lshown = 0
+          lshown = .false.
        end if
 
        ! presize the draw lists from the known atom/bond counts (the 2x growth
        ! in dl_append absorbs border/vacuum extras and forced polyhedra corners)
        nimg = product(n)
        nres = c%ncel * nimg
-       if (r%atoms%display .or. dobonds) call obj%reserve(nsph = obj%nsph + nres)
-       if (r%labels%display) call obj%reserve(nstring = obj%nstring + nres)
+       if (doatoms .or. doghost .or. corneractive) call obj%reserve(nsph = obj%nsph + nres)
+       if (dolabels) call obj%reserve(nstring = obj%nstring + nres)
        if (dobonds) then
           nbond = sum(r%bonds%style%nstar(1:c%ncel)%ncon) / 2
           if (r%bonds%color_style /= 0) nbond = 2*nbond
@@ -1887,8 +1830,7 @@ contains
        if (corneractive) allocate(cornlist(4,100))
 
        ! coordination polyhedra: per-species distance-window scratch
-       if (r%poly%display .and. r%poly%style%isinit) &
-          allocate(up2dsp(c%nspc,2))
+       if (dopolyhedra) allocate(up2dsp(c%nspc,2))
 
        ! whether there is vacuum in any direction
        ! disable it for an isolated molecule and in a live dynamics run
@@ -1937,7 +1879,6 @@ contains
           end if
 
           ! skip the species this object does not draw
-          if (species_class(c%spc(c%atcel(i)%is)%z) /= r%atoms%spcclass) cycle
 
           ! the style entry of this atom
           id = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,i)
@@ -1979,13 +1920,14 @@ contains
           rad1 = r%atoms%style%rad(id) * r%mols%style%scale_rad(imol)
 
           ! occupancy pie sectors for this atom (occ1 = first sector; piecum/piergb
-          ! carry the extra sectors of a mixed/substitutional site)
-          call mixpie(c%atcel(i)%idx,occ1,piecum,piergb)
+          ! carry the extra sectors of a mixed/substitutional site); only the
+          ! spheres of an atoms object show them
+          if (doatoms) call mixpie(c%atcel(i)%idx,occ1,piecum,piergb)
 
           ! coordination polyhedron: if this atom is a shown center, find its
           ! corner atoms once (translation-invariant; reused for every image)
           dopoly = .false.
-          if (r%poly%display .and. r%poly%style%isinit) then
+          if (dopolyhedra) then
              idpoly = sysc(r%id)%attype_celatom_to_id(r%poly%style%type,i)
              if (r%poly%style%shown(idpoly) .and. r%poly%style%dmax(idpoly) > 0d0 .and.&
                 any(r%poly%style%corner(:,idpoly))) then
@@ -2074,21 +2016,20 @@ contains
                       end if
                    end if
 
-                   ! animation delta of this (center) atom
-                   xdelta1 = vibdelta(i,ix)
+                   ! animation delta of this (center) atom (the polyhedra take
+                   ! the deltas of their corners instead)
+                   if (doatoms .or. dobonds .or. dolabels) xdelta1 = vibdelta(i,ix)
 
-                   ! draw the atom. If the atoms are hidden but the bonds shown,
-                   ! add an invisible (ghost) pick target at the atom site so
-                   ! hidden atoms can still be picked, measured, and box-selected;
-                   ! it carries the real idx and is rendered only into the pick
-                   ! buffer (skipped in the visible sphere pass).
-                   if (r%atoms%display .or. dobonds) then
+                   ! draw the atom, or the ghost pick target of a bonds
+                   ! object: it carries the real idx and is rendered only into
+                   ! the pick buffer (skipped in the visible sphere pass)
+                   if (doatoms .or. doghost) then
                       dsph%x = real(xc + uoriginc,c_float)
                       dsph%rgb = rgb
                       dsph%idx(1) = i
                       dsph%idx(2:4) = ix
                       dsph%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      if (r%atoms%display) then
+                      if (doatoms) then
                          dsph%r = real(rad1,c_float)
                          dsph%border = real(r%atoms%border_size,c_float)
                          dsph%rgbborder = r%atoms%border_rgb
@@ -2110,7 +2051,7 @@ contains
                    ! mark this atom image as drawn (for bonds and for
                    ! deduplicating forced polyhedra corner atoms); ix is within
                    ! the lshown bounds by construction (see the mb margin above)
-                   if (allocated(lshown)) lshown(i,ix(1),ix(2),ix(3)) = 1
+                   if (markdisplay) lshown(i,ix(1),ix(2),ix(3)) = .true.
 
                    ! bonds
                    if (dobonds) then
@@ -2128,11 +2069,11 @@ contains
                          if (r%bonds%bothends) then
                             ! skip if the atom has been represented already
                             ! (draws once, and only if both atoms are present)
-                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3)) == 0) cycle
+                            if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          else
                             ! skip if the atom has not been represented already
                             ! (draws once, only one of the atoms need be present)
-                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3)) /= 0) cycle
+                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          end if
 
                          ! bond color
@@ -2148,7 +2089,7 @@ contains
                       end do ! ncon
                    end if
 
-                   if (r%labels%display) then
+                   if (dolabels) then
                       select case(r%labels%type)
                       case (0,5,6)
                          idl = c%atcel(i)%is
@@ -2192,8 +2133,8 @@ contains
           do ica = 1, ncorn
              ix = cornlist(2:4,ica)
              call check_lshown(cornlist(1,ica),ix(1),ix(2),ix(3))
-             if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) /= 0) cycle ! already drawn
-             lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = 2
+             if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3))) cycle ! already drawn
+             lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = .true.
 
              ! style and position of the corner atom
              idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,cornlist(1,ica))
@@ -2225,65 +2166,6 @@ contains
           end do
        end if
 
-       ! draw the bonds of the polyhedra corner atoms, but only to
-       ! atoms that are also present in the view (selection atoms or
-       ! other corner atoms); bonds to absent atoms are not
-       ! drawn. Deduplication uses the lshown state (2 = corner sphere
-       ! drawn, 3 = its bonds emitted) so that no bond is drawn both
-       ! here and in the main loop, and no corner-corner bond is drawn
-       ! twice.
-       if (corneractive .and. dobonds) then
-          do ica = 1, ncorn
-             ip = cornlist(1,ica)
-             ixp = cornlist(2:4,ica)
-             ! only freshly-drawn corner atoms not yet processed: this
-             ! also dedups corner images (state 3) and skips corners
-             ! that coincide with selection atoms (state 1, already
-             ! handled above)
-             if (lshown(ip,ixp(1),ixp(2),ixp(3)) /= 2) cycle
-             lshown(ip,ixp(1),ixp(2),ixp(3)) = 3
-
-             ! corner display quantities (the center of the emitted bonds)
-             idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,ip)
-             imolc = c%idatcelmol(1,ip)
-             rgb = r%atoms%style%rgb(:,idc) * r%mols%style%tint_rgb(:,imolc)
-             rad1 = r%atoms%style%rad(idc) * r%mols%style%scale_rad(imolc)
-             xc = c%x2c(c%atcel(ip)%x + ixp)
-             xdelta1 = vibdelta(ip,ixp)
-
-             do ib = 1, r%bonds%style%nstar(ip)%ncon
-                ineigh = r%bonds%style%nstar(ip)%idcon(ib)
-                if (.not.r%bonds%style%shown(c%atcel(ineigh)%is,c%atcel(ip)%is)) cycle
-                ixn = ixp + r%bonds%style%nstar(ip)%lcon(:,ib)
-
-                if (r%bonds%imol == 1) then ! intramol
-                   if (.not.c%in_same_molecule(ip,ixp,ineigh,ixn)) cycle
-                elseif (r%bonds%imol == 2) then ! intermol
-                   if (c%in_same_molecule(ip,ixp,ineigh,ixn)) cycle
-                end if
-
-                ! only bonds to atoms present in the view, drawn exactly once
-                ! (nbstate is the neighbor image's lshown display state)
-                call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))
-                nbstate = lshown(ineigh,ixn(1),ixn(2),ixn(3))
-                if (nbstate == 0) cycle ! neighbor absent from the view
-                if (nbstate == 3) cycle ! the other corner already emitted this bond
-                if (.not.r%bonds%bothends .and. nbstate == 1) cycle ! selection neighbor
-                                                                    ! already drew it (dangling)
-
-                ! bond color; H-bond classification (translation-invariant, so
-                ! no cross-image cache is needed for a once-processed corner)
-                bondrgb = r%bonds%rgb
-                if (r%bonds%hbond_classify) then
-                   ihb = hbond_class(ip,ib)
-                   if (ihb == 0) cycle ! not an H-bond
-                   bondrgb = r%bonds%hbond_rgb(:,ihb)
-                end if
-
-                call emit_bond(ip,ib,ineigh,ixn,xc+uoriginc,rgb,rad1,xdelta1,bondrgb)
-             end do
-          end do
-       end if
        if (allocated(cornlist)) deallocate(cornlist)
        if (allocated(up2dsp)) deallocate(up2dsp)
     elseif (r%type == reptype_unitcell) then
@@ -3790,22 +3672,6 @@ contains
 
     end subroutine process_vacuum_uc_sticks
 
-    !> Species class (atomspc_*) of atomic number iz: a real atom, a
-    !> dummy critical-point species, or the dummy gradient-path species.
-    function species_class(iz) result(iclass)
-      integer, intent(in) :: iz
-      integer :: iclass
-
-      if (iz == maxzat0) then
-         iclass = atomspc_gp
-      elseif (iz > maxzat) then
-         iclass = atomspc_cp
-      else
-         iclass = atomspc_real
-      end if
-
-    end function species_class
-
     !> Emit the cylinder(s) for one bond from a center atom image to
     !> the neighbor image (ineigh,ixn). Cartesian endpoint x1 (bohr,
     !> origin-shifted), color rgbcen, radius radcen, animation delta
@@ -3892,7 +3758,7 @@ contains
       integer, intent(in) :: i, i1, i2, i3
 
       integer :: l, l1, l2, l3, u, u1, u2, u3
-      integer, allocatable :: lshown_aux(:,:,:,:)
+      logical, allocatable :: lshown_aux(:,:,:,:)
 
       if (i < lbound(lshown,1) .or. i > ubound(lshown,1) .or.&
          i1 < lbound(lshown,2) .or. i1 > ubound(lshown,2) .or.&
@@ -3907,7 +3773,7 @@ contains
          l3 = min(i3,lbound(lshown,4))
          u3 = max(i3,ubound(lshown,4))
          allocate(lshown_aux(l:u,l1:u1,l2:u2,l3:u3))
-         lshown_aux = 0
+         lshown_aux = .false.
          lshown_aux(lbound(lshown,1):ubound(lshown,1),lbound(lshown,2):ubound(lshown,2),&
             lbound(lshown,3):ubound(lshown,3),lbound(lshown,4):ubound(lshown,4)) = &
             lshown
@@ -4133,7 +3999,7 @@ contains
     d%shown = .true.
 
     ! fill data according to flavor
-    if (r%flavor == repflavor_atoms_vdwcontacts) then
+    if (r%flavor == repflavor_bonds_vdwcontacts) then
        ! van der waals contacts
        d%use_sys_nstar = .false.
        do i = 1, sys(r%id)%c%nspc
@@ -4143,7 +4009,7 @@ contains
           end if
        end do
        call d%generate_neighstars(r)
-    elseif (r%flavor == repflavor_atoms_hbonds) then
+    elseif (r%flavor == repflavor_bonds_hbonds) then
        ! hydrogen bonds
        d%use_sys_nstar = .false.
        d%shown = .false.

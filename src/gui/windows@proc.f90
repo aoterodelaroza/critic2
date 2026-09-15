@@ -1747,7 +1747,7 @@ contains
   !> view window iview. Returns .true. and fills rgb if found. Used to
   !> paint atom buttons in the windows attached to a view.
   module function atom_view_rgb(iview,isys,itype,iat,rgb) result(have)
-    use representations, only: reptype_atoms
+    use representations, only: reptype_is_atombased
     use systems, only: sysc
     integer, intent(in) :: iview, isys, itype, iat
     real(c_float), intent(out) :: rgb(3)
@@ -1765,7 +1765,9 @@ contains
     if (win(iview)%isys /= isys) return
     if (.not.associated(win(iview)%sc)) return
     do jrep = 1, win(iview)%sc%nrep
-       if (win(iview)%sc%rep(jrep)%type == reptype_atoms .and. win(iview)%sc%rep(jrep)%isinit .and.&
+       ! every atom-based object carries an atom style, so a scene with only
+       ! a bonds object (a large system) still gives the element colors
+       if (reptype_is_atombased(win(iview)%sc%rep(jrep)%type) .and. win(iview)%sc%rep(jrep)%isinit .and.&
           win(iview)%sc%rep(jrep)%shown) then
           idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atoms%style%type)
           if (idd /= 0) then

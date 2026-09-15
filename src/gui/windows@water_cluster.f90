@@ -308,7 +308,7 @@ contains
     !> Set up TIP4P + FIRE for the generated cluster and start the continuous
     !> relaxation, then add the hydrogen-bond and scoreboard representations.
     subroutine wc_start()
-      use representations, only: reptype_atoms, reptype_axes, repflavor_atoms_hbonds
+      use representations, only: reptype_bonds, reptype_axes, repflavor_bonds_hbonds
       character(len=:), allocatable :: errmsg
 
       integer :: is, i
@@ -334,7 +334,7 @@ contains
       end do
 
       ! hydrogen bonds
-      call sysc(is)%sc%add_representation(reptype_atoms,repflavor_atoms_hbonds)
+      call sysc(is)%sc%add_representation(reptype_bonds,repflavor_bonds_hbonds)
 
     end subroutine wc_start
 

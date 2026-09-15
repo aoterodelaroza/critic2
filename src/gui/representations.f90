@@ -33,14 +33,10 @@ module representations
   ! default parameters for the representations (all distances in bohr)
   !--> atoms
   real*8, parameter, public :: atomborder_def = 0.05_c_float / bohrtoa ! atom border
-  real*8, parameter, public :: atomborder_criticalpoints_def = 0.03_c_float / bohrtoa ! atom border (critical points)
-  real*8, parameter, public :: atomborder_gradientpaths_def = 0.008_c_float / bohrtoa ! atom border (gradient paths)
   real*8, parameter, public :: atomcovradscale_def = 0.7_c_float ! atomic radius scale factor (covalent)
   real*8, parameter, public :: atomvdwradscale_def = 1.0_c_float ! atomic radius scale factor (vdw)
   real*8, parameter, public :: atomconstantrad_def = 0.4_c_float / bohrtoa ! atomic radius scale factor (vdw)
   real*8, parameter, public :: atomrad_licorice_def = 0.11_c_float / bohrtoa ! atomic radius value (licorice)
-  real*8, parameter, public :: atomrad_criticalpoints_def = 0.13_c_float / bohrtoa ! atomic radius value (critical points)
-  real*8, parameter, public :: atomrad_gradientpaths_def = 0.05_c_float / bohrtoa ! atomic radius value (gradient paths)
   logical, parameter, public :: occ_sectors_def = .true. ! render partial occupancies as sectors
   !--> bonds
   real*8, parameter, public :: bondrad_def = 0.125d0 / bohrtoa ! bond radius
@@ -56,8 +52,6 @@ module representations
   logical, parameter, public :: hbond_classify_def = .false. ! Jeffrey-Steiner H-bond strength classification
   !--> labels
   real*8, parameter, public :: label_scale_def = 0.5d0 ! label size
-  real*8, parameter, public :: label_scale_criticalpoints_def = 0.3d0 ! label size (critical points)
-  real*8, parameter, public :: label_offset_criticalpoints_def(3) = (/0d0,0.25d0,0d0/) ! label offset (critical points)
   !--> unit cell
   real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
@@ -208,13 +202,6 @@ module representations
   real(c_float), parameter, public :: iso_rgb_invalid(3) = 0.5_c_float ! color of a vertex outside the map field
   real(c_float), parameter, public :: iso_rgb_hl(3) = (/1._c_float,0.5_c_float,0._c_float/) ! highlighted group
 
-  ! Species classes an atoms object draws (rep_atoms%spcclass): the real
-  ! atoms, the dummy critical-point species of CPREPORT-written structures
-  ! (Xn/Xb/Xr/Xc), or the dummy gradient-path species (Xz)
-  integer, parameter, public :: atomspc_real = 0
-  integer, parameter, public :: atomspc_cp = 1
-  integer, parameter, public :: atomspc_gp = 2
-
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
      logical :: isinit = .false. ! whether the style is intialized
@@ -313,7 +300,7 @@ module representations
 
   ! types of representations
   integer, parameter, public :: reptype_none = 0
-  integer, parameter, public :: reptype_atoms = 1 ! atoms/bonds/labels
+  integer, parameter, public :: reptype_atoms = 1 ! atoms (spheres)
   integer, parameter, public :: reptype_unitcell = 2 ! unit cell
   integer, parameter, public :: reptype_axes = 3 ! cartesian/crystallographic axes gizmo
   integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
@@ -322,32 +309,57 @@ module representations
   integer, parameter, public :: reptype_measure = 7 ! measurements (distances/angles/dihedrals)
   integer, parameter, public :: reptype_shapes = 8 ! list of geometric shapes
   integer, parameter, public :: reptype_isosurface = 9 ! isosurface of a scalar field
-  integer, parameter, public :: reptype_NUM = 9
+  integer, parameter, public :: reptype_bonds = 10 ! bonds (cylinders)
+  integer, parameter, public :: reptype_labels = 11 ! atom labels
+  integer, parameter, public :: reptype_polyhedra = 12 ! coordination polyhedra
+  integer, parameter, public :: reptype_NUM = 12
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
-  integer, parameter, public :: repflavor_atoms_ballandstick = 1
-  integer, parameter, public :: repflavor_atoms_sticks = 2
-  integer, parameter, public :: repflavor_atoms_licorice = 3
-  integer, parameter, public :: repflavor_atoms_vdwcontacts = 4
-  integer, parameter, public :: repflavor_atoms_hbonds = 5
-  integer, parameter, public :: repflavor_atoms_criticalpoints = 6
-  integer, parameter, public :: repflavor_atoms_gradientpaths = 7
-  integer, parameter, public :: repflavor_atoms_polyhedra = 8
-  integer, parameter, public :: repflavor_unitcell_basic = 9
-  integer, parameter, public :: repflavor_axes = 10
-  integer, parameter, public :: repflavor_rotaxis = 11
-  integer, parameter, public :: repflavor_symelem = 12
-  integer, parameter, public :: repflavor_text = 13
-  integer, parameter, public :: repflavor_measure = 14
-  integer, parameter, public :: repflavor_shapes = 15
-  integer, parameter, public :: repflavor_isosurface = 16
-  integer, parameter, public :: repflavor_NUM = 16
+  integer, parameter, public :: repflavor_atoms_basic = 1
+  integer, parameter, public :: repflavor_atoms_licorice = 2
+  integer, parameter, public :: repflavor_bonds_basic = 3
+  integer, parameter, public :: repflavor_bonds_sticks = 4
+  integer, parameter, public :: repflavor_bonds_licorice = 5
+  integer, parameter, public :: repflavor_bonds_vdwcontacts = 6
+  integer, parameter, public :: repflavor_bonds_hbonds = 7
+  integer, parameter, public :: repflavor_labels_basic = 8
+  integer, parameter, public :: repflavor_polyhedra_basic = 9
+  integer, parameter, public :: repflavor_unitcell_basic = 10
+  integer, parameter, public :: repflavor_axes = 11
+  integer, parameter, public :: repflavor_rotaxis = 12
+  integer, parameter, public :: repflavor_symelem = 13
+  integer, parameter, public :: repflavor_text = 14
+  integer, parameter, public :: repflavor_measure = 15
+  integer, parameter, public :: repflavor_shapes = 16
+  integer, parameter, public :: repflavor_isosurface = 17
+  integer, parameter, public :: repflavor_NUM = 17
 
-  !> Atom display options (reptype_atoms; accessed as r%atoms%...)
+  ! default name of an object, by flavor (each flavor belongs to exactly
+  ! one kind, so this is also the name of the kind for its basic flavor)
+  character(len=17), parameter :: repflavor_name(0:repflavor_NUM) = (/&
+     "                 ",& ! repflavor_unknown
+     "Atoms            ",& ! repflavor_atoms_basic
+     "Licorice Atoms   ",& ! repflavor_atoms_licorice
+     "Bonds            ",& ! repflavor_bonds_basic
+     "Sticks           ",& ! repflavor_bonds_sticks
+     "Licorice Bonds   ",& ! repflavor_bonds_licorice
+     "VdW Contacts     ",& ! repflavor_bonds_vdwcontacts
+     "Hydrogen Bonds   ",& ! repflavor_bonds_hbonds
+     "Labels           ",& ! repflavor_labels_basic
+     "Polyhedra        ",& ! repflavor_polyhedra_basic
+     "Unit Cell        ",& ! repflavor_unitcell_basic
+     "Axes             ",& ! repflavor_axes
+     "Rotation axis    ",& ! repflavor_rotaxis
+     "Symmetry elements",& ! repflavor_symelem
+     "Text             ",& ! repflavor_text
+     "Measurements     ",& ! repflavor_measure
+     "Shapes           ",& ! repflavor_shapes
+     "Isosurface       "/) ! repflavor_isosurface
+
+  !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
+  !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
   type rep_atoms
-     logical :: display ! whether to draw the atoms
-     integer :: spcclass = atomspc_real ! species drawn: real atoms, or the dummy species of CPREPORT structures (atomspc_*)
      type(atom_geom_style) :: style ! atom styles (geometry-dependent)
      integer(c_int) :: radii_type ! option to reset radii: 0=covalent,1=vdw,2=constant
      real*8 :: radii_scale ! reset radii, scale factor
@@ -360,9 +372,8 @@ module representations
   end type rep_atoms
   public :: rep_atoms
 
-  !> Bond display options (reptype_atoms; accessed as r%bonds%...)
+  !> Bond display options (reptype_bonds; accessed as r%bonds%...)
   type rep_bonds
-     logical :: display ! whether to draw the bonds
      type(bond_geom_style) :: style ! bond styles (geometry-dependent)
      real*8 :: atmrad(0:maxzat0) = atmcov0 ! per-species covalent radii for bonding (bohr)
      real*8 :: bfactor = bondfactor_def ! bond factor for non-metal bonding
@@ -385,9 +396,8 @@ module representations
   end type rep_bonds
   public :: rep_bonds
 
-  !> Label display options (reptype_atoms; accessed as r%labels%...)
+  !> Label display options (reptype_labels; accessed as r%labels%...)
   type rep_labels
-     logical :: display ! whether to draw the labels
      type(label_geom_style) :: style ! label styles (geometry-dependent)
      integer(c_int) :: type ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real*8 :: scale ! scale for the labels
@@ -480,15 +490,14 @@ module representations
   end type rep_symelem
   public :: rep_symelem
 
-  !> Per-molecule display options (reptype_atoms; accessed as r%mols%...)
+  !> Per-molecule display options (all atom-based kinds; accessed as r%mols%...)
   type rep_mols
      type(mol_geom_style) :: style ! molecule styles (geometry-dependent)
   end type rep_mols
   public :: rep_mols
 
-  !> Coordination polyhedra options (reptype_atoms; accessed as r%poly%...)
+  !> Coordination polyhedra options (reptype_polyhedra; accessed as r%poly%...)
   type rep_poly
-     logical :: display ! whether to draw the coordination polyhedra
      type(coordpoly_geom_style) :: style ! center/corner/distance geometry (geometry-dependent)
      real*8 :: alpha = polyalpha_def ! face opacity (1 = opaque)
      logical :: usecentercolor = poly_usecentercolor_def ! faces take the central atom color
@@ -728,6 +737,7 @@ module representations
   public :: iso_region_point_from_cart
   public :: iso_estimate_cost
   public :: coordpoly_classify_species
+  public :: reptype_is_atombased
 
   ! module procedure interfaces
   interface
@@ -735,6 +745,10 @@ module representations
        class(representation), intent(in) :: r
        logical :: ok
      end function representation_uses_periodicity
+     module function reptype_is_atombased(itype) result(ok)
+       integer, intent(in) :: itype
+       logical :: ok
+     end function reptype_is_atombased
      module function iso_default_isovalue(isys,ifield) result(isoval)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield
@@ -928,12 +942,13 @@ module representations
      module subroutine update_styles(r)
        class(representation), intent(inout) :: r
      end subroutine update_styles
-     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq)
+     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost)
        class(representation), intent(inout) :: r
        type(scene_display), intent(in) :: disp
        type(scene_objects), intent(inout) :: obj
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq
+       logical, intent(in), optional :: noghost
      end subroutine add_draw_elements
      module subroutine reset_all_styles(r,itype)
        class(representation), intent(inout) :: r

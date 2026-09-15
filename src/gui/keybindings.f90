@@ -74,10 +74,10 @@ module keybindings
   integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 22 ! view: align view with x axis
   integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 23 ! view: align view with y axis
   integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 24 ! view: align view with z axis
-  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 25 ! view: toggle atoms in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 26 ! view: toggle bonds in the first rep
-  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 27 ! view: cycle labels in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 28 ! view: toggle cell in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 25 ! view: show/hide the atoms objects
+  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 26 ! view: show/hide the bonds objects
+  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 27 ! view: cycle the labels objects
+  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 28 ! view: show/hide the unit cell objects
   integer, parameter, public :: BIND_NAV_ROTATE = 29 ! navigation: rotate the view
   integer, parameter, public :: BIND_NAV_ROTATE_PERP = 30 ! navigation: rotate around axis perp. to screen
   integer, parameter, public :: BIND_NAV_TRANSLATE = 31 ! navigation: translate the view
@@ -96,7 +96,7 @@ module keybindings
   integer, parameter, public :: BIND_MOVEMOL_ROTATE_PERP = 44 ! move molecules: rotate molecule perpendicular to screen
   integer, parameter, public :: BIND_UNDO = 45 ! undo the last geometry change
   integer, parameter, public :: BIND_REDO = 46 ! redo the last undone geometry change
-  integer, parameter, public :: BIND_VIEW_TOGGLE_POLYHEDRA = 47 ! view: toggle polyhedra in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_POLYHEDRA = 47 ! view: show/hide the polyhedra objects
   integer, parameter, public :: BIND_RECALC_BONDS = 48 ! view: recalculate bonds/connectivity
   integer, parameter, public :: BIND_VIEWMODE_MOVEATOM = 49 ! enter the move-atoms view mode (transient)
   integer, parameter, public :: BIND_MOVEATOM_TRANSLATE = 50 ! move atoms: translate single atom
