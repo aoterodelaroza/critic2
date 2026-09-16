@@ -2085,7 +2085,7 @@ contains
                          end if
 
                          ! emit the bond cylinder(s) from this center image
-                         call emit_bond(i,ib,ineigh,ixn,xc+uoriginc,rgb,rad1,xdelta1,bondrgb)
+                         call emit_bond(i,ib,ix,ineigh,ixn,xc+uoriginc,rgb,rad1,xdelta1,bondrgb)
                       end do ! ncon
                    end if
 
@@ -3677,8 +3677,8 @@ contains
     !> origin-shifted), color rgbcen, radius radcen, animation delta
     !> xdeltacen, and the final bond color bondrgb. icen/ib identify
     !> the center's neighbor-star entry.
-    subroutine emit_bond(icen,ib,ineigh,ixn,x1,rgbcen,radcen,xdeltacen,bondrgb)
-      integer, intent(in) :: icen, ib, ineigh, ixn(3)
+    subroutine emit_bond(icen,ib,ixcen,ineigh,ixn,x1,rgbcen,radcen,xdeltacen,bondrgb)
+      integer, intent(in) :: icen, ib, ixcen(3), ineigh, ixn(3)
       real*8, intent(in) :: x1(3), radcen
       real(c_float), intent(in) :: rgbcen(3), bondrgb(3)
       complex*16, intent(in) :: xdeltacen(3)
@@ -3707,11 +3707,12 @@ contains
       dcyl%rgbborder = r%bonds%border_rgb
       dcyl%arvec = real(r%bonds%style%nstar(icen)%aromdir(:,ib),c_float)
 
-      ! identity, for picking the bond in the view: the two cell atoms and the
-      ! lattice vector of the bond (lcon)
+      ! identity, for picking the bond in the view: the two atom images it
+      ! joins, so a pick knows exactly which copy of the bond it hit
       dcyl%bidx(1) = icen
-      dcyl%bidx(2) = ineigh
-      dcyl%bidx(3:5) = r%bonds%style%nstar(icen)%lcon(:,ib)
+      dcyl%bidx(2:4) = ixcen
+      dcyl%bidx(5) = ineigh
+      dcyl%bidx(6:8) = ixn
       dcyl%brepord = r%bonds%order
 
       if (r%bonds%color_style == 0 .or. r%bonds%hbond_classify) then

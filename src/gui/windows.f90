@@ -124,6 +124,7 @@ module windows
   integer :: icombo_fmt1 = 1
 
   ! view modes (positive = normal, user-selectable; negative = forced).
+  integer, parameter, public :: vm_pick_bond = -12 ! forced by a window awaiting a bond pick
   integer, parameter, public :: vm_builder_bondorder = -11 ! forced by builder: cycle the bond order (persistent)
   integer, parameter, public :: vm_builder_bondremove = -10 ! forced by builder: remove bonds (persistent)
   integer, parameter, public :: vm_builder_bondh = -9 ! forced by builder: create bonds, dropping a hydrogen (persistent)
@@ -142,6 +143,7 @@ module windows
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
   integer, parameter, public :: vm_builder_lo = vm_builder_bondorder ! lower bound of the builder-mode range
   integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
+  integer, parameter, public :: vm_lo = vm_pick_bond ! lowest mode id (the vmnames lower bound)
 
   ! The tool selected in the builder toolbar (window%builder_tool), which
   ! chooses what the contextual panel shows. A tool that arms a pick mode
@@ -163,7 +165,8 @@ module windows
   integer, parameter, public :: geomtab_bonds = 3
   integer, parameter, public :: geomtab_symmetry = 4
 
-  character(len=17), parameter, public :: vmnames(vm_builder_lo:vm_NUM) = (/&
+  character(len=17), parameter, public :: vmnames(vm_lo:vm_NUM) = (/&
+     "Pick Bonds       ",& ! vm_pick_bond
      "Bond Order       ",& ! vm_builder_bondorder
      "Remove Bonds     ",& ! vm_builder_bondremove
      "Create Bonds (-H)",& ! vm_builder_bondh
@@ -321,11 +324,10 @@ module windows
   end type loadfield_state
   public :: loadfield_state
 
-  ! A staged atom pick for the operations that need two atoms chosen
-  ! one after the other (create bond, geometry add-bond, editrep bond
-  ! anchor). Holds the first pick and the time it was staged (or the
-  ! pick session was armed), so a geometry change in between
-  ! invalidates the stored cell-atom index.
+  ! A staged atom pick for the operations that need two atoms chosen one
+  ! after the other (create bond, geometry add-bond). Holds the first pick
+  ! and the time it was staged (or the pick session was armed), so a
+  ! geometry change in between invalidates the stored cell-atom index.
   type pairpick
      integer :: idx(4) = 0 ! staged atom (cell index + lattice vector; 0 = none)
      real*8 :: time = 0d0 ! time the atom was staged or the pick was armed
@@ -421,7 +423,8 @@ module windows
      character(len=:), allocatable :: tooltip_frag ! fragment name shown at the cursor (add-fragments mode)
      logical :: frag_isligand = .false. ! the fragment bonds to the clicked atom instead of replacing it (add-fragments mode)
      integer(c_int) :: idx(4) = 0 ! atom identifier under mouse position (cell index + lattice vector)
-     integer(c_int) :: bidx(5) = 0 ! bond identifier under mouse position (two cell indices + lattice vector)
+     integer(c_int) :: bidx(8) = 0 ! bond identifier under mouse position: the two atom images it
+                                   ! joins, each a cell index + lattice vector (as in dl_cylinder%bidx)
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate; 0 = nothing delivered/cancelled)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
@@ -501,7 +504,7 @@ module windows
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
-     integer(c_int) :: mousepos_bidx(5) = 0 ! identifier for the bond under mouse position (bond pick modes only)
+     integer(c_int) :: mousepos_bidx(8) = 0 ! identifier for the bond under mouse position (bond pick modes only)
      type(ImVec2) :: mposlast ! mouse parameters ----v
      real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)
      real(c_float) :: oldview(4,4)
@@ -516,7 +519,7 @@ module windows
      type(ImVec2) :: press_p0 ! press position (mouse/screen coords): click-vs-drag test and rubber-band anchor
      integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick, 4=alternate pick)
      integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement/pick
-     integer :: measure_pend_bidx(5) = 0 ! bond captured at the press for the pending pick
+     integer :: measure_pend_bidx(8) = 0 ! bond captured at the press for the pending pick
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
      type(dialog_userdata), pointer :: dialog_data => null() ! for the side pane callback
@@ -540,10 +543,10 @@ module windows
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
-     integer :: editrep_pick_item = 0 ! text/measurement item waiting for an atom pick (0 = idle)
-     integer :: editrep_pick_slot = 0 ! anchor or measurement atom the pick will fill
-     type(pairpick) :: editrep_pick ! pick session stamp + staged first bond atom (committed when the
-                                    ! pair completes); the isosurface region pick uses only the stamp
+     integer :: editrep_pick_item = 0 ! text/measurement item waiting for a view pick (0 = idle)
+     integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
+     type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
+                                    ! every editor pick completes on one delivery
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
      integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
                                          ! if the staged mode no longer matches)

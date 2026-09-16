@@ -190,8 +190,12 @@ contains
     elseif (win(iview)%vmdata%bidx(1) > 0) then
        ! A bond click was delivered: apply the edit and stay in the mode.
        ! The stale-click guard keys on the geometry, which is right here:
-       ! these edits only touch the connectivity and never renumber atoms
-       ibond = win(iview)%vmdata%bidx
+       ! these edits only touch the connectivity and never renumber atoms.
+       ! The connectivity identity is the two atoms and the lattice vector
+       ! between them, which the pick gives as two atom images
+       ibond(1) = win(iview)%vmdata%bidx(1)
+       ibond(2) = win(iview)%vmdata%bidx(5)
+       ibond(3:5) = win(iview)%vmdata%bidx(6:8) - win(iview)%vmdata%bidx(2:4)
        win(iview)%vmdata%bidx = 0
        win(iview)%vmdata%flag = 0
        if (glfwGetTime() - w%builder_time < stale_gap .and.&

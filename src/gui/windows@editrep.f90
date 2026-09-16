@@ -1757,42 +1757,25 @@ contains
           ! geometry changed (stale cell-atom ids): cancel
           call win(iview)%viewmode_release_forced(w%id)
           w%editrep_pick_item = 0
-          w%editrep_pick_slot = 0
        elseif (win(iview)%viewmode >= 0) then
           ! the pick finished
           i = w%editrep_pick_item
-          if (win(iview)%vmdata%idx(1) > 0) then
-             if (w%editrep_pick_slot == 1) then
-                if (w%rep%text%t(i)%placement == textpos_bond) then
-                   ! bond anchor: stage this atom and chain the second pick
-                   call w%editrep_pick%stage(win(iview)%vmdata%idx(1:4))
-                   w%editrep_pick_slot = 2
-                   win(iview)%vmdata%idx = 0
-                   call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the second atom to bond",w%id)
-                else
-                   ! atom anchor: complete
-                   w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
-                   changed = .true.
-                   w%editrep_pick_item = 0
-                   w%editrep_pick_slot = 0
-                end if
-             else
-                ! second bond atom: complete, unless it repeats the first atom
-                ! (a degenerate bond; treated as a cancel)
-                if (.not.w%editrep_pick%same(win(iview)%vmdata%idx(1:4))) then
-                   w%rep%text%t(i)%idx1 = w%editrep_pick%idx
-                   w%rep%text%t(i)%idx2 = win(iview)%vmdata%idx(1:4)
-                   changed = .true.
-                end if
-                w%editrep_pick_item = 0
-                w%editrep_pick_slot = 0
-             end if
-          else
-             ! the user cancelled the pick
-             w%editrep_pick_item = 0
-             w%editrep_pick_slot = 0
+          ! the delivery has to be the kind of anchor the item still wants:
+          ! the placement can be changed while the pick is out
+          if (win(iview)%vmdata%bidx(1) > 0 .and. w%rep%text%t(i)%placement == textpos_bond) then
+             ! a bond: its two atom images anchor the text
+             w%rep%text%t(i)%idx1 = win(iview)%vmdata%bidx(1:4)
+             w%rep%text%t(i)%idx2 = win(iview)%vmdata%bidx(5:8)
+             changed = .true.
+          elseif (win(iview)%vmdata%idx(1) > 0 .and. w%rep%text%t(i)%placement == textpos_atom) then
+             ! an atom
+             w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
+             changed = .true.
           end if
-          if (w%editrep_pick_item == 0) win(iview)%vmdata%idx = 0
+          ! the pick is over either way; nothing delivered means it was cancelled
+          w%editrep_pick_item = 0
+          win(iview)%vmdata%idx = 0
+          win(iview)%vmdata%bidx = 0
        end if
     end if
 
@@ -1875,7 +1858,6 @@ contains
           ! cancel a pick pending on the deleted item
           call win(iview)%viewmode_release_forced(w%id)
           w%editrep_pick_item = 0
-          w%editrep_pick_slot = 0
        elseif (w%editrep_pick_item > idel) then
           w%editrep_pick_item = w%editrep_pick_item - 1
        end if
@@ -1925,7 +1907,6 @@ contains
        elseif (ipl == textpos_atom) then
           if (iw_button("Pick atom##textpickatom",disabled=(w%editrep_pick_item > 0))) then
              w%editrep_pick_item = isel
-             w%editrep_pick_slot = 1
              call w%editrep_pick%arm()
              call win(iview)%viewmode_set_forced(vm_pick_atom,&
                 "Pick the atom to anchor the text to",w%id)
@@ -1933,13 +1914,13 @@ contains
           call iw_tooltip("Click, then pick the anchor atom in the view window",ttshown)
           call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1),sameline=.true.)
        else ! textpos_bond
-          if (iw_button("Pick bond atoms##textpickbond",disabled=(w%editrep_pick_item > 0))) then
+          if (iw_button("Pick bond##textpickbond",disabled=(w%editrep_pick_item > 0))) then
              w%editrep_pick_item = isel
-             w%editrep_pick_slot = 1
              call w%editrep_pick%arm()
-             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the first atom to bond",w%id)
+             call win(iview)%viewmode_set_forced(vm_pick_bond,&
+                "Pick the bond to anchor the text to",w%id)
           end if
-          call iw_tooltip("Click, then pick the two atoms of the bond in the view window",ttshown)
+          call iw_tooltip("Click, then pick the bond in the view window",ttshown)
           call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1) // " - " //&
              anchor_string(w%rep%text%t(isel)%idx2),sameline=.true.)
        end if
@@ -2036,13 +2017,21 @@ contains
           ! the pick finished: replace the atom if one was picked (else cancelled)
           i = w%editrep_pick_item
           k = w%editrep_pick_slot
-          if (win(iview)%vmdata%idx(1) > 0 .and. k >= 1 .and. k <= w%rep%measure%item(i)%n) then
+          if (win(iview)%vmdata%bidx(1) > 0) then
+             ! a bond: its two atom images become the ends of the distance
+             if (w%rep%measure%item(i)%n == 2) then
+                w%rep%measure%item(i)%idx(:,1) = win(iview)%vmdata%bidx(1:4)
+                w%rep%measure%item(i)%idx(:,2) = win(iview)%vmdata%bidx(5:8)
+                changed = .true.
+             end if
+          elseif (win(iview)%vmdata%idx(1) > 0 .and. k >= 1 .and. k <= w%rep%measure%item(i)%n) then
              w%rep%measure%item(i)%idx(:,k) = win(iview)%vmdata%idx(1:4)
              changed = .true.
           end if
           w%editrep_pick_item = 0
           w%editrep_pick_slot = 0
           win(iview)%vmdata%idx = 0
+          win(iview)%vmdata%bidx = 0
        end if
     end if
 
@@ -2204,8 +2193,17 @@ contains
             x1=it%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&
             flags=ImGuiSliderFlags_AlwaysClamp)
          call iw_tooltip("Radius of the segments, arms, and dihedral edges",ttshown)
-         ! line style (distances): solid or dashed, with the dash length
+         ! distances: a bond fills both ends in one pick, then the line style
          if (ncat == 2) then
+            if (iw_button("Pick bond##measurepickbond",disabled=(w%editrep_pick_item > 0))) then
+               w%editrep_pick_item = is
+               w%editrep_pick_slot = 0 ! a bond fills both ends, not one slot
+               call w%editrep_pick%arm()
+               call win(iview)%viewmode_set_forced(vm_pick_bond,&
+                  "Pick the bond to measure",w%id)
+            end if
+            call iw_tooltip("Click, then pick a bond in the view window: its two atoms become&
+               & the ends of this distance",ttshown)
             changed = changed .or. iw_checkbox("Dashed line##measureitemdash",it%dashed)
             call iw_tooltip("Draw the segment as a dashed line instead of a solid one",ttshown)
             if (it%dashed) then

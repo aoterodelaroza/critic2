@@ -1295,6 +1295,7 @@ contains
     if (present(acceptempty)) w%vmdata%acceptempty = acceptempty
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
+    w%vmdata%xpos = 0._c_float
     w%vmdata%flag = 0
     w%vmdata%tooltip_iz = 0
     w%vmdata%frag_isligand = .false.
@@ -1419,6 +1420,10 @@ contains
        hint = "Drag atoms and molecules to steer the run"
        descr = "Steer the running dynamics with the mouse: drag an atom, or translate or "//&
           "rotate a whole molecule, while the run is active."
+    case (vm_pick_bond)
+       hint = "Pick a bond in the view"
+       descr = "A window is waiting for a bond: click one to pick it. Clicking "//&
+          "anywhere else, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
     case (vm_pick_atom)
        if (w%vmdata%acceptempty) then
           hint = "Pick a position in the view"
@@ -1523,7 +1528,7 @@ contains
     case (vm_mdinteract)
        iicon = icon_vm_mdinteract
        fall = "MD"
-    case (vm_pick_atom)
+    case (vm_pick_atom,vm_pick_bond)
        iicon = icon_vm_pick
        fall = "Pk"
     case (vm_builder_valence)
@@ -1764,14 +1769,14 @@ contains
              keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
              if (len_trim(altlbl) > 0) then
                 lblline(n) = trim(altlbl) // ", or exit elsewhere"
-             elseif (w%viewmode == vm_pick_atom) then
+             elseif (w%viewmode == vm_pick_atom .or. w%viewmode == vm_pick_bond) then
                 lblline(n) = "Cancel the pick"
              else
                 lblline(n) = "Exit mode"
              end if
              n = n + 1
              keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
-             if (w%viewmode == vm_pick_atom) then
+             if (w%viewmode == vm_pick_atom .or. w%viewmode == vm_pick_bond) then
                 lblline(n) = "Cancel the pick"
              else
                 lblline(n) = "Exit mode"
@@ -1906,7 +1911,7 @@ contains
     integer(c_int) :: col, ibtn
     logical :: ok, dragged, forcedpick, editexit
 
-    integer(c_int), parameter :: izero5(5) = 0_c_int ! "no bond", for the picks that cannot target one
+    integer(c_int), parameter :: izerob(8) = 0_c_int ! "no bond", for the picks that cannot target one
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -2347,14 +2352,15 @@ contains
       if (exited) then
          call w%viewmode_exit_forced()
       else
-         call deliver_pick(idx,izero5,.true.)
+         call deliver_pick(idx,izerob,.true.)
       end if
 
     end function resolve_alt_pick
 
     ! Deliver a completed pick to the commanding window. bidx is the bond
     ! under the cursor, used by the bond modes; idx the atom, used by the
-    ! rest (the two are mutually exclusive). Pick-atom mode:
+    ! rest (the two are mutually exclusive). Pick-bond mode: deliver the
+    ! bond (or nothing = cancelled) and exit the mode. Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
     ! exit the mode. Persistent builder modes: deliver only a real atom
     ! (add-atoms also delivers empty-space clicks, with the click
@@ -2362,12 +2368,21 @@ contains
     ! and stay in the mode for successive edits.
     subroutine deliver_pick(idx,bidx,alt)
       integer(c_int), intent(in) :: idx(4)
-      integer(c_int), intent(in) :: bidx(5)
+      integer(c_int), intent(in) :: bidx(8)
       logical, intent(in) :: alt
 
-      if (vm_is_bondpick(w%viewmode)) then
-         ! bond modes: deliver the bond and stay in the mode. Atom hits are
-         ! ignored, there being nothing to do with them here
+      if (w%viewmode == vm_pick_bond) then
+         ! a window is waiting for one bond: deliver it and end the mode. A
+         ! click that hit no bond aborts the pick (flag stays 0)
+         w%vmdata%bidx = 0
+         if (bidx(1) > 0 .and. .not.alt) then
+            w%vmdata%bidx = bidx
+            w%vmdata%flag = 1
+         end if
+         call viewmode_to_navigate(w)
+      elseif (w%viewmode == vm_builder_bondremove .or. w%viewmode == vm_builder_bondorder) then
+         ! the builder bond tools: deliver the bond and stay in the mode. Atom
+         ! hits are ignored, there being nothing to do with them here
          if (bidx(1) > 0 .and. .not.alt) then
             w%vmdata%bidx = bidx
             w%vmdata%flag = 1
@@ -3100,17 +3115,18 @@ contains
     logical :: vm_is_bondmode
 
     vm_is_bondmode = (mode == vm_builder_bond .or. mode == vm_builder_bondh .or.&
-       vm_is_bondpick(mode))
+       mode == vm_builder_bondremove .or. mode == vm_builder_bondorder)
   end function vm_is_bondmode
 
-  !> Whether view mode is one of the builder modes that act on the bond
-  !> under the cursor. These are the only modes for which the bonds are
-  !> drawn into the pick buffer.
+  !> Whether view mode acts on the bond under the cursor: the two
+  !> builder bond tools and the one-shot bond pick. These are the only
+  !> modes for which the bonds are drawn into the pick buffer.
   pure function vm_is_bondpick(mode)
     integer, intent(in) :: mode
     logical :: vm_is_bondpick
 
-    vm_is_bondpick = (mode == vm_builder_bondremove .or. mode == vm_builder_bondorder)
+    vm_is_bondpick = (mode == vm_builder_bondremove .or. mode == vm_builder_bondorder .or.&
+       mode == vm_pick_bond)
   end function vm_is_bondpick
 
   !> Whether view mode equals one of the window-forced pick modes (an
@@ -3119,7 +3135,7 @@ contains
     integer, intent(in) :: mode
     logical :: vm_is_forcedpick
 
-    vm_is_forcedpick = (vm_is_builder(mode) .or. mode == vm_pick_atom)
+    vm_is_forcedpick = (vm_is_builder(mode) .or. mode == vm_pick_atom .or. mode == vm_pick_bond)
   end function vm_is_forcedpick
 
   !> Whether view mode is one of the persistent builder pick modes that
