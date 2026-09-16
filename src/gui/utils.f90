@@ -235,9 +235,10 @@ module utils
        integer(c_int), intent(in), optional :: flags
        real(c_float), intent(in), optional :: width
      end subroutine iw_table_column
-     module function iw_beginmenu(label,enabled)
+     module function iw_beginmenu(label,enabled,emphasis)
        character(len=*,kind=c_char), intent(in) :: label
        logical, intent(in), optional :: enabled
+       logical, intent(in), optional :: emphasis
        logical :: iw_beginmenu
      end function iw_beginmenu
      module function iw_begintabitem(label,flags)

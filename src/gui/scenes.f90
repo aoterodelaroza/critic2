@@ -126,6 +126,7 @@ module scenes
      procedure :: toggle_measurement_sel => scene_toggle_measurement_sel
      procedure :: add_representation
      procedure :: set_kind_shown => scene_set_kind_shown
+     procedure :: set_style => scene_set_style
      procedure :: reap_transient_representations => scene_reap_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
@@ -236,6 +237,10 @@ module scenes
        logical, intent(in) :: shown
        integer, intent(in), optional :: labeltype
      end subroutine scene_set_kind_shown
+     module subroutine scene_set_style(s,istyle)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: istyle
+     end subroutine scene_set_style
      module subroutine scene_reap_transient_representations(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reap_transient_representations

@@ -929,22 +929,30 @@ contains
   end subroutine iw_table_column
 
   !> Begin a menu with the given label, wrapping igBeginMenu. enabled = whether
-  !> the menu can be opened (default: true). If it returns .true., the caller
-  !> must close the menu with igEndMenu.
-  module function iw_beginmenu(label,enabled)
+  !> the menu can be opened (default: true). If emphasis, write the menu label
+  !> in the emphasis color (the menu entries themselves are not colored). If it
+  !> returns .true., the caller must close the menu with igEndMenu.
+  module function iw_beginmenu(label,enabled,emphasis)
     use interfaces_cimgui
+    use gui_main, only: ColorEmphasisText
     character(len=*,kind=c_char), intent(in) :: label
     logical, intent(in), optional :: enabled
+    logical, intent(in), optional :: emphasis
     logical :: iw_beginmenu
 
     character(len=:,kind=c_char), allocatable, target :: str1
     logical(c_bool) :: enabled_
+    logical :: emphasis_
 
     enabled_ = .true._c_bool
     if (present(enabled)) enabled_ = logical(enabled,c_bool)
+    emphasis_ = .false.
+    if (present(emphasis)) emphasis_ = emphasis
 
     str1 = trim(label) // c_null_char
+    if (emphasis_) call igPushStyleColor_Vec4(ImGuiCol_Text,ColorEmphasisText)
     iw_beginmenu = logical(igBeginMenu(c_loc(str1),enabled_))
+    if (emphasis_) call igPopStyleColor(1_c_int)
 
   end function iw_beginmenu
 

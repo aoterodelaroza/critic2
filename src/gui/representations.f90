@@ -335,6 +335,18 @@ module representations
   integer, parameter, public :: repflavor_isosurface = 17
   integer, parameter, public :: repflavor_NUM = 17
 
+  ! predefined drawing styles: the atoms object and the bonds object that
+  ! each style is made of, which together give the structure a familiar
+  ! look (repflavor_unknown = the style has no object of that kind)
+  integer, parameter, public :: repstyle_ballandstick = 1
+  integer, parameter, public :: repstyle_licorice = 2
+  integer, parameter, public :: repstyle_sticks = 3
+  integer, parameter, public :: repstyle_NUM = 3
+  integer, parameter, public :: repstyle_atomflavor(repstyle_NUM) = &
+     (/repflavor_atoms_basic, repflavor_atoms_licorice, repflavor_unknown/)
+  integer, parameter, public :: repstyle_bondflavor(repstyle_NUM) = &
+     (/repflavor_bonds_basic, repflavor_bonds_licorice, repflavor_bonds_sticks/)
+
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
   character(len=17), parameter :: repflavor_name(0:repflavor_NUM) = (/&

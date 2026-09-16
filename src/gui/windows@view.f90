@@ -76,11 +76,11 @@ contains
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, repflavor_atoms_basic,&
-       repflavor_atoms_licorice, repflavor_bonds_basic, repflavor_bonds_sticks,&
-       repflavor_bonds_licorice, repflavor_bonds_vdwcontacts, repflavor_bonds_hbonds,&
+       repflavor_bonds_basic, repflavor_bonds_vdwcontacts, repflavor_bonds_hbonds,&
        repflavor_labels_basic, repflavor_polyhedra_basic, repflavor_unitcell_basic,&
        repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
-       reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface
+       reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface,&
+       repstyle_ballandstick, repstyle_licorice, repstyle_sticks
     use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -463,33 +463,37 @@ contains
     call iw_tooltip("Add a new object to the view",ttshown)
     if (ok) then
        if (associated(w%sc)) then
-          ! atoms submenu
-          if (iw_beginmenu("Atoms")) then
-             if (iw_menuitem("Atoms")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_basic)
-             call iw_tooltip("Draw the atoms as balls, with covalent radii",ttshown)
+          ! styles: whole looks for the structure, replacing the atoms and
+          ! bonds objects in one go
+          if (iw_beginmenu("Styles",emphasis=.true.)) then
+             if (iw_menuitem("Ball and Stick")) &
+                call w%sc%set_style(repstyle_ballandstick)
+             call iw_tooltip("Atoms as balls with covalent radii, bonds as sticks of a single color",&
+                ttshown)
 
              if (iw_menuitem("Licorice")) &
-                call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_licorice)
-             call iw_tooltip("Draw the atoms with the same radius as the licorice bonds",ttshown)
+                call w%sc%set_style(repstyle_licorice)
+             call iw_tooltip("Atoms and bonds with the same radius, colored by the atoms",ttshown)
+
+             if (iw_menuitem("Sticks")) &
+                call w%sc%set_style(repstyle_sticks)
+             call iw_tooltip("Bonds only, as sticks colored by the two atoms they join",ttshown)
 
              call igEndMenu()
           end if
-          call iw_tooltip("Add an object drawing the atoms of the system",ttshown)
+          call iw_tooltip("Give the structure one of the predefined looks",ttshown)
+
+          call igSeparator()
+
+          if (iw_menuitem("Atoms")) &
+             call w%add_rep_and_edit(reptype_atoms,repflavor_atoms_basic)
+          call iw_tooltip("Draw the atoms as balls, with covalent radii",ttshown)
 
           ! bonds submenu
           if (iw_beginmenu("Bonds")) then
              if (iw_menuitem("Bonds")) &
                 call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_basic)
              call iw_tooltip("Draw the bonds as sticks of a single color",ttshown)
-
-             if (iw_menuitem("Sticks")) &
-                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_sticks)
-             call iw_tooltip("Draw the bonds as sticks colored by the two atoms they join",ttshown)
-
-             if (iw_menuitem("Licorice")) &
-                call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_licorice)
-             call iw_tooltip("Draw the bonds with the same radius as the licorice atoms",ttshown)
 
              if (iw_menuitem("Van der Waals Contacts")) &
                 call w%add_rep_and_edit(reptype_bonds,repflavor_bonds_vdwcontacts)

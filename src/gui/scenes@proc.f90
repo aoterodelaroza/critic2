@@ -143,9 +143,8 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use representations, only: reptype_atoms, reptype_bonds, reptype_unitcell, reptype_axes,&
-       repflavor_atoms_basic, repflavor_bonds_basic, repflavor_bonds_sticks,&
-       repflavor_unitcell_basic, repflavor_axes, repflavor_NUM
+    use representations, only: reptype_unitcell, reptype_axes, repstyle_ballandstick,&
+       repstyle_sticks, repflavor_unitcell_basic, repflavor_axes, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
@@ -198,12 +197,12 @@ contains
     if (allocated(s%reptrans)) deallocate(s%reptrans)
     s%nreptrans = 0
 
-    ! atoms and bonds (only the bonds in a large system)
+    ! atoms and bonds: the default look, with the bonds alone in a system
+    ! too large for the atoms to be legible
     if (sys(isys)%c%ncel <= crsmall) then
-       call s%add_representation(reptype_atoms,repflavor_atoms_basic)
-       call s%add_representation(reptype_bonds,repflavor_bonds_basic)
+       call s%set_style(repstyle_ballandstick)
     else
-       call s%add_representation(reptype_bonds,repflavor_bonds_sticks)
+       call s%set_style(repstyle_sticks)
     end if
 
     ! unit cell
@@ -2231,6 +2230,80 @@ contains
     end if
 
   end subroutine scene_set_kind_shown
+
+  !> Give this scene one of the predefined drawing styles (repstyle_*):
+  !> the objects that draw the atoms and the bonds of the structure are
+  !> replaced by the ones the style is made of. The objects that draw
+  !> something else are kept, including the contacts (van der Waals,
+  !> hydrogen bonds), the labels, the polyhedra and the unit cell. The
+  !> replacements inherit the place in the object list and the view of
+  !> the Display (the cell count) of the objects they replace; the rest
+  !> of their settings are the defaults of the style.
+  module subroutine scene_set_style(s,istyle)
+    use windows, only: invalidate_scene_reps
+    use representations, only: reptype_atoms, reptype_bonds, repflavor_unknown,&
+       repstyle_NUM, repstyle_atomflavor, repstyle_bondflavor
+    use systems, only: sys_ready, ok_system
+    use display, only: rep_display
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: istyle
+
+    integer :: i, id, iordatom, iordbond
+    type(rep_display) :: dispatom, dispbond
+
+    ! the objects are destroyed before the replacements are built, so do
+    ! nothing at all unless the replacements can be built
+    if (istyle < 1 .or. istyle > repstyle_NUM) return
+    if (s%isinit == 0) return
+    if (.not.ok_system(s%id,sys_ready)) return
+
+    ! out with the old: every atoms object, and the bonds objects that draw
+    ! the connectivity of the structure. The first object of each kind hands
+    ! its order and its view of the Display to the replacement, and the name
+    ! counter of every removed flavor is cleared so that the replacements can
+    ! have the plain names again
+    iordatom = 0
+    iordbond = 0
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit) cycle
+       if (s%rep(i)%type == reptype_atoms) then
+          if (iordatom == 0) then
+             iordatom = s%rep(i)%iord
+             dispatom = s%rep(i)%disp
+          end if
+       elseif (s%rep(i)%type == reptype_bonds .and. any(s%rep(i)%flavor == repstyle_bondflavor)) then
+          if (iordbond == 0) then
+             iordbond = s%rep(i)%iord
+             dispbond = s%rep(i)%disp
+          end if
+       else
+          cycle
+       end if
+       if (s%rep(i)%flavor > 0) s%icount(s%rep(i)%flavor) = 0
+       call s%rep(i)%end()
+    end do
+
+    ! the replacements reuse the slots just freed, so the editors of the
+    ! objects that are gone must let go of them before that happens
+    call invalidate_scene_reps(s)
+
+    ! in with the new
+    if (repstyle_atomflavor(istyle) /= repflavor_unknown) then
+       call s%add_representation(reptype_atoms,repstyle_atomflavor(istyle),id=id)
+       if (iordatom > 0) then
+          s%rep(id)%disp = dispatom
+          s%rep(id)%iord = iordatom
+       end if
+    end if
+    if (repstyle_bondflavor(istyle) /= repflavor_unknown) then
+       call s%add_representation(reptype_bonds,repstyle_bondflavor(istyle),id=id)
+       if (iordbond > 0) then
+          s%rep(id)%disp = dispbond
+          s%rep(id)%iord = iordbond
+       end if
+    end if
+
+  end subroutine scene_set_style
 
   !> Reap the transient representations: end the items that were not
   !> re-armed by their producer and disarm the survivors for the next
