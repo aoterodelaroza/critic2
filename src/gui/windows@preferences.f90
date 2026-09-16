@@ -38,7 +38,7 @@ contains
     use systems, only: nsys, sysc, always_read_virtuals
     use interfaces_cimgui
     use keybindings
-    use utils, only: iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
+    use utils, only: iw_table_headers_row, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth,&
        iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_close_event, iw_table_column,&
        iw_combo_simple
     use param, only: maxzat0
@@ -199,8 +199,8 @@ contains
              if (igBeginTable(c_loc(str),2,flags,sz,0._c_float)) then
                 ! set up the columns
                 width = iw_calcwidth(len(bindnames(1)),0)
-                call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_None,width,0)
-                call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_WidthStretch,0.0_c_float,1)
+                call iw_table_column("",width=width)
+                call iw_table_column("",id=1_c_int,flags=ImGuiTableColumnFlags_WidthStretch)
                 call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
                 ! table rows
@@ -320,13 +320,13 @@ contains
           flags = ior(flags,ImGuiTableFlags_Borders)
           if (igBeginTable(c_loc(str),11,flags,szero,0._c_float)) then
              ! header
-             call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_None,iw_calcwidth(2,0),0)
+             call iw_table_column("",width=iw_calcwidth(2,0))
              width = iw_calcwidth(5,0)
              do i = 0, 9
                 call iw_table_column(string(i),id=i+1,width=width)
              end do
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
-             call igTableHeadersRow()
+             call iw_table_headers_row()
 
              nrow = -1
              do i = 0, maxzat0
@@ -433,9 +433,8 @@ contains
 
       str_ = str // c_null_char
       if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str_),c_null_ptr)) then
-         ldum = igColorEdit4(c_loc(str_),rgba,ImGuiColorEditFlags_NoInputs)
+         ldum = iw_coloredit(str,rgba=rgba)
          call iw_tooltip(strtt,ttshown)
-         call iw_clamp_color4(rgba)
       end if
 
     end subroutine color_edit4

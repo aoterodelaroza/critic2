@@ -261,7 +261,7 @@ contains
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
-    use utils, only: iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
@@ -1110,17 +1110,10 @@ contains
       logical, intent(in), optional :: faded
 
       logical :: faded_
-      character(len=:,kind=c_char), allocatable, target :: strl
 
       faded_ = .false.
       if (present(faded)) faded_ = faded
-      strl = trim(str) // c_null_char
-      if (faded_) &
-         call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
-      call igPushTextWrapPos(0._c_float)
-      call igTextUnformatted(c_loc(strl),c_null_ptr)
-      call igPopTextWrapPos()
-      if (faded_) call igPopStyleColor(1)
+      call iw_text(trim(str),disabled=faded_,wrap=.true.)
 
     end subroutine panel_text
 
@@ -1504,7 +1497,7 @@ contains
       do is = 1, w%edit_kind
          call iw_table_column("Atom " // string(is),id=is,flags=ImGuiTableColumnFlags_WidthFixed)
       end do
-      call igTableHeadersRow()
+      call iw_table_headers_row()
 
       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
       do is = 1, w%edit_kind

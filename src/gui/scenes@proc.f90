@@ -1787,10 +1787,7 @@ contains
        ! name
        discol = .not.s%rep(i)%shown
        if (igTableSetColumnIndex(ic_name)) then
-          if (discol) &
-             call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
-          call iw_text(trim(s%rep(i)%name))
-          if (discol) call igPopStyleColor(1)
+          call iw_text(trim(s%rep(i)%name),disabled=discol)
 
           ! name context menu
           if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonRight)) then

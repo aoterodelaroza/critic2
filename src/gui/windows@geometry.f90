@@ -37,7 +37,7 @@ contains
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
        ColorHighlightBondScene2, ColorTableHighlightRow
-    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_arith_help_button, iw_calcwidth,&
+    use utils, only: iw_close_event, iw_table_headers_row, iw_text, iw_tooltip, iw_helpermark, iw_arith_help_button, iw_calcwidth,&
        iw_button, iw_calcheight,&
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
@@ -382,8 +382,7 @@ contains
              call fetch_sort_specs()
 
              ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call iw_table_headers_row(autofit=.true.)
 
              ! sort
              if (forcesort) call table_sort()
@@ -433,9 +432,9 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    if (havergb) then
                       ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
-                      call igSameLine(0._c_float,-1._c_float)
                    end if
-                   if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) then
+                   if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)),&
+                      sameline=havergb)) then
                       iaction = iaction_set_attype_name
                       iaction_i1 = i
                       iaction_str = name
@@ -629,8 +628,7 @@ contains
              call fetch_sort_specs()
 
              ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call iw_table_headers_row(autofit=.true.)
 
              ! sort
              if (forcesort) then
@@ -700,9 +698,9 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       if (havergb) then
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
-                         call igSameLine(0._c_float,-1._c_float)
                       end if
-                      if (iw_inputtext("##nametextinput" // suffix,bufsize=11,texta=name,width=max(3,len(name)))) then
+                      if (iw_inputtext("##nametextinput" // suffix,bufsize=11,texta=name,width=max(3,len(name)),&
+                         sameline=havergb)) then
                          iaction = iaction_set_attype_name
                          iaction_i1 = i
                          iaction_str = name
@@ -868,9 +866,8 @@ contains
              "- 'log($0)' = log of the promolecular density"//newline//&
              "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
              "Click the Help button for more info.")
-          call igSameLine(0._c_float,-1._c_float)
           if (iw_inputtext("##filtertext",bufsize=1023,width=30,texta=w%geometry_expression,&
-             notlive=.true.)) then
+             notlive=.true.,sameline=.true.)) then
              w%geometry_expression_ok = .true.
              w%geometry_expr_error = ""
           end if
@@ -1112,8 +1109,7 @@ contains
                       call iw_table_column("Ndisp",id=4)
                    end if
                    call iw_table_column("Transformation",id=ncol-1)
-                   call igTableSetupScrollFreeze(0,1)
-                   call igTableHeadersRow()
+                   call iw_table_headers_row(freezetop=.true.)
 
                    do i = 1, size(w%geometry_cell_nice,1)
                       if (w%geometry_cell_nice(i)%r <= 0d0) cycle
@@ -1245,8 +1241,7 @@ contains
              call fetch_sort_specs()
 
              ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call iw_table_headers_row(autofit=.true.)
 
              ! sort
              if (forcesort) call table_sort()
@@ -1489,9 +1484,7 @@ contains
              call iw_table_column("Id",id=0)
              call iw_table_column("Atom",id=1)
              call iw_table_column("Bonded atoms",id=2)
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
              ! draw the rows (clipped for performance)
              clipper = ImGuiListClipper_ImGuiListClipper()
@@ -1655,8 +1648,7 @@ contains
              do j = 1, natused_bonds
                 call iw_table_column(trim(name_bonds(j)),id=2+j)
              end do
-             call igTableSetupScrollFreeze(0,1)
-             call igTableHeadersRow()
+             call iw_table_headers_row(freezetop=.true.)
 
              do i = 1, natused_bonds
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1783,8 +1775,7 @@ contains
                    call iw_table_column("#",id=0)
                    call iw_table_column("Sym",id=1)
                    call iw_table_column("Axis (Å)",id=2)
-                   call igTableSetupScrollFreeze(0,1)
-                   call igTableHeadersRow()
+                   call iw_table_headers_row(freezetop=.true.)
 
                    do i = 1, sys(isys)%c%pg%nop
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -1894,8 +1885,7 @@ contains
                    call iw_table_column("Operation",id=2)
                    call iw_table_column("Axis (cryst.)",id=3)
                    call iw_table_column("Axis (Cartesian)",id=4)
-                   call igTableSetupScrollFreeze(0,1)
-                   call igTableHeadersRow()
+                   call iw_table_headers_row(freezetop=.true.)
 
                    ! show only the operations under the identity centering (1..neqv)
                    do i = 1, neqv
@@ -1956,8 +1946,7 @@ contains
              if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
                 call iw_table_column("#",id=0)
                 call iw_table_column("Coordinates (fractional)",id=1)
-                call igTableSetupScrollFreeze(0,1)
-                call igTableHeadersRow()
+                call iw_table_headers_row(freezetop=.true.)
                 do i = 1, ncv
                    call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                    if (igTableSetColumnIndex(0)) call iw_text(string(i))
@@ -1986,8 +1975,7 @@ contains
                    call iw_table_column("Symprec",id=0)
                    call iw_table_column("Space group",id=1)
                    call iw_table_column("Number",id=2)
-                   call igTableSetupScrollFreeze(0,1)
-                   call igTableHeadersRow()
+                   call iw_table_headers_row(freezetop=.true.)
                    do i = 1, size(w%geometry_sym_analyze_eps,1)
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                       if (igTableSetColumnIndex(0)) then
@@ -2140,9 +2128,7 @@ contains
 
     ! close button
     if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if (.not.deselected .and. ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS))) &
-       doquit = .true.
+    if (.not.deselected .and. iw_close_event(w%focused(),okcloses=.false.)) doquit = .true.
     doquit = doquit .or. iw_button("Close")
 
     ! quit the window
@@ -2961,8 +2947,7 @@ contains
 
       ! highlight color
       call iw_text("Selection",highlight=.true.,alignframe=.true.)
-      call igSameLine(0._c_float,-1._c_float)
-      ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
+      ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba,sameline=.true.)
       call iw_tooltip("Color used for highlighting atoms")
 
       ! Highlight buttons: all, none, toggle.

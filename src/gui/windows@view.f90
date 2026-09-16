@@ -81,7 +81,7 @@ contains
        repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface,&
        repstyle_ballandstick, repstyle_licorice, repstyle_sticks
-    use utils, only: iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
+    use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
        iw_push_iconrow_frame, iw_pop_iconrow_frame
@@ -589,8 +589,7 @@ contains
              call iw_table_column("##1editbutton",id=ic_editbutton,width=iw_calcwidth(4,1))
 
              ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call iw_table_headers_row(autofit=.true.)
 
              if (w%sc%representation_menu(w%id)) chbuild = .true.
 
@@ -887,7 +886,6 @@ contains
     end if
 
     ! right-align the rest of the contents
-    call igSameLine(0._c_float,0._c_float)
     call iw_setposx_fromend(5,1)
 
     ! Keyboard actions on the current atom selection. Unlike the display

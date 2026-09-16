@@ -193,7 +193,7 @@ contains
     use representations, only: iso_estimate_cost, iso_region_cell, reptype_isosurface,&
        repflavor_isosurface
     use gui_main, only: g
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
        iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
@@ -451,8 +451,7 @@ contains
              flags=ImGuiTableColumnFlags_WidthFixed,width=wcol(4))
           call iw_table_column("ρ (a.u.)",id=ic_iso_rho,flags=ImGuiTableColumnFlags_WidthFixed,&
              width=wcol(5))
-          call igTableSetupScrollFreeze(0,1)
-          call igTableHeadersRow()
+          call iw_table_headers_row(freezetop=.true.)
 
           clipper = ImGuiListClipper_ImGuiListClipper()
           call ImGuiListClipper_Begin(clipper,w%vd%iso_nvoid,igGetTextLineHeightWithSpacing())
@@ -547,7 +546,7 @@ contains
     use systems, only: sys, sysc
     use gui_main, only: g
     use representations, only: polycoplanar_def
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
        iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable
     use global, only: bondfactor
     use tools_io, only: string, ioj_center
@@ -765,8 +764,7 @@ contains
                 width=wcol(5))
              call iw_table_column("Volume (Å³)",id=ic_pol_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
                 width=wcol(6))
-             call igTableSetupScrollFreeze(0,1)
-             call igTableHeadersRow()
+             call iw_table_headers_row(freezetop=.true.)
 
              ! the rows go through a clipper
              clipper = ImGuiListClipper_ImGuiListClipper()

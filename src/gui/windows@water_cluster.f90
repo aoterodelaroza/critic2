@@ -44,7 +44,7 @@ contains
     use systems, only: sysc, sys, sys_init, ok_system, remove_system
     use dynamics, only: md_relax
     use energy, only: ff_tip4p
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_intstepper,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_intstepper,&
        iw_inputtext, iw_close_event, iw_setpos_bottomright, iw_table_column
     use tools_io, only: string
     use param, only: kcal2ha, hartokjmol, hartoev, bohrtoa
@@ -177,7 +177,7 @@ contains
              if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
                 call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
                 call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-                call igTableHeadersRow()
+                call iw_table_headers_row()
 
                 call status_row("Water molecules",string(nwat))
                 call status_row("Binding energy (kcal/mol)",string(eb_kcal,'f',decimal=1))

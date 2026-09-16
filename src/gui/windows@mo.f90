@@ -641,7 +641,7 @@ contains
   !> one orbital selected between them; changed is set when it moves.
   subroutine mo_draw_table(w,wfn,ispin,width,height,unitfactor,digits,changed)
     use wfn_private, only: molwfn, wfn_uhf, wfn_rohf
-    use utils, only: iw_text, iw_tooltip, iw_table_column
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_table_column
     use tools_io, only: string, ioj_right, lower
     type(window), intent(inout) :: w
     type(molwfn), intent(in) :: wfn
@@ -734,10 +734,9 @@ contains
        call iw_table_column("Occ.",id=icocc,flags=ImGuiTableColumnFlags_WidthFixed,width=wid(5))
        if (wfn%hasene) &
           call iw_table_column("Energy",id=icene,flags=ImGuiTableColumnFlags_WidthFixed,width=wid(6))
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! draw the header
-       call igTableHeadersRow()
+       call iw_table_headers_row(freezetop=.true.)
 
        ! an empty channel draws the header only; the one-shot centering
        ! has nothing to anchor on, so retire it

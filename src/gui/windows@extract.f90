@@ -68,7 +68,7 @@ contains
     use crystalmod, only: nmer_name
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
        iw_radiobutton, iw_dragfloat_realc, iw_intstepper, iw_combo_simple,&
        iw_table_column, iw_close_event, iw_setpos_bottomright
     use tools_io, only: string, uout
@@ -370,7 +370,7 @@ contains
           call iw_table_column("Distances",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Cutoff (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Number ('any')",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call igTableHeadersRow()
+          call iw_table_headers_row()
           do i = 1, int(w%extract_nmer)
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
              if (igTableSetColumnIndex(0_c_int)) call iw_text(string(i))

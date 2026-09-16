@@ -796,17 +796,30 @@ contains
   !> does, except that the headers of the columns listed in icol read
   !> the corresponding entry of shorts -- a list of null-terminated
   !> labels -- instead of the names those columns were set up
-  !> with.
-  module subroutine iw_table_headers_row(icol,shorts)
+  !> with. If freezetop, the header row stays in view while the table
+  !> scrolls; if autofit, every column is then given the width of its
+  !> widest entry.
+  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit)
     use interfaces_cimgui
     integer(c_int), intent(in), optional :: icol(:)
     character(len=*,kind=c_char), intent(in), optional :: shorts
+    logical, intent(in), optional :: freezetop
+    logical, intent(in), optional :: autofit
 
     integer(c_int) :: i, ncol
     integer :: k, kshort
     real(c_float) :: rowh, y1
     type(ImVec2) :: pos, mpos
     character(len=:,kind=c_char), allocatable, target :: str
+    logical :: freezetop_, autofit_
+
+    freezetop_ = .false.
+    if (present(freezetop)) freezetop_ = freezetop
+    autofit_ = .false.
+    if (present(autofit)) autofit_ = autofit
+
+    ! keep the header row in view while the table scrolls
+    if (freezetop_) call igTableSetupScrollFreeze(0_c_int,1_c_int)
 
     ! open the header row
     call igGetCursorScreenPos(pos)
@@ -851,6 +864,9 @@ contains
        if (mpos%y >= y1 .and. mpos%y < y1 + rowh) &
           call igTableOpenContextMenu(-1_c_int)
     end if
+
+    ! give every column the width of its widest entry
+    if (autofit_) call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
   contains
     !> The k-th label (1-based) of a list of null-terminated labels.

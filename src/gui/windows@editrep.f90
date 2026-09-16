@@ -312,7 +312,7 @@ contains
   module function draw_editrep_bonds(w,ttshown) result(changed)
     use systems, only: sys
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_table_column
     use param, only: atmcov0, newline, bohrtoa
@@ -435,11 +435,8 @@ contains
 
        call iw_table_column("Show",id=ic_shown,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
-
        ! draw the header
-       call igTableHeadersRow()
-       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
        ! start the clipper
        nrow = sys(isys)%c%nspc * (sys(isys)%c%nspc + 1) / 2
@@ -549,8 +546,7 @@ contains
           call iw_table_column("Atom",id=0)
           call iw_table_column("Z",id=1)
           call iw_table_column("Radius (Å)",id=2)
-          call igTableSetupScrollFreeze(0,1)
-          call igTableHeadersRow()
+          call iw_table_headers_row(freezetop=.true.)
 
           do i = 1, sys(isys)%c%nspc
              iz = sys(isys)%c%spc(i)%z
@@ -611,7 +607,7 @@ contains
        atlisttype_nneq
     use gui_main, only: ColorHighlightScene
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox, iw_coloredit, iw_highlight_selectable,&
        iw_dragfloat_real8, iw_inputtext, iw_table_column
     class(window), intent(inout), target :: w
@@ -734,11 +730,8 @@ contains
 
        call iw_table_column("Text",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
 
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
-
        ! draw the header
-       call igTableHeadersRow()
-       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
        ! start the clipper
        clipper = ImGuiListClipper_ImGuiListClipper()
@@ -821,7 +814,7 @@ contains
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac
     use gui_main, only: ColorHighlightScene
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_table_column,&
        iw_helpermark
     use param, only: bohrtoa
@@ -906,7 +899,7 @@ contains
           call iw_table_column(trim(sys(isys)%c%spc(j)%name),id=4+j)
        end do
        call igTableSetupScrollFreeze(1,1)
-       call igTableHeadersRow()
+       call iw_table_headers_row()
 
        do i = 1, w%rep%poly%style%ntype
           ispc = sysc(isys)%attype_species(w%rep%poly%style%type,i)
@@ -1212,7 +1205,7 @@ contains
      result(changed)
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_ang,&
        atlisttype_ncel_frac
-    use utils, only: iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_table_column
     use tools_io, only: string, ioj_right
     use param, only: bohrtoa
@@ -1318,9 +1311,7 @@ contains
        end if
 
        ! draw the header
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
-       call igTableHeadersRow()
-       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
        ! start the clipper
        clipper = ImGuiListClipper_ImGuiListClipper()
@@ -1430,7 +1421,7 @@ contains
   !> the molecule grouping), and left alone otherwise.
   module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
     use systems, only: sys, atlisttype_nmol
-    use utils, only: iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_table_column
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -1506,9 +1497,7 @@ contains
        call iw_table_column(str2,icol=icol,flags=ImGuiTableColumnFlags_WidthStretch)
 
        ! draw the header
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
-       call igTableHeadersRow()
-       call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
        ! start the clipper
        clipper = ImGuiListClipper_ImGuiListClipper()
@@ -1626,7 +1615,7 @@ contains
   !> Draw the editrep (Object) window, symmetry-elements class. Returns true if
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_symelem(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_table_column
     use systems, only: sys
     use tools_io, only: string
@@ -1708,8 +1697,7 @@ contains
           call iw_table_column("Show",id=0)
           call iw_table_column("#",id=1)
           call iw_table_column("Symbol",id=2)
-          call igTableSetupScrollFreeze(0,1)
-          call igTableHeadersRow()
+          call iw_table_headers_row(freezetop=.true.)
 
           do i = 1, nop
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -1739,7 +1727,7 @@ contains
     use representations, only: text_item, textpos_screen, textpos_point, textpos_atom,&
        textpos_bond
     use gui_main, only: ColorLabel_def
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
        iw_table_column
     use systems, only: sys, sysc
@@ -1824,8 +1812,7 @@ contains
        call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
        call iw_table_column("Text",id=2,flags=ImGuiTableColumnFlags_WidthStretch)
        call iw_table_column("Placement",id=3,flags=ImGuiTableColumnFlags_WidthFixed)
-       call igTableSetupScrollFreeze(0,1)
-       call igTableHeadersRow()
+       call iw_table_headers_row(freezetop=.true.)
 
        do i = 1, w%rep%text%ntext
           call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -2006,7 +1993,7 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_measure(w,ttshown) result(changed)
     use representations, only: measurement_item
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
        iw_atom_button, iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
        iw_helpermark, iw_table_column, iw_begintabitem
     use keybindings, only: get_bind_keyname, BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE
@@ -2152,8 +2139,7 @@ contains
             call iw_table_column("Atom " // string(k),id=k+1,flags=ImGuiTableColumnFlags_WidthFixed)
          end do
          call iw_table_column("Value",id=icvalue,flags=ImGuiTableColumnFlags_WidthStretch)
-         call igTableSetupScrollFreeze(0,1)
-         call igTableHeadersRow()
+         call iw_table_headers_row(freezetop=.true.)
 
          do i = 1, w%rep%measure%nitem
             if (w%rep%measure%item(i)%n /= ncat) cycle
@@ -2373,7 +2359,7 @@ contains
        iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
        iso_ptsang_from_npts
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
-    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
@@ -2896,7 +2882,7 @@ contains
        call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
        call iw_table_column("Encloses",id=4,flags=ImGuiTableColumnFlags_WidthFixed,&
           width=iw_calcwidth(13,0))
-       call igTableHeadersRow()
+       call iw_table_headers_row()
 
        do i = 1, w%rep%iso%niso
           associate (s => w%rep%iso%slot(i))

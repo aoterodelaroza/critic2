@@ -1254,7 +1254,6 @@ contains
 
       type(ImVec2) :: sz
       type(ImVec4) :: tintcol
-      character(kind=c_char,len=:), allocatable, target :: strl
 
       if (.not.show .or. tex == 0) return
       if (ndrawn > 0) call igSameLine(0._c_float,2._c_float)
@@ -1262,10 +1261,7 @@ contains
       sz = ImVec2(fontsize%y,fontsize%y)
       tintcol = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
       call igImage(int(tex,c_intptr_t),sz,uv0,uv1,tintcol,nobord)
-      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-         strl = tooltip // c_null_char
-         call igSetTooltip(c_loc(strl))
-      end if
+      call iw_tooltip(tooltip,ttshown)
 
     end subroutine draw_icon_cell
 

@@ -52,7 +52,7 @@ contains
     use windows, only: wintype_dialog, wpurp_dialog_selectdir
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running,&
        launch_initialization_thread
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_calcheight, iw_tooltip,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_calcwidth, iw_calcheight, iw_tooltip,&
        iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event,&
        iw_setpos_bottomright, iw_inputtext, iw_table_column, iw_radiobutton,&
        get_current_working_dir
@@ -292,8 +292,7 @@ contains
           width=max(4._c_float,fontsize%y + 2._c_float))
        call iw_table_column("System",id=ic_savemult_name,flags=ImGuiTableColumnFlags_WidthStretch)
        call iw_table_column("File",id=ic_savemult_file,flags=ImGuiTableColumnFlags_WidthStretch)
-       call igTableSetupScrollFreeze(0,1) ! the header row is always visible
-       call igTableHeadersRow()
+       call iw_table_headers_row(freezetop=.true.)
 
        if (w%sm%nnames > 0) then
           ! the rows go through a clipper: the list is as long as the tree,

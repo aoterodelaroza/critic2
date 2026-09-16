@@ -28,7 +28,7 @@ contains
     use systems, only: sys, sysc, nsys, sys_init
     use gui_main, only: g, force_run_commands, tree_select_updates_inpcon
     use templates, only: draw_keyword_context_menu
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_menuitem
+    use utils, only: iw_calcheight, igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_menuitem
     use systemmod, only: sy
     use tools_io, only: string
     use param, only: newline
@@ -80,7 +80,7 @@ contains
     call iw_tooltip("Bring up the critic2 command reference",ttshown)
 
     ! second line: calculate size of the RUN button
-    sz%x = 2 * (igGetTextLineHeight() + 2 * g%Style%FramePadding%y) + g%Style%ItemSpacing%y
+    sz%x = iw_calcheight(2,0)
     sz%y = sz%x
 
     ! second line: system selector

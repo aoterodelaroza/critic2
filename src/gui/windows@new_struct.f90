@@ -354,7 +354,7 @@ contains
 
   !> Draw a space group table. Entry ispg (Hall number) is selected.
   subroutine draw_spg_table(ispg)
-    use utils, only: iw_text, iw_table_column
+    use utils, only: iw_table_headers_row, iw_text, iw_table_column
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use tools_io, only: ioj_left, string, deblank, stripchar
     integer, intent(inout) :: ispg
@@ -394,8 +394,7 @@ contains
        call iw_table_column("System",id=5,flags=ImGuiTableColumnFlags_WidthFixed)
 
        call iw_table_column("Hall symbol",id=6,flags=ImGuiTableColumnFlags_WidthFixed)
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
-       call igTableHeadersRow()
+       call iw_table_headers_row(freezetop=.true.)
 
        ! table body
        do i = 1, 530

@@ -27,7 +27,7 @@ contains
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, nsys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        iw_radiobutton, iw_close_event, iw_setpos_bottomright, iw_table_column
     use keybindings, only: get_bind_keyname, BIND_CANCEL
     use tools_io, only: string
@@ -137,7 +137,7 @@ contains
           if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
              call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
              call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-             call igTableHeadersRow()
+             call iw_table_headers_row()
 
              ! temperature: MD only (a relaxation has no meaningful temperature)
              if (sysc(isys)%md%mode == md_dynamics) &

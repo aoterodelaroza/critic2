@@ -847,7 +847,7 @@ contains
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_exportimage,&
        wintype_saveas, wintype_save_multiple, paste_clipboard_fragment, view_target_window
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
+    use utils, only: iw_beginmenu, igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
@@ -962,8 +962,7 @@ contains
     ! start the menu
     if (igBeginMainMenuBar()) then
        ! File
-       str1 = "File" // c_null_char
-       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+       if (iw_beginmenu("File")) then
           ! File -> New
           launch(d_new) = launch(d_new) .or. iw_menuitem("New...",BIND_NEW)
           call iw_tooltip("Create a new structure from scratch",ttshown)
@@ -1048,8 +1047,7 @@ contains
           call igSeparator()
 
           ! File -> Demonstrations
-          str2 = "Demonstrations" // c_null_char
-          if (igBeginMenu(c_loc(str2),.true._c_bool)) then
+          if (iw_beginmenu("Demonstrations")) then
              if (iw_menuitem("Water cluster")) &
                 idum = stack_create_window(wintype_water_cluster,.true.,idparent=iwin_view,orraise=-1)
              call iw_tooltip("Interactive game: relax a cluster of water molecules with the TIP4P model",ttshown)
@@ -1069,8 +1067,7 @@ contains
        end if
 
        ! Edit
-       str1 = "Edit" // c_null_char
-       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+       if (iw_beginmenu("Edit")) then
           ! Edit -> Undo
           if (iw_menuitem("Undo",BIND_UNDO,enabled=okundo)) then
              call sysc(isysv)%undo(errmsg)
@@ -1110,8 +1107,7 @@ contains
           call iw_tooltip("Paste the clipboard fragment at the mouse position",ttshown)
 
           ! Edit -> Paste as...
-          str2 = "Paste as..." // c_null_char
-          if (igBeginMenu(c_loc(str2),logical(sysclip%isfilled,c_bool))) then
+          if (iw_beginmenu("Paste as...",enabled=sysclip%isfilled)) then
              if (iw_menuitem("New Molecule")) &
                 call paste_clipboard(.true.)
              call iw_tooltip("Paste the clipboard as a new system, a molecule",ttshown)
@@ -1176,8 +1172,7 @@ contains
        end if
 
        ! Windows
-       str1 = "Windows" // c_null_char
-       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+       if (iw_beginmenu("Windows")) then
           ! Windows -> Tree
           if (iw_menuitem("Tree",BIND_TOGGLE_TREE,selected=logical(win(iwin_tree)%isopen))) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
@@ -1217,8 +1212,7 @@ contains
        end if
 
        ! Tools menu
-       str1 = "Tools" // c_null_char
-       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+       if (iw_beginmenu("Tools")) then
           call show_tools_menu(isysv,iwin_view,ttshown,launchgeometry=launch(d_geometry))
           call igEndMenu()
        else
@@ -1226,8 +1220,7 @@ contains
        end if
 
        ! Help
-       str1 = "Help" // c_null_char
-       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+       if (iw_beginmenu("Help")) then
           ! Help -> Critic2 Manual
           if (iw_menuitem("Critic2 Manual...",BIND_MANUAL)) then
              str2 = manual_url

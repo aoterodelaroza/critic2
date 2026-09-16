@@ -29,7 +29,7 @@ contains
        anim_speed_max
     use systems, only: sysc, sys, sys_init, add_systems_from_seeds,&
        launch_initialization_thread, ok_system
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth, iw_combo_simple,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth, iw_combo_simple,&
        iw_radiobutton, iw_dragfloat_real8, iw_close_event, iw_setpos_bottomright, iw_table_column
     use tools_math, only: rational_approx
     use tools_io, only: string, ioj_right
@@ -144,11 +144,9 @@ contains
              call iw_table_column("Id",id=ic_q_id,flags=ImGuiTableColumnFlags_WidthFixed)
 
              call iw_table_column("Coordinates",id=ic_q_qpt,flags=ImGuiTableColumnFlags_WidthFixed)
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
              ! draw the rows
              do i = 1, sys(isys)%c%vib%nqpt
@@ -229,11 +227,9 @@ contains
           call iw_table_column("Id",id=ic_q_id,flags=ImGuiTableColumnFlags_WidthFixed)
 
           call iw_table_column("Frequency",id=ic_q_qpt,flags=ImGuiTableColumnFlags_WidthFixed)
-          call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
           ! draw the header
-          call igTableHeadersRow()
-          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
           ! check if the qpt/frequency has been set
           fset = (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0)

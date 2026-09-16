@@ -1588,7 +1588,7 @@ contains
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
 
-    character(kind=c_char,len=:), allocatable, target :: str, stropt, strex
+    character(kind=c_char,len=:), allocatable, target :: str, strex
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
@@ -1634,7 +1634,6 @@ contains
        ! molecular options
        call igIndent(0._c_float)
        str = "Cell border (Å)" // c_null_char
-       stropt = "%.3f" // c_null_char
        strex = string(data%rborder,'f',decimal=3) // c_null_char
        call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
        call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
