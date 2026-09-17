@@ -323,11 +323,12 @@ module systems
        integer, intent(in) :: ifield
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine reload_field_with_virtuals
-     module subroutine post_event(sysc,level,keepfields,nocapture)
+     module subroutine post_event(sysc,level,keepfields,nocapture,keepsel)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level
        logical, intent(in), optional :: keepfields
        logical, intent(in), optional :: nocapture
+       logical, intent(in), optional :: keepsel
      end subroutine post_event
      module subroutine rebond(sysc)
        class(sysconf), intent(inout) :: sysc

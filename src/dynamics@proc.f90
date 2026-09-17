@@ -146,16 +146,19 @@ contains
     end if
 
     ! recenter the center of mass on the cell center (removes slow drift and
-    ! keeps the molecule framed)
-    xcom = 0d0
-    do i = 1, md%nat
-       xcom = xcom + md%mass(i) * md%r(:,i)
-    end do
-    xcom = xcom / sum(md%mass(1:md%nat))
-    shift = c%x2c((/0.5d0,0.5d0,0.5d0/)) - xcom
-    do i = 1, md%nat
-       md%r(:,i) = md%r(:,i) + shift
-    end do
+    ! keeps the molecule framed). Held atoms are fixed in the cell frame, so
+    ! a system that has any must not be translated under them
+    if (.not.allocated(md%frozen)) then
+       xcom = 0d0
+       do i = 1, md%nat
+          xcom = xcom + md%mass(i) * md%r(:,i)
+       end do
+       xcom = xcom / sum(md%mass(1:md%nat))
+       shift = c%x2c((/0.5d0,0.5d0,0.5d0/)) - xcom
+       do i = 1, md%nat
+          md%r(:,i) = md%r(:,i) + shift
+       end do
+    end if
 
     ! enlarge the cell if any atom sits within the margin of a face
     doenlarge = .false.
@@ -179,6 +182,23 @@ contains
     end if
 
   end subroutine keep_in_cell
+
+  !> Hold a subset of the atoms fixed for the rest of the run: frozen(i)
+  !> true leaves atom i where it is and lets the others relax around it.
+  !> Called with no argument, or with a mask that does not match the run
+  !> or holds nothing, it releases every atom.
+  module subroutine md_set_frozen(md,frozen)
+    class(mdrun), intent(inout) :: md
+    logical, intent(in), optional :: frozen(:)
+
+    if (allocated(md%frozen)) deallocate(md%frozen)
+    if (.not.present(frozen)) return
+    if (size(frozen,1) /= md%nat) return
+    if (.not.any(frozen)) return
+    md%frozen = frozen
+    call hold_frozen(md)
+
+  end subroutine md_set_frozen
 
   !> Restore the initial geometry and zero the velocities, writing the geometry
   !> back into c.
@@ -315,6 +335,7 @@ contains
   !> Release the run and its calculator.
   module subroutine md_free(md)
     class(mdrun), intent(inout) :: md
+    if (allocated(md%frozen)) deallocate(md%frozen)
     call md%cl%free()
     md%ready = .false.
     md%errmsg = ""
@@ -466,6 +487,7 @@ contains
     if (capped) md%v = md%v * (md_drmax/dmax)
     md%r = md%r + md%fire_dt*md%v
     call compute_forces(md,c)
+    call hold_frozen(md)
     do i = 1, md%nat
        md%v(:,i) = md%v(:,i) + 0.5d0*md%fire_dt*md%f(:,i)/md%mass(i)
     end do
@@ -490,11 +512,25 @@ contains
        if (power <= 0d0) md%v = 0d0
     end if
 
-    ! remove any net drift (relevant when a drag applies a net external force;
-    ! a no-op for purely internal forces, which already sum to zero)
-    call remove_com(md)
+    ! remove any net drift
+    if (.not.allocated(md%frozen)) call remove_com(md)
 
   end subroutine step_fire
+
+  !> Zero the force and the velocity of every atom held fixed.
+  subroutine hold_frozen(md)
+    class(mdrun), intent(inout) :: md
+
+    integer :: i
+
+    if (.not.allocated(md%frozen)) return
+    do i = 1, md%nat
+       if (.not.md%frozen(i)) cycle
+       if (allocated(md%f)) md%f(:,i) = 0d0
+       if (allocated(md%v)) md%v(:,i) = 0d0
+    end do
+
+  end subroutine hold_frozen
 
   !> Update the stored kinetic energy from the current velocities.
   subroutine kinetic(md)

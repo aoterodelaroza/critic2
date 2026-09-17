@@ -564,6 +564,7 @@ contains
           call sysc(isys)%md_start(md_relax,errmsg)
           w%errmsg = errmsg
           if (len_trim(w%errmsg) == 0) then
+             call relax_hold_unselected()
              if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
           end if
        end if
@@ -573,7 +574,9 @@ contains
           trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
     else
        call iw_tooltip("Relax the geometry to the nearest energy minimum, stopping when"//&
-          " the maximum force falls below the threshold",ttshown,whendisabled=.true.)
+          " the maximum force falls below the threshold. Only the atoms selected in the"//&
+          " view are moved, the rest are held fixed; with no selection, all of them move",&
+          ttshown,whendisabled=.true.)
     end if
     if (havesys) then
        ! method combo and force convergence threshold
@@ -703,6 +706,25 @@ contains
        call w%end()
 
   contains
+    ! Hold every atom that is not selected in the view fixed for the
+    ! relaxation that was just started, so it moves only the selection.
+    ! With nothing selected, every atom is left free.
+    subroutine relax_hold_unselected()
+      integer :: nsel, ncel
+      integer, allocatable :: iatsel(:)
+      logical, allocatable :: lfrozen(:)
+
+      ncel = sys(isys)%c%ncel
+      call sysc(isys)%highlighted_atom_list(nsel,iatsel)
+      if (nsel <= 0 .or. nsel >= ncel) return
+
+      allocate(lfrozen(ncel))
+      lfrozen = .true.
+      lfrozen(iatsel(1:nsel)) = .false.
+      call sysc(isys)%md%set_frozen(lfrozen)
+
+    end subroutine relax_hold_unselected
+
     ! Open a row of the toolbar with its section label, latching the top
     ! of the row in yrow. The label is centered on the icon buttons,
     ! which are taller than a text line. help adds a help marker after

@@ -972,20 +972,23 @@ contains
 
   !> Set the time for last change at level level. If keepfields is
   !> present and true, do not reset the associated fields.
-  module subroutine post_event(sysc,level,keepfields,nocapture)
+  module subroutine post_event(sysc,level,keepfields,nocapture,keepsel)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: level
     logical, intent(in), optional :: keepfields
     logical, intent(in), optional :: nocapture
+    logical, intent(in), optional :: keepsel
 
     real*8 :: time
-    logical :: keepfields_, nocapture_
+    logical :: keepfields_, nocapture_, keepsel_
 
     keepfields_ = .false.
     if (present(keepfields)) keepfields_ = keepfields
     nocapture_ = .false.
     if (present(nocapture)) nocapture_ = nocapture
+    keepsel_ = .false.
+    if (present(keepsel)) keepsel_ = keepsel
 
     time = glfwGetTime()
     if (level >= lastchange_render) sysc%timelastchange_render = time
@@ -996,8 +999,10 @@ contains
           call sys(sysc%id)%reset_fields()
        if (.not.keepfields_ .and. ok_system(sysc%id,sys_init)) &
           call sys(sysc%id)%c%vib%end()
-       call sysc%highlight_clear(.true.)
-       call sysc%highlight_clear(.false.)
+       if (.not.keepsel_) then
+          call sysc%highlight_clear(.true.)
+          call sysc%highlight_clear(.false.)
+       end if
        sysc%timelastchange_geometry = time
     end if
 
@@ -1047,6 +1052,9 @@ contains
        if (len_trim(errmsg) > 0) return
     end if
     call sysc%md_set_mode(mode)
+    ! every run starts with all atoms free; a caller that holds some of them
+    ! fixed (the builder's relaxation) sets its mask after this
+    call sysc%md%set_frozen()
     ! a user-started run always stops on convergence (continuous runs,
     ! e.g. the water-cluster demo, clear autostop after starting)
     sysc%md%autostop = .true.
@@ -1097,8 +1105,10 @@ contains
     call sysc%md%step(sys(id)%c)
     sysc%sc%nextbuildlists_fixcam = .true.
     ! nocapture: per-frame snapshots would clobber the pre-run undo state;
-    ! md_stop posts one capturing event at the end of the run
-    call sysc%post_event(lastchange_geometry,nocapture=.true.)
+    ! md_stop posts one capturing event at the end of the run. keepsel: a
+    ! step moves the atoms but never changes the atom list, so the selection
+    ! stays valid -- and the relaxation reads it to know what to hold fixed
+    call sysc%post_event(lastchange_geometry,nocapture=.true.,keepsel=.true.)
     sysc%md_time = glfwGetTime()
 
     ! stop the run if the relaxation converged (unless it is a continuous
@@ -1138,7 +1148,10 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    ! keepsel, as in md_advance: the run moved the atoms and left the atom
+    ! list alone, so the selection survives it and a resumed relaxation
+    ! holds the same atoms fixed
+    call sysc%post_event(lastchange_geometry,keepsel=.true.)
 
   end subroutine md_stop
 

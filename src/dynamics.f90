@@ -42,6 +42,7 @@ module dynamics
      real*8, allocatable :: v(:,:) !< velocities (3,nat), bohr/a.u.
      real*8, allocatable :: f(:,:) !< forces (3,nat), hartree/bohr
      real*8, allocatable :: mass(:) !< atomic masses (nat), electron-mass units
+     logical, allocatable :: frozen(:) !< atoms held fixed by the run (nat); unallocated = none
      real*8 :: dt = 20d0 !< timestep, a.u. (~0.48 fs)
      real*8 :: temperature = 300d0 !< target temperature, K
      real*8 :: gamma = 2d-3 !< Langevin friction, 1/a.u.
@@ -66,6 +67,7 @@ module dynamics
      procedure :: init => md_init
      procedure :: step => md_step
      procedure :: reset => md_reset
+     procedure :: set_frozen => md_set_frozen
      procedure :: init_velocities => md_init_velocities
      procedure :: temperature_now => md_temperature
      procedure :: rebase => md_rebase
@@ -98,6 +100,10 @@ module dynamics
        class(mdrun), intent(inout) :: md
        class(crystal), intent(inout) :: c
      end subroutine md_reset
+     module subroutine md_set_frozen(md,frozen)
+       class(mdrun), intent(inout) :: md
+       logical, intent(in), optional :: frozen(:)
+     end subroutine md_set_frozen
      module subroutine md_init_velocities(md)
        class(mdrun), intent(inout) :: md
      end subroutine md_init_velocities
