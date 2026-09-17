@@ -3590,6 +3590,59 @@ contains
 
   end subroutine view_click_frame
 
+  !> Window-fraction position of a click at texture position xpos in
+  !> view iview, as fractions of the visible view rectangle from its
+  !> left and bottom borders (clamped to [0,1]): the coordinates the
+  !> window-anchored objects (overlay strings, the axes gizmo) are
+  !> placed with.
+  module subroutine view_texpos_to_winfrac(iview,xpos,winfrac)
+    integer, intent(in) :: iview
+    real(c_float), intent(in) :: xpos(2)
+    real*8, intent(out) :: winfrac(2)
+
+    real*8 :: d(2)
+
+    associate (w => win(iview))
+      ! mousepos_to_texpos maps the view fraction f along the axis of size d
+      ! to the texture position (0.5 + (f - 0.5) * d / max(dx,dy)) * FBOside
+      ! (with the y fraction measured from the bottom); solve that for f
+      d(1) = max(real(w%v_rmax%x - w%v_rmin%x,8),1d0)
+      d(2) = max(real(w%v_rmax%y - w%v_rmin%y,8),1d0)
+      winfrac = 0.5d0 + (real(xpos,8) / max(real(w%FBOside,8),1d0) - 0.5d0) * maxval(d) / d
+    end associate
+    winfrac = min(max(winfrac,0d0),1d0)
+
+  end subroutine view_texpos_to_winfrac
+
+  !> Point delivered by a finished vm_pick_atom pick on view iview for
+  !> system isys: xc = the clicked atom's position (including its
+  !> lattice translation) or, on an accepted empty-space click, the
+  !> click unprojected onto the plane of the scene center, in cell-frame
+  !> Cartesian bohr. ok = .false. if the pick delivered nothing (it was
+  !> cancelled) or the unprojection failed. Does not retire the pick.
+  module subroutine view_pick_point(iview,isys,xc,ok)
+    use systems, only: sys
+    integer, intent(in) :: iview
+    integer, intent(in) :: isys
+    real*8, intent(out) :: xc(3)
+    logical, intent(out) :: ok
+
+    xc = 0d0
+    ok = .false.
+    associate(v => win(iview))
+      if (v%vmdata%flag /= 1) return
+      if (v%vmdata%idx(1) > 0) then
+         ! an atom was clicked: use its position
+         xc = sys(isys)%c%x2c(sys(isys)%c%atcel(v%vmdata%idx(1))%x + v%vmdata%idx(2:4))
+         ok = .true.
+      else
+         ! empty space: unproject the click onto the plane of the scene center
+         call view_click_frame(iview,v%vmdata%xpos,xc,ok)
+      end if
+    end associate
+
+  end subroutine view_pick_point
+
   !> Read and retire the result of a forced atom/point pick that window
   !> idcaller commanded on view iview (viewmode_set_forced with
   !> vm_pick_atom), for system isys with pick session stamp pick.
@@ -3603,7 +3656,7 @@ contains
   !> forced mode and resets the view's pick data as needed; the caller
   !> keeps only its own pending marker and the destination of the point.
   module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc)
-    use systems, only: sys, sysc
+    use systems, only: sysc
     integer, intent(in) :: iview
     integer, intent(in) :: idcaller
     integer, intent(in) :: isys
@@ -3625,19 +3678,9 @@ contains
          call v%viewmode_release_forced(idcaller)
          istat = ipick_lost
       elseif (v%viewmode >= 0) then
-         ! the pick finished (flag = 0 means cancelled)
-         istat = ipick_cancelled
-         if (v%vmdata%flag == 1) then
-            if (v%vmdata%idx(1) > 0) then
-               ! an atom was clicked: use its position
-               xc = sys(isys)%c%x2c(sys(isys)%c%atcel(v%vmdata%idx(1))%x + v%vmdata%idx(2:4))
-               istat = ipick_point
-            else
-               ! empty space: unproject the click onto the plane of the scene center
-               call view_click_frame(iview,v%vmdata%xpos,xc,okp)
-               if (okp) istat = ipick_point
-            end if
-         end if
+         ! the pick finished (nothing delivered means cancelled)
+         call view_pick_point(iview,isys,xc,okp)
+         istat = merge(ipick_point,ipick_cancelled,okp)
          v%vmdata%idx = 0
          v%vmdata%flag = 0
       end if

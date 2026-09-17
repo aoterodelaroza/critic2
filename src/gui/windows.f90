@@ -1197,6 +1197,17 @@ module windows
        logical, intent(out) :: ok
        real*8, intent(out), optional :: rcam(3,3)
      end subroutine view_click_frame
+     module subroutine view_texpos_to_winfrac(iview,xpos,winfrac)
+       integer, intent(in) :: iview
+       real(c_float), intent(in) :: xpos(2)
+       real*8, intent(out) :: winfrac(2)
+     end subroutine view_texpos_to_winfrac
+     module subroutine view_pick_point(iview,isys,xc,ok)
+       integer, intent(in) :: iview
+       integer, intent(in) :: isys
+       real*8, intent(out) :: xc(3)
+       logical, intent(out) :: ok
+     end subroutine view_pick_point
      module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller

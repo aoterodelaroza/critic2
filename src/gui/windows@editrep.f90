@@ -1765,15 +1765,17 @@ contains
     use gui_main, only: ColorLabel_def
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
-       iw_table_column
-    use systems, only: sys, sysc
+       iw_table_column, iw_atom_button
+    use systems, only: sys, sysc, atlisttype_ncel_frac
     use tools_io, only: string
+    use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: ch, ok, ldum
-    integer :: i, k, iview, isel, idel, ipl
+    logical :: ch, ok, okp, ldum
+    integer :: i, k, iview, isel, idel, ipl, iplpick
+    real*8 :: xc(3)
     integer(c_int) :: flags
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -1796,22 +1798,44 @@ contains
        elseif (win(iview)%viewmode >= 0) then
           ! the pick finished
           i = w%editrep_pick_item
+          iplpick = w%rep%text%t(i)%placement
           ! the delivery has to be the kind of anchor the item still wants:
           ! the placement can be changed while the pick is out
-          if (win(iview)%vmdata%bidx(1) > 0 .and. w%rep%text%t(i)%placement == textpos_bond) then
+          if (win(iview)%vmdata%bidx(1) > 0 .and. iplpick == textpos_bond) then
              ! a bond: its two atom images anchor the text
              w%rep%text%t(i)%idx1 = win(iview)%vmdata%bidx(1:4)
              w%rep%text%t(i)%idx2 = win(iview)%vmdata%bidx(5:8)
              changed = .true.
-          elseif (win(iview)%vmdata%idx(1) > 0 .and. w%rep%text%t(i)%placement == textpos_atom) then
+          elseif (win(iview)%vmdata%idx(1) > 0 .and. iplpick == textpos_atom) then
              ! an atom
              w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
+             changed = .true.
+          elseif (win(iview)%vmdata%flag == 1 .and. win(iview)%vmdata%bidx(1) == 0 .and.&
+             iplpick == textpos_point) then
+             ! a 3D position: the clicked atom, or the empty-space click
+             ! unprojected onto the plane of the scene center. A bond delivery
+             ! (the placement was changed while a bond pick was out) carries no
+             ! click position, so it is left to be discarded below
+             call view_pick_point(iview,w%isys,xc,okp)
+             if (okp) then
+                if (sys(w%isys)%c%ismolecule) then
+                   w%rep%text%t(i)%pos = (xc + sys(w%isys)%c%molx0) * bohrtoa
+                else
+                   w%rep%text%t(i)%pos = sys(w%isys)%c%c2x(xc)
+                end if
+                changed = .true.
+             end if
+          elseif (win(iview)%vmdata%flag == 1 .and. win(iview)%vmdata%bidx(1) == 0 .and.&
+             iplpick == textpos_screen) then
+             ! an on-screen position: the click as a fraction of the view window
+             call view_texpos_to_winfrac(iview,win(iview)%vmdata%xpos,w%rep%text%t(i)%winpos)
              changed = .true.
           end if
           ! the pick is over either way; nothing delivered means it was cancelled
           w%editrep_pick_item = 0
           win(iview)%vmdata%idx = 0
           win(iview)%vmdata%bidx = 0
+          win(iview)%vmdata%flag = 0
        end if
     end if
 
@@ -1922,68 +1946,103 @@ contains
           &3D position in the system, or tied to an atom or a bond",ttshown)
 
        if (ipl == textpos_screen) then
-          changed = changed .or. iw_dragfloat_real8("Position##textwinpos",x2=w%rep%text%t(isel)%winpos,&
+          ch = iw_dragfloat_real8("Position##textwinpos",x2=w%rep%text%t(isel)%winpos,&
              speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Position of the text in the viewport, as fractions of the window &
              &size from the left and bottom borders",ttshown)
-          changed = changed .or. iw_radiobutton("In front##textfront",bool=w%rep%text%t(isel)%infront,&
+          changed = changed .or. ch
+          call text_pick_button("textpickwinpos",vm_pick_atom,"Pick the on-screen position for the text",&
+             "Click, then pick the position in the view window",acceptempty=.true.,sameline=.true.)
+          ch = iw_radiobutton("In front##textfront",bool=w%rep%text%t(isel)%infront,&
              boolval=.true.)
           call iw_tooltip("Draw the text in front of the scene",ttshown)
-          changed = changed .or. iw_radiobutton("Behind##textbehind",bool=w%rep%text%t(isel)%infront,&
+          changed = changed .or. ch
+          ch = iw_radiobutton("Behind##textbehind",bool=w%rep%text%t(isel)%infront,&
              boolval=.false.,sameline=.true.)
           call iw_tooltip("Draw the text behind the scene",ttshown)
+          changed = changed .or. ch
        elseif (ipl == textpos_point) then
-          changed = changed .or. iw_dragfloat_real8("Position##textpos",x3=w%rep%text%t(isel)%pos,&
+          ch = iw_dragfloat_real8("Position##textpos",x3=w%rep%text%t(isel)%pos,&
              speed=0.001d0,decimal=5)
           if (sys(w%isys)%c%ismolecule) then
              call iw_tooltip("Position of the text (Cartesian coordinates, Å)",ttshown)
           else
              call iw_tooltip("Position of the text (fractional coordinates)",ttshown)
           end if
+          changed = changed .or. ch
+          call text_pick_button("textpickpos",vm_pick_atom,"Pick the text position",&
+             "Click, then pick the position in the view window: an atom to use its &
+             &position, or empty space for the clicked point on the plane through the &
+             &scene center",acceptempty=.true.,sameline=.true.)
        elseif (ipl == textpos_atom) then
-          if (iw_button("Pick atom##textpickatom",disabled=(w%editrep_pick_item > 0))) then
-             w%editrep_pick_item = isel
-             call w%editrep_pick%arm()
-             call win(iview)%viewmode_set_forced(vm_pick_atom,&
-                "Pick the atom to anchor the text to",w%id)
-          end if
-          call iw_tooltip("Click, then pick the anchor atom in the view window",ttshown)
-          call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1),sameline=.true.)
+          call text_pick_button("textpickatom",vm_pick_atom,"Pick the atom to anchor the text to",&
+             "Click, then pick the anchor atom in the view window")
+          call anchor_atom_button(w%rep%text%t(isel)%idx1,"##textanchor1","Anchor atom of the text")
        else ! textpos_bond
-          if (iw_button("Pick bond##textpickbond",disabled=(w%editrep_pick_item > 0))) then
-             w%editrep_pick_item = isel
-             call w%editrep_pick%arm()
-             call win(iview)%viewmode_set_forced(vm_pick_bond,&
-                "Pick the bond to anchor the text to",w%id)
-          end if
-          call iw_tooltip("Click, then pick the bond in the view window",ttshown)
-          call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1) // " - " //&
-             anchor_string(w%rep%text%t(isel)%idx2),sameline=.true.)
+          call text_pick_button("textpickbond",vm_pick_bond,"Pick the bond to anchor the text to",&
+             "Click, then pick the bond in the view window")
+          call anchor_atom_button(w%rep%text%t(isel)%idx1,"##textanchor1",&
+             "First atom of the anchor bond")
+          call anchor_atom_button(w%rep%text%t(isel)%idx2,"##textanchor2",&
+             "Second atom of the anchor bond")
        end if
 
        ! 3D placements: on-screen offset from the anchor and depth toggle
        if (ipl /= textpos_screen) then
-          changed = changed .or. iw_dragfloat_real8("Offset (Å)##textoffset",x2=w%rep%text%t(isel)%offset,&
+          ch = iw_dragfloat_real8("Offset (Å)##textoffset",x2=w%rep%text%t(isel)%offset,&
              speed=0.01d0,decimal=2)
           call iw_tooltip("Offset of the text from its anchor, in on-screen (in-plane) coordinates",ttshown)
-          changed = changed .or. iw_checkbox("Depth##textdepth",w%rep%text%t(isel)%depth)
+          changed = changed .or. ch
+          ch = iw_checkbox("Depth##textdepth",w%rep%text%t(isel)%depth)
           call iw_tooltip("The text is hidden by objects in front of it. If unchecked, the &
              &text is drawn on top of all objects.",ttshown)
+          changed = changed .or. ch
        end if
 
        ! style
        call iw_text("Style",highlight=.true.)
-       changed = changed .or. iw_dragfloat_real8("Size##textscale",x1=w%rep%text%t(isel)%scale,&
+       ch = iw_dragfloat_real8("Size##textscale",x1=w%rep%text%t(isel)%scale,&
           speed=0.01d0,min=0.05d0,max=10d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Size of the text",ttshown)
-       changed = changed .or. iw_coloredit("Color##textcolor",rgb=w%rep%text%t(isel)%rgb,sameline=.true.)
+       changed = changed .or. ch
+       ch = iw_coloredit("Color##textcolor",rgb=w%rep%text%t(isel)%rgb,sameline=.true.)
        call iw_tooltip("Color of the text",ttshown)
-       changed = changed .or. iw_checkbox("Scale with zoom##textzoom",w%rep%text%t(isel)%scalewithzoom)
+       changed = changed .or. ch
+       ch = iw_checkbox("Scale with zoom##textzoom",w%rep%text%t(isel)%scalewithzoom)
        call iw_tooltip("Whether the text size scales when zooming in and out, or stays &
           &at a constant on-screen size",ttshown)
+       changed = changed .or. ch
     end if
 
   contains
+    !> Draw the Pick button for the placement of the selected text: arms a
+    !> pick of mode mode (vm_pick_atom or vm_pick_bond) in the anchor view
+    !> that fills the anchor or the position of the item. id is the ImGui
+    !> id suffix, msg the prompt shown in the view bar, and tt the button
+    !> tooltip; acceptempty makes an empty-space click deliver a position
+    !> instead of cancelling. The result is received at the top of this
+    !> routine. One pick can be pending at a time.
+    subroutine text_pick_button(id,mode,msg,tt,acceptempty,sameline)
+      character(len=*), intent(in) :: id, msg, tt
+      integer, intent(in) :: mode
+      logical, intent(in), optional :: acceptempty, sameline
+
+      logical :: aempty, sline
+
+      aempty = .false.
+      if (present(acceptempty)) aempty = acceptempty
+      sline = .false.
+      if (present(sameline)) sline = sameline
+
+      if (iw_button("Pick##" // id,sameline=sline,disabled=(w%editrep_pick_item > 0))) then
+         w%editrep_pick_item = isel
+         call w%editrep_pick%arm()
+         call win(iview)%viewmode_set_forced(mode,msg,w%id,acceptempty=aempty)
+      end if
+      call iw_tooltip(tt,ttshown)
+
+    end subroutine text_pick_button
+
     !> First line of a text (with a continuation mark if there are more lines).
     function first_line(str) result(s)
       character(len=*), intent(in) :: str
@@ -1997,12 +2056,32 @@ contains
       end if
     end function first_line
 
-    !> Short description of an atom anchor: name + cell index (+ lattice vector).
-    function anchor_string(idx) result(s)
+    !> Inert colored button naming the anchor atom idx, in the atom color
+    !> and the species+cell-index form the rest of the GUI uses ("?" when
+    !> the anchor is unset or no longer names a cell atom). idn is the
+    !> ImGui id suffix, the anchors of one item being told apart by it,
+    !> and tt the button tooltip.
+    subroutine anchor_atom_button(idx,idn,tt)
       integer(c_int), intent(in) :: idx(4)
-      character(len=:), allocatable :: s
-      s = anchor_label(w%isys,idx,"(not set)")
-    end function anchor_string
+      character(len=*), intent(in) :: idn, tt
+
+      real(c_float) :: rgb(3)
+      logical :: havergb, ldum2
+      character(len=:), allocatable :: lbl
+
+      havergb = .false.
+      rgb = 0._c_float
+      if (idx(1) >= 1 .and. idx(1) <= sys(w%isys)%c%ncel) then
+         lbl = anchor_label(w%isys,idx,"?",species=.true.)
+         havergb = atom_view_rgb(iview,w%isys,atlisttype_ncel_frac,idx(1),rgb)
+      else
+         lbl = "?"
+      end if
+
+      ldum2 = iw_atom_button(lbl // idn,rgb,havergb=havergb,sameline=.true.,inert=.true.)
+      call iw_tooltip(tt,ttshown)
+
+    end subroutine anchor_atom_button
 
   end function draw_editrep_text
 
