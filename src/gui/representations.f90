@@ -428,6 +428,7 @@ module representations
      real(c_float) :: rgb(3) ! cylinder colors
      real*8 :: innersteplen ! number of subdivisions for the inner sticks
      logical :: innerstipple ! stippled lines for the inner lines
+     real*8 :: origin(3) ! translation of the drawn cell (fractional)
   end type rep_unitcell
   public :: rep_unitcell
 

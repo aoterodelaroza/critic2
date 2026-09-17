@@ -38,7 +38,6 @@ contains
     call disp%end()
     disp%atype = atlisttype_species
     disp%ncell = 1
-    disp%origin = 0d0
     disp%tshift = 0d0
     disp%border = .false.
     disp%onemotif = .false.
@@ -119,7 +118,6 @@ contains
     type(scene_display), intent(in) :: src
 
     disp%ncell = src%ncell
-    disp%origin = src%origin
     disp%tshift = src%tshift
     disp%border = src%border
     disp%onemotif = src%onemotif

@@ -237,6 +237,7 @@ contains
        r%uc%rgb = 0._c_float
        r%uc%innersteplen = uc_innersteplen_def
        r%uc%innerstipple = .true.
+       r%uc%origin = 0d0
     end if
 
     ! cartesian axes
@@ -1743,13 +1744,6 @@ contains
        ! calculate the periodicity
        n = disp%ncells(r%disp)
 
-       ! origin shift
-       if (c%ismolecule) then
-          uoriginc = disp%origin / bohrtoa
-       else
-          uoriginc = c%x2c(disp%origin)
-       end if
-
        ! what this object draws, from its kind
        doatoms = (r%type == reptype_atoms)
        dolabels = (r%type == reptype_labels) .and. r%labels%style%isinit
@@ -1982,10 +1976,10 @@ contains
                    if (dopoly) then
                       do kp = 1, natp
                          xpolyc = c%atcel(eidp(kp))%x + lvecp(:,kp) + ix
-                         xvpoly(:,kp) = c%x2c(xpolyc) + uoriginc
+                         xvpoly(:,kp) = c%x2c(xpolyc)
                          dvpoly(:,kp) = vibdelta(eidp(kp),lvecp(:,kp)+ix) ! per-corner vibration delta
                       end do
-                      call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,xc+uoriginc,&
+                      call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,xc,&
                          rgbface,rgbedge,r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps,okpoly)
 
                       ! collect this polyhedron's corner atom images to force
@@ -2008,7 +2002,7 @@ contains
                    ! object: it carries the real idx and is rendered only into
                    ! the pick buffer (skipped in the visible sphere pass)
                    if (doatoms .or. doghost) then
-                      dsph%x = real(xc + uoriginc,c_float)
+                      dsph%x = real(xc,c_float)
                       dsph%rgb = rgb
                       dsph%idx(1) = i
                       dsph%idx(2:4) = ix
@@ -2069,7 +2063,7 @@ contains
                          end if
 
                          ! emit the bond cylinder(s) from this center image
-                         call emit_bond(i,ib,ix,ineigh,ixn,xc+uoriginc,rgb,rad1,xdelta1,bondrgb)
+                         call emit_bond(i,ib,ix,ineigh,ixn,xc,rgb,rad1,xdelta1,bondrgb)
                       end do ! ncon
                    end if
 
@@ -2087,7 +2081,7 @@ contains
 
                       ! labels
                       if (r%labels%style%shown(idl)) then
-                         dstr%x = real(xc + uoriginc,c_float)
+                         dstr%x = real(xc,c_float)
                          dstr%xdelta = cmplx(xdelta1,kind=c_float_complex)
                          dstr%r = real(rad1,c_float)
                          dstr%rgb = r%labels%rgb
@@ -2133,7 +2127,7 @@ contains
 
              call mixpie(c%atcel(cornlist(1,ica))%idx,occ1,piecum,piergb)
 
-             dsph%x = real(xc + uoriginc,c_float)
+             dsph%x = real(xc,c_float)
              dsph%r = real(rad1,c_float)
              dsph%rgb = rgb
              dsph%idx(1) = cornlist(1,ica)
@@ -2167,6 +2161,9 @@ contains
              end if
           end do
        end if
+
+       ! origin shift for the drawn cell (Cartesian)
+       uoriginc = c%x2c(r%uc%origin)
 
        ! external cell
        do i = 1, 12
@@ -2409,31 +2406,24 @@ contains
              end do
              sebo = 0.5d0 * (1d0 - symelem_margin) * (sebv(:,1) + sebv(:,2) + sebv(:,3))
              sebv = symelem_margin * sebv
-             ! the cell sticks and the atoms move with the Display origin, so
-             ! the elements and the box they are clipped to move with it too
-             sebo = sebo + c%x2c(disp%origin)
           end if
           call sebox%set(sebo,sebv,okbox)
           if (.not.okbox) return
 
           ! A transient item draws the elements of the operations its producer
           ! selected; the user-facing object draws all of them, filtered by the
-          ! per-type visibility. sexoff carries the Display origin translation
-          ! and, in a molecule (where every point-group element goes through
-          ! the center of mass), the point the user moved the set to.
+          ! per-type visibility. In a molecule (where every point-group element
+          ! goes through the center of mass), sexoff carries the point the user
+          ! moved the set to.
           istrans = (r%symelem%style%nop > 0)
-          if (c%ismolecule) then
-             sexoff = disp%origin / bohrtoa
-          else
-             sexoff = c%x2c(disp%origin)
-          end if
+          sexoff = 0d0
           if (c%ismolecule .and. .not.istrans) then
              if (r%symelem%coordtype == 2) then
                 uoriginc = r%symelem%origin ! cartesian (bohr)
              else
                 uoriginc = r%symelem%origin / bohrtoa ! cartesian (angstrom)
              end if
-             sexoff = sexoff + uoriginc - c%molx0 - c%pg%xcm
+             sexoff = uoriginc - c%molx0 - c%pg%xcm
           end if
 
           ! the symmetry elements in the displayed region
@@ -3689,17 +3679,15 @@ contains
          end do
       end if
 
-      ! stick ends
-      x1 = ucini + disp%origin
-      x1 = c%x2c(x1)
-      x2 = ucend + disp%origin
-      x2 = c%x2c(x2)
+      ! stick ends (uoriginc = the cell origin shift, Cartesian)
+      x1 = c%x2c(ucini) + uoriginc
+      x2 = c%x2c(ucend) + uoriginc
 
     end subroutine process_vacuum_uc_sticks
 
     !> Emit the cylinder(s) for one bond from a center atom image to
-    !> the neighbor image (ineigh,ixn). Cartesian endpoint x1 (bohr,
-    !> origin-shifted), color rgbcen, radius radcen, animation delta
+    !> the neighbor image (ineigh,ixn). Cartesian endpoint x1 (bohr),
+    !> color rgbcen, radius radcen, animation delta
     !> xdeltacen, and the final bond color bondrgb. icen/ib identify
     !> the center's neighbor-star entry.
     subroutine emit_bond(icen,ib,ixcen,ineigh,ixn,x1,rgbcen,radcen,xdeltacen,bondrgb)
@@ -3722,7 +3710,7 @@ contains
 
       ! other endpoint (Cartesian, bohr) and its animation delta
       x2 = c%atcel(ineigh)%x + ixn
-      x2 = c%x2c(x2) + uoriginc
+      x2 = c%x2c(x2)
       xdelta2 = vibdelta(ineigh,ixn)
 
       ! fields shared by all cylinders of this bond

@@ -67,10 +67,7 @@ contains
             changed = changed .or. iw_checkbox("Show atoms at cell edges",disp%border,sameline=.true.)
             call iw_tooltip("Display atoms near the unit cell edges",ttshown)
 
-            ! origin translation and cell origin shift
-            changed = changed .or. iw_dragfloat_real8("Translate Origin (fractional)##originatom",&
-               x3=disp%origin,speed=0.001d0,decimal=5)
-            call iw_tooltip("Translation vector for the contents of the unit cell.",ttshown)
+            ! origin of the cell region displayed
             changed = changed .or. iw_dragfloat_real8("Cell Origin Shift (fractional)##origincell",&
                x3=disp%tshift,speed=0.001d0,decimal=5)
             call iw_tooltip("Displace the origin of the cell being represented.",ttshown)

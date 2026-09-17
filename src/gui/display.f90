@@ -32,7 +32,6 @@ module display
   !> scene display: which part of the system is drawn
   type scene_display
      integer(c_int) :: ncell(3) = 1 ! number of unit cells drawn along a, b, c
-     real*8 :: origin(3) = 0d0 ! translation of the cell contents (fractional; Å in molecules)
      real*8 :: tshift(3) = 0d0 ! origin of the display region (fractional)
      logical :: border = .false. ! atoms at the cell faces are drawn on both faces
      logical :: onemotif = .false. ! translate atoms to display whole molecules

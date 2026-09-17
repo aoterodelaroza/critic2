@@ -981,15 +981,20 @@ contains
     changed = .false.
 
     !! styles
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
     call iw_text("Style",highlight=.true.)
-    changed = changed .or. iw_checkbox("Color crystallographic axes",w%rep%uc%coloraxes)
+    ch = iw_checkbox("Color crystallographic axes",w%rep%uc%coloraxes)
     call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
-    changed = changed .or. iw_checkbox("Hide axes in vacuum directions",w%rep%uc%vaccutsticks)
+    changed = changed .or. ch
+    ch = iw_checkbox("Hide axes in vacuum directions",w%rep%uc%vaccutsticks)
     call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
+    changed = changed .or. ch
 
-    changed = changed .or. iw_dragfloat_real8("Radius (Å)##outer",x1=w%rep%uc%radius,speed=0.005d0,&
+    ch = iw_dragfloat_real8("Radius (Å)##outer",x1=w%rep%uc%radius,speed=0.005d0,&
        min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Radii of the unit cell edges",ttshown)
+    changed = changed .or. ch
 
     ch = iw_coloredit("Color",rgb=w%rep%uc%rgb,sameline=.true.)
     call iw_tooltip("Color of the unit cell edges",ttshown)
@@ -999,22 +1004,31 @@ contains
        changed = .true.
     end if
 
+    ch = iw_dragfloat_real8("Translate Origin (fractional)##originuc",&
+       x3=w%rep%uc%origin,speed=0.001d0,decimal=5)
+    call iw_tooltip("Translation vector for the origin of the cell drawn (moves the cell sticks only)",ttshown)
+    changed = changed .or. ch
+
     !! inner divisions
     call iw_text("Inner Divisions",highlight=.true.)
-    changed = changed .or. iw_checkbox("Display inner divisions",w%rep%uc%inner)
+    ch = iw_checkbox("Display inner divisions",w%rep%uc%inner)
     call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
+    changed = changed .or. ch
     if (w%rep%uc%inner) then
-       changed = changed .or. iw_dragfloat_real8("Radius (Å)##inner",x1=w%rep%uc%radiusinner,speed=0.005d0,&
+       ch = iw_dragfloat_real8("Radius (Å)##inner",x1=w%rep%uc%radiusinner,speed=0.005d0,&
           min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
+       changed = changed .or. ch
 
-       changed = changed .or. iw_checkbox("Use dashed lines",w%rep%uc%innerstipple)
+       ch = iw_checkbox("Use dashed lines",w%rep%uc%innerstipple)
        call iw_tooltip("Use dashed lines for the inner cell divisions",ttshown)
+       changed = changed .or. ch
 
        if (w%rep%uc%innerstipple) then
-          changed = changed .or. iw_dragfloat_real8("Dash length (Å)",x1=w%rep%uc%innersteplen,speed=0.1d0,&
+          ch = iw_dragfloat_real8("Dash length (Å)",x1=w%rep%uc%innersteplen,speed=0.1d0,&
              min=0.001d0,max=100d0,scale=bohrtoa,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
+          changed = changed .or. ch
        end if
     end if
 
