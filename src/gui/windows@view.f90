@@ -3437,7 +3437,8 @@ contains
 
   end subroutine mousepos_to_texpos
 
-  !> Texture position (screen coordinates) to mouse position
+  !> Texture position (pixels in the render texture) to mouse position
+  !> (screen coordinates): the exact inverse of mousepos_to_texpos.
   module subroutine texpos_to_mousepos(w,pos)
     class(window), intent(inout), target :: w
     type(ImVec2), intent(inout) :: pos
@@ -3445,8 +3446,6 @@ contains
     real(c_float) :: x, y, xratio1, yratio1
 
     pos%x = (pos%x / w%FBOside) * 2._c_float - 1._c_float
-    ! inverse of mousepos_to_texpos: the texture is presented right-side up, so
-    ! the vertical mapping is no longer inverted
     pos%y = (pos%y / w%FBOside) * 2._c_float - 1._c_float
 
     x = max(w%v_rmax%x - w%v_rmin%x,1._c_float)
@@ -3454,8 +3453,10 @@ contains
     xratio1 = 0.5_c_float * max(x,y) / x
     yratio1 = 0.5_c_float * max(x,y) / y
 
+    ! mousepos_to_texpos measures the texture row upward and the screen row
+    ! downward, so undoing it flips y back
     pos%x = w%v_rmin%x + x * (0.5_c_float + xratio1 * pos%x)
-    pos%y = w%v_rmin%y + y * (0.5_c_float + yratio1 * pos%y)
+    pos%y = w%v_rmin%y + y * (0.5_c_float - yratio1 * pos%y)
 
   end subroutine texpos_to_mousepos
 
