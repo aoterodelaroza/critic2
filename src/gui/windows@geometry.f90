@@ -24,7 +24,7 @@ contains
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
     use representations, only: reptype_symelem, repflavor_symelem
-    use crystalmod, only: symop_kind_plane, symop_kind_axis
+    use crystalmod, only: symelem_type_mask
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
@@ -1849,7 +1849,7 @@ contains
              neqv = sys(isys)%c%neqv
              ncv = sys(isys)%c%ncv
              call iw_text("Operations",highlight=.true.)
-             call iw_text("(" // string(neqv) // ")",sameline=.true.)
+             call iw_text("(" // string(neqv*max(ncv,1)) // ")",sameline=.true.)
 
              if (neqv >= 1) then
                 ! the operation strings are expensive to build (axis analysis
@@ -1877,8 +1877,8 @@ contains
                 flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
                 str1 = "##symopstable" // c_null_char
                 sz0%x = 0
-                sz0%y = iw_calcheight(min(neqv,8)+1,0,.false.)
-                call symop_ensure_sel(neqv)
+                sz0%y = iw_calcheight(min(neqv*max(ncv,1),8)+1,0,.false.)
+                call symop_ensure_sel(neqv*max(ncv,1))
                 if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
                    call iw_table_column("#",id=0)
                    call iw_table_column("HM",id=1)
@@ -1887,8 +1887,9 @@ contains
                    call iw_table_column("Axis (Cartesian)",id=4)
                    call iw_table_headers_row(freezetop=.true.)
 
-                   ! show only the operations under the identity centering (1..neqv)
-                   do i = 1, neqv
+                   ! every operation, centered copies included: they are
+                   ! distinct isometries with their own symbol and elements
+                   do i = 1, neqv*max(ncv,1)
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                       call symop_selectbg(i)
                       ! axis in crystallographic coordinates (cached) and Cartesian
@@ -1928,7 +1929,7 @@ contains
                 end if
 
                 ! draw the selected/hovered symmetry elements and the selection row
-                call symop_display_and_buttons(neqv)
+                call symop_display_and_buttons(neqv*max(ncv,1))
              end if
 
              ! centering vectors table
@@ -2395,71 +2396,21 @@ contains
     subroutine symop_display_and_buttons(nop)
       integer, intent(in) :: nop
 
-      integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, nsel
-      integer, allocatable :: skind(:), sorder(:)
-      real*8, allocatable :: sdir(:,:)
-      real*8 :: sorig(3), lraxx(3), lraxc(3)
-      character(len=1) :: lhm1, lcdig
+      integer :: i, n, tag, hovadd, idobj, nsel
+      integer, allocatable :: sop(:)
+      logical, allocatable :: smask(:)
       logical :: idnew
 
-      ! display the selected and hovered symmetry elements in the view
+      ! display the selected and hovered symmetry elements in the view; the
+      ! element geometry (kind, direction, and position in the displayed cells)
+      ! is calculated from the operation when the draw lists are built
       if (sysc(isys)%sc%isinit /= 0) then
-         allocate(skind(nop),sorder(nop),sdir(3,nop))
-
-         ! common origin of the elements (cartesian, bohr)
-         if (sys(isys)%c%ismolecule) then
-            sorig = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
-         else
-            ! crystal symmetry elements pass through the origin
-            sorig = 0d0
-         end if
-
+         allocate(sop(nop))
          n = 0
          do i = 1, nop
             if (.not.(w%geometry_sym_sel(i).or.i == ihl_symop)) cycle
-
-            ! symmetry element for operation i: kind (symop_kind_*; identity,
-            ! inversion, and unknown operations draw nothing and are skipped),
-            ! direction (cartesian, bohr) and rotation order; molecule and
-            ! crystal cases
-            order1 = 0
-            if (sys(isys)%c%ismolecule) then
-               lioptype = sys(isys)%c%pg%op(i)%type
-               if (lioptype == molsymop_plane) then
-                  kind1 = symop_kind_plane
-               elseif (lioptype == molsymop_rotation .or. lioptype == molsymop_imp_rotation) then
-                  kind1 = symop_kind_axis
-               else
-                  cycle
-               end if
-               lraxx = sys(isys)%c%pg%op(i)%axis
-               if (norm2(lraxx) > 1d-10) lraxx = lraxx / norm2(lraxx)
-               order1 = sys(isys)%c%pg%op(i)%opn
-            else
-               lraxc = w%geometry_sym_axes(:,i)
-               if (norm2(lraxc) < 1d-10) cycle
-               lhm1 = w%geometry_sym_hm(i)(1:1) ! HM symbol is stored left-aligned
-               if (lhm1 >= "a" .and. lhm1 <= "z") then
-                  kind1 = symop_kind_plane
-               else
-                  kind1 = symop_kind_axis
-                  ! rotation order from the symbol: the digit, after an optional
-                  ! leading "-" (rotoinversion: "-3"/"-4"/"-6")
-                  if (lhm1 == "-") then
-                     lcdig = w%geometry_sym_hm(i)(2:2)
-                  else
-                     lcdig = lhm1
-                  end if
-                  if (lcdig >= "0" .and. lcdig <= "9") order1 = ichar(lcdig) - ichar("0")
-               end if
-               lraxx = sys(isys)%c%x2c(lraxc)
-               if (norm2(lraxx) > 1d-10) lraxx = lraxx / norm2(lraxx)
-            end if
-
             n = n + 1
-            skind(n) = kind1
-            sdir(:,n) = lraxx
-            sorder(n) = order1
+            sop(n) = i
          end do
          ! unique tag: the selection generation combined with the hovered row
          ! (only when it adds to the selection), so the scene rebuilds the
@@ -2469,8 +2420,8 @@ contains
             if (.not.w%geometry_sym_sel(ihl_symop)) hovadd = ihl_symop
          end if
          tag = w%geometry_sym_selgen * (nop + 2) + (hovadd + 1)
-         call sysc(isys)%sc%show_transient_symelems(w%id,tag,n,skind(1:n),sorig,sdir(:,1:n),sorder(1:n))
-         deallocate(skind,sorder,sdir)
+         call sysc(isys)%sc%show_transient_symelems(w%id,tag,n,sop(1:n))
+         deallocate(sop)
       end if
 
       ! Selection row: all/none/toggle buttons (elements use the default colors)
@@ -2513,17 +2464,21 @@ contains
               ! ensure the operation snapshot/visibility style is initialized
               call sc%rep(idobj)%update()
               associate (rr => sc%rep(idobj))
-                if (rr%symelem%style%isinit) then
-                   if (size(rr%symelem%style%shown,1) == size(w%geometry_sym_sel,1)) then
-                      if (idnew) then
-                         ! new object: show exactly the selected operations
-                         rr%symelem%style%shown = w%geometry_sym_sel
-                      else
-                         ! reuse: mark the selected operations as shown in it
-                         where (w%geometry_sym_sel) rr%symelem%style%shown = .true.
-                      end if
-                      sc%forcebuildlists = .true.
+                ! the object's visibility list is per element type, while the
+                ! table selection is per symmetry operation, so translate
+                if (rr%symelem%style%isinit .and. rr%symelem%style%se%ntype > 0) then
+                   allocate(smask(rr%symelem%style%se%ntype))
+                   call symelem_type_mask(rr%symelem%style%se,&
+                      pack((/(i,i=1,nop)/),w%geometry_sym_sel),smask)
+                   if (idnew) then
+                      ! new object: show exactly the selected operations
+                      rr%symelem%style%shown = smask
+                   else
+                      ! reuse: mark the selected operations as shown in it
+                      where (smask) rr%symelem%style%shown = .true.
                    end if
+                   deallocate(smask)
+                   sc%forcebuildlists = .true.
                 end if
               end associate
            end if

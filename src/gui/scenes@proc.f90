@@ -2488,46 +2488,41 @@ contains
 
   end subroutine scene_show_transient_text
 
-  !> Show a set of n symmetry elements as a transient
-  !> representation. Each element k is a plane (kind=symop_kind_plane,
-  !> dir = plane normal) or an axis (kind=symop_kind_axis, dir = axis
-  !> direction), passing through the common point origin; origin and
-  !> dir are in cartesian (bohr) and the elements are sized to span
-  !> the displayed system.
-  module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,origin,dir,order)
+  !> Show the symmetry elements of the nop symmetry operations iop as a
+  !> transient representation. The operations are indexed as in
+  !> struct_report_symxyz (crystals) or in the point-group operation list
+  !> (molecules); their elements are calculated, and clipped to the displayed
+  !> cells, when the draw lists are built.
+  module subroutine scene_show_transient_symelems(s,owner,tag,nop,iop)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
-    integer, intent(in) :: n
-    integer, intent(in) :: kind(n)
-    real*8, intent(in) :: origin(3)
-    real*8, intent(in) :: dir(3,n)
-    integer, intent(in) :: order(n)
+    integer, intent(in) :: nop
+    integer, intent(in) :: iop(nop)
 
     integer :: id
     logical :: found
 
     ! nothing to show
-    if (n <= 0) return
+    if (nop <= 0) return
 
     id = transient_slot(s,owner,tag,reptype_symelem,repflavor_symelem,found)
     if (id <= 0) return
 
     associate (se => s%reptrans(id)%symelem)
       ! (re)build the operation list if the item is new or the count changed
-      if (.not.found .or. se%style%nop /= n) then
-         call se%style%alloc(n)
-         se%coordtype = 2 ! origin in cartesian (bohr)
+      if (.not.found .or. se%style%nop /= nop) then
+         if (allocated(se%style%iop)) deallocate(se%style%iop)
+         allocate(se%style%iop(nop))
+         se%style%nop = nop
+         se%style%isinit = .true.
          if (found) call transient_dirty(s) ! a new/retagged item is already dirty
       end if
 
-      ! the element geometry is refreshed on every call so the set tracks
-      ! the system; size and cen are stamped in build_lists
-      se%origin = origin
-      se%style%kind = kind
-      se%style%dir = dir
-      se%style%order = order
+      ! the operation list is refreshed on every call so the set tracks the
+      ! system; size and cen are stamped in build_lists
+      se%style%iop = iop
     end associate
 
   end subroutine scene_show_transient_symelems

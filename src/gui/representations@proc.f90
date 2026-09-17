@@ -70,57 +70,35 @@ contains
 
   end subroutine representation_init
 
-  !> Allocate a symmetry-element style with room for nop operations.
-  module subroutine symelem_style_alloc(d,nop)
-    use interfaces_glfw, only: glfwGetTime
-    class(symelem_style), intent(inout) :: d
-    integer, intent(in) :: nop
-
-    call d%end()
-    d%timelastreset = glfwGetTime()
-    d%nop = nop
-    allocate(d%shown(nop),d%kind(nop),d%dir(3,nop),d%order(nop),d%label(nop))
-    d%shown = .true.
-    d%kind = 0
-    d%dir = 0d0
-    d%order = 0
-    d%label = ""
-    d%isinit = .true.
-
-  end subroutine symelem_style_alloc
-
-  !> Reset a symmetry-element style.
+  !> Reset a symmetry-element style: recalculate the list of
+  !> symmetry-element types of the system, keeping the previous
+  !> visibility selection if the list has not changed size.
   module subroutine symelem_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     class(symelem_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
-    integer :: nop
     logical, allocatable :: shownold(:)
 
     ! reset the time and remember the previous selection
     d%timelastreset = glfwGetTime()
     if (allocated(d%shown)) call move_alloc(d%shown,shownold)
-    d%nop = 0
     d%isinit = .false.
-    if (allocated(d%kind)) deallocate(d%kind)
-    if (allocated(d%dir)) deallocate(d%dir)
-    if (allocated(d%order)) deallocate(d%order)
-    if (allocated(d%label)) deallocate(d%label)
+    call d%se%end()
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! recompute the operation snapshot
-    call sys(r%id)%c%list_symops(nop,d%kind,d%dir,d%order,d%label)
-    d%nop = nop
+    ! recompute the element-type snapshot; the element positions are not kept
+    ! here (they depend on the number of cells drawn)
+    call sys(r%id)%c%list_symelems((/1,1,1/),.true.,d%se,typesonly=.true.)
 
-    ! restore the previous visibility if the operation count is unchanged,
-    ! otherwise show all operations
-    allocate(d%shown(nop))
+    ! restore the previous visibility if the element count is unchanged,
+    ! otherwise show all elements
+    allocate(d%shown(d%se%ntype))
     if (allocated(shownold)) then
-       if (size(shownold,1) == nop) then
+       if (size(shownold,1) == d%se%ntype) then
           d%shown = shownold
        else
           d%shown = .true.
@@ -140,10 +118,8 @@ contains
     d%timelastreset = 0d0
     d%nop = 0
     if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%kind)) deallocate(d%kind)
-    if (allocated(d%dir)) deallocate(d%dir)
-    if (allocated(d%order)) deallocate(d%order)
-    if (allocated(d%label)) deallocate(d%label)
+    if (allocated(d%iop)) deallocate(d%iop)
+    call d%se%end()
 
   end subroutine symelem_style_end
 
@@ -1627,11 +1603,12 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost)
     use systems, only: sys, sysc
-    use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane
+    use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
+       symop_kind_point, symelem_list
     use gui_main, only: ColorAxes_def, ColorElement
     use shapes, only: maxpie
     use tools_io, only: string
-    use tools_math, only: cross, plane_from_points
+    use tools_math, only: cross, plane_from_points, matinv
     use types, only: realloc
     use tools, only: mergesort
     use param, only: tpi, img, atmass, icrd_crys, pi
@@ -1679,6 +1656,12 @@ contains
     logical :: dopoly, corneractive, okpoly
     integer, allocatable :: cornlist(:,:)
     integer :: ncorn, ica, idc, imolc
+    type(symelem_list) :: sel ! symmetry elements in the displayed region
+    real*8 :: sebo(3), sebv(3,3), sebvinv(3,3), sebsize ! box the elements are clipped to
+    real*8 :: sebcor(3,8) ! its eight corners, indexed by the bits of (i-1)
+    real*8 :: sexoff(3) ! shift applied to the symmetry elements (molecules)
+    integer :: ierbox
+    logical :: istrans
 
     interface
        subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
@@ -2406,22 +2389,73 @@ contains
           end associate
        end do
     elseif (r%type == reptype_symelem) then
-       !!! symmetry elements (planes/axes) !!!
+       !!! symmetry elements (planes/axes/inversion centers) !!!
        if (r%symelem%style%isinit) then
-          if (r%symelem%coordtype == 2) then
-             uoriginc = r%symelem%origin ! cartesian (bohr)
-          elseif (r%symelem%coordtype == 0 .and. .not.c%ismolecule) then
-             uoriginc = c%x2c(r%symelem%origin) ! crystallographic
+          ! The elements are clipped to the box they are drawn in: the
+          ! displayed cells for a crystal, a cube around the scene for a
+          ! molecule. symelem_margin keeps the plane frames from z-fighting
+          ! with the unit-cell sticks.
+          n = disp%ncells(r%disp)
+          if (c%ismolecule) then
+             sebv = 0d0
+             do j = 1, 3
+                sebv(j,j) = 2d0 * symelem_margin * r%symelem%size
+             end do
+             sebo = r%symelem%cen - 0.5d0 * (sebv(:,1) + sebv(:,2) + sebv(:,3))
           else
-             uoriginc = r%symelem%origin / bohrtoa ! cartesian (angstrom)
+             do j = 1, 3
+                sebv(:,j) = c%m_x2c(:,j) * real(n(j),8)
+             end do
+             sebo = 0.5d0 * (1d0 - symelem_margin) * (sebv(:,1) + sebv(:,2) + sebv(:,3))
+             sebv = symelem_margin * sebv
+             ! the cell sticks and the atoms move with the Display origin, so
+             ! the elements and the box they are clipped to move with it too
+             sebo = sebo + c%x2c(disp%origin)
           end if
-          if (c%ismolecule) uoriginc = uoriginc - c%molx0
-          do i1 = 1, r%symelem%style%nop
-             if (.not.r%symelem%style%shown(i1)) cycle
-             if (r%symelem%style%kind(i1) == 0) cycle
-             call draw_symmetry_element(r%symelem%style%kind(i1),r%symelem%style%dir(:,i1),&
-                r%symelem%style%order(i1),uoriginc,r%symelem%usecustomrgb,r%symelem%rgb)
+          sebsize = norm2(sebv(:,1)) + norm2(sebv(:,2)) + norm2(sebv(:,3))
+          sebvinv = sebv
+          call matinv(sebvinv,3,ierbox)
+          if (ierbox /= 0) return
+          do i = 1, 8
+             sebcor(:,i) = sebo + matmul(sebv,real((/modulo(i-1,2),modulo((i-1)/2,2),(i-1)/4/),8))
           end do
+
+          ! A transient item draws the elements of the operations its producer
+          ! selected; the user-facing object draws all of them, filtered by the
+          ! per-type visibility. sexoff carries the Display origin translation
+          ! and, in a molecule (where every point-group element goes through
+          ! the center of mass), the point the user moved the set to.
+          istrans = (r%symelem%style%nop > 0)
+          if (c%ismolecule) then
+             sexoff = disp%origin / bohrtoa
+          else
+             sexoff = c%x2c(disp%origin)
+          end if
+          if (c%ismolecule .and. .not.istrans) then
+             if (r%symelem%coordtype == 2) then
+                uoriginc = r%symelem%origin ! cartesian (bohr)
+             else
+                uoriginc = r%symelem%origin / bohrtoa ! cartesian (angstrom)
+             end if
+             sexoff = sexoff + uoriginc - c%molx0 - c%pg%xcm
+          end if
+
+          ! the symmetry elements in the displayed region
+          if (istrans) then
+             call c%list_symelems(n,disp%border,sel,iop=r%symelem%style%iop(1:r%symelem%style%nop))
+          else
+             call c%list_symelems(n,disp%border,sel)
+          end if
+          do i1 = 1, sel%n
+             i2 = sel%itype(i1)
+             if (.not.istrans) then
+                if (i2 < 1 .or. i2 > r%symelem%style%se%ntype) cycle
+                if (.not.r%symelem%style%shown(i2)) cycle
+             end if
+             call draw_symmetry_element(sel%kind(i2),sel%dir(:,i2),sel%order(i2),&
+                sel%x(:,i1) + sexoff,r%symelem%usecustomrgb,r%symelem%rgb)
+          end do
+          call sel%end()
        end if
     elseif (r%type == reptype_text) then
        !!! user text annotations !!!
@@ -3288,24 +3322,44 @@ contains
 
     end subroutine append_edge
 
-    !> Draw one symmetry element of kind skind (symop_kind_plane/axis), with
-    !> unit direction/normal sdir, rotation order sorder, passing through the
-    !> cartesian-bohr point uoriginc. If usecustom, everything is drawn in
-    !> customrgb; otherwise planes use the default color and axes are colored by
-    !> rotation order. Uses the host r%symelem%size/r%symelem%cen for sizing.
-    subroutine draw_symmetry_element(skind,sdir,sorder,uoriginc,usecustom,customrgb)
+    !> Draw one symmetry element of kind skind (symop_kind_plane/axis/point),
+    !> with unit direction/normal sdir, rotation order sorder, passing through
+    !> the cartesian-bohr point xel. If usecustom, everything is drawn in
+    !> customrgb; otherwise planes and inversion centers use the default color
+    !> and axes are colored by rotation order. The element is clipped to the
+    !> box (host sebo/sebv): a plane becomes the polygon where it cuts the box
+    !> and an axis the segment crossing it.
+    subroutine draw_symmetry_element(skind,sdir,sorder,xel,usecustom,customrgb)
       integer, intent(in) :: skind, sorder
-      real*8, intent(in) :: sdir(3), uoriginc(3)
+      real*8, intent(in) :: sdir(3), xel(3)
       logical, intent(in) :: usecustom
       real(c_float), intent(in) :: customrgb(3)
 
-      real*8 :: lx0(3), lxx(3), lx1(3), lx2(3), lxc(3), le1v(3), le2v(3), lres
+      complex*16, parameter :: zz3(3) = (0d0,0d0)
+
+      real*8 :: lx0(3), lx1(3), lx2(3), lxc(3), s1, s2
+      real*8 :: xpt(3,12), ang(12), vv(3)
       real(c_float) :: rgbel(3)
-      integer :: j1, j2, j3, m1(3)
-      type(dl_plane) :: dpl
+      integer :: j1, j2, npt, iperm(12)
+      type(dl_sphere) :: dsph1
+      logical :: ok
 
       ! unit direction: the plane normal or the axis direction (cartesian)
-      lx0 = sdir / max(norm2(sdir),1d-10)
+      lx0 = sdir
+      if (skind /= symop_kind_point) then
+         if (norm2(lx0) < 1d-10) return
+         lx0 = lx0 / norm2(lx0)
+      end if
+
+      ! color: custom, or per-order for the axes and the default otherwise
+      rgbel = symelem_rgb_def
+      if (usecustom) then
+         rgbel = customrgb
+      elseif (skind == symop_kind_axis) then
+         if (sorder >= lbound(symelem_rgb_order,2) .and. sorder <= ubound(symelem_rgb_order,2)) then
+            if (any(symelem_rgb_order(:,sorder) /= 0._c_float)) rgbel = symelem_rgb_order(:,sorder)
+         end if
+      end if
 
       ! opaque thin-cylinder template (plane frame edges, axis shafts)
       dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
@@ -3315,72 +3369,139 @@ contains
       dcyl%order = 1
       dcyl%border = 0._c_float
       dcyl%rgbborder = 0._c_float
+      dcyl%rgb = rgbel
 
       if (skind == symop_kind_plane) then
-         ! mirror/glide plane: translucent fill + opaque border frame
-         rgbel = symelem_rgb_def
-         if (usecustom) rgbel = customrgb
-         dcyl%rgb = rgbel
+         ! mirror/glide plane: the polygon where the plane cuts the box, as a
+         ! translucent triangle fan with an opaque border frame
+         call clip_plane_box(xel,lx0,npt,xpt)
+         if (npt < 3) return
 
-         ! in-plane orthonormal basis perpendicular to the plane normal lx0
-         if (abs(lx0(1)) < 0.9d0) then
-            lxx = (/1d0,0d0,0d0/)
-         else
-            lxx = (/0d0,1d0,0d0/)
-         end if
-         lx1 = cross(lx0,lxx)
+         ! sort the polygon vertices by angle around their centroid
+         lxc = 0d0
+         do j1 = 1, npt
+            lxc = lxc + xpt(:,j1)
+         end do
+         lxc = lxc / real(npt,8)
+         lx1 = xpt(:,1) - lxc
+         if (norm2(lx1) < 1d-10) return
          lx1 = lx1 / norm2(lx1)
-         lx2 = cross(lx0,lx1) ! unit, (lx0,lx1,lx2) orthonormal
-
-         ! rectangle center = projection of the system center onto the plane
-         lxc = r%symelem%cen - dot_product(r%symelem%cen - uoriginc,lx0) * lx0
-         lres = symelem_margin * r%symelem%size
-         le1v = lres * lx1
-         le2v = lres * lx2
+         lx2 = cross(lx0,lx1)
+         ang = 0d0
+         do j1 = 1, npt
+            vv = xpt(:,j1) - lxc
+            ang(j1) = atan2(dot_product(vv,lx2),dot_product(vv,lx1))
+            iperm(j1) = j1
+         end do
+         call mergesort(ang,iperm,1,npt)
 
          ! translucent fill
-         dpl%x = real(lxc,c_float)
-         dpl%e1 = real(le1v,c_float)
-         dpl%e2 = real(le2v,c_float)
-         dpl%rgb = rgbel
-         dpl%alpha = symelem_alpha
-         call dl_append(obj%plane,obj%nplane,dpl)
-
-         ! opaque border frame (4 edge cylinders)
-         call append_edge(lxc - le1v - le2v, lxc + le1v - le2v)
-         call append_edge(lxc + le1v - le2v, lxc + le1v + le2v)
-         call append_edge(lxc + le1v + le2v, lxc - le1v + le2v)
-         call append_edge(lxc - le1v + le2v, lxc - le1v - le2v)
-      else
-         ! rotation/rotoinversion axis: a thick opaque shaft (colored by the
-         ! rotation order, unless a custom color is set) through every visible
-         ! lattice point (crystals) or the molecular center (molecules)
-         rgbel = symelem_rgb_def
-         if (usecustom) then
-            rgbel = customrgb
-         elseif (sorder >= lbound(symelem_rgb_order,2) .and. sorder <= ubound(symelem_rgb_order,2)) then
-            if (any(symelem_rgb_order(:,sorder) /= 0._c_float)) rgbel = symelem_rgb_order(:,sorder)
-         end if
-         dcyl%rgb = rgbel
-         dcyl%r = real(symelem_axis_radius,c_float)
-
-         lres = symelem_margin * r%symelem%size
-         m1 = 0
-         if (.not.c%ismolecule) m1 = disp%ncells(r%disp)
-         do j1 = 0, m1(1)
-            do j2 = 0, m1(2)
-               do j3 = 0, m1(3)
-                  lxc = uoriginc + c%x2c(real((/j1,j2,j3/),8))
-                  lxc = lxc + dot_product(r%symelem%cen - lxc,lx0) * lx0 ! foot of the center on the axis
-                  dcyl%x1 = real(lxc - lres * lx0,c_float)
-                  dcyl%x2 = real(lxc + lres * lx0,c_float)
-                  call dl_append(obj%cyl,obj%ncyl,dcyl)
-               end do
-            end do
+         do j1 = 2, npt-1
+            call append_triangle(xpt(:,iperm(1)),xpt(:,iperm(j1)),xpt(:,iperm(j1+1)),&
+               zz3,zz3,zz3,rgbel,real(symelem_alpha,8))
          end do
+
+         ! opaque border frame
+         do j1 = 1, npt
+            j2 = modulo(j1,npt) + 1
+            call append_edge(xpt(:,iperm(j1)),xpt(:,iperm(j2)))
+         end do
+      elseif (skind == symop_kind_axis) then
+         ! rotation/rotoinversion axis: an opaque shaft spanning the box.
+         ! The radius grows with the rotation order so that coincident axes
+         ! (e.g. 2 and -4 along [001]) are all visible.
+         call clip_line_box(xel,lx0,ok,s1,s2)
+         if (.not.ok) return
+         dcyl%r = real(symelem_axis_radius * (1d0 + 0.3d0 * (max(sorder,2) - 2)),c_float)
+         dcyl%x1 = real(xel + s1 * lx0,c_float)
+         dcyl%x2 = real(xel + s2 * lx0,c_float)
+         call dl_append(obj%cyl,obj%ncyl,dcyl)
+      else
+         ! inversion center: a small opaque sphere
+         dsph1 = dl_sphere(x=real(xel,c_float),r=real(symelem_point_radius,c_float),&
+            rgb=rgbel,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+            border=0._c_float,rgbborder=0._c_float,alpha=1._c_float)
+         call dl_append(obj%sph,obj%nsph,dsph1)
       end if
 
     end subroutine draw_symmetry_element
+
+    !> Intersect the plane passing through p0 with unit normal nrm with the
+    !> box and return the npt vertices of the resulting polygon in xpt, in
+    !> arbitrary order. The box corners come from the host sebcor, indexed by
+    !> the bits of the uc edge table, so they are not rebuilt per plane. The box edges are the host uc
+    !> corner pairs.
+    subroutine clip_plane_box(p0,nrm,npt,xpt)
+      real*8, intent(in) :: p0(3), nrm(3)
+      integer, intent(out) :: npt
+      real*8, intent(out) :: xpt(3,12)
+
+      integer :: k
+      real*8 :: xa(3), xb(3), fa, fb, eps
+
+      eps = 1d-6 * sebsize
+      npt = 0
+      do k = 1, 12
+         xa = sebcor(:,uc(1,1,k) + 2*uc(2,1,k) + 4*uc(3,1,k) + 1)
+         xb = sebcor(:,uc(1,2,k) + 2*uc(2,2,k) + 4*uc(3,2,k) + 1)
+         fa = dot_product(xa - p0,nrm)
+         fb = dot_product(xb - p0,nrm)
+         if (abs(fa) < eps) call addpt_polygon(xa,eps,npt,xpt)
+         if (abs(fb) < eps) call addpt_polygon(xb,eps,npt,xpt)
+         if (abs(fa) >= eps .and. abs(fb) >= eps .and. fa*fb < 0d0) &
+            call addpt_polygon(xa + fa/(fa-fb) * (xb - xa),eps,npt,xpt)
+      end do
+
+    end subroutine clip_plane_box
+
+    !> Append the point x to the npt vertices in xpt, unless it is already
+    !> there (within eps) or the list is full.
+    subroutine addpt_polygon(x,eps,npt,xpt)
+      real*8, intent(in) :: x(3), eps
+      integer, intent(inout) :: npt
+      real*8, intent(inout) :: xpt(3,12)
+
+      integer :: i
+
+      do i = 1, npt
+         if (all(abs(xpt(:,i) - x) < eps)) return
+      end do
+      if (npt >= 12) return
+      npt = npt + 1
+      xpt(:,npt) = x
+
+    end subroutine addpt_polygon
+
+    !> Clip the line passing through p0 with unit direction u to the box (host
+    !> sebo/sebv/sebvinv). Returns ok if the line crosses the box, and then the
+    !> line-parameter range [s1,s2] inside it.
+    subroutine clip_line_box(p0,u,ok,s1,s2)
+      real*8, intent(in) :: p0(3), u(3)
+      logical, intent(out) :: ok
+      real*8, intent(out) :: s1, s2
+
+      integer :: j
+      real*8 :: xs(3), us(3), t1, t2
+
+      ! in the box frame the box is the unit cube, so this is a slab clip
+      xs = matmul(sebvinv,p0 - sebo)
+      us = matmul(sebvinv,u)
+      ok = .false.
+      s1 = -1d40
+      s2 = 1d40
+      do j = 1, 3
+         if (abs(us(j)) > 1d-10) then
+            t1 = -xs(j) / us(j)
+            t2 = (1d0 - xs(j)) / us(j)
+            s1 = max(s1,min(t1,t2))
+            s2 = min(s2,max(t1,t2))
+         else
+            if (xs(j) < 0d0 .or. xs(j) > 1d0) return
+         end if
+      end do
+      ok = (s1 <= s2)
+
+    end subroutine clip_line_box
 
     !> Build a coordination polyhedron from nvv vertex positions xv
     !> (cartesian, bohr) around the center atom at xcen. Adds

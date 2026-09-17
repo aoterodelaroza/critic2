@@ -20,9 +20,40 @@ submodule (crystalmod) symmetry
   implicit none
 
   !xx! private procedures
+  ! subroutine symelem_enum(c,se,iop)
+  ! subroutine symelem_replicate(c,ncell,border,se)
+  ! function symelem_dirf(c,skind,dirc)
+  ! function glide_letter(tred)
+  ! function symelem_findtype(se,skind,sorder,dirc,slabel)
+  ! subroutine symelem_addtype(se,skind,sorder,dirc,slabel,sdirlabel,nop,iop)
+  ! subroutine symelem_add(se,skind,sorder,dirc,slabel,sdirlabel,xc,ifrom,iop,itype)
+  ! subroutine symelem_trim(se)
+  ! function symelem_key(skind,dirc,xc)
+  ! subroutine primitive_int(v,iv,ok)
+  ! function is_lattice_vec(c,v)
+  ! subroutine inplane_lattice_vecs(c,ihkl,hklr,nv,vlist)
+  ! subroutine reduce_glide(c,nv,vlist,t,tred)
+  ! function glide_rank(t)
+  ! subroutine elem_clip_box(skind,x0,dirf,ncell,ok,xmid,onfar)
   ! subroutine typeop(rot,type,vec,order)
   ! function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
   ! function perm3(p,r,t) result(res)
+
+  ! half-width of the box of lattice translations added to an operation when
+  ! enumerating the distinct elements it generates in one cell. The element
+  ! moves by a fraction of the translation, never by more than the translation
+  ! itself, so reaching one cell away needs no more than a couple of cells of
+  ! translation; 4 leaves a wide margin (verified against the 530 structures
+  ! of tests/zz_source/cif/allspg).
+  integer, parameter :: tlim_def = 4
+
+  ! half-width and size of the box of lattice translations scanned when
+  ! reducing a glide vector (see inplane_lattice_vecs)
+  ! most symmetry operations recorded per element type
+  integer, parameter :: maxop_def = 16
+
+  integer, parameter :: inplane_mbox = 3
+  integer, parameter :: inplane_nbox = (2*inplane_mbox+1)**3
 
   ! symmetry operation symbols
   integer, parameter :: ident=0 !< identifier for sym. operations
@@ -1062,6 +1093,311 @@ contains
 
   end subroutine getiws
 
+  !> Mark in mask the element types of the list se that the symmetry
+  !> operations iop generate (see list_symelems for how the operations are
+  !> indexed). Used to turn a selection of operations into a selection of
+  !> the element types drawn for them. mask has one entry per type in se.
+  module subroutine symelem_type_mask(se,iop,mask)
+    type(symelem_list), intent(in) :: se
+    integer, intent(in) :: iop(:)
+    logical, intent(out) :: mask(:)
+
+    integer :: i, j
+
+    mask = .false.
+    do i = 1, min(se%ntype,size(mask,1))
+       do j = 1, se%nop(i)
+          if (any(iop == se%iop(j,i))) then
+             mask(i) = .true.
+             exit
+          end if
+       end do
+    end do
+
+  end subroutine symelem_type_mask
+
+  !> Classify the rotation part rmat of a symmetry operation (crystallographic
+  !> coordinates) into cl: the kind of geometric element it defines, the order
+  !> and Hermann-Mauguin symbol of the point operation, the axis or plane
+  !> normal in several frames, the projector on the space it leaves fixed, and
+  !> what the screw or glide part of the symbol is measured against. cl%kind is
+  !> zero for the identity, which has no element.
+  module subroutine symop_classify(c,rmat,cl)
+    use tools_math, only: eig, det3
+    use tools_io, only: string
+    use param, only: pi, eye
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: rmat(3,3)
+    type(symop_class), intent(inout) :: cl
+
+    real*8, parameter :: eps = 1d-5
+
+    integer :: j, k, ord, idx, ier, ivec(3)
+    real*8 :: rmatv(3,3), wacc(3,3), wsum(3,3), eval(3), evali(3)
+    real*8 :: trace, det, ang, ridx
+    logical :: isplane, ok
+
+    cl%kind = 0
+    cl%order = 0
+    cl%rotnum = 0
+    cl%base = ""
+    cl%axis = 0d0
+    cl%dirc = 0d0
+    cl%dirf = 0d0
+    cl%dirlabel = ""
+    cl%vsh = 0d0
+    cl%nv = 0
+    cl%pmat = eye
+
+    trace = rmat(1,1) + rmat(2,2) + rmat(3,3)
+    det = det3(rmat)
+    cl%isproper = (det > 0d0)
+
+    ! the identity has no element, and its projector is the identity
+    if (abs(trace - 3d0) < eps) then
+       cl%base = "1"
+       return
+    end if
+
+    ! order of the rotation part and projector on the space it fixes:
+    ! P = (1/k) sum_m W^m, with k the order of W
+    wacc = eye
+    wsum = 0d0
+    ord = 0
+    do k = 1, 6
+       wsum = wsum + wacc
+       wacc = matmul(rmat,wacc)
+       ord = ord + 1
+       if (all(abs(wacc - eye) < eps)) exit
+    end do
+    cl%pmat = wsum / real(ord,8)
+
+    ! the inversion center has no direction
+    if (abs(trace + 3d0) < eps) then
+       cl%kind = symop_kind_point
+       cl%base = "-1"
+       return
+    end if
+
+    ! rotation angle -> order of the rotation; an improper operation -n has
+    ! cos(ang) = -(trace+1)/2, so a mirror comes out as n = 2
+    if (cl%isproper) then
+       ang = 0.5d0*(trace-1d0)
+    else
+       ang = -0.5d0*(trace+1d0)
+    end if
+    ang = acos(max(min(ang,1d0),-1d0))
+    if (abs(ang) < eps) then
+       cl%rotnum = 1
+    else
+       cl%rotnum = nint((2d0*pi)/ang)
+    end if
+    isplane = (.not.cl%isproper .and. cl%rotnum == 2)
+
+    ! base Hermann-Mauguin symbol of the point operation
+    if (cl%isproper) then
+       cl%base = string(cl%rotnum)
+    elseif (isplane) then
+       cl%base = "m"
+    else
+       cl%base = string(-cl%rotnum)
+    end if
+
+    ! the axis (rotations and rotoinversions) or the plane normal is the
+    ! eigenvector of W with eigenvalue det; a failed diagonalization leaves
+    ! the axis at zero and the operation without an element
+    rmatv = rmat
+    call eig(rmatv,3,eval,evali,ier)
+    idx = 0
+    if (ier == 0) then
+       do j = 1, 3
+          if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then
+             idx = j
+             exit
+          end if
+       end do
+    end if
+    if (idx == 0) return
+    cl%axis = rmatv(:,idx)
+
+    ! scale the axis by its smallest non-zero component, so that it comes out
+    ! as the integer indices of the direction whenever they are commensurate
+    ridx = 1d40
+    do j = 1, 3
+       if (abs(cl%axis(j)) > eps .and. abs(cl%axis(j)) < ridx) ridx = abs(cl%axis(j))
+    end do
+    if (ridx < 1d39) cl%axis = cl%axis / ridx
+
+    cl%dirc = c%x2c(cl%axis)
+    if (norm2(cl%dirc) < 1d-10) then
+       cl%axis = 0d0
+       return
+    end if
+    cl%dirc = cl%dirc / norm2(cl%dirc)
+
+    if (isplane) then
+       ! the plane normal in reciprocal coordinates gives both the Miller
+       ! indices and the plane equation in crystallographic coordinates
+       cl%kind = symop_kind_plane
+       cl%dirf = c%rc2rx(cl%dirc)
+       call primitive_int(cl%dirf,ivec,ok)
+       if (ok) cl%dirlabel = "(" // string(ivec(1)) // string(ivec(2)) // string(ivec(3)) // ")"
+
+       ! the lattice translations the glide vector is reduced by
+       call inplane_lattice_vecs(c,ivec,cl%dirf,cl%nv,cl%vlist)
+    else
+       cl%kind = symop_kind_axis
+       cl%order = cl%rotnum
+       cl%dirf = cl%axis
+       call primitive_int(cl%axis,ivec,ok)
+       if (ok) then
+          cl%dirlabel = "[" // string(ivec(1)) // string(ivec(2)) // string(ivec(3)) // "]"
+
+          ! shortest lattice translation along a proper rotation axis: the unit
+          ! the screw component of the symbol is measured in
+          if (cl%isproper) then
+             cl%vsh = real(ivec,8)
+             do j = 2, 6
+                if (is_lattice_vec(c,real(ivec,8)/real(j,8))) cl%vsh = real(ivec,8)/real(j,8)
+             end do
+
+          end if
+       end if
+    end if
+
+  end subroutine symop_classify
+
+  !> Hermann-Mauguin symbol of the symmetry operation classified in cl whose
+  !> intrinsic (screw/glide) translation is tint = cl%pmat . w, with w the
+  !> translation part of the operation: the symbol of the point operation plus
+  !> the screw subscript of a rotation axis or the letter of a glide plane.
+  module function symop_symbol(c,cl,tint) result(slabel)
+    use tools_io, only: string
+    class(crystal), intent(in) :: c
+    type(symop_class), intent(in) :: cl
+    real*8, intent(in) :: tint(3)
+    character(len=symlen) :: slabel
+
+    real*8, parameter :: eps = 1d-5
+
+    integer :: ip
+    real*8 :: tred(3), fscrew
+
+    slabel = cl%base
+    if (cl%kind == symop_kind_plane) then
+       ! mirror or glide: the letter of the reduced glide vector
+       call reduce_glide(c,cl%nv,cl%vlist,tint,tred)
+       if (norm2(c%x2c(tred)) > eps) slabel = glide_letter(tred)
+    elseif (cl%kind == symop_kind_axis .and. norm2(cl%vsh) > 0d0) then
+       ! rotation or screw: the component along the axis, in units of the
+       ! shortest lattice translation along it
+       fscrew = dot_product(tint,cl%vsh) / dot_product(cl%vsh,cl%vsh)
+       ip = modulo(nint(cl%rotnum*fscrew),cl%rotnum)
+       if (ip /= 0) slabel = trim(cl%base) // "_" // string(ip)
+    end if
+
+  end function symop_symbol
+
+  !> Deallocate and reset a symmetry-element list.
+  module subroutine symelem_list_end(se)
+    class(symelem_list), intent(inout) :: se
+
+    se%ntype = 0
+    se%n = 0
+    if (allocated(se%kind)) deallocate(se%kind)
+    if (allocated(se%order)) deallocate(se%order)
+    if (allocated(se%dir)) deallocate(se%dir)
+    if (allocated(se%label)) deallocate(se%label)
+    if (allocated(se%dirlabel)) deallocate(se%dirlabel)
+    if (allocated(se%nop)) deallocate(se%nop)
+    if (allocated(se%iop)) deallocate(se%iop)
+    se%maxop = 0
+    if (allocated(se%itype)) deallocate(se%itype)
+    if (allocated(se%x)) deallocate(se%x)
+    if (allocated(se%key)) deallocate(se%key)
+
+  end subroutine symelem_list_end
+
+  !> Return in se the geometric symmetry elements (mirror/glide
+  !> planes, rotation/screw/rotoinversion axes, and inversion centers)
+  !> of the structure. For crystals, an element is included if it
+  !> intersects the box spanned by ncell unit cells ([0,ncell] in
+  !> crystallographic coordinates); if border, the elements lying
+  !> exactly on the far faces of that box are included as well. The
+  !> type list (kind/order/direction/symbol) is always built from the
+  !> one-cell region, so it does not change with ncell or border. For
+  !> molecules, ncell and border are ignored and the point-group
+  !> elements, all of which pass through the center of mass, are
+  !> returned. If iop is given, return only the elements of the
+  !> symmetry operations it lists, the type list is then built from
+  !> those operations alone. If typesonly, return only the element
+  !> types, and ncell and border are ignored.
+  module subroutine list_symelems(c,ncell,border,se,iop,typesonly)
+    use types, only: molsymop_plane, molsymop_rotation, molsymop_imp_rotation, molsymop_inversion
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: ncell(3)
+    logical, intent(in) :: border
+    type(symelem_list), intent(inout) :: se
+    integer, intent(in), optional :: iop(:)
+    logical, intent(in), optional :: typesonly
+
+    integer :: i, skind, sorder, ioptype
+    real*8 :: raxx(3)
+    logical :: dotypes
+
+    call se%end()
+    dotypes = .false.
+    if (present(typesonly)) dotypes = typesonly
+
+    if (c%ismolecule) then
+       !! molecule: the point-group operations, all through the center of mass
+       if (.not.c%pg%avail) return
+       do i = 1, c%pg%nop
+          if (present(iop)) then
+             if (.not.any(iop == i)) cycle
+          end if
+          ioptype = c%pg%op(i)%type
+          if (ioptype == molsymop_inversion) then
+             ! the inversion center is the center of mass, and has no direction
+             call symelem_add(se,symop_kind_point,0,(/0d0,0d0,0d0/),c%pg%op(i)%sym,"",c%pg%xcm,iop=i)
+             cycle
+          elseif (ioptype == molsymop_plane) then
+             skind = symop_kind_plane
+             sorder = 0
+          elseif (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation) then
+             skind = symop_kind_axis
+             sorder = c%pg%op(i)%opn
+          else
+             cycle
+          end if
+          raxx = c%pg%op(i)%axis
+          if (norm2(raxx) < 1d-10) cycle
+          raxx = raxx / norm2(raxx)
+          call symelem_add(se,skind,sorder,raxx,c%pg%op(i)%sym,"",c%pg%xcm,iop=i)
+       end do
+       call symelem_trim(se)
+    else
+       !! crystal: the one-cell region is a fundamental domain for the lattice,
+       !! so the elements it contains are a complete set of representatives,
+       !! and the type list they give does not depend on ncell or border
+       call symelem_enum(c,se,iop)
+
+       !! the elements in the requested region are their lattice translates
+       if (.not.dotypes) call symelem_replicate(c,ncell,border,se)
+    end if
+
+    !! the caller only wants the element types: drop the instances the
+    !! enumeration built on the way (the types are a by-product of it)
+    if (dotypes) then
+       se%n = 0
+       if (allocated(se%itype)) deallocate(se%itype)
+       if (allocated(se%x)) deallocate(se%x)
+       if (allocated(se%key)) deallocate(se%key)
+       call symelem_trim(se)
+    end if
+
+  end subroutine list_symelems
+
   !xx! private procedures
 
   !> For the symmetry operation rot, compute the order and
@@ -1647,86 +1983,733 @@ contains
 
   end subroutine reduceatoms
 
-  !> Returns the list of symmetry operations. There are n
-  !> operations. For each, the routine gives: kind (symop_kind_plane
-  !> parameter), the unit direction/normal dir in cartesian (bohr),
-  !> the rotation order, and a label (Hermann-Mauguin symbol for
-  !> crystals, the molecular symmetry symbol for molecules).
-  module subroutine list_symops(c,n,kind,dir,order,label)
-    use param, only: mlen
-    use types, only: molsymop_plane, molsymop_rotation, molsymop_imp_rotation
-    class(crystal), intent(in) :: c
-    integer, intent(out) :: n
-    integer, allocatable, intent(out) :: kind(:)
-    real*8, allocatable, intent(out) :: dir(:,:)
-    integer, allocatable, intent(out) :: order(:)
-    character(len=mlen), allocatable, intent(out) :: label(:)
 
-    integer :: i, ioptype
-    real*8 :: raxc(3), raxx(3)
-    character(len=1) :: hm1, cdig
-    character(len=mlen), allocatable :: hm(:)
-    real*8, allocatable :: axcr(:,:)
+  !> Enumerate the symmetry elements of crystal c that intersect the box
+  !> [0,ncell] in crystallographic coordinates (plus the elements on its far
+  !> faces, if border) and return them in se.
+  !>
+  !> For an operation (W,w) of order k (of the rotation part W), the projector
+  !> on the space left fixed by W is P = (1/k) sum_m W^m. The operation splits
+  !> into the intrinsic (screw/glide) translation t = P.w, which gives the
+  !> Hermann-Mauguin symbol, and the location part wl = w - t. The element is
+  !> the set of fixed points of (W,wl), and it passes through
+  !>    x0 = (W - I + P)^-1 . (-wl)
+  !> Every lattice translation u added to w gives another element of
+  !> the group, generally at a different location and with a different
+  !> symbol (e.g. the mirror and n-glide planes that alternate along
+  !> [110] in P-42_1m), so the enumeration runs over u as well.
+  subroutine symelem_enum(c,se,iop)
+    use tools_math, only: matinv
+    use param, only: eye
+    type(crystal), intent(in) :: c
+    type(symelem_list), intent(inout) :: se
+    integer, intent(in), optional :: iop(:)
 
-    if (c%ismolecule) then
-       n = 0
-       if (c%pg%avail) n = c%pg%nop
-    else
-       n = c%neqv
-    end if
-    allocate(kind(n),dir(3,n),order(n),label(n))
-    kind = 0
-    order = 0
-    dir = 0d0
-    label = ""
-    if (n == 0) return
+    real*8, parameter :: eps = 1d-5
 
-    if (c%ismolecule) then
-       !! molecule: point-group operations
-       do i = 1, n
-          label(i) = c%pg%op(i)%sym
-          ioptype = c%pg%op(i)%type
-          if (ioptype == molsymop_plane) then
-             kind(i) = symop_kind_plane
-          elseif (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation) then
-             kind(i) = symop_kind_axis
-          end if
-          if (kind(i) == 0) cycle
-          raxx = c%pg%op(i)%axis
-          if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
-          dir(:,i) = raxx
-          order(i) = c%pg%op(i)%opn
-       end do
-    else
-       !! crystal: space-group operations (identity centering only)
-       allocate(hm(c%neqv*c%ncv),axcr(3,c%neqv*c%ncv))
-       call c%struct_report_symxyz(hmsym=hm,axcr=axcr)
-       do i = 1, n
-          label(i) = hm(i)
-          raxc = axcr(:,i)
-          ! identity and inversion have a zero axis and draw nothing
-          if (norm2(raxc) < 1d-10) cycle
-          hm1 = hm(i)(1:1) ! HM symbol is stored left-aligned
-          if (hm1 >= "a" .and. hm1 <= "z") then
-             kind(i) = symop_kind_plane
+    integer :: ieqv, icv, iop1, j, ier
+    integer :: tlim(3), it1, it2, it3
+    real*8 :: nmat(3,3), wvec(3), tvec(3), tint(3), wl(3), x0(3), xmid(3)
+    character(len=symlen) :: slabel
+    logical :: ok, onfar
+    type(symop_class) :: cl
+
+    call se%end()
+
+    do ieqv = 1, c%neqv
+       ! the rotation part fixes the kind, the direction, and the projector,
+       ! and is shared by every centering vector
+       call symop_classify(c,c%rotm(:,1:3,ieqv),cl)
+       if (cl%kind == 0) cycle
+
+       ! (W - I + P) is invertible and inverts W - I on the complement of the
+       ! fixed space, where the location part lives
+       nmat = c%rotm(:,1:3,ieqv) - eye + cl%pmat
+       call matinv(nmat,3,ier)
+       if (ier /= 0) cycle
+
+       ! a lattice translation along the element does not move it, so only the
+       ! directions with a transverse component need to be scanned
+       do j = 1, 3
+          tvec = -cl%pmat(:,j)
+          tvec(j) = tvec(j) + 1d0
+          if (norm2(c%x2c(tvec)) < eps) then
+             tlim(j) = 0
           else
-             kind(i) = symop_kind_axis
-             ! rotation order from the symbol: the digit, after an optional
-             ! leading "-" (rotoinversion: "-3"/"-4"/"-6")
-             if (hm1 == "-") then
-                cdig = hm(i)(2:2)
-             else
-                cdig = hm1
-             end if
-             if (cdig >= "0" .and. cdig <= "9") order(i) = ichar(cdig) - ichar("0")
+             tlim(j) = tlim_def
           end if
-          raxx = c%x2c(raxc)
-          if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
-          dir(:,i) = raxx
        end do
-       deallocate(hm,axcr)
+
+       do icv = 1, c%ncv
+          ! only the requested operations, if a list was given
+          iop1 = (icv-1)*c%neqv + ieqv
+          if (present(iop)) then
+             if (.not.any(iop == iop1)) cycle
+          end if
+          wvec = c%rotm(:,4,ieqv) + c%cen(:,icv)
+
+          do it1 = -tlim(1), tlim(1)
+             do it2 = -tlim(2), tlim(2)
+                do it3 = -tlim(3), tlim(3)
+                   tvec = wvec + real((/it1,it2,it3/),8)
+                   tint = matmul(cl%pmat,tvec)
+                   wl = tvec - tint
+                   x0 = matmul(nmat,-wl)
+
+                   ! keep only the elements that reach the cell, and move the
+                   ! point to the middle of the part of the element inside it
+                   call elem_clip_box(cl%kind,x0,cl%dirf,(/1,1,1/),ok,xmid,onfar)
+                   if (.not.ok) cycle
+
+                   ! the symbol of this element depends on the translation
+                   slabel = symop_symbol(c,cl,tint)
+                   call symelem_add(se,cl%kind,cl%order,cl%dirc,slabel,cl%dirlabel,&
+                      c%x2c(xmid),iop=iop1)
+                end do
+             end do
+          end do
+       end do
+    end do
+
+  end subroutine symelem_enum
+
+  !> Replace the element instances in se (a complete set of representatives,
+  !> one per lattice class) by all their lattice translates that intersect the
+  !> box [0,ncell] in crystallographic coordinates, plus those on its far faces
+  !> if border. The element types are left untouched.
+  subroutine symelem_replicate(c,ncell,border,se)
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: ncell(3)
+    logical, intent(in) :: border
+    type(symelem_list), intent(inout) :: se
+
+    real*8, parameter :: eps = 1d-5
+
+    type(symelem_list) :: sen
+    integer :: i, j, it, it1, it2, it3, tlo(3), thi(3), skind, ifrom
+    real*8 :: x0f(3), xf(3), xmid(3), dirc(3), dirf(3), ev(3)
+    logical :: ok, onfar
+
+    if (se%n == 0) return
+
+    ! carry over the type list, so that symelem_add reuses it
+    do i = 1, se%ntype
+       call symelem_addtype(sen,se%kind(i),se%order(i),se%dir(:,i),se%label(i),se%dirlabel(i),&
+          se%nop(i),se%iop(:,i))
+    end do
+
+    ! one type at a time: the geometry is the same for every element of a type,
+    ! and the instances of a type come out contiguous, so the duplicate scan in
+    ! symelem_add only has to look at the type being built
+    do it = 1, se%ntype
+       ifrom = sen%n + 1
+       skind = se%kind(it)
+       dirc = se%dir(:,it)
+       dirf = symelem_dirf(c,skind,dirc)
+
+       ! a lattice translation along the element does not move it: the
+       ! representative it generates is the element itself. Every other
+       ! translate that reaches the box is generated by a translation in
+       ! [-1,ncell] (see the discussion in symelem_enum).
+       do j = 1, 3
+          ev = c%m_x2c(:,j)
+          if (skind == symop_kind_plane) then
+             ok = (abs(dirf(j)) < eps)
+          elseif (skind == symop_kind_axis) then
+             ok = (norm2(ev - dot_product(ev,dirc)*dirc) < eps)
+          else
+             ok = .false.
+          end if
+          if (ok) then
+             tlo(j) = 0
+             thi(j) = 0
+          else
+             tlo(j) = -1
+             thi(j) = ncell(j)
+          end if
+       end do
+
+       do i = 1, se%n
+          if (se%itype(i) /= it) cycle
+          x0f = c%c2x(se%x(:,i))
+          do it1 = tlo(1), thi(1)
+             do it2 = tlo(2), thi(2)
+                do it3 = tlo(3), thi(3)
+                   xf = x0f + real((/it1,it2,it3/),8)
+
+                   ! keep only the elements that reach the box, and move the
+                   ! point to the middle of the part of the element inside it
+                   call elem_clip_box(skind,xf,dirf,ncell,ok,xmid,onfar)
+                   if (.not.ok) cycle
+                   if (.not.border .and. onfar) cycle
+                   call symelem_add(sen,skind,se%order(it),dirc,se%label(it),se%dirlabel(it),&
+                      c%x2c(xmid),ifrom=ifrom,itype=it)
+                end do
+             end do
+          end do
+       end do
+    end do
+    call symelem_trim(sen)
+    call se%end()
+    se%ntype = sen%ntype
+    se%maxop = sen%maxop
+    se%n = sen%n
+    call move_alloc(sen%kind,se%kind)
+    call move_alloc(sen%order,se%order)
+    call move_alloc(sen%dir,se%dir)
+    call move_alloc(sen%label,se%label)
+    call move_alloc(sen%dirlabel,se%dirlabel)
+    call move_alloc(sen%nop,se%nop)
+    call move_alloc(sen%iop,se%iop)
+    call move_alloc(sen%itype,se%itype)
+    call move_alloc(sen%x,se%x)
+    call move_alloc(sen%key,se%key)
+
+  end subroutine symelem_replicate
+
+  !> Direction of a symmetry element of kind skind in the crystallographic
+  !> frame: the reciprocal-space normal for a plane (so that the plane is
+  !> dirf.(x-x0) = 0), the direction for an axis, and zero for an inversion
+  !> center. dirc is the Cartesian unit direction or normal.
+  function symelem_dirf(c,skind,dirc) result(dirf)
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: skind
+    real*8, intent(in) :: dirc(3)
+    real*8 :: dirf(3)
+
+    if (skind == symop_kind_plane) then
+       dirf = c%rc2rx(dirc)
+    elseif (skind == symop_kind_axis) then
+       dirf = c%c2x(dirc)
+    else
+       dirf = 0d0
     end if
 
-  end subroutine list_symops
+  end function symelem_dirf
+
+  !> Hermann-Mauguin letter of a glide plane whose (reduced, non-zero) glide
+  !> vector in crystallographic coordinates is tred.
+  function glide_letter(tred) result(c1)
+    real*8, intent(in) :: tred(3)
+    character(len=1) :: c1
+
+    integer :: nhalf
+
+    if (any(abs(abs(tred)-0.25d0) < 1d-3)) then
+       c1 = "d"
+       return
+    end if
+    nhalf = count(abs(abs(tred)-0.5d0) < 1d-3)
+    if (nhalf >= 2) then
+       c1 = "n"
+    elseif (nhalf == 0) then
+       c1 = "g"
+    elseif (abs(abs(tred(1))-0.5d0) < 1d-3) then
+       c1 = "a"
+    elseif (abs(abs(tred(2))-0.5d0) < 1d-3) then
+       c1 = "b"
+    else
+       c1 = "c"
+    end if
+
+  end function glide_letter
+
+  !> Index of the element type (skind,sorder,dirc,slabel) in the element list
+  !> se, or zero if it is not there. Axes and planes are the same type if they
+  !> are parallel, whichever way their direction vector points.
+  function symelem_findtype(se,skind,sorder,dirc,slabel) result(it)
+    type(symelem_list), intent(in) :: se
+    integer, intent(in) :: skind, sorder
+    real*8, intent(in) :: dirc(3)
+    character*(*), intent(in) :: slabel
+    integer :: it
+
+    integer :: i
+
+    it = 0
+    do i = 1, se%ntype
+       if (se%kind(i) /= skind) cycle
+       if (se%order(i) /= sorder) cycle
+       if (se%label(i) /= slabel) cycle
+       if (skind /= symop_kind_point) then
+          if (abs(abs(dot_product(se%dir(:,i),dirc)) - 1d0) > 1d-6) cycle
+       end if
+       it = i
+       return
+    end do
+
+  end function symelem_findtype
+
+  !> Add the element type (skind,sorder,dirc,slabel,sdirlabel) to the element
+  !> list se. dirc is the Cartesian unit direction (axes) or normal (planes).
+  subroutine symelem_addtype(se,skind,sorder,dirc,slabel,sdirlabel,nop,iop)
+    use types, only: realloc
+    type(symelem_list), intent(inout) :: se
+    integer, intent(in) :: skind, sorder
+    real*8, intent(in) :: dirc(3)
+    character*(*), intent(in) :: slabel, sdirlabel
+    integer, intent(in) :: nop
+    integer, intent(in) :: iop(:)
+
+    integer :: n
+
+    se%ntype = se%ntype + 1
+    if (.not.allocated(se%kind)) then
+       se%maxop = maxop_def
+       allocate(se%kind(10),se%order(10),se%dir(3,10),se%label(10),se%dirlabel(10))
+       allocate(se%nop(10),se%iop(se%maxop,10))
+    elseif (se%ntype > size(se%kind,1)) then
+       n = 2*se%ntype
+       call realloc(se%kind,n)
+       call realloc(se%order,n)
+       call realloc(se%dir,3,n)
+       call realloc(se%label,n)
+       call realloc(se%dirlabel,n)
+       call realloc(se%nop,n)
+       call realloc(se%iop,se%maxop,n)
+    end if
+    se%kind(se%ntype) = skind
+    se%order(se%ntype) = sorder
+    se%dir(:,se%ntype) = dirc
+    se%label(se%ntype) = slabel
+    se%dirlabel(se%ntype) = sdirlabel
+    se%nop(se%ntype) = min(nop,se%maxop)
+    se%iop(:,se%ntype) = 0
+    if (se%nop(se%ntype) > 0) se%iop(1:se%nop(se%ntype),se%ntype) = iop(1:se%nop(se%ntype))
+
+  end subroutine symelem_addtype
+
+  !> Add one symmetry element of kind skind, rotation order sorder, Cartesian
+  !> unit direction/normal dirc, symbol slabel, and direction label sdirlabel,
+  !> passing through the Cartesian point xc, to the element list se. Creates
+  !> the element type if it is not in the list yet. Elements already in the
+  !> list (same type and same position transverse to the element) are skipped;
+  !> ifrom is the first instance the duplicate scan has to look at.
+  subroutine symelem_add(se,skind,sorder,dirc,slabel,sdirlabel,xc,ifrom,iop,itype)
+    use types, only: realloc
+    type(symelem_list), intent(inout) :: se
+    integer, intent(in) :: skind, sorder
+    real*8, intent(in) :: dirc(3), xc(3)
+    character*(*), intent(in) :: slabel, sdirlabel
+    integer, intent(in), optional :: ifrom
+    integer, intent(in), optional :: iop
+    integer, intent(in), optional :: itype
+
+    real*8, parameter :: epskey = 1d-3 ! bohr
+
+    integer :: i, it, n, i0
+    real*8 :: key(3)
+
+    ! find the element type, or create it
+    ! the caller may already know the type (the replication does)
+    if (present(itype)) then
+       it = itype
+    else
+       it = symelem_findtype(se,skind,sorder,dirc,slabel)
+       if (it == 0) then
+          call symelem_addtype(se,skind,sorder,dirc,slabel,sdirlabel,0,(/0/))
+          it = se%ntype
+       end if
+    end if
+
+    ! remember which symmetry operations generate this element type
+    if (present(iop)) then
+       if (.not.any(se%iop(1:se%nop(it),it) == iop) .and. se%nop(it) < se%maxop) then
+          se%nop(it) = se%nop(it) + 1
+          se%iop(se%nop(it),it) = iop
+       end if
+    end if
+
+    ! discard the element if it is in the list already (the key of every
+    ! instance is cached, so this scan does no geometry). A caller that adds
+    ! the elements of one type at a time passes the index where that type
+    ! starts, so the scan does not run over the types already done.
+    i0 = 1
+    if (present(ifrom)) i0 = ifrom
+    key = symelem_key(skind,se%dir(:,it),xc)
+    do i = i0, se%n
+       if (se%itype(i) /= it) cycle
+       if (all(abs(se%key(:,i) - key) < epskey)) return
+    end do
+
+    ! add it
+    se%n = se%n + 1
+    if (.not.allocated(se%itype)) then
+       allocate(se%itype(100),se%x(3,100),se%key(3,100))
+    elseif (se%n > size(se%itype,1)) then
+       n = 2*se%n
+       call realloc(se%itype,n)
+       call realloc(se%x,3,n)
+       call realloc(se%key,3,n)
+    end if
+    se%itype(se%n) = it
+    se%x(:,se%n) = xc
+    se%key(:,se%n) = key
+
+  end subroutine symelem_add
+
+  !> Trim the arrays in symmetry-element list se to their actual size.
+  subroutine symelem_trim(se)
+    use types, only: realloc
+    type(symelem_list), intent(inout) :: se
+
+    if (allocated(se%kind)) then
+       if (se%ntype /= size(se%kind,1)) then
+          call realloc(se%kind,se%ntype)
+          call realloc(se%order,se%ntype)
+          call realloc(se%dir,3,se%ntype)
+          call realloc(se%label,se%ntype)
+          call realloc(se%dirlabel,se%ntype)
+          call realloc(se%nop,se%ntype)
+          call realloc(se%iop,se%maxop,se%ntype)
+       end if
+    end if
+    if (allocated(se%itype)) then
+       if (se%n /= size(se%itype,1)) then
+          call realloc(se%itype,se%n)
+          call realloc(se%x,3,se%n)
+          call realloc(se%key,3,se%n)
+       end if
+    end if
+
+  end subroutine symelem_trim
+
+  !> Position of the Cartesian point xc transverse to a symmetry element of
+  !> kind skind with Cartesian unit direction/normal dirc. Two elements of the
+  !> same type are the same element if and only if this vector is the same.
+  function symelem_key(skind,dirc,xc) result(key)
+    integer, intent(in) :: skind
+    real*8, intent(in) :: dirc(3), xc(3)
+    real*8 :: key(3)
+
+    if (skind == symop_kind_plane) then
+       key = dot_product(xc,dirc) * dirc
+    elseif (skind == symop_kind_axis) then
+       key = xc - dot_product(xc,dirc) * dirc
+    else
+       key = xc
+    end if
+
+  end function symelem_key
+
+  !> Scale vector v to the smallest collinear vector with integer components,
+  !> returned in iv and with the first non-zero component positive. ok is
+  !> false if v is zero or its components are not commensurate.
+  subroutine primitive_int(v,iv,ok)
+    use tools_math, only: gcd
+    real*8, intent(in) :: v(3)
+    integer, intent(out) :: iv(3)
+    logical, intent(out) :: ok
+
+    real*8, parameter :: eps = 1d-4
+
+    integer :: i, m, ig
+    real*8 :: vv(3), vmax
+
+    iv = 0
+    ok = .false.
+    vmax = maxval(abs(v))
+    if (vmax < 1d-10) return
+    vv = v / vmax
+
+    ! smallest multiplier that makes all the components integers
+    do m = 1, 24
+       if (all(abs(m*vv - nint(m*vv)) < eps)) then
+          iv = nint(m*vv)
+          ok = .true.
+          exit
+       end if
+    end do
+    if (.not.ok) return
+
+    ! reduce by the greatest common divisor
+    ig = gcd(abs(iv),3)
+    if (ig > 1) iv = iv / ig
+
+    ! first non-zero component positive
+    do i = 1, 3
+       if (iv(i) /= 0) then
+          if (iv(i) < 0) iv = -iv
+          exit
+       end if
+    end do
+
+  end subroutine primitive_int
+
+  !> True if v (crystallographic coordinates) is a lattice translation of
+  !> crystal c, centering vectors included.
+  function is_lattice_vec(c,v) result(ok)
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: v(3)
+    logical :: ok
+
+    integer :: i
+    real*8 :: d(3)
+
+    ok = .true.
+    do i = 1, c%ncv
+       d = v - c%cen(:,i)
+       if (all(abs(d - nint(d)) < 1d-5)) return
+    end do
+    ok = .false.
+
+  end function is_lattice_vec
+
+  !> Return in vlist the nv short lattice translations of crystal c (centering
+  !> vectors included) that are contained in the plane with primitive Miller
+  !> indices ihkl and reciprocal-space normal hklr. Crystallographic
+  !> coordinates. The search box has to reach past the Miller indices: the
+  !> shortest lattice translation in a plane such as (2-10) is (1,2,0), so a
+  !> box of +/-1 would find no in-plane translation at all and leave the glide
+  !> vectors unreduced. A plane with indices (h,k,l) always has a basis of its
+  !> lattice translations with components no larger than max(|h|,|k|,|l|), so
+  !> the box is taken from the indices themselves and not guessed; that also
+  !> covers the non-conventional cells a NEWCELL transformation can produce,
+  !> where the indices are large.
+  subroutine inplane_lattice_vecs(c,ihkl,hklr,nv,vlist)
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: ihkl(3)
+    real*8, intent(in) :: hklr(3)
+    integer, intent(out) :: nv
+    real*8, allocatable, intent(inout) :: vlist(:,:)
+
+    integer :: i, j1, j2, j3, mb
+
+    real*8 :: v(3), hnorm
+
+    mb = max(maxval(abs(ihkl)),1)
+    if (allocated(vlist)) then
+       if (size(vlist,2) < (2*mb+1)**3 * c%ncv) deallocate(vlist)
+    end if
+    if (.not.allocated(vlist)) allocate(vlist(3,(2*mb+1)**3 * c%ncv))
+
+    hnorm = max(norm2(hklr),1d-10)
+    nv = 0
+    do i = 1, c%ncv
+       do j1 = -mb, mb
+          do j2 = -mb, mb
+             do j3 = -mb, mb
+                v = c%cen(:,i) + real((/j1,j2,j3/),8)
+                if (abs(dot_product(hklr,v)) > 1d-5 * hnorm * max(norm2(v),1d0)) cycle
+                nv = nv + 1
+                vlist(:,nv) = v
+             end do
+          end do
+       end do
+    end do
+
+  end subroutine inplane_lattice_vecs
+
+  !> Reduce the glide vector t of a plane modulo the nv lattice translations
+  !> vlist contained in that plane (as given by inplane_lattice_vecs), and
+  !> return the shortest representative in tred. Crystallographic coordinates.
+  subroutine reduce_glide(c,nv,vlist,t,tred)
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: nv
+    real*8, intent(in) :: vlist(3,nv), t(3)
+    real*8, intent(out) :: tred(3)
+
+    integer :: i, iter, ir, irbest
+    real*8 :: tt(3), tbest(3), dmin, d
+    logical :: again
+
+    ! greedy reduction: subtract the in-plane lattice translation that shortens
+    ! the glide vector the most, and repeat while it keeps getting shorter
+    tred = t
+    dmin = norm2(c%x2c(t))
+    do iter = 1, 20
+       again = .false.
+       do i = 1, nv
+          tt = tred - vlist(:,i)
+          d = norm2(c%x2c(tt))
+          if (d < dmin - 1d-6) then
+             dmin = d
+             tred = tt
+             again = .true.
+          end if
+       end do
+       if (.not.again) exit
+    end do
+
+    ! Among the lattice-equivalent glide vectors, keep the one that carries the
+    ! conventional Hermann-Mauguin letter: the shortest one need not be it. In
+    ! R-3c, for instance, the c glide (0,0,1/2) has equivalents that are shorter
+    ! in a hexagonal cell but that no letter describes.
+    irbest = glide_rank(tred)
+    tbest = tred
+    do i = 1, nv
+       tt = tred - vlist(:,i)
+       ir = glide_rank(tt)
+       d = norm2(c%x2c(tt))
+       if (ir < irbest .or. (ir == irbest .and. d < dmin - 1d-6)) then
+          irbest = ir
+          dmin = d
+          tbest = tt
+       end if
+    end do
+    tred = tbest
+
+  end subroutine reduce_glide
+
+  !> Rank of the Hermann-Mauguin letter of the glide vector t: the lower, the
+  !> more conventional. Used to choose among the lattice-equivalent glide
+  !> vectors of one plane: a mirror first, then an axial glide, then n, then d,
+  !> and last a glide no letter describes. A vector outside the fundamental
+  !> range ranks last, as the letters do not apply to it.
+  function glide_rank(t) result(ir)
+    real*8, intent(in) :: t(3)
+    integer :: ir
+
+    ! the letters only describe a glide vector reduced to the fundamental
+    ! range: (-3/2,0,-1/2) would be read as a c glide, but it is not one
+    if (any(abs(t) > 0.5d0 + 1d-3)) then
+       ir = 5
+       return
+    end if
+    if (all(abs(t) < 1d-5)) then
+       ir = 0
+       return
+    end if
+    select case (glide_letter(t))
+    case ("a","b","c")
+       ir = 1
+    case ("n")
+       ir = 2
+    case ("d")
+       ir = 3
+    case default
+       ir = 4
+    end select
+
+  end function glide_rank
+
+  !> Intersect a symmetry element of kind skind passing through the point x0
+  !> with the box [0,ncell] (crystallographic coordinates). dirf is the
+  !> reciprocal-space normal for a plane and the direction for an axis, and is
+  !> not used for an inversion center. Returns ok if the element crosses the
+  !> box with a non-degenerate intersection (a segment for an axis, a polygon
+  !> for a plane); elements that only graze a corner or an edge are discarded,
+  !> as they would draw nothing. If ok, xmid is a point of the element inside
+  !> the box (the segment midpoint or the polygon centroid), so the element can
+  !> be brought to any other cell with a translation of at most one cell, and
+  !> onfar says the whole intersection lies on a far face of the box, which is
+  !> how the "atoms at the cell edges" flag selects the elements at the cell
+  !> boundary.
+  subroutine elem_clip_box(skind,x0,dirf,ncell,ok,xmid,onfar)
+    integer, intent(in) :: skind
+    real*8, intent(in) :: x0(3), dirf(3)
+    integer, intent(in) :: ncell(3)
+    logical, intent(out) :: ok
+    real*8, intent(out) :: xmid(3)
+    logical, intent(out) :: onfar
+
+    real*8, parameter :: eps = 1d-5
+
+    integer :: j, k, ka, kb, ia, ib, npt
+    real*8 :: s1, s2, sa, sb, umax, xa(3), xb(3), fa, fb, hi(3), epsf
+    real*8 :: xpt(3,12), e1(3), dd, dmax
+
+    ok = .false.
+    onfar = .false.
+    xmid = x0
+    hi = real(ncell,8)
+    if (skind == symop_kind_point) then
+       ! inversion center: the point itself
+       ok = all(x0 >= -eps) .and. all(x0 <= hi+eps)
+       if (ok) onfar = any(x0 > hi - eps)
+    elseif (skind == symop_kind_axis) then
+       ! axis: slab clip of the line against the box
+       sa = -1d40
+       sb = 1d40
+       umax = maxval(abs(dirf))
+       if (umax < 1d-10) return
+       do j = 1, 3
+          if (abs(dirf(j)) > 1d-10 * umax) then
+             s1 = -x0(j) / dirf(j)
+             s2 = (hi(j) - x0(j)) / dirf(j)
+             sa = max(sa,min(s1,s2))
+             sb = min(sb,max(s1,s2))
+          else
+             if (x0(j) < -eps .or. x0(j) > hi(j)+eps) return
+          end if
+       end do
+       ! discard a line that only touches the box at a point or an edge
+       if ((sb - sa) * umax < eps) return
+       ok = .true.
+       xmid = x0 + 0.5d0 * (sa + sb) * dirf
+       xa = x0 + sa * dirf
+       xb = x0 + sb * dirf
+       onfar = any(min(xa,xb) > hi - eps)
+    else
+       ! plane: its intersections with the 12 box edges
+       epsf = 1d-6 * max(norm2(dirf),1d-10) * max(norm2(hi),1d0)
+       npt = 0
+       do k = 1, 3
+          ka = modulo(k,3) + 1
+          kb = modulo(k+1,3) + 1
+          do ia = 0, 1
+             do ib = 0, 1
+                xa = 0d0
+                if (ia == 1) xa(ka) = hi(ka)
+                if (ib == 1) xa(kb) = hi(kb)
+                xb = xa
+                xb(k) = hi(k)
+                fa = dot_product(dirf,xa - x0)
+                fb = dot_product(dirf,xb - x0)
+                if (abs(fa) < epsf) call addpt(xa)
+                if (abs(fb) < epsf) call addpt(xb)
+                if (abs(fa) >= epsf .and. abs(fb) >= epsf .and. fa*fb < 0d0) &
+                   call addpt(xa + fa/(fa-fb) * (xb - xa))
+             end do
+          end do
+       end do
+       if (npt < 3) return
+
+       ! centroid of the intersection polygon
+       xmid = 0d0
+       do j = 1, npt
+          xmid = xmid + xpt(:,j)
+       end do
+       xmid = xmid / real(npt,8)
+
+       ! discard a plane that only touches the box along an edge: the polygon
+       ! has to extend in two independent directions
+       dmax = 0d0
+       do j = 1, npt
+          dd = norm2(xpt(:,j) - xmid)
+          if (dd > dmax) then
+             dmax = dd
+             e1 = xpt(:,j) - xmid
+          end if
+       end do
+       if (dmax < eps) return
+       e1 = e1 / dmax
+       dmax = 0d0
+       do j = 1, npt
+          xa = xpt(:,j) - xmid
+          dmax = max(dmax,norm2(xa - dot_product(xa,e1)*e1))
+       end do
+       if (dmax < eps) return
+
+       ok = .true.
+       do j = 1, 3
+          if (all(xpt(j,1:npt) > hi(j) - eps)) onfar = .true.
+       end do
+    end if
+
+  contains
+    subroutine addpt(x)
+      real*8, intent(in) :: x(3)
+      integer :: i
+
+      do i = 1, npt
+         if (all(abs(xpt(:,i) - x) < eps)) return
+      end do
+      if (npt >= 12) return
+      npt = npt + 1
+      xpt(:,npt) = x
+
+    end subroutine addpt
+  end subroutine elem_clip_box
 
 end submodule symmetry

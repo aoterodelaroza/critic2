@@ -1623,38 +1623,35 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: ch
-    integer :: i, icoord, nop
+    logical :: ch, hasdir
+    integer :: i, icoord, ntype, ncol, icolop
     integer(c_int) :: flags
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
 
     changed = .false.
 
-    ! the symmetry-element style (snapshot + visibility) was refreshed by
+    ! the symmetry-element style (element types + visibility) was refreshed by
     ! the caller if the geometry changed since the last reset
-    nop = w%rep%symelem%style%nop
+    ntype = w%rep%symelem%style%se%ntype
 
-    !! origin
-    call iw_text("Origin",highlight=.true.)
+    ! the direction column has the axis/plane-normal indices, only for crystals
+    hasdir = .not.sys(w%isys)%c%ismolecule
+
+    !! origin (molecules only; in a crystal the element positions are calculated)
     if (sys(w%isys)%c%ismolecule) then
-       ! molecules: cartesian options only (coordtype 1/2), referred to the
-       ! molecular center; the combo is 0-based, hence the +/-1 offset
+       call iw_text("Origin",highlight=.true.)
+       ! cartesian options only (coordtype 1/2), referred to the molecular
+       ! center; the combo is 0-based, hence the +/-1 offset
        icoord = max(w%rep%symelem%coordtype,1) - 1
        call iw_combo_simple("Coordinates##symelemcoord","Cartesian (Å)" // c_null_char // &
           "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
        if (ch .or. (icoord+1) /= w%rep%symelem%coordtype) changed = .true.
        w%rep%symelem%coordtype = icoord + 1
-    else
-       icoord = w%rep%symelem%coordtype
-       call iw_combo_simple("Coordinates##symelemcoord","Crystallographic" // c_null_char // &
-          "Cartesian (Å)" // c_null_char // "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
-       if (ch) changed = .true.
-       w%rep%symelem%coordtype = icoord
+       call iw_tooltip("Coordinate system in which the origin is given",ttshown)
+       changed = changed .or. iw_dragfloat_real8("##originsymelem",x3=w%rep%symelem%origin,speed=0.001d0,decimal=5)
+       call iw_tooltip("Point all the symmetry elements pass through",ttshown)
     end if
-    call iw_tooltip("Coordinate system in which the origin is given",ttshown)
-    changed = changed .or. iw_dragfloat_real8("##originsymelem",x3=w%rep%symelem%origin,speed=0.001d0,decimal=5)
-    call iw_tooltip("Point the symmetry elements pass through (and, for crystals, every lattice point)",ttshown)
 
     !! color
     call iw_text("Color",highlight=.true.)
@@ -1664,61 +1661,86 @@ contains
     if (w%rep%symelem%usecustomrgb) &
        changed = changed .or. iw_coloredit("##symelemrgb",rgb=w%rep%symelem%rgb,sameline=.true.)
 
-    !! operations
-    call iw_text("Operations",highlight=.true.)
+    !! elements
+    call iw_text("Elements",highlight=.true.)
+    call iw_tooltip("The symmetry elements of this system. Operations lists the symmetry operations &
+       &that generate each element, numbered as in the symmetry table of the View/Edit Geometry &
+       &window; one operation can generate elements with different symbols.",ttshown)
     if (w%rep%symelem%style%isinit) then
        ! all / none / toggle
        if (iw_button("All##symelemall")) then
           w%rep%symelem%style%shown = .true.
           changed = .true.
        end if
-       call iw_tooltip("Show all operations",ttshown)
+       call iw_tooltip("Show all symmetry elements",ttshown)
        if (iw_button("None##symelemnone",sameline=.true.)) then
           w%rep%symelem%style%shown = .false.
           changed = .true.
        end if
-       call iw_tooltip("Hide all operations",ttshown)
+       call iw_tooltip("Hide all symmetry elements",ttshown)
        if (iw_button("Toggle##symelemtoggle",sameline=.true.)) then
           w%rep%symelem%style%shown = .not.w%rep%symelem%style%shown
           changed = .true.
        end if
-       call iw_tooltip("Toggle the operation selection",ttshown)
+       call iw_tooltip("Toggle the symmetry element selection",ttshown)
 
-       ! per-operation table
+       ! per-element-type table
        flags = ImGuiTableFlags_None
        flags = ior(flags,ImGuiTableFlags_RowBg)
        flags = ior(flags,ImGuiTableFlags_Borders)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       icolop = merge(3,2,hasdir)
+       ncol = icolop + 1
        str1 = "##symelemtable" // c_null_char
        sz0%x = 0
-       sz0%y = iw_calcheight(min(nop,10)+1,0,.false.)
-       if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+       sz0%y = iw_calcheight(min(ntype,10)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
           call iw_table_column("Show",id=0)
-          call iw_table_column("#",id=1)
-          call iw_table_column("Symbol",id=2)
+          call iw_table_column("Symbol",id=1)
+          if (hasdir) call iw_table_column("Direction",id=2)
+          call iw_table_column("Operations",id=icolop)
           call iw_table_headers_row(freezetop=.true.)
 
-          do i = 1, nop
+          do i = 1, ntype
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
              if (igTableSetColumnIndex(0)) then
-                if (w%rep%symelem%style%kind(i) == 0) then
-                   ! identity/inversion: nothing to draw, show a disabled checkbox
-                   call igBeginDisabled(.true._c_bool)
-                   ch = iw_checkbox("##symelemshow" // string(i),w%rep%symelem%style%shown(i))
-                   call igEndDisabled()
-                else
-                   if (iw_checkbox("##symelemshow" // string(i),w%rep%symelem%style%shown(i))) changed = .true.
-                end if
+                if (iw_checkbox("##symelemshow" // string(i),w%rep%symelem%style%shown(i))) changed = .true.
              end if
-             if (igTableSetColumnIndex(1)) call iw_text(string(i))
-             if (igTableSetColumnIndex(2)) call iw_text(trim(w%rep%symelem%style%label(i)))
+             if (igTableSetColumnIndex(1)) call iw_text(trim(w%rep%symelem%style%se%label(i)))
+             if (hasdir) then
+                if (igTableSetColumnIndex(2)) call iw_text(trim(w%rep%symelem%style%se%dirlabel(i)))
+             end if
+             if (igTableSetColumnIndex(icolop)) &
+                call iw_text(oplist_string(w%rep%symelem%style%se,i))
           end do
           call igEndTable()
        end if
     end if
 
   end function draw_editrep_symelem
+
+  !> Blank-separated list of the symmetry operations that generate element
+  !> type it of the element list se, for the Operations column.
+  function oplist_string(se,it) result(str)
+    use crystalmod, only: symelem_list
+    use tools_io, only: string
+    type(symelem_list), intent(in) :: se
+    integer, intent(in) :: it
+    character(len=:), allocatable :: str
+
+    integer :: i
+
+    str = ""
+    do i = 1, se%nop(it)
+       if (i == 1) then
+          str = string(se%iop(i,it))
+       else
+          str = str // " " // string(se%iop(i,it))
+       end if
+    end do
+
+  end function oplist_string
 
   !> Draw the editrep window, text annotations. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.

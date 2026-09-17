@@ -70,9 +70,54 @@ module crystalmod
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
 
-  ! symmetry-operation element kinds (used by list_symops)
+  ! string lengths of the symmetry-element symbols and direction
+  integer, parameter, public :: symlen = 8
+  integer, parameter, public :: dirlen = 24
+
+  ! symmetry-element kinds (used by list_symelems)
   integer, parameter, public :: symop_kind_plane = 1 ! mirror/glide plane
   integer, parameter, public :: symop_kind_axis = 2 ! rotation/screw/rotoinversion axis
+  integer, parameter, public :: symop_kind_point = 3 ! inversion center
+
+  !> Classification of the rotation part of a symmetry operation: everything
+  !> about the operation that does not depend on its translation.
+  type symop_class
+     integer :: kind = 0 ! element kind (symop_kind_*; 0 = identity, no element)
+     integer :: order = 0 ! rotation order of an axis (0 otherwise)
+     integer :: rotnum = 0 ! order of the point operation (2 for a mirror)
+     logical :: isproper = .false. ! true for a proper rotation
+     character(len=symlen) :: base = "" ! Hermann-Mauguin symbol of the point operation
+     real*8 :: axis(3) = 0d0 ! axis or plane normal, crystallographic coordinates
+     real*8 :: dirc(3) = 0d0 ! the same, Cartesian unit vector
+     real*8 :: dirf(3) = 0d0 ! planes: reciprocal-space normal; axes: direction
+     real*8 :: pmat(3,3) = 0d0 ! projector on the space the rotation leaves fixed
+     character(len=dirlen) :: dirlabel = "" ! [uvw] for an axis, (hkl) for a plane
+     real*8 :: vsh(3) = 0d0 ! shortest lattice translation along a rotation axis (zero: unknown)
+     integer :: nv = 0 ! number of lattice translations contained in a plane
+     real*8, allocatable :: vlist(:,:) ! those translations (3,nv)
+  end type symop_class
+
+  !> List of geometric symmetry elements (planes, axes, inversion
+  !> centers) of a structure, as returned by list_symelems.
+  type symelem_list
+     integer :: ntype = 0 ! number of element types
+     integer, allocatable :: kind(:) ! element kind (symop_kind_*) (ntype)
+     integer, allocatable :: order(:) ! rotation order, 0 if not applicable (ntype)
+     real*8, allocatable :: dir(:,:) ! Cartesian unit axis direction or plane normal (3,ntype)
+     character(len=symlen), allocatable :: label(:) ! HM symbol (crystals) or molecular symbol (ntype)
+     character(len=dirlen), allocatable :: dirlabel(:) ! [uvw] (axes) or (hkl) (planes), "" if none (ntype)
+     integer, allocatable :: nop(:) ! number of symmetry operations that generate the type (ntype)
+     integer, allocatable :: iop(:,:) ! those operations (maxop,ntype)
+     integer :: maxop = 0 ! first dimension of iop
+     integer :: n = 0 ! number of element instances
+     integer, allocatable :: itype(:) ! type of this instance (n)
+     real*8, allocatable :: x(:,:) ! Cartesian point the instance passes through (3,n)
+     real*8, allocatable :: key(:,:) ! internal: position transverse to the element, for deduplication (3,n)
+   contains
+     procedure :: end => symelem_list_end
+  end type symelem_list
+  public :: symelem_list
+  public :: symelem_type_mask
 
   ! Defaults for powder X-ray diffraction routines
   real*8, parameter, public :: xrpd_lambda_def = 1.5406d0
@@ -403,7 +448,7 @@ module crystalmod
      procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
      procedure :: struct_report_symmetry !< Write symmmetry information
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
-     procedure :: list_symops !< Report symmetry element list (kind/dir/order/label)
+     procedure :: list_symelems !< Report the geometric symmetry elements in a cell range
      procedure :: struct_write_json !< Write a json object containing the crystal structure info
 
      ! structure writers (write)
@@ -1401,14 +1446,33 @@ module crystalmod
        character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
        real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
      end subroutine struct_report_symxyz
-     module subroutine list_symops(c,n,kind,dir,order,label)
+     module subroutine list_symelems(c,ncell,border,se,iop,typesonly)
        class(crystal), intent(in) :: c
-       integer, intent(out) :: n
-       integer, allocatable, intent(out) :: kind(:)
-       real*8, allocatable, intent(out) :: dir(:,:)
-       integer, allocatable, intent(out) :: order(:)
-       character(len=mlen), allocatable, intent(out) :: label(:)
-     end subroutine list_symops
+       integer, intent(in) :: ncell(3)
+       logical, intent(in) :: border
+       type(symelem_list), intent(inout) :: se
+       integer, intent(in), optional :: iop(:)
+       logical, intent(in), optional :: typesonly
+     end subroutine list_symelems
+     module subroutine symop_classify(c,rmat,cl)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: rmat(3,3)
+       type(symop_class), intent(inout) :: cl
+     end subroutine symop_classify
+     module function symop_symbol(c,cl,tint) result(slabel)
+       class(crystal), intent(in) :: c
+       type(symop_class), intent(in) :: cl
+       real*8, intent(in) :: tint(3)
+       character(len=symlen) :: slabel
+     end function symop_symbol
+     module subroutine symelem_type_mask(se,iop,mask)
+       type(symelem_list), intent(in) :: se
+       integer, intent(in) :: iop(:)
+       logical, intent(out) :: mask(:)
+     end subroutine symelem_type_mask
+     module subroutine symelem_list_end(se)
+       class(symelem_list), intent(inout) :: se
+     end subroutine symelem_list_end
      module subroutine struct_write_json(c,json,p)
        use json_module, only: json_value, json_core
        class(crystal), intent(inout) :: c

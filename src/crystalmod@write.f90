@@ -704,10 +704,9 @@ contains
   !> the operations. If axcr, return the operation axes in
   !> cryst. coordinates.
   module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
-    use tools_math, only: eig, det3
-    use tools_io, only: uout, string, ioj_right, ferror, faterr
+    use tools_io, only: uout, string, ioj_right
     use global, only: symprec
-    use param, only: mlen, pi, eye
+    use param, only: mlen
     class(crystal), intent(in) :: c
     character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
     character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
@@ -724,15 +723,14 @@ contains
     character*1, parameter :: xyz(3) = (/"x","y","z"/)
     real*8, parameter :: eps = 1d-5
 
-    logical :: ok, iszero, axint
-    integer :: i1, i2, i, j, k, idx, rotnum, ord, p, nhalf, ier_
+    logical :: ok, iszero
+    integer :: i1, i2, i, j, k
     character(len=mlen) :: strout(c%neqv*c%ncv)
-    real*8 :: xtrans, rmat(3,3), eval(3), evali(3), rotaxis(3)
-    real*8 :: trace, det, ang, ridx
-    real*8 :: wvec(3), tint(3), wsum(3,3), wacc(3,3), mvec(3), fscrew
-    character(len=:), allocatable :: chm, caxc, caxx
+    real*8 :: xtrans, rotaxis(3), tint(3), wred(3)
+    character(len=:), allocatable :: caxc, caxx
     character(len=mlen), allocatable :: rotchar(:)
     real*8, allocatable :: raxc2(:,:)
+    type(symop_class), allocatable :: cl(:)
 
     ! initialize the output strings
     i = 0
@@ -743,130 +741,38 @@ contains
        end do
     end do
 
-    ! classify the operations: rotchar(i2) gets the Hermann-Mauguin symbol (with
-    ! screw/glide, deduced from the intrinsic translation) and raxc2(:,i2) the
-    ! rotation axis in crystallographic coordinates (zero for identity/inversion).
-    ! Note: the translation used is the identity-centering one (c%rotm(:,4,i2)), so
-    ! for centered lattices the screw/glide of the centered copies of an operation
-    ! may differ. Exotic e-glides are reported as the simpler single letter.
-    allocate(rotchar(c%neqv),raxc2(3,c%neqv))
+    ! Classify the operations. Everything that depends only on the rotation
+    ! part is computed once per rotation (cl); the Hermann-Mauguin symbol is
+    ! then completed for each operation from its own translation, centering
+    ! vector included, so the centered copies get their own symbol. Exotic
+    ! e-glides are reported as the simpler single letter.
+    allocate(rotchar(c%neqv*c%ncv),raxc2(3,c%neqv),cl(c%neqv))
     raxc2 = 0d0
     do i2 = 1, c%neqv
-       rmat = c%rotm(:,1:3,i2)
-       wvec = c%rotm(:,4,i2)
-       trace = rmat(1,1)+rmat(2,2)+rmat(3,3)
-       det = det3(rmat)
-
-       if (abs(trace - 3d0) < 1d-5) then
-          ! identity
-          chm = "1"
-       elseif (abs(trace + 3d0) < 1d-5) then
-          ! inversion
-          chm = "-1"
-       else
-          ! determine the angle / order of rotation: proper rotation has
-          ! cos(ang) = (trace-1)/2; improper (rotoinversion -n) has
-          ! cos(ang) = -(trace+1)/2 (so a mirror -> n=2, -3/-4/-6 come out right)
-          if (det > 0d0) then
-             ang = 0.5d0*(trace-1d0)
-          else
-             ang = -0.5d0*(trace+1d0)
-          end if
-          if (abs(ang) > 1d0) ang = sign(1d0,ang)
-          ang = acos(ang)
-          if (abs(ang) < eps) then
-             rotnum = 1
-          else
-             rotnum = nint((2d0*pi) / ang)
-          end if
-
-          ! base Hermann-Mauguin symbol (point operation)
-          if (det > 0d0) then
-             chm = string(rotnum)
-          else
-             if (rotnum == 2) then
-                chm = "m"
-             else
-                chm = string(-rotnum)
-             end if
-          end if
-
-          ! intrinsic (screw/glide) translation: t = (1/ord) sum_{k=0}^{ord-1} W^k w
-          ! computed before eig (which overwrites rmat with its eigenvectors);
-          ! zero for inversion/rotoinversions, the screw vector for proper
-          ! rotations, the in-plane glide vector for mirrors
-          wacc = eye
-          wsum = 0d0
-          ord = 0
-          do k = 1, 6
-             wsum = wsum + wacc
-             wacc = matmul(rmat,wacc)
-             ord = ord + 1
-             if (all(abs(wacc - eye) < eps)) exit
-          end do
-          tint = matmul(wsum,wvec) / real(ord,8)
-
-          ! determine the axis of rotation (eigenvector with eigenvalue = det)
-          ! a failed diagonalization leaves idx = 0, i.e. "no axis found",
-          ! which the code below already handles (rotaxis stays zero)
-          call eig(rmat,3,eval,evali,ier_)
-          idx = 0
-          if (ier_ == 0) then
-             do j = 1, 3
-                if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then
-                   idx = j
-                   exit
-                end if
-             end do
-          end if
-          rotaxis = 0d0
-          if (idx > 0) then
-             rotaxis = rmat(:,idx)
-             ! divide by the smallest non-zero element in the vector
-             ridx = 1d40
-             do j = 1, 3
-                if (abs(rotaxis(j)) > eps .and. abs(rotaxis(j)) < ridx) ridx = abs(rotaxis(j))
-             end do
-             rotaxis = rotaxis / ridx
-          endif
-          axint = all(abs(rotaxis - nint(rotaxis)) < eps)
-
-          ! screw-axis / glide-plane modifier on the HM symbol
-          if (det > 0d0 .and. axint) then
-             ! proper rotation: screw component along the integer axis
-             mvec = nint(rotaxis)
-             fscrew = dot_product(tint,mvec) / dot_product(mvec,mvec)
-             fscrew = fscrew - floor(fscrew)
-             p = modulo(nint(rotnum*fscrew),rotnum)
-             if (p /= 0) chm = trim(chm) // "_" // string(p)
-          elseif (det < 0d0 .and. rotnum == 2) then
-             ! mirror/glide plane: classify the in-plane glide vector
-             do j = 1, 3
-                tint(j) = tint(j) - nint(tint(j))
-             end do
-             nhalf = count(abs(abs(tint)-0.5d0) < 1d-3)
-             if (any(abs(abs(tint)-0.25d0) < 1d-3)) then
-                chm = "d"
-             elseif (nhalf >= 2) then
-                chm = "n"
-             elseif (nhalf == 1) then
-                if (abs(abs(tint(1))-0.5d0) < 1d-3) then
-                   chm = "a"
-                elseif (abs(abs(tint(2))-0.5d0) < 1d-3) then
-                   chm = "b"
-                else
-                   chm = "c"
-                end if
-             else
-                chm = "m"
-             end if
-          end if
-
-          raxc2(:,i2) = rotaxis
-       end if
-
-       rotchar(i2) = chm
+       call symop_classify(c,c%rotm(:,1:3,i2),cl(i2))
+       raxc2(:,i2) = cl(i2)%axis
     end do
+    i = 0
+    do i1 = 1, c%ncv
+       do i2 = 1, c%neqv
+          i = i + 1
+          ! the symbol has to describe the operation this row prints, and the
+          ! row prints the translation reduced modulo the lattice (the rfrac
+          ! table below), so reduce it the same way before classifying: a
+          ! lattice translation moves the element and can change its symbol
+          do j = 1, 3
+             wred(j) = c%rotm(j,4,i2) + c%cen(j,i1)
+             if (abs(wred(j) - nint(wred(j))) < symprec) then
+                wred(j) = 0d0
+             else
+                wred(j) = wred(j) - ceiling(wred(j))
+             end if
+          end do
+          tint = matmul(cl(i2)%pmat,wred)
+          rotchar(i) = symop_symbol(c,cl(i2),tint)
+       end do
+    end do
+    deallocate(cl)
 
     ! now the operation in crystallographic notation (+x -y +z)
     i = 0
@@ -927,7 +833,7 @@ contains
        do i1 = 1, c%ncv
           do i2 = 1, c%neqv
              i = i + 1
-             if (present(hmsym)) hmsym(i) = rotchar(i2)
+             if (present(hmsym)) hmsym(i) = rotchar(i)
              if (present(axcr)) axcr(:,i) = raxc2(:,i2)
           end do
        end do
@@ -959,7 +865,7 @@ contains
                    string(rotaxis(2),'f',decimal=3) // "," // string(rotaxis(3),'f',decimal=3) // "]"
              end if
              write (uout,'("   ",A,": ",A," ## ",A," ## ",A," ## ",A)') &
-                string(i,length=3,justify=ioj_right), trim(strout(i)), trim(rotchar(i2)),&
+                string(i,length=3,justify=ioj_right), trim(strout(i)), trim(rotchar(i)),&
                 trim(caxc), trim(caxx)
           end do
        end do

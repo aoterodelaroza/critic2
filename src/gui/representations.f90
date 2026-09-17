@@ -25,6 +25,7 @@ module representations
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
   use display, only: scene_display, rep_display
+  use crystalmod, only: symelem_list
   use global, only: bondfactor_def, bonddelta_def
   implicit none
 
@@ -70,9 +71,11 @@ module representations
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
   real(c_float), parameter, public :: symelem_alpha = 0.3_c_float ! mirror-plane fill opacity (axes/frames are opaque)
-  real*8, parameter, public :: symelem_margin = 1.1d0 ! symmetry element size factor
+  real*8, parameter, public :: symelem_margin = 1.05d0 ! expansion of the box the elements are clipped to
   real*8, parameter, public :: symelem_frame_radius = rotaxis_radius_def ! radius of the plane-border cylinders
   real*8, parameter, public :: symelem_axis_radius = 0.15d0 / bohrtoa ! radius of the axis cylinders
+  real*8, parameter, public :: symelem_point_radius = 0.20d0 / bohrtoa ! radius of the inversion-center spheres
+  real*8, parameter, public :: symelem_order_fat = 0.3d0 ! axis radius growth per unit of rotation order
   ! per-order axis colors (used when nonzero; otherwise symelem_rgb_def)
   real(c_float), parameter, public :: symelem_rgb_order(3,2:6) = reshape((/&
      0.85_c_float,0.10_c_float,0.10_c_float,&   ! 2-fold: red
@@ -278,21 +281,17 @@ module representations
   end type coordpoly_geom_style
   public :: coordpoly_geom_style
 
-  !> Draw style for symmetry elements (geometry-dependent parameters). Holds a
-  !> snapshot of the system's symmetry operations (kind/direction/order/label),
-  !> refreshed from list_symops when the geometry changes, plus the per-operation
-  !> visibility selected by the user.
+  !> Draw style for symmetry elements (geometry-dependent parameters).
   type symelem_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
-     integer :: nop = 0 ! number of symmetry operations
-     logical, allocatable :: shown(:) ! per-op on/off (nop)
-     integer, allocatable :: kind(:) ! per-op element kind (symop_kind_*; 0=none) (nop)
-     real*8, allocatable :: dir(:,:) ! per-op cartesian unit dir/normal (3,nop)
-     integer, allocatable :: order(:) ! per-op rotation order (nop)
-     character(len=mlen), allocatable :: label(:) ! per-op label: HM symbol or molecular sym string (nop)
+     type(symelem_list) :: se ! the element types (kind/order/dir/label/dirlabel)
+     logical, allocatable :: shown(:) ! per-type on/off (se%ntype)
+     ! transient items: draw the elements of these symmetry operations instead
+     ! of the whole (visibility-filtered) element list
+     integer :: nop = 0 ! number of selected operations (0 = all elements)
+     integer, allocatable :: iop(:) ! the selected operations (nop)
    contains
-     procedure :: alloc => symelem_style_alloc
      procedure :: reset => symelem_style_reset
      procedure :: end => symelem_style_end
   end type symelem_style
@@ -492,8 +491,8 @@ module representations
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
-     type(symelem_style) :: style ! operation snapshot + per-op visibility (geometry-dependent)
-     real*8 :: origin(3) = 0d0 ! origin the elements pass through (coords per coordtype)
+     type(symelem_style) :: style ! element-type snapshot + per-type visibility (geometry-dependent)
+     real*8 :: origin(3) = 0d0 ! molecules: origin the elements pass through (coords per coordtype)
      integer(c_int) :: coordtype = 0 ! origin coords: 0=crystallographic, 1=cartesian (angstrom), 2=cartesian (bohr)
      logical :: usecustomrgb = .false. ! true: use rgb for all; false: per-order/default colors
      real(c_float) :: rgb(3) = symelem_rgb_def ! color of the symmetry elements (usecustomrgb)
@@ -1027,10 +1026,6 @@ module representations
        logical, allocatable, intent(inout) :: spccenter(:)
        logical, allocatable, intent(inout) :: spccorner(:)
      end subroutine coordpoly_classify_species
-     module subroutine symelem_style_alloc(d,nop)
-       class(symelem_style), intent(inout) :: d
-       integer, intent(in) :: nop
-     end subroutine symelem_style_alloc
      module subroutine symelem_style_reset(d,r)
        class(symelem_style), intent(inout) :: d
        type(representation), intent(in) :: r
