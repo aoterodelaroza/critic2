@@ -1765,8 +1765,8 @@ contains
     use gui_main, only: ColorLabel_def
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
-       iw_table_column, iw_atom_button
-    use systems, only: sys, sysc, atlisttype_ncel_frac
+       iw_table_column
+    use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -2065,20 +2065,9 @@ contains
       integer(c_int), intent(in) :: idx(4)
       character(len=*), intent(in) :: idn, tt
 
-      real(c_float) :: rgb(3)
-      logical :: havergb, ldum2
-      character(len=:), allocatable :: lbl
+      logical :: ldum2
 
-      havergb = .false.
-      rgb = 0._c_float
-      if (idx(1) >= 1 .and. idx(1) <= sys(w%isys)%c%ncel) then
-         lbl = anchor_label(w%isys,idx,"?",species=.true.)
-         havergb = atom_view_rgb(iview,w%isys,atlisttype_ncel_frac,idx(1),rgb)
-      else
-         lbl = "?"
-      end if
-
-      ldum2 = iw_atom_button(lbl // idn,rgb,havergb=havergb,sameline=.true.,inert=.true.)
+      ldum2 = draw_anchor_button(iview,w%isys,idx,idn,sameline=.true.,inert=.true.)
       call iw_tooltip(tt,ttshown)
 
     end subroutine anchor_atom_button
@@ -2090,10 +2079,10 @@ contains
   module function draw_editrep_measure(w,ttshown) result(changed)
     use representations, only: measurement_item
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
-       iw_atom_button, iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
+       iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
        iw_helpermark, iw_table_column, iw_begintabitem
     use keybindings, only: get_bind_keyname, BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE
-    use systems, only: sys, sysc, atlisttype_ncel_frac
+    use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: pi, bohrtoa
     use interfaces_glfw, only: glfwGetTime
@@ -2389,25 +2378,11 @@ contains
       integer, intent(in) :: iitem, islot
       character(len=*), intent(in) :: idn
 
-      integer :: cid
-      integer(c_int) :: idxfull(4)
-      real(c_float) :: rgb(3)
-      logical :: havergb, clicked
+      logical :: clicked
       character(len=:), allocatable :: lbl
 
-      idxfull = w%rep%measure%item(iitem)%idx(:,islot)
-      cid = idxfull(1)
-      havergb = .false.
-      rgb = 0._c_float
-      if (cid >= 1 .and. cid <= sys(w%isys)%c%ncel) then
-         lbl = anchor_label(w%isys,idxfull,"?",species=.true.)
-         havergb = atom_view_rgb(iview,w%isys,atlisttype_ncel_frac,cid,rgb)
-      else
-         lbl = "?"
-      end if
-
-      clicked = iw_atom_button(lbl // idn,rgb,havergb=havergb,&
-         disabled=(w%editrep_pick_item > 0))
+      clicked = draw_anchor_button(iview,w%isys,w%rep%measure%item(iitem)%idx(:,islot),idn,&
+         disabled=(w%editrep_pick_item > 0),lbl=lbl)
       call iw_tooltip("Atom " // lbl // " (click to pick a replacement in the view)",ttshown)
 
       ! command the parent view into pick mode; the poll at the top of

@@ -968,6 +968,15 @@ module windows
        logical, intent(in), optional :: species
        character(len=:), allocatable :: s
      end function anchor_label
+     module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl)&
+        result(pressed)
+       integer, intent(in) :: iview, isys
+       integer(c_int), intent(in) :: idx(4)
+       character(len=*), intent(in) :: strid
+       logical, intent(in), optional :: sameline, disabled, inert
+       character(len=:), allocatable, intent(out), optional :: lbl
+       logical :: pressed
+     end function draw_anchor_button
      module function view_target_window(strict)
        logical, intent(in), optional :: strict
        integer :: view_target_window

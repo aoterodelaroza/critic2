@@ -265,7 +265,7 @@ contains
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
-    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_atom_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
@@ -1162,10 +1162,18 @@ contains
          iat = w%builder_bond%idx(1)
          okat = havesys
          if (okat) okat = (iat >= 1 .and. iat <= sys(isys)%c%ncel)
-         if (okat) &
-            call iw_text("First atom: "//&
-            trim(sys(isys)%c%at(sys(isys)%c%atcel(iat)%idx)%name)//string(iat)//&
-            " (click the second one)",highlight=.true.)
+         if (okat) then
+            ! name the staged atom with the inert colored button the rest of
+            ! the GUI identifies atoms with
+            call iw_text("First atom:",highlight=.true.,alignframe=.true.)
+            ldum = draw_anchor_button(iview,isys,int(w%builder_bond%idx,c_int),&
+               "##builderbondatom",sameline=.true.,inert=.true.)
+            ! wrapped: the panel has no horizontal scrollbar, and this row is
+            ! the widest one in it (the button frame, plus a lattice vector in
+            ! a crystal). alignframe would be a no-op after sameline
+            call iw_text("(click the second one)",highlight=.true.,sameline=.true.,&
+               wrap=.true.)
+         end if
       end if
 
     end subroutine panel_pick
@@ -1480,12 +1488,9 @@ contains
     ! ...). Each atom is a button colored like it is in the view. The
     ! buttons are inert: they identify the atoms, they are not controls.
     subroutine edit_atom_labels()
-      integer :: is, icid
+      integer :: is
       integer(c_int) :: tflags
-      real(c_float) :: rgb(3)
-      logical :: havergb
       type(ImVec2) :: sz0
-      character(len=:), allocatable :: lbl
       character(kind=c_char,len=:), allocatable, target :: str1
 
       tflags = ImGuiTableFlags_None
@@ -1506,11 +1511,8 @@ contains
       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
       do is = 1, w%edit_kind
          if (.not.igTableSetColumnIndex(int(is-1,c_int))) cycle
-         icid = w%edit_idx(1,is)
-         ! species name, cell index and, out of the (0,0,0) cell, the lattice vector
-         lbl = anchor_label(isys,int(w%edit_idx(:,is),c_int),"?",species=.true.)
-         havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,icid,rgb)
-         ldum = iw_atom_button(lbl//"##editatom"//string(is),rgb,havergb,inert=.true.)
+         ldum = draw_anchor_button(iview,isys,int(w%edit_idx(:,is),c_int),&
+            "##editatom"//string(is),inert=.true.)
       end do
       call igEndTable()
 

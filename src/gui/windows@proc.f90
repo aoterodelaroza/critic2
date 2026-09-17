@@ -1812,4 +1812,45 @@ contains
 
   end function anchor_label
 
+  !> Draw the button that names the atom anchored by idx (cell atom index plus
+  !> lattice vector) in system isys: labeled with the species name and the cell
+  !> index ("?" when the anchor no longer names a cell atom) and painted with
+  !> the color the atom has in view window iview. This is how the windows
+  !> attached to a view identify an atom. strid is the ImGui id suffix that
+  !> tells apart the buttons of one window, and sameline, disabled, and inert
+  !> are passed to iw_atom_button (an inert button identifies the atom, it is
+  !> not a control). lbl returns the label, which the caller may want for its
+  !> tooltip. Returns true if the button was pressed.
+  module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl)&
+     result(pressed)
+    use utils, only: iw_atom_button
+    use systems, only: sys, atlisttype_ncel_frac
+    integer, intent(in) :: iview, isys
+    integer(c_int), intent(in) :: idx(4)
+    character(len=*), intent(in) :: strid
+    logical, intent(in), optional :: sameline, disabled, inert
+    character(len=:), allocatable, intent(out), optional :: lbl
+    logical :: pressed
+
+    integer :: iat
+    real(c_float) :: rgb(3)
+    logical :: havergb
+    character(len=:), allocatable :: lbl_
+
+    ! species name, cell index and, out of the (0,0,0) cell, the lattice vector
+    lbl_ = anchor_label(isys,idx,"?",species=.true.)
+
+    ! the color of the atom in the view, if the anchor still names one
+    iat = idx(1)
+    havergb = .false.
+    rgb = 0._c_float
+    if (iat >= 1 .and. iat <= sys(isys)%c%ncel) &
+       havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,iat,rgb)
+
+    pressed = iw_atom_button(lbl_ // strid,rgb,havergb=havergb,sameline=sameline,&
+       disabled=disabled,inert=inert)
+    if (present(lbl)) lbl = lbl_
+
+  end function draw_anchor_button
+
 end submodule proc
