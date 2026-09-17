@@ -79,6 +79,20 @@ module crystalmod
   integer, parameter, public :: symop_kind_axis = 2 ! rotation/screw/rotoinversion axis
   integer, parameter, public :: symop_kind_point = 3 ! inversion center
 
+  !> Most vertices the intersection of a plane with a parallelepiped can have
+  integer, parameter, public :: elem_maxpt = 8
+
+  !> A parallelepiped, used to clip the symmetry elements to the region they
+  !> are drawn in.
+  type elem_box
+     real*8 :: o(3) = 0d0 ! origin of the box
+     real*8 :: v(3,3) = 0d0 ! edge vectors of the box (columns)
+     real*8 :: vinv(3,3) = 0d0 ! inverse of v
+   contains
+     procedure :: set => elem_box_set
+  end type elem_box
+  public :: elem_box
+
   !> Classification of the rotation part of a symmetry operation: everything
   !> about the operation that does not depend on its translation.
   type symop_class
@@ -118,6 +132,7 @@ module crystalmod
   end type symelem_list
   public :: symelem_list
   public :: symelem_type_mask
+  public :: clip_point_box, clip_line_box, clip_plane_box
 
   ! Defaults for powder X-ray diffraction routines
   real*8, parameter, public :: xrpd_lambda_def = 1.5406d0
@@ -1454,6 +1469,37 @@ module crystalmod
        integer, intent(in), optional :: iop(:)
        logical, intent(in), optional :: typesonly
      end subroutine list_symelems
+     module subroutine elem_box_set(b,o,v,ok)
+       class(elem_box), intent(inout) :: b
+       real*8, intent(in) :: o(3)
+       real*8, intent(in) :: v(3,3)
+       logical, intent(out) :: ok
+     end subroutine elem_box_set
+     module subroutine clip_point_box(b,x0,ok,onfar)
+       type(elem_box), intent(in) :: b
+       real*8, intent(in) :: x0(3)
+       logical, intent(out) :: ok
+       logical, intent(out), optional :: onfar
+     end subroutine clip_point_box
+     module subroutine clip_line_box(b,x0,dir,ok,s1,s2,onfar)
+       type(elem_box), intent(in) :: b
+       real*8, intent(in) :: x0(3)
+       real*8, intent(in) :: dir(3)
+       logical, intent(out) :: ok
+       real*8, intent(out) :: s1
+       real*8, intent(out) :: s2
+       logical, intent(out), optional :: onfar
+     end subroutine clip_line_box
+     module subroutine clip_plane_box(b,x0,nrm,ok,cen,npt,xpt,onfar)
+       type(elem_box), intent(in) :: b
+       real*8, intent(in) :: x0(3)
+       real*8, intent(in) :: nrm(3)
+       logical, intent(out) :: ok
+       real*8, intent(out) :: cen(3)
+       integer, intent(out), optional :: npt
+       real*8, intent(out), optional :: xpt(3,elem_maxpt)
+       logical, intent(out), optional :: onfar
+     end subroutine clip_plane_box
      module subroutine symop_classify(c,rmat,cl)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: rmat(3,3)

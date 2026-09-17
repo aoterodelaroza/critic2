@@ -1604,11 +1604,12 @@ contains
   module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost)
     use systems, only: sys, sysc
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
-       symop_kind_point, symelem_list
+       symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
+       clip_line_box, clip_plane_box
     use gui_main, only: ColorAxes_def, ColorElement
     use shapes, only: maxpie
     use tools_io, only: string
-    use tools_math, only: cross, plane_from_points, matinv
+    use tools_math, only: cross, plane_from_points
     use types, only: realloc
     use tools, only: mergesort
     use param, only: tpi, img, atmass, icrd_crys, pi
@@ -1657,10 +1658,10 @@ contains
     integer, allocatable :: cornlist(:,:)
     integer :: ncorn, ica, idc, imolc
     type(symelem_list) :: sel ! symmetry elements in the displayed region
-    real*8 :: sebo(3), sebv(3,3), sebvinv(3,3), sebsize ! box the elements are clipped to
-    real*8 :: sebcor(3,8) ! its eight corners, indexed by the bits of (i-1)
+    real*8 :: sebo(3), sebv(3,3) ! box the elements are clipped to
+    type(elem_box) :: sebox ! the same, ready for clip_elem_box
     real*8 :: sexoff(3) ! shift applied to the symmetry elements (molecules)
-    integer :: ierbox
+    logical :: okbox
     logical :: istrans
 
     interface
@@ -2412,13 +2413,8 @@ contains
              ! the elements and the box they are clipped to move with it too
              sebo = sebo + c%x2c(disp%origin)
           end if
-          sebsize = norm2(sebv(:,1)) + norm2(sebv(:,2)) + norm2(sebv(:,3))
-          sebvinv = sebv
-          call matinv(sebvinv,3,ierbox)
-          if (ierbox /= 0) return
-          do i = 1, 8
-             sebcor(:,i) = sebo + matmul(sebv,real((/modulo(i-1,2),modulo((i-1)/2,2),(i-1)/4/),8))
-          end do
+          call sebox%set(sebo,sebv,okbox)
+          if (.not.okbox) return
 
           ! A transient item draws the elements of the operations its producer
           ! selected; the user-facing object draws all of them, filtered by the
@@ -3327,8 +3323,8 @@ contains
     !> the cartesian-bohr point xel. If usecustom, everything is drawn in
     !> customrgb; otherwise planes and inversion centers use the default color
     !> and axes are colored by rotation order. The element is clipped to the
-    !> box (host sebo/sebv): a plane becomes the polygon where it cuts the box
-    !> and an axis the segment crossing it.
+    !> box (host sebox): a plane becomes the polygon where it cuts the box and
+    !> an axis the segment crossing it.
     subroutine draw_symmetry_element(skind,sdir,sorder,xel,usecustom,customrgb)
       integer, intent(in) :: skind, sorder
       real*8, intent(in) :: sdir(3), xel(3)
@@ -3337,10 +3333,10 @@ contains
 
       complex*16, parameter :: zz3(3) = (0d0,0d0)
 
-      real*8 :: lx0(3), lx1(3), lx2(3), lxc(3), s1, s2
-      real*8 :: xpt(3,12), ang(12), vv(3)
+      real*8 :: lx0(3), lxc(3), s1, s2
+      real*8 :: xpt(3,elem_maxpt)
       real(c_float) :: rgbel(3)
-      integer :: j1, j2, npt, iperm(12)
+      integer :: j1, j2, npt
       type(dl_sphere) :: dsph1
       logical :: ok
 
@@ -3373,51 +3369,36 @@ contains
 
       if (skind == symop_kind_plane) then
          ! mirror/glide plane: the polygon where the plane cuts the box, as a
-         ! translucent triangle fan with an opaque border frame
-         call clip_plane_box(xel,lx0,npt,xpt)
-         if (npt < 3) return
-
-         ! sort the polygon vertices by angle around their centroid
-         lxc = 0d0
-         do j1 = 1, npt
-            lxc = lxc + xpt(:,j1)
-         end do
-         lxc = lxc / real(npt,8)
-         lx1 = xpt(:,1) - lxc
-         if (norm2(lx1) < 1d-10) return
-         lx1 = lx1 / norm2(lx1)
-         lx2 = cross(lx0,lx1)
-         ang = 0d0
-         do j1 = 1, npt
-            vv = xpt(:,j1) - lxc
-            ang(j1) = atan2(dot_product(vv,lx2),dot_product(vv,lx1))
-            iperm(j1) = j1
-         end do
-         call mergesort(ang,iperm,1,npt)
+         ! translucent triangle fan with an opaque border frame; the clip
+         ! returns the vertices already in order around the polygon
+         call clip_plane_box(sebox,xel,lx0,ok,lxc,npt=npt,xpt=xpt)
+         if (.not.ok) return
 
          ! translucent fill
          do j1 = 2, npt-1
-            call append_triangle(xpt(:,iperm(1)),xpt(:,iperm(j1)),xpt(:,iperm(j1+1)),&
+            call append_triangle(xpt(:,1),xpt(:,j1),xpt(:,j1+1),&
                zz3,zz3,zz3,rgbel,real(symelem_alpha,8))
          end do
 
          ! opaque border frame
          do j1 = 1, npt
             j2 = modulo(j1,npt) + 1
-            call append_edge(xpt(:,iperm(j1)),xpt(:,iperm(j2)))
+            call append_edge(xpt(:,j1),xpt(:,j2))
          end do
       elseif (skind == symop_kind_axis) then
          ! rotation/rotoinversion axis: an opaque shaft spanning the box.
          ! The radius grows with the rotation order so that coincident axes
          ! (e.g. 2 and -4 along [001]) are all visible.
-         call clip_line_box(xel,lx0,ok,s1,s2)
+         call clip_line_box(sebox,xel,lx0,ok,s1,s2)
          if (.not.ok) return
-         dcyl%r = real(symelem_axis_radius * (1d0 + 0.3d0 * (max(sorder,2) - 2)),c_float)
+         dcyl%r = real(symelem_axis_radius * (1d0 + symelem_order_fat * (max(sorder,2) - 2)),c_float)
          dcyl%x1 = real(xel + s1 * lx0,c_float)
          dcyl%x2 = real(xel + s2 * lx0,c_float)
          call dl_append(obj%cyl,obj%ncyl,dcyl)
       else
-         ! inversion center: a small opaque sphere
+         ! inversion center: a small opaque sphere, if it is inside the box
+         call clip_point_box(sebox,xel,ok)
+         if (.not.ok) return
          dsph1 = dl_sphere(x=real(xel,c_float),r=real(symelem_point_radius,c_float),&
             rgb=rgbel,idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
             border=0._c_float,rgbborder=0._c_float,alpha=1._c_float)
@@ -3425,83 +3406,6 @@ contains
       end if
 
     end subroutine draw_symmetry_element
-
-    !> Intersect the plane passing through p0 with unit normal nrm with the
-    !> box and return the npt vertices of the resulting polygon in xpt, in
-    !> arbitrary order. The box corners come from the host sebcor, indexed by
-    !> the bits of the uc edge table, so they are not rebuilt per plane. The box edges are the host uc
-    !> corner pairs.
-    subroutine clip_plane_box(p0,nrm,npt,xpt)
-      real*8, intent(in) :: p0(3), nrm(3)
-      integer, intent(out) :: npt
-      real*8, intent(out) :: xpt(3,12)
-
-      integer :: k
-      real*8 :: xa(3), xb(3), fa, fb, eps
-
-      eps = 1d-6 * sebsize
-      npt = 0
-      do k = 1, 12
-         xa = sebcor(:,uc(1,1,k) + 2*uc(2,1,k) + 4*uc(3,1,k) + 1)
-         xb = sebcor(:,uc(1,2,k) + 2*uc(2,2,k) + 4*uc(3,2,k) + 1)
-         fa = dot_product(xa - p0,nrm)
-         fb = dot_product(xb - p0,nrm)
-         if (abs(fa) < eps) call addpt_polygon(xa,eps,npt,xpt)
-         if (abs(fb) < eps) call addpt_polygon(xb,eps,npt,xpt)
-         if (abs(fa) >= eps .and. abs(fb) >= eps .and. fa*fb < 0d0) &
-            call addpt_polygon(xa + fa/(fa-fb) * (xb - xa),eps,npt,xpt)
-      end do
-
-    end subroutine clip_plane_box
-
-    !> Append the point x to the npt vertices in xpt, unless it is already
-    !> there (within eps) or the list is full.
-    subroutine addpt_polygon(x,eps,npt,xpt)
-      real*8, intent(in) :: x(3), eps
-      integer, intent(inout) :: npt
-      real*8, intent(inout) :: xpt(3,12)
-
-      integer :: i
-
-      do i = 1, npt
-         if (all(abs(xpt(:,i) - x) < eps)) return
-      end do
-      if (npt >= 12) return
-      npt = npt + 1
-      xpt(:,npt) = x
-
-    end subroutine addpt_polygon
-
-    !> Clip the line passing through p0 with unit direction u to the box (host
-    !> sebo/sebv/sebvinv). Returns ok if the line crosses the box, and then the
-    !> line-parameter range [s1,s2] inside it.
-    subroutine clip_line_box(p0,u,ok,s1,s2)
-      real*8, intent(in) :: p0(3), u(3)
-      logical, intent(out) :: ok
-      real*8, intent(out) :: s1, s2
-
-      integer :: j
-      real*8 :: xs(3), us(3), t1, t2
-
-      ! in the box frame the box is the unit cube, so this is a slab clip
-      xs = matmul(sebvinv,p0 - sebo)
-      us = matmul(sebvinv,u)
-      ok = .false.
-      s1 = -1d40
-      s2 = 1d40
-      do j = 1, 3
-         if (abs(us(j)) > 1d-10) then
-            t1 = -xs(j) / us(j)
-            t2 = (1d0 - xs(j)) / us(j)
-            s1 = max(s1,min(t1,t2))
-            s2 = min(s2,max(t1,t2))
-         else
-            if (xs(j) < 0d0 .or. xs(j) > 1d0) return
-         end if
-      end do
-      ok = (s1 <= s2)
-
-    end subroutine clip_line_box
 
     !> Build a coordination polyhedron from nvv vertex positions xv
     !> (cartesian, bohr) around the center atom at xcen. Adds

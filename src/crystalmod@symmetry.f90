@@ -22,6 +22,7 @@ submodule (crystalmod) symmetry
   !xx! private procedures
   ! subroutine symelem_enum(c,se,iop)
   ! subroutine symelem_replicate(c,ncell,border,se)
+  ! subroutine symelem_in_box(skind,x0,dirf,b,ok,xmid,onfar)
   ! function symelem_dirf(c,skind,dirc)
   ! function glide_letter(tred)
   ! function symelem_findtype(se,skind,sorder,dirc,slabel)
@@ -34,7 +35,6 @@ submodule (crystalmod) symmetry
   ! subroutine inplane_lattice_vecs(c,ihkl,hklr,nv,vlist)
   ! subroutine reduce_glide(c,nv,vlist,t,tred)
   ! function glide_rank(t)
-  ! subroutine elem_clip_box(skind,x0,dirf,ncell,ok,xmid,onfar)
   ! subroutine typeop(rot,type,vec,order)
   ! function equiv_tetrah(c,x0,t1,t2,leqv,lrotm,eps)
   ! function perm3(p,r,t) result(res)
@@ -47,8 +47,10 @@ submodule (crystalmod) symmetry
   ! of tests/zz_source/cif/allspg).
   integer, parameter :: tlim_def = 4
 
-  ! half-width and size of the box of lattice translations scanned when
-  ! reducing a glide vector (see inplane_lattice_vecs)
+  ! tolerance for the element clipping, in box coordinates, so a fraction of
+  ! the box rather than a length
+  real*8, parameter :: clip_eps = 1d-5
+
   ! most symmetry operations recorded per element type
   integer, parameter :: maxop_def = 16
 
@@ -2011,10 +2013,16 @@ contains
     integer :: tlim(3), it1, it2, it3
     real*8 :: nmat(3,3), wvec(3), tvec(3), tint(3), wl(3), x0(3), xmid(3)
     character(len=symlen) :: slabel
-    logical :: ok, onfar
+    logical :: ok
     type(symop_class) :: cl
+    type(elem_box) :: box
 
     call se%end()
+
+    ! the elements are enumerated in one cell, which is a fundamental domain
+    ! for the lattice; symelem_replicate then translates them over the cells
+    call box%set((/0d0,0d0,0d0/),eye,ok)
+    if (.not.ok) return
 
     do ieqv = 1, c%neqv
        ! the rotation part fixes the kind, the direction, and the projector,
@@ -2052,13 +2060,18 @@ contains
              do it2 = -tlim(2), tlim(2)
                 do it3 = -tlim(3), tlim(3)
                    tvec = wvec + real((/it1,it2,it3/),8)
-                   tint = matmul(cl%pmat,tvec)
-                   wl = tvec - tint
-                   x0 = matmul(nmat,-wl)
+                   tint = cl%pmat(:,1)*tvec(1) + cl%pmat(:,2)*tvec(2) + cl%pmat(:,3)*tvec(3)
+                   wl = tint - tvec
+                   x0 = nmat(:,1)*wl(1) + nmat(:,2)*wl(2) + nmat(:,3)*wl(3)
+
+                   ! the location part of the operation, and the point of the
+                   ! element it puts there (the matmuls are written out: gfortran
+                   ! emits a library call for matmul at the -Og the debug build
+                   ! uses, and this is the innermost loop)
 
                    ! keep only the elements that reach the cell, and move the
                    ! point to the middle of the part of the element inside it
-                   call elem_clip_box(cl%kind,x0,cl%dirf,(/1,1,1/),ok,xmid,onfar)
+                   call symelem_in_box(cl%kind,x0,cl%dirf,box,ok,xmid)
                    if (.not.ok) cycle
 
                    ! the symbol of this element depends on the translation
@@ -2087,10 +2100,19 @@ contains
 
     type(symelem_list) :: sen
     integer :: i, j, it, it1, it2, it3, tlo(3), thi(3), skind, ifrom
-    real*8 :: x0f(3), xf(3), xmid(3), dirc(3), dirf(3), ev(3)
+    real*8 :: x0f(3), xf(3), xmid(3), dirc(3), dirf(3), ev(3), bv(3,3)
     logical :: ok, onfar
+    type(elem_box) :: box
 
     if (se%n == 0) return
+
+    ! the box the elements are kept in: the displayed cells
+    bv = 0d0
+    do i = 1, 3
+       bv(i,i) = real(ncell(i),8)
+    end do
+    call box%set((/0d0,0d0,0d0/),bv,ok)
+    if (.not.ok) return
 
     ! carry over the type list, so that symelem_add reuses it
     do i = 1, se%ntype
@@ -2139,7 +2161,7 @@ contains
 
                    ! keep only the elements that reach the box, and move the
                    ! point to the middle of the part of the element inside it
-                   call elem_clip_box(skind,xf,dirf,ncell,ok,xmid,onfar)
+                   call symelem_in_box(skind,xf,dirf,box,ok,xmid,onfar)
                    if (.not.ok) cycle
                    if (.not.border .and. onfar) cycle
                    call symelem_add(sen,skind,se%order(it),dirc,se%label(it),se%dirlabel(it),&
@@ -2583,133 +2605,281 @@ contains
 
   end function glide_rank
 
-  !> Intersect a symmetry element of kind skind passing through the point x0
-  !> with the box [0,ncell] (crystallographic coordinates). dirf is the
-  !> reciprocal-space normal for a plane and the direction for an axis, and is
-  !> not used for an inversion center. Returns ok if the element crosses the
-  !> box with a non-degenerate intersection (a segment for an axis, a polygon
-  !> for a plane); elements that only graze a corner or an edge are discarded,
-  !> as they would draw nothing. If ok, xmid is a point of the element inside
-  !> the box (the segment midpoint or the polygon centroid), so the element can
-  !> be brought to any other cell with a translation of at most one cell, and
-  !> onfar says the whole intersection lies on a far face of the box, which is
-  !> how the "atoms at the cell edges" flag selects the elements at the cell
-  !> boundary.
-  subroutine elem_clip_box(skind,x0,dirf,ncell,ok,xmid,onfar)
-    integer, intent(in) :: skind
-    real*8, intent(in) :: x0(3), dirf(3)
-    integer, intent(in) :: ncell(3)
+  !> Set the parallelepiped box b from its origin o and edge vectors v
+  !> (columns), both in the caller's coordinate frame. ok is false if the edge
+  !> vectors are linearly dependent, and the box is then left zeroed, so that a
+  !> caller that ignores ok gets an obviously empty box and not a half-valid
+  !> one.
+  module subroutine elem_box_set(b,o,v,ok)
+    use tools_math, only: matinv
+    class(elem_box), intent(inout) :: b
+    real*8, intent(in) :: o(3)
+    real*8, intent(in) :: v(3,3)
     logical, intent(out) :: ok
-    real*8, intent(out) :: xmid(3)
-    logical, intent(out) :: onfar
 
-    real*8, parameter :: eps = 1d-5
+    integer :: ier
 
-    integer :: j, k, ka, kb, ia, ib, npt
-    real*8 :: s1, s2, sa, sb, umax, xa(3), xb(3), fa, fb, hi(3), epsf
-    real*8 :: xpt(3,12), e1(3), dd, dmax
+    b%o = o
+    b%v = v
+    b%vinv = v
+    call matinv(b%vinv,3,ier)
+    ok = (ier == 0)
+    if (.not.ok) then
+       b%v = 0d0
+       b%vinv = 0d0
+    end if
+
+  end subroutine elem_box_set
+
+  !> Clip the point x0 to the box b: ok is true if it is inside, and onfar
+  !> says it sits on a far face of the box. See clip_plane_box for the frame
+  !> conventions.
+  module subroutine clip_point_box(b,x0,ok,onfar)
+    type(elem_box), intent(in) :: b
+    real*8, intent(in) :: x0(3)
+    logical, intent(out) :: ok
+    logical, intent(out), optional :: onfar
+
+    real*8 :: xs(3), xa(3)
+
+    if (present(onfar)) onfar = .false.
+
+    ! into the box frame, where the box is the unit cube
+    xa = x0 - b%o
+    xs = b%vinv(:,1)*xa(1) + b%vinv(:,2)*xa(2) + b%vinv(:,3)*xa(3)
+
+    ok = all(xs >= -clip_eps) .and. all(xs <= 1d0+clip_eps)
+    if (ok .and. present(onfar)) onfar = any(xs > 1d0 - clip_eps)
+
+  end subroutine clip_point_box
+
+  !> Clip the line through x0 with direction dir to the box b. ok is false if
+  !> the line misses the box, or only grazes it at a point or along an edge, as
+  !> that draws nothing; otherwise the part inside the box runs from
+  !> x0 + s1 * dir to x0 + s2 * dir. onfar says that part lies on a far face of
+  !> the box. See clip_plane_box for the frame conventions.
+  module subroutine clip_line_box(b,x0,dir,ok,s1,s2,onfar)
+    type(elem_box), intent(in) :: b
+    real*8, intent(in) :: x0(3)
+    real*8, intent(in) :: dir(3)
+    logical, intent(out) :: ok
+    real*8, intent(out) :: s1
+    real*8, intent(out) :: s2
+    logical, intent(out), optional :: onfar
+
+    integer :: j
+    real*8 :: xs(3), ds(3), xa(3), xb(3), sa, sb, t1, t2, umax
 
     ok = .false.
-    onfar = .false.
-    xmid = x0
-    hi = real(ncell,8)
-    if (skind == symop_kind_point) then
-       ! inversion center: the point itself
-       ok = all(x0 >= -eps) .and. all(x0 <= hi+eps)
-       if (ok) onfar = any(x0 > hi - eps)
-    elseif (skind == symop_kind_axis) then
-       ! axis: slab clip of the line against the box
-       sa = -1d40
-       sb = 1d40
-       umax = maxval(abs(dirf))
-       if (umax < 1d-10) return
+    s1 = 0d0
+    s2 = 0d0
+    if (present(onfar)) onfar = .false.
+
+    ! into the box frame, where the box is the unit cube: a direction
+    ! transforms like the point, with the inverse of v
+    xa = x0 - b%o
+    xs = b%vinv(:,1)*xa(1) + b%vinv(:,2)*xa(2) + b%vinv(:,3)*xa(3)
+    ds = b%vinv(:,1)*dir(1) + b%vinv(:,2)*dir(2) + b%vinv(:,3)*dir(3)
+
+    ! the cube is the intersection of three slabs, so clip against each
+    umax = maxval(abs(ds))
+    if (umax < 1d-10) return
+    sa = -1d40
+    sb = 1d40
+    do j = 1, 3
+       if (abs(ds(j)) > 1d-10 * umax) then
+          t1 = -xs(j) / ds(j)
+          t2 = (1d0 - xs(j)) / ds(j)
+          sa = max(sa,min(t1,t2))
+          sb = min(sb,max(t1,t2))
+       else
+          if (xs(j) < -clip_eps .or. xs(j) > 1d0+clip_eps) return
+       end if
+    end do
+    if ((sb - sa) * umax < clip_eps) return
+
+    ! the parameter is untouched by the change of frame, so sa and sb are the
+    ! bounds in the caller's own parameterization
+    ok = .true.
+    s1 = sa
+    s2 = sb
+    if (present(onfar)) then
+       xa = xs + sa * ds
+       xb = xs + sb * ds
+       onfar = any(min(xa,xb) > 1d0 - clip_eps)
+    end if
+
+  end subroutine clip_line_box
+
+  !> Clip the plane through x0 with normal nrm to the box b. x0, nrm and b are
+  !> in the same frame, which is the caller's to choose: crystallographic
+  !> coordinates with the box spanning the displayed cells, or Cartesian with
+  !> the box around the drawn scene. nrm is the covector of the plane in that
+  !> frame, i.e. the plane is the set of x with nrm . (x - x0) = 0.
+  !> ok is false if the plane misses the box, or meets it only at a point or
+  !> along an edge, as that draws nothing. Otherwise cen is the centroid of the
+  !> intersection polygon, npt its number of vertices and xpt those vertices in
+  !> order around it, and onfar says the polygon lies on a far face of the box.
+  module subroutine clip_plane_box(b,x0,nrm,ok,cen,npt,xpt,onfar)
+    use tools, only: qcksort
+    type(elem_box), intent(in) :: b
+    real*8, intent(in) :: x0(3)
+    real*8, intent(in) :: nrm(3)
+    logical, intent(out) :: ok
+    real*8, intent(out) :: cen(3)
+    integer, intent(out), optional :: npt
+    real*8, intent(out), optional :: xpt(3,elem_maxpt)
+    logical, intent(out), optional :: onfar
+
+    ! the eight corners of the unit cube, and its twelve edges as pairs of them
+    real*8, parameter :: cor(3,8) = reshape((/&
+       0d0,0d0,0d0, 1d0,0d0,0d0, 0d0,1d0,0d0, 1d0,1d0,0d0,&
+       0d0,0d0,1d0, 1d0,0d0,1d0, 0d0,1d0,1d0, 1d0,1d0,1d0/),shape(cor))
+    integer, parameter :: cedge(2,12) = reshape((/&
+       1,2, 3,4, 5,6, 7,8,& ! along the first axis
+       1,3, 2,4, 5,7, 6,8,& ! along the second
+       1,5, 2,6, 3,7, 4,8/),shape(cedge)) ! along the third
+
+    integer :: j, k, np, iperm(elem_maxpt)
+    real*8 :: xs(3), ds(3), xa(3), xb(3), fa, fb, epsf
+    real*8 :: pts(3,elem_maxpt), cs(3), e1(3), e2(3), vv(3)
+    real*8 :: ang(elem_maxpt), dd, dmax
+
+    ok = .false.
+    cen = x0
+    if (present(npt)) npt = 0
+    if (present(xpt)) xpt = 0d0
+    if (present(onfar)) onfar = .false.
+
+    ! into the box frame, where the box is the unit cube. The point transforms
+    ! with the inverse of v, but the normal is a covector and transforms with
+    ! the transpose, so that nrm . (x - x0) keeps its value
+    xa = x0 - b%o
+    xs = b%vinv(:,1)*xa(1) + b%vinv(:,2)*xa(2) + b%vinv(:,3)*xa(3)
+    do j = 1, 3
+       ds(j) = dot_product(b%v(:,j),nrm)
+    end do
+
+    ! the polygon vertices: where the plane meets the twelve cube edges
+    epsf = 1d-6 * max(norm2(ds),1d-10)
+    np = 0
+    do k = 1, 12
+       xa = cor(:,cedge(1,k))
+       xb = cor(:,cedge(2,k))
+       fa = dot_product(ds,xa - xs)
+       fb = dot_product(ds,xb - xs)
+       if (abs(fa) < epsf) call addpt(xa)
+       if (abs(fb) < epsf) call addpt(xb)
+       if (abs(fa) >= epsf .and. abs(fb) >= epsf .and. fa*fb < 0d0) &
+          call addpt(xa + fa/(fa-fb) * (xb - xa))
+    end do
+    if (np < 3) return
+
+    ! centroid of the polygon
+    cs = 0d0
+    do j = 1, np
+       cs = cs + pts(:,j)
+    end do
+    cs = cs / real(np,8)
+
+    ! the polygon has to extend in two independent directions, or the plane
+    ! only grazes the box. e1 and e2 come out of that test as an in-plane
+    ! orthonormal pair, and order the vertices below
+    dmax = 0d0
+    do j = 1, np
+       dd = norm2(pts(:,j) - cs)
+       if (dd > dmax) then
+          dmax = dd
+          e1 = pts(:,j) - cs
+       end if
+    end do
+    if (dmax < clip_eps) return
+    e1 = e1 / dmax
+    dmax = 0d0
+    do j = 1, np
+       vv = pts(:,j) - cs
+       vv = vv - dot_product(vv,e1) * e1
+       dd = norm2(vv)
+       if (dd > dmax) then
+          dmax = dd
+          e2 = vv
+       end if
+    end do
+    if (dmax < clip_eps) return
+    e2 = e2 / dmax
+
+    ok = .true.
+    cen = b%o + b%v(:,1)*cs(1) + b%v(:,2)*cs(2) + b%v(:,3)*cs(3)
+    if (present(onfar)) then
        do j = 1, 3
-          if (abs(dirf(j)) > 1d-10 * umax) then
-             s1 = -x0(j) / dirf(j)
-             s2 = (hi(j) - x0(j)) / dirf(j)
-             sa = max(sa,min(s1,s2))
-             sb = min(sb,max(s1,s2))
-          else
-             if (x0(j) < -eps .or. x0(j) > hi(j)+eps) return
-          end if
+          if (all(pts(j,1:np) > 1d0 - clip_eps)) onfar = .true.
        end do
-       ! discard a line that only touches the box at a point or an edge
-       if ((sb - sa) * umax < eps) return
-       ok = .true.
-       xmid = x0 + 0.5d0 * (sa + sb) * dirf
-       xa = x0 + sa * dirf
-       xb = x0 + sb * dirf
-       onfar = any(min(xa,xb) > hi - eps)
-    else
-       ! plane: its intersections with the 12 box edges
-       epsf = 1d-6 * max(norm2(dirf),1d-10) * max(norm2(hi),1d0)
-       npt = 0
-       do k = 1, 3
-          ka = modulo(k,3) + 1
-          kb = modulo(k+1,3) + 1
-          do ia = 0, 1
-             do ib = 0, 1
-                xa = 0d0
-                if (ia == 1) xa(ka) = hi(ka)
-                if (ib == 1) xa(kb) = hi(kb)
-                xb = xa
-                xb(k) = hi(k)
-                fa = dot_product(dirf,xa - x0)
-                fb = dot_product(dirf,xb - x0)
-                if (abs(fa) < epsf) call addpt(xa)
-                if (abs(fb) < epsf) call addpt(xb)
-                if (abs(fa) >= epsf .and. abs(fb) >= epsf .and. fa*fb < 0d0) &
-                   call addpt(xa + fa/(fa-fb) * (xb - xa))
-             end do
-          end do
+    end if
+    if (present(npt)) npt = np
+    if (present(xpt)) then
+       ! order the vertices around the polygon by their angle in the (e1,e2)
+       ! plane; the map back to the caller's frame is affine, so the cyclic
+       ! order it gives is the cyclic order there too
+       do j = 1, np
+          vv = pts(:,j) - cs
+          ang(j) = atan2(dot_product(vv,e2),dot_product(vv,e1))
+          iperm(j) = j
        end do
-       if (npt < 3) return
-
-       ! centroid of the intersection polygon
-       xmid = 0d0
-       do j = 1, npt
-          xmid = xmid + xpt(:,j)
-       end do
-       xmid = xmid / real(npt,8)
-
-       ! discard a plane that only touches the box along an edge: the polygon
-       ! has to extend in two independent directions
-       dmax = 0d0
-       do j = 1, npt
-          dd = norm2(xpt(:,j) - xmid)
-          if (dd > dmax) then
-             dmax = dd
-             e1 = xpt(:,j) - xmid
-          end if
-       end do
-       if (dmax < eps) return
-       e1 = e1 / dmax
-       dmax = 0d0
-       do j = 1, npt
-          xa = xpt(:,j) - xmid
-          dmax = max(dmax,norm2(xa - dot_product(xa,e1)*e1))
-       end do
-       if (dmax < eps) return
-
-       ok = .true.
-       do j = 1, 3
-          if (all(xpt(j,1:npt) > hi(j) - eps)) onfar = .true.
+       call qcksort(ang,iperm,1,np)
+       do j = 1, np
+          vv = pts(:,iperm(j))
+          xpt(:,j) = b%o + b%v(:,1)*vv(1) + b%v(:,2)*vv(2) + b%v(:,3)*vv(3)
        end do
     end if
 
   contains
+    !> Append the box-frame point x to the polygon, unless it is already there
     subroutine addpt(x)
       real*8, intent(in) :: x(3)
+
       integer :: i
 
-      do i = 1, npt
-         if (all(abs(xpt(:,i) - x) < eps)) return
+      do i = 1, np
+         if (all(abs(pts(:,i) - x) < clip_eps)) return
       end do
-      if (npt >= 12) return
-      npt = npt + 1
-      xpt(:,npt) = x
+      if (np >= elem_maxpt) return
+      np = np + 1
+      pts(:,np) = x
 
     end subroutine addpt
-  end subroutine elem_clip_box
+  end subroutine clip_plane_box
+
+  !> Clip the symmetry element of kind skind through the point x0 to the box b,
+  !> dispatching on the kind. dirf is the plane covector or the axis direction
+  !> in the frame of b. ok is false if the element does not meet the box in
+  !> more than a point or an edge; otherwise xmid is a point of the element
+  !> inside the box, so the element can be brought to any other cell by a
+  !> translation of at most one cell, and onfar says its intersection with the
+  !> box lies on a far face.
+  subroutine symelem_in_box(skind,x0,dirf,b,ok,xmid,onfar)
+    integer, intent(in) :: skind
+    real*8, intent(in) :: x0(3)
+    real*8, intent(in) :: dirf(3)
+    type(elem_box), intent(in) :: b
+    logical, intent(out) :: ok
+    real*8, intent(out) :: xmid(3)
+    logical, intent(out), optional :: onfar
+
+    real*8 :: s1, s2
+
+    xmid = x0
+    if (skind == symop_kind_point) then
+       call clip_point_box(b,x0,ok,onfar)
+    elseif (skind == symop_kind_axis) then
+       call clip_line_box(b,x0,dirf,ok,s1,s2,onfar)
+       if (ok) xmid = x0 + 0.5d0 * (s1 + s2) * dirf
+    elseif (skind == symop_kind_plane) then
+       call clip_plane_box(b,x0,dirf,ok,xmid,onfar=onfar)
+    else
+       ok = .false.
+       if (present(onfar)) onfar = .false.
+    end if
+
+  end subroutine symelem_in_box
 
 end submodule symmetry
