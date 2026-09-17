@@ -142,7 +142,7 @@ module keybindings
      "Close focused dialog            ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog            ",& ! BIND_OK_FOCUSED_DIALOG
      "Select                          ",& ! BIND_VIEWMODE_SELECT
-     "Remove selected system or field ",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     "Remove selected systems or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
      "Select previous system in tree  ",& ! BIND_TREE_MOVE_UP
      "Select next system in tree      ",& ! BIND_TREE_MOVE_DOWN
      "Run input commands              ",& ! BIND_INPCON_RUN

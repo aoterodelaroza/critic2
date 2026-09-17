@@ -108,6 +108,7 @@ contains
 
     integer, allocatable, save :: forceremove(:) ! enter integers to remove one or more systems
     integer, save :: forceselect = 0 ! force selection of a system
+    logical, save :: forceselect_kbd = .false. ! the forced selection came from the keyboard
     logical, save :: forcereassign = .false. ! force a check of reassign current selected system
     logical, save :: forceremap = .false. ! force a remap of the tree
     logical, save :: forcesort = .false. ! force a sort of the tree
@@ -325,6 +326,7 @@ contains
     if (w%forceselect > 0) then
        call w%select_system_tree(w%forceselect)
        forceselect = w%forceselect
+       forceselect_kbd = .false.
        w%forceselect = 0
     end if
 
@@ -873,6 +875,7 @@ contains
 
     ! drop any pending selection that was not consumed above
     forceselect = 0
+    forceselect_kbd = .false.
 
     !! process the keybindings
     ! select all systems
@@ -907,16 +910,36 @@ contains
           end if
           call sys(jsel)%unload_field(iref)
        else
-          forceremove = (/jsel/)
+          ! close the selection, as the Close Selected menu entry does. A
+          ! selected group header goes in as well: it closes the systems it
+          ! heads, and remove_system returns early on a member the header
+          ! already took with it
+          if (allocated(forceremove)) deallocate(forceremove)
+          allocate(forceremove(nsys))
+          k = 0
+          do i = 1, nsys
+             if (sysc(i)%status == sys_empty .or. .not.sysc(i)%tselected) cycle
+             k = k + 1
+             forceremove(k) = i
+          end do
+          if (k > 0) then
+             call realloc(forceremove,k)
+          else
+             deallocate(forceremove)
+          end if
        end if
     end if
     ! up and down the tree
     if (is_bind_event(BIND_TREE_MOVE_UP)) then
-       if (iprev > 0) &
+       if (iprev > 0) then
           forceselect = iprev
+          forceselect_kbd = .true.
+       end if
     elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
-       if (inext > 0) &
+       if (inext > 0) then
           forceselect = inext
+          forceselect_kbd = .true.
+       end if
     end if
 
     ! if exporting, read the export command
@@ -976,7 +999,7 @@ contains
       integer :: npop
       logical(c_bool) :: selected
       logical :: enabled, enabled_no_threads
-      logical :: ok, okmouse
+      logical :: ok, okmouse, kbdnav
       character(kind=c_char,len=:), allocatable, target :: strl
 
       if (hadenabledcolumn) return
@@ -1017,6 +1040,9 @@ contains
       end if
       okmouse = ok
       ok = ok .or. (forceselect == isys)
+      ! this row was reached by the up/down keybindings, which move the
+      ! selection with the current system just as a plain click does
+      kbdnav = forceselect_kbd .and. (forceselect == isys)
 
       ! multi-selection: control-click toggles one row, shift-click selects
       ! the range from the anchor. Neither changes the current system.
@@ -1031,13 +1057,14 @@ contains
          call set_selected(isys,.not.sysc(isys)%tselected)
          w%tree_selanchor = isys
       elseif (ok) then
-         ! a plain activation selects this row alone and starts a new
-         ! range; a selection forced by another window (a new structure
-         ! being opened, say) leaves the multi-selection alone
-         if (okmouse) call tree_select_none()
+         ! a plain activation or a walk with the up/down keybindings selects
+         ! this row alone and starts a new range; a selection forced by
+         ! another window (a new structure being opened, say) leaves the
+         ! multi-selection alone
+         if (okmouse .or. kbdnav) call tree_select_none()
          w%tree_selanchor = isys
          if (sysc(isys)%status /= sys_group) then
-            if (okmouse) call set_selected(isys,.true.)
+            if (okmouse .or. kbdnav) call set_selected(isys,.true.)
             call w%select_system_tree(isys)
             if (forceselect > 0) then
                forceselect = 0
