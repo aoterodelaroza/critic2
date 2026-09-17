@@ -108,7 +108,6 @@ contains
 
     integer, allocatable, save :: forceremove(:) ! enter integers to remove one or more systems
     integer, save :: forceselect = 0 ! force selection of a system
-    logical, save :: forceselect_kbd = .false. ! the forced selection came from the keyboard
     logical, save :: forcereassign = .false. ! force a check of reassign current selected system
     logical, save :: forceremap = .false. ! force a remap of the tree
     logical, save :: forcesort = .false. ! force a sort of the tree
@@ -326,7 +325,6 @@ contains
     if (w%forceselect > 0) then
        call w%select_system_tree(w%forceselect)
        forceselect = w%forceselect
-       forceselect_kbd = .false.
        w%forceselect = 0
     end if
 
@@ -421,6 +419,9 @@ contains
        w%tree_selanchor = 0
        forceselaction = sel_none
     end if
+
+    ! The current system is always part of the selection
+    if (ithis > 0) call set_selected(w%isys,.true.)
 
     ! final message in the header line
     if (nshown > 1) then
@@ -869,13 +870,13 @@ contains
        call tree_select_none()
        w%tree_selanchor = 0
     end if
-    call iw_tooltip("Deselect all systems in the tree",ttshown)
+    call iw_tooltip("Deselect all systems in the tree except the current one, which is&
+       & always part of the selection",ttshown)
     if (iw_button("Toggle",sameline=.true.)) forceselaction = sel_invert
     call iw_tooltip("Select the visible systems that are not selected, and vice versa",ttshown)
 
     ! drop any pending selection that was not consumed above
     forceselect = 0
-    forceselect_kbd = .false.
 
     !! process the keybindings
     ! select all systems
@@ -929,17 +930,13 @@ contains
           end if
        end if
     end if
-    ! up and down the tree
+    ! up and down the tree: the walk carries the selection with it, as a plain
+    ! click does (the new current system is selected by the invariant above).
+    ! forceselect still goes out, to give the new row the keyboard focus
     if (is_bind_event(BIND_TREE_MOVE_UP)) then
-       if (iprev > 0) then
-          forceselect = iprev
-          forceselect_kbd = .true.
-       end if
+       if (iprev > 0) call move_to_system(iprev)
     elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
-       if (inext > 0) then
-          forceselect = inext
-          forceselect_kbd = .true.
-       end if
+       if (inext > 0) call move_to_system(inext)
     end if
 
     ! if exporting, read the export command
@@ -999,7 +996,7 @@ contains
       integer :: npop
       logical(c_bool) :: selected
       logical :: enabled, enabled_no_threads
-      logical :: ok, okmouse, kbdnav
+      logical :: ok, okmouse
       character(kind=c_char,len=:), allocatable, target :: strl
 
       if (hadenabledcolumn) return
@@ -1040,9 +1037,6 @@ contains
       end if
       okmouse = ok
       ok = ok .or. (forceselect == isys)
-      ! this row was reached by the up/down keybindings, which move the
-      ! selection with the current system just as a plain click does
-      kbdnav = forceselect_kbd .and. (forceselect == isys)
 
       ! multi-selection: control-click toggles one row, shift-click selects
       ! the range from the anchor. Neither changes the current system.
@@ -1057,14 +1051,11 @@ contains
          call set_selected(isys,.not.sysc(isys)%tselected)
          w%tree_selanchor = isys
       elseif (ok) then
-         ! a plain activation or a walk with the up/down keybindings selects
-         ! this row alone and starts a new range; a selection forced by
-         ! another window (a new structure being opened, say) leaves the
-         ! multi-selection alone
-         if (okmouse .or. kbdnav) call tree_select_none()
+         ! a plain activation selects this row alone and starts a new range
+         if (okmouse) call tree_select_none()
          w%tree_selanchor = isys
          if (sysc(isys)%status /= sys_group) then
-            if (okmouse .or. kbdnav) call set_selected(isys,.true.)
+            if (okmouse) call set_selected(isys,.true.)
             call w%select_system_tree(isys)
             if (forceselect > 0) then
                forceselect = 0
@@ -1745,6 +1736,16 @@ contains
       end if
 
     end subroutine draw_field_row
+
+    ! Make system i the current one from a keyboard walk
+    subroutine move_to_system(i)
+      integer, intent(in) :: i
+
+      call tree_select_none()
+      call w%select_system_tree(i)
+      forceselect = i
+
+    end subroutine move_to_system
 
     ! Set the tree multi-selection flag of system i to val. A group
     ! header is not a system: selecting it selects all its members.
