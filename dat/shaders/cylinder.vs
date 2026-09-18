@@ -96,12 +96,16 @@ void main(){
   vec3 cr = cross(d, e);
   vec3 pos;
   if (length(cr) < 1e-4){
-    // (near) end-on: a screen-facing disc of radius rr covers the projection
+    // exactly end-on: the axis has no screen projection to span, so a
+    // screen-facing disc of radius rr covers it
     pos = mid + rr * (a_corner.x * vec3(1.0,0.0,0.0) + a_corner.y * vec3(0.0,1.0,0.0));
   } else {
     vec3 side = normalize(cr);
-    // span the axis (with an rr overhang for the caps) and the screen-perp
-    pos = mid + d * (a_corner.x * (0.5 * len + rr)) + side * (a_corner.y * rr);
+    // The quad has to cover the silhouette in both screen directions. The
+    // cap overhang must therefore grow along the axis's screen projection
+    vec3 along = normalize(d - e * dot(d, e));
+    pos = mid + d * (a_corner.x * 0.5 * len) + along * (a_corner.x * rr)
+              + side * (a_corner.y * rr);
   }
 
   fA = ae;
