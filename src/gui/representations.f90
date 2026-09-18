@@ -70,7 +70,12 @@ module representations
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
+  real(c_float), parameter, public :: symelem_rgb_glide(3) = (/0.20_c_float,0.70_c_float,0.75_c_float/) ! glide-plane color
   real(c_float), parameter, public :: symelem_alpha = 0.3_c_float ! mirror-plane fill opacity (axes/frames are opaque)
+  real*8, parameter, public :: symelem_arrow_radius = 0.07d0 / bohrtoa ! shaft radius
+  real*8, parameter, public :: symelem_arrow_headr = 2.4d0 ! arrowhead radius, in shaft radii
+  real*8, parameter, public :: symelem_arrow_headl = 0.12d0 ! arrowhead length, as a fraction of the arrow
+  real*8, parameter, public :: symelem_arrow_dashlen = 0.4d0 / bohrtoa ! dash period of the arrow shaft
   real*8, parameter, public :: symelem_margin = 1.05d0 ! expansion of the box the elements are clipped to
   real*8, parameter, public :: symelem_frame_radius = rotaxis_radius_def ! radius of the plane-border cylinders
   real*8, parameter, public :: symelem_axis_radius = 0.15d0 / bohrtoa ! radius of the axis cylinders

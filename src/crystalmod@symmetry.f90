@@ -1273,30 +1273,44 @@ contains
   !> intrinsic (screw/glide) translation is tint = cl%pmat . w, with w the
   !> translation part of the operation: the symbol of the point operation plus
   !> the screw subscript of a rotation axis or the letter of a glide plane.
-  module function symop_symbol(c,cl,tint) result(slabel)
+  !> tred returns the translation the symbol names (crystallographic
+  !> coordinates), which is tint reduced by the lattice translations the
+  !> element contains -- the glide vector of the plane or the screw
+  !> translation of the axis, and zero for a mirror or a pure rotation.
+  module function symop_symbol(c,cl,tint,tred) result(slabel)
     use tools_io, only: string
     class(crystal), intent(in) :: c
     type(symop_class), intent(in) :: cl
     real*8, intent(in) :: tint(3)
+    real*8, intent(out), optional :: tred(3)
     character(len=symlen) :: slabel
 
     real*8, parameter :: eps = 1d-5
 
     integer :: ip
-    real*8 :: tred(3), fscrew
+    real*8 :: tred_(3), fscrew
 
     slabel = cl%base
+    tred_ = 0d0
     if (cl%kind == symop_kind_plane) then
        ! mirror or glide: the letter of the reduced glide vector
-       call reduce_glide(c,cl%nv,cl%vlist,tint,tred)
-       if (norm2(c%x2c(tred)) > eps) slabel = glide_letter(tred)
+       call reduce_glide(c,cl%nv,cl%vlist,tint,tred_)
+       if (norm2(c%x2c(tred_)) > eps) then
+          slabel = glide_letter(tred_)
+       else
+          tred_ = 0d0
+       end if
     elseif (cl%kind == symop_kind_axis .and. norm2(cl%vsh) > 0d0) then
        ! rotation or screw: the component along the axis, in units of the
        ! shortest lattice translation along it
        fscrew = dot_product(tint,cl%vsh) / dot_product(cl%vsh,cl%vsh)
        ip = modulo(nint(cl%rotnum*fscrew),cl%rotnum)
-       if (ip /= 0) slabel = trim(cl%base) // "_" // string(ip)
+       if (ip /= 0) then
+          slabel = trim(cl%base) // "_" // string(ip)
+          tred_ = (real(ip,8) / real(cl%rotnum,8)) * cl%vsh
+       end if
     end if
+    if (present(tred)) tred = tred_
 
   end function symop_symbol
 
@@ -1317,6 +1331,7 @@ contains
     if (allocated(se%itype)) deallocate(se%itype)
     if (allocated(se%x)) deallocate(se%x)
     if (allocated(se%key)) deallocate(se%key)
+    if (allocated(se%tint)) deallocate(se%tint)
 
   end subroutine symelem_list_end
 
@@ -2011,7 +2026,7 @@ contains
 
     integer :: ieqv, icv, iop1, j, ier
     integer :: tlim(3), it1, it2, it3
-    real*8 :: nmat(3,3), wvec(3), tvec(3), tint(3), wl(3), x0(3), xmid(3)
+    real*8 :: nmat(3,3), wvec(3), tvec(3), tint(3), tred(3), wl(3), x0(3), xmid(3)
     character(len=symlen) :: slabel
     logical :: ok
     type(symop_class) :: cl
@@ -2075,9 +2090,9 @@ contains
                    if (.not.ok) cycle
 
                    ! the symbol of this element depends on the translation
-                   slabel = symop_symbol(c,cl,tint)
+                   slabel = symop_symbol(c,cl,tint,tred=tred)
                    call symelem_add(se,cl%kind,cl%order,cl%dirc,slabel,cl%dirlabel,&
-                      c%x2c(xmid),iop=iop1)
+                      c%x2c(xmid),iop=iop1,tintc=c%x2c(tred))
                 end do
              end do
           end do
@@ -2165,7 +2180,7 @@ contains
                    if (.not.ok) cycle
                    if (.not.border .and. onfar) cycle
                    call symelem_add(sen,skind,se%order(it),dirc,se%label(it),se%dirlabel(it),&
-                      c%x2c(xmid),ifrom=ifrom,itype=it)
+                      c%x2c(xmid),ifrom=ifrom,itype=it,tintc=se%tint(:,i))
                 end do
              end do
           end do
@@ -2183,6 +2198,7 @@ contains
     call move_alloc(sen%dirlabel,se%dirlabel)
     call move_alloc(sen%nop,se%nop)
     call move_alloc(sen%iop,se%iop)
+    call move_alloc(sen%tint,se%tint)
     call move_alloc(sen%itype,se%itype)
     call move_alloc(sen%x,se%x)
     call move_alloc(sen%key,se%key)
@@ -2307,7 +2323,7 @@ contains
   !> the element type if it is not in the list yet. Elements already in the
   !> list (same type and same position transverse to the element) are skipped;
   !> ifrom is the first instance the duplicate scan has to look at.
-  subroutine symelem_add(se,skind,sorder,dirc,slabel,sdirlabel,xc,ifrom,iop,itype)
+  subroutine symelem_add(se,skind,sorder,dirc,slabel,sdirlabel,xc,ifrom,iop,itype,tintc)
     use types, only: realloc
     type(symelem_list), intent(inout) :: se
     integer, intent(in) :: skind, sorder
@@ -2316,6 +2332,7 @@ contains
     integer, intent(in), optional :: ifrom
     integer, intent(in), optional :: iop
     integer, intent(in), optional :: itype
+    real*8, intent(in), optional :: tintc(3)
 
     real*8, parameter :: epskey = 1d-3 ! bohr
 
@@ -2357,15 +2374,18 @@ contains
     ! add it
     se%n = se%n + 1
     if (.not.allocated(se%itype)) then
-       allocate(se%itype(100),se%x(3,100),se%key(3,100))
+       allocate(se%itype(100),se%x(3,100),se%key(3,100),se%tint(3,100))
     elseif (se%n > size(se%itype,1)) then
        n = 2*se%n
        call realloc(se%itype,n)
        call realloc(se%x,3,n)
        call realloc(se%key,3,n)
+       call realloc(se%tint,3,n)
     end if
     se%itype(se%n) = it
     se%x(:,se%n) = xc
+    se%tint(:,se%n) = 0d0
+    if (present(tintc)) se%tint(:,se%n) = tintc
     se%key(:,se%n) = key
 
   end subroutine symelem_add
@@ -2391,6 +2411,7 @@ contains
           call realloc(se%itype,se%n)
           call realloc(se%x,3,se%n)
           call realloc(se%key,3,se%n)
+          call realloc(se%tint,3,se%n)
        end if
     end if
 

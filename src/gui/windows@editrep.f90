@@ -1670,8 +1670,10 @@ contains
     !! color
     call iw_text("Color",highlight=.true.)
     changed = changed .or. iw_checkbox("Custom color##symelemcustomrgb",w%rep%symelem%usecustomrgb)
-    call iw_tooltip("Color all elements with a single custom color. If off, mirror/glide planes use &
-       &the default color and rotation axes are colored by rotation order.",ttshown)
+    call iw_tooltip("Color all elements with a single custom color. If off, mirror planes and glide &
+       &planes have colors of their own and rotation axes are colored by rotation order. A glide &
+       &plane and a screw axis also carry a dashed arrow along the translation that goes with it.",&
+       ttshown)
     if (w%rep%symelem%usecustomrgb) &
        changed = changed .or. iw_coloredit("##symelemrgb",rgb=w%rep%symelem%rgb,sameline=.true.)
 

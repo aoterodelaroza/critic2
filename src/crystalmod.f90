@@ -118,6 +118,7 @@ module crystalmod
      integer, allocatable :: kind(:) ! element kind (symop_kind_*) (ntype)
      integer, allocatable :: order(:) ! rotation order, 0 if not applicable (ntype)
      real*8, allocatable :: dir(:,:) ! Cartesian unit axis direction or plane normal (3,ntype)
+
      character(len=symlen), allocatable :: label(:) ! HM symbol (crystals) or molecular symbol (ntype)
      character(len=dirlen), allocatable :: dirlabel(:) ! [uvw] (axes) or (hkl) (planes), "" if none (ntype)
      integer, allocatable :: nop(:) ! number of symmetry operations that generate the type (ntype)
@@ -126,6 +127,7 @@ module crystalmod
      integer :: n = 0 ! number of element instances
      integer, allocatable :: itype(:) ! type of this instance (n)
      real*8, allocatable :: x(:,:) ! Cartesian point the instance passes through (3,n)
+     real*8, allocatable :: tint(:,:) ! Cartesian intrinsic (glide/screw) translation (3,n)
      real*8, allocatable :: key(:,:) ! internal: position transverse to the element, for deduplication (3,n)
    contains
      procedure :: end => symelem_list_end
@@ -1505,10 +1507,11 @@ module crystalmod
        real*8, intent(in) :: rmat(3,3)
        type(symop_class), intent(inout) :: cl
      end subroutine symop_classify
-     module function symop_symbol(c,cl,tint) result(slabel)
+     module function symop_symbol(c,cl,tint,tred) result(slabel)
        class(crystal), intent(in) :: c
        type(symop_class), intent(in) :: cl
        real*8, intent(in) :: tint(3)
+       real*8, intent(out), optional :: tred(3)
        character(len=symlen) :: slabel
      end function symop_symbol
      module subroutine symelem_type_mask(se,iop,mask)

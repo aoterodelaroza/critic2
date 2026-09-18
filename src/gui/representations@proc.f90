@@ -2439,7 +2439,7 @@ contains
                 if (.not.r%symelem%style%shown(i2)) cycle
              end if
              call draw_symmetry_element(sel%kind(i2),sel%dir(:,i2),sel%order(i2),&
-                sel%x(:,i1) + sexoff,r%symelem%usecustomrgb,r%symelem%rgb)
+                sel%x(:,i1) + sexoff,r%symelem%usecustomrgb,r%symelem%rgb,sel%tint(:,i1))
           end do
           call sel%end()
        end if
@@ -3315,20 +3315,21 @@ contains
     !> and axes are colored by rotation order. The element is clipped to the
     !> box (host sebox): a plane becomes the polygon where it cuts the box and
     !> an axis the segment crossing it.
-    subroutine draw_symmetry_element(skind,sdir,sorder,xel,usecustom,customrgb)
+    subroutine draw_symmetry_element(skind,sdir,sorder,xel,usecustom,customrgb,stint)
       integer, intent(in) :: skind, sorder
       real*8, intent(in) :: sdir(3), xel(3)
       logical, intent(in) :: usecustom
       real(c_float), intent(in) :: customrgb(3)
+      real*8, intent(in) :: stint(3)
 
       complex*16, parameter :: zz3(3) = (0d0,0d0)
 
-      real*8 :: lx0(3), lxc(3), s1, s2
+      real*8 :: lx0(3), lxc(3), s1, s2, xa(3), xanch(3)
       real*8 :: xpt(3,elem_maxpt)
       real(c_float) :: rgbel(3)
       integer :: j1, j2, npt
       type(dl_sphere) :: dsph1
-      logical :: ok
+      logical :: ok, hastrans
 
       ! unit direction: the plane normal or the axis direction (cartesian)
       lx0 = sdir
@@ -3337,7 +3338,11 @@ contains
          lx0 = lx0 / norm2(lx0)
       end if
 
-      ! color: custom, or per-order for the axes and the default otherwise
+      ! a glide plane or a screw axis carries an intrinsic translation
+      hastrans = any(stint /= 0d0)
+
+      ! color: custom, or per-order for the axes, the glide color for a plane
+      ! that translates, and the default otherwise
       rgbel = symelem_rgb_def
       if (usecustom) then
          rgbel = customrgb
@@ -3345,6 +3350,8 @@ contains
          if (sorder >= lbound(symelem_rgb_order,2) .and. sorder <= ubound(symelem_rgb_order,2)) then
             if (any(symelem_rgb_order(:,sorder) /= 0._c_float)) rgbel = symelem_rgb_order(:,sorder)
          end if
+      elseif (skind == symop_kind_plane .and. hastrans) then
+         rgbel = symelem_rgb_glide
       end if
 
       ! opaque thin-cylinder template (plane frame edges, axis shafts)
@@ -3363,6 +3370,7 @@ contains
          ! returns the vertices already in order around the polygon
          call clip_plane_box(sebox,xel,lx0,ok,lxc,npt=npt,xpt=xpt)
          if (.not.ok) return
+         xanch = lxc
 
          ! translucent fill
          do j1 = 2, npt-1
@@ -3381,7 +3389,8 @@ contains
          ! (e.g. 2 and -4 along [001]) are all visible.
          call clip_line_box(sebox,xel,lx0,ok,s1,s2)
          if (.not.ok) return
-         dcyl%r = real(symelem_axis_radius * (1d0 + symelem_order_fat * (max(sorder,2) - 2)),c_float)
+         xanch = xel + 0.5d0 * (s1 + s2) * lx0
+         dcyl%r = real(symelem_axis_r(sorder),c_float)
          dcyl%x1 = real(xel + s1 * lx0,c_float)
          dcyl%x2 = real(xel + s2 * lx0,c_float)
          call dl_append(obj%cyl,obj%ncyl,dcyl)
@@ -3395,7 +3404,66 @@ contains
          call dl_append(obj%sph,obj%nsph,dsph1)
       end if
 
+      ! the glide or screw translation, as an arrow along it
+      if (hastrans) then
+         xa = xanch
+         if (skind == symop_kind_axis) &
+            xa = xanch + (symelem_axis_r(sorder) + symelem_arrow_headr * symelem_arrow_radius) *&
+            symelem_offdir(lx0)
+         call append_arrow(xa,xa + stint,rgbel)
+      end if
+
     end subroutine draw_symmetry_element
+
+    !> Direction to lay the arrow of a screw axis along u out in
+    function symelem_offdir(u) result(v)
+      real*8, intent(in) :: u(3)
+      real*8 :: v(3)
+
+      integer :: imin
+
+      imin = minloc(abs(u),1)
+      v = 0d0
+      v(imin) = 1d0
+      v = v - dot_product(v,u) * u
+      v = v / norm2(v)
+
+    end function symelem_offdir
+
+    !> Radius of the cylinder drawn for a rotation axis of order sorder: it
+    !> grows with the order so that coincident axes are all visible.
+    function symelem_axis_r(sorder) result(r)
+      integer, intent(in) :: sorder
+      real*8 :: r
+
+      r = symelem_axis_radius * (1d0 + symelem_order_fat * (max(sorder,2) - 2))
+
+    end function symelem_axis_r
+
+    !> Arrow from x1 to x2 in color rgb: a dashed shaft up to the base of the
+    !> head (dashed to tell the arrow from the element it belongs to), then
+    !> the solid arrowhead cone, which dashing would make unreadable.
+    subroutine append_arrow(x1,x2,rgb)
+      real*8, intent(in) :: x1(3), x2(3)
+      real(c_float), intent(in) :: rgb(3)
+
+      real*8 :: xbase(3)
+      type(dl_cylinder) :: dca
+
+      xbase = x1 + (1d0 - symelem_arrow_headl) * (x2 - x1)
+      call measure_segment(x1,xbase,rgb,symelem_arrow_radius,.true.,symelem_arrow_dashlen)
+
+      dca%x1 = real(xbase,c_float)
+      dca%x2 = real(x2,c_float)
+      dca%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+      dca%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+      dca%r = real(symelem_arrow_headr * symelem_arrow_radius,c_float)
+      dca%rgb = rgb
+      dca%border = 0._c_float
+      dca%rgbborder = 0._c_float
+      call dl_append(obj%cone,obj%ncone,dca)
+
+    end subroutine append_arrow
 
     !> Build a coordination polyhedron from nvv vertex positions xv
     !> (cartesian, bohr) around the center atom at xcen. Adds
