@@ -1795,6 +1795,10 @@ contains
     ! remove/merge the highlighted atoms
     if (remove_ .or. merge_) then
        call sysc%highlighted_atom_list(nat,iat)
+       ! a merge with no atoms selected changes nothing, and the geometry
+       ! event below would reset the loaded fields over an unchanged
+       ! structure. A removal still has the species themselves to drop
+       if (merge_ .and. nat == 0) return
 
        ! remove/merge/duplicate the atoms; a removal keeps the bonding
        ! of the surviving atoms
@@ -2030,7 +2034,7 @@ contains
 
     integer :: isys, i, nat
     integer, allocatable :: iat(:)
-    logical :: ok, copybonding_
+    logical :: copybonding_
 
     errmsg = ""
 
@@ -2044,18 +2048,18 @@ contains
     allocate(iat(sys(isys)%c%ncel))
     nat = 0
 
-    ! pick the atoms
+    ! pick the atoms of row id, however the caller's table is grouped (a whole
+    ! species, a whole non-equivalent orbit, a molecule, or one cell atom)
     do i = 1, sys(isys)%c%ncel
-       if (type == atlisttype_nneq) then
-          ok = (sys(isys)%c%atcel(i)%idx == id)
-       elseif (type == atlisttype_ncel_frac .or. type == atlisttype_ncel_bohr .or. type == atlisttype_ncel_ang) then
-          ok = (i == id)
-       end if
-       if (ok) then
+       if (sysc%attype_celatom_to_id(type,i) == id) then
           nat = nat + 1
           iat(nat) = i
        end if
     end do
+
+    ! nothing to move: not an edit, and the geometry event below would reset
+    ! the loaded fields and the vibrations over an unchanged structure
+    if (nat == 0) return
 
     ! execute
     call sys(isys)%c%change_atom_species(nat,iat,is,copybonding=copybonding_,errmsg=errmsg)
@@ -2716,16 +2720,17 @@ contains
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic number and the name of the corresponding species.
-  module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
+  module subroutine set_atomic_number(sysc,type,id,iz,setatomnames,copybonding)
     use tools_io, only: nameguess
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     integer, intent(in) :: iz
     logical, intent(in), optional :: setatomnames
+    logical, intent(in), optional :: copybonding
 
     integer :: isys, ispc, i
-    logical :: setatomnames_
+    logical :: setatomnames_, copybonding_
 
     ! consistency checks
     isys = sysc%id
@@ -2734,6 +2739,8 @@ contains
     ! optional arguments
     setatomnames_ = .false.
     if (present(setatomnames)) setatomnames_ = setatomnames
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
     ! set the atomic number
     ispc = sysc%attype_species(type,id)
@@ -2749,8 +2756,11 @@ contains
        end do
     end if
 
-    ! the geometry has changed
+    ! the geometry has changed. The new element has covalent radii of its
+    ! own, so the connectivity computed for the old one is only meaningful
+    ! if the caller asked to keep it
     call sysc%post_event(lastchange_geometry)
+    if (.not.copybonding_) call sysc%rebond()
 
   end subroutine set_atomic_number
 

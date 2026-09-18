@@ -190,6 +190,7 @@ contains
     ! first pass
     if (w%firstpass) then
        call clear_highlights_table()
+       call clear_empty_rows()
        call reset_sort()
        w%geometry_select_rgba = ColorHighlightSelectScene
        w%lastselected = 0
@@ -278,6 +279,7 @@ contains
        ! system selection and force the window cache to be rebuilt
        call sysc(isys)%highlight_clear(.false.)
        call clear_highlights_table()
+       call clear_empty_rows()
        ! the symmetry-vs-epsilon analysis and the nice-supercell search
        ! (its symmetry counts depend on the operations and the atoms)
        ! are now stale
@@ -446,12 +448,28 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    ldum = iw_button(string(iz,3) // "##Z" // string(i),popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
                    if (ok) then
-                      izout = iw_periodictable()
-                      if (izout >= 0) then
-                         iaction = iaction_set_atomic_number
-                         iaction_i1 = i
-                         iaction_i2 = izout
-                         call igCloseCurrentPopup()
+                      if (sys(isys)%c%nspc > 1) then
+                         ldum = iw_menuitem("Move the atoms to",enabled=.false.)
+                         call igSeparator()
+                         do j = 1, sys(isys)%c%nspc
+                            if (j == i) cycle
+                            if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) then
+                               iaction = iaction_set_attype_species
+                               iaction_i1 = i
+                               iaction_i2 = j
+                            end if
+                         end do
+                         call igSeparator()
+                      end if
+                      if (iw_beginmenu("Change the element to")) then
+                         izout = iw_periodictable()
+                         if (izout >= 0) then
+                            iaction = iaction_set_atomic_number
+                            iaction_i1 = i
+                            iaction_i2 = izout
+                            call igCloseCurrentPopup()
+                         end if
+                         call igEndMenu()
                       end if
                       call igEndPopup()
                    end if
@@ -2087,23 +2105,31 @@ contains
        ! single click: toggle all cell atoms of this row (a fully selected row
        ! is cleared; a partial or unselected row is fully selected)
        call current_row_state(iclicked,istate,rrgba)
-       if (istate == 2) then
+       if (empty_row(iclicked)) then
+          w%geometry_spcsel(iclicked) = (istate /= 2)
+       elseif (istate == 2) then
           call sysc(isys)%highlight_clear(.false.,(/iclicked/),table_hltype)
        else
           call sysc(isys)%highlight_atoms(.false.,(/iclicked/),table_hltype,&
              reshape(w%geometry_select_rgba,(/4,1/)))
        end if
     elseif (iclicked == -1) then
-       ! range (shift) or single (ctrl) selection: select the rows
+       ! range (shift) or single (ctrl) selection: select the rows. A row with
+       ! no atoms has nothing to highlight, so it is flagged on the side
        nhigh = iclicked_end - iclicked_ini + 1
        allocate(ihigh(nhigh),irgba(4,nhigh))
        nhigh = 0
        do ii = iclicked_ini, iclicked_end
+          if (empty_row(w%iord(ii))) then
+             w%geometry_spcsel(w%iord(ii)) = .true.
+             cycle
+          end if
           nhigh = nhigh + 1
           ihigh(nhigh) = w%iord(ii)
           irgba(:,nhigh) = w%geometry_select_rgba
        end do
-       call sysc(isys)%highlight_atoms(.false.,ihigh,table_hltype,irgba)
+       if (nhigh > 0) &
+          call sysc(isys)%highlight_atoms(.false.,ihigh(1:nhigh),table_hltype,irgba(:,1:nhigh))
        deallocate(ihigh,irgba)
     end if
 
@@ -2121,6 +2147,10 @@ contains
              call sysc(isys)%highlight_clear(.false.)
              deselected = .true.
           end if
+       end if
+       if (any_empty_row_selected()) then
+          call clear_empty_rows()
+          deselected = .true.
        end if
     end if
 
@@ -2145,7 +2175,8 @@ contains
        call sysc(isys)%set_attype_name(w%geometry_atomtype,iaction_i1,iaction_str)
 
     elseif (iaction == iaction_set_atomic_number) then
-       call sysc(isys)%set_atomic_number(w%geometry_atomtype,iaction_i1,iaction_i2,setatomnames=.true.)
+       call sysc(isys)%set_atomic_number(w%geometry_atomtype,iaction_i1,iaction_i2,setatomnames=.true.,&
+          copybonding=w%geometry_keepbonding)
 
     elseif (iaction == iaction_add_species) then
        call sysc(isys)%add_species(iaction_i1)
@@ -2312,8 +2343,9 @@ contains
     !> moved to a different one.
     subroutine reset_for_new_system()
 
-      ! reset the last-selected row and the table sort
+      ! reset the last-selected row, the empty-species selection and the sort
       w%lastselected = 0
+      call clear_empty_rows()
 
       ! remove the cached cell-transformation data and reorder the table
       call clear_nice_results()
@@ -2712,6 +2744,7 @@ contains
     subroutine build_aggregate_state()
       integer :: i, j, nat
       integer, allocatable :: nselrow(:)
+      logical :: isspc
 
       ! (re)allocate the per-row arrays to the current number of rows
       if (allocated(rowstate)) then
@@ -2728,6 +2761,17 @@ contains
       rowstate = 0
       rowrgba = 0._c_float
       rowntot = 0
+
+      ! the species view is the only one whose rows can hold no atoms
+      if (table_hltype == atlisttype_species) then
+         if (allocated(w%geometry_spcsel)) then
+            if (size(w%geometry_spcsel,1) /= ntype) deallocate(w%geometry_spcsel)
+         end if
+         if (.not.allocated(w%geometry_spcsel)) then
+            allocate(w%geometry_spcsel(ntype))
+            w%geometry_spcsel = .false.
+         end if
+      end if
 
       ! nothing to do if there is no selection for this system
       nat = sys(isys)%c%ncel
@@ -2749,16 +2793,61 @@ contains
          end if
       end do
 
-      ! classify each row: 2 = fully selected, 1 = partially selected, 0 = unselected
+      ! classify each row: 2 = fully selected, 1 = partially selected, 0 =
+      ! unselected
+      isspc = (table_hltype == atlisttype_species) .and. allocated(w%geometry_spcsel)
       do i = 1, ntype
          if (rowntot(i) > 0 .and. nselrow(i) == rowntot(i)) then
             rowstate(i) = 2
          elseif (nselrow(i) > 0) then
             rowstate(i) = 1
+         elseif (isspc) then ! rowntot(i) == 0 here
+            if (w%geometry_spcsel(i)) then
+               rowstate(i) = 2
+               rowrgba(:,i) = w%geometry_select_rgba
+            end if
          end if
       end do
 
     end subroutine build_aggregate_state
+
+    ! Whether row i of the current table is a species row with no atoms,
+    ! whose selection the window tracks instead of the atom highlight.
+    function empty_row(i)
+      integer, intent(in) :: i
+      logical :: empty_row
+
+      ! the aggregate arrays outlive the tab that built them, so neither
+      ! their presence nor their size can be assumed here
+      empty_row = (table_hltype == atlisttype_species) .and. allocated(rowntot) .and.&
+         allocated(w%geometry_spcsel)
+      if (empty_row) empty_row = (i >= 1 .and. i <= size(rowntot,1) .and.&
+         i <= size(w%geometry_spcsel,1))
+      if (empty_row) empty_row = (rowntot(i) == 0)
+
+    end function empty_row
+
+    ! Whether any row with no atoms is selected. build_aggregate_state has
+    ! already folded the window's flags into rowstate, so this reads the same
+    ! state the table drew rather than a second copy of it.
+    function any_empty_row_selected()
+      logical :: any_empty_row_selected
+
+      ! only while the species tab is the one being drawn: the Bonds and
+      ! Symmetry tabs build no aggregate arrays and would read the leftovers
+      any_empty_row_selected = .false.
+      if (w%tabselected /= "species") return
+      if (allocated(rowstate) .and. allocated(rowntot)) &
+         any_empty_row_selected = any(rowstate == 2 .and. rowntot == 0)
+
+    end function any_empty_row_selected
+
+    ! Deselect every species row that has no atoms.
+    subroutine clear_empty_rows()
+
+      if (allocated(w%geometry_spcsel)) w%geometry_spcsel = .false.
+
+    end subroutine clear_empty_rows
 
     ! deallocate the aggregate per-row arrays, so current_row_state falls back
     ! to the inline (cell/molecule) computation
@@ -2899,6 +2988,7 @@ contains
     ! draw the row of buttons controlling the highlights
     subroutine draw_highlight_buttons()
       integer, allocatable :: tstate(:)
+      logical, allocatable :: tatom(:) ! the row is backed by atoms
 
       ! highlight color
       call iw_text("Selection",highlight=.true.,alignframe=.true.)
@@ -2914,25 +3004,37 @@ contains
          end do
          call sysc(isys)%highlight_atoms(.false.,ihigh,table_hltype,irgba)
          deallocate(ihigh,irgba)
+         ! only the rows with no atoms: the rest are in the atom highlight.
+         ! empty_row carries the guards -- this button is shared by the tabs
+         ! whose tables have no such rows and no aggregate arrays at all
+         do i = 1, ntype
+            if (empty_row(i)) w%geometry_spcsel(i) = .true.
+         end do
       end if
       call iw_tooltip("Select all atoms in the system",ttshown)
       if (iw_button("None##highlightnone",sameline=.true.)) then
          call sysc(isys)%highlight_clear(.false.)
+         call clear_empty_rows()
       end if
       call iw_tooltip("Deselect all atoms (" // trim(get_bind_keyname(BIND_CANCEL)) // ")",ttshown)
       if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
          ! compute the per-row selection state once
-         allocate(tstate(ntype))
+         ! state of every row, and the rows with no atoms flip their own flag
+         ! (they are not in the atom highlight, so they are filtered out of
+         ! the two calls below and counted out of them as well)
+         allocate(tstate(ntype),tatom(ntype))
          do i = 1, ntype
             call current_row_state(i,tstate(i),rrgba)
+            tatom(i) = .not.empty_row(i)
+            if (.not.tatom(i)) w%geometry_spcsel(i) = (tstate(i) /= 2)
          end do
          ! select the rows that are not fully selected
-         nhigh = count(tstate /= 2)
+         nhigh = count(tstate /= 2 .and. tatom)
          if (nhigh > 0) then
             allocate(ihigh(nhigh),irgba(4,nhigh))
             nhigh = 0
             do i = 1, ntype
-               if (tstate(i) /= 2) then
+               if (tstate(i) /= 2 .and. tatom(i)) then
                   nhigh = nhigh + 1
                   ihigh(nhigh) = i
                   irgba(:,nhigh) = w%geometry_select_rgba
@@ -2942,12 +3044,12 @@ contains
             deallocate(ihigh,irgba)
          end if
          ! clear the rows that were fully selected
-         nhigh = count(tstate == 2)
+         nhigh = count(tstate == 2 .and. tatom)
          if (nhigh > 0) then
             allocate(ihigh(nhigh))
             nhigh = 0
             do i = 1, ntype
-               if (tstate(i) == 2) then
+               if (tstate(i) == 2 .and. tatom(i)) then
                   nhigh = nhigh + 1
                   ihigh(nhigh) = i
                end if
@@ -2955,7 +3057,7 @@ contains
             call sysc(isys)%highlight_clear(.false.,ihigh,table_hltype)
             deallocate(ihigh)
          end if
-         deallocate(tstate)
+         deallocate(tstate,tatom)
       end if
       call iw_tooltip("Toggle atomic selection",ttshown)
 
@@ -3050,10 +3152,12 @@ contains
          call igEndPopup()
       end if
 
-      ! Duplicate button
+      ! Duplicate button. A selected species with no atoms counts: it is not
+      ! in the atom highlight, but the edit buttons act on it all the same
       havesel = .false.
       if (allocated(sysc(isys)%highlight_rgba)) &
          havesel = any(sysc(isys)%highlight_rgba >= 0._c_float)
+      havesel = havesel .or. any_empty_row_selected()
       if (iw_button("Duplicate##duplicateselection",sameline=.true.,disabled=.not.havesel)) then
          iaction = iaction_edit_highlighted
          iaction_i1 = edit_duplicate

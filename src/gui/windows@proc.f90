@@ -961,6 +961,7 @@ contains
     if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
     if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
     if (allocated(w%geometry_sym_sel)) deallocate(w%geometry_sym_sel)
+    if (allocated(w%geometry_spcsel)) deallocate(w%geometry_spcsel)
     if (allocated(w%geometry_sym_analyze_eps)) deallocate(w%geometry_sym_analyze_eps)
     if (allocated(w%geometry_sym_analyze_sym)) deallocate(w%geometry_sym_analyze_sym)
     if (allocated(w%geometry_sym_analyze_num)) deallocate(w%geometry_sym_analyze_num)

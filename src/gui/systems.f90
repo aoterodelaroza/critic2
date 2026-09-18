@@ -545,12 +545,13 @@ module systems
        logical, intent(in), optional :: copybonding
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine set_molecule_rotation
-     module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
+     module subroutine set_atomic_number(sysc,type,id,iz,setatomnames,copybonding)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        integer, intent(in) :: iz
        logical, intent(in), optional :: setatomnames
+       logical, intent(in), optional :: copybonding
      end subroutine set_atomic_number
      module subroutine add_species(sysc,iz)
        class(sysconf), intent(inout) :: sysc
