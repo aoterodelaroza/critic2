@@ -20,7 +20,7 @@ module scenes
   use iso_c_binding
   use shapes, only: scene_objects, scene_glbuffers, glb_cone, glb_plane, glb_tri,&
      glb_conescr, dl_cylinder_over
-  use representations, only: representation
+  use representations, only: representation, rep_vibarrow
   use display, only: scene_display
   use types, only: neighstar
   implicit none
@@ -102,6 +102,9 @@ module scenes
      real*8 :: anim_speed = anim_speed_default ! animation speed
      real*8 :: anim_amplitude = anim_amplitude_default ! animation amplitude
      real*8 :: anim_phase = 0d0 ! animation phase (manual)
+     ! vibration displacement arrows (shown by the vibrations window)
+     logical :: vibarrow_show = .true. ! draw the displacement arrows for the selected mode
+     type(rep_vibarrow) :: vibarrow ! shape of the displacement arrows
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
@@ -130,6 +133,7 @@ module scenes
      procedure :: reap_transient_representations => scene_reap_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
+     procedure :: show_transient_vibarrow => scene_show_transient_vibarrow
      procedure :: show_transient_sphere => scene_show_transient_sphere
      procedure :: show_transient_box => scene_show_transient_box
      procedure :: show_transient_text => scene_show_transient_text
@@ -279,6 +283,12 @@ module scenes
        real*8, intent(in) :: rotdir(3)
        real*8, intent(in) :: rotlen
      end subroutine scene_show_transient_rotaxis
+     module subroutine scene_show_transient_vibarrow(s,owner,tag,va)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
+       integer, intent(in) :: tag
+       type(rep_vibarrow), intent(in) :: va
+     end subroutine scene_show_transient_vibarrow
      module subroutine scene_show_transient_text(s,owner,tag,str,rgb,winpos,scale)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner

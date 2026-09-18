@@ -127,7 +127,7 @@ contains
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
-  !> 11 (measurements), 12 (isosurfaces).
+  !> 11 (measurements), 12 (isosurfaces), 13 (vibration arrows).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -353,6 +353,10 @@ contains
        if (r%type == reptype_isosurface) &
           call r%iso%set_field(isys,r%iso%ifield)
     end if
+
+    ! vibration displacement arrows (every field has a default initializer)
+    if (itype == 0 .or. itype == 13) &
+       r%vibarrow = rep_vibarrow()
 
     ! initialize the styles
     call r%reset_all_styles(itype)
@@ -1022,7 +1026,8 @@ contains
     logical :: ok
 
     ok = (itype == reptype_atoms .or. itype == reptype_bonds .or.&
-       itype == reptype_labels .or. itype == reptype_polyhedra)
+       itype == reptype_labels .or. itype == reptype_polyhedra .or.&
+       itype == reptype_vibarrow)
 
   end function reptype_is_atombased
 
@@ -1623,7 +1628,7 @@ contains
 
     logical, allocatable :: lshown(:,:,:,:)
     logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
-    logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost
+    logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost, dovibarrow
     logical :: atomsdrawn, markdisplay
     logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks
     integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
@@ -1636,6 +1641,9 @@ contains
     real(c_float) :: bondrgb(3)
     type(crystal), pointer :: c ! the system's crystal structure (sys(r%id)%c)
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
+    real*8 :: vibarrowfac ! displacement-to-arrow-length factor (vibration arrows)
+    complex*16 :: zvib ! sum of the squared mode phasors (global-phase alignment)
+    logical :: hasmode ! there is a vibrational mode selected in the scene
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3)
     real*8 :: xmeas(3,4), xfmeas(3,4), dval
@@ -1712,12 +1720,22 @@ contains
 
     ! the draw lists have been reset/allocated by scene_build_lists
     ! (scene_objects%reset); dl_append grows them as needed
-    doanim_ = doanim
-    if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. c%vib%hasvibs)
+
+    ! is there a mode to display? (the selection is clamped in scene_render, but
+    ! a pick render can reach the lists before that, with a stale selection)
+    hasmode = c%vib%hasvibs
+    if (hasmode) hasmode = (iqpt > 0 .and. ifreq > 0 .and. iqpt <= c%vib%nqpt .and.&
+       ifreq <= c%vib%nfreq)
+
+    ! the arrows show the displacements of the selected mode, and are drawn
+    ! whether or not the scene is being animated
+    dovibarrow = (r%type == reptype_vibarrow) .and. hasmode .and.&
+       r%vibarrow%length > 0d0 .and. r%vibarrow%radius > 0d0
+    doanim_ = doanim .and. hasmode
 
     ! precompute the per-atom vibration phasors: displacement of atom iat at
     ! lattice translation L is vibbase(:,iat) * exp(i 2 pi q.L) (see vibdelta)
-    if (doanim_) then
+    if (doanim_ .or. dovibarrow) then
        allocate(vibbase(3,c%ncel))
        do i = 1, c%ncel
           vibbase(:,i) = c%vib%vec(:,i,ifreq,iqpt) * &
@@ -1725,6 +1743,24 @@ contains
              sqrt(atmass(c%spc(c%atcel(i)%is)%z))
        end do
     end if
+
+    if (dovibarrow) then
+       ! the mode vectors carry an arbitrary global phase - rotate the
+       ! phasors to make them maximally real
+       zvib = sum(vibbase * vibbase)
+       if (abs(zvib) > 1d-20) &
+          vibbase = vibbase * exp(-0.5d0 * img * atan2(aimag(zvib),real(zvib,8)))
+
+       ! the mode vectors are normalized: scale the arrows so the
+       ! longest one has the requested length
+       vibarrowfac = maxval(norm2(abs(vibbase),dim=1))
+       dovibarrow = (vibarrowfac > 1d-10)
+       if (dovibarrow) vibarrowfac = r%vibarrow%length / vibarrowfac
+    end if
+
+    ! nothing to draw: skip the atom-image loop below, which this kind enters
+    ! only to emit the arrows
+    if (r%type == reptype_vibarrow .and. .not.dovibarrow) return
 
     if (reptype_is_atombased(r%type)) then
        !!! atoms and bonds representation !!!
@@ -1799,6 +1835,7 @@ contains
        nres = c%ncel * nimg
        if (doatoms .or. doghost .or. corneractive) call obj%reserve(nsph = obj%nsph + nres)
        if (dolabels) call obj%reserve(nstring = obj%nstring + nres)
+       if (dovibarrow) call obj%reserve(ncyl = obj%ncyl + nres)
        if (dobonds) then
           nbond = sum(r%bonds%style%nstar(1:c%ncel)%ncon) / 2
           if (r%bonds%color_style /= 0) nbond = 2*nbond
@@ -1996,7 +2033,12 @@ contains
 
                    ! animation delta of this (center) atom (the polyhedra take
                    ! the deltas of their corners instead)
-                   if (doatoms .or. dobonds .or. dolabels) xdelta1 = vibdelta(i,ix)
+                   if (doatoms .or. dobonds .or. dolabels .or. dovibarrow) xdelta1 = vibdelta(i,ix)
+
+                   ! the displacement arrow of this atom image, from its
+                   ! equilibrium position (the arrows do not animate)
+                   if (dovibarrow) &
+                      call append_vibarrow(xc,vibarrowfac * real(xdelta1,8))
 
                    ! draw the atom, or the ghost pick target of a bonds
                    ! object: it carries the real idx and is rendered only into
@@ -3465,6 +3507,32 @@ contains
 
     end subroutine append_arrow
 
+    !> Vibration displacement arrow from the cartesian position x0 (bohr) along
+    !> the vector v (already scaled to the arrow length)
+    subroutine append_vibarrow(x0,v)
+      real*8, intent(in) :: x0(3)
+      real*8, intent(in) :: v(3)
+
+      real*8 :: xend(3), xbase(3)
+      type(dl_cylinder) :: dcv
+
+      ! skip the atoms that do not move in this mode
+      if (norm2(v) < 1d-6) return
+      xend = x0 + v
+      xbase = xend - r%vibarrow%headl * v
+
+      ! shaft
+      call measure_segment(x0,xbase,r%vibarrow%rgb,r%vibarrow%radius,.false.,0d0)
+
+      ! arrowhead
+      dcv%x1 = real(xbase,c_float)
+      dcv%x2 = real(xend,c_float)
+      dcv%r = real(r%vibarrow%headr * r%vibarrow%radius,c_float)
+      dcv%rgb = r%vibarrow%rgb
+      call dl_append(obj%cone,obj%ncone,dcv)
+
+    end subroutine append_vibarrow
+
     !> Build a coordination polyhedron from nvv vertex positions xv
     !> (cartesian, bohr) around the center atom at xcen. Adds
     !> translucent triangular faces (color rgbf, opacity alphaf) and
@@ -3659,17 +3727,18 @@ contains
 
     end subroutine append_triangle
 
-    !> Vibration-animation displacement of the periodic image of cell atom iat
-    !> at lattice translation ix; zero if the scene is not animating. Uses the
-    !> phasors precomputed in vibbase (mass, mode vector and atom-position
-    !> phase); only the lattice-translation phase depends on the image.
+    !> Vibration displacement of the periodic image of cell atom iat at
+    !> lattice translation ix; zero if there is no selected mode (the phasors
+    !> are not allocated). Uses the phasors precomputed in vibbase (mass, mode
+    !> vector and atom-position phase); only the lattice-translation phase
+    !> depends on the image.
     function vibdelta(iat,ix) result(dv)
       integer, intent(in) :: iat
       integer, intent(in) :: ix(3)
       complex*16 :: dv(3)
 
       dv = 0d0
-      if (.not.doanim_) return
+      if (.not.allocated(vibbase)) return
       dv = vibbase(:,iat) * exp(img * tpi * dot_product(real(ix,8),c%vib%qpt(:,iqpt)))
 
     end function vibdelta

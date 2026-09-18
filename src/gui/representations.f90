@@ -68,6 +68,12 @@ module representations
   real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! window-anchored axes length as a fraction of the scene radius (auto-scale tuning knob)
   !--> rotation axis
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
+  !--> vibration displacement arrows
+  real*8, parameter, public :: vibarrow_length_def = 2.5d0 / bohrtoa ! length of the longest arrow
+  real*8, parameter, public :: vibarrow_radius_def = 0.1d0 / bohrtoa ! radius of the arrow shaft
+  real*8, parameter, public :: vibarrow_headr_def = 2.5d0 ! arrowhead radius, in shaft radii
+  real*8, parameter, public :: vibarrow_headl_def = 0.3d0 ! arrowhead length, as a fraction of the arrow
+  real(c_float), parameter, public :: vibarrow_rgb_def(3) = (/0.95_c_float,0.45_c_float,0.05_c_float/) ! arrow color
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
   real(c_float), parameter, public :: symelem_rgb_glide(3) = (/0.20_c_float,0.70_c_float,0.75_c_float/) ! glide-plane color
@@ -316,7 +322,8 @@ module representations
   integer, parameter, public :: reptype_bonds = 10 ! bonds (cylinders)
   integer, parameter, public :: reptype_labels = 11 ! atom labels
   integer, parameter, public :: reptype_polyhedra = 12 ! coordination polyhedra
-  integer, parameter, public :: reptype_NUM = 12
+  integer, parameter, public :: reptype_vibarrow = 13 ! vibration displacement arrows
+  integer, parameter, public :: reptype_NUM = 13
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -337,7 +344,8 @@ module representations
   integer, parameter, public :: repflavor_measure = 15
   integer, parameter, public :: repflavor_shapes = 16
   integer, parameter, public :: repflavor_isosurface = 17
-  integer, parameter, public :: repflavor_NUM = 17
+  integer, parameter, public :: repflavor_vibarrow = 18
+  integer, parameter, public :: repflavor_NUM = 18
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -371,7 +379,8 @@ module representations
      "Text             ",& ! repflavor_text
      "Measurements     ",& ! repflavor_measure
      "Shapes           ",& ! repflavor_shapes
-     "Isosurface       "/) ! repflavor_isosurface
+     "Isosurface       ",& ! repflavor_isosurface
+     "Vibration arrows "/) ! repflavor_vibarrow
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -472,6 +481,17 @@ module representations
      real(c_float) :: rgb(3) = 0._c_float ! color of the rotation-axis cylinder
   end type rep_rotaxis
   public :: rep_rotaxis
+
+  !> Vibration displacement arrow options (reptype_vibarrow; accessed as
+  !> r%vibarrow%...).
+  type rep_vibarrow
+     real*8 :: length = vibarrow_length_def ! length of the longest arrow in the mode (bohr)
+     real*8 :: radius = vibarrow_radius_def ! radius of the arrow shaft (bohr)
+     real*8 :: headr = vibarrow_headr_def ! arrowhead radius, in shaft radii
+     real*8 :: headl = vibarrow_headl_def ! arrowhead length, as a fraction of the arrow
+     real(c_float) :: rgb(3) = vibarrow_rgb_def ! color of the arrows
+  end type rep_vibarrow
+  public :: rep_vibarrow
 
   ! shape kinds for the shapes representation
   integer, parameter, public :: shapekind_sphere = 1
@@ -725,6 +745,7 @@ module representations
      type(rep_unitcell) :: uc ! unit cell display options
      type(rep_axes) :: axes ! cartesian/crystallographic axes options
      type(rep_rotaxis) :: rotaxis ! rotation axis options
+     type(rep_vibarrow) :: vibarrow ! vibration displacement arrow options
      type(rep_shapes) :: shapes ! geometric shapes options
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options

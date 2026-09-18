@@ -30,7 +30,8 @@ contains
     use systems, only: sysc, sys, sys_init, add_systems_from_seeds,&
        launch_initialization_thread, ok_system
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth, iw_combo_simple,&
-       iw_radiobutton, iw_dragfloat_real8, iw_close_event, iw_setpos_bottomright, iw_table_column
+       iw_radiobutton, iw_dragfloat_real8, iw_close_event, iw_setpos_bottomright, iw_table_column,&
+       iw_checkbox, iw_coloredit
     use tools_math, only: rational_approx
     use tools_io, only: string, ioj_right
     use param, only: cm1tothz, bohrtoa
@@ -357,6 +358,35 @@ contains
              max=anim_speed_max,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
              win(iview)%sc%timerefanimation = glfwGetTime()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
+       end if
+
+       ! displacement arrows: shown while this window keeps them armed
+       if (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0) then
+          ldum = iw_checkbox("Show displacement arrows##showvibarrows",win(iview)%sc%vibarrow_show)
+          call iw_tooltip("Show an arrow on every atom, from its equilibrium position along the &
+             &displacement caused by the selected mode",ttshown)
+
+          if (win(iview)%sc%vibarrow_show) then
+             ldum = iw_dragfloat_real8("Length (Å)##vibarrowlength",x1=win(iview)%sc%vibarrow%length,&
+                speed=0.01d0,min=0d0,max=5d0,scale=bohrtoa,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Length of the longest arrow; the rest are scaled down in proportion to &
+                &their displacements",ttshown)
+
+             ldum = iw_dragfloat_real8("Thickness (Å)##vibarrowradius",x1=win(iview)%sc%vibarrow%radius,&
+                speed=0.002d0,min=0d0,max=0.5d0,scale=bohrtoa,decimal=3,sameline=.true.,&
+                flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Radius of the arrow shafts",ttshown)
+
+             ldum = iw_dragfloat_real8("Head Size##vibarrowheadr",x1=win(iview)%sc%vibarrow%headr,&
+                speed=0.02d0,min=1d0,max=6d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Width of the arrowheads, in units of the shaft radius",ttshown)
+
+             ldum = iw_coloredit("Color##vibarrowcolor",rgb=win(iview)%sc%vibarrow%rgb,sameline=.true.)
+             call iw_tooltip("Color of the arrows",ttshown)
+
+             ! re-arm the transient representation that draws the arrows
+             call win(iview)%sc%show_transient_vibarrow(w%id,1,win(iview)%sc%vibarrow)
+          end if
        end if
     end if ! vib_ok
 

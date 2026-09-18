@@ -2446,6 +2446,37 @@ contains
 
   end subroutine scene_show_transient_rotaxis
 
+  !> Show the vibration displacement arrows for the mode currently selected
+  !> in the scene (iqpt_selected/ifreq_selected): one arrow on every atom
+  !> image, from its equilibrium position along the atom's displacement, with
+  !> the shape given by va. The arrows are identified by (owner,tag).
+  module subroutine scene_show_transient_vibarrow(s,owner,tag,va)
+    use representations, only: reptype_vibarrow, repflavor_vibarrow, rep_vibarrow
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    type(rep_vibarrow), intent(in) :: va
+
+    integer :: id
+    logical :: found
+
+    id = transient_slot(s,owner,tag,reptype_vibarrow,repflavor_vibarrow,found)
+    if (id <= 0) return
+
+    associate (vt => s%reptrans(id)%vibarrow)
+      ! the arrow geometry is baked into the draw lists, so a change in the
+      ! shape (or in the mode, handled by the scene) needs a rebuild
+      if (found) then
+         if (abs(vt%length - va%length) < 1d-10 .and. abs(vt%radius - va%radius) < 1d-10 .and.&
+            abs(vt%headr - va%headr) < 1d-10 .and. abs(vt%headl - va%headl) < 1d-10 .and.&
+            all(abs(vt%rgb - va%rgb) < 1e-5_c_float)) return
+         call transient_dirty(s)
+      end if
+      vt = va
+    end associate
+
+  end subroutine scene_show_transient_vibarrow
+
   !> Show a transient screen-anchored text label at viewport-fraction
   !> position winpos with color rgb and size scale. The label is identified
   !> by (owner,tag), so a producer can show several labels at once by using
@@ -2992,6 +3023,13 @@ contains
        model(1,3) = temp(3) * axis(1) + sa * axis(2)
        model(2,3) = temp(3) * axis(2) - sa * axis(1)
        model(3,3) = ca + temp(3) * axis(3)
+    elseif (xdif(3) < 0._c_float) then
+       ! the cone axis is antiparallel to up, so the cross product above
+       ! degenerates and gives no rotation axis. Leaving the identity would
+       ! point the cone the opposite way (a backwards arrowhead), so apply the
+       ! half turn by hand: a rotation of pi about x takes +z to -z
+       model(2,2) = -1._c_float
+       model(3,3) = -1._c_float
     end if
     model(:,1) = model(:,1) * rad
     model(:,2) = model(:,2) * rad
