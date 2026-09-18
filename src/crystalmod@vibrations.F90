@@ -7001,7 +7001,7 @@ contains
 #ifdef HAVE_HDF5
     integer(HID_T) :: fid, dsetid, spaceid, ctypeid
     integer(HSIZE_T) :: dim(2), maxdim(2)
-    integer :: i, ier, ifreq, iqpt
+    integer :: i, ier, ier2, ifreq, iqpt
     complex*16, allocatable, target :: vaux(:,:,:,:)
     type(c_ptr) :: cptr
     ! integer :: jfreq ! checking normalization
@@ -7010,6 +7010,12 @@ contains
     ! prepare container for data
     v%file = file
     v%ivformat = ivformat_phonopy_hdf5
+
+    ! no identifiers open yet (the error exit closes only the valid ones)
+    fid = -1
+    dsetid = -1
+    spaceid = -1
+    ctypeid = -1
 
     ! open file
     call h5fopen_f(file,H5F_ACC_RDONLY_F, fid, ier)
@@ -7030,6 +7036,10 @@ contains
     allocate(v%qpt(dim(1),dim(2)))
     call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,v%qpt,dim,ier)
     if (ier < 0) goto 999
+    call h5sclose_f(spaceid,ier2)
+    spaceid = -1
+    call h5dclose_f(dsetid,ier2)
+    dsetid = -1
 
     ! read frequencies
     call h5dopen_f(fid,"frequency",dsetid,ier)
@@ -7047,6 +7057,11 @@ contains
     allocate(v%freq(dim(1),dim(2)))
     call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,v%freq,dim,ier)
     if (ier < 0) goto 999
+
+    call h5sclose_f(spaceid,ier2)
+    spaceid = -1
+    call h5dclose_f(dsetid,ier2)
+    dsetid = -1
 
     ! THz to cm-1
     v%freq = v%freq / cm1tothz
@@ -7082,7 +7097,11 @@ contains
     v%hasvibs = .true.
     errmsg = ""
 999 continue
-    call h5close_f(ier)
+    ! close the identifiers opened here
+    if (ctypeid >= 0) call h5tclose_f(ctypeid,ier2)
+    if (spaceid >= 0) call h5sclose_f(spaceid,ier2)
+    if (dsetid >= 0) call h5dclose_f(dsetid,ier2)
+    if (fid >= 0) call h5fclose_f(fid,ier2)
 
 #else
     errmsg = "Critic2 must be compiled against the HDF5 library to read phonopy hdf5 files"
