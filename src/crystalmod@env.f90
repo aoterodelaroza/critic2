@@ -1411,6 +1411,12 @@ contains
     real*8, allocatable :: cw(:), remw(:)
     real*8 :: bestscore
     integer :: nodecount
+    integer :: isolve_lo, isolve_hi !< candidate slice the solver runs on
+    ! connected components of the candidate graph
+    integer, allocatable :: ufp(:), cbeg(:), perm(:), itmp(:)
+    real*8, allocatable :: rtmp(:)
+    logical, allocatable :: cdone(:)
+    integer :: ic, ncomp, is, ie, ir, nsl, kk
 
     ! recursive double-bond search
     integer, parameter :: maxnode = 2000000 ! maximum node count
@@ -1566,9 +1572,8 @@ contains
        ! Write down information for the candidates: which bond
        ! (cbond), endpoints (ca, cb), and weight (r - single_ref > 0).
        ! The first candidate has the shortest (most different) bond
-       ! relative to the reference.
-       ! remw is an accumulated deviation wrt reference:
-       !   remw(k) = sum_{i = k}^ncand (ref_i - dist_i) > 0
+       ! relative to the reference. (remw, the bound used by the search,
+       ! is filled in below, once per component.)
        allocate(ca(ncand),cb(ncand),cbond(ncand),cw(ncand),remw(ncand+1))
        do k = 1, ncand
           cbond(k) = cand(iord(k))
@@ -1576,40 +1581,98 @@ contains
           cb(k) = bib(cbond(k))
           cw(k) = -ckey(iord(k)) ! = r1 - dist > 0, larger for shorter bonds
        end do
-       remw(ncand+1) = 0d0
-       do k = ncand, 1, -1
-          remw(k) = remw(k+1) + cw(k)
+
+       ! Split the candidates into the connected components of the candidate
+       ! graph and solve each one on its own. Two candidates that share no
+       ! atom never compete for the same valence, so the maximum-weight
+       ! matching is the union of the per-component maxima; and because a
+       ! component is one molecule (or one conjugated fragment), the search
+       ! size no longer grows with the cell. That is what makes the result
+       ! size-consistent: without it, a supercell presents the search with
+       ! several copies of the same fragment at once, the node budget below
+       ! runs out, and a molecule can end up with a different (worse)
+       ! Kekule structure than in the unit cell -- which then changes its
+       ! perceived aromaticity, its UFF/DREIDING bond orders, and hence the
+       ! force-field energy of a supercell relative to its unit cell.
+       allocate(ufp(c%ncel))
+       do i = 1, c%ncel
+          ufp(i) = i
+       end do
+       do k = 1, ncand
+          call uf_union(ca(k),cb(k))
        end do
 
-       ! Greedy baseline: assign all double bonds that are currently
-       ! possible in order from higest score (most different from the
-       ! single reference) to lowest. This is also the fallback if
-       ! the search is truncated.
+       ! order the candidates so that each component is contiguous, keeping
+       ! the by-distance order within the component
+       allocate(perm(ncand),cbeg(ncand+1),cdone(ncand))
+       cdone = .false.
+       ncomp = 0
+       nsl = 0
+       do k = 1, ncand
+          if (cdone(k)) cycle
+          ncomp = ncomp + 1
+          cbeg(ncomp) = nsl + 1
+          ir = uf_find(ca(k))
+          do kk = k, ncand
+             if (cdone(kk)) cycle
+             if (uf_find(ca(kk)) /= ir) cycle
+             nsl = nsl + 1
+             perm(nsl) = kk
+             cdone(kk) = .true.
+          end do
+       end do
+       cbeg(ncomp+1) = ncand + 1
+       allocate(itmp(ncand),rtmp(ncand))
+       itmp = ca(perm) ; ca = itmp
+       itmp = cb(perm) ; cb = itmp
+       itmp = cbond(perm) ; cbond = itmp
+       rtmp = cw(perm) ; cw = rtmp
+       deallocate(itmp,rtmp,perm,cdone,ufp)
+
        ! wopen = working iopen
        ! cursel = currently selected candidates
        ! bestsel = currently best set of selected candidates in the search
        allocate(cursel(ncand),bestsel(ncand),wopen(c%ncel))
-       wopen = iopen
        cursel = .false.
-       bestscore = 0d0
-       do k = 1, ncand
-          if (wopen(ca(k)) >= 1 .and. wopen(cb(k)) >= 1) then
-             cursel(k) = .true.
-             wopen(ca(k)) = wopen(ca(k)) - 1
-             wopen(cb(k)) = wopen(cb(k)) - 1
-             bestscore = bestscore + cw(k)
+       bestsel = .false.
+       do ic = 1, ncomp
+          is = cbeg(ic)
+          ie = cbeg(ic+1) - 1
+
+          ! accumulated deviation wrt reference over the rest of the component:
+          !   remw(k) = sum_{i = k}^ie (ref_i - dist_i) > 0
+          remw(ie+1) = 0d0
+          do k = ie, is, -1
+             remw(k) = remw(k+1) + cw(k)
+          end do
+
+          ! Greedy baseline: assign all double bonds that are currently
+          ! possible in order from higest score (most different from the
+          ! single reference) to lowest. This is also the fallback if
+          ! the search is truncated.
+          wopen = iopen
+          bestscore = 0d0
+          do k = is, ie
+             cursel(k) = (wopen(ca(k)) >= 1 .and. wopen(cb(k)) >= 1)
+             if (cursel(k)) then
+                wopen(ca(k)) = wopen(ca(k)) - 1
+                wopen(cb(k)) = wopen(cb(k)) - 1
+                bestscore = bestscore + cw(k)
+             end if
+          end do
+          bestsel(is:ie) = cursel(is:ie)
+
+          ! branch-and-bound improvement over the greedy seed (bounded in both
+          ! recursion depth and node count; the greedy result is kept otherwise)
+          if (ie-is+1 <= ncand_max) then
+             nodecount = 0
+             wopen = iopen
+             cursel(is:ie) = .false.
+             isolve_lo = is
+             isolve_hi = ie
+             call solve(is,0d0)
           end if
        end do
-       bestsel = cursel
-
-       ! branch-and-bound improvement over the greedy seed (bounded in both
-       ! recursion depth and node count; the greedy result is kept otherwise)
-       if (ncand <= ncand_max) then
-          nodecount = 0
-          wopen = iopen
-          cursel = .false.
-          call solve(1,0d0)
-       end if
 
        ! apply the best matching found
        do k = 1, ncand
@@ -1621,7 +1684,7 @@ contains
              iopen(cb(k)) = iopen(cb(k)) - 1
           end if
        end do
-       deallocate(iord,ca,cb,cbond,cw,remw,cursel,bestsel,wopen)
+       deallocate(iord,ca,cb,cbond,cw,remw,cursel,bestsel,wopen,cbeg)
     end if
 
     ! flag aromatic atoms and bonds: those in a planar, conjugated sp2 ring of
@@ -1782,10 +1845,33 @@ contains
       end if
     end subroutine set_bond_data
 
+    !> Union-find over the atoms, used to split the double-bond candidates
+    !> into the connected components of the candidate graph. Root of the
+    !> component atom ja belongs to, with path compression.
+    recursive function uf_find(ja) result(ir0)
+      integer, intent(in) :: ja
+      integer :: ir0
+      if (ufp(ja) == ja) then
+         ir0 = ja
+      else
+         ir0 = uf_find(ufp(ja))
+         ufp(ja) = ir0
+      end if
+    end function uf_find
+
+    !> Merge the components of atoms ja and jb.
+    subroutine uf_union(ja,jb)
+      integer, intent(in) :: ja, jb
+      integer :: ra, rb
+      ra = uf_find(ja)
+      rb = uf_find(jb)
+      if (ra /= rb) ufp(rb) = ra
+    end subroutine uf_union
+
     !> Branch-and-bound search for the maximum-weight set of double
-    !> bonds (candidate index idx onwards) that respects the valences
-    !> in wopen. Updates bestscore/bestsel with the best assignment
-    !> found.
+    !> bonds (candidate index idx onwards, up to the end of the component
+    !> being solved) that respects the valences in wopen. Updates
+    !> bestscore/bestsel with the best assignment found.
     recursive subroutine solve(idx,score)
       integer, intent(in) :: idx
       real*8, intent(in) :: score
@@ -1796,10 +1882,10 @@ contains
       if (nodecount > maxnode) return
 
       ! stop if we are out of candidates; write it down if it is an improvement
-      if (idx > ncand) then
+      if (idx > isolve_hi) then
          if (score > bestscore + 1d-12) then
             bestscore = score
-            bestsel = cursel
+            bestsel(isolve_lo:isolve_hi) = cursel(isolve_lo:isolve_hi)
          end if
          return
       end if
