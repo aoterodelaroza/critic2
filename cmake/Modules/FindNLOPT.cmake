@@ -56,19 +56,7 @@ unset(_root_both)
 # cross build describes the host's nlopt and not the one found above, so
 # prefer the pkgconfig file that sits beside the library actually found.
 set(NLOPT_VERSION ${PC_NLOPT_VERSION})
-get_filename_component(_nlopt_libdir "${NLOPT_LIBRARIES}" DIRECTORY)
-if (EXISTS "${_nlopt_libdir}/pkgconfig/nlopt.pc")
-  file(STRINGS "${_nlopt_libdir}/pkgconfig/nlopt.pc" _nlopt_pcver REGEX "^Version:")
-  if (_nlopt_pcver)
-    string(REGEX REPLACE "^Version:[ \t]*" "" NLOPT_VERSION "${_nlopt_pcver}")
-  endif()
-  unset(_nlopt_pcver)
-elseif (CMAKE_CROSSCOMPILING)
-  # nothing to read beside the library, and the host pkg-config describes a
-  # different nlopt entirely -- report no version rather than a wrong one
-  set(NLOPT_VERSION "")
-endif()
-unset(_nlopt_libdir)
+c2_pkgconfig_version(NLOPT_VERSION "${NLOPT_LIBRARIES}" nlopt "${PC_NLOPT_LIBDIR}")
 
 # Set (NAME)_FOUND if all the variables and the version are satisfied.
 include(FindPackageHandleStandardArgs)
