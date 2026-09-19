@@ -343,14 +343,32 @@ contains
 #endif
     case (ff_gfnff)
 #ifdef HAVE_XTB
-       ! molecules only: xtb's periodic GFN-FF (6.7.1) energies match the xtb
-       ! program but the analytic gradient is inconsistent with the energy
-       ! (finite-difference check off by ~1e-3), and the C API does not
-       ! provide the GFN-FF virial at all, so MD/relax on crystals would be
-       ! wrong. The missing virial is independently guarded at runtime in
-       ! calc_eval_xtb (which errors rather than returning garbage). Lift this
-       ! only once xtb's periodic GFN-FF gradient AND virial are fixed
-       ! upstream.
+       ! molecules only. Two independent problems block periodic GFN-FF, both
+       ! verified against xtb 6.7.1 (and unchanged in the Debian 6.7.1 build):
+       !
+       ! 1. The energy is discontinuous at the cell faces. xtb wraps every atom
+       !    back into the cell on each xtb_updateMolecule (wrap_back, called
+       !    from TMolecule%update), but GFN-FF's bonded terms use a lattice
+       !    translation index frozen when the topology is built
+       !    (neigh%blist(3,:) in gfnff_ini.f90, consumed in gfnff_eg.f90), and
+       !    nothing re-derives it. An atom that crosses a face therefore has
+       !    its bonds measured against the wrong image: walking one urea carbon
+       !    from x=0 to x=-0.05 bohr jumps the energy by 1.58 hartree (43 eV).
+       !    MD and relaxation cross faces routinely, so this is fatal for them.
+       !    Away from the faces the surface is smooth and the analytic gradient
+       !    is correct (central differences on the urea crystal agree to ~3e-9
+       !    hartree/bohr), which is why a finite-difference check passes and
+       !    hides the problem.
+       !
+       ! 2. There is no stress. xtb computes the GFN-FF virial internally
+       !    (gfnff_eg accumulates sigma over every term) but its C API discards
+       !    it, deallocating results%sigma after each GFN-FF singlepoint under
+       !    the comment "properties not produced in GFN-FF"
+       !    (xtb src/api/interface.f90). calc_eval_xtb guards this at runtime.
+       !
+       ! Lifting this restriction needs (1) fixed -- by re-deriving the GFN-FF
+       ! topology whenever an atom wraps, or by xtb not wrapping -- and, for
+       ! variable-cell work, (2) as well.
        ok = c%ismolecule
 #else
        ok = .false.
