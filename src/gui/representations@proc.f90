@@ -127,7 +127,7 @@ contains
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
-  !> 11 (measurements), 12 (isosurfaces), 13 (vibration arrows).
+  !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -140,6 +140,7 @@ contains
     integer, intent(in) :: itype
 
     integer :: isys
+    real*8 :: xcen(3)
 
     ! check the system is sane
     isys = r%id
@@ -354,9 +355,24 @@ contains
           call r%iso%set_field(isys,r%iso%ifield)
     end if
 
-    ! vibration displacement arrows (every field has a default initializer)
-    if (itype == 0 .or. itype == 13) &
-       r%vibarrow = rep_vibarrow()
+    ! geometric shapes
+    if (itype == 0 .or. itype == 13) then
+       r%shapes%nshape = 0
+       r%shapes%isel = 0
+       if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
+       if (r%type == reptype_shapes) then
+          ! default: a single sphere at the center of the cell
+          xcen = sys(isys)%c%x2c((/0.5d0,0.5d0,0.5d0/))
+          if (sys(isys)%c%ismolecule) xcen = xcen + sys(isys)%c%molx0
+          allocate(r%shapes%shape(1))
+          r%shapes%nshape = 1
+          r%shapes%isel = 1
+          r%shapes%shape(1)%kind = shapekind_sphere
+          r%shapes%shape(1)%x1 = xcen
+          r%shapes%shape(1)%rad = 0.5d0 * shape_size_def
+          r%shapes%shape(1)%rgb = shape_rgb_def
+       end if
+    end if
 
     ! initialize the styles
     call r%reset_all_styles(itype)
@@ -1026,8 +1042,7 @@ contains
     logical :: ok
 
     ok = (itype == reptype_atoms .or. itype == reptype_bonds .or.&
-       itype == reptype_labels .or. itype == reptype_polyhedra .or.&
-       itype == reptype_vibarrow)
+       itype == reptype_labels .or. itype == reptype_polyhedra)
 
   end function reptype_is_atombased
 
@@ -1628,7 +1643,7 @@ contains
 
     logical, allocatable :: lshown(:,:,:,:)
     logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
-    logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost, dovibarrow
+    logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost
     logical :: atomsdrawn, markdisplay
     logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks
     integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
@@ -1641,8 +1656,6 @@ contains
     real(c_float) :: bondrgb(3)
     type(crystal), pointer :: c ! the system's crystal structure (sys(r%id)%c)
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
-    real*8 :: vibarrowfac ! displacement-to-arrow-length factor (vibration arrows)
-    complex*16 :: zvib ! sum of the squared mode phasors (global-phase alignment)
     logical :: hasmode ! there is a vibrational mode selected in the scene
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3)
@@ -1691,8 +1704,6 @@ contains
        end subroutine runqhull_basintriangulate_step2
     end interface
 
-    real*8, parameter :: rthr = 0.01d0
-    real*8, parameter :: rthr1 = 1-rthr
     integer, parameter :: uc(3,2,12) = reshape((/&
        0,0,0,  1,0,0,&
        0,0,0,  0,1,0,&
@@ -1727,40 +1738,11 @@ contains
     if (hasmode) hasmode = (iqpt > 0 .and. ifreq > 0 .and. iqpt <= c%vib%nqpt .and.&
        ifreq <= c%vib%nfreq)
 
-    ! the arrows show the displacements of the selected mode, and are drawn
-    ! whether or not the scene is being animated
-    dovibarrow = (r%type == reptype_vibarrow) .and. hasmode .and.&
-       r%vibarrow%length > 0d0 .and. r%vibarrow%radius > 0d0
     doanim_ = doanim .and. hasmode
 
     ! precompute the per-atom vibration phasors: displacement of atom iat at
     ! lattice translation L is vibbase(:,iat) * exp(i 2 pi q.L) (see vibdelta)
-    if (doanim_ .or. dovibarrow) then
-       allocate(vibbase(3,c%ncel))
-       do i = 1, c%ncel
-          vibbase(:,i) = c%vib%vec(:,i,ifreq,iqpt) * &
-             exp(img * tpi * dot_product(c%atcel(i)%x,c%vib%qpt(:,iqpt))) / &
-             sqrt(atmass(c%spc(c%atcel(i)%is)%z))
-       end do
-    end if
-
-    if (dovibarrow) then
-       ! the mode vectors carry an arbitrary global phase - rotate the
-       ! phasors to make them maximally real
-       zvib = sum(vibbase * vibbase)
-       if (abs(zvib) > 1d-20) &
-          vibbase = vibbase * exp(-0.5d0 * img * atan2(aimag(zvib),real(zvib,8)))
-
-       ! the mode vectors are normalized: scale the arrows so the
-       ! longest one has the requested length
-       vibarrowfac = maxval(norm2(abs(vibbase),dim=1))
-       dovibarrow = (vibarrowfac > 1d-10)
-       if (dovibarrow) vibarrowfac = r%vibarrow%length / vibarrowfac
-    end if
-
-    ! nothing to draw: skip the atom-image loop below, which this kind enters
-    ! only to emit the arrows
-    if (r%type == reptype_vibarrow .and. .not.dovibarrow) return
+    if (doanim_) call vib_phasors(c,iqpt,ifreq,vibbase)
 
     if (reptype_is_atombased(r%type)) then
        !!! atoms and bonds representation !!!
@@ -1835,7 +1817,6 @@ contains
        nres = c%ncel * nimg
        if (doatoms .or. doghost .or. corneractive) call obj%reserve(nsph = obj%nsph + nres)
        if (dolabels) call obj%reserve(nstring = obj%nstring + nres)
-       if (dovibarrow) call obj%reserve(ncyl = obj%ncyl + nres)
        if (dobonds) then
           nbond = sum(r%bonds%style%nstar(1:c%ncel)%ncon) / 2
           if (r%bonds%color_style /= 0) nbond = 2*nbond
@@ -1848,13 +1829,7 @@ contains
        if (dopolyhedra) allocate(up2dsp(c%nspc,2))
 
        ! whether there is vacuum in any direction
-       ! disable it for an isolated molecule and in a live dynamics run
-       dovac = (c%vaclength > iperiod_vacthr)
-       if (c%ismolecule .or. sysc(r%id)%md_run) dovac = .false.
-       if (any(dovac)) then
-          ucini = c%vactop - 1d0 - vacextension / c%aa
-          ucend = c%vacbot + vacextension / c%aa
-       end if
+       call atom_image_vacuum(c,r%id,dovac,ucini,ucend)
 
        ! run over atoms, either directly or per-molecule
        i = 0
@@ -1893,42 +1868,13 @@ contains
              if (.not.disp%mshown(imol)) cycle
           end if
 
-          ! skip the species this object does not draw
-
           ! the style entry of this atom
           id = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,i)
 
-          ! calculate the border
-          xx = c%atcel(i)%x
-          n0 = 0
-          n1 = n-1
-          if (border.and..not.onemotif) then
-             do j = 1, 3
-                ! not in a vacuum direction
-                if (.not.dovac(j)) then
-                   if (xx(j) < rthr) then
-                      n1(j) = n(j)
-                   elseif (xx(j) > rthr1) then
-                      n0(j) = -1
-                   end if
-                end if
-             end do
-          end if
-
-          ! calculate the vacuum shift
-          vacshift = 0
-          if (any(dovac)) then
-             xx = c%atcel(i)%x + lvec
-             do j = 1, 3
-                if (dovac(j)) then
-                   if (xx(j) < ucini(j)) then
-                      vacshift(j) = 1
-                   elseif (xx(j) > ucend(j)) then
-                      vacshift(j) = -1
-                   end if
-                end if
-             end do
-          end if
+          ! the range of periodic images of this atom (border) and its
+          ! translation across the cell in a vacuum direction
+          call atom_image_range(c%atcel(i)%x,lvec,n,border,onemotif,dovac,ucini,ucend,&
+             n0,n1,vacshift)
 
           ! draw the spheres and cylinders
           rgb = r%atoms%style%rgb(:,id) * r%mols%style%tint_rgb(:,imol)
@@ -2033,12 +1979,7 @@ contains
 
                    ! animation delta of this (center) atom (the polyhedra take
                    ! the deltas of their corners instead)
-                   if (doatoms .or. dobonds .or. dolabels .or. dovibarrow) xdelta1 = vibdelta(i,ix)
-
-                   ! the displacement arrow of this atom image, from its
-                   ! equilibrium position (the arrows do not animate)
-                   if (dovibarrow) &
-                      call append_vibarrow(xc,vibarrowfac * real(xdelta1,8))
+                   if (doatoms .or. dobonds .or. dolabels) xdelta1 = vibdelta(i,ix)
 
                    ! draw the atom, or the ghost pick target of a bonds
                    ! object: it carries the real idx and is rendered only into
@@ -2390,8 +2331,14 @@ contains
        call dl_append(obj%cyl,obj%ncyl,dcyl)
     elseif (r%type == reptype_shapes) then
        !!! list of geometric shapes !!!
+
+       ! one cylinder (shaft) and one sphere at most per shape
+       call obj%reserve(nsph = obj%nsph + r%shapes%nshape, ncyl = obj%ncyl + r%shapes%nshape)
+
        do i = 1, r%shapes%nshape
           associate (sh => r%shapes%shape(i))
+            if (.not.sh%shown) cycle
+
             ! anchor in cartesian (bohr); for molecules referred to the molecular center
             uoriginc = sh%x1
             if (c%ismolecule) uoriginc = uoriginc - c%molx0
@@ -2425,6 +2372,19 @@ contains
                   idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
                   rgbborder=0._c_float,alpha=sh%alpha)
                call dl_append(obj%sph,obj%nsph,dsph)
+            elseif (norm2(sh%v(:,1)) > 1d-6) then
+               ! the kinds that run along v(:,1); a degenerate one is skipped
+               x1 = uoriginc + sh%v(:,1)
+               if (sh%kind == shapekind_cylinder) then
+                  call measure_segment(uoriginc,x1,sh%rgb,sh%rad,.false.,0d0)
+               elseif (sh%kind == shapekind_cone) then
+                  call append_cone(uoriginc,x1,sh%rad,sh%rgb)
+               elseif (sh%kind == shapekind_arrow) then
+                  ! shaft up to the base of the head, then the head
+                  x2 = x1 - sh%headl * sh%v(:,1)
+                  call measure_segment(uoriginc,x2,sh%rgb,sh%rad,.false.,0d0)
+                  call append_cone(x2,x1,sh%headr * sh%rad,sh%rgb)
+               end if
             end if
           end associate
        end do
@@ -3490,48 +3450,29 @@ contains
       real(c_float), intent(in) :: rgb(3)
 
       real*8 :: xbase(3)
-      type(dl_cylinder) :: dca
 
       xbase = x1 + (1d0 - symelem_arrow_headl) * (x2 - x1)
       call measure_segment(x1,xbase,rgb,symelem_arrow_radius,.true.,symelem_arrow_dashlen)
-
-      dca%x1 = real(xbase,c_float)
-      dca%x2 = real(x2,c_float)
-      dca%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
-      dca%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-      dca%r = real(symelem_arrow_headr * symelem_arrow_radius,c_float)
-      dca%rgb = rgb
-      dca%border = 0._c_float
-      dca%rgbborder = 0._c_float
-      call dl_append(obj%cone,obj%ncone,dca)
+      call append_cone(xbase,x2,symelem_arrow_headr * symelem_arrow_radius,rgb)
 
     end subroutine append_arrow
 
-    !> Vibration displacement arrow from the cartesian position x0 (bohr) along
-    !> the vector v (already scaled to the arrow length)
-    subroutine append_vibarrow(x0,v)
-      real*8, intent(in) :: x0(3)
-      real*8, intent(in) :: v(3)
+    !> Append a cone with its base center at x1 and its apex at x2, with base
+    !> radius radv and color rgbc.
+    subroutine append_cone(x1,x2,radv,rgbc)
+      real*8, intent(in) :: x1(3), x2(3), radv
+      real(c_float), intent(in) :: rgbc(3)
 
-      real*8 :: xend(3), xbase(3)
-      type(dl_cylinder) :: dcv
+      type(dl_cylinder) :: dcc
 
-      ! skip the atoms that do not move in this mode
-      if (norm2(v) < 1d-6) return
-      xend = x0 + v
-      xbase = xend - r%vibarrow%headl * v
+      dcc%x1 = real(x1,c_float)
+      dcc%x2 = real(x2,c_float)
+      dcc%r = real(radv,c_float)
+      dcc%rgb = rgbc
+      call dl_append(obj%cone,obj%ncone,dcc)
 
-      ! shaft
-      call measure_segment(x0,xbase,r%vibarrow%rgb,r%vibarrow%radius,.false.,0d0)
+    end subroutine append_cone
 
-      ! arrowhead
-      dcv%x1 = real(xbase,c_float)
-      dcv%x2 = real(xend,c_float)
-      dcv%r = real(r%vibarrow%headr * r%vibarrow%radius,c_float)
-      dcv%rgb = r%vibarrow%rgb
-      call dl_append(obj%cone,obj%ncone,dcv)
-
-    end subroutine append_vibarrow
 
     !> Build a coordination polyhedron from nvv vertex positions xv
     !> (cartesian, bohr) around the center atom at xcen. Adds
@@ -4452,5 +4393,272 @@ contains
     if (allocated(d%dmax)) deallocate(d%dmax)
 
   end subroutine coordpoly_style_end
+
+
+  !> Build the list of vibration displacement arrows for system isys:
+  !> one arrow per drawn atom image, from the atom's equilibrium
+  !> position along its displacement in the mode (iqpt,ifreq). length
+  !> is the length of the longest arrow (bohr) and templ carries the
+  !> arrow style (radius, head, color). shape is allocated on return
+  !> on every path (possibly with nshape = 0, if there is no mode to
+  !> show or the mode moves no atom) and is grown as needed.
+  module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,length,templ,nshape,shape)
+    use systems, only: sys, sysc, sys_ready, ok_system
+    use crystalmod, only: crystal
+    use param, only: tpi, img, atmass
+    integer, intent(in) :: isys
+    type(scene_display), intent(in) :: disp
+    integer, intent(in) :: iqpt
+    integer, intent(in) :: ifreq
+    real*8, intent(in) :: length
+    type(rep_shape), intent(in) :: templ
+    integer, intent(out) :: nshape
+    type(rep_shape), allocatable, intent(inout) :: shape(:)
+
+    type(crystal), pointer :: c
+    complex*16, allocatable :: vibbase(:,:)
+    complex*16 :: zvib
+    real*8 :: fac, xx(3), xc(3), dv(3), ucini(3), ucend(3)
+    integer :: i, k, imol, nmax, lvec(3), n(3), n0(3), n1(3), ix(3), vacshift(3)
+    integer :: i1, i2, i3
+    logical :: step, border, onemotif, usemasks, usetshift, dovac(3)
+
+    ! initialize
+    nshape = 0
+    if (.not.allocated(shape)) allocate(shape(1))
+    if (.not.ok_system(isys,sys_ready)) return
+    c => sys(isys)%c
+
+    ! is there a mode to show?
+    if (.not.c%vib%hasvibs) return
+    if (iqpt <= 0 .or. ifreq <= 0) return
+    if (iqpt > c%vib%nqpt .or. ifreq > c%vib%nfreq) return
+
+    ! per-atom phasors, shared with the animation
+    call vib_phasors(c,iqpt,ifreq,vibbase)
+    zvib = sum(vibbase * vibbase)
+    if (abs(zvib) > 1d-20) &
+       vibbase = vibbase * exp(-0.5d0 * img * atan2(aimag(zvib),real(zvib,8)))
+
+    ! the mode vectors are normalized: scale so the longest arrow has
+    ! the requested length
+    fac = maxval(norm2(abs(vibbase),dim=1))
+    if (fac < 1d-10) return
+    if (templ%rad <= 0d0) return
+    fac = length / fac
+
+    ! the same atom images the atom-based objects draw
+    border = disp%border
+    onemotif = disp%onemotif
+    usetshift = any(abs(disp%tshift) > 1d-5)
+
+    ! the Show masks are resized by scene_display%update, which runs in the
+    ! scene build
+    usemasks = allocated(disp%ashown) .and. allocated(disp%mshown)
+    if (usemasks) usemasks = &
+       (size(disp%ashown,1) == sysc(isys)%attype_number(disp%atype)) .and.&
+       (size(disp%mshown,1) == c%nmol)
+    n = disp%ncells(rep_display())
+    call atom_image_vacuum(c,isys,dovac,ucini,ucend)
+
+    ! one arrow per atom image is the common case; the border adds at
+    ! most one cell per direction, which is grown into rather than
+    ! allocated up front
+    nmax = max(c%ncel * product(n),1)
+    if (size(shape,1) < nmax) then
+       deallocate(shape)
+       allocate(shape(nmax))
+    end if
+
+    ! run over atoms, either directly or per-molecule
+    i = 0
+    imol = 0
+    do while(.true.)
+       if (onemotif) then
+          ! this is a new molecule if there are no molecules or this is the last atom
+          ! in the previous one
+          step = (imol == 0)
+          if (.not.step) step = (k == c%mol(imol)%nat)
+          if (step) then
+             imol = imol + 1
+             k = 0
+          end if
+
+          ! we are finished if we have all molecules
+          if (imol > c%nmol) exit
+
+          ! Add the new atom, translated by the molecule lattice vector
+          k = k + 1
+          i = c%mol(imol)%at(k)%cidx
+          lvec = c%mol(imol)%at(k)%lvec
+       else
+          ! next atom in the complete list, exit if done
+          i = i + 1
+          if (i > c%ncel) exit
+          lvec = 0
+          imol = c%idatcelmol(1,i)
+       end if
+
+       ! skip the atoms and molecules hidden in the Display
+       if (usemasks) then
+          if (.not.disp%ashown(sysc(isys)%attype_celatom_to_id(disp%atype,i))) cycle
+          if (.not.disp%mshown(imol)) cycle
+       end if
+
+       ! the range of periodic images of this atom and its vacuum translation
+       call atom_image_range(c%atcel(i)%x,lvec,n,border,onemotif,dovac,ucini,ucend,&
+          n0,n1,vacshift)
+
+       do i1 = n0(1), n1(1)
+          do i2 = n0(2), n1(2)
+             do i3 = n0(3), n1(3)
+                ix = (/i1,i2,i3/) + lvec + vacshift
+                if (usetshift) then
+                   xx = c%atcel(i)%x - disp%tshift
+                   ix = ix + nint(xx - floor(xx) + disp%tshift - c%atcel(i)%x)
+                end if
+
+                ! the displacement of this image, at phase zero
+                dv = fac * real(vibbase(:,i) * &
+                   exp(img * tpi * dot_product(real(ix,8),c%vib%qpt(:,iqpt))),8)
+                if (norm2(dv) < 1d-6) cycle
+
+                ! the arrow, anchored in the absolute frame
+                if (nshape >= nmax) call grow_shapes()
+                xc = c%x2c(c%atcel(i)%x + ix)
+                if (c%ismolecule) xc = xc + c%molx0
+                nshape = nshape + 1
+                shape(nshape) = templ
+                shape(nshape)%x1 = xc
+                shape(nshape)%v = 0d0
+                shape(nshape)%v(:,1) = dv
+             end do
+          end do
+       end do
+    end do
+
+  contains
+    !> Double the capacity of the shape buffer, keeping what is in it.
+    subroutine grow_shapes()
+      type(rep_shape), allocatable :: saux(:)
+
+      allocate(saux(2*nmax))
+      saux(1:nshape) = shape(1:nshape)
+      call move_alloc(saux,shape)
+      nmax = 2*nmax
+
+    end subroutine grow_shapes
+
+  end subroutine vibration_arrow_shapes
+
+  !xx! private procedures: atom-image enumeration
+
+  !> Per-atom vibration phasors of crystal c for the mode (iqpt,ifreq): the
+  !> displacement of cell atom iat at lattice translation L is
+  !> vibbase(:,iat) * exp(i 2 pi q.L).
+  subroutine vib_phasors(c,iqpt,ifreq,vibbase)
+    use crystalmod, only: crystal
+    use param, only: tpi, img, atmass
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: iqpt
+    integer, intent(in) :: ifreq
+    complex*16, allocatable, intent(inout) :: vibbase(:,:)
+
+    integer :: i
+
+    if (allocated(vibbase)) deallocate(vibbase)
+    allocate(vibbase(3,c%ncel))
+    do i = 1, c%ncel
+       vibbase(:,i) = c%vib%vec(:,i,ifreq,iqpt) * &
+          exp(img * tpi * dot_product(c%atcel(i)%x,c%vib%qpt(:,iqpt))) / &
+          sqrt(atmass(c%spc(c%atcel(i)%is)%z))
+    end do
+
+  end subroutine vib_phasors
+
+  !> Vacuum directions of the crystal c belonging to system isys, for the
+  !> loops that draw one object per periodic image of an atom. dovac(j) is
+  !> true if direction j has enough vacuum that the atoms are translated to
+  !> reassemble the slab, and [ucini,ucend] is the fractional window outside
+  !> which an atom is translated.
+  subroutine atom_image_vacuum(c,isys,dovac,ucini,ucend)
+    use crystalmod, only: crystal, iperiod_vacthr
+    use systems, only: sysc
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: isys
+    logical, intent(out) :: dovac(3)
+    real*8, intent(out) :: ucini(3)
+    real*8, intent(out) :: ucend(3)
+
+    ucini = 0d0
+    ucend = 0d0
+    dovac = (c%vaclength > iperiod_vacthr)
+    if (c%ismolecule .or. sysc(isys)%md_run) dovac = .false.
+    if (any(dovac)) then
+       ucini = c%vactop - 1d0 - vacextension / c%aa
+       ucend = c%vacbot + vacextension / c%aa
+    end if
+
+  end subroutine atom_image_vacuum
+
+  !> Range of periodic images [n0,n1] and vacuum translation vacshift
+  !> for the cell atom at fractional position x, carried by the
+  !> molecule lattice vector lvec, in a loop drawing n(3) cells. With
+  !> border, an atom sitting on a cell face is drawn on both faces;
+  !> that does not apply in a vacuum direction or in one-motif mode
+  !> (the molecules are already whole). dovac/ucini/ucend come from
+  !> atom_image_vacuum.
+  subroutine atom_image_range(x,lvec,n,border,onemotif,dovac,ucini,ucend,n0,n1,vacshift)
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: lvec(3)
+    integer, intent(in) :: n(3)
+    logical, intent(in) :: border
+    logical, intent(in) :: onemotif
+    logical, intent(in) :: dovac(3)
+    real*8, intent(in) :: ucini(3)
+    real*8, intent(in) :: ucend(3)
+    integer, intent(out) :: n0(3)
+    integer, intent(out) :: n1(3)
+    integer, intent(out) :: vacshift(3)
+
+    integer :: j
+    real*8 :: xx(3)
+
+    ! an atom this close to a cell face (fractional) is drawn on both faces
+    real*8, parameter :: rthr = 0.01d0
+    real*8, parameter :: rthr1 = 1-rthr
+
+    ! calculate the border
+    n0 = 0
+    n1 = n-1
+    if (border.and..not.onemotif) then
+       do j = 1, 3
+          ! not in a vacuum direction
+          if (.not.dovac(j)) then
+             if (x(j) < rthr) then
+                n1(j) = n(j)
+             elseif (x(j) > rthr1) then
+                n0(j) = -1
+             end if
+          end if
+       end do
+    end if
+
+    ! calculate the vacuum shift
+    vacshift = 0
+    if (any(dovac)) then
+       xx = x + lvec
+       do j = 1, 3
+          if (dovac(j)) then
+             if (xx(j) < ucini(j)) then
+                vacshift(j) = 1
+             elseif (xx(j) > ucend(j)) then
+                vacshift(j) = -1
+             end if
+          end if
+       end do
+    end if
+
+  end subroutine atom_image_range
 
 end submodule proc

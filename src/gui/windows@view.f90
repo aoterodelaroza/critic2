@@ -80,7 +80,8 @@ contains
        repflavor_labels_basic, repflavor_polyhedra_basic, repflavor_unitcell_basic,&
        repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface,&
-       repstyle_ballandstick, repstyle_licorice, repstyle_sticks
+       reptype_shapes, repflavor_shapes, repstyle_ballandstick, repstyle_licorice,&
+       repstyle_sticks
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -544,6 +545,10 @@ contains
           if (iw_menuitem("Measurements")) &
              call w%add_rep_and_edit(reptype_measure,repflavor_measure)
           call iw_tooltip("Measure and display distances, angles, and dihedrals",ttshown)
+
+          if (iw_menuitem("Geometric Shapes")) &
+             call w%add_rep_and_edit(reptype_shapes,repflavor_shapes)
+          call iw_tooltip("Add geometric shapes (spheres, boxes, arrows, cones, cylinders) to the view",ttshown)
        end if
        call igEndPopup()
     end if

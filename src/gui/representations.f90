@@ -68,12 +68,14 @@ module representations
   real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! window-anchored axes length as a fraction of the scene radius (auto-scale tuning knob)
   !--> rotation axis
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
-  !--> vibration displacement arrows
-  real*8, parameter, public :: vibarrow_length_def = 2.5d0 / bohrtoa ! length of the longest arrow
-  real*8, parameter, public :: vibarrow_radius_def = 0.1d0 / bohrtoa ! radius of the arrow shaft
-  real*8, parameter, public :: vibarrow_headr_def = 2.5d0 ! arrowhead radius, in shaft radii
-  real*8, parameter, public :: vibarrow_headl_def = 0.3d0 ! arrowhead length, as a fraction of the arrow
-  real(c_float), parameter, public :: vibarrow_rgb_def(3) = (/0.95_c_float,0.45_c_float,0.05_c_float/) ! arrow color
+  !--> geometric shapes
+  real*8, parameter, public :: arrow_length_def = 2.5d0 / bohrtoa ! length of an arrow (also: of the longest vibration arrow)
+  real*8, parameter, public :: arrow_radius_def = 0.1d0 / bohrtoa ! radius of the arrow shaft
+  real*8, parameter, public :: arrow_headr_def = 2.5d0 ! arrowhead radius, in shaft radii
+  real*8, parameter, public :: arrow_headl_def = 0.3d0 ! arrowhead length, as a fraction of the arrow
+  real(c_float), parameter, public :: shape_rgb_def(3) = (/0.95_c_float,0.45_c_float,0.05_c_float/) ! default shape color
+  real*8, parameter, public :: shape_size_def = 2d0 / bohrtoa ! size of a newly created shape (radius, cube side)
+  real*8, parameter, public :: shape_edge_def = 0.05d0 / bohrtoa ! thickness of the box edges
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
   real(c_float), parameter, public :: symelem_rgb_glide(3) = (/0.20_c_float,0.70_c_float,0.75_c_float/) ! glide-plane color
@@ -322,8 +324,7 @@ module representations
   integer, parameter, public :: reptype_bonds = 10 ! bonds (cylinders)
   integer, parameter, public :: reptype_labels = 11 ! atom labels
   integer, parameter, public :: reptype_polyhedra = 12 ! coordination polyhedra
-  integer, parameter, public :: reptype_vibarrow = 13 ! vibration displacement arrows
-  integer, parameter, public :: reptype_NUM = 13
+  integer, parameter, public :: reptype_NUM = 12
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -344,8 +345,7 @@ module representations
   integer, parameter, public :: repflavor_measure = 15
   integer, parameter, public :: repflavor_shapes = 16
   integer, parameter, public :: repflavor_isosurface = 17
-  integer, parameter, public :: repflavor_vibarrow = 18
-  integer, parameter, public :: repflavor_NUM = 18
+  integer, parameter, public :: repflavor_NUM = 17
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -378,9 +378,8 @@ module representations
      "Symmetry elements",& ! repflavor_symelem
      "Text             ",& ! repflavor_text
      "Measurements     ",& ! repflavor_measure
-     "Shapes           ",& ! repflavor_shapes
-     "Isosurface       ",& ! repflavor_isosurface
-     "Vibration arrows "/) ! repflavor_vibarrow
+     "Geometric Shapes ",& ! repflavor_shapes
+     "Isosurface       "/) ! repflavor_isosurface
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -482,29 +481,34 @@ module representations
   end type rep_rotaxis
   public :: rep_rotaxis
 
-  !> Vibration displacement arrow options (reptype_vibarrow; accessed as
-  !> r%vibarrow%...).
-  type rep_vibarrow
-     real*8 :: length = vibarrow_length_def ! length of the longest arrow in the mode (bohr)
-     real*8 :: radius = vibarrow_radius_def ! radius of the arrow shaft (bohr)
-     real*8 :: headr = vibarrow_headr_def ! arrowhead radius, in shaft radii
-     real*8 :: headl = vibarrow_headl_def ! arrowhead length, as a fraction of the arrow
-     real(c_float) :: rgb(3) = vibarrow_rgb_def ! color of the arrows
-  end type rep_vibarrow
-  public :: rep_vibarrow
-
   ! shape kinds for the shapes representation
   integer, parameter, public :: shapekind_sphere = 1
   integer, parameter, public :: shapekind_box = 2
+  integer, parameter, public :: shapekind_arrow = 3
+  integer, parameter, public :: shapekind_cone = 4
+  integer, parameter, public :: shapekind_cylinder = 5
+  integer, parameter, public :: shapekind_NUM = 5
+  character(len=8), parameter, public :: shapekind_name(shapekind_NUM) = (/&
+     "Sphere  ",&
+     "Box     ",&
+     "Arrow   ",&
+     "Cone    ",&
+     "Cylinder"/)
+  character(len=*,kind=c_char), parameter, public :: shapekind_combostr = &
+     "Sphere" // c_null_char // "Box" // c_null_char // "Arrow" // c_null_char //&
+     "Cone" // c_null_char // "Cylinder" // c_null_char
 
-  !> A geometric shape in a shapes representation
+  !> A geometric shape (sphere, box,...)
   type rep_shape
      integer :: kind = shapekind_sphere ! shape kind (shapekind_*)
+     logical :: shown = .true. ! whether this shape is drawn
      real*8 :: x1(3) = 0d0 ! center/anchor (cartesian, bohr; molecules: absolute frame)
-     real*8 :: v(3,3) = 0d0 ! box: the three edge vectors from x1 (cartesian, bohr)
-     real*8 :: rad = 1d0 ! sphere: radius; box: thickness of the edges (bohr)
+     real*8 :: v(3,3) = 0d0 ! the shape's vector(s) from x1 (cartesian, bohr)
+     real*8 :: rad = 1d0 ! radius/thickness (bohr)
+     real*8 :: headr = arrow_headr_def ! arrow: arrowhead radius, in shaft radii
+     real*8 :: headl = arrow_headl_def ! arrow: arrowhead length, as a fraction of the arrow
      real(c_float) :: rgb(3) = 0._c_float ! color
-     real(c_float) :: alpha = 1._c_float ! sphere: opacity (1 = opaque); box: opacity of the faces (0 = wireframe only)
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
   end type rep_shape
   public :: rep_shape
 
@@ -512,6 +516,7 @@ module representations
   type rep_shapes
      integer :: nshape = 0 ! number of shapes in the list
      type(rep_shape), allocatable :: shape(:) ! the shapes
+     integer :: isel = 0 ! shape being edited in the object editor
   end type rep_shapes
   public :: rep_shapes
 
@@ -745,7 +750,6 @@ module representations
      type(rep_unitcell) :: uc ! unit cell display options
      type(rep_axes) :: axes ! cartesian/crystallographic axes options
      type(rep_rotaxis) :: rotaxis ! rotation axis options
-     type(rep_vibarrow) :: vibarrow ! vibration displacement arrow options
      type(rep_shapes) :: shapes ! geometric shapes options
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options
@@ -776,6 +780,7 @@ module representations
   public :: iso_estimate_cost
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
+  public :: vibration_arrow_shapes
 
   ! module procedure interfaces
   interface
@@ -787,6 +792,16 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,length,templ,nshape,shape)
+       integer, intent(in) :: isys
+       type(scene_display), intent(in) :: disp
+       integer, intent(in) :: iqpt
+       integer, intent(in) :: ifreq
+       real*8, intent(in) :: length
+       type(rep_shape), intent(in) :: templ
+       integer, intent(out) :: nshape
+       type(rep_shape), allocatable, intent(inout) :: shape(:)
+     end subroutine vibration_arrow_shapes
      module function iso_default_isovalue(isys,ifield) result(isoval)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield

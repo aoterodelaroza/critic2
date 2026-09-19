@@ -58,7 +58,7 @@ contains
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
-       reptype_measure, reptype_isosurface, iso_map_color
+       reptype_measure, reptype_isosurface, reptype_shapes, iso_map_color
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -139,6 +139,8 @@ contains
           changed = changed .or. w%draw_editrep_measure(ttshown)
        elseif (w%rep%type == reptype_isosurface) then
           changed = changed .or. w%draw_editrep_isosurface(ttshown)
+       elseif (w%rep%type == reptype_shapes) then
+          changed = changed .or. w%draw_editrep_shapes(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -2432,6 +2434,386 @@ contains
     end function item_value_str
 
   end function draw_editrep_measure
+
+  !> Draw the editrep window, shapes class. Returns true if the scene needs
+  !> rendering again.
+  module function draw_editrep_shapes(w,ttshown) result(changed)
+    use representations, only: rep_shape, shapekind_sphere, shapekind_box, shapekind_arrow,&
+       shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr, shape_rgb_def,&
+       shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
+       iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
+       iw_close_button, iw_highlight_selectable, iw_table_column
+    use systems, only: sys, sysc
+    use tools_io, only: string
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch, ldum
+    integer :: i, k, iview, isel, idel, ikind, istat, ndec
+    real*8 :: xc(3), xdsp(3)
+    integer(c_int) :: flags
+    type(ImVec2) :: sz0
+    character(kind=c_char,len=:), allocatable, target :: str1
+    character(len=:), allocatable :: strunit
+    type(rep_shape), allocatable :: saux(:)
+
+    ! initialize
+    changed = .false.
+    iview = w%anchor_view()
+
+    ! positions are shown the way the atomic coordinates are shown elsewhere:
+    ! fractional in a crystal, cartesian angstrom in a molecule
+    if (sys(w%isys)%c%ismolecule) then
+       strunit = "Å"
+       ndec = 4
+    else
+       strunit = "fractional"
+       ndec = 6
+    end if
+
+    ! handle a pending position pick commanded to the parent view
+    if (w%editrep_pick_item > 0) then
+       if (w%editrep_pick_item > w%rep%shapes%nshape) then
+          ! the shape was deleted under the pick
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_pick_item = 0
+       else
+          call view_pick_result(iview,w%id,w%isys,w%editrep_pick,istat,xc)
+          if (istat == ipick_point) then
+             ! the shapes are anchored in the absolute frame
+             if (sys(w%isys)%c%ismolecule) xc = xc + sys(w%isys)%c%molx0
+             associate (sh => w%rep%shapes%shape(w%editrep_pick_item))
+               if (w%editrep_pick_slot == 0) then
+                  ! the anchor: the whole shape moves with it
+                  sh%x1 = xc
+               else
+                  ! an end point: only that vector changes
+                  sh%v(:,w%editrep_pick_slot) = xc - sh%x1
+               end if
+             end associate
+             changed = .true.
+          end if
+          if (istat /= ipick_pending) w%editrep_pick_item = 0
+       end if
+    end if
+
+    ! table of shapes
+    call iw_text("Geometric Shapes",highlight=.true.)
+    idel = 0
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_RowBg)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    str1 = "##shapestable" // c_null_char
+    sz0%x = 0
+    sz0%y = iw_calcheight(min(w%rep%shapes%nshape,5)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Kind",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Position (" // strunit // ")",id=3,&
+          flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_headers_row(freezetop=.true.)
+
+       do i = 1, w%rep%shapes%nshape
+          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+
+          ! delete button
+          if (igTableSetColumnIndex(0)) then
+             call igAlignTextToFramePadding()
+             if (iw_close_button("##shapedel" // string(i))) idel = i
+             call iw_tooltip("Remove this shape",ttshown)
+          end if
+
+          ! shown checkbox
+          if (igTableSetColumnIndex(1)) then
+             if (iw_checkbox("##shapeshow" // string(i),w%rep%shapes%shape(i)%shown)) changed = .true.
+             call iw_tooltip("Toggle show/hide this shape",ttshown)
+          end if
+
+          ! kind
+          if (igTableSetColumnIndex(2)) &
+             call iw_text(kind_label(w%rep%shapes%shape(i)%kind),alignframe=.true.)
+
+          ! position, and the row-spanning selectable that picks the edited shape
+          if (igTableSetColumnIndex(3)) then
+             xdsp = pos_to_display(w%rep%shapes%shape(i)%x1)
+             call iw_text("(" // string(xdsp(1),'f',decimal=ndec) // ", " //&
+                string(xdsp(2),'f',decimal=ndec) // ", " // string(xdsp(3),'f',decimal=ndec) //&
+                ")",alignframe=.true.)
+             ldum = iw_highlight_selectable("##shapesel" // string(i),clicked=ch,&
+                selected=(i == w%rep%shapes%isel))
+             if (ch) w%rep%shapes%isel = i
+          end if
+       end do
+       call igEndTable()
+    end if
+
+    ! add a new shape of the chosen kind
+    call iw_combo_simple("##shapeaddkind",shapekind_combostr,w%editrep_shapekind,&
+       startsatone=.true.)
+    call iw_tooltip("Kind of shape the Add button creates",ttshown)
+    if (iw_button("Add##shapeadd",sameline=.true.)) then
+       allocate(saux(w%rep%shapes%nshape+1))
+       if (w%rep%shapes%nshape > 0) saux(1:w%rep%shapes%nshape) = w%rep%shapes%shape(1:w%rep%shapes%nshape)
+       call move_alloc(saux,w%rep%shapes%shape)
+       w%rep%shapes%nshape = w%rep%shapes%nshape + 1
+       w%rep%shapes%isel = w%rep%shapes%nshape
+       call seed_shape(w%rep%shapes%shape(w%rep%shapes%nshape),&
+          min(max(int(w%editrep_shapekind),1),shapekind_NUM))
+       changed = .true.
+    end if
+    call iw_tooltip("Add a new shape",ttshown)
+
+    ! process a deletion
+    if (idel > 0) then
+       do k = idel, w%rep%shapes%nshape-1
+          w%rep%shapes%shape(k) = w%rep%shapes%shape(k+1)
+       end do
+       w%rep%shapes%nshape = w%rep%shapes%nshape - 1
+       ! keep the selection on the same shape it was on
+       if (w%rep%shapes%isel > idel) w%rep%shapes%isel = w%rep%shapes%isel - 1
+       if (w%rep%shapes%isel > w%rep%shapes%nshape) w%rep%shapes%isel = w%rep%shapes%nshape
+       if (w%editrep_pick_item == idel) then
+          ! cancel a pick pending on the deleted shape
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_pick_item = 0
+       elseif (w%editrep_pick_item > idel) then
+          w%editrep_pick_item = w%editrep_pick_item - 1
+       end if
+       changed = .true.
+    end if
+    if (w%rep%shapes%nshape == 0) return
+
+    ! options for the selected shape. Each widget is evaluated into ch first:
+    ! .or. is allowed to short-circuit, and a widget skipped because changed is
+    ! already true is a widget not drawn
+    isel = min(max(w%rep%shapes%isel,1),w%rep%shapes%nshape)
+    w%rep%shapes%isel = isel
+    associate (sh => w%rep%shapes%shape(isel))
+      call iw_text("Shape " // string(isel) // " (" // kind_label(sh%kind) // "), positions in " //&
+         strunit,highlight=.true.)
+
+      ! the kind; a shape that changes kind keeps its position and gets a
+      ! default vector if it has none to show
+      ikind = sh%kind
+      call iw_combo_simple("Kind##shapekind",shapekind_combostr,ikind,changed=ch,&
+         startsatone=.true.)
+      if (ch) then
+         sh%kind = ikind
+         ! the radius means a different thing for every kind (sphere radius,
+         ! box edge thickness, shaft thickness...), so it always goes back to
+         ! the default; the position is kept, and so is every vector the new
+         ! kind can use (seed_vectors only fills in the ones it lacks)
+         call seed_radius(sh)
+         call seed_vectors(sh)
+      end if
+      changed = changed .or. ch
+      call iw_tooltip("Kind of geometric shape",ttshown)
+
+      ! the anchor; moving it translates the whole shape, since the end
+      ! points below are stored as vectors from it
+      xdsp = pos_to_display(sh%x1)
+      ch = iw_dragfloat_real8("Position##shapepos",x3=xdsp,speed=0.001d0,&
+         decimal=ndec,notlive=.true.)
+      if (ch) sh%x1 = pos_from_display(xdsp)
+      call iw_tooltip("Position of the shape: the center of a sphere, a corner of a box, the &
+         &tail of an arrow, the center of the base of a cone or the first end of a cylinder",ttshown)
+      changed = changed .or. ch
+      call shape_pick_button("shapepick",0,"Pick the position for the shape")
+
+      ! the end points, one per axis for a box and one for the rest
+      if (sh%kind == shapekind_box) then
+         do k = 1, 3
+            xdsp = pos_to_display(sh%x1 + sh%v(:,k))
+            ch = iw_dragfloat_real8("Axis " // string(k) // " end##shapeend" // string(k),&
+               x3=xdsp,speed=0.001d0,decimal=ndec,notlive=.true.)
+            if (ch) sh%v(:,k) = pos_from_display(xdsp) - sh%x1
+            call iw_tooltip("End point of axis " // string(k) // " of the box, i.e. the corner &
+               &reached from the position along that axis",ttshown)
+            changed = changed .or. ch
+            call shape_pick_button("shapeendpick" // string(k),k,&
+               "Pick the end point of axis " // string(k))
+         end do
+      elseif (sh%kind /= shapekind_sphere) then
+         xdsp = pos_to_display(sh%x1 + sh%v(:,1))
+         ch = iw_dragfloat_real8("End point##shapeend1",x3=xdsp,&
+            speed=0.001d0,decimal=ndec,notlive=.true.)
+         if (ch) sh%v(:,1) = pos_from_display(xdsp) - sh%x1
+         call iw_tooltip("Tip of the arrow, apex of the cone, or the other end of the cylinder",&
+            ttshown)
+         changed = changed .or. ch
+         call shape_pick_button("shapeendpick1",1,"Pick the end point")
+      end if
+
+      ! the radius/thickness
+      if (sh%kind == shapekind_sphere) then
+         str1 = "Radius (Å)##shaperad"
+      elseif (sh%kind == shapekind_box) then
+         str1 = "Edge thickness (Å)##shaperad"
+      elseif (sh%kind == shapekind_arrow) then
+         str1 = "Shaft thickness (Å)##shaperad"
+      elseif (sh%kind == shapekind_cone) then
+         str1 = "Base width (Å)##shaperad"
+      else
+         str1 = "Thickness (Å)##shaperad"
+      end if
+      ch = iw_dragfloat_real8(str1,x1=sh%rad,speed=0.002d0,min=0d0,max=20d0,scale=bohrtoa,&
+         decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+      call iw_tooltip("Radius of the sphere; for the other kinds, the width across: the &
+         &thickness of the box edges or of the cylinder and the arrow shaft, or the width of &
+         &the base of the cone",ttshown)
+      changed = changed .or. ch
+
+      ! the arrowhead
+      if (sh%kind == shapekind_arrow) then
+         ch = iw_dragfloat_real8("Head Size##shapeheadr",x1=sh%headr,speed=0.02d0,min=1d0,&
+            max=6d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Width of the arrowhead, in units of the shaft thickness",ttshown)
+         changed = changed .or. ch
+
+         ch = iw_dragfloat_real8("Head Length##shapeheadl",x1=sh%headl,speed=0.005d0,min=0d0,&
+            max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Length of the arrowhead, as a fraction of the whole arrow",ttshown)
+         changed = changed .or. ch
+      end if
+
+      ! the color, and the opacity for the kinds that are not drawn opaque
+      ch = iw_coloredit("Color##shapecolor",rgb=sh%rgb)
+      call iw_tooltip("Color of the shape",ttshown)
+      changed = changed .or. ch
+
+      if (sh%kind == shapekind_sphere .or. sh%kind == shapekind_box) then
+         ch = iw_dragfloat_realc("Opacity##shapealpha",x1=sh%alpha,speed=0.01_c_float,&
+            min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,&
+            flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Opacity of the sphere, or of the faces of the box (0 = wireframe only)",ttshown)
+         changed = changed .or. ch
+      end if
+    end associate
+
+  contains
+    !> Convert the absolute-frame cartesian position xc (bohr) to the units
+    !> the editor shows: fractional for a crystal, angstrom for a molecule.
+    function pos_to_display(xc) result(x)
+      real*8, intent(in) :: xc(3)
+      real*8 :: x(3)
+
+      if (sys(w%isys)%c%ismolecule) then
+         x = xc * bohrtoa
+      else
+         x = sys(w%isys)%c%c2x(xc)
+      end if
+
+    end function pos_to_display
+
+    !> Inverse of pos_to_display.
+    function pos_from_display(x) result(xc)
+      real*8, intent(in) :: x(3)
+      real*8 :: xc(3)
+
+      if (sys(w%isys)%c%ismolecule) then
+         xc = x / bohrtoa
+      else
+         xc = sys(w%isys)%c%x2c(x)
+      end if
+
+    end function pos_from_display
+
+    !> Button that commands the parent view to pick a position for the shape
+    !> being edited. islot is the destination: 0 the anchor, k the end point
+    !> of vector k.
+    subroutine shape_pick_button(id,islot,tt)
+      character(len=*), intent(in) :: id
+      integer, intent(in) :: islot
+      character(len=*), intent(in) :: tt
+
+      if (iw_button("Pick##" // id,sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
+         w%editrep_pick_item = isel
+         w%editrep_pick_slot = islot
+         call w%editrep_pick%arm()
+         call win(iview)%viewmode_set_forced(vm_pick_atom,tt,w%id,acceptempty=.true.)
+      end if
+      call iw_tooltip(tt // " (click an atom, or empty space for a point on the plane through &
+         &the scene center)",ttshown)
+
+    end subroutine shape_pick_button
+
+    !> Name of shape kind k, for the table and the per-shape header.
+    function kind_label(k) result(str)
+      integer, intent(in) :: k
+      character(len=:), allocatable :: str
+
+      if (k >= 1 .and. k <= shapekind_NUM) then
+         str = trim(shapekind_name(k))
+      else
+         str = "???"
+      end if
+
+    end function kind_label
+
+    !> Give the shape sh the kind ikind0 (shapekind_*) and the default
+    !> geometry of that kind, at the scene center.
+    subroutine seed_shape(sh,ikind0)
+      type(rep_shape), intent(inout) :: sh
+      integer, intent(in) :: ikind0
+
+      sh = rep_shape()
+      sh%rgb = shape_rgb_def
+      sh%kind = ikind0
+      if (iview > 0) then
+         if (associated(win(iview)%sc)) sh%x1 = real(win(iview)%sc%scenecenter,8)
+      end if
+      if (sys(w%isys)%c%ismolecule) sh%x1 = sh%x1 + sys(w%isys)%c%molx0
+      call seed_vectors(sh)
+      call seed_radius(sh)
+      ! a box is anchored at a corner, so move it to sit around the view
+      ! center rather than hanging off it
+      if (sh%kind == shapekind_box) &
+         sh%x1 = sh%x1 - 0.5d0 * (sh%v(:,1) + sh%v(:,2) + sh%v(:,3))
+
+    end subroutine seed_shape
+
+    !> Fill in the geometry vectors that the kind of the shape sh needs and
+    !> does not have yet; a vector it already has is kept, so a shape keeps
+    !> its size across a kind change. A zero vector would draw nothing (a box
+    !> with one would be a flat or collapsed parallelepiped).
+    subroutine seed_vectors(sh)
+      type(rep_shape), intent(inout) :: sh
+
+      integer :: j
+
+      if (sh%kind == shapekind_sphere) return
+      if (sh%kind == shapekind_box) then
+         do j = 1, 3
+            if (all(abs(sh%v(:,j)) < 1d-10)) sh%v(j,j) = shape_size_def
+         end do
+      elseif (all(abs(sh%v(:,1)) < 1d-10)) then
+         sh%v(1,1) = arrow_length_def
+      end if
+
+    end subroutine seed_vectors
+
+    !> Default radius for the kind of the shape sh: the sphere radius, the
+    !> thickness of the box edges, or the shaft/base radius of the rest.
+    subroutine seed_radius(sh)
+      type(rep_shape), intent(inout) :: sh
+
+      if (sh%kind == shapekind_sphere) then
+         sh%rad = 0.5d0 * shape_size_def
+      elseif (sh%kind == shapekind_box) then
+         sh%rad = shape_edge_def
+      else
+         sh%rad = arrow_radius_def
+      end if
+
+    end subroutine seed_radius
+
+  end function draw_editrep_shapes
 
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.

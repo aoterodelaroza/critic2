@@ -221,6 +221,10 @@ contains
     s%forcesort = .true.
     s%timelastrender = 0d0
     s%timelastbuild = 0d0
+    s%vibarrow_gentime = -1d0
+    s%vibarrow_geniqpt = 0
+    s%vibarrow_genifreq = 0
+    s%vibarrow_genlength = -1d0
     s%timelastcamchange = 0d0
 
     ! locking group for the camera
@@ -1721,7 +1725,7 @@ contains
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
-       reptype_isosurface
+       reptype_isosurface, reptype_shapes
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -1859,6 +1863,8 @@ contains
              str3 = "measure" // c_null_char
           elseif (s%rep(i)%type == reptype_isosurface) then
              str3 = "isosurf" // c_null_char
+          elseif (s%rep(i)%type == reptype_shapes) then
+             str3 = "shapes" // c_null_char
           else
              str3 = "???" // c_null_char
           end if
@@ -2447,35 +2453,47 @@ contains
   end subroutine scene_show_transient_rotaxis
 
   !> Show the vibration displacement arrows for the mode currently selected
-  !> in the scene (iqpt_selected/ifreq_selected): one arrow on every atom
-  !> image, from its equilibrium position along the atom's displacement, with
-  !> the shape given by va. The arrows are identified by (owner,tag).
-  module subroutine scene_show_transient_vibarrow(s,owner,tag,va)
-    use representations, only: reptype_vibarrow, repflavor_vibarrow, rep_vibarrow
+  !> in the scene (iqpt_selected/ifreq_selected) as a transient shapes object
+  !> identified by (owner,tag): one arrow on every drawn atom image, from its
+  !> equilibrium position along the atom's displacement, with the length and
+  !> style the scene carries. The list is regenerated only when something it
+  !> depends on changed; on every other frame this just re-arms the slot.
+  module subroutine scene_show_transient_vibarrows(s,owner,tag)
+    use representations, only: reptype_shapes, repflavor_shapes, rep_shape,&
+       vibration_arrow_shapes
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
-    type(rep_vibarrow), intent(in) :: va
 
-    integer :: id
-    logical :: found
+    integer :: id, nshape
+    logical :: found, regen
+    type(rep_shape), allocatable :: shp(:)
 
-    id = transient_slot(s,owner,tag,reptype_vibarrow,repflavor_vibarrow,found)
+    ! arm the slot (the cheap path: nothing to do on most frames)
+    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
     if (id <= 0) return
 
-    associate (vt => s%reptrans(id)%vibarrow)
-      ! the arrow geometry is baked into the draw lists, so a change in the
-      ! shape (or in the mode, handled by the scene) needs a rebuild
-      if (found) then
-         if (abs(vt%length - va%length) < 1d-10 .and. abs(vt%radius - va%radius) < 1d-10 .and.&
-            abs(vt%headr - va%headr) < 1d-10 .and. abs(vt%headl - va%headl) < 1d-10 .and.&
-            all(abs(vt%rgb - va%rgb) < 1e-5_c_float)) return
-         call transient_dirty(s)
-      end if
-      vt = va
-    end associate
+    ! a reaped slot has no list; otherwise regenerate when the mode, the arrow
+    ! style or anything that forced a list rebuild changed
+    regen = .not.found
+    regen = regen .or. (s%timelastbuild /= s%vibarrow_gentime)
+    regen = regen .or. (s%iqpt_selected /= s%vibarrow_geniqpt)
+    regen = regen .or. (s%ifreq_selected /= s%vibarrow_genifreq)
+    regen = regen .or. (abs(s%vibarrow_length - s%vibarrow_genlength) > 1d-10)
+    regen = regen .or. shape_differs(s%vibarrow,s%vibarrow_gen)
+    if (.not.regen) return
 
-  end subroutine scene_show_transient_vibarrow
+    call vibration_arrow_shapes(s%id,s%disp,s%iqpt_selected,s%ifreq_selected,&
+       s%vibarrow_length,s%vibarrow,nshape,shp)
+    call transient_set_shapes(s,owner,tag,nshape,shp)
+
+    s%vibarrow_gentime = s%timelastbuild
+    s%vibarrow_geniqpt = s%iqpt_selected
+    s%vibarrow_genifreq = s%ifreq_selected
+    s%vibarrow_genlength = s%vibarrow_length
+    s%vibarrow_gen = s%vibarrow
+
+  end subroutine scene_show_transient_vibarrows
 
   !> Show a transient screen-anchored text label at viewport-fraction
   !> position winpos with color rgb and size scale. The label is identified
@@ -2771,13 +2789,28 @@ contains
   !> and make it hold shp as its only shape. The draw lists are rebuilt
   !> only if the representation is new or any field of the shape changed.
   subroutine transient_set_shape(s,owner,tag,shp)
-    use representations, only: reptype_shapes, repflavor_shapes, rep_shape
+    use representations, only: rep_shape
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
     type(rep_shape), intent(in) :: shp
 
-    integer :: id
+    call transient_set_shapes(s,owner,tag,1,(/shp/))
+
+  end subroutine transient_set_shape
+
+  !> Arm the transient shapes representation identified by (owner,tag) and
+  !> make it hold the first nshape entries of shp. The draw lists are rebuilt
+  !> only if the representation is new or the list changed.
+  subroutine transient_set_shapes(s,owner,tag,nshape,shp)
+    use representations, only: reptype_shapes, repflavor_shapes, rep_shape
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
+    integer, intent(in) :: nshape
+    type(rep_shape), intent(in) :: shp(:)
+
+    integer :: id, i
     logical :: found, changed
 
     id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
@@ -2786,22 +2819,42 @@ contains
     associate (sh => s%reptrans(id)%shapes)
       ! change detection for an existing slot (a new/retagged one is already dirty)
       if (found) then
-         changed = (sh%nshape /= 1)
-         if (.not.changed) &
-            changed = sh%shape(1)%kind /= shp%kind .or.&
-               any(abs(sh%shape(1)%x1 - shp%x1) > 1d-10) .or.&
-               any(abs(sh%shape(1)%v - shp%v) > 1d-10) .or.&
-               abs(sh%shape(1)%rad - shp%rad) > 1d-10 .or.&
-               any(abs(sh%shape(1)%rgb - shp%rgb) > 1e-5_c_float) .or.&
-               abs(sh%shape(1)%alpha - shp%alpha) > 1e-5_c_float
+         changed = (sh%nshape /= nshape)
+         if (.not.changed) then
+            do i = 1, nshape
+               changed = shape_differs(sh%shape(i),shp(i))
+               if (changed) exit
+            end do
+         end if
          if (.not.changed) return
          call transient_dirty(s)
       end if
-      sh%nshape = 1
-      sh%shape = (/shp/)
+
+      ! grow-only: the arrow lists are long and rebuilt often
+      if (allocated(sh%shape)) then
+         if (size(sh%shape,1) < nshape) deallocate(sh%shape)
+      end if
+      if (.not.allocated(sh%shape)) allocate(sh%shape(max(nshape,1)))
+      sh%shape(1:nshape) = shp(1:nshape)
+      sh%nshape = nshape
     end associate
 
-  end subroutine transient_set_shape
+  end subroutine transient_set_shapes
+
+  !> Whether the two geometric shapes differ in any field.
+  function shape_differs(a,b) result(ok)
+    use representations, only: rep_shape
+    type(rep_shape), intent(in) :: a
+    type(rep_shape), intent(in) :: b
+    logical :: ok
+
+    ok = (a%kind /= b%kind) .or. (a%shown .neqv. b%shown) .or.&
+       any(abs(a%x1 - b%x1) > 1d-10) .or. any(abs(a%v - b%v) > 1d-10) .or.&
+       abs(a%rad - b%rad) > 1d-10 .or. abs(a%headr - b%headr) > 1d-10 .or.&
+       abs(a%headl - b%headl) > 1d-10 .or. any(abs(a%rgb - b%rgb) > 1e-5_c_float) .or.&
+       abs(a%alpha - b%alpha) > 1e-5_c_float
+
+  end function shape_differs
 
   !> Find the transient representation identified by (owner,itag) with
   !> representation type itype and arm it (found=.true.). Otherwise,

@@ -543,7 +543,8 @@ module windows
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
-     integer :: editrep_pick_item = 0 ! text/measurement item waiting for a view pick (0 = idle)
+     integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
+     integer(c_int) :: editrep_shapekind = 1 ! kind the shape editor's Add button creates (shapekind_*)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery
@@ -786,6 +787,7 @@ module windows
      procedure :: draw_editrep_symelem
      procedure :: draw_editrep_text
      procedure :: draw_editrep_measure
+     procedure :: draw_editrep_shapes
      procedure :: draw_editrep_isosurface
      ! export image
      procedure :: draw_exportimage
@@ -1369,6 +1371,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_measure
+     module function draw_editrep_shapes(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_shapes
      module function draw_editrep_isosurface(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

@@ -367,12 +367,12 @@ contains
              &displacement caused by the selected mode",ttshown)
 
           if (win(iview)%sc%vibarrow_show) then
-             ldum = iw_dragfloat_real8("Length (Å)##vibarrowlength",x1=win(iview)%sc%vibarrow%length,&
+             ldum = iw_dragfloat_real8("Length (Å)##vibarrowlength",x1=win(iview)%sc%vibarrow_length,&
                 speed=0.01d0,min=0d0,max=5d0,scale=bohrtoa,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Length of the longest arrow; the rest are scaled down in proportion to &
                 &their displacements",ttshown)
 
-             ldum = iw_dragfloat_real8("Thickness (Å)##vibarrowradius",x1=win(iview)%sc%vibarrow%radius,&
+             ldum = iw_dragfloat_real8("Thickness (Å)##vibarrowradius",x1=win(iview)%sc%vibarrow%rad,&
                 speed=0.002d0,min=0d0,max=0.5d0,scale=bohrtoa,decimal=3,sameline=.true.,&
                 flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Radius of the arrow shafts",ttshown)
@@ -384,8 +384,8 @@ contains
              ldum = iw_coloredit("Color##vibarrowcolor",rgb=win(iview)%sc%vibarrow%rgb,sameline=.true.)
              call iw_tooltip("Color of the arrows",ttshown)
 
-             ! re-arm the transient representation that draws the arrows
-             call win(iview)%sc%show_transient_vibarrow(w%id,1,win(iview)%sc%vibarrow)
+             ! re-arm the transient shapes object that draws the arrows
+             call win(iview)%sc%show_transient_vibarrows(w%id,1)
           end if
        end if
     end if ! vib_ok
