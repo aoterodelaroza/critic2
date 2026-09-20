@@ -4,4 +4,5 @@
 ## labels: regression quick nodata
 crystal library uracil
 write 020_write_gulp_1.gin
-write 020_write_gulp_2.gin dreiding
+molecule library butadiene
+write 020_write_gulp_2.gin

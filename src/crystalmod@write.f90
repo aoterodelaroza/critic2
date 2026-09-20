@@ -2560,18 +2560,43 @@ contains
     character*(*), intent(in) :: file
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, i, j
+    integer :: lu, i, j, is, ityp
+    logical :: shared
+    character(len=6), allocatable :: label(:)
+    real*8 :: x(3)
+
+    ! GULP-compatible species labels: symbol plus type number if needed
+    allocate(label(c%nspc))
+    do is = 1, c%nspc
+       shared = .false.
+       ityp = 0
+       do j = 1, c%nspc
+          if (c%spc(j)%z /= c%spc(is)%z) cycle
+          if (j /= is) shared = .true.
+          if (j <= is) ityp = ityp + 1
+       end do
+       label(is) = nameguess(c%spc(is)%z,.true.)
+       if (shared) label(is) = trim(label(is)) // string(ityp)
+    end do
 
     lu = fopen_write(file,ti=ti)
     write (lu,'("eem")')
-    write (lu,'("cell ",6(A," "))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
-       (string(c%bb(j),'f',10,5),j=1,3)
-    write (lu,'("fractional")')
-    do i = 1, c%ncel
-       write (lu,'(A5," ",3(A," "))') trim(c%spc(c%atcel(i)%is)%name),&
-          (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
-    end do
-
+    if (c%ismolecule) then
+       write (lu,'("cartesian")')
+       do i = 1, c%ncel
+          x = (c%atcel(i)%r + c%molx0) * bohrtoa
+          write (lu,'(A5," ",3(A," "))') label(c%atcel(i)%is),&
+             (string(x(j),'f',15,9),j=1,3)
+       end do
+    else
+       write (lu,'("cell ",6(A," "))') (string(c%aa(j) * bohrtoa,'f',13,9),j=1,3), &
+          (string(c%bb(j),'f',10,5),j=1,3)
+       write (lu,'("fractional")')
+       do i = 1, c%ncel
+          write (lu,'(A5," ",3(A," "))') label(c%atcel(i)%is),&
+             (string(c%atcel(i)%x(j),'f',15,9),j=1,3)
+       end do
+    end if
     call fclose(lu)
 
   end subroutine write_gulp

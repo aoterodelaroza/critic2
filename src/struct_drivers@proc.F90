@@ -846,6 +846,8 @@ contains
        ! gulp
        write (uout,'("* WRITE gulp file: ",A)') string(file)
        call s%c%write_gulp(file)
+       ok = check_no_extra_word()
+       if (.not.ok) return
     elseif (equal(wext,'lammps')) then
        write (uout,'("* WRITE lammps file: ",A)') string(file)
        call s%c%write_lammps(file)
