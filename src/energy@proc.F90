@@ -27,10 +27,9 @@
 !> qeq_coeffs, qeq_caintgs, qeq_cbintgs) are ported from GULP's
 !> gamma.F90.
 !>
-!> Some of the EAM code was adapted from LAMMPS
-!> (https://www.lammps.org), which is GPLv2. Copyright (2003) Sandia
-!> Corporation.
-!> Thompson et al., Comp. Phys. Comm. 271, 108171 (2022)
+!> The EAM backend reads the LAMMPS/DYNAMO setfl and eam/fs potential file
+!> formats (LAMMPS: Thompson et al., Comp. Phys. Comm. 271, 108171 (2022),
+!> https://www.lammps.org); the code itself is critic2's own.
 !>
 submodule (energy) proc
   use iso_c_binding
@@ -78,8 +77,9 @@ submodule (energy) proc
   type(eamcatentry), allocatable, save :: eamcat(:)
   integer, save :: neamcat = -1 !< number of entries (-1 = catalogue not built yet)
 
-  ! number of coefficients stored per spline knot (see eam_spline)
-  integer, parameter :: eam_nspl = 7
+  ! coefficients stored per spline knot: value, f', f''/2, f'''/6
+  ! (splinefit's c(1:4,:); see eam_spline)
+  integer, parameter :: eam_nspl = 4
 
 #ifdef HAVE_TBLITE
   ! Interfaces to the tblite C API (https://tblite.readthedocs.io/en/latest/api/c.html).
@@ -3427,8 +3427,7 @@ contains
           rho = rho + rhop
        end do
        cl%rhoi(i) = rho
-       call eam_interp(cl%eam%fc(:,:,cl%eam%iemb(is)),cl%eam%drho,cl%eam%nrho,rho,&
-          f=fval,fp=fp,linextrap=.true.)
+       call eam_interp(cl%eam%fc(:,:,cl%eam%iemb(is)),cl%eam%drho,cl%eam%nrho,rho,f=fval,fp=fp)
        cl%dfrho(i) = fp
        erho = erho + fval
     end do
@@ -3549,90 +3548,70 @@ contains
   end function eam_pairidx
 
   !> Evaluate a tabulated function and/or its derivative at x on a
-  !> uniform grid of spacing delta, from the spline coefficients built
-  !> by eam_spline. rho is the value, fp the derivative. Beyond the
-  !> last knot the value is clamped to f(n) but the derivative stays
-  !> the end-of-table slope; with linextrap the function is instead
-  !> continued linearly from the last knot.
-  !>
-  !> Adapted from LAMMPS.
-  pure subroutine eam_interp(sp,delta,n,x,f,fp,linextrap)
+  !> uniform grid of spacing delta, from the cubic-spline coefficients
+  !> built by eam_spline. f is the value, fp the derivative. Beyond the
+  !> last knot the function is continued linearly with the slope the
+  !> spline has there, so value and derivative stay consistent. The
+  !> embedding function needs this when an atom is compressed past the
+  !> end of the density grid (clamping would flatten F and remove the
+  !> restoring force); the r tables are cut at rcut by the caller. x is
+  !> a distance or a density, never negative in practice; a negative x
+  !> evaluates at the first knot.
+  pure subroutine eam_interp(sp,delta,n,x,f,fp)
     real*8, intent(in) :: sp(:,:)
     real*8, intent(in) :: delta
     integer, intent(in) :: n
     real*8, intent(in) :: x
     real*8, intent(out), optional :: f
     real*8, intent(out), optional :: fp
-    logical, intent(in), optional :: linextrap
 
-    integer :: m
-    real*8 :: p, xx, slope
-    logical :: lex
+    integer :: i
+    real*8 :: xx, h
 
-    lex = .false.
-    if (present(linextrap)) lex = linextrap
-
-    ! index of the interval and the fractional position within it; x is a
-    ! distance or a density, so it is never negative in practice
+    ! past the last knot: the value and slope stored there, continued
+    ! linearly. Tested on x itself, before any int(), so a huge x
+    ! cannot overflow the index and a rounding of xx/delta cannot
+    ! send an interior point down this branch.
     xx = max(x,0d0)
-    m = min(int(xx/delta) + 1,n-1)
-    p = xx/delta + 1d0 - m
-    if (p > 1d0) then
-       if (lex) then
-          ! continue linearly from the last knot, with the slope the cubic has
-          ! there. The embedding function needs this when an atom is compressed
-          ! past the end of the density grid: clamping instead would flatten F
-          ! and remove the restoring force.
-          slope = sp(1,n-1) + sp(2,n-1) + sp(3,n-1)
-          if (present(f)) f = sp(7,n) + (p-1d0)*delta*slope
-          if (present(fp)) fp = slope
-          return
-       end if
-       p = 1d0 ! clamp to the end of the table
+    if (xx > (n-1)*delta) then
+       if (present(f)) f = sp(1,n) + (xx-(n-1)*delta)*sp(2,n)
+       if (present(fp)) fp = sp(2,n)
+       return
     end if
+
+    ! the grid is uniform, so the interval is known without a search
+    i = min(int(xx/delta) + 1,n-1)
+    h = xx - (i-1)*delta
+
+    ! piecewise cubic in Taylor form about the left knot of the interval
     if (present(f)) &
-       f = ((sp(4,m)*p + sp(5,m))*p + sp(6,m))*p + sp(7,m)
+       f = sp(1,i) + h*(sp(2,i) + h*(sp(3,i) + h*sp(4,i)))
     if (present(fp)) &
-       fp = (sp(1,m)*p + sp(2,m))*p + sp(3,m)
+       fp = sp(2,i) + h*(2d0*sp(3,i) + 3d0*h*sp(4,i))
 
   end subroutine eam_interp
 
-  !> Build cubic interpolation coefficients for the n tabulated values
-  !> f on a uniform grid of spacing delta. Uses the DYNAMO/LAMMPS
-  !> scheme (finite -difference Hermite) The coefficients are indexed
-  !> sp(1:7,m): 4-7 evaluate the value as a cubic in the fractional
-  !> position within interval m, 1-3 its derivative.
-  !>
-  !> Adapted from LAMMPS.
-  pure subroutine eam_spline(n,delta,f,sp)
+  !> Build cubic-spline coefficients for the n tabulated values f on a
+  !> uniform grid of spacing delta, for evaluation by eam_interp. This
+  !> is critic2's own spline (splinefit, de Boor's cubspl with
+  !> not-a-knot end conditions), so the interpolant is C2 across the
+  !> table. The coefficients are stored per knot in Taylor form --
+  !> sp(1:4,i) = value, first derivative, half the second, a sixth of
+  !> the third, all at knot i -- and evaluated with the offset from
+  !> that knot. At the last knot only the value and slope are
+  !> meaningful (sp(3:4,n) is splinefit scratch).
+  subroutine eam_spline(n,delta,f,sp)
+    use tools_math, only: splinefit
     integer, intent(in) :: n
     real*8, intent(in) :: delta
     real*8, intent(in) :: f(n)
     real*8, intent(out) :: sp(eam_nspl,n)
 
-    integer :: m
+    integer :: i
+    real*8, allocatable :: c(:,:)
 
-    do m = 1, n
-       sp(7,m) = f(m)
-    end do
-    sp(6,1) = sp(7,2) - sp(7,1)
-    sp(6,2) = 0.5d0*(sp(7,3) - sp(7,1))
-    sp(6,n-1) = 0.5d0*(sp(7,n) - sp(7,n-2))
-    sp(6,n) = sp(7,n) - sp(7,n-1)
-    do m = 3, n-2
-       sp(6,m) = ((sp(7,m-2)-sp(7,m+2)) + 8d0*(sp(7,m+1)-sp(7,m-1))) / 12d0
-    end do
-    do m = 1, n-1
-       sp(5,m) = 3d0*(sp(7,m+1)-sp(7,m)) - 2d0*sp(6,m) - sp(6,m+1)
-       sp(4,m) = sp(6,m) + sp(6,m+1) - 2d0*(sp(7,m+1)-sp(7,m))
-    end do
-    sp(5,n) = 0d0
-    sp(4,n) = 0d0
-    do m = 1, n
-       sp(3,m) = sp(6,m)/delta
-       sp(2,m) = 2d0*sp(5,m)/delta
-       sp(1,m) = 3d0*sp(4,m)/delta
-    end do
+    c = splinefit(n,[((i-1)*delta,i=1,n)],f)
+    sp = c(1:eam_nspl,:)
 
   end subroutine eam_spline
 
@@ -3705,7 +3684,7 @@ contains
     if (.not.isinteger(pot%nr,line,lp)) goto 999
     if (.not.isreal(pot%dr,line,lp)) goto 999
     if (.not.isreal(pot%rcut,line,lp)) goto 999
-    ! the grids must be usable: eam_spline and eam_interp divide by the spacings
+    ! the grids must be usable: a few knots at least, positive spacings
     if (pot%nrho < 4 .or. pot%nr < 4 .or. pot%nrho > nmax .or. pot%nr > nmax) goto 999
     if (pot%drho <= 0d0 .or. pot%dr <= 0d0 .or. pot%rcut <= 0d0) goto 999
 

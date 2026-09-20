@@ -2554,8 +2554,10 @@ contains
   !> equals ypend(1/2); 2 = the second derivative at x(1/2) equals
   !> ypend(1/2). If not present ibeg/iend = 0. The function
   !> returns the spline coefficients for the x_i -> x_i+1 interval:
-  !> f(x) = c(1,i) + c(2,i) * h +c(3,i) * h^2 / 2 + c(4,i) * h^3 / 6.
-  !> with h=x-c(5,i), and c(5,i) is equal to x(i). Evaluate with splineval.
+  !> f(x) = c(1,i) + c(2,i) * h + c(3,i) * h^2 + c(4,i) * h^3, with
+  !> h=x-c(5,i), and c(5,i) is equal to x(i) (the factors 1/2 and 1/6
+  !> of the original cubspl are folded into c(3) and c(4)). Evaluate
+  !> with splineval.
   !>
   !> Adapted from John Burkdardt's cubspl subroutine, from pppack (Carl de Boor).
   !> https://people.sc.fsu.edu/~jburkardt/f_src/pppack/pppack.html

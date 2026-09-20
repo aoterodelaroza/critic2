@@ -167,9 +167,9 @@ module energy
      real*8 :: rcut = 0d0 !< interaction cutoff (bohr)
      integer, allocatable :: z(:) !< atomic number of each file element (nelem)
      !! Spline coefficient tables
-     real*8, allocatable :: fc(:,:,:) !< F(rho) coefficients (7,nrho,nelem)
-     real*8, allocatable :: rhoc(:,:,:) !< rho(r) coefficients (7,nr,nsrc*nelem)
-     real*8, allocatable :: phic(:,:,:) !< r*phi(r) coefficients (7,nr,npair)
+     real*8, allocatable :: fc(:,:,:) !< F(rho) spline coefficients (eam_nspl=4,nrho,nelem)
+     real*8, allocatable :: rhoc(:,:,:) !< rho(r) spline coefficients (eam_nspl,nr,nsrc*nelem)
+     real*8, allocatable :: phic(:,:,:) !< r*phi(r) spline coefficients (eam_nspl,nr,npair)
      integer, allocatable :: imap(:) !< crystal species -> file element (0 = unmapped)
      !! Table indices resolved once per system
      integer, allocatable :: iemb(:) !< species -> F table (nspc)
