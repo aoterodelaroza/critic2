@@ -36,10 +36,11 @@ module energy
   integer, parameter, public :: ff_tip4p = 2 !< built-in TIP4P water model (molecules only)
   integer, parameter, public :: ff_gfnff = 3 !< xtb library (GFN-FF)
   integer, parameter, public :: ff_dreiding = 4 !< built-in DREIDING generic force field
+  integer, parameter, public :: ff_eam = 5 !< tabulated EAM (setfl/eam-fs) read from a potential file
 
   ! all energy backends, in display order (ff_backend_default has its
   ! own preference-order list; extend both when adding a backend)
-  integer, parameter, public :: ff_list(5) = (/ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p/)
+  integer, parameter, public :: ff_list(6) = (/ff_uff, ff_dreiding, ff_eam, ff_gfnxtb, ff_gfnff, ff_tip4p/)
 
   ! tblite methods (used only by the tblite backend)
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
@@ -153,6 +154,31 @@ module energy
      integer :: ld(3), la(3) !< lattice vectors of donor, acceptor relative to ih
   end type hbondterm
 
+  !> A tabulated EAM potential (LAMMPS/DYNAMO setfl or eam/fs). The energy is
+  !> E = sum_i F(rho_i) + 1/2 sum_ij phi(r_ij), with rho_i = sum_j rho(r_ij).
+  !> Tables are stored in atomic units except the densities, whose units are
+  !> arbitrary and cancel between rho and F (see eam_read_setfl).
+  type eampot
+     logical :: isinit = .false. !< true once a file has been read
+     logical :: isfs = .false. !< eam/fs (pair-dependent densities) rather than setfl
+     integer :: nelem = 0 !< number of elements in the file
+     integer :: nrho = 0, nr = 0 !< table sizes
+     real*8 :: drho = 0d0, dr = 0d0 !< grid spacings (density units, bohr)
+     real*8 :: rcut = 0d0 !< interaction cutoff (bohr)
+     integer, allocatable :: z(:) !< atomic number of each file element (nelem)
+     !! Spline coefficient tables
+     real*8, allocatable :: fc(:,:,:) !< F(rho) coefficients (7,nrho,nelem)
+     real*8, allocatable :: rhoc(:,:,:) !< rho(r) coefficients (7,nr,nsrc*nelem)
+     real*8, allocatable :: phic(:,:,:) !< r*phi(r) coefficients (7,nr,npair)
+     integer, allocatable :: imap(:) !< crystal species -> file element (0 = unmapped)
+     !! Table indices resolved once per system
+     integer, allocatable :: iemb(:) !< species -> F table (nspc)
+     integer, allocatable :: irho(:,:) !< species pair -> rho table: irho(i,j) is the density
+     ! an atom of species i sees from one of species j (nspc,nspc). LAMMPS convention.
+     integer, allocatable :: iphi(:,:) !< species pair -> r*phi table (nspc,nspc)
+     character(len=:), allocatable :: file !< potential file this came from
+  end type eampot
+
   !> Energy/force/stress calculator
   type calculator
      integer :: backend = ff_uff !< selected backend (ff_*)
@@ -188,6 +214,14 @@ module energy
      integer, allocatable :: dretyp(:) !< DREIDING atom-type index per atom
      integer :: nhb = 0 !< number of hydrogen-bond terms
      type(hbondterm), allocatable :: hb(:) !< hydrogen-bond term list
+     !! EAM (tabulated)
+     type(eampot) :: eam !< the tabulated potential in use
+     integer :: nenb = 0 !< total cached EAM pairs
+     integer, allocatable :: enbptr(:) !< CSR row pointers (nat+1)
+     integer, allocatable :: enbj(:) !< neighbour cell-atom index
+     integer, allocatable :: enblv(:,:) !< neighbour lattice vector (3,nenb)
+     real*8, allocatable :: rhoi(:) !< embedding density per atom (nat)
+     real*8, allocatable :: dfrho(:) !< dF/drho at rhoi, per atom (nat)
      !! tblite
      type(c_ptr) :: tb_ctx = c_null_ptr
      type(c_ptr) :: tb_mol = c_null_ptr
@@ -206,13 +240,14 @@ module energy
   end type calculator
 
   interface
-     module subroutine calc_init(cl,c,backend,method,elec,errmsg)
+     module subroutine calc_init(cl,c,backend,method,elec,eamfile,errmsg)
        use crystalmod, only: crystal
        class(calculator), intent(inout) :: cl
        class(crystal), intent(inout) :: c
        integer, intent(in), optional :: backend
        integer, intent(in), optional :: method
        logical, intent(in), optional :: elec
+       character(len=*), intent(in), optional :: eamfile
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine calc_init
      module subroutine calc_evaluate(cl,c,ene,grad,stress,errmsg)

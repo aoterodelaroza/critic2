@@ -3503,7 +3503,8 @@ contains
           changed = .true.
 
        elseif (equal(word,"relax")) then
-          ! EDIT RELAX ff.s [thresh.r]: relax the geometry with force field ff
+          ! EDIT RELAX ff.s [file.s] [thresh.r]: relax the geometry with force
+          ! field ff (file = EAM potential file, EAM only)
           call struct_relax(s,line,lp,verbose,errmsg)
           if (len_trim(errmsg) > 0) goto 999
           changed = .true.
@@ -3537,8 +3538,8 @@ contains
   subroutine struct_relax(s,line,lp,verbose,errmsg)
     use systemmod, only: system
     use dynamics, only: mdrun, md_relax
-    use energy, only: ff_backend_applicable, ff_backend_label, ff_name_to_backend
-    use tools_io, only: uout, lgetword, string
+    use energy, only: ff_backend_applicable, ff_backend_label, ff_name_to_backend, ff_eam
+    use tools_io, only: uout, lgetword, getword, string, isreal
     use global, only: eval_next_real
     use param, only: hartoev, bohrtoa
     type(system), intent(inout) :: s
@@ -3551,8 +3552,8 @@ contains
     real*8, parameter :: thresh_default = 1d-4 ! hartree/bohr
 
     type(mdrun) :: md
-    character(len=:), allocatable :: word, ffname
-    integer :: backend, method, istep
+    character(len=:), allocatable :: word, ffname, eamfile
+    integer :: backend, method, istep, lp2, lp3
     real*8 :: thresh, fmax, rtmp
     logical :: converged, ok
 
@@ -3567,6 +3568,27 @@ contains
     end if
     ffname = ff_backend_label(backend,method)
 
+    ! EAM takes the potential file next (case-sensitive; absent means pick one
+    ! from the dat/eam catalogue). Only a token that is consumed *entirely* by
+    ! isreal is the optional threshold below; isreal stops at the first
+    ! character it cannot use, so without the length test a file called
+    ! 2Cu.eam.alloy would be read as the number 2 and silently discarded.
+    eamfile = ""
+    if (backend == ff_eam) then
+       lp2 = lp
+       word = getword(line,lp)
+       lp3 = 1
+       if (isreal(rtmp,word,lp3)) then
+          if (lp3 > len_trim(word)) then
+             lp = lp2 ! a bare number: the threshold, not a file name
+          else
+             eamfile = word
+          end if
+       else
+          eamfile = word
+       end if
+    end if
+
     ! optional max-force convergence threshold (hartree/bohr); keep the default
     ! when absent (eval_next_real zeroes its output on a failed parse)
     thresh = thresh_default
@@ -3578,8 +3600,10 @@ contains
        end if
     end if
 
-    ! the force field must be applicable to this system
-    if (.not.ff_backend_applicable(backend,s%c)) then
+    ! the force field must be applicable to this system; an explicitly named EAM
+    ! potential bypasses the check, since applicability is then decided by that
+    ! file (eam_setup errors if it does not cover every element)
+    if (len_trim(eamfile) == 0 .and. .not.ff_backend_applicable(backend,s%c)) then
        errmsg = "the " // trim(ffname) // " force field is not available for this system"
        return
     end if
@@ -3589,7 +3613,8 @@ contains
     end if
 
     ! set up the FIRE relaxation
-    call md%init(s%c,backend=backend,method=method,mode=md_relax,errmsg=errmsg)
+    call md%init(s%c,backend=backend,method=method,mode=md_relax,eamfile=eamfile,&
+       errmsg=errmsg)
     if (len_trim(errmsg) > 0) then
        call md%free() ! release any partial calculator state (e.g. tblite/xtb handles)
        return
@@ -3597,6 +3622,8 @@ contains
 
     if (verbose) then
        write (uout,'("+ Geometry relaxation (FIRE) with the ",A," force field")') trim(ffname)
+       if (backend == ff_eam .and. allocated(md%cl%eam%file)) &
+          write (uout,'("  potential: ",A)') trim(md%cl%eam%file)
        if (.not.s%c%ismolecule) &
           write (uout,'("  (fixed cell: atomic positions only, the lattice is not relaxed)")')
        write (uout,'("  max-force convergence threshold (hartree/bohr): ",A)') string(thresh,'e',decimal=4)

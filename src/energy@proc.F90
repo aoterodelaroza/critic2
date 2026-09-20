@@ -26,6 +26,12 @@
 !> two-center Slater Coulomb integrals used by QEq (qeq_css,
 !> qeq_coeffs, qeq_caintgs, qeq_cbintgs) are ported from GULP's
 !> gamma.F90.
+!>
+!> Some of the EAM code was adapted from LAMMPS
+!> (https://www.lammps.org), which is GPLv2. Copyright (2003) Sandia
+!> Corporation.
+!> Thompson et al., Comp. Phys. Comm. 271, 108171 (2022)
+!>
 submodule (energy) proc
   use iso_c_binding
   use param, only: hartoev, bohrtoa, fact, kcal2ha
@@ -61,6 +67,19 @@ submodule (energy) proc
   type(dretype), save :: dre(ndretype)
   logical, save :: dre_ready = .false.
   integer, parameter :: dre_hbz(7) = (/7,8,9,16,17,35,53/)
+
+  ! EAM potential catalogue: the contents of dat/eam/index, read once on first
+  ! use. Each entry is a potential file plus the atomic numbers it covers, so
+  ! ff_backend_applicable can answer without opening any potential file.
+  type eamcatentry
+     character(len=:), allocatable :: file !< file name, relative to dat/eam
+     integer, allocatable :: z(:) !< atomic numbers covered
+  end type eamcatentry
+  type(eamcatentry), allocatable, save :: eamcat(:)
+  integer, save :: neamcat = -1 !< number of entries (-1 = catalogue not built yet)
+
+  ! number of coefficients stored per spline knot (see eam_spline)
+  integer, parameter :: eam_nspl = 7
 
 #ifdef HAVE_TBLITE
   ! Interfaces to the tblite C API (https://tblite.readthedocs.io/en/latest/api/c.html).
@@ -278,13 +297,14 @@ contains
   !> or ff_gfnxtb; method selects the tblite method. elec toggles the built-in
   !> UFF QEq electrostatics (default on). errmsg is empty on success and holds
   !> the error message on failure.
-  module subroutine calc_init(cl,c,backend,method,elec,errmsg)
+  module subroutine calc_init(cl,c,backend,method,elec,eamfile,errmsg)
     use crystalmod, only: crystal
     class(calculator), intent(inout) :: cl
     class(crystal), intent(inout) :: c
     integer, intent(in), optional :: backend
     integer, intent(in), optional :: method
     logical, intent(in), optional :: elec
+    character(len=*), intent(in), optional :: eamfile
     character(len=:), allocatable, intent(out) :: errmsg
 
     errmsg = ""
@@ -305,6 +325,8 @@ contains
        call calc_init_xtb(cl,c,errmsg)
     else if (cl%backend == ff_dreiding) then
        call dreiding_setup(cl,c,errmsg)
+    else if (cl%backend == ff_eam) then
+       call eam_setup(cl,c,eamfile,errmsg)
     else
        errmsg = "unknown energy backend"
     end if
@@ -335,6 +357,11 @@ contains
              return
           end if
        end do
+    case (ff_eam)
+       ! only if a catalogued potential covers every element in the system;
+       ! an explicitly named file bypasses this and is checked when read
+       call eam_build_catalog()
+       ok = (eam_catalog_pick(c) > 0)
     case (ff_gfnxtb)
 #ifdef HAVE_TBLITE
        ok = .true.
@@ -400,10 +427,12 @@ contains
     integer :: backend
 
     integer :: i
-    ! GFN-FF comes before GFN2/GFN1-xTB: it is much cheaper and is meant for
-    ! geometries, which is what this default is used for (the relaxation and
-    ! MD backend)
-    integer, parameter :: pref(5) = (/ff_tip4p, ff_gfnff, ff_gfnxtb, ff_dreiding, ff_uff/)
+    ! EAM comes first: when a tabulated potential covers the system it is both
+    ! much cheaper and far better than anything else here (the alternative for
+    ! a metal would be UFF). GFN-FF then comes before GFN2/GFN1-xTB: it is much
+    ! cheaper and is meant for geometries, which is what this default is used
+    ! for (the relaxation and MD backend)
+    integer, parameter :: pref(6) = (/ff_eam, ff_tip4p, ff_gfnff, ff_gfnxtb, ff_dreiding, ff_uff/)
 
     backend = ff_uff
     do i = 1, size(pref)
@@ -427,6 +456,8 @@ contains
     select case (name)
     case ("uff")
        backend = ff_uff
+    case ("eam")
+       backend = ff_eam
     case ("dreiding")
        backend = ff_dreiding
     case ("gfn2","gfn2-xtb","gfn2xtb")
@@ -459,6 +490,8 @@ contains
        lbl = "UFF"
     case (ff_dreiding)
        lbl = "DREIDING"
+    case (ff_eam)
+       lbl = "EAM"
     case (ff_gfnxtb)
        if (m == tbm_gfn1) then
           lbl = "GFN1-xTB (tblite)"
@@ -506,6 +539,8 @@ contains
        call tip4p_evaluate(cl,c,ene,grad,stress)
     else if (cl%backend == ff_gfnff) then
        call calc_eval_xtb(cl,c,ene,grad,stress,errmsg)
+    else if (cl%backend == ff_eam) then
+       call eam_evaluate(cl,c,ene,grad,stress,errmsg)
     else
        errmsg = "unknown energy backend"
     end if
@@ -525,6 +560,8 @@ contains
     else if (cl%backend == ff_dreiding) then
        call dre_nonbonded(cl,c)
        call dre_hbond_pairs(cl,c)
+    else if (cl%backend == ff_eam) then
+       call eam_pairs(cl,c)
     end if
     ! ff_gfnxtb, ff_tip4p, ff_gfnff: nothing to update (these backends read the
     ! geometry on every evaluate)
@@ -562,6 +599,13 @@ contains
     if (allocated(cl%iwat)) deallocate(cl%iwat)
     cl%nhb = 0
     if (allocated(cl%hb)) deallocate(cl%hb)
+    call eam_free(cl%eam)
+    cl%nenb = 0
+    if (allocated(cl%enbptr)) deallocate(cl%enbptr)
+    if (allocated(cl%enbj)) deallocate(cl%enbj)
+    if (allocated(cl%enblv)) deallocate(cl%enblv)
+    if (allocated(cl%rhoi)) deallocate(cl%rhoi)
+    if (allocated(cl%dfrho)) deallocate(cl%dfrho)
     if (allocated(cl%dretyp)) deallocate(cl%dretyp)
 
   end subroutine calc_free
@@ -3232,6 +3276,629 @@ contains
     msg = trim(tmp)
   end function tblite_context_error_string
 #endif
+
+  !xx! EAM, tabulated (LAMMPS/DYNAMO "setfl" and "eam/fs" potential files)
+
+  !> Set up the tabulated EAM calculator for crystal c. eamfile names the
+  !> potential file; if absent, the first potential in the dat/eam catalogue
+  !> whose elements cover c is used. errmsg is empty on success.
+  subroutine eam_setup(cl,c,eamfile,errmsg)
+    use crystalmod, only: crystal
+    use tools_io, only: nameguess
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    character(len=*), intent(in), optional :: eamfile
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, j, is, js, icat, nsrc
+    character(len=:), allocatable :: file
+
+    errmsg = ""
+    cl%do_elec = .false. ! EAM has no electrostatics
+
+    ! locate the potential file
+    if (present(eamfile)) then
+       if (len_trim(eamfile) > 0) file = trim(eamfile)
+    end if
+    if (.not.allocated(file)) then
+       call eam_build_catalog()
+       icat = eam_catalog_pick(c)
+       if (icat == 0) then
+          errmsg = "no EAM potential in the dat/eam catalogue covers this system"
+          return
+       end if
+       file = eam_catalog_path(icat)
+    end if
+
+    ! read the tables
+    call eam_read_setfl(cl%eam,file,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! map each crystal species onto an element of the file
+    if (allocated(cl%eam%imap)) deallocate(cl%eam%imap)
+    allocate(cl%eam%imap(c%nspc))
+    cl%eam%imap = 0
+    ! only the species that atoms actually use
+    do i = 1, c%ncel
+       is = c%atcel(i)%is
+       if (cl%eam%imap(is) /= 0) cycle
+       do j = 1, cl%eam%nelem
+          if (cl%eam%z(j) == c%spc(is)%z) then
+             cl%eam%imap(is) = j
+             exit
+          end if
+       end do
+       if (cl%eam%imap(is) == 0) then
+          errmsg = "element " // trim(nameguess(c%spc(is)%z,.true.)) // &
+             " is not in the EAM potential " // file
+          return
+       end if
+    end do
+
+    ! Resolve the table each species pair needs, once
+    nsrc = 1
+    if (cl%eam%isfs) nsrc = cl%eam%nelem
+    if (allocated(cl%eam%iemb)) deallocate(cl%eam%iemb)
+    if (allocated(cl%eam%irho)) deallocate(cl%eam%irho)
+    if (allocated(cl%eam%iphi)) deallocate(cl%eam%iphi)
+    allocate(cl%eam%iemb(c%nspc),cl%eam%irho(c%nspc,c%nspc),cl%eam%iphi(c%nspc,c%nspc))
+    cl%eam%iemb = 1
+    cl%eam%irho = 1
+    cl%eam%iphi = 1
+    do is = 1, c%nspc
+       i = cl%eam%imap(is)
+       if (i == 0) cycle ! species with no atoms: never indexed
+       cl%eam%iemb(is) = i
+       do js = 1, c%nspc
+          j = cl%eam%imap(js)
+          if (j == 0) cycle
+          cl%eam%iphi(is,js) = eam_pairidx(i,j)
+          if (cl%eam%isfs) then
+             ! eam/fs stores
+             cl%eam%irho(is,js) = (j-1)*nsrc + i
+          else
+             cl%eam%irho(is,js) = j ! setfl: whatever element j emits
+          end if
+       end do
+    end do
+
+    ! per-atom scratch, allocated once so the evaluation allocates nothing
+    if (allocated(cl%rhoi)) deallocate(cl%rhoi)
+    if (allocated(cl%dfrho)) deallocate(cl%dfrho)
+    allocate(cl%rhoi(cl%nat),cl%dfrho(cl%nat))
+
+    ! neighbour list
+    call eam_pairs(cl,c)
+
+  end subroutine eam_setup
+
+  !> Energy, gradient and stress of the tabulated EAM potential.  Two
+  !> passes over the cached neighbour list: the first accumulates the
+  !> embedding density of every atom and F'(rho) there, the second
+  !> adds the pair term and assembles the forces.
+  subroutine eam_evaluate(cl,c,ene,grad,stress,errmsg)
+    use crystalmod, only: crystal
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    real*8, intent(out) :: ene
+    real*8, intent(out) :: grad(:,:)
+    real*8, intent(out), optional :: stress(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, j, p, n, is, js, it, jt
+    real*8 :: d(3), r, rho, rhop, rhopj, phi, phip, rphi, rphip, fval, fp
+    real*8 :: gmag, g(3), vir(3,3), erho, epair, m(3,3), xl(3)
+    logical :: dostress
+
+    errmsg = ""
+    if (.not.cl%eam%isinit) then
+       errmsg = "no EAM potential loaded"
+       return
+    end if
+    ene = 0d0
+    grad = 0d0
+    vir = 0d0
+    dostress = present(stress)
+    if (dostress) stress = 0d0
+    n = cl%nat
+    ! check the species list is correct
+    if (n /= c%ncel .or. size(cl%eam%iemb,1) /= c%nspc) then
+       errmsg = "the EAM calculator is out of date with the structure"
+       return
+    end if
+
+    ! the lattice matrix
+    m = c%m_x2c
+
+    ! ---- pass 1: embedding densities and dF/drho ----
+    erho = 0d0
+    !$omp parallel do private(i,is,p,j,js,xl,d,r,rho,rhop,fval,fp) reduction(+:erho)
+    do i = 1, n
+       is = c%atcel(i)%is
+       rho = 0d0
+       do p = cl%enbptr(i), cl%enbptr(i+1)-1
+          j = cl%enbj(p)
+          js = c%atcel(j)%is
+          xl = real(cl%enblv(:,p),8)
+          d = c%atcel(i)%r - c%atcel(j)%r - (m(:,1)*xl(1) + m(:,2)*xl(2) + m(:,3)*xl(3))
+          r = norm2(d)
+          if (r >= cl%eam%rcut .or. r < 1d-10) cycle
+          call eam_interp(cl%eam%rhoc(:,:,cl%eam%irho(is,js)),cl%eam%dr,cl%eam%nr,r,f=rhop)
+          rho = rho + rhop
+       end do
+       cl%rhoi(i) = rho
+       call eam_interp(cl%eam%fc(:,:,cl%eam%iemb(is)),cl%eam%drho,cl%eam%nrho,rho,&
+          f=fval,fp=fp,linextrap=.true.)
+       cl%dfrho(i) = fp
+       erho = erho + fval
+    end do
+    !$omp end parallel do
+    ene = erho
+
+    ! ---- pass 2: pair term, forces, virial ----
+    ! The neighbour list is a full list, so each unordered pair is visited
+    ! twice, once from each end. Every iteration adds the complete force on
+    ! atom i from neighbour j,
+    !    dE/dr_i = [ phi' + F'(rho_i) rho'_t(j) + F'(rho_j) rho'_t(i) ] d/r
+    ! and writes only grad(:,i), so the loop needs no reduction over
+    ! the whole gradient. The pair energy instead takes half from each
+    ! visit, and the virial is halved for the same reason.
+    epair = 0d0
+    !$omp parallel do private(i,is,p,j,js,it,jt,xl,d,r,rphi,rphip,phi,phip,rhop,rhopj,gmag,g) &
+    !$omp    reduction(+:epair,vir)
+    do i = 1, n
+       is = c%atcel(i)%is
+       do p = cl%enbptr(i), cl%enbptr(i+1)-1
+          j = cl%enbj(p)
+          js = c%atcel(j)%is
+          xl = real(cl%enblv(:,p),8)
+          d = c%atcel(i)%r - c%atcel(j)%r - (m(:,1)*xl(1) + m(:,2)*xl(2) + m(:,3)*xl(3))
+          r = norm2(d)
+          if (r >= cl%eam%rcut .or. r < 1d-10) cycle
+
+          ! pair term, tabulated as r*phi(r)
+          call eam_interp(cl%eam%phic(:,:,cl%eam%iphi(is,js)),cl%eam%dr,cl%eam%nr,r,&
+             f=rphi,fp=rphip)
+          phi = rphi / r
+          phip = (rphip - phi) / r
+          epair = epair + 0.5d0*phi
+
+          ! the density i sees from j, and the one j sees from i; for a setfl
+          ! potential with i and j of the same species these are one table
+          it = cl%eam%irho(is,js)
+          jt = cl%eam%irho(js,is)
+          call eam_interp(cl%eam%rhoc(:,:,it),cl%eam%dr,cl%eam%nr,r,fp=rhop)
+          if (it == jt) then
+             rhopj = rhop
+          else
+             call eam_interp(cl%eam%rhoc(:,:,jt),cl%eam%dr,cl%eam%nr,r,fp=rhopj)
+          end if
+
+          gmag = phip + cl%dfrho(i)*rhop + cl%dfrho(j)*rhopj
+          g = gmag * d / r
+          grad(:,i) = grad(:,i) + g
+          if (dostress) call virial(vir,d,-0.5d0*g)
+       end do
+    end do
+    !$omp end parallel do
+    ene = ene + epair
+
+    if (dostress) then
+       if (c%ismolecule .or. c%omega < 1d-10) then
+          stress = 0d0
+       else
+          stress = -vir / c%omega
+       end if
+    end if
+
+  end subroutine eam_evaluate
+
+  !> Build the cached EAM neighbour list (CSR) out to the potential cutoff.
+  !> Mirrors uff_qeq_pairs; rebuilt periodically during MD via
+  !> calc_update_geometry so the per-step evaluation repeats no spatial search.
+  subroutine eam_pairs(cl,c)
+    use crystalmod, only: crystal
+    use param, only: icrd_crys
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+
+    integer :: n, i, m, nat, p
+    integer, allocatable :: eid(:), lvln(:,:)
+
+    cl%nenb = 0
+    n = cl%nat
+    do i = 1, n
+       c%atcel(i)%x = c%c2x(c%atcel(i)%r)
+    end do
+    if (allocated(cl%enbptr)) deallocate(cl%enbptr)
+    allocate(cl%enbptr(n+1))
+    ! pass 1: count neighbours per atom
+    do i = 1, n
+       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nat,eid=eid,&
+          lvec=lvln,up2d=cl%eam%rcut,nozero=.true.)
+       cl%enbptr(i) = cl%nenb + 1
+       cl%nenb = cl%nenb + nat
+    end do
+    cl%enbptr(n+1) = cl%nenb + 1
+    if (allocated(cl%enbj)) deallocate(cl%enbj)
+    if (allocated(cl%enblv)) deallocate(cl%enblv)
+    allocate(cl%enbj(max(cl%nenb,1)),cl%enblv(3,max(cl%nenb,1)))
+    ! pass 2: fill
+    p = 0
+    do i = 1, n
+       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nat,eid=eid,&
+          lvec=lvln,up2d=cl%eam%rcut,nozero=.true.)
+       do m = 1, nat
+          p = p + 1
+          cl%enbj(p) = eid(m)
+          cl%enblv(:,p) = lvln(:,m)
+       end do
+    end do
+
+  end subroutine eam_pairs
+
+  !> Index of the (ie,je) element pair in a setfl pair table. The file stores
+  !> them in the order (1,1), (2,1), (2,2), (3,1), ... so the index of the
+  !> unordered pair is max*(max-1)/2 + min.
+  pure function eam_pairidx(ie,je) result(ip)
+    integer, intent(in) :: ie, je
+    integer :: ip, ihi, ilo
+    ihi = max(ie,je)
+    ilo = min(ie,je)
+    ip = ihi*(ihi-1)/2 + ilo
+  end function eam_pairidx
+
+  !> Evaluate a tabulated function and/or its derivative at x on a
+  !> uniform grid of spacing delta, from the spline coefficients built
+  !> by eam_spline. rho is the value, fp the derivative. Beyond the
+  !> last knot the value is clamped to f(n) but the derivative stays
+  !> the end-of-table slope; with linextrap the function is instead
+  !> continued linearly from the last knot.
+  !>
+  !> Adapted from LAMMPS.
+  pure subroutine eam_interp(sp,delta,n,x,f,fp,linextrap)
+    real*8, intent(in) :: sp(:,:)
+    real*8, intent(in) :: delta
+    integer, intent(in) :: n
+    real*8, intent(in) :: x
+    real*8, intent(out), optional :: f
+    real*8, intent(out), optional :: fp
+    logical, intent(in), optional :: linextrap
+
+    integer :: m
+    real*8 :: p, xx, slope
+    logical :: lex
+
+    lex = .false.
+    if (present(linextrap)) lex = linextrap
+
+    ! index of the interval and the fractional position within it; x is a
+    ! distance or a density, so it is never negative in practice
+    xx = max(x,0d0)
+    m = min(int(xx/delta) + 1,n-1)
+    p = xx/delta + 1d0 - m
+    if (p > 1d0) then
+       if (lex) then
+          ! continue linearly from the last knot, with the slope the cubic has
+          ! there. The embedding function needs this when an atom is compressed
+          ! past the end of the density grid: clamping instead would flatten F
+          ! and remove the restoring force.
+          slope = sp(1,n-1) + sp(2,n-1) + sp(3,n-1)
+          if (present(f)) f = sp(7,n) + (p-1d0)*delta*slope
+          if (present(fp)) fp = slope
+          return
+       end if
+       p = 1d0 ! clamp to the end of the table
+    end if
+    if (present(f)) &
+       f = ((sp(4,m)*p + sp(5,m))*p + sp(6,m))*p + sp(7,m)
+    if (present(fp)) &
+       fp = (sp(1,m)*p + sp(2,m))*p + sp(3,m)
+
+  end subroutine eam_interp
+
+  !> Build cubic interpolation coefficients for the n tabulated values
+  !> f on a uniform grid of spacing delta. Uses the DYNAMO/LAMMPS
+  !> scheme (finite -difference Hermite) The coefficients are indexed
+  !> sp(1:7,m): 4-7 evaluate the value as a cubic in the fractional
+  !> position within interval m, 1-3 its derivative.
+  !>
+  !> Adapted from LAMMPS.
+  pure subroutine eam_spline(n,delta,f,sp)
+    integer, intent(in) :: n
+    real*8, intent(in) :: delta
+    real*8, intent(in) :: f(n)
+    real*8, intent(out) :: sp(eam_nspl,n)
+
+    integer :: m
+
+    do m = 1, n
+       sp(7,m) = f(m)
+    end do
+    sp(6,1) = sp(7,2) - sp(7,1)
+    sp(6,2) = 0.5d0*(sp(7,3) - sp(7,1))
+    sp(6,n-1) = 0.5d0*(sp(7,n) - sp(7,n-2))
+    sp(6,n) = sp(7,n) - sp(7,n-1)
+    do m = 3, n-2
+       sp(6,m) = ((sp(7,m-2)-sp(7,m+2)) + 8d0*(sp(7,m+1)-sp(7,m-1))) / 12d0
+    end do
+    do m = 1, n-1
+       sp(5,m) = 3d0*(sp(7,m+1)-sp(7,m)) - 2d0*sp(6,m) - sp(6,m+1)
+       sp(4,m) = sp(6,m) + sp(6,m+1) - 2d0*(sp(7,m+1)-sp(7,m))
+    end do
+    sp(5,n) = 0d0
+    sp(4,n) = 0d0
+    do m = 1, n
+       sp(3,m) = sp(6,m)/delta
+       sp(2,m) = 2d0*sp(5,m)/delta
+       sp(1,m) = 3d0*sp(4,m)/delta
+    end do
+
+  end subroutine eam_spline
+
+  !> Read a tabulated EAM potential in setfl (.eam.alloy) or eam/fs
+  !> (.eam.fs) format. The file is in eV and angstrom; distances and
+  !> energies are converted to atomic units, but the densities are
+  !> NOT: their units are arbitrary and cancel between rho(r) and
+  !> F(rho).
+  subroutine eam_read_setfl(pot,file,errmsg)
+    use tools_io, only: fopen_read, fclose, getline_raw, zatguess, isinteger, isreal,&
+       getword, lower
+    use param, only: bohrtoa, hartoev, dirsep
+    type(eampot), intent(inout) :: pot
+    character(len=*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: lu, i, j, lp, npair, nsrc, ip, ier
+    real*8 :: rdum
+    character(len=:), allocatable :: line, word, base
+    real*8, allocatable :: buf(:)
+
+    ! largest table the reader will accept, to turn a malformed header into an
+    ! error message instead of an allocation failure
+    integer, parameter :: nmax = 1000000
+
+    errmsg = ""
+    call eam_free(pot)
+
+    ! eam/fs is signalled by the file name ending in .fs; test the base name
+    ! only, so a .eam.alloy file inside a directory called something.fs is not
+    ! mistaken for one. The content check after the tables catches the rest.
+    base = lower(trim(file))
+    i = index(base,dirsep,.true.)
+    if (i > 0) base = base(i+1:)
+    pot%isfs = (len(base) >= 3)
+    if (pot%isfs) pot%isfs = (base(len(base)-2:) == ".fs")
+
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) then
+       errmsg = "could not open EAM potential file: " // trim(file)
+       return
+    end if
+
+    ! three comment lines
+    do i = 1, 3
+       if (.not.getline_raw(lu,line)) goto 999
+    end do
+
+    ! number of elements and their symbols
+    if (.not.getline_raw(lu,line)) goto 999
+    lp = 1
+    if (.not.isinteger(pot%nelem,line,lp)) goto 999
+    if (pot%nelem < 1 .or. pot%nelem > 100) goto 999
+    allocate(pot%z(pot%nelem))
+    do i = 1, pot%nelem
+       word = getword(line,lp)
+       if (len_trim(word) == 0) goto 999
+       pot%z(i) = zatguess(word)
+       if (pot%z(i) <= 0) then
+          errmsg = "unknown element (" // trim(word) // ") in EAM potential file: " // trim(file)
+          goto 999
+       end if
+    end do
+
+    ! grid: nrho drho nr dr cutoff
+    if (.not.getline_raw(lu,line)) goto 999
+    lp = 1
+    if (.not.isinteger(pot%nrho,line,lp)) goto 999
+    if (.not.isreal(pot%drho,line,lp)) goto 999
+    if (.not.isinteger(pot%nr,line,lp)) goto 999
+    if (.not.isreal(pot%dr,line,lp)) goto 999
+    if (.not.isreal(pot%rcut,line,lp)) goto 999
+    ! the grids must be usable: eam_spline and eam_interp divide by the spacings
+    if (pot%nrho < 4 .or. pot%nr < 4 .or. pot%nrho > nmax .or. pot%nr > nmax) goto 999
+    if (pot%drho <= 0d0 .or. pot%dr <= 0d0 .or. pot%rcut <= 0d0) goto 999
+
+    ! angstrom -> bohr; the density grid is left alone (arbitrary units)
+    pot%dr = pot%dr / bohrtoa
+    pot%rcut = pot%rcut / bohrtoa
+
+    nsrc = 1
+    if (pot%isfs) nsrc = pot%nelem
+
+    ! per element: info line (ignored; the symbols above already give the
+    ! elements), then F(rho), then the density array(s)
+    allocate(buf(max(pot%nrho,pot%nr)),stat=ier)
+    if (ier /= 0) goto 999
+    allocate(pot%fc(eam_nspl,pot%nrho,pot%nelem),stat=ier)
+    if (ier /= 0) goto 999
+    allocate(pot%rhoc(eam_nspl,pot%nr,nsrc*pot%nelem),stat=ier)
+    if (ier /= 0) goto 999
+    do i = 1, pot%nelem
+       if (.not.getline_raw(lu,line)) goto 999
+       read (lu,*,err=999,end=999) buf(1:pot%nrho)
+       call eam_spline(pot%nrho,pot%drho,buf(1:pot%nrho)/hartoev,pot%fc(:,:,i))
+       do j = 1, nsrc
+          read (lu,*,err=999,end=999) buf(1:pot%nr)
+          call eam_spline(pot%nr,pot%dr,buf(1:pot%nr),pot%rhoc(:,:,(i-1)*nsrc+j))
+       end do
+    end do
+
+    ! pair tables, stored as r*phi(r) in the order (1,1), (2,1), (2,2), ...
+    npair = pot%nelem*(pot%nelem+1)/2
+    allocate(pot%phic(eam_nspl,pot%nr,npair),stat=ier)
+    if (ier /= 0) goto 999
+    do i = 1, pot%nelem
+       do j = 1, i
+          ip = eam_pairidx(i,j)
+          read (lu,*,err=999,end=999) buf(1:pot%nr)
+          call eam_spline(pot%nr,pot%dr,buf(1:pot%nr)/(hartoev*bohrtoa),pot%phic(:,:,ip))
+       end do
+    end do
+
+    ! The two formats differ only in how many density arrays each element
+    ! carries, so a multi-element eam/fs file read as setfl consumes the right
+    ! number of records and finishes without complaint -- with every table
+    ! taken from the wrong place. Any numeric data left over means the format
+    ! was misidentified (a setfl file read as eam/fs runs out of data instead,
+    ! and fails above).
+    read (lu,*,iostat=ier) rdum
+    if (ier == 0) then
+       ! most often this is an eam/fs potential not named *.eam.fs, or one of
+       ! the LAMMPS formats that begin like setfl and then carry extra tables
+       ! (.adp, .cdeam), which critic2 does not implement
+       errmsg = "unexpected extra data in the EAM potential file (an eam/fs potential "//&
+          "not named *.eam.fs, or an unsupported variant such as .adp or .cdeam?): " //&
+          trim(file)
+       goto 999
+    end if
+
+    call fclose(lu)
+    pot%file = trim(file)
+    pot%isinit = .true.
+    return
+
+999 continue
+    if (len_trim(errmsg) == 0) &
+       errmsg = "error reading EAM potential file: " // trim(file)
+    call fclose(lu)
+    call eam_free(pot)
+
+  end subroutine eam_read_setfl
+
+  !> Release the tables of an EAM potential.
+  subroutine eam_free(pot)
+    type(eampot), intent(inout) :: pot
+
+    if (allocated(pot%z)) deallocate(pot%z)
+    if (allocated(pot%fc)) deallocate(pot%fc)
+    if (allocated(pot%rhoc)) deallocate(pot%rhoc)
+    if (allocated(pot%phic)) deallocate(pot%phic)
+    if (allocated(pot%imap)) deallocate(pot%imap)
+    if (allocated(pot%iemb)) deallocate(pot%iemb)
+    if (allocated(pot%irho)) deallocate(pot%irho)
+    if (allocated(pot%iphi)) deallocate(pot%iphi)
+    if (allocated(pot%file)) deallocate(pot%file)
+    pot%isinit = .false.
+    pot%isfs = .false.
+    pot%nelem = 0
+    pot%nrho = 0
+    pot%nr = 0
+
+  end subroutine eam_free
+
+  !> Read the EAM potential catalogue (dat/eam/index) once. Each line is a
+  !> potential file name followed by the element symbols it covers, so no
+  !> potential file is opened until one is actually selected. A missing
+  !> catalogue is not an error: it just means no potential is available
+  !> without naming a file explicitly.
+  subroutine eam_build_catalog()
+    use global, only: critic_home
+    use tools_io, only: fopen_read, fclose, getline_raw, getword, zatguess
+    use param, only: dirsep
+
+    integer :: lu, lp, n, iz
+    character(len=:), allocatable :: line, word, file, fname
+    integer :: ztmp(100)
+    logical :: lexist
+
+    if (neamcat >= 0) return
+    neamcat = 0
+    allocate(eamcat(20))
+
+    file = trim(critic_home) // dirsep // "eam" // dirsep // "index"
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) return
+
+    do while (getline_raw(lu,line))
+       if (len_trim(line) == 0) cycle
+       lp = 1
+       fname = getword(line,lp)
+       if (len_trim(fname) == 0) cycle
+       if (fname(1:1) == "#") cycle
+       n = 0
+       do while (.true.)
+          word = getword(line,lp)
+          if (len_trim(word) == 0) exit
+          iz = zatguess(word)
+          if (iz <= 0) cycle
+          if (n + 1 > size(ztmp,1)) exit
+          n = n + 1
+          ztmp(n) = iz
+       end do
+       if (n == 0) cycle
+       ! an index entry naming a file that is not there would otherwise make
+       ! ff_backend_applicable say yes and every run fail at setup
+       inquire(file=trim(critic_home) // dirsep // "eam" // dirsep // trim(fname),&
+          exist=lexist)
+       if (.not.lexist) cycle
+       neamcat = neamcat + 1
+       if (neamcat > size(eamcat,1)) call eam_catalog_realloc()
+       eamcat(neamcat)%file = fname
+       allocate(eamcat(neamcat)%z(n))
+       eamcat(neamcat)%z = ztmp(1:n)
+    end do
+    call fclose(lu)
+
+  end subroutine eam_build_catalog
+
+  !> Grow the catalogue array.
+  subroutine eam_catalog_realloc()
+    type(eamcatentry), allocatable :: aux(:)
+    integer :: n
+    n = size(eamcat,1)
+    allocate(aux(2*n))
+    aux(1:n) = eamcat
+    call move_alloc(aux,eamcat)
+  end subroutine eam_catalog_realloc
+
+  !> Index in the catalogue of the first potential whose elements cover every
+  !> species of crystal c, or 0 if there is none.
+  function eam_catalog_pick(c) result(icat)
+    use crystalmod, only: crystal
+    class(crystal), intent(in) :: c
+    integer :: icat
+
+    integer :: i, j
+    logical :: ok
+
+    icat = 0
+    if (neamcat <= 0) return
+    do i = 1, neamcat
+       ok = .true.
+       do j = 1, c%ncel
+          if (.not.any(eamcat(i)%z == c%spc(c%atcel(j)%is)%z)) then
+             ok = .false.
+             exit
+          end if
+       end do
+       if (ok) then
+          icat = i
+          return
+       end if
+    end do
+
+  end function eam_catalog_pick
+
+  !> Full path of catalogue entry icat.
+  function eam_catalog_path(icat) result(file)
+    use global, only: critic_home
+    use param, only: dirsep
+    integer, intent(in) :: icat
+    character(len=:), allocatable :: file
+    file = trim(critic_home) // dirsep // "eam" // dirsep // trim(eamcat(icat)%file)
+  end function eam_catalog_path
+
 
   module subroutine calc_init_tblite(cl,c,errmsg)
     use crystalmod, only: crystal

@@ -41,7 +41,7 @@ contains
   !> set the energy backend, method, target temperature (K), timestep
   !> (a.u.), and run mode (md_dynamics or md_relax). errmsg is empty on success
   !> and holds the error message on failure.
-  module subroutine md_init(md,c,backend,method,temperature,dt,mode,errmsg)
+  module subroutine md_init(md,c,backend,method,temperature,dt,mode,eamfile,errmsg)
     use crystalmod, only: crystal
     use param, only: atmass
     class(mdrun), intent(inout) :: md
@@ -51,6 +51,7 @@ contains
     real*8, intent(in), optional :: temperature
     real*8, intent(in), optional :: dt
     integer, intent(in), optional :: mode
+    character(len=*), intent(in), optional :: eamfile
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: i
@@ -62,7 +63,7 @@ contains
     if (present(dt)) md%dt = dt
     if (present(mode)) md%mode = mode
 
-    call md%cl%init(c,backend=backend,method=method,errmsg=errmsg)
+    call md%cl%init(c,backend=backend,method=method,eamfile=eamfile,errmsg=errmsg)
     if (len_trim(errmsg) > 0) return
 
     md%nat = c%ncel

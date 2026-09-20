@@ -4060,11 +4060,11 @@ contains
   !> Test the built-in force-field energy calculator: report the energy and
   !> check the analytic gradient (and stress, for crystals) against finite
   !> differences on the currently loaded system. Invoke with "TRICK ENERGY
-  !> [TIP4P|GFN2|GFNFF]" (default force field: UFF).
+  !> [TIP4P|GFN2|GFNFF|DREIDING|EAM [file]]" (default force field: UFF).
   subroutine trick_energy(line0)
     use systemmod, only: sy
-    use energy, only: calculator, ff_uff, ff_gfnxtb, ff_tip4p, ff_gfnff, ff_dreiding
-    use tools_io, only: uout, string, ferror, faterr, lgetword, equal
+    use energy, only: calculator, ff_uff, ff_gfnxtb, ff_tip4p, ff_gfnff, ff_dreiding, ff_eam
+    use tools_io, only: uout, string, ferror, faterr, lgetword, getword, equal
     use tools_math, only: matinv, det3
     use param, only: hartokjmol
     character*(*), intent(in) :: line0
@@ -4074,7 +4074,7 @@ contains
     real*8 :: e0, ep, em, h, gmax, smax
     real*8, allocatable :: grad(:,:), gfd(:,:), gtmp(:,:), rsave(:,:)
     real*8 :: stress(3,3), sfd(3,3), m_save(3,3), omega0
-    character(len=:), allocatable :: errmsg, word
+    character(len=:), allocatable :: errmsg, word, eamfile
 
     if (.not.associated(sy)) then
        call ferror('trick_energy','no system loaded',faterr)
@@ -4086,6 +4086,7 @@ contains
     ! optional force-field keyword
     lp = 1
     ibackend = ff_uff
+    eamfile = ""
     word = lgetword(line0,lp)
     if (equal(word,'tip4p')) then
        ibackend = ff_tip4p
@@ -4095,13 +4096,16 @@ contains
        ibackend = ff_gfnff
     else if (equal(word,'dreiding')) then
        ibackend = ff_dreiding
+    else if (equal(word,'eam')) then
+       ibackend = ff_eam
+       eamfile = getword(line0,lp)
     else if (len_trim(word) > 0) then
        call ferror('trick_energy','unknown force field: ' // trim(word),faterr)
        return
     end if
 
     ! initialize the built-in force field
-    call cl%init(sy%c,backend=ibackend,errmsg=errmsg)
+    call cl%init(sy%c,backend=ibackend,eamfile=eamfile,errmsg=errmsg)
     if (len_trim(errmsg) > 0) then
        call ferror('trick_energy',errmsg,faterr)
        return
@@ -4115,6 +4119,8 @@ contains
        return
     end if
     write (uout,'("* TRICK: built-in force-field energy test")')
+    if (ibackend == ff_eam .and. allocated(cl%eam%file)) &
+       write (uout,'("  EAM potential: ",A)') trim(cl%eam%file)
     write (uout,'("  energy at input geometry (hartree): ",A)') string(e0,'e',decimal=10)
     write (uout,'("  energy at input geometry (kJ/mol):  ",A)') string(e0*hartokjmol,'f',decimal=6)
 

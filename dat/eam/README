@@ -1,0 +1,177 @@
+Tabulated EAM potentials
+========================
+
+critic2's EAM backend reads embedded-atom potentials in the LAMMPS/DYNAMO
+"setfl" (.eam.alloy) and "eam/fs" (.eam.fs) formats -- the same files LAMMPS
+uses with pair_style eam/alloy and eam/fs.
+
+A potential can always be named explicitly, and then nothing here is consulted:
+
+    EDIT RELAX EAM /path/to/Cu_mishin1.eam.alloy
+
+Otherwise critic2 picks one from this directory. The candidates are listed in
+"index", one per line:
+
+    <file name>   <element symbols it covers> ...
+
+The FIRST entry whose elements cover every species in the system wins, so the
+order of the index is the selection policy: the community-standard potential
+for each element first, then the Zhou-2004 universal set, then alloy-specific
+potentials, then a 16-metal Zhou file as a last resort for arbitrary mixtures.
+Add your own by copying the file here and adding a line. The element symbols
+must match the file's own header (line 4); they let critic2 decide whether a
+potential covers a structure without opening it.
+
+Only setfl and eam/fs are read. Formats that begin like setfl but carry extra
+tables -- .adp (angular-dependent), .cdeam (concentration-dependent) -- and
+the single-element DYNAMO funcfl .eam layout are rejected with an error.
+
+Coverage
+--------
+
+Metals: Ag Al Au Co Cr Cu Fe Mg Mo Ni Pb Pd Pt Ta Ti V W Zr (18), plus H
+through NiAlH_jea. Every binary among the 16 Zhou metals is available through
+Zhou2004_16metals.eam.alloy, and there are specifically-fitted potentials for
+Al-Cu, Al-Fe, Co-Al, Cu-Ni, Cu-Ta, Cu-Zr, V-Fe and Ni-Al-H.
+
+Not covered: the alkali and alkaline-earth metals (Li Na K Rb Cs, Be Ca Sr Ba),
+Sc Mn Zn Y Nb Tc Ru Rh Cd Hf Re Os Ir Hg, the post-transition metals Ga In Sn
+Tl Bi, and all lanthanides and actinides. EAM potentials exist for several of
+these elsewhere; see the note on sources below.
+
+Provenance and licence
+----------------------
+
+Two sources, both compatible with critic2's GPL-3-or-later:
+
+1. Debian's lammps-data package (the LAMMPS potentials/ directory,
+   https://www.lammps.org). Debian's copyright file places these, with the
+   rest of LAMMPS, under the GNU GPL "either version 2 of the License, or (at
+   your option) any later version" -- i.e. GPL-2-or-later. See
+   /usr/share/doc/lammps-data/copyright for the full text and contributors.
+   These are: Cu_mishin1, Fe_mm, Mg_mm, Zr_mm, AlCu, CuNi, CoAl, CuTa,
+   AlFe_mm, CuZr_mm, VFe_mm and NiAlH_jea.
+
+2. Generated here from the parameters of Zhou, Johnson and Wadley, Phys. Rev.
+   B 69, 144113 (2004) -- and, for chromium, Lin, Johnson and Zhigilei, Phys.
+   Rev. B 77, 214108 (2008) -- using the generator LAMMPS distributes in
+   tools/eam_database (create_eam.py + eamDatabase.py + the EAM_code parameter
+   database, also GPL-2-or-later):
+
+       python3 create_eam.py -n Cu                          # one element
+       python3 create_eam.py -n Cu Ag Au Ni Pd Pt Al Pb \
+                                Fe Mo Ta W Mg Co Ti Zr      # the 16-metal file
+
+   The generated Cu-Ta file reproduces the Debian CuTa.eam.alloy to 4e-6
+   relative over all 14006 tabulated values (that file was written in lower
+   precision), which is what validates this route. Note the Fortran generator
+   create.f in the same directory cannot be used for more than eight elements:
+   its element line is a fixed 24-character field, so it silently truncates.
+
+Caveats
+-------
+
+* The Zhou-2004 parameters are fitted to the PURE metals; alloy interactions
+  in Zhou2004_16metals.eam.alloy come from mixing rules and are, in the
+  generator's own words, "inferior to models where the mixed terms were
+  specifically optimized for particular alloys". Prefer the alloy-specific
+  files above it in the index, and check any mixed system against published
+  results.
+* VFe_mm.eam.fs and CuZr_mm.eam.fs carry no citation in their headers. They
+  are kept because VFe_mm is the only source here for vanadium and CuZr_mm
+  covers the Cu-Zr metallic-glass system.
+* Inclusion is not an endorsement.
+
+Potentials
+----------
+
+Cu_mishin1.eam.alloy  (Cu)
+    689 KB   cite: Mishin, Phys Rev B, 63, 224106 (2001)
+
+Fe_mm.eam.fs  (Fe)
+    738 KB   cite: Mendelev, Han, Srolovitz, Ackland, Sun and Asta, Phil Mag A, 83, 3977-3994 (2003)
+
+Mg_mm.eam.fs  (Mg)
+    738 KB   cite: Sun, Mendelev, Becker, Kudin, Haxhimali, Asta, Hoyt, Karma and Srolovitz, Phys Rev B 73, 024116 (2006)
+
+Zr_mm.eam.fs  (Zr)
+    738 KB   cite: Mendelev and  Ackland, Phil Mag Lett 87, 349-359 (2007)
+
+Al_zhou2004.eam.alloy  (Al)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Ag_zhou2004.eam.alloy  (Ag)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Au_zhou2004.eam.alloy  (Au)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Co_zhou2004.eam.alloy  (Co)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Cu_zhou2004.eam.alloy  (Cu)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Fe_zhou2004.eam.alloy  (Fe)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Mg_zhou2004.eam.alloy  (Mg)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Mo_zhou2004.eam.alloy  (Mo)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Ni_zhou2004.eam.alloy  (Ni)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Pb_zhou2004.eam.alloy  (Pb)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Pd_zhou2004.eam.alloy  (Pd)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Pt_zhou2004.eam.alloy  (Pt)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Ta_zhou2004.eam.alloy  (Ta)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Ti_zhou2004.eam.alloy  (Ti)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+W_zhou2004.eam.alloy  (W)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Zr_zhou2004.eam.alloy  (Zr)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+Cr_lin2008.eam.alloy  (Cr)
+    148 KB   cite: NOT RECORDED IN THE FILE
+
+AlCu.eam.alloy  (Al Cu)
+    291 KB   cite: Cai and Ye, Phys Rev B, 54, 8398-8410 (1996)
+
+CuNi.eam.alloy  (Ni Cu)
+    83 KB   cite: Onat and Durukanoglu, J Phys Cond Matt, 26, 035404 (2014)
+
+CoAl.eam.alloy  (Co Al)
+    360 KB   cite: Vailhe and Farkas, J Mater Res, 12, 2559 (1997)
+
+CuTa.eam.alloy  (Cu Ta)
+    331 KB   cite: X. W. Zhou, R. A. Johnson,  H. N. G. Wadley, Phys. Rev. B, 69, 144113 (2004)
+
+AlFe_mm.eam.fs  (Al Fe)
+    2215 KB   cite: Mendelev, Srolovitz, Ackland and Han, J Mater Res 20, 208-218 (2005)
+
+CuZr_mm.eam.fs  (Cu Zr)
+    2215 KB   cite: Unknown
+
+VFe_mm.eam.fs  (V Fe)
+    2215 KB   cite: Unknown
+
+NiAlH_jea.eam.alloy  (Ni Al H)
+    284 KB   cite: Moody and Baskes, Modell Sim Mater Sci Eng, 3, 289-307 (1995)
+
+Zhou2004_16metals.eam.alloy  (Cu Ag Au Ni Pd Pt Al Pb Fe Mo Ta W Mg Co Ti Zr)
+    8269 KB   cite: NOT RECORDED IN THE FILE
+

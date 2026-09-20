@@ -79,7 +79,7 @@ module dynamics
   end type mdrun
 
   interface
-     module subroutine md_init(md,c,backend,method,temperature,dt,mode,errmsg)
+     module subroutine md_init(md,c,backend,method,temperature,dt,mode,eamfile,errmsg)
        use crystalmod, only: crystal
        class(mdrun), intent(inout) :: md
        class(crystal), intent(inout) :: c
@@ -88,6 +88,7 @@ module dynamics
        real*8, intent(in), optional :: temperature
        real*8, intent(in), optional :: dt
        integer, intent(in), optional :: mode
+       character(len=*), intent(in), optional :: eamfile
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine md_init
      module subroutine md_step(md,c)

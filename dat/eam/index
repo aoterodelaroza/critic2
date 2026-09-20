@@ -1,0 +1,46 @@
+# critic2 EAM potential index: file name, then the elements it covers.
+#
+# The first entry whose elements cover every species in the system is the one
+# used when no potential is named explicitly. The order is therefore the
+# selection policy: for each element the community-standard potential comes
+# first, then the Zhou-2004 universal set, then alloy-specific potentials,
+# then the 16-metal Zhou file as a last resort for arbitrary mixtures.
+# See README for provenance, citations and licence.
+#
+# -- element-specific potentials preferred for their element --
+Cu_mishin1.eam.alloy         Cu
+Fe_mm.eam.fs                 Fe
+Mg_mm.eam.fs                 Mg
+Zr_mm.eam.fs                 Zr
+#
+# -- Zhou et al. 2004 universal set, one file per element --
+Al_zhou2004.eam.alloy        Al
+Ag_zhou2004.eam.alloy        Ag
+Au_zhou2004.eam.alloy        Au
+Co_zhou2004.eam.alloy        Co
+Cu_zhou2004.eam.alloy        Cu
+Fe_zhou2004.eam.alloy        Fe
+Mg_zhou2004.eam.alloy        Mg
+Mo_zhou2004.eam.alloy        Mo
+Ni_zhou2004.eam.alloy        Ni
+Pb_zhou2004.eam.alloy        Pb
+Pd_zhou2004.eam.alloy        Pd
+Pt_zhou2004.eam.alloy        Pt
+Ta_zhou2004.eam.alloy        Ta
+Ti_zhou2004.eam.alloy        Ti
+W_zhou2004.eam.alloy         W
+Zr_zhou2004.eam.alloy        Zr
+Cr_lin2008.eam.alloy         Cr
+#
+# -- alloy-specific potentials (also the only source here for V) --
+AlCu.eam.alloy               Al Cu
+CuNi.eam.alloy               Ni Cu
+CoAl.eam.alloy               Co Al
+CuTa.eam.alloy               Cu Ta
+AlFe_mm.eam.fs               Al Fe
+CuZr_mm.eam.fs               Cu Zr
+VFe_mm.eam.fs                V Fe
+NiAlH_jea.eam.alloy          Ni Al H
+#
+# -- last resort: every binary among the 16 Zhou metals, by mixing rule --
+Zhou2004_16metals.eam.alloy  Cu Ag Au Ni Pd Pt Al Pb Fe Mo Ta W Mg Co Ti Zr
