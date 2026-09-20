@@ -182,6 +182,34 @@ The tools/elk_mode directory contains three source files to modify elk
 (1.3.2) and make it print a description of the ELF and the Coulomb
 potential. See the README in the subdirectory.
 
+Adding EAM potentials
+~~~~~~~~~~~~~~~~~~~~~
+
+The script add-eam-potential.sh registers a tabulated EAM potential
+(setfl .eam.alloy or eam/fs .eam.fs) in critic2's catalogue, dat/eam,
+so that EDIT RELAX EAM and TRICK ENERGY EAM find it without being
+given a file name. It takes URLs or local files:
+
+::
+
+  #ascii#
+  tools/add-eam-potential.sh ~/Downloads/Hf.eam.alloy
+  tools/add-eam-potential.sh https://.../Nb.eam.alloy
+
+It copies or downloads the file into dat/eam, reads the elements from
+the file's own header, checks that critic2 can actually read it, and
+appends a line to dat/eam/index. The first index entry covering a
+system is the one used, so move the new line up if it should take
+precedence for its elements.
+
+critic2 ships potentials for eighteen metals; everything else has to
+come from elsewhere, because no source with a GPL-3-compatible licence
+provides them. The NIST Interatomic Potentials Repository
+(https://www.ctcms.nist.gov/potentials) covers nearly all the missing
+ones, but states no licence for the files it hosts, so potentials
+obtained from it are for your own use and must not be redistributed.
+See dat/eam/README.
+
 Fragment diagrams for the GUI builder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

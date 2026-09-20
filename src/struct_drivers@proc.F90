@@ -3604,7 +3604,15 @@ contains
     ! potential bypasses the check, since applicability is then decided by that
     ! file (eam_setup errors if it does not cover every element)
     if (len_trim(eamfile) == 0 .and. .not.ff_backend_applicable(backend,s%c)) then
-       errmsg = "the " // trim(ffname) // " force field is not available for this system"
+       if (backend == ff_eam) then
+          ! the usual cause is an element no shipped potential covers, and the
+          ! generic message gives the user nothing to act on
+          errmsg = "no EAM potential in the catalogue covers this system; name one on "//&
+             "the EDIT RELAX line, or add it to the catalogue with "//&
+             "tools/add-eam-potential.sh (see dat/eam/README)"
+       else
+          errmsg = "the " // trim(ffname) // " force field is not available for this system"
+       end if
        return
     end if
     if (s%c%ncel == 0) then

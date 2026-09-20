@@ -36,8 +36,34 @@ Al-Cu, Al-Fe, Co-Al, Cu-Ni, Cu-Ta, Cu-Zr, V-Fe and Ni-Al-H.
 
 Not covered: the alkali and alkaline-earth metals (Li Na K Rb Cs, Be Ca Sr Ba),
 Sc Mn Zn Y Nb Tc Ru Rh Cd Hf Re Os Ir Hg, the post-transition metals Ga In Sn
-Tl Bi, and all lanthanides and actinides. EAM potentials exist for several of
-these elsewhere; see the note on sources below.
+Tl Bi, and all lanthanides and actinides.
+
+Adding a potential yourself
+---------------------------
+
+Use the helper script, which downloads (or copies) a potential, checks that
+critic2 can read it, and registers it in the index:
+
+    tools/add-eam-potential.sh URL_OR_FILE [...]
+
+for example, for niobium:
+
+    tools/add-eam-potential.sh https://www.ctcms.nist.gov/potentials/Download/\
+        2010--Fellinger-M-R-Park-H-Wilkins-J-W--Nb/2/Nb.eam.alloy
+
+after which "EDIT RELAX EAM" on a niobium structure finds it with no further
+input. The script appends to the end of the index; move the line up if the new
+potential should take precedence for an element that already has one. Run it
+with -h for the full notes.
+
+The best source is the NIST Interatomic Potentials Repository,
+https://www.ctcms.nist.gov/potentials/ -- browse to an element, open an entry,
+and copy the download link of its eam.alloy or eam.fs file. A single entry
+often covers several elements at once, so one download can fill more than one
+gap. NIST asks that potentials be used "with proper acknowledgement": cite the
+paper the entry names. Since NIST states no licence, potentials obtained this
+way are for your own use -- do not redistribute them with critic2 or anything
+else, and note that they will not survive "make install" overwriting dat/eam.
 
 Provenance and licence
 ----------------------
