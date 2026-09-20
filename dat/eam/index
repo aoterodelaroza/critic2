@@ -40,6 +40,7 @@ CuTa.eam.alloy               Cu Ta
 AlFe_mm.eam.fs               Al Fe
 CuZr_mm.eam.fs               Cu Zr
 VFe_mm.eam.fs                V Fe
+NiAlH_jea.eam.fs             Ni Al H
 NiAlH_jea.eam.alloy          Ni Al H
 #
 # -- last resort: every binary among the 16 Zhou metals, by mixing rule --

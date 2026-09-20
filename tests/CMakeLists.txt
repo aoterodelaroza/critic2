@@ -36,6 +36,7 @@ set(TESTDIRS
   015_grdplot   ## gradient path tracing plots
   016_qtree     ## qtree keyword
   017_edit      ## structure editing (EDIT)
+  019_eam       ## tabulated EAM force field
   )
 
 ## Build the filter pipeline (grep and/or sed) for a checked file, given the

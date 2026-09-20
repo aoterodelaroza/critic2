@@ -1,0 +1,18 @@
+## check: 003_eam_alloy.incritic -a1e-6
+## delete: 003_eam_alloy.cro
+## labels: regression quick nodata
+
+# Cu-Ni with unequal numbers of the two species, so that the copper and
+# nickel environments differ and the minimum is not fixed by symmetry. This
+# exercises the (i,j) pair-table indexing of a setfl file: confusing the
+# Cu-Cu, Ni-Ni and Cu-Ni tables moves the minimum.
+crystal
+ cell 4.40 4.40 4.40 90 90 90 angstrom
+ spg 1
+ neq 0.2000 0.2000 0.2000 Ni
+ neq 0.2000 0.7000 0.7000 Ni
+ neq 0.7000 0.2000 0.7000 Ni
+ neq 0.7000 0.7000 0.2200 Cu
+endcrystal
+edit relax eam 1d-7
+write 003_eam_alloy.incritic

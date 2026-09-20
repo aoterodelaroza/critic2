@@ -1,0 +1,16 @@
+## check: 002_eam_fs.incritic -a1e-6
+## delete: 002_eam_fs.cro
+## labels: regression quick nodata
+
+# The same idea for iron, whose catalogue potential is in the eam/fs
+# (.eam.fs) format, so this covers the other of the two formats critic2
+# reads.
+crystal
+ cell 4.20 4.20 4.20 90 90 90 angstrom
+ spg 1
+ neq 0.2000 0.2000 0.2000 Fe
+ neq 0.7000 0.7000 0.2500 Fe
+ neq 0.2500 0.7000 0.7000 Fe
+endcrystal
+edit relax eam 1d-7
+write 002_eam_fs.incritic

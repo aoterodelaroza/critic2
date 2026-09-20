@@ -1,0 +1,24 @@
+## check: 005_eam_supercell_cell.incritic -a1e-6
+## check: 005_eam_supercell_2x1x1.incritic -a1e-6
+## delete: 005_eam_supercell.cro
+## labels: regression quick nodata
+
+# The same displaced structure relaxed in its unit cell and then in a 2x1x1
+# supercell. EAM involves no bond perception or topology, so the supercell
+# must relax to the unit cell replicated twice; an error in the periodic
+# neighbour list shows up as the two minima disagreeing. The structure is
+# offset from the origin so the relaxed coordinates sit well inside the
+# cell and cannot wrap across the periodic boundary.
+crystal
+ cell 3.615 3.615 3.615 90 90 90 angstrom
+ spg 1
+ neq 0.2600 0.2500 0.2500 Cu
+ neq 0.2500 0.7600 0.7500 Cu
+ neq 0.7500 0.2500 0.7400 Cu
+ neq 0.7500 0.7500 0.2500 Cu
+endcrystal
+edit relax eam 1d-7
+write 005_eam_supercell_cell.incritic
+newcell 2 1 1
+edit relax eam 1d-7
+write 005_eam_supercell_2x1x1.incritic

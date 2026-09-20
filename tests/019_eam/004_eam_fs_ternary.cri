@@ -1,0 +1,22 @@
+## check: 004_eam_fs_ternary.incritic -a1e-6
+## delete: 004_eam_fs_ternary.cro
+## labels: regression quick nodata
+
+# Ni-Al-H relaxed with an eam/fs potential. In eam/fs the density an atom
+# sees depends on BOTH its own element and its neighbour's, and in this
+# potential those cross-density tables are asymmetric (rho_ij /= rho_ji), so
+# indexing them the wrong way round moves the minimum -- by about 0.15 in
+# fractional coordinates here, against a test tolerance of 1e-6. A potential
+# with symmetric cross densities cannot detect that error at all, and
+# neither can a structure whose minimum is fixed by symmetry.
+crystal
+ cell 4.40 4.40 4.40 90 90 90 angstrom
+ spg 1
+ neq 0.2000 0.2000 0.2000 Ni
+ neq 0.2000 0.7000 0.7000 Ni
+ neq 0.7000 0.2000 0.7000 Ni
+ neq 0.7000 0.7000 0.2200 Al
+ neq 0.4500 0.4700 0.4400 H
+endcrystal
+edit relax eam 1d-7
+write 004_eam_fs_ternary.incritic
