@@ -1401,7 +1401,7 @@ contains
        elseif (w%type == wintype_water_cluster) then
           call init_window("Water Cluster Demonstration",55,30)
        elseif (w%type == wintype_melting) then
-          call init_window("Metal Melting Demonstration",58,36)
+          call init_window("Metal Melting Demonstration",58,26)
        elseif (w%type == wintype_geometry) then
           call init_window("View/Edit Geometry",70,30)
        elseif (w%type == wintype_preferences) then

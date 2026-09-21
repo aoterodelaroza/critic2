@@ -441,6 +441,7 @@ contains
        sysc(idx)%md_backend = -1
        sysc(idx)%md_eamfile = ""
        sysc(idx)%md_nstep_frame = 1
+       sysc(idx)%highlight_border = 0._c_float
        if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
        if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
        if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)

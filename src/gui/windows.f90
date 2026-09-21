@@ -268,11 +268,6 @@ module windows
      logical :: dirty = .true. ! the atom colors must be recomputed although the run is paused
      real*8 :: molten = 0d0 ! molten fraction of the free atoms, last computed
      real(c_float), allocatable :: rgba(:,:) ! atom colors by local order, last computed (4,nat)
-     ! energy versus temperature history for the plot
-     integer :: nhist = 0 ! samples in the history
-     real*8 :: lastsample = 0d0 ! simulation time of the last sample (fs)
-     real(c_double) :: hist_t(400) = 0d0 ! temperature of each sample (K)
-     real(c_double) :: hist_e(400) = 0d0 ! energy per atom of each sample (eV)
   end type melting_state
   public :: melting_state
 

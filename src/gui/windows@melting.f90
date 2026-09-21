@@ -36,7 +36,7 @@ submodule (windows) melting
   real*8, parameter :: mt_t0 = 300d0 ! starting temperature (K)
   integer, parameter :: mt_nstep0 = 20 ! starting number of MD steps per frame
   real*8, parameter :: mt_radius_factor = 0.42d0 ! displayed atom radius, in units of the nearest-neighbor distance
-  real*8, parameter :: mt_hist_every = 250d0 ! history sample spacing (fs of simulation time)
+  real*8, parameter :: mt_border_factor = 1.2d0 ! atom outline, in units of the usual atom border
   integer, parameter :: mt_nlut = 256 ! colormap look-up table size
 
   ! constants built on first use: the metal combo options, the order-to-color
@@ -52,7 +52,6 @@ contains
   !> Draw the metal melting demonstration window.
   module subroutine draw_melting(w)
     use systems, only: sysc, sys, sys_init, ok_system, remove_system, lastchange_geometry
-    use gui_main, only: fontsize
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_intstepper,&
        iw_close_event, iw_setpos_bottomright, iw_table_column, iw_combo_simple, iw_dragfloat_real8,&
        file_name_base
@@ -66,7 +65,7 @@ contains
     real*8 :: eatom, tnow
     integer :: iview
     type(ImVec2) :: sz0
-    character(len=:,kind=c_char), allocatable, target :: str1, str2, str3
+    character(len=:,kind=c_char), allocatable, target :: str1
     character(len=:), allocatable :: errmsg
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -180,7 +179,6 @@ contains
              sysc(isys)%sc%nextbuildlists_fixcam = .true.
              call sysc(isys)%post_event(lastchange_geometry)
              win(iview)%forcerender = .true.
-             w%mt%nhist = 0
              w%mt%dirty = .true.
           end if
           call iw_tooltip("Restore the initial crystal and go back to room temperature",ttshown)
@@ -207,7 +205,6 @@ contains
              tnow = sysc(isys)%md%temperature_now()
              eatom = sysc(isys)%md%epot * hartoev / real(sysc(isys)%md%nat,8)
              call mt_update_scoreboard(isys,tnow)
-             if (sysc(isys)%md_run) call mt_push_history(isys,tnow,eatom)
 
              ! status table
              tflags = ImGuiTableFlags_None
@@ -239,21 +236,6 @@ contains
                 call igEndTable()
              end if
 
-             ! energy versus temperature plot
-             if (w%mt%nhist > 1) then
-                str1 = "##mtplot" // c_null_char
-                str2 = "Temperature (K)" // c_null_char
-                str3 = "Potential energy per atom (eV)" // c_null_char
-                call igGetContentRegionAvail(sz0)
-                sz0%y = 9._c_float * fontsize%y
-                if (ipBeginPlot(c_loc(str1),sz0,ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend))) then
-                   call ipSetupAxes(c_loc(str2),c_loc(str3),ImPlotAxisFlags_AutoFit,ImPlotAxisFlags_AutoFit)
-                   str1 = "E(T)" // c_null_char
-                   call ipPlotLine(c_loc(str1),c_loc(w%mt%hist_t),c_loc(w%mt%hist_e),int(w%mt%nhist,c_int),&
-                      ImPlotLineFlags_None,0_c_int)
-                   call ipEndPlot()
-                end if
-             end if
           end if
 
           ! errors and stop notices from the run itself
@@ -340,12 +322,11 @@ contains
     !> temperature, the substrate mask, and the display (no bonds or
     !> axes, atoms as large spheres).
     subroutine mt_start()
-      use representations, only: reptype_bonds, reptype_axes, reptype_atoms
+      use representations, only: reptype_bonds, reptype_axes, reptype_atoms, atomborder_def
       integer :: is, i
 
       is = w%isys
       w%mt%started = .true.
-      w%mt%nhist = 0
       w%mt%needalign = w%mt%isslab
 
       ! the run
@@ -355,7 +336,9 @@ contains
 
       ! display: no axes and no bonds (the bond list is frozen at the start
       ! of the run and would stretch across the liquid); atoms as large
-      ! spheres so the liquid looks dense
+      ! spheres so the liquid looks dense, outlined so that they can be
+      ! told apart where they touch
+      sysc(is)%highlight_border = real(mt_border_factor * atomborder_def,c_float)
       do i = 1, sysc(is)%sc%nrep
          if (sysc(is)%sc%rep(i)%type == reptype_axes .or. sysc(is)%sc%rep(i)%type == reptype_bonds) then
             sysc(is)%sc%rep(i)%shown = .false.
@@ -429,33 +412,6 @@ contains
          dark * mt_order_color(1d0-w%mt%molten),(/0.5d0,0.06d0/),1d0)
 
     end subroutine mt_update_scoreboard
-
-    !> Record (T, E/atom) every mt_hist_every fs of simulation time for the plot.
-    subroutine mt_push_history(is,tnow,eatom)
-      integer, intent(in) :: is
-      real*8, intent(in) :: tnow, eatom
-
-      real*8 :: tsim
-      integer :: n
-
-      tsim = sysc(is)%md%simtime * autofs
-      if (w%mt%nhist > 0) then
-         if (tsim < w%mt%lastsample + mt_hist_every) return
-      end if
-      w%mt%lastsample = tsim
-
-      n = size(w%mt%hist_t,1)
-      if (w%mt%nhist >= n) then
-         ! full: drop the oldest sample
-         w%mt%hist_t(1:n-1) = w%mt%hist_t(2:n)
-         w%mt%hist_e(1:n-1) = w%mt%hist_e(2:n)
-         w%mt%nhist = n - 1
-      end if
-      w%mt%nhist = w%mt%nhist + 1
-      w%mt%hist_t(w%mt%nhist) = real(tnow,c_double)
-      w%mt%hist_e(w%mt%nhist) = real(eatom,c_double)
-
-    end subroutine mt_push_history
 
   end subroutine draw_melting
 

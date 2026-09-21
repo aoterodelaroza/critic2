@@ -1319,14 +1319,24 @@ contains
     subroutine draw_highlights()
       use systems, only: sysc
       use representations, only: atomborder_def
+      use gui_main, only: ColorAtomBorder_def
       integer :: i, id, n
-      real(c_float) :: rgba(4)
+      logical :: ownborder
+      real(c_float) :: rgba(4), border, rgbborder(3)
       real(c_float), parameter :: zr(4) = 0._c_float
 
       ! initial checks
       if (s%isinit < 2) return
       if (.not.allocated(sysc(s%id)%highlight_rgba).and.&
          .not.allocated(sysc(s%id)%highlight_rgba_transient)) return
+
+      ! the highlight covers the atom, so it carries the outline: either
+      ! the one this system asked for, or none (the border in the fill
+      ! color) for a plain highlight
+      ownborder = (sysc(s%id)%highlight_border > 0._c_float)
+      border = real(atomborder_def,c_float)
+      rgbborder = ColorAtomBorder_def
+      if (ownborder) border = sysc(s%id)%highlight_border
 
       ! highlight the spheres
       call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
@@ -1343,8 +1353,9 @@ contains
             rgba = sysc(s%id)%highlight_rgba(:,id)
          if (all(rgba >= 0)) then
             n = n + 1
+            if (.not.ownborder) rgbborder = rgba(1:3)
             call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r + sel_thickness,&
-               rgba,real(atomborder_def,c_float),rgba(1:3),s%obj%sph(i)%xdelta,zr,1._c_float,&
+               rgba,border,rgbborder,s%obj%sph(i)%xdelta,zr,1._c_float,&
                (/0._c_float,0._c_float,0._c_float/))
          end if
       end do

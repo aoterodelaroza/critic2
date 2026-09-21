@@ -111,6 +111,7 @@ module systems
      real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
      real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors, displayed (committed at the end of each frame)
      real(c_float), allocatable :: highlight_rgba_transient_acc(:,:) ! transient highlight colors, accumulated during the frame
+     real(c_float) :: highlight_border = 0._c_float ! outline of the highlight spheres (<= 0: no outline, the fill color)
      ! time
      real*8 :: timelastchange_geometry = 0d0   ! time system last changed geometry
      real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
