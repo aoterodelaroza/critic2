@@ -95,6 +95,7 @@ contains
        &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
        &FPLO (out){.out},&
        &Gaussian (com|gjf|zmat|log|wfn|wfx|fchk|cube){.com,.gjf,.zmat,.log,.wfn,.wfx,.fchk,.cube},&
+       &GULP (gin|grs|gout|got){.gin,.grs,.gout,.got},&
        &ORCA (out|molden|molden.input){.out,.molden,.input},&
        &pdb (pdb){.pdb},&
        &postg (pgout){.pgout},&
@@ -133,6 +134,8 @@ contains
        // "Gaussian wfn" // c_null_char &            ! isformat_r_wfn
        // "Gaussian wfx" // c_null_char &            ! isformat_r_wfx
        // "Gaussian zmat file" // c_null_char &      ! isformat_r_zmat
+       // "GULP input" // c_null_char &              ! isformat_r_gulpin
+       // "GULP output" // c_null_char &             ! isformat_r_gulpout
        // "mol2 file" // c_null_char &               ! isformat_r_mol2
        // "Molden-style file" // c_null_char &       ! isformat_r_molden
        // "ORCA output file" // c_null_char &        ! isformat_r_orca
@@ -162,7 +165,8 @@ contains
        isformat_r_castepcell,isformat_r_castepgeom,isformat_r_cif,isformat_r_crystal,&
        isformat_r_cube,isformat_r_gen,isformat_r_f21,isformat_r_dmain,isformat_r_elk,&
        isformat_r_aimsin,isformat_r_aimsout,isformat_r_fploout,isformat_r_fchk,isformat_r_gjf,&
-       isformat_r_gaussian,isformat_r_wfn,isformat_r_wfx,isformat_r_zmat,isformat_r_mol2,&
+       isformat_r_gaussian,isformat_r_wfn,isformat_r_wfx,isformat_r_zmat,isformat_r_gulpin,&
+       isformat_r_gulpout,isformat_r_mol2,&
        isformat_r_molden,isformat_r_orca,isformat_r_pdb,isformat_r_pgout,isformat_r_dat,&
        isformat_r_qein,isformat_r_qeout,isformat_r_pwc,isformat_r_shelx,isformat_r_siesta,&
        isformat_r_tinkerfrac,isformat_r_vasp,isformat_r_struct,isformat_r_axsf,&

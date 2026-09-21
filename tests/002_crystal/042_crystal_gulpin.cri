@@ -1,0 +1,47 @@
+## delete: 042_crystal_gulpin.cro
+## check: 042_crystal_gulpin_gen_01.cri -a1e-10
+## check: 042_crystal_gulpin_gen_02.cri -a1e-10
+## check: 042_crystal_gulpin_gen_03.cri -a1e-10
+## check: 042_crystal_gulpin_gen_04.cri -a1e-10
+## check: 042_crystal_gulpin_gen_05.cri -a1e-10
+## check: 042_crystal_gulpin_gen_06.cri -a1e-10
+## check: 042_crystal_gulpin_gen_07.cri -a1e-10
+## check: 042_crystal_gulpin_gen_08.cri -a1e-10
+## check: 042_crystal_gulpin_gen_09.cri -a1e-10
+## check: 042_crystal_gulpin_gen_10.cri -a1e-10
+## check: 042_crystal_gulpin_gen_11.cri -a1e-10
+## check: 042_crystal_gulpin_gen_12.cri -a1e-10
+## labels: regression quick
+# P1 molecular crystal with connect/species/potential blocks
+crystal ../zz_source/gulp-6.4/urea/urea.gin
+write 042_crystal_gulpin_gen_01.cri
+# GULP restart dump
+crystal ../zz_source/gulp-6.4/urea/urea_opt.grs
+write 042_crystal_gulpin_gen_02.cri
+# two configurations: R -3 M on rhombohedral axes with shells (default = last)
+crystal ../zz_source/gulp-6.4/examples/example12.gin
+write 042_crystal_gulpin_gen_03.cri
+crystal ../zz_source/gulp-6.4/examples/example12.gin 1
+write 042_crystal_gulpin_gen_04.cri
+crystal ../zz_source/gulp-6.4/examples/example12.gin 2
+write 042_crystal_gulpin_gen_05.cri
+# 0D cluster
+molecule ../zz_source/gulp-6.4/examples/example37.gin
+write 042_crystal_gulpin_gen_06.cri
+# explicit origin shift
+crystal ../zz_source/gulp-6.4/examples/example36.gin
+write 042_crystal_gulpin_gen_07.cri
+# rhombohedral axes, origin 2
+crystal ../zz_source/gulp-6.4/examples/example19.gin
+write 042_crystal_gulpin_gen_08.cri
+# vectors + cartesian
+crystal ../zz_source/gulp-6.4/examples/example85.gin
+write 042_crystal_gulpin_gen_09.cri
+# non-standard setting, origin shift, partial occupancies
+crystal ../zz_source/gulp-6.4/examples/example46.gin 1
+write 042_crystal_gulpin_gen_10.cri
+# two-origin group: origin 2, and an explicit shift relative to GULP's origin-2 table
+crystal ../zz_source/gulp-6.4/spinel/spinel.gin
+write 042_crystal_gulpin_gen_11.cri
+crystal ../zz_source/gulp-6.4/spinel/spinel2.gin
+write 042_crystal_gulpin_gen_12.cri

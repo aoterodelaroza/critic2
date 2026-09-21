@@ -46,6 +46,7 @@ module spglib
   public :: spg_get_dataset
   public :: spg_get_spacegroup_type
   public :: spg_get_hall_number_from_symbol
+  public :: spg_get_hall_number_from_number
   public :: spg_get_symmetry_from_database
   public :: spg_list_spg
 
@@ -439,6 +440,14 @@ module spglib
        character(len=*), intent(in) :: symbol0
        integer(c_int) :: spg_get_hall_number_from_symbol
      end function spg_get_hall_number_from_symbol
+
+     ! Return the hall number for an ITA number and a setting choice
+     ! (blank = first hall number). Returns -1 if not found.
+     module function spg_get_hall_number_from_number(number,choice) result(hnum)
+       integer, intent(in) :: number
+       character(len=*), intent(in) :: choice
+       integer(c_int) :: hnum
+     end function spg_get_hall_number_from_number
 
      ! Return the symmetry operations from the hall number.
      module subroutine spg_get_symmetry_from_database(hnum,nrot,ncv,rot,cv)

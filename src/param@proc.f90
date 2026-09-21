@@ -134,6 +134,8 @@ contains
        iwformat = isformat_w_gjf
     elseif (isformat == isformat_r_pdb) then
        iwformat = isformat_w_pdb
+    elseif (isformat == isformat_r_gulpin) then
+       iwformat = isformat_w_gulp
     end if
 
   end function isformat_write_from_read

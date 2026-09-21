@@ -139,7 +139,9 @@ module param
   integer, parameter :: isformat_r_castepphonon = 44
   integer, parameter :: isformat_r_akaikkr = 45
   integer, parameter :: isformat_r_xband = 46
-  integer, parameter :: isformat_r_max = isformat_r_xband ! last reading format (update when adding formats)
+  integer, parameter :: isformat_r_gulpin = 47
+  integer, parameter :: isformat_r_gulpout = 48
+  integer, parameter :: isformat_r_max = isformat_r_gulpout ! last reading format (update when adding formats)
 
   ! Enumerate for structure formats (writing)
   integer, parameter :: isformat_w_unknown = 0

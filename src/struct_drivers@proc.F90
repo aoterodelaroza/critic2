@@ -46,7 +46,8 @@ contains
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell,&
        isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb, isformat_r_zmat,&
        isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_castepphonon,&
-       isformat_r_akaikkr, isformat_r_xband, isformat_r_unknown
+       isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin, isformat_r_gulpout,&
+       isformat_r_unknown
     use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -162,6 +163,10 @@ contains
        isformat = isformat_r_akaikkr
     elseif (equal(lword,'xband')) then
        isformat = isformat_r_xband
+    elseif (equal(lword,'gulp_in')) then
+       isformat = isformat_r_gulpin
+    elseif (equal(lword,'gulp_out')) then
+       isformat = isformat_r_gulpout
     end if
     if (isformat /= isformat_r_unknown) then
        word = getword(line,lp)
@@ -172,6 +177,11 @@ contains
     subline = line(lp:)
     word2 = getword(line,lp)
     if (len_trim(word2) == 0) word2 = " "
+
+    ! optional structure index (multi-structure output files); 0 = last
+    lp2 = 1
+    ok = isinteger(istruct,word2,lp2)
+    if (.not.ok) istruct = 0
 
     ! is this a crystal or a molecule?
     if (mol0 == 1) then
@@ -296,10 +306,13 @@ contains
        call seed%read_elk(word,mol,errmsg)
 
     elseif (isformat == isformat_r_qeout) then
-       lp2 = 1
-       ok = isinteger(istruct,word2,lp2)
-       if (.not.ok) istruct = 0
        call seed%read_qeout(word,mol,istruct,errmsg)
+
+    elseif (isformat == isformat_r_gulpin) then
+       call seed%read_gulpin(word,mol,istruct,errmsg)
+
+    elseif (isformat == isformat_r_gulpout) then
+       call seed%read_gulpout(word,mol,istruct,errmsg)
 
     elseif (isformat == isformat_r_crystal) then
        call seed%read_crystalout(word,mol,errmsg)

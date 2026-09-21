@@ -40,6 +40,8 @@ set(TESTS
   039_crystal_magres       ## from a magres file
   040_crystal_akaikkr      ## from an akaikkr input file
   041_crystal_xband        ## from an xband sys file
+  042_crystal_gulpin       ## from a GULP input file
+  043_crystal_gulpout      ## from a GULP output file
   )
 
 runtests(${TESTS})

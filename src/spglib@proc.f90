@@ -23,14 +23,14 @@ submodule (spglib) proc
   ! save the mapping between international symbol, etc.
   ! to hall number
   logical :: mapavail = .false.
-  type(hash) :: ints, intf
+  type(hash) :: ints, intf, intnc
   integer :: inthnum(230)
 
 contains
 
   ! Build the mapping that gives the Hall number from symbols, etc.
   module subroutine spg_build_hall_mapping()
-    use tools_io, only: deblank, stripchar
+    use tools_io, only: deblank, stripchar, string
     type(SpglibSpaceGroupType) :: sa
     integer :: i, iaux
     character(len=:), allocatable :: aux
@@ -40,19 +40,47 @@ contains
     do i = 1, 530
        sa = spg_get_spacegroup_type(i)
 
+       aux = string(sa%number) // ":" // trim(sa%choice)
+       if (.not.intnc%iskey(aux)) call intnc%put(aux,i)
+
        aux = deblank(sa%international_short,todn=.true.)
        aux = trim(stripchar(aux,"_"))
        if (.not.ints%iskey(aux)) call ints%put(aux,i)
+       aux = barless_cubic(aux)
+       if (len(aux) > 0) then
+          if (.not.ints%iskey(aux)) call ints%put(aux,i)
+       end if
 
        aux = deblank(sa%international_full,todn=.true.)
        aux = trim(stripchar(aux,"_"))
        if (.not.intf%iskey(aux)) call intf%put(aux,i)
+       aux = barless_cubic(aux)
+       if (len(aux) > 0) then
+          if (.not.intf%iskey(aux)) call intf%put(aux,i)
+       end if
 
        iaux = sa%number
        if (inthnum(iaux) == 0) inthnum(iaux) = i
     end do
     mapavail = .true.
 
+  contains
+    ! Old-style (pre-1983) symbol of a centrosymmetric cubic group,
+    ! without the bar on the 3 (Fm3m for Fm-3m). Returns an empty
+    ! string if the symbol is not of that kind. Trigonal -3 groups
+    ! (P-3m1 vs P3m1) keep their bar.
+    function barless_cubic(sym) result(res)
+      character(len=*), intent(in) :: sym
+      character(len=:), allocatable :: res
+      integer :: idx
+
+      res = ""
+      idx = index(sym,"-3")
+      if (idx <= 1) return
+      if (index("mnad",sym(idx-1:idx-1)) == 0) return
+      res = sym(1:idx-1) // sym(idx+1:)
+
+    end function barless_cubic
   end subroutine spg_build_hall_mapping
 
   ! char *spg_get_error_message(SpglibError spglib_error);
@@ -296,6 +324,33 @@ contains
     end if
 
   end function spg_get_hall_number_from_symbol
+
+  ! Return the hall number for the space group with the given ITA
+  ! number (1-230) and spglib setting choice (e.g. "1", "2", "H", "R",
+  ! "b", ...). If choice is blank, return the first hall number for
+  ! that ITA number. Returns -1 if not found.
+  module function spg_get_hall_number_from_number(number,choice) result(hnum)
+    use tools_io, only: string
+    integer, intent(in) :: number
+    character(len=*), intent(in) :: choice
+    integer(c_int) :: hnum
+
+    character(len=:), allocatable :: key
+    integer :: iaux
+
+    hnum = -1
+    if (number < 1 .or. number > 230) return
+    call spg_build_hall_mapping()
+    if (len_trim(choice) == 0) then
+       hnum = inthnum(number)
+    else
+       key = string(number) // ":" // trim(adjustl(choice))
+       if (intnc%iskey(key)) then
+          hnum = intnc%get(key,iaux)
+       end if
+    end if
+
+  end function spg_get_hall_number_from_number
 
   !xx! private procedures
 

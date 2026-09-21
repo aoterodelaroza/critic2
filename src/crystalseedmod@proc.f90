@@ -19,6 +19,42 @@
 submodule (crystalseedmod) proc
   implicit none
 
+  ! interim record for one GULP structure (an input configuration or
+  ! a geometry found in an output file)
+  type :: gulpstruct
+     integer :: ndim = -1 !< 0 = cluster, 3 = bulk, -1 = not set
+     integer :: cellmode = 0 !< 0 = none, 1 = aa/bb (ang, degrees), 2 = rv (ang)
+     real*8 :: aa(3) = 0d0 !< cell lengths (ang)
+     real*8 :: bb(3) = 0d0 !< cell angles (degrees)
+     real*8 :: rv(3,3) = 0d0 !< lattice vectors, rv(:,i) = vector i (ang)
+     logical :: iscart = .false. !< coordinates are Cartesian (ang)
+     integer :: nat = 0 !< number of atoms (cores only)
+     real*8, allocatable :: x(:,:) !< coordinates
+     integer, allocatable :: z(:) !< atomic numbers
+     character*10, allocatable :: atname(:) !< GULP labels
+     real*8, allocatable :: occ(:) !< site occupancies
+     character(len=:), allocatable :: spg !< space group (HM symbol or number); empty = P1
+     integer :: origin = 1 !< origin choice (1 or 2)
+     logical :: haveshift = .false. !< origin shift given
+     logical :: shiftfromout = .false. !< the shift was read from an output file echo
+     real*8 :: shift(3) = 0d0 !< origin shift (fractional)
+     character(len=:), allocatable :: name !< configuration name
+     real*8 :: energy = huge(1d0) !< energy (eV)
+     real*8 :: pressure = huge(1d0) !< pressure (GPa)
+     ! output-file bookkeeping
+     logical :: isfinal = .false. !< final (optimised) geometry
+     logical :: centred = .false. !< centred conventional cell (full cell parameters given)
+     real*8 :: pappl = huge(1d0) !< applied pressure (GPa)
+     real*8 :: dede(3) = 0d0 !< strain derivatives dE/de1..3 (eV)
+     logical :: havedede = .false.
+     real*8 :: vol = 0d0 !< primitive cell volume (ang^3)
+     real*8 :: stress(3) = 0d0 !< diagonal stress (GPa)
+     logical :: havestress = .false.
+     logical :: havefinalcell = .false.
+  end type gulpstruct
+
+  integer, parameter :: mxtok = 60 !< maximum number of tokens per line
+
   !xx! private subroutines
   ! subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock,ti)
   ! subroutine read_all_mol2(file,errmsg,nseed,mseed,seed0,name,ti)
@@ -28,6 +64,9 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
+  ! subroutine read_all_gulpin(nseed,seed,file,mol,istruct,errmsg,ti)
+  ! subroutine read_all_gulpout(nseed,seed,file,mol,istruct,errmsg,ti)
+  ! subroutine gulp_detect_ismol(file,isformat,ismol,ti)
   ! subroutine read_zmat_geometry(file,nat,x,z,name,errmsg,ti)
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
@@ -1025,7 +1064,7 @@ contains
        isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
        isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband,&
-       isformat_r_sdf, isformat_r_castepcell,&
+       isformat_r_sdf, isformat_r_castepcell, isformat_r_gulpin, isformat_r_gulpout,&
        isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
@@ -1104,6 +1143,12 @@ contains
 
     elseif (isformat == isformat_r_qeout) then
        call seed%read_qeout(file,mol,0,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_gulpin) then
+       call seed%read_gulpin(file,mol,0,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_gulpout) then
+       call seed%read_gulpout(file,mol,0,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_crystal) then
        call seed%read_crystalout(file,mol,errmsg,ti=ti)
@@ -3977,6 +4022,46 @@ contains
 
   end subroutine read_qeout
 
+  !> Read a structure from a GULP input file (gin/grs). If istruct is
+  !> zero, read the last configuration; otherwise, read configuration
+  !> number istruct.
+  module subroutine read_gulpin(seed,file,mol,istruct,errmsg,ti)
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    integer, intent(in) :: istruct
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: nseed
+    type(crystalseed), allocatable :: seedaux(:)
+
+    call seed%end()
+    call read_all_gulpin(nseed,seedaux,file,mol,istruct,errmsg,ti=ti)
+    if (allocated(seedaux) .and. nseed >= 1) seed = seedaux(1)
+
+  end subroutine read_gulpin
+
+  !> Read a structure from a GULP output file (gout/got). If istruct
+  !> is zero, read the last geometry; otherwise, read geometry number
+  !> istruct.
+  module subroutine read_gulpout(seed,file,mol,istruct,errmsg,ti)
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    integer, intent(in) :: istruct
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: nseed
+    type(crystalseed), allocatable :: seedaux(:)
+
+    call seed%end()
+    call read_all_gulpout(nseed,seedaux,file,mol,istruct,errmsg,ti=ti)
+    if (allocated(seedaux) .and. nseed >= 1) seed = seedaux(1)
+
+  end subroutine read_gulpout
+
   !> Read the structure from a quantum espresso input
   module subroutine read_qein(seed,file,mol,errmsg,ti)
     ! This subroutine has been adapted from parts of the Quantum
@@ -6290,7 +6375,7 @@ contains
        isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat, isformat_r_pgout,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_castepcell, isformat_r_castepgeom, isformat_r_castepphonon,&
-       isformat_r_qein, isformat_r_qeout, isformat_r_xband,&
+       isformat_r_qein, isformat_r_qeout, isformat_r_xband, isformat_r_gulpin, isformat_r_gulpout,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
@@ -6453,6 +6538,10 @@ contains
        isformat = isformat_r_mol2
     elseif (equal(wextdot,'pdb')) then
        isformat = isformat_r_pdb
+    elseif (equal(lower(wextdot),'gin') .or. equal(lower(wextdot),'grs')) then
+       isformat = isformat_r_gulpin
+    elseif (equal(lower(wextdot),'gout') .or. equal(lower(wextdot),'got')) then
+       isformat = isformat_r_gulpout
     else
        goto 999
     endif
@@ -6481,7 +6570,8 @@ contains
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell, isformat_r_castepphonon,&
        isformat_r_castepgeom,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
-       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband
+       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin,&
+       isformat_r_gulpout
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -6642,6 +6732,10 @@ contains
        ! bincube format: a molecule if atoms are outside the box spanned by the grid
        ismol = ismol_cube(file,.true.,errmsg,ti=ti)
 
+    case (isformat_r_gulpin,isformat_r_gulpout)
+       ! GULP files: a molecule if the first structure is a 0D cluster
+       call gulp_detect_ismol(file,isformat,ismol,ti=ti)
+
     case default
        ismol = .false.
     end select
@@ -6723,7 +6817,8 @@ contains
        isformat_r_dat, isformat_r_f21, isformat_r_unknown, isformat_r_pgout, isformat_r_orca,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres,&
-       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband
+       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin,&
+       isformat_r_gulpout
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -6813,6 +6908,10 @@ contains
        call seed(1)%read_elk(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_qeout) then
        call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
+    elseif (isformat == isformat_r_gulpin) then
+       call read_all_gulpin(nseed,seed,file,mol,-1,errmsg,ti=ti)
+    elseif (isformat == isformat_r_gulpout) then
+       call read_all_gulpout(nseed,seed,file,mol,-1,errmsg,ti=ti)
     elseif (isformat == isformat_r_crystal) then
        call read_all_crystalout(file,mol,errmsg,nseed=nseed,mseed=seed,alsovib=alsovib,ti=ti)
     elseif (isformat == isformat_r_fploout) then
@@ -6907,7 +7006,7 @@ contains
     ! output collapse
     collapse = ((isformat == isformat_r_qeout .or. isformat == isformat_r_gaussian .or.&
        isformat == isformat_r_aimsout .or. isformat == isformat_r_castepgeom .or.&
-       isformat == isformat_r_crystal).and.nseed > 1)
+       isformat == isformat_r_crystal .or. isformat == isformat_r_gulpout).and.nseed > 1)
 
   end subroutine read_seeds_from_file
 
@@ -10503,5 +10602,1544 @@ contains
     end function qe_nml_logical
 
   end subroutine qe_read_namelists
+
+  !> Reader for GULP input (gin, grs).  Read one or all configurations
+  !> from a GULP input file. If istruct < 0, return all
+  !> configurations; if istruct = 0, return the last one; otherwise,
+  !> return configuration number istruct.
+  subroutine read_all_gulpin(nseed,seed,file,mol,istruct,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, string, equal
+    use param, only: bohrtoa, isformat_r_gulpin
+    integer, intent(out) :: nseed
+    type(crystalseed), intent(inout), allocatable :: seed(:)
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    integer, intent(in) :: istruct
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, ncfg, nword, nfloat, i, j, region, icopy, nskip, z, itype
+    character(len=:), allocatable :: line, pendline, keywords, w, lw, pname
+    character*(mxtok*4) :: words(mxtok)
+    real*8 :: floats(mxtok), unitfac, scale, x(3), vals(6), occ
+    logical :: pending, lflags, nowrap, lcelllast, ok, iscart, newcfg, iscore, havekw
+    type(gulpstruct), allocatable :: st(:)
+    ! pending cell (applies to the next coordinate block); pcellmode = 0 means none
+    integer :: pcellmode
+    real*8 :: paa(3), pbb(3), prv(3,3)
+
+    nseed = 0
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    errmsg = "Error reading file: " // trim(file)
+
+    ! first pass: keyword line plus any "keyword" option lines
+    keywords = ""
+    havekw = .false.
+    do while (getline_raw(lu,line))
+       if (len_trim(line) == 0) cycle
+       if (line(1:1) == "#") cycle
+       if (.not.havekw) then
+          keywords = lower(trim(line))
+          havekw = .true.
+       else
+          lw = lower(adjustl(line))
+          if (.not.gulp_stem(lw,"keyw")) cycle
+          call gulp_lex(line,nword,words,nfloat,floats)
+          do i = 2, nword
+             keywords = keywords // " " // lower(trim(words(i)))
+          end do
+       end if
+    end do
+    if (.not.havekw) then
+       errmsg = "Empty GULP input file: " // trim(file)
+       goto 999
+    end if
+    call gulp_keyword_flags(keywords,lflags,nowrap)
+
+    ! second pass: read the structures
+    rewind(lu)
+    havekw = .false.
+    ncfg = 0
+    allocate(st(1))
+    pending = .false.
+    pcellmode = 0
+    paa = 0d0
+    pbb = 0d0
+    prv = 0d0
+    lcelllast = .false.
+    scale = 1d0
+    pname = ""
+    do while (next_line(line))
+       if (.not.havekw) then
+          ! skip the keyword line
+          if (len_trim(line) == 0) cycle
+          if (line(1:1) == "#") cycle
+          havekw = .true.
+          cycle
+       end if
+       call gulp_lex(line,nword,words,nfloat,floats)
+       if (nword == 0) cycle
+       w = lower(trim(words(1)))
+       unitfac = 1d0
+       do i = 2, nword
+          if (equal(lower(trim(words(i))),"au")) unitfac = bohrtoa
+       end do
+
+       if (gulp_stem(w,"titl")) then
+          ! title block: n lines or until "end"
+          if (nfloat >= 1) then
+             nskip = nint(floats(1))
+             do i = 1, nskip
+                if (.not.next_line(line)) exit
+             end do
+          else
+             do while (next_line(line))
+                lw = lower(adjustl(line))
+                if (gulp_stem(lw,"end")) exit
+             end do
+          end if
+       elseif (gulp_stem(w,"keyw")) then
+          cycle
+       elseif (gulp_stem(w,"igno")) then
+          ! ignore ... erongi
+          do while (next_line(line))
+             lw = lower(adjustl(line))
+             if (gulp_stem(lw,"eron")) exit
+          end do
+       elseif (gulp_stem(w,"star") .or. equal(w,"run") .or. equal(w,"stop")) then
+          exit
+       elseif (gulp_stem(w,"incl")) then
+          errmsg = "GULP include files are not supported: " // trim(line)
+          goto 999
+       elseif (gulp_stem(w,"name")) then
+          if (nword >= 2) then
+             pname = trim(words(2))
+          else
+             if (next_line(line)) then
+                call gulp_lex(line,nword,words,nfloat,floats)
+                if (nword >= 1) pname = trim(words(1))
+             end if
+          end if
+       elseif (equal(w,"cell")) then
+          if (nfloat >= 6) then
+             vals = floats(1:6)
+          else
+             ok = .false.
+             do while (next_line(line))
+                call gulp_lex(line,nword,words,nfloat,floats)
+                if (nfloat == 0) cycle
+                if (nfloat < 6) then
+                   errmsg = "Missing data in GULP cell specification"
+                   goto 999
+                end if
+                vals = floats(1:6)
+                ok = .true.
+                exit
+             end do
+             if (.not.ok) goto 999
+          end if
+          paa = abs(vals(1:3)) * unitfac * scale
+          pbb = abs(vals(4:6))
+          pcellmode = 1
+          lcelllast = .true.
+       elseif (gulp_stem(w,"vect")) then
+          do i = 1, 3
+             if (.not.getline_raw(lu,line)) goto 999
+             read (line,*,err=999,end=999) prv(:,i)
+          end do
+          prv = prv * unitfac * scale
+          if (lflags) then
+             if (.not.getline_raw(lu,line)) goto 999
+          end if
+          pcellmode = 2
+          lcelllast = .true.
+       elseif (gulp_stem(w,"scal")) then
+          if (nfloat >= 1) then
+             scale = floats(1)
+          else
+             if (.not.next_line(line)) goto 999
+             call gulp_lex(line,nword,words,nfloat,floats)
+             if (nfloat < 1) goto 999
+             scale = floats(1)
+          end if
+       elseif (gulp_stem(w,"frac") .or. gulp_stem(w,"cart")) then
+          ! coordinate block
+          iscart = gulp_stem(w,"cart")
+          region = 1
+          do i = 2, nword
+             if (gulp_stem(lower(trim(words(i))),"regi")) then
+                if (nfloat >= 1) region = nint(floats(1))
+             end if
+          end do
+          newcfg = .true.
+          if (iscart .and. region > 1 .and. .not.lcelllast .and. ncfg > 0) newcfg = .false.
+          if (newcfg) then
+             ncfg = ncfg + 1
+             call gulp_grow_st(st,ncfg)
+             if (pcellmode /= 0) then
+                st(ncfg)%ndim = 3
+                st(ncfg)%cellmode = pcellmode
+                st(ncfg)%aa = paa
+                st(ncfg)%bb = pbb
+                st(ncfg)%rv = prv
+             else
+                if (.not.iscart) then
+                   errmsg = "GULP fractional coordinates given without a cell"
+                   goto 999
+                end if
+                st(ncfg)%ndim = 0
+             end if
+             st(ncfg)%iscart = iscart
+             st(ncfg)%name = pname
+             pname = ""
+             pcellmode = 0
+          else
+             if (st(ncfg)%iscart .neqv. iscart) then
+                errmsg = "Mixed fractional/Cartesian regions in GULP input"
+                goto 999
+             end if
+          end if
+          lcelllast = .false.
+
+          ! read the atoms
+          do while (next_line(line))
+             call gulp_lex(line,nword,words,nfloat,floats)
+             if (nword + nfloat == 0) cycle
+             if (nword == 0 .and. nfloat == 1) cycle
+             if (nword > 0) then
+                if (.not.gulp_symbol(words(1),z,itype)) then
+                   ! end of block: re-dispatch this line
+                   pending = .true.
+                   pendline = line
+                   exit
+                end if
+             end if
+             call gulp_atom_line(nword,words,nfloat,floats,lflags,z,itype,x,occ,iscore,ok)
+             if (.not.ok) then
+                errmsg = "Missing data in GULP coordinate input: " // trim(line)
+                goto 999
+             end if
+             if (.not.iscore .or. z <= 0) cycle
+             if (iscart) x = x * unitfac * scale
+             call gulp_add_atom(st(ncfg),z,itype,x,occ)
+          end do
+       elseif (gulp_stem(w,"spac")) then
+          if (ncfg == 0) then
+             errmsg = "GULP space group given before any structure"
+             goto 999
+          end if
+          ok = .false.
+          do while (next_line(line))
+             call gulp_lex(line,nword,words,nfloat,floats)
+             if (nword + nfloat == 0) cycle
+             if (nword > 0) then
+                st(ncfg)%spg = trim(gulp_strip_comment(line))
+                st(ncfg)%spg = trim(adjustl(st(ncfg)%spg(1:min(16,len(st(ncfg)%spg)))))
+             elseif (nfloat == 1) then
+                st(ncfg)%spg = string(nint(floats(1)))
+             else
+                errmsg = "Unsupported GULP space group specification: " // trim(line)
+                goto 999
+             end if
+             ok = .true.
+             exit
+          end do
+          if (.not.ok) goto 999
+       elseif (gulp_stem(w,"orig")) then
+          if (ncfg == 0) then
+             errmsg = "GULP origin given before any structure"
+             goto 999
+          end if
+          if (nfloat == 0) then
+             if (.not.next_line(line)) goto 999
+             call gulp_lex(line,nword,words,nfloat,floats)
+          end if
+          if (nfloat == 1) then
+             st(ncfg)%origin = nint(floats(1))
+             if (st(ncfg)%origin < 1 .or. st(ncfg)%origin > 2) then
+                errmsg = "Unknown GULP origin setting: " // trim(line)
+                goto 999
+             end if
+          elseif (nfloat == 3) then
+             st(ncfg)%haveshift = .true.
+             do j = 1, 3
+                if (floats(j) < 1d0) then
+                   st(ncfg)%shift(j) = nint(24d0 * floats(j)) / 24d0
+                else
+                   st(ncfg)%shift(j) = nint(floats(j)) / 24d0
+                end if
+             end do
+          else
+             errmsg = "Unknown GULP origin specification: " // trim(line)
+             goto 999
+          end if
+       elseif (gulp_stem(w,"ditt")) then
+          ! duplicate a previous configuration
+          if (ncfg == 0) then
+             errmsg = "GULP ditto given before any structure"
+             goto 999
+          end if
+          icopy = ncfg
+          if (nfloat >= 1) icopy = nint(floats(1))
+          if (icopy < 1 .or. icopy > ncfg) then
+             errmsg = "Invalid configuration in GULP ditto"
+             goto 999
+          end if
+          ncfg = ncfg + 1
+          call gulp_grow_st(st,ncfg)
+          st(ncfg) = st(icopy)
+          if (len_trim(pname) > 0) st(ncfg)%name = pname
+          pname = ""
+          pcellmode = 0
+          lcelllast = .false.
+       elseif (gulp_stem(w,"scel") .or. gulp_stem(w,"svec") .or. gulp_stem(w,"sfra") .or.&
+          gulp_stem(w,"pcel") .or. gulp_stem(w,"pvec") .or. gulp_stem(w,"pfra")) then
+          errmsg = "GULP surface/polymer (2D/1D) structures are not supported: " // trim(words(1))
+          goto 999
+       elseif (gulp_stem(w,"cont") .or. gulp_stem(w,"supe") .or. gulp_stem(w,"symmetry_o")) then
+          errmsg = "Unsupported GULP option: " // trim(words(1))
+          goto 999
+       end if
+    end do
+    if (ncfg == 0) then
+       errmsg = "No structures found in GULP input file: " // trim(file)
+       goto 999
+    end if
+
+    ! wrap fractional coordinates
+    if (.not.nowrap) then
+       do i = 1, ncfg
+          if (st(i)%ndim == 3 .and. .not.st(i)%iscart .and. st(i)%nat > 0) &
+             st(i)%x(:,1:st(i)%nat) = st(i)%x(:,1:st(i)%nat) - floor(st(i)%x(:,1:st(i)%nat))
+       end do
+    end if
+
+    ! build the seeds
+    call gulp_select_seeds(st,ncfg,istruct,mol,file,isformat_r_gulpin,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
+
+  contains
+    ! get the next logical line: honor pushback and & continuation, strip comments
+    function next_line(lineo) result(oko)
+      character(len=:), allocatable, intent(inout) :: lineo
+      logical :: oko
+
+      character(len=:), allocatable :: aux
+      integer :: iidx
+
+      if (pending) then
+         lineo = pendline
+         pending = .false.
+         oko = .true.
+         return
+      end if
+      oko = getline_raw(lu,lineo)
+      if (.not.oko) return
+      lineo = gulp_strip_comment(lineo)
+      do while (index(lineo,"&") > 0)
+         iidx = index(lineo,"&")
+         lineo = lineo(1:iidx-1)
+         if (.not.getline_raw(lu,aux)) exit
+         lineo = lineo // " " // gulp_strip_comment(aux)
+      end do
+
+    end function next_line
+
+  end subroutine read_all_gulpin
+
+  !> Read one or all geometries from a GULP output file. The
+  !> geometries are the input echo of every configuration followed by
+  !> the final geometry of every completed optimisation. If istruct <
+  !> 0, return all of them; if istruct = 0, return the last one;
+  !> otherwise, return geometry number istruct.
+  subroutine read_all_gulpout(nseed,seed,file,mol,istruct,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, isreal, isinteger
+    use param, only: isformat_r_gulpout, eva3togpa, hartoev, hartokjmol, kcal2ha
+    integer, intent(out) :: nseed
+    type(crystalseed), intent(inout), allocatable :: seed(:)
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    integer, intent(in) :: istruct
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, nst, ncfg, icur, ifin, idx, idx2, i, j, nword, nfloat
+    character(len=:), allocatable :: line, lw
+    character*(mxtok*4) :: words(mxtok)
+    real*8 :: floats(mxtok), rdum
+    logical :: have_e0, want_prim, ok
+    real*8 :: efin
+    type(gulpstruct), allocatable :: st(:)
+
+    nseed = 0
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    errmsg = "Error reading file: " // trim(file)
+
+    ! All the input echoes come before the first output block, so the
+    ! echo (initial geometry) of configuration k is always st(k).
+    nst = 0
+    ncfg = 0
+    icur = 0
+    ifin = 0
+    have_e0 = .true.
+    want_prim = .false.
+    efin = huge(1d0)
+    allocate(st(1))
+    do while (getline_raw(lu,line))
+       if (index(line,"*  Input for Configuration =") > 0) then
+          ! new configuration: initial geometry record
+          ncfg = ncfg + 1
+          nst = nst + 1
+          call gulp_grow_st(st,nst)
+          st(nst)%ndim = 3
+          idx = index(line,":")
+          if (idx > 0) then
+             idx2 = index(line,"*",.true.)
+             if (idx2 > idx) then
+                st(nst)%name = trim(adjustl(line(idx+1:idx2-1)))
+             else
+                st(nst)%name = trim(adjustl(line(idx+1:)))
+             end if
+          else
+             st(nst)%name = ""
+          end if
+       elseif (ncfg == 0) then
+          cycle
+       elseif (index(line,"Dimensionality =") > 0) then
+          idx = index(line,"=")
+          ok = isinteger(st(ncfg)%ndim,line(idx+1:))
+          if (.not.ok) goto 999
+          if (st(ncfg)%ndim == 1 .or. st(ncfg)%ndim == 2) then
+             errmsg = "GULP surface/polymer (2D/1D) structures are not supported"
+             goto 999
+          end if
+       elseif (index(line,"Space group (") > 0) then
+          idx = index(line,":")
+          st(ncfg)%spg = trim(adjustl(line(idx+1:)))
+       elseif (index(line,"Shift of the origin") > 0) then
+          idx = index(line,":")
+          call gulp_lex(line(idx+1:),nword,words,nfloat,floats)
+          if (nfloat /= 3) goto 999
+          st(ncfg)%haveshift = .true.
+          st(ncfg)%shiftfromout = .true.
+          st(ncfg)%shift = floats(1:3)
+       elseif (index(line,"Cartesian lattice vectors (Angstroms) :") > 0 .and.&
+          index(line,"Final") == 0 .and. index(line,"Reference") == 0) then
+          call read_vectors(st(ncfg)%rv)
+          if (st(ncfg)%cellmode == 0) st(ncfg)%cellmode = 2
+       elseif (index(line,"Primitive cell parameters :") > 0 .and.&
+          index(line,"Full cell parameters :") > 0) then
+          st(ncfg)%centred = .true.
+          do i = 1, 3
+             call next_nonblank(line,ok)
+             if (.not.ok) goto 999
+             call gulp_lex(line,nword,words,nfloat,floats)
+             if (nfloat < 4) goto 999
+             st(ncfg)%aa(i) = floats(3)
+             st(ncfg)%bb(i) = floats(4)
+          end do
+          st(ncfg)%cellmode = 1
+       elseif (index(line,"Pressure of configuration =") > 0) then
+          idx = index(line,"=")
+          ok = isreal(st(ncfg)%pappl,line(idx+1:))
+          if (.not.ok) st(ncfg)%pappl = huge(1d0)
+       elseif (index(line,"Fractional coordinates of asymmetric unit :") > 0 .or.&
+          index(line,"Cartesian coordinates of cluster :") > 0) then
+          st(ncfg)%iscart = (index(line,"cluster") > 0)
+          call read_table(st(ncfg),.true.,ok)
+          if (.not.ok) goto 999
+       elseif (index(line,"Mixed fractional/Cartesian coordinates") > 0) then
+          errmsg = "GULP surface/polymer (2D/1D) structures are not supported"
+          goto 999
+       elseif (index(line,"*  Output for configuration") > 0) then
+          idx = index(line,"configuration") + len("configuration")
+          ok = isinteger(icur,line(idx:))
+          if (.not.ok .or. icur < 1 .or. icur > ncfg) then
+             errmsg = "Invalid configuration number in GULP output"
+             goto 999
+          end if
+          have_e0 = .false.
+          want_prim = .false.
+          efin = huge(1d0)
+          ifin = 0
+       elseif (index(line,"#  Output for point") > 0 .or. index(line,"#  Output for cell point") > 0 .or.&
+          index(line,"structures optimised out of") > 0) then
+          efin = huge(1d0)
+          ifin = 0
+       elseif (icur > 0 .and. .not.have_e0 .and. (index(line,"Total lattice energy") > 0 .or.&
+          index(line,"Total lattice enthalpy") > 0 .or. index(line,"Total free energy") > 0)) then
+          idx = index(line,"=")
+          if (idx > 0) then
+             call read_energy(line(idx+1:),rdum,ok)
+             if (ok) st(icur)%energy = rdum
+             have_e0 = .true.
+          else
+             want_prim = .true.
+          end if
+       elseif (want_prim .and. index(line,"Primitive unit cell") > 0 .and. index(line,"=") > 0) then
+          idx = index(line,"=")
+          call read_energy(line(idx+1:),rdum,ok)
+          if (ok) st(icur)%energy = rdum
+          have_e0 = .true.
+          want_prim = .false.
+       elseif (index(line,"Final energy =") > 0 .or. index(line,"Final enthalpy =") > 0 .or.&
+          index(line,"Final free energy =") > 0) then
+          idx = index(line,"=")
+          call read_energy(line(idx+1:),rdum,ok)
+          if (ok) then
+             efin = rdum
+          else
+             efin = huge(1d0)
+          end if
+       elseif (icur > 0 .and. (index(line,"Final asymmetric unit coordinates :") > 0 .or.&
+          index(line,"Final fractional coordinates of atoms :") > 0 .or.&
+          index(line,"Final cartesian coordinates of atoms :") > 0)) then
+          ! final geometry record
+          nst = nst + 1
+          call gulp_grow_st(st,nst)
+          st(nst) = st(icur) ! inherits the cell (fixed-cell runs), pappl, spg, occupancies
+          st(nst)%isfinal = .true.
+          st(nst)%energy = efin
+          st(nst)%nat = 0
+          st(nst)%havedede = .false.
+          st(nst)%havestress = .false.
+          st(nst)%havefinalcell = .false.
+          st(nst)%vol = 0d0
+          call read_table(st(nst),.false.,ok)
+          if (.not.ok) goto 999
+          ifin = nst
+          efin = huge(1d0)
+       elseif (index(line,"Final fractional/Cartesian coordinates") > 0) then
+          errmsg = "GULP surface/polymer (2D/1D) structures are not supported"
+          goto 999
+       elseif (ifin > 0 .and. index(line,"Final Cartesian lattice vectors (Angstroms) :") > 0) then
+          call read_vectors(st(ifin)%rv)
+          if (.not.st(ifin)%centred) then
+             st(ifin)%cellmode = 2
+             st(ifin)%havefinalcell = .true.
+          end if
+       elseif (ifin > 0 .and. index(line,"Final cell parameters") > 0) then
+          ! a, b, c, alpha, beta, gamma rows, with optional strain derivatives
+          call skip_rule(ok)
+          if (.not.ok) goto 999
+          do while (getline_raw(lu,line))
+             if (gulp_is_rule(line)) exit
+             call gulp_lex(line,nword,words,nfloat,floats)
+             if (nword < 1 .or. nfloat < 1) cycle
+             lw = lower(trim(words(1)))
+             select case (lw)
+             case ("a")
+                j = 1
+             case ("b")
+                j = 2
+             case ("c")
+                j = 3
+             case ("alpha")
+                j = 4
+             case ("beta")
+                j = 5
+             case ("gamma")
+                j = 6
+             case default
+                j = 0
+             end select
+             if (j == 0) cycle
+             if (.not.st(ifin)%centred .and. .not.st(ifin)%havefinalcell) then
+                if (j <= 3) then
+                   st(ifin)%aa(j) = floats(1)
+                else
+                   st(ifin)%bb(j-3) = floats(1)
+                end if
+             end if
+             if (j <= 3 .and. nfloat >= 2 .and. index(line,"dE/de") > 0) then
+                st(ifin)%dede(j) = floats(2)
+                st(ifin)%havedede = .true.
+             end if
+          end do
+          if (.not.st(ifin)%centred .and. .not.st(ifin)%havefinalcell) then
+             st(ifin)%cellmode = 1
+             st(ifin)%havefinalcell = .true.
+          end if
+       elseif (ifin > 0 .and. index(line,"Primitive cell volume =") > 0) then
+          idx = index(line,"=")
+          ok = isreal(st(ifin)%vol,line(idx+1:))
+          if (.not.ok) st(ifin)%vol = 0d0
+       elseif (ifin > 0 .and. index(line,"Non-primitive lattice parameters :") > 0) then
+          if (st(ifin)%centred) then
+             do i = 1, 2
+                call next_nonblank(line,ok)
+                if (.not.ok) goto 999
+                call gulp_lex(line,nword,words,nfloat,floats)
+                if (nfloat < 3) goto 999
+                if (i == 1) then
+                   st(ifin)%aa = floats(1:3)
+                else
+                   st(ifin)%bb = floats(1:3)
+                end if
+             end do
+             st(ifin)%cellmode = 1
+             st(ifin)%havefinalcell = .true.
+          end if
+       elseif (ifin > 0 .and. index(line,"Final stress tensor components (GPa):") > 0) then
+          call skip_rule(ok)
+          if (.not.ok) goto 999
+          do i = 1, 3
+             call next_nonblank(line,ok)
+             if (.not.ok) goto 999
+             call gulp_lex(line,nword,words,nfloat,floats)
+             if (nfloat < 1) goto 999
+             st(ifin)%stress(i) = floats(1)
+          end do
+          st(ifin)%havestress = .true.
+       elseif (index(line,"Job Finished at") > 0) then
+          exit
+       end if
+    end do
+    if (nst == 0) then
+       errmsg = "No structures found in GULP output file: " // trim(file)
+       goto 999
+    end if
+
+    ! pressures
+    do i = 1, nst
+       if (st(i)%ndim /= 3) then
+          st(i)%pressure = huge(1d0)
+       elseif (st(i)%havestress) then
+          st(i)%pressure = -sum(st(i)%stress) / 3d0
+       elseif (st(i)%havedede .and. st(i)%vol > 0d0 .and. st(i)%pappl /= huge(1d0)) then
+          st(i)%pressure = st(i)%pappl - sum(st(i)%dede) / (3d0 * st(i)%vol) * eva3togpa
+       else
+          st(i)%pressure = st(i)%pappl
+       end if
+    end do
+
+    ! build the seeds
+    call gulp_select_seeds(st,nst,istruct,mol,file,isformat_r_gulpout,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
+
+  contains
+    ! read the next non-blank line
+    subroutine next_nonblank(lineo,oko)
+      character(len=:), allocatable, intent(inout) :: lineo
+      logical, intent(out) :: oko
+
+      oko = .false.
+      do while (getline_raw(lu,lineo))
+         if (len_trim(lineo) > 0) then
+            oko = .true.
+            return
+         end if
+      end do
+
+    end subroutine next_nonblank
+
+    ! skip up to and including the next dashed rule
+    subroutine skip_rule(oko)
+      logical, intent(out) :: oko
+      character(len=:), allocatable :: aux
+
+      oko = .false.
+      do while (getline_raw(lu,aux))
+         if (gulp_is_rule(aux)) then
+            oko = .true.
+            return
+         end if
+      end do
+
+    end subroutine skip_rule
+
+    ! read three lattice vectors (rows) after a blank line
+    subroutine read_vectors(rvo)
+      real*8, intent(out) :: rvo(3,3)
+      logical :: oko
+      integer :: ii
+
+      rvo = 0d0
+      do ii = 1, 3
+         call next_nonblank(line,oko)
+         if (.not.oko) return
+         read (line,*,err=10,end=10) rvo(:,ii)
+      end do
+10    continue
+
+    end subroutine read_vectors
+
+    ! read an energy value followed by a unit word; convert to eV
+    subroutine read_energy(str,ene,oko)
+      character*(*), intent(in) :: str
+      real*8, intent(out) :: ene
+      logical, intent(out) :: oko
+
+      character*20 :: unit
+      integer :: ios
+
+      oko = .false.
+      ene = huge(1d0)
+      unit = ""
+      read (str,*,iostat=ios) ene, unit
+      if (ios /= 0) then
+         read (str,*,iostat=ios) ene
+         if (ios /= 0) return
+      end if
+      unit = lower(unit)
+      if (unit(1:2) == "kj") then
+         ene = ene * hartoev / hartokjmol
+      elseif (unit(1:4) == "kcal") then
+         ene = ene * kcal2ha * hartoev
+      end if
+      oko = .true.
+
+    end subroutine read_energy
+
+    ! read a coordinate table (input echo if echo=.true., final table otherwise)
+    subroutine read_table(s,echo,oks)
+      type(gulpstruct), intent(inout) :: s
+      logical, intent(in) :: echo
+      logical, intent(out) :: oks
+
+      character*5 :: label
+      character*2 :: ctype
+      real*8 :: x(3), occ
+      real*8, allocatable :: occ0(:)
+      integer :: z, itype, ios, nn, nat0
+      logical :: oko
+
+      ! header: rule, two lines, rule
+      oks = .false.
+      call skip_rule(oko)
+      if (.not.oko) return
+      call skip_rule(oko)
+      if (.not.oko) return
+
+      ! keep the occupancies of the initial geometry (final tables do not list them)
+      nat0 = 0
+      if (.not.echo .and. allocated(s%occ)) then
+         nat0 = size(s%occ,1)
+         occ0 = s%occ
+      end if
+
+      s%nat = 0
+      do while (getline_raw(lu,line))
+         if (len_trim(line) == 0) exit
+         if (gulp_is_rule(line)) cycle
+         if (len(line) < 52) cycle
+         read (line(1:7),*,iostat=ios) nn
+         if (ios /= 0) cycle
+         label = line(9:13)
+         ctype = line(15:16)
+         occ = 1d0
+         if (echo) then
+            read (line(19:27),*,iostat=ios) x(1)
+            if (ios /= 0) cycle
+            read (line(31:39),*,iostat=ios) x(2)
+            if (ios /= 0) cycle
+            read (line(43:51),*,iostat=ios) x(3)
+            if (ios /= 0) cycle
+            if (len(line) >= 75) then
+               read (line(64:75),*,iostat=ios) occ
+               if (ios /= 0) occ = 1d0
+            end if
+         else
+            read (line(17:52),*,iostat=ios) x
+            if (ios /= 0) cycle
+         end if
+         if (index(ctype,"s") > 0) cycle ! shells
+         if (.not.gulp_symbol(label,z,itype)) then
+            errmsg = "Unknown atom label in GULP output: " // trim(label)
+            return
+         end if
+         if (z <= 0) cycle ! dummy atoms
+         call gulp_add_atom(s,z,itype,x,occ)
+      end do
+      if (.not.echo .and. nat0 == s%nat .and. s%nat > 0) s%occ(1:s%nat) = occ0(1:s%nat)
+      oks = .true.
+
+    end subroutine read_table
+
+  end subroutine read_all_gulpout
+
+  !> Detect whether the first structure in a GULP input or output
+  !> file is a molecule (0D cluster).
+  subroutine gulp_detect_ismol(file,isformat,ismol,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, isinteger
+    use param, only: isformat_r_gulpin
+    character*(*), intent(in) :: file
+    integer, intent(in) :: isformat
+    logical, intent(out) :: ismol
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, nword, nfloat, idx, ndim
+    character(len=:), allocatable :: line, w
+    character*(mxtok*4) :: words(mxtok)
+    real*8 :: floats(mxtok)
+    logical :: havecell, havekw, ok
+
+    ismol = .false.
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) return
+
+    if (isformat == isformat_r_gulpin) then
+       havecell = .false.
+       havekw = .false.
+       do while (getline_raw(lu,line))
+          if (len_trim(line) == 0) cycle
+          if (line(1:1) == "#") cycle
+          if (.not.havekw) then
+             havekw = .true.
+             cycle
+          end if
+          call gulp_lex(line,nword,words,nfloat,floats)
+          if (nword == 0) cycle
+          w = lower(trim(words(1)))
+          if (w == "cell" .or. gulp_stem(w,"vect") .or. gulp_stem(w,"scel") .or.&
+             gulp_stem(w,"svec") .or. gulp_stem(w,"pcel") .or. gulp_stem(w,"pvec")) then
+             havecell = .true.
+          elseif (gulp_stem(w,"frac") .or. gulp_stem(w,"sfra") .or. gulp_stem(w,"pfra")) then
+             exit
+          elseif (gulp_stem(w,"cart")) then
+             ismol = .not.havecell
+             exit
+          end if
+       end do
+    else
+       do while (getline_raw(lu,line))
+          if (index(line,"Dimensionality =") > 0) then
+             idx = index(line,"=")
+             ok = isinteger(ndim,line(idx+1:))
+             if (ok) ismol = (ndim == 0)
+             exit
+          end if
+       end do
+    end if
+    call fclose(lu)
+
+  end subroutine gulp_detect_ismol
+
+  ! GULP reader helpers
+
+  !> Strip a GULP comment (everything from the first #) from a line.
+  function gulp_strip_comment(line) result(res)
+    character*(*), intent(in) :: line
+    character(len=:), allocatable :: res
+
+    integer :: idx
+
+    idx = index(line,"#")
+    if (idx > 0) then
+       res = line(1:idx-1)
+    else
+       res = line
+    end if
+
+  end function gulp_strip_comment
+
+  !> True if the line is a dashed rule (starts with ----).
+  function gulp_is_rule(line) result(ok)
+    character*(*), intent(in) :: line
+    logical :: ok
+
+    character(len=:), allocatable :: aux
+
+    aux = trim(adjustl(line))
+    ok = .false.
+    if (len(aux) < 4) return
+    ok = (aux(1:4) == "----")
+
+  end function gulp_is_rule
+
+  !> GULP-style prefix match: word starts with stem.
+  function gulp_stem(word,stem) result(ok)
+    character*(*), intent(in) :: word, stem
+    logical :: ok
+
+    ok = .false.
+    if (len_trim(word) < len(stem)) return
+    ok = (word(1:len(stem)) == stem)
+
+  end function gulp_stem
+
+  !> Tokenize a GULP line into words and numbers (reproduces linepro).
+  !> A token is a number if its first character (or the second, when
+  !> the first is a period) is a digit or a sign and it contains fewer
+  !> than two letters; a/b fractions are accepted.
+  subroutine gulp_lex(line0,nword,words,nfloat,floats)
+    use tools_io, only: isletter
+    character*(*), intent(in) :: line0
+    integer, intent(out) :: nword, nfloat
+    character*(*), intent(out) :: words(:)
+    real*8, intent(out) :: floats(:)
+
+    character(len=:), allocatable :: line, tok
+    integer :: i, j, n, nlet, idx, ios
+    character*1 :: c
+    real*8 :: rnum, rden
+    logical :: isnum
+
+    nword = 0
+    nfloat = 0
+    line = gulp_strip_comment(line0)
+    n = len_trim(line)
+    i = 1
+    do while (i <= n)
+       ! skip separators
+       if (line(i:i) == " " .or. line(i:i) == achar(9)) then
+          i = i + 1
+          cycle
+       end if
+       j = i
+       do while (j <= n)
+          if (line(j:j) == " " .or. line(j:j) == achar(9)) exit
+          j = j + 1
+       end do
+       tok = line(i:j-1)
+       i = j
+
+       ! classify
+       isnum = .false.
+       c = tok(1:1)
+       if (c == "." .and. len(tok) > 1) c = tok(2:2)
+       if (index("0123456789+-",c) > 0) then
+          nlet = 0
+          do j = 1, len(tok)
+             if (isletter(tok(j:j))) nlet = nlet + 1
+          end do
+          isnum = (nlet < 2)
+       end if
+       if (isnum) then
+          idx = index(tok,"/")
+          if (idx > 0) then
+             read (tok(1:idx-1),*,iostat=ios) rnum
+             if (ios == 0) read (tok(idx+1:),*,iostat=ios) rden
+             if (ios == 0 .and. rden /= 0d0) then
+                rnum = rnum / rden
+             else
+                isnum = .false.
+             end if
+          else
+             read (tok,*,iostat=ios) rnum
+             if (ios /= 0) isnum = .false.
+          end if
+       end if
+       if (isnum) then
+          if (nfloat < size(floats)) then
+             nfloat = nfloat + 1
+             floats(nfloat) = rnum
+          end if
+       else
+          if (nword < size(words)) then
+             nword = nword + 1
+             words(nword) = tok
+          end if
+       end if
+    end do
+
+  end subroutine gulp_lex
+
+  !> Atomic number from a 1- or 2-character GULP element symbol
+  !> (case-insensitive). D is deuterium (1); X is a dummy atom (0).
+  !> Returns -1 if unknown.
+  function gulp_element(sym) result(z)
+    use tools_io, only: zatguess, nameguess, equali
+    character*(*), intent(in) :: sym
+    integer :: z
+
+    character*2 :: s
+
+    s = sym
+    z = -1
+    if (equali(trim(s),"D")) then
+       z = 1
+    elseif (equali(trim(s),"X")) then
+       z = 0
+    else
+       z = zatguess(s)
+       if (z > 0) then
+          ! require an exact match (zatguess is lenient with the second character)
+          if (.not.equali(trim(nameguess(z,.true.)),trim(s))) z = -1
+       else
+          z = -1
+       end if
+    end if
+
+  end function gulp_element
+
+  !> Decide whether a word is a GULP atom label and split it into
+  !> element (z) and type number (itype). Reproduces worsy and ltont:
+  !> the label (up to a blank or underscore) has 1 to 5 characters,
+  !> its third character is not a third letter, its first n characters
+  !> (n = number of letters in the label, at most 2) are an element
+  !> symbol, and the digits after the symbol are the type.
+  function gulp_symbol(word,z,itype) result(ok)
+    use tools_io, only: isletter, isdigit
+    character*(*), intent(in) :: word
+    integer, intent(out) :: z, itype
+    logical :: ok
+
+    character(len=:), allocatable :: aux
+    integer :: ilen, idx, nbeg, nlet, i
+
+    ok = .false.
+    z = -1
+    itype = 0
+    aux = trim(adjustl(word))
+    idx = index(aux,"_")
+    if (idx > 0) then
+       ilen = idx - 1
+    else
+       ilen = len_trim(aux)
+    end if
+    if (ilen < 1 .or. ilen > 5) return
+    nlet = 0
+    do i = 1, ilen
+       if (isletter(aux(i:i))) then
+          nlet = nlet + 1
+          if (i == 3 .and. nlet == 3) return
+       end if
+    end do
+    if (nlet == 0) return
+    z = gulp_element(aux(1:min(nlet,2)))
+    if (z < 0) return
+    nbeg = 2
+    if (ilen >= 2) then
+       if (isletter(aux(2:2))) nbeg = 3
+    end if
+
+    ! trailing type digits
+    itype = 0
+    do i = nbeg, ilen
+       if (.not.isdigit(aux(i:i))) exit
+       itype = itype * 10 + (ichar(aux(i:i)) - ichar("0"))
+    end do
+    ok = .true.
+
+  end function gulp_symbol
+
+  !> Interpret the numbers of a GULP coordinate line (reproduces
+  !> strword): optional trailing flags (only if lflags), numeric label
+  !> form (Z, or Z+100 for a shell), silent removal of three extra
+  !> numbers, and x y z [q [occ [rad]]]. iscore is false for shells.
+  subroutine gulp_atom_line(nword,words,nfloat0,floats,lflags,z,itype,x,occ,iscore,ok)
+    use tools_io, only: lower
+    integer, intent(in) :: nword
+    character*(*), intent(in) :: words(:)
+    integer, intent(in) :: nfloat0
+    real*8, intent(in) :: floats(:)
+    logical, intent(in) :: lflags
+    integer, intent(inout) :: z
+    integer, intent(inout) :: itype
+    real*8, intent(out) :: x(3)
+    real*8, intent(out) :: occ
+    logical, intent(out) :: iscore
+    logical, intent(out) :: ok
+
+    integer :: nfloat, nbeg, nai
+    character*4 :: w2
+
+    ok = .false.
+    iscore = .true.
+    x = 0d0
+    occ = 1d0
+    nfloat = nfloat0
+    if (lflags) nfloat = nfloat - 3
+    if (nword > 0) then
+       ! label given by the caller (z, itype); type word
+       nbeg = 0
+       if (nword >= 2) then
+          w2 = lower(words(2)(1:4))
+          if (w2(1:1) == "s" .or. w2(1:2) == "bs" .or. w2(1:2) == "qs" .or. w2(1:3) == "qbs") &
+             iscore = .false.
+       end if
+    else
+       if (nfloat < 1) return
+       nai = nint(floats(1))
+       if (nai > 100) then
+          nai = nai - 100
+          iscore = .false.
+       end if
+       z = nai
+       itype = 0
+       nbeg = 1
+       nfloat = nfloat - 1
+    end if
+    if (nfloat > 6) nfloat = nfloat - 3
+    if (nfloat < 3 .or. nfloat > 6) return
+    x = floats(nbeg+1:nbeg+3)
+    if (nfloat >= 5) occ = floats(nbeg+5)
+    ok = .true.
+
+  end subroutine gulp_atom_line
+
+  !> Interpret the keyword line: whether optimisation flags follow
+  !> the coordinates and the cell (lflags), and whether fractional
+  !> coordinates are left unwrapped (nowrap).
+  subroutine gulp_keyword_flags(keywords,lflags,nowrap)
+    use tools_io, only: lgetword, equal
+    character*(*), intent(in) :: keywords
+    logical, intent(out) :: lflags, nowrap
+
+    integer :: lp
+    character(len=:), allocatable :: w
+    logical :: lopt, lnoflag
+
+    lopt = .false.
+    lnoflag = .false.
+    nowrap = .false.
+    lp = 1
+    do while (.true.)
+       w = lgetword(keywords,lp)
+       if (len_trim(w) == 0) exit
+       if (gulp_stem(w,"opti") .or. gulp_stem(w,"grad") .or. gulp_stem(w,"harm") .or.&
+          gulp_stem(w,"fit") .or. equal(w,"rfo") .or. equal(w,"mc") .or. equal(w,"md") .or.&
+          gulp_stem(w,"neb") .or. gulp_stem(w,"sync")) lopt = .true.
+       if (gulp_stem(w,"conp") .or. gulp_stem(w,"conv") .or. gulp_stem(w,"cell") .or.&
+          gulp_stem(w,"noflag") .or. equal(w,"shell")) lnoflag = .true.
+       if (gulp_stem(w,"nomod") .or. gulp_stem(w,"nowrap")) nowrap = .true.
+    end do
+    lflags = lopt .and. .not.lnoflag
+
+  end subroutine gulp_keyword_flags
+
+  !> Find the Hall numbers for a GULP space group specification (HM
+  !> symbol or ITA number): hnum is the standard setting (origin
+  !> choice 1; hexagonal or rhombohedral axes for R-lattice groups,
+  !> decided from the cell angles bb) and hnum2 the second origin
+  !> choice, or -1 if the group has only one.
+  subroutine gulp_hall_number(spg,bb,hnum,hnum2,errmsg)
+    use spglib, only: spg_get_hall_number_from_symbol, spg_get_hall_number_from_number,&
+       spg_get_spacegroup_type, SpglibSpaceGroupType
+    use tools_io, only: isinteger, equal
+    character*(*), intent(in) :: spg
+    real*8, intent(in) :: bb(3)
+    integer, intent(out) :: hnum, hnum2
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(SpglibSpaceGroupType) :: sa
+    character(len=:), allocatable :: sym, want
+    character*11 :: shsym
+    integer :: lp, ispg, h
+    logical :: ishex
+    character*1 :: lat
+
+    real*8, parameter :: tol = 1d-3
+
+    errmsg = ""
+    hnum = -1
+    hnum2 = -1
+    sym = trim(adjustl(spg))
+    if (len_trim(sym) == 0) return
+
+    lp = 1
+    if (isinteger(ispg,sym,lp)) then
+       if (ispg < 1 .or. ispg > 230) then
+          errmsg = "Invalid GULP space group number: " // trim(sym)
+          return
+       end if
+       hnum = spg_get_hall_number_from_number(ispg,"")
+    else
+       ! old-style cubic symbols without the bar (F M 3 M) are in the spglib mapping
+       hnum = spg_get_hall_number_from_symbol(sym)
+    end if
+    if (hnum <= 0) then
+       errmsg = "Unknown GULP space group: " // trim(sym)
+       return
+    end if
+    sa = spg_get_spacegroup_type(hnum)
+
+    ! rhombohedral groups: hexagonal or rhombohedral axes
+    shsym = adjustl(sa%international_short)
+    lat = shsym(1:1)
+    if (lat == "R") then
+       ishex = (abs(bb(1)-90d0) < tol .and. abs(bb(2)-90d0) < tol .and. abs(bb(3)-120d0) < tol)
+       if (ishex) then
+          want = "H"
+       else
+          want = "R"
+       end if
+       if (.not.equal(trim(sa%choice),want)) then
+          h = spg_get_hall_number_from_number(sa%number,want)
+          if (h <= 0) then
+             errmsg = "Setting not found for GULP space group: " // trim(sym)
+             return
+          end if
+          hnum = h
+       end if
+    else
+       hnum2 = spg_get_hall_number_from_number(sa%number,"2")
+    end if
+
+  end subroutine gulp_hall_number
+
+  !> True if two sets of symmetry operations (rotations + centering
+  !> vectors) are the same group, up to lattice translations.
+  function gulp_same_group(n1,nc1,rot1,cen1,n2,nc2,rot2,cen2) result(same)
+    integer, intent(in) :: n1, nc1, n2, nc2
+    real*8, intent(in) :: rot1(:,:,:), cen1(:,:), rot2(:,:,:), cen2(:,:)
+    logical :: same
+
+    integer :: i, j, k, l
+    real*8 :: t(3), d(3)
+    logical :: found
+
+    real*8, parameter :: eps = 1d-5
+
+    same = .false.
+    if (n1 * nc1 /= n2 * nc2) return
+    do i = 1, n1
+       do j = 1, nc1
+          t = rot1(:,4,i) + cen1(:,j)
+          found = .false.
+          do k = 1, n2
+             if (any(abs(rot1(1:3,1:3,i) - rot2(1:3,1:3,k)) > eps)) cycle
+             do l = 1, nc2
+                d = t - rot2(:,4,k) - cen2(:,l)
+                d = d - nint(d)
+                if (all(abs(d) < eps)) then
+                   found = .true.
+                   exit
+                end if
+             end do
+             if (found) exit
+          end do
+          if (.not.found) return
+       end do
+    end do
+    same = .true.
+
+  end function gulp_same_group
+
+  !> Apply GULP's origin shift convention to a set of operations:
+  !> t' = t + R*s - s.
+  subroutine gulp_apply_shift(neqv,rotm,s)
+    integer, intent(in) :: neqv
+    real*8, intent(inout) :: rotm(:,:,:)
+    real*8, intent(in) :: s(3)
+
+    integer :: i
+
+    do i = 1, neqv
+       rotm(:,4,i) = rotm(:,4,i) + matmul(rotm(1:3,1:3,i),s) - s
+       rotm(:,4,i) = rotm(:,4,i) - floor(rotm(:,4,i))
+    end do
+
+  end subroutine gulp_apply_shift
+
+  !> Convert an interim GULP structure into a crystal seed.
+  subroutine gulp_struct_to_seed(st,seed,mol,file,isformat,errmsg)
+    use spglib, only: spg_get_symmetry_from_database
+    use tools_math, only: matinv, m_x2c_from_cellpar, cellpar_from_metric
+    use hashmod, only: hash
+    use types, only: realloc
+    use param, only: bohrtoa, hartoev, eyet
+    use global, only: rborder_def
+    type(gulpstruct), intent(in) :: st
+    type(crystalseed), intent(inout) :: seed
+    logical, intent(in) :: mol
+    character*(*), intent(in) :: file
+    integer, intent(in) :: isformat
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, ier, hnum, h1, h2, n1, nc1, n2, nc2
+    type(hash) :: usen
+    character(len=:), allocatable :: key
+    real*8 :: r(3,3), aa(3), bb(3)
+    real*8, allocatable :: rot1(:,:,:), cen1(:,:), rot2(:,:,:), cen2(:,:)
+    logical :: apply
+
+    errmsg = ""
+    call seed%end()
+    if (st%nat == 0) then
+       errmsg = "GULP structure has no atoms"
+       return
+    end if
+
+    ! atoms and species
+    seed%nat = st%nat
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+    allocate(seed%spc(seed%nat))
+    seed%nspc = 0
+    call usen%init()
+    do i = 1, seed%nat
+       seed%x(:,i) = st%x(:,i)
+       seed%atname(i) = st%atname(i)
+       key = trim(st%atname(i))
+       if (usen%iskey(key)) then
+          seed%is(i) = usen%get(key,1)
+       else
+          seed%nspc = seed%nspc + 1
+          seed%spc(seed%nspc)%name = trim(st%atname(i))
+          seed%spc(seed%nspc)%z = st%z(i)
+          call usen%put(key,seed%nspc)
+          seed%is(i) = seed%nspc
+       end if
+    end do
+    call realloc(seed%spc,seed%nspc)
+    if (allocated(st%occ)) then
+       if (any(st%occ(1:st%nat) < 1d0 - 1d-10)) then
+          if (any(st%occ(1:st%nat) <= 0d0) .or. any(st%occ(1:st%nat) > 1d0 + 1d-10)) then
+             errmsg = "Invalid site occupancy in GULP structure"
+             return
+          end if
+          allocate(seed%occ(seed%nat))
+          seed%occ = min(st%occ(1:st%nat),1d0)
+       end if
+    end if
+
+    ! cell and coordinates
+    if (st%ndim == 0) then
+       seed%useabr = 0
+       seed%m_x2c = 0d0
+       seed%x = seed%x / bohrtoa
+       seed%ismolecule = .true.
+       seed%cubic = .false.
+       seed%border = rborder_def
+    else
+       if (st%cellmode == 1) then
+          seed%useabr = 1
+          seed%aa = st%aa / bohrtoa
+          seed%bb = st%bb
+          if (any(seed%aa <= 0d0) .or. any(seed%bb <= 0d0) .or. any(seed%bb >= 180d0)) then
+             errmsg = "Invalid cell parameters in GULP structure"
+             return
+          end if
+          r = m_x2c_from_cellpar(seed%aa,seed%bb,ier)
+          if (ier /= 0) then
+             errmsg = "Invalid cell parameters in GULP structure"
+             return
+          end if
+       elseif (st%cellmode == 2) then
+          seed%useabr = 2
+          seed%m_x2c = st%rv / bohrtoa
+          r = seed%m_x2c
+       else
+          errmsg = "Missing cell in GULP structure"
+          return
+       end if
+       if (st%iscart) then
+          call matinv(r,3,ier)
+          if (ier /= 0) then
+             errmsg = "Error inverting lattice vector matrix"
+             return
+          end if
+          do i = 1, seed%nat
+             seed%x(:,i) = matmul(r,seed%x(:,i) / bohrtoa)
+          end do
+       end if
+       seed%ismolecule = mol
+       seed%cubic = .false.
+       seed%border = 0d0
+    end if
+
+    ! symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%neqlist = .false.
+    seed%findsym = -1
+    if (st%ndim == 3 .and. allocated(st%spg)) then
+       if (len_trim(st%spg) > 0) then
+          if (st%cellmode == 1) then
+             bb = st%bb
+          else
+             call cellpar_from_metric(matmul(transpose(st%rv),st%rv),aa,bb)
+          end if
+          call gulp_hall_number(st%spg,bb,h1,h2,errmsg)
+          if (len_trim(errmsg) > 0) return
+          ! GULP's operations for a group with two origin choices are those of
+          ! origin 2 (symmet.F90): origin 1 is obtained by shifting them, and an
+          ! explicit shift applies on top of the origin-2 operations. Output
+          ! files print the shift both for origin 2 (where it is the shift
+          ! between the two settings and is not applied) and for explicit
+          ! shifts (applied); tell the two cases apart by checking whether the
+          ! shifted origin-2 operations are the origin-1 group.
+          hnum = h1
+          apply = st%haveshift
+          if (h2 > 0) then
+             if (st%haveshift) then
+                hnum = h2
+                if (st%shiftfromout) then
+                   call spg_get_symmetry_from_database(h1,n1,nc1,rot1,cen1)
+                   call spg_get_symmetry_from_database(h2,n2,nc2,rot2,cen2)
+                   call gulp_apply_shift(n2,rot2,st%shift)
+                   apply = .not.gulp_same_group(n1,nc1,rot1,cen1,n2,nc2,rot2,cen2)
+                end if
+             elseif (st%origin == 2) then
+                hnum = h2
+             end if
+          end if
+          call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
+          if (seed%neqv <= 0 .or. seed%ncv <= 0) then
+             errmsg = "Could not expand GULP space group: " // trim(st%spg)
+             return
+          end if
+          if (apply) call gulp_apply_shift(seed%neqv,seed%rotm,st%shift)
+          call realloc(seed%rotm,3,4,seed%neqv)
+          call realloc(seed%cen,3,seed%ncv)
+          ! P1 (space 1) is treated as no symmetry: the repeat check is O(N^2) and useless
+          if (seed%neqv * seed%ncv > 1) then
+             if (.not.mol) then
+                seed%havesym = 1
+                seed%checkrepeats = .true.
+                seed%neqlist = .true.
+             end if
+             seed%findsym = 0
+          end if
+       end if
+    end if
+    if (seed%havesym == 0 .and. .not.allocated(seed%rotm)) then
+       seed%neqv = 1
+       seed%ncv = 1
+       allocate(seed%rotm(3,4,1),seed%cen(3,1))
+       seed%rotm(:,:,1) = eyet
+       seed%cen(:,1) = 0d0
+    end if
+
+    ! properties and flags
+    if (st%energy /= huge(1d0)) seed%energy = st%energy / hartoev
+    if (st%pressure /= huge(1d0)) seed%pressure = st%pressure
+    seed%isused = .true.
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat
+
+  end subroutine gulp_struct_to_seed
+
+  !> Select the structures requested by istruct and convert them to
+  !> seeds. istruct < 0: all; 0: last; n: number n. Output files
+  !> (isformat_r_gulpout) are named in the style of optimisation
+  !> trajectories; input files carry the configuration name.
+  subroutine gulp_select_seeds(st,nst,istruct,mol,file,isformat,nseed,seed,errmsg)
+    use tools_io, only: string
+    use param, only: isformat_r_gulpout
+    type(gulpstruct), intent(in) :: st(:)
+    integer, intent(in) :: nst
+    integer, intent(in) :: istruct
+    logical, intent(in) :: mol
+    character*(*), intent(in) :: file
+    integer, intent(in) :: isformat
+    integer, intent(out) :: nseed
+    type(crystalseed), intent(inout), allocatable :: seed(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, iuse, npad
+    character(len=:), allocatable :: str, ename
+    logical :: usefin
+
+    usefin = (isformat == isformat_r_gulpout)
+    errmsg = ""
+    if (allocated(seed)) deallocate(seed)
+    if (istruct < 0) then
+       nseed = nst
+       allocate(seed(nseed))
+       npad = ceiling(log10(nst-1+0.1d0))
+       do i = 1, nst
+          call gulp_struct_to_seed(st(i),seed(i),mol,file,isformat,errmsg)
+          if (len_trim(errmsg) > 0) return
+          if (nst > 1) then
+             ename = ""
+             if (st(i)%energy /= huge(1d0)) &
+                ename = " (" // trim(adjustl(string(st(i)%energy,'f',decimal=8))) // " eV)"
+             if (usefin .and. i == nst .and. st(i)%isfinal) then
+                seed(i)%name = trim(file) // "|(fin)" // ename
+             else
+                str = string(i,npad,pad0=.true.)
+                str = string(str,length=max(5,len(str)))
+                seed(i)%name = trim(file) // "|" // str // ename
+                if (.not.usefin .and. allocated(st(i)%name)) then
+                   if (len_trim(st(i)%name) > 0) &
+                      seed(i)%name = trim(file) // "|" // str // " (" // trim(st(i)%name) // ")"
+                end if
+             end if
+          end if
+       end do
+    else
+       if (istruct == 0) then
+          iuse = nst
+       else
+          iuse = istruct
+       end if
+       if (iuse < 1 .or. iuse > nst) then
+          errmsg = "Structure number not found in GULP file: " // string(istruct)
+          return
+       end if
+       nseed = 1
+       allocate(seed(1))
+       call gulp_struct_to_seed(st(iuse),seed(1),mol,file,isformat,errmsg)
+    end if
+
+  end subroutine gulp_select_seeds
+
+  !> Append an atom to an interim structure.
+  subroutine gulp_add_atom(s,z,itype,x,occ)
+    use tools_io, only: nameguess, string
+    use types, only: realloc
+    type(gulpstruct), intent(inout) :: s
+    integer, intent(in) :: z, itype
+    real*8, intent(in) :: x(3)
+    real*8, intent(in) :: occ
+
+    if (.not.allocated(s%x)) then
+       allocate(s%x(3,10),s%z(10),s%atname(10),s%occ(10))
+       s%nat = 0
+    end if
+    s%nat = s%nat + 1
+    if (s%nat > size(s%z,1)) then
+       call realloc(s%x,3,2*s%nat)
+       call realloc(s%z,2*s%nat)
+       call realloc(s%atname,2*s%nat)
+       call realloc(s%occ,2*s%nat)
+    end if
+    s%x(:,s%nat) = x
+    s%z(s%nat) = z
+    s%occ(s%nat) = occ
+    if (itype > 0) then
+       s%atname(s%nat) = trim(nameguess(z,.true.)) // string(itype)
+    else
+       s%atname(s%nat) = nameguess(z,.true.)
+    end if
+
+  end subroutine gulp_add_atom
+
+  !> Grow an array of interim structures to hold at least n entries.
+  subroutine gulp_grow_st(st,n)
+    type(gulpstruct), allocatable, intent(inout) :: st(:)
+    integer, intent(in) :: n
+
+    type(gulpstruct), allocatable :: aux(:)
+
+    if (n > size(st,1)) then
+       allocate(aux(2*n))
+       aux(1:size(st,1)) = st
+       call move_alloc(aux,st)
+    end if
+
+  end subroutine gulp_grow_st
+
 
 end submodule proc

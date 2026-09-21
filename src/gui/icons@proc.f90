@@ -49,7 +49,8 @@ submodule (icons) proc
      "fmt_aimsin.png","fmt_aimsout.png","fmt_tinkerfrac.png","fmt_gjf.png",&
      "fmt_castepcell.png","fmt_castepgeom.png","fmt_mol2.png","fmt_pdb.png",&
      "fmt_zmat.png","fmt_sdf.png","fmt_magres.png","fmt_alamode.png",&
-     "fmt_castepphonon.png","fmt_akaikkr.png","fmt_xband.png"/)
+     "fmt_castepphonon.png","fmt_akaikkr.png","fmt_xband.png",&
+     "fmt_gulpin.png","fmt_gulpout.png"/)
 
   ! tint colors for the format icons, by code family
   real(c_float), parameter :: rgba_fam_internal(4) = (/0.70_c_float,0.70_c_float,0.70_c_float,1.0_c_float/) ! grey
@@ -141,7 +142,7 @@ contains
 
     select case (isformat)
     case (isformat_r_cif,isformat_r_shelx,isformat_r_f21,isformat_r_dmain,&
-       isformat_r_pdb,isformat_r_tinkerfrac)
+       isformat_r_pdb,isformat_r_tinkerfrac,isformat_r_gulpin,isformat_r_gulpout)
        rgba = rgba_fam_crys
     case (isformat_r_xyz,isformat_r_gjf,isformat_r_zmat,isformat_r_mol2,&
        isformat_r_sdf)
@@ -266,6 +267,10 @@ contains
        name = "AkaiKKR input"
     case (isformat_r_xband)
        name = "xband sysfile"
+    case (isformat_r_gulpin)
+       name = "GULP input"
+    case (isformat_r_gulpout)
+       name = "GULP output"
     case default
        name = "unknown"
     end select

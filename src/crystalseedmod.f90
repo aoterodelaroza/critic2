@@ -97,6 +97,8 @@ module crystalseedmod
      procedure :: read_elk
      procedure :: read_mol
      procedure :: read_pdb
+     procedure :: read_gulpin
+     procedure :: read_gulpout
      procedure :: read_qeout
      procedure :: read_qein
      procedure :: read_crystalout
@@ -304,6 +306,22 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_pdb
+     module subroutine read_gulpin(seed,file,mol,istruct,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       integer, intent(in) :: istruct
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_gulpin
+     module subroutine read_gulpout(seed,file,mol,istruct,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       integer, intent(in) :: istruct
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_gulpout
      module subroutine read_qeout(seed,file,mol,istruct,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
