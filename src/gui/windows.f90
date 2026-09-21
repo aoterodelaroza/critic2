@@ -612,6 +612,7 @@ module windows
      real*8 :: rattle_tinit = -1d0 ! dynamics setup time (s); < 0 = not measured yet
      real*8 :: rattle_tstep = 0d0 ! wall time per dynamics step (s)
      integer :: rattle_estbackend = -1 ! force-field backend the measurement was made with
+     character(len=:), allocatable :: rattle_esteamfile ! EAM potential the measurement was made with
      real*8 :: rattle_runtemp = 0d0 ! temperature this run was started at (K), for its label
      type(crystalseed), allocatable :: rattle_seed(:) ! the snapshots collected so far
      ! vibrations parameters
@@ -835,6 +836,7 @@ module windows
   public :: vm_is_forcedpick
   public :: vm_exits_on_empty
   public :: draw_ff_backend_combo
+  public :: draw_ff_eam_potential
   public :: paste_clipboard_fragment
 
   ! window types
@@ -878,6 +880,10 @@ module windows
   integer, parameter, public :: wpurp_view_alternate = 9
   integer, parameter, public :: wpurp_dialog_savefile = 10
   integer, parameter, public :: wpurp_dialog_selectdir = 11
+
+  ! dialog token: the EAM potential file chosen with the Browse button of
+  ! draw_ff_eam_potential (any window that draws the picker may receive it)
+  integer, parameter, public :: itoken_eamfile = 901
 
   ! column ids for the table in the tree widget
   integer(c_int), parameter, public :: ic_tree_closebutton = 0
@@ -1473,6 +1479,12 @@ module windows
        character(len=*), intent(in) :: strid
        logical, intent(in), optional :: sameline
      end subroutine draw_ff_backend_combo
+     module subroutine draw_ff_eam_potential(w,isys,strid,sameline)
+       class(window), intent(inout) :: w
+       integer, intent(in) :: isys
+       character(len=*), intent(in) :: strid
+       logical, intent(in), optional :: sameline
+     end subroutine draw_ff_eam_potential
      module subroutine addatom_geom_paint(ig,p0,side,dl,iz,bgrgb)
        integer, intent(in) :: ig
        type(ImVec2), intent(in) :: p0

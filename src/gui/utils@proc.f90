@@ -2060,8 +2060,21 @@ contains
 
   end function get_current_working_dir
 
-  !> Return file with the extension removed from its base name (the
-  !> path, if any, is kept). For espresso/alamode input files
+  !> The base name of a file: its path with the directory part
+  !> removed. Either directory separator is accepted, as in a path
+  !> typed with forward slashes on Windows.
+  module function file_name_base(file) result(base)
+    use param, only: dirsep
+    character(len=*), intent(in) :: file
+    character(len=:), allocatable :: base
+
+    integer :: idx
+
+    idx = max(index(file,dirsep,back=.true.),index(file,"/",back=.true.))
+    base = trim(file(idx+1:))
+
+  end function file_name_base
+
   !> (x.scf.in, x.alm.in), remove the double extension (similar to the
   !> rule in struct_detect_write_format in crystalmod). If the base
   !> name has no extension, return file unchanged (trimmed).

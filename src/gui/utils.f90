@@ -99,6 +99,7 @@ module utils
   public :: get_nice_next_window_pos
   public :: get_current_working_dir
   public :: file_name_root
+  public :: file_name_base
   !xx! math submodule !xx!
   public :: infiniteperspective
   public :: ortho
@@ -454,6 +455,10 @@ module utils
      module function get_current_working_dir()
        character(len=:), allocatable :: get_current_working_dir
      end function get_current_working_dir
+     module function file_name_base(file) result(base)
+       character(len=*), intent(in) :: file
+       character(len=:), allocatable :: base
+     end function file_name_base
      module function file_name_root(file) result(root)
        character(len=*), intent(in) :: file
        character(len=:), allocatable :: root

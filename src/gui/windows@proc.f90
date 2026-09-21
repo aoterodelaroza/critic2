@@ -866,6 +866,7 @@ contains
              end if
           end if
        elseif (w%type == wintype_rattle) then
+          if (allocated(w%rattle_esteamfile)) deallocate(w%rattle_esteamfile)
           ! a sampling run belongs to this window: closing it must
           ! stop the dynamics and put the sampled-from structure back
           if (w%rattle_running) then
@@ -1031,6 +1032,77 @@ contains
     sysc(isys)%md_backend = backids(icombo+1)
 
   end subroutine draw_ff_backend_combo
+
+  !> Draw the EAM potential picker for system isys: a combo with the
+  !> catalogue potentials that cover the system (catalogue order, the
+  !> first is the default) and a Browse button for a potential file of
+  !> the user's own, which is then listed first. Meant to follow the
+  !> backend combo when the backend is ff_eam. w is the window drawing
+  !> it, to which the file dialog reports back. The combo sizes itself
+  !> to the longest name (iw_combo_simple).
+  module subroutine draw_ff_eam_potential(w,isys,strid,sameline)
+    use systems, only: sys, sysc
+    use energy, only: eam_catalog_list
+    use utils, only: iw_combo_simple, iw_button, iw_tooltip, file_name_base
+    use types, only: vstring
+    class(window), intent(inout) :: w
+    integer, intent(in) :: isys
+    character(len=*), intent(in) :: strid
+    logical, intent(in), optional :: sameline
+
+    integer :: i, n, ncat, icombo, idum
+    type(vstring), allocatable :: names(:), paths(:), opt(:)
+    logical, allocatable :: covers(:)
+    character(len=:), allocatable :: str
+    logical :: changed
+    logical, save :: ttshown = .false.
+
+    ! a file chosen in the Browse dialog
+    if (w%okfile_set .and. w%itoken == itoken_eamfile) then
+       sysc(isys)%md_eamfile = w%okfile
+       w%okfile_set = .false.
+    end if
+    call sysc(isys)%md_resolve_eamfile()
+
+    ! the options: the covering catalogue entries, preceded by the
+    ! selected file when it is not one of them (a file of the user's own)
+    call eam_catalog_list(sys(isys)%c,ncat,names,paths,covers)
+    allocate(opt(ncat+1))
+    n = 0
+    icombo = -1
+    str = ""
+    do i = 1, ncat
+       if (.not.covers(i)) cycle
+       n = n + 1
+       opt(n)%s = paths(i)%s
+       str = str // trim(names(i)%s) // c_null_char
+       if (paths(i)%s == sysc(isys)%md_eamfile) icombo = n - 1
+    end do
+    if (icombo < 0 .and. len_trim(sysc(isys)%md_eamfile) > 0) then
+       opt(2:n+1) = opt(1:n)
+       opt(1)%s = sysc(isys)%md_eamfile
+       n = n + 1
+       str = file_name_base(sysc(isys)%md_eamfile) // " (file)" // c_null_char // str
+       icombo = 0
+    end if
+    icombo = max(icombo,0)
+
+    call iw_combo_simple(strid,str,icombo,sameline=sameline,changed=changed)
+    call iw_tooltip("Tabulated EAM potential for this system. The list has the shipped&
+       & potentials that cover all its elements, the first being the default; Browse&
+       & to use a setfl (.eam.alloy) or eam/fs (.eam.fs) file of your own.",ttshown)
+    if (changed .and. n > 0) sysc(isys)%md_eamfile = opt(icombo+1)%s
+
+    ! browse for a file
+    if (iw_button("Browse...##eambrowse" // strid,sameline=.true.)) then
+       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
+          idparent=w%id,itoken=itoken_eamfile,&
+          dialog_filter="EAM potential (eam.alloy eam.fs){.alloy,.fs}")
+    end if
+    call iw_tooltip("Choose an EAM potential file (setfl .eam.alloy or eam/fs .eam.fs)",ttshown)
+
+  end subroutine draw_ff_eam_potential
+
 
   !> Return true if the root of this window is focused
   module function window_focused(w)
@@ -1309,7 +1381,7 @@ contains
        elseif (w%type == wintype_extract) then
           call init_window("Extract as Molecule(s)",52)
        elseif (w%type == wintype_rattle) then
-          call init_window("Rattle Structure",52)
+          call init_window("Rattle Structure",55)
        elseif (w%type == wintype_voids) then
           call init_window("Crystal Voids",62,35)
        elseif (w%type == wintype_display) then

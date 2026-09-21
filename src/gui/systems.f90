@@ -92,6 +92,7 @@ module systems
      ! interactive molecular dynamics (one run per system, driven each frame)
      logical :: md_run = .false. ! whether the MD/relaxation loop advances this system
      integer :: md_backend = -1 ! requested MD energy backend (-1 = resolve with ff_backend_default on first use)
+     character(len=:), allocatable :: md_eamfile ! requested EAM potential file (full path); empty = the catalogue default
      real*8 :: md_time = 0d0 ! time of the last MD init/step (geometry-staleness guard)
      type(mdrun) :: md ! MD / relaxation state
      ! bonding
@@ -120,6 +121,7 @@ module systems
      procedure :: post_event
      procedure :: rebond ! recompute bonds/connectivity, then signal the scene
      procedure :: md_start ! start/resume the MD or relaxation run
+     procedure :: md_resolve_eamfile
      procedure :: md_stop ! stop the run and rebuild the moved structure
      procedure :: md_advance ! advance the run by one step if active
      procedure :: md_set_mode ! change the run mode
@@ -338,6 +340,9 @@ module systems
        integer, intent(in) :: mode
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine md_start
+     module subroutine md_resolve_eamfile(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine md_resolve_eamfile
      module subroutine md_advance(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg

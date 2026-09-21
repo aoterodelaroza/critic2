@@ -261,11 +261,12 @@ contains
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
        reread_system_from_file, atlisttype_ncel_frac
     use dynamics, only: md_relax
-    use energy, only: ff_backend_applicable, ff_backend_default
+    use energy, only: ff_backend_applicable, ff_backend_default, ff_eam
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+       file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
@@ -588,9 +589,16 @@ contains
           speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,&
           flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Stop the relaxation when the maximum force falls below this value",ttshown)
+       ! the EAM potential picker does not fit on the row: below it, at the icon column
+       if (sysc(isys)%md_backend == ff_eam) then
+          call igSetCursorPosX(xicon)
+          call draw_ff_eam_potential(w,isys,"##builderrelaxpotential")
+       end if
 
        ! live status: energy and maximum force
        if (mdshown) then
+          if (sysc(isys)%md%cl%backend == ff_eam .and. allocated(sysc(isys)%md%cl%eam%file)) &
+             call iw_text("Potential: "//file_name_base(sysc(isys)%md%cl%eam%file))
           call iw_text("Energy: "//string(sysc(isys)%md%epot,'f',decimal=6)//" Ha")
           call iw_text("Max force: "//string(sysc(isys)%md%maxforce(),'f',decimal=4)//" eV/Å")
           if (.not.sysc(isys)%md_run .and. sysc(isys)%md%converged()) &

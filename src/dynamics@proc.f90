@@ -550,7 +550,8 @@ contains
   !> (nstep), the setup time (tinit) and the average wall time per
   !> step (tstep), all in seconds.  Used to estimate the cost of a
   !> long run before committing to it.
-  module subroutine md_benchmark(c,backend,method,temp,dt,nstepmax,tmax,nstep,tinit,tstep,errmsg)
+  module subroutine md_benchmark(c,backend,method,temp,dt,nstepmax,tmax,nstep,tinit,tstep,errmsg,&
+     eamfile)
     use crystalmod, only: crystal
     use energy, only: ff_backend_applicable, ff_backend_label
     type(crystal), intent(in) :: c
@@ -559,6 +560,7 @@ contains
     integer, intent(out) :: nstep
     real*8, intent(out) :: tinit, tstep
     character(len=:), allocatable, intent(out) :: errmsg
+    character(len=*), intent(in), optional :: eamfile
 
     type(mdrun) :: md
     type(crystal) :: cmd
@@ -586,7 +588,7 @@ contains
     cmd = c
     call system_clock(count=c0,count_rate=rate)
     call md%init(cmd,backend=backend,method=method,temperature=temp,dt=dt,&
-       mode=md_dynamics,errmsg=errmsg)
+       mode=md_dynamics,eamfile=eamfile,errmsg=errmsg)
     call system_clock(count=c1)
     if (len_trim(errmsg) > 0) then
        call md%free()

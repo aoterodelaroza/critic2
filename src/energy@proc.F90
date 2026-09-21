@@ -3841,6 +3841,25 @@ contains
     call move_alloc(aux,eamcat)
   end subroutine eam_catalog_realloc
 
+  !> True if catalogue entry icat covers every atom of crystal c.
+  function eam_catalog_covers(icat,c) result(ok)
+    use crystalmod, only: crystal
+    integer, intent(in) :: icat
+    class(crystal), intent(in) :: c
+    logical :: ok
+
+    integer :: j
+
+    ok = .true.
+    do j = 1, c%ncel
+       if (.not.any(eamcat(icat)%z == c%spc(c%atcel(j)%is)%z)) then
+          ok = .false.
+          return
+       end if
+    end do
+
+  end function eam_catalog_covers
+
   !> Index in the catalogue of the first potential whose elements cover every
   !> species of crystal c, or 0 if there is none.
   function eam_catalog_pick(c) result(icat)
@@ -3848,26 +3867,43 @@ contains
     class(crystal), intent(in) :: c
     integer :: icat
 
-    integer :: i, j
-    logical :: ok
+    integer :: i
 
     icat = 0
     if (neamcat <= 0) return
     do i = 1, neamcat
-       ok = .true.
-       do j = 1, c%ncel
-          if (.not.any(eamcat(i)%z == c%spc(c%atcel(j)%is)%z)) then
-             ok = .false.
-             exit
-          end if
-       end do
-       if (ok) then
+       if (eam_catalog_covers(i,c)) then
           icat = i
           return
        end if
     end do
 
   end function eam_catalog_pick
+
+  !> The catalogue potentials, in catalogue (preference) order: n
+  !> entries, with their names as in the index, their full paths, and
+  !> whether each covers every atom of crystal c. The first covering
+  !> entry is the one eam_setup picks by default.
+  module subroutine eam_catalog_list(c,n,names,paths,covers)
+    use crystalmod, only: crystal
+    use types, only: vstring
+    class(crystal), intent(in) :: c
+    integer, intent(out) :: n
+    type(vstring), allocatable, intent(out) :: names(:), paths(:)
+    logical, allocatable, intent(out) :: covers(:)
+
+    integer :: i
+
+    call eam_build_catalog()
+    n = neamcat
+    allocate(names(n),paths(n),covers(n))
+    do i = 1, n
+       names(i)%s = eamcat(i)%file
+       paths(i)%s = eam_catalog_path(i)
+       covers(i) = eam_catalog_covers(i,c)
+    end do
+
+  end subroutine eam_catalog_list
 
   !> Full path of catalogue entry icat.
   function eam_catalog_path(icat) result(file)

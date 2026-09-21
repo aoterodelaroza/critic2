@@ -122,7 +122,8 @@ module dynamics
        character(len=*), intent(in) :: base
        character(len=:), allocatable :: msg
      end function md_fail_message
-     module subroutine md_benchmark(c,backend,method,temp,dt,nstepmax,tmax,nstep,tinit,tstep,errmsg)
+     module subroutine md_benchmark(c,backend,method,temp,dt,nstepmax,tmax,nstep,tinit,tstep,errmsg,&
+        eamfile)
        use crystalmod, only: crystal
        type(crystal), intent(in) :: c
        integer, intent(in) :: backend, method, nstepmax
@@ -130,6 +131,7 @@ module dynamics
        integer, intent(out) :: nstep
        real*8, intent(out) :: tinit, tstep
        character(len=:), allocatable, intent(out) :: errmsg
+       character(len=*), intent(in), optional :: eamfile
      end subroutine md_benchmark
      module subroutine bulk_md_seeds(c,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
        use crystalmod, only: crystal

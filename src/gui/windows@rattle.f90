@@ -53,6 +53,7 @@ contains
        add_group_master, launch_initialization_thread
     use crystalmod, only: bulk_rattle_seeds
     use dynamics, only: md_dynamics, md_benchmark
+    use energy, only: ff_eam
     use utils, only: iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_checkbox,&
        iw_close_event, iw_setpos_bottomright, iw_intstepper, iw_dragfloat_realc,&
        iw_dragfloat_real8, duration_string
@@ -136,6 +137,10 @@ contains
     elseif (.not.doquit) then
        call iw_text("Force field",alignframe=.true.)
        call draw_ff_backend_combo(isys,"##rattleff",21,sameline=.true.)
+       if (sysc(isys)%md_backend == ff_eam) then
+          call iw_text("Potential",alignframe=.true.)
+          call draw_ff_eam_potential(w,isys,"##rattlepotential",sameline=.true.)
+       end if
 
        ! the run parameters live on the system, shared with the dynamics window
        call iw_text("Temperature",alignframe=.true.)
@@ -177,6 +182,9 @@ contains
        ! estimate for the whole run. The measurement is kept, so the estimate
        ! follows the step count as the user changes it
        if (w%rattle_estbackend /= sysc(isys)%md_backend) w%rattle_tinit = -1d0
+       if (w%rattle_tinit >= 0d0) then
+          if (w%rattle_esteamfile /= sysc(isys)%md_eamfile) w%rattle_tinit = -1d0
+       end if
        if (iw_button("Estimate cost##rattleestimate",sameline=.true.)) call estimate_cost()
        call iw_tooltip("Run a few steps of this dynamics and discard the results to&
           & measure the cost and estimate how long the whole run will take",ttshown)
@@ -265,7 +273,8 @@ contains
       call clear_msgs()
       w%rattle_tinit = -1d0
       call md_benchmark(sys(isys)%c,sysc(isys)%md_backend,md_dynamics,&
-         sysc(isys)%md%temperature,sysc(isys)%md%dt,5,0.5d0,nstep,tinit,tstep,errmsg)
+         sysc(isys)%md%temperature,sysc(isys)%md%dt,5,0.5d0,nstep,tinit,tstep,errmsg,&
+         eamfile=sysc(isys)%md_eamfile)
       if (len_trim(errmsg) > 0) then
          w%errmsg = errmsg
          return
@@ -273,6 +282,7 @@ contains
       w%rattle_tinit = tinit
       w%rattle_tstep = tstep
       w%rattle_estbackend = sysc(isys)%md_backend
+      w%rattle_esteamfile = sysc(isys)%md_eamfile
 
     end subroutine estimate_cost
 

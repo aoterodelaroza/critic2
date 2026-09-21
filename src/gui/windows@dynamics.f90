@@ -27,7 +27,9 @@ contains
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, nsys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
+    use energy, only: ff_eam
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+       file_name_base,&
        iw_radiobutton, iw_close_event, iw_setpos_bottomright, iw_table_column
     use keybindings, only: get_bind_keyname, BIND_CANCEL
     use tools_io, only: string
@@ -74,6 +76,10 @@ contains
        call iw_text("Method",highlight=.true.,alignframe=.true.)
        call draw_ff_backend_combo(isys,"##dynamicsengine",21,sameline=.true.)
        call iw_tooltip("Method for the calculation of energies, forces, and stress.",ttshown)
+       if (sysc(isys)%md_backend == ff_eam) then
+          call iw_text("Potential",highlight=.true.,alignframe=.true.)
+          call draw_ff_eam_potential(w,isys,"##dynamicspotential",sameline=.true.)
+       end if
 
        ! mode (dynamics vs relaxation), bound live to the run: two radio buttons
        call igAlignTextToFramePadding()
@@ -142,6 +148,9 @@ contains
              ! temperature: MD only (a relaxation has no meaningful temperature)
              if (sysc(isys)%md%mode == md_dynamics) &
                 call status_row("Temperature (K)",string(sysc(isys)%md%temperature_now(),'f',decimal=1))
+             ! the EAM potential in use
+             if (sysc(isys)%md%cl%backend == ff_eam .and. allocated(sysc(isys)%md%cl%eam%file)) &
+                call status_row("Potential",file_name_base(sysc(isys)%md%cl%eam%file))
              ! energies: both modes
              call status_row("Energy (Hartree)",string(sysc(isys)%md%epot,'f',decimal=6))
              call status_row("Energy (kcal/mol)",string(sysc(isys)%md%epot/kcal2ha,'f',decimal=3))

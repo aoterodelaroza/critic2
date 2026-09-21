@@ -438,6 +438,8 @@ contains
        sysc(idx)%renamed = .false.
        sysc(idx)%showfields = .false.
        sysc(idx)%tselected = .false.
+       sysc(idx)%md_backend = -1
+       sysc(idx)%md_eamfile = ""
        if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
        if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
        if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
@@ -1031,6 +1033,7 @@ contains
   !> failure.
   module subroutine md_start(sysc,mode,errmsg)
     use interfaces_glfw, only: glfwGetTime
+    use energy, only: ff_eam
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: mode
     character(len=:), allocatable, intent(out) :: errmsg
@@ -1042,13 +1045,19 @@ contains
     id = sysc%id
     if (.not.ok_system(id,sys_init)) return
 
-    ! init, also on rebond
+    ! init, also on rebond or on a change of EAM potential
+    call sysc%md_resolve_eamfile()
     needinit = .not.sysc%md%ready
     if (.not.needinit) needinit = sysc%md%cl%backend /= sysc%md_backend
     if (.not.needinit) needinit = sysc%md%nat /= sys(id)%c%ncel
     if (.not.needinit) needinit = sysc%timelastchange_rebond > sysc%md_time
+    if (.not.needinit .and. sysc%md_backend == ff_eam) then
+       needinit = .true.
+       if (allocated(sysc%md%cl%eam%file)) needinit = sysc%md%cl%eam%file /= sysc%md_eamfile
+    end if
     if (needinit) then
-       call sysc%md%init(sys(id)%c,backend=sysc%md_backend,mode=mode,errmsg=errmsg)
+       call sysc%md%init(sys(id)%c,backend=sysc%md_backend,mode=mode,&
+          eamfile=sysc%md_eamfile,errmsg=errmsg)
        if (len_trim(errmsg) > 0) return
     end if
     call sysc%md_set_mode(mode)
@@ -1062,6 +1071,46 @@ contains
     sysc%md_time = glfwGetTime()
 
   end subroutine md_start
+
+  !> Resolve the EAM potential requested for this system (md_eamfile):
+  !> an empty choice, or a catalogue potential that no longer covers
+  !> the system because its atoms changed, becomes the first covering
+  !> catalogue entry -- the default eam_setup would pick -- or empty if
+  !> there is none. A file of the user's own is kept as it is (it fails
+  !> at setup with its own message). The potential picker and md_start
+  !> both go through here, so they agree.
+  module subroutine md_resolve_eamfile(sysc)
+    use energy, only: ff_eam, eam_catalog_list
+    use types, only: vstring
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: id, i, n, icat, idef
+    type(vstring), allocatable :: names(:), paths(:)
+    logical, allocatable :: covers(:)
+
+    id = sysc%id
+    if (sysc%md_backend /= ff_eam) return
+    if (.not.ok_system(id,sys_init)) return
+
+    call eam_catalog_list(sys(id)%c,n,names,paths,covers)
+    icat = 0
+    idef = 0
+    do i = 1, n
+       if (icat == 0 .and. paths(i)%s == sysc%md_eamfile) icat = i
+       if (idef == 0 .and. covers(i)) idef = i
+    end do
+    if (icat > 0) then
+       if (covers(icat)) return
+    elseif (len_trim(sysc%md_eamfile) > 0) then
+       return
+    end if
+    if (idef > 0) then
+       sysc%md_eamfile = paths(idef)%s
+    else
+       sysc%md_eamfile = ""
+    end if
+
+  end subroutine md_resolve_eamfile
 
   !> Advance the MD/relaxation run on this system by one step, if one
   !> is active. Stops the run if the structure was modified externally

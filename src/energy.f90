@@ -29,6 +29,7 @@ module energy
   public :: ff_backend_default
   public :: ff_backend_label
   public :: ff_name_to_backend
+  public :: eam_catalog_list
 
   ! energy backends
   integer, parameter, public :: ff_uff = 0 !< built-in Universal Force Field (UFF)
@@ -288,6 +289,14 @@ module energy
        integer, intent(out) :: backend, method
        logical, intent(out) :: ok
      end subroutine ff_name_to_backend
+     module subroutine eam_catalog_list(c,n,names,paths,covers)
+       use crystalmod, only: crystal
+       use types, only: vstring
+       class(crystal), intent(in) :: c
+       integer, intent(out) :: n
+       type(vstring), allocatable, intent(out) :: names(:), paths(:)
+       logical, allocatable, intent(out) :: covers(:)
+     end subroutine eam_catalog_list
      ! tblite backend (implemented in energy@proc.F90; stubs when built without tblite)
      module subroutine calc_init_tblite(cl,c,errmsg)
        use crystalmod, only: crystal
