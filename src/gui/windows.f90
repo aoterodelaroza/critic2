@@ -250,6 +250,32 @@ module windows
   end type voids_state
   public :: voids_state
 
+  !> Per-window state of the metal melting demonstration window.
+  type melting_state
+     ! the form
+     integer(c_int) :: imetal = 0 ! metal (index into the table in windows@melting.f90, from 0)
+     integer(c_int) :: igeom = 0 ! geometry (0 = slab, 1 = nanoparticle)
+     integer(c_int) :: nx = 5 ! slab: conventional cells along x
+     integer(c_int) :: ny = 5 ! slab: conventional cells along y
+     integer(c_int) :: nlayer = 8 ! slab: number of atomic layers
+     integer(c_int) :: nshell = 3 ! nanoparticle: number of shells around the central atom
+     ! the run (on the system this window built, isys)
+     logical :: started = .false. ! whether the run has been auto-started for the system
+     logical :: needalign = .false. ! align the camera to a side view once the scene is built
+     integer :: imet = 1 ! metal of the system, as built (index into the table, from 1)
+     logical :: isslab = .true. ! whether the system is a slab (else a nanoparticle)
+     logical, allocatable :: frozen(:) ! the substrate atoms of the slab, from the initial geometry
+     logical :: dirty = .true. ! the atom colors must be recomputed although the run is paused
+     real*8 :: molten = 0d0 ! molten fraction of the free atoms, last computed
+     real(c_float), allocatable :: rgba(:,:) ! atom colors by local order, last computed (4,nat)
+     ! energy versus temperature history for the plot
+     integer :: nhist = 0 ! samples in the history
+     real*8 :: lastsample = 0d0 ! simulation time of the last sample (fs)
+     real(c_double) :: hist_t(400) = 0d0 ! temperature of each sample (K)
+     real(c_double) :: hist_e(400) = 0d0 ! energy per atom of each sample (eV)
+  end type melting_state
+  public :: melting_state
+
   !> Per-window state of the save-multiple window
   type savemult_state
      character(len=:), allocatable :: lastsig
@@ -712,6 +738,8 @@ module windows
      real*8 :: wc_clock0 = 0d0 ! timed mode: time at which the clock started (s)
      real*8 :: wc_elapsed = 0d0 ! timed mode: elapsed time shown on the clock (s)
      character(len=:), allocatable :: wc_name ! participant name, shown on the scene near the score
+     ! metal melting demonstration parameters
+     type(melting_state) :: mt ! the form and the run of the metal melting demonstration window
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -810,6 +838,8 @@ module windows
      procedure :: draw_display
      ! water cluster demonstration
      procedure :: draw_water_cluster
+     ! metal melting demonstration
+     procedure :: draw_melting
      ! geometry
      procedure :: draw_geometry
      ! preferences
@@ -866,6 +896,7 @@ module windows
   integer, parameter, public :: wintype_mo = 24
   integer, parameter, public :: wintype_voids = 25
   integer, parameter, public :: wintype_display = 26
+  integer, parameter, public :: wintype_melting = 27
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1440,6 +1471,10 @@ module windows
      module subroutine draw_water_cluster(w)
        class(window), intent(inout), target :: w
      end subroutine draw_water_cluster
+     !xx! melting submodule !xx!
+     module subroutine draw_melting(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_melting
      !xx! geometry submodule !xx!
      module subroutine draw_geometry(w)
        class(window), intent(inout), target :: w

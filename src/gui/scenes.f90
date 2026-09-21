@@ -222,9 +222,10 @@ module scenes
      module subroutine update_view_matrix(s)
        class(scene), intent(inout), target :: s
      end subroutine update_view_matrix
-     module subroutine align_view_axis(s,iaxis)
+     module subroutine align_view_axis(s,iaxis,iup)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: iaxis
+       integer, intent(in), optional :: iup
      end subroutine align_view_axis
      module subroutine select_atom(s,idx)
        class(scene), intent(inout), target :: s

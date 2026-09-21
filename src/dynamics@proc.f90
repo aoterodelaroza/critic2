@@ -240,6 +240,7 @@ contains
     end do
 
     ! remove the center-of-mass drift
+    call hold_frozen(md)
     call remove_com(md)
 
   end subroutine md_init_velocities
@@ -287,9 +288,120 @@ contains
     integer :: ndof
     t = 0d0
     if (md%nat <= 0) return
-    ndof = max(3*md%nat - 3,1)
+    ! free atoms only; the -3 removes the center of mass, which is fixed
+    ! by the held atoms instead when there are any
+    if (allocated(md%frozen)) then
+       ndof = 3*count(.not.md%frozen)
+    else
+       ndof = 3*md%nat - 3
+    end if
+    ndof = max(ndof,1)
     t = 2d0*md%ekin/(real(ndof,8)*kboltz)
   end function md_temperature
+
+  !> Local crystalline order of every atom, from the bond-orientational
+  !> order (Steinhardt q6) of its neighbours within rcut (bohr): two
+  !> neighbouring atoms share a "solid bond" when their normalized q6
+  !> vectors overlap by more than 0.5 (ten Wolde and Frenkel), and
+  !> order(i) is the fraction of solid bonds of atom i (0 = liquid-like, 1
+  !> = crystalline). An atom with fewer than md_order_minnb neighbours
+  !> has order 0. molten is the fraction of the atoms that are not held
+  !> fixed with order below 0.5. Runs with the EAM backend only: the
+  !> neighbours come from the pair list that backend caches (refreshed on
+  !> the run's schedule), so the cost is just the spherical harmonics.
+  !> errmsg is set if there is no such list or its cutoff is too short.
+  module subroutine md_local_order(md,c,rcut,order,molten,errmsg)
+    use crystalmod, only: crystal
+    use tools_math, only: tosphere, genylm
+    class(mdrun), intent(in) :: md
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: rcut
+    real*8, allocatable, intent(out) :: order(:)
+    real*8, intent(out) :: molten
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer, parameter :: md_order_minnb = 4 ! fewer neighbours than this = no local order
+    real*8, parameter :: bond_thr = 0.5d0 ! q6 overlap above which a bond counts as solid
+    real*8, parameter :: liquid_thr = 0.5d0 ! order below which an atom counts as liquid
+    integer, parameter :: l6 = 6*7+1 ! genylm index of Y_6^0 (l*(l+1)+m+1)
+
+    integer :: i, j, p, nsolid, nfree, nliq
+    real*8 :: d(3), rcut2, r, tp(2), m(3,3)
+    complex*16 :: y(49)
+    complex*16, allocatable :: q(:,:)
+    integer, allocatable :: nb(:)
+    logical, allocatable :: keep(:)
+
+    errmsg = ""
+    molten = 0d0
+    allocate(order(max(md%nat,0)))
+    order = 0d0
+    if (.not.md%ready .or. md%nat == 0) return
+    if (.not.allocated(md%cl%enbptr) .or. .not.allocated(md%cl%enbj)) then
+       errmsg = "local_order: no cached neighbour list (EAM backend only)"
+       return
+    end if
+    if (size(md%cl%enbptr,1) < md%nat+1) then
+       errmsg = "local_order: stale neighbour list"
+       return
+    end if
+    if (md%cl%eam%rcut < rcut) then
+       errmsg = "local_order: the potential cutoff is shorter than the neighbour cutoff"
+       return
+    end if
+    rcut2 = rcut*rcut
+    m = c%m_x2c
+
+    ! q6 vector of every atom over its neighbours within rcut; keep marks
+    ! the pairs of the cached list that are within rcut, for the bond pass
+    allocate(q(-6:6,md%nat),nb(md%nat),keep(max(md%cl%nenb,1)))
+    q = (0d0,0d0)
+    nb = 0
+    keep = .false.
+    do i = 1, md%nat
+       do p = md%cl%enbptr(i), md%cl%enbptr(i+1)-1
+          j = md%cl%enbj(p)
+          d = md%r(:,j) - md%r(:,i)
+          if (.not.c%ismolecule) then
+             if (any(md%cl%enblv(:,p) /= 0)) d = d + matmul(m,real(md%cl%enblv(:,p),8))
+          end if
+          if (dot_product(d,d) >= rcut2) cycle
+          keep(p) = .true.
+          nb(i) = nb(i) + 1
+          call tosphere(d,r,tp)
+          call genylm(6,tp,y)
+          q(:,i) = q(:,i) + y(l6-6:l6+6)
+       end do
+       if (nb(i) >= md_order_minnb) then
+          r = sqrt(sum(real(q(:,i)*conjg(q(:,i)),8)))
+          if (r > 0d0) q(:,i) = q(:,i) / r
+       end if
+    end do
+
+    ! solid bonds
+    nfree = 0
+    nliq = 0
+    do i = 1, md%nat
+       if (nb(i) >= md_order_minnb) then
+          nsolid = 0
+          do p = md%cl%enbptr(i), md%cl%enbptr(i+1)-1
+             if (.not.keep(p)) cycle
+             j = md%cl%enbj(p)
+             if (nb(j) < md_order_minnb) cycle
+             if (sum(real(q(:,i)*conjg(q(:,j)),8)) > bond_thr) nsolid = nsolid + 1
+          end do
+          order(i) = real(nsolid,8) / real(nb(i),8)
+       end if
+       ! molten fraction over the free atoms
+       if (allocated(md%frozen)) then
+          if (md%frozen(i)) cycle
+       end if
+       nfree = nfree + 1
+       if (order(i) < liquid_thr) nliq = nliq + 1
+    end do
+    if (nfree > 0) molten = real(nliq,8) / real(nfree,8)
+
+  end subroutine md_local_order
 
   !> Instantaneous pressure (GPa) of a periodic system: the kinetic term
   !> (2/3 E_kin/V) plus the virial term (-1/3 tr stress), from the stress cached
@@ -385,6 +497,8 @@ contains
     end if
     md%errmsg = ""
     md%f = -md%f
+    ! atoms held fixed feel no force (and carry no velocity)
+    call hold_frozen(md)
 
   end subroutine compute_forces
 
@@ -416,6 +530,8 @@ contains
           md%v(k,i) = c1*md%v(k,i) + sig*gauss_random()
        end do
     end do
+    ! the thermostat noise must not move the atoms held fixed
+    call hold_frozen(md)
     ! A: half drift
     md%r = md%r + 0.5d0*md%dt*md%v
     ! force evaluation at the new positions
@@ -447,11 +563,14 @@ contains
     end do
   end subroutine cap_velocity
 
-  !> Subtract the center-of-mass velocity so the whole system does not drift.
+  !> Subtract the center-of-mass velocity so the whole system does not
+  !> drift. Atoms held fixed pin the system already (and shifting every
+  !> velocity would move them), so a run with a mask is left alone.
   subroutine remove_com(md)
     class(mdrun), intent(inout) :: md
     integer :: i
     real*8 :: pcom(3), mtot
+    if (allocated(md%frozen)) return
     pcom = 0d0
     mtot = 0d0
     do i = 1, md%nat
@@ -488,7 +607,6 @@ contains
     if (capped) md%v = md%v * (md_drmax/dmax)
     md%r = md%r + md%fire_dt*md%v
     call compute_forces(md,c)
-    call hold_frozen(md)
     do i = 1, md%nat
        md%v(:,i) = md%v(:,i) + 0.5d0*md%fire_dt*md%f(:,i)/md%mass(i)
     end do
@@ -514,7 +632,7 @@ contains
     end if
 
     ! remove any net drift
-    if (.not.allocated(md%frozen)) call remove_com(md)
+    call remove_com(md)
 
   end subroutine step_fire
 

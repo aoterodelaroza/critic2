@@ -440,6 +440,7 @@ contains
        sysc(idx)%tselected = .false.
        sysc(idx)%md_backend = -1
        sysc(idx)%md_eamfile = ""
+       sysc(idx)%md_nstep_frame = 1
        if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
        if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
        if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
@@ -1121,7 +1122,8 @@ contains
     class(sysconf), intent(inout) :: sysc
     character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: id
+    integer :: id, k
+    real(c_double) :: tstep
 
     errmsg = ""
 
@@ -1151,7 +1153,17 @@ contains
        return
     end if
 
-    call sysc%md%step(sys(id)%c)
+    ! several steps per frame let a slow process (a demo melting a metal)
+    ! run at a useful pace; the display only needs the last one. The batch
+    ! is also given a wall-time budget: on a large system a high step count
+    ! would otherwise freeze the interface for seconds at a time, with no
+    ! way to lower it again
+    tstep = glfwGetTime()
+    do k = 1, max(sysc%md_nstep_frame,1)
+       call sysc%md%step(sys(id)%c)
+       if (.not.sysc%md%ready) exit
+       if (glfwGetTime() - tstep > md_frame_budget) exit
+    end do
     sysc%sc%nextbuildlists_fixcam = .true.
     ! nocapture: per-frame snapshots would clobber the pre-run undo state;
     ! md_stop posts one capturing event at the end of the run. keepsel: a

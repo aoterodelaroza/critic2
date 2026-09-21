@@ -73,6 +73,7 @@ module dynamics
      procedure :: rebase => md_rebase
      procedure :: fail_message => md_fail_message
      procedure :: pressure => md_pressure
+     procedure :: local_order => md_local_order
      procedure :: maxforce => md_maxforce
      procedure :: converged => md_converged
      procedure :: free => md_free
@@ -143,6 +144,15 @@ module dynamics
        integer, intent(inout) :: nseed
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine bulk_md_seeds
+     module subroutine md_local_order(md,c,rcut,order,molten,errmsg)
+       use crystalmod, only: crystal
+       class(mdrun), intent(in) :: md
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: rcut
+       real*8, allocatable, intent(out) :: order(:)
+       real*8, intent(out) :: molten
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine md_local_order
      module function md_pressure(md,c,ok) result(p)
        use crystalmod, only: crystal
        class(mdrun), intent(in) :: md

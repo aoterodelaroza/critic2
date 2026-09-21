@@ -845,7 +845,7 @@ contains
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_water_cluster, wintype_exportimage,&
+       wintype_about, wintype_geometry, wintype_water_cluster, wintype_melting, wintype_exportimage,&
        wintype_saveas, wintype_save_multiple, paste_clipboard_fragment, view_target_window
     use utils, only: iw_beginmenu, igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
@@ -1051,6 +1051,10 @@ contains
              if (iw_menuitem("Water cluster")) &
                 idum = stack_create_window(wintype_water_cluster,.true.,idparent=iwin_view,orraise=-1)
              call iw_tooltip("Interactive game: relax a cluster of water molecules with the TIP4P model",ttshown)
+             if (iw_menuitem("Metal melting")) &
+                idum = stack_create_window(wintype_melting,.true.,idparent=iwin_view,orraise=-1)
+             call iw_tooltip("Interactive demonstration: melt and refreeze a metal slab or nanoparticle &
+                &with an embedded-atom potential",ttshown)
              call igEndMenu()
           end if
 

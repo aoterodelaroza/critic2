@@ -2040,39 +2040,26 @@ contains
 
   end subroutine update_view_matrix
 
-  !> Align the view with a given scene axis. a,b,c = 1,2,3 and x,y,z =
-  !> -1,-2,-3.
-  module subroutine align_view_axis(s,iaxis)
-    use systems, only: sys
+  !> Point the camera along axis iaxis (1, 2, 3 = crystallographic a, b,
+  !> c; -1, -2, -3 = Cartesian x, y, z), looking at the scene from the
+  !> positive side. If iup is given (same encoding), the camera is then
+  !> rolled so that axis points up on the screen.
+  module subroutine align_view_axis(s,iaxis,iup)
     use tools_math, only: cross
-    use utils, only: rotate, translate
+    use utils, only: rotate, translate, mult
     class(scene), intent(inout), target :: s
     integer, intent(in) :: iaxis
+    integer, intent(in), optional :: iup
 
-    real*8 :: xaxis(3), oaxis(3), raxis(3)
-    real(c_float) :: raxis_c(3), angle
+    real*8 :: xaxis(3), oaxis(3), raxis(3), uaxis(3)
+    real(c_float) :: raxis_c(3), angle, u(3)
 
     ! alignment axis
-    if (iaxis == 1) then
-       xaxis = sys(s%id)%c%m_x2c(:,1)
-    elseif (iaxis == 2) then
-       xaxis = sys(s%id)%c%m_x2c(:,2)
-    elseif (iaxis == 3) then
-       xaxis = sys(s%id)%c%m_x2c(:,3)
-    elseif (iaxis == -1) then
-       xaxis = (/1d0,0d0,0d0/)
-    elseif (iaxis == -2) then
-       xaxis = (/0d0,1d0,0d0/)
-    elseif (iaxis == -3) then
-       xaxis = (/0d0,0d0,1d0/)
-    else
-       return
-    end if
-    xaxis = xaxis / norm2(xaxis)
+    if (.not.axis_of(iaxis,xaxis)) return
 
     oaxis = (/0d0,0d0,1d0/)
     raxis = cross(oaxis,xaxis)
-    angle = real(asin(norm2(raxis)),c_float)
+    angle = real(atan2(norm2(raxis),dot_product(oaxis,xaxis)),c_float)
 
     ! reset the camera position
     call s%reset()
@@ -2086,6 +2073,36 @@ contains
        call translate(s%world,-s%scenecenter)
     end if
 
+    ! roll about the view axis until the up axis points up on the screen
+    if (present(iup)) then
+       if (axis_of(iup,uaxis)) then
+          call mult(u,s%world,real(uaxis,c_float),notrans=.true.)
+          if (u(1)**2 + u(2)**2 > 1e-10_c_float) &
+             call s%cam_rotate((/0._c_float,0._c_float,1._c_float/),atan2(u(1),u(2)))
+       end if
+    end if
+
+  contains
+    !> The unit vector of axis id, in the encoding above. False if id is not an axis.
+    function axis_of(id,ax) result(ok)
+      use systems, only: sys
+      integer, intent(in) :: id
+      real*8, intent(out) :: ax(3)
+      logical :: ok
+
+      ok = .true.
+      if (id >= 1 .and. id <= 3) then
+         ax = sys(s%id)%c%m_x2c(:,id)
+      elseif (id >= -3 .and. id <= -1) then
+         ax = 0d0
+         ax(-id) = 1d0
+      else
+         ok = .false.
+         return
+      end if
+      ax = ax / norm2(ax)
+
+    end function axis_of
   end subroutine align_view_axis
 
   !> Add atom idx to the measure selection set. If idx(1) = 0,

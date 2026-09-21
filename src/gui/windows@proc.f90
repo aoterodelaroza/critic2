@@ -360,6 +360,7 @@ contains
              if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_load_field.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
@@ -763,6 +764,11 @@ contains
        ! per-participant state: never inherit the previous player's name
        ! from a recycled window slot
        w%wc_name = ""
+    elseif (type == wintype_melting) then
+       ! metal melting demonstration window
+       if (.not.present(idparent)) &
+          call ferror('window_init','melting requires idparent',faterr)
+       w%isys = 0
     elseif (type == wintype_builder) then
        ! builder window, tied to the parent view
        if (.not.present(idparent)) &
@@ -880,14 +886,10 @@ contains
                    'sampling run: '//trim(errmsg),warning)
              end if
           end if
-       elseif (w%type == wintype_water_cluster) then
-          ! the demo owns its generated cluster; remove it on close so it does not linger
-          isysd = w%isys
-          if (ok_system(isysd,sys_init)) then
-             sysc(isysd)%md_run = .false.
-             if (sysc(isysd)%md%ready) call sysc(isysd)%md%free()
-             call remove_system(isysd)
-          end if
+       elseif (w%type == wintype_water_cluster .or. w%type == wintype_melting) then
+          ! the demos own the system they generate; remove it on close so it
+          ! does not linger (remove_system stops and frees the run)
+          if (ok_system(w%isys,sys_init)) call remove_system(w%isys)
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
           iv = w%anchor_view()
@@ -984,6 +986,7 @@ contains
     w%mo_cache = mo_cache_state()
     w%mo_diag = mo_diagram_state()
     w%vd = voids_state() ! the sampled grid and its labels, one per point of it
+    w%mt = melting_state() ! the per-atom order and the history of the run
 
     ! the side-pane callback data lives on the heap (see the type
     ! declaration); the dialog that was given its address is destroyed
@@ -1397,6 +1400,8 @@ contains
           call init_window("Dynamics",55)
        elseif (w%type == wintype_water_cluster) then
           call init_window("Water Cluster Demonstration",55,30)
+       elseif (w%type == wintype_melting) then
+          call init_window("Metal Melting Demonstration",58,36)
        elseif (w%type == wintype_geometry) then
           call init_window("View/Edit Geometry",70,30)
        elseif (w%type == wintype_preferences) then
@@ -1525,6 +1530,8 @@ contains
                 call w%draw_dynamics()
              elseif (w%type == wintype_water_cluster) then
                 call w%draw_water_cluster()
+             elseif (w%type == wintype_melting) then
+                call w%draw_melting()
              elseif (w%type == wintype_geometry) then
                 call w%draw_geometry()
              elseif (w%type == wintype_preferences) then

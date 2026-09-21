@@ -4592,8 +4592,10 @@ contains
 
     ucini = 0d0
     ucend = 0d0
+    ! no wrap for molecules, or while an interactive run exists (paused
+    ! or not): its atoms are drawn where they are
     dovac = (c%vaclength > iperiod_vacthr)
-    if (c%ismolecule .or. sysc(isys)%md_run) dovac = .false.
+    if (c%ismolecule .or. sysc(isys)%md%ready) dovac = .false.
     if (any(dovac)) then
        ucini = c%vactop - 1d0 - vacextension / c%aa
        ucend = c%vacbot + vacextension / c%aa

@@ -31,6 +31,11 @@ module systems
 
   ! threads in execution
   integer, parameter, public :: nthread = 1
+
+  ! Wall time (seconds) a batch of interactive-dynamics steps may take in
+  ! one frame before the rest of the batch is dropped, so that the
+  ! interface stays responsive whatever the step count and the system size.
+  real*8, parameter, public :: md_frame_budget = 0.1d0
   type(c_ptr), target, allocatable, public :: thread(:)
   type(thread_info), target, allocatable, public :: thread_ti(:)
 
@@ -93,6 +98,7 @@ module systems
      logical :: md_run = .false. ! whether the MD/relaxation loop advances this system
      integer :: md_backend = -1 ! requested MD energy backend (-1 = resolve with ff_backend_default on first use)
      character(len=:), allocatable :: md_eamfile ! requested EAM potential file (full path); empty = the catalogue default
+     integer :: md_nstep_frame = 1 ! MD steps taken per rendered frame
      real*8 :: md_time = 0d0 ! time of the last MD init/step (geometry-staleness guard)
      type(mdrun) :: md ! MD / relaxation state
      ! bonding

@@ -35,7 +35,7 @@ set(SOURCES
   windows@extract.f90
   windows@rattle.f90 windows@voids.f90 windows@display.f90
   windows@vibrations.f90 windows@mo.f90 windows@dynamics.f90 windows@editrep.f90 windows@about.f90
-  windows@builder.f90 windows@water_cluster.f90
+  windows@builder.f90 windows@water_cluster.f90 windows@melting.f90
   utils.f90 utils@proc.f90 utils@math.f90
   templates.f90 templates@proc.f90
   shapes.f90 shapes@proc.f90
