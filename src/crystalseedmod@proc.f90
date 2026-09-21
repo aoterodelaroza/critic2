@@ -19,30 +19,21 @@
 submodule (crystalseedmod) proc
   implicit none
 
-  ! interim record for one GULP structure (an input configuration or
-  ! a geometry found in an output file)
-  type :: gulpstruct
-     integer :: ndim = -1 !< 0 = cluster, 3 = bulk, -1 = not set
-     integer :: cellmode = 0 !< 0 = none, 1 = aa/bb (ang, degrees), 2 = rv (ang)
-     real*8 :: aa(3) = 0d0 !< cell lengths (ang)
-     real*8 :: bb(3) = 0d0 !< cell angles (degrees)
-     real*8 :: rv(3,3) = 0d0 !< lattice vectors, rv(:,i) = vector i (ang)
-     logical :: iscart = .false. !< coordinates are Cartesian (ang)
-     integer :: nat = 0 !< number of atoms (cores only)
-     real*8, allocatable :: x(:,:) !< coordinates
-     integer, allocatable :: z(:) !< atomic numbers
-     character*10, allocatable :: atname(:) !< GULP labels
-     real*8, allocatable :: occ(:) !< site occupancies
-     character(len=:), allocatable :: spg !< space group (HM symbol or number); empty = P1
-     integer :: origin = 1 !< origin choice (1 or 2)
-     logical :: haveshift = .false. !< origin shift given
-     logical :: shiftfromout = .false. !< the shift was read from an output file echo
-     real*8 :: shift(3) = 0d0 !< origin shift (fractional)
-     character(len=:), allocatable :: name !< configuration name
-     real*8 :: energy = huge(1d0) !< energy (eV)
-     real*8 :: pressure = huge(1d0) !< pressure (GPa)
-     ! output-file bookkeeping
-     logical :: isfinal = .false. !< final (optimised) geometry
+  ! Interim record for one structure, filled by the file readers and
+  ! converted into a crystalseed by rawseed_to_seed.
+  integer, parameter :: spc_label = 1 !< species = first appearance of the (case-sensitive) label
+  integer, parameter :: spc_label_nocase = 2 !< species = first appearance of the label, case-insensitive
+  integer, parameter :: spc_z = 3 !< species = first appearance of the atomic number
+  integer, parameter :: spc_zsorted = 4 !< species = atomic numbers present, in increasing Z, named by nameguess
+  integer, parameter :: spc_given = 5 !< species table and is(:) given in the record (z(:) unused)
+  integer, parameter :: lunit_bohr = 0 !< lengths (cell, Cartesian coordinates) in bohr
+  integer, parameter :: lunit_ang = 1 !< lengths in angstrom
+  integer, parameter :: sym_none = 0 !< no symmetry information
+  integer, parameter :: sym_spg = 1 !< symmetry from the GULP space group string (spg, origin, shift)
+  integer, parameter :: sym_ops = 2 !< symmetry from explicit operations (neqv, ncv, rotm, cen)
+
+  ! bookkeeping for geometries read from GULP output files
+  type :: gulpout_info
      logical :: centred = .false. !< centred conventional cell (full cell parameters given)
      real*8 :: pappl = huge(1d0) !< applied pressure (GPa)
      real*8 :: dede(3) = 0d0 !< strain derivatives dE/de1..3 (eV)
@@ -51,7 +42,55 @@ submodule (crystalseedmod) proc
      real*8 :: stress(3) = 0d0 !< diagonal stress (GPa)
      logical :: havestress = .false.
      logical :: havefinalcell = .false.
-  end type gulpstruct
+  end type gulpout_info
+
+  type :: rawseed
+     ! atoms
+     integer :: nat = 0 !< number of atoms
+     real*8, allocatable :: x(:,:) !< coordinates (fractional, or Cartesian if iscart)
+     integer, allocatable :: z(:) !< atomic numbers (not used with spc_given)
+     character*10, allocatable :: atname(:) !< atom labels
+     real*8, allocatable :: occ(:) !< site occupancies (optional)
+     character*10, allocatable :: spcname(:) !< per-atom species key/name when different from the label (optional)
+     logical, allocatable :: isfrac(:) !< per-atom fractional flag overriding iscart (optional)
+     ! species
+     integer :: spcmode = spc_label !< species policy (spc_*)
+     integer :: nspc = 0 !< number of species (spc_given)
+     type(species), allocatable :: spc(:) !< species table (spc_given)
+     integer, allocatable :: is(:) !< species index per atom (spc_given)
+     ! cell
+     integer :: ndim = -1 !< 0 = molecule, 3 = periodic (GULP dimensionality; the molecule switch)
+     integer :: cellmode = 0 !< 0 = none, 1 = aa/bb, 2 = rv
+     real*8 :: aa(3) = 0d0 !< cell lengths
+     real*8 :: bb(3) = 0d0 !< cell angles (degrees)
+     real*8 :: rv(3,3) = 0d0 !< lattice vectors, rv(:,i) = vector i
+     integer :: lunit = lunit_ang !< unit of lengths (lunit_*)
+     logical :: iscart = .false. !< coordinates are Cartesian
+     logical :: wrap = .false. !< wrap fractional coordinates into [0,1)
+     ! molecular fields
+     logical :: ismol = .false. !< a molecule regardless of the mol argument
+     real*8 :: border = 0d0 !< molecular cell border (bohr)
+     logical :: cubic = .false. !< cubic molecular cell
+     logical :: havex0 = .false. !< molecular cell origin given (at zero)
+     ! symmetry
+     integer :: symmode = sym_none !< symmetry policy (sym_*)
+     character(len=:), allocatable :: spg !< space group (HM symbol or number); empty = P1
+     integer :: origin = 1 !< origin choice (1 or 2)
+     logical :: haveshift = .false. !< origin shift given
+     logical :: shiftfromout = .false. !< the shift was read from an output file echo
+     real*8 :: shift(3) = 0d0 !< origin shift (fractional)
+     integer :: neqv = 0 !< number of symmetry operations (sym_ops)
+     integer :: ncv = 0 !< number of centering vectors (sym_ops)
+     real*8, allocatable :: rotm(:,:,:) !< symmetry operations (sym_ops)
+     real*8, allocatable :: cen(:,:) !< centering vectors (sym_ops)
+     ! properties and naming
+     real*8 :: energy = huge(1d0) !< energy (Hartree)
+     real*8 :: pressure = huge(1d0) !< pressure (GPa)
+     character(len=:), allocatable :: name !< if allocated, the seed name is file|name
+     character(len=:), allocatable :: tag !< if allocated, replaces the energy in the trajectory names
+     logical :: isfinal = .false. !< final (optimised) geometry of a trajectory
+     type(gulpout_info) :: gulp !< GULP output bookkeeping
+  end type rawseed
 
   integer, parameter :: mxtok = 60 !< maximum number of tokens per line
 
@@ -67,6 +106,11 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_gulpin(nseed,seed,file,mol,istruct,errmsg,ti)
   ! subroutine read_all_gulpout(nseed,seed,file,mol,istruct,errmsg,ti)
   ! subroutine gulp_detect_ismol(file,isformat,ismol,ti)
+  ! subroutine rawseed_to_seed(rec,seed,mol,file,isformat,errmsg)
+  ! subroutine gulp_spg_ops(rec,neqv,ncv,rotm,cen,found,errmsg)
+  ! subroutine rawseed_select(recs,nrec,istruct,mol,file,isformat,nseed,seed,errmsg)
+  ! subroutine rawseed_add_atom(rec,z,x,atname,occ,spcname,isfrac)
+  ! subroutine rawseed_grow(recs,n)
   ! subroutine read_zmat_geometry(file,nat,x,z,name,errmsg,ti)
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
@@ -1727,11 +1771,9 @@ contains
 
   !> Read the structure from a magres file, for structural and NMR info.
   module subroutine read_magres(seed,file,mol,errmsg,ti)
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
        isreal, zatguess, nameguess, getword, equalsub
-    use types, only: realloc
-    use param, only: isformat_r_magres, maxzat, bohrtoa
+    use param, only: isformat_r_magres
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1739,16 +1781,13 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     logical :: ok, havelat, haveatoms
-    integer :: lu, lp, iz, i, ier
+    integer :: lu, lp, iz
     character(len=:), allocatable :: line, word, word2
-    integer, allocatable :: usedz(:)
-    real*8 :: rmat(3,3)
+    real*8 :: x(3)
+    type(rawseed) :: rec
 
     ! file and seed name
     call seed%end()
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_magres
     errmsg = ""
 
     lu = fopen_read(file,ti=ti)
@@ -1771,14 +1810,14 @@ contains
        goto 999
     end if
 
-    ! initialize
-    allocate(seed%x(3,10),seed%is(10),seed%atname(10),usedz(maxzat))
-    usedz = 0
-
+    ! initialize (angstrom, Cartesian coordinates)
+    rec%spcmode = spc_z
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_ang
+    rec%iscart = .true.
     havelat = .false.
     haveatoms = .false.
-    seed%nat = 0
-    seed%nspc = 0
     do while (getline_raw(lu,line,.false.))
        lp = 1
        word = lgetword(line,lp)
@@ -1792,29 +1831,21 @@ contains
              goto 999
           end if
        elseif (equal(word,"lattice")) then
-          ok = isreal(seed%m_x2c(1,1),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(2,1),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(3,1),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(1,2),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(2,2),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(3,2),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(1,3),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(2,3),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(3,3),line,lp)
+          ok = isreal(rec%rv(1,1),line,lp)
+          ok = ok .and. isreal(rec%rv(2,1),line,lp)
+          ok = ok .and. isreal(rec%rv(3,1),line,lp)
+          ok = ok .and. isreal(rec%rv(1,2),line,lp)
+          ok = ok .and. isreal(rec%rv(2,2),line,lp)
+          ok = ok .and. isreal(rec%rv(3,2),line,lp)
+          ok = ok .and. isreal(rec%rv(1,3),line,lp)
+          ok = ok .and. isreal(rec%rv(2,3),line,lp)
+          ok = ok .and. isreal(rec%rv(3,3),line,lp)
           if (.not.ok) then
              errmsg = "error reading lattice vectors"
              goto 999
           end if
           havelat = .true.
        elseif (equal(word,"atom")) then
-          ! this is a new atom
-          seed%nat = seed%nat + 1
-          if (seed%nat > size(seed%is,1)) then
-             call realloc(seed%x,3,2*seed%nat)
-             call realloc(seed%is,2*seed%nat)
-             call realloc(seed%atname,2*seed%nat)
-          end if
-
           ! get the atomic symbol
           word = getword(line,lp)
           word2 = lgetword(line,lp) ! the second symbol
@@ -1824,23 +1855,16 @@ contains
              errmsg = "unknown atomic symbol: " // word
              goto 999
           end if
-          seed%atname(seed%nat) = word
-
-          ! assign the species
-          if (usedz(iz) == 0) then
-             seed%nspc = seed%nspc + 1
-             usedz(iz) = seed%nspc
-          end if
-          seed%is(seed%nat) = usedz(iz)
 
           ! read the coordinates
-          ok = isreal(seed%x(1,seed%nat),line,lp)
-          ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
-          ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+          ok = isreal(x(1),line,lp)
+          ok = ok .and. isreal(x(2),line,lp)
+          ok = ok .and. isreal(x(3),line,lp)
           if (.not.ok) then
              errmsg = "error reading atomic coordinates"
              goto 999
           end if
+          call rawseed_add_atom(rec,iz,x,word,spcname=nameguess(iz,.true.))
 
           ! finished
           haveatoms = .true.
@@ -1857,57 +1881,16 @@ contains
        goto 999
     end if
 
-    ! assign chemical species
-    allocate(seed%spc(seed%nspc))
-    do i = 1, maxzat
-       if (usedz(i) > 0) then
-          seed%spc(usedz(i))%name = nameguess(i,.true.)
-          seed%spc(usedz(i))%z = i
-       end if
-    end do
-
-    ! lattice vectors and convert to fractional coordinates
-    seed%useabr = 2
-    rmat = seed%m_x2c
-    call matinv(rmat,3,ier)
-    if (ier /= 0) then
-       errmsg = "Error inverting matrix"
-       goto 999
-    end if
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(rmat,seed%x(:,i))
-    end do
-    seed%m_x2c = seed%m_x2c / bohrtoa
-
-    ! wrap up
-    call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%checkrepeats = .false.
-    seed%findsym = -1
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    return
-
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_magres,errmsg)
 999 continue
     call fclose(lu)
-    seed%isused = .false.
 
   end subroutine read_magres
 
   !> Read the structure from an alamode input file.
   module subroutine read_alamode(seed,file,mol,errmsg,ti)
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
-       isreal, zatguess, nameguess, getword, isinteger, getline, equalsub
-    use types, only: realloc
+       isreal, zatguess, getword, getline, equalsub
     use param, only: isformat_r_alamode
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -1920,12 +1903,10 @@ contains
     integer :: lu, lp, i
     character(len=:), allocatable :: line, word, atomstr
     real*8 :: unit
+    type(rawseed) :: rec
 
     ! file and seed name
     call seed%end()
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_alamode
     errmsg = ""
 
     lu = fopen_read(file,ti=ti)
@@ -1997,8 +1978,8 @@ contains
     end if
 
     ! allocate
-    seed%nat = nat
-    allocate(seed%x(3,nat),seed%is(nat))
+    rec%nat = nat
+    allocate(rec%x(3,nat),rec%is(nat))
 
     ! rewind and re-read
     rewind(lu)
@@ -2012,38 +1993,28 @@ contains
           ok = ok .and. isreal(unit,line)
           if (.not.ok) goto 999
 
-          lp = 1
-          ok = getline(lu,line)
-          ok = ok .and. isreal(seed%m_x2c(1,1),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(2,1),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(3,1),line,lp)
-          if (.not.ok) goto 999
-
-          lp = 1
-          ok = getline(lu,line)
-          ok = ok .and. isreal(seed%m_x2c(1,2),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(2,2),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(3,2),line,lp)
-          if (.not.ok) goto 999
-
-          lp = 1
-          ok = getline(lu,line)
-          ok = ok .and. isreal(seed%m_x2c(1,3),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(2,3),line,lp)
-          ok = ok .and. isreal(seed%m_x2c(3,3),line,lp)
-          if (.not.ok) goto 999
+          do i = 1, 3
+             lp = 1
+             ok = getline(lu,line)
+             ok = ok .and. isreal(rec%rv(1,i),line,lp)
+             ok = ok .and. isreal(rec%rv(2,i),line,lp)
+             ok = ok .and. isreal(rec%rv(3,i),line,lp)
+             if (.not.ok) goto 999
+          end do
           havelat = .true.
 
-          ! fill the cell metrics
-          seed%m_x2c = seed%m_x2c * unit
-          seed%useabr = 2
+          ! fill the cell metrics (atomic units)
+          rec%rv = rec%rv * unit
+          rec%ndim = 3
+          rec%cellmode = 2
+          rec%lunit = lunit_bohr
        end if
        if (equalsub(line,1,9,"&position")) then
           do i = 1, nat
              lp = 1
              ok = getline(lu,line)
              if (.not.ok) goto 999
-             read(line,*,err=999,end=999) seed%is(i), seed%x(:,i)
+             read(line,*,err=999,end=999) rec%is(i), rec%x(:,i)
           end do
           haveatoms = .true.
        end if
@@ -2058,46 +2029,23 @@ contains
     end if
 
     ! assign species
-    seed%nspc = nkd
-    allocate(seed%spc(nkd))
+    rec%spcmode = spc_given
+    rec%nspc = nkd
+    allocate(rec%spc(nkd))
     lp = 1
     do i = 1, nkd
        word = getword(atomstr,lp)
-       seed%spc(i)%name = word
-       seed%spc(i)%z = zatguess(word)
-       if (seed%spc(i)%z < 0) then
+       rec%spc(i)%name = word
+       rec%spc(i)%z = zatguess(word)
+       if (rec%spc(i)%z < 0) then
           errmsg = "unknown atom: " // word
           goto 999
        end if
     end do
 
-    ! assign atom names
-    allocate(seed%atname(nat))
-    do i = 1, nat
-       seed%atname(i) = seed%spc(seed%is(i))%name
-    end do
-
-    ! wrap up
-    errmsg = ""
-    call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%checkrepeats = .false.
-    seed%findsym = -1
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    return
-
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_alamode,errmsg)
 999 continue
     call fclose(lu)
-    seed%isused = .false.
 
   end subroutine read_alamode
 
@@ -2556,7 +2504,6 @@ contains
 
   !> Read the structure from an xband sys input file.
   module subroutine read_xband(seed,file,mol,errmsg,ti)
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, isreal, getword
     use param, only: isformat_r_xband
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
@@ -2565,17 +2512,15 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lp, lu, i, iaux, id, idum, ier
-    real*8 :: a, rdum, c2x(3,3)
+    integer :: lp, lu, i, iaux, id, idum
+    real*8 :: a, rdum
     logical :: hada, hadx2c, hadnat, hadcoords, hadnspc, hadspc
     logical :: ok
     character(len=:), allocatable :: line, word, word2, word3, word4
+    type(rawseed) :: rec
 
     ! file and seed name
     call seed%end()
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_xband
     errmsg = "Error reading file: " // trim(file)
 
     ! initialize
@@ -2586,7 +2531,6 @@ contains
     hadcoords = .false.
     hadnspc = .false.
     hadspc = .false.
-    seed%useabr = 2
 
     ! open the file
     lu = fopen_read(file,ti=ti)
@@ -2617,32 +2561,32 @@ contains
           cycle
        elseif (equal(word,"primitive")) then
           do i = 1, 3
-             read (lu,*,end=999,err=999) seed%m_x2c(:,i)
+             read (lu,*,end=999,err=999) rec%rv(:,i)
           end do
           hadx2c = .true.
           cycle
        elseif (equal(word,"number").and.equal(word4,"NQ")) then
-          read (lu,*,end=999,err=999) seed%nat
+          read (lu,*,end=999,err=999) rec%nat
           hadnat = .true.
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+          allocate(rec%x(3,rec%nat),rec%is(rec%nat))
           cycle
        elseif (equal(word,"IQ")) then
           if (.not.hadnat) goto 999
-          do i = 1, seed%nat
+          do i = 1, rec%nat
              ok = getline_raw(lu,line,.false.)
              if (.not.ok) goto 999
-             read (line,*,end=999,err=999) iaux, iaux, seed%x(:,i), rdum, idum, idum, seed%is(i)
+             read (line,*,end=999,err=999) iaux, iaux, rec%x(:,i), rdum, idum, idum, rec%is(i)
           end do
           hadcoords = .true.
           cycle
        elseif (equal(word,"number").and.equal(word3,"atom")) then
-          read (lu,*,end=999,err=999) seed%nspc
-          allocate(seed%spc(seed%nspc))
+          read (lu,*,end=999,err=999) rec%nspc
+          allocate(rec%spc(rec%nspc))
           hadnspc = .true.
           cycle
        elseif (equal(word,"IT")) then
           if (.not.hadnspc) goto 999
-          do i = 1, seed%nspc
+          do i = 1, rec%nspc
              ok = getline_raw(lu,line,.false.)
              if (.not.ok) goto 999
 
@@ -2650,8 +2594,8 @@ contains
              word = getword(line,lp)
              ok = isinteger(id,word)
              word = getword(line,lp)
-             ok = ok .and. isinteger(seed%spc(id)%z,word)
-             seed%spc(id)%name = getword(line,lp)
+             ok = ok .and. isinteger(rec%spc(id)%z,word)
+             rec%spc(id)%name = getword(line,lp)
              if (.not.ok) goto 999
           end do
           hadspc = .true.
@@ -2661,45 +2605,18 @@ contains
     if (.not.hada.or..not.hadx2c.or..not.hadnat.or..not.hadcoords.or.&
        .not.hadnspc.or..not.hadspc) goto 999
 
-    ! multiply by a and convert to crystallographic
-    seed%m_x2c = seed%m_x2c * a
-    seed%x = seed%x * a
+    ! multiply by a (Cartesian coordinates, atomic units)
+    rec%rv = rec%rv * a
+    rec%x = rec%x * a
+    rec%spcmode = spc_given
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
 
-    ! convert to fractional coordinates
-    c2x = seed%m_x2c
-    call matinv(c2x,3,ier)
-    if (ier /= 0) goto 999
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(c2x,seed%x(:,i))
-    end do
-
-    ! assign atom names
-    do i = 1, seed%nat
-       seed%atname(i) = seed%spc(seed%is(i))%name
-    end do
-
-    ! wrap up
-    errmsg = ""
-    call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%checkrepeats = .false.
-    seed%findsym = -1
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-
-    return
-
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_xband,errmsg)
 999 continue
     call fclose(lu)
-    seed%isused = .false.
 
   end subroutine read_xband
 
@@ -3551,7 +3468,6 @@ contains
   module subroutine read_abinit(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose
     use abinit_private, only: hdr_type, hdr_io
-    use types, only: realloc
     use param, only: isformat_r_abinit
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -3562,7 +3478,7 @@ contains
     integer :: lu, fform0
     type(hdr_type) :: hdr
     integer :: i, iz
-    real*8 :: rmat(3,3)
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = ""
@@ -3576,50 +3492,36 @@ contains
     call hdr_io(fform0,hdr,1,lu,errmsg)
     if (len_trim(errmsg) > 0) goto 999
 
-    ! cell parameters
-    rmat = hdr%rprimd(:,:)
-    seed%m_x2c = rmat
-    seed%useabr = 2
+    ! cell parameters (bohr)
+    rec%rv = hdr%rprimd(:,:)
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_bohr
 
     ! types
-    seed%nspc = hdr%ntypat
-    allocate(seed%spc(seed%nspc))
-    do i = 1, seed%nspc
+    rec%spcmode = spc_given
+    rec%nspc = hdr%ntypat
+    allocate(rec%spc(rec%nspc))
+    do i = 1, rec%nspc
        iz = nint(hdr%znucltypat(i))
-       seed%spc(i)%z = iz
-       seed%spc(i)%name = nameguess(iz,.true.)
+       rec%spc(i)%z = iz
+       rec%spc(i)%name = nameguess(iz,.true.)
     end do
 
     ! atoms
-    seed%nat = hdr%natom
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-    do i = 1, seed%nat
-       seed%x(:,i) = hdr%xred(:,i)
-       seed%is(i) = hdr%typat(i)
-       seed%atname(i) = seed%spc(seed%is(i))%name
+    rec%nat = hdr%natom
+    allocate(rec%x(3,rec%nat),rec%is(rec%nat))
+    do i = 1, rec%nat
+       rec%x(:,i) = hdr%xred(:,i)
+       rec%is(i) = hdr%typat(i)
     end do
-
-    errmsg = ""
-999 continue
-    call fclose(lu)
 
     ! abinit has symmetry in hdr%nsym/hdr%symrel, but there is no
     ! distinction between pure centering and rotation operations, and
     ! the user may not want any symmetry - let critic2 guess.
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_abinit
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_abinit,errmsg)
+999 continue
+    call fclose(lu)
 
   end subroutine read_abinit
 
@@ -3641,6 +3543,8 @@ contains
     integer :: lu, i, zat, j, lp, idx
     integer :: natoms
     logical :: ok
+    real*8 :: x(3)
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = "Error reading file: " // trim(file)
@@ -3655,10 +3559,12 @@ contains
        read(lu,*,err=999,end=999)
     end do
 
-    read(lu,'(3G18.10)',err=999,end=999) seed%m_x2c(:,1)
-    read(lu,'(3G18.10)',err=999,end=999) seed%m_x2c(:,2)
-    read(lu,'(3G18.10)',err=999,end=999) seed%m_x2c(:,3)
-    seed%useabr = 2
+    read(lu,'(3G18.10)',err=999,end=999) rec%rv(:,1)
+    read(lu,'(3G18.10)',err=999,end=999) rec%rv(:,2)
+    read(lu,'(3G18.10)',err=999,end=999) rec%rv(:,3)
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_bohr
 
     ok = getline_raw(lu,line,.false.)
     if (.not.ok) goto 999
@@ -3669,11 +3575,11 @@ contains
        goto 999
     end if
 
-    seed%nat = 0
-    allocate(seed%x(3,10),seed%is(10),seed%atname(10))
-    read(lu,'(I4)',err=999,end=999) seed%nspc
-    allocate(seed%spc(seed%nspc))
-    do i = 1, seed%nspc
+    ! species and atoms
+    rec%spcmode = spc_given
+    read(lu,'(I4)',err=999,end=999) rec%nspc
+    allocate(rec%spc(rec%nspc),rec%is(10))
+    do i = 1, rec%nspc
        ok = getline_raw(lu,line,.false.)
        if (.not.ok) goto 999
        lp = 1
@@ -3687,49 +3593,25 @@ contains
           errmsg = "Species file name must start with an atomic symbol"
           goto 999
        end if
-       seed%spc(i)%z = zat
+       rec%spc(i)%z = zat
 
        idx = index(atname,".in",.true.)
        if (idx > 1) &
           atname = trim(atname(1:idx-1))
-       seed%spc(i)%name = atname
+       rec%spc(i)%name = atname
 
        read(lu,*,err=999,end=999) natoms
        do j = 1, natoms
-          seed%nat = seed%nat + 1
-          if (seed%nat > size(seed%x,2)) then
-             call realloc(seed%x,3,2*seed%nat)
-             call realloc(seed%is,2*seed%nat)
-             call realloc(seed%atname,2*seed%nat)
-          end if
-          read(lu,*,err=999,end=999) seed%x(:,seed%nat)
-          seed%is(seed%nat) = i
-          seed%atname(seed%nat) = atname
+          read(lu,*,err=999,end=999) x
+          call rawseed_add_atom(rec,zat,x,atname)
+          if (rec%nat > size(rec%is,1)) call realloc(rec%is,2*rec%nat)
+          rec%is(rec%nat) = i
        end do
     end do
-    call realloc(seed%x,3,seed%nat)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%atname,seed%nat)
 
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_elk,errmsg)
 999 continue
     call fclose(lu)
-
-    ! symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_elk
 
   end subroutine read_elk
 
@@ -3742,8 +3624,6 @@ contains
     use param, only: isformat_r_xyz, isformat_r_wfn, isformat_r_wfx,&
        isformat_r_fchk, isformat_r_molden, isformat_r_gaussian, isformat_r_dat,&
        isformat_r_pgout, isformat_r_orca, isformat_r_gjf, isformat_r_zmat
-    use tools_io, only: equali
-    use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     integer, intent(in) :: fmt !< wfn/wfx/xyz
@@ -3754,93 +3634,69 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer, allocatable :: z(:)
-    integer :: i, j, it
+    real*8, allocatable :: x(:,:)
+    character*10, allocatable :: atname(:)
+    integer :: nat
+    type(rawseed) :: rec
 
     if (present(alsovib)) alsovib = .false.
     call seed%end()
     errmsg = ""
+    nat = 0
     if (fmt == isformat_r_xyz) then
        ! xyz
-       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_xyz_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_gjf) then
        ! xyz
-       call wfn_read_gjf_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_gjf_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_wfn) then
        ! wfn
-       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_wfn_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_wfx) then
        ! wfx
-       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_wfx_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_fchk) then
        ! fchk
-       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,alsovib=alsovib,ti=ti)
+       call wfn_read_fchk_geometry(file,nat,x,z,atname,errmsg,alsovib=alsovib,ti=ti)
     elseif (fmt == isformat_r_molden) then
        ! molden (psi4)
-       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_molden_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_gaussian) then
        ! Gaussian output file
-       call wfn_read_log_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_log_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_dat) then
        ! psi4 output file
-       call wfn_read_dat_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_dat_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_pgout) then
        ! postg output file
-       call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_pgout_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_orca) then
        ! orca output file
-       call wfn_read_orca_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call wfn_read_orca_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     elseif (fmt == isformat_r_zmat) then
-       call read_zmat_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
+       call read_zmat_geometry(file,nat,x,z,atname,errmsg,ti=ti)
     end if
-    seed%useabr = 0
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
     if (len_trim(errmsg) > 0) goto 999
-
-    seed%nspc = 0
-    allocate(seed%is(seed%nat),seed%spc(2))
-    do i = 1, seed%nat
-       it = 0
-       do j = 1, seed%nspc
-          if (equali(seed%spc(j)%name,seed%atname(i))) then
-             it = j
-             exit
-          end if
-       end do
-       if (it == 0) then
-          seed%nspc = seed%nspc + 1
-          if (seed%nspc > size(seed%spc,1)) &
-             call realloc(seed%spc,2*seed%nspc)
-          seed%spc(seed%nspc)%name = seed%atname(i)
-          seed%spc(seed%nspc)%z = z(i)
-          it = seed%nspc
-       end if
-       seed%is(i) = it
-    end do
-    if (seed%nspc == 0) then
+    if (nat == 0) then
        errmsg = "No atomic species found."
        goto 999
     end if
-    if (seed%nat == 0) then
-       errmsg = "No atoms found."
-       goto 999
-    end if
-    call realloc(seed%spc,seed%nspc)
 
-    errmsg = ""
+    ! molecule in atomic units; species by label (case-insensitive)
+    rec%spcmode = spc_label_nocase
+    rec%ndim = 0
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
+    rec%ismol = .true.
+    rec%border = rborder
+    rec%cubic = docube
+    rec%nat = nat
+    call move_alloc(x,rec%x)
+    call move_alloc(z,rec%z)
+    call move_alloc(atname,rec%atname)
+
+    call rawseed_to_seed(rec,seed,.true.,file,fmt,errmsg)
 999 continue
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = .true.
-    seed%cubic = docube
-    seed%border = rborder
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = fmt
 
   end subroutine read_mol
 
@@ -3849,30 +3705,24 @@ contains
   module subroutine read_pdb(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess, nameguess, equalsub
     use tools_math, only: matinv
-    use types, only: realloc
-    use param, only: bohrtoa, isformat_r_pdb, maxzat0
+    use param, only: bohrtoa, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: i, n, ier, ll
-    real*8, allocatable :: x(:,:)
-    integer, allocatable :: z(:)
-    character*10, allocatable :: name(:)
-    integer :: ispc(maxzat0), nspc
+    integer :: i, ier, ll, iz
     integer :: lu
     character(len=:), allocatable :: line
     logical :: readscale(3)
-    real*8 :: r(3,3), x0(3)
+    real*8 :: r(3,3), x0(3), x(3)
+    type(rawseed) :: rec
 
     ! initialize
     call seed%end()
     errmsg = ""
     readscale = .false.
-    ispc = 0
-    nspc = 0
 
     ! open the file
     lu = fopen_read(file,errstop=.false.,ti=ti)
@@ -3882,31 +3732,16 @@ contains
     end if
     errmsg = "Error reading file: " // trim(file)
 
-    n = 0
-    allocate(x(3,10),z(10),name(10))
+    rec%spcmode = spc_z
     main: do while (getline_raw(lu,line))
        ll = len(line)
        if ((equalsub(line,1,4,"ATOM") .or. equalsub(line,1,6,"HETATM")) .and. ll >= 78) then
-          n = n + 1
-          if (n > size(z,1)) then
-             call realloc(x,3,2*n)
-             call realloc(z,2*n)
-             call realloc(name,2*n)
-          end if
-
-          z(n) = zatguess(line(77:78))
-          if (z(n) <= 0 .or. z(n) > 118) then
-             n = n - 1
-             cycle
-          end if
-          if (ispc(z(n)) == 0) then
-             nspc = nspc + 1
-             ispc(z(n)) = nspc
-          end if
-          read (line(31:38),*,err=999,end=999) x(1,n)
-          read (line(39:46),*,err=999,end=999) x(2,n)
-          read (line(47:54),*,err=999,end=999) x(3,n)
-          name(n) = adjustl(line(13:16))
+          iz = zatguess(line(77:78))
+          if (iz <= 0 .or. iz > 118) cycle
+          read (line(31:38),*,err=999,end=999) x(1)
+          read (line(39:46),*,err=999,end=999) x(2)
+          read (line(47:54),*,err=999,end=999) x(3)
+          call rawseed_add_atom(rec,iz,x,adjustl(line(13:16)),spcname=nameguess(iz,.true.))
        elseif (line(1:5) == "SCALE") then
           if (line(6:6) == "1") then
              readscale(1) = .true.
@@ -3929,70 +3764,35 @@ contains
           end if
        end if
     end do main
-    if (n == 0) then
+    if (rec%nat == 0) then
        errmsg = "No atoms found."
        goto 999
     endif
 
-    ! fill the seed
-    seed%nat = n
-    seed%nspc = nspc
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(seed%nspc),seed%atname(seed%nat))
     if (.not.mol.and.all(readscale)) then
-       ! read it as a crystal
-       seed%useabr = 2
-       seed%m_x2c = r * bohrtoa
-       call matinv(seed%m_x2c,3,ier)
+       ! read it as a crystal: the SCALE matrix gives the fractional coordinates
+       rec%ndim = 3
+       rec%cellmode = 2
+       rec%lunit = lunit_bohr
+       rec%rv = r * bohrtoa
+       call matinv(rec%rv,3,ier)
        if (ier /= 0) then
           errmsg = "error inverting lattice vector matrix"
           goto 999
        end if
-
-       ! fill the atom parameters
-       do i = 1, n
-          seed%x(:,i) = matmul(r,x(:,i)) + x0
-          seed%is(i) = ispc(z(i))
-          seed%atname(i) = name(i)
+       do i = 1, rec%nat
+          rec%x(:,i) = matmul(r,rec%x(:,i)) + x0
        end do
     else
-       ! read it as a molecule
-       seed%useabr = 0
-       x = x / bohrtoa
-       do i = 1, n
-          seed%x(:,i) = x(:,i)
-          seed%is(i) = ispc(z(i))
-          seed%atname(i) = name(i)
-       end do
+       ! read it as a molecule (angstrom)
+       rec%ndim = 0
+       rec%lunit = lunit_ang
+       rec%iscart = .true.
     end if
-    deallocate(x,z,name)
 
-    ! fill the species
-    do i = 1, maxzat0
-       if (ispc(i) > 0) then
-          seed%spc(ispc(i))%name = nameguess(i,.true.)
-          seed%spc(ispc(i))%z = i
-       end if
-    end do
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_pdb,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_pdb
 
   end subroutine read_pdb
 
@@ -4336,22 +4136,20 @@ contains
   module subroutine read_fploout(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, nameguess, fclose, equalsub
-    use tools_math, only: matinv
     use param, only: maxzat, isformat_r_fploout
-    use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, i, ll, ier
+    integer :: lu, i, ll, nat
     character(len=:), allocatable :: line
     integer :: iz, lp, idum1, idum2, idum3
     logical :: ok, iscell, isatoms
     character*(10) :: ats
-    integer :: usez(maxzat)
-    real*8 :: r(3,3)
+    real*8 :: r(3,3), x(3)
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = ""
@@ -4364,8 +4162,6 @@ contains
     errmsg = "Error reading file: " // trim(file)
     iscell = .false.
     isatoms = .false.
-    seed%nat = 0
-    seed%nspc = 0
     ! rewind and read the correct structure
     do while (getline_raw(lu,line))
        ll = len(line)
@@ -4389,7 +4185,7 @@ contains
           ! number of sites
           ok = getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
-          ok = ok .and. isinteger(seed%nat,line(18:))
+          ok = ok .and. isinteger(nat,line(18:))
           do i = 1, 3
              ok = ok .and. getline_raw(lu,line)
           end do
@@ -4398,45 +4194,22 @@ contains
              goto 999
           end if
 
-          ! sites
-          seed%nspc = 0
-          if (allocated(seed%x)) deallocate(seed%x)
-          if (allocated(seed%is)) deallocate(seed%is)
-          if (allocated(seed%atname)) deallocate(seed%atname)
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-          usez = 0
-          do i = 1, seed%nat
+          ! sites (the last block wins)
+          rec = rawseed()
+          rec%spcmode = spc_z
+          do i = 1, nat
              ok = getline_raw(lu,line)
-             read (line,*) idum1, ats, idum2, idum3, seed%x(:,i)
+             read (line,*) idum1, ats, idum2, idum3, x
              iz = zatguess(ats)
              if (iz < 1 .or. iz > maxzat) then
                 errmsg = "Unknown atomic species: " // ats // "."
                 goto 999
              end if
-
-             if (usez(iz) == 0) then
-                seed%nspc = seed%nspc + 1
-                usez(iz) = seed%nspc
-                seed%is(i) = seed%nspc
-             else
-                seed%is(i) = usez(iz)
-             end if
-             seed%atname(i) = ats
-          end do
-
-          ! species
-          if (allocated(seed%spc)) deallocate(seed%spc)
-          allocate(seed%spc(seed%nspc))
-          do iz = 1, maxzat
-             if (usez(iz) > 0) then
-                i = usez(iz)
-                seed%spc(i)%name = nameguess(iz,.true.)
-                seed%spc(i)%z = iz
-             end if
+             call rawseed_add_atom(rec,iz,x,ats,spcname=nameguess(iz,.true.))
           end do
 
           ! all done
-          isatoms = (seed%nat > 0) .and. (seed%nspc > 0)
+          isatoms = (rec%nat > 0)
        end if
     end do
     if (.not.iscell) then
@@ -4448,50 +4221,25 @@ contains
        goto 999
     end if
 
-    ! cell
-    seed%m_x2c = transpose(r)
-    r = seed%m_x2c
-    call matinv(r,3,ier)
-    if (ier /= 0) then
-       errmsg = "Error inverting lattice parameter matrix"
-       goto 999
-    end if
-    seed%useabr = 2
+    ! cell (atomic units, Cartesian coordinates wrapped into the cell)
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%rv = transpose(r)
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
+    rec%wrap = .true.
 
-    ! atoms
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(r,seed%x(:,i))
-       seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
-    end do
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_fploout,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_fploout
 
   end subroutine read_fploout
 
   !> Read the structure from a siesta STRUCT_IN/OUT input
   module subroutine read_siesta(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose
-    use tools_math, only: matinv
     use types, only: realloc
-    use param, only: bohrtoa, isformat_r_siesta
+    use param, only: isformat_r_siesta
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -4501,6 +4249,7 @@ contains
     integer :: lu
     real*8 :: r(3,3)
     integer :: i, idum
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = ""
@@ -4516,46 +4265,31 @@ contains
     do i = 1, 3
        read (lu,*,err=999,end=999) r(i,:)
     end do
-    r = r / bohrtoa
 
     ! the atoms
-    seed%nspc = 0
-    read (lu,*,err=999,end=999) seed%nat
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(2),seed%atname(seed%nat))
-    do i = 1, seed%nat
-       read (lu,*,err=999,end=999) seed%is(i), idum, seed%x(:,i)
-       if (idum > size(seed%spc,1)) &
-          call realloc(seed%spc,2*idum)
-       seed%nspc = max(seed%nspc,seed%is(i))
-       seed%spc(seed%is(i))%z = idum
-       seed%spc(seed%is(i))%name = nameguess(idum,.true.)
-       seed%atname(i) = seed%spc(seed%is(i))%name
+    rec%nspc = 0
+    read (lu,*,err=999,end=999) rec%nat
+    allocate(rec%x(3,rec%nat),rec%is(rec%nat),rec%spc(2))
+    do i = 1, rec%nat
+       read (lu,*,err=999,end=999) rec%is(i), idum, rec%x(:,i)
+       if (rec%is(i) > size(rec%spc,1)) &
+          call realloc(rec%spc,2*rec%is(i))
+       rec%nspc = max(rec%nspc,rec%is(i))
+       rec%spc(rec%is(i))%z = idum
+       rec%spc(rec%is(i))%name = nameguess(idum,.true.)
     end do
-    call realloc(seed%spc,seed%nspc)
+    call realloc(rec%spc,rec%nspc)
 
     ! fill the cell metrics
-    seed%m_x2c = transpose(r)
-    seed%useabr = 2
+    rec%spcmode = spc_given
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%rv = transpose(r)
+    rec%lunit = lunit_ang
 
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_siesta,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_siesta
 
   end subroutine read_siesta
 
@@ -4563,23 +4297,19 @@ contains
   module subroutine read_castep_cell(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, lgetword, getline_raw,&
        equal, getword, isinteger, zatguess, isreal, lower
-    use tools_math, only: matinv
-    use types, only: realloc
     use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm, isformat_r_castepcell
-    use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: line, word, lword
-    integer :: lu, lp, idum, ier, i
+    character(len=:), allocatable :: line, word
+    integer :: lu, lp, idum, iz
     logical :: ok, iscart
-    real*8 :: rconv, m(3,3)
-    type(hash) :: usen
+    real*8 :: rconv, x(3)
+    type(rawseed) :: rec
 
-    call usen%init()
     call seed%end()
     errmsg = ""
     ! open
@@ -4590,8 +4320,11 @@ contains
     end if
     errmsg = "Error reading file: " // trim(file)
 
+    ! atomic units (unit conversion applied while reading); species by label
     iscart = .false.
-    seed%useabr = 0
+    rec%spcmode = spc_label_nocase
+    rec%ndim = 3
+    rec%lunit = lunit_bohr
     do while(get_next_line())
        lp = 1
        word = lgetword(line,lp)
@@ -4603,29 +4336,29 @@ contains
              if (.not.get_optional_unit(rconv)) goto 999
 
              ! read the rest
-             read(line,*,err=999,end=999) seed%aa
+             read(line,*,err=999,end=999) rec%aa
              if (.not.get_next_line()) goto 999
-             read(line,*,err=999,end=999) seed%bb
+             read(line,*,err=999,end=999) rec%bb
 
              ! conversion
-             seed%useabr = 1
-             seed%aa = seed%aa * rconv
+             rec%cellmode = 1
+             rec%aa = rec%aa * rconv
           elseif (equal(word,"lattice_cart")) then
              !! lattice vectors
              ! optional unit
              if (.not.get_optional_unit(rconv)) goto 999
 
              ! read the rest
-             read(line,*,err=999,end=999) seed%m_x2c(:,1)
+             read(line,*,err=999,end=999) rec%rv(:,1)
              if (.not.get_next_line()) goto 999
-             read(line,*,err=999,end=999) seed%m_x2c(:,2)
+             read(line,*,err=999,end=999) rec%rv(:,2)
              if (.not.get_next_line()) goto 999
-             read(line,*,err=999,end=999) seed%m_x2c(:,3)
+             read(line,*,err=999,end=999) rec%rv(:,3)
              if (.not.get_next_line()) goto 999
 
              ! conversion
-             seed%useabr = 2
-             seed%m_x2c = seed%m_x2c * rconv
+             rec%cellmode = 2
+             rec%rv = rec%rv * rconv
 
           elseif (equal(word,"positions_frac").or.equal(word,"positions_abs")) then
              iscart = equal(word,"positions_abs")
@@ -4635,113 +4368,61 @@ contains
                 if (.not.get_next_line()) goto 999
              end if
 
-             !! positions in fractional/Cartesian coordinates
+             !! positions in fractional/Cartesian coordinates (a new block replaces the atoms)
+             rec%nat = 0
+             if (allocated(rec%x)) deallocate(rec%x,rec%z,rec%atname)
              ok = .true.
-             seed%nat = 0
-             seed%nspc = 0
-             allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
              do while(ok)
                 if (line(1:1) == "%") exit
-                seed%nat = seed%nat + 1
-                if (seed%nat > size(seed%x,2)) then
-                   call realloc(seed%x,3,2*seed%nat)
-                   call realloc(seed%is,2*seed%nat)
-                   call realloc(seed%atname,2*seed%nat)
-                end if
 
                 ! read the atomic symbol or number
                 lp = 1
                 word = getword(line,lp)
-                lword = lower(word)
-                if (usen%iskey(lword)) then
-                   seed%is(seed%nat) = usen%get(lword,1)
+                if (isinteger(idum,word)) then
+                   iz = idum
                 else
-                   seed%nspc = seed%nspc + 1
-                   if (seed%nspc > size(seed%spc,1)) &
-                      call realloc(seed%spc,2*seed%nspc)
-                   seed%spc(seed%nspc)%name = trim(word)
-                   if (isinteger(idum,word)) then
-                      seed%spc(seed%nspc)%z = idum
-                   else
-                      seed%spc(seed%nspc)%z = zatguess(word)
-                      if (seed%spc(seed%nspc)%z < 0) then
-                         errmsg = "Unknown atomic symbol: " // word
-                         goto 999
-                      end if
+                   iz = zatguess(word)
+                   if (iz < 0) then
+                      errmsg = "Unknown atomic symbol: " // word
+                      goto 999
                    end if
-                   call usen%put(lword,seed%nspc)
-                   seed%is(seed%nat) = seed%nspc
                 end if
-                seed%atname(seed%nat) = word
 
                 ! read the atomic coordinates
-                ok = isreal(seed%x(1,seed%nat),line,lp)
-                ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
-                ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+                ok = isreal(x(1),line,lp)
+                ok = ok .and. isreal(x(2),line,lp)
+                ok = ok .and. isreal(x(3),line,lp)
                 if (.not.ok) goto 999
+                if (iscart) x = x * rconv
+                call rawseed_add_atom(rec,iz,x,word)
 
                 ok = get_next_line()
              end do
-             if (seed%nat == 0 .or. seed%nspc == 0) then
+             if (rec%nat == 0) then
                 errmsg = "Error reading atoms"
                 goto 999
              end if
-             call realloc(seed%x,3,seed%nat)
-             call realloc(seed%is,seed%nat)
-             call realloc(seed%spc,seed%nspc)
-             call realloc(seed%atname,seed%nat)
-
-             ! conversion factor
-             if (iscart) seed%x = seed%x * rconv
           end if
        end if
     end do
     ! consistency checks
-    if (seed%useabr == 0) then
+    if (rec%cellmode == 0) then
        errmsg = "No lattice block found"
        goto 999
     end if
-    if (seed%nat == 0 .or. seed%nspc == 0) then
+    if (rec%nat == 0) then
        errmsg = "No atoms found"
        goto 999
     end if
-    if (iscart .and. seed%useabr /= 2) then
+    if (iscart .and. rec%cellmode /= 2) then
        errmsg = "Atomic Cartesian (absolute) coordinates require lattice_cart"
        goto 999
     end if
+    rec%iscart = iscart
 
-    ! transform to fractional coordinates
-    if (iscart) then
-       m = seed%m_x2c
-       call matinv(m,3,ier)
-       if (ier /= 0) then
-          errmsg = "error inverting lattice vector matrix"
-          goto 999
-       end if
-       do i = 1, seed%nat
-          seed%x(:,i) = matmul(m,seed%x(:,i))
-       end do
-    end if
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_castepcell,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_castepcell
 
   contains
     function get_optional_unit(rconv)
@@ -4960,7 +4641,7 @@ contains
   !> Read the structure from a CASTEP phonon file
   module subroutine read_castep_phonon(seed,file,mol,errmsg,ti)
     use tools_io, only: nameguess, zatguess, fopen_read, fclose, getline_raw, equalsub
-    use param, only: isformat_r_castepphonon, maxzat, bohrtoa
+    use param, only: isformat_r_castepphonon
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -4968,9 +4649,10 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line
-    integer :: lu, ll, i, idum, iz
+    integer :: lu, i, idum, iz, nat
     character*20 :: strname
-    integer :: zuse(maxzat)
+    real*8 :: x(3)
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = ""
@@ -4982,72 +4664,38 @@ contains
     end if
     errmsg = "Error reading file: " // trim(file)
 
-    ! read the header
-    zuse = 0
-    seed%nat = 0
-    seed%nspc = 0
-    seed%useabr = 2
+    ! read the header (angstrom, fractional coordinates)
+    nat = 0
+    rec%spcmode = spc_z
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_ang
     do while(getline_raw(lu,line))
-       ll = len(line)
        if (equalsub(line,1,15," Number of ions")) then
-          read(line(16:),*,end=999,err=999) seed%nat
+          read(line(16:),*,end=999,err=999) nat
        elseif (equalsub(line,1,22," Unit cell vectors (A)")) then
           if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed%m_x2c(:,1)
+          read(line,*,err=999,end=999) rec%rv(:,1)
           if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed%m_x2c(:,2)
+          read(line,*,err=999,end=999) rec%rv(:,2)
           if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed%m_x2c(:,3)
+          read(line,*,err=999,end=999) rec%rv(:,3)
        elseif (equalsub(line,1,24," Fractional Co-ordinates")) then
-          if (seed%nat == 0) goto 999
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-          do i = 1, seed%nat
+          if (nat == 0) goto 999
+          do i = 1, nat
              if (.not.getline_raw(lu,line)) goto 999
-             read(line,*,end=999,err=999) idum, seed%x(:,i), strname
+             read(line,*,end=999,err=999) idum, x, strname
              iz = zatguess(strname)
              if (iz <= 0) goto 999
-             seed%atname(i) = trim(adjustl(strname))
-             if (zuse(iz) == 0) then
-                seed%nspc = seed%nspc + 1
-                zuse(iz) = seed%nspc
-             end if
-             seed%is(i) = zuse(iz)
+             call rawseed_add_atom(rec,iz,x,trim(adjustl(strname)),spcname=trim(nameguess(iz,.true.)))
           end do
        end if
     end do
-    if (seed%nat == 0) goto 999
+    if (rec%nat == 0) goto 999
 
-    ! fill the species
-    allocate(seed%spc(seed%nspc))
-    do i = 1, maxzat
-       if (zuse(i) > 0) then
-          seed%spc(zuse(i))%name = trim(nameguess(i,.true.))
-          seed%spc(zuse(i))%z = i
-       end if
-    end do
-
-    ! wrap up
-    seed%m_x2c = seed%m_x2c / bohrtoa
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_castepphonon,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_castepphonon
 
   end subroutine read_castep_phonon
 
@@ -5056,21 +4704,20 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, isreal,&
        getword, zatguess, isinteger, lower
     use tools_math, only: matinv
-    use param, only: bohrtoa, maxzat, isformat_r_dmain
-    use types, only: realloc
+    use param, only: isformat_r_dmain
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer, allocatable :: usedz(:)
     character(len=:), allocatable :: line, word, lword
     character*2 :: atsym
     logical :: havelatt, haverlscal, ok
     integer :: lu, lp, iz, lvl, nrec, ier
-    real*8 :: r(3,3), rlscal
+    real*8 :: r(3,3), rlscal, x(3)
     integer :: i
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = ""
@@ -5086,6 +4733,7 @@ contains
     haverlscal = .false.
     havelatt = .false.
     rlscal = 1d0
+    rec%spcmode = spc_z
     do while (.true.)
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
@@ -5103,10 +4751,6 @@ contains
           ok = isreal(rlscal,line,lp)
           haverlscal = .true.
        elseif (word == "basi") then
-          seed%nspc = 0
-          seed%nat = 0
-          allocate(seed%x(3,10),seed%is(10),seed%spc(2),usedz(maxzat),seed%atname(10))
-          usedz = 0
           do while(.true.)
              ! get the atom
              ok = getline_raw(lu,line)
@@ -5118,29 +4762,12 @@ contains
              atsym = word(1:2)
              iz = zatguess(atsym)
 
-             ! write down the species
-             if (usedz(iz) == 0) then
-                seed%nspc = seed%nspc + 1
-                if (seed%nspc > size(seed%spc,1)) &
-                   call realloc(seed%spc,2*seed%nspc)
-                seed%spc(seed%nspc)%z = iz
-                seed%spc(seed%nspc)%name = atsym
-                usedz(iz) = seed%nspc
-             end if
-
-             ! write down the atom
-             seed%nat = seed%nat + 1
-             if (seed%nat > size(seed%x,2)) then
-                call realloc(seed%x,3,2*seed%nat)
-                call realloc(seed%is,2*seed%nat)
-                call realloc(seed%atname,2*seed%nat)
-             end if
-             ok = isreal(seed%x(1,seed%nat),line,lp)
-             ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
-             ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+             ! write down the atom (species named by the two-letter symbol)
+             ok = isreal(x(1),line,lp)
+             ok = ok .and. isreal(x(2),line,lp)
+             ok = ok .and. isreal(x(3),line,lp)
              if (.not.ok) goto 999
-             seed%is(seed%nat) = usedz(iz)
-             seed%atname(seed%nat) = word
+             call rawseed_add_atom(rec,iz,x,word,spcname=atsym)
 
              ! process the block for this atom
              ok = getline_raw(lu,line)
@@ -5164,55 +4791,36 @@ contains
              end do
              if (.not.ok) goto 999
           end do
-          call realloc(seed%spc,seed%nspc)
-          call realloc(seed%x,3,seed%nat)
-          call realloc(seed%atname,seed%nat)
           exit
        elseif (word == "stop") then
           exit
        end if
     end do
 
-    ! lattice vectors
-    seed%useabr = 2
-    seed%m_x2c = transpose(r) * rlscal / bohrtoa
-
-    ! transform atoms
+    ! lattice vectors (angstrom, scaled) and fractional coordinates from the
+    ! unscaled lattice, as DMACRYS does
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_ang
+    rec%rv = transpose(r) * rlscal
     r = transpose(r)
     call matinv(r,3,ier)
     if (ier /= 0) goto 999
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(r,seed%x(:,i))
+    do i = 1, rec%nat
+       rec%x(:,i) = matmul(r,rec%x(:,i))
     end do
 
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_dmain,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_dmain
 
   end subroutine read_dmain
 
   !> Read the structure from a file in DFTB+ gen format.
   module subroutine read_dftbp(seed,file,rborder,docube,errmsg,ti)
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, &
        getword, zatguess, nameguess, fclose
-    use param, only: bohrtoa, isformat_r_gen
+    use param, only: isformat_r_gen
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -5221,12 +4829,13 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, ier
+    integer :: lu
     real*8 :: r(3,3)
     integer :: i, iz, idum, lp
     logical :: ok, molout
     character*1 :: isfrac
     character(len=:), allocatable :: line, word
+    type(rawseed) :: rec
 
     ! open
     call seed%end()
@@ -5242,46 +4851,48 @@ contains
     ! number of atoms and type of coordinates
     ok = getline(lu,line)
     if (.not.ok) goto 999
-    read (line,*,err=999,end=999) seed%nat, isfrac
+    read (line,*,err=999,end=999) rec%nat, isfrac
     isfrac = lower(isfrac)
     if (.not.(equal(isfrac,"f").or.equal(isfrac,"c").or.equal(isfrac,"s"))) then
        errmsg = 'Wrong coordinate selector.'
        goto 999
     end if
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+    allocate(rec%x(3,rec%nat),rec%is(rec%nat))
 
     ! atom types
-    seed%nspc = 0
-    allocate(seed%spc(2))
+    rec%nspc = 0
+    allocate(rec%spc(2))
     ok = getline(lu,line)
     if (.not.ok) goto 999
     lp = 1
     word = getword(line,lp)
     iz = zatguess(word)
     do while (iz >= 0)
-       seed%nspc = seed%nspc + 1
-       if (seed%nspc > size(seed%spc,1)) &
-          call realloc(seed%spc,2*seed%nspc)
-       seed%spc(seed%nspc)%z = iz
-       seed%spc(seed%nspc)%name = nameguess(iz,.true.)
+       rec%nspc = rec%nspc + 1
+       if (rec%nspc > size(rec%spc,1)) &
+          call realloc(rec%spc,2*rec%nspc)
+       rec%spc(rec%nspc)%z = iz
+       rec%spc(rec%nspc)%name = nameguess(iz,.true.)
        word = getword(line,lp)
        iz = zatguess(word)
     end do
-    if (seed%nspc == 0) then
+    if (rec%nspc == 0) then
        errmsg = 'No atomic types found.'
        goto 999
     end if
-    call realloc(seed%spc,seed%nspc)
+    call realloc(rec%spc,rec%nspc)
 
-    ! read atomic positions
-    do i = 1, seed%nat
+    ! read atomic positions (Cartesian coordinates converted to bohr)
+    do i = 1, rec%nat
        ok = getline(lu,line)
        if (.not.ok) goto 999
-       read (line,*,err=999,end=999) idum, seed%is(i), seed%x(:,i)
-       if (isfrac /= "f") &
-          seed%x(:,i) = seed%x(:,i) / bohrtoa
-       seed%atname(i) = seed%spc(seed%is(i))%name
+       read (line,*,err=999,end=999) idum, rec%is(i), rec%x(:,i)
     end do
+    rec%spcmode = spc_given
+    rec%lunit = lunit_ang
+    rec%iscart = (isfrac /= "f")
+    rec%border = rborder
+    rec%cubic = docube
 
     ! read lattice vectors, if they exist
     ok = getline(lu,line)
@@ -5290,26 +4901,13 @@ contains
           ok = getline(lu,line,.true.)
           read (line,*) r(i,:)
        end do
-       r = r / bohrtoa
-
-       ! fill the cell metrics
-       seed%m_x2c = transpose(r)
-       r = seed%m_x2c
-       call matinv(r,3,ier)
-       if (ier /= 0) then
-          errmsg = "Error inverting matrix"
-          goto 999
-       end if
-
        if (isfrac == "c") then
           errmsg = 'Lattice plus C not supported.'
           goto 999
-       elseif (isfrac == "s") then
-          do i = 1, seed%nat
-             seed%x(:,i) = matmul(r,seed%x(:,i))
-          end do
        end if
-       seed%useabr = 2
+       rec%ndim = 3
+       rec%cellmode = 2
+       rec%rv = transpose(r)
        molout = .false.
     else
        ! molecule and no lattice -> set up the origin and the molecular cell
@@ -5317,40 +4915,22 @@ contains
           errmsg = 'S or F coordinates but no lattice vectors.'
           goto 999
        end if
-       seed%useabr = 0
+       rec%ndim = 0
+       rec%ismol = .true.
        molout = .true.
     end if
 
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,molout,file,isformat_r_gen,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = molout
-    seed%cubic = docube
-    seed%border = rborder
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_gen
 
   end subroutine read_dftbp
 
   !> Read the structure from an xsf file.
   module subroutine read_xsf(seed,file,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
-       zatguess, isinteger, getword, isreal, lower, string
-    use tools_math, only: matinv
-    use param, only: bohrtoa, isformat_r_xsf
-    use types, only: realloc
-    use hashmod, only: hash
+       zatguess, isinteger, getword, isreal
+    use param, only: isformat_r_xsf
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     real*8, intent(in) :: rborder !< user-defined border in bohr
@@ -5359,11 +4939,11 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word, name
-    character*10 :: atn, latn
-    integer :: lu, lp, i, j, iz, it, ier
+    character*10 :: atn
+    integer :: lu, lp, i, iz, nat
     real*8 :: r(3,3), x(3)
     logical :: ok, ismol, xread
-    type(hash) :: usen
+    type(rawseed) :: rec
 
     ! open
     call seed%end()
@@ -5375,8 +4955,13 @@ contains
        return
     end if
 
+    ! angstrom, Cartesian coordinates
     xread = .false.
     errmsg = "Error reading file: " // trim(file)
+    rec%lunit = lunit_ang
+    rec%iscart = .true.
+    rec%border = rborder
+    rec%cubic = docube
     do while (.true.)
        ok = getline_raw(lu,line)
        if (.not.ok) exit
@@ -5386,14 +4971,12 @@ contains
           do i = 1, 3
              read (lu,*,err=999,end=999) r(i,:)
           end do
-          r = r / bohrtoa
           ismol = .false.
        elseif (equal(word,"primcoord").and..not.xread) then
-          read (lu,*,err=999,end=999) seed%nat
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-          seed%nspc = 0
-          allocate(seed%spc(2))
-          do i = 1, seed%nat
+          ! crystal: species by atomic number, named by the first label
+          read (lu,*,err=999,end=999) nat
+          rec%spcmode = spc_z
+          do i = 1, nat
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
              lp = 1
@@ -5406,53 +4989,24 @@ contains
                 name = trim(adjustl(word))
                 iz = zatguess(name)
              end if
-             ok = isreal(seed%x(1,i),line,lp)
-             ok = ok.and.isreal(seed%x(2,i),line,lp)
-             ok = ok.and.isreal(seed%x(3,i),line,lp)
+             ok = isreal(x(1),line,lp)
+             ok = ok.and.isreal(x(2),line,lp)
+             ok = ok.and.isreal(x(3),line,lp)
              if (.not.ok) then
                 errmsg = 'Wrong atomic position.'
                 goto 999
              end if
-             seed%x(:,i) = seed%x(:,i) / bohrtoa
-             seed%atname(i) = name
-
-             it = 0
-             do j = 1, seed%nspc
-                if (seed%spc(j)%z == iz) then
-                   it = j
-                   exit
-                end if
-             end do
-             if (it == 0) then
-                seed%nspc = seed%nspc + 1
-                if (seed%nspc > size(seed%spc,1)) &
-                   call realloc(seed%spc,2*seed%nspc)
-                seed%spc(seed%nspc)%z = iz
-                seed%spc(seed%nspc)%name = name
-                it = seed%nspc
-             end if
-             seed%is(i) = it
+             call rawseed_add_atom(rec,iz,x,name)
           end do
           ismol = .false.
           xread = .true.
        elseif (equal(word,"atoms").and..not.xread) then
+          ! molecule: species by label (case-insensitive)
           ismol = .true.
-          call usen%init()
-          seed%nat = 0
-          seed%nspc = 0
-          allocate(seed%x(3,10),seed%spc(5),seed%is(10),seed%atname(10))
+          rec%spcmode = spc_label_nocase
           do while (getline_raw(lu,line))
              if (len_trim(line) == 0) exit
-
              read (line,*,err=999,end=999) atn, x
-             seed%nat = seed%nat + 1
-             if (seed%nat > size(seed%x,2)) then
-                call realloc(seed%x,3,2*seed%nat)
-                call realloc(seed%is,2*seed%nat)
-                call realloc(seed%atname,2*seed%nat)
-             end if
-             seed%x(:,seed%nat) = x / bohrtoa
-
              ok = isinteger(iz,atn)
              if (.not.ok) then
                 iz = zatguess(atn)
@@ -5461,82 +5015,33 @@ contains
                 errmsg = "Unknown atomic symbol: "//trim(atn)//"."
                 goto 999
              end if
-
-             latn = lower(atn)
-             if (usen%iskey(latn)) then
-                seed%is(seed%nat) = usen%get(latn,1)
-             else
-                seed%nspc = seed%nspc + 1
-                if (seed%nspc > size(seed%spc,1)) &
-                   call realloc(seed%spc,2*seed%nspc)
-                seed%spc(seed%nspc)%name = trim(atn)
-                seed%spc(seed%nspc)%z = iz
-                call usen%put(latn,seed%nspc)
-                seed%is(seed%nat) = seed%nspc
-             end if
-             seed%atname(seed%nat) = seed%spc(seed%is(seed%nat))%name
+             call rawseed_add_atom(rec,iz,x,trim(atn))
           end do
-          call realloc(seed%x,3,seed%nat)
-          call realloc(seed%is,seed%nat)
-          call realloc(seed%spc,seed%nspc)
-          call realloc(seed%atname,seed%nat)
           xread = .true.
        end if
     end do
-    call realloc(seed%spc,seed%nspc)
-    if (seed%nat == 0) then
+    if (rec%nat == 0) then
        errmsg = "No atoms found."
-       goto 999
-    end if
-    if (seed%nspc == 0) then
-       errmsg = "No atomic species found."
        goto 999
     end if
 
     if (.not.ismol) then
-       ! fill the cell metrics
-       seed%m_x2c = transpose(r)
-       r = seed%m_x2c
-       call matinv(r,3,ier)
-       if (ier /= 0) then
-          errmsg = "Error inverting matrix"
-          goto 999
-       end if
-       seed%useabr = 2
-
-       ! convert atoms to crystallographic
-       do i = 1, seed%nat
-          seed%x(:,i) = matmul(r,seed%x(:,i))
-       end do
+       rec%ndim = 3
+       rec%cellmode = 2
+       rec%rv = transpose(r)
     else
-       seed%useabr = 0
+       rec%ndim = 0
+       rec%ismol = .true.
     end if
 
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,ismol,file,isformat_r_xsf,errmsg)
 999 continue
     call fclose(lu)
-
-    ! symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = ismol
-    seed%cubic = docube
-    seed%border = rborder
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_xsf
 
   end subroutine read_xsf
 
   !> Read the structure from a pwc file.
   module subroutine read_pwc(seed,file,mol,errmsg,ti)
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, zatguess
     use param, only: isformat_r_pwc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -5546,9 +5051,10 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu
-    integer :: version, i, ier
+    integer :: version, i
     character*3, allocatable :: atm(:)
-    real*8 :: r(3,3), alat
+    real*8 :: alat
+    type(rawseed) :: rec
 
     call seed%end()
     errmsg = ""
@@ -5567,56 +5073,33 @@ contains
        goto 999
     end if
 
-    read (lu,err=999,end=999) seed%nspc, seed%nat, alat
+    read (lu,err=999,end=999) rec%nspc, rec%nat, alat
 
     ! species
-    allocate(atm(seed%nspc),seed%spc(seed%nspc))
+    allocate(atm(rec%nspc),rec%spc(rec%nspc))
     read (lu,err=999,end=999) atm
-    do i = 1, seed%nspc
-       seed%spc(i)%name = trim(atm(i))
-       seed%spc(i)%z = zatguess(seed%spc(i)%name)
+    do i = 1, rec%nspc
+       rec%spc(i)%name = trim(atm(i))
+       rec%spc(i)%z = zatguess(rec%spc(i)%name)
     end do
     deallocate(atm)
 
-    ! read the rest
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-    read (lu,err=999,end=999) seed%is
-    read (lu,err=999,end=999) seed%x
-    read (lu,err=999,end=999) seed%m_x2c
-    seed%m_x2c = seed%m_x2c * alat
+    ! read the rest (atomic units, Cartesian coordinates in alat units)
+    allocate(rec%x(3,rec%nat),rec%is(rec%nat))
+    read (lu,err=999,end=999) rec%is
+    read (lu,err=999,end=999) rec%x
+    read (lu,err=999,end=999) rec%rv
+    rec%rv = rec%rv * alat
+    rec%x = rec%x * alat
+    rec%spcmode = spc_given
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
 
-    ! convert to crystallographic
-    r = seed%m_x2c
-    call matinv(r,3,ier)
-    if (ier /= 0) then
-       errmsg = "Error inverting matrix"
-       goto 999
-    end if
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(r,seed%x(:,i)) * alat
-       seed%atname(i) = seed%spc(seed%is(i))%name
-    end do
-    seed%useabr = 2
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_pwc,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_pwc
 
   end subroutine read_pwc
 
@@ -5627,9 +5110,7 @@ contains
   module subroutine read_axsf(seed,file,nread0,xnudge,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isinteger, &
        string, getword, isreal, nameguess, zatguess
-    use tools_math, only: matinv
     use param, only: bohrtoa, isformat_r_axsf
-    use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     integer, intent(in) :: nread0
@@ -5640,13 +5121,14 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word, name
-    integer :: lu, lp, iprim, i, it, iz, j, ier
-    real*8 :: r(3,3), x(3)
-    logical :: ok, ismol, didreadr, didreadx
+    integer :: lu, lp, iprim, i, iz, nat
+    real*8 :: r(3,3), x(3), xd(3)
+    logical :: ok, didreadr, didreadx
+
+    type(rawseed) :: rec
 
     ! open
     call seed%end()
-    ismol = .false.
     errmsg = ""
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
@@ -5654,7 +5136,15 @@ contains
        return
     end if
 
+    ! atomic units, Cartesian coordinates, species by atomic number
     errmsg = "Error reading file: " // trim(file)
+    rec%spcmode = spc_z
+    rec%ndim = 3
+    rec%cellmode = 2
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
+    rec%border = rborder
+    rec%cubic = docube
     didreadr = .false.
     didreadx = .false.
     do while (.true.)
@@ -5668,16 +5158,12 @@ contains
              read (lu,*,err=999,end=999) r(i,:)
           end do
           r = r / bohrtoa
-          ismol = .false.
        elseif (equal(word,"primcoord")) then
           ok = isinteger(iprim,line,lp)
           if (iprim == nread0) then
              didreadx = .true.
-             read (lu,*,err=999,end=999) seed%nat
-             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-             seed%nspc = 0
-             allocate(seed%spc(2))
-             do i = 1, seed%nat
+             read (lu,*,err=999,end=999) nat
+             do i = 1, nat
                 ok = getline_raw(lu,line)
                 if (.not.ok) goto 999
 
@@ -5692,43 +5178,25 @@ contains
                    name = trim(adjustl(word))
                    iz = zatguess(name)
                 end if
-                ok = isreal(seed%x(1,i),line,lp)
-                ok = ok.and.isreal(seed%x(2,i),line,lp)
-                ok = ok.and.isreal(seed%x(3,i),line,lp)
-                if (.not.ok) then
-                   errmsg = 'Wrong atomic position.'
-                   goto 999
-                end if
-                seed%x(:,i) = seed%x(:,i) / bohrtoa
-                seed%atname(i) = name
-
-                ! file this species if it is a new species
-                it = 0
-                do j = 1, seed%nspc
-                   if (seed%spc(j)%z == iz) then
-                      it = j
-                      exit
-                   end if
-                end do
-                if (it == 0) then
-                   seed%nspc = seed%nspc + 1
-                   if (seed%nspc > size(seed%spc,1)) &
-                      call realloc(seed%spc,2*seed%nspc)
-                   seed%spc(seed%nspc)%z = iz
-                   seed%spc(seed%nspc)%name = name
-                   it = seed%nspc
-                end if
-                seed%is(i) = it
-
-                ! read the displacement vector and apply the nudge
                 ok = isreal(x(1),line,lp)
                 ok = ok.and.isreal(x(2),line,lp)
                 ok = ok.and.isreal(x(3),line,lp)
                 if (.not.ok) then
+                   errmsg = 'Wrong atomic position.'
+                   goto 999
+                end if
+                x = x / bohrtoa
+
+                ! read the displacement vector and apply the nudge
+                ok = isreal(xd(1),line,lp)
+                ok = ok.and.isreal(xd(2),line,lp)
+                ok = ok.and.isreal(xd(3),line,lp)
+                if (.not.ok) then
                    errmsg = 'Wrong displacement vector.'
                    goto 999
                 end if
-                seed%x(:,i) = seed%x(:,i) + xnudge * x
+                x = x + xnudge * xd
+                call rawseed_add_atom(rec,iz,x,name)
              end do
           end if
        end if
@@ -5741,54 +5209,15 @@ contains
        errmsg = "Could not find PRIMCOORD block number " // string(nread0)
        goto 999
     end if
-    call realloc(seed%spc,seed%nspc)
-    if (seed%nat == 0) then
+    if (rec%nat == 0) then
        errmsg = "No atoms found."
        goto 999
     end if
-    if (seed%nspc == 0) then
-       errmsg = "No atomic species found."
-       goto 999
-    end if
+    rec%rv = transpose(r)
 
-    if (.not.ismol) then
-       ! fill the cell metrics
-       seed%m_x2c = transpose(r)
-       r = seed%m_x2c
-       call matinv(r,3,ier)
-       if (ier /= 0) then
-          errmsg = "Error inverting matrix"
-          goto 999
-       end if
-       seed%useabr = 2
-
-       ! convert atoms to crystallographic
-       do i = 1, seed%nat
-          seed%x(:,i) = matmul(r,seed%x(:,i))
-       end do
-    else
-       seed%useabr = 0
-    end if
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,.false.,file,isformat_r_axsf,errmsg)
 999 continue
     call fclose(lu)
-
-    ! symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = ismol
-    seed%cubic = docube
-    seed%border = rborder
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_axsf
 
   end subroutine read_axsf
 
@@ -5796,10 +5225,7 @@ contains
   module subroutine read_aimsin(seed,file,mol,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
        getword, zatguess
-    use tools_math, only: matinv
-    use types, only: realloc
-    use hashmod, only: hash
-    use param, only: bohrtoa, isformat_r_aimsin
+    use param, only: isformat_r_aimsin
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -5808,11 +5234,11 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, lp, nlat, i, idx, ier
+    integer :: lu, lp, nlat, iz
     logical :: is_file_mol, ok
     character(len=:), allocatable :: line, word
-    real*8 :: rlat(3,3)
-    logical, allocatable :: isfrac(:)
+    real*8 :: rlat(3,3), x(3)
+    type(rawseed) :: rec
 
     ! open
     call seed%end()
@@ -5824,17 +5250,14 @@ contains
     end if
     errmsg = "Error reading file: " // trim(file)
 
-    ! allocate atoms
-    allocate(isfrac(10),seed%x(3,10),seed%is(10),seed%atname(10))
-
-    ! allocate species
-    allocate(seed%spc(10))
-
-    ! collect the information
+    ! collect the information (angstrom; per-atom fractional flag)
+    rec%spcmode = spc_label
+    rec%lunit = lunit_ang
+    rec%iscart = .true.
+    rec%border = rborder
+    rec%cubic = docube
     is_file_mol = .true.
     nlat = 0
-    seed%nspc = 0
-    seed%nat = 0
     do while (getline_raw(lu,line))
        lp = 1
        word = lgetword(line,lp)
@@ -5842,43 +5265,18 @@ contains
        if (word(1:1) == "#") cycle
 
        if (equal(word,'atom').or.equal(word,'atom_frac')) then
-          seed%nat = seed%nat + 1
-          if (seed%nat > size(isfrac,1)) then
-             call realloc(isfrac,2*seed%nat)
-             call realloc(seed%x,3,2*seed%nat)
-             call realloc(seed%is,2*seed%nat)
-             call realloc(seed%atname,2*seed%nat)
-          end if
-          ok = isreal(seed%x(1,seed%nat),line,lp)
-          ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
-          ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+          ok = isreal(x(1),line,lp)
+          ok = ok .and. isreal(x(2),line,lp)
+          ok = ok .and. isreal(x(3),line,lp)
           if (.not.ok) goto 999
-          isfrac(seed%nat) = equal(word,'atom_frac')
-
+          ok = equal(word,'atom_frac')
           word = getword(line,lp)
-          idx = 0
-          do i = 1, seed%nspc
-             if (equal(word,seed%spc(i)%name)) then
-                idx = i
-                exit
-             end if
-          end do
-          if (idx > 0) then
-             seed%is(seed%nat) = idx
-          else
-             seed%nspc = seed%nspc + 1
-             if (seed%nspc > size(seed%spc,1)) &
-                call realloc(seed%spc,2*seed%nspc)
-             seed%spc(seed%nspc)%name = word
-             seed%spc(seed%nspc)%z = zatguess(word)
-             if (seed%spc(seed%nspc)%z <= 0) then
-                errmsg = "unknown atom type: " // word
-                goto 999
-             end if
-             seed%is(seed%nat) = seed%nspc
+          iz = zatguess(word)
+          if (iz <= 0) then
+             errmsg = "unknown atom type: " // word
+             goto 999
           end if
-          seed%atname(seed%nat) = word
-
+          call rawseed_add_atom(rec,iz,x,word,isfrac=ok)
        elseif (equal(word,'lattice_vector')) then
           is_file_mol = .false.
           nlat = nlat + 1
@@ -5895,59 +5293,24 @@ contains
        errmsg = "lattice_vector found but wrong number of lattice vectors"
        goto 999
     end if
-    call realloc(isfrac,seed%nat)
-    call realloc(seed%x,3,seed%nat)
-    call realloc(seed%atname,seed%nat)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%spc,seed%nspc)
 
     ! handle the molecule/crystal expectation/contents of the file
     if (is_file_mol) then
-       seed%ismolecule = .true.
-       seed%useabr = 0
-       seed%m_x2c = 0d0
+       rec%ismol = .true.
+       rec%ndim = 0
     else
        if (mol) then
           errmsg = "tried to load a crystal as a molecule; use the CRYSTAL keyword"
           goto 999
        end if
-       seed%ismolecule = .false.
-       seed%useabr = 2
-       rlat = rlat / bohrtoa
-       seed%m_x2c = rlat
-       call matinv(rlat,3,ier)
-       if (ier /= 0) then
-          errmsg = "Error inverting lattice vector matrix"
-          goto 999
-       end if
+       rec%ndim = 3
+       rec%cellmode = 2
+       rec%rv = rlat
     end if
 
-    ! convert the atomic coordinates
-    do i = 1, seed%nat
-       if (.not.isfrac(i)) then
-          seed%x(:,i) = seed%x(:,i) / bohrtoa
-          if (.not.is_file_mol) seed%x(:,i) = matmul(rlat,seed%x(:,i))
-       end if
-    end do
-
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_aimsin,errmsg)
 999 continue
     call fclose(lu)
-
-    ! symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%cubic = docube
-    seed%border = rborder
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_r_aimsin
 
   end subroutine read_aimsin
 
@@ -6203,19 +5566,19 @@ contains
   !> parameters in the second line).
   module subroutine read_tinkerfrac(seed,file,mol,errmsg,ti)
     use tools_io, only: getline_raw, fopen_read, fclose, isinteger, zatguess, nameguess
-    use param, only: bohrtoa, maxzat, isformat_r_tinkerfrac
-    use types, only: realloc
+    use param, only: maxzat, isformat_r_tinkerfrac
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, lp, i, iz, idum
+    integer :: lu, lp, i, iz, idum, nat
     logical :: ok
     character(len=:), allocatable :: line, aux
     character*30 :: atsym
-    integer, allocatable :: imap(:)
+    real*8 :: x(3)
+    type(rawseed) :: rec
 
     ! open the file
     call seed%end()
@@ -6225,68 +5588,36 @@ contains
        errmsg = "Error opening file: " // trim(file)
        return
     end if
-    seed%file = file
-    seed%isformat = isformat_r_tinkerfrac
 
     ! line 1: number of atoms and name of the seed
     lp = 1
     ok = getline_raw(lu,line,.false.)
-    ok = ok .and. isinteger(seed%nat,line,lp)
+    ok = ok .and. isinteger(nat,line,lp)
     if (.not.ok) goto 999
-    seed%name = seed%file
 
-    ! line 2: cell parameters
-    read (lu,*,err=999,end=999) seed%aa, seed%bb
-    seed%aa = seed%aa / bohrtoa
-    seed%useabr = 1
+    ! line 2: cell parameters (angstrom, fractional coordinates)
+    read (lu,*,err=999,end=999) rec%aa, rec%bb
+    rec%ndim = 3
+    rec%cellmode = 1
+    rec%lunit = lunit_ang
+    rec%spcmode = spc_z
+    rec%havex0 = .true.
 
     ! atoms
-    seed%nspc = 0
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-    allocate(seed%spc(2),imap(maxzat))
-    imap = 0
-    do i = 1, seed%nat
-       read(lu,*,err=999,end=999) idum, atsym, seed%x(:,i)
+    do i = 1, nat
+       read(lu,*,err=999,end=999) idum, atsym, x
        iz = zatguess(atsym)
        if (iz <= 0 .or. iz > maxzat) then
           errmsg = "Unknown atomic symbol."
           goto 999
        endif
-       if (imap(iz) == 0) then
-          seed%nspc = seed%nspc + 1
-          if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
-          seed%spc(seed%nspc)%name = nameguess(iz,.true.)
-          seed%spc(seed%nspc)%z = iz
-          imap(iz) = seed%nspc
-       endif
-       seed%is(i) = imap(iz)
        aux = adjustl(atsym)
-       seed%atname(i) = aux(1:10)
+       call rawseed_add_atom(rec,iz,x,aux(1:10),spcname=nameguess(iz,.true.))
     end do
-    call realloc(seed%spc,seed%nspc)
-    call realloc(seed%x,3,seed%nat)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%atname,seed%nat)
-    deallocate(imap)
 
-    errmsg = ""
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_tinkerfrac,errmsg)
 999 continue
     call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%checkrepeats = .false.
-    seed%findsym = -1
-
-    ! molecule
-    seed%ismolecule = mol
-    seed%havex0 = .true.
-    seed%molx0 = 0d0
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%cubic = .false.
-    seed%border = 0d0
 
   end subroutine read_tinkerfrac
 
@@ -7786,14 +7117,14 @@ contains
     subroutine fill_seed(seed)
       use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
       use types, only: realloc
-      use tools_io, only: nameguess
-      use param, only: bohrtoa, maxzat, eyet, eye
+      use param, only: eyet, eye
       type(crystalseed), intent(out) :: seed
 
-      integer :: zspc(maxzat), hnum
+      integer :: hnum
       integer :: i, j
       real*8 :: rot0(3,4)
-      logical :: ok, foundsym
+      logical :: ok
+      type(rawseed) :: rec
 
       ! check we have all the info
       if (.not.all(havefields)) then
@@ -7801,150 +7132,73 @@ contains
          return
       end if
 
-      ! initialize seed
-      call seed%end()
-      seed%file = trim(file)
-      seed%name = trim(file) // "|" // trim(blockname)
-      seed%isformat = isformat_r_cif
-      seed%useabr = 1
-      seed%aa = aa / bohrtoa
-      seed%bb = bb
-
-      ! fill the species
-      zspc = 0
+      ! cell (angstrom), atoms (fractional), species sorted by Z, occupancies
+      rec%spcmode = spc_zsorted
+      rec%ndim = 3
+      rec%cellmode = 1
+      rec%lunit = lunit_ang
+      rec%aa = aa
+      rec%bb = bb
       do i = 1, nat
-         zspc(zat(i)) = maxzat+1
+         call rawseed_add_atom(rec,zat(i),xat(:,i),atname(i),occ=occat(i))
       end do
-      if (allocated(seed%spc)) deallocate(seed%spc)
-      allocate(seed%spc(count(zspc > 0)))
-      seed%nspc = 0
-      do i = 1, maxzat
-         if (zspc(i) > 0) then
-            seed%nspc = seed%nspc + 1
-            seed%spc(seed%nspc)%z = i
-            seed%spc(seed%nspc)%name = nameguess(i,.true.)
-            zspc(i) = seed%nspc
-         end if
-      end do
+      rec%name = trim(blockname)
 
-      ! fill the atoms
-      seed%nat = nat
-      if (allocated(seed%x)) deallocate(seed%x)
-      if (allocated(seed%is)) deallocate(seed%is)
-      if (allocated(seed%atname)) deallocate(seed%atname)
-      allocate(seed%x(3,nat),seed%is(nat),seed%atname(nat))
-      do i = 1, nat
-         seed%is(i) = zspc(zat(i))
-         seed%x(:,i) = xat(:,i)
-         seed%atname(i) = atname(i)
-      end do
-
-      ! store the occupancies (kept only if some site is partial)
-      call seed_set_occ(seed,occat,nat)
-
-      ! pre-allocate the symmetry
-      seed%neqv = 0
-      seed%ncv = 1
-      if (allocated(seed%rotm)) deallocate(seed%rotm)
-      if (allocated(seed%cen)) deallocate(seed%cen)
-      allocate(seed%rotm(3,4,48),seed%cen(3,4))
-      seed%cen = 0d0
-
-      ! fill the symmetry with the symops from the cif file
-      foundsym = .false.
+      ! symmetry from the symops in the cif file, else from the space group label
+      rec%symmode = sym_ops
+      rec%neqv = 0
+      rec%ncv = 1
+      allocate(rec%rotm(3,4,48),rec%cen(3,4))
+      rec%cen = 0d0
       if (nop > 0) then
-         foundsym = .true.
-         ! from the symmetry operations in the cif file
          do j = 1, nop
             rot0 = string_to_symop(ops(j),errmsg)
             if (len_trim(errmsg) > 0) return
 
             if (all(abs(eyet - rot0) < 1d-12)) then
                ! the identity
-               seed%neqv = seed%neqv + 1
-               if (seed%neqv > size(seed%rotm,3)) &
-                  call realloc(seed%rotm,3,4,2*seed%neqv)
-               seed%rotm(:,:,seed%neqv) = rot0
+               rec%neqv = rec%neqv + 1
+               if (rec%neqv > size(rec%rotm,3)) &
+                  call realloc(rec%rotm,3,4,2*rec%neqv)
+               rec%rotm(:,:,rec%neqv) = rot0
             elseif (all(abs(eye - rot0(1:3,1:3)) < 1d-12)) then
                ! a non-zero pure translation
                ! check if I have it already
                ok = .true.
-               do i = 1, seed%ncv
-                  if (all(abs(rot0(:,4) - seed%cen(:,i)) < 1d-12)) then
+               do i = 1, rec%ncv
+                  if (all(abs(rot0(:,4) - rec%cen(:,i)) < 1d-12)) then
                      ok = .false.
                      exit
                   endif
                end do
                if (ok) then
-                  seed%ncv = seed%ncv + 1
-                  if (seed%ncv > size(seed%cen,2)) call realloc(seed%cen,3,2*seed%ncv)
-                  seed%cen(:,seed%ncv) = rot0(:,4)
+                  rec%ncv = rec%ncv + 1
+                  if (rec%ncv > size(rec%cen,2)) call realloc(rec%cen,3,2*rec%ncv)
+                  rec%cen(:,rec%ncv) = rot0(:,4)
                endif
             else
                ! a rotation, with some pure translation in it
                ! check if I have this rotation matrix already
                ok = .true.
-               do i = 1, seed%neqv
-                  if (all(abs(seed%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
+               do i = 1, rec%neqv
+                  if (all(abs(rec%rotm(1:3,1:3,i) - rot0(1:3,1:3)) < 1d-12)) then
                      ok = .false.
                      exit
                   endif
                end do
                if (ok) then
-                  seed%neqv = seed%neqv + 1
-                  seed%rotm(:,:,seed%neqv) = rot0
+                  rec%neqv = rec%neqv + 1
+                  rec%rotm(:,:,rec%neqv) = rot0
                endif
             endif
          end do
-      end if
-
-      ! get the symmetry from the space group label
-      if (.not.foundsym) then
+      else
          hnum = spg_get_hall_number_from_symbol(spg)
          if (hnum > 0) &
-            call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
-         foundsym = (seed%neqv > 0) .and. (seed%ncv > 0)
+            call spg_get_symmetry_from_database(hnum,rec%neqv,rec%ncv,rec%rotm,rec%cen)
       end if
 
-      if (.not.foundsym) then
-         ! could not find symmetry in the cif file, calculate it later
-         seed%neqv = 1
-         seed%ncv = 1
-         if (allocated(seed%rotm)) deallocate(seed%rotm)
-         if (allocated(seed%cen)) deallocate(seed%cen)
-         allocate(seed%rotm(3,4,1),seed%cen(3,1))
-         seed%rotm(:,:,1) = eyet
-         seed%cen(:,1) = 0d0
-         seed%havesym = 0
-         seed%checkrepeats = .false.
-         seed%neqlist = .false.
-         seed%findsym = -1
-      else
-         ! we have symmetry (crystals check for repeats; a molecule does not
-         ! apply crystallographic symmetry)
-         if (.not.mol) then
-            seed%havesym = 1
-            seed%checkrepeats = .true.
-            seed%neqlist = .true.
-         else
-            seed%havesym = 0
-            seed%checkrepeats = .false.
-            seed%neqlist = .false.
-         end if
-         seed%findsym = 0
-      end if
-
-      ! reallocate
-      if (seed%neqv > 0) call realloc(seed%rotm,3,4,seed%neqv)
-      if (seed%ncv > 0) call realloc(seed%cen,3,seed%ncv)
-
-      ! rest of the seed information
-      seed%isused = .true.
-      seed%ismolecule = mol
-      seed%cubic = .false.
-      seed%border = 0d0
-      seed%havex0 = .false.
-      seed%molx0 = 0d0
+      call rawseed_to_seed(rec,seed,mol,file,isformat_r_cif,errmsg)
 
     end subroutine fill_seed
 
@@ -7958,10 +7212,8 @@ contains
   !> empty, return the first molecule in seed0.
   subroutine read_all_mol2(file,errmsg,nseed,mseed,seed0,name,ti)
     use global, only: rborder_def
-    use tools_io, only: fopen_read, fclose, getline, lower, isexpression_or_word,&
-       isreal, zatguess, equal, isinteger, zatguess
-    use types, only: realloc
-    use param, only: maxzat, bohrtoa, isformat_r_mol2
+    use tools_io, only: fopen_read, fclose, getline, zatguess, equal, isinteger
+    use param, only: maxzat, isformat_r_mol2
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -7973,11 +7225,12 @@ contains
     integer :: lu
     logical :: ok, indata, havename
     character(len=:), allocatable :: line, molname
-    integer :: nat, i, lp, idum
+    integer :: nat, i, idum
     integer :: zat
+    real*8 :: x(3)
     character*10 :: attyp, atname
     type(crystalseed) :: seed
-    integer, allocatable :: usedz(:)
+    type(rawseed) :: rec
 
     ! consistency check
     if (.not.(present(nseed).and.present(mseed)).and..not.present(seed0)) then
@@ -8010,57 +7263,27 @@ contains
                    goto 999
                 end if
 
-                ! fill the seed with information from this ATOM block
-                call seed%end()
-                seed%nat = nat
-                allocate(seed%x(3,nat),seed%is(nat),seed%atname(nat),usedz(maxzat))
-                usedz = 0
-                seed%nspc = 0
-                allocate(seed%spc(10))
-
+                ! fill the seed with information from this ATOM block (angstrom)
+                rec = rawseed()
+                rec%spcmode = spc_z
+                rec%ndim = 0
+                rec%lunit = lunit_ang
+                rec%iscart = .true.
+                rec%ismol = .true.
+                rec%border = rborder_def
+                if (len_trim(molname) > 0) rec%name = trim(molname)
                 do i = 1, nat
                    ok = getline(lu,line)
-                   lp = 1
-                   read(line,*,err=999,end=999) idum, atname, seed%x(:,i), attyp
+                   read(line,*,err=999,end=999) idum, atname, x, attyp
                    zat = zatguess(attyp)
                    if (zat < 1 .or. zat > maxzat) then
                       errmsg = "error reading atom type: " // trim(attyp)
                       goto 999
                    end if
-                   if (usedz(zat) == 0) then
-                      seed%nspc = seed%nspc + 1
-                      if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
-                      seed%spc(seed%nspc)%name = trim(attyp)
-                      seed%spc(seed%nspc)%z = zat
-                      usedz(zat) = seed%nspc
-                   end if
-                   seed%is(i) = usedz(zat)
-                   seed%atname(i) = atname
+                   call rawseed_add_atom(rec,zat,x,atname,spcname=trim(attyp))
                 end do
-                call realloc(seed%spc,seed%nspc)
-                deallocate(usedz)
-
-                ! mol2 coordinates in angstrom
-                seed%x = seed%x / bohrtoa
-
-                ! rest of the seed information
-                seed%useabr = 0
-                seed%havesym = 0
-                seed%findsym = -1
-                seed%checkrepeats = .false.
-                seed%isused = .true.
-                seed%ismolecule = .true.
-                seed%cubic = .false.
-                seed%border = rborder_def
-                seed%havex0 = .false.
-                seed%molx0 = 0d0
-                seed%file = file
-                seed%isformat = isformat_r_mol2
-                if (len_trim(molname) > 0) then
-                   seed%name = trim(file) // "|" // trim(molname)
-                else
-                   seed%name = file
-                end if
+                call rawseed_to_seed(rec,seed,.true.,file,isformat_r_mol2,errmsg)
+                if (len_trim(errmsg) > 0) goto 999
              end if
           end if
        end if
@@ -8158,9 +7381,8 @@ contains
   subroutine read_all_sdf(file,errmsg,nseed,mseed,seed0,id,ti)
     use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
-       isreal, isinteger, zatguess, equal, isinteger, zatguess, lgetword
-    use types, only: realloc
-    use param, only: maxzat, bohrtoa, isformat_r_sdf
+       isreal, isinteger, zatguess, lgetword
+    use param, only: isformat_r_sdf
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -8170,13 +7392,14 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, lp
-    logical :: ok, seedok, havedollars
+    logical :: ok, havedollars
     character(len=:), allocatable :: line, word1, lword1, word2
     character*5 :: version
-    integer :: i, idseed, idtarget, idum
+    integer :: i, idseed, idtarget, idum, nat
     integer :: zat
+    real*8 :: x(3)
     type(crystalseed) :: seed
-    integer, allocatable :: usedz(:)
+    type(rawseed) :: rec
 
     ! consistency check
     if (.not.(present(nseed).and.present(mseed)).and..not.present(seed0)) then
@@ -8202,18 +7425,21 @@ contains
     idseed = 0
     lu = fopen_read(file,ti=ti)
     main: do while (.true.)
-       ! preapre the new seed
-       seedok = .false.
+       ! prepare the new seed
        call seed%end()
+       rec = rawseed()
+       rec%spcmode = spc_z
+       rec%ndim = 0
+       rec%lunit = lunit_ang
+       rec%iscart = .true.
+       rec%ismol = .true.
+       rec%border = rborder_def
        havedollars = .false.
+       nat = 0
 
        ! header
        if (.not.getline_raw(lu,line)) exit main
-       if (len_trim(line) > 0) then
-          seed%name = trim(file) // "|" // trim(line)
-       else
-          seed%name = trim(file)
-       end if
+       if (len_trim(line) > 0) rec%name = trim(line)
        if (.not.getline_raw(lu,line)) exit main
        if (.not.getline_raw(lu,line)) exit main
 
@@ -8226,42 +7452,26 @@ contains
           version = ""
        end if
        if (version == "v2000") then
-          ! read the number of atoms and allocate space
-          ok = isinteger(seed%nat,line(1:3))
+          ! read the number of atoms
+          ok = isinteger(nat,line(1:3))
           if (.not.ok) goto 100
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-
-          ! prepare space for species
-          seed%nspc = 0
-          allocate(usedz(0:maxzat),seed%spc(10))
-          usedz = 0
 
           ! read nat lines, write down coordinates
-          do i = 1, seed%nat
+          do i = 1, nat
              if (.not.getline_raw(lu,line)) goto 100
              if (len(line) < 33) goto 100
 
              ! coordinates
-             ok = isreal(seed%x(1,i),line(1:10))
-             ok = ok .and. isreal(seed%x(2,i),line(11:20))
-             ok = ok .and. isreal(seed%x(3,i),line(21:30))
+             ok = isreal(x(1),line(1:10))
+             ok = ok .and. isreal(x(2),line(11:20))
+             ok = ok .and. isreal(x(3),line(21:30))
              if (.not.ok) goto 100
-             seed%atname(i) = line(31:33)
 
              ! atomic symbol and chemical species
              zat = zatguess(line(31:33))
              if (zat < 0) goto 100
-             if (usedz(zat) == 0) then
-                seed%nspc = seed%nspc + 1
-                if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
-                seed%spc(seed%nspc)%name = trim(adjustl(line(31:33)))
-                seed%spc(seed%nspc)%z = zat
-                usedz(zat) = seed%nspc
-             end if
-             seed%is(i) = usedz(zat)
+             call rawseed_add_atom(rec,zat,x,line(31:33),spcname=trim(adjustl(line(31:33))))
           end do
-          call realloc(seed%spc,seed%nspc)
-          deallocate(usedz)
        elseif (version == "v3000") then
           do while (.true.)
              if (.not.getline_raw(lu,line)) goto 100
@@ -8283,21 +7493,15 @@ contains
                    lp = 1
                    word1 = lgetword(line,lp)
 
-                   ! read the value and allocate space in the seed
-                   ok = isinteger(seed%nat,line,lp)
+                   ! read the value
+                   ok = isinteger(nat,line,lp)
                    if (.not.ok) goto 100
-                   allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
                 elseif (word1 == "begin" .and. word2 == "atom") then
                    ! must have the number of atoms already
-                   if (seed%nat == 0) goto 100
-
-                   ! prepare space for species
-                   seed%nspc = 0
-                   allocate(usedz(0:maxzat),seed%spc(10))
-                   usedz = 0
+                   if (nat == 0) goto 100
 
                    ! read the atomic coordinates
-                   do i = 1, seed%nat
+                   do i = 1, nat
                       lp = 1
                       if (.not.getline_raw(lu,line)) goto 100
                       if (len(line) < 8) goto 100
@@ -8310,9 +7514,9 @@ contains
                       if (.not.ok) goto 100
 
                       ! coordinates
-                      ok = isreal(seed%x(1,i),line,lp)
-                      ok = ok .and. isreal(seed%x(2,i),line,lp)
-                      ok = ok .and. isreal(seed%x(3,i),line,lp)
+                      ok = isreal(x(1),line,lp)
+                      ok = ok .and. isreal(x(2),line,lp)
+                      ok = ok .and. isreal(x(3),line,lp)
                       if (.not.ok) goto 100
 
                       ! atomic symbol and chemical species
@@ -8323,18 +7527,8 @@ contains
                          zat = zatguess(word1)
                       end if
                       if (zat < 0) goto 100
-                      if (usedz(zat) == 0) then
-                         seed%nspc = seed%nspc + 1
-                         if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
-                         seed%spc(seed%nspc)%name = trim(adjustl(word1))
-                         seed%spc(seed%nspc)%z = zat
-                         usedz(zat) = seed%nspc
-                      end if
-                      seed%is(i) = usedz(zat)
-                      seed%atname(i) = word1
+                      call rawseed_add_atom(rec,zat,x,word1,spcname=trim(adjustl(word1)))
                    end do
-                   call realloc(seed%spc,seed%nspc)
-                   deallocate(usedz)
                    exit
                 end if
              end if
@@ -8344,25 +7538,11 @@ contains
           goto 999
        end if
 
-       ! mol coordinates in angstrom
-       seed%x = seed%x / bohrtoa
-
-       ! rest of the seed information
-       seed%useabr = 0
-       seed%havesym = 0
-       seed%findsym = -1
-       seed%checkrepeats = .false.
-       seed%isused = .true.
-       seed%ismolecule = .true.
-       seed%cubic = .false.
-       seed%border = rborder_def
-       seed%havex0 = .false.
-       seed%molx0 = 0d0
-       seed%file = file
-       seed%isformat = isformat_r_sdf
-
-       ! done, seed is correct
-       seedok = .true.
+       ! build the seed (mol coordinates in angstrom)
+       if (rec%nat > 0) then
+          call rawseed_to_seed(rec,seed,.true.,file,isformat_r_sdf,errmsg)
+          if (len_trim(errmsg) > 0) goto 999
+       end if
 
 100    continue
 
@@ -8423,9 +7603,8 @@ contains
   subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
-    use tools_math, only: matinv
     use param, only: bohrtoa, isformat_r_qeout
-    use types, only: realloc, species
+    use types, only: species
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -8434,22 +7613,25 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, ideq, i, j, is0, ier, nee
-    character(len=:), allocatable :: line, str, enechar
+    integer :: lu, ideq, i, j, nee, nstr, nrec, nstruct
+    character(len=:), allocatable :: line, enechar
     character*10 :: atn, sdum
     character*40 :: sene
-    integer :: idum, npad, idx
+    integer :: idum, idx
     real*8 :: alat, r(3,3), qaux, rfac, cfac, rdum
     logical :: ok, tox
     ! interim copy of seed info
-    integer :: nat, nspc, iuse
+    integer :: nat, nspc
     real*8, allocatable :: x(:,:)
     integer, allocatable :: is(:)
     character*10, allocatable :: atname(:)
     type(species), allocatable :: spc(:) !< Species
     real*8 :: m_x2c(3,3)
-    logical :: hasx, hasis, hasspc, hasr
+    logical :: hasx, hasis, hasspc, hasr, keep, lastkept
+    type(rawseed), allocatable :: rec(:)
+    type(rawseed) :: tmpl
 
+    nseed = 0
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
@@ -8457,39 +7639,40 @@ contains
        return
     end if
 
-    ! first pass: read the number of structures
+    ! first pass: count the structures and find out whether the energies
+    ! are printed as "!" or "!!" lines (hybrid functionals)
     nee = 0
-    nseed = 0
+    nstr = 0
     do while (getline_raw(lu,line))
-       if (index(line,"!") == 1) nseed = nseed + 1
+       if (index(line,"!") == 1) nstr = nstr + 1
        if (index(line,"!!") == 1) nee = nee + 1 ! for hybrid functionals
     end do
     if (nee > 0) then
-       nseed = nee
+       nstr = nee
        enechar = "!!"
     else
        enechar = "!"
     end if
-    if (nseed == 0) then
+    if (nstr == 0) then
        errmsg = "No valid structures found."
        goto 999
     end if
     if (allocated(seed)) deallocate(seed)
 
-    is0 = 0
-    if (istruct >= 0) then
-       allocate(seed(1))
-       seed(1)%nspc = 0
-       seed(1)%nat = 0
+    ! records: all of them (istruct < 0) or only the requested one (slot 1)
+    if (istruct < 0) then
+       allocate(rec(nstr))
     else
-       allocate(seed(nseed))
-       do i = 1, nseed
-          seed(i)%nspc = 0
-          seed(i)%nat = 0
-       end do
+       allocate(rec(1))
     end if
+    tmpl%spcmode = spc_given
+    tmpl%ndim = 3
+    tmpl%cellmode = 2
+    tmpl%lunit = lunit_bohr
+    nrec = 0
+    nstruct = 0
+    lastkept = .false.
     alat = 1d0
-    npad = ceiling(log10(nseed-1+0.1d0))
 
     ! rewind and read all the structures
     rewind(lu)
@@ -8643,7 +7826,7 @@ contains
           x = x * rfac
           hasx = .true.
        else if (index(line,enechar) == 1) then
-          if (nat == 0 .or.(.not.hasx.and.is0 == 0)) then
+          if (nat == 0 .or.(.not.hasx.and.nstruct == 0)) then
              errmsg = "Missing atomic positions."
              goto 999
           end if
@@ -8659,89 +7842,60 @@ contains
              errmsg = "Missing cell dimensions."
              goto 999
           end if
-          if (hasx) is0 = is0 + 1
 
-          ! decide whether we want to keep this structure in a seed
-          iuse = 0
-          if (istruct < 0) then
-             iuse = is0
-          elseif (istruct == 0 .and. is0 == nseed) then
-             iuse = 1
-          elseif (istruct == is0) then
-             iuse = 1
+          ! a new geometry: keep it as a record if it is wanted
+          if (hasx) then
+             nstruct = nstruct + 1
+             keep = (istruct <= 0) .or. (istruct == nstruct)
+             if (keep) then
+                if (istruct < 0) then
+                   nrec = nrec + 1
+                   call rawseed_grow(rec,nrec)
+                else
+                   nrec = 1
+                end if
+                rec(nrec) = tmpl
+                rec(nrec)%nspc = nspc
+                rec(nrec)%spc = spc
+                rec(nrec)%is = is
+                rec(nrec)%atname = atname
+                rec(nrec)%nat = nat
+                rec(nrec)%x = x
+                rec(nrec)%rv = m_x2c
+                rec(nrec)%iscart = tox
+                rec(nrec)%isfinal = (nstruct == nstr)
+             end if
+             lastkept = keep
           end if
 
-          ! read the energy and maybe save the seed
-          if (iuse > 0) then
-             if (hasx) then
-                ! keep the seed
-                seed(iuse)%nat = nat
-                seed(iuse)%nspc = nspc
-                seed(iuse)%spc = spc
-                seed(iuse)%x = x
-                seed(iuse)%is = is
-                seed(iuse)%atname = atname
-                seed(iuse)%m_x2c = m_x2c
-
-                seed(iuse)%useabr = 2
-                r = seed(iuse)%m_x2c
-                call matinv(r,3,ier)
-                if (ier /= 0) then
-                   errmsg = "Error inverting matrix"
-                   goto 999
-                end if
-
-                do i = 1, seed(iuse)%nat
-                   if (tox) then
-                      seed(iuse)%x(:,i) = matmul(r,seed(iuse)%x(:,i))
-                   end if
-                end do
-
-                seed(iuse)%havesym = 0
-                seed(iuse)%checkrepeats = .false.
-                seed(iuse)%findsym = -1
-                seed(iuse)%isused = .true.
-                seed(iuse)%ismolecule = mol
-                seed(iuse)%cubic = .false.
-                seed(iuse)%border = 0d0
-                seed(iuse)%havex0 = .false.
-                seed(iuse)%molx0 = 0d0
-                seed(iuse)%file = file
-                seed(iuse)%isformat = isformat_r_qeout
-             end if ! hasx
-
-             read (line,*,err=999,end=999) sdum, sdum, sdum, sdum, sene
-             read (sene,*,err=999,end=999) rdum
-             if (istruct < 0) then
-                if (is0 == nseed) then
-                   seed(iuse)%name = trim(file) // "|(fin) (" //&
-                      trim(adjustl(string(rdum,'f',20,8))) // " Ry)"
-                   seed(iuse)%energy = rdum / 2d0
-                else
-                   str = string(iuse,npad,pad0=.true.)
-                   str = string(str,length=max(5,len(str)))
-                   seed(iuse)%name = trim(file) // "|" // str // " (" //&
-                      trim(adjustl(string(rdum,'f',decimal=8))) // " Ry)"
-                   seed(iuse)%energy = rdum / 2d0
-                end if
-             else
-                seed(iuse)%name = file
-             end if ! istruct < 0
-          end if ! iuse > 0
+          ! read the energy (Ry) into the current record
+          read (line,*,err=999,end=999) sdum, sdum, sdum, sdum, sene
+          read (sene,*,err=999,end=999) rdum
+          if (nrec > 0 .and. lastkept) rec(nrec)%energy = rdum / 2d0
           hasx = .false.
-       else if (iuse > 0 .and. index(line,"total   stress") > 0) then
-          ! add the pressure to the last seed, if available
+       else if (nrec > 0 .and. lastkept .and. index(line,"total   stress") > 0) then
+          ! add the pressure to the current record, if available
           idx = index(line,'=')
-          ok = isreal(seed(iuse)%pressure,line(idx+1:))
+          ok = isreal(rec(nrec)%pressure,line(idx+1:))
           if (ok) then
-             seed(iuse)%pressure = seed(iuse)%pressure / 10d0 ! kbar -> GPa
+             rec(nrec)%pressure = rec(nrec)%pressure / 10d0 ! kbar -> GPa
           else
-             seed(iuse)%pressure = huge(1d0)
+             rec(nrec)%pressure = huge(1d0)
           end if
        end if
     end do
+    if (nrec == 0) then
+       if (istruct > 0) then
+          errmsg = "Structure number not found in file: " // string(istruct)
+       else
+          errmsg = "No valid structures found."
+       end if
+       goto 999
+    end if
 
-    if (istruct >= 0) nseed = 1
+    ! build the seeds (the requested one is in slot 1 if istruct >= 0)
+    call rawseed_select(rec,nrec,min(istruct,0),mol,file,isformat_r_qeout,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     errmsg = ""
 999 continue
@@ -8759,12 +7913,9 @@ contains
   !> structure and ignore the rest.
   subroutine read_all_xyz(nseed,seed,file,mol,errmsg,seed0,ti)
     use global, only: rborder_def
-    use hashmod, only: hash
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
        isinteger, isreal, string, nameguess
-    use types, only: realloc
-    use param, only: maxzat, bohrtoa, isformat_r_xyz
+    use param, only: maxzat, isformat_r_xyz
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -8773,15 +7924,15 @@ contains
     type(crystalseed), intent(inout), optional :: seed0
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, nat, i, iz, lp, ier
+    integer :: lu, nat, i, iz, lp, nrec
     logical :: ok, ismol
-    logical, allocatable :: ismola(:)
-    real*8 :: edum, r(3,3)
-    real*8, allocatable :: energy(:), ra(:,:,:)
-    character(len=:), allocatable :: line, latn
+    real*8 :: edum, r(3,3), x(3)
+    character(len=:), allocatable :: line
     character*10 :: atn
-    type(hash) :: usen
+    type(rawseed), allocatable :: rec(:)
+    type(rawseed) :: tmpl
 
+    nseed = 0
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
@@ -8789,129 +7940,66 @@ contains
        return
     end if
 
+    ! one record per frame (angstrom, Cartesian coordinates); the title
+    ! line energy is stored as read (unknown units) and is not shown
     errmsg = "Error reading file: " // trim(file)
-    nseed = 0
-    allocate(energy(10),ismola(10),ra(3,3,10))
+    tmpl%spcmode = spc_label_nocase
+    tmpl%lunit = lunit_ang
+    tmpl%iscart = .true.
+    tmpl%border = rborder_def
+    allocate(rec(1))
+    nrec = 0
     do while (getline_raw(lu,line))
        if (len_trim(line) == 0) cycle
        read (line,*,err=999,end=999) nat
-       ok = getline_raw(lu,line)
-       if (.not.ok) goto 999
+       nrec = nrec + 1
+       call rawseed_grow(rec,nrec)
+       rec(nrec) = tmpl
 
        ! interpret the title line, if possible
-       call interpret_title_line()
-
-       do i = 1, nat
-          ok = getline_raw(lu,line)
-          if (.not.ok) goto 999
-       end do
-       nseed = nseed + 1
-       if (nseed > size(energy,1)) then
-          call realloc(energy,2*nseed)
-          call realloc(ismola,2*nseed)
-          call realloc(ra,3,3,2*nseed)
-       end if
-       energy(nseed) = edum
-       if (mol == 1) then
-          ismola(nseed) = .true.
-       else
-          ismola(nseed) = ismol
-       end if
-       ra(:,:,nseed) = r
-       if (present(seed0)) exit ! stop here if we only need 1 seed
-    end do
-
-    if (allocated(seed)) deallocate (seed)
-    allocate(seed(nseed))
-    rewind(lu)
-    nseed = 0
-    do while (getline_raw(lu,line))
-       if (len_trim(line) == 0) cycle
-       nseed = nseed + 1
-       call usen%init()
-       read (line,*,err=999,end=999) nat
-       seed(nseed)%nat = nat
-
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
-       seed(nseed)%file = file
-       seed(nseed)%name = seed(nseed)%file
-       seed(nseed)%isformat = isformat_r_xyz
+       call interpret_title_line()
+       rec(nrec)%energy = edum
+       if (mol == 1 .or. ismol) then
+          rec(nrec)%ismol = .true.
+          rec(nrec)%ndim = 0
+       else
+          rec(nrec)%ndim = 3
+          rec(nrec)%cellmode = 2
+          rec(nrec)%rv = transpose(r)
+       end if
 
-       seed(nseed)%nspc = 0
-       allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10),seed(nseed)%atname(nat))
+       ! the atoms (angstrom); an integer symbol is the atomic number
        do i = 1, nat
-          read (lu,*,err=999,end=999) atn, seed(nseed)%x(:,i)
-          seed(nseed)%atname(i) = atn
-
+          read (lu,*,err=999,end=999) atn, x
           ok = isinteger(iz,atn)
           if (ok) then
              if (iz < 0 .or. iz > maxzat) then
                 errmsg = "Invalid atomic number: "//string(iz)//"."
                 goto 999
              end if
-             atn = nameguess(iz,.true.)
+             call rawseed_add_atom(rec(nrec),iz,x,atn,spcname=trim(nameguess(iz,.true.)))
           else
              iz = zatguess(atn)
              if (iz < 0) then
                 errmsg = "Unknown atomic symbol: "//trim(atn)//"."
                 goto 999
              end if
-          end if
-
-          latn = lower(trim(atn))
-          if (usen%iskey(latn)) then
-             seed(nseed)%is(i) = usen%get(latn,1)
-          else
-             seed(nseed)%nspc = seed(nseed)%nspc + 1
-             if (seed(nseed)%nspc > size(seed(nseed)%spc,1)) &
-                call realloc(seed(nseed)%spc,2*seed(nseed)%nspc)
-             seed(nseed)%spc(seed(nseed)%nspc)%name = trim(atn)
-             seed(nseed)%spc(seed(nseed)%nspc)%z = iz
-             call usen%put(latn,seed(nseed)%nspc)
-             seed(nseed)%is(i) = seed(nseed)%nspc
+             call rawseed_add_atom(rec(nrec),iz,x,atn)
           end if
        end do
-       call realloc(seed(nseed)%spc,seed(nseed)%nspc)
-       seed(nseed)%x = seed(nseed)%x / bohrtoa
-       seed(nseed)%havesym = 0
-       seed(nseed)%checkrepeats = .false.
-       seed(nseed)%findsym = -1
-       seed(nseed)%isused = .true.
-       seed(nseed)%cubic = .false.
-       seed(nseed)%border = rborder_def
-       seed(nseed)%havex0 = .false.
-       seed(nseed)%molx0 = 0d0
-       seed(nseed)%energy = energy(nseed)
-
-       ! set molecule or crystal fields
-       seed(nseed)%ismolecule = ismola(nseed)
-       if (ismola(nseed)) then
-          seed(nseed)%useabr = 0
-          seed(nseed)%m_x2c = 0d0
-       else
-          seed(nseed)%useabr = 2
-          seed(nseed)%m_x2c = transpose(ra(:,:,nseed))
-          r = seed(nseed)%m_x2c
-          call matinv(r,3,ier)
-          if (ier /= 0) then
-             errmsg = "Error inverting lattice vector matrix"
-             goto 999
-          end if
-          do i = 1, seed(nseed)%nat
-             seed(nseed)%x(:,i) = matmul(r,seed(nseed)%x(:,i))
-          end do
-       end if
        if (present(seed0)) exit ! stop here if we only need 1 seed
     end do
-    deallocate(energy)
 
-    ! set all seed names
-    if (nseed > 1) then
-       do i = 1, nseed
-          seed(i)%name = trim(seed(i)%name) // "|" // string(i)
+    ! build the seeds; several seeds are named file|i
+    if (nrec > 1) then
+       do i = 1, nrec
+          rec(i)%name = string(i)
        end do
     end if
+    call rawseed_select(rec,nrec,-1,.false.,file,isformat_r_xyz,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     ! assign seed0
     if (present(seed0)) seed0 = seed(1)
@@ -8933,7 +8021,7 @@ contains
       logical :: firstpass, ok
 
       ! initialize
-      edum = 0d0
+      edum = huge(1d0)
       lp = 1
       ismol = .true.
       r = 0d0
@@ -8941,7 +8029,7 @@ contains
       ! check if it is a single field -> energy
       ok = isreal(edum,line,lp)
       if (.not.ok .or. len_trim(line(lp:)) > 0) then
-         edum = 0d0
+         edum = huge(1d0)
       else
          return
       end if
@@ -8988,7 +8076,6 @@ contains
             end if
          end if
       end if
-      if (.not.ismol) r = r / bohrtoa
 
     end subroutine interpret_title_line
 
@@ -8998,9 +8085,8 @@ contains
   !> all crystal seeds.
   subroutine read_all_log(nseed,seed,file,errmsg,alsovib,ti)
     use global, only: rborder_def
-    use tools_io, only: fopen_read, fclose, getline_raw, nameguess, string
-    use types, only: species
-    use param, only: maxzat, bohrtoa, isformat_r_gaussian
+    use tools_io, only: fopen_read, fclose, getline_raw, nameguess
+    use param, only: isformat_r_gaussian
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -9008,15 +8094,15 @@ contains
     logical, intent(out), optional :: alsovib
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: line, str
-    integer :: lu, nat, idum, iz, nspc, i, npad
-    integer :: usez(0:maxzat), idx, in
+    character(len=:), allocatable :: line
+    integer :: lu, idum, iz, nrec, idx
     logical :: ok, laste, lastinputor
-    type(species), allocatable :: spc(:)
-    real*8 :: energy
-    real*8, allocatable :: esave(:)
+    real*8 :: energy, x(3)
+    type(rawseed), allocatable :: rec(:)
+    type(rawseed) :: tmpl
 
     ! initialize
+    nseed = 0
     errmsg = ""
     if (present(alsovib)) alsovib = .false.
 
@@ -9028,10 +8114,17 @@ contains
     end if
     errmsg = "Error reading file: " // trim(file)
 
-    ! count the number of seeds, atoms, and build the species
-    energy = huge(1d0)
-    nat = 0
-    nseed = 0
+    ! one record per orientation block; the input/Z-matrix orientation
+    ! wins over the standard orientation once it has been seen
+    tmpl%spcmode = spc_zsorted
+    tmpl%ndim = 0
+    tmpl%lunit = lunit_ang
+    tmpl%iscart = .true.
+    tmpl%ismol = .true.
+    tmpl%border = rborder_def
+    allocate(rec(1))
+    nrec = 0
+    laste = .false.
     lastinputor = .false.
     do while (getline_raw(lu,line))
        ok = (index(line,"Input orientation:") > 0) .or. (index(line,"Z-Matrix orientation:") > 0)
@@ -9050,131 +8143,48 @@ contains
        end if
 
        if (ok) then
-          nseed = nseed + 1
-
-          if (nat == 0) then
-             usez = 0
-             ok = getline_raw(lu,line)
-             ok = ok .and. getline_raw(lu,line)
-             ok = ok .and. getline_raw(lu,line)
-             ok = ok .and. getline_raw(lu,line)
-             if (.not.ok) goto 999
-             do while (.true.)
-                ok = getline_raw(lu,line)
-                if (.not.ok) goto 999
-                if (index(line,"---------") > 0) exit
-                nat = nat + 1
-                read(line,*,err=999,end=999) idum, iz
-                if (iz < 0) iz = 0
-                usez(iz) = 1
-             end do
-          end if
-       end if
-    end do
-    if (nat == 0) then
-       errmsg = "No atoms found."
-       goto 999
-    end if
-
-    ! build the species
-    nspc = count(usez > 0)
-    if (nspc == 0) then
-       errmsg = "No species found."
-       goto 999
-    end if
-    allocate(spc(nspc))
-    nspc = 0
-    do i = 0, maxzat
-       if (usez(i) > 0) then
-          nspc = nspc + 1
-          spc(nspc)%z = i
-          spc(nspc)%name = nameguess(i,.true.)
-          usez(i) = nspc
-       end if
-    end do
-
-    if (allocated(seed)) deallocate(seed)
-    allocate(seed(nseed),esave(nseed))
-    esave = huge(1d0)
-    rewind(lu)
-    in = 0
-    lastinputor = .false.
-    do while (getline_raw(lu,line))
-       ok = (index(line,"Input orientation:") > 0) .or. (index(line,"Z-Matrix orientation:") > 0)
-       if (ok) then
-          lastinputor = .true.
-       elseif (.not.lastinputor) then
-          ok = (index(line,"Standard orientation:") > 0)
-          if (ok) lastinputor = .false.
-       end if
-
-       if (ok) then
-          in = in + 1
-          seed(in)%nat = nat
-          allocate(seed(in)%x(3,nat),seed(in)%is(nat),seed(in)%atname(nat))
-
+          nrec = nrec + 1
+          call rawseed_grow(rec,nrec)
+          rec(nrec) = tmpl
           ok = getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
           if (.not.ok) goto 999
-
-          do i = 1, nat
-             read (lu,*,err=999,end=999) idum, iz, idum, seed(in)%x(:,i)
+          do while (.true.)
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (index(line,"---------") > 0) exit
+             read(line,*,err=999,end=999) idum, iz, idum, x
              if (iz < 0) iz = 0
-             seed(in)%is(i) = usez(iz)
-             seed(in)%atname(i) = spc(usez(iz))%name
+             call rawseed_add_atom(rec(nrec),iz,x,nameguess(iz,.true.))
           end do
-
-          seed(in)%x = seed(in)%x / bohrtoa
-          seed(in)%isused = .true.
-          seed(in)%file = file
-          seed(in)%isformat = isformat_r_gaussian
-          seed(in)%name = file
-          seed(in)%nspc = nspc
-          seed(in)%spc = spc
-          seed(in)%useabr = 0
-          seed(in)%havesym = 0
-          seed(in)%checkrepeats = .false.
-          seed(in)%findsym = -1
-          seed(in)%isused = .true.
-          seed(in)%ismolecule = .true.
-          seed(in)%cubic = .false.
-          seed(in)%border = rborder_def
-          seed(in)%havex0 = .false.
-          seed(in)%molx0 = 0d0
           laste = .false.
-       elseif (index(line,"SCF Done") > 0) then
+       elseif (nrec > 0 .and. index(line,"SCF Done") > 0) then
           idx = index(line,"=")
           if (idx > 0) then
              line = line(idx+1:)
              read (line,*) energy
-             esave(in) = energy
+             rec(nrec)%energy = energy
           end if
           laste = .true.
        end if
     end do
-    if (.not.laste.and.nseed > 1) then
-       nseed = nseed - 1
-       call realloc_crystalseed(seed,nseed)
+    if (nrec == 0) then
+       errmsg = "No atoms found."
+       goto 999
     end if
+    if (rec(nrec)%nat == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+    ! drop a trailing geometry without an energy
+    if (.not.laste .and. nrec > 1) nrec = nrec - 1
+    rec(nrec)%isfinal = .true.
 
-    if (nseed > 1) then
-       npad = ceiling(log10(nseed-1+0.1d0))
-       do i = 1, nseed-1
-          str = string(i,npad,pad0=.true.)
-          str = string(str,length=max(5,len(str)))
-          seed(i)%name = trim(file) // "|" // str // " (" //&
-             trim(adjustl(string(esave(i),'f',decimal=9))) // " Ha)"
-          seed(i)%energy = esave(i)
-       end do
-       seed(nseed)%name = trim(file) // "|(fin) (" //&
-          trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
-       seed(nseed)%energy = energy
-    else
-       seed(1)%name = trim(file)
-       if (seed(1)%energy /= huge(1d0)) seed(1)%energy = energy
-    end if
+    ! build the seeds
+    call rawseed_select(rec,nrec,-1,.true.,file,isformat_r_gaussian,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     errmsg = ""
 999 continue
@@ -9189,27 +8199,23 @@ contains
   !> Read an FHI aims output file.
   subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
     use global, only: rborder_def
-    use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
-       getword, zatguess, string
-    use tools_math, only: matinv
-    use types, only: realloc
-    use hashmod, only: hash
-    use param, only: bohrtoa, hartoev, eva3togpa, isformat_r_aimsout
+    use tools_io, only: fopen_read, getline_raw, fclose, lgetword, isreal, getword, zatguess
+    use param, only: hartoev, eva3togpa, isformat_r_aimsout
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, lp, nlat, i, j, idx, ier, iat, npad, ll
+    integer :: lu, lp, nlat, i, j, idx, ll, nrec, iz
     logical :: is_file_mol, ok, isfinal
     character*1 :: cdum
     character*10 :: dum1, dum2, splbl
-    character(len=:), allocatable :: line, word, str
-    real*8 :: rlat(3,3)
-    logical, allocatable :: isfrac(:)
-    type(hash) :: usespc
+    character(len=:), allocatable :: line, word
+    real*8 :: rlat(3,3), x(3), rdum
+    type(rawseed), allocatable :: rec(:)
 
+    nseed = 0
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
@@ -9217,15 +8223,6 @@ contains
        return
     end if
     errmsg = "Error reading file: " // trim(file)
-    call usespc%init()
-
-    ! allocate initial seed
-    nseed = 1
-    if (allocated(seed)) deallocate(seed)
-    allocate(seed(10))
-
-    ! allocate atoms
-    allocate(isfrac(10),seed(1)%x(3,10),seed(1)%is(10),seed(1)%atname(10))
 
     ! advance until we are at the "Input geometry" line
     ok = .false.
@@ -9255,75 +8252,22 @@ contains
     else
        goto 999
     end if
-
-    ! get the atomic positions
-    seed(1)%nspc = 0
-    seed(1)%nat = 0
+    ! first record: the input geometry
+    allocate(rec(1))
+    nrec = 1
+    call init_record(rec(1))
     ok = getline_raw(lu,line)
     ok = ok .and. getline_raw(lu,line)
     do while (getline_raw(lu,line))
        if (len_trim(line) == 0) exit
-
-       seed(1)%nat = seed(1)%nat + 1
-       if (seed(1)%nat > size(isfrac,1)) then
-          call realloc(isfrac,2*seed(1)%nat)
-          call realloc(seed(1)%x,3,2*seed(1)%nat)
-          call realloc(seed(1)%is,2*seed(1)%nat)
-          call realloc(seed(1)%atname,2*seed(1)%nat)
-       end if
-       read(line,*,err=999,end=999) cdum, dum1, dum2, splbl, (seed(1)%x(j,seed(1)%nat),j=1,3)
-       isfrac(seed(1)%nat) = .false.
-
+       read(line,*,err=999,end=999) cdum, dum1, dum2, splbl, (x(j),j=1,3)
        word = trim(adjustl(splbl))
-       if (.not.usespc%iskey(word)) then
-          seed(1)%nspc = seed(1)%nspc + 1
-          call usespc%put(word,seed(1)%nspc)
-          seed(1)%is(seed(1)%nat) = seed(1)%nspc
-       else
-          seed(1)%is(seed(1)%nat) = usespc%get(word,1)
-       end if
-       seed(1)%atname(seed(1)%nat) = word
-    end do
-    call realloc(isfrac,seed(1)%nat)
-    call realloc(seed(1)%x,3,seed(1)%nat)
-    call realloc(seed(1)%is,seed(1)%nat)
-    call realloc(seed(1)%atname,seed(1)%nat)
-
-    ! fill the species array
-    allocate(seed(1)%spc(seed(1)%nspc))
-    do i = 1, seed(1)%nspc
-       word = usespc%getkey(i)
-       idx = usespc%get(word,1)
-       seed(1)%spc(idx)%name = word
-       seed(1)%spc(idx)%z = zatguess(word)
-       if (seed(1)%spc(idx)%z <= 0) then
+       iz = zatguess(word)
+       if (iz <= 0) then
           errmsg = "unknown atom type: " // word
           goto 999
        end if
-    end do
-
-    ! ismolecule and cell
-    seed(1)%ismolecule = is_file_mol
-    if (is_file_mol) then
-       seed(1)%useabr = 0
-       seed(1)%m_x2c = 0d0
-    else
-       seed(1)%useabr = 2
-       rlat = rlat / bohrtoa
-       seed(1)%m_x2c = rlat
-       call matinv(rlat,3,ier)
-       if (ier /= 0) then
-          errmsg = "Error inverting lattice vector matrix"
-          goto 999
-       end if
-    end if
-
-    ! convert the atomic coordinates
-    do i = 1, seed(1)%nat
-       if (.not.isfrac(i)) then
-          seed(1)%x(:,i) = seed(1)%x(:,i) / bohrtoa
-          if (.not.is_file_mol) seed(1)%x(:,i) = matmul(rlat,seed(1)%x(:,i))
-       end if
+       call rawseed_add_atom(rec(1),iz,x,word)
     end do
 
     ! read the rest of the file
@@ -9335,38 +8279,36 @@ contains
           if (.not.ok) exit main
           if (index(line,'| Total energy uncorrected') > 0) then
              idx = index(line,':')
-             ok = isreal(seed(nseed)%energy,line(idx+1:))
-             if (.not.ok) seed(nseed)%energy = huge(1d0)
+             ok = isreal(rdum,line(idx+1:))
+             if (ok) then
+                rec(nrec)%energy = rdum / hartoev
+             else
+                rec(nrec)%energy = huge(1d0)
+             end if
           elseif (index(line,'|  Pressure') > 0) then
              idx = index(line,':')
-             ok = isreal(seed(nseed)%pressure,line(idx+1:))
+             ok = isreal(rdum,line(idx+1:))
              if (ok) then
-                seed(nseed)%pressure = seed(nseed)%pressure * eva3togpa
+                rec(nrec)%pressure = rdum * eva3togpa
              else
-                seed(nseed)%pressure = huge(1d0)
+                rec(nrec)%pressure = huge(1d0)
              end if
           elseif (trim(line) == "  Updated atomic structure:") then
-             nseed = nseed + 1
              isfinal = .false.
              exit
           elseif (trim(line) == "  Final atomic structure:") then
-             nseed = nseed + 1
              isfinal = .true.
              exit
           end if
        end do
 
-       ! We are about to read a new seed, make space for it and initialize
-       if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
-       seed(nseed)%nspc = seed(1)%nspc
-       seed(nseed)%spc = seed(1)%spc
-       seed(nseed)%nat = seed(1)%nat
-       seed(nseed)%is = seed(1)%is
-       allocate(seed(nseed)%x(3,seed(1)%nat),seed(nseed)%atname(seed(1)%nat))
+       ! a new record
+       nrec = nrec + 1
+       call rawseed_grow(rec,nrec)
+       call init_record(rec(nrec))
 
        ! read the geometry block
        nlat = 0
-       iat = 0
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
        do while (getline_raw(lu,line))
@@ -9387,118 +8329,77 @@ contains
              ok = ok .and. isreal(rlat(3,nlat),line,lp)
              if (.not.ok) goto 999
           elseif (word == "atom") then
-             iat = iat + 1
-             ok = isreal(seed(nseed)%x(1,iat),line,lp)
-             ok = ok .and. isreal(seed(nseed)%x(2,iat),line,lp)
-             ok = ok .and. isreal(seed(nseed)%x(3,iat),line,lp)
-             isfrac(iat) = .false.
-             seed(nseed)%atname(iat) = getword(line,lp)
+             ok = isreal(x(1),line,lp)
+             ok = ok .and. isreal(x(2),line,lp)
+             ok = ok .and. isreal(x(3),line,lp)
+             if (.not.ok) goto 999
+             word = getword(line,lp)
+             iz = zatguess(word)
+             if (iz <= 0) then
+                errmsg = "unknown atom type: " // word
+                goto 999
+             end if
+             call rawseed_add_atom(rec(nrec),iz,x,word)
           end if
        end do
-
-       ! handle the flags that are the same as the first seed
-       seed(nseed)%ismolecule = seed(1)%ismolecule
-       seed(nseed)%useabr = seed(1)%useabr
-
-       ! lattice vectors
-       if (is_file_mol) then
-          seed(nseed)%m_x2c = 0d0
-       else
-          rlat = rlat / bohrtoa
-          seed(nseed)%m_x2c = rlat
-          call matinv(rlat,3,ier)
-          if (ier /= 0) then
-             errmsg = "Error inverting lattice vector matrix"
-             goto 999
-          end if
-       end if
-
-       ! convert the atomic coordinates
-       do i = 1, seed(nseed)%nat
-          if (.not.isfrac(i)) then
-             seed(nseed)%x(:,i) = seed(nseed)%x(:,i) / bohrtoa
-             if (.not.is_file_mol) seed(nseed)%x(:,i) = matmul(rlat,seed(nseed)%x(:,i))
-          end if
-       end do
+       if (.not.is_file_mol) rec(nrec)%rv = rlat
 
        ! if this is the final structure and we do not have an energy, take it from last step
-       if (isfinal .and. seed(nseed)%energy == huge(1d0) .and. nseed > 1)&
-          seed(nseed)%energy = seed(nseed-1)%energy
+       if (isfinal .and. rec(nrec)%energy == huge(1d0) .and. nrec > 1)&
+          rec(nrec)%energy = rec(nrec-1)%energy
     end do main
-    call fclose(lu)
-    call realloc_crystalseed(seed,nseed)
+    rec(nrec)%isfinal = .true.
 
-    npad = ceiling(log10(nseed-1+0.1d0))
-    do i = 1, nseed
-       ! symmetry
-       seed(i)%havesym = 0
-       seed(i)%findsym = -1
-       seed(i)%checkrepeats = .false.
-
-       ! rest of the seed information
-       seed(i)%isused = .true.
-       seed(i)%cubic = .false.
-       seed(i)%border = rborder_def
-       seed(i)%havex0 = .false.
-       seed(i)%molx0 = 0d0
-       seed(i)%file = file
-       seed(i)%name = file
-       seed(i)%isformat = isformat_r_aimsout
-
-       ! name and energy conversion
-       if (i == nseed) then
-          if (seed(i)%energy /= huge(1d0)) then
-             seed(i)%name = trim(file) // "|(fin) (" //&
-                trim(adjustl(string(seed(i)%energy,'f',decimal=8))) // " eV)"
-          else
-             seed(i)%name = trim(file) // "|(fin)"
-          end if
-       else
-          str = string(i,npad,pad0=.true.)
-          str = string(str,length=max(5,len(str)))
-          if (seed(i)%energy /= huge(1d0)) then
-             seed(i)%name = trim(file) // "|" // str // " (" //&
-                trim(adjustl(string(seed(i)%energy,'f',decimal=8))) // " eV)"
-          else
-             seed(i)%name = trim(file) // "|" // str
-          end if
-       end if
-       if (seed(i)%energy /= huge(1d0)) &
-          seed(i)%energy = seed(i)%energy / hartoev
-    end do
+    ! build the seeds
+    call rawseed_select(rec,nrec,-1,is_file_mol,file,isformat_r_aimsout,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     ! fin
     errmsg = ""
-    return
 999 continue ! error condition
     call fclose(lu)
-    nseed = 0
-    deallocate(seed)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
 
+  contains
+    ! common settings of every record in this file
+    subroutine init_record(r)
+      type(rawseed), intent(inout) :: r
+      r%spcmode = spc_label
+      r%lunit = lunit_ang
+      r%iscart = .true.
+      r%ismol = is_file_mol
+      r%border = rborder_def
+      if (is_file_mol) then
+         r%ndim = 0
+      else
+         r%ndim = 3
+         r%cellmode = 2
+         r%rv = rlat
+      end if
+    end subroutine init_record
   end subroutine read_all_aimsout
 
   !> Read all seeds from a CASTEP geom file.
   subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
-    use tools_io, only: fopen_read, fclose, getline_raw, lgetword,&
-       getword, lower, isinteger, isreal, zatguess, string
-    use tools_math, only: matinv
-    use hashmod, only: hash
-    use param, only: hartoev, isformat_r_castepgeom
+    use tools_io, only: fopen_read, fclose, getline_raw, getword, isinteger, isreal, zatguess
+    use param, only: isformat_r_castepgeom
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: line, word, lword, str
-    integer :: lu, ll, i, j, lp, idum, is, ier
-    integer :: nat, nspc, npad
+    character(len=:), allocatable :: line, word
+    integer :: lu, ll, lp, idum, iz, nrec
     logical :: ok
-    type(hash) :: usen
-    logical, allocatable :: usespc(:)
-    real*8 :: m(3,3)
+    real*8 :: x(3)
+    type(rawseed), allocatable :: rec(:)
+    type(rawseed) :: tmpl
 
-    call usen%init()
+    nseed = 0
     errmsg = ""
     ! open
     lu = fopen_read(file,errstop=.false.,ti=ti)
@@ -9508,141 +8409,66 @@ contains
     end if
     errmsg = "Error reading file: " // trim(file)
 
-    ! first pass, read the number of lines and the number of atoms
-    nseed = 0
-    nat = 0
-    nspc = 0
+    ! read the geometries: one record per "<-- E" block (atomic units)
+    tmpl%spcmode = spc_label_nocase
+    tmpl%ndim = 3
+    tmpl%cellmode = 2
+    tmpl%lunit = lunit_bohr
+    tmpl%iscart = .true.
+    allocate(rec(1))
+    nrec = 0
     do while(getline_raw(lu,line))
        line = trim(adjustl(line))
        ll = len(line)
        if (ll > 4) then
           if (line(ll-4:ll) == "<-- E") then
-             nseed = nseed + 1
-          elseif (nseed == 1) then
-             if (line(ll-4:ll) == "<-- R") then
-                nat = nat + 1
-                lp = 1
-                word = lgetword(line,lp)
-                if (.not.usen%iskey(word)) then
-                   nspc = nspc + 1
-                   call usen%put(word,nspc)
-                end if
-             end if
-          end if
-       end if
-    end do
-    if (nseed == 0) goto 999
-
-    ! allocate seeds
-    if (allocated(seed)) deallocate(seed)
-    allocate(seed(nseed))
-    do i = 1, nseed
-       allocate(seed(i)%x(3,nat),seed(i)%is(nat),seed(i)%spc(nspc),seed(i)%atname(nat))
-       seed(i)%useabr = 2
-       seed(i)%nat = nat
-       seed(i)%nspc = nspc
-    end do
-
-    ! second pass, actual read
-    allocate(usespc(nspc))
-    usespc = .false.
-    rewind(lu)
-    nseed = 0
-    do while(getline_raw(lu,line))
-       line = trim(adjustl(line))
-       ll = len(line)
-       if (ll > 4) then
-          if (line(ll-4:ll) == "<-- E") then
-             nseed = nseed + 1
-             nat = 0
-             read(line,*,err=999,end=999) seed(nseed)%energy
+             nrec = nrec + 1
+             call rawseed_grow(rec,nrec)
+             rec(nrec) = tmpl
+             read(line,*,err=999,end=999) rec(nrec)%energy
+          elseif (nrec == 0) then
+             cycle
           elseif (line(ll-4:ll) == "<-- h") then
-             read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,1)
+             read(line,*,err=999,end=999) rec(nrec)%rv(:,1)
              if (.not.getline_raw(lu,line)) goto 999
-             read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,2)
+             read(line,*,err=999,end=999) rec(nrec)%rv(:,2)
              if (.not.getline_raw(lu,line)) goto 999
-             read(line,*,err=999,end=999) seed(nseed)%m_x2c(:,3)
+             read(line,*,err=999,end=999) rec(nrec)%rv(:,3)
           elseif (line(ll-4:ll) == "<-- R") then
-             nat = nat + 1
              lp = 1
              word = getword(line,lp)
-             lword = lower(word)
              ok = isinteger(idum,line,lp)
-             ok = ok .and. isreal(seed(nseed)%x(1,nat),line,lp)
-             ok = ok .and. isreal(seed(nseed)%x(2,nat),line,lp)
-             ok = ok .and. isreal(seed(nseed)%x(3,nat),line,lp)
+             ok = ok .and. isreal(x(1),line,lp)
+             ok = ok .and. isreal(x(2),line,lp)
+             ok = ok .and. isreal(x(3),line,lp)
              if (.not.ok) goto 999
-             seed(nseed)%atname(nat) = ""
-
-             is = usen%get(lword,1)
-             seed(nseed)%is(nat) = is
-             if (.not.usespc(is)) then
-                seed(1)%spc(is)%name = trim(word)
-                if (isinteger(idum,word)) then
-                   seed(1)%spc(is)%z = idum
-                else
-                   seed(1)%spc(is)%z = zatguess(word)
-                   if (seed(1)%spc(is)%z < 0) then
-                      errmsg = "Unknown atomic symbol: " // word
-                      goto 999
-                   end if
+             if (isinteger(idum,word)) then
+                iz = idum
+             else
+                iz = zatguess(word)
+                if (iz < 0) then
+                   errmsg = "Unknown atomic symbol: " // word
+                   goto 999
                 end if
-                usespc(is) = .true.
              end if
-             seed(nseed)%atname = word
+             call rawseed_add_atom(rec(nrec),iz,x,word)
           end if
        end if
     end do
+    if (nrec == 0) goto 999
+    rec(nrec)%isfinal = .true.
 
-    ! copy the species
-    do i = 2, nseed
-       seed(i)%spc = seed(1)%spc
-    end do
-
-    ! transform to fractional coordinates
-    do i = 1, nseed
-       m = seed(i)%m_x2c
-       call matinv(m,3,ier)
-       if (ier /= 0) then
-          errmsg = "error inverting lattice vector matrix"
-          goto 999
-       end if
-       do j = 1, seed(i)%nat
-          seed(i)%x(:,j) = matmul(m,seed(i)%x(:,j))
-       end do
-    end do
-
-    ! rest of the seed info
-    npad = ceiling(log10(nseed-1+0.1d0))
-    do i = 1, nseed
-       ! no symmetry
-       seed(i)%havesym = 0
-       seed(i)%findsym = -1
-       seed(i)%checkrepeats = .false.
-
-       ! rest of the seed information
-       seed(i)%isused = .true.
-       seed(i)%ismolecule = .false.
-       seed(i)%cubic = .false.
-       seed(i)%border = 0d0
-       seed(i)%havex0 = .false.
-       seed(i)%molx0 = 0d0
-       seed(i)%file = file
-       seed(i)%isformat = isformat_r_castepgeom
-       if (i == nseed) then
-          seed(i)%name = trim(file) // "|(fin) (" //&
-             trim(adjustl(string(seed(i)%energy*hartoev,'f',20,8))) // " eV)"
-       else
-          str = string(i,npad,pad0=.true.)
-          str = string(str,length=max(5,len(str)))
-          seed(i)%name = trim(file) // "|" // str // " (" //&
-             trim(adjustl(string(seed(i)%energy*hartoev,'f',20,8))) // " eV)"
-       end if
-    end do
+    ! build the seeds
+    call rawseed_select(rec,nrec,-1,.false.,file,isformat_r_castepgeom,nseed,seed,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     errmsg = ""
 999 continue
     call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       nseed = 0
+       if (allocated(seed)) deallocate(seed)
+    end if
 
   end subroutine read_all_castep_geom
 
@@ -10610,6 +9436,7 @@ contains
   subroutine read_all_gulpin(nseed,seed,file,mol,istruct,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lower, string, equal
     use param, only: bohrtoa, isformat_r_gulpin
+    use global, only: rborder_def
     integer, intent(out) :: nseed
     type(crystalseed), intent(inout), allocatable :: seed(:)
     character*(*), intent(in) :: file
@@ -10623,7 +9450,7 @@ contains
     character*(mxtok*4) :: words(mxtok)
     real*8 :: floats(mxtok), unitfac, scale, x(3), vals(6), occ
     logical :: pending, lflags, nowrap, lcelllast, ok, iscart, newcfg, iscore, havekw
-    type(gulpstruct), allocatable :: st(:)
+    type(rawseed), allocatable :: st(:)
     ! pending cell (applies to the next coordinate block); pcellmode = 0 means none
     integer :: pcellmode
     real*8 :: paa(3), pbb(3), prv(3,3)
@@ -10780,7 +9607,7 @@ contains
           if (iscart .and. region > 1 .and. .not.lcelllast .and. ncfg > 0) newcfg = .false.
           if (newcfg) then
              ncfg = ncfg + 1
-             call gulp_grow_st(st,ncfg)
+             call rawseed_grow(st,ncfg)
              if (pcellmode /= 0) then
                 st(ncfg)%ndim = 3
                 st(ncfg)%cellmode = pcellmode
@@ -10795,7 +9622,7 @@ contains
                 st(ncfg)%ndim = 0
              end if
              st(ncfg)%iscart = iscart
-             st(ncfg)%name = pname
+             st(ncfg)%tag = pname
              pname = ""
              pcellmode = 0
           else
@@ -10826,7 +9653,11 @@ contains
              end if
              if (.not.iscore .or. z <= 0) cycle
              if (iscart) x = x * unitfac * scale
-             call gulp_add_atom(st(ncfg),z,itype,x,occ)
+             call gulp_add_atom(st(ncfg),z,itype,x,occ,ok)
+             if (.not.ok) then
+                errmsg = "Invalid site occupancy in GULP coordinate input: " // trim(line)
+                goto 999
+             end if
           end do
        elseif (gulp_stem(w,"spac")) then
           if (ncfg == 0) then
@@ -10891,9 +9722,9 @@ contains
              goto 999
           end if
           ncfg = ncfg + 1
-          call gulp_grow_st(st,ncfg)
+          call rawseed_grow(st,ncfg)
           st(ncfg) = st(icopy)
-          if (len_trim(pname) > 0) st(ncfg)%name = pname
+          if (len_trim(pname) > 0) st(ncfg)%tag = pname
           pname = ""
           pcellmode = 0
           lcelllast = .false.
@@ -10911,16 +9742,18 @@ contains
        goto 999
     end if
 
-    ! wrap fractional coordinates
-    if (.not.nowrap) then
-       do i = 1, ncfg
-          if (st(i)%ndim == 3 .and. .not.st(i)%iscart .and. st(i)%nat > 0) &
-             st(i)%x(:,1:st(i)%nat) = st(i)%x(:,1:st(i)%nat) - floor(st(i)%x(:,1:st(i)%nat))
-       end do
-    end if
+    ! conversion policies
+    do i = 1, ncfg
+       st(i)%symmode = sym_spg
+       st(i)%wrap = .not.nowrap .and. .not.st(i)%iscart ! GULP wraps fractional input only
+       if (st(i)%ndim == 0) then
+          st(i)%ismol = .true.
+          st(i)%border = rborder_def
+       end if
+    end do
 
     ! build the seeds
-    call gulp_select_seeds(st,ncfg,istruct,mol,file,isformat_r_gulpin,nseed,seed,errmsg)
+    call rawseed_select(st,ncfg,istruct,mol,file,isformat_r_gulpin,nseed,seed,errmsg)
     if (len_trim(errmsg) > 0) goto 999
 
     errmsg = ""
@@ -10968,6 +9801,7 @@ contains
   subroutine read_all_gulpout(nseed,seed,file,mol,istruct,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isreal, isinteger
     use param, only: isformat_r_gulpout, eva3togpa, hartoev, hartokjmol, kcal2ha
+    use global, only: rborder_def
     integer, intent(out) :: nseed
     type(crystalseed), intent(inout), allocatable :: seed(:)
     character*(*), intent(in) :: file
@@ -10976,13 +9810,13 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, nst, ncfg, icur, ifin, idx, idx2, i, j, nword, nfloat
+    integer :: lu, nst, ncfg, icur, ifin, idx, i, j, nword, nfloat
     character(len=:), allocatable :: line, lw
     character*(mxtok*4) :: words(mxtok)
     real*8 :: floats(mxtok), rdum
     logical :: have_e0, want_prim, ok
     real*8 :: efin
-    type(gulpstruct), allocatable :: st(:)
+    type(rawseed), allocatable :: st(:)
 
     nseed = 0
     errmsg = ""
@@ -11008,19 +9842,8 @@ contains
           ! new configuration: initial geometry record
           ncfg = ncfg + 1
           nst = nst + 1
-          call gulp_grow_st(st,nst)
+          call rawseed_grow(st,nst)
           st(nst)%ndim = 3
-          idx = index(line,":")
-          if (idx > 0) then
-             idx2 = index(line,"*",.true.)
-             if (idx2 > idx) then
-                st(nst)%name = trim(adjustl(line(idx+1:idx2-1)))
-             else
-                st(nst)%name = trim(adjustl(line(idx+1:)))
-             end if
-          else
-             st(nst)%name = ""
-          end if
        elseif (ncfg == 0) then
           cycle
        elseif (index(line,"Dimensionality =") > 0) then
@@ -11047,7 +9870,7 @@ contains
           if (st(ncfg)%cellmode == 0) st(ncfg)%cellmode = 2
        elseif (index(line,"Primitive cell parameters :") > 0 .and.&
           index(line,"Full cell parameters :") > 0) then
-          st(ncfg)%centred = .true.
+          st(ncfg)%gulp%centred = .true.
           do i = 1, 3
              call next_nonblank(line,ok)
              if (.not.ok) goto 999
@@ -11059,8 +9882,8 @@ contains
           st(ncfg)%cellmode = 1
        elseif (index(line,"Pressure of configuration =") > 0) then
           idx = index(line,"=")
-          ok = isreal(st(ncfg)%pappl,line(idx+1:))
-          if (.not.ok) st(ncfg)%pappl = huge(1d0)
+          ok = isreal(st(ncfg)%gulp%pappl,line(idx+1:))
+          if (.not.ok) st(ncfg)%gulp%pappl = huge(1d0)
        elseif (index(line,"Fractional coordinates of asymmetric unit :") > 0 .or.&
           index(line,"Cartesian coordinates of cluster :") > 0) then
           st(ncfg)%iscart = (index(line,"cluster") > 0)
@@ -11089,7 +9912,7 @@ contains
           idx = index(line,"=")
           if (idx > 0) then
              call read_energy(line(idx+1:),rdum,ok)
-             if (ok) st(icur)%energy = rdum
+             if (ok) st(icur)%energy = rdum / hartoev
              have_e0 = .true.
           else
              want_prim = .true.
@@ -11097,7 +9920,7 @@ contains
        elseif (want_prim .and. index(line,"Primitive unit cell") > 0 .and. index(line,"=") > 0) then
           idx = index(line,"=")
           call read_energy(line(idx+1:),rdum,ok)
-          if (ok) st(icur)%energy = rdum
+          if (ok) st(icur)%energy = rdum / hartoev
           have_e0 = .true.
           want_prim = .false.
        elseif (index(line,"Final energy =") > 0 .or. index(line,"Final enthalpy =") > 0 .or.&
@@ -11114,15 +9937,16 @@ contains
           index(line,"Final cartesian coordinates of atoms :") > 0)) then
           ! final geometry record
           nst = nst + 1
-          call gulp_grow_st(st,nst)
+          call rawseed_grow(st,nst)
           st(nst) = st(icur) ! inherits the cell (fixed-cell runs), pappl, spg, occupancies
           st(nst)%isfinal = .true.
-          st(nst)%energy = efin
+          st(nst)%energy = huge(1d0)
+          if (efin /= huge(1d0)) st(nst)%energy = efin / hartoev
           st(nst)%nat = 0
-          st(nst)%havedede = .false.
-          st(nst)%havestress = .false.
-          st(nst)%havefinalcell = .false.
-          st(nst)%vol = 0d0
+          st(nst)%gulp%havedede = .false.
+          st(nst)%gulp%havestress = .false.
+          st(nst)%gulp%havefinalcell = .false.
+          st(nst)%gulp%vol = 0d0
           call read_table(st(nst),.false.,ok)
           if (.not.ok) goto 999
           ifin = nst
@@ -11132,9 +9956,9 @@ contains
           goto 999
        elseif (ifin > 0 .and. index(line,"Final Cartesian lattice vectors (Angstroms) :") > 0) then
           call read_vectors(st(ifin)%rv)
-          if (.not.st(ifin)%centred) then
+          if (.not.st(ifin)%gulp%centred) then
              st(ifin)%cellmode = 2
-             st(ifin)%havefinalcell = .true.
+             st(ifin)%gulp%havefinalcell = .true.
           end if
        elseif (ifin > 0 .and. index(line,"Final cell parameters") > 0) then
           ! a, b, c, alpha, beta, gamma rows, with optional strain derivatives
@@ -11162,7 +9986,7 @@ contains
                 j = 0
              end select
              if (j == 0) cycle
-             if (.not.st(ifin)%centred .and. .not.st(ifin)%havefinalcell) then
+             if (.not.st(ifin)%gulp%centred .and. .not.st(ifin)%gulp%havefinalcell) then
                 if (j <= 3) then
                    st(ifin)%aa(j) = floats(1)
                 else
@@ -11170,20 +9994,20 @@ contains
                 end if
              end if
              if (j <= 3 .and. nfloat >= 2 .and. index(line,"dE/de") > 0) then
-                st(ifin)%dede(j) = floats(2)
-                st(ifin)%havedede = .true.
+                st(ifin)%gulp%dede(j) = floats(2)
+                st(ifin)%gulp%havedede = .true.
              end if
           end do
-          if (.not.st(ifin)%centred .and. .not.st(ifin)%havefinalcell) then
+          if (.not.st(ifin)%gulp%centred .and. .not.st(ifin)%gulp%havefinalcell) then
              st(ifin)%cellmode = 1
-             st(ifin)%havefinalcell = .true.
+             st(ifin)%gulp%havefinalcell = .true.
           end if
        elseif (ifin > 0 .and. index(line,"Primitive cell volume =") > 0) then
           idx = index(line,"=")
-          ok = isreal(st(ifin)%vol,line(idx+1:))
-          if (.not.ok) st(ifin)%vol = 0d0
+          ok = isreal(st(ifin)%gulp%vol,line(idx+1:))
+          if (.not.ok) st(ifin)%gulp%vol = 0d0
        elseif (ifin > 0 .and. index(line,"Non-primitive lattice parameters :") > 0) then
-          if (st(ifin)%centred) then
+          if (st(ifin)%gulp%centred) then
              do i = 1, 2
                 call next_nonblank(line,ok)
                 if (.not.ok) goto 999
@@ -11196,7 +10020,7 @@ contains
                 end if
              end do
              st(ifin)%cellmode = 1
-             st(ifin)%havefinalcell = .true.
+             st(ifin)%gulp%havefinalcell = .true.
           end if
        elseif (ifin > 0 .and. index(line,"Final stress tensor components (GPa):") > 0) then
           call skip_rule(ok)
@@ -11206,9 +10030,9 @@ contains
              if (.not.ok) goto 999
              call gulp_lex(line,nword,words,nfloat,floats)
              if (nfloat < 1) goto 999
-             st(ifin)%stress(i) = floats(1)
+             st(ifin)%gulp%stress(i) = floats(1)
           end do
-          st(ifin)%havestress = .true.
+          st(ifin)%gulp%havestress = .true.
        elseif (index(line,"Job Finished at") > 0) then
           exit
        end if
@@ -11222,17 +10046,22 @@ contains
     do i = 1, nst
        if (st(i)%ndim /= 3) then
           st(i)%pressure = huge(1d0)
-       elseif (st(i)%havestress) then
-          st(i)%pressure = -sum(st(i)%stress) / 3d0
-       elseif (st(i)%havedede .and. st(i)%vol > 0d0 .and. st(i)%pappl /= huge(1d0)) then
-          st(i)%pressure = st(i)%pappl - sum(st(i)%dede) / (3d0 * st(i)%vol) * eva3togpa
+       elseif (st(i)%gulp%havestress) then
+          st(i)%pressure = -sum(st(i)%gulp%stress) / 3d0
+       elseif (st(i)%gulp%havedede .and. st(i)%gulp%vol > 0d0 .and. st(i)%gulp%pappl /= huge(1d0)) then
+          st(i)%pressure = st(i)%gulp%pappl - sum(st(i)%gulp%dede) / (3d0 * st(i)%gulp%vol) * eva3togpa
        else
-          st(i)%pressure = st(i)%pappl
+          st(i)%pressure = st(i)%gulp%pappl
+       end if
+       st(i)%symmode = sym_spg
+       if (st(i)%ndim == 0) then
+          st(i)%ismol = .true.
+          st(i)%border = rborder_def
        end if
     end do
 
     ! build the seeds
-    call gulp_select_seeds(st,nst,istruct,mol,file,isformat_r_gulpout,nseed,seed,errmsg)
+    call rawseed_select(st,nst,istruct,mol,file,isformat_r_gulpout,nseed,seed,errmsg)
     if (len_trim(errmsg) > 0) goto 999
 
     errmsg = ""
@@ -11319,7 +10148,7 @@ contains
 
     ! read a coordinate table (input echo if echo=.true., final table otherwise)
     subroutine read_table(s,echo,oks)
-      type(gulpstruct), intent(inout) :: s
+      type(rawseed), intent(inout) :: s
       logical, intent(in) :: echo
       logical, intent(out) :: oks
 
@@ -11375,7 +10204,11 @@ contains
             return
          end if
          if (z <= 0) cycle ! dummy atoms
-         call gulp_add_atom(s,z,itype,x,occ)
+         call gulp_add_atom(s,z,itype,x,occ,oks)
+         if (.not.oks) then
+            errmsg = "Invalid site occupancy in GULP output: " // trim(line)
+            return
+         end if
       end do
       if (.not.echo .and. nat0 == s%nat .and. s%nat > 0) s%occ(1:s%nat) = occ0(1:s%nat)
       oks = .true.
@@ -11849,196 +10682,325 @@ contains
 
   end subroutine gulp_apply_shift
 
-  !> Convert an interim GULP structure into a crystal seed.
-  subroutine gulp_struct_to_seed(st,seed,mol,file,isformat,errmsg)
-    use spglib, only: spg_get_symmetry_from_database
-    use tools_math, only: matinv, m_x2c_from_cellpar, cellpar_from_metric
-    use hashmod, only: hash
+  !> Convert an interim structure record into a crystal seed. The
+  !> record fields select the policies: species (spcmode), length
+  !> units (lunit), molecule/crystal (ismol), and symmetry (symmode).
+  !> See the rawseed type for the details.
+  subroutine rawseed_to_seed(rec,seed,mol,file,isformat,errmsg)
+    use tools_math, only: matinv, m_x2c_from_cellpar
+    use tools_io, only: nameguess, string, equal, equali
     use types, only: realloc
-    use param, only: bohrtoa, hartoev, eyet
-    use global, only: rborder_def
-    type(gulpstruct), intent(in) :: st
+    use param, only: bohrtoa, maxzat
+    type(rawseed), intent(in) :: rec
     type(crystalseed), intent(inout) :: seed
     logical, intent(in) :: mol
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: i, ier, hnum, h1, h2, n1, nc1, n2, nc2
-    type(hash) :: usen
-    character(len=:), allocatable :: key
-    real*8 :: r(3,3), aa(3), bb(3)
-    real*8, allocatable :: rot1(:,:,:), cen1(:,:), rot2(:,:,:), cen2(:,:)
-    logical :: apply
+    integer :: i, j, ier, nat
+    integer :: usedz(0:maxzat)
+    character*10 :: key
+    real*8 :: r(3,3), lfac
+    logical :: found, cart, match
 
     errmsg = ""
     call seed%end()
-    if (st%nat == 0) then
-       errmsg = "GULP structure has no atoms"
+    nat = rec%nat
+    if (nat == 0) then
+       errmsg = "No atoms found."
        return
     end if
 
-    ! atoms and species
-    seed%nat = st%nat
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-    allocate(seed%spc(seed%nat))
-    seed%nspc = 0
-    call usen%init()
-    do i = 1, seed%nat
-       seed%x(:,i) = st%x(:,i)
-       seed%atname(i) = st%atname(i)
-       key = trim(st%atname(i))
-       if (usen%iskey(key)) then
-          seed%is(i) = usen%get(key,1)
-       else
-          seed%nspc = seed%nspc + 1
-          seed%spc(seed%nspc)%name = trim(st%atname(i))
-          seed%spc(seed%nspc)%z = st%z(i)
-          call usen%put(key,seed%nspc)
-          seed%is(i) = seed%nspc
-       end if
-    end do
-    call realloc(seed%spc,seed%nspc)
-    if (allocated(st%occ)) then
-       if (any(st%occ(1:st%nat) < 1d0 - 1d-10)) then
-          if (any(st%occ(1:st%nat) <= 0d0) .or. any(st%occ(1:st%nat) > 1d0 + 1d-10)) then
-             errmsg = "Invalid site occupancy in GULP structure"
+    ! atoms
+    seed%nat = nat
+    allocate(seed%x(3,nat),seed%is(nat),seed%atname(nat))
+    seed%x = rec%x(:,1:nat)
+    if (allocated(rec%atname)) seed%atname = rec%atname(1:nat)
+    if (rec%spcmode == spc_z .or. rec%spcmode == spc_zsorted) then
+       do i = 1, nat
+          if (rec%z(i) < 0 .or. rec%z(i) > maxzat) then
+             errmsg = "Invalid atomic number: " // string(rec%z(i))
              return
           end if
-          allocate(seed%occ(seed%nat))
-          seed%occ = min(st%occ(1:st%nat),1d0)
-       end if
+       end do
     end if
 
+    ! species
+    select case (rec%spcmode)
+    case (spc_given)
+       seed%nspc = rec%nspc
+       seed%spc = rec%spc(1:rec%nspc)
+       seed%is = rec%is(1:nat)
+       if (.not.allocated(rec%atname)) then
+          do i = 1, nat
+             seed%atname(i) = seed%spc(seed%is(i))%name
+          end do
+       end if
+    case (spc_label,spc_label_nocase)
+       ! first appearance of the species key (the label unless spcname is given)
+       allocate(seed%spc(nat))
+       seed%nspc = 0
+       do i = 1, nat
+          if (allocated(rec%spcname)) then
+             key = rec%spcname(i)
+          else
+             key = rec%atname(i)
+          end if
+          seed%is(i) = 0
+          do j = 1, seed%nspc
+             if (rec%spcmode == spc_label) then
+                match = equal(seed%spc(j)%name,key)
+             else
+                match = equali(seed%spc(j)%name,key)
+             end if
+             if (match) then
+                seed%is(i) = j
+                exit
+             end if
+          end do
+          if (seed%is(i) == 0) then
+             seed%nspc = seed%nspc + 1
+             seed%spc(seed%nspc)%name = key
+             seed%spc(seed%nspc)%z = rec%z(i)
+             seed%is(i) = seed%nspc
+          end if
+       end do
+       call realloc(seed%spc,seed%nspc)
+    case (spc_z)
+       ! first appearance of the atomic number, named by the species key
+       allocate(seed%spc(nat))
+       seed%nspc = 0
+       usedz = 0
+       do i = 1, nat
+          if (usedz(rec%z(i)) == 0) then
+             seed%nspc = seed%nspc + 1
+             if (allocated(rec%spcname)) then
+                seed%spc(seed%nspc)%name = rec%spcname(i)
+             else
+                seed%spc(seed%nspc)%name = rec%atname(i)
+             end if
+             seed%spc(seed%nspc)%z = rec%z(i)
+             usedz(rec%z(i)) = seed%nspc
+          end if
+          seed%is(i) = usedz(rec%z(i))
+       end do
+       call realloc(seed%spc,seed%nspc)
+    case (spc_zsorted)
+       ! atomic numbers present, in increasing Z
+       usedz = 0
+       do i = 1, nat
+          usedz(rec%z(i)) = 1
+       end do
+       seed%nspc = count(usedz > 0)
+       allocate(seed%spc(seed%nspc))
+       seed%nspc = 0
+       do i = 0, maxzat
+          if (usedz(i) == 0) cycle
+          seed%nspc = seed%nspc + 1
+          seed%spc(seed%nspc)%name = nameguess(i,.true.)
+          seed%spc(seed%nspc)%z = i
+          usedz(i) = seed%nspc
+       end do
+       do i = 1, nat
+          seed%is(i) = usedz(rec%z(i))
+       end do
+    case default
+       errmsg = "Unknown species policy"
+       return
+    end select
+
+    ! occupancies (kept only if some site is partial)
+    if (allocated(rec%occ)) call seed_set_occ(seed,rec%occ,nat)
+
     ! cell and coordinates
-    if (st%ndim == 0) then
+    lfac = 1d0
+    if (rec%lunit == lunit_ang) lfac = bohrtoa
+    if (rec%ndim == 0) then
        seed%useabr = 0
        seed%m_x2c = 0d0
-       seed%x = seed%x / bohrtoa
-       seed%ismolecule = .true.
-       seed%cubic = .false.
-       seed%border = rborder_def
+       do i = 1, nat
+          if (.not.atomisfrac(i)) seed%x(:,i) = seed%x(:,i) / lfac
+       end do
     else
-       if (st%cellmode == 1) then
+       if (rec%cellmode == 1) then
           seed%useabr = 1
-          seed%aa = st%aa / bohrtoa
-          seed%bb = st%bb
+          seed%aa = rec%aa / lfac
+          seed%bb = rec%bb
           if (any(seed%aa <= 0d0) .or. any(seed%bb <= 0d0) .or. any(seed%bb >= 180d0)) then
-             errmsg = "Invalid cell parameters in GULP structure"
+             errmsg = "Invalid cell parameters"
              return
           end if
           r = m_x2c_from_cellpar(seed%aa,seed%bb,ier)
           if (ier /= 0) then
-             errmsg = "Invalid cell parameters in GULP structure"
+             errmsg = "Invalid cell parameters"
              return
           end if
-       elseif (st%cellmode == 2) then
+       elseif (rec%cellmode == 2) then
           seed%useabr = 2
-          seed%m_x2c = st%rv / bohrtoa
+          seed%m_x2c = rec%rv / lfac
           r = seed%m_x2c
        else
-          errmsg = "Missing cell in GULP structure"
+          errmsg = "Missing cell"
           return
        end if
-       if (st%iscart) then
+       cart = .false.
+       do i = 1, nat
+          if (.not.atomisfrac(i)) cart = .true.
+       end do
+       if (cart) then
           call matinv(r,3,ier)
           if (ier /= 0) then
              errmsg = "Error inverting lattice vector matrix"
              return
           end if
-          do i = 1, seed%nat
-             seed%x(:,i) = matmul(r,seed%x(:,i) / bohrtoa)
+          do i = 1, nat
+             if (.not.atomisfrac(i)) seed%x(:,i) = matmul(r,seed%x(:,i) / lfac)
           end do
        end if
-       seed%ismolecule = mol
-       seed%cubic = .false.
-       seed%border = 0d0
+       if (rec%wrap) seed%x = seed%x - floor(seed%x)
     end if
+
+    ! molecule flags
+    seed%ismolecule = mol .or. rec%ismol
+    seed%cubic = rec%cubic
+    seed%border = rec%border
+    seed%havex0 = rec%havex0
+    seed%molx0 = 0d0
 
     ! symmetry
     seed%havesym = 0
     seed%checkrepeats = .false.
     seed%neqlist = .false.
     seed%findsym = -1
-    if (st%ndim == 3 .and. allocated(st%spg)) then
-       if (len_trim(st%spg) > 0) then
-          if (st%cellmode == 1) then
-             bb = st%bb
-          else
-             call cellpar_from_metric(matmul(transpose(st%rv),st%rv),aa,bb)
-          end if
-          call gulp_hall_number(st%spg,bb,h1,h2,errmsg)
+    found = .false.
+    if (rec%ndim == 3) then
+       select case (rec%symmode)
+       case (sym_spg)
+          call gulp_spg_ops(rec,seed%neqv,seed%ncv,seed%rotm,seed%cen,found,errmsg)
           if (len_trim(errmsg) > 0) return
-          ! GULP's operations for a group with two origin choices are those of
-          ! origin 2 (symmet.F90): origin 1 is obtained by shifting them, and an
-          ! explicit shift applies on top of the origin-2 operations. Output
-          ! files print the shift both for origin 2 (where it is the shift
-          ! between the two settings and is not applied) and for explicit
-          ! shifts (applied); tell the two cases apart by checking whether the
-          ! shifted origin-2 operations are the origin-1 group.
-          hnum = h1
-          apply = st%haveshift
-          if (h2 > 0) then
-             if (st%haveshift) then
-                hnum = h2
-                if (st%shiftfromout) then
-                   call spg_get_symmetry_from_database(h1,n1,nc1,rot1,cen1)
-                   call spg_get_symmetry_from_database(h2,n2,nc2,rot2,cen2)
-                   call gulp_apply_shift(n2,rot2,st%shift)
-                   apply = .not.gulp_same_group(n1,nc1,rot1,cen1,n2,nc2,rot2,cen2)
-                end if
-             elseif (st%origin == 2) then
-                hnum = h2
-             end if
+       case (sym_ops)
+          found = (rec%neqv > 0 .and. rec%ncv > 0)
+          if (found) then
+             seed%neqv = rec%neqv
+             seed%ncv = rec%ncv
+             seed%rotm = rec%rotm(:,:,1:rec%neqv)
+             seed%cen = rec%cen(:,1:rec%ncv)
           end if
-          call spg_get_symmetry_from_database(hnum,seed%neqv,seed%ncv,seed%rotm,seed%cen)
-          if (seed%neqv <= 0 .or. seed%ncv <= 0) then
-             errmsg = "Could not expand GULP space group: " // trim(st%spg)
-             return
-          end if
-          if (apply) call gulp_apply_shift(seed%neqv,seed%rotm,st%shift)
-          call realloc(seed%rotm,3,4,seed%neqv)
-          call realloc(seed%cen,3,seed%ncv)
-          ! P1 (space 1) is treated as no symmetry: the repeat check is O(N^2) and useless
-          if (seed%neqv * seed%ncv > 1) then
-             if (.not.mol) then
-                seed%havesym = 1
-                seed%checkrepeats = .true.
-                seed%neqlist = .true.
-             end if
-             seed%findsym = 0
-          end if
-       end if
+       end select
     end if
-    if (seed%havesym == 0 .and. .not.allocated(seed%rotm)) then
-       seed%neqv = 1
-       seed%ncv = 1
-       allocate(seed%rotm(3,4,1),seed%cen(3,1))
-       seed%rotm(:,:,1) = eyet
-       seed%cen(:,1) = 0d0
+    if (found) then
+       ! crystals check for repeats; a molecule does not apply crystallographic symmetry
+       if (.not.mol) then
+          seed%havesym = 1
+          seed%checkrepeats = .true.
+          seed%neqlist = .true.
+       end if
+       seed%findsym = 0
     end if
 
     ! properties and flags
-    if (st%energy /= huge(1d0)) seed%energy = st%energy / hartoev
-    if (st%pressure /= huge(1d0)) seed%pressure = st%pressure
+    if (rec%energy /= huge(1d0)) seed%energy = rec%energy
+    if (rec%pressure /= huge(1d0)) seed%pressure = rec%pressure
     seed%isused = .true.
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    if (allocated(rec%name)) seed%name = trim(file) // "|" // rec%name
     seed%isformat = isformat
 
-  end subroutine gulp_struct_to_seed
+  contains
+    ! whether atom i is given in fractional coordinates
+    function atomisfrac(i)
+      integer, intent(in) :: i
+      logical :: atomisfrac
+      if (allocated(rec%isfrac)) then
+         atomisfrac = rec%isfrac(i)
+      else
+         atomisfrac = .not.rec%iscart
+      end if
+    end function atomisfrac
+  end subroutine rawseed_to_seed
 
-  !> Select the structures requested by istruct and convert them to
-  !> seeds. istruct < 0: all; 0: last; n: number n. Output files
-  !> (isformat_r_gulpout) are named in the style of optimisation
-  !> trajectories; input files carry the configuration name.
-  subroutine gulp_select_seeds(st,nst,istruct,mol,file,isformat,nseed,seed,errmsg)
+  !> Symmetry operations from a GULP space group specification (the
+  !> rec%spg string with rec%origin and rec%shift). found is true if
+  !> the group is not P1; P1 is treated as no symmetry because the
+  !> repeat check is O(N^2) and useless.
+  subroutine gulp_spg_ops(rec,neqv,ncv,rotm,cen,found,errmsg)
+    use spglib, only: spg_get_symmetry_from_database
+    use tools_math, only: cellpar_from_metric
+    use types, only: realloc
+    type(rawseed), intent(in) :: rec
+    integer, intent(out) :: neqv, ncv
+    real*8, allocatable, intent(inout) :: rotm(:,:,:), cen(:,:)
+    logical, intent(out) :: found
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: hnum, h1, h2, n1, nc1, n2, nc2
+    real*8 :: aa(3), bb(3)
+    real*8, allocatable :: rot1(:,:,:), cen1(:,:), rot2(:,:,:), cen2(:,:)
+    logical :: apply
+
+    errmsg = ""
+    found = .false.
+    neqv = 0
+    ncv = 0
+    if (.not.allocated(rec%spg)) return
+    if (len_trim(rec%spg) == 0) return
+
+    if (rec%cellmode == 1) then
+       bb = rec%bb
+    else
+       call cellpar_from_metric(matmul(transpose(rec%rv),rec%rv),aa,bb)
+    end if
+    call gulp_hall_number(rec%spg,bb,h1,h2,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! GULP's operations for a group with two origin choices are those of
+    ! origin 2 (symmet.F90): origin 1 is obtained by shifting them, and an
+    ! explicit shift applies on top of the origin-2 operations. Output
+    ! files print the shift both for origin 2 (where it is the shift
+    ! between the two settings and is not applied) and for explicit
+    ! shifts (applied); tell the two cases apart by checking whether the
+    ! shifted origin-2 operations are the origin-1 group.
+    hnum = h1
+    apply = rec%haveshift
+    if (h2 > 0) then
+       if (rec%haveshift) then
+          hnum = h2
+          if (rec%shiftfromout) then
+             call spg_get_symmetry_from_database(h1,n1,nc1,rot1,cen1)
+             call spg_get_symmetry_from_database(h2,n2,nc2,rot2,cen2)
+             call gulp_apply_shift(n2,rot2,rec%shift)
+             apply = .not.gulp_same_group(n1,nc1,rot1,cen1,n2,nc2,rot2,cen2)
+          end if
+       elseif (rec%origin == 2) then
+          hnum = h2
+       end if
+    end if
+    call spg_get_symmetry_from_database(hnum,neqv,ncv,rotm,cen)
+    if (neqv <= 0 .or. ncv <= 0) then
+       errmsg = "Could not expand space group: " // trim(rec%spg)
+       return
+    end if
+    if (apply) call gulp_apply_shift(neqv,rotm,rec%shift)
+    call realloc(rotm,3,4,neqv)
+    call realloc(cen,3,ncv)
+    found = (neqv * ncv > 1)
+
+  end subroutine gulp_spg_ops
+
+  !> Select the structures requested by istruct from an array of
+  !> interim records and convert them to seeds. istruct < 0: all; 0:
+  !> last; n: number n. When several seeds are returned and the record
+  !> has no name of its own, it is named file|NNNNN (E eV), or
+  !> file|(fin) (E eV) for the last one if it is a final geometry; the
+  !> parenthesis holds the record's tag instead when it has one, and is
+  !> omitted when neither is known.
+  subroutine rawseed_select(recs,nrec,istruct,mol,file,isformat,nseed,seed,errmsg)
     use tools_io, only: string
-    use param, only: isformat_r_gulpout
-    type(gulpstruct), intent(in) :: st(:)
-    integer, intent(in) :: nst
+    use param, only: hartoev
+    type(rawseed), intent(in) :: recs(:)
+    integer, intent(in) :: nrec
     integer, intent(in) :: istruct
     logical, intent(in) :: mol
     character*(*), intent(in) :: file
@@ -12049,97 +11011,148 @@ contains
 
     integer :: i, iuse, npad
     character(len=:), allocatable :: str, ename
-    logical :: usefin
 
-    usefin = (isformat == isformat_r_gulpout)
     errmsg = ""
     if (allocated(seed)) deallocate(seed)
     if (istruct < 0) then
-       nseed = nst
+       nseed = nrec
        allocate(seed(nseed))
-       npad = ceiling(log10(nst-1+0.1d0))
-       do i = 1, nst
-          call gulp_struct_to_seed(st(i),seed(i),mol,file,isformat,errmsg)
+       npad = ceiling(log10(nrec-1+0.1d0))
+       do i = 1, nrec
+          call rawseed_to_seed(recs(i),seed(i),mol,file,isformat,errmsg)
           if (len_trim(errmsg) > 0) return
-          if (nst > 1) then
+          if (nrec > 1 .and. .not.allocated(recs(i)%name)) then
              ename = ""
-             if (st(i)%energy /= huge(1d0)) &
-                ename = " (" // trim(adjustl(string(st(i)%energy,'f',decimal=8))) // " eV)"
-             if (usefin .and. i == nst .and. st(i)%isfinal) then
+             if (allocated(recs(i)%tag)) then
+                if (len_trim(recs(i)%tag) > 0) ename = " (" // trim(recs(i)%tag) // ")"
+             elseif (recs(i)%energy /= huge(1d0)) then
+                ename = " (" // trim(adjustl(string(recs(i)%energy*hartoev,'f',decimal=8))) // " eV)"
+             end if
+             if (i == nrec .and. recs(i)%isfinal) then
                 seed(i)%name = trim(file) // "|(fin)" // ename
              else
                 str = string(i,npad,pad0=.true.)
                 str = string(str,length=max(5,len(str)))
                 seed(i)%name = trim(file) // "|" // str // ename
-                if (.not.usefin .and. allocated(st(i)%name)) then
-                   if (len_trim(st(i)%name) > 0) &
-                      seed(i)%name = trim(file) // "|" // str // " (" // trim(st(i)%name) // ")"
-                end if
              end if
           end if
        end do
     else
        if (istruct == 0) then
-          iuse = nst
+          iuse = nrec
        else
           iuse = istruct
        end if
-       if (iuse < 1 .or. iuse > nst) then
-          errmsg = "Structure number not found in GULP file: " // string(istruct)
+       if (iuse < 1 .or. iuse > nrec) then
+          errmsg = "Structure number not found in file: " // string(istruct)
           return
        end if
        nseed = 1
        allocate(seed(1))
-       call gulp_struct_to_seed(st(iuse),seed(1),mol,file,isformat,errmsg)
+       call rawseed_to_seed(recs(iuse),seed(1),mol,file,isformat,errmsg)
     end if
 
-  end subroutine gulp_select_seeds
+  end subroutine rawseed_select
 
-  !> Append an atom to an interim structure.
-  subroutine gulp_add_atom(s,z,itype,x,occ)
-    use tools_io, only: nameguess, string
+  !> Append an atom to an interim record: atomic number z,
+  !> coordinates x, label atname, and optionally the occupancy occ,
+  !> a species key spcname different from the label, and the
+  !> fractional flag isfrac. The optional arrays are allocated the
+  !> first time the argument is given.
+  subroutine rawseed_add_atom(rec,z,x,atname,occ,spcname,isfrac)
     use types, only: realloc
-    type(gulpstruct), intent(inout) :: s
+    type(rawseed), intent(inout) :: rec
+    integer, intent(in) :: z
+    real*8, intent(in) :: x(3)
+    character*(*), intent(in) :: atname
+    real*8, intent(in), optional :: occ
+    character*(*), intent(in), optional :: spcname
+    logical, intent(in), optional :: isfrac
+
+    integer :: n
+
+    if (.not.allocated(rec%x)) then
+       allocate(rec%x(3,10),rec%z(10),rec%atname(10))
+       rec%nat = 0
+    end if
+    rec%nat = rec%nat + 1
+    n = rec%nat
+    if (n > size(rec%z,1)) then
+       call realloc(rec%x,3,2*n)
+       call realloc(rec%z,2*n)
+       call realloc(rec%atname,2*n)
+       if (allocated(rec%occ)) call realloc(rec%occ,2*n)
+       if (allocated(rec%spcname)) call realloc(rec%spcname,2*n)
+       if (allocated(rec%isfrac)) call realloc(rec%isfrac,2*n)
+    end if
+    rec%x(:,n) = x
+    rec%z(n) = z
+    rec%atname(n) = atname
+    if (present(occ)) then
+       if (.not.allocated(rec%occ)) then
+          allocate(rec%occ(size(rec%z,1)))
+          rec%occ(1:n-1) = 1d0
+       end if
+       rec%occ(n) = occ
+    elseif (allocated(rec%occ)) then
+       rec%occ(n) = 1d0
+    end if
+    if (present(spcname)) then
+       if (.not.allocated(rec%spcname)) then
+          allocate(rec%spcname(size(rec%z,1)))
+          rec%spcname(1:n-1) = rec%atname(1:n-1)
+       end if
+       rec%spcname(n) = spcname
+    elseif (allocated(rec%spcname)) then
+       rec%spcname(n) = atname
+    end if
+    if (present(isfrac)) then
+       if (.not.allocated(rec%isfrac)) then
+          allocate(rec%isfrac(size(rec%z,1)))
+          rec%isfrac(1:n-1) = .not.rec%iscart
+       end if
+       rec%isfrac(n) = isfrac
+    elseif (allocated(rec%isfrac)) then
+       rec%isfrac(n) = .not.rec%iscart
+    end if
+
+  end subroutine rawseed_add_atom
+
+  !> Append a GULP atom (element z, type number itype, occupancy occ)
+  !> to a record. Returns ok = .false. if the occupancy is invalid.
+  subroutine gulp_add_atom(rec,z,itype,x,occ,ok)
+    use tools_io, only: nameguess, string
+    type(rawseed), intent(inout) :: rec
     integer, intent(in) :: z, itype
     real*8, intent(in) :: x(3)
     real*8, intent(in) :: occ
+    logical, intent(out) :: ok
 
-    if (.not.allocated(s%x)) then
-       allocate(s%x(3,10),s%z(10),s%atname(10),s%occ(10))
-       s%nat = 0
-    end if
-    s%nat = s%nat + 1
-    if (s%nat > size(s%z,1)) then
-       call realloc(s%x,3,2*s%nat)
-       call realloc(s%z,2*s%nat)
-       call realloc(s%atname,2*s%nat)
-       call realloc(s%occ,2*s%nat)
-    end if
-    s%x(:,s%nat) = x
-    s%z(s%nat) = z
-    s%occ(s%nat) = occ
+    ok = (occ > 0d0 .and. occ <= 1d0 + 1d-10)
+    if (.not.ok) return
     if (itype > 0) then
-       s%atname(s%nat) = trim(nameguess(z,.true.)) // string(itype)
+       call rawseed_add_atom(rec,z,x,trim(nameguess(z,.true.)) // string(itype),occ=occ)
     else
-       s%atname(s%nat) = nameguess(z,.true.)
+       call rawseed_add_atom(rec,z,x,nameguess(z,.true.),occ=occ)
     end if
 
   end subroutine gulp_add_atom
 
-  !> Grow an array of interim structures to hold at least n entries.
-  subroutine gulp_grow_st(st,n)
-    type(gulpstruct), allocatable, intent(inout) :: st(:)
+
+  !> Grow an array of interim records to hold at least n entries.
+  subroutine rawseed_grow(recs,n)
+    type(rawseed), allocatable, intent(inout) :: recs(:)
     integer, intent(in) :: n
 
-    type(gulpstruct), allocatable :: aux(:)
+    type(rawseed), allocatable :: aux(:)
 
-    if (n > size(st,1)) then
+    if (n > size(recs,1)) then
        allocate(aux(2*n))
-       aux(1:size(st,1)) = st
-       call move_alloc(aux,st)
+       aux(1:size(recs,1)) = recs
+       call move_alloc(aux,recs)
     end if
 
-  end subroutine gulp_grow_st
+  end subroutine rawseed_grow
 
 
 end submodule proc
