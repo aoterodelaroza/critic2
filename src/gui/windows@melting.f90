@@ -77,12 +77,11 @@ contains
        iw_close_event, iw_setpos_bottomright, iw_table_column, iw_combo_simple,&
        file_name_base
     use tools_io, only: string
-    use param, only: hartoev, autofs, bohrtoa
+    use param, only: hartoev, autofs
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodparent, ldum
     integer :: isys, tflags, im, i, ns
-    real*8 :: neck, dcen
     integer(c_int) :: nstep
     real*8 :: eatom, tnow
     integer :: iview
@@ -246,10 +245,7 @@ contains
              call mt_color_atoms(isys)
              tnow = sysc(isys)%md%temperature_now()
              eatom = sysc(isys)%md%epot * hartoev / real(sysc(isys)%md%nat,8)
-             neck = 0d0
-             dcen = 0d0
-             if (w%mt%igeom_built == mtgeom_pair) call mt_neck(isys,neck,dcen)
-             call mt_update_scoreboard(isys,tnow,neck)
+             call mt_update_scoreboard(isys,tnow)
 
              ! status table
              tflags = ImGuiTableFlags_None
@@ -277,10 +273,6 @@ contains
                    string(mt_in_units(tnow,w%mt%itempunit),'f',decimal=0))
                 call status_row("Potential energy per atom (eV)",string(eatom,'f',decimal=3))
                 call status_row("Molten fraction (%)",string(100d0*w%mt%molten,'f',decimal=0))
-                if (w%mt%igeom_built == mtgeom_pair) then
-                   call status_row("Neck radius (Å)",string(neck*bohrtoa,'f',decimal=1))
-                   call status_row("Centre distance (Å)",string(dcen*bohrtoa,'f',decimal=1))
-                end if
                 call status_row("Time (ps)",string(sysc(isys)%md%simtime*autofs/1000d0,'f',decimal=2))
 
                 call igEndTable()
@@ -505,58 +497,10 @@ contains
 
     end subroutine mt_color_atoms
 
-    !> Size of the join between the two particles: the narrowest waist of
-    !> the aggregate between their centroids, and the distance between those
-    !> centroids, both in bohr. The axis is taken from the centroids every
-    !> frame, so it does not matter how the pair tumbles. A neck of zero
-    !> means there is nothing between them any more.
-    subroutine mt_neck(is,neck,dcen)
-      integer, intent(in) :: is
-      real*8, intent(out) :: neck, dcen
-
-      integer :: nat, i, ib, nbin, n1
-      real*8 :: c1(3), c2(3), u(3), d(3), dd, s0, dbin
-      real*8, allocatable :: pmax(:)
-
-      neck = 0d0
-      dcen = 0d0
-      nat = sysc(is)%md%nat
-      if (nat < 2 .or. mod(nat,2) /= 0) return
-      n1 = nat / 2
-
-      ! centroids of the two particles, and the axis between them
-      c1 = sum(sysc(is)%md%r(:,1:n1),dim=2) / real(n1,8)
-      c2 = sum(sysc(is)%md%r(:,n1+1:nat),dim=2) / real(n1,8)
-      u = c2 - c1
-      dd = norm2(u)
-      if (dd < 1d-10) return
-      u = u / dd
-      dcen = dd
-
-      ! the widest atom in each slice along the axis, one nearest-neighbor
-      ! distance thick; the neck is the narrowest slice between the centroids
-      dbin = mt_dnn(w%mt%imet)
-      nbin = max(int(dd / dbin),1)
-      allocate(pmax(nbin))
-      pmax = -1d0
-      do i = 1, nat
-         d = sysc(is)%md%r(:,i) - c1
-         s0 = dot_product(d,u)
-         if (s0 < 0d0 .or. s0 >= dd) cycle
-         ib = min(int(s0 / dbin) + 1,nbin)
-         pmax(ib) = max(pmax(ib),norm2(d - s0 * u))
-      end do
-
-      ! pmax starts negative, so an empty slice (the two are no longer
-      ! joined) comes out of the minimum as a zero neck
-      neck = max(minval(pmax),0d0)
-
-    end subroutine mt_neck
-
     !> Re-arm the on-screen temperature and molten fraction as transient text.
-    subroutine mt_update_scoreboard(is,tnow,neck)
+    subroutine mt_update_scoreboard(is,tnow)
       integer, intent(in) :: is
-      real*8, intent(in) :: tnow, neck
+      real*8, intent(in) :: tnow
 
       real(c_float), parameter :: rgb_dark(3) = (/0.20_c_float,0.20_c_float,0.20_c_float/)
       real(c_float), parameter :: dark = 0.72_c_float ! darken for legibility
@@ -565,17 +509,9 @@ contains
       call sysc(is)%sc%show_transient_text(w%id,1,mt_tstring(tnow,w%mt%itempunit),rgb_dark,&
          (/0.5d0,0.92d0/),1.5d0)
 
-      ! at the bottom, the number this geometry is about: how far the two
-      ! particles have joined, or how much of the metal has melted, in the
-      ! color of the atoms at that order. Both are in the status table; this
-      ! is the one worth reading from across the room
-      if (w%mt%igeom_built == mtgeom_pair) then
-         call sysc(is)%sc%show_transient_text(w%id,2,"neck " //&
-            string(neck*bohrtoa,'f',decimal=1) // " Å",rgb_dark,(/0.5d0,0.06d0/),1d0)
-      else
-         call sysc(is)%sc%show_transient_text(w%id,2,string(nint(100d0*w%mt%molten)) // "% molten",&
-            dark * mt_order_color(1d0-w%mt%molten),(/0.5d0,0.06d0/),1d0)
-      end if
+      ! molten fraction at the bottom, in the color of the atoms at that order
+      call sysc(is)%sc%show_transient_text(w%id,2,string(nint(100d0*w%mt%molten)) // "% molten",&
+         dark * mt_order_color(1d0-w%mt%molten),(/0.5d0,0.06d0/),1d0)
 
     end subroutine mt_update_scoreboard
 

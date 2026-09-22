@@ -1048,10 +1048,10 @@ contains
 
           ! File -> Demonstrations
           if (iw_beginmenu("Demonstrations")) then
-             if (iw_menuitem("Water cluster")) &
+             if (iw_menuitem("Water Cluster")) &
                 idum = stack_create_window(wintype_water_cluster,.true.,idparent=iwin_view,orraise=-1)
              call iw_tooltip("Interactive game: relax a cluster of water molecules with the TIP4P model",ttshown)
-             if (iw_menuitem("Metals")) &
+             if (iw_menuitem("Metal Melting")) &
                 idum = stack_create_window(wintype_melting,.true.,idparent=iwin_view,orraise=-1)
              call iw_tooltip("Interactive demonstration: melt and refreeze a metal slab or nanoparticle, &
                 &or sinter two nanoparticles together, with an embedded-atom potential",ttshown)
