@@ -15,8 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Metal melting demonstration window: melt and refreeze a metal slab or
-! nanoparticle with an EAM potential, driving the thermostat temperature live.
+! Metal demonstration window: melt and refreeze a metal slab or nanoparticle,
+! or sinter two nanoparticles together, with an EAM potential and the
+! thermostat temperature driven live.
 submodule (windows) melting
   use interfaces_cimgui
   implicit none
@@ -38,6 +39,16 @@ submodule (windows) melting
   real*8, parameter :: mt_radius_factor = 0.42d0 ! displayed atom radius, in units of the nearest-neighbor distance
   real*8, parameter :: mt_border_factor = 1.2d0 ! atom outline, in units of the usual atom border
   integer, parameter :: mt_nlut = 256 ! colormap look-up table size
+
+  ! The geometries on offer.
+  integer, parameter :: mtgeom_slab = 0 ! a periodic slab with a free surface
+  integer, parameter :: mtgeom_particle = 1 ! one free nanoparticle
+  integer, parameter :: mtgeom_pair = 2 ! two nanoparticles in contact (sintering)
+
+  ! misorientation of the second particle, as the first two Euler angles (degrees)
+  real*8, parameter :: mt_pair_rot1 = 37d0
+  real*8, parameter :: mt_pair_rot2 = 23d0
+  real*8, parameter :: mt_pair_gap = 0.9d0 ! initial surface separation, in nearest-neighbor distances
 
   ! The temperature units on offer: how each is written, what it is called,
   ! and the affine map from kelvin (x = t * scale + offset).
@@ -66,11 +77,12 @@ contains
        iw_close_event, iw_setpos_bottomright, iw_table_column, iw_combo_simple,&
        file_name_base
     use tools_io, only: string
-    use param, only: hartoev, autofs
+    use param, only: hartoev, autofs, bohrtoa
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodparent, ldum
-    integer :: isys, tflags, im, i
+    integer :: isys, tflags, im, i, ns
+    real*8 :: neck, dcen
     integer(c_int) :: nstep
     real*8 :: eatom, tnow
     integer :: iview
@@ -108,24 +120,37 @@ contains
 
        ! geometry
        call iw_text("Geometry",highlight=.true.,alignframe=.true.)
-       ldum = iw_radiobutton("Slab",int=w%mt%igeom,intval=0_c_int,sameline=.true.)
+       ldum = iw_radiobutton("Slab",int=w%mt%igeom,intval=int(mtgeom_slab,c_int),sameline=.true.)
        call iw_tooltip("A periodic slab with a free surface on top; the two bottom layers are held &
           &fixed as a crystalline substrate",ttshown)
-       ldum = iw_radiobutton("Nanoparticle",int=w%mt%igeom,intval=1_c_int,sameline=.true.)
+       ldum = iw_radiobutton("Nanoparticle",int=w%mt%igeom,intval=int(mtgeom_particle,c_int),&
+          sameline=.true.)
        call iw_tooltip("A free nanoparticle (cuboctahedron for fcc metals, sphere for bcc metals)",ttshown)
+       ldum = iw_radiobutton("Two particles",int=w%mt%igeom,intval=int(mtgeom_pair,c_int),&
+          sameline=.true.)
+       call iw_tooltip("Two nanoparticles placed in contact, one of them turned so that the join is a &
+          &grain boundary: heat them and watch the neck between them grow (sintering)",ttshown)
 
        ! size
-       if (w%mt%igeom == 0) then
+       if (w%mt%igeom == mtgeom_slab) then
           ldum = iw_intstepper("mtnx",w%mt%nx,label="Cells (x)",minval=3_c_int,maxval=10_c_int,&
              ndigit=2,tooltip="Number of conventional cells along x")
           ldum = iw_intstepper("mtny",w%mt%ny,label="Cells (y)",minval=3_c_int,maxval=10_c_int,&
              ndigit=2,sameline=.true.,tooltip="Number of conventional cells along y")
           ldum = iw_intstepper("mtnl",w%mt%nlayer,label="Layers",minval=4_c_int,maxval=16_c_int,&
              ndigit=2,sameline=.true.,tooltip="Number of atomic layers in the slab")
-       else
+       elseif (w%mt%igeom == mtgeom_particle) then
           ldum = iw_intstepper("mtns",w%mt%nshell,label="Size",minval=1_c_int,maxval=6_c_int,&
              ndigit=1,tooltip="Size of the nanoparticle: number of atomic shells around the central atom")
-          call iw_text("(" // string(mt_np_count(w%mt%imetal+1,int(w%mt%nshell))) // " atoms)",sameline=.true.)
+          call iw_text("(" // string(mt_np_count(w%mt%imetal+1,int(w%mt%nshell))) // " atoms)",&
+             sameline=.true.)
+       else
+          ! two particles cost twice the atoms, so they are capped smaller to
+          ! keep the simulation running at a usable frame rate
+          ldum = iw_intstepper("mtnsp",w%mt%nshellp,label="Size",minval=1_c_int,maxval=4_c_int,&
+             ndigit=1,tooltip="Size of each nanoparticle: number of atomic shells around its central atom")
+          call iw_text("(" // string(2*mt_np_count(w%mt%imetal+1,int(w%mt%nshellp))) // " atoms)",&
+             sameline=.true.)
        end if
 
        ! generate a new system
@@ -133,14 +158,16 @@ contains
           if (ok_system(w%isys,sys_init)) call remove_system(w%isys)
           w%isys = 0
           w%errmsg = ""
+          ns = int(w%mt%nshell)
+          if (w%mt%igeom == mtgeom_pair) ns = int(w%mt%nshellp)
           call build_melting_system(w%mt%imetal+1,int(w%mt%igeom),int(w%mt%nx),int(w%mt%ny),&
-             int(w%mt%nlayer),int(w%mt%nshell),w%isys,w%errmsg)
+             int(w%mt%nlayer),ns,w%isys,w%errmsg)
           ! show the new system in the anchor view (see build_water_cluster)
           if (w%isys > 0) call w%retarget(w%isys)
           ! the system as built: the form may be changed again while it
           ! initializes, and everything below refers to what is on screen
           w%mt%imet = w%mt%imetal + 1
-          w%mt%isslab = (w%mt%igeom == 0)
+          w%mt%igeom_built = int(w%mt%igeom)
           if (allocated(w%mt%frozen)) deallocate(w%mt%frozen)
           w%mt%started = .false.
        end if
@@ -195,8 +222,7 @@ contains
              im = w%mt%imet
 
              ! temperature: a slider (not a drag widget) as tall and wide as
-             ! the window allows, so that it can be worked on a touchscreen,
-             ! where a tap anywhere on the bar jumps to that temperature
+             ! the window allows
              call iw_text("Temperature",highlight=.true.)
              call iw_text("(melts at " // mt_tstring(mt_tm(im),w%mt%itempunit) // ")",sameline=.true.)
              call mt_temperature_slider()
@@ -220,7 +246,10 @@ contains
              call mt_color_atoms(isys)
              tnow = sysc(isys)%md%temperature_now()
              eatom = sysc(isys)%md%epot * hartoev / real(sysc(isys)%md%nat,8)
-             call mt_update_scoreboard(isys,tnow)
+             neck = 0d0
+             dcen = 0d0
+             if (w%mt%igeom_built == mtgeom_pair) call mt_neck(isys,neck,dcen)
+             call mt_update_scoreboard(isys,tnow,neck)
 
              ! status table
              tflags = ImGuiTableFlags_None
@@ -248,6 +277,10 @@ contains
                    string(mt_in_units(tnow,w%mt%itempunit),'f',decimal=0))
                 call status_row("Potential energy per atom (eV)",string(eatom,'f',decimal=3))
                 call status_row("Molten fraction (%)",string(100d0*w%mt%molten,'f',decimal=0))
+                if (w%mt%igeom_built == mtgeom_pair) then
+                   call status_row("Neck radius (Å)",string(neck*bohrtoa,'f',decimal=1))
+                   call status_row("Centre distance (Å)",string(dcen*bohrtoa,'f',decimal=1))
+                end if
                 call status_row("Time (ps)",string(sysc(isys)%md%simtime*autofs/1000d0,'f',decimal=2))
 
                 call igEndTable()
@@ -290,9 +323,7 @@ contains
     end subroutine status_row
 
     !> The temperature control: a slider spanning the width of the window,
-    !> padded to a comfortable height for a finger. A slider rather than a
-    !> drag widget because a slider takes the value from where it is
-    !> pressed, so it needs a tap instead of a press-and-drag gesture.
+    !> padded to a comfortable height for a finger.
     subroutine mt_temperature_slider()
       use gui_main, only: g, fontsize
 
@@ -354,7 +385,7 @@ contains
       ! the mask goes on after it; it is decided once, on the initial
       ! geometry (layer spacing a/2, slab starting at z = 0), because by the
       ! time the run is resumed a liquid atom may have wandered below the cut
-      if (w%mt%isslab) then
+      if (w%mt%igeom_built == mtgeom_slab) then
          if (.not.allocated(w%mt%frozen)) then
             allocate(w%mt%frozen(sysc(is)%md%nat))
             do i = 1, sysc(is)%md%nat
@@ -373,17 +404,23 @@ contains
     !> temperature, the substrate mask, and the display (no bonds or
     !> axes, atoms as large spheres).
     subroutine mt_start()
-      use representations, only: reptype_bonds, reptype_axes, reptype_atoms, atomborder_def
+      use representations, only: reptype_bonds, reptype_axes, reptype_atoms, atomborder_def,&
+         repstyle_ballandstick
       integer :: is, i
 
       is = w%isys
       w%mt%started = .true.
-      w%mt%needalign = w%mt%isslab
+      w%mt%needalign = (w%mt%igeom_built == mtgeom_slab)
 
       ! the run
       sysc(is)%md%temperature = mt_t0
       sysc(is)%md_nstep_frame = mt_nstep0
       call mt_run()
+
+      ! a style that draws atoms: above crsmall atoms a new scene defaults to
+      ! sticks, which has no atoms object at all, so the view would come up
+      ! empty and the per-atom coloring below would have nothing to color
+      call sysc(is)%sc%set_style(repstyle_ballandstick)
 
       ! display: no atoms at the cell edges
       sysc(is)%sc%disp%border = .false.
@@ -412,6 +449,11 @@ contains
       integer, intent(in) :: is
 
       real(c_float), parameter :: rgb_fixed(3) = (/0.55_c_float,0.55_c_float,0.55_c_float/) ! held atoms
+      ! the two particles of the sintering geometry: blue and amber stay
+      ! apart for the common color-vision deficiencies
+      real(c_float), parameter :: rgb_part1(3) = (/0.20_c_float,0.45_c_float,0.75_c_float/)
+      real(c_float), parameter :: rgb_part2(3) = (/0.95_c_float,0.65_c_float,0.15_c_float/)
+      logical :: bypart
 
       integer :: nat, i
       integer, allocatable :: idx(:)
@@ -431,13 +473,30 @@ contains
             w%errmsg = errmsg
             return
          end if
-         do i = 1, nat
-            w%mt%rgba(1:3,i) = mt_order_color(order(i))
-            w%mt%rgba(4,i) = 1._c_float
-            if (allocated(sysc(is)%md%frozen)) then
+         ! the two particles are told apart by color, which is the whole
+         ! point of the sintering geometry; everywhere else the color is the
+         ! local crystalline order. The builder emits the first particle and
+         ! then the second, so the halves of the atom list are the particles
+         bypart = (w%mt%igeom_built == mtgeom_pair .and. mod(nat,2) == 0)
+         if (bypart) then
+            do i = 1, nat
+               if (2*i > nat) then
+                  w%mt%rgba(1:3,i) = rgb_part2
+               else
+                  w%mt%rgba(1:3,i) = rgb_part1
+               end if
+            end do
+         else
+            do i = 1, nat
+               w%mt%rgba(1:3,i) = mt_order_color(order(i))
+            end do
+         end if
+         w%mt%rgba(4,:) = 1._c_float
+         if (allocated(sysc(is)%md%frozen)) then
+            do i = 1, nat
                if (sysc(is)%md%frozen(i)) w%mt%rgba(1:3,i) = rgb_fixed
-            end if
-         end do
+            end do
+         end if
          w%mt%dirty = .false.
       end if
 
@@ -446,10 +505,58 @@ contains
 
     end subroutine mt_color_atoms
 
-    !> Re-arm the on-screen temperature and molten fraction as transient text.
-    subroutine mt_update_scoreboard(is,tnow)
+    !> Size of the join between the two particles: the narrowest waist of
+    !> the aggregate between their centroids, and the distance between those
+    !> centroids, both in bohr. The axis is taken from the centroids every
+    !> frame, so it does not matter how the pair tumbles. A neck of zero
+    !> means there is nothing between them any more.
+    subroutine mt_neck(is,neck,dcen)
       integer, intent(in) :: is
-      real*8, intent(in) :: tnow
+      real*8, intent(out) :: neck, dcen
+
+      integer :: nat, i, ib, nbin, n1
+      real*8 :: c1(3), c2(3), u(3), d(3), dd, s0, dbin
+      real*8, allocatable :: pmax(:)
+
+      neck = 0d0
+      dcen = 0d0
+      nat = sysc(is)%md%nat
+      if (nat < 2 .or. mod(nat,2) /= 0) return
+      n1 = nat / 2
+
+      ! centroids of the two particles, and the axis between them
+      c1 = sum(sysc(is)%md%r(:,1:n1),dim=2) / real(n1,8)
+      c2 = sum(sysc(is)%md%r(:,n1+1:nat),dim=2) / real(n1,8)
+      u = c2 - c1
+      dd = norm2(u)
+      if (dd < 1d-10) return
+      u = u / dd
+      dcen = dd
+
+      ! the widest atom in each slice along the axis, one nearest-neighbor
+      ! distance thick; the neck is the narrowest slice between the centroids
+      dbin = mt_dnn(w%mt%imet)
+      nbin = max(int(dd / dbin),1)
+      allocate(pmax(nbin))
+      pmax = -1d0
+      do i = 1, nat
+         d = sysc(is)%md%r(:,i) - c1
+         s0 = dot_product(d,u)
+         if (s0 < 0d0 .or. s0 >= dd) cycle
+         ib = min(int(s0 / dbin) + 1,nbin)
+         pmax(ib) = max(pmax(ib),norm2(d - s0 * u))
+      end do
+
+      ! pmax starts negative, so an empty slice (the two are no longer
+      ! joined) comes out of the minimum as a zero neck
+      neck = max(minval(pmax),0d0)
+
+    end subroutine mt_neck
+
+    !> Re-arm the on-screen temperature and molten fraction as transient text.
+    subroutine mt_update_scoreboard(is,tnow,neck)
+      integer, intent(in) :: is
+      real*8, intent(in) :: tnow, neck
 
       real(c_float), parameter :: rgb_dark(3) = (/0.20_c_float,0.20_c_float,0.20_c_float/)
       real(c_float), parameter :: dark = 0.72_c_float ! darken for legibility
@@ -458,9 +565,17 @@ contains
       call sysc(is)%sc%show_transient_text(w%id,1,mt_tstring(tnow,w%mt%itempunit),rgb_dark,&
          (/0.5d0,0.92d0/),1.5d0)
 
-      ! molten fraction at the bottom, in the color of the atoms at that order
-      call sysc(is)%sc%show_transient_text(w%id,2,string(nint(100d0*w%mt%molten)) // "% molten",&
-         dark * mt_order_color(1d0-w%mt%molten),(/0.5d0,0.06d0/),1d0)
+      ! at the bottom, the number this geometry is about: how far the two
+      ! particles have joined, or how much of the metal has melted, in the
+      ! color of the atoms at that order. Both are in the status table; this
+      ! is the one worth reading from across the room
+      if (w%mt%igeom_built == mtgeom_pair) then
+         call sysc(is)%sc%show_transient_text(w%id,2,"neck " //&
+            string(neck*bohrtoa,'f',decimal=1) // " Å",rgb_dark,(/0.5d0,0.06d0/),1d0)
+      else
+         call sysc(is)%sc%show_transient_text(w%id,2,string(nint(100d0*w%mt%molten)) // "% molten",&
+            dark * mt_order_color(1d0-w%mt%molten),(/0.5d0,0.06d0/),1d0)
+      end if
 
     end subroutine mt_update_scoreboard
 
@@ -572,7 +687,7 @@ contains
     logical, intent(in) :: bcc
     integer, intent(in) :: nshell
     real*8, intent(in) :: a
-    real*8, allocatable, intent(inout) :: x(:,:)
+    real*8, allocatable, intent(out) :: x(:,:)
 
     integer :: i, j, k, n, nmax
     real*8 :: r(3), r2max
@@ -609,25 +724,29 @@ contains
 
   end subroutine mt_nanoparticle_sites
 
-  !> Build the system of the demonstration for metal im: a (100) slab
-  !> (igeom = 0) with nx x ny conventional cells in plane and nlayer atomic
-  !> layers under a vacuum, periodic; or a nanoparticle (igeom = 1) with
-  !> nshell shells, non-periodic. Register it as a new system and return
-  !> its id. Errors are returned in errmsg.
+  !> Build the system of the demonstration for metal im, one of the
+  !> mtgeom_* geometries: a periodic (100) slab with nx x ny conventional
+  !> cells in plane and nlayer atomic layers under a vacuum; one
+  !> non-periodic nanoparticle of nshell shells; or two such nanoparticles
+  !> in contact, the second one turned so that the join is a grain
+  !> boundary. Register it as a new system and return its id. Errors are
+  !> returned in errmsg.
   subroutine build_melting_system(im,igeom,nx,ny,nlayer,nshell,id,errmsg)
     use crystalseedmod, only: crystalseed
     use systems, only: add_systems_from_seeds, launch_initialization_thread
     use global, only: rborder_def
-    use param, only: isformat_r_derived, bohrtoa
+    use param, only: isformat_r_derived, bohrtoa, rad
     use tools_io, only: string
+    use tools_math, only: euler2mat
     integer, intent(in) :: im, igeom, nx, ny, nlayer, nshell
     integer, intent(inout) :: id
     character(len=:), allocatable, intent(inout) :: errmsg
 
     type(crystalseed), allocatable :: seed(:)
     integer, allocatable :: idlist(:)
-    real*8 :: a, c, xy(2,2)
-    integer :: nsite, nat, ix, iy, k, m, i
+    real*8, allocatable :: x1(:,:), y1(:,:)
+    real*8 :: a, c, xy(2,2), sep, rot(3,3)
+    integer :: nsite, nat, ix, iy, k, m, i, n1
 
     errmsg = ""
     if (im < 1 .or. im > mt_nmetal) then
@@ -642,7 +761,7 @@ contains
     seed(1)%spc(1)%z = mt_z(im)
     seed(1)%spc(1)%name = trim(mt_sym(im))
 
-    if (igeom == 0) then
+    if (igeom == mtgeom_slab) then
        ! (100) slab: layers a/2 apart; each layer is a square lattice with
        ! the conventional cell, and consecutive layers alternate between
        ! the two motifs of the conventional cell
@@ -691,15 +810,47 @@ contains
        seed(1)%ismolecule = .false.
        seed(1)%name = trim(mt_sym(im)) // "(100) slab " // string(nx) // "x" // string(ny) //&
           "x" // string(nlayer)
-    else
+    elseif (igeom == mtgeom_particle) then
        ! nanoparticle, non-periodic (positions in bohr)
        call mt_nanoparticle_sites(mt_bcc(im),nshell,a,seed(1)%x)
        nat = size(seed(1)%x,2)
+       seed(1)%cubic = .false.
+       seed(1)%name = trim(mt_sym(im)) // " nanoparticle (" // string(nat) // ")"
+    elseif (igeom == mtgeom_pair) then
+       ! two nanoparticles in contact along x, non-periodic (positions in
+       ! bohr). The second one is turned to a generic orientation: two copies
+       ! in register would simply be one crystal, and the join has to be a
+       ! grain boundary for there to be any sintering to watch. A turn about
+       ! the contact axis alone would not do, since it leaves the facing
+       ! facets parallel and the contact flat
+       call mt_nanoparticle_sites(mt_bcc(im),nshell,a,x1)
+       n1 = size(x1,2)
+       nat = 2 * n1
+       rot = euler2mat((/mt_pair_rot1 * rad, mt_pair_rot2 * rad, 0d0/))
+       y1 = matmul(rot,x1)
+       ! the gap is measured on the coordinates themselves: the turned copy
+       ! reaches further along x than the original, so any radius formula
+       ! would push the two into each other
+       sep = mt_pair_gap * mt_dnn(im) + maxval(x1(1,:)) - minval(y1(1,:))
+       allocate(seed(1)%x(3,nat))
+       do i = 1, n1
+          seed(1)%x(:,i) = x1(:,i) - (/0.5d0*sep,0d0,0d0/)
+          seed(1)%x(:,n1+i) = y1(:,i) + (/0.5d0*sep,0d0,0d0/)
+       end do
+       ! a cube: the pair's own box is long and thin, and would be re-fitted
+       ! (rebuilding the cell and the environment) as the pair tumbles
+       seed(1)%cubic = .true.
+       seed(1)%name = trim(mt_sym(im)) // " two nanoparticles (2x" // string(n1) // ")"
+    else
+       errmsg = "invalid geometry"
+       return
+    end if
+
+    ! the two free-standing geometries share their seed conventions
+    if (igeom /= mtgeom_slab) then
        seed(1)%useabr = 0
        seed(1)%ismolecule = .true.
        seed(1)%border = rborder_def
-       seed(1)%cubic = .false.
-       seed(1)%name = trim(mt_sym(im)) // " nanoparticle (" // string(nat) // ")"
     end if
 
     ! common: one species, built in memory (no source file), no symmetry

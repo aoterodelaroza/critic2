@@ -254,21 +254,22 @@ module windows
   type melting_state
      ! the form
      integer(c_int) :: imetal = 0 ! metal (index into the table in windows@melting.f90, from 0)
-     integer(c_int) :: igeom = 0 ! geometry (0 = slab, 1 = nanoparticle)
+     integer(c_int) :: igeom = 0 ! geometry (mtgeom_* in windows@melting.f90)
      integer(c_int) :: nx = 5 ! slab: conventional cells along x
      integer(c_int) :: ny = 5 ! slab: conventional cells along y
      integer(c_int) :: nlayer = 8 ! slab: number of atomic layers
      integer(c_int) :: nshell = 3 ! nanoparticle: number of shells around the central atom
+     integer(c_int) :: nshellp = 3 ! two particles: number of shells around each central atom
      integer(c_int) :: itempunit = 1 ! temperature units shown (0 = kelvin, 1 = Celsius, 2 = Fahrenheit)
      ! the run (on the system this window built, isys)
      logical :: started = .false. ! whether the run has been auto-started for the system
      logical :: needalign = .false. ! align the camera to a side view once the scene is built
      integer :: imet = 1 ! metal of the system, as built (index into the table, from 1)
-     logical :: isslab = .true. ! whether the system is a slab (else a nanoparticle)
+     integer :: igeom_built = 0 ! geometry of the system, as built (mtgeom_*)
      logical, allocatable :: frozen(:) ! the substrate atoms of the slab, from the initial geometry
      logical :: dirty = .true. ! the atom colors must be recomputed although the run is paused
      real*8 :: molten = 0d0 ! molten fraction of the free atoms, last computed
-     real(c_float), allocatable :: rgba(:,:) ! atom colors by local order, last computed (4,nat)
+     real(c_float), allocatable :: rgba(:,:) ! atom colors, last computed (4,nat)
   end type melting_state
   public :: melting_state
 
