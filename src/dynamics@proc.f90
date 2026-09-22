@@ -525,7 +525,7 @@ contains
     ! O: Ornstein-Uhlenbeck thermostat
     c2 = sqrt(1d0-c1*c1)
     do i = 1, md%nat
-       sig = c2 * sqrt(kboltz*md%temperature/md%mass(i))
+       sig = c2 * sqrt(kboltz*max(md%temperature,0d0)/md%mass(i))
        do k = 1, 3
           md%v(k,i) = c1*md%v(k,i) + sig*gauss_random()
        end do

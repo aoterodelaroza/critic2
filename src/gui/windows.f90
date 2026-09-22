@@ -259,6 +259,7 @@ module windows
      integer(c_int) :: ny = 5 ! slab: conventional cells along y
      integer(c_int) :: nlayer = 8 ! slab: number of atomic layers
      integer(c_int) :: nshell = 3 ! nanoparticle: number of shells around the central atom
+     integer(c_int) :: itempunit = 1 ! temperature units shown (0 = kelvin, 1 = Celsius, 2 = Fahrenheit)
      ! the run (on the system this window built, isys)
      logical :: started = .false. ! whether the run has been auto-started for the system
      logical :: needalign = .false. ! align the camera to a side view once the scene is built

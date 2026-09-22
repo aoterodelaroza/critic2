@@ -645,7 +645,17 @@ end function igDragInt
 !x! bool igDragIntRange2(const char* label,int* v_current_min,int* v_current_max,float v_speed,int v_min,int v_max,const char* format,const char* format_max,ImGuiSliderFlags flags);
 !x! bool igDragScalar(const char* label,ImGuiDataType data_type,void* p_data,float v_speed,const void* p_min,const void* p_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igDragScalarN(const char* label,ImGuiDataType data_type,void* p_data,int components,float v_speed,const void* p_min,const void* p_max,const char* format,ImGuiSliderFlags flags);
-!x! bool igSliderFloat(const char* label,float* v,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+! bool igSliderFloat(const char* label,float* v,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+function igSliderFloat(label,v,v_min,v_max,format_,flags) bind(c,name="igSliderFloat")
+  import c_ptr, c_float, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: v
+  real(c_float), value :: v_min
+  real(c_float), value :: v_max
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igSliderFloat
+end function igSliderFloat
 !x! bool igSliderFloat2(const char* label,float v[2],float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igSliderFloat3(const char* label,float v[3],float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
 !x! bool igSliderFloat4(const char* label,float v[4],float v_min,float v_max,const char* format,ImGuiSliderFlags flags);

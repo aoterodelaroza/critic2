@@ -24,13 +24,13 @@ submodule (windows) melting
   ! The metals on offer: symbol, atomic number, lattice, conventional
   ! cell parameter (angstrom) and experimental melting point (K).
   integer, parameter :: mt_nmetal = 6
-  character(len=2), parameter :: mt_sym(mt_nmetal) = (/"Cu","Au","Al","Ni","Fe","W "/)
-  integer, parameter :: mt_z(mt_nmetal) = (/29,79,13,28,26,74/)
-  logical, parameter :: mt_bcc(mt_nmetal) = (/.false.,.false.,.false.,.false.,.true.,.true./)
-  real*8, parameter :: mt_a(mt_nmetal) = (/3.615d0,4.078d0,4.050d0,3.524d0,2.867d0,3.165d0/)
-  real*8, parameter :: mt_tm(mt_nmetal) = (/1358d0,1337d0,933d0,1728d0,1811d0,3695d0/)
+  character(len=2), parameter :: mt_sym(mt_nmetal) = (/"Fe","Cu","Au","Al","Ni","W "/)
+  integer, parameter :: mt_z(mt_nmetal) = (/26,29,79,13,28,74/)
+  logical, parameter :: mt_bcc(mt_nmetal) = (/.true.,.false.,.false.,.false.,.false.,.true./)
+  real*8, parameter :: mt_a(mt_nmetal) = (/2.867d0,3.615d0,4.078d0,4.050d0,3.524d0,3.165d0/)
+  real*8, parameter :: mt_tm(mt_nmetal) = (/1811d0,1358d0,1337d0,933d0,1728d0,3695d0/)
 
-  real*8, parameter :: mt_tmax_factor = 5.0d0 ! slider ceiling, in units of the melting point
+  real*8, parameter :: mt_tmax_factor = 2.0d0 ! slider ceiling, in units of the melting point
   real*8, parameter :: mt_vacuum = 15d0 ! vacuum above the slab (angstrom)
   real*8, parameter :: mt_dt = 20d0 ! MD time step (a.u.)
   real*8, parameter :: mt_t0 = 300d0 ! starting temperature (K)
@@ -39,10 +39,20 @@ submodule (windows) melting
   real*8, parameter :: mt_border_factor = 1.2d0 ! atom outline, in units of the usual atom border
   integer, parameter :: mt_nlut = 256 ! colormap look-up table size
 
-  ! constants built on first use: the metal combo options, the order-to-color
-  ! look-up table (blue = solid, red = liquid), and the nanoparticle atom count
-  ! of the last form settings
-  character(len=:,kind=c_char), allocatable :: mt_combo
+  ! The temperature units on offer: how each is written, what it is called,
+  ! and the affine map from kelvin (x = t * scale + offset).
+  integer, parameter :: mt_nunit = 3
+  character(len=3), parameter :: mt_uname(0:mt_nunit-1) = &
+     (/ character(len=3) :: "K", "°C", "°F" /) ! the degree sign is two bytes in UTF-8
+  character(len=18), parameter :: mt_ulong(0:mt_nunit-1) = &
+     (/ character(len=18) :: "kelvin", "degrees Celsius", "degrees Fahrenheit" /)
+  real*8, parameter :: mt_uscale(0:mt_nunit-1) = (/1d0,1d0,1.8d0/)
+  real*8, parameter :: mt_uoffset(0:mt_nunit-1) = (/0d0,-273.15d0,-459.67d0/)
+  real(c_float), parameter :: mt_slider_pad = 0.9_c_float ! temperature slider: vertical padding, in text heights
+  real(c_float), parameter :: mt_slider_grab = 2.5_c_float ! temperature slider: grab width, in text heights
+
+  ! built on first use: the order-to-color look-up table (blue = solid,
+  ! red = liquid) and the nanoparticle atom count of the last form settings
   logical :: mt_lut_ok = .false.
   real(c_float) :: mt_lut(3,mt_nlut)
   integer :: mt_np_im = 0, mt_np_nshell = 0, mt_np_n = 0
@@ -53,14 +63,14 @@ contains
   module subroutine draw_melting(w)
     use systems, only: sysc, sys, sys_init, ok_system, remove_system, lastchange_geometry
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_intstepper,&
-       iw_close_event, iw_setpos_bottomright, iw_table_column, iw_combo_simple, iw_dragfloat_real8,&
+       iw_close_event, iw_setpos_bottomright, iw_table_column, iw_combo_simple,&
        file_name_base
     use tools_io, only: string
     use param, only: hartoev, autofs
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodparent, ldum
-    integer :: isys, tflags, im
+    integer :: isys, tflags, im, i
     integer(c_int) :: nstep
     real*8 :: eatom, tnow
     integer :: iview
@@ -83,19 +93,17 @@ contains
     if (.not.doquit) then
        ! metal
        call iw_text("Metal",highlight=.true.,alignframe=.true.)
-       if (.not.allocated(mt_combo)) then
-          mt_combo = ""
-          do im = 1, mt_nmetal
-             mt_combo = mt_combo // trim(mt_sym(im)) // " ("
-             if (mt_bcc(im)) then
-                mt_combo = mt_combo // "bcc"
-             else
-                mt_combo = mt_combo // "fcc"
-             end if
-             mt_combo = mt_combo // ", melts at " // string(nint(mt_tm(im))) // " K)" // c_null_char
-          end do
-       end if
-       call iw_combo_simple("##mtmetal",mt_combo,w%mt%imetal,sameline=.true.)
+       str1 = ""
+       do im = 1, mt_nmetal
+          str1 = str1 // trim(mt_sym(im)) // " ("
+          if (mt_bcc(im)) then
+             str1 = str1 // "bcc"
+          else
+             str1 = str1 // "fcc"
+          end if
+          str1 = str1 // ", melts at " // mt_tstring(mt_tm(im),w%mt%itempunit) // ")" // c_null_char
+       end do
+       call iw_combo_simple("##mtmetal",str1,w%mt%imetal,sameline=.true.)
        call iw_tooltip("Metal, its crystal structure, and its experimental melting point",ttshown)
 
        ! geometry
@@ -186,12 +194,20 @@ contains
           if (sysc(isys)%md%ready) then
              im = w%mt%imet
 
-             ! temperature
+             ! temperature: a slider (not a drag widget) as tall and wide as
+             ! the window allows, so that it can be worked on a touchscreen,
+             ! where a tap anywhere on the bar jumps to that temperature
              call iw_text("Temperature",highlight=.true.)
-             ldum = iw_dragfloat_real8("##mttemp",x1=sysc(isys)%md%temperature,speed=5d0,min=0d0,&
-                max=mt_tmax_factor*mt_tm(im),decimal=0,flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Temperature of the thermostat (K); drag to heat or cool the metal",ttshown)
-             call iw_text("K (melts at " // string(nint(mt_tm(im))) // " K)",sameline=.true.)
+             call iw_text("(melts at " // mt_tstring(mt_tm(im),w%mt%itempunit) // ")",sameline=.true.)
+             call mt_temperature_slider()
+
+             ! units the temperatures are shown in
+             call iw_text("Units",highlight=.true.,alignframe=.true.)
+             do i = 0, mt_nunit-1
+                ldum = iw_radiobutton(trim(mt_uname(i)),int=w%mt%itempunit,intval=int(i,c_int),&
+                   sameline=.true.)
+                call iw_tooltip("Show the temperatures in " // trim(mt_ulong(i)),ttshown)
+             end do
 
              ! speed
              nstep = int(sysc(isys)%md_nstep_frame,c_int)
@@ -228,7 +244,8 @@ contains
                 else
                    call status_row("Atoms",string(sysc(isys)%md%nat))
                 end if
-                call status_row("Temperature (K)",string(tnow,'f',decimal=0))
+                call status_row("Temperature (" // trim(mt_uname(w%mt%itempunit)) // ")",&
+                   string(mt_in_units(tnow,w%mt%itempunit),'f',decimal=0))
                 call status_row("Potential energy per atom (eV)",string(eatom,'f',decimal=3))
                 call status_row("Molten fraction (%)",string(100d0*w%mt%molten,'f',decimal=0))
                 call status_row("Time (ps)",string(sysc(isys)%md%simtime*autofs/1000d0,'f',decimal=2))
@@ -271,6 +288,40 @@ contains
       if (igTableSetColumnIndex(0_c_int)) call iw_text(prop)
       if (igTableSetColumnIndex(1_c_int)) call iw_text(val)
     end subroutine status_row
+
+    !> The temperature control: a slider spanning the width of the window,
+    !> padded to a comfortable height for a finger. A slider rather than a
+    !> drag widget because a slider takes the value from where it is
+    !> pressed, so it needs a tap instead of a press-and-drag gesture.
+    subroutine mt_temperature_slider()
+      use gui_main, only: g, fontsize
+
+      real(c_float) :: t, tmin, tmax
+      type(ImVec2) :: pad
+      character(len=:,kind=c_char), allocatable, target :: str, sformat
+
+      t = real(mt_in_units(sysc(isys)%md%temperature,w%mt%itempunit),c_float)
+      tmin = real(mt_in_units(0d0,w%mt%itempunit),c_float)
+      tmax = real(mt_in_units(mt_tmax_factor*mt_tm(im),w%mt%itempunit),c_float)
+      str = "##mttemp" // c_null_char
+      sformat = "%.0f " // trim(mt_uname(w%mt%itempunit)) // c_null_char
+
+      pad%x = g%Style%FramePadding%x
+      pad%y = mt_slider_pad * fontsize%y
+      call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,pad)
+      call igPushStyleVar_Float(ImGuiStyleVar_GrabMinSize,mt_slider_grab * fontsize%y)
+      call igPushItemWidth(-1._c_float)
+      ! the slider rounds its value to the printed precision, so the bottom
+      ! of the bar comes back as a hair below absolute zero (-460 F is
+      ! -0.18 K); clamp it, a negative temperature has no meaning
+      if (igSliderFloat(c_loc(str),t,tmin,tmax,c_loc(sformat),ImGuiSliderFlags_AlwaysClamp)) &
+         sysc(isys)%md%temperature = max(mt_in_kelvin(real(t,8),w%mt%itempunit),0d0)
+      call igPopItemWidth()
+      call igPopStyleVar(2_c_int)
+      call iw_tooltip("Temperature of the thermostat: press anywhere on the bar, or drag it, &
+         &to heat or cool the metal",ttshown)
+
+    end subroutine mt_temperature_slider
 
     !> Zoom the displayed scene in (ratio > 0) or out (ratio < 0) by a fixed
     !> step, for touchscreens with no mouse wheel.
@@ -404,7 +455,7 @@ contains
       real(c_float), parameter :: dark = 0.72_c_float ! darken for legibility
 
       ! temperature at the top
-      call sysc(is)%sc%show_transient_text(w%id,1,string(nint(tnow)) // " K",rgb_dark,&
+      call sysc(is)%sc%show_transient_text(w%id,1,mt_tstring(tnow,w%mt%itempunit),rgb_dark,&
          (/0.5d0,0.92d0/),1.5d0)
 
       ! molten fraction at the bottom, in the color of the atoms at that order
@@ -416,6 +467,39 @@ contains
   end subroutine draw_melting
 
   !xx! private procedures
+
+  !> Temperature t (K) converted to the units iunit (0 = kelvin,
+  !> 1 = Celsius, 2 = Fahrenheit), for display.
+  function mt_in_units(t,iunit) result(x)
+    real*8, intent(in) :: t
+    integer(c_int), intent(in) :: iunit
+    real*8 :: x
+
+    x = t * mt_uscale(iunit) + mt_uoffset(iunit)
+
+  end function mt_in_units
+
+  !> Temperature x, given in the units iunit, back in kelvin.
+  function mt_in_kelvin(x,iunit) result(t)
+    real*8, intent(in) :: x
+    integer(c_int), intent(in) :: iunit
+    real*8 :: t
+
+    t = (x - mt_uoffset(iunit)) / mt_uscale(iunit)
+
+  end function mt_in_kelvin
+
+  !> Temperature t (K) written out in the units iunit, rounded, with the
+  !> units after it ("1538 °C").
+  function mt_tstring(t,iunit) result(str)
+    use tools_io, only: string
+    real*8, intent(in) :: t
+    integer(c_int), intent(in) :: iunit
+    character(len=:), allocatable :: str
+
+    str = string(nint(mt_in_units(t,iunit))) // " " // trim(mt_uname(iunit))
+
+  end function mt_tstring
 
   !> Nearest-neighbor distance (bohr) of metal im.
   function mt_dnn(im) result(dnn)
