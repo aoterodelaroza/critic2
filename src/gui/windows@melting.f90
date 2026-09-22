@@ -30,7 +30,7 @@ submodule (windows) melting
   real*8, parameter :: mt_a(mt_nmetal) = (/3.615d0,4.078d0,4.050d0,3.524d0,2.867d0,3.165d0/)
   real*8, parameter :: mt_tm(mt_nmetal) = (/1358d0,1337d0,933d0,1728d0,1811d0,3695d0/)
 
-  real*8, parameter :: mt_tmax_factor = 1.5d0 ! slider ceiling, in units of the melting point
+  real*8, parameter :: mt_tmax_factor = 5.0d0 ! slider ceiling, in units of the melting point
   real*8, parameter :: mt_vacuum = 15d0 ! vacuum above the slab (angstrom)
   real*8, parameter :: mt_dt = 20d0 ! MD time step (a.u.)
   real*8, parameter :: mt_t0 = 300d0 ! starting temperature (K)
@@ -334,10 +334,10 @@ contains
       sysc(is)%md_nstep_frame = mt_nstep0
       call mt_run()
 
-      ! display: no axes and no bonds (the bond list is frozen at the start
-      ! of the run and would stretch across the liquid); atoms as large
-      ! spheres so the liquid looks dense, outlined so that they can be
-      ! told apart where they touch
+      ! display: no atoms at the cell edges
+      sysc(is)%sc%disp%border = .false.
+
+      ! no axes and no bonds
       sysc(is)%highlight_border = real(mt_border_factor * atomborder_def,c_float)
       do i = 1, sysc(is)%sc%nrep
          if (sysc(is)%sc%rep(i)%type == reptype_axes .or. sysc(is)%sc%rep(i)%type == reptype_bonds) then
