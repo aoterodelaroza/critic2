@@ -373,7 +373,7 @@
   First elements... 5.501860332113E-08  1.872139331876E-02  6.542695934079E-02  
   Last elements... 3.362813853209E-01  3.202782580528E-01  2.488987949383E-01  
   Sum of elements... 2.365792590670E+03
-  Sum of squares of elements... 3.401774669528E+02
+  Sum of squares of elements... 3.401774669527E+02
   Grid domain/cell volume = 137.1519/137.1519
   Grid domain integral (11) = 6.95458348
   Cell integral (11) = 6.95458348
@@ -997,7 +997,7 @@
   First elements... 4.828068456096E-07  1.619833255724E-03  2.831337445642E-03  
   Last elements... 7.669357416362E-03  7.085520368130E-03  6.678222691004E-03  
   Sum of elements... 2.389731556796E+03
-  Sum of squares of elements... 3.401774669528E+02
+  Sum of squares of elements... 3.401774669527E+02
   Grid domain/cell volume = 137.1519/137.1519
   Grid domain integral (35) = 7.02495547
   Cell integral (35) = 7.02495547

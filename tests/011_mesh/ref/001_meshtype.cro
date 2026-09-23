@@ -4,7 +4,7 @@
   Mesh size      47520
   Mesh type      Franchini
   Mesh level     small
-+ Integral($0) = 79.99401333   
++ Integral($0) = 79.99353640   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
@@ -12,7 +12,7 @@
   Mesh size      55440
   Mesh type      Franchini
   Mesh level     small
-+ Integral($0) = 41.99937520   
++ Integral($0) = 41.99938972   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
@@ -20,5 +20,5 @@
   Mesh size      55440
   Mesh type      Becke
   Mesh level     small
-+ Integral($0) = 41.99200213   
++ Integral($0) = 41.99204496   
 

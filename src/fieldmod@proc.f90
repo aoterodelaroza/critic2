@@ -264,8 +264,10 @@ contains
           ff%usecore = any(ff%zpsp > 0)
           if (ff%usecore) then
              do i = 1, ff%c%nspc
-                if (ff%zpsp(i) > 0) &
-                   call grid1_register_core(ff%c%spc(i)%z,ff%zpsp(i))
+                if (ff%zpsp(i) > 0) then
+                   call grid1_register_core(ff%c%spc(i)%z,ff%zpsp(i),errmsg)
+                   if (len_trim(errmsg) > 0) return
+                end if
              end do
           end if
        else if (len_trim(word) > 0) then

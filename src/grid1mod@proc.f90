@@ -20,23 +20,13 @@ submodule (grid1mod) proc
   implicit none
 
   !xx! private procedures
-  ! subroutine read_critic(g,file,n,abspath,ti)
+  ! subroutine read_fit_block(file,key,n,np,al,co,found,navail,ti)
+  ! subroutine tabulate(g,z,np,al,co)
 
-  ! radial grid derivation formulas
-  integer, parameter :: noef(6,3) = reshape((/&
-     0,  1,  2,  3,  4,  5,&
-     -2, -1,  0,  1,  2,  3,&
-     -5, -4, -3, -2, -1,  0/),shape(noef)) !< Node offsets for 6-point derivation formulas.
-  real*8, parameter :: coef1(6,3) = reshape((/&
-     -274,  600, -600,  400,  -150,  24,&
-     6,  -60,  -40,  120,   -30,   4,&
-     -24, 150, -400,  600,  -600, 274 /),shape(coef1)) !< Coefficients for first derivative.
-  real*8, parameter :: coef2(6,3) = reshape((/&
-     225, -770,  1070,  -780,   305,   -50,&
-     -5,   80,  -150,    80,    -5,     0,&
-     -50,  305,  -780 ,  1070,  -770,   225/),shape(coef2)) !< Coefficients for second derivative.
-  real*8, parameter :: fac1=1d0/120d0 !< Prefactor for first derivative.
-  real*8, parameter :: fac2=2d0/120d0 !< Prefactor for second derivative.
+  ! logarithmic grid for the tabulated densities, r_i = exp(xmin + (i-1)*dx) / Z
+  real*8, parameter :: tab_xmin = -10d0
+  real*8, parameter :: tab_dx = 0.005d0
+  real*8, parameter :: tab_rcap = 200d0 !< Never tabulate beyond this radius (bohr)
 
   ! cutoffs
   real*8, parameter :: core_cutdens = 1d-08 !< Cutoff contribution for core radial grids
@@ -55,27 +45,61 @@ contains
 
   end subroutine grid1_end
 
-  !> Read a density core file from the database.
-  module subroutine read_db(g,z,q,ti)
+  !> Build the radial density of atom z from the fitted analytical
+  !> densities in the database (critic_home/atomdens/fit_ZZZ_Sym.dat).
+  !> With q = 0, this is the all-electron density of the neutral atom
+  !> (block STATE N=z). With 0 < q < z, it is the frozen-core density
+  !> for a pseudopotential with q valence electrons (block CORE
+  !> N=z-q). The fit, rho(r) = sum_i c_i
+  !> r^n_i exp(-alpha_i r), is tabulated with its exact derivatives on
+  !> a logarithmic grid. If the density is not available, the grid is
+  !> left uninitialized and a warning is issued, or the reason is
+  !> returned in errmsg if present.
+  module subroutine read_db(g,z,q,ti,errmsg)
     use global, only: critic_home
-    use tools_io, only: nameguess, warning, lower, ferror
+    use tools_io, only: nameguess, ferror, warning, string
     use param, only: dirsep
     class(grid1), intent(inout) :: g !< Output radial grid
     integer, intent(in) :: z !< Atomic number
-    integer, intent(in) :: q !< Atomic pseudopotential charge
+    integer, intent(in) :: q !< Atomic pseudopotential charge (0 = all-electron)
     type(thread_info), intent(in), optional :: ti
+    character(len=:), allocatable, intent(out), optional :: errmsg
 
-    character(len=:), allocatable :: file
+    character(len=:), allocatable :: file, msg
+    integer, allocatable :: np(:), navail(:)
+    real*8, allocatable :: al(:), co(:)
+    logical :: found
+    integer :: i
 
-    ! build the file name
-    file = trim(critic_home) // dirsep // "wfc" // dirsep // lower(nameguess(z)) // "_pbe.wfc"
+    call g%grid1_end()
+    if (present(errmsg)) errmsg = ""
 
-    ! anions not supported
-    if (q < 0) &
-       call ferror('read_db','Anions not supported: neutral atomic density used instead',warning)
+    ! build the file name and read the block
+    file = trim(critic_home) // dirsep // "atomdens" // dirsep // "fit_" //&
+       string(z,3,pad0=.true.) // "_" // trim(nameguess(z,.true.)) // ".dat"
+    if (q == 0) then
+       call read_fit_block(file,"STATE",z,np,al,co,found,navail,ti)
+       msg = 'Atomic density for Z = ' // string(z) // ' not found in: ' // file
+    else
+       call read_fit_block(file,"CORE",z-q,np,al,co,found,navail,ti)
+       msg = 'No core density with ' // string(z-q) // ' electrons (ZPSP = ' // string(q) //&
+          ') for Z = ' // string(z) // '. Available ZPSP:'
+       do i = 1, size(navail)
+          msg = msg // " " // string(z - navail(i))
+       end do
+    end if
+    if (found) found = (size(np) > 0)
+    if (.not.found) then
+       if (present(errmsg)) then
+          errmsg = msg
+       else
+          call ferror('read_db',msg,warning)
+       end if
+       return
+    end if
 
-    ! do it
-    call read_critic(g,file,z-q,.true.,ti=ti)
+    ! tabulate
+    call tabulate(g,z,np,al,co)
     g%z = z
     g%qat = q
 
@@ -99,7 +123,6 @@ contains
 
     if (.not.g%isinit) return
     if (r0 >= g%rmax) return
-    if (g%z - g%qat <= 0) return
 
     ! careful with grid limits.
     if (r0 <= g%r(1)) then
@@ -137,30 +160,21 @@ contains
   end subroutine interp
 
   !> Read the core density from the internal density tables for atom
-  !> with Z = iz and ZPSP = iq.
-  module subroutine grid1_register_core(iz,iq)
+  !> with Z = iz and ZPSP = iq. A pseudopotential with all electrons
+  !> in valence (iq = iz) has no core, and its grid is left empty.
+  !> If the core is not available, the reason is returned in errmsg
+  !> (empty otherwise).
+  module subroutine grid1_register_core(iz,iq,errmsg)
     use param, only: maxzat0, maxzat
     integer, intent(in) :: iz, iq
+    character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: i, j
-
+    errmsg = ""
+    if (.not.allocated(cgrid)) allocate(cgrid(maxzat0,maxzat0))
     if (iz <= 0 .or. iz > maxzat) return
-    if (iq <= 0 .or. iq > iz) return
-
-    if (.not.allocated(cgrid)) then
-       allocate(cgrid(maxzat0,maxzat0))
-       do i = 1, maxzat0
-          do j = 1, maxzat0
-             cgrid(i,j)%z = 0
-             cgrid(i,j)%qat = 0
-          end do
-       end do
-    end if
-
-    if (cgrid(iz,iq)%isinit) then
-       if(cgrid(iz,iq)%z == iz .and. cgrid(iz,iq)%qat == iq) return
-    end if
-    call cgrid(iz,iq)%read_db(iz,iq)
+    if (iq <= 0 .or. iq >= iz) return
+    if (cgrid(iz,iq)%isinit) return
+    call cgrid(iz,iq)%read_db(iz,iq,errmsg=errmsg)
 
   end subroutine grid1_register_core
 
@@ -200,134 +214,130 @@ contains
 
   !xx! private procedures
 
-  !> Read grid in critic format. This format is adapted from the wfc files
-  !> of the ld1 program in the quantum espresso distribution. Only n electrons
-  !> out of the total Z are used to build the grid.
-  subroutine read_critic(g,file,n,abspath,ti)
+  !> Read one block of an analytical density file (fit_*.dat). The
+  !> block has the header "STATE <N> <q> <nterm>
+  !> <sym>" (key = STATE) or "CORE <N> <nterm> <sym>" (key = CORE),
+  !> followed by nterm lines "n alpha c". Returns the powers (np),
+  !> exponents (al), and coefficients (co) of the block with N = n,
+  !> dropping the terms with c = 0. found is false if the file or the
+  !> block do not exist. navail is the list of N of the blocks in the
+  !> file, for error messages.
+  subroutine read_fit_block(file,key,n,np,al,co,found,navail,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, getword, isinteger, isreal, &
+       equal
     use types, only: realloc
-    use tools_io, only: uout, warning, ferror, fopen_read, string, fclose
-    use param, only: pi
-    class(grid1), intent(inout) :: g !< One-dimensional grid on output
-    character*(*), intent(in) :: file !< File with the grid description
-    integer, intent(in) :: n !< Number of electrons read
-    logical, intent(in) :: abspath !< Absolute path?
+    character*(*), intent(in) :: file
+    character*(*), intent(in) :: key
+    integer, intent(in) :: n
+    integer, allocatable, intent(inout) :: np(:)
+    real*8, allocatable, intent(inout) :: al(:), co(:)
+    logical, intent(out) :: found
+    integer, allocatable, intent(out) :: navail(:)
     type(thread_info), intent(in), optional :: ti
 
-    integer :: i, j, lu
-    real*8, allocatable :: rr(:,:)
-    real*8 :: r, r1, r2, r3 ,r4, delta, delta2
-    integer :: ns, ic
-    logical :: exist
+    integer :: lu, lp, i, nblock, nterm, nn, nav
+    character(len=:), allocatable :: line, word
+    real*8 :: rn, ra, rc
+    logical :: exist, ok
 
-    ! check that the file exists
+    found = .false.
+    nav = 0
+    allocate(navail(10))
     inquire(file=file,exist=exist)
-    if (.not.exist) then
-       write (uout,'("File: ",A)') trim(file)
-       call ferror("grid1_read_critic","Atomic density file not found",warning)
-       g%isinit = .false.
-       return
-    end if
+    if (exist) then
+       lu = fopen_read(file,ti=ti)
+       do while (getline_raw(lu,line,.false.))
+          lp = 1
+          word = getword(line,lp)
+          if (.not.equal(word,key)) cycle
 
-    ! Read header and allocate arrays
-    lu = fopen_read(file,abspath0=abspath,ti=ti)
-    read (lu,*) g%norb
-    if (allocated(g%wfcl)) deallocate(g%wfcl)
-    if (allocated(g%occ)) deallocate(g%occ)
-    if (allocated(g%enl)) deallocate(g%enl)
-    if (allocated(g%psi)) deallocate(g%psi)
-    allocate(g%wfcl(g%norb),g%occ(g%norb),g%enl(g%norb))
-    read (lu,*) (g%wfcl(i),i=1,g%norb)
-    read (lu,*) (g%occ(i),i=1,g%norb)
-    read (lu,*) (g%enl(i),i=1,g%norb)
-    read (lu,*) g%ngrid
+          ! block header: N, (q,) nterm
+          ok = isinteger(nblock,line,lp)
+          if (key == "STATE") ok = ok .and. isinteger(i,line,lp)
+          ok = ok .and. isinteger(nterm,line,lp)
+          if (.not.ok) cycle
+          nav = nav + 1
+          if (nav > size(navail)) call realloc(navail,2*nav)
+          navail(nav) = nblock
+          if (nblock /= n .or. found) cycle
 
-    ! adjust the occupations if this is an ion
-    if (sum(g%occ) /= n) then
-       ns = 0
-       do i = 1, g%norb
-          if (ns + g%occ(i) > n) then
-             g%occ(i) = n - ns
-             g%occ(i+1:g%norb) = 0
-             exit
-          else
-             ns = ns + nint(g%occ(i))
-          end if
+          ! read the terms, skip zero coefficients
+          if (allocated(np)) deallocate(np)
+          if (allocated(al)) deallocate(al)
+          if (allocated(co)) deallocate(co)
+          allocate(np(nterm),al(nterm),co(nterm))
+          nn = 0
+          do i = 1, nterm
+             ok = getline_raw(lu,line,.true.)
+             lp = 1
+             ok = isreal(rn,line,lp)
+             ok = ok .and. isreal(ra,line,lp)
+             ok = ok .and. isreal(rc,line,lp)
+             if (.not.ok) exit
+             if (rc == 0d0) cycle
+             nn = nn + 1
+             np(nn) = nint(rn)
+             al(nn) = ra
+             co(nn) = rc
+          end do
+          if (.not.ok) exit
+          np = np(1:nn)
+          al = al(1:nn)
+          co = co(1:nn)
+          found = .true.
        end do
+       call fclose(lu)
     end if
+    call realloc(navail,nav)
 
-    ! Read the grid and build the density
-    allocate(g%psi(g%ngrid,g%norb),g%r(g%ngrid),rr(g%ngrid,0:2))
-    rr = 0d0
-    do i = 1, g%ngrid
-       read (lu,*) r, (g%psi(i,j),j=1,g%norb)
+  end subroutine read_fit_block
+
+  !> Tabulate the analytical density rho(r) = sum_i co_i r^np_i
+  !> exp(-al_i r) and its exact first and second derivatives on the
+  !> logarithmic grid r_i = exp(tab_xmin + (i-1)*tab_dx) / z, up to the
+  !> first node where the density drops below core_cutdens (and at
+  !> least four nodes, the interpolation stencil).
+  subroutine tabulate(g,z,np,al,co)
+    use types, only: realloc
+    class(grid1), intent(inout) :: g
+    integer, intent(in) :: z
+    integer, intent(in) :: np(:)
+    real*8, intent(in) :: al(:), co(:)
+
+    integer :: i, k, nmax
+    real*8 :: r, t, u
+
+    g%a = exp(tab_xmin) / real(z,8)
+    g%b = tab_dx
+    nmax = ceiling((log(tab_rcap * z) - tab_xmin) / tab_dx) + 1
+    allocate(g%r(nmax),g%f(nmax),g%fp(nmax),g%fpp(nmax))
+
+    ! d/dr r^n e^(-ar) = r^n e^(-ar) (n/r - a)
+    ! d2/dr2 r^n e^(-ar) = r^n e^(-ar) ((n/r - a)^2 - n/r^2)
+    do i = 1, nmax
+       r = g%a * exp(g%b * (i-1))
        g%r(i) = r
-       rr(i,0) = dot_product(g%occ(1:g%norb),g%psi(i,1:g%norb)**2)
-       if (rr(i,0)/(4d0*pi*r**2) < core_cutdens .and. i > 1) then
-          g%ngrid = i
-          call realloc(g%r,g%ngrid)
-          call realloc(g%psi,g%ngrid,g%norb)
-          exit
-       end if
-    end do
-
-
-    ! fill rest of grid info
-    g%isinit = .true.
-    g%rmax = g%r(g%ngrid)
-    g%rmax2 = g%r(g%ngrid)**2
-    g%a = g%r(1)
-    g%b = log(g%r(2)/g%r(1))
-
-    ! calculate derivatives
-    ! laplacian transformation: 1/r^2 * d/dr ( r^2 * df/dr)
-    allocate(g%f(g%ngrid),g%fp(g%ngrid),g%fpp(g%ngrid))
-    do i = 1, g%ngrid
-       if (i <= 2) then
-          ic = 1
-       else if (i >= g%ngrid-2) then
-          ic = 3
-       else
-          ic = 2
-       end if
-       do j = 1, 6
-          rr(i,1) = rr(i,1) + coef1(j,ic) * rr(i+noef(j,ic),0)
-          rr(i,2) = rr(i,2) + coef2(j,ic) * rr(i+noef(j,ic),0)
+       g%f(i) = 0d0
+       g%fp(i) = 0d0
+       g%fpp(i) = 0d0
+       do k = 1, size(np)
+          t = co(k) * r**np(k) * exp(-al(k) * r)
+          u = np(k) / r - al(k)
+          g%f(i) = g%f(i) + t
+          g%fp(i) = g%fp(i) + t * u
+          g%fpp(i) = g%fpp(i) + t * (u * u - np(k) / (r * r))
        end do
-       rr(i,1) = rr(i,1) * fac1
-       rr(i,2) = rr(i,2) * fac2
-
-       r = g%r(i)
-       r1 = 1d0 / r
-       r2 = r1 * r1
-       r3 = r2 * r1
-       r4 = r3 * r1
-       delta=1.d0/g%b
-       delta2=delta*delta
-
-       g%f(i) = rr(i,0) * r2
-       g%fp(i) = (rr(i,1) * delta - 2.d0 * rr(i,0)) * r3
-       g%fpp(i) = (rr(i,2) * delta2 - 5.d0 * rr(i,1) * delta + 6.d0 * rr(i,0)) * r4
+       if (g%f(i) < core_cutdens .and. i >= 4) exit
     end do
-    g%f = g%f / (4d0*pi)
-    g%fp = g%fp / (4d0*pi)
-    g%fpp = g%fpp / (4d0*pi)
+    g%ngrid = min(i,nmax)
+    call realloc(g%r,g%ngrid)
+    call realloc(g%f,g%ngrid)
+    call realloc(g%fp,g%ngrid)
+    call realloc(g%fpp,g%ngrid)
+    g%rmax = g%r(g%ngrid)
+    g%rmax2 = g%rmax * g%rmax
+    g%isinit = .true.
 
-    ! close the density file
-    call fclose(lu)
-
-    ! ! check the normalization of the density file and output
-    ! r1 = 0
-    ! do i = 1, g%norb
-    !    r1 = r1 + (g%a * exp(g%b * (i-1)) - g%r(i))**2
-    ! end do
-    ! write (uout,'("+ Read density file: ", A)') string(file)
-    ! write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
-    !    string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
-    ! write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
-    !    string(g%ngrid), string(g%rmax,'f',decimal=7)
-    ! write (uout,'("  Integrated charge = ",A,X,A)') &
-    !    string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10), string(r1,'f',decimal=10)
-
-  end subroutine read_critic
+  end subroutine tabulate
 
 end submodule proc

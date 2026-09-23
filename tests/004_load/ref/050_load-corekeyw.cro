@@ -60,19 +60,20 @@
   Coordinates (bohr): 0.0000000  0.0000000  9.4901828  
   Coordinates (ang): 0.0000000  0.0000000  5.0219884  
 + Field: 1
-  Type : (3,-3)
-  Field value (f): 1.225915343E+02
+  Type : (3,-1)
+  Field value (f): 1.230187066E+02
   Field value, valence (fval): 1.668825781E-01
-  Gradient (grad f): -8.246196846E+00  -1.374366140E+00  3.057568780E+01  
-  Gradient norm (|grad f|): 3.169797042E+01
+  Gradient (grad f): -3.885206503E+02  -6.475344167E+01  1.440760119E+03  
+  Gradient norm (|grad f|): 1.493630150E+03
   Gradient norm, valence: 0.000000000E+00
-  Laplacian (del2 f): -4.122448100E+06
+  Laplacian (del2 f): -1.294881887E+08
   Laplacian, valence (del2 fval): 4.340728490E+00
   Hessian:
-    -1.374320783E+06   7.595610144E+00  -1.620835994E+02  
-     7.595610144E+00  -1.374362918E+06  -2.701393322E+01  
-    -1.620835994E+02  -2.701393322E+01  -1.373764399E+06  
-  Hessian eigenvalues: -1.374364705E+06  -1.374363993E+06  -1.373719402E+06  
+    -6.037087833E+07   7.304272678E+05  -1.625199980E+07  
+     7.304272678E+05  -6.463170189E+07  -2.708666631E+06  
+    -1.625199980E+07  -2.708666631E+06  -4.485608450E+06  
+  Hessian eigenvalues: -6.475344029E+07  -6.475343957E+07  1.869119486E+04  
+  Ellipticity (l_1/l_2 - 1): 1.100123925E-08
 
 + Field number 1
   Name: rho.cube

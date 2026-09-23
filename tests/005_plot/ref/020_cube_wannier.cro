@@ -969,13 +969,13 @@
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.946980784402E-10  -2.418233297687E-04  -4.742055373263E-04  
   Last elements... 6.341145698083E-04  4.589078120641E-04  2.594282573088E-04  
-  Sum of elements... 7.584698927948E-14
+  Sum of elements... 7.493647629503E-14
   Sum of squares of elements... 5.006518276259E-01
   Grid domain/cell volume = 118.7784/118.7784
   Grid domain integral (34) = 0.00000000
   Cell integral (34) = 0.00000000
   Min: -4.20351171E-02
-  Average: 2.31466642E-18
+  Average: 2.28687977E-18
   Max: 4.20351091E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

@@ -4,7 +4,7 @@
   Mesh type      Franchini
   Mesh level     small
 + Volume (bohr^3) = 64859.58259714
-+ Field integral = 41.99937520   
++ Field integral = 41.99938972   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
@@ -12,6 +12,6 @@
   Mesh size      55440
   Mesh type      Franchini
   Mesh level     small
-+ Integral($0^2) = 192.68815401  
++ Integral($0^2) = 192.96313979  
 
-   41.999375199857    
+   41.999389718185    

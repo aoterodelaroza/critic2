@@ -31,19 +31,14 @@ module grid1mod
      real*8 :: rmax2 !< Squared max. grid distance
      integer :: ngrid !< Number of nodes
      real*8, allocatable :: r(:) !< Node positions
-     real*8, allocatable :: f(:) !< Grid values, f = 4*pi*r^2*rho
-     real*8, allocatable :: fp(:) !< First derivative of f
-     real*8, allocatable :: fpp(:) !< Second derivative of f
+     real*8, allocatable :: f(:) !< Grid values, the density rho(r)
+     real*8, allocatable :: fp(:) !< First derivative of rho
+     real*8, allocatable :: fpp(:) !< Second derivative of rho
      integer :: z ! atomic number
-     integer :: qat ! atomic charge
-     ! individual atomic orbitals
-     integer :: norb ! number of atomic orbitals
-     character*2, allocatable :: wfcl(:) ! orbital labels
-     real*8, allocatable :: occ(:) ! occupations
-     real*8, allocatable :: enl(:) ! orbital energies
-     real*8, allocatable :: psi(:,:) ! orbitals
+     integer :: qat ! pseudopotential charge (ZPSP) for core grids, 0 for all-electron
    contains
-     procedure :: read_db !< Read a one-dimesional grid from the density tables
+     procedure :: grid1_end !< Deallocate arrays and uninitialize
+     procedure :: read_db !< Build the grid from the analytical density tables
      procedure :: interp !< Interpolate value and derivatives from the grid
   end type grid1
   public :: grid1
@@ -59,11 +54,12 @@ module grid1mod
      module subroutine grid1_end(g)
        class(grid1), intent(inout) :: g
      end subroutine grid1_end
-     module subroutine read_db(g,z,q,ti)
+     module subroutine read_db(g,z,q,ti,errmsg)
        class(grid1), intent(inout) :: g
        integer, intent(in) :: z
        integer, intent(in) :: q
        type(thread_info), intent(in), optional :: ti
+       character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine read_db
      module subroutine interp(g,r0,f,fp,fpp)
        class(grid1), intent(in) :: g
@@ -72,8 +68,9 @@ module grid1mod
        real*8, intent(out) :: fp
        real*8, intent(out) :: fpp
      end subroutine interp
-     module subroutine grid1_register_core(iz,iq)
+     module subroutine grid1_register_core(iz,iq,errmsg)
        integer, intent(in) :: iz, iq
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine grid1_register_core
      module subroutine grid1_register_ae(iz)
        integer, intent(in) :: iz

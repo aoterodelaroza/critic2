@@ -1,0 +1,32 @@
+# Free-atom, free-ion and frozen-core density fits -- H (Z = 1)
+#
+#   rho(r) = sum_i c_i r^n_i exp(-alpha_i r)      r in bohr, rho in e/bohr^3
+#
+# All-electron B86BPBE densities (scalar-relativistic, spin-restricted),
+# fitted with rhofit.py (monotone decay imposed).  Two kinds of block:
+#
+#   STATE <N> <q> <nterm> <symbol>
+#     the atom or ion with N electrons (charge q), in order of increasing N;
+#   CORE <N_core> <nterm> <symbol>
+#     the frozen core of the neutral atom with N_core electrons, for a
+#     pseudopotential with Z - N_core valence electrons, in order of
+#     increasing N_core, each preceded by a '# orbitals:' comment.
+#
+# Each block header is followed by nterm lines:   n   alpha   c
+#
+# Generated 2026-09-23 by combine_fits.py from
+#   /home/alberto/doc/manuals/critic2/atomic_density_fits/15_rhofit/rho_b86bpbe_mono/fit_001_H.dat
+#     recipe: --npow 0,1,2,3,4,5,6,7,8,9,10 --amin 0.2 --ratio 1.1 --mom 3 --cusp none --targetz 1e-3 --besteffort --monotone --stats
+#
+STATE 0 +1 0 H
+STATE 1 +0 4 H
+   0.00000   1.60376076565255e+00   6.89173033687048e-02
+   0.00000   1.76293165149462e+00   5.40381375082736e-02
+   0.00000   2.34165627378194e+00   1.54137135061412e-01
+   0.00000   2.57406219829267e+00   2.07105800040632e-02
+STATE 2 -1 5 H
+   0.00000   1.45896103871405e+00   2.26660060390649e-02
+   0.00000   1.60376076565255e+00   4.25669482548721e-02
+   0.00000   1.76293165149462e+00   2.18453765305355e-01
+   0.00000   2.34165627378194e+00   1.92807396110543e-01
+   0.00000   2.57406219829267e+00   1.20627826161706e-01

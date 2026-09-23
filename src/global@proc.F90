@@ -19,7 +19,11 @@
 ! Contains global variables and parameters, and initialization
 ! procedures run at the beginning of the execution.
 submodule (global) proc
+  use param, only: dirsep
   implicit none
+
+  ! file whose presence identifies the critic2 data directory
+  character*(*), parameter :: datprobe = "atomdens" // dirsep // "fit_001_H.dat"
 
 contains
 
@@ -719,7 +723,7 @@ contains
     character*(*) :: ghome, datadir
     integer :: isenv, idx
     logical :: lchk
-    character(len=:), allocatable :: wfcstr, msgr1, msgr2, msg1, msg2a, msg2b, msg3, msg4
+    character(len=:), allocatable :: datstr, msgr1, msgr2, msg1, msg2a, msg2b, msg3, msg4
     character(len=:), allocatable :: exedir
     integer, parameter :: maxlenpath = 1024
     character(len=maxlenpath) :: argv0
@@ -727,21 +731,21 @@ contains
     integer :: ierr
 #endif
 
-    wfcstr = dirsep // "wfc" // dirsep // "h__pbe.wfc"
+    datstr = dirsep // datprobe
 
     ! read the -r option
     msgr1 = ""
     msgr2 = ""
     if (len_trim(ghome) > 0) then
        critic_home = string(ghome)
-       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       inquire(file=trim(critic_home) // datstr,exist=lchk)
        if (lchk) goto 99
-       msgr1 = "(!) 0. Not found (-r option): " // trim(critic_home) // wfcstr
+       msgr1 = "(!) 0. Not found (-r option): " // trim(critic_home) // datstr
 
        critic_home = string(ghome) // dirsep // "dat"
-       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       inquire(file=trim(critic_home) // datstr,exist=lchk)
        if (lchk) goto 99
-       msgr2 = "(!) 0. Not found (-r option): " // trim(critic_home) // wfcstr
+       msgr2 = "(!) 0. Not found (-r option): " // trim(critic_home) // datstr
     endif
 
     ! read env variable CRITIC_HOME
@@ -750,9 +754,9 @@ contains
     call get_environment_variable("CRITIC_HOME",critic_home,status=isenv)
     if (isenv ==0) then
        critic_home = trim(critic_home) // dirsep // "dat"
-       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       inquire(file=trim(critic_home) // datstr,exist=lchk)
        if (lchk) goto 99
-       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home) // wfcstr
+       msg1 = "(!) 1. Not found (CRITIC_HOME): " // trim(critic_home) // datstr
     else
        msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
@@ -766,29 +770,29 @@ contains
     if (idx > 1) then
        exedir = argv0(1:idx-1)
        critic_home = exedir // dirsep // ".." // dirsep // "share" // dirsep // "critic2"
-       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       inquire(file=trim(critic_home) // datstr,exist=lchk)
        if (lchk) goto 99
-       msg2a = "(!) 2. Not found (exe path): " // trim(critic_home) // wfcstr
+       msg2a = "(!) 2. Not found (exe path): " // trim(critic_home) // datstr
 
        critic_home = exedir
-       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       inquire(file=trim(critic_home) // datstr,exist=lchk)
        if (lchk) goto 99
-       msg2b = "(!) 2. Not found (exe path): " // trim(critic_home) // wfcstr
+       msg2b = "(!) 2. Not found (exe path): " // trim(critic_home) // datstr
     else
        msg2a = "(!) 2. Could not determine the executable directory"
     end if
 
     ! then the install path
     critic_home = trim(adjustl(datadir))
-    inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+    inquire(file=trim(critic_home) // datstr,exist=lchk)
     if (lchk) goto 99
-    msg3 = "(!) 3. Not found (install path): " // trim(critic_home) // wfcstr
+    msg3 = "(!) 3. Not found (install path): " // trim(critic_home) // datstr
 
     ! then the current directory
     critic_home = "."
-    inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+    inquire(file=trim(critic_home) // datstr,exist=lchk)
     if (lchk) goto 99
-    msg4 = "(!) 4. Not found (pwd): " // trim(critic_home) // wfcstr
+    msg4 = "(!) 4. Not found (pwd): " // trim(critic_home) // datstr
 
     ! argh!
     call ferror("grda_init","Could not find data files.",warning)
@@ -949,7 +953,7 @@ contains
     write (uout,'("         date: ",A)') getstring(istring_adate)
     write (uout,'(" compiled dat: ",A)') getstring(istring_datadir)
     write (uout,'("      datadir: ",A)') trim(critic_home)
-    inquire(file=trim(critic_home) // dirsep // "wfc" // dirsep // "h__pbe.wfc",exist=lchk)
+    inquire(file=trim(critic_home) // dirsep // datprobe,exist=lchk)
     write (uout,'("...was found?: ",L)') lchk
 
     iver(1) = spg_get_major_version()

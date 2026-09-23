@@ -16,16 +16,16 @@
   Grid dimensions : 10  10  10  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  1.05163  
-  First elements... 1.810105445763E-03  1.828135887226E-03  1.778833363842E-03  
-  Last elements... 7.881846019051E-03  9.252838088889E-03  7.521264289894E-03  
-  Sum of elements... 3.872284280843E+02
-  Sum of squares of elements... 5.243707186261E+04
+  First elements... 1.762307645307E-03  1.783232202799E-03  1.739512272211E-03  
+  Last elements... 7.859242137235E-03  9.225433833827E-03  7.489280622644E-03  
+  Sum of elements... 3.875398931507E+02
+  Sum of squares of elements... 5.254019941279E+04
   Grid domain/cell volume = 978.9124/978.9124
-  Grid domain integral (1) = 379.06271054
-  Cell integral (1) = 379.06271054
-  Min: 1.04515223E-03
-  Average: 3.87228428E-01
-  Max: 1.61676957E+02
+  Grid domain integral (1) = 379.36760756
+  Cell integral (1) = 379.36760756
+  Min: 1.01711796E-03
+  Average: 3.87539893E-01
+  Max: 1.61836340E+02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
@@ -44,16 +44,16 @@
   Grid dimensions : 10  10  10  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  1.05163  
-  First elements... 9.050527228813E-04  1.235326943750E-03  1.411519708180E-03  
-  Last elements... 3.275640510945E-04  3.987259194883E-04  6.033208949056E-04  
-  Sum of elements... 1.936142140421E+02
-  Sum of squares of elements... 2.621832074650E+04
+  First elements... 8.811538226536E-04  1.206196171521E-03  1.380817443218E-03  
+  Last elements... 3.192701367493E-04  3.892650864434E-04  5.888418183707E-04  
+  Sum of elements... 1.937699465753E+02
+  Sum of squares of elements... 2.626988790457E+04
   Grid domain/cell volume = 978.9124/978.9124
-  Grid domain integral (2) = 189.53135527
-  Cell integral (2) = 189.53135527
-  Min: 7.71720416E-05
-  Average: 1.93614214E-01
-  Max: 1.61676368E+02
+  Grid domain integral (2) = 189.68380378
+  Cell integral (2) = 189.68380378
+  Min: 7.55940773E-05
+  Average: 1.93769947E-01
+  Max: 1.61835761E+02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
@@ -70,16 +70,16 @@
   Grid dimensions : 10  10  10  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  1.05163  
-  First elements... 9.050527228813E-04  5.928089434753E-04  3.673136556621E-04  
-  Last elements... 7.554281967956E-03  8.854112169401E-03  6.917943394988E-03  
-  Sum of elements... 1.936142140421E+02
-  Sum of squares of elements... 2.621832074650E+04
+  First elements... 8.811538226536E-04  5.770360312772E-04  3.586948289929E-04  
+  Last elements... 7.539972000486E-03  8.836168747384E-03  6.900438804273E-03  
+  Sum of elements... 1.937699465753E+02
+  Sum of squares of elements... 2.626988790457E+04
   Grid domain/cell volume = 978.9124/978.9124
-  Grid domain integral (3) = 189.53135527
-  Cell integral (3) = 189.53135527
-  Min: 7.71720416E-05
-  Average: 1.93614214E-01
-  Max: 1.61676368E+02
+  Grid domain integral (3) = 189.68380378
+  Cell integral (3) = 189.68380378
+  Min: 7.55940773E-05
+  Average: 1.93769947E-01
+  Max: 1.61835761E+02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
@@ -96,16 +96,16 @@
   Grid dimensions : 10  10  10  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  1.05163  
-  First elements... -8.673617379884E-19  -6.505213034913E-19  6.505213034913E-19  
-  Last elements... 1.734723475977E-18  -1.734723475977E-18  -8.673617379884E-19  
-  Sum of elements... 2.283329775254E-14
-  Sum of squares of elements... 4.055860012049E-27
+  First elements... -2.168404344971E-19  -4.336808689942E-19  2.168404344971E-19  
+  Last elements... -1.734723475977E-18  1.734723475977E-18  -8.673617379884E-19  
+  Sum of elements... -8.225841882648E-15
+  Sum of squares of elements... 3.223202693470E-29
   Grid domain/cell volume = 978.9124/978.9124
-  Grid domain integral (4) = 0.00000000
-  Cell integral (4) = 0.00000000
-  Min: -2.84217094E-14
-  Average: 2.28332978E-17
-  Max: 5.68434189E-14
+  Grid domain integral (4) = -0.00000000
+  Cell integral (4) = -0.00000000
+  Min: -5.32907052E-15
+  Average: -8.22584188E-18
+  Max: 2.77555756E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
