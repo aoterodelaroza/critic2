@@ -38,8 +38,8 @@ contains
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
-    logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset, syschanged
-    integer :: isys, iview, i, digits, iaux
+    logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset, syschanged, viewchanged
+    integer :: isys, isysold, iview, iviewold, i, digits, iaux
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, strl
     type(ImVec2) :: sz0, szero
@@ -50,11 +50,16 @@ contains
     integer, parameter :: ic_q_id = 0
     integer, parameter :: ic_q_qpt = 1
     real*8, parameter :: rational_approx_eps = 1d-3
+    integer, parameter :: maxncell_suggest = 20 ! largest suggested periodicity the Set button applies
 
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! this window acts on the system shown in its anchor view
+    isysold = w%isys
+    iviewold = w%vibrations_iview
     goodparent = w%anchor(iview,isys,syschanged)
+    if (goodparent) w%vibrations_iview = iview
+    viewchanged = goodparent .and..not.w%firstpass .and. (syschanged .or. iview /= iviewold)
 
     ! initialize state
     if (w%firstpass) then
@@ -64,9 +69,24 @@ contains
     end if
 
     ! the mode selection lives in the view's scene, so it is dropped both on the
-    ! first pass and whenever the anchor view moves to a different system
-    if (goodparent .and. (w%firstpass .or. syschanged)) &
+    ! first pass and whenever the anchor moves to a different view or system
+    if (goodparent .and. (w%firstpass .or. viewchanged)) &
        call clear_mode_selection()
+
+    ! the scene the selection lived in keeps it (and its animation) unless it
+    ! is dropped here: the old system's scene if the old view is the main view
+    ! (which now shows the new system's scene), or the old alternate view's
+    ! own scene if that view still shows the old system
+    if (viewchanged .and. iviewold > 0 .and. iviewold <= nwin) then
+       if (win(iviewold)%type == wintype_view .and. win(iviewold)%isinit) then
+          if (win(iviewold)%ismain) then
+             if (ok_system(isysold,sys_init)) call sysc(isysold)%sc%clear_vib_mode()
+          elseif (associated(win(iviewold)%sc) .and. win(iviewold)%isys == isysold) then
+             call win(iviewold)%sc%clear_vib_mode()
+          end if
+          win(iviewold)%forcerender = .true.
+       end if
+    end if
 
     ! initialize
     szero%x = 0
@@ -99,10 +119,7 @@ contains
 
        if (iw_button("Clear",sameline=.true.,danger=.true.)) then
           call sys(isys)%c%vib%end()
-          win(iview)%sc%iqpt_selected = 0
-          win(iview)%sc%ifreq_selected = 0
-          win(iview)%sc%animation = 0
-          win(iview)%forcerender = .true.
+          call clear_mode_selection()
           vib_ok = .false.
        end if
        call iw_tooltip("Clear vibration data for this system",ttshown)
@@ -223,6 +240,10 @@ contains
        str1="##tablevibrationfreqs" // c_null_char
        sz0%x = 0._c_float
        sz0%y = iw_calcheight(5,0,.false.)
+
+       ! whether the qpt/frequency was set before this frame's clicks in the
+       ! table (read below, also when the table is not drawn)
+       fset = (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0)
        if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
           ! header setup
           call iw_table_column("Id",id=ic_q_id,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -231,9 +252,6 @@ contains
 
           ! draw the header
           call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-
-          ! check if the qpt/frequency has been set
-          fset = (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0)
 
           if (win(iview)%sc%iqpt_selected > 0) then
              ! draw the rows
@@ -280,11 +298,12 @@ contains
              end if
           end do
           call iw_text("[" // string(r(1)) // " " // string(r(2)) // " " // string(r(3)) // "]",sameline=.true.)
-          if (iw_button("Set",sameline=.true.)) then
+          if (iw_button("Set",sameline=.true.,disabled=any(r > maxncell_suggest))) then
              win(iview)%sc%disp%ncell = int(r)
              win(iview)%sc%forcebuildlists = .true.
           end if
-          call iw_tooltip("Change the number of unit cells represented to the suggested value",ttshown)
+          call iw_tooltip("Change the number of unit cells represented to the suggested value &
+             &(disabled above " // string(maxncell_suggest) // " cells along any direction)",ttshown)
        end if
 
        ! set initial value of animation to automatic
@@ -293,9 +312,12 @@ contains
           win(iview)%sc%animation = 2
           win(iview)%sc%anim_speed = anim_speed_default
           win(iview)%sc%anim_amplitude = anim_amplitude_default
+          win(iview)%sc%forcebuildlists = .true.
        end if
 
-       ! animation radio buttons (no animation if no values selected)
+       ! animation radio buttons (no animation if no values selected). The
+       ! atomic displacements are only in the draw lists if they were built
+       ! while animating, so turning the animation on rebuilds them
        call iw_text("Animation",highlight=.true.)
        if (iw_radiobutton("None",int=win(iview)%sc%animation,intval=0_c_int)) then
           win(iview)%forcerender = .true.
@@ -304,11 +326,13 @@ contains
        if (iw_radiobutton("Automatic",int=win(iview)%sc%animation,intval=2_c_int,sameline=.true.)) then
           win(iview)%sc%anim_speed = anim_speed_default
           win(iview)%sc%anim_amplitude = anim_amplitude_default
+          win(iview)%sc%forcebuildlists = .true.
        end if
        call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic phase",ttshown)
        if (iw_radiobutton("Manual/Nudge Structure",int=win(iview)%sc%animation,intval=1_c_int,sameline=.true.)) then
           win(iview)%sc%anim_amplitude = 0d0
           win(iview)%sc%anim_phase = 0d0
+          win(iview)%sc%forcebuildlists = .true.
           win(iview)%forcerender = .true.
        end if
        call iw_tooltip("Animate the scene using a manually set atomic displacement value",ttshown)
@@ -341,7 +365,7 @@ contains
              allocate(seed(1))
              call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(iview)%sc%iqpt_selected),&
                 sys(isys)%c%vib%vec(:,:,win(iview)%sc%ifreq_selected,win(iview)%sc%iqpt_selected),&
-                win(iview)%sc%anim_amplitude,win(iview)%sc%anim_phase)
+                win(iview)%sc%vib_amplitude(),win(iview)%sc%anim_phase)
              seed(1)%name = trim(sysc(isys)%seed%name) // " (nudge)"
              call add_systems_from_seeds(1,seed)
              call launch_initialization_thread()
@@ -369,8 +393,8 @@ contains
           if (win(iview)%sc%vibarrow_show) then
              ldum = iw_dragfloat_real8("Length (Å)##vibarrowlength",x1=win(iview)%sc%vibarrow_length,&
                 speed=0.01d0,min=0d0,max=5d0,scale=bohrtoa,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Length of the longest arrow; the rest are scaled down in proportion to &
-                &their displacements",ttshown)
+             call iw_tooltip("Length of the arrow of the atom with the largest vibration amplitude; &
+                &the arrows show the displacements at the animation phase, so they can be shorter",ttshown)
 
              ldum = iw_dragfloat_real8("Thickness (Å)##vibarrowradius",x1=win(iview)%sc%vibarrow%rad,&
                 speed=0.002d0,min=0d0,max=0.5d0,scale=bohrtoa,decimal=3,sameline=.true.,&
@@ -410,9 +434,8 @@ contains
     subroutine clear_mode_selection()
 
       if (.not.associated(win(iview)%sc)) return
-      win(iview)%sc%iqpt_selected = 0
-      win(iview)%sc%ifreq_selected = 0
-      win(iview)%sc%animation = 0
+      call win(iview)%sc%clear_vib_mode()
+      win(iview)%forcerender = .true.
 
     end subroutine clear_mode_selection
 

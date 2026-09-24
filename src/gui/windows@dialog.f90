@@ -29,7 +29,7 @@ contains
        BIND_OK_FOCUSED_DIALOG
     use windows, only: win
     use systems, only: add_systems_from_name, launch_initialization_thread,&
-       system_shorten_names, sys_init, sys, ok_system
+       system_shorten_names, sys_init, sys, sysc, ok_system
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, string, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
@@ -42,7 +42,7 @@ contains
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path, str, errmsg
     logical :: readlastonly, doquit
-    integer :: lu, ios, idx, idp
+    integer :: lu, ios, idx, idp, iv
 
     ! set initial, minimum, and maximum sizes
     minsize%x = 0._c_float
@@ -185,6 +185,20 @@ contains
                    if (len_trim(errmsg) > 0) &
                       write (uout,'(A)') "WARNING : " // trim(errmsg)
                    str = str(idx+1:)
+                end do
+
+                ! the mode selected in the scenes of this system (and the
+                ! displacements built from it) refer to the old data: the
+                ! system's own scene, even if no view shows it now, and
+                ! the alternate views showing the system
+                call sysc(w%isys)%sc%clear_vib_mode()
+                sysc(w%isys)%sc%forcebuildlists = .true.
+                do iv = 1, nwin
+                   if (win(iv)%type /= wintype_view .or..not.win(iv)%isinit) cycle
+                   if (win(iv)%isys /= w%isys .or..not.associated(win(iv)%sc)) cycle
+                   call win(iv)%sc%clear_vib_mode()
+                   win(iv)%sc%forcebuildlists = .true.
+                   win(iv)%forcerender = .true.
                 end do
              end if
 

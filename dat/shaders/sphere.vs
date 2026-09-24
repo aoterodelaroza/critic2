@@ -22,6 +22,7 @@ layout (location = 11) in vec3 a_piecum;     // cumulative sector boundaries t2,
 layout (location = 12) in vec3 a_piecol2;    // color of pie sector 2
 layout (location = 13) in vec3 a_piecol3;    // color of pie sector 3
 layout (location = 14) in vec3 a_piecol4;    // color of pie sector 4
+layout (location = 15) in float a_rim;       // 1 = translucent volume (opacity growing toward the rim)
 
 uniform mat4 view;
 uniform mat4 world;
@@ -45,6 +46,7 @@ flat out vec3 fPieCum;
 flat out vec3 fPieCol2;
 flat out vec3 fPieCol3;
 flat out vec3 fPieCol4;
+flat out float fRim;
 
 void main(){
   // animated center (pre-world coords), then to eye space. For a window-anchored
@@ -81,6 +83,7 @@ void main(){
   fPieCol2 = a_piecol2;
   fPieCol3 = a_piecol3;
   fPieCol4 = a_piecol4;
+  fRim = a_rim;
 
   vec4 c = projection * vec4(pos, 1.0);
   gl_Position = (isanchored != 0) ? vec4(anchored_ndc.xy + c.xy, c.z, c.w) : c;

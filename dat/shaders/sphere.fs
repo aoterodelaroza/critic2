@@ -18,6 +18,7 @@ flat in vec3 fPieCum;    // cumulative sector boundaries t2,t3,ttot (mixed sites
 flat in vec3 fPieCol2;   // color of pie sector 2
 flat in vec3 fPieCol3;   // color of pie sector 3
 flat in vec3 fPieCol4;   // color of pie sector 4
+flat in float fRim;      // 1 = translucent volume (opacity growing toward the rim)
 
 uniform mat4 projection;
 uniform int isortho;   // 1=orthographic, 0=perspective
@@ -100,11 +101,14 @@ void main(){
   else
     outColor = base;
 
-  // translucent spheres: the opacity grows toward the rim, where the line of
-  // sight crosses more of the surface, so the sphere reads as a volume rather
-  // than a flat disc. The center keeps the requested opacity.
-  if (fColor.a < 1.0){
+  // translucent volumes (geometric-shape spheres, not atoms or selection
+  // halos): the opacity grows toward the rim, where the line of sight crosses
+  // more of the surface, so the sphere reads as a volume rather than a flat
+  // disc. The center keeps the requested opacity and the rim reaches twice
+  // that (at most 1), so a fully transparent sphere stays invisible.
+  if (fRim > 0.5 && fColor.a < 1.0){
     float ct = clamp(-dot(vx, rd) / fRadius, 0.0, 1.0); // cosine between normal and view
-    outColor.a = fColor.a + (1.0 - fColor.a) * pow(1.0 - ct, 2.0);
+    float aedge = min(2.0 * fColor.a, 1.0);
+    outColor.a = fColor.a + (aedge - fColor.a) * pow(1.0 - ct, 2.0);
   }
 }

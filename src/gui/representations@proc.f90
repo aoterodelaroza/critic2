@@ -372,6 +372,7 @@ contains
           r%shapes%shape(1)%rad = 0.5d0 * shape_size_def
           r%shapes%shape(1)%rgb = shape_rgb_def
           r%shapes%shape(1)%alpha = shape_alpha_def
+          r%shapes%shape(1)%rim = .true.
        end if
     end if
 
@@ -1634,7 +1635,7 @@ contains
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
     use tools, only: mergesort
-    use param, only: tpi, img, atmass, icrd_crys, pi
+    use param, only: tpi, img, icrd_crys, pi
     class(representation), intent(inout) :: r
     type(scene_display), intent(in) :: disp
     type(scene_objects), intent(inout) :: obj
@@ -2371,7 +2372,8 @@ contains
             elseif (sh%kind == shapekind_sphere) then
                dsph = dl_sphere(x=real(uoriginc,c_float),r=real(sh%rad,c_float),rgb=sh%rgb,&
                   idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
-                  border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def,alpha=sh%alpha)
+                  border=merge(real(atomborder_def,c_float),0._c_float,sh%rim),&
+                  rgbborder=ColorAtomBorder_def,alpha=sh%alpha,rim=sh%rim)
                call dl_append(obj%sph,obj%nsph,dsph)
             elseif (norm2(sh%v(:,1)) > 1d-6) then
                ! the kinds that run along v(:,1); a degenerate one is skipped
@@ -2381,10 +2383,7 @@ contains
                elseif (sh%kind == shapekind_cone) then
                   call append_cone(uoriginc,x1,sh%rad,sh%rgb)
                elseif (sh%kind == shapekind_arrow) then
-                  ! shaft up to the base of the head, then the head
-                  x2 = x1 - sh%headl * sh%v(:,1)
-                  call measure_segment(uoriginc,x2,sh%rgb,sh%rad,.false.,0d0)
-                  call append_cone(x2,x1,sh%headr * sh%rad,sh%rgb)
+                  call append_arrow(uoriginc,x1,sh%rgb,sh%rad,sh%headr,sh%headl,.false.,0d0)
                end if
             end if
           end associate
@@ -3413,7 +3412,9 @@ contains
          if (skind == symop_kind_axis) &
             xa = xanch + (symelem_axis_r(sorder) + symelem_arrow_headr * symelem_arrow_radius) *&
             symelem_offdir(lx0)
-         call append_arrow(xa,xa + stint,rgbel)
+         ! dashed, to tell the arrow from the element it belongs to
+         call append_arrow(xa,xa + stint,rgbel,symelem_arrow_radius,symelem_arrow_headr,&
+            symelem_arrow_headl,.true.,symelem_arrow_dashlen)
       end if
 
     end subroutine draw_symmetry_element
@@ -3443,18 +3444,23 @@ contains
 
     end function symelem_axis_r
 
-    !> Arrow from x1 to x2 in color rgb: a dashed shaft up to the base of the
-    !> head (dashed to tell the arrow from the element it belongs to), then
-    !> the solid arrowhead cone, which dashing would make unreadable.
-    subroutine append_arrow(x1,x2,rgb)
+    !> Arrow from x1 to x2 in color rgb, with shaft radius radv, arrowhead
+    !> radius headr (in shaft radii) and arrowhead length headl (fraction of
+    !> the arrow): a shaft up to the base of the head, dashed with period
+    !> dashlenv if dashed, then the solid arrowhead cone, which dashing
+    !> would make unreadable.
+    subroutine append_arrow(x1,x2,rgb,radv,headr,headl,dashed,dashlenv)
       real*8, intent(in) :: x1(3), x2(3)
       real(c_float), intent(in) :: rgb(3)
+      real*8, intent(in) :: radv, headr, headl, dashlenv
+      logical, intent(in) :: dashed
 
       real*8 :: xbase(3)
 
-      xbase = x1 + (1d0 - symelem_arrow_headl) * (x2 - x1)
-      call measure_segment(x1,xbase,rgb,symelem_arrow_radius,.true.,symelem_arrow_dashlen)
-      call append_cone(xbase,x2,symelem_arrow_headr * symelem_arrow_radius,rgb)
+      xbase = x1 + (1d0 - headl) * (x2 - x1)
+      call measure_segment(x1,xbase,rgb,radv,dashed,dashlenv)
+      if (headl * norm2(x2 - x1) > 1d-6) &
+         call append_cone(xbase,x2,headr * radv,rgb)
 
     end subroutine append_arrow
 
@@ -4396,21 +4402,39 @@ contains
   end subroutine coordpoly_style_end
 
 
+  !> Whether the two geometric shapes differ in any field.
+  module function shape_differs(a,b) result(ok)
+    type(rep_shape), intent(in) :: a
+    type(rep_shape), intent(in) :: b
+    logical :: ok
+
+    ok = (a%kind /= b%kind) .or. (a%shown .neqv. b%shown) .or.&
+       any(abs(a%x1 - b%x1) > 1d-10) .or. any(abs(a%v - b%v) > 1d-10) .or.&
+       abs(a%rad - b%rad) > 1d-10 .or. abs(a%headr - b%headr) > 1d-10 .or.&
+       abs(a%headl - b%headl) > 1d-10 .or. any(abs(a%rgb - b%rgb) > 1e-5_c_float) .or.&
+       abs(a%alpha - b%alpha) > 1e-5_c_float .or. (a%rim .neqv. b%rim)
+
+  end function shape_differs
+
   !> Build the list of vibration displacement arrows for system isys:
   !> one arrow per drawn atom image, from the atom's equilibrium
-  !> position along its displacement in the mode (iqpt,ifreq). length
-  !> is the length of the longest arrow (bohr) and templ carries the
-  !> arrow style (radius, head, color). shape is allocated on return
+  !> position along its displacement in the mode (iqpt,ifreq) at the
+  !> animation phase phase (in units of pi/2, the convention of the
+  !> manual animation and makeseed_nudged: the displacement is the real
+  !> part of the mode phasor times exp(i*pi/2*phase)). length is the
+  !> length of the arrow of the largest-amplitude atom (bohr) and templ
+  !> carries the arrow style (radius, head, color). shape is allocated on return
   !> on every path (possibly with nshape = 0, if there is no mode to
   !> show or the mode moves no atom) and is grown as needed.
-  module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,length,templ,nshape,shape)
+  module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,phase,length,templ,nshape,shape)
     use systems, only: sys, sysc, sys_ready, ok_system
     use crystalmod, only: crystal
-    use param, only: tpi, img, atmass
+    use param, only: tpi, img, pi
     integer, intent(in) :: isys
     type(scene_display), intent(in) :: disp
     integer, intent(in) :: iqpt
     integer, intent(in) :: ifreq
+    real*8, intent(in) :: phase
     real*8, intent(in) :: length
     type(rep_shape), intent(in) :: templ
     integer, intent(out) :: nshape
@@ -4418,7 +4442,6 @@ contains
 
     type(crystal), pointer :: c
     complex*16, allocatable :: vibbase(:,:)
-    complex*16 :: zvib
     real*8 :: fac, xx(3), xc(3), dv(3), ucini(3), ucend(3)
     integer :: i, k, imol, nmax, lvec(3), n(3), n0(3), n1(3), ix(3), vacshift(3)
     integer :: i1, i2, i3
@@ -4434,18 +4457,16 @@ contains
     if (.not.c%vib%hasvibs) return
     if (iqpt <= 0 .or. ifreq <= 0) return
     if (iqpt > c%vib%nqpt .or. ifreq > c%vib%nfreq) return
+    if (templ%rad <= 0d0) return
 
-    ! per-atom phasors, shared with the animation
+    ! per-atom phasors, shared with the animation, at the requested phase
     call vib_phasors(c,iqpt,ifreq,vibbase)
-    zvib = sum(vibbase * vibbase)
-    if (abs(zvib) > 1d-20) &
-       vibbase = vibbase * exp(-0.5d0 * img * atan2(aimag(zvib),real(zvib,8)))
+    vibbase = vibbase * exp(0.5d0 * phase * pi * img)
 
-    ! the mode vectors are normalized: scale so the longest arrow has
-    ! the requested length
+    ! the mode vectors are normalized: scale so the atom with the largest
+    ! amplitude has an arrow of the requested length at its phase maximum
     fac = maxval(norm2(abs(vibbase),dim=1))
     if (fac < 1d-10) return
-    if (templ%rad <= 0d0) return
     fac = length / fac
 
     ! the same atom images the atom-based objects draw
@@ -4470,6 +4491,7 @@ contains
        deallocate(shape)
        allocate(shape(nmax))
     end if
+    nmax = size(shape,1)
 
     ! run over atoms, either directly or per-molecule
     i = 0
@@ -4519,7 +4541,7 @@ contains
                    ix = ix + nint(xx - floor(xx) + disp%tshift - c%atcel(i)%x)
                 end if
 
-                ! the displacement of this image, at phase zero
+                ! the displacement of this image, at the requested phase
                 dv = fac * real(vibbase(:,i) * &
                    exp(img * tpi * dot_product(real(ix,8),c%vib%qpt(:,iqpt))),8)
                 if (norm2(dv) < 1d-6) cycle

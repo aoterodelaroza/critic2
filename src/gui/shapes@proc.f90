@@ -600,6 +600,7 @@ contains
       call inst_attrib(12, 3, st, 29) ! a_piecol2
       call inst_attrib(13, 3, st, 32) ! a_piecol3
       call inst_attrib(14, 3, st, 35) ! a_piecol4
+      call inst_attrib(15, 1, st, 38) ! a_rim
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
       call glBindVertexArray(0)
 

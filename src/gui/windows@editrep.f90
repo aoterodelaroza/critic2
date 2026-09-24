@@ -2444,7 +2444,7 @@ contains
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
-    use systems, only: sys, sysc
+    use systems, only: sys
     use tools_io, only: string
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -2773,6 +2773,7 @@ contains
       sh = rep_shape()
       sh%rgb = shape_rgb_def
       sh%alpha = shape_alpha_def
+      sh%rim = .true.
       sh%kind = ikind0
       if (iview > 0) then
          if (associated(win(iview)%sc)) sh%x1 = real(win(iview)%sc%scenecenter,8)

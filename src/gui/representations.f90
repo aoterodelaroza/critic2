@@ -69,7 +69,7 @@ module representations
   !--> rotation axis
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
   !--> geometric shapes
-  real*8, parameter, public :: arrow_length_def = 2.5d0 / bohrtoa ! length of an arrow (also: of the longest vibration arrow)
+  real*8, parameter, public :: arrow_length_def = 2.5d0 / bohrtoa ! length of an arrow (also: vibration arrow of the largest-amplitude atom)
   real*8, parameter, public :: arrow_radius_def = 0.1d0 / bohrtoa ! radius of the arrow shaft
   real*8, parameter, public :: arrow_headr_def = 2.5d0 ! arrowhead radius, in shaft radii
   real*8, parameter, public :: arrow_headl_def = 0.3d0 ! arrowhead length, as a fraction of the arrow
@@ -510,6 +510,8 @@ module representations
      real*8 :: headl = arrow_headl_def ! arrow: arrowhead length, as a fraction of the arrow
      real(c_float) :: rgb(3) = 0._c_float ! color
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+     logical :: rim = .false. ! sphere: outlined, and if translucent drawn as a volume (the opacity
+                              ! growing toward the rim); set for the shapes the user creates
   end type rep_shape
   public :: rep_shape
 
@@ -782,6 +784,7 @@ module representations
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
   public :: vibration_arrow_shapes
+  public :: shape_differs
 
   ! module procedure interfaces
   interface
@@ -793,11 +796,17 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
-     module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,length,templ,nshape,shape)
+     module function shape_differs(a,b) result(ok)
+       type(rep_shape), intent(in) :: a
+       type(rep_shape), intent(in) :: b
+       logical :: ok
+     end function shape_differs
+     module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,phase,length,templ,nshape,shape)
        integer, intent(in) :: isys
        type(scene_display), intent(in) :: disp
        integer, intent(in) :: iqpt
        integer, intent(in) :: ifreq
+       real*8, intent(in) :: phase
        real*8, intent(in) :: length
        type(rep_shape), intent(in) :: templ
        integer, intent(out) :: nshape
