@@ -2487,7 +2487,15 @@ contains
              if (sys(w%isys)%c%ismolecule) xc = xc + sys(w%isys)%c%molx0
              associate (sh => w%rep%shapes%shape(w%editrep_pick_item))
                if (w%editrep_pick_slot == 0) then
-                  ! the anchor: the whole shape moves with it
+                  ! the anchor: the end points stay where they are, so the
+                  ! vectors to them absorb the move (a sphere has none)
+                  if (sh%kind == shapekind_box) then
+                     do k = 1, 3
+                        sh%v(:,k) = sh%v(:,k) + sh%x1 - xc
+                     end do
+                  elseif (sh%kind /= shapekind_sphere) then
+                     sh%v(:,1) = sh%v(:,1) + sh%x1 - xc
+                  end if
                   sh%x1 = xc
                else
                   ! an end point: only that vector changes
