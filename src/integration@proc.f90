@@ -58,7 +58,7 @@ contains
 
   !> Driver for the integration in grids
   module subroutine intgrid_driver(line)
-    use hirshfeld, only: hirsh_grid, voronoi_grid
+    use hirshfeld, only: hirsh_grid, voronoi_grid, hirsh_option, hirsh_tol_def, hirsh_maxit_def
     use bader, only: bader_integrate
     use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
@@ -149,8 +149,15 @@ contains
     bas%expr = ""
     setdocelatom = .false.
     bas%docelatom = .false.
+    bas%hirsh_iter = .false.
+    bas%hirsh_tol = hirsh_tol_def
+    bas%hirsh_maxit = hirsh_maxit_def
     do while(.true.)
        word = lgetword(line,lp)
+       if (bas%imtype == imtype_hirshfeld) then
+          call hirsh_option(word,line,lp,bas%hirsh_iter,bas%hirsh_tol,bas%hirsh_maxit,ok)
+          if (ok) cycle
+       end if
        if (equal(word,"nnm") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
           nonnm = .false.
        elseif (equal(word,"noatoms") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
@@ -262,9 +269,8 @@ contains
        bas%f = -sy%f(sy%iref)%grid%f
        bas%isov = -bas%isov
     elseif (bas%imtype == imtype_hirshfeld) then
-       ! hirshfeld -> the promolecular density
-       call sy%c%promolecular_array3(faux,sy%f(sy%iref)%grid%n)
-       bas%f = faux
+       ! hirshfeld -> the promolecular density, calculated in hirsh_grid
+       continue
     else
        ! rest -> reference field
        bas%f = sy%f(sy%iref)%grid%f
@@ -1395,26 +1401,24 @@ contains
   !> integration only. bas = integration driver data, res(1:npropi) =
   !> results.
   subroutine intgrid_hirshfeld_fields(bas,res)
-    use grid1mod, only: agrid
+    use hirshfeld, only: hirsh_cutoffs, hirsh_rho
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
     use grid3mod, only: grid3
     use fieldmod, only: type_grid
-    use global, only: cutrad
     use tools_io, only: uout, string, ferror, faterr
     use types, only: basindat, int_result, out_field, realloc
-    use param, only: ifformat_as_ft_lap, ifformat_as_ft_grad, icrd_crys, maxzat, VSMALL
+    use param, only: ifformat_as_ft_lap, ifformat_as_ft_grad, icrd_crys, VSMALL
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, k, l, ntot, fid
-    real*8, allocatable :: w(:,:,:)
-    integer :: i1, i2, i3, iz
+    integer :: i, k, l, fid
+    integer :: i1, i2, i3
     type(grid3) :: faux
     logical :: ok, fillgrd
     logical :: plmask(sy%npropi)
     real*8 :: lprop(sy%npropi), x(3), x2(3), x0(3), xdelta(3,3)
-    real*8 :: rhoa, raux1, raux2, fac, tosum
+    real*8 :: rhoa, fac, tosum
     integer :: nmap
     integer, allocatable :: idmap(:)
     real*8, allocatable :: fmap(:,:,:,:)
@@ -1424,10 +1428,6 @@ contains
     real*8, allocatable :: psuml(:,:)
 
     if (bas%imtype /= imtype_hirshfeld) return
-
-    ! initialize
-    allocate(w(bas%n(1),bas%n(2),bas%n(3)))
-    ntot = bas%n(1)*bas%n(2)*bas%n(3)
 
     ! prepare results of integrable properties
     nmap = 0
@@ -1532,25 +1532,14 @@ contains
     end do
 
     ! calculate the cutoffs
-    if (allocated(rcutmax)) deallocate(rcutmax)
-    allocate(rcutmax(sy%c%nspc,2))
-    rcutmax = 0d0
-    do i = 1, sy%c%nspc
-       iz = sy%c%spc(i)%z
-       if (iz == 0 .or. iz > maxzat) cycle
-       if (agrid(iz)%isinit) then
-          rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
-       else
-          call ferror('intgrid_hirshfeld_fields','hirshfeld requires atomic grids',faterr)
-       end if
-    end do
+    call hirsh_cutoffs(sy%c,bas%hirsh_n,rcutmax)
 
     ! per-thread accumulator
     allocate(psuml(bas%nattr,sy%npropi))
     psuml = 0d0
 
     ! run over grid points
-    !$omp parallel do private(x0,nat,fac,rhoa,raux1,raux2,tosum) firstprivate(nid,dist,lvec) &
+    !$omp parallel do private(x0,nat,fac,rhoa,tosum) firstprivate(nid,dist,lvec) &
     !$omp reduction(+:psuml) schedule(dynamic)
     do i3 = 1, bas%n(3)
        do i2 = 1, bas%n(2)
@@ -1564,7 +1553,7 @@ contains
              do i = 1, nat
                 if (.not.bas%docelatom(bas%icp(nid(i)))) cycle
                 ! calculate density and accumulate
-                call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
+                rhoa = hirsh_rho(sy%c,bas%hirsh_n,nid(i),dist(i))
                 tosum = fac * rhoa
 
                 ! add result
@@ -1600,26 +1589,25 @@ contains
   !>   B_AB = int wA * wB * rho(r) dr
   !> Only for grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_hirshfeld_overlap(bas,res)
-    use grid1mod, only: agrid
+    use hirshfeld, only: hirsh_cutoffs, hirsh_rho
     use systemmod, only: sy, itype_hirshfeld_ovpop
     use fieldmod, only: type_grid
-    use global, only: cutrad
-    use tools_io, only: uout, string, ferror, faterr
+    use tools_io, only: uout, string
     use types, only: basindat, int_result, realloc, out_hirsh_ovpop
-    use param, only: maxzat, icrd_crys, VSMALL
+    use param, only: icrd_crys, VSMALL
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, j, l, i1, i2, i3, iz, fid
+    integer :: i, j, l, i1, i2, i3, fid
     logical :: ok, fillgrd
     integer, allocatable :: idmap(:)
     real*8, allocatable :: fmap(:,:,:,:)
-    real*8 :: x(3), x2(3), x0(3), xdelta(3,3), rhoa, rhob, raux1, raux2, tosum
+    real*8 :: x(3), x2(3), x0(3), xdelta(3,3), tosum
     real*8 :: lprop(sy%npropi), fac
     integer :: lb(3), ub(3), nat, lt(3), nmap
     logical :: plmask(sy%npropi)
     integer, allocatable :: nid(:), lvec(:,:)
-    real*8, allocatable :: dist(:), rcutmax(:,:)
+    real*8, allocatable :: dist(:), rcutmax(:,:), rhoat(:)
 
     ! only for hirshfeld integration
     if (bas%imtype /= imtype_hirshfeld) return
@@ -1697,18 +1685,7 @@ contains
     end do
 
     ! calculate the cutoffs
-    if (allocated(rcutmax)) deallocate(rcutmax)
-    allocate(rcutmax(sy%c%nspc,2))
-    rcutmax = 0d0
-    do i = 1, sy%c%nspc
-       iz = sy%c%spc(i)%z
-       if (iz == 0 .or. iz > maxzat) cycle
-       if (agrid(iz)%isinit) then
-          rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
-       else
-          call ferror('intgrid_hirshfeld_overlap','hirshfeld requires atomic grids',faterr)
-       end if
-    end do
+    call hirsh_cutoffs(sy%c,bas%hirsh_n,rcutmax)
 
     ! Pre-pass: determine the lattice-translation bounds so the accumulators can
     ! be preallocated once and the main loop needs no lock-protected
@@ -1742,7 +1719,7 @@ contains
     end do
 
     ! run over grid points
-    !$omp parallel do private(x0,nat,fac,lt,rhoa,rhob,raux1,raux2,tosum) firstprivate(nid,dist,lvec) &
+    !$omp parallel do private(x0,nat,fac,lt,tosum) firstprivate(nid,dist,lvec,rhoat) &
     !$omp schedule(dynamic)
     do i3 = 1, bas%n(3)
        do i2 = 1, bas%n(2)
@@ -1752,16 +1729,25 @@ contains
 
              fac = 1d0 / max(bas%f(i1,i2,i3) * bas%f(i1,i2,i3),VSMALL)
 
+             ! atomic densities at this point
+             if (nat == 0) cycle
+             if (.not.allocated(rhoat)) then
+                allocate(rhoat(nat))
+             elseif (size(rhoat) < nat) then
+                call realloc(rhoat,nat)
+             end if
+             do i = 1, nat
+                rhoat(i) = hirsh_rho(sy%c,bas%hirsh_n,nid(i),dist(i))
+             end do
+
              ! run over pairs of atoms in the environment
              do i = 1, nat
                 do j = i, nat
                    if (.not.bas%docelatom(bas%icp(nid(i))).and..not.bas%docelatom(bas%icp(nid(j)))) cycle
                    lt = lvec(:,j) - lvec(:,i)
 
-                   ! calculate densities and accumulate
-                   call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
-                   call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
-                   tosum = fac * rhoa * rhob
+                   ! accumulate
+                   tosum = fac * rhoat(i) * rhoat(j)
 
                    ! add result. Bounds are fixed (preallocated above), so only
                    ! per-element atomic updates are needed, not a lock.

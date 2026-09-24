@@ -43,11 +43,28 @@ module grid1mod
   end type grid1
   public :: grid1
 
-  ! table of all-electron and core 1d grids
+  !> All charge states of an element (the STATE blocks of its density
+  !> file), g(nmin:nmax) indexed by the number of electrons. A state
+  !> without terms (the bare proton) is left uninitialized, so its
+  !> interp is zero.
+  type grid1_states
+     logical :: isinit = .false. !< Is initialized?
+     integer :: nmin = 0 !< Lowest number of electrons
+     integer :: nmax = -1 !< Highest number of electrons
+     type(grid1), allocatable :: g(:) !< Radial grids, g(nmin:nmax)
+  end type grid1_states
+  public :: grid1_states
+
+  ! table of all-electron and core 1d grids, and of charge states
   type(grid1), target, allocatable, public :: agrid(:)
   type(grid1), target, allocatable, public :: cgrid(:,:)
+  type(grid1_states), target, allocatable, public :: sgrid(:)
   public :: grid1_register_core
   public :: grid1_register_ae
+  public :: grid1_register_states
+  public :: grid1_states_bracket
+  public :: grid1_states_rho
+  public :: grid1_states_rcut
   public :: grid1_clean_grids
 
   interface
@@ -75,6 +92,26 @@ module grid1mod
      module subroutine grid1_register_ae(iz)
        integer, intent(in) :: iz
      end subroutine grid1_register_ae
+     module subroutine grid1_register_states(iz)
+       integer, intent(in) :: iz
+     end subroutine grid1_register_states
+     module subroutine grid1_states_bracket(iz,xn,n0,fmix)
+       integer, intent(in) :: iz
+       real*8, intent(in) :: xn
+       integer, intent(out) :: n0
+       real*8, intent(out) :: fmix
+     end subroutine grid1_states_bracket
+     module function grid1_states_rcut(iz,xn) result(rc)
+       integer, intent(in) :: iz
+       real*8, intent(in) :: xn
+       real*8 :: rc
+     end function grid1_states_rcut
+     module function grid1_states_rho(iz,xn,r) result(rho)
+       integer, intent(in) :: iz
+       real*8, intent(in) :: xn
+       real*8, intent(in) :: r
+       real*8 :: rho
+     end function grid1_states_rho
      module subroutine grid1_clean_grids()
      end subroutine grid1_clean_grids
   end interface

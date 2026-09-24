@@ -1,1 +1,3 @@
-HIRSHFELD [WCUBE] [ONLY iat1.i iat2.i ...]
+HIRSHFELD [ITERATIVE] [TOL tol.r] [MAXIT maxit.i] [WCUBE] [ONLY iat1.i iat2.i ...]
+          [ONLY_RANGE iat1.i iat2.i] [JSON file.json]
+HIRSHFELD [ITERATIVE] [TOL tol.r] [MAXIT maxit.i]    (reference field not a grid)

@@ -369,6 +369,11 @@ module types
      character(len=:), allocatable :: expr ! discard attractor expression
      logical :: wcube ! write weight cubes
      logical, allocatable :: docelatom(:) ! whether to integrate an atom from the complete cell
+     ! hirshfeld options and reference populations
+     logical :: hirsh_iter ! iterative hirshfeld (Hirshfeld-I)
+     real*8 :: hirsh_tol ! convergence threshold on max|dN| (Hirshfeld-I)
+     integer :: hirsh_maxit ! maximum number of iterations (Hirshfeld-I)
+     real*8, allocatable :: hirsh_n(:) ! reference populations of the complete-cell atoms
      ! isosurface options
      logical :: higher ! higher/lower
      real*8 :: isov ! contour level for the isosurface integration

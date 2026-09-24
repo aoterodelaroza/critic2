@@ -1,0 +1,114 @@
++ Field number 1
+  Name: rho.cube
+  Source: ../zz_source/qe-6.5/mgo/rho.cube
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.17243  
+  First elements... 1.794300000000E-02  1.807000000000E-02  1.843900000000E-02  
+  Last elements... 1.626600000000E-02  1.649800000000E-02  1.701700000000E-02  
+  Sum of elements... 2.207003453430E+03
+  Sum of squares of elements... 7.612467667693E+02
+  Grid domain/cell volume = 118.7782/118.7782
+  Grid domain integral (1) = 7.99999893
+  Cell integral (1) = 7.99999893
+  Min: 9.82830000E-04
+  Average: 6.73524003E-02
+  Max: 1.03750000E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? T
+  Core charges (ZPSP): Mg(2), O(6)
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* Hirshfeld integration 
++ Iterative Hirshfeld (Hirshfeld-I) reference populations
+  Please cite: 
+    P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca,
+       J. Chem. Phys. 126, 144111 (2007). (10.1063/1.2715563)
+  Reference densities interpolated between integer charge states
+  Convergence: max|dN| < 1.00E-05 (maximum 200 iterations)
+  Frozen-core electrons (Z - ZPSP) added to the integrated valence populations
+#   it      max|dN|
+     1    2.9836E-01
+     2    1.6577E-01
+     3    9.5476E-02
+     4    5.6339E-02
+     5    3.3765E-02
+     6    2.0435E-02
+     7    1.2443E-02
+     8    7.6053E-03
+     9    4.6597E-03
+    10    2.8587E-03
+    11    1.7553E-03
+    12    1.0784E-03
+    13    6.6277E-04
+    14    4.0740E-04
+    15    2.5046E-04
+    16    1.5399E-04
+    17    9.4681E-05
+    18    5.8217E-05
+    19    3.5796E-05
+    20    2.2011E-05
+    21    1.3534E-05
+    22    8.3222E-06
++ Hirshfeld-I converged in 22 iterations
+# N_HI = Hirshfeld-I population; q_HI = Z - N_HI
+# nmin/nmax = range of available charge states (number of electrons)
+#nneq mult name    Z   nmin nmax      N_HI            q_HI
+ 1    1    Mg     12   10   13 11.2977485653     0.7022514347    
+ 2    1     O      8    6   10  8.7022503688    -0.7022503688    
+# total population: 19.999999  (nuclear charge: 20.0)
+
++ The Hirshfeld-I populations (N_HI) include the frozen cores (Z - ZPSP).
+  The integrated properties below use the valence field only.
+
++ Integrating atomic properties
+
++ Integrated property (number 1): Volume
++ Integrated property (number 2): Pop
++ Integrated property (number 3): Lap
+
+* List of integrated atomic properties
++ The "Label" entries will be used to identify the integrable property
+  in the tables of integrated atomic properties. The entries with
+  an "x" will not be integrated.
+# id    Label      fid  Field       Additional
+  1       Volume    -- Volume        
+  2        Pop       1 Field (v)     
+  3        Lap       1 Laplcn (v)    
+
+* Key for the interpretation of table headings
+# Id = attractor identifier
+# cp/at = critical point/atom from the complete CP/atom list
+# (lvec) = lattice translation from CP/atom to the main cell's representative
+# ncp/nat = critical point/atom from the non-equivalent CP/atom list
+# Name = atomic name
+# Z = atomic number
+# Position = attractor position
+# Mol = molecule identifier (see corresponding table above)
+# Volume = volume of the reference field basins.
+# Pop (population) = the reference field integrated in its own basins.
+# Lap = Laplacian of the reference field integrated in the reference field basins.
+# $xxx = field xxx integrated in the basins of the reference field.
+
+* List of attractors integrated
+# Id   cp   ncp   Name  Z   mult           Position (cryst.) 
+  1    1    1      Mg   12  --    0.4999992    0.0000013    0.0000013  
+  2    2    2      O    8   --    0.9999999    0.5000006    0.5000006  
+
+* Integrated atomic properties
+# (See key above for interpretation of column headings.)
+# Integrable properties 1 to 3
+# Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap       
+  1    1    1      Mg   12  --   6.09094013E+01  1.29774345E+00  3.33959516E+00 
+  2    2    2      O    8   --   5.78688292E+01  6.70225549E+00 -3.33959516E+00 
+--------------------------------------------------------------------------------
+  Sum                            1.18778231E+02  7.99999893E+00 -2.62012634E-14 
+

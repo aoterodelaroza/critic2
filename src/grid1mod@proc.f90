@@ -204,11 +204,133 @@ contains
 
   end subroutine grid1_register_ae
 
-  !> Deallocate the core and all-electron density grid
+  !> Read all the charge states of the atom with Z = iz from the
+  !> internal density tables into sgrid(iz).
+  module subroutine grid1_register_states(iz)
+    use global, only: critic_home
+    use tools_io, only: nameguess, ferror, faterr, string
+    use param, only: dirsep, maxzat0, maxzat
+    integer, intent(in) :: iz
+
+    character(len=:), allocatable :: file
+    integer, allocatable :: np(:), navail(:)
+    real*8, allocatable :: al(:), co(:)
+    logical :: found
+    integer :: n
+
+    if (iz <= 0 .or. iz > maxzat) return
+    if (.not.allocated(sgrid)) allocate(sgrid(maxzat0))
+    if (sgrid(iz)%isinit) return
+
+    ! the list of charge states in the file (no block has N = -1)
+    file = trim(critic_home) // dirsep // "atomdens" // dirsep // "fit_" //&
+       string(iz,3,pad0=.true.) // "_" // trim(nameguess(iz,.true.)) // ".dat"
+    call read_fit_block(file,"STATE",-1,np,al,co,found,navail)
+    if (size(navail) == 0) &
+       call ferror('grid1_register_states','No atomic densities for Z = ' // string(iz) //&
+          ' in: ' // file,faterr)
+    sgrid(iz)%nmin = minval(navail)
+    sgrid(iz)%nmax = maxval(navail)
+    if (size(navail) /= sgrid(iz)%nmax - sgrid(iz)%nmin + 1) &
+       call ferror('grid1_register_states','The charge states for Z = ' // string(iz) //&
+          ' are not a contiguous range in: ' // file,faterr)
+
+    ! tabulate the states
+    allocate(sgrid(iz)%g(sgrid(iz)%nmin:sgrid(iz)%nmax))
+    do n = sgrid(iz)%nmin, sgrid(iz)%nmax
+       call read_fit_block(file,"STATE",n,np,al,co,found,navail)
+       if (.not.found) &
+          call ferror('grid1_register_states','Error reading the state with N = ' // string(n) //&
+             ' for Z = ' // string(iz) // ' in: ' // file,faterr)
+       if (size(np) == 0) cycle
+       call tabulate(sgrid(iz)%g(n),iz,np,al,co)
+       sgrid(iz)%g(n)%z = iz
+       sgrid(iz)%g(n)%qat = 0
+    end do
+    sgrid(iz)%isinit = .true.
+
+  end subroutine grid1_register_states
+
+  !> The two states that bracket xn electrons for the atom with Z =
+  !> iz: the density is (1-fmix) * g(n0) + fmix * g(n0+1). xn is
+  !> clamped to the range of states in sgrid(iz), which must be
+  !> registered. If the element has a single state, fmix = 0.
+  module subroutine grid1_states_bracket(iz,xn,n0,fmix)
+    integer, intent(in) :: iz
+    real*8, intent(in) :: xn
+    integer, intent(out) :: n0
+    real*8, intent(out) :: fmix
+
+    real*8 :: xx
+
+    associate(s => sgrid(iz))
+      xx = min(max(xn,real(s%nmin,8)),real(s%nmax,8))
+      n0 = min(max(int(xx),s%nmin),max(s%nmax-1,s%nmin))
+      fmix = xx - n0
+    end associate
+
+  end subroutine grid1_states_bracket
+
+  !> Radius beyond which the reference density of an atom with Z =
+  !> iz and xn electrons (see grid1_states_rho) is below the cutoff
+  !> of the tabulated grids (core_cutdens). The upper state enters
+  !> with weight fmix, so a population just above an integer does
+  !> not take the extent of a diffuse anion.
+  module function grid1_states_rcut(iz,xn) result(rc)
+    integer, intent(in) :: iz
+    real*8, intent(in) :: xn
+    real*8 :: rc
+
+    integer :: n0, i
+    real*8 :: fmix
+
+    call grid1_states_bracket(iz,xn,n0,fmix)
+    rc = 0d0
+    associate(g0 => sgrid(iz)%g(n0))
+      if (fmix < 1d0 .and. g0%isinit) rc = g0%rmax
+    end associate
+    if (fmix > 0d0) then
+       associate(g1 => sgrid(iz)%g(n0+1))
+         if (g1%isinit) then
+            do i = g1%ngrid, 1, -1
+               if (fmix * g1%f(i) >= core_cutdens) exit
+            end do
+            rc = max(rc,g1%r(min(max(i+1,1),g1%ngrid)))
+         end if
+       end associate
+    end if
+
+  end function grid1_states_rcut
+
+  !> Reference density at distance r of an atom with Z = iz and xn
+  !> electrons: the linear interpolation between the states with
+  !> floor(xn) and floor(xn)+1 electrons (grid1_states_bracket).
+  module function grid1_states_rho(iz,xn,r) result(rho)
+    integer, intent(in) :: iz
+    real*8, intent(in) :: xn
+    real*8, intent(in) :: r
+    real*8 :: rho
+
+    integer :: n0
+    real*8 :: fmix, f, fp, fpp
+
+    call grid1_states_bracket(iz,xn,n0,fmix)
+    call sgrid(iz)%g(n0)%interp(r,f,fp,fpp)
+    rho = (1d0 - fmix) * f
+    if (fmix > 0d0) then
+       call sgrid(iz)%g(n0+1)%interp(r,f,fp,fpp)
+       rho = rho + fmix * f
+    end if
+    rho = max(rho,0d0)
+
+  end function grid1_states_rho
+
+  !> Deallocate the core, all-electron, and charge-state density grids
   module subroutine grid1_clean_grids()
 
     if (allocated(agrid)) deallocate(agrid)
     if (allocated(cgrid)) deallocate(cgrid)
+    if (allocated(sgrid)) deallocate(sgrid)
 
   end subroutine grid1_clean_grids
 

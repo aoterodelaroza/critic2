@@ -20,6 +20,8 @@ set(TESTS
   021_voronoi              ## voronoi keyword, basic
   022_integrable_lap_overlap ## integrable keyword, lap and overlap
   023_integrable_deloc_di3 ## integrable keyword, deloc with di3 (3-center)
+  024_hirshfeld_iterative_mol ## hirshfeld iterative, using meshes in a molecule
+  025_hirshfeld_iterative_grid ## hirshfeld iterative, using grids with zpsp
   )
 
 runtests(${TESTS})

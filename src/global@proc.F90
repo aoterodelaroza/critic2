@@ -397,7 +397,7 @@ contains
           if (sy%f(sy%iref)%type == type_grid) then
              call intgrid_driver(line)
           elseif (equal(word,'hirshfeld')) then
-             call hirsh_nogrid()
+             call hirsh_nogrid(line)
           else
              call ferror("critic2",word // " can only be used with grids",faterr,line,syntax=.true.)
              cycle

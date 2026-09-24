@@ -1,0 +1,8 @@
+## check: 025_hirshfeld_iterative_grid.cro -a1e-10
+## labels: regression
+
+# iterative Hirshfeld (Hirshfeld-I) with a pseudopotential grid; the
+# frozen cores (Z - ZPSP) are added to the populations
+crystal ../zz_source/qe-6.5/mgo/rho.cube
+load ../zz_source/qe-6.5/mgo/rho.cube zpsp mg 2 o 6
+hirshfeld iterative tol 1e-5
