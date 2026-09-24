@@ -2440,7 +2440,7 @@ contains
   module function draw_editrep_shapes(w,ttshown) result(changed)
     use representations, only: rep_shape, shapekind_sphere, shapekind_box, shapekind_arrow,&
        shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr, shape_rgb_def,&
-       shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def
+       shape_alpha_def, shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
@@ -2772,6 +2772,7 @@ contains
 
       sh = rep_shape()
       sh%rgb = shape_rgb_def
+      sh%alpha = shape_alpha_def
       sh%kind = ikind0
       if (iview > 0) then
          if (associated(win(iview)%sc)) sh%x1 = real(win(iview)%sc%scenecenter,8)

@@ -74,6 +74,7 @@ module representations
   real*8, parameter, public :: arrow_headr_def = 2.5d0 ! arrowhead radius, in shaft radii
   real*8, parameter, public :: arrow_headl_def = 0.3d0 ! arrowhead length, as a fraction of the arrow
   real(c_float), parameter, public :: shape_rgb_def(3) = (/0.95_c_float,0.45_c_float,0.05_c_float/) ! default shape color
+  real(c_float), parameter, public :: shape_alpha_def = 0.5_c_float ! opacity of a newly created shape
   real*8, parameter, public :: shape_size_def = 2d0 / bohrtoa ! size of a newly created shape (radius, cube side)
   real*8, parameter, public :: shape_edge_def = 0.05d0 / bohrtoa ! thickness of the box edges
   !--> symmetry elements

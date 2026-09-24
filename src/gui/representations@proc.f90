@@ -371,6 +371,7 @@ contains
           r%shapes%shape(1)%x1 = xcen
           r%shapes%shape(1)%rad = 0.5d0 * shape_size_def
           r%shapes%shape(1)%rgb = shape_rgb_def
+          r%shapes%shape(1)%alpha = shape_alpha_def
        end if
     end if
 
@@ -1627,7 +1628,7 @@ contains
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
-    use gui_main, only: ColorAxes_def, ColorElement
+    use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def
     use shapes, only: maxpie
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
@@ -2369,8 +2370,8 @@ contains
                end if
             elseif (sh%kind == shapekind_sphere) then
                dsph = dl_sphere(x=real(uoriginc,c_float),r=real(sh%rad,c_float),rgb=sh%rgb,&
-                  idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
-                  rgbborder=0._c_float,alpha=sh%alpha)
+                  idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+                  border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def,alpha=sh%alpha)
                call dl_append(obj%sph,obj%nsph,dsph)
             elseif (norm2(sh%v(:,1)) > 1d-6) then
                ! the kinds that run along v(:,1); a degenerate one is skipped

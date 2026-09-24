@@ -99,4 +99,12 @@ void main(){
     outColor = vec4(fBorderColor, fColor.a);
   else
     outColor = base;
+
+  // translucent spheres: the opacity grows toward the rim, where the line of
+  // sight crosses more of the surface, so the sphere reads as a volume rather
+  // than a flat disc. The center keeps the requested opacity.
+  if (fColor.a < 1.0){
+    float ct = clamp(-dot(vx, rd) / fRadius, 0.0, 1.0); // cosine between normal and view
+    outColor.a = fColor.a + (1.0 - fColor.a) * pow(1.0 - ct, 2.0);
+  }
 }
