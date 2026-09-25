@@ -50,7 +50,7 @@ submodule (icons) proc
      "fmt_castepcell.png","fmt_castepgeom.png","fmt_mol2.png","fmt_pdb.png",&
      "fmt_zmat.png","fmt_sdf.png","fmt_magres.png","fmt_alamode.png",&
      "fmt_castepphonon.png","fmt_akaikkr.png","fmt_xband.png",&
-     "fmt_gulpin.png","fmt_gulpout.png"/)
+     "fmt_gulpin.png","fmt_gulpout.png","fmt_fdf.png"/)
 
   ! tint colors for the format icons, by code family
   real(c_float), parameter :: rgba_fam_internal(4) = (/0.70_c_float,0.70_c_float,0.70_c_float,1.0_c_float/) ! grey
@@ -151,7 +151,7 @@ contains
        isformat_r_gaussian,isformat_r_orca,isformat_r_dat,isformat_r_pgout)
        rgba = rgba_fam_qchem
     case (isformat_r_abinit,isformat_r_qein,isformat_r_qeout,isformat_r_crystal,&
-       isformat_r_siesta,isformat_r_gen,isformat_r_vasp,isformat_r_pwc,&
+       isformat_r_siesta,isformat_r_fdf,isformat_r_gen,isformat_r_vasp,isformat_r_pwc,&
        isformat_r_aimsin,isformat_r_aimsout,isformat_r_castepcell,isformat_r_castepgeom)
        rgba = rgba_fam_pwdft
     case (isformat_r_struct,isformat_r_elk,isformat_r_fploout,isformat_r_akaikkr,&
@@ -271,6 +271,8 @@ contains
        name = "GULP input"
     case (isformat_r_gulpout)
        name = "GULP output"
+    case (isformat_r_fdf)
+       name = "SIESTA fdf input"
     case default
        name = "unknown"
     end select

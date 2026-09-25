@@ -102,7 +102,7 @@ contains
        &psi4 (molden|dat){.molden,.dat},&
        &Quantum ESPRESSO (out|in|pwi|pwo|cube|pwc) {.out,.in,.pwi,.pwo,.cube,.pwc},&
        &SHELX (res|ins){.res,.ins.16},&
-       &SIESTA (STRUCT_IN|STRUCT_OUT) {.STRUCT_IN,.STRUCT_OUT},&
+       &SIESTA (fdf|STRUCT_IN|STRUCT_OUT) {.fdf,.STRUCT_IN,.STRUCT_OUT},&
        &TINKER (frac) {.frac},&
        &Tripos MOL2 (mol2){.mol2},&
        &VASP (POSCAR|CONTCAR|...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
@@ -146,6 +146,7 @@ contains
        // "Quantum ESPRESSO output" // c_null_char & ! isformat_r_qeout
        // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_r_pwc
        // "SHELX" // c_null_char &                   ! isformat_r_shelx
+       // "SIESTA fdf input" // c_null_char &        ! isformat_r_fdf
        // "SIESTA IN/OUT file" // c_null_char &      ! isformat_r_siesta
        // "TINKER frac file" // c_null_char &        ! isformat_r_tinkerfrac
        // "VASP" // c_null_char &                    ! isformat_r_vasp
@@ -168,7 +169,7 @@ contains
        isformat_r_gaussian,isformat_r_wfn,isformat_r_wfx,isformat_r_zmat,isformat_r_gulpin,&
        isformat_r_gulpout,isformat_r_mol2,&
        isformat_r_molden,isformat_r_orca,isformat_r_pdb,isformat_r_pgout,isformat_r_dat,&
-       isformat_r_qein,isformat_r_qeout,isformat_r_pwc,isformat_r_shelx,isformat_r_siesta,&
+       isformat_r_qein,isformat_r_qeout,isformat_r_pwc,isformat_r_shelx,isformat_r_fdf,isformat_r_siesta,&
        isformat_r_tinkerfrac,isformat_r_vasp,isformat_r_struct,isformat_r_axsf,&
        isformat_r_xsf,isformat_r_xyz/)
 

@@ -1,0 +1,50 @@
+## delete: 044_crystal_fdf.cro
+## check: 044_crystal_fdf_gen_01.cri -a1e-10
+## check: 044_crystal_fdf_gen_02.cri -a1e-10
+## check: 044_crystal_fdf_gen_03.cri -a1e-10
+## check: 044_crystal_fdf_gen_04.cri -a1e-10
+## check: 044_crystal_fdf_gen_05.cri -a1e-10
+## check: 044_crystal_fdf_gen_06.cri -a1e-10
+## check: 044_crystal_fdf_gen_07.cri -a1e-10
+## check: 044_crystal_fdf_gen_08.cri -a1e-10
+## check: 044_crystal_fdf_gen_09.cri -a1e-10
+## check: 044_crystal_fdf_gen_10.cri -a1e-10
+## check: 044_crystal_fdf_gen_11.cri -a1e-10
+## check: 044_crystal_fdf_gen_12.cri -a1e-10
+## labels: regression quick
+# lattice vectors + fractional coordinates
+crystal ../zz_source/siesta-5.4.2/crsbr/CrSBr_a5.00_b3.40.fdf
+write 044_crystal_fdf_gen_01.cri
+# %include (path relative to the run directory), COP shift, diagonal supercell
+crystal ../zz_source/siesta-5.4.2/tests/13.MiscOptions/shift_cop.fdf
+write 044_crystal_fdf_gen_02.cri
+# synthetic species (Z > 200)
+crystal ../zz_source/siesta-5.4.2/tests/13.MiscOptions/synth_atom.fdf
+write 044_crystal_fdf_gen_03.cri
+# ghost species (Z < 0)
+crystal ../zz_source/siesta-5.4.2/tests/00.BasisSets/ghost_atom.fdf
+write 044_crystal_fdf_gen_04.cri
+# LatticeParameters, ScaledCartesian
+crystal ../zz_source/siesta-5.4.2/tests/08.GeometryOptimization/cg.fdf
+write 044_crystal_fdf_gen_05.cri
+# Z-matrix molecule with symbols, constants and a constraint (no cell)
+crystal ../zz_source/siesta-5.4.2/tests/08.GeometryOptimization/zm_cg.fdf
+write 044_crystal_fdf_gen_06.cri
+# Z-matrix water, spherical second atom, degrees and angstrom
+crystal ../zz_source/siesta-5.4.2/examples/h2oZ.fdf
+write 044_crystal_fdf_gen_07.cri
+# label < file, %block label < file, label normalization, '=' separators
+crystal ../zz_source/siesta-5.4.2/critic2/redirect.fdf
+write 044_crystal_fdf_gen_08.cri
+# LatticeConstant only (cubic cell), MIN-Z shift with a ghost atom
+crystal ../zz_source/siesta-5.4.2/critic2/minz_ghost.fdf
+write 044_crystal_fdf_gen_09.cri
+# non-diagonal supercell
+crystal ../zz_source/siesta-5.4.2/critic2/supercell_nondiag.fdf
+write 044_crystal_fdf_gen_10.cri
+# molecule with an explicit origin in angstrom
+crystal ../zz_source/siesta-5.4.2/critic2/origin_mol.fdf
+write 044_crystal_fdf_gen_11.cri
+# center of mass shift
+crystal ../zz_source/siesta-5.4.2/critic2/com.fdf
+write 044_crystal_fdf_gen_12.cri

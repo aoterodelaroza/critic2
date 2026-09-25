@@ -21,6 +21,7 @@
 ## check: 035_crystal_forceformat_gen_20.cri -a1e-10
 ## check: 035_crystal_forceformat_gen_21.cri -a1e-10
 ## check: 035_crystal_forceformat_gen_22.cri -a1e-10
+## check: 035_crystal_forceformat_gen_23.cri -a1e-10
 ## labels: regression quick
 
 crystal cif ../zz_source/cif/allspg/186_wurtzite.cif
@@ -67,3 +68,5 @@ crystal gulp_in ../zz_source/gulp-6.4/urea/urea.gin
 write 035_crystal_forceformat_gen_21.cri
 crystal gulp_out ../zz_source/gulp-6.4/urea/urea.gout
 write 035_crystal_forceformat_gen_22.cri
+crystal fdf ../zz_source/siesta-5.4.2/crsbr/CrSBr_a5.00_b3.40.fdf
+write 035_crystal_forceformat_gen_23.cri

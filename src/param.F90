@@ -42,7 +42,7 @@ module param
   real*8, parameter :: bohrtoa  =  0.52917720859d0 !< bohr to angstrom conversion factor
   real*8, parameter :: bohrtocm = 0.52917720859d-8      !< bohr -> cm (nist2006)
   real*8, parameter :: bohrtom = 0.52917720859d-10      !< bohr -> m (nist2006)
-  real*8, parameter :: bohrtonm = 0.052917720859d2      !< bohr -> nm (nist2006)
+  real*8, parameter :: bohrtonm = 0.052917720859d0      !< bohr -> nm (nist2006)
   real*8, parameter :: bohrtopm = 0.52917720859d2       !< bohr -> pm (nist2006)
   real*8, parameter :: hartokjmol = 2625.49962248d0 !< hartree to kJ/mol factor
   real*8, parameter :: kcal2ha = 4.184d0 / hartokjmol !< kcal/mol -> hartree
@@ -141,7 +141,8 @@ module param
   integer, parameter :: isformat_r_xband = 46
   integer, parameter :: isformat_r_gulpin = 47
   integer, parameter :: isformat_r_gulpout = 48
-  integer, parameter :: isformat_r_max = isformat_r_gulpout ! last reading format (update when adding formats)
+  integer, parameter :: isformat_r_fdf = 49
+  integer, parameter :: isformat_r_max = isformat_r_fdf ! last reading format (update when adding formats)
 
   ! Enumerate for structure formats (writing)
   integer, parameter :: isformat_w_unknown = 0

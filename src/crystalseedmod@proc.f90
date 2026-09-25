@@ -94,6 +94,18 @@ submodule (crystalseedmod) proc
 
   integer, parameter :: mxtok = 60 !< maximum number of tokens per line
 
+  ! one line of a SIESTA fdf input after expanding the includes
+  integer, parameter :: fdf_body = 0 !< fdf line in the body of a block
+  integer, parameter :: fdf_label = 1 !< fdf label line
+  integer, parameter :: fdf_blockstart = 2 !< fdf %block line
+  integer, parameter :: fdf_blockend = 3 !< fdf %endblock line
+  type :: fdf_line
+     character(len=:), allocatable :: s !< line text, comments removed
+     integer :: kind = fdf_body !< kind of line (fdf_*)
+     character(len=:), allocatable :: key !< normalized label (label and %block lines)
+  end type fdf_line
+  integer, parameter :: fdf_maxdepth = 20 !< maximum nesting of fdf includes
+
   !xx! private subroutines
   ! subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock,ti)
   ! subroutine read_all_mol2(file,errmsg,nseed,mseed,seed0,name,ti)
@@ -106,6 +118,10 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_gulpin(nseed,seed,file,mol,istruct,errmsg,ti)
   ! subroutine read_all_gulpout(nseed,seed,file,mol,istruct,errmsg,ti)
   ! subroutine gulp_detect_ismol(file,isformat,ismol,ti)
+  ! subroutine fdf_detect_ismol(file,ismol,ti)
+  ! subroutine fdf_read_file(file,fl,nl,depth,inblk0,errmsg,ti,headonly)
+  ! function fdf_block_mat3(fl,i0,i1,m)
+  ! subroutine fdf_zmatrix(fl,nl,i0,i1,alat,cell,explicit_origin,origin,nat,xa,isa,errmsg)
   ! subroutine rawseed_to_seed(rec,seed,mol,file,isformat,errmsg)
   ! subroutine gulp_spg_ops(rec,neqv,ncv,rotm,cen,found,errmsg)
   ! subroutine rawseed_select(recs,nrec,istruct,mol,file,isformat,nseed,seed,errmsg)
@@ -1109,7 +1125,8 @@ contains
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
        isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband,&
        isformat_r_sdf, isformat_r_castepcell, isformat_r_gulpin, isformat_r_gulpout,&
-       isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
+       isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb,&
+       isformat_r_fdf
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -1219,6 +1236,9 @@ contains
 
     elseif (isformat == isformat_r_siesta) then
        call seed%read_siesta(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_fdf) then
+       call seed%read_fdf(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_castepcell) then
        call seed%read_castep_cell(file,mol,errmsg,ti=ti)
@@ -4293,6 +4313,428 @@ contains
 
   end subroutine read_siesta
 
+  !> Read the structure from a SIESTA fdf input file, following the
+  !> SIESTA 5 conventions (redcel.F, coor.F, zmatrix.F). The lattice
+  !> comes from LatticeConstant plus LatticeParameters or
+  !> LatticeVectors (a molecule if neither is given and there is no
+  !> LatticeConstant). The atoms come from a Zmatrix block or from
+  !> AtomicCoordinatesAndAtomicSpecies, with AtomicCoordinatesFormat,
+  !> AtomicCoordinatesOrigin and SuperCell applied. Ghost species
+  !> (Z <= 0) are read as Z = 0 and synthetic species (Z > 200) take
+  !> the atomic number from their label.
+  module subroutine read_fdf(seed,file,mol,errmsg,ti)
+    use global, only: rborder_def
+    use tools_math, only: det3, matinv, m_x2c_from_cellpar
+    use tools_io, only: equali, zatguess, string, upper
+    use param, only: bohrtoa, atmass, maxzat, isformat_r_fdf
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    type(fdf_line), allocatable :: fl(:)
+    type(rawseed) :: rec
+    integer :: nl, i, j, k, i0, i1, j0, j1, nsp, isp, iz, nat, nua, ntok
+    integer :: ncells, iscale, imeth, ixyz, nv, nspu, ier, n1, n2, n3
+    integer :: mscell(3,3), ibox(3,2), nn(3)
+    integer, allocatable :: spz(:), isa(:), imap(:)
+    logical, allocatable :: spghost(:)
+    character(len=:), allocatable :: tok(:), ttype, acf
+    character*10, allocatable :: splab(:)
+    real*8 :: alat, cell(3,3), origin(3), xx(6), rmat(3,3), ff(3), wsum, wi
+    real*8, allocatable :: xa(:,:)
+    logical :: haveparams, havevec, explicit_origin, isper
+
+    real*8, parameter :: eps = 1d-8
+
+    call seed%end()
+    errmsg = ""
+    nl = 0
+    call fdf_read_file(file,fl,nl,0,.false.,errmsg,ti)
+    if (len_trim(errmsg) > 0) return
+
+    !! species: lines of ChemicalSpeciesLabel with the form "index Z label"
+    if (.not.fdf_block(fl,nl,"ChemicalSpeciesLabel",i0,i1)) then
+       errmsg = "ChemicalSpeciesLabel block not found"
+       return
+    end if
+    nsp = 0
+    do i = i0, i1
+       call fdf_tokens(fl(i)%s,ntok,tok,ttype)
+       if (ntok < 3) cycle
+       if (ttype(1:3) == "iin") nsp = nsp + 1
+    end do
+    if (nsp == 0) then
+       errmsg = "No species found in ChemicalSpeciesLabel"
+       return
+    end if
+    allocate(spz(nsp),splab(nsp),spghost(nsp))
+    spz = -huge(1)
+    do i = i0, i1
+       call fdf_tokens(fl(i)%s,ntok,tok,ttype)
+       if (ntok < 3) cycle
+       if (ttype(1:3) /= "iin") cycle
+       read (tok(1),*) isp
+       read (tok(2),*) iz
+       if (isp < 1 .or. isp > nsp) then
+          errmsg = "Wrong species index in ChemicalSpeciesLabel: " // string(isp)
+          return
+       end if
+       if (spz(isp) /= -huge(1)) then
+          errmsg = "Species index repeated in ChemicalSpeciesLabel: " // string(isp)
+          return
+       end if
+       splab(isp) = trim(tok(3))
+       spghost(isp) = (iz <= 0)
+       if (iz <= 0) then
+          ! ghost (floating orbitals), including synthetic ghosts (Z < -200)
+          spz(isp) = 0
+       elseif (iz > 200) then
+          ! synthetic (virtual-crystal) atom: guess the element from the label
+          spz(isp) = max(zatguess(tok(3)),0)
+       elseif (iz > maxzat) then
+          errmsg = "Invalid atomic number in ChemicalSpeciesLabel: " // string(iz)
+          return
+       else
+          spz(isp) = iz
+       end if
+    end do
+
+    !! lattice (redcel.F)
+    haveparams = fdf_block(fl,nl,"LatticeParameters",i0,i1)
+    havevec = fdf_block(fl,nl,"LatticeVectors",j0,j1)
+    if (haveparams .and. havevec) then
+       errmsg = "Lattice given by both LatticeParameters and LatticeVectors"
+       return
+    end if
+    alat = 0d0
+    if (haveparams .or. havevec) alat = 1d0 / bohrtoa
+    if (.not.fdf_length(fl,nl,"LatticeConstant",alat,errmsg)) return
+    cell = 0d0
+    do i = 1, 3
+       cell(i,i) = 1d0
+    end do
+    if (haveparams) then
+       nv = 0
+       if (i1 >= i0) call fdf_numbers(fl(i0)%s,nv,xx)
+       if (nv < 6) then
+          errmsg = "Error reading the LatticeParameters block"
+          return
+       end if
+       ! a along x, b in the xy plane (as SIESTA)
+       cell = m_x2c_from_cellpar(xx(1:3),xx(4:6),ier)
+       if (ier /= 0) then
+          errmsg = "Invalid cell in the LatticeParameters block"
+          return
+       end if
+    elseif (havevec) then
+       if (.not.fdf_block_mat3(fl,j0,j1,cell)) then
+          errmsg = "Error reading the LatticeVectors block"
+          return
+       end if
+    end if
+    cell = alat * cell
+    isper = (abs(det3(cell)) >= eps)
+
+    ! supercell matrix: each line is a supercell vector in terms of the cell
+    mscell = 0
+    do i = 1, 3
+       mscell(i,i) = 1
+    end do
+    if (fdf_block(fl,nl,"SuperCell",i0,i1)) then
+       if (alat == 0d0) then
+          errmsg = "LatticeConstant is required to define a SuperCell"
+          return
+       end if
+       if (.not.fdf_block_mat3(fl,i0,i1,rmat)) then
+          errmsg = "Error reading the SuperCell block"
+          return
+       end if
+       mscell = nint(rmat)
+    end if
+    ncells = 1
+    if (isper) ncells = abs(nint(det3(real(mscell,8))))
+    if (ncells == 0) then
+       errmsg = "Singular SuperCell matrix"
+       return
+    end if
+
+    !! format of the atomic coordinates (coor.F)
+    acf = "NotScaledCartesianBohr"
+    if (fdf_get(fl,nl,"AtomicCoordinatesFormat",ntok,tok,ttype)) then
+       if (ntok > 0) acf = trim(tok(1))
+    end if
+    if (equali(acf,"NotScaledCartesianBohr") .or. equali(acf,"Bohr")) then
+       iscale = 0
+    elseif (equali(acf,"NotScaledCartesianAng") .or. equali(acf,"Ang")) then
+       iscale = 1
+    elseif (equali(acf,"ScaledCartesian") .or. equali(acf,"LatticeConstant")) then
+       iscale = 2
+    elseif (equali(acf,"ScaledByLatticeVectors") .or. equali(acf,"Fractional")) then
+       iscale = 3
+    else
+       errmsg = "Unknown AtomicCoordinatesFormat: " // acf
+       return
+    end if
+    if (iscale >= 2 .and. alat == 0d0) then
+       errmsg = "AtomicCoordinatesFormat " // acf // " requires a LatticeConstant"
+       return
+    end if
+
+    ! origin shift: explicit vector (coordinate units) or automatic (COP, COM, MIN)
+    explicit_origin = .false.
+    origin = 0d0
+    imeth = 0
+    ixyz = 7
+    if (fdf_block(fl,nl,"AtomicCoordinatesOrigin",i0,i1)) then
+       if (i1 >= i0) then
+          call fdf_tokens(fl(i0)%s,ntok,tok,ttype)
+          call fdf_numbers(fl(i0)%s,nv,xx)
+          if (nv == 3) then
+             origin = xx(1:3)
+             explicit_origin = .true.
+          elseif (ntok == 1 .and. ttype == "n") then
+             call origin_method(tok(1))
+          end if
+       end if
+    elseif (fdf_get(fl,nl,"AtomicCoordinatesOrigin",ntok,tok,ttype)) then
+       if (ntok > 0) call origin_method(tok(1))
+    end if
+
+    if (fdf_block(fl,nl,"Zmatrix",i0,i1)) then
+       !! Z-matrix input
+       if (ncells > 1) then
+          errmsg = "SuperCell cannot be used with a Zmatrix"
+          return
+       end if
+       call fdf_zmatrix(fl,nl,i0,i1,alat,cell,explicit_origin,origin,nat,xa,isa,errmsg)
+       if (len_trim(errmsg) > 0) return
+       do i = 1, nat
+          if (isa(i) < 1 .or. isa(i) > nsp) then
+             errmsg = "Unknown species index in Zmatrix: " // string(isa(i))
+             return
+          end if
+       end do
+    else
+       !! atomic coordinates
+       if (.not.fdf_block(fl,nl,"AtomicCoordinatesAndAtomicSpecies",i0,i1)) then
+          errmsg = "AtomicCoordinatesAndAtomicSpecies block not found"
+          return
+       end if
+       nua = i1 - i0 + 1
+       if (fdf_get(fl,nl,"NumberOfAtoms",ntok,tok,ttype)) then
+          if (ntok > 0) then
+             if (ttype(1:1) == "i") then
+                read (tok(1),*) nat
+                if (nat > nua) then
+                   errmsg = "Fewer atoms in AtomicCoordinatesAndAtomicSpecies than NumberOfAtoms"
+                   return
+                end if
+                if (nat > 0) nua = nat
+             end if
+          end if
+       end if
+       if (nua <= 0) then
+          errmsg = "No atoms found"
+          return
+       end if
+       nat = nua * ncells
+       allocate(xa(3,nat),isa(nat))
+
+       ! first three numbers are the coordinates, the next integer is the species
+       do i = 1, nua
+          call fdf_tokens(fl(i0+i-1)%s,ntok,tok,ttype)
+          k = 0
+          isa(i) = 0
+          do j = 1, ntok
+             if (ttype(j:j) /= "i" .and. ttype(j:j) /= "r") cycle
+             if (k < 3) then
+                k = k + 1
+                read (tok(j),*) xa(k,i)
+             elseif (ttype(j:j) == "i") then
+                read (tok(j),*) isa(i)
+                exit
+             end if
+          end do
+          if (k < 3 .or. isa(i) == 0) then
+             errmsg = "Error reading atom " // string(i) // " in AtomicCoordinatesAndAtomicSpecies"
+             return
+          end if
+          if (isa(i) < 1 .or. isa(i) > nsp) then
+             errmsg = "Unknown species index for atom " // string(i) // ": " // string(isa(i))
+             return
+          end if
+          if (explicit_origin) xa(:,i) = xa(:,i) + origin
+       end do
+
+       ! convert to Cartesian bohr
+       if (iscale == 1) then
+          xa(:,1:nua) = xa(:,1:nua) / bohrtoa
+       elseif (iscale == 2) then
+          xa(:,1:nua) = xa(:,1:nua) * alat
+       elseif (iscale == 3) then
+          xa(:,1:nua) = matmul(cell,xa(:,1:nua))
+       end if
+
+       ! automatic origin shift, ghost atoms excluded; COP and COM
+       ! center in the cell, so they are skipped for molecules
+       if (imeth == 3 .or. (imeth > 0 .and. isper)) then
+          origin = 0d0
+          if (imeth == 3) origin = huge(1d0)
+          wsum = 0d0
+          do i = 1, nua
+             if (spghost(isa(i))) cycle
+             if (imeth == 3) then
+                origin = min(origin,xa(:,i))
+             else
+                wi = 1d0
+                if (imeth == 2) wi = atmass(spz(isa(i)))
+                origin = origin + wi * xa(:,i)
+                wsum = wsum + wi
+             end if
+          end do
+          if (imeth == 3) then
+             if (any(origin == huge(1d0))) origin = 0d0
+             origin = -origin
+          elseif (wsum > 0d0) then
+             origin = 0.5d0 * sum(cell,2) - origin / wsum
+          else
+             origin = 0d0
+          end if
+          if (ixyz == 1) then
+             origin(2:3) = 0d0
+          elseif (ixyz == 2) then
+             origin(1) = 0d0
+             origin(3) = 0d0
+          elseif (ixyz == 3) then
+             origin(1:2) = 0d0
+          elseif (ixyz == 4) then
+             origin(1) = 0d0
+          elseif (ixyz == 5) then
+             origin(2) = 0d0
+          elseif (ixyz == 6) then
+             origin(3) = 0d0
+          end if
+          do i = 1, nua
+             xa(:,i) = xa(:,i) + origin
+          end do
+       end if
+
+       ! expand to the supercell: lattice translations n with M^-1 n in
+       ! [0,1)^3, the unit cell first, then n1 running fastest (superx_coor)
+       if (ncells > 1) then
+          rmat = real(mscell,8)
+          call matinv(rmat,3,ier)
+          if (ier /= 0) then
+             errmsg = "Singular SuperCell matrix"
+             return
+          end if
+          ibox = 0
+          do i = 0, 7
+             nn = 0
+             do j = 1, 3
+                if (btest(i,j-1)) nn = nn + mscell(:,j)
+             end do
+             ibox(:,1) = min(ibox(:,1),nn)
+             ibox(:,2) = max(ibox(:,2),nn)
+          end do
+          k = 1
+          do n3 = ibox(3,1), ibox(3,2)
+             do n2 = ibox(2,1), ibox(2,2)
+                do n1 = ibox(1,1), ibox(1,2)
+                   if (n1 == 0 .and. n2 == 0 .and. n3 == 0) cycle
+                   ff = matmul(rmat,real((/n1,n2,n3/),8))
+                   if (any(ff < -eps) .or. any(ff > 1d0-eps)) cycle
+                   k = k + 1
+                   if (k > ncells) exit
+                   do i = 1, nua
+                      xa(:,(k-1)*nua+i) = xa(:,i) + matmul(cell,real((/n1,n2,n3/),8))
+                      isa((k-1)*nua+i) = isa(i)
+                   end do
+                end do
+             end do
+          end do
+          if (k /= ncells) then
+             errmsg = "Error expanding the SuperCell"
+             return
+          end if
+          cell = matmul(cell,real(mscell,8))
+       end if
+    end if
+
+    !! build the seed: species in the order of ChemicalSpeciesLabel, only those present
+    allocate(imap(nsp))
+    imap = 0
+    nspu = 0
+    do isp = 1, nsp
+       if (any(isa(1:nat) == isp)) then
+          nspu = nspu + 1
+          imap(isp) = nspu
+       end if
+    end do
+    rec%spcmode = spc_given
+    rec%nspc = nspu
+    allocate(rec%spc(nspu))
+    do isp = 1, nsp
+       if (imap(isp) == 0) cycle
+       rec%spc(imap(isp))%name = splab(isp)
+       rec%spc(imap(isp))%z = spz(isp)
+    end do
+    rec%nat = nat
+    rec%x = xa(:,1:nat)
+    rec%is = imap(isa(1:nat))
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
+    if (.not.isper) then
+       rec%ndim = 0
+       rec%ismol = .true.
+       rec%border = rborder_def
+    else
+       rec%ndim = 3
+       rec%cellmode = 2
+       rec%rv = cell
+    end if
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_fdf,errmsg)
+
+  contains
+    ! origin shift method from a string: COP, COM or MIN, with an
+    ! optional -X, -Y, -Z, -XY, -XZ, -YZ direction suffix
+    subroutine origin_method(str)
+      character*(*), intent(in) :: str
+
+      character(len=:), allocatable :: s, suf
+
+      s = upper(trim(str))
+      if (len(s) < 3) return
+      if (s(1:3) == "COP") then
+         imeth = 1
+      elseif (s(1:3) == "COM") then
+         imeth = 2
+      elseif (s(1:3) == "MIN") then
+         imeth = 3
+      end if
+      suf = ""
+      if (len(s) >= 5) suf = s(5:min(len(s),7))
+      if (suf == "X") then
+         ixyz = 1
+      elseif (suf == "Y") then
+         ixyz = 2
+      elseif (suf == "Z") then
+         ixyz = 3
+      elseif (suf == "YZ" .or. suf == "ZY") then
+         ixyz = 4
+      elseif (suf == "XZ" .or. suf == "ZX") then
+         ixyz = 5
+      elseif (suf == "XY" .or. suf == "YX") then
+         ixyz = 6
+      else
+         ixyz = 7
+      end if
+
+    end subroutine origin_method
+  end subroutine read_fdf
+
   !> Read the structure from a CASTEP cell file
   module subroutine read_castep_cell(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, lgetword, getline_raw,&
@@ -5707,7 +6149,8 @@ contains
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_castepcell, isformat_r_castepgeom, isformat_r_castepphonon,&
        isformat_r_qein, isformat_r_qeout, isformat_r_xband, isformat_r_gulpin, isformat_r_gulpout,&
-       isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres
+       isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
+       isformat_r_fdf
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -5813,6 +6256,8 @@ contains
        alsofield_ = .true.
     elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
        isformat = isformat_r_siesta
+    elseif (equal(lower(wextdot),'fdf')) then
+       isformat = isformat_r_fdf
     elseif (equal(wextdot,'cell')) then
        isformat = isformat_r_castepcell
     elseif (equal(wextdot,'phonon')) then
@@ -5902,7 +6347,7 @@ contains
        isformat_r_castepgeom,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
        isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin,&
-       isformat_r_gulpout
+       isformat_r_gulpout, isformat_r_fdf
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -6067,6 +6512,10 @@ contains
        ! GULP files: a molecule if the first structure is a 0D cluster
        call gulp_detect_ismol(file,isformat,ismol,ti=ti)
 
+    case (isformat_r_fdf)
+       ! SIESTA fdf: a molecule if no lattice is given
+       call fdf_detect_ismol(file,ismol,ti=ti)
+
     case default
        ismol = .false.
     end select
@@ -6149,7 +6598,7 @@ contains
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres,&
        isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin,&
-       isformat_r_gulpout
+       isformat_r_gulpout, isformat_r_fdf
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -6263,6 +6712,8 @@ contains
        call seed(1)%read_pdb(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_r_fdf) then
+       call seed(1)%read_fdf(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_castepcell) then
        call seed(1)%read_castep_cell(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_castepphonon) then
@@ -8770,7 +9221,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess,&
        isinteger, getword, isreal
     use types, only: realloc
-    use param, only: bohrtoa
+    use param, only: bohrtoa, rad
     character*(*), intent(in) :: file
     integer, intent(out) :: n
     real*8, allocatable, intent(inout) :: x(:,:)
@@ -8782,7 +9233,7 @@ contains
     integer :: lu, lp, idum
     character(len=:), allocatable :: line, word
     logical :: first, ok
-    real*8 :: dist, ang, dih, xaux(3)
+    real*8 :: dist, ang, dih, rel(3,3)
     integer :: iat(3)
 
     errmsg = ""
@@ -8848,11 +9299,12 @@ contains
        if (.not.ok) goto 999
        if (iat(2) < 1 .or. iat(2) >= n) goto 999
 
-       ! third atom: stop here
+       ! third atom: stop here (dihedral reference along x)
+       rel(:,1) = x(:,iat(1))
+       rel(:,2) = x(:,iat(2))
        if (n == 3) then
-          xaux = (/1d0,0d0,0d0/)
-          dih = 0d0
-          x(:,n) = zmat_step(x(:,iat(1)),x(:,iat(2)),xaux,dist,ang,dih)
+          rel(:,3) = (/1d0,0d0,0d0/)
+          x(:,n) = zmat_z2c(dist,ang*rad,0d0,rel)
           cycle
        end if
 
@@ -8862,8 +9314,9 @@ contains
        if (.not.ok) goto 999
        if (iat(3) < 1 .or. iat(3) >= n) goto 999
 
-       ! calculate the position
-       x(:,n) = zmat_step(x(:,iat(1)),x(:,iat(2)),x(:,iat(3)),dist,ang,dih)
+       ! calculate the position (the Gaussian dihedral has the opposite sign)
+       rel(:,3) = x(:,iat(3))
+       x(:,n) = zmat_z2c(dist,ang*rad,-dih*rad,rel)
     end do main
 
     if (n == 0) then
@@ -8879,61 +9332,6 @@ contains
     errmsg = ""
 999 continue
     call fclose(lu)
-  contains
-    ! Calculate the coordinates of atom number 4 given the coordinates
-    ! of atoms 1, 2 and 3, and the distance 4-1, angle 4-1-2 and dihedral
-    ! 4-1-2-3.
-    function zmat_step(x0_,x1_,x2_,d_,ang_,dieh_)
-      use tools_math, only: cross, matinv, tosphere
-      use param, only: pi
-      real*8, intent(in) :: x0_(3), x1_(3), x2_(3), d_, ang_, dieh_
-      real*8 :: zmat_step(3)
-
-      real*8 :: x0(3), x1(3), x2(3), x2p(3), d, ang, dieh
-      real*8 :: crot(3,3), xaux(3)
-      real*8 :: asph(2), r2, rf, phf, thf, xf(3)
-
-      ! copy the variables for work space
-      x0 = x0_
-      x1 = x1_
-      x2 = x2_
-      d = d_
-      ang = ang_
-      dieh = dieh_
-
-      ! convert to radians
-      ang = ang * pi / 180d0
-      dieh = dieh * pi / 180d0
-
-      ! subtract the origin
-      x1 = x1 - x0
-      x2 = x2 - x0
-
-      ! x1-x0 is aligned to z
-      crot(:,3) = x1 / norm2(x1)
-      xaux = (/0d0,0d0,1d0/)
-      crot(:,1) = cross(x1,xaux)
-      if (abs(norm2(crot(:,1))) < 1d-12) then
-         xaux = (/0d0,1d0,0d0/)
-         crot(:,1) = cross(x1,xaux)
-      end if
-      crot(:,1) = crot(:,1) / norm2(crot(:,1))
-      crot(:,2) = cross(crot(:,3),crot(:,1))
-
-      ! transform x2 b transforming to spherical coordinates and back
-      x2p = matmul(x2,crot)
-      call tosphere(x2p,r2,asph)
-      rf = d
-      phf = 0.5d0 * pi - ang
-      thf = asph(2) + dieh
-      xf(1) = rf * cos(phf) * cos(thf)
-      xf(2) = rf * cos(phf) * sin(thf)
-      xf(3) = rf * sin(phf)
-      call matinv(crot,3)
-      zmat_step = matmul(xf,crot) + x0
-
-    end function zmat_step
-
   end subroutine read_zmat_geometry
 
   !> Determine whether a given output file (.scf.out or .out) comes
@@ -10681,6 +11079,942 @@ contains
     end do
 
   end subroutine gulp_apply_shift
+
+  !> Detect whether a SIESTA fdf file describes a molecule (no lattice
+  !> given). Only the labels and block headers are read.
+  subroutine fdf_detect_ismol(file,ismol,ti)
+    character*(*), intent(in) :: file
+    logical, intent(out) :: ismol
+    type(thread_info), intent(in), optional :: ti
+
+    type(fdf_line), allocatable :: fl(:)
+    character(len=:), allocatable :: errmsg
+    integer :: nl
+
+    ismol = .false.
+    nl = 0
+    errmsg = ""
+    call fdf_read_file(file,fl,nl,0,.false.,errmsg,ti,headonly=.true.)
+    if (len_trim(errmsg) > 0) return
+    ismol = .not.fdf_has_lattice(fl,nl)
+
+  end subroutine fdf_detect_ismol
+
+  ! SIESTA fdf reader helpers
+
+  !> True if the fdf input gives a lattice: a LatticeParameters or
+  !> LatticeVectors block, or a LatticeConstant (a cubic cell).
+  function fdf_has_lattice(fl,nl) result(has)
+    type(fdf_line), intent(in) :: fl(:)
+    integer, intent(in) :: nl
+    logical :: has
+
+    integer :: i0, i1, ntok
+    character(len=:), allocatable :: tok(:), ttype
+
+    has = fdf_block(fl,nl,"LatticeParameters",i0,i1) .or.&
+       fdf_block(fl,nl,"LatticeVectors",i0,i1) .or.&
+       fdf_get(fl,nl,"LatticeConstant",ntok,tok,ttype)
+
+  end function fdf_has_lattice
+
+  !> Read a SIESTA fdf file and append its lines to fl (nl lines in
+  !> use), with comments and blank lines removed and the directives
+  !> expanded as in libfdf: "%include file" inserts the file,
+  !> "%block label < file" takes the whole file as the block body,
+  !> and "label1 label2 ... < file" copies the lines and blocks of
+  !> those labels from the file. Block delimiters are stored as
+  !> "%block label" and "%endblock". depth is the include nesting
+  !> level and inblk0 whether the lines are inside a block. If
+  !> headonly, the block bodies are not stored.
+  recursive subroutine fdf_read_file(file,fl,nl,depth,inblk0,errmsg,ti,headonly)
+    use tools_io, only: fopen_read, fclose, getline_raw, equali
+    character*(*), intent(in) :: file
+    type(fdf_line), allocatable, intent(inout) :: fl(:)
+    integer, intent(inout) :: nl
+    integer, intent(in) :: depth
+    logical, intent(in) :: inblk0
+    character(len=:), allocatable, intent(inout) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+    logical, intent(in), optional :: headonly
+
+    integer :: lu, ntok, i, j, k, nl2, ipos
+    character(len=:), allocatable :: line, tok(:), ttype, file2, key
+    type(fdf_line), allocatable :: fl2(:)
+    logical :: inblk, head
+
+    head = .false.
+    if (present(headonly)) head = headonly
+    if (depth > fdf_maxdepth) then
+       errmsg = "Too many nested fdf includes in: " // trim(file)
+       return
+    end if
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    inblk = inblk0
+    do while (getline_raw(lu,line))
+       line = fdf_strip_comment(line)
+       if (len_trim(line) == 0) cycle
+       if (inblk .and. index(adjustl(line),"%") /= 1) then
+          ! block body (tokenize only the directives)
+          if (.not.head) call fdf_add_line(fl,nl,line,fdf_body)
+          cycle
+       end if
+       call fdf_tokens(line,ntok,tok,ttype)
+       if (ntok == 0) cycle
+
+       if (equali(tok(1),"%include")) then
+          ! include another fdf file
+          if (ntok < 2) then
+             errmsg = "Missing file name in %include: " // trim(file)
+             goto 999
+          end if
+          file2 = fdf_resolve_path(tok(2),file)
+          call fdf_read_file(file2,fl,nl,depth+1,inblk,errmsg,ti,head)
+          if (len_trim(errmsg) > 0) goto 999
+       elseif (equali(tok(1),"%block")) then
+          ! start of a block, possibly with its body in another file
+          if (inblk) then
+             errmsg = "Nested %block in: " // trim(file)
+             goto 999
+          elseif (ntok < 2) then
+             errmsg = "%block without label in: " // trim(file)
+             goto 999
+          end if
+          call fdf_add_line(fl,nl,"%block " // trim(tok(2)),fdf_blockstart,fdf_pack_label(tok(2)))
+          if (ntok >= 4 .and. tok(3) == "<") then
+             if (.not.head) then
+                file2 = fdf_resolve_path(tok(4),file)
+                call fdf_read_raw(file2,fl,nl,errmsg,ti)
+                if (len_trim(errmsg) > 0) goto 999
+             end if
+             call fdf_add_line(fl,nl,"%endblock",fdf_blockend)
+          else
+             inblk = .true.
+          end if
+       elseif (equali(tok(1),"%endblock")) then
+          ! end of a block
+          if (.not.inblk) then
+             errmsg = "%endblock without %block in: " // trim(file)
+             goto 999
+          end if
+          call fdf_add_line(fl,nl,"%endblock",fdf_blockend)
+          inblk = .false.
+       elseif (inblk) then
+          if (.not.head) call fdf_add_line(fl,nl,line,fdf_body)
+       else
+          ipos = 0
+          do i = 1, ntok
+             if (tok(i) == "<") then
+                ipos = i
+                exit
+             end if
+          end do
+          if (ipos == 0) then
+             call fdf_add_line(fl,nl,line,fdf_label,fdf_pack_label(tok(1)))
+          else
+             ! labels read from another file: copy the first label line
+             ! or block with that label
+             if (ipos == 1 .or. ipos == ntok) then
+                errmsg = "Bad '<' in: " // trim(file)
+                goto 999
+             end if
+             file2 = fdf_resolve_path(tok(ipos+1),file)
+             nl2 = 0
+             call fdf_read_file(file2,fl2,nl2,depth+1,.false.,errmsg,ti,head)
+             if (len_trim(errmsg) > 0) goto 999
+             do k = 1, ipos-1
+                key = fdf_pack_label(tok(k))
+                do j = 1, nl2
+                   if (fl2(j)%kind == fdf_label .or. fl2(j)%kind == fdf_blockstart) then
+                      if (fl2(j)%key == key) exit
+                   end if
+                end do
+                if (j > nl2) then
+                   errmsg = "Label " // trim(tok(k)) // " not found in: " // trim(file2)
+                   goto 999
+                end if
+                call fdf_add_line(fl,nl,fl2(j)%s,fl2(j)%kind,fl2(j)%key)
+                if (fl2(j)%kind == fdf_blockstart) then
+                   do j = j+1, nl2
+                      call fdf_add_line(fl,nl,fl2(j)%s,fl2(j)%kind)
+                      if (fl2(j)%kind == fdf_blockend) exit
+                   end do
+                end if
+             end do
+          end if
+       end if
+    end do
+    if (inblk .and. .not.inblk0) then
+       errmsg = "%endblock not found in: " // trim(file)
+       goto 999
+    end if
+
+999 continue
+    call fclose(lu)
+
+  end subroutine fdf_read_file
+
+  !> Append the non-blank lines of a file (comments removed) to fl as
+  !> the body of a block.
+  subroutine fdf_read_raw(file,fl,nl,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw
+    character*(*), intent(in) :: file
+    type(fdf_line), allocatable, intent(inout) :: fl(:)
+    integer, intent(inout) :: nl
+    character(len=:), allocatable, intent(inout) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu
+    character(len=:), allocatable :: line
+
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    do while (getline_raw(lu,line))
+       line = fdf_strip_comment(line)
+       if (len_trim(line) == 0) cycle
+       call fdf_add_line(fl,nl,line,fdf_body)
+    end do
+    call fclose(lu)
+
+  end subroutine fdf_read_raw
+
+  !> Resolve the path of a file referenced from an fdf file. SIESTA
+  !> opens it relative to the working directory of the run, which is
+  !> unknown here: try relative to the directory of the referencing
+  !> file first, then as given, then its base name in the directory
+  !> of the referencing file.
+  function fdf_resolve_path(name,parent) result(path)
+    use param, only: dirsep
+    character*(*), intent(in) :: name
+    character*(*), intent(in) :: parent
+    character(len=:), allocatable :: path
+
+    character(len=:), allocatable :: dir
+    logical :: ex
+
+    path = trim(name)
+    if (path(1:1) == dirsep) return
+    dir = parent(1:index(parent,dirsep,.true.))
+    inquire(file=dir // trim(name),exist=ex)
+    if (ex) then
+       path = dir // trim(name)
+       return
+    end if
+    inquire(file=trim(name),exist=ex)
+    if (ex) return
+    path = dir // name(index(name,dirsep,.true.)+1:len_trim(name))
+    inquire(file=path,exist=ex)
+    if (.not.ex) path = trim(name)
+
+  end function fdf_resolve_path
+
+  !> Append a line of the given kind (fdf_*) and label key to the fdf
+  !> line list.
+  subroutine fdf_add_line(fl,nl,line,kind,key)
+    type(fdf_line), allocatable, intent(inout) :: fl(:)
+    integer, intent(inout) :: nl
+    character*(*), intent(in) :: line
+    integer, intent(in) :: kind
+    character*(*), intent(in), optional :: key
+
+    type(fdf_line), allocatable :: aux(:)
+    integer :: i
+
+    if (.not.allocated(fl)) allocate(fl(100))
+    if (nl >= size(fl,1)) then
+       allocate(aux(2*size(fl,1)))
+       do i = 1, nl
+          call move_alloc(fl(i)%s,aux(i)%s)
+          call move_alloc(fl(i)%key,aux(i)%key)
+          aux(i)%kind = fl(i)%kind
+       end do
+       call move_alloc(aux,fl)
+    end if
+    nl = nl + 1
+    fl(nl)%s = line
+    fl(nl)%kind = kind
+    if (present(key)) then
+       fl(nl)%key = key
+    else
+       fl(nl)%key = ""
+    end if
+
+  end subroutine fdf_add_line
+
+  !> Remove an fdf comment (from the first #, ! or ; outside quotes).
+  function fdf_strip_comment(line) result(res)
+    character*(*), intent(in) :: line
+    character(len=:), allocatable :: res
+
+    integer :: i
+    character*1 :: quote
+
+    quote = " "
+    do i = 1, len(line)
+       if (quote /= " ") then
+          if (line(i:i) == quote) quote = " "
+       elseif (line(i:i) == '"' .or. line(i:i) == "'" .or. line(i:i) == "`") then
+          quote = line(i:i)
+       elseif (line(i:i) == "#" .or. line(i:i) == "!" .or. line(i:i) == ";") then
+          res = line(1:i-1)
+          return
+       end if
+    end do
+    res = line
+
+  end function fdf_strip_comment
+
+  !> Split an fdf line into tokens as libfdf does: token characters
+  !> are letters, digits and $%&*+-./@^_|~: ; quoted strings and
+  !> [...] lists are single tokens; < is a token by itself; any other
+  !> character separates tokens. ttype(i:i) is the class of token i:
+  !> i (integer), r (real) or n (name).
+  subroutine fdf_tokens(line,ntok,tok,ttype)
+    use tools_io, only: isletter, isdigit
+    character*(*), intent(in) :: line
+    integer, intent(out) :: ntok
+    character(len=:), allocatable, intent(out) :: tok(:)
+    character(len=:), allocatable, intent(out) :: ttype
+
+    integer :: i, i0, n
+    character*1 :: c
+
+    character(len=*), parameter :: extra = "$%&*+-./@^_|~:"
+
+    n = len(line)
+    allocate(character(len=max(n,1)) :: tok(n+1))
+    ttype = ""
+    ntok = 0
+    i = 1
+    do while (i <= n)
+       c = line(i:i)
+       if (c == '"' .or. c == "'" .or. c == "`") then
+          i0 = i + 1
+          i = i + 1
+          do while (i <= n)
+             if (line(i:i) == c) exit
+             i = i + 1
+          end do
+          call addtok(line(i0:min(i-1,n)),"n")
+          i = i + 1
+       elseif (c == "[") then
+          i0 = i
+          do while (i <= n)
+             if (line(i:i) == "]") exit
+             i = i + 1
+          end do
+          call addtok(line(i0:min(i,n)),"n")
+          i = i + 1
+       elseif (c == "<") then
+          call addtok("<","n")
+          i = i + 1
+       elseif (istokch(c)) then
+          i0 = i
+          do while (i <= n)
+             if (.not.istokch(line(i:i))) exit
+             i = i + 1
+          end do
+          call addtok(line(i0:i-1),fdf_token_class(line(i0:i-1)))
+       else
+          i = i + 1
+       end if
+    end do
+
+  contains
+    function istokch(ch)
+      character*1, intent(in) :: ch
+      logical :: istokch
+      istokch = isletter(ch) .or. isdigit(ch) .or. index(extra,ch) > 0
+    end function istokch
+    subroutine addtok(str,cls)
+      character*(*), intent(in) :: str
+      character*1, intent(in) :: cls
+      ntok = ntok + 1
+      tok(ntok) = str
+      ttype = ttype // cls
+    end subroutine addtok
+  end subroutine fdf_tokens
+
+  !> Class of an fdf token (libfdf morphol): i if an integer (optional
+  !> sign and digits), r if a real (optional sign, digits with at most
+  !> one period, optional exponent), n otherwise.
+  function fdf_token_class(str) result(cls)
+    use tools_io, only: isdigit
+    character*(*), intent(in) :: str
+    character*1 :: cls
+
+    integer :: i, n, ndig
+    logical :: haveperiod
+
+    cls = "n"
+    n = len(str)
+    i = 1
+    if (str(1:1) == "+" .or. str(1:1) == "-") i = 2
+    ndig = 0
+    haveperiod = .false.
+    do while (i <= n)
+       if (isdigit(str(i:i))) then
+          ndig = ndig + 1
+       elseif (str(i:i) == "." .and. .not.haveperiod) then
+          haveperiod = .true.
+       else
+          exit
+       end if
+       i = i + 1
+    end do
+    if (ndig == 0) return
+    if (i > n) then
+       if (haveperiod) then
+          cls = "r"
+       else
+          cls = "i"
+       end if
+       return
+    end if
+
+    ! exponent
+    if (index("eEdD",str(i:i)) == 0) return
+    i = i + 1
+    if (i > n) return
+    if (str(i:i) == "+" .or. str(i:i) == "-") i = i + 1
+    if (i > n) return
+    do while (i <= n)
+       if (.not.isdigit(str(i:i))) return
+       i = i + 1
+    end do
+    cls = "r"
+
+  end function fdf_token_class
+
+  !> Normalized fdf label for comparisons: lowercase, without _ . and -.
+  function fdf_pack_label(s) result(r)
+    use tools_io, only: lower
+    character*(*), intent(in) :: s
+    character(len=:), allocatable :: r
+
+    integer :: i
+
+    r = ""
+    do i = 1, len_trim(s)
+       if (index("_.-",s(i:i)) == 0) r = r // s(i:i)
+    end do
+    r = lower(r)
+
+  end function fdf_pack_label
+
+  !> Find the first occurrence of a label outside blocks. Returns the
+  !> tokens that follow the label.
+  function fdf_get(fl,nl,label,ntok,tok,ttype) result(found)
+    type(fdf_line), intent(in) :: fl(:)
+    integer, intent(in) :: nl
+    character*(*), intent(in) :: label
+    integer, intent(out) :: ntok
+    character(len=:), allocatable, intent(out) :: tok(:)
+    character(len=:), allocatable, intent(out) :: ttype
+    logical :: found
+
+    integer :: i
+    character(len=:), allocatable :: key
+
+    found = .false.
+    ntok = 0
+    ttype = ""
+    key = fdf_pack_label(label)
+    do i = 1, nl
+       if (fl(i)%kind /= fdf_label) cycle
+       if (fl(i)%key == key) then
+          found = .true.
+          call fdf_tokens(fl(i)%s,ntok,tok,ttype)
+          tok(1:ntok-1) = tok(2:ntok)
+          ttype = ttype(2:)
+          ntok = ntok - 1
+          return
+       end if
+    end do
+
+  end function fdf_get
+
+  !> Find the first block with the given label. Returns the range of
+  !> lines in the block body (i1 < i0 if empty).
+  function fdf_block(fl,nl,label,i0,i1) result(found)
+    type(fdf_line), intent(in) :: fl(:)
+    integer, intent(in) :: nl
+    character*(*), intent(in) :: label
+    integer, intent(out) :: i0, i1
+    logical :: found
+
+    integer :: i
+    character(len=:), allocatable :: key
+
+    found = .false.
+    i0 = 1
+    i1 = 0
+    key = fdf_pack_label(label)
+    do i = 1, nl
+       if (fl(i)%kind /= fdf_blockstart) cycle
+       if (fl(i)%key == key) then
+          found = .true.
+          i0 = i + 1
+          i1 = i
+          do while (i1 + 1 <= nl)
+             if (fl(i1+1)%kind /= fdf_body) exit
+             i1 = i1 + 1
+          end do
+          return
+       end if
+    end do
+
+  end function fdf_block
+
+  !> The numbers (integer and real tokens) in an fdf line.
+  subroutine fdf_numbers(line,nv,x)
+    character*(*), intent(in) :: line
+    integer, intent(out) :: nv
+    real*8, intent(out) :: x(:)
+
+    integer :: ntok, i
+    character(len=:), allocatable :: tok(:), ttype
+
+    nv = 0
+    x = 0d0
+    call fdf_tokens(line,ntok,tok,ttype)
+    do i = 1, ntok
+       if (ttype(i:i) /= "i" .and. ttype(i:i) /= "r") cycle
+       if (nv >= size(x,1)) exit
+       nv = nv + 1
+       read (tok(i),*) x(nv)
+    end do
+
+  end subroutine fdf_numbers
+
+  !> Read a 3x3 matrix from the first three lines (i0:i1) of an fdf
+  !> block body, one column per line. Returns .false. if there are
+  !> fewer than three lines or three numbers in a line.
+  function fdf_block_mat3(fl,i0,i1,m) result(ok)
+    type(fdf_line), intent(in) :: fl(:)
+    integer, intent(in) :: i0, i1
+    real*8, intent(out) :: m(3,3)
+    logical :: ok
+
+    integer :: i, nv
+    real*8 :: xx(3)
+
+    ok = .false.
+    m = 0d0
+    if (i1 - i0 + 1 < 3) return
+    do i = 1, 3
+       call fdf_numbers(fl(i0+i-1)%s,nv,xx)
+       if (nv < 3) return
+       m(:,i) = xx
+    end do
+    ok = .true.
+
+  end function fdf_block_mat3
+
+  !> Read a length (value and unit) from an fdf label and convert it
+  !> to bohr. x is unchanged if the label is not present. Returns
+  !> .false. and an error message if the value or the unit is
+  !> missing or unknown (SIESTA stops in those cases).
+  function fdf_length(fl,nl,label,x,errmsg) result(ok)
+    use tools_io, only: lower
+    use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm, bohrtopm
+    type(fdf_line), intent(in) :: fl(:)
+    integer, intent(in) :: nl
+    character*(*), intent(in) :: label
+    real*8, intent(inout) :: x
+    character(len=:), allocatable, intent(inout) :: errmsg
+    logical :: ok
+
+    integer :: ntok
+    character(len=:), allocatable :: tok(:), ttype, unit
+    real*8 :: val, fac
+
+    ok = .true.
+    if (.not.fdf_get(fl,nl,label,ntok,tok,ttype)) return
+    ok = .false.
+    if (ntok < 1) then
+       errmsg = "No value for " // label
+       return
+    elseif (index("ir",ttype(1:1)) == 0) then
+       errmsg = "No value for " // label
+       return
+    elseif (ntok < 2) then
+       errmsg = "No unit for " // label
+       return
+    end if
+    read (tok(1),*) val
+
+    ! unit, with an optional dimension prefix (length:ang)
+    unit = lower(trim(tok(2)))
+    unit = unit(index(unit,":")+1:)
+    if (unit == "bohr") then
+       fac = 1d0
+    elseif (unit == "ang" .or. unit == "angstrom") then
+       fac = 1d0 / bohrtoa
+    elseif (unit == "nm") then
+       fac = 1d0 / bohrtonm
+    elseif (unit == "pm") then
+       fac = 1d0 / bohrtopm
+    elseif (unit == "cm") then
+       fac = 1d0 / bohrtocm
+    elseif (unit == "m") then
+       fac = 1d0 / bohrtom
+    else
+       errmsg = "Unknown length unit for " // label // ": " // trim(tok(2))
+       return
+    end if
+    x = val * fac
+    ok = .true.
+
+  end function fdf_length
+
+  !> Cartesian coordinates (bohr, xa) and species (isa) of the nat
+  !> atoms in the body of a SIESTA Zmatrix block (lines i0:i1 of fl),
+  !> following zmatrix.F: molecule sections (first atom Cartesian,
+  !> second spherical around the first, then bond/angle/torsion),
+  !> cartesian, scaled and fractional sections, and symbols defined
+  !> in the constants, variables and constraints sections.
+  subroutine fdf_zmatrix(fl,nl,i0,i1,alat,cell,explicit_origin,origin,nat,xa,isa,errmsg)
+    use tools_io, only: lower, equali, string
+    use param, only: bohrtoa, pi, rad
+    use tools_math, only: det3
+    use types, only: realloc
+    type(fdf_line), intent(in) :: fl(:)
+    integer, intent(in) :: nl, i0, i1
+    real*8, intent(in) :: alat, cell(3,3)
+    logical, intent(in) :: explicit_origin
+    real*8, intent(in) :: origin(3)
+    integer, intent(out) :: nat
+    real*8, allocatable, intent(out) :: xa(:,:)
+    integer, allocatable, intent(out) :: isa(:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: i, j, k, l, ntok, itype, iunits, nstart, nsym, ia, a, ioff
+    integer, allocatable :: iz(:,:), ztype(:,:), zsym(:,:), molstart(:)
+    real*8, allocatable :: zm(:,:), symval(:)
+    logical, allocatable :: symdef(:)
+    character(len=:), allocatable :: tok(:), ttype, lline
+    character*64, allocatable :: symname(:)
+    logical :: isang, isdeg, unknown_cell
+    real*8 :: rel(3,3), phiref, aa, bb
+
+    ! units
+    isang = .false.
+    if (fdf_get(fl,nl,"ZM.UnitsLength",ntok,tok,ttype)) then
+       if (ntok > 0) then
+          if (equali(tok(1),"ang") .or. equali(tok(1),"angstrom")) then
+             isang = .true.
+          elseif (.not.equali(tok(1),"bohr")) then
+             errmsg = "Invalid ZM.UnitsLength: " // trim(tok(1))
+             return
+          end if
+       end if
+    end if
+    isdeg = .false.
+    if (fdf_get(fl,nl,"ZM.UnitsAngle",ntok,tok,ttype)) then
+       if (ntok > 0) then
+          if (equali(tok(1),"deg") .or. equali(tok(1),"degrees")) then
+             isdeg = .true.
+          elseif (.not.equali(tok(1),"rad") .and. .not.equali(tok(1),"radians")) then
+             errmsg = "Invalid ZM.UnitsAngle: " // trim(tok(1))
+             return
+          end if
+       end if
+    end if
+    unknown_cell = (abs(det3(cell)) < 1d-6)
+
+    ! parse the block; per atom: references (iz), values (zm), symbol
+    ! indices (zsym), coordinate types (ztype) and the first atom of its
+    ! molecule (molstart, 0 for Cartesian sections)
+    k = max(i1 - i0 + 1,1)
+    allocate(iz(3,k),ztype(3,k),zsym(3,k),molstart(k),zm(3,k),symval(3*k),symdef(3*k),symname(3*k))
+    iz = 0
+    ztype = 0
+    zsym = 0
+    molstart = 0
+    zm = 0d0
+    symdef = .false.
+    nsym = 0
+    nat = 0
+    itype = -1
+    iunits = 0
+    nstart = 0
+    allocate(isa(k))
+    do l = i0, i1
+       lline = lower(fl(l)%s)
+       call fdf_tokens(fl(l)%s,ntok,tok,ttype)
+       if (index(lline,"molecule") > 0) then
+          itype = 0
+          nstart = nat + 1
+          iunits = 0
+          if (index(lline,"scale") > 0) then
+             iunits = 1
+          elseif (index(lline,"frac") > 0) then
+             iunits = 2
+          end if
+       elseif (index(lline,"cart") > 0) then
+          itype = 1
+          iunits = 0
+       elseif (index(lline,"scale") > 0) then
+          itype = 1
+          iunits = 1
+       elseif (index(lline,"frac") > 0) then
+          itype = 1
+          iunits = 2
+       elseif (index(lline,"constant") > 0) then
+          itype = 2
+       elseif (index(lline,"variable") > 0) then
+          itype = 3
+       elseif (index(lline,"constraint") > 0) then
+          itype = 4
+       elseif (itype == 0 .or. itype == 1) then
+          ! an atom: species, references (molecule), and three values or symbols
+          ioff = 4 - 3 * itype
+          if (ntok < ioff + 3 .or. verify(ttype(1:ioff),"i") /= 0) then
+             errmsg = "Error in Zmatrix line: " // trim(fl(l)%s)
+             return
+          end if
+          nat = nat + 1
+          read (tok(1),*) isa(nat)
+          if (itype == 0) then
+             molstart(nat) = nstart
+             do j = 1, 3
+                read (tok(j+1),*) iz(j,nat)
+                iz(j,nat) = iz(j,nat) + nstart - 1
+             end do
+             if (nat == nstart) then
+                ztype(:,nat) = 3 + iunits
+             else
+                ztype(:,nat) = (/2,1,1/)
+             end if
+          else
+             ztype(:,nat) = 6 + iunits
+          end if
+          do j = 1, 3
+             if (ttype(ioff+j:ioff+j) == "n") then
+                zsym(j,nat) = findsym(tok(ioff+j),.true.)
+             else
+                read (tok(ioff+j),*) zm(j,nat)
+             end if
+          end do
+       elseif (itype == 2 .or. itype == 3) then
+          ! constant or variable value
+          if (ntok < 2 .or. ttype(1:1) /= "n" .or. ttype(2:2) == "n") then
+             errmsg = "Error in Zmatrix line: " // trim(fl(l)%s)
+             return
+          end if
+          i = findsym(tok(1),.false.)
+          if (i == 0) then
+             errmsg = "Unknown Zmatrix symbol: " // trim(tok(1))
+             return
+          elseif (symdef(i)) then
+             errmsg = "Zmatrix symbol defined more than once: " // trim(tok(1))
+             return
+          end if
+          read (tok(2),*) symval(i)
+          symdef(i) = .true.
+       elseif (itype == 4) then
+          ! constraint: var1 = A * var2 + B
+          if (ntok < 4 .or. ttype(1:2) /= "nn" .or. ttype(3:3) == "n" .or. ttype(4:4) == "n") then
+             errmsg = "Error in Zmatrix line: " // trim(fl(l)%s)
+             return
+          end if
+          i = findsym(tok(1),.false.)
+          j = findsym(tok(2),.false.)
+          if (i == 0 .or. j == 0) then
+             errmsg = "Unknown Zmatrix symbol in constraint: " // trim(fl(l)%s)
+             return
+          elseif (symdef(i)) then
+             errmsg = "Zmatrix symbol defined more than once: " // trim(tok(1))
+             return
+          elseif (.not.symdef(j)) then
+             errmsg = "Zmatrix constraint depends on an undefined symbol: " // trim(tok(2))
+             return
+          end if
+          read (tok(3),*) aa
+          read (tok(4),*) bb
+          if (aa == 0d0) then
+             errmsg = "Zmatrix constraint with zero coefficient: " // trim(fl(l)%s)
+             return
+          end if
+          symval(i) = aa * symval(j) + bb
+          symdef(i) = .true.
+       else
+          errmsg = "Zmatrix data outside a section: " // trim(fl(l)%s)
+          return
+       end if
+       if ((itype == 0 .or. itype == 1) .and. iunits == 2 .and. unknown_cell) then
+          errmsg = "Fractional Zmatrix coordinates require a unit cell"
+          return
+       end if
+    end do
+    if (nat == 0) then
+       errmsg = "No atoms found in Zmatrix"
+       return
+    end if
+    do i = 1, nsym
+       if (.not.symdef(i)) then
+          errmsg = "Zmatrix symbol has no value: " // trim(symname(i))
+          return
+       end if
+    end do
+
+    ! values, scaled to bohr and radians
+    do ia = 1, nat
+       do j = 1, 3
+          if (zsym(j,ia) > 0) zm(j,ia) = symval(zsym(j,ia))
+          if (ztype(j,ia) == 1) then
+             if (isdeg) zm(j,ia) = zm(j,ia) * rad
+          elseif (ztype(j,ia) == 2 .or. ztype(j,ia) == 3 .or. ztype(j,ia) == 6) then
+             if (isang) zm(j,ia) = zm(j,ia) / bohrtoa
+          elseif (ztype(j,ia) == 4 .or. ztype(j,ia) == 7) then
+             zm(j,ia) = zm(j,ia) * alat
+          end if
+       end do
+       if ((ztype(3,ia) == 3 .or. ztype(3,ia) == 6) .and. explicit_origin) &
+          zm(:,ia) = zm(:,ia) + origin
+       if (ztype(3,ia) == 5 .or. ztype(3,ia) == 8) &
+          zm(:,ia) = matmul(cell,zm(:,ia))
+    end do
+
+    ! check the references in each molecule
+    do ia = 1, nat
+       if (molstart(ia) == 0) cycle
+       a = ia - molstart(ia)
+       if (a == 1) then
+          if (iz(1,ia) /= molstart(ia)) goto 998
+       elseif (a == 2) then
+          if (.not.(iz(1,ia) == molstart(ia) .and. iz(2,ia) == molstart(ia)+1 .or.&
+             iz(2,ia) == molstart(ia) .and. iz(1,ia) == molstart(ia)+1)) goto 998
+       elseif (a > 2) then
+          if (any(iz(:,ia) < molstart(ia)) .or. any(iz(:,ia) > ia-1)) goto 998
+          if (iz(1,ia) == iz(2,ia) .or. iz(2,ia) == iz(3,ia) .or. iz(3,ia) == iz(1,ia)) goto 998
+       end if
+    end do
+
+    ! Cartesian coordinates (Zmat_to_Cartesian)
+    allocate(xa(3,nat))
+    call realloc(isa,nat)
+    do ia = 1, nat
+       a = ia - molstart(ia)
+       if (molstart(ia) == 0 .or. a == 0) then
+          ! Cartesian section or first atom of a molecule
+          xa(:,ia) = zm(:,ia)
+       elseif (a == 1) then
+          xa(1,ia) = zm(1,ia) * sin(zm(2,ia)) * cos(zm(3,ia))
+          xa(2,ia) = zm(1,ia) * sin(zm(2,ia)) * sin(zm(3,ia))
+          xa(3,ia) = zm(1,ia) * cos(zm(2,ia))
+          xa(:,ia) = xa(:,ia) + xa(:,iz(1,ia))
+       else
+          rel(:,1) = xa(:,iz(1,ia))
+          rel(:,2) = xa(:,iz(2,ia))
+          if (a == 2) then
+             ! the torsion refers to a dummy atom 1 bohr above in z
+             if (ztype(3,iz(1,ia)) == 1) then
+                phiref = zm(3,iz(1,ia))
+             else
+                phiref = zm(3,iz(2,ia)) - pi
+             end if
+             xa(:,ia) = zmat_third_atom(zm(:,ia),rel,phiref)
+          else
+             rel(:,3) = xa(:,iz(3,ia))
+             xa(:,ia) = zmat_z2c(zm(1,ia),zm(2,ia),zm(3,ia),rel)
+          end if
+       end if
+    end do
+    return
+
+998 continue
+    errmsg = "Ill-defined Zmatrix at atom " // string(ia)
+
+  contains
+    ! Index of a symbol in the table (case-insensitive). If add, add it
+    ! when not found; otherwise return 0.
+    function findsym(name,add) result(idx)
+      character*(*), intent(in) :: name
+      logical, intent(in) :: add
+      integer :: idx
+      do idx = 1, nsym
+         if (equali(symname(idx),name)) return
+      end do
+      idx = 0
+      if (.not.add) return
+      nsym = nsym + 1
+      symname(nsym) = name
+      idx = nsym
+    end function findsym
+  end subroutine fdf_zmatrix
+
+  !> Position of the third atom of a SIESTA Z-matrix molecule
+  !> (zmatrix.F Z2CGen). zm = (r,theta,phi), rel(:,1) = atom it binds
+  !> to, rel(:,2) = the other reference atom, phiref = azimuth used
+  !> when the i-j bond has no xy component.
+  function zmat_third_atom(zm,rel,phiref) result(x)
+    use param, only: pi
+    use tools_math, only: axisangle2mat
+    real*8, intent(in) :: zm(3), rel(3,3), phiref
+    real*8 :: x(3)
+
+    real*8 :: r2(3), r2mod, theta1, phi1, rr(3,3), uvec(3)
+    real*8, parameter :: ex(3) = (/1d0,0d0,0d0/), ez(3) = (/0d0,0d0,1d0/)
+
+    r2 = rel(:,1) - rel(:,2)
+    r2mod = norm2(r2)
+    theta1 = acos(r2(3) / r2mod)
+    if (abs(r2(2)) > 1d-8 .and. abs(r2(1)) > 1d-8) then
+       phi1 = atan2(r2(2),r2(1))
+    else
+       phi1 = phiref
+    end if
+
+    ! reduced frame: bonded atom on x, the other at the origin, dummy above in z
+    rr(:,1) = r2mod * ex
+    rr(:,2) = 0d0
+    rr(:,3) = rr(:,1) + ez
+    x = zmat_z2c(zm(1),zm(2),zm(3),rr)
+
+    ! rotate back and translate
+    x = matmul(axisangle2mat(ez,phi1),x)
+    uvec = matmul(axisangle2mat(ez,phi1 - 0.5d0 * pi),ex)
+    x = matmul(axisangle2mat(uvec,0.5d0 * pi - theta1),x)
+    x = x + rel(:,2)
+
+  end function zmat_third_atom
+
+  !> Cartesian position from a Z-matrix entry (SIESTA zmatrix.F Z2C):
+  !> r is the distance to atom i = rel(:,1), theta the angle with j =
+  !> rel(:,2) at vertex i, and phi the torsion with k = rel(:,3), in
+  !> radians. The SIESTA torsion is the negative of the usual
+  !> (Gaussian) dihedral. If k is on the i-j line, the torsion
+  !> reference is an arbitrary perpendicular direction.
+  function zmat_z2c(r,theta,phi,rel) result(x)
+    use tools_math, only: cross, perpendicular
+    real*8, intent(in) :: r, theta, phi, rel(3,3)
+    real*8 :: x(3)
+
+    real*8 :: vji(3), vki(3), vn(3), vp(3)
+
+    vji = rel(:,1) - rel(:,2)
+    vji = vji / norm2(vji)
+    vki = rel(:,3) - rel(:,2)
+    vn = cross(vji,vki)
+    if (norm2(vn) < 1d-10) then
+       vn = perpendicular(vji)
+    else
+       vn = vn / norm2(vn)
+    end if
+    vp = cross(vn,vji)
+    x = rel(:,1) - r*cos(theta)*vji + r*sin(theta)*sin(phi)*vn + r*sin(theta)*cos(phi)*vp
+
+  end function zmat_z2c
 
   !> Convert an interim structure record into a crystal seed. The
   !> record fields select the policies: species (spcmode), length

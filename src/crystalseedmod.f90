@@ -104,6 +104,7 @@ module crystalseedmod
      procedure :: read_crystalout
      procedure :: read_fploout
      procedure :: read_siesta
+     procedure :: read_fdf
      procedure :: read_castep_cell
      procedure :: read_castep_geom
      procedure :: read_castep_phonon
@@ -358,6 +359,13 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_siesta
+     module subroutine read_fdf(seed,file,mol,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_fdf
      module subroutine read_castep_cell(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

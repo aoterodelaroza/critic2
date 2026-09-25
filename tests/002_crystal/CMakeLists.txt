@@ -42,6 +42,7 @@ set(TESTS
   041_crystal_xband        ## from an xband sys file
   042_crystal_gulpin       ## from a GULP input file
   043_crystal_gulpout      ## from a GULP output file
+  044_crystal_fdf          ## from a SIESTA fdf input file
   )
 
 runtests(${TESTS})

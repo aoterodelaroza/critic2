@@ -47,7 +47,7 @@ contains
        isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb, isformat_r_zmat,&
        isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_castepphonon,&
        isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin, isformat_r_gulpout,&
-       isformat_r_unknown
+       isformat_r_fdf, isformat_r_unknown
     use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -119,6 +119,8 @@ contains
        isformat = isformat_r_gaussian
     elseif (equal(lword,'siesta')) then
        isformat = isformat_r_siesta
+    elseif (equal(lword,'fdf')) then
+       isformat = isformat_r_fdf
     elseif (equal(lword,'cell')) then
        isformat = isformat_r_castepcell
     elseif (equal(lword,'phonon')) then
@@ -339,6 +341,9 @@ contains
 
     elseif (isformat == isformat_r_siesta) then
        call seed%read_siesta(word,mol,errmsg)
+
+    elseif (isformat == isformat_r_fdf) then
+       call seed%read_fdf(word,mol,errmsg)
 
     elseif (isformat == isformat_r_castepcell) then
        call seed%read_castep_cell(word,mol,errmsg)
