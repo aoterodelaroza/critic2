@@ -2638,7 +2638,7 @@ contains
       if (sh%kind == shapekind_box) then
          do k = 1, 3
             xdsp = pos_to_display(sh%x1 + sh%v(:,k))
-            ch = iw_dragfloat_real8("Axis " // string(k) // " end##shapeend" // string(k),&
+            ch = iw_dragfloat_real8("Axis-" // string(k) // " end##shapeend" // string(k),&
                x3=xdsp,speed=0.001d0,decimal=ndec,notlive=.true.)
             if (ch) sh%v(:,k) = pos_from_display(xdsp) - sh%x1
             call iw_tooltip("End point of axis " // string(k) // " of the box, i.e. the corner &
@@ -2672,9 +2672,8 @@ contains
       end if
       ch = iw_dragfloat_real8(str1,x1=sh%rad,speed=0.002d0,min=0d0,max=20d0,scale=bohrtoa,&
          decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-      call iw_tooltip("Radius of the sphere; for the other kinds, the width across: the &
-         &thickness of the box edges or of the cylinder and the arrow shaft, or the width of &
-         &the base of the cone",ttshown)
+      call iw_tooltip("Radius of the sphere, thickness of the box edges or of the cylinder &
+         &and the arrow shaft, or width of the base of the cone",ttshown)
       changed = changed .or. ch
 
       ! the arrowhead
@@ -2699,7 +2698,7 @@ contains
          ch = iw_dragfloat_realc("Opacity##shapealpha",x1=sh%alpha,speed=0.01_c_float,&
             min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,&
             flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Opacity of the sphere, or of the faces of the box (0 = wireframe only)",ttshown)
+         call iw_tooltip("Opacity of the object",ttshown)
          changed = changed .or. ch
       end if
     end associate
