@@ -146,11 +146,8 @@ module scenes
      procedure :: set_kind_shown => scene_set_kind_shown
      procedure :: set_style => scene_set_style
      procedure :: reap_transient_representations => scene_reap_transient_representations
-     procedure :: show_transient_axes => scene_show_transient_axes
-     procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
+     procedure :: show_transient_shapes => scene_show_transient_shapes
      procedure :: show_transient_vibarrows => scene_show_transient_vibarrows
-     procedure :: show_transient_sphere => scene_show_transient_sphere
-     procedure :: show_transient_box => scene_show_transient_box
      procedure :: show_transient_text => scene_show_transient_text
      procedure :: show_transient_symelems => scene_show_transient_symelems
      procedure :: show_transient_iso => scene_show_transient_iso
@@ -271,41 +268,12 @@ module scenes
      module subroutine scene_reap_transient_representations(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reap_transient_representations
-     module subroutine scene_show_transient_axes(s,owner,tag,xcom,rot,axlen)
+     module subroutine scene_show_transient_shapes(s,owner,tag,shp)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner
        integer, intent(in) :: tag
-       real*8, intent(in) :: xcom(3)
-       real*8, intent(in) :: rot(3,3)
-       real*8, intent(in) :: axlen
-     end subroutine scene_show_transient_axes
-     module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb,alpha)
-       class(scene), intent(inout), target :: s
-       integer, intent(in) :: owner
-       integer, intent(in) :: tag
-       real*8, intent(in) :: x0(3)
-       real*8, intent(in) :: v(3,3)
-       real*8, intent(in) :: rad
-       real(c_float), intent(in) :: rgb(3)
-       real(c_float), intent(in), optional :: alpha
-     end subroutine scene_show_transient_box
-     module subroutine scene_show_transient_sphere(s,owner,tag,x0,rad,rgb,alpha)
-       class(scene), intent(inout), target :: s
-       integer, intent(in) :: owner
-       integer, intent(in) :: tag
-       real*8, intent(in) :: x0(3)
-       real*8, intent(in) :: rad
-       real(c_float), intent(in) :: rgb(3)
-       real(c_float), intent(in), optional :: alpha
-     end subroutine scene_show_transient_sphere
-     module subroutine scene_show_transient_rotaxis(s,owner,tag,xcom,rotdir,rotlen)
-       class(scene), intent(inout), target :: s
-       integer, intent(in) :: owner
-       integer, intent(in) :: tag
-       real*8, intent(in) :: xcom(3)
-       real*8, intent(in) :: rotdir(3)
-       real*8, intent(in) :: rotlen
-     end subroutine scene_show_transient_rotaxis
+       type(rep_shape), intent(in) :: shp(:)
+     end subroutine scene_show_transient_shapes
      module subroutine scene_show_transient_vibarrows(s,owner,tag)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner

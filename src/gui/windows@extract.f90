@@ -74,6 +74,7 @@ contains
     use tools_io, only: string, uout
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use param, only: pi, eye
+    use representations, only: rep_shape, shapekind_sphere, shapekind_box
     class(window), intent(inout), target :: w
 
     character(len=*,kind=c_char), parameter :: ttnx = &
@@ -243,13 +244,14 @@ contains
        end if
 
        ! transient marker at the center while hovering the Pick button,
-       ! hovering/dragging the coordinates, or picking; show_transient_sphere
+       ! hovering/dragging the coordinates, or picking; show_transient_shapes
        ! takes the absolute Cartesian frame (with molx0 for molecules); radius
        ! scaled to the scene so it is visible
        if ((hovered .or. w%extract_picking) .and. .not.doquit) then
           if (sysc(isys)%sc%isinit /= 0) then
              rad = min(max(0.05d0 * real(sysc(isys)%sc%scenerad,8),center_radmin),center_radmax)
-             call sysc(isys)%sc%show_transient_sphere(w%id,1,center_to_cart(),rad,center_rgb,center_alpha)
+             call sysc(isys)%sc%show_transient_shapes(w%id,1,(/rep_shape(kind=shapekind_sphere,&
+                x1=center_to_cart(),rad=rad,rgb=center_rgb,alpha=center_alpha)/))
           end if
        end if
     end if
@@ -259,8 +261,8 @@ contains
     if (.not.doquit) then
        if (sysc(isys)%sc%isinit /= 0) then
           if (w%extract_region == er_sphere) then
-             call sysc(isys)%sc%show_transient_sphere(w%id,2,center_to_cart(),&
-                real(w%extract_rsph,8)/bohrtoa,region_rgb,region_alpha)
+             call sysc(isys)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_sphere,&
+                x1=center_to_cart(),rad=real(w%extract_rsph,8)/bohrtoa,rgb=region_rgb,alpha=region_alpha)/))
           else
              if (w%extract_region == er_cube) then
                 ! axis-aligned box of side 2*half-edge, centered on the region center
@@ -276,7 +278,8 @@ contains
                 x0 = 0d0
                 if (ismol) x0 = sys(isys)%c%molx0
              end if
-             call sysc(isys)%sc%show_transient_box(w%id,2,x0,vbox,region_edgerad,region_rgb,region_alpha)
+             call sysc(isys)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_box,&
+                x1=x0,v=vbox,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
           end if
        end if
     end if

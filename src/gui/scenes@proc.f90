@@ -2398,117 +2398,48 @@ contains
 
   end subroutine scene_reap_transient_representations
 
-  !> Show a transient set of standard-orientation axes at the Cartesian
-  !> (bohr) point xcom, oriented by the rotation matrix rot (columns are
-  !> the axis directions), with each axis of length axlen. The axes are
-  !> identified by (owner,tag); tag identifies the content (e.g. the
-  !> molecule index) so that re-hovering the same item just keeps the axes
-  !> alive without rebuilding the draw lists.
-  module subroutine scene_show_transient_axes(s,owner,tag,xcom,rot,axlen)
-    use representations, only: reptype_axes, repflavor_axes
+  !> Show the geometric shapes shp (in the absolute frame: Cartesian bohr,
+  !> including the molecular origin molx0 for molecules) as a transient
+  !> shapes representation identified by (owner,tag). The draw lists are
+  !> rebuilt only if the representation is new or the list changed. A single
+  !> shape is passed as (/shp/).
+  module subroutine scene_show_transient_shapes(s,owner,tag,shp)
+    use representations, only: reptype_shapes, repflavor_shapes, shape_differs
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
-    real*8, intent(in) :: xcom(3)
-    real*8, intent(in) :: rot(3,3)
-    real*8, intent(in) :: axlen
+    type(rep_shape), intent(in) :: shp(:)
 
-    integer :: id
-    logical :: found
+    integer :: id, i, n
+    logical :: found, changed
 
-    id = transient_slot(s,owner,tag,reptype_axes,repflavor_axes,found)
+    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
     if (id <= 0) return
+    n = size(shp,1)
 
-    ! static configuration, stamped when the item is (re)created
-    if (.not.found) then
-       s%reptrans(id)%axes%placement = 0 ! drawn in world space (not window-anchored)
-       s%reptrans(id)%axes%coordtype = 2 ! origin in cartesian (bohr)
-       s%reptrans(id)%axes%kind = 0 ! cartesian base directions, reoriented by axes_rot
-       s%reptrans(id)%axes%showlabels = .false.
-       s%reptrans(id)%axes%scale_auto = .false.
-    end if
+    associate (sh => s%reptrans(id)%shapes)
+      ! change detection for an existing slot (a new/retagged one is already dirty)
+      if (found) then
+         changed = (sh%nshape /= n)
+         if (.not.changed) then
+            do i = 1, n
+               changed = shape_differs(sh%shape(i),shp(i))
+               if (changed) exit
+            end do
+         end if
+         if (.not.changed) return
+         call transient_dirty(s)
+      end if
 
-    ! the transform is refreshed on every call so the axes track the molecule
-    ! as it is dragged (rotated/translated); no list rebuild needed for that
-    s%reptrans(id)%axes%origin = xcom
-    s%reptrans(id)%axes%rot = rot ! orient along the molecule's principal axes
-    s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
+      if (allocated(sh%shape)) then
+         if (size(sh%shape,1) < n) deallocate(sh%shape)
+      end if
+      if (.not.allocated(sh%shape)) allocate(sh%shape(max(n,1)))
+      sh%shape(1:n) = shp
+      sh%nshape = n
+    end associate
 
-  end subroutine scene_show_transient_axes
-
-  !> Show a transient box: the parallelepiped with one corner at the
-  !> Cartesian (bohr) point x0, given in the absolute frame, spanned by the
-  !> three edge vectors v(:,1..3). rad is the thickness of the edges, which
-  !> are always opaque (they are drawn as flat cylinders, and those are
-  !> packed with alpha = 1). alpha is the opacity of the six faces; omit it
-  !> (or pass 0) for a bare wireframe. Identified by (owner,tag).
-  module subroutine scene_show_transient_box(s,owner,tag,x0,v,rad,rgb,alpha)
-    use representations, only: rep_shape, shapekind_box
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
-    integer, intent(in) :: tag
-    real*8, intent(in) :: x0(3)
-    real*8, intent(in) :: v(3,3)
-    real*8, intent(in) :: rad
-    real(c_float), intent(in) :: rgb(3)
-    real(c_float), intent(in), optional :: alpha
-
-    real(c_float) :: alpha_
-
-    alpha_ = 0._c_float
-    if (present(alpha)) alpha_ = alpha
-
-    call transient_set_shape(s,owner,tag,&
-       rep_shape(kind=shapekind_box,x1=x0,v=v,rad=rad,rgb=rgb,alpha=alpha_))
-
-  end subroutine scene_show_transient_box
-
-  !> Show a transient sphere of radius rad (bohr) and color rgb at the
-  !> Cartesian (bohr) point x0, given in the absolute frame (for
-  !> molecules, including the molecular origin molx0). alpha is the
-  !> opacity (default 1 = opaque). The sphere is identified by (owner,tag).
-  module subroutine scene_show_transient_sphere(s,owner,tag,x0,rad,rgb,alpha)
-    use representations, only: rep_shape, shapekind_sphere
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
-    integer, intent(in) :: tag
-    real*8, intent(in) :: x0(3)
-    real*8, intent(in) :: rad
-    real(c_float), intent(in) :: rgb(3)
-    real(c_float), intent(in), optional :: alpha
-
-    real(c_float) :: alpha_
-
-    alpha_ = 1._c_float
-    if (present(alpha)) alpha_ = alpha
-
-    call transient_set_shape(s,owner,tag,&
-       rep_shape(kind=shapekind_sphere,x1=x0,rad=rad,rgb=rgb,alpha=alpha_))
-
-  end subroutine scene_show_transient_sphere
-
-  !> Show a transient black cylinder marking the rotation axis rotdir
-  !> (cartesian unit vector, bohr) through the center of mass xcom, with
-  !> half-length rotlen. The cylinder is identified by (owner,tag).
-  module subroutine scene_show_transient_rotaxis(s,owner,tag,xcom,rotdir,rotlen)
-    use representations, only: reptype_rotaxis, repflavor_rotaxis
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
-    integer, intent(in) :: tag
-    real*8, intent(in) :: xcom(3)
-    real*8, intent(in) :: rotdir(3)
-    real*8, intent(in) :: rotlen
-
-    integer :: id
-
-    id = transient_slot(s,owner,tag,reptype_rotaxis,repflavor_rotaxis)
-    if (id <= 0) return
-
-    s%reptrans(id)%rotaxis%origin = xcom
-    s%reptrans(id)%rotaxis%dir = rotdir
-    s%reptrans(id)%rotaxis%length = rotlen
-
-  end subroutine scene_show_transient_rotaxis
+  end subroutine scene_show_transient_shapes
 
   !> Show the vibration displacement arrows for the mode currently selected
   !> in the scene (iqpt_selected/ifreq_selected) as a transient shapes object
@@ -2888,38 +2819,6 @@ contains
     call transient_dirty(s)
 
   end function transient_claim
-
-  !> Arm the transient shapes representation identified by (owner,tag)
-  !> and make it hold shp as its only shape. The draw lists are rebuilt
-  !> only if the representation is new or any field of the shape changed.
-  subroutine transient_set_shape(s,owner,tag,shp)
-    use representations, only: reptype_shapes, repflavor_shapes, rep_shape, shape_differs
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
-    integer, intent(in) :: tag
-    type(rep_shape), intent(in) :: shp
-
-    integer :: id
-    logical :: found
-
-    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
-    if (id <= 0) return
-
-    associate (sh => s%reptrans(id)%shapes)
-      ! change detection for an existing slot (a new/retagged one is already dirty)
-      if (found) then
-         if (sh%nshape == 1) then
-            if (.not.shape_differs(sh%shape(1),shp)) return
-         end if
-         call transient_dirty(s)
-      end if
-
-      if (.not.allocated(sh%shape)) allocate(sh%shape(1))
-      sh%shape(1) = shp
-      sh%nshape = 1
-    end associate
-
-  end subroutine transient_set_shape
 
   !> Find the transient representation identified by (owner,itag) with
   !> representation type itype and arm it (found=.true.). Otherwise,

@@ -23,7 +23,9 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
-    use representations, only: reptype_symelem, repflavor_symelem
+    use representations, only: reptype_symelem, repflavor_symelem, rep_shape, shapekind_arrow,&
+       shapekind_cylinder, axes_length_def, axes_radius_def, axes_conelength_def,&
+       axes_coneradius_def, rotaxis_radius_def
     use crystalmod, only: symelem_type_mask
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
@@ -36,7 +38,7 @@ contains
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
-       ColorHighlightBondScene2, ColorTableHighlightRow
+       ColorHighlightBondScene2, ColorTableHighlightRow, ColorAxes_def, ColorRotaxis_def
     use utils, only: iw_close_event, iw_table_headers_row, iw_text, iw_tooltip, iw_helpermark, iw_arith_help_button, iw_calcwidth,&
        iw_button, iw_calcheight,&
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
@@ -88,6 +90,8 @@ contains
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
     real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
+    type(rep_shape) :: stdshp(3) ! transient std-orientation axes (arrows)
+    type(rep_shape) :: rotshp(1) ! transient rotation axis (cylinder)
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -2071,8 +2075,17 @@ contains
           stdaxlen = max(0.5d0 * stdext, 1.5d0)
           stdcom = stdcom + sys(isys)%c%molx0
 
-          ! standard-orientation axes
-          call sysc(isys)%sc%show_transient_axes(w%id,ihighlight,stdcom,stdrot,stdaxlen)
+          ! standard-orientation axes: one arrow per axis (columns of stdrot),
+          ! the Axes object proportions scaled to the axis length
+          do jm = 1, 3
+             stdshp(jm) = rep_shape(kind=shapekind_arrow,x1=stdcom,v=0d0,&
+                rad=axes_radius_def * stdaxlen / axes_length_def,&
+                headr=axes_coneradius_def / axes_radius_def,&
+                headl=min(axes_conelength_def,axes_length_def) / axes_length_def,&
+                rgb=ColorAxes_def(:,jm))
+             stdshp(jm)%v(:,1) = stdaxlen * stdrot(:,jm)
+          end do
+          call sysc(isys)%sc%show_transient_shapes(w%id,ihighlight,stdshp)
 
           if (ieuler_drag /= 0) then
              ! dragging a Euler angle: also show the rotation axis for that angle
@@ -2091,7 +2104,13 @@ contains
                 rotdir = stdrot(:,3) ! molecule body Z (already a unit vector)
              end if
              rotlen = max(stdext,1.5d0) * 1.2d0
-             call sysc(isys)%sc%show_transient_rotaxis(w%id,-(ihighlight*4+ieuler_drag),stdcom,rotdir,rotlen)
+
+             ! a black cylinder spanning stdcom +/- rotlen*rotdir (the
+             ! tags are negative, apart from the axes above)
+             rotshp(1) = rep_shape(kind=shapekind_cylinder,x1=stdcom - rotlen * rotdir,v=0d0,&
+                rad=rotaxis_radius_def,rgb=ColorRotaxis_def)
+             rotshp(1)%v(:,1) = 2d0 * rotlen * rotdir
+             call sysc(isys)%sc%show_transient_shapes(w%id,-(ihighlight*4+ieuler_drag),rotshp)
           end if
        end if
     end if

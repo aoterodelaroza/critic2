@@ -125,14 +125,14 @@ contains
 
   !> Set all values to default for the representation. Set a subset of
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
-  !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
+  !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (unused, was the rotation axis),
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
-       ColorLabel_def, ColorRotaxis_def, ColorAxes_def, ColorVdwContacts_def,&
+       ColorLabel_def, ColorAxes_def, ColorVdwContacts_def,&
        ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def,&
        ColorOccEmpty_def
     use param, only: atmcov0, atmvdw0
@@ -244,7 +244,6 @@ contains
     ! cartesian axes
     if (itype == 0 .or. itype == 6) then
        r%axes%kind = 0 ! cartesian
-       r%axes%rot = eye ! no extra orientation by default
        r%axes%placement = 1
        r%axes%origin = 0d0
        if (sys(isys)%c%ismolecule) then
@@ -270,15 +269,6 @@ contains
        r%axes%labelstr(1) = "x"
        r%axes%labelstr(2) = "y"
        r%axes%labelstr(3) = "z"
-    end if
-
-    ! rotation axis
-    if (itype == 0 .or. itype == 7) then
-       r%rotaxis%origin = 0d0
-       r%rotaxis%dir = (/0d0,0d0,1d0/)
-       r%rotaxis%length = 0d0
-       r%rotaxis%radius = rotaxis_radius_def
-       r%rotaxis%rgb = ColorRotaxis_def ! black
     end if
 
     ! coordination polyhedra
@@ -2255,8 +2245,6 @@ contains
              x0 = 0d0
              x0(k) = 1d0
           end if
-          ! reorient the axis directions (identity unless a frame was requested)
-          x0 = matmul(r%axes%rot,x0)
 
           ! shaft (round, lit cylinder)
           x1 = uoriginc
@@ -2312,25 +2300,6 @@ contains
              end if
           end if
        end do
-    elseif (r%type == reptype_rotaxis) then
-       !!! rotation-axis representation (single black cylinder through the origin) !!!
-
-       ! origin in cartesian (bohr); for molecules referred to the molecular center
-       uoriginc = r%rotaxis%origin
-       if (c%ismolecule) uoriginc = uoriginc - c%molx0
-
-       ! double-ended cylinder (the axis line): origin +/- length*dir
-       x0 = r%rotaxis%dir / max(norm2(r%rotaxis%dir),1d-10)
-       dcyl%x1 = real(uoriginc - r%rotaxis%length * x0,c_float)
-       dcyl%x2 = real(uoriginc + r%rotaxis%length * x0,c_float)
-       dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
-       dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-       dcyl%r = real(r%rotaxis%radius,c_float)
-       dcyl%rgb = r%rotaxis%rgb
-       dcyl%order = 1
-       dcyl%border = 0._c_float
-       dcyl%rgbborder = 0._c_float
-       call dl_append(obj%cyl,obj%ncyl,dcyl)
     elseif (r%type == reptype_shapes) then
        !!! list of geometric shapes !!!
 

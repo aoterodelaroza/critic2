@@ -2839,7 +2839,7 @@ contains
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_level_ptsang,&
        iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
-       iso_ptsang_from_npts
+       iso_ptsang_from_npts, rep_shape, shapekind_box
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
@@ -3172,8 +3172,8 @@ contains
           prevv = box(:,1:3)
        end if
        if (sys(isys)%c%ismolecule) prev0 = prev0 + sys(isys)%c%molx0
-       call win(iview)%sc%show_transient_box(w%id,1,prev0,prevv,region_edgerad,&
-          region_rgb,region_alpha)
+       call win(iview)%sc%show_transient_shapes(w%id,1,(/rep_shape(kind=shapekind_box,&
+          x1=prev0,v=prevv,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
     end if
 
     ! isosurface

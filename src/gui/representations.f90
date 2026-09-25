@@ -21,7 +21,7 @@ module representations
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_over, dl_string, dl_string_over,&
      dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append
-  use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
+  use param, only: bohrtoa, maxzat0, atmcov0, mlen
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
   use display, only: scene_display, rep_display
@@ -316,16 +316,15 @@ module representations
   integer, parameter, public :: reptype_atoms = 1 ! atoms (spheres)
   integer, parameter, public :: reptype_unitcell = 2 ! unit cell
   integer, parameter, public :: reptype_axes = 3 ! cartesian/crystallographic axes gizmo
-  integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
-  integer, parameter, public :: reptype_symelem = 5 ! symmetry element
-  integer, parameter, public :: reptype_text = 6 ! user text annotations
-  integer, parameter, public :: reptype_measure = 7 ! measurements (distances/angles/dihedrals)
-  integer, parameter, public :: reptype_shapes = 8 ! list of geometric shapes
-  integer, parameter, public :: reptype_isosurface = 9 ! isosurface of a scalar field
-  integer, parameter, public :: reptype_bonds = 10 ! bonds (cylinders)
-  integer, parameter, public :: reptype_labels = 11 ! atom labels
-  integer, parameter, public :: reptype_polyhedra = 12 ! coordination polyhedra
-  integer, parameter, public :: reptype_NUM = 12
+  integer, parameter, public :: reptype_symelem = 4 ! symmetry element
+  integer, parameter, public :: reptype_text = 5 ! user text annotations
+  integer, parameter, public :: reptype_measure = 6 ! measurements (distances/angles/dihedrals)
+  integer, parameter, public :: reptype_shapes = 7 ! list of geometric shapes
+  integer, parameter, public :: reptype_isosurface = 8 ! isosurface of a scalar field
+  integer, parameter, public :: reptype_bonds = 9 ! bonds (cylinders)
+  integer, parameter, public :: reptype_labels = 10 ! atom labels
+  integer, parameter, public :: reptype_polyhedra = 11 ! coordination polyhedra
+  integer, parameter, public :: reptype_NUM = 11
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -340,13 +339,12 @@ module representations
   integer, parameter, public :: repflavor_polyhedra_basic = 9
   integer, parameter, public :: repflavor_unitcell_basic = 10
   integer, parameter, public :: repflavor_axes = 11
-  integer, parameter, public :: repflavor_rotaxis = 12
-  integer, parameter, public :: repflavor_symelem = 13
-  integer, parameter, public :: repflavor_text = 14
-  integer, parameter, public :: repflavor_measure = 15
-  integer, parameter, public :: repflavor_shapes = 16
-  integer, parameter, public :: repflavor_isosurface = 17
-  integer, parameter, public :: repflavor_NUM = 17
+  integer, parameter, public :: repflavor_symelem = 12
+  integer, parameter, public :: repflavor_text = 13
+  integer, parameter, public :: repflavor_measure = 14
+  integer, parameter, public :: repflavor_shapes = 15
+  integer, parameter, public :: repflavor_isosurface = 16
+  integer, parameter, public :: repflavor_NUM = 16
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -375,7 +373,6 @@ module representations
      "Polyhedra        ",& ! repflavor_polyhedra_basic
      "Unit Cell        ",& ! repflavor_unitcell_basic
      "Axes             ",& ! repflavor_axes
-     "Rotation axis    ",& ! repflavor_rotaxis
      "Symmetry elements",& ! repflavor_symelem
      "Text             ",& ! repflavor_text
      "Measurements     ",& ! repflavor_measure
@@ -449,7 +446,6 @@ module representations
   !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
   type rep_axes
      integer(c_int) :: kind ! 0 = cartesian, 1 = crystallographic
-     real*8 :: rot(3,3) = eye ! orientation applied to the axis directions (columns are the axes); identity by default
      integer(c_int) :: placement ! 0 = at the origin, 1 = anchored at a fixed window position
      integer(c_int) :: coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
      real*8 :: origin(3) = 0d0 ! origin of the axes (coordinates per coordtype)
@@ -471,16 +467,6 @@ module representations
      logical :: scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
   end type rep_axes
   public :: rep_axes
-
-  !> Rotation axis options (reptype_rotaxis; accessed as r%rotaxis%...)
-  type rep_rotaxis
-     real*8 :: origin(3) = 0d0 ! origin the axis line passes through (cartesian, bohr)
-     real*8 :: dir(3) = (/0d0,0d0,1d0/) ! unit direction in cartesian (bohr); the axis line passes through origin
-     real*8 :: length = 0d0 ! half-length: the cylinder spans origin +/- length*dir
-     real*8 :: radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
-     real(c_float) :: rgb(3) = 0._c_float ! color of the rotation-axis cylinder
-  end type rep_rotaxis
-  public :: rep_rotaxis
 
   ! shape kinds for the shapes representation
   integer, parameter, public :: shapekind_sphere = 1
@@ -752,7 +738,6 @@ module representations
      type(rep_mols) :: mols ! per-molecule display options
      type(rep_unitcell) :: uc ! unit cell display options
      type(rep_axes) :: axes ! cartesian/crystallographic axes options
-     type(rep_rotaxis) :: rotaxis ! rotation axis options
      type(rep_shapes) :: shapes ! geometric shapes options
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options
