@@ -1,24 +1,43 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $0
-  Mesh size      47520
+  Mesh size      15832
   Mesh type      Franchini
   Mesh level     small
-+ Integral($0) = 79.99353640   
+  Atomic grids   tv-13.7-3 (8 atoms, 300 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($0) = 79.99272049   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $0
-  Mesh size      55440
+  Mesh size      12840
   Mesh type      Franchini
   Mesh level     small
-+ Integral($0) = 41.99938972   
+  Atomic grids   tv-13.7-3 (12 atoms, 324 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($0) = 41.99573526   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $0
-  Mesh size      55440
+  Mesh size      12840
   Mesh type      Becke
   Mesh level     small
-+ Integral($0) = 41.99204496   
+  Atomic grids   tv-13.7-3 (12 atoms, 324 shells)
+  Please cite: 
+    A. D. Becke, J. Chem. Phys. 88, 2547 (1988). (10.1063/1.454033)
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($0) = 41.99504675   
 

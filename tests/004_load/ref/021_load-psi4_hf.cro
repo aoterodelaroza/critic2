@@ -20,10 +20,16 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $molden
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($molden) = 9.99999462    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($molden) = 10.00010055   
 
 * POINT 0.1000000  0.2000000  0.3000000  
   Coordinates (ang): 0.1000000  0.2000000  0.3000000  

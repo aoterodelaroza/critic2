@@ -114,8 +114,14 @@ WARNING (testrmt): Spurious CPs on the muffin tin surface!
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $5
-  Mesh size      114156
+  Mesh size      48592
   Mesh type      Franchini
   Mesh level     good
-+ Integral($5) = -0.00000000   
+  Atomic grids   tv-13.7-5 (4 atoms, 324 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($5) = 0.00000000    
 

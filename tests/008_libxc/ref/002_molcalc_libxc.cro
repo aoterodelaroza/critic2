@@ -19,40 +19,70 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: xc($1,1)+xc($1,8)
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral(xc($1,1)+xc($1,8)) = -8.96531128   
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(xc($1,1)+xc($1,8)) = -8.96536405   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: xc($1,$1:g,101)+xc($1,$1:g,130)
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral(xc($1,$1:g,101)+xc($1,$1:g,130)) = -9.24980564   
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(xc($1,$1:g,101)+xc($1,$1:g,130)) = -9.24986025   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: xc($1,$1:g,106)+xc($1,$1:g,131)
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral(xc($1,$1:g,106)+xc($1,$1:g,131)) = -9.31527387   
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(xc($1,$1:g,106)+xc($1,$1:g,131)) = -9.31533090   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: xc($1,$1:g,106)+xc($1,$1:g,132)
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral(xc($1,$1:g,106)+xc($1,$1:g,132)) = -9.33540222   
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(xc($1,$1:g,106)+xc($1,$1:g,132)) = -9.33545566   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral(xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)) = -9.45451749   
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(xc($1,$1:g,$1:l,0.5*gkin(1),202)+xc($1,$1:g,$1:l,0.5*gkin(1),231)) = -9.45481833   
 

@@ -483,194 +483,338 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_spsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_spsph) = 9.99999249    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_spsph) = 10.00006865   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_spsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_spsph) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_spsph) = 10.00007051   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_spsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_spsph) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_spsph) = 10.00007051   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_spcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_spcar) = 9.99999252    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_spcar) = 10.00006965   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_spcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_spcar) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_spcar) = 10.00007147   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_spcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_spcar) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_spcar) = 10.00007147   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_dsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_dsph) = 9.99999595    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_dsph) = 10.00008024   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_dsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_dsph) = 9.99999484    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_dsph) = 10.00007913   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_dsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_dsph) = 9.99999484    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_dsph) = 10.00007912   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_dcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_dcar) = 9.99999588    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_dcar) = 10.00008202   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_dcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_dcar) = 9.99999485    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_dcar) = 10.00008099   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_dcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_dcar) = 9.99999485    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_dcar) = 10.00008099   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_fsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_fsph) = 9.99999364    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_fsph) = 10.00009280   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_fsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_fsph) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_fsph) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_fsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_fsph) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_fsph) = 10.00009349   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_fcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_fcar) = 9.99999364    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_fcar) = 10.00009489   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_fcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_fcar) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_fcar) = 10.00009559   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_fcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_fcar) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_fcar) = 10.00009560   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_gsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_gsph) = 9.99999466    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_gsph) = 10.00010057   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_gsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_gsph) = 9.99999462    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_gsph) = 10.00010053   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_gsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_gsph) = 9.99999461    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_gsph) = 10.00010053   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfn_gcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfn_gcar) = 9.99999455    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfn_gcar) = 10.00009982   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $wfx_gcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($wfx_gcar) = 9.99999463    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($wfx_gcar) = 10.00009990   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fchk_gcar
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fchk_gcar) = 9.99999463    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fchk_gcar) = 10.00009990   
 
 + Field number 1
   Name: h2o_spsph.molden
@@ -800,50 +944,86 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $spsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($spsph) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($spsph) = 10.00007051   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $dsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($dsph) = 9.99999484    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($dsph) = 10.00007913   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fsph) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fsph) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $spsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($spsphw) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($spsphw) = 10.00007050   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $dsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($dsphw) = 9.99999485    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($dsphw) = 10.00007914   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fsphw) = 9.99999428    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fsphw) = 10.00009344   
 
 + Field number 1
   Name: h2o_spsph.molden
@@ -1094,98 +1274,170 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $spsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($spsph) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($spsph) = 10.00007051   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $dsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($dsph) = 9.99999484    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($dsph) = 10.00007913   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fsph) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fsph) = 10.00009348   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $gsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($gsph) = 9.99999462    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($gsph) = 10.00010053   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $spsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($spsphw) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($spsphw) = 10.00007050   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $dsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($dsphw) = 9.99999485    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($dsphw) = 10.00007914   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fsphw) = 9.99999428    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fsphw) = 10.00009344   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $gsphw
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($gsphw) = 9.99999459    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($gsphw) = 10.00010050   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $spsphx
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($spsphx) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($spsphx) = 10.00007050   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $dsphx
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($dsphx) = 9.99999484    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($dsphx) = 10.00007913   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fsphx
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fsphx) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fsphx) = 10.00009349   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $gsphx
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($gsphx) = 9.99999461    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($gsphx) = 10.00010053   
 
 + Field number 1
   Name: h2o_spsph.molden
@@ -1276,32 +1528,56 @@
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $spsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($spsph) = 9.99999434    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($spsph) = 10.00007051   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $dsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($dsph) = 9.99999484    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($dsph) = 10.00007913   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $fsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($fsph) = 9.99999433    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($fsph) = 10.00009349   
 
 * MOLCALC: calculations using meshes 
 + Molecular mesh integral calculation
   Expression: $gsph
-  Mesh size      52246
+  Mesh size      9382
   Mesh type      Franchini
   Mesh level     good
-+ Integral($gsph) = 9.99999462    
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($gsph) = 10.00010055   
 

@@ -104,7 +104,7 @@ contains
     integer :: prop(1)
     real*8 :: nelec
 
-    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%gen(sy%c,mesh_type,mesh_level,sy%f(sy%iref)%zpsp)
 
     write (uout,'("+ Mesh integral of the reference field")')
     call m%report()
@@ -188,7 +188,7 @@ contains
     end if
 
     ! generate and fill the mesh
-    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%gen(sy%c,mesh_type,mesh_level,sy%f(sy%iref)%zpsp)
     allocate(prop(2*n))
     do i = 1, n
        prop(i) = 100 + imo1(i)
@@ -234,7 +234,7 @@ contains
     logical :: ok
     character(len=:), allocatable :: lerrs
 
-    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%gen(sy%c,mesh_type,mesh_level,sy%f(sy%iref)%zpsp)
 
     write (uout,'("+ Molecular mesh integral calculation")')
     write (uout,'("  Expression: ",A)') trim(expr)

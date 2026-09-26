@@ -19,9 +19,16 @@
 * Hirshfeld atomic electron populations (using mesh integration)
   Reference field: 1
 + Mesh details
-  Mesh size      13200
+  Mesh size      2820
   Mesh type      Becke
   Mesh level     small
+  Atomic grids   tv-13.7-3 (3 atoms, 74 shells)
+  Please cite: 
+    A. D. Becke, J. Chem. Phys. 88, 2547 (1988). (10.1063/1.454033)
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
 + Iterative Hirshfeld (Hirshfeld-I) reference populations
   Please cite: 
     P. Bultinck, C. Van Alsenoy, P. W. Ayers, and R. Carbo-Dorca,
@@ -29,53 +36,53 @@
   Reference densities interpolated between integer charge states
   Convergence: max|dN| < 1.00E-07 (maximum 200 iterations)
 #   it      max|dN|
-     1    3.2618E-01
-     2    1.7144E-01
-     3    9.5027E-02
-     4    5.4552E-02
-     5    3.2017E-02
-     6    1.9050E-02
-     7    1.1430E-02
-     8    6.8931E-03
-     9    4.1701E-03
-    10    2.5276E-03
-    11    1.5338E-03
-    12    9.3139E-04
-    13    5.6583E-04
-    14    3.4383E-04
-    15    2.0897E-04
-    16    1.2702E-04
-    17    7.7207E-05
-    18    4.6932E-05
-    19    2.8530E-05
-    20    1.7343E-05
-    21    1.0543E-05
-    22    6.4091E-06
-    23    3.8962E-06
-    24    2.3685E-06
-    25    1.4398E-06
-    26    8.7529E-07
-    27    5.3210E-07
-    28    3.2347E-07
-    29    1.9664E-07
-    30    1.1954E-07
-    31    7.2670E-08
+     1    3.2648E-01
+     2    1.7150E-01
+     3    9.5045E-02
+     4    5.4555E-02
+     5    3.2014E-02
+     6    1.9046E-02
+     7    1.1426E-02
+     8    6.8903E-03
+     9    4.1679E-03
+    10    2.5260E-03
+    11    1.5327E-03
+    12    9.3061E-04
+    13    5.6529E-04
+    14    3.4347E-04
+    15    2.0873E-04
+    16    1.2685E-04
+    17    7.7101E-05
+    18    4.6863E-05
+    19    2.8484E-05
+    20    1.7314E-05
+    21    1.0524E-05
+    22    6.3969E-06
+    23    3.8883E-06
+    24    2.3635E-06
+    25    1.4366E-06
+    26    8.7324E-07
+    27    5.3080E-07
+    28    3.2264E-07
+    29    1.9612E-07
+    30    1.1921E-07
+    31    7.2460E-08
 + Hirshfeld-I converged in 31 iterations
 # N_HI = Hirshfeld-I population; q_HI = Z - N_HI
 # nmin/nmax = range of available charge states (number of electrons)
 #nneq mult name    Z   nmin nmax      N_HI            q_HI
- 1    1    O1      8    6   10  8.7271972922    -0.7271972922    
- 2    1    H2      1    0    2  0.6364594119     0.3635405881    
- 3    1    H3      1    0    2  0.6364594119     0.3635405881    
-# total population: 10.000116  (nuclear charge: 10.0)
+ 1    1    O1      8    6   10  8.7275577028    -0.7275577028    
+ 2    1    H2      1    0    2  0.6363594762     0.3636405238    
+ 3    1    H3      1    0    2  0.6363594762     0.3636405238    
+# total population: 10.000277  (nuclear charge: 10.0)
 
 + Hirshfeld integration results
 # N_hirsh = atomic electron populations
 # V_hirsh = atomic volumes 
 #nneq mult name   N_hirsh          V_hirsh
- 1    1    O1    8.7271973363    870.5542272788   
- 2    1    H2    0.6364593898    1726.7844290615  
- 3    1    H3    0.6364593898    1726.7844290615  
-# total number of electrons: 1.0000116116E+01
-# total volume: 4.3241230854E+03
+ 1    1    O1    8.7275577469    874.1423775651   
+ 2    1    H2    0.6363594541    2144.8971634624  
+ 3    1    H3    0.6363594541    2144.8971634624  
+# total number of electrons: 1.0000276655E+01
+# total volume: 5.1639367045E+03
 

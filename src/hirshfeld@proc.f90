@@ -314,7 +314,7 @@ contains
     write (uout,'("  Reference field: ",A)') string(sy%iref)
 
     ! generate the mesh
-    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%gen(sy%c,mesh_type,mesh_level,sy%f(sy%iref)%zpsp)
     write (uout,'("+ Mesh details")')
     call m%report()
 

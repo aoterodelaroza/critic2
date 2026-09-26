@@ -1,0 +1,33 @@
+Tuned atomic integration grids (tv-13.7-N.txt)
+===============================================
+
+These files are copied verbatim from HORTON 2.1.0 (data/grids/), where they
+were created by Toon Verstraelen in July 2013. Each file is one accuracy
+tier: the grids were tuned on diatomic benchmarks (Ahlrichs QZVP basis) to
+give on average N digits of precision (N = 3..7) for a variety of molecular
+integrals using Becke's partitioning scheme with k=3.
+
+Format: for each element, a line "Z Zeff" (Zeff = effective core charge, the
+number of electrons treated explicitly; Zeff < Z means an ECP grid), a line
+"PowerRTransform rmin rmax npt" (bohr) and a line with the Lebedev order for
+each of the npt radial shells. Radial points: r_i = rmin * (i+1)^p,
+i = 0..npt-1, p = ln(rmax/rmin)/ln(npt); radial weights use the composite
+Simpson rule in i.
+
+HORTON is distributed under the GNU General Public License version 3 (or
+later), the same license as critic2. See http://theochem.github.io/horton/ .
+
+Citation
+--------
+There is no journal article describing these tables. When using them, cite:
+- A. D. Becke, J. Chem. Phys. 88, 2547 (1988), doi:10.1063/1.454033
+  (multicenter partitioning scheme the tables were tuned for).
+- V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999)
+  (angular quadratures).
+- HORTON 2.1.0 as software: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+  C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+  S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/
+  (2017).
+The successor library, which ships the same grid family, is described in
+A. Tehrani, X. D. Yang, M. Martinez-Gonzalez, et al., J. Chem. Phys. 160,
+172503 (2024), doi:10.1063/5.0202240.

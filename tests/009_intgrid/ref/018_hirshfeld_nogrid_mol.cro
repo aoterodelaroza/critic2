@@ -19,16 +19,23 @@
 * Hirshfeld atomic electron populations (using mesh integration)
   Reference field: 1
 + Mesh details
-  Mesh size      13200
+  Mesh size      2820
   Mesh type      Becke
   Mesh level     small
+  Atomic grids   tv-13.7-3 (3 atoms, 74 shells)
+  Please cite: 
+    A. D. Becke, J. Chem. Phys. 88, 2547 (1988). (10.1063/1.454033)
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
 + Hirshfeld integration results
 # N_hirsh = atomic electron populations
 # V_hirsh = atomic volumes 
 #nneq mult name   N_hirsh          V_hirsh
- 1    1    O1    8.3261811981    638.9543077209   
- 2    1    H2    0.8369674589    1842.5843888404  
- 3    1    H3    0.8369674589    1842.5843888404  
-# total number of electrons: 1.0000116116E+01
-# total volume: 4.3241230854E+03
+ 1    1    O1    8.3264799290    636.2105744391   
+ 2    1    H2    0.8368983630    2263.8630650253  
+ 3    1    H3    0.8368983630    2263.8630650253  
+# total number of electrons: 1.0000276655E+01
+# total volume: 5.1639367045E+03
 

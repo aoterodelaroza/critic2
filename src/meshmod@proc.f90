@@ -20,12 +20,39 @@ submodule (meshmod) proc
   implicit none
 
   !xx! private procedures
+  ! function table_filename(lvl) result(file)
+  ! subroutine load_table(lvl)
+  ! function find_table_entry(lvl,iz,zeff) result(ie)
+  ! subroutine atomic_grid_spec(iz,zeff,type,lvl,r,wr,nang,fromtable)
+  ! subroutine rmesh_power(rmin,rmax,n,r,wintr)
+  ! subroutine partition_becke(m)
+  ! subroutine partition_promolecular(m,c)
   ! subroutine rmesh_postg(n,iz,r,wintr)
   ! subroutine rmesh_franchini(n,iz,r,wintr)
   ! function z2nr(z,lvl) result(nr)
   ! function z2nang(z,lvl) result(nang)
-  ! subroutine bhole(rho,quad,hnorm,b)
-  ! subroutine xfuncs(x,rhs,f,df)
+
+  !> One entry (element/effective charge) of a tuned atomic grid table
+  type table_entry
+     integer :: z = 0 !< atomic number
+     integer :: zeff = 0 !< effective charge (electrons treated explicitly)
+     real*8 :: rmin = 0d0 !< first radius of the power transform (bohr)
+     real*8 :: rmax = 0d0 !< last radius of the power transform (bohr)
+     integer, allocatable :: nang(:) !< (number of shells) Lebedev order on each shell
+  end type table_entry
+
+  !> A tuned atomic grid table (dat/meshes/tv-13.7-N.txt), one per
+  !> level. e is allocated only if the file was found and parsed.
+  type table
+     logical :: isinit = .false. !< tried to load the file
+     type(table_entry), allocatable :: e(:) !< entries
+  end type table
+
+  !> Accuracy tier (number of digits) of the table used for each mesh level
+  integer, parameter :: level2tier(mesh_level_small:mesh_level_amazing) = (/3,4,5,6,7/)
+
+  !> Tuned atomic grid tables, loaded on first use
+  type(table), save :: tab(mesh_level_small:mesh_level_amazing)
 
 contains
 
@@ -34,22 +61,51 @@ contains
     class(mesh), intent(inout) :: m
 
     m%n = 0
+    m%nat = 0
     if (allocated(m%w)) deallocate(m%w)
     if (allocated(m%x)) deallocate(m%x)
     if (allocated(m%f)) deallocate(m%f)
+    if (allocated(m%idat)) deallocate(m%idat)
+    if (allocated(m%zat)) deallocate(m%zat)
+    if (allocated(m%zeffat)) deallocate(m%zeffat)
+    if (allocated(m%fromtable)) deallocate(m%fromtable)
+    if (allocated(m%xat)) deallocate(m%xat)
+    if (allocated(m%ishoff)) deallocate(m%ishoff)
+    if (allocated(m%rsh)) deallocate(m%rsh)
+    if (allocated(m%wrsh)) deallocate(m%wrsh)
+    if (allocated(m%ipsh)) deallocate(m%ipsh)
+    if (allocated(m%wa)) deallocate(m%wa)
+    if (allocated(m%wp)) deallocate(m%wp)
 
   end subroutine endmesh
 
-  !> Driver for the generation of a molecular mesh. Uses the global
-  !> MESH_type to decide the type and quality of the mesh.
-  module subroutine genmesh(m,c,type,lvl)
+  !> Generate a molecular/crystal integration mesh for crystal c. The
+  !> mesh is the union of atomic grids multiplied by a partition
+  !> function of the given type (mesh_type_becke, only for molecules,
+  !> or mesh_type_franchini, promolecular weights, always used for
+  !> crystals). lvl selects the accuracy (mesh_level_*, default:
+  !> good). The atomic grids are taken from the tuned tables in
+  !> dat/meshes for the element and effective charge (zpsp, per
+  !> species; <= 0 or absent means all-electron); atoms not covered
+  !> by the tables use the legacy grids (constant Lebedev order,
+  !> postg or Franchini radial grids).
+  module subroutine genmesh(m,c,type,lvl,zpsp)
     use crystalmod, only: crystal
+    use tools_math, only: select_lebedev
+    use types, only: realloc
+    use param, only: maxzat, fourpi
     class(mesh), intent(inout) :: m
     type(crystal), intent(inout) :: c
     integer, intent(in), optional :: type
     integer, intent(in), optional :: lvl
+    integer, intent(in), optional :: zpsp(:)
 
     integer :: tmesh, lmesh
+    integer :: i, k, iz, is, zeff, nsh, np, ish, il, ip, nang, mang, nr
+    real*8 :: xnuc(3)
+    real*8, allocatable :: r(:), wr(:), xang(:), yang(:), zang(:), wang(:)
+    integer, allocatable :: nangr(:)
+    logical :: ft
 
     if (.not.c%ismolecule) then
        tmesh = mesh_type_franchini
@@ -58,317 +114,108 @@ contains
     else
        tmesh = mesh_type_becke
     end if
-
     if (present(lvl)) then
        lmesh = lvl
     else
        lmesh = mesh_level_good
     end if
 
-    if (tmesh == mesh_type_becke) then
-       call m%gen_becke(c,lmesh)
-    else
-       call m%gen_franchini(c,lmesh)
-    end if
+    ! reset the arrays
+    call m%end()
     m%type = tmesh
     m%lvl = lmesh
 
-  end subroutine genmesh
-
-  !> Generate a Becke-style molecular mesh. Only for molecules.
-  module subroutine genmesh_becke(m,c,lvl)
-    use crystalmod, only: crystal
-    use tools_math, only: good_lebedev, select_lebedev
-    use tools_io, only: ferror, faterr
-    use param, only: fourpi, maxzat
-    class(mesh), intent(inout) :: m
-    type(crystal), intent(in) :: c
-    integer, intent(in) :: lvl
-
-    real*8 :: rr(c%ncel,c%ncel), r, r1, r2, hypr, vp0, vpsum, vpi
-    integer :: i, j, k, kk
-    real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
-    integer :: nr, nang, ir, il, istat, mang, mr, iz, iz2
-    real*8 :: cutoff(c%ncel,c%ncel), x(3)
-    real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:)
-
-    if (.not.c%ismolecule) &
-       call ferror("genmesh_becke","Becke mesh only for molecules",faterr)
-
-    ! reset the arrays
-    call m%end()
-
-    ! interatomic distances
-    rr = 0d0
-    do i = 1, c%ncel
-       do j = i+1, c%ncel
-          rr(i,j) = sqrt((c%atcel(i)%r(1)-c%atcel(j)%r(1))**2+(c%atcel(i)%r(2)-c%atcel(j)%r(2))**2&
-             + (c%atcel(i)%r(3)-c%atcel(j)%r(3))**2)
-          rr(j,i) = rr(i,j)
-       enddo
-    enddo
-
-    ! allocate space for the mesh
-    m%n = 0
+    ! atoms with a grid
+    m%nat = 0
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
-       m%n = m%n + z2nr(iz,lvl) * z2nang(iz,lvl)
-    enddo
-    allocate(m%w(m%n),m%x(3,m%n),stat=istat)
-
-    ! allocate work arrays
-    mr = -1
-    mang = -1
-    do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z
-       if (iz < 1 .or. iz > maxzat) cycle
-       mang = max(mang,z2nang(iz,lvl))
-       mr = max(mr,z2nr(iz,lvl))
+       m%nat = m%nat + 1
     end do
-    allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
-    allocate(rads(mr),wrads(mr),stat=istat)
-    if (istat /= 0) call ferror('genmesh_becke','could not allocate memory for radial meshes',faterr)
-    allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
-    if (istat /= 0) call ferror('genmesh_becke','could not allocate memory for angular meshes',faterr)
+    allocate(m%idat(m%nat),m%zat(m%nat),m%zeffat(m%nat),m%fromtable(m%nat))
+    allocate(m%xat(3,m%nat),m%ishoff(m%nat+1))
+    allocate(m%rsh(100),m%wrsh(100),m%ipsh(101))
 
-    ! Precompute the mesh weights with multiple threads. The job has to be
-    ! split in two because the nodes have to be positioned in the array in
-    ! the correct order
-    !$omp parallel do private(nr,nang,ir,r,il,x,j,k,r1,r2,hypr,&
-    !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang) schedule(dynamic)
+    ! atomic grid specifications and offsets (serial: loads the tables)
+    nsh = 0
+    np = 0
+    k = 0
     do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z
+       is = c%atcel(i)%is
+       iz = c%spc(is)%z
        if (iz < 1 .or. iz > maxzat) cycle
-
-       ! radial mesh
-       nr = z2nr(iz,lvl)
-       nang = z2nang(iz,lvl)
-       call rmesh_postg(nr,iz,rads,wrads)
-
-       ! angular mesh
-       call good_lebedev(nang)
-       call select_lebedev(nang,xang,yang,zang,wang)
-       wang = wang / fourpi
-
-       ! 3d mesh, do not parallelize to get the nodes in order
-       do ir = 1, nr
-          r = rads(ir)
-          do il = 1, nang
-             x = c%atcel(i)%r + r * (/xang(il),yang(il),zang(il)/)
-             do j = 2, c%ncel
-                iz = c%spc(c%atcel(j)%is)%z
-                if (iz < 1 .or. iz > maxzat) cycle
-                do k = 1, j-1
-                   iz2 = c%spc(c%atcel(k)%is)%z
-                   if (iz2 < 1 .or. iz2 > maxzat) cycle
-                   r1 = sqrt((x(1)-c%atcel(j)%r(1))**2+(x(2)-c%atcel(j)%r(2))**2+(x(3)-c%atcel(j)%r(3))**2)
-                   r2 = sqrt((x(1)-c%atcel(k)%r(1))**2+(x(2)-c%atcel(k)%r(2))**2+(x(3)-c%atcel(k)%r(3))**2)
-                   hypr = (r1-r2) / rr(j,k)
-                   hypr = 1.5d0*hypr-0.5d0*hypr**3
-                   hypr = 1.5d0*hypr-0.5d0*hypr**3
-                   hypr = 1.5d0*hypr-0.5d0*hypr**3
-                   hypr = 1.5d0*hypr-0.5d0*hypr**3
-                   cutoff(j,k) = (1d0-hypr) / 2d0
-                   cutoff(k,j) = (1d0+hypr) / 2d0
-                enddo
-                cutoff(j,j) = 1d0
-             enddo
-             cutoff(1,1) = 1d0
-             vp0 = 1d0
-             vpsum = 0d0
-             do j = 1, c%ncel
-                iz = c%spc(c%atcel(j)%is)%z
-                if (iz < 1 .or. iz > maxzat) cycle
-                vp0=vp0*cutoff(i,j)
-                vpi=1d0
-                do k = 1, c%ncel
-                   iz2 = c%spc(c%atcel(k)%is)%z
-                   if (iz2 < 1 .or. iz2 > maxzat) cycle
-                   vpi = vpi * cutoff(j,k)
-                enddo
-                vpsum = vpsum + vpi
-             enddo
-             meshrl(il,ir,i) = vp0/vpsum * wrads(ir) * wang(il)
-             meshx(:,il,ir,i) = x
-          enddo
-       enddo
-    end do
-    !$omp end parallel do
-
-    ! clean up
-    if (allocated(rads)) deallocate(rads)
-    if (allocated(wrads)) deallocate(wrads)
-    if (allocated(xang)) deallocate(xang)
-    if (allocated(yang)) deallocate(yang)
-    if (allocated(zang)) deallocate(zang)
-    if (allocated(wang)) deallocate(wang)
-
-    ! fill the 3d mesh
-    kk = 0
-    do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z
-       if (iz < 1 .or. iz > maxzat) cycle
-       nr = z2nr(iz,lvl)
-       nang = z2nang(iz,lvl)
-       do ir = 1, nr
-          do il = 1, nang
-             kk = kk + 1
-             m%w(kk) = meshrl(il,ir,i)
-             m%x(:,kk) = meshx(:,il,ir,i)
-          enddo
-       enddo
-    enddo
-
-  end subroutine genmesh_becke
-
-  !> Generate a Becke-style molecular mesh, Franchini weights
-  !> J. Comput. Chem. 34 (2013) 1819.
-  !> The lvl parameter controls the quality:
-  !> lvl = 1 (small), 2 (normal), 3 (good), 4(very good), 5 (excellent)
-  !> This mesh is good for periodic systems because the calculation of the
-  !> weights does not involve a double sum over atoms.
-  module subroutine genmesh_franchini(m,c,lvl)
-    use crystalmod, only: crystal
-    use tools_math, only: good_lebedev, select_lebedev
-    use tools_io, only: faterr, ferror
-    use param, only: maxzat, fourpi, icrd_cart
-    class(mesh), intent(inout) :: m
-    type(crystal), intent(inout) :: c
-    integer, intent(in) :: lvl
-
-    real*8 :: r, vp0, vpsum
-    integer :: i, j, kk
-    real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
-    integer, allocatable :: eid(:)
-    integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat
-    real*8 :: x(3), fscal, fscal2, xnuc(3), rmax
-    real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:), dist(:)
-
-    real*8, parameter :: rthres = 12d0 ! contribution to weight: 2e-14
-
-    ! reset the arrays
-    call m%end()
-
-    ! allocate space for the mesh
-    m%n = 0
-    do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z
-       if (iz < 1 .or. iz > maxzat) cycle
-       m%n = m%n + z2nr(iz,lvl) * z2nang(iz,lvl)
-    enddo
-    allocate(m%w(m%n),m%x(3,m%n),stat=istat)
-
-    ! allocate work arrays
-    rmax = 0d0
-    izmr = -1
-    mr = -1
-    mang = -1
-    do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z
-       if (iz < 1 .or. iz > maxzat) cycle
-       mang = max(mang,z2nang(iz,lvl))
-       nr = z2nr(iz,lvl)
-       if (nr > mr .or. nr == mr .and. iz > izmr) then
-          mr = nr
-          izmr = iz
+       k = k + 1
+       zeff = iz
+       if (present(zpsp)) then
+          if (is <= size(zpsp)) then
+             if (zpsp(is) > 0) zeff = zpsp(is)
+          end if
        end if
-    end do
-    allocate(meshrl(mang,mr,c%ncel),meshx(3,mang,mr,c%ncel))
-    allocate(rads(mr),wrads(mr),stat=istat)
-    if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for radial meshes',faterr)
-    allocate(xang(mang),yang(mang),zang(mang),wang(mang),stat=istat)
-    if (istat /= 0) call ferror('genmesh_franchini','could not allocate memory for angular meshes',faterr)
-
-    ! calculate the maximum r
-    call rmesh_franchini(mr,izmr,rads,wrads)
-    rmax = max(rads(mr),rthres)
-
-    ! Precompute the mesh weights with multiple threads. The job has to be
-    ! split in two because the nodes have to be positioned in the array in
-    ! the correct order
-    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat) &
-    !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist) schedule(dynamic)
-    do i = 1, c%ncel
-       xnuc = c%x2xr(c%atcel(i)%x)
-       xnuc = xnuc - floor(xnuc)
-       xnuc = c%xr2c(xnuc)
-       iz = c%spc(c%atcel(i)%is)%z
-       if (iz < 1 .or. iz > maxzat) then
-          cycle
-       elseif (iz == 1) then
-          fscal = 0.3d0
+       if (c%ismolecule) then
+          xnuc = c%atcel(i)%r
        else
-          fscal = 1d0
+          xnuc = c%x2xr(c%atcel(i)%x)
+          xnuc = xnuc - floor(xnuc)
+          xnuc = c%xr2c(xnuc)
        end if
+       m%idat(k) = i
+       m%zat(k) = iz
+       m%zeffat(k) = zeff
+       m%xat(:,k) = xnuc
 
-       ! radial mesh
-       nr = z2nr(iz,lvl)
-       nang = z2nang(iz,lvl)
-       call rmesh_franchini(nr,iz,rads,wrads)
+       call atomic_grid_spec(iz,zeff,tmesh,lmesh,r,wr,nangr,ft)
+       m%fromtable(k) = ft
+       nr = size(r)
+       if (nsh + nr > size(m%rsh)) then
+          call realloc(m%rsh,2*(nsh+nr))
+          call realloc(m%wrsh,2*(nsh+nr))
+          call realloc(m%ipsh,2*(nsh+nr)+1)
+       end if
+       m%ishoff(k) = nsh + 1
+       do ish = 1, nr
+          nsh = nsh + 1
+          m%rsh(nsh) = r(ish)
+          m%wrsh(nsh) = wr(ish)
+          m%ipsh(nsh) = np + 1
+          np = np + nangr(ish)
+       end do
+    end do
+    m%ishoff(m%nat+1) = nsh + 1
+    m%ipsh(nsh+1) = np + 1
+    call realloc(m%rsh,nsh)
+    call realloc(m%wrsh,nsh)
+    call realloc(m%ipsh,nsh+1)
+    m%n = np
+    allocate(m%x(3,m%n),m%w(m%n),m%wa(m%n),m%wp(m%n))
+    if (m%n == 0) return
 
-       ! angular mesh
-       call good_lebedev(nang)
-       call select_lebedev(nang,xang,yang,zang,wang)
-       wang = wang / fourpi
-
-       ! 3d mesh, do not parallelize to get the nodes in order
-       do ir = 1, nr
-          r = rads(ir)
-          vp0 = fscal * exp(-2d0 * r) / max(r,1d-10)**3
-
+    ! points and atomic weights, each atom writes into its own slice
+    mang = maxval(m%ipsh(2:nsh+1) - m%ipsh(1:nsh))
+    !$omp parallel do private(xang,yang,zang,wang,ish,nang,il,ip) schedule(dynamic)
+    do k = 1, m%nat
+       allocate(xang(mang),yang(mang),zang(mang),wang(mang))
+       do ish = m%ishoff(k), m%ishoff(k+1)-1
+          nang = m%ipsh(ish+1) - m%ipsh(ish)
+          call select_lebedev(nang,xang,yang,zang,wang)
           do il = 1, nang
-             x = xnuc + r * (/xang(il),yang(il),zang(il)/)
-
-             ! find all atoms within a distance = rthres from the mesh point
-             call c%list_near_atoms(x,icrd_cart,.false.,nat,eid=eid,dist=dist,up2d=rmax)
-
-             vpsum = 0d0
-             do j = 1, nat
-                iz2 = c%spc(c%atcel(eid(j))%is)%z
-                if (iz2 < 1 .or. iz2 > maxzat) then
-                   cycle
-                elseif (iz2 == 1) then
-                   fscal2 = 0.3d0
-                else
-                   fscal2 = 1d0
-                end if
-                vpsum = vpsum + fscal2 * exp(-2d0 * dist(j)) / max(dist(j),1d-10)**3
-             enddo
-             vpsum = max(vp0,vpsum)
-
-             meshrl(il,ir,i) = vp0/max(vpsum,1d-40) * wrads(ir) * wang(il)
-             meshx(:,il,ir,i) = x
-          enddo
-       enddo
+             ip = m%ipsh(ish) + il - 1
+             m%x(:,ip) = m%xat(:,k) + m%rsh(ish) * (/xang(il),yang(il),zang(il)/)
+             m%wa(ip) = m%wrsh(ish) * wang(il) / fourpi
+          end do
+       end do
+       deallocate(xang,yang,zang,wang)
     end do
     !$omp end parallel do
 
-    ! clean up
-    if (allocated(rads)) deallocate(rads)
-    if (allocated(wrads)) deallocate(wrads)
-    if (allocated(xang)) deallocate(xang)
-    if (allocated(yang)) deallocate(yang)
-    if (allocated(zang)) deallocate(zang)
-    if (allocated(wang)) deallocate(wang)
+    ! partition weights
+    if (tmesh == mesh_type_becke) then
+       call partition_becke(m)
+    else
+       call partition_promolecular(m,c)
+    end if
+    m%w = m%wa * m%wp
 
-    ! fill the 3d mesh
-    kk = 0
-    do i = 1, c%ncel
-       iz = c%spc(c%atcel(i)%is)%z
-       if (iz < 1 .or. iz > maxzat) cycle
-       nr = z2nr(iz,lvl)
-       nang = z2nang(iz,lvl)
-       do ir = 1, nr
-          do il = 1, nang
-             kk = kk + 1
-             m%w(kk) = meshrl(il,ir,i)
-             m%x(:,kk) = meshx(:,il,ir,i)
-          enddo
-       enddo
-    enddo
-
-  end subroutine genmesh_franchini
+  end subroutine genmesh
 
   !> Calculate one or more scalar fields on the molecular mesh (m)
   !> using field f. prop is a one-dimensional array containing an
@@ -476,10 +323,36 @@ contains
 
   end subroutine fillmesh
 
+  !> Spherical average of the function f (given on the mesh points)
+  !> around the atomic grid iat: for each radial shell of that atom,
+  !> the average of f over the shell with the shell's angular weights.
+  !> The radii of the shells are m%rsh(m%ishoff(iat):m%ishoff(iat+1)-1).
+  module function spherical_average(m,iat,f) result(fr)
+    class(mesh), intent(in) :: m
+    integer, intent(in) :: iat
+    real*8, intent(in) :: f(:)
+    real*8, allocatable :: fr(:)
+
+    integer :: ish, i0, i1, j
+
+    allocate(fr(m%ishoff(iat+1)-m%ishoff(iat)))
+    j = 0
+    do ish = m%ishoff(iat), m%ishoff(iat+1)-1
+       j = j + 1
+       i0 = m%ipsh(ish)
+       i1 = m%ipsh(ish+1) - 1
+       fr(j) = sum(m%wa(i0:i1) * f(i0:i1)) / m%wrsh(ish)
+    end do
+
+  end function spherical_average
+
   !> Write information about the mesh to the standard output.
   module subroutine report(m)
     use tools_io, only: uout, string
     class(mesh), intent(inout) :: m
+
+    integer :: i, nfb
+    character(len=:), allocatable :: str
 
     write (uout,'("  Mesh size      ",A)') string(m%n)
     if (m%type == mesh_type_becke) then
@@ -498,10 +371,360 @@ contains
     elseif (m%lvl == mesh_level_amazing) then
        write (uout,'("  Mesh level     amazing")')
     end if
+    if (m%nat > 0) then
+       nfb = count(.not.m%fromtable(1:m%nat))
+       if (nfb == m%nat) then
+          write (uout,'("  Atomic grids   legacy scheme (",A," atoms, ",A," shells)")') &
+             string(m%nat), string(size(m%rsh))
+       else
+          write (uout,'("  Atomic grids   tv-13.7-",A," (",A," atoms, ",A," shells)")') &
+             string(level2tier(m%lvl)), string(m%nat), string(size(m%rsh))
+       end if
+       if (nfb > 0 .and. nfb < m%nat) then
+          str = ""
+          do i = 1, m%nat
+             if (m%fromtable(i)) cycle
+             str = str // " " // string(m%zat(i))
+             if (m%zeffat(i) /= m%zat(i)) str = str // "(" // string(m%zeffat(i)) // ")"
+          end do
+          write (uout,'("  Legacy grids   ",A," atoms not covered by the table, Z(Zeff):",A)') &
+             string(nfb), str
+       end if
+    end if
+    write (uout,'("  Please cite: ")')
+    if (m%type == mesh_type_becke) then
+       write (uout,'("    A. D. Becke, J. Chem. Phys. 88, 2547 (1988). (10.1063/1.454033)")')
+    end if
+    write (uout,'("    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).")')
+    if (m%nat > 0) then
+       if (nfb < m%nat) then
+          write (uout,'("    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,")')
+          write (uout,'("       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,")')
+          write (uout,'("       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).")')
+       end if
+    end if
 
   end subroutine report
 
   !xx! private procedures
+
+  !> Name of the tuned atomic grid table file for mesh level lvl.
+  function table_filename(lvl) result(file)
+    use global, only: critic_home
+    use tools_io, only: string
+    use param, only: dirsep
+    integer, intent(in) :: lvl
+    character(len=:), allocatable :: file
+
+    file = trim(critic_home) // dirsep // "meshes" // dirsep // "tv-13.7-" //&
+       string(level2tier(lvl)) // ".txt"
+
+  end function table_filename
+
+  !> Load the tuned atomic grid table for mesh level lvl from
+  !> dat/meshes/tv-13.7-N.txt. Only the first call for a given level
+  !> reads the file. If the file does not exist or can not be parsed,
+  !> a warning is written and the table is left unallocated. Each
+  !> entry is three lines: "Z [Zeff]", "PowerRTransform rmin rmax
+  !> npt", and the npt Lebedev orders; comments (#) and blank lines
+  !> are skipped by getline.
+  subroutine load_table(lvl)
+    use tools_io, only: fopen_read, fclose, getline, lgetword, isinteger, isreal,&
+       equal, ferror, warning
+    integer, intent(in) :: lvl
+
+    character(len=:), allocatable :: file, line, word
+    integer :: lu, lp, i, n, nline, npt
+    logical :: exist, ok
+    type(table_entry), allocatable :: e(:)
+
+    if (tab(lvl)%isinit) return
+    tab(lvl)%isinit = .true.
+
+    file = table_filename(lvl)
+    inquire(file=file,exist=exist)
+    if (.not.exist) then
+       call ferror('load_table','Atomic grid table not found (using legacy grids): ' // file,warning)
+       return
+    end if
+
+    ! count the entries (three lines each) and read them
+    lu = fopen_read(file)
+    nline = 0
+    do while (getline(lu,line))
+       nline = nline + 1
+    end do
+    rewind(lu)
+    allocate(e(nline/3))
+    ok = (mod(nline,3) == 0)
+    n = 0
+    do while (ok .and. n < size(e))
+       n = n + 1
+       ! Z [Zeff]
+       ok = getline(lu,line)
+       lp = 1
+       ok = ok .and. isinteger(e(n)%z,line,lp)
+       if (.not.ok) exit
+       e(n)%zeff = e(n)%z
+       ok = isinteger(e(n)%zeff,line,lp) ! optional; zeff is left as z if absent
+       ok = .true.
+
+       ! PowerRTransform rmin rmax npt
+       ok = getline(lu,line)
+       lp = 1
+       word = lgetword(line,lp)
+       ok = ok .and. equal(word,"powerrtransform")
+       ok = ok .and. isreal(e(n)%rmin,line,lp)
+       ok = ok .and. isreal(e(n)%rmax,line,lp)
+       ok = ok .and. isinteger(npt,line,lp)
+       if (.not.ok) exit
+       ok = (npt >= 8) .and. (e(n)%rmin > 0d0) .and. (e(n)%rmax > e(n)%rmin)
+       if (.not.ok) exit
+
+       ! Lebedev order on each shell
+       ok = getline(lu,line)
+       lp = 1
+       allocate(e(n)%nang(npt))
+       do i = 1, npt
+          ok = ok .and. isinteger(e(n)%nang(i),line,lp)
+       end do
+    end do
+    call fclose(lu)
+
+    if (.not.ok) then
+       call ferror('load_table','Error reading atomic grid table (using legacy grids): ' // file,warning)
+       return
+    end if
+    call move_alloc(e,tab(lvl)%e)
+
+  end subroutine load_table
+
+  !> Find the entry in the table for level lvl for atomic number iz
+  !> and effective charge zeff: among the entries for that element,
+  !> the one with the smallest table Zeff that is >= zeff. Returns
+  !> zero if there is none.
+  function find_table_entry(lvl,iz,zeff) result(ie)
+    integer, intent(in) :: lvl, iz, zeff
+    integer :: ie
+
+    integer :: i
+
+    ie = 0
+    call load_table(lvl)
+    if (.not.allocated(tab(lvl)%e)) return
+    do i = 1, size(tab(lvl)%e)
+       if (tab(lvl)%e(i)%z /= iz) cycle
+       if (tab(lvl)%e(i)%zeff < zeff) cycle
+       if (ie == 0) then
+          ie = i
+       elseif (tab(lvl)%e(i)%zeff < tab(lvl)%e(ie)%zeff) then
+          ie = i
+       end if
+    end do
+
+  end function find_table_entry
+
+  !> Atomic grid for element iz with effective charge zeff, mesh type
+  !> and level: radii r(:), radial weights wr(:) (including 4*pi*r^2)
+  !> and Lebedev order on each shell nang(:). Taken from the tuned
+  !> table if the element is covered (fromtable = .true.); otherwise,
+  !> from the legacy scheme (constant angular order from z2nang, and
+  !> the postg (Becke type) or Franchini radial grids; the postg grid
+  !> is markedly more accurate for heavy all-electron atoms in
+  !> molecules).
+  subroutine atomic_grid_spec(iz,zeff,type,lvl,r,wr,nang,fromtable)
+    use tools_math, only: good_lebedev
+    integer, intent(in) :: iz, zeff, type, lvl
+    real*8, allocatable, intent(inout) :: r(:), wr(:)
+    integer, allocatable, intent(inout) :: nang(:)
+    logical, intent(out) :: fromtable
+
+    integer :: ie, nr, i, nang1
+
+    if (allocated(r)) deallocate(r)
+    if (allocated(wr)) deallocate(wr)
+    if (allocated(nang)) deallocate(nang)
+
+    ie = find_table_entry(lvl,iz,zeff)
+    fromtable = (ie > 0)
+    if (fromtable) then
+       nr = size(tab(lvl)%e(ie)%nang)
+       allocate(r(nr),wr(nr),nang(nr))
+       call rmesh_power(tab(lvl)%e(ie)%rmin,tab(lvl)%e(ie)%rmax,nr,r,wr)
+       nang = tab(lvl)%e(ie)%nang
+       do i = 1, nr
+          call good_lebedev(nang(i))
+       end do
+    else
+       nr = z2nr(iz,lvl)
+       allocate(r(nr),wr(nr),nang(nr))
+       if (type == mesh_type_becke) then
+          call rmesh_postg(nr,iz,r,wr)
+       else
+          call rmesh_franchini(nr,iz,r,wr)
+       end if
+       nang1 = z2nang(iz,lvl)
+       call good_lebedev(nang1)
+       nang = nang1
+    end if
+
+  end subroutine atomic_grid_spec
+
+  !> Radial grid from the power transform used in HORTON's tuned
+  !> tables: r_i = rmin * (i+1)^p for i = 0,...,n-1, with p =
+  !> ln(rmax/rmin)/ln(n), integrated with the composite Simpson rule
+  !> in i. The weights include the 4*pi*r^2 factor. n >= 8.
+  subroutine rmesh_power(rmin,rmax,n,r,wintr)
+    use param, only: fourpi
+    real*8, intent(in) :: rmin, rmax
+    integer, intent(in) :: n
+    real*8, intent(out) :: r(n), wintr(n)
+
+    real*8, parameter :: wend(4) = (/17d0/48d0, 59d0/48d0, 43d0/48d0, 49d0/48d0/)
+    real*8 :: p, drdt, w1d
+    integer :: i
+
+    p = log(rmax/rmin) / log(real(n,8))
+    do i = 1, n
+       r(i) = rmin * real(i,8)**p
+       drdt = p * rmin * real(i,8)**(p-1d0)
+       if (i <= 4) then
+          w1d = wend(i)
+       elseif (i > n-4) then
+          w1d = wend(n-i+1)
+       else
+          w1d = 1d0
+       end if
+       wintr(i) = fourpi * r(i)**2 * drdt * w1d
+    end do
+
+  end subroutine rmesh_power
+
+  !> Becke partition weights (A. D. Becke, J. Chem. Phys. 88 (1988)
+  !> 2547) for the mesh points, with k=3 iterations of the smoothing
+  !> polynomial and the heteronuclear size adjustment of the appendix
+  !> (Pyykko covalent radii from param, a_ij clamped to +-0.45 as in
+  !> HORTON; the fixed table atmcov0 is used so that the RADII keyword
+  !> does not change the integration weights). Only for molecules.
+  subroutine partition_becke(m)
+    use param, only: atmcov0
+    type(mesh), intent(inout) :: m
+
+    integer :: i, j, k, ip, it
+    real*8 :: chi, u, a, mu, nu, s, vpsum
+    real*8, allocatable :: rr(:,:), aij(:,:), d(:), p(:)
+
+    ! interatomic distances and size-adjustment parameters
+    allocate(rr(m%nat,m%nat),aij(m%nat,m%nat))
+    rr = 0d0
+    aij = 0d0
+    do i = 1, m%nat
+       do j = i+1, m%nat
+          rr(i,j) = norm2(m%xat(:,i) - m%xat(:,j))
+          rr(j,i) = rr(i,j)
+          chi = atmcov0(m%zat(i)) / atmcov0(m%zat(j))
+          u = (chi - 1d0) / (chi + 1d0)
+          a = u / (u*u - 1d0)
+          a = max(min(a,0.45d0),-0.45d0)
+          aij(i,j) = a
+          aij(j,i) = -a
+       end do
+    end do
+
+    ! cell functions: s(j,i) = -s(i,j), so each pair is done once
+    !$omp parallel do private(ip,d,p,i,j,mu,nu,s,it,vpsum) schedule(dynamic)
+    do k = 1, m%nat
+       allocate(d(m%nat),p(m%nat))
+       do ip = m%ipsh(m%ishoff(k)), m%ipsh(m%ishoff(k+1))-1
+          do i = 1, m%nat
+             d(i) = norm2(m%x(:,ip) - m%xat(:,i))
+          end do
+          p = 1d0
+          do i = 1, m%nat
+             do j = i+1, m%nat
+                mu = (d(i) - d(j)) / rr(i,j)
+                nu = mu + aij(i,j) * (1d0 - mu*mu)
+                s = nu
+                do it = 1, 3
+                   s = 1.5d0 * s - 0.5d0 * s**3
+                end do
+                p(i) = p(i) * 0.5d0 * (1d0 - s)
+                p(j) = p(j) * 0.5d0 * (1d0 + s)
+             end do
+          end do
+          vpsum = sum(p)
+          if (vpsum > 0d0) then
+             m%wp(ip) = p(k) / vpsum
+          else
+             m%wp(ip) = 0d0
+          end if
+       end do
+       deallocate(d,p)
+    end do
+    !$omp end parallel do
+
+  end subroutine partition_becke
+
+  !> Promolecular partition weights for the mesh points, using
+  !> exp(-2r)/r^3 as the atomic weight function (scaled by 0.3 for
+  !> hydrogen) and a neighbor list, so the cost does not grow with
+  !> the number of atoms and the mesh works for crystals. The list
+  !> reaches the largest grid radius so that every atom closer to the
+  !> point than its owner is included.
+  subroutine partition_promolecular(m,c)
+    use crystalmod, only: crystal
+    use param, only: maxzat, icrd_cart
+    type(mesh), intent(inout) :: m
+    type(crystal), intent(inout) :: c
+
+    real*8, parameter :: rthres = 12d0 ! contribution to weight: 2e-14
+
+    integer :: k, ish, ip, j, iz, nat
+    real*8 :: r, vp0, vpsum, rmax
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: dist(:)
+
+    rmax = max(maxval(m%rsh),rthres)
+
+    !$omp parallel do private(ish,ip,r,vp0,vpsum,nat,eid,dist,j,iz) schedule(dynamic)
+    do k = 1, m%nat
+       do ish = m%ishoff(k), m%ishoff(k+1)-1
+          r = m%rsh(ish)
+          vp0 = wfun(m%zat(k),r)
+          do ip = m%ipsh(ish), m%ipsh(ish+1)-1
+             ! all atoms within rmax of the mesh point
+             call c%list_near_atoms(m%x(:,ip),icrd_cart,.false.,nat,eid=eid,dist=dist,up2d=rmax)
+             vpsum = 0d0
+             do j = 1, nat
+                iz = c%spc(c%atcel(eid(j))%is)%z
+                if (iz < 1 .or. iz > maxzat) cycle
+                vpsum = vpsum + wfun(iz,dist(j))
+             end do
+             vpsum = max(vp0,vpsum)
+             if (vpsum > 0d0) then
+                m%wp(ip) = vp0 / vpsum
+             else
+                m%wp(ip) = 0d0
+             end if
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+  contains
+    function wfun(iz,r)
+      integer, intent(in) :: iz
+      real*8, intent(in) :: r
+      real*8 :: wfun
+
+      if (iz == 1) then
+         wfun = 0.3d0 * exp(-2d0 * r) / max(r,1d-10)**3
+      else
+         wfun = exp(-2d0 * r) / max(r,1d-10)**3
+      end if
+
+    end function wfun
+  end subroutine partition_promolecular
 
   !> Radial mesh for integration of exponential-like functions.
   !> From postg.

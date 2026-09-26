@@ -1207,7 +1207,7 @@ contains
     endif
 
     ! prepare the mesh
-    call m%gen(sy%c,mesh_type,mesh_level)
+    call m%gen(sy%c,mesh_type,mesh_level,sy%f(sy%iref)%zpsp)
     call m%report()
 
     ! properties to calculate
