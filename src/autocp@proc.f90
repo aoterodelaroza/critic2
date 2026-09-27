@@ -19,8 +19,13 @@
 submodule (autocp) proc
   implicit none
 
+  ! CP checkpoint file format identifier and version
+  character(len=8), parameter :: chk_magic = "CRI2CPCK"
+  integer, parameter :: chk_version = 1
+
   !xx! private procedures
   ! subroutine critshell(shmax)
+  ! function chkfile_name()
   ! subroutine writechk()
   ! subroutine readchk()
   ! subroutine atomic_connect_report()
@@ -1268,20 +1273,40 @@ contains
 
   end subroutine critshell
 
+  !> Name of the CP checkpoint file: the file of the reference field
+  !> with .chk_cps appended, or <root>.chk_cps if the reference field
+  !> was not read from a file.
+  function chkfile_name() result(cpfile)
+    use systemmod, only: sy
+    use global, only: fileroot
+    character(len=:), allocatable :: cpfile
+
+    cpfile = trim(sy%f(sy%iref)%file)
+    if (len(cpfile) == 0) then
+       cpfile = trim(fileroot)
+    elseif (cpfile(1:1) == "<") then
+       cpfile = trim(fileroot)
+    end if
+    cpfile = cpfile // ".chk_cps"
+
+  end function chkfile_name
+
   !> Write the CP information to the checkpoint file.
   subroutine writechk()
     use systemmod, only: sy
-    use global, only: fileroot
     use tools_io, only: uout, fopen_write, fclose, string
     character(len=:), allocatable :: cpfile
     integer :: lucp, i
 
-    cpfile = trim(fileroot) // ".chk_cps"
+    cpfile = chkfile_name()
 
     write (uout,'("* Writing CP file : ",A)') string(cpfile)
     write (uout,*)
 
     lucp = fopen_write(cpfile,"unformatted")
+    write (lucp) chk_magic, chk_version
+    write (lucp) sy%c%nneq, sy%c%ncel, sy%c%neqv, sy%c%ncv, sy%f(sy%iref)%type,&
+       sy%f(sy%iref)%typnuc, sy%c%m_x2c
     write (lucp) sy%f(sy%iref)%ncp, sy%f(sy%iref)%ncpcel
     write (lucp) (sy%f(sy%iref)%cp(i),i=1,sy%f(sy%iref)%ncp)
     write (lucp) (sy%f(sy%iref)%cpcel(i),i=1,sy%f(sy%iref)%ncpcel)
@@ -1289,44 +1314,64 @@ contains
 
   end subroutine writechk
 
-  !> Read the CP information from the checkpoint file.
+  !> Read the CP information from the checkpoint file. The file is
+  !> ignored if it does not correspond to the current structure and
+  !> reference field.
   subroutine readchk()
     use systemmod, only: sy
-    use global, only: fileroot
-    use tools_io, only: uout, fopen_write, string, fclose
+    use tools_io, only: uout, fopen_read, string, fclose, ferror, warning
     use types, only: realloc
-    integer :: lucp, i
-
+    integer :: lucp, i, ios
     character(len=:), allocatable :: cpfile
     logical :: existcpfile
+    character(len=len(chk_magic)) :: magic
+    integer :: version, nneq, ncel, neqv, ncv, ftype, typnuc, ncp, ncpcel
+    real*8 :: m_x2c(3,3)
 
-    cpfile = trim(fileroot) // ".chk_cps"
+    real*8, parameter :: eps = 1d-6
 
+    cpfile = chkfile_name()
     inquire(file=cpfile,exist=existcpfile)
-    if (existcpfile) then
-       write (uout,'("* Reading checkpoint file : ",A)') string(cpfile)
-       write (uout,*)
+    if (.not.existcpfile) return
 
-       lucp = fopen_write(cpfile,"unformatted")
-       read (lucp) sy%f(sy%iref)%ncp, sy%f(sy%iref)%ncpcel
+    write (uout,'("* Reading checkpoint file : ",A)') string(cpfile)
+    write (uout,*)
+    lucp = fopen_read(cpfile,"unformatted")
 
-       if (.not.allocated(sy%f(sy%iref)%cp)) then
-          allocate(sy%f(sy%iref)%cp(sy%f(sy%iref)%ncp))
-       else if (size(sy%f(sy%iref)%cp) < sy%f(sy%iref)%ncp) then
-          call realloc(sy%f(sy%iref)%cp,sy%f(sy%iref)%ncp)
-       end if
-       read (lucp) (sy%f(sy%iref)%cp(i),i=1,sy%f(sy%iref)%ncp)
-
-       if (.not.allocated(sy%f(sy%iref)%cpcel)) then
-          allocate(sy%f(sy%iref)%cpcel(sy%f(sy%iref)%ncpcel))
-       else if (size(sy%f(sy%iref)%cpcel) < sy%f(sy%iref)%ncpcel) then
-          call realloc(sy%f(sy%iref)%cpcel,sy%f(sy%iref)%ncpcel)
-       end if
-       read (lucp) (sy%f(sy%iref)%cpcel(i),i=1,sy%f(sy%iref)%ncpcel)
-
+    ! check the header
+    read (lucp,iostat=ios) magic, version
+    if (ios /= 0 .or. magic /= chk_magic .or. version /= chk_version) then
+       call ferror('readchk','unknown checkpoint format or version; ignoring file',warning)
        call fclose(lucp)
-
+       return
     end if
+    read (lucp,iostat=ios) nneq, ncel, neqv, ncv, ftype, typnuc, m_x2c
+    if (ios /= 0 .or. nneq /= sy%c%nneq .or. ncel /= sy%c%ncel .or. neqv /= sy%c%neqv .or.&
+       ncv /= sy%c%ncv .or. ftype /= sy%f(sy%iref)%type .or. typnuc /= sy%f(sy%iref)%typnuc .or.&
+       any(abs(m_x2c - sy%c%m_x2c) > eps)) then
+       call ferror('readchk','checkpoint does not match the structure or reference field; ignoring file',warning)
+       call fclose(lucp)
+       return
+    end if
+
+    ! read the CP lists
+    read (lucp) ncp, ncpcel
+    sy%f(sy%iref)%ncp = ncp
+    sy%f(sy%iref)%ncpcel = ncpcel
+    if (.not.allocated(sy%f(sy%iref)%cp)) then
+       allocate(sy%f(sy%iref)%cp(ncp))
+    else if (size(sy%f(sy%iref)%cp) < ncp) then
+       call realloc(sy%f(sy%iref)%cp,ncp)
+    end if
+    read (lucp) (sy%f(sy%iref)%cp(i),i=1,ncp)
+
+    if (.not.allocated(sy%f(sy%iref)%cpcel)) then
+       allocate(sy%f(sy%iref)%cpcel(ncpcel))
+    else if (size(sy%f(sy%iref)%cpcel) < ncpcel) then
+       call realloc(sy%f(sy%iref)%cpcel,ncpcel)
+    end if
+    read (lucp) (sy%f(sy%iref)%cpcel(i),i=1,ncpcel)
+    call fclose(lucp)
 
   end subroutine readchk
 
