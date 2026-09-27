@@ -221,7 +221,7 @@ contains
        w%errmsg = ""
        loadstr = build_load_string()
        if (len_trim(w%errmsg) == 0) then
-          call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg)
+          call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg,readchk=.true.)
           if (len_trim(w%errmsg) == 0) then
              ! expand the field list so the new field is visible
              sysc(isys)%showfields = .true.

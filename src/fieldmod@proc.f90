@@ -26,12 +26,17 @@ submodule (fieldmod) proc
   ! subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
   ! subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
   ! subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
+  ! subroutine chk_fingerprint(f,ihdr,rhdr,str)
 
   ! eps to move to the main cell
   real*8, parameter :: flooreps = 1d-4 ! border around unit cell
 
   ! numerical differentiation parameters
   real*8, parameter :: derw = 1.4d0, derw2 = derw*derw, big = 1d30, safe = 2d0
+
+  ! CP checkpoint file format identifier and version
+  character(len=8), parameter :: chk_magic = "CRI2CPCK"
+  integer, parameter :: chk_version = 1
 
 contains
 
@@ -1936,6 +1941,139 @@ contains
 
   end subroutine init_cplist_deferred
 
+  !> Name of the CP checkpoint file for this field: the file the
+  !> field was read from with .chk_cps appended. If the field was not
+  !> read from a file, root.chk_cps if root is given, or an empty
+  !> string otherwise.
+  module function chk_cps_file(f,root) result(file)
+    class(field), intent(in) :: f
+    character*(*), intent(in), optional :: root
+    character(len=:), allocatable :: file
+
+    file = trim(f%file)
+    if (len(file) == 0 .or. index(file,"<") == 1) then
+       if (.not.present(root)) then
+          file = ""
+          return
+       end if
+       file = trim(root)
+    end if
+    file = file // ".chk_cps"
+
+  end function chk_cps_file
+
+  !> Write the CP list of the field to checkpoint file. Returns a
+  !> non-empty errmsg if the file could not be written.
+  module subroutine write_chk_cps(f,file,errmsg,ti)
+    use tools_io, only: fopen_write, fclose
+    class(field), intent(in) :: f
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: str
+    integer, allocatable :: ihdr(:)
+    real*8, allocatable :: rhdr(:)
+    integer :: lu, i
+
+    errmsg = ""
+    lu = fopen_write(file,"unformatted",errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "could not open checkpoint file " // file
+       return
+    end if
+
+    call chk_fingerprint(f,ihdr,rhdr,str)
+    write (lu) chk_magic, chk_version
+    write (lu) size(ihdr), size(rhdr), len(str)
+    write (lu) ihdr, rhdr, str
+    write (lu) f%ncp, f%ncpcel
+    write (lu) (f%cp(i),i=1,f%ncp)
+    write (lu) (f%cpcel(i),i=1,f%ncpcel)
+    call fclose(lu)
+
+  end subroutine write_chk_cps
+
+  !> Read the CP list of the field from a checkpoint file. found is
+  !> true if the file exists. The file is not used, and errmsg is
+  !> non-empty, if it does not correspond to the current structure
+  !> and field or if it cannot be read. The CP lists of the field are
+  !> only modified if the whole file is read successfully.
+  module subroutine read_chk_cps(f,file,found,errmsg,ti)
+    use tools_io, only: fopen_read, fclose
+    class(field), intent(inout) :: f
+    character*(*), intent(in) :: file
+    logical, intent(out) :: found
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: str, str0
+    integer, allocatable :: ihdr(:), ihdr0(:)
+    real*8, allocatable :: rhdr(:), rhdr0(:)
+    type(cp_type), allocatable :: cp(:), cpcel(:)
+    character(len=len(chk_magic)) :: magic
+    integer :: lu, i, ios, version, ni, nr, ns, ncp, ncpcel
+    logical :: ok
+
+    real*8, parameter :: eps = 1d-6
+
+    errmsg = ""
+    found = .false.
+    if (.not.f%isinit .or. .not.associated(f%c)) return
+    lu = fopen_read(file,"unformatted",errstop=.false.,ti=ti)
+    if (lu < 0) return
+    found = .true.
+
+    ! check the format
+    read (lu,iostat=ios) magic, version
+    if (ios /= 0 .or. magic /= chk_magic .or. version /= chk_version) then
+       errmsg = "unknown checkpoint format or version"
+       call fclose(lu)
+       return
+    end if
+
+    ! check the structure and field fingerprint
+    call chk_fingerprint(f,ihdr0,rhdr0,str0)
+    read (lu,iostat=ios) ni, nr, ns
+    ok = (ios == 0 .and. ni == size(ihdr0) .and. nr == size(rhdr0) .and. ns == len(str0))
+    if (ok) then
+       allocate(ihdr(ni),rhdr(nr))
+       allocate(character(len=ns) :: str)
+       read (lu,iostat=ios) ihdr, rhdr, str
+       ok = (ios == 0)
+       if (ok) ok = all(ihdr == ihdr0) .and. all(abs(rhdr - rhdr0) <= eps) .and. (str == str0)
+    end if
+    if (.not.ok) then
+       errmsg = "checkpoint does not match the structure or field"
+       call fclose(lu)
+       return
+    end if
+
+    ! read the CP lists
+    read (lu,iostat=ios) ncp, ncpcel
+    ok = (ios == 0 .and. ncp >= f%c%nneq .and. ncpcel >= f%c%ncel .and. ncpcel >= ncp)
+    if (ok) then
+       allocate(cp(ncp),cpcel(ncpcel))
+       read (lu,iostat=ios) (cp(i),i=1,ncp)
+       if (ios == 0) read (lu,iostat=ios) (cpcel(i),i=1,ncpcel)
+       ok = (ios == 0)
+    end if
+    call fclose(lu)
+    if (.not.ok) then
+       errmsg = "error reading the checkpoint file"
+       return
+    end if
+
+    ! commit to the field; the nuclear CPs in the checkpoint were
+    ! already evaluated
+    call move_alloc(cp,f%cp)
+    call move_alloc(cpcel,f%cpcel)
+    f%ncp = ncp
+    f%ncpcel = ncpcel
+    f%fcp_deferred = .false.
+
+  end subroutine read_chk_cps
+
   !> Given the point xp in crystallographic coordinates, calculates
   !> the nearest CP. In output, nid is the id from the complete CP
   !> list and dist is the distance. If type is given, only search
@@ -3058,5 +3196,35 @@ contains
     xout = xout + xerr
 
   end subroutine stepper_dp
+
+  !> Fingerprint of the field and its structure, used to check that a
+  !> CP checkpoint file corresponds to them. Integer (ihdr) and real
+  !> (rhdr) data and the ghost field expression (str).
+  subroutine chk_fingerprint(f,ihdr,rhdr,str)
+    type(field), intent(in) :: f
+    integer, allocatable, intent(out) :: ihdr(:)
+    real*8, allocatable, intent(out) :: rhdr(:)
+    character(len=:), allocatable, intent(out) :: str
+
+    integer :: i
+
+    associate(c => f%c)
+      ihdr = [c%nneq, c%ncel, c%nspc, c%neqv, c%ncv, f%type, f%typnuc,&
+         merge(1,0,f%usecore), merge(1,0,f%numerical),&
+         (c%spc(c%at(i)%is)%z, i=1,c%nneq)]
+      if (allocated(f%zpsp)) ihdr = [ihdr, f%zpsp]
+
+      rhdr = [reshape(c%m_x2c,[9]), reshape(c%rotm(:,:,1:c%neqv),[12*c%neqv]),&
+         (c%at(i)%x, i=1,c%nneq)]
+      if (allocated(c%cen)) rhdr = [rhdr, reshape(c%cen(:,1:c%ncv),[3*c%ncv])]
+    end associate
+
+    if (f%type == type_ghost) then
+       str = trim(f%expr)
+    else
+       str = ""
+    end if
+
+  end subroutine chk_fingerprint
 
 end submodule proc

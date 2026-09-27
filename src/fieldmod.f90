@@ -107,6 +107,9 @@ module fieldmod
      procedure :: write_json !< Write field info in JSON format
      procedure :: init_cplist !< Initialize the CP list
      procedure :: init_cplist_deferred !< Calculate the scalar field for nuclei (deferred)
+     procedure :: chk_cps_file !< Name of the CP checkpoint file for this field
+     procedure :: write_chk_cps !< Write the CP list to a checkpoint file
+     procedure :: read_chk_cps !< Read the CP list from a checkpoint file
      procedure :: nearest_cp !< Given a point, find the nearest CP of a certain type
      procedure :: identify_cp !< Identify the CP given the position
      procedure :: testrmt !< Test for MT discontinuities
@@ -244,6 +247,24 @@ module fieldmod
      module subroutine init_cplist_deferred(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist_deferred
+     module function chk_cps_file(f,root) result(file)
+       class(field), intent(in) :: f
+       character*(*), intent(in), optional :: root
+       character(len=:), allocatable :: file
+     end function chk_cps_file
+     module subroutine write_chk_cps(f,file,errmsg,ti)
+       class(field), intent(in) :: f
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine write_chk_cps
+     module subroutine read_chk_cps(f,file,found,errmsg,ti)
+       class(field), intent(inout) :: f
+       character*(*), intent(in) :: file
+       logical, intent(out) :: found
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_chk_cps
      module subroutine nearest_cp(f,xp,nid,dist,lvec,type,nid0,id0,nozero)
        class(field), intent(in) :: f
        real*8, intent(in) :: xp(:)

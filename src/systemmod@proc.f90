@@ -494,9 +494,11 @@ contains
 
   !> Load a new field from a command string. Return id number in id or
   !> -1 if failed. If the field could not be loaded, return the reason
-  !> in errmsg. If verbose, write to standard output.
-  module subroutine load_field_string(s,line,verbose,id,errmsg,ti)
-    use tools_io, only: getword, lgetword, equal, uout, string
+  !> in errmsg. If verbose, write to standard output. If readchk, read
+  !> the critical point list from the field's checkpoint file
+  !> (<file>.chk_cps), if it exists.
+  module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk)
+    use tools_io, only: getword, lgetword, equal, uout, string, ferror, warning
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
     use arithmetic, only: fields_in_eval
@@ -514,12 +516,13 @@ contains
     integer, intent(out) :: id
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
+    logical, intent(in), optional :: readchk
 
     integer :: i, oid, nal, id1, id2, nn, n(3)
-    logical :: ok, isnewref
+    logical :: ok, isnewref, found, dochk
     type(fieldseed) :: seed
     integer :: idx
-    character(len=:), allocatable :: str, aux, erreval
+    character(len=:), allocatable :: str, aux, erreval, cpfile, errchk
     character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
 
@@ -785,6 +788,22 @@ contains
     ! error message.
     if (seed%testrmt) &
        call s%f(id)%testrmt(0,aux,ti=ti)
+
+    ! read the critical point list from the checkpoint file
+    dochk = .false.
+    if (present(readchk)) dochk = readchk
+    if (dochk) then
+       cpfile = s%f(id)%chk_cps_file()
+       found = .false.
+       errchk = ""
+       if (len(cpfile) > 0) call s%f(id)%read_chk_cps(cpfile,found,errchk,ti=ti)
+       if (found .and. len(errchk) > 0) then
+          call ferror('load_field_string',errchk // '; ignoring ' // cpfile,warning)
+       elseif (found) then
+          write (uout,'("* Read ",A," critical points for field ",A," from: ",A)') &
+             string(s%f(id)%ncp), string(id), cpfile
+       end if
+    end if
 
   contains
     !> Resolve a SIZEOF field reference into an explicit grid size (n).

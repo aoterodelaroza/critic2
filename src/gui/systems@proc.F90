@@ -893,13 +893,15 @@ contains
   module subroutine reload_field_with_virtuals(isys,ifield,errmsg)
     use wfn_private, only: molden_type_psi4, molden_type_orca
     use tools_io, only: quoteword
+    use types, only: cp_type
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: idnew, irefsave, typnuc
-    logical :: usecore, numerical, exact
+    integer :: idnew, irefsave, typnuc, ncp, ncpcel
+    logical :: usecore, numerical, exact, fcp_deferred
     integer, allocatable :: zpsp(:)
+    type(cp_type), allocatable :: cp(:), cpcel(:)
     character(len=:), allocatable :: name, file, lstr
 
     errmsg = ""
@@ -944,6 +946,14 @@ contains
        return
     end if
 
+    ! the virtual orbitals do not change the density, so the critical
+    ! points (searched or read from a checkpoint) are kept
+    ncp = sys(isys)%f(ifield)%ncp
+    ncpcel = sys(isys)%f(ifield)%ncpcel
+    fcp_deferred = sys(isys)%f(ifield)%fcp_deferred
+    call move_alloc(sys(isys)%f(ifield)%cp,cp)
+    call move_alloc(sys(isys)%f(ifield)%cpcel,cpcel)
+
     ! move the new field into the original slot, restoring the name and
     ! the options that did not come from the file, and drop the extra slot
     call sys(isys)%field_copy(idnew,ifield)
@@ -953,6 +963,11 @@ contains
     sys(isys)%f(ifield)%exact = exact
     sys(isys)%f(ifield)%typnuc = typnuc
     if (allocated(zpsp)) sys(isys)%f(ifield)%zpsp = zpsp
+    call move_alloc(cp,sys(isys)%f(ifield)%cp)
+    call move_alloc(cpcel,sys(isys)%f(ifield)%cpcel)
+    sys(isys)%f(ifield)%ncp = ncp
+    sys(isys)%f(ifield)%ncpcel = ncpcel
+    sys(isys)%f(ifield)%fcp_deferred = fcp_deferred
     call sys(isys)%unload_field(idnew)
 
     ! the reference does not normally move (load_field_string only sets
@@ -3928,7 +3943,7 @@ contains
                    ! formats without virtual orbitals)
                    str = quoteword(sysc(i)%seed%file)
                    if (always_read_virtuals) str = str // " readvirtual"
-                   call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti)
+                   call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti,readchk=.true.)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                       write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)

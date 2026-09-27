@@ -67,7 +67,8 @@ module icons
   ! icon IDs: system tree
   integer, parameter, public :: icon_ui_group = 37    ! a group of systems (folder holding molecules)
   integer, parameter, public :: icon_ui_display = 38  ! display selection window (eye)
-  integer, parameter, public :: icon_NUM = 38
+  integer, parameter, public :: icon_prop_cps = 39    ! critical points (saddle: arrows in and out of a dot)
+  integer, parameter, public :: icon_NUM = 39
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

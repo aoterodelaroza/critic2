@@ -24,6 +24,7 @@ submodule (windows) tree
   real(c_float), parameter :: rgba_vibrations(4) = (/0.84_c_float,0.86_c_float,0.00_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_partialocc(4) = (/0.94_c_float,0.60_c_float,0.00_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_fields(4) = (/0.00_c_float,1.00_c_float,0.50_c_float,1.00_c_float/)
+  real(c_float), parameter :: rgba_cps(4) = (/1.00_c_float,0.45_c_float,0.85_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_reference(4) = (/0.890_c_float,0.706_c_float,0.129_c_float,1._c_float/)
   ! color for the tree expand/collapse control-button icon
   real(c_float), parameter :: rgba_expand(4) = (/0.72_c_float,0.72_c_float,0.78_c_float,1.00_c_float/)
@@ -67,7 +68,7 @@ contains
        ColorFieldSelected, ColorTableHighlightRow,&
        ColorTableSelectedBorder, g, fontsize, io
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX, icon_ui_group,&
-       format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
+       format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ, icon_prop_cps,&
        icon_ui_expand, icon_ui_collapse
     use fieldmod, only: type_grid, type_wien, type_pi, type_dftb
     use representations, only: reptype_isosurface, repflavor_isosurface
@@ -92,7 +93,7 @@ contains
     integer(c_int) :: flags, color, itex
     integer :: i, j, k, jsel, iref, inext, iprev, ithis, iaux, ifmt
     integer :: nshown, nshown_after_filter, maxprops, nprop, nrow, ithis_row
-    logical :: hasfield, hasvib, hasocc
+    logical :: hasfield, hasvib, hasocc, hascps
     logical(c_bool) :: ldum
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -160,6 +161,7 @@ contains
           if (any(sys(i)%f(1:sys(i)%nf)%isinit)) nprop = nprop + 1
           if (sys(i)%c%vib%hasvibs) nprop = nprop + 1
           if (sys(i)%c%haveocc) nprop = nprop + 1
+          if (system_has_cps(i)) nprop = nprop + 1
           maxprops = max(maxprops,nprop)
        end if
     end do
@@ -664,10 +666,12 @@ contains
                    hasfield = .false.
                    hasvib = .false.
                    hasocc = .false.
+                   hascps = .false.
                    if (sysc(i)%status >= sys_ready) then
                       hasfield = any(sys(i)%f(1:sys(i)%nf)%isinit)
                       hasvib = sys(i)%c%vib%hasvibs
                       hasocc = sys(i)%c%haveocc
+                      hascps = system_has_cps(i)
                    end if
                    ! icons, then pad to maxprops
                    nprop = 0
@@ -683,6 +687,8 @@ contains
                       "Vibration data available",nprop)
                    call draw_icon_cell(hasocc,icon_tex(icon_prop_occ),rgba_partialocc,&
                       "Partial site occupancies (disorder)",nprop)
+                   call draw_icon_cell(hascps,icon_tex(icon_prop_cps),rgba_cps,&
+                      "Critical points available for one or more fields",nprop)
                    sz = ImVec2(fontsize%y,fontsize%y)
                    do k = nprop+1, maxprops
                       if (k > 1) call igSameLine(0._c_float,2._c_float)
@@ -1283,6 +1289,25 @@ contains
 
     end subroutine draw_icon_cell
 
+    !> True if field k of system i has critical points other than the
+    !> nuclei (from a CP search or a checkpoint file).
+    logical function field_has_cps(i,k)
+      integer, intent(in) :: i, k
+
+      field_has_cps = sys(i)%goodfield(k)
+      if (field_has_cps) field_has_cps = (sys(i)%f(k)%ncp > sys(i)%c%nneq)
+
+    end function field_has_cps
+
+    !> True if any field of system i has critical points other than
+    !> the nuclei.
+    logical function system_has_cps(i)
+      integer, intent(in) :: i
+
+      system_has_cps = any(sys(i)%f(0:sys(i)%nf)%isinit .and. sys(i)%f(0:sys(i)%nf)%ncp > sys(i)%c%nneq)
+
+    end function system_has_cps
+
     !> Apply a SETFIELD-style option string opt to field k of system i,
     !> reporting any error to the output console.
     subroutine field_setopt(i,k,opt)
@@ -1345,7 +1370,7 @@ contains
       logical :: isend, okz
       integer(c_int) :: flags, color
       type(ImVec4) :: col4
-      integer :: id, is
+      integer :: id, is, nd
 
       ! start the row and color the name cell like the parent system's
       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1357,16 +1382,21 @@ contains
       end if
 
       ! red X to remove this field, in the properties column; the
-      ! promolecular field (0) cannot be removed
-      if (k > 0) then
-         if (igTableSetColumnIndex(ic_tree_props)) then
+      ! promolecular field (0) cannot be removed. Followed by the
+      ! critical points icon if the field has CPs besides the nuclei.
+      if (igTableSetColumnIndex(ic_tree_props)) then
+         nd = 0
+         if (k > 0) then
             str = "##fieldclose" // string(i) // "," // string(k)
             if (iw_close_button(str)) then
                call sys(i)%unload_field(k)
                return
             end if
             call iw_tooltip("Remove this field",ttshown)
+            nd = 1
          end if
+         if (field_has_cps(i,k)) call draw_icon_cell(.true.,icon_tex(icon_prop_cps),rgba_cps,&
+            "Critical points available (" // string(sys(i)%f(k)%ncp) // " non-equivalent)",nd)
       end if
 
       if (.not.igTableSetColumnIndex(ic_tree_name)) return
