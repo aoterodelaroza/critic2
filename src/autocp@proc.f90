@@ -26,6 +26,7 @@ submodule (autocp) proc
   !xx! private procedures
   ! subroutine critshell(shmax)
   ! function chkfile_name()
+  ! subroutine chk_fingerprint(ihdr,rhdr,str)
   ! subroutine writechk()
   ! subroutine readchk()
   ! subroutine atomic_connect_report()
@@ -1282,31 +1283,64 @@ contains
     character(len=:), allocatable :: cpfile
 
     cpfile = trim(sy%f(sy%iref)%file)
-    if (len(cpfile) == 0) then
-       cpfile = trim(fileroot)
-    elseif (cpfile(1:1) == "<") then
-       cpfile = trim(fileroot)
-    end if
+    if (len(cpfile) == 0 .or. index(cpfile,"<") == 1) cpfile = fileroot
     cpfile = cpfile // ".chk_cps"
 
   end function chkfile_name
 
+  !> Fingerprint of the current structure and reference field, used
+  !> to check that a CP checkpoint file corresponds to them. Integer
+  !> (ihdr) and real (rhdr) data and the ghost field expression (str).
+  subroutine chk_fingerprint(ihdr,rhdr,str)
+    use systemmod, only: sy
+    use fieldmod, only: type_ghost
+    integer, allocatable, intent(inout) :: ihdr(:)
+    real*8, allocatable, intent(inout) :: rhdr(:)
+    character(len=:), allocatable, intent(inout) :: str
+
+    integer :: i
+
+    associate(c => sy%c, f => sy%f(sy%iref))
+      ihdr = [c%nneq, c%ncel, c%nspc, c%neqv, c%ncv, f%type, f%typnuc,&
+         merge(1,0,f%usecore), merge(1,0,f%numerical),&
+         (c%spc(c%at(i)%is)%z, i=1,c%nneq)]
+      if (allocated(f%zpsp)) ihdr = [ihdr, f%zpsp]
+
+      rhdr = [reshape(c%m_x2c,[9]), reshape(c%rotm(:,:,1:c%neqv),[12*c%neqv]),&
+         (c%at(i)%x, i=1,c%nneq)]
+      if (allocated(c%cen)) rhdr = [rhdr, reshape(c%cen(:,1:c%ncv),[3*c%ncv])]
+
+      if (f%type == type_ghost) then
+         str = trim(f%expr)
+      else
+         str = ""
+      end if
+    end associate
+
+  end subroutine chk_fingerprint
+
   !> Write the CP information to the checkpoint file.
   subroutine writechk()
     use systemmod, only: sy
-    use tools_io, only: uout, fopen_write, fclose, string
-    character(len=:), allocatable :: cpfile
+    use tools_io, only: uout, fopen_write, fclose, string, ferror, warning
+    character(len=:), allocatable :: cpfile, str
+    integer, allocatable :: ihdr(:)
+    real*8, allocatable :: rhdr(:)
     integer :: lucp, i
 
     cpfile = chkfile_name()
-
+    lucp = fopen_write(cpfile,"unformatted",errstop=.false.)
+    if (lucp < 0) then
+       call ferror('writechk','could not open checkpoint file ' // cpfile // '; not written',warning)
+       return
+    end if
     write (uout,'("* Writing CP file : ",A)') string(cpfile)
     write (uout,*)
 
-    lucp = fopen_write(cpfile,"unformatted")
+    call chk_fingerprint(ihdr,rhdr,str)
     write (lucp) chk_magic, chk_version
-    write (lucp) sy%c%nneq, sy%c%ncel, sy%c%neqv, sy%c%ncv, sy%f(sy%iref)%type,&
-       sy%f(sy%iref)%typnuc, sy%c%m_x2c
+    write (lucp) size(ihdr), size(rhdr), len(str)
+    write (lucp) ihdr, rhdr, str
     write (lucp) sy%f(sy%iref)%ncp, sy%f(sy%iref)%ncpcel
     write (lucp) (sy%f(sy%iref)%cp(i),i=1,sy%f(sy%iref)%ncp)
     write (lucp) (sy%f(sy%iref)%cpcel(i),i=1,sy%f(sy%iref)%ncpcel)
@@ -1316,62 +1350,73 @@ contains
 
   !> Read the CP information from the checkpoint file. The file is
   !> ignored if it does not correspond to the current structure and
-  !> reference field.
+  !> reference field, or if it cannot be read. The field CP lists are
+  !> only modified if the whole file is read successfully.
   subroutine readchk()
     use systemmod, only: sy
     use tools_io, only: uout, fopen_read, string, fclose, ferror, warning
-    use types, only: realloc
-    integer :: lucp, i, ios
-    character(len=:), allocatable :: cpfile
-    logical :: existcpfile
+    use types, only: cp_type
+    character(len=:), allocatable :: cpfile, str, str0
+    integer, allocatable :: ihdr(:), ihdr0(:)
+    real*8, allocatable :: rhdr(:), rhdr0(:)
+    type(cp_type), allocatable :: cp(:), cpcel(:)
     character(len=len(chk_magic)) :: magic
-    integer :: version, nneq, ncel, neqv, ncv, ftype, typnuc, ncp, ncpcel
-    real*8 :: m_x2c(3,3)
+    integer :: lucp, i, ios, version, ni, nr, ns, ncp, ncpcel
+    logical :: ok
 
     real*8, parameter :: eps = 1d-6
 
     cpfile = chkfile_name()
-    inquire(file=cpfile,exist=existcpfile)
-    if (.not.existcpfile) return
-
+    lucp = fopen_read(cpfile,"unformatted",errstop=.false.)
+    if (lucp < 0) return
     write (uout,'("* Reading checkpoint file : ",A)') string(cpfile)
     write (uout,*)
-    lucp = fopen_read(cpfile,"unformatted")
 
-    ! check the header
+    ! check the format
     read (lucp,iostat=ios) magic, version
     if (ios /= 0 .or. magic /= chk_magic .or. version /= chk_version) then
        call ferror('readchk','unknown checkpoint format or version; ignoring file',warning)
        call fclose(lucp)
        return
     end if
-    read (lucp,iostat=ios) nneq, ncel, neqv, ncv, ftype, typnuc, m_x2c
-    if (ios /= 0 .or. nneq /= sy%c%nneq .or. ncel /= sy%c%ncel .or. neqv /= sy%c%neqv .or.&
-       ncv /= sy%c%ncv .or. ftype /= sy%f(sy%iref)%type .or. typnuc /= sy%f(sy%iref)%typnuc .or.&
-       any(abs(m_x2c - sy%c%m_x2c) > eps)) then
+
+    ! check the structure and field fingerprint
+    call chk_fingerprint(ihdr0,rhdr0,str0)
+    read (lucp,iostat=ios) ni, nr, ns
+    ok = (ios == 0 .and. ni == size(ihdr0) .and. nr == size(rhdr0) .and. ns == len(str0))
+    if (ok) then
+       allocate(ihdr(ni),rhdr(nr))
+       allocate(character(len=ns) :: str)
+       read (lucp,iostat=ios) ihdr, rhdr, str
+       ok = (ios == 0)
+       if (ok) ok = all(ihdr == ihdr0) .and. all(abs(rhdr - rhdr0) <= eps) .and. (str == str0)
+    end if
+    if (.not.ok) then
        call ferror('readchk','checkpoint does not match the structure or reference field; ignoring file',warning)
        call fclose(lucp)
        return
     end if
 
     ! read the CP lists
-    read (lucp) ncp, ncpcel
+    read (lucp,iostat=ios) ncp, ncpcel
+    ok = (ios == 0 .and. ncp >= sy%c%nneq .and. ncpcel >= sy%c%ncel .and. ncpcel >= ncp)
+    if (ok) then
+       allocate(cp(ncp),cpcel(ncpcel))
+       read (lucp,iostat=ios) (cp(i),i=1,ncp)
+       if (ios == 0) read (lucp,iostat=ios) (cpcel(i),i=1,ncpcel)
+       ok = (ios == 0)
+    end if
+    call fclose(lucp)
+    if (.not.ok) then
+       call ferror('readchk','error reading the checkpoint file; ignoring file',warning)
+       return
+    end if
+
+    ! commit to the reference field
+    call move_alloc(cp,sy%f(sy%iref)%cp)
+    call move_alloc(cpcel,sy%f(sy%iref)%cpcel)
     sy%f(sy%iref)%ncp = ncp
     sy%f(sy%iref)%ncpcel = ncpcel
-    if (.not.allocated(sy%f(sy%iref)%cp)) then
-       allocate(sy%f(sy%iref)%cp(ncp))
-    else if (size(sy%f(sy%iref)%cp) < ncp) then
-       call realloc(sy%f(sy%iref)%cp,ncp)
-    end if
-    read (lucp) (sy%f(sy%iref)%cp(i),i=1,ncp)
-
-    if (.not.allocated(sy%f(sy%iref)%cpcel)) then
-       allocate(sy%f(sy%iref)%cpcel(ncpcel))
-    else if (size(sy%f(sy%iref)%cpcel) < ncpcel) then
-       call realloc(sy%f(sy%iref)%cpcel,ncpcel)
-    end if
-    read (lucp) (sy%f(sy%iref)%cpcel(i),i=1,ncpcel)
-    call fclose(lucp)
 
   end subroutine readchk
 
