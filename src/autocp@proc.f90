@@ -33,6 +33,7 @@ submodule (autocp) proc
   ! subroutine graph_short_report()
   ! subroutine cp_json_report(json,p)
   ! subroutine makegraph()
+  ! subroutine gpath_prune(gp,dmin,g)
   ! subroutine scale_ws(rad,wso,ntetrag,tetrag)
   ! subroutine write_json_cps(file)
   ! subroutine write_test_cps(file)
@@ -1794,11 +1795,11 @@ contains
     write (uout,*)
 
     ! graph information
-    write (uout,'("* Complete CP list, bcp and rcp connectivity table")')
-    write (uout,'("# (cp(end)+lvec connected to bcp/rcp)")')
+    write (uout,'("* Complete CP list, bcp connectivity table")')
+    write (uout,'("# (cp(end)+lvec connected to bcp)")')
     write (uout,'("#cp  ncp   typ        position (cryst. coords.)            end1 (lvec)      end2 (lvec)")')
     do i = 1, sy%f(sy%iref)%ncpcel
-       if (sy%f(sy%iref)%cpcel(i)%typ == -1 .or. sy%f(sy%iref)%cpcel(i)%typ == 1 .and. dograph > 0) then
+       if (sy%f(sy%iref)%cpcel(i)%typ == sign(1,sy%f(sy%iref)%typnuc)) then
           write (uout,'(7(A," "),"(",3(A," "),") ",A," (",3(A," "),")")') &
              string(i,length=6,justify=ioj_left),&
              string(sy%f(sy%iref)%cpcel(i)%idx,length=4,justify=ioj_left),&
@@ -1865,60 +1866,41 @@ contains
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_center
     use global, only: iunit, iunitname0, dunit0
-    integer :: i, j, k, maxlen
+    integer :: i, j, maxlen
     character*(20) :: nam(2)
-    logical :: isbcp
 
-    ! bonds
-    do k = 1, 2
-       isbcp = (k==1)
-       if (isbcp) then
-          write (uout,'("* Analysis of system bonds")')
-          write (uout,'("# ncp is the bond from the non-equivalent CP list.")')
-          write (uout,'("# End-1 and End-2 are the bond path terminator from the non-equivalent")')
-          write (uout,'("#   CP list (index in parentheses).")')
-          write (uout,'("# r1 and r2 are the geometric distances between bond and terminators.")')
-          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")')
-          write (uout,'("# p1 and p2 are the bond path lengths.")')
-          write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
-             string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
-             string(iunitname0(iunit))
+    write (uout,'("* Analysis of system bonds")')
+    write (uout,'("# ncp is the bond from the non-equivalent CP list.")')
+    write (uout,'("# End-1 and End-2 are the bond path terminator from the non-equivalent")')
+    write (uout,'("#   CP list (index in parentheses).")')
+    write (uout,'("# r1 and r2 are the geometric distances between bond and terminators.")')
+    write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")')
+    write (uout,'("# p1 and p2 are the bond path lengths.")')
+    write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
+       string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
+       string(iunitname0(iunit))
+    do i = 1, sy%f(sy%iref)%ncp
+       if (sy%f(sy%iref)%cp(i)%typ /= sign(1,sy%f(sy%iref)%typnuc)) cycle
 
-       else
-          write (uout,'("* Analysis of system rings")')
-          write (uout,'("# ncp is the ring from the non-equivalent CP list.")')
-          write (uout,'("# End-1 and End-2 are the ring path terminator from the non-equivalent")')
-          write (uout,'("#   CP list (index in parentheses).")')
-          write (uout,'("# r1 and r2 are the geometric distances between ring and terminators.")')
-          write (uout,'("# r1-B-r2 is the geometric angle between bond and terminators (angle).")')
-          write (uout,'("# p1 and p2 are the ring path lengths.")')
-          write (uout,'("# ncp  End-1    End-2   r1(",A,") r2(",A,")  r1/r2  r1-B-r2  p1(",A,") p2(",A,")")') &
-             string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
-             string(iunitname0(iunit))
-       end if
-       do i = 1, sy%f(sy%iref)%ncp
-          if (sy%f(sy%iref)%cp(i)%typ /= -1 .and. isbcp .or. sy%f(sy%iref)%cp(i)%typ /= 1 .and..not.isbcp) cycle
-
-          do j = 1, 2
-             if (sy%f(sy%iref)%cp(i)%ipath(j) == 0) then
-                nam(j) = ' ?? '
-             elseif (sy%f(sy%iref)%cp(i)%ipath(j) == -1) then
-                nam(j) = 'Inf.'
-             else
-                nam(j) = string(sy%f(sy%iref)%cp(sy%f(sy%iref)%cp(i)%ipath(j))%name) // &
-                   " (" // string(sy%f(sy%iref)%cp(i)%ipath(j)) // ")"
-             end if
-          end do
-          maxlen = max(8,len_trim(nam(1)),len_trim(nam(2)))
-          write (uout,'(99(A," "))') string(i,length=5,justify=ioj_center),&
-             string(nam(1),length=maxlen,justify=ioj_center), string(nam(2),length=maxlen,justify=ioj_center),&
-             (string(sy%f(sy%iref)%cp(i)%brdist(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2), &
-             string(sy%f(sy%iref)%cp(i)%brdist(1)/sy%f(sy%iref)%cp(i)%brdist(2),'f',length=8,decimal=4,justify=3), &
-             string(sy%f(sy%iref)%cp(i)%brang,'f',length=7,decimal=2,justify=3),&
-             (string(sy%f(sy%iref)%cp(i)%brpathlen(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2)
-       enddo
-       write (uout,*)
-    end do
+       do j = 1, 2
+          if (sy%f(sy%iref)%cp(i)%ipath(j) == 0) then
+             nam(j) = ' ?? '
+          elseif (sy%f(sy%iref)%cp(i)%ipath(j) == -1) then
+             nam(j) = 'Inf.'
+          else
+             nam(j) = string(sy%f(sy%iref)%cp(sy%f(sy%iref)%cp(i)%ipath(j))%name) // &
+                " (" // string(sy%f(sy%iref)%cp(i)%ipath(j)) // ")"
+          end if
+       end do
+       maxlen = max(8,len_trim(nam(1)),len_trim(nam(2)))
+       write (uout,'(99(A," "))') string(i,length=5,justify=ioj_center),&
+          string(nam(1),length=maxlen,justify=ioj_center), string(nam(2),length=maxlen,justify=ioj_center),&
+          (string(sy%f(sy%iref)%cp(i)%brdist(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2), &
+          string(sy%f(sy%iref)%cp(i)%brdist(1)/sy%f(sy%iref)%cp(i)%brdist(2),'f',length=8,decimal=4,justify=3), &
+          string(sy%f(sy%iref)%cp(i)%brang,'f',length=7,decimal=2,justify=3),&
+          (string(sy%f(sy%iref)%cp(i)%brpathlen(j)*dunit0(iunit),'f',length=8,decimal=4,justify=3),j=1,2)
+    enddo
+    write (uout,*)
 
   end subroutine graph_short_report
 
@@ -2052,7 +2034,7 @@ contains
        call json%add(ap,'nonequivalent_id',sy%f(sy%iref)%cpcel(i)%idx)
 
        ! connectivity
-       if (res%s == 1 .or. res%s == -1) then
+       if (sy%f(sy%iref)%cp(idx)%typ == sign(1,sy%f(sy%iref)%typnuc)) then
           if (res%s == -1) then
              call json%add(ap,'attractor_angle',sy%f(sy%iref)%cp(idx)%brang)
              call json%add(ap,'attractor_eigenvec',sy%f(sy%iref)%cp(idx)%brvec)
@@ -2084,17 +2066,16 @@ contains
 
   end subroutine cp_json_report
 
-  !> Attempt to build the complete graph for the system. First, start
-  !> an upwards gradient path from the bcps to determine the bond
-  !> paths. Then calculate the ring paths with a pair of downwards
-  !> gradient paths. If dograph is >1, determine the stable and
-  !> unstable cps on each 2d manifold associated to every
-  !> non-equivalent bcp and rcp.
+  !> Attempt to build the bond graph for the system: trace the two
+  !> bond paths from each non-equivalent bond critical point (the
+  !> (3,-1) CPs if the nuclei are maxima, (3,+1) if they are minima),
+  !> identify their end points, and keep the paths in the field.
   subroutine makegraph()
     use systemmod, only: sy
     use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
-    use types, only: scalar_value, field_evaluation_avail
+    use types, only: scalar_value, field_evaluation_avail, gpathp, cp_gpath
+    use global, only: prunedist
     use param, only: pi
     integer :: i, j, k
     integer :: nstep
@@ -2102,11 +2083,12 @@ contains
     real*8, dimension(3,3) :: evec
     real*8, dimension(3) :: reval
     real*8 :: dist, xdtemp(3,2), xx(3), plen(2)
-    integer :: wcp
+    integer :: wcp, ibcp
     integer :: ier, idir
-    logical :: isbcp
     type(scalar_value) :: res
     real*8, allocatable :: xdis(:,:,:), xplen(:,:)
+    type(gpathp), allocatable :: gp(:)
+    type(cp_gpath), allocatable :: cpgp(:,:)
 
     real*8, parameter :: change = 1d-2
     type(field_evaluation_avail) :: request
@@ -2115,25 +2097,25 @@ contains
 
     associate(f => sy%f(sy%iref), cr => sy%c)
 
-      allocate(xdis(3,2,f%ncp),xplen(2,f%ncp))
+      ! type of the CPs with bond paths
+      ibcp = sign(1,f%typnuc)
+
+      allocate(xdis(3,2,f%ncp),xplen(2,f%ncp),cpgp(2,f%ncp))
       xdis = 0d0
       xplen = 0d0
 
       ! run over known non-equivalent cps
-      !$omp parallel do private(res,isbcp,evec,reval,idir,xdtemp,nstep,ier,xx,plen) schedule(dynamic)
+      !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp) schedule(dynamic)
       do i = 1, f%ncp
-         ! BCP/RCP paths
-         if (abs(f%cp(i)%typ) == 1) then
-            isbcp = (f%cp(i)%typ == -1)
-
-            ! diagonalize hessian at the bcp/rcp, calculate starting points
-            ! the third component of the hessian is up/down direction
+         if (f%cp(i)%typ == ibcp) then
+            ! diagonalize hessian at the bcp, calculate starting points
+            ! along the eigenvector of the bond direction
             call f%grd(f%cp(i)%r,request,res)
             evec = res%hf
             call eigsym(evec,3,reval,ier)
             if (ier /= 0) &
                call ferror('makegraph','Error in diagonalization',faterr)
-            if (isbcp) then
+            if (ibcp == -1) then
                xx = evec(:,3)
             else
                xx = evec(:,1)
@@ -2142,38 +2124,33 @@ contains
             xdtemp(:,1) = f%cp(i)%r + change * xx
             xdtemp(:,2) = f%cp(i)%r - change * xx
 
-            ! follow up/down both directions
-            if (isbcp) then
-               idir = 1
-            else
-               idir = -1
-            end if
+            ! follow the bond path in both directions; the path ends
+            ! at the attractor position (gradient appends it)
+            idir = -ibcp
             do j = 1, 2
-               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j),pathini=f%cp(i)%r)
+               call f%gradient(xdtemp(:,j),idir,nstep,ier,.true.,plen(j),path=gp,pathini=f%cp(i)%r)
+               call gpath_prune(gp,prunedist,cpgp(j,i))
             end do
-            !$omp critical (xdis1)
+
+            ! each iteration writes only its own elements: no critical needed
             f%cp(i)%brvec = xx
             xdis(:,:,i) = xdtemp
             xplen(:,i) = plen
-            !$omp end critical (xdis1)
          else
-            !$omp critical (xdis2)
             f%cp(i)%brvec = 0d0
-            !$omp end critical (xdis2)
          end if
       end do
       !$omp end parallel do
 
       ! Fill the eigenvectors
       do i = 1, f%ncpcel
-         if (abs(f%cp(f%cpcel(i)%idx)%typ) == 1) then
-            isbcp = (f%cp(f%cpcel(i)%idx)%typ == -1)
+         if (f%cp(f%cpcel(i)%idx)%typ == ibcp) then
             call f%grd(f%cpcel(i)%r,request,res)
             evec = res%hf
             call eigsym(evec,3,reval,ier)
             if (ier /= 0) &
                call ferror('makegraph','Error in diagonalization',faterr)
-            if (isbcp) then
+            if (ibcp == -1) then
                xx = evec(:,3)
             else
                xx = evec(:,1)
@@ -2187,7 +2164,7 @@ contains
       ! run over known non-equivalent cps
       do i = 1, f%ncp
          ! BCP paths
-         if (abs(f%cp(i)%typ) == 1) then
+         if (f%cp(i)%typ == ibcp) then
             do j = 1, 2
                ! save difference vector and distance
                xdif(:,j) = xdis(:,j,i) - f%cp(i)%r
@@ -2216,7 +2193,7 @@ contains
                   cycle
                end if
 
-               ! generate equivalent bond/ring paths
+               ! generate equivalent bond paths
                do k = 1, f%ncpcel
                   if (f%cpcel(k)%idx /= i) cycle
                   v = matmul(cr%rotm(1:3,1:3,f%cpcel(k)%ir),xdis(:,j,i)) + &
@@ -2239,9 +2216,38 @@ contains
       end do
 
       deallocate(xdis)
+      call move_alloc(cpgp,f%cpgp)
 
     end associate
   end subroutine makegraph
+
+  !> Convert the gradient path gp into a CP path (g), keeping only
+  !> the points at least dmin away from the previous point kept. The
+  !> first and last points are always kept. The thinning is done
+  !> after tracing because the prune option of gradient also limits
+  !> the step size, which changes the path end points and lengths.
+  subroutine gpath_prune(gp,dmin,g)
+    use types, only: gpathp, cp_gpath, realloc
+    type(gpathp), intent(in) :: gp(:)
+    real*8, intent(in) :: dmin
+    type(cp_gpath), intent(out) :: g
+
+    integer :: k, n
+    real*8 :: rlast(3)
+
+    n = size(gp)
+    allocate(g%x(3,n))
+    do k = 1, n
+       if (k > 1 .and. k < n) then
+          if (norm2(gp(k)%r - rlast) < dmin) cycle
+       end if
+       g%n = g%n + 1
+       g%x(:,g%n) = gp(k)%x
+       rlast = gp(k)%r
+    end do
+    call realloc(g%x,3,g%n)
+
+  end subroutine gpath_prune
 
   !> Scale the Wigner-Seitz cell to make it fit inside a sphere of radius
   !> rad.

@@ -98,9 +98,11 @@ contains
     call s%c%clearsym(cel2neq=.true.)
     call s%c%pg%clear()
 
-    ! convert ncpcel to ncel for all fields
+    ! convert ncpcel to ncel for all fields; the bond paths are
+    ! indexed by the old non-equivalent CP list
     do i = 0, s%nf
        if (s%f(i)%isinit) then
+          if (allocated(s%f(i)%cpgp)) deallocate(s%f(i)%cpgp)
           call realloc(s%f(i)%cp,s%f(i)%ncpcel)
           ! every CP in the cell becomes its own non-equivalent CP
           do j = 1, s%f(i)%ncpcel

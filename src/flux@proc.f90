@@ -1387,27 +1387,6 @@ contains
              end do
           end do
 
-       ! ccp
-       else if (sy%f(sy%iref)%cpcel(cpid)%typ == 3) then
-          ! all the ring paths of the rcp bonded to the ccp
-          do i = 1, sy%f(sy%iref)%ncpcel
-             if (sy%f(sy%iref)%cpcel(i)%typ /= 1) cycle
-             do l = 0, 26
-                ln = l
-                templvec(1) = mod(ln,3) - 1
-                ln = ln / 3
-                templvec(2) = mod(ln,3) - 1
-                ln = ln / 3
-                templvec(3) = mod(ln,3) - 1
-                if (sy%f(sy%iref)%cpcel(i)%ipath(1) == cpid .and.&
-                   all(locallvec == sy%f(sy%iref)%cpcel(i)%ilvec(:,1) + templvec).or.&
-                   sy%f(sy%iref)%cpcel(i)%ipath(2) == cpid.and.&
-                   all(locallvec == sy%f(sy%iref)%cpcel(i)%ilvec(:,2) + templvec)) then
-                   call flx_bcp(i,-1,1,flxsym,"dyn",templvec,rgb)
-                end if
-             end do
-          end do
-
        ! bcp
        ! bond paths for the bcp
        else if (sy%f(sy%iref)%cpcel(cpid)%typ == -1) then

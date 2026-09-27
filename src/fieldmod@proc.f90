@@ -36,7 +36,7 @@ submodule (fieldmod) proc
 
   ! CP checkpoint file format identifier and version
   character(len=8), parameter :: chk_magic = "CRI2CPCK"
-  integer, parameter :: chk_version = 1
+  integer, parameter :: chk_version = 2 ! 2 = bond paths added
 
 contains
 
@@ -87,6 +87,7 @@ contains
     f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
+    if (allocated(f%cpgp)) deallocate(f%cpgp)
     f%ncp = 0
     f%ncpcel = 0
 
@@ -1870,6 +1871,7 @@ contains
     f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
+    if (allocated(f%cpgp)) deallocate(f%cpgp)
 
     !.initialize
     f%ncp = f%c%nneq
@@ -1974,7 +1976,7 @@ contains
     character(len=:), allocatable :: str
     integer, allocatable :: ihdr(:)
     real*8, allocatable :: rhdr(:)
-    integer :: lu, i
+    integer :: lu, i, j
 
     errmsg = ""
     lu = fopen_write(file,"unformatted",errstop=.false.,ti=ti)
@@ -1990,12 +1992,22 @@ contains
     write (lu) f%ncp, f%ncpcel
     write (lu) (f%cp(i),i=1,f%ncp)
     write (lu) (f%cpcel(i),i=1,f%ncpcel)
+    write (lu) allocated(f%cpgp)
+    if (allocated(f%cpgp)) then
+       do i = 1, f%ncp
+          do j = 1, 2
+             write (lu) f%cpgp(j,i)%n
+             if (f%cpgp(j,i)%n > 0) write (lu) f%cpgp(j,i)%x(:,1:f%cpgp(j,i)%n)
+          end do
+       end do
+    end if
     call fclose(lu)
 
   end subroutine write_chk_cps
 
-  !> Read the CP list of the field from a checkpoint file. found is
-  !> true if the file exists. The file is not used, and errmsg is
+  !> Read the CP list of the field from a checkpoint file (and the
+  !> bond paths, if the file has them). found is true if the file
+  !> exists. The file is not used, and errmsg is
   !> non-empty, if it does not correspond to the current structure
   !> and field or if it cannot be read. The CP lists of the field are
   !> only modified if the whole file is read successfully.
@@ -2011,9 +2023,10 @@ contains
     integer, allocatable :: ihdr(:), ihdr0(:)
     real*8, allocatable :: rhdr(:), rhdr0(:)
     type(cp_type), allocatable :: cp(:), cpcel(:)
+    type(cp_gpath), allocatable :: cpgp(:,:)
     character(len=len(chk_magic)) :: magic
-    integer :: lu, i, ios, version, ni, nr, ns, ncp, ncpcel
-    logical :: ok
+    integer :: lu, i, j, ios, version, ni, nr, ns, ncp, ncpcel, n
+    logical :: ok, hasgp
 
     real*8, parameter :: eps = 1d-6
 
@@ -2026,7 +2039,7 @@ contains
 
     ! check the format
     read (lu,iostat=ios) magic, version
-    if (ios /= 0 .or. magic /= chk_magic .or. version /= chk_version) then
+    if (ios /= 0 .or. magic /= chk_magic .or. version < 1 .or. version > chk_version) then
        errmsg = "unknown checkpoint format or version"
        call fclose(lu)
        return
@@ -2058,6 +2071,28 @@ contains
        if (ios == 0) read (lu,iostat=ios) (cpcel(i),i=1,ncpcel)
        ok = (ios == 0)
     end if
+
+    ! read the bond paths (version >= 2)
+    hasgp = .false.
+    if (ok .and. version >= 2) then
+       read (lu,iostat=ios) hasgp
+       ok = (ios == 0)
+       if (ok .and. hasgp) then
+          allocate(cpgp(2,ncp))
+          paths: do i = 1, ncp
+             do j = 1, 2
+                read (lu,iostat=ios) n
+                ok = (ios == 0 .and. n >= 0)
+                if (.not.ok) exit paths
+                cpgp(j,i)%n = n
+                allocate(cpgp(j,i)%x(3,n))
+                if (n > 0) read (lu,iostat=ios) cpgp(j,i)%x
+                ok = (ios == 0)
+                if (.not.ok) exit paths
+             end do
+          end do paths
+       end if
+    end if
     call fclose(lu)
     if (.not.ok) then
        errmsg = "error reading the checkpoint file"
@@ -2068,6 +2103,7 @@ contains
     ! already evaluated
     call move_alloc(cp,f%cp)
     call move_alloc(cpcel,f%cpcel)
+    call move_alloc(cpgp,f%cpgp)
     f%ncp = ncp
     f%ncpcel = ncpcel
     f%fcp_deferred = .false.
@@ -2604,6 +2640,7 @@ contains
     end if
 
     ! Wait until reconstruction to calculate graph properties
+    if (allocated(f%cpgp)) deallocate(f%cpgp)
     f%cp(n)%brdist = 0d0
     f%cp(n)%brpathlen = 0d0
     f%cp(n)%brang = 0d0
@@ -2655,6 +2692,9 @@ contains
        call f%init_cplist_deferred()
        f%fcp_deferred = .false.
     end if
+
+    ! the bond paths are indexed by the nneq CP list
+    if (allocated(f%cpgp)) deallocate(f%cpgp)
 
     ! Sort the nneq CP list: first by type then by density, the atoms at the top
     allocate(iperm(f%ncp),raux(f%ncp),iaux(f%ncp))

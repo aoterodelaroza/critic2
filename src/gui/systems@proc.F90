@@ -893,7 +893,7 @@ contains
   module subroutine reload_field_with_virtuals(isys,ifield,errmsg)
     use wfn_private, only: molden_type_psi4, molden_type_orca
     use tools_io, only: quoteword
-    use types, only: cp_type
+    use types, only: cp_type, cp_gpath
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
     character(len=:), allocatable, intent(out) :: errmsg
@@ -902,6 +902,7 @@ contains
     logical :: usecore, numerical, exact, fcp_deferred
     integer, allocatable :: zpsp(:)
     type(cp_type), allocatable :: cp(:), cpcel(:)
+    type(cp_gpath), allocatable :: cpgp(:,:)
     character(len=:), allocatable :: name, file, lstr
 
     errmsg = ""
@@ -953,6 +954,7 @@ contains
     fcp_deferred = sys(isys)%f(ifield)%fcp_deferred
     call move_alloc(sys(isys)%f(ifield)%cp,cp)
     call move_alloc(sys(isys)%f(ifield)%cpcel,cpcel)
+    call move_alloc(sys(isys)%f(ifield)%cpgp,cpgp)
 
     ! move the new field into the original slot, restoring the name and
     ! the options that did not come from the file, and drop the extra slot
@@ -965,6 +967,7 @@ contains
     if (allocated(zpsp)) sys(isys)%f(ifield)%zpsp = zpsp
     call move_alloc(cp,sys(isys)%f(ifield)%cp)
     call move_alloc(cpcel,sys(isys)%f(ifield)%cpcel)
+    call move_alloc(cpgp,sys(isys)%f(ifield)%cpgp)
     sys(isys)%f(ifield)%ncp = ncp
     sys(isys)%f(ifield)%ncpcel = ncpcel
     sys(isys)%f(ifield)%fcp_deferred = fcp_deferred

@@ -30,6 +30,7 @@ module types
   public :: celatom
   public :: anyatom
   public :: cp_type
+  public :: cp_gpath
   public :: molsymop
   public :: field_evaluation_avail
   public :: scalar_value
@@ -278,13 +279,13 @@ module types
      ! Properties at the CP
      type(scalar_value) :: s  !< scalar value - evaluation of the reference field at the CP
 
-     ! BCP and RCP ias properties
-     integer :: ipath(2) !< Associated attractor (bcp) or repulsor (rcp), complete list
+     ! bond CP properties (filled by AUTO for the CPs that connect nuclei)
+     integer :: ipath(2) !< Associated attractors (bcp only), complete list
      integer :: ilvec(3,2) !< Lattice vector to shift the cp_(ipath) position of the actual attractor
-     real*8 :: brdist(2) !< If b or r, distance to attractor/repulsor
-     real*8 :: brpathlen(2) !< If b or r, path length to attractor/repulsor
-     real*8 :: brang !< If b or r, angle wrt attractors/repulsors
-     real*8 :: brvec(3) !< If b or r, the eigenvector along the bond (ring) path
+     real*8 :: brdist(2) !< Distance to the attractors
+     real*8 :: brpathlen(2) !< Bond path length to the attractors
+     real*8 :: brang !< Angle between the attractors at the bond CP
+     real*8 :: brvec(3) !< Hessian eigenvector along the bond path
 
      ! Complete list -> reduced CP list index and conversion
      integer :: idx !< Complete to non-equivalent list index
@@ -292,6 +293,12 @@ module types
      integer :: ic !< Translation vector to the neq cp list
      integer :: lvec(3) !< Lattice vector to the neq cp list
   end type cp_type
+
+  !> A gradient path traced from a critical point
+  type cp_gpath
+     integer :: n = 0 !< Number of points
+     real*8, allocatable :: x(:,:) !< Points (cryst. coords.), from the CP to the end of the path
+  end type cp_gpath
 
   !> Information about an integrable field
   type integrable

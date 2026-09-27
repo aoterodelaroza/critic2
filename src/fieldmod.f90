@@ -27,7 +27,7 @@ module fieldmod
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
   use param, only: maxzat0, mlen, mmlen
-  use types, only: cp_type, scalar_value, field_evaluation_avail, gpathp, thread_info
+  use types, only: cp_type, cp_gpath, scalar_value, field_evaluation_avail, gpathp, thread_info
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
@@ -86,6 +86,7 @@ module fieldmod
      type(cp_type), allocatable :: cp(:) !< Critical points (non-equivalent)
      integer :: ncpcel = 0 !< Number of critical points (complete list)
      type(cp_type), allocatable :: cpcel(:) !< Critical points (complete list)
+     type(cp_gpath), allocatable :: cpgp(:,:) !< Bond paths from the non-equivalent CPs (2,ncp); unallocated if not calculated
    contains
      procedure :: end => field_end !< Deallocate data and uninitialize
      procedure :: set_default_options => field_set_default_options !< Sets field default options
