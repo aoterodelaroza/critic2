@@ -33,7 +33,7 @@ contains
        ColorTableSelectedBorder,&
        ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
-       ColorElement, ColorCP, uiscale
+       ColorElement, ColorCP, ColorGpath, uiscale
     use representations, only: iso_defaultlevel, iso_level_optstr, cps_name
     use systems, only: nsys, sysc, always_read_virtuals
     use interfaces_cimgui
@@ -354,6 +354,12 @@ contains
              ch = iw_coloredit(trim(cps_name(i)) // "##cpcolor" // string(i),rgb=ColorCP(:,i))
              if (ch .and. w%color_preferences_reset_reps) call apply_colors()
           end do
+
+          ! gradient paths
+          call iw_text("Gradient Paths",highlight=.true.)
+          call igSeparator()
+          ch = iw_coloredit("Bond paths##gpathcolor",rgb=ColorGpath)
+          if (ch .and. w%color_preferences_reset_reps) call apply_colors()
 
        elseif (catid == 3) then
           !! readers

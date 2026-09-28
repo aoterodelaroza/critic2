@@ -21,7 +21,7 @@ module scenes
   use shapes, only: scene_objects, scene_glbuffers, glb_cone, glb_plane, glb_tri,&
      glb_conescr, dl_cylinder_over
   use representations, only: representation, rep_shape, shapekind_arrow, arrow_radius_def,&
-     arrow_length_def, shape_rgb_def
+     arrow_length_def, shape_rgb_def, reptype_NUM
   use display, only: scene_display
   use types, only: neighstar
   implicit none
@@ -86,7 +86,7 @@ module scenes
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
      integer, allocatable :: icount(:) ! last rep counter, for unique names
-     logical :: cps_autoadded = .false. ! whether the critical points object was added (once per scene)
+     logical :: autoadded(reptype_NUM) = .false. ! whether an object of this kind was added (automatic ones: once per scene)
      ! transient representations: rearmed every frame
      integer :: nreptrans = 0 ! number of transient representation slots (may contain holes)
      type(representation), allocatable :: reptrans(:) ! transient representations (slot in use iff reptrans(i)%isinit)

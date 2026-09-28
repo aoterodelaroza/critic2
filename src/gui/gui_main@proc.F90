@@ -601,6 +601,7 @@ contains
     ColorElement = real(JMLcol,c_float) / 255._c_float
     ! the critical points take the colors of the CLI pseudo-elements Xn, Xb, Xr, Xc
     ColorCP = real(JMLcol(:,maxzat+1:maxzat+4),c_float) / 255._c_float
+    ColorGpath = (/0.85_c_float,0.45_c_float,0.10_c_float/)
 
   end subroutine set_default_color_settings
 

@@ -58,7 +58,7 @@ contains
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
-       reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, iso_map_color
+       reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -143,6 +143,8 @@ contains
           changed = changed .or. w%draw_editrep_shapes(ttshown)
        elseif (w%rep%type == reptype_cps) then
           changed = changed .or. w%draw_editrep_cps(ttshown)
+       elseif (w%rep%type == reptype_gpaths) then
+          changed = changed .or. w%draw_editrep_gpaths(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -4001,5 +4003,57 @@ contains
     end do
 
   end function draw_editrep_cps
+
+  !> Draw the editrep window, gradient paths class. Returns true if
+  !> the representation has changed.
+  module function draw_editrep_gpaths(w,ttshown) result(changed)
+    use systems, only: sys
+    use representations, only: gpaths_rad_def, field_has_cps
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
+       iw_field_combo, iw_calcwidth
+    use param, only: bohrtoa
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    integer :: isys, ifield
+    logical :: ch
+
+    ! initialize
+    changed = .false.
+    isys = w%isys
+
+    ! field selector
+    call iw_text("Field",highlight=.true.)
+    call igSameLine(0._c_float,-1._c_float)
+    ifield = w%rep%gpaths%ifield
+    if (iw_field_combo("##gpathsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+       nonestr="<field not available>")) then
+       w%rep%gpaths%ifield = ifield
+       changed = .true.
+    end if
+    call iw_tooltip("Field whose gradient paths are displayed",ttshown)
+    if (.not.sys(isys)%goodfield(w%rep%gpaths%ifield)) then
+       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+       return
+    end if
+    if (.not.field_has_cps(isys,w%rep%gpaths%ifield,withpaths=.true.)) &
+       call iw_text("This field has no bond paths (run AUTO, or load a checkpoint that has them)",&
+          disabled=.true.,wrap=.true.)
+
+    ! color and radius
+    call iw_text("Bond paths",highlight=.true.)
+    ch = iw_coloredit("##gpathscolor",rgb=w%rep%gpaths%rgb)
+    call iw_tooltip("Color of the bond paths",ttshown)
+    changed = changed .or. ch
+    ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
+       min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+       sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the bond path tubes in Å (default " //&
+       string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
+    changed = changed .or. ch
+
+  end function draw_editrep_gpaths
 
 end submodule editrep

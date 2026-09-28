@@ -821,6 +821,7 @@ module windows
      procedure :: draw_editrep_shapes
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
+     procedure :: draw_editrep_gpaths
      ! export image
      procedure :: draw_exportimage
      ! save structure as
@@ -1428,6 +1429,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_cps
+     module function draw_editrep_gpaths(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_gpaths
      module function draw_editrep_isosurface(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

@@ -168,7 +168,7 @@ contains
     s%resetext = 1d0
     s%forcebuildlists = .true.
     s%fieldgen_built = -1
-    s%cps_autoadded = .false.
+    s%autoadded = .false.
     s%iqpt_selected = 0
     s%ifreq_selected = 0
     s%animation = 0
@@ -349,8 +349,8 @@ contains
 
   !> Reset atom colors in the scene to the defaults
   module subroutine scene_reset_atom_colors(s)
-    use representations, only: reptype_cps
-    use gui_main, only: ColorCP
+    use representations, only: reptype_cps, reptype_gpaths
+    use gui_main, only: ColorCP, ColorGpath
     class(scene), intent(inout), target :: s
 
     integer :: irep
@@ -360,6 +360,7 @@ contains
     do irep = 1, s%nrep
        call s%rep(irep)%atoms%style%reset_colors(s%rep(irep))
        if (s%rep(irep)%type == reptype_cps) s%rep(irep)%cps%rgb = ColorCP
+       if (s%rep(irep)%type == reptype_gpaths) s%rep(irep)%gpaths%rgb = ColorGpath
     end do
     s%forcebuildlists = .true.
 
@@ -1790,7 +1791,7 @@ contains
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
-       reptype_isosurface, reptype_shapes, reptype_cps
+       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -1932,6 +1933,8 @@ contains
              str3 = "shapes" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
+          elseif (s%rep(i)%type == reptype_gpaths) then
+             str3 = "gpaths" // c_null_char
           else
              str3 = "???" // c_null_char
           end if
@@ -2256,13 +2259,13 @@ contains
   !> given flavor.  If id is present, it returns the new
   !> representation id.
   module subroutine add_representation(s,itype,flavor,id)
-    use representations, only: reptype_cps
+    use representations, only: reptype_gpaths, reptype_bonds
     class(scene), intent(inout), target :: s
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
     integer, intent(out), optional :: id
 
-    integer :: id_
+    integer :: id_, i
 
     id_ = s%get_new_representation_id()
     call s%rep(id_)%init(s%id,itype,flavor,s%icount)
@@ -2270,24 +2273,39 @@ contains
     s%forcebuildlists = .true.
     if (present(id)) id = id_
 
-    ! a critical points object ends the automatic one (add_cps_maybe)
-    if (itype == reptype_cps) s%cps_autoadded = .true.
+    ! an object of this kind ends the automatic one (add_cps_maybe)
+    if (itype >= 1 .and. itype <= size(s%autoadded)) s%autoadded(itype) = .true.
+
+    ! the bond cylinders hide the bond paths: a new gradient paths
+    ! object hides the bonds objects (they stay in the list)
+    if (itype == reptype_gpaths) then
+       do i = 1, s%nrep
+          if (s%rep(i)%isinit .and. s%rep(i)%type == reptype_bonds) s%rep(i)%shown = .false.
+       end do
+    end if
 
   end subroutine add_representation
 
   !> Add a critical points object to the scene the first time the
   !> system has a field with critical points other than the nuclei
-  !> (checkpoint read on load, AUTO in the console,...). Only once
-  !> per scene: an object deleted by the user is not re-created, and
-  !> one made by the user counts (see add_representation). Called at
-  !> the start of every draw-list build.
+  !> (checkpoint read on load, AUTO in the console,...), and a
+  !> gradient paths object the first time it has one with bond paths.
+  !> Only once per scene and kind: an object deleted by the user is not
+  !> re-created, and one made by the user counts (see
+  !> add_representation). Called at the start of every draw-list build.
   module subroutine scene_add_cps_maybe(s)
-    use representations, only: reptype_cps, repflavor_cps, cps_field
+    use representations, only: reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
+       cps_field
     class(scene), intent(inout), target :: s
 
-    if (s%cps_autoadded .or. s%isinit == 0) return
-    if (cps_field(s%id) < 0) return
-    call s%add_representation(reptype_cps,repflavor_cps)
+    if (s%isinit == 0) return
+    if (.not.s%autoadded(reptype_cps)) then
+       if (cps_field(s%id) >= 0) call s%add_representation(reptype_cps,repflavor_cps)
+    end if
+    if (.not.s%autoadded(reptype_gpaths)) then
+       if (cps_field(s%id,withpaths=.true.) >= 0) &
+          call s%add_representation(reptype_gpaths,repflavor_gpaths)
+    end if
 
   end subroutine scene_add_cps_maybe
 

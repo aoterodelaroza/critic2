@@ -23,6 +23,12 @@ submodule (representations) proc
   ! extension of unit cell in the vacuum direction
   real*8, parameter :: vacextension = 2d0 / bohrtoa
 
+
+  ! what add_cp_items appends for each critical point (its images)
+  integer, parameter :: cpitem_sphere = 1 ! a sphere (critical points object)
+  integer, parameter :: cpitem_label = 2 ! a label (labels object)
+  integer, parameter :: cpitem_path = 3 ! the bond paths of a BCP (gradient paths object)
+
 contains
 
   !> Initialize a representation for system isys. itype is the
@@ -127,14 +133,15 @@ contains
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (unused, was the rotation axis),
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
-  !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes).
+  !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
+  !> 14 (critical points), 15 (gradient paths).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorAxes_def, ColorVdwContacts_def,&
        ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def,&
-       ColorOccEmpty_def, ColorCP
+       ColorOccEmpty_def, ColorCP, ColorGpath
     use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
@@ -352,6 +359,13 @@ contains
        r%cps = rep_cps()
        r%cps%ifield = cps_field_default(isys)
        r%cps%rgb = ColorCP
+    end if
+
+    ! gradient paths
+    if (itype == 0 .or. itype == 15) then
+       r%gpaths = rep_gpaths()
+       r%gpaths%ifield = cps_field_default(isys,withpaths=.true.)
+       r%gpaths%rgb = ColorGpath
     end if
 
     ! geometric shapes
@@ -1032,7 +1046,7 @@ contains
     logical :: ok
 
     ok = reptype_is_atombased(r%type) .or. r%type == reptype_unitcell .or. r%type == reptype_symelem .or.&
-       r%type == reptype_cps
+       r%type == reptype_cps .or. r%type == reptype_gpaths
     if (r%type == reptype_isosurface) ok = r%iso%per0_built
 
   end function representation_uses_periodicity
@@ -1049,36 +1063,46 @@ contains
   end function reptype_is_atombased
 
   !> Whether field k of system isys has critical points other than
-  !> the nuclei (from AUTO or a checkpoint file).
-  module function field_has_cps(isys,k) result(ok)
+  !> the nuclei (from AUTO or a checkpoint file). If withpaths, also
+  !> the bond paths of its bond critical points.
+  module function field_has_cps(isys,k,withpaths) result(ok)
     use systems, only: sys, sys_ready, ok_system
     integer, intent(in) :: isys, k
+    logical, intent(in), optional :: withpaths
     logical :: ok
 
     ok = ok_system(isys,sys_ready)
     if (ok) ok = sys(isys)%goodfield(k)
     if (ok) ok = (sys(isys)%f(k)%ncp > sys(isys)%c%nneq)
+    if (ok .and. present(withpaths)) then
+       if (withpaths) then
+          ok = allocated(sys(isys)%f(k)%cpgp)
+          if (ok) ok = any(sys(isys)%f(k)%cpgp%n > 1)
+       end if
+    end if
 
   end function field_has_cps
 
   !> The field of system isys whose critical points are drawn by
   !> default: the reference field if it has CPs other than the nuclei,
-  !> otherwise the first field that does, or -1 if none has them.
-  module function cps_field(isys) result(ifield)
+  !> otherwise the first field that does, or -1 if none has them. If
+  !> withpaths, the CPs must come with their bond paths.
+  module function cps_field(isys,withpaths) result(ifield)
     use systems, only: sys, sys_ready, ok_system
     integer, intent(in) :: isys
+    logical, intent(in), optional :: withpaths
     integer :: ifield
 
     integer :: k
 
     ifield = -1
     if (.not.ok_system(isys,sys_ready)) return
-    if (field_has_cps(isys,sys(isys)%iref)) then
+    if (field_has_cps(isys,sys(isys)%iref,withpaths)) then
        ifield = sys(isys)%iref
        return
     end if
     do k = 0, sys(isys)%nf
-       if (field_has_cps(isys,k)) then
+       if (field_has_cps(isys,k,withpaths)) then
           ifield = k
           return
        end if
@@ -1086,15 +1110,17 @@ contains
 
   end function cps_field
 
-  !> The field of system isys whose critical points a new object (CPs
-  !> or labels) shows, and the fallback when its field is gone: the
-  !> default of cps_field, else the reference field.
-  module function cps_field_default(isys) result(ifield)
+  !> The field of system isys whose critical points a new object (CPs,
+  !> labels, or gradient paths, withpaths) shows, and the fallback when
+  !> its field is gone: the default of cps_field, else the reference
+  !> field.
+  module function cps_field_default(isys,withpaths) result(ifield)
     use systems, only: sys
     integer, intent(in) :: isys
+    logical, intent(in), optional :: withpaths
     integer :: ifield
 
-    ifield = cps_field(isys)
+    ifield = cps_field(isys,withpaths)
     if (ifield < 0) ifield = max(sys(isys)%iref,0)
 
   end function cps_field_default
@@ -1619,6 +1645,7 @@ contains
     if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
     r%iso = rep_isosurface()
     r%cps = rep_cps()
+    r%gpaths = rep_gpaths()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -1719,6 +1746,11 @@ contains
        ! critical points: if the selected field is gone, fall back to
        ! the same default as a new object
        if (.not.sys(r%id)%goodfield(r%cps%ifield)) r%cps%ifield = cps_field_default(r%id)
+
+    elseif (r%type == reptype_gpaths) then
+       ! gradient paths: the same, preferring a field with bond paths
+       if (.not.sys(r%id)%goodfield(r%gpaths%ifield)) &
+          r%gpaths%ifield = cps_field_default(r%id,withpaths=.true.)
     end if
 
   end subroutine update_styles
@@ -2175,7 +2207,7 @@ contains
        end do ! loop over complete atom list (i)
 
        ! labels of the critical points
-       if (dolabels) call add_cp_items(r%labels%ifield,.true.)
+       if (dolabels) call add_cp_items(r%labels%ifield,cpitem_label)
 
        ! draw the polyhedra corner atoms that the selection did not already draw
        ! (so every drawn polyhedron shows its corner atoms)
@@ -2654,28 +2686,41 @@ contains
        call add_isosurface_meshes()
     elseif (r%type == reptype_cps) then
        !!! critical points of a scalar field !!!
-       call add_cp_items(r%cps%ifield,.false.)
+       call add_cp_items(r%cps%ifield,cpitem_sphere)
+    elseif (r%type == reptype_gpaths) then
+       !!! gradient paths of a scalar field !!!
+       call add_cp_items(r%gpaths%ifield,cpitem_path)
     end if ! reptype
   contains
 
-    !> Append the spheres (dolabel = .false., critical points object)
-    !> or the labels (dolabel = .true., labels object) for the
-    !> non-nuclear critical points of field ifield (the nuclei are the
-    !> atoms). The images follow the Display like the atoms:
+    !> Append, for the non-nuclear critical points of field ifield (the
+    !> nuclei are the atoms), the spheres (mode = cpitem_sphere,
+    !> critical points object), the labels (cpitem_label, labels
+    !> object), or the bond paths of the BCPs (cpitem_path, gradient
+    !> paths object). The images follow the Display like the atoms:
     !> periodicity, border, origin shift, and the translation across
-    !> the cell in vacuum directions. The spheres carry no atom identity
-    !> (idx = 0) but a CP one (cpidx), which the pick render uses for
-    !> hovering.
-    subroutine add_cp_items(ifield,dolabel)
+    !> the cell in vacuum directions; a bond path goes with the image of
+    !> its BCP. The spheres carry no atom identity (idx = 0) but a CP one
+    !> (cpidx), which the pick render uses for hovering.
+    subroutine add_cp_items(ifield,mode)
       integer, intent(in) :: ifield
-      logical, intent(in) :: dolabel
+      integer, intent(in) :: mode
 
-      integer :: icp, it, irow, nshown, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3
+      ! a bond path in Cartesian coordinates
+      type :: cartpath
+         real(c_float), allocatable :: x(:,:)
+      end type cartpath
+
+      integer :: icp, i, j, k, it, irow, nitem, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3
       logical :: bord, tsh, vac(3)
-      real*8 :: ui(3), ue(3), xf(3)
+      real*8 :: ui(3), ue(3), xf(3), t(3)
+      real(c_float) :: dx(3)
+      integer :: np(2)
+      type(dl_cylinder) :: dpath
+      type(cartpath) :: xpath(2)
 
-      if (.not.field_has_cps(r%id,ifield)) return
-      if (dolabel) then
+      if (.not.field_has_cps(r%id,ifield,withpaths=(mode == cpitem_path))) return
+      if (mode == cpitem_label) then
          if (r%labels%style%cpfield /= ifield) return
          if (.not.any(r%labels%style%cpshown)) return
       end if
@@ -2689,21 +2734,48 @@ contains
         nc = disp%ncells(r%disp)
         call atom_image_vacuum(c,r%id,vac,ui,ue)
 
-        ! presize for the shown CPs (dl_append absorbs the border images)
-        nshown = 0
+        ! presize for the shown CPs, one item each (a path segment
+        ! each for the paths); dl_append absorbs the border images
+        nitem = 0
         do icp = c%ncel+1, f%ncpcel
-           if (cp_item_row(ifield,dolabel,icp) > 0) nshown = nshown + 1
+           if (cp_item_row(ifield,mode,icp) == 0) cycle
+           if (mode == cpitem_path) then
+              i = f%cpcel(icp)%idx
+              nitem = nitem + max(f%cpgp(1,i)%n-1,0) + max(f%cpgp(2,i)%n-1,0)
+           else
+              nitem = nitem + 1
+           end if
         end do
-        if (dolabel) then
-           call obj%reserve(nstring = obj%nstring + nshown * product(nc))
-        else
-           call obj%reserve(nsph = obj%nsph + nshown * product(nc))
-        end if
+        nitem = nitem * product(nc)
+        select case(mode)
+        case (cpitem_label)
+           call obj%reserve(nstring = obj%nstring + nitem)
+        case (cpitem_path)
+           call obj%reserve(ncyl = obj%ncyl + nitem)
+           ! the path segments differ only in their ends
+           dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=r%gpaths%rad,rgb=r%gpaths%rgb)
+        case default
+           call obj%reserve(nsph = obj%nsph + nitem)
+        end select
 
         do icp = c%ncel+1, f%ncpcel
-           irow = cp_item_row(ifield,dolabel,icp)
+           irow = cp_item_row(ifield,mode,icp)
            if (irow == 0) cycle
            it = f%cp(f%cpcel(icp)%idx)%typind
+
+           ! the bond paths of this BCP (Cartesian, main image): the
+           ! paths of its symmetry-unique BCP, carried by the operation
+           ! that generates it
+           if (mode == cpitem_path) then
+              i = f%cpcel(icp)%idx
+              t = c%rotm(:,4,f%cpcel(icp)%ir) + c%cen(:,f%cpcel(icp)%ic) + f%cpcel(icp)%lvec
+              do j = 1, 2
+                 np(j) = f%cpgp(j,i)%n
+                 if (np(j) < 2) cycle
+                 xpath(j)%x = real(matmul(c%m_x2c,matmul(c%rotm(1:3,1:3,f%cpcel(icp)%ir),&
+                    f%cpgp(j,i)%x(:,1:np(j))) + spread(t,2,np(j))),c_float)
+              end do
+           end if
 
            ! image range, and the translation that brings the CP into
            ! the shifted cell (origin shift in the Display)
@@ -2716,11 +2788,21 @@ contains
               do j2 = m0(2), m1(2)
                  do j3 = m0(3), m1(3)
                     xf = f%cpcel(icp)%x + (/j1,j2,j3/) + vshift
-                    if (dolabel) then
+                    if (mode == cpitem_label) then
                        ! the labels object does not know the radius the
                        ! CP object draws: use the default CP radius
                        call append_label(c%x2c(xf),(/(0d0,0d0),(0d0,0d0),(0d0,0d0)/),&
                           real(cps_rad_def,8),r%labels%scale_cp,r%labels%style%cpstr(irow),(/j1,j2,j3/)+vshift)
+                    elseif (mode == cpitem_path) then
+                       ! the image offset, then the segments
+                       dx = real(c%x2c(real((/j1,j2,j3/) + vshift,8)),c_float)
+                       do j = 1, 2
+                          do k = 1, np(j)-1
+                             dpath%x1 = xpath(j)%x(:,k) + dx
+                             dpath%x2 = xpath(j)%x(:,k+1) + dx
+                             call dl_append(obj%cyl,obj%ncyl,dpath)
+                          end do
+                       end do
                     else
                        dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%radscale*r%cps%rad(it),rgb=r%cps%rgb(:,it),&
                           idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
@@ -2736,22 +2818,28 @@ contains
 
     end subroutine add_cp_items
 
-    !> For cell CP icp of field ifield: the label row if it is shown
-    !> (dolabel, labels object), or 1 if its type is shown (spheres, CP
-    !> object); 0 otherwise.
-    function cp_item_row(ifield,dolabel,icp) result(irow)
+    !> For cell CP icp of field ifield and the add_cp_items mode: the
+    !> label row if it is shown (labels), 1 if its type is shown
+    !> (spheres) or if it is a BCP with bond paths (paths); 0 otherwise.
+    function cp_item_row(ifield,mode,icp) result(irow)
       integer, intent(in) :: ifield
-      logical, intent(in) :: dolabel
+      integer, intent(in) :: mode
       integer, intent(in) :: icp
       integer :: irow
 
-      integer :: it
+      integer :: it, i
 
       irow = 0
       associate(f => sys(r%id)%f(ifield))
-        it = f%cp(f%cpcel(icp)%idx)%typind
+        i = f%cpcel(icp)%idx
+        ! paths: only the BCPs have them (AUTO's graph)
+        if (mode == cpitem_path) then
+           if (any(f%cpgp(:,i)%n > 1)) irow = 1
+           return
+        end if
+        it = f%cp(i)%typind
         if (it < 0 .or. it > 3) return
-        if (.not.dolabel) then
+        if (mode == cpitem_sphere) then
            if (r%cps%show(it)) irow = 1
            return
         end if
@@ -2761,7 +2849,7 @@ contains
         case (2,3)
            irow = icp - c%ncel
         case (1,4,8)
-           irow = f%cpcel(icp)%idx - c%nneq
+           irow = i - c%nneq
         end select
       end associate
       if (irow < 1 .or. irow > r%labels%style%ncp) then

@@ -147,6 +147,7 @@ module gui_main
 
   ! critical point colors (0:3 = non-nuclear attractor, bond, ring, cage)
   real(c_float), public :: ColorCP(3,0:3)
+  real(c_float), public :: ColorGpath(3) ! gradient path color
 
   ! flags to control main's behavior
   integer, public :: force_run_commands = 0 ! execute commands from the input console (0=no,1=only selected,2=all)

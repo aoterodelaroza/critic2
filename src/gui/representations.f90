@@ -338,7 +338,8 @@ module representations
   integer, parameter, public :: reptype_labels = 10 ! atom labels
   integer, parameter, public :: reptype_polyhedra = 11 ! coordination polyhedra
   integer, parameter, public :: reptype_cps = 12 ! critical points of a scalar field
-  integer, parameter, public :: reptype_NUM = 12
+  integer, parameter, public :: reptype_gpaths = 13 ! gradient paths (bond paths) of a scalar field
+  integer, parameter, public :: reptype_NUM = 13
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -359,7 +360,8 @@ module representations
   integer, parameter, public :: repflavor_shapes = 15
   integer, parameter, public :: repflavor_isosurface = 16
   integer, parameter, public :: repflavor_cps = 17
-  integer, parameter, public :: repflavor_NUM = 17
+  integer, parameter, public :: repflavor_gpaths = 18
+  integer, parameter, public :: repflavor_NUM = 18
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -393,7 +395,8 @@ module representations
      "Measurements     ",& ! repflavor_measure
      "Geometric Shapes ",& ! repflavor_shapes
      "Isosurface       ",& ! repflavor_isosurface
-     "Critical Points  "/) ! repflavor_cps
+     "Critical Points  ",& ! repflavor_cps
+     "Gradient Paths   "/) ! repflavor_gpaths
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -758,6 +761,18 @@ module representations
      real(c_float) :: rad(0:3) = cps_rad_def ! sphere radius of each CP type (bohr)
      real(c_float) :: radscale = 1._c_float ! scale factor for all radii
   end type rep_cps
+
+  ! default radius of the gradient path tubes (0.04 Å, in bohr)
+  real(c_float), parameter, public :: gpaths_rad_def = real(0.04d0 / bohrtoa,c_float)
+
+  !> Gradient path display options (reptype_gpaths; accessed as
+  !> r%gpaths%...). The bond paths of the BCPs of field ifield (from
+  !> AUTO or the CP checkpoint, f%cpgp) are drawn as tubes of radius rad.
+  type rep_gpaths
+     integer :: ifield = 0 ! field whose gradient paths are drawn (index in sys(id)%f)
+     real(c_float) :: rgb(3) = 1._c_float ! color of the paths
+     real(c_float) :: rad = gpaths_rad_def ! tube radius (bohr)
+  end type rep_gpaths
   public :: rep_cps
 
   !> Representation: objects to draw on the scene
@@ -789,6 +804,7 @@ module representations
      type(rep_measure) :: measure ! measurement options
      type(rep_isosurface) :: iso ! isosurface options
      type(rep_cps) :: cps ! critical point options
+     type(rep_gpaths) :: gpaths ! gradient path options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -825,16 +841,19 @@ module representations
        class(representation), intent(in) :: r
        logical :: ok
      end function representation_uses_periodicity
-     module function field_has_cps(isys,k) result(ok)
+     module function field_has_cps(isys,k,withpaths) result(ok)
        integer, intent(in) :: isys, k
+       logical, intent(in), optional :: withpaths
        logical :: ok
      end function field_has_cps
-     module function cps_field(isys) result(ifield)
+     module function cps_field(isys,withpaths) result(ifield)
        integer, intent(in) :: isys
+       logical, intent(in), optional :: withpaths
        integer :: ifield
      end function cps_field
-     module function cps_field_default(isys) result(ifield)
+     module function cps_field_default(isys,withpaths) result(ifield)
        integer, intent(in) :: isys
+       logical, intent(in), optional :: withpaths
        integer :: ifield
      end function cps_field_default
      module function reptype_is_atombased(itype) result(ok)

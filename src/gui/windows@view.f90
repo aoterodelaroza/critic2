@@ -81,7 +81,7 @@ contains
        repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface,&
        reptype_shapes, repflavor_shapes, repstyle_ballandstick, repstyle_licorice,&
-       repstyle_sticks, reptype_cps, repflavor_cps
+       repstyle_sticks, reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -535,6 +535,10 @@ contains
           if (iw_menuitem("Critical Points")) &
              call w%add_rep_and_edit(reptype_cps,repflavor_cps)
           call iw_tooltip("Display the critical points of a scalar field",ttshown)
+
+          if (iw_menuitem("Gradient Paths")) &
+             call w%add_rep_and_edit(reptype_gpaths,repflavor_gpaths)
+          call iw_tooltip("Display the bond paths of a scalar field",ttshown)
 
           ! symmetry available for crystals (always) or molecules with a point group
           symenabled = .true.
