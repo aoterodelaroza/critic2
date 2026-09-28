@@ -668,6 +668,7 @@ contains
           ! atom identities are stable, so keep the pick index (else grabbing an
           ! atom would be impossible)
           if (.not.sysc(w%isys)%md_run) w%mousepos_idx = 0
+          w%mousepos_cp = 0
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
        if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%isys)%timelastchange_render) &
@@ -819,6 +820,7 @@ contains
     if (needpick) then
        w%mousepos_idx = 0
        w%mousepos_bidx = 0
+       w%mousepos_cp = 0
        w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,rgba=rgba)
@@ -835,8 +837,14 @@ contains
           end if
           w%mousepos_idx = 0
        elseif (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%obj%nsph) then
-          ! transform to atom cell ID and lattice vector
-          w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
+          ! a critical point: its own identity, no atom under the mouse
+          if (w%sc%obj%sph(w%mousepos_idx(1))%cpidx(1) > 0) then
+             w%mousepos_cp = w%sc%obj%sph(w%mousepos_idx(1))%cpidx
+             w%mousepos_idx = 0
+          else
+             ! transform to atom cell ID and lattice vector
+             w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
+          end if
        else
           w%mousepos_idx = 0
        end if
@@ -844,6 +852,7 @@ contains
     elseif (.not.hover) then
        w%mousepos_idx = 0
        w%mousepos_bidx = 0
+       w%mousepos_cp = 0
        ! forget where the last pick was taken: the cursor can leave the view
        ! and come back to the very same pixel, and the "has it moved" test
        ! above would then never fire, leaving the atom unidentified
@@ -1182,6 +1191,7 @@ contains
     w%mousepos_lastpick%x = 0._c_float
     w%mousepos_lastpick%y = 0._c_float
     w%mousepos_idx = 0
+    w%mousepos_cp = 0
 
     ! reset the viewmodes
     call viewmode_to_navigate(w)
@@ -1629,6 +1639,69 @@ contains
 
   end function hover_identity
 
+  !> Returns the one-line identity of the critical point under the
+  !> cursor for the view bar. cpidx = complete CP list index (1),
+  !> lattice vector (2:4), and field (5), as in dl_sphere%cpidx.
+  function cp_hover_identity(w,cpidx) result(msg)
+    use systems, only: sys, ok_system, sys_init
+    use representations, only: cps_abbrev
+    use global, only: dunit0, iunit_ang
+    use tools_io, only: string
+    class(window), intent(in) :: w
+    integer(c_int), intent(in) :: cpidx(5)
+    character(len=:), allocatable :: msg
+
+    integer :: icel, ineq, ifield, it, j, iend
+    real*8 :: x0(3)
+
+    msg = ""
+    if (cpidx(1) <= 0) return
+    if (.not.ok_system(w%isys,sys_init)) return
+    ifield = cpidx(5)
+    if (.not.sys(w%isys)%goodfield(ifield)) return
+    icel = cpidx(1)
+    associate(f => sys(w%isys)%f(ifield), c => sys(w%isys)%c)
+      if (icel > f%ncpcel) return
+      ineq = f%cpcel(icel)%idx
+      it = f%cp(ineq)%typind
+
+      ! name and type, and the attractors joined by a bond CP
+      msg = trim(f%cp(ineq)%name)
+      if (it >= 0 .and. it <= 3) msg = msg // " " // cps_abbrev(it)
+      if (f%cp(ineq)%typ == sign(1,f%typnuc) .and. all(f%cp(ineq)%ipath > 0)) then
+         do j = 1, 2
+            iend = f%cp(ineq)%ipath(j)
+            msg = msg // merge(" ","-",j == 1)
+            ! nuclei by their atom label (the nuclear CP only carries the species)
+            if (iend <= c%nneq) then
+               msg = msg // trim(c%at(iend)%name)
+            else
+               msg = msg // trim(f%cp(iend)%name)
+            end if
+         end do
+      end if
+
+      ! field value and Laplacian at the CP (first: the bar is clipped)
+      msg = msg // " f=" // string(f%cp(ineq)%s%f,'e',decimal=4) //&
+         " lap=" // string(f%cp(ineq)%s%del2f,'e',decimal=4)
+
+      ! identity and position
+      if (.not.c%ismolecule) then
+         x0 = f%cpcel(icel)%x + cpidx(2:4)
+         msg = msg // " [cpid=" // string(icel) // "+(" // string(cpidx(2)) // "," // string(cpidx(3)) //&
+            "," // string(cpidx(4)) // "),nneqid=" // string(ineq) // ",mult=" // string(f%cp(ineq)%mult) //&
+            ",field=" // string(ifield) // "] " // string(x0(1),'f',decimal=4) // " " //&
+            string(x0(2),'f',decimal=4) // " " // string(x0(3),'f',decimal=4) // " (frac)"
+      else
+         x0 = (c%x2c(f%cpcel(icel)%x + cpidx(2:4)) + c%molx0) * dunit0(iunit_ang)
+         msg = msg // " [id=" // string(icel) // ",field=" // string(ifield) // "] " //&
+            string(x0(1),'f',decimal=4) // " " // string(x0(2),'f',decimal=4) // " " //&
+            string(x0(3),'f',decimal=4) // " (Å)"
+      end if
+    end associate
+
+  end function cp_hover_identity
+
   !> The image drawn at the mouse cursor for the current view mode: itex
   !> is the icon texture saying what the next click does (0 = none), txt
   !> is a short label drawn instead when the cue is a chemical symbol
@@ -1832,6 +1905,7 @@ contains
     ! grow while hovering; it is plain, being data rather than an
     ! instruction.
     idmsg = hover_identity(w,w%mousepos_idx)
+    if (len_trim(idmsg) == 0) idmsg = cp_hover_identity(w,w%mousepos_cp)
     if (len_trim(w%errmsg) > 0) then
        ! an edit failed (e.g. a drag that could not be applied): the error
        ! outranks any hint, and stays until the next action clears it
@@ -2172,9 +2246,11 @@ contains
           end if
        end if
 
-       ! double click on empty space clears the selection
+       ! double click on empty space clears the selection (a critical
+       ! point under the cursor is not empty space)
        if (.not.forcedpick .and. .not.editexit .and. hover .and.&
-          is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and. w%mousepos_idx(1) == 0) then
+          is_bind_event(BIND_NAV_MEASURE,iview=w%id) .and. w%mousepos_idx(1) == 0 .and.&
+          w%mousepos_cp(1) == 0) then
           call sysc(w%isys)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
@@ -2345,11 +2421,12 @@ contains
       integer, intent(in) :: bindid
       logical :: exit_on_empty
 
-      ! a bond under the cursor is not empty space, even though it leaves
-      ! mousepos_idx zero: without this a double-click meant to cycle a bond
-      ! order twice would also leave the mode
+      ! a bond or a critical point under the cursor is not empty space,
+      ! even though they leave mousepos_idx zero: without this a
+      ! double-click meant to cycle a bond order twice would also leave
+      ! the mode
       exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.,iview=w%id) .and.&
-         w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0
+         w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0 .and. w%mousepos_cp(1) == 0
 
     end function exit_on_empty
 

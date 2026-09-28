@@ -139,7 +139,7 @@ contains
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
-    integer :: isys, i
+    integer :: isys
     real*8 :: xcen(3)
 
     ! check the system is sane
@@ -2627,7 +2627,8 @@ contains
     !> r%cps%ifield (the nuclei are the atoms). The images follow the
     !> Display like the atoms: periodicity, border, origin shift, and
     !> the translation across the cell in vacuum directions. The
-    !> spheres are not pickable (idx = 0).
+    !> spheres carry no atom identity (idx = 0) but a CP one (cpidx),
+    !> which the pick render uses for hovering.
     subroutine add_cp_spheres()
       integer :: icp, it, nshown, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3
       logical :: bord, tsh, vac(3)
@@ -2671,7 +2672,8 @@ contains
                     xf = f%cpcel(icp)%x + (/j1,j2,j3/) + vshift
                     dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%radscale*r%cps%rad(it),rgb=r%cps%rgb(:,it),&
                        idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
-                       border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def)
+                       border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def,&
+                       cpidx=(/icp,j1+vshift(1),j2+vshift(2),j3+vshift(3),r%cps%ifield/))
                     call dl_append(obj%sph,obj%nsph,dsph)
                  end do
               end do

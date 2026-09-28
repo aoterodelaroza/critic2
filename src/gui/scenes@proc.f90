@@ -1588,31 +1588,38 @@ contains
     call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
     call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),idxi=uniloc(u_displ))
 
-    ! draw the atoms, each with its loop index encoded into the pick color
+    ! draw the atoms and critical points, each with its loop index
+    ! encoded into the pick color
     if (s%obj%nsph > 0) then
        call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
        n = 0
        do i = 1, s%obj%nsph
-          ! draw the sphere, no gradient paths
-          idx = s%obj%sph(i)%idx(1)
-          ! skip any non-atom sphere (idx < 1): it carries no cell-atom index
-          ! and must not be pickable as an atom
-          if (idx < 1) cycle
-          ! ghost spheres are pick-only stand-ins for hidden atoms, with a
-          ! radius of two bond radii: they would swallow the ends of the very
-          ! bonds being picked, and no atom index is wanted here anyway
-          if (bondpick .and. s%obj%sph(i)%ghost) cycle
-          iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
-          if (iz < maxzat0) then
-             n = n + 1
-             ! when picking bonds the atoms only occlude: index zero
-             ridx = 0._c_float
-             if (.not.bondpick) ridx = transfer((/i,0,0,0/),ridx)
-             call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
-                (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
-                (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx,1._c_float,&
-                (/0._c_float,0._c_float,0._c_float/))
+          if (s%obj%sph(i)%cpidx(1) > 0) then
+             ! critical points: pickable (hover identity), but not when
+             ! picking bonds, since the bond CPs sit on the bonds
+             if (bondpick) cycle
+          else
+             ! draw the sphere, no gradient paths
+             idx = s%obj%sph(i)%idx(1)
+             ! skip any non-atom sphere (idx < 1): it carries no cell-atom index
+             ! and must not be pickable as an atom
+             if (idx < 1) cycle
+             ! ghost spheres are pick-only stand-ins for hidden atoms, with a
+             ! radius of two bond radii: they would swallow the ends of the very
+             ! bonds being picked, and no atom index is wanted here anyway
+             if (bondpick .and. s%obj%sph(i)%ghost) cycle
+             iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
+             if (iz >= maxzat0) cycle
           end if
+
+          n = n + 1
+          ! when picking bonds the atoms only occlude: index zero
+          ridx = 0._c_float
+          if (.not.bondpick) ridx = transfer((/i,0,0,0/),ridx)
+          call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+             (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
+             (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx,1._c_float,&
+             (/0._c_float,0._c_float,0._c_float/))
        end do
        call s%gl%draw_spheres(n,s%gl%packsph,.true.)
     end if

@@ -527,6 +527,7 @@ module windows
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
+     integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
      integer(c_int) :: mousepos_bidx(8) = 0 ! identifier for the bond under mouse position (bond pick modes only)
      type(ImVec2) :: mposlast ! mouse parameters ----v
      real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)

@@ -98,6 +98,7 @@ module shapes
      real(c_float) :: pie_cum(3) = 1._c_float ! cumulative sector boundaries t2,t3,ttot (mixed sites)
      real(c_float) :: pie_rgb(3,3) = 0._c_float ! colors of pie sectors 2,3,4 (mixed sites)
      logical :: ghost = .false. ! invisible pick-only target (atoms hidden, bonds shown)
+     integer(c_int) :: cpidx(5) = 0 ! critical point: complete CP list index, lattice vector, and field (0 = not a CP)
      logical :: rim = .false. ! translucent: drawn as a volume, the opacity growing toward the rim
   end type dl_sphere
   public :: dl_sphere

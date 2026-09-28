@@ -721,11 +721,12 @@ module representations
 
   ! critical point names by type (typind; the (3,-3) CPs other than the
   ! nuclei are the non-nuclear attractors) and default sphere radius
-  ! (bohr, the radius the CLI uses in its 3D model output)
+  ! (0.15 Å, in bohr)
   character(len=*), parameter, public :: cps_name(0:3) = (/character(len=32) ::&
      "Non-nuclear attractor (NNA)","Bond critical point (BCP)",&
      "Ring critical point (RCP)","Cage critical point (CCP)"/)
-  real(c_float), parameter, public :: cps_rad_def = 0.21_c_float
+  character(len=*), parameter, public :: cps_abbrev(0:3) = (/"NNA","BCP","RCP","CCP"/)
+  real(c_float), parameter, public :: cps_rad_def = real(0.15d0 / bohrtoa,c_float)
 
   !> Critical point display options (reptype_cps; accessed as r%cps%...).
   !> The non-nuclear CPs of field ifield are drawn as spheres; index
