@@ -134,12 +134,12 @@ contains
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorAxes_def, ColorVdwContacts_def,&
        ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def,&
-       ColorOccEmpty_def
+       ColorOccEmpty_def, ColorElement
     use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
-    integer :: isys
+    integer :: isys, i
     real*8 :: xcen(3)
 
     ! check the system is sane
@@ -343,6 +343,16 @@ contains
        r%iso%ifield_built = -1
        if (r%type == reptype_isosurface) &
           call r%iso%set_field(isys,r%iso%ifield)
+    end if
+
+    ! critical points
+    if (itype == 0 .or. itype == 14) then
+       r%cps = rep_cps()
+       r%cps%ifield = cps_field(isys)
+       if (r%cps%ifield < 0) r%cps%ifield = max(sys(isys)%iref,0)
+       do i = 0, 3
+          r%cps%rgb(:,i) = ColorElement(:,cps_z0+i)
+       end do
     end if
 
     ! geometric shapes
@@ -1022,7 +1032,8 @@ contains
     class(representation), intent(in) :: r
     logical :: ok
 
-    ok = reptype_is_atombased(r%type) .or. r%type == reptype_unitcell .or. r%type == reptype_symelem
+    ok = reptype_is_atombased(r%type) .or. r%type == reptype_unitcell .or. r%type == reptype_symelem .or.&
+       r%type == reptype_cps
     if (r%type == reptype_isosurface) ok = r%iso%per0_built
 
   end function representation_uses_periodicity
@@ -1037,6 +1048,44 @@ contains
        itype == reptype_labels .or. itype == reptype_polyhedra)
 
   end function reptype_is_atombased
+
+  !> Whether field k of system isys has critical points other than
+  !> the nuclei (from AUTO or a checkpoint file).
+  module function field_has_cps(isys,k) result(ok)
+    use systems, only: sys, sys_ready, ok_system
+    integer, intent(in) :: isys, k
+    logical :: ok
+
+    ok = ok_system(isys,sys_ready)
+    if (ok) ok = sys(isys)%goodfield(k)
+    if (ok) ok = (sys(isys)%f(k)%ncp > sys(isys)%c%nneq)
+
+  end function field_has_cps
+
+  !> The field of system isys whose critical points are drawn by
+  !> default: the reference field if it has CPs other than the nuclei,
+  !> otherwise the first field that does, or -1 if none has them.
+  module function cps_field(isys) result(ifield)
+    use systems, only: sys, sys_ready, ok_system
+    integer, intent(in) :: isys
+    integer :: ifield
+
+    integer :: k
+
+    ifield = -1
+    if (.not.ok_system(isys,sys_ready)) return
+    if (field_has_cps(isys,sys(isys)%iref)) then
+       ifield = sys(isys)%iref
+       return
+    end if
+    do k = 0, sys(isys)%nf
+       if (field_has_cps(isys,k)) then
+          ifield = k
+          return
+       end if
+    end do
+
+  end function cps_field
 
   !> Return true if the staged sampling grid (n, iregion, x) is already
   !> the applied state of isosurface iso. The region coordinates are
@@ -1523,6 +1572,7 @@ contains
     r%shapes%nshape = 0
     if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
     r%iso = rep_isosurface()
+    r%cps = rep_cps()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -1606,6 +1656,15 @@ contains
           call r%iso%set_field(r%id,sys(r%id)%iref)
        elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%ifield)) then
           call r%iso%set_field(r%id,r%iso%ifield)
+       end if
+
+    elseif (r%type == reptype_cps) then
+       ! critical points: if the selected field is gone, fall back to
+       ! the same default as a new object (a field with CPs, else the
+       ! reference field)
+       if (.not.sys(r%id)%goodfield(r%cps%ifield)) then
+          r%cps%ifield = cps_field(r%id)
+          if (r%cps%ifield < 0) r%cps%ifield = max(sys(r%id)%iref,0)
        end if
     end if
 
@@ -2560,8 +2619,69 @@ contains
     elseif (r%type == reptype_isosurface) then
        !!! isosurface of a scalar field !!!
        call add_isosurface_meshes()
+    elseif (r%type == reptype_cps) then
+       !!! critical points of a scalar field !!!
+       call add_cp_spheres()
     end if ! reptype
   contains
+
+    !> Append the spheres for the non-nuclear critical points of field
+    !> r%cps%ifield (the nuclei are the atoms). The images follow the
+    !> Display like the atoms: periodicity, border, origin shift, and
+    !> the translation across the cell in vacuum directions. The
+    !> spheres are not pickable (idx = 0).
+    subroutine add_cp_spheres()
+      integer :: icp, it, nshown, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3
+      logical :: bord, tsh, vac(3)
+      real*8 :: ui(3), ue(3), xf(3)
+
+      if (.not.field_has_cps(r%id,r%cps%ifield)) return
+      associate(f => sys(r%id)%f(r%cps%ifield))
+        bord = disp%border
+        tsh = any(abs(disp%tshift) > 1d-5)
+        if (r%disp%ignoresel) then
+           bord = .true.
+           tsh = .false.
+        end if
+        nc = disp%ncells(r%disp)
+        call atom_image_vacuum(c,r%id,vac,ui,ue)
+
+        ! presize for the shown CPs (dl_append absorbs the border images)
+        nshown = 0
+        do icp = c%nneq+1, f%ncp
+           it = f%cp(icp)%typind
+           if (it < 0 .or. it > 3) cycle
+           if (r%cps%show(it)) nshown = nshown + f%cp(icp)%mult
+        end do
+        call obj%reserve(nsph = obj%nsph + nshown * product(nc))
+
+        do icp = c%ncel+1, f%ncpcel
+           it = f%cp(f%cpcel(icp)%idx)%typind
+           if (it < 0 .or. it > 3) cycle
+           if (.not.r%cps%show(it)) cycle
+
+           ! image range, and the translation that brings the CP into
+           ! the shifted cell (origin shift in the Display)
+           call atom_image_range(f%cpcel(icp)%x,(/0,0,0/),nc,bord,.false.,vac,ui,ue,m0,m1,vshift)
+           if (tsh) then
+              xf = f%cpcel(icp)%x - disp%tshift
+              vshift = vshift + nint(xf - floor(xf) + disp%tshift - f%cpcel(icp)%x)
+           end if
+           do j1 = m0(1), m1(1)
+              do j2 = m0(2), m1(2)
+                 do j3 = m0(3), m1(3)
+                    xf = f%cpcel(icp)%x + (/j1,j2,j3/) + vshift
+                    dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%rad,rgb=r%cps%rgb(:,it),&
+                       idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+                       border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def)
+                    call dl_append(obj%sph,obj%nsph,dsph)
+                 end do
+              end do
+           end do
+        end do
+      end associate
+
+    end subroutine add_cp_spheres
 
     !> Build (if stale) and append the isosurface meshes of this
     !> representation. The field is triangulated over the full unit cell:

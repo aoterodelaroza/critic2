@@ -167,6 +167,8 @@ contains
     s%resetrot = eye4
     s%resetext = 1d0
     s%forcebuildlists = .true.
+    s%fieldgen_built = -1
+    s%cps_autoadded = .false.
     s%iqpt_selected = 0
     s%ifreq_selected = 0
     s%animation = 0
@@ -377,6 +379,9 @@ contains
 
     ! only build lists if system is initialized
     if (.not.ok_system(s%id,sys_ready)) return
+
+    ! show the critical points the first time the system has them
+    call s%add_cps_maybe()
 
     ! reset the draw lists
     call s%obj%reset()
@@ -623,6 +628,7 @@ contains
     s%gl%inst_valid = .false.
     s%isinit = 2
     s%timelastbuild = glfwGetTime()
+    s%fieldgen_built = sys(s%id)%fieldgen
 
   end subroutine scene_build_lists
 
@@ -1762,7 +1768,7 @@ contains
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
-       reptype_isosurface, reptype_shapes
+       reptype_isosurface, reptype_shapes, reptype_cps
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -1902,6 +1908,8 @@ contains
              str3 = "isosurf" // c_null_char
           elseif (s%rep(i)%type == reptype_shapes) then
              str3 = "shapes" // c_null_char
+          elseif (s%rep(i)%type == reptype_cps) then
+             str3 = "cps" // c_null_char
           else
              str3 = "???" // c_null_char
           end if
@@ -2226,6 +2234,7 @@ contains
   !> given flavor.  If id is present, it returns the new
   !> representation id.
   module subroutine add_representation(s,itype,flavor,id)
+    use representations, only: reptype_cps
     class(scene), intent(inout), target :: s
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
@@ -2239,7 +2248,26 @@ contains
     s%forcebuildlists = .true.
     if (present(id)) id = id_
 
+    ! a critical points object ends the automatic one (add_cps_maybe)
+    if (itype == reptype_cps) s%cps_autoadded = .true.
+
   end subroutine add_representation
+
+  !> Add a critical points object to the scene the first time the
+  !> system has a field with critical points other than the nuclei
+  !> (checkpoint read on load, AUTO in the console,...). Only once
+  !> per scene: an object deleted by the user is not re-created, and
+  !> one made by the user counts (see add_representation). Called at
+  !> the start of every draw-list build.
+  module subroutine scene_add_cps_maybe(s)
+    use representations, only: reptype_cps, repflavor_cps, cps_field
+    class(scene), intent(inout), target :: s
+
+    if (s%cps_autoadded .or. s%isinit == 0) return
+    if (cps_field(s%id) < 0) return
+    call s%add_representation(reptype_cps,repflavor_cps)
+
+  end subroutine scene_add_cps_maybe
 
   !> Show (shown = .true.) or hide every object of kind itype in this
   !> scene. If labeltype is given and the objects are being shown, it

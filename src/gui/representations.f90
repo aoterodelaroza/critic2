@@ -324,7 +324,8 @@ module representations
   integer, parameter, public :: reptype_bonds = 9 ! bonds (cylinders)
   integer, parameter, public :: reptype_labels = 10 ! atom labels
   integer, parameter, public :: reptype_polyhedra = 11 ! coordination polyhedra
-  integer, parameter, public :: reptype_NUM = 11
+  integer, parameter, public :: reptype_cps = 12 ! critical points of a scalar field
+  integer, parameter, public :: reptype_NUM = 12
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -344,7 +345,8 @@ module representations
   integer, parameter, public :: repflavor_measure = 14
   integer, parameter, public :: repflavor_shapes = 15
   integer, parameter, public :: repflavor_isosurface = 16
-  integer, parameter, public :: repflavor_NUM = 16
+  integer, parameter, public :: repflavor_cps = 17
+  integer, parameter, public :: repflavor_NUM = 17
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -377,7 +379,8 @@ module representations
      "Text             ",& ! repflavor_text
      "Measurements     ",& ! repflavor_measure
      "Geometric Shapes ",& ! repflavor_shapes
-     "Isosurface       "/) ! repflavor_isosurface
+     "Isosurface       ",& ! repflavor_isosurface
+     "Critical Points  "/) ! repflavor_cps
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -716,6 +719,22 @@ module representations
   end type rep_isosurface
   public :: rep_isosurface
 
+  ! critical point defaults: pseudo-element of the n/b/r/c CPs (Xn=119,
+  ! Xb, Xr, Xc) for the colors, and the CLI sphere radius (bohr)
+  integer, parameter :: cps_z0 = 119
+  real(c_float), parameter, public :: cps_rad_def = 0.21_c_float
+
+  !> Critical point display options (reptype_cps; accessed as r%cps%...).
+  !> The non-nuclear CPs of field ifield are drawn as spheres; index
+  !> 0:3 of show and rgb is the CP type (typind: n, b, r, c).
+  type rep_cps
+     integer :: ifield = 0 ! field whose critical points are drawn (index in sys(id)%f)
+     logical :: show(0:3) = .true. ! show the CPs of this type
+     real(c_float) :: rgb(3,0:3) = 1._c_float ! color of each CP type
+     real(c_float) :: rad = cps_rad_def ! sphere radius (bohr)
+  end type rep_cps
+  public :: rep_cps
+
   !> Representation: objects to draw on the scene
   type representation
      ! main variables
@@ -744,6 +763,7 @@ module representations
      type(rep_text) :: text ! text annotation options
      type(rep_measure) :: measure ! measurement options
      type(rep_isosurface) :: iso ! isosurface options
+     type(rep_cps) :: cps ! critical point options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -768,6 +788,8 @@ module representations
   public :: iso_estimate_cost
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
+  public :: cps_field
+  public :: field_has_cps
   public :: vibration_arrow_shapes
   public :: shape_differs
 
@@ -777,6 +799,14 @@ module representations
        class(representation), intent(in) :: r
        logical :: ok
      end function representation_uses_periodicity
+     module function field_has_cps(isys,k) result(ok)
+       integer, intent(in) :: isys, k
+       logical :: ok
+     end function field_has_cps
+     module function cps_field(isys) result(ifield)
+       integer, intent(in) :: isys
+       integer :: ifield
+     end function cps_field
      module function reptype_is_atombased(itype) result(ok)
        integer, intent(in) :: itype
        logical :: ok

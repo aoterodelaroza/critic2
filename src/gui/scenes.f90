@@ -54,6 +54,7 @@ module scenes
      integer :: buildncel = -1 ! number of cell atoms at the last build_lists (-1 = never built)
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
+     integer :: fieldgen_built = -1 ! system field-set generation at the last build (sys%fieldgen)
      real*8 :: timelastcamchange = 0d0 ! time the camera was last changed
      real*8 :: timerefanimation = 0d0 ! reference time for the animation
      real(c_float) :: scenerad = 1d0 ! scene radius
@@ -85,6 +86,7 @@ module scenes
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
      integer, allocatable :: icount(:) ! last rep counter, for unique names
+     logical :: cps_autoadded = .false. ! whether the critical points object was added (once per scene)
      ! transient representations: rearmed every frame
      integer :: nreptrans = 0 ! number of transient representation slots (may contain holes)
      type(representation), allocatable :: reptrans(:) ! transient representations (slot in use iff reptrans(i)%isinit)
@@ -143,6 +145,7 @@ module scenes
      procedure :: toggle_measurement => scene_toggle_measurement
      procedure :: toggle_measurement_sel => scene_toggle_measurement_sel
      procedure :: add_representation
+     procedure :: add_cps_maybe => scene_add_cps_maybe
      procedure :: set_kind_shown => scene_set_kind_shown
      procedure :: set_style => scene_set_style
      procedure :: reap_transient_representations => scene_reap_transient_representations
@@ -254,6 +257,9 @@ module scenes
        integer, intent(in) :: flavor
        integer, intent(out), optional :: id
      end subroutine add_representation
+     module subroutine scene_add_cps_maybe(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_add_cps_maybe
      module subroutine scene_set_kind_shown(s,itype,flavor,shown,labeltype)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: itype

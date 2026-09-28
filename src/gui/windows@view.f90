@@ -81,7 +81,7 @@ contains
        repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
        reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface,&
        reptype_shapes, repflavor_shapes, repstyle_ballandstick, repstyle_licorice,&
-       repstyle_sticks
+       repstyle_sticks, reptype_cps, repflavor_cps
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -531,6 +531,10 @@ contains
              call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
           call iw_tooltip("Display an isosurface of a scalar field",ttshown)
 
+          if (iw_menuitem("Critical Points")) &
+             call w%add_rep_and_edit(reptype_cps,repflavor_cps)
+          call iw_tooltip("Display the critical points of a scalar field",ttshown)
+
           ! symmetry available for crystals (always) or molecules with a point group
           symenabled = .true.
           if (sys(w%isys)%c%ismolecule) symenabled = sys(w%isys)%c%pg%avail
@@ -655,6 +659,9 @@ contains
 
     ! update the draw lists and render
     if (associated(w%sc)) then
+       ! rebuild when the system changed, or when fields were loaded,
+       ! removed or copied (the field set generation, bumped by the core)
+       if (w%sc%fieldgen_built /= sys(w%isys)%fieldgen) w%sc%forcebuildlists = .true.
        if (w%sc%timelastbuild < sysc(w%isys)%timelastchange_buildlists) then
           w%sc%forcebuildlists = .true.
           ! during interactive dynamics the geometry changes every frame but the

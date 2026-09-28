@@ -71,7 +71,7 @@ contains
        format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ, icon_prop_cps,&
        icon_ui_expand, icon_ui_collapse
     use fieldmod, only: type_grid, type_wien, type_pi, type_dftb
-    use representations, only: reptype_isosurface, repflavor_isosurface
+    use representations, only: reptype_isosurface, repflavor_isosurface, field_has_cps, cps_field
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic, mode_smr
     use tools_io, only: string, uout, nameguess
     use types, only: realloc
@@ -161,7 +161,7 @@ contains
           if (any(sys(i)%f(1:sys(i)%nf)%isinit)) nprop = nprop + 1
           if (sys(i)%c%vib%hasvibs) nprop = nprop + 1
           if (sys(i)%c%haveocc) nprop = nprop + 1
-          if (system_has_cps(i)) nprop = nprop + 1
+          if ((cps_field(i) >= 0)) nprop = nprop + 1
           maxprops = max(maxprops,nprop)
        end if
     end do
@@ -671,7 +671,7 @@ contains
                       hasfield = any(sys(i)%f(1:sys(i)%nf)%isinit)
                       hasvib = sys(i)%c%vib%hasvibs
                       hasocc = sys(i)%c%haveocc
-                      hascps = system_has_cps(i)
+                      hascps = (cps_field(i) >= 0)
                    end if
                    ! icons, then pad to maxprops
                    nprop = 0
@@ -1288,25 +1288,6 @@ contains
       call iw_tooltip(tooltip,ttshown)
 
     end subroutine draw_icon_cell
-
-    !> True if field k of system i has critical points other than the
-    !> nuclei (from a CP search or a checkpoint file).
-    logical function field_has_cps(i,k)
-      integer, intent(in) :: i, k
-
-      field_has_cps = sys(i)%goodfield(k)
-      if (field_has_cps) field_has_cps = (sys(i)%f(k)%ncp > sys(i)%c%nneq)
-
-    end function field_has_cps
-
-    !> True if any field of system i has critical points other than
-    !> the nuclei.
-    logical function system_has_cps(i)
-      integer, intent(in) :: i
-
-      system_has_cps = any(sys(i)%f(0:sys(i)%nf)%isinit .and. sys(i)%f(0:sys(i)%nf)%ncp > sys(i)%c%nneq)
-
-    end function system_has_cps
 
     !> Apply a SETFIELD-style option string opt to field k of system i,
     !> reporting any error to the output console.

@@ -58,7 +58,7 @@ contains
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
-       reptype_measure, reptype_isosurface, reptype_shapes, iso_map_color
+       reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, iso_map_color
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -141,6 +141,8 @@ contains
           changed = changed .or. w%draw_editrep_isosurface(ttshown)
        elseif (w%rep%type == reptype_shapes) then
           changed = changed .or. w%draw_editrep_shapes(ttshown)
+       elseif (w%rep%type == reptype_cps) then
+          changed = changed .or. w%draw_editrep_cps(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -3851,5 +3853,78 @@ contains
     end function region_point_tooltip
   end function draw_editrep_isosurface
 
+
+  !> Draw the editrep window, critical points class. Returns true if
+  !> the representation has changed. ttshown = the tooltip flag.
+  module function draw_editrep_cps(w,ttshown) result(changed)
+    use systems, only: sys
+    use representations, only: cps_rad_def
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_realc,&
+       iw_field_combo, iw_calcwidth
+    use param, only: bohrtoa
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    ! the nuclei are the atoms, so the (3,-3) CPs drawn here are the
+    ! non-nuclear attractors
+    character(len=*), parameter :: cpname(0:3) = (/"non-nuclear attractors","bond critical points  ",&
+       "ring critical points  ","cage critical points  "/)
+    integer :: isys, ifield, i, it, ncount(0:3)
+    logical :: ch
+
+    ! initialize
+    changed = .false.
+    isys = w%isys
+
+    ! field selector
+    call iw_text("Field",highlight=.true.)
+    call igSameLine(0._c_float,-1._c_float)
+    ifield = w%rep%cps%ifield
+    if (iw_field_combo("##cpsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+       nonestr="<field not available>")) then
+       w%rep%cps%ifield = ifield
+       changed = .true.
+    end if
+    call iw_tooltip("Field whose critical points are displayed",ttshown)
+    if (.not.sys(isys)%goodfield(w%rep%cps%ifield)) then
+       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+       return
+    end if
+
+    ! count the critical points in the cell, by type (not the nuclei)
+    ncount = 0
+    associate(f => sys(isys)%f(w%rep%cps%ifield))
+      do i = sys(isys)%c%nneq+1, f%ncp
+         it = f%cp(i)%typind
+         if (it >= 0 .and. it <= 3) ncount(it) = ncount(it) + f%cp(i)%mult
+      end do
+    end associate
+    if (all(ncount == 0)) &
+       call iw_text("This field has no critical points other than the nuclei (run AUTO)",&
+          disabled=.true.,wrap=.true.)
+
+    ! per-type show and color
+    call iw_text("Critical points",highlight=.true.)
+    do it = 0, 3
+       ch = iw_coloredit("##cpscolor" // string(it),rgb=w%rep%cps%rgb(:,it))
+       call iw_tooltip("Color of the " // trim(cpname(it)),ttshown)
+       changed = changed .or. ch
+       ch = iw_checkbox(trim(cpname(it)) // " (" // string(ncount(it)) // ")##cpsshow" // string(it),&
+          w%rep%cps%show(it),sameline=.true.)
+       call iw_tooltip("Show the " // trim(cpname(it)) // " (number in the cell in parentheses)",ttshown)
+       changed = changed .or. ch
+    end do
+
+    ! radius
+    ch = iw_dragfloat_realc("Radius (Å)",x1=w%rep%cps%rad,speed=0.002_c_float,&
+       min=0.01_c_float,max=2._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the critical point spheres (default " //&
+       string(real(cps_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
+    changed = changed .or. ch
+
+  end function draw_editrep_cps
 
 end submodule editrep
