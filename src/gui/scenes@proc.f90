@@ -349,6 +349,8 @@ contains
 
   !> Reset atom colors in the scene to the defaults
   module subroutine scene_reset_atom_colors(s)
+    use representations, only: reptype_cps
+    use gui_main, only: ColorCP
     class(scene), intent(inout), target :: s
 
     integer :: irep
@@ -357,6 +359,7 @@ contains
 
     do irep = 1, s%nrep
        call s%rep(irep)%atoms%style%reset_colors(s%rep(irep))
+       if (s%rep(irep)%type == reptype_cps) s%rep(irep)%cps%rgb = ColorCP
     end do
     s%forcebuildlists = .true.
 

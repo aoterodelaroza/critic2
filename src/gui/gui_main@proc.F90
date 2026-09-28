@@ -589,7 +589,7 @@ contains
 
   !> Reset the interface colors (only) to their default values
   module subroutine set_default_color_settings()
-    use param, only: JMLcol
+    use param, only: JMLcol, maxzat
 
     ColorTableCellBg = ColorTableCellBg_def
     ColorFieldSelected = ColorFieldSelected_def
@@ -599,6 +599,8 @@ contains
     ColorHighlightSelectScene = ColorHighlightSelectScene_def
     ColorMeasureSelect = ColorMeasureSelect_def
     ColorElement = real(JMLcol,c_float) / 255._c_float
+    ! the critical points take the colors of the CLI pseudo-elements Xn, Xb, Xr, Xc
+    ColorCP = real(JMLcol(:,maxzat+1:maxzat+4),c_float) / 255._c_float
 
   end subroutine set_default_color_settings
 

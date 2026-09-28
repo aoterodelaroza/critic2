@@ -134,7 +134,7 @@ contains
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorAxes_def, ColorVdwContacts_def,&
        ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def,&
-       ColorOccEmpty_def, ColorElement
+       ColorOccEmpty_def, ColorCP
     use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
@@ -350,9 +350,7 @@ contains
        r%cps = rep_cps()
        r%cps%ifield = cps_field(isys)
        if (r%cps%ifield < 0) r%cps%ifield = max(sys(isys)%iref,0)
-       do i = 0, 3
-          r%cps%rgb(:,i) = ColorElement(:,cps_z0+i)
-       end do
+       r%cps%rgb = ColorCP
     end if
 
     ! geometric shapes

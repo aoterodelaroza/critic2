@@ -33,15 +33,15 @@ contains
        ColorTableSelectedBorder,&
        ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
-       ColorElement, uiscale
-    use representations, only: iso_defaultlevel, iso_level_optstr
+       ColorElement, ColorCP, uiscale
+    use representations, only: iso_defaultlevel, iso_level_optstr, cps_name
     use systems, only: nsys, sysc, always_read_virtuals
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_table_headers_row, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth,&
        iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_close_event, iw_table_column,&
        iw_combo_simple
-    use param, only: maxzat0
+    use param, only: maxzat
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
@@ -310,8 +310,8 @@ contains
           call iw_text("Elements",highlight=.true.,alignframe=.true.)
           ldum = iw_checkbox("Apply changes immediately",w%color_preferences_reset_reps,&
              sameline=.true.)
-          call iw_tooltip("If checked, changes to the element colors are immediately&
-             & applied to all atoms in all open systems.")
+          call iw_tooltip("If checked, changes to the element and critical point colors are&
+             & immediately applied to all atoms and critical points in all open systems.")
           call igSeparator()
 
           str = "##elementcolortable" // c_null_char
@@ -329,7 +329,7 @@ contains
              call iw_table_headers_row()
 
              nrow = -1
-             do i = 0, maxzat0
+             do i = 0, maxzat
                 kmod = mod(i,10)
                 if (kmod == 0) then
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -340,25 +340,20 @@ contains
                 end if
                 if (igTableSetColumnIndex(kmod+1)) then
                    ch = iw_coloredit(nameguess(i,.true.),rgb=ColorElement(:,i))
-                   if (ch .and. w%color_preferences_reset_reps) then
-                      !! reset colors
-                      ! systems
-                      do isys = 1, nsys
-                         call sysc(isys)%sc%reset_atom_colors()
-                      end do
-                      ! alternate view windows
-                      do iwin = 1, nwin
-                         if (win(iwin)%type == wintype_view.and..not.win(iwin)%ismain.and.&
-                            associated(win(iwin)%sc)) then
-                            call win(iwin)%sc%reset_atom_colors()
-                         end if
-                      end do
-                   end if
+                   if (ch .and. w%color_preferences_reset_reps) call apply_colors()
                 end if
              end do
 
              call igEndTable()
           end if
+
+          ! critical points, one per line
+          call iw_text("Critical Points",highlight=.true.)
+          call igSeparator()
+          do i = 0, 3
+             ch = iw_coloredit(trim(cps_name(i)) // "##cpcolor" // string(i),rgb=ColorCP(:,i))
+             if (ch .and. w%color_preferences_reset_reps) call apply_colors()
+          end do
 
        elseif (catid == 3) then
           !! readers
@@ -411,6 +406,20 @@ contains
     end if
 
   contains
+    !> Apply the element and critical point colors to all atoms and
+    !> critical points in the open systems and alternate views.
+    subroutine apply_colors()
+      do isys = 1, nsys
+         call sysc(isys)%sc%reset_atom_colors()
+      end do
+      do iwin = 1, nwin
+         if (win(iwin)%type == wintype_view.and..not.win(iwin)%ismain.and.&
+            associated(win(iwin)%sc)) then
+            call win(iwin)%sc%reset_atom_colors()
+         end if
+      end do
+    end subroutine apply_colors
+
     ! initialize the state for this window
     subroutine init_state()
        if (c_associated(cfilter)) call ImGuiTextFilter_Clear(cfilter)

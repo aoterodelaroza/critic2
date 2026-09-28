@@ -141,8 +141,12 @@ module gui_main
   real(c_float), parameter, public :: ColorButtonActiveFactor = 0.8_c_float ! active button darken factor
   real(c_float), parameter, public :: lumweights(3) = (/0.299_c_float,0.587_c_float,0.114_c_float/) ! perceived-luminance weights
 
-  ! element colors
+  ! element colors (119-123 are the critical point pseudo-elements of
+  ! structure files, e.g. the output of CPREPORT)
   real(c_float), public :: ColorElement(3,0:maxzat0)
+
+  ! critical point colors (0:3 = non-nuclear attractor, bond, ring, cage)
+  real(c_float), public :: ColorCP(3,0:3)
 
   ! flags to control main's behavior
   integer, public :: force_run_commands = 0 ! execute commands from the input console (0=no,1=only selected,2=all)

@@ -719,9 +719,12 @@ module representations
   end type rep_isosurface
   public :: rep_isosurface
 
-  ! critical point defaults: pseudo-element of the n/b/r/c CPs (Xn=119,
-  ! Xb, Xr, Xc) for the colors, and the CLI sphere radius (bohr)
-  integer, parameter :: cps_z0 = 119
+  ! critical point names by type (typind; the (3,-3) CPs other than the
+  ! nuclei are the non-nuclear attractors) and default sphere radius
+  ! (bohr, the radius the CLI uses in its 3D model output)
+  character(len=*), parameter, public :: cps_name(0:3) = (/character(len=32) ::&
+     "Non-nuclear attractor (NNA)","Bond critical point (BCP)",&
+     "Ring critical point (RCP)","Cage critical point (CCP)"/)
   real(c_float), parameter, public :: cps_rad_def = 0.21_c_float
 
   !> Critical point display options (reptype_cps; accessed as r%cps%...).

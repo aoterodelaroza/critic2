@@ -3858,7 +3858,7 @@ contains
   !> the representation has changed. ttshown = the tooltip flag.
   module function draw_editrep_cps(w,ttshown) result(changed)
     use systems, only: sys
-    use representations, only: cps_rad_def
+    use representations, only: cps_rad_def, cps_name
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth
     use param, only: bohrtoa
@@ -3867,10 +3867,6 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    ! the nuclei are the atoms, so the (3,-3) CPs drawn here are the
-    ! non-nuclear attractors
-    character(len=*), parameter :: cpname(0:3) = (/"non-nuclear attractors","bond critical points  ",&
-       "ring critical points  ","cage critical points  "/)
     integer :: isys, ifield, i, it, ncount(0:3)
     logical :: ch
 
@@ -3915,18 +3911,18 @@ contains
     call iw_text("Critical points",highlight=.true.)
     do it = 0, 3
        ch = iw_coloredit("##cpscolor" // string(it),rgb=w%rep%cps%rgb(:,it))
-       call iw_tooltip("Color of the " // trim(cpname(it)),ttshown)
+       call iw_tooltip("Color of the critical points of this type",ttshown)
        changed = changed .or. ch
        ch = iw_dragfloat_realc("##cpsrad" // string(it),x1=w%rep%cps%rad(it),speed=0.002_c_float,&
           min=0.01_c_float,max=2._c_float,scale=real(bohrtoa,c_float),decimal=3,&
           sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Radius of the " // trim(cpname(it)) // " in Å, before the scale (default " //&
+       call iw_tooltip("Radius of the critical points of this type in Å, before the scale (default " //&
           string(real(cps_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
        changed = changed .or. ch
-       ch = iw_checkbox(trim(cpname(it)) // " (" // string(ncount(it)) // ")##cpsshow" // string(it),&
-          w%rep%cps%show(it),sameline=.true.)
-       call iw_tooltip("Show the " // trim(cpname(it)) // " (number in the cell in parentheses)",ttshown)
+       ch = iw_checkbox(trim(cps_name(it)) // "##cpsshow" // string(it),w%rep%cps%show(it),sameline=.true.)
+       call iw_tooltip("Show the critical points of this type (count: number in the cell)",ttshown)
        changed = changed .or. ch
+       call iw_text("(" // string(ncount(it)) // " in the cell)",disabled=.true.,sameline=.true.)
     end do
 
   end function draw_editrep_cps
