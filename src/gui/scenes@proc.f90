@@ -2319,9 +2319,12 @@ contains
        changed = changed .or. (s%rep(i)%shown .neqv. shown)
        s%rep(i)%shown = shown
        if (dotype) then
-          changed = changed .or. (s%rep(i)%labels%type /= labeltype)
-          s%rep(i)%labels%type = labeltype
-          call s%rep(i)%labels%style%reset(s%rep(i))
+          ! reset only on a change of type (keeps the shown rows)
+          if (s%rep(i)%labels%type /= labeltype) then
+             changed = .true.
+             s%rep(i)%labels%type = labeltype
+             call s%rep(i)%labels%style%reset(s%rep(i))
+          end if
        end if
     end do
 

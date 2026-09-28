@@ -53,6 +53,7 @@ module representations
   logical, parameter, public :: hbond_classify_def = .false. ! Jeffrey-Steiner H-bond strength classification
   !--> labels
   real*8, parameter, public :: label_scale_def = 0.5d0 ! label size
+  real*8, parameter, public :: label_scale_cp_def = 0.15d0 ! label size (critical points)
   !--> unit cell
   real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
@@ -269,8 +270,20 @@ module representations
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      character*32, allocatable :: str(:) ! text
+     ! critical points of field cpfield (non-nuclear): rows by CP type
+     ! (label type 0), by cell CP (2,3; row j is cpcel(ncel+j)), or by
+     ! symmetry-unique CP (1,4,8; row j is cp(nneq+j)); none for the
+     ! other types. Reset separately, when the CP list may have changed
+     ! (lastchange_cplist) or the field changes.
+     real*8 :: timelastreset_cp = 0d0 ! time the CP rows were last reset
+     integer :: cpfield = -1 ! field whose CPs the rows are for
+     integer :: ncp = 0 ! number of CP rows
+     integer, allocatable :: cptyp(:) ! CP type (typind, 0..3) of each row
+     logical, allocatable :: cpshown(:) ! whether it is shown (ncp)
+     character*32, allocatable :: cpstr(:) ! text (ncp)
    contains
      procedure :: reset => label_style_reset
+     procedure :: reset_cps => label_style_reset_cps
      procedure :: end => label_style_end
   end type label_geom_style
   public :: label_geom_style
@@ -425,10 +438,12 @@ module representations
   type rep_labels
      type(label_geom_style) :: style ! label styles (geometry-dependent)
      integer(c_int) :: type ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
-     real*8 :: scale ! scale for the labels
+     real*8 :: scale ! scale for the labels (atoms)
+     real*8 :: scale_cp ! scale for the labels (critical points)
      real(c_float) :: rgb(3) ! color of the labels
      logical :: const_size ! whether labels scale with objects or are constant size
      real*8 :: offset(3) ! offset of the label
+     integer :: ifield = -1 ! field whose critical points are labeled
   end type rep_labels
   public :: rep_labels
 
@@ -729,6 +744,7 @@ module representations
      "Non-nuclear attractor (NNA)","Bond critical point (BCP)",&
      "Ring critical point (RCP)","Cage critical point (CCP)"/)
   character(len=*), parameter, public :: cps_abbrev(0:3) = (/"NNA","BCP","RCP","CCP"/)
+  character(len=*), parameter, public :: cps_letter(0:3) = (/"n","b","r","c"/)
   real(c_float), parameter, public :: cps_rad_def = real(0.15d0 / bohrtoa,c_float)
 
   !> Critical point display options (reptype_cps; accessed as r%cps%...).
@@ -798,6 +814,7 @@ module representations
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
   public :: cps_field
+  public :: cps_field_default
   public :: field_has_cps
   public :: vibration_arrow_shapes
   public :: shape_differs
@@ -816,6 +833,10 @@ module representations
        integer, intent(in) :: isys
        integer :: ifield
      end function cps_field
+     module function cps_field_default(isys) result(ifield)
+       integer, intent(in) :: isys
+       integer :: ifield
+     end function cps_field_default
      module function reptype_is_atombased(itype) result(ok)
        integer, intent(in) :: itype
        logical :: ok
@@ -1093,6 +1114,10 @@ module representations
        class(label_geom_style), intent(inout) :: d
        type(representation), intent(in) :: r
      end subroutine label_style_reset
+     module subroutine label_style_reset_cps(d,r)
+       class(label_geom_style), intent(inout) :: d
+       type(representation), intent(in) :: r
+     end subroutine label_style_reset_cps
      module subroutine label_style_end(d)
        class(label_geom_style), intent(inout) :: d
      end subroutine label_style_end

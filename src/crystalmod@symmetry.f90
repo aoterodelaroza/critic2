@@ -20,6 +20,7 @@ submodule (crystalmod) symmetry
   implicit none
 
   !xx! private procedures
+  ! function wyckoff_letter(iw)
   ! subroutine symelem_enum(c,se,iop)
   ! subroutine symelem_replicate(c,ncell,border,se)
   ! subroutine symelem_in_box(skind,x0,dirf,b,ok,xmid,onfar)
@@ -426,10 +427,8 @@ contains
     class(crystal), intent(inout) :: c
     type(SpglibDataset), intent(inout), optional :: spg
 
-    integer :: i, idx, ilet
+    integer :: i, idx
     logical :: doit
-
-    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
 
     doit = .false.
     if (present(spg)) then
@@ -440,10 +439,7 @@ contains
     if (doit) then
        do i = 1, c%ncel
           idx = c%atcel(i)%idx
-          if (c%at(idx)%wyc == "?" .and. c%spg%wyckoffs(i) < 26) then
-             ilet = c%spg%wyckoffs(i)+1
-             c%at(idx)%wyc = wycklet(ilet:ilet)
-          end if
+          if (c%at(idx)%wyc == "?") c%at(idx)%wyc = wyckoff_letter(c%spg%wyckoffs(i))
        end do
     else
        do i = 1, c%nneq
@@ -452,6 +448,55 @@ contains
     end if
 
   end subroutine spgtowyc
+
+  !> Wyckoff letters (wyc) of nx extra sites with fractional
+  !> coordinates x in crystal c, in the setting of the crystal's space
+  !> group (c%spg). The sites are added to the cell atoms as new kinds
+  !> (ityp > 0; sites of the same kind must form complete
+  !> symmetry-equivalent sets, like the complete critical point list)
+  !> and the letters come from spglib. A letter is "?" if the crystal
+  !> has no space group or the sites break its symmetry.
+  module subroutine wyckoff_sites(c,nx,x,ityp,wyc)
+    use iso_c_binding, only: c_double
+    use spglib, only: spg_get_dataset
+    use global, only: symprec
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: nx
+    real*8, intent(in) :: x(3,nx)
+    integer, intent(in) :: ityp(nx)
+    character*1, intent(out) :: wyc(nx)
+
+    real(c_double) :: lattice(3,3)
+    real(c_double), allocatable :: xx(:,:)
+    integer, allocatable :: typ(:)
+    integer :: i, n
+    type(SpglibDataset) :: spg
+
+    wyc = "?"
+    if (nx == 0 .or. c%ismolecule .or. .not.c%spgavail) return
+
+    ! the cell atoms, by symmetry-unique atom (the extra sites are
+    ! complete under the crystal's own operations, which may be fewer
+    ! than the species alone allow), followed by the extra sites
+    n = c%ncel + nx
+    allocate(xx(3,n),typ(n))
+    do i = 1, c%ncel
+       xx(:,i) = c%atcel(i)%x
+       typ(i) = c%atcel(i)%idx
+    end do
+    xx(:,c%ncel+1:n) = x
+    typ(c%ncel+1:n) = c%nneq + ityp
+    lattice = transpose(c%m_x2c)
+
+    ! the dataset in the crystal's setting
+    spg = spg_get_dataset(lattice,xx,typ,n,symprec,hall_number=c%spg%hall_number)
+    if (spg%n_atoms /= n .or. spg%spacegroup_number /= c%spg%spacegroup_number) return
+    if (.not.allocated(spg%wyckoffs)) return
+    do i = 1, nx
+       wyc(i) = wyckoff_letter(spg%wyckoffs(c%ncel+i))
+    end do
+
+  end subroutine wyckoff_sites
 
   !> Calculate the crystal symmetry operations.
   !> Input: cell vectors (m_x2c), ncel, atcel(:), at(:)
@@ -2902,5 +2947,18 @@ contains
     end if
 
   end subroutine symelem_in_box
+
+  !> The Wyckoff letter for spglib's 0-based Wyckoff index iw, or "?"
+  !> if it is out of range.
+  function wyckoff_letter(iw) result(let)
+    integer, intent(in) :: iw
+    character*1 :: let
+
+    character(len=26), parameter :: wycklet = "abcdefghijklmnopqrstuvwxyz"
+
+    let = "?"
+    if (iw >= 0 .and. iw < 26) let = wycklet(iw+1:iw+1)
+
+  end function wyckoff_letter
 
 end submodule symmetry

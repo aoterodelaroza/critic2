@@ -223,9 +223,11 @@ contains
     if (itype == 0 .or. itype == 3) then
        r%labels%type = 0
        r%labels%scale = label_scale_def
+       r%labels%scale_cp = label_scale_cp_def
        r%labels%rgb = ColorLabel_def
        r%labels%const_size = .false.
        r%labels%offset = (/0d0,0d0,0d0/)
+       r%labels%ifield = -1 ! set by update_styles (cps_field_default)
     end if
 
     ! unit cell
@@ -348,8 +350,7 @@ contains
     ! critical points
     if (itype == 0 .or. itype == 14) then
        r%cps = rep_cps()
-       r%cps%ifield = cps_field(isys)
-       if (r%cps%ifield < 0) r%cps%ifield = max(sys(isys)%iref,0)
+       r%cps%ifield = cps_field_default(isys)
        r%cps%rgb = ColorCP
     end if
 
@@ -1085,6 +1086,19 @@ contains
 
   end function cps_field
 
+  !> The field of system isys whose critical points a new object (CPs
+  !> or labels) shows, and the fallback when its field is gone: the
+  !> default of cps_field, else the reference field.
+  module function cps_field_default(isys) result(ifield)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    integer :: ifield
+
+    ifield = cps_field(isys)
+    if (ifield < 0) ifield = max(sys(isys)%iref,0)
+
+  end function cps_field_default
+
   !> Return true if the staged sampling grid (n, iregion, x) is already
   !> the applied state of isosurface iso. The region coordinates are
   !> irrelevant in whole-cell mode.
@@ -1654,10 +1668,21 @@ contains
           doreset = r%bonds%style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bonds%style%timelastreset)
           if (doreset) call r%bonds%style%copy_neighstars_from_system(r%id)
        elseif (r%type == reptype_labels) then
+          ! the field whose critical points are labeled: if it is gone
+          ! (or not set yet), the same default as a new CP object. Set
+          ! first, so the resets below build the CP rows for it.
+          if (.not.sys(r%id)%goodfield(r%labels%ifield)) r%labels%ifield = cps_field_default(r%id)
+
           ! labels: if the geometry changed
           doreset = .not.r%labels%style%isinit
           doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%labels%style%timelastreset)
           if (doreset) call r%labels%style%reset(r)
+
+          ! critical point labels: if the CP list may have changed or the
+          ! field changed
+          doreset = (sysc(r%id)%timelastchange_cplist > r%labels%style%timelastreset_cp)
+          doreset = doreset .or. (r%labels%style%cpfield /= r%labels%ifield)
+          if (doreset) call r%labels%style%reset_cps(r)
        elseif (r%type == reptype_polyhedra) then
           ! coordination polyhedra
           if (r%owner == 0) then
@@ -1692,12 +1717,8 @@ contains
 
     elseif (r%type == reptype_cps) then
        ! critical points: if the selected field is gone, fall back to
-       ! the same default as a new object (a field with CPs, else the
-       ! reference field)
-       if (.not.sys(r%id)%goodfield(r%cps%ifield)) then
-          r%cps%ifield = cps_field(r%id)
-          if (r%cps%ifield < 0) r%cps%ifield = max(sys(r%id)%iref,0)
-       end if
+       ! the same default as a new object
+       if (.not.sys(r%id)%goodfield(r%cps%ifield)) r%cps%ifield = cps_field_default(r%id)
     end if
 
   end subroutine update_styles
@@ -2145,30 +2166,16 @@ contains
                       end select
 
                       ! labels
-                      if (r%labels%style%shown(idl)) then
-                         dstr%x = real(xc,c_float)
-                         dstr%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                         dstr%r = real(rad1,c_float)
-                         dstr%rgb = r%labels%rgb
-                         if (r%labels%const_size) then
-                            dstr%scale = real(r%labels%scale,c_float)
-                         else
-                            dstr%scale = real(-r%labels%scale,c_float)
-                         end if
-                         dstr%offset = real(r%labels%offset,c_float)
-                         dstr%str = trim(r%labels%style%str(idl))
-                         if (r%labels%type == 3) then
-                            ! add the lattice vectors
-                            dstr%str = dstr%str // "[" //&
-                               string(ix(1)) // "," // string(ix(2)) // "," //string(ix(3)) // "]"
-                         end if
-                         call dl_append(obj%string,obj%nstring,dstr)
-                      end if ! label display conditions
+                      if (r%labels%style%shown(idl)) &
+                         call append_label(xc,xdelta1,rad1,r%labels%scale,r%labels%style%str(idl),ix)
                    end if ! label_display
                 end do ! i3
              end do ! i2
           end do ! i1
        end do ! loop over complete atom list (i)
+
+       ! labels of the critical points
+       if (dolabels) call add_cp_items(r%labels%ifield,.true.)
 
        ! draw the polyhedra corner atoms that the selection did not already draw
        ! (so every drawn polyhedron shows its corner atoms)
@@ -2647,23 +2654,32 @@ contains
        call add_isosurface_meshes()
     elseif (r%type == reptype_cps) then
        !!! critical points of a scalar field !!!
-       call add_cp_spheres()
+       call add_cp_items(r%cps%ifield,.false.)
     end if ! reptype
   contains
 
-    !> Append the spheres for the non-nuclear critical points of field
-    !> r%cps%ifield (the nuclei are the atoms). The images follow the
-    !> Display like the atoms: periodicity, border, origin shift, and
-    !> the translation across the cell in vacuum directions. The
-    !> spheres carry no atom identity (idx = 0) but a CP one (cpidx),
-    !> which the pick render uses for hovering.
-    subroutine add_cp_spheres()
-      integer :: icp, it, nshown, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3
+    !> Append the spheres (dolabel = .false., critical points object)
+    !> or the labels (dolabel = .true., labels object) for the
+    !> non-nuclear critical points of field ifield (the nuclei are the
+    !> atoms). The images follow the Display like the atoms:
+    !> periodicity, border, origin shift, and the translation across
+    !> the cell in vacuum directions. The spheres carry no atom identity
+    !> (idx = 0) but a CP one (cpidx), which the pick render uses for
+    !> hovering.
+    subroutine add_cp_items(ifield,dolabel)
+      integer, intent(in) :: ifield
+      logical, intent(in) :: dolabel
+
+      integer :: icp, it, irow, nshown, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3
       logical :: bord, tsh, vac(3)
       real*8 :: ui(3), ue(3), xf(3)
 
-      if (.not.field_has_cps(r%id,r%cps%ifield)) return
-      associate(f => sys(r%id)%f(r%cps%ifield))
+      if (.not.field_has_cps(r%id,ifield)) return
+      if (dolabel) then
+         if (r%labels%style%cpfield /= ifield) return
+         if (.not.any(r%labels%style%cpshown)) return
+      end if
+      associate(f => sys(r%id)%f(ifield))
         bord = disp%border
         tsh = any(abs(disp%tshift) > 1d-5)
         if (r%disp%ignoresel) then
@@ -2675,17 +2691,19 @@ contains
 
         ! presize for the shown CPs (dl_append absorbs the border images)
         nshown = 0
-        do icp = c%nneq+1, f%ncp
-           it = f%cp(icp)%typind
-           if (it < 0 .or. it > 3) cycle
-           if (r%cps%show(it)) nshown = nshown + f%cp(icp)%mult
+        do icp = c%ncel+1, f%ncpcel
+           if (cp_item_row(ifield,dolabel,icp) > 0) nshown = nshown + 1
         end do
-        call obj%reserve(nsph = obj%nsph + nshown * product(nc))
+        if (dolabel) then
+           call obj%reserve(nstring = obj%nstring + nshown * product(nc))
+        else
+           call obj%reserve(nsph = obj%nsph + nshown * product(nc))
+        end if
 
         do icp = c%ncel+1, f%ncpcel
+           irow = cp_item_row(ifield,dolabel,icp)
+           if (irow == 0) cycle
            it = f%cp(f%cpcel(icp)%idx)%typind
-           if (it < 0 .or. it > 3) cycle
-           if (.not.r%cps%show(it)) cycle
 
            ! image range, and the translation that brings the CP into
            ! the shifted cell (origin shift in the Display)
@@ -2698,18 +2716,91 @@ contains
               do j2 = m0(2), m1(2)
                  do j3 = m0(3), m1(3)
                     xf = f%cpcel(icp)%x + (/j1,j2,j3/) + vshift
-                    dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%radscale*r%cps%rad(it),rgb=r%cps%rgb(:,it),&
-                       idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
-                       border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def,&
-                       cpidx=(/icp,j1+vshift(1),j2+vshift(2),j3+vshift(3),r%cps%ifield/))
-                    call dl_append(obj%sph,obj%nsph,dsph)
+                    if (dolabel) then
+                       ! the labels object does not know the radius the
+                       ! CP object draws: use the default CP radius
+                       call append_label(c%x2c(xf),(/(0d0,0d0),(0d0,0d0),(0d0,0d0)/),&
+                          real(cps_rad_def,8),r%labels%scale_cp,r%labels%style%cpstr(irow),(/j1,j2,j3/)+vshift)
+                    else
+                       dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%radscale*r%cps%rad(it),rgb=r%cps%rgb(:,it),&
+                          idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
+                          border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def,&
+                          cpidx=(/icp,j1+vshift(1),j2+vshift(2),j3+vshift(3),ifield/))
+                       call dl_append(obj%sph,obj%nsph,dsph)
+                    end if
                  end do
               end do
            end do
         end do
       end associate
 
-    end subroutine add_cp_spheres
+    end subroutine add_cp_items
+
+    !> For cell CP icp of field ifield: the label row if it is shown
+    !> (dolabel, labels object), or 1 if its type is shown (spheres, CP
+    !> object); 0 otherwise.
+    function cp_item_row(ifield,dolabel,icp) result(irow)
+      integer, intent(in) :: ifield
+      logical, intent(in) :: dolabel
+      integer, intent(in) :: icp
+      integer :: irow
+
+      integer :: it
+
+      irow = 0
+      associate(f => sys(r%id)%f(ifield))
+        it = f%cp(f%cpcel(icp)%idx)%typind
+        if (it < 0 .or. it > 3) return
+        if (.not.dolabel) then
+           if (r%cps%show(it)) irow = 1
+           return
+        end if
+        select case(r%labels%type)
+        case (0)
+           irow = it + 1
+        case (2,3)
+           irow = icp - c%ncel
+        case (1,4,8)
+           irow = f%cpcel(icp)%idx - c%nneq
+        end select
+      end associate
+      if (irow < 1 .or. irow > r%labels%style%ncp) then
+         irow = 0
+      elseif (.not.r%labels%style%cpshown(irow)) then
+         irow = 0
+      end if
+
+    end function cp_item_row
+
+    !> Append a label with text str at Cartesian position xc (bohr),
+    !> vibration displacement xdelta, for an object of radius rad, with
+    !> scale scl; the rest of the style comes from the labels object,
+    !> and the lattice vector lvec is added to the text for label type 3.
+    subroutine append_label(xc,xdelta,rad,scl,str,lvec)
+      real*8, intent(in) :: xc(3)
+      complex*16, intent(in) :: xdelta(3)
+      real*8, intent(in) :: rad
+      real*8, intent(in) :: scl
+      character*(*), intent(in) :: str
+      integer, intent(in) :: lvec(3)
+
+      dstr%x = real(xc,c_float)
+      dstr%xdelta = cmplx(xdelta,kind=c_float_complex)
+      dstr%r = real(rad,c_float)
+      dstr%rgb = r%labels%rgb
+      if (r%labels%const_size) then
+         dstr%scale = real(scl,c_float)
+      else
+         dstr%scale = real(-scl,c_float)
+      end if
+      dstr%offset = real(r%labels%offset,c_float)
+      dstr%str = trim(str)
+      if (r%labels%type == 3) &
+         dstr%str = dstr%str // "[" // string(lvec(1)) // "," // string(lvec(2)) // "," //&
+         string(lvec(3)) // "]"
+      call dl_append(obj%string,obj%nstring,dstr)
+
+    end subroutine append_label
 
     !> Build (if stale) and append the isosurface meshes of this
     !> representation. The field is triangulated over the full unit cell:
@@ -4279,6 +4370,9 @@ contains
     ! reset the time
     d%timelastreset = glfwGetTime()
 
+    ! the critical point rows depend on the label type too
+    call d%reset_cps(r)
+
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
 
@@ -4327,6 +4421,78 @@ contains
 
   end subroutine label_style_reset
 
+  !> Reset the critical point rows of the label style from the
+  !> non-nuclear CPs of field r%labels%ifield: one row per CP type
+  !> (label type 0, text n/b/r/c), per symmetry-unique CP (1 = n/b/r/c,
+  !> 4 = CP id, 8 = Wyckoff position), or per cell CP (2,3 = CP id). No
+  !> rows for species, atomic number, or molecule labels. All rows
+  !> start hidden.
+  module subroutine label_style_reset_cps(d,r)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys, sys_ready, ok_system
+    use tools_io, only: string
+    class(label_geom_style), intent(inout) :: d
+    type(representation), intent(in) :: r
+
+    integer :: i, j, nx
+    character*1, allocatable :: wyc(:)
+
+    d%ncp = 0
+    if (allocated(d%cptyp)) deallocate(d%cptyp)
+    if (allocated(d%cpshown)) deallocate(d%cpshown)
+    if (allocated(d%cpstr)) deallocate(d%cpstr)
+    d%timelastreset_cp = glfwGetTime()
+    d%cpfield = r%labels%ifield
+    if (.not.ok_system(r%id,sys_ready)) return
+    if (.not.field_has_cps(r%id,d%cpfield)) return
+
+    associate(c => sys(r%id)%c, f => sys(r%id)%f(d%cpfield))
+      ! the rows, their CP types, and the text
+      select case(r%labels%type)
+      case (0)
+         d%ncp = 4
+      case (2,3)
+         d%ncp = f%ncpcel - c%ncel
+      case (1,4,8)
+         d%ncp = f%ncp - c%nneq
+      end select
+      allocate(d%cptyp(d%ncp),d%cpshown(d%ncp),d%cpstr(d%ncp))
+      d%cpshown = .false.
+      do i = 1, d%ncp
+         select case(r%labels%type)
+         case (0)
+            d%cptyp(i) = i - 1
+            d%cpstr(i) = cps_letter(i-1)
+         case (2,3)
+            d%cptyp(i) = f%cp(f%cpcel(c%ncel+i)%idx)%typind
+            d%cpstr(i) = string(c%ncel+i)
+         case (1,4,8)
+            d%cptyp(i) = f%cp(c%nneq+i)%typind
+            if (r%labels%type == 4) then
+               d%cpstr(i) = string(c%nneq+i)
+            elseif (d%cptyp(i) >= 0 .and. d%cptyp(i) <= 3) then
+               d%cpstr(i) = cps_letter(d%cptyp(i))
+            else
+               d%cpstr(i) = "?"
+            end if
+         end select
+      end do
+
+      ! Wyckoff positions of the symmetry-unique CPs, from the cell CPs
+      if (r%labels%type == 8) then
+         nx = f%ncpcel - c%ncel
+         allocate(wyc(nx))
+         call c%wyckoff_sites(nx,reshape((/(f%cpcel(c%ncel+j)%x,j=1,nx)/),(/3,nx/)),&
+            (/(f%cpcel(c%ncel+j)%idx - c%nneq,j=1,nx)/),wyc)
+         do j = 1, nx
+            i = f%cpcel(c%ncel+j)%idx - c%nneq
+            d%cpstr(i) = string(f%cp(c%nneq+i)%mult) // wyc(j)
+         end do
+      end if
+    end associate
+
+  end subroutine label_style_reset_cps
+
   !> Deallocate all arrays and end the label syle.
   module subroutine label_style_end(d)
     class(label_geom_style), intent(inout) :: d
@@ -4335,6 +4501,12 @@ contains
     d%timelastreset = 0d0
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%str)) deallocate(d%str)
+    d%timelastreset_cp = 0d0
+    d%cpfield = -1
+    d%ncp = 0
+    if (allocated(d%cptyp)) deallocate(d%cptyp)
+    if (allocated(d%cpshown)) deallocate(d%cpshown)
+    if (allocated(d%cpstr)) deallocate(d%cpstr)
 
   end subroutine label_style_end
 

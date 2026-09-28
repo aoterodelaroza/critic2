@@ -446,6 +446,7 @@ module crystalmod
      procedure :: get_mult !< Multiplicity of a point
      procedure :: spglib_wrap !< Get the spg from the crystal geometry
      procedure :: spgtowyc !< Copy the Wyckoff positions to a crystal from an spg
+     procedure :: wyckoff_sites !< Wyckoff letters of extra sites (e.g. critical points)
      procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
      procedure :: reduceatoms !< Reduce the complete cell list to the non-equivalent list given known symmetry
      procedure :: guess_spg !< Guess the symmetry operations from the structure (old guesser)
@@ -1364,6 +1365,13 @@ module crystalmod
        class(crystal), intent(inout) :: c
        type(SpglibDataset), intent(inout), optional :: spg
      end subroutine spgtowyc
+     module subroutine wyckoff_sites(c,nx,x,ityp,wyc)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: nx
+       real*8, intent(in) :: x(3,nx)
+       integer, intent(in) :: ityp(nx)
+       character*1, intent(out) :: wyc(nx)
+     end subroutine wyckoff_sites
      module subroutine calcsym(c,usenneq,errmsg,ti)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: usenneq

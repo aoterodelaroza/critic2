@@ -613,7 +613,8 @@ contains
     use tools_io, only: string
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox, iw_coloredit, iw_highlight_selectable,&
-       iw_dragfloat_real8, iw_inputtext, iw_table_column
+       iw_dragfloat_real8, iw_inputtext, iw_table_column, iw_field_combo
+    use representations, only: cps_field, cps_abbrev
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -622,7 +623,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, suffix
     logical :: ch
     integer(c_int) :: lst, flags
-    integer :: i, intable, nrow, is, ncol, ihighlight, highlight_type
+    integer :: i, intable, nrow, is, ncol, ihighlight, highlight_type, ifield, ncp
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     type(ImVec2) :: sz
@@ -640,6 +641,7 @@ contains
     if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
        w%rep%labels%type = 0
        call w%rep%set_defaults(3)
+       call w%rep%labels%style%reset(w%rep)
        changed = .true.
     end if
     call iw_tooltip("Reset to the labels to the default settings")
@@ -681,6 +683,24 @@ contains
        speed=0.001d0,min=99.999d0,max=99.999d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
 
+    ! field whose critical points are labeled, if any field has them
+    ! and the label type has CP rows (the rows follow in update_styles)
+    if (any(w%rep%labels%type == (/0,1,2,3,4,8/)) .and. cps_field(isys) >= 0) then
+       call iw_text("Critical points of",alignframe=.true.)
+       call igSameLine(0._c_float,-1._c_float)
+       ifield = w%rep%labels%ifield
+       if (iw_field_combo("##labelcpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+          nonestr="<field not available>")) then
+          w%rep%labels%ifield = ifield
+          changed = .true.
+       end if
+       call iw_tooltip("Field whose critical points can be labeled (rows below the atoms in the table)",ttshown)
+
+       changed = changed .or. iw_dragfloat_real8("CP scale##labelscalecp",x1=w%rep%labels%scale_cp,&
+          speed=0.01d0,min=0d0,max=10d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Scale factor for the critical point labels",ttshown)
+    end if
+
     ! table for label selection
     call iw_text("Label Selection",highlight=.true.)
 
@@ -717,7 +737,8 @@ contains
     flags = ior(flags,ImGuiTableFlags_ScrollY)
     str1="##tablespecieslabels" // c_null_char
     sz%x = iw_calcwidth(30,ncol)
-    sz%y = iw_calcheight(min(8,nrow+1),0,.false.)
+    ncp = w%rep%labels%style%ncp
+    sz%y = iw_calcheight(min(8,nrow+ncp+1),0,.false.)
     if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
        ncol = -1
 
@@ -739,7 +760,7 @@ contains
 
        ! start the clipper
        clipper = ImGuiListClipper_ImGuiListClipper()
-       call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+       call ImGuiListClipper_Begin(clipper,nrow+ncp,-1._c_float)
 
        ! draw the rows
        do while(ImGuiListClipper_Step(clipper))
@@ -750,6 +771,12 @@ contains
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
              suffix = "_" // string(i)
              ncol = -1
+
+             ! the critical point rows come after the atoms
+             if (i > nrow) then
+                call draw_cp_row(i-nrow)
+                cycle
+             end if
 
              ! id
              ncol = ncol + 1
@@ -800,9 +827,18 @@ contains
        call igEndTable()
     end if ! begintable
 
-    ! style buttons: show/hide
+    ! style buttons: show/hide, for the atoms and for the CPs (the
+    ! labels padded to the same width)
+    call iw_text("Atoms:",alignframe=.true.)
+    call igSameLine(0._c_float,-1._c_float)
     ch = showhide_buttons(w%rep%labels%style%shown,"labels","labels",ttshown)
     changed = changed .or. ch
+    if (ncp > 0) then
+       call iw_text("CPs:  ",alignframe=.true.)
+       call igSameLine(0._c_float,-1._c_float)
+       ch = showhide_buttons(w%rep%labels%style%cpshown,"cplabels","critical point labels",ttshown)
+       changed = changed .or. ch
+    end if
 
     ! process transient highlighs
     if (ihighlight > 0) then
@@ -810,6 +846,52 @@ contains
           reshape(ColorHighlightScene,(/4,1/)))
     end if
 
+  contains
+    !> Draw row j of the critical point rows of the label table.
+    subroutine draw_cp_row(j)
+      integer, intent(in) :: j
+
+      integer :: it
+
+      ! id: the cell CP (types 2,3) or symmetry-unique CP index; none
+      ! for the per-type rows
+      ncol = ncol + 1
+      if (igTableSetColumnIndex(ncol)) then
+         select case(w%rep%labels%type)
+         case (2,3)
+            call iw_text(string(sys(isys)%c%ncel+j),alignframe=.true.)
+         case (1,4,8)
+            call iw_text(string(sys(isys)%c%nneq+j),alignframe=.true.)
+         case default
+            call iw_text("",alignframe=.true.)
+         end select
+      end if
+
+      ! CP type in the atom column, and nothing in the Z column
+      if (intable /= atlisttype_nmol) then
+         ncol = ncol + 1
+         it = w%rep%labels%style%cptyp(j)
+         if (igTableSetColumnIndex(ncol) .and. it >= 0 .and. it <= 3) &
+            call iw_text(cps_abbrev(it))
+         ncol = ncol + 1
+      end if
+
+      ! shown
+      ncol = ncol + 1
+      if (igTableSetColumnIndex(ncol)) then
+         changed = changed .or. iw_checkbox("##labeltablecpshown" // suffix,w%rep%labels%style%cpshown(j))
+         call iw_tooltip("Toggle display of labels for these critical points",ttshown)
+      end if
+
+      ! text
+      ncol = ncol + 1
+      if (igTableSetColumnIndex(ncol)) then
+         changed = changed .or. iw_inputtext("##labeltablecptext" // suffix,bufsize=32,&
+            textf=w%rep%labels%style%cpstr(j),width=15)
+         call iw_tooltip("Text for the critical point labels",ttshown)
+      end if
+
+    end subroutine draw_cp_row
   end function draw_editrep_labels
 
   !> Draw the editrep window, coordination polyhedra class. Returns
