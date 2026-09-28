@@ -726,12 +726,14 @@ module representations
 
   !> Critical point display options (reptype_cps; accessed as r%cps%...).
   !> The non-nuclear CPs of field ifield are drawn as spheres; index
-  !> 0:3 of show and rgb is the CP type (typind: n, b, r, c).
+  !> 0:3 of show, rgb, and rad is the CP type (typind: n, b, r, c).
+  !> The sphere radius is radscale * rad(type).
   type rep_cps
      integer :: ifield = 0 ! field whose critical points are drawn (index in sys(id)%f)
      logical :: show(0:3) = .true. ! show the CPs of this type
      real(c_float) :: rgb(3,0:3) = 1._c_float ! color of each CP type
-     real(c_float) :: rad = cps_rad_def ! sphere radius (bohr)
+     real(c_float) :: rad(0:3) = cps_rad_def ! sphere radius of each CP type (bohr)
+     real(c_float) :: radscale = 1._c_float ! scale factor for all radii
   end type rep_cps
   public :: rep_cps
 

@@ -2671,7 +2671,7 @@ contains
               do j2 = m0(2), m1(2)
                  do j3 = m0(3), m1(3)
                     xf = f%cpcel(icp)%x + (/j1,j2,j3/) + vshift
-                    dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%rad,rgb=r%cps%rgb(:,it),&
+                    dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%radscale*r%cps%rad(it),rgb=r%cps%rgb(:,it),&
                        idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
                        border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def)
                     call dl_append(obj%sph,obj%nsph,dsph)

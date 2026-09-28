@@ -3905,25 +3905,29 @@ contains
        call iw_text("This field has no critical points other than the nuclei (run AUTO)",&
           disabled=.true.,wrap=.true.)
 
-    ! per-type show and color
+    ! global radius scale
+    ch = iw_dragfloat_realc("Radius scale",x1=w%rep%cps%radscale,speed=0.01_c_float,&
+       min=0.01_c_float,max=10._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Scale factor applied to the radii of all critical points",ttshown)
+    changed = changed .or. ch
+
+    ! per-type color, radius, and show
     call iw_text("Critical points",highlight=.true.)
     do it = 0, 3
        ch = iw_coloredit("##cpscolor" // string(it),rgb=w%rep%cps%rgb(:,it))
        call iw_tooltip("Color of the " // trim(cpname(it)),ttshown)
+       changed = changed .or. ch
+       ch = iw_dragfloat_realc("##cpsrad" // string(it),x1=w%rep%cps%rad(it),speed=0.002_c_float,&
+          min=0.01_c_float,max=2._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+          sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radius of the " // trim(cpname(it)) // " in Å, before the scale (default " //&
+          string(real(cps_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
        changed = changed .or. ch
        ch = iw_checkbox(trim(cpname(it)) // " (" // string(ncount(it)) // ")##cpsshow" // string(it),&
           w%rep%cps%show(it),sameline=.true.)
        call iw_tooltip("Show the " // trim(cpname(it)) // " (number in the cell in parentheses)",ttshown)
        changed = changed .or. ch
     end do
-
-    ! radius
-    ch = iw_dragfloat_realc("Radius (Å)",x1=w%rep%cps%rad,speed=0.002_c_float,&
-       min=0.01_c_float,max=2._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-       flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the critical point spheres (default " //&
-       string(real(cps_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
-    changed = changed .or. ch
 
   end function draw_editrep_cps
 
