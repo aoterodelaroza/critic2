@@ -1468,6 +1468,10 @@ contains
       if (win(iview)%sc%nmsel /= ikind) return
       idx1 = 0
       idx1(1:ikind) = win(iview)%sc%msel(1,1:ikind)
+      if (minval(idx1(1:ikind)) < 0) then
+         w%errmsg = "Only atoms can be edited: the selection contains critical points"
+         return
+      end if
       if (minval(idx1(1:ikind)) < 1 .or. maxval(idx1(1:ikind)) > sys(isys)%c%ncel) return
       do i = 1, ikind-1
          do j = i+1, ikind

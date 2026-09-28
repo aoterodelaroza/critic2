@@ -579,7 +579,8 @@ module representations
   type measurement_item
      logical :: shown = .true. ! whether this measurement is drawn
      integer :: n = 0 ! number of atoms (2=distance, 3=angle, 4=dihedral)
-     integer(c_int) :: idx(4,4) = 0 ! per-atom anchor (1:4,iatom): cell atom id + lattice vector
+     integer(c_int) :: idx(4,4) = 0 ! per-atom anchor (1:4,iatom): cell atom id (or CP idx(1) < 0) + lattice vector
+     integer*8 :: stamp(4) = 0 ! identity stamp of each anchor when it was set
      real(c_float) :: rgb(3) = measure_rgb_dist_def ! color
      real*8 :: rad = measure_rad_def ! radius of the segment/arms/edges (bohr)
      real*8 :: sectorrad = measure_sectorrad_def ! radius of the angle/dihedral sector (bohr)
@@ -596,6 +597,8 @@ module representations
    contains
      procedure :: set_defaults => measurement_item_set_defaults
      procedure :: copy_style => measurement_item_copy_style
+     procedure :: set_anchor => measurement_item_set_anchor
+     procedure :: anchors_xfrac => measurement_item_anchors_xfrac
   end type measurement_item
   public :: measurement_item
 
@@ -1016,6 +1019,17 @@ module representations
        class(measurement_item), intent(inout) :: it
        integer, intent(in) :: n
      end subroutine measurement_item_set_defaults
+     module subroutine measurement_item_set_anchor(it,k,isys,idx)
+       class(measurement_item), intent(inout) :: it
+       integer, intent(in) :: k, isys
+       integer(c_int), intent(in) :: idx(4)
+     end subroutine measurement_item_set_anchor
+     module function measurement_item_anchors_xfrac(it,isys,xf) result(ok)
+       class(measurement_item), intent(in) :: it
+       integer, intent(in) :: isys
+       real*8, intent(out) :: xf(3,4)
+       logical :: ok
+     end function measurement_item_anchors_xfrac
      module subroutine measurement_item_copy_style(dst,src)
        class(measurement_item), intent(inout) :: dst
        type(measurement_item), intent(in) :: src

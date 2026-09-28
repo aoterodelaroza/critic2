@@ -1525,6 +1525,40 @@ contains
 
   end subroutine measurement_item_set_defaults
 
+  !> Set anchor k of the measurement to idx (an atom or a critical
+  !> point of system isys, see anchor_xfrac), with its identity stamp.
+  module subroutine measurement_item_set_anchor(it,k,isys,idx)
+    use systems, only: anchor_stamp
+    class(measurement_item), intent(inout) :: it
+    integer, intent(in) :: k, isys
+    integer(c_int), intent(in) :: idx(4)
+
+    it%idx(:,k) = idx
+    it%stamp(k) = anchor_stamp(isys,idx)
+
+  end subroutine measurement_item_set_anchor
+
+  !> Fractional coordinates xf(:,1:n) of the anchors of the measurement
+  !> in system isys. Returns .false. if the item is stale (an anchor
+  !> names no atom or CP, or its stamp no longer matches).
+  module function measurement_item_anchors_xfrac(it,isys,xf) result(ok)
+    use systems, only: anchor_xfrac
+    class(measurement_item), intent(in) :: it
+    integer, intent(in) :: isys
+    real*8, intent(out) :: xf(3,4)
+    logical :: ok
+
+    integer :: k
+
+    xf = 0d0
+    ok = .false.
+    do k = 1, it%n
+       ok = anchor_xfrac(isys,it%idx(:,k),xf(:,k),it%stamp(k))
+       if (.not.ok) return
+    end do
+
+  end function measurement_item_anchors_xfrac
+
   !> Copy all the style fields of src into dst (color, radii, opacities, label
   !> size/decimals, line style, orientation, scaling). The identity fields
   !> (shown/n/idx) are left untouched. Used by the "Apply to All" button.
@@ -1710,7 +1744,6 @@ contains
     real*8 :: ucini(3), ucend(3)
     real*8 :: xmeas(3,4), xfmeas(3,4), dval
     integer :: iat, natm
-    logical :: okmeas
     complex*16 :: xdelta1(3)
     type(dl_sphere) :: dsph
     type(dl_cylinder) :: dcyl
@@ -2547,19 +2580,14 @@ contains
           natm = r%measure%item(i)%n
           if (natm < 2 .or. natm > 4) cycle
 
-          ! resolve the atom positions; skip the item if any anchor is stale
-          okmeas = .true.
+          ! resolve the anchor positions (atoms or critical points); a
+          ! stale item (an anchor was deleted) is not drawn, and comes
+          ! back if the deletion is undone (atoms) or the CP is found
+          ! again (critical points)
+          if (.not.r%measure%item(i)%anchors_xfrac(r%id,xfmeas)) cycle
           do iat = 1, natm
-             id = r%measure%item(i)%idx(1,iat)
-             if (id < 1 .or. id > c%ncel) then
-                okmeas = .false.
-                exit
-             end if
-             ix = r%measure%item(i)%idx(2:4,iat)
-             xfmeas(:,iat) = c%atcel(id)%x + ix
              xmeas(:,iat) = c%x2c(xfmeas(:,iat))
           end do
-          if (.not.okmeas) cycle
 
           associate (mm => r%measure%item(i))
              if (natm == 2) then

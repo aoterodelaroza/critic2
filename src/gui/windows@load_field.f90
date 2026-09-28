@@ -30,7 +30,7 @@ contains
        dirsep, newline
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use systems, only: nsys, sysc, sys, sys_init, ok_system
+    use systems, only: nsys, sysc, sys, sys_init, ok_system, lastchange_cplist
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright,&
        iw_helpermark, iw_begintabitem, iw_inputtext, iw_inputint, iw_inputint3,&
@@ -223,6 +223,8 @@ contains
        if (len_trim(w%errmsg) == 0) then
           call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg,readchk=.true.)
           if (len_trim(w%errmsg) == 0) then
+             ! the new field may come with a CP list (checkpoint file)
+             call sysc(isys)%post_event(lastchange_cplist)
              ! expand the field list so the new field is visible
              sysc(isys)%showfields = .true.
              doquit = .true.

@@ -91,7 +91,8 @@ contains
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
        icon_ui_tools, icon_ui_newview, icon_ui_display
     use crystalmod, only: iperiod_vacthr
-    use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master
+    use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master,&
+       cp_anchor_make
     use gui_main, only: g, io, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
     use tools_io, only: string
@@ -669,6 +670,7 @@ contains
           ! atom would be impossible)
           if (.not.sysc(w%isys)%md_run) w%mousepos_idx = 0
           w%mousepos_cp = 0
+          w%mousepos_anchor = w%mousepos_idx
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
        if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%isys)%timelastchange_render) &
@@ -821,6 +823,7 @@ contains
        w%mousepos_idx = 0
        w%mousepos_bidx = 0
        w%mousepos_cp = 0
+       w%mousepos_anchor = 0
        w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,rgba=rgba)
@@ -839,11 +842,20 @@ contains
        elseif (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%obj%nsph) then
           ! a critical point: its own identity, no atom under the mouse
           if (w%sc%obj%sph(w%mousepos_idx(1))%cpidx(1) > 0) then
-             w%mousepos_cp = w%sc%obj%sph(w%mousepos_idx(1))%cpidx
+             ! a pending rebuild means the spheres may index an older
+             ! CP list: pick nothing until the lists are rebuilt
+             if (.not.w%sc%forcebuildlists) then
+                w%mousepos_cp = w%sc%obj%sph(w%mousepos_idx(1))%cpidx
+                ! the measurement anchor of the critical point, and its sphere
+                w%mousepos_anchor(1:4) = cp_anchor_make(w%isys,w%mousepos_cp(5),w%mousepos_cp(1),&
+                   w%mousepos_cp(2:4))
+                if (w%mousepos_anchor(1) /= 0) w%mousepos_anchor(5) = w%mousepos_idx(1)
+             end if
              w%mousepos_idx = 0
           else
              ! transform to atom cell ID and lattice vector
              w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
+             w%mousepos_anchor = w%mousepos_idx
           end if
        else
           w%mousepos_idx = 0
@@ -853,6 +865,7 @@ contains
        w%mousepos_idx = 0
        w%mousepos_bidx = 0
        w%mousepos_cp = 0
+       w%mousepos_anchor = 0
        ! forget where the last pick was taken: the cursor can leave the view
        ! and come back to the very same pixel, and the "has it moved" test
        ! above would then never fire, leaving the atom unidentified
@@ -867,7 +880,7 @@ contains
 
     ! the overlay at the mouse cursor: what the next click does here
     if (hover) &
-       call w%draw_cursor_overlay(w%mousepos_idx)
+       call w%draw_cursor_overlay(w%mousepos_anchor)
 
     ! Process mouse events
     call w%viewmode_process_events(hover)
@@ -1192,6 +1205,7 @@ contains
     w%mousepos_lastpick%y = 0._c_float
     w%mousepos_idx = 0
     w%mousepos_cp = 0
+    w%mousepos_anchor = 0
 
     ! reset the viewmodes
     call viewmode_to_navigate(w)
@@ -2147,7 +2161,7 @@ contains
        if (.not.forcedpick .and. .not.editexit) then
           ! atom selection
           if (hover .and. is_bind_event(BIND_NAV_MEASURE,iview=w%id)) then
-             call w%sc%select_atom(w%mousepos_idx)
+             call w%sc%select_atom(w%mousepos_anchor)
              w%forcerender = .true.
           end if
 
@@ -2161,13 +2175,13 @@ contains
           ! view); for a non-mouse binding there is no drag to disambiguate, so
           ! act at once.
           if (hover .and. is_bind_event(BIND_NAV_MEASURE_TOGGLE,iview=w%id)) then
-             if (w%mousepos_idx(1) > 0) then
+             if (w%mousepos_anchor(1) /= 0) then
                 if (bind_mouse_button(BIND_NAV_MEASURE_TOGGLE) >= 0) then
                    w%measure_pend = pend_measure
-                   w%measure_pend_idx = w%mousepos_idx
+                   w%measure_pend_idx = w%mousepos_anchor
                    w%press_p0 = mousepos
                 else
-                   call w%sc%toggle_measurement(w%mousepos_idx)
+                   call w%sc%toggle_measurement(w%mousepos_anchor)
                    w%forcerender = .true.
                 end if
              elseif (w%sc%nmsel >= 2) then
@@ -3250,11 +3264,12 @@ contains
 
   !> Draw overlay at the mouse cursor: the image announcing what the
   !> active view mode does, and the running measurement readout. idx
-  !> is the atom under the cursor (mousepos_idx layout).
+  !> is the measurement anchor under the cursor (mousepos_anchor: an
+  !> atom, or a critical point with idx(1) < 0).
   module subroutine draw_cursor_overlay(w,idx)
     use interfaces_cimgui
     use utils, only: iw_text
-    use systems, only: sys
+    use systems, only: sys, anchor_xfrac
     use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor, uiscale
     use keybindings, only: get_bind_keyname, BIND_EDIT_D_A_PHI
     use tools_io, only: string
@@ -3265,7 +3280,7 @@ contains
     integer :: nmsel
     integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
-    real*8 :: d, ang
+    real*8 :: d, ang, xd(3,4)
     integer(c_int) :: itex
     character(len=:), allocatable :: txt
     logical :: domeas, havecue
@@ -3388,12 +3403,11 @@ contains
 
           ! dihedral 1-2-3-4
           idx4 = msel(1:4,1)
-          ang = sys(w%isys)%c%dihedral(&
-             sys(w%isys)%c%atcel(idx4(1))%x + idx4(2:4),&
-             sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
-             sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-          call measure_label(", φ(",1,4,ang,.true.)
+          if (anchor_xfrac(w%isys,idx4,xd(:,1)) .and. anchor_xfrac(w%isys,idx3,xd(:,2)) .and.&
+             anchor_xfrac(w%isys,idx1,xd(:,3)) .and. anchor_xfrac(w%isys,idx2,xd(:,4))) then
+             ang = sys(w%isys)%c%dihedral(xd(:,1),xd(:,2),xd(:,3),xd(:,4)) * 180d0 / pi
+             call measure_label(", φ(",1,4,ang,.true.)
+          end if
        end if
 
     end if
@@ -3407,7 +3421,8 @@ contains
        call igNewLine()
        call iw_text("Right-click stamps/removes a measurement",&
           rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
-       if (nmsel >= 2 .and. nmsel <= 4) then
+       ! the edit moves atoms: not offered when a critical point is selected
+       if (nmsel >= 2 .and. nmsel <= 4 .and. all(msel(1,1:nmsel) > 0)) then
           call iw_text(trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//" edits the "//&
              trim(editnoun(nmsel)),rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
        end if
@@ -3430,36 +3445,37 @@ contains
 
     end function editnoun
 
-    !> Distance, in angstrom, between the two atoms given by their (complete
-    !> atom id, lattice vector) index quadruplets.
+    !> Distance, in angstrom, between the two measurement anchors ia and
+    !> ib (atoms or critical points: id and lattice vector). Zero if an
+    !> anchor names nothing.
     function pair_distance(ia,ib) result(d)
       integer, intent(in) :: ia(4), ib(4)
       real*8 :: d
 
-      d = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(ia(1))%x + ia(2:4),&
-         sys(w%isys)%c%atcel(ib(1))%x + ib(2:4)) * bohrtoa
+      real*8 :: xa(3), xb(3)
+
+      d = 0d0
+      if (anchor_xfrac(w%isys,ia,xa) .and. anchor_xfrac(w%isys,ib,xb)) &
+         d = sys(w%isys)%c%distance(xa,xb) * bohrtoa
 
     end function pair_distance
 
     !> Angle ia-ib-ic, in degrees, returned in ang. Returns false, with ang
-    !> undefined, if either of the two bond lengths is zero.
+    !> undefined, if an anchor names nothing or either of the two bond
+    !> lengths is zero.
     function triple_angle(ia,ib,ic,ang) result(ok)
       integer, intent(in) :: ia(4), ib(4), ic(4)
       real*8, intent(out) :: ang
       logical :: ok
 
-      real*8 :: da, db
+      real*8 :: xa(3), xb(3), xc(3), da, db
 
-      da = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(ia(1))%x + ia(2:4),&
-         sys(w%isys)%c%atcel(ib(1))%x + ib(2:4))
-      db = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(ic(1))%x + ic(2:4),&
-         sys(w%isys)%c%atcel(ib(1))%x + ib(2:4))
+      ok = anchor_xfrac(w%isys,ia,xa) .and. anchor_xfrac(w%isys,ib,xb) .and. anchor_xfrac(w%isys,ic,xc)
+      if (.not.ok) return
+      da = sys(w%isys)%c%distance(xa,xb)
+      db = sys(w%isys)%c%distance(xc,xb)
       ok = (da > 1d-14 .and. db > 1d-14)
-      if (ok) &
-         ang = sys(w%isys)%c%angle(&
-            sys(w%isys)%c%atcel(ia(1))%x + ia(2:4),&
-            sys(w%isys)%c%atcel(ib(1))%x + ib(2:4),&
-            sys(w%isys)%c%atcel(ic(1))%x + ic(2:4)) * 180d0 / pi
+      if (ok) ang = sys(w%isys)%c%angle(xa,xb,xc) * 180d0 / pi
 
     end function triple_angle
 

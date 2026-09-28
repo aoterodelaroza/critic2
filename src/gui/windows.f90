@@ -528,6 +528,9 @@ module windows
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
+     integer(c_int) :: mousepos_anchor(5) = 0 ! measurement anchor under mouse position: the atom (as
+                                              ! mousepos_idx) or the critical point (idx(1) < 0, see
+                                              ! cp_anchor_make) with the sphere index in (5); 0 = none
      integer(c_int) :: mousepos_bidx(8) = 0 ! identifier for the bond under mouse position (bond pick modes only)
      type(ImVec2) :: mposlast ! mouse parameters ----v
      real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)
@@ -1003,20 +1006,27 @@ module windows
        real(c_float), intent(out) :: rgb(3)
        logical :: have
      end function atom_view_rgb
-     module function anchor_label(isys,idx,notset,species) result(s)
+     module function cp_view_rgb(iview,isys,ifield,icel,rgb) result(have)
+       integer, intent(in) :: iview, isys, ifield, icel
+       real(c_float), intent(out) :: rgb(3)
+       logical :: have
+     end function cp_view_rgb
+     module function anchor_label(isys,idx,notset,species,stamp) result(s)
        integer, intent(in) :: isys
        integer(c_int), intent(in) :: idx(4)
        character(len=*), intent(in) :: notset
        logical, intent(in), optional :: species
+       integer*8, intent(in), optional :: stamp
        character(len=:), allocatable :: s
      end function anchor_label
-     module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl)&
+     module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl,stamp)&
         result(pressed)
        integer, intent(in) :: iview, isys
        integer(c_int), intent(in) :: idx(4)
        character(len=*), intent(in) :: strid
        logical, intent(in), optional :: sameline, disabled, inert
        character(len=:), allocatable, intent(out), optional :: lbl
+       integer*8, intent(in), optional :: stamp
        logical :: pressed
      end function draw_anchor_button
      module function view_target_window(strict)

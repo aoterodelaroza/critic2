@@ -24,7 +24,7 @@ module systems
   use crystalseedmod, only: crystalseed
   use global, only: bondfactor_def, bonddelta_def
   use types, only: thread_info
-  use param, only: maxzat0, atmcov0
+  use param, only: maxzat0, atmcov0, mlen
   implicit none
 
   private
@@ -47,11 +47,17 @@ module systems
   integer, parameter, public :: sys_ready = 3 ! the data is ready but thread is still working, so not initialized yet
   integer, parameter, public :: sys_init = 4 ! the system is initialized
 
-  ! list of changes to the system, in order of severity
+  ! list of changes to the system (post_event). Each change implies
+  ! others, as a tree: geometry -> rebond, cplist; rebond -> buildlists;
+  ! cplist -> buildlists; buildlists -> render.
   integer, parameter, public :: lastchange_render = 0     ! system needs a new render
   integer, parameter, public :: lastchange_buildlists = 1 ! system needs building new lists
   integer, parameter, public :: lastchange_rebond = 2     ! system has been rebonded
   integer, parameter, public :: lastchange_geometry = 3   ! system geometry has changed
+  integer, parameter, public :: lastchange_cplist = 4     ! the CP list of a field may have changed
+
+  ! atom measurement anchor stamps are n * stamp_base + hash (anchor_stamp)
+  integer*8, parameter :: stamp_base = 4294967296_8 ! 2**32
 
   ! geometry lists
   integer, parameter, public :: atlisttype_species = 1   ! chemical species (nspc)
@@ -72,6 +78,24 @@ module systems
   integer, parameter, public :: celltransform_primstd = 3 ! standardized primitive cell (forced)
   integer, parameter, public :: celltransform_niggli = 4 ! Niggli-reduced primitive cell
   integer, parameter, public :: celltransform_delaunay = 5 ! Delaunay-reduced primitive cell
+
+  !> A critical point used as a measurement anchor, identified by its
+  !> content (field, CP type, and position) rather than by its index in
+  !> the CP list, which changes when the CPs are searched again or the
+  !> list is rebuilt. A measurement anchor idx(1:4) with idx(1) = -k
+  !> refers to entry k of sysc%cpanc; idx(2:4) is the lattice vector.
+  type cp_anchor_entry
+     integer :: ifield = -1 ! field (slot; re-found by fkey if the slot changes)
+     character(len=mlen) :: fkey = "" ! field identity: its file, or its name if it has none
+     integer :: typ = 0 ! CP type (rank-signature: -3, -1, 1, 3)
+     real*8 :: x(3) = 0d0 ! fractional position of the CP (in-cell image)
+     ! cache: the index in the complete CP list (cpcel) and the lattice
+     ! vector from cpcel(icel)%x to x, valid while the system's
+     ! timelastchange_cplist is keytime
+     integer :: icel = 0
+     integer :: loff(3) = 0
+     real*8 :: keytime = -1d0
+  end type cp_anchor_entry
 
   ! system configuration type
   type :: sysconf
@@ -115,8 +139,17 @@ module systems
      ! time
      real*8 :: timelastchange_geometry = 0d0   ! time system last changed geometry
      real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
+     real*8 :: timelastchange_cplist = 0d0     ! time a CP list of the system's fields last may have changed
      real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
      real*8 :: timelastchange_render = 0d0     ! time system last required a render
+     ! critical points used as measurement anchors (see cp_anchor_entry)
+     integer :: ncpanc = 0
+     type(cp_anchor_entry), allocatable :: cpanc(:)
+     ! hashes of the species of the first 0..ncel cell atoms, for the atom
+     ! measurement anchors (anchor_stamp), cached for the geometry of
+     ! timelastchange_geometry
+     integer*8, allocatable :: atsig(:)
+     real*8 :: atsig_time = -1d0
      ! undo/redo history of geometry states (see systems@proc.f90)
      type(crystalseed), allocatable :: undo_seed(:) ! ring buffer of saved structural states (size undo_maxdepth)
      integer :: undo_n = 0      ! number of states currently in the history
@@ -241,6 +274,10 @@ module systems
   public :: add_system_empty_molecule
   public :: regenerate_system_pointers
   public :: ok_system
+  public :: cp_anchor_make
+  public :: cp_anchor_resolve
+  public :: anchor_xfrac
+  public :: anchor_stamp
   public :: reload_field_with_virtuals
   public :: paste_clipboard
   public :: clipboard_clear
@@ -323,6 +360,28 @@ module systems
      end subroutine write_system
      module subroutine regenerate_system_pointers()
      end subroutine regenerate_system_pointers
+     module function cp_anchor_make(isys,ifield,icel,lvec) result(idx)
+       integer, intent(in) :: isys, ifield, icel
+       integer, intent(in) :: lvec(3)
+       integer :: idx(4)
+     end function cp_anchor_make
+     module function cp_anchor_resolve(isys,i1,ifield,icel,loff) result(ok)
+       integer, intent(in) :: isys, i1
+       integer, intent(out) :: ifield, icel, loff(3)
+       logical :: ok
+     end function cp_anchor_resolve
+     module function anchor_xfrac(isys,idx,xf,stamp) result(ok)
+       integer, intent(in) :: isys
+       integer, intent(in) :: idx(4)
+       real*8, intent(out) :: xf(3)
+       integer*8, intent(in), optional :: stamp
+       logical :: ok
+     end function anchor_xfrac
+     module function anchor_stamp(isys,idx) result(stamp)
+       integer, intent(in) :: isys
+       integer, intent(in) :: idx(4)
+       integer*8 :: stamp
+     end function anchor_stamp
      module function ok_system(isys,level)
        integer, intent(in) :: isys, level
        logical :: ok_system

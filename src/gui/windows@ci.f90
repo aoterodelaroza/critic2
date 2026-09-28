@@ -184,7 +184,7 @@ contains
   module subroutine run_commands_ci(w)
     use systemmod, only: sy
     use systems, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
-       sysc, sys_init, nsys, sys, lastchange_geometry, lastchange_buildlists
+       sysc, sys_init, nsys, sys, lastchange_geometry, lastchange_cplist
     use global, only: critic_main
     use tools_io, only: falloc, fdealloc, uin, fclose, ferror, warning
     use iso_fortran_env, only: input_unit
@@ -243,10 +243,11 @@ contains
        geomsum1 = geometry_checksum(w%isys)
        changed = geomsum1 /= geomsum0
     end if
+    ! (else the commands may have changed a CP list, e.g. AUTO)
     if (changed) then
        call sysc(w%isys)%post_event(lastchange_geometry)
     else
-       call sysc(w%isys)%post_event(lastchange_buildlists)
+       call sysc(w%isys)%post_event(lastchange_cplist)
     end if
 
     ! clean up

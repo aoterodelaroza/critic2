@@ -62,7 +62,7 @@ contains
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
-       remove_systems, reload_field_with_virtuals
+       remove_systems, reload_field_with_virtuals, lastchange_cplist
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: ColorTableCellBg, tooltip_delay, errmsg_linger,&
        ColorFieldSelected, ColorTableHighlightRow,&
@@ -916,6 +916,7 @@ contains
              end do
           end if
           call sys(jsel)%unload_field(iref)
+          call sysc(jsel)%post_event(lastchange_cplist)
        else
           ! close the selection, as the Close Selected menu entry does. A
           ! selected group header goes in as well: it closes the systems it
@@ -1186,6 +1187,7 @@ contains
                   if (.not.sys(isys)%f(k)%isinit) cycle
                   call sys(isys)%unload_field(k)
                end do
+               call sysc(isys)%post_event(lastchange_cplist)
             end if
             call iw_tooltip("Remove all fields in this system",ttshown)
 
@@ -1371,6 +1373,7 @@ contains
             str = "##fieldclose" // string(i) // "," // string(k)
             if (iw_close_button(str)) then
                call sys(i)%unload_field(k)
+               call sysc(i)%post_event(lastchange_cplist)
                return
             end if
             call iw_tooltip("Remove this field",ttshown)
@@ -1435,6 +1438,7 @@ contains
             call sys(i)%field_copy(k,id)
             sys(i)%f(id)%id = id
             sys(i)%f(id)%name = trim(sys(i)%f(k)%name) // " (copy)"
+            call sysc(i)%post_event(lastchange_cplist)
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)
 
@@ -1730,8 +1734,10 @@ contains
          ! the field with no confirmation
          if (k > 0) then
             call igSeparator()
-            if (iw_menuitem("Remove",danger=.true.)) &
+            if (iw_menuitem("Remove",danger=.true.)) then
                call sys(i)%unload_field(k)
+               call sysc(i)%post_event(lastchange_cplist)
+            end if
             call iw_tooltip("Remove this field",ttshown)
          end if
 

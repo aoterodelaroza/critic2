@@ -1866,36 +1866,79 @@ contains
 
   end function atom_view_rgb
 
-  !> Short atom-anchor label: atom name + "#" + cell-atom index, or `notset`
-  !> when idx does not name a valid cell atom of system isys. With species,
-  !> the species name and a space are used instead, which is the shorter form
-  !> the atom buttons want. In a crystal, an atom outside the (0,0,0) cell
-  !> carries its lattice vector.
-  module function anchor_label(isys,idx,notset,species) result(s)
+  !> Color rgb of critical point icel (complete CP list) of field ifield
+  !> of system isys in view window iview: the color of its type in the
+  !> view's critical points object for that field, or the preferences
+  !> color if there is none. Returns false if the CP type is unknown.
+  module function cp_view_rgb(iview,isys,ifield,icel,rgb) result(have)
+    use representations, only: reptype_cps
     use systems, only: sys
+    use gui_main, only: ColorCP
+    integer, intent(in) :: iview, isys, ifield, icel
+    real(c_float), intent(out) :: rgb(3)
+    logical :: have
+
+    integer :: it, jrep
+
+    rgb = 0._c_float
+    it = sys(isys)%f(ifield)%cp(sys(isys)%f(ifield)%cpcel(icel)%idx)%typind
+    have = (it >= 0 .and. it <= 3)
+    if (.not.have) return
+    rgb = ColorCP(:,it)
+    if (iview < 1 .or. iview > nwin) return
+    if (.not.win(iview)%isinit) return
+    if (win(iview)%isys /= isys) return
+    if (.not.associated(win(iview)%sc)) return
+    do jrep = 1, win(iview)%sc%nrep
+       if (win(iview)%sc%rep(jrep)%isinit .and. win(iview)%sc%rep(jrep)%type == reptype_cps .and.&
+          win(iview)%sc%rep(jrep)%cps%ifield == ifield) then
+          rgb = win(iview)%sc%rep(jrep)%cps%rgb(:,it)
+          return
+       end if
+    end do
+
+  end function cp_view_rgb
+
+  !> Short anchor label: atom name + "#" + cell-atom index, or the name
+  !> of the critical point (idx(1) < 0), or `notset` when idx names no
+  !> atom or CP of system isys (or is stale, see anchor_xfrac and
+  !> stamp). With species, the species name and a space are used
+  !> instead of the atom name, which is the shorter form the atom
+  !> buttons want. In a crystal, an anchor outside the (0,0,0) cell
+  !> carries its lattice vector.
+  module function anchor_label(isys,idx,notset,species,stamp) result(s)
+    use systems, only: sys, anchor_xfrac, cp_anchor_resolve
     use tools_io, only: string
     integer, intent(in) :: isys
     integer(c_int), intent(in) :: idx(4)
     character(len=*), intent(in) :: notset
     logical, intent(in), optional :: species
+    integer*8, intent(in), optional :: stamp
     character(len=:), allocatable :: s
 
     logical :: species_
+    integer :: ifield, icel, loff(3)
+    real*8 :: xdum(3)
 
     species_ = .false.
     if (present(species)) species_ = species
 
-    if (idx(1) < 1 .or. idx(1) > sys(isys)%c%ncel) then
-       s = notset
+    ! notset if the anchor names nothing (or is stale)
+    s = notset
+    if (idx(1) < 0) then
+       ! critical point: its name
+       if (.not.cp_anchor_resolve(isys,idx(1),ifield,icel,loff)) return
+       s = trim(sys(isys)%f(ifield)%cp(sys(isys)%f(ifield)%cpcel(icel)%idx)%name)
     else
+       if (.not.anchor_xfrac(isys,idx,xdum,stamp)) return
        if (species_) then
           s = trim(sys(isys)%c%spc(sys(isys)%c%atcel(idx(1))%is)%name) // " " // string(idx(1))
        else
           s = trim(sys(isys)%c%at(sys(isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
        end if
-       if (any(idx(2:4) /= 0)) &
-          s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
     end if
+    if (any(idx(2:4) /= 0)) &
+       s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
 
   end function anchor_label
 
@@ -1908,31 +1951,39 @@ contains
   !> are passed to iw_atom_button (an inert button identifies the atom, it is
   !> not a control). lbl returns the label, which the caller may want for its
   !> tooltip. Returns true if the button was pressed.
-  module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl)&
+  module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl,stamp)&
      result(pressed)
     use utils, only: iw_atom_button
-    use systems, only: sys, atlisttype_ncel_frac
+    use systems, only: atlisttype_ncel_frac, cp_anchor_resolve
     integer, intent(in) :: iview, isys
     integer(c_int), intent(in) :: idx(4)
     character(len=*), intent(in) :: strid
     logical, intent(in), optional :: sameline, disabled, inert
     character(len=:), allocatable, intent(out), optional :: lbl
+    integer*8, intent(in), optional :: stamp
     logical :: pressed
 
-    integer :: iat
+    integer :: ifield, icel, loff(3)
     real(c_float) :: rgb(3)
     logical :: havergb
     character(len=:), allocatable :: lbl_
 
-    ! species name, cell index and, out of the (0,0,0) cell, the lattice vector
-    lbl_ = anchor_label(isys,idx,"?",species=.true.)
+    ! species name, cell index and, out of the (0,0,0) cell, the lattice
+    ! vector; the name of a critical point; "?" if stale
+    lbl_ = anchor_label(isys,idx,"?",species=.true.,stamp=stamp)
 
-    ! the color of the atom in the view, if the anchor still names one
-    iat = idx(1)
+    ! the color of the atom in the view, if the anchor still names one; a
+    ! critical point takes the color of its type in the view's critical
+    ! points object (the preferences color if there is none)
     havergb = .false.
     rgb = 0._c_float
-    if (iat >= 1 .and. iat <= sys(isys)%c%ncel) &
-       havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,iat,rgb)
+    if (lbl_ /= "?") then
+       if (idx(1) > 0) then
+          havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,idx(1),rgb)
+       elseif (cp_anchor_resolve(isys,idx(1),ifield,icel,loff)) then
+          havergb = cp_view_rgb(iview,isys,ifield,icel,rgb)
+       end if
+    end if
 
     pressed = iw_atom_button(lbl_ // strid,rgb,havergb=havergb,sameline=sameline,&
        disabled=disabled,inert=inert)

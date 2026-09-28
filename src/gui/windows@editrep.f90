@@ -2130,12 +2130,12 @@ contains
           if (win(iview)%vmdata%bidx(1) > 0) then
              ! a bond: its two atom images become the ends of the distance
              if (w%rep%measure%item(i)%n == 2) then
-                w%rep%measure%item(i)%idx(:,1) = win(iview)%vmdata%bidx(1:4)
-                w%rep%measure%item(i)%idx(:,2) = win(iview)%vmdata%bidx(5:8)
+                call w%rep%measure%item(i)%set_anchor(1,w%isys,win(iview)%vmdata%bidx(1:4))
+                call w%rep%measure%item(i)%set_anchor(2,w%isys,win(iview)%vmdata%bidx(5:8))
                 changed = .true.
              end if
           elseif (win(iview)%vmdata%idx(1) > 0 .and. k >= 1 .and. k <= w%rep%measure%item(i)%n) then
-             w%rep%measure%item(i)%idx(:,k) = win(iview)%vmdata%idx(1:4)
+             call w%rep%measure%item(i)%set_anchor(k,w%isys,win(iview)%vmdata%idx(1:4))
              changed = .true.
           end if
           w%editrep_pick_item = 0
@@ -2388,8 +2388,12 @@ contains
       character(len=:), allocatable :: lbl
 
       clicked = draw_anchor_button(iview,w%isys,w%rep%measure%item(iitem)%idx(:,islot),idn,&
-         disabled=(w%editrep_pick_item > 0),lbl=lbl)
-      call iw_tooltip("Atom " // lbl // " (click to pick a replacement in the view)",ttshown)
+         disabled=(w%editrep_pick_item > 0),lbl=lbl,stamp=w%rep%measure%item(iitem)%stamp(islot))
+      if (w%rep%measure%item(iitem)%idx(1,islot) < 0) then
+         call iw_tooltip("Critical point " // lbl // " (click to pick an atom to replace it in the view)",ttshown)
+      else
+         call iw_tooltip("Atom " // lbl // " (click to pick a replacement in the view)",ttshown)
+      end if
 
       ! command the parent view into pick mode; the poll at the top of
       ! draw_editrep_measure commits the picked atom into this slot
@@ -2408,18 +2412,7 @@ contains
       type(measurement_item), intent(in) :: item
       character(len=:), allocatable :: s
       real*8 :: f(3,4), val
-      integer :: ia, idd
-      logical :: okk
-      okk = .true.
-      do ia = 1, item%n
-         idd = item%idx(1,ia)
-         if (idd < 1 .or. idd > sys(w%isys)%c%ncel) then
-            okk = .false.
-            exit
-         end if
-         f(:,ia) = sys(w%isys)%c%atcel(idd)%x + item%idx(2:4,ia)
-      end do
-      if (.not.okk) then
+      if (.not.item%anchors_xfrac(w%isys,f)) then
          s = "(stale)"
          return
       end if

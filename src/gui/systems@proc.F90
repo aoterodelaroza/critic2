@@ -26,9 +26,15 @@ submodule (systems) proc
   ! subroutine seed_make_molecule(seed)
   ! function formula_label(seed)
   ! function fmtcount(x)
+  ! function atoms_prefix_hash(isys,n)
+  ! function field_key(isys,ifield)
 
   ! degenerate-distance threshold shared by the geometry helpers (bohr)
   real*8, parameter :: eps_dzero = 1d-10
+
+  ! tolerance for finding a critical point measurement anchor by its
+  ! position (bohr; cp_anchor_make, cp_anchor_resolve)
+  real*8, parameter :: eps_cpanchor = 1d-3
 
 contains
 
@@ -445,6 +451,10 @@ contains
        if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
        if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
        if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
+       ! measurement anchors of a previous system in this slot
+       sysc(idx)%ncpanc = 0
+       if (allocated(sysc(idx)%cpanc)) deallocate(sysc(idx)%cpanc)
+       if (allocated(sysc(idx)%atsig)) deallocate(sysc(idx)%atsig)
 
        ! write down the full name
        str = trim(adjustl(sysc(idx)%seed%name))
@@ -885,6 +895,189 @@ contains
 
   end function ok_system
 
+  !> Measurement anchor for the critical point icel (index in the
+  !> complete CP list) of field ifield of system isys, in the image at
+  !> lattice vector lvec from cpcel(icel)%x: idx(1) = -k, where k is
+  !> the entry of sysc%cpanc that identifies the CP by content (reused
+  !> if the CP is already there), and idx(2:4) the lattice vector.
+  !> Returns idx = 0 if the CP does not exist.
+  module function cp_anchor_make(isys,ifield,icel,lvec) result(idx)
+    integer, intent(in) :: isys, ifield, icel
+    integer, intent(in) :: lvec(3)
+    integer :: idx(4)
+
+    integer :: k, typ
+    real*8 :: x(3), d
+    character(len=mlen) :: key
+    type(cp_anchor_entry), allocatable :: aux(:)
+
+    idx = 0
+    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    if (icel < 1 .or. icel > sys(isys)%f(ifield)%ncpcel) return
+    x = sys(isys)%f(ifield)%cpcel(icel)%x
+    typ = sys(isys)%f(ifield)%cp(sys(isys)%f(ifield)%cpcel(icel)%idx)%typ
+    key = field_key(isys,ifield)
+
+    ! an entry for the same CP, compared by content (resolving every
+    ! entry would re-find all of them after each lastchange_cplist)
+    do k = 1, sysc(isys)%ncpanc
+       associate(e => sysc(isys)%cpanc(k))
+         if (e%typ /= typ .or. e%fkey /= key) cycle
+         if (.not.sys(isys)%c%are_lclose(e%x,x,eps_cpanchor,d)) cycle
+         idx(1) = -k
+         idx(2:4) = lvec - nint(e%x - x)
+         return
+       end associate
+    end do
+
+    ! a new entry
+    if (.not.allocated(sysc(isys)%cpanc)) allocate(sysc(isys)%cpanc(10))
+    if (sysc(isys)%ncpanc >= size(sysc(isys)%cpanc)) then
+       allocate(aux(2*sysc(isys)%ncpanc))
+       aux(1:sysc(isys)%ncpanc) = sysc(isys)%cpanc(1:sysc(isys)%ncpanc)
+       call move_alloc(aux,sysc(isys)%cpanc)
+    end if
+    sysc(isys)%ncpanc = sysc(isys)%ncpanc + 1
+    k = sysc(isys)%ncpanc
+    sysc(isys)%cpanc(k)%ifield = ifield
+    sysc(isys)%cpanc(k)%fkey = key
+    sysc(isys)%cpanc(k)%typ = typ
+    sysc(isys)%cpanc(k)%x = x
+    sysc(isys)%cpanc(k)%icel = icel
+    sysc(isys)%cpanc(k)%loff = 0
+    sysc(isys)%cpanc(k)%keytime = sysc(isys)%timelastchange_cplist
+    idx(1) = -k
+    idx(2:4) = lvec
+
+  end function cp_anchor_make
+
+  !> Find the critical point named by the first entry i1 (< 0) of a
+  !> measurement anchor of system isys: its field (ifield), its index in
+  !> the complete CP list (icel), and the lattice vector (loff) from
+  !> cpcel(icel)%x to the position stored in the anchor entry. The CP is
+  !> found by content (field file, CP type, and position), so it
+  !> survives a new CP search or a rebuilt list; the result is cached
+  !> until the next lastchange_cplist event. Returns .false. if the CP
+  !> is not in the list (or its field is gone).
+  module function cp_anchor_resolve(isys,i1,ifield,icel,loff) result(ok)
+    integer, intent(in) :: isys, i1
+    integer, intent(out) :: ifield, icel, loff(3)
+    logical :: ok
+
+    integer :: k, j, jf
+    real*8 :: d, dmin
+
+    ifield = -1
+    icel = 0
+    loff = 0
+    ok = .false.
+    if (i1 >= 0 .or. .not.ok_system(isys,sys_ready)) return
+    k = -i1
+    if (k > sysc(isys)%ncpanc) return
+
+    associate(e => sysc(isys)%cpanc(k))
+      ! the field: the same slot if it still holds the same field (same
+      ! file, so a rename keeps it), else a field from the same file
+      jf = -1
+      if (sys(isys)%goodfield(e%ifield)) then
+         if (field_key(isys,e%ifield) == e%fkey) jf = e%ifield
+      end if
+      if (jf < 0) then
+         do j = 0, sys(isys)%nf
+            if (.not.sys(isys)%goodfield(j)) cycle
+            if (field_key(isys,j) /= e%fkey) cycle
+            jf = j
+            exit
+         end do
+      end if
+      if (jf < 0) return
+      if (jf /= e%ifield) then
+         e%ifield = jf
+         e%keytime = -1d0
+      end if
+
+      associate(f => sys(isys)%f(jf))
+        ! find the CP again if the list may have changed
+        if (e%keytime /= sysc(isys)%timelastchange_cplist) then
+           e%keytime = sysc(isys)%timelastchange_cplist
+           e%icel = 0
+           dmin = eps_cpanchor
+           do j = 1, f%ncpcel
+              if (f%cp(f%cpcel(j)%idx)%typ /= e%typ) cycle
+              ! the closest CP of the same type within eps (are_lclose
+              ! only succeeds for d < dmin)
+              if (.not.sys(isys)%c%are_lclose(e%x,f%cpcel(j)%x,dmin,d)) cycle
+              dmin = d
+              e%icel = j
+              e%loff = nint(e%x - f%cpcel(j)%x)
+           end do
+        end if
+        if (e%icel < 1 .or. e%icel > f%ncpcel) return
+      end associate
+
+      ifield = jf
+      icel = e%icel
+      loff = e%loff
+      ok = .true.
+    end associate
+
+  end function cp_anchor_resolve
+
+  !> Fractional coordinates xf of the measurement anchor idx(1:4) of
+  !> system isys: a cell atom (idx(1) > 0) or a critical point (idx(1)
+  !> < 0, see cp_anchor_make), plus the lattice vector idx(2:4).
+  !> Returns .false. if the anchor names no atom or CP of the system.
+  !> For an atom, if stamp (anchor_stamp when the anchor was set) is
+  !> given, the cell atom list must also still start with the atoms it
+  !> had then (atoms appended since are fine; deleted or reordered
+  !> ones are not); a critical point is found by content.
+  module function anchor_xfrac(isys,idx,xf,stamp) result(ok)
+    integer, intent(in) :: isys
+    integer, intent(in) :: idx(4)
+    real*8, intent(out) :: xf(3)
+    integer*8, intent(in), optional :: stamp
+    logical :: ok
+
+    integer :: ifield, icel, loff(3), n
+
+    xf = 0d0
+    if (idx(1) < 0) then
+       ok = cp_anchor_resolve(isys,idx(1),ifield,icel,loff)
+       if (ok) xf = sys(isys)%f(ifield)%cpcel(icel)%x + loff + idx(2:4)
+    else
+       ok = ok_system(isys,sys_ready)
+       if (ok) ok = (idx(1) >= 1 .and. idx(1) <= sys(isys)%c%ncel)
+       if (ok .and. present(stamp)) then
+          ! the stamp is n * 2**32 + (hash of the first n cell atoms)
+          n = int(stamp / stamp_base)
+          ok = (n >= idx(1) .and. n <= sys(isys)%c%ncel)
+          if (ok) ok = (mod(stamp,stamp_base) == atoms_prefix_hash(isys,n))
+       end if
+       if (ok) xf = sys(isys)%c%atcel(idx(1))%x + idx(2:4)
+    end if
+
+  end function anchor_xfrac
+
+  !> Identity stamp to store with the measurement anchor idx(1:4) of
+  !> system isys (see anchor_xfrac): for an atom, the number of cell
+  !> atoms n and the hash of their atomic numbers, as n * 2**32 + hash;
+  !> 0 for a critical point (found by content) or an anchor that names
+  !> nothing.
+  module function anchor_stamp(isys,idx) result(stamp)
+    integer, intent(in) :: isys
+    integer, intent(in) :: idx(4)
+    integer*8 :: stamp
+
+    integer :: n
+
+    stamp = 0
+    if (idx(1) < 1 .or. .not.ok_system(isys,sys_ready)) return
+    n = sys(isys)%c%ncel
+    if (idx(1) <= n) stamp = n * stamp_base + atoms_prefix_hash(isys,n)
+
+  end function anchor_stamp
+
   !> Reload field ifield of system isys from its source file, this
   !> time reading the virtual orbitals (fchk and molden files). The
   !> reloaded field replaces the old one in the same slot, keeping its
@@ -980,6 +1173,9 @@ contains
     if (sys(isys)%iref /= irefsave) &
        call sys(isys)%set_reference(irefsave,.false.)
 
+    ! the CP list is kept, but it went through another slot
+    call sysc(isys)%post_event(lastchange_cplist)
+
   end subroutine reload_field_with_virtuals
 
   !> Return .true. if the (optional) errmsg is present and non-empty.
@@ -992,8 +1188,10 @@ contains
 
   end function has_errmsg
 
-  !> Set the time for last change at level level. If keepfields is
-  !> present and true, do not reset the associated fields.
+  !> Set the time for last change at level level and at the levels it
+  !> implies (geometry -> rebond, cplist; rebond -> buildlists; cplist
+  !> -> buildlists; buildlists -> render). If keepfields is present and
+  !> true, do not reset the associated fields.
   module subroutine post_event(sysc,level,keepfields,nocapture,keepsel)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
@@ -1003,7 +1201,7 @@ contains
     logical, intent(in), optional :: keepsel
 
     real*8 :: time
-    logical :: keepfields_, nocapture_, keepsel_
+    logical :: keepfields_, nocapture_, keepsel_, isgeom, isrebond
 
     keepfields_ = .false.
     if (present(keepfields)) keepfields_ = keepfields
@@ -1012,11 +1210,15 @@ contains
     keepsel_ = .false.
     if (present(keepsel)) keepsel_ = keepsel
 
+    isgeom = (level == lastchange_geometry)
+    isrebond = (level == lastchange_rebond .or. isgeom)
+
     time = glfwGetTime()
-    if (level >= lastchange_render) sysc%timelastchange_render = time
-    if (level >= lastchange_buildlists) sysc%timelastchange_buildlists = time
-    if (level >= lastchange_rebond) sysc%timelastchange_rebond = time
-    if (level >= lastchange_geometry) then
+    sysc%timelastchange_render = time
+    if (level /= lastchange_render) sysc%timelastchange_buildlists = time
+    if (isrebond) sysc%timelastchange_rebond = time
+    if (level == lastchange_cplist .or. isgeom) sysc%timelastchange_cplist = time
+    if (isgeom) then
        if (.not.keepfields_) &
           call sys(sysc%id)%reset_fields()
        if (.not.keepfields_ .and. ok_system(sysc%id,sys_init)) &
@@ -1029,7 +1231,7 @@ contains
     end if
 
     ! record in the undo/redo history
-    if (level >= lastchange_rebond) then
+    if (isrebond) then
        if (.not.nocapture_ .and. ok_system(sysc%id,sys_init)) &
           call sysc%undo_capture(time)
     end if
@@ -3892,6 +4094,49 @@ contains
   end subroutine spg_analysis
 
   !xx! private procedures
+
+  !> Hash of the atomic numbers of the first n cell atoms of system
+  !> isys, in order (0 <= hash < 2**31). Moving atoms keeps it;
+  !> deleting or reordering any of the first n atoms changes it, and
+  !> restoring the same list (undo) restores it. The hashes of all
+  !> prefixes are cached in sysc and recomputed after each geometry
+  !> change.
+  function atoms_prefix_hash(isys,n) result(h)
+    integer, intent(in) :: isys, n
+    integer*8 :: h
+
+    integer :: i
+
+    integer*8, parameter :: hmod = 2147483629_8 ! prime below 2**31
+    integer*8, parameter :: hmul = 1000003_8
+
+    if (sysc(isys)%atsig_time /= sysc(isys)%timelastchange_geometry .or.&
+       .not.allocated(sysc(isys)%atsig)) then
+       if (allocated(sysc(isys)%atsig)) deallocate(sysc(isys)%atsig)
+       allocate(sysc(isys)%atsig(0:sys(isys)%c%ncel))
+       sysc(isys)%atsig(0) = 0
+       do i = 1, sys(isys)%c%ncel
+          sysc(isys)%atsig(i) = mod(sysc(isys)%atsig(i-1) * hmul + &
+             sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z + 1,hmod)
+       end do
+       sysc(isys)%atsig_time = sysc(isys)%timelastchange_geometry
+    end if
+    h = sysc(isys)%atsig(n)
+
+  end function atoms_prefix_hash
+
+  !> Identity of field ifield of system isys for the CP measurement
+  !> anchors: the file it was read from (unchanged by a rename, and the
+  !> same if the file is loaded again), or its name if it has none (as
+  !> in field%chk_cps_file, a file starting with "<" is not a file).
+  function field_key(isys,ifield) result(key)
+    integer, intent(in) :: isys, ifield
+    character(len=mlen) :: key
+
+    key = sys(isys)%f(ifield)%file
+    if (len_trim(key) == 0 .or. index(key,"<") == 1) key = sys(isys)%f(ifield)%name
+
+  end function field_key
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg) bind(c)

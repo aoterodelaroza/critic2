@@ -371,11 +371,11 @@ contains
        axes_winfrac_def
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
-    use systems, only: sys, sys_ready, ok_system, sysc
+    use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
     use tools_math, only: eigsym, cross
     class(scene), intent(inout), target :: s
 
-    integer :: i, j, isph, nsel, nsph, k, ier
+    integer :: i, j, isph, nsel, nsph, k, ier, ifld, icel, loff(3)
     integer :: atomcells(3)
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
@@ -417,9 +417,11 @@ contains
     end do
 
     ! Keep the measure selection across rebuilds. msel(1:4) is the
-    ! atom identity (cell atom + lattice vector); msel(5) is the
-    ! index. Clear it if the geometry changed after the selection was
-    ! made (stale atom ids).
+    ! anchor identity (cell atom, or critical point with msel(1) < 0, +
+    ! lattice vector); msel(5) is the sphere index. Clear it if the
+    ! geometry changed after the selection was made (stale atom ids);
+    ! a critical point is found again by content, and dropped if it is
+    ! no longer drawn.
     if (s%nmsel > 0) then
        if (sysc(s%id)%timelastchange_geometry > s%timelastselect) then
           s%nmsel = 0
@@ -428,12 +430,22 @@ contains
           nsel = 0
           do j = 1, s%nmsel
              isph = 0
-             do i = 1, s%obj%nsph
-                if (all(s%obj%sph(i)%idx == s%msel(1:4,j))) then
-                   isph = i
-                   exit
-                end if
-             end do
+             if (s%msel(1,j) > 0) then
+                do i = 1, s%obj%nsph
+                   if (all(s%obj%sph(i)%idx == s%msel(1:4,j))) then
+                      isph = i
+                      exit
+                   end if
+                end do
+             elseif (cp_anchor_resolve(s%id,s%msel(1,j),ifld,icel,loff)) then
+                do i = 1, s%obj%nsph
+                   if (s%obj%sph(i)%cpidx(1) == icel .and. s%obj%sph(i)%cpidx(5) == ifld .and.&
+                      all(s%obj%sph(i)%cpidx(2:4) == s%msel(2:4,j) + loff)) then
+                      isph = i
+                      exit
+                   end if
+                end do
+             end if
              if (isph > 0) then
                 nsel = nsel + 1
                 s%msel(1:4,nsel) = s%msel(1:4,j)
@@ -3314,17 +3326,30 @@ contains
     integer, intent(in) :: aidx(4,4)
     integer, intent(in) :: n
 
-    integer :: irep, ni
+    integer :: irep, ni, k
     type(measurement_item), allocatable :: aux(:)
+    real*8 :: xf(3,4)
 
     ! find (or create) the measurement representation
     irep = measure_rep_id(s,.true.)
     if (irep == 0) return
 
-    ! this exact measurement is already there: remove it instead
+    ! this exact measurement is already there: remove it instead; if
+    ! it is stale (its atoms or CPs changed), picking the same anchors
+    ! again revives it with the current stamps
     do ni = 1, s%rep(irep)%measure%nitem
        if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) then
-          call measure_remove_item(s,irep,ni)
+          if (s%rep(irep)%measure%item(ni)%anchors_xfrac(s%id,xf)) then
+             call measure_remove_item(s,irep,ni)
+          else
+             associate (it => s%rep(irep)%measure%item(ni))
+                do k = 1, n
+                   call it%set_anchor(k,s%id,aidx(:,k))
+                end do
+             end associate
+             s%rep(irep)%measure%isel = ni
+             s%forcebuildlists = .true.
+          end if
           return
        end if
     end do
@@ -3344,7 +3369,10 @@ contains
        it%shown = .true.
        it%n = n
        it%idx = 0
-       it%idx(:,1:n) = aidx(:,1:n)
+       it%stamp = 0
+       do k = 1, n
+          call it%set_anchor(k,s%id,aidx(:,k))
+       end do
        call it%set_defaults(n) ! per-item style from the matching kind defaults
     end associate
     s%rep(irep)%measure%isel = ni ! select the new item in the editor
