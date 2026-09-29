@@ -25,11 +25,12 @@ contains
   !> Update tasks for the edit representation window, before the
   !> window is created.
   module subroutine update_editrep(w)
-    use systems, only: sys_init, ok_system
+    use systems, only: sys_init, ok_system, sysc
+    use representations, only: reptype_gpaths
     use windows, only: win
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview
+    integer :: isys, iview, i
     logical :: doquit
 
     ! This window edits one object living in its anchor view's scene, so unlike
@@ -49,8 +50,21 @@ contains
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
 
-    ! if they aren't, quit the window
-    if (doquit) call w%end()
+    ! if they aren't, quit the window; a gradient path highlighted from
+    ! the table of this editor goes back to normal (the object may be
+    ! gone, so the system's scene is swept instead of w%rep)
+    if (doquit) then
+       if (ok_system(isys,sys_init)) then
+          do i = 1, sysc(isys)%sc%nrep
+             if (.not.sysc(isys)%sc%rep(i)%isinit) cycle
+             if (sysc(isys)%sc%rep(i)%type /= reptype_gpaths) cycle
+             if (all(sysc(isys)%sc%rep(i)%gpaths%ihover == 0)) cycle
+             sysc(isys)%sc%rep(i)%gpaths%ihover = 0
+             sysc(isys)%sc%forcebuildlists = .true.
+          end do
+       end if
+       call w%end()
+    end if
 
   end subroutine update_editrep
 
@@ -179,6 +193,14 @@ contains
                 if (w%rep%iso%slot(w%editrep_isoline)%imap_mode /= iso_map_color) &
                    win(iview)%sc%forcebuildlists = .true.
              end if
+          end if
+       end if
+
+       ! a gradient path highlighted from the table goes back to normal
+       if (iview > 0 .and. associated(w%rep)) then
+          if (w%rep%isinit .and. w%rep%type == reptype_gpaths .and. any(w%rep%gpaths%ihover /= 0)) then
+             w%rep%gpaths%ihover = 0
+             if (win(iview)%isopen .and. associated(win(iview)%sc)) win(iview)%sc%forcebuildlists = .true.
           end if
        end if
        call w%end()
@@ -4012,14 +4034,14 @@ contains
     use representations, only: gpaths_rad_def, field_has_cps
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
-       iw_table_column, iw_table_headers_row, iw_atom_button
+       iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable
     use param, only: bohrtoa
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, npath, ncol
+    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, npath, ncol, ihover(2)
     integer, allocatable :: ipath(:,:)
     integer(c_int) :: istyle, flags
     logical :: ch, typechanged, pathsok
@@ -4035,9 +4057,10 @@ contains
     iview = w%anchor_view()
     ihighlight = 0
     highlight_type = atlisttype_species
+    ihover = 0
 
     ! the widgets start at one column, after the longest label
-    xcol = igGetCursorPosX() + iw_calcwidth(len("Radius (Å)"),0)
+    xcol = igGetCursorPosX() + iw_calcwidth(len("Style "),0)
 
     ! field selector
     call label("Field")
@@ -4078,29 +4101,15 @@ contains
        call w%rep%gpaths%fill_rgb()
        changed = .true.
     end if
-    call label("Radius (Å)")
-    ch = iw_dragfloat_realc("##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
+    ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
        min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-       flags=ImGuiSliderFlags_AlwaysClamp)
+       sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Radius of the tubes or spheres of all gradient paths in Å (sets the radius of every "//&
        "path in the table below; default " // string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",&
        ttshown)
     if (ch) then
        if (pathsok) w%rep%gpaths%prad = w%rep%gpaths%rad
        changed = .true.
-    end if
-
-    ! the atoms at the ends of the bond paths, with the colors and radii
-    ! of this object (the table below, shown only when they are drawn)
-    ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
-    changed = changed .or. ch
-    call iw_tooltip("Also draw the atoms at the ends of the bond paths, with the colors and radii "//&
-       "in the table below.",ttshown)
-    if (w%rep%gpaths%showends) then
-       ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
-          rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)
-       if (typechanged) call w%rep%atoms%style%reset(w%rep)
-       changed = changed .or. ch .or. typechanged
     end if
 
     ! the table of gradient paths: one row per path of each
@@ -4133,7 +4142,7 @@ contains
        sz%y = iw_calcheight(min(10,npath+1),0,.false.)
        if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
           ncol = -1
-          call iw_table_column("Id",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -4153,6 +4162,25 @@ contains
           call ImGuiListClipper_destroy(clipper)
           call igEndTable()
        end if
+    end if
+
+    ! the atoms at the ends of the bond paths, with the colors and radii
+    ! of this object (the table below, shown only when they are drawn)
+    ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
+    changed = changed .or. ch
+    call iw_tooltip("Also draw the atoms at the ends of the bond paths, with the colors and radii "//&
+       "in the table below.",ttshown)
+    if (w%rep%gpaths%showends) then
+       ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
+          rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)
+       if (typechanged) call w%rep%atoms%style%reset(w%rep)
+       changed = changed .or. ch .or. typechanged
+    end if
+
+    ! the path under the mouse in the table is highlighted in the view
+    if (any(ihover /= w%rep%gpaths%ihover)) then
+       w%rep%gpaths%ihover = ihover
+       changed = .true.
     end if
 
     ! process transient highlights
@@ -4176,13 +4204,24 @@ contains
       integer, intent(in) :: k, j, i
 
       integer :: iend, id
-      real(c_float) :: rgb(3)
+      real(c_float) :: rgb(3), xpos
       logical :: have, ldum
 
       suffix = "_" // string(k)
       associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield))
-        ! id
-        if (igTableSetColumnIndex(0_c_int)) call iw_text(string(k),alignframe=.true.)
+        ! show, and the row selectable that highlights the path in the
+        ! view: first in the row, so the highlight holds while the mouse
+        ! is on the checkbox too
+        if (igTableSetColumnIndex(0_c_int)) then
+           xpos = igGetCursorPosX()
+           call iw_text("",alignframe=.true.)
+           if (iw_highlight_selectable("##gpathsrowsel" // suffix)) ihover = (/j,i/)
+           call igSameLine(0._c_float,0._c_float)
+           call igSetCursorPosX(xpos)
+           ch = iw_checkbox("##gpathsrowshown" // suffix,w%rep%gpaths%pshown(j,i))
+           call iw_tooltip("Show this gradient path",ttshown)
+           changed = changed .or. ch
+        end if
 
         ! color and radius of this path
         if (igTableSetColumnIndex(1_c_int)) then

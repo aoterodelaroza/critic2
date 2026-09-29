@@ -1772,7 +1772,7 @@ contains
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
-    use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def
+    use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene
     use shapes, only: maxpie
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
@@ -2794,6 +2794,10 @@ contains
               do j = 1, 2
                  np(j) = f%cpgp(j,i)%n
                  iend(j) = 0
+                 ! hidden paths draw nothing (nor their end atom)
+                 if (pathsok) then
+                    if (.not.r%gpaths%pshown(j,i)) np(j) = 0
+                 end if
                  if (np(j) < 2) then
                     np(j) = 0
                     cycle
@@ -2834,17 +2838,26 @@ contains
                        ! the image offset, then the segments or spheres
                        dx = real(c%x2c(real((/j1,j2,j3/) + vshift,8)),c_float)
                        do j = 1, 2
-                          ! this path's color and radius
+                          ! this path's color and radius (hidden, or
+                          ! highlighted if under the mouse in the editor)
+                          if (np(j) == 0) cycle
                           if (pathsok) then
-                             dsph%rgb = r%gpaths%prgb(:,j,i)
+                             if (all(r%gpaths%ihover == (/j,i/))) then
+                                dsph%rgb = ColorHighlightScene(1:3)
+                                dsph%r = 2._c_float * r%gpaths%prad(j,i)
+                             else
+                                dsph%rgb = r%gpaths%prgb(:,j,i)
+                                dsph%r = r%gpaths%prad(j,i)
+                             end if
                              dsph%rgbborder = dsph%rgb
-                             dsph%r = r%gpaths%prad(j,i)
-                             dpath%rgb = r%gpaths%prgb(:,j,i)
-                             dpath%r = r%gpaths%prad(j,i)
+                             dpath%rgb = dsph%rgb
+                             dpath%r = dsph%r
                           end if
                           if (beads) then
-                             ! both paths start at the BCP: draw it once
-                             do k = merge(2,1,j == 2), np(j)
+                             ! both paths start at the BCP: draw it once,
+                             ! with path 2 only if path 1 is not drawn or
+                             ! path 2 is highlighted
+                             do k = merge(2,1,j == 2 .and. np(1) > 0 .and. .not.all(r%gpaths%ihover == (/2,i/))), np(j)
                                 dsph%x = xpath(j)%x(:,k) + dx
                                 call dl_append(obj%sph,obj%nsph,dsph)
                              end do
@@ -4635,13 +4648,16 @@ contains
     if (allocated(g%pcpx)) deallocate(g%pcpx)
     if (allocated(g%prgb)) deallocate(g%prgb)
     if (allocated(g%prad)) deallocate(g%prad)
+    if (allocated(g%pshown)) deallocate(g%pshown)
+    g%ihover = 0
     if (.not.field_has_cps(isys,g%ifield,withpaths=.true.)) return
     associate(f => sys(isys)%f(g%ifield))
-      allocate(g%pcpx(3,f%ncp),g%prgb(3,2,f%ncp),g%prad(2,f%ncp))
+      allocate(g%pcpx(3,f%ncp),g%prgb(3,2,f%ncp),g%prad(2,f%ncp),g%pshown(2,f%ncp))
       g%pcpx = reshape((/(f%cp(n)%x,n=1,f%ncp)/),(/3,f%ncp/))
     end associate
     call g%fill_rgb()
     g%prad = g%rad
+    g%pshown = .true.
 
   end subroutine gpaths_reset_paths
 

@@ -789,6 +789,8 @@ module representations
      real*8, allocatable :: pcpx(:,:) ! positions of the CPs the values are for (3,ncp)
      real(c_float), allocatable :: prgb(:,:,:) ! color of each path (3,2,ncp)
      real(c_float), allocatable :: prad(:,:) ! radius of each path (2,ncp, bohr)
+     logical, allocatable :: pshown(:,:) ! whether each path is shown (2,ncp)
+     integer :: ihover(2) = 0 ! path (j,i) under the mouse in the editor table, drawn highlighted (0 = none)
    contains
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok
