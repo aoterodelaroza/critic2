@@ -498,8 +498,10 @@ contains
   !> -1 if failed. If the field could not be loaded, return the reason
   !> in errmsg. If verbose, write to standard output. If readchk, read
   !> the critical point list from the field's checkpoint file
-  !> (<file>.chk_cps), if it exists.
-  module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk)
+  !> (<file>.chk_cps), if it exists. If autointerp (the GUI) and the new
+  !> field is a grid with no interpolation keyword, use smoothrho if it
+  !> looks like an all-electron density (field_guess_allelectron).
+  module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp)
     use tools_io, only: getword, lgetword, equal, uout, string, ferror, warning
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
@@ -519,9 +521,11 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     logical, intent(in), optional :: readchk
+    logical, intent(in), optional :: autointerp
 
     integer :: i, oid, nal, id1, id2, nn, n(3)
     logical :: ok, isnewref, found, dochk
+    real*8 :: rnuc, rval
     type(fieldseed) :: seed
     integer :: idx
     character(len=:), allocatable :: str, aux, erreval, cpfile, errchk
@@ -790,6 +794,31 @@ contains
     ! error message.
     if (seed%testrmt) &
        call s%f(id)%testrmt(0,aux,ti=ti)
+
+    ! Automatic interpolation (the GUI): if the new field is a grid whose
+    ! interpolation was not chosen explicitly, use smoothrho if it looks
+    ! like an all-electron density. Before the checkpoint, so its CPs
+    ! belong to the final field.
+    ok = .false.
+    if (present(autointerp)) ok = autointerp
+    if (ok) ok = (s%f(id)%type == type_grid)
+    if (ok) ok = .not.s%f(id)%grid%modeset
+    if (ok) then
+       if (s%f(id)%guess_allelectron(rnuc,rval)) then
+          ! set_options only fails for fields without a grid
+          call s%f(id)%set_options("smoothrho",errchk)
+          str = "all-electron density"
+          aux = "SMOOTHRHO"
+       else
+          str = "not an all-electron density"
+          aux = "TRICUBIC"
+       end if
+       str = str // " (nucleus ratio " // string(rnuc,'f',decimal=3)
+       if (rval > -huge(1d0)) str = str // ", valence ratio " // string(rval,'f',decimal=3)
+       str = str // ")"
+       write (uout,'("* Field ",A," (",A,"): ",A,", using ",A," interpolation")') string(id),&
+          trim(s%f(id)%name), str, aux
+    end if
 
     ! read the critical point list from the checkpoint file
     dochk = .false.

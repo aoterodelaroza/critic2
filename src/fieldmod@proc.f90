@@ -289,6 +289,128 @@ contains
 
   end subroutine field_set_options
 
+  !> Whether the grid field f looks like an all-electron density by
+  !> comparing it with the promolecular density of free all-electron
+  !> atoms (rho_pro) on the grid's own nodes, so that the grid spacing
+  !> cancels. Returns:
+  !> - rnuc: the median over the symmetry-unique atoms with Z >= 3 of
+  !>   f/rho_pro at the node nearest the nucleus. About 1 or more for an
+  !>   all-electron (or core) density; nearly zero for valence/pseudo
+  !>   densities and other scalar fields.
+  !> - rval: the median of f/rho_pro over a subset of the nodes in the
+  !>   valence region (rho_pro between 1e-3 and 0.1 a.u.).
+  !>   About 1 for all-electron and valence densities; nearly zero for a
+  !>   core-only density. Only calculated if rnuc is in its window.
+  !> rnuc is zero and rval is -huge(1d0) if they could not be
+  !> calculated. Changes nothing in the field.
+  module function field_guess_allelectron(f,rnuc,rval) result(isae)
+    use tools, only: qcksort
+    use param, only: icrd_crys
+    class(field), intent(in) :: f
+    real*8, intent(out) :: rnuc
+    real*8, intent(out) :: rval
+    logical :: isae
+
+    ! acceptance windows for the two ratios (calibrated with the AE and
+    ! valence densities from VASP, QE, abinit, siesta, and Gaussian; the
+    ! lower bounds leave room for a single spin channel, ~0.5)
+    real*8, parameter :: rnuc_min = 0.25d0, rnuc_max = 10d0
+    real*8, parameter :: rval_min = 0.25d0, rval_max = 2d0
+    ! the valence region, promolecular density range (a.u.)
+    real*8, parameter :: rhoval_min = 1d-3, rhoval_max = 0.1d0
+    integer, parameter :: nsample = 16 ! maximum number of sampled nodes per direction
+
+    integer :: i, j, k, iat, nr, idx(3), istep(3), ns(3), l1, l2, l3
+    real*8 :: xdelta(3,3), x(3), rho, rhop(3), rhopp(3,3)
+    real*8, allocatable :: ratio(:), vrat3(:,:,:)
+    logical :: found
+
+    isae = .false.
+    rnuc = 0d0
+    rval = -huge(1d0)
+    if (.not.f%isinit .or. f%type /= type_grid .or. f%usecore) return
+    if (.not.allocated(f%grid)) return
+    if (.not.allocated(f%grid%f)) return
+
+    associate(g => f%grid, c => f%c)
+      ! step between nodes, crystallographic coordinates
+      xdelta = matmul(g%c2x,g%x2cg)
+
+      ! nuclear ratio: the node nearest each symmetry-unique atom with Z
+      ! >= 3 (for a partial grid, the first lattice image inside it)
+      allocate(ratio(c%nneq))
+      nr = 0
+      do iat = 1, c%nneq
+         if (c%spc(c%at(iat)%is)%z < 3) cycle
+         found = .false.
+         lloop: do l1 = -1, 1
+            do l2 = -1, 1
+               do l3 = -1, 1
+                  idx = nint(matmul(g%c2xl,matmul(g%x2c,c%at(iat)%x + (/l1,l2,l3/) - g%x0)) * g%n)
+                  if (.not.g%partial) idx = modulo(idx,g%n)
+                  found = all(idx >= 0) .and. all(idx < g%n)
+                  if (found) exit lloop
+               end do
+            end do
+         end do lloop
+         if (.not.found) cycle
+         x = g%x0 + matmul(xdelta,real(idx,8))
+         call c%promolecular_atom(x,icrd_crys,rho,rhop,rhopp,0)
+         if (rho <= 0d0) cycle
+         nr = nr + 1
+         ratio(nr) = g%f(idx(1)+1,idx(2)+1,idx(3)+1) / rho
+      end do
+      if (nr == 0) return
+      rnuc = median(ratio(1:nr))
+
+      ! not an all-electron or core density: no need for the other ratio
+      if (rnuc < rnuc_min .or. rnuc > rnuc_max) return
+
+      ! valence-region ratio: median of f/rho_pro over a strided subset of
+      ! the nodes (robust against the oscillations of the core-only
+      ! densities, which a sum is not)
+      istep = (g%n + nsample - 1) / nsample
+      ns = (g%n + istep - 1) / istep
+      allocate(vrat3(ns(1),ns(2),ns(3)))
+      vrat3 = huge(1d0)
+      !$omp parallel do private(x,rho,rhop,rhopp) collapse(3)
+      do k = 0, ns(3)-1
+         do j = 0, ns(2)-1
+            do i = 0, ns(1)-1
+               x = g%x0 + matmul(xdelta,real((/i,j,k/)*istep,8))
+               call c%promolecular_atom(x,icrd_crys,rho,rhop,rhopp,0)
+               if (rho < rhoval_min .or. rho > rhoval_max) cycle
+               vrat3(i+1,j+1,k+1) = g%f(i*istep(1)+1,j*istep(2)+1,k*istep(3)+1) / rho
+            end do
+         end do
+      end do
+      !$omp end parallel do
+      ratio = pack(vrat3,vrat3 < huge(1d0))
+      if (size(ratio) == 0) return
+      rval = median(ratio)
+    end associate
+
+    isae = (rval >= rval_min .and. rval <= rval_max)
+
+  contains
+    !> The median of the values in a (sorted in place).
+    function median(a) result(am)
+      real*8, intent(inout) :: a(:)
+      real*8 :: am
+
+      integer :: n
+
+      n = size(a)
+      call qcksort(a)
+      if (mod(n,2) == 1) then
+         am = a(n/2+1)
+      else
+         am = 0.5d0 * (a(n/2) + a(n/2+1))
+      end if
+
+    end function median
+  end function field_guess_allelectron
+
   !> Load a new field using the given field seed, the crystal
   !> structure pointer, the ID of the new field in the system (id)
   !> and the parent system's C pointer (sptr). If an error was
@@ -3239,8 +3361,10 @@ contains
 
   !> Fingerprint of the field and its structure, used to check that a
   !> CP checkpoint file corresponds to them. Integer (ihdr) and real
-  !> (rhdr) data and the ghost field expression (str).
+  !> (rhdr) data and the ghost field expression (str). For a grid, it
+  !> includes the interpolation mode (and the smoothrho options).
   subroutine chk_fingerprint(f,ihdr,rhdr,str)
+    use grid3mod, only: mode_smr
     type(field), intent(in) :: f
     integer, allocatable, intent(out) :: ihdr(:)
     real*8, allocatable, intent(out) :: rhdr(:)
@@ -3258,6 +3382,16 @@ contains
          (c%at(i)%x, i=1,c%nneq)]
       if (allocated(c%cen)) rhdr = [rhdr, reshape(c%cen(:,1:c%ncv),[3*c%ncv])]
     end associate
+
+    ! the interpolation of a grid (the CPs depend on it: e.g. smoothrho
+    ! removes the spurious CPs of tricubic near the nuclei)
+    if (f%type == type_grid .and. allocated(f%grid)) then
+       ihdr = [ihdr, f%grid%mode]
+       if (f%grid%mode == mode_smr) then
+          ihdr = [ihdr, f%grid%smr_nenv]
+          rhdr = [rhdr, f%grid%smr_fdmax]
+       end if
+    end if
 
     if (f%type == type_ghost) then
        str = trim(f%expr)

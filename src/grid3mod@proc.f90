@@ -32,6 +32,7 @@ submodule (grid3mod) proc
   ! subrotine copy_geometry(f,g)
   ! subroutine init_trispline(f)
   ! subroutine init_smr(f)
+  ! function smr_rho0_node(f,ih)
   ! subroutine smr_kernelfun(r,k,f,fp,fpp)
 
   ! Notes about the 3D-FFT order of the array elements.
@@ -71,6 +72,9 @@ submodule (grid3mod) proc
   ! - To transform the ix back to the ig index:
   !   ig = i3-1+n(3)-n(3)/2 + (i2-1+n(2)-n(2)/2) * n(3) + (i1-1+n(1)-n(1)/2) * n(3) * n(2) + 1
   !
+
+  ! marker of a node of smr_rho0 not calculated yet (rho0 >= VSMALL > 0)
+  real*8, parameter :: smr_rho0_unset = -1d0
 
   ! The 64x64 matrix for tricubic interpolation
   real*8, parameter :: c(64,64) = reshape((/&                      ! values for c(i,j), with...  (i,  j)
@@ -399,13 +403,11 @@ contains
   !> trilinear, trispline, and tricubic (lowercase).
   module subroutine setmode(f,mode)
     use tools_io, only: equal, lower
-    use param, only: icrd_crys, VSMALL
     class(grid3), intent(inout) :: f
     character*(*), intent(in) :: mode
 
     character(len=:), allocatable :: lmode
-    integer :: i, j, k
-    real*8 :: xdelta(3,3), x(3), rho, rhof(3), rhoff(3,3)
+    integer :: k
 
     ! parse the mode
     lmode = lower(mode)
@@ -430,24 +432,24 @@ contains
     else if (equal(lmode,'default')) then
        f%mode = mode_default
     end if
+    if (equal(lmode,'smoothrho') .or. equal(lmode,'tricubic') .or. equal(lmode,'trispline') .or.&
+       equal(lmode,'trilinear') .or. equal(lmode,'nearest')) then
+       f%modeset = .true.
+    elseif (equal(lmode,'default')) then
+       f%modeset = .false.
+    end if
 
-    ! If smoothrho interpolation, calculate the geometry-only rho0 here. The
-    ! option-dependent stencil (init_smr) is built later, in build_interp.
+    ! If smoothrho interpolation, allocate the geometry-only rho0 here,
+    ! marked as not calculated: each node is calculated the first time
+    ! an interpolation needs it (smr_rho0_node), so that setting up the
+    ! field is fast. The option-dependent stencil (init_smr) is built
+    ! later, in build_interp.
     if (f%mode == mode_smr) then
        if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
        allocate(f%smr_rho0(f%n(1),f%n(2),f%n(3)))
-
-       xdelta = matmul(f%c2x,f%x2cg)
-       !$omp parallel do private(x,rho,rhof,rhoff)
+       !$omp parallel do
        do k = 1, f%n(3)
-          do j = 1, f%n(2)
-             do i = 1, f%n(1)
-                x = f%x0 + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-                call crystalmod_promolecular(f%cptr,x,icrd_crys,rho,rhof,rhoff,0)
-
-                f%smr_rho0(i,j,k) = max(rho,VSMALL)
-             end do
-          end do
+          f%smr_rho0(:,:,k) = smr_rho0_unset
        end do
        !$omp end parallel do
     end if
@@ -1705,6 +1707,8 @@ contains
 
     real*8, parameter :: feps = 1d-6 ! inset absorbing round-off at the window edges
 
+    integer :: mlo(3), k
+
     ! x0 is zero and x2cl equals x2c when the grid is not partial
     x2cd = f%x2cl
     x0c = matmul(f%x2c,f%x0)
@@ -1714,15 +1718,26 @@ contains
     ! interpolation is guaranteed valid. Non-partial grids wrap, so the
     ! whole box is valid. Partial grids are bounded by the tricubic
     ! stencil gate in grinterp_tricubic (grid point index in [2,n-2],
-    ! i.e. fraction in [1/n,(n-2)/n)), the strictest of the
-    ! interpolation modes; empty (flo >= fhi) when n < 4.
+    ! i.e. fraction in [1/n,(n-2)/n)), or, for smoothrho, by the reach
+    ! of its stencil (smr_ilist) around the nodes within fdmax*dmax of
+    ! the point (grinterp_smr, wrap_list_near_atoms); empty (flo >= fhi)
+    ! when the grid is too small. A sphere of radius R spans
+    ! R*n(k)*|row k of c2xl| index steps along axis k (the spacing of
+    ! the lattice planes, not the length of the step vector).
+    mlo = 1
+    if (f%partial .and. f%mode == mode_smr .and. allocated(f%smr_ilist)) then
+       do k = 1, 3
+          mlo(k) = maxval(abs(f%smr_ilist(k,1:f%smr_nlist))) + &
+             ceiling(max(f%smr_fdmax,1d0) * f%dmax * f%n(k) * norm2(f%c2xl(k,:))) + 1
+       end do
+    end if
     if (present(flo)) then
        flo = 0d0
-       if (f%partial) flo = 1d0 / real(f%n,8) + feps
+       if (f%partial) flo = real(mlo,8) / real(f%n,8) + feps
     end if
     if (present(fhi)) then
        fhi = 1d0
-       if (f%partial) fhi = real(f%n-2,8) / real(f%n,8) - feps
+       if (f%partial) fhi = real(f%n-mlo-1,8) / real(f%n,8) - feps
     end if
 
   end subroutine get_domain
@@ -3158,6 +3173,7 @@ contains
     real*8 :: u, up(3), upp(3,3)
     real*8 :: dfin, swei, sweip(3), sweipp(3,3)
     integer :: nat, ii0
+    real*8 :: rho0i
 
     ! The stencil is normally precomputed at field setup (setmode); this
     ! double-checked guard is a lock-free fast path that only falls back to a
@@ -3192,26 +3208,22 @@ contains
        ! the grid point
        i0 = i0list(:,ii0)
 
-       ! get the rho/rho0 values at the grid points
-       if (f%partial) then
-          do i = 1, f%smr_nlist
-             ih = i0 + f%smr_ilist(:,i)
+       ! get the rho/rho0 values at the grid points (rho0 in its own
+       ! statement: smr_rho0_node may define parts of f)
+       do i = 1, f%smr_nlist
+          ih = i0 + f%smr_ilist(:,i)
+          if (f%partial) then
              if (any(ih < 0) .or. any(ih >= f%n)) then
-                ! xxxx !
                 valid = .false.
                 return
-             else
-                ih = ih + 1
-                flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/f%smr_rho0(ih(1),ih(2),ih(3)))
              end if
-          end do
-       else
-          do i = 1, f%smr_nlist
-             ih = i0 + f%smr_ilist(:,i)
-             ih = modulo(ih,f%n) + 1
-             flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/f%smr_rho0(ih(1),ih(2),ih(3)))
-          end do
-       end if
+          else
+             ih = modulo(ih,f%n)
+          end if
+          ih = ih + 1
+          rho0i = smr_rho0_node(f,ih)
+          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/rho0i)
+       end do
        flist(f%smr_nlist+1:) = 0d0
 
        ! solve the system of equations
@@ -3735,6 +3747,35 @@ contains
      end if
 
    end subroutine smr_kernelfun
+
+   !> The promolecular density (rho0) at node ih (1-based indices) of
+   !> the smoothrho grid f, calculated and stored in f%smr_rho0 the first
+   !> time it is needed. Safe to call from OpenMP threads: the element is
+   !> read and written atomically, and two threads that calculate the
+   !> same node store the same value. The same holds for non-OpenMP
+   !> threads (GUI): aligned 8-byte loads and stores do not tear, and a
+   !> critical section would not synchronize them either.
+   function smr_rho0_node(f,ih) result(rho0)
+     use param, only: icrd_crys, VSMALL
+     class(grid3), intent(inout) :: f
+     integer, intent(in) :: ih(3)
+     real*8 :: rho0
+
+     real*8 :: xdelta(3,3), x(3), rho, rhof(3), rhoff(3,3)
+
+     !$omp atomic read
+     rho0 = f%smr_rho0(ih(1),ih(2),ih(3))
+     if (rho0 /= smr_rho0_unset) return
+
+     ! the node position, as the other grid routines write it
+     xdelta = matmul(f%c2x,f%x2cg)
+     x = f%x0 + (ih(1)-1) * xdelta(:,1) + (ih(2)-1) * xdelta(:,2) + (ih(3)-1) * xdelta(:,3)
+     call crystalmod_promolecular(f%cptr,x,icrd_crys,rho,rhof,rhoff,0)
+     rho0 = max(rho,VSMALL)
+     !$omp atomic write
+     f%smr_rho0(ih(1),ih(2),ih(3)) = rho0
+
+   end function smr_rho0_node
 
    ! This convoluted way of running promolecular is to avoid the ICE that comes
    ! from using crystalmod in module procedures.

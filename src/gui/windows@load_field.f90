@@ -221,7 +221,8 @@ contains
        w%errmsg = ""
        loadstr = build_load_string()
        if (len_trim(w%errmsg) == 0) then
-          call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg,readchk=.true.)
+          call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg,readchk=.true.,&
+             autointerp=(w%lf%iginterp == 5))
           if (len_trim(w%errmsg) == 0) then
              ! the new field may come with a CP list (checkpoint file)
              call sysc(isys)%post_event(lastchange_cplist)
@@ -609,6 +610,8 @@ contains
          ! so a delayed (ttshown) tooltip attached to it never fires
          call iw_text("Interpolation method")
          call iw_helpermark("Choose the interpolation method for the grid")
+         ldum = iw_radiobutton("Automatic",int=w%lf%iginterp,intval=5_c_int)
+         call iw_tooltip("Smoothrho if the grid looks like an all-electron density, tri-cubic otherwise",ttshown)
          ldum = iw_radiobutton("Nearest",int=w%lf%iginterp,intval=0_c_int)
          call iw_tooltip("Value of the nearest grid point",ttshown)
          ldum = iw_radiobutton("Tri-linear",int=w%lf%iginterp,intval=1_c_int,sameline=.true.)

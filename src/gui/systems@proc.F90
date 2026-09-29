@@ -4191,7 +4191,8 @@ contains
                    ! formats without virtual orbitals)
                    str = quoteword(sysc(i)%seed%file)
                    if (always_read_virtuals) str = str // " readvirtual"
-                   call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti,readchk=.true.)
+                   call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti,readchk=.true.,&
+                      autointerp=.true.)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
                       write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)

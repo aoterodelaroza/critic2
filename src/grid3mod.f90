@@ -70,6 +70,7 @@ module grid3mod
      logical :: iswan = .false. !< does it have wannier info?
      ! basic grid info
      integer :: mode = mode_default !< interpolation mode
+     logical :: modeset = .false. !< whether the mode was chosen explicitly (setmode, not 'default')
      integer :: n(3) !< number of grid points in each direction
      type(c_ptr) :: cptr !< pointer to the crystal structure
      ! information for partial grids (that do not span the whole cell)

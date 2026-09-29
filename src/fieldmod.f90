@@ -91,6 +91,7 @@ module fieldmod
      procedure :: end => field_end !< Deallocate data and uninitialize
      procedure :: set_default_options => field_set_default_options !< Sets field default options
      procedure :: set_options => field_set_options !< Set field options from a command string
+     procedure :: guess_allelectron => field_guess_allelectron !< Whether a grid field looks like an all-electron density
      procedure :: field_new !< Creates a new field from a field seed.
      procedure :: load_promolecular !< Loads a promolecular density field
      procedure :: load_as_fftgrid !< Loads as a transformation of a 3d grid
@@ -140,6 +141,12 @@ module fieldmod
        character*(*), intent(in) :: line
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine field_set_options
+     module function field_guess_allelectron(f,rnuc,rval) result(isae)
+       class(field), intent(in) :: f
+       real*8, intent(out) :: rnuc
+       real*8, intent(out) :: rval
+       logical :: isae
+     end function field_guess_allelectron
      module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
        class(field), intent(inout) :: f
        type(fieldseed), intent(in) :: seed

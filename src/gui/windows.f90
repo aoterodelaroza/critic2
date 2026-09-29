@@ -321,7 +321,8 @@ module windows
      integer :: sizeoffid = -1 ! field for the SIZEOF size
      ! common options
      character(len=:,kind=c_char), allocatable :: name ! name of the new field
-     integer :: iginterp = 3 ! 0=nearest, 1=trilinear, 2=trispline, 3=tricubic, 4=smoothrho
+     integer :: iginterp = 5 ! 0=nearest, 1=trilinear, 2=trispline, 3=tricubic, 4=smoothrho,
+                             ! 5=automatic (smoothrho for all-electron densities, tricubic otherwise)
      logical :: donorm = .false. ! normalize the grid
      real(c_float) :: normval = 1._c_float ! normalization value
      ! advanced options

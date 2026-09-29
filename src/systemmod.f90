@@ -166,7 +166,7 @@ module systemmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine new_from_seed
-     module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk)
+     module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp)
        class(system), intent(inout), target :: s
        character*(*), intent(in) :: line
        logical, intent(in) :: verbose
@@ -174,6 +174,7 @@ module systemmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        logical, intent(in), optional :: readchk
+       logical, intent(in), optional :: autointerp
      end subroutine load_field_string
      module function goodfield(s,id,key,type,n,idout) result(ok)
        use fieldmod, only: type_grid

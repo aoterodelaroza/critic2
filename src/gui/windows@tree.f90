@@ -2509,9 +2509,7 @@ contains
        case(mode_tricubic)
           str = "tri-cubic"
        case(mode_smr)
-          str = "smooth all-electron density with " // string(f%grid%smr_nenv) //&
-             " stencil nodes and " // string(f%grid%smr_fdmax,'f',decimal=4) //&
-             " smoothing dmax factor"
+          str = "smooth all-electron density"
        end select
        call iw_text(str,sameline_nospace=.true.)
 
