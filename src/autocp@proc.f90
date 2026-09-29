@@ -2184,12 +2184,14 @@ contains
                      f%cp(i)%ipath(j) = -1
                   else
                      f%cp(i)%ilvec(:,j) = 0
-                     do k = 1, f%ncpcel
-                        if (f%cpcel(k)%idx /= i) cycle
-                        f%cpcel(k)%ipath(j) = 0
-                        f%cpcel(k)%ilvec(:,j) = 0
-                     end do
                   endif
+                  ! no attractor for the complete list either (a previous
+                  ! AUTO may have left one)
+                  do k = 1, f%ncpcel
+                     if (f%cpcel(k)%idx /= i) cycle
+                     f%cpcel(k)%ipath(j) = 0
+                     f%cpcel(k)%ilvec(:,j) = 0
+                  end do
                   cycle
                end if
 

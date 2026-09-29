@@ -1668,8 +1668,9 @@ contains
     if (.not.r%isinit .or. r%id == 0) return
     if (.not.ok_system(r%id,sys_ready)) return
 
-    if (reptype_is_atombased(r%type)) then
-       ! check if we need to reset the representation styles atoms
+    ! atom colors and radii: the atom-based kinds, and the gradient
+    ! paths (the atoms at the bond path ends)
+    if (reptype_is_atombased(r%type) .or. r%type == reptype_gpaths) then
        doreset = .not.r%atoms%style%isinit
        if (r%owner == 0) then
           doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atoms%style%timelastreset)
@@ -1677,7 +1678,9 @@ contains
           doreset = doreset .or. (r%atoms%style%ntype /= sysc(r%id)%attype_number(r%atoms%style%type))
        end if
        if (doreset) call r%atoms%style%reset(r)
+    end if
 
+    if (reptype_is_atombased(r%type)) then
        ! molecules: if the geometry or the bonds changed
        doreset = .not.r%mols%style%isinit
        doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mols%style%timelastreset)
@@ -1813,7 +1816,7 @@ contains
     integer :: natp, idpoly, kp, ka, kb
     logical :: dopoly, corneractive, okpoly
     integer, allocatable :: cornlist(:,:)
-    integer :: ncorn, ica, idc, imolc
+    integer :: ncorn, ica
     type(symelem_list) :: sel ! symmetry elements in the displayed region
     real*8 :: sebo(3), sebv(3,3) ! box the elements are clipped to
     type(elem_box) :: sebox ! the same, ready for clip_elem_box
@@ -2217,34 +2220,7 @@ contains
              call check_lshown(cornlist(1,ica),ix(1),ix(2),ix(3))
              if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3))) cycle ! already drawn
              lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = .true.
-
-             ! style and position of the corner atom
-             idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,cornlist(1,ica))
-             imolc = c%idatcelmol(1,cornlist(1,ica))
-             rgb = r%atoms%style%rgb(:,idc) * r%mols%style%tint_rgb(:,imolc)
-             rad1 = r%atoms%style%rad(idc) * r%mols%style%scale_rad(imolc)
-             xx = c%atcel(cornlist(1,ica))%x + ix
-             xc = c%x2c(xx)
-
-             ! animation delta of the corner atom (so it moves with the polyhedron)
-             xdelta1 = vibdelta(cornlist(1,ica),ix)
-
-             call mixpie(c%atcel(cornlist(1,ica))%idx,occ1,piecum,piergb)
-
-             dsph%x = real(xc,c_float)
-             dsph%r = real(rad1,c_float)
-             dsph%rgb = rgb
-             dsph%idx(1) = cornlist(1,ica)
-             dsph%idx(2:4) = ix
-             dsph%xdelta = cmplx(xdelta1,kind=c_float_complex)
-             dsph%border = real(r%atoms%border_size,c_float)
-             dsph%rgbborder = r%atoms%border_rgb
-             dsph%occ = occ1
-             dsph%occ_empty_rgb = r%atoms%occ_empty_rgb
-             dsph%pie_cum = piecum
-             dsph%pie_rgb = piergb
-             dsph%ghost = .false.
-             call dl_append(obj%sph,obj%nsph,dsph)
+             call append_forced_atom(cornlist(1,ica),ix,.true.)
           end do
        end if
 
@@ -2715,7 +2691,9 @@ contains
       logical :: bord, tsh, vac(3)
       real*8 :: ui(3), ue(3), xf(3), t(3)
       real(c_float) :: dx(3)
-      integer :: np(2)
+      integer :: np(2), iend(2), lend(3,2), lx(3), jat
+      integer, allocatable :: nucmap(:), nucoff(:,:)
+      logical :: beads
       type(dl_cylinder) :: dpath
       type(cartpath) :: xpath(2)
 
@@ -2734,14 +2712,19 @@ contains
         nc = disp%ncells(r%disp)
         call atom_image_vacuum(c,r%id,vac,ui,ue)
 
-        ! presize for the shown CPs, one item each (a path segment
-        ! each for the paths); dl_append absorbs the border images
+        ! presize for the shown CPs, one item each (a path segment or
+        ! sphere each for the paths); dl_append absorbs the border images
+        beads = (mode == cpitem_path .and. r%gpaths%style == gpaths_style_beads)
         nitem = 0
         do icp = c%ncel+1, f%ncpcel
            if (cp_item_row(ifield,mode,icp) == 0) cycle
            if (mode == cpitem_path) then
               i = f%cpcel(icp)%idx
-              nitem = nitem + max(f%cpgp(1,i)%n-1,0) + max(f%cpgp(2,i)%n-1,0)
+              do j = 1, 2
+                 if (f%cpgp(j,i)%n < 2) cycle
+                 nitem = nitem + f%cpgp(j,i)%n - 1
+                 if (beads .and. j == 1) nitem = nitem + 1
+              end do
            else
               nitem = nitem + 1
            end if
@@ -2751,9 +2734,40 @@ contains
         case (cpitem_label)
            call obj%reserve(nstring = obj%nstring + nitem)
         case (cpitem_path)
-           call obj%reserve(ncyl = obj%ncyl + nitem)
-           ! the path segments differ only in their ends
-           dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=r%gpaths%rad,rgb=r%gpaths%rgb)
+           if (beads) then
+              call obj%reserve(nsph = obj%nsph + nitem)
+              dsph = dl_sphere(x=0._c_float,r=r%gpaths%rad,rgb=r%gpaths%rgb,idx=0,&
+                 xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
+                 rgbborder=r%gpaths%rgb)
+           else
+              call obj%reserve(ncyl = obj%ncyl + nitem)
+              ! the path segments differ only in their ends
+              dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=r%gpaths%rad,rgb=r%gpaths%rgb)
+           end if
+           if (r%gpaths%showends) then
+              ! the cell atom (and lattice vector) of each nucleus in the
+              ! CP list: the nuclei are the first ncel CPs, but sorted by
+              ! symmetry-unique atom, not necessarily in the cell atom order
+              allocate(nucmap(c%ncel),nucoff(3,c%ncel))
+              nucmap = 0
+              nucoff = 0
+              do i = 1, c%ncel
+                 do jat = 1, c%ncel
+                    if (c%atcel(jat)%idx /= f%cpcel(i)%idx) cycle
+                    xf = f%cpcel(i)%x - c%atcel(jat)%x
+                    if (any(abs(xf - nint(xf)) > 1d-4)) cycle
+                    nucmap(i) = jat
+                    nucoff(:,i) = nint(xf)
+                    exit
+                 end do
+              end do
+
+              ! each image of an end atom only once (lshown is free here:
+              ! a gradient paths object draws no atoms otherwise)
+              if (allocated(lshown)) deallocate(lshown)
+              allocate(lshown(c%ncel,-1:nc(1),-1:nc(2),-1:nc(3)))
+              lshown = .false.
+           end if
         case default
            call obj%reserve(nsph = obj%nsph + nitem)
         end select
@@ -2771,9 +2785,24 @@ contains
               t = c%rotm(:,4,f%cpcel(icp)%ir) + c%cen(:,f%cpcel(icp)%ic) + f%cpcel(icp)%lvec
               do j = 1, 2
                  np(j) = f%cpgp(j,i)%n
-                 if (np(j) < 2) cycle
+                 iend(j) = 0
+                 if (np(j) < 2) then
+                    np(j) = 0
+                    cycle
+                 end if
                  xpath(j)%x = real(matmul(c%m_x2c,matmul(c%rotm(1:3,1:3,f%cpcel(icp)%ir),&
                     f%cpgp(j,i)%x(:,1:np(j))) + spread(t,2,np(j))),c_float)
+
+                 ! the atom at the end of this bond path, if it is a
+                 ! nucleus: the attractor in the CP list, mapped to its
+                 ! cell atom (main image of this BCP)
+                 if (r%gpaths%showends) then
+                    jat = f%cpcel(icp)%ipath(j)
+                    if (jat >= 1 .and. jat <= c%ncel) then
+                       iend(j) = nucmap(jat)
+                       lend(:,j) = f%cpcel(icp)%ilvec(:,j) + nucoff(:,jat)
+                    end if
+                 end if
               end do
            end if
 
@@ -2794,14 +2823,32 @@ contains
                        call append_label(c%x2c(xf),(/(0d0,0d0),(0d0,0d0),(0d0,0d0)/),&
                           real(cps_rad_def,8),r%labels%scale_cp,r%labels%style%cpstr(irow),(/j1,j2,j3/)+vshift)
                     elseif (mode == cpitem_path) then
-                       ! the image offset, then the segments
+                       ! the image offset, then the segments or spheres
                        dx = real(c%x2c(real((/j1,j2,j3/) + vshift,8)),c_float)
                        do j = 1, 2
-                          do k = 1, np(j)-1
-                             dpath%x1 = xpath(j)%x(:,k) + dx
-                             dpath%x2 = xpath(j)%x(:,k+1) + dx
-                             call dl_append(obj%cyl,obj%ncyl,dpath)
-                          end do
+                          if (beads) then
+                             ! both paths start at the BCP: draw it once
+                             do k = merge(2,1,j == 2), np(j)
+                                dsph%x = xpath(j)%x(:,k) + dx
+                                call dl_append(obj%sph,obj%nsph,dsph)
+                             end do
+                          else
+                             do k = 1, np(j)-1
+                                dpath%x1 = xpath(j)%x(:,k) + dx
+                                dpath%x2 = xpath(j)%x(:,k+1) + dx
+                                call dl_append(obj%cyl,obj%ncyl,dpath)
+                             end do
+                          end if
+
+                          ! the atom at the end of this bond path
+                          if (iend(j) > 0) then
+                             lx = lend(:,j) + (/j1,j2,j3/) + vshift
+                             call check_lshown(iend(j),lx(1),lx(2),lx(3))
+                             if (.not.lshown(iend(j),lx(1),lx(2),lx(3))) then
+                                lshown(iend(j),lx(1),lx(2),lx(3)) = .true.
+                                call append_forced_atom(iend(j),lx,.false.)
+                             end if
+                          end if
                        end do
                     else
                        dsph = dl_sphere(x=real(c%x2c(xf),c_float),r=r%cps%radscale*r%cps%rad(it),rgb=r%cps%rgb(:,it),&
@@ -2814,6 +2861,7 @@ contains
               end do
            end do
         end do
+
       end associate
 
     end subroutine add_cp_items
@@ -3970,6 +4018,43 @@ contains
       call dl_append(obj%triangle,obj%ntriangle,dtri)
 
     end subroutine append_triangle
+
+    !> Append the sphere of cell atom iat at lattice translation ix,
+    !> with this object's atom colors and radii (r%atoms%style), border,
+    !> occupancy pie, and vibration displacement; also the molecule tint
+    !> and radius scale if usemol. For the atoms another kind forces into
+    !> the picture (polyhedra corners, bond path ends).
+    subroutine append_forced_atom(iat,ix,usemol)
+      integer, intent(in) :: iat
+      integer, intent(in) :: ix(3)
+      logical, intent(in) :: usemol
+
+      integer :: idc, imolc
+      real(c_float) :: occa, piecuma(3), piergba(3,3)
+      type(dl_sphere) :: ds
+
+      idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,iat)
+      ds%rgb = r%atoms%style%rgb(:,idc)
+      ds%r = real(r%atoms%style%rad(idc),c_float)
+      if (usemol) then
+         imolc = c%idatcelmol(1,iat)
+         ds%rgb = ds%rgb * r%mols%style%tint_rgb(:,imolc)
+         ds%r = real(r%atoms%style%rad(idc) * r%mols%style%scale_rad(imolc),c_float)
+      end if
+      call mixpie(c%atcel(iat)%idx,occa,piecuma,piergba)
+      ds%x = real(c%x2c(c%atcel(iat)%x + ix),c_float)
+      ds%idx(1) = iat
+      ds%idx(2:4) = ix
+      ds%xdelta = cmplx(vibdelta(iat,ix),kind=c_float_complex)
+      ds%border = real(r%atoms%border_size,c_float)
+      ds%rgbborder = r%atoms%border_rgb
+      ds%occ = occa
+      ds%occ_empty_rgb = r%atoms%occ_empty_rgb
+      ds%pie_cum = piecuma
+      ds%pie_rgb = piergba
+      call dl_append(obj%sph,obj%nsph,ds)
+
+    end subroutine append_forced_atom
 
     !> Vibration displacement of the periodic image of cell atom iat at
     !> lattice translation ix; zero if there is no selected mode (the phasors

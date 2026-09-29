@@ -4007,22 +4007,26 @@ contains
   !> Draw the editrep window, gradient paths class. Returns true if
   !> the representation has changed.
   module function draw_editrep_gpaths(w,ttshown) result(changed)
-    use systems, only: sys
+    use systems, only: sys, sysc, atlisttype_species
+    use gui_main, only: ColorHighlightScene
     use representations, only: gpaths_rad_def, field_has_cps
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
-       iw_field_combo, iw_calcwidth
+       iw_field_combo, iw_calcwidth, iw_combo_simple, iw_checkbox
     use param, only: bohrtoa
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: isys, ifield
-    logical :: ch
+    integer :: isys, ifield, ihighlight, highlight_type
+    integer(c_int) :: istyle
+    logical :: ch, typechanged
 
     ! initialize
     changed = .false.
     isys = w%isys
+    ihighlight = 0
+    highlight_type = atlisttype_species
 
     ! field selector
     call iw_text("Field",highlight=.true.)
@@ -4042,17 +4046,46 @@ contains
        call iw_text("This field has no bond paths (run AUTO, or load a checkpoint that has them)",&
           disabled=.true.,wrap=.true.)
 
-    ! color and radius
+    ! style, color and radius
     call iw_text("Bond paths",highlight=.true.)
+    istyle = int(w%rep%gpaths%style,c_int)
+    call iw_combo_simple("Style##gpathsstyle","Continuous path" // c_null_char //&
+       "String of spheres" // c_null_char,istyle,changed=ch)
+    call iw_tooltip("Draw the paths as continuous tubes or as a string of spheres, one per path point",&
+       ttshown)
+    ! the combo items are in the order of the gpaths_style_* values
+    if (ch) then
+       w%rep%gpaths%style = int(istyle)
+       changed = .true.
+    end if
     ch = iw_coloredit("##gpathscolor",rgb=w%rep%gpaths%rgb)
     call iw_tooltip("Color of the bond paths",ttshown)
     changed = changed .or. ch
     ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
        min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
        sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the bond path tubes in Å (default " //&
+    call iw_tooltip("Radius of the bond path tubes or spheres in Å (default " //&
        string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
     changed = changed .or. ch
+
+    ! the atoms at the ends of the bond paths, with the colors and radii
+    ! of this object (the table below, shown only when they are drawn)
+    ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
+    changed = changed .or. ch
+    call iw_tooltip("Also draw the atoms at the ends of the bond paths, with the colors and radii "//&
+       "in the table below.",ttshown)
+    if (w%rep%gpaths%showends) then
+       ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
+          rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)
+       if (typechanged) call w%rep%atoms%style%reset(w%rep)
+       changed = changed .or. ch .or. typechanged
+    end if
+
+    ! process transient highlights
+    if (ihighlight > 0) then
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),highlight_type,&
+          reshape(ColorHighlightScene,(/4,1/)))
+    end if
 
   end function draw_editrep_gpaths
 

@@ -765,13 +765,22 @@ module representations
   ! default radius of the gradient path tubes (0.04 Å, in bohr)
   real(c_float), parameter, public :: gpaths_rad_def = real(0.04d0 / bohrtoa,c_float)
 
+  ! gradient path drawing styles
+  integer, parameter, public :: gpaths_style_tube = 0 ! continuous tube (cylinders between the points)
+  integer, parameter, public :: gpaths_style_beads = 1 ! a string of spheres (one per point)
+
   !> Gradient path display options (reptype_gpaths; accessed as
   !> r%gpaths%...). The bond paths of the BCPs of field ifield (from
-  !> AUTO or the CP checkpoint, f%cpgp) are drawn as tubes of radius rad.
+  !> AUTO or the CP checkpoint, f%cpgp) are drawn as tubes or strings
+  !> of spheres of radius rad. If showends, the atoms at the ends of
+  !> the bond paths are drawn too, with this object's atom colors and
+  !> radii (r%atoms%style).
   type rep_gpaths
      integer :: ifield = 0 ! field whose gradient paths are drawn (index in sys(id)%f)
      real(c_float) :: rgb(3) = 1._c_float ! color of the paths
-     real(c_float) :: rad = gpaths_rad_def ! tube radius (bohr)
+     real(c_float) :: rad = gpaths_rad_def ! tube or sphere radius (bohr)
+     integer :: style = gpaths_style_tube ! drawing style (gpaths_style_*)
+     logical :: showends = .false. ! draw the atoms at the ends of the bond paths
   end type rep_gpaths
   public :: rep_cps
 
