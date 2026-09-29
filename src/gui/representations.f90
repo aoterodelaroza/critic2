@@ -770,17 +770,29 @@ module representations
   integer, parameter, public :: gpaths_style_beads = 1 ! a string of spheres (one per point)
 
   !> Gradient path display options (reptype_gpaths; accessed as
-  !> r%gpaths%...). The bond paths of the BCPs of field ifield (from
-  !> AUTO or the CP checkpoint, f%cpgp) are drawn as tubes or strings
-  !> of spheres of radius rad. If showends, the atoms at the ends of
-  !> the bond paths are drawn too, with this object's atom colors and
-  !> radii (r%atoms%style).
+  !> r%gpaths%...). The gradient paths of field ifield (for now the
+  !> bond paths of its BCPs, from AUTO or the CP checkpoint, f%cpgp)
+  !> are drawn as tubes or strings of spheres. Each path (j = 1,2 of
+  !> the symmetry-unique CP i) has its own color prgb(:,j,i) and radius
+  !> prad(j,i); rgb and rad are the global values the editor applies to
+  !> all of them, and the values of the paths after a reset. If
+  !> showends, the atoms at the ends of the bond paths are drawn too,
+  !> with this object's atom colors and radii (r%atoms%style).
   type rep_gpaths
      integer :: ifield = 0 ! field whose gradient paths are drawn (index in sys(id)%f)
-     real(c_float) :: rgb(3) = 1._c_float ! color of the paths
-     real(c_float) :: rad = gpaths_rad_def ! tube or sphere radius (bohr)
+     real(c_float) :: rgb(3) = 1._c_float ! color of all paths (global)
+     real(c_float) :: rad = gpaths_rad_def ! tube or sphere radius of all paths (global, bohr)
      integer :: style = gpaths_style_tube ! drawing style (gpaths_style_*)
-     logical :: showends = .false. ! draw the atoms at the ends of the bond paths
+     logical :: showends = .true. ! draw the atoms at the ends of the bond paths
+     integer :: pfield = -1 ! field of the per-path values
+     real*8 :: ptime = -1d0 ! time of the last check of the per-path values
+     real*8, allocatable :: pcpx(:,:) ! positions of the CPs the values are for (3,ncp)
+     real(c_float), allocatable :: prgb(:,:,:) ! color of each path (3,2,ncp)
+     real(c_float), allocatable :: prad(:,:) ! radius of each path (2,ncp, bohr)
+   contains
+     procedure :: reset_paths => gpaths_reset_paths
+     procedure :: paths_ok => gpaths_paths_ok
+     procedure :: fill_rgb => gpaths_fill_rgb
   end type rep_gpaths
   public :: rep_cps
 
@@ -1146,6 +1158,18 @@ module representations
        class(label_geom_style), intent(inout) :: d
        type(representation), intent(in) :: r
      end subroutine label_style_reset_cps
+     module subroutine gpaths_reset_paths(g,isys)
+       class(rep_gpaths), intent(inout) :: g
+       integer, intent(in) :: isys
+     end subroutine gpaths_reset_paths
+     module function gpaths_paths_ok(g,isys) result(ok)
+       class(rep_gpaths), intent(in) :: g
+       integer, intent(in) :: isys
+       logical :: ok
+     end function gpaths_paths_ok
+     module subroutine gpaths_fill_rgb(g)
+       class(rep_gpaths), intent(inout) :: g
+     end subroutine gpaths_fill_rgb
      module subroutine label_style_end(d)
        class(label_geom_style), intent(inout) :: d
      end subroutine label_style_end

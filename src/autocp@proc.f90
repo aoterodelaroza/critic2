@@ -2183,6 +2183,7 @@ contains
                      xdis(3,j,i) < cr%molborder(3) .or. xdis(3,j,i) > (1d0-cr%molborder(3)))) then
                      f%cp(i)%ipath(j) = -1
                   else
+                     f%cp(i)%ipath(j) = 0
                      f%cp(i)%ilvec(:,j) = 0
                   endif
                   ! no attractor for the complete list either (a previous

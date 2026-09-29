@@ -360,7 +360,10 @@ contains
     do irep = 1, s%nrep
        call s%rep(irep)%atoms%style%reset_colors(s%rep(irep))
        if (s%rep(irep)%type == reptype_cps) s%rep(irep)%cps%rgb = ColorCP
-       if (s%rep(irep)%type == reptype_gpaths) s%rep(irep)%gpaths%rgb = ColorGpath
+       if (s%rep(irep)%type == reptype_gpaths) then
+          s%rep(irep)%gpaths%rgb = ColorGpath
+          call s%rep(irep)%gpaths%fill_rgb()
+       end if
     end do
     s%forcebuildlists = .true.
 

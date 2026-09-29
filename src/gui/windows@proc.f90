@@ -1866,22 +1866,22 @@ contains
 
   end function atom_view_rgb
 
-  !> Color rgb of critical point icel (complete CP list) of field ifield
+  !> Color rgb of critical point icp (symmetry-unique CP list) of field ifield
   !> of system isys in view window iview: the color of its type in the
   !> view's critical points object for that field, or the preferences
   !> color if there is none. Returns false if the CP type is unknown.
-  module function cp_view_rgb(iview,isys,ifield,icel,rgb) result(have)
+  module function cp_view_rgb(iview,isys,ifield,icp,rgb) result(have)
     use representations, only: reptype_cps
     use systems, only: sys
     use gui_main, only: ColorCP
-    integer, intent(in) :: iview, isys, ifield, icel
+    integer, intent(in) :: iview, isys, ifield, icp
     real(c_float), intent(out) :: rgb(3)
     logical :: have
 
     integer :: it, jrep
 
     rgb = 0._c_float
-    it = sys(isys)%f(ifield)%cp(sys(isys)%f(ifield)%cpcel(icel)%idx)%typind
+    it = sys(isys)%f(ifield)%cp(icp)%typind
     have = (it >= 0 .and. it <= 3)
     if (.not.have) return
     rgb = ColorCP(:,it)
@@ -1954,7 +1954,7 @@ contains
   module function draw_anchor_button(iview,isys,idx,strid,sameline,disabled,inert,lbl,stamp)&
      result(pressed)
     use utils, only: iw_atom_button
-    use systems, only: atlisttype_ncel_frac, cp_anchor_resolve
+    use systems, only: sys, atlisttype_ncel_frac, cp_anchor_resolve
     integer, intent(in) :: iview, isys
     integer(c_int), intent(in) :: idx(4)
     character(len=*), intent(in) :: strid
@@ -1981,7 +1981,7 @@ contains
        if (idx(1) > 0) then
           havergb = atom_view_rgb(iview,isys,atlisttype_ncel_frac,idx(1),rgb)
        elseif (cp_anchor_resolve(isys,idx(1),ifield,icel,loff)) then
-          havergb = cp_view_rgb(iview,isys,ifield,icel,rgb)
+          havergb = cp_view_rgb(iview,isys,ifield,sys(isys)%f(ifield)%cpcel(icel)%idx,rgb)
        end if
     end if
 

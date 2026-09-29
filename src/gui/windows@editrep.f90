@@ -4007,30 +4007,40 @@ contains
   !> Draw the editrep window, gradient paths class. Returns true if
   !> the representation has changed.
   module function draw_editrep_gpaths(w,ttshown) result(changed)
-    use systems, only: sys, sysc, atlisttype_species
+    use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq
     use gui_main, only: ColorHighlightScene
     use representations, only: gpaths_rad_def, field_has_cps
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
-       iw_field_combo, iw_calcwidth, iw_combo_simple, iw_checkbox
+       iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
+       iw_table_column, iw_table_headers_row, iw_atom_button
     use param, only: bohrtoa
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: isys, ifield, ihighlight, highlight_type
-    integer(c_int) :: istyle
-    logical :: ch, typechanged
+    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, npath, ncol
+    integer, allocatable :: ipath(:,:)
+    integer(c_int) :: istyle, flags
+    logical :: ch, typechanged, pathsok
+    real(c_float) :: xcol
+    character(kind=c_char,len=:), allocatable, target :: str1, suffix
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+    type(ImVec2) :: sz
 
     ! initialize
     changed = .false.
     isys = w%isys
+    iview = w%anchor_view()
     ihighlight = 0
     highlight_type = atlisttype_species
 
+    ! the widgets start at one column, after the longest label
+    xcol = igGetCursorPosX() + iw_calcwidth(len("Radius (Å)"),0)
+
     ! field selector
-    call iw_text("Field",highlight=.true.)
-    call igSameLine(0._c_float,-1._c_float)
+    call label("Field")
     ifield = w%rep%gpaths%ifield
     if (iw_field_combo("##gpathsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
        nonestr="<field not available>")) then
@@ -4043,13 +4053,13 @@ contains
        return
     end if
     if (.not.field_has_cps(isys,w%rep%gpaths%ifield,withpaths=.true.)) &
-       call iw_text("This field has no bond paths (run AUTO, or load a checkpoint that has them)",&
+       call iw_text("This field has no gradient paths (run AUTO, or load a checkpoint that has them)",&
           disabled=.true.,wrap=.true.)
 
-    ! style, color and radius
-    call iw_text("Bond paths",highlight=.true.)
+    ! style of all paths
+    call label("Style")
     istyle = int(w%rep%gpaths%style,c_int)
-    call iw_combo_simple("Style##gpathsstyle","Continuous path" // c_null_char //&
+    call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
        "String of spheres" // c_null_char,istyle,changed=ch)
     call iw_tooltip("Draw the paths as continuous tubes or as a string of spheres, one per path point",&
        ttshown)
@@ -4058,15 +4068,27 @@ contains
        w%rep%gpaths%style = int(istyle)
        changed = .true.
     end if
+
+    ! global color and radius: set those of all paths
+    pathsok = w%rep%gpaths%paths_ok(isys)
+    call label("Color")
     ch = iw_coloredit("##gpathscolor",rgb=w%rep%gpaths%rgb)
-    call iw_tooltip("Color of the bond paths",ttshown)
-    changed = changed .or. ch
-    ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
+    call iw_tooltip("Color of all gradient paths (sets the color of every path in the table below)",ttshown)
+    if (ch) then
+       call w%rep%gpaths%fill_rgb()
+       changed = .true.
+    end if
+    call label("Radius (Å)")
+    ch = iw_dragfloat_realc("##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
        min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-       sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the bond path tubes or spheres in Å (default " //&
-       string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
-    changed = changed .or. ch
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the tubes or spheres of all gradient paths in Å (sets the radius of every "//&
+       "path in the table below; default " // string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",&
+       ttshown)
+    if (ch) then
+       if (pathsok) w%rep%gpaths%prad = w%rep%gpaths%rad
+       changed = .true.
+    end if
 
     ! the atoms at the ends of the bond paths, with the colors and radii
     ! of this object (the table below, shown only when they are drawn)
@@ -4081,11 +4103,142 @@ contains
        changed = changed .or. ch .or. typechanged
     end if
 
+    ! the table of gradient paths: one row per path of each
+    ! symmetry-unique CP (for now, the two bond paths of each BCP)
+    if (pathsok) then
+       associate(f => sys(isys)%f(w%rep%gpaths%ifield))
+         npath = 0
+         allocate(ipath(2,2*f%ncp))
+         do i = sys(isys)%c%nneq+1, f%ncp
+            do j = 1, 2
+               if (f%cpgp(j,i)%n < 2) cycle
+               npath = npath + 1
+               ipath(:,npath) = (/j,i/)
+            end do
+         end do
+       end associate
+    else
+       npath = 0
+    end if
+    if (npath > 0) then
+       call iw_text("Gradient Paths",highlight=.true.)
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1 = "##tablegpaths" // c_null_char
+       sz%x = 0._c_float
+       sz%y = iw_calcheight(min(10,npath+1),0,.false.)
+       if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
+          ncol = -1
+          call iw_table_column("Id",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("End 2",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+          clipper = ImGuiListClipper_ImGuiListClipper()
+          call ImGuiListClipper_Begin(clipper,npath,-1._c_float)
+          do while(ImGuiListClipper_Step(clipper))
+             call c_f_pointer(clipper,clipper_f)
+             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                call draw_path_row(k,ipath(1,k),ipath(2,k))
+             end do
+          end do
+          call ImGuiListClipper_End(clipper)
+          call ImGuiListClipper_destroy(clipper)
+          call igEndTable()
+       end if
+    end if
+
     ! process transient highlights
     if (ihighlight > 0) then
        call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),highlight_type,&
           reshape(ColorHighlightScene,(/4,1/)))
     end if
+
+  contains
+    !> A label in the label column; the widget follows at xcol.
+    subroutine label(str)
+      character(len=*), intent(in) :: str
+
+      call iw_text(str,alignframe=.true.)
+      call igSameLine(xcol,-1._c_float)
+
+    end subroutine label
+
+    !> Row k of the table: path j of the symmetry-unique CP i.
+    subroutine draw_path_row(k,j,i)
+      integer, intent(in) :: k, j, i
+
+      integer :: iend, id
+      real(c_float) :: rgb(3)
+      logical :: have, ldum
+
+      suffix = "_" // string(k)
+      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield))
+        ! id
+        if (igTableSetColumnIndex(0_c_int)) call iw_text(string(k),alignframe=.true.)
+
+        ! color and radius of this path
+        if (igTableSetColumnIndex(1_c_int)) then
+           ch = iw_coloredit("##gpathsrowcolor" // suffix,rgb=w%rep%gpaths%prgb(:,j,i))
+           call iw_tooltip("Color of this gradient path",ttshown)
+           changed = changed .or. ch
+        end if
+        if (igTableSetColumnIndex(2_c_int)) then
+           ch = iw_dragfloat_realc("##gpathsrowrad" // suffix,x1=w%rep%gpaths%prad(j,i),speed=0.002_c_float,&
+              min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+              flags=ImGuiSliderFlags_AlwaysClamp)
+           call iw_tooltip("Radius of this gradient path in Å",ttshown)
+           changed = changed .or. ch
+        end if
+
+        ! the ends: the CP the path starts from (a BCP)...
+        if (igTableSetColumnIndex(3_c_int)) call cp_badge(i,"##gpathsend1")
+
+        ! ... and the one it ends at (a nucleus, in the color this
+        ! object draws it with; or a non-nuclear attractor; none if it
+        ! leaves the molecule)
+        if (igTableSetColumnIndex(4_c_int)) then
+           iend = f%cp(i)%ipath(j)
+           if (iend >= 1 .and. iend <= c%nneq) then
+              id = sysc(isys)%attype_type_id_to_id(atlisttype_nneq,iend,w%rep%atoms%style%type)
+              have = (id >= 1 .and. id <= w%rep%atoms%style%ntype)
+              rgb = 0._c_float
+              if (have) rgb = w%rep%atoms%style%rgb(:,id)
+              ldum = iw_atom_button(trim(c%at(iend)%name) // "##gpathsend2" // suffix,rgb,&
+                 havergb=have,inert=.true.)
+           elseif (iend > c%nneq .and. iend <= f%ncp) then
+              call cp_badge(iend,"##gpathsend2")
+           elseif (iend == -1) then
+              call iw_text("(leaves the molecule)",disabled=.true.)
+           else
+              call iw_text("?",disabled=.true.)
+           end if
+        end if
+      end associate
+
+    end subroutine draw_path_row
+
+    !> The badge of symmetry-unique CP icp of the field, in its view
+    !> color; tag tells apart the badges of one row.
+    subroutine cp_badge(icp,tag)
+      integer, intent(in) :: icp
+      character(len=*), intent(in) :: tag
+
+      real(c_float) :: rgb(3)
+      logical :: have, ldum
+
+      have = cp_view_rgb(iview,isys,w%rep%gpaths%ifield,icp,rgb)
+      ldum = iw_atom_button(trim(sys(isys)%f(w%rep%gpaths%ifield)%cp(icp)%name) // tag // suffix,rgb,&
+         havergb=have,inert=.true.)
+
+    end subroutine cp_badge
 
   end function draw_editrep_gpaths
 

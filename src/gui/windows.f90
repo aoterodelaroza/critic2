@@ -1007,8 +1007,8 @@ module windows
        real(c_float), intent(out) :: rgb(3)
        logical :: have
      end function atom_view_rgb
-     module function cp_view_rgb(iview,isys,ifield,icel,rgb) result(have)
-       integer, intent(in) :: iview, isys, ifield, icel
+     module function cp_view_rgb(iview,isys,ifield,icp,rgb) result(have)
+       integer, intent(in) :: iview, isys, ifield, icp
        real(c_float), intent(out) :: rgb(3)
        logical :: have
      end function cp_view_rgb

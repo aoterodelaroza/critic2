@@ -1754,6 +1754,12 @@ contains
        ! gradient paths: the same, preferring a field with bond paths
        if (.not.sys(r%id)%goodfield(r%gpaths%ifield)) &
           r%gpaths%ifield = cps_field_default(r%id,withpaths=.true.)
+
+       ! per-path colors and radii: if the CP list may have changed or
+       ! the field changed
+       doreset = (r%gpaths%pfield /= r%gpaths%ifield)
+       doreset = doreset .or. (sysc(r%id)%timelastchange_cplist > r%gpaths%ptime)
+       if (doreset) call r%gpaths%reset_paths(r%id)
     end if
 
   end subroutine update_styles
@@ -2693,7 +2699,7 @@ contains
       real(c_float) :: dx(3)
       integer :: np(2), iend(2), lend(3,2), lx(3), jat
       integer, allocatable :: nucmap(:), nucoff(:,:)
-      logical :: beads
+      logical :: beads, pathsok
       type(dl_cylinder) :: dpath
       type(cartpath) :: xpath(2)
 
@@ -2715,6 +2721,8 @@ contains
         ! presize for the shown CPs, one item each (a path segment or
         ! sphere each for the paths); dl_append absorbs the border images
         beads = (mode == cpitem_path .and. r%gpaths%style == gpaths_style_beads)
+        pathsok = .false.
+        if (mode == cpitem_path) pathsok = r%gpaths%paths_ok(r%id)
         nitem = 0
         do icp = c%ncel+1, f%ncpcel
            if (cp_item_row(ifield,mode,icp) == 0) cycle
@@ -2826,6 +2834,14 @@ contains
                        ! the image offset, then the segments or spheres
                        dx = real(c%x2c(real((/j1,j2,j3/) + vshift,8)),c_float)
                        do j = 1, 2
+                          ! this path's color and radius
+                          if (pathsok) then
+                             dsph%rgb = r%gpaths%prgb(:,j,i)
+                             dsph%rgbborder = dsph%rgb
+                             dsph%r = r%gpaths%prad(j,i)
+                             dpath%rgb = r%gpaths%prgb(:,j,i)
+                             dpath%r = r%gpaths%prad(j,i)
+                          end if
                           if (beads) then
                              ! both paths start at the BCP: draw it once
                              do k = merge(2,1,j == 2), np(j)
@@ -4593,6 +4609,68 @@ contains
     end do
 
   end subroutine label_style_reset
+
+  !> Reset the per-path colors and radii of the gradient paths object
+  !> to its global values, for the CP list of its field ifield in
+  !> system isys (unallocated if the field has no paths). The values
+  !> are kept if they are for the same field and the same CPs: the
+  !> system's CP-list event also fires for changes to other fields and
+  !> for console commands that change nothing.
+  module subroutine gpaths_reset_paths(g,isys)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys
+    class(rep_gpaths), intent(inout) :: g
+    integer, intent(in) :: isys
+
+    integer :: n
+
+    g%ptime = glfwGetTime()
+    if (g%paths_ok(isys)) then
+       associate(f => sys(isys)%f(g%ifield))
+         if (all(abs(g%pcpx - reshape((/(f%cp(n)%x,n=1,f%ncp)/),(/3,f%ncp/))) < 1d-8)) return
+       end associate
+    end if
+
+    g%pfield = g%ifield
+    if (allocated(g%pcpx)) deallocate(g%pcpx)
+    if (allocated(g%prgb)) deallocate(g%prgb)
+    if (allocated(g%prad)) deallocate(g%prad)
+    if (.not.field_has_cps(isys,g%ifield,withpaths=.true.)) return
+    associate(f => sys(isys)%f(g%ifield))
+      allocate(g%pcpx(3,f%ncp),g%prgb(3,2,f%ncp),g%prad(2,f%ncp))
+      g%pcpx = reshape((/(f%cp(n)%x,n=1,f%ncp)/),(/3,f%ncp/))
+    end associate
+    call g%fill_rgb()
+    g%prad = g%rad
+
+  end subroutine gpaths_reset_paths
+
+  !> Whether the per-path colors and radii of the gradient paths object
+  !> are for a CP list of the size of its field's (system isys).
+  module function gpaths_paths_ok(g,isys) result(ok)
+    use systems, only: sys
+    class(rep_gpaths), intent(in) :: g
+    integer, intent(in) :: isys
+    logical :: ok
+
+    ok = allocated(g%prgb) .and. (g%pfield == g%ifield)
+    if (ok) ok = field_has_cps(isys,g%ifield,withpaths=.true.)
+    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%ifield)%ncp)
+
+  end function gpaths_paths_ok
+
+  !> Set the color of every path to the global color.
+  module subroutine gpaths_fill_rgb(g)
+    class(rep_gpaths), intent(inout) :: g
+
+    integer :: k
+
+    if (.not.allocated(g%prgb)) return
+    do k = 1, 3
+       g%prgb(k,:,:) = g%rgb(k)
+    end do
+
+  end subroutine gpaths_fill_rgb
 
   !> Reset the critical point rows of the label style from the
   !> non-nuclear CPs of field r%labels%ifield: one row per CP type
