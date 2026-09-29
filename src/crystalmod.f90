@@ -322,7 +322,10 @@ module crystalmod
      ! --> These two are equal:
      ! c%mol(idatcelmol(1,i))%at(idatcelmol(2,i))%x
      ! c%atcel(i)%x + c%mol(idatcelmol(1))%at(idatcelmol(2))%lvec
-
+     integer, allocatable :: lvecmolc(:,:) !< (3,ncel) c%atcel(i)%x + lvecmolc(:,i) = connected placement
+     ! of the molecule of cell atom i. It equals the %lvec of the fragment atoms up to a common
+     ! shift for discrete molecules, but not for non-discrete ones (whose %lvec keep the core in
+     ! the main cell).
      ! vibrations
      type(vibrations) :: vib !< molecular/crystal vibrations
    contains

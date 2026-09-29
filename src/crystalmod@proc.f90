@@ -100,6 +100,7 @@ contains
     c%vacbot = 0d0
     c%vactop = 0d0
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
+    if (allocated(c%lvecmolc)) deallocate(c%lvecmolc)
 
     ! no 3d molecular crystals
     c%ismol3d = .false.
@@ -128,6 +129,7 @@ contains
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
+    if (allocated(c%lvecmolc)) deallocate(c%lvecmolc)
     c%isinit = .false.
     c%havesym = 0
     c%file = ""

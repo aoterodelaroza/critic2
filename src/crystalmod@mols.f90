@@ -149,12 +149,13 @@ contains
     c%ismol3d = .false.
     if (allocated(c%mol)) deallocate(c%mol)
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
+    if (allocated(c%lvecmolc)) deallocate(c%lvecmolc)
     if (c%ncel == 0) return
 
     ! checks and allocate
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
-    allocate(c%idatcelmol(2,c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20))
+    allocate(c%idatcelmol(2,c%ncel),c%lvecmolc(3,c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20))
     allocate(nlmol(20),lmoloff(20),imem(c%ncel))
     nlmol = 0
     lmoloff = 0
@@ -186,9 +187,13 @@ contains
        ntot = ntot + nlv
        do j = 1, mnat
           c%idatcelmol(1,mid(j)) = c%nmol
-          lvec(:,mid(j)) = mlvec(:,j)
+          c%lvecmolc(:,mid(j)) = mlvec(:,j)
        end do
     end do
+
+    ! the per-atom lattice vectors of the fragments: the connected
+    ! placement, except for the non-discrete fragments below
+    lvec = c%lvecmolc
 
     ! for non-discrete fragments, recompute the per-atom lattice vectors so
     ! that dangling pieces split off by the cell boundary are translated to

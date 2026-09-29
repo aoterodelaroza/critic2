@@ -2697,7 +2697,7 @@ contains
       logical :: bord, tsh, vac(3)
       real*8 :: ui(3), ue(3), xf(3), t(3)
       real(c_float) :: dx(3)
-      integer :: np(2), iend(2), lend(3,2), lx(3), jat
+      integer :: np(2), iend(2), lend(3,2), lx(3)
       logical :: beads, pathsok, hov(2)
       type(dl_cylinder) :: dpath
       type(cartpath) :: xpath(2)
@@ -2795,13 +2795,8 @@ contains
                  ! the atom at the end of this bond path, if it is a
                  ! nucleus: the attractor in the CP list, mapped to its
                  ! cell atom (main image of this BCP)
-                 if (r%gpaths%showends .and. pathsok) then
-                    jat = f%cpcel(icp)%ipath(j)
-                    if (jat >= 1 .and. jat <= c%ncel) then
-                       iend(j) = r%gpaths%pnuc(jat)
-                       lend(:,j) = f%cpcel(icp)%ilvec(:,j) + r%gpaths%pnucoff(:,jat)
-                    end if
-                 end if
+                 if (r%gpaths%showends .and. pathsok) &
+                    call r%gpaths%path_end(r%id,icp,j,iend(j),lend(:,j))
               end do
            end if
 
@@ -4701,6 +4696,30 @@ contains
        (size(g%pnuc) == sys(isys)%c%ncel)
 
   end function gpaths_paths_ok
+
+  !> The atom at the end of path j of cell CP icp of the gradient paths
+  !> object's field (system isys): its cell atom iat and lattice vector
+  !> lvec, in the frame of the main image of the CP; iat = 0 if the path
+  !> does not end at a nucleus. Requires paths_ok.
+  module subroutine gpaths_path_end(g,isys,icp,j,iat,lvec)
+    use systems, only: sys
+    class(rep_gpaths), intent(in) :: g
+    integer, intent(in) :: isys, icp, j
+    integer, intent(out) :: iat
+    integer, intent(out) :: lvec(3)
+
+    integer :: iend
+
+    iat = 0
+    lvec = 0
+    associate(f => sys(isys)%f(g%ifield))
+      iend = f%cpcel(icp)%ipath(j)
+      if (iend < 1 .or. iend > sys(isys)%c%ncel) return
+      iat = g%pnuc(iend)
+      lvec = f%cpcel(icp)%ilvec(:,j) + g%pnucoff(:,iend)
+    end associate
+
+  end subroutine gpaths_path_end
 
   !> Set the color of every path to the global color.
   module subroutine gpaths_fill_rgb(g)

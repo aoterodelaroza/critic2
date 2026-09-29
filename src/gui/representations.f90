@@ -796,10 +796,12 @@ module representations
      integer, allocatable :: pcopy(:) ! (ncpcel)
      integer :: ihover(3) = 0 ! path under the mouse in the editor tables, drawn highlighted: ! (j, symmetry-unique CP i, 0) highlights all its cell copies, ! (j, 0, cell CP icp) that one (0 = none)
      integer :: tablecell = 0 ! editor table: paths of the symmetry-unique CPs (0) or of the cell CPs (1)
+     real(c_float) :: fthr = 0.01_c_float ! editor: field value at the BCP that selects paths above/below it
    contains
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok
      procedure :: fill_rgb => gpaths_fill_rgb
+     procedure :: path_end => gpaths_path_end
   end type rep_gpaths
   public :: rep_cps
 
@@ -1177,6 +1179,12 @@ module representations
      module subroutine gpaths_fill_rgb(g)
        class(rep_gpaths), intent(inout) :: g
      end subroutine gpaths_fill_rgb
+     module subroutine gpaths_path_end(g,isys,icp,j,iat,lvec)
+       class(rep_gpaths), intent(in) :: g
+       integer, intent(in) :: isys, icp, j
+       integer, intent(out) :: iat
+       integer, intent(out) :: lvec(3)
+     end subroutine gpaths_path_end
      module subroutine label_style_end(d)
        class(label_geom_style), intent(inout) :: d
      end subroutine label_style_end

@@ -22,6 +22,7 @@ submodule (crystalmod) env
   !xx! private procedures
   ! subroutine make_block_shell(c,n,nb,idb,dmax)
   ! subroutine blocks_inscribed_sphere(c,x,rmax,i0,i1)
+  ! function lvec_in_span(n,l,d)
 
 contains
 
@@ -1226,22 +1227,92 @@ contains
     integer, intent(in) :: il(3), jl(3)
     logical :: in_same_molecule
 
-    integer :: imol, jmol
+    integer :: imol, jmol, d(3)
 
     imol = c%idatcelmol(1,i)
     jmol = c%idatcelmol(1,j)
     if (imol /= jmol) then
        in_same_molecule = .false.
-    elseif (.not.c%mol(imol)%discrete) then
+       return
+    end if
+
+    ! the translation between the two images relative to the connected
+    ! placement of the molecule (lvecmolc): same copy if it is zero or,
+    ! for a non-discrete molecule (chain, layer, framework), one of the
+    ! molecule's own periodicity vectors
+    d = (il - c%lvecmolc(:,i)) - (jl - c%lvecmolc(:,j))
+    if (all(d == 0)) then
        in_same_molecule = .true.
+    elseif (c%mol(imol)%nlvec == 0) then
+       in_same_molecule = .false.
     else
-       in_same_molecule = all(il - c%mol(imol)%at(c%idatcelmol(2,i))%lvec == &
-          jl - c%mol(jmol)%at(c%idatcelmol(2,j))%lvec)
+       in_same_molecule = lvec_in_span(c%mol(imol)%nlvec,c%mol(imol)%lvec,d)
     end if
 
   end function in_same_molecule
 
   !xx! private procedures
+
+  !> Whether the integer vector d is an integer combination of the n
+  !> integer vectors l(:,1:n) (possibly dependent). The vectors are
+  !> brought to echelon (Hermite-like) form by integer row operations,
+  !> then d is reduced against the pivots.
+  function lvec_in_span(n,l,d) result(ok)
+    integer, intent(in) :: n
+    integer, intent(in) :: l(3,n)
+    integer, intent(in) :: d(3)
+    logical :: ok
+
+    integer :: g(n,3), dd(3), rowaux(3)
+    integer :: ip, ic, k, kmin, q, np, cpiv(3)
+
+    g = transpose(l)
+    np = 0
+    ip = 1
+    do ic = 1, 3
+       if (ip > n) exit
+       ! Euclid on column ic over rows ip:n until only row ip is nonzero
+       do
+          kmin = 0
+          do k = ip, n
+             if (g(k,ic) == 0) cycle
+             if (kmin == 0) then
+                kmin = k
+             elseif (abs(g(k,ic)) < abs(g(kmin,ic))) then
+                kmin = k
+             end if
+          end do
+          if (kmin == 0) exit
+          if (kmin /= ip) then
+             rowaux = g(ip,:)
+             g(ip,:) = g(kmin,:)
+             g(kmin,:) = rowaux
+          end if
+          if (all(g(ip+1:n,ic) == 0)) exit
+          do k = ip+1, n
+             q = g(k,ic) / g(ip,ic)
+             g(k,:) = g(k,:) - q * g(ip,:)
+          end do
+       end do
+       if (g(ip,ic) /= 0) then
+          np = np + 1
+          cpiv(np) = ic
+          ip = ip + 1
+       end if
+    end do
+
+    ! reduce d with the pivot rows (pivot k is in row k)
+    dd = d
+    do k = 1, np
+       if (mod(dd(cpiv(k)),g(k,cpiv(k))) /= 0) then
+          ok = .false.
+          return
+       end if
+       dd = dd - (dd(cpiv(k)) / g(k,cpiv(k))) * g(k,:)
+    end do
+    ok = all(dd == 0)
+
+  end function lvec_in_span
 
   ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),
   ! the indices themselves (idb(3,nb)), and the rmax for this shell (dmax).

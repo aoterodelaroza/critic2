@@ -4034,7 +4034,7 @@ contains
     use representations, only: gpaths_rad_def, field_has_cps
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
-       iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable
+       iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable, iw_button, iw_inputfloat
     use param, only: bohrtoa
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -4045,6 +4045,8 @@ contains
     integer :: nuniq, ncell
     integer, allocatable :: iuniq(:,:), icell(:,:)
     integer(c_int) :: istyle, itable
+    logical, pointer :: pshown1(:)
+    logical :: ldum
     logical :: ch, typechanged, pathsok
     real(c_float) :: xcol
     character(kind=c_char,len=:), allocatable, target :: str1, suffix
@@ -4153,6 +4155,29 @@ contains
        else
           call draw_path_table(.false.,nuniq)
        end if
+
+       ! show/hide all paths
+       pshown1(1:size(w%rep%gpaths%pshown)) => w%rep%gpaths%pshown
+       if (showhide_buttons(pshown1,"gpaths","gradient paths",ttshown)) changed = .true.
+
+       ! show only the bond paths within or between molecules
+       if (iw_button("Intramolecular##gpathsintramol")) call select_paths(1)
+       call iw_tooltip("Show the bond paths between atoms of the same molecule and hide all others",ttshown)
+       if (iw_button("Intermolecular##gpathsintermol",sameline=.true.)) call select_paths(2)
+       call iw_tooltip("Show the bond paths between atoms of different molecules and hide all others",ttshown)
+
+       ! show only the bond paths with a field value at the BCP above
+       ! or below a threshold
+       if (iw_button("Above##gpathsabove")) call select_paths(3)
+       call iw_tooltip("Show the bond paths whose BCP has a field value above the threshold "//&
+          "and hide all others",ttshown)
+       if (iw_button("Below##gpathsbelow",sameline=.true.)) call select_paths(4)
+       call iw_tooltip("Show the bond paths whose BCP has a field value below the threshold "//&
+          "and hide all others",ttshown)
+       ldum = iw_inputfloat("Field value at the BCP##gpathsfthr",w%rep%gpaths%fthr,decimal=6,width=12,&
+          sameline=.true.)
+       call iw_tooltip("Threshold for the Above and Below buttons (field value at the bond critical point, "//&
+          "atomic units)",ttshown)
     end if
 
     ! the atoms at the ends of the bond paths, with the colors and radii
@@ -4324,8 +4349,7 @@ contains
               ! cell path: the cell CP at the end, and its lattice vector
               iend = f%cpcel(icp)%ipath(j)
               if (iend >= 1 .and. iend <= c%ncel) then
-                 idx(1) = g%pnuc(iend)
-                 idx(2:4) = f%cpcel(icp)%ilvec(:,j) + g%pnucoff(:,iend)
+                 call g%path_end(isys,icp,j,idx(1),idx(2:4))
                  have = (idx(1) > 0)
                  rgb = 0._c_float
                  if (have) then
@@ -4363,6 +4387,41 @@ contains
       end associate
 
     end subroutine draw_path_row
+
+    !> Show only the bond paths of the BCPs that are intramolecular
+    !> (mode 1: both ends are atoms of the same molecule),
+    !> intermolecular (2: atoms of different molecules), or whose
+    !> field value is above (3) or below (4) the threshold; hide all
+    !> other paths.
+    subroutine select_paths(mode)
+      integer, intent(in) :: mode
+
+      integer :: kk, a1, a2, l1(3), l2(3)
+      logical :: ok
+
+      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield), g => w%rep%gpaths)
+        ! the molecules need the molecular data of the crystal
+        if (mode <= 2 .and. .not.allocated(c%idatcelmol)) return
+        g%pshown = .false.
+        do kk = c%ncel+1, f%ncpcel
+           if (mode <= 2) then
+              ! both ends must be nuclei (atoms)
+              call g%path_end(isys,kk,1,a1,l1)
+              call g%path_end(isys,kk,2,a2,l2)
+              if (a1 == 0 .or. a2 == 0) cycle
+              ok = c%in_same_molecule(a1,l1,a2,l2)
+              if (mode == 2) ok = .not.ok
+           elseif (mode == 3) then
+              ok = (f%cp(f%cpcel(kk)%idx)%s%f > g%fthr)
+           else
+              ok = (f%cp(f%cpcel(kk)%idx)%s%f < g%fthr)
+           end if
+           g%pshown(:,kk) = ok
+        end do
+      end associate
+      changed = .true.
+
+    end subroutine select_paths
 
     !> "mixed" after a widget of a row whose cell copies have
     !> different values for it (ismixed).
