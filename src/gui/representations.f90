@@ -786,11 +786,16 @@ module representations
      logical :: showends = .true. ! draw the atoms at the ends of the bond paths
      integer :: pfield = -1 ! field of the per-path values
      real*8 :: ptime = -1d0 ! time of the last check of the per-path values
-     real*8, allocatable :: pcpx(:,:) ! positions of the CPs the values are for (3,ncp)
-     real(c_float), allocatable :: prgb(:,:,:) ! color of each path (3,2,ncp)
-     real(c_float), allocatable :: prad(:,:) ! radius of each path (2,ncp, bohr)
-     logical, allocatable :: pshown(:,:) ! whether each path is shown (2,ncp)
-     integer :: ihover(2) = 0 ! path (j,i) under the mouse in the editor table, drawn highlighted (0 = none)
+     real*8, allocatable :: pcpx(:,:) ! positions of the cell CPs the values are for (3,ncpcel)
+     real(c_float), allocatable :: prgb(:,:,:) ! color of each cell path (3,2,ncpcel)
+     real(c_float), allocatable :: prad(:,:) ! radius of each cell path (2,ncpcel, bohr)
+     logical, allocatable :: pshown(:,:) ! whether each cell path is shown (2,ncpcel)
+     integer, allocatable :: pnuc(:) ! cell atom of nucleus k (ncel)
+     integer, allocatable :: pnucoff(:,:) ! lattice vector: cpcel(k)%x = atcel(pnuc(k))%x + pnucoff(:,k)
+     integer, allocatable :: pfirst(:) ! (ncp+1), cell copies of each symmetry-unique CP i: pcopy(pfirst(i):pfirst(i+1)-1)
+     integer, allocatable :: pcopy(:) ! (ncpcel)
+     integer :: ihover(3) = 0 ! path under the mouse in the editor tables, drawn highlighted: ! (j, symmetry-unique CP i, 0) highlights all its cell copies, ! (j, 0, cell CP icp) that one (0 = none)
+     integer :: tablecell = 0 ! editor table: paths of the symmetry-unique CPs (0) or of the cell CPs (1)
    contains
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok

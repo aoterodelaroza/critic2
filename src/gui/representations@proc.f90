@@ -2698,8 +2698,7 @@ contains
       real*8 :: ui(3), ue(3), xf(3), t(3)
       real(c_float) :: dx(3)
       integer :: np(2), iend(2), lend(3,2), lx(3), jat
-      integer, allocatable :: nucmap(:), nucoff(:,:)
-      logical :: beads, pathsok
+      logical :: beads, pathsok, hov(2)
       type(dl_cylinder) :: dpath
       type(cartpath) :: xpath(2)
 
@@ -2752,24 +2751,7 @@ contains
               ! the path segments differ only in their ends
               dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=r%gpaths%rad,rgb=r%gpaths%rgb)
            end if
-           if (r%gpaths%showends) then
-              ! the cell atom (and lattice vector) of each nucleus in the
-              ! CP list: the nuclei are the first ncel CPs, but sorted by
-              ! symmetry-unique atom, not necessarily in the cell atom order
-              allocate(nucmap(c%ncel),nucoff(3,c%ncel))
-              nucmap = 0
-              nucoff = 0
-              do i = 1, c%ncel
-                 do jat = 1, c%ncel
-                    if (c%atcel(jat)%idx /= f%cpcel(i)%idx) cycle
-                    xf = f%cpcel(i)%x - c%atcel(jat)%x
-                    if (any(abs(xf - nint(xf)) > 1d-4)) cycle
-                    nucmap(i) = jat
-                    nucoff(:,i) = nint(xf)
-                    exit
-                 end do
-              end do
-
+           if (r%gpaths%showends .and. pathsok) then
               ! each image of an end atom only once (lshown is free here:
               ! a gradient paths object draws no atoms otherwise)
               if (allocated(lshown)) deallocate(lshown)
@@ -2794,9 +2776,14 @@ contains
               do j = 1, 2
                  np(j) = f%cpgp(j,i)%n
                  iend(j) = 0
-                 ! hidden paths draw nothing (nor their end atom)
+                 ! hidden paths draw nothing (nor their end atom); the
+                 ! highlighted ones, all copies of a symmetry-unique path
+                 ! or one cell path
+                 hov(j) = .false.
                  if (pathsok) then
-                    if (.not.r%gpaths%pshown(j,i)) np(j) = 0
+                    if (.not.r%gpaths%pshown(j,icp)) np(j) = 0
+                    hov(j) = (r%gpaths%ihover(1) == j) .and. &
+                       ((r%gpaths%ihover(2) == i) .or. (r%gpaths%ihover(3) == icp))
                  end if
                  if (np(j) < 2) then
                     np(j) = 0
@@ -2808,11 +2795,11 @@ contains
                  ! the atom at the end of this bond path, if it is a
                  ! nucleus: the attractor in the CP list, mapped to its
                  ! cell atom (main image of this BCP)
-                 if (r%gpaths%showends) then
+                 if (r%gpaths%showends .and. pathsok) then
                     jat = f%cpcel(icp)%ipath(j)
                     if (jat >= 1 .and. jat <= c%ncel) then
-                       iend(j) = nucmap(jat)
-                       lend(:,j) = f%cpcel(icp)%ilvec(:,j) + nucoff(:,jat)
+                       iend(j) = r%gpaths%pnuc(jat)
+                       lend(:,j) = f%cpcel(icp)%ilvec(:,j) + r%gpaths%pnucoff(:,jat)
                     end if
                  end if
               end do
@@ -2842,12 +2829,12 @@ contains
                           ! highlighted if under the mouse in the editor)
                           if (np(j) == 0) cycle
                           if (pathsok) then
-                             if (all(r%gpaths%ihover == (/j,i/))) then
+                             if (hov(j)) then
                                 dsph%rgb = ColorHighlightScene(1:3)
-                                dsph%r = 2._c_float * r%gpaths%prad(j,i)
+                                dsph%r = 2._c_float * r%gpaths%prad(j,icp)
                              else
-                                dsph%rgb = r%gpaths%prgb(:,j,i)
-                                dsph%r = r%gpaths%prad(j,i)
+                                dsph%rgb = r%gpaths%prgb(:,j,icp)
+                                dsph%r = r%gpaths%prad(j,icp)
                              end if
                              dsph%rgbborder = dsph%rgb
                              dpath%rgb = dsph%rgb
@@ -2857,7 +2844,7 @@ contains
                              ! both paths start at the BCP: draw it once,
                              ! with path 2 only if path 1 is not drawn or
                              ! path 2 is highlighted
-                             do k = merge(2,1,j == 2 .and. np(1) > 0 .and. .not.all(r%gpaths%ihover == (/2,i/))), np(j)
+                             do k = merge(2,1,j == 2 .and. np(1) > 0 .and. .not.hov(2)), np(j)
                                 dsph%x = xpath(j)%x(:,k) + dx
                                 call dl_append(obj%sph,obj%nsph,dsph)
                              end do
@@ -4635,12 +4622,14 @@ contains
     class(rep_gpaths), intent(inout) :: g
     integer, intent(in) :: isys
 
-    integer :: n
+    integer :: n, i, jat
+    integer, allocatable :: ncnt(:)
+    real*8 :: xd(3)
 
     g%ptime = glfwGetTime()
     if (g%paths_ok(isys)) then
        associate(f => sys(isys)%f(g%ifield))
-         if (all(abs(g%pcpx - reshape((/(f%cp(n)%x,n=1,f%ncp)/),(/3,f%ncp/))) < 1d-8)) return
+         if (all(abs(g%pcpx - reshape((/(f%cpcel(n)%x,n=1,f%ncpcel)/),(/3,f%ncpcel/))) < 1d-8)) return
        end associate
     end if
 
@@ -4649,11 +4638,48 @@ contains
     if (allocated(g%prgb)) deallocate(g%prgb)
     if (allocated(g%prad)) deallocate(g%prad)
     if (allocated(g%pshown)) deallocate(g%pshown)
+    if (allocated(g%pnuc)) deallocate(g%pnuc)
+    if (allocated(g%pnucoff)) deallocate(g%pnucoff)
+    if (allocated(g%pfirst)) deallocate(g%pfirst)
+    if (allocated(g%pcopy)) deallocate(g%pcopy)
     g%ihover = 0
     if (.not.field_has_cps(isys,g%ifield,withpaths=.true.)) return
-    associate(f => sys(isys)%f(g%ifield))
-      allocate(g%pcpx(3,f%ncp),g%prgb(3,2,f%ncp),g%prad(2,f%ncp),g%pshown(2,f%ncp))
-      g%pcpx = reshape((/(f%cp(n)%x,n=1,f%ncp)/),(/3,f%ncp/))
+    associate(f => sys(isys)%f(g%ifield), c => sys(isys)%c)
+      allocate(g%pcpx(3,f%ncpcel),g%prgb(3,2,f%ncpcel),g%prad(2,f%ncpcel),g%pshown(2,f%ncpcel))
+      g%pcpx = reshape((/(f%cpcel(n)%x,n=1,f%ncpcel)/),(/3,f%ncpcel/))
+
+      ! the cell atom of each nucleus, by position
+      allocate(g%pnuc(c%ncel),g%pnucoff(3,c%ncel))
+      g%pnuc = 0
+      g%pnucoff = 0
+      do i = 1, c%ncel
+         do jat = 1, c%ncel
+            if (c%atcel(jat)%idx /= f%cpcel(i)%idx) cycle
+            xd = f%cpcel(i)%x - c%atcel(jat)%x
+            if (any(abs(xd - nint(xd)) > 1d-4)) cycle
+            g%pnuc(i) = jat
+            g%pnucoff(:,i) = nint(xd)
+            exit
+         end do
+      end do
+
+      ! the cell copies of each symmetry-unique CP, grouped
+      allocate(g%pfirst(f%ncp+1),g%pcopy(f%ncpcel))
+      g%pfirst = 0
+      do n = 1, f%ncpcel
+         g%pfirst(f%cpcel(n)%idx+1) = g%pfirst(f%cpcel(n)%idx+1) + 1
+      end do
+      g%pfirst(1) = 1
+      do i = 1, f%ncp
+         g%pfirst(i+1) = g%pfirst(i+1) + g%pfirst(i)
+      end do
+      allocate(ncnt(f%ncp))
+      ncnt = 0
+      do n = 1, f%ncpcel
+         i = f%cpcel(n)%idx
+         g%pcopy(g%pfirst(i)+ncnt(i)) = n
+         ncnt(i) = ncnt(i) + 1
+      end do
     end associate
     call g%fill_rgb()
     g%prad = g%rad
@@ -4671,7 +4697,8 @@ contains
 
     ok = allocated(g%prgb) .and. (g%pfield == g%ifield)
     if (ok) ok = field_has_cps(isys,g%ifield,withpaths=.true.)
-    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%ifield)%ncp)
+    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%ifield)%ncpcel) .and.&
+       (size(g%pnuc) == sys(isys)%c%ncel)
 
   end function gpaths_paths_ok
 

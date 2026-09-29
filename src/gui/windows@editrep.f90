@@ -4041,9 +4041,10 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, npath, ncol, ihover(2)
-    integer, allocatable :: ipath(:,:)
-    integer(c_int) :: istyle, flags
+    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, ncol, ihover(3)
+    integer :: nuniq, ncell
+    integer, allocatable :: iuniq(:,:), icell(:,:)
+    integer(c_int) :: istyle, itable
     logical :: ch, typechanged, pathsok
     real(c_float) :: xcol
     character(kind=c_char,len=:), allocatable, target :: str1, suffix
@@ -4112,55 +4113,45 @@ contains
        changed = .true.
     end if
 
-    ! the table of gradient paths: one row per path of each
-    ! symmetry-unique CP (for now, the two bond paths of each BCP)
+    ! the tables of gradient paths (for now, the two bond paths of each
+    ! BCP): one row per path of each symmetry-unique CP, and one per
+    ! path of each CP in the cell, in a second tab when there are more
+    nuniq = 0
+    ncell = 0
     if (pathsok) then
-       associate(f => sys(isys)%f(w%rep%gpaths%ifield))
-         npath = 0
-         allocate(ipath(2,2*f%ncp))
-         do i = sys(isys)%c%nneq+1, f%ncp
+       associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield))
+         ! the rows
+         allocate(iuniq(2,2*f%ncp),icell(2,2*f%ncpcel))
+         do i = c%nneq+1, f%ncp
             do j = 1, 2
                if (f%cpgp(j,i)%n < 2) cycle
-               npath = npath + 1
-               ipath(:,npath) = (/j,i/)
+               nuniq = nuniq + 1
+               iuniq(:,nuniq) = (/j,i/)
+            end do
+         end do
+         do k = c%ncel+1, f%ncpcel
+            do j = 1, 2
+               if (f%cpgp(j,f%cpcel(k)%idx)%n < 2) cycle
+               ncell = ncell + 1
+               icell(:,ncell) = (/j,k/)
             end do
          end do
        end associate
-    else
-       npath = 0
     end if
-    if (npath > 0) then
+    if (nuniq > 0) then
        call iw_text("Gradient Paths",highlight=.true.)
-       flags = ImGuiTableFlags_None
-       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-       flags = ior(flags,ImGuiTableFlags_RowBg)
-       flags = ior(flags,ImGuiTableFlags_Borders)
-       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-       flags = ior(flags,ImGuiTableFlags_ScrollY)
-       str1 = "##tablegpaths" // c_null_char
-       sz%x = 0._c_float
-       sz%y = iw_calcheight(min(10,npath+1),0,.false.)
-       if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
-          ncol = -1
-          call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("End 2",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-
-          clipper = ImGuiListClipper_ImGuiListClipper()
-          call ImGuiListClipper_Begin(clipper,npath,-1._c_float)
-          do while(ImGuiListClipper_Step(clipper))
-             call c_f_pointer(clipper,clipper_f)
-             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                call draw_path_row(k,ipath(1,k),ipath(2,k))
-             end do
-          end do
-          call ImGuiListClipper_End(clipper)
-          call ImGuiListClipper_destroy(clipper)
-          call igEndTable()
+       if (ncell > nuniq) then
+          ! which paths: symmetry-unique or cell (the combo items are
+          ! in the order of the tablecell values)
+          itable = int(w%rep%gpaths%tablecell,c_int)
+          call iw_combo_simple("Path list##gpathstablecombo","Symmetry-unique" // c_null_char //&
+             "Cell" // c_null_char,itable,changed=ch)
+          call iw_tooltip("List the paths of the symmetry-unique critical points (an edit applies to all "//&
+             "their copies in the cell) or of every critical point in the cell",ttshown)
+          if (ch) w%rep%gpaths%tablecell = int(itable)
+          call draw_path_table(w%rep%gpaths%tablecell == 1,merge(ncell,nuniq,w%rep%gpaths%tablecell == 1))
+       else
+          call draw_path_table(.false.,nuniq)
        end if
     end if
 
@@ -4199,83 +4190,225 @@ contains
 
     end subroutine label
 
-    !> Row k of the table: path j of the symmetry-unique CP i.
-    subroutine draw_path_row(k,j,i)
-      integer, intent(in) :: k, j, i
+    !> The table of the paths of the symmetry-unique CPs (cell = .false.)
+    !> or of the cell CPs (cell = .true.), with n rows.
+    subroutine draw_path_table(cell,n)
+      logical, intent(in) :: cell
+      integer, intent(in) :: n
 
-      integer :: iend, id
-      real(c_float) :: rgb(3), xpos
-      logical :: have, ldum
+      integer :: k
+      integer(c_int) :: flags
 
-      suffix = "_" // string(k)
-      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield))
+      flags = ImGuiTableFlags_None
+      flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+      flags = ior(flags,ImGuiTableFlags_RowBg)
+      flags = ior(flags,ImGuiTableFlags_Borders)
+      flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+      flags = ior(flags,ImGuiTableFlags_ScrollY)
+      if (cell) then
+         str1 = "##tablegpathscell" // c_null_char
+      else
+         str1 = "##tablegpathsuniq" // c_null_char
+      end if
+      sz%x = 0._c_float
+      sz%y = iw_calcheight(min(10,n+1),0,.false.)
+      if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
+         ncol = -1
+         call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("End 2",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+         clipper = ImGuiListClipper_ImGuiListClipper()
+         call ImGuiListClipper_Begin(clipper,n,-1._c_float)
+         do while(ImGuiListClipper_Step(clipper))
+            call c_f_pointer(clipper,clipper_f)
+            do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+               if (cell) then
+                  call draw_path_row(k,icell(1,k),0,icell(2,k))
+               else
+                  call draw_path_row(k,iuniq(1,k),iuniq(2,k),0)
+               end if
+            end do
+         end do
+         call ImGuiListClipper_End(clipper)
+         call ImGuiListClipper_destroy(clipper)
+         call igEndTable()
+      end if
+
+    end subroutine draw_path_table
+
+    !> Row k of a table: path j of the symmetry-unique CP i (icp = 0;
+    !> the values of its first cell copy, and an edit sets all copies),
+    !> or of the cell CP icp (i = 0).
+    subroutine draw_path_row(k,j,i,icp)
+      integer, intent(in) :: k, j, i, icp
+
+      integer :: iend, id, iu
+      integer, allocatable :: kc(:)
+      integer(c_int) :: idx(4)
+      real(c_float) :: rgb(3), rad, xpos
+      logical :: have, ldum, lsh
+      character(len=:), allocatable :: lbl
+
+      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield), g => w%rep%gpaths)
+        ! the cell paths of the row (the first one gives the values
+        ! shown), and its unique CP
+        if (icp > 0) then
+           kc = (/icp/)
+           iu = f%cpcel(icp)%idx
+           suffix = "_c" // string(k)
+        else
+           kc = g%pcopy(g%pfirst(i):g%pfirst(i+1)-1)
+           iu = i
+           suffix = "_u" // string(k)
+        end if
+        lsh = g%pshown(j,kc(1))
+        rgb = g%prgb(:,j,kc(1))
+        rad = g%prad(j,kc(1))
+
         ! show, and the row selectable that highlights the path in the
         ! view: first in the row, so the highlight holds while the mouse
         ! is on the checkbox too
         if (igTableSetColumnIndex(0_c_int)) then
            xpos = igGetCursorPosX()
            call iw_text("",alignframe=.true.)
-           if (iw_highlight_selectable("##gpathsrowsel" // suffix)) ihover = (/j,i/)
+           if (iw_highlight_selectable("##gpathsrowsel" // suffix)) ihover = (/j,i,icp/)
            call igSameLine(0._c_float,0._c_float)
            call igSetCursorPosX(xpos)
-           ch = iw_checkbox("##gpathsrowshown" // suffix,w%rep%gpaths%pshown(j,i))
+           if (iw_checkbox("##gpathsrowshown" // suffix,lsh)) then
+              g%pshown(j,kc) = lsh
+              changed = .true.
+           end if
            call iw_tooltip("Show this gradient path",ttshown)
-           changed = changed .or. ch
+           call mixed_note(any(g%pshown(j,kc) .neqv. g%pshown(j,kc(1))))
         end if
 
         ! color and radius of this path
         if (igTableSetColumnIndex(1_c_int)) then
-           ch = iw_coloredit("##gpathsrowcolor" // suffix,rgb=w%rep%gpaths%prgb(:,j,i))
+           if (iw_coloredit("##gpathsrowcolor" // suffix,rgb=rgb)) then
+              g%prgb(1,j,kc) = rgb(1)
+              g%prgb(2,j,kc) = rgb(2)
+              g%prgb(3,j,kc) = rgb(3)
+              changed = .true.
+           end if
            call iw_tooltip("Color of this gradient path",ttshown)
-           changed = changed .or. ch
+           call mixed_note(any(g%prgb(:,j,kc) /= spread(g%prgb(:,j,kc(1)),2,size(kc))))
         end if
         if (igTableSetColumnIndex(2_c_int)) then
-           ch = iw_dragfloat_realc("##gpathsrowrad" // suffix,x1=w%rep%gpaths%prad(j,i),speed=0.002_c_float,&
+           if (iw_dragfloat_realc("##gpathsrowrad" // suffix,x1=rad,speed=0.002_c_float,&
               min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-              flags=ImGuiSliderFlags_AlwaysClamp)
+              flags=ImGuiSliderFlags_AlwaysClamp)) then
+              g%prad(j,kc) = rad
+              changed = .true.
+           end if
            call iw_tooltip("Radius of this gradient path in Å",ttshown)
-           changed = changed .or. ch
+           call mixed_note(any(g%prad(j,kc) /= g%prad(j,kc(1))))
         end if
 
         ! the ends: the CP the path starts from (a BCP)...
-        if (igTableSetColumnIndex(3_c_int)) call cp_badge(i,"##gpathsend1")
+        if (igTableSetColumnIndex(3_c_int)) then
+           lbl = trim(f%cp(iu)%name)
+           if (icp > 0) lbl = lbl // " " // string(icp)
+           call cp_badge(iu,"##gpathsend1",lbl)
+        end if
 
         ! ... and the one it ends at (a nucleus, in the color this
         ! object draws it with; or a non-nuclear attractor; none if it
         ! leaves the molecule)
         if (igTableSetColumnIndex(4_c_int)) then
-           iend = f%cp(i)%ipath(j)
-           if (iend >= 1 .and. iend <= c%nneq) then
-              id = sysc(isys)%attype_type_id_to_id(atlisttype_nneq,iend,w%rep%atoms%style%type)
-              have = (id >= 1 .and. id <= w%rep%atoms%style%ntype)
-              rgb = 0._c_float
-              if (have) rgb = w%rep%atoms%style%rgb(:,id)
-              ldum = iw_atom_button(trim(c%at(iend)%name) // "##gpathsend2" // suffix,rgb,&
-                 havergb=have,inert=.true.)
-           elseif (iend > c%nneq .and. iend <= f%ncp) then
-              call cp_badge(iend,"##gpathsend2")
-           elseif (iend == -1) then
-              call iw_text("(leaves the molecule)",disabled=.true.)
+           if (icp > 0) then
+              ! cell path: the cell CP at the end, and its lattice vector
+              iend = f%cpcel(icp)%ipath(j)
+              if (iend >= 1 .and. iend <= c%ncel) then
+                 idx(1) = g%pnuc(iend)
+                 idx(2:4) = f%cpcel(icp)%ilvec(:,j) + g%pnucoff(:,iend)
+                 have = (idx(1) > 0)
+                 rgb = 0._c_float
+                 if (have) then
+                    id = sysc(isys)%attype_celatom_to_id(w%rep%atoms%style%type,idx(1))
+                    have = (id >= 1 .and. id <= w%rep%atoms%style%ntype)
+                    if (have) rgb = w%rep%atoms%style%rgb(:,id)
+                 end if
+                 ldum = iw_atom_button(anchor_label(isys,idx,"?",species=.true.) // "##gpathsend2" // suffix,&
+                    rgb,havergb=have,inert=.true.)
+              elseif (iend > c%ncel .and. iend <= f%ncpcel) then
+                 call cp_badge(f%cpcel(iend)%idx,"##gpathsend2",trim(f%cp(f%cpcel(iend)%idx)%name) //&
+                    " " // string(iend) // lvec_str(f%cpcel(icp)%ilvec(:,j)))
+              else
+                 ! the cell list marks no end; the unique list tells
+                 ! whether the path leaves the molecule
+                 call no_end(f%cp(iu)%ipath(j))
+              end if
            else
-              call iw_text("?",disabled=.true.)
+              ! symmetry-unique path: the symmetry-unique CP at the end
+              iend = f%cp(i)%ipath(j)
+              if (iend >= 1 .and. iend <= c%nneq) then
+                 id = sysc(isys)%attype_type_id_to_id(atlisttype_nneq,iend,w%rep%atoms%style%type)
+                 have = (id >= 1 .and. id <= w%rep%atoms%style%ntype)
+                 rgb = 0._c_float
+                 if (have) rgb = w%rep%atoms%style%rgb(:,id)
+                 ldum = iw_atom_button(trim(c%at(iend)%name) // "##gpathsend2" // suffix,rgb,&
+                    havergb=have,inert=.true.)
+              elseif (iend > c%nneq .and. iend <= f%ncp) then
+                 call cp_badge(iend,"##gpathsend2",trim(f%cp(iend)%name))
+              else
+                 call no_end(iend)
+              end if
            end if
         end if
       end associate
 
     end subroutine draw_path_row
 
+    !> "mixed" after a widget of a row whose cell copies have
+    !> different values for it (ismixed).
+    subroutine mixed_note(ismixed)
+      logical, intent(in) :: ismixed
+
+      if (.not.ismixed) return
+      call iw_text("mixed",disabled=.true.,sameline=.true.)
+      call iw_tooltip("The cell copies of this path have different values (Cell tab); "//&
+         "an edit here sets all of them",ttshown)
+
+    end subroutine mixed_note
+
+    !> The end cell of a path that does not end at a CP.
+    subroutine no_end(iend)
+      integer, intent(in) :: iend
+
+      if (iend == -1) then
+         call iw_text("(leaves the molecule)",disabled=.true.)
+      else
+         call iw_text("?",disabled=.true.)
+      end if
+
+    end subroutine no_end
+
+    !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
+    function lvec_str(l) result(str)
+      integer, intent(in) :: l(3)
+      character(len=:), allocatable :: str
+
+      str = ""
+      if (any(l /= 0)) str = "+(" // string(l(1)) // "," // string(l(2)) // "," // string(l(3)) // ")"
+
+    end function lvec_str
+
     !> The badge of symmetry-unique CP icp of the field, in its view
-    !> color; tag tells apart the badges of one row.
-    subroutine cp_badge(icp,tag)
+    !> color, reading lbl; tag tells apart the badges of one row.
+    subroutine cp_badge(icp,tag,lbl)
       integer, intent(in) :: icp
-      character(len=*), intent(in) :: tag
+      character(len=*), intent(in) :: tag, lbl
 
       real(c_float) :: rgb(3)
       logical :: have, ldum
 
       have = cp_view_rgb(iview,isys,w%rep%gpaths%ifield,icp,rgb)
-      ldum = iw_atom_button(trim(sys(isys)%f(w%rep%gpaths%ifield)%cp(icp)%name) // tag // suffix,rgb,&
-         havergb=have,inert=.true.)
+      ldum = iw_atom_button(lbl // tag // suffix,rgb,havergb=have,inert=.true.)
 
     end subroutine cp_badge
 
