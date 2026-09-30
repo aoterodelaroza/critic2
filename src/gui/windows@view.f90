@@ -1686,7 +1686,7 @@ contains
       ! name and type, and the attractors joined by a bond CP
       msg = trim(f%cp(ineq)%name)
       if (it >= 0 .and. it <= 3) msg = msg // " " // cps_abbrev(it)
-      if (f%cp(ineq)%typ == sign(1,f%typnuc) .and. all(f%cp(ineq)%ipath > 0)) then
+      if (f%isbcp(f%cp(ineq)) .and. all(f%cp(ineq)%ipath > 0)) then
          do j = 1, 2
             iend = f%cp(ineq)%ipath(j)
             msg = msg // merge(" ","-",j == 1)

@@ -1083,34 +1083,6 @@ contains
 
   end function field_has_cps
 
-  !> The cell atom of each nuclear cell CP of field ifield of system
-  !> isys, by position: cpcel(k)%x = atcel(nuc(k))%x + nucoff(:,k)
-  !> (k = 1..ncel; the cell CP list need not follow the atom order).
-  !> nuc(k) = 0 if no atom of the CP's symmetry-unique atom matches.
-  module subroutine cp_nucleus_map(isys,ifield,nuc,nucoff)
-    use systems, only: sys
-    use param, only: icrd_crys
-    integer, intent(in) :: isys, ifield
-    integer, allocatable, intent(out) :: nuc(:)
-    integer, allocatable, intent(out) :: nucoff(:,:)
-
-    integer :: i
-    real*8 :: dist
-
-    real*8, parameter :: distmax = 1d-3 ! bohr
-
-    associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
-      allocate(nuc(c%ncel),nucoff(3,c%ncel))
-      nuc = 0
-      nucoff = 0
-      do i = 1, min(c%ncel,f%ncpcel)
-         call c%nearest_atom(f%cpcel(i)%x,icrd_crys,nuc(i),dist,distmax=distmax,lvec=nucoff(:,i),&
-            nid0=f%cpcel(i)%idx)
-      end do
-    end associate
-
-  end subroutine cp_nucleus_map
-
   !> The Wyckoff letter of each symmetry-unique non-nuclear CP of
   !> field ifield of system isys (wyc(i) for CP nneq+i), from its cell
   !> copies ("?" if spglib cannot tell). Not allocated for molecules
@@ -4692,8 +4664,6 @@ contains
     if (allocated(g%prgb)) deallocate(g%prgb)
     if (allocated(g%prad)) deallocate(g%prad)
     if (allocated(g%pshown)) deallocate(g%pshown)
-    if (allocated(g%pnuc)) deallocate(g%pnuc)
-    if (allocated(g%pnucoff)) deallocate(g%pnucoff)
     if (allocated(g%pfirst)) deallocate(g%pfirst)
     if (allocated(g%pcopy)) deallocate(g%pcopy)
     g%ihover = 0
@@ -4701,9 +4671,6 @@ contains
     associate(f => sys(isys)%f(g%ifield), c => sys(isys)%c)
       allocate(g%pcpx(3,f%ncpcel),g%prgb(3,2,f%ncpcel),g%prad(2,f%ncpcel),g%pshown(2,f%ncpcel))
       g%pcpx = reshape((/(f%cpcel(n)%x,n=1,f%ncpcel)/),(/3,f%ncpcel/))
-
-      ! the cell atom of each nucleus
-      call cp_nucleus_map(isys,g%ifield,g%pnuc,g%pnucoff)
 
       ! the cell copies of each symmetry-unique CP, grouped
       allocate(g%pfirst(f%ncp+1),g%pcopy(f%ncpcel))
@@ -4739,15 +4706,15 @@ contains
 
     ok = allocated(g%prgb) .and. (g%pfield == g%ifield)
     if (ok) ok = field_has_cps(isys,g%ifield,withpaths=.true.)
-    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%ifield)%ncpcel) .and.&
-       (size(g%pnuc) == sys(isys)%c%ncel)
+    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%ifield)%ncpcel)
 
   end function gpaths_paths_ok
 
   !> The atom at the end of path j of cell CP icp of the gradient paths
   !> object's field (system isys): its cell atom iat and lattice vector
   !> lvec, in the frame of the main image of the CP; iat = 0 if the path
-  !> does not end at a nucleus. Requires paths_ok.
+  !> does not end at a nucleus. The nuclear cell CPs are the cell atoms,
+  !> in order (cpcel(k) is atcel(k)).
   module subroutine gpaths_path_end(g,isys,icp,j,iat,lvec)
     use systems, only: sys
     class(rep_gpaths), intent(in) :: g
@@ -4762,8 +4729,8 @@ contains
     associate(f => sys(isys)%f(g%ifield))
       iend = f%cpcel(icp)%ipath(j)
       if (iend < 1 .or. iend > sys(isys)%c%ncel) return
-      iat = g%pnuc(iend)
-      lvec = f%cpcel(icp)%ilvec(:,j) + g%pnucoff(:,iend)
+      iat = iend
+      lvec = f%cpcel(icp)%ilvec(:,j)
     end associate
 
   end subroutine gpaths_path_end

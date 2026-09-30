@@ -119,6 +119,7 @@ module fieldmod
      procedure :: newton !< Newton-Raphson search for a CP
      procedure :: addcp !< Add a new CP to the CP list
      procedure :: sortcps !< Sort the CP list by field value
+     procedure :: isbcp !< Whether a CP is a bond critical point
      procedure :: gradient !< Calculate a gradient path
   end type field
   public :: field
@@ -320,6 +321,11 @@ module fieldmod
        class(field), intent(inout) :: f
        real*8, intent(in) :: cpeps
      end subroutine sortcps
+     module function isbcp(f,cp)
+       class(field), intent(in) :: f
+       type(cp_type), intent(in) :: cp
+       logical :: isbcp
+     end function isbcp
      module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
        class(field), intent(inout) :: fid
        real*8, dimension(3), intent(inout) :: xpoint

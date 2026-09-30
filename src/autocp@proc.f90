@@ -1333,7 +1333,7 @@ contains
 
     connectm = 0
     do i = 1, sy%f(sy%iref)%ncp
-       if (sy%f(sy%iref)%cp(i)%typ /= sign(1,sy%f(sy%iref)%typnuc)) cycle
+       if (.not.sy%f(sy%iref)%isbcp(sy%f(sy%iref)%cp(i))) cycle
        i1 = sy%f(sy%iref)%cp(i)%ipath(1)
        i2 = sy%f(sy%iref)%cp(i)%ipath(2)
        if (i1 <= 0 .or. i2 <= 0) cycle
@@ -1810,7 +1810,7 @@ contains
     write (uout,'("# (cp(end)+lvec connected to bcp)")')
     write (uout,'("#cp  ncp   typ        position (cryst. coords.)            end1 (lvec)      end2 (lvec)")')
     do i = 1, sy%f(sy%iref)%ncpcel
-       if (sy%f(sy%iref)%cpcel(i)%typ == sign(1,sy%f(sy%iref)%typnuc)) then
+       if (sy%f(sy%iref)%isbcp(sy%f(sy%iref)%cpcel(i))) then
           write (uout,'(7(A," "),"(",3(A," "),") ",A," (",3(A," "),")")') &
              string(i,length=6,justify=ioj_left),&
              string(sy%f(sy%iref)%cpcel(i)%idx,length=4,justify=ioj_left),&
@@ -1891,7 +1891,7 @@ contains
        string(iunitname0(iunit)), string(iunitname0(iunit)), string(iunitname0(iunit)),&
        string(iunitname0(iunit))
     do i = 1, sy%f(sy%iref)%ncp
-       if (sy%f(sy%iref)%cp(i)%typ /= sign(1,sy%f(sy%iref)%typnuc)) cycle
+       if (.not.sy%f(sy%iref)%isbcp(sy%f(sy%iref)%cp(i))) cycle
 
        do j = 1, 2
           if (sy%f(sy%iref)%cp(i)%ipath(j) == 0) then
@@ -2045,7 +2045,7 @@ contains
        call json%add(ap,'nonequivalent_id',sy%f(sy%iref)%cpcel(i)%idx)
 
        ! connectivity
-       if (sy%f(sy%iref)%cp(idx)%typ == sign(1,sy%f(sy%iref)%typnuc)) then
+       if (sy%f(sy%iref)%isbcp(sy%f(sy%iref)%cp(idx))) then
           if (res%s == -1) then
              call json%add(ap,'attractor_angle',sy%f(sy%iref)%cp(idx)%brang)
              call json%add(ap,'attractor_eigenvec',sy%f(sy%iref)%cp(idx)%brvec)
@@ -2108,7 +2108,7 @@ contains
 
     associate(f => sy%f(sy%iref), cr => sy%c)
 
-      ! type of the CPs with bond paths
+      ! type of the bond CPs (f%isbcp), which sets the tracing direction
       ibcp = sign(1,f%typnuc)
 
       allocate(xdis(3,2,f%ncp),xplen(2,f%ncp),cpgp(2,f%ncp))
@@ -2118,7 +2118,7 @@ contains
       ! run over known non-equivalent cps
       !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp) schedule(dynamic)
       do i = 1, f%ncp
-         if (f%cp(i)%typ == ibcp) then
+         if (f%isbcp(f%cp(i))) then
             ! diagonalize hessian at the bcp, calculate starting points
             ! along the eigenvector of the bond direction
             call f%grd(f%cp(i)%r,request,res)
@@ -2155,7 +2155,7 @@ contains
 
       ! Fill the eigenvectors
       do i = 1, f%ncpcel
-         if (f%cp(f%cpcel(i)%idx)%typ == ibcp) then
+         if (f%isbcp(f%cp(f%cpcel(i)%idx))) then
             call f%grd(f%cpcel(i)%r,request,res)
             evec = res%hf
             call eigsym(evec,3,reval,ier)
@@ -2175,7 +2175,7 @@ contains
       ! run over known non-equivalent cps
       do i = 1, f%ncp
          ! BCP paths
-         if (f%cp(i)%typ == ibcp) then
+         if (f%isbcp(f%cp(i))) then
             do j = 1, 2
                ! save difference vector and distance
                xdif(:,j) = xdis(:,j,i) - f%cp(i)%r

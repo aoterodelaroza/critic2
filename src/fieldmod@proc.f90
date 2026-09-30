@@ -36,7 +36,11 @@ submodule (fieldmod) proc
 
   ! CP checkpoint file format identifier and version
   character(len=8), parameter :: chk_magic = "CRI2CPCK"
-  integer, parameter :: chk_version = 2 ! 2 = bond paths added
+  integer, parameter :: chk_version = 3 ! 2 = bond paths added, 3 = nuclear cell CPs in atcel order
+  integer, parameter :: chk_version_min = 3 ! older checkpoints may have the nuclei in another order
+
+  ! first letter of the name of a non-nuclear CP, by typind
+  character*(1), parameter :: smallnamecrit(0:3) = (/'n','b','r','c'/)
 
 contains
 
@@ -1986,7 +1990,7 @@ contains
     use global, only: rbetadef, atomeps
     class(field), intent(inout) :: f
 
-    integer :: i, j
+    integer :: i
 
     if (.not.f%c%isinit) return
 
@@ -2028,17 +2032,7 @@ contains
     enddo
 
     ! add positions to the complete cp list
-    do j = 1, f%c%ncel
-       f%cpcel(j) = f%cp(f%c%atcel(j)%idx)
-       f%cpcel(j)%idx = f%c%atcel(j)%idx
-       f%cpcel(j)%ir = f%c%atcel(j)%ir
-       f%cpcel(j)%ic = f%c%atcel(j)%ic
-       f%cpcel(j)%lvec = f%c%atcel(j)%lvec
-
-       f%cpcel(j)%x = matmul(f%c%rotm(1:3,1:3,f%cpcel(j)%ir),f%cp(f%cpcel(j)%idx)%x) + &
-          f%c%rotm(:,4,f%cpcel(j)%ir) + f%c%cen(:,f%cpcel(j)%ic) + f%cpcel(j)%lvec
-       f%cpcel(j)%r = f%c%x2c(f%cpcel(j)%x)
-    end do
+    call cpcel_nuclei(f)
 
   end subroutine init_cplist
 
@@ -2161,7 +2155,7 @@ contains
 
     ! check the format
     read (lu,iostat=ios) magic, version
-    if (ios /= 0 .or. magic /= chk_magic .or. version < 1 .or. version > chk_version) then
+    if (ios /= 0 .or. magic /= chk_magic .or. version < chk_version_min .or. version > chk_version) then
        errmsg = "unknown checkpoint format or version"
        call fclose(lu)
        return
@@ -2194,9 +2188,9 @@ contains
        ok = (ios == 0)
     end if
 
-    ! read the bond paths (version >= 2)
+    ! read the bond paths
     hasgp = .false.
-    if (ok .and. version >= 2) then
+    if (ok) then
        read (lu,iostat=ios) hasgp
        ok = (ios == 0)
        if (ok .and. hasgp) then
@@ -2666,7 +2660,6 @@ contains
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
     integer :: lnuc, lshell
-    character*(1), parameter :: smallnamecrit(0:3) =(/'n','b','r','c'/)
     type(scalar_value) :: res
     type(field_evaluation_avail) :: request
 
@@ -2797,9 +2790,23 @@ contains
 
   end subroutine addcp
 
+  !> Whether critical point cp of field f (from f%cp or f%cpcel) is a
+  !> bond critical point: a non-nuclear CP of the type AUTO traces the
+  !> bond paths from, with the sign of the nuclear signature (3,-1)
+  !> for the default typnuc = -3.
+  module function isbcp(f,cp)
+    class(field), intent(in) :: f
+    type(cp_type), intent(in) :: cp
+    logical :: isbcp
+
+    isbcp = (cp%typ == sign(1,f%typnuc) .and. .not.cp%isnuc)
+
+  end function isbcp
+
   ! Sort the non-equivalent cp list
   module subroutine sortcps(f,cpeps)
     use tools, only: mergesort
+    use tools_io, only: string
     use types, only: cp_type
     class(field), intent(inout) :: f
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
@@ -2829,9 +2836,18 @@ contains
     call mergesort(iaux,iperm,f%c%nneq+1,f%ncp)
     f%cp = f%cp(iperm)
 
-    ! Rewrite the complete CP list
-    f%ncpcel = 0
-    do i = 1, f%ncp
+    ! Rename the non-nuclear CPs in the new order: type letter and
+    ! their number among the CPs of the same type (as addcp)
+    do i = f%c%nneq+1, f%ncp
+       f%cp(i)%idx = i
+       f%cp(i)%name = smallnamecrit(f%cp(i)%typind) // string(count(f%cp(1:i)%typ == f%cp(i)%typ))
+    end do
+
+    ! Rewrite the complete CP list: the nuclei first, as the cell
+    ! atoms (cpcel(j) is atcel(j)), then the images of the other CPs
+    call cpcel_nuclei(f)
+    f%ncpcel = f%c%ncel
+    do i = f%c%nneq+1, f%ncp
        call f%c%symeqv(f%cp(i)%x,mi,sympos,symrotm,symcenv,cpeps)
        do j = 1, mi
           f%ncpcel = f%ncpcel + 1
@@ -3094,6 +3110,32 @@ contains
   end subroutine gradient
 
   !xx! private procedures
+
+  !> Fill the nuclear block of the complete CP list of field f:
+  !> cpcel(j) is cell atom j (same order and symmetry operation), with
+  !> the properties of its symmetry-unique nucleus (the convention
+  !> every user of the list relies on). The position is the image of
+  !> the symmetry-unique nucleus by that operation, which may differ
+  !> from atcel(j)%x in the last digits if the input coordinates were
+  !> rounded.
+  subroutine cpcel_nuclei(f)
+    class(field), intent(inout) :: f
+
+    integer :: j
+
+    do j = 1, f%c%ncel
+       f%cpcel(j) = f%cp(f%c%atcel(j)%idx)
+       f%cpcel(j)%idx = f%c%atcel(j)%idx
+       f%cpcel(j)%ir = f%c%atcel(j)%ir
+       f%cpcel(j)%ic = f%c%atcel(j)%ic
+       f%cpcel(j)%lvec = f%c%atcel(j)%lvec
+       f%cpcel(j)%x = matmul(f%c%rotm(1:3,1:3,f%cpcel(j)%ir),f%cp(f%cpcel(j)%idx)%x) + &
+          f%c%rotm(:,4,f%cpcel(j)%ir) + f%c%cen(:,f%cpcel(j)%ic) + f%cpcel(j)%lvec
+       f%cpcel(j)%r = f%c%x2c(f%cpcel(j)%x)
+    end do
+
+  end subroutine cpcel_nuclei
+
 
   !> Integration using adaptive_stepper step.
   function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)

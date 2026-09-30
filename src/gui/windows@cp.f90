@@ -398,8 +398,7 @@ contains
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         suffix = "_cprow" // string(k)
         it = f%cp(i)%typind
-        ! bond CPs: the type makegraph traces paths from
-        isbcp = (f%cp(i)%typ == sign(1,f%typnuc) .and. .not.f%cp(i)%isnuc)
+        isbcp = f%isbcp(f%cp(i))
 
         ! the CP, and the row selectable that highlights it in the view
         if (igTableSetColumnIndex(0_c_int)) then
@@ -408,7 +407,7 @@ contains
               if (i <= c%nneq) then
                  ! a nucleus: the atom
                  if (icp > 0) then
-                    if (w%cp%nucat(icp) > 0) ihnuc = (/w%cp%nucat(icp),atlisttype_ncel_frac/)
+                    ihnuc = (/icp,atlisttype_ncel_frac/)
                  else
                     ihnuc = (/i,atlisttype_nneq/)
                  end if
@@ -421,7 +420,7 @@ contains
            if (icp > 0) lbl = lbl // " " // string(icp)
            if (i <= c%nneq) then
               if (icp > 0) then
-                 call atom_badge(w%cp%nucat(icp),atlisttype_ncel_frac,lbl // "##cprowcp" // suffix)
+                 call atom_badge(icp,atlisttype_ncel_frac,lbl // "##cprowcp" // suffix)
               else
                  call atom_badge(i,atlisttype_nneq,lbl // "##cprowcp" // suffix)
               end if
@@ -496,12 +495,9 @@ contains
            ! cell CP: the cell CP at the end, and its lattice vector
            iend = f%cpcel(icp)%ipath(j)
            if (iend >= 1 .and. iend <= c%ncel) then
-              if (w%cp%nucat(iend) == 0) then
-                 call iw_text("?",disabled=.true.)
-                 return
-              end if
-              idx(1) = w%cp%nucat(iend)
-              idx(2:4) = f%cpcel(icp)%ilvec(:,j) + w%cp%nucoff(:,iend)
+              ! a nucleus: the cell CP is the cell atom
+              idx(1) = iend
+              idx(2:4) = f%cpcel(icp)%ilvec(:,j)
               call atom_badge(idx(1),atlisttype_ncel_frac,anchor_label(isys,idx,"?",species=.true.) //&
                  "##cpend" // string(j) // suffix)
               return
@@ -543,10 +539,7 @@ contains
       real(c_float) :: rgb(3)
       logical :: have, ldum
 
-      ! iat = 0: a nucleus not matched to a cell atom (no color)
-      have = .false.
-      rgb = 0._c_float
-      if (iat > 0) have = atom_view_rgb(iview,isys,itype,iat,rgb)
+      have = atom_view_rgb(iview,isys,itype,iat,rgb)
       ldum = iw_atom_button(str,rgb,havergb=have,inert=.true.)
 
     end subroutine atom_badge
@@ -568,11 +561,10 @@ contains
 
   !> Recompute the caches of the results table if the CP list of the
   !> field (or the field) changed: the Wyckoff letters of the
-  !> symmetry-unique CPs, the cell atom of each nuclear cell CP, and
-  !> the summary.
+  !> symmetry-unique CPs and the summary.
   subroutine update_table_caches(w,isys)
     use systems, only: sysc
-    use representations, only: cp_nucleus_map, cp_wyckoff
+    use representations, only: cp_wyckoff
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
@@ -580,7 +572,6 @@ contains
     w%cp%tfield = w%cp%ifield
     w%cp%ttime = sysc(isys)%timelastchange_cplist
     call cp_wyckoff(isys,w%cp%ifield,w%cp%wyc)
-    call cp_nucleus_map(isys,w%cp%ifield,w%cp%nucat,w%cp%nucoff)
     w%cp%summary = cp_summary(isys,w%cp%ifield)
 
   end subroutine update_table_caches

@@ -791,8 +791,6 @@ module representations
      real(c_float), allocatable :: prgb(:,:,:) ! color of each cell path (3,2,ncpcel)
      real(c_float), allocatable :: prad(:,:) ! radius of each cell path (2,ncpcel, bohr)
      logical, allocatable :: pshown(:,:) ! whether each cell path is shown (2,ncpcel)
-     integer, allocatable :: pnuc(:) ! cell atom of nucleus k (ncel)
-     integer, allocatable :: pnucoff(:,:) ! lattice vector: cpcel(k)%x = atcel(pnuc(k))%x + pnucoff(:,k)
      integer, allocatable :: pfirst(:) ! (ncp+1), cell copies of each symmetry-unique CP i: pcopy(pfirst(i):pfirst(i+1)-1)
      integer, allocatable :: pcopy(:) ! (ncpcel)
      integer :: ihover(3) = 0 ! path under the mouse in the editor tables, drawn highlighted: ! (j, symmetry-unique CP i, 0) highlights all its cell copies, ! (j, 0, cell CP icp) that one (0 = none)
@@ -863,7 +861,6 @@ module representations
   public :: cps_field
   public :: cps_field_default
   public :: field_has_cps
-  public :: cp_nucleus_map
   public :: cp_wyckoff
   public :: vibration_arrow_shapes
   public :: shape_differs
@@ -879,11 +876,6 @@ module representations
        logical, intent(in), optional :: withpaths
        logical :: ok
      end function field_has_cps
-     module subroutine cp_nucleus_map(isys,ifield,nuc,nucoff)
-       integer, intent(in) :: isys, ifield
-       integer, allocatable, intent(out) :: nuc(:)
-       integer, allocatable, intent(out) :: nucoff(:,:)
-     end subroutine cp_nucleus_map
      module subroutine cp_wyckoff(isys,ifield,wyc)
        integer, intent(in) :: isys, ifield
        character*1, allocatable, intent(out) :: wyc(:)

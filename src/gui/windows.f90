@@ -249,8 +249,6 @@ module windows
      integer :: tfield = -1
      real*8 :: ttime = -1d0
      character*1, allocatable :: wyc(:) ! Wyckoff letter of each symmetry-unique CP (crystals)
-     integer, allocatable :: nucat(:) ! cell atom of each nuclear cell CP (ncel)
-     integer, allocatable :: nucoff(:,:) ! lattice vector: cpcel(k)%x = atcel(nucat(k))%x + nucoff(:,k)
   end type cp_state
   public :: cp_state
 
