@@ -760,6 +760,7 @@ module representations
      real(c_float) :: rgb(3,0:3) = 1._c_float ! color of each CP type
      real(c_float) :: rad(0:3) = cps_rad_def ! sphere radius of each CP type (bohr)
      real(c_float) :: radscale = 1._c_float ! scale factor for all radii
+     integer :: ihover(2) = 0 ! CP under the mouse in the critical points window, drawn highlighted: (i, 0) all cell copies of symmetry-unique CP i, (0, icp) cell CP icp
   end type rep_cps
 
   ! default radius of the gradient path tubes (0.04 Å, in bohr)

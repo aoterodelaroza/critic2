@@ -241,6 +241,16 @@ module windows
      character(len=:), allocatable :: pending_line ! AUTO options of the job
      ! results
      character(len=:), allocatable :: summary ! of the last run
+     integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
+     integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
+     integer :: hoverview = 0 ! view whose critical points object has ihover
+     ! results table caches, valid for field tfield while the system's
+     ! timelastchange_cplist is ttime
+     integer :: tfield = -1
+     real*8 :: ttime = -1d0
+     character*1, allocatable :: wyc(:) ! Wyckoff letter of each symmetry-unique CP (crystals)
+     integer, allocatable :: nucat(:) ! cell atom of each nuclear cell CP (ncel)
+     integer, allocatable :: nucoff(:,:) ! lattice vector: cpcel(k)%x = atcel(nucat(k))%x + nucoff(:,k)
   end type cp_state
   public :: cp_state
 
@@ -905,6 +915,7 @@ module windows
      procedure :: draw_cp
      procedure :: block_cp
      procedure :: run_cp_pending
+     procedure :: clear_cp_hover
      ! blocking jobs (gui_main%pending_block_window)
      procedure :: block_draw => window_block_draw
      procedure :: block_run => window_block_run
@@ -1549,6 +1560,9 @@ module windows
      module subroutine run_cp_pending(w)
        class(window), intent(inout), target :: w
      end subroutine run_cp_pending
+     module subroutine clear_cp_hover(w)
+       class(window), intent(inout), target :: w
+     end subroutine clear_cp_hover
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

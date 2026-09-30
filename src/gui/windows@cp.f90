@@ -47,8 +47,8 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged
-    integer :: isys, iview
+    logical :: doquit, goodsys, syschanged, tabopen
+    integer :: isys, iview, ihover(2)
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -65,17 +65,20 @@ contains
        w%errmsg = ""
     end if
 
-    ! a new system: the reference field and AUTO's default seeds for it
+    ! a new system: the reference field and AUTO's default seeds for
+    ! it, and the results table caches are stale
     if (goodsys) then
-       if (w%cp%isys /= isys) then
+       if (w%cp%isys /= isys .or. syschanged) then
           w%cp%isys = isys
           w%cp%ifield = sys(isys)%iref
           call reset_seeds(w,isys)
           if (allocated(w%cp%summary)) deallocate(w%cp%summary)
+          w%cp%tfield = -1
        end if
     end if
 
     ! the system
+    ihover = 0
     if (goodsys) then
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
@@ -83,13 +86,29 @@ contains
        str1 = "##drawcp_tabbar" // c_null_char
        flags = ImGuiTabBarFlags_None
        if (igBeginTabBar(c_loc(str1),flags)) then
-          if (iw_begintabitem("Search##drawcp_searchtab")) then
+          ! each tooltip goes right after its tab: after the tab's
+          ! contents, it would apply to their last widget
+          tabopen = iw_begintabitem("Search##drawcp_searchtab")
+          call iw_tooltip("Find the critical points of a field (AUTO)",ttshown)
+          if (tabopen) then
              call draw_search_tab(w,isys,iview,ttshown)
              call igEndTabItem()
           end if
-          call iw_tooltip("Find the critical points of a field (AUTO)",ttshown)
+          tabopen = iw_begintabitem("Results##drawcp_resultstab")
+          call iw_tooltip("The critical points of the field",ttshown)
+          if (tabopen) then
+             call draw_results_tab(w,isys,iview,ihover,ttshown)
+             call igEndTabItem()
+          end if
           call igEndTabBar()
        end if
+    end if
+
+    ! the CP under the mouse in the results table is highlighted in the view
+    if (goodsys) then
+       call set_cp_hover(w,iview,ihover)
+    else
+       call w%clear_cp_hover()
     end if
 
     ! the error message from the last operation
@@ -242,7 +261,425 @@ contains
 
   end subroutine run_cp_pending
 
+  !> Stop highlighting in the view the CP under the mouse in the
+  !> results table of the critical points window.
+  module subroutine clear_cp_hover(w)
+    class(window), intent(inout), target :: w
+
+    call set_cp_hover(w,0,(/0,0/))
+
+  end subroutine clear_cp_hover
+
   !--- private procedures ---
+
+  !> The Results tab: the table of the critical points of the field,
+  !> for the symmetry-unique CPs or the cell CPs. Returns in ihover the
+  !> CP under the mouse (as rep_cps%ihover).
+  subroutine draw_results_tab(w,isys,iview,ihover,ttshown)
+    use systems, only: sys, sysc, atlisttype_nneq, atlisttype_ncel_frac
+    use representations, only: field_has_cps
+    use gui_main, only: g, ColorHighlightScene
+    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
+       iw_table_headers_row, iw_highlight_selectable, iw_atom_button
+    use tools_io, only: string
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+    integer, intent(inout) :: ihover(2)
+    logical, intent(inout) :: ttshown
+
+    integer :: n, k, ifield, ncol, nrow, ihnuc(2)
+    integer(c_int) :: itable, flags
+    logical :: ch, cell, ismol
+    character(kind=c_char,len=:), allocatable, target :: str1
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
+    type(ImVec2) :: sz
+
+    ifield = w%cp%ifield
+    if (.not.sys(isys)%goodfield(ifield)) then
+       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+       return
+    end if
+    call iw_text("Field",highlight=.true.)
+    call iw_text(string(ifield) // ": " // trim(sys(isys)%f(ifield)%name),sameline=.true.)
+    if (.not.field_has_cps(isys,ifield)) then
+       call iw_text("This field has no critical points other than the nuclei (search for them in&
+          & the Search tab, or load a checkpoint that has them)",disabled=.true.,wrap=.true.)
+       return
+    end if
+    call update_table_caches(w,isys)
+    ismol = sys(isys)%c%ismolecule
+    ihnuc = 0
+
+    associate(f => sys(isys)%f(ifield))
+      ! the list: the symmetry-unique CPs, or the cell CPs if there are
+      ! more (the combo items are in the order of the tablecell values)
+      cell = .false.
+      if (f%ncpcel > f%ncp) then
+         itable = int(w%cp%tablecell,c_int)
+         call iw_combo_simple("Critical point list##cptablecombo","Symmetry-unique" // c_null_char //&
+            "Cell" // c_null_char,itable,changed=ch)
+         call iw_tooltip("List the symmetry-unique critical points or every critical point in the cell",&
+            ttshown)
+         if (ch) w%cp%tablecell = int(itable)
+         cell = (w%cp%tablecell == 1)
+      end if
+      n = merge(f%ncpcel,f%ncp,cell)
+      call iw_text(cp_summary(isys,ifield),wrap=.true.)
+
+      flags = ImGuiTableFlags_None
+      flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+      flags = ior(flags,ImGuiTableFlags_RowBg)
+      flags = ior(flags,ImGuiTableFlags_Borders)
+      flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+      flags = ior(flags,ImGuiTableFlags_ScrollX)
+      flags = ior(flags,ImGuiTableFlags_ScrollY)
+      str1 = "##tablecpresults" // c_null_char
+      sz%x = 0._c_float
+      ! rows one frame high (badges) with cell padding, and the
+      ! horizontal scrollbar
+      nrow = min(16,n+1)
+      sz%y = iw_calcheight(nrow,0,.false.) + nrow * 2 * g%Style%CellPadding%y +&
+         g%Style%ScrollbarSize
+      if (igBeginTable(c_loc(str1),10,flags,sz,0._c_float)) then
+         ncol = -1
+         call iw_table_column("CP",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         if (ismol) then
+            call iw_table_column("Position (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         else
+            call iw_table_column("Position (fractional)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         end if
+         call iw_table_column("Site",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Field",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("|Gradient|",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Laplacian",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("End 2",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Path (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Ellipticity",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+         clipper = ImGuiListClipper_ImGuiListClipper()
+         call ImGuiListClipper_Begin(clipper,n,-1._c_float)
+         do while(ImGuiListClipper_Step(clipper))
+            call c_f_pointer(clipper,clipper_f)
+            do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+               if (cell) then
+                  call draw_cp_row(k,f%cpcel(k)%idx,k)
+               else
+                  call draw_cp_row(k,k,0)
+               end if
+            end do
+         end do
+         call ImGuiListClipper_End(clipper)
+         call ImGuiListClipper_destroy(clipper)
+         call igEndTable()
+      end if
+    end associate
+
+    ! a nucleus under the mouse: highlight the atom
+    if (ihnuc(1) > 0) &
+       call sysc(isys)%highlight_atoms(.true.,ihnuc(1:1),ihnuc(2),reshape(ColorHighlightScene,(/4,1/)))
+
+  contains
+    !> Row k of the table: symmetry-unique CP i (icp = 0) or cell CP
+    !> icp, a copy of symmetry-unique CP i. The properties are those of
+    !> the symmetry-unique CP.
+    subroutine draw_cp_row(k,i,icp)
+      use param, only: bohrtoa
+      integer, intent(in) :: k, i, icp
+
+      integer :: j, it
+      real*8 :: x(3), xc(3)
+      character(len=:), allocatable :: suffix, lbl
+      logical :: isbcp
+
+      associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+        suffix = "_cprow" // string(k)
+        it = f%cp(i)%typind
+        ! bond CPs: the type makegraph traces paths from
+        isbcp = (f%cp(i)%typ == sign(1,f%typnuc) .and. .not.f%cp(i)%isnuc)
+
+        ! the CP, and the row selectable that highlights it in the view
+        if (igTableSetColumnIndex(0_c_int)) then
+           call iw_text("",alignframe=.true.)
+           if (iw_highlight_selectable("##cprowsel" // suffix)) then
+              if (i <= c%nneq) then
+                 ! a nucleus: the atom
+                 if (icp > 0) then
+                    if (w%cp%nucat(icp) > 0) ihnuc = (/w%cp%nucat(icp),atlisttype_ncel_frac/)
+                 else
+                    ihnuc = (/i,atlisttype_nneq/)
+                 end if
+              else
+                 ihover = (/merge(0,i,icp > 0),icp/)
+              end if
+           end if
+           call igSameLine(0._c_float,0._c_float)
+           lbl = trim(f%cp(i)%name)
+           if (icp > 0) lbl = lbl // " " // string(icp)
+           if (i <= c%nneq) then
+              if (icp > 0) then
+                 call atom_badge(w%cp%nucat(icp),atlisttype_ncel_frac,lbl,"##cprowcp" // suffix)
+              else
+                 call atom_badge(i,atlisttype_nneq,lbl,"##cprowcp" // suffix)
+              end if
+           else
+              call cp_badge(i,lbl,"##cprowcp" // suffix)
+           end if
+        end if
+
+        ! position: fractional for crystals, Cartesian in the input
+        ! frame for molecules; the other in the tooltip
+        if (icp > 0) then
+           x = f%cpcel(icp)%x
+        else
+           x = f%cp(i)%x
+        end if
+        xc = (c%x2c(x) + c%molx0) * bohrtoa
+        if (igTableSetColumnIndex(1_c_int)) then
+           if (ismol) then
+              call iw_text(xyz_str(xc))
+           else
+              call iw_text(xyz_str(x))
+              call iw_tooltip("Cartesian: " // xyz_str(xc) // " Å",ttshown)
+           end if
+        end if
+
+        ! site: multiplicity, Wyckoff letter (crystals), and site symmetry
+        if (igTableSetColumnIndex(2_c_int)) then
+           lbl = string(f%cp(i)%mult)
+           if (allocated(w%cp%wyc) .and. i > c%nneq) lbl = lbl // w%cp%wyc(i-c%nneq)
+           call iw_text(lbl // " " // trim(f%cp(i)%pg))
+           if (ismol) then
+              call iw_tooltip("Multiplicity and site symmetry",ttshown)
+           else
+              call iw_tooltip("Multiplicity, Wyckoff letter, and site symmetry",ttshown)
+           end if
+        end if
+
+        ! field, gradient norm, and Laplacian at the CP
+        if (igTableSetColumnIndex(3_c_int)) call iw_text(string(f%cp(i)%s%f,'e',decimal=5))
+        if (igTableSetColumnIndex(4_c_int)) call iw_text(string(f%cp(i)%s%gfmod,'e',decimal=3))
+        if (igTableSetColumnIndex(5_c_int)) call iw_text(string(f%cp(i)%s%del2f,'e',decimal=5))
+
+        ! bond CPs: the ends of the bond path, its length, and the ellipticity
+        if (isbcp) then
+           do j = 1, 2
+              if (igTableSetColumnIndex(int(5+j,c_int))) call path_end_badge(i,icp,j,suffix)
+           end do
+           if (igTableSetColumnIndex(8_c_int)) then
+              if (all(f%cp(i)%ipath > 0)) &
+                 call iw_text(string(sum(f%cp(i)%brpathlen) * bohrtoa,'f',decimal=4))
+           end if
+           if (igTableSetColumnIndex(9_c_int)) then
+              if (abs(f%cp(i)%s%hfeval(2)) > 0d0) &
+                 call iw_text(string(f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0,'f',decimal=4))
+           end if
+        end if
+      end associate
+
+    end subroutine draw_cp_row
+
+    !> The atom or CP at end j of the bond path of the BCP in row
+    !> (symmetry-unique CP i, or cell CP icp).
+    subroutine path_end_badge(i,icp,j,suffix)
+      integer, intent(in) :: i, icp, j
+      character(len=*), intent(in) :: suffix
+
+      integer :: iend, iu
+      integer(c_int) :: idx(4)
+
+      associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+        if (icp > 0) then
+           ! cell CP: the cell CP at the end, and its lattice vector
+           iend = f%cpcel(icp)%ipath(j)
+           if (iend >= 1 .and. iend <= c%ncel) then
+              if (w%cp%nucat(iend) == 0) then
+                 call iw_text("?",disabled=.true.)
+                 return
+              end if
+              idx(1) = w%cp%nucat(iend)
+              idx(2:4) = f%cpcel(icp)%ilvec(:,j) + w%cp%nucoff(:,iend)
+              call atom_badge(idx(1),atlisttype_ncel_frac,anchor_label(isys,idx,"?",species=.true.),&
+                 "##cpend" // string(j) // suffix)
+              return
+           elseif (iend > c%ncel .and. iend <= f%ncpcel) then
+              iu = f%cpcel(iend)%idx
+              call cp_badge(iu,trim(f%cp(iu)%name) // " " // string(iend) // lvec_str(f%cpcel(icp)%ilvec(:,j)),&
+                 "##cpend" // string(j) // suffix)
+              return
+           end if
+        else
+           ! symmetry-unique CP: the symmetry-unique CP at the end
+           iend = f%cp(i)%ipath(j)
+           if (iend >= 1 .and. iend <= c%nneq) then
+              call atom_badge(iend,atlisttype_nneq,trim(c%at(iend)%name),"##cpend" // string(j) // suffix)
+              return
+           elseif (iend > c%nneq .and. iend <= f%ncp) then
+              call cp_badge(iend,trim(f%cp(iend)%name),"##cpend" // string(j) // suffix)
+              return
+           end if
+        end if
+
+        ! no CP at the end: the unique list tells whether the path
+        ! leaves the molecule
+        if (f%cp(i)%ipath(j) == -1) then
+           call iw_text("(leaves the molecule)",disabled=.true.)
+        elseif (f%cp(i)%ipath(j) /= 0) then
+           call iw_text("?",disabled=.true.)
+        end if
+      end associate
+
+    end subroutine path_end_badge
+
+    !> Badge of atom iat of list type itype, in its view color, reading lbl.
+    subroutine atom_badge(iat,itype,lbl,tag)
+      integer, intent(in) :: iat, itype
+      character(len=*), intent(in) :: lbl, tag
+
+      real(c_float) :: rgb(3)
+      logical :: have, ldum
+
+      ! iat = 0: a nucleus not matched to a cell atom (no color)
+      have = .false.
+      rgb = 0._c_float
+      if (iat > 0) have = atom_view_rgb(iview,isys,itype,iat,rgb)
+      ldum = iw_atom_button(lbl // tag,rgb,havergb=have,inert=.true.)
+
+    end subroutine atom_badge
+
+    !> Badge of symmetry-unique CP icp of the field, in its view color,
+    !> reading lbl.
+    subroutine cp_badge(icp,lbl,tag)
+      integer, intent(in) :: icp
+      character(len=*), intent(in) :: lbl, tag
+
+      real(c_float) :: rgb(3)
+      logical :: have, ldum
+
+      have = cp_view_rgb(iview,isys,ifield,icp,rgb)
+      ldum = iw_atom_button(lbl // tag,rgb,havergb=have,inert=.true.)
+
+    end subroutine cp_badge
+
+    !> Three coordinates, 4 decimals (no "-0.0000").
+    function xyz_str(x) result(str)
+      real*8, intent(in) :: x(3)
+      character(len=:), allocatable :: str
+
+      real*8 :: xx(3)
+
+      xx = merge(0d0,x,abs(x) < 5d-5)
+      str = string(xx(1),'f',decimal=4) // " " // string(xx(2),'f',decimal=4) // " " //&
+         string(xx(3),'f',decimal=4)
+
+    end function xyz_str
+
+    !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
+    function lvec_str(l) result(str)
+      integer, intent(in) :: l(3)
+      character(len=:), allocatable :: str
+
+      str = ""
+      if (any(l /= 0)) str = "+(" // string(l(1)) // "," // string(l(2)) // "," // string(l(3)) // ")"
+
+    end function lvec_str
+
+  end subroutine draw_results_tab
+
+  !> Recompute the caches of the results table if the CP list of the
+  !> field (or the field) changed: the Wyckoff letters of the
+  !> symmetry-unique CPs (crystals) and the cell atom of each nuclear
+  !> cell CP (the cell CP list need not follow the atom order).
+  subroutine update_table_caches(w,isys)
+    use systems, only: sys, sysc
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    integer :: i, j, nx
+    real*8 :: xd(3)
+    character*1, allocatable :: wcel(:)
+
+    associate(c => sys(isys)%c, f => sys(isys)%f(w%cp%ifield))
+      if (w%cp%tfield == w%cp%ifield .and. w%cp%ttime == sysc(isys)%timelastchange_cplist) return
+      w%cp%tfield = w%cp%ifield
+      w%cp%ttime = sysc(isys)%timelastchange_cplist
+
+      ! Wyckoff letters, from the cell CPs
+      if (allocated(w%cp%wyc)) deallocate(w%cp%wyc)
+      if (.not.c%ismolecule .and. f%ncp > c%nneq) then
+         ! one letter per cell CP, then per symmetry-unique CP
+         nx = f%ncpcel - c%ncel
+         allocate(wcel(nx),w%cp%wyc(f%ncp-c%nneq))
+         call c%wyckoff_sites(nx,reshape((/(f%cpcel(c%ncel+j)%x,j=1,nx)/),(/3,nx/)),&
+            (/(f%cpcel(c%ncel+j)%idx - c%nneq,j=1,nx)/),wcel)
+         w%cp%wyc = "?"
+         do j = 1, nx
+            w%cp%wyc(f%cpcel(c%ncel+j)%idx - c%nneq) = wcel(j)
+         end do
+      end if
+
+      ! the cell atom of each nucleus, by position
+      if (allocated(w%cp%nucat)) deallocate(w%cp%nucat)
+      if (allocated(w%cp%nucoff)) deallocate(w%cp%nucoff)
+      allocate(w%cp%nucat(c%ncel),w%cp%nucoff(3,c%ncel))
+      w%cp%nucat = 0
+      w%cp%nucoff = 0
+      do i = 1, min(c%ncel,f%ncpcel)
+         do j = 1, c%ncel
+            if (c%atcel(j)%idx /= f%cpcel(i)%idx) cycle
+            xd = f%cpcel(i)%x - c%atcel(j)%x
+            if (any(abs(xd - nint(xd)) > 1d-4)) cycle
+            w%cp%nucat(i) = j
+            w%cp%nucoff(:,i) = nint(xd)
+            exit
+         end do
+      end do
+    end associate
+
+  end subroutine update_table_caches
+
+  !> Highlight in the critical points object of view iview (for the
+  !> window's field) the CP ihover (as rep_cps%ihover), and stop
+  !> highlighting the previous one. Only changes rebuild the lists.
+  subroutine set_cp_hover(w,iview,ihover)
+    use representations, only: reptype_cps
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: iview
+    integer, intent(in) :: ihover(2)
+
+    if (all(ihover == w%cp%ihover) .and. iview == w%cp%hoverview) return
+    call apply(w%cp%hoverview,(/0,0/))
+    call apply(iview,ihover)
+    w%cp%ihover = ihover
+    w%cp%hoverview = iview
+
+  contains
+    subroutine apply(iv,ih)
+      integer, intent(in) :: iv, ih(2)
+
+      integer :: i
+      logical :: ch
+
+      if (iv < 1 .or. iv > nwin) return
+      if (.not.win(iv)%isopen .or. .not.associated(win(iv)%sc)) return
+      ch = .false.
+      associate(sc => win(iv)%sc)
+        do i = 1, sc%nrep
+           if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_cps) cycle
+           ! set it in the object of the field; clear it in all
+           if (any(ih /= 0) .and. sc%rep(i)%cps%ifield /= w%cp%ifield) cycle
+           if (all(sc%rep(i)%cps%ihover == ih)) cycle
+           sc%rep(i)%cps%ihover = ih
+           ch = .true.
+        end do
+        if (ch) sc%forcebuildlists = .true.
+      end associate
+
+    end subroutine apply
+  end subroutine set_cp_hover
 
   !> The Search tab: field, seeds, advanced options, and the Run button.
   subroutine draw_search_tab(w,isys,iview,ttshown)

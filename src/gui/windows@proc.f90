@@ -864,6 +864,9 @@ contains
           if (.not.w%ismain) then
              if (associated(w%sc)) deallocate(w%sc)
           end if
+       elseif (w%type == wintype_cp) then
+          ! the CP under the mouse in its table is no longer highlighted
+          call w%clear_cp_hover()
        elseif (w%type == wintype_vibrations) then
           ! reset the animation status of the parent
           isysd = w%anchor_view()
@@ -1413,7 +1416,7 @@ contains
        elseif (w%type == wintype_voids) then
           call init_window("Crystal Voids",62,35)
        elseif (w%type == wintype_cp) then
-          call init_window("Critical Points",62,42)
+          call init_window("Critical Points",90,42)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then

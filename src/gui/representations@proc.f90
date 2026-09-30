@@ -2866,6 +2866,11 @@ contains
                           idx=0,xdelta=cmplx(0._c_float,0._c_float,c_float_complex),&
                           border=real(atomborder_def,c_float),rgbborder=ColorAtomBorder_def,&
                           cpidx=(/icp,j1+vshift(1),j2+vshift(2),j3+vshift(3),ifield/))
+                       ! highlighted if under the mouse in the critical points window
+                       if (r%cps%ihover(1) == f%cpcel(icp)%idx .or. r%cps%ihover(2) == icp) then
+                          dsph%rgb = ColorHighlightScene(1:3)
+                          dsph%r = 1.5_c_float * dsph%r
+                       end if
                        call dl_append(obj%sph,obj%nsph,dsph)
                     end if
                  end do
