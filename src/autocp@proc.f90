@@ -60,8 +60,11 @@ contains
   !> Uses the IWS, with barycentric subdivision. If success is present,
   !> it returns whether the search was done (false if the options were
   !> rejected). If clear, discard the existing critical points of the
-  !> field before the search (only once the options are accepted).
-  module subroutine autocritic(line,success,clear)
+  !> field before the search (only once the options are accepted). If
+  !> seeds is present, return in it the seed points (Cartesian, cell
+  !> frame, bohr) after the pruning and the clipping, with no output
+  !> and no search.
+  module subroutine autocritic(line,success,clear,seeds)
     use grid3mod, only: mode_smr
     use systemmod, only: sy
     use fieldmod, only: type_grid
@@ -78,6 +81,7 @@ contains
     character*(*), intent(in) :: line
     logical, intent(out), optional :: success
     logical, intent(in), optional :: clear
+    real*8, allocatable, intent(inout), optional :: seeds(:,:)
 
     integer, parameter :: styp_ws = 1      ! recursive subdivision of the WS cell
     integer, parameter :: styp_pair = 2    ! pairs
@@ -105,7 +109,7 @@ contains
 
     real*8  :: iniv(4,3), xdum(3)
     integer :: nt
-    logical :: ok, dryrun, dochk
+    logical :: ok, dryrun, dochk, report
     character(len=:), allocatable :: word, str
     real*8 :: gfnormeps
     integer :: ntetrag
@@ -131,7 +135,9 @@ contains
 
     real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp (grids)
 
-    if (.not.quiet) then
+    ! no output if only the seeds are wanted
+    report = .not.present(seeds)
+    if (.not.quiet .and. report) then
        call tictac("Start AUTO")
        write (uout,*)
     end if
@@ -574,101 +580,8 @@ contains
     end do
     call realloc(xseed,3,nn)
 
-    ! write the header to the output
-    write (uout,'("* Automatic determination of CPs")')
-
-    if (sy%f(sy%iref)%type == type_grid) then
-       if (sy%f(sy%iref)%grid%mode == mode_smr) then
-          write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
-          write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116 (doi:10.1063/5.0090232)")')
-       end if
-    end if
-
-    write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A," ",A)') &
-       string(cpeps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
-    write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A," ",A)') &
-       string(nuceps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
-    write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A," ",A)') &
-       string(nucepsh*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
-    write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
-       string(CP_hdegen,'e',decimal=3)
-    if (allocated(discard)) then
-       do i = 1, size(discard,1)
-          if (all(discard(i)%typeok)) then
-             write (uout,'("  Discard CP expression: ",A)') trim(discard(i)%s)
-          else
-             write (uout,'("  Discard CP expression: ",A," applies to: n=",A,", b=",A,", r=",A,", c=",A)') &
-                trim(discard(i)%s), (string(discard(i)%typeok(j)),j=1,4)
-          end if
-       end do
-    end if
-    if (.not.all(typeok)) then
-       write (uout,'("  CP types to keep: nuclei=",A,", bonds=",A,", rings=",A,", cages=",A)') &
-          (string(typeok(j)),j=1,4)
-    end if
-    write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
-    write (uout,'("+ List of seeding actions")')
-    write (uout,'("  Id nseed     Type           Description")')
-    do i = 1, nseed
-       x0 = seed(i)%x0
-       x1 = seed(i)%x1
-       r = seed(i)%rad * dunit0(iunit)
-       dist = seed(i)%dist * dunit0(iunit)
-       if (sy%c%ismolecule) then
-          x0 = (sy%c%x2c(x0) + sy%c%molx0) * dunit0(iunit)
-          x1 = (sy%c%x2c(x1) + sy%c%molx0) * dunit0(iunit)
-       endif
-       str = "  " // string(i,2)
-       str = str // string(seed(i)%nseed,7)
-       if (seed(i)%typ == styp_ws) then
-          str = str // " WS recursive  "
-          str = str // "  depth=" // string(seed(i)%depth)
-          str = trim(str) // ", x0=" // string(x0(1),'f',7,4) // " " // &
-             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
-          if (r > 0d0) then
-             str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
-          else
-             str = trim(str) // ", no radius "
-          endif
-       elseif (seed(i)%typ == styp_pair) then
-          str = str // " Atom pairs    "
-          str = str // "  dist=" // trim(string(dist,'f',10,4))
-          str = str // ", npts=" // string(seed(i)%npts)
-       elseif (seed(i)%typ == styp_triplet) then
-          str = str // " Atom triplets "
-          str = str // "  dist=" // trim(string(dist,'f',10,4))
-       elseif (seed(i)%typ == styp_line) then
-          str = str // " Line          "
-          str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
-             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
-          str = trim(str) // ", x1=" // string(x1(1),'f',7,4) // " " // &
-             string(x1(2),'f',7,4) // " " // string(x1(3),'f',7,4)
-          str = str // ", npts=" // string(seed(i)%npts)
-       elseif (seed(i)%typ == styp_sphere) then
-          str = str // " Sphere        "
-          str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
-             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
-          str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
-          str = str // ", ntheta=" // string(seed(i)%ntheta)
-          str = str // ", nphi=" // string(seed(i)%nphi)
-          str = str // ", nr=" // string(seed(i)%nr)
-       elseif (seed(i)%typ == styp_oh) then
-          str = str // " Oh recursive  "
-          str = str // "  depth=" // string(seed(i)%depth)
-          str = trim(str) // ", x0=" // string(x0(1),'f',7,4) // " " // &
-             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
-          str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
-          str = str // ", nr=" // string(seed(i)%nr)
-       elseif (seed(i)%typ == styp_mesh) then
-          str = str // " Molecular integration mesh "
-       elseif (seed(i)%typ == styp_point) then
-          str = str // " Point         "
-          str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
-             string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
-       endif
-       write (uout,'(A)') str
-    end do
-    write (uout,'("+ Number of seeds before pruning and clipping: ",A)') string(nn)
+    ! write the header and the seeding actions to the output
+    if (report) call report_seeds()
 
     ! move all the seeds to the main cell
     do i = 1, nn
@@ -696,14 +609,13 @@ contains
        end do
        nn = ilag
        call realloc(xseed,3,nn)
+       deallocate(keep)
     endif
 
     ! clip the cube or the sphere
     if (iclip > 0) then
-       if (.not.allocated(keep)) then
-          allocate(keep(nn))
-          keep = .true.
-       end if
+       allocate(keep(nn))
+       keep = .true.
        if (iclip == 1) then
           ! cube
           do i = 1, nn
@@ -738,6 +650,14 @@ contains
 
     ! ! uniq the list - double sum over seeds, bad idea
     ! call uniqc(xseed,1,nn,seed_eps)
+
+    ! only the seed points were asked for
+    if (.not.report) then
+       seeds = xseed(:,1:nn)
+       iclip = 0
+       if (present(success)) success = .true.
+       return
+    end if
 
     ! this is the final list of seeds
     write (uout,'("+ Number of seeds: ",A)') string(nn)
@@ -868,6 +788,110 @@ contains
     end if
 
   contains
+    !> Write the header of the search and the list of seeding
+    !> actions to the output.
+    subroutine report_seeds()
+      integer :: i, j
+      real*8 :: x0(3), x1(3), r, dist
+      character(len=:), allocatable :: str
+
+      write (uout,'("* Automatic determination of CPs")')
+
+      if (sy%f(sy%iref)%type == type_grid) then
+         if (sy%f(sy%iref)%grid%mode == mode_smr) then
+            write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
+            write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116 (doi:10.1063/5.0090232)")')
+         end if
+      end if
+
+      write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A," ",A)') &
+         string(cpeps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
+      write (uout,'("  Discard new CPs if a nucleus was found at a distance less than: ",A," ",A)') &
+         string(nuceps*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
+      write (uout,'("  Discard new CPs if a hydrogen was found at a distance less than: ",A," ",A)') &
+         string(nucepsh*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
+      write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
+         string(CP_hdegen,'e',decimal=3)
+      if (allocated(discard)) then
+         do i = 1, size(discard,1)
+            if (all(discard(i)%typeok)) then
+               write (uout,'("  Discard CP expression: ",A)') trim(discard(i)%s)
+            else
+               write (uout,'("  Discard CP expression: ",A," applies to: n=",A,", b=",A,", r=",A,", c=",A)') &
+                  trim(discard(i)%s), (string(discard(i)%typeok(j)),j=1,4)
+            end if
+         end do
+      end if
+      if (.not.all(typeok)) then
+         write (uout,'("  CP types to keep: nuclei=",A,", bonds=",A,", rings=",A,", cages=",A)') &
+            (string(typeok(j)),j=1,4)
+      end if
+      write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
+      write (uout,'("+ List of seeding actions")')
+      write (uout,'("  Id nseed     Type           Description")')
+      do i = 1, nseed
+         x0 = seed(i)%x0
+         x1 = seed(i)%x1
+         r = seed(i)%rad * dunit0(iunit)
+         dist = seed(i)%dist * dunit0(iunit)
+         if (sy%c%ismolecule) then
+            x0 = (sy%c%x2c(x0) + sy%c%molx0) * dunit0(iunit)
+            x1 = (sy%c%x2c(x1) + sy%c%molx0) * dunit0(iunit)
+         endif
+         str = "  " // string(i,2)
+         str = str // string(seed(i)%nseed,7)
+         if (seed(i)%typ == styp_ws) then
+            str = str // " WS recursive  "
+            str = str // "  depth=" // string(seed(i)%depth)
+            str = trim(str) // ", x0=" // string(x0(1),'f',7,4) // " " // &
+               string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+            if (r > 0d0) then
+               str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
+            else
+               str = trim(str) // ", no radius "
+            endif
+         elseif (seed(i)%typ == styp_pair) then
+            str = str // " Atom pairs    "
+            str = str // "  dist=" // trim(string(dist,'f',10,4))
+            str = str // ", npts=" // string(seed(i)%npts)
+         elseif (seed(i)%typ == styp_triplet) then
+            str = str // " Atom triplets "
+            str = str // "  dist=" // trim(string(dist,'f',10,4))
+         elseif (seed(i)%typ == styp_line) then
+            str = str // " Line          "
+            str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
+               string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+            str = trim(str) // ", x1=" // string(x1(1),'f',7,4) // " " // &
+               string(x1(2),'f',7,4) // " " // string(x1(3),'f',7,4)
+            str = str // ", npts=" // string(seed(i)%npts)
+         elseif (seed(i)%typ == styp_sphere) then
+            str = str // " Sphere        "
+            str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
+               string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+            str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
+            str = str // ", ntheta=" // string(seed(i)%ntheta)
+            str = str // ", nphi=" // string(seed(i)%nphi)
+            str = str // ", nr=" // string(seed(i)%nr)
+         elseif (seed(i)%typ == styp_oh) then
+            str = str // " Oh recursive  "
+            str = str // "  depth=" // string(seed(i)%depth)
+            str = trim(str) // ", x0=" // string(x0(1),'f',7,4) // " " // &
+               string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+            str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
+            str = str // ", nr=" // string(seed(i)%nr)
+         elseif (seed(i)%typ == styp_mesh) then
+            str = str // " Molecular integration mesh "
+         elseif (seed(i)%typ == styp_point) then
+            str = str // " Point         "
+            str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &
+               string(x0(2),'f',7,4) // " " // string(x0(3),'f',7,4)
+         endif
+         write (uout,'(A)') str
+      end do
+      write (uout,'("+ Number of seeds before pruning and clipping: ",A)') string(nn)
+
+    end subroutine report_seeds
+
     subroutine add_discard_expression(str,type)
       character(len=*), intent(in) :: str
       logical, intent(in) :: type(4)

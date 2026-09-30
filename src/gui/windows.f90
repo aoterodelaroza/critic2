@@ -217,6 +217,7 @@ module windows
   integer, parameter :: cpjob_search = 0 ! AUTO with the Search tab's options
   integer, parameter :: cpjob_add = 1 ! AUTO from one point, appending to the list
   integer, parameter :: cpjob_delete = 2 ! delete the selected CPs, rebuild the graph
+  integer, parameter :: cpjob_export = 3 ! write the CPs to a file (CPREPORT)
   type cp_seed_ui
      integer :: typ = cpseed_ws ! seed kind
      integer(c_int) :: depth = 1 ! WS/OH subdivision level (0-7)
@@ -249,6 +250,7 @@ module windows
      real*8 :: nucepsh = 0.2d0 * bohrtoa ! same, hydrogen (Å)
      character(len=32) :: epsdegen = "1e-8" ! Hessian eigenvalue for a degenerate CP (as typed)
      character(len=1024) :: discard = "" ! DISCARD expression (empty = none)
+     logical :: showseeds = .false. ! preview the seeds of the form in the view
      integer(c_int) :: iclip = 0 ! CLIP: 0 = none, 1 = cube, 2 = sphere
      real*8 :: clipx0(3) = 0d0 ! cube corner / sphere center (as seed positions)
      real*8 :: clipx1(3) = 1d0 ! cube corner
@@ -260,6 +262,14 @@ module windows
      integer :: pending_view = 0 ! view the job was requested in
      integer :: pending_kind = cpjob_search ! kind of job (cpjob_*)
      character(len=:), allocatable :: pending_line ! AUTO options of the job (search, add)
+     ! seed preview: the seeds (Cartesian, absolute frame, bohr) of the AUTO
+     ! options seedline, for system seedsys at geometry time seedtime
+     real*8, allocatable :: seedx(:,:)
+     character(len=:), allocatable :: seedline
+     integer :: seedsys = 0
+     real*8 :: seedtime = -1d0
+     ! export: include the gradient paths (GRAPH); the file is w%okfile
+     logical :: expgraph = .false.
      ! editing: the symmetry-unique CPs selected in the results table
      ! (for deletion; size ncp, reset when the CP list changes), and a
      ! pending pick in the view of the point to add a CP from
@@ -1007,6 +1017,7 @@ module windows
   integer, parameter, public :: wpurp_view_alternate = 9
   integer, parameter, public :: wpurp_dialog_savefile = 10
   integer, parameter, public :: wpurp_dialog_selectdir = 11
+  integer, parameter, public :: wpurp_dialog_savecpfile = 12
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)

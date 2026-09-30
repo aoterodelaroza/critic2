@@ -1144,7 +1144,11 @@ function igIsItemDeactivatedAfterEdit() bind(c,name="igIsItemDeactivatedAfterEdi
 end function igIsItemDeactivatedAfterEdit
 !x! bool igIsItemToggledOpen(void);
 !x! bool igIsAnyItemHovered(void);
-!x! bool igIsAnyItemActive(void);
+! bool igIsAnyItemActive(void);
+function igIsAnyItemActive() bind(c,name="igIsAnyItemActive")
+  import c_bool
+  logical(c_bool) :: igIsAnyItemActive
+end function igIsAnyItemActive
 !x! bool igIsAnyItemFocused(void);
 ! void igGetItemRectMin(ImVec2 *pOut);
 subroutine igGetItemRectMin(pOut) bind(c,name="igGetItemRectMin")

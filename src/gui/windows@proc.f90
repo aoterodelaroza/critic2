@@ -1337,40 +1337,55 @@ contains
              call dialog_initial_file(w%parent(),"image.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%purpose == wpurp_dialog_savefile) then
-             w%name = "Save Structure File##" // string(w%id) // c_null_char
-             str1 = "&
-                &FHIaims input (*.in) {.in},&
-                &CIF (*.cif) {.cif},&
-                &Quantum ESPRESSO input (*.pwi) {.pwi},&
-                &VASP (*.POSCAR) {.POSCAR},&
-                &CASTEP cell (*.cell) {.cell},&
-                &SHELX res (*.res) {.res},&
-                &CRYSTAL input (*.d12) {.d12},&
-                &abinit input (*.abin) {.abin},&
-                &elk GEOMETRY.OUT (*.elk) {.elk},&
-                &Gaussian input (*.gjf) {.gjf},&
-                &Gaussian input, periodic (*.gau) {.gau},&
-                &xyz (*.xyz) {.xyz},&
-                &CML (*.cml) {.cml},&
-                &critic2 input (*.cri) {.cri},&
-                &escher/octave (*.m) {.m},&
-                &dcp database (*.db) {.db},&
-                &GULP input (*.gin) {.gin},&
-                &LAMMPS data (*.lammps) {.lammps},&
-                &SIESTA fdf (*.fdf) {.fdf},&
-                &SIESTA STRUCT_IN (*.struct_in) {.struct_in},&
-                &DFTB+ hsd (*.hsd) {.hsd},&
-                &DFTB+ gen (*.gen) {.gen},&
-                &pyscf script (*.pyscf) {.pyscf},&
-                &TINKER frac (*.frac) {.frac},&
-                &tessel (*.tess) {.tess},&
-                &pdb (*.pdb) {.pdb},&
-                &Wavefront obj (*.obj) {.obj},&
-                &PLY (*.ply) {.ply},&
-                &OFF (*.off) {.off},&
-                &All files (*.*){*.*}"// c_null_char
-             call dialog_initial_file(w%parent(),"structure.in",str2,str3)
+          elseif (w%purpose == wpurp_dialog_savefile .or. w%purpose == wpurp_dialog_savecpfile) then
+             if (w%purpose == wpurp_dialog_savefile) then
+                w%name = "Save Structure File##" // string(w%id) // c_null_char
+                str1 = "&
+                   &FHIaims input (*.in) {.in},&
+                   &CIF (*.cif) {.cif},&
+                   &Quantum ESPRESSO input (*.pwi) {.pwi},&
+                   &VASP (*.POSCAR) {.POSCAR},&
+                   &CASTEP cell (*.cell) {.cell},&
+                   &SHELX res (*.res) {.res},&
+                   &CRYSTAL input (*.d12) {.d12},&
+                   &abinit input (*.abin) {.abin},&
+                   &elk GEOMETRY.OUT (*.elk) {.elk},&
+                   &Gaussian input (*.gjf) {.gjf},&
+                   &Gaussian input, periodic (*.gau) {.gau},&
+                   &xyz (*.xyz) {.xyz},&
+                   &CML (*.cml) {.cml},&
+                   &critic2 input (*.cri) {.cri},&
+                   &escher/octave (*.m) {.m},&
+                   &dcp database (*.db) {.db},&
+                   &GULP input (*.gin) {.gin},&
+                   &LAMMPS data (*.lammps) {.lammps},&
+                   &SIESTA fdf (*.fdf) {.fdf},&
+                   &SIESTA STRUCT_IN (*.struct_in) {.struct_in},&
+                   &DFTB+ hsd (*.hsd) {.hsd},&
+                   &DFTB+ gen (*.gen) {.gen},&
+                   &pyscf script (*.pyscf) {.pyscf},&
+                   &TINKER frac (*.frac) {.frac},&
+                   &tessel (*.tess) {.tess},&
+                   &pdb (*.pdb) {.pdb},&
+                   &Wavefront obj (*.obj) {.obj},&
+                   &PLY (*.ply) {.ply},&
+                   &OFF (*.off) {.off},&
+                   &All files (*.*){*.*}"// c_null_char
+                call dialog_initial_file(w%parent(),"structure.in",str2,str3)
+             else
+                w%name = "Export Critical Points##" // string(w%id) // c_null_char
+                str1 = "&
+                   &CIF (*.cif) {.cif},&
+                   &xyz (*.xyz) {.xyz},&
+                   &JSON (*.json) {.json},&
+                   &critic2 input (*.cri) {.cri},&
+                   &CML (*.cml) {.cml},&
+                   &Quantum ESPRESSO input (*.pwi) {.pwi},&
+                   &VASP (*.POSCAR) {.POSCAR},&
+                   &Wavefront obj (*.obj) {.obj},&
+                   &All files (*.*){*.*}"// c_null_char
+                call dialog_initial_file(w%parent(),"cps.cif",str2,str3)
+             end if
              ! the overwrite flag goes only to the file dialog, not to w%flags: it
              ! would be reused as ImGuiWindowFlags in IGFD_DisplayDialog
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&

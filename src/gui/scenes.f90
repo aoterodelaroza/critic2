@@ -279,11 +279,12 @@ module scenes
      module subroutine scene_reap_transient_representations(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reap_transient_representations
-     module subroutine scene_show_transient_shapes(s,owner,tag,shp)
+     module subroutine scene_show_transient_shapes(s,owner,tag,shp,found)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner
        integer, intent(in) :: tag
-       type(rep_shape), intent(in) :: shp(:)
+       type(rep_shape), intent(in), optional :: shp(:)
+       logical, intent(out), optional :: found
      end subroutine scene_show_transient_shapes
      module subroutine scene_show_transient_vibarrows(s,owner,tag)
        class(scene), intent(inout), target :: s

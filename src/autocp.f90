@@ -26,10 +26,11 @@ module autocp
   public :: cpreport
 
   interface
-     module subroutine autocritic(line,success,clear)
+     module subroutine autocritic(line,success,clear,seeds)
        character*(*), intent(in) :: line
        logical, intent(out), optional :: success
        logical, intent(in), optional :: clear
+       real*8, allocatable, intent(inout), optional :: seeds(:,:)
      end subroutine autocritic
      module subroutine autocritic_graph()
      end subroutine autocritic_graph

@@ -2513,24 +2513,29 @@ contains
   !> including the molecular origin molx0 for molecules) as a transient
   !> shapes representation identified by (owner,tag). The draw lists are
   !> rebuilt only if the representation is new or the list changed. A single
-  !> shape is passed as (/shp/).
-  module subroutine scene_show_transient_shapes(s,owner,tag,shp)
+  !> shape is passed as (/shp/). Without shp, the representation is only
+  !> kept alive for this frame with the shapes it has, and found says
+  !> whether it existed (if not, the caller passes the shapes): a large
+  !> list that rarely changes need not be built and compared every frame.
+  module subroutine scene_show_transient_shapes(s,owner,tag,shp,found)
     use representations, only: reptype_shapes, repflavor_shapes, shape_differs
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
-    type(rep_shape), intent(in) :: shp(:)
+    type(rep_shape), intent(in), optional :: shp(:)
+    logical, intent(out), optional :: found
 
     integer :: id, i, n
-    logical :: found, changed
+    logical :: found_, changed
 
-    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found)
-    if (id <= 0) return
+    id = transient_slot(s,owner,tag,reptype_shapes,repflavor_shapes,found_)
+    if (present(found)) found = (id > 0 .and. found_)
+    if (id <= 0 .or. .not.present(shp)) return
     n = size(shp,1)
 
     associate (sh => s%reptrans(id)%shapes)
       ! change detection for an existing slot (a new/retagged one is already dirty)
-      if (found) then
+      if (found_) then
          changed = (sh%nshape /= n)
          if (.not.changed) then
             do i = 1, n

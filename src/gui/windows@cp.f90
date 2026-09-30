@@ -35,6 +35,21 @@ submodule (windows) cp
   ! maximum WS/OH subdivision level AUTO accepts
   integer, parameter :: maxdepth = 7
 
+  ! the global state a run of AUTO or CPREPORT from this window changes
+  ! (auto_enter/auto_leave): the reference field of the system, the
+  ! input units, and EPSDEGEN
+  type auto_context
+     integer :: iref = 0
+     integer :: iunit = 0
+     real*8 :: hdegen = 0d0
+  end type auto_context
+
+  ! seed preview: at most this many seeds are drawn, as spheres of
+  ! this radius (bohr) and color
+  integer, parameter :: maxseedshow = 20000
+  real*8, parameter :: seed_rad = 0.08d0 / bohrtoa
+  real(c_float), parameter :: seed_rgb(3) = (/0.45_c_float,0.45_c_float,0.45_c_float/)
+
 contains
 
   !> Draw the critical points window: the AUTO form for a field of the
@@ -73,6 +88,8 @@ contains
           w%cp%ifield = sys(isys)%iref
           call reset_seeds(w,isys)
           if (allocated(w%cp%summary)) deallocate(w%cp%summary)
+          ! the default export file: <root>.cps.cif (<root>.cif could be the source file)
+          w%okfile = okfile_default(isys,"structure","cps.cif")
           w%cp%tfield = -1
        end if
     end if
@@ -113,9 +130,18 @@ contains
              call draw_results_tab(w,isys,iview,ihover,ttshown)
              call igEndTabItem()
           end if
+          tabopen = iw_begintabitem("Export##drawcp_exporttab")
+          call iw_tooltip("Write the critical points to a file",ttshown)
+          if (tabopen) then
+             call draw_export_tab(w,isys,iview,ttshown)
+             call igEndTabItem()
+          end if
           call igEndTabBar()
        end if
     end if
+
+    ! the seeds of the form, shown in the view
+    if (goodsys .and. .not.doquit .and. w%cp%showseeds) call show_seed_preview(w,isys)
 
     ! the CP under the mouse in the results table is highlighted in the view
     if (goodsys) then
@@ -160,6 +186,8 @@ contains
        text = "...Searching for a critical point..."
     case (cpjob_delete)
        text = "...Deleting critical points and tracing the bond paths..."
+    case (cpjob_export)
+       text = "...Writing the critical points..."
     case default
        text = "...Searching for critical points..."
     end select
@@ -170,8 +198,13 @@ contains
           text = text // newline // "Field:  " // string(w%cp%ifield) // ": " //&
           trim(sys(isys)%f(w%cp%ifield)%name)
     end if
-    if (w%cp%pending_kind /= cpjob_delete .and. allocated(w%cp%pending_line)) &
-       text = text // newline // "Input:  AUTO " // w%cp%pending_line
+    if (allocated(w%cp%pending_line)) then
+       if (w%cp%pending_kind == cpjob_export) then
+          text = text // newline // "Input:  CPREPORT " // w%cp%pending_line
+       elseif (w%cp%pending_kind /= cpjob_delete) then
+          text = text // newline // "Input:  AUTO " // w%cp%pending_line
+       end if
+    end if
     text = text // c_null_char
 
     ! a centered window, sized for the text: it is only drawn in one
@@ -208,16 +241,14 @@ contains
   !> paths objects in the view. If AUTO rejects the options, the field
   !> is left as it was.
   module subroutine run_cp_pending(w)
-    use autocp, only: autocritic, autocritic_graph
-    use systemmod, only: sy
+    use autocp, only: autocritic, autocritic_graph, cpreport
     use systems, only: sys, sysc, sys_init, ok_system, launch_initialization_thread,&
        kill_initialization_thread, are_threads_running, lastchange_cplist
-    use global, only: iunit, iunit_bohr, cp_hdegen
     use tools_io, only: uout, string
     class(window), intent(inout), target :: w
 
-    integer :: isys, ifield, iref0, iunit0, iview, ncp0, kind
-    real*8 :: hdegen0
+    integer :: isys, ifield, iview, ncp0, kind
+    type(auto_context) :: ctx
     logical :: reinit, ldum, ok
     character(len=:), allocatable :: cpfile, errmsg
 
@@ -240,21 +271,10 @@ contains
        return
     end if
 
-    ! stop the initialization threads and connect the system
+    ! stop the initialization threads, and run on the chosen field
     reinit = are_threads_running()
     if (reinit) call kill_initialization_thread()
-    sy => sys(isys)
-
-    ! AUTO works on the reference field: make the chosen field the
-    ! reference for the run (plainly: set_reference would drop the
-    ! pointprop lists), with the units the options were written in
-    ! (bohr if the current units have no length factor), and restore
-    ! the global EPSDEGEN it resets
-    iref0 = sys(isys)%iref
-    iunit0 = iunit
-    hdegen0 = cp_hdegen
-    sys(isys)%iref = ifield
-    if (iunit /= 1 .and. iunit /= 2) iunit = iunit_bohr
+    call auto_enter(isys,ifield,ctx)
     ncp0 = sys(isys)%f(ifield)%ncp
     if (kind == cpjob_delete) then
        write (uout,'("* Deleting ",A," critical points (GUI) and tracing the bond paths again")') &
@@ -263,16 +283,18 @@ contains
        call autocritic_graph()
        write (uout,*)
        ok = .true.
+    elseif (kind == cpjob_export) then
+       call cpreport(w%cp%pending_line)
+       write (uout,'("* Critical points written to: ",A/)') trim(w%okfile)
+       ok = .true.
     else
        call autocritic(w%cp%pending_line,ok,clear=(kind == cpjob_search .and. w%cp%discard_existing))
     end if
-    iunit = iunit0
-    cp_hdegen = hdegen0
-    sys(isys)%iref = iref0
+    call auto_leave(isys,ctx)
 
     ! the checkpoint, unless disabled (not AUTO's CHK, which reads an
     ! existing checkpoint instead of searching)
-    if (ok .and. .not.w%cp%nochk) then
+    if (ok .and. .not.w%cp%nochk .and. kind /= cpjob_export) then
        cpfile = sys(isys)%f(ifield)%chk_cps_file()
        if (len(cpfile) > 0) then
           call sys(isys)%f(ifield)%write_chk_cps(cpfile,errmsg)
@@ -289,6 +311,12 @@ contains
     if (reinit) call launch_initialization_thread()
     if (.not.ok) then
        w%errmsg = "AUTO did not run: the options were rejected (see the output console)"
+       return
+    end if
+
+    ! an export leaves the CP list as it was
+    if (kind == cpjob_export) then
+       call okfile_save_dir(w%okfile)
        return
     end if
     call sysc(isys)%post_event(lastchange_cplist)
@@ -613,6 +641,189 @@ contains
 
   end subroutine draw_results_tab
 
+  !> Prepare a run of AUTO or CPREPORT on field ifield of system isys:
+  !> connect the system, make the field the reference (plainly:
+  !> set_reference would drop the pointprop lists), and use the input
+  !> units the options are written in (bohr if the current units have
+  !> no length factor, see auto_options). The state changed is saved in
+  !> ctx, for auto_leave.
+  subroutine auto_enter(isys,ifield,ctx)
+    use systemmod, only: sy
+    use systems, only: sys
+    use global, only: iunit, iunit_bohr, cp_hdegen
+    integer, intent(in) :: isys, ifield
+    type(auto_context), intent(out) :: ctx
+
+    sy => sys(isys)
+    ctx%iref = sys(isys)%iref
+    ctx%iunit = iunit
+    ctx%hdegen = cp_hdegen
+    sys(isys)%iref = ifield
+    if (iunit /= 1 .and. iunit /= 2) iunit = iunit_bohr
+
+  end subroutine auto_enter
+
+  !> Restore the state auto_enter changed (AUTO also resets EPSDEGEN).
+  subroutine auto_leave(isys,ctx)
+    use systems, only: sys
+    use global, only: iunit, cp_hdegen
+    integer, intent(in) :: isys
+    type(auto_context), intent(in) :: ctx
+
+    sys(isys)%iref = ctx%iref
+    iunit = ctx%iunit
+    cp_hdegen = ctx%hdegen
+
+  end subroutine auto_leave
+
+  !> The Export tab: write the critical points of the field to a file
+  !> (CPREPORT): a structure file with the CPs as extra atoms, whose
+  !> format is given by the extension, or JSON.
+  subroutine draw_export_tab(w,isys,iview,ttshown)
+    use systems, only: sys
+    use representations, only: field_has_cps
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_checkbox
+    use crystalmod, only: struct_detect_write_format
+    use tools_io, only: string, lower, fopen_write, fclose
+    use param, only: dirsep, isformat_w_unknown
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+    logical, intent(inout) :: ttshown
+
+    integer :: iaux, i0, i1, isformat, lu
+    logical :: ldum, isjson
+    character(len=:), allocatable :: ext, errexp, line
+
+    if (.not.sys(isys)%goodfield(w%cp%ifield)) then
+       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+       return
+    end if
+    call iw_text("Field",highlight=.true.)
+    call iw_text(string(w%cp%ifield) // ": " // trim(sys(isys)%f(w%cp%ifield)%name),sameline=.true.)
+    if (.not.field_has_cps(isys,w%cp%ifield)) then
+       call iw_text("This field has no critical points other than the nuclei (search for them in&
+          & the Search tab, or load a checkpoint that has them)",disabled=.true.,wrap=.true.)
+       return
+    end if
+
+    ! file name: editable field plus browse button
+    call iw_text("File name",highlight=.true.)
+    ldum = iw_inputtext("##cpexportfile",bufsize=1023,texta=w%okfile,width=36)
+    call iw_tooltip("File the critical points are written to. The extension gives the format:&
+       & a structure file with the critical points as extra atoms (cif, xyz, cri, ...) or JSON (json)",ttshown)
+    if (iw_button("Browse...##cpexportbrowse",sameline=.true.)) &
+       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savecpfile,idparent=w%id,orraise=-1)
+    call iw_tooltip("Choose the file with a file browser",ttshown)
+    call w%okfile_warn_overwrite()
+
+    ! the extension (json or a structure format)
+    i0 = index(w%okfile,dirsep,back=.true.)
+    i1 = index(w%okfile(i0+1:),'.',back=.true.)
+    ext = ""
+    if (i1 > 0) ext = lower(trim(w%okfile(i0+i1+1:)))
+    isjson = (ext == "json")
+
+    ! options
+    if (.not.isjson) then
+       ldum = iw_checkbox("Include the gradient paths (GRAPH)##cpexpgraph",w%cp%expgraph)
+       call iw_tooltip("Also write the points of the bond paths, as extra atoms",ttshown)
+    end if
+
+    ! write
+    errexp = ""
+    if (len_trim(w%okfile) == 0) then
+       errexp = "Choose a file name"
+    elseif (index(trim(w%okfile)," ") > 0) then
+       errexp = "The file name cannot contain spaces"
+    elseif (len(ext) == 0) then
+       errexp = "The file name needs an extension (the format)"
+    elseif (.not.isjson) then
+       ! a structure format the writer knows (CPREPORT's other
+       ! extensions write other files, or a test format)
+       call struct_detect_write_format(trim(w%okfile),isformat)
+       if (isformat == isformat_w_unknown) errexp = "Unknown file format: ." // ext
+    end if
+    if (iw_button("Write##cpexportwrite",disabled=(len(errexp) > 0))) then
+       ! the writers stop the program if the file cannot be opened:
+       ! check first, opening it as they do
+       lu = fopen_write(trim(w%okfile),errstop=.false.)
+       if (lu < 0) then
+          w%errmsg = "Cannot write the file: " // trim(w%okfile)
+       else
+          call fclose(lu)
+          line = trim(w%okfile)
+          if (w%cp%expgraph .and. .not.isjson) line = line // " graph"
+          call request_job(w,iview,cpjob_export,line)
+       end if
+    end if
+    call iw_tooltip("Write the critical points to the file (the output goes to the output console)",ttshown)
+    if (len(errexp) > 0) call iw_text(errexp,danger=.true.,sameline=.true.)
+
+  end subroutine draw_export_tab
+
+  !> Show the seeds of the form of window w in the view of system isys,
+  !> computing them again (AUTO, with no search) when the options, the
+  !> system, or its geometry changed. The computation waits for the
+  !> initialization threads of the system to finish, and for the user
+  !> to release the widget being edited (a drag would compute them in
+  !> every frame).
+  subroutine show_seed_preview(w,isys)
+    use autocp, only: autocritic
+    use systems, only: sys, sysc, sys_ready, ok_system, are_threads_running
+    use representations, only: rep_shape, shapekind_sphere
+    use global, only: iunit
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    integer :: i, n
+    logical :: ok, stale, found, newseeds
+    character(len=:), allocatable :: line
+    type(rep_shape), allocatable :: shp(:)
+    type(auto_context) :: ctx
+
+    ! the options (empty if the form cannot make valid ones)
+    line = ""
+    if (size(w%cp%seed) > 0) then
+       if (len(form_error(w)) == 0) line = auto_options(w,isys,iunit)
+    end if
+
+    ! compute the seeds again if something changed (absolute frame)
+    stale = .not.allocated(w%cp%seedline)
+    if (.not.stale) stale = (w%cp%seedsys /= isys) .or. (w%cp%seedline /= line) .or.&
+       (w%cp%seedtime /= sysc(isys)%timelastchange_geometry)
+    newseeds = .false.
+    if (stale .and. ok_system(isys,sys_ready) .and. .not.are_threads_running() .and.&
+       .not.igIsAnyItemActive()) then
+       if (allocated(w%cp%seedx)) deallocate(w%cp%seedx)
+       if (len(line) > 0) then
+          call auto_enter(isys,sys(isys)%iref,ctx)
+          call autocritic(line,ok,seeds=w%cp%seedx)
+          call auto_leave(isys,ctx)
+          if (.not.ok .and. allocated(w%cp%seedx)) deallocate(w%cp%seedx)
+          if (allocated(w%cp%seedx)) w%cp%seedx = w%cp%seedx + spread(sys(isys)%c%molx0,2,size(w%cp%seedx,2))
+       end if
+       w%cp%seedline = line
+       w%cp%seedsys = isys
+       w%cp%seedtime = sysc(isys)%timelastchange_geometry
+       newseeds = .true.
+    end if
+
+    ! draw the last seeds computed for this system: keep the shapes in
+    ! the view, and build them again only if they changed or are gone
+    if (.not.allocated(w%cp%seedx) .or. w%cp%seedsys /= isys) return
+    if (sysc(isys)%sc%isinit == 0) return
+    n = min(size(w%cp%seedx,2),maxseedshow)
+    if (n == 0) return
+    call sysc(isys)%sc%show_transient_shapes(w%id,1,found=found)
+    if (found .and. .not.newseeds) return
+    allocate(shp(n))
+    do i = 1, n
+       shp(i) = rep_shape(kind=shapekind_sphere,x1=w%cp%seedx(:,i),rad=seed_rad,rgb=seed_rgb)
+    end do
+    call sysc(isys)%sc%show_transient_shapes(w%id,1,shp)
+
+  end subroutine show_seed_preview
+
   !> The editing of the CP list, under the results table: delete the
   !> selected CPs, or add one by a search from a point (the center of
   !> the selected atoms, or a bond or point picked in the view).
@@ -802,6 +1013,7 @@ contains
   subroutine draw_search_tab(w,isys,iview,ttshown)
     use systems, only: sys
     use global, only: iunit
+    use tools_io, only: string
     use utils, only: iw_text, iw_button, iw_tooltip, iw_field_combo, iw_calcwidth,&
        iw_checkbox
     type(window), intent(inout), target :: w
@@ -844,6 +1056,17 @@ contains
     call iw_tooltip("Add a seed (a point at the center of the system; change its kind above)",ttshown)
     if (iw_button("Reset seeds##cpseedreset",sameline=.true.)) call reset_seeds(w,isys)
     call iw_tooltip("Go back to the seeding AUTO uses by default for this system",ttshown)
+    ldum = iw_checkbox("Show seeds##cpshowseeds",w%cp%showseeds)
+    call iw_tooltip("Show the starting points of the searches in the view (grey spheres), after&
+       & the pruning and the clipping",ttshown)
+    if (w%cp%showseeds .and. allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
+       if (size(w%cp%seedx,2) > maxseedshow) then
+          call iw_text("(" // string(size(w%cp%seedx,2)) // " seeds, showing " // string(maxseedshow) // ")",&
+             sameline=.true.)
+       else
+          call iw_text("(" // string(size(w%cp%seedx,2)) // " seeds)",sameline=.true.)
+       end if
+    end if
 
     ! advanced options
     call draw_advanced(w,isys,xunit,ttshown)

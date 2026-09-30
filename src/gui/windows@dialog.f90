@@ -60,9 +60,11 @@ contains
        doquit = (.not.ok_system(w%isys,sys_init))
     elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
-       w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir) then
+       w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
+       w%purpose == wpurp_dialog_savecpfile) then
        ! open library file, save image file, open field file, open one file modal,
-       ! save structure file, select directory => quit if the caller window is gone
+       ! save structure file, select directory, save critical points file => quit
+       ! if the caller window is gone
        doquit = .true.
        doquit = (idp == 0)
     end if
@@ -202,8 +204,9 @@ contains
                 end do
              end if
 
-          elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile) then
-             !! save image file or save structure file dialog !!
+          elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile.or.&
+             w%purpose == wpurp_dialog_savecpfile) then
+             !! save image file, structure file, or critical points file dialog !!
              win(idp)%okfile_set = .true.
 
              cstr = IGFD_GetFilePathName(w%dptr)
