@@ -792,6 +792,35 @@ contains
 
   end subroutine iw_setpos_bottomright
 
+  !> Dim the whole main viewport with a blank, focused, undecorated
+  !> window: the background of the overlays shown while the GUI is
+  !> blocked by a long calculation (the input console, the critical
+  !> points window).
+  module subroutine iw_blank_background()
+    use interfaces_cimgui
+    use gui_main, only: mainvwp, ColorWaitBg
+    integer(c_int) :: flags
+    type(ImVec2) :: sz
+    character(kind=c_char,len=:), allocatable, target :: str1
+    logical(c_bool) :: ldum
+
+    flags = ImGuiWindowFlags_NoDecoration
+    flags = ior(flags,ImGuiWindowFlags_NoMove)
+    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
+    sz%x = 0._c_float
+    sz%y = 0._c_float
+    call igSetNextWindowPos(mainvwp%WorkPos,0,sz)
+    call igSetNextWindowSize(mainvwp%WorkSize,0)
+    call igPushStyleColor_Vec4(ImGuiCol_WindowBg,ColorWaitBg)
+    str1 = "##blankbackground" // c_null_char
+    ldum = .true.
+    call igSetNextWindowFocus()
+    ldum = igBegin(c_loc(str1), ldum, flags)
+    call igEnd()
+    call igPopStyleColor(1)
+
+  end subroutine iw_blank_background
+
   !> Draw the header row of the current table, as igTableHeadersRow
   !> does, except that the headers of the columns listed in icol read
   !> the corresponding entry of shorts -- a list of null-terminated

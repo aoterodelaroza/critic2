@@ -280,8 +280,8 @@ contains
   !> commands in the console input. If allsys, the commands will apply
   !> to all loaded systems.
   module subroutine block_gui_ci(w,allsys)
-    use gui_main, only: mainvwp, io, g, ColorWaitBg
-    use utils, only: iw_text
+    use gui_main, only: io, g
+    use utils, only: iw_text, iw_blank_background
     use param, only: newline
     class(window), intent(inout), target :: w
     logical, intent(in) :: allsys
@@ -293,20 +293,7 @@ contains
     logical(c_bool) :: ldum
 
     !! blank the background
-    flags = ImGuiWindowFlags_NoDecoration
-    flags = ior(flags,ImGuiWindowFlags_NoMove)
-    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
-    sz%x = 0._c_float
-    sz%y = 0._c_float
-    call igSetNextWindowPos(mainvwp%WorkPos,0,sz)
-    call igSetNextWindowSize(mainvwp%WorkSize,0)
-    call igPushStyleColor_Vec4(ImGuiCol_WindowBg,ColorWaitBg)
-    str1 = "##blankbackground" // c_null_char
-    ldum = .true.
-    call igSetNextWindowFocus()
-    ldum = igBegin(c_loc(str1), ldum, flags)
-    call igEnd()
-    call igPopStyleColor(1)
+    call iw_blank_background()
 
     !! overlay
     ! set window position at the center

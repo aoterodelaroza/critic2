@@ -1671,7 +1671,7 @@ contains
        call request%field_nder2()
        call s%f(id)%grd(x0,request,res)
        idx = (res%s+5)/2
-       if (idx >= 1 .and. idx <= 4) then
+       if (present(typeok)) then
           if (.not.typeok(idx)) return
        end if
 

@@ -2312,6 +2312,43 @@ contains
 
   end subroutine scene_add_cps_maybe
 
+  !> Make sure the scene has a critical points object and, if the field
+  !> has bond paths, a gradient paths object for field ifield, and that
+  !> they are shown (e.g. after a critical point search).
+  module subroutine scene_show_cps(s,ifield)
+    use representations, only: reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
+       field_has_cps
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: ifield
+
+    integer :: i, id
+    logical :: fcps, fgp
+
+    if (s%isinit == 0) return
+    fcps = .false.
+    fgp = .false.
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit) cycle
+       if (s%rep(i)%type == reptype_cps .and. s%rep(i)%cps%ifield == ifield) then
+          s%rep(i)%shown = .true.
+          fcps = .true.
+       elseif (s%rep(i)%type == reptype_gpaths .and. s%rep(i)%gpaths%ifield == ifield) then
+          s%rep(i)%shown = .true.
+          fgp = .true.
+       end if
+    end do
+    if (.not.fcps .and. field_has_cps(s%id,ifield)) then
+       call s%add_representation(reptype_cps,repflavor_cps,id=id)
+       s%rep(id)%cps%ifield = ifield
+    end if
+    if (.not.fgp .and. field_has_cps(s%id,ifield,withpaths=.true.)) then
+       call s%add_representation(reptype_gpaths,repflavor_gpaths,id=id)
+       s%rep(id)%gpaths%ifield = ifield
+    end if
+    s%forcebuildlists = .true.
+
+  end subroutine scene_show_cps
+
   !> Show (shown = .true.) or hide every object of kind itype in this
   !> scene. If labeltype is given and the objects are being shown, it
   !> also becomes their label text type. If the kind is being shown and

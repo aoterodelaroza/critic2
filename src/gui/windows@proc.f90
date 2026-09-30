@@ -359,6 +359,7 @@ contains
              if (ok.and.type == wintype_extract.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_cp.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -740,6 +741,10 @@ contains
        ! crystal voids window
        if (.not.present(idparent)) &
           call ferror('window_init','voids requires idparent',faterr)
+    elseif (type == wintype_cp) then
+       ! critical points window
+       if (.not.present(idparent)) &
+          call ferror('window_init','critical points requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -817,6 +822,24 @@ contains
     end if
 
   end subroutine window_drop_caches
+
+  !> Draw the overlay of the blocking job of window w, which the main
+  !> loop runs after this frame (gui_main%pending_block_window).
+  module subroutine window_block_draw(w)
+    class(window), intent(inout), target :: w
+
+    if (w%type == wintype_cp) call w%block_cp()
+
+  end subroutine window_block_draw
+
+  !> Run the blocking job of window w (gui_main%pending_block_window),
+  !> after the frame with its overlay.
+  module subroutine window_block_run(w)
+    class(window), intent(inout), target :: w
+
+    if (w%type == wintype_cp) call w%run_cp_pending()
+
+  end subroutine window_block_run
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
@@ -987,6 +1010,7 @@ contains
     w%mo_cache = mo_cache_state()
     w%mo_diag = mo_diagram_state()
     w%vd = voids_state() ! the sampled grid and its labels, one per point of it
+    w%cp = cp_state() ! the seed list and the pending job
     w%mt = melting_state() ! the per-atom order and the history of the run
 
     ! the side-pane callback data lives on the heap (see the type
@@ -1388,6 +1412,8 @@ contains
           call init_window("Rattle Structure",55)
        elseif (w%type == wintype_voids) then
           call init_window("Crystal Voids",62,35)
+       elseif (w%type == wintype_cp) then
+          call init_window("Critical Points",62,42)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1521,6 +1547,8 @@ contains
                 call w%draw_rattle()
              elseif (w%type == wintype_voids) then
                 call w%draw_voids()
+             elseif (w%type == wintype_cp) then
+                call w%draw_cp()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

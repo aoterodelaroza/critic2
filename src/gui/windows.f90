@@ -184,6 +184,66 @@ module windows
      "Move Atoms       "&  ! vm_moveatom
      /)
 
+  ! The critical points window: one seed of the AUTO search. typ is the
+  ! AUTO seed kind (cpseed_*, numbered as the entries of the kind
+  ! combo). Positions are fractional for crystals and Cartesian Å for
+  ! molecules (the frame of the input coordinates, as AUTO reads them);
+  ! distances are in Å. The parameters a kind does not use are ignored.
+  integer, parameter :: cpseed_ws = 0
+  integer, parameter :: cpseed_pair = 1
+  integer, parameter :: cpseed_triplet = 2
+  integer, parameter :: cpseed_line = 3
+  integer, parameter :: cpseed_sphere = 4
+  integer, parameter :: cpseed_oh = 5
+  integer, parameter :: cpseed_point = 6
+  integer, parameter :: cpseed_mesh = 7
+  type cp_seed_ui
+     integer :: typ = cpseed_ws ! seed kind
+     integer(c_int) :: depth = 1 ! WS/OH subdivision level (0-7)
+     integer(c_int) :: npts = 5 ! number of points (PAIR, LINE)
+     integer(c_int) :: nr = 3 ! radial points (OH, SPHERE)
+     integer(c_int) :: ntheta = 5 ! polar points (SPHERE)
+     integer(c_int) :: nphi = 5 ! azimuthal points (SPHERE)
+     real*8 :: x0(3) = 0d0 ! center/start (WS, OH, SPHERE, LINE, POINT)
+     real*8 :: x1(3) = 0d0 ! end (LINE)
+     real*8 :: rad = 0d0 ! radius, Å (WS: <= 0 = the whole cell; OH, SPHERE: required)
+     real*8 :: dist = 15d0 * bohrtoa ! maximum pair distance (PAIR, TRIPLET), Å
+  end type cp_seed_ui
+  public :: cp_seed_ui
+
+  !> Per-window state of the critical points window (Tools > Critical
+  !> Points): the AUTO form (field, seeds, options), the pending
+  !> blocking job, and the summary of the last run. The seeds are reset
+  !> to AUTO's defaults for the system when the window moves to another
+  !> system.
+  type cp_state
+     integer :: isys = 0 ! system the form is set up for
+     integer :: ifield = -1 ! field to search
+     type(cp_seed_ui), allocatable :: seed(:) ! the seeds
+     ! advanced options: used only if the corresponding use_ is set
+     logical :: use_gradeps = .false., use_cpeps = .false., use_nuceps = .false.
+     logical :: use_nucepsh = .false., use_epsdegen = .false.
+     character(len=32) :: gradeps = "1e-12" ! gradient norm of a CP (as typed)
+     real*8 :: cpeps = 1d-2 * bohrtoa ! minimum distance between CPs (Å)
+     real*8 :: nuceps = 0.1d0 * bohrtoa ! minimum distance to a nucleus (Å)
+     real*8 :: nucepsh = 0.2d0 * bohrtoa ! same, hydrogen (Å)
+     character(len=32) :: epsdegen = "1e-8" ! Hessian eigenvalue for a degenerate CP (as typed)
+     character(len=1024) :: discard = "" ! DISCARD expression (empty = none)
+     integer(c_int) :: iclip = 0 ! CLIP: 0 = none, 1 = cube, 2 = sphere
+     real*8 :: clipx0(3) = 0d0 ! cube corner / sphere center (as seed positions)
+     real*8 :: clipx1(3) = 1d0 ! cube corner
+     real*8 :: cliprad = 5d0 ! sphere radius (Å)
+     logical :: discard_existing = .false. ! start from the nuclei only
+     logical :: nochk = .false. ! do not write the checkpoint
+     ! blocking job (gui_main%pending_block_window), run by the main
+     ! loop after the frame with its overlay
+     integer :: pending_view = 0 ! view the job was requested in
+     character(len=:), allocatable :: pending_line ! AUTO options of the job
+     ! results
+     character(len=:), allocatable :: summary ! of the last run
+  end type cp_state
+  public :: cp_state
+
   ! Grid spacing the crystal voids window starts from (Å)
   real*8, parameter, public :: voids_spacing_def = 0.15d0
   ! range of that window's grid spacing control (Å)
@@ -730,6 +790,8 @@ module windows
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
      ! crystal voids parameters
      type(voids_state) :: vd ! the form and results of the crystal voids window
+     ! critical points window
+     type(cp_state) :: cp ! the AUTO form, pending job, and results
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -839,6 +901,13 @@ module windows
      procedure :: draw_dynamics
      ! crystal voids
      procedure :: draw_voids
+     ! critical points
+     procedure :: draw_cp
+     procedure :: block_cp
+     procedure :: run_cp_pending
+     ! blocking jobs (gui_main%pending_block_window)
+     procedure :: block_draw => window_block_draw
+     procedure :: block_run => window_block_run
      ! selection
      procedure :: draw_display
      ! water cluster demonstration
@@ -902,6 +971,7 @@ module windows
   integer, parameter, public :: wintype_voids = 25
   integer, parameter, public :: wintype_display = 26
   integer, parameter, public :: wintype_melting = 27
+  integer, parameter, public :: wintype_cp = 28
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1463,6 +1533,22 @@ module windows
      module subroutine draw_voids(w)
        class(window), intent(inout), target :: w
      end subroutine draw_voids
+     module subroutine window_block_draw(w)
+       class(window), intent(inout), target :: w
+     end subroutine window_block_draw
+     module subroutine window_block_run(w)
+       class(window), intent(inout), target :: w
+     end subroutine window_block_run
+     !xx! cp submodule !xx!
+     module subroutine draw_cp(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_cp
+     module subroutine block_cp(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_cp
+     module subroutine run_cp_pending(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_cp_pending
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

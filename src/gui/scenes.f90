@@ -146,6 +146,7 @@ module scenes
      procedure :: toggle_measurement_sel => scene_toggle_measurement_sel
      procedure :: add_representation
      procedure :: add_cps_maybe => scene_add_cps_maybe
+     procedure :: show_cps => scene_show_cps
      procedure :: set_kind_shown => scene_set_kind_shown
      procedure :: set_style => scene_set_style
      procedure :: reap_transient_representations => scene_reap_transient_representations
@@ -260,6 +261,10 @@ module scenes
      module subroutine scene_add_cps_maybe(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_add_cps_maybe
+     module subroutine scene_show_cps(s,ifield)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: ifield
+     end subroutine scene_show_cps
      module subroutine scene_set_kind_shown(s,itype,flavor,shown,labeltype)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: itype

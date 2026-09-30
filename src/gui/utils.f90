@@ -67,6 +67,7 @@ module utils
   public :: iw_colormap_id
   public :: iw_setposx_fromend
   public :: iw_setpos_bottomright
+  public :: iw_blank_background
   public :: iw_calcheight
   public :: iw_calcwidth
   public :: iw_table_column
@@ -217,6 +218,8 @@ module utils
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
      end subroutine iw_setposx_fromend
+     module subroutine iw_blank_background()
+     end subroutine iw_blank_background
      module subroutine iw_setpos_bottomright(ntext,nbutton,ncheck,centered)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton

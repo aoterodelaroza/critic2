@@ -431,6 +431,15 @@ contains
           call win(iwin_console_input)%block_gui_ci(force_run_commands == 2)
        end if
 
+       ! a window's blocking job: its overlay goes up in this frame
+       if (pending_block_window > 0 .and. pending_block_window <= nwin) then
+          if (win(pending_block_window)%isopen) then
+             call win(pending_block_window)%block_draw()
+          else
+             pending_block_window = 0
+          end if
+       end if
+
        ! rendering
        call igRender()
        call glfwGetFramebufferSize(rootwin, display_w, display_h)
@@ -460,6 +469,15 @@ contains
           end do
           win(iwin_console_input)%isys = saveinpcon
           force_run_commands = 0
+       end if
+
+       ! run the window's blocking job, now that its overlay is on the screen
+       if (pending_block_window > 0) then
+          i = pending_block_window
+          pending_block_window = 0
+          if (i <= nwin) then
+             if (win(i)%isopen) call win(i)%block_run()
+          end if
        end if
 
        ! commit the transient highlights accumulated by the windows this frame
@@ -624,7 +642,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo, wintype_voids
+       wintype_rattle, wintype_mo, wintype_voids, wintype_cp
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -672,6 +690,11 @@ contains
     if (iw_menuitem("Molecular Orbitals...",enabled=ok)) &
        idum = stack_create_window(wintype_mo,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Display the molecular orbitals of the reference field for this system",ttshown)
+
+    ! critical points of a field (AUTO)
+    if (iw_menuitem("Critical Points...",enabled=enabled)) &
+       idum = stack_create_window(wintype_cp,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Find the critical points of a field of this system (AUTO) and inspect them",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

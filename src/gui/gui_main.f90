@@ -151,6 +151,7 @@ module gui_main
 
   ! flags to control main's behavior
   integer, public :: force_run_commands = 0 ! execute commands from the input console (0=no,1=only selected,2=all)
+  integer, public :: pending_block_window = 0 ! window with a blocking job to run after this frame (0 = none)
   logical, public, volatile :: force_quit_threads = .false. ! set to true to force all threads to quit as soon as possible (volatile: written by the main thread, polled by the worker)
 
   ! public procedures

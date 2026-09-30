@@ -57,8 +57,11 @@ submodule (autocp) proc
 contains
 
   !> Automatic search for all the critical points in the crystal unit cell.
-  !> Uses the IWS, with barycentric subdivision.
-  module subroutine autocritic(line)
+  !> Uses the IWS, with barycentric subdivision. If success is present,
+  !> it returns whether the search was done (false if the options were
+  !> rejected). If clear, discard the existing critical points of the
+  !> field before the search (only once the options are accepted).
+  module subroutine autocritic(line,success,clear)
     use grid3mod, only: mode_smr
     use systemmod, only: sy
     use fieldmod, only: type_grid
@@ -73,6 +76,8 @@ contains
     use types, only: realloc, discard_cp_expr
     use param, only: pi
     character*(*), intent(in) :: line
+    logical, intent(out), optional :: success
+    logical, intent(in), optional :: clear
 
     integer, parameter :: styp_ws = 1      ! recursive subdivision of the WS cell
     integer, parameter :: styp_pair = 2    ! pairs
@@ -130,6 +135,8 @@ contains
        call tictac("Start AUTO")
        write (uout,*)
     end if
+
+    if (present(success)) success = .false.
 
     ! defaults
     dochk = .false.
@@ -748,6 +755,9 @@ contains
     endif
 
     ! Initialize the CP search
+    if (present(clear)) then
+       if (clear) call sy%f(sy%iref)%init_cplist()
+    end if
     if (.not.allocated(sy%f(sy%iref)%cp)) call sy%f(sy%iref)%init_cplist()
 
     ! Read cps from external file
@@ -850,6 +860,7 @@ contains
     call realloc(sy%f(sy%iref)%cp,sy%f(sy%iref)%ncp)
     call realloc(sy%f(sy%iref)%cpcel,sy%f(sy%iref)%ncpcel)
     iclip = 0
+    if (present(success)) success = .true.
 
     if (.not.quiet) then
        call tictac("End AUTO")
