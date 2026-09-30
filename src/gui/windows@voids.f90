@@ -1299,20 +1299,12 @@ contains
   !> Width for a table column that has to hold both header and value: the
   !> wider of the two as the font actually draws them.
   function colwidth(header,value) result(wd)
-    use gui_main, only: g
+    use utils, only: iw_textwidth
     character(len=*), intent(in) :: header
     character(len=*), intent(in) :: value
     real(c_float) :: wd
 
-    type(ImVec2) :: sz
-    character(kind=c_char,len=:), allocatable, target :: str
-
-    str = header // c_null_char
-    call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-    wd = sz%x
-    str = value // c_null_char
-    call igCalcTextSize(sz,c_loc(str),c_null_ptr,.false._c_bool,-1._c_float)
-    wd = max(wd,sz%x)
+    wd = max(iw_textwidth(header),iw_textwidth(value))
 
   end function colwidth
 

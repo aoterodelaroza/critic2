@@ -70,6 +70,7 @@ module utils
   public :: iw_blank_background
   public :: iw_calcheight
   public :: iw_calcwidth
+  public :: iw_textwidth
   public :: iw_table_column
   public :: iw_table_headers_row
   public :: iw_beginmenu
@@ -286,6 +287,10 @@ module utils
        logical, intent(in), optional :: endpad
        real(c_float) :: iw_calcheight
      end function iw_calcheight
+     module function iw_textwidth(str) result(wid)
+       character(len=*), intent(in) :: str
+       real(c_float) :: wid
+     end function iw_textwidth
      module function iw_calcwidth(ntext,nbutton,ncheck,from_end)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
@@ -294,7 +299,7 @@ module utils
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth
      module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,&
-        noarrow,startsatone)
+        noarrow,startsatone,tooltips,ttshown)
        character(len=*,kind=c_char), intent(in) :: str
        character(len=*,kind=c_char), intent(in) :: stropt
        integer, intent(inout) :: ival
@@ -303,6 +308,8 @@ module utils
        logical, intent(out), optional :: changed
        logical, intent(in), optional :: noarrow
        logical, intent(in), optional :: startsatone
+       character(len=*,kind=c_char), intent(in), optional :: tooltips
+       logical, intent(inout), optional :: ttshown
      end subroutine iw_combo_simple
      module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
        character(len=*,kind=c_char), intent(in) :: str

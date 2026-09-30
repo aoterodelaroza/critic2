@@ -31,6 +31,22 @@ submodule (windows) cp
      "Molecular mesh (MESH)" // c_null_char
   character(len=7), parameter :: seedkind_kw(0:7) = (/"ws     ","pair   ","triplet",&
      "line   ","sphere ","oh     ","point  ","mesh   "/)
+  ! description of each seed kind, for the tooltips of the kind combo
+  character(len=*), parameter :: seedkind_tooltips = &
+     "The irreducible part of the Wigner-Seitz cell, split into tetrahedra and subdivided&
+     & recursively (more seeds at each level). AUTO's default for crystals." // c_null_char //&
+     "Points on the segment between every pair of atoms closer than the maximum distance.&
+     & AUTO's default for molecules; good at finding bond critical points." // c_null_char //&
+     "The centroid of every triplet of atoms closer to each other than the maximum distance;&
+     & aimed at ring critical points." // c_null_char //&
+     "Evenly spaced points on the segment between two positions." // c_null_char //&
+     "Points on concentric spherical shells around a center (polar x azimuthal x radial)." //&
+     c_null_char //&
+     "Points on concentric octahedral shells around a center, the octahedron subdivided&
+     & recursively." // c_null_char //&
+     "A single starting point." // c_null_char //&
+     "The points of the molecular integration mesh: dense, and expensive in large systems." //&
+     c_null_char
 
   ! maximum WS/OH subdivision level AUTO accepts
   integer, parameter :: maxdepth = 7
@@ -1053,18 +1069,9 @@ contains
     ! the seeds, in a scrolling box of at most maxrow_seeds rows
     call iw_text("Seeds",highlight=.true.)
     call iw_helpermark("The search for critical points starts from a list of points, the&
-       & seeds. Each entry in this list adds a set of seeds: the irreducible part of the&
-       & Wigner-Seitz cell (WS) or an octahedron (OH), subdivided recursively; points between&
-       & pairs or triplets of nearby atoms (PAIR, TRIPLET); points along a line (LINE) or on a&
-       & sphere (SPHERE); one point (POINT); or the points of the molecular integration mesh&
-       & (MESH). The seeds of all the entries are accumulated into a single list, moved to the&
-       & main cell (in molecules, those outside the molecular cell are discarded), and clipped&
-       & to the CLIP region, if there is one. A Newton-Raphson search runs from every seed, and&
-       & the point it converges to is added to the list of critical points, with all its&
-       & symmetry-equivalent copies, if it is new (not within CPEPS of a known one), not too&
-       & close to a nucleus (NUCEPS, NUCEPSH), not degenerate, and not discarded by the DISCARD&
-       & expression. Then the list is sorted and the bond paths are traced. The default is a&
-       & Wigner-Seitz subdivision for crystals and atom pairs for molecules.",sameline=.true.)
+       & seeds. Each entry in this list adds a set of seeds. A Newton-Raphson search runs from every seed, and&
+       & the point it converges to is added to the list of critical points.",sameline=.true.)
+
     ! the height of the box is that of its content in the last frame
     ! (the bundled imgui cannot fit a child to its content), from one
     ! row to maxrow_seeds rows
@@ -1132,30 +1139,17 @@ contains
   !> Width of the longest label of the seed parameters (xunit = the
   !> units of the positions).
   function seed_label_width(xunit) result(wid)
+    use utils, only: iw_textwidth
     character(len=*), intent(in) :: xunit
     real(c_float) :: wid
 
-    wid = max(text_width("Subdivision level"),text_width("Center" // xunit),&
-       text_width("Radius (Å)"),text_width("Radial points"),text_width("Polar points"),&
-       text_width("Azimuthal points"),text_width("Maximum distance (Å)"),&
-       text_width("Points per pair"),text_width("Start" // xunit),text_width("End" // xunit),&
-       text_width("Points"),text_width("Position" // xunit))
+    wid = max(iw_textwidth("Subdivision level"),iw_textwidth("Center" // xunit),&
+       iw_textwidth("Radius (Å)"),iw_textwidth("Radial points"),iw_textwidth("Polar points"),&
+       iw_textwidth("Azimuthal points"),iw_textwidth("Maximum distance (Å)"),&
+       iw_textwidth("Points per pair"),iw_textwidth("Start" // xunit),iw_textwidth("End" // xunit),&
+       iw_textwidth("Points"),iw_textwidth("Position" // xunit))
 
   end function seed_label_width
-
-  !> Width of text str in the current font.
-  function text_width(str) result(wid)
-    character(len=*), intent(in) :: str
-    real(c_float) :: wid
-
-    character(kind=c_char,len=:), allocatable, target :: s
-    type(ImVec2) :: sz
-
-    s = str // c_null_char
-    call igCalcTextSize(sz,c_loc(s),c_null_ptr,.false._c_bool,-1._c_float)
-    wid = sz%x
-
-  end function text_width
 
   !> Draw the widgets of seed i of window w: its kind, a button to
   !> remove it (returns true if pressed), and the parameters that kind
@@ -1178,8 +1172,7 @@ contains
     suf = "##cpseed" // string(i)
     call iw_text(string(i) // ".",alignframe=.true.)
     call iw_combo_simple("##cpseedkind" // suf,seedkind_names,w%cp%seed(i)%typ,sameline=.true.,&
-       changed=ch)
-    call iw_tooltip("Kind of seeding",ttshown)
+       changed=ch,tooltips=seedkind_tooltips,ttshown=ttshown)
     if (ch) call kind_defaults(w,isys,i)
     call igSameLine(0._c_float,-1._c_float)
     del = iw_close_button("##cpseeddel" // suf)
@@ -1275,7 +1268,7 @@ contains
   subroutine draw_advanced(w,isys,xunit,ttshown)
     use gui_main, only: g
     use utils, only: iw_tooltip, iw_checkbox, iw_inputtext, iw_dragfloat_real8,&
-       iw_combo_simple, iw_text
+       iw_combo_simple, iw_text, iw_textwidth
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
     character(len=*), intent(in) :: xunit
@@ -1290,11 +1283,11 @@ contains
     if (igTreeNodeEx_Str(c_loc(strad),ImGuiTreeNodeFlags_None)) then
        ! the label column (after a checkbox) and the widget column
        xlab = igGetCursorPosX() + igGetFrameHeight() + g%Style%ItemInnerSpacing%x
-       xcol = xlab + 2 * g%Style%ItemSpacing%x + max(text_width("Gradient norm (GRADEPS)"),&
-          text_width("CP distance (CPEPS, Å)"),text_width("Nucleus distance (NUCEPS, Å)"),&
-          text_width("Hydrogen distance (NUCEPSH, Å)"),text_width("Degenerate eigenvalue (EPSDEGEN)"),&
-          text_width("Discard (DISCARD)"),text_width("Clip (CLIP)"),text_width("Box corner 1" // xunit),&
-          text_width("Center" // xunit),text_width("Radius (Å)"))
+       xcol = xlab + 2 * g%Style%ItemSpacing%x + max(iw_textwidth("Gradient norm (GRADEPS)"),&
+          iw_textwidth("CP distance (CPEPS, Å)"),iw_textwidth("Nucleus distance (NUCEPS, Å)"),&
+          iw_textwidth("Hydrogen distance (NUCEPSH, Å)"),iw_textwidth("Degenerate eigenvalue (EPSDEGEN)"),&
+          iw_textwidth("Discard (DISCARD)"),iw_textwidth("Clip (CLIP)"),iw_textwidth("Box corner 1" // xunit),&
+          iw_textwidth("Center" // xunit),iw_textwidth("Radius (Å)"))
 
        tt = "Maximum gradient norm of a critical point (default 1e-12)"
        call check_label("Gradient norm (GRADEPS)##cpusegradeps",w%cp%use_gradeps,tt)

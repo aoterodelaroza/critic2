@@ -1121,13 +1121,33 @@ contains
 
   end function iw_calcwidth
 
+  !> Width of text str as the current font draws it.
+  module function iw_textwidth(str) result(wid)
+    use interfaces_cimgui
+    character(len=*), intent(in) :: str
+    real(c_float) :: wid
+
+    character(kind=c_char,len=:), allocatable, target :: s
+    type(ImVec2) :: sz
+
+    s = str // c_null_char
+    call igCalcTextSize(sz,c_loc(s),c_null_ptr,.false._c_bool,-1._c_float)
+    wid = sz%x
+
+  end function iw_textwidth
+
   !> Simple combo with title str. stropt contains the options
   !> separated by \0 and terminated by \0. ival is the current value
   !> of the combo. sameline = place it in the same line as the last
   !> item. samline_nospace = like sameline, but no extra
   !> space. changed = returns true if the combo option
   !> changed. noarrow = hide the arrow on the right of the combo.
-  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow,startsatone)
+  !> tooltips = a description of each option, in the format of stropt:
+  !> shown when hovering the option in the open combo, and the one of
+  !> the current option when hovering the closed combo (ttshown = the
+  !> tooltip flag).
+  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow,startsatone,&
+     tooltips,ttshown)
     use interfaces_cimgui
     use types, only: realloc
     character(len=*,kind=c_char), intent(in) :: str
@@ -1138,6 +1158,8 @@ contains
     logical, intent(out), optional :: changed
     logical, intent(in), optional :: noarrow
     logical, intent(in), optional :: startsatone
+    character(len=*,kind=c_char), intent(in), optional :: tooltips
+    logical, intent(inout), optional :: ttshown
 
     type(ImVec2) :: szero
     character(len=:,kind=c_char), allocatable, target :: str1, str2, preview
@@ -1212,13 +1234,40 @@ contains
           selected = (i == ival0+1)
           if (igSelectable_Bool(c_loc(str2),selected,ImGuiSelectableFlags_None,szero)) &
              iselect = i-1
+          if (present(tooltips)) call option_tooltip(i)
           if (selected) &
              call igSetItemDefaultFocus()
        end do
        call igEndCombo()
+    elseif (present(tooltips)) then
+       ! the closed combo: the description of the current option
+       call option_tooltip(ival0+1)
     end if
     if (present(changed)) changed = (ival0 /= iselect)
     ival = iselect + off
+
+  contains
+    !> The tooltip of option k (1-based) from tooltips, if it has one.
+    subroutine option_tooltip(k)
+      integer, intent(in) :: k
+
+      integer :: j, n, j0
+
+      n = 0
+      j0 = 0
+      do j = 1, len(tooltips) + 1
+         if (j <= len(tooltips)) then
+            if (tooltips(j:j) /= c_null_char) cycle
+         end if
+         n = n + 1
+         if (n == k) then
+            if (j - 1 > j0) call iw_tooltip(tooltips(j0+1:j-1),ttshown)
+            return
+         end if
+         j0 = j
+      end do
+
+    end subroutine option_tooltip
 
   end subroutine iw_combo_simple
 
