@@ -119,6 +119,7 @@ module fieldmod
      procedure :: newton !< Newton-Raphson search for a CP
      procedure :: addcp !< Add a new CP to the CP list
      procedure :: sortcps !< Sort the CP list by field value
+     procedure :: delete_cps !< Delete CPs from the CP list
      procedure :: isbcp !< Whether a CP is a bond critical point
      procedure :: gradient !< Calculate a gradient path
   end type field
@@ -321,6 +322,10 @@ module fieldmod
        class(field), intent(inout) :: f
        real*8, intent(in) :: cpeps
      end subroutine sortcps
+     module subroutine delete_cps(f,del)
+       class(field), intent(inout) :: f
+       logical, intent(in) :: del(:)
+     end subroutine delete_cps
      module function isbcp(f,cp)
        class(field), intent(in) :: f
        type(cp_type), intent(in) :: cp

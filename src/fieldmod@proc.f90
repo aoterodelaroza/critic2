@@ -2806,7 +2806,6 @@ contains
   ! Sort the non-equivalent cp list
   module subroutine sortcps(f,cpeps)
     use tools, only: mergesort
-    use tools_io, only: string
     use types, only: cp_type
     class(field), intent(inout) :: f
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
@@ -2836,12 +2835,8 @@ contains
     call mergesort(iaux,iperm,f%c%nneq+1,f%ncp)
     f%cp = f%cp(iperm)
 
-    ! Rename the non-nuclear CPs in the new order: type letter and
-    ! their number among the CPs of the same type (as addcp)
-    do i = f%c%nneq+1, f%ncp
-       f%cp(i)%idx = i
-       f%cp(i)%name = smallnamecrit(f%cp(i)%typind) // string(count(f%cp(1:i)%typ == f%cp(i)%typ))
-    end do
+    ! Rename the non-nuclear CPs in the new order
+    call rename_cps(f)
 
     ! Rewrite the complete CP list: the nuclei first, as the cell
     ! atoms (cpcel(j) is atcel(j)), then the images of the other CPs
@@ -2864,6 +2859,69 @@ contains
     end do
 
   end subroutine sortcps
+
+  !> Delete the symmetry-unique non-nuclear critical points i of field
+  !> f with del(i) = .true. (nuclei are never deleted), and their
+  !> copies in the complete list. The order of the remaining CPs is
+  !> kept and they are renamed. The bond graph (the ends of the
+  !> paths, which index the lists, and the paths themselves) is
+  !> dropped: rebuild it with autocritic_graph.
+  module subroutine delete_cps(f,del)
+    class(field), intent(inout) :: f
+    logical, intent(in) :: del(:)
+
+    integer :: i, n, k
+    integer, allocatable :: inew(:)
+
+    if (allocated(f%cpgp)) deallocate(f%cpgp)
+
+    ! the symmetry-unique list, and the new index of each old CP
+    allocate(inew(f%ncp))
+    inew = 0
+    n = f%c%nneq
+    do i = 1, f%c%nneq
+       inew(i) = i
+    end do
+    do i = f%c%nneq+1, f%ncp
+       if (i <= size(del)) then
+          if (del(i)) cycle
+       end if
+       n = n + 1
+       inew(i) = n
+       f%cp(n) = f%cp(i)
+    end do
+    f%ncp = n
+
+    ! the complete list
+    k = f%c%ncel
+    do i = f%c%ncel+1, f%ncpcel
+       if (inew(f%cpcel(i)%idx) == 0) cycle
+       k = k + 1
+       f%cpcel(k) = f%cpcel(i)
+       f%cpcel(k)%idx = inew(f%cpcel(i)%idx)
+    end do
+    f%ncpcel = k
+
+    ! names, and no graph
+    call rename_cps(f)
+    do i = 1, f%ncp
+       call nograph(f%cp(i))
+    end do
+    do i = 1, f%ncpcel
+       f%cpcel(i)%name = f%cp(f%cpcel(i)%idx)%name
+       call nograph(f%cpcel(i))
+    end do
+
+  contains
+    subroutine nograph(cp)
+      type(cp_type), intent(inout) :: cp
+      cp%ipath = 0
+      cp%ilvec = 0
+      cp%brdist = 0d0
+      cp%brpathlen = 0d0
+      cp%brang = 0d0
+    end subroutine nograph
+  end subroutine delete_cps
 
   !> Generalized gradient tracing routine. The gp integration starts
   !> at xpoint (Cartesian). iup = 1 if the gp is traced up the
@@ -3135,6 +3193,22 @@ contains
     end do
 
   end subroutine cpcel_nuclei
+
+  !> Name the symmetry-unique non-nuclear CPs of field f in list order:
+  !> type letter and their number among the CPs of that type (as
+  !> addcp), and set their idx.
+  subroutine rename_cps(f)
+    use tools_io, only: string
+    class(field), intent(inout) :: f
+
+    integer :: i
+
+    do i = f%c%nneq+1, f%ncp
+       f%cp(i)%idx = i
+       f%cp(i)%name = smallnamecrit(f%cp(i)%typind) // string(count(f%cp(1:i)%typ == f%cp(i)%typ))
+    end do
+
+  end subroutine rename_cps
 
 
   !> Integration using adaptive_stepper step.

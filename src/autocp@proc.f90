@@ -2077,6 +2077,16 @@ contains
 
   end subroutine cp_json_report
 
+  !> Rebuild the bond graph of the reference field of the current
+  !> system from its CP list, and report it (after the list was
+  !> edited, e.g. with f%delete_cps).
+  module subroutine autocritic_graph()
+
+    call makegraph()
+    call graph_short_report()
+
+  end subroutine autocritic_graph
+
   !> Attempt to build the bond graph for the system: trace the two
   !> bond paths from each non-equivalent bond critical point (the
   !> (3,-1) CPs if the nuclei are maxima, (3,+1) if they are minima),

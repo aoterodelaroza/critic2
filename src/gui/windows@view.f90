@@ -1461,9 +1461,16 @@ contains
        descr = "Steer the running dynamics with the mouse: drag an atom, or translate or "//&
           "rotate a whole molecule, while the run is active."
     case (vm_pick_bond)
-       hint = "Pick a bond in the view"
-       descr = "A window is waiting for a bond: click one to pick it. Clicking "//&
-          "anywhere else, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
+       if (w%vmdata%acceptempty) then
+          hint = "Pick a bond or a position in the view"
+          descr = "A window is waiting for a bond or a position: click a bond to pick it, "//&
+             "or anywhere else to use the clicked point. Cancelling ("//kn(BIND_CANCEL)//&
+             ") aborts the pick."
+       else
+          hint = "Pick a bond in the view"
+          descr = "A window is waiting for a bond: click one to pick it. Clicking "//&
+             "anywhere else, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
+       end if
     case (vm_pick_atom)
        if (w%vmdata%acceptempty) then
           hint = "Pick a position in the view"
@@ -2467,7 +2474,8 @@ contains
     ! Deliver a completed pick to the commanding window. bidx is the bond
     ! under the cursor, used by the bond modes; idx the atom, used by the
     ! rest (the two are mutually exclusive). Pick-bond mode: deliver the
-    ! bond (or nothing = cancelled) and exit the mode. Pick-atom mode:
+    ! bond (or nothing = cancelled; or, if the window accepts positions,
+    ! the click as an empty-space one) and exit the mode. Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
     ! exit the mode. Persistent builder modes: deliver only a real atom
     ! (add-atoms also delivers empty-space clicks, with the click
@@ -2480,11 +2488,20 @@ contains
 
       if (w%viewmode == vm_pick_bond) then
          ! a window is waiting for one bond: deliver it and end the mode. A
-         ! click that hit no bond aborts the pick (flag stays 0)
+         ! click that hit no bond aborts the pick (flag stays 0), unless
+         ! the commanding window accepts a position instead: then the
+         ! click is delivered as an empty-space click of vm_pick_atom (the
+         ! atoms only occlude in the bond pick render, so there is no atom)
          w%vmdata%bidx = 0
-         if (bidx(1) > 0 .and. .not.alt) then
-            w%vmdata%bidx = bidx
-            w%vmdata%flag = 1
+         w%vmdata%idx = 0
+         if (.not.alt) then
+            if (bidx(1) > 0) then
+               w%vmdata%bidx = bidx
+               w%vmdata%flag = 1
+            elseif (w%vmdata%acceptempty) then
+               w%vmdata%flag = 1
+               w%vmdata%xpos = (/texpos%x,texpos%y/)
+            end if
          end if
          call viewmode_to_navigate(w)
       elseif (w%viewmode == vm_builder_bondremove .or. w%viewmode == vm_builder_bondorder) then
@@ -2501,6 +2518,7 @@ contains
          ! commanding window accepts it; otherwise it aborts the pick
          ! (flag stays 0). The mode ends either way.
          w%vmdata%idx = 0
+         w%vmdata%bidx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
          if (idx(1) > 0 .or. w%vmdata%acceptempty) then
             w%vmdata%flag = 1
@@ -3724,12 +3742,14 @@ contains
 
   end subroutine view_texpos_to_winfrac
 
-  !> Point delivered by a finished vm_pick_atom pick on view iview for
-  !> system isys: xc = the clicked atom's position (including its
-  !> lattice translation) or, on an accepted empty-space click, the
-  !> click unprojected onto the plane of the scene center, in cell-frame
-  !> Cartesian bohr. ok = .false. if the pick delivered nothing (it was
-  !> cancelled) or the unprojection failed. Does not retire the pick.
+  !> Point delivered by a finished vm_pick_atom pick (or a vm_pick_bond
+  !> pick that accepts positions) on view iview for system isys: xc =
+  !> the clicked atom's position (including its lattice translation),
+  !> the midpoint of the clicked bond, or, on an accepted empty-space
+  !> click, the click unprojected onto the plane of the scene center, in
+  !> cell-frame Cartesian bohr. ok = .false. if the pick delivered
+  !> nothing (it was cancelled) or the unprojection failed. Does not
+  !> retire the pick.
   module subroutine view_pick_point(iview,isys,xc,ok)
     use systems, only: sys
     integer, intent(in) :: iview
@@ -3745,6 +3765,12 @@ contains
          ! an atom was clicked: use its position
          xc = sys(isys)%c%x2c(sys(isys)%c%atcel(v%vmdata%idx(1))%x + v%vmdata%idx(2:4))
          ok = .true.
+      elseif (v%vmdata%bidx(1) > 0) then
+         ! a bond was clicked: the midpoint of its two atom images
+         associate(c => sys(isys)%c, b => v%vmdata%bidx)
+           xc = 0.5d0 * (c%x2c(c%atcel(b(1))%x + b(2:4)) + c%x2c(c%atcel(b(5))%x + b(6:8)))
+         end associate
+         ok = .true.
       else
          ! empty space: unproject the click onto the plane of the scene center
          call view_click_frame(iview,v%vmdata%xpos,xc,ok)
@@ -3755,7 +3781,8 @@ contains
 
   !> Read and retire the result of a forced atom/point pick that window
   !> idcaller commanded on view iview (viewmode_set_forced with
-  !> vm_pick_atom), for system isys with pick session stamp pick.
+  !> vm_pick_atom, or vm_pick_bond with acceptempty; a picked bond gives
+  !> its midpoint), for system isys with pick session stamp pick.
   !> istat: ipick_pending (still picking), ipick_lost (taken over by
   !> another window, view moved to another system, or the geometry
   !> changed -- the caller should forget the pick), ipick_cancelled
@@ -3792,6 +3819,7 @@ contains
          call view_pick_point(iview,isys,xc,okp)
          istat = merge(ipick_point,ipick_cancelled,okp)
          v%vmdata%idx = 0
+         v%vmdata%bidx = 0
          v%vmdata%flag = 0
       end if
     end associate

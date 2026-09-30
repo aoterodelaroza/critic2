@@ -22,6 +22,7 @@ module autocp
   private
 
   public :: autocritic
+  public :: autocritic_graph
   public :: cpreport
 
   interface
@@ -30,6 +31,8 @@ module autocp
        logical, intent(out), optional :: success
        logical, intent(in), optional :: clear
      end subroutine autocritic
+     module subroutine autocritic_graph()
+     end subroutine autocritic_graph
      module subroutine cpreport(line)
        character*(*), intent(in) :: line
      end subroutine cpreport

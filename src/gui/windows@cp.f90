@@ -77,6 +77,19 @@ contains
        end if
     end if
 
+    ! a pending pick of the point to add a CP from, in the view it was
+    ! armed on; dropped, releasing that view, if the window closes, the
+    ! system is not ready, or the window moved to another view
+    if (w%cp%picking) then
+       if (goodsys .and. .not.doquit .and. iview == w%cp%pickview) then
+          call poll_add_pick(w,isys,iview)
+       else
+          if (w%cp%pickview >= 1 .and. w%cp%pickview <= nwin) &
+             call win(w%cp%pickview)%viewmode_release_forced(w%id)
+          w%cp%picking = .false.
+       end if
+    end if
+
     ! the system
     ihover = 0
     if (goodsys) then
@@ -142,7 +155,14 @@ contains
     call iw_blank_background()
 
     ! the text of the overlay: what is being done
-    text = "...Searching for critical points..."
+    select case (w%cp%pending_kind)
+    case (cpjob_add)
+       text = "...Searching for a critical point..."
+    case (cpjob_delete)
+       text = "...Deleting critical points and tracing the bond paths..."
+    case default
+       text = "...Searching for critical points..."
+    end select
     isys = w%cp%isys
     if (ok_system(isys,sys_init)) then
        text = text // newline // "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
@@ -150,7 +170,8 @@ contains
           text = text // newline // "Field:  " // string(w%cp%ifield) // ": " //&
           trim(sys(isys)%f(w%cp%ifield)%name)
     end if
-    if (allocated(w%cp%pending_line)) text = text // newline // "Input:  AUTO " // w%cp%pending_line
+    if (w%cp%pending_kind /= cpjob_delete .and. allocated(w%cp%pending_line)) &
+       text = text // newline // "Input:  AUTO " // w%cp%pending_line
     text = text // c_null_char
 
     ! a centered window, sized for the text: it is only drawn in one
@@ -179,20 +200,23 @@ contains
   end subroutine block_cp
 
   !> Run the blocking job of the critical points window, called by the
-  !> main loop after the frame with the overlay: AUTO on the chosen
-  !> field, then the checkpoint, the summary, and the critical points
-  !> and gradient paths objects in the view. If AUTO rejects the
-  !> options, the field is left as it was.
+  !> main loop after the frame with the overlay, on the chosen field: a
+  !> search (AUTO with the options of the Search tab), the addition of
+  !> a CP (AUTO from one point, appending), or the deletion of the
+  !> selected CPs (and the bond graph traced again). Then the
+  !> checkpoint, the summary, and the critical points and gradient
+  !> paths objects in the view. If AUTO rejects the options, the field
+  !> is left as it was.
   module subroutine run_cp_pending(w)
-    use autocp, only: autocritic
+    use autocp, only: autocritic, autocritic_graph
     use systemmod, only: sy
     use systems, only: sys, sysc, sys_init, ok_system, launch_initialization_thread,&
        kill_initialization_thread, are_threads_running, lastchange_cplist
     use global, only: iunit, iunit_bohr, cp_hdegen
-    use tools_io, only: uout
+    use tools_io, only: uout, string
     class(window), intent(inout), target :: w
 
-    integer :: isys, ifield, iref0, iunit0, iview
+    integer :: isys, ifield, iref0, iunit0, iview, ncp0, kind
     real*8 :: hdegen0
     logical :: reinit, ldum, ok
     character(len=:), allocatable :: cpfile, errmsg
@@ -200,9 +224,17 @@ contains
     isys = w%cp%isys
     ifield = w%cp%ifield
     iview = w%cp%pending_view
+    kind = w%cp%pending_kind
     ok = ok_system(isys,sys_init)
     if (ok) ok = sys(isys)%goodfield(ifield)
-    if (ok) ok = allocated(w%cp%pending_line)
+    if (ok) then
+       if (kind == cpjob_delete) then
+          ok = allocated(w%cp%sel)
+          if (ok) ok = (size(w%cp%sel) == sys(isys)%f(ifield)%ncp)
+       else
+          ok = allocated(w%cp%pending_line)
+       end if
+    end if
     if (.not.ok) then
        w%errmsg = "The system or the field is no longer available"
        return
@@ -223,7 +255,17 @@ contains
     hdegen0 = cp_hdegen
     sys(isys)%iref = ifield
     if (iunit /= 1 .and. iunit /= 2) iunit = iunit_bohr
-    call autocritic(w%cp%pending_line,ok,clear=w%cp%discard_existing)
+    ncp0 = sys(isys)%f(ifield)%ncp
+    if (kind == cpjob_delete) then
+       write (uout,'("* Deleting ",A," critical points (GUI) and tracing the bond paths again")') &
+          string(count(w%cp%sel))
+       call sys(isys)%f(ifield)%delete_cps(w%cp%sel)
+       call autocritic_graph()
+       write (uout,*)
+       ok = .true.
+    else
+       call autocritic(w%cp%pending_line,ok,clear=(kind == cpjob_search .and. w%cp%discard_existing))
+    end if
     iunit = iunit0
     cp_hdegen = hdegen0
     sys(isys)%iref = iref0
@@ -250,6 +292,10 @@ contains
        return
     end if
     call sysc(isys)%post_event(lastchange_cplist)
+
+    ! a search from one point that found nothing new
+    if (kind == cpjob_add .and. sys(isys)%f(ifield)%ncp == ncp0) &
+       w%errmsg = "No new critical point: the search from that point found none, or one already in the list"
 
     ! the summary and the objects in the view
     w%cp%summary = cp_summary(isys,ifield)
@@ -378,6 +424,9 @@ contains
       end if
     end associate
 
+    ! editing: delete the selected CPs, add one
+    call draw_edit_section(w,isys,iview,ttshown)
+
     ! a nucleus under the mouse: highlight the atom
     if (ihnuc(1) > 0) &
        call sysc(isys)%highlight_atoms(.true.,ihnuc(1:1),ihnuc(2),reshape(ColorHighlightScene,(/4,1/)))
@@ -393,7 +442,7 @@ contains
       integer :: j, it
       real*8 :: x(3), xc(3)
       character(len=:), allocatable :: suffix, lbl
-      logical :: isbcp
+      logical :: isbcp, clk, selrow
 
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         suffix = "_cprow" // string(k)
@@ -401,9 +450,13 @@ contains
         isbcp = f%isbcp(f%cp(i))
 
         ! the CP, and the row selectable that highlights it in the view
+        ! and, clicked, selects its symmetry-unique CP for deletion (not
+        ! the nuclei)
         if (igTableSetColumnIndex(0_c_int)) then
            call iw_text("",alignframe=.true.)
-           if (iw_highlight_selectable("##cprowsel" // suffix)) then
+           selrow = .false.
+           if (i > c%nneq) selrow = w%cp%sel(i)
+           if (iw_highlight_selectable("##cprowsel" // suffix,clicked=clk,selected=selrow)) then
               if (i <= c%nneq) then
                  ! a nucleus: the atom
                  if (icp > 0) then
@@ -415,6 +468,7 @@ contains
                  ihover = (/merge(0,i,icp > 0),icp/)
               end if
            end if
+           if (clk .and. i > c%nneq) w%cp%sel(i) = .not.w%cp%sel(i)
            call igSameLine(0._c_float,0._c_float)
            lbl = trim(f%cp(i)%name)
            if (icp > 0) lbl = lbl // " " // string(icp)
@@ -559,11 +613,136 @@ contains
 
   end subroutine draw_results_tab
 
+  !> The editing of the CP list, under the results table: delete the
+  !> selected CPs, or add one by a search from a point (the center of
+  !> the selected atoms, or a bond or point picked in the view).
+  subroutine draw_edit_section(w,isys,iview,ttshown)
+    use systems, only: sys, sysc
+    use utils, only: iw_text, iw_button, iw_tooltip
+    use tools_io, only: string
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+    logical, intent(inout) :: ttshown
+
+    integer :: nsel, nat, k
+    integer, allocatable :: iat(:)
+    real*8 :: x1(3), xd(3), xs(3)
+    character(len=:), allocatable :: errform
+
+    ! delete
+    nsel = count(w%cp%sel)
+    if (iw_button("Delete selected##cpdelete",disabled=(nsel == 0))) &
+       call request_job(w,iview,cpjob_delete)
+    call iw_tooltip("Delete the selected critical points (click the rows to select them; the nuclei&
+       & cannot be deleted) with all their copies in the cell, and trace the bond paths again",ttshown)
+    if (iw_button("Clear selection##cpclearsel",sameline=.true.,disabled=(nsel == 0))) w%cp%sel = .false.
+    call iw_tooltip("Unselect all critical points",ttshown)
+    if (nsel > 0) call iw_text(string(nsel) // " selected",sameline=.true.)
+
+    ! add: a search from one point, with the advanced options of the
+    ! Search tab
+    call iw_text("Add a critical point",highlight=.true.)
+    call iw_tooltip("Search for a critical point from one point, with the advanced options of&
+       & the Search tab. The new critical point is added to the list",ttshown)
+    errform = form_error(w)
+    if (iw_button("From selection##cpaddsel",disabled=(len(errform) > 0 .or. w%cp%picking))) then
+       call sysc(isys)%highlighted_atom_list(nat,iat)
+       if (nat == 0) then
+          w%errmsg = "Select some atoms first: the search starts at their center"
+       else
+          ! the center of the selected atoms, each taken at its image
+          ! nearest the first one (crystals)
+          associate(c => sys(isys)%c)
+            x1 = c%atcel(iat(1))%x
+            xs = 0d0
+            do k = 2, nat
+               xd = c%atcel(iat(k))%x - x1
+               if (.not.c%ismolecule) xd = xd - nint(xd)
+               xs = xs + xd
+            end do
+            call request_add(w,isys,iview,c%x2c(x1 + xs / nat))
+          end associate
+       end if
+    end if
+    call iw_tooltip("Search for a critical point starting at the center of the selected atoms",ttshown)
+    if (iw_button("Pick in view##cpaddpick",sameline=.true.,disabled=(len(errform) > 0 .or. w%cp%picking))) then
+       w%cp%picking = .true.
+       w%cp%pickview = iview
+       call w%cp%pick%arm()
+       call win(iview)%viewmode_set_forced(vm_pick_bond,"Pick a bond or a point to search for a&
+          & critical point from",w%id,acceptempty=.true.)
+    end if
+    call iw_tooltip("Search for a critical point starting at a point picked in the view: the middle&
+       & of a bond if one is clicked, otherwise the clicked point (on the plane through the center of&
+       & the scene)",ttshown)
+    if (w%cp%picking) call iw_text("Click a bond or a point in the view",disabled=.true.,sameline=.true.)
+    if (len(errform) > 0) call iw_text(errform // " (Search tab, advanced options)",danger=.true.,wrap=.true.)
+
+  end subroutine draw_edit_section
+
+  !> Handle the pending pick of the point to add a CP from, commanded
+  !> to view iview (system isys): a picked bond gives its midpoint,
+  !> anything else the clicked point. Then the add job is requested.
+  subroutine poll_add_pick(w,isys,iview)
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+
+    integer :: istat
+    real*8 :: xc(3)
+
+    call view_pick_result(iview,w%id,isys,w%cp%pick,istat,xc)
+    if (istat == ipick_point) call request_add(w,isys,iview,xc)
+    if (istat /= ipick_pending) w%cp%picking = .false.
+
+  end subroutine poll_add_pick
+
+  !> Request the job that adds a CP to the list by a search from xc
+  !> (cell-frame Cartesian bohr), for the view iview of system isys.
+  subroutine request_add(w,isys,iview,xc)
+    use systems, only: sys
+    use global, only: iunit
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+    real*8, intent(in) :: xc(3)
+
+    real*8 :: x(3)
+
+    ! in the coordinates of the form
+    associate(c => sys(isys)%c)
+      if (c%ismolecule) then
+         x = (xc + c%molx0) * bohrtoa
+      else
+         x = c%c2x(xc)
+      end if
+    end associate
+    call request_job(w,iview,cpjob_add,auto_options(w,isys,iunit,point=x))
+
+  end subroutine request_add
+
+  !> Request a blocking job of kind kind (cpjob_*) for view iview, with
+  !> the AUTO options line (search, add). The main loop runs it after
+  !> the frame with its overlay; a second request in the same frame is
+  !> ignored.
+  subroutine request_job(w,iview,kind,line)
+    use gui_main, only: pending_block_window
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: iview, kind
+    character(len=*), intent(in), optional :: line
+
+    if (pending_block_window /= 0) return
+    w%cp%pending_kind = kind
+    if (present(line)) w%cp%pending_line = line
+    w%cp%pending_view = iview
+    w%errmsg = ""
+    pending_block_window = w%id
+
+  end subroutine request_job
+
   !> Recompute the caches of the results table if the CP list of the
   !> field (or the field) changed: the Wyckoff letters of the
-  !> symmetry-unique CPs and the summary.
+  !> symmetry-unique CPs and the summary. The selection is cleared.
   subroutine update_table_caches(w,isys)
-    use systems, only: sysc
+    use systems, only: sys, sysc
     use representations, only: cp_wyckoff
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -573,6 +752,9 @@ contains
     w%cp%ttime = sysc(isys)%timelastchange_cplist
     call cp_wyckoff(isys,w%cp%ifield,w%cp%wyc)
     w%cp%summary = cp_summary(isys,w%cp%ifield)
+    if (allocated(w%cp%sel)) deallocate(w%cp%sel)
+    allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
+    w%cp%sel = .false.
 
   end subroutine update_table_caches
 
@@ -618,7 +800,6 @@ contains
 
   !> The Search tab: field, seeds, advanced options, and the Run button.
   subroutine draw_search_tab(w,isys,iview,ttshown)
-    use gui_main, only: pending_block_window
     use systems, only: sys
     use global, only: iunit
     use utils, only: iw_text, iw_button, iw_tooltip, iw_field_combo, iw_calcwidth,&
@@ -677,13 +858,13 @@ contains
        & which the GUI reads the next time the field is loaded",ttshown)
 
     ! the form must make valid AUTO options
-    errrun = form_error(w)
-    if (iw_button("Run##cprun",disabled=(len(errrun) > 0))) then
-       w%cp%pending_line = auto_options(w,isys,iunit)
-       w%cp%pending_view = iview
-       w%errmsg = ""
-       pending_block_window = w%id
+    if (size(w%cp%seed) == 0) then
+       errrun = "Add a seed"
+    else
+       errrun = form_error(w)
     end if
+    if (iw_button("Run##cprun",disabled=(len(errrun) > 0))) &
+       call request_job(w,iview,cpjob_search,auto_options(w,isys,iunit))
     call iw_tooltip("Search for the critical points (the calculation blocks the interface&
        & until it finishes; the output goes to the output console)",ttshown)
     if (len(errrun) > 0) call iw_text(errrun,danger=.true.,sameline=.true.)
@@ -949,16 +1130,14 @@ contains
 
   end function system_center
 
-  !> Why the form of window w would not make valid AUTO options, or an
-  !> empty string if it does.
+  !> Why the advanced options of window w would not make valid AUTO
+  !> options, or an empty string if they do.
   function form_error(w) result(errmsg)
     type(window), intent(in) :: w
     character(len=:), allocatable :: errmsg
 
     errmsg = ""
-    if (size(w%cp%seed) == 0) then
-       errmsg = "Add a seed"
-    elseif (w%cp%use_gradeps .and. .not.isnumber(w%cp%gradeps)) then
+    if (w%cp%use_gradeps .and. .not.isnumber(w%cp%gradeps)) then
        errmsg = "GRADEPS is not a number"
     elseif (w%cp%use_epsdegen .and. .not.isnumber(w%cp%epsdegen)) then
        errmsg = "EPSDEGEN is not a number"
@@ -988,16 +1167,18 @@ contains
   !> iunit (bohr if they have no length factor, as run_cp_pending runs
   !> AUTO): positions fractional for crystals and Cartesian in the
   !> input frame for molecules. CPEPS, NUCEPS, and NUCEPSH are always
-  !> in bohr, as AUTO reads them.
-  function auto_options(w,isys,iunit) result(line)
+  !> in bohr, as AUTO reads them. If point is present (a position in
+  !> the coordinates of the form), the only seed is a POINT there, and
+  !> there is no CLIP (to add a CP from that point).
+  function auto_options(w,isys,iunit,point) result(line)
     use systems, only: sys
     use global, only: dunit0
     use tools_io, only: string
     type(window), intent(in) :: w
     integer, intent(in) :: isys, iunit
+    real*8, intent(in), optional :: point(3)
     character(len=:), allocatable :: line
 
-    integer :: i
     logical :: ismol
     real*8 :: fl
 
@@ -1005,46 +1186,60 @@ contains
     fl = 1d0 / bohrtoa ! Å to the input units
     if (iunit == 1 .or. iunit == 2) fl = fl * dunit0(iunit)
 
-    ! seeds
+    ! seeds: the point, or those of the form
     line = ""
-    do i = 1, size(w%cp%seed)
-       associate(s => w%cp%seed(i))
-         line = line // " seed " // trim(seedkind_kw(s%typ))
-         select case(s%typ)
-         case (cpseed_ws,cpseed_oh)
-            line = line // " depth " // string(s%depth) // xstr(" x0",s%x0)
-            if (s%rad > 0d0) line = line // " radius " // rstr(s%rad * fl)
-            if (s%typ == cpseed_oh) line = line // " nr " // string(s%nr)
-         case (cpseed_sphere)
-            line = line // xstr(" x0",s%x0) // " radius " // rstr(s%rad * fl) //&
-               " ntheta " // string(s%ntheta) // " nphi " // string(s%nphi) // " nr " // string(s%nr)
-         case (cpseed_pair)
-            line = line // " dist " // rstr(s%dist * fl) // " npts " // string(s%npts)
-         case (cpseed_triplet)
-            line = line // " dist " // rstr(s%dist * fl)
-         case (cpseed_line)
-            line = line // xstr(" x0",s%x0) // xstr(" x1",s%x1) // " npts " // string(s%npts)
-         case (cpseed_point)
-            line = line // xstr(" x0",s%x0)
-         end select
-       end associate
-    end do
+    if (present(point)) then
+       line = " seed point" // xstr(" x0",point)
+    else
+       call form_seeds()
+    end if
 
-    ! advanced options
+    ! advanced options (no CLIP for a point)
     if (w%cp%use_gradeps) line = line // " gradeps " // trim(adjustl(w%cp%gradeps))
     if (w%cp%use_cpeps) line = line // " cpeps " // rstr(w%cp%cpeps / bohrtoa)
     if (w%cp%use_nuceps) line = line // " nuceps " // rstr(w%cp%nuceps / bohrtoa)
     if (w%cp%use_nucepsh) line = line // " nucepsh " // rstr(w%cp%nucepsh / bohrtoa)
     if (w%cp%use_epsdegen) line = line // " epsdegen " // trim(adjustl(w%cp%epsdegen))
     if (len_trim(w%cp%discard) > 0) line = line // ' discard "' // trim(w%cp%discard) // '"'
-    if (w%cp%iclip == 1) then
-       line = line // " clip cube" // xstr("",w%cp%clipx0) // xstr("",w%cp%clipx1)
-    elseif (w%cp%iclip == 2) then
-       line = line // " clip sphere" // xstr("",w%cp%clipx0) // " " // rstr(w%cp%cliprad * fl)
+    if (.not.present(point)) then
+       if (w%cp%iclip == 1) then
+          line = line // " clip cube" // xstr("",w%cp%clipx0) // xstr("",w%cp%clipx1)
+       elseif (w%cp%iclip == 2) then
+          line = line // " clip sphere" // xstr("",w%cp%clipx0) // " " // rstr(w%cp%cliprad * fl)
+       end if
     end if
     line = line(2:)
 
   contains
+    !> Append the seeds of the form to line.
+    subroutine form_seeds()
+      integer :: i
+
+      do i = 1, size(w%cp%seed)
+         associate(s => w%cp%seed(i))
+           line = line // " seed " // trim(seedkind_kw(s%typ))
+           select case(s%typ)
+           case (cpseed_ws,cpseed_oh)
+              line = line // " depth " // string(s%depth) // xstr(" x0",s%x0)
+              if (s%rad > 0d0) line = line // " radius " // rstr(s%rad * fl)
+              if (s%typ == cpseed_oh) line = line // " nr " // string(s%nr)
+           case (cpseed_sphere)
+              line = line // xstr(" x0",s%x0) // " radius " // rstr(s%rad * fl) //&
+                 " ntheta " // string(s%ntheta) // " nphi " // string(s%nphi) // " nr " // string(s%nr)
+           case (cpseed_pair)
+              line = line // " dist " // rstr(s%dist * fl) // " npts " // string(s%npts)
+           case (cpseed_triplet)
+              line = line // " dist " // rstr(s%dist * fl)
+           case (cpseed_line)
+              line = line // xstr(" x0",s%x0) // xstr(" x1",s%x1) // " npts " // string(s%npts)
+           case (cpseed_point)
+              line = line // xstr(" x0",s%x0)
+           end select
+         end associate
+      end do
+
+    end subroutine form_seeds
+
     !> A real number in fixed notation, 10 decimals without the
     !> trailing zeros.
     function rstr(x) result(str)

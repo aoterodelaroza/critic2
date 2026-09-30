@@ -184,6 +184,22 @@ module windows
      "Move Atoms       "&  ! vm_moveatom
      /)
 
+  ! A staged atom pick for the operations that need two atoms chosen one
+  ! after the other (create bond, geometry add-bond). Holds the first pick
+  ! and the time it was staged (or the pick session was armed), so a
+  ! geometry change in between invalidates the stored cell-atom index.
+  type pairpick
+     integer :: idx(4) = 0 ! staged atom (cell index + lattice vector; 0 = none)
+     real*8 :: time = 0d0 ! time the atom was staged or the pick was armed
+   contains
+     procedure :: arm => pairpick_arm ! stamp the time without staging an atom
+     procedure :: stage => pairpick_stage ! store the atom and stamp the time
+     procedure :: clear => pairpick_clear ! forget the staged atom and the time
+     procedure :: is_staged => pairpick_is_staged ! an atom is staged
+     procedure :: is_stale => pairpick_is_stale ! the geometry changed since the stamp
+     procedure :: same => pairpick_same ! the staged atom equals this pick
+  end type pairpick
+
   ! The critical points window: one seed of the AUTO search. typ is the
   ! AUTO seed kind (cpseed_*, numbered as the entries of the kind
   ! combo). Positions are fractional for crystals and Cartesian Å for
@@ -197,6 +213,10 @@ module windows
   integer, parameter :: cpseed_oh = 5
   integer, parameter :: cpseed_point = 6
   integer, parameter :: cpseed_mesh = 7
+  ! The critical points window: kinds of blocking job
+  integer, parameter :: cpjob_search = 0 ! AUTO with the Search tab's options
+  integer, parameter :: cpjob_add = 1 ! AUTO from one point, appending to the list
+  integer, parameter :: cpjob_delete = 2 ! delete the selected CPs, rebuild the graph
   type cp_seed_ui
      integer :: typ = cpseed_ws ! seed kind
      integer(c_int) :: depth = 1 ! WS/OH subdivision level (0-7)
@@ -238,7 +258,15 @@ module windows
      ! blocking job (gui_main%pending_block_window), run by the main
      ! loop after the frame with its overlay
      integer :: pending_view = 0 ! view the job was requested in
-     character(len=:), allocatable :: pending_line ! AUTO options of the job
+     integer :: pending_kind = cpjob_search ! kind of job (cpjob_*)
+     character(len=:), allocatable :: pending_line ! AUTO options of the job (search, add)
+     ! editing: the symmetry-unique CPs selected in the results table
+     ! (for deletion; size ncp, reset when the CP list changes), and a
+     ! pending pick in the view of the point to add a CP from
+     logical, allocatable :: sel(:)
+     logical :: picking = .false.
+     integer :: pickview = 0 ! view the pick was armed on
+     type(pairpick) :: pick
      ! results
      character(len=:), allocatable :: summary ! of the last run
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
@@ -415,22 +443,6 @@ module windows
      integer(c_int) :: moldendialect = 0_c_int ! molden dialect (0=auto, 1=psi4, 2=orca)
   end type loadfield_state
   public :: loadfield_state
-
-  ! A staged atom pick for the operations that need two atoms chosen one
-  ! after the other (create bond, geometry add-bond). Holds the first pick
-  ! and the time it was staged (or the pick session was armed), so a
-  ! geometry change in between invalidates the stored cell-atom index.
-  type pairpick
-     integer :: idx(4) = 0 ! staged atom (cell index + lattice vector; 0 = none)
-     real*8 :: time = 0d0 ! time the atom was staged or the pick was armed
-   contains
-     procedure :: arm => pairpick_arm ! stamp the time without staging an atom
-     procedure :: stage => pairpick_stage ! store the atom and stamp the time
-     procedure :: clear => pairpick_clear ! forget the staged atom and the time
-     procedure :: is_staged => pairpick_is_staged ! an atom is staged
-     procedure :: is_stale => pairpick_is_stale ! the geometry changed since the stamp
-     procedure :: same => pairpick_same ! the staged atom equals this pick
-  end type pairpick
 
   ! Sampling grids cached by the molecular-orbitals window, one per
   ! orbital.
