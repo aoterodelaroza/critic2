@@ -325,7 +325,7 @@ contains
          cell = (w%cp%tablecell == 1)
       end if
       n = merge(f%ncpcel,f%ncp,cell)
-      call iw_text(cp_summary(isys,ifield),wrap=.true.)
+      call iw_text(w%cp%summary,wrap=.true.)
 
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -421,12 +421,12 @@ contains
            if (icp > 0) lbl = lbl // " " // string(icp)
            if (i <= c%nneq) then
               if (icp > 0) then
-                 call atom_badge(w%cp%nucat(icp),atlisttype_ncel_frac,lbl,"##cprowcp" // suffix)
+                 call atom_badge(w%cp%nucat(icp),atlisttype_ncel_frac,lbl // "##cprowcp" // suffix)
               else
-                 call atom_badge(i,atlisttype_nneq,lbl,"##cprowcp" // suffix)
+                 call atom_badge(i,atlisttype_nneq,lbl // "##cprowcp" // suffix)
               end if
            else
-              call cp_badge(i,lbl,"##cprowcp" // suffix)
+              call cp_badge(iview,isys,ifield,i,lbl // "##cprowcp" // suffix)
            end if
         end if
 
@@ -502,23 +502,23 @@ contains
               end if
               idx(1) = w%cp%nucat(iend)
               idx(2:4) = f%cpcel(icp)%ilvec(:,j) + w%cp%nucoff(:,iend)
-              call atom_badge(idx(1),atlisttype_ncel_frac,anchor_label(isys,idx,"?",species=.true.),&
+              call atom_badge(idx(1),atlisttype_ncel_frac,anchor_label(isys,idx,"?",species=.true.) //&
                  "##cpend" // string(j) // suffix)
               return
            elseif (iend > c%ncel .and. iend <= f%ncpcel) then
               iu = f%cpcel(iend)%idx
-              call cp_badge(iu,trim(f%cp(iu)%name) // " " // string(iend) // lvec_str(f%cpcel(icp)%ilvec(:,j)),&
-                 "##cpend" // string(j) // suffix)
+              call cp_badge(iview,isys,ifield,iu,trim(f%cp(iu)%name) // " " // string(iend) //&
+                 lvec_str(f%cpcel(icp)%ilvec(:,j)) // "##cpend" // string(j) // suffix)
               return
            end if
         else
            ! symmetry-unique CP: the symmetry-unique CP at the end
            iend = f%cp(i)%ipath(j)
            if (iend >= 1 .and. iend <= c%nneq) then
-              call atom_badge(iend,atlisttype_nneq,trim(c%at(iend)%name),"##cpend" // string(j) // suffix)
+              call atom_badge(iend,atlisttype_nneq,trim(c%at(iend)%name) // "##cpend" // string(j) // suffix)
               return
            elseif (iend > c%nneq .and. iend <= f%ncp) then
-              call cp_badge(iend,trim(f%cp(iend)%name),"##cpend" // string(j) // suffix)
+              call cp_badge(iview,isys,ifield,iend,trim(f%cp(iend)%name) // "##cpend" // string(j) // suffix)
               return
            end if
         end if
@@ -534,10 +534,11 @@ contains
 
     end subroutine path_end_badge
 
-    !> Badge of atom iat of list type itype, in its view color, reading lbl.
-    subroutine atom_badge(iat,itype,lbl,tag)
+    !> Badge of atom iat of list type itype, in its view color; str is
+    !> the label and ImGui ID ("text##id"), as in cp_badge.
+    subroutine atom_badge(iat,itype,str)
       integer, intent(in) :: iat, itype
-      character(len=*), intent(in) :: lbl, tag
+      character(len=*), intent(in) :: str
 
       real(c_float) :: rgb(3)
       logical :: have, ldum
@@ -546,23 +547,9 @@ contains
       have = .false.
       rgb = 0._c_float
       if (iat > 0) have = atom_view_rgb(iview,isys,itype,iat,rgb)
-      ldum = iw_atom_button(lbl // tag,rgb,havergb=have,inert=.true.)
+      ldum = iw_atom_button(str,rgb,havergb=have,inert=.true.)
 
     end subroutine atom_badge
-
-    !> Badge of symmetry-unique CP icp of the field, in its view color,
-    !> reading lbl.
-    subroutine cp_badge(icp,lbl,tag)
-      integer, intent(in) :: icp
-      character(len=*), intent(in) :: lbl, tag
-
-      real(c_float) :: rgb(3)
-      logical :: have, ldum
-
-      have = cp_view_rgb(iview,isys,ifield,icp,rgb)
-      ldum = iw_atom_button(lbl // tag,rgb,havergb=have,inert=.true.)
-
-    end subroutine cp_badge
 
     !> Three coordinates, 4 decimals (no "-0.0000").
     function xyz_str(x) result(str)
@@ -577,67 +564,24 @@ contains
 
     end function xyz_str
 
-    !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
-    function lvec_str(l) result(str)
-      integer, intent(in) :: l(3)
-      character(len=:), allocatable :: str
-
-      str = ""
-      if (any(l /= 0)) str = "+(" // string(l(1)) // "," // string(l(2)) // "," // string(l(3)) // ")"
-
-    end function lvec_str
-
   end subroutine draw_results_tab
 
   !> Recompute the caches of the results table if the CP list of the
   !> field (or the field) changed: the Wyckoff letters of the
-  !> symmetry-unique CPs (crystals) and the cell atom of each nuclear
-  !> cell CP (the cell CP list need not follow the atom order).
+  !> symmetry-unique CPs, the cell atom of each nuclear cell CP, and
+  !> the summary.
   subroutine update_table_caches(w,isys)
-    use systems, only: sys, sysc
+    use systems, only: sysc
+    use representations, only: cp_nucleus_map, cp_wyckoff
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
-    integer :: i, j, nx
-    real*8 :: xd(3)
-    character*1, allocatable :: wcel(:)
-
-    associate(c => sys(isys)%c, f => sys(isys)%f(w%cp%ifield))
-      if (w%cp%tfield == w%cp%ifield .and. w%cp%ttime == sysc(isys)%timelastchange_cplist) return
-      w%cp%tfield = w%cp%ifield
-      w%cp%ttime = sysc(isys)%timelastchange_cplist
-
-      ! Wyckoff letters, from the cell CPs
-      if (allocated(w%cp%wyc)) deallocate(w%cp%wyc)
-      if (.not.c%ismolecule .and. f%ncp > c%nneq) then
-         ! one letter per cell CP, then per symmetry-unique CP
-         nx = f%ncpcel - c%ncel
-         allocate(wcel(nx),w%cp%wyc(f%ncp-c%nneq))
-         call c%wyckoff_sites(nx,reshape((/(f%cpcel(c%ncel+j)%x,j=1,nx)/),(/3,nx/)),&
-            (/(f%cpcel(c%ncel+j)%idx - c%nneq,j=1,nx)/),wcel)
-         w%cp%wyc = "?"
-         do j = 1, nx
-            w%cp%wyc(f%cpcel(c%ncel+j)%idx - c%nneq) = wcel(j)
-         end do
-      end if
-
-      ! the cell atom of each nucleus, by position
-      if (allocated(w%cp%nucat)) deallocate(w%cp%nucat)
-      if (allocated(w%cp%nucoff)) deallocate(w%cp%nucoff)
-      allocate(w%cp%nucat(c%ncel),w%cp%nucoff(3,c%ncel))
-      w%cp%nucat = 0
-      w%cp%nucoff = 0
-      do i = 1, min(c%ncel,f%ncpcel)
-         do j = 1, c%ncel
-            if (c%atcel(j)%idx /= f%cpcel(i)%idx) cycle
-            xd = f%cpcel(i)%x - c%atcel(j)%x
-            if (any(abs(xd - nint(xd)) > 1d-4)) cycle
-            w%cp%nucat(i) = j
-            w%cp%nucoff(:,i) = nint(xd)
-            exit
-         end do
-      end do
-    end associate
+    if (w%cp%tfield == w%cp%ifield .and. w%cp%ttime == sysc(isys)%timelastchange_cplist) return
+    w%cp%tfield = w%cp%ifield
+    w%cp%ttime = sysc(isys)%timelastchange_cplist
+    call cp_wyckoff(isys,w%cp%ifield,w%cp%wyc)
+    call cp_nucleus_map(isys,w%cp%ifield,w%cp%nucat,w%cp%nucoff)
+    w%cp%summary = cp_summary(isys,w%cp%ifield)
 
   end subroutine update_table_caches
 

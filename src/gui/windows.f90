@@ -1094,6 +1094,14 @@ module windows
        real(c_float), intent(out) :: rgb(3)
        logical :: have
      end function cp_view_rgb
+     module subroutine cp_badge(iview,isys,ifield,icp,str)
+       integer, intent(in) :: iview, isys, ifield, icp
+       character(len=*), intent(in) :: str
+     end subroutine cp_badge
+     module function lvec_str(l) result(str)
+       integer, intent(in) :: l(3)
+       character(len=:), allocatable :: str
+     end function lvec_str
      module function anchor_label(isys,idx,notset,species,stamp) result(s)
        integer, intent(in) :: isys
        integer(c_int), intent(in) :: idx(4)

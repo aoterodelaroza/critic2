@@ -1083,6 +1083,61 @@ contains
 
   end function field_has_cps
 
+  !> The cell atom of each nuclear cell CP of field ifield of system
+  !> isys, by position: cpcel(k)%x = atcel(nuc(k))%x + nucoff(:,k)
+  !> (k = 1..ncel; the cell CP list need not follow the atom order).
+  !> nuc(k) = 0 if no atom of the CP's symmetry-unique atom matches.
+  module subroutine cp_nucleus_map(isys,ifield,nuc,nucoff)
+    use systems, only: sys
+    use param, only: icrd_crys
+    integer, intent(in) :: isys, ifield
+    integer, allocatable, intent(out) :: nuc(:)
+    integer, allocatable, intent(out) :: nucoff(:,:)
+
+    integer :: i
+    real*8 :: dist
+
+    real*8, parameter :: distmax = 1d-3 ! bohr
+
+    associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+      allocate(nuc(c%ncel),nucoff(3,c%ncel))
+      nuc = 0
+      nucoff = 0
+      do i = 1, min(c%ncel,f%ncpcel)
+         call c%nearest_atom(f%cpcel(i)%x,icrd_crys,nuc(i),dist,distmax=distmax,lvec=nucoff(:,i),&
+            nid0=f%cpcel(i)%idx)
+      end do
+    end associate
+
+  end subroutine cp_nucleus_map
+
+  !> The Wyckoff letter of each symmetry-unique non-nuclear CP of
+  !> field ifield of system isys (wyc(i) for CP nneq+i), from its cell
+  !> copies ("?" if spglib cannot tell). Not allocated for molecules
+  !> or a field without non-nuclear CPs.
+  module subroutine cp_wyckoff(isys,ifield,wyc)
+    use systems, only: sys
+    integer, intent(in) :: isys, ifield
+    character*1, allocatable, intent(out) :: wyc(:)
+
+    integer :: j, nx
+    character*1, allocatable :: wcel(:)
+
+    associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+      if (c%ismolecule .or. f%ncp <= c%nneq) return
+      ! one letter per cell CP, then per symmetry-unique CP
+      nx = f%ncpcel - c%ncel
+      allocate(wcel(nx),wyc(f%ncp-c%nneq))
+      call c%wyckoff_sites(nx,reshape((/(f%cpcel(c%ncel+j)%x,j=1,nx)/),(/3,nx/)),&
+         (/(f%cpcel(c%ncel+j)%idx - c%nneq,j=1,nx)/),wcel)
+      wyc = "?"
+      do j = 1, nx
+         wyc(f%cpcel(c%ncel+j)%idx - c%nneq) = wcel(j)
+      end do
+    end associate
+
+  end subroutine cp_wyckoff
+
   !> The field of system isys whose critical points are drawn by
   !> default: the reference field if it has CPs other than the nuclei,
   !> otherwise the first field that does, or -1 if none has them. If
@@ -4622,9 +4677,8 @@ contains
     class(rep_gpaths), intent(inout) :: g
     integer, intent(in) :: isys
 
-    integer :: n, i, jat
+    integer :: n, i
     integer, allocatable :: ncnt(:)
-    real*8 :: xd(3)
 
     g%ptime = glfwGetTime()
     if (g%paths_ok(isys)) then
@@ -4648,20 +4702,8 @@ contains
       allocate(g%pcpx(3,f%ncpcel),g%prgb(3,2,f%ncpcel),g%prad(2,f%ncpcel),g%pshown(2,f%ncpcel))
       g%pcpx = reshape((/(f%cpcel(n)%x,n=1,f%ncpcel)/),(/3,f%ncpcel/))
 
-      ! the cell atom of each nucleus, by position
-      allocate(g%pnuc(c%ncel),g%pnucoff(3,c%ncel))
-      g%pnuc = 0
-      g%pnucoff = 0
-      do i = 1, c%ncel
-         do jat = 1, c%ncel
-            if (c%atcel(jat)%idx /= f%cpcel(i)%idx) cycle
-            xd = f%cpcel(i)%x - c%atcel(jat)%x
-            if (any(abs(xd - nint(xd)) > 1d-4)) cycle
-            g%pnuc(i) = jat
-            g%pnucoff(:,i) = nint(xd)
-            exit
-         end do
-      end do
+      ! the cell atom of each nucleus
+      call cp_nucleus_map(isys,g%ifield,g%pnuc,g%pnucoff)
 
       ! the cell copies of each symmetry-unique CP, grouped
       allocate(g%pfirst(f%ncp+1),g%pcopy(f%ncpcel))
@@ -4752,7 +4794,7 @@ contains
     class(label_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
-    integer :: i, j, nx
+    integer :: i
     character*1, allocatable :: wyc(:)
 
     d%ncp = 0
@@ -4796,16 +4838,14 @@ contains
          end select
       end do
 
-      ! Wyckoff positions of the symmetry-unique CPs, from the cell CPs
+      ! Wyckoff positions of the symmetry-unique CPs
       if (r%labels%type == 8) then
-         nx = f%ncpcel - c%ncel
-         allocate(wyc(nx))
-         call c%wyckoff_sites(nx,reshape((/(f%cpcel(c%ncel+j)%x,j=1,nx)/),(/3,nx/)),&
-            (/(f%cpcel(c%ncel+j)%idx - c%nneq,j=1,nx)/),wyc)
-         do j = 1, nx
-            i = f%cpcel(c%ncel+j)%idx - c%nneq
-            d%cpstr(i) = string(f%cp(c%nneq+i)%mult) // wyc(j)
-         end do
+         call cp_wyckoff(r%id,d%cpfield,wyc)
+         if (allocated(wyc)) then
+            do i = 1, d%ncp
+               d%cpstr(i) = string(f%cp(c%nneq+i)%mult) // wyc(i)
+            end do
+         end if
       end if
     end associate
 

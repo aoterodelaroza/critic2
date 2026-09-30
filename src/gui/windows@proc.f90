@@ -1930,6 +1930,33 @@ contains
 
   end function cp_view_rgb
 
+  !> Inert badge of symmetry-unique CP icp of field ifield of system
+  !> isys, in its color in view iview (cp_view_rgb). str is the label
+  !> and ImGui ID ("text##id").
+  module subroutine cp_badge(iview,isys,ifield,icp,str)
+    use utils, only: iw_atom_button
+    integer, intent(in) :: iview, isys, ifield, icp
+    character(len=*), intent(in) :: str
+
+    real(c_float) :: rgb(3)
+    logical :: have, ldum
+
+    have = cp_view_rgb(iview,isys,ifield,icp,rgb)
+    ldum = iw_atom_button(str,rgb,havergb=have,inert=.true.)
+
+  end subroutine cp_badge
+
+  !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
+  module function lvec_str(l) result(str)
+    use tools_io, only: string
+    integer, intent(in) :: l(3)
+    character(len=:), allocatable :: str
+
+    str = ""
+    if (any(l /= 0)) str = "+(" // string(l(1)) // "," // string(l(2)) // "," // string(l(3)) // ")"
+
+  end function lvec_str
+
   !> Short anchor label: atom name + "#" + cell-atom index, or the name
   !> of the critical point (idx(1) < 0), or `notset` when idx names no
   !> atom or CP of system isys (or is stale, see anchor_xfrac and
@@ -1968,8 +1995,7 @@ contains
           s = trim(sys(isys)%c%at(sys(isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
        end if
     end if
-    if (any(idx(2:4) /= 0)) &
-       s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
+    s = s // lvec_str(int(idx(2:4)))
 
   end function anchor_label
 

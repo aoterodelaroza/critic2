@@ -4338,7 +4338,7 @@ contains
         if (igTableSetColumnIndex(3_c_int)) then
            lbl = trim(f%cp(iu)%name)
            if (icp > 0) lbl = lbl // " " // string(icp)
-           call cp_badge(iu,"##gpathsend1",lbl)
+           call cp_badge(iview,isys,w%rep%gpaths%ifield,iu,lbl // "##gpathsend1" // suffix)
         end if
 
         ! ... and the one it ends at (a nucleus, in the color this
@@ -4360,8 +4360,9 @@ contains
                  ldum = iw_atom_button(anchor_label(isys,idx,"?",species=.true.) // "##gpathsend2" // suffix,&
                     rgb,havergb=have,inert=.true.)
               elseif (iend > c%ncel .and. iend <= f%ncpcel) then
-                 call cp_badge(f%cpcel(iend)%idx,"##gpathsend2",trim(f%cp(f%cpcel(iend)%idx)%name) //&
-                    " " // string(iend) // lvec_str(f%cpcel(icp)%ilvec(:,j)))
+                 call cp_badge(iview,isys,w%rep%gpaths%ifield,f%cpcel(iend)%idx,&
+                    trim(f%cp(f%cpcel(iend)%idx)%name) // " " // string(iend) //&
+                    lvec_str(f%cpcel(icp)%ilvec(:,j)) // "##gpathsend2" // suffix)
               else
                  ! the cell list marks no end; the unique list tells
                  ! whether the path leaves the molecule
@@ -4378,7 +4379,8 @@ contains
                  ldum = iw_atom_button(trim(c%at(iend)%name) // "##gpathsend2" // suffix,rgb,&
                     havergb=have,inert=.true.)
               elseif (iend > c%nneq .and. iend <= f%ncp) then
-                 call cp_badge(iend,"##gpathsend2",trim(f%cp(iend)%name))
+                 call cp_badge(iview,isys,w%rep%gpaths%ifield,iend,trim(f%cp(iend)%name) //&
+                    "##gpathsend2" // suffix)
               else
                  call no_end(iend)
               end if
@@ -4446,30 +4448,6 @@ contains
       end if
 
     end subroutine no_end
-
-    !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
-    function lvec_str(l) result(str)
-      integer, intent(in) :: l(3)
-      character(len=:), allocatable :: str
-
-      str = ""
-      if (any(l /= 0)) str = "+(" // string(l(1)) // "," // string(l(2)) // "," // string(l(3)) // ")"
-
-    end function lvec_str
-
-    !> The badge of symmetry-unique CP icp of the field, in its view
-    !> color, reading lbl; tag tells apart the badges of one row.
-    subroutine cp_badge(icp,tag,lbl)
-      integer, intent(in) :: icp
-      character(len=*), intent(in) :: tag, lbl
-
-      real(c_float) :: rgb(3)
-      logical :: have, ldum
-
-      have = cp_view_rgb(iview,isys,w%rep%gpaths%ifield,icp,rgb)
-      ldum = iw_atom_button(lbl // tag // suffix,rgb,havergb=have,inert=.true.)
-
-    end subroutine cp_badge
 
   end function draw_editrep_gpaths
 

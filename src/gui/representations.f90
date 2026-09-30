@@ -863,6 +863,8 @@ module representations
   public :: cps_field
   public :: cps_field_default
   public :: field_has_cps
+  public :: cp_nucleus_map
+  public :: cp_wyckoff
   public :: vibration_arrow_shapes
   public :: shape_differs
 
@@ -877,6 +879,15 @@ module representations
        logical, intent(in), optional :: withpaths
        logical :: ok
      end function field_has_cps
+     module subroutine cp_nucleus_map(isys,ifield,nuc,nucoff)
+       integer, intent(in) :: isys, ifield
+       integer, allocatable, intent(out) :: nuc(:)
+       integer, allocatable, intent(out) :: nucoff(:,:)
+     end subroutine cp_nucleus_map
+     module subroutine cp_wyckoff(isys,ifield,wyc)
+       integer, intent(in) :: isys, ifield
+       character*1, allocatable, intent(out) :: wyc(:)
+     end subroutine cp_wyckoff
      module function cps_field(isys,withpaths) result(ifield)
        integer, intent(in) :: isys
        logical, intent(in), optional :: withpaths
