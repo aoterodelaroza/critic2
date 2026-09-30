@@ -251,6 +251,7 @@ module windows
      character(len=32) :: epsdegen = "1e-8" ! Hessian eigenvalue for a degenerate CP (as typed)
      character(len=1024) :: discard = "" ! DISCARD expression (empty = none)
      logical :: showseeds = .false. ! preview the seeds of the form in the view
+     real(c_float) :: seedh = 0._c_float ! height of the content of the seed list in the last frame
      integer(c_int) :: iclip = 0 ! CLIP: 0 = none, 1 = cube, 2 = sphere
      real*8 :: clipx0(3) = 0d0 ! cube corner / sphere center (as seed positions)
      real*8 :: clipx1(3) = 1d0 ! cube corner

@@ -1013,9 +1013,10 @@ contains
   subroutine draw_search_tab(w,isys,iview,ttshown)
     use systems, only: sys
     use global, only: iunit
+    use gui_main, only: g
     use tools_io, only: string
     use utils, only: iw_text, iw_button, iw_tooltip, iw_field_combo, iw_calcwidth,&
-       iw_checkbox
+       iw_checkbox, iw_helpermark
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
@@ -1023,7 +1024,13 @@ contains
     integer :: i, idel
     integer(c_int) :: ifield
     logical :: ldum
+    real(c_float) :: xcol
     character(len=:), allocatable :: xunit, errrun
+    character(kind=c_char,len=:), allocatable, target :: str1
+    type(ImVec2) :: sz
+
+    ! maximum height of the seed list, in rows
+    integer, parameter :: maxrow_seeds = 12
 
     if (sys(isys)%c%ismolecule) then
        xunit = " (Å)"
@@ -1032,7 +1039,7 @@ contains
     end if
 
     ! field
-    call iw_text("Field",highlight=.true.)
+    call iw_text("Field",highlight=.true.,alignframe=.true.)
     call igSameLine(0._c_float,-1._c_float)
     ifield = w%cp%ifield
     if (iw_field_combo("##cpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
@@ -1043,14 +1050,39 @@ contains
        return
     end if
 
-    ! the seeds
+    ! the seeds, in a scrolling box of at most maxrow_seeds rows
     call iw_text("Seeds",highlight=.true.)
-    call iw_tooltip("Starting points of the critical point searches. Each entry generates a set&
-       & of points; the default is the seeding AUTO uses for this system",ttshown)
+    call iw_helpermark("The search for critical points starts from a list of points, the&
+       & seeds. Each entry in this list adds a set of seeds: the irreducible part of the&
+       & Wigner-Seitz cell (WS) or an octahedron (OH), subdivided recursively; points between&
+       & pairs or triplets of nearby atoms (PAIR, TRIPLET); points along a line (LINE) or on a&
+       & sphere (SPHERE); one point (POINT); or the points of the molecular integration mesh&
+       & (MESH). The seeds of all the entries are accumulated into a single list, moved to the&
+       & main cell (in molecules, those outside the molecular cell are discarded), and clipped&
+       & to the CLIP region, if there is one. A Newton-Raphson search runs from every seed, and&
+       & the point it converges to is added to the list of critical points, with all its&
+       & symmetry-equivalent copies, if it is new (not within CPEPS of a known one), not too&
+       & close to a nucleus (NUCEPS, NUCEPSH), not degenerate, and not discarded by the DISCARD&
+       & expression. Then the list is sorted and the bond paths are traced. The default is a&
+       & Wigner-Seitz subdivision for crystals and atom pairs for molecules.",sameline=.true.)
+    ! the height of the box is that of its content in the last frame
+    ! (the bundled imgui cannot fit a child to its content), from one
+    ! row to maxrow_seeds rows
+    sz%x = 0._c_float
+    sz%y = max(w%cp%seedh,igGetFrameHeightWithSpacing() + 2 * g%Style%WindowPadding%y)
+    sz%y = min(sz%y,maxrow_seeds * igGetFrameHeightWithSpacing() + 2 * g%Style%WindowPadding%y)
+    str1 = "##cpseedlist" // c_null_char
     idel = 0
-    do i = 1, size(w%cp%seed)
-       if (draw_seed(w,isys,i,xunit,ttshown)) idel = i
-    end do
+    if (igBeginChild_Str(c_loc(str1),sz,.true._c_bool,ImGuiWindowFlags_None)) then
+       ! the parameter widgets start at one column, after the longest label
+       xcol = igGetCursorPosX() + g%Style%IndentSpacing + seed_label_width(xunit) + 2 * g%Style%ItemSpacing%x
+       do i = 1, size(w%cp%seed)
+          if (i > 1) call igSeparator()
+          if (draw_seed(w,isys,i,xunit,xcol,ttshown)) idel = i
+       end do
+       w%cp%seedh = igGetCursorPosY() - g%Style%ItemSpacing%y + g%Style%WindowPadding%y
+    end if
+    call igEndChild()
     if (idel > 0) w%cp%seed = [w%cp%seed(:idel-1), w%cp%seed(idel+1:)]
     if (iw_button("Add seed##cpseedadd")) call add_seed(w,isys,cpseed_point)
     call iw_tooltip("Add a seed (a point at the center of the system; change its kind above)",ttshown)
@@ -1086,7 +1118,7 @@ contains
     else
        errrun = form_error(w)
     end if
-    if (iw_button("Run##cprun",disabled=(len(errrun) > 0))) &
+    if (iw_button("Run##cprun",danger=.true.,disabled=(len(errrun) > 0))) &
        call request_job(w,iview,cpjob_search,auto_options(w,isys,iunit))
     call iw_tooltip("Search for the critical points (the calculation blocks the interface&
        & until it finishes; the output goes to the output console)",ttshown)
@@ -1097,20 +1129,50 @@ contains
 
   end subroutine draw_search_tab
 
+  !> Width of the longest label of the seed parameters (xunit = the
+  !> units of the positions).
+  function seed_label_width(xunit) result(wid)
+    character(len=*), intent(in) :: xunit
+    real(c_float) :: wid
+
+    wid = max(text_width("Subdivision level"),text_width("Center" // xunit),&
+       text_width("Radius (Å)"),text_width("Radial points"),text_width("Polar points"),&
+       text_width("Azimuthal points"),text_width("Maximum distance (Å)"),&
+       text_width("Points per pair"),text_width("Start" // xunit),text_width("End" // xunit),&
+       text_width("Points"),text_width("Position" // xunit))
+
+  end function seed_label_width
+
+  !> Width of text str in the current font.
+  function text_width(str) result(wid)
+    character(len=*), intent(in) :: str
+    real(c_float) :: wid
+
+    character(kind=c_char,len=:), allocatable, target :: s
+    type(ImVec2) :: sz
+
+    s = str // c_null_char
+    call igCalcTextSize(sz,c_loc(s),c_null_ptr,.false._c_bool,-1._c_float)
+    wid = sz%x
+
+  end function text_width
+
   !> Draw the widgets of seed i of window w: its kind, a button to
   !> remove it (returns true if pressed), and the parameters that kind
-  !> uses. Choosing a kind gives its parameters usable values.
-  function draw_seed(w,isys,i,xunit,ttshown) result(del)
+  !> uses, each with its label on the left and the widget at column
+  !> xcol. Choosing a kind gives its parameters usable values.
+  function draw_seed(w,isys,i,xunit,xcol,ttshown) result(del)
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_inputint, iw_dragfloat_real8,&
        iw_close_button
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, i
     character(len=*), intent(in) :: xunit
+    real(c_float), intent(in) :: xcol
     logical, intent(inout) :: ttshown
     logical :: del
 
-    character(len=:), allocatable :: suf
+    character(len=:), allocatable :: suf, tt
     logical :: ldum, ch
 
     suf = "##cpseed" // string(i)
@@ -1127,48 +1189,63 @@ contains
     associate(s => w%cp%seed(i))
       select case(s%typ)
       case (cpseed_ws,cpseed_oh)
-         ldum = iw_inputint("Subdivision level" // suf // "dep",s%depth,width=6)
+         tt = "Number of recursive subdivisions of the region (0 to 7; more seeds at each level)"
+         call label("Subdivision level",tt)
+         ldum = iw_inputint(suf // "dep",s%depth,width=8)
          s%depth = max(0,min(s%depth,maxdepth))
-         call iw_tooltip("Number of recursive subdivisions of the region (0 to 7; more seeds&
-            & at each level)",ttshown)
-         call x0_widget("Center" // xunit)
+         call iw_tooltip(tt,ttshown)
+         call label("Center" // xunit)
+         call x0_widget()
          if (s%typ == cpseed_ws) then
-            ldum = iw_dragfloat_real8("Radius (Å, 0 = whole cell)" // suf // "rad",x1=s%rad,&
-               speed=0.01d0,min=0d0,max=100d0,decimal=3)
-            call iw_tooltip("Scale the Wigner-Seitz cell to this radius around the center&
-               & (0 = the whole cell)",ttshown)
+            tt = "Scale the Wigner-Seitz cell to this radius around the center (0 = the whole cell)"
+            call label("Radius (Å)",tt)
+            ldum = iw_dragfloat_real8(suf // "rad",x1=s%rad,speed=0.01d0,min=0d0,max=100d0,decimal=3)
+            call iw_tooltip(tt,ttshown)
+            if (s%rad <= 0d0) call iw_text("(the whole cell)",disabled=.true.,sameline=.true.)
          else
-            ldum = iw_dragfloat_real8("Radius (Å)" // suf // "rad",x1=s%rad,speed=0.01d0,&
-               min=0.01d0,max=100d0,decimal=3)
-            ldum = iw_inputint("Radial points" // suf // "nr",s%nr,width=6)
+            call label("Radius (Å)")
+            ldum = iw_dragfloat_real8(suf // "rad",x1=s%rad,speed=0.01d0,min=0.01d0,max=100d0,decimal=3)
+            call label("Radial points")
+            ldum = iw_inputint(suf // "nr",s%nr,width=8)
             s%nr = max(s%nr,1)
          end if
       case (cpseed_sphere)
-         call x0_widget("Center" // xunit)
-         ldum = iw_dragfloat_real8("Radius (Å)" // suf // "rad",x1=s%rad,speed=0.01d0,&
-            min=0.01d0,max=100d0,decimal=3)
-         ldum = iw_inputint("Polar points" // suf // "nth",s%ntheta,width=6)
-         ldum = iw_inputint("Azimuthal points" // suf // "nph",s%nphi,width=6)
-         ldum = iw_inputint("Radial points" // suf // "nr",s%nr,width=6)
+         call label("Center" // xunit)
+         call x0_widget()
+         call label("Radius (Å)")
+         ldum = iw_dragfloat_real8(suf // "rad",x1=s%rad,speed=0.01d0,min=0.01d0,max=100d0,decimal=3)
+         call label("Polar points")
+         ldum = iw_inputint(suf // "nth",s%ntheta,width=8)
+         call label("Azimuthal points")
+         ldum = iw_inputint(suf // "nph",s%nphi,width=8)
+         call label("Radial points")
+         ldum = iw_inputint(suf // "nr",s%nr,width=8)
          s%ntheta = max(s%ntheta,1)
          s%nphi = max(s%nphi,1)
          s%nr = max(s%nr,1)
       case (cpseed_pair,cpseed_triplet)
-         ldum = iw_dragfloat_real8("Maximum distance (Å)" // suf // "dist",x1=s%dist,speed=0.01d0,&
-            min=0d0,max=100d0,decimal=3)
-         call iw_tooltip("Only atoms closer than this distance are combined",ttshown)
+         tt = "Only atoms closer than this distance are combined"
+         call label("Maximum distance (Å)",tt)
+         ldum = iw_dragfloat_real8(suf // "dist",x1=s%dist,speed=0.01d0,min=0d0,max=100d0,decimal=3)
+         call iw_tooltip(tt,ttshown)
          if (s%typ == cpseed_pair) then
-            ldum = iw_inputint("Points per pair" // suf // "npts",s%npts,width=6)
+            tt = "Number of seeds on the segment between the two atoms"
+            call label("Points per pair",tt)
+            ldum = iw_inputint(suf // "npts",s%npts,width=8)
             s%npts = max(s%npts,1)
-            call iw_tooltip("Number of seeds on the segment between the two atoms",ttshown)
+            call iw_tooltip(tt,ttshown)
          end if
       case (cpseed_line)
-         call x0_widget("Start" // xunit)
-         ldum = iw_dragfloat_real8("End" // xunit // suf // "x1",x3=s%x1,speed=0.001d0,decimal=4)
-         ldum = iw_inputint("Points" // suf // "npts",s%npts,width=6)
+         call label("Start" // xunit)
+         call x0_widget()
+         call label("End" // xunit)
+         ldum = iw_dragfloat_real8(suf // "x1",x3=s%x1,speed=0.001d0,decimal=4)
+         call label("Points")
+         ldum = iw_inputint(suf // "npts",s%npts,width=8)
          s%npts = max(s%npts,2)
       case (cpseed_point)
-         call x0_widget("Position" // xunit)
+         call label("Position" // xunit)
+         call x0_widget()
       case (cpseed_mesh)
          call iw_text("The points of the molecular integration mesh",disabled=.true.)
       end select
@@ -1176,76 +1253,122 @@ contains
     call igUnindent(0._c_float)
 
   contains
-    subroutine x0_widget(label)
-      character(len=*), intent(in) :: label
-      ldum = iw_dragfloat_real8(label // suf // "x0",x3=w%cp%seed(i)%x0,speed=0.001d0,decimal=4)
+    !> A label in the label column, with tooltip tt; the widget follows
+    !> at xcol.
+    subroutine label(str,tt)
+      character(len=*), intent(in) :: str
+      character(len=*), intent(in), optional :: tt
+      call iw_text(str,alignframe=.true.)
+      ! (no delay: text has no ID, so the delayed tooltip would not show)
+      if (present(tt)) call iw_tooltip(tt)
+      call igSameLine(xcol,-1._c_float)
+    end subroutine label
+    subroutine x0_widget()
+      ldum = iw_dragfloat_real8(suf // "x0",x3=w%cp%seed(i)%x0,speed=0.001d0,decimal=4)
     end subroutine x0_widget
   end function draw_seed
 
   !> The advanced options of AUTO, in a collapsed tree node; each one
   !> is used only if its checkbox is set (otherwise, AUTO's default).
+  !> The labels are in one column (after the checkbox, if any), and the
+  !> widgets start at another.
   subroutine draw_advanced(w,isys,xunit,ttshown)
+    use gui_main, only: g
     use utils, only: iw_tooltip, iw_checkbox, iw_inputtext, iw_dragfloat_real8,&
-       iw_combo_simple
+       iw_combo_simple, iw_text
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
     character(len=*), intent(in) :: xunit
     logical, intent(inout) :: ttshown
 
     character(len=:,kind=c_char), allocatable, target :: strad
+    character(len=:), allocatable :: tt
     logical :: ldum, ch
+    real(c_float) :: xlab, xcol
 
     strad = "Advanced options##cpadvanced" // c_null_char
     if (igTreeNodeEx_Str(c_loc(strad),ImGuiTreeNodeFlags_None)) then
-       ldum = iw_checkbox("##cpusegradeps",w%cp%use_gradeps)
-       ldum = iw_inputtext("Gradient norm (GRADEPS)##cpgradeps",bufsize=31,textf=w%cp%gradeps,&
-          width=12,sameline=.true.)
-       call iw_tooltip("Maximum gradient norm of a critical point (default 1e-12)",ttshown)
+       ! the label column (after a checkbox) and the widget column
+       xlab = igGetCursorPosX() + igGetFrameHeight() + g%Style%ItemInnerSpacing%x
+       xcol = xlab + 2 * g%Style%ItemSpacing%x + max(text_width("Gradient norm (GRADEPS)"),&
+          text_width("CP distance (CPEPS, Å)"),text_width("Nucleus distance (NUCEPS, Å)"),&
+          text_width("Hydrogen distance (NUCEPSH, Å)"),text_width("Degenerate eigenvalue (EPSDEGEN)"),&
+          text_width("Discard (DISCARD)"),text_width("Clip (CLIP)"),text_width("Box corner 1" // xunit),&
+          text_width("Center" // xunit),text_width("Radius (Å)"))
 
-       ldum = iw_checkbox("##cpusecpeps",w%cp%use_cpeps)
-       ldum = iw_dragfloat_real8("CP distance (CPEPS, Å)##cpcpeps",x1=w%cp%cpeps,speed=0.001d0,&
-          min=0d0,max=10d0,decimal=4,sameline=.true.)
-       call iw_tooltip("Two critical points closer than this are the same (default 0.0053 Å)",ttshown)
+       tt = "Maximum gradient norm of a critical point (default 1e-12)"
+       call check_label("Gradient norm (GRADEPS)##cpusegradeps",w%cp%use_gradeps,tt)
+       ldum = iw_inputtext("##cpgradeps",bufsize=31,textf=w%cp%gradeps,width=8)
+       call iw_tooltip(tt,ttshown)
 
-       ldum = iw_checkbox("##cpusenuceps",w%cp%use_nuceps)
-       ldum = iw_dragfloat_real8("Nucleus distance (NUCEPS, Å)##cpnuceps",x1=w%cp%nuceps,speed=0.001d0,&
-          min=0d0,max=10d0,decimal=4,sameline=.true.)
-       call iw_tooltip("Discard critical points closer than this to a nucleus (default 0.053 Å;&
-          & larger for grids)",ttshown)
+       tt = "Two critical points closer than this are the same (default 0.0053 Å)"
+       call check_label("CP distance (CPEPS, Å)##cpusecpeps",w%cp%use_cpeps,tt)
+       ldum = iw_dragfloat_real8("##cpcpeps",x1=w%cp%cpeps,speed=0.001d0,min=0d0,max=10d0,decimal=4)
+       call iw_tooltip(tt,ttshown)
 
-       ldum = iw_checkbox("##cpusenucepsh",w%cp%use_nucepsh)
-       ldum = iw_dragfloat_real8("Hydrogen distance (NUCEPSH, Å)##cpnucepsh",x1=w%cp%nucepsh,&
-          speed=0.001d0,min=0d0,max=10d0,decimal=4,sameline=.true.)
-       call iw_tooltip("Same, for hydrogen nuclei (default 0.106 Å; larger for grids)",ttshown)
+       tt = "Discard critical points closer than this to a nucleus (default 0.053 Å; larger for grids)"
+       call check_label("Nucleus distance (NUCEPS, Å)##cpusenuceps",w%cp%use_nuceps,tt)
+       ldum = iw_dragfloat_real8("##cpnuceps",x1=w%cp%nuceps,speed=0.001d0,min=0d0,max=10d0,decimal=4)
+       call iw_tooltip(tt,ttshown)
 
-       ldum = iw_checkbox("##cpuseepsdegen",w%cp%use_epsdegen)
-       ldum = iw_inputtext("Degenerate eigenvalue (EPSDEGEN)##cpepsdegen",bufsize=31,textf=w%cp%epsdegen,&
-          width=12,sameline=.true.)
-       call iw_tooltip("Hessian eigenvalues smaller than this make a degenerate critical point&
-          & (default 1e-8)",ttshown)
+       tt = "Same, for hydrogen nuclei (default 0.106 Å; larger for grids)"
+       call check_label("Hydrogen distance (NUCEPSH, Å)##cpusenucepsh",w%cp%use_nucepsh,tt)
+       ldum = iw_dragfloat_real8("##cpnucepsh",x1=w%cp%nucepsh,speed=0.001d0,min=0d0,max=10d0,decimal=4)
+       call iw_tooltip(tt,ttshown)
 
-       ldum = iw_inputtext("Discard (DISCARD)##cpdiscard",bufsize=1023,textf=w%cp%discard,width=30)
-       call iw_tooltip("Discard the critical points where this expression is not zero, e.g.&
-          & $0 < 1e-3 (empty = none)",ttshown)
+       tt = "Hessian eigenvalues smaller than this make a degenerate critical point (default 1e-8)"
+       call check_label("Degenerate eigenvalue (EPSDEGEN)##cpuseepsdegen",w%cp%use_epsdegen,tt)
+       ldum = iw_inputtext("##cpepsdegen",bufsize=31,textf=w%cp%epsdegen,width=8)
+       call iw_tooltip(tt,ttshown)
 
-       call iw_combo_simple("Clip (CLIP)##cpclip","None" // c_null_char // "Box" // c_null_char //&
+       tt = "Discard the critical points where this expression is not zero, e.g. $0 < 1e-3 (empty = none)"
+       call label("Discard (DISCARD)",tt)
+       ldum = iw_inputtext("##cpdiscard",bufsize=1023,textf=w%cp%discard,width=30)
+       call iw_tooltip(tt,ttshown)
+
+       tt = "Only use the seeds inside this region"
+       call label("Clip (CLIP)",tt)
+       call iw_combo_simple("##cpclip","None" // c_null_char // "Box" // c_null_char //&
           "Sphere" // c_null_char,w%cp%iclip,changed=ch)
-       call iw_tooltip("Only use the seeds inside this region",ttshown)
+       call iw_tooltip(tt,ttshown)
        if (ch) call clip_defaults(w,isys)
        if (w%cp%iclip == 1) then
-          ldum = iw_dragfloat_real8("Box corner 1" // xunit // "##cpclipx0",x3=w%cp%clipx0,&
-             speed=0.001d0,decimal=4)
-          ldum = iw_dragfloat_real8("Box corner 2" // xunit // "##cpclipx1",x3=w%cp%clipx1,&
-             speed=0.001d0,decimal=4)
+          call label("Box corner 1" // xunit)
+          ldum = iw_dragfloat_real8("##cpclipx0",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
+          call label("Box corner 2" // xunit)
+          ldum = iw_dragfloat_real8("##cpclipx1",x3=w%cp%clipx1,speed=0.001d0,decimal=4)
        elseif (w%cp%iclip == 2) then
-          ldum = iw_dragfloat_real8("Center" // xunit // "##cpclipx0s",x3=w%cp%clipx0,&
-             speed=0.001d0,decimal=4)
-          ldum = iw_dragfloat_real8("Radius (Å)##cpcliprad",x1=w%cp%cliprad,speed=0.01d0,&
-             min=0d0,max=100d0,decimal=3)
+          call label("Center" // xunit)
+          ldum = iw_dragfloat_real8("##cpclipx0s",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
+          call label("Radius (Å)")
+          ldum = iw_dragfloat_real8("##cpcliprad",x1=w%cp%cliprad,speed=0.01d0,min=0d0,max=100d0,decimal=3)
        end if
        call igTreePop()
     end if
 
+  contains
+    !> A checkbox carrying the label (str) of an option that is used
+    !> only if checked, with tooltip tt; the widget follows at xcol.
+    subroutine check_label(str,flag,tt)
+      character(len=*), intent(in) :: str
+      logical, intent(inout) :: flag
+      character(len=*), intent(in) :: tt
+      logical :: ld
+      ld = iw_checkbox(str,flag)
+      call iw_tooltip(tt,ttshown)
+      call igSameLine(xcol,-1._c_float)
+    end subroutine check_label
+    !> A label in the label column, without a checkbox, with tooltip tt
+    !> if given; the widget follows at xcol.
+    subroutine label(str,tt)
+      character(len=*), intent(in) :: str
+      character(len=*), intent(in), optional :: tt
+      call igSetCursorPosX(xlab)
+      call iw_text(str,alignframe=.true.)
+      ! (no delay: text has no ID, so the delayed tooltip would not show)
+      if (present(tt)) call iw_tooltip(tt)
+      call igSameLine(xcol,-1._c_float)
+    end subroutine label
   end subroutine draw_advanced
 
   !> Reset the seeds of the window to AUTO's default for system isys:
