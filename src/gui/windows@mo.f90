@@ -889,7 +889,7 @@ contains
   subroutine mo_draw_diagram(w,wfn,isys,ifield,width,height,unitfactor,digits,changed)
     use gui_main, only: g, fontsize
     use wfn_private, only: molwfn
-    use utils, only: iw_text, iw_button, iw_tooltip
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_textwidth
     use tools_io, only: string
     type(window), intent(inout), target :: w
     type(molwfn), intent(in) :: wfn
@@ -915,7 +915,7 @@ contains
     real(c_float) :: yarr(mo_diag_narrmax), lastpy, pybot
     real(c_float) :: bufx(mo_diag_arrbuf), bufy(mo_diag_arrbuf)
     real*8 :: epx, pad, dy
-    type(ImVec2) :: szplot, pmin, pmax, pa, pb, mpos, sztxt, p0
+    type(ImVec2) :: szplot, pmin, pmax, pa, pb, mpos, p0
     type(c_ptr) :: dl
     character(kind=c_char,len=:), allocatable, target :: strid, strylab, strfmt, strext
     character(kind=c_char,len=:), allocatable, target :: strtxt
@@ -1321,8 +1321,7 @@ contains
        call igGetCursorScreenPos(p0)
        do ic = 1, nch
           strtxt = trim(mo_spin_name(mo_diag_ispin(nch,ic))) // c_null_char
-          call igCalcTextSize(sztxt,c_loc(strtxt),c_null_ptr,.false._c_bool,-1._c_float)
-          p0%x = pmin%x + (real(ic,c_float) - 0.5_c_float) * bandw - 0.5_c_float * sztxt%x
+          p0%x = pmin%x + (real(ic,c_float) - 0.5_c_float) * bandw - 0.5_c_float * iw_textwidth(strtxt)
           call ImDrawList_AddText_Vec2(igGetWindowDrawList(),p0,&
              igGetColorU32_Col(ImGuiCol_Text,0.6_c_float),c_loc(strtxt),c_null_ptr)
        end do

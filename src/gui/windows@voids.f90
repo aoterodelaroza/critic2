@@ -1259,16 +1259,13 @@ contains
   !> each other and under the end of the header, instead of floating in
   !> the middle of a column padded out to a fixed width.
   subroutine cell_right(str)
-    use utils, only: iw_text
+    use utils, only: iw_text, iw_textwidth
     character(len=*), intent(in) :: str
 
-    type(ImVec2) :: szavail, sztext
-    character(kind=c_char,len=:), allocatable, target :: strc
+    type(ImVec2) :: szavail
 
-    strc = str // c_null_char
     call igGetContentRegionAvail(szavail)
-    call igCalcTextSize(sztext,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
-    call igSetCursorPosX(igGetCursorPosX() + max(szavail%x - sztext%x,0._c_float))
+    call igSetCursorPosX(igGetCursorPosX() + max(szavail%x - iw_textwidth(str),0._c_float))
     call iw_text(str)
 
   end subroutine cell_right

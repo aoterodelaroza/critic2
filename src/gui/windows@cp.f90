@@ -408,9 +408,11 @@ contains
       if (f%ncpcel > f%ncp) then
          itable = int(w%cp%tablecell,c_int)
          call iw_combo_simple("Critical point list##cptablecombo","Symmetry-unique" // c_null_char //&
-            "Cell" // c_null_char,itable,changed=ch)
-         call iw_tooltip("List the symmetry-unique critical points or every critical point in the cell",&
-            ttshown)
+            "Cell" // c_null_char,itable,changed=ch,tooltips=&
+            "The symmetry-unique critical points, one row each (their properties are those of&
+            & all their copies)" // c_null_char //&
+            "Every critical point in the unit cell, with the symmetry-unique one it is a copy of" //&
+            c_null_char,ttshown=ttshown)
          if (ch) w%cp%tablecell = int(itable)
          cell = (w%cp%tablecell == 1)
       end if
@@ -1322,8 +1324,11 @@ contains
        tt = "Only use the seeds inside this region"
        call label("Clip (CLIP)",tt)
        call iw_combo_simple("##cpclip","None" // c_null_char // "Box" // c_null_char //&
-          "Sphere" // c_null_char,w%cp%iclip,changed=ch)
-       call iw_tooltip(tt,ttshown)
+          "Sphere" // c_null_char,w%cp%iclip,changed=ch,tooltips=&
+          "Use all the seeds" // c_null_char //&
+          "Only use the seeds inside a box, given by two opposite corners" // c_null_char //&
+          "Only use the seeds inside a sphere, given by its center and radius" // c_null_char,&
+          ttshown=ttshown)
        if (ch) call clip_defaults(w,isys)
        if (w%cp%iclip == 1) then
           call label("Box corner 1" // xunit)

@@ -265,7 +265,7 @@ contains
     use gui_main, only: g, io, fontsize, tooltip_enabled, ColorHighlightEditDistScene,&
        ColorElement, lumweights, ColorBlack, ColorWhite
     use icons, only: icon_tex, icon_ui_editgeom, icon_ui_symmetry, icon_ui_relax
-    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8, iw_textwidth,&
        file_name_base,&
        iw_periodictable, iw_menuitem, iw_icon_togglebutton, iw_iconbutton_height, iw_helpermark,&
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
@@ -714,6 +714,15 @@ contains
        call w%end()
 
   contains
+    !> Append option opt, with tooltip tip, to the option list opts and
+    !> the tooltip list tips of a combo (iw_combo_simple format).
+    subroutine add_option(opts,tips,opt,tip)
+      character(len=:), allocatable, intent(inout) :: opts, tips
+      character(len=*), intent(in) :: opt, tip
+      opts = opts // opt // c_null_char
+      tips = tips // tip // c_null_char
+    end subroutine add_option
+
     ! Hold every atom that is not selected in the view fixed for the
     ! relaxation that was just started, so it moves only the selection.
     ! With nothing selected, every atom is left free.
@@ -880,11 +889,11 @@ contains
     subroutine recent_row()
       integer :: i
       real(c_float) :: side, xrun, xmax, xstart
-      type(ImVec2) :: sz, p0, p1, szavail, tsz
+      type(ImVec2) :: sz, p0, p1, szavail
       type(c_ptr) :: dl
       integer(c_int) :: col
       logical :: hovered, inlab
-      character(len=:,kind=c_char), allocatable, target :: str1, strlab
+      character(len=:,kind=c_char), allocatable, target :: str1
 
       if (nrecent == 0) return
       side = geomscale * igGetTextLineHeightWithSpacing()
@@ -898,10 +907,8 @@ contains
       ! squares take the next line to themselves, or the first one would
       ! be drawn past the edge with no wrap test of its own to catch it.
       ! Inline, the label is centered against the taller squares
-      strlab = "Recent:" // c_null_char
       call igGetContentRegionAvail(szavail)
-      call igCalcTextSize(tsz,c_loc(strlab),c_null_ptr,.false._c_bool,-1._c_float)
-      inlab = (tsz%x + g%Style%ItemSpacing%x + side <= szavail%x)
+      inlab = (iw_textwidth("Recent:") + g%Style%ItemSpacing%x + side <= szavail%x)
 
       yrow = igGetCursorPosY()
       if (inlab) call igSetCursorPosY(yrow + 0.5_c_float * (side - igGetTextLineHeight()))
@@ -1259,7 +1266,7 @@ contains
       integer :: iside, ibold, ibnew
       integer :: nmode, imode, islot, imodes(4)
       real*8 :: dist, ang
-      character(len=:), allocatable :: stropt
+      character(len=:), allocatable :: stropt, stip
 
       if (w%edit_kind == 0) then
          call panel_text("Select two atoms in the view ("//&
@@ -1287,12 +1294,15 @@ contains
 
          ! per-atom move mode combos
          do iside = 1, 2
-            stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
-            if (w%edit_fragok(iside)) stropt = stropt // "Translate fragment"//c_null_char
+            ! what moves when the distance changes
+            stropt = ""
+            stip = ""
+            call add_option(stropt,stip,"Fixed","This atom stays in place")
+            call add_option(stropt,stip,"Translate atom","Move only this atom, along the bond")
+            if (w%edit_fragok(iside)) call add_option(stropt,stip,"Translate fragment",&
+               "Move this atom with the whole fragment attached to it")
             call iw_combo_simple("Atom "//string(iside)//"##editdistmove"//string(iside),&
-               stropt,w%edit_imove(iside))
-            call iw_tooltip("What moves when the distance changes: nothing (fixed), the atom,"//&
-               " or the whole fragment attached to it",ttshown)
+               stropt,w%edit_imove(iside),tooltips=stip,ttshown=ttshown)
          end do
 
          ! distance drag-float (bohr internally, shown in angstrom, no upper bound)
@@ -1304,11 +1314,16 @@ contains
       case (3)
          ! central atom combo; while the central atom moves, the
          ! terminals are held fixed (rotation needs a fixed vertex)
-         stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
-         if (w%edit_fragok(2)) stropt = stropt // "Translate group"//c_null_char
-         call iw_combo_simple("Atom 2 (center)##editangmove2",stropt,w%edit_imove(2))
-         call iw_tooltip("What moves when the angle changes: nothing (fixed), the central"//&
-            " atom, or the whole group attached to it",ttshown)
+         ! what moves when the angle changes
+         stropt = ""
+         stip = ""
+         call add_option(stropt,stip,"Fixed","The central atom stays in place")
+         call add_option(stropt,stip,"Translate atom","Move only the central atom (the terminal atoms&
+            & stay fixed)")
+         if (w%edit_fragok(2)) call add_option(stropt,stip,"Translate group",&
+            "Move the central atom with the whole group attached to it")
+         call iw_combo_simple("Atom 2 (center)##editangmove2",stropt,w%edit_imove(2),&
+            tooltips=stip,ttshown=ttshown)
          if (w%edit_imove(2) > 0) then
             w%edit_imove(1) = 0
             w%edit_imove(3) = 0
@@ -1316,15 +1331,16 @@ contains
 
          ! terminal atom combos (rotation available only with a fixed center)
          do iside = 1, 3, 2
-            stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
-            if (w%edit_fragok(iside)) stropt = stropt // "Rotate group"//c_null_char
+            stropt = ""
+            stip = ""
+            call add_option(stropt,stip,"Fixed","This atom stays in place")
+            call add_option(stropt,stip,"Rotate atom","Rotate only this atom about the central atom")
+            if (w%edit_fragok(iside)) call add_option(stropt,stip,"Rotate group",&
+               "Rotate this atom with the whole group attached to it about the central atom")
             if (w%edit_imove(2) > 0) call igBeginDisabled(.true._c_bool)
             call iw_combo_simple("Atom "//string(iside)//"##editangmove"//string(iside),&
-               stropt,w%edit_imove(iside))
+               stropt,w%edit_imove(iside),tooltips=stip,ttshown=ttshown)
             if (w%edit_imove(2) > 0) call igEndDisabled()
-            call iw_tooltip("What moves when the angle changes: nothing (fixed), the"//&
-               " terminal atom, or the whole group attached to it, rotating about the"//&
-               " central atom",ttshown)
          end do
 
          ! angle drag-float (degrees)
@@ -1338,17 +1354,23 @@ contains
          ! two group modes are offered independently, so imodes maps the
          ! combo slot to the move mode
          do iside = 1, 4, 3
-            stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
+            ! what rotates about the 2-3 axis when the dihedral changes
+            stropt = ""
+            stip = ""
+            call add_option(stropt,stip,"Fixed","This atom stays in place")
+            call add_option(stropt,stip,"Rotate atom","Rotate only this atom about the 2-3 axis")
             nmode = 2
             imodes(1:2) = (/0,1/)
             if (w%edit_fragok(iside)) then
-               stropt = stropt // "Rotate group (fix 2-3)"//c_null_char
+               call add_option(stropt,stip,"Rotate group (fix 2-3)","Rotate the group attached to&
+                  & this atom about the 2-3 axis (the substituents of atoms 2 and 3 stay fixed)")
                nmode = nmode + 1
                imodes(nmode) = 2
             end if
             ! fragok(2)/(3) = validity of the half adjacent to terminal 1/4
             if (w%edit_fragok(merge(2,3,iside == 1))) then
-               stropt = stropt // "Rotate group (move 2-3)"//c_null_char
+               call add_option(stropt,stip,"Rotate group (move 2-3)","Rotate the whole half of the&
+                  & molecule severed at the 2-3 bond (the environments of atoms 2 and 3 stay rigid)")
                nmode = nmode + 1
                imodes(nmode) = 3
             end if
@@ -1357,12 +1379,8 @@ contains
                if (imodes(imode) == w%edit_imove(iside)) islot = imode - 1
             end do
             call iw_combo_simple("Atom "//string(iside)//"##editdihmove"//string(iside),&
-               stropt,islot)
+               stropt,islot,tooltips=stip,ttshown=ttshown)
             w%edit_imove(iside) = imodes(islot+1)
-            call iw_tooltip("What rotates about the 2-3 axis when the dihedral changes:"//&
-               " nothing (fixed), the terminal atom, the group attached to it (the"//&
-               " substituents of atoms 2 and 3 stay fixed), or the whole half severed"//&
-               " at the 2-3 bond (the environments of atoms 2 and 3 stay rigid)",ttshown)
          end do
 
          ! dihedral drag-float (degrees)

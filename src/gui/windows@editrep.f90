@@ -378,8 +378,9 @@ contains
     ch = .false.
     call iw_text("Style",alignframe=.true.)
     call iw_combo_simple("##tablebondstyleglobalselect",&
-       "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bonds%color_style,sameline=.true.,changed=ch)
-    call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
+       "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bonds%color_style,sameline=.true.,changed=ch,&
+       tooltips="Draw each bond in a single color, the bond color"//c_null_char//&
+       "Draw each bond in the colors of its two atoms, each on its side"//c_null_char,ttshown=ttshown)
 
     call iw_text(" Radius (Å)",sameline=.true.)
     ch = ch .or. iw_dragfloat_real8("##radiusbondtableglobal",x1=w%rep%bonds%rad,speed=0.005d0,&
@@ -2931,6 +2932,7 @@ contains
     use systems, only: sys
     use representations, only: iso_isgridfield, iso_level_custom,&
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
+       iso_level_tipstr_custom, iso_custom_mode_tipstr,&
        iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
        iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_region_desc, iso_nhist,&
@@ -2941,7 +2943,7 @@ contains
        iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
        iso_ptsang_from_npts, rep_shape, shapekind_box
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
-    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8,&
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_textwidth,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
@@ -3144,15 +3146,15 @@ contains
        w%rep%iso%ilevel = iso_defaultlevel
     if (navail) then
        str1 = "Native grid" // c_null_char // iso_level_optstr_custom
+       str2 = "The grid of the field itself" // c_null_char // iso_level_tipstr_custom
     else
        str1 = iso_level_optstr_custom
+       str2 = iso_level_tipstr_custom
     end if
     ilevprev = w%rep%iso%ilevel
     call iw_text("Level",alignframe=.true.)
     call iw_combo_simple("##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
-       sameline=.true.,changed=ch)
-    call iw_tooltip("Coarseness of the grid supporting the isosurface: the native grid&
-       & of the field, a named density of points per angstrom, or a custom grid",ttshown)
+       sameline=.true.,changed=ch,tooltips=str2,ttshown=ttshown)
 
     ! custom level: the grid given by the user, either as the number of
     ! points along each axis or as a resolution in points per angstrom
@@ -3177,9 +3179,7 @@ contains
 
        call iw_text("Given as",alignframe=.true.)
        call iw_combo_simple("##isocustom",iso_custom_mode_optstr,w%rep%iso%icustom,&
-          sameline=.true.,changed=ch2)
-       call iw_tooltip("Whether the custom grid is given as the number of points along&
-          & each axis or as a density of points per angstrom",ttshown)
+          sameline=.true.,changed=ch2,tooltips=iso_custom_mode_tipstr,ttshown=ttshown)
        ! switching between the two carries the grid over, so the mode
        ! change by itself does not move the isosurface
        if (ch2 .and. okbox) then
@@ -3764,9 +3764,9 @@ contains
       integer*8 :: i8
       logical :: usesci
       real*8 :: step, v, span
-      real(c_float) :: barw, barh, pad, xa, xb
+      real(c_float) :: barw, barh, pad, xa, xb, wl
       real(c_float) :: lut(3,nband)
-      type(ImVec2) :: p0, pa, pb, szdum, szt
+      type(ImVec2) :: p0, pa, pb, szdum
       type(ImVec4) :: col
       type(c_ptr) :: dl
       character(kind=c_char,len=:), allocatable, target :: strl
@@ -3815,9 +3815,9 @@ contains
             else
                strl = string(v,'f',decimal=ndec) // c_null_char
             end if
-            call igCalcTextSize(szt,c_loc(strl),c_null_ptr,.false._c_bool,-1._c_float)
-            xa = p0%x + barw * real((v - vlo) / span,c_float) - 0.5_c_float * szt%x
-            xa = min(max(xa,p0%x),p0%x + barw - szt%x)
+            wl = iw_textwidth(strl)
+            xa = p0%x + barw * real((v - vlo) / span,c_float) - 0.5_c_float * wl
+            xa = min(max(xa,p0%x),p0%x + barw - wl)
             pa = ImVec2(xa,p0%y + barh + pad)
             call ImDrawList_AddText_Vec2(dl,pa,igGetColorU32_Col(ImGuiCol_Text,1._c_float),&
                c_loc(strl),c_null_ptr)
@@ -4086,9 +4086,9 @@ contains
     call label("Style")
     istyle = int(w%rep%gpaths%style,c_int)
     call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
-       "String of spheres" // c_null_char,istyle,changed=ch)
-    call iw_tooltip("Draw the paths as continuous tubes or as a string of spheres, one per path point",&
-       ttshown)
+       "String of spheres" // c_null_char,istyle,changed=ch,tooltips=&
+       "Draw each path as a continuous tube" // c_null_char //&
+       "Draw each path as a string of spheres, one per path point" // c_null_char,ttshown=ttshown)
     ! the combo items are in the order of the gpaths_style_* values
     if (ch) then
        w%rep%gpaths%style = int(istyle)
@@ -4147,9 +4147,10 @@ contains
           ! in the order of the tablecell values)
           itable = int(w%rep%gpaths%tablecell,c_int)
           call iw_combo_simple("Path list##gpathstablecombo","Symmetry-unique" // c_null_char //&
-             "Cell" // c_null_char,itable,changed=ch)
-          call iw_tooltip("List the paths of the symmetry-unique critical points (an edit applies to all "//&
-             "their copies in the cell) or of every critical point in the cell",ttshown)
+             "Cell" // c_null_char,itable,changed=ch,tooltips=&
+             "The paths of the symmetry-unique critical points (an edit applies to all their&
+             & copies in the cell)" // c_null_char //&
+             "The paths of every critical point in the cell" // c_null_char,ttshown=ttshown)
           if (ch) w%rep%gpaths%tablecell = int(itable)
           call draw_path_table(w%rep%gpaths%tablecell == 1,merge(ncell,nuniq,w%rep%gpaths%tablecell == 1))
        else

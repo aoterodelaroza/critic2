@@ -388,10 +388,12 @@ contains
                 else
                    call igPushItemWidth(iw_calcwidth(8,1))
                    call iw_combo_simple("##extractnmerany" // string(i),"all" // c_null_char //&
-                      "any" // c_null_char,w%extract_nmer_any(i))
+                      "any" // c_null_char,w%extract_nmer_any(i),tooltips=&
+                      "Keep the " // trim(nmer_name(i)) // " only if every pair of molecules is within&
+                      & the cutoff" // c_null_char //&
+                      "Keep the " // trim(nmer_name(i)) // " if at least one pair of molecules is within&
+                      & the cutoff" // c_null_char,ttshown=ttshown)
                    call igPopItemWidth()
-                   call iw_tooltip("all: keep the " // trim(nmer_name(i)) // " only if every pair of&
-                      & molecules is within the cutoff. any: keep it if at least one pair is",ttshown)
                 end if
              end if
              if (igTableSetColumnIndex(3_c_int)) then

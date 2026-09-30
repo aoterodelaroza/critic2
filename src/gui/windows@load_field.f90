@@ -452,8 +452,12 @@ contains
     subroutine draw_source_transform()
 
       call iw_combo_simple("Transform##loadfieldgtransf","Fourier-transform derivative"//c_null_char//&
-         "Resample grid"//c_null_char,w%lf%gtransf)
-      call iw_tooltip("Operation that generates the new field",ttshown)
+         "Resample grid"//c_null_char,w%lf%gtransf,tooltips=&
+         "A new grid field from a derivative of a grid field (gradient or Hessian components,&
+         & gradient norm, Laplacian, or the potential from the Poisson equation), calculated by&
+         & fast Fourier transform"//c_null_char//&
+         "The same grid field on a grid with a different number of points, by Fourier&
+         & interpolation"//c_null_char,ttshown=ttshown)
 
       select case (w%lf%gtransf)
       case (0)
@@ -643,28 +647,40 @@ contains
          ! typnuc
          call iw_combo_simple("Nuclear critical point signature##loadfieldtypnuc",&
             "-3 (maximum)"//c_null_char//"-1"//c_null_char//"+1"//c_null_char//&
-            "+3 (minimum)"//c_null_char,w%lf%itypnuc)
-         call iw_tooltip("Signature of the critical points at the nuclear positions&
-            & (-3 for fields with maxima at the nuclei, like the density)",ttshown)
+            "+3 (minimum)"//c_null_char,w%lf%itypnuc,tooltips=&
+            "The nuclei are maxima of the field, like in the electron density (the default)"//c_null_char//&
+            "The nuclei are (3,-1) critical points of the field"//c_null_char//&
+            "The nuclei are (3,+1) critical points of the field"//c_null_char//&
+            "The nuclei are minima of the field, like in the negative of the density"//c_null_char,&
+            ttshown=ttshown)
 
          ! numerical/analytical derivatives
          call iw_combo_simple("Derivatives##loadfieldnumana","Default"//c_null_char//&
-            "Numerical"//c_null_char//"Analytical"//c_null_char,w%lf%inumana)
-         call iw_tooltip("Method for calculating the field derivatives",ttshown)
+            "Numerical"//c_null_char//"Analytical"//c_null_char,w%lf%inumana,tooltips=&
+            "The derivatives of the field's own representation (analytical, or those of the grid&
+            & interpolant), except for fields defined by an expression (numerical)"//c_null_char//&
+            "Derivatives of the field by finite differences of its values"//c_null_char//&
+            "The analytical derivatives of the field"//c_null_char,ttshown=ttshown)
 
          ! dftb: exact/approximate
          if (fileformat() == ifformat_dftb) then
             call iw_combo_simple("Sum evaluation##loadfieldiexact","Default"//c_null_char//&
-               "Exact"//c_null_char//"Approximate"//c_null_char,w%lf%iexact)
-            call iw_tooltip("Evaluate the lattice sums exactly or approximately",ttshown)
+               "Exact"//c_null_char//"Approximate"//c_null_char,w%lf%iexact,tooltips=&
+               "Approximate (the default)"//c_null_char//&
+               "The radial parts of the atomic orbitals calculated from their analytical form"//&
+               c_null_char//&
+               "The radial parts of the atomic orbitals interpolated on a grid (faster)"//c_null_char,&
+               ttshown=ttshown)
          end if
 
          ! wien2k normalization
          if (fileformat() == ifformat_wien) then
             call iw_combo_simple("Normalization##loadfieldwiennorm","Default"//c_null_char//&
-               "Density (RHONORM)"//c_null_char//"Potential (VNORM)"//c_null_char,w%lf%iwiennorm)
-            call iw_tooltip("Normalization convention of the WIEN2k file&
-               & (density-style or potential-style)",ttshown)
+               "Density (RHONORM)"//c_null_char//"Potential (VNORM)"//c_null_char,w%lf%iwiennorm,&
+               tooltips="The normalization of a density (RHONORM)"//c_null_char//&
+               "The file has the normalization of a WIEN2k density (clmsum and similar)"//c_null_char//&
+               "The file has the normalization of a WIEN2k potential (vcoul, vtotal)"//c_null_char,&
+               ttshown=ttshown)
          end if
 
          ! muffin-tin discontinuity test

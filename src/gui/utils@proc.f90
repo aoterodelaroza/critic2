@@ -1087,23 +1087,15 @@ contains
     logical, intent(in), optional :: from_end
     real(c_float) :: iw_calcwidth
 
-    type(ImVec2) :: sz
-    character(len=:,kind=c_char), allocatable, target :: strc
     integer :: ncheck_, nitem
 
     ncheck_ = 0
     if (present(ncheck)) ncheck_ = ncheck
 
-    ! text size
-    allocate(character(len=ntext+1,kind=c_char) :: strc)
-    strc(1:ntext) = ""
-    strc(ntext+1:ntext+1) = c_null_char
-    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
-
     ! calculate width: the text, plus the frame padding of each button, plus
     ! the tick box and label gap of each checkbox, plus the spacing between
     ! consecutive items
-    iw_calcwidth = sz%x
+    iw_calcwidth = iw_textwidth(repeat(" ",ntext))
     nitem = nbutton + ncheck_
     if (nbutton > 0) &
        iw_calcwidth = iw_calcwidth + nbutton * (2 * g%Style%FramePadding%x)
@@ -1444,7 +1436,6 @@ contains
     logical :: noadvance_,copy_to_output_, centered_, alignframe_, wrap_
     logical :: pushedcolor
     real(c_float) :: pos, wwidth, twidth
-    type(ImVec2) :: sz
     type(ImVec4) :: col
 
     highlight_ = .false.
@@ -1475,8 +1466,7 @@ contains
     if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
     if (centered_) then
        wwidth = igGetWindowWidth()
-       call igCalcTextSize(sz,c_loc(str1),c_null_ptr,.false._c_bool,-1.0_c_float)
-       twidth = sz%x
+       twidth = iw_textwidth(str)
        call igSetCursorPosX((wwidth - twidth) * 0.5_c_float)
     end if
     pushedcolor = .true.
@@ -2225,13 +2215,10 @@ contains
     real(c_float) :: width
 
     integer :: nintdig, nchar
-    real(c_float) :: vabs
-    type(ImVec2) :: sz
-    character(len=:,kind=c_char), allocatable, target :: strc
+    real(c_float) :: vabs, wdig
 
     ! width of a single digit
-    strc = "0" // c_null_char
-    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+    wdig = iw_textwidth("0")
 
     ! largest absolute value the field can take
     vabs = 1._c_float
@@ -2247,7 +2234,7 @@ contains
     ! point (only if there are decimals) and decimals
     nchar = 1 + nintdig + decimal
     if (decimal > 0) nchar = nchar + 1
-    width = nchar * sz%x * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
+    width = nchar * wdig * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
 
   end function dragfloat_width
 

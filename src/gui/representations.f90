@@ -130,12 +130,16 @@ module representations
   real(c_float), parameter, public :: measure_rgb_dih_def(3) = (/0.90_c_float,0.30_c_float,0.60_c_float/) ! dihedral color (pink)
   !--> isosurfaces
   integer, parameter, public :: iso_nlevel = 4 ! number of named coarseness levels (0 = native; 1..nlevel, set level)
-  real*8, parameter, public :: iso_level_ptsang(iso_nlevel) = (/2d0,5d0,10d0,20d0/) ! points/ang of the named levels
+  real*8, parameter, public :: iso_level_ptsang(iso_nlevel) = (/2d0,5d0,10d0,20d0/) ! points/ang of the named levels (iso_level_optstr and iso_level_tipstr_custom follow it)
   integer, parameter, public :: iso_level_custom = iso_nlevel + 1 ! level index for a custom grid
   integer, parameter, public :: iso_custom_npts = 0 ! custom grid given as the number of points per axis
   integer, parameter, public :: iso_custom_ptsang = 1 ! custom grid given as a resolution (points/ang)
   character(len=*), parameter, public :: iso_custom_mode_optstr = &
      "Points"//c_null_char//"Resolution"//c_null_char ! how a custom grid is given
+  character(len=*), parameter, public :: iso_custom_mode_tipstr = &
+     "The number of points along each axis of the region"//c_null_char//&
+     "The density of points (points per Å); the number of points follows from the region"//&
+     c_null_char ! descriptions of iso_custom_mode_optstr
   real*8, parameter, public :: iso_ptsang_min = 0.05d0 ! bounds of a custom resolution (points/ang)
   real*8, parameter, public :: iso_ptsang_max = 100d0
   integer, parameter, public :: iso_level_def = 2 ! default named level (medium)
@@ -150,6 +154,14 @@ module representations
      "Fine (10 pts/Å)"//c_null_char//"Very fine (20 pts/Å)"//c_null_char ! named levels
   character(len=*), parameter, public :: iso_level_optstr_custom = &
      iso_level_optstr//"Custom"//c_null_char ! named levels plus custom
+  character(len=*), parameter, public :: iso_level_tipstr_custom = &
+     "Fast, and a rough surface"//c_null_char//&
+     "The default"//c_null_char//&
+     "A smoother surface"//c_null_char//&
+     "The smoothest surface; slow in large regions"//c_null_char//&
+     "A grid of your choice: the number of points along each axis, or a density of points"//&
+     c_null_char ! descriptions of iso_level_optstr_custom (the named levels are coarsened above
+                 ! iso_maxpts_total points)
   integer, parameter, public :: iso_region_cell = 0 ! region modes: whole unit cell (native level allowed; periodic in crystals)
   integer, parameter, public :: iso_region_frac = 1 ! cell-aligned box between fractional points x0 and x1 (crystals)
   integer, parameter, public :: iso_region_ortho = 2 ! axis-aligned Cartesian box between corners x0 and x1 (ang)

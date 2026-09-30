@@ -1713,7 +1713,7 @@ contains
   ! the callback for the right-hand-side pane of the dialog
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton, iw_combo_simple,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton, iw_combo_simple, iw_textwidth,&
        iw_checkbox, iw_inputfloat
     use interfaces_cimgui
     use tools_io, only: string
@@ -1721,10 +1721,9 @@ contains
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
 
-    character(kind=c_char,len=:), allocatable, target :: str, strex
+    character(kind=c_char,len=:), allocatable, target :: str
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
-    type(ImVec2) :: sz
     integer(c_int) :: flags
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -1767,9 +1766,7 @@ contains
        ! molecular options
        call igIndent(0._c_float)
        str = "Cell border (Å)" // c_null_char
-       strex = string(data%rborder,'f',decimal=3) // c_null_char
-       call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
-       call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
+       call igPushItemWidth(iw_textwidth(string(data%rborder,'f',decimal=3)) + 2 * g%Style%FramePadding%x)
        ldum = iw_inputfloat(str,data%rborder)
        call iw_tooltip("Size of the periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
