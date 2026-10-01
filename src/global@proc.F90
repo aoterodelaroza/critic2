@@ -1009,8 +1009,7 @@ contains
 
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)
-    use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_small,&
-       mesh_level_normal, mesh_level_good, mesh_level_vgood, mesh_level_amazing
+    use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_kw
     use arithmetic, only: eval, setvariable
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
        faterr, string, uout, isassignment, getword, zatguess
@@ -1122,16 +1121,8 @@ contains
 
        lp2 = lp
        word = lgetword(line,lp)
-       if (equal(word,'small')) then
-          MESH_level = mesh_level_small
-       else if (equal(word,'normal')) then
-          MESH_level = mesh_level_normal
-       else if (equal(word,'good')) then
-          MESH_level = mesh_level_good
-       else if (equal(word,'verygood')) then
-          MESH_level = mesh_level_vgood
-       else if (equal(word,'amazing')) then
-          MESH_level = mesh_level_amazing
+       if (any(word == mesh_level_kw)) then
+          mesh_level = findloc(word == mesh_level_kw,.true.,1)
        else
           lp = lp2
        end if

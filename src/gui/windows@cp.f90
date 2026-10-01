@@ -20,6 +20,7 @@
 submodule (windows) cp
   use interfaces_cimgui
   use param, only: bohrtoa
+  use meshmod, only: mesh_level_kw
   implicit none
 
   ! names of the seed kinds for the combo, and their AUTO keywords, in
@@ -45,8 +46,20 @@ submodule (windows) cp
      "Points on concentric octahedral shells around a center, the octahedron subdivided&
      & recursively." // c_null_char //&
      "A single starting point." // c_null_char //&
-     "The points of the molecular integration mesh: dense, and expensive in large systems." //&
+     "The points of the molecular integration mesh of the symmetry-unique atoms, each atom's grid&
+     & pruned to its Voronoi region and without its core." //&
      c_null_char
+
+  ! levels of the mesh of a MESH seed (the order of mlevel and
+  ! mesh_level_kw), and their descriptions
+  character(len=*), parameter :: meshlevel_names = "Small" // c_null_char // "Normal" // c_null_char //&
+     "Good" // c_null_char // "Very good" // c_null_char // "Amazing" // c_null_char
+  character(len=*), parameter :: meshlevel_tooltips = &
+     "The coarsest atomic grids: the fewest seeds (the default)" // c_null_char //&
+     "Finer atomic grids: about twice the seeds of Small" // c_null_char //&
+     "The atomic grids of integrations: about four times the seeds of Small" // c_null_char //&
+     "Very fine atomic grids: many seeds" // c_null_char //&
+     "The finest atomic grids: very many seeds" // c_null_char
 
   ! maximum WS/OH subdivision level AUTO accepts
   integer, parameter :: maxdepth = 7
@@ -1224,16 +1237,13 @@ contains
     call iw_tooltip("Show the starting points of the searches in the view (grey spheres), after&
        & the pruning and the clipping",ttshown)
 
-    ! the number of seeds the search would start from (a molecular mesh
-    ! is generated only to be shown)
-    if (w%cp%showseeds .or. .not.any(w%cp%seed%typ == cpseed_mesh)) then
-       call update_seeds(w,isys)
-       if (allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
-          str2 = "(" // string(size(w%cp%seedx,2)) // " seeds"
-          if (w%cp%showseeds .and. size(w%cp%seedx,2) > maxseedshow) &
-             str2 = str2 // ", showing " // string(maxseedshow)
-          call iw_text(str2 // ")",sameline=.true.)
-       end if
+    ! the number of seeds the search would start from
+    call update_seeds(w,isys)
+    if (allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
+       str2 = "(" // string(size(w%cp%seedx,2)) // " seeds"
+       if (w%cp%showseeds .and. size(w%cp%seedx,2) > maxseedshow) &
+          str2 = str2 // ", showing " // string(maxseedshow)
+       call iw_text(str2 // ")",sameline=.true.)
     end if
 
     ! advanced options
@@ -1276,7 +1286,7 @@ contains
        iw_textwidth("Radius (Å)"),iw_textwidth("Radial points"),iw_textwidth("Polar points"),&
        iw_textwidth("Azimuthal points"),iw_textwidth("Maximum distance (Å)"),&
        iw_textwidth("Points per pair"),iw_textwidth("Start" // xunit),iw_textwidth("End" // xunit),&
-       iw_textwidth("Points"),iw_textwidth("Position" // xunit))
+       iw_textwidth("Points"),iw_textwidth("Position" // xunit),iw_textwidth("Mesh level"))
 
   end function seed_label_width
 
@@ -1378,7 +1388,9 @@ contains
          call label("Position" // xunit)
          call x0_widget()
       case (cpseed_mesh)
-         call iw_text("The points of the molecular integration mesh",disabled=.true.)
+         call label("Mesh level")
+         call iw_combo_simple("##cpseedmlevel" // suf,meshlevel_names,s%mlevel,startsatone=.true.,&
+            tooltips=meshlevel_tooltips,ttshown=ttshown)
       end select
     end associate
     call igUnindent(0._c_float)
@@ -1722,6 +1734,8 @@ contains
               line = line // xstr(" x0",s%x0) // xstr(" x1",s%x1) // " npts " // string(s%npts)
            case (cpseed_point)
               line = line // xstr(" x0",s%x0)
+           case (cpseed_mesh)
+              line = line // " " // trim(mesh_level_kw(s%mlevel))
            end select
          end associate
       end do

@@ -68,11 +68,10 @@ contains
     use grid3mod, only: mode_smr
     use systemmod, only: sy
     use fieldmod, only: type_grid
-    use meshmod, only: mesh
+    use meshmod, only: mesh, mesh_level_small, mesh_level_kw
     use graphics, only: grhandle
     use surface, only: minisurf
-    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
-       mesh_type, mesh_level
+    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -102,6 +101,7 @@ contains
        integer :: nr = 0     ! number of radial points
        integer :: ntheta = 0 ! number of theta (polar) points
        integer :: nphi = 0   ! number of phi (azimuthal) points
+       integer :: mlvl = mesh_level_small ! level of the molecular mesh (MESH)
        integer :: nseed = 0  ! number of seeds generated
     end type seed_
     integer, parameter :: maxpointstr(0:7) =  (/ 6, 18,  66, 258, 1026, 4098, 16386, 66003  /)
@@ -352,6 +352,8 @@ contains
                    return
                 end if
                 seed(nseed)%rad = seed(nseed)%rad / dunit0(iunit)
+             elseif (any(word == mesh_level_kw)) then
+                seed(nseed)%mlvl = findloc(word == mesh_level_kw,.true.,1)
              else
                 lp = lpo
                 exit
@@ -562,13 +564,20 @@ contains
           ! clean up
           call srf%end()
        elseif (seed(i)%typ == styp_mesh) then
-          call meshseed%gen(sy%c,mesh_type,mesh_level)
-
-          call realloc(xseed,3,nn+meshseed%n)
+          ! the points of the atomic grids (no partition weights) of
+          ! the symmetry-unique atoms, the others being their images,
+          ! each grid pruned to the Voronoi region of its atom (the rest
+          ! of the space is covered by the grids of the other atoms) and
+          ! without its core (mesh_seed_points)
+          call meshseed%gen(sy%c,lvl=seed(i)%mlvl,zpsp=sy%f(sy%iref)%zpsp,nopart=.true.)
+          call mesh_seed_points(meshseed,keep)
+          call realloc(xseed,3,nn+count(keep))
           do j = 1, meshseed%n
+             if (.not.keep(j)) cycle
              nn = nn + 1
              xseed(:,nn) = sy%c%c2x(meshseed%x(:,j))
           end do
+          deallocate(keep)
 
        elseif (seed(i)%typ == styp_point) then
           ! add a point
@@ -788,8 +797,73 @@ contains
     end if
 
   contains
+    !> Mark (keep) the points of mesh m, generated for the current
+    !> system, that seed the search: those of the grid of the first
+    !> cell atom of each symmetry-unique atom whose nearest atom is that
+    !> atom (its Voronoi region) or an atom without a grid (ghosts), and
+    !> not closer to it than NUCEPS (NUCEPSH for hydrogen): a CP that
+    !> close is discarded, and the search from there goes to the
+    !> nucleus (also when the nearest atom is an image of this atom,
+    !> reached by an outer shell). Most of the points of a heavy atom's
+    !> grid are in its core. The shells closer to the atom than half the
+    !> nearest-neighbor distance are in its Voronoi region and are kept
+    !> whole.
+    subroutine mesh_seed_points(m,keep)
+      use param, only: icrd_cart
+      type(mesh), intent(in) :: m
+      logical, allocatable, intent(out) :: keep(:)
+
+      integer :: k, iat, ish, ip, nid, j
+      real*8 :: dd, rmin
+      logical, allocatable :: first(:), seen(:), hasgrid(:)
+      real*8, allocatable :: rnn2(:)
+
+      ! the first cell atom of each symmetry-unique atom
+      allocate(first(sy%c%ncel),seen(sy%c%nneq))
+      first = .false.
+      seen = .false.
+      do iat = 1, sy%c%ncel
+         j = sy%c%atcel(iat)%idx
+         first(iat) = .not.seen(j)
+         seen(j) = .true.
+      end do
+
+      ! the atoms with a grid and the half nearest-neighbor distances
+      allocate(hasgrid(sy%c%ncel),rnn2(sy%c%nneq))
+      hasgrid = .false.
+      hasgrid(m%idat(1:m%nat)) = .true.
+      do j = 1, sy%c%nneq
+         rnn2(j) = sy%c%get_rnn2(j)
+      end do
+
+      ! the points of their grids in their Voronoi regions
+      allocate(keep(m%n))
+      keep = .false.
+      !$omp parallel do private(iat,ish,ip,nid,dd,rmin) schedule(dynamic)
+      do k = 1, m%nat
+         iat = m%idat(k)
+         if (.not.first(iat)) cycle
+         rmin = nuceps
+         if (m%zat(k) == 1) rmin = nucepsh
+         do ish = m%ishoff(k), m%ishoff(k+1) - 1
+            if (m%rsh(ish) < rmin) cycle
+            if (m%rsh(ish) < rnn2(sy%c%atcel(iat)%idx)) then
+               keep(m%ipsh(ish):m%ipsh(ish+1)-1) = .true.
+               cycle
+            end if
+            do ip = m%ipsh(ish), m%ipsh(ish+1) - 1
+               call sy%c%nearest_atom(m%x(:,ip),icrd_cart,nid,dd)
+               keep(ip) = ((nid == iat) .or. .not.hasgrid(nid)) .and. (dd >= rmin)
+            end do
+         end do
+      end do
+      !$omp end parallel do
+
+    end subroutine mesh_seed_points
+
     !> Write the header of the search and the list of seeding
     !> actions to the output.
+
     subroutine report_seeds()
       integer :: i, j
       real*8 :: x0(3), x1(3), r, dist
@@ -880,7 +954,8 @@ contains
             str = trim(str) // ", radius=" // trim(string(r,'f',10,4))
             str = str // ", nr=" // string(seed(i)%nr)
          elseif (seed(i)%typ == styp_mesh) then
-            str = str // " Molecular integration mesh "
+            str = str // " Molecular mesh  level=" // trim(mesh_level_kw(seed(i)%mlvl)) //&
+             ", symmetry-unique atoms, Voronoi-pruned, no core"
          elseif (seed(i)%typ == styp_point) then
             str = str // " Point         "
             str = str // "  x0=" // string(x0(1),'f',7,4) // " " // &

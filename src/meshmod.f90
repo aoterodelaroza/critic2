@@ -33,6 +33,8 @@ module meshmod
   integer, parameter, public :: mesh_level_good = 3
   integer, parameter, public :: mesh_level_vgood = 4
   integer, parameter, public :: mesh_level_amazing = 5
+  character(len=8), parameter, public :: mesh_level_kw(5) = (/"small   ",&
+     "normal  ","good    ","verygood","amazing "/) !< input keyword of each level
 
   !> Becke-style mesh for molecular/crystal integration. The mesh is
   !> the union of atomic grids (radial shells times Lebedev angular
@@ -73,12 +75,13 @@ module meshmod
      pure module subroutine endmesh(m)
        class(mesh), intent(inout) :: m
      end subroutine endmesh
-     module subroutine genmesh(m,c,type,lvl,zpsp)
+     module subroutine genmesh(m,c,type,lvl,zpsp,nopart)
        class(mesh), intent(inout) :: m
        type(crystal), intent(inout) :: c
        integer, intent(in), optional :: type
        integer, intent(in), optional :: lvl
        integer, intent(in), optional :: zpsp(:)
+       logical, intent(in), optional :: nopart
      end subroutine genmesh
      module subroutine fillmesh(m,ff,prop,periodic)
        class(mesh), intent(inout) :: m

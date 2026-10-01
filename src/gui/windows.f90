@@ -23,6 +23,7 @@ module windows
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
+  use meshmod, only: mesh_level_small
   use crystalseedmod, only: crystalseed
   use param, only: isformat_r_unknown, eye, mlen,&
      isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
@@ -235,6 +236,7 @@ module windows
      real*8 :: x1(3) = 0d0 ! end (LINE)
      real*8 :: rad = 0d0 ! radius, Å (WS: <= 0 = the whole cell; OH, SPHERE: required)
      real*8 :: dist = 15d0 * bohrtoa ! maximum pair distance (PAIR, TRIPLET), Å
+     integer :: mlevel = mesh_level_small ! level of the mesh (MESH)
   end type cp_seed_ui
   public :: cp_seed_ui
 

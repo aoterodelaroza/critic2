@@ -88,8 +88,11 @@ contains
   !> dat/meshes for the element and effective charge (zpsp, per
   !> species; <= 0 or absent means all-electron); atoms not covered
   !> by the tables use the legacy grids (constant Lebedev order,
-  !> postg or Franchini radial grids).
-  module subroutine genmesh(m,c,type,lvl,zpsp)
+  !> postg or Franchini radial grids). If nopart, only the points and
+  !> the atomic weights are calculated, without the partition weights
+  !> (wp = 1, w = wa): the points are all that is needed for seeding,
+  !> and the partition is most of the cost in crystals.
+  module subroutine genmesh(m,c,type,lvl,zpsp,nopart)
     use crystalmod, only: crystal
     use tools_math, only: select_lebedev
     use types, only: realloc
@@ -99,6 +102,7 @@ contains
     integer, intent(in), optional :: type
     integer, intent(in), optional :: lvl
     integer, intent(in), optional :: zpsp(:)
+    logical, intent(in), optional :: nopart
 
     integer :: tmesh, lmesh
     integer :: i, k, iz, is, zeff, nsh, np, ish, il, ip, nang, mang, nr
@@ -208,6 +212,13 @@ contains
     !$omp end parallel do
 
     ! partition weights
+    if (present(nopart)) then
+       if (nopart) then
+          m%wp = 1d0
+          m%w = m%wa
+          return
+       end if
+    end if
     if (tmesh == mesh_type_becke) then
        call partition_becke(m)
     else
