@@ -38,6 +38,7 @@ module tricks
   private :: trick_energy
   private :: trick_md
   private :: trick_uffe
+  private :: trick_voids
 
 contains
 
@@ -75,6 +76,8 @@ contains
        call trick_md(line0(lp:))
     else if (equal(word,'uffe')) then
        call trick_uffe(line0(lp:))
+    else if (equal(word,'voids')) then
+       call trick_voids(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -4184,5 +4187,211 @@ contains
     write (uout,*)
 
   end subroutine trick_md
+
+  !> The two void measures of the GUI crystal voids window, for the
+  !> loaded crystal: the total void volume from the isosurface tab
+  !> (promolecular density below ISOVAL on a grid of spacing SPACING Å)
+  !> and the coordination polyhedra table of the polyhedra tab (one
+  !> polyhedron per non-equivalent center atom, vertices between RMIN and
+  !> RMAX Å from it). Syntax:
+  !>   TRICK VOIDS [CENTER spc1 spc2 ...] [VERTICES spc1 spc2 ...]
+  !>               [ISOVAL val.r] [SPACING s.r] [RMIN r.r] [RMAX r.r]
+  !> Defaults are those of the GUI: isoval 0.01, spacing 0.15 Å, the
+  !> typical anions (N, O, F, S, Cl, Br, I) as vertices and the rest as
+  !> centers, and a distance range from zero to the largest sum of
+  !> covalent radii times the bond factor over the center-vertex pairs.
+  subroutine trick_voids(line0)
+    use systemmod, only: sy
+    use global, only: bondfactor
+    use tools_io, only: uout, string, ferror, faterr, getword, lower, isreal, ioj_left,&
+       ioj_right
+    use param, only: bohrtoa, atmcov
+    character*(*), intent(in) :: line0
+
+    integer :: i, k, k1, k2, lp, n(3), nvoid, mode, nspc, nat, nf, ier, npol, nfew
+    real*8 :: isoval, spacing, rmin, rmax, vtot, dmin, dmax, vol, dev, vpol
+    real*8, allocatable :: f(:,:,:), vvol(:), xdeep(:,:), rhodeep(:)
+    logical, allocatable :: isc(:), isv(:)
+    logical :: found, hasrmax
+    character(len=:), allocatable :: word, lword, errmsg
+
+    ! typical anions, the default vertices (as in the GUI)
+    integer, parameter :: zanion(7) = (/7,8,9,16,17,35,53/)
+    ! coplanarity tolerance (bohr), the polycoplanar_def of the GUI
+    real*8, parameter :: polycoplanar = 0.1d0
+    ! longest center-vertex distance in the default range (Å)
+    real*8, parameter :: rmax_max = 10d0
+
+    if (.not.associated(sy)) then
+       call ferror('trick_voids','no system loaded',faterr)
+       return
+    end if
+    if (sy%c%ismolecule) then
+       call ferror('trick_voids','the void analysis can only be done in crystals',faterr)
+       return
+    end if
+    nspc = sy%c%nspc
+
+    ! parse the options
+    isoval = 0.01d0
+    spacing = 0.15d0
+    rmin = 0d0
+    rmax = 0d0
+    hasrmax = .false.
+    allocate(isc(nspc),isv(nspc))
+    isc = .false.
+    isv = .false.
+    mode = 0 ! 1 = reading center species, 2 = reading vertex species
+    lp = 1
+    do while (.true.)
+       word = getword(line0,lp)
+       lword = lower(word)
+       if (len_trim(word) == 0) then
+          exit
+       elseif (lword == "center") then
+          mode = 1
+       elseif (lword == "vertices" .or. lword == "vertex") then
+          mode = 2
+       elseif (lword == "isoval") then
+          mode = 0
+          if (.not.isreal(isoval,line0,lp)) goto 999
+       elseif (lword == "spacing") then
+          mode = 0
+          if (.not.isreal(spacing,line0,lp)) goto 999
+       elseif (lword == "rmin") then
+          mode = 0
+          if (.not.isreal(rmin,line0,lp)) goto 999
+       elseif (lword == "rmax") then
+          mode = 0
+          if (.not.isreal(rmax,line0,lp)) goto 999
+          hasrmax = .true.
+       elseif (mode > 0) then
+          found = .false.
+          do k = 1, nspc
+             if (lword == lower(trim(sy%c%spc(k)%name))) then
+                if (mode == 1) isc(k) = .true.
+                if (mode == 2) isv(k) = .true.
+                found = .true.
+             end if
+          end do
+          if (.not.found) then
+             call ferror('trick_voids','unknown species: ' // word,faterr)
+             return
+          end if
+       else
+          goto 999
+       end if
+    end do
+    if (spacing <= 0d0 .or. isoval <= 0d0) then
+       call ferror('trick_voids','ISOVAL and SPACING must be positive',faterr)
+       return
+    end if
+
+    ! default centers and vertices: anions at the vertices, the rest at the
+    ! centers; every species at both ends if that leaves one side empty
+    if (.not.any(isc) .and. .not.any(isv)) then
+       do k = 1, nspc
+          isv(k) = any(zanion == sy%c%spc(k)%z)
+          isc(k) = .not.isv(k)
+       end do
+       if (.not.any(isc) .or. .not.any(isv)) then
+          isc = .true.
+          isv = .true.
+       end if
+    elseif (.not.any(isc) .or. .not.any(isv)) then
+       call ferror('trick_voids','CENTER and VERTICES must both be given',faterr)
+       return
+    end if
+
+    ! default distance range
+    if (.not.hasrmax) then
+       do k1 = 1, nspc
+          if (.not.isc(k1)) cycle
+          do k2 = 1, nspc
+             if (.not.isv(k2)) cycle
+             rmax = max(rmax,(atmcov(sy%c%spc(k1)%z) + atmcov(sy%c%spc(k2)%z)) * bondfactor * bohrtoa)
+          end do
+       end do
+       rmax = min(rmax,rmax_max)
+    end if
+    if (rmin > rmax) then
+       call ferror('trick_voids','RMIN is larger than RMAX',faterr)
+       return
+    end if
+
+    write (uout,'("* TRICK VOIDS: crystal voids")')
+    write (uout,'("+ Cell volume (ang^3): ",A)') string(sy%c%omega*bohrtoa**3,'f',decimal=4)
+
+    !! isosurface voids !!
+    do i = 1, 3
+       n(i) = max(nint(sy%c%aa(i) * bohrtoa / spacing),2)
+    end do
+    call sy%c%promolecular_array3(f,n)
+    call sy%c%void_domains(f,isoval,vtot,nvoid,vvol,xdeep,rhodeep,errmsg)
+    deallocate(f)
+    if (len_trim(errmsg) > 0) then
+       call ferror('trick_voids',errmsg,faterr)
+       return
+    end if
+    write (uout,'("# Isosurface voids (promolecular density < ",A," a.u.)")') string(isoval,'e',decimal=4)
+    write (uout,'("+ Grid: ",A," x ",A," x ",A," (spacing ",A," ang)")') string(n(1)), string(n(2)),&
+       string(n(3)), string(spacing,'f',decimal=4)
+    write (uout,'("+ Total void volume (ang^3): ",A," (",A,"% of the cell)")') &
+       string(vtot*bohrtoa**3,'f',decimal=4), string(vtot/sy%c%omega*100d0,'f',decimal=2)
+    write (uout,'("+ Number of voids: ",A)') string(nvoid)
+
+    !! coordination polyhedra !!
+    write (uout,'("# Coordination polyhedra")')
+    word = ""
+    lword = ""
+    do k = 1, nspc
+       if (isc(k)) word = word // " " // trim(sy%c%spc(k)%name)
+       if (isv(k)) lword = lword // " " // trim(sy%c%spc(k)%name)
+    end do
+    write (uout,'("+ Center species:",A)') word
+    write (uout,'("+ Vertex species:",A)') lword
+    write (uout,'("+ Distance range (ang): ",A," to ",A)') string(rmin,'f',decimal=4),&
+       string(rmax,'f',decimal=4)
+    write (uout,'("# Id   Atom   Mult   nv   dmin(ang)   dmax(ang)    Volume(ang^3)")')
+    npol = 0
+    nfew = 0
+    vpol = 0d0
+    do i = 1, sy%c%nneq
+       if (.not.isc(sy%c%at(i)%is)) cycle
+       call sy%c%coord_polyhedron(sy%c%at(i)%x,0,0,rmin/bohrtoa,rmax/bohrtoa,nat,dmin,dmax,&
+          nf,vol,ier,dev=dev,ispc=isv)
+       ! no volume enclosed: fewer than four vertices, or all coplanar
+       if (nat <= 3 .or. dev < polycoplanar) then
+          if (nat > 0) nfew = nfew + 1
+          cycle
+       end if
+       if (ier /= 0) then
+          call ferror('trick_voids','failed to triangulate the polyhedron of atom ' // string(i),faterr)
+          return
+       end if
+       npol = npol + 1
+       vpol = vpol + sy%c%at(i)%mult * vol
+       write (uout,'(2X,99(A," "))') string(i,4,ioj_left), string(sy%c%at(i)%name,6,ioj_left),&
+          string(sy%c%at(i)%mult,4,ioj_right), string(nat,4,ioj_right),&
+          string(dmin*bohrtoa,'f',11,4,ioj_right), string(dmax*bohrtoa,'f',11,4,ioj_right),&
+          string(vol*bohrtoa**3,'f',16,5,ioj_right)
+    end do
+    if (npol == 0) &
+       write (uout,'("+ No coordination polyhedra were found in this distance range")')
+    if (nfew > 0) &
+       write (uout,'("+ Centers enclosing no volume in this range: ",A)') string(nfew)
+    write (uout,'("+ Inside the polyhedra (ang^3): ",A," (",A,"% of the cell)")') &
+       string(vpol*bohrtoa**3,'f',decimal=4), string(vpol/sy%c%omega*100d0,'f',decimal=2)
+    write (uout,'("+ Outside the polyhedra (ang^3): ",A," (",A,"% of the cell)")') &
+       string((sy%c%omega-vpol)*bohrtoa**3,'f',decimal=4), string((1d0-vpol/sy%c%omega)*100d0,'f',decimal=2)
+    if (vpol > sy%c%omega) &
+       write (uout,'("+ Warning: the polyhedra overlap, the outside volume is not meaningful")')
+    write (uout,*)
+    return
+
+999 continue
+    call ferror('trick_voids','wrong syntax in TRICK VOIDS',faterr,line0,syntax=.true.)
+
+  end subroutine trick_voids
 
 end module tricks
