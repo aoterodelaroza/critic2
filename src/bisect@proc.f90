@@ -70,7 +70,7 @@ contains
   module subroutine basinplot(line)
     use systemmod, only: sy
     use surface, only: minisurf
-    use global, only: eval_next, iunit, iunitname0, dunit0, fileroot
+    use global, only: eval_next, iunit, iunitname0, dunit0, fileroot, abort_requested
     use tools_io, only: lgetword, equal, ferror, faterr, getword, isexpression_or_word,&
        string, uout, ioj_right
     use param, only: jmlcol
@@ -309,6 +309,8 @@ contains
 
        ! bisect using the tesselated unit sphere
        call bisect_msurface(srf,cpn,prec,verbose)
+       ! a cancelled calculation (the GUI): the surface is incomplete
+       if (abort_requested) exit
        call minisurf_transform(srf,sy%f(sy%iref)%cpcel(i)%ir,&
           sy%f(sy%iref)%cpcel(i)%lvec+sy%c%cen(:,sy%f(sy%iref)%cpcel(i)%ic))
 
@@ -572,6 +574,7 @@ contains
   !> output and calls the low-level sphereintegrals_*.
   module subroutine sphereintegrals(line)
     use systemmod, only: sy
+    use global, only: abort_requested
     use global, only: int_gauleg, eval_next, dunit0, int_radquad_errprop,&
        int_radquad_type, int_radquad_nr, int_qags, int_radquad_abserr, &
        int_radquad_relerr, int_qng, int_qag, iunit, iunitname0
@@ -770,6 +773,7 @@ contains
           else
              call ferror('sphereintegrals','unknown method',faterr)
           end if
+          if (abort_requested) return
 
           r = r * dunit0(iunit)
           write (uout,'("  ",99(A,"  "))') &
@@ -863,7 +867,7 @@ contains
     use systemmod, only: sy
     use integration, only: int_output_header, int_output_fields, imtype_bisect
     use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop,&
-       fileroot, abort_requested, abort_poll, progress_start, progress_done
+       fileroot, abort_poll, progress_start, progress_set
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
     use types, only: basindat, int_result, out_field
@@ -985,17 +989,11 @@ contains
 
     call integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
 
+    call progress_start(count((/(isbasin(i),i=linmin,linmax)/)),"basins")
     n = 0
-    call progress_start(count(.not.(sy%f(sy%iref)%cp(linmin:linmax)%typ /= sy%f(sy%iref)%typnuc .and.&
-       (/(i,i=linmin,linmax)/) > sy%c%nneq)),"basins")
     do i = linmin, linmax
-       if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
-       ! a cancelled calculation (the GUI)
-       if (abort_poll()) then
-          write (uout,'("+ The integration was cancelled."/)')
-          return
-       end if
-       progress_done = n
+       if (.not.isbasin(i)) cycle
+       call progress_set(n)
        n = n + 1
        write (uout,'("+ Integrating CP: ",A)') string(i)
        if (meth == INT_gauleg) then
@@ -1005,8 +1003,10 @@ contains
        else
           call ferror('integrals','unknown method',faterr)
        end if
-       if (abort_requested) then
-          write (uout,'("+ The integration was cancelled."/)')
+
+       ! a cancelled calculation (the GUI)
+       if (abort_poll()) then
+          if (allocated(intfile)) deallocate(intfile)
           return
        end if
 
@@ -1037,6 +1037,15 @@ contains
 
     if (.not.quiet) call tictac("End INTEGRALS")
 
+  contains
+    !> Whether CP i of the list generates a basin that is integrated:
+    !> the nuclei and the non-equivalent non-nuclear maxima.
+    logical function isbasin(i)
+      integer, intent(in) :: i
+
+      isbasin = .not.(sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i > sy%c%nneq)
+
+    end function isbasin
   end subroutine integrals
 
   !xx! private procedures
@@ -1218,10 +1227,9 @@ contains
   !> to the IAS of the CP cpid (non-equivalent CP list). Adaptive
   !> bracketing + bisection.
   subroutine bisect_msurface(srf,cpid,prec,verbose)
-    use global, only: abort_poll
     use systemmod, only: sy
     use fieldmod, only: type_grid
-    use global, only: iunit, iunitname0, dunit0
+    use global, only: iunit, iunitname0, dunit0, abort_poll
     use surface, only: minisurf
     use tools, only: qcksort
     use tools_io, only: uout, string, ferror, faterr
@@ -1654,7 +1662,7 @@ contains
     use systemmod, only: sy
     use surface, only: minisurf
     use integration, only: gauleg_mquad
-    use global, only: int_gauleg, int_iasprec
+    use global, only: int_gauleg, int_iasprec, abort_requested
     use tools_io, only: uout
     real*8, intent(out) :: atprop(sy%npropi)
     integer, intent(in) :: n1, n2, cpid
@@ -1707,6 +1715,13 @@ contains
     if (.not.(usefiles .and. existfile)) then
        ! bisect the surface
        call bisect_msurface(srf,cpid,INT_iasprec,verbose)
+    end if
+
+    ! a cancelled calculation (the GUI): the surface is incomplete,
+    ! do not integrate or save it
+    if (abort_requested) then
+       call srf%end()
+       return
     end if
 
     ! beta-sphere... skip:
@@ -1777,7 +1792,7 @@ contains
     use systemmod, only: sy
     use integration, only: lebedev_mquad
     use surface, only: minisurf
-    use global, only: int_iasprec, int_gauleg
+    use global, only: int_iasprec, int_gauleg, abort_requested
     use tools_io, only: uout
 
     real*8, intent(out) :: atprop(sy%npropi)
@@ -1830,6 +1845,13 @@ contains
     if (.not.(usefiles .and. existfile)) then
        ! bisect the surface
        call bisect_msurface(srf,cpid,INT_iasprec,verbose)
+    end if
+
+    ! a cancelled calculation (the GUI): the surface is incomplete,
+    ! do not integrate or save it
+    if (abort_requested) then
+       call srf%end()
+       return
     end if
 
     ! beta-sphere integration

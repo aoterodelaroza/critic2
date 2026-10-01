@@ -1218,10 +1218,7 @@ contains
 
     ! fill the mesh with those properties
     call m%fill(sy%f(sy%iref),prop(1:4),.not.sy%c%ismolecule)
-    if (abort_requested) then
-       write (uout,'("+ The calculation was cancelled."/)')
-       return
-    end if
+    if (abort_requested) return
 
     ! fill the promolecular and the atomic densities
     m%f(:,2:3) = 0d0

@@ -78,10 +78,7 @@ contains
     ncom = 1
     main: do while (getline(uin,line,ucopy=ucopy,nprompt=ncom))
        ! a cancelled calculation (the GUI): skip the rest of the input
-       if (abort_requested) then
-          write (uout,'("!! The calculation was cancelled: the rest of the input was not run."/)')
-          exit main
-       end if
+       if (abort_requested) exit main
        ncom = ncom + 1
        lp=1
        word = lgetword(line,lp)
@@ -682,6 +679,10 @@ contains
        endif
     enddo main
 
+    ! a cancelled calculation (the GUI)
+    if (abort_requested) &
+       write (uout,'("!! The calculation was cancelled: the rest of the input was not run."/)')
+
   contains
 
     subroutine check_no_extra_word(ok)
@@ -1044,6 +1045,8 @@ contains
   module function abort_poll() result(abort)
     logical :: abort
 
+    abort = .false.
+    if (.not.associated(abort_hook)) return
     call poll_abort()
     !$omp atomic read
     abort = abort_requested
@@ -1075,6 +1078,15 @@ contains
     progress_done = progress_done + n_
 
   end subroutine progress_step
+
+  !> n steps of the calculation are done (serial loops).
+  module subroutine progress_set(n)
+    integer, intent(in) :: n
+
+    !$omp atomic write
+    progress_done = n
+
+  end subroutine progress_set
 
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)

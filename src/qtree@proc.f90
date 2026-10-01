@@ -242,7 +242,7 @@ contains
     use keast, only: keast_rule, keast_order_num
     use global, only: quiet, &
        int_radquad_errprop, int_gauleg, int_qags, int_radquad_type,&
-       fileroot
+       fileroot, abort_requested
     use tools_io, only: uout, faterr, ferror, warning, string, fopen_write, tictac, fclose
     use bisect, only: sphereintegrals_lebedev, sphereintegrals_gauleg
     use types, only: basindat, int_result, out_field
@@ -554,6 +554,17 @@ contains
        ! end if
        ! write (uout,*)
     end do
+
+    ! a cancelled calculation (the GUI): clean up and stop
+    if (abort_requested) then
+       call qtree_cleanup()
+       if (allocated(trm)) deallocate(trm)
+       if (allocated(fgr)) deallocate(fgr)
+       if (allocated(lapgr)) deallocate(lapgr)
+       if (allocated(vgr)) deallocate(vgr)
+       if (allocated(acum_atprop)) deallocate(acum_atprop)
+       return
+    end if
 
     ! mark the grid point inside the beta-spheres, if
     ! all the color arrays have been allocated

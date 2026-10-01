@@ -37,7 +37,7 @@ contains
   !> within a ditsance of bas%ratom (bohr).
   module subroutine yt_integrate(s,bas)
     use systemmod, only: system
-    use global, only: abort_poll, progress_start, progress_done
+    use global, only: abort_poll, progress_start, progress_set
     use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use param, only: vsmall, icrd_crys
@@ -113,7 +113,7 @@ contains
        ! a cancelled calculation (the GUI): the caller stops
        if (mod(nn-ii,ypollstep) == 0) then
           if (abort_poll()) return
-          progress_done = nn - ii
+          call progress_set(nn - ii)
        end if
 
        ! find the number of points with higher density

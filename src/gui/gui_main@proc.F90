@@ -100,7 +100,6 @@ contains
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
-    logical :: cancelled
     character(kind=c_char,len=:), allocatable, target :: strc, file
     integer :: i, j, ludum(10), saveinpcon
     logical :: firstpass, shown
@@ -471,21 +470,20 @@ contains
 
        ! run commands from the input console (Esc cancels the run;
        ! with all systems, the systems after the cancelled one too)
-       if (force_run_commands == 1) then
+       if (force_run_commands > 0) then
           call begin_cancellable()
-          call win(iwin_console_input)%run_commands_ci()
-          cancelled = end_cancellable()
-          force_run_commands = 0
-       elseif (force_run_commands == 2) then
-          call begin_cancellable()
-          saveinpcon = win(iwin_console_input)%isys
-          do i = 1, nsys
-             win(iwin_console_input)%isys = i
+          if (force_run_commands == 1) then
              call win(iwin_console_input)%run_commands_ci()
-             if (abort_requested) exit
-          end do
-          win(iwin_console_input)%isys = saveinpcon
-          cancelled = end_cancellable()
+          else
+             saveinpcon = win(iwin_console_input)%isys
+             do i = 1, nsys
+                win(iwin_console_input)%isys = i
+                call win(iwin_console_input)%run_commands_ci()
+                if (abort_requested) exit
+             end do
+             win(iwin_console_input)%isys = saveinpcon
+          end if
+          if (end_cancellable()) continue
           force_run_commands = 0
        end if
 
@@ -591,13 +589,15 @@ contains
   !> cancel_hook periodically. Close with end_cancellable.
   module subroutine begin_cancellable()
     use interfaces_glfw, only: glfwGetKey, glfwSwapInterval, GLFW_KEY_ESCAPE
-    use global, only: abort_requested, abort_hook
+    use global, only: abort_requested, abort_hook, progress_start
 
     integer(c_int) :: idum
 
-    ! clear the sticky-key state of an earlier Esc (GLFW_STICKY_KEYS)
+    ! clear the sticky-key state of an earlier Esc (GLFW_STICKY_KEYS),
+    ! and the progress of an earlier job
     idum = glfwGetKey(rootwin,GLFW_KEY_ESCAPE)
     abort_requested = .false.
+    call progress_start(0,"")
     abort_hook => cancel_hook
     in_cancellable_job = .true.
 

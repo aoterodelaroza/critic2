@@ -359,10 +359,6 @@ contains
     elseif (bas%imtype == imtype_hirshfeld) then
        call intgrid_hirshfeld_overlap(bas,res)
     end if
-    if (abort_requested) then
-       call cancel_cleanup()
-       return
-    end if
 
     ! deallocate the basin field
     deallocate(bas%f)
@@ -395,12 +391,10 @@ contains
     deallocate(res)
 
   contains
-    !> The calculation was cancelled (the GUI): close the weights file
-    !> and report.
+    !> The calculation was cancelled (the GUI): close the weights file.
     subroutine cancel_cleanup()
 
       if (bas%imtype == imtype_yt .and. bas%luw /= 0) call fclose(bas%luw)
-      write (uout,'("+ The integration was cancelled."/)')
 
     end subroutine cancel_cleanup
   end subroutine intgrid_driver
@@ -1201,7 +1195,7 @@ contains
   !> Integrate scalar fields in atomic basins. bas = integration driver
   !> data, res(1:npropi) = results.
   subroutine intgrid_fields(bas,res)
-    use global, only: abort_poll, progress_start, progress_done
+    use global, only: abort_poll, progress_start, progress_set
     use yt, only: ytdata, ytdata_clean, yt_weights
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
@@ -1230,7 +1224,7 @@ contains
     do k = 1, sy%npropi
        ! a cancelled calculation (the GUI): the caller stops
        if (abort_poll()) return
-       progress_done = k - 1
+       call progress_set(k - 1)
        if (res(k)%done) cycle
        if (.not.sy%propi(k)%used) cycle
        if (sy%propi(k)%itype == itype_v) then

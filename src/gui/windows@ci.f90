@@ -285,9 +285,11 @@ contains
     class(window), intent(inout), target :: w
     logical, intent(in) :: allsys
 
-    character(kind=c_char,len=:), allocatable, target :: csystem, cfield
+    integer, parameter :: maxlines = 15 ! input lines shown in the overlay
+
+    character(kind=c_char,len=:), allocatable :: csystem, cfield
     character(len=:), allocatable :: info
-    integer :: n
+    integer :: n, i, nl
 
     ! the system, field, and input (the input buffer up to its null)
     if (allsys) then
@@ -296,9 +298,19 @@ contains
        call w%get_input_details_ci(csystem,cfield)
        info = "System: " // csystem // newline // "Field:  " // cfield
     end if
+    ! (the first maxlines lines: the overlay must fit on the screen)
     n = index(inputb,c_null_char) - 1
     if (n < 0) n = len(inputb)
-    info = info // newline // "Input:" // newline // inputb(1:n)
+    nl = 0
+    do i = 1, n
+       if (inputb(i:i) == newline) nl = nl + 1
+       if (nl == maxlines) then
+          n = i - 1
+          info = info // newline // "Input:" // newline // inputb(1:n) // newline // "..."
+          exit
+       end if
+    end do
+    if (nl < maxlines) info = info // newline // "Input:" // newline // inputb(1:n)
 
     call iw_wait_overlay("Running critic2 input...",info,.true.)
 

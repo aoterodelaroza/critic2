@@ -37,7 +37,7 @@ contains
   !> itself is done in intgrid_hirshfeld_fields.
   module subroutine hirsh_grid(s,bas)
     use systemmod, only: system
-    use global, only: abort_poll, progress_start, progress_step
+    use global, only: abort_requested, abort_poll, progress_start, progress_step
     use types, only: basindat
     use tools_io, only: ferror, faterr, uout
     use param, only: icrd_crys
@@ -88,6 +88,7 @@ contains
        end if
        call hirsh_iterate(s%c,bas%hirsh_n,bas%hirsh_tol,bas%hirsh_maxit,ncore=ncore,&
           gridf=s%f(s%iref)%grid%f)
+       if (abort_requested) return
        if (any(ncore > 0d0)) then
           write (uout,'("+ The Hirshfeld-I populations (N_HI) include the frozen cores (Z - ZPSP).")')
           write (uout,'("  The integrated properties below use the valence field only.")')
@@ -331,12 +332,8 @@ contains
     do i = 1, sy%c%ncel
        xn(i) = sy%c%spc(sy%c%atcel(i)%is)%z
     end do
-    if (iter .and. .not.abort_requested) &
-       call hirsh_iterate(sy%c,xn,tol,maxit,mx=m%x,mw=m%w,mf=m%f(:,1))
-    if (abort_requested) then
-       write (uout,'("+ The calculation was cancelled."/)')
-       return
-    end if
+    if (iter) call hirsh_iterate(sy%c,xn,tol,maxit,mx=m%x,mw=m%w,mf=m%f(:,1))
+    if (abort_requested) return
 
     ! populations and volumes of the complete-cell atoms (including their periodic copies)
     allocate(acc(sy%c%ncel,2))
@@ -498,7 +495,7 @@ contains
   !> or its values (mf) on a mesh with points mx (Cartesian) and
   !> weights mw.
   subroutine hirsh_iterate(c,xn,tol,maxit,ncore,gridf,mx,mw,mf)
-    use global, only: abort_poll, progress_start, progress_done
+    use global, only: abort_poll, progress_start, progress_set
     use crystalmod, only: crystal
     use grid1mod, only: sgrid
     use tools_io, only: uout, string, ioj_right
@@ -550,8 +547,8 @@ contains
     call progress_start(maxit,"iterations")
     do it = 1, maxit
        ! a cancelled calculation (the GUI): the caller stops
-       if (abort_poll()) exit
-       progress_done = it - 1
+       if (abort_poll()) return
+       call progress_set(it - 1)
 
        ! populations for the current reference densities
        xold = xn

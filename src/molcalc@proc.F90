@@ -111,10 +111,7 @@ contains
 
     prop(1) = im_rho
     call m%fill(sy%f(sy%iref),prop,.not.sy%c%ismolecule)
-    if (abort_requested) then
-       write (uout,'("+ The calculation was cancelled."/)')
-       return
-    end if
+    if (abort_requested) return
 
     nelec = sum(m%f(:,1) * m%w)
     write (uout,'("+ Volume (bohr^3) = ",A)') string(sum(m%w),'f',14,8)
@@ -199,10 +196,7 @@ contains
        prop(n+i) = 100 + imo2(i)
     end do
     call m%fill(sy%f(sy%iref),prop,.false.)
-    if (abort_requested) then
-       write (uout,'("+ The calculation was cancelled."/)')
-       return
-    end if
+    if (abort_requested) return
     deallocate(prop)
 
     lam = 0d0

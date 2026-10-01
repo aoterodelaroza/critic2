@@ -186,7 +186,8 @@ module global
   real*8, parameter :: abort_poll_interval = 0.1d0 !< minimum time between calls to the hook (s)
   ! progress of the running cancellable calculation, shown by the GUI
   ! (the hook): progress_done of progress_total progress_what. Set
-  ! with progress_start and progress_step (thread-safe).
+  ! with progress_start, progress_step (thread-safe), and progress_set
+  ! (serial loops).
   integer :: progress_done = 0
   integer :: progress_total = 0
   character(len=32) :: progress_what = ""
@@ -223,6 +224,9 @@ module global
      module subroutine progress_step(n)
        integer, intent(in), optional :: n
      end subroutine progress_step
+     module subroutine progress_set(n)
+       integer, intent(in) :: n
+     end subroutine progress_set
      module subroutine critic_clearvariable(line)
        character*(*), intent(in) :: line
      end subroutine critic_clearvariable
