@@ -172,8 +172,11 @@ contains
     ! the seeds of the form, shown in the view
     if (goodsys .and. .not.doquit .and. w%cp%showseeds) then
        call update_seeds(w,isys)
-       call draw_seed_preview(w,isys)
+       call draw_seed_preview(w,isys,iview)
     end if
+
+    ! the clip region of the form, shown in the view
+    if (goodsys .and. .not.doquit .and. w%cp%iclip > 0) call draw_clip_preview(w,isys,iview)
 
     ! the CP under the mouse in the results table is highlighted in the view
     if (goodsys) then
@@ -817,6 +820,7 @@ contains
     use systems, only: sys
     use global, only: eval_next
     use tools_io, only: string
+    use utils, only: duration_string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, ifield
 
@@ -856,28 +860,10 @@ contains
     t = real(c1-c0,8) / real(crate,8)
     ttot = t * real(n,8) / real(max(ndone,1),8)
 
-    w%cp%estimate = "Estimated time: " // duration_string(ttot) // " (timed " //&
+    w%cp%estimate = "Estimated time: ~" // duration_string(ttot) // " (timed " //&
        string(ndone) // " of " // string(n) // " seeds; the bond paths are not included)"
 
   end subroutine estimate_search
-
-  !> A time interval of t seconds, written in the most convenient units.
-  function duration_string(t) result(str)
-    use tools_io, only: string
-    real*8, intent(in) :: t
-    character(len=:), allocatable :: str
-
-    if (t < 1d0) then
-       str = "less than 1 s"
-    elseif (t < 120d0) then
-       str = "about " // string(nint(t)) // " s"
-    elseif (t < 7200d0) then
-       str = "about " // string(nint(t / 60d0)) // " min"
-    else
-       str = "about " // string(t / 3600d0,'f',decimal=1) // " h"
-    end if
-
-  end function duration_string
 
   !> Compute the seeds of the form of window w for system isys again
   !> (AUTO, with no search) if the options, the system, or its geometry
@@ -931,33 +917,78 @@ contains
 
   end subroutine update_seeds
 
-  !> Show the last seeds computed for system isys in its view: keep the
-  !> shapes in the view, and build them again only if the seeds changed
-  !> or the shapes are gone.
-  subroutine draw_seed_preview(w,isys)
-    use systems, only: sysc
+  !> Show the last seeds computed for system isys in the scene of view
+  !> iview (the anchor of the window, which may be an alternate view):
+  !> keep the shapes in the view, and build them again only if the
+  !> seeds changed or the shapes are gone.
+  subroutine draw_seed_preview(w,isys,iview)
     use representations, only: rep_shape, shapekind_sphere
     type(window), intent(inout), target :: w
-    integer, intent(in) :: isys
+    integer, intent(in) :: isys, iview
 
     integer :: i, n
     logical :: found
     type(rep_shape), allocatable :: shp(:)
 
     if (.not.allocated(w%cp%seedx) .or. w%cp%seedsys /= isys) return
-    if (sysc(isys)%sc%isinit == 0) return
+    if (.not.scene_ready(iview)) return
     n = min(size(w%cp%seedx,2),maxseedshow)
     if (n == 0) return
-    call sysc(isys)%sc%show_transient_shapes(w%id,1,found=found)
+    call win(iview)%sc%show_transient_shapes(w%id,1,found=found)
     if (found .and. .not.w%cp%seednew) return
     allocate(shp(n))
     do i = 1, n
        shp(i) = rep_shape(kind=shapekind_sphere,x1=w%cp%seedx(:,i),rad=seed_rad,rgb=seed_rgb)
     end do
-    call sysc(isys)%sc%show_transient_shapes(w%id,1,shp)
+    call win(iview)%sc%show_transient_shapes(w%id,1,shp)
     w%cp%seednew = .false.
 
   end subroutine draw_seed_preview
+
+  !> Show the clip region of the form (CLIP) of system isys in the
+  !> scene of view iview, in the style of the region of the extract
+  !> window: the wireframe of the box (a parallelepiped in crystals,
+  !> from the fractional corners, as AUTO reads them) or a translucent
+  !> sphere.
+  subroutine draw_clip_preview(w,isys,iview)
+    use systems, only: sys
+    use representations, only: rep_shape, shapekind_sphere, shapekind_box
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+
+    integer :: i
+    real*8 :: x0(3), x1(3), v(3,3)
+
+    if (.not.scene_ready(iview)) return
+    associate(c => sys(isys)%c)
+      if (w%cp%iclip == 1) then
+         ! the corners in order (as auto_options writes them), fractional
+         x0 = c%c2x(form_to_cart(isys,min(w%cp%clipx0,w%cp%clipx1)))
+         x1 = c%c2x(form_to_cart(isys,max(w%cp%clipx0,w%cp%clipx1)))
+         do i = 1, 3
+            v(:,i) = c%m_x2c(:,i) * (x1(i) - x0(i))
+         end do
+         call win(iview)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_box,&
+            x1=c%x2c(x0)+c%molx0,v=v,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
+      else
+         x0 = form_to_cart(isys,w%cp%clipx0)
+         call win(iview)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_sphere,&
+            x1=x0+c%molx0,rad=w%cp%cliprad/bohrtoa,rgb=region_rgb,alpha=region_alpha)/))
+      end if
+    end associate
+
+  end subroutine draw_clip_preview
+
+  !> Whether view iview has a scene ready to draw in.
+  function scene_ready(iview) result(ok)
+    integer, intent(in) :: iview
+    logical :: ok
+
+    ok = (iview >= 1 .and. iview <= nwin)
+    if (ok) ok = win(iview)%isopen .and. associated(win(iview)%sc)
+    if (ok) ok = (win(iview)%sc%isinit /= 0)
+
+  end function scene_ready
 
   !> The editing of the CP list, under the results table: delete the
   !> selected CPs, or add one by a search from a point (the center of
@@ -1158,6 +1189,26 @@ contains
     end associate
 
   end function form_coords
+
+  !> The position x in the coordinates of the form of system isys
+  !> (fractional for crystals, Cartesian Å in the frame of the input
+  !> coordinates for molecules) as cell-frame Cartesian bohr: the
+  !> inverse of form_coords.
+  function form_to_cart(isys,x) result(xc)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    real*8, intent(in) :: x(3)
+    real*8 :: xc(3)
+
+    associate(c => sys(isys)%c)
+      if (c%ismolecule) then
+         xc = x / bohrtoa - c%molx0
+      else
+         xc = c%x2c(x)
+      end if
+    end associate
+
+  end function form_to_cart
 
   !> Request the job that adds a CP to the list by a search from xc
   !> (cell-frame Cartesian bohr), for the view iview of system isys.
@@ -1807,7 +1858,8 @@ contains
     if (len_trim(w%cp%discard) > 0) line = line // ' discard "' // trim(w%cp%discard) // '"'
     if (.not.present(point)) then
        if (w%cp%iclip == 1) then
-          line = line // " clip cube" // xstr("",w%cp%clipx0) // xstr("",w%cp%clipx1)
+          line = line // " clip cube" // xstr("",min(w%cp%clipx0,w%cp%clipx1)) //&
+             xstr("",max(w%cp%clipx0,w%cp%clipx1))
        elseif (w%cp%iclip == 2) then
           line = line // " clip sphere" // xstr("",w%cp%clipx0) // " " // rstr(w%cp%cliprad * fl)
        end if
