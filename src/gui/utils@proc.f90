@@ -1868,7 +1868,8 @@ contains
   !> where the user most needs to be told why it cannot be used.
   module subroutine iw_tooltip(str,ttshown,rgba,nowrap,whendisabled)
     use interfaces_cimgui
-    use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled, fontsize
+    use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled, fontsize,&
+       pending_block_window, force_run_commands
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
     real(c_float), intent(in), optional :: rgba(4)
@@ -1880,7 +1881,10 @@ contains
     type(ImVec4) :: col
     logical :: nowrap_
 
-    if (.not.tooltip_enabled) return
+    ! no tooltips once a blocking job was requested: its overlay is
+    ! drawn later in this frame, which stays on the screen during the
+    ! job (and the mouse is still on the button that started it)
+    if (.not.tooltip_enabled .or. pending_block_window > 0 .or. force_run_commands > 0) return
     nowrap_ = .false.
     if (present(nowrap)) nowrap_ = nowrap
     if (present(rgba)) then
