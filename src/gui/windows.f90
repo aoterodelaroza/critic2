@@ -218,6 +218,12 @@ module windows
   integer, parameter :: cpjob_add = 1 ! AUTO from one point, appending to the list
   integer, parameter :: cpjob_delete = 2 ! delete the selected CPs, rebuild the graph
   integer, parameter :: cpjob_export = 3 ! write the CPs to a file (CPREPORT)
+  ! The critical points window: targets of a pick in the view
+  integer, parameter :: cppick_add = 1 ! the point to add a CP from (a bond or a point)
+  integer, parameter :: cppick_x0 = 2 ! the first position of a seed (center, start, position)
+  integer, parameter :: cppick_x1 = 3 ! the end of a LINE seed
+  integer, parameter :: cppick_clipx0 = 4 ! the first CLIP corner, or the CLIP sphere center
+  integer, parameter :: cppick_clipx1 = 5 ! the second CLIP corner
   type cp_seed_ui
      integer :: typ = cpseed_ws ! seed kind
      integer(c_int) :: depth = 1 ! WS/OH subdivision level (0-7)
@@ -273,9 +279,11 @@ module windows
      logical :: expgraph = .false.
      ! editing: the symmetry-unique CPs selected in the results table
      ! (for deletion; size ncp, reset when the CP list changes), and a
-     ! pending pick in the view of the point to add a CP from
+     ! pending pick in the view: the point to add a CP from, or a
+     ! position of the form
      logical, allocatable :: sel(:)
-     logical :: picking = .false.
+     integer :: picking = 0 ! the target of a pending pick in the view (cppick_*, 0 = none)
+     integer :: pickseed = 0 ! seed whose position is picked (cppick_x0, cppick_x1)
      integer :: pickview = 0 ! view the pick was armed on
      type(pairpick) :: pick
      ! results

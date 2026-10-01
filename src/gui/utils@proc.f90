@@ -1679,7 +1679,7 @@ contains
 
     type(ImVec2) :: sz, uv0, uv1
     type(ImVec4) :: tintcol, nobord
-    real(c_float) :: posx, col(4)
+    real(c_float) :: posx, posy, col(4)
     character(kind=c_char,len=:), allocatable, target :: strl
 
     sz = ImVec2(fontsize%y,fontsize%y)
@@ -1688,6 +1688,7 @@ contains
     nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
     call igAlignTextToFramePadding()
     posx = igGetCursorPosX()
+    posy = igGetCursorPosY()
 
     ! invisible button first (captures the click and hover), then draw the
     ! icon (or a text glyph, if the texture is unavailable) on top
@@ -1697,8 +1698,11 @@ contains
     col = rgba
     if (igIsItemHovered(ImGuiHoveredFlags_None)) &
        col(1:3) = rgba(1:3) + (1._c_float-rgba(1:3))*0.4_c_float
+    ! over the button: SameLine returns to the top of the line, which is
+    ! not where the button is if the caller moved the cursor down
     call igSameLine(0._c_float,-1._c_float)
     call igSetCursorPosX(posx)
+    call igSetCursorPosY(posy)
     if (tex /= 0) then
        tintcol = ImVec4(col(1),col(2),col(3),col(4))
        call igImage(int(tex,c_intptr_t),sz,uv0,uv1,tintcol,nobord)

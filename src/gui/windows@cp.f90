@@ -103,6 +103,7 @@ contains
           w%cp%isys = isys
           w%cp%ifield = sys(isys)%iref
           call reset_seeds(w,isys)
+          call cancel_pick(w)
           if (allocated(w%cp%summary)) deallocate(w%cp%summary)
           ! the default export file: <root>.cps.cif (<root>.cif could be the source file)
           w%okfile = okfile_default(isys,"structure","cps.cif")
@@ -110,16 +111,15 @@ contains
        end if
     end if
 
-    ! a pending pick of the point to add a CP from, in the view it was
-    ! armed on; dropped, releasing that view, if the window closes, the
-    ! system is not ready, or the window moved to another view
-    if (w%cp%picking) then
+    ! a pending pick in the view it was armed on (the point to add a CP
+    ! from, or a position of the form); dropped, releasing that view, if
+    ! the window closes, the system is not ready, or the window moved to
+    ! another view
+    if (w%cp%picking > 0) then
        if (goodsys .and. .not.doquit .and. iview == w%cp%pickview) then
-          call poll_add_pick(w,isys,iview)
+          call poll_pick(w,isys,iview)
        else
-          if (w%cp%pickview >= 1 .and. w%cp%pickview <= nwin) &
-             call win(w%cp%pickview)%viewmode_release_forced(w%id)
-          w%cp%picking = .false.
+          call cancel_pick(w)
        end if
     end if
 
@@ -874,7 +874,7 @@ contains
     call iw_tooltip("Search for a critical point from one point, with the advanced options of&
        & the Search tab. The new critical point is added to the list",ttshown)
     errform = form_error(w)
-    if (iw_button("From selection##cpaddsel",disabled=(len(errform) > 0 .or. w%cp%picking))) then
+    if (iw_button("From selection##cpaddsel",disabled=(len(errform) > 0 .or. w%cp%picking > 0))) then
        call sysc(isys)%highlighted_atom_list(nat,iat)
        if (nat == 0) then
           w%errmsg = "Select some atoms first: the search starts at their center"
@@ -894,49 +894,146 @@ contains
        end if
     end if
     call iw_tooltip("Search for a critical point starting at the center of the selected atoms",ttshown)
-    if (iw_button("Pick in view##cpaddpick",sameline=.true.,disabled=(len(errform) > 0 .or. w%cp%picking))) then
-       w%cp%picking = .true.
-       w%cp%pickview = iview
-       call w%cp%pick%arm()
-       call win(iview)%viewmode_set_forced(vm_pick_bond,"Pick a bond or a point to search for a&
-          & critical point from",w%id,acceptempty=.true.)
-    end if
+    if (iw_button("Pick in view##cpaddpick",sameline=.true.,disabled=(len(errform) > 0 .or. w%cp%picking > 0))) &
+       call start_pick(w,iview,cppick_add)
     call iw_tooltip("Search for a critical point starting at a point picked in the view: the middle&
        & of a bond if one is clicked, otherwise the clicked point (on the plane through the center of&
        & the scene)",ttshown)
-    if (w%cp%picking) call iw_text("Click a bond or a point in the view",disabled=.true.,sameline=.true.)
+    if (w%cp%picking == cppick_add) call iw_text("Click a bond or a point in the view",disabled=.true.,sameline=.true.)
     if (len(errform) > 0) call iw_text(errform // " (Search tab, advanced options)",danger=.true.,wrap=.true.)
 
   end subroutine draw_edit_section
 
-  !> Handle the pending pick of the point to add a CP from, commanded
-  !> to view iview (system isys): a picked bond gives its midpoint,
-  !> anything else the clicked point. Then the add job is requested.
-  subroutine poll_add_pick(w,isys,iview)
+  !> Start a pick in view iview of the target kind (cppick_*; iseed =
+  !> the seed, for a seed position). The point to add a CP from is a
+  !> bond (its midpoint) or a point; a position is an atom (its
+  !> position) or a point.
+  subroutine start_pick(w,iview,kind,iseed)
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: iview, kind
+    integer, intent(in), optional :: iseed
+
+    w%cp%picking = kind
+    w%cp%pickseed = 0
+    if (present(iseed)) w%cp%pickseed = iseed
+    w%cp%pickview = iview
+    call w%cp%pick%arm()
+    if (kind == cppick_add) then
+       call win(iview)%viewmode_set_forced(vm_pick_bond,"Pick a bond or a point to search for a&
+          & critical point from",w%id,acceptempty=.true.)
+    else
+       call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick an atom or a point for the position",&
+          w%id,acceptempty=.true.)
+    end if
+
+  end subroutine start_pick
+
+  !> Forget the pending pick of window w, releasing the view.
+  subroutine cancel_pick(w)
+    type(window), intent(inout), target :: w
+
+    if (w%cp%picking == 0) return
+    if (w%cp%pickview >= 1 .and. w%cp%pickview <= nwin) &
+       call win(w%cp%pickview)%viewmode_release_forced(w%id)
+    w%cp%picking = 0
+
+  end subroutine cancel_pick
+
+  !> Forget a pending pick of a seed position (the seeds were deleted
+  !> or reset, so its seed may be gone).
+  subroutine cancel_seed_pick(w)
+    type(window), intent(inout), target :: w
+
+    if (w%cp%picking == cppick_x0 .or. w%cp%picking == cppick_x1) call cancel_pick(w)
+
+  end subroutine cancel_seed_pick
+
+  !> A Pick button on the line of a position widget: it starts a pick
+  !> in view iview of the target kind (cppick_*; iseed = the seed), and
+  !> while that pick is pending a note follows it. id is the ImGui id.
+  subroutine pick_button(w,iview,id,kind,iseed,ttshown)
+    use utils, only: iw_button, iw_tooltip, iw_text
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: iview, kind, iseed
+    character(len=*), intent(in) :: id
+    logical, intent(inout) :: ttshown
+
+    if (iw_button("Pick##" // id,sameline=.true.,disabled=(w%cp%picking > 0))) &
+       call start_pick(w,iview,kind,iseed)
+    call iw_tooltip("Pick the position in the view: click an atom to use its position, or empty&
+       & space to use the clicked point (on the plane through the center of the scene)",ttshown)
+    if (w%cp%picking == kind .and. w%cp%pickseed == iseed) &
+       call iw_text("Click in the view",disabled=.true.,sameline=.true.)
+
+  end subroutine pick_button
+
+  !> Handle the pending pick commanded to view iview (system isys):
+  !> the picked point (cell-frame Cartesian) goes to its target, the
+  !> point to add a CP from (a picked bond gives its midpoint) or a
+  !> position of the form.
+  subroutine poll_pick(w,isys,iview)
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
 
-    integer :: istat
+    integer :: istat, i
     real*8 :: xc(3)
 
     call view_pick_result(iview,w%id,isys,w%cp%pick,istat,xc)
-    if (istat == ipick_point) call request_add(w,isys,iview,xc)
-    if (istat /= ipick_pending) w%cp%picking = .false.
+    if (istat == ipick_point) then
+       i = w%cp%pickseed
+       select case (w%cp%picking)
+       case (cppick_add)
+          call request_add(w,isys,iview,xc)
+       case (cppick_x0)
+          if (i >= 1 .and. i <= size(w%cp%seed)) w%cp%seed(i)%x0 = form_coords(isys,xc)
+       case (cppick_x1)
+          if (i >= 1 .and. i <= size(w%cp%seed)) w%cp%seed(i)%x1 = form_coords(isys,xc)
+       case (cppick_clipx0)
+          w%cp%clipx0 = clip_coords(xc)
+       case (cppick_clipx1)
+          w%cp%clipx1 = clip_coords(xc)
+       end select
+    end if
+    if (istat /= ipick_pending) w%cp%picking = 0
 
-  end subroutine poll_add_pick
+  contains
+    !> A picked CLIP position: in crystals, wrapped to the main cell
+    !> (AUTO wraps the seeds there but tests the region without
+    !> periodicity); a box gets its corners sorted componentwise.
+    function clip_coords(xc) result(x)
+      use systems, only: sys
+      real*8, intent(in) :: xc(3)
+      real*8 :: x(3)
 
-  !> Request the job that adds a CP to the list by a search from xc
-  !> (cell-frame Cartesian bohr), for the view iview of system isys.
-  subroutine request_add(w,isys,iview,xc)
+      real*8 :: xmin(3)
+
+      x = form_coords(isys,xc)
+      if (sys(isys)%c%ismolecule) return
+      x = x - floor(x)
+      if (w%cp%iclip == 1) then
+         if (w%cp%picking == cppick_clipx0) then
+            xmin = min(x,w%cp%clipx1)
+            w%cp%clipx1 = max(x,w%cp%clipx1)
+         else
+            xmin = min(x,w%cp%clipx0)
+            x = max(x,w%cp%clipx0)
+            w%cp%clipx0 = xmin
+            return
+         end if
+         x = xmin
+      end if
+    end function clip_coords
+  end subroutine poll_pick
+
+  !> The position xc (cell-frame Cartesian bohr) in the coordinates of
+  !> the form of system isys: fractional for crystals, Cartesian Å in
+  !> the frame of the input coordinates for molecules.
+  function form_coords(isys,xc) result(x)
     use systems, only: sys
-    use global, only: iunit
-    type(window), intent(inout), target :: w
-    integer, intent(in) :: isys, iview
+    integer, intent(in) :: isys
     real*8, intent(in) :: xc(3)
-
     real*8 :: x(3)
 
-    ! in the coordinates of the form
     associate(c => sys(isys)%c)
       if (c%ismolecule) then
          x = (xc + c%molx0) * bohrtoa
@@ -944,7 +1041,18 @@ contains
          x = c%c2x(xc)
       end if
     end associate
-    call request_job(w,iview,cpjob_add,auto_options(w,isys,iunit,point=x))
+
+  end function form_coords
+
+  !> Request the job that adds a CP to the list by a search from xc
+  !> (cell-frame Cartesian bohr), for the view iview of system isys.
+  subroutine request_add(w,isys,iview,xc)
+    use global, only: iunit
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+    real*8, intent(in) :: xc(3)
+
+    call request_job(w,iview,cpjob_add,auto_options(w,isys,iunit,point=form_coords(isys,xc)))
 
   end subroutine request_add
 
@@ -1087,15 +1195,21 @@ contains
        xcol = igGetCursorPosX() + g%Style%IndentSpacing + seed_label_width(xunit) + 2 * g%Style%ItemSpacing%x
        do i = 1, size(w%cp%seed)
           if (i > 1) call igSeparator()
-          if (draw_seed(w,isys,i,xunit,xcol,ttshown)) idel = i
+          if (draw_seed(w,isys,iview,i,xunit,xcol,ttshown)) idel = i
        end do
        w%cp%seedh = igGetCursorPosY() - g%Style%ItemSpacing%y + g%Style%WindowPadding%y
     end if
     call igEndChild()
-    if (idel > 0) w%cp%seed = [w%cp%seed(:idel-1), w%cp%seed(idel+1:)]
-    if (iw_button("Add seed##cpseedadd")) call add_seed(w,isys,cpseed_point)
-    call iw_tooltip("Add a seed (a point at the center of the system; change its kind above)",ttshown)
-    if (iw_button("Reset seeds##cpseedreset",sameline=.true.)) call reset_seeds(w,isys)
+    if (idel > 0) then
+       w%cp%seed = [w%cp%seed(:idel-1), w%cp%seed(idel+1:)]
+       call cancel_seed_pick(w)
+    end if
+    if (iw_button("Add seeds##cpseedadd")) call add_seed(w,isys,cpseed_point)
+    call iw_tooltip("Add a set of seeds, the points where the CP searches are started from",ttshown)
+    if (iw_button("Reset seeds##cpseedreset",sameline=.true.)) then
+       call reset_seeds(w,isys)
+       call cancel_seed_pick(w)
+    end if
     call iw_tooltip("Go back to the seeding AUTO uses by default for this system",ttshown)
     ldum = iw_checkbox("Show seeds##cpshowseeds",w%cp%showseeds)
     call iw_tooltip("Show the starting points of the searches in the view (grey spheres), after&
@@ -1110,7 +1224,7 @@ contains
     end if
 
     ! advanced options
-    call draw_advanced(w,isys,xunit,ttshown)
+    call draw_advanced(w,isys,iview,xunit,ttshown)
 
     ! run options
     call iw_text("Run",highlight=.true.)
@@ -1157,12 +1271,13 @@ contains
   !> remove it (returns true if pressed), and the parameters that kind
   !> uses, each with its label on the left and the widget at column
   !> xcol. Choosing a kind gives its parameters usable values.
-  function draw_seed(w,isys,i,xunit,xcol,ttshown) result(del)
+  function draw_seed(w,isys,iview,i,xunit,xcol,ttshown) result(del)
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_inputint, iw_dragfloat_real8,&
        iw_close_button
+    use gui_main, only: g
     use tools_io, only: string
     type(window), intent(inout), target :: w
-    integer, intent(in) :: isys, i
+    integer, intent(in) :: isys, iview, i
     character(len=*), intent(in) :: xunit
     real(c_float), intent(in) :: xcol
     logical, intent(inout) :: ttshown
@@ -1175,8 +1290,13 @@ contains
     call iw_text(string(i) // ".",alignframe=.true.)
     call iw_combo_simple("##cpseedkind" // suf,seedkind_names,w%cp%seed(i)%typ,sameline=.true.,&
        changed=ch,tooltips=seedkind_tooltips,ttshown=ttshown)
-    if (ch) call kind_defaults(w,isys,i)
+    if (ch) then
+       call kind_defaults(w,isys,i)
+       if (w%cp%pickseed == i) call cancel_seed_pick(w)
+    end if
+    ! the close icon is one line of text high: centered on the combo frame
     call igSameLine(0._c_float,-1._c_float)
+    call igSetCursorPosY(igGetCursorPosY() + g%Style%FramePadding%y)
     del = iw_close_button("##cpseeddel" // suf)
     call iw_tooltip("Remove this seed",ttshown)
 
@@ -1235,6 +1355,7 @@ contains
          call x0_widget()
          call label("End" // xunit)
          ldum = iw_dragfloat_real8(suf // "x1",x3=s%x1,speed=0.001d0,decimal=4)
+         call pick_button(w,iview,"cppickx1" // string(i),cppick_x1,i,ttshown)
          call label("Points")
          ldum = iw_inputint(suf // "npts",s%npts,width=8)
          s%npts = max(s%npts,2)
@@ -1258,8 +1379,10 @@ contains
       if (present(tt)) call iw_tooltip(tt)
       call igSameLine(xcol,-1._c_float)
     end subroutine label
+    !> The first position of the seed, with its Pick button.
     subroutine x0_widget()
       ldum = iw_dragfloat_real8(suf // "x0",x3=w%cp%seed(i)%x0,speed=0.001d0,decimal=4)
+      call pick_button(w,iview,"cppickx0" // string(i),cppick_x0,i,ttshown)
     end subroutine x0_widget
   end function draw_seed
 
@@ -1267,12 +1390,12 @@ contains
   !> is used only if its checkbox is set (otherwise, AUTO's default).
   !> The labels are in one column (after the checkbox, if any), and the
   !> widgets start at another.
-  subroutine draw_advanced(w,isys,xunit,ttshown)
+  subroutine draw_advanced(w,isys,iview,xunit,ttshown)
     use gui_main, only: g
     use utils, only: iw_tooltip, iw_checkbox, iw_inputtext, iw_dragfloat_real8,&
        iw_combo_simple, iw_text, iw_textwidth
     type(window), intent(inout), target :: w
-    integer, intent(in) :: isys
+    integer, intent(in) :: isys, iview
     character(len=*), intent(in) :: xunit
     logical, intent(inout) :: ttshown
 
@@ -1329,15 +1452,21 @@ contains
           "Only use the seeds inside a box, given by two opposite corners" // c_null_char //&
           "Only use the seeds inside a sphere, given by its center and radius" // c_null_char,&
           ttshown=ttshown)
-       if (ch) call clip_defaults(w,isys)
+       if (ch) then
+          call clip_defaults(w,isys)
+          if (w%cp%picking == cppick_clipx0 .or. w%cp%picking == cppick_clipx1) call cancel_pick(w)
+       end if
        if (w%cp%iclip == 1) then
           call label("Box corner 1" // xunit)
           ldum = iw_dragfloat_real8("##cpclipx0",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
+          call pick_button(w,iview,"cppickclipx0",cppick_clipx0,0,ttshown)
           call label("Box corner 2" // xunit)
           ldum = iw_dragfloat_real8("##cpclipx1",x3=w%cp%clipx1,speed=0.001d0,decimal=4)
+          call pick_button(w,iview,"cppickclipx1",cppick_clipx1,0,ttshown)
        elseif (w%cp%iclip == 2) then
           call label("Center" // xunit)
           ldum = iw_dragfloat_real8("##cpclipx0s",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
+          call pick_button(w,iview,"cppickclipx0s",cppick_clipx0,0,ttshown)
           call label("Radius (Å)")
           ldum = iw_dragfloat_real8("##cpcliprad",x1=w%cp%cliprad,speed=0.01d0,min=0d0,max=100d0,decimal=3)
        end if
