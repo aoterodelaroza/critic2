@@ -37,6 +37,7 @@ contains
   !> itself is done in intgrid_hirshfeld_fields.
   module subroutine hirsh_grid(s,bas)
     use systemmod, only: system
+    use global, only: abort_poll, progress_start, progress_step
     use types, only: basindat
     use tools_io, only: ferror, faterr, uout
     use param, only: icrd_crys
@@ -96,9 +97,12 @@ contains
 
     ! the promolecular density for the reference populations
     call hirsh_cutoffs(s%c,bas%hirsh_n,rcut)
+    call progress_start(bas%n(3)*bas%n(2),"lines")
     !$omp parallel do private(x0,nat,f) firstprivate(nid,dist,lvec) schedule(dynamic)
     do i3 = 1, bas%n(3)
        do i2 = 1, bas%n(2)
+          ! a cancelled calculation (the GUI): the caller stops
+          if (abort_poll()) cycle
           do i1 = 1, bas%n(1)
              x0 = real((/i1,i2,i3/)-1,8) / real(bas%n,8)
              call s%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcut)
@@ -108,6 +112,7 @@ contains
              end do
              bas%f(i1,i2,i3) = f
           end do
+          call progress_step()
        end do
     end do
     !$omp end parallel do
@@ -276,7 +281,7 @@ contains
   !> input line is HIRSHFELD [ITERATIVE] [TOL t.r] [MAXIT n.i].
   module subroutine hirsh_nogrid(line)
     use meshmod, only: mesh
-    use global, only: mesh_type, mesh_level
+    use global, only: mesh_type, mesh_level, abort_requested
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_center, lgetword, ferror, faterr
     use param, only: im_rho
@@ -326,8 +331,12 @@ contains
     do i = 1, sy%c%ncel
        xn(i) = sy%c%spc(sy%c%atcel(i)%is)%z
     end do
-    if (iter) &
+    if (iter .and. .not.abort_requested) &
        call hirsh_iterate(sy%c,xn,tol,maxit,mx=m%x,mw=m%w,mf=m%f(:,1))
+    if (abort_requested) then
+       write (uout,'("+ The calculation was cancelled."/)')
+       return
+    end if
 
     ! populations and volumes of the complete-cell atoms (including their periodic copies)
     allocate(acc(sy%c%ncel,2))
@@ -489,6 +498,7 @@ contains
   !> or its values (mf) on a mesh with points mx (Cartesian) and
   !> weights mw.
   subroutine hirsh_iterate(c,xn,tol,maxit,ncore,gridf,mx,mw,mf)
+    use global, only: abort_poll, progress_start, progress_done
     use crystalmod, only: crystal
     use grid1mod, only: sgrid
     use tools_io, only: uout, string, ioj_right
@@ -537,7 +547,12 @@ contains
     conv = .false.
     niter = maxit
     dmax = 0d0
+    call progress_start(maxit,"iterations")
     do it = 1, maxit
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) exit
+       progress_done = it - 1
+
        ! populations for the current reference densities
        xold = xn
        call hirsh_accumulate(c,xold,acc,gridf,mx,mw,mf)

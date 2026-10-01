@@ -87,7 +87,7 @@ contains
        wintype_console_output, wintype_about, iwin_tree, iwin_view,&
        iwin_console_input, iwin_console_output, iwin_about,&
        stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init
-    use global, only: critic_home
+    use global, only: critic_home, abort_requested
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: string, falloc, fdealloc, ferror, warning
     use param, only: dirsep
@@ -100,6 +100,7 @@ contains
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
+    logical :: cancelled
     character(kind=c_char,len=:), allocatable, target :: strc, file
     integer :: i, j, ludum(10), saveinpcon
     logical :: firstpass, shown
@@ -468,17 +469,23 @@ contains
           shown = .true.
        end if
 
-       ! run commands from the input console
+       ! run commands from the input console (Esc cancels the run;
+       ! with all systems, the systems after the cancelled one too)
        if (force_run_commands == 1) then
+          call begin_cancellable()
           call win(iwin_console_input)%run_commands_ci()
+          cancelled = end_cancellable()
           force_run_commands = 0
        elseif (force_run_commands == 2) then
+          call begin_cancellable()
           saveinpcon = win(iwin_console_input)%isys
           do i = 1, nsys
              win(iwin_console_input)%isys = i
              call win(iwin_console_input)%run_commands_ci()
+             if (abort_requested) exit
           end do
           win(iwin_console_input)%isys = saveinpcon
+          cancelled = end_cancellable()
           force_run_commands = 0
        end if
 

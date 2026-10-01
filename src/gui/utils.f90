@@ -68,6 +68,7 @@ module utils
   public :: iw_setposx_fromend
   public :: iw_setpos_bottomright
   public :: iw_blank_background
+  public :: iw_wait_overlay
   public :: iw_calcheight
   public :: iw_calcwidth
   public :: iw_textwidth
@@ -221,6 +222,11 @@ module utils
      end subroutine iw_setposx_fromend
      module subroutine iw_blank_background()
      end subroutine iw_blank_background
+     module subroutine iw_wait_overlay(title,info,cancellable)
+       character(len=*), intent(in) :: title
+       character(len=*), intent(in) :: info
+       logical, intent(in) :: cancellable
+     end subroutine iw_wait_overlay
      module subroutine iw_setpos_bottomright(ntext,nbutton,ncheck,centered)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton

@@ -863,7 +863,7 @@ contains
     use systemmod, only: sy
     use integration, only: int_output_header, int_output_fields, imtype_bisect
     use global, only: int_gauleg, eval_next, quiet, int_radquad_errprop,&
-       fileroot
+       fileroot, abort_requested, abort_poll, progress_start, progress_done
     use tools_io, only: lgetword, equal, ferror, faterr, string, uout, tictac
     use tools_math, only: good_lebedev
     use types, only: basindat, int_result, out_field
@@ -986,8 +986,16 @@ contains
     call integrals_header(meth,ntheta,nphi,np,cpid,usefiles,pname)
 
     n = 0
+    call progress_start(count(.not.(sy%f(sy%iref)%cp(linmin:linmax)%typ /= sy%f(sy%iref)%typnuc .and.&
+       (/(i,i=linmin,linmax)/) > sy%c%nneq)),"basins")
     do i = linmin, linmax
        if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
+       ! a cancelled calculation (the GUI)
+       if (abort_poll()) then
+          write (uout,'("+ The integration was cancelled."/)')
+          return
+       end if
+       progress_done = n
        n = n + 1
        write (uout,'("+ Integrating CP: ",A)') string(i)
        if (meth == INT_gauleg) then
@@ -996,6 +1004,10 @@ contains
           call integrals_lebedev(atprop(:,n),np,i,usefiles,verbose)
        else
           call ferror('integrals','unknown method',faterr)
+       end if
+       if (abort_requested) then
+          write (uout,'("+ The integration was cancelled."/)')
+          return
        end if
 
        ! arrange results for int_output
@@ -1206,6 +1218,7 @@ contains
   !> to the IAS of the CP cpid (non-equivalent CP list). Adaptive
   !> bracketing + bisection.
   subroutine bisect_msurface(srf,cpid,prec,verbose)
+    use global, only: abort_poll
     use systemmod, only: sy
     use fieldmod, only: type_grid
     use global, only: iunit, iunitname0, dunit0
@@ -1285,6 +1298,8 @@ contains
     !$omp parallel do private(unit,raprox,rother,riaprox,rtry,itry,id1,id2,&
     !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen) schedule(dynamic)
     do j = 1, srf%nv
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) cycle
        nwarn = 0
        ! skip surfed points
        if (srf%r(j) > 0d0) cycle

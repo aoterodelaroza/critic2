@@ -63,7 +63,7 @@ contains
     use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
     use fieldmod, only: type_grid
-    use global, only: eval_next, dunit0, iunit, iunitname0
+    use global, only: eval_next, dunit0, iunit, iunitname0, abort_requested
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
        string, fclose, isinteger, getword
     use types, only: basindat, int_result
@@ -320,6 +320,10 @@ contains
        write (uout,'("* Voronoi integration ")')
        call voronoi_grid(sy,bas)
     endif
+    if (abort_requested) then
+       call cancel_cleanup()
+       return
+    end if
 
     ! Reorder the attractors
     call int_reorder_gridout(sy%f(sy%iref),bas)
@@ -344,12 +348,20 @@ contains
     else
        call intgrid_fields(bas,res)
     end if
+    if (abort_requested) then
+       call cancel_cleanup()
+       return
+    end if
 
     ! localization and delocalization indices
     if (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt) then
        call intgrid_deloc(bas,res)
     elseif (bas%imtype == imtype_hirshfeld) then
        call intgrid_hirshfeld_overlap(bas,res)
+    end if
+    if (abort_requested) then
+       call cancel_cleanup()
+       return
     end if
 
     ! deallocate the basin field
@@ -382,6 +394,15 @@ contains
     endif
     deallocate(res)
 
+  contains
+    !> The calculation was cancelled (the GUI): close the weights file
+    !> and report.
+    subroutine cancel_cleanup()
+
+      if (bas%imtype == imtype_yt .and. bas%luw /= 0) call fclose(bas%luw)
+      write (uout,'("+ The integration was cancelled."/)')
+
+    end subroutine cancel_cleanup
   end subroutine intgrid_driver
 
   !> Do a radial numerical quadrature on the given ray, between the
@@ -499,6 +520,7 @@ contains
   !> caused by IAS inaccuracies.  neval is the number of evaluations of
   !> grdall used. rbeta is a reference radius (beta-sphere).
   module subroutine gauleg_mquad(srf,ntheta,nphi,rbeta,lprop,abserr,neval,iaserr)
+    use global, only: abort_poll
     use systemmod, only: sy
     use surface, only: minisurf
     use tools_math, only: gauleg
@@ -551,6 +573,8 @@ contains
     !$omp private(realnphi,nneval,pprop,perr,piaserr,lerr,v,rprop,rerr,leval,riaserr,ierr) &
     !$omp firstprivate(ppoints,pweights) schedule(dynamic)
     do i = 1, ntheta
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) cycle
        realnphi = int(nphi*abs(sin(tpoints(i))))+1
        call gauleg(0d0,2d0*pi,ppoints,pweights,realnphi)
        nneval = 0
@@ -595,6 +619,7 @@ contains
   !> caused by IAS inaccuracies.  neval is the number of evaluations of
   !> grdall used. rbeta is a reference radius (beta-sphere).
   module subroutine lebedev_mquad(srf,npts,rbeta,lprop,abserr,neval,iaserr)
+    use global, only: abort_poll
     use systemmod, only: sy
     use surface, only: minisurf
     use tools_math, only: select_lebedev
@@ -627,6 +652,8 @@ contains
 
     !$omp parallel do private(rprop,rerr,leval,riaserr,ierr)
     do i = 1, npts
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) cycle
        call int_radialquad(srf%n,srf%th(i),srf%ph(i),rbeta,srf%r(i),&
           rprop,rerr,leval,riaserr,ierr)
        !$omp critical (sum_lebedev_mquad)
@@ -1174,6 +1201,7 @@ contains
   !> Integrate scalar fields in atomic basins. bas = integration driver
   !> data, res(1:npropi) = results.
   subroutine intgrid_fields(bas,res)
+    use global, only: abort_poll, progress_start, progress_done
     use yt, only: ytdata, ytdata_clean, yt_weights
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
@@ -1198,7 +1226,11 @@ contains
 
     first = .true.
     ntot = bas%n(1)*bas%n(2)*bas%n(3)
+    call progress_start(sy%npropi,"properties")
     do k = 1, sy%npropi
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) return
+       progress_done = k - 1
        if (res(k)%done) cycle
        if (.not.sy%propi(k)%used) cycle
        if (sy%propi(k)%itype == itype_v) then

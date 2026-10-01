@@ -72,7 +72,7 @@ contains
     use graphics, only: grhandle
     use surface, only: minisurf
     use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
-       abort_requested, abort_hook, poll_abort, progress_start, progress_step
+       abort_requested, abort_hook, abort_poll, progress_start, progress_step
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -133,7 +133,7 @@ contains
     type(mesh) :: meshseed
     logical :: typeok(4), laux(4)
     type(discard_cp_expr), allocatable :: discard(:)
-    logical :: cancellable, cancel
+    logical :: cancellable
     type(cplist_backup) :: cpback
 
     real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp (grids)
@@ -708,13 +708,10 @@ contains
        ndegenr = 0
        nrun = 0
        call progress_start(nn,"seeds")
-       !$omp parallel do private(ier,x0,x,ok,cancel) schedule(dynamic)
+       !$omp parallel do private(ier,x0,x,ok) schedule(dynamic)
        do i = 1, nn
           ! skip the rest of the seeds if the search was cancelled
-          !$omp atomic read
-          cancel = abort_requested
-          if (cancel) cycle
-          call poll_abort()
+          if (abort_poll()) cycle
 
           !$omp critical (progress)
           nrun = nrun + 1
@@ -2230,7 +2227,7 @@ contains
     use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
     use types, only: scalar_value, field_evaluation_avail, gpathp, cp_gpath
-    use global, only: prunedist, abort_requested, poll_abort, progress_start, progress_step
+    use global, only: prunedist, abort_requested, abort_poll, progress_start, progress_step
     use param, only: pi
     integer :: i, j, k
     integer :: nstep
@@ -2240,7 +2237,6 @@ contains
     real*8 :: dist, xdtemp(3,2), xx(3), plen(2)
     integer :: wcp, ibcp
     integer :: ier, idir
-    logical :: cancel
     type(scalar_value) :: res
     real*8, allocatable :: xdis(:,:,:), xplen(:,:)
     type(gpathp), allocatable :: gp(:)
@@ -2262,14 +2258,11 @@ contains
       call progress_start(count((/(f%isbcp(f%cp(i)),i=1,f%ncp)/)),"bond paths")
 
       ! run over known non-equivalent cps
-      !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp,cancel) schedule(dynamic)
+      !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp) schedule(dynamic)
       do i = 1, f%ncp
          ! skip the rest if the calculation was cancelled: the caller
          ! restores the list (this loop has already written brvec)
-         !$omp atomic read
-         cancel = abort_requested
-         if (cancel) cycle
-         call poll_abort()
+         if (abort_poll()) cycle
          if (f%isbcp(f%cp(i))) then
             ! diagonalize hessian at the bcp, calculate starting points
             ! along the eigenvector of the bond direction

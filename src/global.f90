@@ -213,11 +213,15 @@ module global
      end subroutine critic_setvariables
      module subroutine poll_abort()
      end subroutine poll_abort
+     module function abort_poll() result(abort)
+       logical :: abort
+     end function abort_poll
      module subroutine progress_start(total,what)
        integer, intent(in) :: total
        character*(*), intent(in) :: what
      end subroutine progress_start
-     module subroutine progress_step()
+     module subroutine progress_step(n)
+       integer, intent(in), optional :: n
      end subroutine progress_step
      module subroutine critic_clearvariable(line)
        character*(*), intent(in) :: line

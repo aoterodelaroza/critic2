@@ -95,7 +95,7 @@ contains
     use arithmetic, only: setvariable
     use systemmod, only: sy
     use meshmod, only: mesh
-    use global, only: mesh_type, mesh_level
+    use global, only: mesh_type, mesh_level, abort_requested
     use tools_io, only: string, uout
     use param, only: im_rho
     character*(*), intent(in) :: savevar
@@ -111,6 +111,10 @@ contains
 
     prop(1) = im_rho
     call m%fill(sy%f(sy%iref),prop,.not.sy%c%ismolecule)
+    if (abort_requested) then
+       write (uout,'("+ The calculation was cancelled."/)')
+       return
+    end if
 
     nelec = sum(m%f(:,1) * m%w)
     write (uout,'("+ Volume (bohr^3) = ",A)') string(sum(m%w),'f',14,8)
@@ -125,7 +129,7 @@ contains
     use systemmod, only: sy
     use meshmod, only: mesh
     use fieldmod, only: type_wfn
-    use global, only: mesh_type, mesh_level
+    use global, only: mesh_type, mesh_level, abort_requested
     use tools_io, only: ferror, faterr, getline, uin, ucopy, string, isinteger, isreal,&
        lgetword, equal, uout
     use types, only: realloc
@@ -195,6 +199,10 @@ contains
        prop(n+i) = 100 + imo2(i)
     end do
     call m%fill(sy%f(sy%iref),prop,.false.)
+    if (abort_requested) then
+       write (uout,'("+ The calculation was cancelled."/)')
+       return
+    end if
     deallocate(prop)
 
     lam = 0d0

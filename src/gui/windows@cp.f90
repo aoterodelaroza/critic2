@@ -200,30 +200,16 @@ contains
   !> Draw the overlay shown while the blocking job of the critical
   !> points window runs.
   module subroutine block_cp(w)
-    use gui_main, only: io, g, job_progress_on, job_progress_rect
     use systems, only: sys, sysc, sys_init, ok_system
-    use utils, only: iw_blank_background, iw_text
+    use utils, only: iw_wait_overlay
     use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
 
-    character(len=*), parameter :: escmsg = "Press Esc to cancel."
-    character(len=*), parameter :: progmsg = "Preparing the search..."
-
-    integer(c_int) :: flags
-    type(ImVec2) :: pos, sz, pivot, szt, szi, sze, p0
-    character(kind=c_char,len=:), allocatable, target :: str1, title, info
-    logical(c_bool) :: ldum
-    logical :: cancellable
+    character(len=:), allocatable :: title, info
     integer :: isys
-    real(c_float) :: wid, hbar
 
-    call iw_blank_background()
-
-    ! the title of the overlay: what is being done (a search can be
-    ! cancelled, and shows its progress)
-    cancellable = (w%cp%pending_kind == cpjob_search)
-    job_progress_on = .false.
+    ! what is being done (a search can be cancelled)
     select case (w%cp%pending_kind)
     case (cpjob_add)
        title = "Searching for a critical point..."
@@ -255,53 +241,7 @@ contains
        end select
     end if
 
-    ! a centered window, sized for its contents: it is only drawn in
-    ! one frame, and an auto-resized window is invisible in its first
-    str1 = title // c_null_char
-    call igCalcTextSize(szt,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-    str1 = info // c_null_char
-    call igCalcTextSize(szi,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-    str1 = escmsg // c_null_char
-    call igCalcTextSize(sze,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-    wid = max(szt%x,szi%x)
-    sz%y = szt%y + szi%y + g%Style%ItemSpacing%y
-    if (cancellable) then
-       hbar = igGetFrameHeight()
-       wid = max(wid,sze%x)
-       sz%y = sz%y + hbar + sze%y + 2 * g%Style%ItemSpacing%y
-    end if
-    sz%x = wid + 2 * g%Style%WindowPadding%x
-    sz%y = sz%y + 2 * g%Style%WindowPadding%y
-    pos%x = io%DisplaySize%x * 0.5_c_float
-    pos%y = io%DisplaySize%y * 0.5_c_float
-    pivot%x = 0.5_c_float
-    pivot%y = 0.5_c_float
-    call igSetNextWindowPos(pos,0,pivot)
-    call igSetNextWindowSize(sz,0)
-    flags = ImGuiWindowFlags_NoDecoration
-    flags = ior(flags,ImGuiWindowFlags_NoDocking)
-    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiWindowFlags_NoFocusOnAppearing)
-    flags = ior(flags,ImGuiWindowFlags_NoNav)
-    ldum = .true.
-    str1 = "##popupwaitcp" // c_null_char
-    call igSetNextWindowFocus()
-    if (igBegin(c_loc(str1), ldum, flags)) then
-       call iw_text(title,highlight=.true.)
-       call iw_text(info)
-       if (cancellable) then
-          ! the progress bar, updated by the hook during the job
-          ! (gui_main's cancel_hook, at job_progress_rect)
-          call igGetCursorScreenPos(p0)
-          job_progress_on = .true.
-          job_progress_rect = (/p0%x,p0%y,p0%x+wid,p0%y+hbar/)
-          str1 = progmsg // c_null_char
-          call own_progress_bar(p0%x,p0%y,p0%x+wid,p0%y+hbar,0._c_float,c_loc(str1))
-          call igDummy(ImVec2(wid,hbar))
-          call iw_text(escmsg,danger=.true.)
-       end if
-    end if
-    call igEnd()
+    call iw_wait_overlay(title,info,w%cp%pending_kind == cpjob_search)
 
   end subroutine block_cp
 

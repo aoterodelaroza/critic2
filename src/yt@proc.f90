@@ -37,6 +37,7 @@ contains
   !> within a ditsance of bas%ratom (bohr).
   module subroutine yt_integrate(s,bas)
     use systemmod, only: system
+    use global, only: abort_poll, progress_start, progress_done
     use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: ferror, faterr, fopen_scratch
     use param, only: vsmall, icrd_crys
@@ -56,6 +57,8 @@ contains
     integer :: nid
     real*8 :: dv(3), fval, x(3)
     character(len=:), allocatable :: errmsg
+
+    integer, parameter :: ypollstep = 4096 ! grid points between cancel checks
 
     if (.not.s%isinit) &
        call ferror("yt_integrate","system not initialized",faterr)
@@ -105,7 +108,14 @@ contains
     nlo = 0
     inear = 0
     fnear = 0d0
+    call progress_start(nn,"grid points")
     do ii = nn, 1, -1
+       ! a cancelled calculation (the GUI): the caller stops
+       if (mod(nn-ii,ypollstep) == 0) then
+          if (abort_poll()) return
+          progress_done = nn - ii
+       end if
+
        ! find the number of points with higher density
        nhi = 0
        i = io(ii)

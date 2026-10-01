@@ -35,7 +35,8 @@ contains
     use fieldmod, only: field, type_grid, type_promol
     use struct_drivers, only: struct_write
     use grid1mod, only: agrid
-    use global, only: fileroot, eval_next, dunit0, quiet, iunit, iunitname0
+    use global, only: fileroot, eval_next, dunit0, quiet, iunit, iunitname0, abort_requested,&
+       abort_poll, progress_start, progress_step
     use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
@@ -540,10 +541,12 @@ contains
         ! calculate density, rdg, rhoat
         allocate(rhofragl(nfrag))
         rhofragl = 0d0
+        call progress_start(nstep(1)*nstep(2),"lines")
         !$omp parallel do private (x,res,resg,ehess,dimgrad,rhoatl,&
         !$omp xd,dist,rrho,rrho1,rrho2,iz) firstprivate(rhofragl) schedule(dynamic)
         do i = 0, nstep(1)-1
            do j = 0, nstep(2)-1
+              if (abort_poll()) cycle
               do k = 0, nstep(3)-1
                  x = x0 + i*xmat(:,1) + j*xmat(:,2) + k*xmat(:,3)
 
@@ -600,10 +603,22 @@ contains
                  if (dopromol) rhoat(k,j,i) = rhoatl
                  if (nfrag > 0) rhofrag(k,j,i,1:nfrag) = rhofragl(1:nfrag)
               end do
+              call progress_step()
            end do
         end do
         !$omp end parallel do
         deallocate(rhofragl)
+
+        ! a cancelled calculation (the GUI) leaves the files incomplete
+        if (abort_requested) then
+           call fclose(lugc)
+           call fclose(ludc)
+           call fclose(luvmd)
+           call fclose(ludat)
+           if (dopromol) call fclose(lupc)
+           write (uout,'("+ The calculation was cancelled: the output files are incomplete."/)')
+           return
+        end if
 
         ! save the ncichk file
         if (usechk) call writechk(oname,x0,xmat,nstep,crho,cgrad,rhoat,nfrag,rhofrag)

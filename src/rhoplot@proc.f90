@@ -414,7 +414,8 @@ contains
     use fieldmod, only: type_grid
     use crystalmod, only: crystal
     use grid3mod, only: grid3
-    use global, only: eval_next, dunit0, iunit, fileroot
+    use global, only: eval_next, dunit0, iunit, fileroot, abort_requested, abort_poll,&
+       progress_start, progress_step
     use arithmetic, only: eval
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string, isinteger
@@ -899,9 +900,11 @@ contains
           call faux%end()
        else
           lerrmsg%s = ""
+          call progress_start(nn(3)*nn(2),"lines")
           !$omp parallel do private(xp,res,lappt,lerrs) schedule(dynamic)
           do iz = 0, nn(3)-1
              do iy = 0, nn(2)-1
+                if (abort_poll()) cycle
                 do ix = 0, nn(1)-1
                    xp = x0 + real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
                       + real(iz,8) * xd(:,3)
@@ -946,11 +949,16 @@ contains
                       end if
                    end if
                 end do
+                call progress_step()
              end do
           end do
           !$omp end parallel do
           if (len_trim(lerrmsg%s) > 0) &
              call ferror('rhoplot_cube',lerrmsg%s,faterr)
+          if (abort_requested) then
+             write (uout,'("+ The calculation was cancelled: no file was written."/)')
+             return
+          end if
        end if
        ! cube body
        if (outform == outform_bincube) then
@@ -972,7 +980,8 @@ contains
   !> Calculate properties on a plane.
   module subroutine rhoplot_plane(line)
     use systemmod, only: sy
-    use global, only: eval_next, dunit0, iunit, fileroot, iunitname0, iunit, dunit0
+    use global, only: eval_next, dunit0, iunit, fileroot, iunitname0, iunit, dunit0,&
+       abort_requested, abort_poll, progress_start, progress_step
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
@@ -1228,8 +1237,10 @@ contains
     end if
 
     lerrmsg%s = ""
+    call progress_start(nx,"rows")
     !$omp parallel do private (xp,res,rhopt,lerrs) schedule(dynamic)
     do ix = 1, nx
+       if (abort_poll()) cycle
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
 
@@ -1274,10 +1285,15 @@ contains
              end if
           end if
        end do
+       call progress_step()
     end do
     !$omp end parallel do
     if (len_trim(lerrmsg%s) > 0) &
        call ferror('rhoplot_plane',lerrmsg%s,faterr)
+    if (abort_requested) then
+       write (uout,'("+ The calculation was cancelled: no file was written."/)')
+       return
+    end if
 
     ! open the output
     if (len_trim(outfile) > 0) then

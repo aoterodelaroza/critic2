@@ -77,6 +77,11 @@ contains
     ! Start reading
     ncom = 1
     main: do while (getline(uin,line,ucopy=ucopy,nprompt=ncom))
+       ! a cancelled calculation (the GUI): skip the rest of the input
+       if (abort_requested) then
+          write (uout,'("!! The calculation was cancelled: the rest of the input was not run."/)')
+          exit main
+       end if
        ncom = ncom + 1
        lp=1
        word = lgetword(line,lp)
@@ -1031,6 +1036,20 @@ contains
 
   end subroutine poll_abort
 
+  !> Poll for a cancel request (poll_abort) and return whether the
+  !> running calculation was cancelled. For the loops that can be
+  !> cancelled: "if (abort_poll()) cycle" at the top of each iteration
+  !> (an OpenMP loop cannot exit), and the caller returns early after
+  !> the loop if abort_requested. Thread-safe.
+  module function abort_poll() result(abort)
+    logical :: abort
+
+    call poll_abort()
+    !$omp atomic read
+    abort = abort_requested
+
+  end function abort_poll
+
   !> Start counting the progress of a calculation: total steps of
   !> what (e.g. "seeds"). Call outside parallel regions.
   module subroutine progress_start(total,what)
@@ -1043,11 +1062,17 @@ contains
 
   end subroutine progress_start
 
-  !> One more step of the calculation is done. Thread-safe.
-  module subroutine progress_step()
+  !> One more step (or n more) of the calculation is done.
+  !> Thread-safe.
+  module subroutine progress_step(n)
+    integer, intent(in), optional :: n
 
+    integer :: n_
+
+    n_ = 1
+    if (present(n)) n_ = n
     !$omp atomic update
-    progress_done = progress_done + 1
+    progress_done = progress_done + n_
 
   end subroutine progress_step
 

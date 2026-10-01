@@ -280,83 +280,27 @@ contains
   !> commands in the console input. If allsys, the commands will apply
   !> to all loaded systems.
   module subroutine block_gui_ci(w,allsys)
-    use gui_main, only: io, g
-    use utils, only: iw_text, iw_blank_background
+    use utils, only: iw_wait_overlay
     use param, only: newline
     class(window), intent(inout), target :: w
     logical, intent(in) :: allsys
 
-    integer(c_int) :: flags
-    type(ImVec2) :: sz, pivot
-    character(kind=c_char,len=:), allocatable, target :: str1, text
     character(kind=c_char,len=:), allocatable, target :: csystem, cfield
-    logical(c_bool) :: ldum
+    character(len=:), allocatable :: info
+    integer :: n
 
-    !! blank the background
-    call iw_blank_background()
-
-    !! overlay
-    ! set window position at the center
-    sz%x = io%DisplaySize%x * 0.5_c_float
-    sz%y = io%DisplaySize%y * 0.5_c_float
-    pivot%x = 0.5_c_float
-    pivot%y = 0.5_c_float
-    call igSetNextWindowPos(sz,0,pivot)
-
-    ! get the input details
-    call w%get_input_details_ci(csystem,cfield)
-
-    ! set window size
+    ! the system, field, and input (the input buffer up to its null)
     if (allsys) then
-       text = "...Running critic2 input..." // newline //&
-          "System: <all systems>" // newline //&
-          "Field:  <all reference fields>" // newline //&
-          "Input:  " // newline // inputb
+       info = "System: <all systems>" // newline // "Field:  <all reference fields>"
     else
-       text = "...Running critic2 input..." // newline //&
-          "System: " // csystem // newline //&
-          "Field:  " // cfield // newline //&
-          "Input:  " // newline // inputb
+       call w%get_input_details_ci(csystem,cfield)
+       info = "System: " // csystem // newline // "Field:  " // cfield
     end if
-    call igCalcTextSize(sz,c_loc(text),c_null_ptr,.false._c_bool,-1._c_float)
-    sz%y = sz%y + 2 * g%Style%WindowPadding%y
-    sz%x = sz%x + 2 * g%Style%WindowPadding%x
-    call igSetNextWindowSize(sz,0)
+    n = index(inputb,c_null_char) - 1
+    if (n < 0) n = len(inputb)
+    info = info // newline // "Input:" // newline // inputb(1:n)
 
-    ! draw the window
-    flags = ImGuiWindowFlags_NoDecoration
-    flags = ior(flags,ImGuiWindowFlags_NoDocking)
-    flags = ior(flags,ImGuiWindowFlags_AlwaysAutoResize)
-    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiWindowFlags_NoFocusOnAppearing)
-    flags = ior(flags,ImGuiWindowFlags_NoNav)
-    ldum = .true.
-    str1 = "##popupwait" // c_null_char
-    call igSetNextWindowFocus()
-    if (igBegin(c_loc(str1), ldum, flags)) then
-       sz%x = 0
-       sz%y = 0
-       call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
-       call iw_text("...Running critic2 input...",highlight=.true.)
-       call iw_text("System: ",highlight=.true.)
-       if (allsys) then
-          call iw_text("<all systems>",sameline=.true.)
-       else
-          call iw_text(csystem,sameline=.true.)
-       end if
-       call iw_text("Field:  ",highlight=.true.)
-       if (allsys) then
-          call iw_text("<all reference fields>",sameline=.true.)
-       else
-          call iw_text(cfield,sameline=.true.)
-       end if
-       call iw_text("Input:  ",highlight=.true.)
-       call igIndent(0._c_float)
-       call igTextUnformatted(c_loc(inputb),c_null_ptr)
-       call igPopStyleVar(1_c_int)
-       call igUnindent(0._c_float)
-    end if
-    call igEnd()
+    call iw_wait_overlay("Running critic2 input...",info,.true.)
 
   end subroutine block_gui_ci
 

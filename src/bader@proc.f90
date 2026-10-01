@@ -79,6 +79,7 @@ contains
   !> considered equal if they are within a ditsance of ratom (bohr).
   module subroutine bader_integrate(s,bas,iref)
     use systemmod, only: system
+    use global, only: abort_poll, progress_start, progress_done
     use tools_io, only: faterr, ferror
     use tools_math, only: matinv
     use arithmetic, only: eval
@@ -148,7 +149,14 @@ contains
     volnum = 0
     known = 0
 
+    call progress_start(n(1),"planes")
     do i = 1, n(1)
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) then
+          deallocate(volnum,known,path)
+          return
+       end if
+       progress_done = i - 1
        do j = 1, n(2)
           do k = 1, n(3)
              p = (/i, j, k/)

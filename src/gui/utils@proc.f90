@@ -821,6 +821,75 @@ contains
 
   end subroutine iw_blank_background
 
+  !> The overlay shown while the GUI is blocked by a long calculation
+  !> (a blocking job, drawn in the frame before it runs): a blank
+  !> background and a centered window with the title (highlighted),
+  !> the info lines, and, if the job can be cancelled with Esc
+  !> (gui_main's begin_cancellable), a progress bar (updated during
+  !> the job at job_progress_rect) and the Esc message (in red).
+  module subroutine iw_wait_overlay(title,info,cancellable)
+    use interfaces_cimgui
+    use gui_main, only: io, g, job_progress_on, job_progress_rect
+    character(len=*), intent(in) :: title
+    character(len=*), intent(in) :: info
+    logical, intent(in) :: cancellable
+
+    character(len=*), parameter :: escmsg = "Press Esc to cancel."
+    character(len=*), parameter :: progmsg = "Preparing..."
+
+    integer(c_int) :: flags
+    type(ImVec2) :: pos, sz, pivot, szi, p0
+    character(kind=c_char,len=:), allocatable, target :: str1
+    logical(c_bool) :: ldum
+    real(c_float) :: wid, hbar
+
+    call iw_blank_background()
+    job_progress_on = .false.
+
+    ! a centered window, sized for its contents: it is only drawn in
+    ! one frame, and an auto-resized window is invisible in its first
+    str1 = info // c_null_char
+    call igCalcTextSize(szi,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    wid = max(iw_textwidth(title),szi%x)
+    sz%y = igGetTextLineHeight() + szi%y + g%Style%ItemSpacing%y
+    if (cancellable) then
+       hbar = igGetFrameHeight()
+       wid = max(wid,iw_textwidth(escmsg))
+       sz%y = sz%y + hbar + igGetTextLineHeight() + 2 * g%Style%ItemSpacing%y
+    end if
+    sz%x = wid + 2 * g%Style%WindowPadding%x
+    sz%y = sz%y + 2 * g%Style%WindowPadding%y
+    pos%x = io%DisplaySize%x * 0.5_c_float
+    pos%y = io%DisplaySize%y * 0.5_c_float
+    pivot%x = 0.5_c_float
+    pivot%y = 0.5_c_float
+    call igSetNextWindowPos(pos,0,pivot)
+    call igSetNextWindowSize(sz,0)
+    flags = ImGuiWindowFlags_NoDecoration
+    flags = ior(flags,ImGuiWindowFlags_NoDocking)
+    flags = ior(flags,ImGuiWindowFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiWindowFlags_NoFocusOnAppearing)
+    flags = ior(flags,ImGuiWindowFlags_NoNav)
+    ldum = .true.
+    str1 = "##popupwait" // c_null_char
+    call igSetNextWindowFocus()
+    if (igBegin(c_loc(str1), ldum, flags)) then
+       call iw_text(title,highlight=.true.)
+       call iw_text(info)
+       if (cancellable) then
+          call igGetCursorScreenPos(p0)
+          job_progress_on = .true.
+          job_progress_rect = (/p0%x,p0%y,p0%x+wid,p0%y+hbar/)
+          str1 = progmsg // c_null_char
+          call own_progress_bar(p0%x,p0%y,p0%x+wid,p0%y+hbar,0._c_float,c_loc(str1))
+          call igDummy(ImVec2(wid,hbar))
+          call iw_text(escmsg,danger=.true.)
+       end if
+    end if
+    call igEnd()
+
+  end subroutine iw_wait_overlay
+
   !> Draw the header row of the current table, as igTableHeadersRow
   !> does, except that the headers of the columns listed in icol read
   !> the corresponding entry of shorts -- a list of null-terminated

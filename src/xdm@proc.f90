@@ -1143,7 +1143,7 @@ contains
     use meshmod, only: mesh
     use fieldmod, only: type_wfn, type_dftb
     use grid1mod, only: grid1, agrid
-    use global, only: mesh_type, mesh_level
+    use global, only: mesh_type, mesh_level, abort_requested
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
     use param, only: bohrtoa, im_rho, im_null, im_b, icrd_cart
 
@@ -1218,6 +1218,10 @@ contains
 
     ! fill the mesh with those properties
     call m%fill(sy%f(sy%iref),prop(1:4),.not.sy%c%ismolecule)
+    if (abort_requested) then
+       write (uout,'("+ The calculation was cancelled."/)')
+       return
+    end if
 
     ! fill the promolecular and the atomic densities
     m%f(:,2:3) = 0d0

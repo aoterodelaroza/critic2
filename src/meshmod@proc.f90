@@ -237,6 +237,7 @@ contains
   !> the main cell.
   module subroutine fillmesh(m,ff,prop,periodic)
     use fieldmod, only: field
+    use global, only: abort_poll, progress_start, progress_step
     use tools_io, only: faterr, ferror
     use tools_math, only: bhole
     use types, only: scalar_value, realloc, field_evaluation_avail,&
@@ -251,6 +252,8 @@ contains
     type(scalar_value) :: res
     integer :: i, j, n, nder
     real*8 :: fval, rhos, laps, tau, drhos2, dsigs, quads, br_b, br_alf, br_a
+
+    integer, parameter :: mpollstep = 1024 ! mesh points per progress step
     character*10 :: fder
     type(field_evaluation_avail) :: request, requestmo
 
@@ -289,8 +292,12 @@ contains
        end select
     end do
 
+    call progress_start(m%n,"mesh points")
     !$omp parallel do private(fval,res,fder,rhos,laps,tau,drhos2,dsigs,quads,br_b,br_alf,br_a) schedule(dynamic)
     do i = 1, m%n
+       ! a cancelled calculation (the GUI): the caller stops
+       if (abort_poll()) cycle
+       if (mod(i,mpollstep) == 0) call progress_step(mpollstep)
        if (nder >= 0) then
           call ff%grd(m%x(:,i),request,res,periodic=periodic)
           if (.not.res%satisfied) &
