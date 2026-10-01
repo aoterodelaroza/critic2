@@ -2285,3 +2285,59 @@ static const char font_dejavu_base85[316260+1] =
    "NV10_QZJo5JURW$JtJ2'']6s]?Crv#>U2##TEuP&]XOgLx5*ZuH3=x#EOR8%X@+gLS`ZYuBq*x#Sn^O.&;(Z#AK3`#b2,##g$JJ19I[w#B3)/CcYni0MWZP-B_1>agRVV$hsU([b$###"
    "";
 const char *const_font_dejavu_base85_ptr = &font_dejavu_base85[0];
+
+// Draw a progress bar (fraction frac, with text centered on it) in
+// the rectangle p0-p1 of draw list dl, in the colors of
+// ImGui::ProgressBar.
+static void draw_progress_bar(ImDrawList* dl, ImVec2 p0, ImVec2 p1, float frac, const char* text){
+  ImGuiStyle& style = ImGui::GetStyle();
+  frac = ImSaturate(frac);
+  dl->AddRectFilled(p0, p1, ImGui::GetColorU32(ImGuiCol_FrameBg), style.FrameRounding);
+  if (frac > 0.f)
+    dl->AddRectFilled(p0, ImVec2(p0.x + (p1.x - p0.x) * frac, p1.y),
+                      ImGui::GetColorU32(ImGuiCol_PlotHistogram), style.FrameRounding);
+  ImVec2 ts = ImGui::CalcTextSize(text);
+  dl->AddText(ImVec2(0.5f * (p0.x + p1.x - ts.x), 0.5f * (p0.y + p1.y - ts.y)),
+              ImGui::GetColorU32(ImGuiCol_Text), text);
+}
+
+// Draw a progress bar in the current window (screen coordinates).
+extern "C" void own_progress_bar(float x0, float y0, float x1, float y1, float frac, const char* text){
+  draw_progress_bar(ImGui::GetWindowDrawList(), ImVec2(x0,y0), ImVec2(x1,y1), frac, text);
+}
+
+// The draw data of a progress bar, built outside any ImGui frame
+// (on a draw list of its own) for rendering with the backend: the
+// progress of a blocking job can be shown without starting a frame,
+// which would change the state of the windows. Valid until the next
+// call.
+extern "C" ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, float y1, float frac, const char* text){
+  static ImDrawList* dl = NULL;
+  static ImDrawData dd;
+  ImGuiIO& io = ImGui::GetIO();
+  if (!dl) dl = IM_NEW(ImDrawList)(ImGui::GetDrawListSharedData());
+  dl->_ResetForNewFrame();
+  dl->PushTextureID(io.Fonts->TexID);
+  dl->PushClipRectFullScreen();
+  // cover the bar of the last frame (the frame bg is translucent)
+  ImVec4 bg = ImGui::GetStyle().Colors[ImGuiCol_WindowBg];
+  bg.w = 1.f;
+  dl->AddRectFilled(ImVec2(x0,y0), ImVec2(x1,y1), ImGui::ColorConvertFloat4ToU32(bg));
+  draw_progress_bar(dl, ImVec2(x0,y0), ImVec2(x1,y1), frac, text);
+  dl->PopClipRect();
+  dl->PopTextureID();
+
+  static ImDrawList* lists[1];
+  lists[0] = dl;
+  dd.Clear();
+  dd.Valid = true;
+  dd.CmdLists = lists;
+  dd.CmdListsCount = 1;
+  dd.TotalVtxCount = dl->VtxBuffer.Size;
+  dd.TotalIdxCount = dl->IdxBuffer.Size;
+  ImDrawData* last = ImGui::GetDrawData();
+  dd.DisplayPos = last ? last->DisplayPos : ImVec2(0.f,0.f);
+  dd.DisplaySize = io.DisplaySize;
+  dd.FramebufferScale = io.DisplayFramebufferScale;
+  return &dd;
+}

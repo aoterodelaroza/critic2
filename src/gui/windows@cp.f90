@@ -200,61 +200,83 @@ contains
   !> Draw the overlay shown while the blocking job of the critical
   !> points window runs.
   module subroutine block_cp(w)
-    use gui_main, only: io, g
+    use gui_main, only: io, g, job_progress_on, job_progress_rect
     use systems, only: sys, sysc, sys_init, ok_system
-    use utils, only: iw_blank_background
+    use utils, only: iw_blank_background, iw_text
     use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
 
+    character(len=*), parameter :: escmsg = "Press Esc to cancel."
+    character(len=*), parameter :: progmsg = "Preparing the search..."
+
     integer(c_int) :: flags
-    type(ImVec2) :: pos, sz, pivot
-    character(kind=c_char,len=:), allocatable, target :: str1, text
+    type(ImVec2) :: pos, sz, pivot, szt, szi, sze, p0
+    character(kind=c_char,len=:), allocatable, target :: str1, title, info
     logical(c_bool) :: ldum
+    logical :: cancellable
     integer :: isys
+    real(c_float) :: wid, hbar
 
     call iw_blank_background()
 
-    ! the text of the overlay: what is being done
+    ! the title of the overlay: what is being done (a search can be
+    ! cancelled, and shows its progress)
+    cancellable = (w%cp%pending_kind == cpjob_search)
+    job_progress_on = .false.
     select case (w%cp%pending_kind)
     case (cpjob_add)
-       text = "...Searching for a critical point..."
+       title = "Searching for a critical point..."
     case (cpjob_delete)
-       text = "...Deleting critical points and tracing the bond paths..."
+       title = "Deleting critical points and tracing the bond paths..."
     case (cpjob_export)
-       text = "...Writing the critical points..."
+       title = "Writing the critical points..."
     case (cpjob_estimate)
-       text = "...Estimating the time of the search..."
+       title = "Estimating the time of the search..."
     case default
-       text = "...Searching for critical points (press Esc to cancel)..."
+       title = "Searching for critical points..."
     end select
+
+    ! the system, field, and input
+    info = ""
     isys = w%cp%isys
     if (ok_system(isys,sys_init)) then
-       text = text // newline // "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
+       info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
        if (sys(isys)%goodfield(w%cp%ifield)) &
-          text = text // newline // "Field:  " // string(w%cp%ifield) // ": " //&
+          info = info // newline // "Field:  " // string(w%cp%ifield) // ": " //&
           trim(sys(isys)%f(w%cp%ifield)%name)
     end if
     if (allocated(w%cp%pending_line)) then
        select case (w%cp%pending_kind)
        case (cpjob_search,cpjob_add)
-          text = text // newline // "Input:  AUTO " // w%cp%pending_line
+          info = info // newline // "Input:  AUTO " // w%cp%pending_line
        case (cpjob_export)
-          text = text // newline // "Input:  CPREPORT " // w%cp%pending_line
+          info = info // newline // "Input:  CPREPORT " // w%cp%pending_line
        end select
     end if
-    text = text // c_null_char
 
-    ! a centered window, sized for the text: it is only drawn in one
-    ! frame, and an auto-resized window is invisible in its first
+    ! a centered window, sized for its contents: it is only drawn in
+    ! one frame, and an auto-resized window is invisible in its first
+    str1 = title // c_null_char
+    call igCalcTextSize(szt,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    str1 = info // c_null_char
+    call igCalcTextSize(szi,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    str1 = escmsg // c_null_char
+    call igCalcTextSize(sze,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+    wid = max(szt%x,szi%x)
+    sz%y = szt%y + szi%y + g%Style%ItemSpacing%y
+    if (cancellable) then
+       hbar = igGetFrameHeight()
+       wid = max(wid,sze%x)
+       sz%y = sz%y + hbar + sze%y + 2 * g%Style%ItemSpacing%y
+    end if
+    sz%x = wid + 2 * g%Style%WindowPadding%x
+    sz%y = sz%y + 2 * g%Style%WindowPadding%y
     pos%x = io%DisplaySize%x * 0.5_c_float
     pos%y = io%DisplaySize%y * 0.5_c_float
     pivot%x = 0.5_c_float
     pivot%y = 0.5_c_float
     call igSetNextWindowPos(pos,0,pivot)
-    call igCalcTextSize(sz,c_loc(text),c_null_ptr,.false._c_bool,-1._c_float)
-    sz%x = sz%x + 2 * g%Style%WindowPadding%x
-    sz%y = sz%y + 2 * g%Style%WindowPadding%y
     call igSetNextWindowSize(sz,0)
     flags = ImGuiWindowFlags_NoDecoration
     flags = ior(flags,ImGuiWindowFlags_NoDocking)
@@ -264,8 +286,21 @@ contains
     ldum = .true.
     str1 = "##popupwaitcp" // c_null_char
     call igSetNextWindowFocus()
-    if (igBegin(c_loc(str1), ldum, flags)) &
-       call igTextUnformatted(c_loc(text),c_null_ptr)
+    if (igBegin(c_loc(str1), ldum, flags)) then
+       call iw_text(title,highlight=.true.)
+       call iw_text(info)
+       if (cancellable) then
+          ! the progress bar, updated by the hook during the job
+          ! (gui_main's cancel_hook, at job_progress_rect)
+          call igGetCursorScreenPos(p0)
+          job_progress_on = .true.
+          job_progress_rect = (/p0%x,p0%y,p0%x+wid,p0%y+hbar/)
+          str1 = progmsg // c_null_char
+          call own_progress_bar(p0%x,p0%y,p0%x+wid,p0%y+hbar,0._c_float,c_loc(str1))
+          call igDummy(ImVec2(wid,hbar))
+          call iw_text(escmsg,danger=.true.)
+       end if
+    end if
     call igEnd()
 
   end subroutine block_cp

@@ -60,6 +60,7 @@ submodule (gui_main) proc
   integer :: glfw_errmode = glfwerr_fatal
 
   !xx! private procedures
+  ! subroutine render_draw_data()
   ! subroutine cancel_hook()
   ! subroutine load_dropped_files()
   ! subroutine process_arguments()
@@ -90,7 +91,7 @@ contains
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: string, falloc, fdealloc, ferror, warning
     use param, only: dirsep
-    integer(c_int) :: idum, display_w, display_h, ileft, iright
+    integer(c_int) :: idum, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
     real(c_float) :: treeratio, cscx, cscy
     character(len=64) :: envval
@@ -456,11 +457,7 @@ contains
 
        ! rendering
        call igRender()
-       call glfwGetFramebufferSize(rootwin, display_w, display_h)
-       call glViewport(0, 0, display_w, display_h)
-       call glClearColor(ColorRootBg(1), ColorRootBg(2), ColorRootBg(3), ColorRootBg(4))
-       call glClear(GL_COLOR_BUFFER_BIT)
-       call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData())
+       call render_draw_data()
 
        ! swap buffers
        call glfwSwapBuffers(rootwin)
@@ -586,7 +583,7 @@ contains
   !> the other calculations that check abort_requested call
   !> cancel_hook periodically. Close with end_cancellable.
   module subroutine begin_cancellable()
-    use interfaces_glfw, only: glfwGetKey, GLFW_KEY_ESCAPE
+    use interfaces_glfw, only: glfwGetKey, glfwSwapInterval, GLFW_KEY_ESCAPE
     use global, only: abort_requested, abort_hook
 
     integer(c_int) :: idum
@@ -597,12 +594,17 @@ contains
     abort_hook => cancel_hook
     in_cancellable_job = .true.
 
+    ! no vsync while the progress is drawn: a swap would block the
+    ! master thread, which also does its share of the calculation
+    call glfwSwapInterval(0)
+
   end subroutine begin_cancellable
 
   !> End a blocking job started with begin_cancellable. Returns
   !> whether the job was cancelled; if it was, the Esc key binds are
   !> ignored for a while (the same Esc reaches imgui afterwards).
   module function end_cancellable() result(cancelled)
+    use interfaces_glfw, only: glfwSwapInterval
     use global, only: abort_requested, abort_hook
     logical :: cancelled
 
@@ -610,18 +612,31 @@ contains
     abort_hook => null()
     abort_requested = .false.
     in_cancellable_job = .false.
+    job_progress_on = .false.
+    call glfwSwapInterval(1)
     if (cancelled) esc_swallow = esc_swallow_frames
 
   end function end_cancellable
 
   !> The abort_hook of a cancellable job (called every ~0.1 s, in the
-  !> main thread): process the window events, and cancel the job if
-  !> Esc is pressed or the main window is being closed. The Esc key is
+  !> main thread): process the window events, cancel the job if Esc
+  !> is pressed or the main window is being closed, and show the
+  !> progress of the job (progress_done/progress_total) in the
+  !> overlay's progress bar (job_progress_rect). The screen is the
+  !> last frame drawn again (its draw data are still valid: no frame
+  !> is started during the job) with the bar on top. The Esc key is
   !> fixed: it does not follow the rebinding of BIND_CANCEL.
   subroutine cancel_hook()
+    use interfaces_cimgui, only: own_progress_bar_drawdata, ImGui_ImplOpenGL3_RenderDrawData
     use interfaces_glfw, only: glfwPollEvents, glfwGetKey, glfwWindowShouldClose,&
-       GLFW_KEY_ESCAPE, GLFW_PRESS
-    use global, only: abort_requested
+       glfwGetFramebufferSize, glfwSwapBuffers, GLFW_KEY_ESCAPE, GLFW_PRESS
+    use global, only: abort_requested, progress_done, progress_total, progress_what
+    use tools_io, only: string
+
+    integer, save :: nlast(2) = -1
+    integer(c_int) :: display_w, display_h
+    integer :: ndone, ntot
+    character(kind=c_char,len=:), allocatable, target :: text
 
     call glfwPollEvents()
     if (glfwGetKey(rootwin,GLFW_KEY_ESCAPE) == GLFW_PRESS .or. glfwWindowShouldClose(rootwin) /= 0) then
@@ -629,7 +644,41 @@ contains
        abort_requested = .true.
     end if
 
+    ! the progress, drawn only if it changed and the window is visible
+    ! (a minimized window has no framebuffer)
+    if (.not.job_progress_on) return
+    !$omp atomic read
+    ndone = progress_done
+    ntot = progress_total
+    if (ntot <= 0 .or. (ndone == nlast(1) .and. ntot == nlast(2))) return
+    call glfwGetFramebufferSize(rootwin,display_w,display_h)
+    if (display_w <= 0 .or. display_h <= 0) return
+    nlast = (/ndone,ntot/)
+    text = string(ndone) // " / " // string(ntot) // " " // trim(progress_what) // c_null_char
+    call render_draw_data()
+    call ImGui_ImplOpenGL3_RenderDrawData(own_progress_bar_drawdata(job_progress_rect(1),&
+       job_progress_rect(2),job_progress_rect(3),job_progress_rect(4),&
+       real(ndone,c_float)/real(ntot,c_float),c_loc(text)))
+    call glfwSwapBuffers(rootwin)
+
   end subroutine cancel_hook
+
+  !> Draw the draw data of the last ImGui frame (igRender) on the
+  !> cleared framebuffer, without swapping.
+  subroutine render_draw_data()
+    use interfaces_cimgui, only: igGetDrawData, ImGui_ImplOpenGL3_RenderDrawData
+    use interfaces_glfw, only: glfwGetFramebufferSize
+    use interfaces_opengl3, only: glViewport, glClearColor, glClear, GL_COLOR_BUFFER_BIT
+
+    integer(c_int) :: display_w, display_h
+
+    call glfwGetFramebufferSize(rootwin,display_w,display_h)
+    call glViewport(0,0,display_w,display_h)
+    call glClearColor(ColorRootBg(1),ColorRootBg(2),ColorRootBg(3),ColorRootBg(4))
+    call glClear(GL_COLOR_BUFFER_BIT)
+    call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData())
+
+  end subroutine render_draw_data
 
   !> Load the files dropped on the window (dropped_files) as new
   !> systems.

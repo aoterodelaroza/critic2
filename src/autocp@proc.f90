@@ -72,7 +72,7 @@ contains
     use graphics, only: grhandle
     use surface, only: minisurf
     use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
-       abort_requested, abort_hook, poll_abort
+       abort_requested, abort_hook, poll_abort, progress_start, progress_step
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -707,6 +707,7 @@ contains
        nss = max(nn / 25,1)
        ndegenr = 0
        nrun = 0
+       call progress_start(nn,"seeds")
        !$omp parallel do private(ier,x0,x,ok,cancel) schedule(dynamic)
        do i = 1, nn
           ! skip the rest of the seeds if the search was cancelled
@@ -725,6 +726,7 @@ contains
           ! run newton
           x0 = xseed(:,i)
           call sy%f(sy%iref)%newton(x0,gfnormeps,ier)
+          call progress_step()
 
           if (ier <= 0) then
              ! Check if it's inside the sphere
@@ -2228,7 +2230,7 @@ contains
     use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
     use types, only: scalar_value, field_evaluation_avail, gpathp, cp_gpath
-    use global, only: prunedist, abort_requested, poll_abort
+    use global, only: prunedist, abort_requested, poll_abort, progress_start, progress_step
     use param, only: pi
     integer :: i, j, k
     integer :: nstep
@@ -2257,6 +2259,7 @@ contains
       allocate(xdis(3,2,f%ncp),xplen(2,f%ncp),cpgp(2,f%ncp))
       xdis = 0d0
       xplen = 0d0
+      call progress_start(count((/(f%isbcp(f%cp(i)),i=1,f%ncp)/)),"bond paths")
 
       ! run over known non-equivalent cps
       !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp,cancel) schedule(dynamic)
@@ -2296,6 +2299,7 @@ contains
             f%cp(i)%brvec = xx
             xdis(:,:,i) = xdtemp
             xplen(:,i) = plen
+            call progress_step()
          else
             f%cp(i)%brvec = 0d0
          end if

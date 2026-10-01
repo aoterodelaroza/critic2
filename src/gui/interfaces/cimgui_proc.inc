@@ -2872,3 +2872,17 @@ subroutine ipShowDemoWindow(p_open) bind(c,name="ipShowDemoWindow")
   import c_bool
   logical(c_bool) :: p_open
 end subroutine ipShowDemoWindow
+!xx! own widgets (imgui_own_widgets.cpp)
+! void own_progress_bar(float x0, float y0, float x1, float y1, float frac, const char* text);
+subroutine own_progress_bar(x0,y0,x1,y1,frac,text) bind(c,name="own_progress_bar")
+  import c_float, c_ptr
+  real(c_float), value :: x0, y0, x1, y1, frac
+  type(c_ptr), intent(in), value :: text
+end subroutine own_progress_bar
+! ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, float y1, float frac, const char* text);
+function own_progress_bar_drawdata(x0,y0,x1,y1,frac,text) bind(c,name="own_progress_bar_drawdata")
+  import c_float, c_ptr
+  real(c_float), value :: x0, y0, x1, y1, frac
+  type(c_ptr), intent(in), value :: text
+  type(c_ptr) :: own_progress_bar_drawdata
+end function own_progress_bar_drawdata

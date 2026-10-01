@@ -184,6 +184,12 @@ module global
   end interface
   procedure(abort_hook_proc), pointer :: abort_hook => null() !< checks for a cancel request
   real*8, parameter :: abort_poll_interval = 0.1d0 !< minimum time between calls to the hook (s)
+  ! progress of the running cancellable calculation, shown by the GUI
+  ! (the hook): progress_done of progress_total progress_what. Set
+  ! with progress_start and progress_step (thread-safe).
+  integer :: progress_done = 0
+  integer :: progress_total = 0
+  character(len=32) :: progress_what = ""
 
   interface
      module subroutine critic_main()
@@ -207,6 +213,12 @@ module global
      end subroutine critic_setvariables
      module subroutine poll_abort()
      end subroutine poll_abort
+     module subroutine progress_start(total,what)
+       integer, intent(in) :: total
+       character*(*), intent(in) :: what
+     end subroutine progress_start
+     module subroutine progress_step()
+     end subroutine progress_step
      module subroutine critic_clearvariable(line)
        character*(*), intent(in) :: line
      end subroutine critic_clearvariable

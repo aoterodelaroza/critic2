@@ -1031,6 +1031,26 @@ contains
 
   end subroutine poll_abort
 
+  !> Start counting the progress of a calculation: total steps of
+  !> what (e.g. "seeds"). Call outside parallel regions.
+  module subroutine progress_start(total,what)
+    integer, intent(in) :: total
+    character*(*), intent(in) :: what
+
+    progress_done = 0
+    progress_total = total
+    progress_what = what
+
+  end subroutine progress_start
+
+  !> One more step of the calculation is done. Thread-safe.
+  module subroutine progress_step()
+
+    !$omp atomic update
+    progress_done = progress_done + 1
+
+  end subroutine progress_step
+
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)
     use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_kw
