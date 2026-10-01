@@ -275,6 +275,7 @@ module windows
      character(len=:), allocatable :: seedline
      integer :: seedsys = 0
      real*8 :: seedtime = -1d0
+     logical :: seednew = .false. ! seedx changed since the preview was last built
      ! export: include the gradient paths (GRAPH); the file is w%okfile
      logical :: expgraph = .false.
      ! editing: the symmetry-unique CPs selected in the results table

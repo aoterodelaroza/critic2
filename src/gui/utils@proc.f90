@@ -1345,16 +1345,18 @@ contains
        call igSameLine(0._c_float,g%Style%FramePadding%x)
     end if
 
-    ! "-" button / input field / "+" button (buttons auto-repeat when held). The input field
+    ! "-" button / input field / "+" button (buttons auto-repeat when held); the "_" after
+    ! the "##" keeps a str that starts with "#" from making "###", which would give the
+    ! three the same ID (ImGui hashes only what follows "###"). The input field
     ! reuses iw_inputint so it inherits the notlive/flags handling (and its no-loss commit).
     call igPushButtonRepeat(.true._c_bool)
-    if (iw_button("-##" // str)) ival = ival - 1
+    if (iw_button("-##_" // str)) ival = ival - 1
     if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-    ldum = iw_inputint("##" // str,ival,width=nd,notlive=notlive,flags=flags)
+    ldum = iw_inputint("##_" // str,ival,width=nd,notlive=notlive,flags=flags)
     if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-    if (iw_button("+##" // str)) ival = ival + 1
+    if (iw_button("+##_" // str)) ival = ival + 1
     if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igPopButtonRepeat()
 

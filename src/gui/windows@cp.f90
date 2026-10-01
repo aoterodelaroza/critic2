@@ -157,7 +157,10 @@ contains
     end if
 
     ! the seeds of the form, shown in the view
-    if (goodsys .and. .not.doquit .and. w%cp%showseeds) call show_seed_preview(w,isys)
+    if (goodsys .and. .not.doquit .and. w%cp%showseeds) then
+       call update_seeds(w,isys)
+       call draw_seed_preview(w,isys)
+    end if
 
     ! the CP under the mouse in the results table is highlighted in the view
     if (goodsys) then
@@ -779,24 +782,20 @@ contains
 
   end subroutine draw_export_tab
 
-  !> Show the seeds of the form of window w in the view of system isys,
-  !> computing them again (AUTO, with no search) when the options, the
-  !> system, or its geometry changed. The computation waits for the
-  !> initialization threads of the system to finish, and for the user
-  !> to release the widget being edited (a drag would compute them in
-  !> every frame).
-  subroutine show_seed_preview(w,isys)
+  !> Compute the seeds of the form of window w for system isys again
+  !> (AUTO, with no search) if the options, the system, or its geometry
+  !> changed. The computation waits for the initialization threads of
+  !> the system to finish, and for the user to release the widget being
+  !> edited (a drag would compute them in every frame).
+  subroutine update_seeds(w,isys)
     use autocp, only: autocritic
     use systems, only: sys, sysc, sys_ready, ok_system, are_threads_running
-    use representations, only: rep_shape, shapekind_sphere
     use global, only: iunit
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
-    integer :: i, n
-    logical :: ok, stale, found, newseeds
+    logical :: ok, stale
     character(len=:), allocatable :: line
-    type(rep_shape), allocatable :: shp(:)
     type(auto_context) :: ctx
 
     ! the options (empty if the form cannot make valid ones)
@@ -809,38 +808,50 @@ contains
     stale = .not.allocated(w%cp%seedline)
     if (.not.stale) stale = (w%cp%seedsys /= isys) .or. (w%cp%seedline /= line) .or.&
        (w%cp%seedtime /= sysc(isys)%timelastchange_geometry)
-    newseeds = .false.
-    if (stale .and. ok_system(isys,sys_ready) .and. .not.are_threads_running() .and.&
-       .not.igIsAnyItemActive()) then
-       if (allocated(w%cp%seedx)) deallocate(w%cp%seedx)
-       if (len(line) > 0) then
-          call auto_enter(isys,sys(isys)%iref,ctx)
-          call autocritic(line,ok,seeds=w%cp%seedx)
-          call auto_leave(isys,ctx)
-          if (.not.ok .and. allocated(w%cp%seedx)) deallocate(w%cp%seedx)
-          if (allocated(w%cp%seedx)) w%cp%seedx = w%cp%seedx + spread(sys(isys)%c%molx0,2,size(w%cp%seedx,2))
-       end if
-       w%cp%seedline = line
-       w%cp%seedsys = isys
-       w%cp%seedtime = sysc(isys)%timelastchange_geometry
-       newseeds = .true.
+    if (.not.stale .or. .not.ok_system(isys,sys_ready) .or. are_threads_running() .or.&
+       igIsAnyItemActive()) return
+    if (allocated(w%cp%seedx)) deallocate(w%cp%seedx)
+    if (len(line) > 0) then
+       call auto_enter(isys,sys(isys)%iref,ctx)
+       call autocritic(line,ok,seeds=w%cp%seedx)
+       call auto_leave(isys,ctx)
+       if (.not.ok .and. allocated(w%cp%seedx)) deallocate(w%cp%seedx)
+       if (allocated(w%cp%seedx)) w%cp%seedx = w%cp%seedx + spread(sys(isys)%c%molx0,2,size(w%cp%seedx,2))
     end if
+    w%cp%seedline = line
+    w%cp%seedsys = isys
+    w%cp%seedtime = sysc(isys)%timelastchange_geometry
+    w%cp%seednew = .true.
 
-    ! draw the last seeds computed for this system: keep the shapes in
-    ! the view, and build them again only if they changed or are gone
+  end subroutine update_seeds
+
+  !> Show the last seeds computed for system isys in its view: keep the
+  !> shapes in the view, and build them again only if the seeds changed
+  !> or the shapes are gone.
+  subroutine draw_seed_preview(w,isys)
+    use systems, only: sysc
+    use representations, only: rep_shape, shapekind_sphere
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    integer :: i, n
+    logical :: found
+    type(rep_shape), allocatable :: shp(:)
+
     if (.not.allocated(w%cp%seedx) .or. w%cp%seedsys /= isys) return
     if (sysc(isys)%sc%isinit == 0) return
     n = min(size(w%cp%seedx,2),maxseedshow)
     if (n == 0) return
     call sysc(isys)%sc%show_transient_shapes(w%id,1,found=found)
-    if (found .and. .not.newseeds) return
+    if (found .and. .not.w%cp%seednew) return
     allocate(shp(n))
     do i = 1, n
        shp(i) = rep_shape(kind=shapekind_sphere,x1=w%cp%seedx(:,i),rad=seed_rad,rgb=seed_rgb)
     end do
     call sysc(isys)%sc%show_transient_shapes(w%id,1,shp)
+    w%cp%seednew = .false.
 
-  end subroutine show_seed_preview
+  end subroutine draw_seed_preview
 
   !> The editing of the CP list, under the results table: delete the
   !> selected CPs, or add one by a search from a point (the center of
@@ -949,10 +960,10 @@ contains
   end subroutine cancel_seed_pick
 
   !> A Pick button on the line of a position widget: it starts a pick
-  !> in view iview of the target kind (cppick_*; iseed = the seed), and
-  !> while that pick is pending a note follows it. id is the ImGui id.
+  !> in view iview of the target kind (cppick_*; iseed = the seed). id
+  !> is the ImGui id.
   subroutine pick_button(w,iview,id,kind,iseed,ttshown)
-    use utils, only: iw_button, iw_tooltip, iw_text
+    use utils, only: iw_button, iw_tooltip
     type(window), intent(inout), target :: w
     integer, intent(in) :: iview, kind, iseed
     character(len=*), intent(in) :: id
@@ -962,8 +973,6 @@ contains
        call start_pick(w,iview,kind,iseed)
     call iw_tooltip("Pick the position in the view: click an atom to use its position, or empty&
        & space to use the clicked point (on the plane through the center of the scene)",ttshown)
-    if (w%cp%picking == kind .and. w%cp%pickseed == iseed) &
-       call iw_text("Click in the view",disabled=.true.,sameline=.true.)
 
   end subroutine pick_button
 
@@ -1151,7 +1160,7 @@ contains
     integer(c_int) :: ifield
     logical :: ldum
     real(c_float) :: xcol
-    character(len=:), allocatable :: xunit, errrun
+    character(len=:), allocatable :: xunit, errrun, str2
     character(kind=c_char,len=:), allocatable, target :: str1
     type(ImVec2) :: sz
 
@@ -1214,12 +1223,16 @@ contains
     ldum = iw_checkbox("Show seeds##cpshowseeds",w%cp%showseeds)
     call iw_tooltip("Show the starting points of the searches in the view (grey spheres), after&
        & the pruning and the clipping",ttshown)
-    if (w%cp%showseeds .and. allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
-       if (size(w%cp%seedx,2) > maxseedshow) then
-          call iw_text("(" // string(size(w%cp%seedx,2)) // " seeds, showing " // string(maxseedshow) // ")",&
-             sameline=.true.)
-       else
-          call iw_text("(" // string(size(w%cp%seedx,2)) // " seeds)",sameline=.true.)
+
+    ! the number of seeds the search would start from (a molecular mesh
+    ! is generated only to be shown)
+    if (w%cp%showseeds .or. .not.any(w%cp%seed%typ == cpseed_mesh)) then
+       call update_seeds(w,isys)
+       if (allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
+          str2 = "(" // string(size(w%cp%seedx,2)) // " seeds"
+          if (w%cp%showseeds .and. size(w%cp%seedx,2) > maxseedshow) &
+             str2 = str2 // ", showing " // string(maxseedshow)
+          call iw_text(str2 // ")",sameline=.true.)
        end if
     end if
 
@@ -1272,9 +1285,10 @@ contains
   !> uses, each with its label on the left and the widget at column
   !> xcol. Choosing a kind gives its parameters usable values.
   function draw_seed(w,isys,iview,i,xunit,xcol,ttshown) result(del)
-    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_inputint, iw_dragfloat_real8,&
+    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_intstepper, iw_dragfloat_real8,&
        iw_close_button
     use gui_main, only: g
+    use systems, only: sys
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview, i
@@ -1284,12 +1298,22 @@ contains
     logical :: del
 
     character(len=:), allocatable :: suf, tt
-    logical :: ldum, ch
+    logical :: ldum, ch, ismol
+    integer :: k, kt
 
     suf = "##cpseed" // string(i)
     call iw_text(string(i) // ".",alignframe=.true.)
-    call iw_combo_simple("##cpseedkind" // suf,seedkind_names,w%cp%seed(i)%typ,sameline=.true.,&
-       changed=ch,tooltips=seedkind_tooltips,ttshown=ttshown)
+    ! no Wigner-Seitz cell in a molecule: the list starts at the second
+    ! kind (startsatone keeps typ = cpseed_*)
+    ismol = sys(isys)%c%ismolecule
+    k = 1
+    kt = 1
+    if (ismol) then
+       k = index(seedkind_names,c_null_char) + 1
+       kt = index(seedkind_tooltips,c_null_char) + 1
+    end if
+    call iw_combo_simple("##cpseedkind" // suf,seedkind_names(k:),w%cp%seed(i)%typ,sameline=.true.,&
+       changed=ch,startsatone=ismol,tooltips=seedkind_tooltips(kt:),ttshown=ttshown)
     if (ch) then
        call kind_defaults(w,isys,i)
        if (w%cp%pickseed == i) call cancel_seed_pick(w)
@@ -1306,9 +1330,7 @@ contains
       case (cpseed_ws,cpseed_oh)
          tt = "Number of recursive subdivisions of the region (0 to 7; more seeds at each level)"
          call label("Subdivision level",tt)
-         ldum = iw_inputint(suf // "dep",s%depth,width=8)
-         s%depth = max(0,min(s%depth,maxdepth))
-         call iw_tooltip(tt,ttshown)
+         ldum = iw_intstepper("cpseed" // string(i) // "dep",s%depth,minval=0_c_int,maxval=int(maxdepth,c_int),tooltip=tt)
          call label("Center" // xunit)
          call x0_widget()
          if (s%typ == cpseed_ws) then
@@ -1321,8 +1343,7 @@ contains
             call label("Radius (Å)")
             ldum = iw_dragfloat_real8(suf // "rad",x1=s%rad,speed=0.01d0,min=0.01d0,max=100d0,decimal=3)
             call label("Radial points")
-            ldum = iw_inputint(suf // "nr",s%nr,width=8)
-            s%nr = max(s%nr,1)
+            ldum = iw_intstepper("cpseed" // string(i) // "nr",s%nr,minval=1_c_int,maxval=50_c_int)
          end if
       case (cpseed_sphere)
          call label("Center" // xunit)
@@ -1330,14 +1351,11 @@ contains
          call label("Radius (Å)")
          ldum = iw_dragfloat_real8(suf // "rad",x1=s%rad,speed=0.01d0,min=0.01d0,max=100d0,decimal=3)
          call label("Polar points")
-         ldum = iw_inputint(suf // "nth",s%ntheta,width=8)
+         ldum = iw_intstepper("cpseed" // string(i) // "nth",s%ntheta,minval=1_c_int,maxval=100_c_int)
          call label("Azimuthal points")
-         ldum = iw_inputint(suf // "nph",s%nphi,width=8)
+         ldum = iw_intstepper("cpseed" // string(i) // "nph",s%nphi,minval=1_c_int,maxval=100_c_int)
          call label("Radial points")
-         ldum = iw_inputint(suf // "nr",s%nr,width=8)
-         s%ntheta = max(s%ntheta,1)
-         s%nphi = max(s%nphi,1)
-         s%nr = max(s%nr,1)
+         ldum = iw_intstepper("cpseed" // string(i) // "nr",s%nr,minval=1_c_int,maxval=50_c_int)
       case (cpseed_pair,cpseed_triplet)
          tt = "Only atoms closer than this distance are combined"
          call label("Maximum distance (Å)",tt)
@@ -1346,9 +1364,7 @@ contains
          if (s%typ == cpseed_pair) then
             tt = "Number of seeds on the segment between the two atoms"
             call label("Points per pair",tt)
-            ldum = iw_inputint(suf // "npts",s%npts,width=8)
-            s%npts = max(s%npts,1)
-            call iw_tooltip(tt,ttshown)
+            ldum = iw_intstepper("cpseed" // string(i) // "npts",s%npts,minval=1_c_int,maxval=50_c_int,tooltip=tt)
          end if
       case (cpseed_line)
          call label("Start" // xunit)
@@ -1357,8 +1373,7 @@ contains
          ldum = iw_dragfloat_real8(suf // "x1",x3=s%x1,speed=0.001d0,decimal=4)
          call pick_button(w,iview,"cppickx1" // string(i),cppick_x1,i,ttshown)
          call label("Points")
-         ldum = iw_inputint(suf // "npts",s%npts,width=8)
-         s%npts = max(s%npts,2)
+         ldum = iw_intstepper("cpseed" // string(i) // "npts",s%npts,minval=2_c_int,maxval=10000_c_int)
       case (cpseed_point)
          call label("Position" // xunit)
          call x0_widget()
