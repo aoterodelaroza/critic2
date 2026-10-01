@@ -220,6 +220,8 @@ contains
        text = "...Deleting critical points and tracing the bond paths..."
     case (cpjob_export)
        text = "...Writing the critical points..."
+    case (cpjob_estimate)
+       text = "...Estimating the time of the search..."
     case default
        text = "...Searching for critical points..."
     end select
@@ -231,11 +233,12 @@ contains
           trim(sys(isys)%f(w%cp%ifield)%name)
     end if
     if (allocated(w%cp%pending_line)) then
-       if (w%cp%pending_kind == cpjob_export) then
-          text = text // newline // "Input:  CPREPORT " // w%cp%pending_line
-       elseif (w%cp%pending_kind /= cpjob_delete) then
+       select case (w%cp%pending_kind)
+       case (cpjob_search,cpjob_add)
           text = text // newline // "Input:  AUTO " // w%cp%pending_line
-       end if
+       case (cpjob_export)
+          text = text // newline // "Input:  CPREPORT " // w%cp%pending_line
+       end select
     end if
     text = text // c_null_char
 
@@ -281,7 +284,7 @@ contains
 
     integer :: isys, ifield, iview, ncp0, kind
     type(auto_context) :: ctx
-    logical :: reinit, ldum, ok
+    logical :: reinit, ldum, ok, changes
     character(len=:), allocatable :: cpfile, errmsg
 
     isys = w%cp%isys
@@ -294,6 +297,8 @@ contains
        if (kind == cpjob_delete) then
           ok = allocated(w%cp%sel)
           if (ok) ok = (size(w%cp%sel) == sys(isys)%f(ifield)%ncp)
+       elseif (kind == cpjob_estimate) then
+          ok = allocated(w%cp%seedx) .and. (w%cp%seedsys == isys) .and. (w%cp%seedfield == ifield)
        else
           ok = allocated(w%cp%pending_line)
        end if
@@ -319,6 +324,9 @@ contains
        call cpreport(w%cp%pending_line)
        write (uout,'("* Critical points written to: ",A/)') trim(w%okfile)
        ok = .true.
+    elseif (kind == cpjob_estimate) then
+       call estimate_search(w,isys,ifield)
+       ok = .true.
     else
        call autocritic(w%cp%pending_line,ok,clear=(kind == cpjob_search .and. w%cp%discard_existing))
     end if
@@ -326,7 +334,8 @@ contains
 
     ! the checkpoint, unless disabled (not AUTO's CHK, which reads an
     ! existing checkpoint instead of searching)
-    if (ok .and. .not.w%cp%nochk .and. kind /= cpjob_export) then
+    changes = (kind /= cpjob_export .and. kind /= cpjob_estimate)
+    if (ok .and. .not.w%cp%nochk .and. changes) then
        cpfile = sys(isys)%f(ifield)%chk_cps_file()
        if (len(cpfile) > 0) then
           call sys(isys)%f(ifield)%write_chk_cps(cpfile,errmsg)
@@ -346,9 +355,9 @@ contains
        return
     end if
 
-    ! an export leaves the CP list as it was
-    if (kind == cpjob_export) then
-       call okfile_save_dir(w%okfile)
+    ! an export or an estimate leaves the CP list as it was
+    if (.not.changes) then
+       if (kind == cpjob_export) call okfile_save_dir(w%okfile)
        return
     end if
     call sysc(isys)%post_event(lastchange_cplist)
@@ -795,6 +804,81 @@ contains
 
   end subroutine draw_export_tab
 
+  !> Estimate the wall time of the search from the seeds of the form
+  !> (w%cp%seedx) on field ifield of system isys: run the searches from
+  !> a sample of the seeds, in parallel as AUTO does, until maxsample
+  !> are done or the time budget runs out, and scale the elapsed time
+  !> to all the seeds. The sample follows a golden-ratio sequence, so
+  !> any part of it spreads over the whole seed list (all the seeding
+  !> actions). The bookkeeping of the found CPs and the tracing of the
+  !> bond paths are not included. Sets w%cp%estimate. Called with sy
+  !> and the reference field set (auto_enter).
+  subroutine estimate_search(w,isys,ifield)
+    use systems, only: sys
+    use global, only: eval_next
+    use tools_io, only: string
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, ifield
+
+    integer, parameter :: maxsample = 512
+    real*8, parameter :: budget = 2d0 ! seconds
+    real*8, parameter :: golden = 0.6180339887498949d0
+
+    integer :: n, ns, ndone, k, i, ier, lp
+    integer*8 :: c0, c1, crate
+    real*8 :: gfnormeps, x(3), t, ttot
+    logical :: ok
+
+    ! the gradient norm of a CP, read as AUTO reads it
+    gfnormeps = 1d-12
+    if (w%cp%use_gradeps) then
+       lp = 1
+       ok = eval_next(gfnormeps,w%cp%gradeps,lp)
+    end if
+
+    ! time the searches from the sample
+    n = size(w%cp%seedx,2)
+    ns = min(n,maxsample)
+    ndone = 0
+    call system_clock(c0,crate)
+    !$omp parallel do private(i,x,ier,c1) reduction(+:ndone) schedule(dynamic)
+    do k = 1, ns
+       call system_clock(c1)
+       if (real(c1-c0,8) / real(crate,8) > budget) cycle
+       i = 1 + int(n * modulo(k * golden,1d0))
+       i = min(i,n)
+       x = w%cp%seedx(:,i) - sys(isys)%c%molx0
+       call sys(isys)%f(ifield)%newton(x,gfnormeps,ier)
+       ndone = ndone + 1
+    end do
+    !$omp end parallel do
+    call system_clock(c1)
+    t = real(c1-c0,8) / real(crate,8)
+    ttot = t * real(n,8) / real(max(ndone,1),8)
+
+    w%cp%estimate = "Estimated time: " // duration_string(ttot) // " (timed " //&
+       string(ndone) // " of " // string(n) // " seeds; the bond paths are not included)"
+
+  end subroutine estimate_search
+
+  !> A time interval of t seconds, written in the most convenient units.
+  function duration_string(t) result(str)
+    use tools_io, only: string
+    real*8, intent(in) :: t
+    character(len=:), allocatable :: str
+
+    if (t < 1d0) then
+       str = "less than 1 s"
+    elseif (t < 120d0) then
+       str = "about " // string(nint(t)) // " s"
+    elseif (t < 7200d0) then
+       str = "about " // string(nint(t / 60d0)) // " min"
+    else
+       str = "about " // string(t / 3600d0,'f',decimal=1) // " h"
+    end if
+
+  end function duration_string
+
   !> Compute the seeds of the form of window w for system isys again
   !> (AUTO, with no search) if the options, the system, or its geometry
   !> changed. The computation waits for the initialization threads of
@@ -808,6 +892,7 @@ contains
     integer, intent(in) :: isys
 
     logical :: ok, stale
+    integer :: ifield
     character(len=:), allocatable :: line
     type(auto_context) :: ctx
 
@@ -817,15 +902,22 @@ contains
        if (len(form_error(w)) == 0) line = auto_options(w,isys,iunit)
     end if
 
-    ! compute the seeds again if something changed (absolute frame)
+    ! the field of the window (its pseudopotential charges select the
+    ! atomic grids of MESH seeds)
+    ifield = sys(isys)%iref
+    if (sys(isys)%goodfield(w%cp%ifield)) ifield = w%cp%ifield
+
+    ! compute the seeds again if something changed (absolute frame);
+    ! the time estimate is for the old seeds
     stale = .not.allocated(w%cp%seedline)
     if (.not.stale) stale = (w%cp%seedsys /= isys) .or. (w%cp%seedline /= line) .or.&
-       (w%cp%seedtime /= sysc(isys)%timelastchange_geometry)
+       (w%cp%seedfield /= ifield) .or. (w%cp%seedtime /= sysc(isys)%timelastchange_geometry)
+    if (stale .and. allocated(w%cp%estimate)) deallocate(w%cp%estimate)
     if (.not.stale .or. .not.ok_system(isys,sys_ready) .or. are_threads_running() .or.&
        igIsAnyItemActive()) return
     if (allocated(w%cp%seedx)) deallocate(w%cp%seedx)
     if (len(line) > 0) then
-       call auto_enter(isys,sys(isys)%iref,ctx)
+       call auto_enter(isys,ifield,ctx)
        call autocritic(line,ok,seeds=w%cp%seedx)
        call auto_leave(isys,ctx)
        if (.not.ok .and. allocated(w%cp%seedx)) deallocate(w%cp%seedx)
@@ -833,6 +925,7 @@ contains
     end if
     w%cp%seedline = line
     w%cp%seedsys = isys
+    w%cp%seedfield = ifield
     w%cp%seedtime = sysc(isys)%timelastchange_geometry
     w%cp%seednew = .true.
 
@@ -1171,7 +1264,7 @@ contains
 
     integer :: i, idel
     integer(c_int) :: ifield
-    logical :: ldum
+    logical :: ldum, ok
     real(c_float) :: xcol
     character(len=:), allocatable :: xunit, errrun, str2
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -1268,7 +1361,18 @@ contains
        call request_job(w,iview,cpjob_search,auto_options(w,isys,iunit))
     call iw_tooltip("Search for the critical points (the calculation blocks the interface&
        & until it finishes; the output goes to the output console)",ttshown)
-    if (len(errrun) > 0) call iw_text(errrun,danger=.true.,sameline=.true.)
+    ok = (len(errrun) == 0) .and. allocated(w%cp%seedx) .and. (w%cp%seedsys == isys)
+    if (ok) ok = (size(w%cp%seedx,2) > 0)
+    if (iw_button("Estimate time##cpestimate",sameline=.true.,disabled=.not.ok)) &
+       call request_job(w,iview,cpjob_estimate)
+    call iw_tooltip("Estimate how long the search takes, by timing the searches from a sample&
+       & of the seeds (at most a few seconds). The tracing of the bond paths after the search&
+       & is not included",ttshown)
+    if (len(errrun) > 0) then
+       call iw_text(errrun,danger=.true.,sameline=.true.)
+    elseif (allocated(w%cp%estimate)) then
+       call iw_text(w%cp%estimate,wrap=.true.)
+    end if
 
     ! the result of the last run
     if (allocated(w%cp%summary)) call iw_text(w%cp%summary,wrap=.true.)

@@ -219,6 +219,7 @@ module windows
   integer, parameter :: cpjob_add = 1 ! AUTO from one point, appending to the list
   integer, parameter :: cpjob_delete = 2 ! delete the selected CPs, rebuild the graph
   integer, parameter :: cpjob_export = 3 ! write the CPs to a file (CPREPORT)
+  integer, parameter :: cpjob_estimate = 4 ! time a sample of the searches from the seeds
   ! The critical points window: targets of a pick in the view
   integer, parameter :: cppick_add = 1 ! the point to add a CP from (a bond or a point)
   integer, parameter :: cppick_x0 = 2 ! the first position of a seed (center, start, position)
@@ -272,12 +273,15 @@ module windows
      integer :: pending_kind = cpjob_search ! kind of job (cpjob_*)
      character(len=:), allocatable :: pending_line ! AUTO options of the job (search, add)
      ! seed preview: the seeds (Cartesian, absolute frame, bohr) of the AUTO
-     ! options seedline, for system seedsys at geometry time seedtime
+     ! options seedline, for system seedsys and field seedfield at geometry time seedtime
      real*8, allocatable :: seedx(:,:)
      character(len=:), allocatable :: seedline
      integer :: seedsys = 0
+     integer :: seedfield = 0
      real*8 :: seedtime = -1d0
      logical :: seednew = .false. ! seedx changed since the preview was last built
+     ! estimated time of the search from seedx (text; deallocated when the seeds go stale)
+     character(len=:), allocatable :: estimate
      ! export: include the gradient paths (GRAPH); the file is w%okfile
      logical :: expgraph = .false.
      ! editing: the symmetry-unique CPs selected in the results table
