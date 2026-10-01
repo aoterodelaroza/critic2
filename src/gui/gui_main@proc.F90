@@ -60,6 +60,8 @@ submodule (gui_main) proc
   integer :: glfw_errmode = glfwerr_fatal
 
   !xx! private procedures
+  ! subroutine cancel_hook()
+  ! subroutine load_dropped_files()
   ! subroutine process_arguments()
   ! subroutine process_cancel_bind()
   ! subroutine process_close_bind()
@@ -340,13 +342,25 @@ contains
     firstpass = .true.
     shown = .false.
     do while (glfwWindowShouldClose(rootwin) == 0)
-       ! poll events
+       ! poll events, and load the files dropped during a cancellable job
        call glfwPollEvents()
+       if (ndropped > 0 .and. .not.in_cancellable_job) call load_dropped_files()
 
        ! start the ImGui frame
        call ImGui_ImplOpenGL3_NewFrame()
        call ImGui_ImplGlfw_NewFrame()
        call igNewFrame()
+
+       ! the Esc that cancelled a blocking job is not a key bind event:
+       ! wait until it is released, plus a few frames for the queued
+       ! input events to reach imgui
+       if (esc_swallow > 0) then
+          if (igIsKeyDown(ImGuiKey_Escape)) then
+             esc_swallow = 2
+          else
+             esc_swallow = esc_swallow - 1
+          end if
+       end if
 
        ! calculate default font size
        strc = "A" // c_null_char
@@ -540,10 +554,6 @@ contains
     end subroutine error_callback
     ! void drop_callback(GLFWwindow* window, int count, const char* paths[])
     subroutine drop_callback(window,count,ipaths) bind(c)
-      use systems, only: add_systems_from_name, launch_initialization_thread,&
-         system_shorten_names
-      use global, only: rborder_def
-      use param, only: isformat_r_unknown
       use c_interface_module, only: c_f_string_alloc
       type(c_ptr), value :: window
       integer(c_int), value :: count
@@ -551,17 +561,95 @@ contains
 
       integer :: i
       character(kind=c_char,len=:), allocatable :: file
+      type(dropped_file), allocatable :: aux(:)
 
+      ! queue the files; they are loaded now, or after the cancellable
+      ! job (this callback can run in the middle of it, from cancel_hook)
       if (count < 1) return
+      if (.not.allocated(dropped_files)) allocate(dropped_files(max(count,4)))
+      if (ndropped + count > size(dropped_files)) then
+         allocate(aux(2*(ndropped+count)))
+         aux(1:ndropped) = dropped_files(1:ndropped)
+         call move_alloc(aux,dropped_files)
+      end if
       do i = 1, count
          call c_f_string_alloc(ipaths(i),file)
-         call add_systems_from_name(file,-1,isformat_r_unknown,.false.,rborder_def,.false.)
+         ndropped = ndropped + 1
+         dropped_files(ndropped)%name = file
       end do
-      call launch_initialization_thread()
-      call system_shorten_names()
+      if (.not.in_cancellable_job) call load_dropped_files()
 
     end subroutine drop_callback
   end subroutine gui_start
+
+  !> Start a blocking job that can be cancelled with Esc: AUTO and
+  !> the other calculations that check abort_requested call
+  !> cancel_hook periodically. Close with end_cancellable.
+  module subroutine begin_cancellable()
+    use interfaces_glfw, only: glfwGetKey, GLFW_KEY_ESCAPE
+    use global, only: abort_requested, abort_hook
+
+    integer(c_int) :: idum
+
+    ! clear the sticky-key state of an earlier Esc (GLFW_STICKY_KEYS)
+    idum = glfwGetKey(rootwin,GLFW_KEY_ESCAPE)
+    abort_requested = .false.
+    abort_hook => cancel_hook
+    in_cancellable_job = .true.
+
+  end subroutine begin_cancellable
+
+  !> End a blocking job started with begin_cancellable. Returns
+  !> whether the job was cancelled; if it was, the Esc key binds are
+  !> ignored for a while (the same Esc reaches imgui afterwards).
+  module function end_cancellable() result(cancelled)
+    use global, only: abort_requested, abort_hook
+    logical :: cancelled
+
+    cancelled = abort_requested
+    abort_hook => null()
+    abort_requested = .false.
+    in_cancellable_job = .false.
+    if (cancelled) esc_swallow = esc_swallow_frames
+
+  end function end_cancellable
+
+  !> The abort_hook of a cancellable job (called every ~0.1 s, in the
+  !> main thread): process the window events, and cancel the job if
+  !> Esc is pressed or the main window is being closed. The Esc key is
+  !> fixed: it does not follow the rebinding of BIND_CANCEL.
+  subroutine cancel_hook()
+    use interfaces_glfw, only: glfwPollEvents, glfwGetKey, glfwWindowShouldClose,&
+       GLFW_KEY_ESCAPE, GLFW_PRESS
+    use global, only: abort_requested
+
+    call glfwPollEvents()
+    if (glfwGetKey(rootwin,GLFW_KEY_ESCAPE) == GLFW_PRESS .or. glfwWindowShouldClose(rootwin) /= 0) then
+       !$omp atomic write
+       abort_requested = .true.
+    end if
+
+  end subroutine cancel_hook
+
+  !> Load the files dropped on the window (dropped_files) as new
+  !> systems.
+  subroutine load_dropped_files()
+    use systems, only: add_systems_from_name, launch_initialization_thread,&
+       system_shorten_names
+    use global, only: rborder_def
+    use param, only: isformat_r_unknown
+
+    integer :: i, n
+
+    n = ndropped
+    ndropped = 0
+    do i = 1, n
+       call add_systems_from_name(dropped_files(i)%name,-1,isformat_r_unknown,.false.,rborder_def,.false.)
+    end do
+    call launch_initialization_thread()
+    call system_shorten_names()
+
+  end subroutine load_dropped_files
 
   !> Report a fatal error during GUI start-up and terminate.
   module subroutine gui_fatal_startup(routine,message)

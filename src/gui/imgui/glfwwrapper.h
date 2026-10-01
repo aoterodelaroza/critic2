@@ -34,5 +34,7 @@ extern "C" const int const_GLFW_OPENGL_FORWARD_COMPAT;
 extern "C" const int const_GLFW_OPENGL_CORE_PROFILE;
 extern "C" const int const_GLFW_STICKY_KEYS;
 extern "C" const int const_GLFW_VISIBLE;
+extern "C" const int const_GLFW_KEY_ESCAPE;
+extern "C" const int const_GLFW_PRESS;
 
 #endif

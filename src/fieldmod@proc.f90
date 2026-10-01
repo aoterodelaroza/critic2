@@ -1984,6 +1984,39 @@ contains
 
   end subroutine write_json
 
+  !> Copy the critical point list of the field (the CPs, the complete
+  !> list, and the bond paths) to backup b.
+  module subroutine backup_cplist(f,b)
+    class(field), intent(in) :: f
+    type(cplist_backup), intent(out) :: b
+
+    b%fcp_deferred = f%fcp_deferred
+    b%ncp = f%ncp
+    b%ncpcel = f%ncpcel
+    if (allocated(f%cp)) b%cp = f%cp
+    if (allocated(f%cpcel)) b%cpcel = f%cpcel
+    if (allocated(f%cpgp)) b%cpgp = f%cpgp
+
+  end subroutine backup_cplist
+
+  !> Restore the critical point list of the field from backup b, made
+  !> by backup_cplist. The backup is consumed (its arrays are moved).
+  module subroutine restore_cplist(f,b)
+    class(field), intent(inout) :: f
+    type(cplist_backup), intent(inout) :: b
+
+    f%fcp_deferred = b%fcp_deferred
+    f%ncp = b%ncp
+    f%ncpcel = b%ncpcel
+    if (allocated(f%cp)) deallocate(f%cp)
+    if (allocated(b%cp)) call move_alloc(b%cp,f%cp)
+    if (allocated(f%cpcel)) deallocate(f%cpcel)
+    if (allocated(b%cpcel)) call move_alloc(b%cpcel,f%cpcel)
+    if (allocated(f%cpgp)) deallocate(f%cpgp)
+    if (allocated(b%cpgp)) call move_alloc(b%cpgp,f%cpgp)
+
+  end subroutine restore_cplist
+
   !> Initialize the critical point list with the atoms in the crystal
   !> structure.
   module subroutine init_cplist(f)

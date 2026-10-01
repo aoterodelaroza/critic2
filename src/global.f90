@@ -171,6 +171,20 @@ module global
   integer :: mesh_type !< type of mesh for molecular integrations (see meshmod)
   integer :: mesh_level !< level of mesh for molecular integrations (see meshmod)
 
+  ! cooperative cancellation of long calculations (the GUI): the
+  ! loops that support it call poll_abort, which calls abort_hook (if
+  ! associated) from the master thread at most every
+  ! abort_poll_interval seconds; the hook sets abort_requested to
+  ! cancel the calculation. The command-line program never associates
+  ! the hook.
+  logical, volatile :: abort_requested = .false. !< a cancel was requested
+  abstract interface
+     subroutine abort_hook_proc()
+     end subroutine abort_hook_proc
+  end interface
+  procedure(abort_hook_proc), pointer :: abort_hook => null() !< checks for a cancel request
+  real*8, parameter :: abort_poll_interval = 0.1d0 !< minimum time between calls to the hook (s)
+
   interface
      module subroutine critic_main()
      end subroutine critic_main
@@ -191,6 +205,8 @@ module global
        character*(*), intent(in) :: line
        integer, intent(inout) :: lp
      end subroutine critic_setvariables
+     module subroutine poll_abort()
+     end subroutine poll_abort
      module subroutine critic_clearvariable(line)
        character*(*), intent(in) :: line
      end subroutine critic_clearvariable

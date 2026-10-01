@@ -226,7 +226,7 @@ contains
     case (cpjob_estimate)
        text = "...Estimating the time of the search..."
     case default
-       text = "...Searching for critical points..."
+       text = "...Searching for critical points (press Esc to cancel)..."
     end select
     isys = w%cp%isys
     if (ok_system(isys,sys_init)) then
@@ -280,6 +280,7 @@ contains
   !> is left as it was.
   module subroutine run_cp_pending(w)
     use autocp, only: autocritic, autocritic_graph, cpreport
+    use gui_main, only: begin_cancellable, end_cancellable
     use systems, only: sys, sysc, sys_init, ok_system, launch_initialization_thread,&
        kill_initialization_thread, are_threads_running, lastchange_cplist
     use tools_io, only: uout, string
@@ -287,7 +288,7 @@ contains
 
     integer :: isys, ifield, iview, ncp0, kind
     type(auto_context) :: ctx
-    logical :: reinit, ldum, ok, changes
+    logical :: reinit, ldum, ok, changes, cancelled
     character(len=:), allocatable :: cpfile, errmsg
 
     isys = w%cp%isys
@@ -315,6 +316,7 @@ contains
     reinit = are_threads_running()
     if (reinit) call kill_initialization_thread()
     call auto_enter(isys,ifield,ctx)
+    cancelled = .false.
     ncp0 = sys(isys)%f(ifield)%ncp
     if (kind == cpjob_delete) then
        write (uout,'("* Deleting ",A," critical points (GUI) and tracing the bond paths again")') &
@@ -331,7 +333,11 @@ contains
        call estimate_search(w,isys,ifield)
        ok = .true.
     else
+       ! a search can be cancelled with Esc (begin_cancellable); AUTO then
+       ! leaves the CP list as it was
+       if (kind == cpjob_search) call begin_cancellable()
        call autocritic(w%cp%pending_line,ok,clear=(kind == cpjob_search .and. w%cp%discard_existing))
+       if (kind == cpjob_search) cancelled = end_cancellable()
     end if
     call auto_leave(isys,ctx)
 
@@ -353,7 +359,10 @@ contains
     ! the output, the threads, and the event
     ldum = read_output_uout(.true.)
     if (reinit) call launch_initialization_thread()
-    if (.not.ok) then
+    if (cancelled) then
+       w%errmsg = "The search was cancelled: the critical points are unchanged"
+       return
+    elseif (.not.ok) then
        w%errmsg = "AUTO did not run: the options were rejected (see the output console)"
        return
     end if

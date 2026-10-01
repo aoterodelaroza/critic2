@@ -48,6 +48,18 @@ module fieldmod
   integer, parameter, public :: type_promol_frag = 8 !< promolecular density from a fragment
   integer, parameter, public :: type_ghost = 9 !< a ghost field
 
+  !> A copy of the critical point list of a field (backup_cplist,
+  !> restore_cplist).
+  type cplist_backup
+     logical :: fcp_deferred = .true.
+     integer :: ncp = 0
+     integer :: ncpcel = 0
+     type(cp_type), allocatable :: cp(:)
+     type(cp_type), allocatable :: cpcel(:)
+     type(cp_gpath), allocatable :: cpgp(:,:)
+  end type cplist_backup
+  public :: cplist_backup
+
   !> The field class. A field contains the information necessary to evaluate
   !> a scalar field (like the density, but can be something else) at any point
   !> in the unit cell. The class contains:
@@ -108,6 +120,8 @@ module fieldmod
      procedure :: printinfo !< Print field information to stdout
      procedure :: write_json !< Write field info in JSON format
      procedure :: init_cplist !< Initialize the CP list
+     procedure :: backup_cplist !< Copy the CP list to a backup
+     procedure :: restore_cplist !< Restore the CP list from a backup
      procedure :: init_cplist_deferred !< Calculate the scalar field for nuclei (deferred)
      procedure :: chk_cps_file !< Name of the CP checkpoint file for this field
      procedure :: write_chk_cps !< Write the CP list to a checkpoint file
@@ -254,6 +268,14 @@ module fieldmod
      module subroutine init_cplist(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist
+     module subroutine backup_cplist(f,b)
+       class(field), intent(in) :: f
+       type(cplist_backup), intent(out) :: b
+     end subroutine backup_cplist
+     module subroutine restore_cplist(f,b)
+       class(field), intent(inout) :: f
+       type(cplist_backup), intent(inout) :: b
+     end subroutine restore_cplist
      module subroutine init_cplist_deferred(f)
        class(field), intent(inout) :: f
      end subroutine init_cplist_deferred

@@ -152,6 +152,19 @@ module gui_main
   ! flags to control main's behavior
   integer, public :: force_run_commands = 0 ! execute commands from the input console (0=no,1=only selected,2=all)
   integer, public :: pending_block_window = 0 ! window with a blocking job to run after this frame (0 = none)
+  integer, public :: esc_swallow = 0 ! frames in which the Escape key binds are ignored: the Esc that cancelled a blocking job also reaches ImGui
+  integer, parameter, public :: esc_swallow_frames = 120 ! esc_swallow after a cancel (the queued input events trickle into imgui, one per frame)
+
+  ! a blocking job that can be cancelled with Esc is running
+  ! (begin_cancellable/end_cancellable): the window events are
+  ! processed during it, and the files dropped on the window wait in
+  ! dropped_files until it finishes
+  logical, public :: in_cancellable_job = .false.
+  type dropped_file
+     character(len=:), allocatable :: name
+  end type dropped_file
+  integer :: ndropped = 0
+  type(dropped_file), allocatable :: dropped_files(:)
   logical, public, volatile :: force_quit_threads = .false. ! set to true to force all threads to quit as soon as possible (volatile: written by the main thread, polled by the worker)
 
   ! public procedures
@@ -162,10 +175,17 @@ module gui_main
   public :: set_default_color_settings
   public :: set_default_reader_settings
   public :: show_tools_menu
+  public :: begin_cancellable
+  public :: end_cancellable
 
   interface
      module subroutine gui_start()
      end subroutine gui_start
+     module subroutine begin_cancellable()
+     end subroutine begin_cancellable
+     module function end_cancellable() result(cancelled)
+       logical :: cancelled
+     end function end_cancellable
      module subroutine gui_fatal_startup(routine,message)
        character*(*), intent(in) :: routine
        character*(*), intent(in) :: message

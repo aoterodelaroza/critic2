@@ -269,7 +269,7 @@ contains
   ! mouse).  If norepeat (default: false) the event happens if the key
   ! press is not repeating.
   module function is_bind_event(bind,held,norepeat,iview)
-    use gui_main, only: io
+    use gui_main, only: io, esc_swallow
     use windows, only: win, nwin, iwin_view
     use interfaces_cimgui
     integer, intent(in) :: bind
@@ -295,6 +295,7 @@ contains
     is_bind_event = .false.
     if (bindevent_level > 0) return
     if (bind < 1 .or. bind > BIND_NUM) return
+    if (esc_swallow > 0 .and. keybind(bind) == ImGuiKey_Escape) return
     if (.not.use_keybindings) return
 
     ! get key and mod for this bind, and the current mod

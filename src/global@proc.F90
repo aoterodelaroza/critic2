@@ -1007,6 +1007,30 @@ contains
 
   end subroutine config_write
 
+  !> Give the GUI a chance to request the cancellation of the running
+  !> calculation (abort_requested): call abort_hook, if associated,
+  !> from the master thread only (the hook processes the window events,
+  !> which must happen in the main thread) and at most every
+  !> abort_poll_interval seconds. Safe to call from inside a parallel
+  !> loop.
+  module subroutine poll_abort()
+#ifdef HAVE_OPENMP
+    use omp_lib, only: omp_get_thread_num
+#endif
+    integer*8, save :: clast = 0
+    integer*8 :: c, crate
+
+    if (.not.associated(abort_hook)) return
+#ifdef HAVE_OPENMP
+    if (omp_get_thread_num() /= 0) return
+#endif
+    call system_clock(c,crate)
+    if (real(c - clast,8) / real(crate,8) < abort_poll_interval) return
+    clast = c
+    call abort_hook()
+
+  end subroutine poll_abort
+
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)
     use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_kw

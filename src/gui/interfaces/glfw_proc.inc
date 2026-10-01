@@ -105,6 +105,13 @@ end subroutine glfwSwapBuffers
 ! void glfwPollEvents(void)
 subroutine glfwPollEvents() bind(c,name="glfwPollEvents")
 end subroutine glfwPollEvents
+! int glfwGetKey(GLFWwindow *window, int key)
+function glfwGetKey(window, key) bind(c,name="glfwGetKey")
+  import c_ptr, c_int
+  type(c_ptr), value :: window
+  integer(c_int), value :: key
+  integer(c_int) :: glfwGetKey
+end function glfwGetKey
 ! double glfwGetTime(void)
 function glfwGetTime() bind(c,name="glfwGetTime")
   import c_double

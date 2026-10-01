@@ -11,3 +11,5 @@
   integer(c_int), bind(C,name="const_GLFW_OPENGL_CORE_PROFILE") :: GLFW_OPENGL_CORE_PROFILE
   integer(c_int), bind(C,name="const_GLFW_STICKY_KEYS") :: GLFW_STICKY_KEYS
   integer(c_int), bind(C,name="const_GLFW_VISIBLE") :: GLFW_VISIBLE
+  integer(c_int), bind(C,name="const_GLFW_KEY_ESCAPE") :: GLFW_KEY_ESCAPE
+  integer(c_int), bind(C,name="const_GLFW_PRESS") :: GLFW_PRESS

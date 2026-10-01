@@ -67,11 +67,12 @@ contains
   module subroutine autocritic(line,success,clear,seeds)
     use grid3mod, only: mode_smr
     use systemmod, only: sy
-    use fieldmod, only: type_grid
+    use fieldmod, only: type_grid, cplist_backup
     use meshmod, only: mesh, mesh_level_small, mesh_level_kw
     use graphics, only: grhandle
     use surface, only: minisurf
-    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot
+    use global, only: quiet, cp_hdegen, eval_next, dunit0, iunit, iunitname0, fileroot,&
+       abort_requested, abort_hook, poll_abort
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
@@ -132,6 +133,8 @@ contains
     type(mesh) :: meshseed
     logical :: typeok(4), laux(4)
     type(discard_cp_expr), allocatable :: discard(:)
+    logical :: cancellable, cancel
+    type(cplist_backup) :: cpback
 
     real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp (grids)
 
@@ -683,6 +686,11 @@ contains
        call gr%close()
     endif
 
+    ! a search that can be cancelled (abort_hook) restores the CP list
+    ! of the field if it is
+    cancellable = associated(abort_hook)
+    if (cancellable) call sy%f(sy%iref)%backup_cplist(cpback)
+
     ! Initialize the CP search
     if (present(clear)) then
        if (clear) call sy%f(sy%iref)%init_cplist()
@@ -699,8 +707,14 @@ contains
        nss = max(nn / 25,1)
        ndegenr = 0
        nrun = 0
-       !$omp parallel do private(ier,x0,x,ok) schedule(dynamic)
+       !$omp parallel do private(ier,x0,x,ok,cancel) schedule(dynamic)
        do i = 1, nn
+          ! skip the rest of the seeds if the search was cancelled
+          !$omp atomic read
+          cancel = abort_requested
+          if (cancel) cycle
+          call poll_abort()
+
           !$omp critical (progress)
           nrun = nrun + 1
           if (mod(nrun,nss) == 1) then
@@ -739,6 +753,10 @@ contains
           end if
        end do
        !$omp end parallel do
+       if (cancellable .and. abort_requested) then
+          call cancel_search()
+          return
+       end if
 
        if (ndegenr > 0) then
           call ferror('autocritic',string(ndegenr) // " degenerate critical points discarded.",warning)
@@ -769,6 +787,10 @@ contains
     if (dograph > 0) then
        if (.not.dryrun) then
           call makegraph()
+          if (cancellable .and. abort_requested) then
+             call cancel_search()
+             return
+          end if
        end if
        call graph_short_report()
     end if
@@ -797,6 +819,17 @@ contains
     end if
 
   contains
+    !> The search was cancelled (abort_requested): restore the CP list
+    !> the field had before it, and return without success.
+    subroutine cancel_search()
+
+      call sy%f(sy%iref)%restore_cplist(cpback)
+      write (uout,'("+ The search was cancelled: the list of critical points is unchanged"/)')
+      iclip = 0
+      if (present(success)) success = .false.
+
+    end subroutine cancel_search
+
     !> Mark (keep) the points of mesh m, generated for the current
     !> system, that seed the search: those of the grid of the first
     !> cell atom of each symmetry-unique atom whose nearest atom is that
@@ -2195,7 +2228,7 @@ contains
     use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
     use types, only: scalar_value, field_evaluation_avail, gpathp, cp_gpath
-    use global, only: prunedist
+    use global, only: prunedist, abort_requested, poll_abort
     use param, only: pi
     integer :: i, j, k
     integer :: nstep
@@ -2205,6 +2238,7 @@ contains
     real*8 :: dist, xdtemp(3,2), xx(3), plen(2)
     integer :: wcp, ibcp
     integer :: ier, idir
+    logical :: cancel
     type(scalar_value) :: res
     real*8, allocatable :: xdis(:,:,:), xplen(:,:)
     type(gpathp), allocatable :: gp(:)
@@ -2225,8 +2259,14 @@ contains
       xplen = 0d0
 
       ! run over known non-equivalent cps
-      !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp) schedule(dynamic)
+      !$omp parallel do private(res,evec,reval,idir,xdtemp,nstep,ier,xx,plen,gp,cancel) schedule(dynamic)
       do i = 1, f%ncp
+         ! skip the rest if the calculation was cancelled: the caller
+         ! restores the list (this loop has already written brvec)
+         !$omp atomic read
+         cancel = abort_requested
+         if (cancel) cycle
+         call poll_abort()
          if (f%isbcp(f%cp(i))) then
             ! diagonalize hessian at the bcp, calculate starting points
             ! along the eigenvector of the bond direction
@@ -2261,6 +2301,7 @@ contains
          end if
       end do
       !$omp end parallel do
+      if (abort_requested) return
 
       ! Fill the eigenvectors
       do i = 1, f%ncpcel
