@@ -57,8 +57,8 @@ contains
        BIND_TREE_MOVE_DOWN, BIND_TREE_SELECT_ALL
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext, iw_text,&
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
-       iw_close_button, iw_table_column, iw_table_headers_row, iw_beginmenu, iw_inputfloat,&
-       iw_inputint, iw_checkbox
+       iw_close_button, iw_table_column, iw_table_headers_row, iw_table_sort_specs, iw_beginmenu,&
+       iw_inputfloat, iw_inputint, iw_checkbox
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
@@ -95,9 +95,6 @@ contains
     integer :: nshown, nshown_after_filter, maxprops, nprop, nrow, ithis_row
     logical :: hasfield, hasvib, hasocc, hascps
     logical(c_bool) :: ldum
-    type(c_ptr) :: ptrc
-    type(ImGuiTableSortSpecs), pointer :: sortspecs
-    type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, ok, found, reinit
     integer :: ndrawn ! icons already drawn in the current cell
     logical :: export
@@ -545,22 +542,8 @@ contains
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! fetch the sort specs, sort the data if necessary
-       ptrc = igTableGetSortSpecs()
-       if (c_associated(ptrc)) then
-          call c_f_pointer(ptrc,sortspecs)
-          if (c_associated(sortspecs%Specs)) then
-             call c_f_pointer(sortspecs%Specs,colspecs)
-             w%sortcid = colspecs%ColumnUserID
-             w%sortdir = colspecs%SortDirection
-             if (sortspecs%SpecsDirty .and. nshown > 1) then
-                forcesort = .true.
-                sortspecs%SpecsDirty = .false.
-             end if
-          else
-             w%sortcid = ic_tree_id
-             w%sortdir = 1
-          end if
-       end if
+       if (iw_table_sort_specs(w%sortcid,w%sortdir,int(ic_tree_id,c_int),nshown > 1) .and.&
+          nshown > 1) forcesort = .true.
 
        ! draw the header: one row, with the headers that have to be
        ! shorter than the names the column-visibility popup shows for them

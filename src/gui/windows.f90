@@ -297,6 +297,12 @@ module windows
      ! results
      logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
+     ! results table: the columns shown, by column id (the |gradient|,
+     ! path length, and ellipticity are hidden at first), and whether
+     ! the row order (w%iord) must be recomputed
+     logical :: colshow(0:11) = (/.true.,.true.,.true.,.true.,.true.,.true.,.true.,.false.,&
+        .true.,.true.,.false.,.false./)
+     logical :: sortdirty = .true.
      integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
      integer :: hoverview = 0 ! view whose critical points object has ihover
      ! results table caches, valid for field tfield while the system's

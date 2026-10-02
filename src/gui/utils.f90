@@ -74,6 +74,7 @@ module utils
   public :: iw_textwidth
   public :: iw_table_column
   public :: iw_table_headers_row
+  public :: iw_table_sort_specs
   public :: iw_beginmenu
   public :: iw_begintabitem
   public :: iw_close_event
@@ -234,12 +235,19 @@ module utils
        integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: centered
      end subroutine iw_setpos_bottomright
-     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit)
+     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked)
        integer(c_int), intent(in), optional :: icol(:)
        character(len=*,kind=c_char), intent(in), optional :: shorts
        logical, intent(in), optional :: freezetop
        logical, intent(in), optional :: autofit
+       logical, intent(out), optional :: rclicked
      end subroutine iw_table_headers_row
+     module function iw_table_sort_specs(sortcid,sortdir,defcid,consume) result(dirty)
+       integer(c_int), intent(inout) :: sortcid, sortdir
+       integer(c_int), intent(in) :: defcid
+       logical, intent(in) :: consume
+       logical :: dirty
+     end function iw_table_sort_specs
      module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
        character(len=*,kind=c_char), intent(in) :: label
        integer(c_int), intent(in), optional :: id

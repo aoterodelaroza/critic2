@@ -274,10 +274,10 @@ contains
     use fieldmod, only: cplist_backup
     class(window), intent(inout), target :: w
 
-    integer :: isys, ifield, iview, ncp0, kind
+    integer :: isys, ifield, iview, ncp0, kind, lu, ios
     type(auto_context) :: ctx
     type(cplist_backup) :: cpback
-    logical :: ok, changes, cancelled
+    logical :: ok, changes, cancelled, lex
     character(len=:), allocatable :: cpfile, errmsg
 
     isys = w%cp%isys
@@ -340,7 +340,21 @@ contains
     changes = (kind /= cpjob_export .and. kind /= cpjob_estimate)
     if (ok .and. .not.w%cp%nochk .and. changes) then
        cpfile = sys(isys)%f(ifield)%chk_cps_file()
-       if (len(cpfile) > 0) then
+       if (len(cpfile) == 0) then
+          continue
+       elseif (sys(isys)%f(ifield)%ncp <= sys(isys)%c%nneq) then
+          ! only the nuclei are left: remove the checkpoint instead
+          inquire(file=cpfile,exist=lex)
+          if (lex) then
+             open(newunit=lu,file=cpfile,status="old",iostat=ios)
+             if (ios == 0) close(lu,status="delete",iostat=ios)
+             if (ios == 0) then
+                write (uout,'("* Checkpoint file removed: ",A/)') cpfile
+             else
+                write (uout,'("!! Warning !! Could not remove the checkpoint ",A)') cpfile
+             end if
+          end if
+       else
           call sys(isys)%f(ifield)%write_chk_cps(cpfile,errmsg)
           if (len_trim(errmsg) > 0) then
              write (uout,'("!! Warning !! Could not write the checkpoint ",A,": ",A)') cpfile, errmsg
@@ -398,7 +412,7 @@ contains
     use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
        iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_cell_right,&
-       iw_close_button
+       iw_close_button, iw_table_sort_specs, iw_helpermark
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
@@ -409,10 +423,16 @@ contains
     integer(c_int), parameter :: ic_del = 0, ic_cp = 1, ic_x = 2, ic_y = 3, ic_z = 4, ic_wyc = 5,&
        ic_f = 6, ic_grad = 7, ic_lap = 8, ic_ends = 9, ic_path = 10, ic_ellip = 11, ic_NUMCOLUMNS = 12
 
-    integer :: n, k, ifield, ihnuc(2)
-    integer(c_int) :: itable, flags, fwyc, fhid, fnohide
-    logical :: ch, cell, ismol, havespg
+    ! the columns that can be shown or hidden, in menu order, and the
+    ! tooltips of their entries in the header menu
+    integer(c_int), parameter :: icmenu(10) = (/ic_x,ic_y,ic_z,ic_wyc,ic_f,ic_grad,ic_lap,&
+       ic_ends,ic_path,ic_ellip/)
+
+    integer :: n, k, ifield, ihnuc(2), j
+    integer(c_int) :: itable, flags, fixed
+    logical :: ch, cell, ismol, havespg, rclick
     character(kind=c_char,len=:), allocatable, target :: str1
+    character(len=16) :: colname(0:ic_NUMCOLUMNS-1)
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     type(ImVec2) :: sz
@@ -437,14 +457,26 @@ contains
             c_null_char,ttshown=ttshown)
          if (ch) then
             w%cp%tablecell = int(itable)
-            w%lastselected = 0
+            w%cp%sortdirty = .true.
          end if
          cell = (w%cp%tablecell == 1)
       end if
       n = merge(f%ncpcel,f%ncp,cell)
       call draw_cp_summary(isys,ifield)
+      call iw_helpermark("Right-click the header of the table to show more properties of the&
+         & critical points (gradient norm, bond path length, bond ellipticity) or hide columns.&
+         & Click a header to sort the table by that column.",sameline=.true.)
 
-      ! the columns can be shown and hidden by right-clicking the header
+      ! the column names: fractional coordinates for crystals,
+      ! Cartesian for molecules
+      havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
+      colname = (/character(len=16) :: "(delete)","CP","x","y","z",merge("Wyc","Mul",havespg),&
+         "Field","|Gradient|","Laplacian","Endpoints","Path (Å)","Ellipticity"/)
+      if (ismol) colname(ic_x:ic_z) = (/"x (Å)","y (Å)","z (Å)"/)
+
+      ! the columns can be shown and hidden by right-clicking the
+      ! header (with our own menu, which has tooltips), and the rows
+      ! sorted by clicking it
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
       flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -452,7 +484,7 @@ contains
       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
       flags = ior(flags,ImGuiTableFlags_ScrollX)
       flags = ior(flags,ImGuiTableFlags_ScrollY)
-      flags = ior(flags,ImGuiTableFlags_Hideable)
+      flags = ior(flags,ImGuiTableFlags_Sortable)
       str1 = "##tablecpresults" // c_null_char
       ! the rest of the window, as the tables of the geometry window,
       ! leaving room for the selection buttons, a message, and Close
@@ -460,35 +492,27 @@ contains
       sz%x = 0._c_float
       sz%y = sz%y - iw_calcheight(3,0,.true.)
       if (igBeginTable(c_loc(str1),ic_NUMCOLUMNS,flags,sz,0._c_float)) then
-         ! the Wyckoff positions only for the symmetry-unique CPs of a
-         ! crystal (a disabled column is not drawn or offered in the
-         ! header menu, and the visibility of the others is kept)
-         fwyc = ImGuiTableColumnFlags_WidthFixed
-         if (ismol .or. cell) fwyc = ior(fwyc,ImGuiTableColumnFlags_Disabled)
-         havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
-         fhid = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_DefaultHide)
-         fnohide = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_NoHide)
-         call iw_table_column("(delete)##cpdelcol",id=ic_del,flags=ior(fnohide,&
-            ImGuiTableColumnFlags_NoHeaderLabel))
-         call iw_table_column("CP",id=ic_cp,flags=fnohide)
-         ! the position: fractional for crystals, Cartesian for molecules
-         if (ismol) then
-            call iw_table_column("x (Å)",id=ic_x,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("y (Å)",id=ic_y,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("z (Å)",id=ic_z,flags=ImGuiTableColumnFlags_WidthFixed)
-         else
-            call iw_table_column("x",id=ic_x,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("y",id=ic_y,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("z",id=ic_z,flags=ImGuiTableColumnFlags_WidthFixed)
+         ! a disabled column is not drawn: the hidden ones, and the
+         ! Wyckoff positions except for the symmetry-unique CPs of a
+         ! crystal
+         do j = 0, ic_NUMCOLUMNS-1
+            fixed = ImGuiTableColumnFlags_WidthFixed
+            if (j == ic_del) fixed = ior(fixed,ior(ImGuiTableColumnFlags_NoHeaderLabel,&
+               ImGuiTableColumnFlags_NoSort))
+            if (j == ic_ends) fixed = ior(fixed,ImGuiTableColumnFlags_NoSort)
+            if (.not.column_on(j)) fixed = ior(fixed,ImGuiTableColumnFlags_Disabled)
+            call iw_table_column(trim(colname(j)),id=j,flags=fixed)
+         end do
+         call iw_table_headers_row(freezetop=.true.,autofit=.true.,rclicked=rclick)
+         call header_menu(rclick)
+
+         ! the row order (by the CP column if none is sorted)
+         if (iw_table_sort_specs(w%sortcid,w%sortdir,ic_cp,.true.)) w%cp%sortdirty = .true.
+         if (w%cp%sortdirty .or. .not.allocated(w%iord)) then
+            call sort_rows()
+         elseif (size(w%iord) /= n) then
+            call sort_rows()
          end if
-         call iw_table_column(merge("Wyc","Mul",havespg),id=ic_wyc,flags=fwyc)
-         call iw_table_column("Field",id=ic_f,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("|Gradient|",id=ic_grad,flags=fhid)
-         call iw_table_column("Laplacian",id=ic_lap,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Endpoints",id=ic_ends,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Path (Å)",id=ic_path,flags=fhid)
-         call iw_table_column("Ellipticity",id=ic_ellip,flags=fhid)
-         call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
          clipper = ImGuiListClipper_ImGuiListClipper()
          call ImGuiListClipper_Begin(clipper,n,-1._c_float)
@@ -496,10 +520,11 @@ contains
             call c_f_pointer(clipper,clipper_f)
             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+               j = w%iord(k)
                if (cell) then
-                  call draw_cp_row(k,f%cpcel(k)%idx,k)
+                  call draw_cp_row(k,f%cpcel(j)%idx,j)
                else
-                  call draw_cp_row(k,k,0)
+                  call draw_cp_row(k,j,0)
                end if
             end do
          end do
@@ -517,20 +542,215 @@ contains
        call sysc(isys)%highlight_atoms(.true.,ihnuc(1:1),ihnuc(2),reshape(ColorHighlightScene,(/4,1/)))
 
   contains
-    !> Row k of the table: symmetry-unique CP i (icp = 0) or cell CP
-    !> icp, a copy of symmetry-unique CP i. The properties are those of
-    !> the symmetry-unique CP.
-    subroutine draw_cp_row(k,i,icp)
+    !> Whether column j of the table can be shown: there are no
+    !> Wyckoff positions for molecules or the cell list.
+    logical function available(j)
+      integer(c_int), intent(in) :: j
+
+      available = (j /= ic_wyc .or. (.not.ismol .and. .not.cell))
+
+    end function available
+
+    !> Whether column j of the table is drawn.
+    logical function column_on(j)
+      integer(c_int), intent(in) :: j
+
+      column_on = w%cp%colshow(j) .and. available(j)
+
+    end function column_on
+
+    !> The popup that shows and hides the columns, opened by
+    !> right-clicking the header (rclick). It stays open while the
+    !> columns are toggled.
+    subroutine header_menu(rclick)
+      use utils, only: iw_menuitem
+      logical, intent(in) :: rclick
+
+      integer :: m
+      integer(c_int) :: jc
+      character(kind=c_char,len=:), allocatable, target :: strpop
+      character(len=:), allocatable :: tt
+
+      strpop = "##cpcolumnmenu" // c_null_char
+      if (rclick) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
+      if (igBeginPopup(c_loc(strpop),ImGuiWindowFlags_None)) then
+         call igPushItemFlag(ImGuiItemFlags_SelectableDontClosePopup,.true._c_bool)
+         do m = 1, size(icmenu)
+            jc = icmenu(m)
+            if (.not.available(jc)) cycle
+            if (iw_menuitem(trim(colname(jc)),selected=w%cp%colshow(jc))) &
+               w%cp%colshow(jc) = .not.w%cp%colshow(jc)
+            select case (jc)
+            case (ic_x,ic_y,ic_z)
+               if (ismol) then
+                  tt = "Cartesian coordinate of the critical point (Å)"
+               else
+                  tt = "Crystallographic (fractional) coordinate of the critical point"
+               end if
+            case (ic_wyc)
+               if (havespg) then
+                  tt = "Wyckoff position: the multiplicity (number of copies in the unit cell)&
+                     & and the Wyckoff letter"
+               else
+                  tt = "Multiplicity: the number of copies of the critical point in the unit cell"
+               end if
+            case (ic_f)
+               tt = "Value of the field at the critical point"
+            case (ic_grad)
+               tt = "Norm of the gradient of the field at the critical point (zero up to&
+                  & the convergence threshold of the search)"
+            case (ic_lap)
+               tt = "Laplacian of the field at the critical point"
+            case (ic_ends)
+               tt = "The two nuclei or critical points at the ends of the bond path&
+                  & (bond critical points only)"
+            case (ic_path)
+               tt = "Bond path length: the length of the gradient path that joins the two ends&
+                  & through the bond critical point (Å)"
+            case (ic_ellip)
+               tt = "Bond ellipticity: the ratio of the two negative Hessian eigenvalues at the&
+                  & bond critical point (larger over smaller in absolute value) minus one"
+            end select
+            call iw_tooltip(tt,ttshown)
+         end do
+         call igPopItemFlag()
+         call igEndPopup()
+      end if
+
+    end subroutine header_menu
+
+    !> Calculate the order of the n rows (w%iord) by column w%sortcid,
+    !> in direction w%sortdir. The rows with an empty cell in that
+    !> column go last in either direction, in list order. Clears the
+    !> shift-click anchor, which is a position in the table.
+    subroutine sort_rows()
+      use tools, only: mergesort
+
+      integer :: kr, i, icp
+      integer, allocatable :: iperm(:)
+      real*8, allocatable :: key(:)
+      logical, allocatable :: blank(:)
+      real*8 :: x(3)
+
+      w%cp%sortdirty = .false.
+      w%lastselected = 0
+      allocate(key(n),blank(n))
+      iperm = (/(kr, kr = 1, n)/)
+      key = 0d0
+      blank = .false.
+      associate(f => sys(isys)%f(ifield))
+        do kr = 1, n
+           i = kr
+           icp = 0
+           if (cell) then
+              i = f%cpcel(kr)%idx
+              icp = kr
+           end if
+           select case (w%sortcid)
+           case (ic_x,ic_y,ic_z)
+              x = row_pos(i,icp,ismol)
+              key(kr) = x(w%sortcid-ic_x+1)
+           case (ic_wyc)
+              key(kr) = 1000d0 * f%cp(i)%mult + ichar(wyc_letter(i))
+           case (ic_f)
+              key(kr) = f%cp(i)%s%f
+           case (ic_grad)
+              key(kr) = f%cp(i)%s%gfmod
+           case (ic_lap)
+              key(kr) = f%cp(i)%s%del2f
+           case (ic_path)
+              blank(kr) = .not.bond_pathlen(i,key(kr))
+           case (ic_ellip)
+              blank(kr) = .not.bond_ellip(i,key(kr))
+           case default
+              ! the CP column: the order of the list
+              key(kr) = kr
+           end select
+        end do
+      end associate
+      if (n > 1) call mergesort(key,iperm,1,n)
+      if (w%sortdir == 2) iperm = iperm(n:1:-1)
+      w%iord = (/pack(iperm,.not.blank(iperm)),pack((/(kr, kr = 1, n)/),blank)/)
+
+    end subroutine sort_rows
+
+    !> Position of the row's CP (symmetry-unique CP i, or cell CP
+    !> icp): Cartesian in the input frame (Å) if cart, fractional
+    !> otherwise.
+    function row_pos(i,icp,cart) result(x)
       use param, only: bohrtoa
+      integer, intent(in) :: i, icp
+      logical, intent(in) :: cart
+      real*8 :: x(3)
+
+      associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+        if (icp > 0) then
+           x = f%cpcel(icp)%x
+        else
+           x = f%cp(i)%x
+        end if
+        if (cart) x = (c%x2c(x) + c%molx0) * bohrtoa
+      end associate
+
+    end function row_pos
+
+    !> The Wyckoff letter of symmetry-unique CP i (blank if not known
+    !> or there is no space group).
+    character*1 function wyc_letter(i)
+      integer, intent(in) :: i
+
+      wyc_letter = " "
+      if (.not.havespg) return
+      if (i <= sys(isys)%c%nneq) then
+         wyc_letter = sys(isys)%c%at(i)%wyc
+      elseif (allocated(w%cp%wyc)) then
+         wyc_letter = w%cp%wyc(i-sys(isys)%c%nneq)
+      end if
+
+    end function wyc_letter
+
+    !> The bond path length (Å) of symmetry-unique CP i in val. False
+    !> if it has none (not a bond CP, or the path was not traced).
+    logical function bond_pathlen(i,val)
+      use param, only: bohrtoa
+      integer, intent(in) :: i
+      real*8, intent(inout) :: val
+
+      associate(f => sys(isys)%f(ifield))
+        bond_pathlen = f%isbcp(f%cp(i))
+        if (bond_pathlen) bond_pathlen = all(f%cp(i)%ipath > 0)
+        if (bond_pathlen) val = sum(f%cp(i)%brpathlen) * bohrtoa
+      end associate
+
+    end function bond_pathlen
+
+    !> The bond ellipticity of symmetry-unique CP i in val. False if
+    !> it has none (not a bond CP, or a zero Hessian eigenvalue).
+    logical function bond_ellip(i,val)
+      integer, intent(in) :: i
+      real*8, intent(inout) :: val
+
+      associate(f => sys(isys)%f(ifield))
+        bond_ellip = f%isbcp(f%cp(i))
+        if (bond_ellip) bond_ellip = (abs(f%cp(i)%s%hfeval(2)) > 0d0)
+        if (bond_ellip) val = f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0
+      end associate
+
+    end function bond_ellip
+
+    !> Row at position k of the table: symmetry-unique CP i (icp = 0)
+    !> or cell CP icp, a copy of symmetry-unique CP i. The properties
+    !> are those of the symmetry-unique CP.
+    subroutine draw_cp_row(k,i,icp)
       integer, intent(in) :: k, i, icp
 
-      real*8 :: x(3), xc(3)
+      real*8 :: x(3), xc(3), val
       character(len=:), allocatable :: suffix, lbl
       integer :: j, iu
       logical :: isbcp, clk, selrow, drawn
 
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
-        suffix = "_cprow" // string(k)
+        suffix = "_cprow" // string(merge(icp,i,icp > 0))
         isbcp = f%isbcp(f%cp(i))
 
         ! the row selectable, which highlights the CP in the view and,
@@ -559,8 +779,8 @@ contains
               if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
                  w%lastselected <= merge(f%ncpcel,f%ncp,cell)) then
                  do j = min(w%lastselected,k), max(w%lastselected,k)
-                    iu = j
-                    if (cell) iu = f%cpcel(j)%idx
+                    iu = w%iord(j)
+                    if (cell) iu = f%cpcel(iu)%idx
                     if (iu > c%nneq) w%cp%sel(iu) = .true.
                  end do
               else
@@ -599,12 +819,8 @@ contains
 
         ! position: fractional for crystals, Cartesian in the input
         ! frame for molecules; the Cartesian one in the tooltip
-        if (icp > 0) then
-           x = f%cpcel(icp)%x
-        else
-           x = f%cp(i)%x
-        end if
-        xc = (c%x2c(x) + c%molx0) * bohrtoa
+        x = row_pos(i,icp,.false.)
+        xc = row_pos(i,icp,.true.)
         if (.not.ismol) lbl = "Cartesian: " // coord_str(xc(1)) // " " // coord_str(xc(2)) //&
            " " // coord_str(xc(3)) // " Å"
         do j = 1, 3
@@ -623,15 +839,7 @@ contains
         ! with the site symmetry in the tooltip (symmetry-unique CPs of
         ! crystals only)
         if (igTableSetColumnIndex(ic_wyc)) then
-           lbl = string(f%cp(i)%mult)
-           if (havespg) then
-              if (i <= c%nneq) then
-                 lbl = lbl // c%at(i)%wyc
-              elseif (allocated(w%cp%wyc)) then
-                 lbl = lbl // w%cp%wyc(i-c%nneq)
-              end if
-           end if
-           call iw_text(lbl)
+           call iw_text(string(f%cp(i)%mult) // trim(wyc_letter(i)))
            call iw_tooltip("Site symmetry: " // trim(f%cp(i)%pg),ttshown)
         end if
 
@@ -648,12 +856,10 @@ contains
               call path_end_badge(i,icp,2,suffix,drawn)
            end if
            if (igTableSetColumnIndex(ic_path)) then
-              if (all(f%cp(i)%ipath > 0)) &
-                 call iw_cell_right(string(sum(f%cp(i)%brpathlen) * bohrtoa,'f',decimal=4))
+              if (bond_pathlen(i,val)) call iw_cell_right(string(val,'f',decimal=4))
            end if
            if (igTableSetColumnIndex(ic_ellip)) then
-              if (abs(f%cp(i)%s%hfeval(2)) > 0d0) &
-                 call iw_cell_right(string(f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0,'f',decimal=4))
+              if (bond_ellip(i,val)) call iw_cell_right(string(val,'f',decimal=4))
            end if
         end if
       end associate
@@ -1120,14 +1326,17 @@ contains
        call request_job(w,iview,cpjob_delete)
     end if
     call iw_tooltip("Delete the selected critical points (the nuclei cannot be deleted) with all&
-       & their copies in the cell, and trace the bond paths again",ttshown)
+       & their copies in the cell, and trace the bond paths again. If only the nuclei are left,&
+       & the checkpoint file of the field is removed",ttshown)
     if (iw_button("Clear##cpclearlist",danger=.true.,sameline=.true.,&
        disabled=(size(w%cp%sel) <= nnuc))) then
        ! all the critical points except the nuclei
        w%cp%pending_del = (/(iu > nnuc, iu = 1, size(w%cp%sel))/)
        call request_job(w,iview,cpjob_delete)
     end if
-    call iw_tooltip("Delete all the critical points except the nuclei",ttshown)
+    call iw_tooltip("Delete all the critical points except the nuclei. This also removes&
+       & the checkpoint file of the field (<field file>.chk_cps), unless writing it is&
+       & disabled in the advanced options of the Search tab",ttshown)
     if (nsel > 0) call iw_text(string(nsel) // " selected",sameline=.true.)
 
   end subroutine draw_edit_section
@@ -1335,7 +1544,7 @@ contains
     if (allocated(w%cp%sel)) deallocate(w%cp%sel)
     allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
     w%cp%sel = .false.
-    w%lastselected = 0
+    w%cp%sortdirty = .true.
 
   end subroutine update_table_caches
 

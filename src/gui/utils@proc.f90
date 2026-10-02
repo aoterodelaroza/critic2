@@ -896,20 +896,24 @@ contains
   !> labels -- instead of the names those columns were set up
   !> with. If freezetop, the header row stays in view while the table
   !> scrolls; if autofit, every column is then given the width of its
-  !> widest entry.
-  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit)
+  !> widest entry. If rclicked is present, it returns whether the
+  !> header row was right-clicked, and the caller opens its own
+  !> popup instead of the table's context menu (which opening a popup
+  !> in the same frame replaces).
+  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked)
     use interfaces_cimgui
     integer(c_int), intent(in), optional :: icol(:)
     character(len=*,kind=c_char), intent(in), optional :: shorts
     logical, intent(in), optional :: freezetop
     logical, intent(in), optional :: autofit
+    logical, intent(out), optional :: rclicked
 
-    integer(c_int) :: i, ncol
+    integer(c_int) :: i, ncol, ihov
     integer :: k, kshort
     real(c_float) :: rowh, y1
     type(ImVec2) :: pos, mpos
     character(len=:,kind=c_char), allocatable, target :: str
-    logical :: freezetop_, autofit_
+    logical :: freezetop_, autofit_, rclick
 
     freezetop_ = .false.
     if (present(freezetop)) freezetop_ = freezetop
@@ -955,12 +959,16 @@ contains
        call igPopID()
     end do
 
-    ! right-clicking the strip past the last column opens the popup that
-    ! belongs to no column, as it does in igTableHeadersRow
+    ! a right-click on the header row; on the strip past the last
+    ! column, it opens the popup that belongs to no column, as it does
+    ! in igTableHeadersRow (unless the caller opens its own)
     call igGetMousePos(mpos)
-    if (igIsMouseReleased(1_c_int) .and. igTableGetHoveredColumn() == ncol) then
-       if (mpos%y >= y1 .and. mpos%y < y1 + rowh) &
-          call igTableOpenContextMenu(-1_c_int)
+    ihov = igTableGetHoveredColumn()
+    rclick = igIsMouseReleased(1_c_int) .and. ihov >= 0 .and. mpos%y >= y1 .and. mpos%y < y1 + rowh
+    if (present(rclicked)) then
+       rclicked = rclick
+    elseif (rclick .and. ihov == ncol) then
+       call igTableOpenContextMenu(-1_c_int)
     end if
 
     ! give every column the width of its widest entry
@@ -991,6 +999,39 @@ contains
     end function nth_label
 
   end subroutine iw_table_headers_row
+
+  !> Read the sort column (sortcid, the column's user id) and
+  !> direction (sortdir) of the current sortable table; defcid and
+  !> ascending if no column is sorted. Returns whether the sort
+  !> changed since it was last consumed; if consume, it is marked as
+  !> seen.
+  module function iw_table_sort_specs(sortcid,sortdir,defcid,consume) result(dirty)
+    use interfaces_cimgui
+    integer(c_int), intent(inout) :: sortcid, sortdir
+    integer(c_int), intent(in) :: defcid
+    logical, intent(in) :: consume
+    logical :: dirty
+
+    type(c_ptr) :: ptrc
+    type(ImGuiTableSortSpecs), pointer :: sortspecs
+    type(ImGuiTableColumnSortSpecs), pointer :: colspecs
+
+    dirty = .false.
+    ptrc = igTableGetSortSpecs()
+    if (.not.c_associated(ptrc)) return
+    call c_f_pointer(ptrc,sortspecs)
+    if (c_associated(sortspecs%Specs)) then
+       call c_f_pointer(sortspecs%Specs,colspecs)
+       sortcid = colspecs%ColumnUserID
+       sortdir = colspecs%SortDirection
+       dirty = sortspecs%SpecsDirty
+       if (consume) sortspecs%SpecsDirty = .false.
+    else
+       sortcid = defcid
+       sortdir = 1
+    end if
+
+  end function iw_table_sort_specs
 
   !> Set up one column of the current table, wrapping
   !> igTableSetupColumn. The column is identified either by id, or by

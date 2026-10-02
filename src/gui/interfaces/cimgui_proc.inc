@@ -2142,8 +2142,15 @@ subroutine igGetContentRegionMaxAbs(pOut) bind(c,name="igGetContentRegionMaxAbs"
   type(ImVec2) :: pOut
 end subroutine igGetContentRegionMaxAbs
 !x! void igShrinkWidths(ImGuiShrinkWidthItem* items,int count,float width_excess);
-!x! void igPushItemFlag(ImGuiItemFlags option,bool enabled);
-!x! void igPopItemFlag(void);
+! void igPushItemFlag(ImGuiItemFlags option,bool enabled);
+subroutine igPushItemFlag(option,enabled) bind(c,name="igPushItemFlag")
+  import c_int, c_bool
+  integer(c_int), value :: option
+  logical(c_bool), value :: enabled
+end subroutine igPushItemFlag
+! void igPopItemFlag(void);
+subroutine igPopItemFlag() bind(c,name="igPopItemFlag")
+end subroutine igPopItemFlag
 !x! void igLogBegin(ImGuiLogType type,int auto_open_depth);
 !x! void igLogToBuffer(int auto_open_depth);
 !x! void igLogRenderedText(const ImVec2* ref_pos,const char* text,const char* text_end);
