@@ -823,12 +823,31 @@ contains
 
   end subroutine window_drop_caches
 
+  !> Request a blocking job for window w: the main loop draws its
+  !> overlay later in this frame (block_draw) and runs it after the
+  !> frame (block_run). Returns false if another job was already
+  !> requested in this frame.
+  module function window_request_block(w) result(ok)
+    use gui_main, only: pending_block_window
+    class(window), intent(inout), target :: w
+    logical :: ok
+
+    ok = (pending_block_window == 0)
+    if (ok) pending_block_window = w%id
+
+  end function window_request_block
+
   !> Draw the overlay of the blocking job of window w, which the main
   !> loop runs after this frame (gui_main%pending_block_window).
   module subroutine window_block_draw(w)
     class(window), intent(inout), target :: w
 
-    if (w%type == wintype_cp) call w%block_cp()
+    if (w%type == wintype_cp) then
+       call w%block_cp()
+    elseif (w%type == wintype_load_field .or. w%type == wintype_tree) then
+       ! the tree loads fields from its menu (FFT, resample)
+       call w%block_load_field()
+    end if
 
   end subroutine window_block_draw
 
@@ -837,7 +856,11 @@ contains
   module subroutine window_block_run(w)
     class(window), intent(inout), target :: w
 
-    if (w%type == wintype_cp) call w%run_cp_pending()
+    if (w%type == wintype_cp) then
+       call w%run_cp_pending()
+    elseif (w%type == wintype_load_field .or. w%type == wintype_tree) then
+       call w%run_load_field()
+    end if
 
   end subroutine window_block_run
 

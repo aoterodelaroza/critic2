@@ -1613,30 +1613,22 @@ contains
             if (iw_beginmenu("Load Fourier-Transformed Grid")) then
                ldum = iw_menuitem("[First derivatives]",enabled=.false.)
                if (iw_menuitem("x")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, x-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_x)
+                  call request_fftgrid(i,k,ifformat_as_ft_x)
                end if
                call iw_tooltip("Load a new grid field using FFT as the x-component of &
                   &this field's gradient",ttshown)
                if (iw_menuitem("y")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, y-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_y)
+                  call request_fftgrid(i,k,ifformat_as_ft_y)
                end if
                call iw_tooltip("Load a new grid field using FFT as the y-component of &
                   &this field's gradient",ttshown)
                if (iw_menuitem("z")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, z-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_z)
+                  call request_fftgrid(i,k,ifformat_as_ft_z)
                end if
                call iw_tooltip("Load a new grid field using FFT as the z-component of &
                   &this field's gradient",ttshown)
                if (iw_menuitem("Gradient Norm")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, grad of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_grad)
+                  call request_fftgrid(i,k,ifformat_as_ft_grad)
                end if
                call iw_tooltip("Load a new grid field using FFT as the norm of &
                   &this field's gradient",ttshown)
@@ -1644,59 +1636,43 @@ contains
 
                ldum = iw_menuitem("[Second derivatives]",enabled=.false.)
                if (iw_menuitem("xx")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, xx-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xx)
+                  call request_fftgrid(i,k,ifformat_as_ft_xx)
                end if
                call iw_tooltip("Load a new grid field using FFT as the xx component of &
                   &this field's Hessian matrix",ttshown)
                if (iw_menuitem("xy")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, xy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xy)
+                  call request_fftgrid(i,k,ifformat_as_ft_xy)
                end if
                call iw_tooltip("Load a new grid field using FFT as the xy component of &
                   &this field's Hessian matrix",ttshown)
                if (iw_menuitem("xz")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, xz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xz)
+                  call request_fftgrid(i,k,ifformat_as_ft_xz)
                end if
                call iw_tooltip("Load a new grid field using FFT as the xz component of &
                   &this field's Hessian matrix",ttshown)
                if (iw_menuitem("yy")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, yy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yy)
+                  call request_fftgrid(i,k,ifformat_as_ft_yy)
                end if
                call iw_tooltip("Load a new grid field using FFT as the yy component of &
                   &this field's Hessian matrix",ttshown)
                if (iw_menuitem("yz")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, yz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yz)
+                  call request_fftgrid(i,k,ifformat_as_ft_yz)
                end if
                call iw_tooltip("Load a new grid field using FFT as the yz component of &
                   &this field's Hessian matrix",ttshown)
                if (iw_menuitem("zz")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, zz-derivative of $" // string(k),&
-                     sys(i)%f(k)%grid,ifformat_as_ft_zz)
+                  call request_fftgrid(i,k,ifformat_as_ft_zz)
                end if
                call iw_tooltip("Load a new grid field using FFT as the zz component of &
                   &this field's Hessian matrix",ttshown)
                if (iw_menuitem("Laplacian")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, lap of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_lap)
+                  call request_fftgrid(i,k,ifformat_as_ft_lap)
                end if
                call iw_tooltip("Load a new grid field using FFT as the Laplacian of this field",ttshown)
 
                call igSeparator()
                if (iw_menuitem("Potential")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                     "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
+                  call request_fftgrid(i,k,ifformat_as_ft_pot)
                end if
                call iw_tooltip("Load a new grid field using FFT as the potential that generates&
                   &this field (via Poisson's equation)",ttshown)
@@ -1707,9 +1683,7 @@ contains
                ldum = iw_inputint3("New Size##resamplefieldmenunewsize",iresample,width=4*3)
 
                if (iw_menuitem("OK##resamplefieldmenuok")) then
-                  id = sys(i)%getfieldnum()
-                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
-                     sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
+                  call request_fftgrid(i,k,ifformat_as_resample,iresample)
                end if
                call igEndMenu()
             else
@@ -1881,6 +1855,62 @@ contains
       forceremap = .true.
 
     end subroutine collapse_system
+
+    !> Request the blocking job that loads a new grid field from field
+    !> k of system i (run_load_field, as LOAD AS FFT or LOAD AS
+    !> RESAMPLE): the transformation iff, or a resampling to size n.
+    subroutine request_fftgrid(i,k,iff,n)
+      use param, only: ifformat_as_ft_x, ifformat_as_ft_y, ifformat_as_ft_z,&
+         ifformat_as_ft_xx, ifformat_as_ft_xy, ifformat_as_ft_xz, ifformat_as_ft_yy,&
+         ifformat_as_ft_yz, ifformat_as_ft_zz, ifformat_as_ft_grad, ifformat_as_ft_lap,&
+         ifformat_as_ft_pot, ifformat_as_resample
+      integer, intent(in) :: i, k, iff
+      integer, intent(in), optional :: n(3)
+
+      character(len=:), allocatable :: line
+
+      select case (iff)
+      case (ifformat_as_ft_x)
+         line = "gx"
+      case (ifformat_as_ft_y)
+         line = "gy"
+      case (ifformat_as_ft_z)
+         line = "gz"
+      case (ifformat_as_ft_xx)
+         line = "hxx"
+      case (ifformat_as_ft_xy)
+         line = "hxy"
+      case (ifformat_as_ft_xz)
+         line = "hxz"
+      case (ifformat_as_ft_yy)
+         line = "hyy"
+      case (ifformat_as_ft_yz)
+         line = "hyz"
+      case (ifformat_as_ft_zz)
+         line = "hzz"
+      case (ifformat_as_ft_grad)
+         line = "gmod"
+      case (ifformat_as_ft_lap)
+         line = "lap"
+      case (ifformat_as_ft_pot)
+         line = "pot"
+      case (ifformat_as_resample)
+         line = ""
+      case default
+         return
+      end select
+      if (iff == ifformat_as_resample) then
+         if (.not.present(n)) return
+         line = "as resample " // string(k) // " " // string(n(1)) // " " // string(n(2)) //&
+            " " // string(n(3))
+      else
+         line = "as fft " // line // " " // string(k)
+      end if
+      if (.not.w%request_block()) return
+      w%lf%pending_line = line
+      w%lf%pending_isys = i
+
+    end subroutine request_fftgrid
 
   end subroutine draw_tree
 

@@ -4202,7 +4202,7 @@ contains
   !> covalent radii times the bond factor over the center-vertex pairs.
   subroutine trick_voids(line0)
     use systemmod, only: sy
-    use global, only: bondfactor
+    use global, only: bondfactor, abort_requested
     use tools_io, only: uout, string, ferror, faterr, getword, lower, isreal, ioj_left,&
        ioj_right
     use param, only: bohrtoa, atmcov
@@ -4327,6 +4327,7 @@ contains
        n(i) = max(nint(sy%c%aa(i) * bohrtoa / spacing),2)
     end do
     call sy%c%promolecular_array3(f,n)
+    if (abort_requested) return
     call sy%c%void_domains(f,isoval,vtot,nvoid,vvol,xdeep,rhodeep,errmsg)
     deallocate(f)
     if (len_trim(errmsg) > 0) then

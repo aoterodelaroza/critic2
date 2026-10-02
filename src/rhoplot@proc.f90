@@ -854,6 +854,10 @@ contains
              faux = sy%f(id)%grid
              if (sy%f(id)%usecore) then
                 call cr%promolecular_array3(ff,sy%f(id)%grid%n,sy%f(id)%zpsp)
+                if (abort_requested) then
+                   write (uout,'("+ The calculation was cancelled: no file was written."/)')
+                   return
+                end if
                 faux%f = faux%f + ff
                 deallocate(ff)
              end if

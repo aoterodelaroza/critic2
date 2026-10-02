@@ -79,14 +79,15 @@ contains
     use interfaces_opengl3
     use interfaces_stb
     use systems, only: sys, sysc, nsys, launch_initialization_thread, system_shorten_names,&
-       thread, thread_ti, nthread
+       thread, thread_ti, nthread, are_threads_running, kill_initialization_thread
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, iwin_tree, iwin_view,&
        iwin_console_input, iwin_console_output, iwin_about,&
-       stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init
+       stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init,&
+       read_output_uout
     use global, only: critic_home, abort_requested
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: string, falloc, fdealloc, ferror, warning
@@ -100,6 +101,7 @@ contains
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
+    logical :: reinit, jobran
     character(kind=c_char,len=:), allocatable, target :: strc, file
     integer :: i, j, ludum(10), saveinpcon
     logical :: firstpass, shown
@@ -342,10 +344,20 @@ contains
     show_implot_demo_window = .false.
     firstpass = .true.
     shown = .false.
+    jobran = .false.
     do while (glfwWindowShouldClose(rootwin) == 0)
        ! poll events, and load the files dropped during a cancellable job
        call glfwPollEvents()
        if (ndropped > 0 .and. .not.in_cancellable_job) call load_dropped_files()
+
+       ! an Esc pressed during a blocking job (which may not have been
+       ! able to cancel it) is not a key bind event now (GLFW_STICKY_KEYS
+       ! keeps it as pressed until queried)
+       if (jobran) then
+          if (glfwGetKey(rootwin,GLFW_KEY_ESCAPE) == GLFW_PRESS) &
+             esc_swallow = max(esc_swallow,esc_swallow_frames)
+          jobran = .false.
+       end if
 
        ! start the ImGui frame
        call ImGui_ImplOpenGL3_NewFrame()
@@ -485,14 +497,24 @@ contains
           end if
           if (end_cancellable()) continue
           force_run_commands = 0
+          jobran = .true.
        end if
 
-       ! run the window's blocking job, now that its overlay is on the screen
+       ! run the window's blocking job, now that its overlay is on the
+       ! screen, with the initialization threads stopped; its output
+       ! goes to the output console
        if (pending_block_window > 0) then
           i = pending_block_window
           pending_block_window = 0
           if (i <= nwin) then
-             if (win(i)%isopen) call win(i)%block_run()
+             if (win(i)%isopen) then
+                reinit = are_threads_running()
+                if (reinit) call kill_initialization_thread()
+                call win(i)%block_run()
+                ldum = read_output_uout(.true.)
+                if (reinit) call launch_initialization_thread()
+                jobran = .true.
+             end if
           end if
        end if
 

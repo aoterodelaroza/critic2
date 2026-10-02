@@ -256,14 +256,13 @@ contains
   module subroutine run_cp_pending(w)
     use autocp, only: autocritic, autocritic_graph, cpreport
     use gui_main, only: begin_cancellable, end_cancellable
-    use systems, only: sys, sysc, sys_init, ok_system, launch_initialization_thread,&
-       kill_initialization_thread, are_threads_running, lastchange_cplist
+    use systems, only: sys, sysc, sys_init, ok_system, lastchange_cplist
     use tools_io, only: uout, string
     class(window), intent(inout), target :: w
 
     integer :: isys, ifield, iview, ncp0, kind
     type(auto_context) :: ctx
-    logical :: reinit, ldum, ok, changes, cancelled
+    logical :: ok, changes, cancelled
     character(len=:), allocatable :: cpfile, errmsg
 
     isys = w%cp%isys
@@ -287,9 +286,8 @@ contains
        return
     end if
 
-    ! stop the initialization threads, and run on the chosen field
-    reinit = are_threads_running()
-    if (reinit) call kill_initialization_thread()
+    ! run on the chosen field (the main loop stops the initialization
+    ! threads and reads the output)
     call auto_enter(isys,ifield,ctx)
     cancelled = .false.
     ncp0 = sys(isys)%f(ifield)%ncp
@@ -331,9 +329,6 @@ contains
        end if
     end if
 
-    ! the output, the threads, and the event
-    ldum = read_output_uout(.true.)
-    if (reinit) call launch_initialization_thread()
     if (cancelled) then
        w%errmsg = "The search was cancelled: the critical points are unchanged"
        return
@@ -1211,17 +1206,15 @@ contains
   !> the frame with its overlay; a second request in the same frame is
   !> ignored.
   subroutine request_job(w,iview,kind,line)
-    use gui_main, only: pending_block_window
     type(window), intent(inout), target :: w
     integer, intent(in) :: iview, kind
     character(len=*), intent(in), optional :: line
 
-    if (pending_block_window /= 0) return
+    if (.not.w%request_block()) return
     w%cp%pending_kind = kind
     if (present(line)) w%cp%pending_line = line
     w%cp%pending_view = iview
     w%errmsg = ""
-    pending_block_window = w%id
 
   end subroutine request_job
 

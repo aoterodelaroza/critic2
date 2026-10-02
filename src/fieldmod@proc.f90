@@ -421,6 +421,7 @@ contains
   !> found, returns a non-zero-length error message (errmsg).
   !> Some new fields are handled at system level (see load_field_string).
   module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
+    use global, only: abort_requested, abort_poll, progress_start, progress_step
     use iso_c_binding, only: c_loc
     use types, only: realloc
     use fieldseedmod, only: fieldseed
@@ -696,6 +697,11 @@ contains
           deallocate(faux)
           f%name = "<generated>, core grid"
        end if
+       ! a cancelled calculation (the GUI): the grid is incomplete
+       if (abort_requested) then
+          errmsg = "the load was cancelled"
+          goto 999
+       end if
        f%type = type_grid
        f%file = ""
 
@@ -726,9 +732,12 @@ contains
 
           ifail = .false.
           errmsg = ""
+          call progress_start(n(3)*n(2),"lines")
           !$omp parallel do private(x,rho,lerrmsg)
           do k = 1, n(3)
              do j = 1, n(2)
+                ! a cancelled calculation (the GUI): the caller stops
+                if (abort_poll()) cycle
                 do i = 1, n(1)
                    if (ifail) cycle
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
@@ -742,9 +751,12 @@ contains
                       !$omp end critical(write)
                    end if
                 end do
+                call progress_step()
              end do
           end do
           !$omp end parallel do
+          ! a cancelled calculation (the GUI): the grid is incomplete
+          if (abort_requested) errmsg = "the load was cancelled"
           if (len_trim(errmsg) > 0) goto 999
           f%grid%isinit = .true.
        end if

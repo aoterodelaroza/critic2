@@ -172,6 +172,7 @@ contains
           call check_structure_defined(ok)
           if (.not.ok) cycle
           call sy%load_field_string(subline,.true.,id,errmsg)
+          if (abort_requested) cycle
           if (id < 0 .or. len_trim(errmsg) > 0) &
              call ferror('load',errmsg,faterr,line,syntax=.true.)
 

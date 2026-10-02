@@ -467,6 +467,9 @@ module windows
      real(c_float) :: pwcemin = -1._c_float ! pwc energy range minimum (eV)
      real(c_float) :: pwcemax = 1._c_float ! pwc energy range maximum (eV)
      integer(c_int) :: moldendialect = 0_c_int ! molden dialect (0=auto, 1=psi4, 2=orca)
+     ! blocking job: the LOAD options and the system to load the field into
+     character(len=:), allocatable :: pending_line
+     integer :: pending_isys = 0
   end type loadfield_state
   public :: loadfield_state
 
@@ -912,6 +915,8 @@ module windows
      procedure :: draw_new_struct_library
      ! load field
      procedure :: draw_load_field
+     procedure :: block_load_field
+     procedure :: run_load_field
      ! scf plot
      procedure :: update_scfplot
      procedure :: draw_scfplot
@@ -953,6 +958,7 @@ module windows
      procedure :: run_cp_pending
      procedure :: clear_cp_hover
      ! blocking jobs (gui_main%pending_block_window)
+     procedure :: request_block => window_request_block
      procedure :: block_draw => window_block_draw
      procedure :: block_run => window_block_run
      ! selection
@@ -1247,6 +1253,7 @@ module windows
      module subroutine draw_tree(w)
        class(window), intent(inout), target :: w
      end subroutine draw_tree
+
      module subroutine remap_tree(w)
        class(window), intent(inout) :: w
      end subroutine remap_tree
@@ -1466,6 +1473,12 @@ module windows
      module subroutine draw_load_field(w)
        class(window), intent(inout), target :: w
      end subroutine draw_load_field
+     module subroutine block_load_field(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_load_field
+     module subroutine run_load_field(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_load_field
      !xx! scfplot submodule !xx!
      module subroutine update_scfplot(w)
        class(window), intent(inout), target :: w
@@ -1589,6 +1602,10 @@ module windows
      module subroutine draw_voids(w)
        class(window), intent(inout), target :: w
      end subroutine draw_voids
+     module function window_request_block(w) result(ok)
+       class(window), intent(inout), target :: w
+       logical :: ok
+     end function window_request_block
      module subroutine window_block_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_block_draw

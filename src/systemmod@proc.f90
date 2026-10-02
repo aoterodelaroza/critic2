@@ -502,6 +502,7 @@ contains
   !> field is a grid with no interpolation keyword, use smoothrho if it
   !> looks like an all-electron density (field_guess_allelectron).
   module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp)
+    use global, only: abort_requested
     use tools_io, only: getword, lgetword, equal, uout, string, ferror, warning
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
@@ -750,6 +751,8 @@ contains
           s%f(id)%name = s%f(id)%file(idx+1:)
        end if
 
+       ! a cancelled load (the GUI; not the initialization threads, ti)
+       if (abort_requested .and. .not.present(ti)) errmsg = "the load was cancelled"
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
           return

@@ -30,7 +30,7 @@ contains
        dirsep, newline
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use systems, only: nsys, sysc, sys, sys_init, ok_system, lastchange_cplist
+    use systems, only: nsys, sysc, sys, sys_init, ok_system
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright,&
        iw_helpermark, iw_begintabitem, iw_inputtext, iw_inputint, iw_inputint3,&
@@ -40,7 +40,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: oksys, ok, doquit, disabled, resetsys, gotofile
-    integer :: isys, i, j, ll, idx, iff, iaux, sourceopt
+    integer :: isys, i, j, ll, idx, iaux, sourceopt
     character(len=:,kind=c_char), allocatable :: reason
     integer(c_int) :: tabflags
     type(ImVec2) :: szavail, szero
@@ -220,15 +220,12 @@ contains
     if (ok .and..not.disabled) then
        w%errmsg = ""
        loadstr = build_load_string()
+       ! the field is loaded in a blocking job (run_load_field), which
+       ! closes the window if it succeeds
        if (len_trim(w%errmsg) == 0) then
-          call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg,readchk=.true.,&
-             autointerp=(w%lf%iginterp == 5))
-          if (len_trim(w%errmsg) == 0) then
-             ! the new field may come with a CP list (checkpoint file)
-             call sysc(isys)%post_event(lastchange_cplist)
-             ! expand the field list so the new field is visible
-             sysc(isys)%showfields = .true.
-             doquit = .true.
+          if (w%request_block()) then
+             w%lf%pending_line = loadstr
+             w%lf%pending_isys = isys
           end if
        end if
     end if
@@ -1001,5 +998,75 @@ contains
       w%lf%pwcband = ""
     end subroutine init_state
   end subroutine draw_load_field
+
+  !> Draw the overlay of the blocking job of the load field window:
+  !> the load of a field (run_load_field).
+  module subroutine block_load_field(w)
+    use systems, only: sysc, sys_init, ok_system
+    use utils, only: iw_wait_overlay
+    use tools_io, only: string, lower
+    use param, only: newline
+    class(window), intent(inout), target :: w
+
+    character(len=:), allocatable :: info, line
+    integer :: isys
+    logical :: cancellable
+
+    info = ""
+    isys = w%lf%pending_isys
+    if (ok_system(isys,sys_init)) &
+       info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name) // newline
+    cancellable = .false.
+    if (allocated(w%lf%pending_line)) then
+       info = info // "Input:  LOAD " // w%lf%pending_line
+       ! only the grids evaluated point by point can be cancelled (not
+       ! the reading of a file or an FFT)
+       line = lower(adjustl(w%lf%pending_line))
+       cancellable = (index(line,"as ") == 1) .and. (index(line,"as fft") /= 1) .and.&
+          (index(line,"as resample") /= 1) .and. (index(line,"as clm") /= 1) .and.&
+          (index(line,"as ghost") /= 1)
+    end if
+    call iw_wait_overlay("Loading the field...",info,cancellable)
+
+  end subroutine block_load_field
+
+  !> Run the blocking job that loads a field: the load field window
+  !> (which closes if the load succeeds) or the tree (FFT and
+  !> resample of a field), called by the main loop after the frame
+  !> with the overlay. It can be cancelled with Esc if the load
+  !> evaluates a grid (the field is not loaded).
+  module subroutine run_load_field(w)
+    use systems, only: sys, sysc, sys_init, ok_system, lastchange_cplist
+    use gui_main, only: begin_cancellable, end_cancellable
+    use interfaces_glfw, only: glfwGetTime
+    class(window), intent(inout), target :: w
+
+    integer :: isys, iff
+    logical :: cancelled
+
+    isys = w%lf%pending_isys
+    if (.not.ok_system(isys,sys_init) .or. .not.allocated(w%lf%pending_line)) then
+       w%errmsg = "The system is no longer available"
+       return
+    end if
+
+    call begin_cancellable()
+    call sys(isys)%load_field_string(w%lf%pending_line,.false.,iff,w%errmsg,readchk=.true.,&
+       autointerp=(w%lf%iginterp == 5))
+    cancelled = end_cancellable()
+
+    if (cancelled) then
+       w%errmsg = "The load was cancelled"
+    elseif (len_trim(w%errmsg) == 0) then
+       ! the new field may come with a CP list (checkpoint file)
+       call sysc(isys)%post_event(lastchange_cplist)
+       ! expand the field list so the new field is visible
+       sysc(isys)%showfields = .true.
+       if (w%type == wintype_load_field) call w%end()
+    end if
+    ! the tree shows its messages for a while
+    if (w%type == wintype_tree .and. len_trim(w%errmsg) > 0) w%timelast_errmsg = glfwGetTime()
+
+  end subroutine run_load_field
 
 end submodule load_field

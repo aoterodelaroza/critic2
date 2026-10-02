@@ -434,6 +434,7 @@ contains
   !> points. If a fragment is given, then only the atoms in it
   !> contribute.  This routine is thread-safe.
   module subroutine promolecular_array3(c,f,n,zpsp,fr)
+    use global, only: abort_poll, progress_start, progress_step
     use grid1mod, only: grid1
     use fragmentmod, only: fragment
     use param, only: icrd_crys
@@ -454,15 +455,19 @@ contains
        xdelta(i,i) = 1d0 / real(n(i),8)
     end do
 
-    !$omp parallel do private(x,rho,rdum1,rdum2) collapse(3)
+    call progress_start(n(3)*n(2),"lines")
+    !$omp parallel do private(x,rho,rdum1,rdum2) collapse(2)
     do k = 1, n(3)
        do j = 1, n(2)
+          ! a cancelled calculation (the GUI): the caller stops
+          if (abort_poll()) cycle
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
              call c%promolecular_atom(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
 
              f(i,j,k) = rho
           end do
+          call progress_step()
        end do
     end do
     !$omp end parallel do
