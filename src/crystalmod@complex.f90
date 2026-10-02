@@ -486,6 +486,7 @@ contains
   !> value of the field at that point (rhodeep). errmsg is non-empty
   !> in case of error.
   module subroutine void_domains(c,f,isoval,vtot,nvoid,vol,xdeep,rhodeep,errmsg,ilbl)
+    use global, only: abort_poll, progress_start, progress_set
     use tools, only: qcksort
     use types, only: realloc
     use tools_io, only: string
@@ -509,21 +510,20 @@ contains
     integer, allocatable :: ilabel(:,:,:), istack(:), iord(:), ncount(:), imin(:,:)
 
     integer, parameter :: nlabel_init = 10 ! initial size of the per-void arrays
+    integer, parameter :: npollstep = 65536 ! fill steps between cancel checks
+    integer :: npop
 
     errmsg = ""
     vtot = 0d0
     nvoid = 0
+    npop = 0
     n = shape(f)
 
     ! the flood fill addresses the grid points with a default-integer linear
     ! index
     nn8 = int(n(1),8) * int(n(2),8) * int(n(3),8)
     if (any(n < 1) .or. nn8 > int(huge(nn),8)) then
-       errmsg = "grid too large for the void analysis (" // string(nn8) // " points)"
-       allocate(vol(0),xdeep(3,0),rhodeep(0))
-       if (present(ilbl)) then
-          if (allocated(ilbl)) deallocate(ilbl)
-       end if
+       call fail("grid too large for the void analysis (" // string(nn8) // " points)")
        return
     end if
     nn = int(nn8)
@@ -535,18 +535,21 @@ contains
     ! failure here is reported rather than left to abort the program
     allocate(ilabel(n(1),n(2),n(3)),istack(nn),stat=ier)
     if (ier /= 0) then
-       errmsg = "not enough memory for the void analysis (" // string(nn) // " points)"
-       allocate(vol(0),xdeep(3,0),rhodeep(0))
-       if (present(ilbl)) then
-          if (allocated(ilbl)) deallocate(ilbl)
-       end if
+       call fail("not enough memory for the void analysis (" // string(nn) // " points)")
        return
     end if
     ilabel = 0
     where (f >= isoval) ilabel = -1
     allocate(ncount(nlabel_init),imin(3,nlabel_init),rmin(nlabel_init))
     nvoid = 0
+    call progress_start(n(3),"planes")
     do k = 1, n(3)
+       ! a cancelled calculation (the GUI)
+       if (abort_poll()) then
+          call fail("the calculation was cancelled")
+          return
+       end if
+       call progress_set(k-1)
        do j = 1, n(2)
           do i = 1, n(1)
              if (ilabel(i,j,k) /= 0) cycle
@@ -565,6 +568,15 @@ contains
              nstack = 1
              istack(1) = i + (j-1)*n(1) + (k-1)*n(1)*n(2)
              do while (nstack > 0)
+                ! a void can span the whole grid: check for a cancel
+                ! (the GUI) in the fill too
+                npop = npop + 1
+                if (mod(npop,npollstep) == 0) then
+                   if (abort_poll()) then
+                      call fail("the calculation was cancelled")
+                      return
+                   end if
+                end if
                 jd = istack(nstack)
                 nstack = nstack - 1
 
@@ -636,6 +648,23 @@ contains
     end if
     deallocate(ilabel)
 
+  contains
+    !> The analysis failed with message msg: no voids.
+    subroutine fail(msg)
+      character(len=*), intent(in) :: msg
+
+      errmsg = msg
+      vtot = 0d0
+      nvoid = 0
+      if (allocated(vol)) deallocate(vol)
+      if (allocated(xdeep)) deallocate(xdeep)
+      if (allocated(rhodeep)) deallocate(rhodeep)
+      allocate(vol(0),xdeep(3,0),rhodeep(0))
+      if (present(ilbl)) then
+         if (allocated(ilbl)) deallocate(ilbl)
+      end if
+
+    end subroutine fail
   end subroutine void_domains
 
   !> Calculate the coordination polyhedron centered on point x0
@@ -787,6 +816,7 @@ contains
   !> rtable; for radii that cannot be written as a function of the
   !> atomic number, like half the nearest-neighbor distance).
   module function vdw_volume(c,relerr,rtable,ratom) result(vvdw)
+    use global, only: abort_poll, progress_start, progress_set
     use param, only: VBIG, atmvdw, icrd_cart, maxzat0
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: relerr
@@ -794,8 +824,10 @@ contains
     real*8, intent(in), optional :: ratom(1:c%ncel)
     real*8 :: vvdw
 
-    real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp, rmax
+    real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp, rmax, nneed
     integer :: i, nat
+
+    integer, parameter :: npollstep = 1024 ! samples between cancel checks
     real*8, allocatable :: rvdw(:,:)
     integer*8 :: nin, ntot
     logical :: again, peratom
@@ -833,6 +865,7 @@ contains
     end if
 
     ! use Monte-Carlo to determine the volume
+    call progress_start(0,"samples")
     again = .true.
     ntot = 0
     nin = 0
@@ -860,9 +893,35 @@ contains
        if (ntot > 100) then
           again = (svol > relerr * vvdw)
        end if
+
+       ! a cancelled calculation (the GUI): the caller discards the
+       ! volume. The progress is the samples done of those the current
+       ! fraction pp needs to reach relerr (an estimate)
+       if (mod(ntot,int(npollstep,8)) == 0) then
+          if (abort_poll()) exit
+          nneed = min(max(vdw_volume_npoints(pp,relerr),real(ntot,8)),2d9)
+          call progress_set(nint(min(real(ntot,8),nneed)),nint(nneed))
+       end if
     end do
 
   end function vdw_volume
+
+  !> Number of Monte Carlo samples vdw_volume needs to reach relative
+  !> error relerr when a fraction p of the samples falls inside the
+  !> spheres: it stops when the standard deviation of the volume
+  !> divided by the volume falls below relerr, after (1-p)/(p*relerr^2)
+  !> samples, and not before 100.
+  pure module function vdw_volume_npoints(p,relerr) result(n)
+    real*8, intent(in) :: p, relerr
+    real*8 :: n
+
+    if (p <= 0d0) then
+       n = 100d0
+    else
+       n = max((1d0 - p) / (p * relerr**2),100d0)
+    end if
+
+  end function vdw_volume_npoints
 
   !> Calculate the number of k-points (nk) for a given rk-length. Uses
   !> the VASP formula.

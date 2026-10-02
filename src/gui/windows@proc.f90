@@ -847,6 +847,8 @@ contains
     elseif (w%type == wintype_load_field .or. w%type == wintype_tree) then
        ! the tree loads fields from its menu (FFT, resample)
        call w%block_load_field()
+    elseif (w%type == wintype_voids) then
+       call w%block_voids()
     end if
 
   end subroutine window_block_draw
@@ -860,6 +862,8 @@ contains
        call w%run_cp_pending()
     elseif (w%type == wintype_load_field .or. w%type == wintype_tree) then
        call w%run_load_field()
+    elseif (w%type == wintype_voids) then
+       call w%run_voids()
     end if
 
   end subroutine window_block_run

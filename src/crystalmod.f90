@@ -507,6 +507,7 @@ module crystalmod
      procedure :: writegrid_xsf
   end type crystal
   public :: crystal
+  public :: vdw_volume_npoints
 
   !> A supercell candidate found by cell_nice_list
   type nice_cell
@@ -989,6 +990,10 @@ module crystalmod
        real*8, intent(in), optional :: ratom(1:c%ncel)
        real*8 :: vvdw
      end function vdw_volume
+     pure module function vdw_volume_npoints(p,relerr) result(n)
+       real*8, intent(in) :: p, relerr
+       real*8 :: n
+     end function vdw_volume_npoints
      pure module subroutine get_kpoints(c,rk,nk)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: rk

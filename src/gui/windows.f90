@@ -369,7 +369,14 @@ module windows
      ! packing tab: the results
      logical :: pck_done = .false. ! whether there are results to show
      real*8 :: pck_vfill = 0d0 ! volume covered by the atomic spheres (bohr^3)
+     ! blocking job (run_voids): the calculation and its inputs, taken
+     ! from the form when Calculate was pressed
+     integer :: pending = 0 ! voidsjob_iso or voidsjob_packing
+     integer :: pending_n(3) = 0 ! isosurface: the grid
+     real*8, allocatable :: pending_r(:) ! packing: radius per atom (nearest-neighbor radii) or per atomic number from 0
   end type voids_state
+  integer, parameter :: voidsjob_iso = 1 ! promolecular density on a grid and its voids
+  integer, parameter :: voidsjob_packing = 2 ! volume covered by the atomic spheres
   public :: voids_state
 
   !> Per-window state of the metal melting demonstration window.
@@ -952,6 +959,8 @@ module windows
      procedure :: draw_dynamics
      ! crystal voids
      procedure :: draw_voids
+     procedure :: block_voids
+     procedure :: run_voids
      ! critical points
      procedure :: draw_cp
      procedure :: block_cp
@@ -1602,6 +1611,12 @@ module windows
      module subroutine draw_voids(w)
        class(window), intent(inout), target :: w
      end subroutine draw_voids
+     module subroutine block_voids(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_voids
+     module subroutine run_voids(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_voids
      module function window_request_block(w) result(ok)
        class(window), intent(inout), target :: w
        logical :: ok

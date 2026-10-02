@@ -3187,7 +3187,7 @@ contains
   !> Calculate the packing ratio of the crystal.
   module subroutine struct_packing(s,line)
     use systemmod, only: system
-    use global, only: eval_next
+    use global, only: eval_next, abort_requested
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use param, only: atmvdw, atmcov
     type(system), intent(inout) :: s
@@ -3242,6 +3242,7 @@ contains
        else
           vout = s%c%vdw_volume(prec,atmcov)
        end if
+       if (abort_requested) return
        write (uout,'("+ Van der Waals volume: ",A," +- ",A)') &
           string(vout,'f',decimal=6), string(prec*vout,'f',decimal=6)
        write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &
@@ -3256,7 +3257,7 @@ contains
 
   !> Calculate the van der Waals volume of a crystal or molecule.
   module subroutine struct_vdw(s,line)
-    use global, only: iunitname0, dunit0, iunit
+    use global, only: iunitname0, dunit0, iunit, abort_requested
     use systemmod, only: system
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use global, only: eval_next
@@ -3296,6 +3297,7 @@ contains
     ! calculate vdw volume
     fac3 = dunit0(iunit)**3
     vvdw = s%c%vdw_volume(prec) * fac3
+    if (abort_requested) return
 
     ! output
     write (uout,'("+ Requested relative std. deviation (sigma_{Vvdw}/Vvdw): ",A)') string(prec,'e',decimal=4)

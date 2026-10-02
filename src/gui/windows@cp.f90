@@ -209,7 +209,7 @@ contains
     character(len=:), allocatable :: title, info
     integer :: isys
 
-    ! what is being done (a search can be cancelled)
+    ! what is being done
     select case (w%cp%pending_kind)
     case (cpjob_add)
        title = "Searching for a critical point..."
@@ -241,9 +241,19 @@ contains
        end select
     end if
 
-    call iw_wait_overlay(title,info,w%cp%pending_kind == cpjob_search)
+    call iw_wait_overlay(title,info,cp_cancellable(w%cp%pending_kind))
 
   end subroutine block_cp
+
+  !> Whether a job of this kind (cpjob_*) can be cancelled with Esc:
+  !> the searches and the deletion (whose bond paths are traced
+  !> again).
+  logical function cp_cancellable(kind)
+    integer, intent(in) :: kind
+
+    cp_cancellable = (kind == cpjob_search .or. kind == cpjob_delete)
+
+  end function cp_cancellable
 
   !> Run the blocking job of the critical points window, called by the
   !> main loop after the frame with the overlay, on the chosen field: a
@@ -258,10 +268,12 @@ contains
     use gui_main, only: begin_cancellable, end_cancellable
     use systems, only: sys, sysc, sys_init, ok_system, lastchange_cplist
     use tools_io, only: uout, string
+    use fieldmod, only: cplist_backup
     class(window), intent(inout), target :: w
 
     integer :: isys, ifield, iview, ncp0, kind
     type(auto_context) :: ctx
+    type(cplist_backup) :: cpback
     logical :: ok, changes, cancelled
     character(len=:), allocatable :: cpfile, errmsg
 
@@ -291,12 +303,14 @@ contains
     call auto_enter(isys,ifield,ctx)
     cancelled = .false.
     ncp0 = sys(isys)%f(ifield)%ncp
+    if (cp_cancellable(kind)) call begin_cancellable()
     if (kind == cpjob_delete) then
+       ! a cancel restores the CP list (AUTO restores it itself)
        write (uout,'("* Deleting ",A," critical points (GUI) and tracing the bond paths again")') &
           string(count(w%cp%sel))
+       call sys(isys)%f(ifield)%backup_cplist(cpback)
        call sys(isys)%f(ifield)%delete_cps(w%cp%sel)
        call autocritic_graph()
-       write (uout,*)
        ok = .true.
     elseif (kind == cpjob_export) then
        call cpreport(w%cp%pending_line)
@@ -306,12 +320,16 @@ contains
        call estimate_search(w,isys,ifield)
        ok = .true.
     else
-       ! a search can be cancelled with Esc (begin_cancellable); AUTO then
-       ! leaves the CP list as it was
-       if (kind == cpjob_search) call begin_cancellable()
        call autocritic(w%cp%pending_line,ok,clear=(kind == cpjob_search .and. w%cp%discard_existing))
-       if (kind == cpjob_search) cancelled = end_cancellable()
     end if
+    if (cp_cancellable(kind)) cancelled = end_cancellable()
+    if (cancelled .and. kind == cpjob_delete) then
+       call sys(isys)%f(ifield)%restore_cplist(cpback)
+       write (uout,'("+ The deletion was cancelled: the list of critical points is unchanged"/)')
+    elseif (kind == cpjob_delete) then
+       write (uout,*)
+    end if
+    if (cancelled) ok = .false.
     call auto_leave(isys,ctx)
 
     ! the checkpoint, unless disabled (not AUTO's CHK, which reads an
@@ -330,7 +348,8 @@ contains
     end if
 
     if (cancelled) then
-       w%errmsg = "The search was cancelled: the critical points are unchanged"
+       w%errmsg = "The " // merge("deletion","search  ",kind == cpjob_delete)
+       w%errmsg = trim(w%errmsg) // " was cancelled: the critical points are unchanged"
        return
     elseif (.not.ok) then
        w%errmsg = "AUTO did not run: the options were rejected (see the output console)"

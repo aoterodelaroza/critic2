@@ -4330,6 +4330,7 @@ contains
     if (abort_requested) return
     call sy%c%void_domains(f,isoval,vtot,nvoid,vvol,xdeep,rhodeep,errmsg)
     deallocate(f)
+    if (abort_requested) return
     if (len_trim(errmsg) > 0) then
        call ferror('trick_voids',errmsg,faterr)
        return

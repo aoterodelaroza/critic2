@@ -282,7 +282,7 @@ contains
     ! The isovalue does not change the grid
     if (isovalchanged) then
        if (have_grid(w,n)) then
-          call run_isosurface()
+          call find_voids(w,isys)
        else
           w%vd%iso_done = .false.
        end if
@@ -293,7 +293,12 @@ contains
     w%vd%iso_hover = 0
 
     ! run the calculation
-    if (iw_button("Calculate##voidsisocalc",danger=.true.)) call run_isosurface()
+    if (iw_button("Calculate##voidsisocalc",danger=.true.)) then
+       if (w%request_block()) then
+          w%vd%pending = voidsjob_iso
+          w%vd%pending_n = n
+       end if
+    end if
     call iw_tooltip("Calculate the promolecular density on the grid and group the points&
        & below the isovalue into voids",ttshown)
     if (tcost > 0d0) then
@@ -512,31 +517,6 @@ contains
       w%vd%iso_spacing = sp
 
     end subroutine autoset_spacing
-
-    ! Sample the promolecular density and collect the voids in it.
-    subroutine run_isosurface()
-      character(len=:), allocatable :: errmsg
-
-
-      w%vd%iso_done = .false.
-      w%errmsg = ""
-
-      ! sample the promolecular density, unless the grid on hand is already
-      ! the one asked for (an isovalue change, or a Calculate that repeats
-      ! the previous grid). This is the expensive half and the only reason
-      ! the button is worth pressing
-      if (.not.have_grid(w,n)) &
-         call sys(isys)%c%promolecular_array3(w%vd%iso_f,n)
-
-      ! which of its points are void, and how they group into domains
-      call sys(isys)%c%void_domains(w%vd%iso_f,w%vd%iso_isoval,w%vd%iso_vtot,w%vd%iso_nvoid,&
-         w%vd%iso_vol,w%vd%iso_x,w%vd%iso_rho,errmsg,ilbl=w%vd%iso_lbl)
-      w%errmsg = errmsg
-      w%vd%iso_done = (len_trim(errmsg) == 0)
-      ! the labels are new, so the copy the isosurface holds is not these
-      w%vd%iso_lbl_dirty = .true.
-
-    end subroutine run_isosurface
 
   end subroutine draw_isosurface_tab
 
@@ -984,7 +964,7 @@ contains
     ! The nearest-neighbor spheres never overlap, so their volume is a sum
     ! and there is nothing to sample. Scaled up they do overlap, and the
     ! volume is sampled like it is for the other two radii
-    ismc = (w%vd%pck_radii /= vdrad_nnm) .or. (w%vd%pck_scale > 1d0)
+    ismc = pck_is_mc(w)
 
     ! the Monte Carlo sampling stops when it reaches this relative error
     call igBeginDisabled(logical(.not.ismc,c_bool))
@@ -1009,7 +989,7 @@ contains
     expensive = (tcost > bigwarn_secs)
 
     ! run the calculation
-    if (iw_button("Calculate##voidspckcalc",danger=.true.)) call run_packing()
+    if (iw_button("Calculate##voidspckcalc",danger=.true.)) call request_packing()
     call iw_tooltip("Calculate the volume covered by the atomic spheres and the empty space&
        & left outside them",ttshown)
     if (tcost > 0d0) &
@@ -1193,52 +1173,35 @@ contains
 
     end subroutine measure_cost
 
-    ! Number of points the Monte Carlo sampling needs to reach the requested
-    ! precision. It stops when the standard deviation of the volume divided
-    ! by the volume itself falls below it, which for a fraction p of the
-    ! points inside the spheres happens after (1-p)/(p*prec^2) points. This
-    ! has to track the stopping test in vdw_volume (crystalmod@complex.f90),
-    ! including its floor of 100 points.
+    ! Number of points the Monte Carlo sampling needs to reach the
+    ! requested precision, for the measured fraction of the points
+    ! inside the spheres (vdw_volume's stopping test).
     function mc_npoints() result(n)
+      use crystalmod, only: vdw_volume_npoints
       real*8 :: n
 
-      real*8 :: p
-
-      ! with no point inside any sphere the volume and its deviation are
-      ! both zero and the sampling stops as soon as the floor allows
-      p = w%vd%pck_pin
-      if (p <= 0d0) then
-         n = 100d0
-      else
-         n = max((1d0 - p) / (p * w%vd%pck_prec**2),100d0)
-      end if
+      n = vdw_volume_npoints(w%vd%pck_pin,w%vd%pck_prec)
 
     end function mc_npoints
 
-    ! Calculate the volume covered by the atomic spheres.
-    subroutine run_packing()
-      use param, only: pi
-
+    ! Request the blocking job that calculates the volume covered by
+    ! the atomic spheres (run_voids), with the radii of the form.
+    subroutine request_packing()
       real*8, allocatable :: ratom(:)
 
-      w%errmsg = ""
+      if (.not.w%request_block()) return
+      w%vd%pending = voidsjob_packing
       if (w%vd%pck_radii == vdrad_nnm) then
          ! these radii are not a function of the atomic number, so they go
          ! one per atom
          call atom_radii(ratom)
-         if (ismc) then
-            w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,ratom=ratom)
-         else
-            ! the spheres do not overlap: the volume is the sum of theirs
-            w%vd%pck_vfill = sum(4d0/3d0 * pi * ratom**3)
-         end if
+         w%vd%pending_r = ratom
       else
          ! per-species cutoffs: cheaper per sample point than one per atom
-         w%vd%pck_vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,rtable=radii_table())
+         w%vd%pending_r = radii_table()
       end if
-      w%vd%pck_done = .true.
 
-    end subroutine run_packing
+    end subroutine request_packing
 
   end subroutine draw_packing_tab
 
@@ -1334,5 +1297,137 @@ contains
     end do
 
   end subroutine grid_from_spacing
+
+  !> Draw the overlay of the blocking job of the voids window
+  !> (run_voids).
+  module subroutine block_voids(w)
+    use systems, only: sysc, sys_init, ok_system
+    use utils, only: iw_wait_overlay
+    use tools_io, only: string
+    use param, only: newline
+    class(window), intent(inout), target :: w
+
+    character(len=:), allocatable :: info, title
+    logical :: cancellable
+
+    info = ""
+    if (ok_system(w%vd%isys,sys_init)) &
+       info = "System: " // string(w%vd%isys) // ": " // trim(sysc(w%vd%isys)%seed%name)
+    if (w%vd%pending == voidsjob_iso) then
+       title = "Calculating the voids in the promolecular density..."
+       info = info // newline // "Grid:   " // string(w%vd%pending_n(1)) // " x " //&
+          string(w%vd%pending_n(2)) // " x " // string(w%vd%pending_n(3))
+       cancellable = .true.
+    else
+       title = "Calculating the volume of the atomic spheres..."
+       cancellable = pck_is_mc(w)
+    end if
+    call iw_wait_overlay(title,info,cancellable)
+
+  end subroutine block_voids
+
+  !> Run the blocking job of the voids window, called by the main loop
+  !> after the frame with the overlay: the promolecular density on a
+  !> grid and its voids, or the volume covered by the atomic spheres.
+  !> Both can be cancelled with Esc (the results are discarded).
+  module subroutine run_voids(w)
+    use systems, only: sys, sys_init, ok_system
+    use gui_main, only: begin_cancellable, end_cancellable
+    use global, only: abort_requested
+    use param, only: pi
+    class(window), intent(inout), target :: w
+
+    integer :: isys, job
+    logical :: cancelled
+    real*8 :: vfill
+    real*8, allocatable :: f(:,:,:)
+
+    isys = w%vd%isys
+    job = w%vd%pending
+    w%vd%pending = 0
+    if (.not.ok_system(isys,sys_init)) return
+    w%errmsg = ""
+
+    ! the results are kept until the new ones are complete: a cancel
+    ! leaves those on the screen
+    call begin_cancellable()
+    if (job == voidsjob_iso) then
+       ! sample the promolecular density, unless the grid on hand is
+       ! already the one asked for (Calculate repeating the previous
+       ! grid). This is the expensive half
+       if (.not.have_grid(w,w%vd%pending_n)) then
+          call sys(isys)%c%promolecular_array3(f,w%vd%pending_n)
+          if (.not.abort_requested) then
+             call move_alloc(f,w%vd%iso_f)
+             ! the results on the screen were for the previous grid
+             w%vd%iso_done = .false.
+          end if
+       end if
+
+       ! which of its points are void, and how they group into domains
+       if (.not.abort_requested) call find_voids(w,isys)
+    elseif (job == voidsjob_packing .and. allocated(w%vd%pending_r)) then
+       if (w%vd%pck_radii == vdrad_nnm) then
+          if (pck_is_mc(w)) then
+             vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,ratom=w%vd%pending_r)
+          else
+             ! the spheres do not overlap: the volume is the sum of theirs
+             vfill = sum(4d0/3d0 * pi * w%vd%pending_r**3)
+          end if
+       else
+          vfill = sys(isys)%c%vdw_volume(w%vd%pck_prec,rtable=w%vd%pending_r)
+       end if
+       if (.not.abort_requested) then
+          w%vd%pck_vfill = vfill
+          w%vd%pck_done = .true.
+       end if
+    end if
+    cancelled = end_cancellable()
+    if (cancelled) w%errmsg = "The calculation was cancelled"
+
+  end subroutine run_voids
+
+  !> Find the voids in the promolecular density on the grid of the
+  !> voids window (w%vd%iso_f) for system isys, and keep them in the
+  !> window. If the calculation is cancelled (the blocking job), the
+  !> window is left as it was.
+  subroutine find_voids(w,isys)
+    use systems, only: sys
+    use global, only: abort_requested
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    integer :: nvoid
+    real*8 :: vtot
+    real*8, allocatable :: vol(:), x(:,:), rho(:)
+    integer, allocatable :: lbl(:,:,:)
+    character(len=:), allocatable :: errmsg
+
+    if (.not.allocated(w%vd%iso_f)) return
+    call sys(isys)%c%void_domains(w%vd%iso_f,w%vd%iso_isoval,vtot,nvoid,vol,x,rho,errmsg,ilbl=lbl)
+    if (abort_requested) return
+    w%vd%iso_vtot = vtot
+    w%vd%iso_nvoid = nvoid
+    call move_alloc(vol,w%vd%iso_vol)
+    call move_alloc(x,w%vd%iso_x)
+    call move_alloc(rho,w%vd%iso_rho)
+    if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
+    if (allocated(lbl)) call move_alloc(lbl,w%vd%iso_lbl)
+    w%errmsg = errmsg
+    w%vd%iso_done = (len_trim(errmsg) == 0)
+    ! the labels are new, so the copy the isosurface holds is not these
+    w%vd%iso_lbl_dirty = .true.
+
+  end subroutine find_voids
+
+  !> Whether the packing volume of the voids window is calculated by
+  !> Monte Carlo: the nearest-neighbor spheres do not overlap, unless
+  !> they are scaled up.
+  logical function pck_is_mc(w)
+    type(window), intent(in) :: w
+
+    pck_is_mc = (w%vd%pck_radii /= vdrad_nnm) .or. (w%vd%pck_scale > 1d0)
+
+  end function pck_is_mc
 
 end submodule voids

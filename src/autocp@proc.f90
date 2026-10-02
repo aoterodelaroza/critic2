@@ -2212,9 +2212,12 @@ contains
   !> system from its CP list, and report it (after the list was
   !> edited, e.g. with f%delete_cps).
   module subroutine autocritic_graph()
+    use global, only: abort_requested
 
+    ! a cancelled calculation (the GUI): the graph is incomplete, and
+    ! the caller restores the list
     call makegraph()
-    call graph_short_report()
+    if (.not.abort_requested) call graph_short_report()
 
   end subroutine autocritic_graph
 

@@ -1080,10 +1080,13 @@ contains
 
   end subroutine progress_step
 
-  !> n steps of the calculation are done (serial loops).
-  module subroutine progress_set(n)
+  !> n steps of the calculation are done (serial loops), and the
+  !> total is now total, if given (an estimate that changes).
+  module subroutine progress_set(n,total)
     integer, intent(in) :: n
+    integer, intent(in), optional :: total
 
+    if (present(total)) progress_total = total
     !$omp atomic write
     progress_done = n
 

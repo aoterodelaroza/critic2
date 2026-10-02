@@ -224,8 +224,9 @@ module global
      module subroutine progress_step(n)
        integer, intent(in), optional :: n
      end subroutine progress_step
-     module subroutine progress_set(n)
+     module subroutine progress_set(n,total)
        integer, intent(in) :: n
+       integer, intent(in), optional :: total
      end subroutine progress_set
      module subroutine critic_clearvariable(line)
        character*(*), intent(in) :: line
