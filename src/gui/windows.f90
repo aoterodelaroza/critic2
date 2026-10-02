@@ -25,6 +25,7 @@ module windows
   use global, only: rborder_def
   use meshmod, only: mesh_level_small
   use crystalseedmod, only: crystalseed
+  use types, only: pointpropable
   use param, only: isformat_r_unknown, eye, mlen,&
      isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
      isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
@@ -297,12 +298,31 @@ module windows
      ! results
      logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
-     ! results table: the columns shown, by column id (the |gradient|,
-     ! path length, and ellipticity are hidden at first), and whether
-     ! the row order (w%iord) must be recomputed
-     logical :: colshow(0:11) = (/.true.,.true.,.true.,.true.,.true.,.true.,.true.,.false.,&
-        .true.,.true.,.false.,.false./)
+     ! results table: the built-in columns shown, by column id (the ic_*
+     ! of draw_results_tab: delete, CP, x, y, z, Wyc, field, valence
+     ! field, gradient, valence gradient, Laplacian, valence Laplacian,
+     ! the three Hessian eigenvalues, ellipticity, endpoints, path
+     ! length, the two end distances, angle; only the position, Wyckoff,
+     ! field, Laplacian, and endpoints at first); the point properties
+     ! hidden, by name (the others are shown); and whether the row
+     ! order (w%iord) must be recomputed
+     logical :: colshow(0:20) = (/.true.,.true.,.true.,.true.,.true.,.true.,.true.,.false.,&
+        .false.,.false.,.true.,.false.,.false.,.false.,.false.,.false.,.true.,.false.,&
+        .false.,.false.,.false./)
+     character*10, allocatable :: pphide(:)
      logical :: sortdirty = .true.
+     ! the point properties (sys%propp) at the symmetry-unique CPs: value
+     ! and status (ncp,npropp; 0 = not evaluated, 1 = evaluated, -1 =
+     ! could not be evaluated), for the list of point properties ppfor
+     ! (unallocated = none yet; reset with the other table caches)
+     real*8, allocatable :: ppval(:,:)
+     integer, allocatable :: ppstat(:,:)
+     type(pointpropable), allocatable :: ppfor(:)
+     ! the form to add a point property: kind (0 = expression, then the
+     ! keywords of POINTPROP), name, and expression
+     integer :: ppkind = 0
+     character(len=10) :: ppname = ""
+     character(len=1024) :: ppexpr = ""
      integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
      integer :: hoverview = 0 ! view whose critical points object has ihover
      ! results table caches, valid for field tfield while the system's

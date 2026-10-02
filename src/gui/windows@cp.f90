@@ -413,26 +413,41 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
        iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_cell_right,&
        iw_close_button, iw_table_sort_specs, iw_helpermark
+    use systemmod, only: npointprop_keywords, pointprop_keywords, pointprop_keyword_desc
+    use param, only: bohrtoa
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     integer, intent(inout) :: ihover(2)
     logical, intent(inout) :: ttshown
 
-    ! the columns of the results table
+    ! the columns of the results table: the built-in ones, then one
+    ! for each point property of the system (ic_NBUILTIN + ip - 1), up
+    ! to the 64 columns an ImGui table can have
     integer(c_int), parameter :: ic_del = 0, ic_cp = 1, ic_x = 2, ic_y = 3, ic_z = 4, ic_wyc = 5,&
-       ic_f = 6, ic_grad = 7, ic_lap = 8, ic_ends = 9, ic_path = 10, ic_ellip = 11, ic_NUMCOLUMNS = 12
+       ic_f = 6, ic_fval = 7, ic_grad = 8, ic_gradval = 9, ic_lap = 10, ic_lapval = 11,&
+       ic_l1 = 12, ic_l2 = 13, ic_l3 = 14, ic_ellip = 15, ic_ends = 16, ic_path = 17,&
+       ic_d1 = 18, ic_d2 = 19, ic_ang = 20, ic_NBUILTIN = 21
+    integer, parameter :: maxppcol = 64 - ic_NBUILTIN
 
-    ! the columns that can be shown or hidden, in menu order, and the
-    ! tooltips of their entries in the header menu
-    integer(c_int), parameter :: icmenu(10) = (/ic_x,ic_y,ic_z,ic_wyc,ic_f,ic_grad,ic_lap,&
-       ic_ends,ic_path,ic_ellip/)
+    ! the headers of the built-in columns (the position and Wyckoff
+    ! ones depend on the system), and the short definitions of the
+    ! properties among them, for the list of properties
+    character(len=14), parameter :: colhdr(0:ic_NBUILTIN-1) = (/character(len=14) ::&
+       "(delete)","CP","x","y","z","Wyc","Field","Field (val)","|Gradient|","|Grad| (val)",&
+       "Laplacian","Lap. (val)","λ1","λ2","λ3","Ellipticity","Endpoints","Path (Å)",&
+       "Dist. 1 (Å)","Dist. 2 (Å)","Angle (°)"/)
+    character(len=40), parameter :: coldef(ic_f:ic_NBUILTIN-1) = (/character(len=40) ::&
+       "field value","valence field value","gradient norm","valence gradient norm",&
+       "Laplacian","valence Laplacian","Hessian eigenvalue 1","Hessian eigenvalue 2",&
+       "Hessian eigenvalue 3","bond ellipticity (λ1/λ2 - 1)","ends of the bond path",&
+       "bond path length","distance to end 1 of the bond path",&
+       "distance to end 2 of the bond path","angle between the ends of the bond path"/)
 
     integer :: n, k, ifield, ihnuc(2), j
-    integer(c_int) :: itable, flags, fixed
+    integer(c_int) :: itable, flags, fixed, ncol, jc
     logical :: ch, cell, ismol, havespg, rclick
     character(kind=c_char,len=:), allocatable, target :: str1
-    character(len=16) :: colname(0:ic_NUMCOLUMNS-1)
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     type(ImVec2) :: sz
@@ -440,7 +455,10 @@ contains
     ifield = w%cp%ifield
     if (.not.field_cps_or_say(isys,ifield)) return
     call update_table_caches(w,isys)
+    call pp_sync()
+    ncol = ic_NBUILTIN + int(min(sys(isys)%npropp,maxppcol),c_int)
     ismol = sys(isys)%c%ismolecule
+    havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
     ihnuc = 0
 
     associate(f => sys(isys)%f(ifield))
@@ -462,17 +480,16 @@ contains
          cell = (w%cp%tablecell == 1)
       end if
       n = merge(f%ncpcel,f%ncp,cell)
-      call draw_cp_summary(isys,ifield)
-      call iw_helpermark("Right-click the header of the table to show more properties of the&
-         & critical points (gradient norm, bond path length, bond ellipticity) or hide columns.&
-         & Click a header to sort the table by that column.",sameline=.true.)
 
-      ! the column names: fractional coordinates for crystals,
-      ! Cartesian for molecules
-      havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
-      colname = (/character(len=16) :: "(delete)","CP","x","y","z",merge("Wyc","Mul",havespg),&
-         "Field","|Gradient|","Laplacian","Endpoints","Path (Å)","Ellipticity"/)
-      if (ismol) colname(ic_x:ic_z) = (/"x (Å)","y (Å)","z (Å)"/)
+      ! the properties, which can be added to the table (they may
+      ! change the number of columns)
+      call draw_props_section()
+      ncol = ic_NBUILTIN + int(min(sys(isys)%npropp,maxppcol),c_int)
+
+      call draw_cp_summary(isys,ifield)
+      call iw_helpermark("Right-click the header of the table, or open the list of properties&
+         & above, to show more properties of the critical points or hide columns. Click a header&
+         & to sort the table by that column.",sameline=.true.)
 
       ! the columns can be shown and hidden by right-clicking the
       ! header (with our own menu, which has tooltips), and the rows
@@ -485,26 +502,33 @@ contains
       flags = ior(flags,ImGuiTableFlags_ScrollX)
       flags = ior(flags,ImGuiTableFlags_ScrollY)
       flags = ior(flags,ImGuiTableFlags_Sortable)
-      str1 = "##tablecpresults" // c_null_char
+      ! a table per number of columns: imgui keeps the state of a
+      ! column (sort, width) by position, which after a property is
+      ! deleted would belong to the next one
+      str1 = "##tablecpresults" // string(ncol) // c_null_char
       ! the rest of the window, as the tables of the geometry window,
       ! leaving room for the selection buttons, a message, and Close
       call igGetContentRegionAvail(sz)
       sz%x = 0._c_float
       sz%y = sz%y - iw_calcheight(3,0,.true.)
-      if (igBeginTable(c_loc(str1),ic_NUMCOLUMNS,flags,sz,0._c_float)) then
-         ! a disabled column is not drawn: the hidden ones, and the
-         ! Wyckoff positions except for the symmetry-unique CPs of a
-         ! crystal
-         do j = 0, ic_NUMCOLUMNS-1
+      if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
+         ! a disabled column is not drawn: the hidden ones, and those
+         ! that cannot be shown
+         do jc = 0, ncol-1
             fixed = ImGuiTableColumnFlags_WidthFixed
-            if (j == ic_del) fixed = ior(fixed,ior(ImGuiTableColumnFlags_NoHeaderLabel,&
+            if (jc == ic_del) fixed = ior(fixed,ior(ImGuiTableColumnFlags_NoHeaderLabel,&
                ImGuiTableColumnFlags_NoSort))
-            if (j == ic_ends) fixed = ior(fixed,ImGuiTableColumnFlags_NoSort)
-            if (.not.column_on(j)) fixed = ior(fixed,ImGuiTableColumnFlags_Disabled)
-            call iw_table_column(trim(colname(j)),id=j,flags=fixed)
+            if (jc == ic_ends) fixed = ior(fixed,ImGuiTableColumnFlags_NoSort)
+            if (.not.column_on(jc)) fixed = ior(fixed,ImGuiTableColumnFlags_Disabled)
+            call iw_table_column(col_name(jc) // "##cpcol" // string(jc),id=jc,flags=fixed)
          end do
          call iw_table_headers_row(freezetop=.true.,autofit=.true.,rclicked=rclick)
          call header_menu(rclick)
+
+         ! the point properties in the table, evaluated at the CPs
+         do jc = ic_NBUILTIN, ncol-1
+            if (column_on(jc)) call pp_eval(jc-ic_NBUILTIN+1)
+         end do
 
          ! the row order (by the CP column if none is sorted)
          if (iw_table_sort_specs(w%sortcid,w%sortdir,ic_cp,.true.)) w%cp%sortdirty = .true.
@@ -542,22 +566,453 @@ contains
        call sysc(isys)%highlight_atoms(.true.,ihnuc(1:1),ihnuc(2),reshape(ColorHighlightScene,(/4,1/)))
 
   contains
-    !> Whether column j of the table can be shown: there are no
-    !> Wyckoff positions for molecules or the cell list.
-    logical function available(j)
-      integer(c_int), intent(in) :: j
+    !> Whether column jc of the table can be shown: there are no
+    !> Wyckoff positions for molecules or the cell list, valence
+    !> quantities only for fields with a core contribution, and no
+    !> columns for the point properties that are not a number (the
+    !> stress tensor) or past the column limit.
+    logical function available(jc)
+      integer(c_int), intent(in) :: jc
 
-      available = (j /= ic_wyc .or. (.not.ismol .and. .not.cell))
+      select case (jc)
+      case (ic_wyc)
+         available = .not.ismol .and. .not.cell
+      case (ic_fval,ic_gradval,ic_lapval)
+         available = sys(isys)%f(ifield)%usecore
+      case (ic_NBUILTIN:)
+         available = (jc - ic_NBUILTIN < maxppcol)
+         if (available) available = (sys(isys)%propp(jc-ic_NBUILTIN+1)%ispecial == 0)
+      case default
+         available = .true.
+      end select
 
     end function available
 
-    !> Whether column j of the table is drawn.
-    logical function column_on(j)
-      integer(c_int), intent(in) :: j
+    !> Whether the user chose to show column jc of the table.
+    logical function col_shown(jc)
+      integer(c_int), intent(in) :: jc
 
-      column_on = w%cp%colshow(j) .and. available(j)
+      if (jc < ic_NBUILTIN) then
+         col_shown = w%cp%colshow(jc)
+      else
+         col_shown = .true.
+         if (allocated(w%cp%pphide)) &
+            col_shown = .not.any(w%cp%pphide == sys(isys)%propp(jc-ic_NBUILTIN+1)%name)
+      end if
+
+    end function col_shown
+
+    !> Show (val = .true.) or hide column jc of the table.
+    subroutine col_set(jc,val)
+      integer(c_int), intent(in) :: jc
+      logical, intent(in) :: val
+
+      character*10 :: name
+
+      if (jc < ic_NBUILTIN) then
+         w%cp%colshow(jc) = val
+         return
+      end if
+      ! point properties: the list of the names of the hidden ones
+      name = sys(isys)%propp(jc-ic_NBUILTIN+1)%name
+      if (.not.allocated(w%cp%pphide)) allocate(w%cp%pphide(0))
+      w%cp%pphide = pack(w%cp%pphide,w%cp%pphide /= name)
+      if (.not.val) w%cp%pphide = (/w%cp%pphide,name/)
+
+    end subroutine col_set
+
+    !> Whether column jc of the table is drawn.
+    logical function column_on(jc)
+      integer(c_int), intent(in) :: jc
+
+      column_on = col_shown(jc) .and. available(jc)
 
     end function column_on
+
+    !> The header of column jc of the table.
+    function col_name(jc) result(str)
+      integer(c_int), intent(in) :: jc
+      character(len=:), allocatable :: str
+
+      if (jc >= ic_NBUILTIN) then
+         str = trim(sys(isys)%propp(jc-ic_NBUILTIN+1)%name)
+      elseif (jc == ic_wyc .and. .not.havespg) then
+         str = "Mul"
+      elseif (ismol .and. jc >= ic_x .and. jc <= ic_z) then
+         str = trim(colhdr(jc)) // " (Å)"
+      else
+         str = trim(colhdr(jc))
+      end if
+
+    end function col_name
+
+    !> The description of column jc of the table, for the tooltips.
+    function col_desc(jc) result(str)
+      integer(c_int), intent(in) :: jc
+      character(len=:), allocatable :: str
+
+      select case (jc)
+      case (ic_x,ic_y,ic_z)
+         if (ismol) then
+            str = "Cartesian coordinate of the critical point (Å)"
+         else
+            str = "Crystallographic (fractional) coordinate of the critical point"
+         end if
+      case (ic_wyc)
+         if (havespg) then
+            str = "Wyckoff position: the multiplicity (number of copies in the unit cell)&
+               & and the Wyckoff letter"
+         else
+            str = "Multiplicity: the number of copies of the critical point in the unit cell"
+         end if
+      case (ic_f)
+         str = "Value of the field at the critical point"
+      case (ic_fval)
+         str = "Value of the valence field (the field without its core contribution) at the&
+            & critical point"
+      case (ic_grad)
+         str = "Norm of the gradient of the field at the critical point (zero up to the&
+            & convergence threshold of the search)"
+      case (ic_gradval)
+         str = "Norm of the gradient of the valence field (the field without its core&
+            & contribution) at the critical point"
+      case (ic_lap)
+         str = "Laplacian of the field at the critical point"
+      case (ic_lapval)
+         str = "Laplacian of the valence field (the field without its core contribution) at&
+            & the critical point"
+      case (ic_l1,ic_l2,ic_l3)
+         str = "Hessian eigenvalue " // string(jc-ic_l1+1) // " of the field at the critical&
+            & point (the eigenvalues in ascending order)"
+      case (ic_ellip)
+         str = "Bond ellipticity: the ratio of the two negative Hessian eigenvalues at the&
+            & bond critical point (larger over smaller in absolute value) minus one"
+      case (ic_ends)
+         str = "The two nuclei or critical points at the ends of the bond path&
+            & (bond critical points only)"
+      case (ic_path)
+         str = "Bond path length: the length of the gradient path that joins the two ends&
+            & through the bond critical point (Å)"
+      case (ic_d1,ic_d2)
+         str = "Distance from the bond critical point to end " // string(jc-ic_d1+1) //&
+            " of the bond path, in a straight line (Å)"
+      case (ic_ang)
+         str = "Bond angle: the angle between the directions from the bond critical point to&
+            & the two ends of the bond path (°)"
+      case (ic_NBUILTIN:)
+         associate(pp => sys(isys)%propp(jc-ic_NBUILTIN+1))
+           if (pp%ispecial == 0) then
+              str = "Point property: " // trim(pp%expr)
+              if (jc - ic_NBUILTIN >= maxppcol) str = str // ". The table has no room for&
+                 & its column (there are too many point properties)"
+           else
+              str = "Point property: the stress tensor, which cannot be shown in the table"
+           end if
+         end associate
+      case default
+         str = ""
+      end select
+
+    end function col_desc
+
+    !> The value of numeric column jc (a property) of the table for
+    !> symmetry-unique CP i, in val. False if the cell is empty: no
+    !> such property for this CP, or it could not be evaluated.
+    logical function cell_value(i,jc,val)
+      integer, intent(in) :: i
+      integer(c_int), intent(in) :: jc
+      real*8, intent(inout) :: val
+
+      cell_value = .true.
+      associate(f => sys(isys)%f(ifield))
+        ! the bond path quantities: bond CPs with both ends found
+        if (jc == ic_path .or. jc == ic_d1 .or. jc == ic_d2 .or. jc == ic_ang) then
+           cell_value = f%isbcp(f%cp(i))
+           if (cell_value) cell_value = all(f%cp(i)%ipath > 0)
+           if (.not.cell_value) return
+        end if
+        select case (jc)
+        case (ic_f)
+           val = f%cp(i)%s%f
+        case (ic_fval)
+           val = f%cp(i)%s%fval
+        case (ic_grad)
+           val = f%cp(i)%s%gfmod
+        case (ic_gradval)
+           val = f%cp(i)%s%gfmodval
+        case (ic_lap)
+           val = f%cp(i)%s%del2f
+        case (ic_lapval)
+           val = f%cp(i)%s%del2fval
+        case (ic_l1,ic_l2,ic_l3)
+           val = f%cp(i)%s%hfeval(jc-ic_l1+1)
+        case (ic_ellip)
+           cell_value = f%isbcp(f%cp(i))
+           if (cell_value) cell_value = (abs(f%cp(i)%s%hfeval(2)) > 0d0)
+           if (cell_value) val = f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0
+        case (ic_path)
+           val = sum(f%cp(i)%brpathlen) * bohrtoa
+        case (ic_d1,ic_d2)
+           val = f%cp(i)%brdist(jc-ic_d1+1) * bohrtoa
+        case (ic_ang)
+           val = f%cp(i)%brang
+        case (ic_NBUILTIN:)
+           cell_value = (w%cp%ppstat(i,jc-ic_NBUILTIN+1) == 1)
+           if (cell_value) val = w%cp%ppval(i,jc-ic_NBUILTIN+1)
+        case default
+           cell_value = .false.
+        end select
+      end associate
+
+    end function cell_value
+
+    !> Value val of numeric column jc as text.
+    function cell_str(jc,val) result(str)
+      integer(c_int), intent(in) :: jc
+      real*8, intent(in) :: val
+      character(len=:), allocatable :: str
+
+      select case (jc)
+      case (ic_grad,ic_gradval)
+         str = string(val,'e',decimal=3)
+      case (ic_ellip,ic_path,ic_d1,ic_d2)
+         str = string(val,'f',decimal=4)
+      case (ic_ang)
+         str = string(val,'f',decimal=2)
+      case default
+         str = string(val,'e',decimal=5)
+      end select
+
+    end function cell_str
+
+    !> Keep the cache of the point property values for the current
+    !> list of point properties: if it changed (or the cache was
+    !> reset), clear it.
+    subroutine pp_sync()
+      integer :: ip, np, ncp
+      logical :: same
+
+      np = sys(isys)%npropp
+      if (allocated(w%cp%ppfor)) then
+         same = (size(w%cp%ppfor) == np)
+         do ip = 1, np
+            if (.not.same) exit
+            same = (w%cp%ppfor(ip)%name == sys(isys)%propp(ip)%name) .and.&
+               (w%cp%ppfor(ip)%expr == sys(isys)%propp(ip)%expr)
+         end do
+         if (same) return
+      end if
+      w%cp%ppfor = sys(isys)%propp(1:np)
+      ncp = sys(isys)%f(ifield)%ncp
+      if (allocated(w%cp%ppval)) deallocate(w%cp%ppval)
+      if (allocated(w%cp%ppstat)) deallocate(w%cp%ppstat)
+      allocate(w%cp%ppval(ncp,np),w%cp%ppstat(ncp,np))
+      w%cp%ppstat = 0
+      w%cp%sortdirty = .true.
+
+    end subroutine pp_sync
+
+    !> Evaluate point property ip at the symmetry-unique CPs, unless
+    !> it already is.
+    subroutine pp_eval(ip)
+      integer, intent(in) :: ip
+
+      integer :: i
+      character(len=:), allocatable :: errmsg
+
+      ! the nuclei are always in the list, so the first CP tells
+      if (w%cp%ppstat(1,ip) /= 0) return
+      if (sys(isys)%propp(ip)%ispecial /= 0) then
+         w%cp%ppstat(:,ip) = -1
+         return
+      end if
+      associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+        do i = 1, f%ncp
+           errmsg = ""
+           w%cp%ppval(i,ip) = sys(isys)%eval(sys(isys)%propp(ip)%expr,errmsg,c%x2c(f%cp(i)%x))
+           w%cp%ppstat(i,ip) = merge(1,-1,len_trim(errmsg) == 0)
+        end do
+      end associate
+
+    end subroutine pp_eval
+
+    !> The collapsible list of the properties calculated at the
+    !> critical points: the built-in ones and the point properties of
+    !> the system, each with the checkbox that shows its column, and
+    !> the form to add point properties (as POINTPROP).
+    subroutine draw_props_section()
+      use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_arith_help_button
+
+      character(kind=c_char,len=:), allocatable, target :: strsec, strtab
+      character(len=:), allocatable :: stropt, sttip
+      integer(c_int) :: jc, flt
+      integer :: ip, idel, nrow, k
+      logical :: lval, ldum
+      type(ImVec2) :: szt
+      character(len=:), allocatable :: suffix
+
+      ! a framed header across the window, so it stands out
+      strsec = "Properties calculated at the critical points##cpprops" // c_null_char
+      if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
+
+      ! the table of properties: show, name, definition, delete
+      nrow = sys(isys)%npropp
+      do jc = ic_f, ic_ang
+         if (available(jc)) nrow = nrow + 1
+      end do
+      flt = ImGuiTableFlags_None
+      flt = ior(flt,ImGuiTableFlags_NoSavedSettings)
+      flt = ior(flt,ImGuiTableFlags_RowBg)
+      flt = ior(flt,ImGuiTableFlags_Borders)
+      flt = ior(flt,ImGuiTableFlags_SizingFixedFit)
+      flt = ior(flt,ImGuiTableFlags_ScrollY)
+      strtab = "##tablecpprops" // c_null_char
+      szt%x = 0._c_float
+      szt%y = iw_calcheight(min(nrow,8)+1,0,.false.)
+      idel = 0
+      if (igBeginTable(c_loc(strtab),4_c_int,flt,szt,0._c_float)) then
+         call iw_table_column("Show",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Property",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Definition",id=2_c_int,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_column("(delete)",id=3_c_int,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
+            ImGuiTableColumnFlags_NoHeaderLabel))
+         call iw_table_headers_row(freezetop=.true.)
+         do jc = ic_f, ic_NBUILTIN+int(sys(isys)%npropp,c_int)-1
+            if (jc <= ic_ang .and. .not.available(jc)) cycle
+            suffix = "##cpprop" // string(jc)
+            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+            if (igTableSetColumnIndex(0_c_int)) then
+               if (available(jc)) then
+                  lval = col_shown(jc)
+                  if (iw_checkbox(suffix // "show",lval)) call col_set(jc,lval)
+                  call iw_tooltip("Show this property as a column of the table",ttshown)
+               end if
+            end if
+            if (igTableSetColumnIndex(1_c_int)) then
+               call iw_text(col_name(jc),alignframe=.true.)
+               call iw_tooltip(col_desc(jc),ttshown)
+            end if
+            if (igTableSetColumnIndex(2_c_int)) then
+               if (jc < ic_NBUILTIN) then
+                  call iw_text(trim(coldef(jc)),alignframe=.true.)
+               else
+                  ip = jc - ic_NBUILTIN + 1
+                  if (sys(isys)%propp(ip)%ispecial == 0) then
+                     call iw_text(trim(sys(isys)%propp(ip)%expr),alignframe=.true.)
+                  else
+                     call iw_text("stress tensor (not a number: no column)",alignframe=.true.,&
+                        disabled=.true.)
+                  end if
+               end if
+               call iw_tooltip(col_desc(jc),ttshown)
+            end if
+            if (jc >= ic_NBUILTIN) then
+               if (igTableSetColumnIndex(3_c_int)) then
+                  if (iw_close_button(suffix // "del")) idel = jc - ic_NBUILTIN + 1
+                  call iw_tooltip("Remove this point property from the system (as if it had&
+                     & not been defined with POINTPROP)",ttshown)
+               end if
+            end if
+         end do
+         call igEndTable()
+      end if
+      if (idel > 0) then
+         ! forget that it was hidden, then remove it
+         call col_set(ic_NBUILTIN+int(idel,c_int)-1_c_int,.true.)
+         call sys(isys)%delete_pointprop(idel)
+         call pp_sync()
+      end if
+
+      ! add a point property: an expression, or one of the keywords
+      ! of POINTPROP, for the field of the window
+      stropt = "Expression" // c_null_char
+      sttip = "An arithmetic expression of the fields of the system" // c_null_char
+      do k = 1, npointprop_keywords
+         stropt = stropt // trim(pointprop_keywords(k)) // c_null_char
+         sttip = sttip // trim(pointprop_keyword_desc(k)) // c_null_char
+      end do
+      call iw_combo_simple("##cpppkind",stropt,w%cp%ppkind,tooltips=sttip,ttshown=ttshown)
+      call iw_tooltip("The kind of point property to add: an arithmetic expression, or one of&
+         & the keywords of POINTPROP (calculated from the field of this window)",ttshown)
+      if (w%cp%ppkind == 0) then
+         call iw_text("Name",sameline=.true.)
+         ldum = iw_inputtext("##cpppname",bufsize=11,textf=w%cp%ppname,width=10,sameline=.true.)
+         call iw_tooltip("Name of the new property (at most 10 characters, no spaces): the&
+            & header of its column",ttshown)
+         call iw_text("Expression",sameline=.true.)
+         ldum = iw_inputtext("##cpppexpr",bufsize=1023,textf=w%cp%ppexpr,width=24,sameline=.true.)
+         call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
+            & ""$1 - $2"" or ""-lag($1)""), evaluated at the critical points",ttshown)
+         call iw_arith_help_button("##cpppexprhelp",ttshown)
+      end if
+      if (iw_button("Add##cpppadd",sameline=.true.)) call add_pointprop()
+      call iw_tooltip("Add the property to the system (as POINTPROP) and show it as a column of&
+         & the table. The point properties are those of the system: CPREPORT and POINT in the&
+         & console report them too",ttshown)
+
+      call igTreePop()
+
+    end subroutine draw_props_section
+
+    !> Add the point property of the form (w%cp%ppkind, ppname,
+    !> ppexpr) to the system, and show its column. On error, the
+    !> message goes to w%errmsg.
+    subroutine add_pointprop()
+      use tools_io, only: equali
+      character(len=:), allocatable :: name, expr, errmsg
+      character*10 :: name10
+      integer :: k
+
+      if (w%cp%ppkind == 0) then
+         name = trim(adjustl(w%cp%ppname))
+         expr = trim(adjustl(w%cp%ppexpr))
+         if (len(name) == 0 .or. index(name," ") > 0) then
+            w%errmsg = "The name of the property must be a single word"
+            return
+         end if
+         if (len(expr) == 0) then
+            w%errmsg = "The expression of the property is empty"
+            return
+         end if
+         call sys(isys)%check_expression(expr,errmsg)
+         if (len_trim(errmsg) > 0) then
+            w%errmsg = "Invalid expression: " // trim(errmsg)
+            return
+         end if
+      else
+         ! a keyword: for the field of the window, named after the
+         ! keyword (and the field, if it is not the reference)
+         k = w%cp%ppkind
+         name = trim(pointprop_keywords(k))
+         expr = name // "(" // string(ifield) // ")"
+         if (ifield /= sys(isys)%iref) name = name // "_" // string(ifield)
+      end if
+      if (len(name) > len(name10)) then
+         w%errmsg = "The name of the property (" // name // ") is longer than 10 characters"
+         return
+      end if
+      name10 = name
+      do k = 1, sys(isys)%npropp
+         if (equali(trim(sys(isys)%propp(k)%name),trim(name10))) then
+            w%errmsg = "There is already a point property named " // trim(name10)
+            return
+         end if
+      end do
+
+      call sys(isys)%new_pointprop_string(trim(name10) // " " // expr,errmsg)
+      if (len_trim(errmsg) > 0) then
+         w%errmsg = "Could not add the property: " // trim(errmsg)
+         return
+      end if
+      w%errmsg = ""
+      if (w%cp%ppkind == 0) then
+         w%cp%ppname = ""
+         w%cp%ppexpr = ""
+      end if
+      call pp_sync()
+      call col_set(ic_NBUILTIN+int(sys(isys)%npropp,c_int)-1_c_int,.true.)
+
+    end subroutine add_pointprop
 
     !> The popup that shows and hides the columns, opened by
     !> right-clicking the header (rclick). It stays open while the
@@ -566,52 +1021,17 @@ contains
       use utils, only: iw_menuitem
       logical, intent(in) :: rclick
 
-      integer :: m
       integer(c_int) :: jc
       character(kind=c_char,len=:), allocatable, target :: strpop
-      character(len=:), allocatable :: tt
 
       strpop = "##cpcolumnmenu" // c_null_char
       if (rclick) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
       if (igBeginPopup(c_loc(strpop),ImGuiWindowFlags_None)) then
          call igPushItemFlag(ImGuiItemFlags_SelectableDontClosePopup,.true._c_bool)
-         do m = 1, size(icmenu)
-            jc = icmenu(m)
+         do jc = ic_x, ncol-1
             if (.not.available(jc)) cycle
-            if (iw_menuitem(trim(colname(jc)),selected=w%cp%colshow(jc))) &
-               w%cp%colshow(jc) = .not.w%cp%colshow(jc)
-            select case (jc)
-            case (ic_x,ic_y,ic_z)
-               if (ismol) then
-                  tt = "Cartesian coordinate of the critical point (Å)"
-               else
-                  tt = "Crystallographic (fractional) coordinate of the critical point"
-               end if
-            case (ic_wyc)
-               if (havespg) then
-                  tt = "Wyckoff position: the multiplicity (number of copies in the unit cell)&
-                     & and the Wyckoff letter"
-               else
-                  tt = "Multiplicity: the number of copies of the critical point in the unit cell"
-               end if
-            case (ic_f)
-               tt = "Value of the field at the critical point"
-            case (ic_grad)
-               tt = "Norm of the gradient of the field at the critical point (zero up to&
-                  & the convergence threshold of the search)"
-            case (ic_lap)
-               tt = "Laplacian of the field at the critical point"
-            case (ic_ends)
-               tt = "The two nuclei or critical points at the ends of the bond path&
-                  & (bond critical points only)"
-            case (ic_path)
-               tt = "Bond path length: the length of the gradient path that joins the two ends&
-                  & through the bond critical point (Å)"
-            case (ic_ellip)
-               tt = "Bond ellipticity: the ratio of the two negative Hessian eigenvalues at the&
-                  & bond critical point (larger over smaller in absolute value) minus one"
-            end select
-            call iw_tooltip(tt,ttshown)
+            if (iw_menuitem(col_name(jc),selected=col_shown(jc))) call col_set(jc,.not.col_shown(jc))
+            call iw_tooltip(col_desc(jc),ttshown)
          end do
          call igPopItemFlag()
          call igEndPopup()
@@ -638,6 +1058,7 @@ contains
       iperm = (/(kr, kr = 1, n)/)
       key = 0d0
       blank = .false.
+      if (w%sortcid >= ic_NBUILTIN .and. w%sortcid < ncol) call pp_eval(w%sortcid-ic_NBUILTIN+1)
       associate(f => sys(isys)%f(ifield))
         do kr = 1, n
            i = kr
@@ -652,19 +1073,11 @@ contains
               key(kr) = x(w%sortcid-ic_x+1)
            case (ic_wyc)
               key(kr) = 1000d0 * f%cp(i)%mult + ichar(wyc_letter(i))
-           case (ic_f)
-              key(kr) = f%cp(i)%s%f
-           case (ic_grad)
-              key(kr) = f%cp(i)%s%gfmod
-           case (ic_lap)
-              key(kr) = f%cp(i)%s%del2f
-           case (ic_path)
-              blank(kr) = .not.bond_pathlen(i,key(kr))
-           case (ic_ellip)
-              blank(kr) = .not.bond_ellip(i,key(kr))
-           case default
+           case (ic_del,ic_cp,ic_ends)
               ! the CP column: the order of the list
               key(kr) = kr
+           case default
+              blank(kr) = .not.cell_value(i,w%sortcid,key(kr))
            end select
         end do
       end associate
@@ -678,7 +1091,6 @@ contains
     !> icp): Cartesian in the input frame (Å) if cart, fractional
     !> otherwise.
     function row_pos(i,icp,cart) result(x)
-      use param, only: bohrtoa
       integer, intent(in) :: i, icp
       logical, intent(in) :: cart
       real*8 :: x(3)
@@ -709,35 +1121,6 @@ contains
 
     end function wyc_letter
 
-    !> The bond path length (Å) of symmetry-unique CP i in val. False
-    !> if it has none (not a bond CP, or the path was not traced).
-    logical function bond_pathlen(i,val)
-      use param, only: bohrtoa
-      integer, intent(in) :: i
-      real*8, intent(inout) :: val
-
-      associate(f => sys(isys)%f(ifield))
-        bond_pathlen = f%isbcp(f%cp(i))
-        if (bond_pathlen) bond_pathlen = all(f%cp(i)%ipath > 0)
-        if (bond_pathlen) val = sum(f%cp(i)%brpathlen) * bohrtoa
-      end associate
-
-    end function bond_pathlen
-
-    !> The bond ellipticity of symmetry-unique CP i in val. False if
-    !> it has none (not a bond CP, or a zero Hessian eigenvalue).
-    logical function bond_ellip(i,val)
-      integer, intent(in) :: i
-      real*8, intent(inout) :: val
-
-      associate(f => sys(isys)%f(ifield))
-        bond_ellip = f%isbcp(f%cp(i))
-        if (bond_ellip) bond_ellip = (abs(f%cp(i)%s%hfeval(2)) > 0d0)
-        if (bond_ellip) val = f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0
-      end associate
-
-    end function bond_ellip
-
     !> Row at position k of the table: symmetry-unique CP i (icp = 0)
     !> or cell CP icp, a copy of symmetry-unique CP i. The properties
     !> are those of the symmetry-unique CP.
@@ -747,11 +1130,11 @@ contains
       real*8 :: x(3), xc(3), val
       character(len=:), allocatable :: suffix, lbl
       integer :: j, iu
-      logical :: isbcp, clk, selrow, drawn
+      integer(c_int) :: jc
+      logical :: clk, selrow, drawn
 
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         suffix = "_cprow" // string(merge(icp,i,icp > 0))
-        isbcp = f%isbcp(f%cp(i))
 
         ! the row selectable, which highlights the CP in the view and,
         ! clicked, selects its symmetry-unique CP for deletion (not the
@@ -843,25 +1226,19 @@ contains
            call iw_tooltip("Site symmetry: " // trim(f%cp(i)%pg),ttshown)
         end if
 
-        ! field, gradient norm, and Laplacian at the CP
-        if (igTableSetColumnIndex(ic_f)) call iw_cell_right(string(f%cp(i)%s%f,'e',decimal=5))
-        if (igTableSetColumnIndex(ic_grad)) call iw_cell_right(string(f%cp(i)%s%gfmod,'e',decimal=3))
-        if (igTableSetColumnIndex(ic_lap)) call iw_cell_right(string(f%cp(i)%s%del2f,'e',decimal=5))
-
-        ! bond CPs: the ends of the bond path, its length, and the ellipticity
-        if (isbcp) then
-           if (igTableSetColumnIndex(ic_ends)) then
-              call path_end_badge(i,icp,1,suffix,drawn)
-              if (drawn) call igSameLine(0._c_float,-1._c_float)
-              call path_end_badge(i,icp,2,suffix,drawn)
-           end if
-           if (igTableSetColumnIndex(ic_path)) then
-              if (bond_pathlen(i,val)) call iw_cell_right(string(val,'f',decimal=4))
-           end if
-           if (igTableSetColumnIndex(ic_ellip)) then
-              if (bond_ellip(i,val)) call iw_cell_right(string(val,'f',decimal=4))
-           end if
+        ! bond CPs: the ends of the bond path
+        if (f%isbcp(f%cp(i)) .and. igTableSetColumnIndex(ic_ends)) then
+           call path_end_badge(i,icp,1,suffix,drawn)
+           if (drawn) call igSameLine(0._c_float,-1._c_float)
+           call path_end_badge(i,icp,2,suffix,drawn)
         end if
+
+        ! the properties
+        do jc = ic_f, ncol-1
+           if (jc == ic_ends) cycle
+           if (.not.igTableSetColumnIndex(jc)) cycle
+           if (cell_value(i,jc,val)) call iw_cell_right(cell_str(jc,val))
+        end do
       end associate
 
     end subroutine draw_cp_row
@@ -1545,6 +1922,7 @@ contains
     allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
     w%cp%sel = .false.
     w%cp%sortdirty = .true.
+    if (allocated(w%cp%ppfor)) deallocate(w%cp%ppfor)
 
   end subroutine update_table_caches
 

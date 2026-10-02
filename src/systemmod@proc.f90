@@ -1262,61 +1262,20 @@ contains
     aux = getword(line,lp2)
     ismore = (len_trim(aux) > 0)
 
-    ! check if it is a single-word command
+    ! check if it is a single-word command: a keyword applies to the
+    ! reference field
     isstress = .false.
     if (.not.ismore) then
        if (equal(lword,'clear')) then
           call s%set_default_pointprop()
           return
-       elseif (equal(lword,'gtf')) then
-          lp = 1
-          line = "gtf(" // string(s%iref) // ")"
-       elseif (equal(lword,'vtf')) then
-          lp = 1
-          line = "vtf(" // string(s%iref) // ")"
-       elseif (equal(lword,'htf')) then
-          lp = 1
-          line = "htf(" // string(s%iref) // ")"
-       elseif (equal(lword,'gtf_kir')) then
-          lp = 1
-          line = "gtf_kir(" // string(s%iref) // ")"
-       elseif (equal(lword,'vtf_kir')) then
-          lp = 1
-          line = "vtf_kir(" // string(s%iref) // ")"
-       elseif (equal(lword,'htf_kir')) then
-          lp = 1
-          line = "htf_kir(" // string(s%iref) // ")"
-       elseif (equal(lword,'gkin')) then
-          lp = 1
-          line = "gkin(" // string(s%iref) // ")"
-       elseif (equal(lword,'kkin')) then
-          lp = 1
-          line = "kkin(" // string(s%iref) // ")"
-       elseif (equal(lword,'lag')) then
-          lp = 1
-          line = "lag(" // string(s%iref) // ")"
-       elseif (equal(lword,'elf')) then
-          lp = 1
-          line = "elf(" // string(s%iref) // ")"
        elseif (equal(lword,'stress')) then
           lp = 1
           line = "stress(" // string(s%iref) // ")"
           isstress = .true.
-       elseif (equal(lword,'vir')) then
+       elseif (any(pointprop_keywords == lword)) then
           lp = 1
-          line = "vir(" // string(s%iref) // ")"
-       elseif (equal(lword,'he')) then
-          lp = 1
-          line = "he(" // string(s%iref) // ")"
-       elseif (equal(lword,'lol')) then
-          lp = 1
-          line = "lol(" // string(s%iref) // ")"
-       elseif (equal(lword,'lol_kir')) then
-          lp = 1
-          line = "lol_kir(" // string(s%iref) // ")"
-       elseif (equal(lword,'rdg')) then
-          lp = 1
-          line = "rdg(" // string(s%iref) // ")"
+          line = lword // "(" // string(s%iref) // ")"
        elseif (len_trim(lword) == 0) then
           return
        endif
@@ -1342,6 +1301,19 @@ contains
        return
     end if
 
+    ! Determine the fields in the expression, check that they are defined
+    if (.not.isstress) then
+       syl => s
+       call fields_in_eval(expr,errmsg,n,idlist,c_loc(syl))
+       if (len_trim(errmsg) > 0) return
+       do i = 1, n
+          if (.not.s%goodfield(s%fieldname_to_idx(idlist(i)))) then
+             errmsg = "Unknown field in arithmetic expression (POINTPROP)"
+             return
+          end if
+       end do
+    end if
+
     ! Add this pointprop to the list
     s%npropp = s%npropp + 1
     if (.not.allocated(s%propp)) allocate(s%propp(1))
@@ -1349,43 +1321,36 @@ contains
        call realloc(s%propp,2*s%npropp)
     s%propp(s%npropp)%name = word
     s%propp(s%npropp)%expr = expr
+    if (allocated(s%propp(s%npropp)%fused)) deallocate(s%propp(s%npropp)%fused)
     if (isstress) then
        s%propp(s%npropp)%ispecial = 1
+       allocate(s%propp(s%npropp)%fused(1))
+       s%propp(s%npropp)%nf = 1
+       s%propp(s%npropp)%fused(1) = s%iref
     else
        s%propp(s%npropp)%ispecial = 0
-    end if
-
-    ! Determine the fields in the expression, check that they are defined
-    if (s%propp(s%npropp)%ispecial == 0) then
-       syl => s
-       call fields_in_eval(expr,errmsg,n,idlist,c_loc(syl))
-       if (len_trim(errmsg) > 0) return
-       do i = 1, n
-          if (.not.s%goodfield(s%fieldname_to_idx(idlist(i)))) then
-             errmsg = "Unknown field in arithmetic expression (POINTPROP)"
-             s%npropp = s%npropp - 1
-             return
-          end if
-       end do
-
-       ! fill the fused array
-       if (allocated(s%propp(s%npropp)%fused)) deallocate(s%propp(s%npropp)%fused)
        allocate(s%propp(s%npropp)%fused(n))
        s%propp(s%npropp)%nf = n
        do i = 1, n
           s%propp(s%npropp)%fused(i) = s%fieldname_to_idx(idlist(i))
        end do
-    else
-       if (allocated(s%propp(s%npropp)%fused)) deallocate(s%propp(s%npropp)%fused)
-       allocate(s%propp(s%npropp)%fused(1))
-       s%propp(s%npropp)%nf = 1
-       s%propp(s%npropp)%fused(1) = s%iref
     end if
 
     ! Clean up
     if (allocated(idlist)) deallocate(idlist)
 
   end subroutine new_pointprop_string
+
+  !> Remove point property i from the list of the system.
+  module subroutine delete_pointprop(s,i)
+    class(system), intent(inout) :: s
+    integer, intent(in) :: i
+
+    if (i < 1 .or. i > s%npropp) return
+    s%propp(i:s%npropp-1) = s%propp(i+1:s%npropp)
+    s%npropp = s%npropp - 1
+
+  end subroutine delete_pointprop
 
   !> Evaluate an arithmetic expression using the system's fields. If toklist
   !> is given, use the pre-tokenized expression (see pretokenize in the
