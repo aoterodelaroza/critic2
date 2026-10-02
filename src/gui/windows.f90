@@ -242,6 +242,16 @@ module windows
   end type cp_seed_ui
   public :: cp_seed_ui
 
+  !> Display settings of a column of the results table of the
+  !> critical points window: a built-in column, or a point property
+  !> (kept by property name)
+  type cp_ppcol
+     character*10 :: name = "" ! the point property (blank for built-in columns)
+     logical :: show = .true. ! show the column
+     logical :: expo = .true. ! exponential notation (or fixed point)
+     integer(c_int) :: ndec = 5 ! number of decimal places
+  end type cp_ppcol
+
   !> Per-window state of the critical points window (Tools > Critical
   !> Points): the AUTO form (field, seeds, options), the pending
   !> blocking job, and the results table. The seeds are reset
@@ -298,18 +308,26 @@ module windows
      ! results
      logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
-     ! results table: the built-in columns shown, by column id (the ic_*
-     ! of draw_results_tab: delete, CP, x, y, z, Wyc, field, valence
-     ! field, gradient, valence gradient, Laplacian, valence Laplacian,
-     ! the three Hessian eigenvalues, ellipticity, endpoints, path
-     ! length, the two end distances, angle; only the position, Wyckoff,
-     ! field, Laplacian, and endpoints at first); the point properties
-     ! hidden, by name (the others are shown); and whether the row
-     ! order (w%iord) must be recomputed
-     logical :: colshow(0:20) = (/.true.,.true.,.true.,.true.,.true.,.true.,.true.,.false.,&
-        .false.,.false.,.true.,.false.,.false.,.false.,.false.,.false.,.true.,.false.,&
-        .false.,.false.,.false./)
-     character*10, allocatable :: pphide(:)
+     ! results table: the settings of the built-in columns, by column
+     ! id (the ic_* of draw_results_tab; the type defaults, except as
+     ! given; the notation and decimals apply to the numeric ones only);
+     ! the settings of the point property columns, parallel to
+     ! sys%propp (rebuilt by pp_sync, keeping them by property name);
+     ! and a counter that changes the table's ImGui ID when a column
+     ! other than the last is removed or replaced (ImGui keeps column
+     ! state by position)
+     type(cp_ppcol) :: bcol(0:20) = (/cp_ppcol(),cp_ppcol(),& ! delete, CP
+        cp_ppcol(),cp_ppcol(),cp_ppcol(),cp_ppcol(),& ! x, y, z, Wyc
+        cp_ppcol(ndec=3),cp_ppcol(show=.false.,ndec=3),& ! field, valence field
+        cp_ppcol(show=.false.,ndec=3),cp_ppcol(show=.false.,ndec=3),& ! gradient, valence gradient
+        cp_ppcol(ndec=3),cp_ppcol(show=.false.,ndec=3),& ! Laplacian, valence Laplacian
+        cp_ppcol(show=.false.),cp_ppcol(show=.false.),cp_ppcol(show=.false.),& ! Hessian eigenvalues
+        cp_ppcol(show=.false.,expo=.false.,ndec=4),cp_ppcol(),& ! ellipticity, endpoints
+        cp_ppcol(show=.false.,expo=.false.,ndec=4),& ! path length
+        cp_ppcol(show=.false.,expo=.false.,ndec=4),cp_ppcol(show=.false.,expo=.false.,ndec=4),& ! distances
+        cp_ppcol(show=.false.,expo=.false.,ndec=2)/) ! angle
+     type(cp_ppcol), allocatable :: ppcol(:)
+     integer :: tablegen = 0
      logical :: sortdirty = .true.
      ! the point properties (sys%propp) at the symmetry-unique CPs: value
      ! and status (ncp,npropp; 0 = not evaluated, 1 = evaluated, -1 =

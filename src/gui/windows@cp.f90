@@ -423,12 +423,13 @@ contains
 
     ! the columns of the results table: the built-in ones, then one
     ! for each point property of the system (ic_NBUILTIN + ip - 1), up
-    ! to the 64 columns an ImGui table can have
+    ! to the columns an ImGui table can have (IMGUI_TABLE_MAX_COLUMNS)
     integer(c_int), parameter :: ic_del = 0, ic_cp = 1, ic_x = 2, ic_y = 3, ic_z = 4, ic_wyc = 5,&
        ic_f = 6, ic_fval = 7, ic_grad = 8, ic_gradval = 9, ic_lap = 10, ic_lapval = 11,&
        ic_l1 = 12, ic_l2 = 13, ic_l3 = 14, ic_ellip = 15, ic_ends = 16, ic_path = 17,&
        ic_d1 = 18, ic_d2 = 19, ic_ang = 20, ic_NBUILTIN = 21
-    integer, parameter :: maxppcol = 64 - ic_NBUILTIN
+    integer, parameter :: maxtablecol = 64
+    integer, parameter :: maxppcol = maxtablecol - ic_NBUILTIN
 
     ! the headers of the built-in columns (the position and Wyckoff
     ! ones depend on the system), and the short definitions of the
@@ -456,7 +457,6 @@ contains
     if (.not.field_cps_or_say(isys,ifield)) return
     call update_table_caches(w,isys)
     call pp_sync()
-    ncol = ic_NBUILTIN + int(min(sys(isys)%npropp,maxppcol),c_int)
     ismol = sys(isys)%c%ismolecule
     havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
     ihnuc = 0
@@ -502,15 +502,20 @@ contains
       flags = ior(flags,ImGuiTableFlags_ScrollX)
       flags = ior(flags,ImGuiTableFlags_ScrollY)
       flags = ior(flags,ImGuiTableFlags_Sortable)
-      ! a table per number of columns: imgui keeps the state of a
-      ! column (sort, width) by position, which after a property is
-      ! deleted would belong to the next one
-      str1 = "##tablecpresults" // string(ncol) // c_null_char
+      ! imgui keeps the state of a column (sort, width) by position:
+      ! a new table when a property other than the last one is
+      ! removed or replaced (see pp_sync)
+      str1 = "##tablecpresults" // string(w%cp%tablegen) // c_null_char
       ! the rest of the window, as the tables of the geometry window,
       ! leaving room for the selection buttons, a message, and Close
       call igGetContentRegionAvail(sz)
       sz%x = 0._c_float
       sz%y = sz%y - iw_calcheight(3,0,.true.)
+      ! but at least a few rows. The window grows to fit its content
+      ! (opening the list of properties makes it taller): the table's
+      ! stretch beyond those rows is elastic, not content to fit
+      sz%y = max(sz%y,iw_calcheight(7,0,.false.))
+      w%heightslack = sz%y - iw_calcheight(7,0,.false.)
       if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
          ! a disabled column is not drawn: the hidden ones, and those
          ! that cannot be shown
@@ -532,11 +537,9 @@ contains
 
          ! the row order (by the CP column if none is sorted)
          if (iw_table_sort_specs(w%sortcid,w%sortdir,ic_cp,.true.)) w%cp%sortdirty = .true.
-         if (w%cp%sortdirty .or. .not.allocated(w%iord)) then
-            call sort_rows()
-         elseif (size(w%iord) /= n) then
-            call sort_rows()
-         end if
+         ch = w%cp%sortdirty .or. .not.allocated(w%iord)
+         if (.not.ch) ch = (size(w%iord) /= n)
+         if (ch) call sort_rows()
 
          clipper = ImGuiListClipper_ImGuiListClipper()
          call ImGuiListClipper_Begin(clipper,n,-1._c_float)
@@ -588,44 +591,28 @@ contains
 
     end function available
 
-    !> Whether the user chose to show column jc of the table.
-    logical function col_shown(jc)
+    !> The settings of column jc of the table (valid in this frame
+    !> only: the window stack may be reallocated).
+    function col(jc)
       integer(c_int), intent(in) :: jc
+      type(cp_ppcol), pointer :: col
 
       if (jc < ic_NBUILTIN) then
-         col_shown = w%cp%colshow(jc)
+         col => w%cp%bcol(jc)
       else
-         col_shown = .true.
-         if (allocated(w%cp%pphide)) &
-            col_shown = .not.any(w%cp%pphide == sys(isys)%propp(jc-ic_NBUILTIN+1)%name)
+         col => w%cp%ppcol(jc-ic_NBUILTIN+1)
       end if
 
-    end function col_shown
-
-    !> Show (val = .true.) or hide column jc of the table.
-    subroutine col_set(jc,val)
-      integer(c_int), intent(in) :: jc
-      logical, intent(in) :: val
-
-      character*10 :: name
-
-      if (jc < ic_NBUILTIN) then
-         w%cp%colshow(jc) = val
-         return
-      end if
-      ! point properties: the list of the names of the hidden ones
-      name = sys(isys)%propp(jc-ic_NBUILTIN+1)%name
-      if (.not.allocated(w%cp%pphide)) allocate(w%cp%pphide(0))
-      w%cp%pphide = pack(w%cp%pphide,w%cp%pphide /= name)
-      if (.not.val) w%cp%pphide = (/w%cp%pphide,name/)
-
-    end subroutine col_set
+    end function col
 
     !> Whether column jc of the table is drawn.
     logical function column_on(jc)
       integer(c_int), intent(in) :: jc
 
-      column_on = col_shown(jc) .and. available(jc)
+      type(cp_ppcol), pointer :: c
+
+      c => col(jc)
+      column_on = c%show .and. available(jc)
 
     end function column_on
 
@@ -766,43 +753,57 @@ contains
 
     end function cell_value
 
-    !> Value val of numeric column jc as text.
+    !> Value val of numeric column jc as text, in the notation and
+    !> with the decimal places chosen for it.
     function cell_str(jc,val) result(str)
       integer(c_int), intent(in) :: jc
       real*8, intent(in) :: val
       character(len=:), allocatable :: str
 
-      select case (jc)
-      case (ic_grad,ic_gradval)
-         str = string(val,'e',decimal=3)
-      case (ic_ellip,ic_path,ic_d1,ic_d2)
-         str = string(val,'f',decimal=4)
-      case (ic_ang)
-         str = string(val,'f',decimal=2)
-      case default
-         str = string(val,'e',decimal=5)
-      end select
+      type(cp_ppcol), pointer :: c
+
+      c => col(jc)
+      str = string(val,merge('e','f',c%expo),decimal=int(c%ndec))
 
     end function cell_str
 
-    !> Keep the cache of the point property values for the current
-    !> list of point properties: if it changed (or the cache was
-    !> reset), clear it.
+    !> Keep the cache of the point property values and the column
+    !> settings for the current list of point properties: if it
+    !> changed (or the cache was reset), clear the values and rebuild
+    !> the settings, keeping those of the properties still there (by
+    !> name).
     subroutine pp_sync()
-      integer :: ip, np, ncp
+      integer :: ip, np, nold, ncp, k
       logical :: same
+      type(cp_ppcol), allocatable :: newcol(:)
 
       np = sys(isys)%npropp
+      nold = 0
       if (allocated(w%cp%ppfor)) then
-         same = (size(w%cp%ppfor) == np)
-         do ip = 1, np
-            if (.not.same) exit
-            same = (w%cp%ppfor(ip)%name == sys(isys)%propp(ip)%name) .and.&
-               (w%cp%ppfor(ip)%expr == sys(isys)%propp(ip)%expr)
-         end do
+         nold = size(w%cp%ppfor)
+         same = (nold == np)
+         if (same) same = all(w%cp%ppfor%name == sys(isys)%propp(1:np)%name .and.&
+            w%cp%ppfor%expr == sys(isys)%propp(1:np)%expr)
          if (same) return
+         ! not just appended: the table columns must start over
+         same = (nold <= np)
+         if (same) same = all(w%cp%ppfor%name == sys(isys)%propp(1:nold)%name .and.&
+            w%cp%ppfor%expr == sys(isys)%propp(1:nold)%expr)
+         if (.not.same) w%cp%tablegen = w%cp%tablegen + 1
       end if
       w%cp%ppfor = sys(isys)%propp(1:np)
+
+      ! the column settings
+      allocate(newcol(np))
+      do ip = 1, np
+         k = 0
+         if (allocated(w%cp%ppcol)) k = findloc(w%cp%ppcol%name,sys(isys)%propp(ip)%name,1)
+         if (k > 0) newcol(ip) = w%cp%ppcol(k)
+         newcol(ip)%name = sys(isys)%propp(ip)%name
+      end do
+      call move_alloc(newcol,w%cp%ppcol)
+
+      ! the values
       ncp = sys(isys)%f(ifield)%ncp
       if (allocated(w%cp%ppval)) deallocate(w%cp%ppval)
       if (allocated(w%cp%ppstat)) deallocate(w%cp%ppstat)
@@ -815,21 +816,29 @@ contains
     !> Evaluate point property ip at the symmetry-unique CPs, unless
     !> it already is.
     subroutine pp_eval(ip)
+      use arithmetic, only: token, pretokenize
+      use systemmod, only: system
       integer, intent(in) :: ip
 
       integer :: i
       character(len=:), allocatable :: errmsg
+      type(token), allocatable :: toklist(:)
+      type(system), pointer :: syl
 
       ! the nuclei are always in the list, so the first CP tells
       if (w%cp%ppstat(1,ip) /= 0) return
-      if (sys(isys)%propp(ip)%ispecial /= 0) then
-         w%cp%ppstat(:,ip) = -1
-         return
-      end if
+      w%cp%ppstat(:,ip) = -1
+      if (sys(isys)%propp(ip)%ispecial /= 0) return
+
+      ! the expression is parsed once, for all the CPs
+      syl => sys(isys)
+      errmsg = ""
+      call pretokenize(trim(sys(isys)%propp(ip)%expr),toklist,errmsg,c_loc(syl))
+      if (len_trim(errmsg) > 0) return
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         do i = 1, f%ncp
            errmsg = ""
-           w%cp%ppval(i,ip) = sys(isys)%eval(sys(isys)%propp(ip)%expr,errmsg,c%x2c(f%cp(i)%x))
+           w%cp%ppval(i,ip) = sys(isys)%eval(sys(isys)%propp(ip)%expr,errmsg,c%x2c(f%cp(i)%x),toklist)
            w%cp%ppstat(i,ip) = merge(1,-1,len_trim(errmsg) == 0)
         end do
       end associate
@@ -841,13 +850,15 @@ contains
     !> the system, each with the checkbox that shows its column, and
     !> the form to add point properties (as POINTPROP).
     subroutine draw_props_section()
-      use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_arith_help_button
+      use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_arith_help_button,&
+         iw_intstepper
 
       character(kind=c_char,len=:), allocatable, target :: strsec, strtab
       character(len=:), allocatable :: stropt, sttip
       integer(c_int) :: jc, flt
-      integer :: ip, idel, nrow, k
-      logical :: lval, ldum
+      integer :: ip, idel, nrow, k, ifmt
+      logical :: ldum, ch, avail
+      type(cp_ppcol), pointer :: c
       type(ImVec2) :: szt
       character(len=:), allocatable :: suffix
 
@@ -855,7 +866,8 @@ contains
       strsec = "Properties calculated at the critical points##cpprops" // c_null_char
       if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
 
-      ! the table of properties: show, name, definition, delete
+      ! the table of properties: show, name, definition, notation and
+      ! decimal places of the numbers in the table, delete
       nrow = sys(isys)%npropp
       do jc = ic_f, ic_ang
          if (available(jc)) nrow = nrow + 1
@@ -868,25 +880,26 @@ contains
       flt = ior(flt,ImGuiTableFlags_ScrollY)
       strtab = "##tablecpprops" // c_null_char
       szt%x = 0._c_float
-      szt%y = iw_calcheight(min(nrow,8)+1,0,.false.)
+      szt%y = iw_calcheight(min(nrow,5)+1,0,.false.)
       idel = 0
-      if (igBeginTable(c_loc(strtab),4_c_int,flt,szt,0._c_float)) then
+      if (igBeginTable(c_loc(strtab),6_c_int,flt,szt,0._c_float)) then
          call iw_table_column("Show",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Property",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Definition",id=2_c_int,flags=ImGuiTableColumnFlags_WidthStretch)
-         call iw_table_column("(delete)",id=3_c_int,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
+         call iw_table_column("Format",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Decimals",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("(delete)",id=5_c_int,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
             ImGuiTableColumnFlags_NoHeaderLabel))
          call iw_table_headers_row(freezetop=.true.)
          do jc = ic_f, ic_NBUILTIN+int(sys(isys)%npropp,c_int)-1
-            if (jc <= ic_ang .and. .not.available(jc)) cycle
-            suffix = "##cpprop" // string(jc)
+            avail = available(jc)
+            if (jc < ic_NBUILTIN .and. .not.avail) cycle
+            suffix = "cpprop" // string(jc)
+            c => col(jc)
             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-            if (igTableSetColumnIndex(0_c_int)) then
-               if (available(jc)) then
-                  lval = col_shown(jc)
-                  if (iw_checkbox(suffix // "show",lval)) call col_set(jc,lval)
-                  call iw_tooltip("Show this property as a column of the table",ttshown)
-               end if
+            if (avail .and. igTableSetColumnIndex(0_c_int)) then
+               ldum = iw_checkbox("##" // suffix // "show",c%show)
+               call iw_tooltip("Show this property as a column of the table",ttshown)
             end if
             if (igTableSetColumnIndex(1_c_int)) then
                call iw_text(col_name(jc),alignframe=.true.)
@@ -906,9 +919,24 @@ contains
                end if
                call iw_tooltip(col_desc(jc),ttshown)
             end if
+            ! the notation and decimals of the numbers (not for the
+            ! endpoints, or the properties without a column)
+            avail = avail .and. jc /= ic_ends
+            if (avail .and. igTableSetColumnIndex(3_c_int)) then
+               ifmt = merge(1,0,c%expo)
+               call iw_combo_simple("##" // suffix // "fmt","Fixed" // c_null_char // "Exp" //&
+                  c_null_char,ifmt,changed=ch)
+               if (ch) c%expo = (ifmt == 1)
+               call iw_tooltip("Notation of the numbers of this property in the table: fixed&
+                  & point (0.0123) or exponential (1.23E-02)",ttshown)
+            end if
+            if (avail .and. igTableSetColumnIndex(4_c_int)) then
+               ldum = iw_intstepper(suffix // "dec",c%ndec,minval=0_c_int,maxval=12_c_int,&
+                  ndigit=2,tooltip="Number of decimal places of this property in the table")
+            end if
             if (jc >= ic_NBUILTIN) then
-               if (igTableSetColumnIndex(3_c_int)) then
-                  if (iw_close_button(suffix // "del")) idel = jc - ic_NBUILTIN + 1
+               if (igTableSetColumnIndex(5_c_int)) then
+                  if (iw_close_button("##" // suffix // "del")) idel = jc - ic_NBUILTIN + 1
                   call iw_tooltip("Remove this point property from the system (as if it had&
                      & not been defined with POINTPROP)",ttshown)
                end if
@@ -917,8 +945,6 @@ contains
          call igEndTable()
       end if
       if (idel > 0) then
-         ! forget that it was hidden, then remove it
-         call col_set(ic_NBUILTIN+int(idel,c_int)-1_c_int,.true.)
          call sys(isys)%delete_pointprop(idel)
          call pp_sync()
       end if
@@ -939,8 +965,8 @@ contains
          ldum = iw_inputtext("##cpppname",bufsize=11,textf=w%cp%ppname,width=10,sameline=.true.)
          call iw_tooltip("Name of the new property (at most 10 characters, no spaces): the&
             & header of its column",ttshown)
-         call iw_text("Expression",sameline=.true.)
-         ldum = iw_inputtext("##cpppexpr",bufsize=1023,textf=w%cp%ppexpr,width=24,sameline=.true.)
+         call iw_text("Expression")
+         ldum = iw_inputtext("##cpppexpr",bufsize=1023,textf=w%cp%ppexpr,width=36,sameline=.true.)
          call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
             & ""$1 - $2"" or ""-lag($1)""), evaluated at the critical points",ttshown)
          call iw_arith_help_button("##cpppexprhelp",ttshown)
@@ -1010,7 +1036,6 @@ contains
          w%cp%ppexpr = ""
       end if
       call pp_sync()
-      call col_set(ic_NBUILTIN+int(sys(isys)%npropp,c_int)-1_c_int,.true.)
 
     end subroutine add_pointprop
 
@@ -1023,6 +1048,7 @@ contains
 
       integer(c_int) :: jc
       character(kind=c_char,len=:), allocatable, target :: strpop
+      type(cp_ppcol), pointer :: c
 
       strpop = "##cpcolumnmenu" // c_null_char
       if (rclick) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
@@ -1030,7 +1056,8 @@ contains
          call igPushItemFlag(ImGuiItemFlags_SelectableDontClosePopup,.true._c_bool)
          do jc = ic_x, ncol-1
             if (.not.available(jc)) cycle
-            if (iw_menuitem(col_name(jc),selected=col_shown(jc))) call col_set(jc,.not.col_shown(jc))
+            c => col(jc)
+            if (iw_menuitem(col_name(jc),selected=c%show)) c%show = .not.c%show
             call iw_tooltip(col_desc(jc),ttshown)
          end do
          call igPopItemFlag()
@@ -1160,7 +1187,7 @@ contains
            ! selects the rows from the anchor to this one
            if (clk .and. i > c%nneq) then
               if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
-                 w%lastselected <= merge(f%ncpcel,f%ncp,cell)) then
+                 w%lastselected <= n) then
                  do j = min(w%lastselected,k), max(w%lastselected,k)
                     iu = w%iord(j)
                     if (cell) iu = f%cpcel(iu)%idx
@@ -1201,18 +1228,16 @@ contains
         end if
 
         ! position: fractional for crystals, Cartesian in the input
-        ! frame for molecules; the Cartesian one in the tooltip
-        x = row_pos(i,icp,.false.)
-        xc = row_pos(i,icp,.true.)
-        if (.not.ismol) lbl = "Cartesian: " // coord_str(xc(1)) // " " // coord_str(xc(2)) //&
-           " " // coord_str(xc(3)) // " Å"
+        ! frame for molecules; the Cartesian one in the tooltip (built
+        ! only when the cell is hovered)
+        x = row_pos(i,icp,ismol)
         do j = 1, 3
            if (igTableSetColumnIndex(int(ic_x+j-1,c_int))) then
-              if (ismol) then
-                 call iw_cell_right(coord_str(xc(j)))
-              else
-                 call iw_cell_right(coord_str(x(j)))
-                 call iw_tooltip(lbl,ttshown)
+              call iw_cell_right(coord_str(x(j)))
+              if (.not.ismol .and. igIsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup)) then
+                 xc = row_pos(i,icp,.true.)
+                 call iw_tooltip("Cartesian: " // coord_str(xc(1)) // " " // coord_str(xc(2)) //&
+                    " " // coord_str(xc(3)) // " Å",ttshown)
               end if
            end if
         end do

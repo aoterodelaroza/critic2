@@ -1706,9 +1706,8 @@ contains
          end do
       end if
 
-      ! field value and Laplacian at the CP (first: the bar is clipped)
-      msg = msg // " f=" // string(f%cp(ineq)%s%f,'e',decimal=4) //&
-         " lap=" // string(f%cp(ineq)%s%del2f,'e',decimal=4)
+      ! field value at the CP (first: the bar is clipped)
+      msg = msg // " f=" // string(f%cp(ineq)%s%f,'e',decimal=4)
 
       ! identity and position
       if (.not.c%ismolecule) then

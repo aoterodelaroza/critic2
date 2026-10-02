@@ -1466,7 +1466,7 @@ contains
        elseif (w%type == wintype_voids) then
           call init_window("Crystal Voids",62,35)
        elseif (w%type == wintype_cp) then
-          call init_window("Critical Points",90,42)
+          call init_window("Critical Points",70,30,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1659,11 +1659,13 @@ contains
     !> keeps the ImGui identifier unique), give it the default flags and, if nx
     !> and ny are present, an initial size of nx by ny characters. If only nx
     !> is present, fit the initial height to the first frame's content and grow
-    !> the window whenever its content overflows it (grow-to-fit).
-    subroutine init_window(title,nx,ny,square)
+    !> the window whenever its content overflows it (grow-to-fit). If grow,
+    !> grow-to-fit with the initial height ny.
+    subroutine init_window(title,nx,ny,square,grow)
       character(len=*,kind=c_char), intent(in) :: title
       integer, intent(in), optional :: nx, ny
       logical, intent(in), optional :: square
+      logical, intent(in), optional :: grow
 
       logical :: square_
 
@@ -1690,6 +1692,9 @@ contains
             ! igBegin)
             w%growtofit = .true.
             inisize%y = 0._c_float
+         end if
+         if (present(grow)) then
+            if (grow) w%growtofit = .true.
          end if
          call clamp_to_display(inisize)
          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
