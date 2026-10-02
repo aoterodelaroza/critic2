@@ -90,6 +90,7 @@ module utils
   public :: iw_push_iconrow_frame
   public :: iw_pop_iconrow_frame
   public :: iw_close_button
+  public :: iw_cell_right
   public :: iw_menuitem
   public :: iw_tooltip
   public :: iw_helpermark
@@ -420,6 +421,9 @@ module utils
        real(c_float), intent(in), optional :: scale
        real(c_float) :: h
      end function iw_iconbutton_height
+     module subroutine iw_cell_right(str)
+       character(len=*), intent(in) :: str
+     end subroutine iw_cell_right
      module function iw_close_button(strid) result(pressed)
        character(len=*,kind=c_char), intent(in) :: strid
        logical :: pressed

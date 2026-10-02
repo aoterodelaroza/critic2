@@ -194,7 +194,7 @@ contains
        repflavor_isosurface
     use gui_main, only: g
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string
+       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string, iw_cell_right
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -471,19 +471,19 @@ contains
                       w%vd%iso_hover = i
                 end if
                 if (igTableSetColumnIndex(ic_iso_vol)) &
-                   call cell_right(string(w%vd%iso_vol(i)*fac3,'f',decimal=5))
+                   call iw_cell_right(string(w%vd%iso_vol(i)*fac3,'f',decimal=5))
                 if (igTableSetColumnIndex(ic_iso_pct)) &
-                   call cell_right(string(w%vd%iso_vol(i)/sys(isys)%c%omega*100d0,'f',decimal=3))
+                   call iw_cell_right(string(w%vd%iso_vol(i)/sys(isys)%c%omega*100d0,'f',decimal=3))
                 if (igTableSetColumnIndex(ic_iso_x)) then
                    ! the three coordinates are all in [0,1], so a common
                    ! width lines them up without padding the column out
                    s = string(w%vd%iso_x(1,i),'f',length=8,decimal=5,justify=ioj_right) //&
                       string(w%vd%iso_x(2,i),'f',length=8,decimal=5,justify=ioj_right) //&
                       string(w%vd%iso_x(3,i),'f',length=8,decimal=5,justify=ioj_right)
-                   call cell_right(s)
+                   call iw_cell_right(s)
                 end if
                 if (igTableSetColumnIndex(ic_iso_rho)) &
-                   call cell_right(string(w%vd%iso_rho(i),'e',decimal=4))
+                   call iw_cell_right(string(w%vd%iso_rho(i),'e',decimal=4))
              end do
           end do
           call ImGuiListClipper_End(clipper)
@@ -527,7 +527,7 @@ contains
     use gui_main, only: g
     use representations, only: polycoplanar_def
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable
+       iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable, iw_cell_right
     use global, only: bondfactor
     use tools_io, only: string, ioj_center
     use param, only: atmcov
@@ -763,16 +763,16 @@ contains
                 if (igTableSetColumnIndex(ic_pol_at)) &
                    call iw_text(string(sys(isys)%c%at(j)%name,4,ioj_center))
                 if (igTableSetColumnIndex(ic_pol_mult)) &
-                   call cell_right(string(sys(isys)%c%at(j)%mult))
+                   call iw_cell_right(string(sys(isys)%c%at(j)%mult))
                 if (igTableSetColumnIndex(ic_pol_nv)) &
-                   call cell_right(string(w%vd%pol_nv(i)))
+                   call iw_cell_right(string(w%vd%pol_nv(i)))
                 if (igTableSetColumnIndex(ic_pol_d)) then
                    s = string(w%vd%pol_dmin(i)*bohrtoa,'f',decimal=4) // " to " //&
                       string(w%vd%pol_dmax(i)*bohrtoa,'f',decimal=4)
-                   call cell_right(s)
+                   call iw_cell_right(s)
                 end if
                 if (igTableSetColumnIndex(ic_pol_vol)) &
-                   call cell_right(string(w%vd%pol_vol(i)*fac3,'f',decimal=5))
+                   call iw_cell_right(string(w%vd%pol_vol(i)*fac3,'f',decimal=5))
                 end do
              end do
              call ImGuiListClipper_End(clipper)
@@ -1216,22 +1216,6 @@ contains
     call igSeparator()
 
   end subroutine tab_explanation
-
-  !> Write str in the current table cell flush with its right edge. A
-  !> numeric column reads much better that way: the digits line up under
-  !> each other and under the end of the header, instead of floating in
-  !> the middle of a column padded out to a fixed width.
-  subroutine cell_right(str)
-    use utils, only: iw_text, iw_textwidth
-    character(len=*), intent(in) :: str
-
-    type(ImVec2) :: szavail
-
-    call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(igGetCursorPosX() + max(szavail%x - iw_textwidth(str),0._c_float))
-    call iw_text(str)
-
-  end subroutine cell_right
 
   !> Ask the window to grow to width wd
   subroutine ask_width(w,wd)

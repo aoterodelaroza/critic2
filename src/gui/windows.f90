@@ -217,7 +217,7 @@ module windows
   ! The critical points window: kinds of blocking job
   integer, parameter :: cpjob_search = 0 ! AUTO with the Search tab's options
   integer, parameter :: cpjob_add = 1 ! AUTO from one point, appending to the list
-  integer, parameter :: cpjob_delete = 2 ! delete the selected CPs, rebuild the graph
+  integer, parameter :: cpjob_delete = 2 ! delete the CPs in pending_del, rebuild the graph
   integer, parameter :: cpjob_export = 3 ! write the CPs to a file (CPREPORT)
   integer, parameter :: cpjob_estimate = 4 ! time a sample of the searches from the seeds
   ! The critical points window: targets of a pick in the view
@@ -243,7 +243,7 @@ module windows
 
   !> Per-window state of the critical points window (Tools > Critical
   !> Points): the AUTO form (field, seeds, options), the pending
-  !> blocking job, and the summary of the last run. The seeds are reset
+  !> blocking job, and the results table. The seeds are reset
   !> to AUTO's defaults for the system when the window moves to another
   !> system.
   type cp_state
@@ -284,17 +284,18 @@ module windows
      character(len=:), allocatable :: estimate
      ! export: include the gradient paths (GRAPH); the file is w%okfile
      logical :: expgraph = .false.
-     ! editing: the symmetry-unique CPs selected in the results table
-     ! (for deletion; size ncp, reset when the CP list changes), and a
-     ! pending pick in the view: the point to add a CP from, or a
-     ! position of the form
+     ! the symmetry-unique CPs selected in the results table (for
+     ! deletion; size ncp, reset when the CP list changes; the
+     ! shift-click anchor is w%lastselected), and a pending pick in the
+     ! view: the point of the single-shot search, or a position of the
+     ! form
      logical, allocatable :: sel(:)
      integer :: picking = 0 ! the target of a pending pick in the view (cppick_*, 0 = none)
      integer :: pickseed = 0 ! seed whose position is picked (cppick_x0, cppick_x1)
      integer :: pickview = 0 ! view the pick was armed on
      type(pairpick) :: pick
      ! results
-     character(len=:), allocatable :: summary ! of the last run
+     logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
      integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
      integer :: hoverview = 0 ! view whose critical points object has ihover

@@ -1918,6 +1918,22 @@ contains
 
   end subroutine iw_pop_iconrow_frame
 
+  !> Write str in the current table cell flush with its right edge. A
+  !> numeric column reads much better that way: the digits line up under
+  !> each other and under the end of the header, instead of floating in
+  !> the middle of a column padded out to a fixed width.
+  module subroutine iw_cell_right(str)
+    use interfaces_cimgui
+    character(len=*), intent(in) :: str
+
+    type(ImVec2) :: szavail
+
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(igGetCursorPosX() + max(szavail%x - iw_textwidth(str),0._c_float))
+    call iw_text(str)
+
+  end subroutine iw_cell_right
+
   !> Draw the standard close button (a red X icon) with the given id.
   !> Returns .true. when clicked.
   module function iw_close_button(strid) result(pressed)

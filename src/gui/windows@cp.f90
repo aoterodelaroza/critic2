@@ -117,7 +117,6 @@ contains
           w%cp%ifield = sys(isys)%iref
           call reset_seeds(w,isys)
           call cancel_pick(w)
-          if (allocated(w%cp%summary)) deallocate(w%cp%summary)
           ! the default export file: <root>.cps.cif (<root>.cif could be the source file)
           w%okfile = okfile_default(isys,"structure","cps.cif")
           w%cp%tfield = -1
@@ -141,6 +140,10 @@ contains
     if (goodsys) then
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
+
+       ! the field, shared by the three tabs (they draw nothing more if
+       ! it is not available)
+       call draw_field_combo(w,isys,ttshown)
 
        str1 = "##drawcp_tabbar" // c_null_char
        flags = ImGuiTabBarFlags_None
@@ -258,10 +261,10 @@ contains
   !> Run the blocking job of the critical points window, called by the
   !> main loop after the frame with the overlay, on the chosen field: a
   !> search (AUTO with the options of the Search tab), the addition of
-  !> a CP (AUTO from one point, appending), or the deletion of the
-  !> selected CPs (and the bond graph traced again). Then the
-  !> checkpoint, the summary, and the critical points and gradient
-  !> paths objects in the view. If AUTO rejects the options, the field
+  !> a CP (AUTO from one point, appending), or the deletion of the CPs
+  !> in pending_del (and the bond graph traced again). Then the
+  !> checkpoint and the critical points and gradient paths objects in
+  !> the view. If AUTO rejects the options, the field
   !> is left as it was.
   module subroutine run_cp_pending(w)
     use autocp, only: autocritic, autocritic_graph, cpreport
@@ -285,8 +288,8 @@ contains
     if (ok) ok = sys(isys)%goodfield(ifield)
     if (ok) then
        if (kind == cpjob_delete) then
-          ok = allocated(w%cp%sel)
-          if (ok) ok = (size(w%cp%sel) == sys(isys)%f(ifield)%ncp)
+          ok = allocated(w%cp%pending_del)
+          if (ok) ok = (size(w%cp%pending_del) == sys(isys)%f(ifield)%ncp)
        elseif (kind == cpjob_estimate) then
           ok = allocated(w%cp%seedx) .and. (w%cp%seedsys == isys) .and. (w%cp%seedfield == ifield)
        else
@@ -307,9 +310,9 @@ contains
     if (kind == cpjob_delete) then
        ! a cancel restores the CP list (AUTO restores it itself)
        write (uout,'("* Deleting ",A," critical points (GUI) and tracing the bond paths again")') &
-          string(count(w%cp%sel))
+          string(count(w%cp%pending_del))
        call sys(isys)%f(ifield)%backup_cplist(cpback)
-       call sys(isys)%f(ifield)%delete_cps(w%cp%sel)
+       call sys(isys)%f(ifield)%delete_cps(w%cp%pending_del)
        call autocritic_graph()
        ok = .true.
     elseif (kind == cpjob_export) then
@@ -367,8 +370,7 @@ contains
     if (kind == cpjob_add .and. sys(isys)%f(ifield)%ncp == ncp0) &
        w%errmsg = "No new critical point: the search from that point found none, or one already in the list"
 
-    ! the summary and the objects in the view
-    w%cp%summary = cp_summary(isys,ifield)
+    ! the objects in the view
     if (iview >= 1 .and. iview <= nwin) then
        if (win(iview)%isopen .and. associated(win(iview)%sc)) then
           if (win(iview)%isys == isys) call win(iview)%sc%show_cps(ifield)
@@ -393,10 +395,10 @@ contains
   !> CP under the mouse (as rep_cps%ihover).
   subroutine draw_results_tab(w,isys,iview,ihover,ttshown)
     use systems, only: sys, sysc, atlisttype_nneq, atlisttype_ncel_frac
-    use representations, only: field_has_cps
-    use gui_main, only: g, ColorHighlightScene
+    use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
-       iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_helpermark
+       iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_cell_right,&
+       iw_close_button
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
@@ -404,11 +406,11 @@ contains
     logical, intent(inout) :: ttshown
 
     ! the columns of the results table
-    integer(c_int), parameter :: ic_cp = 0, ic_pos = 1, ic_wyc = 2, ic_f = 3, ic_grad = 4,&
-       ic_lap = 5, ic_ends = 6, ic_path = 7, ic_ellip = 8, ic_NUMCOLUMNS = 9
+    integer(c_int), parameter :: ic_del = 0, ic_cp = 1, ic_x = 2, ic_y = 3, ic_z = 4, ic_wyc = 5,&
+       ic_f = 6, ic_grad = 7, ic_lap = 8, ic_ends = 9, ic_path = 10, ic_ellip = 11, ic_NUMCOLUMNS = 12
 
-    integer :: n, k, ifield, nrow, ihnuc(2)
-    integer(c_int) :: itable, flags, fwyc, fhid
+    integer :: n, k, ifield, ihnuc(2)
+    integer(c_int) :: itable, flags, fwyc, fhid, fnohide
     logical :: ch, cell, ismol, havespg
     character(kind=c_char,len=:), allocatable, target :: str1
     type(c_ptr), target :: clipper
@@ -416,18 +418,7 @@ contains
     type(ImVec2) :: sz
 
     ifield = w%cp%ifield
-    if (.not.sys(isys)%goodfield(ifield)) then
-       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
-       return
-    end if
-    call iw_text("Field",highlight=.true.)
-    call iw_text(string(ifield) // ": " // trim(sys(isys)%f(ifield)%name),sameline=.true.)
-    call iw_helpermark("Right-click the header of the table to show or hide its columns",sameline=.true.)
-    if (.not.field_has_cps(isys,ifield)) then
-       call iw_text("This field has no critical points other than the nuclei (search for them in&
-          & the Search tab, or load a checkpoint that has them)",disabled=.true.,wrap=.true.)
-       return
-    end if
+    if (.not.field_cps_or_say(isys,ifield)) return
     call update_table_caches(w,isys)
     ismol = sys(isys)%c%ismolecule
     ihnuc = 0
@@ -444,11 +435,14 @@ contains
             & all their copies)" // c_null_char //&
             "Every critical point in the unit cell, with the symmetry-unique one it is a copy of" //&
             c_null_char,ttshown=ttshown)
-         if (ch) w%cp%tablecell = int(itable)
+         if (ch) then
+            w%cp%tablecell = int(itable)
+            w%lastselected = 0
+         end if
          cell = (w%cp%tablecell == 1)
       end if
       n = merge(f%ncpcel,f%ncp,cell)
-      call iw_text(w%cp%summary,wrap=.true.)
+      call draw_cp_summary(isys,ifield)
 
       ! the columns can be shown and hidden by right-clicking the header
       flags = ImGuiTableFlags_None
@@ -460,12 +454,11 @@ contains
       flags = ior(flags,ImGuiTableFlags_ScrollY)
       flags = ior(flags,ImGuiTableFlags_Hideable)
       str1 = "##tablecpresults" // c_null_char
+      ! the rest of the window, as the tables of the geometry window,
+      ! leaving room for the selection buttons, a message, and Close
+      call igGetContentRegionAvail(sz)
       sz%x = 0._c_float
-      ! rows one frame high (badges) with cell padding, and the
-      ! horizontal scrollbar
-      nrow = min(16,n+1)
-      sz%y = iw_calcheight(nrow,0,.false.) + nrow * 2 * g%Style%CellPadding%y +&
-         g%Style%ScrollbarSize
+      sz%y = sz%y - iw_calcheight(3,0,.true.)
       if (igBeginTable(c_loc(str1),ic_NUMCOLUMNS,flags,sz,0._c_float)) then
          ! the Wyckoff positions only for the symmetry-unique CPs of a
          ! crystal (a disabled column is not drawn or offered in the
@@ -474,12 +467,19 @@ contains
          if (ismol .or. cell) fwyc = ior(fwyc,ImGuiTableColumnFlags_Disabled)
          havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
          fhid = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_DefaultHide)
-         call iw_table_column("CP",id=ic_cp,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
-            ImGuiTableColumnFlags_NoHide))
+         fnohide = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_NoHide)
+         call iw_table_column("(delete)##cpdelcol",id=ic_del,flags=ior(fnohide,&
+            ImGuiTableColumnFlags_NoHeaderLabel))
+         call iw_table_column("CP",id=ic_cp,flags=fnohide)
+         ! the position: fractional for crystals, Cartesian for molecules
          if (ismol) then
-            call iw_table_column("Position (Å)",id=ic_pos,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("x (Å)",id=ic_x,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("y (Å)",id=ic_y,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("z (Å)",id=ic_z,flags=ImGuiTableColumnFlags_WidthFixed)
          else
-            call iw_table_column("Position (fractional)",id=ic_pos,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("x",id=ic_x,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("y",id=ic_y,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("z",id=ic_z,flags=ImGuiTableColumnFlags_WidthFixed)
          end if
          call iw_table_column(merge("Wyc","Mul",havespg),id=ic_wyc,flags=fwyc)
          call iw_table_column("Field",id=ic_f,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -509,7 +509,7 @@ contains
       end if
     end associate
 
-    ! editing: delete the selected CPs, add one
+    ! selecting and deleting CPs
     call draw_edit_section(w,isys,iview,ttshown)
 
     ! a nucleus under the mouse: highlight the atom
@@ -526,16 +526,18 @@ contains
 
       real*8 :: x(3), xc(3)
       character(len=:), allocatable :: suffix, lbl
+      integer :: j, iu
       logical :: isbcp, clk, selrow, drawn
 
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         suffix = "_cprow" // string(k)
         isbcp = f%isbcp(f%cp(i))
 
-        ! the CP, and the row selectable that highlights it in the view
-        ! and, clicked, selects its symmetry-unique CP for deletion (not
-        ! the nuclei)
-        if (igTableSetColumnIndex(ic_cp)) then
+        ! the row selectable, which highlights the CP in the view and,
+        ! clicked, selects its symmetry-unique CP for deletion (not the
+        ! nuclei), and the button that deletes it (after the selectable,
+        ! which lets the items after it take the clicks)
+        if (igTableSetColumnIndex(ic_del)) then
            call iw_text("",alignframe=.true.)
            selrow = .false.
            if (i > c%nneq) selrow = w%cp%sel(i)
@@ -551,8 +553,37 @@ contains
                  ihover = (/merge(0,i,icp > 0),icp/)
               end if
            end if
-           if (clk .and. i > c%nneq) w%cp%sel(i) = .not.w%cp%sel(i)
-           call igSameLine(0._c_float,0._c_float)
+           ! a click toggles the row and anchors a range; a shift-click
+           ! selects the rows from the anchor to this one
+           if (clk .and. i > c%nneq) then
+              if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
+                 w%lastselected <= merge(f%ncpcel,f%ncp,cell)) then
+                 do j = min(w%lastselected,k), max(w%lastselected,k)
+                    iu = j
+                    if (cell) iu = f%cpcel(j)%idx
+                    if (iu > c%nneq) w%cp%sel(iu) = .true.
+                 end do
+              else
+                 w%cp%sel(i) = .not.w%cp%sel(i)
+                 w%lastselected = k
+              end if
+           end if
+           if (i > c%nneq) then
+              call igSameLine(0._c_float,0._c_float)
+              if (iw_close_button("##cprowdel" // suffix)) then
+                 w%cp%pending_del = (/(iu == i, iu = 1, f%ncp)/)
+                 call request_job(w,iview,cpjob_delete)
+              end if
+              if (icp > 0) then
+                 call iw_tooltip("Delete this critical point, with all its copies in the cell",ttshown)
+              else
+                 call iw_tooltip("Delete this critical point",ttshown)
+              end if
+           end if
+        end if
+
+        ! the CP
+        if (igTableSetColumnIndex(ic_cp)) then
            lbl = trim(f%cp(i)%name)
            if (icp > 0) lbl = lbl // " " // string(icp)
            if (i <= c%nneq) then
@@ -567,21 +598,25 @@ contains
         end if
 
         ! position: fractional for crystals, Cartesian in the input
-        ! frame for molecules; the other in the tooltip
+        ! frame for molecules; the Cartesian one in the tooltip
         if (icp > 0) then
            x = f%cpcel(icp)%x
         else
            x = f%cp(i)%x
         end if
         xc = (c%x2c(x) + c%molx0) * bohrtoa
-        if (igTableSetColumnIndex(ic_pos)) then
-           if (ismol) then
-              call iw_text(xyz_str(xc))
-           else
-              call iw_text(xyz_str(x))
-              call iw_tooltip("Cartesian: " // xyz_str(xc) // " Å",ttshown)
+        if (.not.ismol) lbl = "Cartesian: " // coord_str(xc(1)) // " " // coord_str(xc(2)) //&
+           " " // coord_str(xc(3)) // " Å"
+        do j = 1, 3
+           if (igTableSetColumnIndex(int(ic_x+j-1,c_int))) then
+              if (ismol) then
+                 call iw_cell_right(coord_str(xc(j)))
+              else
+                 call iw_cell_right(coord_str(x(j)))
+                 call iw_tooltip(lbl,ttshown)
+              end if
            end if
-        end if
+        end do
 
         ! the Wyckoff position (multiplicity and letter, as in the
         ! geometry window; only the multiplicity without a space group),
@@ -601,9 +636,9 @@ contains
         end if
 
         ! field, gradient norm, and Laplacian at the CP
-        if (igTableSetColumnIndex(ic_f)) call iw_text(string(f%cp(i)%s%f,'e',decimal=5))
-        if (igTableSetColumnIndex(ic_grad)) call iw_text(string(f%cp(i)%s%gfmod,'e',decimal=3))
-        if (igTableSetColumnIndex(ic_lap)) call iw_text(string(f%cp(i)%s%del2f,'e',decimal=5))
+        if (igTableSetColumnIndex(ic_f)) call iw_cell_right(string(f%cp(i)%s%f,'e',decimal=5))
+        if (igTableSetColumnIndex(ic_grad)) call iw_cell_right(string(f%cp(i)%s%gfmod,'e',decimal=3))
+        if (igTableSetColumnIndex(ic_lap)) call iw_cell_right(string(f%cp(i)%s%del2f,'e',decimal=5))
 
         ! bond CPs: the ends of the bond path, its length, and the ellipticity
         if (isbcp) then
@@ -614,11 +649,11 @@ contains
            end if
            if (igTableSetColumnIndex(ic_path)) then
               if (all(f%cp(i)%ipath > 0)) &
-                 call iw_text(string(sum(f%cp(i)%brpathlen) * bohrtoa,'f',decimal=4))
+                 call iw_cell_right(string(sum(f%cp(i)%brpathlen) * bohrtoa,'f',decimal=4))
            end if
            if (igTableSetColumnIndex(ic_ellip)) then
               if (abs(f%cp(i)%s%hfeval(2)) > 0d0) &
-                 call iw_text(string(f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0,'f',decimal=4))
+                 call iw_cell_right(string(f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0,'f',decimal=4))
            end if
         end if
       end associate
@@ -693,18 +728,14 @@ contains
 
     end subroutine atom_badge
 
-    !> Three coordinates, 4 decimals (no "-0.0000").
-    function xyz_str(x) result(str)
-      real*8, intent(in) :: x(3)
+    !> A coordinate, 4 decimals (no "-0.0000").
+    function coord_str(x) result(str)
+      real*8, intent(in) :: x
       character(len=:), allocatable :: str
 
-      real*8 :: xx(3)
+      str = string(merge(0d0,x,abs(x) < 5d-5),'f',decimal=4)
 
-      xx = merge(0d0,x,abs(x) < 5d-5)
-      str = string(xx(1),'f',decimal=4) // " " // string(xx(2),'f',decimal=4) // " " //&
-         string(xx(3),'f',decimal=4)
-
-    end function xyz_str
+    end function coord_str
 
   end subroutine draw_results_tab
 
@@ -747,11 +778,9 @@ contains
   !> (CPREPORT): a structure file with the CPs as extra atoms, whose
   !> format is given by the extension, or JSON.
   subroutine draw_export_tab(w,isys,iview,ttshown)
-    use systems, only: sys
-    use representations, only: field_has_cps
     use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_checkbox
     use crystalmod, only: struct_detect_write_format
-    use tools_io, only: string, lower, fopen_write, fclose
+    use tools_io, only: lower, fopen_write, fclose
     use param, only: dirsep, isformat_w_unknown
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
@@ -761,17 +790,7 @@ contains
     logical :: ldum, isjson
     character(len=:), allocatable :: ext, errexp, line
 
-    if (.not.sys(isys)%goodfield(w%cp%ifield)) then
-       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
-       return
-    end if
-    call iw_text("Field",highlight=.true.)
-    call iw_text(string(w%cp%ifield) // ": " // trim(sys(isys)%f(w%cp%ifield)%name),sameline=.true.)
-    if (.not.field_has_cps(isys,w%cp%ifield)) then
-       call iw_text("This field has no critical points other than the nuclei (search for them in&
-          & the Search tab, or load a checkpoint that has them)",disabled=.true.,wrap=.true.)
-       return
-    end if
+    if (.not.field_cps_or_say(isys,w%cp%ifield)) return
 
     ! file name: editable field plus browse button
     call iw_text("File name",highlight=.true.)
@@ -1011,65 +1030,105 @@ contains
 
   end function scene_ready
 
-  !> The editing of the CP list, under the results table: delete the
-  !> selected CPs, or add one by a search from a point (the center of
-  !> the selected atoms, or a bond or point picked in the view).
-  subroutine draw_edit_section(w,isys,iview,ttshown)
-    use systems, only: sys, sysc
+  !> The single-shot search of the Search tab: a search for a
+  !> critical point from a point picked in the view (the middle of a
+  !> bond, or a point), with the advanced options of the Search tab.
+  !> The new critical point is added to the list.
+  subroutine draw_single_shot(w,iview,ttshown)
     use utils, only: iw_text, iw_button, iw_tooltip
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: iview
+    logical, intent(inout) :: ttshown
+
+    call iw_text("Single-Shot",highlight=.true.,alignframe=.true.)
+    call iw_tooltip("Search for a critical point from one point, with the advanced options&
+       & below. The new critical point is added to the list",ttshown)
+    if (iw_button("Pick##cpaddpick",sameline=.true.,&
+       disabled=(len(form_error(w)) > 0 .or. w%cp%picking > 0))) &
+       call start_pick(w,iview,cppick_add)
+    call iw_tooltip("Search for a critical point starting at a point picked in the view: the middle&
+       & of a bond if one is clicked, otherwise the clicked point (on the plane through the center of&
+       & the scene)",ttshown)
+
+  end subroutine draw_single_shot
+
+  !> Draw the field combo of the critical points window, above its
+  !> tabs: the field whose critical points are searched, shown, and
+  !> exported. Says so if the field is not available in system isys.
+  subroutine draw_field_combo(w,isys,ttshown)
+    use systems, only: sys
+    use utils, only: iw_text, iw_tooltip, iw_field_combo, iw_calcwidth
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    logical, intent(inout) :: ttshown
+
+    integer(c_int) :: ifield
+
+    call iw_text("Field",highlight=.true.,alignframe=.true.)
+    call igSameLine(0._c_float,-1._c_float)
+    ifield = w%cp%ifield
+    if (iw_field_combo("##cpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+       nonestr="<field not available>")) w%cp%ifield = ifield
+    call iw_tooltip("Field whose critical points are searched, shown, and exported",ttshown)
+    if (.not.sys(isys)%goodfield(w%cp%ifield)) &
+       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+
+  end subroutine draw_field_combo
+
+  !> Whether field ifield of system isys has critical points other
+  !> than the nuclei; if not, say so (the Results and Export tabs).
+  !> Silent if the field is not available (the field combo says so).
+  function field_cps_or_say(isys,ifield) result(ok)
+    use systems, only: sys
+    use representations, only: field_has_cps
+    use utils, only: iw_text
+    integer, intent(in) :: isys, ifield
+    logical :: ok
+
+    ok = sys(isys)%goodfield(ifield)
+    if (.not.ok) return
+    ok = field_has_cps(isys,ifield)
+    if (.not.ok) &
+       call iw_text("This field has no critical points other than the nuclei (search for them in&
+          & the Search tab, or load a checkpoint that has them)",disabled=.true.,wrap=.true.)
+
+  end function field_cps_or_say
+
+  !> The editing of the CP list, under the results table: select CPs
+  !> and delete the selected ones.
+  subroutine draw_edit_section(w,isys,iview,ttshown)
+    use systems, only: sys
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_helpermark
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
 
-    integer :: nsel, nat, k
-    integer, allocatable :: iat(:)
-    real*8 :: x1(3), xd(3), xs(3)
-    character(len=:), allocatable :: errform
+    integer :: nsel, nnuc, iu
 
-    ! delete
-    nsel = count(w%cp%sel)
-    if (iw_button("Delete selected##cpdelete",disabled=(nsel == 0))) &
-       call request_job(w,iview,cpjob_delete)
-    call iw_tooltip("Delete the selected critical points (click the rows to select them; the nuclei&
-       & cannot be deleted) with all their copies in the cell, and trace the bond paths again",ttshown)
-    if (iw_button("Clear selection##cpclearsel",sameline=.true.,disabled=(nsel == 0))) w%cp%sel = .false.
+    ! the selection (the nuclei cannot be selected), and delete
+    nnuc = sys(isys)%c%nneq
+    if (iw_button("All##cpselall")) w%cp%sel(nnuc+1:) = .true.
+    call iw_tooltip("Select all the critical points that are not nuclei",ttshown)
+    if (iw_button("None##cpselnone",sameline=.true.)) w%cp%sel = .false.
     call iw_tooltip("Unselect all critical points",ttshown)
-    if (nsel > 0) call iw_text(string(nsel) // " selected",sameline=.true.)
-
-    ! add: a search from one point, with the advanced options of the
-    ! Search tab
-    call iw_text("Add a critical point",highlight=.true.)
-    call iw_tooltip("Search for a critical point from one point, with the advanced options of&
-       & the Search tab. The new critical point is added to the list",ttshown)
-    errform = form_error(w)
-    if (iw_button("From selection##cpaddsel",disabled=(len(errform) > 0 .or. w%cp%picking > 0))) then
-       call sysc(isys)%highlighted_atom_list(nat,iat)
-       if (nat == 0) then
-          w%errmsg = "Select some atoms first: the search starts at their center"
-       else
-          ! the center of the selected atoms, each taken at its image
-          ! nearest the first one (crystals)
-          associate(c => sys(isys)%c)
-            x1 = c%atcel(iat(1))%x
-            xs = 0d0
-            do k = 2, nat
-               xd = c%atcel(iat(k))%x - x1
-               if (.not.c%ismolecule) xd = xd - nint(xd)
-               xs = xs + xd
-            end do
-            call request_add(w,isys,iview,c%x2c(x1 + xs / nat))
-          end associate
-       end if
+    if (iw_button("Toggle##cpseltoggle",sameline=.true.)) w%cp%sel(nnuc+1:) = .not.w%cp%sel(nnuc+1:)
+    call iw_tooltip("Select the critical points that are not selected, and vice versa",ttshown)
+    nsel = count(w%cp%sel)
+    if (iw_button("Delete selected##cpdelete",sameline=.true.,disabled=(nsel == 0))) then
+       w%cp%pending_del = w%cp%sel
+       call request_job(w,iview,cpjob_delete)
     end if
-    call iw_tooltip("Search for a critical point starting at the center of the selected atoms",ttshown)
-    if (iw_button("Pick in view##cpaddpick",sameline=.true.,disabled=(len(errform) > 0 .or. w%cp%picking > 0))) &
-       call start_pick(w,iview,cppick_add)
-    call iw_tooltip("Search for a critical point starting at a point picked in the view: the middle&
-       & of a bond if one is clicked, otherwise the clicked point (on the plane through the center of&
-       & the scene)",ttshown)
-    if (w%cp%picking == cppick_add) call iw_text("Click a bond or a point in the view",disabled=.true.,sameline=.true.)
-    if (len(errform) > 0) call iw_text(errform // " (Search tab, advanced options)",danger=.true.,wrap=.true.)
+    call iw_tooltip("Delete the selected critical points (the nuclei cannot be deleted) with all&
+       & their copies in the cell, and trace the bond paths again",ttshown)
+    if (iw_button("Clear##cpclearlist",danger=.true.,sameline=.true.,&
+       disabled=(size(w%cp%sel) <= nnuc))) then
+       ! all the critical points except the nuclei
+       w%cp%pending_del = (/(iu > nnuc, iu = 1, size(w%cp%sel))/)
+       call request_job(w,iview,cpjob_delete)
+    end if
+    call iw_tooltip("Delete all the critical points except the nuclei",ttshown)
+    if (nsel > 0) call iw_text(string(nsel) // " selected",sameline=.true.)
 
   end subroutine draw_edit_section
 
@@ -1262,7 +1321,7 @@ contains
 
   !> Recompute the caches of the results table if the CP list of the
   !> field (or the field) changed: the Wyckoff letters of the
-  !> symmetry-unique CPs and the summary. The selection is cleared.
+  !> symmetry-unique CPs. The selection is cleared.
   subroutine update_table_caches(w,isys)
     use systems, only: sys, sysc
     use representations, only: cp_wyckoff
@@ -1273,10 +1332,10 @@ contains
     w%cp%tfield = w%cp%ifield
     w%cp%ttime = sysc(isys)%timelastchange_cplist
     call cp_wyckoff(isys,w%cp%ifield,w%cp%wyc)
-    w%cp%summary = cp_summary(isys,w%cp%ifield)
     if (allocated(w%cp%sel)) deallocate(w%cp%sel)
     allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
     w%cp%sel = .false.
+    w%lastselected = 0
 
   end subroutine update_table_caches
 
@@ -1323,17 +1382,16 @@ contains
   !> The Search tab: field, seeds, advanced options, and the Run button.
   subroutine draw_search_tab(w,isys,iview,ttshown)
     use systems, only: sys
+    use representations, only: field_has_cps
     use global, only: iunit
     use gui_main, only: g
     use tools_io, only: string
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_field_combo, iw_calcwidth,&
-       iw_checkbox, iw_helpermark
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_checkbox, iw_helpermark
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
 
     integer :: i, idel
-    integer(c_int) :: ifield
     logical :: ldum, ok
     real(c_float) :: xcol
     character(len=:), allocatable :: xunit, errrun, str2
@@ -1349,17 +1407,11 @@ contains
        xunit = " (fractional)"
     end if
 
-    ! field
-    call iw_text("Field",highlight=.true.,alignframe=.true.)
-    call igSameLine(0._c_float,-1._c_float)
-    ifield = w%cp%ifield
-    if (iw_field_combo("##cpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>")) w%cp%ifield = ifield
-    call iw_tooltip("Field whose critical points are searched",ttshown)
-    if (.not.sys(isys)%goodfield(w%cp%ifield)) then
-       call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
-       return
-    end if
+    if (.not.sys(isys)%goodfield(w%cp%ifield)) return
+
+    ! a search from one point, with the advanced options below; the new
+    ! critical point is added to the list
+    call draw_single_shot(w,iview,ttshown)
 
     ! the seeds, in a scrolling box of at most maxrow_seeds rows
     call iw_text("Seeds",highlight=.true.)
@@ -1444,8 +1496,8 @@ contains
        call iw_text(w%cp%estimate,wrap=.true.)
     end if
 
-    ! the result of the last run
-    if (allocated(w%cp%summary)) call iw_text(w%cp%summary,wrap=.true.)
+    ! the critical points the field has
+    if (field_has_cps(isys,w%cp%ifield)) call draw_cp_summary(isys,w%cp%ifield)
 
   end subroutine draw_search_tab
 
@@ -1945,14 +1997,14 @@ contains
     end function xstr
   end function auto_options
 
-  !> One-line summary of the critical points of field ifield of system
-  !> isys: the number of each type in the cell (or molecule) and the
-  !> Morse (crystals) or Poincare-Hopf (molecules) sum.
-  function cp_summary(isys,ifield) result(str)
+  !> Draw the summary of the critical points of field ifield of system
+  !> isys: the number of each type in the cell, and the Morse sum
+  !> (crystals) or the Poincare-Hopf sum (molecules).
+  subroutine draw_cp_summary(isys,ifield)
     use systems, only: sys
+    use utils, only: iw_text
     use tools_io, only: string
     integer, intent(in) :: isys, ifield
-    character(len=:), allocatable :: str
 
     integer :: i, it, nt(0:3)
 
@@ -1963,14 +2015,16 @@ contains
          if (it >= 0 .and. it <= 3) nt(it) = nt(it) + f%cp(i)%mult
       end do
     end associate
-    str = "Critical points (n|b|r|c): " // string(nt(0)) // " | " // string(nt(1)) // " | " //&
-       string(nt(2)) // " | " // string(nt(3))
+    call iw_text("Critical points",highlight=.true.)
+    call iw_text("(n|b|r|c): " // string(nt(0)) // " | " // string(nt(1)) // " | " //&
+       string(nt(2)) // " | " // string(nt(3)),sameline=.true.)
     if (sys(isys)%c%ismolecule) then
-       str = str // "; Poincare-Hopf sum: " // string(nt(0)-nt(1)+nt(2)-nt(3))
+       call iw_text("Poincare-Hopf sum:",highlight=.true.)
     else
-       str = str // "; Morse sum: " // string(nt(0)-nt(1)+nt(2)-nt(3))
+       call iw_text("Morse sum:",highlight=.true.)
     end if
+    call iw_text(string(nt(0)-nt(1)+nt(2)-nt(3)),sameline=.true.)
 
-  end function cp_summary
+  end subroutine draw_cp_summary
 
 end submodule cp
