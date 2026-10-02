@@ -94,8 +94,7 @@ contains
     use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_alpha_def, iso_rgb_palette,&
-       iso_grid_size, iso_region_to_box, iso_level_custom, iso_nlevel, iso_defaultlevel,&
-       iso_level_label, iso_autogrid_secs, iso_custom_npts
+       iso_nlevel, iso_level_label, iso_autogrid_secs
     use wfn_private, only: wfn_rhf, wfn_uhf, wfn_rohf, wfn_spin_all, wfn_spin_alpha, wfn_spin_beta
     use types, only: id_mo_id, field_evaluation_avail, fieldeval_category_mo
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_checkbox,&
@@ -105,7 +104,8 @@ contains
     use param, only: hartoev
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, havecost, okgrid
+    logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, havecost, needgrid,&
+       okgrid
     integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev
     real*8 :: tsel, tdum
     character(kind=c_char,len=:), allocatable, target :: s
@@ -413,10 +413,33 @@ contains
                     call r%iso%add_iso()
                     changed = .true.
                  end if
-                 if (r%iso%imosel /= id_mo_id .or. r%iso%imoidx /= w%mo_selected) then
-                    r%iso%imosel = id_mo_id
-                    r%iso%imoidx = w%mo_selected
-                    changed = .true.
+                 ! a new orbital or a new grid. The grid is chosen now
+                 ! (cheap). If the cache has the orbital on that grid, both
+                 ! are installed now (the cache sync below); otherwise the
+                 ! orbital is sampled in a blocking job (run_mo), and the
+                 ! representation is left as it is until the job applies
+                 ! them, so the scene does not sample it in this frame
+                 needgrid = (w%mo_cost%ilevel_built /= w%mo_ilevel .or. .not.r%iso%isgenerated(isys) .or.&
+                    .not.w%mo_cost%matches(isys,iref))
+                 if (needgrid .or. r%iso%imosel /= id_mo_id .or. r%iso%imoidx /= w%mo_selected) then
+                    okgrid = .true.
+                    if (needgrid) then
+                       call mo_choose_grid(w,isys,r,nq,okgrid)
+                    else
+                       nq = r%iso%nptsxyz
+                    end if
+                    if (okgrid) then
+                       if (w%mo_cache%iscached(w%mo_selected) .and. mo_cache_valid(w%mo_cache,isys,r,nq)) then
+                          if (needgrid) call mo_apply_grid(w,r,nq)
+                          r%iso%imosel = id_mo_id
+                          r%iso%imoidx = w%mo_selected
+                          changed = .true.
+                       elseif (w%request_block()) then
+                          w%mo_pending_itrep = itrep
+                          w%mo_pending_n = nq
+                          w%mo_pending_grid = needgrid
+                       end if
+                    end if
                  end if
                  if (changed) then
                     ! push the window options onto the representation
@@ -429,17 +452,13 @@ contains
                     win(iview)%sc%forcebuildlists = .true.
                  end if
 
-                 ! The grid, tested every frame rather than only when something else changed
-                 if (w%mo_cost%ilevel_built /= w%mo_ilevel .or. .not.r%iso%isgenerated(isys) .or.&
-                    .not.w%mo_cost%matches(isys,iref)) then
-                    call commit_grid(win(iview)%sc%reptrans(itrep),okgrid)
-                    if (okgrid) win(iview)%sc%forcebuildlists = .true.
-                 end if
-
                  ! keep the per-orbital grid cache in step: save what the
                  ! renderer sampled, and hand back a grid it already has
                  ! for the orbital now selected
-                 call w%mo_cache%sync(isys,win(iview)%sc%reptrans(itrep),&
+                 ! (not before the representation has a grid: the cache
+                 ! would be dropped as being for another grid)
+                 if (r%iso%isgenerated(isys)) &
+                    call w%mo_cache%sync(isys,win(iview)%sc%reptrans(itrep),&
                     win(iview)%sc%forcebuildlists)
                end associate
             end if
@@ -482,48 +501,150 @@ contains
     if (doquit) &
        call w%end()
 
-  contains
-    !> Commit the sampling grid of representation r from its staged
-    !> region and level (the counterpart of the isosurface editor's
-    !> Calculate grid button).
-    subroutine commit_grid(r,ok)
-      type(representation), intent(inout) :: r
-      logical, intent(out) :: ok
-
-      integer :: n(3)
-      real*8 :: box(3,0:3), tdum
-      logical :: okbox
-
-      ! A degenerate region leaves nothing to sample.
-      ok = .false.
-      call iso_region_to_box(isys,r%iso%iregion,r%iso%rgn_x,box,okbox)
-      if (.not.okbox) then
-         call mo_message(w,"Could not work out the region to sample this orbital on",.true.)
-         return
-      end if
-      w%mo_cost%box = box
-
-      ! the cost of one sample point, on a grid of the default quality
-      n = iso_grid_size(isys,iso_defaultlevel,box=box)
-      call mo_measure_cost(w,isys,r,n)
-      tdum = mo_quality_cost(w,isys,w%mo_ilevel,n)
-      if (w%mo_ilevel == 0) then
-         ! the automatic grid is recorded as a custom one, so that an
-         ! object created from it reads back as what was drawn: as the
-         ! dimensions themselves, which a resolution need not reproduce
-         r%iso%ilevel = iso_level_custom
-         r%iso%icustom = iso_custom_npts
-         r%iso%nptscustom = n
-      else
-         r%iso%ilevel = w%mo_ilevel
-      end if
-      call r%iso%apply_grid(n,r%iso%iregion,r%iso%rgn_x)
-      w%mo_cost%ilevel_built = w%mo_ilevel
-      ok = .true.
-
-    end subroutine commit_grid
-
   end subroutine draw_mo
+
+  !> Choose the sampling grid n of the orbital isosurface r of the MO
+  !> window w (system isys) for its grid quality (mo_ilevel; 0 =
+  !> automatic, from the measured cost of one sample, measured here if
+  !> needed) over the staged region of r. ok is false if the region is
+  !> degenerate. Nothing is applied (mo_apply_grid).
+  subroutine mo_choose_grid(w,isys,r,n,ok)
+    use representations, only: representation, iso_grid_size, iso_region_to_box, iso_defaultlevel
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+    type(representation), intent(in) :: r
+    integer, intent(out) :: n(3)
+    logical, intent(out) :: ok
+
+    real*8 :: box(3,0:3), tdum
+
+    ! A degenerate region leaves nothing to sample.
+    n = 0
+    call iso_region_to_box(isys,r%iso%iregion,r%iso%rgn_x,box,ok)
+    if (.not.ok) then
+       call mo_message(w,"Could not work out the region to sample this orbital on",.true.)
+       return
+    end if
+    w%mo_cost%box = box
+
+    ! the cost of one sample point, on a grid of the default quality,
+    ! and the grid of the selected quality
+    n = iso_grid_size(isys,iso_defaultlevel,box=box)
+    call mo_measure_cost(w,isys,r,n)
+    tdum = mo_quality_cost(w,isys,w%mo_ilevel,n)
+
+  end subroutine mo_choose_grid
+
+  !> Apply grid n (from mo_choose_grid) to the orbital isosurface r of
+  !> the MO window w, over its staged region, for the window's quality.
+  subroutine mo_apply_grid(w,r,n)
+    use representations, only: representation, iso_level_custom, iso_custom_npts
+    type(window), intent(inout), target :: w
+    type(representation), intent(inout) :: r
+    integer, intent(in) :: n(3)
+
+    if (w%mo_ilevel == 0) then
+       ! the automatic grid is recorded as a custom one, so that an
+       ! object created from it reads back as what was drawn: as the
+       ! dimensions themselves, which a resolution need not reproduce
+       r%iso%ilevel = iso_level_custom
+       r%iso%icustom = iso_custom_npts
+       r%iso%nptscustom = n
+    else
+       r%iso%ilevel = w%mo_ilevel
+    end if
+    call r%iso%apply_grid(n,r%iso%iregion,r%iso%rgn_x)
+    w%mo_cost%ilevel_built = w%mo_ilevel
+
+  end subroutine mo_apply_grid
+
+  !> Whether the per-orbital cache c holds grids for representation r
+  !> of system isys sampled on grid n over its staged region (the keys
+  !> mo_cache_sync checks against the applied grid).
+  function mo_cache_valid(c,isys,r,n) result(ok)
+    use systems, only: sys, sysc
+    use representations, only: representation
+    type(mo_cache_state), intent(in) :: c
+    integer, intent(in) :: isys
+    type(representation), intent(in) :: r
+    integer, intent(in) :: n(3)
+    logical :: ok
+
+    ok = allocated(c%g)
+    if (ok) ok = (c%ifield == r%iso%ifield) .and. (c%fieldgen == sys(isys)%fieldgen) .and.&
+       (c%timegeom == sysc(isys)%timelastchange_geometry) .and. all(c%n == n) .and.&
+       (c%iregion == r%iso%iregion) .and. all(c%rgn_x == r%iso%rgn_x)
+
+  end function mo_cache_valid
+
+  !> Draw the overlay of the blocking job of the MO window: sampling
+  !> the selected orbital (run_mo).
+  module subroutine block_mo(w)
+    use systems, only: sysc, sys_init, ok_system
+    use utils, only: iw_wait_overlay
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+
+    character(len=:), allocatable :: info
+
+    info = ""
+    if (ok_system(w%isys,sys_init)) &
+       info = "System: " // string(w%isys) // ": " // trim(sysc(w%isys)%seed%name)
+    call iw_wait_overlay("Sampling the molecular orbital...",info,.true.)
+
+  end subroutine block_mo
+
+  !> Run the blocking job of the MO window, called by the main loop
+  !> after the frame with the overlay: sample the selected orbital on
+  !> the chosen grid and, if the sampling completes, apply the grid and
+  !> the orbital to the window's transient isosurface with the samples
+  !> (the orbital cache stores them in the next frame). A cancel (Esc)
+  !> leaves the isosurface as it was, and the selection and the quality
+  !> go back to what it shows.
+  module subroutine run_mo(w)
+    use systems, only: sys, sys_init, ok_system
+    use gui_main, only: begin_cancellable, end_cancellable
+    use types, only: id_mo_id
+    use representations, only: reptype_isosurface
+    class(window), intent(inout), target :: w
+
+    integer :: isys, iview, itrep
+    logical :: cancelled, outdomain, ok
+    real*8, allocatable :: ff(:,:,:)
+
+    ! the view, and the transient isosurface of this window in its scene
+    ! (disarmed by the reaper after the frame, but still there)
+    isys = w%isys
+    iview = w%anchor_view()
+    if (.not.ok_system(isys,sys_init) .or. iview < 1 .or. iview > nwin) return
+    if (.not.win(iview)%isopen .or. .not.associated(win(iview)%sc)) return
+    itrep = w%mo_pending_itrep
+    if (itrep < 1 .or. itrep > win(iview)%sc%nreptrans) return
+    associate(r => win(iview)%sc%reptrans(itrep))
+      if (.not.r%isinit .or. r%owner /= w%id .or. r%itag /= 1 .or. r%type /= reptype_isosurface) return
+      if (.not.sys(isys)%goodfield(r%iso%ifield)) return
+
+      call begin_cancellable()
+      call r%iso%sample(isys,w%mo_pending_n,r%iso%iregion,r%iso%rgn_x,id_mo_id,w%mo_selected,&
+         ff,outdomain,ok)
+      cancelled = end_cancellable()
+      if (cancelled) then
+         ! back to what the isosurface shows, so nothing is sampled
+         ! again until the user asks
+         if (w%mo_cost%ilevel_built >= 0) w%mo_ilevel = int(w%mo_cost%ilevel_built,c_int)
+         w%mo_selected = 0
+         if (r%iso%imosel == id_mo_id .and. r%iso%isgenerated(isys)) w%mo_selected = r%iso%imoidx
+         call mo_message(w,"The sampling was cancelled",.true.)
+      elseif (ok) then
+         if (w%mo_pending_grid) call mo_apply_grid(w,r,w%mo_pending_n)
+         r%iso%imosel = id_mo_id
+         r%iso%imoidx = w%mo_selected
+         call r%iso%set_samples(isys,ff,outdomain)
+         win(iview)%sc%forcebuildlists = .true.
+      end if
+    end associate
+
+  end subroutine run_mo
 
   !> Keep the per-orbital sampling-grid cache c, for system isys, in
   !> step with representation r: drop every grid when the field, its

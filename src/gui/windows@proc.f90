@@ -849,6 +849,10 @@ contains
        call w%block_load_field()
     elseif (w%type == wintype_voids) then
        call w%block_voids()
+    elseif (w%type == wintype_editrep) then
+       call w%block_editrep()
+    elseif (w%type == wintype_mo) then
+       call w%block_mo()
     end if
 
   end subroutine window_block_draw
@@ -864,6 +868,10 @@ contains
        call w%run_load_field()
     elseif (w%type == wintype_voids) then
        call w%run_voids()
+    elseif (w%type == wintype_editrep) then
+       call w%run_editrep()
+    elseif (w%type == wintype_mo) then
+       call w%run_mo()
     end if
 
   end subroutine window_block_run

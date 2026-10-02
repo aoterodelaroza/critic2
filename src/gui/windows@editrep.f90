@@ -3235,8 +3235,17 @@ contains
        lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
     end if
     if (iw_button("Calculate grid",danger=.true.,disabled=.not.lapply)) then
-       call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
-       changed = .true.
+       w%errmsg = ""
+       if (all(nstage == 0)) then
+          ! the native grid of a grid field: nothing to sample
+          call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
+          changed = .true.
+       elseif (w%request_block()) then
+          ! the field is sampled in a blocking job (run_editrep)
+          w%editrep_pending_n = nstage
+       else
+          w%errmsg = "Another calculation is starting: press the button again"
+       end if
     end if
     call iw_tooltip("Use the selected grid and region for the isosurface. The options&
        & above have no effect on the isosurface until this button is pressed",ttshown)
@@ -3253,6 +3262,7 @@ contains
     elseif (lapply) then ! false for a degenerate region
        call iw_text("settings changed",danger=.true.,sameline=.true.)
     end if
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     if (w%rep%iso%outdomain) &
        call iw_text("The field could not be evaluated in part of the region",&
           danger=.true.,wrap=.true.)
@@ -4451,5 +4461,74 @@ contains
     end subroutine no_end
 
   end function draw_editrep_gpaths
+
+  !> Draw the overlay of the blocking job of the edit representation
+  !> window: sampling the field of an isosurface (run_editrep).
+  module subroutine block_editrep(w)
+    use systems, only: sys, sysc, sys_init, ok_system
+    use utils, only: iw_wait_overlay
+    use tools_io, only: string
+    use param, only: newline
+    class(window), intent(inout), target :: w
+
+    character(len=:), allocatable :: info
+    integer :: isys
+
+    info = ""
+    isys = w%isys
+    if (ok_system(isys,sys_init)) then
+       info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
+       if (associated(w%rep)) then
+          if (sys(isys)%goodfield(w%rep%iso%ifield)) &
+             info = info // newline // "Field:  " // string(w%rep%iso%ifield) // ": " //&
+             trim(sys(isys)%f(w%rep%iso%ifield)%name)
+       end if
+    end if
+    info = info // newline // "Grid:   " // string(w%editrep_pending_n(1)) // " x " //&
+       string(w%editrep_pending_n(2)) // " x " // string(w%editrep_pending_n(3))
+    call iw_wait_overlay("Sampling the isosurface...",info,.true.)
+
+  end subroutine block_editrep
+
+  !> Run the blocking job of the edit representation window, called by
+  !> the main loop after the frame with the overlay: sample the field of
+  !> the isosurface on the staged grid and region, and apply them only
+  !> if the sampling completes. A cancel (Esc) leaves the isosurface as
+  !> it was.
+  module subroutine run_editrep(w)
+    use representations, only: reptype_isosurface
+    use systems, only: sys, sys_init, ok_system
+    use gui_main, only: begin_cancellable, end_cancellable
+    class(window), intent(inout), target :: w
+
+    integer :: isys, iview
+    logical :: cancelled, outdomain, ok
+    real*8, allocatable :: ff(:,:,:)
+
+    ! the representation, its field, and its view must still be there
+    isys = w%isys
+    iview = w%anchor_view()
+    if (iview == 0 .or. .not.associated(w%rep) .or. .not.ok_system(isys,sys_init)) return
+    if (.not.win(iview)%isopen .or. .not.associated(win(iview)%sc)) return
+    if (win(iview)%isys /= isys) return
+    if (.not.w%rep%isinit .or. w%rep%type /= reptype_isosurface) return
+    if (.not.sys(isys)%goodfield(w%rep%iso%ifield)) return
+
+    associate(iso => w%rep%iso)
+      call begin_cancellable()
+      call iso%sample(isys,w%editrep_pending_n,iso%iregion,iso%rgn_x,iso%imosel,iso%imoidx,&
+         ff,outdomain,ok)
+      cancelled = end_cancellable()
+      if (cancelled) then
+         w%errmsg = "The sampling was cancelled: the grid is unchanged"
+      else
+         w%errmsg = ""
+         call iso%apply_grid(w%editrep_pending_n,iso%iregion,iso%rgn_x)
+         if (ok) call iso%set_samples(isys,ff,outdomain)
+         win(iview)%sc%forcebuildlists = .true.
+      end if
+    end associate
+
+  end subroutine run_editrep
 
 end submodule editrep

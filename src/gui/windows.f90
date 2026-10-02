@@ -695,6 +695,7 @@ module windows
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
      integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
                                          ! if the staged mode no longer matches)
+     integer :: editrep_pending_n(3) = 0 ! isosurface grid to sample in the blocking job (run_editrep)
      integer :: editrep_isoline = 0 ! isosurface whose histogram line is being dragged (isosurface
                                     ! editor; 0 = none, and the line nearest the cursor takes input)
      ! export image parameters
@@ -766,6 +767,12 @@ module windows
      ! molecular orbitals window parameters
      integer(c_int) :: mo_ieneunit = 0 ! energy unit in the MO table (0 = Hartree, 1 = eV)
      integer :: mo_selected = 0 ! selected MO (packed wavefunction index; 0 = none)
+     ! blocking job (run_mo): the transient isosurface (index in the
+     ! anchor view's reptrans), the grid to sample the selected orbital
+     ! on, and whether that grid is new (applied when the job completes)
+     integer :: mo_pending_itrep = 0
+     integer :: mo_pending_n(3) = 0
+     logical :: mo_pending_grid = .false.
      logical :: mo_scrolled(2) = .false. ! the MO tables have been centered on their HOMO/LUMO boundary
                                          ! (1 = the combined or alpha table, 2 = the beta table)
      integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
@@ -930,6 +937,8 @@ module windows
      ! edit representation
      procedure :: update_editrep
      procedure :: draw_editrep
+     procedure :: block_editrep
+     procedure :: run_editrep
      procedure :: draw_editrep_atoms
      procedure :: draw_editrep_bonds
      procedure :: draw_editrep_labels
@@ -955,6 +964,8 @@ module windows
      ! vibrations
      procedure :: draw_vibrations
      procedure :: draw_mo
+     procedure :: block_mo
+     procedure :: run_mo
      ! dynamics
      procedure :: draw_dynamics
      ! crystal voids
@@ -1523,6 +1534,12 @@ module windows
      module subroutine draw_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine draw_editrep
+     module subroutine block_editrep(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_editrep
+     module subroutine run_editrep(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_editrep
      module function draw_editrep_atoms(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
@@ -1662,6 +1679,12 @@ module windows
      module subroutine draw_mo(w)
        class(window), intent(inout), target :: w
      end subroutine draw_mo
+     module subroutine block_mo(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_mo
+     module subroutine run_mo(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_mo
      !xx! dynamics submodule !xx!
      module subroutine draw_dynamics(w)
        class(window), intent(inout), target :: w

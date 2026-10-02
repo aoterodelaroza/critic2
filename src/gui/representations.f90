@@ -748,6 +748,7 @@ module representations
      procedure :: stamp_histogram => iso_stamp_histogram ! recompute the value range and histogram from data
      procedure :: stamp_built => iso_stamp_built ! stamp the keys that say the samples are current
      procedure :: set_samples => iso_set_samples ! install externally supplied field samples
+     procedure :: sample => iso_sample ! sample the field (or an MO) on a given grid and region
      procedure :: mo_request => iso_mo_request ! the field-evaluation request that samples the selected MO
   end type rep_isosurface
   public :: rep_isosurface
@@ -1066,6 +1067,18 @@ module representations
        real*8, intent(in) :: ff(:,:,:)
        logical, intent(in) :: outdomain
      end subroutine iso_set_samples
+     module subroutine iso_sample(iso,isys,n,iregion,x,imosel,imoidx,ff,outdomain,ok)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       integer, intent(in) :: n(3)
+       integer, intent(in) :: iregion
+       real*8, intent(in) :: x(3,0:3)
+       integer, intent(in) :: imosel
+       integer, intent(in) :: imoidx
+       real*8, allocatable, intent(inout) :: ff(:,:,:)
+       logical, intent(out) :: outdomain
+       logical, intent(out) :: ok
+     end subroutine iso_sample
      module function iso_isgenerated(iso,isys) result(gen)
        class(rep_isosurface), intent(in) :: iso
        integer, intent(in) :: isys

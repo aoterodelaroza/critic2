@@ -1514,14 +1514,89 @@ contains
 
   end subroutine iso_stamp_built
 
+  !> Sample the field of isosurface iso (system isys), or its MO imoidx
+  !> if imosel is nonzero, on a grid of n points over the region iregion
+  !> with coordinates x (the applied state or a staged one: iso is not
+  !> modified, so a blocking job can sample first and apply the grid
+  !> only if it was not cancelled), into ff. outdomain: some samples
+  !> fell where the field cannot be evaluated (they are zeros). ok is
+  !> false if the box is degenerate. The loop can be cancelled (ff is
+  !> then incomplete) and reports its progress.
+  module subroutine iso_sample(iso,isys,n,iregion,x,imosel,imoidx,ff,outdomain,ok)
+    use systems, only: sys
+    use global, only: abort_poll, progress_start, progress_step
+    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_mo
+    class(rep_isosurface), intent(in) :: iso
+    integer, intent(in) :: isys
+    integer, intent(in) :: n(3)
+    integer, intent(in) :: iregion
+    real*8, intent(in) :: x(3,0:3)
+    integer, intent(in) :: imosel
+    integer, intent(in) :: imoidx
+    real*8, allocatable, intent(inout) :: ff(:,:,:)
+    logical, intent(out) :: outdomain
+    logical, intent(out) :: ok
+
+    integer :: j, k, l
+    logical :: per0, pereval, lval, linvalid
+    real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
+    type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
+
+    outdomain = .false.
+    call iso_sample_domain(isys,iso%ifield,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
+    if (.not.ok) return
+    if (allocated(ff)) deallocate(ff)
+    allocate(ff(n(1),n(2),n(3)))
+
+    ! samples where the field cannot be evaluated -- outside its domain
+    ! (e.g. a region beyond the cell of a grid field) or too close to a
+    ! partial grid's edge for the interpolation stencil -- come back as
+    ! zeros; remember that it happened so the editor can warn. An MO
+    ! selection samples an orbital of the field instead of the field
+    ! itself; an MO-only request makes grd skip the density work (the
+    ! request of iso_mo_request)
+    call request%clear()
+    request%avail(fieldeval_category_mo) = .true.
+    request%moini = imosel
+    request%moend = imoidx
+    linvalid = .false.
+    call progress_start(n(3)*n(2),"lines")
+    !$omp parallel do private(xp,res,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
+    do l = 1, n(3)
+       do k = 1, n(2)
+          if (abort_poll()) cycle
+          do j = 1, n(1)
+             xp = x0c + matmul(xmat,(/real(j-1,8)/n(1),real(k-1,8)/n(2),real(l-1,8)/n(3)/))
+             if (imosel /= 0) then
+                call sys(isys)%f(iso%ifield)%grd(xp,request,res,periodic=pereval)
+                lval = res%satisfied
+                if (lval) then
+                   ff(j,k,l) = res%fspc
+                else
+                   ff(j,k,l) = 0d0
+                end if
+             else
+                ff(j,k,l) = sys(isys)%f(iso%ifield)%grd0(xp,periodic=pereval,valid=lval)
+             end if
+             linvalid = linvalid .or. .not.lval
+          end do
+          call progress_step()
+       end do
+    end do
+    !$omp end parallel do
+    outdomain = linvalid
+
+  end subroutine iso_sample
+
   !> Install ff as the field samples of isosurface object iso in system
   !> isys, as if the renderer had just taken them: refresh the
   !> histogram, stamp the keys that say the samples are current for the
   !> selected field, MO, and applied grid, and drop the cached
   !> triangulations (the data changed even though the levels did not).
   !> The counterpart of the sampling loop in add_draw_elements, for a
-  !> producer that keeps its own grids -- the molecular-orbitals window
-  !> caches one per orbital.
+  !> producer that samples or keeps its own grids -- the blocking jobs
+  !> of the editor and the MO window, and the MO window's cache.
   module subroutine iso_set_samples(iso,isys,ff,outdomain)
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
@@ -2989,13 +3064,11 @@ contains
     !> not resample). The cached triangulations in r%iso are reused until
     !> the field, the isovalue, or the applied grid changes.
     subroutine add_isosurface_meshes()
-      use types, only: scalar_value, field_evaluation_avail
-      integer :: i, j, k, l, nn(3), ncp(3), i1, i2, i3
-      logical :: usegrid, resample, rebuild, per0, pereval, okbox, linvalid, lval
-      real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
+      integer :: i, l, ncp(3), i1, i2, i3
+      logical :: usegrid, resample, rebuild, per0, pereval, okbox
+      real*8 :: xmat(3,3), cmat(3,3), x0c(3)
+      real*8, allocatable :: ff(:,:,:)
       real(c_float), allocatable :: xrep(:,:)
-      type(scalar_value) :: res
-      type(field_evaluation_avail) :: request
 
       if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
 
@@ -3042,45 +3115,13 @@ contains
             ! periodicities (mesh and field evaluation), and the
             ! endpoint-inclusive scaling all come from the domain policy
             ! in iso_sampled_box
-            nn = r%iso%nptsxyz
             call r%iso%sampled_box(r%id,xmat,x0c,cmat,per0,pereval,okbox)
             if (.not.okbox) return ! degenerate applied region: draw nothing
 
             if (resample) then
-               if (allocated(r%iso%ff)) deallocate(r%iso%ff)
-               allocate(r%iso%ff(nn(1),nn(2),nn(3)))
-               ! samples where the field cannot be evaluated -- outside
-               ! its domain (e.g. a region beyond the cell of a grid
-               ! field) or too close to a partial grid's edge for the
-               ! interpolation stencil -- come back as zeros; remember
-               ! that it happened so the editor can warn
-               ! an MO selection samples an orbital of the field
-               ! instead of the field itself; an MO-only request makes
-               ! grd skip the density work
-               request = r%iso%mo_request()
-               linvalid = .false.
-               !$omp parallel do private(xp,res,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
-               do l = 1, nn(3)
-                  do k = 1, nn(2)
-                     do j = 1, nn(1)
-                        xp = x0c + matmul(xmat,(/real(j-1,8)/nn(1),real(k-1,8)/nn(2),real(l-1,8)/nn(3)/))
-                        if (r%iso%imosel /= 0) then
-                           call sys(r%id)%f(r%iso%ifield)%grd(xp,request,res,periodic=pereval)
-                           lval = res%satisfied
-                           if (lval) then
-                              r%iso%ff(j,k,l) = res%fspc
-                           else
-                              r%iso%ff(j,k,l) = 0d0
-                           end if
-                        else
-                           r%iso%ff(j,k,l) = sys(r%id)%f(r%iso%ifield)%grd0(xp,periodic=pereval,valid=lval)
-                        end if
-                        linvalid = linvalid .or. .not.lval
-                     end do
-                  end do
-               end do
-               !$omp end parallel do
-               r%iso%outdomain = linvalid
+               call r%iso%sample(r%id,r%iso%nptsxyz,r%iso%iregion_ap,r%iso%rgn_x_ap,&
+                  r%iso%imosel,r%iso%imoidx,ff,r%iso%outdomain,okbox)
+               call move_alloc(ff,r%iso%ff)
                call r%iso%stamp_histogram(r%iso%ff)
             end if
             call triangulate(r%iso%ff,xmat,cmat,x0c,per0,resample)
