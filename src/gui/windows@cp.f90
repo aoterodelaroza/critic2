@@ -396,16 +396,20 @@ contains
     use representations, only: field_has_cps
     use gui_main, only: g, ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
-       iw_table_headers_row, iw_highlight_selectable, iw_atom_button
+       iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_helpermark
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     integer, intent(inout) :: ihover(2)
     logical, intent(inout) :: ttshown
 
-    integer :: n, k, ifield, ncol, nrow, ihnuc(2)
-    integer(c_int) :: itable, flags
-    logical :: ch, cell, ismol
+    ! the columns of the results table
+    integer(c_int), parameter :: ic_cp = 0, ic_pos = 1, ic_wyc = 2, ic_f = 3, ic_grad = 4,&
+       ic_lap = 5, ic_ends = 6, ic_path = 7, ic_ellip = 8, ic_NUMCOLUMNS = 9
+
+    integer :: n, k, ifield, nrow, ihnuc(2)
+    integer(c_int) :: itable, flags, fwyc, fhid
+    logical :: ch, cell, ismol, havespg
     character(kind=c_char,len=:), allocatable, target :: str1
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -418,6 +422,7 @@ contains
     end if
     call iw_text("Field",highlight=.true.)
     call iw_text(string(ifield) // ": " // trim(sys(isys)%f(ifield)%name),sameline=.true.)
+    call iw_helpermark("Right-click the header of the table to show or hide its columns",sameline=.true.)
     if (.not.field_has_cps(isys,ifield)) then
        call iw_text("This field has no critical points other than the nuclei (search for them in&
           & the Search tab, or load a checkpoint that has them)",disabled=.true.,wrap=.true.)
@@ -445,6 +450,7 @@ contains
       n = merge(f%ncpcel,f%ncp,cell)
       call iw_text(w%cp%summary,wrap=.true.)
 
+      ! the columns can be shown and hidden by right-clicking the header
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
       flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -452,6 +458,7 @@ contains
       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
       flags = ior(flags,ImGuiTableFlags_ScrollX)
       flags = ior(flags,ImGuiTableFlags_ScrollY)
+      flags = ior(flags,ImGuiTableFlags_Hideable)
       str1 = "##tablecpresults" // c_null_char
       sz%x = 0._c_float
       ! rows one frame high (badges) with cell padding, and the
@@ -459,22 +466,28 @@ contains
       nrow = min(16,n+1)
       sz%y = iw_calcheight(nrow,0,.false.) + nrow * 2 * g%Style%CellPadding%y +&
          g%Style%ScrollbarSize
-      if (igBeginTable(c_loc(str1),10,flags,sz,0._c_float)) then
-         ncol = -1
-         call iw_table_column("CP",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+      if (igBeginTable(c_loc(str1),ic_NUMCOLUMNS,flags,sz,0._c_float)) then
+         ! the Wyckoff positions only for the symmetry-unique CPs of a
+         ! crystal (a disabled column is not drawn or offered in the
+         ! header menu, and the visibility of the others is kept)
+         fwyc = ImGuiTableColumnFlags_WidthFixed
+         if (ismol .or. cell) fwyc = ior(fwyc,ImGuiTableColumnFlags_Disabled)
+         havespg = (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail)
+         fhid = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_DefaultHide)
+         call iw_table_column("CP",id=ic_cp,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
+            ImGuiTableColumnFlags_NoHide))
          if (ismol) then
-            call iw_table_column("Position (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("Position (Å)",id=ic_pos,flags=ImGuiTableColumnFlags_WidthFixed)
          else
-            call iw_table_column("Position (fractional)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("Position (fractional)",id=ic_pos,flags=ImGuiTableColumnFlags_WidthFixed)
          end if
-         call iw_table_column("Site",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Field",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("|Gradient|",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Laplacian",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("End 2",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Path (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Ellipticity",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_column(merge("Wyc","Mul",havespg),id=ic_wyc,flags=fwyc)
+         call iw_table_column("Field",id=ic_f,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("|Gradient|",id=ic_grad,flags=fhid)
+         call iw_table_column("Laplacian",id=ic_lap,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Endpoints",id=ic_ends,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Path (Å)",id=ic_path,flags=fhid)
+         call iw_table_column("Ellipticity",id=ic_ellip,flags=fhid)
          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
          clipper = ImGuiListClipper_ImGuiListClipper()
@@ -511,20 +524,18 @@ contains
       use param, only: bohrtoa
       integer, intent(in) :: k, i, icp
 
-      integer :: j, it
       real*8 :: x(3), xc(3)
       character(len=:), allocatable :: suffix, lbl
-      logical :: isbcp, clk, selrow
+      logical :: isbcp, clk, selrow, drawn
 
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         suffix = "_cprow" // string(k)
-        it = f%cp(i)%typind
         isbcp = f%isbcp(f%cp(i))
 
         ! the CP, and the row selectable that highlights it in the view
         ! and, clicked, selects its symmetry-unique CP for deletion (not
         ! the nuclei)
-        if (igTableSetColumnIndex(0_c_int)) then
+        if (igTableSetColumnIndex(ic_cp)) then
            call iw_text("",alignframe=.true.)
            selrow = .false.
            if (i > c%nneq) selrow = w%cp%sel(i)
@@ -563,7 +574,7 @@ contains
            x = f%cp(i)%x
         end if
         xc = (c%x2c(x) + c%molx0) * bohrtoa
-        if (igTableSetColumnIndex(1_c_int)) then
+        if (igTableSetColumnIndex(ic_pos)) then
            if (ismol) then
               call iw_text(xyz_str(xc))
            else
@@ -572,33 +583,40 @@ contains
            end if
         end if
 
-        ! site: multiplicity, Wyckoff letter (crystals), and site symmetry
-        if (igTableSetColumnIndex(2_c_int)) then
+        ! the Wyckoff position (multiplicity and letter, as in the
+        ! geometry window; only the multiplicity without a space group),
+        ! with the site symmetry in the tooltip (symmetry-unique CPs of
+        ! crystals only)
+        if (igTableSetColumnIndex(ic_wyc)) then
            lbl = string(f%cp(i)%mult)
-           if (allocated(w%cp%wyc) .and. i > c%nneq) lbl = lbl // w%cp%wyc(i-c%nneq)
-           call iw_text(lbl // " " // trim(f%cp(i)%pg))
-           if (ismol) then
-              call iw_tooltip("Multiplicity and site symmetry",ttshown)
-           else
-              call iw_tooltip("Multiplicity, Wyckoff letter, and site symmetry",ttshown)
+           if (havespg) then
+              if (i <= c%nneq) then
+                 lbl = lbl // c%at(i)%wyc
+              elseif (allocated(w%cp%wyc)) then
+                 lbl = lbl // w%cp%wyc(i-c%nneq)
+              end if
            end if
+           call iw_text(lbl)
+           call iw_tooltip("Site symmetry: " // trim(f%cp(i)%pg),ttshown)
         end if
 
         ! field, gradient norm, and Laplacian at the CP
-        if (igTableSetColumnIndex(3_c_int)) call iw_text(string(f%cp(i)%s%f,'e',decimal=5))
-        if (igTableSetColumnIndex(4_c_int)) call iw_text(string(f%cp(i)%s%gfmod,'e',decimal=3))
-        if (igTableSetColumnIndex(5_c_int)) call iw_text(string(f%cp(i)%s%del2f,'e',decimal=5))
+        if (igTableSetColumnIndex(ic_f)) call iw_text(string(f%cp(i)%s%f,'e',decimal=5))
+        if (igTableSetColumnIndex(ic_grad)) call iw_text(string(f%cp(i)%s%gfmod,'e',decimal=3))
+        if (igTableSetColumnIndex(ic_lap)) call iw_text(string(f%cp(i)%s%del2f,'e',decimal=5))
 
         ! bond CPs: the ends of the bond path, its length, and the ellipticity
         if (isbcp) then
-           do j = 1, 2
-              if (igTableSetColumnIndex(int(5+j,c_int))) call path_end_badge(i,icp,j,suffix)
-           end do
-           if (igTableSetColumnIndex(8_c_int)) then
+           if (igTableSetColumnIndex(ic_ends)) then
+              call path_end_badge(i,icp,1,suffix,drawn)
+              if (drawn) call igSameLine(0._c_float,-1._c_float)
+              call path_end_badge(i,icp,2,suffix,drawn)
+           end if
+           if (igTableSetColumnIndex(ic_path)) then
               if (all(f%cp(i)%ipath > 0)) &
                  call iw_text(string(sum(f%cp(i)%brpathlen) * bohrtoa,'f',decimal=4))
            end if
-           if (igTableSetColumnIndex(9_c_int)) then
+           if (igTableSetColumnIndex(ic_ellip)) then
               if (abs(f%cp(i)%s%hfeval(2)) > 0d0) &
                  call iw_text(string(f%cp(i)%s%hfeval(1)/f%cp(i)%s%hfeval(2)-1d0,'f',decimal=4))
            end if
@@ -608,14 +626,17 @@ contains
     end subroutine draw_cp_row
 
     !> The atom or CP at end j of the bond path of the BCP in row
-    !> (symmetry-unique CP i, or cell CP icp).
-    subroutine path_end_badge(i,icp,j,suffix)
+    !> (symmetry-unique CP i, or cell CP icp). drawn: whether anything
+    !> was drawn.
+    subroutine path_end_badge(i,icp,j,suffix,drawn)
       integer, intent(in) :: i, icp, j
       character(len=*), intent(in) :: suffix
+      logical, intent(out) :: drawn
 
       integer :: iend, iu
       integer(c_int) :: idx(4)
 
+      drawn = .true.
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         if (icp > 0) then
            ! cell CP: the cell CP at the end, and its lattice vector
@@ -651,6 +672,8 @@ contains
            call iw_text("(leaves the molecule)",disabled=.true.)
         elseif (f%cp(i)%ipath(j) /= 0) then
            call iw_text("?",disabled=.true.)
+        else
+           drawn = .false.
         end if
       end associate
 
