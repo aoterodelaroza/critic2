@@ -200,6 +200,7 @@ module representations
   real*8, parameter, public :: iso_isoval_def = 0.1d0 ! default isovalue when no field statistics are available (a.u.)
   real*8, parameter, public :: iso_isoval_mo = 0.02d0 ! default isovalue for molecular orbitals (a.u.; the convention across molecular viewers)
   real*8, parameter, public :: iso_isoval_dens = 1d-3 ! default-isovalue policy: conventional molecular density contour (a.u.; same as SIGMAHOLE)
+  real*8, parameter, public :: iso_isoval_ae = 1d-2 ! default-isovalue policy: all-electron grid densities (a.u.)
   real*8, parameter, public :: iso_qcharge_def = 0.9d0 ! fraction of the |f| integral enclosed by the default level
   real*8, parameter, public :: iso_spikeratio = 10d0 ! max|f|/mean|f| above which the field is spike-dominated
   integer, parameter, public :: iso_nhist = 96 ! bins of the value histogram shown in the editor

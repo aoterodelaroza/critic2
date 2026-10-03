@@ -399,11 +399,13 @@ contains
   !>
   !> - a promolecular density is a density by construction: in a
   !>   molecule use the conventional contour (iso_isoval_dens). A grid
-  !>   field is not tested for being a density: only a smooth
-  !>   pseudo-density integrates to the electron count on its grid (an
-  !>   all-electron one is tens of percent off, since a uniform grid
-  !>   samples the nuclear cusps badly), and the valence charge is only
-  !>   known if the user set the pseudopotential charges.
+  !>   field is not tested for being a density by integrating it: only
+  !>   a smooth pseudo-density integrates to the electron count on its
+  !>   grid (an all-electron one is tens of percent off, since a uniform
+  !>   grid samples the nuclear cusps badly), and the valence charge is
+  !>   only known if the user set the pseudopotential charges.
+  !> - a grid that looks like an all-electron density
+  !>   (field_guess_allelectron) uses iso_isoval_ae.
   !> - a spike-dominated grid (large max|f| over mean|f|: all-electron
   !>   or molecular densities, orbitals, laplacians) uses the level that
   !>   encloses iso_qcharge_def of the integral of |f|. Unlike the mean
@@ -423,7 +425,7 @@ contains
     integer, intent(in) :: ifield
     real*8 :: isoval
 
-    real*8 :: fmin, fmax, fmean, frms, qlevel, amean
+    real*8 :: fmin, fmax, fmean, frms, qlevel, amean, rnuc, rval
 
     isoval = iso_isoval_def
     if (.not.ok_system(isys,sys_init)) return
@@ -443,7 +445,9 @@ contains
        frms=frms,qlevel=qlevel,qfrac=iso_qcharge_def)
     if (fmax <= fmin) return
 
-    if (max(abs(fmin),abs(fmax)) > iso_spikeratio * amean) then
+    if (sys(isys)%f(ifield)%guess_allelectron(rnuc,rval)) then
+       isoval = iso_isoval_ae
+    elseif (max(abs(fmin),abs(fmax)) > iso_spikeratio * amean) then
        ! qlevel is a level of |f|: use it on the side the field lives on
        if (fmax > 0d0) then
           isoval = qlevel
