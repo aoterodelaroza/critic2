@@ -3987,7 +3987,7 @@ contains
     integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
     integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest, nrandom, rseed
-    integer :: nirr, nopmesh, nopfc2, ngpts
+    integer :: nirr, nopmesh, nopfc2, ngpts, nnegm, nqbadm
     integer, allocatable :: wq(:)
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
@@ -3998,11 +3998,13 @@ contains
     logical :: noridge
     real*8 :: xdr2, xddf, xddfkj, xdf0, xdfv, xdsv, xdcvv, xddsmax, xddcvmax
     logical :: doxdebye, xdasked, havexd
-    character(len=:), allocatable :: qfile, dosfile, xdline
-    real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:)
+    character(len=:), allocatable :: qfile, dosfile, xdline, dropfile, sampling
+    real*8 :: fminm, cuteffm
+    real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:), tqpt(:,:)
     real*8, allocatable :: fvibl(:), svibl(:), cvl(:), xdfl(:), xdsl(:), xdcvl(:), xdpar(:)
     logical, allocatable :: qprint(:)
-    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus
+    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus, docomm
+    real*8 :: rkthermo
 
     ! default name of the file where CREATE_DISPLACEMENTS records how the
     ! displaced structures were generated, and where READ_FORCES looks for it
@@ -4519,6 +4521,8 @@ contains
           ! the ones already stored, which is what makes this work for a
           ! molecule or a gamma-only cell.
           domesh = .false.
+          docomm = .false.
+          rkthermo = -1d0
           nk = 0
           qshift = 0d0
           tmin = 0d0
@@ -4527,6 +4531,7 @@ contains
           cutoff = 1d0 ! cm^-1
           qfile = ""
           dosfile = ""
+          dropfile = ""
           dodos = .false.
           sigma = -1d0 ! negative: use the tetrahedron method
           npts = 500
@@ -4561,6 +4566,17 @@ contains
                 else
                    domesh = .true.
                 end if
+             elseif (equal(mode,'rklength').or.equal(mode,'rk')) then
+                ! the mesh from a length (bohr), with the rule of VASP
+                ! (nk = max(1,int(rk*|b|+0.5)), |b| without 2pi)
+                if (.not.eval_next(rkthermo,line,lp)) &
+                   call ferror('struct_vibrations','error reading RKLENGTH in THERMO',faterr,line,syntax=.true.)
+                if (rkthermo <= 0d0) &
+                   call ferror('struct_vibrations','RKLENGTH must be positive',faterr,line,syntax=.true.)
+             elseif (equal(mode,'commensurate')) then
+                ! the wave vectors commensurate with the supercell, where
+                ! the dynamical matrix is exact
+                docomm = .true.
              elseif (equal(mode,'shift')) then
                 if (.not.get3(line,lp,qshift)) &
                    call ferror('struct_vibrations','error reading SHIFT in THERMO',faterr,line,syntax=.true.)
@@ -4599,6 +4615,11 @@ contains
                 qfile = getword(line,lp)
                 if (len_trim(qfile) == 0) &
                    call ferror('struct_vibrations','FILE needs a file name in THERMO',faterr,line,syntax=.true.)
+             elseif (equal(mode,'discarded')) then
+                ! every mode left out (at or below the cutoff), to a file
+                dropfile = getword(line,lp)
+                if (len_trim(dropfile) == 0) &
+                   call ferror('struct_vibrations','DISCARDED needs a file name in THERMO',faterr,line,syntax=.true.)
              elseif (equal(mode,'dos')) then
                 dodos = .true.
              elseif (equal(mode,'dosfile')) then
@@ -4667,21 +4688,44 @@ contains
           if (any(tlist(1:nt) < 0d0)) &
              call ferror('struct_vibrations','the temperatures must not be negative',faterr,line,syntax=.true.)
 
-          ! The frequencies: sampled here on a mesh, or the ones stored.
-          ! The stored set carries no weights, so it can only be used
-          ! when it is a single q-point: a molecule, or a gamma-only
-          ! calculation of a crystal. Anything else is THERMO MESH.
+          ! the sampling: MESH, RKLENGTH or COMMENSURATE, at most one
+          if (rkthermo > 0d0) then
+             if (domesh) &
+                call ferror('struct_vibrations','give either MESH or RKLENGTH in THERMO, not both',&
+                   faterr,line,syntax=.true.)
+             call s%c%get_kpoints(rkthermo,nk)
+             domesh = .true.
+          end if
+          if (docomm .and. domesh) &
+             call ferror('struct_vibrations','COMMENSURATE cannot be combined with MESH or RKLENGTH in THERMO',&
+                faterr,line,syntax=.true.)
+          if (.not.domesh .and. any(abs(qshift) > 1d-10)) &
+             call ferror('struct_vibrations','SHIFT needs a MESH or RKLENGTH in THERMO',faterr,line,syntax=.true.)
+          if (dodos .and..not.domesh) &
+             call ferror('struct_vibrations','THERMO DOS needs a MESH',faterr,line,syntax=.true.)
+          if ((docomm .or. domesh) .and..not.s%c%vib%hasfc2) &
+             call ferror('struct_vibrations','THERMO MESH, RKLENGTH and COMMENSURATE need force constants &
+                &(LOAD_FC2 or READ_FORCES)',faterr)
+
+          ! The frequencies: sampled here on a mesh or at the commensurate
+          ! wave vectors, or the ones stored. The stored set carries no
+          ! weights, so it can only be used when it is a single q-point: a
+          ! molecule, or a gamma-only calculation of a crystal. Anything
+          ! else is THERMO MESH or COMMENSURATE.
           nrigid = 0
-          if (domesh) then
-             if (.not.s%c%vib%hasfc2) &
-                call ferror('struct_vibrations','THERMO MESH needs force constants (LOAD_FC2 or READ_FORCES)',&
-                   faterr)
-             call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg,wq=wq,nirr=nirr,nopmesh=nopmesh,nopfc2=nopfc2)
+          if (docomm) then
+             call s%c%vib%commensurate_freqs(s%c,tfreq,tqpt,errmsg)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+             if (allocated(wq)) deallocate(wq)
+             allocate(wq(size(tfreq,2)))
+             wq = 1
+          elseif (domesh) then
+             call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg,wq=wq,nirr=nirr,nopmesh=nopmesh,nopfc2=nopfc2,&
+                qpt=tqpt)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
           else
-             if (dodos) &
-                call ferror('struct_vibrations','THERMO DOS needs a MESH',faterr,line,syntax=.true.)
              if (.not.s%c%vib%hasvibs .or. s%c%vib%nqpt < 1) &
                 call ferror('struct_vibrations','no frequencies available for THERMO; give a MESH or &
                    &load them first',faterr)
@@ -4692,6 +4736,9 @@ contains
              if (allocated(tfreq)) deallocate(tfreq)
              allocate(tfreq(s%c%vib%nfreq,1))
              tfreq(:,1) = s%c%vib%freq(1:s%c%vib%nfreq,1)
+             if (allocated(tqpt)) deallocate(tqpt)
+             allocate(tqpt(3,1))
+             tqpt(:,1) = s%c%vib%qpt(:,1)
              if (allocated(wq)) deallocate(wq)
              allocate(wq(1))
              wq = 1
@@ -4700,20 +4747,49 @@ contains
              ! reader that keeps all 3N modes (QE, phonopy, CRYSTAL,
              ! CASTEP) leaves them in at a few tens of cm^-1 of either
              ! sign, well above the cutoff, so they have to be taken out
-             ! by construction: the lowest |nu| ones
+             ! by construction: the lowest |nu| ones are removed from the
+             ! list, and do not enter the counts of modes left out
              if (s%c%ismolecule .and. s%c%vib%nfreq == 3*s%c%ncel) then
                 nrigid = rigid_modes(s%c)
-                call drop_lowest(tfreq(:,1),nrigid)
+                call drop_lowest(tfreq,nrigid)
              end if
           end if
           nqt = size(tfreq,2)
+
+          ! the sampling, for the record in the output and in the table file
+          if (docomm) then
+             sampling = "the " // string(nqt) // " wave vectors commensurate with the supercell, S (rows) ="
+             do i = 1, 3
+                sampling = sampling // " " // string(s%c%vib%fc2_smat(i,1)) // " " //&
+                   string(s%c%vib%fc2_smat(i,2)) // " " // string(s%c%vib%fc2_smat(i,3))
+                if (i < 3) sampling = sampling // " /"
+             end do
+          elseif (domesh) then
+             sampling = "mesh " // string(nk(1)) // " " // string(nk(2)) // " " // string(nk(3)) //&
+                ", shift " // string(qshift(1),'f',decimal=4) // " " // string(qshift(2),'f',decimal=4) //&
+                " " // string(qshift(3),'f',decimal=4)
+             if (rkthermo > 0d0) sampling = sampling // ", from RKLENGTH " // string(rkthermo,'f',decimal=4)
+          else
+             sampling = "the stored frequencies at q = " // string(tqpt(1,1),'f',decimal=6) // " " //&
+                string(tqpt(2,1),'f',decimal=6) // " " // string(tqpt(3,1),'f',decimal=6)
+          end if
+          if (s%c%vib%hasborn .and. (docomm .or. domesh)) then
+             sampling = sampling // "; dipole-dipole correction (BORN) on"
+          elseif (docomm .or. domesh) then
+             sampling = sampling // "; dipole-dipole correction (BORN) off"
+          end if
 
           ! the number of formula units in the cell
           nz = s%c%formula_units()
 
           if (verbose) then
              write (uout,'("+ Thermodynamic properties in the harmonic approximation (THERMO)")')
-             if (domesh) then
+             if (docomm) then
+                write (uout,'("  Brillouin zone sampling: the ",A," wave vectors commensurate with the &
+                   &supercell (exact dynamical matrix, equal weights)")') string(nqt)
+             elseif (domesh) then
+                if (rkthermo > 0d0) &
+                   write (uout,'("  Mesh from RKLENGTH = ",A," bohr")') string(rkthermo,'f',decimal=4)
                 if (all(abs(qshift) < 1d-10)) then
                    write (uout,'("  Brillouin zone sampling: ",3(A," "),"gamma-centered mesh")') &
                       (string(nk(k)),k=1,3)
@@ -4738,11 +4814,21 @@ contains
 
           ! the zero-point energy and the mode counts do not depend on the
           ! temperature, so report them before the table
-          call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
+          call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq,&
+             nneg=nnegm,nqbad=nqbadm,fmin=fminm,cuteff=cuteffm)
           if (nusedm == 0) &
              call ferror('struct_vibrations','no modes above the cutoff were available for THERMO',faterr)
           havexd = .false.
           if (verbose) call thermo_header(uout)
+
+          ! the modes left out, one by one
+          if (len_trim(dropfile) > 0) then
+             call s%c%vib%write_dropped(dropfile,cuteffm,tfreq,tqpt,errmsg,wq=wq)
+             if (len_trim(errmsg) > 0) &
+                call ferror("struct_vibrations",errmsg,faterr)
+             if (verbose) &
+                write (uout,'("+ Modes left out written to: ",A)') trim(dropfile)
+          end if
 
           ! the properties, temperature by temperature
           if (allocated(fvibl)) deallocate(fvibl,svibl,cvl)
@@ -4849,10 +4935,21 @@ contains
     subroutine thermo_header(u)
       integer, intent(in) :: u
 
+      write (u,'("# sampling: ",A)') sampling
       write (u,'("# ZPE (kJ/mol) = ",A," per cell, ",A," per formula unit (Z = ",A,")")') &
          string(zpe,'f',decimal=7), string(zpe/real(nz,8),'f',decimal=7), string(nz)
       write (u,'("# modes integrated = ",A," of ",A,"; imaginary modes left out = ",A)') &
          string(nusedm), string(ntotm), string(nimagm)
+      ! the modes left out, counted over the whole q-point sampling:
+      ! dropped (at or below the cutoff actually applied), below0 (below
+      ! zero, numerical zeros such as the acoustic modes at gamma
+      ! included), imag (below -max(cutoff,1) cm^-1), qbad of nq q-points
+      ! carrying any of them (wbad, their fraction), and the lowest
+      ! frequency fmin (cm^-1)
+      write (u,'("# left out: cutoff=",A," dropped=",A," below0=",A," imag=",A," qbad=",A," nq=",A,&
+         &" wbad=",A," fmin=",A)') string(cuteffm,'f',decimal=4), string(ntotm-nusedm), string(nnegm),&
+         string(nimagm), string(nqbadm), string(nqt), string(real(nqbadm,8)/real(max(nqt,1),8),'e',decimal=6),&
+         string(fminm,'f',decimal=4)
       write (u,'("# T in K; Fvib in kJ/mol; Svib and Cv in J/K/mol; columns 2-4 per unit cell, &
          &columns 5-7 per formula unit")')
       if (havexd) then
@@ -4945,22 +5042,22 @@ contains
 
     end function rigid_modes
 
-    !> Set the n entries of f with the smallest absolute value to zero,
-    !> so that THERMO leaves them out without counting them as
-    !> imaginary.
+    !> Remove the n entries of the single-column frequency list f with
+    !> the smallest absolute value, so that THERMO neither integrates
+    !> them nor counts them among the modes left out.
     subroutine drop_lowest(f,n)
-      real*8, intent(inout) :: f(:)
+      real*8, allocatable, intent(inout) :: f(:,:)
       integer, intent(in) :: n
 
-      integer :: i, k
+      integer :: i
+      logical, allocatable :: keep(:)
 
-      do i = 1, min(n,size(f))
-         k = minloc(abs(f),1)
-         f(k) = 0d0
-         ! a zero is now the smallest; make it not the next pick
-         if (i < n) f(k) = huge(1d0)
+      allocate(keep(size(f,1)))
+      keep = .true.
+      do i = 1, min(n,size(f,1))
+         keep(minloc(abs(f(:,1)),1,mask=keep)) = .false.
       end do
-      where (f == huge(1d0)) f = 0d0
+      f = reshape(pack(f(:,1),keep),(/count(keep),1/))
 
     end subroutine drop_lowest
 
