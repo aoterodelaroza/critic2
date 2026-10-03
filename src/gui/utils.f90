@@ -49,6 +49,10 @@ module utils
   integer, parameter, public :: iw_cmap_viridis = 1 ! perceptual sequential (the usual default)
   integer, parameter, public :: iw_cmap_rdbu = 6 ! diverging, for values that change sign
 
+  ! Space skipped by iw_setpos_bottomright in the window being drawn
+  ! (reset by window_draw); not content, for grow-to-fit windows
+  real(c_float), public :: iw_bottom_skip = 0._c_float
+
   !xx! proc submodule !xx!
   public :: iw_periodictable
   public :: iw_inputtext

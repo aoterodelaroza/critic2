@@ -618,6 +618,7 @@ contains
     w%okmsg = ""
     w%isys = 1
     w%growtofit = .false.
+    w%flags = ImGuiWindowFlags_None
     w%needheight = 0._c_float
     w%needwidth = 0._c_float
     w%sortcid = 0
@@ -1265,7 +1266,7 @@ contains
   module subroutine window_draw(w)
     use gui_main, only: fontsize, io, g
     use interfaces_glfw, only: glfwGetTime
-    use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth
+    use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
 
@@ -1273,6 +1274,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(len=:), allocatable :: str4
+    integer(c_int) :: dflags
     real(c_float) :: panewidth, hneed
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
     type(ImGuiWindow), pointer :: wptr
@@ -1314,10 +1316,12 @@ contains
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
           w%dialog_data%purpose = w%purpose
+          ! the file dialog's own flags, for opening it (w%flags are the
+          ! ImGui window flags IGFD_DisplayDialog draws it with)
           if (w%dialog_data%showhidden) then
-             w%flags = ImGuiFileDialogFlags_None
+             dflags = ImGuiFileDialogFlags_None
           else
-             w%flags = ImGuiFileDialogFlags_DontShowHiddenFiles
+             dflags = ImGuiFileDialogFlags_DontShowHiddenFiles
           end if
           str2 = "" // c_null_char ! default path
           inisize%x = 90 * fontsize%x
@@ -1342,37 +1346,37 @@ contains
              ! open dialog
              w%name = "Open File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfiles),c_loc(str2),&
-                c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_savelogfile) then
              w%name = "Save Log File##" // string(w%id)  // c_null_char
              str2 = "file.log" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openfieldfile) then
              w%name = "Open Field File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfieldfile),&
-                c_loc(str2),c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_loc(str2),c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openvibfile) then
              w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openvibfile),&
-                c_loc(str2),c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),w%flags)
+                c_loc(str2),c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
              if (allocated(w%dialog_filter)) &
                 str1 = w%dialog_filter // ",All files (*.*){*.*}" // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              call dialog_initial_file(w%parent(),"image.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_savefile .or. w%purpose == wpurp_dialog_savecpfile) then
              if (w%purpose == wpurp_dialog_savefile) then
                 w%name = "Save Structure File##" // string(w%id) // c_null_char
@@ -1422,11 +1426,9 @@ contains
                    &All files (*.*){*.*}"// c_null_char
                 call dialog_initial_file(w%parent(),"cps.cif",str2,str3)
              end if
-             ! the overwrite flag goes only to the file dialog, not to w%flags: it
-             ! would be reused as ImGuiWindowFlags in IGFD_DisplayDialog
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
-                ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
+                ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savetablefile) then
              ! the results table of a critical points window, as text,
              ! to the window's table file
@@ -1440,7 +1442,7 @@ contains
              end if
              call dialog_initial_file(idp,"table.txt",str2,str3,ref=str4)
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                1_c_int,c_null_ptr,ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
+                1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_selectdir) then
              w%name = "Select Directory##" // string(w%id) // c_null_char
              str2 = "" // c_null_char
@@ -1454,7 +1456,7 @@ contains
              end if
              ! a null filter list puts the dialog in directory-selection mode
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_null_ptr,c_loc(str3),c_loc(str2),&
-                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           else
              call ferror('window_draw','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
@@ -1583,6 +1585,7 @@ contains
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
              w%heightslack = 0._c_float ! only a body that stretches to fill sets this
+             iw_bottom_skip = 0._c_float ! set by iw_setpos_bottomright
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
@@ -1647,12 +1650,15 @@ contains
              ! itself off as soon as it has worked, and the window then
              ! flips between the two sizes on alternate frames.
              ! A body that stretches part of itself to fill the window
-             ! reports how much it added: measured with the stretch in it,
-             ! the content would grow with the window, the minimum would
+             ! reports how much it added (as iw_setpos_bottomright does,
+             ! in iw_bottom_skip): measured with the stretch in it, the
+             ! content would grow with the window, the minimum would
              ! ratchet up to whatever height the user last set, and the
              ! window could never be made smaller again
-             if (w%growtofit .and. .not.w%isdocked) &
+             if (w%growtofit .and. .not.w%isdocked) then
+                w%heightslack = w%heightslack + iw_bottom_skip
                 w%needheight = igGetCursorPosY() + g%Style%WindowPadding%y - w%heightslack
+             end if
           end if
           call igEnd()
        end if

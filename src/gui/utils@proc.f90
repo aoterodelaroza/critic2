@@ -770,6 +770,7 @@ contains
     logical :: centered_
     integer :: ncheck_
     type(ImVec2) :: szavail
+    real(c_float) :: skip
 
     centered_ = .false.
     if (present(centered)) centered_ = centered
@@ -785,10 +786,13 @@ contains
        call igSetCursorPosX(iw_calcwidth(ntext,nbutton,ncheck_,from_end=.true.) - g%Style%ScrollbarSize)
     end if
 
-    ! vertical: skip the remaining space, if there is room for one more line
-    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
-       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - &
-       g%Style%WindowPadding%y)
+    ! vertical: skip the remaining space, if there is room for one more
+    ! line (recorded in iw_bottom_skip)
+    skip = szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y
+    if (skip > 0._c_float) then
+       call igSetCursorPosY(igGetCursorPosY() + skip)
+       iw_bottom_skip = iw_bottom_skip + skip
+    end if
 
   end subroutine iw_setpos_bottomright
 
