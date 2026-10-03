@@ -485,7 +485,7 @@ contains
          call iw_combo_simple("Critical point list##cptablecombo","Symmetry-unique" // c_null_char //&
             "Cell" // c_null_char,itable,changed=ch,tooltips=&
             "The symmetry-unique critical points, one row each" // c_null_char //&
-            "Every critical point in the unit cell, with the symmetry-unique one it is a copy of" //&
+            "Every critical point in the unit cell" //&
             c_null_char,ttshown=ttshown)
          if (ch) then
             w%cp%tablecell = int(itable)
