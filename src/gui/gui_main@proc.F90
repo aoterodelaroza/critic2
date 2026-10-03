@@ -93,7 +93,7 @@ contains
     use tools_io, only: string, falloc, fdealloc, ferror, warning
     use param, only: dirsep
     integer(c_int) :: idum, ileft, iright
-    integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
+    integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh, iwsw, iwsh, ifbw, ifbh
     real(c_float) :: treeratio, cscx, cscy
     character(len=64) :: envval
     integer :: ios
@@ -206,10 +206,17 @@ contains
     ! HiDPI content scale. On Windows the window/framebuffer are in physical
     ! pixels, so the UI font and style sizes are multiplied by this factor to
     ! render at the correct size and stay crisp on scaled (e.g. 150%) displays.
-    ! A scale of 1.0 leaves the baked font size and style untouched.
+    ! On macOS (and Wayland) the window is in logical points and ImGui already
+    ! maps them to the larger framebuffer, so the part of the content scale
+    ! that the framebuffer/window ratio accounts for is divided out (a Retina
+    ! display gives 2/2 = 1). A scale of 1.0 leaves the baked font size and
+    ! style untouched.
     uiscale = 1._c_float
     call glfwGetWindowContentScale(rootwin, cscx, cscy)
     if (cscx > 0._c_float) uiscale = cscx
+    call glfwGetWindowSize(rootwin, iwsw, iwsh)
+    call glfwGetFramebufferSize(rootwin, ifbw, ifbh)
+    if (iwsw > 0 .and. ifbw > iwsw) uiscale = uiscale * real(iwsw,c_float) / real(ifbw,c_float)
     ! manual override, e.g. to enlarge the UI on a display GLFW reports as
     ! unscaled (or to test HiDPI): CRITIC2_UI_SCALE=1.5
     call get_environment_variable("CRITIC2_UI_SCALE",envval,status=ios)
