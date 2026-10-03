@@ -31,6 +31,31 @@ module systemmod
   public :: systemmod_init
   public :: systemmod_end
 
+  ! The keywords of POINTPROP that define a point property of the
+  ! reference field by name (besides STRESS, a tensor), and what each
+  ! one is
+  integer, parameter, public :: npointprop_keywords = 15
+  character(len=7), parameter, public :: pointprop_keywords(npointprop_keywords) = (/&
+     character(len=7) :: "gtf","vtf","htf","gtf_kir","vtf_kir","htf_kir","gkin","kkin","lag",&
+     "elf","vir","he","lol","lol_kir","rdg"/)
+  character(len=96), parameter, public :: pointprop_keyword_desc(npointprop_keywords) = (/&
+     character(len=96) :: &
+     "Thomas-Fermi kinetic energy density",&
+     "Potential energy density from the Thomas-Fermi kinetic energy density and the virial theorem",&
+     "Total energy density from the Thomas-Fermi kinetic energy density and the virial theorem",&
+     "Thomas-Fermi kinetic energy density with the Kirzhnits gradient correction",&
+     "Potential energy density from gtf_kir and the local virial theorem",&
+     "Total energy density from gtf_kir and the local virial theorem",&
+     "Kinetic energy density, G (positive definite) version",&
+     "Kinetic energy density, K (Schrodinger) version",&
+     "Lagrangian density (-1/4 of the Laplacian)",&
+     "Electron localization function (ELF)",&
+     "Electronic potential energy density (virial field)",&
+     "Energy density (G + V)",&
+     "Localized-orbital locator (LOL)",&
+     "Localized-orbital locator with the Kirzhnits kinetic energy density",&
+     "Reduced density gradient"/)
+
   ! The system class. A system contains:
   ! - One crystal structure (%c)
   ! - One or more fields (%nf fields in %f(:))
@@ -74,6 +99,7 @@ module systemmod
      procedure :: unload_field !< Unload a field
      procedure :: new_integrable_string !< Define a field as integrable from a command
      procedure :: new_pointprop_string !< Define a field as point prop from a command
+     procedure :: delete_pointprop !< Remove a point property from the list
      procedure :: eval => system_eval_expression !< Evaluate an arithmetic expression using the system's fields
      procedure :: check_expression => system_check_expression !< Validate an expression by evaluating it at a probe point
      procedure :: propty !< Calculate the properties of a field or all fields at a point
@@ -219,6 +245,10 @@ module systemmod
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
+     module subroutine delete_pointprop(s,i)
+       class(system), intent(inout) :: s
+       integer, intent(in) :: i
+     end subroutine delete_pointprop
      module function system_eval_expression(s,expr,errmsg,x0,toklist)
        use arithmetic, only: token
        class(system), intent(inout), target :: s

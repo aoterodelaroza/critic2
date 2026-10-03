@@ -74,6 +74,7 @@ module utils
   public :: iw_textwidth
   public :: iw_table_column
   public :: iw_table_headers_row
+  public :: iw_table_sort_specs
   public :: iw_beginmenu
   public :: iw_begintabitem
   public :: iw_close_event
@@ -90,6 +91,7 @@ module utils
   public :: iw_push_iconrow_frame
   public :: iw_pop_iconrow_frame
   public :: iw_close_button
+  public :: iw_cell_right
   public :: iw_menuitem
   public :: iw_tooltip
   public :: iw_helpermark
@@ -233,12 +235,19 @@ module utils
        integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: centered
      end subroutine iw_setpos_bottomright
-     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit)
+     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked)
        integer(c_int), intent(in), optional :: icol(:)
        character(len=*,kind=c_char), intent(in), optional :: shorts
        logical, intent(in), optional :: freezetop
        logical, intent(in), optional :: autofit
+       logical, intent(out), optional :: rclicked
      end subroutine iw_table_headers_row
+     module function iw_table_sort_specs(sortcid,sortdir,defcid,consume) result(dirty)
+       integer(c_int), intent(inout) :: sortcid, sortdir
+       integer(c_int), intent(in) :: defcid
+       logical, intent(in) :: consume
+       logical :: dirty
+     end function iw_table_sort_specs
      module subroutine iw_table_column(label,id,icol,sortid,icolsort,flags,width)
        character(len=*,kind=c_char), intent(in) :: label
        integer(c_int), intent(in), optional :: id
@@ -420,6 +429,9 @@ module utils
        real(c_float), intent(in), optional :: scale
        real(c_float) :: h
      end function iw_iconbutton_height
+     module subroutine iw_cell_right(str)
+       character(len=*), intent(in) :: str
+     end subroutine iw_cell_right
      module function iw_close_button(strid) result(pressed)
        character(len=*,kind=c_char), intent(in) :: strid
        logical :: pressed

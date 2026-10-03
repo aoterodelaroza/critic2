@@ -93,9 +93,6 @@ contains
     type(rep_shape) :: stdshp(3) ! transient std-orientation axes (arrows)
     type(rep_shape) :: rotshp(1) ! transient rotation axis (cylinder)
     type(ImVec4) :: col4
-    type(c_ptr) :: ptrc
-    type(ImGuiTableSortSpecs), pointer :: sortspecs
-    type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     character(len=3) :: schpg
     integer :: holo, laue
     ! symmetry tab
@@ -2962,23 +2959,10 @@ contains
 
     ! get the sort specs from the imgui table
     subroutine fetch_sort_specs()
+      use utils, only: iw_table_sort_specs
 
-      ptrc = igTableGetSortSpecs()
-      if (c_associated(ptrc)) then
-         call c_f_pointer(ptrc,sortspecs)
-         if (c_associated(sortspecs%Specs)) then
-            call c_f_pointer(sortspecs%Specs,colspecs)
-            w%sortcid = colspecs%ColumnUserID
-            w%sortdir = colspecs%SortDirection
-            if (sortspecs%SpecsDirty .and. ntype > 1) then
-               forcesort = .true.
-               sortspecs%SpecsDirty = .false.
-            end if
-         else
-            w%sortcid = 0
-            w%sortdir = 1
-         end if
-      end if
+      if (iw_table_sort_specs(w%sortcid,w%sortdir,0_c_int,ntype > 1) .and. ntype > 1) &
+         forcesort = .true.
 
     end subroutine fetch_sort_specs
 

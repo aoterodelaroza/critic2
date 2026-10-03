@@ -25,6 +25,7 @@ module windows
   use global, only: rborder_def
   use meshmod, only: mesh_level_small
   use crystalseedmod, only: crystalseed
+  use types, only: pointpropable
   use param, only: isformat_r_unknown, eye, mlen,&
      isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
      isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
@@ -217,7 +218,7 @@ module windows
   ! The critical points window: kinds of blocking job
   integer, parameter :: cpjob_search = 0 ! AUTO with the Search tab's options
   integer, parameter :: cpjob_add = 1 ! AUTO from one point, appending to the list
-  integer, parameter :: cpjob_delete = 2 ! delete the selected CPs, rebuild the graph
+  integer, parameter :: cpjob_delete = 2 ! delete the CPs in pending_del, rebuild the graph
   integer, parameter :: cpjob_export = 3 ! write the CPs to a file (CPREPORT)
   integer, parameter :: cpjob_estimate = 4 ! time a sample of the searches from the seeds
   ! The critical points window: targets of a pick in the view
@@ -241,9 +242,19 @@ module windows
   end type cp_seed_ui
   public :: cp_seed_ui
 
+  !> Display settings of a column of the results table of the
+  !> critical points window: a built-in column, or a point property
+  !> (kept by property name)
+  type cp_ppcol
+     character*10 :: name = "" ! the point property (blank for built-in columns)
+     logical :: show = .true. ! show the column
+     logical :: expo = .true. ! exponential notation (or fixed point)
+     integer(c_int) :: ndec = 5 ! number of decimal places
+  end type cp_ppcol
+
   !> Per-window state of the critical points window (Tools > Critical
   !> Points): the AUTO form (field, seeds, options), the pending
-  !> blocking job, and the summary of the last run. The seeds are reset
+  !> blocking job, and the results table. The seeds are reset
   !> to AUTO's defaults for the system when the window moves to another
   !> system.
   type cp_state
@@ -284,18 +295,52 @@ module windows
      character(len=:), allocatable :: estimate
      ! export: include the gradient paths (GRAPH); the file is w%okfile
      logical :: expgraph = .false.
-     ! editing: the symmetry-unique CPs selected in the results table
-     ! (for deletion; size ncp, reset when the CP list changes), and a
-     ! pending pick in the view: the point to add a CP from, or a
-     ! position of the form
+     ! the symmetry-unique CPs selected in the results table (for
+     ! deletion; size ncp, reset when the CP list changes; the
+     ! shift-click anchor is w%lastselected), and a pending pick in the
+     ! view: the point of the single-shot search, or a position of the
+     ! form
      logical, allocatable :: sel(:)
      integer :: picking = 0 ! the target of a pending pick in the view (cppick_*, 0 = none)
      integer :: pickseed = 0 ! seed whose position is picked (cppick_x0, cppick_x1)
      integer :: pickview = 0 ! view the pick was armed on
      type(pairpick) :: pick
      ! results
-     character(len=:), allocatable :: summary ! of the last run
+     logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
+     ! results table: the settings of the built-in columns, by column
+     ! id (the ic_* of draw_results_tab; the type defaults, except as
+     ! given; the notation and decimals apply to the numeric ones only);
+     ! the settings of the point property columns, parallel to
+     ! sys%propp (rebuilt by pp_sync, keeping them by property name);
+     ! and a counter that changes the table's ImGui ID when a column
+     ! other than the last is removed or replaced (ImGui keeps column
+     ! state by position)
+     type(cp_ppcol) :: bcol(0:20) = (/cp_ppcol(),cp_ppcol(),& ! delete, CP
+        cp_ppcol(),cp_ppcol(),cp_ppcol(),cp_ppcol(),& ! x, y, z, Wyc
+        cp_ppcol(ndec=3),cp_ppcol(show=.false.,ndec=3),& ! field, valence field
+        cp_ppcol(show=.false.,ndec=3),cp_ppcol(show=.false.,ndec=3),& ! gradient, valence gradient
+        cp_ppcol(ndec=3),cp_ppcol(show=.false.,ndec=3),& ! Laplacian, valence Laplacian
+        cp_ppcol(show=.false.),cp_ppcol(show=.false.),cp_ppcol(show=.false.),& ! Hessian eigenvalues
+        cp_ppcol(show=.false.,expo=.false.,ndec=4),cp_ppcol(),& ! ellipticity, endpoints
+        cp_ppcol(show=.false.,expo=.false.,ndec=4),& ! path length
+        cp_ppcol(show=.false.,expo=.false.,ndec=4),cp_ppcol(show=.false.,expo=.false.,ndec=4),& ! distances
+        cp_ppcol(show=.false.,expo=.false.,ndec=2)/) ! angle
+     type(cp_ppcol), allocatable :: ppcol(:)
+     integer :: tablegen = 0
+     logical :: sortdirty = .true.
+     ! the point properties (sys%propp) at the symmetry-unique CPs: value
+     ! and status (ncp,npropp; 0 = not evaluated, 1 = evaluated, -1 =
+     ! could not be evaluated), for the list of point properties ppfor
+     ! (unallocated = none yet; reset with the other table caches)
+     real*8, allocatable :: ppval(:,:)
+     integer, allocatable :: ppstat(:,:)
+     type(pointpropable), allocatable :: ppfor(:)
+     ! the form to add a point property: kind (0 = expression, then the
+     ! keywords of POINTPROP), name, and expression
+     integer :: ppkind = 0
+     character(len=10) :: ppname = ""
+     character(len=1024) :: ppexpr = ""
      integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
      integer :: hoverview = 0 ! view whose critical points object has ihover
      ! results table caches, valid for field tfield while the system's
