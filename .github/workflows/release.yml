@@ -83,8 +83,26 @@ jobs:
           grep -q '^set(MESA_DIR ' "$cache" || missing="$missing MESA_DIR"
           if [ -n "$missing" ]; then
             echo "::error::dependencies missing from the Windows package:$missing"
+            # the end of each failed library's build log (USE_XTB -> xtb-build.log)
+            for opt in $missing; do
+              log="windows-deps/$(echo "${opt#USE_}" | tr 'A-Z' 'a-z')-build.log"
+              if [ -f "$log" ]; then
+                echo "::group::last 80 lines of $log"
+                tail -n 80 "$log"
+                echo "::endgroup::"
+              fi
+            done
             exit 1
           fi
+
+      # the complete logs of the dependency builds, when anything went wrong
+      - name: Upload the dependency build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-deps-logs
+          path: windows-deps/*.log
+          if-no-files-found: ignore
 
       - name: Configure
         run: |

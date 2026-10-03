@@ -101,6 +101,13 @@ FETCH_XTB="${FETCH_XTB:-1}"
 DEST="${1:-$(pwd)/windows-deps}"
 
 # required tools
+# a progress bar on a terminal; in a log (e.g. CI) only the errors
+if [ -t 2 ]; then
+   curl_progress=(--progress-bar)
+else
+   curl_progress=(-sS)
+fi
+
 need=(curl unzip)
 for t in "${need[@]}"; do
    if ! command -v "$t" >/dev/null 2>&1; then
@@ -130,7 +137,7 @@ openblas_dir="$DEST/openblas-${OPENBLAS_VERSION}-x64"
 # --- GLFW ---
 if [ ! -d "$glfw_dir" ]; then
    echo ">> downloading GLFW ${GLFW_VERSION} ..." >&2
-   curl -fL --progress-bar -o glfw.zip \
+   curl -fL "${curl_progress[@]}" -o glfw.zip \
       "https://github.com/glfw/glfw/releases/download/${GLFW_VERSION}/glfw-${GLFW_VERSION}.bin.WIN64.zip"
    unzip -q -o glfw.zip
    rm -f glfw.zip
@@ -148,7 +155,7 @@ mesa_min=""
 if [ "$FETCH_MESA" = 1 ]; then
    if [ ! -d "$mesa_dir" ]; then
       echo ">> downloading Mesa ${MESA_VERSION} ..." >&2
-      curl -fL --progress-bar -o mesa.7z \
+      curl -fL "${curl_progress[@]}" -o mesa.7z \
          "https://github.com/pal1000/mesa-dist-win/releases/download/${MESA_VERSION}/mesa3d-${MESA_VERSION}-release-mingw.7z"
       "$sevenz" x -o"$mesa_dir" mesa.7z >/dev/null
       rm -f mesa.7z
@@ -173,7 +180,7 @@ if [ "$FETCH_LAPACK" = 1 ]; then
    if [ ! -f "$openblas_dir/lib/libopenblas.dll.a" ]; then
       echo ">> downloading OpenBLAS ${OPENBLAS_VERSION} ..." >&2
       # the x64 zip is the MinGW build (bin/lib/include at the archive root)
-      curl -fL --progress-bar -o openblas.zip \
+      curl -fL "${curl_progress[@]}" -o openblas.zip \
          "https://github.com/OpenMathLib/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}-x64.zip"
       rm -rf "$openblas_dir"
       unzip -q -o openblas.zip -d "$openblas_dir"
@@ -282,7 +289,7 @@ fetch_source() {
    # noted in the log so that "see <log>" still explains a download failure,
    # which happens before the build has written anything there
    echo "fetching $url" >>"$log"
-   if ! curl -fL --progress-bar -o "$file" "$url"; then
+   if ! curl -fL "${curl_progress[@]}" -o "$file" "$url"; then
       echo "download failed: $url" >>"$log"
       rm -f "$file"
       return 1
