@@ -67,3 +67,58 @@ find_package_handle_standard_args(NLOPT
 
 # hide library and include variables
 mark_as_advanced(NLOPT_INCLUDE_DIRS NLOPT_LIBRARIES)
+
+## critic2 uses the F77 interface (include 'nlopt.f'), which nlopt only
+## installs when built with NLOPT_FORTRAN (Homebrew's nlopt, for one, is
+## not). The nlo_* wrappers are in the library regardless, so if nlopt.f is
+## missing, generate it from nlopt.h the way nlopt's own build does: the
+## enumerators of nlopt_algorithm and nlopt_result, minus the NLOPT_NUM_*
+## counters.
+if (NLOPT_FOUND)
+  find_path(NLOPT_F77_INCLUDE_DIR NAMES nlopt.f HINTS ${NLOPT_INCLUDE_DIRS} NO_DEFAULT_PATH)
+  mark_as_advanced(NLOPT_F77_INCLUDE_DIR)
+  if (NOT NLOPT_F77_INCLUDE_DIR)
+    set(_nlopt_f77_dir "${CMAKE_BINARY_DIR}/nlopt_f77")
+    file(STRINGS "${NLOPT_INCLUDE_DIRS}/nlopt.h" _nlopt_lines)
+    set(_nlopt_f77 "")
+    set(_inenum FALSE)
+    set(_ival -1)
+    foreach (_line IN LISTS _nlopt_lines)
+      if (_line MATCHES "^[ \t]*typedef[ \t]+enum")
+        set(_inenum TRUE)
+        set(_ival -1)
+      elseif (_inenum AND _line MATCHES "^[ \t]*}")
+        set(_inenum FALSE)
+      elseif (_inenum AND _line MATCHES "^[ \t]*(NLOPT_[A-Z0-9_]+)[ \t]*(=[ \t]*(-?[0-9]+))?")
+        set(_name "${CMAKE_MATCH_1}")
+        if (CMAKE_MATCH_3)
+          set(_ival "${CMAKE_MATCH_3}")
+        else()
+          math(EXPR _ival "${_ival} + 1")
+        endif()
+        if (NOT _name MATCHES "^NLOPT_NUM_")
+          string(APPEND _nlopt_f77 "      integer ${_name}\n      parameter (${_name}=${_ival})\n")
+        endif()
+      endif()
+    endforeach()
+    file(WRITE "${_nlopt_f77_dir}/nlopt.f" "${_nlopt_f77}")
+    list(APPEND NLOPT_INCLUDE_DIRS "${_nlopt_f77_dir}")
+    message(STATUS "nlopt.f not installed with nlopt; generated ${_nlopt_f77_dir}/nlopt.f from nlopt.h")
+    unset(_nlopt_f77_dir)
+    unset(_nlopt_lines)
+    unset(_nlopt_f77)
+    unset(_inenum)
+    unset(_ival)
+    unset(_name)
+  endif()
+
+  ## check that the F77 interface compiles and links (separate result
+  ## variable, see FindLIBXC)
+  try_compile(NLOPT_COMPILES "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/nlopt_test.f90"
+    LINK_LIBRARIES ${NLOPT_LIBRARIES}
+    CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${NLOPT_INCLUDE_DIRS}")
+  if (NOT NLOPT_COMPILES)
+    message(STATUS "Found nlopt (lib=${NLOPT_LIBRARIES} | inc=${NLOPT_INCLUDE_DIRS}) but could not compile against its Fortran interface")
+    set(NLOPT_FOUND FALSE)
+  endif()
+endif()
