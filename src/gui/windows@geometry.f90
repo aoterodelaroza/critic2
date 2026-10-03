@@ -40,7 +40,7 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
        ColorHighlightBondScene2, ColorTableHighlightRow, ColorAxes_def, ColorRotaxis_def
     use utils, only: iw_close_event, iw_table_headers_row, iw_text, iw_tooltip, iw_helpermark, iw_arith_help_button, iw_calcwidth,&
-       iw_button, iw_calcheight,&
+       iw_button, iw_calcheight, iw_capture_text,&
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
        iw_inputint, iw_inputint3, iw_icon_togglebutton, iw_setpos_bottomright, iw_table_column,&
@@ -53,6 +53,7 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
     logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive, syschanged
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:17)
+    integer :: iwrite
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
     integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
@@ -139,6 +140,17 @@ contains
     integer, parameter :: edit_remove = 1
     integer, parameter :: edit_merge = 2
     integer, parameter :: edit_duplicate = 3
+
+    ! the tables of the window that can be written as text
+    integer, parameter :: itable_atoms = 1
+    integer, parameter :: itable_species = 2
+    integer, parameter :: itable_cellnice = 3
+    integer, parameter :: itable_molecules = 4
+    integer, parameter :: itable_bonds = 5
+    integer, parameter :: itable_symopsmol = 6
+    integer, parameter :: itable_symops = 7
+    integer, parameter :: itable_symcen = 8
+    integer, parameter :: itable_symanal = 9
 
     ! table column IDs
     integer, parameter :: ic_id = 0
@@ -385,7 +397,8 @@ contains
              call fetch_sort_specs()
 
              ! draw the header
-             call iw_table_headers_row(autofit=.true.)
+             call iw_table_headers_row(autofit=.true.,writemenu=iwrite,ttshown=ttshown)
+             call w%table_write_begin(itable_species,iwrite)
 
              ! sort
              if (forcesort) call table_sort()
@@ -483,6 +496,8 @@ contains
                 end if
              end do
 
+             call w%table_write_end(itable_species,table_title("Species",isys))
+
              ! last table row (new species)
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
              if (igTableSetColumnIndex(0)) then
@@ -519,6 +534,7 @@ contains
           ! group atom types
           if (sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)) then
              call reset_sort()
+             call w%table_write_cancel()
           end if
           call iw_tooltip("Group atoms by these categories",ttshown)
           table_hltype = w%geometry_atomtype
@@ -647,16 +663,18 @@ contains
              call fetch_sort_specs()
 
              ! draw the header
-             call iw_table_headers_row(autofit=.true.)
+             call iw_table_headers_row(autofit=.true.,writemenu=iwrite,ttshown=ttshown)
 
              ! sort
              if (forcesort) then
                 call table_sort()
              end if
 
-             ! start the clipper
+             ! start the clipper; if the table is being written as text,
+             ! its rows are captured as they are drawn (all of them)
              clipper = ImGuiListClipper_ImGuiListClipper()
              call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
+             call w%table_write_begin(itable_atoms,iwrite,clipper)
 
              ! calculate the number of digits for output
              ndigit = ceiling(log10(ntype+0.1d0))
@@ -851,6 +869,7 @@ contains
              ! end the clipper
              call ImGuiListClipper_End(clipper)
              call ImGuiListClipper_destroy(clipper)
+             call w%table_write_end(itable_atoms,table_title("Atoms",isys))
 
              ! last table row (new atom)
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1128,7 +1147,8 @@ contains
                       call iw_table_column("Ndisp",id=4)
                    end if
                    call iw_table_column("Transformation",id=ncol-1)
-                   call iw_table_headers_row(freezetop=.true.)
+                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                   call w%table_write_begin(itable_cellnice,iwrite)
 
                    do i = 1, size(w%geometry_cell_nice,1)
                       if (w%geometry_cell_nice(i)%r <= 0d0) cycle
@@ -1137,6 +1157,7 @@ contains
                       ! clickable row spanning all columns: apply this supercell
                       if (igTableSetColumnIndex(0)) then
                          str2 = string(i) // "##cellnicerow" // string(i) // c_null_char
+                         call iw_capture_text(str2,label=.true.)
                          if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
                             ImGuiSelectableFlags_SpanAllColumns,szero)) then
                             iaction = iaction_transform_matrix
@@ -1165,6 +1186,7 @@ contains
                          call iw_text(s)
                       end if
                    end do
+                   call w%table_write_end(itable_cellnice,table_title("Nicest supercells",isys))
                    call igEndTable()
                 end if
              end if
@@ -1260,14 +1282,16 @@ contains
              call fetch_sort_specs()
 
              ! draw the header
-             call iw_table_headers_row(autofit=.true.)
+             call iw_table_headers_row(autofit=.true.,writemenu=iwrite,ttshown=ttshown)
 
              ! sort
              if (forcesort) call table_sort()
 
-             ! start the clipper
+             ! start the clipper; if the table is being written as text,
+             ! its rows are captured as they are drawn (all of them)
              clipper = ImGuiListClipper_ImGuiListClipper()
              call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
+             call w%table_write_begin(itable_molecules,iwrite,clipper)
 
              ! number of digits for the id output
              ndigit = ceiling(log10(ntype+0.1d0))
@@ -1418,6 +1442,7 @@ contains
              end do
              ! Step() ends the clipper on its own, but the object still has to go
              call ImGuiListClipper_destroy(clipper)
+             call w%table_write_end(itable_molecules,table_title("Molecules",isys))
              call igEndTable()
           end if
 
@@ -1503,11 +1528,13 @@ contains
              call iw_table_column("Id",id=0)
              call iw_table_column("Atom",id=1)
              call iw_table_column("Bonded atoms",id=2)
-             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+             call iw_table_headers_row(freezetop=.true.,autofit=.true.,writemenu=iwrite,ttshown=ttshown)
 
-             ! draw the rows (clipped for performance)
+             ! draw the rows (clipped for performance; all of them if the
+             ! table is being written as text)
              clipper = ImGuiListClipper_ImGuiListClipper()
              call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
+             call w%table_write_begin(itable_bonds,iwrite,clipper)
              do while(ImGuiListClipper_Step(clipper))
                 call c_f_pointer(clipper,clipper_f)
                 do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
@@ -1533,7 +1560,7 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       ! "+" button: pick an atom in the view to add a bond to this atom
-                      if (iw_button("+##addbond" // suffix,disabled=(iview == 0))) then
+                      if (iw_button("+##addbond" // suffix,disabled=(iview == 0),nocapture=.true.)) then
                          call w%geometry_addbond%stage((/i,0,0,0/))
                          call win(iview)%viewmode_set_forced(vm_pick_atom,&
                             "Pick an atom to bond to atom " // string(i),w%id)
@@ -1633,6 +1660,7 @@ contains
              end do
              ! Step() ends the clipper on its own, but the object still has to go
              call ImGuiListClipper_destroy(clipper)
+             call w%table_write_end(itable_bonds,table_title("Bonds",isys))
              call igEndTable()
           end if
 
@@ -1794,7 +1822,8 @@ contains
                    call iw_table_column("#",id=0)
                    call iw_table_column("Sym",id=1)
                    call iw_table_column("Axis (Å)",id=2)
-                   call iw_table_headers_row(freezetop=.true.)
+                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                   call w%table_write_begin(itable_symopsmol,iwrite)
 
                    do i = 1, sys(isys)%c%pg%nop
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -1818,6 +1847,7 @@ contains
                       if (igTableSetColumnIndex(1)) call iw_text(trim(sys(isys)%c%pg%op(i)%sym))
                       if (igTableSetColumnIndex(2)) call iw_text(saxx)
                    end do
+                   call w%table_write_end(itable_symopsmol,table_title("Symmetry operations",isys))
                    call igEndTable()
                 end if
 
@@ -1904,7 +1934,8 @@ contains
                    call iw_table_column("Operation",id=2)
                    call iw_table_column("Axis (cryst.)",id=3)
                    call iw_table_column("Axis (Cartesian)",id=4)
-                   call iw_table_headers_row(freezetop=.true.)
+                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                   call w%table_write_begin(itable_symops,iwrite)
 
                    ! every operation, centered copies included: they are
                    ! distinct isometries with their own symbol and elements
@@ -1944,6 +1975,7 @@ contains
                       if (igTableSetColumnIndex(3)) call iw_text(saxc)
                       if (igTableSetColumnIndex(4)) call iw_text(saxx)
                    end do
+                   call w%table_write_end(itable_symops,table_title("Symmetry operations",isys))
                    call igEndTable()
                 end if
 
@@ -1966,12 +1998,14 @@ contains
              if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
                 call iw_table_column("#",id=0)
                 call iw_table_column("Coordinates (fractional)",id=1)
-                call iw_table_headers_row(freezetop=.true.)
+                call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                call w%table_write_begin(itable_symcen,iwrite)
                 do i = 1, ncv
                    call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                    if (igTableSetColumnIndex(0)) call iw_text(string(i))
                    if (igTableSetColumnIndex(1)) call iw_text(cell_cen_label(sys(isys)%c%cen(:,i)))
                 end do
+                call w%table_write_end(itable_symcen,table_title("Centering vectors",isys))
                 call igEndTable()
              end if
 
@@ -1995,12 +2029,14 @@ contains
                    call iw_table_column("Symprec",id=0)
                    call iw_table_column("Space group",id=1)
                    call iw_table_column("Number",id=2)
-                   call iw_table_headers_row(freezetop=.true.)
+                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                   call w%table_write_begin(itable_symanal,iwrite)
                    do i = 1, size(w%geometry_sym_analyze_eps,1)
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                       if (igTableSetColumnIndex(0)) then
                          str2 = string(w%geometry_sym_analyze_eps(i),'e',10,2) //&
                             "##symanalrow" // string(i) // c_null_char
+                         call iw_capture_text(str2,label=.true.)
                          if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
                             ImGuiSelectableFlags_SpanAllColumns,szero)) then
                             ! adopt this row's tolerance and recalculate
@@ -2011,6 +2047,7 @@ contains
                       if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_analyze_sym(i)))
                       if (igTableSetColumnIndex(2)) call iw_text(string(w%geometry_sym_analyze_num(i)))
                    end do
+                   call w%table_write_end(itable_symanal,table_title("Space group analysis",isys))
                    call igEndTable()
                 end if
              end if
@@ -2362,6 +2399,7 @@ contains
       ! reset the last-selected row, the empty-species selection and the sort
       w%lastselected = 0
       call clear_empty_rows()
+      call w%table_write_cancel()
 
       ! remove the cached cell-transformation data and reorder the table
       call clear_nice_results()

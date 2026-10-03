@@ -990,8 +990,16 @@ function igTableGetColumnCount() bind(c,name="igTableGetColumnCount")
   import c_int
   integer(c_int) :: igTableGetColumnCount
 end function igTableGetColumnCount
-!x! int igTableGetColumnIndex(void);
-!x! int igTableGetRowIndex(void);
+! int igTableGetColumnIndex(void);
+function igTableGetColumnIndex() bind(c,name="igTableGetColumnIndex")
+  import c_int
+  integer(c_int) :: igTableGetColumnIndex
+end function igTableGetColumnIndex
+! int igTableGetRowIndex(void);
+function igTableGetRowIndex() bind(c,name="igTableGetRowIndex")
+  import c_int
+  integer(c_int) :: igTableGetRowIndex
+end function igTableGetRowIndex
 ! const char* igTableGetColumnName_Int(int column_n);
 function igTableGetColumnName_Int(column_n) bind(c,name="igTableGetColumnName_Int")
   import c_int, c_ptr
@@ -2341,7 +2349,11 @@ end function igGetCurrentTable
 !x! void igTableUpdateBorders(ImGuiTable* table);
 !x! void igTableUpdateColumnsWeightFromWidth(ImGuiTable* table);
 !x! void igTableDrawBorders(ImGuiTable* table);
-!x! void igTableDrawContextMenu(ImGuiTable* table);
+! void igTableDrawContextMenu(ImGuiTable* table);
+subroutine igTableDrawContextMenu(table) bind(c,name="igTableDrawContextMenu")
+  import c_ptr
+  type(c_ptr), value :: table
+end subroutine igTableDrawContextMenu
 !x! void igTableMergeDrawChannels(ImGuiTable* table);
 !x! ImGuiTableInstanceData* igTableGetInstanceData(ImGuiTable* table,int instance_no);
 !x! void igTableSortSpecsSanitize(ImGuiTable* table);

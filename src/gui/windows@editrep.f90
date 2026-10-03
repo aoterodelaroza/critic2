@@ -1749,7 +1749,9 @@ contains
     logical :: changed
 
     logical :: ch, hasdir
-    integer :: i, icoord, ntype, ncol, icolop
+    integer :: i, icoord, ntype, ncol, icolop, iwrite
+    ! the table, for table_write_* (the measurement tables are 2-4)
+    integer, parameter :: itable_symelem = 1
     integer(c_int) :: flags
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -1827,7 +1829,8 @@ contains
           call iw_table_column("Symbol",id=1)
           if (hasdir) call iw_table_column("Direction",id=2)
           call iw_table_column("Operations",id=icolop)
-          call iw_table_headers_row(freezetop=.true.)
+          call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+          call w%table_write_begin(itable_symelem,iwrite)
 
           do i = 1, ntype
              call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
@@ -1841,6 +1844,7 @@ contains
              if (igTableSetColumnIndex(icolop)) &
                 call iw_text(oplist_string(w%rep%symelem%style%se,i))
           end do
+          call w%table_write_end(itable_symelem,"Symmetry elements")
           call igEndTable()
        end if
     end if
@@ -2317,7 +2321,7 @@ contains
       character(len=*), intent(in) :: tabidn
 
       integer(c_int) :: tflags
-      integer :: i, k, nrow, ncol, icvalue
+      integer :: i, k, nrow, ncol, icvalue, iwrite
       logical :: ch, ldum
 
       ! count items of this category (for the table height)
@@ -2345,7 +2349,9 @@ contains
             call iw_table_column("Atom " // string(k),id=k+1,flags=ImGuiTableColumnFlags_WidthFixed)
          end do
          call iw_table_column("Value",id=icvalue,flags=ImGuiTableColumnFlags_WidthStretch)
-         call iw_table_headers_row(freezetop=.true.)
+         call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+         ! (the table id is the number of atoms: 2-4; 1 is symmetry elements)
+         call w%table_write_begin(ncat,iwrite)
 
          do i = 1, w%rep%measure%nitem
             if (w%rep%measure%item(i)%n /= ncat) cycle
@@ -2375,6 +2381,7 @@ contains
                if (ch) w%rep%measure%isel = i
             end if
          end do
+         call w%table_write_end(ncat,"Measurements (" // string(ncat) // " atoms)")
          call igEndTable()
       end if
     end subroutine cat_table

@@ -39,7 +39,9 @@ contains
 
     logical(c_bool) :: selected
     logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset, syschanged, viewchanged
-    integer :: isys, isysold, iview, iviewold, i, digits, iaux
+    integer :: isys, isysold, iview, iviewold, i, digits, iaux, iwrite
+    ! the tables of the window that can be written as text
+    integer, parameter :: itable_qpoints = 1, itable_freqs = 2
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, strl
     type(ImVec2) :: sz0, szero
@@ -164,7 +166,8 @@ contains
              call iw_table_column("Coordinates",id=ic_q_qpt,flags=ImGuiTableColumnFlags_WidthFixed)
 
              ! draw the header
-             call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+             call iw_table_headers_row(freezetop=.true.,autofit=.true.,writemenu=iwrite,ttshown=ttshown)
+             call w%table_write_begin(itable_qpoints,iwrite)
 
              ! draw the rows
              do i = 1, sys(isys)%c%vib%nqpt
@@ -206,6 +209,7 @@ contains
                    call iw_text(s)
                 end if
              end do ! i = 1, sys(isys)%c%vib%nqpt
+             call w%table_write_end(itable_qpoints,table_title("q-points",isys))
              call igEndTable()
           end if ! begintable
           call igEndGroup()
@@ -251,7 +255,8 @@ contains
           call iw_table_column("Frequency",id=ic_q_qpt,flags=ImGuiTableColumnFlags_WidthFixed)
 
           ! draw the header
-          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+          call iw_table_headers_row(freezetop=.true.,autofit=.true.,writemenu=iwrite,ttshown=ttshown)
+          call w%table_write_begin(itable_freqs,iwrite)
 
           if (win(iview)%sc%iqpt_selected > 0) then
              ! draw the rows
@@ -283,6 +288,8 @@ contains
                 end if
              end do
           end if
+          call w%table_write_end(itable_freqs,table_title("Frequencies at q-point " //&
+             string(win(iview)%sc%iqpt_selected),isys))
           call igEndTable()
        end if ! igBeginTable (frequencies)
        call igEndGroup()

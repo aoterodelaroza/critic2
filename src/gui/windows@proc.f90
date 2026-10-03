@@ -422,6 +422,126 @@ contains
 
   end function stack_create_window
 
+  !> Start writing table tid of window w as text, after its header row
+  !> and before its rows. req is the choice of the table's menu in
+  !> this frame (iw_tblwrite_*). Writing to a text file first asks for
+  !> the file in a save dialog: the table is written the next time it
+  !> is drawn after the dialog returns. A clipped table passes its
+  !> clipper (after ImGuiListClipper_Begin), so that all its rows are
+  !> drawn while capturing.
+  module subroutine table_write_begin(w,tid,req,clipper)
+    use interfaces_cimgui, only: ImGuiListClipper, ImGuiListClipper_ForceDisplayRangeByIndices
+    use utils, only: iw_capture_begin, iw_tblwrite_none, iw_tblwrite_file
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: tid, req
+    type(c_ptr), intent(in), optional :: clipper
+
+    integer :: idum
+    type(ImGuiListClipper), pointer :: clipper_f
+
+    w%tw%table = 0
+    if (tid > 0 .and. w%tw%pending == tid) then
+       ! the file chosen in the dialog
+       w%tw%pending = 0
+       w%tw%dest = iw_tblwrite_file
+    elseif (req == iw_tblwrite_file) then
+       ! choose the file
+       w%tw%dialog = tid
+       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savetablefile,&
+          idparent=w%id,orraise=-1)
+       return
+    elseif (req /= iw_tblwrite_none) then
+       ! the output window or the console
+       w%tw%dest = req
+    else
+       return
+    end if
+    w%tw%table = tid
+    call iw_capture_begin()
+    if (present(clipper)) then
+       call c_f_pointer(clipper,clipper_f)
+       call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,0_c_int,clipper_f%ItemsCount)
+    end if
+
+  end subroutine table_write_begin
+
+  !> Write table tid of window w, whose rows were drawn after
+  !> table_write_begin (inside the table, before igEndTable), with a
+  !> title line. Report errors in w%errmsg; a console that cannot be
+  !> written to (it was closed) is not offered again.
+  module subroutine table_write_end(w,tid,title)
+    use iso_fortran_env, only: output_unit
+    use utils, only: iw_capture_end, iw_capture_abort, iw_tblwrite_output, iw_tblwrite_file,&
+       iw_tblwrite_console
+    use gui_main, only: stdout_console
+    use tools_io, only: uout, fopen_write, fclose
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: tid
+    character(len=*), intent(in) :: title
+
+    integer :: ios, lu
+    logical :: ldum
+
+    if (w%tw%table /= tid .or. tid == 0) return
+    w%tw%table = 0
+    if (w%tw%dest == iw_tblwrite_output) then
+       call iw_capture_end(uout,title,ios)
+       ldum = read_output_uout(.true.,"[Table export]")
+    elseif (w%tw%dest == iw_tblwrite_console) then
+       call iw_capture_end(output_unit,title,ios)
+       if (ios == 0) flush(output_unit,iostat=ios)
+       if (ios /= 0) then
+          stdout_console = .false.
+          w%errmsg = "Could not write to the console the GUI was launched from"
+       end if
+    elseif (w%tw%dest == iw_tblwrite_file) then
+       lu = fopen_write(w%tw%file,errstop=.false.)
+       if (lu < 0) then
+          call iw_capture_abort()
+          w%errmsg = "Cannot write the file: " // w%tw%file
+          return
+       end if
+       call iw_capture_end(lu,title,ios)
+       call fclose(lu)
+       if (ios /= 0) then
+          w%errmsg = "Error writing the file: " // w%tw%file
+       else
+          w%errmsg = ""
+          call okfile_save_dir(w%tw%file)
+          write (uout,'("* Table written to: ",A/)') w%tw%file
+       end if
+    else
+       call iw_capture_abort()
+    end if
+
+  end subroutine table_write_end
+
+  !> The title of a table of system isys written as text: what, and
+  !> the system.
+  module function table_title(what,isys) result(str)
+    use systems, only: sysc
+    use tools_io, only: string
+    character(len=*), intent(in) :: what
+    integer, intent(in) :: isys
+    character(len=:), allocatable :: str
+
+    str = what // " of system " // string(isys) // " (" // trim(sysc(isys)%seed%name) // ")"
+
+  end function table_title
+
+  !> The window's tables changed (another system, list, ...): forget a
+  !> pending write of one of them to a file, chosen (or being chosen)
+  !> in the save dialog for the table that was there.
+  module subroutine table_write_cancel(w)
+    class(window), intent(inout), target :: w
+
+    if (w%tw%pending /= 0) &
+       w%errmsg = "The table changed before it could be written: it was not written"
+    w%tw%pending = 0
+    w%tw%dialog = 0
+
+  end subroutine table_write_cancel
+
   !> Show a danger-colored warning if the window's okfile exists on
   !> disk. The existence check is cached and re-run only when okfile
   !> changes.
@@ -619,6 +739,7 @@ contains
     w%isys = 1
     w%growtofit = .false.
     w%flags = ImGuiWindowFlags_None
+    w%tw = table_write_state()
     w%needheight = 0._c_float
     w%needwidth = 0._c_float
     w%sortcid = 0
@@ -1266,8 +1387,10 @@ contains
   module subroutine window_draw(w)
     use gui_main, only: fontsize, io, g
     use interfaces_glfw, only: glfwGetTime
-    use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip
+    use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip,&
+       iw_capturing, iw_capture_abort
     use tools_io, only: string, ferror, faterr
+    use param, only: dirsep
     class(window), intent(inout), target :: w
 
     integer :: idp ! the window that opened this dialog, if still there
@@ -1430,15 +1553,19 @@ contains
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
                 ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savetablefile) then
-             ! the results table of a critical points window, as text,
-             ! to the window's table file
+             ! a table of the parent window, as text: to the file its
+             ! tables were last written to, or table.txt next to its
+             ! okfile
              w%name = "Write Table to Text File##" // string(w%id) // c_null_char
              str1 = "Text (*.txt) {.txt},All files (*.*){*.*}" // c_null_char
              idp = w%parent()
              str4 = "table.txt"
              if (idp > 0) then
-                if (win(idp)%type == wintype_cp .and. allocated(win(idp)%cp%tablefile)) &
-                   str4 = win(idp)%cp%tablefile
+                if (allocated(win(idp)%tw%file)) then
+                   str4 = win(idp)%tw%file
+                elseif (allocated(win(idp)%okfile)) then
+                   str4 = win(idp)%okfile(1:index(win(idp)%okfile,dirsep,back=.true.)) // "table.txt"
+                end if
              end if
              call dialog_initial_file(idp,"table.txt",str2,str3,ref=str4)
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
@@ -1640,6 +1767,13 @@ contains
                 call w%draw_treeplot()
              elseif (w%type == wintype_builder) then
                 call w%draw_builder()
+             end if
+
+             ! a table that started capturing its cells but was not
+             ! written (its table_write_end not reached) stops it here
+             if (iw_capturing) then
+                call iw_capture_abort()
+                w%tw%table = 0
              end if
 
              ! The window height that shows all of this window's content,

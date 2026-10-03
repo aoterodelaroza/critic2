@@ -58,6 +58,7 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext, iw_text,&
        iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3, iw_icon_button,&
        iw_close_button, iw_table_column, iw_table_headers_row, iw_table_sort_specs, iw_beginmenu,&
+       iw_capture_text,&
        iw_inputfloat, iw_inputint, iw_checkbox
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
@@ -97,7 +98,7 @@ contains
     logical(c_bool) :: ldum
     logical :: hadenabledcolumn, ok, found, reinit
     integer :: ndrawn ! icons already drawn in the current cell
-    logical :: export
+    integer :: iwrite ! the table written as text (iw_tblwrite_*)
     real(c_float) :: width, pos, hbottom
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -169,7 +170,6 @@ contains
     end if
 
     ! Tree options button
-    export = .false.
     ldum = (iw_button("❇",popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft))
     if (ok) then
        ! info at the top
@@ -191,10 +191,6 @@ contains
           end do
        end if
        call iw_tooltip("Collapse all systems in the tree (hide all SCF iterations)",ttshown)
-
-       ! button: export
-       export = iw_menuitem("Export Tree Table")
-       call iw_tooltip("Write the current tree to the output console in csv-style (for copying)",ttshown)
 
        ! button: plot
        if (iw_menuitem("Plot Tree Data...")) &
@@ -553,7 +549,7 @@ contains
           "V/Å³"//c_null_char//&
           "(V/Z)/Å³"//c_null_char//&
           "nneq"//c_null_char//&
-          "nat"//c_null_char)
+          "nat"//c_null_char,writemenu=iwrite,ttshown=ttshown)
 
        ! the big table
        if (allocated(w%iord) .and. nshown_after_filter > 0) then
@@ -562,6 +558,9 @@ contains
           clipper = ImGuiListClipper_ImGuiListClipper()
           call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
           call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,ithis_row-4,ithis_row+4)
+          ! if the table is being written as text, its rows are
+          ! captured as they are drawn (all of them)
+          call w%table_write_begin(1,iwrite,clipper)
 
           ! draw the rows
           do while(ImGuiListClipper_Step(clipper))
@@ -693,7 +692,7 @@ contains
                    pos = igGetCursorPosX()
                    call igSetCursorPosX(pos + g%Style%FramePadding%x)
 
-                   call iw_text(ch)
+                   call iw_text(ch,nocapture=.true.)
                    call igSameLine(0._c_float,-1._c_float)
                    call igSetCursorPosX(pos)
                    str = ch // "##" // string(ic_tree_name) // "," // string(i) // c_null_char
@@ -717,9 +716,9 @@ contains
                    if (sysc(i)%status == sys_group) then
                       ! a group header is not pending initialization: colored
                       ! instead of grayed out, so it does not read as inactive
-                      call iw_text(str,rgba=rgba_group,sameline_nospace=.true.,copy_to_output=export)
+                      call iw_text(str,rgba=rgba_group,sameline_nospace=.true.)
                    else
-                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.)
                    end if
                 end if
 
@@ -822,12 +821,11 @@ contains
                       call tree_cell(str,disable=.false.)
                    end if
                 end if
-                ! enter new line
-                if (export) write (uout,*)
              end do ! row indices
           end do ! clipper step
           call ImGuiListClipper_End(clipper)
           call ImGuiListClipper_destroy(clipper)
+          call w%table_write_end(1,"Systems")
        else
           call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
           if (igTableSetColumnIndex(ic_tree_name)) then
@@ -929,17 +927,13 @@ contains
        if (inext > 0) call move_to_system(inext)
     end if
 
-    ! if exporting, read the export command
-    if (export) &
-       ldum = read_output_uout(.true.,"[Table export]")
-
   contains
 
     !> Write str into the tree table cell for the current row and column: the
-    !> row-spanning selectable first, then the text, echoed to the output when
-    !> the tree is being exported. disable = grey the text out when the system
-    !> is not initialized (default true; false for the columns whose value comes
-    !> from the seed and is therefore available beforehand).
+    !> row-spanning selectable first, then the text. disable = grey the text
+    !> out when the system is not initialized (default true; false for the
+    !> columns whose value comes from the seed and is therefore available
+    !> beforehand).
     subroutine tree_cell(str,disable)
       character(len=*), intent(in) :: str
       logical, intent(in), optional :: disable
@@ -950,7 +944,7 @@ contains
       if (present(disable)) disable_ = disable
 
       call write_maybe_selectable(i,tooltipstr)
-      call iw_text(str,disabled=(disable_ .and. sysc(i)%status /= sys_init),copy_to_output=export)
+      call iw_text(str,disabled=(disable_ .and. sysc(i)%status /= sys_init))
 
     end subroutine tree_cell
 
@@ -1373,10 +1367,11 @@ contains
       call igSetCursorPosX(igGetCursorPosX() + 2._c_float * g%Style%FramePadding%x)
       isend = (k == sys(i)%nf)
       if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
-      if (.not.isend) call iw_text("┌",noadvance=.true.)
+      if (.not.isend) call iw_text("┌",noadvance=.true.,nocapture=.true.)
       ! the reference field carries no text marker: the border marks it
       str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
          string(i) // "," // string(k) // c_null_char
+      call iw_capture_text("(" // string(k) // "): " // trim(sys(i)%f(k)%name))
       isel = (w%isys==i) .and. (sys(i)%iref == k)
       col4 = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
       call igPushStyleColor_Vec4(ImGuiCol_Header,col4)

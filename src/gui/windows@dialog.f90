@@ -208,12 +208,14 @@ contains
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
              if (w%purpose == wpurp_dialog_savetablefile) then
-                ! the results table of a critical points window: the
-                ! window writes it (not to okfile, its export file)
-                if (win(idp)%type == wintype_cp) then
-                   win(idp)%cp%tablefile = trim(name)
-                   win(idp)%cp%tablepending = .true.
-                end if
+                ! a table of the window: it writes the table when it
+                ! draws it (not to okfile, which can be in use)
+                ! (unless the table changed while the dialog was open)
+                win(idp)%tw%file = trim(name)
+                win(idp)%tw%pending = win(idp)%tw%dialog
+                if (win(idp)%tw%dialog == 0) &
+                   win(idp)%errmsg = "The table changed before it could be written: it was not written"
+                win(idp)%tw%dialog = 0
              else
                 win(idp)%okfile_set = .true.
                 win(idp)%okfile = trim(name)

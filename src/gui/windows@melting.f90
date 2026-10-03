@@ -81,7 +81,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodparent, ldum
-    integer :: isys, tflags, im, i, ns
+    integer :: isys, tflags, im, i, ns, iwrite
     integer(c_int) :: nstep
     real*8 :: eatom, tnow
     integer :: iview
@@ -259,7 +259,8 @@ contains
              if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
                 call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
                 call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-                call iw_table_headers_row()
+                call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
+                call w%table_write_begin(1,iwrite)
 
                 if (allocated(sysc(isys)%md%cl%eam%file)) &
                    call status_row("Potential",file_name_base(sysc(isys)%md%cl%eam%file))
@@ -275,6 +276,7 @@ contains
                 call status_row("Molten fraction (%)",string(100d0*w%mt%molten,'f',decimal=0))
                 call status_row("Time (ps)",string(sysc(isys)%md%simtime*autofs/1000d0,'f',decimal=2))
 
+                call w%table_write_end(1,"Metal demonstration status")
                 call igEndTable()
              end if
 

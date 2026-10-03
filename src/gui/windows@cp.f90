@@ -89,7 +89,6 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_begintabitem,&
        iw_setpos_bottomright
     use tools_io, only: string
-    use param, only: dirsep
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, tabopen
@@ -118,10 +117,8 @@ contains
           w%cp%ifield = sys(isys)%iref
           call reset_seeds(w,isys)
           call cancel_pick(w)
-          ! the default export file: <root>.cps.cif (<root>.cif could be
-          ! the source file); the table file: table.txt next to it
+          ! the default export file: <root>.cps.cif (<root>.cif could be the source file)
           w%okfile = okfile_default(isys,"structure","cps.cif")
-          w%cp%tablefile = w%okfile(1:index(w%okfile,dirsep,back=.true.)) // "table.txt"
           w%cp%tfield = -1
        end if
     end if
@@ -415,7 +412,7 @@ contains
     use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
        iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_cell_right,&
-       iw_close_button, iw_table_sort_specs, iw_helpermark
+       iw_close_button, iw_table_sort_specs, iw_helpermark, iw_tblwrite_none
     use systemmod, only: npointprop_keywords, pointprop_keywords, pointprop_keyword_desc
     use param, only: bohrtoa
     use tools_io, only: string
@@ -433,6 +430,9 @@ contains
        ic_d1 = 18, ic_d2 = 19, ic_ang = 20, ic_NBUILTIN = 21
     integer, parameter :: maxtablecol = 64
     integer, parameter :: maxppcol = maxtablecol - ic_NBUILTIN
+
+    ! the tables of the window that can be written as text
+    integer, parameter :: itable_results = 1
 
     ! what is at the end of a bond path (path_end)
     integer, parameter :: endk_none = 0, endk_atom = 1, endk_cp = 2
@@ -534,7 +534,7 @@ contains
             call iw_table_column(col_name(jc) // "##cpcol" // string(jc),id=jc,flags=fixed)
          end do
          call iw_table_headers_row(freezetop=.true.,autofit=.true.,rclicked=rclick)
-         iwrite = -1
+         iwrite = iw_tblwrite_none
          call header_menu(rclick,iwrite)
 
          ! the point properties in the table, evaluated at the CPs
@@ -548,13 +548,11 @@ contains
          if (.not.ch) ch = (size(w%iord) /= n)
          if (ch) call sort_rows()
 
-         ! write the table, if asked to (with this frame's values and
-         ! order): from the menu, or to the file of the save dialog
-         if (iwrite >= 0) call write_table(iwrite)
-         if (w%cp%tablepending) call write_table_file()
-
+         ! the rows; if the table is being written as text, they are
+         ! captured as they are drawn (all of them)
          clipper = ImGuiListClipper_ImGuiListClipper()
          call ImGuiListClipper_Begin(clipper,n,-1._c_float)
+         call w%table_write_begin(itable_results,iwrite,clipper)
          do while(ImGuiListClipper_Step(clipper))
             call c_f_pointer(clipper,clipper_f)
             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
@@ -565,6 +563,9 @@ contains
          end do
          call ImGuiListClipper_End(clipper)
          call ImGuiListClipper_destroy(clipper)
+         call w%table_write_end(itable_results,"Critical points of field " // string(ifield) // " (" //&
+            trim(f%name) // ") of system " // string(isys) // " (" // trim(sysc(isys)%seed%name) //&
+            "), " // trim(merge("cell           ","symmetry-unique",cell)) // " list")
          call igEndTable()
       end if
     end associate
@@ -1049,19 +1050,14 @@ contains
 
     !> The popup that shows and hides the columns, opened by
     !> right-clicking the header (rclick). It stays open while the
-    !> columns are toggled. Its last entries ask (in iwrite, the unit;
-    !> -1 = none) for the table to be written as text, to the output
-    !> window or the console the GUI was launched from.
+    !> columns are toggled. Its last entries ask (in iwrite,
+    !> iw_tblwrite_*) for the table to be written as text.
     subroutine header_menu(rclick,iwrite)
-      use iso_fortran_env, only: output_unit
-      use tools_io, only: uout
-      use utils, only: iw_menuitem
-      use gui_main, only: stdout_console
+      use utils, only: iw_menuitem, iw_table_write_items
       logical, intent(in) :: rclick
       integer, intent(inout) :: iwrite
 
       integer(c_int) :: jc
-      integer :: idum
       character(kind=c_char,len=:), allocatable, target :: strpop
       type(cp_ppcol), pointer :: c
 
@@ -1077,146 +1073,11 @@ contains
          end do
          call igPopItemFlag()
          call igSeparator()
-         if (iw_menuitem("Write to Output")) iwrite = uout
-         call iw_tooltip("Write the table, as shown (the visible columns, in the order of the&
-            & rows), to the output window",ttshown)
-         if (iw_menuitem("Write to Text File...")) &
-            idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savetablefile,&
-            idparent=w%id,orraise=-1)
-         call iw_tooltip("Write the table, as shown, to a text file (chosen in a file browser;&
-            & table.txt by default)",ttshown)
-         if (iw_menuitem("Write to Console",enabled=stdout_console)) iwrite = output_unit
-         if (stdout_console) then
-            call iw_tooltip("Write the table, as shown, to the console the GUI was launched from",&
-               ttshown)
-         else
-            call iw_tooltip("Write the table, as shown, to the console the GUI was launched from&
-               & (not available: the GUI was not launched from a console)",ttshown,whendisabled=.true.)
-         end if
+         call iw_table_write_items(iwrite,ttshown)
          call igEndPopup()
       end if
 
     end subroutine header_menu
-
-    !> Write the table as text, the columns shown and the rows in
-    !> their order, to unit lu: uout (the output window, as a command
-    !> of its own), the console the GUI was launched from, or a file. A
-    !> console that cannot be written to (it was closed) is not
-    !> offered again. ierr: the iostat of the writes.
-    subroutine write_table(lu,ierr)
-      use iso_fortran_env, only: output_unit
-      use tools_io, only: uout
-      use gui_main, only: stdout_console
-      integer, intent(in) :: lu
-      integer, intent(out), optional :: ierr
-
-      integer :: nc, m, k, i, icp, kind, id, itype, ios
-      integer(c_int) :: jc
-      integer(c_int), allocatable :: jcol(:)
-      integer, allocatable :: wid(:)
-      character(len=128), allocatable :: txt(:,:)
-      character(len=:), allocatable :: line, pad, lbl, lbl2
-      real*8 :: x(3), val
-      logical :: ldum
-
-      ! the columns shown, except the delete buttons
-      jcol = pack((/(jc, jc = 0_c_int, ncol-1_c_int)/),&
-         (/(column_on(jc) .and. jc /= ic_del, jc = 0_c_int, ncol-1_c_int)/))
-      nc = size(jcol)
-
-      ! the cells: header, then the rows in their order
-      allocate(txt(0:n,nc))
-      txt = ""
-      do m = 1, nc
-         txt(0,m) = col_name(jcol(m))
-      end do
-      do k = 1, n
-         call row_cp(w%iord(k),i,icp)
-         x = row_pos(i,icp,ismol)
-         do m = 1, nc
-            jc = jcol(m)
-            select case (jc)
-            case (ic_cp)
-               txt(k,m) = cp_label(i,icp)
-            case (ic_x,ic_y,ic_z)
-               txt(k,m) = coord_str(x(jc-ic_x+1))
-            case (ic_wyc)
-               txt(k,m) = wyc_str(i)
-            case (ic_ends)
-               if (sys(isys)%f(ifield)%isbcp(sys(isys)%f(ifield)%cp(i))) then
-                  call path_end(i,icp,1,lbl,kind,id,itype)
-                  call path_end(i,icp,2,lbl2,kind,id,itype)
-                  txt(k,m) = adjustl(lbl // " " // lbl2)
-               end if
-            case default
-               if (cell_value(i,jc,val)) txt(k,m) = cell_str(jc,val)
-            end select
-         end do
-      end do
-
-      ! the width of each column (in characters, not bytes)
-      allocate(wid(nc))
-      do m = 1, nc
-         wid(m) = maxval((/(nchars(txt(k,m)), k = 0, n)/))
-      end do
-
-      ! write: CP and endpoints left-aligned, the numbers right-aligned
-      write (lu,'("* Critical points of field ",A," (",A,") of system ",A," (",A,"), ",A," list")',&
-         iostat=ios) string(ifield), trim(sys(isys)%f(ifield)%name), string(isys),&
-         trim(sysc(isys)%seed%name), trim(merge("cell           ","symmetry-unique",cell))
-      do k = 0, n
-         if (ios /= 0) exit
-         line = ""
-         do m = 1, nc
-            pad = repeat(" ",wid(m)-nchars(txt(k,m)))
-            if (jcol(m) == ic_cp .or. jcol(m) == ic_ends .or. k == 0) then
-               line = line // trim(txt(k,m)) // pad
-            else
-               line = line // pad // trim(txt(k,m))
-            end if
-            if (m < nc) line = line // "  "
-         end do
-         write (lu,'(A)',iostat=ios) trim(line)
-      end do
-      if (ios == 0) write (lu,'(A)',iostat=ios) ""
-
-      if (lu == output_unit) then
-         if (ios == 0) flush(lu,iostat=ios)
-         if (ios /= 0) then
-            stdout_console = .false.
-            w%errmsg = "Could not write to the console the GUI was launched from"
-         end if
-      elseif (lu == uout) then
-         ldum = read_output_uout(.true.,"[Critical point table]")
-      end if
-      if (present(ierr)) ierr = ios
-
-    end subroutine write_table
-
-    !> Write the table to the text file chosen in the save dialog
-    !> (w%cp%tablefile), and report it in the output window.
-    subroutine write_table_file()
-      use tools_io, only: uout, fopen_write, fclose
-
-      integer :: lu, ios
-
-      w%cp%tablepending = .false.
-      lu = fopen_write(w%cp%tablefile,errstop=.false.)
-      if (lu < 0) then
-         w%errmsg = "Cannot write the file: " // w%cp%tablefile
-         return
-      end if
-      call write_table(lu,ios)
-      call fclose(lu)
-      if (ios /= 0) then
-         w%errmsg = "Error writing the file: " // w%cp%tablefile
-         return
-      end if
-      w%errmsg = ""
-      call okfile_save_dir(w%cp%tablefile)
-      write (uout,'("* Critical point table written to: ",A/)') w%cp%tablefile
-
-    end subroutine write_table_file
 
     !> List row kr of the table (before sorting): symmetry-unique CP
     !> i, and cell CP icp in the cell list (0 otherwise).
@@ -1253,20 +1114,6 @@ contains
       str = string(sys(isys)%f(ifield)%cp(i)%mult) // trim(wyc_letter(i))
 
     end function wyc_str
-
-    !> The number of characters in str (trailing blanks excluded):
-    !> the bytes that do not continue a UTF-8 character.
-    integer function nchars(str)
-      character(len=*), intent(in) :: str
-
-      integer :: k
-
-      nchars = 0
-      do k = 1, len_trim(str)
-         if (iand(ichar(str(k:k)),192) /= 128) nchars = nchars + 1
-      end do
-
-    end function nchars
 
     !> Calculate the order of the n rows (w%iord) by column w%sortcid,
     !> in direction w%sortdir. The rows with an empty cell in that
@@ -2176,11 +2023,7 @@ contains
     allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
     w%cp%sel = .false.
     w%cp%sortdirty = .true.
-    ! a pending write of the table was for the table that was there
-    if (w%cp%tablepending) then
-       w%cp%tablepending = .false.
-       w%errmsg = "The table changed before it could be written: it was not written"
-    end if
+    call w%table_write_cancel()
     if (allocated(w%cp%ppfor)) deallocate(w%cp%ppfor)
 
   end subroutine update_table_caches

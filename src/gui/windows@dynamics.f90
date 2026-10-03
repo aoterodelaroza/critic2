@@ -37,7 +37,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, goodparent, ldum, haspress, syschanged
-    integer :: isys, iview, isysold
+    integer :: isys, iview, isysold, iwrite
     integer(c_int) :: imode, tflags
     real*8 :: pgpa
     type(ImVec2) :: sz0
@@ -143,7 +143,8 @@ contains
           if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
              call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
              call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-             call iw_table_headers_row()
+             call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
+             call w%table_write_begin(1,iwrite)
 
              ! temperature: MD only (a relaxation has no meaningful temperature)
              if (sysc(isys)%md%mode == md_dynamics) &
@@ -167,6 +168,7 @@ contains
                    call status_row("Pressure (GPa)",string(pgpa,'f',decimal=3))
              end if
 
+             call w%table_write_end(1,table_title("Dynamics",isys))
              call igEndTable()
           end if
        end if

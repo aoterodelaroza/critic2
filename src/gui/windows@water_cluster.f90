@@ -51,7 +51,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodparent, ldum, hasref
-    integer :: isys, nwat, tflags
+    integer :: isys, nwat, tflags, iwrite
     real*8 :: eb_kcal, rec_kcal, score
     integer :: iview
     type(ImVec2) :: sz0
@@ -177,7 +177,8 @@ contains
              if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
                 call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
                 call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-                call iw_table_headers_row()
+                call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
+                call w%table_write_begin(1,iwrite)
 
                 call status_row("Water molecules",string(nwat))
                 call status_row("Binding energy (kcal/mol)",string(eb_kcal,'f',decimal=1))
@@ -191,6 +192,7 @@ contains
                    call status_row("Time (s)",string(wc_clock(),'f',decimal=1) // " / " //&
                       string(w%wc_time))
 
+                call w%table_write_end(1,"Water cluster status")
                 call igEndTable()
              end if
           end if

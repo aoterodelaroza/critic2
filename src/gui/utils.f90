@@ -53,6 +53,24 @@ module utils
   ! (reset by window_draw); not content, for grow-to-fit windows
   real(c_float), public :: iw_bottom_skip = 0._c_float
 
+  ! Writing a table as text: while iw_capturing, the cell widgets
+  ! (iw_text, iw_button and the badges drawn with it, iw_inputtext,
+  ! iw_dragfloat_real8) record the text they show in the current table
+  ! cell, by row and column (iw_capture_begin/iw_capture_end)
+  logical, public :: iw_capturing = .false.
+  type capcell
+     integer :: row = 0 ! table row (igTableGetRowIndex)
+     integer :: col = 0 ! table column (igTableGetColumnIndex)
+     character(len=:), allocatable :: s ! the text
+  end type capcell
+  integer :: ncap = 0
+  type(capcell), allocatable :: cap(:)
+  ! where a table is written (iw_table_write_items)
+  integer, parameter, public :: iw_tblwrite_none = 0
+  integer, parameter, public :: iw_tblwrite_output = 1
+  integer, parameter, public :: iw_tblwrite_file = 2
+  integer, parameter, public :: iw_tblwrite_console = 3
+
   !xx! proc submodule !xx!
   public :: iw_periodictable
   public :: iw_inputtext
@@ -79,6 +97,11 @@ module utils
   public :: iw_table_column
   public :: iw_table_headers_row
   public :: iw_table_sort_specs
+  public :: iw_capture_begin
+  public :: iw_capture_end
+  public :: iw_capture_abort
+  public :: iw_capture_text
+  public :: iw_table_write_items
   public :: iw_beginmenu
   public :: iw_begintabitem
   public :: iw_close_event
@@ -239,13 +262,32 @@ module utils
        integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: centered
      end subroutine iw_setpos_bottomright
-     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked)
+     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked,writemenu,ttshown)
        integer(c_int), intent(in), optional :: icol(:)
        character(len=*,kind=c_char), intent(in), optional :: shorts
        logical, intent(in), optional :: freezetop
        logical, intent(in), optional :: autofit
        logical, intent(out), optional :: rclicked
+       integer, intent(out), optional :: writemenu
+       logical, intent(inout), optional :: ttshown
      end subroutine iw_table_headers_row
+     module subroutine iw_capture_begin()
+     end subroutine iw_capture_begin
+     module subroutine iw_capture_abort()
+     end subroutine iw_capture_abort
+     module subroutine iw_capture_text(str,label)
+       character(len=*), intent(in) :: str
+       logical, intent(in), optional :: label
+     end subroutine iw_capture_text
+     module subroutine iw_capture_end(lu,title,ierr)
+       integer, intent(in) :: lu
+       character(len=*), intent(in) :: title
+       integer, intent(out) :: ierr
+     end subroutine iw_capture_end
+     module subroutine iw_table_write_items(iwrite,ttshown)
+       integer, intent(inout) :: iwrite
+       logical, intent(inout), optional :: ttshown
+     end subroutine iw_table_write_items
      module function iw_table_sort_specs(sortcid,sortdir,defcid,consume) result(dirty)
        integer(c_int), intent(inout) :: sortcid, sortdir
        integer(c_int), intent(in) :: defcid
@@ -359,7 +401,7 @@ module utils
        logical :: iw_checkbox
      end function iw_checkbox
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-        noadvance,copy_to_output,centered,alignframe,rgb,rgba,wrap)
+        noadvance,centered,alignframe,rgb,rgba,wrap,nocapture)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: danger
@@ -367,12 +409,12 @@ module utils
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: sameline_nospace
        logical, intent(in), optional :: noadvance
-       logical, intent(in), optional :: copy_to_output
        logical, intent(in), optional :: centered
        logical, intent(in), optional :: alignframe
        real(c_float), intent(in), optional :: rgb(3)
        real(c_float), intent(in), optional :: rgba(4)
        logical, intent(in), optional :: wrap
+       logical, intent(in), optional :: nocapture
      end subroutine iw_text
      module function iw_menuitem(label,keybind,selected,enabled,shortcut_text,danger)
        character(len=*,kind=c_char), intent(in) :: label
@@ -384,7 +426,7 @@ module utils
        logical :: iw_menuitem
      end function iw_menuitem
      module function iw_button(str,danger,sameline,disabled,siz,&
-        popupcontext,popupflags)
+        popupcontext,popupflags,nocapture)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: danger
        logical, intent(in), optional :: sameline
@@ -392,6 +434,7 @@ module utils
        real(c_float), intent(in), optional :: siz(2)
        logical, intent(inout), optional :: popupcontext
        integer(c_int), intent(in), optional :: popupflags
+       logical, intent(in), optional :: nocapture
        logical :: iw_button
      end function iw_button
      module function iw_atom_button(str,rgb,havergb,sameline,disabled,inert) result(pressed)

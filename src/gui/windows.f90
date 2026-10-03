@@ -242,6 +242,21 @@ module windows
   end type cp_seed_ui
   public :: cp_seed_ui
 
+  !> Writing a table of a window as text (table_write_begin and
+  !> table_write_end; the tables are identified by an integer chosen by
+  !> the window): the table captured in this frame and where it goes;
+  !> the text file the window's tables are written to, the table whose
+  !> write to it is pending (set by the save dialog), and the table
+  !> that opened that dialog.
+  type table_write_state
+     integer :: table = 0
+     integer :: dest = 0
+     character(len=:), allocatable :: file
+     integer :: pending = 0
+     integer :: dialog = 0
+  end type table_write_state
+  public :: table_write_state
+
   !> Display settings of a column of the results table of the
   !> critical points window: a built-in column, or a point property
   !> (kept by property name)
@@ -308,10 +323,6 @@ module windows
      ! results
      logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
-     ! results table: the text file it is written to (Write to Text
-     ! File), and whether a write to it is pending (set by the dialog)
-     character(len=:), allocatable :: tablefile
-     logical :: tablepending = .false.
      ! results table: the settings of the built-in columns, by column
      ! id (the ic_* of draw_results_tab; the type defaults, except as
      ! given; the notation and decimals apply to the numeric ones only);
@@ -727,6 +738,7 @@ module windows
      logical :: okfile_set = .false. ! whether the library file has been set by the user
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
      integer(c_int) :: okfile_format = 0 ! the file format
+     type(table_write_state) :: tw ! writing its tables as text
      ! load field parameters
      type(loadfield_state) :: lf ! the form of the load-field window
      ! scf plot and tree plot parameters
@@ -927,6 +939,9 @@ module windows
      procedure :: anchor => window_anchor ! the anchor view and the system it shows (tool windows)
      procedure :: retarget => window_retarget ! point the anchor view at a system
      procedure :: okfile_warn_overwrite ! show a warning if okfile exists (save windows)
+     procedure :: table_write_begin ! start writing a table as text (after its header)
+     procedure :: table_write_end ! write the table started with table_write_begin
+     procedure :: table_write_cancel ! forget a pending write of a table to a file
      procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
      procedure :: draw_tree
@@ -1258,6 +1273,24 @@ module windows
      module subroutine okfile_warn_overwrite(w)
        class(window), intent(inout) :: w
      end subroutine okfile_warn_overwrite
+     module subroutine table_write_begin(w,tid,req,clipper)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: tid, req
+       type(c_ptr), intent(in), optional :: clipper
+     end subroutine table_write_begin
+     module function table_title(what,isys) result(str)
+       character(len=*), intent(in) :: what
+       integer, intent(in) :: isys
+       character(len=:), allocatable :: str
+     end function table_title
+     module subroutine table_write_end(w,tid,title)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: tid
+       character(len=*), intent(in) :: title
+     end subroutine table_write_end
+     module subroutine table_write_cancel(w)
+       class(window), intent(inout), target :: w
+     end subroutine table_write_cancel
      module function okfile_default(isys,defname,ext,uselastdir) result(file)
        integer, intent(in) :: isys
        character(len=*), intent(in) :: defname

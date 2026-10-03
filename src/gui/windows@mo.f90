@@ -776,7 +776,7 @@ contains
     logical(c_bool) :: selected
     logical :: hasspin
     integer :: i, j, k, nocc, nrow, jsep, jscroll, jto, ischan, spin, ncol
-    integer :: icid, iccache, iclabel, icspin, icocc, icene
+    integer :: icid, iccache, iclabel, icspin, icocc, icene, iwrite
     real(c_float) :: wid(6), wid_tot
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1, strl
@@ -857,7 +857,7 @@ contains
           call iw_table_column("Energy",id=icene,flags=ImGuiTableColumnFlags_WidthFixed,width=wid(6))
 
        ! draw the header
-       call iw_table_headers_row(freezetop=.true.)
+       call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
 
        ! an empty channel draws the header only; the one-shot centering
        ! has nothing to anchor on, so retire it
@@ -889,6 +889,9 @@ contains
           ! row drawn last would survive
           w%mo_scrolled(ischan) = .true.
        end if
+       ! if the table is being written as text (one table per spin
+       ! channel), all its rows are drawn and captured
+       call w%table_write_begin(1+ispin,iwrite,clipper)
        do while (ImGuiListClipper_Step(clipper))
           call c_f_pointer(clipper,clipper_f)
           do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
@@ -995,6 +998,11 @@ contains
        end do ! clipper step
        call ImGuiListClipper_End(clipper)
        call ImGuiListClipper_destroy(clipper)
+       if (ispin == 0) then
+          call w%table_write_end(1+ispin,"Molecular orbitals")
+       else
+          call w%table_write_end(1+ispin,"Molecular orbitals, spin channel " // string(ispin))
+       end if
        call igEndTable()
     end if ! igBeginTable
 

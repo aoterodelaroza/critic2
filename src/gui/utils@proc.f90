@@ -125,6 +125,15 @@ contains
     logical :: sameline_, notlive_, editing
     type(ImVec2) :: szml
 
+    ! the text, when writing the table it is in
+    if (iw_capturing) then
+       if (present(texta)) then
+          if (allocated(texta)) call capture_cell(texta)
+       elseif (present(textf)) then
+          call capture_cell(textf)
+       end if
+    end if
+
     ! process input options
     flags_ = ImGuiInputTextFlags_None
     if (present(flags)) flags_ = flags
@@ -334,9 +343,11 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
     logical :: notlive_
-    integer :: n, decimal_
+    integer :: n, decimal_, ncv, icv
     real(c_float) :: width
     logical :: sameline_
+    real*8 :: vcap(4)
+    character(len=:), allocatable :: scap
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -350,6 +361,30 @@ contains
     if (present(scale)) scale_ = scale
     decimal_ = 3
     if (present(decimal)) decimal_ = decimal
+
+    ! the values, when writing the table they are in
+    if (iw_capturing) then
+       ncv = 0
+       if (present(x1)) then
+          ncv = 1
+          vcap(1) = x1
+       elseif (present(x2)) then
+          ncv = 2
+          vcap(1:2) = x2
+       elseif (present(x3)) then
+          ncv = 3
+          vcap(1:3) = x3
+       elseif (present(x4)) then
+          ncv = 4
+          vcap(1:4) = x4
+       end if
+       scap = ""
+       do icv = 1, ncv
+          if (icv > 1) scap = scap // " "
+          scap = scap // string(vcap(icv)*scale_,'f',decimal=decimal_)
+       end do
+       call capture_cell(scap)
+    end if
     sformat_ = "%." // string(decimal_) // "f" // c_null_char
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
@@ -904,16 +939,25 @@ contains
   !> header row was right-clicked, and the caller opens its own
   !> popup instead of the table's context menu (which opening a popup
   !> in the same frame replaces).
-  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked)
+  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked,writemenu,ttshown)
     use interfaces_cimgui
     integer(c_int), intent(in), optional :: icol(:)
     character(len=*,kind=c_char), intent(in), optional :: shorts
     logical, intent(in), optional :: freezetop
     logical, intent(in), optional :: autofit
     logical, intent(out), optional :: rclicked
+    integer, intent(out), optional :: writemenu
+    logical, intent(inout), optional :: ttshown
 
     integer(c_int) :: i, ncol, ihov
     integer :: k, kshort
+    type(c_ptr) :: tbl
+    ! the start of ImGui's table structure, for its flags
+    type, bind(c) :: table_head
+       integer(c_int) :: id
+       integer(c_int) :: flags
+    end type table_head
+    type(table_head), pointer :: thead
     real(c_float) :: rowh, y1
     type(ImVec2) :: pos, mpos
     character(len=:,kind=c_char), allocatable, target :: str
@@ -971,8 +1015,29 @@ contains
     rclick = igIsMouseReleased(1_c_int) .and. ihov >= 0 .and. mpos%y >= y1 .and. mpos%y < y1 + rowh
     if (present(rclicked)) then
        rclicked = rclick
-    elseif (rclick .and. ihov == ncol) then
+    elseif (rclick .and. ihov == ncol .and. .not.present(writemenu)) then
        call igTableOpenContextMenu(-1_c_int)
+    end if
+
+    ! a right-click opens the menu that writes the table as text,
+    ! after the entries of the table's own menu, which it replaces
+    ! (sizing, ordering, and hiding columns, if the table allows them;
+    ! the table is passed: the popup has no current table)
+    if (present(writemenu)) then
+       writemenu = iw_tblwrite_none
+       tbl = igGetCurrentTable()
+       str = "##tablewritemenu" // c_null_char
+       if (rclick) call igOpenPopup_Str(c_loc(str),ImGuiPopupFlags_None)
+       if (igBeginPopup(c_loc(str),ImGuiWindowFlags_None)) then
+          call c_f_pointer(tbl,thead)
+          if (iand(thead%flags,ior(ImGuiTableFlags_Resizable,ior(ImGuiTableFlags_Reorderable,&
+             ImGuiTableFlags_Hideable))) /= 0) then
+             call igTableDrawContextMenu(tbl)
+             call igSeparator()
+          end if
+          call iw_table_write_items(writemenu,ttshown)
+          call igEndPopup()
+       end if
     end if
 
     ! give every column the width of its widest entry
@@ -1003,6 +1068,203 @@ contains
     end function nth_label
 
   end subroutine iw_table_headers_row
+
+  !> The entries of a menu that write the current table as text (in an
+  !> open popup): to the output window, a text file, or the console
+  !> the GUI was launched from (only if there is one). iwrite returns
+  !> the choice (iw_tblwrite_*), and is left unchanged otherwise.
+  module subroutine iw_table_write_items(iwrite,ttshown)
+    use gui_main, only: stdout_console
+    integer, intent(inout) :: iwrite
+    logical, intent(inout), optional :: ttshown
+
+    if (iw_menuitem("Write to Output")) iwrite = iw_tblwrite_output
+    call iw_tooltip("Write the table, as shown (the visible columns, in the order of the&
+       & rows), to the output window",ttshown)
+    if (iw_menuitem("Write to Text File...")) iwrite = iw_tblwrite_file
+    call iw_tooltip("Write the table, as shown, to a text file (chosen in a file browser;&
+       & table.txt by default)",ttshown)
+    if (iw_menuitem("Write to Console",enabled=stdout_console)) iwrite = iw_tblwrite_console
+    if (stdout_console) then
+       call iw_tooltip("Write the table, as shown, to the console the GUI was launched from",&
+          ttshown)
+    else
+       call iw_tooltip("Write the table, as shown, to the console the GUI was launched from&
+          & (not available: the GUI was not launched from a console)",ttshown,whendisabled=.true.)
+    end if
+
+  end subroutine iw_table_write_items
+
+  !> Start capturing the text of the cells of the table being drawn
+  !> (see iw_capturing). The table's rows are drawn afterwards; a
+  !> clipped table must draw them all.
+  module subroutine iw_capture_begin()
+
+    ncap = 0
+    if (.not.allocated(cap)) allocate(cap(64))
+    iw_capturing = .true.
+
+  end subroutine iw_capture_begin
+
+  !> Record str as the text of the current table cell while capturing
+  !> (for the cells drawn without the iw_ widgets, as a raw selectable
+  !> with a visible label; label: str is a widget label).
+  module subroutine iw_capture_text(str,label)
+    character(len=*), intent(in) :: str
+    logical, intent(in), optional :: label
+
+    call capture_cell(str,label)
+
+  end subroutine iw_capture_text
+
+  !> Stop capturing without writing anything.
+  module subroutine iw_capture_abort()
+
+    ncap = 0
+    iw_capturing = .false.
+
+  end subroutine iw_capture_abort
+
+  !> Stop capturing and write the captured table as text to unit lu
+  !> (inside the table, before igEndTable): a line with title (unless
+  !> empty), the header (the names of the columns), and the rows in
+  !> the order they were drawn. Only the enabled columns with some text
+  !> in their cells; numeric columns are right-aligned, the others
+  !> left-aligned. ierr: the iostat of the writes.
+  module subroutine iw_capture_end(lu,title,ierr)
+    use interfaces_cimgui
+    use c_interface_module, only: C_F_string_alloc
+    use types, only: vstring
+    integer, intent(in) :: lu
+    character(len=*), intent(in) :: title
+    integer, intent(out) :: ierr
+
+    integer :: i, k, m, nr, nk, ncol, lastrow
+    integer, allocatable :: colmap(:), wid(:)
+    type(vstring), allocatable :: txt(:,:), hdr(:)
+    character(len=:), allocatable :: name, line, pad
+    logical, allocatable :: hastext(:), isnum(:)
+    integer(c_int) :: flags
+
+    ierr = 0
+    iw_capturing = .false.
+
+    ! the columns: enabled and with some text (colmap: the table
+    ! column to the written column, 0 if left out)
+    ncol = igTableGetColumnCount()
+    allocate(colmap(0:ncol-1),hastext(0:ncol-1),hdr(ncol))
+    hastext = .false.
+    do i = 1, ncap
+       if (cap(i)%col >= 0 .and. cap(i)%col < ncol) hastext(cap(i)%col) = .true.
+    end do
+    colmap = 0
+    nk = 0
+    do i = 0, ncol-1
+       flags = igTableGetColumnFlags(i)
+       if (iand(flags,ImGuiTableColumnFlags_IsEnabled) == 0) cycle
+       name = ""
+       if (iand(flags,ImGuiTableColumnFlags_NoHeaderLabel) == 0) then
+          call C_F_string_alloc(igTableGetColumnName_Int(i),name)
+          name = strip_id(name)
+       end if
+       if (.not.hastext(i)) cycle
+       nk = nk + 1
+       colmap(i) = nk
+       hdr(nk)%s = name
+    end do
+
+    ! the rows: the captures come in the order the rows were drawn
+    nr = 0
+    lastrow = -huge(1)
+    do i = 1, ncap
+       if (cap(i)%row /= lastrow) nr = nr + 1
+       lastrow = cap(i)%row
+    end do
+
+    ! the cells: header, then the rows (the texts of a cell joined)
+    allocate(txt(0:nr,nk))
+    do m = 1, nk
+       txt(0,m)%s = hdr(m)%s
+       do k = 1, nr
+          txt(k,m)%s = ""
+       end do
+    end do
+    k = 0
+    lastrow = -huge(1)
+    do i = 1, ncap
+       if (cap(i)%row /= lastrow) k = k + 1
+       lastrow = cap(i)%row
+       m = 0
+       if (cap(i)%col >= 0 .and. cap(i)%col < ncol) m = colmap(cap(i)%col)
+       if (m == 0) cycle
+       if (len(txt(k,m)%s) > 0) then
+          txt(k,m)%s = txt(k,m)%s // " " // cap(i)%s
+       else
+          txt(k,m)%s = cap(i)%s
+       end if
+    end do
+    ncap = 0
+
+    ! the width (in characters) and alignment of each column
+    allocate(wid(nk),isnum(nk))
+    do m = 1, nk
+       wid(m) = 0
+       isnum(m) = .true.
+       do k = 0, nr
+          wid(m) = max(wid(m),nchars(txt(k,m)%s))
+          if (k > 0 .and. len(txt(k,m)%s) > 0) isnum(m) = isnum(m) .and. is_number(txt(k,m)%s)
+       end do
+    end do
+
+    ! write
+    if (len_trim(title) > 0) write (lu,'("* ",A)',iostat=ierr) trim(title)
+    if (nk == 0) nr = -1
+    do k = 0, nr
+       if (ierr /= 0) exit
+       line = ""
+       do m = 1, nk
+          pad = repeat(" ",wid(m)-nchars(txt(k,m)%s))
+          if (isnum(m) .and. k > 0) then
+             line = line // pad // txt(k,m)%s
+          else
+             line = line // txt(k,m)%s // pad
+          end if
+          if (m < nk) line = line // "  "
+       end do
+       write (lu,'(A)',iostat=ierr) trim(line)
+    end do
+    if (ierr == 0) write (lu,'(A)',iostat=ierr) ""
+
+  contains
+    !> Whether str is a number (digits, sign, point, exponent).
+    logical function is_number(str)
+      character(len=*), intent(in) :: str
+
+      real*8 :: x
+      integer :: ios
+
+      is_number = (verify(str,"0123456789+-.eEdD") == 0)
+      if (is_number) then
+         read (str,*,iostat=ios) x
+         is_number = (ios == 0)
+      end if
+
+    end function is_number
+
+    !> The number of characters in str (trailing blanks excluded):
+    !> the bytes that do not continue a UTF-8 character.
+    integer function nchars(str)
+      character(len=*), intent(in) :: str
+
+      integer :: j
+
+      nchars = 0
+      do j = 1, len_trim(str)
+         if (iand(ichar(str(j:j)),192) /= 128) nchars = nchars + 1
+      end do
+
+    end function nchars
+  end subroutine iw_capture_end
 
   !> Read the sort column (sortcid, the column's user id) and
   !> direction (sortdir) of the current sortable table; defcid and
@@ -1523,15 +1785,14 @@ contains
   !> danger color. disabled = use the disabled font. sameline = draw
   !> it in the same line as the previous widget. sameline_nospace =
   !> draw it in the same line adjacent to the previous item. noadvance
-  !> = do not advance the cursor after writing. copy_to_output = write
-  !> the text to uout as well (without advancing to a new line and with
-  !> a comma after the string). centered = center the text in the window.
+  !> = do not advance the cursor after writing. centered = center the
+  !> text in the window. nocapture = the text is not part of the table
+  !> cell it is in, when the table is written as text.
   !> rgba = use this color for the text.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,copy_to_output,centered,alignframe,rgb,rgba,wrap)
+     noadvance,centered,alignframe,rgb,rgba,wrap,nocapture)
     use interfaces_cimgui
     use gui_main, only: g, ColorHighlightText, ColorDangerText
-    use tools_io, only: uout
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: highlight
     logical, intent(in), optional :: danger
@@ -1539,28 +1800,29 @@ contains
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: sameline_nospace
     logical, intent(in), optional :: noadvance
-    logical, intent(in), optional :: copy_to_output
     logical, intent(in), optional :: centered
     logical, intent(in), optional :: alignframe
     real(c_float), intent(in), optional :: rgb(3)
     real(c_float), intent(in), optional :: rgba(4)
     logical, intent(in), optional :: wrap
+    logical, intent(in), optional :: nocapture
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
-    logical :: noadvance_,copy_to_output_, centered_, alignframe_, wrap_
+    logical :: noadvance_, centered_, alignframe_, wrap_
     logical :: pushedcolor
     real(c_float) :: pos, wwidth, twidth
     type(ImVec4) :: col
 
+    ! the text of the table cell (unless nocapture: a decoration)
+    call capture_cell(str,skip=nocapture)
     highlight_ = .false.
     danger_ = .false.
     sameline_ = .false.
     sameline_nospace_ = .false.
     disabled_ = .false.
     noadvance_ = .false.
-    copy_to_output_ = .false.
     centered_ = .false.
     alignframe_ = .false.
     wrap_ = .false.
@@ -1571,7 +1833,6 @@ contains
     if (present(sameline_nospace)) sameline_nospace_ = sameline_nospace
     if (present(disabled)) disabled_ = disabled
     if (present(noadvance)) noadvance_ = noadvance
-    if (present(copy_to_output)) copy_to_output_ = copy_to_output
     if (present(centered)) centered_ = centered
     if (present(alignframe)) alignframe_ = alignframe
 
@@ -1610,8 +1871,6 @@ contains
        call igSameLine(0._c_float,0._c_float)
        call igSetCursorPosX(pos)
     end if
-    if (copy_to_output_) &
-       write (uout,'(A,",")',advance='no') str
 
   end subroutine iw_text
 
@@ -1664,7 +1923,7 @@ contains
   !> disabled, disable the button. If siz, use this size for the
   !> button. If popupcontext and poupflags, open a popup context with
   !> the given flags and return the resulting bool in popupcontext.
-  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags)
+  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags,nocapture)
     use interfaces_cimgui
     use gui_main, only: ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: str
@@ -1674,12 +1933,16 @@ contains
     real(c_float), intent(in), optional :: siz(2)
     logical, intent(inout), optional :: popupcontext
     integer(c_int), intent(in), optional :: popupflags
+    logical, intent(in), optional :: nocapture
     logical :: iw_button
 
     character(len=:,kind=c_char), allocatable, target :: str1
     logical :: danger_, sameline_, disabled_
     type(ImVec2) :: sz
 
+    ! the label is the text of the table cell (an action button in a
+    ! cell passes nocapture)
+    call capture_cell(str,label=.true.,skip=nocapture)
     if (present(siz)) then
        sz%x = siz(1)
        sz%y = siz(2)
@@ -1823,7 +2086,8 @@ contains
        tintcol = ImVec4(col(1),col(2),col(3),col(4))
        call igImage(int(tex,c_intptr_t),sz,uv0,uv1,tintcol,nobord)
     else
-       call iw_text(fallback,rgba=col)
+       ! a stand-in for the icon, not text of a table cell
+       call iw_text(fallback,rgba=col,nocapture=.true.)
     end if
 
   end function iw_icon_button
@@ -2316,6 +2580,63 @@ contains
   end function file_name_root
 
   !xx! private procedures !xx!
+
+  !> Record str as the text of the current table cell while capturing
+  !> (iw_capturing; inside a table, and not blank). If label, str is a
+  !> widget label: its ImGui id is not part of the text. If skip, it
+  !> is not recorded (it is not part of the cell's text).
+  subroutine capture_cell(str,label,skip)
+    use interfaces_cimgui
+    character(len=*), intent(in) :: str
+    logical, intent(in), optional :: label
+    logical, intent(in), optional :: skip
+
+    character(len=:), allocatable :: s
+    type(capcell), allocatable :: aux(:)
+    logical :: label_
+
+    if (.not.iw_capturing) return
+    if (present(skip)) then
+       if (skip) return
+    end if
+    if (.not.c_associated(igGetCurrentTable())) return
+    label_ = .false.
+    if (present(label)) label_ = label
+    if (label_) then
+       s = strip_id(str)
+    else
+       s = trim(adjustl(str))
+    end if
+    if (len(s) == 0) return
+
+    if (ncap == size(cap)) then
+       allocate(aux(2*ncap))
+       aux(1:ncap) = cap
+       call move_alloc(aux,cap)
+    end if
+    ncap = ncap + 1
+    cap(ncap)%row = igTableGetRowIndex()
+    cap(ncap)%col = igTableGetColumnIndex()
+    cap(ncap)%s = s
+
+  end subroutine capture_cell
+
+  !> The text of a widget label str: without its ImGui id (from "##")
+  !> or a terminating null, and without leading and trailing blanks.
+  function strip_id(str) result(s)
+    character(len=*), intent(in) :: str
+    character(len=:), allocatable :: s
+
+    integer :: idx
+
+    s = str
+    idx = index(s,c_null_char)
+    if (idx > 0) s = s(1:idx-1)
+    idx = index(s,"##")
+    if (idx > 0) s = s(1:idx-1)
+    s = trim(adjustl(s))
+
+  end function strip_id
 
   !> Deferred-commit bookkeeping for the notlive iw_input* widgets; call
   !> immediately after the widget has been drawn. Takes over the edit state if

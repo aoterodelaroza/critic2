@@ -202,7 +202,8 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: expensive, found, changed, hasview, ldum, isovalchanged
-    integer :: ihoverlast
+    integer :: ihoverlast, iwrite
+    integer, parameter :: itable_voids = 1 ! the table, for table_write_*
     integer :: i, n(3), itrep, irep
     integer*8 :: npts
     real*8 :: tcost, rdum
@@ -456,10 +457,11 @@ contains
              flags=ImGuiTableColumnFlags_WidthFixed,width=wcol(4))
           call iw_table_column("ρ (a.u.)",id=ic_iso_rho,flags=ImGuiTableColumnFlags_WidthFixed,&
              width=wcol(5))
-          call iw_table_headers_row(freezetop=.true.)
+          call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
 
           clipper = ImGuiListClipper_ImGuiListClipper()
           call ImGuiListClipper_Begin(clipper,w%vd%iso_nvoid,igGetTextLineHeightWithSpacing())
+          call w%table_write_begin(itable_voids,iwrite,clipper)
           do while (ImGuiListClipper_Step(clipper))
              call c_f_pointer(clipper,clipper_f)
              do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
@@ -488,6 +490,7 @@ contains
           end do
           call ImGuiListClipper_End(clipper)
           call ImGuiListClipper_destroy(clipper)
+          call w%table_write_end(itable_voids,table_title("Voids",isys))
           call igEndTable()
        end if
     end if
@@ -537,7 +540,8 @@ contains
     logical, intent(inout) :: ttshown
 
     logical :: changed, hasview, ldum, havesel
-    integer :: i, j, jj, imax, nat, nf, ier, nspc, ihoverlast, ihighlight
+    integer :: i, j, jj, imax, nat, nf, ier, nspc, ihoverlast, ihighlight, iwrite
+    integer, parameter :: itable_polyhedra = 2 ! the table, for table_write_*
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer(c_int) :: flags
@@ -744,11 +748,12 @@ contains
                 width=wcol(5))
              call iw_table_column("Volume (Å³)",id=ic_pol_vol,flags=ImGuiTableColumnFlags_WidthFixed,&
                 width=wcol(6))
-             call iw_table_headers_row(freezetop=.true.)
+             call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
 
              ! the rows go through a clipper
              clipper = ImGuiListClipper_ImGuiListClipper()
              call ImGuiListClipper_Begin(clipper,w%vd%pol_n,igGetTextLineHeightWithSpacing())
+             call w%table_write_begin(itable_polyhedra,iwrite,clipper)
              do while (ImGuiListClipper_Step(clipper))
                 call c_f_pointer(clipper,clipper_f)
                 do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
@@ -777,6 +782,7 @@ contains
              end do
              call ImGuiListClipper_End(clipper)
              call ImGuiListClipper_destroy(clipper)
+             call w%table_write_end(itable_polyhedra,table_title("Coordination polyhedra",isys))
              call igEndTable()
           end if
        end if
