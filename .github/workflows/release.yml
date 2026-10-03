@@ -1,0 +1,232 @@
+name: release
+
+# Binary packages for a critic2 release.
+#
+# Pushing a tag builds the Windows installer and portable zip, the Linux
+# AppImage (GUI) and a portable Linux tarball (command line), and attaches
+# them to a DRAFT GitHub release for that tag; the release is published by
+# hand from the GitHub web page after checking it. A manual run
+# (workflow_dispatch) builds the same packages and keeps them as workflow
+# artifacts only, without creating any release.
+#
+# The assets have fixed names, so the website can link to
+#   https://github.com/aoterodelaroza/critic2/releases/latest/download/<name>
+# and the links always point to the newest published release:
+#   critic2-windows-setup.exe       Windows installer (NSIS)
+#   critic2-windows.zip             Windows, portable (unzip and run)
+#   critic2-linux-x86_64.AppImage   Linux GUI + command line, single file
+#   critic2-linux-x86_64.tar.gz     Linux command line, portable (clusters)
+#   SHA256SUMS
+# The macOS binaries are Homebrew bottles, built by the tap
+# (aoterodelaroza/homebrew-critic2), not here.
+#
+# A push to master that changes the dependency script (or this file) also
+# runs the build, without publishing anything. That is what makes the
+# Windows dependency cache useful: GitHub only lets a tag restore caches
+# saved on the default branch, never those of another tag. The paths
+# filter does not apply to tag pushes, which always run.
+
+on:
+  push:
+    branches: [master]
+    tags: ['[0-9]*']
+    paths:
+      - tools/fetch-windows-deps.sh
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: windows (cross-built on Debian)
+    runs-on: ubuntu-latest
+    # The same recipe as a local release build (INSTALL, "Windows builds"):
+    # MinGW-w64 posix-thread compilers on Debian, tools/fetch-windows-deps.sh,
+    # CPack. The Debian container provides the -posix compiler variants.
+    container: debian:trixie
+    timeout-minutes: 180
+
+    steps:
+      - name: Install packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates git curl unzip 7zip xz-utils bzip2 make cmake nsis \
+            gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 gfortran-mingw-w64-x86-64
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The cross-built libraries take most of the job time; they only change
+      # when the script (which pins every version) changes.
+      - name: Cache the Windows dependencies
+        uses: actions/cache@v4
+        with:
+          path: windows-deps
+          key: windows-deps-trixie-${{ hashFiles('tools/fetch-windows-deps.sh') }}
+
+      - name: Fetch and cross-build the dependencies
+        run: tools/fetch-windows-deps.sh "$PWD/windows-deps"
+
+      # fetch-windows-deps.sh carries on when a library fails to build and
+      # just leaves it out; a release must not silently lose a feature.
+      - name: Check that every dependency is present
+        run: |
+          cache=windows-deps/critic2-windows.cmake
+          cat "$cache"
+          missing=""
+          for opt in USE_EXTERNAL_LAPACK USE_FREETYPE USE_READLINE USE_LIBXC USE_NLOPT USE_LIBCINT USE_XTB; do
+            grep -q "^set($opt \"ON\"" "$cache" || missing="$missing $opt"
+          done
+          grep -q '^set(MESA_DIR ' "$cache" || missing="$missing MESA_DIR"
+          if [ -n "$missing" ]; then
+            echo "::error::dependencies missing from the Windows package:$missing"
+            exit 1
+          fi
+
+      - name: Configure
+        run: |
+          cmake -C windows-deps/critic2-windows.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-w64-mingw32.cmake \
+            -S . -B build-win
+
+      - name: Build
+        run: cmake --build build-win -j "$(nproc)"
+
+      - name: Package
+        run: |
+          cd build-win
+          cpack -G "ZIP;NSIS"
+          # cpack can exit 0 with a broken installer script; check that the
+          # shortcuts made it into the generated NSIS project
+          nsi=_CPack_Packages/win64/NSIS/project.nsi
+          for s in 'critic2.lnk' 'critic2 (console).lnk' 'critic2 (software rendering).lnk'; do
+            grep -qF "$s" "$nsi" || { echo "::error::shortcut '$s' missing from $nsi"; exit 1; }
+          done
+          mkdir -p ../dist
+          cp critic2-*-win64.exe ../dist/critic2-windows-setup.exe
+          cp critic2-*-win64.zip ../dist/critic2-windows.zip
+          ls -l ../dist
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: critic2-windows
+          path: dist/*
+          if-no-files-found: error
+
+  linux:
+    name: linux (AppImage + portable tarball)
+    # the oldest available runner: the packages need a glibc at least as new
+    # as the one they were built with
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ gfortran cmake make file \
+            libopenblas-dev libxc-dev libnlopt-dev libreadline-dev \
+            libglfw3-dev libgl1-mesa-dev libfreetype-dev
+          sudo curl -sSLf -o /usr/local/bin/linuxdeploy \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage
+          sudo chmod +x /usr/local/bin/linuxdeploy
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # the GUI build goes into the AppImage
+      - name: Build (GUI)
+        run: |
+          cmake -S . -B build-gui -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_GUI=ON -DUSE_FREETYPE=ON -DUSE_HDF5=OFF \
+            -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build-gui -j "$(nproc)"
+          DESTDIR="$PWD/AppDir" cmake --install build-gui
+
+      # A command-line-only build for the tarball: it does not need X11 or
+      # OpenGL, so it also runs on cluster nodes without them.
+      - name: Build (command line)
+        run: |
+          cmake -S . -B build-cli -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_GUI=OFF -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build build-cli -j "$(nproc)"
+          DESTDIR="$PWD/critic2-linux-x86_64" cmake --install build-cli
+
+      # linuxdeploy copies the shared libraries the binary needs (libgfortran,
+      # libxc, OpenBLAS, GLFW, ...) into the tree and points the binary's
+      # rpath at them; libGL and the X11 libraries come from the host, as they
+      # must. critic2 finds its data in usr/share/critic2 next to usr/bin.
+      - name: Package
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1   # no FUSE on the runners
+          LINUXDEPLOY_OUTPUT_VERSION: ${{ github.ref_name }}
+        run: |
+          install -m 755 tools/appimage/AppRun AppDir/AppRun
+          linuxdeploy --appdir AppDir \
+            --desktop-file AppDir/usr/share/applications/critic2.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/scalable/apps/critic2.svg \
+            --output appimage
+          linuxdeploy --appdir critic2-linux-x86_64 \
+            --executable critic2-linux-x86_64/usr/bin/critic2
+          mkdir -p dist
+          mv critic2-*.AppImage dist/critic2-linux-x86_64.AppImage
+          tar -czf dist/critic2-linux-x86_64.tar.gz critic2-linux-x86_64
+          ls -l dist
+
+      - name: Smoke test
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: |
+          cat > nacl.cri <<'EOF'
+          crystal
+           spg f m -3 m
+           cell 5.64 5.64 5.64 90 90 90
+           neq 0 0 0 na
+           neq 1/2 1/2 1/2 cl
+          endcrystal
+          EOF
+          for exe in dist/critic2-linux-x86_64.AppImage critic2-linux-x86_64/usr/bin/critic2; do
+            env -u CRITIC_HOME "$exe" nacl.cri > out.cro
+            grep -q 'Fm-3m (225)' out.cro
+            if grep -q 'Could not find data files' out.cro; then
+              echo "::error::$exe did not find its data files"
+              exit 1
+            fi
+          done
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: critic2-linux
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: draft release
+    needs: [windows, linux]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create the draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: dist/*

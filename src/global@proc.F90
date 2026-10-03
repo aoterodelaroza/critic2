@@ -724,16 +724,28 @@ contains
   module subroutine global_init(ghome,datadir)
     use tools_io, only: string, ferror, warning, faterr, uout
     use param, only: dirsep
+    use iso_c_binding, only: c_char, c_int
 #ifdef HAVE_HDF5
     use hdf5, only: h5open_f
 #endif
     character*(*) :: ghome, datadir
+
+    interface
+       function critic2_exepath(buf,n) bind(C,name="critic2_exepath")
+         import :: c_char, c_int
+         character(kind=c_char), intent(out) :: buf(*)
+         integer(c_int), value :: n
+         integer(c_int) :: critic2_exepath
+       end function critic2_exepath
+    end interface
+
     integer :: isenv, idx
     logical :: lchk
-    character(len=:), allocatable :: datstr, msgr1, msgr2, msg1, msg2a, msg2b, msg3, msg4
+    character(len=:), allocatable :: datstr, msgr1, msgr2, msg1, msg2a, msg2b, msg2c, msg3, msg4
     character(len=:), allocatable :: exedir
     integer, parameter :: maxlenpath = 1024
     character(len=maxlenpath) :: argv0
+    integer(c_int) :: nexe
 #ifdef HAVE_HDF5
     integer :: ierr
 #endif
@@ -768,11 +780,20 @@ contains
        msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
-    ! then relative to the executable directory (relocatable installs,
-    ! e.g. an unpacked binary package: <exedir>/../share/critic2 or <exedir>)
+    ! then relative to the executable directory: relocatable installs
+    ! (e.g. an unpacked binary package: <exedir>/../share/critic2 or
+    ! <exedir>) and the binary in a build tree (<root>/build/src ->
+    ! <root>/dat). The OS-reported path is used if available, because
+    ! argv(0) has no directory when critic2 is started through the PATH.
     msg2a = ""
     msg2b = ""
-    call get_command_argument(0,argv0)
+    msg2c = ""
+    nexe = critic2_exepath(argv0,int(maxlenpath,c_int))
+    if (nexe > 0) then
+       argv0 = argv0(1:nexe)
+    else
+       call get_command_argument(0,argv0)
+    end if
     idx = max(index(argv0,"/",back=.true.),index(argv0,dirsep,back=.true.))
     if (idx > 1) then
        exedir = argv0(1:idx-1)
@@ -785,6 +806,11 @@ contains
        inquire(file=trim(critic_home) // datstr,exist=lchk)
        if (lchk) goto 99
        msg2b = "(!) 2. Not found (exe path): " // trim(critic_home) // datstr
+
+       critic_home = exedir // dirsep // ".." // dirsep // ".." // dirsep // "dat"
+       inquire(file=trim(critic_home) // datstr,exist=lchk)
+       if (lchk) goto 99
+       msg2c = "(!) 2. Not found (exe path): " // trim(critic_home) // datstr
     else
        msg2a = "(!) 2. Could not determine the executable directory"
     end if
@@ -809,6 +835,8 @@ contains
     write (uout,'(A)') msg2a
     if (len_trim(msg2b) > 0) &
        write (uout,'(A)') msg2b
+    if (len_trim(msg2c) > 0) &
+       write (uout,'(A)') msg2c
     write (uout,'(A/A)') msg3, msg4
     write (uout,'("(!) The density files and the structure library will not be available.")')
     critic_home = "."

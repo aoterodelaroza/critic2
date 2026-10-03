@@ -39,7 +39,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   tools_io@proc.F90 wfn_private@proc.F90
   "${CMAKE_CURRENT_BINARY_DIR}/config@proc.F90"
   )
-set(SOURCES_C doqhull.c mkdir_c.c)
+set(SOURCES_C doqhull.c mkdir_c.c exepath_c.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES_Fortran_Library libcritic2.f90 libcritic2@proc.f90)
 
@@ -288,6 +288,14 @@ endif()
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
 if (CRITIC2_GUI_EXE)
   install(TARGETS ${CRITIC2_GUI_EXE} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
+endif()
+
+## desktop menu entry and icon (Linux and other freedesktop systems)
+if (ENABLE_GUI AND UNIX AND NOT APPLE)
+  install(FILES critic2.desktop DESTINATION "${CMAKE_INSTALL_DATADIR}/applications" COMPONENT runtime)
+  install(FILES "${CMAKE_SOURCE_DIR}/dat/assets/critic2-gui.svg"
+          DESTINATION "${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps"
+          RENAME critic2.svg COMPONENT runtime)
 endif()
 if (BUILD_LIBRARY)
   install(TARGETS libcritic2

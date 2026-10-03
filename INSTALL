@@ -115,9 +115,9 @@ skip to section 3; sections 1 and 2 explain what goes into it and why.
      need it. Keep the mingw-w64 runtime in sync with the compiler by using
      "apt full-upgrade", or upgrade the mingw-w64* packages explicitly.
 
-   * cmake, curl, unzip, p7zip-full (7z, for the Mesa archive):
+   * cmake, curl, unzip, and 7z (package p7zip-full, or 7zip in Debian 13 and later):
 
-       apt install cmake curl unzip p7zip-full
+       apt install cmake curl unzip 7zip
 
    * NSIS, only if you want the installer (provides makensis):
 
@@ -145,8 +145,17 @@ skip to section 3; sections 1 and 2 explain what goes into it and why.
    LIBXC_VERSION / NLOPT_VERSION / LIBCINT_VERSION / XTB_VERSION /
    MCTCLIB_VERSION / TESTDRIVE_VERSION to pick versions.
 
-   Then run the three commands it prints and you are done. The rest of this
-   section describes those commands, in case you want to assemble them by hand.
+   Then run the three commands it prints and you are done. The configure
+   options are written to DEST/critic2-windows.cmake, a CMake initial-cache
+   file, so the configure step is
+
+       cmake -C DEST/critic2-windows.cmake \
+         -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-w64-mingw32.cmake \
+         -S . -B build-win
+
+   (the release workflow, .github/workflows/release.yml, does the same).
+   The rest of this section describes those options, in case you want to
+   assemble them by hand.
 
 
 4. Configure

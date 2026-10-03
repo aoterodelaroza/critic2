@@ -1,0 +1,11 @@
+#!/bin/sh
+# Entry point of the critic2 AppImage.
+#
+# Started with no arguments (double-click in a file manager), it opens the
+# graphical interface. With arguments, it is the critic2 command itself:
+#   ./critic2-linux-x86_64.AppImage input.cri output.cro
+#   ./critic2-linux-x86_64.AppImage -g structure.cif
+# critic2 finds its data files in $APPDIR/usr/share/critic2 by itself.
+HERE="$(dirname "$(readlink -f "$0")")"
+[ $# -eq 0 ] && set -- -g
+exec "$HERE/usr/bin/critic2" "$@"

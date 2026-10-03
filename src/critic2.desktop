@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=critic2
+GenericName=Molecular and crystal structure viewer
+Comment=Analysis of quantum-chemical and crystallographic data in molecules and solids
+Exec=critic2 -g %F
+Icon=critic2
+Terminal=false
+Categories=Science;Chemistry;Physics;
+Keywords=crystal;molecule;QTAIM;Bader;electron density;DFT;

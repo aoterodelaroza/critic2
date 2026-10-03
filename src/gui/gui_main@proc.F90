@@ -828,7 +828,7 @@ contains
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
        wintype_rattle, wintype_mo, wintype_voids, wintype_cp
     use utils, only: iw_tooltip, iw_menuitem
-    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
+    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
     integer, intent(in) :: isys
     integer, intent(in) :: idparent
@@ -892,7 +892,7 @@ contains
        &given temperature and drag atoms with the mouse",ttshown)
 
     ! builder
-    if (iw_menuitem("Builder...",enabled=enabled)) &
+    if (iw_menuitem("Builder...",BIND_BUILDER,enabled=enabled)) &
        idum = stack_create_window(wintype_builder,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Tools to modify the structure in the view",ttshown)
 
@@ -1056,14 +1056,15 @@ contains
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_melting, wintype_exportimage,&
-       wintype_saveas, wintype_save_multiple, paste_clipboard_fragment, view_target_window
+       wintype_saveas, wintype_save_multiple, wintype_builder, paste_clipboard_fragment,&
+       view_target_window
     use utils, only: iw_beginmenu, igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
        BIND_CUT_SELECTION, BIND_PASTE, BIND_MANUAL, BIND_EXPORT_IMAGE, BIND_TOGGLE_TREE,&
-       BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON, BIND_SAVE_AS,&
-       get_bind_keyname, is_bind_event
+       BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON, BIND_SAVE_AS, BIND_BUILDER,&
+       BIND_PREFERENCES, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string, ferror, warning
     use param, only: isformat_write_from_read, isformat_w_unknown
@@ -1117,7 +1118,7 @@ contains
     launch(d_reopen) = isysok .and. nothreads .and. is_bind_event(BIND_REOPEN)
     launch(d_new) = is_bind_event(BIND_NEW)
     launch(d_newlib) = .false.
-    launch(d_preferences) = .false.
+    launch(d_preferences) = is_bind_event(BIND_PREFERENCES,norepeat=.true.)
     launch(d_geometry) = isysvok .and. is_bind_event(BIND_GEOMETRY)
     launch(d_save) = isysok .and. is_bind_event(BIND_SAVE)
     launch(d_export_now) = isysvok .and. is_bind_event(BIND_EXPORT_NOW)
@@ -1167,6 +1168,11 @@ contains
     !! open the save-as dialog on the view the bindings act upon
     if (isysvok .and. is_bind_event(BIND_SAVE_AS,norepeat=.true.)) &
        idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&
+       orraise=-1)
+
+    !! open the builder on the view the bindings act upon
+    if (isysvok .and. is_bind_event(BIND_BUILDER,norepeat=.true.)) &
+       idum = stack_create_window(wintype_builder,.true.,idparent=view_target_window(),&
        orraise=-1)
 
     ! start the menu
@@ -1376,8 +1382,8 @@ contains
           call igSeparator()
 
           ! Edit -> Preferences...
-          if (iw_menuitem("Preferences...")) &
-             idum = stack_create_window(wintype_preferences,.true.,orraise=-1)
+          launch(d_preferences) = launch(d_preferences) .or.&
+             iw_menuitem("Preferences...",BIND_PREFERENCES)
           call iw_tooltip("Change the user interface settings and key bindings",ttshown)
 
           call igEndMenu()
@@ -1486,6 +1492,8 @@ contains
        call add_system_empty_molecule()
     if (launch(d_newlib)) &
        idum = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
+    if (launch(d_preferences)) &
+       idum = stack_create_window(wintype_preferences,.true.,orraise=-1)
     if (launch(d_open)) &
        idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
     if (isysok) then
