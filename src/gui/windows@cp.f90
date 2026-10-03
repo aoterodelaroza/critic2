@@ -35,13 +35,13 @@ submodule (windows) cp
   ! description of each seed kind, for the tooltips of the kind combo
   character(len=*), parameter :: seedkind_tooltips = &
      "The irreducible part of the Wigner-Seitz cell, split into tetrahedra and subdivided&
-     & recursively (more seeds at each level). AUTO's default for crystals." // c_null_char //&
-     "Points on the segment between every pair of atoms closer than the maximum distance.&
-     & AUTO's default for molecules; good at finding bond critical points." // c_null_char //&
-     "The centroid of every triplet of atoms closer to each other than the maximum distance;&
-     & aimed at ring critical points." // c_null_char //&
+     & recursively level times." // c_null_char //&
+     "Points on the segment between every pair of atoms closer than the maximum distance. Good for&
+     & bond critical points." // c_null_char //&
+     "The centroid of every triplet of atoms closer to each other than the maximum distance. Good&
+     & for ring critical points." // c_null_char //&
      "Evenly spaced points on the segment between two positions." // c_null_char //&
-     "Points on concentric spherical shells around a center (polar x azimuthal x radial)." //&
+     "Points on concentric spherical shells around a center." //&
      c_null_char //&
      "Points on concentric octahedral shells around a center, the octahedron subdivided&
      & recursively." // c_null_char //&
@@ -64,7 +64,7 @@ submodule (windows) cp
   character(len=*), parameter :: meshlevel_names = "Small" // c_null_char // "Normal" // c_null_char //&
      "Good" // c_null_char // "Very good" // c_null_char // "Amazing" // c_null_char
   character(len=*), parameter :: meshlevel_tooltips = &
-     "The coarsest atomic grids: the fewest seeds (the default)" // c_null_char //&
+     "The coarsest atomic grids: the fewest seeds (default)" // c_null_char //&
      "Finer atomic grids: about twice the seeds of Small" // c_null_char //&
      "The atomic grids of integrations: about four times the seeds of Small" // c_null_char //&
      "Very fine atomic grids: many seeds" // c_null_char //&
@@ -484,8 +484,7 @@ contains
          itable = int(w%cp%tablecell,c_int)
          call iw_combo_simple("Critical point list##cptablecombo","Symmetry-unique" // c_null_char //&
             "Cell" // c_null_char,itable,changed=ch,tooltips=&
-            "The symmetry-unique critical points, one row each (their properties are those of&
-            & all their copies)" // c_null_char //&
+            "The symmetry-unique critical points, one row each" // c_null_char //&
             "Every critical point in the unit cell, with the symmetry-unique one it is a copy of" //&
             c_null_char,ttshown=ttshown)
          if (ch) then
@@ -673,14 +672,12 @@ contains
       case (ic_f)
          str = "Value of the field at the critical point"
       case (ic_fval)
-         str = "Value of the valence field (the field without its core contribution) at the&
-            & critical point"
+         str = "Value of the valence field (without the core contribution) at the critical point"
       case (ic_grad)
-         str = "Norm of the gradient of the field at the critical point (zero up to the&
-            & convergence threshold of the search)"
+         str = "Norm of the gradient of the field at the critical point"
       case (ic_gradval)
-         str = "Norm of the gradient of the valence field (the field without its core&
-            & contribution) at the critical point"
+         str = "Norm of the gradient of the valence field (without the core contribution) at the&
+            & critical point"
       case (ic_lap)
          str = "Laplacian of the field at the critical point"
       case (ic_lapval)
@@ -708,8 +705,8 @@ contains
          associate(pp => sys(isys)%propp(jc-ic_NBUILTIN+1))
            if (pp%ispecial == 0) then
               str = "Point property: " // trim(pp%expr)
-              if (jc - ic_NBUILTIN >= maxppcol) str = str // ". The table has no room for&
-                 & its column (there are too many point properties)"
+              if (jc - ic_NBUILTIN >= maxppcol) str = str // ". The table has no room for its&
+                 & column (too many properties)"
            else
               str = "Point property: the stress tensor, which cannot be shown in the table"
            end if
@@ -955,8 +952,7 @@ contains
             if (jc >= ic_NBUILTIN) then
                if (igTableSetColumnIndex(5_c_int)) then
                   if (iw_close_button("##" // suffix // "del")) idel = jc - ic_NBUILTIN + 1
-                  call iw_tooltip("Remove this point property from the system (as if it had&
-                     & not been defined with POINTPROP)",ttshown)
+                  call iw_tooltip("Remove this point property from the system",ttshown)
                end if
             end if
          end do
@@ -976,8 +972,8 @@ contains
          sttip = sttip // trim(pointprop_keyword_desc(k)) // c_null_char
       end do
       call iw_combo_simple("##cpppkind",stropt,w%cp%ppkind,tooltips=sttip,ttshown=ttshown)
-      call iw_tooltip("The kind of point property to add: an arithmetic expression, or one of&
-         & the keywords of POINTPROP (calculated from the field of this window)",ttshown)
+      call iw_tooltip("The kind of point property to add: an arithmetic expression, or one of the&
+         & named functions (calculated from the field of this window)",ttshown)
       if (w%cp%ppkind == 0) then
          call iw_text("Name",sameline=.true.)
          ldum = iw_inputtext("##cpppname",bufsize=11,textf=w%cp%ppname,width=10,sameline=.true.)
@@ -986,13 +982,11 @@ contains
          call iw_text("Expression")
          ldum = iw_inputtext("##cpppexpr",bufsize=1023,textf=w%cp%ppexpr,width=36,sameline=.true.)
          call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
-            & ""$1 - $2"" or ""-lag($1)""), evaluated at the critical points",ttshown)
+            & ""$1 - $2"" or ""-log($1)""), evaluated at the critical points",ttshown)
          call iw_arith_help_button("##cpppexprhelp",ttshown)
       end if
       if (iw_button("Add##cpppadd",sameline=.true.)) call add_pointprop()
-      call iw_tooltip("Add the property to the system (as POINTPROP) and show it as a column of&
-         & the table. The point properties are those of the system: CPREPORT and POINT in the&
-         & console report them too",ttshown)
+      call iw_tooltip("Add the property to the system and show it as a column of the table",ttshown)
 
       call igTreePop()
 
@@ -1500,8 +1494,7 @@ contains
     ! file name: editable field plus browse button
     call iw_text("File name",highlight=.true.)
     ldum = iw_inputtext("##cpexportfile",bufsize=1023,texta=w%okfile,width=36)
-    call iw_tooltip("File the critical points are written to (with auto-detect, the extension&
-       & selects the format)",ttshown)
+    call iw_tooltip("File the critical points are written to",ttshown)
     if (iw_button("Browse...##cpexportbrowse",sameline=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savecpfile,idparent=w%id,orraise=-1)
     call iw_tooltip("Choose the file with a file browser",ttshown)
@@ -1512,7 +1505,7 @@ contains
     call iw_combo_simple("Format##cpexportformat",expformat_combostr,w%cp%expformat,changed=changed)
     call igPopItemWidth()
     call iw_tooltip("Format of the file: JSON, a VMD script, or a structure file with the critical&
-       & points as extra atoms. If auto-detect, the format is chosen based on the file extension",ttshown)
+       & points as extra atoms",ttshown)
     if (changed .and. w%cp%expformat > 0) &
        w%okfile = file_name_root(w%okfile) // "." // expformat_ext(w%cp%expformat)
 
@@ -1707,7 +1700,7 @@ contains
     ttot = t * real(n,8) / real(max(ndone,1),8)
 
     w%cp%estimate = "Estimated time: ~" // duration_string(ttot) // " (timed " //&
-       string(ndone) // " of " // string(n) // " seeds; the bond paths are not included)"
+       string(ndone) // " of " // string(n) // " seeds)"
 
   end subroutine estimate_search
 
@@ -1847,8 +1840,8 @@ contains
     logical, intent(inout) :: ttshown
 
     call iw_text("Single-Shot",highlight=.true.,alignframe=.true.)
-    call iw_tooltip("Search for a critical point from one point, with the advanced options&
-       & below. The new critical point is added to the list",ttshown)
+    call iw_tooltip("Search for a critical point from one point. The new critical point is added&
+       & to the list",ttshown)
     if (iw_button("Pick##cpaddpick",sameline=.true.,&
        disabled=(len(form_error(w)) > 0 .or. w%cp%picking > 0))) &
        call start_pick(w,iview,cppick_add)
@@ -2278,8 +2271,8 @@ contains
     ! run options
     call iw_text("Run",highlight=.true.)
     ldum = iw_checkbox("Discard the existing critical points##cpdiscardexist",w%cp%discard_existing)
-    call iw_tooltip("Start from the nuclei only. Otherwise, the new critical points are added&
-       & to those the field already has (as the AUTO keyword does)",ttshown)
+    call iw_tooltip("Start from the nuclei only. Otherwise, the new critical points are added to&
+       & those the field already has",ttshown)
     ldum = iw_checkbox("Do not write the checkpoint##cpnochk",w%cp%nochk)
     call iw_tooltip("Do not save the critical points to the checkpoint file (<field file>.chk_cps),&
        & which the GUI reads the next time the field is loaded",ttshown)
@@ -2830,7 +2823,7 @@ contains
     call iw_text("(n|b|r|c): " // string(nt(0)) // " | " // string(nt(1)) // " | " //&
        string(nt(2)) // " | " // string(nt(3)),sameline=.true.)
     if (sys(isys)%c%ismolecule) then
-       call iw_text("Poincare-Hopf sum:",highlight=.true.)
+       call iw_text("Poincaré-Hopf sum:",highlight=.true.)
     else
        call iw_text("Morse sum:",highlight=.true.)
     end if
