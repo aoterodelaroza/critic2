@@ -512,6 +512,7 @@ module crystalmod
   !> A supercell candidate found by cell_nice_list
   type nice_cell
      real*8 :: r = 0d0 ! inscribed radius
+     real*8 :: reach = 0d0 ! half the shortest lattice vector
      integer :: m(3,3) = 0 ! newcell transformation
      integer :: nops = 0 ! number of symmetry operations
      integer :: nindep = -1 ! number of independent atoms
@@ -1108,20 +1109,22 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
-     module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin)
+     module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin,doreach)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: inice
        integer, allocatable, intent(out) :: nc(:), ic0(:)
        type(nice_cell), allocatable, intent(out) :: cand(:)
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(in), optional :: nmin
+       logical, intent(in), optional :: doreach
      end subroutine cell_nice_list
-     module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg)
+     module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg,doreach)
        class(crystal), intent(inout) :: c
        type(nice_cell), intent(inout) :: cand(:)
        integer, intent(in) :: icrit
        integer, intent(out) :: ibest
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: doreach
      end subroutine cell_nice_select
      module subroutine reorder_atoms(c,iperm,isnneq,errmsg,ti)
        class(crystal), intent(inout) :: c

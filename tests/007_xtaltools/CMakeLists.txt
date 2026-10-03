@@ -43,6 +43,7 @@ set(TESTS
   044_amd_basic              ## amd keyword
   046_newcell_nice           ## newcell nice keyword
   048_compare_methods        ## compare keyword, gpwdf/powder methods (emd omitted: stack overflow in src/emd/emd.c)
+  050_newcell_reach          ## newcell reach keyword
   )
 
 ## these tests use the variable-cell comparison (COMPAREVC/vcgpwdf) and XRPD

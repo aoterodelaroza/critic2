@@ -3721,9 +3721,9 @@ contains
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: word, errmsg
-    logical :: ok, doprim, doforce, donice, changed
+    logical :: ok, doprim, doforce, donice, doreach, changed
     integer :: lp, lp2, dotyp, i, j, k, inice, icrit, ibest, ib
-    character(len=:), allocatable :: srmax0
+    character(len=:), allocatable :: srmax0, snice
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
     real*8 :: x0(3,3), t0(3), rdum(4)
@@ -3745,6 +3745,7 @@ contains
     doforce = .false.
     dorefine = .false.
     donice = .false.
+    doreach = .false.
     inice = inice_def
     icrit = 0 ! the nicest cell by default
     dotyp = 0
@@ -3767,8 +3768,12 @@ contains
           dotyp = 3
        elseif (equal(word,"refine")) then
           dorefine = .true.
-       elseif (equal(word,"nice")) then
-          donice = .true.
+       elseif (equal(word,"nice") .or. equal(word,"reach")) then
+          if (equal(word,"nice")) then
+             donice = .true.
+          else
+             doreach = .true.
+          end if
           lp2 = lp
           ok = isinteger(inice,line,lp)
           if (.not.ok) then
@@ -3776,7 +3781,7 @@ contains
              inice = inice_def
           end if
           inice = max(inice,1)
-       elseif (donice .and. equal(word,"mindisp")) then
+       elseif ((donice.or.doreach) .and. equal(word,"mindisp")) then
           icrit = 1
        else
           lp = 1
@@ -3784,44 +3789,75 @@ contains
        end if
     end do
 
-    ! search for a nice cell
-    if (donice) then
-       call s%c%cell_nice_list(inice,nc,ic0,cand,errmsg)
+    if (donice .and. doreach) then
+       call ferror("struct_newcell","NICE and REACH cannot be used together",faterr,line,syntax=.true.)
+       return
+    end if
+
+    ! search for a nice cell or the cell with the longest reach
+    if (donice .or. doreach) then
+       call s%c%cell_nice_list(inice,nc,ic0,cand,errmsg,doreach=doreach)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_newcell",errmsg,faterr)
 
-       write (uout,'("+ List of nice cells with increasing size")')
-       write (uout,'("# n = size of the supercell is n times the input cell.")')
-       write (uout,'("# rmax = radius of the largest sphere that fits in the supercell (",A,").")') &
-          string(iunitname0(iunit))
-       write (uout,'("# niceness = inverse of the cell skewness, higher is nicer, cubic cell = 1")')
-       if (icrit > 0) &
-          write (uout,'("# rmax0 = rmax of the nicest cell of that size, for comparison")')
-       write (uout,'("# nops = symmetry operations of the crystal compatible with the supercell lattice;")')
-       write (uout,'("# nindep, ndisp = independent atoms and displacements")')
-       if (icrit == 1) then
-          write (uout,'("# For each size, the NICEST cell among those with the FEWEST DISPLACEMENTS of that")')
-          write (uout,'("# size.")')
+       if (doreach) then
+          write (uout,'("+ List of longest-reach cells with increasing size")')
+          write (uout,'("# n = size of the supercell is n times the input cell.")')
+          write (uout,'("# reach = half the length of the shortest lattice vector of the supercell (",A,").")') &
+             string(iunitname0(iunit))
+          if (icrit > 0) &
+             write (uout,'("# reach0 = reach of the longest-reach cell of that size, for comparison")')
+          write (uout,'("# nops = symmetry operations of the crystal compatible with the supercell lattice;")')
+          write (uout,'("# nindep, ndisp = independent atoms and displacements")')
+          if (icrit == 1) then
+             write (uout,'("# For each size, the LONGEST-REACH cell among those with the FEWEST DISPLACEMENTS")')
+             write (uout,'("# of that size.")')
+          else
+             write (uout,'("# For each size, over all the sublattices of that size, the LONGEST-REACH cell; the")')
+             write (uout,'("# most symmetric one when several tie, then the nicest.")')
+          end if
+          write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain the")')
+          write (uout,'("# Delaunay-reduced cell of this sublattice")')
+          srmax0 = ""
+          if (icrit > 0) srmax0 = "reach0  "
+          write (uout,'("#n   reach   ",A,"nops nindep ndisp  -- NEWCELL transformation --")') srmax0
        else
-          write (uout,'("# For each size, over all the sublattices of that size, the NICEST cell; the most")')
-          write (uout,'("# symmetric one when several tie.")')
+          write (uout,'("+ List of nice cells with increasing size")')
+          write (uout,'("# n = size of the supercell is n times the input cell.")')
+          write (uout,'("# rmax = radius of the largest sphere that fits in the supercell (",A,").")') &
+             string(iunitname0(iunit))
+          write (uout,'("# niceness = inverse of the cell skewness, higher is nicer, cubic cell = 1")')
+          if (icrit > 0) &
+             write (uout,'("# rmax0 = rmax of the nicest cell of that size, for comparison")')
+          write (uout,'("# nops = symmetry operations of the crystal compatible with the supercell lattice;")')
+          write (uout,'("# nindep, ndisp = independent atoms and displacements")')
+          if (icrit == 1) then
+             write (uout,'("# For each size, the NICEST cell among those with the FEWEST DISPLACEMENTS of that")')
+             write (uout,'("# size.")')
+          else
+             write (uout,'("# For each size, over all the sublattices of that size, the NICEST cell; the most")')
+             write (uout,'("# symmetric one when several tie.")')
+          end if
+          write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain this cell")')
+          srmax0 = ""
+          if (icrit > 0) srmax0 = "rmax0   "
+          write (uout,'("#n   rmax   niceness  ",A,"nops nindep ndisp  -- NEWCELL transformation --")') srmax0
        end if
-       write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain this cell")')
-       srmax0 = ""
-       if (icrit > 0) srmax0 = "rmax0   "
-       write (uout,'("#n   rmax   niceness  ",A,"nops nindep ndisp  -- NEWCELL transformation --")') srmax0
        do i = 1, inice
-          call s%c%cell_nice_select(cand(ic0(i)+1:ic0(i)+nc(i)),icrit,ibest,errmsg)
+          call s%c%cell_nice_select(cand(ic0(i)+1:ic0(i)+nc(i)),icrit,ibest,errmsg,doreach=doreach)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_newcell",errmsg,faterr)
           if (ibest == 0) cycle
           ib = ic0(i) + ibest
+          ! the reach replaces rmax, and there is no niceness column
+          snice = ""
+          if (.not.doreach) snice = string(8d0 * cand(ib)%r**3 / (i*s%c%omega),'f',7,5) // " "
           srmax0 = ""
-          if (icrit > 0) srmax0 = string(cand(ic0(i)+1)%r*dunit0(iunit),'f',7,3) // " "
-          write (uout,'(3(A," "),2A," ",2(A," ")," ",3(3(A," ")," "))') string(i,3,ioj_left),&
-             string(cand(ib)%r*dunit0(iunit),'f',7,3),&
-             string(8d0 * cand(ib)%r**3 / (i*s%c%omega),'f',7,5),&
-             srmax0, string(cand(ib)%nops,4,ioj_right),&
+          if (icrit > 0) srmax0 = string(merge(cand(ic0(i)+1)%reach,cand(ic0(i)+1)%r,doreach)*dunit0(iunit),&
+             'f',7,3) // " "
+          write (uout,'(2(A," "),3A," ",2(A," ")," ",3(3(A," ")," "))') string(i,3,ioj_left),&
+             string(merge(cand(ib)%reach,cand(ib)%r,doreach)*dunit0(iunit),'f',7,3),&
+             snice, srmax0, string(cand(ib)%nops,4,ioj_right),&
              string(cand(ib)%nindep,6,ioj_right), string(cand(ib)%ndisp,5,ioj_right),&
              ((string(cand(ib)%m(j,k),length=2,justify=ioj_right),j=1,3),k=1,3)
        end do

@@ -1,0 +1,7 @@
+## check: 050_newcell_reach.cro -a1e-10
+## labels: quick regression nodata
+
+crystal library mgo
+newcell reach 12
+newcell reach 12 mindisp
+

@@ -811,8 +811,11 @@ contains
   !> cand(ic0(n)+1:ic0(n)+nc(n)), sorted by decreasing niceness (the
   !> first is the nicest cell of that size), each with the number of
   !> operations of the crystal compatible with the supercell lattice.
-  module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin)
-    use spglib, only: spg_niggli_reduce
+  !> If doreach, the cells are instead sorted by decreasing reach
+  !> (half the shortest lattice vector), ties by decreasing niceness,
+  !> and each is reported in its Delaunay-reduced basis.
+  module subroutine cell_nice_list(c,inice,nc,ic0,cand,errmsg,nmin,doreach)
+    use spglib, only: spg_niggli_reduce, spg_delaunay_reduce
     use global, only: symprec
     use tools, only: mergesort
     use tools_math, only: idet3
@@ -822,11 +825,14 @@ contains
     type(nice_cell), allocatable, intent(out) :: cand(:)
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(in), optional :: nmin
+    logical, intent(in), optional :: doreach
 
-    integer :: n, n0, ia, ib, ic, id, ie, if_, i, j, leqv, ntot, nstab
+    integer :: n, n0, ia, ib, ic, id, ie, if_, i, j, k, leqv, ntot, nstab
     integer :: mm(3,3), irot(3,3)
-    integer, allocatable :: irotm(:,:,:), iord(:)
+    integer, allocatable :: irotm(:,:,:), iord(:), iord2(:)
     type(nice_cell), allocatable :: tmp(:)
+    logical :: reach
+    real*8 :: rhead
 
     allocate(nc(inice),ic0(inice),cand(256))
     nc = 0
@@ -839,6 +845,8 @@ contains
     end if
     n0 = 1
     if (present(nmin)) n0 = max(nmin,1)
+    reach = .false.
+    if (present(doreach)) reach = doreach
 
     ! the distinct rotations of the crystal's current symmetry
     ! operations, in crystallographic coordinates (integer matrices);
@@ -880,14 +888,40 @@ contains
           end do
        end do
 
-       ! sort the cells of this size by decreasing niceness (stable, so
-       ! ties keep the order of discovery)
+       ! sort the cells of this size by decreasing niceness or reach
+       ! (stable, so ties keep the order of discovery)
        if (nc(n) > 1) then
           allocate(iord(nc(n)),tmp(nc(n)))
           do i = 1, nc(n)
              iord(i) = i
           end do
-          call mergesort(-cand(ic0(n)+1:ic0(n)+nc(n))%r,iord,1,nc(n))
+          if (reach) then
+             ! by decreasing reach; equal reaches come out of the
+             ! reductions with rounding noise, so each run of reaches
+             ! equal within rounding is then sorted by decreasing niceness
+             call mergesort(-cand(ic0(n)+1:ic0(n)+nc(n))%reach,iord,1,nc(n))
+             i = 1
+             do while (i < nc(n))
+                rhead = cand(ic0(n)+iord(i))%reach
+                j = i
+                do while (j < nc(n))
+                   if (abs(cand(ic0(n)+iord(j+1))%reach - rhead) > 1d-8 * rhead) exit
+                   j = j + 1
+                end do
+                if (j > i) then
+                   allocate(iord2(j-i+1))
+                   do k = 1, j-i+1
+                      iord2(k) = k
+                   end do
+                   call mergesort(-cand(ic0(n)+iord(i:j))%r,iord2,1,j-i+1)
+                   iord(i:j) = iord(i-1+iord2)
+                   deallocate(iord2)
+                end if
+                i = j + 1
+             end do
+          else
+             call mergesort(-cand(ic0(n)+1:ic0(n)+nc(n))%r,iord,1,nc(n))
+          end if
           tmp = cand(ic0(n)+1:ic0(n)+nc(n))
           do i = 1, nc(n)
              cand(ic0(n)+i) = tmp(iord(i))
@@ -937,8 +971,8 @@ contains
     subroutine add_candidate(n,mm,nops)
       integer, intent(in) :: n, mm(3,3), nops
 
-      integer :: ier, mred(3,3)
-      real*8 :: x2c(3,3), rmat(3,3), r, scal
+      integer :: ier, mred(3,3), i1, i2, i3
+      real*8 :: x2c(3,3), rmat(3,3), r, scal, dmin
 
       ! The inscribed sphere has radius 1/(2 max|g_i|) with g_i the
       ! reciprocal vectors of the basis, so the nicest basis of the
@@ -959,6 +993,31 @@ contains
       if (maxval(abs(rmat - real(mred,8))) > 1d-6) return
       if (idet3(mred) < 0) mred = -mred
 
+      dmin = 0d0
+      if (reach) then
+         ! Report the cell in the Delaunay-reduced basis. spglib returns
+         ! the three shortest independent vectors of the Delaunay set,
+         ! which contains the shortest lattice vector, so it is among
+         ! the small combinations.
+         rmat = transpose(matmul(c%m_x2c,real(mm,8)))
+         ier = spg_delaunay_reduce(rmat,symprec)
+         if (ier == 0) return
+         dmin = huge(1d0)
+         do i1 = -1, 1
+            do i2 = -1, 1
+               do i3 = -1, 1
+                  if (i1 == 0 .and. i2 == 0 .and. i3 == 0) cycle
+                  dmin = min(dmin,norm2(i1 * rmat(1,:) + i2 * rmat(2,:) + i3 * rmat(3,:)))
+               end do
+            end do
+         end do
+
+         rmat = matmul(c%m_c2x,transpose(rmat))
+         mred = nint(rmat)
+         if (maxval(abs(rmat - real(mred,8))) > 1d-6) return
+         if (idet3(mred) < 0) mred = -mred
+      end if
+
       ! append
       if (ntot == size(cand,1)) then
          allocate(tmp(2*ntot))
@@ -967,7 +1026,7 @@ contains
       end if
       ntot = ntot + 1
       nc(n) = nc(n) + 1
-      cand(ntot) = nice_cell(r=r,m=mred,nops=nops)
+      cand(ntot) = nice_cell(r=r,reach=0.5d0*dmin,m=mred,nops=nops)
 
     end subroutine add_candidate
 
@@ -1063,20 +1122,29 @@ contains
   !> displacements. icrit = 1 (MINDISP): the nicest cell among those
   !> with the fewest displacements of this size, ties going to the most
   !> symmetric. Returns the index of the choice (0 if there are no
-  !> candidates).
-  module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg)
+  !> candidates). If doreach, the reach replaces the niceness in all of
+  !> the above (cand must then come from cell_nice_list with doreach).
+  module subroutine cell_nice_select(c,cand,icrit,ibest,errmsg,doreach)
     class(crystal), intent(inout) :: c
     type(nice_cell), intent(inout) :: cand(:)
     integer, intent(in) :: icrit
     integer, intent(out) :: ibest
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: doreach
 
     integer :: k, klast, nopsmax, smat(3,3)
     logical :: rtie
+    real*8, allocatable :: key(:)
 
     errmsg = ""
     ibest = 0
     if (size(cand,1) < 1) return
+
+    ! the sorting key: niceness (inscribed radius) or reach
+    key = cand%r
+    if (present(doreach)) then
+       if (doreach) key = cand%reach
+    end if
 
     ! the eligible candidates: all of them (MINDISP) or the nicest ones,
     ! within rounding of the first, with the most operations
@@ -1085,7 +1153,7 @@ contains
     if (icrit /= 1) then
        klast = 1
        do while (klast < size(cand,1))
-          if (abs(cand(klast+1)%r - cand(1)%r) > 1d-8 * cand(1)%r) exit
+          if (abs(key(klast+1) - key(1)) > 1d-8 * key(1)) exit
           klast = klast + 1
        end do
        nopsmax = maxval(cand(1:klast)%nops)
@@ -1105,7 +1173,7 @@ contains
        if (ibest == 0) then
           ibest = k
        else
-          rtie = abs(cand(k)%r - cand(ibest)%r) < 1d-8 * cand(ibest)%r
+          rtie = abs(key(k) - key(ibest)) < 1d-8 * key(ibest)
           if (cand(k)%ndisp < cand(ibest)%ndisp .or. (cand(k)%ndisp == cand(ibest)%ndisp .and. &
              rtie .and. cand(k)%nops > cand(ibest)%nops)) ibest = k
        end if
