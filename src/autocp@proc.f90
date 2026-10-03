@@ -1111,7 +1111,9 @@ contains
              end if
           end do
 
-          ! vmd and pdb go their own way
+          ! vmd and pdb go their own way: a pdb file, with the vmd
+          ! script (PDB) or alone (the CPs need the cp list to be written)
+          dopdb = (dopdb .and. writevmd) .or. equal(wext,'pdb')
           if (writevmd .and. dopdb) then
              file = wroot // '.pdb'
              filevmd = wroot // '.vmd'
@@ -1194,7 +1196,7 @@ contains
 
           ! calculate gradient paths and add them to the seed
           if (agraph) then
-             if (writevmd.and.dopdb) allocate(ixzassign(10))
+             if (dopdb) allocate(ixzassign(10))
              if (allocated(xpath)) deallocate(xpath)
              allocate(xpath(1))
              !$omp parallel do private(iup,x,nstep,ier,plen,idx,i1,i2,iz1,iz2,s1,s2,xzname) firstprivate(xpath) schedule(dynamic)
@@ -1209,20 +1211,23 @@ contains
                 end if
 
                 if (iup /= 0) then
-                   if (writevmd.and.dopdb) then
+                   if (dopdb) then
                       idx = sy%f(sy%iref)%cpcel(i)%idx
+                      ! the path ends at a nucleus, or elsewhere (??)
                       i1 = sy%f(sy%iref)%cp(idx)%ipath(1)
-                      iz1 = sy%c%spc(sy%c%at(i1)%is)%z
                       i2 = sy%f(sy%iref)%cp(idx)%ipath(2)
-                      iz2 = sy%c%spc(sy%c%at(i2)%is)%z
-                      if (i1 <= 0) then
+                      if (i1 <= 0 .or. i1 > sy%c%nneq) then
+                         iz1 = -1
                          s1 = "??"
                       else
+                         iz1 = sy%c%spc(sy%c%at(i1)%is)%z
                          s1 = nameguess(iz1,.true.)
                       end if
-                      if (i2 <= 0) then
+                      if (i2 <= 0 .or. i2 > sy%c%nneq) then
+                         iz2 = -1
                          s2 = "??"
                       else
+                         iz2 = sy%c%spc(sy%c%at(i2)%is)%z
                          s2 = nameguess(iz2,.true.)
                       end if
                       if (iz1 > iz2) then
@@ -1258,7 +1263,7 @@ contains
           call syaux%c%struct_new(seed,errmsg_sn)
           if (len_trim(errmsg_sn) > 0) &
              call ferror('autocp',errmsg_sn,faterr)
-          if (writevmd.and.dopdb) then
+          if (dopdb) then
              call syaux%c%write_pdb(sy%c,file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
                 ixzassign=ixzassign,pdbstrong=pdbstrong)
           else
@@ -1300,7 +1305,7 @@ contains
          else
             seed%is(n) = sy%c%nspc+5
          end if
-         if (writevmd.and.dopdb) then
+         if (dopdb) then
             seed%atname(n) = xzname
          else
             seed%atname(n) = seed%spc(seed%is(n))%name

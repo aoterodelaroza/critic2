@@ -308,8 +308,18 @@ module windows
      logical :: seednew = .false. ! seedx changed since the preview was last built
      ! estimated time of the search from seedx (text; deallocated when the seeds go stale)
      character(len=:), allocatable :: estimate
-     ! export: include the gradient paths (GRAPH); the file is w%okfile
+     ! export (the file is w%okfile): the format (index into the format
+     ! combo of the Export tab, 0 = auto-detect), the gradient paths
+     ! (GRAPH), the k-point length, Cartesian coordinates (FHIaims), the
+     ! unit cell (3D models), and the pdb file and its strong-bond
+     ! density threshold (VMD)
+     integer :: expformat = 0
      logical :: expgraph = .false.
+     real(c_float) :: exprk = 50._c_float
+     logical :: expcartesian = .false.
+     logical :: expdocell = .true.
+     logical :: exppdb = .false.
+     real(c_float) :: expstrong = 0.1_c_float
      ! the symmetry-unique CPs selected in the results table (for
      ! deletion; size ncp, reset when the CP list changes; the
      ! shift-click anchor is w%lastselected), and a pending pick in the

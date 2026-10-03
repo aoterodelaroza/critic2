@@ -50,6 +50,15 @@ submodule (windows) cp
      & pruned to its Voronoi region and without its core." //&
      c_null_char
 
+  ! the format combo of the Export tab: auto-detect (0), JSON, a VMD
+  ! script, then the structure formats in fmtperm order (built on first use)
+  integer, parameter :: iexp_json = 1
+  integer, parameter :: iexp_vmd = 2
+  integer, parameter :: iexp_fmt1 = 3
+  character(len=17), parameter :: expformat_names(2) = (/"JSON file (.json)","VMD script (.vmd)"/)
+  character(len=4), parameter :: expformat_exts(2) = (/"json","vmd "/)
+  character(kind=c_char,len=:), allocatable :: expformat_combostr
+
   ! levels of the mesh of a MESH seed (the order of mlevel and
   ! mesh_level_kw), and their descriptions
   character(len=*), parameter :: meshlevel_names = "Small" // c_null_char // "Normal" // c_null_char //&
@@ -1459,44 +1468,127 @@ contains
   end subroutine auto_leave
 
   !> The Export tab: write the critical points of the field to a file
-  !> (CPREPORT): a structure file with the CPs as extra atoms, whose
-  !> format is given by the extension, or JSON.
+  !> (CPREPORT): JSON, a VMD script, or a structure file with the CPs
+  !> as extra atoms. As in Save As, the format is detected from the
+  !> extension unless chosen in the combo, which then sets the
+  !> extension. CPREPORT reads the format from the extension, so a
+  !> chosen format that does not match it is not written.
   subroutine draw_export_tab(w,isys,iview,ttshown)
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_checkbox
+    use systems, only: sys
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_checkbox,&
+       iw_combo_simple, iw_calcwidth, iw_dragfloat_realc, file_name_root
     use crystalmod, only: struct_detect_write_format
-    use tools_io, only: lower, fopen_write, fclose
+    use tools_io, only: lower, fopen_write, fclose, string
     use param, only: dirsep, isformat_w_unknown
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
 
-    integer :: iaux, i0, i1, isformat, lu
-    logical :: ldum, isjson
+    integer :: iaux, i0, i1, isformat, lu, idetect, ichosen, ifmt
+    logical :: ldum, changed, ismol, userk, usecart, usecell
     character(len=:), allocatable :: ext, errexp, line
 
     if (.not.field_cps_or_say(isys,w%cp%ifield)) return
 
+    ! the format combo options, on first use
+    if (.not.allocated(expformat_combostr)) then
+       call build_write_format_combo()
+       expformat_combostr = "Auto-detect" // c_null_char // expformat_names(iexp_json) // c_null_char //&
+          expformat_names(iexp_vmd) // c_null_char // write_format_combostr(icombo_fmt1:)
+    end if
+
     ! file name: editable field plus browse button
     call iw_text("File name",highlight=.true.)
     ldum = iw_inputtext("##cpexportfile",bufsize=1023,texta=w%okfile,width=36)
-    call iw_tooltip("File the critical points are written to. The extension gives the format:&
-       & a structure file with the critical points as extra atoms (cif, xyz, cri, ...) or JSON (json)",ttshown)
+    call iw_tooltip("File the critical points are written to (with auto-detect, the extension&
+       & selects the format)",ttshown)
     if (iw_button("Browse...##cpexportbrowse",sameline=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savecpfile,idparent=w%id,orraise=-1)
     call iw_tooltip("Choose the file with a file browser",ttshown)
     call w%okfile_warn_overwrite()
 
-    ! the extension (json or a structure format)
+    ! format combo; if the user sets a format, change the extension to match
+    call igPushItemWidth(iw_calcwidth(45,1))
+    call iw_combo_simple("Format##cpexportformat",expformat_combostr,w%cp%expformat,changed=changed)
+    call igPopItemWidth()
+    call iw_tooltip("Format of the file: JSON, a VMD script, or a structure file with the critical&
+       & points as extra atoms. If auto-detect, the format is chosen based on the file extension",ttshown)
+    if (changed .and. w%cp%expformat > 0) &
+       w%okfile = file_name_root(w%okfile) // "." // expformat_ext(w%cp%expformat)
+
+    ! the format given by the file name (0 = unknown). CPREPORT needs
+    ! an extension, and does not know some the detection accepts
     i0 = index(w%okfile,dirsep,back=.true.)
     i1 = index(w%okfile(i0+1:),'.',back=.true.)
     ext = ""
     if (i1 > 0) ext = lower(trim(w%okfile(i0+i1+1:)))
-    isjson = (ext == "json")
+    if (len(ext) == 0 .or. ext == "fhi" .or. ext == "34") then
+       idetect = 0
+    elseif (ext == "json") then
+       idetect = iexp_json
+    elseif (ext == "vmd") then
+       idetect = iexp_vmd
+    else
+       call struct_detect_write_format(trim(w%okfile),isformat)
+       idetect = 0
+       if (isformat /= isformat_w_unknown) idetect = iexp_fmt1 - 1 + findloc(fmtperm,isformat,1)
+    end if
 
-    ! options
-    if (.not.isjson) then
+    ! the format written: detected or chosen
+    if (w%cp%expformat == 0) then
+       ichosen = idetect
+       if (ichosen > 0) then
+          call iw_text("Detected:",highlight=.true.)
+          call iw_text(expformat_name(ichosen),sameline=.true.)
+       end if
+    else
+       ichosen = w%cp%expformat
+    end if
+    ifmt = 0
+    if (ichosen >= iexp_fmt1) ifmt = fmtperm(ichosen - iexp_fmt1 + 1)
+
+    ! the options that apply to the format: the k-point grid to
+    ! espresso, CASTEP and FHIaims crystals, Cartesian coordinates to
+    ! FHIaims crystals, the unit cell to 3D models of crystals
+    ismol = sys(isys)%c%ismolecule
+    userk = (ifmt == isformat_w_qein .or. ifmt == isformat_w_castepcell .or.&
+       (ifmt == isformat_w_aimsin .and. .not.ismol))
+    usecart = (ifmt == isformat_w_aimsin .and. .not.ismol)
+    usecell = (ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or. ifmt == isformat_w_off)&
+       .and. .not.ismol
+    if (ichosen > 0 .and. ichosen /= iexp_json) then
+       call iw_text("Options",highlight=.true.)
        ldum = iw_checkbox("Include the gradient paths (GRAPH)##cpexpgraph",w%cp%expgraph)
        call iw_tooltip("Also write the points of the bond paths, as extra atoms",ttshown)
+    end if
+    if (userk) then
+       ldum = iw_dragfloat_realc("RKlength##cpexprk",x1=w%cp%exprk,speed=1._c_float,&
+          min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
+    end if
+    if (usecart) then
+       ldum = iw_checkbox("Cartesian coordinates##cpexpcartesian",w%cp%expcartesian)
+       call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
+          & fractional coordinates (atom_frac)",ttshown)
+       call iw_text("K-point grid written to " // trim(w%okfile) // "_control (overwritten if it exists)",&
+          wrap=.true.)
+    end if
+    if (usecell) then
+       ldum = iw_checkbox("Show unit cell##cpexpdocell",w%cp%expdocell)
+       call iw_tooltip("Draw the unit cell edges in the written 3D model file",ttshown)
+    end if
+    if (ichosen == iexp_vmd) then
+       ldum = iw_checkbox("Write a pdb file (PDB)##cpexppdb",w%cp%exppdb)
+       call iw_tooltip("Write the structure and the critical points to a pdb file, with the&
+          & bond critical points labeled by the atoms they join, instead of an xyz file",ttshown)
+       if (w%cp%exppdb) then
+          ldum = iw_dragfloat_realc("Strong bond density (a.u.)##cpexpstrong",x1=w%cp%expstrong,&
+             speed=0.001_c_float,min=0._c_float,max=10._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Bond critical points with a density above this value are shown as&
+             & strong bonds (STRONG)",ttshown)
+       end if
+       call iw_text("The script reads the structure from " // file_name_root(w%okfile) //&
+          merge(".pdb",".xyz",w%cp%exppdb) // ", written next to it (overwritten if it exists)",wrap=.true.)
     end if
 
     ! write
@@ -1505,15 +1597,14 @@ contains
        errexp = "Choose a file name"
     elseif (index(trim(w%okfile)," ") > 0) then
        errexp = "The file name cannot contain spaces"
-    elseif (len(ext) == 0) then
+    elseif (ichosen == 0 .and. len(ext) == 0) then
        errexp = "The file name needs an extension (the format)"
-    elseif (.not.isjson) then
-       ! a structure format the writer knows (CPREPORT's other
-       ! extensions write other files, or a test format)
-       call struct_detect_write_format(trim(w%okfile),isformat)
-       if (isformat == isformat_w_unknown) errexp = "Unknown file format: ." // ext
+    elseif (ichosen == 0) then
+       errexp = "Unknown file format: ." // ext
+    elseif (idetect /= ichosen) then
+       errexp = "The extension does not match the selected format"
     end if
-    if (iw_button("Write##cpexportwrite",disabled=(len(errexp) > 0))) then
+    if (iw_button("Write##cpexportwrite",danger=.true.,disabled=(len(errexp) > 0))) then
        ! the writers stop the program if the file cannot be opened:
        ! check first, opening it as they do
        lu = fopen_write(trim(w%okfile),errstop=.false.)
@@ -1522,7 +1613,12 @@ contains
        else
           call fclose(lu)
           line = trim(w%okfile)
-          if (w%cp%expgraph .and. .not.isjson) line = line // " graph"
+          if (ichosen /= iexp_json .and. w%cp%expgraph) line = line // " graph"
+          if (userk) line = line // " " // string(real(w%cp%exprk,8),'f',decimal=4)
+          if (usecart .and. w%cp%expcartesian) line = line // " cartesian"
+          if (usecell .and. w%cp%expdocell) line = line // " cell"
+          if (ichosen == iexp_vmd .and. w%cp%exppdb) &
+             line = line // " pdb strong " // string(real(w%cp%expstrong,8),'e',decimal=6)
           call request_job(w,iview,cpjob_export,line)
        end if
     end if
@@ -1530,6 +1626,32 @@ contains
     if (len(errexp) > 0) call iw_text(errexp,danger=.true.,sameline=.true.)
 
   end subroutine draw_export_tab
+
+  !> Extension of entry i of the format combo of the Export tab.
+  function expformat_ext(i) result(ext)
+    integer, intent(in) :: i
+    character(len=:), allocatable :: ext
+
+    if (i < iexp_fmt1) then
+       ext = trim(expformat_exts(i))
+    else
+       ext = trim(fmtext(fmtperm(i - iexp_fmt1 + 1)))
+    end if
+
+  end function expformat_ext
+
+  !> Name of entry i of the format combo of the Export tab.
+  function expformat_name(i) result(name)
+    integer, intent(in) :: i
+    character(len=:), allocatable :: name
+
+    if (i < iexp_fmt1) then
+       name = trim(expformat_names(i))
+    else
+       name = trim(fmtnames(fmtperm(i - iexp_fmt1 + 1)))
+    end if
+
+  end function expformat_name
 
   !> Estimate the wall time of the search from the seeds of the form
   !> (w%cp%seedx) on field ifield of system isys: run the searches from

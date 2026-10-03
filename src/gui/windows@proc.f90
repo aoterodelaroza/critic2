@@ -1541,6 +1541,7 @@ contains
                    &CIF (*.cif) {.cif},&
                    &xyz (*.xyz) {.xyz},&
                    &JSON (*.json) {.json},&
+                   &VMD script (*.vmd) {.vmd},&
                    &critic2 input (*.cri) {.cri},&
                    &CML (*.cml) {.cml},&
                    &Quantum ESPRESSO input (*.pwi) {.pwi},&
