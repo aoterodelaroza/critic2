@@ -94,7 +94,8 @@ contains
     use param, only: dirsep
     integer(c_int) :: idum, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh, iwsw, iwsh, ifbw, ifbh
-    real(c_float) :: treeratio, cscx, cscy
+    real(c_float) :: treeratio, cscx, cscy, fbratio
+    type(ImFont), pointer :: fnt
     character(len=64) :: envval
     integer :: ios
     type(c_ptr) :: monitor
@@ -214,9 +215,11 @@ contains
     uiscale = 1._c_float
     call glfwGetWindowContentScale(rootwin, cscx, cscy)
     if (cscx > 0._c_float) uiscale = cscx
+    fbratio = 1._c_float
     call glfwGetWindowSize(rootwin, iwsw, iwsh)
     call glfwGetFramebufferSize(rootwin, ifbw, ifbh)
-    if (iwsw > 0 .and. ifbw > iwsw) uiscale = uiscale * real(iwsw,c_float) / real(ifbw,c_float)
+    if (iwsw > 0 .and. ifbw > iwsw) fbratio = real(ifbw,c_float) / real(iwsw,c_float)
+    uiscale = uiscale / fbratio
     ! manual override, e.g. to enlarge the UI on a display GLFW reports as
     ! unscaled (or to test HiDPI): CRITIC2_UI_SCALE=1.5
     call get_environment_variable("CRITIC2_UI_SCALE",envval,status=ios)
@@ -296,8 +299,13 @@ contains
             9728_c_short,  9983_c_short,& ! miscellaneous symbols
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
+    ! the GUI font is rasterized at framebuffer resolution and scaled back
+    ! to window units, so it stays crisp when the framebuffer is larger than
+    ! the window (Retina)
     font_normal = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize*uiscale,c_null_ptr,c_loc(range))
+       fontbakesize*uiscale*fbratio,c_null_ptr,c_loc(range))
+    call c_f_pointer(font_normal,fnt)
+    fnt%Scale = 1._c_float / fbratio
     font_large = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
        fontbakesize_large*uiscale,c_null_ptr,c_loc(range))
 
