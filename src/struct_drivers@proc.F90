@@ -3987,7 +3987,7 @@ contains
     integer :: lp, lp0, ndim, idum, idim(9), smat(3,3), i, nq
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
     integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest, nrandom, rseed
-    integer :: nirr, nopmesh, nopfc2
+    integer :: nirr, nopmesh, nopfc2, ngpts
     integer, allocatable :: wq(:)
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
@@ -4098,9 +4098,37 @@ contains
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
+       elseif (equal(word,'born')) then
+          ! the Born effective charges and the dielectric tensor (a
+          ! phonopy BORN file, BORN by default) for the dipole-dipole
+          ! correction of the force constants; NGPOINTS is the number
+          ! of G-vectors in its reciprocal-space sum
+          filename = ""
+          ngpts = 300
+          do while (.true.)
+             lp0 = lp
+             mode = lgetword(line,lp)
+             if (len_trim(mode) == 0) exit
+             if (equal(mode,'ngpoints')) then
+                if (.not.isinteger(ngpts,line,lp)) &
+                   call ferror('struct_vibrations','NGPOINTS needs an integer in BORN',faterr,line,syntax=.true.)
+             elseif (len_trim(filename) == 0) then
+                lp = lp0
+                filename = getword(line,lp)
+             else
+                call ferror('struct_vibrations','unknown keyword in BORN: ' // trim(mode),&
+                   faterr,line,syntax=.true.)
+             end if
+          end do
+          if (len_trim(filename) == 0) filename = "BORN"
+          call s%c%vib%read_born(s%c,filename,ngpts,verbose,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_vibrations",errmsg,faterr)
+
        elseif (equal(word,'clear')) then
           ! CLEAR alone wipes everything; CLEAR FC2 and CLEAR FREQ
-          ! wipe one half of the object, mirroring what LOAD does
+          ! wipe one half of the object, mirroring what LOAD does;
+          ! CLEAR BORN removes the dipole-dipole correction
           mode = lgetword(line,lp)
           if (len_trim(mode) == 0) then
              call s%c%vib%end()
@@ -4108,6 +4136,8 @@ contains
              call s%c%vib%end(keepvibs=.true.)
           elseif (equal(mode,'freq').or.equal(mode,'frequencies')) then
              call s%c%vib%end(keepfc2=.true.)
+          elseif (equal(mode,'born')) then
+             call s%c%vib%clear_born()
           else
              call ferror('struct_vibrations','unknown keyword in CLEAR: ' // trim(mode),&
                 faterr,line,syntax=.true.)

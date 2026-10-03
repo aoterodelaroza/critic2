@@ -180,6 +180,17 @@ module crystalmod
      ! fc2_svec(:,k) for k in fc2_sptr(ip):fc2_sptr(ip+1)-1, with ip = (js-1)*ncel + ia.
      real*8, allocatable :: fc2_svec(:,:) ! (3,*) shortest images, cell fractional coords
      integer, allocatable :: fc2_sptr(:) ! (ncel*fc2_nsat+1) index of the first image of each pair
+     ! long-range dipole-dipole correction (Gonze and Lee), from the Born effective charges
+     logical :: hasborn = .false. ! true if the Born charges and dielectric tensor are available
+     character(len=mlen) :: born_file = "" ! source file of the Born charges
+     real*8, allocatable :: born_z(:,:,:) ! (3,3,ncel) Born effective charges, z(field,displacement,atom)
+     real*8 :: born_eps(3,3) = 0d0 ! high-frequency dielectric tensor
+     real*8, allocatable :: born_x(:,:) ! (3,ncel) atomic positions when the Born charges were read
+     real*8 :: born_m(3,3) = 0d0 ! crystallographic to Cartesian matrix when the Born charges were read
+     real*8 :: born_kcut = 0d0 ! reciprocal-space cutoff of the dipole-dipole sum (bohr^-1, no 2pi)
+     real*8 :: born_lambda = 0d0 ! Ewald parameter of the dipole-dipole sum (bohr^-1, no 2pi)
+     complex*16, allocatable :: born_dd0(:,:,:) ! (3,3,ncel) q=0 self term of the dipole-dipole sum
+     real*8, allocatable :: fc2_dd(:,:,:,:) ! (3,3,ncel,fc2_nsat) dipole-dipole part of fc2, Hartree/bohr^2
      ! sound velocity calculations
      integer :: fc2_acoustic(3) = -1 ! acoustic branches for sound velocity calculation
      real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
@@ -201,6 +212,8 @@ module crystalmod
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
      procedure :: check_fc2 => vibrations_check_fc2 !< numerical sanity checks on the FC2
      procedure :: apply_acoustic => vibrations_apply_acoustic !< apply acoustic sum rules to FC2
+     procedure :: read_born => vibrations_read_born !< read Born charges and dielectric tensor
+     procedure :: clear_born => vibrations_clear_born !< remove the Born charges
      procedure :: write_fc2 => vibrations_write_fc2 !< write FC2
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
      procedure :: calculate_vs => vibrations_calculate_vs !< calculate freqs and vec for a single q
@@ -1769,6 +1782,18 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine vibrations_read_file
+     module subroutine vibrations_read_born(v,c,file,ngpts,verbose,errmsg,ti)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       character*(*), intent(in) :: file
+       integer, intent(in) :: ngpts
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine vibrations_read_born
+     pure module subroutine vibrations_clear_born(v)
+       class(vibrations), intent(inout) :: v
+     end subroutine vibrations_clear_born
      module subroutine vibrations_print_summary(v)
        class(vibrations), intent(inout) :: v
      end subroutine vibrations_print_summary
