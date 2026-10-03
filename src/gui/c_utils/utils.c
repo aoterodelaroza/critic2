@@ -23,6 +23,7 @@
   #include <shellapi.h>
   #include <direct.h>
   #include <wchar.h>
+  #include <io.h>
   #define GETCWD _getcwd
 #else
   /* Unix */
@@ -38,6 +39,24 @@ int getCurrentWorkDir(char *str, size_t siz){
     return 0;
   else
     return 1;
+}
+
+// Whether the program was launched from a console whose standard
+// output it writes to: stdout is a terminal and, on Windows, the
+// console is shared with another process (the shell), not one opened
+// for this program when it was started from the desktop. Returns 1 or 0.
+// On Windows, it also makes that console show the program's output as
+// UTF-8 (as the GUI text is), not in the console's OEM code page.
+int guiStdoutIsConsole(void){
+#if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+  DWORD pids[2];
+  if (!_isatty(_fileno(stdout))) return 0;
+  if (GetConsoleProcessList(pids, 2) <= 1) return 0;
+  SetConsoleOutputCP(CP_UTF8);
+  return 1;
+#else
+  return isatty(fileno(stdout)) ? 1 : 0;
+#endif
 }
 
 // Call the external browser to open a link (portable?)

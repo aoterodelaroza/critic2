@@ -308,6 +308,10 @@ module windows
      ! results
      logical, allocatable :: pending_del(:) ! the symmetry-unique CPs the delete job removes
      integer :: tablecell = 0 ! results table: symmetry-unique CPs (0) or cell CPs (1)
+     ! results table: the text file it is written to (Write to Text
+     ! File), and whether a write to it is pending (set by the dialog)
+     character(len=:), allocatable :: tablefile
+     logical :: tablepending = .false.
      ! results table: the settings of the built-in columns, by column
      ! id (the ic_* of draw_results_tab; the type defaults, except as
      ! given; the notation and decimals apply to the numeric ones only);
@@ -1105,6 +1109,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_savefile = 10
   integer, parameter, public :: wpurp_dialog_selectdir = 11
   integer, parameter, public :: wpurp_dialog_savecpfile = 12
+  integer, parameter, public :: wpurp_dialog_savetablefile = 13
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)

@@ -61,11 +61,8 @@ contains
     elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
-       w%purpose == wpurp_dialog_savecpfile) then
-       ! open library file, save image file, open field file, open one file modal,
-       ! save structure file, select directory, save critical points file => quit
-       ! if the caller window is gone
-       doquit = .true.
+       w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile) then
+       ! file dialogs => quit if the caller window is gone
        doquit = (idp == 0)
     end if
 
@@ -205,14 +202,22 @@ contains
              end if
 
           elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile.or.&
-             w%purpose == wpurp_dialog_savecpfile) then
-             !! save image file, structure file, or critical points file dialog !!
-             win(idp)%okfile_set = .true.
-
+             w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile) then
+             !! save image file, structure file, critical points file, or table dialog !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             win(idp)%okfile = trim(name)
+             if (w%purpose == wpurp_dialog_savetablefile) then
+                ! the results table of a critical points window: the
+                ! window writes it (not to okfile, its export file)
+                if (win(idp)%type == wintype_cp) then
+                   win(idp)%cp%tablefile = trim(name)
+                   win(idp)%cp%tablepending = .true.
+                end if
+             else
+                win(idp)%okfile_set = .true.
+                win(idp)%okfile = trim(name)
+             end if
 
              ! the filter carries the image format (save image file only)
              if (w%purpose == wpurp_dialog_saveimagefile) then

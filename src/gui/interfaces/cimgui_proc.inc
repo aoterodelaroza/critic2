@@ -2740,6 +2740,11 @@ subroutine openLink(link) bind(c,name="openLink")
   import c_ptr
   type(c_ptr), intent(in), value :: link
 end subroutine openLink
+! int guiStdoutIsConsole(void)
+function guiStdoutIsConsole() bind(c,name="guiStdoutIsConsole")
+  import c_int
+  integer(c_int) :: guiStdoutIsConsole
+end function guiStdoutIsConsole
 
 !!! cimplot procedures !!!
 ! ImPlotContext* ipCreateContext();

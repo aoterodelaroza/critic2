@@ -89,6 +89,7 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_begintabitem,&
        iw_setpos_bottomright
     use tools_io, only: string
+    use param, only: dirsep
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, tabopen
@@ -117,8 +118,10 @@ contains
           w%cp%ifield = sys(isys)%iref
           call reset_seeds(w,isys)
           call cancel_pick(w)
-          ! the default export file: <root>.cps.cif (<root>.cif could be the source file)
+          ! the default export file: <root>.cps.cif (<root>.cif could be
+          ! the source file); the table file: table.txt next to it
           w%okfile = okfile_default(isys,"structure","cps.cif")
+          w%cp%tablefile = w%okfile(1:index(w%okfile,dirsep,back=.true.)) // "table.txt"
           w%cp%tfield = -1
        end if
     end if
@@ -431,6 +434,9 @@ contains
     integer, parameter :: maxtablecol = 64
     integer, parameter :: maxppcol = maxtablecol - ic_NBUILTIN
 
+    ! what is at the end of a bond path (path_end)
+    integer, parameter :: endk_none = 0, endk_atom = 1, endk_cp = 2
+
     ! the headers of the built-in columns (the position and Wyckoff
     ! ones depend on the system), and the short definitions of the
     ! properties among them, for the list of properties
@@ -445,7 +451,7 @@ contains
        "bond path length","distance to end 1 of the bond path",&
        "distance to end 2 of the bond path","angle between the ends of the bond path"/)
 
-    integer :: n, k, ifield, ihnuc(2), j
+    integer :: n, k, ifield, ihnuc(2), i, icp, iwrite
     integer(c_int) :: itable, flags, fixed, ncol, jc
     logical :: ch, cell, ismol, havespg, rclick
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -528,7 +534,8 @@ contains
             call iw_table_column(col_name(jc) // "##cpcol" // string(jc),id=jc,flags=fixed)
          end do
          call iw_table_headers_row(freezetop=.true.,autofit=.true.,rclicked=rclick)
-         call header_menu(rclick)
+         iwrite = -1
+         call header_menu(rclick,iwrite)
 
          ! the point properties in the table, evaluated at the CPs
          do jc = ic_NBUILTIN, ncol-1
@@ -541,18 +548,19 @@ contains
          if (.not.ch) ch = (size(w%iord) /= n)
          if (ch) call sort_rows()
 
+         ! write the table, if asked to (with this frame's values and
+         ! order): from the menu, or to the file of the save dialog
+         if (iwrite >= 0) call write_table(iwrite)
+         if (w%cp%tablepending) call write_table_file()
+
          clipper = ImGuiListClipper_ImGuiListClipper()
          call ImGuiListClipper_Begin(clipper,n,-1._c_float)
          do while(ImGuiListClipper_Step(clipper))
             call c_f_pointer(clipper,clipper_f)
             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-               j = w%iord(k)
-               if (cell) then
-                  call draw_cp_row(k,f%cpcel(j)%idx,j)
-               else
-                  call draw_cp_row(k,j,0)
-               end if
+               call row_cp(w%iord(k),i,icp)
+               call draw_cp_row(k,i,icp)
             end do
          end do
          call ImGuiListClipper_End(clipper)
@@ -1041,12 +1049,19 @@ contains
 
     !> The popup that shows and hides the columns, opened by
     !> right-clicking the header (rclick). It stays open while the
-    !> columns are toggled.
-    subroutine header_menu(rclick)
+    !> columns are toggled. Its last entries ask (in iwrite, the unit;
+    !> -1 = none) for the table to be written as text, to the output
+    !> window or the console the GUI was launched from.
+    subroutine header_menu(rclick,iwrite)
+      use iso_fortran_env, only: output_unit
+      use tools_io, only: uout
       use utils, only: iw_menuitem
+      use gui_main, only: stdout_console
       logical, intent(in) :: rclick
+      integer, intent(inout) :: iwrite
 
       integer(c_int) :: jc
+      integer :: idum
       character(kind=c_char,len=:), allocatable, target :: strpop
       type(cp_ppcol), pointer :: c
 
@@ -1061,10 +1076,197 @@ contains
             call iw_tooltip(col_desc(jc),ttshown)
          end do
          call igPopItemFlag()
+         call igSeparator()
+         if (iw_menuitem("Write to Output")) iwrite = uout
+         call iw_tooltip("Write the table, as shown (the visible columns, in the order of the&
+            & rows), to the output window",ttshown)
+         if (iw_menuitem("Write to Text File...")) &
+            idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savetablefile,&
+            idparent=w%id,orraise=-1)
+         call iw_tooltip("Write the table, as shown, to a text file (chosen in a file browser;&
+            & table.txt by default)",ttshown)
+         if (iw_menuitem("Write to Console",enabled=stdout_console)) iwrite = output_unit
+         if (stdout_console) then
+            call iw_tooltip("Write the table, as shown, to the console the GUI was launched from",&
+               ttshown)
+         else
+            call iw_tooltip("Write the table, as shown, to the console the GUI was launched from&
+               & (not available: the GUI was not launched from a console)",ttshown,whendisabled=.true.)
+         end if
          call igEndPopup()
       end if
 
     end subroutine header_menu
+
+    !> Write the table as text, the columns shown and the rows in
+    !> their order, to unit lu: uout (the output window, as a command
+    !> of its own), the console the GUI was launched from, or a file. A
+    !> console that cannot be written to (it was closed) is not
+    !> offered again. ierr: the iostat of the writes.
+    subroutine write_table(lu,ierr)
+      use iso_fortran_env, only: output_unit
+      use tools_io, only: uout
+      use gui_main, only: stdout_console
+      integer, intent(in) :: lu
+      integer, intent(out), optional :: ierr
+
+      integer :: nc, m, k, i, icp, kind, id, itype, ios
+      integer(c_int) :: jc
+      integer(c_int), allocatable :: jcol(:)
+      integer, allocatable :: wid(:)
+      character(len=128), allocatable :: txt(:,:)
+      character(len=:), allocatable :: line, pad, lbl, lbl2
+      real*8 :: x(3), val
+      logical :: ldum
+
+      ! the columns shown, except the delete buttons
+      jcol = pack((/(jc, jc = 0_c_int, ncol-1_c_int)/),&
+         (/(column_on(jc) .and. jc /= ic_del, jc = 0_c_int, ncol-1_c_int)/))
+      nc = size(jcol)
+
+      ! the cells: header, then the rows in their order
+      allocate(txt(0:n,nc))
+      txt = ""
+      do m = 1, nc
+         txt(0,m) = col_name(jcol(m))
+      end do
+      do k = 1, n
+         call row_cp(w%iord(k),i,icp)
+         x = row_pos(i,icp,ismol)
+         do m = 1, nc
+            jc = jcol(m)
+            select case (jc)
+            case (ic_cp)
+               txt(k,m) = cp_label(i,icp)
+            case (ic_x,ic_y,ic_z)
+               txt(k,m) = coord_str(x(jc-ic_x+1))
+            case (ic_wyc)
+               txt(k,m) = wyc_str(i)
+            case (ic_ends)
+               if (sys(isys)%f(ifield)%isbcp(sys(isys)%f(ifield)%cp(i))) then
+                  call path_end(i,icp,1,lbl,kind,id,itype)
+                  call path_end(i,icp,2,lbl2,kind,id,itype)
+                  txt(k,m) = adjustl(lbl // " " // lbl2)
+               end if
+            case default
+               if (cell_value(i,jc,val)) txt(k,m) = cell_str(jc,val)
+            end select
+         end do
+      end do
+
+      ! the width of each column (in characters, not bytes)
+      allocate(wid(nc))
+      do m = 1, nc
+         wid(m) = maxval((/(nchars(txt(k,m)), k = 0, n)/))
+      end do
+
+      ! write: CP and endpoints left-aligned, the numbers right-aligned
+      write (lu,'("* Critical points of field ",A," (",A,") of system ",A," (",A,"), ",A," list")',&
+         iostat=ios) string(ifield), trim(sys(isys)%f(ifield)%name), string(isys),&
+         trim(sysc(isys)%seed%name), trim(merge("cell           ","symmetry-unique",cell))
+      do k = 0, n
+         if (ios /= 0) exit
+         line = ""
+         do m = 1, nc
+            pad = repeat(" ",wid(m)-nchars(txt(k,m)))
+            if (jcol(m) == ic_cp .or. jcol(m) == ic_ends .or. k == 0) then
+               line = line // trim(txt(k,m)) // pad
+            else
+               line = line // pad // trim(txt(k,m))
+            end if
+            if (m < nc) line = line // "  "
+         end do
+         write (lu,'(A)',iostat=ios) trim(line)
+      end do
+      if (ios == 0) write (lu,'(A)',iostat=ios) ""
+
+      if (lu == output_unit) then
+         if (ios == 0) flush(lu,iostat=ios)
+         if (ios /= 0) then
+            stdout_console = .false.
+            w%errmsg = "Could not write to the console the GUI was launched from"
+         end if
+      elseif (lu == uout) then
+         ldum = read_output_uout(.true.,"[Critical point table]")
+      end if
+      if (present(ierr)) ierr = ios
+
+    end subroutine write_table
+
+    !> Write the table to the text file chosen in the save dialog
+    !> (w%cp%tablefile), and report it in the output window.
+    subroutine write_table_file()
+      use tools_io, only: uout, fopen_write, fclose
+
+      integer :: lu, ios
+
+      w%cp%tablepending = .false.
+      lu = fopen_write(w%cp%tablefile,errstop=.false.)
+      if (lu < 0) then
+         w%errmsg = "Cannot write the file: " // w%cp%tablefile
+         return
+      end if
+      call write_table(lu,ios)
+      call fclose(lu)
+      if (ios /= 0) then
+         w%errmsg = "Error writing the file: " // w%cp%tablefile
+         return
+      end if
+      w%errmsg = ""
+      call okfile_save_dir(w%cp%tablefile)
+      write (uout,'("* Critical point table written to: ",A/)') w%cp%tablefile
+
+    end subroutine write_table_file
+
+    !> List row kr of the table (before sorting): symmetry-unique CP
+    !> i, and cell CP icp in the cell list (0 otherwise).
+    subroutine row_cp(kr,i,icp)
+      integer, intent(in) :: kr
+      integer, intent(out) :: i, icp
+
+      i = kr
+      icp = 0
+      if (cell) then
+         i = sys(isys)%f(ifield)%cpcel(kr)%idx
+         icp = kr
+      end if
+
+    end subroutine row_cp
+
+    !> The label of the row's CP (symmetry-unique CP i, or cell CP
+    !> icp): its name, and the cell CP number in the cell list.
+    function cp_label(i,icp) result(lbl)
+      integer, intent(in) :: i, icp
+      character(len=:), allocatable :: lbl
+
+      lbl = trim(sys(isys)%f(ifield)%cp(i)%name)
+      if (icp > 0) lbl = lbl // " " // string(icp)
+
+    end function cp_label
+
+    !> The Wyckoff position of symmetry-unique CP i: multiplicity and
+    !> letter (only the multiplicity without a space group).
+    function wyc_str(i) result(str)
+      integer, intent(in) :: i
+      character(len=:), allocatable :: str
+
+      str = string(sys(isys)%f(ifield)%cp(i)%mult) // trim(wyc_letter(i))
+
+    end function wyc_str
+
+    !> The number of characters in str (trailing blanks excluded):
+    !> the bytes that do not continue a UTF-8 character.
+    integer function nchars(str)
+      character(len=*), intent(in) :: str
+
+      integer :: k
+
+      nchars = 0
+      do k = 1, len_trim(str)
+         if (iand(ichar(str(k:k)),192) /= 128) nchars = nchars + 1
+      end do
+
+    end function nchars
 
     !> Calculate the order of the n rows (w%iord) by column w%sortcid,
     !> in direction w%sortdir. The rows with an empty cell in that
@@ -1088,12 +1290,7 @@ contains
       if (w%sortcid >= ic_NBUILTIN .and. w%sortcid < ncol) call pp_eval(w%sortcid-ic_NBUILTIN+1)
       associate(f => sys(isys)%f(ifield))
         do kr = 1, n
-           i = kr
-           icp = 0
-           if (cell) then
-              i = f%cpcel(kr)%idx
-              icp = kr
-           end if
+           call row_cp(kr,i,icp)
            select case (w%sortcid)
            case (ic_x,ic_y,ic_z)
               x = row_pos(i,icp,ismol)
@@ -1156,7 +1353,7 @@ contains
 
       real*8 :: x(3), xc(3), val
       character(len=:), allocatable :: suffix, lbl
-      integer :: j, iu
+      integer :: j, iu, jcp
       integer(c_int) :: jc
       logical :: clk, selrow, drawn
 
@@ -1189,8 +1386,7 @@ contains
               if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
                  w%lastselected <= n) then
                  do j = min(w%lastselected,k), max(w%lastselected,k)
-                    iu = w%iord(j)
-                    if (cell) iu = f%cpcel(iu)%idx
+                    call row_cp(w%iord(j),iu,jcp)
                     if (iu > c%nneq) w%cp%sel(iu) = .true.
                  end do
               else
@@ -1214,8 +1410,7 @@ contains
 
         ! the CP
         if (igTableSetColumnIndex(ic_cp)) then
-           lbl = trim(f%cp(i)%name)
-           if (icp > 0) lbl = lbl // " " // string(icp)
+           lbl = cp_label(i,icp)
            if (i <= c%nneq) then
               if (icp > 0) then
                  call atom_badge(icp,atlisttype_ncel_frac,lbl // "##cprowcp" // suffix)
@@ -1247,7 +1442,7 @@ contains
         ! with the site symmetry in the tooltip (symmetry-unique CPs of
         ! crystals only)
         if (igTableSetColumnIndex(ic_wyc)) then
-           call iw_text(string(f%cp(i)%mult) // trim(wyc_letter(i)))
+           call iw_text(wyc_str(i))
            call iw_tooltip("Site symmetry: " // trim(f%cp(i)%pg),ttshown)
         end if
 
@@ -1269,17 +1464,21 @@ contains
     end subroutine draw_cp_row
 
     !> The atom or CP at end j of the bond path of the BCP in row
-    !> (symmetry-unique CP i, or cell CP icp). drawn: whether anything
-    !> was drawn.
-    subroutine path_end_badge(i,icp,j,suffix,drawn)
+    !> (symmetry-unique CP i, or cell CP icp): its label lbl and kind
+    !> (endk_atom: atom id of list type itype; endk_cp: symmetry-unique
+    !> CP id; endk_none: no CP at the end, lbl says why or is empty).
+    subroutine path_end(i,icp,j,lbl,kind,id,itype)
       integer, intent(in) :: i, icp, j
-      character(len=*), intent(in) :: suffix
-      logical, intent(out) :: drawn
+      character(len=:), allocatable, intent(out) :: lbl
+      integer, intent(out) :: kind, id, itype
 
-      integer :: iend, iu
+      integer :: iend
       integer(c_int) :: idx(4)
 
-      drawn = .true.
+      kind = endk_none
+      id = 0
+      itype = 0
+      lbl = ""
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         if (icp > 0) then
            ! cell CP: the cell CP at the end, and its lattice vector
@@ -1288,23 +1487,30 @@ contains
               ! a nucleus: the cell CP is the cell atom
               idx(1) = iend
               idx(2:4) = f%cpcel(icp)%ilvec(:,j)
-              call atom_badge(idx(1),atlisttype_ncel_frac,anchor_label(isys,idx,"?",species=.true.) //&
-                 "##cpend" // string(j) // suffix)
+              kind = endk_atom
+              id = iend
+              itype = atlisttype_ncel_frac
+              lbl = anchor_label(isys,idx,"?",species=.true.)
               return
            elseif (iend > c%ncel .and. iend <= f%ncpcel) then
-              iu = f%cpcel(iend)%idx
-              call cp_badge(iview,isys,ifield,iu,trim(f%cp(iu)%name) // " " // string(iend) //&
-                 lvec_str(f%cpcel(icp)%ilvec(:,j)) // "##cpend" // string(j) // suffix)
+              kind = endk_cp
+              id = f%cpcel(iend)%idx
+              lbl = trim(f%cp(id)%name) // " " // string(iend) // lvec_str(f%cpcel(icp)%ilvec(:,j))
               return
            end if
         else
            ! symmetry-unique CP: the symmetry-unique CP at the end
            iend = f%cp(i)%ipath(j)
            if (iend >= 1 .and. iend <= c%nneq) then
-              call atom_badge(iend,atlisttype_nneq,trim(c%at(iend)%name) // "##cpend" // string(j) // suffix)
+              kind = endk_atom
+              id = iend
+              itype = atlisttype_nneq
+              lbl = trim(c%at(iend)%name)
               return
            elseif (iend > c%nneq .and. iend <= f%ncp) then
-              call cp_badge(iview,isys,ifield,iend,trim(f%cp(iend)%name) // "##cpend" // string(j) // suffix)
+              kind = endk_cp
+              id = iend
+              lbl = trim(f%cp(iend)%name)
               return
            end if
         end if
@@ -1312,13 +1518,36 @@ contains
         ! no CP at the end: the unique list tells whether the path
         ! leaves the molecule
         if (f%cp(i)%ipath(j) == -1) then
-           call iw_text("(leaves the molecule)",disabled=.true.)
+           lbl = "(leaves the molecule)"
         elseif (f%cp(i)%ipath(j) /= 0) then
-           call iw_text("?",disabled=.true.)
-        else
-           drawn = .false.
+           lbl = "?"
         end if
       end associate
+
+    end subroutine path_end
+
+    !> Badge of the atom or CP at end j of the bond path of the BCP in
+    !> row (symmetry-unique CP i, or cell CP icp). drawn: whether
+    !> anything was drawn.
+    subroutine path_end_badge(i,icp,j,suffix,drawn)
+      integer, intent(in) :: i, icp, j
+      character(len=*), intent(in) :: suffix
+      logical, intent(out) :: drawn
+
+      character(len=:), allocatable :: lbl
+      integer :: kind, id, itype
+
+      call path_end(i,icp,j,lbl,kind,id,itype)
+      drawn = .true.
+      if (kind == endk_atom) then
+         call atom_badge(id,itype,lbl // "##cpend" // string(j) // suffix)
+      elseif (kind == endk_cp) then
+         call cp_badge(iview,isys,ifield,id,lbl // "##cpend" // string(j) // suffix)
+      elseif (len(lbl) > 0) then
+         call iw_text(lbl,disabled=.true.)
+      else
+         drawn = .false.
+      end if
 
     end subroutine path_end_badge
 
@@ -1947,6 +2176,11 @@ contains
     allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
     w%cp%sel = .false.
     w%cp%sortdirty = .true.
+    ! a pending write of the table was for the table that was there
+    if (w%cp%tablepending) then
+       w%cp%tablepending = .false.
+       w%errmsg = "The table changed before it could be written: it was not written"
+    end if
     if (allocated(w%cp%ppfor)) deallocate(w%cp%ppfor)
 
   end subroutine update_table_caches

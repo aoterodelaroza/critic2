@@ -122,6 +122,9 @@ contains
     end interface
 #endif
 
+    ! whether there is a console to write to (launched from a shell)
+    stdout_console = (guiStdoutIsConsole() /= 0)
+
     ! initialize the sys arrays
     nsys = 0
     allocate(sys(initial_nsys),sysc(initial_nsys))

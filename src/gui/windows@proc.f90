@@ -1272,6 +1272,7 @@ contains
     integer :: idp ! the window that opened this dialog, if still there
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+    character(len=:), allocatable :: str4
     real(c_float) :: panewidth, hneed
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
     type(ImGuiWindow), pointer :: wptr
@@ -1426,6 +1427,20 @@ contains
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
                 ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_savetablefile) then
+             ! the results table of a critical points window, as text,
+             ! to the window's table file
+             w%name = "Write Table to Text File##" // string(w%id) // c_null_char
+             str1 = "Text (*.txt) {.txt},All files (*.*){*.*}" // c_null_char
+             idp = w%parent()
+             str4 = "table.txt"
+             if (idp > 0) then
+                if (win(idp)%type == wintype_cp .and. allocated(win(idp)%cp%tablefile)) &
+                   str4 = win(idp)%cp%tablefile
+             end if
+             call dialog_initial_file(idp,"table.txt",str2,str3,ref=str4)
+             call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                1_c_int,c_null_ptr,ior(w%flags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_selectdir) then
              w%name = "Select Directory##" // string(w%id) // c_null_char
              str2 = "" // c_null_char
@@ -1720,28 +1735,34 @@ contains
 
     end subroutine clamp_to_display
 
-    !> Initial file name and path for a save dialog, taken from the
-    !> caller window's current okfile if available; defname in ./
-    !> otherwise. Both are returned null-terminated.
-    subroutine dialog_initial_file(idparent,defname,file,path)
+    !> Initial file name and path for a save dialog, taken from ref if
+    !> given, else from the caller window's current okfile if
+    !> available; defname in ./ otherwise. Both are returned
+    !> null-terminated.
+    subroutine dialog_initial_file(idparent,defname,file,path,ref)
       use param, only: dirsep
       integer, intent(in) :: idparent
       character(len=*), intent(in) :: defname
       character(kind=c_char,len=:), allocatable, target, intent(out) :: file, path
+      character(len=*), intent(in), optional :: ref
 
+      character(len=:), allocatable :: src
       integer :: idx
-      logical :: ok
 
       file = defname // c_null_char
       path = "./" // c_null_char
-      ok = (idparent >= 1 .and. idparent <= nwin)
-      if (ok) ok = allocated(win(idparent)%okfile)
-      if (ok) ok = (len_trim(win(idparent)%okfile) > 0)
-      if (ok) then
-         idx = index(win(idparent)%okfile,dirsep,back=.true.)
-         if (idx > 1) path = win(idparent)%okfile(1:idx-1) // c_null_char
-         if (idx < len_trim(win(idparent)%okfile)) &
-            file = trim(win(idparent)%okfile(idx+1:)) // c_null_char
+
+      ! the file the dialog starts at: ref, or the parent's okfile
+      src = ""
+      if (present(ref)) then
+         src = trim(ref)
+      elseif (idparent >= 1 .and. idparent <= nwin) then
+         if (allocated(win(idparent)%okfile)) src = trim(win(idparent)%okfile)
+      end if
+      if (len(src) > 0) then
+         idx = index(src,dirsep,back=.true.)
+         if (idx > 1) path = src(1:idx-1) // c_null_char
+         if (idx < len(src)) file = src(idx+1:) // c_null_char
       end if
 
     end subroutine dialog_initial_file
