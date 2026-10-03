@@ -30,6 +30,14 @@ find_program(CMAKE_Fortran_COMPILER NAMES ${TOOLCHAIN_PREFIX}-gfortran-posix ${T
 find_program(CMAKE_C_COMPILER NAMES ${TOOLCHAIN_PREFIX}-gcc-posix ${TOOLCHAIN_PREFIX}-gcc)
 find_program(CMAKE_CXX_COMPILER NAMES ${TOOLCHAIN_PREFIX}-g++-posix ${TOOLCHAIN_PREFIX}-g++)
 
+## The binutils, named explicitly. CMake otherwise derives them from the
+## compiler name, and older versions (e.g. 3.31) cannot do that for a
+## Fortran-only project from the "-posix" name: CMAKE_AR ends up NOTFOUND
+## and even the compiler check fails (seen building xtb's mctc-lib).
+find_program(CMAKE_AR NAMES ${TOOLCHAIN_PREFIX}-ar)
+find_program(CMAKE_RANLIB NAMES ${TOOLCHAIN_PREFIX}-ranlib)
+find_program(CMAKE_RC_COMPILER NAMES ${TOOLCHAIN_PREFIX}-windres)
+
 ## the sysroot, plus any extra prefixes the user provides (see CRITIC2_FIND_ROOT
 ## above) so binary distributions unpacked outside the sysroot can be found
 set(CMAKE_FIND_ROOT_PATH /usr/${TOOLCHAIN_PREFIX} ${CRITIC2_FIND_ROOT})

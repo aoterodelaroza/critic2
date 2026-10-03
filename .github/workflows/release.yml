@@ -20,11 +20,11 @@ name: release
 # The macOS binaries are Homebrew bottles, built by the tap
 # (aoterodelaroza/homebrew-critic2), not here.
 #
-# A push to master that changes the dependency script (or this file) also
-# runs the build, without publishing anything. That is what makes the
-# Windows dependency cache useful: GitHub only lets a tag restore caches
-# saved on the default branch, never those of another tag. The paths
-# filter does not apply to tag pushes, which always run.
+# A push to master that changes the dependency script, the MinGW toolchain
+# file, or this file also runs the build, without publishing anything. That
+# is what makes the Windows dependency cache useful: GitHub only lets a tag
+# restore caches saved on the default branch, never those of another tag.
+# The paths filter does not apply to tag pushes, which always run.
 
 on:
   push:
@@ -32,6 +32,7 @@ on:
     tags: ['[0-9]*']
     paths:
       - tools/fetch-windows-deps.sh
+      - cmake/toolchains/x86_64-w64-mingw32.cmake
       - .github/workflows/release.yml
   workflow_dispatch:
 
@@ -65,7 +66,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: windows-deps
-          key: windows-deps-trixie-${{ hashFiles('tools/fetch-windows-deps.sh') }}
+          key: windows-deps-trixie-${{ hashFiles('tools/fetch-windows-deps.sh', 'cmake/toolchains/x86_64-w64-mingw32.cmake') }}
 
       - name: Fetch and cross-build the dependencies
         run: tools/fetch-windows-deps.sh "$PWD/windows-deps"
@@ -87,9 +88,8 @@ jobs:
             for opt in $missing; do
               log="windows-deps/$(echo "${opt#USE_}" | tr 'A-Z' 'a-z')-build.log"
               if [ -f "$log" ]; then
-                echo "::group::last 80 lines of $log"
+                echo "---------- last 80 lines of $log ----------"
                 tail -n 80 "$log"
-                echo "::endgroup::"
               fi
             done
             exit 1
