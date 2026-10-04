@@ -581,6 +581,13 @@ module representations
   character(len=*,kind=c_char), parameter, public :: planarheads_combostr = &
      "None" // c_null_char // "End" // c_null_char // "Start" // c_null_char // "Both" // c_null_char
 
+  ! outline styles of a planar shape
+  integer, parameter, public :: planardash_solid = 0
+  integer, parameter, public :: planardash_dashed = 1
+  integer, parameter, public :: planardash_dotted = 2
+  character(len=*,kind=c_char), parameter, public :: planardash_combostr = &
+     "Solid" // c_null_char // "Dashed" // c_null_char // "Dotted" // c_null_char
+
   ! default bend of a new curve: offset of its middle point from the
   ! chord, as a fraction of the chord length (to the left of it)
   real*8, parameter, public :: planar_curve_bend_def = 0.25d0
@@ -601,6 +608,7 @@ module representations
                                    ! has three, its start, the point midway along it, and its end
      logical :: stroke = .true. ! draw the outline
      real*8 :: width = planar_width_def ! outline width
+     integer :: dash = planardash_solid ! outline style (planardash_*)
      real(c_float) :: rgb(3) = planar_rgb_def ! outline color
      real(c_float) :: alpha = 1._c_float ! outline opacity
      logical :: fill = .false. ! fill the inside (closed kinds only)

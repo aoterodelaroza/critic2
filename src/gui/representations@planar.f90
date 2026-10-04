@@ -31,6 +31,13 @@ submodule (representations) planar
   ! curves: minimum number of segments (the target length is that of the ellipses)
   integer, parameter :: nseg_curve_min = 8
 
+  ! dashed outlines: dash and gap lengths; dotted outlines: distance
+  ! between the dot centers (the dots are as wide as the outline). All in
+  ! outline widths, before they are stretched to fit the path.
+  real*8, parameter :: dash_on = 4d0
+  real*8, parameter :: dash_off = 2.5d0
+  real*8, parameter :: dot_step = 2d0
+
   ! segments in a round stroke join or cap
   integer, parameter :: nseg_disk = 16
 
@@ -498,7 +505,7 @@ contains
        if (sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve) then
           call stroke_with_heads(n,xp)
        else
-          call stroke_path(n,xp,closed,.true.,.true.)
+          call stroke_styled(n,xp,closed,.true.,.true.)
        end if
     end if
 
@@ -543,7 +550,7 @@ contains
          end do
          ny = ny + 1
          y(:,ny) = q2
-         call stroke_path(ny,y,.false.,.not.hashead(1),.not.hashead(2))
+         call stroke_styled(ny,y,.false.,.not.hashead(1),.not.hashead(2))
       end if
 
       ! the heads: a triangle from the base of each to its tip
@@ -563,6 +570,82 @@ contains
       end do
 
     end subroutine stroke_with_heads
+
+    !> Stroke the path of m points x (closed if closed) in the outline
+    !> style of the shape: solid (stroke_path, with round caps cap1/cap2
+    !> at the ends of an open path), dashed (butt-ended pieces of the
+    !> path) or dotted (round dots along it). The pattern is stretched to
+    !> fit the path: a whole number of periods around a closed path, and
+    !> a dash or a dot at both ends of an open one.
+    subroutine stroke_styled(m,x,closed,cap1,cap2)
+      integer, intent(in) :: m
+      real*8, intent(in) :: x(2,m)
+      logical, intent(in) :: closed, cap1, cap2
+
+      real*8, allocatable :: xo(:,:), seg(:), y(:,:)
+      real*8 :: ltot, on, per, s0, s1, q0(2), q1(2)
+      integer :: mo, k, i, nper, k0, k1, ny
+
+      if (sh%dash == planardash_solid .or. m < 2) then
+         call stroke_path(m,x,closed,cap1,cap2)
+         return
+      end if
+
+      ! the path as an open polyline (a closed one ends where it starts)
+      mo = m
+      if (closed) mo = m + 1
+      allocate(xo(2,mo),seg(mo-1))
+      xo(:,1:m) = x
+      if (closed) xo(:,mo) = x(:,1)
+      do k = 1, mo-1
+         seg(k) = norm2(xo(:,k+1) - xo(:,k))
+      end do
+      ltot = sum(seg)
+      if (ltot < 1d-12) return
+
+      if (sh%dash == planardash_dotted) then
+         per = dot_step * sh%width
+         nper = max(nint(ltot / per),1)
+         per = ltot / nper
+         do i = 0, merge(nper-1,nper,closed)
+            call path_point(mo,xo,seg,i*per,q0,k0)
+            call emit_disk(q0,hw)
+         end do
+      else
+         on = dash_on * sh%width
+         per = on + dash_off * sh%width
+         if (closed) then
+            nper = max(nint(ltot / per),1)
+            on = on * ltot / (nper * per)
+            per = ltot / nper
+            nper = nper - 1
+         elseif (ltot <= on) then
+            nper = 0
+            on = ltot
+         else
+            nper = max(nint((ltot - on) / per),1)
+            on = on * ltot / (nper * per + on)
+            per = (ltot - on) / nper
+         end if
+         allocate(y(2,mo+2))
+         do i = 0, nper
+            s0 = i * per
+            s1 = min(s0 + on,ltot)
+            call path_point(mo,xo,seg,s0,q0,k0)
+            call path_point(mo,xo,seg,s1,q1,k1)
+            ny = 1
+            y(:,1) = q0
+            do k = k0+1, k1
+               ny = ny + 1
+               y(:,ny) = xo(:,k)
+            end do
+            ny = ny + 1
+            y(:,ny) = q1
+            call stroke_path(ny,y,.false.,.false.,.false.)
+         end do
+      end if
+
+    end subroutine stroke_styled
 
     !> Stroke the path of m points x (closed if closed) with half-width
     !> hw. cap1/cap2 = round caps at the first/last point of an open path.

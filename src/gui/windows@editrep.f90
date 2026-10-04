@@ -2941,7 +2941,8 @@ contains
   module function draw_editrep_planar(w,ttshown) result(changed)
     use representations, only: planar_shape, planarkind_NUM, planarkind_name,&
        planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
-       planarkind_curve, planarheads_combostr, planar_isclosed, planar_haspoints, planar_delete
+       planarkind_curve, planarheads_combostr, planardash_combostr, planar_isclosed, planar_haspoints,&
+       planar_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column, iw_icon_togglebutton,&
@@ -2957,7 +2958,7 @@ contains
     logical :: changed
 
     logical :: ch, ldum, armed
-    integer :: i, k, iview, isel, idel, iswap, ihead
+    integer :: i, k, iview, isel, idel, iswap, ihead, idash
     integer(c_int) :: flags
     real*8 :: xdsp(2), pxs, wpx, angd, dx, dy
     type(ImVec2) :: sz0
@@ -3137,6 +3138,12 @@ contains
       if (ch) sh%width = wpx * pxs
       call iw_tooltip("Width of the outline, in pixels of the view at its current size (it &
          &scales with the view and the exported image)",ttshown)
+      changed = changed .or. ch
+      idash = sh%dash
+      call iw_combo_simple("Style##planardash",planardash_combostr,idash,changed=ch,sameline=.true.)
+      if (ch) sh%dash = idash
+      call iw_tooltip("Style of the outline: solid, dashed, or dotted (the dash and dot spacing &
+         &scales with the width)",ttshown)
       changed = changed .or. ch
       ch = iw_coloredit("Color##planarrgb",rgb=sh%rgb)
       call iw_tooltip("Color of the outline",ttshown)
