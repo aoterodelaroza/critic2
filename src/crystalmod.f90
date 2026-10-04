@@ -189,7 +189,15 @@ module crystalmod
      real*8 :: born_m(3,3) = 0d0 ! crystallographic to Cartesian matrix when the Born charges were read
      real*8 :: born_kcut = 0d0 ! reciprocal-space cutoff of the dipole-dipole sum (bohr^-1, no 2pi)
      real*8 :: born_lambda = 0d0 ! Ewald parameter of the dipole-dipole sum (bohr^-1, no 2pi)
-     complex*16, allocatable :: born_dd0(:,:,:) ! (3,3,ncel) q=0 self term of the dipole-dipole sum
+     complex*16, allocatable :: born_dd0(:,:,:) ! (3,3,ncel) q=0 self term of the dipole-dipole sum, Hartree/bohr^2
+     ! real-space and limiting terms of the dipole-dipole sum (none with NOREAL), grouped by atom pair
+     integer :: born_nr = 0 ! number of terms
+     integer :: born_npair = 0 ! number of atom pairs (i,j) with terms
+     integer :: born_nmax(3) = 0 ! largest |n_k| of the lattice vectors of the terms
+     integer, allocatable :: born_pair(:,:) ! (2,born_npair) atoms i and j of each pair
+     integer, allocatable :: born_pptr(:) ! (born_npair+1) first term of each pair
+     integer, allocatable :: born_rn(:,:) ! (3,born_nr) lattice vector of each term (crystallographic)
+     real*8, allocatable :: born_rval(:,:,:) ! (3,3,born_nr) term with the charges, Hartree/bohr^2
      real*8, allocatable :: fc2_dd(:,:,:,:) ! (3,3,ncel,fc2_nsat) dipole-dipole part of fc2, Hartree/bohr^2
      ! sound velocity calculations
      integer :: fc2_acoustic(3) = -1 ! acoustic branches for sound velocity calculation
@@ -1784,11 +1792,12 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine vibrations_read_file
-     module subroutine vibrations_read_born(v,c,file,ngpts,verbose,errmsg,ti)
+     module subroutine vibrations_read_born(v,c,file,ngpts,doreal,verbose,errmsg,ti)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
        integer, intent(in) :: ngpts
+       logical, intent(in) :: doreal
        logical, intent(in) :: verbose
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
@@ -1863,7 +1872,7 @@ module crystalmod
        logical, intent(in) :: verbose
      end subroutine vibrations_calculate_vs_prepare
      module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq,&
-        nneg,nqbad,fmin,cuteff)
+        nneg,nqbad,fmin,cuteff,nlow)
        class(vibrations), intent(inout) :: v
        real*8, intent(in) :: t
        real*8, intent(in) :: cutoff
@@ -1873,6 +1882,7 @@ module crystalmod
        integer, intent(in), optional :: wq(:)
        integer, intent(out), optional :: nneg, nqbad
        real*8, intent(out), optional :: fmin, cuteff
+       integer, intent(in), optional :: nlow(:)
      end subroutine vibrations_calculate_thermo
      module subroutine xdebye_select(nt,t,fvib,natom,f0,freq,wq,verbose,npoly,nein,par,r2,dfmax,errmsg,&
         npfix,nefix)
@@ -1922,7 +1932,7 @@ module crystalmod
        real*8, allocatable, intent(inout) :: qpt(:,:)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine vibrations_commensurate_freqs
-     module subroutine vibrations_write_dropped(v,file,cut,freq,qpt,errmsg,wq)
+     module subroutine vibrations_write_dropped(v,file,cut,freq,qpt,errmsg,wq,nlow)
        class(vibrations), intent(in) :: v
        character*(*), intent(in) :: file
        real*8, intent(in) :: cut
@@ -1930,6 +1940,7 @@ module crystalmod
        real*8, intent(in) :: qpt(:,:)
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(in), optional :: wq(:)
+       integer, intent(in), optional :: nlow(:)
      end subroutine vibrations_write_dropped
      module subroutine vibrations_write_dos(v,c,file,nk,qshift,sigma,npts,verbose,errmsg,freqo,wq)
        class(vibrations), intent(inout) :: v

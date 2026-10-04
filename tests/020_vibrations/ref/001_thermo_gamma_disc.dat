@@ -1,0 +1,7 @@
+# Modes left out of THERMO (frequency at or below 0.0100 cm^-1), calculated by critic2
+# q-point (fractional coordinates of the reciprocal cell); weight (fraction of the Brillouin-zone sampling: a symmetry-reduced point carries its star);
+# branch (1 = lowest at this q); frequency (cm^-1, negative = imaginary)
+# Also left out, whatever their value: the modes zero by construction (the acoustic modes at gamma)
+    0.0000000000     0.0000000000     0.0000000000   0.50000000E+00      1      -0.005712
+    0.0000000000     0.0000000000     0.0000000000   0.50000000E+00      2      -0.005286
+    0.0000000000     0.0000000000     0.0000000000   0.50000000E+00      3      -0.003242

@@ -1,0 +1,16 @@
+## check: 001_thermo_gamma_comm.dat -a1e-6
+## check: 001_thermo_gamma_disc.dat -a1e-6
+## check: 001_thermo_gamma_mesh.dat -a1e-6
+## labels: quick regression
+
+## Urea, finite-difference force constants of an index-2 supercell. The
+## commensurate set and the unshifted mesh contain gamma: its three
+## acoustic modes (numerical zeros of either sign) must be left out by
+## construction and listed in the DISCARDED file, and no other mode.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1 asr
+  thermo commensurate tmin 100 tmax 1000 tstep 100 noxdebye file 001_thermo_gamma_comm.dat discarded 001_thermo_gamma_disc.dat
+  thermo mesh 2 2 2 tmin 100 tmax 1000 tstep 100 noxdebye file 001_thermo_gamma_mesh.dat
+end

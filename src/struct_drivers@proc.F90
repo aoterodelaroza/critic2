@@ -3988,7 +3988,7 @@ contains
     integer :: k, np, nk(3), i1, i2, i3, nq0, nimag
     integer :: nt, nqt, nz, npts, nusedm, ntotm, nimagm, lu, nrigid, inice, icrit, ibest, nrandom, rseed
     integer :: nirr, nopmesh, nopfc2, ngpts, nnegm, nqbadm
-    integer, allocatable :: wq(:)
+    integer, allocatable :: wq(:), nlowq(:)
     integer, allocatable :: nc(:), ic0(:)
     type(nice_cell), allocatable :: cand(:)
     real*8 :: dist, rk, q(3), q0(3), q1(3), qshift(3), fmin, fmax
@@ -4003,7 +4003,7 @@ contains
     real*8, allocatable :: qlist(:,:), tlist(:), tfreq(:,:), tqpt(:,:)
     real*8, allocatable :: fvibl(:), svibl(:), cvl(:), xdfl(:), xdsl(:), xdcvl(:), xdpar(:)
     logical, allocatable :: qprint(:)
-    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus, docomm
+    logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus, docomm, doreal
     real*8 :: rkthermo
 
     ! default name of the file where CREATE_DISPLACEMENTS records how the
@@ -4107,6 +4107,7 @@ contains
           ! of G-vectors in its reciprocal-space sum
           filename = ""
           ngpts = 300
+          doreal = .true.
           do while (.true.)
              lp0 = lp
              mode = lgetword(line,lp)
@@ -4114,6 +4115,10 @@ contains
              if (equal(mode,'ngpoints')) then
                 if (.not.isinteger(ngpts,line,lp)) &
                    call ferror('struct_vibrations','NGPOINTS needs an integer in BORN',faterr,line,syntax=.true.)
+             elseif (equal(mode,'noreal')) then
+                ! only the reciprocal-space part of the dipole-dipole
+                ! interaction, as phonopy does by default
+                doreal = .false.
              elseif (len_trim(filename) == 0) then
                 lp = lp0
                 filename = getword(line,lp)
@@ -4123,7 +4128,7 @@ contains
              end if
           end do
           if (len_trim(filename) == 0) filename = "BORN"
-          call s%c%vib%read_born(s%c,filename,ngpts,verbose,errmsg)
+          call s%c%vib%read_born(s%c,filename,ngpts,doreal,verbose,errmsg)
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
@@ -4528,7 +4533,7 @@ contains
           tmin = 0d0
           tmax = 1000d0
           tstep = 10d0
-          cutoff = 1d0 ! cm^-1
+          cutoff = 0d0 ! cm^-1; only zero (below thermo_epszero) or negative modes are left out
           qfile = ""
           dosfile = ""
           dropfile = ""
@@ -4756,6 +4761,20 @@ contains
           end if
           nqt = size(tfreq,2)
 
+          ! the modes left out by construction, whatever their value: in a
+          ! crystal, the three acoustic modes at every q-point equivalent
+          ! to gamma, if the list has all 3N modes (some readers keep only
+          ! the modes the file prints; the rigid modes of a molecule are
+          ! already removed)
+          if (allocated(nlowq)) deallocate(nlowq)
+          allocate(nlowq(nqt))
+          nlowq = 0
+          if (.not.s%c%ismolecule .and. size(tfreq,1) == 3*s%c%ncel) then
+             do i = 1, nqt
+                if (all(abs(tqpt(:,i) - nint(tqpt(:,i))) < 1d-8)) nlowq(i) = 3
+             end do
+          end if
+
           ! the sampling, for the record in the output and in the table file
           if (docomm) then
              sampling = "the " // string(nqt) // " wave vectors commensurate with the supercell, S (rows) ="
@@ -4815,7 +4834,7 @@ contains
           ! the zero-point energy and the mode counts do not depend on the
           ! temperature, so report them before the table
           call s%c%vib%calculate_thermo(0d0,cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq,&
-             nneg=nnegm,nqbad=nqbadm,fmin=fminm,cuteff=cuteffm)
+             nneg=nnegm,nqbad=nqbadm,fmin=fminm,cuteff=cuteffm,nlow=nlowq)
           if (nusedm == 0) &
              call ferror('struct_vibrations','no modes above the cutoff were available for THERMO',faterr)
           havexd = .false.
@@ -4823,7 +4842,7 @@ contains
 
           ! the modes left out, one by one
           if (len_trim(dropfile) > 0) then
-             call s%c%vib%write_dropped(dropfile,cuteffm,tfreq,tqpt,errmsg,wq=wq)
+             call s%c%vib%write_dropped(dropfile,cuteffm,tfreq,tqpt,errmsg,wq=wq,nlow=nlowq)
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
              if (verbose) &
@@ -4834,7 +4853,8 @@ contains
           if (allocated(fvibl)) deallocate(fvibl,svibl,cvl)
           allocate(fvibl(nt),svibl(nt),cvl(nt))
           do i = 1, nt
-             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq)
+             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq,&
+                nlow=nlowq)
              fvibl(i) = fvib
              svibl(i) = svib
              cvl(i) = cv
@@ -4941,11 +4961,12 @@ contains
       write (u,'("# modes integrated = ",A," of ",A,"; imaginary modes left out = ",A)') &
          string(nusedm), string(ntotm), string(nimagm)
       ! the modes left out, counted over the whole q-point sampling:
-      ! dropped (at or below the cutoff actually applied), below0 (below
-      ! zero, numerical zeros such as the acoustic modes at gamma
-      ! included), imag (below -max(cutoff,1) cm^-1), qbad of nq q-points
-      ! carrying any of them (wbad, their fraction), and the lowest
-      ! frequency fmin (cm^-1)
+      ! dropped (at or below the cutoff actually applied, plus, in a
+      ! crystal, the three acoustic modes at gamma, which are always left
+      ! out), below0 (below zero), imag (below -max(cutoff,1) cm^-1),
+      ! qbad of nq q-points carrying any of them (wbad, their fraction),
+      ! and the lowest frequency fmin (cm^-1); the acoustic modes at
+      ! gamma enter none of the last four
       write (u,'("# left out: cutoff=",A," dropped=",A," below0=",A," imag=",A," qbad=",A," nq=",A,&
          &" wbad=",A," fmin=",A)') string(cuteffm,'f',decimal=4), string(ntotm-nusedm), string(nnegm),&
          string(nimagm), string(nqbadm), string(nqt), string(real(nqbadm,8)/real(max(nqt,1),8),'e',decimal=6),&

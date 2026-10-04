@@ -96,6 +96,7 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: fc2_epsdataset = 1d-6 ! structure mismatch with the displacement dataset
   real*8, parameter :: thermo_epszero = 1d-2 ! floor of the THERMO cutoff: |nu| below this is a numerical zero (cm^-1)
   real*8, parameter :: thermo_epsimag = 1d0 ! a mode below -this is imaginary, not a numerical zero (cm^-1)
+  real*8, parameter :: born_ymax = 5d0 ! real-space dipole-dipole terms up to Lambda*D = this (erfc(5) = 1.5e-12)
 
   ! Extended Debye-Einstein fit of the vibrational free energy, run at
   ! the end of THERMO to give gibbs2 its DEBYE_EXTENDED parameters.
@@ -205,7 +206,8 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_smatstr(m)
   ! subroutine fc2_output_template(template,icalc,otemplate,errmsg)
   ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti,sco,seedo)
-  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq)
+  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff,nlow)
+  ! subroutine lowest_modes(f,n,skip)
   ! subroutine xdebye_core(t,npoly,nein,par,f,s,cv,dfdp)
   ! subroutine xdebye_exp(z,em,om,l1em)
   ! subroutine xdebye_fit(nt,t,fdat,npoly,nein,tref,par,rms,dfmax,errmsg)
@@ -261,7 +263,9 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_rigid_split(sc,dat,active)
   ! subroutine fc2_build_svec(v,c,errmsg)
   ! subroutine born_ddsum(v,c,q,dd)
+  ! subroutine born_ddfull(v,c,q,dd)
   ! subroutine born_dd(v,c,q,dd)
+  ! subroutine born_build_real(v,c)
   ! subroutine fc2_build_dd(v,c,errmsg)
   ! subroutine fc2_prepare(v,c,errmsg)
   ! subroutine fc2_commensurate_q(v,q,errmsg)
@@ -4179,7 +4183,7 @@ contains
   !> non-zero errmsg.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
-  module subroutine vibrations_read_born(v,c,file,ngpts,verbose,errmsg,ti)
+  module subroutine vibrations_read_born(v,c,file,ngpts,doreal,verbose,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, isreal, uout, string, ferror, warning
     use tools_math, only: det3
     use types, only: realloc
@@ -4188,6 +4192,7 @@ contains
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ngpts
+    logical, intent(in) :: doreal
     logical, intent(in) :: verbose
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -4366,11 +4371,18 @@ contains
     end do
     v%born_m = c%m_x2c
 
+    ! the real-space and limiting terms of the dipole-dipole sum, which
+    ! complete it to the whole dipole-dipole interaction (Gonze and
+    ! Lee, Eqs. 71-75); without them, the subtracted part is only the
+    ! long-range (reciprocal-space) piece and depends on Lambda
+    if (doreal) call born_build_real(v,c)
+
     ! the q = 0 self term, which makes the dipole-dipole matrix obey
-    ! the acoustic sum rule
+    ! the acoustic sum rule: the sum over j of the complete matrix at
+    ! q = 0 (in Hartree/bohr^2)
     allocate(v%born_dd0(3,3,c%ncel))
-    call born_ddsum(v,c,(/0d0,0d0,0d0/),ddq)
     v%born_dd0 = 0d0
+    call born_ddfull(v,c,(/0d0,0d0,0d0/),ddq)
     do i = 1, c%ncel
        do j = 1, c%ncel
           v%born_dd0(:,:,i) = v%born_dd0(:,:,i) + ddq(3*i-2:3*i,3*j-2:3*j)
@@ -4405,6 +4417,13 @@ contains
        write (uout,'("  Reciprocal-space sum: cutoff = ",A," bohr^-1, Lambda = ",A," bohr^-1 (",A,&
           &" G-vectors requested)")') string(v%born_kcut,'f',decimal=6), string(v%born_lambda,'f',decimal=6),&
           string(ngpts)
+       if (v%born_nr > 0) then
+          write (uout,'("  Real-space sum: ",A," terms (pairs of atoms and lattice vectors) within Lambda*D <= ",A,&
+             &"; complete dipole-dipole interaction, independent of Lambda")') string(v%born_nr),&
+             string(born_ymax,'f',decimal=1)
+       else
+          write (uout,'("  Real-space sum: left out (NOREAL); the subtracted dipole-dipole part depends on Lambda")')
+       end if
        write (uout,'("  At q = 0 exactly, the non-analytic term is left out (no LO-TO splitting)")')
     end if
     errmsg = ""
@@ -4447,6 +4466,13 @@ contains
     if (allocated(v%born_z)) deallocate(v%born_z)
     if (allocated(v%born_x)) deallocate(v%born_x)
     if (allocated(v%born_dd0)) deallocate(v%born_dd0)
+    v%born_nr = 0
+    v%born_npair = 0
+    v%born_nmax = 0
+    if (allocated(v%born_pair)) deallocate(v%born_pair)
+    if (allocated(v%born_pptr)) deallocate(v%born_pptr)
+    if (allocated(v%born_rn)) deallocate(v%born_rn)
+    if (allocated(v%born_rval)) deallocate(v%born_rval)
     if (allocated(v%fc2_dd)) deallocate(v%fc2_dd)
 
   end subroutine vibrations_clear_born
@@ -4838,10 +4864,56 @@ contains
   end subroutine born_ddsum
 
   !> The dipole-dipole dynamical matrix at q (fractional), not divided
-  !> by the masses (Hartree/bohr^2): the reciprocal-space sum, minus
-  !> the q = 0 self term, times 4*pi/Omega. dd is (3*ncel,3*ncel).
+  !> by the masses (Hartree/bohr^2), before the acoustic-sum-rule self
+  !> term: the reciprocal-space sum times 4*pi/Omega and, unless
+  !> NOREAL, the real-space and limiting terms (Gonze and Lee, Eqs.
+  !> 71-75), which complete it to the whole dipole-dipole interaction.
+  !> dd is (3*ncel,3*ncel).
+  subroutine born_ddfull(v,c,q,dd)
+    use param, only: pi, tpi, img
+    type(vibrations), intent(in) :: v
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: q(3)
+    complex*16, allocatable, intent(inout) :: dd(:,:)
+
+    integer :: k, i, j, ip, nm, n(3)
+    complex*16 :: acc(3,3)
+    complex*16, allocatable :: e(:,:), p(:)
+
+    call born_ddsum(v,c,q,dd)
+    dd = dd * (4d0 * pi / c%omega)
+    if (v%born_nr == 0) return
+
+    ! the phase of a term factorizes, exp(2 pi i q.(n + x_j - x_i)) =
+    ! e(n1,1) e(n2,2) e(n3,3) p_j conj(p_i): one exponential per lattice
+    ! coordinate and per atom instead of one per term
+    nm = maxval(v%born_nmax)
+    allocate(e(-nm:nm,3),p(c%ncel))
+    do k = 1, 3
+       do i = -nm, nm
+          e(i,k) = exp(img * tpi * q(k) * i)
+       end do
+    end do
+    do i = 1, c%ncel
+       p(i) = exp(img * tpi * dot_product(q,v%born_x(:,i)))
+    end do
+    do ip = 1, v%born_npair
+       acc = 0d0
+       do k = v%born_pptr(ip), v%born_pptr(ip+1)-1
+          n = v%born_rn(:,k)
+          acc = acc + v%born_rval(:,:,k) * (e(n(1),1) * e(n(2),2) * e(n(3),3))
+       end do
+       i = v%born_pair(1,ip)
+       j = v%born_pair(2,ip)
+       dd(3*i-2:3*i,3*j-2:3*j) = dd(3*i-2:3*i,3*j-2:3*j) + acc * (conjg(p(i)) * p(j))
+    end do
+
+  end subroutine born_ddfull
+
+  !> The dipole-dipole dynamical matrix at q (fractional), not divided
+  !> by the masses (Hartree/bohr^2): born_ddfull minus the q = 0 self
+  !> term. dd is (3*ncel,3*ncel).
   subroutine born_dd(v,c,q,dd)
-    use param, only: pi
     type(vibrations), intent(in) :: v
     type(crystal), intent(in) :: c
     real*8, intent(in) :: q(3)
@@ -4849,13 +4921,104 @@ contains
 
     integer :: i
 
-    call born_ddsum(v,c,q,dd)
+    call born_ddfull(v,c,q,dd)
     do i = 1, c%ncel
        dd(3*i-2:3*i,3*i-2:3*i) = dd(3*i-2:3*i,3*i-2:3*i) - v%born_dd0(:,:,i)
     end do
-    dd = dd * (4d0 * pi / c%omega)
 
   end subroutine born_dd
+
+  !> The real-space and limiting terms of the dipole-dipole sum
+  !> (Gonze and Lee, PRB 55, 10355 (1997), Eqs. 71-75), with the Born
+  !> charges and in Hartree/bohr^2, grouped by atom pair (born_pair,
+  !> born_pptr, born_rn, born_rval). For each pair of atoms i, j and
+  !> lattice vector n, with d = n + x_j - x_i (Cartesian, bohr), Delta
+  !> = eps^-1 d, D = sqrt(d.Delta), and y = Lambda*D (Lambda with the
+  !> 2*pi, the one that goes with the reciprocal-space sum of
+  !> born_ddsum):
+  !>   C = -Lambda^3 det(eps)^(-1/2) * [ (Lambda Delta)(Lambda Delta)^T/y^2 *
+  !>       (3 erfc(y)/y^3 + 2/sqrt(pi) exp(-y^2) (3/y^2 + 2))
+  !>       - eps^-1 (erfc(y)/y^3 + 2/sqrt(pi) exp(-y^2)/y^2) ]
+  !> up to y = born_ymax, and the limiting term for i = j, n = 0:
+  !>   C = -4/(3 sqrt(pi)) Lambda^3 eps^-1 / sqrt(det(eps)).
+  !> Each term enters the matrix as Z_i^T C Z_j exp(2 pi i q.d).
+  subroutine born_build_real(v,c)
+    use tools_math, only: det3, matinv
+    use param, only: pi, tpi
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+
+    integer :: i, j, n1, n2, n3, nmax(3), nr, np, ipass
+    real*8 :: lam, epsinv(3,3), pre, rc, dx(3), d(3), del(3), y, y2, xa(3), aa, bb, ex, er, cmat(3,3)
+    logical :: newpair
+
+    lam = tpi * v%born_lambda
+    epsinv = v%born_eps
+    call matinv(epsinv,3)
+    pre = -lam**3 / sqrt(det3(v%born_eps))
+
+    ! the lattice vectors: |d| <= rc, with rc the largest Cartesian
+    ! length for which D can still be below born_ymax/Lambda
+    rc = born_ymax / lam * sqrt(v%born_eps(1,1) + v%born_eps(2,2) + v%born_eps(3,3))
+    do i = 1, 3
+       nmax(i) = ceiling(rc * c%ar(i)) + 1
+    end do
+
+    ! count the terms, allocate, and fill them in a second pass
+    do ipass = 1, 2
+       nr = 0
+       np = 0
+       do i = 1, c%ncel
+          do j = 1, c%ncel
+             newpair = .true.
+             do n1 = -nmax(1), nmax(1)
+                do n2 = -nmax(2), nmax(2)
+                   do n3 = -nmax(3), nmax(3)
+                      dx = real((/n1,n2,n3/),8) + v%born_x(:,j) - v%born_x(:,i)
+                      d = matmul(c%m_x2c,dx)
+                      del = matmul(epsinv,d)
+                      y = lam * sqrt(max(dot_product(d,del),0d0))
+                      if (y > born_ymax) cycle
+                      nr = nr + 1
+                      if (newpair) then
+                         np = np + 1
+                         newpair = .false.
+                         if (ipass == 2) then
+                            v%born_pair(:,np) = (/i,j/)
+                            v%born_pptr(np) = nr
+                         end if
+                      end if
+                      if (ipass == 1) cycle
+
+                      if (y < 1d-10) then
+                         ! the atom itself: the limiting term instead
+                         ! (pre is -Lambda^3 / sqrt(det(eps)))
+                         cmat = 4d0 / (3d0 * sqrt(pi)) * pre * epsinv
+                      else
+                         y2 = y * y
+                         ex = 2d0 / sqrt(pi) * exp(-y2)
+                         er = erfc(y)
+                         aa = (3d0 * er / (y2*y) + ex * (3d0 / y2 + 2d0)) / y2
+                         bb = er / (y2*y) + ex / y2
+                         xa = lam * del
+                         cmat = pre * (aa * spread(xa,2,3) * spread(xa,1,3) - bb * epsinv)
+                      end if
+                      v%born_rn(:,nr) = (/n1,n2,n3/)
+                      v%born_rval(:,:,nr) = matmul(transpose(v%born_z(:,:,i)),matmul(cmat,v%born_z(:,:,j)))
+                   end do
+                end do
+             end do
+          end do
+       end do
+       if (ipass == 1) &
+          allocate(v%born_pair(2,np),v%born_pptr(np+1),v%born_rn(3,nr),v%born_rval(3,3,nr))
+    end do
+    v%born_pptr(np+1) = nr + 1
+    v%born_nr = nr
+    v%born_npair = np
+    v%born_nmax = nmax
+
+  end subroutine born_build_real
 
   !> Build the dipole-dipole part of the supercell force constants,
   !> v%fc2_dd: the dipole-dipole dynamical matrix at the wave vectors
@@ -5422,7 +5585,7 @@ contains
   !> have all equal weight (i.e. it is a mesh). The optional nneg,
   !> nqbad, fmin and cuteff describe the modes left out (see thermo_sum).
   module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq,&
-     nneg,nqbad,fmin,cuteff)
+     nneg,nqbad,fmin,cuteff,nlow)
     class(vibrations), intent(inout) :: v
     real*8, intent(in) :: t
     real*8, intent(in) :: cutoff
@@ -5432,13 +5595,14 @@ contains
     integer, intent(in), optional :: wq(:)
     integer, intent(out), optional :: nneg, nqbad
     real*8, intent(out), optional :: fmin, cuteff
+    integer, intent(in), optional :: nlow(:)
 
     if (present(freqo)) then
        call thermo_sum(freqo,size(freqo,1),size(freqo,2),t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,&
-          nneg,nqbad,fmin,cuteff)
+          nneg,nqbad,fmin,cuteff,nlow)
     else
        call thermo_sum(v%freq,v%nfreq,v%nqpt,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,&
-          nneg=nneg,nqbad=nqbad,fmin=fmin,cuteff=cuteff)
+          nneg=nneg,nqbad=nqbad,fmin=fmin,cuteff=cuteff,nlow=nlow)
     end if
 
   end subroutine vibrations_calculate_thermo
@@ -5449,17 +5613,24 @@ contains
   !> zero-point energy and the vibrational Helmholtz free energy in
   !> kJ/mol, and the entropy and constant-volume heat capacity in
   !> J/K/mol, all per unit cell. Modes at or below the cutoff (cm^-1)
-  !> are left out. The cutoff has a floor of thermo_epszero. nimag
+  !> are left out. The cutoff has a floor of thermo_epszero, which is
+  !> what the default (cutoff = 0) applies: only the numerical zeros
+  !> and the negative (imaginary) modes are left out. nimag
   !> counts the modes below -max(cutoff,thermo_epsimag), which are
   !> genuinely imaginary rather than numerical zeros. Optionally, nneg
-  !> counts the modes below zero (numerical zeros included, such as the
-  !> acoustic modes at gamma), nqbad the q-points carrying at least one
+  !> counts the modes below zero (numerical zeros included), nqbad the
+  !> q-points carrying at least one
   !> mode that was left out, fmin is the lowest frequency, and cuteff
   !> the cutoff actually applied. All counts are over the whole sampling
-  !> (weighted, with wq).
+  !> (weighted, with wq). If nlow is given, the nlow(i) modes of
+  !> smallest |nu| at q-point i are left out by construction, whatever
+  !> their value (in a crystal, the three acoustic modes at gamma: zero
+  !> by the acoustic sum rule but numerically of either sign, and g_F
+  !> and g_S diverge there). They count as left out (ntot - nused) but
+  !> not in nneg, nimag, nqbad or fmin.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
-  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff)
+  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff,nlow)
     use param, only: Rgas
     real*8, intent(in) :: freq(:,:)
     integer, intent(in) :: nf, nq
@@ -5469,8 +5640,10 @@ contains
     integer, intent(in), optional :: wq(:)
     integer, intent(out), optional :: nneg, nqbad
     real*8, intent(out), optional :: fmin, cuteff
+    integer, intent(in), optional :: nlow(:)
 
     integer :: i, j, w, nneg_, nqbad_
+    logical :: skip(nf)
     real*8 :: fmin_
     logical :: bad
     real*8 :: nu, x, y, nut, nue, rt, l1mx, nutdiv, ym1, ff, cut, cutimag, rw
@@ -5502,10 +5675,15 @@ contains
        if (w == 0) cycle
        rw = real(w,8)
        bad = .false.
+       skip = .false.
+       if (present(nlow)) call lowest_modes(freq(1:nf,i),nlow(i),skip)
        do j = 1, nf
-          ! leave out the modes at or below the cutoff (the acoustic
-          ! branches at gamma, and any imaginary mode) without
-          ! compensating for them
+          ! the modes left out by construction
+          if (skip(j)) cycle
+
+          ! leave out the modes at or below the cutoff (numerical
+          ! zeros, and any imaginary mode) without compensating for
+          ! them
           nu = freq(j,i)
           fmin_ = min(fmin_,nu)
           if (nu < 0d0) nneg_ = nneg_ + w
@@ -5560,6 +5738,22 @@ contains
     cv = cv * ff
 
   end subroutine thermo_sum
+
+  !> skip(j) is true for the n modes of f with the smallest |f|, and
+  !> false for the others.
+  subroutine lowest_modes(f,n,skip)
+    real*8, intent(in) :: f(:)
+    integer, intent(in) :: n
+    logical, intent(out) :: skip(:)
+
+    integer :: k
+
+    skip = .false.
+    do k = 1, min(n,size(f))
+       skip(minloc(abs(f),1,mask=.not.skip)) = .true.
+    end do
+
+  end subroutine lowest_modes
 
   !> Extended Debye-Einstein model of the vibrational free energy at
   !> temperature t (K), per atom and without the zero-point term: free
@@ -6397,12 +6591,14 @@ contains
   end subroutine vibrations_mesh_freqs
 
   !> Write to file the modes left out of THERMO, those at or below
-  !> the cutoff cut (cm^-1; the one thermo_sum applied): q-point, weight
+  !> the cutoff cut (cm^-1; the one thermo_sum applied) and, if nlow is
+  !> given, the nlow(i) of smallest |nu| at q-point i, which thermo_sum
+  !> leaves out by construction: q-point, weight
   !> (fraction of the sampling; with wq, only the symmetry-reduced
   !> points, each carrying its star), branch in ascending order, and
   !> frequency. freq(:,i) are the frequencies at q-point qpt(:,i). If
   !> error, return non-zero errmsg.
-  module subroutine vibrations_write_dropped(v,file,cut,freq,qpt,errmsg,wq)
+  module subroutine vibrations_write_dropped(v,file,cut,freq,qpt,errmsg,wq,nlow)
     use tools_io, only: fopen_write, fclose, string
     class(vibrations), intent(in) :: v
     character*(*), intent(in) :: file
@@ -6411,8 +6607,10 @@ contains
     real*8, intent(in) :: qpt(:,:)
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(in), optional :: wq(:)
+    integer, intent(in), optional :: nlow(:)
 
     integer :: lu, i, j, w, wtot
+    logical :: skip(size(freq,1))
 
     errmsg = ""
     if (size(qpt,2) /= size(freq,2)) then
@@ -6432,12 +6630,17 @@ contains
     write (lu,'("# q-point (fractional coordinates of the reciprocal cell); weight (fraction of the &
        &Brillouin-zone sampling: a symmetry-reduced point carries its star);")')
     write (lu,'("# branch (1 = lowest at this q); frequency (cm^-1, negative = imaginary)")')
+    if (present(nlow)) &
+       write (lu,'("# Also left out, whatever their value: the modes zero by construction (the acoustic &
+          &modes at gamma)")')
     do i = 1, size(freq,2)
        w = 1
        if (present(wq)) w = wq(i)
        if (w == 0) cycle
+       skip = .false.
+       if (present(nlow)) call lowest_modes(freq(:,i),nlow(i),skip)
        do j = 1, size(freq,1)
-          if (freq(j,i) > cut) cycle
+          if (freq(j,i) > cut .and..not.skip(j)) cycle
           write (lu,'(3(F16.10," "),E16.8," ",I6," ",F14.6)') qpt(:,i), real(w,8) / real(wtot,8), j, freq(j,i)
        end do
     end do

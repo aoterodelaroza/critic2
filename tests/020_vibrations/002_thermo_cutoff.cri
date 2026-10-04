@@ -1,0 +1,14 @@
+## check: 002_thermo_cutoff_def.dat -a1e-6
+## check: 002_thermo_cutoff_c1.dat -a1e-6
+## labels: quick regression
+
+## Urea on a mesh shifted slightly off gamma: the default cutoff leaves out only zero
+## (below 0.01 cm^-1) or negative modes; CUTOFF 1 also drops the
+## lowest acoustic modes near gamma.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1 asr
+  thermo mesh 4 4 4 shift 0.01 0.01 0.01 tmin 100 tmax 1000 tstep 100 noxdebye file 002_thermo_cutoff_def.dat
+  thermo mesh 4 4 4 shift 0.01 0.01 0.01 cutoff 1 tmin 100 tmax 1000 tstep 100 noxdebye file 002_thermo_cutoff_c1.dat
+end

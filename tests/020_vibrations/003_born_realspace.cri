@@ -1,0 +1,36 @@
+## check: 003_born_realspace_300.dat -a1e-5
+## check: 003_born_realspace_3000.dat -a1e-5
+## check: 003_born_realspace_noreal.dat -a1e-5
+## labels: quick regression
+
+## Urea with the rigid-ion Born charges of its force field (eps = 1).
+## With the real-space sum, the dipole-dipole correction is complete and
+## the frequencies do not depend on the Ewald parameter (NGPOINTS 300 and
+## 3000 agree); with NOREAL they do (the reciprocal-space part alone, as
+## phonopy's default).
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1 asr
+  born ../zz_source/critic2/vibrations-urea/urea.BORN ngpoints 300
+  calcq file 003_born_realspace_300.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.5 0.5
+    q 0.013 0.0 0.007
+  endcalcq
+  born ../zz_source/critic2/vibrations-urea/urea.BORN ngpoints 3000
+  calcq file 003_born_realspace_3000.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.5 0.5
+    q 0.013 0.0 0.007
+  endcalcq
+  born ../zz_source/critic2/vibrations-urea/urea.BORN ngpoints 300 noreal
+  calcq file 003_born_realspace_noreal.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.5 0.5
+    q 0.013 0.0 0.007
+  endcalcq
+end

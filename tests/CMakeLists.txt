@@ -37,6 +37,7 @@ set(TESTDIRS
   016_qtree     ## qtree keyword
   017_edit      ## structure editing (EDIT)
   019_eam       ## tabulated EAM force field
+  020_vibrations ## vibrations: force constants, THERMO, Born charges (VIBRATIONS)
   )
 
 ## Build the filter pipeline (grep and/or sed) for a checked file, given the
