@@ -572,10 +572,6 @@ module representations
      "Arrow    ",&
      "Curve    ",&
      "Freehand "/)
-  character(len=*,kind=c_char), parameter, public :: planarkind_combostr = &
-     "Ellipse" // c_null_char // "Rectangle" // c_null_char // "Polygon" // c_null_char //&
-     "Polyline" // c_null_char // "Arrow" // c_null_char // "Curve" // c_null_char //&
-     "Freehand" // c_null_char
 
   ! arrowheads of a planar arrow or curve (none = a line)
   integer, parameter, public :: planarheads_none = 0 ! no heads: a line
@@ -961,7 +957,6 @@ module representations
   public :: cp_wyckoff
   public :: vibration_arrow_shapes
   public :: shape_differs
-  public :: planar_seed
   public :: planar_isclosed
   public :: planar_haspoints
   public :: planar_path
@@ -1010,11 +1005,6 @@ module representations
        type(rep_shape), intent(in) :: b
        logical :: ok
      end function shape_differs
-     module subroutine planar_seed(sh,ikind,x0)
-       type(planar_shape), intent(inout) :: sh
-       integer, intent(in) :: ikind
-       real*8, intent(in), optional :: x0(2)
-     end subroutine planar_seed
      module function planar_isclosed(sh) result(ok)
        type(planar_shape), intent(in) :: sh
        logical :: ok

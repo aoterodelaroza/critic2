@@ -2939,10 +2939,9 @@ contains
   !> Draw the editrep window, planar shapes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_planar(w,ttshown) result(changed)
-    use representations, only: planar_shape, planarkind_NUM, planarkind_name, planarkind_combostr,&
+    use representations, only: planar_shape, planarkind_NUM, planarkind_name,&
        planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
-       planarkind_curve, planarheads_combostr, planar_seed, planar_isclosed, planar_haspoints, planar_template,&
-       planar_append, planar_delete
+       planarkind_curve, planarheads_combostr, planar_isclosed, planar_haspoints, planar_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column, iw_icon_togglebutton,&
@@ -3062,19 +3061,6 @@ contains
        end do
        call igEndTable()
     end if
-
-    ! add a new shape of the chosen kind, at the center of the view
-    call iw_combo_simple("##planaraddkind",planarkind_combostr,w%editrep_shapekind,&
-       startsatone=.true.)
-    call iw_tooltip("Kind of shape the Add button creates",ttshown)
-    if (iw_button("Add##planaradd",sameline=.true.)) then
-       shaux = planar_template(w%rep%planar)
-       call planar_seed(shaux,min(max(int(w%editrep_shapekind),1),planarkind_NUM))
-       call planar_append(w%rep%planar,shaux)
-       changed = .true.
-    end if
-    call iw_tooltip("Add a new shape at the center of the view (shapes can also be drawn &
-       &directly in the view, with the tools above)",ttshown)
 
     ! process a deletion, dropping a mouse drag on the shapes in the view
     if (idel > 0) then
