@@ -937,6 +937,13 @@ contains
     end if
     if (iwf == isformat_w_unknown) then
        errmsg = "Unknown file extension in the template for the displaced structures: " // template_
+       if (vib_calculator == vcalc_none) then
+          errmsg = errmsg // "; use an extension critic2 can write, or set a calculator whose inputs &
+             &it writes (VIBRATIONS CALCULATOR)"
+       else
+          errmsg = errmsg // "; critic2 cannot write the input files of the " //&
+             vib_calculator_name(vib_calculator) // " calculator, so use an extension it can write"
+       end if
        return
     end if
 
@@ -3795,10 +3802,14 @@ contains
     integer :: idx
 
     if (len_trim(template) > 0) then
-       ! detect the format from the template, with the * filled in (unknown
-       ! extension -> isformat_w_unknown, the caller decides)
+       ! detect the format from the template, with the * filled in; if
+       ! the extension is unknown (POSCAR-*, for instance), use the
+       ! format of the calculator, if critic2 writes its inputs;
+       ! otherwise isformat_w_unknown, and the caller decides
        template_ = trim(template)
        call struct_detect_write_format(fc2_expand_star(template_,0,3),iwf)
+       if (iwf == isformat_w_unknown .and. vib_calculator /= vcalc_none) &
+          iwf = vcalc(vib_calculator)%iwformat
        return
     end if
 

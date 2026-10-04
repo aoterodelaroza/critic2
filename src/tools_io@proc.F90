@@ -1439,7 +1439,7 @@ contains
 
   end function fopen_read
 
-  !> Open a file for reading. The argument form controls the
+  !> Open a file for writing. The argument form controls the
   !> formatting, and is passed directly to open(). If abspath is
   !> present, file in input is as an absolute path.
   module function fopen_write(file,form,abspath0,errstop,ti) result(lu)
