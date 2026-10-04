@@ -43,6 +43,7 @@ set(SOURCES
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
   representations.f90 representations@proc.f90 representations@planar.f90
+  representations@iso.f90 representations@styles.f90
   display.f90 display@proc.f90
   )
 
