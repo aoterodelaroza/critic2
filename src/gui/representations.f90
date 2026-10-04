@@ -560,26 +560,34 @@ module representations
   integer, parameter, public :: planarkind_rect = 2
   integer, parameter, public :: planarkind_polygon = 3
   integer, parameter, public :: planarkind_polyline = 4
-  integer, parameter, public :: planarkind_arrow = 5
-  integer, parameter, public :: planarkind_freehand = 6
-  integer, parameter, public :: planarkind_NUM = 6
+  integer, parameter, public :: planarkind_arrow = 5 ! a straight arrow, or a line without heads
+  integer, parameter, public :: planarkind_curve = 6 ! a curved arrow or line (quadratic Bezier)
+  integer, parameter, public :: planarkind_freehand = 7
+  integer, parameter, public :: planarkind_NUM = 7
   character(len=9), parameter, public :: planarkind_name(planarkind_NUM) = (/&
      "Ellipse  ",&
      "Rectangle",&
      "Polygon  ",&
      "Polyline ",&
      "Arrow    ",&
+     "Curve    ",&
      "Freehand "/)
   character(len=*,kind=c_char), parameter, public :: planarkind_combostr = &
      "Ellipse" // c_null_char // "Rectangle" // c_null_char // "Polygon" // c_null_char //&
-     "Polyline" // c_null_char // "Arrow" // c_null_char // "Freehand" // c_null_char
+     "Polyline" // c_null_char // "Arrow" // c_null_char // "Curve" // c_null_char //&
+     "Freehand" // c_null_char
 
-  ! arrowheads of a planar arrow
+  ! arrowheads of a planar arrow or curve (none = a line)
+  integer, parameter, public :: planarheads_none = 0 ! no heads: a line
   integer, parameter, public :: planarheads_end = 1 ! at the last point
   integer, parameter, public :: planarheads_start = 2 ! at the first point
   integer, parameter, public :: planarheads_both = 3 ! at both ends
   character(len=*,kind=c_char), parameter, public :: planarheads_combostr = &
-     "End" // c_null_char // "Start" // c_null_char // "Both" // c_null_char
+     "None" // c_null_char // "End" // c_null_char // "Start" // c_null_char // "Both" // c_null_char
+
+  ! default bend of a new curve: offset of its middle point from the
+  ! chord, as a fraction of the chord length (to the left of it)
+  real*8, parameter, public :: planar_curve_bend_def = 0.25d0
 
   !> A planar shape, drawn directly on the screen. All positions and
   !> lengths are in the NDC of the render buffer (the square render
@@ -592,8 +600,9 @@ module representations
      real*8 :: xc(2) = 0d0 ! ellipse/rectangle: center
      real*8 :: hs(2) = planar_size_def ! ellipse/rectangle: half-sizes along the (rotated) axes
      real*8 :: ang = 0d0 ! ellipse/rectangle: rotation angle (radians, counterclockwise)
-     integer :: npt = 0 ! polygon/polyline/arrow/freehand: number of points
-     real*8, allocatable :: x(:,:) ! polygon/polyline/arrow/freehand: the points (2,npt)
+     integer :: npt = 0 ! polygon/polyline/arrow/curve/freehand: number of points
+     real*8, allocatable :: x(:,:) ! polygon/polyline/arrow/curve/freehand: the points (2,npt); a curve
+                                   ! has three, its start, the point midway along it, and its end
      logical :: stroke = .true. ! draw the outline
      real*8 :: width = planar_width_def ! outline width
      real(c_float) :: rgb(3) = planar_rgb_def ! outline color
@@ -601,9 +610,9 @@ module representations
      logical :: fill = .false. ! fill the inside (closed kinds only)
      real(c_float) :: fillrgb(3) = planar_fillrgb_def ! fill color
      real(c_float) :: fillalpha = planar_fillalpha_def ! fill opacity
-     integer :: heads = planarheads_end ! arrow: ends that carry an arrowhead (planarheads_*)
-     real*8 :: headl = planar_headl_def ! arrow: arrowhead length, in outline widths
-     real*8 :: headw = planar_headw_def ! arrow: arrowhead width, in outline widths
+     integer :: heads = planarheads_end ! arrow/curve: ends that carry an arrowhead (planarheads_*)
+     real*8 :: headl = planar_headl_def ! arrow/curve: arrowhead length, in outline widths
+     real*8 :: headw = planar_headw_def ! arrow/curve: arrowhead width, in outline widths
      logical :: infront = .true. ! drawn on top of the scene (else only over the background)
   end type planar_shape
   public :: planar_shape
@@ -963,6 +972,7 @@ module representations
   public :: planar_simplify
   public :: planar_rotation_handle
   public :: planar_template
+  public :: planar_curve_default_bend
   public :: planar_append
   public :: planar_delete
 
@@ -1050,6 +1060,9 @@ module representations
        real*8, intent(inout) :: x(:,:)
        real*8, intent(in) :: tol
      end subroutine planar_simplify
+     module subroutine planar_curve_default_bend(sh)
+       type(planar_shape), intent(inout) :: sh
+     end subroutine planar_curve_default_bend
      module function planar_template(p) result(sh)
        type(rep_planar), intent(in) :: p
        type(planar_shape) :: sh

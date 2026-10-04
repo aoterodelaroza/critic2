@@ -2941,7 +2941,7 @@ contains
   module function draw_editrep_planar(w,ttshown) result(changed)
     use representations, only: planar_shape, planarkind_NUM, planarkind_name, planarkind_combostr,&
        planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
-       planarheads_combostr, planar_seed, planar_isclosed, planar_haspoints, planar_template,&
+       planarkind_curve, planarheads_combostr, planar_seed, planar_isclosed, planar_haspoints, planar_template,&
        planar_append, planar_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
@@ -2950,8 +2950,8 @@ contains
     use gui_main, only: tooltip_enabled
     use keybindings, only: is_bind_event, BIND_CANCEL
     use icons, only: icon_tex, icon_vm_remove, icon_pl_select, icon_pl_ellipse, icon_pl_rect,&
-       icon_pl_polygon, icon_pl_polyline, icon_pl_arrow, icon_pl_freehand
-    use tools_io, only: string
+       icon_pl_polygon, icon_pl_polyline, icon_pl_arrow, icon_pl_freehand, icon_pl_curve
+    use tools_io, only: string, lower
     use param, only: pi
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -2968,9 +2968,10 @@ contains
     ! the toolbar: icon of each tool, and the text drawn instead if it did not load
     integer, parameter :: toolicon(planartool_select:planartool_kind0+planarkind_NUM) = (/&
        icon_pl_select,icon_vm_remove,icon_pl_ellipse,icon_pl_rect,icon_pl_polygon,&
-       icon_pl_polyline,icon_pl_arrow,icon_pl_freehand/)
+       icon_pl_polyline,icon_pl_arrow,icon_pl_curve,icon_pl_freehand/)
     character(len=2), parameter :: toolfall(planartool_select:planartool_kind0+planarkind_NUM) = (/&
-       "Se","Rm","El","Re","Pg","Pl","Ar","Fh"/)
+       "Se","Rm","El","Re","Pg","Pl","Ar","Cu","Fh"/)
+    character(len=6), parameter :: curvept(3) = (/"Start ","Middle","End   "/)
 
     ! initialize
     changed = .false.
@@ -3123,9 +3124,19 @@ contains
          call iw_text("Freehand line with " // string(sh%npt) // " points")
       elseif (planar_haspoints(sh)) then
          do k = 1, sh%npt
-            ch = iw_dragfloat_real8("Point " // string(k) // "##planarpt" // string(k),x2=sh%x(:,k),&
+            if (sh%kind == planarkind_curve) then
+               str1 = trim(curvept(k))
+            else
+               str1 = "Point " // string(k)
+            end if
+            ch = iw_dragfloat_real8(str1 // "##planarpt" // string(k),x2=sh%x(:,k),&
                speed=0.002d0,min=-10d0,max=10d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("Position of point " // string(k) // " (view coordinates)",ttshown)
+            if (sh%kind == planarkind_curve .and. k == 2) then
+               call iw_tooltip("Point midway along the curve: it sets the bend (view coordinates)",&
+                  ttshown)
+            else
+               call iw_tooltip("Position of " // lower(str1) // " (view coordinates)",ttshown)
+            end if
             changed = changed .or. ch
          end do
       end if
@@ -3150,12 +3161,12 @@ contains
       changed = changed .or. ch
 
       ! the arrowheads
-      if (sh%kind == planarkind_arrow) then
+      if (sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve) then
          ihead = sh%heads
-         call iw_combo_simple("Heads##planarheads",planarheads_combostr,ihead,changed=ch,&
-            startsatone=.true.)
+         call iw_combo_simple("Heads##planarheads",planarheads_combostr,ihead,changed=ch)
          if (ch) sh%heads = ihead
-         call iw_tooltip("Which ends of the arrow carry an arrowhead",ttshown)
+         call iw_tooltip("Arrowheads: none (a line), at the end, at the start, or at both ends",&
+            ttshown)
          changed = changed .or. ch
          ch = iw_dragfloat_real8("Head Length##planarheadl",x1=sh%headl,speed=0.05d0,min=1d0,&
             max=20d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
@@ -4859,7 +4870,7 @@ contains
   !> The keys are those bound in the Draw Shapes mode.
   function planar_tool_hint(itool) result(str)
     use representations, only: planarkind_ellipse, planarkind_rect, planarkind_arrow,&
-       planarkind_freehand, planarkind_NUM, planarkind_name
+       planarkind_freehand, planarkind_NUM, planarkind_name, planarkind_curve
     use keybindings, only: get_bind_keyname, BIND_PLANAR_DRAW, BIND_PLANAR_EXIT,&
        BIND_PLANAR_CONSTRAIN, BIND_PLANAR_DELETE, BIND_PLANAR_FINISH, BIND_PLANAR_DELPOINT,&
        BIND_CANCEL
@@ -4870,23 +4881,26 @@ contains
 
     ik = itool - planartool_kind0
     if (itool == planartool_select) then
-       str = "Select: " // kn(BIND_PLANAR_DRAW) // " a shape to select it, drag it to move it, " //&
+       str = "Select: click a shape (" // kn(BIND_PLANAR_DRAW) // ") to select it, drag it to move it, " //&
           "and drag its handles to resize, rotate, or move its points (" //&
           kn(BIND_PLANAR_CONSTRAIN) // ": constrain). " // kn(BIND_PLANAR_DELETE) //&
           " removes the selected shape"
     elseif (itool == planartool_remove) then
-       str = "Remove: " // kn(BIND_PLANAR_DRAW) // " a shape to remove it"
+       str = "Remove: click a shape (" // kn(BIND_PLANAR_DRAW) // ") to remove it"
     elseif (ik == planarkind_ellipse) then
        str = "Ellipse: drag to draw (" // kn(BIND_PLANAR_CONSTRAIN) // ": a circle)"
     elseif (ik == planarkind_rect) then
        str = "Rectangle: drag to draw (" // kn(BIND_PLANAR_CONSTRAIN) // ": a square)"
     elseif (ik == planarkind_arrow) then
-       str = "Arrow: drag from the tail to the tip (" // kn(BIND_PLANAR_CONSTRAIN) //&
+       str = "Arrow or line: drag from the tail to the tip (" // kn(BIND_PLANAR_CONSTRAIN) //&
           ": snap to 45°)"
+    elseif (ik == planarkind_curve) then
+       str = "Curved arrow or line: drag from the tail to the tip (" // kn(BIND_PLANAR_CONSTRAIN) //&
+          ": snap to 45°); with Select, drag the middle handle to bend it"
     elseif (ik == planarkind_freehand) then
        str = "Freehand: drag to draw"
     elseif (ik >= 1 .and. ik <= planarkind_NUM) then
-       str = trim(planarkind_name(ik)) // ": " // kn(BIND_PLANAR_DRAW) // " to add points; " //&
+       str = trim(planarkind_name(ik)) // ": click (" // kn(BIND_PLANAR_DRAW) // ") to add points; " //&
           "double-click, " // kn(BIND_PLANAR_FINISH) // ", or " // kn(BIND_PLANAR_EXIT) //&
           " to finish (" // kn(BIND_PLANAR_DELPOINT) // ": remove the last point)"
     else

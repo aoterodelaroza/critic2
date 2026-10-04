@@ -798,7 +798,7 @@ module windows
      integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
      integer(c_int) :: editrep_shapekind = 1 ! kind the shape editor's Add button creates (shapekind_*)
      integer(c_int) :: editrep_planartool = planartool_none ! tool of the planar-shapes editor (planartool_*,
-                                                            ! or a kind to draw: planarkind_* + 1)
+                                                            ! or a kind to draw: planartool_kind0 + planarkind_*)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery

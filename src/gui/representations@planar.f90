@@ -28,6 +28,9 @@ submodule (representations) planar
   integer, parameter :: nseg_ellipse_max = 512
   real*8, parameter :: seglen_ellipse = 0.004d0
 
+  ! curves: minimum number of segments (the target length is that of the ellipses)
+  integer, parameter :: nseg_curve_min = 8
+
   ! segments in a round stroke join or cap
   integer, parameter :: nseg_disk = 16
 
@@ -96,6 +99,13 @@ contains
        allocate(sh%x(2,2))
        sh%x(:,1) = c + s * (/-1d0,0d0/)
        sh%x(:,2) = c + s * (/1d0,0d0/)
+    elseif (ikind == planarkind_curve) then
+       ! pointing right, bent upwards
+       sh%npt = 3
+       allocate(sh%x(2,3))
+       sh%x(:,1) = c + s * (/-1d0,0d0/)
+       sh%x(:,3) = c + s * (/1d0,0d0/)
+       call planar_curve_default_bend(sh)
     elseif (ikind == planarkind_freehand) then
        ! one period of a sine wave
        sh%npt = nfree
@@ -125,7 +135,8 @@ contains
     logical :: ok
 
     ok = (sh%kind == planarkind_polygon .or. sh%kind == planarkind_polyline .or.&
-       sh%kind == planarkind_arrow .or. sh%kind == planarkind_freehand)
+       sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve .or.&
+       sh%kind == planarkind_freehand)
 
   end function planar_haspoints
 
@@ -138,7 +149,7 @@ contains
     integer, intent(out) :: n
     real*8, allocatable, intent(inout) :: x(:,:)
 
-    real*8 :: u(2), v(2), r, t
+    real*8 :: u(2), v(2), r, t, c(2)
     integer :: i
 
     n = 0
@@ -162,6 +173,18 @@ contains
              x(:,i) = sh%xc + hsign(1,i) * sh%hs(1) * u + hsign(2,i) * sh%hs(2) * v
           end do
        end if
+    elseif (sh%kind == planarkind_curve .and. sh%npt == 3 .and. allocated(sh%x)) then
+       ! the quadratic Bezier through the middle point: its control point
+       ! is c, and it passes through x(:,2) at t = 1/2
+       c = 2d0 * sh%x(:,2) - 0.5d0 * (sh%x(:,1) + sh%x(:,3))
+       r = norm2(c - sh%x(:,1)) + norm2(sh%x(:,3) - c)
+       n = min(max(ceiling(r / seglen_ellipse),nseg_curve_min),nseg_ellipse_max) + 1
+       if (allocated(x)) deallocate(x)
+       allocate(x(2,n))
+       do i = 1, n
+          t = real(i-1,8) / real(n-1,8)
+          x(:,i) = (1d0-t)**2 * sh%x(:,1) + 2d0 * t * (1d0-t) * c + t**2 * sh%x(:,3)
+       end do
     elseif (sh%npt > 0 .and. allocated(sh%x)) then
        n = sh%npt
        if (allocated(x)) deallocate(x)
@@ -170,6 +193,19 @@ contains
     end if
 
   end subroutine planar_path
+
+  !> Place the middle point of the curve sh at the default bend: off the
+  !> middle of the chord between its ends, to the left of it.
+  module subroutine planar_curve_default_bend(sh)
+    type(planar_shape), intent(inout) :: sh
+
+    real*8 :: d(2)
+
+    if (sh%npt < 3 .or. .not.allocated(sh%x)) return
+    d = sh%x(:,3) - sh%x(:,1)
+    sh%x(:,2) = 0.5d0 * (sh%x(:,1) + sh%x(:,3)) + planar_curve_bend_def * (/-d(2),d(1)/)
+
+  end subroutine planar_curve_default_bend
 
   !> The editing handles of the shape sh: nh positions in xh(2,nh). An
   !> ellipse or rectangle has its four corners (1-4), the midpoints of
@@ -270,6 +306,27 @@ contains
           ang = atan2(d(2),d(1)) - 0.5d0 * pi
           if (constrain) ang = snaprot * anint(ang / snaprot)
           sh%ang = modulo(ang + pi,2d0*pi) - pi
+       end if
+    elseif (sh0%kind == planarkind_curve .and. ih == 2 .and. sh0%npt == 3) then
+       ! the middle of a curve; constrained, it stays on the perpendicular
+       ! bisector of the chord (a symmetric bend)
+       sh%x(:,2) = x
+       d = sh0%x(:,3) - sh0%x(:,1)
+       if (constrain .and. norm2(d) > 1d-10) then
+          f = 0.5d0 * (sh0%x(:,1) + sh0%x(:,3))
+          a = (/-d(2),d(1)/) / norm2(d)
+          sh%x(:,2) = f + dot_product(x - f,a) * a
+       end if
+    elseif (sh0%kind == planarkind_curve .and. sh0%npt == 3) then
+       ! an end of a curve; constrained, the chord snaps to 45 degrees
+       sh%x(:,ih) = x
+       if (constrain) then
+          ref = sh0%x(:,4-ih)
+          d = x - ref
+          if (norm2(d) > 1d-10) then
+             ang = snappt * anint(atan2(d(2),d(1)) / snappt)
+             sh%x(:,ih) = ref + norm2(d) * (/cos(ang),sin(ang)/)
+          end if
        end if
     elseif (ih >= 1 .and. ih <= sh0%npt) then
        sh%x(:,ih) = x
@@ -472,14 +529,14 @@ contains
 
     integer :: n, i
     real*8, allocatable :: xp(:,:)
-    real*8 :: z, hw, u(2), perp(2), len, hl(2), hwh, scal, xs(2,2)
+    real*8 :: z, hw
     real(c_float) :: rgba(4)
-    logical :: closed, hashead(2)
+    logical :: closed
 
     call planar_path(sh,n,xp)
     if (n == 0) return
     closed = planar_isclosed(sh)
-    if (sh%kind == planarkind_arrow .and. n < 2) return
+    if ((sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve) .and. n < 2) return
 
     ! the depth of this shape
     obj%nflatshape = obj%nflatshape + 1
@@ -503,31 +560,8 @@ contains
     ! the outline
     if (sh%stroke .and. hw > 0d0 .and. sh%alpha > 0._c_float) then
        rgba = (/sh%rgb,sh%alpha/)
-       if (sh%kind == planarkind_arrow) then
-          ! the shaft stops at the base of the heads, scaled down if the
-          ! arrow is shorter than its heads
-          xs(:,1) = xp(:,1)
-          xs(:,2) = xp(:,n)
-          u = xs(:,2) - xs(:,1)
-          len = norm2(u)
-          if (len < 1d-12) return
-          u = u / len
-          perp = (/-u(2),u(1)/)
-          hashead(1) = (sh%heads == planarheads_start .or. sh%heads == planarheads_both)
-          hashead(2) = (sh%heads == planarheads_end .or. sh%heads == planarheads_both)
-          hl = merge(sh%headl * sh%width,0d0,hashead)
-          scal = 1d0
-          if (sum(hl) > len) scal = len / sum(hl)
-          hl = hl * scal
-          hwh = 0.5d0 * sh%headw * sh%width * scal
-          xs(:,1) = xs(:,1) + hl(1) * u
-          xs(:,2) = xs(:,2) - hl(2) * u
-          if (norm2(xs(:,2) - xs(:,1)) > 1d-12) &
-             call stroke_path(2,xs,.false.,.not.hashead(1),.not.hashead(2))
-          if (hashead(1)) &
-             call emit_tri(xp(:,1),xs(:,1) + hwh * perp,xs(:,1) - hwh * perp)
-          if (hashead(2)) &
-             call emit_tri(xp(:,n),xs(:,2) - hwh * perp,xs(:,2) + hwh * perp)
+       if (sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve) then
+          call stroke_with_heads(n,xp)
        else
           call stroke_path(n,xp,closed,.true.,.true.)
        end if
@@ -535,6 +569,66 @@ contains
 
 
   contains
+    !> Stroke the open path of m points x (an arrow or a curve) with
+    !> arrowheads at the ends sh%heads says. The line stops at the base
+    !> of each head, measured along the path, so a head sits tangent to a
+    !> curve; the heads shrink if the path is shorter than both together.
+    subroutine stroke_with_heads(m,x)
+      integer, intent(in) :: m
+      real*8, intent(in) :: x(2,m)
+
+      real*8 :: seg(m-1), ltot, hl(2), hwh, scal, q1(2), q2(2), tip(2), base(2), u(2)
+      real*8, allocatable :: y(:,:)
+      integer :: k, k1, k2, ny
+      logical :: hashead(2)
+
+      do k = 1, m-1
+         seg(k) = norm2(x(:,k+1) - x(:,k))
+      end do
+      ltot = sum(seg)
+      if (ltot < 1d-12) return
+      hashead(1) = (sh%heads == planarheads_start .or. sh%heads == planarheads_both)
+      hashead(2) = (sh%heads == planarheads_end .or. sh%heads == planarheads_both)
+      hl = merge(sh%headl * sh%width,0d0,hashead)
+      scal = 1d0
+      if (sum(hl) > ltot) scal = ltot / sum(hl)
+      hl = hl * scal
+      hwh = 0.5d0 * sh%headw * sh%width * scal
+
+      ! the line, between the bases of the heads
+      call path_point(m,x,seg,hl(1),q1,k1)
+      call path_point(m,x,seg,ltot-hl(2),q2,k2)
+      if (ltot - sum(hl) > 1d-12) then
+         allocate(y(2,k2-k1+2))
+         ny = 1
+         y(:,1) = q1
+         do k = k1+1, k2
+            ny = ny + 1
+            y(:,ny) = x(:,k)
+         end do
+         ny = ny + 1
+         y(:,ny) = q2
+         call stroke_path(ny,y,.false.,.not.hashead(1),.not.hashead(2))
+      end if
+
+      ! the heads: a triangle from the base of each to its tip
+      do k = 1, 2
+         if (.not.hashead(k)) cycle
+         if (k == 1) then
+            tip = x(:,1)
+            base = q1
+         else
+            tip = x(:,m)
+            base = q2
+         end if
+         u = tip - base
+         if (norm2(u) < 1d-12) cycle
+         u = (/-u(2),u(1)/) / norm2(u)
+         call emit_tri(tip,base + hwh * u,base - hwh * u)
+      end do
+
+    end subroutine stroke_with_heads
+
     !> Stroke the path of m points x (closed if closed) with half-width
     !> hw. cap1/cap2 = round caps at the first/last point of an open path.
     subroutine stroke_path(m,x,closed,cap1,cap2)
@@ -746,6 +840,30 @@ contains
   end subroutine planar_tessellate
 
   !xx! private procedures
+
+  !> The point q at arc length s along the path of m points x, with
+  !> segment lengths seg; k is the segment it falls on (between x(:,k)
+  !> and x(:,k+1)).
+  subroutine path_point(m,x,seg,s,q,k)
+    integer, intent(in) :: m
+    real*8, intent(in) :: x(2,m), seg(m-1), s
+    real*8, intent(out) :: q(2)
+    integer, intent(out) :: k
+
+    real*8 :: acc, t
+
+    acc = 0d0
+    do k = 1, m-1
+       if (acc + seg(k) >= s .or. k == m-1) then
+          t = 0d0
+          if (seg(k) > 1d-14) t = min(max((s - acc) / seg(k),0d0),1d0)
+          q = x(:,k) + t * (x(:,k+1) - x(:,k))
+          return
+       end if
+       acc = acc + seg(k)
+    end do
+
+  end subroutine path_point
 
   !> Distance from point p to the segment ab.
   function segdist(p,a,b) result(d)

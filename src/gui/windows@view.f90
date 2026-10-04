@@ -2456,7 +2456,8 @@ contains
     subroutine planar_events()
       use representations, only: representation, reptype_planar,&
          planarkind_NUM, planarkind_ellipse, planarkind_rect,&
-         planarkind_arrow, planarkind_freehand, planar_template, planar_append,&
+         planarkind_arrow, planarkind_curve, planarkind_freehand, planar_template, planar_append,&
+         planar_curve_default_bend,&
          planar_delete, planar_handles, planar_drag_handle, planar_move,&
          planar_simplify
 
@@ -2592,11 +2593,15 @@ contains
             if (ikind == planarkind_ellipse .or. ikind == planarkind_rect) then
                w%pd%op = planarop_drag
                w%pd%ih = 3
-            elseif (ikind == planarkind_arrow) then
+            elseif (ikind == planarkind_arrow .or. ikind == planarkind_curve) then
+               ! the tip is the last point; a curve keeps its middle point
+               ! at the default bend while it is drawn (the heads, like the
+               ! rest of the style, come from the selected shape)
                w%pd%op = planarop_drag
-               w%pd%ih = 2
                call planar_addpoint(w%pd%sh,xm)
                call planar_addpoint(w%pd%sh,xm)
+               if (ikind == planarkind_curve) call planar_addpoint(w%pd%sh,xm)
+               w%pd%ih = w%pd%sh%npt
             elseif (ikind == planarkind_freehand) then
                w%pd%op = planarop_free
                call planar_addpoint(w%pd%sh,xm)
@@ -2655,6 +2660,8 @@ contains
             if (w%pd%op == planarop_drag .or. w%pd%op == planarop_handle) then
                w%pd%sh = w%pd%sh0
                call planar_drag_handle(w%pd%sh,w%pd%sh0,w%pd%ih,xm,constrain)
+               if (w%pd%op == planarop_drag .and. w%pd%sh%kind == planarkind_curve) &
+                  call planar_curve_default_bend(w%pd%sh)
             elseif (w%pd%op == planarop_free) then
                if (norm2(xm - w%pd%sh%x(:,w%pd%sh%npt)) > free_px * pxs) &
                   call planar_addpoint(w%pd%sh,xm)
@@ -2676,8 +2683,8 @@ contains
             if (w%pd%op == planarop_drag) then
                ok = w%pd%moved
                if (ok) then
-                  if (w%pd%sh%kind == planarkind_arrow) then
-                     ok = (norm2(w%pd%sh%x(:,2) - w%pd%sh%x(:,1)) > drag_px * pxs)
+                  if (w%pd%sh%kind == planarkind_arrow .or. w%pd%sh%kind == planarkind_curve) then
+                     ok = (norm2(w%pd%sh%x(:,w%pd%sh%npt) - w%pd%sh%x(:,1)) > drag_px * pxs)
                   else
                      ok = all(w%pd%sh%hs > 0d0)
                   end if
