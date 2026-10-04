@@ -4119,9 +4119,11 @@ contains
           ! the Born effective charges and the dielectric tensor (a
           ! phonopy BORN file, BORN by default) for the dipole-dipole
           ! correction of the force constants; NGPOINTS is the number
-          ! of G-vectors in its reciprocal-space sum
+          ! of G-vectors in its reciprocal-space sum (by default chosen
+          ! automatically; with the real-space sum the result does not
+          ! depend on it)
           filename = ""
-          ngpts = 300
+          ngpts = 0
           doreal = .true.
           do while (.true.)
              lp0 = lp
@@ -4130,6 +4132,8 @@ contains
              if (equal(mode,'ngpoints')) then
                 if (.not.isinteger(ngpts,line,lp)) &
                    call ferror('struct_vibrations','NGPOINTS needs an integer in BORN',faterr,line,syntax=.true.)
+                if (ngpts < 1) &
+                   call ferror('struct_vibrations','NGPOINTS must be positive in BORN',faterr,line,syntax=.true.)
              elseif (equal(mode,'noreal')) then
                 ! only the reciprocal-space part of the dipole-dipole
                 ! interaction, as phonopy does by default

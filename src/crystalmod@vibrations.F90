@@ -97,6 +97,10 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: thermo_epszero = 1d-2 ! floor of the THERMO cutoff: |nu| below this is a numerical zero (cm^-1)
   real*8, parameter :: thermo_epsimag = 1d0 ! a mode below -this is imaginary, not a numerical zero (cm^-1)
   real*8, parameter :: born_ymax = 5d0 ! real-space dipole-dipole terms up to Lambda*D = this (erfc(5) = 1.5e-12)
+  integer, parameter :: born_ngauto = 500 ! G-vectors of the reciprocal-space dipole-dipole sum when not given
+  ! and the real-space sum is included: the result does not depend on it, and the cost of the two sums
+  ! is balanced at a number of G-vectors independent of the cell (minimum at 300-1000 for 16-192 atoms)
+  integer, parameter :: born_ngnoreal = 300 ! the same with NOREAL, where the result depends on it (phonopy's default)
 
   ! Extended Debye-Einstein fit of the vibrational free energy, run at
   ! the end of THERMO to give gibbs2 its DEBYE_EXTENDED parameters.
@@ -4190,8 +4194,10 @@ contains
   !> tensor are symmetrized with the space group of the crystal, and
   !> the charge sum rule is imposed by subtracting the average excess
   !> from every atom. The reciprocal-space sum includes about ngpts
-  !> G-vectors (phonopy's G_cutoff and Lambda). If error, return
-  !> non-zero errmsg.
+  !> G-vectors (phonopy's G_cutoff and Lambda); ngpts <= 0 chooses it
+  !> automatically: born_ngauto with the real-space sum (doreal), where
+  !> it only balances the cost of the two sums, and phonopy's
+  !> born_ngnoreal without it. If error, return non-zero errmsg.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
   module subroutine vibrations_read_born(v,c,file,ngpts,doreal,verbose,errmsg,ti)
@@ -4211,7 +4217,7 @@ contains
     real*8, parameter :: epsepsasym = 1d-4 ! relative asymmetry of eps that deserves a warning
 
     character(len=:), allocatable :: line
-    integer :: lu, lp, i, j, k, nz, nindep, io, icv, nop
+    integer :: lu, lp, i, j, k, nz, nindep, io, icv, nop, ngused
     integer, allocatable :: irep(:), perm(:)
     real*8 :: vals(9), rdum, zsum(3,3), zdrift, zsymdev, epsasym, rc(3,3), epsin(3,3)
     real*8, allocatable :: zin(:,:,:), zsym(:,:,:)
@@ -4226,10 +4232,8 @@ contains
        errmsg = "Born charges can only be used with crystals"
        return
     end if
-    if (ngpts < 1) then
-       errmsg = "The number of G-vectors for the dipole-dipole sum must be positive"
-       return
-    end if
+    ngused = ngpts
+    if (ngused <= 0) ngused = merge(born_ngauto,born_ngnoreal,doreal)
 
     ! open the file; the header line is skipped, but phonopy can also
     ! read its G_cutoff and Lambda from the second and third fields
@@ -4369,7 +4373,7 @@ contains
     ! The parameters of the reciprocal-space sum, as in phonopy: a
     ! sphere holding about ngpts G-vectors, and the Ewald parameter
     ! for which the Gaussian factor is 1e-10 at its surface.
-    v%born_kcut = (3d0 * real(ngpts,8) / (4d0 * pi * c%omega))**(1d0/3d0)
+    v%born_kcut = (3d0 * real(ngused,8) / (4d0 * pi * c%omega))**(1d0/3d0)
     v%born_lambda = sqrt(-v%born_kcut**2 * (v%born_eps(1,1)+v%born_eps(2,2)+v%born_eps(3,3)) / 3d0 /&
        4d0 / log(1d-10))
     v%born_file = file
@@ -4426,8 +4430,8 @@ contains
           write (uout,'(12X,3(A," "))') (string(v%born_z(3,j,i),'f',10,5),j=1,3)
        end do
        write (uout,'("  Reciprocal-space sum: cutoff = ",A," bohr^-1, Lambda = ",A," bohr^-1 (",A,&
-          &" G-vectors requested)")') string(v%born_kcut,'f',decimal=6), string(v%born_lambda,'f',decimal=6),&
-          string(ngpts)
+          &" G-vectors requested",A,")")') string(v%born_kcut,'f',decimal=6), string(v%born_lambda,'f',decimal=6),&
+          string(ngused), trim(merge(", automatic","           ",ngpts <= 0))
        if (v%born_nr > 0) then
           write (uout,'("  Real-space sum: ",A," terms (pairs of atoms and lattice vectors) within Lambda*D <= ",A,&
              &"; complete dipole-dipole interaction, independent of Lambda")') string(v%born_nr),&
