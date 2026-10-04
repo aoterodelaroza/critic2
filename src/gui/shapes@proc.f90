@@ -242,6 +242,9 @@ contains
     o%ncylover = 0
     o%nconeover = 0
     o%nstringover = 0
+    o%nflatback = 0
+    o%nflatfront = 0
+    o%nflatshape = 0
     if (.not.allocated(o%sph)) allocate(o%sph(100))
     if (.not.allocated(o%cyl)) allocate(o%cyl(100))
     if (.not.allocated(o%cylflat)) allocate(o%cylflat(10))
@@ -253,6 +256,8 @@ contains
     if (.not.allocated(o%cylover)) allocate(o%cylover(10))
     if (.not.allocated(o%coneover)) allocate(o%coneover(10))
     if (.not.allocated(o%stringover)) allocate(o%stringover(10))
+    if (.not.allocated(o%flatback)) allocate(o%flatback(flat_vert_nf,10))
+    if (.not.allocated(o%flatfront)) allocate(o%flatfront(flat_vert_nf,10))
 
   end subroutine scene_objects_reset
 
@@ -313,6 +318,9 @@ contains
     o%ncylover = 0
     o%nconeover = 0
     o%nstringover = 0
+    o%nflatback = 0
+    o%nflatfront = 0
+    o%nflatshape = 0
     if (allocated(o%sph)) deallocate(o%sph)
     if (allocated(o%cyl)) deallocate(o%cyl)
     if (allocated(o%cylflat)) deallocate(o%cylflat)
@@ -324,6 +332,8 @@ contains
     if (allocated(o%cylover)) deallocate(o%cylover)
     if (allocated(o%coneover)) deallocate(o%coneover)
     if (allocated(o%stringover)) deallocate(o%stringover)
+    if (allocated(o%flatback)) deallocate(o%flatback)
+    if (allocated(o%flatfront)) deallocate(o%flatfront)
 
   end subroutine scene_objects_end
 
@@ -569,6 +579,21 @@ contains
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 
+    ! planar-shape VAO: position (loc 0) and color (loc 1), interleaved;
+    ! storage is sized on upload (see glbuffers_upload_flat)
+    call glGenVertexArrays(1, c_loc(b%flatVAO))
+    call glGenBuffers(1, c_loc(b%flatVBO))
+    call glBindVertexArray(b%flatVAO)
+    call glBindBuffer(GL_ARRAY_BUFFER, b%flatVBO)
+    call glEnableVertexAttribArray(0)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char),&
+       int(flat_vert_nf*c_sizeof(c_float_),c_int), c_null_ptr)
+    call glEnableVertexAttribArray(1)
+    call glVertexAttribPointer(1, 4, GL_FLOAT, int(GL_FALSE,c_signed_char),&
+       int(flat_vert_nf*c_sizeof(c_float_),c_int), transfer(3_c_intptr_t * c_sizeof(c_float_), c_ptr_))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+
     b%isinit = .true.
 
   contains
@@ -710,6 +735,8 @@ contains
     call glDeleteBuffers(1, c_loc(b%mshEBO))
     call glDeleteVertexArrays(1, c_loc(b%textVAO))
     call glDeleteBuffers(1, c_loc(b%textVBO))
+    call glDeleteVertexArrays(1, c_loc(b%flatVAO))
+    call glDeleteBuffers(1, c_loc(b%flatVBO))
 
     call b%detach()
 
@@ -751,6 +778,9 @@ contains
     b%mshEBO = 0
     b%msh_vcap = 0
     b%msh_ecap = 0
+    b%flatVAO = 0
+    b%flatVBO = 0
+    b%flat_cap = 0
     if (allocated(b%packsph)) deallocate(b%packsph)
     if (allocated(b%packcyl)) deallocate(b%packcyl)
     if (allocated(b%packmesh)) deallocate(b%packmesh)
@@ -965,6 +995,48 @@ contains
     call upload_instances(b%textVBO,b%text_cap,int(text_vert_nf),nvert,c_loc(buf))
 
   end subroutine glbuffers_upload_text
+
+  !> Upload the planar-shape triangle vertices (flat_vert_nf floats each) to
+  !> the per-scene VBO: the nb vertices drawn behind the scene first, then
+  !> the nf drawn on top (orphan + subdata, capacity-tracked like the
+  !> instance buffers).
+  module subroutine glbuffers_upload_flat(b,nb,bufb,nf,buff)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: nb
+    real(c_float), intent(in), target :: bufb(flat_vert_nf,*)
+    integer, intent(in) :: nf
+    real(c_float), intent(in), target :: buff(flat_vert_nf,*)
+
+    real(c_float) :: f_
+    integer(c_intptr_t) :: vsize
+
+    if (nb + nf <= 0) return
+    if (nb + nf > b%flat_cap) b%flat_cap = max(nb + nf,2*b%flat_cap)
+    vsize = flat_vert_nf * c_sizeof(f_)
+    call glBindBuffer(GL_ARRAY_BUFFER, b%flatVBO)
+    call glBufferData(GL_ARRAY_BUFFER, int(b%flat_cap,c_intptr_t)*vsize, c_null_ptr, GL_DYNAMIC_DRAW)
+    if (nb > 0) &
+       call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, int(nb,c_intptr_t)*vsize, c_loc(bufb))
+    if (nf > 0) &
+       call glBufferSubData(GL_ARRAY_BUFFER, int(nb,c_intptr_t)*vsize, int(nf,c_intptr_t)*vsize, c_loc(buff))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+  end subroutine glbuffers_upload_flat
+
+  !> Draw n uploaded planar-shape vertices (n/3 triangles), starting at
+  !> vertex first (0-based). The flat shader must be bound.
+  module subroutine glbuffers_draw_flat(b,first,n)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: first, n
+
+    if (n <= 0) return
+    call glBindVertexArray(b%flatVAO)
+    call glDrawArrays(GL_TRIANGLES, int(first,c_int), int(n,c_int))
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_draw_flat
 
   !> Re-draw n already-uploaded sphere impostor instances through the cached VAO
   !> (no upload). Used when the cached buffers have not changed.

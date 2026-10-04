@@ -82,6 +82,11 @@ module shapes
   ! color vertices, drawn non-instanced through an element buffer
   integer(c_int), parameter, public :: msh_vert_nf = 9 ! floats per mesh vertex (3 position + 3 normal + 3 color)
 
+  ! planar (screen-space) shapes: triangles pre-tessellated on the CPU,
+  ! drawn non-instanced; position in the NDC of the render buffer (x,y),
+  ! depth (z), and color (rgba)
+  integer(c_int), parameter, public :: flat_vert_nf = 7 ! floats per planar-shape vertex
+
   !! draw list objects
   !> spheres for the draw list
   type dl_sphere
@@ -223,6 +228,14 @@ module shapes
      type(dl_cylinder_over), allocatable :: coneover(:) ! overlay cone draw list
      integer :: nstringover ! number of overlay strings (e.g. axes gizmo labels)
      type(dl_string_over), allocatable :: stringover(:) ! overlay string draw list
+     ! planar shapes, as triangle vertices (flat_vert_nf,:) in the NDC of the
+     ! render buffer. Each shape has its own depth, so that it blends once
+     ! where its triangles overlap and covers the shapes before it.
+     integer :: nflatback = 0 ! number of vertices drawn behind the scene (over the background only)
+     real(c_float), allocatable :: flatback(:,:) ! the vertices drawn behind the scene
+     integer :: nflatfront = 0 ! number of vertices drawn on top of everything
+     real(c_float), allocatable :: flatfront(:,:) ! the vertices drawn on top
+     integer :: nflatshape = 0 ! number of planar shapes tessellated (sets the depth of the next)
    contains
      procedure :: reset => scene_objects_reset
      procedure :: reserve => scene_objects_reserve
@@ -269,6 +282,7 @@ module shapes
      integer(c_int) :: planeinstVAO = 0, planeinstVBO = 0 ! quad mesh
      integer(c_int) :: triinstVAO = 0, triinstVBO = 0    ! triangle mesh
      integer(c_int) :: mshVAO = 0, mshVBO = 0, mshEBO = 0 ! indexed meshes (isosurfaces)
+     integer(c_int) :: flatVAO = 0, flatVBO = 0 ! planar-shape triangles (behind, then front)
      ! scratch instance buffers (re-uploaded every frame: measure-selection,
      ! highlights, picking, overlay)
      integer(c_int) :: sphinstVAOscr = 0, sphinstVBOscr = 0
@@ -281,6 +295,7 @@ module shapes
      integer :: sphscr_cap = 0, cylscr_cap = 0, conescr_cap = 0
      integer :: msh_vcap = 0 ! vertex capacity of the indexed-mesh VBO storage
      integer :: msh_ecap = 0 ! index capacity of the indexed-mesh EBO storage
+     integer :: flat_cap = 0 ! vertex capacity of the planar-shape VBO storage
      ! persistent CPU pack scratch (grow-only, see ensure_pack): instance data
      ! is packed here before upload, avoiding per-frame allocations
      real(c_float), allocatable :: packsph(:,:)  ! opaque sphere instances (also selections/highlights/pick)
@@ -351,6 +366,8 @@ module shapes
      procedure :: sort_meshes => glbuffers_sort_meshes
      procedure :: draw_meshes => glbuffers_draw_meshes
      procedure :: upload_text => glbuffers_upload_text
+     procedure :: upload_flat => glbuffers_upload_flat
+     procedure :: draw_flat => glbuffers_draw_flat
      procedure :: redraw_spheres => glbuffers_redraw_spheres
      procedure :: redraw_cylinders => glbuffers_redraw_cylinders
      procedure :: redraw_mesh => glbuffers_redraw_mesh
@@ -473,6 +490,17 @@ module shapes
        integer, intent(in) :: nvert
        real(c_float), intent(in), target :: buf(text_vert_nf,nvert)
      end subroutine glbuffers_upload_text
+     module subroutine glbuffers_upload_flat(b,nb,bufb,nf,buff)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: nb
+       real(c_float), intent(in), target :: bufb(flat_vert_nf,*)
+       integer, intent(in) :: nf
+       real(c_float), intent(in), target :: buff(flat_vert_nf,*)
+     end subroutine glbuffers_upload_flat
+     module subroutine glbuffers_draw_flat(b,first,n)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: first, n
+     end subroutine glbuffers_draw_flat
      module subroutine glbuffers_redraw_spheres(b,n)
        class(scene_glbuffers), intent(inout) :: b
        integer, intent(in) :: n

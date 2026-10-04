@@ -25,7 +25,8 @@ submodule (shaders) proc
      "sphere      ",& ! shader_sphere
      "cylinder    ",& ! shader_cylinder
      "mesh        ",& ! shader_mesh
-     "iso         "&  ! shader_iso
+     "iso         ",& ! shader_iso
+     "flat        "&  ! shader_flat
      /)
 
   ! shader programs

@@ -78,6 +78,15 @@ module representations
   real(c_float), parameter, public :: shape_alpha_def = 0.5_c_float ! opacity of a newly created shape
   real*8, parameter, public :: shape_size_def = 2d0 / bohrtoa ! size of a newly created shape (radius, cube side)
   real*8, parameter, public :: shape_edge_def = 0.05d0 / bohrtoa ! thickness of the box edges
+  !--> planar shapes (lengths in the NDC of the render buffer: the square
+  !    render texture spans -1 to 1 in x and y)
+  real(c_float), parameter, public :: planar_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/) ! stroke color
+  real(c_float), parameter, public :: planar_fillrgb_def(3) = (/1.00_c_float,0.80_c_float,0.20_c_float/) ! fill color
+  real(c_float), parameter, public :: planar_fillalpha_def = 0.35_c_float ! fill opacity
+  real*8, parameter, public :: planar_width_def = 0.009d0 ! stroke width (3 pixels in a 670-pixel view)
+  real*8, parameter, public :: planar_size_def = 0.15d0 ! half-size of a new ellipse/rectangle
+  real*8, parameter, public :: planar_headl_def = 5d0 ! arrowhead length, in stroke widths
+  real*8, parameter, public :: planar_headw_def = 4d0 ! arrowhead width, in stroke widths
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
   real(c_float), parameter, public :: symelem_rgb_glide(3) = (/0.20_c_float,0.70_c_float,0.75_c_float/) ! glide-plane color
@@ -352,7 +361,8 @@ module representations
   integer, parameter, public :: reptype_polyhedra = 11 ! coordination polyhedra
   integer, parameter, public :: reptype_cps = 12 ! critical points of a scalar field
   integer, parameter, public :: reptype_gpaths = 13 ! gradient paths (bond paths) of a scalar field
-  integer, parameter, public :: reptype_NUM = 13
+  integer, parameter, public :: reptype_planar = 14 ! list of planar shapes (screen coordinates)
+  integer, parameter, public :: reptype_NUM = 14
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -374,7 +384,8 @@ module representations
   integer, parameter, public :: repflavor_isosurface = 16
   integer, parameter, public :: repflavor_cps = 17
   integer, parameter, public :: repflavor_gpaths = 18
-  integer, parameter, public :: repflavor_NUM = 18
+  integer, parameter, public :: repflavor_planar = 19
+  integer, parameter, public :: repflavor_NUM = 19
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -409,7 +420,8 @@ module representations
      "Geometric Shapes ",& ! repflavor_shapes
      "Isosurface       ",& ! repflavor_isosurface
      "Critical Points  ",& ! repflavor_cps
-     "Gradient Paths   "/) ! repflavor_gpaths
+     "Gradient Paths   ",& ! repflavor_gpaths
+     "Planar Shapes    "/) ! repflavor_planar
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -542,6 +554,67 @@ module representations
      integer :: isel = 0 ! shape being edited in the object editor
   end type rep_shapes
   public :: rep_shapes
+
+  ! shape kinds for the planar shapes representation
+  integer, parameter, public :: planarkind_ellipse = 1
+  integer, parameter, public :: planarkind_rect = 2
+  integer, parameter, public :: planarkind_polygon = 3
+  integer, parameter, public :: planarkind_polyline = 4
+  integer, parameter, public :: planarkind_arrow = 5
+  integer, parameter, public :: planarkind_freehand = 6
+  integer, parameter, public :: planarkind_NUM = 6
+  character(len=9), parameter, public :: planarkind_name(planarkind_NUM) = (/&
+     "Ellipse  ",&
+     "Rectangle",&
+     "Polygon  ",&
+     "Polyline ",&
+     "Arrow    ",&
+     "Freehand "/)
+  character(len=*,kind=c_char), parameter, public :: planarkind_combostr = &
+     "Ellipse" // c_null_char // "Rectangle" // c_null_char // "Polygon" // c_null_char //&
+     "Polyline" // c_null_char // "Arrow" // c_null_char // "Freehand" // c_null_char
+
+  ! arrowheads of a planar arrow
+  integer, parameter, public :: planarheads_end = 1 ! at the last point
+  integer, parameter, public :: planarheads_start = 2 ! at the first point
+  integer, parameter, public :: planarheads_both = 3 ! at both ends
+  character(len=*,kind=c_char), parameter, public :: planarheads_combostr = &
+     "End" // c_null_char // "Start" // c_null_char // "Both" // c_null_char
+
+  !> A planar shape, drawn directly on the screen. All positions and
+  !> lengths are in the NDC of the render buffer (the square render
+  !> texture spans -1 to 1 in x and y; the view shows a centered crop of
+  !> it), so the shapes keep their shape and their place over the scene
+  !> when the window is resized or the image exported.
+  type planar_shape
+     integer :: kind = planarkind_ellipse ! shape kind (planarkind_*)
+     logical :: shown = .true. ! whether this shape is drawn
+     real*8 :: xc(2) = 0d0 ! ellipse/rectangle: center
+     real*8 :: hs(2) = planar_size_def ! ellipse/rectangle: half-sizes along the (rotated) axes
+     real*8 :: ang = 0d0 ! ellipse/rectangle: rotation angle (radians, counterclockwise)
+     integer :: npt = 0 ! polygon/polyline/arrow/freehand: number of points
+     real*8, allocatable :: x(:,:) ! polygon/polyline/arrow/freehand: the points (2,npt)
+     logical :: stroke = .true. ! draw the outline
+     real*8 :: width = planar_width_def ! outline width
+     real(c_float) :: rgb(3) = planar_rgb_def ! outline color
+     real(c_float) :: alpha = 1._c_float ! outline opacity
+     logical :: fill = .false. ! fill the inside (closed kinds only)
+     real(c_float) :: fillrgb(3) = planar_fillrgb_def ! fill color
+     real(c_float) :: fillalpha = planar_fillalpha_def ! fill opacity
+     integer :: heads = planarheads_end ! arrow: ends that carry an arrowhead (planarheads_*)
+     real*8 :: headl = planar_headl_def ! arrow: arrowhead length, in outline widths
+     real*8 :: headw = planar_headw_def ! arrow: arrowhead width, in outline widths
+     logical :: infront = .true. ! drawn on top of the scene (else only over the background)
+  end type planar_shape
+  public :: planar_shape
+
+  !> Planar shapes representation options (reptype_planar; accessed as r%planar%...)
+  type rep_planar
+     integer :: nshape = 0 ! number of shapes in the list (later shapes are drawn on top)
+     type(planar_shape), allocatable :: shape(:) ! the shapes
+     integer :: isel = 0 ! selected shape: edited in the object editor, handles in the view
+  end type rep_planar
+  public :: rep_planar
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
@@ -841,6 +914,7 @@ module representations
      type(rep_unitcell) :: uc ! unit cell display options
      type(rep_axes) :: axes ! cartesian/crystallographic axes options
      type(rep_shapes) :: shapes ! geometric shapes options
+     type(rep_planar) :: planar ! planar shapes options
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options
      type(rep_text) :: text ! text annotation options
@@ -878,6 +952,19 @@ module representations
   public :: cp_wyckoff
   public :: vibration_arrow_shapes
   public :: shape_differs
+  public :: planar_seed
+  public :: planar_isclosed
+  public :: planar_haspoints
+  public :: planar_path
+  public :: planar_handles
+  public :: planar_drag_handle
+  public :: planar_move
+  public :: planar_hit
+  public :: planar_simplify
+  public :: planar_rotation_handle
+  public :: planar_template
+  public :: planar_append
+  public :: planar_delete
 
   ! module procedure interfaces
   interface
@@ -913,6 +1000,72 @@ module representations
        type(rep_shape), intent(in) :: b
        logical :: ok
      end function shape_differs
+     module subroutine planar_seed(sh,ikind,x0)
+       type(planar_shape), intent(inout) :: sh
+       integer, intent(in) :: ikind
+       real*8, intent(in), optional :: x0(2)
+     end subroutine planar_seed
+     module function planar_isclosed(sh) result(ok)
+       type(planar_shape), intent(in) :: sh
+       logical :: ok
+     end function planar_isclosed
+     module function planar_haspoints(sh) result(ok)
+       type(planar_shape), intent(in) :: sh
+       logical :: ok
+     end function planar_haspoints
+     module subroutine planar_path(sh,n,x)
+       type(planar_shape), intent(in) :: sh
+       integer, intent(out) :: n
+       real*8, allocatable, intent(inout) :: x(:,:)
+     end subroutine planar_path
+     module subroutine planar_handles(sh,nh,xh)
+       type(planar_shape), intent(in) :: sh
+       integer, intent(out) :: nh
+       real*8, allocatable, intent(inout) :: xh(:,:)
+     end subroutine planar_handles
+     module function planar_rotation_handle(sh) result(ih)
+       type(planar_shape), intent(in) :: sh
+       integer :: ih
+     end function planar_rotation_handle
+     module subroutine planar_drag_handle(sh,sh0,ih,x,constrain)
+       type(planar_shape), intent(inout) :: sh
+       type(planar_shape), intent(in) :: sh0
+       integer, intent(in) :: ih
+       real*8, intent(in) :: x(2)
+       logical, intent(in) :: constrain
+     end subroutine planar_drag_handle
+     module subroutine planar_move(sh,d)
+       type(planar_shape), intent(inout) :: sh
+       real*8, intent(in) :: d(2)
+     end subroutine planar_move
+     module function planar_hit(sh,x,tol,onstroke) result(ok)
+       type(planar_shape), intent(in) :: sh
+       real*8, intent(in) :: x(2)
+       real*8, intent(in) :: tol
+       logical, intent(in) :: onstroke
+       logical :: ok
+     end function planar_hit
+     module subroutine planar_simplify(n,x,tol)
+       integer, intent(inout) :: n
+       real*8, intent(inout) :: x(:,:)
+       real*8, intent(in) :: tol
+     end subroutine planar_simplify
+     module function planar_template(p) result(sh)
+       type(rep_planar), intent(in) :: p
+       type(planar_shape) :: sh
+     end function planar_template
+     module subroutine planar_append(p,sh)
+       type(rep_planar), intent(inout) :: p
+       type(planar_shape), intent(in) :: sh
+     end subroutine planar_append
+     module subroutine planar_delete(p,idel)
+       type(rep_planar), intent(inout) :: p
+       integer, intent(in) :: idel
+     end subroutine planar_delete
+     module subroutine planar_tessellate(sh,obj)
+       type(planar_shape), intent(in) :: sh
+       type(scene_objects), intent(inout) :: obj
+     end subroutine planar_tessellate
      module subroutine vibration_arrow_shapes(isys,disp,iqpt,ifreq,phase,length,templ,nshape,shape)
        integer, intent(in) :: isys
        type(scene_display), intent(in) :: disp

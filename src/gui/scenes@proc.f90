@@ -663,7 +663,7 @@ contains
     use systems, only: sys, sysc
     use tools_io, only: string
     use shaders, only: shader_text_onscene, shader_sphere, shader_cylinder,&
-       shader_mesh, shader_iso, useshader, setuniform_int, setuniform_float, setuniform_vec3,&
+       shader_mesh, shader_iso, shader_flat, useshader, setuniform_int, setuniform_float, setuniform_vec3,&
        setuniform_mat4,&
        uniloc, u_world, u_view, u_projection, u_isortho, u_displ, u_upick,&
        u_isanchored, u_anchored_ndc, u_anchored_scale, u_textcolor
@@ -760,6 +760,16 @@ contains
           call s%gl%upload_meshes(s%obj%nmsh,s%obj%msh)
        call s%gl%draw_meshes(.true.)
        call glEnable(GL_CULL_FACE)
+    end if
+
+    ! upload the planar shapes, and draw the ones that go behind the scene.
+    ! Their depth is just short of the far plane, so they are tested against
+    ! the opaque objects drawn so far and show only over the background; the
+    ! translucent objects drawn below blend over them.
+    if (s%obj%nflatback + s%obj%nflatfront > 0) then
+       if (dobuild) &
+          call s%gl%upload_flat(s%obj%nflatback,s%obj%flatback,s%obj%nflatfront,s%obj%flatfront)
+       if (s%obj%nflatback > 0) call draw_planar(0,s%obj%nflatback)
     end if
 
     ! draw the plain meshes (cones, planes, polyhedra triangles)
@@ -879,6 +889,12 @@ contains
     ! window-anchored overlay objects (e.g. axes), drawn on top of the scene
     if (s%obj%ncylover + s%obj%nconeover + s%obj%nstringover > 0) &
        call render_overlay()
+
+    ! planar shapes in front of everything, including the overlay
+    if (s%obj%nflatfront > 0) then
+       call glClear(GL_DEPTH_BUFFER_BIT)
+       call draw_planar(s%obj%nflatback,s%obj%nflatfront)
+    end if
 
     ! pop the large font
     call igPopFont()
@@ -1086,6 +1102,26 @@ contains
       s%gl%ncone_inst = n
 
     end subroutine draw_all_cones
+
+    !> Draw n uploaded planar-shape vertices starting at vertex first. Each
+    !> shape has its own depth, written here, so a shape covers the ones
+    !> before it and its overlapping triangles (stroke joins, the stroke over
+    !> the fill) blend only once. The alpha channel is accumulated (not
+    !> blended like the color), so a translucent shape does not make the
+    !> render texture itself translucent.
+    subroutine draw_planar(first,n)
+      integer, intent(in) :: first, n
+
+      call useshader(shader_flat)
+      call glDisable(GL_CULL_FACE)
+      call glEnable(GL_BLEND)
+      call glBlendEquation(GL_FUNC_ADD)
+      call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+      call s%gl%draw_flat(first,n)
+      call glDisable(GL_BLEND)
+      call glEnable(GL_CULL_FACE)
+
+    end subroutine draw_planar
 
     !> Target NDC position (overndc) and zoom-compensation factor (overf) for an
     !> overlay item at the window fraction winpos. The shader (isanchored) anchors the
@@ -1794,7 +1830,7 @@ contains
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
-       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths
+       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -1934,6 +1970,8 @@ contains
              str3 = "isosurf" // c_null_char
           elseif (s%rep(i)%type == reptype_shapes) then
              str3 = "shapes" // c_null_char
+          elseif (s%rep(i)%type == reptype_planar) then
+             str3 = "planar" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then

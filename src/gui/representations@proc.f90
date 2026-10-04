@@ -134,7 +134,7 @@ contains
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (unused, was the rotation axis),
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
-  !> 14 (critical points), 15 (gradient paths).
+  !> 14 (critical points), 15 (gradient paths), 16 (planar shapes).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -387,6 +387,13 @@ contains
           r%shapes%shape(1)%alpha = shape_alpha_def
           r%shapes%shape(1)%rim = .true.
        end if
+    end if
+
+    ! planar shapes: a new object starts empty, the shapes are drawn in the view
+    if (itype == 0 .or. itype == 16) then
+       r%planar%nshape = 0
+       r%planar%isel = 0
+       if (allocated(r%planar%shape)) deallocate(r%planar%shape)
     end if
 
     ! initialize the styles
@@ -1749,6 +1756,9 @@ contains
     if (allocated(r%measure%item)) deallocate(r%measure%item)
     r%shapes%nshape = 0
     if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
+    r%planar%nshape = 0
+    r%planar%isel = 0
+    if (allocated(r%planar%shape)) deallocate(r%planar%shape)
     r%iso = rep_isosurface()
     r%cps = rep_cps()
     r%gpaths = rep_gpaths()
@@ -2573,6 +2583,11 @@ contains
                end if
             end if
           end associate
+       end do
+    elseif (r%type == reptype_planar) then
+       !!! planar shapes, in the NDC of the render buffer !!!
+       do i = 1, r%planar%nshape
+          if (r%planar%shape(i)%shown) call planar_tessellate(r%planar%shape(i),obj)
        end do
     elseif (r%type == reptype_symelem) then
        !!! symmetry elements (planes/axes/inversion centers) !!!

@@ -19,7 +19,7 @@
 module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
-  use representations, only: representation
+  use representations, only: representation, planar_shape
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -126,6 +126,7 @@ module windows
   integer :: icombo_fmt1 = 1
 
   ! view modes (positive = normal, user-selectable; negative = forced).
+  integer, parameter, public :: vm_planar = -13 ! forced by a planar-shapes editor: draw and edit the shapes
   integer, parameter, public :: vm_pick_bond = -12 ! forced by a window awaiting a bond pick
   integer, parameter, public :: vm_builder_bondorder = -11 ! forced by builder: cycle the bond order (persistent)
   integer, parameter, public :: vm_builder_bondremove = -10 ! forced by builder: remove bonds (persistent)
@@ -145,7 +146,7 @@ module windows
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
   integer, parameter, public :: vm_builder_lo = vm_builder_bondorder ! lower bound of the builder-mode range
   integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
-  integer, parameter, public :: vm_lo = vm_pick_bond ! lowest mode id (the vmnames lower bound)
+  integer, parameter, public :: vm_lo = vm_planar ! lowest mode id (the vmnames lower bound)
 
   ! The tool selected in the builder toolbar (window%builder_tool), which
   ! chooses what the contextual panel shows. A tool that arms a pick mode
@@ -168,6 +169,7 @@ module windows
   integer, parameter, public :: geomtab_symmetry = 4
 
   character(len=17), parameter, public :: vmnames(vm_lo:vm_NUM) = (/&
+     "Draw Shapes      ",& ! vm_planar
      "Pick Bonds       ",& ! vm_pick_bond
      "Bond Order       ",& ! vm_builder_bondorder
      "Remove Bonds     ",& ! vm_builder_bondremove
@@ -472,6 +474,34 @@ module windows
   end type melting_state
   public :: melting_state
 
+  ! tools of the planar-shapes editor (window%editrep_planartool): no
+  ! tool (the view is not in vm_planar), select and edit the shapes, or
+  ! draw a new shape of kind planarkind_* (= the tool number - 1)
+  integer, parameter, public :: planartool_none = 0
+  integer, parameter, public :: planartool_select = 1
+
+  ! what the left mouse button is doing in the vm_planar view mode
+  integer, parameter, public :: planarop_none = 0
+  integer, parameter, public :: planarop_drag = 1 ! drawing an ellipse, rectangle or arrow (press-drag-release)
+  integer, parameter, public :: planarop_clicks = 2 ! drawing a polygon or polyline (one click per point)
+  integer, parameter, public :: planarop_free = 3 ! drawing a freehand line (dragging)
+  integer, parameter, public :: planarop_handle = 4 ! dragging a handle of the selected shape
+  integer, parameter, public :: planarop_move = 5 ! dragging the selected shape
+
+  !> Per-view state of the planar-shapes tool (vm_planar): the shape
+  !> being drawn or dragged with the mouse. It is shown as a preview over
+  !> the view and goes to the representation when the operation ends.
+  type planar_draw_state
+     integer :: op = planarop_none ! what the left button is doing (planarop_*)
+     integer :: ishape = 0 ! shape being dragged (planarop_handle/move)
+     integer :: ih = 0 ! handle being dragged (planarop_handle)
+     real*8 :: x0(2) = 0d0 ! position of the press (NDC of the render buffer)
+     logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
+     type(planar_shape) :: sh0 ! the dragged shape as it was at the press
+     type(planar_shape) :: sh ! the shape being drawn or dragged
+  end type planar_draw_state
+  public :: planar_draw_state
+
   !> Per-window state of the save-multiple window
   type savemult_state
      character(len=:), allocatable :: lastsig
@@ -712,6 +742,7 @@ module windows
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
      logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
+     type(planar_draw_state) :: pd ! the planar shape being drawn or dragged (vm_planar)
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
@@ -760,6 +791,8 @@ module windows
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
      integer(c_int) :: editrep_shapekind = 1 ! kind the shape editor's Add button creates (shapekind_*)
+     integer(c_int) :: editrep_planartool = planartool_none ! tool of the planar-shapes editor (planartool_*,
+                                                            ! or a kind to draw: planarkind_* + 1)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery
@@ -1023,6 +1056,7 @@ module windows
      procedure :: draw_editrep_text
      procedure :: draw_editrep_measure
      procedure :: draw_editrep_shapes
+     procedure :: draw_editrep_planar
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1085,6 +1119,7 @@ module windows
   public :: windows_init
   public :: view_target_window
   public :: vm_is_forcedpick
+  public :: vm_is_owned
   public :: vm_exits_on_empty
   public :: draw_ff_backend_combo
   public :: draw_ff_eam_potential
@@ -1218,6 +1253,10 @@ module windows
        integer, intent(in) :: mode
        logical :: vm_is_forcedpick
      end function vm_is_forcedpick
+     pure module function vm_is_owned(mode)
+       integer, intent(in) :: mode
+       logical :: vm_is_owned
+     end function vm_is_owned
      pure module function vm_exits_on_empty(mode)
        integer, intent(in) :: mode
        logical :: vm_exits_on_empty
@@ -1683,6 +1722,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_shapes
+     module function draw_editrep_planar(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_planar
      module function draw_editrep_cps(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

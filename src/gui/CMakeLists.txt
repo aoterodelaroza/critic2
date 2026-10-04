@@ -42,7 +42,7 @@ set(SOURCES
   icons.f90 icons@proc.f90
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
-  representations.f90 representations@proc.f90
+  representations.f90 representations@proc.f90 representations@planar.f90
   display.f90 display@proc.f90
   )
 

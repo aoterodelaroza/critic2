@@ -72,7 +72,8 @@ contains
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
-       reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color
+       reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
+       reptype_planar
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -155,6 +156,8 @@ contains
           changed = changed .or. w%draw_editrep_isosurface(ttshown)
        elseif (w%rep%type == reptype_shapes) then
           changed = changed .or. w%draw_editrep_shapes(ttshown)
+       elseif (w%rep%type == reptype_planar) then
+          changed = changed .or. w%draw_editrep_planar(ttshown)
        elseif (w%rep%type == reptype_cps) then
           changed = changed .or. w%draw_editrep_cps(ttshown)
        elseif (w%rep%type == reptype_gpaths) then
@@ -2932,6 +2935,312 @@ contains
     end subroutine seed_radius
 
   end function draw_editrep_shapes
+
+  !> Draw the editrep window, planar shapes class. Returns true if the
+  !> scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_planar(w,ttshown) result(changed)
+    use representations, only: planar_shape, planarkind_NUM, planarkind_name, planarkind_combostr,&
+       planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
+       planarheads_combostr, planar_seed, planar_isclosed, planar_haspoints, planar_template,&
+       planar_append, planar_delete
+    use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
+       iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
+       iw_close_button, iw_highlight_selectable, iw_table_column, iw_radiobutton
+    use tools_io, only: string
+    use param, only: pi
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch, ldum, armed
+    integer :: i, k, iview, isel, idel, iswap, ihead
+    integer(c_int) :: flags, itool
+    real*8 :: xdsp(2), pxs, wpx, angd, dx, dy
+    type(ImVec2) :: sz0
+    character(kind=c_char,len=:), allocatable, target :: str1
+    type(planar_shape) :: shaux
+
+    ! initialize
+    changed = .false.
+    iview = w%anchor_view()
+    if (iview == 0) return
+
+    ! NDC per screen pixel in the view: the render buffer spans the
+    ! longest side of the view image
+    dx = win(iview)%v_rmax%x - win(iview)%v_rmin%x
+    dy = win(iview)%v_rmax%y - win(iview)%v_rmin%y
+    pxs = 2d0 / max(dx,dy,1d0)
+
+    ! the tool: the view leaving the drawing mode (cancel, the mode combo,
+    ! another window taking it) turns the tool off here
+    armed = (win(iview)%viewmode == vm_planar .and. win(iview)%vmdata%owner == w%id)
+    if (.not.armed) w%editrep_planartool = planartool_none
+    call iw_text("Draw in the View",highlight=.true.)
+    itool = w%editrep_planartool
+    ch = iw_radiobutton("Off##planartool0",int=itool,intval=int(planartool_none,c_int))
+    call iw_tooltip("Use the view normally (navigation)",ttshown)
+    ch = iw_radiobutton("Select##planartool1",int=itool,intval=int(planartool_select,c_int),&
+       sameline=.true.)
+    call iw_tooltip("Click a shape to select it, drag it to move it, and drag its handles to &
+       &resize, rotate, or move its points (shift constrains the drag). Delete removes the &
+       &selected shape",ttshown)
+    do k = 1, planarkind_NUM
+       ch = iw_radiobutton(trim(planarkind_name(k)) // "##planartool" // string(k+1),int=itool,&
+          intval=int(k+planartool_select,c_int),sameline=(k /= 3))
+       call iw_tooltip(tool_hint(k+planartool_select),ttshown)
+    end do
+    if (itool /= w%editrep_planartool) then
+       w%editrep_planartool = itool
+       win(iview)%pd%op = planarop_none
+       if (itool == planartool_none) then
+          call win(iview)%viewmode_release_forced(w%id,vm_planar)
+       else
+          call win(iview)%viewmode_set_forced(vm_planar,tool_hint(int(itool)),w%id)
+       end if
+       win(iview)%forcerender = .true.
+    end if
+
+    ! table of shapes
+    call iw_text("Planar Shapes",highlight=.true.)
+    idel = 0
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_RowBg)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    str1 = "##planartable" // c_null_char
+    sz0%x = 0
+    sz0%y = iw_calcheight(min(w%rep%planar%nshape,5)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Kind",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
+       call iw_table_column("Position (view)",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
+       call iw_table_headers_row(freezetop=.true.)
+
+       do i = 1, w%rep%planar%nshape
+          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+
+          ! delete button
+          if (igTableSetColumnIndex(0)) then
+             call igAlignTextToFramePadding()
+             if (iw_close_button("##planardel" // string(i))) idel = i
+             call iw_tooltip("Remove this shape",ttshown)
+          end if
+
+          ! shown checkbox
+          if (igTableSetColumnIndex(1)) then
+             if (iw_checkbox("##planarshow" // string(i),w%rep%planar%shape(i)%shown)) changed = .true.
+             call iw_tooltip("Toggle show/hide this shape",ttshown)
+          end if
+
+          ! kind
+          if (igTableSetColumnIndex(2)) &
+             call iw_text(kind_label(w%rep%planar%shape(i)%kind),alignframe=.true.)
+
+          ! position, and the row-spanning selectable that picks the edited shape
+          if (igTableSetColumnIndex(3)) then
+             xdsp = anchor_pos(w%rep%planar%shape(i))
+             call iw_text("(" // string(xdsp(1),'f',decimal=3) // ", " //&
+                string(xdsp(2),'f',decimal=3) // ")",alignframe=.true.)
+             ldum = iw_highlight_selectable("##planarsel" // string(i),clicked=ch,&
+                selected=(i == w%rep%planar%isel))
+             if (ch) then
+                w%rep%planar%isel = i
+                win(iview)%forcerender = .true.
+             end if
+          end if
+       end do
+       call igEndTable()
+    end if
+
+    ! add a new shape of the chosen kind, at the center of the view
+    call iw_combo_simple("##planaraddkind",planarkind_combostr,w%editrep_shapekind,&
+       startsatone=.true.)
+    call iw_tooltip("Kind of shape the Add button creates",ttshown)
+    if (iw_button("Add##planaradd",sameline=.true.)) then
+       shaux = planar_template(w%rep%planar)
+       call planar_seed(shaux,min(max(int(w%editrep_shapekind),1),planarkind_NUM))
+       call planar_append(w%rep%planar,shaux)
+       changed = .true.
+    end if
+    call iw_tooltip("Add a new shape at the center of the view (shapes can also be drawn &
+       &directly in the view, with the tools above)",ttshown)
+
+    ! process a deletion, dropping a mouse drag on the shapes in the view
+    if (idel > 0) then
+       call planar_delete(w%rep%planar,idel)
+       if (win(iview)%pd%op == planarop_handle .or. win(iview)%pd%op == planarop_move) &
+          win(iview)%pd%op = planarop_none
+       changed = .true.
+    end if
+    if (w%rep%planar%nshape == 0) return
+    if (w%rep%planar%isel < 1 .or. w%rep%planar%isel > w%rep%planar%nshape) return
+
+    ! options for the selected shape. Each widget is evaluated into ch first:
+    ! .or. is allowed to short-circuit, and a widget skipped because changed is
+    ! already true is a widget not drawn
+    isel = w%rep%planar%isel
+    iswap = 0
+    associate (sh => w%rep%planar%shape(isel))
+      call iw_text("Shape " // string(isel) // " (" // kind_label(sh%kind) // ")",highlight=.true.)
+
+      ! drawing order
+      if (iw_button("Raise##planarraise",sameline=.true.,disabled=(isel == w%rep%planar%nshape))) &
+         iswap = isel + 1
+      call iw_tooltip("Draw this shape after (on top of) the next one",ttshown)
+      if (iw_button("Lower##planarlower",sameline=.true.,disabled=(isel == 1))) &
+         iswap = isel - 1
+      call iw_tooltip("Draw this shape before (under) the previous one",ttshown)
+
+      ! geometry, in view coordinates (the render buffer spans -1 to 1)
+      if (sh%kind == planarkind_ellipse .or. sh%kind == planarkind_rect) then
+         ch = iw_dragfloat_real8("Center##planarxc",x2=sh%xc,speed=0.002d0,min=-10d0,max=10d0,&
+            decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Position of the center (view coordinates: -1 to 1 across the render &
+            &buffer, which spans the longest side of the view)",ttshown)
+         changed = changed .or. ch
+         ch = iw_dragfloat_real8("Half-sizes##planarhs",x2=sh%hs,speed=0.002d0,min=0d0,max=4d0,&
+            decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Half of the width and of the height of the shape, before the rotation &
+            &(view coordinates)",ttshown)
+         changed = changed .or. ch
+         angd = sh%ang * 180d0 / pi
+         ch = iw_dragfloat_real8("Angle (°)##planarang",x1=angd,speed=0.5d0,min=-180d0,max=180d0,&
+            decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+         if (ch) sh%ang = angd * pi / 180d0
+         call iw_tooltip("Rotation of the shape, counterclockwise",ttshown)
+         changed = changed .or. ch
+      elseif (sh%kind == planarkind_freehand) then
+         call iw_text("Freehand line with " // string(sh%npt) // " points")
+      elseif (planar_haspoints(sh)) then
+         do k = 1, sh%npt
+            ch = iw_dragfloat_real8("Point " // string(k) // "##planarpt" // string(k),x2=sh%x(:,k),&
+               speed=0.002d0,min=-10d0,max=10d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Position of point " // string(k) // " (view coordinates)",ttshown)
+            changed = changed .or. ch
+         end do
+      end if
+
+      ! the outline
+      ch = iw_checkbox("Outline##planarstroke",sh%stroke)
+      call iw_tooltip("Draw the outline of the shape",ttshown)
+      changed = changed .or. ch
+      wpx = sh%width / pxs
+      ch = iw_dragfloat_real8("Width (px)##planarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
+         decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+      if (ch) sh%width = wpx * pxs
+      call iw_tooltip("Width of the outline, in pixels of the view at its current size (it &
+         &scales with the view and the exported image)",ttshown)
+      changed = changed .or. ch
+      ch = iw_coloredit("Color##planarrgb",rgb=sh%rgb)
+      call iw_tooltip("Color of the outline",ttshown)
+      changed = changed .or. ch
+      ch = iw_dragfloat_realc("Opacity##planaralpha",x1=sh%alpha,speed=0.01_c_float,&
+         min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+      call iw_tooltip("Opacity of the outline",ttshown)
+      changed = changed .or. ch
+
+      ! the arrowheads
+      if (sh%kind == planarkind_arrow) then
+         ihead = sh%heads
+         call iw_combo_simple("Heads##planarheads",planarheads_combostr,ihead,changed=ch,&
+            startsatone=.true.)
+         if (ch) sh%heads = ihead
+         call iw_tooltip("Which ends of the arrow carry an arrowhead",ttshown)
+         changed = changed .or. ch
+         ch = iw_dragfloat_real8("Head Length##planarheadl",x1=sh%headl,speed=0.05d0,min=1d0,&
+            max=20d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Length of the arrowhead, in units of the outline width",ttshown)
+         changed = changed .or. ch
+         ch = iw_dragfloat_real8("Head Width##planarheadw",x1=sh%headw,speed=0.05d0,min=1d0,&
+            max=20d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Width of the arrowhead, in units of the outline width",ttshown)
+         changed = changed .or. ch
+      end if
+
+      ! the fill
+      if (planar_isclosed(sh)) then
+         ch = iw_checkbox("Fill##planarfill",sh%fill)
+         call iw_tooltip("Fill the inside of the shape",ttshown)
+         changed = changed .or. ch
+         ch = iw_coloredit("Fill Color##planarfillrgb",rgb=sh%fillrgb,sameline=.true.)
+         call iw_tooltip("Color of the inside of the shape",ttshown)
+         changed = changed .or. ch
+         ch = iw_dragfloat_realc("Fill Opacity##planarfillalpha",x1=sh%fillalpha,speed=0.01_c_float,&
+            min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Opacity of the inside of the shape",ttshown)
+         changed = changed .or. ch
+      end if
+
+      ! in front of or behind the scene
+      ch = iw_checkbox("In front of the scene##planarinfront",sh%infront)
+      call iw_tooltip("Draw the shape on top of the scene (checked) or behind it, only over &
+         &the background (unchecked)",ttshown)
+      changed = changed .or. ch
+    end associate
+
+    ! a change in the drawing order, keeping the shape selected
+    if (iswap > 0) then
+       shaux = w%rep%planar%shape(iswap)
+       w%rep%planar%shape(iswap) = w%rep%planar%shape(isel)
+       w%rep%planar%shape(isel) = shaux
+       w%rep%planar%isel = iswap
+       changed = .true.
+    end if
+
+  contains
+    !> The hint shown in the view bar for tool itool (planartool_*).
+    function tool_hint(itool) result(str)
+      integer, intent(in) :: itool
+      character(len=:), allocatable :: str
+
+      integer :: ik
+
+      ik = itool - planartool_select
+      if (itool == planartool_select) then
+         str = "Click a shape to select it; drag it or its handles to edit it"
+      elseif (ik == planarkind_ellipse) then
+         str = "Drag to draw an ellipse (shift: a circle)"
+      elseif (ik == planarkind_rect) then
+         str = "Drag to draw a rectangle (shift: a square)"
+      elseif (ik == planarkind_arrow) then
+         str = "Drag from the tail to the tip to draw an arrow (shift: snap to 45°)"
+      elseif (ik == planarkind_freehand) then
+         str = "Drag to draw a freehand line"
+      elseif (ik >= 1 .and. ik <= planarkind_NUM) then
+         str = "Click to add points; double-click, Enter, or right-click to finish " //&
+            "(Backspace: remove the last point)"
+      else
+         str = ""
+      end if
+
+    end function tool_hint
+
+    !> Name of planar shape kind k, for the table and the per-shape header.
+    function kind_label(k) result(str)
+      integer, intent(in) :: k
+      character(len=:), allocatable :: str
+
+      str = trim(planarkind_name(k))
+
+    end function kind_label
+
+    !> The position shown for a shape in the table: the center of an
+    !> ellipse or rectangle, the first point of the rest.
+    function anchor_pos(sh) result(x)
+      type(planar_shape), intent(in) :: sh
+      real*8 :: x(2)
+
+      if (planar_haspoints(sh) .and. sh%npt > 0) then
+         x = sh%x(:,1)
+      else
+         x = sh%xc
+      end if
+
+    end function anchor_pos
+
+  end function draw_editrep_planar
 
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.

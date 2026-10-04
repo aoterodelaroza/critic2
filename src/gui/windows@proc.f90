@@ -1109,6 +1109,8 @@ contains
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
     w%editrep_shapekind = shapekind_sphere
+    w%editrep_planartool = planartool_none
+    w%pd = planar_draw_state()
     w%editrep_isopick = -1
     w%editrep_isoline = 0
     call w%editrep_pick%clear()

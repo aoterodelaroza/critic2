@@ -934,7 +934,7 @@ contains
 
   ! Process the global cancel keybinding (BIND_CANCEL)
   subroutine process_cancel_bind()
-    use windows, only: win, nwin, wintype_builder, vm_is_forcedpick,&
+    use windows, only: win, nwin, wintype_builder, vm_is_owned,&
        view_target_window
     use systems, only: sysc, ok_system, sys_init
     use keybindings, only: is_bind_event, BIND_CANCEL
@@ -966,7 +966,7 @@ contains
     end if
 
     ! 2) exit a window-forced pick mode
-    if (vm_is_forcedpick(win(iv)%viewmode)) then
+    if (vm_is_owned(win(iv)%viewmode)) then
        call win(iv)%viewmode_exit_forced()
        return
     end if

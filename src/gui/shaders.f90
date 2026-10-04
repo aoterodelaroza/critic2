@@ -27,7 +27,8 @@ module shaders
   integer, parameter, public :: shader_cylinder = 3
   integer, parameter, public :: shader_mesh = 4
   integer, parameter, public :: shader_iso = 5
-  integer, parameter, public :: shader_NUM = 5
+  integer, parameter, public :: shader_flat = 6
+  integer, parameter, public :: shader_NUM = 6
 
   ! cached uniform locations: master list of the uniform names used in the hot
   ! render path; locations are queried once at init and fetched with uniloc()
