@@ -169,7 +169,7 @@ module windows
   integer, parameter, public :: geomtab_symmetry = 4
 
   character(len=17), parameter, public :: vmnames(vm_lo:vm_NUM) = (/&
-     "Draw Shapes      ",& ! vm_planar
+     "2D Drawing       ",& ! vm_planar
      "Pick Bonds       ",& ! vm_pick_bond
      "Bond Order       ",& ! vm_builder_bondorder
      "Remove Bonds     ",& ! vm_builder_bondremove

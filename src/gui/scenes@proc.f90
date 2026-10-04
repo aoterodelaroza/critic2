@@ -1969,9 +1969,9 @@ contains
           elseif (s%rep(i)%type == reptype_isosurface) then
              str3 = "isosurf" // c_null_char
           elseif (s%rep(i)%type == reptype_shapes) then
-             str3 = "shapes" // c_null_char
+             str3 = "3d shapes" // c_null_char
           elseif (s%rep(i)%type == reptype_planar) then
-             str3 = "planar" // c_null_char
+             str3 = "drawing" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then

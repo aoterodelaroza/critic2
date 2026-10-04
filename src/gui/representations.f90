@@ -417,11 +417,11 @@ module representations
      "Symmetry elements",& ! repflavor_symelem
      "Text             ",& ! repflavor_text
      "Measurements     ",& ! repflavor_measure
-     "Geometric Shapes ",& ! repflavor_shapes
+     "3D Shapes        ",& ! repflavor_shapes
      "Isosurface       ",& ! repflavor_isosurface
      "Critical Points  ",& ! repflavor_cps
      "Gradient Paths   ",& ! repflavor_gpaths
-     "Planar Shapes    "/) ! repflavor_planar
+     "2D Drawing       "/) ! repflavor_planar
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)

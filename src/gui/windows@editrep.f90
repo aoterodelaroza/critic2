@@ -2621,7 +2621,7 @@ contains
     end if
 
     ! table of shapes
-    call iw_text("Geometric Shapes",highlight=.true.)
+    call iw_text("3D Shapes",highlight=.true.)
     idel = 0
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -2733,7 +2733,7 @@ contains
          call seed_vectors(sh)
       end if
       changed = changed .or. ch
-      call iw_tooltip("Kind of geometric shape",ttshown)
+      call iw_tooltip("Kind of 3D shape",ttshown)
 
       ! the anchor; moving it translates the whole shape, since the end
       ! points below are stored as vectors from it
@@ -3009,7 +3009,7 @@ contains
     call iw_pop_iconrow_frame()
 
     ! table of shapes
-    call iw_text("Planar Shapes",highlight=.true.)
+    call iw_text("2D Drawing",highlight=.true.)
     idel = 0
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_RowBg)

@@ -276,7 +276,7 @@ module keybindings
      "View Window: Move Atoms Mode    ",&
      "View Window: Interact (MD) Mode ",&
      "View Window: Pick Atom Mode     ",&
-     "View Window: Draw Shapes Mode   "/)
+     "View Window: 2D Drawing Mode    "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&

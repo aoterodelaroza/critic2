@@ -556,14 +556,15 @@ contains
              call w%add_rep_and_edit(reptype_measure,repflavor_measure)
           call iw_tooltip("Measure and display distances, angles, and dihedrals",ttshown)
 
-          if (iw_menuitem("Geometric Shapes")) &
+          if (iw_menuitem("3D Shapes")) &
              call w%add_rep_and_edit(reptype_shapes,repflavor_shapes)
-          call iw_tooltip("Add geometric shapes (spheres, boxes, arrows, cones, cylinders) to the view",ttshown)
+          call iw_tooltip("Add 3D shapes (spheres, boxes, arrows, cones, cylinders) to the scene; &
+             &they move with the structure",ttshown)
 
-          if (iw_menuitem("Planar Shapes")) &
+          if (iw_menuitem("2D Drawing")) &
              call w%add_rep_and_edit(reptype_planar,repflavor_planar)
-          call iw_tooltip("Draw flat shapes (ellipses, rectangles, polygons, lines, arrows, freehand) &
-             &on the screen, over the view",ttshown)
+          call iw_tooltip("Draw 2D shapes (ellipses, rectangles, polygons, lines, arrows, freehand) &
+             &on the screen; they stay fixed when the camera moves",ttshown)
        end if
        call igEndPopup()
     end if
@@ -1468,9 +1469,10 @@ contains
        descr = "Steer the running dynamics with the mouse: drag an atom, or translate or "//&
           "rotate a whole molecule, while the run is active."
     case (vm_planar)
-       hint = "Draw and edit planar shapes"
-       descr = "Draw planar shapes on the screen, or select, edit, and remove them, with "//&
-          "the tool chosen in the toolbar of the Planar Shapes object editor."
+       hint = "Draw and edit 2D shapes"
+       descr = "Draw 2D shapes on the screen, or select, edit, and remove them, with "//&
+          "the tool chosen in the toolbar of the 2D Drawing object editor. The drawing "//&
+          "stays fixed on the screen when the camera moves."
     case (vm_pick_bond)
        if (w%vmdata%acceptempty) then
           hint = "Pick a bond or a position in the view"
