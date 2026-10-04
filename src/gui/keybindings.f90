@@ -128,7 +128,15 @@ module keybindings
   integer, parameter, public :: BIND_TREE_SELECT_ALL = 76 ! tree: select all systems
   integer, parameter, public :: BIND_BUILDER = 77 ! open the builder window
   integer, parameter, public :: BIND_PREFERENCES = 78 ! open the preferences window
-  integer, parameter, public :: BIND_NUM = 78 ! total number of binds
+  integer, parameter, public :: BIND_PLANAR_DRAW = 79 ! draw shapes: draw, select, drag or remove with the editor's tool
+  integer, parameter, public :: BIND_PLANAR_EXIT = 80 ! draw shapes: finish the polygon/polyline, or exit the mode (click)
+  integer, parameter, public :: BIND_PLANAR_TRANSLATE = 81 ! draw shapes: translate the camera
+  integer, parameter, public :: BIND_PLANAR_ZOOM = 82 ! draw shapes: zoom the camera
+  integer, parameter, public :: BIND_PLANAR_CONSTRAIN = 83 ! draw shapes: constrain (circle, square, 45 degrees) while held
+  integer, parameter, public :: BIND_PLANAR_DELETE = 84 ! draw shapes: remove the selected shape
+  integer, parameter, public :: BIND_PLANAR_FINISH = 85 ! draw shapes: finish the polygon/polyline
+  integer, parameter, public :: BIND_PLANAR_DELPOINT = 86 ! draw shapes: remove the last point of the polygon/polyline
+  integer, parameter, public :: BIND_NUM = 86 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -209,7 +217,15 @@ module keybindings
      "Save as                         ",& ! BIND_SAVE_AS
      "Select all systems in tree      ",& ! BIND_TREE_SELECT_ALL
      "Builder                         ",& ! BIND_BUILDER
-     "Preferences                     "&  ! BIND_PREFERENCES
+     "Preferences                     ",& ! BIND_PREFERENCES
+     "Draw or edit with the tool      ",& ! BIND_PLANAR_DRAW
+     "Finish the shape, or exit mode  ",& ! BIND_PLANAR_EXIT
+     "Translate the camera            ",& ! BIND_PLANAR_TRANSLATE
+     "Camera zoom                     ",& ! BIND_PLANAR_ZOOM
+     "Constrain (circle, square, 45°)",& ! BIND_PLANAR_CONSTRAIN
+     "Remove the selected shape       ",& ! BIND_PLANAR_DELETE
+     "Finish the polygon/polyline     ",& ! BIND_PLANAR_FINISH
+     "Remove the last point           "&  ! BIND_PLANAR_DELPOINT
      /)
 
   ! The key associated with each bind, bind -> key
@@ -237,12 +253,13 @@ module keybindings
   integer, parameter, public :: group_viewmode_moveatom = 11  ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_mdinteract = 12 ! view mouse interaction modes (forced during dynamics)
   integer, parameter, public :: group_viewmode_pickatom = 13  ! view mouse interaction modes (forced atom pick)
-  integer, parameter, public :: group_NUM = 13                ! total number of groups
+  integer, parameter, public :: group_viewmode_planar = 14    ! view mouse interaction modes (forced, draw planar shapes)
+  integer, parameter, public :: group_NUM = 14                ! total number of groups
 
   ! The mutually-exclusive view mouse-interaction modes
-  integer, parameter, public :: group_mousemodes(6) = (/group_viewmode_navigation,&
+  integer, parameter, public :: group_mousemodes(7) = (/group_viewmode_navigation,&
      group_viewmode_select, group_viewmode_movemol, group_viewmode_moveatom,&
-     group_viewmode_mdinteract, group_viewmode_pickatom/)
+     group_viewmode_mdinteract, group_viewmode_pickatom, group_viewmode_planar/)
 
   ! Names of the keybinding groups
   character(len=32), parameter, public :: groupnames(group_NUM) = (/&
@@ -258,7 +275,8 @@ module keybindings
      "View Window: Move Molecules Mode",&
      "View Window: Move Atoms Mode    ",&
      "View Window: Interact (MD) Mode ",&
-     "View Window: Pick Atom Mode     "/)
+     "View Window: Pick Atom Mode     ",&
+     "View Window: Draw Shapes Mode   "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -339,7 +357,15 @@ module keybindings
      group_global,&              ! BIND_SAVE_AS
      group_tree,&                ! BIND_TREE_SELECT_ALL
      group_global,&              ! BIND_BUILDER
-     group_global/)              ! BIND_PREFERENCES
+     group_global,&              ! BIND_PREFERENCES
+     group_viewmode_planar,&     ! BIND_PLANAR_DRAW
+     group_viewmode_planar,&     ! BIND_PLANAR_EXIT
+     group_viewmode_planar,&     ! BIND_PLANAR_TRANSLATE
+     group_viewmode_planar,&     ! BIND_PLANAR_ZOOM
+     group_viewmode_planar,&     ! BIND_PLANAR_CONSTRAIN
+     group_viewmode_planar,&     ! BIND_PLANAR_DELETE
+     group_viewmode_planar,&     ! BIND_PLANAR_FINISH
+     group_viewmode_planar/)     ! BIND_PLANAR_DELPOINT
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -423,7 +449,15 @@ module keybindings
      0,&  ! BIND_SAVE_AS
      0,&  ! BIND_TREE_SELECT_ALL
      0,&  ! BIND_BUILDER
-     0/)  ! BIND_PREFERENCES
+     0,&  ! BIND_PREFERENCES
+     0,&  ! BIND_PLANAR_DRAW
+     0,&  ! BIND_PLANAR_EXIT
+     0,&  ! BIND_PLANAR_TRANSLATE
+     0,&  ! BIND_PLANAR_ZOOM
+     -1,& ! BIND_PLANAR_CONSTRAIN
+     0,&  ! BIND_PLANAR_DELETE
+     0,&  ! BIND_PLANAR_FINISH
+     0/)  ! BIND_PLANAR_DELPOINT
 
   ! module procedure interfaces
   interface

@@ -263,6 +263,17 @@ contains
     call set_bind(BIND_MDINTERACT_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_UNDO,ImGuiKey_Z,mod_ctrl)
     call set_bind(BIND_REDO,ImGuiKey_Y,mod_ctrl)
+    ! draw shapes: the draw/exit binds are mouse buttons, tested at the
+    ! button level (a click is a press and release without dragging, and
+    ! the constrain modifier may be held or not)
+    call set_bind(BIND_PLANAR_DRAW,ImGuiKey_MouseLeft,mod_none)
+    call set_bind(BIND_PLANAR_EXIT,ImGuiKey_MouseRight,mod_none)
+    call set_bind(BIND_PLANAR_TRANSLATE,ImGuiKey_MouseRightHold,mod_none)
+    call set_bind(BIND_PLANAR_ZOOM,ImGuiKey_MouseScroll,mod_none)
+    call set_bind(BIND_PLANAR_CONSTRAIN,ImGuiKey_None,mod_shift)
+    call set_bind(BIND_PLANAR_DELETE,ImGuiKey_Delete,mod_none)
+    call set_bind(BIND_PLANAR_FINISH,ImGuiKey_Enter,mod_none)
+    call set_bind(BIND_PLANAR_DELPOINT,ImGuiKey_Backspace,mod_none)
 
   end subroutine set_default_keybindings
 
@@ -487,6 +498,11 @@ contains
     if (group_in_view(g1) .and. group_in_view(g2)) then
        ! two mouse modes do not clash (only one is active at a time)
        clash = .not.(group_is_mousemode(g1) .and. group_is_mousemode(g2))
+       ! nor does the draw-shapes mode with the mode switches (locked
+       ! while a window forces a mode) or the selection edits (draw_view
+       ! leaves Delete to the shapes in that mode)
+       if (any(g1 == (/group_viewmode,group_editselect/)) .and. g2 == group_viewmode_planar) clash = .false.
+       if (any(g2 == (/group_viewmode,group_editselect/)) .and. g1 == group_viewmode_planar) clash = .false.
        return
     end if
     clash = .false.

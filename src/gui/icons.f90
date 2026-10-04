@@ -68,7 +68,15 @@ module icons
   integer, parameter, public :: icon_ui_group = 37    ! a group of systems (folder holding molecules)
   integer, parameter, public :: icon_ui_display = 38  ! display selection window (eye)
   integer, parameter, public :: icon_prop_cps = 39    ! critical points (saddle: arrows in and out of a dot)
-  integer, parameter, public :: icon_NUM = 39
+  ! planar shapes editor tools
+  integer, parameter, public :: icon_pl_select = 40   ! select and edit shapes (mouse pointer)
+  integer, parameter, public :: icon_pl_ellipse = 41  ! draw an ellipse
+  integer, parameter, public :: icon_pl_rect = 42     ! draw a rectangle
+  integer, parameter, public :: icon_pl_polygon = 43  ! draw a polygon (pentagon)
+  integer, parameter, public :: icon_pl_polyline = 44 ! draw a polyline (zigzag with vertex dots)
+  integer, parameter, public :: icon_pl_arrow = 45    ! draw an arrow
+  integer, parameter, public :: icon_pl_freehand = 46 ! draw a freehand line (squiggle)
+  integer, parameter, public :: icon_NUM = 46
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

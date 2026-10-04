@@ -2945,7 +2945,12 @@ contains
        planar_append, planar_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
-       iw_close_button, iw_highlight_selectable, iw_table_column, iw_radiobutton
+       iw_close_button, iw_highlight_selectable, iw_table_column, iw_icon_togglebutton,&
+       iw_push_iconrow_frame, iw_pop_iconrow_frame
+    use gui_main, only: tooltip_enabled
+    use keybindings, only: is_bind_event, BIND_CANCEL
+    use icons, only: icon_tex, icon_vm_remove, icon_pl_select, icon_pl_ellipse, icon_pl_rect,&
+       icon_pl_polygon, icon_pl_polyline, icon_pl_arrow, icon_pl_freehand
     use tools_io, only: string
     use param, only: pi
     class(window), intent(inout), target :: w
@@ -2954,11 +2959,18 @@ contains
 
     logical :: ch, ldum, armed
     integer :: i, k, iview, isel, idel, iswap, ihead
-    integer(c_int) :: flags, itool
+    integer(c_int) :: flags
     real*8 :: xdsp(2), pxs, wpx, angd, dx, dy
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
     type(planar_shape) :: shaux
+
+    ! the toolbar: icon of each tool, and the text drawn instead if it did not load
+    integer, parameter :: toolicon(planartool_select:planartool_kind0+planarkind_NUM) = (/&
+       icon_pl_select,icon_vm_remove,icon_pl_ellipse,icon_pl_rect,icon_pl_polygon,&
+       icon_pl_polyline,icon_pl_arrow,icon_pl_freehand/)
+    character(len=2), parameter :: toolfall(planartool_select:planartool_kind0+planarkind_NUM) = (/&
+       "Se","Rm","El","Re","Pg","Pl","Ar","Fh"/)
 
     ! initialize
     changed = .false.
@@ -2975,30 +2987,26 @@ contains
     ! another window taking it) turns the tool off here
     armed = (win(iview)%viewmode == vm_planar .and. win(iview)%vmdata%owner == w%id)
     if (.not.armed) w%editrep_planartool = planartool_none
-    call iw_text("Draw in the View",highlight=.true.)
-    itool = w%editrep_planartool
-    ch = iw_radiobutton("Off##planartool0",int=itool,intval=int(planartool_none,c_int))
-    call iw_tooltip("Use the view normally (navigation)",ttshown)
-    ch = iw_radiobutton("Select##planartool1",int=itool,intval=int(planartool_select,c_int),&
-       sameline=.true.)
-    call iw_tooltip("Click a shape to select it, drag it to move it, and drag its handles to &
-       &resize, rotate, or move its points (shift constrains the drag). Delete removes the &
-       &selected shape",ttshown)
-    do k = 1, planarkind_NUM
-       ch = iw_radiobutton(trim(planarkind_name(k)) // "##planartool" // string(k+1),int=itool,&
-          intval=int(k+planartool_select,c_int),sameline=(k /= 3))
-       call iw_tooltip(tool_hint(k+planartool_select),ttshown)
-    end do
-    if (itool /= w%editrep_planartool) then
-       w%editrep_planartool = itool
-       win(iview)%pd%op = planarop_none
-       if (itool == planartool_none) then
-          call win(iview)%viewmode_release_forced(w%id,vm_planar)
-       else
-          call win(iview)%viewmode_set_forced(vm_planar,tool_hint(int(itool)),w%id)
-       end if
-       win(iview)%forcerender = .true.
+
+    ! the cancel bind turns the tool off from here too (the view handles
+    ! it when it is the focused window)
+    if (armed .and. w%focused()) then
+       if (is_bind_event(BIND_CANCEL,norepeat=.true.)) call w%planar_set_tool(planartool_none)
     end if
+    call iw_text("Toolbar",highlight=.true.)
+    call iw_push_iconrow_frame()
+    do k = planartool_select, planartool_kind0 + planarkind_NUM
+       ldum = (w%editrep_planartool == k)
+       ! clicking the armed tool again turns it off
+       if (iw_icon_togglebutton("##planartool" // string(k),icon_tex(toolicon(k)),trim(toolfall(k)),&
+          state=ldum,sameline=(k /= planartool_select))) &
+          call w%planar_set_tool(merge(k,planartool_none,ldum))
+       ! the hint is only built when it is about to be shown
+       if (tooltip_enabled) then
+          if (igIsItemHovered(ImGuiHoveredFlags_None)) call iw_tooltip(planar_tool_hint(k),ttshown)
+       end if
+    end do
+    call iw_pop_iconrow_frame()
 
     ! table of shapes
     call iw_text("Planar Shapes",highlight=.true.)
@@ -3190,33 +3198,6 @@ contains
     end if
 
   contains
-    !> The hint shown in the view bar for tool itool (planartool_*).
-    function tool_hint(itool) result(str)
-      integer, intent(in) :: itool
-      character(len=:), allocatable :: str
-
-      integer :: ik
-
-      ik = itool - planartool_select
-      if (itool == planartool_select) then
-         str = "Click a shape to select it; drag it or its handles to edit it"
-      elseif (ik == planarkind_ellipse) then
-         str = "Drag to draw an ellipse (shift: a circle)"
-      elseif (ik == planarkind_rect) then
-         str = "Drag to draw a rectangle (shift: a square)"
-      elseif (ik == planarkind_arrow) then
-         str = "Drag from the tail to the tip to draw an arrow (shift: snap to 45°)"
-      elseif (ik == planarkind_freehand) then
-         str = "Drag to draw a freehand line"
-      elseif (ik >= 1 .and. ik <= planarkind_NUM) then
-         str = "Click to add points; double-click, Enter, or right-click to finish " //&
-            "(Backspace: remove the last point)"
-      else
-         str = ""
-      end if
-
-    end function tool_hint
-
     !> Name of planar shape kind k, for the table and the per-shape header.
     function kind_label(k) result(str)
       integer, intent(in) :: k
@@ -3241,6 +3222,30 @@ contains
     end function anchor_pos
 
   end function draw_editrep_planar
+
+  !> Make itool (planartool_*) the tool of the planar shapes editor w,
+  !> arming the drawing mode of its view (or releasing it, for
+  !> planartool_none) with the hint of the tool as the prompt. Also
+  !> called by the view (a right click turns the tool off).
+  module subroutine planar_set_tool(w,itool)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: itool
+
+    integer :: iview
+
+    w%editrep_planartool = itool
+    iview = w%anchor_view()
+    if (iview == 0) return
+    win(iview)%pd%op = planarop_none
+    win(iview)%pd%rpress = .false.
+    if (itool == planartool_none) then
+       call win(iview)%viewmode_release_forced(w%id,vm_planar)
+    else
+       call win(iview)%viewmode_set_forced(vm_planar,planar_tool_hint(itool),w%id)
+    end if
+    win(iview)%forcerender = .true.
+
+  end subroutine planar_set_tool
 
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
@@ -4846,5 +4851,60 @@ contains
     end associate
 
   end subroutine run_editrep
+
+  !xx! private procedures
+
+  !> The hint for tool itool (planartool_*) of the planar shapes editor:
+  !> its tooltip in the editor toolbar and its prompt in the view bar.
+  !> The keys are those bound in the Draw Shapes mode.
+  function planar_tool_hint(itool) result(str)
+    use representations, only: planarkind_ellipse, planarkind_rect, planarkind_arrow,&
+       planarkind_freehand, planarkind_NUM, planarkind_name
+    use keybindings, only: get_bind_keyname, BIND_PLANAR_DRAW, BIND_PLANAR_EXIT,&
+       BIND_PLANAR_CONSTRAIN, BIND_PLANAR_DELETE, BIND_PLANAR_FINISH, BIND_PLANAR_DELPOINT,&
+       BIND_CANCEL
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: ik
+
+    ik = itool - planartool_kind0
+    if (itool == planartool_select) then
+       str = "Select: " // kn(BIND_PLANAR_DRAW) // " a shape to select it, drag it to move it, " //&
+          "and drag its handles to resize, rotate, or move its points (" //&
+          kn(BIND_PLANAR_CONSTRAIN) // ": constrain). " // kn(BIND_PLANAR_DELETE) //&
+          " removes the selected shape"
+    elseif (itool == planartool_remove) then
+       str = "Remove: " // kn(BIND_PLANAR_DRAW) // " a shape to remove it"
+    elseif (ik == planarkind_ellipse) then
+       str = "Ellipse: drag to draw (" // kn(BIND_PLANAR_CONSTRAIN) // ": a circle)"
+    elseif (ik == planarkind_rect) then
+       str = "Rectangle: drag to draw (" // kn(BIND_PLANAR_CONSTRAIN) // ": a square)"
+    elseif (ik == planarkind_arrow) then
+       str = "Arrow: drag from the tail to the tip (" // kn(BIND_PLANAR_CONSTRAIN) //&
+          ": snap to 45°)"
+    elseif (ik == planarkind_freehand) then
+       str = "Freehand: drag to draw"
+    elseif (ik >= 1 .and. ik <= planarkind_NUM) then
+       str = trim(planarkind_name(ik)) // ": " // kn(BIND_PLANAR_DRAW) // " to add points; " //&
+          "double-click, " // kn(BIND_PLANAR_FINISH) // ", or " // kn(BIND_PLANAR_EXIT) //&
+          " to finish (" // kn(BIND_PLANAR_DELPOINT) // ": remove the last point)"
+    else
+       str = ""
+    end if
+    if (len(str) > 0) &
+       str = str // ". " // kn(BIND_PLANAR_EXIT) // " or " // kn(BIND_CANCEL) //&
+          ": back to navigation"
+
+  contains
+    !> The name of the key bound to bind, trimmed for use in a message.
+    function kn(bind)
+      integer, intent(in) :: bind
+      character(len=:), allocatable :: kn
+
+      kn = trim(get_bind_keyname(bind))
+
+    end function kn
+  end function planar_tool_hint
 
 end submodule editrep

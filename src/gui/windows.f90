@@ -475,10 +475,13 @@ module windows
   public :: melting_state
 
   ! tools of the planar-shapes editor (window%editrep_planartool): no
-  ! tool (the view is not in vm_planar), select and edit the shapes, or
-  ! draw a new shape of kind planarkind_* (= the tool number - 1)
+  ! tool (the view is not in vm_planar), select and edit the shapes,
+  ! remove the clicked shapes, or draw a new shape of kind planarkind_*
+  ! (tool planartool_kind0 + kind)
   integer, parameter, public :: planartool_none = 0
   integer, parameter, public :: planartool_select = 1
+  integer, parameter, public :: planartool_remove = 2
+  integer, parameter, public :: planartool_kind0 = planartool_remove ! the last tool that draws nothing
 
   ! what the left mouse button is doing in the vm_planar view mode
   integer, parameter, public :: planarop_none = 0
@@ -496,6 +499,9 @@ module windows
      integer :: ishape = 0 ! shape being dragged (planarop_handle/move)
      integer :: ih = 0 ! handle being dragged (planarop_handle)
      real*8 :: x0(2) = 0d0 ! position of the press (NDC of the render buffer)
+     logical :: rpress = .false. ! a right click may be in progress (pressed over the view)
+     logical :: rmoved = .false. ! the mouse moved past the click/drag threshold since that press
+     real*8 :: xr0(2) = 0d0 ! position of that right press (NDC of the render buffer)
      logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
      type(planar_shape) :: sh0 ! the dragged shape as it was at the press
      type(planar_shape) :: sh ! the shape being drawn or dragged
@@ -1057,6 +1063,7 @@ module windows
      procedure :: draw_editrep_measure
      procedure :: draw_editrep_shapes
      procedure :: draw_editrep_planar
+     procedure :: planar_set_tool
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1727,6 +1734,10 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_planar
+     module subroutine planar_set_tool(w,itool)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: itool
+     end subroutine planar_set_tool
      module function draw_editrep_cps(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
