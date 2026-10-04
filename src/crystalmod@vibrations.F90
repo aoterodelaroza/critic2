@@ -8298,6 +8298,279 @@ contains
 
   end subroutine read_phonopy_fc2
 
+  !> Build the force constants of a supercell from the dynamical
+  !> matrices at the wave vectors commensurate with it: the inverse of
+  !> the Fourier interpolation (phonopy's DynmatToForceConstants). sline
+  !> holds the file name, the supercell matrix (as in LOAD_FC2: 3 or 9
+  !> integers, rows = supercell lattice vectors in cell units, or with
+  !> PHONOPY their transpose) and, optionally, ASR. The file is a phonopy
+  !> qpoints.yaml written with WRITEDM = .TRUE.: the dynamical matrices
+  !> in phonopy's convention (atomic positions inside the phase, units
+  !> of the calculator's force constants divided by amu, phonopy's
+  !> masses, which have to be critic2's), one for each of the n
+  !> commensurate wave vectors, in any order and possibly shifted by
+  !> reciprocal lattice vectors; a missing q is taken from -q by time
+  !> reversal, D(-q) = D(q)^*. For the image js of atom ja at lattice
+  !> point L:
+  !>   Phi(ia,js) = sqrt(m_ia m_ja)/n sum_q D_ia,ja(q) exp(-2 pi i q.(L + x_ja - x_ia))
+  !> which is exact: these force constants give back D(q) at every
+  !> commensurate q, as finite-difference force constants of the same
+  !> supercell would with no differentiation error.
+  module subroutine vibrations_load_dynmat(v,c,sline,verbose,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, getword, equal, isinteger,&
+       isreal, string, uout
+    use param, only: atmass, tpi, img
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    character*(*), intent(in) :: sline
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    real*8, parameter :: epsq = 1d-5 ! tolerance for q S^T integral (the file has 7 decimals)
+
+    character(len=:), allocatable :: file, word, line
+    integer :: lu, lp, i, j, k, ia, ja, jl, js, idum, ndim, idim(9), smat(3,3), madj(3,3)
+    integer :: nlat, nsat, natf, n3, iunitfc, ierr, m(3), key(3), ik, ik2, nread, ntr
+    logical :: doasr, phonopydim, flipped
+    real*8 :: fac, q(3), x(3), imax, rmax
+    complex*16 :: ph
+    integer, allocatable :: lvec(:,:), lkey(:,:), kidx(:,:,:)
+    real*8, allocatable :: sqm(:), qk(:,:), row(:)
+    logical, allocatable :: have(:)
+    complex*16, allocatable :: dq(:,:,:), blk(:,:)
+
+    errmsg = ""
+    lu = -1
+    if (c%ismolecule) then
+       errmsg = "LOAD_DYNMAT can only be used with crystals"
+       return
+    end if
+
+    ! the units: those of the calculator's force constants, per amu
+    iunitfc = fc2_calc_unit(errmsg)
+    if (len_trim(errmsg) > 0) return
+    fac = fc2_unit_factor(iunitfc)
+
+    ! the file name, the supercell and the options
+    lp = 1
+    file = getword(sline,lp)
+    if (len_trim(file) == 0) then
+       errmsg = "LOAD_DYNMAT needs a file name (a phonopy qpoints.yaml with the dynamical matrices)"
+       return
+    end if
+    ndim = 0
+    doasr = .false.
+    phonopydim = .false.
+    do while (.true.)
+       if (isinteger(idum,sline,lp)) then
+          ndim = ndim + 1
+          if (ndim > 9) then
+             errmsg = "Too many integers in the supercell specification (LOAD_DYNMAT)"
+             return
+          end if
+          idim(ndim) = idum
+          cycle
+       end if
+       word = lgetword(sline,lp)
+       if (len_trim(word) == 0) exit
+       if (equal(word,"asr").or.equal(word,"acoustic").or.equal(word,"acoustic_sum_rules")) then
+          doasr = .true.
+       elseif (equal(word,"phonopy")) then
+          phonopydim = .true.
+       else
+          errmsg = "Unknown keyword in VIBRATIONS LOAD_DYNMAT: " // trim(word)
+          return
+       end if
+    end do
+    if (ndim == 0) then
+       errmsg = "LOAD_DYNMAT needs the supercell matrix"
+       return
+    end if
+    call supercell_matrix_from_ints(ndim,idim,phonopydim,smat,flipped,errmsg)
+    if (len_trim(errmsg) > 0) return
+    if (flipped) then
+       errmsg = "The supercell matrix has negative determinant"
+       return
+    end if
+    call fc2_lattice_points(smat,nlat,madj,lvec,lkey,errmsg)
+    if (len_trim(errmsg) > 0) return
+    nsat = c%ncel * nlat
+    n3 = 3 * c%ncel
+
+    ! the dynamical matrices, one per class of commensurate q modulo
+    ! the reciprocal lattice (key = q*n mod n, integer for every
+    ! commensurate q)
+    allocate(dq(n3,n3,nlat),qk(3,nlat),have(nlat),row(6*c%ncel),kidx(0:nlat-1,0:nlat-1,0:nlat-1),stat=ierr)
+    if (ierr /= 0) then
+       errmsg = "Could not allocate the dynamical matrices for LOAD_DYNMAT"
+       return
+    end if
+    have = .false.
+    kidx = 0
+    lu = fopen_read(file,ti=ti)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       return
+    end if
+    errmsg = "Error reading the dynamical matrices from: " // trim(file)
+    natf = -1
+    nread = 0
+    ik = 0
+    do while (getline_raw(lu,line,.false.))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"natom:")) then
+          if (.not.isinteger(natf,line,lp)) goto 999
+          if (natf /= c%ncel) then
+             errmsg = "The file " // trim(file) // " has " // string(natf) // " atoms, but the structure has " //&
+                string(c%ncel)
+             goto 999
+          end if
+       elseif (index(line,"q-position:") > 0) then
+          call nums(line(index(line,"q-position:")+11:),q,3)
+          ! commensurate with the supercell?
+          x = matmul(real(smat,8),q)
+          if (any(abs(x - nint(x)) > epsq)) then
+             errmsg = "The q-point " // string(q(1),'f',10,6) // string(q(2),'f',10,6) // string(q(3),'f',10,6) //&
+                " in " // trim(file) // " is not commensurate with the supercell"
+             goto 999
+          end if
+          ! the exact q, q = m S^-T, and its class
+          m = nint(x)
+          do i = 1, 3
+             q(i) = real(dot_product(m,madj(i,:)),8) / real(nlat,8)
+          end do
+          key = modulo(nint(q * nlat),nlat)
+          if (kidx(key(1),key(2),key(3)) == 0) then
+             ik = ik + 1
+             if (ik > nlat) goto 999
+             kidx(key(1),key(2),key(3)) = ik
+          else
+             errmsg = "Repeated wave vector (modulo a reciprocal lattice vector) in " // trim(file)
+             goto 999
+          end if
+          qk(:,ik) = q
+       elseif (equal(word,"dynamical_matrix:")) then
+          if (natf < 0 .or. ik == 0) goto 999
+          do i = 1, n3
+             if (.not.getline_raw(lu,line,.false.)) goto 999
+             if (index(line,'[') == 0) goto 999
+             call nums(line(index(line,'[')+1:),row,6*c%ncel)
+             do j = 1, n3
+                dq(i,j,ik) = cmplx(row(2*j-1),row(2*j),8)
+             end do
+          end do
+          have(ik) = .true.
+          nread = nread + 1
+       end if
+    end do
+    call fclose(lu)
+    lu = -1
+    if (nread == 0) then
+       errmsg = "No dynamical matrices in " // trim(file) // " (run phonopy with WRITEDM = .TRUE.)"
+       goto 999
+    end if
+
+    ! complete the set by time reversal: D(-q) = D(q)^*
+    ntr = 0
+    if (count(kidx > 0) < nlat) then
+       do k = 1, nread
+          if (.not.have(k)) cycle
+          key = modulo(-nint(qk(:,k) * nlat),nlat)
+          if (kidx(key(1),key(2),key(3)) /= 0) cycle
+          ik2 = count(kidx > 0) + 1
+          kidx(key(1),key(2),key(3)) = ik2
+          qk(:,ik2) = -qk(:,k)
+          dq(:,:,ik2) = conjg(dq(:,:,k))
+          have(ik2) = .true.
+          ntr = ntr + 1
+       end do
+    end if
+    if (count(kidx > 0) /= nlat .or. .not.all(have)) then
+       errmsg = "The file " // trim(file) // " has dynamical matrices at " // string(count(kidx > 0)) //&
+          " of the " // string(nlat) // " wave vectors commensurate with the supercell (counting -q)"
+       goto 999
+    end if
+
+    ! the fold
+    call v%end(keepvibs=.true.)
+    allocate(v%fc2(3,3,c%ncel,nsat),sqm(c%ncel),blk(3,3),stat=ierr)
+    if (ierr /= 0) then
+       errmsg = "Could not allocate " // string(nint(72d0*c%ncel*nsat/1024d0**2)) //&
+          " Mb for the force constants"
+       goto 999
+    end if
+    do ia = 1, c%ncel
+       sqm(ia) = sqrt(atmass(c%spc(c%atcel(ia)%is)%z))
+    end do
+    v%fc2 = 0d0
+    imax = 0d0
+    rmax = 0d0
+    do ia = 1, c%ncel
+       do ja = 1, c%ncel
+          do jl = 1, nlat
+             js = (ja-1)*nlat + jl
+             x = real(lvec(:,jl),8) + fc2_xin(c,ja) - fc2_xin(c,ia)
+             blk = 0d0
+             do k = 1, nlat
+                ph = exp(-img * tpi * dot_product(qk(:,k),x))
+                blk = blk + dq(3*ia-2:3*ia,3*ja-2:3*ja,k) * ph
+             end do
+             blk = blk * (sqm(ia) * sqm(ja) * fac / real(nlat,8))
+             v%fc2(:,:,ia,js) = real(blk,8)
+             imax = max(imax,maxval(abs(aimag(blk))))
+             rmax = max(rmax,maxval(abs(real(blk,8))))
+          end do
+       end do
+    end do
+    call fc2_store(v,c,file,smat,madj,nlat,nsat,.false.,lvec,lkey)
+
+    if (verbose) then
+       write (uout,'("+ Force constants from the dynamical matrices at the commensurate wave vectors (LOAD_DYNMAT)")')
+       write (uout,'("  File: ",A)') trim(file)
+       write (uout,'("  Supercell matrix (rows): ",3(3(A," "),"/ "))') ((string(smat(i,j)),j=1,3),i=1,3)
+       write (uout,'("  Wave vectors: ",A," commensurate, ",A," read, ",A," completed by time reversal")')&
+          string(nlat), string(nread), string(ntr)
+       write (uout,'("  Largest imaginary part of the folded force constants: ",A," (largest real part ",A,&
+          &", Hartree/bohr^2)")') string(imax,'e',12,4), string(rmax,'e',12,4)
+       write (uout,'("  The dynamical matrices must have been computed with the masses of critic2")')
+    end if
+
+    ! apply the acoustic sum rule, if requested
+    if (doasr) &
+       call v%apply_acoustic(c,verbose)
+
+    errmsg = ""
+    return
+
+999 continue
+    if (lu > 0) call fclose(lu)
+    call v%end(keepvibs=.true.)
+
+  contains
+    ! the first n real numbers in str, with brackets and commas as blanks
+    subroutine nums(str,x,n)
+      character*(*), intent(in) :: str
+      integer, intent(in) :: n
+      real*8, intent(out) :: x(n)
+
+      character(len=len(str)) :: s
+      integer :: i, lps
+
+      s = str
+      do i = 1, len(s)
+         if (s(i:i) == '[' .or. s(i:i) == ']' .or. s(i:i) == ',') s(i:i) = ' '
+      end do
+      lps = 1
+      x = 0d0
+      do i = 1, n
+         if (.not.isreal(x(i),s,lps)) exit
+      end do
+
+    end subroutine nums
+  end subroutine vibrations_load_dynmat
+
   !> Lattice points of the supercell defined by the integer supercell
   !> matrix smat. Returns the number of lattice points (nlat = det(smat)), the
   !> integer adjugate of smat (madj, with smat*madj = nlat*I), the

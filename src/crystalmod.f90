@@ -221,6 +221,7 @@ module crystalmod
      procedure :: check_fc2 => vibrations_check_fc2 !< numerical sanity checks on the FC2
      procedure :: apply_acoustic => vibrations_apply_acoustic !< apply acoustic sum rules to FC2
      procedure :: read_born => vibrations_read_born !< read Born charges and dielectric tensor
+     procedure :: load_dynmat => vibrations_load_dynmat !< FC2 from dynamical matrices at the commensurate q
      procedure :: clear_born => vibrations_clear_born !< remove the Born charges
      procedure :: write_fc2 => vibrations_write_fc2 !< write FC2
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
@@ -1802,6 +1803,14 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine vibrations_read_born
+     module subroutine vibrations_load_dynmat(v,c,sline,verbose,errmsg,ti)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       character*(*), intent(in) :: sline
+       logical, intent(in) :: verbose
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine vibrations_load_dynmat
      pure module subroutine vibrations_clear_born(v)
        class(vibrations), intent(inout) :: v
      end subroutine vibrations_clear_born

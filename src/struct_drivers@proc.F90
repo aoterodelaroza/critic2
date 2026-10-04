@@ -4100,6 +4100,21 @@ contains
           if (len_trim(errmsg) > 0) &
              call ferror("struct_vibrations",errmsg,faterr)
 
+       elseif (equal(word,'load_dynmat')) then
+          ! force constants from the dynamical matrices at the wave
+          ! vectors commensurate with the supercell (a phonopy
+          ! qpoints.yaml written with WRITEDM): the inverse of the
+          ! Fourier interpolation
+          sline = line(lp:)
+          call s%c%vib%load_dynmat(s%c,sline,verbose,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_vibrations",errmsg,faterr)
+
+          ! numerical checks on the force constants just built
+          call s%c%vib%check_fc2(s%c,verbose,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_vibrations",errmsg,faterr)
+
        elseif (equal(word,'born')) then
           ! the Born effective charges and the dielectric tensor (a
           ! phonopy BORN file, BORN by default) for the dipole-dipole

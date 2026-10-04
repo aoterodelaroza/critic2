@@ -1,0 +1,25 @@
+## check: 004_load_dynmat_fc2.dat -a1e-5
+## check: 004_load_dynmat_dm.dat -a1e-5
+## labels: quick regression
+
+## Urea: the force constants of an index-2 supercell, read directly
+## (LOAD_FC2) and rebuilt from phonopy's dynamical matrices at the two
+## commensurate wave vectors (LOAD_DYNMAT, a qpoints.yaml written with
+## WRITEDM from the same force constants and critic2's masses). Both
+## give the same frequencies at any q.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 004_load_dynmat_fc2.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.0 0.5
+  endcalcq
+  load_dynmat ../zz_source/critic2/vibrations-urea/urea_dynmat.yaml 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 004_load_dynmat_dm.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.0 0.5
+  endcalcq
+end
