@@ -1,0 +1,9 @@
+## willfail: 'needs a supercell'
+## labels: quick regression nodata
+
+## CREATE_DISPLACEMENTS without a supercell.
+crystal library rutile
+vibrations
+  calculator qe
+  create_displacements distance 0.01
+end

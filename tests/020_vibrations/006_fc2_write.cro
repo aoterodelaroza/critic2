@@ -1,0 +1,4 @@
++ Written FC2 file (eV/ang^2, full format): 006_fc2_write_full.dat 
++ Written FC2 file (Ry/bohr^2, compact format): 006_fc2_write_qe.dat 
++ Written FC2 file (Hartree/bohr^2, compact format): 006_fc2_write_dftb.dat 
++ Written FC2 file (eV/(ang*bohr), compact format): 006_fc2_write_abinit.dat 

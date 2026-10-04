@@ -1,0 +1,31 @@
+# critic2 VIBRATIONS displacement dataset
+# the forces of these displaced structures are read back with VIBRATIONS READ_FORCES
+VERSION 1
+STRUCTURE ! the cell the displacements were generated from
+  LATTICE ! lattice vectors, one per row, in bohr
+          8.68089162842077       0.00000000000000       0.00000000000000 
+          0.00000000000000       8.68089162842077       0.00000000000000 
+          0.00000000000000       0.00000000000000       5.59003666821168 
+  NATOMS 6
+  ATOM  22       0.00000000000000       0.00000000000000       0.00000000000000 
+  ATOM  22       0.50000000000000       0.50000000000000       0.50000000000000 
+  ATOM   8       0.30530000000000       0.30530000000000       0.00000000000000 
+  ATOM   8       0.69470000000000       0.69470000000000       0.00000000000000 
+  ATOM   8       0.19470000000000       0.80530000000000       0.50000000000000 
+  ATOM   8       0.80530000000000       0.19470000000000       0.50000000000000 
+ENDSTRUCTURE
+SUPERCELL ! rows = supercell lattice vectors, in units of the cell vectors
+       1   -1    0 
+      -1   -1    0 
+       0    0   -2 
+DISTANCE 0.01000000000000       ! displacement length, always in bohr
+TEMPLATE 014_create_displacements_aims-*.in
+CALCULATOR aims ! the code the structures were written for (none = not set)
+KIND FINITE_DIFFERENCE ! one atom per structure, along phonopy's directions
+NDISP 3
+DISPLACEMENTS
+# id  atom  --direction (frac)--  file
+  1    1      1    1    1     014_create_displacements_aims-001.in
+  2    9      1    1    1     014_create_displacements_aims-002.in
+  3    9      -1   -1   -1    014_create_displacements_aims-003.in
+ENDDISPLACEMENTS

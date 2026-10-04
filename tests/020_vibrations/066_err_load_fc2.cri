@@ -1,0 +1,8 @@
+## willfail: 'are read with VIBRATIONS LOAD_FC2'
+## labels: quick regression nodata
+
+## LOAD of a FORCE_CONSTANTS file: force constants are read with LOAD_FC2.
+crystal library rutile
+vibrations
+  load FORCE_CONSTANTS
+end

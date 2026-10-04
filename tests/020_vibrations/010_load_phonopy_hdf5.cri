@@ -1,0 +1,11 @@
+## check: 010_load_phonopy_hdf5.cro -a1e-6
+## grep: 010_load_phonopy_hdf5.cro '^(\+ PRINT|  Format:|# List of q|# Number of freq|# (Dynamical|Second|Born)| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: quick regression
+
+## LOAD of a phonopy mesh.hdf5 (needs HDF5): the same 24 q-points as
+## mesh.yaml in 009_load_phonopy.
+crystal ../zz_source/phonopy-3.9.9/geometry.in
+vibrations
+  load ../zz_source/phonopy-3.9.9/mesh.hdf5
+  print summary
+end

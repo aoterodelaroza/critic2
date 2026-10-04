@@ -1,0 +1,70 @@
+## check: 006_fc2_write_qe.dat -a1e-10
+## check: 006_fc2_write_full.dat -a1e-10
+## check: 006_fc2_write_aims.dat -a1e-5
+## check: 006_fc2_write_fromqe.dat -a1e-5
+## check: 006_fc2_write_fromfull.dat -a1e-5
+## check: 006_fc2_write_fromdftb.dat -a1e-5
+## check: 006_fc2_write_fromabinit.dat -a1e-5
+## sed: 006_fc2_write_qe.dat '1,13!d'
+## sed: 006_fc2_write_full.dat '1,13!d'
+## delete: 006_fc2_write_dftb.dat 006_fc2_write_abinit.dat
+## labels: quick regression
+
+## Urea: WRITE_FC2 and LOAD_FC2 round trips. The force constants, read
+## in the units of FHI-aims (eV/ang^2), are written in the compact format
+## in the units of Quantum ESPRESSO (Ry/bohr^2), DFTB+ (Hartree/bohr^2)
+## and abinit (eV/(ang*bohr)), and in the full format; each file is read
+## back with its own calculator and gives the same frequencies. The head
+## of the QE file and of the full file is checked too: the header line
+## (number of rows, number of columns) and the first blocks.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 006_fc2_write_aims.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  write_fc2 006_fc2_write_full.dat full
+  calculator qe
+  write_fc2 006_fc2_write_qe.dat
+  calculator dftb+
+  write_fc2 006_fc2_write_dftb.dat
+  calculator abinit
+  write_fc2 006_fc2_write_abinit.dat
+
+  calculator qe
+  load_fc2 006_fc2_write_qe.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 006_fc2_write_fromqe.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  calculator aims
+  load_fc2 006_fc2_write_full.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 006_fc2_write_fromfull.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  calculator dftb+
+  load_fc2 006_fc2_write_dftb.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 006_fc2_write_fromdftb.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  calculator abinit
+  load_fc2 006_fc2_write_abinit.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 006_fc2_write_fromabinit.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+end

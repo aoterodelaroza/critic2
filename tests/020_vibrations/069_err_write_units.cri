@@ -1,0 +1,10 @@
+## willfail: 'WRITE_FC2 takes no units'
+## labels: quick regression
+
+## WRITE_FC2 with a unit word: the units are those of the calculator.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  write_fc2 069_err_write_units.dat qe
+end

@@ -1,0 +1,9 @@
+## willfail: 'LOAD_DYNMAT needs the supercell matrix'
+## labels: quick regression nodata
+
+## LOAD_DYNMAT without the supercell matrix.
+crystal library rutile
+vibrations
+  calculator aims
+  load_dynmat nosuchfile.yaml
+end

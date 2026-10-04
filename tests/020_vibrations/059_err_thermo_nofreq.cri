@@ -1,0 +1,8 @@
+## willfail: 'no frequencies available for THERMO'
+## labels: quick regression nodata
+
+## THERMO with neither a mesh nor stored frequencies.
+crystal library rutile
+vibrations
+  thermo
+end

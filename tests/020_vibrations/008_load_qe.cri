@@ -1,0 +1,23 @@
+## check: 008_load_qe.cro -a1e-6
+## check: 008_load_qe_eig.dat -a1e-6
+## check: 008_load_qe_dyn.dat -a1e-6
+## grep: 008_load_qe.cro '^(\+ PRINT|  Format:|# List of q|# Number of freq|# (Dynamical|Second|Born)| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: quick regression
+
+## h-BN: LOAD of the Quantum ESPRESSO formats, detected from the file
+## extension: matdyn.modes (51 q-points of a band path), matdyn.eig and a
+## ph.x dyn file (one q-point each). PRINT SUMMARY after each gives the
+## format, the q-points and the number of frequencies. THERMO on the
+## stored frequencies of the single-q files (at gamma, in the dyn file,
+## the three acoustic modes are left out by construction).
+crystal ../zz_source/qe-6.7/hbn/hbn.scf.out
+vibrations
+  load ../zz_source/qe-6.7/hbn/hbn.modes
+  print summary
+  load ../zz_source/qe-6.7/hbn/hbn.eig
+  print summary
+  thermo temperature 50 100 300 1000 noxdebye file 008_load_qe_eig.dat
+  load ../zz_source/qe-6.7/hbn/hbn.dyn1
+  print summary
+  thermo temperature 50 100 300 1000 noxdebye file 008_load_qe_dyn.dat
+end

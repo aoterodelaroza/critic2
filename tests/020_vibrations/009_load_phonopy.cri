@@ -1,0 +1,15 @@
+## check: 009_load_phonopy.cro -a1e-6
+## check: 009_load_phonopy_ascii.dat -a1e-6
+## grep: 009_load_phonopy.cro '^(\+ PRINT|  Format:|# List of q|# Number of freq|# (Dynamical|Second|Born)| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: regression
+
+## LOAD of the phonopy text formats: anime.ascii (one q-point, with
+## THERMO on its frequencies) and mesh.yaml (24 irreducible q-points).
+crystal ../zz_source/phonopy-3.9.9/geometry.in
+vibrations
+  load ../zz_source/phonopy-3.9.9/anime.ascii
+  print summary
+  thermo temperature 50 100 300 1000 noxdebye file 009_load_phonopy_ascii.dat
+  load ../zz_source/phonopy-3.9.9/mesh.yaml
+  print summary
+end

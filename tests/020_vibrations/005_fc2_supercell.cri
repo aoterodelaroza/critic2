@@ -1,0 +1,47 @@
+## check: 005_fc2_supercell_newcell.dat -a1e-5
+## check: 005_fc2_supercell_phonopy.dat -a1e-5
+## check: 005_fc2_supercell_file.dat -a1e-5
+## check: 005_fc2_supercell_default.dat -a1e-5
+## delete: FORCE_CONSTANTS
+## labels: quick regression
+
+## Urea: the same force constants read with the supercell given in the
+## four ways LOAD_FC2 takes it: nine integers in NEWCELL order, the same
+## matrix in the order of phonopy's DIM tag (PHONOPY), a structure file
+## holding the supercell (in phonopy's atom order: the undisplaced
+## supercell written by CREATE_DISPLACEMENTS), and the integers with the
+## default file name, FORCE_CONSTANTS, written here by WRITE_FC2 with no
+## name. All four give the same frequencies.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 005_fc2_supercell_newcell.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  write_fc2
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 0 1 -1 -1 0 0 -1 -1 phonopy
+  calcq file 005_fc2_supercell_phonopy.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat ../zz_source/critic2/vibrations-urea/fd/disp-000/geometry.in
+  calcq file 005_fc2_supercell_file.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  load_fc2 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 005_fc2_supercell_default.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+end

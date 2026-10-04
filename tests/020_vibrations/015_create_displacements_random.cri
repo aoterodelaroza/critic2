@@ -1,0 +1,20 @@
+## check: 015_create_displacements_random.txt -a1e-10
+## check: 015_create_displacements_random_pm.txt -a1e-10
+## check: 015_create_displacements_random_pm-006.scf.in -a1e-10
+## delete: 015_create_displacements_random-000.scf.in 015_create_displacements_random-001.scf.in 015_create_displacements_random-002.scf.in
+## delete: 015_create_displacements_random_pm-000.scf.in 015_create_displacements_random_pm-001.scf.in 015_create_displacements_random_pm-002.scf.in
+## delete: 015_create_displacements_random_pm-003.scf.in 015_create_displacements_random_pm-004.scf.in 015_create_displacements_random_pm-005.scf.in
+## delete: 015_create_displacements_random_pm-007.scf.in 015_create_displacements_random_pm-008.scf.in
+## labels: quick regression nodata
+
+## Rutile: CREATE_DISPLACEMENTS with random displacements of every atom
+## (RANDOM), reproducible with SEED. Two snapshots; then four pairs with
+## PLUSMINUS (eight snapshots), where the second half are the negatives
+## of the first, so snapshot 6 is snapshot 2 with every displacement
+## reversed.
+crystal library rutile
+vibrations
+  calculator qe
+  create_displacements 2 2 2 random 2 seed 3 template 015_create_displacements_random-*.scf.in dataset 015_create_displacements_random.txt
+  create_displacements 2 2 2 random 4 seed 3 plusminus template 015_create_displacements_random_pm-*.scf.in dataset 015_create_displacements_random_pm.txt
+end

@@ -1,0 +1,9 @@
+## willfail: 'SEED and PLUSMINUS need RANDOM'
+## labels: quick regression nodata
+
+## CREATE_DISPLACEMENTS SEED without RANDOM.
+crystal library rutile
+vibrations
+  calculator qe
+  create_displacements 2 2 2 seed 3
+end

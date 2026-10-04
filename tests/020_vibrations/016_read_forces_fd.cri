@@ -1,0 +1,42 @@
+## check: 016_read_forces_fd_template.dat -a1e-5
+## check: 016_read_forces_fd_list.dat -a1e-5
+## check: 016_read_forces_fd_ref.dat -a1e-5
+## check: 016_read_forces_fd_fc2.dat -a1e-8
+## sed: 016_read_forces_fd_fc2.dat '1,41!d'
+## labels: quick regression
+
+## Urea: READ_FORCES from the finite-difference dataset of the index-2
+## supercell (24 displaced structures). The FHI-aims outputs are
+## synthetic, with the harmonic forces F = -Phi u of urea_fc2_sym.dat
+## (see zz_source/critic2/vibrations-urea/README), so the force constants
+## read back must be those, and so must the frequencies: they agree with
+## LOAD_FC2 of urea_fc2_sym.dat (the _ref file) to 1.3e-2 cm^-1 at worst
+## (8.7e-3 cm^-1 leaving out the acoustic modes at gamma). The outputs
+## are located with a * template and with a list file, which give the
+## same force constants. The head of the written FC2 file is checked.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  read_forces ../zz_source/critic2/vibrations-urea/fd/disp-*/aims.out dataset ../zz_source/critic2/vibrations-urea/fd/disp.txt
+  calcq file 016_read_forces_fd_template.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  write_fc2 016_read_forces_fd_fc2.dat
+  read_forces list ../zz_source/critic2/vibrations-urea/fd/files.txt dataset ../zz_source/critic2/vibrations-urea/fd/disp.txt
+  calcq file 016_read_forces_fd_list.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2_sym.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 016_read_forces_fd_ref.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+end

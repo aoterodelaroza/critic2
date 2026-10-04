@@ -1,0 +1,14 @@
+## check: 011_load_crystal.cro -a1e-6
+## check: 011_load_crystal_thermo.dat -a1e-6
+## grep: 011_load_crystal.cro '^(\+ PRINT|  Format:|# List of q|# Number of freq|# (Dynamical|Second|Born)| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: quick regression
+
+## Huntite: LOAD of the gamma-point frequencies in a CRYSTAL17 output,
+## and THERMO on them (a gamma-only crystal: the three acoustic modes
+## are left out by construction).
+crystal ../zz_source/crystal17/huntite-vib/huntite-vib.out
+vibrations
+  load ../zz_source/crystal17/huntite-vib/huntite-vib.out
+  print summary
+  thermo tmin 0 tmax 500 tstep 100 noxdebye file 011_load_crystal_thermo.dat
+end

@@ -1,0 +1,11 @@
+# Thermodynamic properties in the harmonic approximation, calculated by critic2
+# sampling: the stored frequencies at q = 0.000000 0.000000 0.000000
+# ZPE (kJ/mol) = 45.1725960 per cell, 22.5862980 per formula unit (Z = 2)
+# modes integrated = 9 of 12; imaginary modes left out = 0
+# left out: cutoff=0.0100 dropped=3 below0=0 imag=0 qbad=0 nq=1 wbad=0.000000E+00 fmin=63.8978
+# T in K; Fvib in kJ/mol; Svib and Cv in J/K/mol; columns 2-4 per unit cell, columns 5-7 per formula unit
+#      T          Fvib/cell        Svib/cell         Cv/cell        Fvib/Z           Svib/Z            Cv/Z
+    50.000       45.0184677        9.6284104       15.5591575       22.5092339        4.8142052        7.7795787
+   100.000       44.1863457       22.8498060       21.8060693       22.0931729       11.4249030       10.9030346
+   300.000       36.4802538       50.8821026       31.8519384       18.2401269       25.4410513       15.9259692
+  1000.000      -20.9942173      108.5725342       63.5169041      -10.4971087       54.2862671       31.7584520

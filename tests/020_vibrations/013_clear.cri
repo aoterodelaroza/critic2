@@ -1,0 +1,26 @@
+## check: 013_clear.cro
+## grep: 013_clear.cro '^(\+ PRINT|  (Format|File|Source):|# List of q|# Number of freq|# (Dynamical|Second|Born)| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: quick regression
+
+## Urea: CLEAR. Force constants, Born charges and frequencies (CALCQ) are
+## loaded, then CLEAR BORN, CLEAR FREQ and CLEAR FC2 each remove one part
+## and PRINT SUMMARY shows what is left; CLEAR alone removes everything.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  born ../zz_source/critic2/vibrations-urea/urea.BORN
+  calcq 0.1 0.2 0.3
+  print summary
+  clear born
+  print summary
+  clear freq
+  print summary
+  calcq 0.1 0.2 0.3
+  clear fc2
+  print summary
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq 0.1 0.2 0.3
+  clear
+  print summary
+end

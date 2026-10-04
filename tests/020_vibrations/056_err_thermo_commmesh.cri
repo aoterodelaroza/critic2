@@ -1,0 +1,8 @@
+## willfail: 'COMMENSURATE cannot be combined with MESH'
+## labels: quick regression nodata
+
+## THERMO COMMENSURATE with a MESH.
+crystal library rutile
+vibrations
+  thermo commensurate mesh 2 2 2
+end

@@ -1,0 +1,7 @@
++ PRINT summary
+# Dynamical matrices available
+  Format: crystal output file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 60
+# Second-order force constants NOT available

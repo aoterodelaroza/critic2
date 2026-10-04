@@ -1,0 +1,9 @@
+## willfail: 'RIDGE and NORIDGE are mutually exclusive'
+## labels: quick regression nodata
+
+## READ_FORCES with both RIDGE and NORIDGE.
+crystal library rutile
+vibrations
+  calculator aims
+  read_forces ridge 1e-3 noridge
+end

@@ -1,0 +1,49 @@
+## check: 017_read_forces_random_noridge.dat -a1e-5
+## check: 017_read_forces_random_pairs.dat -a1e-5
+## check: 017_read_forces_random_ridge.dat -a1e-5
+## check: 017_read_forces_random_cv.dat -a1e-5
+## labels: quick regression
+
+## Urea: READ_FORCES from a random-displacement dataset of the index-2
+## supercell (RANDOM 24 PLUSMINUS: 24 +/- pairs, one datum each), with the synthetic harmonic
+## forces of urea_fc2_sym.dat (see 016_read_forces_fd). Without a ridge
+## (NORIDGE) the fit gives the force constants back: frequencies within
+## 2.4e-3 cm^-1 of LOAD_FC2 urea_fc2_sym.dat (the _ref file of 016), and
+## so do the first 20 pairs only (PAIRS 20, 3.2e-3 cm^-1) and the ridge chosen
+## by cross-validation (the default), which picks zero for exact data. A
+## fixed RIDGE 1e-4 biases the weakly sampled lattice modes (25 cm^-1).
+## MEMORY is small enough to stream the data in three batches.
+
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  memory 0.25 mb
+  read_forces ../zz_source/critic2/vibrations-urea/random/disp-*/aims.out dataset ../zz_source/critic2/vibrations-urea/random/disp.txt noridge
+  calcq file 017_read_forces_random_noridge.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  read_forces ../zz_source/critic2/vibrations-urea/random/disp-*/aims.out dataset ../zz_source/critic2/vibrations-urea/random/disp.txt pairs 20 noridge
+  calcq file 017_read_forces_random_pairs.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  read_forces ../zz_source/critic2/vibrations-urea/random/disp-*/aims.out dataset ../zz_source/critic2/vibrations-urea/random/disp.txt ridge 1e-4
+  calcq file 017_read_forces_random_ridge.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+  read_forces ../zz_source/critic2/vibrations-urea/random/disp-*/aims.out dataset ../zz_source/critic2/vibrations-urea/random/disp.txt
+  calcq file 017_read_forces_random_cv.dat
+    q 0 0 0
+    q 0.1 0.2 0.3
+    q 0.5 0.0 0.5
+    q 0.37 -0.21 0.05
+  endcalcq
+end

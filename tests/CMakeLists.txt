@@ -12,6 +12,10 @@
 ## the same filter is applied when generating ref/FILE and when checking. A
 ## file may carry both (grep runs first, then sed). FILE must also appear in a
 ## check: directive. Single quotes inside REGEX/PROGRAM are not supported.
+##   ## willfail: 'REGEX'               the run must stop with an error: it passes
+##                                    if critic2 exits non-zero and its output
+##                                    matches REGEX (extended regex, e.g. the
+##                                    ERROR message); no gen or check tests
 
 ## test data package info
 set(TEST_PACKAGE_NAME "zz_source.tar.xz")
@@ -71,6 +75,7 @@ macro (runtests)
     set(check_list "")
     set(delete_list "")
     set(label_list "")
+    set(willfail_list "")
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
       include("${CMAKE_CURRENT_SOURCE_DIR}/${test}.cmake")
     else()
@@ -79,6 +84,7 @@ macro (runtests)
       file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" check_list REGEX "^ *#.*check *: ")
       file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" delete_list REGEX "^ *#.*delete *: ")
       file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" label_list REGEX "^ *#.*labels *: ")
+      file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri" willfail_list REGEX "^ *#.*willfail *: ")
     endif()
     string(REGEX REPLACE "^ *#.*labels *:" "" label_list "${label_list}")
 
@@ -116,6 +122,23 @@ macro (runtests)
 
     ## skip tests if we have no package unless they are self-contained
     if (NOT "${TEST_DIR_FOUND}" AND NOT ${label_list} MATCHES nodata)
+      continue()
+    endif()
+
+    ## a test that must fail: run critic2, expect a non-zero exit status
+    ## and the given message in the output; nothing to generate or check
+    if (willfail_list)
+      list(GET willfail_list 0 wpat)
+      string(REGEX REPLACE "^ *#.*willfail *:" "" wpat "${wpat}")
+      string(STRIP "${wpat}" wpat)
+      string(REGEX REPLACE "^'(.*)'$" "\\1" wpat "${wpat}")
+      add_test(
+	NAME "-RUN-:${curdir}/${test}"
+	COMMAND sh -c "! $<TARGET_FILE:critic2> -q -t -l ${CMAKE_CURRENT_SOURCE_DIR}/${test}.cri ${CMAKE_CURRENT_BINARY_DIR}/${test}.cro && grep -q -E -- '${wpat}' ${CMAKE_CURRENT_BINARY_DIR}/${test}.cro"
+	WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+	)
+      set_property(TEST "-RUN-:${curdir}/${test}" PROPERTY LABELS "willfail ${label_list}")
+      set_property(TEST "-RUN-:${curdir}/${test}" PROPERTY ENVIRONMENT CRITIC_HOME=${CMAKE_SOURCE_DIR})
       continue()
     endif()
 

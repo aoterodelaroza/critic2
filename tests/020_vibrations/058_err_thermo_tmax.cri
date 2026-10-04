@@ -1,0 +1,8 @@
+## willfail: 'TMAX must not be lower than TMIN'
+## labels: quick regression nodata
+
+## THERMO with TMAX below TMIN.
+crystal library rutile
+vibrations
+  thermo tmin 300 tmax 100
+end

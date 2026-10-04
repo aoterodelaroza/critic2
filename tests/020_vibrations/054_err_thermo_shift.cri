@@ -1,0 +1,8 @@
+## willfail: 'SHIFT needs a MESH or RKLENGTH'
+## labels: quick regression nodata
+
+## THERMO SHIFT without a mesh.
+crystal library rutile
+vibrations
+  thermo shift 0.5 0.5 0.5
+end

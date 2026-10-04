@@ -1,0 +1,15 @@
+## willfail: 'THERMO on stored frequencies needs a single q-point'
+## labels: quick regression
+
+## THERMO on stored frequencies at more than one q-point: they carry no
+## weights, so they cannot be averaged.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+  calcq
+    q 0 0 0
+    q 0.5 0 0
+  endcalcq
+  thermo
+end

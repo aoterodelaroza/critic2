@@ -1,0 +1,35 @@
++ PRINT summary
+# Dynamical matrices available
+  Source: calculated from the force constants (CALCQ)
+# List of q-points: 1
+1         0.10000000     0.20000000     0.30000000 
+# Number of frequencies at each q-point: 48
+# Second-order force constants available
+  File: ../zz_source/critic2/vibrations-urea/urea_fc2.dat
+  Format: compact
+# Born charges available: dipole-dipole correction (Gonze-Lee) active
+  File: ../zz_source/critic2/vibrations-urea/urea.BORN
++ PRINT summary
+# Dynamical matrices available
+  Source: calculated from the force constants (CALCQ)
+# List of q-points: 1
+1         0.10000000     0.20000000     0.30000000 
+# Number of frequencies at each q-point: 48
+# Second-order force constants available
+  File: ../zz_source/critic2/vibrations-urea/urea_fc2.dat
+  Format: compact
++ PRINT summary
+# Dynamical matrices NOT available
+# Second-order force constants available
+  File: ../zz_source/critic2/vibrations-urea/urea_fc2.dat
+  Format: compact
++ PRINT summary
+# Dynamical matrices available
+  Source: calculated from the force constants (CALCQ)
+# List of q-points: 1
+1         0.10000000     0.20000000     0.30000000 
+# Number of frequencies at each q-point: 48
+# Second-order force constants NOT available
++ PRINT summary
+# Dynamical matrices NOT available
+# Second-order force constants NOT available

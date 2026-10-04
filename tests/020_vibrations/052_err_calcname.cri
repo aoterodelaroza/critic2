@@ -1,0 +1,8 @@
+## willfail: 'unknown calculator: nosuchcode'
+## labels: quick regression nodata
+
+## CALCULATOR with an unknown name.
+crystal library rutile
+vibrations
+  calculator nosuchcode
+end

@@ -1,0 +1,8 @@
+## willfail: 'No calculator set'
+## labels: quick regression nodata
+
+## LOAD_FC2 without a CALCULATOR: the units of the file are unknown.
+crystal library rutile
+vibrations
+  load_fc2 nofile.dat 2
+end

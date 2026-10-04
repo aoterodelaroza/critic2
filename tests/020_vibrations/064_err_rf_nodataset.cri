@@ -1,0 +1,9 @@
+## willfail: 'displacement dataset file not found'
+## labels: quick regression nodata
+
+## READ_FORCES with a dataset that does not exist.
+crystal library rutile
+vibrations
+  calculator aims
+  read_forces dataset nosuchfile.txt
+end

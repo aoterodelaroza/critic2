@@ -1,0 +1,9 @@
+## willfail: 'NICE cannot be combined'
+## labels: quick regression nodata
+
+## CREATE_DISPLACEMENTS NICE together with a supercell matrix.
+crystal library rutile
+vibrations
+  calculator qe
+  create_displacements 2 2 2 nice 4
+end

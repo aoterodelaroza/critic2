@@ -1,0 +1,36 @@
+## check: 007_calcq_forms_one.dat -a1e-5
+## check: 007_calcq_forms_list.dat -a1e-5
+## check: 007_calcq_forms_line.dat -a1e-5
+## check: 007_calcq_forms_append.dat -a1e-5
+## check: 007_calcq_forms.cro -a1e-5
+## grep: 007_calcq_forms.cro '^(# List of q|# Number of freq| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: quick regression
+
+## Urea: the forms of CALCQ. The one-line VIBRATIONS form with the
+## q-point on the CALCQ line; a list closed by ENDCALCQ, with and without
+## the Q keyword and with a blank line; a LINE segment; a shifted MESH
+## followed by a CALCQ APPEND that adds one point to it. PRINT SUMMARY
+## after the last lists the nine q-points stored. The force constants
+## persist between VIBRATIONS blocks.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_fc2 ../zz_source/critic2/vibrations-urea/urea_fc2.dat 1 -1 0 0 -1 -1 1 0 -1
+end
+vibrations calcq 0.1 0.2 0.3 file 007_calcq_forms_one.dat
+vibrations
+  calcq file 007_calcq_forms_list.dat
+    0.1 0.2 0.3
+
+    q 0.5 0.0 0.5
+    Q 0.37 -0.21 0.05
+  endcalcq
+  calcq file 007_calcq_forms_line.dat
+    line 0 0 0 0.5 0 0 5
+  endcalcq
+  calcq
+    mesh 2 2 2 shift 0.5 0.5 0.5
+  endcalcq
+  calcq 0.37 -0.21 0.05 append file 007_calcq_forms_append.dat
+  print summary
+endvibrations

@@ -1,0 +1,8 @@
+## willfail: 'give either MESH or RKLENGTH'
+## labels: quick regression nodata
+
+## THERMO with both MESH and RKLENGTH.
+crystal library rutile
+vibrations
+  thermo mesh 2 2 2 rklength 10
+end

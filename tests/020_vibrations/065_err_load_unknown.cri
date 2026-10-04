@@ -1,0 +1,8 @@
+## willfail: 'Unknown vibration file format'
+## labels: quick regression nodata
+
+## LOAD of a file whose extension is not a vibration format.
+crystal library rutile
+vibrations
+  load nosuchfile.xyz
+end

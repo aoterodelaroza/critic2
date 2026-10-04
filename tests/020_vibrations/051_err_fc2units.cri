@@ -1,0 +1,9 @@
+## willfail: 'LOAD_FC2 takes no units'
+## labels: quick regression nodata
+
+## LOAD_FC2 with a unit word (the old syntax): the units are those of the calculator.
+crystal library rutile
+vibrations
+  calculator aims
+  load_fc2 nofile.dat 2 qe
+end

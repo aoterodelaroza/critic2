@@ -1,0 +1,42 @@
++ PRINT summary
+# Dynamical matrices available
+  Format: Gaussian output file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 3
+# Second-order force constants NOT available
++ PRINT summary
+# Dynamical matrices available
+  Format: Gaussian formatted checkpoint file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 3
+# Second-order force constants NOT available
++ PRINT summary
+# Dynamical matrices available
+  Format: Gaussian output file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 4
+# Second-order force constants NOT available
++ PRINT summary
+# Dynamical matrices available
+  Format: Gaussian formatted checkpoint file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 4
+# Second-order force constants NOT available
++ PRINT summary
+# Dynamical matrices available
+  Format: Gaussian output file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 30
+# Second-order force constants NOT available
++ PRINT summary
+# Dynamical matrices available
+  Format: Gaussian formatted checkpoint file
+# List of q-points: 1
+1         0.00000000     0.00000000     0.00000000 
+# Number of frequencies at each q-point: 30
+# Second-order force constants NOT available

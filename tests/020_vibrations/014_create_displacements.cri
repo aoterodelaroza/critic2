@@ -1,0 +1,31 @@
+## check: 014_create_displacements_qe.txt -a1e-10
+## check: 014_create_displacements_qe-001.scf.in -a1e-10
+## check: 014_create_displacements_aims.txt -a1e-10
+## check: 014_create_displacements_aims-001.in -a1e-10
+## check: 014_create_displacements_sc.txt -a1e-10
+## check: 014_create_displacements_vasp.txt -a1e-10
+## check: supercell-001 -a1e-10
+## delete: 014_create_displacements_qe-000.scf.in 014_create_displacements_qe-002.scf.in 014_create_displacements_qe-003.scf.in
+## delete: 014_create_displacements_aims-000.in 014_create_displacements_aims-002.in 014_create_displacements_aims-003.in
+## delete: 014_create_displacements_sc-000.in 014_create_displacements_sc-001.in 014_create_displacements_sc-002.in 014_create_displacements_sc-003.in
+## delete: supercell-000 supercell-002 supercell-003
+## labels: quick regression nodata
+
+## Rutile: CREATE_DISPLACEMENTS for finite differences (three
+## displacements). The supercell is given as three integers (Quantum
+## ESPRESSO inputs, with the k-point mesh from RKLENGTH), chosen by NICE
+## with MINDISP (FHI-aims inputs, DISTANCE in bohr), read from a
+## structure file (the undisplaced supercell just written: the same
+## dataset as the NICE one but for the template), and given as nine
+## integers with the default template of the calculator (VASP). The
+## datasets and one displaced structure of each code are checked.
+crystal library rutile
+vibrations
+  calculator qe
+  create_displacements 2 2 2 rklength 20 template 014_create_displacements_qe-*.scf.in dataset 014_create_displacements_qe.txt
+  calculator aims
+  create_displacements nice 4 mindisp distance 0.01 template 014_create_displacements_aims-*.in dataset 014_create_displacements_aims.txt
+  create_displacements supercell 014_create_displacements_aims-000.in distance 0.01 template 014_create_displacements_sc-*.in dataset 014_create_displacements_sc.txt
+  calculator vasp
+  create_displacements 1 -1 0 -1 -1 0 0 0 -2 dataset 014_create_displacements_vasp.txt
+end

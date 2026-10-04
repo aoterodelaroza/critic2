@@ -1,0 +1,8 @@
+## willfail: 'unknown or not yet reimplemented VIBRATIONS keyword'
+## labels: quick regression nodata
+
+## An unknown VIBRATIONS keyword.
+crystal library rutile
+vibrations
+  nosuchkeyword
+end

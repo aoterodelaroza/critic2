@@ -1,0 +1,50 @@
+## check: 012_load_gaussian.cro -a1e-6
+## check: 012_load_gaussian_h2o_log.dat -a1e-6
+## check: 012_load_gaussian_h2o_fchk.dat -a1e-6
+## check: 012_load_gaussian_co2_log.dat -a1e-6
+## check: 012_load_gaussian_co2_fchk.dat -a1e-6
+## check: 012_load_gaussian_benzene_log.dat -a1e-6
+## check: 012_load_gaussian_benzene_fchk.dat -a1e-6
+## grep: 012_load_gaussian.cro '^(\+ PRINT|  Format:|# List of q|# Number of freq|# (Dynamical|Second|Born)| *[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ +-?[0-9]+\.[0-9]+ *$)'
+## labels: quick regression
+
+## Molecules: LOAD of the frequencies in Gaussian outputs (.log) and
+## formatted checkpoint files (.fchk) of water, CO2 (linear: 3N-5
+## modes) and benzene, and THERMO on them. The .log and .fchk of each
+## molecule give the same properties to the precision of the .log.
+molecule ../zz_source/g16A.03/vibrations/h2o.log
+vibrations
+  load ../zz_source/g16A.03/vibrations/h2o.log
+  print summary
+  thermo temperature 100 298.15 1000 noxdebye file 012_load_gaussian_h2o_log.dat
+end
+molecule ../zz_source/g16A.03/vibrations/h2o.fchk
+vibrations
+  load ../zz_source/g16A.03/vibrations/h2o.fchk
+  print summary
+  thermo temperature 100 298.15 1000 noxdebye file 012_load_gaussian_h2o_fchk.dat
+end
+molecule ../zz_source/g16A.03/vibrations/co2.log
+vibrations
+  load ../zz_source/g16A.03/vibrations/co2.log
+  print summary
+  thermo temperature 100 298.15 1000 noxdebye file 012_load_gaussian_co2_log.dat
+end
+molecule ../zz_source/g16A.03/vibrations/co2.fchk
+vibrations
+  load ../zz_source/g16A.03/vibrations/co2.fchk
+  print summary
+  thermo temperature 100 298.15 1000 noxdebye file 012_load_gaussian_co2_fchk.dat
+end
+molecule ../zz_source/g16A.03/vibrations/benzene.log
+vibrations
+  load ../zz_source/g16A.03/vibrations/benzene.log
+  print summary
+  thermo temperature 100 298.15 1000 noxdebye file 012_load_gaussian_benzene_log.dat
+end
+molecule ../zz_source/g16A.03/vibrations/benzene.fchk
+vibrations
+  load ../zz_source/g16A.03/vibrations/benzene.fchk
+  print summary
+  thermo temperature 100 298.15 1000 noxdebye file 012_load_gaussian_benzene_fchk.dat
+end

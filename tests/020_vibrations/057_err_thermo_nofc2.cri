@@ -1,0 +1,8 @@
+## willfail: 'need force constants'
+## labels: quick regression nodata
+
+## THERMO MESH without force constants.
+crystal library rutile
+vibrations
+  thermo mesh 2 2 2
+end

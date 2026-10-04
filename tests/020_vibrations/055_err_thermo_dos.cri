@@ -1,0 +1,8 @@
+## willfail: 'THERMO DOS needs a MESH'
+## labels: quick regression nodata
+
+## THERMO DOS without a mesh.
+crystal library rutile
+vibrations
+  thermo dos
+end
