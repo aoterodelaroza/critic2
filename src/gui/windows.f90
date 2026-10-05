@@ -126,7 +126,7 @@ module windows
   integer :: icombo_fmt1 = 1
 
   ! view modes (positive = normal, user-selectable; negative = forced).
-  integer, parameter, public :: vm_planar = -13 ! forced by a planar-shapes editor: draw and edit the shapes
+  integer, parameter, public :: vm_objedit = -13 ! forced by an object editor: draw and edit the object in the view
   integer, parameter, public :: vm_pick_bond = -12 ! forced by a window awaiting a bond pick
   integer, parameter, public :: vm_builder_bondorder = -11 ! forced by builder: cycle the bond order (persistent)
   integer, parameter, public :: vm_builder_bondremove = -10 ! forced by builder: remove bonds (persistent)
@@ -146,7 +146,7 @@ module windows
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
   integer, parameter, public :: vm_builder_lo = vm_builder_bondorder ! lower bound of the builder-mode range
   integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
-  integer, parameter, public :: vm_lo = vm_planar ! lowest mode id (the vmnames lower bound)
+  integer, parameter, public :: vm_lo = vm_objedit ! lowest mode id (the vmnames lower bound)
 
   ! Longest message in the view bar, next to the mode combo (characters):
   ! the mode hints and the prompts of the windows that force a mode are
@@ -176,7 +176,7 @@ module windows
   integer, parameter, public :: geomtab_symmetry = 4
 
   character(len=17), parameter, public :: vmnames(vm_lo:vm_NUM) = (/&
-     "2D Drawing       ",& ! vm_planar
+     "Edit Object      ",& ! vm_objedit (the combo shows the object type instead)
      "Pick Bonds       ",& ! vm_pick_bond
      "Bond Order       ",& ! vm_builder_bondorder
      "Remove Bonds     ",& ! vm_builder_bondremove
@@ -481,39 +481,58 @@ module windows
   end type melting_state
   public :: melting_state
 
-  ! tools of the planar-shapes editor (window%editrep_planartool): no
-  ! tool (the view is not in vm_planar), select and edit the shapes,
-  ! remove the clicked shapes, or draw a new shape of kind planarkind_*
-  ! (tool planartool_kind0 + kind)
-  integer, parameter, public :: planartool_none = 0
-  integer, parameter, public :: planartool_select = 1
-  integer, parameter, public :: planartool_remove = 2
-  integer, parameter, public :: planartool_kind0 = planartool_remove ! the last tool that draws nothing
+  ! tools of an object editor (window%editrep_tool), the same for all
+  ! object types: no tool (the view is not in vm_objedit), select and
+  ! edit the items of the object, remove the clicked items, or draw a new
+  ! item of a kind of the object type (tool objtool_kind0 + kind; for a
+  ! 2D drawing, the kinds are planarkind_*)
+  integer, parameter, public :: objtool_none = 0
+  integer, parameter, public :: objtool_select = 1
+  integer, parameter, public :: objtool_remove = 2
+  integer, parameter, public :: objtool_kind0 = objtool_remove ! the last tool that draws nothing
 
-  ! what the left mouse button is doing in the vm_planar view mode
-  integer, parameter, public :: planarop_none = 0
-  integer, parameter, public :: planarop_drag = 1 ! drawing an ellipse, rectangle or arrow (press-drag-release)
-  integer, parameter, public :: planarop_clicks = 2 ! drawing a polygon or polyline (one click per point)
-  integer, parameter, public :: planarop_free = 3 ! drawing a freehand line (dragging)
-  integer, parameter, public :: planarop_handle = 4 ! dragging a handle of the selected shape
-  integer, parameter, public :: planarop_move = 5 ! dragging the selected shape
+  abstract interface
+     !> A text about tool itool (objtool_*, or objtool_kind0 + a kind) of
+     !> an object editor: its tooltip in the toolbar, or its prompt in the
+     !> view bar.
+     function objtool_text(itool) result(str)
+       integer, intent(in) :: itool
+       character(len=:), allocatable :: str
+     end function objtool_text
+  end interface
 
-  !> Per-view state of the planar-shapes tool (vm_planar): the shape
-  !> being drawn or dragged with the mouse. It is shown as a preview over
-  !> the view and goes to the representation when the operation ends.
-  type planar_draw_state
-     integer :: op = planarop_none ! what the left button is doing (planarop_*)
-     integer :: ishape = 0 ! shape being dragged (planarop_handle/move)
-     integer :: ih = 0 ! handle being dragged (planarop_handle)
+  ! what the draw bind is doing in the object editing mode (vm_objedit)
+  integer, parameter, public :: objop_none = 0
+  integer, parameter, public :: objop_drag = 1 ! drawing an item by press-drag-release (e.g. an ellipse or an arrow)
+  integer, parameter, public :: objop_clicks = 2 ! drawing an item one click per point (e.g. a polygon)
+  integer, parameter, public :: objop_free = 3 ! drawing a freehand line (dragging)
+  integer, parameter, public :: objop_handle = 4 ! dragging a handle of the selected item
+  integer, parameter, public :: objop_move = 5 ! dragging the selected item
+
+  !> 2D drawing part of the object editing state: the shape being drawn
+  !> or dragged.
+  type planar_edit_state
+     type(planar_shape) :: sh0 ! the dragged shape as it was at the press
+     type(planar_shape) :: sh ! the shape being drawn or dragged
+  end type planar_edit_state
+  public :: planar_edit_state
+
+  !> Per-view state of the object editing mode (vm_objedit): what the
+  !> mouse is doing, and the item being drawn or dragged, shown as a
+  !> preview over the view; it goes to the object when the operation ends.
+  !> The item itself is in the component of its object type.
+  type objedit_state
+     integer :: op = objop_none ! what the draw bind is doing (objop_*)
+     integer :: iitem = 0 ! item being dragged (objop_handle/move)
+     integer :: ih = 0 ! handle being dragged (objop_handle)
      real*8 :: x0(2) = 0d0 ! position of the press (NDC of the render buffer)
      logical :: rpress = .false. ! a right click may be in progress (pressed over the view)
      logical :: rmoved = .false. ! the mouse moved past the click/drag threshold since that press
      real*8 :: xr0(2) = 0d0 ! position of that right press (NDC of the render buffer)
      logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
-     type(planar_shape) :: sh0 ! the dragged shape as it was at the press
-     type(planar_shape) :: sh ! the shape being drawn or dragged
-  end type planar_draw_state
-  public :: planar_draw_state
+     type(planar_edit_state) :: planar ! 2D drawing: the shape
+  end type objedit_state
+  public :: objedit_state
 
   !> Per-window state of the save-multiple window
   type savemult_state
@@ -755,7 +774,7 @@ module windows
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
      logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
-     type(planar_draw_state) :: pd ! the planar shape being drawn or dragged (vm_planar)
+     type(objedit_state) :: oe ! the object being drawn or edited with the mouse (vm_objedit)
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
@@ -804,8 +823,8 @@ module windows
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
      integer(c_int) :: editrep_shapekind = 1 ! kind the shape editor's Add button creates (shapekind_*)
-     integer(c_int) :: editrep_planartool = planartool_none ! tool of the planar-shapes editor (planartool_*,
-                                                            ! or a kind to draw: planartool_kind0 + planarkind_*)
+     integer(c_int) :: editrep_tool = objtool_none ! tool of the object editor (objtool_*, or a
+                                                   ! kind to draw: objtool_kind0 + kind)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery
@@ -1070,7 +1089,8 @@ module windows
      procedure :: draw_editrep_measure
      procedure :: draw_editrep_shapes
      procedure :: draw_editrep_planar
-     procedure :: planar_set_tool
+     procedure :: editrep_set_tool
+     procedure :: editrep_toolbar
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1741,10 +1761,20 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_planar
-     module subroutine planar_set_tool(w,itool)
+     module subroutine editrep_set_tool(w,itool,prompt)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itool
-     end subroutine planar_set_tool
+       character(len=*), intent(in), optional :: prompt
+     end subroutine editrep_set_tool
+     module subroutine editrep_toolbar(w,itools,icons,falls,hint,prompt,ttshown)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: itools(:)
+       integer, intent(in) :: icons(:)
+       character(len=*), intent(in) :: falls(:)
+       procedure(objtool_text) :: hint
+       procedure(objtool_text) :: prompt
+       logical, intent(inout) :: ttshown
+     end subroutine editrep_toolbar
      module function draw_editrep_cps(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

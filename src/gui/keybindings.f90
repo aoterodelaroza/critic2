@@ -128,14 +128,14 @@ module keybindings
   integer, parameter, public :: BIND_TREE_SELECT_ALL = 76 ! tree: select all systems
   integer, parameter, public :: BIND_BUILDER = 77 ! open the builder window
   integer, parameter, public :: BIND_PREFERENCES = 78 ! open the preferences window
-  integer, parameter, public :: BIND_PLANAR_DRAW = 79 ! draw shapes: draw, select, drag or remove with the editor's tool
-  integer, parameter, public :: BIND_PLANAR_EXIT = 80 ! draw shapes: finish the polygon/polyline, or exit the mode (click)
-  integer, parameter, public :: BIND_PLANAR_TRANSLATE = 81 ! draw shapes: translate the camera
-  integer, parameter, public :: BIND_PLANAR_ZOOM = 82 ! draw shapes: zoom the camera
-  integer, parameter, public :: BIND_PLANAR_CONSTRAIN = 83 ! draw shapes: constrain (circle, square, 45 degrees) while held
-  integer, parameter, public :: BIND_PLANAR_DELETE = 84 ! draw shapes: remove the selected shape
-  integer, parameter, public :: BIND_PLANAR_FINISH = 85 ! draw shapes: finish the polygon/polyline
-  integer, parameter, public :: BIND_PLANAR_DELPOINT = 86 ! draw shapes: remove the last point of the polygon/polyline
+  integer, parameter, public :: BIND_OBJEDIT_DRAW = 79 ! object editing: draw, select, drag or remove with the editor's tool
+  integer, parameter, public :: BIND_OBJEDIT_EXIT = 80 ! object editing: finish what is being drawn, or exit the mode (click)
+  integer, parameter, public :: BIND_OBJEDIT_TRANSLATE = 81 ! object editing: translate the camera
+  integer, parameter, public :: BIND_OBJEDIT_ZOOM = 82 ! object editing: zoom the camera
+  integer, parameter, public :: BIND_OBJEDIT_CONSTRAIN = 83 ! object editing: constrain the drag while held (e.g. a circle, 45 degrees)
+  integer, parameter, public :: BIND_OBJEDIT_DELETE = 84 ! object editing: remove the selected item
+  integer, parameter, public :: BIND_OBJEDIT_FINISH = 85 ! object editing: finish the item being drawn (e.g. a polygon)
+  integer, parameter, public :: BIND_OBJEDIT_DELPOINT = 86 ! object editing: remove the last point of the item being drawn
   integer, parameter, public :: BIND_NUM = 86 ! total number of binds
 
   ! Bind names
@@ -218,14 +218,14 @@ module keybindings
      "Select all systems in tree      ",& ! BIND_TREE_SELECT_ALL
      "Builder                         ",& ! BIND_BUILDER
      "Preferences                     ",& ! BIND_PREFERENCES
-     "Draw or edit with the tool      ",& ! BIND_PLANAR_DRAW
-     "Finish the shape, or exit mode  ",& ! BIND_PLANAR_EXIT
-     "Translate the camera            ",& ! BIND_PLANAR_TRANSLATE
-     "Camera zoom                     ",& ! BIND_PLANAR_ZOOM
-     "Constrain (circle, square, 45°)",& ! BIND_PLANAR_CONSTRAIN
-     "Remove the selected shape       ",& ! BIND_PLANAR_DELETE
-     "Finish the polygon/polyline     ",& ! BIND_PLANAR_FINISH
-     "Remove the last point           "&  ! BIND_PLANAR_DELPOINT
+     "Draw or edit with the tool      ",& ! BIND_OBJEDIT_DRAW
+     "Finish the item, or exit mode   ",& ! BIND_OBJEDIT_EXIT
+     "Translate the camera            ",& ! BIND_OBJEDIT_TRANSLATE
+     "Camera zoom                     ",& ! BIND_OBJEDIT_ZOOM
+     "Constrain while held            ",& ! BIND_OBJEDIT_CONSTRAIN
+     "Remove the selected item        ",& ! BIND_OBJEDIT_DELETE
+     "Finish the item being drawn     ",& ! BIND_OBJEDIT_FINISH
+     "Remove the last point           "&  ! BIND_OBJEDIT_DELPOINT
      /)
 
   ! The key associated with each bind, bind -> key
@@ -253,13 +253,13 @@ module keybindings
   integer, parameter, public :: group_viewmode_moveatom = 11  ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_mdinteract = 12 ! view mouse interaction modes (forced during dynamics)
   integer, parameter, public :: group_viewmode_pickatom = 13  ! view mouse interaction modes (forced atom pick)
-  integer, parameter, public :: group_viewmode_planar = 14    ! view mouse interaction modes (forced, draw planar shapes)
+  integer, parameter, public :: group_viewmode_objedit = 14    ! view mouse interaction modes (forced, edit an object in the view)
   integer, parameter, public :: group_NUM = 14                ! total number of groups
 
   ! The mutually-exclusive view mouse-interaction modes
   integer, parameter, public :: group_mousemodes(7) = (/group_viewmode_navigation,&
      group_viewmode_select, group_viewmode_movemol, group_viewmode_moveatom,&
-     group_viewmode_mdinteract, group_viewmode_pickatom, group_viewmode_planar/)
+     group_viewmode_mdinteract, group_viewmode_pickatom, group_viewmode_objedit/)
 
   ! Names of the keybinding groups
   character(len=32), parameter, public :: groupnames(group_NUM) = (/&
@@ -276,7 +276,7 @@ module keybindings
      "View Window: Move Atoms Mode    ",&
      "View Window: Interact (MD) Mode ",&
      "View Window: Pick Atom Mode     ",&
-     "View Window: 2D Drawing Mode    "/)
+     "View Window: Object Editing Mode"/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -358,14 +358,14 @@ module keybindings
      group_tree,&                ! BIND_TREE_SELECT_ALL
      group_global,&              ! BIND_BUILDER
      group_global,&              ! BIND_PREFERENCES
-     group_viewmode_planar,&     ! BIND_PLANAR_DRAW
-     group_viewmode_planar,&     ! BIND_PLANAR_EXIT
-     group_viewmode_planar,&     ! BIND_PLANAR_TRANSLATE
-     group_viewmode_planar,&     ! BIND_PLANAR_ZOOM
-     group_viewmode_planar,&     ! BIND_PLANAR_CONSTRAIN
-     group_viewmode_planar,&     ! BIND_PLANAR_DELETE
-     group_viewmode_planar,&     ! BIND_PLANAR_FINISH
-     group_viewmode_planar/)     ! BIND_PLANAR_DELPOINT
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_DRAW
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_EXIT
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_TRANSLATE
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_ZOOM
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_CONSTRAIN
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_DELETE
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_FINISH
+     group_viewmode_objedit/)     ! BIND_OBJEDIT_DELPOINT
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -450,14 +450,14 @@ module keybindings
      0,&  ! BIND_TREE_SELECT_ALL
      0,&  ! BIND_BUILDER
      0,&  ! BIND_PREFERENCES
-     0,&  ! BIND_PLANAR_DRAW
-     0,&  ! BIND_PLANAR_EXIT
-     0,&  ! BIND_PLANAR_TRANSLATE
-     0,&  ! BIND_PLANAR_ZOOM
-     -1,& ! BIND_PLANAR_CONSTRAIN
-     0,&  ! BIND_PLANAR_DELETE
-     0,&  ! BIND_PLANAR_FINISH
-     0/)  ! BIND_PLANAR_DELPOINT
+     0,&  ! BIND_OBJEDIT_DRAW
+     0,&  ! BIND_OBJEDIT_EXIT
+     0,&  ! BIND_OBJEDIT_TRANSLATE
+     0,&  ! BIND_OBJEDIT_ZOOM
+     -1,& ! BIND_OBJEDIT_CONSTRAIN
+     0,&  ! BIND_OBJEDIT_DELETE
+     0,&  ! BIND_OBJEDIT_FINISH
+     0/)  ! BIND_OBJEDIT_DELPOINT
 
   ! module procedure interfaces
   interface

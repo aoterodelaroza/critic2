@@ -404,7 +404,7 @@ module representations
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
-  character(len=17), parameter :: repflavor_name(0:repflavor_NUM) = (/&
+  character(len=17), parameter, public :: repflavor_name(0:repflavor_NUM) = (/&
      "                 ",& ! repflavor_unknown
      "Atoms            ",& ! repflavor_atoms_basic
      "Licorice Atoms   ",& ! repflavor_atoms_licorice
