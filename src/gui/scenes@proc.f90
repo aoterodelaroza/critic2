@@ -372,7 +372,7 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
-       axes_winfrac_def
+       axes_winfrac_def, axplace_window
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -414,7 +414,7 @@ contains
        call s%rep(i)%update()
 
        ! add draw elements
-       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) cycle
+       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
@@ -608,7 +608,7 @@ contains
 
     ! build the window-anchored axes
     do i = 1, s%nrep
-       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) then
+       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) then
           if (s%rep(i)%axes%scale_auto .and. sys(s%id)%c%ncel > 0) then
              s%rep(i)%axes%scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes%length,1d-10)
              s%rep(i)%axes%scale_auto = .false.
@@ -1132,21 +1132,8 @@ contains
       real(c_float), intent(in) :: projover(4,4)
       real(c_float), intent(out) :: overndc(3), overf
 
-      real(c_float) :: hside
-
-      overndc(1:2) = overlay_ndc(s,winpos)
+      call overlay_anchor(s,winpos,scalewithzoom,projover,overndc(1:2),overf)
       overndc(3) = 0._c_float
-
-      ! zoom-compensation factor: when the overlay item should not scale with zoom,
-      ! shrink/grow the geometry so the orthographic projection leaves its
-      ! on-screen size constant. hside is the half-window size at the reset zoom,
-      ! so at that zoom both modes coincide (no jump when toggling).
-      if (scalewithzoom) then
-         overf = 1._c_float
-      else
-         hside = reset_zoom_hside(s)
-         overf = 1._c_float / (projover(1,1) * hside)
-      end if
 
     end subroutine overlay_ndc_scale
 
@@ -2132,6 +2119,28 @@ contains
 
   end function overlay_ndc
 
+  !> Anchor (o, NDC of the full render texture) and zoom-compensation
+  !> factor (overf) of a window-anchored overlay item at the window
+  !> fraction winpos, drawn with the overlay projection projover: the
+  !> overlay shaders (isanchored) place the local point x at o +
+  !> (projover * mat3(view*world) * x * overf)%xy. When the item should
+  !> not scale with zoom, overf shrinks/grows the geometry so that the
+  !> orthographic projection leaves its on-screen size constant; hside is
+  !> the half-window size at the reset zoom, so at that zoom both modes
+  !> coincide (no jump when toggling).
+  subroutine overlay_anchor(s,winpos,scalewithzoom,projover,o,overf)
+    class(scene), intent(in) :: s
+    real(c_float), intent(in) :: winpos(2)
+    logical, intent(in) :: scalewithzoom
+    real(c_float), intent(in) :: projover(4,4)
+    real(c_float), intent(out) :: o(2), overf
+
+    o = overlay_ndc(s,winpos)
+    overf = 1._c_float
+    if (.not.scalewithzoom) overf = 1._c_float / (projover(1,1) * reset_zoom_hside(s))
+
+  end subroutine overlay_anchor
+
   subroutine ortho_projection(s,proj,symz)
     use utils, only: ortho, mult
     use param, only: pi
@@ -2886,12 +2895,11 @@ contains
     logical, intent(in) :: scalewithzoom
     real*8, intent(out) :: o(2), m(2,3)
 
-    real(c_float) :: projover(4,4), vw(4,4), overf
+    real(c_float) :: projover(4,4), vw(4,4), overf, of(2)
 
     call ortho_projection(s,projover,symz=.true.)
-    o = real(overlay_ndc(s,real(winpos,c_float)),8)
-    overf = 1._c_float
-    if (.not.scalewithzoom) overf = 1._c_float / (projover(1,1) * reset_zoom_hside(s))
+    call overlay_anchor(s,real(winpos,c_float),scalewithzoom,projover,of,overf)
+    o = real(of,8)
     vw = matmul(s%view,s%world)
     m = real(matmul(projover(1:2,1:3),vw(1:3,1:3)) * overf,8)
 

@@ -199,7 +199,7 @@ contains
     ! cartesian axes
     if (itype == 0 .or. itype == 6) then
        r%axes%kind = 0 ! cartesian
-       r%axes%placement = 1
+       r%axes%placement = axplace_window
        r%axes%origin = 0d0
        if (sys(isys)%c%ismolecule) then
           r%axes%coordtype = 1 ! cartesian (angstrom)
@@ -219,7 +219,7 @@ contains
        r%axes%labeloffset = 0d0
        r%axes%scalewithzoom = .false.
        r%axes%scale = 1d0
-       r%axes%scale_auto = (r%axes%placement == 1)
+       r%axes%scale_auto = (r%axes%placement == axplace_window)
        r%axes%labelrgb = 0._c_float
        r%axes%labelstr(1) = "x"
        r%axes%labelstr(2) = "y"
@@ -440,6 +440,63 @@ contains
     if (ifield < 0) ifield = max(sys(isys)%iref,0)
 
   end function cps_field_default
+
+  !> The origin of the axes placed in the scene of crystal c, in
+  !> cartesian bohr (the molecular frame of a molecule, before the
+  !> molx0 shift of the scene), from its coordinates (ax%coordtype: 0
+  !> crystallographic, Å for a molecule; 1 cartesian Å; 2 cartesian bohr).
+  module function rep_axes_origin_cart(ax,c) result(x)
+    class(rep_axes), intent(in) :: ax
+    type(crystal), intent(in) :: c
+    real*8 :: x(3)
+
+    if (ax%coordtype == 2) then
+       x = ax%origin
+    elseif (ax%coordtype == 0 .and. .not.c%ismolecule) then
+       x = c%x2c(ax%origin)
+    else
+       x = ax%origin / bohrtoa
+    end if
+
+  end function rep_axes_origin_cart
+
+  !> Set the origin of the axes (in its coordinates, ax%coordtype) to
+  !> the cartesian point x (bohr); the inverse of origin_cart.
+  module subroutine rep_axes_set_origin_cart(ax,c,x)
+    class(rep_axes), intent(inout) :: ax
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: x(3)
+
+    if (ax%coordtype == 2) then
+       ax%origin = x
+    elseif (ax%coordtype == 0 .and. .not.c%ismolecule) then
+       ax%origin = c%c2x(x)
+    else
+       ax%origin = x * bohrtoa
+    end if
+
+  end subroutine rep_axes_set_origin_cart
+
+  !> The unit vectors along the axes (columns, cartesian) in crystal c:
+  !> the cell axes for the crystallographic axes of a crystal, the
+  !> cartesian axes otherwise.
+  module function rep_axes_dirs(ax,c) result(u)
+    class(rep_axes), intent(in) :: ax
+    type(crystal), intent(in) :: c
+    real*8 :: u(3,3)
+
+    integer :: k
+
+    u = 0d0
+    do k = 1, 3
+       if (ax%kind == 1 .and. .not.c%ismolecule) then
+          u(:,k) = c%m_x2c(:,k) / norm2(c%m_x2c(:,k))
+       else
+          u(k,k) = 1d0
+       end if
+    end do
+
+  end function rep_axes_dirs
 
   !> Set the per-item style of a measurement to the defaults for its
   !> kind (n = 2 distance, 3 angle, 4 dihedral).
@@ -812,7 +869,7 @@ contains
     type(crystal), pointer :: c ! the system's crystal structure (sys(r%id)%c)
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
     logical :: hasmode ! there is a vibrational mode selected in the scene
-    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3)
+    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3), axdir(3,3)
     real*8 :: ucini(3), ucend(3)
     real*8 :: xmeas(3,4), xfmeas(3,4), dval
     integer :: iat, natm
@@ -1325,7 +1382,7 @@ contains
        ! fixed window position. In the latter case the geometry is built
        ! around the local origin and positioned at render time; the window
        ! position is stamped onto each overlay draw item below.
-       fixed = (r%axes%placement == 1)
+       fixed = (r%axes%placement == axplace_window)
        if (fixed) then
           uoriginc = 0d0
           ! stamp the window placement onto the overlay templates so every
@@ -1337,19 +1394,14 @@ contains
        else
           ! origin in the requested coordinate system, converted to
           ! cartesian (bohr)
-          if (r%axes%coordtype == 2) then
-             uoriginc = r%axes%origin ! cartesian (bohr)
-          elseif (r%axes%coordtype == 0 .and. .not.c%ismolecule) then
-             uoriginc = c%x2c(r%axes%origin) ! crystallographic
-          else
-             uoriginc = r%axes%origin / bohrtoa ! cartesian (angstrom)
-          end if
+          uoriginc = r%axes%origin_cart(c)
           ! for molecules, cartesian coordinates are referred to the molecular center
           if (c%ismolecule) uoriginc = uoriginc - c%molx0
        end if
 
        ! global scale factor applied to the whole gizmo (arrows and labels)
        axsc = r%axes%scale
+       axdir = r%axes%dirs(c)
 
        ! arrowhead geometry (head length capped so it never exceeds the
        ! total axis length)
@@ -1359,13 +1411,7 @@ contains
        do k = 1, 3
           ! unit direction for this axis: cartesian (lab-frame) or along
           ! the crystallographic lattice vector
-          if (r%axes%kind == 1 .and. .not.c%ismolecule) then
-             x0 = c%m_x2c(:,k)
-             x0 = x0 / norm2(x0)
-          else
-             x0 = 0d0
-             x0(k) = 1d0
-          end if
+          x0 = axdir(:,k)
 
           ! shaft (round, lit cylinder)
           x1 = uoriginc

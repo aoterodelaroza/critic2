@@ -25,7 +25,7 @@ module representations
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
   use display, only: scene_display, rep_display
-  use crystalmod, only: symelem_list
+  use crystalmod, only: symelem_list, crystal
   use global, only: bondfactor_def, bonddelta_def
   implicit none
 
@@ -116,6 +116,10 @@ module representations
   integer, parameter, public :: textpos_point = 1 ! at a 3D position in the system
   integer, parameter, public :: textpos_atom = 2 ! tied to an atom (cell atom + lattice vector)
   integer, parameter, public :: textpos_bond = 3 ! tied to a bond (two atom images)
+
+  !--> axes placement (rep_axes%placement)
+  integer, parameter, public :: axplace_scene = 0 ! at their origin, in the scene
+  integer, parameter, public :: axplace_window = 1 ! anchored at a fixed window position
   real*8, parameter, public :: text_scale_def = label_scale_def ! text size (same semantics as labels)
   real*8, parameter, public :: text_winpos_def(2) = (/0.5d0,0.85d0/) ! default viewport position (near top-center)
   !--> coordination polyhedra
@@ -495,7 +499,7 @@ module representations
   !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
   type rep_axes
      integer(c_int) :: kind ! 0 = cartesian, 1 = crystallographic
-     integer(c_int) :: placement ! 0 = at the origin, 1 = anchored at a fixed window position
+     integer(c_int) :: placement ! axplace_scene (at the origin) or axplace_window (at a window position)
      integer(c_int) :: coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
      real*8 :: origin(3) = 0d0 ! origin of the axes (coordinates per coordtype)
      real*8 :: winpos(2) ! window position (fractions from left and bottom) when window-anchored
@@ -514,6 +518,10 @@ module representations
      real*8 :: scale ! global scale factor applied to the whole gizmo (arrows and labels)
      logical :: scale_auto ! auto-size the window-anchored gizmo from the scene radius
      logical :: scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
+   contains
+     procedure :: origin_cart => rep_axes_origin_cart
+     procedure :: set_origin_cart => rep_axes_set_origin_cart
+     procedure :: dirs => rep_axes_dirs
   end type rep_axes
   public :: rep_axes
 
@@ -1331,6 +1339,21 @@ module representations
        class(representation), intent(inout) :: r
        integer, intent(in) :: itype
      end subroutine representation_set_defaults
+     module function rep_axes_origin_cart(ax,c) result(x)
+       class(rep_axes), intent(in) :: ax
+       type(crystal), intent(in) :: c
+       real*8 :: x(3)
+     end function rep_axes_origin_cart
+     module subroutine rep_axes_set_origin_cart(ax,c,x)
+       class(rep_axes), intent(inout) :: ax
+       type(crystal), intent(in) :: c
+       real*8, intent(in) :: x(3)
+     end subroutine rep_axes_set_origin_cart
+     module function rep_axes_dirs(ax,c) result(u)
+       class(rep_axes), intent(in) :: ax
+       type(crystal), intent(in) :: c
+       real*8 :: u(3,3)
+     end function rep_axes_dirs
      module subroutine measurement_item_set_defaults(it,n)
        class(measurement_item), intent(inout) :: it
        integer, intent(in) :: n

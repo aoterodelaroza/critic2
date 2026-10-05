@@ -557,10 +557,7 @@ module windows
   !> (objop_handle, ih = 4-6)
   type axes_edit_state
      type(rep_axes) :: ax ! the axes as the drag leaves them
-     real(c_float) :: zdep = 0._c_float ! texture depth of the origin at the press (in the scene)
-     real*8 :: xg(3) = 0d0 ! the origin at the press (absolute frame, bohr; in the scene)
-     real*8 :: o0(2) = 0d0 ! the origin at the press (NDC)
-     real*8 :: tip0(2,3) = 0d0 ! the arrow tips at the press (NDC)
+     real(c_float) :: zdep = 0._c_float ! texture depth of the dragged point at the press (in the scene)
   end type axes_edit_state
   public :: axes_edit_state
 
