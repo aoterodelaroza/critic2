@@ -466,6 +466,7 @@ contains
   !> are drawn once; the fill goes first, just behind it, so that a
   !> translucent outline blends over the fill.
   module subroutine planar_tessellate(sh,obj)
+    use param, only: pi
     type(planar_shape), intent(in) :: sh
     type(scene_objects), intent(inout) :: obj
 
@@ -473,7 +474,7 @@ contains
     real*8, allocatable :: xp(:,:)
     real*8 :: z, hw
     real(c_float) :: rgba(4)
-    logical :: closed
+    logical :: closed, hatched
 
     call planar_path(sh,n,xp)
     if (n == 0) return
@@ -486,9 +487,18 @@ contains
     hw = 0.5d0 * sh%width
 
     ! the fill, at the depth of the shape (the outline goes half a step closer)
-    if (closed .and. sh%fill .and. sh%fillalpha > 0._c_float .and. n >= 3) then
+    if (closed .and. sh%filltype /= planarfill_none .and. sh%fillalpha > 0._c_float .and. n >= 3) then
        rgba = (/sh%fillrgb,sh%fillalpha/)
-       if (sh%kind == planarkind_polygon) then
+       hatched = (sh%filltype == planarfill_hatched .or. sh%filltype == planarfill_crosshatched)
+       if (hatched) then
+          ! too many lines (see fill_hatch): a solid fill instead
+          hatched = fill_hatch(n,xp,sh%hatchang)
+          if (hatched .and. sh%filltype == planarfill_crosshatched) &
+             hatched = fill_hatch(n,xp,sh%hatchang + 0.5d0*pi)
+       end if
+       if (hatched) then
+          continue
+       elseif (sh%kind == planarkind_polygon) then
           call fill_polygon(n,xp)
        else
           ! ellipse and rectangle: convex
@@ -745,6 +755,84 @@ contains
 
     end subroutine stroke_path
 
+    !> Fill the closed polygon of m points x with hatch lines at angle
+    !> theta, sh%hatchsp apart and sh%hatchw wide. The lines sit on a grid
+    !> common to all shapes (at multiples of the spacing from the origin),
+    !> so the hatching of neighboring shapes lines up, and only the lines
+    !> that cross the render buffer are made. Each line is a strip, cut
+    !> into slabs at the heights of the polygon vertices inside it; no
+    !> edge starts or ends within a slab, so the edges crossing it, in
+    !> order, pair up into exact trapezoids (even-odd rule). Returns
+    !> .false. without emitting anything if there would be too many lines.
+    function fill_hatch(m,x,theta) result(ok)
+      integer, intent(in) :: m
+      real*8, intent(in) :: x(2,m)
+      real*8, intent(in) :: theta
+      logical :: ok
+
+      real*8 :: d(2), nv(2), smin, smax, s, h, sp, rview, y0, y1
+      real*8, allocatable :: a(:), ys(:), u0(:), u1(:)
+      integer :: i, j, k, k0, k1, nys, nu
+
+      integer, parameter :: maxlines = 4000
+
+      ok = .true.
+      sp = sh%hatchsp
+      h = 0.5d0 * sh%hatchw
+      if (sp <= 0d0 .or. h <= 0d0) return
+      d = (/cos(theta),sin(theta)/)
+      nv = (/-d(2),d(1)/)
+
+      ! height of the vertices across the lines, and the lines that cross
+      ! the polygon within the render buffer ([-1,1] in x and y)
+      allocate(a(m),ys(m+2),u0(m),u1(m))
+      do i = 1, m
+         a(i) = dot_product(x(:,i),nv)
+      end do
+      rview = abs(nv(1)) + abs(nv(2))
+      smin = max(minval(a),-rview) - h
+      smax = min(maxval(a),rview) + h
+      k0 = ceiling(smin / sp)
+      k1 = floor(smax / sp)
+      if (k1 - k0 + 1 > maxlines) then
+         ok = .false.
+         return
+      end if
+
+      do k = k0, k1
+         ! the strip, cut at the vertex heights inside it (sorted)
+         s = k * sp
+         nys = 1
+         ys(1) = s - h
+         do i = 1, m
+            if (a(i) <= s - h .or. a(i) >= s + h) cycle
+            j = nys
+            do while (j >= 1)
+               if (ys(j) <= a(i)) exit
+               ys(j+1) = ys(j)
+               j = j - 1
+            end do
+            ys(j+1) = a(i)
+            nys = nys + 1
+         end do
+         nys = nys + 1
+         ys(nys) = s + h
+
+         ! the trapezoids in each slab
+         do j = 1, nys-1
+            y0 = ys(j)
+            y1 = ys(j+1)
+            if (y1 - y0 < 1d-12) cycle
+            call slab_cut(m,x,a,d,y0,y1,u0,u1,nu)
+            do i = 1, nu-1, 2
+               call emit_tri(y0*nv + u0(i)*d,y0*nv + u0(i+1)*d,y1*nv + u1(i+1)*d)
+               call emit_tri(y0*nv + u0(i)*d,y1*nv + u1(i+1)*d,y1*nv + u1(i)*d)
+            end do
+         end do
+      end do
+
+    end function fill_hatch
+
     !> Fill the (possibly concave) polygon of m points x by ear
     !> clipping. If no ear is found (a self-intersecting polygon), the
     !> rest is filled as a fan.
@@ -858,6 +946,46 @@ contains
   end subroutine planar_tessellate
 
   !xx! private procedures
+
+  !> The edges of the polygon of m points x that cross the slab between
+  !> the heights y0 and y1, where the height of a point p is
+  !> dot_product(p,nv), a(i) is that of x(:,i), and d is the direction
+  !> along the slab. No vertex lies strictly inside the slab, so each of
+  !> these edges spans it. Returns their positions dot_product(p,d) at
+  !> y0 (u0) and at y1 (u1), ordered along the slab, in (1:nu).
+  subroutine slab_cut(m,x,a,d,y0,y1,u0,u1,nu)
+    integer, intent(in) :: m
+    real*8, intent(in) :: x(2,m), a(m), d(2), y0, y1
+    real*8, intent(inout) :: u0(:), u1(:)
+    integer, intent(out) :: nu
+
+    integer :: i1, i2, j
+    real*8 :: ym, v0, v1, e(2), dade
+
+    ym = 0.5d0 * (y0 + y1)
+    nu = 0
+    do i1 = 1, m
+       i2 = modulo(i1,m) + 1
+       if ((a(i1) <= ym) .eqv. (a(i2) <= ym)) cycle
+       ! the edge, at the two heights
+       e = x(:,i2) - x(:,i1)
+       dade = dot_product(e,d) / (a(i2) - a(i1))
+       v0 = dot_product(x(:,i1),d) + (y0 - a(i1)) * dade
+       v1 = dot_product(x(:,i1),d) + (y1 - a(i1)) * dade
+       ! insert, ordered by the position at the middle height
+       j = nu
+       do while (j >= 1)
+          if (u0(j) + u1(j) <= v0 + v1) exit
+          u0(j+1) = u0(j)
+          u1(j+1) = u1(j)
+          j = j - 1
+       end do
+       u0(j+1) = v0
+       u1(j+1) = v1
+       nu = nu + 1
+    end do
+
+  end subroutine slab_cut
 
   !> The point q at arc length s along the path of m points x, with
   !> segment lengths seg; k is the segment it falls on (between x(:,k)

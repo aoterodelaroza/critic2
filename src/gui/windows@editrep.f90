@@ -2941,8 +2941,8 @@ contains
   module function draw_editrep_planar(w,ttshown) result(changed)
     use representations, only: planar_shape, planarkind_NUM, planarkind_name,&
        planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
-       planarkind_curve, planarheads_combostr, planardash_combostr, planar_isclosed, planar_haspoints,&
-       planar_delete
+       planarkind_curve, planarheads_combostr, planardash_combostr, planarfill_combostr,&
+       planarfill_hatched, planarfill_crosshatched, planar_isclosed, planar_haspoints, planar_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column, iw_icon_togglebutton,&
@@ -2958,7 +2958,7 @@ contains
     logical :: changed
 
     logical :: ch, ldum, armed
-    integer :: i, k, iview, isel, idel, iswap, ihead, idash
+    integer :: i, k, iview, isel, idel, iswap, ihead, idash, ifill
     integer(c_int) :: flags
     real*8 :: xdsp(2), pxs, wpx, angd, dx, dy
     type(ImVec2) :: sz0
@@ -3173,8 +3173,11 @@ contains
 
       ! the fill
       if (planar_isclosed(sh)) then
-         ch = iw_checkbox("Fill##planarfill",sh%fill)
-         call iw_tooltip("Fill the inside of the shape",ttshown)
+         ifill = sh%filltype
+         call iw_combo_simple("Fill##planarfilltype",planarfill_combostr,ifill,changed=ch)
+         if (ch) sh%filltype = ifill
+         call iw_tooltip("Fill of the inside of the shape: none, solid, or lines (hatched) or &
+            &crossed lines (cross-hatched) in the fill color",ttshown)
          changed = changed .or. ch
          ch = iw_coloredit("Fill Color##planarfillrgb",rgb=sh%fillrgb,sameline=.true.)
          call iw_tooltip("Color of the inside of the shape",ttshown)
@@ -3183,6 +3186,30 @@ contains
             min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
          call iw_tooltip("Opacity of the inside of the shape",ttshown)
          changed = changed .or. ch
+
+         ! the hatch lines
+         if (sh%filltype == planarfill_hatched .or. sh%filltype == planarfill_crosshatched) then
+            angd = sh%hatchang * 180d0 / pi
+            ch = iw_dragfloat_real8("Angle (°)##planarhatchang",x1=angd,speed=0.5d0,min=-90d0,&
+               max=90d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+            if (ch) sh%hatchang = angd * pi / 180d0
+            call iw_tooltip("Angle of the hatch lines, counterclockwise from the horizontal",ttshown)
+            changed = changed .or. ch
+            wpx = sh%hatchsp / pxs
+            ch = iw_dragfloat_real8("Spacing (px)##planarhatchsp",x1=wpx,speed=0.1d0,min=2d0,&
+               max=200d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            if (ch) sh%hatchsp = wpx * pxs
+            call iw_tooltip("Distance between the hatch lines, in pixels of the view at its &
+               &current size",ttshown)
+            changed = changed .or. ch
+            wpx = sh%hatchw / pxs
+            ch = iw_dragfloat_real8("Line Width (px)##planarhatchw",x1=wpx,speed=0.05d0,min=0.5d0,&
+               max=50d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+            if (ch) sh%hatchw = wpx * pxs
+            call iw_tooltip("Width of the hatch lines, in pixels of the view at its current size",&
+               ttshown)
+            changed = changed .or. ch
+         end if
       end if
 
       ! in front of or behind the scene

@@ -21,7 +21,7 @@ module representations
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_over, dl_string, dl_string_over,&
      dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append
-  use param, only: bohrtoa, maxzat0, atmcov0, mlen
+  use param, only: bohrtoa, maxzat0, atmcov0, mlen, pi
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
   use display, only: scene_display, rep_display
@@ -87,6 +87,9 @@ module representations
   real*8, parameter, public :: planar_size_def = 0.15d0 ! half-size of a new ellipse/rectangle
   real*8, parameter, public :: planar_headl_def = 5d0 ! arrowhead length, in stroke widths
   real*8, parameter, public :: planar_headw_def = 4d0 ! arrowhead width, in stroke widths
+  real*8, parameter, public :: planar_hatchang_def = 0.25d0 * pi ! hatch angle (45 degrees)
+  real*8, parameter, public :: planar_hatchsp_def = 0.03d0 ! distance between hatch lines (10 pixels in a 670-pixel view)
+  real*8, parameter, public :: planar_hatchw_def = 0.0045d0 ! width of the hatch lines (1.5 pixels in a 670-pixel view)
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
   real(c_float), parameter, public :: symelem_rgb_glide(3) = (/0.20_c_float,0.70_c_float,0.75_c_float/) ! glide-plane color
@@ -581,6 +584,15 @@ module representations
   character(len=*,kind=c_char), parameter, public :: planarheads_combostr = &
      "None" // c_null_char // "End" // c_null_char // "Start" // c_null_char // "Both" // c_null_char
 
+  ! fills of a closed planar shape
+  integer, parameter, public :: planarfill_none = 0
+  integer, parameter, public :: planarfill_solid = 1
+  integer, parameter, public :: planarfill_hatched = 2
+  integer, parameter, public :: planarfill_crosshatched = 3
+  character(len=*,kind=c_char), parameter, public :: planarfill_combostr = &
+     "None" // c_null_char // "Solid" // c_null_char // "Hatched" // c_null_char //&
+     "Cross-hatched" // c_null_char
+
   ! outline styles of a planar shape
   integer, parameter, public :: planardash_solid = 0
   integer, parameter, public :: planardash_dashed = 1
@@ -611,9 +623,12 @@ module representations
      integer :: dash = planardash_solid ! outline style (planardash_*)
      real(c_float) :: rgb(3) = planar_rgb_def ! outline color
      real(c_float) :: alpha = 1._c_float ! outline opacity
-     logical :: fill = .false. ! fill the inside (closed kinds only)
      real(c_float) :: fillrgb(3) = planar_fillrgb_def ! fill color
      real(c_float) :: fillalpha = planar_fillalpha_def ! fill opacity
+     integer :: filltype = planarfill_none ! fill of the inside (planarfill_*; closed kinds only)
+     real*8 :: hatchang = planar_hatchang_def ! hatched fill: angle of the lines (radians, counterclockwise)
+     real*8 :: hatchsp = planar_hatchsp_def ! hatched fill: distance between the lines
+     real*8 :: hatchw = planar_hatchw_def ! hatched fill: width of the lines
      integer :: heads = planarheads_end ! arrow/curve: ends that carry an arrowhead (planarheads_*)
      real*8 :: headl = planar_headl_def ! arrow/curve: arrowhead length, in outline widths
      real*8 :: headw = planar_headw_def ! arrow/curve: arrowhead width, in outline widths
