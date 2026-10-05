@@ -260,15 +260,10 @@ contains
 
     ! text annotations
     if (itype == 0 .or. itype == 10) then
+       ! a new text object starts empty (the editor's toolbar adds the items)
        r%text%ntext = 0
+       r%text%isel = 0
        if (allocated(r%text%t)) deallocate(r%text%t)
-       if (r%type == reptype_text) then
-          ! default: a single visible on-screen text
-          allocate(r%text%t(1))
-          r%text%ntext = 1
-          r%text%t(1)%str = "Text"
-          r%text%t(1)%rgb = ColorLabel_def
-       end if
     end if
 
     ! measurements: the item list (and per-item style) is preserved; a fresh
@@ -1463,6 +1458,11 @@ contains
              dstrover%offset = 0._c_float
              dstrover%depth = .not.r%text%t(i)%infront
              dstrover%str = trim(r%text%t(i)%str)
+             if (r%owner == 0) then
+                ! a text the editor can pick (not a transient one)
+                dstrover%irep = r%iord
+                dstrover%item = i
+             end if
              call dl_append(obj%stringover,obj%nstringover,dstrover)
           else
              ! world-anchored string: resolve the anchor position, animation
@@ -1510,6 +1510,10 @@ contains
              dstr%offset(3) = 0._c_float
              dstr%depth = r%text%t(i)%depth
              dstr%str = trim(r%text%t(i)%str)
+             if (r%owner == 0) then
+                dstr%irep = r%iord
+                dstr%item = i
+             end if
              call dl_append(obj%string,obj%nstring,dstr)
           end if
        end do
@@ -3317,6 +3321,69 @@ contains
     sh%shown = .true.
 
   end function shapes_template
+
+  !> A new text item with placement ipl (textpos_*) and the style of the
+  !> selected item in p (the defaults if none is selected), so that
+  !> consecutive texts look alike. Its anchor is unset for the caller to
+  !> set.
+  module function text_template(p,ipl) result(t)
+    use gui_main, only: ColorLabel_def
+    type(rep_text), intent(in) :: p
+    integer, intent(in) :: ipl
+    type(text_item) :: t
+
+    t = text_item()
+    t%str = "Text"
+    t%rgb = ColorLabel_def
+    if (p%isel >= 1 .and. p%isel <= p%ntext) then
+       associate (t0 => p%t(p%isel))
+         t%scale = t0%scale
+         t%rgb = t0%rgb
+         t%scalewithzoom = t0%scalewithzoom
+         t%depth = t0%depth
+         t%infront = t0%infront
+       end associate
+    end if
+    t%placement = ipl
+
+  end function text_template
+
+  !> Append the text item t to the list in p and select it.
+  module subroutine text_append(p,t)
+    type(rep_text), intent(inout) :: p
+    type(text_item), intent(in) :: t
+
+    type(text_item), allocatable :: aux(:)
+
+    allocate(aux(p%ntext+1))
+    if (p%ntext > 0) aux(1:p%ntext) = p%t(1:p%ntext)
+    aux(p%ntext+1) = t
+    call move_alloc(aux,p%t)
+    p%ntext = p%ntext + 1
+    p%isel = p%ntext
+
+  end subroutine text_append
+
+  !> Remove text item idel from the list in p. The selection stays on
+  !> the item it was on, or is cleared if that was the one removed.
+  module subroutine text_delete(p,idel)
+    type(rep_text), intent(inout) :: p
+    integer, intent(in) :: idel
+
+    integer :: i
+
+    if (idel < 1 .or. idel > p%ntext) return
+    do i = idel, p%ntext-1
+       p%t(i) = p%t(i+1)
+    end do
+    p%ntext = p%ntext - 1
+    if (p%isel == idel) then
+       p%isel = 0
+    elseif (p%isel > idel) then
+       p%isel = p%isel - 1
+    end if
+
+  end subroutine text_delete
 
   !> Append the shape sh to the list in p and select it.
   module subroutine shapes_append(p,sh)

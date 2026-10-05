@@ -150,7 +150,7 @@ module utils
        integer :: iw_periodictable
      end function iw_periodictable
      module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,notlive,flags,&
-        nlines)
+        nlines,selectall)
        character(len=*), intent(in) :: label
        integer, intent(in) :: bufsize
        character(len=:), allocatable, intent(inout), optional :: texta
@@ -161,6 +161,7 @@ module utils
        logical, intent(in), optional :: notlive
        integer(c_int), intent(in), optional :: flags
        integer, intent(in), optional :: nlines
+       logical, intent(in), optional :: selectall
        logical :: iw_inputtext
      end function iw_inputtext
      module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&

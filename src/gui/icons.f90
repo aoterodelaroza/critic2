@@ -81,7 +81,11 @@ module icons
   integer, parameter, public :: icon_sh_sphere = 48   ! draw a sphere (circle with an equator)
   integer, parameter, public :: icon_sh_cone = 49     ! draw a cone
   integer, parameter, public :: icon_sh_cylinder = 50 ! draw a cylinder
-  integer, parameter, public :: icon_NUM = 50
+  integer, parameter, public :: icon_tx_screen = 51 ! place an on-screen text
+  integer, parameter, public :: icon_tx_point = 52 ! place a text at a 3D point
+  integer, parameter, public :: icon_tx_atom = 53 ! place a text on an atom
+  integer, parameter, public :: icon_tx_bond = 54 ! place a text on a bond
+  integer, parameter, public :: icon_NUM = 54
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

@@ -1192,7 +1192,11 @@ end function igGetForegroundDrawList_Nil
 !x! bool igIsRectVisible_Nil(const ImVec2 size);
 !x! bool igIsRectVisible_Vec2(const ImVec2 rect_min,const ImVec2 rect_max);
 !x! double igGetTime(void);
-!x! int igGetFrameCount(void);
+! int igGetFrameCount(void);
+function igGetFrameCount() bind(c,name="igGetFrameCount")
+  import c_int
+  integer(c_int) :: igGetFrameCount
+end function igGetFrameCount
 !x! ImDrawListSharedData* igGetDrawListSharedData(void);
 !x! const char* igGetStyleColorName(ImGuiCol idx);
 !x! void igSetStateStorage(ImGuiStorage* storage);
@@ -1942,7 +1946,11 @@ end function ImFont_FindGlyph
 !x! int ImGuiInputTextState_GetCursorPos(ImGuiInputTextState* self);
 !x! int ImGuiInputTextState_GetSelectionStart(ImGuiInputTextState* self);
 !x! int ImGuiInputTextState_GetSelectionEnd(ImGuiInputTextState* self);
-!x! void ImGuiInputTextState_SelectAll(ImGuiInputTextState* self);
+! void ImGuiInputTextState_SelectAll(ImGuiInputTextState* self);
+subroutine ImGuiInputTextState_SelectAll(self) bind(c,name="ImGuiInputTextState_SelectAll")
+  import c_ptr
+  type(c_ptr), value :: self
+end subroutine ImGuiInputTextState_SelectAll
 !x! ImGuiPopupData* ImGuiPopupData_ImGuiPopupData(void);
 !x! void ImGuiPopupData_destroy(ImGuiPopupData* self);
 !x! ImGuiNextWindowData* ImGuiNextWindowData_ImGuiNextWindowData(void);
@@ -2127,7 +2135,9 @@ end subroutine igSetCurrentFont
 !x! ImGuiID igGetFocusID(void);
 !x! void igSetActiveID(ImGuiID id,ImGuiWindow* window);
 !x! void igSetFocusID(ImGuiID id,ImGuiWindow* window);
-!x! void igClearActiveID(void);
+! void igClearActiveID(void);
+subroutine igClearActiveID() bind(c,name="igClearActiveID")
+end subroutine igClearActiveID
 !x! ImGuiID igGetHoveredID(void);
 !x! void igSetHoveredID(ImGuiID id);
 !x! void igKeepAliveID(ImGuiID id);
@@ -2478,7 +2488,12 @@ end subroutine igSeparatorEx
 !x! bool igTempInputText(const ImRect bb,ImGuiID id,const char* label,char* buf,int buf_size,ImGuiInputTextFlags flags);
 !x! bool igTempInputScalar(const ImRect bb,ImGuiID id,const char* label,ImGuiDataType data_type,void* p_data,const char* format,const void* p_clamp_min,const void* p_clamp_max);
 !x! bool igTempInputIsActive(ImGuiID id);
-!x! ImGuiInputTextState* igGetInputTextState(ImGuiID id);
+! ImGuiInputTextState* igGetInputTextState(ImGuiID id);
+function igGetInputTextState(id) bind(c,name="igGetInputTextState")
+  import c_int, c_ptr
+  integer(c_int), value :: id
+  type(c_ptr) :: igGetInputTextState
+end function igGetInputTextState
 !x! void igColorTooltip(const char* text,const float* col,ImGuiColorEditFlags flags);
 !x! void igColorEditOptionsPopup(const float* col,ImGuiColorEditFlags flags);
 !x! void igColorPickerOptionsPopup(const float* ref_col,ImGuiColorEditFlags flags);

@@ -158,6 +158,7 @@ module scenes
      procedure :: show_transient_polyhedra => scene_show_transient_polyhedra
      procedure :: show_transient_spacefill => scene_show_transient_spacefill
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
+     procedure :: text_box => scene_text_box
   end type scene
   public :: scene
 
@@ -201,6 +202,12 @@ module scenes
        class(scene), intent(in) :: s
        real(c_float) :: f
      end function scene_overlay_zoom_factor
+     module subroutine scene_text_box(s,iord,item,ok,bmin,bmax,anc)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: iord, item
+       logical, intent(out) :: ok
+       real(c_float), intent(out) :: bmin(2), bmax(2), anc(2)
+     end subroutine scene_text_box
      module subroutine scene_set_style_defaults(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_set_style_defaults

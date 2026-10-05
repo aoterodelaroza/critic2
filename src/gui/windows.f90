@@ -19,7 +19,7 @@
 module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
-  use representations, only: representation, planar_shape, rep_shape
+  use representations, only: representation, planar_shape, rep_shape, text_item
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -532,6 +532,16 @@ module windows
   end type shapes_edit_state
   public :: shapes_edit_state
 
+  !> State of a drag of a text item in the view (vm_objedit)
+  type text_edit_state
+     type(text_item) :: t0 ! the dragged item as it was at the press
+     type(text_item) :: t ! the item as the drag leaves it
+     real(c_float) :: zdep = 0._c_float ! texture depth of the anchor at the press
+     real*8 :: xg(3) = 0d0 ! the anchor at the press (absolute frame, bohr; 3D placements)
+     real*8 :: shift(2) = 0d0 ! how far the drag moved the text on the screen (NDC)
+  end type text_edit_state
+  public :: text_edit_state
+
   !> Input of the object editing view mode (vm_objedit) in one frame,
   !> read by objedit_events for the handler of the object type.
   type objedit_input
@@ -564,6 +574,7 @@ module windows
      logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
      type(planar_edit_state) :: planar ! 2D drawing: the shape
      type(shapes_edit_state) :: shapes ! 3D shapes: the shape
+     type(text_edit_state) :: text ! text: the item
   end type objedit_state
   public :: objedit_state
 
@@ -857,6 +868,8 @@ module windows
      integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
      integer(c_int) :: editrep_tool = objtool_none ! tool of the object editor (objtool_*, or a
                                                    ! kind to draw: objtool_kind0 + kind)
+     integer(c_int) :: editrep_focustext = -1 ! frame of a request for the text editor's text box to
+                                              ! take the keyboard (-1 = none; it expires if not drawn)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery
@@ -1125,6 +1138,7 @@ module windows
      procedure :: editrep_toolbar
      procedure :: planar_events
      procedure :: shapes_events
+     procedure :: text_events
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1805,6 +1819,11 @@ module windows
        type(representation), intent(inout) :: r
        type(objedit_input), intent(inout) :: inp
      end subroutine shapes_events
+     module subroutine text_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine text_events
      module subroutine editrep_set_tool(w,itool,prompt)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itool

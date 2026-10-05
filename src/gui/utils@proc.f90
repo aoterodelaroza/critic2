@@ -31,6 +31,12 @@ submodule (utils) proc
   real(c_float) :: inputfloat3_editbuf(3) = 0._c_float
   character(kind=c_char,len=:), allocatable :: inputtext_editbuf
 
+  ! iw_inputtext with grabfocus and selectall: the input that will
+  ! select its text when it takes the keyboard, and the frame of the
+  ! request (it takes the keyboard a frame or two later)
+  integer(c_int) :: input_selectid = 0_c_int
+  integer(c_int) :: input_selectframe = 0_c_int
+
 contains
 
   !> Draw a periodic table and return the selected atomic number.
@@ -102,9 +108,12 @@ contains
   !> width, and buffer size bufsize. The text is given as either texta
   !> (allocatable string) or textf (fixed string). grabfocus = grab focus
   !> when drawn. sameline = place in the same line as the previous widget.
-  !> flags = flags from ImGuiInputTextFlags_*.
+  !> flags = flags from ImGuiInputTextFlags_*. selectall = with grabfocus,
+  !> select the text when the input takes the keyboard, so that typing
+  !> replaces it (ImGuiInputTextFlags_AutoSelectAll does nothing in a
+  !> multiline input).
   module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,notlive,flags,&
-     nlines)
+     nlines,selectall)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
     integer, intent(in) :: bufsize
@@ -116,6 +125,7 @@ contains
     logical, intent(in), optional :: notlive
     integer(c_int), intent(in), optional :: flags
     integer, intent(in), optional :: nlines
+    logical, intent(in), optional :: selectall
     logical :: iw_inputtext
 
     integer(c_int) :: flags_, myid
@@ -174,7 +184,15 @@ contains
 
     ! grab focus
     if (present(grabfocus)) then
-       if (grabfocus) call igSetKeyboardFocusHere(0_c_int)
+       if (grabfocus) then
+          call igSetKeyboardFocusHere(0_c_int)
+          if (present(selectall)) then
+             if (selectall) then
+                input_selectid = myid
+                input_selectframe = igGetFrameCount()
+             end if
+          end if
+       end if
     end if
 
     ! call inputtext (multiline if a number of lines was given)
@@ -190,6 +208,18 @@ contains
     ! pop the width
     if (present(width)) &
        call igPopItemWidth()
+
+    ! select the text once the input has the keyboard; a request that is
+    ! not answered in a few frames (the input was not drawn) is dropped
+    if (input_selectid /= 0_c_int .and. input_selectid == myid) then
+       if (igIsItemActive()) then
+          if (c_associated(igGetInputTextState(myid))) &
+             call ImGuiInputTextState_SelectAll(igGetInputTextState(myid))
+          input_selectid = 0_c_int
+       elseif (igGetFrameCount() > input_selectframe + 3) then
+          input_selectid = 0_c_int
+       end if
+    end if
 
     ! text currently held in the C buffer
     ll = index(text_,c_null_char)-1

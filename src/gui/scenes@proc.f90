@@ -1132,16 +1132,9 @@ contains
       real(c_float), intent(in) :: projover(4,4)
       real(c_float), intent(out) :: overndc(3), overf
 
-      real(c_float) :: spanx, spany, hside
+      real(c_float) :: hside
 
-      ! winpos is given as fractions of the visible part of the render buffer
-      ! (the window), from the left and bottom; map it to the NDC of the full
-      ! render texture, accounting for the cropped region (viewuv0). The texture
-      ! is presented right-side up, so the bottom of the window is NDC y = -1.
-      spanx = 1._c_float - 2._c_float * s%viewuv0(1)
-      spany = 1._c_float - 2._c_float * s%viewuv0(2)
-      overndc(1) = spanx * (2._c_float * winpos(1) - 1._c_float)
-      overndc(2) = spany * (2._c_float * winpos(2) - 1._c_float)
+      overndc(1:2) = overlay_ndc(s,winpos)
       overndc(3) = 0._c_float
 
       ! zoom-compensation factor: when the overlay item should not scale with zoom,
@@ -1288,6 +1281,17 @@ contains
          end if
          call calc_text_onscene_vertices(s%obj%stringover(i)%str,s%obj%stringover(i)%x,s%obj%stringover(i)%r,&
             siz,nvert,vert,shift=s%obj%stringover(i)%offset,centered=.true.)
+
+         ! the extent of the glyphs, for the boxes of the texts (text_box)
+         if (allocated(s%gl%textover_ext)) then
+            if (size(s%gl%textover_ext,2) < s%obj%nstringover) deallocate(s%gl%textover_ext)
+         end if
+         if (.not.allocated(s%gl%textover_ext)) allocate(s%gl%textover_ext(4,s%obj%nstringover))
+         s%gl%textover_ext(:,i) = 0._c_float
+         if (nvert > 0) then
+            s%gl%textover_ext(1:2,i) = minval(vert(7:8,1:nvert),2)
+            s%gl%textover_ext(3:4,i) = maxval(vert(7:8,1:nvert),2)
+         end if
          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*text_vert_nf*c_sizeof(c_float), c_loc(vert))
          call glDrawArrays(GL_TRIANGLES, 0, nvert)
       end do
@@ -2109,6 +2113,20 @@ contains
 
   end function reset_zoom_hside
 
+  !> NDC of the full render texture of the window fraction winpos
+  !> (fractions of the visible part of the render buffer, from the left
+  !> and bottom), accounting for the cropped region (viewuv0). The
+  !> texture is presented right-side up, so the bottom of the window is
+  !> NDC y = -1.
+  function overlay_ndc(s,winpos) result(x)
+    class(scene), intent(in) :: s
+    real(c_float), intent(in) :: winpos(2)
+    real(c_float) :: x(2)
+
+    x = (1._c_float - 2._c_float * s%viewuv0) * (2._c_float * winpos - 1._c_float)
+
+  end function overlay_ndc
+
   subroutine ortho_projection(s,proj,symz)
     use utils, only: ortho, mult
     use param, only: pi
@@ -2633,7 +2651,8 @@ contains
   !> by (owner,tag), so a producer can show several labels at once by using
   !> different tags.
   module subroutine scene_show_transient_text(s,owner,tag,str,rgb,winpos,scale)
-    use representations, only: reptype_text, repflavor_text, textpos_screen
+    use representations, only: reptype_text, repflavor_text, textpos_screen, text_item,&
+       text_append
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
@@ -2647,6 +2666,7 @@ contains
 
     id = transient_slot(s,owner,tag,reptype_text,repflavor_text,found)
     if (id <= 0) return
+    if (s%reptrans(id)%text%ntext < 1) call text_append(s%reptrans(id)%text,text_item())
 
     associate (t => s%reptrans(id)%text%t(1))
       if (found) then
@@ -2850,6 +2870,66 @@ contains
     end associate
 
   end subroutine scene_show_transient_spacefill
+
+  !> The on-screen box of item item of the text representation with
+  !> order iord (the irep/item tags of its string), in the NDC of the
+  !> render buffer: corners bmin and bmax, and the anchor anc the text is
+  !> tied to (before its offset). ok = .false. if the item is not drawn
+  !> (hidden, empty, an unset anchor) or not rendered yet. The glyphs are
+  !> those of the last render; the vibration displacement is not
+  !> included.
+  module subroutine scene_text_box(s,iord,item,ok,bmin,bmax,anc)
+    use param, only: bohrtoa
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: iord, item
+    logical, intent(out) :: ok
+    real(c_float), intent(out) :: bmin(2), bmax(2), anc(2)
+
+    integer :: i, n0, n
+    real(c_float) :: vw(4,4), x4(4), c4(4), c0(2)
+
+    ok = .false.
+    bmin = 0._c_float
+    bmax = 0._c_float
+    anc = 0._c_float
+    if (iord <= 0 .or. item <= 0) return
+
+    ! a world-anchored string: its anchor projected as in the text shader,
+    ! plus the cached glyph offsets
+    do i = 1, s%obj%nstring
+       if (s%obj%string(i)%irep /= iord .or. s%obj%string(i)%item /= item) cycle
+       if (.not.s%gl%text_valid .or. .not.allocated(s%gl%text_count)) return
+       if (i > size(s%gl%text_count,1)) return
+       n0 = s%gl%text_first(i)
+       n = s%gl%text_count(i)
+       if (n <= 0) return
+       vw = matmul(s%view,s%world)
+       x4 = matmul(vw,(/s%obj%string(i)%x,1._c_float/))
+       c4 = matmul(s%projection,x4)
+       anc = c4(1:2) / max(c4(4),1e-4_c_float)
+       x4(1:2) = x4(1:2) + s%obj%string(i)%offset(1:2) / real(bohrtoa,c_float)
+       c4 = matmul(s%projection,x4)
+       c0 = c4(1:2) / max(c4(4),1e-4_c_float)
+       bmin = c0 + minval(s%gl%packtext(7:8,n0+1:n0+n),2)
+       bmax = c0 + maxval(s%gl%packtext(7:8,n0+1:n0+n),2)
+       ok = .true.
+       return
+    end do
+
+    ! an overlay string: at its window position, with the glyph extent of
+    ! its last render
+    do i = 1, s%obj%nstringover
+       if (s%obj%stringover(i)%irep /= iord .or. s%obj%stringover(i)%item /= item) cycle
+       if (.not.allocated(s%gl%textover_ext)) return
+       if (i > size(s%gl%textover_ext,2)) return
+       anc = overlay_ndc(s,s%obj%stringover(i)%winpos)
+       bmin = anc + s%gl%textover_ext(1:2,i)
+       bmax = anc + s%gl%textover_ext(3:4,i)
+       ok = all(bmax > bmin)
+       return
+    end do
+
+  end subroutine scene_text_box
 
   !xx! private procedures: transient representations
 

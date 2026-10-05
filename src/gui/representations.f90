@@ -699,6 +699,7 @@ module representations
   !> Text annotation options (reptype_text; accessed as r%text%...)
   type rep_text
      integer :: ntext = 0 ! number of text items
+     integer :: isel = 0 ! the selected item (0 = none)
      type(text_item), allocatable :: t(:) ! the text items
   end type rep_text
   public :: rep_text
@@ -981,6 +982,9 @@ module representations
   public :: vibration_arrow_shapes
   public :: shape_differs
   public :: shapes_template
+  public :: text_template
+  public :: text_append
+  public :: text_delete
   public :: shapes_append
   public :: shapes_delete
   public :: planar_isclosed
@@ -1026,6 +1030,19 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module function text_template(p,ipl) result(t)
+       type(rep_text), intent(in) :: p
+       integer, intent(in) :: ipl
+       type(text_item) :: t
+     end function text_template
+     module subroutine text_append(p,t)
+       type(rep_text), intent(inout) :: p
+       type(text_item), intent(in) :: t
+     end subroutine text_append
+     module subroutine text_delete(p,idel)
+       type(rep_text), intent(inout) :: p
+       integer, intent(in) :: idel
+     end subroutine text_delete
      module function shapes_template(p,ikind) result(sh)
        type(rep_shapes), intent(in) :: p
        integer, intent(in) :: ikind

@@ -1879,10 +1879,10 @@ contains
   !> Draw the editrep window, text annotations. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_text(w,ttshown) result(changed)
-    use interfaces_glfw, only: glfwGetTime
-    use representations, only: text_item, textpos_screen, textpos_point, textpos_atom,&
-       textpos_bond
-    use gui_main, only: ColorLabel_def
+    use representations, only: textpos_screen, textpos_point, textpos_atom, textpos_bond,&
+       text_delete
+    use icons, only: icon_pl_select, icon_vm_remove, icon_tx_screen, icon_tx_point,&
+       icon_tx_atom, icon_tx_bond
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
        iw_table_column
@@ -1893,13 +1893,21 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: ch, ok, okp, ldum
+    logical :: ch, ok, okp, ldum, focus
     integer :: i, k, iview, isel, idel, ipl, iplpick
     real*8 :: xc(3)
     integer(c_int) :: flags
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
-    type(text_item), allocatable :: taux(:)
+
+    ! the toolbar: the tools, their icons, and the texts drawn instead if
+    ! they did not load. The tool of placement ipl is objtool_kind0 + ipl + 1
+    integer, parameter :: ntool = objtool_kind0 + textpos_bond + 1
+    integer, parameter :: tools(objtool_select:ntool) = (/(k, k = objtool_select, ntool)/)
+    integer, parameter :: toolicon(objtool_select:ntool) = (/&
+       icon_pl_select,icon_vm_remove,icon_tx_screen,icon_tx_point,icon_tx_atom,icon_tx_bond/)
+    character(len=2), parameter :: toolfall(objtool_select:ntool) = (/&
+       "Se","Rm","Sc","Pt","At","Bd"/)
 
     ! initialize
     changed = .false.
@@ -1959,6 +1967,11 @@ contains
        end if
     end if
 
+    ! the toolbar, which edits the texts in the view: select, remove,
+    ! and one tool per placement
+    if (iview > 0) &
+       call w%editrep_toolbar(tools,toolicon,toolfall,text_tool_hint,text_tool_prompt,ttshown)
+
     ! table of text items
     call iw_text("Text objects",highlight=.true.)
     idel = 0
@@ -2008,32 +2021,20 @@ contains
              end if
              call iw_text(str1,alignframe=.true.)
              ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch,&
-                selected=(i == w%lastselected))
-             if (ch) w%lastselected = i
+                selected=(i == w%rep%text%isel))
+             if (ch) w%rep%text%isel = i
           end if
        end do
        call igEndTable()
     end if
 
-    ! add button
-    if (iw_button("Add##textadd")) then
-       allocate(taux(w%rep%text%ntext+1))
-       if (w%rep%text%ntext > 0) taux(1:w%rep%text%ntext) = w%rep%text%t(1:w%rep%text%ntext)
-       call move_alloc(taux,w%rep%text%t)
-       w%rep%text%ntext = w%rep%text%ntext + 1
-       w%rep%text%t(w%rep%text%ntext)%str = "Text"
-       w%rep%text%t(w%rep%text%ntext)%rgb = ColorLabel_def
-       w%lastselected = w%rep%text%ntext
-       changed = .true.
-    end if
-    call iw_tooltip("Add a new text",ttshown)
-
-    ! process a deletion
+    ! process a deletion, dropping a mouse drag on the texts in the view
     if (idel > 0) then
-       do k = idel, w%rep%text%ntext-1
-          w%rep%text%t(k) = w%rep%text%t(k+1)
-       end do
-       w%rep%text%ntext = w%rep%text%ntext - 1
+       call text_delete(w%rep%text,idel)
+       if (iview > 0) then
+          if (win(iview)%vmdata%owner == w%id .and. win(iview)%oe%op == objop_move) &
+             win(iview)%oe%op = objop_none
+       end if
        if (w%editrep_pick_item == idel) then
           ! cancel a pick pending on the deleted item
           call win(iview)%viewmode_release_forced(w%id)
@@ -2044,15 +2045,19 @@ contains
        changed = .true.
     end if
 
-    !! section for changing the selected text
-    if (w%rep%text%ntext > 0) then
-       isel = min(max(w%lastselected,1),w%rep%text%ntext)
-       w%lastselected = isel
+    !! section for changing the selected text; a text placed or
+    !! double-clicked in the view asks for the keyboard (an old request,
+    !! made while this window was not drawn, is dropped)
+    focus = (w%editrep_focustext >= 0 .and. igGetFrameCount() - w%editrep_focustext <= 2)
+    w%editrep_focustext = -1
+    if (w%rep%text%isel >= 1 .and. w%rep%text%isel <= w%rep%text%ntext) then
+       isel = w%rep%text%isel
 
        ! the text, edited in a multiline box
        call iw_text("Text",highlight=.true.)
-       if (iw_inputtext("##textstredit",bufsize=4095,texta=w%rep%text%t(isel)%str,nlines=3)) &
-          changed = .true.
+       if (focus) call igSetWindowFocus_Nil()
+       if (iw_inputtext("##textstredit",bufsize=4095,texta=w%rep%text%t(isel)%str,nlines=3,&
+          grabfocus=focus,selectall=.true.)) changed = .true.
        call iw_tooltip("Text of the selected annotation (multiple lines allowed)",ttshown)
 
        ! placement
@@ -5048,6 +5053,78 @@ contains
     if (len(str) > 0) str = str // ". " // exit_hint()
 
   end function shapes_tool_hint
+
+  !> The prompt for tool itool (objtool_*, or objtool_kind0 + 1 +
+  !> textpos_*) of the text editor in the view bar: short enough for it
+  !> (vmbar_maxlen); the tooltip in the toolbar (text_tool_hint) has the
+  !> rest.
+  function text_tool_prompt(itool) result(str)
+    use representations, only: textpos_screen, textpos_point, textpos_atom, textpos_bond
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: ipl
+
+    ipl = itool - objtool_kind0 - 1
+    if (itool == objtool_select) then
+       str = "Click a text to select it; drag to move it"
+    elseif (itool == objtool_remove) then
+       str = "Click a text to remove it"
+    elseif (ipl == textpos_screen) then
+       str = "Click to place an on-screen text"
+    elseif (ipl == textpos_point) then
+       str = "Click to place a text at a 3D point"
+    elseif (ipl == textpos_atom) then
+       str = "Click an atom to place a text on it"
+    elseif (ipl == textpos_bond) then
+       str = "Click a bond to place a text on it"
+    else
+       str = ""
+    end if
+
+  end function text_tool_prompt
+
+  !> The tooltip for tool itool (objtool_*, or objtool_kind0 + 1 +
+  !> textpos_*) of the text editor in its toolbar. The keys are those
+  !> bound in the object editing mode.
+  function text_tool_hint(itool) result(str)
+    use representations, only: textpos_screen, textpos_point, textpos_atom, textpos_bond
+    use keybindings, only: BIND_OBJEDIT_DRAW, BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_DELETE,&
+       BIND_OBJEDIT_NOSNAP
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: ipl
+    character(len=:), allocatable :: typing
+
+    ipl = itool - objtool_kind0 - 1
+    typing = ". Type the text right away: the text box of this window takes the keyboard"
+    if (itool == objtool_select) then
+       str = "Select: click a text (" // kn(BIND_OBJEDIT_DRAW) // ") to select it and drag it to " //&
+          "move it: an on-screen text in the window, a text at a 3D point in the plane facing " //&
+          "the camera (onto the atom under the mouse; " // kn(BIND_OBJEDIT_NOSNAP) // ": do not " //&
+          "snap; " // kn(BIND_OBJEDIT_CONSTRAIN) // ": along an axis), and a text on an atom or " //&
+          "bond away from it. Double-click a text to edit it. " // kn(BIND_OBJEDIT_DELETE) //&
+          " removes the selected text"
+    elseif (itool == objtool_remove) then
+       str = "Remove: click a text (" // kn(BIND_OBJEDIT_DRAW) // ") to remove it"
+    elseif (ipl == textpos_screen) then
+       str = "On-screen text: click to place a text that stays at that position of the window" //&
+          typing
+    elseif (ipl == textpos_point) then
+       str = "Text at a 3D point: click an atom to place the text at its position, or empty " //&
+          "space for the point on the plane through the scene center (" //&
+          kn(BIND_OBJEDIT_NOSNAP) // ": do not snap to atoms)" // typing
+    elseif (ipl == textpos_atom) then
+       str = "Text on an atom: click an atom to tie a text to it" // typing
+    elseif (ipl == textpos_bond) then
+       str = "Text on a bond: click a bond to tie a text to its midpoint" // typing
+    else
+       str = ""
+    end if
+    if (len(str) > 0) str = str // ". " // exit_hint()
+
+  end function text_tool_hint
 
   !> The end of the toolbar tooltips of the object editors: the keys
   !> that turn the tool off.

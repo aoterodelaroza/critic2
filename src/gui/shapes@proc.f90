@@ -815,6 +815,7 @@ contains
     if (allocated(b%text_first)) deallocate(b%text_first)
     if (allocated(b%text_count)) deallocate(b%text_count)
     if (allocated(b%packtext)) deallocate(b%packtext)
+    if (allocated(b%textover_ext)) deallocate(b%textover_ext)
     b%inst_valid = .false.
     b%nsph_inst = 0
     b%ncyl_inst = 0

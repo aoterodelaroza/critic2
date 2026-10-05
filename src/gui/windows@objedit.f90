@@ -16,8 +16,8 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Object editing in the view (vm_objedit): the handlers of the object
-! types edited with the mouse in the view (2D drawings, 3D shapes), and
-! their helpers. The 2D handler works in the NDC of the render buffer.
+! types edited with the mouse in the view (2D drawings, 3D shapes,
+! text), and their helpers. The 2D handler works in the NDC of the render buffer.
 ! The 3D handlers work on the screen projection of the objects:
 ! a point under the mouse is the atom under it (unless the no-snap bind
 ! is held) or the point at a given depth, and the objects and their
@@ -49,8 +49,7 @@ contains
        planar_curve_default_bend,&
        planar_delete, planar_handles, planar_drag_handle, planar_move,&
        planar_simplify
-    use keybindings, only: is_bind_event, BIND_OBJEDIT_FINISH, BIND_OBJEDIT_DELPOINT,&
-       BIND_OBJEDIT_DELETE
+    use keybindings, only: is_bind_event, BIND_OBJEDIT_FINISH, BIND_OBJEDIT_DELPOINT
     class(window), intent(inout), target :: w
     type(representation), intent(inout) :: r
     type(objedit_input), intent(inout) :: inp
@@ -225,12 +224,9 @@ contains
     end if
 
     ! delete the selected shape (draw_view leaves Delete to this mode)
-    if (inp%hover .and. inp%itool == objtool_select .and. w%oe%op == objop_none .and.&
-       r%planar%isel > 0) then
-       if (is_bind_event(BIND_OBJEDIT_DELETE,norepeat=.true.,iview=w%id)) then
-          call planar_delete(r%planar,r%planar%isel)
-          changed = .true.
-       end if
+    if (delete_key(w,inp,r%planar%isel)) then
+       call planar_delete(r%planar,r%planar%isel)
+       changed = .true.
     end if
 
     ! the shapes are drawn by the scene: rebuild it
@@ -252,7 +248,6 @@ contains
   module subroutine shapes_events(w,r,inp)
     use representations, only: representation, shapekind_NUM, shapekind_sphere,&
        shapekind_box, shapes_template, shapes_append, shapes_delete
-    use keybindings, only: is_bind_event, BIND_OBJEDIT_DELETE
     class(window), intent(inout), target :: w
     type(representation), intent(inout) :: r
     type(objedit_input), intent(inout) :: inp
@@ -372,12 +367,9 @@ contains
     end associate
 
     ! delete the selected shape (draw_view leaves Delete to this mode)
-    if (inp%hover .and. inp%itool == objtool_select .and. w%oe%op == objop_none .and.&
-       r%shapes%isel > 0) then
-       if (is_bind_event(BIND_OBJEDIT_DELETE,norepeat=.true.,iview=w%id)) then
-          call shapes_delete(r%shapes,r%shapes%isel)
-          changed = .true.
-       end if
+    if (delete_key(w,inp,r%shapes%isel)) then
+       call shapes_delete(r%shapes,r%shapes%isel)
+       changed = .true.
     end if
 
     ! the shapes are drawn by the scene: rebuild it, keeping the camera
@@ -392,6 +384,170 @@ contains
     call shapes_overlay(w,r,inp%itool)
 
   end subroutine shapes_events
+
+  !> The object editing view mode (vm_objedit) for the text r, with the
+  !> input of this frame inp: place new texts with the tool (a click:
+  !> on-screen, at a 3D point, on an atom or on a bond), select them and
+  !> move them, or remove them. A new text, or a double-clicked one,
+  !> sends the keyboard to the text box of the editor. Dragging moves an
+  !> on-screen text in the window, a text at a 3D point on the plane
+  !> facing the camera (snapping to the atom under the mouse unless the
+  !> no-snap bind is held), and a text tied to an atom or a bond away
+  !> from its anchor (its offset). The text moves on release; the drag
+  !> shows its box.
+  module subroutine text_events(w,r,inp)
+    use representations, only: representation, text_item, textpos_screen, textpos_point,&
+       textpos_atom, textpos_bond, text_template, text_append, text_delete
+    use systems, only: sys
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    type(representation), intent(inout) :: r
+    type(objedit_input), intent(inout) :: inp
+
+    integer :: ipl, k, i, iown
+    real*8 :: p(3), d(3), f0(2), f1(2)
+    real(c_float) :: t(3), t1(3), tex0(2), vw(4,4)
+    logical :: changed, ok
+    type(text_item) :: tnew
+
+    ! the placement of the texts the tool adds (none: select/remove)
+    ipl = inp%itool - objtool_kind0 - 1
+    if (ipl < textpos_screen .or. ipl > textpos_bond) ipl = -1
+    iown = w%vmdata%owner
+    changed = .false.
+    if (r%text%isel > r%text%ntext) r%text%isel = 0
+    if (w%oe%op == objop_move) then
+       if (w%oe%iitem < 1 .or. w%oe%iitem > r%text%ntext) w%oe%op = objop_none
+    end if
+
+    associate (st => w%oe%text)
+      ! press
+      if (inp%press) then
+         w%oe%x0 = inp%xm
+         w%oe%moved = .false.
+         if (inp%itool == objtool_select) then
+            ! the text under the mouse: a double click edits it, a press
+            ! starts a move (on the plane facing the camera through its
+            ! anchor, if it has one)
+            w%oe%op = objop_none
+            k = text_at(w,r,inp%xm,objedit_hit_px*inp%pxs)
+            r%text%isel = k
+            if (k > 0) then
+               if (inp%dbl) then
+                  win(iown)%editrep_focustext = igGetFrameCount()
+               else
+                  w%oe%op = objop_move
+                  w%oe%iitem = k
+                  st%t0 = r%text%t(k)
+                  st%t = st%t0
+                  st%shift = 0d0
+                  st%zdep = 0.5_c_float
+                  if (text_anchor(w,st%t0,st%xg)) then
+                     t = to_tex(w,st%xg)
+                     st%zdep = t(3)
+                  end if
+               end if
+            end if
+         elseif (inp%itool == objtool_remove) then
+            ! remove the text under the mouse
+            k = text_at(w,r,inp%xm,objedit_hit_px*inp%pxs)
+            if (k > 0) then
+               call text_delete(r%text,k)
+               changed = .true.
+            end if
+         elseif (ipl >= 0) then
+            ! a new text at the click: the window position, the point
+            ! under the mouse on the plane through the scene center, or the
+            ! atom or bond under the mouse (nothing on empty space)
+            tnew = text_template(r%text,ipl)
+            ok = .true.
+            if (ipl == textpos_screen) then
+               call view_texpos_to_winfrac(w%id,inp%tex,tnew%winpos)
+            elseif (ipl == textpos_point) then
+               t = to_tex(w,real(w%sc%scenecenter,8) + molshift(w))
+               tnew%pos = abs_to_textpos(w,snap_point(w,inp,t(3)))
+            elseif (ipl == textpos_atom) then
+               i = w%mousepos_idx(1)
+               ok = (i >= 1 .and. i <= sys(w%isys)%c%ncel)
+               if (ok) tnew%idx1 = w%mousepos_idx(1:4)
+            else
+               ok = (w%mousepos_bidx(1) > 0)
+               if (ok) then
+                  tnew%idx1 = w%mousepos_bidx(1:4)
+                  tnew%idx2 = w%mousepos_bidx(5:8)
+               end if
+            end if
+            if (ok) then
+               call text_append(r%text,tnew)
+               win(iown)%editrep_focustext = igGetFrameCount()
+               changed = .true.
+            end if
+         end if
+      end if
+
+      ! drag; the text moves on release, and the drag shows its box moved by
+      ! st%shift (NDC)
+      if (w%oe%op == objop_move) then
+         if (norm2(inp%xm - w%oe%x0) > objedit_drag_px * inp%pxs) w%oe%moved = .true.
+         if (.not.inp%down) then
+            ! release: commit
+            if (w%oe%moved) then
+               r%text%t(w%oe%iitem) = st%t
+               changed = .true.
+            end if
+            w%oe%op = objop_none
+         elseif (w%oe%moved) then
+            st%t = st%t0
+            tex0 = real(0.5d0 * (w%oe%x0 + 1d0) * w%FBOside,c_float)
+            d = from_tex(w,inp%tex,st%zdep) - from_tex(w,tex0,st%zdep)
+            if (st%t0%placement == textpos_screen) then
+               ! in the window
+               call view_texpos_to_winfrac(w%id,tex0,f0)
+               call view_texpos_to_winfrac(w%id,inp%tex,f1)
+               st%t%winpos = min(max(st%t0%winpos + f1 - f0,0d0),1d0)
+               st%shift = 2d0 * (1d0 - 2d0 * real(w%sc%viewuv0,8)) * (st%t%winpos - st%t0%winpos)
+            elseif (st%t0%placement == textpos_point) then
+               ! the anchor: the atom under the mouse, or moved on the plane
+               ! facing the camera
+               i = w%mousepos_idx(1)
+               if (.not.inp%nosnap .and. i >= 1 .and. i <= sys(w%isys)%c%ncel) then
+                  p = snap_point(w,inp,st%zdep)
+               else
+                  if (inp%constrain) d = axis_snap(w,d)
+                  p = st%xg + d
+               end if
+               st%t%pos = abs_to_textpos(w,p)
+               t = to_tex(w,st%xg)
+               t1 = to_tex(w,p)
+               st%shift = 2d0 * real(t1(1:2) - t(1:2),8) / w%FBOside
+            else
+               ! the offset from the anchor: the drag in the camera frame
+               ! (angstrom)
+               vw = matmul(w%sc%view,w%sc%world)
+               st%t%offset = st%t0%offset + matmul(real(vw(1:2,1:3),8),d) * bohrtoa
+               st%shift = inp%xm - w%oe%x0
+            end if
+         end if
+      end if
+    end associate
+
+    ! delete the selected text (draw_view leaves Delete to this mode)
+    if (delete_key(w,inp,r%text%isel)) then
+       call text_delete(r%text,r%text%isel)
+       changed = .true.
+    end if
+
+    ! the texts are drawn by the scene: rebuild it, keeping the camera
+    ! where it is (the texts count in the scene extent); the box of the
+    ! selected text and its anchor wait for the rebuilt strings
+    if (changed) then
+       w%sc%forcebuildlists = .true.
+       w%sc%nextbuildlists_fixcam = .true.
+    elseif (inp%itool == objtool_select) then
+       call text_overlay(w,r)
+    end if
+
+  end subroutine text_events
 
   !xx! private procedures
 
@@ -468,7 +624,6 @@ contains
   subroutine planar_view_overlay(w,r,itool,xm,pxs)
     use representations, only: representation, planar_shape, planar_handles,&
        planar_rotation_handle, planarkind_polyline
-    use gui_main, only: ColorHighlightSelectScene
     class(window), intent(inout), target :: w
     type(representation), intent(in) :: r
     integer, intent(in) :: itool
@@ -478,12 +633,7 @@ contains
     type(ImVec2) :: p1, p2
     integer(c_int) :: colw, colk, colh
 
-    dl = igGetWindowDrawList()
-    call ImDrawList_PushClipRect(dl,w%v_rmin,w%v_rmax,.true._c_bool)
-    colw = igGetColorU32_Vec4(ImVec4(1._c_float,1._c_float,1._c_float,1._c_float))
-    colk = igGetColorU32_Vec4(ImVec4(0._c_float,0._c_float,0._c_float,1._c_float))
-    colh = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),ColorHighlightSelectScene(2),&
-       ColorHighlightSelectScene(3),1._c_float))
+    call overlay_begin(w,dl,colw,colk,colh)
 
     ! the shape being drawn or dragged, in its own color and width
     if (w%oe%op /= objop_none) then
@@ -492,11 +642,11 @@ contains
           max(w%oe%planar%sh%alpha,0.3_c_float))))
        ! the segment to the mouse of a polygon/polyline in progress
        if (w%oe%op == objop_clicks) then
-          p1 = ndc_to_mouse(w%oe%planar%sh%x(:,w%oe%planar%sh%npt))
-          p2 = ndc_to_mouse(xm)
+          p1 = ndc_to_mouse(w,w%oe%planar%sh%x(:,w%oe%planar%sh%npt))
+          p2 = ndc_to_mouse(w,xm)
           call ImDrawList_AddLine(dl,p1,p2,colh,1._c_float)
           if (w%oe%planar%sh%kind /= planarkind_polyline .and. w%oe%planar%sh%npt >= 2) then
-             p1 = ndc_to_mouse(w%oe%planar%sh%x(:,1))
+             p1 = ndc_to_mouse(w,w%oe%planar%sh%x(:,1))
              call ImDrawList_AddLine(dl,p1,p2,colh,1._c_float)
           end if
        end if
@@ -527,12 +677,12 @@ contains
       irot = planar_rotation_handle(sh)
       if (irot > 0) then
          ! the rotation handle hangs from the midpoint of the top edge (handle 7)
-         q1 = ndc_to_mouse(xh(:,7))
-         q2 = ndc_to_mouse(xh(:,irot))
+         q1 = ndc_to_mouse(w,xh(:,7))
+         q2 = ndc_to_mouse(w,xh(:,irot))
          call ImDrawList_AddLine(dl,q1,q2,colh,1._c_float)
       end if
       do i = 1, nh
-         call draw_handle(dl,ndc_to_mouse(xh(:,i)),i == irot,colw,colk)
+         call draw_handle(dl,ndc_to_mouse(w,xh(:,i)),i == irot,colw,colk)
       end do
 
     end subroutine selected_shape
@@ -554,23 +704,13 @@ contains
       nseg = n - 1
       if (planar_isclosed(sh)) nseg = n
       do j = 1, nseg
-         q1 = ndc_to_mouse(xp(:,j))
-         q2 = ndc_to_mouse(xp(:,modulo(j,n)+1))
+         q1 = ndc_to_mouse(w,xp(:,j))
+         q2 = ndc_to_mouse(w,xp(:,modulo(j,n)+1))
          call ImDrawList_AddLine(dl,q1,q2,col,thick)
       end do
 
     end subroutine preview_shape
 
-    !> Mouse (screen) position of the point x in the NDC of the render buffer.
-    function ndc_to_mouse(x) result(p)
-      real*8, intent(in) :: x(2)
-      type(ImVec2) :: p
-
-      p%x = real(0.5d0 * (x(1) + 1d0) * w%FBOside,c_float)
-      p%y = real(0.5d0 * (x(2) + 1d0) * w%FBOside,c_float)
-      call w%texpos_to_mousepos(p)
-
-    end function ndc_to_mouse
 
   end subroutine planar_view_overlay
 
@@ -981,7 +1121,6 @@ contains
   !> (select tool itool), as wireframes on their screen projection.
   subroutine shapes_overlay(w,r,itool)
     use representations, only: representation, rep_shape, shapekind_sphere
-    use gui_main, only: ColorHighlightSelectScene
     class(window), intent(inout), target :: w
     type(representation), intent(in) :: r
     integer, intent(in) :: itool
@@ -989,12 +1128,7 @@ contains
     type(c_ptr) :: dl
     integer(c_int) :: colw, colk, colh
 
-    dl = igGetWindowDrawList()
-    call ImDrawList_PushClipRect(dl,w%v_rmin,w%v_rmax,.true._c_bool)
-    colw = igGetColorU32_Vec4(ImVec4(1._c_float,1._c_float,1._c_float,1._c_float))
-    colk = igGetColorU32_Vec4(ImVec4(0._c_float,0._c_float,0._c_float,1._c_float))
-    colh = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),ColorHighlightSelectScene(2),&
-       ColorHighlightSelectScene(3),1._c_float))
+    call overlay_begin(w,dl,colw,colk,colh)
 
     ! the shape being drawn or dragged
     if (w%oe%op /= objop_none) then
@@ -1074,6 +1208,171 @@ contains
 
     end function tex_to_mouse
   end subroutine shapes_overlay
+
+  !> The shown text of r under the position x (NDC of the render buffer)
+  !> in view w, within tol of its box, 0 if none; the last drawn first.
+  function text_at(w,r,x,tol) result(k)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    real*8, intent(in) :: x(2), tol
+    integer :: k
+
+    real(c_float) :: bmin(2), bmax(2), anc(2)
+    logical :: ok
+
+    do k = r%text%ntext, 1, -1
+       if (.not.r%text%t(k)%shown) cycle
+       call w%sc%text_box(r%iord,k,ok,bmin,bmax,anc)
+       if (.not.ok) cycle
+       if (all(x >= bmin - tol) .and. all(x <= bmax + tol)) return
+    end do
+    k = 0
+
+  end function text_at
+
+  !> The anchor of the text t in view w (absolute frame, bohr): its 3D
+  !> point, its atom, or the midpoint of its bond. False for an on-screen
+  !> text or an unset anchor.
+  function text_anchor(w,t,x) result(ok)
+    use representations, only: text_item, textpos_point, textpos_atom, textpos_bond
+    use systems, only: sys, anchor_xfrac
+    use param, only: bohrtoa
+    class(window), intent(in) :: w
+    type(text_item), intent(in) :: t
+    real*8, intent(out) :: x(3)
+    logical :: ok
+
+    real*8 :: xf1(3), xf2(3)
+
+    x = 0d0
+    ok = .false.
+    if (t%placement == textpos_point) then
+       if (sys(w%isys)%c%ismolecule) then
+          x = t%pos / bohrtoa
+       else
+          x = sys(w%isys)%c%x2c(t%pos)
+       end if
+       ok = .true.
+    elseif (t%placement == textpos_atom) then
+       ok = anchor_xfrac(w%isys,t%idx1,xf1)
+       if (ok) x = sys(w%isys)%c%x2c(xf1) + molshift(w)
+    elseif (t%placement == textpos_bond) then
+       ok = anchor_xfrac(w%isys,t%idx1,xf1)
+       if (ok) ok = anchor_xfrac(w%isys,t%idx2,xf2)
+       if (ok) x = sys(w%isys)%c%x2c(0.5d0 * (xf1 + xf2)) + molshift(w)
+    end if
+
+  end function text_anchor
+
+  !> The position of a text at a 3D point (text_item%pos: fractional for
+  !> a crystal, angstrom for a molecule) of the absolute-frame point x of
+  !> view w; the inverse of text_anchor for a 3D point.
+  function abs_to_textpos(w,x) result(pos)
+    use systems, only: sys
+    use param, only: bohrtoa
+    class(window), intent(in) :: w
+    real*8, intent(in) :: x(3)
+    real*8 :: pos(3)
+
+    if (sys(w%isys)%c%ismolecule) then
+       pos = x * bohrtoa
+    else
+       pos = sys(w%isys)%c%c2x(x)
+    end if
+
+  end function abs_to_textpos
+
+  !> Draw over the view w the box of the selected text of r (moved by
+  !> the drag in progress), and a handle on its anchor joined to the box
+  !> if they are apart.
+  subroutine text_overlay(w,r)
+    use representations, only: representation, textpos_screen
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+
+    type(c_ptr) :: dl
+    integer(c_int) :: colw, colk, colh
+    real(c_float) :: bmin(2), bmax(2), anc(2)
+    real*8 :: sh(2), b1(2), b2(2)
+    logical :: ok
+    type(ImVec2) :: q1, q2, qa
+
+    real(c_float), parameter :: pad_px = 3._c_float
+
+    if (r%text%isel < 1) return
+    if (.not.r%text%t(r%text%isel)%shown) return
+    call w%sc%text_box(r%iord,r%text%isel,ok,bmin,bmax,anc)
+    if (.not.ok) return
+    sh = 0d0
+    if (w%oe%op == objop_move .and. w%oe%iitem == r%text%isel) sh = w%oe%text%shift
+    b1 = bmin + sh
+    b2 = bmax + sh
+
+    call overlay_begin(w,dl,colw,colk,colh)
+
+    ! the box (the NDC and screen y run opposite ways)
+    q1 = ndc_to_mouse(w,b1)
+    q2 = ndc_to_mouse(w,b2)
+    call ImDrawList_AddRect(dl,ImVec2(min(q1%x,q2%x) - pad_px,min(q1%y,q2%y) - pad_px),&
+       ImVec2(max(q1%x,q2%x) + pad_px,max(q1%y,q2%y) + pad_px),colh,0._c_float,0_c_int,1.5_c_float)
+
+    ! the anchor of a world-anchored text, joined to the box if apart
+    if (r%text%t(r%text%isel)%placement /= textpos_screen) then
+       qa = ndc_to_mouse(w,real(anc,8))
+       if (any(anc < b1) .or. any(anc > b2)) &
+          call ImDrawList_AddLine(dl,qa,ndc_to_mouse(w,0.5d0 * (b1 + b2)),colh,1._c_float)
+       call draw_handle(dl,qa,.true.,colw,colk)
+    end if
+    call ImDrawList_PopClipRect(dl)
+
+  end subroutine text_overlay
+
+  !> Whether the delete bind removes the selected item isel (0 = none)
+  !> in this frame (input inp) of view w: the select tool, over the view,
+  !> with nothing in progress.
+  function delete_key(w,inp,isel) result(ok)
+    use keybindings, only: is_bind_event, BIND_OBJEDIT_DELETE
+    class(window), intent(in) :: w
+    type(objedit_input), intent(in) :: inp
+    integer, intent(in) :: isel
+    logical :: ok
+
+    ok = inp%hover .and. inp%itool == objtool_select .and. w%oe%op == objop_none .and. isel > 0
+    if (ok) ok = is_bind_event(BIND_OBJEDIT_DELETE,norepeat=.true.,iview=w%id)
+
+  end function delete_key
+
+  !> Start an overlay over the view w: its draw list dl, clipped to the
+  !> view, and the colors of the handles (colw fill, colk outline) and
+  !> of the highlighted outlines (colh). End with ImDrawList_PopClipRect.
+  subroutine overlay_begin(w,dl,colw,colk,colh)
+    use gui_main, only: ColorHighlightSelectScene
+    class(window), intent(in) :: w
+    type(c_ptr), intent(out) :: dl
+    integer(c_int), intent(out) :: colw, colk, colh
+
+    dl = igGetWindowDrawList()
+    call ImDrawList_PushClipRect(dl,w%v_rmin,w%v_rmax,.true._c_bool)
+    colw = igGetColorU32_Vec4(ImVec4(1._c_float,1._c_float,1._c_float,1._c_float))
+    colk = igGetColorU32_Vec4(ImVec4(0._c_float,0._c_float,0._c_float,1._c_float))
+    colh = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),ColorHighlightSelectScene(2),&
+       ColorHighlightSelectScene(3),1._c_float))
+
+  end subroutine overlay_begin
+
+  !> Mouse (screen) position of the point x in the NDC of the render
+  !> buffer of view w.
+  function ndc_to_mouse(w,x) result(p)
+    class(window), intent(inout), target :: w
+    real*8, intent(in) :: x(2)
+    type(ImVec2) :: p
+
+    p%x = real(0.5d0 * (x(1) + 1d0) * w%FBOside,c_float)
+    p%y = real(0.5d0 * (x(2) + 1d0) * w%FBOside,c_float)
+    call w%texpos_to_mousepos(p)
+
+  end function ndc_to_mouse
 
   !> Draw a handle at the screen position q on the draw list dl: a
   !> square, or a disk if round, filled with colw and outlined with colk.

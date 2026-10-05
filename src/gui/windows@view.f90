@@ -716,7 +716,7 @@ contains
     if (interacting .neqv. w%lowresrender) w%forcerender = .true.
     ! bonds in the pick buffer: only drawn in the bond-picking modes,
     ! so entering or leaving one needs a fresh pick render.
-    pickbonds = vm_is_bondpick(w%viewmode)
+    pickbonds = vm_is_bondpick(w%viewmode) .or. objedit_bondpick(w)
     if (.not.interacting .and. (pickbonds .neqv. w%pickbonds_last)) w%forcerender = .true.
     if (interacting) then
        rscale = real(min(w%FBOside,interactive_texture_side),c_float) / real(w%FBOside,c_float)
@@ -802,6 +802,14 @@ contains
     tmpuv = sz0%y
     sz0%y = sz1%y
     sz1%y = tmpuv
+    ! a click on the view while a text input elsewhere has the keyboard:
+    ! take the keyboard back before the image is drawn, so that the click
+    ! reaches the view (ImGui hovers no other item while one is active,
+    ! and the input lets go only later in the frame)
+    if (io%WantTextInput .and. any_mouse_clicked()) then
+       if (igIsWindowHovered(ImGuiHoveredFlags_None) .and.&
+          igIsMouseHoveringRect(w%v_rmin,w%v_rmax,.true._c_bool)) call igClearActiveID()
+    end if
     str1 = "##imagebutton" // c_null_char
     ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),int(w%FBOtex,c_intptr_t), szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
@@ -2506,7 +2514,7 @@ contains
     !> did not use it and nothing is in progress, turns the tool off (back
     !> to navigation).
     subroutine objedit_events()
-      use representations, only: representation, reptype_planar, reptype_shapes
+      use representations, only: representation, reptype_planar, reptype_shapes, reptype_text
 
       type(representation), pointer :: r
       type(objedit_input) :: inp
@@ -2589,6 +2597,8 @@ contains
          call w%planar_events(r,inp)
       case (reptype_shapes)
          call w%shapes_events(r,inp)
+      case (reptype_text)
+         call w%text_events(r,inp)
       case default
          w%oe%op = objop_none
          call w%viewmode_exit_forced()
@@ -3466,6 +3476,26 @@ contains
   end function vm_exits_on_empty
 
   !> Whether any mouse button was clicked this frame
+  !> Whether view w is in the object editing mode with a tool that
+  !> places items on bonds (the text tool for bonds), which needs the
+  !> bonds in the pick buffer.
+  function objedit_bondpick(w) result(ok)
+    use representations, only: reptype_text, textpos_bond
+    class(window), intent(in) :: w
+    logical :: ok
+
+    integer :: iown
+
+    ok = .false.
+    if (w%viewmode /= vm_objedit) return
+    iown = w%vmdata%owner
+    if (iown < 1 .or. iown > nwin) return
+    if (.not.associated(win(iown)%rep)) return
+    ok = (win(iown)%rep%type == reptype_text .and.&
+       win(iown)%editrep_tool == objtool_kind0 + 1 + textpos_bond)
+
+  end function objedit_bondpick
+
   function any_mouse_clicked()
     logical :: any_mouse_clicked
 
