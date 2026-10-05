@@ -3272,7 +3272,7 @@ contains
     if (itool == planartool_none) then
        call win(iview)%viewmode_release_forced(w%id,vm_planar)
     else
-       call win(iview)%viewmode_set_forced(vm_planar,planar_tool_hint(itool),w%id)
+       call win(iview)%viewmode_set_forced(vm_planar,planar_tool_prompt(itool),w%id)
     end if
     win(iview)%forcerender = .true.
 
@@ -4885,9 +4885,43 @@ contains
 
   !xx! private procedures
 
-  !> The hint for tool itool (planartool_*) of the planar shapes editor:
-  !> its tooltip in the editor toolbar and its prompt in the view bar.
-  !> The keys are those bound in the Draw Shapes mode.
+  !> The prompt for tool itool (planartool_*) of the planar shapes editor
+  !> in the view bar: short enough for it (vmbar_maxlen); the tooltip in
+  !> the toolbar (planar_tool_hint) has the rest.
+  function planar_tool_prompt(itool) result(str)
+    use representations, only: planarkind_ellipse, planarkind_rect, planarkind_arrow,&
+       planarkind_freehand, planarkind_curve, planarkind_NUM
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: ik
+
+    ik = itool - planartool_kind0
+    if (itool == planartool_select) then
+       str = "Click a shape to select it; drag to edit it"
+    elseif (itool == planartool_remove) then
+       str = "Click a shape to remove it"
+    elseif (ik == planarkind_ellipse) then
+       str = "Drag to draw an ellipse"
+    elseif (ik == planarkind_rect) then
+       str = "Drag to draw a rectangle"
+    elseif (ik == planarkind_arrow) then
+       str = "Drag from the tail to the tip of the arrow"
+    elseif (ik == planarkind_curve) then
+       str = "Drag from the tail to the tip of the curve"
+    elseif (ik == planarkind_freehand) then
+       str = "Drag to draw a freehand line"
+    elseif (ik >= 1 .and. ik <= planarkind_NUM) then
+       str = "Click to add points; double-click to finish"
+    else
+       str = ""
+    end if
+
+  end function planar_tool_prompt
+
+  !> The tooltip for tool itool (planartool_*) of the planar shapes
+  !> editor in its toolbar. The keys are those bound in the 2D Drawing
+  !> mode.
   function planar_tool_hint(itool) result(str)
     use representations, only: planarkind_ellipse, planarkind_rect, planarkind_arrow,&
        planarkind_freehand, planarkind_NUM, planarkind_name, planarkind_curve

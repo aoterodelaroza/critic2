@@ -1949,8 +1949,8 @@ contains
     w%cp%pickview = iview
     call w%cp%pick%arm()
     if (kind == cppick_add) then
-       call win(iview)%viewmode_set_forced(vm_pick_bond,"Pick a bond or a point to search for a&
-          & critical point from",w%id,acceptempty=.true.)
+       call win(iview)%viewmode_set_forced(vm_pick_bond,"Pick a bond or point to start the CP search",&
+          w%id,acceptempty=.true.)
     else
        call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick an atom or a point for the position",&
           w%id,acceptempty=.true.)

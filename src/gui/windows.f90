@@ -148,6 +148,13 @@ module windows
   integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
   integer, parameter, public :: vm_lo = vm_planar ! lowest mode id (the vmnames lower bound)
 
+  ! Longest message in the view bar, next to the mode combo (characters):
+  ! the mode hints and the prompts of the windows that force a mode are
+  ! written to fit; anything longer (an error, a fragment name) is cut
+  ! short there, with the full text in a tooltip. The default view leaves
+  ! room for about 59 characters.
+  integer, parameter, public :: vmbar_maxlen = 50
+
   ! The tool selected in the builder toolbar (window%builder_tool), which
   ! chooses what the contextual panel shows. A tool that arms a pick mode
   ! is identified by its vm_builder_* constant (negative); it_edit is the

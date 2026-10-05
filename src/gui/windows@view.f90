@@ -1496,8 +1496,7 @@ contains
              "empty space, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
        end if
     case (vm_builder_valence)
-       hint = "Click to add ("//kn(BIND_PICKATOM_SELECT)//") or remove ("//&
-          kn(BIND_PICKATOM_ALT)//") hydrogens"
+       hint = "Click to add or remove hydrogens"
        descr = "Add ("//kn(BIND_PICKATOM_SELECT)//") or remove ("//kn(BIND_PICKATOM_ALT)//&
           ") hydrogens on the clicked atoms, repositioning the terminal substituents."
        picklbl = "Add hydrogen to atom"
@@ -1954,15 +1953,47 @@ contains
     if (len_trim(w%errmsg) > 0) then
        ! an edit failed (e.g. a drag that could not be applied): the error
        ! outranks any hint, and stays until the next action clears it
-       call iw_text(w%errmsg,danger=.true.,sameline=.true.)
+       call bar_message(w%errmsg,danger=.true.)
     elseif (vm_is_owned(w%viewmode) .and. allocated(w%vmdata%msg)) then
-       call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
+       call bar_message(w%vmdata%msg,highlight=.true.)
     elseif (len_trim(idmsg) > 0) then
+       ! data ordered by importance, so the window clipping it loses the least
        call iw_text(idmsg,sameline=.true.)
     elseif (len_trim(hint) > 0) then
-       call iw_text(hint,highlight=.true.,sameline=.true.)
+       call bar_message(hint,highlight=.true.)
     end if
 
+  contains
+    !> Write the message str in the bar, cut to vmbar_maxlen characters
+    !> with an ellipsis if it is longer (the full text then in a tooltip).
+    !> The length is counted in UTF-8 characters, and the cut never falls
+    !> inside one.
+    subroutine bar_message(str,highlight,danger)
+      character(len=*), intent(in) :: str
+      logical, intent(in), optional :: highlight, danger
+
+      integer :: i, nc, iend
+
+      ! the first byte of character vmbar_maxlen, if there are more than that
+      nc = 0
+      iend = 0
+      do i = 1, len_trim(str)
+         if (iand(ichar(str(i:i)),192) == 128) cycle ! UTF-8 continuation byte
+         nc = nc + 1
+         if (nc == vmbar_maxlen) iend = i
+         if (nc > vmbar_maxlen) exit
+      end do
+      if (nc <= vmbar_maxlen) then
+         call iw_text(trim(str),highlight=highlight,danger=danger,sameline=.true.)
+         return
+      end if
+
+      ! the first vmbar_maxlen-1 characters, and the ellipsis
+      iend = iend - 1
+      call iw_text(str(1:iend) // "…",highlight=highlight,danger=danger,sameline=.true.)
+      call iw_tooltip(trim(str),ttshown)
+
+    end subroutine bar_message
   end subroutine viewmode_bar_display
 
   !> Returns whether a pixel should be read from the picking baffer
