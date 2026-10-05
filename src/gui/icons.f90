@@ -77,7 +77,11 @@ module icons
   integer, parameter, public :: icon_pl_arrow = 45    ! draw an arrow
   integer, parameter, public :: icon_pl_freehand = 46 ! draw a freehand line (squiggle)
   integer, parameter, public :: icon_pl_curve = 47    ! draw a curved arrow or line
-  integer, parameter, public :: icon_NUM = 47
+  ! 3D shapes editor tools
+  integer, parameter, public :: icon_sh_sphere = 48   ! draw a sphere (circle with an equator)
+  integer, parameter, public :: icon_sh_cone = 49     ! draw a cone
+  integer, parameter, public :: icon_sh_cylinder = 50 ! draw a cylinder
+  integer, parameter, public :: icon_NUM = 50
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

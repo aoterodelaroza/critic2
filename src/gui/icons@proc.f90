@@ -36,7 +36,8 @@ submodule (icons) proc
      "ui_editgeom.png","ui_symmetry.png","ui_relax.png",&
      "ui_group.png","ui_display.png","prop_cps.png",&
      "pl_select.png","pl_ellipse.png","pl_rect.png","pl_polygon.png",&
-     "pl_polyline.png","pl_arrow.png","pl_freehand.png","pl_curve.png"/)
+     "pl_polyline.png","pl_arrow.png","pl_freehand.png","pl_curve.png",&
+     "sh_sphere.png","sh_cone.png","sh_cylinder.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&

@@ -94,7 +94,6 @@ contains
     integer, intent(in) :: itype
 
     integer :: isys
-    real*8 :: xcen(3)
 
     ! check the system is sane
     isys = r%id
@@ -320,20 +319,7 @@ contains
        r%shapes%nshape = 0
        r%shapes%isel = 0
        if (allocated(r%shapes%shape)) deallocate(r%shapes%shape)
-       if (r%type == reptype_shapes) then
-          ! default: a single sphere at the center of the cell
-          xcen = sys(isys)%c%x2c((/0.5d0,0.5d0,0.5d0/))
-          if (sys(isys)%c%ismolecule) xcen = xcen + sys(isys)%c%molx0
-          allocate(r%shapes%shape(1))
-          r%shapes%nshape = 1
-          r%shapes%isel = 1
-          r%shapes%shape(1)%kind = shapekind_sphere
-          r%shapes%shape(1)%x1 = xcen
-          r%shapes%shape(1)%rad = 0.5d0 * shape_size_def
-          r%shapes%shape(1)%rgb = shape_rgb_def
-          r%shapes%shape(1)%alpha = shape_alpha_def
-          r%shapes%shape(1)%rim = .true.
-       end if
+       ! a new object starts empty: the shapes are drawn in the view
     end if
 
     ! planar shapes: a new object starts empty, the shapes are drawn in the view
@@ -3290,6 +3276,84 @@ contains
 
   end subroutine gpaths_fill_rgb
 
+  !> A new shape of kind ikind (shapekind_*) with the style of the
+  !> selected shape in p (the defaults if none is selected), so that
+  !> consecutive shapes look alike. Its geometry is empty (at the
+  !> origin, zero vectors) for the caller to set. The thickness carries
+  !> over only between kinds where it means the same: the radius of a
+  !> sphere is geometry (zero here), and a box edge is thinner than a
+  !> shaft.
+  module function shapes_template(p,ikind) result(sh)
+    type(rep_shapes), intent(in) :: p
+    integer, intent(in) :: ikind
+    type(rep_shape) :: sh
+
+    logical :: same
+
+    sh = rep_shape()
+    sh%rgb = shape_rgb_def
+    sh%alpha = shape_alpha_def
+    sh%rim = .true.
+    if (ikind == shapekind_sphere) then
+       sh%rad = 0d0
+    elseif (ikind == shapekind_box) then
+       sh%rad = shape_edge_def
+    else
+       sh%rad = arrow_radius_def
+    end if
+    if (p%isel >= 1 .and. p%isel <= p%nshape) then
+       associate (s0 => p%shape(p%isel))
+         sh%rgb = s0%rgb
+         sh%alpha = s0%alpha
+         sh%rim = s0%rim
+         sh%headr = s0%headr
+         sh%headl = s0%headl
+         same = (s0%kind == ikind) .or. (s0%kind /= shapekind_sphere .and. s0%kind /= shapekind_box&
+            .and. ikind /= shapekind_sphere .and. ikind /= shapekind_box)
+         if (same .and. ikind /= shapekind_sphere) sh%rad = s0%rad
+       end associate
+    end if
+    sh%kind = ikind
+    sh%shown = .true.
+
+  end function shapes_template
+
+  !> Append the shape sh to the list in p and select it.
+  module subroutine shapes_append(p,sh)
+    type(rep_shapes), intent(inout) :: p
+    type(rep_shape), intent(in) :: sh
+
+    type(rep_shape), allocatable :: aux(:)
+
+    allocate(aux(p%nshape+1))
+    if (p%nshape > 0) aux(1:p%nshape) = p%shape(1:p%nshape)
+    aux(p%nshape+1) = sh
+    call move_alloc(aux,p%shape)
+    p%nshape = p%nshape + 1
+    p%isel = p%nshape
+
+  end subroutine shapes_append
+
+  !> Remove shape idel from the list in p. The selection stays on the
+  !> shape it was on, or is cleared if that was the one removed.
+  module subroutine shapes_delete(p,idel)
+    type(rep_shapes), intent(inout) :: p
+    integer, intent(in) :: idel
+
+    integer :: i
+
+    if (idel < 1 .or. idel > p%nshape) return
+    do i = idel, p%nshape-1
+       p%shape(i) = p%shape(i+1)
+    end do
+    p%nshape = p%nshape - 1
+    if (p%isel == idel) then
+       p%isel = 0
+    elseif (p%isel > idel) then
+       p%isel = p%isel - 1
+    end if
+
+  end subroutine shapes_delete
 
   !> Whether the two geometric shapes differ in any field.
   module function shape_differs(a,b) result(ok)

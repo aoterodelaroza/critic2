@@ -33,6 +33,7 @@ module keybindings
   public :: is_mod_key
   public :: bind_mouse_button
   public :: cycle_mouse_key
+  public :: is_bind_mod_held
 
   ! global flag for keybinding use
   logical, public :: use_keybindings = .true.
@@ -136,7 +137,8 @@ module keybindings
   integer, parameter, public :: BIND_OBJEDIT_DELETE = 84 ! object editing: remove the selected item
   integer, parameter, public :: BIND_OBJEDIT_FINISH = 85 ! object editing: finish the item being drawn (e.g. a polygon)
   integer, parameter, public :: BIND_OBJEDIT_DELPOINT = 86 ! object editing: remove the last point of the item being drawn
-  integer, parameter, public :: BIND_NUM = 86 ! total number of binds
+  integer, parameter, public :: BIND_OBJEDIT_NOSNAP = 87 ! object editing: do not snap to atoms while held
+  integer, parameter, public :: BIND_NUM = 87 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -225,7 +227,8 @@ module keybindings
      "Constrain while held            ",& ! BIND_OBJEDIT_CONSTRAIN
      "Remove the selected item        ",& ! BIND_OBJEDIT_DELETE
      "Finish the item being drawn     ",& ! BIND_OBJEDIT_FINISH
-     "Remove the last point           "&  ! BIND_OBJEDIT_DELPOINT
+     "Remove the last point           ",& ! BIND_OBJEDIT_DELPOINT
+     "Do not snap to atoms            "&  ! BIND_OBJEDIT_NOSNAP
      /)
 
   ! The key associated with each bind, bind -> key
@@ -365,7 +368,8 @@ module keybindings
      group_viewmode_objedit,&     ! BIND_OBJEDIT_CONSTRAIN
      group_viewmode_objedit,&     ! BIND_OBJEDIT_DELETE
      group_viewmode_objedit,&     ! BIND_OBJEDIT_FINISH
-     group_viewmode_objedit/)     ! BIND_OBJEDIT_DELPOINT
+     group_viewmode_objedit,&     ! BIND_OBJEDIT_DELPOINT
+     group_viewmode_objedit/)     ! BIND_OBJEDIT_NOSNAP
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -457,7 +461,8 @@ module keybindings
      -1,& ! BIND_OBJEDIT_CONSTRAIN
      0,&  ! BIND_OBJEDIT_DELETE
      0,&  ! BIND_OBJEDIT_FINISH
-     0/)  ! BIND_OBJEDIT_DELPOINT
+     0,&  ! BIND_OBJEDIT_DELPOINT
+     -1/) ! BIND_OBJEDIT_NOSNAP
 
   ! module procedure interfaces
   interface
@@ -498,6 +503,10 @@ module keybindings
        integer, intent(in) :: bind
        integer(c_int) :: bind_mouse_button
      end function bind_mouse_button
+     module function is_bind_mod_held(bind)
+       integer, intent(in) :: bind
+       logical :: is_bind_mod_held
+     end function is_bind_mod_held
      module function cycle_mouse_key(key)
        integer(c_int), intent(in) :: key
        integer(c_int) :: cycle_mouse_key

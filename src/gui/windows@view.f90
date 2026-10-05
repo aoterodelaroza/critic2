@@ -60,24 +60,6 @@ submodule (windows) view
   integer(c_int), parameter :: texture_side_bucket = 256_c_int
 
 
-  ! object editing view mode (vm_objedit): pick radius of the handles and
-  ! objects, and the click/drag threshold (pixels)
-  real*8, parameter :: objedit_hit_px = 6d0
-  real*8, parameter :: objedit_drag_px = 3d0
-
-  !> Input of the object editing view mode (vm_objedit) in one frame,
-  !> read by objedit_events for the handler of the object type.
-  type objedit_input
-     integer :: itool = 0 ! the editor's tool (objtool_*, or objtool_kind0 + a kind of the object)
-     real*8 :: xm(2) = 0d0 ! mouse position (NDC of the render buffer)
-     real*8 :: pxs = 0d0 ! NDC size of a screen pixel
-     logical :: constrain = .false. ! the constrain bind is held
-     logical :: press = .false. ! the draw bind was pressed over the view
-     logical :: down = .false. ! the draw bind is held
-     logical :: dbl = .false. ! that press was a double click
-     logical :: exitev = .false. ! the exit bind fired (a click, if it is a mouse button)
-  end type objedit_input
-
 contains
 
   !> Draw the view.
@@ -2073,6 +2055,10 @@ contains
        ! also on the exit bind (in case it is rebound off the mouse)
        viewmode_activate_picking = any_mouse_clicked() .or.&
           is_bind_event(BIND_MOVEMOL_EXIT,norepeat=.true.) .or. is_bind_event(BIND_MOVEATOM_EXIT,norepeat=.true.)
+    elseif (w%viewmode == vm_objedit) then
+       ! object editing -> on any click and during a drag, so that the
+       ! points snap to the atom actually under the mouse
+       viewmode_activate_picking = any_mouse_clicked() .or. w%oe%op /= objop_none
     end if
 
   end function viewmode_activate_picking
@@ -2096,8 +2082,8 @@ contains
        BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_TOGGLE,&
        BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
        BIND_CANCEL, BIND_PASTE, bind_mouse_button, BIND_OBJEDIT_DRAW, BIND_OBJEDIT_EXIT,&
-       BIND_OBJEDIT_TRANSLATE, BIND_OBJEDIT_ZOOM, BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_DELETE,&
-       BIND_OBJEDIT_FINISH, BIND_OBJEDIT_DELPOINT
+       BIND_OBJEDIT_TRANSLATE, BIND_OBJEDIT_ZOOM, BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_NOSNAP,&
+       is_bind_mod_held
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry,&
        lastchange_buildlists, ok_system, sys_init
     use global, only: iunit_bohr
@@ -2520,7 +2506,7 @@ contains
     !> did not use it and nothing is in progress, turns the tool off (back
     !> to navigation).
     subroutine objedit_events()
-      use representations, only: representation, reptype_planar
+      use representations, only: representation, reptype_planar, reptype_shapes
 
       type(representation), pointer :: r
       type(objedit_input) :: inp
@@ -2560,10 +2546,13 @@ contains
          inp%xm(1) = 2d0 * texpos%x / w%FBOside - 1d0
          inp%xm(2) = 2d0 * texpos%y / w%FBOside - 1d0
       end if
+      inp%hover = hover
+      inp%tex = real(0.5d0 * (inp%xm + 1d0) * w%FBOside,c_float)
       dx = w%v_rmax%x - w%v_rmin%x
       dy = w%v_rmax%y - w%v_rmin%y
       inp%pxs = 2d0 / max(dx,dy,1d0)
-      inp%constrain = is_bind_event(BIND_OBJEDIT_CONSTRAIN,held=.true.,iview=w%id)
+      inp%constrain = is_bind_mod_held(BIND_OBJEDIT_CONSTRAIN)
+      inp%nosnap = is_bind_mod_held(BIND_OBJEDIT_NOSNAP)
 
       ! the draw and exit binds are tested at the button level when they
       ! are mouse buttons: the press works with the constrain modifier
@@ -2597,7 +2586,9 @@ contains
       ! the handler of the object type (an object without one leaves the mode)
       select case (r%type)
       case (reptype_planar)
-         call planar_events(r,inp)
+         call w%planar_events(r,inp)
+      case (reptype_shapes)
+         call w%shapes_events(r,inp)
       case default
          w%oe%op = objop_none
          call w%viewmode_exit_forced()
@@ -2609,255 +2600,6 @@ contains
          call win(iown)%editrep_set_tool(objtool_none)
 
     end subroutine objedit_events
-
-    !> The object editing view mode (vm_objedit) for the 2D drawing r,
-    !> with the input of this frame inp: draw new shapes with the tool,
-    !> select and edit (move, drag the handles of) or remove the existing
-    !> ones, finish a polygon or polyline in progress (the exit bind, which
-    !> is then marked as used, the finish key, a double click). The shape
-    !> being drawn or dragged is shown over the view (ImGui draw list) and
-    !> goes to the drawing when the operation ends.
-    subroutine planar_events(r,inp)
-      use representations, only: representation,&
-         planarkind_NUM, planarkind_ellipse, planarkind_rect,&
-         planarkind_arrow, planarkind_curve, planarkind_freehand, planar_template, planar_append,&
-         planar_curve_default_bend,&
-         planar_delete, planar_handles, planar_drag_handle, planar_move,&
-         planar_simplify
-      type(representation), intent(inout) :: r
-      type(objedit_input), intent(inout) :: inp
-
-      integer :: ikind, nh, i, k
-      real*8 :: d(2)
-      real*8, allocatable :: xh(:,:)
-      logical :: ok, changed
-
-      real*8, parameter :: free_px = 2d0 ! spacing of the recorded freehand points (pixels)
-      real*8, parameter :: simplify_px = 0.75d0 ! freehand simplification tolerance (pixels)
-
-      ikind = inp%itool - objtool_kind0
-      changed = .false.
-      if (r%planar%isel > r%planar%nshape) r%planar%isel = 0
-      if (w%oe%op == objop_handle .or. w%oe%op == objop_move) then
-         if (w%oe%iitem < 1 .or. w%oe%iitem > r%planar%nshape) w%oe%op = objop_none
-      end if
-
-      ! press
-      if (inp%press) then
-         if (w%oe%op == objop_clicks) then
-            ! polygon/polyline in progress: a double click finishes it if it
-            ! has enough points (its first click placed the last one); a
-            ! click adds a point
-            if (inp%dbl .and. clicks_complete()) then
-               call planar_finish_clicks(r)
-            elseif (norm2(inp%xm - w%oe%planar%sh%x(:,w%oe%planar%sh%npt)) > objedit_drag_px * inp%pxs) then
-               call planar_addpoint(w%oe%planar%sh,inp%xm)
-            end if
-         elseif (inp%itool == objtool_select) then
-            w%oe%op = objop_none
-            w%oe%x0 = inp%xm
-            w%oe%moved = .false.
-
-            ! a handle of the selected (and shown) shape
-            if (r%planar%isel > 0) then
-               if (r%planar%shape(r%planar%isel)%shown) then
-                  call planar_handles(r%planar%shape(r%planar%isel),nh,xh)
-                  do i = nh, 1, -1
-                     if (norm2(inp%xm - xh(:,i)) <= objedit_hit_px * inp%pxs) then
-                        w%oe%op = objop_handle
-                        w%oe%ih = i
-                        w%oe%iitem = r%planar%isel
-                        exit
-                     end if
-                  end do
-               end if
-            end if
-
-            ! a shape: the topmost under the mouse
-            if (w%oe%op == objop_none) then
-               k = planar_shape_at(r,inp%xm,objedit_hit_px*inp%pxs)
-               r%planar%isel = k
-               if (k > 0) then
-                  w%oe%op = objop_move
-                  w%oe%iitem = k
-               end if
-            end if
-            if (w%oe%op /= objop_none) then
-               w%oe%planar%sh0 = r%planar%shape(w%oe%iitem)
-               w%oe%planar%sh = w%oe%planar%sh0
-            end if
-         elseif (inp%itool == objtool_remove) then
-            ! remove the shape under the mouse
-            k = planar_shape_at(r,inp%xm,objedit_hit_px*inp%pxs)
-            if (k > 0) then
-               call planar_delete(r%planar,k)
-               changed = .true.
-            end if
-         elseif (ikind >= 1 .and. ikind <= planarkind_NUM) then
-            ! start a new shape: an ellipse, rectangle or arrow grows from
-            ! the press as if its far corner (handle 3) or its tip (handle 2)
-            ! were dragged
-            w%oe%x0 = inp%xm
-            w%oe%moved = .false.
-            w%oe%planar%sh = planar_template(r%planar)
-            w%oe%planar%sh%kind = ikind
-            w%oe%planar%sh%xc = inp%xm
-            if (ikind == planarkind_ellipse .or. ikind == planarkind_rect) then
-               w%oe%op = objop_drag
-               w%oe%ih = 3
-            elseif (ikind == planarkind_arrow .or. ikind == planarkind_curve) then
-               ! the tip is the last point; a curve keeps its middle point
-               ! at the default bend while it is drawn (the heads, like the
-               ! rest of the style, come from the selected shape)
-               w%oe%op = objop_drag
-               call planar_addpoint(w%oe%planar%sh,inp%xm)
-               call planar_addpoint(w%oe%planar%sh,inp%xm)
-               if (ikind == planarkind_curve) call planar_addpoint(w%oe%planar%sh,inp%xm)
-               w%oe%ih = w%oe%planar%sh%npt
-            elseif (ikind == planarkind_freehand) then
-               w%oe%op = objop_free
-               call planar_addpoint(w%oe%planar%sh,inp%xm)
-            else
-               w%oe%op = objop_clicks
-               call planar_addpoint(w%oe%planar%sh,inp%xm)
-            end if
-            w%oe%planar%sh0 = w%oe%planar%sh
-         end if
-      end if
-
-      ! the exit bind finishes a polygon or polyline in progress
-      if (inp%exitev .and. w%oe%op == objop_clicks) then
-         call planar_finish_clicks(r)
-         inp%exitev = .false.
-      end if
-
-      ! polygon/polyline in progress: finish it, or remove its last point
-      if (w%oe%op == objop_clicks .and. hover) then
-         if (is_bind_event(BIND_OBJEDIT_FINISH,norepeat=.true.,iview=w%id)) then
-            call planar_finish_clicks(r)
-         elseif (is_bind_event(BIND_OBJEDIT_DELPOINT,iview=w%id)) then
-            w%oe%planar%sh%npt = w%oe%planar%sh%npt - 1
-            if (w%oe%planar%sh%npt == 0) w%oe%op = objop_none
-         end if
-      end if
-
-      ! drag
-      if (w%oe%op == objop_drag .or. w%oe%op == objop_free .or. w%oe%op == objop_handle .or.&
-         w%oe%op == objop_move) then
-         if (norm2(inp%xm - w%oe%x0) > objedit_drag_px * inp%pxs) w%oe%moved = .true.
-         if (inp%down) then
-            if (w%oe%op == objop_drag .or. w%oe%op == objop_handle) then
-               w%oe%planar%sh = w%oe%planar%sh0
-               call planar_drag_handle(w%oe%planar%sh,w%oe%planar%sh0,w%oe%ih,inp%xm,inp%constrain)
-               if (w%oe%op == objop_drag .and. w%oe%planar%sh%kind == planarkind_curve) &
-                  call planar_curve_default_bend(w%oe%planar%sh)
-            elseif (w%oe%op == objop_free) then
-               if (norm2(inp%xm - w%oe%planar%sh%x(:,w%oe%planar%sh%npt)) > free_px * inp%pxs) &
-                  call planar_addpoint(w%oe%planar%sh,inp%xm)
-            elseif (w%oe%op == objop_move) then
-               w%oe%planar%sh = w%oe%planar%sh0
-               d = inp%xm - w%oe%x0
-               if (inp%constrain) then
-                  ! along the dominant direction only
-                  if (abs(d(1)) > abs(d(2))) then
-                     d(2) = 0d0
-                  else
-                     d(1) = 0d0
-                  end if
-               end if
-               call planar_move(w%oe%planar%sh,d)
-            end if
-         else
-            ! release: commit
-            if (w%oe%op == objop_drag) then
-               ok = w%oe%moved
-               if (ok) then
-                  if (w%oe%planar%sh%kind == planarkind_arrow .or. w%oe%planar%sh%kind == planarkind_curve) then
-                     ok = (norm2(w%oe%planar%sh%x(:,w%oe%planar%sh%npt) - w%oe%planar%sh%x(:,1)) > objedit_drag_px * inp%pxs)
-                  else
-                     ok = all(w%oe%planar%sh%hs > 0d0)
-                  end if
-               end if
-               if (ok) then
-                  call planar_append(r%planar,w%oe%planar%sh)
-                  changed = .true.
-               end if
-            elseif (w%oe%op == objop_free) then
-               call planar_simplify(w%oe%planar%sh%npt,w%oe%planar%sh%x,simplify_px * inp%pxs)
-               if (w%oe%planar%sh%npt >= 2) then
-                  call planar_append(r%planar,w%oe%planar%sh)
-                  changed = .true.
-               end if
-            elseif (w%oe%moved) then
-               r%planar%shape(w%oe%iitem) = w%oe%planar%sh
-               changed = .true.
-            end if
-            w%oe%op = objop_none
-         end if
-      end if
-
-      ! delete the selected shape (draw_view leaves Delete to this mode)
-      if (hover .and. inp%itool == objtool_select .and. w%oe%op == objop_none .and.&
-         r%planar%isel > 0) then
-         if (is_bind_event(BIND_OBJEDIT_DELETE,norepeat=.true.,iview=w%id)) then
-            call planar_delete(r%planar,r%planar%isel)
-            changed = .true.
-         end if
-      end if
-
-      ! the shapes are drawn by the scene: rebuild it
-      if (changed) w%sc%forcebuildlists = .true.
-
-      ! the preview and the handles
-      call planar_view_overlay(w,r,inp%itool,inp%xm,inp%pxs)
-
-    end subroutine planar_events
-
-    !> The topmost shown shape of r at position x (vm_objedit), 0 if none:
-    !> the outlines (within tol of their edge) first, then the insides of
-    !> the closed shapes.
-    function planar_shape_at(r,x,tol) result(k)
-      use representations, only: representation, planar_hit
-      type(representation), intent(in) :: r
-      real*8, intent(in) :: x(2), tol
-      integer :: k
-
-      integer :: ipass
-      logical :: onstroke
-
-      do ipass = 1, 2
-         onstroke = (ipass == 1)
-         do k = r%planar%nshape, 1, -1
-            if (.not.r%planar%shape(k)%shown) cycle
-            if (planar_hit(r%planar%shape(k),x,merge(tol,0d0,onstroke),onstroke)) return
-         end do
-      end do
-      k = 0
-
-    end function planar_shape_at
-
-    !> Whether the polygon or polyline being drawn (vm_objedit) has enough points.
-    function clicks_complete() result(ok)
-      use representations, only: planarkind_polygon
-      logical :: ok
-
-      ok = (w%oe%planar%sh%npt >= merge(3,2,w%oe%planar%sh%kind == planarkind_polygon))
-
-    end function clicks_complete
-
-    !> Finish the polygon or polyline being drawn point by point (vm_objedit),
-    !> adding it to the shapes of r if it has enough points.
-    subroutine planar_finish_clicks(r)
-      use representations, only: representation, planar_append
-      type(representation), intent(inout) :: r
-
-      if (clicks_complete()) then
-         call planar_append(r%planar,w%oe%planar%sh)
-         w%sc%forcebuildlists = .true.
-      end if
-      w%oe%op = objop_none
-
-    end subroutine planar_finish_clicks
 
     !> The builder window running a geometry edit session on the system
     !> this view shows, or 0 if there is none.
@@ -4515,150 +4257,5 @@ contains
        idparent=w%id,orraise=-1)
 
   end subroutine add_rep_and_edit
-
-  !> Append the point x to the shape sh.
-  subroutine planar_addpoint(sh,x)
-    use representations, only: planar_shape
-    use types, only: realloc
-    type(planar_shape), intent(inout) :: sh
-    real*8, intent(in) :: x(2)
-
-    if (.not.allocated(sh%x)) then
-       allocate(sh%x(2,16))
-    elseif (sh%npt >= size(sh%x,2)) then
-       call realloc(sh%x,2,2*size(sh%x,2))
-    end if
-    sh%npt = sh%npt + 1
-    sh%x(:,sh%npt) = x
-
-  end subroutine planar_addpoint
-
-  !> Draw over the view w the planar shape being drawn or dragged, and
-  !> the outline and handles of the selected shape (select tool) of the
-  !> planar shapes representation r. itool = the editor's tool, xm =
-  !> the mouse position (NDC of the render buffer), pxs = NDC size of a
-  !> screen pixel.
-  subroutine planar_view_overlay(w,r,itool,xm,pxs)
-    use interfaces_cimgui
-    use representations, only: representation, planar_shape, planar_handles,&
-       planar_rotation_handle, planarkind_polyline
-    use gui_main, only: ColorHighlightSelectScene
-    class(window), intent(inout), target :: w
-    type(representation), intent(in) :: r
-    integer, intent(in) :: itool
-    real*8, intent(in) :: xm(2), pxs
-
-    type(c_ptr) :: dl
-    type(ImVec2) :: p1, p2
-    integer(c_int) :: colw, colk, colh
-
-    real(c_float), parameter :: handle_px = 4.5_c_float
-
-    dl = igGetWindowDrawList()
-    call ImDrawList_PushClipRect(dl,w%v_rmin,w%v_rmax,.true._c_bool)
-    colw = igGetColorU32_Vec4(ImVec4(1._c_float,1._c_float,1._c_float,1._c_float))
-    colk = igGetColorU32_Vec4(ImVec4(0._c_float,0._c_float,0._c_float,1._c_float))
-    colh = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),ColorHighlightSelectScene(2),&
-       ColorHighlightSelectScene(3),1._c_float))
-
-    ! the shape being drawn or dragged, in its own color and width
-    if (w%oe%op /= objop_none) then
-       call preview_shape(w%oe%planar%sh,max(real(w%oe%planar%sh%width/pxs,c_float),1._c_float),&
-          igGetColorU32_Vec4(ImVec4(w%oe%planar%sh%rgb(1),w%oe%planar%sh%rgb(2),w%oe%planar%sh%rgb(3),&
-          max(w%oe%planar%sh%alpha,0.3_c_float))))
-       ! the segment to the mouse of a polygon/polyline in progress
-       if (w%oe%op == objop_clicks) then
-          p1 = ndc_to_mouse(w%oe%planar%sh%x(:,w%oe%planar%sh%npt))
-          p2 = ndc_to_mouse(xm)
-          call ImDrawList_AddLine(dl,p1,p2,colh,1._c_float)
-          if (w%oe%planar%sh%kind /= planarkind_polyline .and. w%oe%planar%sh%npt >= 2) then
-             p1 = ndc_to_mouse(w%oe%planar%sh%x(:,1))
-             call ImDrawList_AddLine(dl,p1,p2,colh,1._c_float)
-          end if
-       end if
-    end if
-
-    ! the outline and the handles of the selected shape, if shown
-    if (itool == objtool_select) then
-       if (w%oe%op == objop_handle .or. w%oe%op == objop_move) then
-          call selected_shape(w%oe%planar%sh)
-       elseif (r%planar%isel >= 1 .and. r%planar%isel <= r%planar%nshape) then
-          if (r%planar%shape(r%planar%isel)%shown) call selected_shape(r%planar%shape(r%planar%isel))
-       end if
-    end if
-    call ImDrawList_PopClipRect(dl)
-
-  contains
-    !> Draw the outline (thin, highlighted) and the handles of the
-    !> selected shape sh.
-    subroutine selected_shape(sh)
-      type(planar_shape), intent(in) :: sh
-
-      integer :: nh, i, irot
-      real*8, allocatable :: xh(:,:)
-      type(ImVec2) :: q1, q2
-
-      call preview_shape(sh,1._c_float,colh)
-      call planar_handles(sh,nh,xh)
-      irot = planar_rotation_handle(sh)
-      if (irot > 0) then
-         ! the rotation handle hangs from the midpoint of the top edge (handle 7)
-         q1 = ndc_to_mouse(xh(:,7))
-         q2 = ndc_to_mouse(xh(:,irot))
-         call ImDrawList_AddLine(dl,q1,q2,colh,1._c_float)
-      end if
-      do i = 1, nh
-         q1 = ndc_to_mouse(xh(:,i))
-         if (i == irot) then
-            call ImDrawList_AddCircleFilled(dl,q1,handle_px,colw,12_c_int)
-            call ImDrawList_AddCircle(dl,q1,handle_px,colk,12_c_int,1._c_float)
-         else
-            q2%x = q1%x + handle_px
-            q2%y = q1%y + handle_px
-            q1%x = q1%x - handle_px
-            q1%y = q1%y - handle_px
-            call ImDrawList_AddRectFilled(dl,q1,q2,colw,0._c_float,0_c_int)
-            call ImDrawList_AddRect(dl,q1,q2,colk,0._c_float,0_c_int,1._c_float)
-         end if
-      end do
-
-    end subroutine selected_shape
-
-    !> Draw the center line of the shape sh with thickness thick (pixels)
-    !> and color col, closed if the shape is.
-    subroutine preview_shape(sh,thick,col)
-      use representations, only: planar_path, planar_isclosed
-      type(planar_shape), intent(in) :: sh
-      real(c_float), intent(in) :: thick
-      integer(c_int), intent(in) :: col
-
-      integer :: n, j, nseg
-      real*8, allocatable :: xp(:,:)
-      type(ImVec2) :: q1, q2
-
-      call planar_path(sh,n,xp)
-      if (n < 2) return
-      nseg = n - 1
-      if (planar_isclosed(sh)) nseg = n
-      do j = 1, nseg
-         q1 = ndc_to_mouse(xp(:,j))
-         q2 = ndc_to_mouse(xp(:,modulo(j,n)+1))
-         call ImDrawList_AddLine(dl,q1,q2,col,thick)
-      end do
-
-    end subroutine preview_shape
-
-    !> Mouse (screen) position of the point x in the NDC of the render buffer.
-    function ndc_to_mouse(x) result(p)
-      real*8, intent(in) :: x(2)
-      type(ImVec2) :: p
-
-      p%x = real(0.5d0 * (x(1) + 1d0) * w%FBOside,c_float)
-      p%y = real(0.5d0 * (x(2) + 1d0) * w%FBOside,c_float)
-      call w%texpos_to_mousepos(p)
-
-    end function ndc_to_mouse
-
-  end subroutine planar_view_overlay
 
 end submodule view

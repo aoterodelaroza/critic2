@@ -980,6 +980,9 @@ module representations
   public :: cp_wyckoff
   public :: vibration_arrow_shapes
   public :: shape_differs
+  public :: shapes_template
+  public :: shapes_append
+  public :: shapes_delete
   public :: planar_isclosed
   public :: planar_haspoints
   public :: planar_path
@@ -1023,6 +1026,19 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module function shapes_template(p,ikind) result(sh)
+       type(rep_shapes), intent(in) :: p
+       integer, intent(in) :: ikind
+       type(rep_shape) :: sh
+     end function shapes_template
+     module subroutine shapes_append(p,sh)
+       type(rep_shapes), intent(inout) :: p
+       type(rep_shape), intent(in) :: sh
+     end subroutine shapes_append
+     module subroutine shapes_delete(p,idel)
+       type(rep_shapes), intent(inout) :: p
+       integer, intent(in) :: idel
+     end subroutine shapes_delete
      module function shape_differs(a,b) result(ok)
        type(rep_shape), intent(in) :: a
        type(rep_shape), intent(in) :: b

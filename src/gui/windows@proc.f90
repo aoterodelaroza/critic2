@@ -1001,7 +1001,6 @@ contains
   !> End a window and deallocate the data.
   module subroutine window_end(w)
     use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry, remove_system
-    use representations, only: shapekind_sphere
     use interfaces_opengl3
     use tools_io, only: ferror, warning
     class(window), intent(inout), target :: w
@@ -1108,7 +1107,6 @@ contains
     call w%geometry_addbond%clear()
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
-    w%editrep_shapekind = shapekind_sphere
     w%editrep_tool = objtool_none
     w%oe = objedit_state()
     w%editrep_isopick = -1

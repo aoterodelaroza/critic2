@@ -274,6 +274,7 @@ contains
     call set_bind(BIND_OBJEDIT_DELETE,ImGuiKey_Delete,mod_none)
     call set_bind(BIND_OBJEDIT_FINISH,ImGuiKey_Enter,mod_none)
     call set_bind(BIND_OBJEDIT_DELPOINT,ImGuiKey_Backspace,mod_none)
+    call set_bind(BIND_OBJEDIT_NOSNAP,ImGuiKey_None,mod_ctrl)
 
   end subroutine set_default_keybindings
 
@@ -531,6 +532,32 @@ contains
     hkey = string(key) // "_" // string(mod) // "_" // string(group)
 
   end function hkey
+
+  !> Whether the modifiers of the modifier-only bind are held, whatever
+  !> other modifiers are held with them (so that two such binds can be
+  !> held together). A bind given a key as well is held as in
+  !> is_bind_event. False if the bind is not bound, or the keybindings
+  !> are off.
+  module function is_bind_mod_held(bind)
+    use interfaces_cimgui, only: ImGuiKey_None
+    integer, intent(in) :: bind
+    logical :: is_bind_mod_held
+
+    integer :: mod
+
+    is_bind_mod_held = .false.
+    if (bindevent_level > 0) return
+    if (.not.use_keybindings) return
+    if (bind < 1 .or. bind > BIND_NUM) return
+    if (keybind(bind) /= ImGuiKey_None) then
+       is_bind_mod_held = is_bind_event(bind,held=.true.)
+       return
+    end if
+    mod = modbind(bind)
+    if (mod == mod_none) return
+    is_bind_mod_held = (iand(get_current_mod(),mod) == mod)
+
+  end function is_bind_mod_held
 
   ! get current status of modifier keys
   function get_current_mod() result(mod)

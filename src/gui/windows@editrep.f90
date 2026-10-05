@@ -2551,8 +2551,10 @@ contains
   !> rendering again.
   module function draw_editrep_shapes(w,ttshown) result(changed)
     use representations, only: rep_shape, shapekind_sphere, shapekind_box, shapekind_arrow,&
-       shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr, shape_rgb_def,&
-       shape_alpha_def, shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def
+       shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr,&
+       shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def, shapes_delete
+    use icons, only: icon_pl_select, icon_vm_remove, icon_sh_sphere, icon_ui_cell, icon_pl_arrow,&
+       icon_sh_cone, icon_sh_cylinder
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
@@ -2570,7 +2572,15 @@ contains
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
     character(len=:), allocatable :: strunit
-    type(rep_shape), allocatable :: saux(:)
+
+    ! the toolbar: the tools, their icons, and the texts drawn instead if they did not load
+    integer, parameter :: tools(objtool_select:objtool_kind0+shapekind_NUM) = &
+       (/(k, k = objtool_select, objtool_kind0+shapekind_NUM)/)
+    integer, parameter :: toolicon(objtool_select:objtool_kind0+shapekind_NUM) = (/&
+       icon_pl_select,icon_vm_remove,icon_sh_sphere,icon_ui_cell,icon_pl_arrow,&
+       icon_sh_cone,icon_sh_cylinder/)
+    character(len=2), parameter :: toolfall(objtool_select:objtool_kind0+shapekind_NUM) = (/&
+       "Se","Rm","Sp","Bx","Ar","Co","Cy"/)
 
     ! initialize
     changed = .false.
@@ -2619,6 +2629,11 @@ contains
           if (istat /= ipick_pending) w%editrep_pick_item = 0
        end if
     end if
+
+    ! the toolbar, which edits the shapes in the view: select, remove,
+    ! and one tool per kind of shape
+    if (iview > 0) &
+       call w%editrep_toolbar(tools,toolicon,toolfall,shapes_tool_hint,shapes_tool_prompt,ttshown)
 
     ! table of shapes
     call iw_text("3D Shapes",highlight=.true.)
@@ -2673,31 +2688,11 @@ contains
        call igEndTable()
     end if
 
-    ! add a new shape of the chosen kind
-    call iw_combo_simple("##shapeaddkind",shapekind_combostr,w%editrep_shapekind,&
-       startsatone=.true.)
-    call iw_tooltip("Kind of shape the Add button creates",ttshown)
-    if (iw_button("Add##shapeadd",sameline=.true.)) then
-       allocate(saux(w%rep%shapes%nshape+1))
-       if (w%rep%shapes%nshape > 0) saux(1:w%rep%shapes%nshape) = w%rep%shapes%shape(1:w%rep%shapes%nshape)
-       call move_alloc(saux,w%rep%shapes%shape)
-       w%rep%shapes%nshape = w%rep%shapes%nshape + 1
-       w%rep%shapes%isel = w%rep%shapes%nshape
-       call seed_shape(w%rep%shapes%shape(w%rep%shapes%nshape),&
-          min(max(int(w%editrep_shapekind),1),shapekind_NUM))
-       changed = .true.
-    end if
-    call iw_tooltip("Add a new shape",ttshown)
-
-    ! process a deletion
+    ! process a deletion, dropping a mouse drag on the shapes in the view
     if (idel > 0) then
-       do k = idel, w%rep%shapes%nshape-1
-          w%rep%shapes%shape(k) = w%rep%shapes%shape(k+1)
-       end do
-       w%rep%shapes%nshape = w%rep%shapes%nshape - 1
-       ! keep the selection on the same shape it was on
-       if (w%rep%shapes%isel > idel) w%rep%shapes%isel = w%rep%shapes%isel - 1
-       if (w%rep%shapes%isel > w%rep%shapes%nshape) w%rep%shapes%isel = w%rep%shapes%nshape
+       call shapes_delete(w%rep%shapes,idel)
+       if (win(iview)%oe%op == objop_handle .or. win(iview)%oe%op == objop_move) &
+          win(iview)%oe%op = objop_none
        if (w%editrep_pick_item == idel) then
           ! cancel a pick pending on the deleted shape
           call win(iview)%viewmode_release_forced(w%id)
@@ -2707,13 +2702,12 @@ contains
        end if
        changed = .true.
     end if
-    if (w%rep%shapes%nshape == 0) return
+    if (w%rep%shapes%isel < 1 .or. w%rep%shapes%isel > w%rep%shapes%nshape) return
 
     ! options for the selected shape. Each widget is evaluated into ch first:
     ! .or. is allowed to short-circuit, and a widget skipped because changed is
     ! already true is a widget not drawn
-    isel = min(max(w%rep%shapes%isel,1),w%rep%shapes%nshape)
-    w%rep%shapes%isel = isel
+    isel = w%rep%shapes%isel
     associate (sh => w%rep%shapes%shape(isel))
       call iw_text("Shape " // string(isel) // " (" // kind_label(sh%kind) // "), positions in " //&
          strunit,highlight=.true.)
@@ -2874,30 +2868,6 @@ contains
       end if
 
     end function kind_label
-
-    !> Give the shape sh the kind ikind0 (shapekind_*) and the default
-    !> geometry of that kind, at the scene center.
-    subroutine seed_shape(sh,ikind0)
-      type(rep_shape), intent(inout) :: sh
-      integer, intent(in) :: ikind0
-
-      sh = rep_shape()
-      sh%rgb = shape_rgb_def
-      sh%alpha = shape_alpha_def
-      sh%rim = .true.
-      sh%kind = ikind0
-      if (iview > 0) then
-         if (associated(win(iview)%sc)) sh%x1 = real(win(iview)%sc%scenecenter,8)
-      end if
-      if (sys(w%isys)%c%ismolecule) sh%x1 = sh%x1 + sys(w%isys)%c%molx0
-      call seed_vectors(sh)
-      call seed_radius(sh)
-      ! a box is anchored at a corner, so move it to sit around the view
-      ! center rather than hanging off it
-      if (sh%kind == shapekind_box) &
-         sh%x1 = sh%x1 - 0.5d0 * (sh%v(:,1) + sh%v(:,2) + sh%v(:,3))
-
-    end subroutine seed_shape
 
     !> Fill in the geometry vectors that the kind of the shape sh needs and
     !> does not have yet; a vector it already has is kept, so a shape keeps
@@ -4962,9 +4932,8 @@ contains
   function planar_tool_hint(itool) result(str)
     use representations, only: planarkind_ellipse, planarkind_rect, planarkind_arrow,&
        planarkind_freehand, planarkind_NUM, planarkind_name, planarkind_curve
-    use keybindings, only: get_bind_keyname, BIND_OBJEDIT_DRAW, BIND_OBJEDIT_EXIT,&
-       BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_DELETE, BIND_OBJEDIT_FINISH, BIND_OBJEDIT_DELPOINT,&
-       BIND_CANCEL
+    use keybindings, only: BIND_OBJEDIT_DRAW, BIND_OBJEDIT_EXIT, BIND_OBJEDIT_CONSTRAIN,&
+       BIND_OBJEDIT_DELETE, BIND_OBJEDIT_FINISH, BIND_OBJEDIT_DELPOINT
     integer, intent(in) :: itool
     character(len=:), allocatable :: str
 
@@ -4997,19 +4966,107 @@ contains
     else
        str = ""
     end if
-    if (len(str) > 0) &
-       str = str // ". " // kn(BIND_OBJEDIT_EXIT) // " or " // kn(BIND_CANCEL) //&
-          ": back to navigation"
+    if (len(str) > 0) str = str // ". " // exit_hint()
 
-  contains
-    !> The name of the key bound to bind, trimmed for use in a message.
-    function kn(bind)
-      integer, intent(in) :: bind
-      character(len=:), allocatable :: kn
-
-      kn = trim(get_bind_keyname(bind))
-
-    end function kn
   end function planar_tool_hint
+
+  !> The prompt for tool itool (objtool_*, or objtool_kind0 + shapekind_*)
+  !> of the 3D shapes editor in the view bar: short enough for it
+  !> (vmbar_maxlen); the tooltip in the toolbar (shapes_tool_hint) has the
+  !> rest.
+  function shapes_tool_prompt(itool) result(str)
+    use representations, only: shapekind_sphere, shapekind_box, shapekind_arrow,&
+       shapekind_cone, shapekind_cylinder
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: ik
+
+    ik = itool - objtool_kind0
+    if (itool == objtool_select) then
+       str = "Click a shape to select it; drag to edit it"
+    elseif (itool == objtool_remove) then
+       str = "Click a shape to remove it"
+    elseif (ik == shapekind_sphere) then
+       str = "Drag from the center out to the radius"
+    elseif (ik == shapekind_box) then
+       str = "Drag between two opposite corners"
+    elseif (ik == shapekind_arrow) then
+       str = "Drag from the tail to the tip of the arrow"
+    elseif (ik == shapekind_cone) then
+       str = "Drag from the base to the apex of the cone"
+    elseif (ik == shapekind_cylinder) then
+       str = "Drag from one end to the other"
+    else
+       str = ""
+    end if
+
+  end function shapes_tool_prompt
+
+  !> The tooltip for tool itool (objtool_*, or objtool_kind0 + shapekind_*)
+  !> of the 3D shapes editor in its toolbar. The keys are those bound in
+  !> the object editing mode.
+  function shapes_tool_hint(itool) result(str)
+    use representations, only: shapekind_sphere, shapekind_box, shapekind_arrow,&
+       shapekind_cone, shapekind_cylinder
+    use keybindings, only: BIND_OBJEDIT_DRAW, BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_DELETE,&
+       BIND_OBJEDIT_NOSNAP
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: ik
+    character(len=:), allocatable :: snap
+
+    ik = itool - objtool_kind0
+    snap = ". The points snap to the atom under the mouse (" // kn(BIND_OBJEDIT_NOSNAP) //&
+       ": do not snap)"
+    if (itool == objtool_select) then
+       str = "Select: click a shape (" // kn(BIND_OBJEDIT_DRAW) // ") to select it, drag it to " //&
+          "move it, and drag its handles to resize it or move its ends (" //&
+          kn(BIND_OBJEDIT_CONSTRAIN) // ": along an axis). " // kn(BIND_OBJEDIT_DELETE) //&
+          " removes the selected shape" // snap
+    elseif (itool == objtool_remove) then
+       str = "Remove: click a shape (" // kn(BIND_OBJEDIT_DRAW) // ") to remove it"
+    elseif (ik == shapekind_sphere) then
+       str = "Sphere: drag from the center out to the radius" // snap
+    elseif (ik == shapekind_box) then
+       str = "Box: drag between two opposite corners, with edges along the cell (crystal) " //&
+          "or cartesian (molecule) axes; the depth is the shorter edge (" //&
+          kn(BIND_OBJEDIT_CONSTRAIN) // ": a cube)" // snap
+    elseif (ik == shapekind_arrow) then
+       str = "Arrow: drag from the tail to the tip (" // kn(BIND_OBJEDIT_CONSTRAIN) //&
+          ": along an axis)" // snap
+    elseif (ik == shapekind_cone) then
+       str = "Cone: drag from the center of the base to the apex (" //&
+          kn(BIND_OBJEDIT_CONSTRAIN) // ": along an axis)" // snap
+    elseif (ik == shapekind_cylinder) then
+       str = "Cylinder: drag from one end to the other (" // kn(BIND_OBJEDIT_CONSTRAIN) //&
+          ": along an axis)" // snap
+    else
+       str = ""
+    end if
+    if (len(str) > 0) str = str // ". " // exit_hint()
+
+  end function shapes_tool_hint
+
+  !> The end of the toolbar tooltips of the object editors: the keys
+  !> that turn the tool off.
+  function exit_hint() result(str)
+    use keybindings, only: BIND_OBJEDIT_EXIT, BIND_CANCEL
+    character(len=:), allocatable :: str
+
+    str = kn(BIND_OBJEDIT_EXIT) // " or " // kn(BIND_CANCEL) // ": back to navigation"
+
+  end function exit_hint
+
+  !> The name of the key bound to bind, trimmed for use in a message.
+  function kn(bind)
+    use keybindings, only: get_bind_keyname
+    integer, intent(in) :: bind
+    character(len=:), allocatable :: kn
+
+    kn = trim(get_bind_keyname(bind))
+
+  end function kn
 
 end submodule editrep

@@ -19,7 +19,7 @@
 module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
-  use representations, only: representation, planar_shape
+  use representations, only: representation, planar_shape, rep_shape
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -502,6 +502,11 @@ module windows
   end interface
 
   ! what the draw bind is doing in the object editing mode (vm_objedit)
+  ! object editing in the view: pick radius of the handles and items, and
+  ! the click/drag threshold (screen pixels)
+  real*8, parameter, public :: objedit_hit_px = 6d0
+  real*8, parameter, public :: objedit_drag_px = 3d0
+
   integer, parameter, public :: objop_none = 0
   integer, parameter, public :: objop_drag = 1 ! drawing an item by press-drag-release (e.g. an ellipse or an arrow)
   integer, parameter, public :: objop_clicks = 2 ! drawing an item one click per point (e.g. a polygon)
@@ -517,6 +522,33 @@ module windows
   end type planar_edit_state
   public :: planar_edit_state
 
+  !> 3D shapes part of the object editing state: the shape being drawn or
+  !> dragged, and the depth the mouse works at.
+  type shapes_edit_state
+     type(rep_shape) :: sh0 ! the dragged shape as it was at the press
+     type(rep_shape) :: sh ! the shape being drawn or dragged
+     real(c_float) :: zdep = 0._c_float ! texture depth of the plane the drag moves on
+     real*8 :: xg(3) = 0d0 ! the grabbed point at the press (absolute frame, bohr)
+  end type shapes_edit_state
+  public :: shapes_edit_state
+
+  !> Input of the object editing view mode (vm_objedit) in one frame,
+  !> read by objedit_events for the handler of the object type.
+  type objedit_input
+     integer :: itool = 0 ! the editor's tool (objtool_*, or objtool_kind0 + a kind of the object)
+     logical :: hover = .false. ! the mouse is over the view
+     real*8 :: xm(2) = 0d0 ! mouse position (NDC of the render buffer)
+     real(c_float) :: tex(2) = 0._c_float ! mouse position (texture pixels)
+     real*8 :: pxs = 0d0 ! NDC size of a screen pixel
+     logical :: constrain = .false. ! the constrain bind is held
+     logical :: nosnap = .false. ! the no-snap bind is held (3D objects: no snapping to atoms)
+     logical :: press = .false. ! the draw bind was pressed over the view
+     logical :: down = .false. ! the draw bind is held
+     logical :: dbl = .false. ! that press was a double click
+     logical :: exitev = .false. ! the exit bind fired (a click, if it is a mouse button)
+  end type objedit_input
+  public :: objedit_input
+
   !> Per-view state of the object editing mode (vm_objedit): what the
   !> mouse is doing, and the item being drawn or dragged, shown as a
   !> preview over the view; it goes to the object when the operation ends.
@@ -531,6 +563,7 @@ module windows
      real*8 :: xr0(2) = 0d0 ! position of that right press (NDC of the render buffer)
      logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
      type(planar_edit_state) :: planar ! 2D drawing: the shape
+     type(shapes_edit_state) :: shapes ! 3D shapes: the shape
   end type objedit_state
   public :: objedit_state
 
@@ -822,7 +855,6 @@ module windows
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
-     integer(c_int) :: editrep_shapekind = 1 ! kind the shape editor's Add button creates (shapekind_*)
      integer(c_int) :: editrep_tool = objtool_none ! tool of the object editor (objtool_*, or a
                                                    ! kind to draw: objtool_kind0 + kind)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
@@ -1091,6 +1123,8 @@ module windows
      procedure :: draw_editrep_planar
      procedure :: editrep_set_tool
      procedure :: editrep_toolbar
+     procedure :: planar_events
+     procedure :: shapes_events
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1761,6 +1795,16 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_planar
+     module subroutine planar_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine planar_events
+     module subroutine shapes_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine shapes_events
      module subroutine editrep_set_tool(w,itool,prompt)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itool
