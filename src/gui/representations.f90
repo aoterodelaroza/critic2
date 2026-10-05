@@ -732,6 +732,7 @@ module representations
      procedure :: copy_style => measurement_item_copy_style
      procedure :: set_anchor => measurement_item_set_anchor
      procedure :: anchors_xfrac => measurement_item_anchors_xfrac
+     procedure :: matches => measurement_item_matches
   end type measurement_item
   public :: measurement_item
 
@@ -983,6 +984,9 @@ module representations
   public :: shape_differs
   public :: shapes_template
   public :: text_template
+  public :: measure_append
+  public :: measure_delete
+  public :: measure_find
   public :: text_append
   public :: text_delete
   public :: shapes_append
@@ -1342,6 +1346,29 @@ module representations
        real*8, intent(out) :: xf(3,4)
        logical :: ok
      end function measurement_item_anchors_xfrac
+     module function measurement_item_matches(it,aidx,n) result(match)
+       class(measurement_item), intent(in) :: it
+       integer, intent(in) :: aidx(4,4)
+       integer, intent(in) :: n
+       logical :: match
+     end function measurement_item_matches
+     module subroutine measure_append(p,isys,aidx,n)
+       type(rep_measure), intent(inout) :: p
+       integer, intent(in) :: isys
+       integer, intent(in) :: aidx(4,4)
+       integer, intent(in) :: n
+     end subroutine measure_append
+     module subroutine measure_delete(p,idel)
+       type(rep_measure), intent(inout) :: p
+       integer, intent(in) :: idel
+     end subroutine measure_delete
+     module function measure_find(p,aidx,n,iskip) result(k)
+       type(rep_measure), intent(in) :: p
+       integer, intent(in) :: aidx(4,4)
+       integer, intent(in) :: n
+       integer, intent(in), optional :: iskip
+       integer :: k
+     end function measure_find
      module subroutine measurement_item_copy_style(dst,src)
        class(measurement_item), intent(inout) :: dst
        type(measurement_item), intent(in) :: src

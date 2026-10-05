@@ -194,9 +194,10 @@ module scenes
      module subroutine scene_render(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render
-     module subroutine scene_render_pick(s,bondpick)
+     module subroutine scene_render_pick(s,bondpick,atoms)
        class(scene), intent(inout), target :: s
        logical, intent(in) :: bondpick
+       logical, intent(in), optional :: atoms
      end subroutine scene_render_pick
      module function scene_overlay_zoom_factor(s) result(f)
        class(scene), intent(in) :: s

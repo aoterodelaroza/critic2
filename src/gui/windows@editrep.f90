@@ -2202,7 +2202,9 @@ contains
   !> Draw the editrep (Object) window, measurements class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_measure(w,ttshown) result(changed)
-    use representations, only: measurement_item
+    use representations, only: measurement_item, measure_delete
+    use icons, only: icon_pl_select, icon_vm_remove, icon_ms_distance, icon_ms_angle,&
+       icon_ms_dihedral
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
        iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
        iw_helpermark, iw_table_column, iw_begintabitem
@@ -2216,10 +2218,18 @@ contains
     logical :: changed
 
     integer(c_int) :: flags
-    integer :: idel, k, iview, i
+    integer :: idel, k, iview, i, itab
     logical :: ok
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
+
+    ! the toolbar: the tools, their icons, and the texts drawn instead if
+    ! they did not load. The tool for n atoms is objtool_kind0 + n - 1
+    integer, parameter :: ntool = objtool_kind0 + 3
+    integer, parameter :: tools(objtool_select:ntool) = (/(k, k = objtool_select, ntool)/)
+    integer, parameter :: toolicon(objtool_select:ntool) = (/&
+       icon_pl_select,icon_vm_remove,icon_ms_distance,icon_ms_angle,icon_ms_dihedral/)
+    character(len=2), parameter :: toolfall(objtool_select:ntool) = (/"Se","Rm","Di","An","Dh"/)
 
     changed = .false.
     idel = 0
@@ -2264,29 +2274,41 @@ contains
        end if
     end if
 
+    ! the toolbar, which makes and edits the measurements in the view:
+    ! select, remove, and one tool per kind
+    if (iview > 0) &
+       call w%editrep_toolbar(tools,toolicon,toolfall,measure_tool_hint,measure_tool_prompt,ttshown)
+
     ! usage hint
     call iw_text("Measurements",highlight=.true.)
-    call iw_helpermark("Measurements are made in the view window. Select the atoms with "//&
-       trim(get_bind_keyname(BIND_NAV_MEASURE))//": two for a distance, three for an angle "//&
-       "(the second atom is the vertex), four for a dihedral. Then "//&
+    call iw_helpermark("Measure with the toolbar: pick the atoms in the view window, two for a "//&
+       "distance (or a bond), three for an angle (the second atom is the vertex), four for a "//&
+       "dihedral. In navigation, "//trim(get_bind_keyname(BIND_NAV_MEASURE))//" selects atoms and "//&
        trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE))//" on the last atom, or on empty space, "//&
-       "adds the measurement to this table; the same click again removes it.")
+       "adds the measurement to the first measurements object; the same click again removes it.")
+
+    ! a measurement selected elsewhere (the view) brings up its tab
+    itab = 0
+    if (w%rep%measure%isel /= w%lastselected) then
+       if (w%rep%measure%isel >= 1) itab = w%rep%measure%item(w%rep%measure%isel)%n
+       w%lastselected = w%rep%measure%isel
+    end if
     ! one tab per category: a selectable table, then the options for the
     ! selected row underneath
     str1 = "##editrepmeasuretabbar" // c_null_char
     flags = ImGuiTabBarFlags_None
     if (igBeginTabBar(c_loc(str1),flags)) then
-       if (iw_begintabitem("Distances##editrepmeasure_disttab")) then
+       if (iw_begintabitem("Distances##editrepmeasure_disttab",flags=tabflags(2))) then
           call cat_table(2,"dist")
           call item_options(2)
           call igEndTabItem()
        end if
-       if (iw_begintabitem("Angles##editrepmeasure_angtab")) then
+       if (iw_begintabitem("Angles##editrepmeasure_angtab",flags=tabflags(3))) then
           call cat_table(3,"ang")
           call item_options(3)
           call igEndTabItem()
        end if
-       if (iw_begintabitem("Dihedrals##editrepmeasure_dihtab")) then
+       if (iw_begintabitem("Dihedrals##editrepmeasure_dihtab",flags=tabflags(4))) then
           call cat_table(4,"dih")
           call item_options(4)
           call igEndTabItem()
@@ -2294,16 +2316,14 @@ contains
        call igEndTabBar()
     end if
 
-    ! process a deletion (global item index) and keep the selection consistent
+    ! process a deletion (global item index), dropping a mouse drag on the
+    ! measurements in the view
     if (idel > 0) then
-       do k = idel, w%rep%measure%nitem-1
-          w%rep%measure%item(k) = w%rep%measure%item(k+1)
-       end do
-       w%rep%measure%nitem = w%rep%measure%nitem - 1
-       if (w%rep%measure%isel == idel) then
-          w%rep%measure%isel = 0
-       elseif (w%rep%measure%isel > idel) then
-          w%rep%measure%isel = w%rep%measure%isel - 1
+       call measure_delete(w%rep%measure,idel)
+       w%lastselected = w%rep%measure%isel ! the same selection: the tab stays
+       if (iview > 0) then
+          if (win(iview)%vmdata%owner == w%id .and. win(iview)%oe%op /= objop_none) &
+             win(iview)%oe%op = objop_none
        end if
        ! keep a pending atom pick bound to the right item (or cancel it if that
        ! item was the one deleted), so the pick can't commit to the wrong row
@@ -2318,6 +2338,17 @@ contains
     end if
 
   contains
+
+    !> Flags of the tab of the measurements with n atoms: selected if the
+    !> selection moved to one of them.
+    function tabflags(n) result(fl)
+      integer, intent(in) :: n
+      integer(c_int) :: fl
+
+      fl = ImGuiTabItemFlags_None
+      if (itab == n) fl = ImGuiTabItemFlags_SetSelected
+
+    end function tabflags
 
     !> Draw the table of measurement items of the given category (ncat
     !> = number of atoms: 2 distances, 3 angles, 4 dihedrals). Every
@@ -3223,6 +3254,9 @@ contains
     if (iview == 0) return
     win(iview)%oe%op = objop_none
     win(iview)%oe%rpress = .false.
+    ! a tool takes the view from a pick commanded by this window's
+    ! tables, which is then abandoned
+    if (itool /= objtool_none) w%editrep_pick_item = 0
     if (itool == objtool_none) then
        call win(iview)%viewmode_release_forced(w%id,vm_objedit)
     else
@@ -5125,6 +5159,71 @@ contains
     if (len(str) > 0) str = str // ". " // exit_hint()
 
   end function text_tool_hint
+
+  !> The prompt for tool itool (objtool_*, or objtool_kind0 + number of
+  !> atoms - 1) of the measurement editor in the view bar: short enough
+  !> for it (vmbar_maxlen); the tooltip in the toolbar
+  !> (measure_tool_hint) has the rest.
+  function measure_tool_prompt(itool) result(str)
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: n
+
+    n = itool - objtool_kind0 + 1
+    if (itool == objtool_select) then
+       str = "Click a measurement to select it; drag to edit it"
+    elseif (itool == objtool_remove) then
+       str = "Click a measurement to remove it"
+    elseif (n == 2) then
+       str = "Click two atoms, or a bond"
+    elseif (n == 3) then
+       str = "Click three atoms; the second is the vertex"
+    elseif (n == 4) then
+       str = "Click four atoms; the 2nd and 3rd are the axis"
+    else
+       str = ""
+    end if
+
+  end function measure_tool_prompt
+
+  !> The tooltip for tool itool (objtool_*, or objtool_kind0 + number of
+  !> atoms - 1) of the measurement editor in its toolbar. The keys are
+  !> those bound in the object editing mode.
+  function measure_tool_hint(itool) result(str)
+    use keybindings, only: BIND_OBJEDIT_DRAW, BIND_OBJEDIT_EXIT, BIND_OBJEDIT_DELETE
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    integer :: n
+    character(len=:), allocatable :: picks
+
+    n = itool - objtool_kind0 + 1
+    picks = ". The picked atoms are numbered in the view, and the values show at the " //&
+       "mouse; click a picked atom again to drop it, " // kn(BIND_OBJEDIT_EXIT) //&
+       " drops them all. Critical points can be picked too. Measuring the same atoms " //&
+       "again selects the measurement"
+    if (itool == objtool_select) then
+       str = "Select: click a measurement (" // kn(BIND_OBJEDIT_DRAW) // "), its label or its " //&
+          "lines, to select it; drag its label to move it, or one of its atoms onto another " //&
+          "atom to measure from there. " // kn(BIND_OBJEDIT_DELETE) // " removes the selected " //&
+          "measurement"
+    elseif (itool == objtool_remove) then
+       str = "Remove: click a measurement (" // kn(BIND_OBJEDIT_DRAW) // ") to remove it"
+    elseif (n == 2) then
+       str = "Distance: click two atoms (" // kn(BIND_OBJEDIT_DRAW) // "), or one bond" // picks
+    elseif (n == 3) then
+       str = "Angle: click three atoms (" // kn(BIND_OBJEDIT_DRAW) // "); the second one is " //&
+          "the vertex" // picks
+    elseif (n == 4) then
+       str = "Dihedral: click four atoms (" // kn(BIND_OBJEDIT_DRAW) // "); the second and " //&
+          "third ones are the axis" // picks
+    else
+       str = ""
+    end if
+    if (len(str) > 0) str = str // ". " // exit_hint()
+
+  end function measure_tool_hint
 
   !> The end of the toolbar tooltips of the object editors: the keys
   !> that turn the tool off.

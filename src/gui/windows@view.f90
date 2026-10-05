@@ -115,7 +115,8 @@ contains
     integer(c_int) :: newside, vside
     real(c_float) :: scal, rgba(4)
     real(c_float) :: rscale, tmpuv
-    logical :: interacting, pickbonds
+    logical :: interacting, pickbonds, pickatoms
+    integer :: pickmode
     real*8 :: time
     type(ImVec2) :: sz
     logical :: changedisplay(5) ! 1=atoms, 2=bonds, 3=labels, 4=cell, 5=polyhedra
@@ -714,10 +715,13 @@ contains
     ! reduced (interactive) resolution to stay responsive on large windows.
     interacting = associated(w%sc) .and. (w%ilock /= ilock_no)
     if (interacting .neqv. w%lowresrender) w%forcerender = .true.
-    ! bonds in the pick buffer: only drawn in the bond-picking modes,
-    ! so entering or leaving one needs a fresh pick render.
+    ! bonds in the pick buffer: only drawn in the bond-picking modes (only
+    ! the bonds) and for the object editing tools that place things on
+    ! bonds (the bonds and the atoms), so a change needs a fresh pick render.
     pickbonds = vm_is_bondpick(w%viewmode) .or. objedit_bondpick(w)
-    if (.not.interacting .and. (pickbonds .neqv. w%pickbonds_last)) w%forcerender = .true.
+    pickatoms = .not.vm_is_bondpick(w%viewmode)
+    pickmode = merge(merge(2,1,pickatoms),0,pickbonds)
+    if (.not.interacting .and. pickmode /= w%pickmode_last) w%forcerender = .true.
     if (interacting) then
        rscale = real(min(w%FBOside,interactive_texture_side),c_float) / real(w%FBOside,c_float)
     else
@@ -779,11 +783,11 @@ contains
           call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
              ColorClearTransparent(3),ColorClearTransparent(4))
           call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-          if (associated(w%sc)) call w%sc%renderpick(pickbonds)
+          if (associated(w%sc)) call w%sc%renderpick(pickbonds,atoms=pickatoms)
           call glBindFramebuffer(GL_FRAMEBUFFER, 0)
           ! only latch when the pass actually ran, so the buffer and the flag
           ! cannot disagree after a camera drag suppressed it
-          w%pickbonds_last = pickbonds
+          w%pickmode_last = pickmode
        end if
 
        w%lowresrender = interacting
@@ -1343,6 +1347,7 @@ contains
     integer, intent(in) :: idcaller
     logical, intent(in), optional :: acceptempty
 
+    call objedit_drop_picks(w)
     w%viewmode = mode
     w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
@@ -1360,6 +1365,7 @@ contains
     ! drop any pending press capture, so a press begun under the previous
     ! mode cannot deliver a pick under this one on release
     w%measure_pend = pend_none
+    call objedit_drop_picks(w)
 
   end subroutine viewmode_set_forced
 
@@ -1376,6 +1382,7 @@ contains
        if (present(mode)) then
           if (w%viewmode /= mode) return
        end if
+       call objedit_drop_picks(w)
        call viewmode_to_navigate(w)
     end if
 
@@ -1388,6 +1395,7 @@ contains
 
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
+    call objedit_drop_picks(w)
     call viewmode_to_navigate(w)
     w%measure_pend = pend_none
 
@@ -1981,11 +1989,8 @@ contains
       integer :: iown
 
       str = trim(vmnames(w%viewmode))
-      if (w%viewmode /= vm_objedit) return
-      iown = w%vmdata%owner
-      if (iown < 1 .or. iown > nwin) return
-      if (.not.associated(win(iown)%rep)) return
-      str = trim(repflavor_name(win(iown)%rep%flavor))
+      iown = objedit_owner(w)
+      if (iown > 0) str = trim(repflavor_name(win(iown)%rep%flavor))
 
     end function vm_label
 
@@ -2514,7 +2519,8 @@ contains
     !> did not use it and nothing is in progress, turns the tool off (back
     !> to navigation).
     subroutine objedit_events()
-      use representations, only: representation, reptype_planar, reptype_shapes, reptype_text
+      use representations, only: representation, reptype_planar, reptype_shapes, reptype_text,&
+         reptype_measure
 
       type(representation), pointer :: r
       type(objedit_input) :: inp
@@ -2599,6 +2605,8 @@ contains
          call w%shapes_events(r,inp)
       case (reptype_text)
          call w%text_events(r,inp)
+      case (reptype_measure)
+         call w%measure_events(r,inp)
       case default
          w%oe%op = objop_none
          call w%viewmode_exit_forced()
@@ -3476,25 +3484,72 @@ contains
   end function vm_exits_on_empty
 
   !> Whether any mouse button was clicked this frame
+  !> The editor window that owns the object editing mode of view w, if
+  !> the view is in that mode and the editor has an object; 0 otherwise.
+  function objedit_owner(w) result(iown)
+    class(window), intent(in) :: w
+    integer :: iown
+
+    iown = 0
+    if (w%viewmode /= vm_objedit) return
+    if (w%vmdata%owner < 1 .or. w%vmdata%owner > nwin) return
+    if (.not.associated(win(w%vmdata%owner)%rep)) return
+    iown = w%vmdata%owner
+
+  end function objedit_owner
+
   !> Whether view w is in the object editing mode with a tool that
-  !> places items on bonds (the text tool for bonds), which needs the
-  !> bonds in the pick buffer.
+  !> places items on bonds (the text tool for bonds, the distance tool
+  !> before its first atom), which needs the bonds in the pick buffer.
   function objedit_bondpick(w) result(ok)
-    use representations, only: reptype_text, textpos_bond
+    use representations, only: reptype_text, reptype_measure, textpos_bond
     class(window), intent(in) :: w
     logical :: ok
 
     integer :: iown
 
     ok = .false.
-    if (w%viewmode /= vm_objedit) return
-    iown = w%vmdata%owner
-    if (iown < 1 .or. iown > nwin) return
-    if (.not.associated(win(iown)%rep)) return
-    ok = (win(iown)%rep%type == reptype_text .and.&
-       win(iown)%editrep_tool == objtool_kind0 + 1 + textpos_bond)
+    iown = objedit_owner(w)
+    if (iown == 0) return
+    if (win(iown)%rep%type == reptype_text) then
+       ok = (win(iown)%editrep_tool == objtool_kind0 + 1 + textpos_bond)
+    elseif (win(iown)%rep%type == reptype_measure .and. associated(w%sc)) then
+       ok = (win(iown)%editrep_tool == objtool_kind0 + 1 .and. w%sc%nmsel == 0)
+    end if
 
   end function objedit_bondpick
+
+  !> Whether view w is in the object editing mode with a measuring tool
+  !> armed (atoms picked into the measure selection).
+  function objedit_measuring(w) result(ok)
+    use representations, only: reptype_measure
+    class(window), intent(in) :: w
+    logical :: ok
+
+    integer :: iown
+
+    ok = .false.
+    iown = objedit_owner(w)
+    if (iown == 0) return
+    ok = (win(iown)%rep%type == reptype_measure .and. win(iown)%editrep_tool > objtool_kind0)
+
+  end function objedit_measuring
+
+  !> Drop the atoms picked into the measure selection of view w by the
+  !> measuring tools, when the view enters or leaves them, so that a
+  !> measurement in progress never becomes the selection of another mode
+  !> (or a tool starts with the selection of navigation).
+  subroutine objedit_drop_picks(w)
+    use representations, only: reptype_measure
+    class(window), intent(inout) :: w
+
+    integer :: iown
+
+    iown = objedit_owner(w)
+    if (iown == 0 .or. .not.associated(w%sc)) return
+    if (win(iown)%rep%type == reptype_measure) w%sc%nmsel = 0
+
+  end subroutine objedit_drop_picks
 
   function any_mouse_clicked()
     logical :: any_mouse_clicked
@@ -3538,9 +3593,10 @@ contains
     call cursor_icon(w,itex,txt,tint)
     havecue = (itex /= 0 .or. len_trim(txt) > 0)
 
-    ! the measurement readout, only in navigation: that is the one mode
-    ! whose keybinding group carries the measurement binds
-    domeas = (w%viewmode == vm_navigate)
+    ! the measurement readout, in navigation (the one mode whose keybinding
+    ! group carries the measurement binds) and with a measuring tool of a
+    ! measurement editor
+    domeas = (w%viewmode == vm_navigate) .or. objedit_measuring(w)
     if (domeas) domeas = associated(w%sc)
     if (domeas) then
        nmsel = w%sc%nmsel
@@ -3659,7 +3715,7 @@ contains
     ! usage hint: how to turn the current selection + hovered atom into a
     ! persistent measurement, or remove it. Only in navigation: the
     ! measurement binds do not fire in the other modes
-    if (domeas) then
+    if (domeas .and. w%viewmode == vm_navigate) then
        call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
        call igNewLine()
        call iw_text("Right-click stamps/removes a measurement",&

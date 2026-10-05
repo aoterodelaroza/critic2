@@ -85,7 +85,10 @@ module icons
   integer, parameter, public :: icon_tx_point = 52 ! place a text at a 3D point
   integer, parameter, public :: icon_tx_atom = 53 ! place a text on an atom
   integer, parameter, public :: icon_tx_bond = 54 ! place a text on a bond
-  integer, parameter, public :: icon_NUM = 54
+  integer, parameter, public :: icon_ms_distance = 55 ! measure a distance
+  integer, parameter, public :: icon_ms_angle = 56 ! measure an angle
+  integer, parameter, public :: icon_ms_dihedral = 57 ! measure a dihedral
+  integer, parameter, public :: icon_NUM = 57
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

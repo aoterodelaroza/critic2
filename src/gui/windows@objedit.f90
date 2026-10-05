@@ -399,14 +399,13 @@ contains
     use representations, only: representation, text_item, textpos_screen, textpos_point,&
        textpos_atom, textpos_bond, text_template, text_append, text_delete
     use systems, only: sys
-    use param, only: bohrtoa
     class(window), intent(inout), target :: w
     type(representation), intent(inout) :: r
     type(objedit_input), intent(inout) :: inp
 
     integer :: ipl, k, i, iown
     real*8 :: p(3), d(3), f0(2), f1(2)
-    real(c_float) :: t(3), t1(3), tex0(2), vw(4,4)
+    real(c_float) :: t(3), t1(3), tex0(2)
     logical :: changed, ok
     type(text_item) :: tnew
 
@@ -521,10 +520,8 @@ contains
                t1 = to_tex(w,p)
                st%shift = 2d0 * real(t1(1:2) - t(1:2),8) / w%FBOside
             else
-               ! the offset from the anchor: the drag in the camera frame
-               ! (angstrom)
-               vw = matmul(w%sc%view,w%sc%world)
-               st%t%offset = st%t0%offset + matmul(real(vw(1:2,1:3),8),d) * bohrtoa
+               ! the offset from the anchor
+               st%t%offset = label_offset(w,inp,st%zdep,st%t0%offset)
                st%shift = inp%xm - w%oe%x0
             end if
          end if
@@ -548,6 +545,173 @@ contains
     end if
 
   end subroutine text_events
+
+  !> The object editing view mode (vm_objedit) for the measurements r,
+  !> with the input of this frame inp. The measuring tools (distance,
+  !> angle, dihedral) pick atoms or critical points into the view's
+  !> measure selection, and the click that completes it adds the
+  !> measurement (a distance also from one click on a bond); the exit
+  !> bind drops the picks before it turns the tool off. The select tool
+  !> picks a measurement (its label or its segments), drags its label
+  !> (the offset) or its atoms onto other atoms or critical points; the
+  !> remove tool removes it.
+  module subroutine measure_events(w,r,inp)
+    use representations, only: representation, measure_append, measure_delete, measure_find
+    class(window), intent(inout), target :: w
+    type(representation), intent(inout) :: r
+    type(objedit_input), intent(inout) :: inp
+
+    integer :: natom, k, aidx(4,4)
+    real*8 :: xa(3,4), xf(3,4), tol
+    real(c_float) :: t(3)
+    logical :: changed, ok
+
+    ! atoms of the measurements the tool makes (0: select/remove)
+    natom = inp%itool - objtool_kind0 + 1
+    if (natom < 2 .or. natom > 4) natom = 0
+    changed = .false.
+    tol = objedit_hit_px * inp%pxs * 0.5d0 * w%FBOside ! pick radius in texture pixels
+    if (r%measure%isel > r%measure%nitem) r%measure%isel = 0
+    if (w%oe%op == objop_handle .or. w%oe%op == objop_move) then
+       if (w%oe%iitem < 1 .or. w%oe%iitem > r%measure%nitem) w%oe%op = objop_none
+    end if
+
+    associate (st => w%oe%measure)
+      ! press
+      if (inp%press) then
+         w%oe%x0 = inp%xm
+         w%oe%moved = .false.
+         if (inp%itool == objtool_select) then
+            ! an atom of the selected measurement, or a measurement (whose
+            ! label is dragged)
+            w%oe%op = objop_none
+            k = measure_handle_at(w,r,inp,tol)
+            if (k > 0) then
+               w%oe%op = objop_handle
+               w%oe%ih = k
+               w%oe%iitem = r%measure%isel
+            else
+               k = measure_at(w,r,inp,tol)
+               r%measure%isel = k
+               if (k > 0) then
+                  w%oe%op = objop_move
+                  w%oe%iitem = k
+                  st%zdep = 0.5_c_float
+                  if (measure_points(w,r%measure%item(k),xa)) then
+                     t = to_tex(w,xa(:,1))
+                     st%zdep = t(3)
+                  end if
+               end if
+            end if
+            if (w%oe%op /= objop_none) st%it = r%measure%item(w%oe%iitem)
+         elseif (inp%itool == objtool_remove) then
+            ! remove the measurement under the mouse
+            k = measure_at(w,r,inp,tol)
+            if (k > 0) then
+               call measure_delete(r%measure,k)
+               changed = .true.
+            end if
+         elseif (natom > 0) then
+            ! pick the atom or critical point under the mouse (again: drop
+            ! it); a distance also from a bond, before the first atom
+            ok = .false.
+            if (w%mousepos_anchor(1) /= 0) then
+               call w%sc%select_atom(w%mousepos_anchor)
+               if (w%sc%nmsel == natom) then
+                  aidx(:,1:natom) = w%sc%msel(1:4,1:natom)
+                  ok = .true.
+               end if
+            elseif (natom == 2 .and. w%sc%nmsel == 0 .and. w%mousepos_bidx(1) > 0) then
+               aidx(:,1) = w%mousepos_bidx(1:4)
+               aidx(:,2) = w%mousepos_bidx(5:8)
+               ok = .true.
+            end if
+
+            ! complete: add the measurement, or select it if it is there
+            ! (reviving it if its anchors went stale)
+            if (ok) then
+               w%sc%nmsel = 0
+               k = measure_find(r%measure,aidx,natom)
+               if (k == 0) then
+                  call measure_append(r%measure,w%isys,aidx,natom)
+                  changed = .true.
+               else
+                  r%measure%isel = k
+                  if (.not.r%measure%item(k)%anchors_xfrac(w%isys,xf)) then
+                     do k = 1, natom
+                        call r%measure%item(r%measure%isel)%set_anchor(k,w%isys,aidx(:,k))
+                     end do
+                     changed = .true.
+                  end if
+               end if
+            end if
+            w%forcerender = .true.
+         end if
+      end if
+
+      ! the exit bind drops the picks of a measurement in progress
+      if (inp%exitev .and. natom > 0 .and. w%sc%nmsel > 0) then
+         w%sc%nmsel = 0
+         w%forcerender = .true.
+         inp%exitev = .false.
+      end if
+
+      ! drag; on release, only what is dragged goes to the measurement
+      if (w%oe%op == objop_handle .or. w%oe%op == objop_move) then
+         if (norm2(inp%xm - w%oe%x0) > objedit_drag_px * inp%pxs) w%oe%moved = .true.
+         associate (it => r%measure%item(w%oe%iitem))
+           if (.not.inp%down) then
+              if (w%oe%moved) then
+                 if (w%oe%op == objop_move) then
+                    it%offset = st%it%offset
+                    changed = .true.
+                 elseif (any(st%it%idx(:,w%oe%ih) /= it%idx(:,w%oe%ih))) then
+                    ! a new atom, unless the measurement becomes another one
+                    aidx = st%it%idx
+                    if (measure_find(r%measure,aidx,it%n,iskip=w%oe%iitem) == 0) then
+                       call it%set_anchor(w%oe%ih,w%isys,st%it%idx(:,w%oe%ih))
+                       changed = .true.
+                    end if
+                 end if
+              end if
+              w%oe%op = objop_none
+           elseif (w%oe%moved) then
+              st%it = it
+              if (w%oe%op == objop_handle) then
+                 ! the atom: onto the atom or critical point under the mouse,
+                 ! if it is not another atom of the measurement
+                 if (w%mousepos_anchor(1) /= 0) then
+                    ok = .true.
+                    do k = 1, it%n
+                       if (k /= w%oe%ih .and. all(it%idx(:,k) == w%mousepos_anchor(1:4))) ok = .false.
+                    end do
+                    if (ok) call st%it%set_anchor(w%oe%ih,w%isys,w%mousepos_anchor(1:4))
+                 end if
+              else
+                 ! the label offset
+                 st%it%offset = label_offset(w,inp,st%zdep,it%offset)
+              end if
+           end if
+         end associate
+      end if
+    end associate
+
+    ! delete the selected measurement (draw_view leaves Delete to this mode)
+    if (delete_key(w,inp,r%measure%isel)) then
+       call measure_delete(r%measure,r%measure%isel)
+       changed = .true.
+    end if
+
+    ! the measurements are drawn by the scene: rebuild it, keeping the
+    ! camera where it is; the overlay waits for the rebuilt labels
+    if (changed) then
+       w%sc%forcebuildlists = .true.
+       w%sc%nextbuildlists_fixcam = .true.
+    elseif (inp%itool == objtool_select) then
+       call measure_overlay(w,r,inp)
+    end if
+
+  end subroutine measure_events
 
   !xx! private procedures
 
@@ -1159,7 +1323,7 @@ contains
       call wireframe(sh,colh,1._c_float)
       call shape_handles(w,sh,nh,xh)
       do i = 1, nh
-         call draw_handle(dl,tex_to_mouse(to_tex(w,xh(:,i))),sh%kind == shapekind_sphere .and. i == 2,&
+         call draw_handle(dl,tex_to_mouse(w,to_tex(w,xh(:,i))),sh%kind == shapekind_sphere .and. i == 2,&
             colw,colk)
       end do
 
@@ -1179,34 +1343,23 @@ contains
       type(ImVec2) :: p1, p2
 
       if (sh%kind == shapekind_sphere) then
-         p1 = tex_to_mouse(to_tex(w,sh%x1))
-         p2 = tex_to_mouse(to_tex(w,sphere_rim(w,sh)))
+         p1 = tex_to_mouse(w,to_tex(w,sh%x1))
+         p2 = tex_to_mouse(w,to_tex(w,sphere_rim(w,sh)))
          call ImDrawList_AddCircle(dl,p1,real(hypot(p2%x-p1%x,p2%y-p1%y),c_float),col,48_c_int,thick)
       elseif (sh%kind == shapekind_box) then
          c = box_corners(w,sh)
          do j = 1, 12
-            p1 = tex_to_mouse(c(:,box_edges(1,j)))
-            p2 = tex_to_mouse(c(:,box_edges(2,j)))
+            p1 = tex_to_mouse(w,c(:,box_edges(1,j)))
+            p2 = tex_to_mouse(w,c(:,box_edges(2,j)))
             call ImDrawList_AddLine(dl,p1,p2,col,thick)
          end do
       else
-         p1 = tex_to_mouse(to_tex(w,sh%x1))
-         p2 = tex_to_mouse(to_tex(w,sh%x1 + sh%v(:,1)))
+         p1 = tex_to_mouse(w,to_tex(w,sh%x1))
+         p2 = tex_to_mouse(w,to_tex(w,sh%x1 + sh%v(:,1)))
          call ImDrawList_AddLine(dl,p1,p2,col,thick)
       end if
 
     end subroutine wireframe
-
-    !> Mouse (screen) position of the texture position t.
-    function tex_to_mouse(t) result(p)
-      real(c_float), intent(in) :: t(3)
-      type(ImVec2) :: p
-
-      p%x = t(1)
-      p%y = t(2)
-      call w%texpos_to_mousepos(p)
-
-    end function tex_to_mouse
   end subroutine shapes_overlay
 
   !> The shown text of r under the position x (NDC of the render buffer)
@@ -1218,14 +1371,9 @@ contains
     real*8, intent(in) :: x(2), tol
     integer :: k
 
-    real(c_float) :: bmin(2), bmax(2), anc(2)
-    logical :: ok
-
     do k = r%text%ntext, 1, -1
        if (.not.r%text%t(k)%shown) cycle
-       call w%sc%text_box(r%iord,k,ok,bmin,bmax,anc)
-       if (.not.ok) cycle
-       if (all(x >= bmin - tol) .and. all(x <= bmax + tol)) return
+       if (label_hit(w,r%iord,k,x,tol)) return
     end do
     k = 0
 
@@ -1293,32 +1441,22 @@ contains
 
     type(c_ptr) :: dl
     integer(c_int) :: colw, colk, colh
-    real(c_float) :: bmin(2), bmax(2), anc(2)
+    real(c_float) :: anc(2)
     real*8 :: sh(2), b1(2), b2(2)
     logical :: ok
-    type(ImVec2) :: q1, q2, qa
-
-    real(c_float), parameter :: pad_px = 3._c_float
+    type(ImVec2) :: qa
 
     if (r%text%isel < 1) return
     if (.not.r%text%t(r%text%isel)%shown) return
-    call w%sc%text_box(r%iord,r%text%isel,ok,bmin,bmax,anc)
-    if (.not.ok) return
     sh = 0d0
     if (w%oe%op == objop_move .and. w%oe%iitem == r%text%isel) sh = w%oe%text%shift
-    b1 = bmin + sh
-    b2 = bmax + sh
 
+    ! the box
     call overlay_begin(w,dl,colw,colk,colh)
-
-    ! the box (the NDC and screen y run opposite ways)
-    q1 = ndc_to_mouse(w,b1)
-    q2 = ndc_to_mouse(w,b2)
-    call ImDrawList_AddRect(dl,ImVec2(min(q1%x,q2%x) - pad_px,min(q1%y,q2%y) - pad_px),&
-       ImVec2(max(q1%x,q2%x) + pad_px,max(q1%y,q2%y) + pad_px),colh,0._c_float,0_c_int,1.5_c_float)
+    call label_box(w,dl,r%iord,r%text%isel,sh,colh,ok,b1,b2,anc)
 
     ! the anchor of a world-anchored text, joined to the box if apart
-    if (r%text%t(r%text%isel)%placement /= textpos_screen) then
+    if (ok .and. r%text%t(r%text%isel)%placement /= textpos_screen) then
        qa = ndc_to_mouse(w,real(anc,8))
        if (any(anc < b1) .or. any(anc > b2)) &
           call ImDrawList_AddLine(dl,qa,ndc_to_mouse(w,0.5d0 * (b1 + b2)),colh,1._c_float)
@@ -1327,6 +1465,210 @@ contains
     call ImDrawList_PopClipRect(dl)
 
   end subroutine text_overlay
+
+  !> The anchor positions x(:,1:n) of the measurement it in view w
+  !> (absolute frame, bohr). False if it is stale.
+  function measure_points(w,it,x) result(ok)
+    use representations, only: measurement_item
+    use systems, only: sys
+    class(window), intent(in) :: w
+    type(measurement_item), intent(in) :: it
+    real*8, intent(out) :: x(3,4)
+    logical :: ok
+
+    real*8 :: xf(3,4)
+    integer :: k
+
+    x = 0d0
+    ok = it%anchors_xfrac(w%isys,xf)
+    if (.not.ok) return
+    do k = 1, it%n
+       x(:,k) = sys(w%isys)%c%x2c(xf(:,k)) + molshift(w)
+    end do
+
+  end function measure_points
+
+  !> The atom of the selected (and shown) measurement of r under the
+  !> mouse (input inp) in view w, within tol pixels; 0 if none.
+  function measure_handle_at(w,r,inp,tol) result(ih)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    type(objedit_input), intent(in) :: inp
+    real*8, intent(in) :: tol
+    integer :: ih
+
+    real*8 :: xa(3,4)
+    real(c_float) :: t(3)
+
+    if (r%measure%isel > 0) then
+       associate (it => r%measure%item(r%measure%isel))
+         if (it%shown .and. measure_points(w,it,xa)) then
+            do ih = it%n, 1, -1
+               t = to_tex(w,xa(:,ih))
+               if (norm2(inp%tex - t(1:2)) <= tol) return
+            end do
+         end if
+       end associate
+    end if
+    ih = 0
+
+  end function measure_handle_at
+
+  !> The shown measurement of r under the mouse (input inp) in view w,
+  !> 0 if none: its label, or one of its segments (the segment of a
+  !> distance, the arms of an angle, the three edges of a dihedral),
+  !> within tol pixels; the last drawn first.
+  function measure_at(w,r,inp,tol) result(k)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    type(objedit_input), intent(in) :: inp
+    real*8, intent(in) :: tol
+    integer :: k
+
+    real(c_float) :: c(3,4)
+    real*8 :: xa(3,4)
+    integer :: j
+
+    do k = r%measure%nitem, 1, -1
+       if (.not.r%measure%item(k)%shown) cycle
+       if (label_hit(w,r%iord,k,inp%xm,objedit_hit_px*inp%pxs)) return
+       if (.not.measure_points(w,r%measure%item(k),xa)) cycle
+       do j = 1, r%measure%item(k)%n
+          c(:,j) = to_tex(w,xa(:,j))
+       end do
+       do j = 1, r%measure%item(k)%n - 1
+          if (segdist2(inp%tex,c(1:2,j),c(1:2,j+1)) <= tol) return
+       end do
+    end do
+    k = 0
+
+  end function measure_at
+
+  !> Draw over the view w the selected measurement of r: the box of its
+  !> label and a handle on each of its atoms. While one of its atoms is
+  !> dragged, its segments as they would be, and while its label is
+  !> dragged, the box where it goes.
+  subroutine measure_overlay(w,r,inp)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    type(objedit_input), intent(in) :: inp
+
+    type(c_ptr) :: dl
+    integer(c_int) :: colw, colk, colh
+    real*8 :: sh(2), xa(3,4), b1(2), b2(2)
+    real(c_float) :: anc(2)
+    integer :: k
+    logical :: ok, hdrag, mdrag
+    type(ImVec2) :: q(4)
+
+    if (r%measure%isel < 1) return
+    associate (it => r%measure%item(r%measure%isel))
+      if (.not.it%shown) return
+      hdrag = (w%oe%op == objop_handle .and. w%oe%iitem == r%measure%isel)
+      mdrag = (w%oe%op == objop_move .and. w%oe%iitem == r%measure%isel .and. w%oe%moved)
+      call overlay_begin(w,dl,colw,colk,colh)
+
+      ! the label box
+      sh = 0d0
+      if (mdrag) sh = inp%xm - w%oe%x0
+      call label_box(w,dl,r%iord,r%measure%isel,sh,colh,ok,b1,b2,anc)
+
+      ! the atoms (the dragged one at its new atom, or at the mouse)
+      if (hdrag) then
+         ok = measure_points(w,w%oe%measure%it,xa)
+      else
+         ok = measure_points(w,it,xa)
+      end if
+      if (ok) then
+         do k = 1, it%n
+            q(k) = tex_to_mouse(w,to_tex(w,xa(:,k)))
+         end do
+         if (hdrag) then
+            if (w%mousepos_anchor(1) == 0) q(w%oe%ih) = ndc_to_mouse(w,inp%xm)
+            do k = 1, it%n - 1
+               call ImDrawList_AddLine(dl,q(k),q(k+1),colh,2._c_float)
+            end do
+         end if
+         do k = 1, it%n
+            call draw_handle(dl,q(k),.false.,colw,colk)
+         end do
+      end if
+      call ImDrawList_PopClipRect(dl)
+    end associate
+
+  end subroutine measure_overlay
+
+  !> Whether the position x (NDC of the render buffer) is within tol of
+  !> the box of the label of item item of the representation with order
+  !> iord (see scene_text_box) in view w.
+  function label_hit(w,iord,item,x,tol) result(ok)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iord, item
+    real*8, intent(in) :: x(2), tol
+    logical :: ok
+
+    real(c_float) :: bmin(2), bmax(2), anc(2)
+
+    call w%sc%text_box(iord,item,ok,bmin,bmax,anc)
+    if (ok) ok = all(x >= bmin - tol) .and. all(x <= bmax + tol)
+
+  end function label_hit
+
+  !> Draw on dl, with color colh, the box of the label of item item of
+  !> the representation with order iord in view w, moved by sh (NDC).
+  !> Returns whether it is drawn (ok), the moved box (b1, b2; NDC) and
+  !> the anchor of the label (anc; NDC).
+  subroutine label_box(w,dl,iord,item,sh,colh,ok,b1,b2,anc)
+    class(window), intent(inout), target :: w
+    type(c_ptr), intent(in) :: dl
+    integer, intent(in) :: iord, item
+    real*8, intent(in) :: sh(2)
+    integer(c_int), intent(in) :: colh
+    logical, intent(out) :: ok
+    real*8, intent(out) :: b1(2), b2(2)
+    real(c_float), intent(out) :: anc(2)
+
+    real(c_float) :: bmin(2), bmax(2)
+    type(ImVec2) :: q1, q2
+
+    real(c_float), parameter :: pad_px = 3._c_float
+
+    call w%sc%text_box(iord,item,ok,bmin,bmax,anc)
+    b1 = bmin + sh
+    b2 = bmax + sh
+    if (.not.ok) return
+
+    ! the NDC and screen y run opposite ways
+    q1 = ndc_to_mouse(w,b1)
+    q2 = ndc_to_mouse(w,b2)
+    call ImDrawList_AddRect(dl,ImVec2(min(q1%x,q2%x) - pad_px,min(q1%y,q2%y) - pad_px),&
+       ImVec2(max(q1%x,q2%x) + pad_px,max(q1%y,q2%y) + pad_px),colh,0._c_float,0_c_int,1.5_c_float)
+
+  end subroutine label_box
+
+  !> The offset of a label dragged in view w (input inp) from the press,
+  !> in the plane facing the camera at texture depth z: off0 plus the
+  !> drag in the camera frame (angstrom).
+  function label_offset(w,inp,z,off0) result(off)
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    type(objedit_input), intent(in) :: inp
+    real(c_float), intent(in) :: z
+    real*8, intent(in) :: off0(2)
+    real*8 :: off(2)
+
+    real(c_float) :: tex0(2), vw(4,4)
+    real*8 :: d(3)
+
+    tex0 = real(0.5d0 * (w%oe%x0 + 1d0) * w%FBOside,c_float)
+    d = from_tex(w,inp%tex,z) - from_tex(w,tex0,z)
+    vw = matmul(w%sc%view,w%sc%world)
+    off = off0 + matmul(real(vw(1:2,1:3),8),d) * bohrtoa
+
+  end function label_offset
 
   !> Whether the delete bind removes the selected item isel (0 = none)
   !> in this frame (input inp) of view w: the select tool, over the view,
@@ -1360,6 +1702,19 @@ contains
        ColorHighlightSelectScene(3),1._c_float))
 
   end subroutine overlay_begin
+
+  !> Mouse (screen) position of the texture position t (pixels, and
+  !> depth) of view w.
+  function tex_to_mouse(w,t) result(p)
+    class(window), intent(inout), target :: w
+    real(c_float), intent(in) :: t(3)
+    type(ImVec2) :: p
+
+    p%x = t(1)
+    p%y = t(2)
+    call w%texpos_to_mousepos(p)
+
+  end function tex_to_mouse
 
   !> Mouse (screen) position of the point x in the NDC of the render
   !> buffer of view w.

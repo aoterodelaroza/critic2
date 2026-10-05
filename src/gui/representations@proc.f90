@@ -484,6 +484,107 @@ contains
 
   end subroutine measurement_item_set_anchor
 
+  !> Whether the measurement is the one made of the n anchors aidx(:,1:n)
+  !> (the same anchors, in the same or the reversed order; the vertex of
+  !> an angle stays in the middle).
+  module function measurement_item_matches(it,aidx,n) result(match)
+    class(measurement_item), intent(in) :: it
+    integer, intent(in) :: aidx(4,4)
+    integer, intent(in) :: n
+    logical :: match
+
+    match = .false.
+    if (it%n /= n) return
+    if (n == 2) then
+       match = (same(it%idx(:,1),aidx(:,1)) .and. same(it%idx(:,2),aidx(:,2))) .or. &
+               (same(it%idx(:,1),aidx(:,2)) .and. same(it%idx(:,2),aidx(:,1)))
+    elseif (n == 3) then
+       match = same(it%idx(:,2),aidx(:,2)) .and. ( &
+          (same(it%idx(:,1),aidx(:,1)) .and. same(it%idx(:,3),aidx(:,3))) .or. &
+          (same(it%idx(:,1),aidx(:,3)) .and. same(it%idx(:,3),aidx(:,1))) )
+    else
+       match = (same(it%idx(:,1),aidx(:,1)) .and. same(it%idx(:,2),aidx(:,2)) .and. &
+                same(it%idx(:,3),aidx(:,3)) .and. same(it%idx(:,4),aidx(:,4))) .or. &
+               (same(it%idx(:,1),aidx(:,4)) .and. same(it%idx(:,2),aidx(:,3)) .and. &
+                same(it%idx(:,3),aidx(:,2)) .and. same(it%idx(:,4),aidx(:,1)))
+    end if
+
+  contains
+    logical function same(a,b)
+      integer(c_int), intent(in) :: a(4)
+      integer, intent(in) :: b(4)
+      same = all(int(a) == b)
+    end function same
+  end function measurement_item_matches
+
+  !> Append to p the measurement made of the n anchors aidx(:,1:n)
+  !> (atoms or critical points of system isys), with the default style
+  !> of its kind, and select it.
+  module subroutine measure_append(p,isys,aidx,n)
+    type(rep_measure), intent(inout) :: p
+    integer, intent(in) :: isys
+    integer, intent(in) :: aidx(4,4)
+    integer, intent(in) :: n
+
+    type(measurement_item), allocatable :: aux(:)
+    integer :: k
+
+    allocate(aux(p%nitem+1))
+    if (p%nitem > 0) aux(1:p%nitem) = p%item(1:p%nitem)
+    call move_alloc(aux,p%item)
+    p%nitem = p%nitem + 1
+    associate (it => p%item(p%nitem))
+      it = measurement_item()
+      it%n = n
+      do k = 1, n
+         call it%set_anchor(k,isys,aidx(:,k))
+      end do
+      call it%set_defaults(n)
+    end associate
+    p%isel = p%nitem
+
+  end subroutine measure_append
+
+  !> The measurement of p made of the n anchors aidx(:,1:n) (see the
+  !> matches method), other than item iskip; 0 if there is none.
+  module function measure_find(p,aidx,n,iskip) result(k)
+    type(rep_measure), intent(in) :: p
+    integer, intent(in) :: aidx(4,4)
+    integer, intent(in) :: n
+    integer, intent(in), optional :: iskip
+    integer :: k
+
+    do k = 1, p%nitem
+       if (present(iskip)) then
+          if (k == iskip) cycle
+       end if
+       if (p%item(k)%matches(aidx,n)) return
+    end do
+    k = 0
+
+  end function measure_find
+
+  !> Remove measurement idel from p. The selection stays on the item it
+  !> was on, or is cleared if that was the one removed.
+  module subroutine measure_delete(p,idel)
+    type(rep_measure), intent(inout) :: p
+    integer, intent(in) :: idel
+
+    integer :: i
+
+    if (idel < 1 .or. idel > p%nitem) return
+    do i = idel, p%nitem-1
+       p%item(i) = p%item(i+1)
+    end do
+    p%nitem = p%nitem - 1
+    if (p%isel == idel) then
+       p%isel = 0
+    elseif (p%isel > idel) then
+       p%isel = p%isel - 1
+    end if
+
+  end subroutine measure_delete
+
   !> Fractional coordinates xf(:,1:n) of the anchors of the measurement
   !> in system isys. Returns .false. if the item is stale (an anchor
   !> names no atom or CP, or its stamp no longer matches).
@@ -2348,6 +2449,11 @@ contains
       type(dl_string) :: dsm
       logical :: doorient
       dsm%x = real(posc,c_float)
+      if (r%owner == 0) then
+         ! the label of measurement i (in the host loop), for the editor's picks
+         dsm%irep = r%iord
+         dsm%item = i
+      end if
       dsm%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
       dsm%r = 0._c_float
       dsm%rgb = rgbc

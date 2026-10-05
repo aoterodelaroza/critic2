@@ -19,7 +19,7 @@
 module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
-  use representations, only: representation, planar_shape, rep_shape, text_item
+  use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -542,6 +542,15 @@ module windows
   end type text_edit_state
   public :: text_edit_state
 
+  !> State of a drag of a measurement in the view (vm_objedit): its
+  !> label (objop_move) or one of its atoms (objop_handle, the slot in
+  !> objedit_state%ih)
+  type measure_edit_state
+     type(measurement_item) :: it ! the measurement as the drag leaves it
+     real(c_float) :: zdep = 0._c_float ! texture depth of the plane the label moves on
+  end type measure_edit_state
+  public :: measure_edit_state
+
   !> Input of the object editing view mode (vm_objedit) in one frame,
   !> read by objedit_events for the handler of the object type.
   type objedit_input
@@ -575,6 +584,7 @@ module windows
      type(planar_edit_state) :: planar ! 2D drawing: the shape
      type(shapes_edit_state) :: shapes ! 3D shapes: the shape
      type(text_edit_state) :: text ! text: the item
+     type(measure_edit_state) :: measure ! measurements: the item
   end type objedit_state
   public :: objedit_state
 
@@ -814,7 +824,7 @@ module windows
      type(ImVec2) :: v_rmin, v_rmax ! view image rectangle
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
-     logical :: pickbonds_last = .false. ! whether the last pick render included the bonds
+     integer :: pickmode_last = 0 ! what the last pick render included: 0 atoms, 1 bonds, 2 both
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
      logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
@@ -1139,6 +1149,7 @@ module windows
      procedure :: planar_events
      procedure :: shapes_events
      procedure :: text_events
+     procedure :: measure_events
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1824,6 +1835,11 @@ module windows
        type(representation), intent(inout) :: r
        type(objedit_input), intent(inout) :: inp
      end subroutine text_events
+     module subroutine measure_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine measure_events
      module subroutine editrep_set_tool(w,itool,prompt)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itool

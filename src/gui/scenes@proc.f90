@@ -1607,7 +1607,7 @@ contains
   !> Draw the scene into the pick buffer. Spheres always; cylinders only
   !> when bondpick, and then the atoms become depth-only occluders (they
   !> return no index) so that only bonds can be picked.
-  module subroutine scene_render_pick(s,bondpick)
+  module subroutine scene_render_pick(s,bondpick,atoms)
     use interfaces_cimgui
     use interfaces_opengl3
     use systems, only: sys
@@ -1618,8 +1618,10 @@ contains
     use param, only: maxzat0
     class(scene), intent(inout), target :: s
     logical, intent(in) :: bondpick
+    logical, intent(in), optional :: atoms
 
     integer :: i, iz, idx, n
+    logical :: onlybonds
     real(c_float) :: ridx(4), rpick
     real(c_float), parameter :: zero3(3) = 0._c_float
 
@@ -1646,14 +1648,17 @@ contains
 
     ! draw the atoms and critical points, each with its loop index
     ! encoded into the pick color
+    ! with bondpick and atoms, both the bonds and the atoms are pickable
+    onlybonds = bondpick
+    if (present(atoms)) onlybonds = bondpick .and. .not.atoms
     if (s%obj%nsph > 0) then
        call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
        n = 0
        do i = 1, s%obj%nsph
           if (s%obj%sph(i)%cpidx(1) > 0) then
              ! critical points: pickable (hover identity), but not when
-             ! picking bonds, since the bond CPs sit on the bonds
-             if (bondpick) cycle
+             ! picking only bonds, since the bond CPs sit on the bonds
+             if (onlybonds) cycle
           else
              ! draw the sphere, no gradient paths
              idx = s%obj%sph(i)%idx(1)
@@ -1663,15 +1668,15 @@ contains
              ! ghost spheres are pick-only stand-ins for hidden atoms, with a
              ! radius of two bond radii: they would swallow the ends of the very
              ! bonds being picked, and no atom index is wanted here anyway
-             if (bondpick .and. s%obj%sph(i)%ghost) cycle
+             if (onlybonds .and. s%obj%sph(i)%ghost) cycle
              iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
              if (iz >= maxzat0) cycle
           end if
 
           n = n + 1
-          ! when picking bonds the atoms only occlude: index zero
+          ! when picking only bonds the atoms only occlude: index zero
           ridx = 0._c_float
-          if (.not.bondpick) ridx = transfer((/i,0,0,0/),ridx)
+          if (.not.onlybonds) ridx = transfer((/i,0,0,0/),ridx)
           call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
              (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
              (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx,1._c_float,&
@@ -3505,86 +3510,36 @@ contains
   !> already there, otherwise append it (creating the representation if there is
   !> none). This is what makes a second click on the same atoms undo the first.
   subroutine measure_toggle(s,aidx,n)
-    use representations, only: measurement_item
+    use representations, only: measure_append, measure_delete, measure_find
     type(scene), intent(inout), target :: s
     integer, intent(in) :: aidx(4,4)
     integer, intent(in) :: n
 
     integer :: irep, ni, k
-    type(measurement_item), allocatable :: aux(:)
     real*8 :: xf(3,4)
 
     ! find (or create) the measurement representation
     irep = measure_rep_id(s,.true.)
     if (irep == 0) return
 
-    ! this exact measurement is already there: remove it instead; if
-    ! it is stale (its atoms or CPs changed), picking the same anchors
-    ! again revives it with the current stamps
-    do ni = 1, s%rep(irep)%measure%nitem
-       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) then
-          if (s%rep(irep)%measure%item(ni)%anchors_xfrac(s%id,xf)) then
-             call measure_remove_item(s,irep,ni)
-          else
-             associate (it => s%rep(irep)%measure%item(ni))
-                do k = 1, n
-                   call it%set_anchor(k,s%id,aidx(:,k))
-                end do
-             end associate
-             s%rep(irep)%measure%isel = ni
-             s%forcebuildlists = .true.
-          end if
-          return
-       end if
-    end do
-
-    ! append the item
-    ni = s%rep(irep)%measure%nitem
-    if (.not.allocated(s%rep(irep)%measure%item)) then
-       allocate(s%rep(irep)%measure%item(1))
-    elseif (ni >= size(s%rep(irep)%measure%item,1)) then
-       allocate(aux(2*ni))
-       aux(1:ni) = s%rep(irep)%measure%item(1:ni)
-       call move_alloc(aux,s%rep(irep)%measure%item)
-    end if
-    ni = ni + 1
-    s%rep(irep)%measure%nitem = ni
-    associate (it => s%rep(irep)%measure%item(ni))
-       it%shown = .true.
-       it%n = n
-       it%idx = 0
-       it%stamp = 0
+    ni = measure_find(s%rep(irep)%measure,aidx,n)
+    if (ni == 0) then
+       ! a new measurement (selected in the editor)
+       call measure_append(s%rep(irep)%measure,s%id,aidx,n)
+    elseif (s%rep(irep)%measure%item(ni)%anchors_xfrac(s%id,xf)) then
+       ! this exact measurement is already there: remove it
+       call measure_delete(s%rep(irep)%measure,ni)
+    else
+       ! it is stale (its atoms or CPs changed): picking the same anchors
+       ! again revives it with the current stamps
        do k = 1, n
-          call it%set_anchor(k,s%id,aidx(:,k))
+          call s%rep(irep)%measure%item(ni)%set_anchor(k,s%id,aidx(:,k))
        end do
-       call it%set_defaults(n) ! per-item style from the matching kind defaults
-    end associate
-    s%rep(irep)%measure%isel = ni ! select the new item in the editor
+       s%rep(irep)%measure%isel = ni
+    end if
     s%forcebuildlists = .true.
 
   end subroutine measure_toggle
-
-  !> Remove item ni from the measurement representation irep, keeping the
-  !> editor selection on the same item (drop it if it was the removed one,
-  !> shift it down if it was after).
-  subroutine measure_remove_item(s,irep,ni)
-    type(scene), intent(inout), target :: s
-    integer, intent(in) :: irep, ni
-
-    integer :: j
-
-    do j = ni, s%rep(irep)%measure%nitem-1
-       s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
-    end do
-    s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
-    if (s%rep(irep)%measure%isel == ni) then
-       s%rep(irep)%measure%isel = 0
-    elseif (s%rep(irep)%measure%isel > ni) then
-       s%rep(irep)%measure%isel = s%rep(irep)%measure%isel - 1
-    end if
-    s%forcebuildlists = .true.
-
-  end subroutine measure_remove_item
 
   !> Return the id of the scene's measurement representation. If
   !> create is true and none exists, add one and return its
@@ -3608,42 +3563,6 @@ contains
     if (create) call s%add_representation(reptype_measure,repflavor_measure,id=irep)
 
   end function measure_rep_id
-
-  !> True if the measurement item matches the ordered atom list
-  !> aidx(:,1:n), up to the natural symmetry of each kind: distances
-  !> are unordered, angles keep the vertex (atom 2) but allow the
-  !> endpoints to swap, dihedrals match the list forwards or fully
-  !> reversed.
-  function measure_match(item,aidx,n) result(match)
-    use representations, only: measurement_item
-    type(measurement_item), intent(in) :: item
-    integer, intent(in) :: aidx(4,4)
-    integer, intent(in) :: n
-    logical :: match
-
-    match = .false.
-    if (item%n /= n) return
-    if (n == 2) then
-       match = (same(item%idx(:,1),aidx(:,1)) .and. same(item%idx(:,2),aidx(:,2))) .or. &
-               (same(item%idx(:,1),aidx(:,2)) .and. same(item%idx(:,2),aidx(:,1)))
-    elseif (n == 3) then
-       match = same(item%idx(:,2),aidx(:,2)) .and. ( &
-          (same(item%idx(:,1),aidx(:,1)) .and. same(item%idx(:,3),aidx(:,3))) .or. &
-          (same(item%idx(:,1),aidx(:,3)) .and. same(item%idx(:,3),aidx(:,1))) )
-    else
-       match = (same(item%idx(:,1),aidx(:,1)) .and. same(item%idx(:,2),aidx(:,2)) .and. &
-                same(item%idx(:,3),aidx(:,3)) .and. same(item%idx(:,4),aidx(:,4))) .or. &
-               (same(item%idx(:,1),aidx(:,4)) .and. same(item%idx(:,2),aidx(:,3)) .and. &
-                same(item%idx(:,3),aidx(:,2)) .and. same(item%idx(:,4),aidx(:,1)))
-    end if
-
-  contains
-    logical function same(a,b)
-      integer(c_int), intent(in) :: a(4)
-      integer, intent(in) :: b(4)
-      same = all(int(a) == b)
-    end function same
-  end function measure_match
 
   !> Whether measurement item involves the atom aidx (cell atom id + lattice
   !> vector) as any of its anchors.
