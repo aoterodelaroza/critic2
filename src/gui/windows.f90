@@ -19,7 +19,8 @@
 module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
-  use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item
+  use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
+     rep_axes
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -551,6 +552,18 @@ module windows
   end type measure_edit_state
   public :: measure_edit_state
 
+  !> State of a drag of the axes in the view (vm_objedit): the axes
+  !> (objop_move), an arrow tip (objop_handle, ih = 1-3) or a label
+  !> (objop_handle, ih = 4-6)
+  type axes_edit_state
+     type(rep_axes) :: ax ! the axes as the drag leaves them
+     real(c_float) :: zdep = 0._c_float ! texture depth of the origin at the press (in the scene)
+     real*8 :: xg(3) = 0d0 ! the origin at the press (absolute frame, bohr; in the scene)
+     real*8 :: o0(2) = 0d0 ! the origin at the press (NDC)
+     real*8 :: tip0(2,3) = 0d0 ! the arrow tips at the press (NDC)
+  end type axes_edit_state
+  public :: axes_edit_state
+
   !> Input of the object editing view mode (vm_objedit) in one frame,
   !> read by objedit_events for the handler of the object type.
   type objedit_input
@@ -585,6 +598,7 @@ module windows
      type(shapes_edit_state) :: shapes ! 3D shapes: the shape
      type(text_edit_state) :: text ! text: the item
      type(measure_edit_state) :: measure ! measurements: the item
+     type(axes_edit_state) :: axes ! axes
   end type objedit_state
   public :: objedit_state
 
@@ -1150,6 +1164,7 @@ module windows
      procedure :: shapes_events
      procedure :: text_events
      procedure :: measure_events
+     procedure :: axes_events
      procedure :: draw_editrep_isosurface
      procedure :: draw_editrep_cps
      procedure :: draw_editrep_gpaths
@@ -1840,6 +1855,11 @@ module windows
        type(representation), intent(inout) :: r
        type(objedit_input), intent(inout) :: inp
      end subroutine measure_events
+     module subroutine axes_events(w,r,inp)
+       class(window), intent(inout), target :: w
+       type(representation), intent(inout) :: r
+       type(objedit_input), intent(inout) :: inp
+     end subroutine axes_events
      module subroutine editrep_set_tool(w,itool,prompt)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itool

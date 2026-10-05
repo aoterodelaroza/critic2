@@ -1412,6 +1412,11 @@ contains
              end if
              dstr%offset = 0._c_float
              dstr%str = trim(r%axes%labelstr(k))
+             if (r%owner == 0) then
+                ! the label of axis k, for the editor's picks
+                dstr%irep = r%iord
+                dstr%item = k
+             end if
              if (fixed) then
                 dstrover%dl_string = dstr
                 dstrover%depth = .false. ! the gizmo labels always draw in front

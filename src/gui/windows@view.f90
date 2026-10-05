@@ -2520,7 +2520,7 @@ contains
     !> to navigation).
     subroutine objedit_events()
       use representations, only: representation, reptype_planar, reptype_shapes, reptype_text,&
-         reptype_measure
+         reptype_measure, reptype_axes
 
       type(representation), pointer :: r
       type(objedit_input) :: inp
@@ -2607,6 +2607,8 @@ contains
          call w%text_events(r,inp)
       case (reptype_measure)
          call w%measure_events(r,inp)
+      case (reptype_axes)
+         call w%axes_events(r,inp)
       case default
          w%oe%op = objop_none
          call w%viewmode_exit_forced()

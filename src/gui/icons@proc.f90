@@ -39,7 +39,8 @@ submodule (icons) proc
      "pl_polyline.png","pl_arrow.png","pl_freehand.png","pl_curve.png",&
      "sh_sphere.png","sh_cone.png","sh_cylinder.png",&
      "tx_screen.png","tx_point.png","tx_atom.png","tx_bond.png",&
-     "ms_distance.png","ms_angle.png","ms_dihedral.png"/)
+     "ms_distance.png","ms_angle.png","ms_dihedral.png",&
+     "ax_scene.png","ax_window.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&

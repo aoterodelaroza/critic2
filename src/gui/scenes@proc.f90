@@ -2876,6 +2876,27 @@ contains
 
   end subroutine scene_show_transient_spacefill
 
+  !> The map from the local coordinates x (scene frame, bohr) of a
+  !> window-anchored overlay item at the window position winpos (with
+  !> scalewithzoom, see dl_string_over) to the NDC of the render buffer
+  !> of scene s: ndc = o + m x. As the overlay shaders do (isanchored).
+  module subroutine scene_overlay_map(s,winpos,scalewithzoom,o,m)
+    class(scene), intent(inout), target :: s
+    real*8, intent(in) :: winpos(2)
+    logical, intent(in) :: scalewithzoom
+    real*8, intent(out) :: o(2), m(2,3)
+
+    real(c_float) :: projover(4,4), vw(4,4), overf
+
+    call ortho_projection(s,projover,symz=.true.)
+    o = real(overlay_ndc(s,real(winpos,c_float)),8)
+    overf = 1._c_float
+    if (.not.scalewithzoom) overf = 1._c_float / (projover(1,1) * reset_zoom_hside(s))
+    vw = matmul(s%view,s%world)
+    m = real(matmul(projover(1:2,1:3),vw(1:3,1:3)) * overf,8)
+
+  end subroutine scene_overlay_map
+
   !> The on-screen box of item item of the text representation with
   !> order iord (the irep/item tags of its string), in the NDC of the
   !> render buffer: corners bmin and bmax, and the anchor anc the text is
@@ -2892,6 +2913,7 @@ contains
 
     integer :: i, n0, n
     real(c_float) :: vw(4,4), x4(4), c4(4), c0(2)
+    real*8 :: o(2), m(2,3)
 
     ok = .false.
     bmin = 0._c_float
@@ -2927,7 +2949,10 @@ contains
        if (s%obj%stringover(i)%irep /= iord .or. s%obj%stringover(i)%item /= item) cycle
        if (.not.allocated(s%gl%textover_ext)) return
        if (i > size(s%gl%textover_ext,2)) return
-       anc = overlay_ndc(s,s%obj%stringover(i)%winpos)
+       ! the anchor: the window position, plus the local position of the
+       ! string (an axis label sits at its arrow tip)
+       call s%overlay_map(real(s%obj%stringover(i)%winpos,8),s%obj%stringover(i)%scalewithzoom,o,m)
+       anc = real(o + matmul(m,real(s%obj%stringover(i)%x,8)),c_float)
        bmin = anc + s%gl%textover_ext(1:2,i)
        bmax = anc + s%gl%textover_ext(3:4,i)
        ok = all(bmax > bmin)

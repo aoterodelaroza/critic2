@@ -88,7 +88,9 @@ module icons
   integer, parameter, public :: icon_ms_distance = 55 ! measure a distance
   integer, parameter, public :: icon_ms_angle = 56 ! measure an angle
   integer, parameter, public :: icon_ms_dihedral = 57 ! measure a dihedral
-  integer, parameter, public :: icon_NUM = 57
+  integer, parameter, public :: icon_ax_scene = 58 ! place the axes in the scene
+  integer, parameter, public :: icon_ax_window = 59 ! place the axes in the window
+  integer, parameter, public :: icon_NUM = 59
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

@@ -159,6 +159,7 @@ module scenes
      procedure :: show_transient_spacefill => scene_show_transient_spacefill
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
      procedure :: text_box => scene_text_box
+     procedure :: overlay_map => scene_overlay_map
   end type scene
   public :: scene
 
@@ -203,6 +204,12 @@ module scenes
        class(scene), intent(in) :: s
        real(c_float) :: f
      end function scene_overlay_zoom_factor
+     module subroutine scene_overlay_map(s,winpos,scalewithzoom,o,m)
+       class(scene), intent(inout), target :: s
+       real*8, intent(in) :: winpos(2)
+       logical, intent(in) :: scalewithzoom
+       real*8, intent(out) :: o(2), m(2,3)
+     end subroutine scene_overlay_map
      module subroutine scene_text_box(s,iord,item,ok,bmin,bmax,anc)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: iord, item

@@ -713,6 +713,155 @@ contains
 
   end subroutine measure_events
 
+  !> The object editing view mode (vm_objedit) for the axes r, with the
+  !> input of this frame inp. The placement tools put the axes at the
+  !> point clicked in the scene (the atom under the mouse unless the
+  !> no-snap bind is held, else on the plane through the scene center)
+  !> or at the clicked window position. The select tool drags the axes
+  !> (by their origin or shafts), resizes them (by an arrow tip: their
+  !> scale), or moves an axis label (its offset). The axes change on
+  !> release; the drag shows them as lines.
+  module subroutine axes_events(w,r,inp)
+    use representations, only: representation
+    use systems, only: sys
+    class(window), intent(inout), target :: w
+    type(representation), intent(inout) :: r
+    type(objedit_input), intent(inout) :: inp
+
+    integer :: k, i
+    real*8 :: o(2), tip(2,3), d(3), p(3), f0(2), f1(2), tol, m(2,3)
+    real(c_float) :: t(3), tex0(2)
+    logical :: changed
+
+    changed = .false.
+    tol = objedit_hit_px * inp%pxs ! pick radius (NDC)
+
+    associate (st => w%oe%axes, ax => r%axes)
+      ! press
+      if (inp%press) then
+         w%oe%x0 = inp%xm
+         w%oe%moved = .false.
+         if (inp%itool == objtool_select) then
+            ! the origin (move), a tip (resize; not one that is on the
+            ! origin, an axis along the view), a label (its offset), or a
+            ! shaft (move)
+            w%oe%op = objop_none
+            call axes_ndc(w,ax,o,tip)
+            if (norm2(inp%xm - o) <= tol) then
+               w%oe%op = objop_move
+            else
+               do k = 1, 3
+                  if (norm2(tip(:,k) - o) > 2d0 * tol .and. norm2(inp%xm - tip(:,k)) <= tol) then
+                     w%oe%op = objop_handle
+                     w%oe%ih = k
+                  end if
+               end do
+            end if
+            if (w%oe%op == objop_none .and. ax%showlabels) then
+               do k = 1, 3
+                  if (label_hit(w,r%iord,k,inp%xm,tol)) then
+                     w%oe%op = objop_handle
+                     w%oe%ih = 3 + k
+                  end if
+               end do
+            end if
+            if (w%oe%op == objop_none) then
+               ok_body: do k = 1, 3
+                  if (segdist2(real(inp%xm,c_float),real(o,c_float),real(tip(:,k),c_float)) <= tol) then
+                     w%oe%op = objop_move
+                     exit ok_body
+                  end if
+               end do ok_body
+            end if
+            if (w%oe%op /= objop_none) then
+               st%ax = ax
+               st%o0 = o
+               st%tip0 = tip
+               st%zdep = 0.5_c_float
+               if (ax%placement == 0) then
+                  st%xg = axes_origin_abs(w,ax)
+                  t = to_tex(w,st%xg)
+                  st%zdep = t(3)
+               end if
+            end if
+         elseif (inp%itool == objtool_kind0 + 1) then
+            ! in the scene, at the point under the mouse
+            t = to_tex(w,real(w%sc%scenecenter,8) + molshift(w))
+            ax%origin = abs_to_axes_origin(w,ax,snap_point(w,inp,t(3)))
+            ax%placement = 0
+            changed = .true.
+         elseif (inp%itool == objtool_kind0 + 2) then
+            ! in the window, at the click
+            call view_texpos_to_winfrac(w%id,inp%tex,ax%winpos)
+            ax%placement = 1
+            changed = .true.
+         end if
+      end if
+
+      ! drag; the axes change on release
+      if (w%oe%op == objop_handle .or. w%oe%op == objop_move) then
+         if (norm2(inp%xm - w%oe%x0) > objedit_drag_px * inp%pxs) w%oe%moved = .true.
+         if (.not.inp%down) then
+            if (w%oe%moved) then
+               ax = st%ax
+               changed = .true.
+            end if
+            w%oe%op = objop_none
+         elseif (w%oe%moved) then
+            st%ax = ax
+            tex0 = real(0.5d0 * (w%oe%x0 + 1d0) * w%FBOside,c_float)
+            if (w%oe%op == objop_move) then
+               if (ax%placement == 1) then
+                  ! in the window
+                  call view_texpos_to_winfrac(w%id,tex0,f0)
+                  call view_texpos_to_winfrac(w%id,inp%tex,f1)
+                  st%ax%winpos = min(max(ax%winpos + f1 - f0,0d0),1d0)
+               else
+                  ! the origin: the atom under the mouse, or moved on the
+                  ! plane facing the camera
+                  i = w%mousepos_idx(1)
+                  if (.not.inp%nosnap .and. i >= 1 .and. i <= sys(w%isys)%c%ncel) then
+                     p = snap_point(w,inp,st%zdep)
+                  else
+                     d = from_tex(w,inp%tex,st%zdep) - from_tex(w,tex0,st%zdep)
+                     if (inp%constrain) d = axis_snap(w,d)
+                     p = st%xg + d
+                  end if
+                  st%ax%origin = abs_to_axes_origin(w,ax,p)
+               end if
+            elseif (w%oe%ih <= 3) then
+               ! a tip: the scale, by the distance to the origin on the screen
+               k = w%oe%ih
+               st%ax%scale = max(ax%scale * norm2(inp%xm - st%o0) / max(norm2(st%tip0(:,k) - st%o0),1d-10),&
+                  1d-3)
+               st%ax%scale_auto = .false.
+            else
+               ! a label: its offset, the drag in the plane facing the camera
+               ! (scaled as the axes)
+               k = w%oe%ih - 3
+               if (ax%placement == 1) then
+                  call w%sc%overlay_map(ax%winpos,ax%scalewithzoom,o,m)
+                  d = solve_screen(m,inp%xm - w%oe%x0)
+               else
+                  d = from_tex(w,inp%tex,st%zdep) - from_tex(w,tex0,st%zdep)
+               end if
+               st%ax%labeloffset(:,k) = ax%labeloffset(:,k) + d / max(ax%scale,1d-10)
+            end if
+         end if
+      end if
+    end associate
+
+    ! the axes are drawn by the scene: rebuild it, keeping the camera
+    ! where it is; the overlay waits for the rebuilt axes
+    if (changed) then
+       w%sc%forcebuildlists = .true.
+       w%sc%nextbuildlists_fixcam = .true.
+    elseif (inp%itool == objtool_select) then
+       call axes_overlay(w,r,inp)
+    end if
+
+  end subroutine axes_events
+
   !xx! private procedures
 
   !> The topmost shown shape of r at position x (vm_objedit), 0 if none:
@@ -1669,6 +1818,168 @@ contains
     off = off0 + matmul(real(vw(1:2,1:3),8),d) * bohrtoa
 
   end function label_offset
+
+  !> The unit vectors along the axes ax of view w (columns, scene
+  !> frame): the cell axes (crystallographic axes of a crystal) or the
+  !> cartesian axes.
+  function axes_dirs(w,ax) result(u)
+    use representations, only: rep_axes
+    use systems, only: sys
+    class(window), intent(in) :: w
+    type(rep_axes), intent(in) :: ax
+    real*8 :: u(3,3)
+
+    integer :: k
+
+    u = 0d0
+    do k = 1, 3
+       if (ax%kind == 1 .and. .not.sys(w%isys)%c%ismolecule) then
+          u(:,k) = sys(w%isys)%c%m_x2c(:,k) / norm2(sys(w%isys)%c%m_x2c(:,k))
+       else
+          u(k,k) = 1d0
+       end if
+    end do
+
+  end function axes_dirs
+
+  !> The origin of the axes ax placed in the scene of view w (absolute
+  !> frame, bohr), from its coordinates (ax%coordtype).
+  function axes_origin_abs(w,ax) result(x)
+    use representations, only: rep_axes
+    use systems, only: sys
+    use param, only: bohrtoa
+    class(window), intent(in) :: w
+    type(rep_axes), intent(in) :: ax
+    real*8 :: x(3)
+
+    if (ax%coordtype == 2) then
+       x = ax%origin
+    elseif (ax%coordtype == 0 .and. .not.sys(w%isys)%c%ismolecule) then
+       x = sys(w%isys)%c%x2c(ax%origin)
+    else
+       x = ax%origin / bohrtoa
+    end if
+
+  end function axes_origin_abs
+
+  !> The coordinates (per ax%coordtype) of the origin of the axes ax at
+  !> the absolute-frame point x (bohr) of view w; the inverse of
+  !> axes_origin_abs.
+  function abs_to_axes_origin(w,ax,x) result(org)
+    use representations, only: rep_axes
+    use systems, only: sys
+    use param, only: bohrtoa
+    class(window), intent(in) :: w
+    type(rep_axes), intent(in) :: ax
+    real*8, intent(in) :: x(3)
+    real*8 :: org(3)
+
+    if (ax%coordtype == 2) then
+       org = x
+    elseif (ax%coordtype == 0 .and. .not.sys(w%isys)%c%ismolecule) then
+       org = sys(w%isys)%c%c2x(x)
+    else
+       org = x * bohrtoa
+    end if
+
+  end function abs_to_axes_origin
+
+  !> The origin (o) and the arrow tips (tip(:,1:3)) of the axes ax in
+  !> view w, in the NDC of the render buffer.
+  subroutine axes_ndc(w,ax,o,tip)
+    use representations, only: rep_axes
+    class(window), intent(inout), target :: w
+    type(rep_axes), intent(in) :: ax
+    real*8, intent(out) :: o(2), tip(2,3)
+
+    real*8 :: u(3,3), x0(3), m(2,3)
+    real(c_float) :: t(3)
+    integer :: k
+
+    u = axes_dirs(w,ax) * (ax%length * ax%scale)
+    if (ax%placement == 1) then
+       call w%sc%overlay_map(ax%winpos,ax%scalewithzoom,o,m)
+       do k = 1, 3
+          tip(:,k) = o + matmul(m,u(:,k))
+       end do
+    else
+       x0 = axes_origin_abs(w,ax)
+       t = to_tex(w,x0)
+       o = 2d0 * real(t(1:2),8) / w%FBOside - 1d0
+       do k = 1, 3
+          t = to_tex(w,x0 + u(:,k))
+          tip(:,k) = 2d0 * real(t(1:2),8) / w%FBOside - 1d0
+       end do
+    end if
+
+  end subroutine axes_ndc
+
+  !> The vector in the plane of the screen (the least-squares solution,
+  !> which is in that plane) that the 2x3 map m takes to the screen
+  !> displacement dndc.
+  function solve_screen(m,dndc) result(d)
+    real*8, intent(in) :: m(2,3), dndc(2)
+    real*8 :: d(3)
+
+    real*8 :: g(2,2), det, y(2)
+
+    ! minimum-norm solution: d = m^T (m m^T)^-1 dndc
+    g = matmul(m,transpose(m))
+    det = g(1,1) * g(2,2) - g(1,2) * g(2,1)
+    d = 0d0
+    if (abs(det) < 1d-30) return
+    y(1) = ( g(2,2) * dndc(1) - g(1,2) * dndc(2)) / det
+    y(2) = (-g(2,1) * dndc(1) + g(1,1) * dndc(2)) / det
+    d = matmul(transpose(m),y)
+
+  end function solve_screen
+
+  !> Draw over the view w the handles of the axes of r: a square on the
+  !> origin and a disk on each arrow tip. While a drag is in progress,
+  !> the axes as they would be (lines in their colors), or the box of
+  !> the dragged label.
+  subroutine axes_overlay(w,r,inp)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    type(objedit_input), intent(in) :: inp
+
+    type(c_ptr) :: dl
+    integer(c_int) :: colw, colk, colh
+    real*8 :: o(2), tip(2,3), sh(2), b1(2), b2(2)
+    real(c_float) :: anc(2)
+    integer :: k
+    logical :: drag, ok
+    type(ImVec2) :: qo
+
+    if (.not.r%shown) return
+    drag = (w%oe%op /= objop_none .and. w%oe%moved)
+    call overlay_begin(w,dl,colw,colk,colh)
+    if (drag .and. w%oe%op == objop_handle .and. w%oe%ih > 3) then
+       ! a label: its box where it goes
+       sh = inp%xm - w%oe%x0
+       call label_box(w,dl,r%iord,w%oe%ih - 3,sh,colh,ok,b1,b2,anc)
+       call axes_ndc(w,r%axes,o,tip)
+    elseif (drag) then
+       ! the axes as they would be
+       call axes_ndc(w,w%oe%axes%ax,o,tip)
+       qo = ndc_to_mouse(w,o)
+       do k = 1, 3
+          call ImDrawList_AddLine(dl,qo,ndc_to_mouse(w,tip(:,k)),igGetColorU32_Vec4(ImVec4(&
+             r%axes%rgb(1,k),r%axes%rgb(2,k),r%axes%rgb(3,k),1._c_float)),3._c_float)
+       end do
+    else
+       call axes_ndc(w,r%axes,o,tip)
+    end if
+
+    ! the handles
+    call draw_handle(dl,ndc_to_mouse(w,o),.false.,colw,colk)
+    do k = 1, 3
+       call draw_handle(dl,ndc_to_mouse(w,tip(:,k)),.true.,colw,colk)
+    end do
+    call ImDrawList_PopClipRect(dl)
+
+  end subroutine axes_overlay
 
   !> Whether the delete bind removes the selected item isel (0 = none)
   !> in this frame (input inp) of view w: the select tool, over the view,

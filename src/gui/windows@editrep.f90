@@ -1152,6 +1152,7 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
     use windows, only: win
+    use icons, only: icon_pl_select, icon_ax_scene, icon_ax_window
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputtext,&
        iw_radiobutton, iw_combo_simple
     use systems, only: sys
@@ -1164,8 +1165,19 @@ contains
     integer :: icoord, iview
     real*8 :: zf
 
+    ! the toolbar: select, and the two placements (objtool_kind0 + 1: in
+    ! the scene, + 2: in the window); the texts stand in for icons that
+    ! did not load
+    integer, parameter :: tools(3) = (/objtool_select,objtool_kind0+1,objtool_kind0+2/)
+    integer, parameter :: toolicon(3) = (/icon_pl_select,icon_ax_scene,icon_ax_window/)
+    character(len=2), parameter :: toolfall(3) = (/"Se","Sc","Wi"/)
+
     ! initialize
     changed = .false.
+
+    ! the toolbar, which places and edits the axes in the view
+    if (w%anchor_view() > 0) &
+       call w%editrep_toolbar(tools,toolicon,toolfall,axes_tool_hint,axes_tool_prompt,ttshown)
 
     !! axes kind: cartesian (x/y/z) or crystallographic (a/b/c). Only
     !! meaningful for crystals (molecules have no lattice vectors).
@@ -5224,6 +5236,53 @@ contains
     if (len(str) > 0) str = str // ". " // exit_hint()
 
   end function measure_tool_hint
+
+  !> The prompt for tool itool (objtool_select, or objtool_kind0 + 1/2
+  !> for the placement in the scene/window) of the axes editor in the
+  !> view bar: short enough for it (vmbar_maxlen); the tooltip in the
+  !> toolbar (axes_tool_hint) has the rest.
+  function axes_tool_prompt(itool) result(str)
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    if (itool == objtool_select) then
+       str = "Drag the axes, an arrow tip, or a label"
+    elseif (itool == objtool_kind0 + 1) then
+       str = "Click an atom or a point to place the axes"
+    elseif (itool == objtool_kind0 + 2) then
+       str = "Click to place the axes in the window"
+    else
+       str = ""
+    end if
+
+  end function axes_tool_prompt
+
+  !> The tooltip for tool itool (objtool_select, or objtool_kind0 + 1/2)
+  !> of the axes editor in its toolbar. The keys are those bound in the
+  !> object editing mode.
+  function axes_tool_hint(itool) result(str)
+    use keybindings, only: BIND_OBJEDIT_DRAW, BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_NOSNAP
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    if (itool == objtool_select) then
+       str = "Select: drag (" // kn(BIND_OBJEDIT_DRAW) // ") the axes by their origin or " //&
+          "shafts to move them (in the scene: onto the atom under the mouse; " //&
+          kn(BIND_OBJEDIT_NOSNAP) // ": do not snap; " // kn(BIND_OBJEDIT_CONSTRAIN) //&
+          ": along an axis), an arrow tip to resize them, or a label to move it"
+    elseif (itool == objtool_kind0 + 1) then
+       str = "Place in the scene: click an atom to put the origin of the axes on it, or empty " //&
+          "space for the point on the plane through the scene center (" //&
+          kn(BIND_OBJEDIT_NOSNAP) // ": do not snap to atoms)"
+    elseif (itool == objtool_kind0 + 2) then
+       str = "Place in the window: click to anchor the axes at that position of the window, " //&
+          "where they stay as the view moves"
+    else
+       str = ""
+    end if
+    if (len(str) > 0) str = str // ". " // exit_hint()
+
+  end function axes_tool_hint
 
   !> The end of the toolbar tooltips of the object editors: the keys
   !> that turn the tool off.
