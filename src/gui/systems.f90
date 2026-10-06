@@ -192,6 +192,10 @@ module systems
      procedure :: attype_coordinates_units
      procedure :: attype_celatom_mask
      procedure :: attype_celatom_to_id
+     procedure :: attype_rows_whole
+     procedure :: attype_rows
+     procedure :: attype_celatom_ids
+     procedure :: attype_celatom_type
      procedure :: attype_type_id_to_id
      procedure :: attype_add_atom
      procedure :: attype_reorder
@@ -561,6 +565,27 @@ module systems
        integer, intent(in) :: id
        integer :: attype_celatom_to_id
      end function attype_celatom_to_id
+     module function attype_rows_whole(sysc,type,iat) result(ok)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: iat(:)
+       logical :: ok
+     end function attype_rows_whole
+     module function attype_rows(sysc,type,iat) result(irow)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: iat(:)
+       integer, allocatable :: irow(:)
+     end function attype_rows
+     module function attype_celatom_ids(sysc,type) result(id)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, allocatable :: id(:)
+     end function attype_celatom_ids
+     module function attype_celatom_type(sysc) result(type)
+       class(sysconf), intent(inout) :: sysc
+       integer :: type
+     end function attype_celatom_type
      module function attype_type_id_to_id(sysc,typein,id,typeout)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: typein

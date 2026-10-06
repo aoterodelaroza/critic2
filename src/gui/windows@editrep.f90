@@ -925,7 +925,7 @@ contains
   !> Draw the editrep window, coordination polyhedra class. Returns
   !> true if the representation has changed.
   module function draw_editrep_polyhedra(w,ttshown) result(changed)
-    use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac
+    use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq
     use gui_main, only: ColorHighlightScene
     use tools_io, only: string
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
@@ -978,13 +978,13 @@ contains
        & the distance range to the corners (Min/Max), and which atomic species are allowed as corners.",sameline=.true.)
     itype_combo = 0
     if (w%rep%poly%style%type == atlisttype_nneq) itype_combo = 1
-    if (w%rep%poly%style%type == atlisttype_ncel_frac) itype_combo = 2
+    if (w%rep%poly%style%type == sysc(isys)%attype_celatom_type()) itype_combo = 2
     call iw_combo_simple("Centers##polycentertype","Species" // c_null_char //&
        "Non-equivalent atoms" // c_null_char // "Cell atoms" // c_null_char,itype_combo)
     call iw_tooltip("How to group the atoms that act as polyhedra centers",ttshown)
     newtype = atlisttype_species
     if (itype_combo == 1) newtype = atlisttype_nneq
-    if (itype_combo == 2) newtype = atlisttype_ncel_frac
+    if (itype_combo == 2) newtype = sysc(isys)%attype_celatom_type()
     if (newtype /= w%rep%poly%style%type) then
        w%rep%poly%style%type = newtype
        call w%rep%poly%style%reset(w%rep)
@@ -3276,7 +3276,8 @@ contains
        icon_pl_polygon, icon_pl_polyline, icon_pl_arrow, icon_pl_freehand, icon_pl_curve,&
        icon_sh_sphere, icon_ui_cell, icon_sh_cone, icon_sh_cylinder, icon_tx_screen,&
        icon_tx_point, icon_tx_atom, icon_tx_bond, icon_ms_distance, icon_ms_angle,&
-       icon_ms_dihedral, icon_ax_scene, icon_ax_window
+       icon_ms_dihedral, icon_ax_scene, icon_ax_window, icon_at_paint, icon_at_enlarge,&
+       icon_at_shrink, icon_at_hide, icon_ui_polyhedra
     integer, intent(in) :: itype
     integer, allocatable, intent(out) :: tools(:)
     integer, allocatable, intent(out) :: icons(:)
@@ -3284,7 +3285,12 @@ contains
 
     integer :: k
 
-    if (itype == reptype_planar) then
+    if (itype == reptype_atoms) then
+       ! the atom tools (atomtool_*), with no select or remove
+       tools = (/(k, k = objtool_kind0+1, objtool_kind0+atomtool_NUM)/)
+       icons = (/icon_at_paint,icon_at_enlarge,icon_at_shrink,icon_at_hide,icon_ui_polyhedra/)
+       falls = (/"Pa","En","Sh","Hi","Po"/)
+    elseif (itype == reptype_planar) then
        ! the kinds are planarkind_*
        tools = (/(k, k = objtool_select, objtool_kind0+planarkind_NUM)/)
        icons = (/icon_pl_select,icon_vm_remove,icon_pl_ellipse,icon_pl_rect,icon_pl_polygon,&
@@ -3329,7 +3335,9 @@ contains
     integer, intent(in) :: itype, itool
     character(len=:), allocatable :: str
 
-    if (itype == reptype_planar) then
+    if (itype == reptype_atoms) then
+       str = atom_tool_hint(itool)
+    elseif (itype == reptype_planar) then
        str = planar_tool_hint(itool)
     elseif (itype == reptype_shapes) then
        str = shapes_tool_hint(itool)
@@ -3360,7 +3368,9 @@ contains
     integer, intent(in) :: itype, itool
     character(len=:), allocatable :: str
 
-    if (itype == reptype_planar) then
+    if (itype == reptype_atoms) then
+       str = atom_tool_prompt(itool)
+    elseif (itype == reptype_planar) then
        str = planar_tool_prompt(itool)
     elseif (itype == reptype_shapes) then
        str = shapes_tool_prompt(itool)
@@ -5329,6 +5339,62 @@ contains
     if (len(str) > 0) str = str // ". " // exit_hint()
 
   end function axes_tool_hint
+
+  !> The prompt for atom tool itool (objtool_kind0 + atomtool_*) in the
+  !> view bar: short enough for it (vmbar_maxlen); the tooltip in the
+  !> toolbar (atom_tool_hint) has the rest.
+  function atom_tool_prompt(itool) result(str)
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    select case (itool - objtool_kind0)
+    case (atomtool_paint)
+       str = "Click or drag over atoms to paint them"
+    case (atomtool_enlarge)
+       str = "Click an atom to make it larger"
+    case (atomtool_shrink)
+       str = "Click an atom to make it smaller"
+    case (atomtool_hide)
+       str = "Click an atom to hide it"
+    case (atomtool_poly)
+       str = "Click an atom to toggle its polyhedron"
+    case default
+       str = ""
+    end select
+
+  end function atom_tool_prompt
+
+  !> The tooltip for atom tool itool (objtool_kind0 + atomtool_*) in the
+  !> toolbar. The keys are those bound in the object editing mode.
+  function atom_tool_hint(itool) result(str)
+    use keybindings, only: BIND_OBJEDIT_DRAW
+    integer, intent(in) :: itool
+    character(len=:), allocatable :: str
+
+    character(len=:), allocatable :: sel
+
+    sel = ". Clicking a selected atom acts on the whole selection; if the atoms are not all of a " //&
+       "kind, the object switches to one row per atom in its editor"
+    select case (itool - objtool_kind0)
+    case (atomtool_paint)
+       str = "Paint: click (" // kn(BIND_OBJEDIT_DRAW) // ") atoms, or drag over them, to give " //&
+          "them the paint color (chosen in the arrow menu of this button)" // sel
+    case (atomtool_enlarge)
+       str = "Enlarge: click (" // kn(BIND_OBJEDIT_DRAW) // ") an atom to make it 25% larger" // sel
+    case (atomtool_shrink)
+       str = "Shrink: click (" // kn(BIND_OBJEDIT_DRAW) // ") an atom to make it 25% smaller" // sel
+    case (atomtool_hide)
+       str = "Hide: click (" // kn(BIND_OBJEDIT_DRAW) // ") an atom to hide it in the view " //&
+          "(Display Settings, or Reset in the arrow menu of this button, show it again)" // sel
+    case (atomtool_poly)
+       str = "Polyhedron: click (" // kn(BIND_OBJEDIT_DRAW) // ") an atom to show or hide the " //&
+          "coordination polyhedron centered on it" // sel
+    case default
+       str = ""
+    end select
+    if (len(str) > 0) str = str // ". " // exit_hint()
+
+  end function atom_tool_hint
 
   !> The end of the toolbar tooltips of the object editors: the keys
   !> that turn the tool off.

@@ -93,7 +93,12 @@ module icons
   ! icon IDs: annotation row of the view
   integer, parameter, public :: icon_ui_annotate = 60 ! show the annotation row (a square, a circle, a small down triangle)
   integer, parameter, public :: icon_ui_objprops = 61 ! open the editor of the object (sliders)
-  integer, parameter, public :: icon_NUM = 61
+  ! icon IDs: atom tools of the annotation row
+  integer, parameter, public :: icon_at_paint = 62 ! paint atoms (paintbrush)
+  integer, parameter, public :: icon_at_enlarge = 63 ! make atoms larger (sphere, arrows out)
+  integer, parameter, public :: icon_at_shrink = 64 ! make atoms smaller (sphere, arrows in)
+  integer, parameter, public :: icon_at_hide = 65 ! hide atoms (crossed-out circle)
+  integer, parameter, public :: icon_NUM = 65
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

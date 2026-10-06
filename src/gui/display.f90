@@ -44,6 +44,7 @@ module display
      procedure :: init => scene_display_init ! defaults for a system
      procedure :: reset_shown => scene_display_reset_shown ! (re)make the Show masks, everything shown
      procedure :: update => scene_display_update ! remake the Show masks if the system changed under them
+     procedure :: rows_for => scene_display_rows_for ! the mask rows of some cell atoms (cell-atom rows if needed)
      procedure :: end => scene_display_end
      procedure :: copy_settings => scene_display_copy_settings ! take another Display's periodic settings (not its masks)
      procedure :: ncells => scene_display_ncells ! cells an object draws, honoring its override
@@ -67,6 +68,12 @@ module display
        class(scene_display), intent(inout) :: disp
        integer, intent(in) :: isys
      end subroutine scene_display_reset_shown
+     module subroutine scene_display_rows_for(disp,isys,iat,irow)
+       class(scene_display), intent(inout) :: disp
+       integer, intent(in) :: isys
+       integer, intent(in) :: iat(:)
+       integer, allocatable, intent(inout) :: irow(:)
+     end subroutine scene_display_rows_for
      module subroutine scene_display_update(disp,isys)
        class(scene_display), intent(inout) :: disp
        integer, intent(in) :: isys

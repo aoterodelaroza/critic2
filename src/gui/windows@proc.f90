@@ -2080,12 +2080,12 @@ contains
   !> paint atom buttons in the windows attached to a view.
   module function atom_view_rgb(iview,isys,itype,iat,rgb) result(have)
     use representations, only: reptype_is_atombased
-    use systems, only: sysc
+    use systems, only: sys, sysc
     integer, intent(in) :: iview, isys, itype, iat
     real(c_float), intent(out) :: rgb(3)
     logical :: have
 
-    integer :: jrep, idd
+    integer :: jrep, idd, i
 
     have = .false.
     rgb = 0._c_float
@@ -2102,6 +2102,16 @@ contains
        if (reptype_is_atombased(win(iview)%sc%rep(jrep)%type) .and. win(iview)%sc%rep(jrep)%isinit .and.&
           win(iview)%sc%rep(jrep)%shown) then
           idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atoms%style%type)
+          if (idd == 0) then
+             ! the style is finer than the group asked for (e.g. one row
+             ! per cell atom after the atom tools): its first cell atom
+             do i = 1, sys(isys)%c%ncel
+                if (sysc(isys)%attype_celatom_to_id(itype,i) == iat) then
+                   idd = sysc(isys)%attype_celatom_to_id(win(iview)%sc%rep(jrep)%atoms%style%type,i)
+                   exit
+                end if
+             end do
+          end if
           if (idd /= 0) then
              have = .true.
              rgb = win(iview)%sc%rep(jrep)%atoms%style%rgb(:,idd)

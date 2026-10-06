@@ -20,7 +20,8 @@ module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
-     rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes
+     rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
+     reptype_atoms
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -493,10 +494,23 @@ module windows
   integer, parameter, public :: objtool_kind0 = objtool_remove ! the last tool that draws nothing
 
   ! the object types edited with the mouse in the view, in the order of
-  ! their groups in the annotation row
-  integer, parameter, public :: nannot = 5
-  integer, parameter, public :: annot_types(nannot) = (/reptype_planar,reptype_shapes,&
-     reptype_text,reptype_measure,reptype_axes/)
+  ! their groups in the annotation row. The atoms group holds the atom
+  ! tools, which edit the styles of the atoms in the scene (atomtool_*)
+  integer, parameter, public :: nannot = 6
+  integer, parameter, public :: annot_types(nannot) = (/reptype_atoms,reptype_planar,&
+     reptype_shapes,reptype_text,reptype_measure,reptype_axes/)
+  ! whether the tools of each group work on objects of its type (which
+  ! the select and remove tools and the edit button reach too); the atom
+  ! tools edit the styles of the scene instead
+  logical, parameter, public :: annot_isobj(nannot) = (/.false.,.true.,.true.,.true.,.true.,.true./)
+
+  ! the atom tools (tool objtool_kind0 + atomtool_*)
+  integer, parameter, public :: atomtool_paint = 1 ! paint the atoms with the paint color
+  integer, parameter, public :: atomtool_enlarge = 2 ! make the atoms larger
+  integer, parameter, public :: atomtool_shrink = 3 ! make the atoms smaller
+  integer, parameter, public :: atomtool_hide = 4 ! hide the atoms (scene Display)
+  integer, parameter, public :: atomtool_poly = 5 ! toggle the polyhedra centered on the atoms
+  integer, parameter, public :: atomtool_NUM = 5
 
   ! what the draw bind is doing in the object editing mode (vm_objedit)
   ! object editing in the view: pick radius of the handles and items, and
@@ -606,6 +620,7 @@ module windows
      integer :: irep = 0 ! the object the tool works on (index in sc%rep; 0 = none yet)
      logical :: newrep = .false. ! the first item drawn goes to a new object (Draw menu)
      integer :: face(nannot) = objtool_kind0 + 1 ! the tool on the button of each group (the last armed)
+     real(c_float) :: paint_rgb(3) = (/1._c_float,0.55_c_float,0._c_float/) ! color of the paint atom tool
   end type annot_state
   public :: annot_state
 
@@ -1168,6 +1183,7 @@ module windows
      procedure :: draw_editrep_planar
      procedure :: editrep_toolbar
      procedure :: objedit_hit
+     procedure :: atomtool_events
      procedure :: planar_events
      procedure :: shapes_events
      procedure :: text_events
@@ -1876,6 +1892,10 @@ module windows
        type(representation), intent(inout) :: r
        type(objedit_input), intent(inout) :: inp
      end subroutine axes_events
+     module subroutine atomtool_events(w,inp)
+       class(window), intent(inout), target :: w
+       type(objedit_input), intent(inout) :: inp
+     end subroutine atomtool_events
      module function objedit_hit(w,r,inp) result(ok)
        class(window), intent(inout), target :: w
        type(representation), intent(in) :: r

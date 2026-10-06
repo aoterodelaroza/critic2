@@ -2636,6 +2636,103 @@ contains
 
   end function attype_celatom_to_id
 
+  !> Whether the cell atoms iat(:) make up whole groups of the atom-list
+  !> type type: every cell atom in the group of one of them is in iat
+  !> too. A style grouped by type then changes for exactly these atoms
+  !> by changing the rows of their groups.
+  module function attype_rows_whole(sysc,type,iat) result(ok)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: iat(:)
+    logical :: ok
+
+    integer :: i
+    integer, allocatable :: id(:)
+    logical, allocatable :: intarget(:), touched(:)
+
+    ! one cell atom per group
+    ok = (type == atlisttype_ncel_frac .or. type == atlisttype_ncel_bohr .or.&
+       type == atlisttype_ncel_ang)
+    if (ok) return
+
+    ! the group of every cell atom, and the cell atoms of the target
+    id = sysc%attype_celatom_ids(type)
+    if (size(id,1) == 0) return
+    allocate(intarget(size(id,1)))
+    intarget = .false.
+    do i = 1, size(iat,1)
+       if (iat(i) >= 1 .and. iat(i) <= size(id,1)) intarget(iat(i)) = .true.
+    end do
+
+    ! the groups the target touches, and whether any of their atoms is
+    ! left out of it
+    allocate(touched(maxval(id)))
+    touched = .false.
+    do i = 1, size(id,1)
+       if (intarget(i)) touched(id(i)) = .true.
+    end do
+    ok = .not.any(touched(id) .and. .not.intarget)
+
+  end function attype_rows_whole
+
+  !> The groups of the atom-list type type that the cell atoms iat(:)
+  !> belong to, each once.
+  module function attype_rows(sysc,type,iat) result(irow)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: iat(:)
+    integer, allocatable :: irow(:)
+
+    integer :: i, n, id
+    logical, allocatable :: seen(:)
+
+    allocate(irow(size(iat,1)),seen(sysc%attype_number(type)))
+    seen = .false.
+    n = 0
+    do i = 1, size(iat,1)
+       id = sysc%attype_celatom_to_id(type,iat(i))
+       if (id <= 0 .or. id > size(seen,1)) cycle
+       if (seen(id)) cycle
+       seen(id) = .true.
+       n = n + 1
+       irow(n) = id
+    end do
+    irow = irow(1:n)
+
+  end function attype_rows
+
+  !> The group of the atom-list type type that each cell atom belongs
+  !> to (empty if the system is not initialized).
+  module function attype_celatom_ids(sysc,type) result(id)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, allocatable :: id(:)
+
+    integer :: i
+
+    if (.not.ok_system(sysc%id,sys_init)) then
+       allocate(id(0))
+       return
+    end if
+    allocate(id(sys(sysc%id)%c%ncel))
+    do i = 1, size(id,1)
+       id(i) = sysc%attype_celatom_to_id(type,i)
+    end do
+
+  end function attype_celatom_ids
+
+  !> The atom-list type of the cell atoms that the tables and styles of
+  !> this system use: fractional coordinates in a crystal, Cartesian
+  !> (angstrom) in a molecule.
+  module function attype_celatom_type(sysc) result(type)
+    class(sysconf), intent(inout) :: sysc
+    integer :: type
+
+    type = atlisttype_ncel_frac
+    if (sys(sysc%id)%c%ismolecule) type = atlisttype_ncel_ang
+
+  end function attype_celatom_type
+
   ! Given the identifier id belonging to type typein, return the only
   ! ID corresponding to type type that matches it. Example: if given
   ! non-equivalent atom ID 3, return the species ID of the species

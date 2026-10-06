@@ -260,6 +260,7 @@ module representations
    contains
      procedure :: reset => atom_style_reset
      procedure :: reset_colors => atom_style_reset_colors
+     procedure :: rows_for => atom_style_rows_for ! the rows of some cell atoms (cell-atom rows if needed)
      procedure :: end => atom_style_end
   end type atom_geom_style
   public :: atom_geom_style
@@ -333,6 +334,7 @@ module representations
    contains
      procedure :: alloc => coordpoly_style_alloc
      procedure :: reset => coordpoly_style_reset
+     procedure :: rows_for => coordpoly_style_rows_for ! the rows of some cell atoms (cell-atom rows if needed)
      procedure :: end => coordpoly_style_end
   end type coordpoly_geom_style
   public :: coordpoly_geom_style
@@ -1426,6 +1428,12 @@ module representations
      module subroutine atom_style_end(d)
        class(atom_geom_style), intent(inout) :: d
      end subroutine atom_style_end
+     module subroutine atom_style_rows_for(d,isys,iat,irow)
+       class(atom_geom_style), intent(inout) :: d
+       integer, intent(in) :: isys
+       integer, intent(in) :: iat(:)
+       integer, allocatable, intent(inout) :: irow(:)
+     end subroutine atom_style_rows_for
      ! mol_geom_style
      module subroutine mol_style_reset(d,r)
        class(mol_geom_style), intent(inout) :: d
@@ -1480,6 +1488,12 @@ module representations
      module subroutine label_style_end(d)
        class(label_geom_style), intent(inout) :: d
      end subroutine label_style_end
+     module subroutine coordpoly_style_rows_for(d,isys,iat,irow)
+       class(coordpoly_geom_style), intent(inout) :: d
+       integer, intent(in) :: isys
+       integer, intent(in) :: iat(:)
+       integer, allocatable, intent(inout) :: irow(:)
+     end subroutine coordpoly_style_rows_for
      module subroutine coordpoly_style_alloc(d,ntype,nspc)
        class(coordpoly_geom_style), intent(inout) :: d
        integer, intent(in) :: ntype

@@ -790,6 +790,113 @@ contains
 
   end subroutine axes_events
 
+  !> The object editing view mode (vm_objedit) for the atom tools
+  !> (objtool_kind0 + atomtool_*), with the input of this frame inp. A
+  !> click on an atom paints it with the paint color of the view,
+  !> enlarges or shrinks it, hides it, or shows or hides the polyhedron
+  !> centered on it; a click on a selected atom does it to the whole
+  !> selection. Painting goes on while dragging, over every other atom
+  !> the mouse crosses (one by one). The tools edit the styles that already exist: the
+  !> colors and radii of the atom-based objects of the scene, the Show
+  !> mask of the Display, and the centers of the first polyhedra object
+  !> (made if there is none). Their rows become cell atoms if the atoms
+  !> are not whole groups of them (rows_for).
+  module subroutine atomtool_events(w,inp)
+    use representations, only: reptype_is_atombased, reptype_polyhedra,&
+       repflavor_polyhedra_basic
+    use systems, only: sys, sysc
+    class(window), intent(inout), target :: w
+    type(objedit_input), intent(inout) :: inp
+
+    integer :: itool, iat, nat, i, ipoly, nsel
+    integer, allocatable :: iatl(:), irow(:), isel(:)
+    logical :: show, made
+
+    real*8, parameter :: radfac = 1.25d0 ! the enlarge and shrink factor
+
+    itool = inp%itool - objtool_kind0
+    nat = sys(w%isys)%c%ncel
+    iat = w%mousepos_idx(1)
+    if (iat < 1 .or. iat > nat) iat = 0
+
+    ! a press acts on the atom under the mouse; painting goes on while
+    ! the draw bind is held, once per new atom (oe%iitem, the last one)
+    if (inp%press) then
+       w%oe%op = objop_none
+       w%oe%iitem = 0
+       if (itool == atomtool_paint) w%oe%op = objop_free
+    elseif (w%oe%op == objop_free .and. .not.inp%down) then
+       w%oe%op = objop_none
+    end if
+    if (.not.inp%press .and. w%oe%op /= objop_free) return
+    if (iat == 0 .or. iat == w%oe%iitem) return
+    w%oe%iitem = iat
+
+    ! the atoms: on the press, the selection if the atom is in it; else
+    ! the atom
+    iatl = (/iat/)
+    if (inp%press) then
+       call sysc(w%isys)%highlighted_atom_list(nsel,isel)
+       if (nsel > 0) then
+          if (any(isel(1:nsel) == iat)) iatl = isel(1:nsel)
+       end if
+    end if
+
+    if (itool == atomtool_paint .or. itool == atomtool_enlarge .or. itool == atomtool_shrink) then
+       ! the atom colors and radii of all the atom-based objects (the
+       ! bonds and polyhedra take theirs from the atoms)
+       do i = 1, w%sc%nrep
+          associate(r => w%sc%rep(i))
+            if (.not.r%isinit .or. r%owner /= 0) cycle
+            if (.not.reptype_is_atombased(r%type)) cycle
+            if (.not.r%atoms%style%isinit) call r%atoms%style%reset(r)
+            if (.not.r%atoms%style%isinit) cycle
+            call r%atoms%style%rows_for(w%isys,iatl,irow)
+            if (itool == atomtool_paint) then
+               r%atoms%style%rgb(:,irow) = spread(w%annot%paint_rgb,2,size(irow,1))
+            elseif (itool == atomtool_enlarge) then
+               r%atoms%style%rad(irow) = r%atoms%style%rad(irow) * radfac
+            else
+               r%atoms%style%rad(irow) = r%atoms%style%rad(irow) / radfac
+            end if
+          end associate
+       end do
+    elseif (itool == atomtool_hide) then
+       ! the Show mask of the Display, for all the objects
+       call w%sc%disp%rows_for(w%isys,iatl,irow)
+       if (size(irow,1) > 0) w%sc%disp%ashown(irow) = .false.
+    elseif (itool == atomtool_poly) then
+       ! the first polyhedra object, made with no centers if there is
+       ! none; the clicked atom says whether the polyhedra are shown or
+       ! hidden
+       ipoly = 0
+       do i = 1, w%sc%nrep
+          if (w%sc%rep(i)%isinit .and. w%sc%rep(i)%owner == 0 .and.&
+             w%sc%rep(i)%type == reptype_polyhedra) then
+             ipoly = i
+             exit
+          end if
+       end do
+       made = (ipoly == 0)
+       if (made) call w%sc%add_representation(reptype_polyhedra,repflavor_polyhedra_basic,id=ipoly)
+       associate(r => w%sc%rep(ipoly))
+         if (.not.r%poly%style%isinit) call r%poly%style%reset(r)
+         if (r%poly%style%isinit) then
+            if (made) r%poly%style%shown = .false.
+            call r%poly%style%rows_for(w%isys,iatl,irow)
+            show = .not.r%poly%style%shown(sysc(w%isys)%attype_celatom_to_id(r%poly%style%type,iat))
+            r%poly%style%shown(irow) = show
+            if (show) r%shown = .true.
+         end if
+       end associate
+    end if
+
+    ! the styles are drawn by the scene: rebuild it, keeping the camera
+    w%sc%forcebuildlists = .true.
+    w%sc%nextbuildlists_fixcam = .true.
+
+  end subroutine atomtool_events
+
   !> Whether a press of the select or remove tool (inp%itool) at the
   !> mouse (input inp) would grab something of the object r in view w:
   !> a handle of its selected item, or one of its shown items (the axes

@@ -2622,6 +2622,15 @@ contains
       else
          inp%exitev = hover .and. is_bind_event(BIND_OBJEDIT_EXIT,norepeat=.true.,iview=w%id)
       end if
+
+      ! the atom tools edit the styles of the scene, not one object
+      if (w%annot%itype == reptype_atoms .and. inp%itool > objtool_kind0) then
+         call w%atomtool_events(inp)
+         if (inp%exitev .and. w%oe%op == objop_none) &
+            call w%annot_set_tool(0,objtool_none,0)
+         return
+      end if
+
       ! the object the tool works on
       irep = w%annot%irep
       hit = .false.
@@ -4427,10 +4436,11 @@ contains
        w%annot%irep = irep
     elseif (irep < 0) then
        w%annot%irep = 0
-    elseif (itype > 0 .and. itool > objtool_kind0) then
-       w%annot%irep = annot_find_rep(w,itype)
     end if
     ig = annot_group(itype)
+    if (irep == 0 .and. ig > 0 .and. itool > objtool_kind0) then
+       if (annot_isobj(ig)) w%annot%irep = annot_find_rep(w,itype)
+    end if
     if (ig > 0 .and. itool > objtool_kind0) w%annot%face(ig) = itool
     call w%viewmode_set_forced(vm_objedit,objtool_prompt(itype,itool),w%id)
 
@@ -4515,6 +4525,7 @@ contains
              k = k + 1
              call tool_button(itype,tools(i),icons(i),falls(i),k > 1,"",inpopup=.true.)
           end do
+          if (itype == reptype_atoms) call atomtool_extras()
           call igEndPopup()
        end if
     end do
@@ -4564,6 +4575,43 @@ contains
       end if
 
     end subroutine tool_button
+
+    !> The paint color and the reset button, in the popup of the atom
+    !> tools. The reset brings the atom styles of the atom-based objects
+    !> and the Show masks of the Display back to the defaults, grouped by
+    !> species. The polyhedra are left alone: the polyhedron tool undoes
+    !> itself (a second click), and their defaults are not what the tool
+    !> started from.
+    subroutine atomtool_extras()
+      use representations, only: reptype_is_atombased
+      use systems, only: atlisttype_species
+      use utils, only: iw_coloredit, iw_button
+
+      integer :: i
+      logical :: ldum
+
+      ldum = iw_coloredit("Paint color##annotpaint",rgb=w%annot%paint_rgb)
+      call iw_tooltip("Color of the paint tool",ttshown)
+      if (iw_button("Reset##annotatomreset",danger=.true.,sameline=.true.)) then
+         do i = 1, w%sc%nrep
+            associate(r => w%sc%rep(i))
+              if (.not.r%isinit .or. r%owner /= 0) cycle
+              if (.not.reptype_is_atombased(r%type)) cycle
+              r%atoms%style%type = atlisttype_species
+              call r%atoms%style%reset(r)
+            end associate
+         end do
+         w%sc%disp%atype = atlisttype_species
+         call w%sc%disp%reset_shown(w%isys)
+         w%sc%forcebuildlists = .true.
+         w%sc%nextbuildlists_fixcam = .true.
+         call igCloseCurrentPopup()
+      end if
+      call iw_tooltip("Bring the colors and sizes of the atoms back to the defaults, and show &
+         &all the hidden atoms and molecules (the polyhedron tool undoes itself: click the &
+         &atom again)",ttshown)
+
+    end subroutine atomtool_extras
   end subroutine draw_annot_row
 
   !> Show or hide the annotation row of view w; hiding it turns its
@@ -4601,7 +4649,8 @@ contains
   end subroutine annot_draw_menu
 
   !> Whether irep is an object of the scene of view w of type itype
-  !> (with itype = 0, of any of the types in annot_types).
+  !> (with itype = 0, of any of the types in annot_types whose tools
+  !> work on objects).
   function annot_valid(w,irep,itype) result(ok)
     class(window), intent(in) :: w
     integer, intent(in) :: irep, itype
@@ -4614,7 +4663,7 @@ contains
     if (itype > 0) then
        ok = (w%sc%rep(irep)%type == itype)
     else
-       ok = any(annot_types == w%sc%rep(irep)%type)
+       ok = any(annot_types == w%sc%rep(irep)%type .and. annot_isobj)
     end if
 
   end function annot_valid
@@ -4649,11 +4698,13 @@ contains
   !> The flavor of the objects of type itype (one of annot_types).
   function annot_flavor(itype) result(iflv)
     use representations, only: repflavor_planar, repflavor_shapes, repflavor_text,&
-       repflavor_measure, repflavor_axes, repflavor_unknown
+       repflavor_measure, repflavor_axes, repflavor_unknown, repflavor_atoms_basic
     integer, intent(in) :: itype
     integer :: iflv
 
     select case (itype)
+    case (reptype_atoms)
+       iflv = repflavor_atoms_basic
     case (reptype_planar)
        iflv = repflavor_planar
     case (reptype_shapes)

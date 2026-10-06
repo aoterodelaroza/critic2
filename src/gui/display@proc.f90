@@ -100,6 +100,34 @@ contains
 
   end subroutine scene_display_update
 
+  !> The rows of the atom Show mask of the Display (system isys) that
+  !> hold the cell atoms iat(:), in irow. If the cell atoms are not
+  !> whole groups of the mask, its rows become the cell atoms first,
+  !> each shown as its group was, so that the rows change only these
+  !> atoms.
+  module subroutine scene_display_rows_for(disp,isys,iat,irow)
+    use systems, only: sysc
+    class(scene_display), intent(inout) :: disp
+    integer, intent(in) :: isys
+    integer, intent(in) :: iat(:)
+    integer, allocatable, intent(inout) :: irow(:)
+
+    integer, allocatable :: k(:)
+
+    call disp%update(isys)
+    if (.not.allocated(disp%ashown)) then
+       irow = (/integer ::/)
+       return
+    end if
+    if (.not.sysc(isys)%attype_rows_whole(disp%atype,iat)) then
+       k = sysc(isys)%attype_celatom_ids(disp%atype)
+       disp%ashown = disp%ashown(k)
+       disp%atype = sysc(isys)%attype_celatom_type()
+    end if
+    irow = sysc(isys)%attype_rows(disp%atype,iat)
+
+  end subroutine scene_display_rows_for
+
   !> Deallocate the Display.
   module subroutine scene_display_end(disp)
     class(scene_display), intent(inout) :: disp

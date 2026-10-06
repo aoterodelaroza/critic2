@@ -171,6 +171,30 @@ contains
 
   end subroutine atom_style_reset_colors
 
+  !> The rows of atom style d (system isys) that hold the cell atoms
+  !> iat(:), in irow. If the cell atoms are not whole groups of the
+  !> style, its rows become the cell atoms first, each with the color
+  !> and radius it has now, so that the rows change only these atoms.
+  module subroutine atom_style_rows_for(d,isys,iat,irow)
+    use systems, only: sysc
+    class(atom_geom_style), intent(inout) :: d
+    integer, intent(in) :: isys
+    integer, intent(in) :: iat(:)
+    integer, allocatable, intent(inout) :: irow(:)
+
+    integer, allocatable :: k(:)
+
+    if (.not.sysc(isys)%attype_rows_whole(d%type,iat)) then
+       k = sysc(isys)%attype_celatom_ids(d%type)
+       d%rgb = d%rgb(:,k)
+       d%rad = d%rad(k)
+       d%type = sysc(isys)%attype_celatom_type()
+       d%ntype = size(k,1)
+    end if
+    irow = sysc(isys)%attype_rows(d%type,iat)
+
+  end subroutine atom_style_rows_for
+
   !> Deallocate all arrays and end the atom syle.
   module subroutine atom_style_end(d)
     class(atom_geom_style), intent(inout) :: d
@@ -511,6 +535,33 @@ contains
     d%isinit = .true.
 
   end subroutine coordpoly_style_alloc
+
+  !> The center rows of polyhedra style d (system isys) that hold the
+  !> cell atoms iat(:), in irow. If the cell atoms are not whole groups
+  !> of the style, its rows become the cell atoms first, each with the
+  !> settings of the group it was in, so that the rows change only
+  !> these atoms.
+  module subroutine coordpoly_style_rows_for(d,isys,iat,irow)
+    use systems, only: sysc
+    class(coordpoly_geom_style), intent(inout) :: d
+    integer, intent(in) :: isys
+    integer, intent(in) :: iat(:)
+    integer, allocatable, intent(inout) :: irow(:)
+
+    integer, allocatable :: k(:)
+
+    if (.not.sysc(isys)%attype_rows_whole(d%type,iat)) then
+       k = sysc(isys)%attype_celatom_ids(d%type)
+       d%shown = d%shown(k)
+       d%corner = d%corner(:,k)
+       d%dmin = d%dmin(k)
+       d%dmax = d%dmax(k)
+       d%type = sysc(isys)%attype_celatom_type()
+       d%ntype = size(k,1)
+    end if
+    irow = sysc(isys)%attype_rows(d%type,iat)
+
+  end subroutine coordpoly_style_rows_for
 
   !> Reset the coordination-polyhedra style to defaults from the
   !> system pointed at by representation r.
