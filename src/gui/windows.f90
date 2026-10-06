@@ -513,7 +513,8 @@ module windows
   integer, parameter, public :: atomtool_shrink = 3 ! make the atoms smaller
   integer, parameter, public :: atomtool_hide = 4 ! hide the atoms (scene Display)
   integer, parameter, public :: atomtool_poly = 5 ! toggle the polyhedra centered on the atoms
-  integer, parameter, public :: atomtool_NUM = 5
+  integer, parameter, public :: atomtool_label = 6 ! show or hide the labels of the atoms
+  integer, parameter, public :: atomtool_NUM = 6
 
   ! what the draw bind is doing in the object editing mode (vm_objedit)
   ! object editing in the view: pick radius of the handles and items, and

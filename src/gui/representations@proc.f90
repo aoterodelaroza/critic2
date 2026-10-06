@@ -351,6 +351,30 @@ contains
 
   end function reptype_is_atombased
 
+  !> The row of the label style of the labels object r that holds cell
+  !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
+  !> depending on the label type.
+  module function labels_row(r,iat) result(idl)
+    use systems, only: sys
+    type(representation), intent(in) :: r
+    integer, intent(in) :: iat
+    integer :: idl
+
+    select case(r%labels%type)
+    case (0,5,6)
+       idl = sys(r%id)%c%atcel(iat)%is
+    case (2,3)
+       idl = iat
+    case (1,4,8)
+       idl = sys(r%id)%c%atcel(iat)%idx
+    case (7)
+       idl = sys(r%id)%c%idatcelmol(1,iat)
+    case default
+       idl = 0
+    end select
+
+  end function labels_row
+
   !> Whether field k of system isys has critical points other than
   !> the nuclei (from AUTO or a checkpoint file). If withpaths, also
   !> the bond paths of its bond critical points.
@@ -1262,16 +1286,7 @@ contains
                    end if
 
                    if (dolabels) then
-                      select case(r%labels%type)
-                      case (0,5,6)
-                         idl = c%atcel(i)%is
-                      case (2,3)
-                         idl = i
-                      case (1,4,8)
-                         idl = c%atcel(i)%idx
-                      case (7)
-                         idl = c%idatcelmol(1,i)
-                      end select
+                      idl = labels_row(r,i)
 
                       ! labels
                       if (r%labels%style%shown(idl)) &

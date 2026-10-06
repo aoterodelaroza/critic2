@@ -3277,7 +3277,7 @@ contains
        icon_sh_sphere, icon_ui_cell, icon_sh_cone, icon_sh_cylinder, icon_tx_screen,&
        icon_tx_point, icon_tx_atom, icon_tx_bond, icon_ms_distance, icon_ms_angle,&
        icon_ms_dihedral, icon_ax_scene, icon_ax_window, icon_at_paint, icon_at_enlarge,&
-       icon_at_shrink, icon_at_hide, icon_ui_polyhedra
+       icon_at_shrink, icon_at_hide, icon_ui_polyhedra, icon_ui_labels
     integer, intent(in) :: itype
     integer, allocatable, intent(out) :: tools(:)
     integer, allocatable, intent(out) :: icons(:)
@@ -3288,8 +3288,9 @@ contains
     if (itype == reptype_atoms) then
        ! the atom tools (atomtool_*), with no select or remove
        tools = (/(k, k = objtool_kind0+1, objtool_kind0+atomtool_NUM)/)
-       icons = (/icon_at_paint,icon_at_enlarge,icon_at_shrink,icon_at_hide,icon_ui_polyhedra/)
-       falls = (/"Pa","En","Sh","Hi","Po"/)
+       icons = (/icon_at_paint,icon_at_enlarge,icon_at_shrink,icon_at_hide,icon_ui_polyhedra,&
+          icon_ui_labels/)
+       falls = (/"Pa","En","Sh","Hi","Po","La"/)
     elseif (itype == reptype_planar) then
        ! the kinds are planarkind_*
        tools = (/(k, k = objtool_select, objtool_kind0+planarkind_NUM)/)
@@ -5358,6 +5359,8 @@ contains
        str = "Click an atom to hide it"
     case (atomtool_poly)
        str = "Click an atom to toggle its polyhedron"
+    case (atomtool_label)
+       str = "Click an atom to show or hide its label"
     case default
        str = ""
     end select
@@ -5389,6 +5392,11 @@ contains
     case (atomtool_poly)
        str = "Polyhedron: click (" // kn(BIND_OBJEDIT_DRAW) // ") an atom to show or hide the " //&
           "coordination polyhedron centered on it" // sel
+    case (atomtool_label)
+       str = "Label: click (" // kn(BIND_OBJEDIT_DRAW) // ") an atom to show or hide its label. " //&
+          "The labels go by the label type of the labels object (atom names if it is made " //&
+          "here): with atom names, all the symmetry-equivalent atoms of a crystal change " //&
+          "together. Clicking a selected atom acts on the whole selection"
     case default
        str = ""
     end select

@@ -986,6 +986,7 @@ module representations
   public :: iso_estimate_cost
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
+  public :: labels_row
   public :: cps_field
   public :: cps_field_default
   public :: field_has_cps
@@ -1044,6 +1045,11 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module function labels_row(r,iat) result(idl)
+       type(representation), intent(in) :: r
+       integer, intent(in) :: iat
+       integer :: idl
+     end function labels_row
      module function text_template(p,ipl) result(t)
        type(rep_text), intent(in) :: p
        integer, intent(in) :: ipl

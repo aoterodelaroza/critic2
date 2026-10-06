@@ -794,21 +794,23 @@ contains
   !> (objtool_kind0 + atomtool_*), with the input of this frame inp. A
   !> click on an atom paints it with the paint color of the view,
   !> enlarges or shrinks it, hides it, or shows or hides the polyhedron
-  !> centered on it; a click on a selected atom does it to the whole
-  !> selection. Painting goes on while dragging, over every other atom
-  !> the mouse crosses (one by one). The tools edit the styles that already exist: the
-  !> colors and radii of the atom-based objects of the scene, the Show
-  !> mask of the Display, and the centers of the first polyhedra object
-  !> (made if there is none). Their rows become cell atoms if the atoms
-  !> are not whole groups of them (rows_for).
+  !> centered on it or its label; a click on a selected atom does it to
+  !> the whole selection. Painting goes on while dragging, over every
+  !> other atom the mouse crosses (one by one). The tools edit the styles
+  !> that already exist: the colors and radii of the atom-based objects of
+  !> the scene, the Show mask of the Display, the centers of the first
+  !> polyhedra object, and the label rows of the first labels object (the
+  !> two made if there is none). Their rows become cell atoms if the atoms
+  !> are not whole groups of them (rows_for), except for the labels, whose
+  !> rows go by their label type.
   module subroutine atomtool_events(w,inp)
     use representations, only: reptype_is_atombased, reptype_polyhedra,&
-       repflavor_polyhedra_basic
+       repflavor_polyhedra_basic, reptype_labels, repflavor_labels_basic, labels_row
     use systems, only: sys, sysc
     class(window), intent(inout), target :: w
     type(objedit_input), intent(inout) :: inp
 
-    integer :: itool, iat, nat, i, ipoly, nsel
+    integer :: itool, iat, nat, i, irep, nsel
     integer, allocatable :: iatl(:), irow(:), isel(:)
     logical :: show, made
 
@@ -869,17 +871,10 @@ contains
        ! the first polyhedra object, made with no centers if there is
        ! none; the clicked atom says whether the polyhedra are shown or
        ! hidden
-       ipoly = 0
-       do i = 1, w%sc%nrep
-          if (w%sc%rep(i)%isinit .and. w%sc%rep(i)%owner == 0 .and.&
-             w%sc%rep(i)%type == reptype_polyhedra) then
-             ipoly = i
-             exit
-          end if
-       end do
-       made = (ipoly == 0)
-       if (made) call w%sc%add_representation(reptype_polyhedra,repflavor_polyhedra_basic,id=ipoly)
-       associate(r => w%sc%rep(ipoly))
+       irep = first_rep(reptype_polyhedra)
+       made = (irep == 0)
+       if (made) call w%sc%add_representation(reptype_polyhedra,repflavor_polyhedra_basic,id=irep)
+       associate(r => w%sc%rep(irep))
          if (.not.r%poly%style%isinit) call r%poly%style%reset(r)
          if (r%poly%style%isinit) then
             if (made) r%poly%style%shown = .false.
@@ -889,12 +884,51 @@ contains
             if (show) r%shown = .true.
          end if
        end associate
+    elseif (itool == atomtool_label) then
+       ! the first labels object, made with atom names and no labels shown
+       ! if there is none; the label rows go by its label type (no
+       ! regrouping: the type is also what the labels say), and the
+       ! clicked atom says whether they are shown or hidden
+       irep = first_rep(reptype_labels)
+       made = (irep == 0)
+       if (made) call w%sc%add_representation(reptype_labels,repflavor_labels_basic,id=irep)
+       associate(r => w%sc%rep(irep))
+         ! a new object: atom names, rows made again for that type
+         if (made) then
+            r%labels%type = 1
+            call r%labels%style%reset(r)
+         elseif (.not.r%labels%style%isinit) then
+            call r%labels%style%reset(r)
+         end if
+         if (r%labels%style%isinit) then
+            if (made) r%labels%style%shown = .false.
+            show = .not.r%labels%style%shown(labels_row(r,iat))
+            do i = 1, size(iatl,1)
+               r%labels%style%shown(labels_row(r,iatl(i))) = show
+            end do
+            if (show) r%shown = .true.
+         end if
+       end associate
     end if
 
     ! the styles are drawn by the scene: rebuild it, keeping the camera
     w%sc%forcebuildlists = .true.
     w%sc%nextbuildlists_fixcam = .true.
 
+  contains
+    !> The first object of type itype in the scene (not transient), 0 if
+    !> there is none.
+    function first_rep(itype) result(ir)
+      integer, intent(in) :: itype
+      integer :: ir
+
+      do ir = 1, w%sc%nrep
+         if (w%sc%rep(ir)%isinit .and. w%sc%rep(ir)%owner == 0 .and.&
+            w%sc%rep(ir)%type == itype) return
+      end do
+      ir = 0
+
+    end function first_rep
   end subroutine atomtool_events
 
   !> Whether a press of the select or remove tool (inp%itool) at the
