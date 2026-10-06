@@ -2144,7 +2144,12 @@ end subroutine igClearActiveID
 !x! void igMarkItemEdited(ImGuiID id);
 !x! void igPushOverrideID(ImGuiID id);
 !x! ImGuiID igGetIDWithSeed(const char* str_id_begin,const char* str_id_end,ImGuiID seed);
-!x! void igItemSize_Vec2(const ImVec2 size,float text_baseline_y);
+! void igItemSize_Vec2(const ImVec2 size,float text_baseline_y);
+subroutine igItemSize_Vec2(size,text_baseline_y) bind(c,name="igItemSize_Vec2")
+  import ImVec2, c_float
+  type(ImVec2), intent(in), value :: size
+  real(c_float), value :: text_baseline_y
+end subroutine igItemSize_Vec2
 !x! void igItemSize_Rect(const ImRect bb,float text_baseline_y);
 !x! bool igItemAdd(const ImRect bb,ImGuiID id,const ImRect* nav_bb,ImGuiItemFlags extra_flags);
 !x! bool igItemHoverable(const ImRect bb,ImGuiID id);

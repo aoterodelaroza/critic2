@@ -781,6 +781,7 @@ contains
 
     io%FontGlobalScale = 1._c_float
     tooltip_enabled = .true.
+    toolbar_labels = .true.
     tooltip_delay = 0.5_c_float
     tooltip_wrap_factor = 40._c_float
     tree_select_updates_inpcon = .true.

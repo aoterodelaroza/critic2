@@ -116,6 +116,7 @@ module utils
   public :: iw_icon_togglebutton
   public :: iw_iconbutton_height
   public :: iw_flyout_button
+  public :: iw_caption_below
   public :: iw_push_iconrow_frame
   public :: iw_pop_iconrow_frame
   public :: iw_close_button
@@ -428,7 +429,7 @@ module utils
        logical :: iw_menuitem
      end function iw_menuitem
      module function iw_button(str,danger,sameline,disabled,siz,&
-        popupcontext,popupflags,nocapture)
+        popupcontext,popupflags,nocapture,caption)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: danger
        logical, intent(in), optional :: sameline
@@ -437,6 +438,7 @@ module utils
        logical, intent(inout), optional :: popupcontext
        integer(c_int), intent(in), optional :: popupflags
        logical, intent(in), optional :: nocapture
+       character(len=*), intent(in), optional :: caption
        logical :: iw_button
      end function iw_button
      module function iw_atom_button(str,rgb,havergb,sameline,disabled,inert) result(pressed)
@@ -456,7 +458,7 @@ module utils
        logical :: pressed
      end function iw_icon_button
      module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
-        popupcontext,popupflags,danger,scale) result(changed)
+        popupcontext,popupflags,danger,scale,caption) result(changed)
        character(len=*,kind=c_char), intent(in) :: strid
        integer(c_int), intent(in) :: tex
        character(len=*,kind=c_char), intent(in) :: fallback
@@ -467,6 +469,7 @@ module utils
        integer(c_int), intent(in), optional :: popupflags
        logical, intent(in), optional :: danger
        real(c_float), intent(in), optional :: scale
+       character(len=*), intent(in), optional :: caption
        logical :: changed
      end function iw_icon_togglebutton
      module subroutine iw_push_iconrow_frame(scale)
@@ -474,6 +477,10 @@ module utils
      end subroutine iw_push_iconrow_frame
      module subroutine iw_pop_iconrow_frame()
      end subroutine iw_pop_iconrow_frame
+     module subroutine iw_caption_below(str,xmin)
+       character(len=*), intent(in) :: str
+       real(c_float), intent(in), optional :: xmin
+     end subroutine iw_caption_below
      module function iw_flyout_button(strid,disabled) result(pressed)
        character(len=*,kind=c_char), intent(in) :: strid
        logical, intent(in), optional :: disabled

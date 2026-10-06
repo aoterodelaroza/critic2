@@ -259,7 +259,7 @@ contains
     ! that draw and edit the 2D and 3D shapes, texts, measurements and axes
     ldum = w%annot%shown
     if (iw_icon_togglebutton("annotbutton",icon_tex(icon_ui_annotate),"An",ldum,&
-       disabled=.not.enabled)) call annot_toggle(w)
+       disabled=.not.enabled,caption="Annot")) call annot_toggle(w)
     call iw_tooltip("Show or hide the annotation toolbar, with the tools that draw 2D and 3D &
        &shapes, texts, measurements, and axes in the view (" //&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ANNOTATE)) // ")",ttshown)
@@ -267,7 +267,7 @@ contains
     call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
 
     if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabled,&
-       sameline=.true.)) then
+       sameline=.true.,caption="Atoms")) then
        call apply_displayflags(atoms=.true.)
        chbuild = .true.
     end if
@@ -275,7 +275,7 @@ contains
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
     if (iw_icon_togglebutton("bondstoggle",icon_tex(icon_ui_bonds),"Bn",isbond,disabled=.not.enabled,&
-       sameline=.true.)) then
+       sameline=.true.,caption="Bonds")) then
        call apply_displayflags(bonds=.true.)
        chbuild = .true.
     end if
@@ -292,7 +292,7 @@ contains
        idum = icon_ui_label_wyck
     end if
     if (iw_icon_togglebutton("labelstoggle",icon_tex(idum),"Lb",islabelsl,disabled=.not.enabled,&
-       sameline=.true.)) then
+       sameline=.true.,caption="Labels")) then
        call cycle_labels()
        call apply_displayflags(labels=.true.)
        chbuild = .true.
@@ -302,7 +302,7 @@ contains
 
     if (.not.enabled .or. .not.ismol) then
        if (iw_icon_togglebutton("celltoggle",icon_tex(icon_ui_cell),"Cl",isuc,disabled=.not.enabled,&
-          sameline=.true.)) then
+          sameline=.true.,caption="Cell")) then
           call apply_displayflags(cell=.true.)
           chbuild = .true.
        end if
@@ -311,7 +311,7 @@ contains
     end if
 
     if (iw_icon_togglebutton("polytoggle",icon_tex(icon_ui_polyhedra),"Ph",ispoly,disabled=.not.enabled,&
-       sameline=.true.)) then
+       sameline=.true.,caption="Poly")) then
        call apply_displayflags(poly=.true.)
        chbuild = .true.
     end if
@@ -332,7 +332,7 @@ contains
        ! below, which is not part of the toolbar row)
        call iw_push_iconrow_frame()
        ldum = iw_button(msg // "###viewperiodicity",disabled=.not.enabled,popupcontext=ok,&
-          popupflags=ImGuiPopupFlags_MouseButtonLeft)
+          popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Cells")
        call iw_pop_iconrow_frame()
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
        if (ok) then
@@ -357,7 +357,7 @@ contains
     ! camera lock controls in a popup
     call igSameLine(0._c_float,2._c_float * g%Style%ItemSpacing%x)
     ldum = iw_icon_togglebutton("camerabutton",icon_tex(icon_ui_camera),"Cam",&
-       disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Camera")
     call iw_tooltip("Change the camera and scene settings",ttshown)
     if (ok) then
        if (associated(w%sc)) then
@@ -434,7 +434,7 @@ contains
 
     ! toolbar: apply the settings of this scene to all systems
     if (iw_icon_togglebutton("applyallbutton",icon_tex(icon_ui_applyall),"Ap",&
-       disabled=.not.enabled,sameline=.true.,danger=.true.)) then
+       disabled=.not.enabled,sameline=.true.,danger=.true.,caption="All")) then
        ! only a multi-selection scopes
        onlysel = (tree_nselected() > 1)
        do i = 1, nsys
@@ -463,7 +463,7 @@ contains
 
     ! toolbar: reset this scene to the default settings
     if (iw_icon_togglebutton("resetscenebutton",icon_tex(icon_ui_reset),"Rs",&
-       disabled=.not.enabled,sameline=.true.,danger=.true.)) then
+       disabled=.not.enabled,sameline=.true.,danger=.true.,caption="Reset")) then
        call w%sc%init(w%isys)
        chbuild = .true.
     end if
@@ -474,13 +474,13 @@ contains
     call igSameLine(0._c_float,-1._c_float)
     call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
     if (iw_icon_togglebutton("displaybutton",icon_tex(icon_ui_display),"Ds",&
-       disabled=.not.enabled,sameline=.true.)) &
+       disabled=.not.enabled,sameline=.true.,caption="Show")) &
        idum = stack_create_window(wintype_display,.true.,idparent=w%id,orraise=-1)
     call iw_tooltip("Select the part of the system displayed in this view",ttshown)
 
     ! toolbar: draw button, with a popup for adding new objects to the view
     ldum = iw_icon_togglebutton("drawbutton",icon_tex(icon_ui_draw),"Dw",sameline=.true.,&
-       disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Draw")
     call iw_tooltip("Add a new object to the view",ttshown)
     if (ok) then
        if (associated(w%sc)) then
@@ -592,7 +592,7 @@ contains
 
     ! toolbar: objects list button, with the list of objects in a popup
     ldum = iw_icon_togglebutton("objectsbutton",icon_tex(icon_ui_objects),"Ob",&
-       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Objects")
     call iw_tooltip("Remove and modify the objects in the view",ttshown)
     if (ok) then
        if (associated(w%sc)) then
@@ -644,7 +644,7 @@ contains
 
     ! toolbar: tools button
     ldum = iw_icon_togglebutton("toolsbutton",icon_tex(icon_ui_tools),"Tl",&
-       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,caption="Tools")
     call iw_tooltip("Show various tools operating on the view of this system",ttshown)
     if (ok) then
        call show_tools_menu(w%isys,w%id,ttshown)
@@ -653,7 +653,7 @@ contains
 
     ! toolbar: new alternate view button
     if (iw_icon_togglebutton("newviewbutton",icon_tex(icon_ui_newview),"Nw",&
-       disabled=.not.enabled,sameline=.true.)) then
+       disabled=.not.enabled,sameline=.true.,caption="View")) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
        ! the value copy aliased the source scene's GL handles; detach so the new
@@ -4465,15 +4465,15 @@ contains
   end subroutine annot_edit_object
 
   !> Draw the annotation row of view w under its toolbar, if it is
-  !> shown: the select and remove tools, which work on all the objects
-  !> edited with the mouse; one button per object type of annot_types,
-  !> with the tool last armed in its group (the arrow next to it, or a
-  !> right click on it, offers the others); and the button that opens
-  !> the editor of the object the tools work on. The armed tool follows
+  !> shown: the button that opens the editor of the object the tools
+  !> work on, and the select and remove tools, which work on all the
+  !> objects edited with the mouse; then one button per object type of
+  !> annot_types, with the tool last armed in its group (the arrow next
+  !> to it, or a right click on it, offers the others). The armed tool follows
   !> the mode of the view: it goes off when the view leaves the object
   !> editing mode. ttshown = the tooltip flag.
   subroutine draw_annot_row(w,ttshown)
-    use utils, only: iw_icon_togglebutton, iw_tooltip, iw_flyout_button, iw_text
+    use utils, only: iw_icon_togglebutton, iw_tooltip, iw_flyout_button, iw_text, iw_caption_below
     use icons, only: icon_tex, icon_ui_objprops
     use representations, only: repflavor_name
     use tools_io, only: string
@@ -4482,9 +4482,13 @@ contains
 
     integer :: ig, i, k, itype
     logical :: enabled, openpop
+    type(ImVec2) :: p0
     integer, allocatable :: tools(:), icons(:)
     character(len=2), allocatable :: falls(:)
     character(kind=c_char,len=:), allocatable, target :: strpop
+
+    ! the captions of the select and remove tools
+    character(len=6), parameter :: rowcaps(2) = (/"Select","Delete"/)
 
     ! the tool goes off if the view left the mode
     if (w%annot%itool /= objtool_none .and..not.(w%viewmode == vm_objedit .and.&
@@ -4492,10 +4496,16 @@ contains
     if (.not.w%annot%shown) return
     enabled = associated(w%sc)
 
-    ! select and remove, for all the object types
+    ! the editor of the object the tools work on, and the select and
+    ! remove tools, for all the object types
+    if (iw_icon_togglebutton("annoteditbutton",icon_tex(icon_ui_objprops),"Ed",&
+       disabled=.not.enabled .or. .not.annot_valid(w,w%annot%irep,0),caption="Edit")) &
+       call w%annot_edit_object()
+    call iw_tooltip("Open the editor of the object the tools are working on: the list of its &
+       &items, and their colors, sizes, and styles",ttshown)
     call objtool_list(0,tools,icons,falls)
     do i = 1, size(tools)
-       call tool_button(0,tools(i),icons(i),falls(i),i > 1,"")
+       call tool_button(0,tools(i),icons(i),falls(i),.true.,"",caption=trim(rowcaps(i)))
     end do
 
     ! one button per object type, with the tool last armed in it; the
@@ -4511,9 +4521,11 @@ contains
           " tools")
        openpop = enabled .and. igIsItemHovered(ImGuiHoveredFlags_None) .and.&
           igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)
+       call igGetItemRectMin(p0)
        call igSameLine(0._c_float,1._c_float)
        if (iw_flyout_button("##annotmore" // string(ig),disabled=.not.enabled)) openpop = .true.
        call iw_tooltip("More " // trim(repflavor_name(annot_flavor(itype))) // " tools",ttshown)
+       call iw_caption_below(trim(annot_caption(ig)),xmin=p0%x)
 
        strpop = "##annotpopup" // string(ig) // c_null_char
        if (openpop) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
@@ -4530,26 +4542,19 @@ contains
        end if
     end do
 
-    ! the editor of the object the tools work on
-    call igSameLine(0._c_float,-1._c_float)
-    call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
-    if (iw_icon_togglebutton("annoteditbutton",icon_tex(icon_ui_objprops),"Ed",sameline=.true.,&
-       disabled=.not.enabled .or. .not.annot_valid(w,w%annot%irep,0))) call w%annot_edit_object()
-    call iw_tooltip("Open the editor of the object the tools are working on: the list of its &
-       &items, and their colors, sizes, and styles",ttshown)
-
   contains
     !> The button of tool itool of object type itype (0 = select and
     !> remove, for all the types), with icon icon and fallback text fall,
     !> on the same line as the previous one if sameline. more is added to
     !> its tooltip. A click arms the tool, or turns it off if it was
     !> armed; in a popup (inpopup), it also closes the popup.
-    subroutine tool_button(itype,itool,icon,fall,sameline,more,inpopup)
+    subroutine tool_button(itype,itool,icon,fall,sameline,more,inpopup,caption)
       use gui_main, only: tooltip_enabled
       integer, intent(in) :: itype, itool, icon
       character(len=*), intent(in) :: fall, more
       logical, intent(in) :: sameline
       logical, intent(in), optional :: inpopup
+      character(len=*), intent(in), optional :: caption
 
       logical :: armed
 
@@ -4559,7 +4564,8 @@ contains
          armed = (w%annot%itool == itool .and. w%annot%itype == itype)
       end if
       if (iw_icon_togglebutton("##annottool" // string(itype) // "_" // string(itool),&
-         icon_tex(icon),trim(fall),state=armed,disabled=.not.enabled,sameline=sameline)) then
+         icon_tex(icon),trim(fall),state=armed,disabled=.not.enabled,sameline=sameline,&
+         caption=caption)) then
          if (armed) then
             call w%annot_set_tool(itype,itool,0)
          else

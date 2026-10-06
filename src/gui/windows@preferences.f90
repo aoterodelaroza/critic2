@@ -25,7 +25,7 @@ contains
   module subroutine draw_preferences(w)
     use windows, only: nwin, win
     use tools_io, only: nameguess, string
-    use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
+    use gui_main, only: g, tooltip_enabled, toolbar_labels, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_interface_settings, set_default_color_settings,&
        set_default_reader_settings,&
@@ -128,6 +128,12 @@ contains
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = iw_checkbox(str,tooltip_enabled)
              call iw_tooltip("Show/hide the tooltips when hovering interface elements with the mouse",ttshown)
+          end if
+
+          str = "Show toolbar labels" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             ldum = iw_checkbox(str,toolbar_labels)
+             call iw_tooltip("Show the names of the toolbar buttons in small print under them",ttshown)
           end if
 
           str = "Tooltip delay (s)" // c_null_char

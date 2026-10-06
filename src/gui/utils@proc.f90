@@ -20,6 +20,10 @@ submodule (utils) proc
   use iso_c_binding
   implicit none
 
+  ! toolbar captions (iw_caption_below): font size relative to the
+  ! interface font
+  real(c_float), parameter :: caption_scale = 0.6_c_float
+
   ! deferred-commit state for the iw_inputtext/iw_inputint/iw_inputint3/iw_inputfloat/
   ! iw_inputfloat3 widgets (notlive): the ImGui ID and in-progress value of the input
   ! currently being edited. Only one item is active at a time, so the edit ID is shared
@@ -1953,7 +1957,7 @@ contains
   !> disabled, disable the button. If siz, use this size for the
   !> button. If popupcontext and poupflags, open a popup context with
   !> the given flags and return the resulting bool in popupcontext.
-  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags,nocapture)
+  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags,nocapture,caption)
     use interfaces_cimgui
     use gui_main, only: ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: str
@@ -1964,6 +1968,7 @@ contains
     logical, intent(inout), optional :: popupcontext
     integer(c_int), intent(in), optional :: popupflags
     logical, intent(in), optional :: nocapture
+    character(len=*), intent(in), optional :: caption
     logical :: iw_button
 
     character(len=:,kind=c_char), allocatable, target :: str1
@@ -1996,6 +2001,7 @@ contains
     call igEndDisabled()
     if (danger_) &
        call igPopStyleColor(1)
+    if (present(caption)) call iw_caption_below(caption)
     if (present(popupcontext) .and. present(popupflags)) &
        popupcontext = igBeginPopupContextItem(c_loc(str1),popupflags)
 
@@ -2137,7 +2143,7 @@ contains
   !> color). scale further multiplies the icon side (default 1), for
   !> palettes where the glyph is the only label.
   module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
-     popupcontext,popupflags,danger,scale) result(changed)
+     popupcontext,popupflags,danger,scale,caption) result(changed)
     use interfaces_cimgui
     use gui_main, only: g, fontsize, iconscale, ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: strid
@@ -2150,6 +2156,7 @@ contains
     integer(c_int), intent(in), optional :: popupflags
     logical, intent(in), optional :: danger
     real(c_float), intent(in), optional :: scale
+    character(len=*), intent(in), optional :: caption
     logical :: changed
 
     logical :: disabled_, danger_, state_
@@ -2207,11 +2214,49 @@ contains
     call igEndDisabled()
     call igPopStyleColor(1)
     if (changed .and. present(state)) state = .not.state
+    if (present(caption)) call iw_caption_below(caption)
     ! attach the context popup to the last item (the button in either branch)
     if (present(popupcontext) .and. present(popupflags)) &
        popupcontext = igBeginPopupContextItem(c_null_ptr,popupflags)
 
   end function iw_icon_togglebutton
+
+  !> Draw str in small print under the last item, centered between the
+  !> screen x coordinate xmin (default: the left edge of the last item)
+  !> and the right edge of the last item: the caption of a toolbar button,
+  !> or of a group of them. The line the item is on grows to hold the
+  !> caption, so the next line starts under it. Nothing is drawn if the
+  !> toolbar labels are disabled in the preferences.
+  module subroutine iw_caption_below(str,xmin)
+    use interfaces_cimgui
+    use gui_main, only: g, toolbar_labels
+    character(len=*), intent(in) :: str
+    real(c_float), intent(in), optional :: xmin
+
+    real(c_float) :: fs
+    type(ImVec2) :: p0, p1, pos, top
+    character(kind=c_char,len=:), allocatable, target :: strl
+
+    if (.not.toolbar_labels) return
+    call igGetItemRectMin(p0)
+    call igGetItemRectMax(p1)
+    if (present(xmin)) p0%x = xmin
+
+    ! the caption, just below the item
+    fs = caption_scale * g%FontSize
+    pos%x = 0.5_c_float * (p0%x + p1%x - caption_scale * iw_textwidth(str))
+    pos%y = p1%y
+    strl = str // c_null_char
+    call ImDrawList_AddText_FontPtr(igGetWindowDrawList(),g%Font,fs,pos,&
+       igGetColorU32_Col(ImGuiCol_Text,1._c_float),c_loc(strl),c_null_ptr,0._c_float,c_null_ptr)
+
+    ! make the line tall enough for it: a zero-width item that leaves the
+    ! last item (for its tooltip and popups) alone
+    call igSameLine(0._c_float,0._c_float)
+    call igGetCursorScreenPos(top)
+    call igItemSize_Vec2(ImVec2(0._c_float,p1%y + fs + 1._c_float - g%Style%ItemSpacing%y - top%y),-1._c_float)
+
+  end subroutine iw_caption_below
 
   !> A narrow button with a small triangle pointing down, as tall as the
   !> buttons of iw_icon_togglebutton, to sit right after one of them and

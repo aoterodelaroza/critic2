@@ -503,6 +503,9 @@ module windows
   ! the select and remove tools and the edit button reach too); the atom
   ! tools edit the styles of the scene instead
   logical, parameter, public :: annot_isobj(nannot) = (/.false.,.true.,.true.,.true.,.true.,.true./)
+  ! the caption of each group in the annotation row
+  character(len=7), parameter, public :: annot_caption(nannot) = (/"Atoms  ","2D     ","3D     ",&
+     "Text   ","Measure","Axes   "/)
 
   ! the atom tools (tool objtool_kind0 + atomtool_*)
   integer, parameter, public :: atomtool_paint = 1 ! paint the atoms with the paint color
