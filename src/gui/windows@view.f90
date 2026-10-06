@@ -74,16 +74,17 @@ contains
        BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA, BIND_RECALC_BONDS,&
        BIND_VIEW_TRANSFORM_SUPERCELL,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_SELECT_ALL,&
-       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI
+       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI,&
+       BIND_VIEW_TOGGLE_ANNOTATE
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, repflavor_atoms_basic,&
        repflavor_bonds_basic, repflavor_bonds_vdwcontacts, repflavor_bonds_hbonds,&
        repflavor_labels_basic, repflavor_polyhedra_basic, repflavor_unitcell_basic,&
-       repflavor_axes, repflavor_symelem, reptype_text, repflavor_text,&
-       reptype_measure, repflavor_measure, reptype_isosurface, repflavor_isosurface,&
-       reptype_shapes, repflavor_shapes, repstyle_ballandstick, repstyle_licorice,&
+       repflavor_symelem, reptype_text,&
+       reptype_measure, reptype_isosurface, repflavor_isosurface,&
+       reptype_shapes, repstyle_ballandstick, repstyle_licorice,&
        repstyle_sticks, reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
-       reptype_planar, repflavor_planar
+       reptype_planar
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -91,7 +92,7 @@ contains
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
-       icon_ui_tools, icon_ui_newview, icon_ui_display
+       icon_ui_tools, icon_ui_newview, icon_ui_display, icon_ui_annotate
     use crystalmod, only: iperiod_vacthr
     use systems, only: sysc, sys, sys_init, nsys, ok_system, group_is_scf, group_master,&
        cp_anchor_make
@@ -239,6 +240,8 @@ contains
        end if
        if (is_bind_event(BIND_RECALC_BONDS)) &
           call sysc(w%isys)%rebond()
+       if (is_bind_event(BIND_VIEW_TOGGLE_ANNOTATE)) &
+          call annot_toggle(w)
        if (any(changedisplay)) then
           call apply_displayflags(atoms=changedisplay(1),bonds=changedisplay(2),&
              labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5))
@@ -246,12 +249,25 @@ contains
        end if
     end if
 
-    ! toolbar: display toggles (atoms, bonds, labels, cell, polyhedra)
+    ! toolbar: the annotation row button, and the display toggles (atoms,
+    ! bonds, labels, cell, polyhedra)
     enabled = associated(w%sc)
     ismol = .false.
     if (goodsys) ismol = sys(w%isys)%c%ismolecule
 
-    if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabled)) then
+    ! toolbar: annotation row button, first, which shows the row of tools
+    ! that draw and edit the 2D and 3D shapes, texts, measurements and axes
+    ldum = w%annot%shown
+    if (iw_icon_togglebutton("annotbutton",icon_tex(icon_ui_annotate),"An",ldum,&
+       disabled=.not.enabled)) call annot_toggle(w)
+    call iw_tooltip("Show or hide the annotation toolbar, with the tools that draw 2D and 3D &
+       &shapes, texts, measurements, and axes in the view (" //&
+       trim(get_bind_keyname(BIND_VIEW_TOGGLE_ANNOTATE)) // ")",ttshown)
+    call igSameLine(0._c_float,-1._c_float)
+    call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
+
+    if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabled,&
+       sameline=.true.)) then
        call apply_displayflags(atoms=.true.)
        chbuild = .true.
     end if
@@ -528,8 +544,9 @@ contains
           end if
 
           if (iw_menuitem("Axes")) &
-             call w%add_rep_and_edit(reptype_axes,repflavor_axes)
-          call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
+             call annot_draw_menu(w,reptype_axes)
+          call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes, and drag them into &
+             &place with the annotation toolbar",ttshown)
 
           if (iw_menuitem("Isosurface")) &
              call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
@@ -551,22 +568,24 @@ contains
           call iw_tooltip("Display symmetry elements",ttshown)
 
           if (iw_menuitem("Text")) &
-             call w%add_rep_and_edit(reptype_text,repflavor_text)
-          call iw_tooltip("Add text annotations to the view",ttshown)
+             call annot_draw_menu(w,reptype_text)
+          call iw_tooltip("Add text annotations to the view, placed with the annotation toolbar",&
+             ttshown)
 
           if (iw_menuitem("Measurements")) &
-             call w%add_rep_and_edit(reptype_measure,repflavor_measure)
-          call iw_tooltip("Measure and display distances, angles, and dihedrals",ttshown)
+             call annot_draw_menu(w,reptype_measure)
+          call iw_tooltip("Measure and display distances, angles, and dihedrals, picked with &
+             &the annotation toolbar",ttshown)
 
           if (iw_menuitem("3D Shapes")) &
-             call w%add_rep_and_edit(reptype_shapes,repflavor_shapes)
-          call iw_tooltip("Add 3D shapes (spheres, boxes, arrows, cones, cylinders) to the scene; &
-             &they move with the structure",ttshown)
+             call annot_draw_menu(w,reptype_shapes)
+          call iw_tooltip("Add 3D shapes (spheres, boxes, arrows, cones, cylinders) to the scene, &
+             &drawn with the annotation toolbar; they move with the structure",ttshown)
 
           if (iw_menuitem("2D Drawing")) &
-             call w%add_rep_and_edit(reptype_planar,repflavor_planar)
+             call annot_draw_menu(w,reptype_planar)
           call iw_tooltip("Draw 2D shapes (ellipses, rectangles, polygons, lines, arrows, freehand) &
-             &on the screen; they stay fixed when the camera moves",ttshown)
+             &on the screen with the annotation toolbar; they stay fixed when the camera moves",ttshown)
        end if
        call igEndPopup()
     end if
@@ -670,6 +689,9 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Choose the system displayed",ttshown)
+
+    ! the annotation row, under the toolbar
+    call draw_annot_row(w,ttshown)
 
     ! update the draw lists and render
     if (associated(w%sc)) then
@@ -1232,8 +1254,11 @@ contains
     w%mousepos_cp = 0
     w%mousepos_anchor = 0
 
-    ! reset the viewmodes
+    ! reset the viewmodes; the annotation tools work on the objects of
+    ! the new scene
     call viewmode_to_navigate(w)
+    w%annot%irep = 0
+    w%annot%newrep = .false.
 
     ! set the time
     w%timelast_assign = glfwGetTime()
@@ -1487,8 +1512,9 @@ contains
           "rotate a whole molecule, while the run is active."
     case (vm_objedit)
        hint = "Edit the object in the view"
-       descr = "Draw new items of the object in the view, or select, edit, and remove the "//&
-          "existing ones, with the tool chosen in the toolbar of its object editor."
+       descr = "Draw new items of the objects in the view, or select, edit, and remove the "//&
+          "existing ones, with the tool chosen in the annotation toolbar of the view or in "//&
+          "the toolbar of an object editor."
     case (vm_pick_bond)
        if (w%vmdata%acceptempty) then
           hint = "Pick a bond or a position in the view"
@@ -1980,17 +2006,21 @@ contains
     end if
 
   contains
-    !> The name of the view mode: the type of the object being edited in
-    !> the object editing mode, the name of the mode otherwise.
+    !> The name of the view mode: in the object editing mode, the type
+    !> of the object the tool works on (select and remove), or of the
+    !> objects it draws; the name of the mode otherwise.
     function vm_label() result(str)
       use representations, only: repflavor_name
       character(len=:), allocatable :: str
 
-      integer :: iown
-
       str = trim(vmnames(w%viewmode))
-      iown = objedit_owner(w)
-      if (iown > 0) str = trim(repflavor_name(win(iown)%rep%flavor))
+      if (w%viewmode /= vm_objedit) return
+      if (w%annot%itool <= objtool_kind0) then
+         if (annot_valid(w,w%annot%irep,0)) &
+            str = trim(repflavor_name(w%sc%rep(w%annot%irep)%flavor))
+      elseif (w%annot%itype > 0) then
+         str = trim(repflavor_name(annot_flavor(w%annot%itype)))
+      end if
 
     end function vm_label
 
@@ -2214,7 +2244,7 @@ contains
 
     ! process mode-specific events
     if (w%viewmode == vm_objedit) then
-       ! edit the object of the editor that owns the mode
+       ! draw and edit objects with the tool of the view (w%annot)
        call objedit_events()
     elseif (w%viewmode == vm_navigate .or. forcedpick) then
        ! navigation mode
@@ -2510,40 +2540,35 @@ contains
        call viewmode_to_navigate(w)
 
   contains
-    !> The object editing view mode (vm_objedit): draw new objects, and
-    !> select, edit or remove the existing ones, in the object of the
-    !> editor window that owns the mode, with the tool chosen in its
-    !> toolbar. This reads the input common to all object types (the
-    !> camera binds, the mouse, the draw/constrain/exit binds) and hands
-    !> it to the handler of the object type. The exit bind, if the handler
-    !> did not use it and nothing is in progress, turns the tool off (back
-    !> to navigation).
+    !> The object editing view mode (vm_objedit): draw new items, and
+    !> select, edit or remove the existing ones, with the tool of the
+    !> view (w%annot), armed in its annotation row or in the toolbar of an
+    !> object editor. This reads the input common to all object types
+    !> (the camera binds, the mouse, the draw/constrain/exit binds), finds
+    !> the object the tool works on, and hands the input to the handler
+    !> of its type. A drawing tool works on an object of its type, made
+    !> with the first press if there is none; the select and remove tools
+    !> work on the object whose item is under the press. The exit bind,
+    !> if the handler did not use it and nothing is in progress, turns
+    !> the tool off (back to navigation).
     subroutine objedit_events()
       use representations, only: representation, reptype_planar, reptype_shapes, reptype_text,&
          reptype_measure, reptype_axes
 
       type(representation), pointer :: r
       type(objedit_input) :: inp
-      integer :: iown
+      integer :: irep, i
       integer(c_int) :: ibtnd, ibtne
       real*8 :: dx, dy
-      logical :: ok
+      logical :: hit, created
 
-      ! the owner's object; the editor tracks the mode and turns its tool
-      ! off if the view leaves it
-      iown = w%vmdata%owner
-      nullify(r)
-      ok = (iown >= 1 .and. iown <= nwin)
-      if (ok) ok = win(iown)%isinit .and. associated(win(iown)%rep)
-      if (ok) r => win(iown)%rep
-      if (ok) ok = r%isinit .and. r%id == w%isys
-      if (.not.ok) then
+      inp%itool = w%annot%itool
+      if (inp%itool == objtool_none .or. .not.associated(w%sc)) then
          w%oe%op = objop_none
          w%oe%rpress = .false.
          call w%viewmode_exit_forced()
          return
       end if
-      inp%itool = win(iown)%editrep_tool
 
       ! camera controls of this mode
       call igGetMousePos(mousepos)
@@ -2597,27 +2622,73 @@ contains
       else
          inp%exitev = hover .and. is_bind_event(BIND_OBJEDIT_EXIT,norepeat=.true.,iview=w%id)
       end if
-      ! the handler of the object type (an object without one leaves the mode)
-      select case (r%type)
-      case (reptype_planar)
-         call w%planar_events(r,inp)
-      case (reptype_shapes)
-         call w%shapes_events(r,inp)
-      case (reptype_text)
-         call w%text_events(r,inp)
-      case (reptype_measure)
-         call w%measure_events(r,inp)
-      case (reptype_axes)
-         call w%axes_events(r,inp)
-      case default
-         w%oe%op = objop_none
-         call w%viewmode_exit_forced()
-         return
-      end select
+      ! the object the tool works on
+      irep = w%annot%irep
+      hit = .false.
+      created = .false.
+      if (inp%itool == objtool_select .or. inp%itool == objtool_remove) then
+         ! a press goes to the current object if it grabs something there,
+         ! else to the first other one where it does
+         if (.not.annot_valid(w,irep,0)) irep = 0
+         if (inp%press .and. w%oe%op == objop_none) then
+            if (irep > 0) hit = w%objedit_hit(w%sc%rep(irep),inp)
+            if (.not.hit) then
+               do i = 1, w%sc%nrep
+                  if (i == irep .or. .not.annot_valid(w,i,0)) cycle
+                  if (w%objedit_hit(w%sc%rep(i),inp)) then
+                     if (irep > 0) call annot_unselect(w%sc%rep(irep))
+                     irep = i
+                     hit = .true.
+                     exit
+                  end if
+               end do
+            end if
+         end if
+      elseif (w%annot%newrep .or. .not.annot_valid(w,irep,w%annot%itype)) then
+         ! a drawing tool without its object: made with the first press
+         irep = 0
+         if (inp%press) then
+            call w%sc%add_representation(w%annot%itype,annot_flavor(w%annot%itype),id=irep)
+            w%annot%newrep = .false.
+            created = .true.
+         end if
+      end if
+      w%annot%irep = irep
+
+      ! the handler of the object type
+      if (irep > 0) then
+         r => w%sc%rep(irep)
+         select case (r%type)
+         case (reptype_planar)
+            call w%planar_events(r,inp)
+         case (reptype_shapes)
+            call w%shapes_events(r,inp)
+         case (reptype_text)
+            call w%text_events(r,inp)
+         case (reptype_measure)
+            call w%measure_events(r,inp)
+         case (reptype_axes)
+            call w%axes_events(r,inp)
+         end select
+
+         ! a double click on an item with the select tool opens the editor
+         ! of its object (the text handler sends the keyboard to its box)
+         if (hit .and. inp%dbl .and. inp%itool == objtool_select .and. r%type /= reptype_text) &
+            call w%annot_edit_object()
+
+         ! an object made by this press that got nothing from it (a click
+         ! on empty space, the first atom of a measurement) goes away
+         ! again, along with its number in the object names
+         if (created .and. w%oe%op == objop_none .and. annot_empty(r)) then
+            w%sc%icount(r%flavor) = w%sc%icount(r%flavor) - 1
+            call r%end()
+            w%annot%irep = 0
+         end if
+      end if
 
       ! the exit bind, if the handler did not use it
       if (inp%exitev .and. w%oe%op == objop_none) &
-         call win(iown)%editrep_set_tool(objtool_none)
+         call w%annot_set_tool(0,objtool_none,0)
 
     end subroutine objedit_events
 
@@ -3485,21 +3556,6 @@ contains
        mode /= vm_builder_addfragment)
   end function vm_exits_on_empty
 
-  !> Whether any mouse button was clicked this frame
-  !> The editor window that owns the object editing mode of view w, if
-  !> the view is in that mode and the editor has an object; 0 otherwise.
-  function objedit_owner(w) result(iown)
-    class(window), intent(in) :: w
-    integer :: iown
-
-    iown = 0
-    if (w%viewmode /= vm_objedit) return
-    if (w%vmdata%owner < 1 .or. w%vmdata%owner > nwin) return
-    if (.not.associated(win(w%vmdata%owner)%rep)) return
-    iown = w%vmdata%owner
-
-  end function objedit_owner
-
   !> Whether view w is in the object editing mode with a tool that
   !> places items on bonds (the text tool for bonds, the distance tool
   !> before its first atom), which needs the bonds in the pick buffer.
@@ -3508,15 +3564,12 @@ contains
     class(window), intent(in) :: w
     logical :: ok
 
-    integer :: iown
-
     ok = .false.
-    iown = objedit_owner(w)
-    if (iown == 0) return
-    if (win(iown)%rep%type == reptype_text) then
-       ok = (win(iown)%editrep_tool == objtool_kind0 + 1 + textpos_bond)
-    elseif (win(iown)%rep%type == reptype_measure .and. associated(w%sc)) then
-       ok = (win(iown)%editrep_tool == objtool_kind0 + 1 .and. w%sc%nmsel == 0)
+    if (w%viewmode /= vm_objedit) return
+    if (w%annot%itype == reptype_text) then
+       ok = (w%annot%itool == objtool_kind0 + 1 + textpos_bond)
+    elseif (w%annot%itype == reptype_measure .and. associated(w%sc)) then
+       ok = (w%annot%itool == objtool_kind0 + 1 .and. w%sc%nmsel == 0)
     end if
 
   end function objedit_bondpick
@@ -3528,12 +3581,8 @@ contains
     class(window), intent(in) :: w
     logical :: ok
 
-    integer :: iown
-
-    ok = .false.
-    iown = objedit_owner(w)
-    if (iown == 0) return
-    ok = (win(iown)%rep%type == reptype_measure .and. win(iown)%editrep_tool > objtool_kind0)
+    ok = (w%viewmode == vm_objedit .and. w%annot%itype == reptype_measure .and.&
+       w%annot%itool > objtool_kind0)
 
   end function objedit_measuring
 
@@ -3545,14 +3594,12 @@ contains
     use representations, only: reptype_measure
     class(window), intent(inout) :: w
 
-    integer :: iown
-
-    iown = objedit_owner(w)
-    if (iown == 0 .or. .not.associated(w%sc)) return
-    if (win(iown)%rep%type == reptype_measure) w%sc%nmsel = 0
+    if (w%viewmode /= vm_objedit .or. .not.associated(w%sc)) return
+    if (w%annot%itype == reptype_measure) w%sc%nmsel = 0
 
   end subroutine objedit_drop_picks
 
+  !> Whether any mouse button was clicked this frame
   function any_mouse_clicked()
     logical :: any_mouse_clicked
 
@@ -4345,5 +4392,324 @@ contains
        idparent=w%id,orraise=-1)
 
   end subroutine add_rep_and_edit
+
+  !> Arm tool itool (objtool_*, or objtool_kind0 + a kind of the object
+  !> type itype) of the object editing mode of view w, which the view
+  !> owns whether the tool comes from its annotation row or from the
+  !> toolbar of an object editor. A drawing tool works on object irep
+  !> of the scene (an object editor); irep = 0 picks the current object
+  !> of type itype, which is made with the first item if there is none,
+  !> and irep = -1 makes a new one with the first item (the Draw menu).
+  !> The select and remove tools work on all the objects edited with
+  !> the mouse (itype = 0 from the annotation row; irep, if positive,
+  !> is the object they start on). objtool_none releases the mode.
+  module subroutine annot_set_tool(w,itype,itool,irep)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: itype, itool, irep
+
+    integer :: ig
+
+    w%oe%op = objop_none
+    w%oe%rpress = .false.
+    w%forcerender = .true.
+    if (itool == objtool_none .or. .not.associated(w%sc)) then
+       call w%viewmode_release_forced(w%id,vm_objedit)
+       w%annot%itool = objtool_none
+       return
+    end if
+
+    ! the picks of a measuring tool do not survive a change of tool
+    call objedit_drop_picks(w)
+    w%annot%itool = itool
+    w%annot%itype = itype
+    w%annot%newrep = (irep < 0)
+    if (irep > 0) then
+       w%annot%irep = irep
+    elseif (irep < 0) then
+       w%annot%irep = 0
+    elseif (itype > 0 .and. itool > objtool_kind0) then
+       w%annot%irep = annot_find_rep(w,itype)
+    end if
+    ig = annot_group(itype)
+    if (ig > 0 .and. itool > objtool_kind0) w%annot%face(ig) = itool
+    call w%viewmode_set_forced(vm_objedit,objtool_prompt(itype,itool),w%id)
+
+  end subroutine annot_set_tool
+
+  !> Open (or raise) the editor of the object the annotation tool of
+  !> view w works on. If focustext, the text box of the editor (a text
+  !> object) takes the keyboard.
+  module subroutine annot_edit_object(w,focustext)
+    class(window), intent(inout), target :: w
+    logical, intent(in), optional :: focustext
+
+    integer :: idw
+
+    if (.not.annot_valid(w,w%annot%irep,0)) return
+    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=w%annot%irep,&
+       idparent=w%id,orraise=-1)
+    if (present(focustext)) then
+       if (focustext) win(idw)%editrep_focustext = igGetFrameCount()
+    end if
+
+  end subroutine annot_edit_object
+
+  !> Draw the annotation row of view w under its toolbar, if it is
+  !> shown: the select and remove tools, which work on all the objects
+  !> edited with the mouse; one button per object type of annot_types,
+  !> with the tool last armed in its group (the arrow next to it, or a
+  !> right click on it, offers the others); and the button that opens
+  !> the editor of the object the tools work on. The armed tool follows
+  !> the mode of the view: it goes off when the view leaves the object
+  !> editing mode. ttshown = the tooltip flag.
+  subroutine draw_annot_row(w,ttshown)
+    use utils, only: iw_icon_togglebutton, iw_tooltip, iw_flyout_button, iw_text
+    use icons, only: icon_tex, icon_ui_objprops
+    use representations, only: repflavor_name
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+
+    integer :: ig, i, k, itype
+    logical :: enabled, openpop
+    integer, allocatable :: tools(:), icons(:)
+    character(len=2), allocatable :: falls(:)
+    character(kind=c_char,len=:), allocatable, target :: strpop
+
+    ! the tool goes off if the view left the mode
+    if (w%annot%itool /= objtool_none .and..not.(w%viewmode == vm_objedit .and.&
+       w%vmdata%owner == w%id)) w%annot%itool = objtool_none
+    if (.not.w%annot%shown) return
+    enabled = associated(w%sc)
+
+    ! select and remove, for all the object types
+    call objtool_list(0,tools,icons,falls)
+    do i = 1, size(tools)
+       call tool_button(0,tools(i),icons(i),falls(i),i > 1,"")
+    end do
+
+    ! one button per object type, with the tool last armed in it; the
+    ! others in a popup
+    do ig = 1, nannot
+       itype = annot_types(ig)
+       call igSameLine(0._c_float,-1._c_float)
+       call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
+       call objtool_list(itype,tools,icons,falls)
+       k = findloc(tools,w%annot%face(ig),1)
+       call tool_button(itype,tools(k),icons(k),falls(k),.true.,". The arrow next to this " //&
+          "button, or a right click on it, has the other " // trim(repflavor_name(annot_flavor(itype))) //&
+          " tools")
+       openpop = enabled .and. igIsItemHovered(ImGuiHoveredFlags_None) .and.&
+          igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)
+       call igSameLine(0._c_float,1._c_float)
+       if (iw_flyout_button("##annotmore" // string(ig),disabled=.not.enabled)) openpop = .true.
+       call iw_tooltip("More " // trim(repflavor_name(annot_flavor(itype))) // " tools",ttshown)
+
+       strpop = "##annotpopup" // string(ig) // c_null_char
+       if (openpop) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
+       if (igBeginPopup(c_loc(strpop),ImGuiWindowFlags_None)) then
+          call iw_text(trim(repflavor_name(annot_flavor(itype))),highlight=.true.)
+          k = 0
+          do i = 1, size(tools)
+             if (tools(i) <= objtool_kind0) cycle
+             k = k + 1
+             call tool_button(itype,tools(i),icons(i),falls(i),k > 1,"",inpopup=.true.)
+          end do
+          call igEndPopup()
+       end if
+    end do
+
+    ! the editor of the object the tools work on
+    call igSameLine(0._c_float,-1._c_float)
+    call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
+    if (iw_icon_togglebutton("annoteditbutton",icon_tex(icon_ui_objprops),"Ed",sameline=.true.,&
+       disabled=.not.enabled .or. .not.annot_valid(w,w%annot%irep,0))) call w%annot_edit_object()
+    call iw_tooltip("Open the editor of the object the tools are working on: the list of its &
+       &items, and their colors, sizes, and styles",ttshown)
+
+  contains
+    !> The button of tool itool of object type itype (0 = select and
+    !> remove, for all the types), with icon icon and fallback text fall,
+    !> on the same line as the previous one if sameline. more is added to
+    !> its tooltip. A click arms the tool, or turns it off if it was
+    !> armed; in a popup (inpopup), it also closes the popup.
+    subroutine tool_button(itype,itool,icon,fall,sameline,more,inpopup)
+      use gui_main, only: tooltip_enabled
+      integer, intent(in) :: itype, itool, icon
+      character(len=*), intent(in) :: fall, more
+      logical, intent(in) :: sameline
+      logical, intent(in), optional :: inpopup
+
+      logical :: armed
+
+      if (itype == 0) then
+         armed = (w%annot%itool == itool)
+      else
+         armed = (w%annot%itool == itool .and. w%annot%itype == itype)
+      end if
+      if (iw_icon_togglebutton("##annottool" // string(itype) // "_" // string(itool),&
+         icon_tex(icon),trim(fall),state=armed,disabled=.not.enabled,sameline=sameline)) then
+         if (armed) then
+            call w%annot_set_tool(itype,itool,0)
+         else
+            call w%annot_set_tool(0,objtool_none,0)
+         end if
+         if (present(inpopup)) then
+            if (inpopup) call igCloseCurrentPopup()
+         end if
+      end if
+      if (tooltip_enabled) then
+         if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+            call iw_tooltip(objtool_hint(itype,itool) // more,ttshown)
+      end if
+
+    end subroutine tool_button
+  end subroutine draw_annot_row
+
+  !> Show or hide the annotation row of view w; hiding it turns its
+  !> tool off.
+  subroutine annot_toggle(w)
+    class(window), intent(inout), target :: w
+
+    w%annot%shown = .not.w%annot%shown
+    if (.not.w%annot%shown .and. w%annot%itool /= objtool_none) &
+       call w%annot_set_tool(0,objtool_none,0)
+
+  end subroutine annot_toggle
+
+  !> The Draw menu entry of the object type itype, one of annot_types,
+  !> in view w: show the annotation row and arm the tool on the button
+  !> of the type, whose first item goes to a new object. The axes,
+  !> which are drawn as soon as they exist, are made right away, with
+  !> the select tool armed on them.
+  subroutine annot_draw_menu(w,itype)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: itype
+
+    integer :: irep
+
+    if (.not.associated(w%sc)) return
+    if (w%sc%isinit == 0) call w%sc%init(w%isys)
+    w%annot%shown = .true.
+    if (itype == reptype_axes) then
+       call w%sc%add_representation(itype,annot_flavor(itype),id=irep)
+       call w%annot_set_tool(itype,objtool_select,irep)
+    else
+       call w%annot_set_tool(itype,w%annot%face(annot_group(itype)),-1)
+    end if
+
+  end subroutine annot_draw_menu
+
+  !> Whether irep is an object of the scene of view w of type itype
+  !> (with itype = 0, of any of the types in annot_types).
+  function annot_valid(w,irep,itype) result(ok)
+    class(window), intent(in) :: w
+    integer, intent(in) :: irep, itype
+    logical :: ok
+
+    ok = associated(w%sc)
+    if (ok) ok = (irep >= 1 .and. irep <= w%sc%nrep)
+    if (ok) ok = w%sc%rep(irep)%isinit
+    if (.not.ok) return
+    if (itype > 0) then
+       ok = (w%sc%rep(irep)%type == itype)
+    else
+       ok = any(annot_types == w%sc%rep(irep)%type)
+    end if
+
+  end function annot_valid
+
+  !> The current object of type itype in the scene of view w: the one
+  !> the annotation tool works on, if it has that type, else the last
+  !> one of the scene. 0 if there is none.
+  function annot_find_rep(w,itype) result(irep)
+    class(window), intent(in) :: w
+    integer, intent(in) :: itype
+    integer :: irep
+
+    irep = w%annot%irep
+    if (annot_valid(w,irep,itype)) return
+    do irep = w%sc%nrep, 1, -1
+       if (annot_valid(w,irep,itype)) return
+    end do
+    irep = 0
+
+  end function annot_find_rep
+
+  !> The group of object type itype in the annotation row (its index in
+  !> annot_types), 0 if it has none.
+  pure function annot_group(itype) result(ig)
+    integer, intent(in) :: itype
+    integer :: ig
+
+    ig = findloc(annot_types,itype,1)
+
+  end function annot_group
+
+  !> The flavor of the objects of type itype (one of annot_types).
+  function annot_flavor(itype) result(iflv)
+    use representations, only: repflavor_planar, repflavor_shapes, repflavor_text,&
+       repflavor_measure, repflavor_axes, repflavor_unknown
+    integer, intent(in) :: itype
+    integer :: iflv
+
+    select case (itype)
+    case (reptype_planar)
+       iflv = repflavor_planar
+    case (reptype_shapes)
+       iflv = repflavor_shapes
+    case (reptype_text)
+       iflv = repflavor_text
+    case (reptype_measure)
+       iflv = repflavor_measure
+    case (reptype_axes)
+       iflv = repflavor_axes
+    case default
+       iflv = repflavor_unknown
+    end select
+
+  end function annot_flavor
+
+  !> Whether object r (one of annot_types) has no items. The axes are
+  !> never empty: they are drawn as soon as they exist.
+  function annot_empty(r) result(ok)
+    use representations, only: representation
+    type(representation), intent(in) :: r
+    logical :: ok
+
+    select case (r%type)
+    case (reptype_planar)
+       ok = (r%planar%nshape == 0)
+    case (reptype_shapes)
+       ok = (r%shapes%nshape == 0)
+    case (reptype_text)
+       ok = (r%text%ntext == 0)
+    case (reptype_measure)
+       ok = (r%measure%nitem == 0)
+    case default
+       ok = .false.
+    end select
+
+  end function annot_empty
+
+  !> Unselect the selected item of object r (the select tool moved to
+  !> another object).
+  subroutine annot_unselect(r)
+    use representations, only: representation
+    type(representation), intent(inout) :: r
+
+    select case (r%type)
+    case (reptype_planar)
+       r%planar%isel = 0
+    case (reptype_shapes)
+       r%shapes%isel = 0
+    case (reptype_text)
+       r%text%isel = 0
+    case (reptype_measure)
+       r%measure%isel = 0
+    end select
+
+  end subroutine annot_unselect
+
 
 end submodule view

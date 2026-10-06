@@ -20,7 +20,7 @@ module windows
   use crystalmod, only: nice_cell
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
-     rep_axes
+     rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
@@ -127,7 +127,7 @@ module windows
   integer :: icombo_fmt1 = 1
 
   ! view modes (positive = normal, user-selectable; negative = forced).
-  integer, parameter, public :: vm_objedit = -13 ! forced by an object editor: draw and edit the object in the view
+  integer, parameter, public :: vm_objedit = -13 ! object editing (w%annot, armed in the annotation row or an object editor)
   integer, parameter, public :: vm_pick_bond = -12 ! forced by a window awaiting a bond pick
   integer, parameter, public :: vm_builder_bondorder = -11 ! forced by builder: cycle the bond order (persistent)
   integer, parameter, public :: vm_builder_bondremove = -10 ! forced by builder: remove bonds (persistent)
@@ -482,25 +482,21 @@ module windows
   end type melting_state
   public :: melting_state
 
-  ! tools of an object editor (window%editrep_tool), the same for all
-  ! object types: no tool (the view is not in vm_objedit), select and
-  ! edit the items of the object, remove the clicked items, or draw a new
-  ! item of a kind of the object type (tool objtool_kind0 + kind; for a
-  ! 2D drawing, the kinds are planarkind_*)
+  ! tools of the object editing mode (window%annot%itool), the same for
+  ! all object types: no tool (the view is not in vm_objedit), select and
+  ! edit the items of the objects, remove the clicked items, or draw a
+  ! new item of a kind of an object type (tool objtool_kind0 + kind; for
+  ! a 2D drawing, the kinds are planarkind_*)
   integer, parameter, public :: objtool_none = 0
   integer, parameter, public :: objtool_select = 1
   integer, parameter, public :: objtool_remove = 2
   integer, parameter, public :: objtool_kind0 = objtool_remove ! the last tool that draws nothing
 
-  abstract interface
-     !> A text about tool itool (objtool_*, or objtool_kind0 + a kind) of
-     !> an object editor: its tooltip in the toolbar, or its prompt in the
-     !> view bar.
-     function objtool_text(itool) result(str)
-       integer, intent(in) :: itool
-       character(len=:), allocatable :: str
-     end function objtool_text
-  end interface
+  ! the object types edited with the mouse in the view, in the order of
+  ! their groups in the annotation row
+  integer, parameter, public :: nannot = 5
+  integer, parameter, public :: annot_types(nannot) = (/reptype_planar,reptype_shapes,&
+     reptype_text,reptype_measure,reptype_axes/)
 
   ! what the draw bind is doing in the object editing mode (vm_objedit)
   ! object editing in the view: pick radius of the handles and items, and
@@ -564,7 +560,7 @@ module windows
   !> Input of the object editing view mode (vm_objedit) in one frame,
   !> read by objedit_events for the handler of the object type.
   type objedit_input
-     integer :: itool = 0 ! the editor's tool (objtool_*, or objtool_kind0 + a kind of the object)
+     integer :: itool = 0 ! the tool of the view, w%annot%itool (objtool_*, or objtool_kind0 + a kind of the object)
      logical :: hover = .false. ! the mouse is over the view
      real*8 :: xm(2) = 0d0 ! mouse position (NDC of the render buffer)
      real(c_float) :: tex(2) = 0._c_float ! mouse position (texture pixels)
@@ -598,6 +594,20 @@ module windows
      type(axes_edit_state) :: axes ! axes
   end type objedit_state
   public :: objedit_state
+
+  !> Per-view state of the annotation row (the tools that draw and edit
+  !> the items of the objects in annot_types with the mouse) and of the
+  !> object editing mode (vm_objedit), which the view owns whether the
+  !> tool was armed in the row or in the toolbar of an object editor.
+  type annot_state
+     logical :: shown = .false. ! the row is shown under the toolbar of the view
+     integer :: itool = objtool_none ! the armed tool (objtool_*, or objtool_kind0 + a kind of itype)
+     integer :: itype = 0 ! object type of the armed tool (0 = select and remove, from the row)
+     integer :: irep = 0 ! the object the tool works on (index in sc%rep; 0 = none yet)
+     logical :: newrep = .false. ! the first item drawn goes to a new object (Draw menu)
+     integer :: face(nannot) = objtool_kind0 + 1 ! the tool on the button of each group (the last armed)
+  end type annot_state
+  public :: annot_state
 
   !> Per-window state of the save-multiple window
   type savemult_state
@@ -840,6 +850,7 @@ module windows
      logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
      type(objedit_state) :: oe ! the object being drawn or edited with the mouse (vm_objedit)
+     type(annot_state) :: annot ! the annotation row and the tool of the object editing mode
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      integer(c_int) :: mousepos_cp(5) = 0 ! critical point under mouse position (dl_sphere%cpidx; 0 = none)
@@ -887,8 +898,6 @@ module windows
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      integer :: editrep_pick_item = 0 ! text/shape/measurement item waiting for a view pick (0 = idle)
-     integer(c_int) :: editrep_tool = objtool_none ! tool of the object editor (objtool_*, or a
-                                                   ! kind to draw: objtool_kind0 + kind)
      integer(c_int) :: editrep_focustext = -1 ! frame of a request for the text editor's text box to
                                               ! take the keyboard (-1 = none; it expires if not drawn)
      integer :: editrep_pick_slot = 0 ! measurement atom the pick will fill (measurement editor only)
@@ -1105,6 +1114,8 @@ module windows
      procedure :: viewmode_process_events ! process mouse events according to view mode
      procedure :: select_view ! select the system to show in a view
      procedure :: add_rep_and_edit ! add a representation to the view's scene and open its editor
+     procedure :: annot_set_tool ! arm a tool of the object editing mode (annotation row, editors)
+     procedure :: annot_edit_object ! open the editor of the object the annotation tool works on
      procedure :: draw_cursor_overlay ! draw the overlay at the mouse cursor (mode icon + measurement)
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
@@ -1155,8 +1166,8 @@ module windows
      procedure :: draw_editrep_measure
      procedure :: draw_editrep_shapes
      procedure :: draw_editrep_planar
-     procedure :: editrep_set_tool
      procedure :: editrep_toolbar
+     procedure :: objedit_hit
      procedure :: planar_events
      procedure :: shapes_events
      procedure :: text_events
@@ -1556,6 +1567,14 @@ module windows
        integer, intent(in) :: itype, flavor
        integer, intent(in), optional :: ifield
      end subroutine add_rep_and_edit
+     module subroutine annot_set_tool(w,itype,itool,irep)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: itype, itool, irep
+     end subroutine annot_set_tool
+     module subroutine annot_edit_object(w,focustext)
+       class(window), intent(inout), target :: w
+       logical, intent(in), optional :: focustext
+     end subroutine annot_edit_object
      module subroutine viewmode_set_mode(w,okmods)
        class(window), intent(inout), target :: w
        logical, intent(in) :: okmods
@@ -1857,20 +1876,30 @@ module windows
        type(representation), intent(inout) :: r
        type(objedit_input), intent(inout) :: inp
      end subroutine axes_events
-     module subroutine editrep_set_tool(w,itool,prompt)
+     module function objedit_hit(w,r,inp) result(ok)
        class(window), intent(inout), target :: w
-       integer, intent(in) :: itool
-       character(len=*), intent(in), optional :: prompt
-     end subroutine editrep_set_tool
-     module subroutine editrep_toolbar(w,itools,icons,falls,hint,prompt,ttshown)
+       type(representation), intent(in) :: r
+       type(objedit_input), intent(in) :: inp
+       logical :: ok
+     end function objedit_hit
+     module subroutine editrep_toolbar(w,ttshown)
        class(window), intent(inout), target :: w
-       integer, intent(in) :: itools(:)
-       integer, intent(in) :: icons(:)
-       character(len=*), intent(in) :: falls(:)
-       procedure(objtool_text) :: hint
-       procedure(objtool_text) :: prompt
        logical, intent(inout) :: ttshown
      end subroutine editrep_toolbar
+     module subroutine objtool_list(itype,tools,icons,falls)
+       integer, intent(in) :: itype
+       integer, allocatable, intent(out) :: tools(:)
+       integer, allocatable, intent(out) :: icons(:)
+       character(len=2), allocatable, intent(out) :: falls(:)
+     end subroutine objtool_list
+     module function objtool_hint(itype,itool) result(str)
+       integer, intent(in) :: itype, itool
+       character(len=:), allocatable :: str
+     end function objtool_hint
+     module function objtool_prompt(itype,itool) result(str)
+       integer, intent(in) :: itype, itool
+       character(len=:), allocatable :: str
+     end function objtool_prompt
      module function draw_editrep_cps(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

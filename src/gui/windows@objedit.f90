@@ -47,16 +47,15 @@ contains
        planarkind_NUM, planarkind_ellipse, planarkind_rect,&
        planarkind_arrow, planarkind_curve, planarkind_freehand, planar_template, planar_append,&
        planar_curve_default_bend,&
-       planar_delete, planar_handles, planar_drag_handle, planar_move,&
+       planar_delete, planar_drag_handle, planar_move,&
        planar_simplify
     use keybindings, only: is_bind_event, BIND_OBJEDIT_FINISH, BIND_OBJEDIT_DELPOINT
     class(window), intent(inout), target :: w
     type(representation), intent(inout) :: r
     type(objedit_input), intent(inout) :: inp
 
-    integer :: ikind, nh, i, k
+    integer :: ikind, k
     real*8 :: d(2)
-    real*8, allocatable :: xh(:,:)
     logical :: ok, changed
 
     real*8, parameter :: free_px = 2d0 ! spacing of the recorded freehand points (pixels)
@@ -86,18 +85,11 @@ contains
           w%oe%moved = .false.
 
           ! a handle of the selected (and shown) shape
-          if (r%planar%isel > 0) then
-             if (r%planar%shape(r%planar%isel)%shown) then
-                call planar_handles(r%planar%shape(r%planar%isel),nh,xh)
-                do i = nh, 1, -1
-                   if (norm2(inp%xm - xh(:,i)) <= objedit_hit_px * inp%pxs) then
-                      w%oe%op = objop_handle
-                      w%oe%ih = i
-                      w%oe%iitem = r%planar%isel
-                      exit
-                   end if
-                end do
-             end if
+          k = planar_handle_at(r,inp%xm,objedit_hit_px*inp%pxs)
+          if (k > 0) then
+             w%oe%op = objop_handle
+             w%oe%ih = k
+             w%oe%iitem = r%planar%isel
           end if
 
           ! a shape: the topmost under the mouse
@@ -252,8 +244,8 @@ contains
     type(representation), intent(inout) :: r
     type(objedit_input), intent(inout) :: inp
 
-    integer :: ikind, nh, i, k
-    real*8 :: tol, p(3), d(3), xh(3,4)
+    integer :: ikind, k
+    real*8 :: tol, p(3), d(3)
     real(c_float) :: t(3), zc
     logical :: changed, ok
 
@@ -274,20 +266,12 @@ contains
             w%oe%op = objop_none
 
             ! a handle of the selected (and shown) shape
-            if (r%shapes%isel > 0) then
-               if (r%shapes%shape(r%shapes%isel)%shown) then
-                  call shape_handles(w,r%shapes%shape(r%shapes%isel),nh,xh)
-                  do i = nh, 1, -1
-                     t = to_tex(w,xh(:,i))
-                     if (norm2(inp%tex - t(1:2)) <= tol) then
-                        w%oe%op = objop_handle
-                        w%oe%ih = i
-                        w%oe%iitem = r%shapes%isel
-                        st%zdep = t(3)
-                        exit
-                     end if
-                  end do
-               end if
+            k = shape_handle_at(w,r,inp%tex,tol,zc)
+            if (k > 0) then
+               w%oe%op = objop_handle
+               w%oe%ih = k
+               w%oe%iitem = r%shapes%isel
+               st%zdep = zc
             end if
 
             ! a shape: the nearest under the mouse
@@ -403,7 +387,7 @@ contains
     type(representation), intent(inout) :: r
     type(objedit_input), intent(inout) :: inp
 
-    integer :: ipl, k, i, iown
+    integer :: ipl, k, i
     real*8 :: p(3)
     real(c_float) :: t(3), t1(3)
     logical :: changed, ok
@@ -412,7 +396,6 @@ contains
     ! the placement of the texts the tool adds (none: select/remove)
     ipl = inp%itool - objtool_kind0 - 1
     if (ipl < textpos_screen .or. ipl > textpos_bond) ipl = -1
-    iown = w%vmdata%owner
     changed = .false.
     if (r%text%isel > r%text%ntext) r%text%isel = 0
     if (w%oe%op == objop_move) then
@@ -433,7 +416,7 @@ contains
             r%text%isel = k
             if (k > 0) then
                if (inp%dbl) then
-                  win(iown)%editrep_focustext = igGetFrameCount()
+                  call w%annot_edit_object(focustext=.true.)
                else
                   w%oe%op = objop_move
                   w%oe%iitem = k
@@ -478,7 +461,7 @@ contains
             end if
             if (ok) then
                call text_append(r%text,tnew)
-               win(iown)%editrep_focustext = igGetFrameCount()
+               call w%annot_edit_object(focustext=.true.)
                changed = .true.
             end if
          end if
@@ -807,7 +790,106 @@ contains
 
   end subroutine axes_events
 
+  !> Whether a press of the select or remove tool (inp%itool) at the
+  !> mouse (input inp) would grab something of the object r in view w:
+  !> a handle of its selected item, or one of its shown items (the axes
+  !> only for select: they cannot be removed). The view uses it to find
+  !> the object a press of these tools goes to, since they work on all
+  !> the objects edited in the view.
+  module function objedit_hit(w,r,inp) result(ok)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    type(objedit_input), intent(in) :: inp
+    logical :: ok
+
+    integer :: op, ih
+    real*8 :: tol, tolpx
+    real(c_float) :: zc
+
+    ok = .false.
+    if (.not.r%isinit .or. .not.r%shown) return
+    tol = objedit_hit_px * inp%pxs ! NDC
+    tolpx = tol * 0.5d0 * w%FBOside ! texture pixels
+    select case (r%type)
+    case (reptype_planar)
+       ok = (planar_handle_at(r,inp%xm,tol) > 0)
+       if (.not.ok) ok = (planar_shape_at(r,inp%xm,tol) > 0)
+    case (reptype_shapes)
+       ok = (shape_handle_at(w,r,inp%tex,tolpx,zc) > 0)
+       if (.not.ok) ok = (shape_at(w,r,inp%tex,tolpx,zc) > 0)
+    case (reptype_text)
+       ok = (text_at(w,r,inp%xm,tol) > 0)
+    case (reptype_measure)
+       ok = (measure_handle_at(w,r,inp,tolpx) > 0)
+       if (.not.ok) ok = (measure_at(w,r,inp,tolpx) > 0)
+    case (reptype_axes)
+       if (inp%itool == objtool_remove) return
+       call axes_pick(w,r,inp%xm,tol,op,ih)
+       ok = (op /= objop_none)
+    end select
+
+  end function objedit_hit
+
   !xx! private procedures
+
+  !> The handle of the selected (and shown) shape of the 2D drawing r at
+  !> position x (vm_objedit), within tol (NDC); 0 if none. The last
+  !> handles are on top.
+  function planar_handle_at(r,x,tol) result(ih)
+    use representations, only: representation, planar_handles
+    type(representation), intent(in) :: r
+    real*8, intent(in) :: x(2), tol
+    integer :: ih
+
+    integer :: nh
+    real*8, allocatable :: xh(:,:)
+
+    if (r%planar%isel > 0 .and. r%planar%isel <= r%planar%nshape) then
+       if (r%planar%shape(r%planar%isel)%shown) then
+          call planar_handles(r%planar%shape(r%planar%isel),nh,xh)
+          do ih = nh, 1, -1
+             if (norm2(x - xh(:,ih)) <= tol) return
+          end do
+       end if
+    end if
+    ih = 0
+
+  end function planar_handle_at
+
+  !> The handle of the selected (and shown) shape of the 3D shapes r in
+  !> view w at texture position tex, within tol (texture pixels); 0 if
+  !> none. z is the texture depth of the handle. The last handles are
+  !> on top.
+  function shape_handle_at(w,r,tex,tol,z) result(ih)
+    use representations, only: representation
+    class(window), intent(inout), target :: w
+    type(representation), intent(in) :: r
+    real(c_float), intent(in) :: tex(2)
+    real*8, intent(in) :: tol
+    real(c_float), intent(out) :: z
+    integer :: ih
+
+    integer :: nh
+    real*8 :: xh(3,4)
+    real(c_float) :: t(3)
+
+    z = 0._c_float
+    if (r%shapes%isel > 0 .and. r%shapes%isel <= r%shapes%nshape) then
+       if (r%shapes%shape(r%shapes%isel)%shown) then
+          call shape_handles(w,r%shapes%shape(r%shapes%isel),nh,xh)
+          do ih = nh, 1, -1
+             t = to_tex(w,xh(:,ih))
+             if (norm2(tex - t(1:2)) <= tol) then
+                z = t(3)
+                return
+             end if
+          end do
+       end if
+    end if
+    ih = 0
+
+  end function shape_handle_at
 
   !> The topmost shown shape of r at position x (vm_objedit), 0 if none:
   !> the outlines (within tol of their edge) first, then the insides of
@@ -876,7 +958,7 @@ contains
 
   !> Draw over the view w the planar shape being drawn or dragged, and
   !> the outline and handles of the selected shape (select tool) of the
-  !> planar shapes representation r. itool = the editor's tool, xm =
+  !> planar shapes representation r. itool = the tool of the view (w%annot%itool), xm =
   !> the mouse position (NDC of the render buffer), pxs = NDC size of a
   !> screen pixel.
   subroutine planar_view_overlay(w,r,itool,xm,pxs)

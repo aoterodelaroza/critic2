@@ -275,6 +275,7 @@ contains
     call set_bind(BIND_OBJEDIT_FINISH,ImGuiKey_Enter,mod_none)
     call set_bind(BIND_OBJEDIT_DELPOINT,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_OBJEDIT_NOSNAP,ImGuiKey_None,mod_ctrl)
+    call set_bind(BIND_VIEW_TOGGLE_ANNOTATE,ImGuiKey_D,mod_none)
 
   end subroutine set_default_keybindings
 

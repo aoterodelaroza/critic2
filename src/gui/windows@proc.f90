@@ -1107,7 +1107,7 @@ contains
     call w%geometry_addbond%clear()
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
-    w%editrep_tool = objtool_none
+    w%annot = annot_state()
     w%editrep_focustext = -1
     w%oe = objedit_state()
     w%editrep_isopick = -1

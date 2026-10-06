@@ -90,7 +90,10 @@ module icons
   integer, parameter, public :: icon_ms_dihedral = 57 ! measure a dihedral
   integer, parameter, public :: icon_ax_scene = 58 ! place the axes in the scene
   integer, parameter, public :: icon_ax_window = 59 ! place the axes in the window
-  integer, parameter, public :: icon_NUM = 59
+  ! icon IDs: annotation row of the view
+  integer, parameter, public :: icon_ui_annotate = 60 ! show the annotation row (a square, a circle, a small down triangle)
+  integer, parameter, public :: icon_ui_objprops = 61 ! open the editor of the object (sliders)
+  integer, parameter, public :: icon_NUM = 61
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

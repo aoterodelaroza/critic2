@@ -1152,7 +1152,6 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
     use windows, only: win
-    use icons, only: icon_pl_select, icon_ax_scene, icon_ax_window
     use representations, only: axplace_scene, axplace_window
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputtext,&
        iw_radiobutton, iw_combo_simple
@@ -1166,19 +1165,12 @@ contains
     integer :: icoord, iview
     real*8 :: zf
 
-    ! the toolbar: select, and the two placements (objtool_kind0 + 1 +
-    ! axplace_*); the texts stand in for icons that did not load
-    integer, parameter :: tools(3) = (/objtool_select,objtool_kind0+1+axplace_scene,&
-       objtool_kind0+1+axplace_window/)
-    integer, parameter :: toolicon(3) = (/icon_pl_select,icon_ax_scene,icon_ax_window/)
-    character(len=2), parameter :: toolfall(3) = (/"Se","Sc","Wi"/)
-
     ! initialize
     changed = .false.
 
     ! the toolbar, which places and edits the axes in the view
     if (w%anchor_view() > 0) &
-       call w%editrep_toolbar(tools,toolicon,toolfall,axes_tool_hint,axes_tool_prompt,ttshown)
+       call w%editrep_toolbar(ttshown)
 
     !! axes kind: cartesian (x/y/z) or crystallographic (a/b/c). Only
     !! meaningful for crystals (molecules have no lattice vectors).
@@ -1895,8 +1887,6 @@ contains
   module function draw_editrep_text(w,ttshown) result(changed)
     use representations, only: textpos_screen, textpos_point, textpos_atom, textpos_bond,&
        text_delete
-    use icons, only: icon_pl_select, icon_vm_remove, icon_tx_screen, icon_tx_point,&
-       icon_tx_atom, icon_tx_bond
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
        iw_table_column
@@ -1908,20 +1898,11 @@ contains
     logical :: changed
 
     logical :: ch, ok, okp, ldum, focus
-    integer :: i, k, iview, isel, idel, ipl, iplpick
+    integer :: i, iview, isel, idel, ipl, iplpick
     real*8 :: xc(3)
     integer(c_int) :: flags
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
-
-    ! the toolbar: the tools, their icons, and the texts drawn instead if
-    ! they did not load. The tool of placement ipl is objtool_kind0 + ipl + 1
-    integer, parameter :: ntool = objtool_kind0 + textpos_bond + 1
-    integer, parameter :: tools(objtool_select:ntool) = (/(k, k = objtool_select, ntool)/)
-    integer, parameter :: toolicon(objtool_select:ntool) = (/&
-       icon_pl_select,icon_vm_remove,icon_tx_screen,icon_tx_point,icon_tx_atom,icon_tx_bond/)
-    character(len=2), parameter :: toolfall(objtool_select:ntool) = (/&
-       "Se","Rm","Sc","Pt","At","Bd"/)
 
     ! initialize
     changed = .false.
@@ -1984,7 +1965,7 @@ contains
     ! the toolbar, which edits the texts in the view: select, remove,
     ! and one tool per placement
     if (iview > 0) &
-       call w%editrep_toolbar(tools,toolicon,toolfall,text_tool_hint,text_tool_prompt,ttshown)
+       call w%editrep_toolbar(ttshown)
 
     ! table of text items
     call iw_text("Text objects",highlight=.true.)
@@ -2046,7 +2027,7 @@ contains
     if (idel > 0) then
        call text_delete(w%rep%text,idel)
        if (iview > 0) then
-          if (win(iview)%vmdata%owner == w%id .and. win(iview)%oe%op == objop_move) &
+          if (win(iview)%annot%irep == w%irep .and. win(iview)%oe%op == objop_move) &
              win(iview)%oe%op = objop_none
        end if
        if (w%editrep_pick_item == idel) then
@@ -2217,8 +2198,6 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_measure(w,ttshown) result(changed)
     use representations, only: measurement_item, measure_delete
-    use icons, only: icon_pl_select, icon_vm_remove, icon_ms_distance, icon_ms_angle,&
-       icon_ms_dihedral
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
        iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
        iw_helpermark, iw_table_column, iw_begintabitem
@@ -2236,14 +2215,6 @@ contains
     logical :: ok
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
-
-    ! the toolbar: the tools, their icons, and the texts drawn instead if
-    ! they did not load. The tool for n atoms is objtool_kind0 + n - 1
-    integer, parameter :: ntool = objtool_kind0 + 3
-    integer, parameter :: tools(objtool_select:ntool) = (/(k, k = objtool_select, ntool)/)
-    integer, parameter :: toolicon(objtool_select:ntool) = (/&
-       icon_pl_select,icon_vm_remove,icon_ms_distance,icon_ms_angle,icon_ms_dihedral/)
-    character(len=2), parameter :: toolfall(objtool_select:ntool) = (/"Se","Rm","Di","An","Dh"/)
 
     changed = .false.
     idel = 0
@@ -2291,7 +2262,7 @@ contains
     ! the toolbar, which makes and edits the measurements in the view:
     ! select, remove, and one tool per kind
     if (iview > 0) &
-       call w%editrep_toolbar(tools,toolicon,toolfall,measure_tool_hint,measure_tool_prompt,ttshown)
+       call w%editrep_toolbar(ttshown)
 
     ! usage hint
     call iw_text("Measurements",highlight=.true.)
@@ -2336,7 +2307,7 @@ contains
        call measure_delete(w%rep%measure,idel)
        w%lastselected = w%rep%measure%isel ! the same selection: the tab stays
        if (iview > 0) then
-          if (win(iview)%vmdata%owner == w%id .and. win(iview)%oe%op /= objop_none) &
+          if (win(iview)%annot%irep == w%irep .and. win(iview)%oe%op /= objop_none) &
              win(iview)%oe%op = objop_none
        end if
        ! keep a pending atom pick bound to the right item (or cancel it if that
@@ -2603,8 +2574,6 @@ contains
     use representations, only: rep_shape, shapekind_sphere, shapekind_box, shapekind_arrow,&
        shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr,&
        shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def, shapes_delete
-    use icons, only: icon_pl_select, icon_vm_remove, icon_sh_sphere, icon_ui_cell, icon_pl_arrow,&
-       icon_sh_cone, icon_sh_cylinder
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
@@ -2622,15 +2591,6 @@ contains
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
     character(len=:), allocatable :: strunit
-
-    ! the toolbar: the tools, their icons, and the texts drawn instead if they did not load
-    integer, parameter :: tools(objtool_select:objtool_kind0+shapekind_NUM) = &
-       (/(k, k = objtool_select, objtool_kind0+shapekind_NUM)/)
-    integer, parameter :: toolicon(objtool_select:objtool_kind0+shapekind_NUM) = (/&
-       icon_pl_select,icon_vm_remove,icon_sh_sphere,icon_ui_cell,icon_pl_arrow,&
-       icon_sh_cone,icon_sh_cylinder/)
-    character(len=2), parameter :: toolfall(objtool_select:objtool_kind0+shapekind_NUM) = (/&
-       "Se","Rm","Sp","Bx","Ar","Co","Cy"/)
 
     ! initialize
     changed = .false.
@@ -2683,7 +2643,7 @@ contains
     ! the toolbar, which edits the shapes in the view: select, remove,
     ! and one tool per kind of shape
     if (iview > 0) &
-       call w%editrep_toolbar(tools,toolicon,toolfall,shapes_tool_hint,shapes_tool_prompt,ttshown)
+       call w%editrep_toolbar(ttshown)
 
     ! table of shapes
     call iw_text("3D Shapes",highlight=.true.)
@@ -2959,15 +2919,13 @@ contains
   !> Draw the editrep window, planar shapes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_planar(w,ttshown) result(changed)
-    use representations, only: planar_shape, planarkind_NUM, planarkind_name,&
+    use representations, only: planar_shape, planarkind_name,&
        planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
        planarkind_curve, planarheads_combostr, planardash_combostr, planarfill_combostr,&
        planarfill_hatched, planarfill_crosshatched, planar_isclosed, planar_haspoints, planar_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
-    use icons, only: icon_vm_remove, icon_pl_select, icon_pl_ellipse, icon_pl_rect,&
-       icon_pl_polygon, icon_pl_polyline, icon_pl_arrow, icon_pl_freehand, icon_pl_curve
     use tools_io, only: string, lower
     use param, only: pi
     class(window), intent(inout), target :: w
@@ -2982,14 +2940,6 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1
     type(planar_shape) :: shaux
 
-    ! the toolbar: icon of each tool, and the text drawn instead if it did not load
-    integer, parameter :: tools(objtool_select:objtool_kind0+planarkind_NUM) = &
-       (/(k, k = objtool_select, objtool_kind0+planarkind_NUM)/)
-    integer, parameter :: toolicon(objtool_select:objtool_kind0+planarkind_NUM) = (/&
-       icon_pl_select,icon_vm_remove,icon_pl_ellipse,icon_pl_rect,icon_pl_polygon,&
-       icon_pl_polyline,icon_pl_arrow,icon_pl_curve,icon_pl_freehand/)
-    character(len=2), parameter :: toolfall(objtool_select:objtool_kind0+planarkind_NUM) = (/&
-       "Se","Rm","El","Re","Pg","Pl","Ar","Cu","Fh"/)
     character(len=6), parameter :: curvept(3) = (/"Start ","Middle","End   "/)
 
     ! initialize
@@ -3005,7 +2955,7 @@ contains
 
     ! the toolbar, which edits the drawing in the view: select, remove,
     ! and one tool per kind of shape
-    call w%editrep_toolbar(tools,toolicon,toolfall,planar_tool_hint,planar_tool_prompt,ttshown)
+    call w%editrep_toolbar(ttshown)
 
     ! table of shapes
     call iw_text("2D Drawing",highlight=.true.)
@@ -3252,44 +3202,15 @@ contains
 
   end function draw_editrep_planar
 
-  !> Make itool (objtool_*, or objtool_kind0 + a kind) the tool of the
-  !> object editor w, arming the object editing mode of its view with the
-  !> prompt shown in the view bar, or releasing the mode for objtool_none.
-  !> Also called by the view (the exit bind turns the tool off).
-  module subroutine editrep_set_tool(w,itool,prompt)
-    class(window), intent(inout), target :: w
-    integer, intent(in) :: itool
-    character(len=*), intent(in), optional :: prompt
-
-    integer :: iview
-
-    w%editrep_tool = itool
-    iview = w%anchor_view()
-    if (iview == 0) return
-    win(iview)%oe%op = objop_none
-    win(iview)%oe%rpress = .false.
-    ! a tool takes the view from a pick commanded by this window's
-    ! tables, which is then abandoned
-    if (itool /= objtool_none) w%editrep_pick_item = 0
-    if (itool == objtool_none) then
-       call win(iview)%viewmode_release_forced(w%id,vm_objedit)
-    else
-       call win(iview)%viewmode_set_forced(vm_objedit,prompt,w%id)
-    end if
-    win(iview)%forcerender = .true.
-
-  end subroutine editrep_set_tool
-
   !> Draw the toolbar of the object editor w: one icon button per tool
-  !> itools(i) (objtool_*, or objtool_kind0 + a kind), with icon icons(i)
-  !> (icon_* id) and the text falls(i) standing in if it did not load. A
-  !> tool button arms the object editing mode of the view with the bar
-  !> prompt prompt(itool), and clicking the armed tool again turns it
-  !> off. hint(itool) is the tooltip of a tool, built only when it is
-  !> shown. The tool goes off here if the view leaves the mode, and with
-  !> the cancel bind while this window has the focus (the view handles it
-  !> when it does).
-  module subroutine editrep_toolbar(w,itools,icons,falls,hint,prompt,ttshown)
+  !> of its object type (objtool_list). A tool button arms the object
+  !> editing mode of the view on this object (annot_set_tool), and
+  !> clicking the armed tool again turns it off. The view owns the tool,
+  !> so a tool shows as armed here when the view works on this object
+  !> with it, whether it was armed here or in the annotation row of the
+  !> view. The cancel bind turns the tool off while this window has the
+  !> focus (the view handles it when it does).
+  module subroutine editrep_toolbar(w,ttshown)
     use utils, only: iw_text, iw_tooltip, iw_icon_togglebutton, iw_push_iconrow_frame,&
        iw_pop_iconrow_frame
     use gui_main, only: tooltip_enabled
@@ -3297,46 +3218,167 @@ contains
     use icons, only: icon_tex
     use tools_io, only: string
     class(window), intent(inout), target :: w
-    integer, intent(in) :: itools(:)
-    integer, intent(in) :: icons(:)
-    character(len=*), intent(in) :: falls(:)
-    procedure(objtool_text) :: hint
-    procedure(objtool_text) :: prompt
     logical, intent(inout) :: ttshown
 
-    integer :: iview, i, k
-    logical :: armed, ldum
+    integer :: iview, i, k, itool, itype
+    logical :: ldum
+    integer, allocatable :: tools(:), icons(:)
+    character(len=2), allocatable :: falls(:)
 
     iview = w%anchor_view()
     if (iview == 0) return
+    itype = w%rep%type
 
-    ! the tool follows the mode of the view
-    armed = (win(iview)%viewmode == vm_objedit .and. win(iview)%vmdata%owner == w%id)
-    if (.not.armed) w%editrep_tool = objtool_none
-    if (armed .and. w%focused()) then
-       if (is_bind_event(BIND_CANCEL,norepeat=.true.)) call w%editrep_set_tool(objtool_none)
+    ! the tool of the view, if it works on this object
+    itool = objtool_none
+    if (win(iview)%viewmode == vm_objedit .and. win(iview)%vmdata%owner == iview .and.&
+       win(iview)%annot%irep == w%irep) itool = win(iview)%annot%itool
+    if (itool /= objtool_none .and. w%focused()) then
+       if (is_bind_event(BIND_CANCEL,norepeat=.true.)) then
+          call win(iview)%annot_set_tool(0,objtool_none,0)
+          itool = objtool_none
+       end if
     end if
 
     call iw_text("Toolbar",highlight=.true.)
     call iw_push_iconrow_frame()
-    do i = 1, size(itools)
-       k = itools(i)
-       ldum = (w%editrep_tool == k)
+    call objtool_list(itype,tools,icons,falls)
+    do i = 1, size(tools)
+       k = tools(i)
+       ldum = (itool == k)
        if (iw_icon_togglebutton("##objtool" // string(k),icon_tex(icons(i)),trim(falls(i)),&
           state=ldum,sameline=(i > 1))) then
+          ! a tool takes the view from a pick commanded by this window's
+          ! tables, which is then abandoned
+          w%editrep_pick_item = 0
           if (ldum) then
-             call w%editrep_set_tool(k,prompt(k))
+             call win(iview)%annot_set_tool(itype,k,w%irep)
           else
-             call w%editrep_set_tool(objtool_none)
+             call win(iview)%annot_set_tool(0,objtool_none,0)
           end if
        end if
        if (tooltip_enabled) then
-          if (igIsItemHovered(ImGuiHoveredFlags_None)) call iw_tooltip(hint(k),ttshown)
+          if (igIsItemHovered(ImGuiHoveredFlags_None)) call iw_tooltip(objtool_hint(itype,k),ttshown)
        end if
     end do
     call iw_pop_iconrow_frame()
 
   end subroutine editrep_toolbar
+
+  !> The tools of the object type itype (reptype_planar, _shapes, _text,
+  !> _measure, _axes): select, remove (not for the axes) and one per kind
+  !> of item it draws (objtool_kind0 + kind), with their icons (icon_*
+  !> ids) and the texts drawn instead if they did not load.
+  module subroutine objtool_list(itype,tools,icons,falls)
+    use representations, only: planarkind_NUM, shapekind_NUM, textpos_bond, axplace_scene,&
+       axplace_window
+    use icons, only: icon_pl_select, icon_vm_remove, icon_pl_ellipse, icon_pl_rect,&
+       icon_pl_polygon, icon_pl_polyline, icon_pl_arrow, icon_pl_freehand, icon_pl_curve,&
+       icon_sh_sphere, icon_ui_cell, icon_sh_cone, icon_sh_cylinder, icon_tx_screen,&
+       icon_tx_point, icon_tx_atom, icon_tx_bond, icon_ms_distance, icon_ms_angle,&
+       icon_ms_dihedral, icon_ax_scene, icon_ax_window
+    integer, intent(in) :: itype
+    integer, allocatable, intent(out) :: tools(:)
+    integer, allocatable, intent(out) :: icons(:)
+    character(len=2), allocatable, intent(out) :: falls(:)
+
+    integer :: k
+
+    if (itype == reptype_planar) then
+       ! the kinds are planarkind_*
+       tools = (/(k, k = objtool_select, objtool_kind0+planarkind_NUM)/)
+       icons = (/icon_pl_select,icon_vm_remove,icon_pl_ellipse,icon_pl_rect,icon_pl_polygon,&
+          icon_pl_polyline,icon_pl_arrow,icon_pl_curve,icon_pl_freehand/)
+       falls = (/"Se","Rm","El","Re","Pg","Pl","Ar","Cu","Fh"/)
+    elseif (itype == reptype_shapes) then
+       ! the kinds are shapekind_*
+       tools = (/(k, k = objtool_select, objtool_kind0+shapekind_NUM)/)
+       icons = (/icon_pl_select,icon_vm_remove,icon_sh_sphere,icon_ui_cell,icon_pl_arrow,&
+          icon_sh_cone,icon_sh_cylinder/)
+       falls = (/"Se","Rm","Sp","Bx","Ar","Co","Cy"/)
+    elseif (itype == reptype_text) then
+       ! the tool of placement ipl is objtool_kind0 + ipl + 1
+       tools = (/(k, k = objtool_select, objtool_kind0+textpos_bond+1)/)
+       icons = (/icon_pl_select,icon_vm_remove,icon_tx_screen,icon_tx_point,icon_tx_atom,&
+          icon_tx_bond/)
+       falls = (/"Se","Rm","Sc","Pt","At","Bd"/)
+    elseif (itype == reptype_measure) then
+       ! the tool for n atoms is objtool_kind0 + n - 1
+       tools = (/(k, k = objtool_select, objtool_kind0+3)/)
+       icons = (/icon_pl_select,icon_vm_remove,icon_ms_distance,icon_ms_angle,icon_ms_dihedral/)
+       falls = (/"Se","Rm","Di","An","Dh"/)
+    elseif (itype == reptype_axes) then
+       ! select, and the two placements (objtool_kind0 + 1 + axplace_*)
+       tools = (/objtool_select,objtool_kind0+1+axplace_scene,objtool_kind0+1+axplace_window/)
+       icons = (/icon_pl_select,icon_ax_scene,icon_ax_window/)
+       falls = (/"Se","Sc","Wi"/)
+    else
+       ! select and remove, for all the object types (the annotation row)
+       tools = (/objtool_select,objtool_remove/)
+       icons = (/icon_pl_select,icon_vm_remove/)
+       falls = (/"Se","Rm"/)
+    end if
+
+  end subroutine objtool_list
+
+  !> The tooltip for tool itool (objtool_*, or objtool_kind0 + a kind) of
+  !> the object type itype in the toolbars; itype = 0 for the select and
+  !> remove tools of the annotation row, which work on all the types.
+  module function objtool_hint(itype,itool) result(str)
+    use keybindings, only: BIND_OBJEDIT_DRAW, BIND_OBJEDIT_DELETE
+    integer, intent(in) :: itype, itool
+    character(len=:), allocatable :: str
+
+    if (itype == reptype_planar) then
+       str = planar_tool_hint(itool)
+    elseif (itype == reptype_shapes) then
+       str = shapes_tool_hint(itool)
+    elseif (itype == reptype_text) then
+       str = text_tool_hint(itool)
+    elseif (itype == reptype_measure) then
+       str = measure_tool_hint(itool)
+    elseif (itype == reptype_axes) then
+       str = axes_tool_hint(itool)
+    elseif (itool == objtool_select) then
+       str = "Select: click (" // kn(BIND_OBJEDIT_DRAW) // ") a 2D or 3D shape, a text, a " //&
+          "measurement, or the axes to select it, and drag it or its handles to edit it; " //&
+          "double-click it to open its object editor. " // kn(BIND_OBJEDIT_DELETE) //&
+          " removes the selected item. " // exit_hint()
+    elseif (itool == objtool_remove) then
+       str = "Remove: click (" // kn(BIND_OBJEDIT_DRAW) // ") a 2D or 3D shape, a text, or a " //&
+          "measurement to remove it. " // exit_hint()
+    else
+       str = ""
+    end if
+
+  end function objtool_hint
+
+  !> The prompt for tool itool (objtool_*, or objtool_kind0 + a kind) of
+  !> the object type itype in the view bar; itype = 0 for the select and
+  !> remove tools of the annotation row, which work on all the types.
+  module function objtool_prompt(itype,itool) result(str)
+    integer, intent(in) :: itype, itool
+    character(len=:), allocatable :: str
+
+    if (itype == reptype_planar) then
+       str = planar_tool_prompt(itool)
+    elseif (itype == reptype_shapes) then
+       str = shapes_tool_prompt(itool)
+    elseif (itype == reptype_text) then
+       str = text_tool_prompt(itool)
+    elseif (itype == reptype_measure) then
+       str = measure_tool_prompt(itool)
+    elseif (itype == reptype_axes) then
+       str = axes_tool_prompt(itool)
+    elseif (itool == objtool_select) then
+       str = "Click an item to select it; drag to edit it"
+    elseif (itool == objtool_remove) then
+       str = "Click an item to remove it"
+    else
+       str = ""
+    end if
+
+  end function objtool_prompt
 
   !> Draw the editrep window, isosurface class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
@@ -5146,7 +5188,7 @@ contains
     character(len=:), allocatable :: typing
 
     ipl = itool - objtool_kind0 - 1
-    typing = ". Type the text right away: the text box of this window takes the keyboard"
+    typing = ". Type the text right away: the text box of its object editor takes the keyboard"
     if (itool == objtool_select) then
        str = "Select: click a text (" // kn(BIND_OBJEDIT_DRAW) // ") to select it and drag it to " //&
           "move it: an on-screen text in the window, a text at a 3D point in the plane facing " //&

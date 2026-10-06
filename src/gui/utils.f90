@@ -115,6 +115,7 @@ module utils
   public :: iw_icon_button
   public :: iw_icon_togglebutton
   public :: iw_iconbutton_height
+  public :: iw_flyout_button
   public :: iw_push_iconrow_frame
   public :: iw_pop_iconrow_frame
   public :: iw_close_button
@@ -473,6 +474,11 @@ module utils
      end subroutine iw_push_iconrow_frame
      module subroutine iw_pop_iconrow_frame()
      end subroutine iw_pop_iconrow_frame
+     module function iw_flyout_button(strid,disabled) result(pressed)
+       character(len=*,kind=c_char), intent(in) :: strid
+       logical, intent(in), optional :: disabled
+       logical :: pressed
+     end function iw_flyout_button
      module function iw_iconbutton_height(scale) result(h)
        real(c_float), intent(in), optional :: scale
        real(c_float) :: h

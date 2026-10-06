@@ -2213,6 +2213,52 @@ contains
 
   end function iw_icon_togglebutton
 
+  !> A narrow button with a small triangle pointing down, as tall as the
+  !> buttons of iw_icon_togglebutton, to sit right after one of them and
+  !> open a popup with more choices (the two make a split button).
+  !> Returns .true. when clicked.
+  module function iw_flyout_button(strid,disabled) result(pressed)
+    use interfaces_cimgui
+    use gui_main, only: g, fontsize
+    character(len=*,kind=c_char), intent(in) :: strid
+    logical, intent(in), optional :: disabled
+    logical :: pressed
+
+    logical :: disabled_
+    real(c_float) :: hw, cx, cy, alpha
+    type(ImVec2) :: sz, p0, p1, a, b, c
+    type(c_ptr) :: dl
+    character(kind=c_char,len=:), allocatable, target :: strl
+
+    disabled_ = .false.
+    if (present(disabled)) disabled_ = disabled
+    sz%x = 0.6_c_float * fontsize%y
+    sz%y = iw_iconbutton_height()
+
+    strl = strid // c_null_char
+    call igBeginDisabled(logical(disabled_,c_bool))
+    pressed = logical(igInvisibleButton(c_loc(strl),sz,ImGuiButtonFlags_None))
+    call igEndDisabled()
+
+    ! the hovered background, as in a button, and the triangle
+    call igGetItemRectMin(p0)
+    call igGetItemRectMax(p1)
+    dl = igGetWindowDrawList()
+    if (.not.disabled_ .and. igIsItemHovered(ImGuiHoveredFlags_None)) &
+       call ImDrawList_AddRectFilled(dl,p0,p1,igGetColorU32_Col(ImGuiCol_ButtonHovered,1._c_float),&
+       g%Style%FrameRounding,0_c_int)
+    hw = 0.22_c_float * fontsize%y
+    cx = 0.5_c_float * (p0%x + p1%x)
+    cy = 0.5_c_float * (p0%y + p1%y)
+    a = ImVec2(cx - hw,cy - 0.5_c_float * hw)
+    b = ImVec2(cx + hw,cy - 0.5_c_float * hw)
+    c = ImVec2(cx,cy + 0.6_c_float * hw)
+    alpha = 1._c_float
+    if (disabled_) alpha = g%Style%DisabledAlpha
+    call ImDrawList_AddTriangleFilled(dl,a,b,c,igGetColorU32_Col(ImGuiCol_Text,alpha))
+
+  end function iw_flyout_button
+
   !> Height of the frame that iw_icon_togglebutton draws, for laying
   !> out whatever has to line up with a row of them (a row label, say).
   !> scale is the same optional multiplier that function takes.
