@@ -3351,6 +3351,25 @@ contains
 
   end subroutine objtool_list
 
+  !> Whether tool itool (objtool_kind0 + a kind) of the object type
+  !> itype acts on a click alone, with no meaning for a drag: the atom
+  !> tools except paint, and the tools that place texts, measure, or
+  !> place the axes. A drag with them rotates the camera, as in
+  !> navigation.
+  module function objtool_isclick(itype,itool) result(ok)
+    integer, intent(in) :: itype, itool
+    logical :: ok
+
+    ok = .false.
+    if (itool <= objtool_kind0) return
+    if (itype == reptype_atoms) then
+       ok = (itool /= objtool_kind0 + atomtool_paint)
+    else
+       ok = (itype == reptype_text .or. itype == reptype_measure .or. itype == reptype_axes)
+    end if
+
+  end function objtool_isclick
+
   !> The tooltip for tool itool (objtool_*, or objtool_kind0 + a kind) of
   !> the object type itype in the toolbars; itype = 0 for the select and
   !> remove tools of the annotation row, which work on all the types.

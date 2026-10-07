@@ -1919,6 +1919,10 @@ module windows
        integer, allocatable, intent(out) :: icons(:)
        character(len=2), allocatable, intent(out) :: falls(:)
      end subroutine objtool_list
+     module function objtool_isclick(itype,itool) result(ok)
+       integer, intent(in) :: itype, itool
+       logical :: ok
+     end function objtool_isclick
      module function objtool_hint(itype,itool) result(str)
        integer, intent(in) :: itype, itool
        character(len=:), allocatable :: str

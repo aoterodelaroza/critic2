@@ -2623,6 +2623,12 @@ contains
          inp%exitev = hover .and. is_bind_event(BIND_OBJEDIT_EXIT,norepeat=.true.,iview=w%id)
       end if
 
+      ! a drag with a tool that acts on a click alone rotates the
+      ! camera, as in navigation (the press still goes to the tool); a
+      ! rotation in progress ends on release even if the tool changed
+      if (objtool_isclick(w%annot%itype,inp%itool) .or. w%ilock == ilock_left) &
+         call cam_rotate(BIND_NAV_ROTATE)
+
       ! the atom tools edit the styles of the scene, not one object
       if (w%annot%itype == reptype_atoms .and. inp%itool > objtool_kind0) then
          call w%atomtool_events(inp)
