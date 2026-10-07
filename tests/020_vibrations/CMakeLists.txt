@@ -15,6 +15,7 @@ set(TESTS
   015_create_displacements_random ## create_displacements keyword, RANDOM, SEED, PLUSMINUS
   016_read_forces_fd         ## read_forces keyword, finite differences, template and list (exact round trip)
   017_read_forces_random     ## read_forces keyword, random displacements, NORIDGE, PAIRS, RIDGE, cross-validation; memory
+  018_load_dynmat_skewed     ## load_dynmat keyword, a skewed supercell matrix gives the same frequencies (shortest images in a reduced cell)
   050_err_nocalc             ## errors: load_fc2 without a calculator
   051_err_fc2units           ## errors: load_fc2 with a unit word
   052_err_calcname           ## errors: unknown calculator
