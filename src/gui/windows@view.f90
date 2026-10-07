@@ -4569,6 +4569,7 @@ contains
        if (openpop) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
        if (igBeginPopup(c_loc(strpop),ImGuiWindowFlags_None)) then
           call iw_text(trim(repflavor_name(annot_flavor(itype))),highlight=.true.)
+          if (itype == reptype_atoms) call atomtool_group_combo()
           k = 0
           do i = 1, size(tools)
              if (tools(i) <= objtool_kind0) cycle
@@ -4622,6 +4623,43 @@ contains
       end if
 
     end subroutine tool_button
+
+    !> The combo of the groups the atom tools act on, in the popup of the
+    !> atom tools: the clicked atom alone, or all the atoms in its
+    !> symmetry-unique atom (crystals only), species, or molecule.
+    subroutine atomtool_group_combo()
+      use systems, only: atlisttype_species, atlisttype_nneq, atlisttype_nmol
+      use utils, only: iw_combo_simple
+
+      integer :: ival
+      integer, allocatable :: atypes(:)
+      character(len=:), allocatable :: stropt
+      logical :: changed
+
+      if (ismol) then
+         atypes = (/0,atlisttype_species,atlisttype_nmol/)
+         stropt = "Atom" // c_null_char // "Species" // c_null_char // "Molecule" // c_null_char
+      else
+         atypes = (/0,atlisttype_nneq,atlisttype_species,atlisttype_nmol/)
+         stropt = "Atom" // c_null_char // "Symmetry unique" // c_null_char // "Species" //&
+            c_null_char // "Molecule" // c_null_char
+      end if
+      stropt = stropt // c_null_char // c_null_char
+      ! a choice not offered here (symmetry unique in a molecule) shows
+      ! as Atom, but is kept until another is chosen
+      ival = findloc(atypes,w%annot%atype,1)
+      if (ival == 0) ival = 1
+
+      call igAlignTextToFramePadding()
+      call iw_text("Apply to")
+      call iw_combo_simple("##annotatomgroup",stropt,ival,sameline=.true.,startsatone=.true.,&
+         changed=changed)
+      call iw_tooltip("The atoms the atom tools act on: the clicked atom (or the selection, &
+         &if the atom is in it) alone, or all the atoms in the same symmetry-unique atom, &
+         &species, or molecule",ttshown)
+      if (changed) w%annot%atype = atypes(ival)
+
+    end subroutine atomtool_group_combo
 
     !> The paint color, the lattice direction of the shift tool (the
     !> selected one highlighted; disabled in a molecule), and the reset

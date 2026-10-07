@@ -796,7 +796,9 @@ contains
   !> enlarges or shrinks it, hides it, or shows or hides the polyhedron
   !> centered on it or its label, or draws it a lattice vector away
   !> (crystals); a click on a selected atom does it to the whole
-  !> selection. Painting goes on while dragging, over every
+  !> selection. If the view says so (annot%atype), the atoms grow to
+  !> the whole symmetry-unique atoms, species, or molecules they are
+  !> in. Painting goes on while dragging, over every
   !> other atom the mouse crosses (one by one). The tools edit the styles
   !> that already exist: the colors and radii of the atom-based objects of
   !> the scene, the Show mask and shifts of the Display, the centers of the first
@@ -807,13 +809,14 @@ contains
   module subroutine atomtool_events(w,inp)
     use representations, only: reptype_is_atombased, reptype_polyhedra,&
        repflavor_polyhedra_basic, reptype_labels, repflavor_labels_basic, labels_row
-    use systems, only: sys, sysc
+    use systems, only: sys, sysc, atlisttype_nneq
     use display, only: disp_maxshift
     class(window), intent(inout), target :: w
     type(objedit_input), intent(inout) :: inp
 
-    integer :: itool, iat, nat, i, irep, nsel
-    integer, allocatable :: iatl(:), irow(:), isel(:)
+    integer :: itool, iat, nat, i, irep, nsel, gtype
+    integer, allocatable :: iatl(:), irow(:), isel(:), id(:)
+    logical, allocatable :: ingroup(:)
     logical :: show, made
 
     real*8, parameter :: radfac = 1.25d0 ! the enlarge and shrink factor
@@ -843,6 +846,21 @@ contains
        call sysc(w%isys)%highlighted_atom_list(nsel,isel)
        if (nsel > 0) then
           if (any(isel(1:nsel) == iat)) iatl = isel(1:nsel)
+       end if
+    end if
+
+    ! the whole groups of those atoms (no symmetry-unique atoms in a molecule)
+    gtype = w%annot%atype
+    if (gtype == atlisttype_nneq .and. sys(w%isys)%c%ismolecule) gtype = 0
+    if (gtype > 0) then
+       id = sysc(w%isys)%attype_celatom_ids(gtype)
+       if (size(id,1) == nat .and. all(id > 0)) then
+          allocate(ingroup(maxval(id)))
+          ingroup = .false.
+          do i = 1, size(iatl,1)
+             ingroup(id(iatl(i))) = .true.
+          end do
+          iatl = pack((/(i,i=1,nat)/),ingroup(id))
        end if
     end if
 

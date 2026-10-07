@@ -629,6 +629,7 @@ module windows
      integer :: face(nannot) = objtool_kind0 + 1 ! the tool on the button of each group (the last armed)
      real(c_float) :: paint_rgb(3) = (/1._c_float,0.55_c_float,0._c_float/) ! color of the paint atom tool
      integer(c_int) :: shift_lvec(3) = (/1,0,0/) ! lattice vector of the shift atom tool
+     integer :: atype = 0 ! the atom tools act on whole groups of this type (atlisttype_species/nneq/nmol; 0 = the atoms alone)
   end type annot_state
   public :: annot_state
 
