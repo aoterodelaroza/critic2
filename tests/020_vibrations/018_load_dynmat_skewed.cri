@@ -1,0 +1,27 @@
+## check: 018_load_dynmat_skewed_s.dat -a1e-5
+## check: 018_load_dynmat_skewed_k.dat -a1e-5
+## labels: quick regression
+
+## Urea: the same index-2 superlattice as 004_load_dynmat, given once by
+## its own supercell matrix and once by a very skewed basis of it (rows
+## (1,-1,0), 3x row 1 + (0,-1,-1), 9x row 1 + (1,0,-1)). The force
+## constants depend only on the superlattice, so the frequencies at any
+## q must be the same: the shortest images are searched for in a reduced
+## cell of the superlattice, not in the parallelepiped of the matrix as
+## given.
+crystal ../zz_source/critic2/vibrations-urea/urea.in
+vibrations
+  calculator aims
+  load_dynmat ../zz_source/critic2/vibrations-urea/urea_dynmat.yaml 1 -1 0 0 -1 -1 1 0 -1
+  calcq file 018_load_dynmat_skewed_s.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.0 0.5
+  endcalcq
+  load_dynmat ../zz_source/critic2/vibrations-urea/urea_dynmat.yaml 1 -1 0 3 -4 -1 10 -9 -1
+  calcq file 018_load_dynmat_skewed_k.dat
+    q 0.1 0.2 0.3
+    q 0.37 -0.21 0.05
+    q 0.5 0.0 0.5
+  endcalcq
+end

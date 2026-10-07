@@ -4725,9 +4725,18 @@ contains
   !> coordinates in v%fc2_svec (see the type for the indexing).
   !> If error, return non-zero errmsg.
   !>
+  !> Each vector is first brought into a Delaunay-reduced cell of the
+  !> supercell lattice, not into the parallelepiped of the supercell
+  !> matrix as given: a skewed matrix (e.g. a general Hermite normal
+  !> form) spans a needle-like parallelepiped from which the candidate
+  !> translations below do not reach the shortest image, and the
+  !> interpolated frequencies are then wrong everywhere except at the
+  !> commensurate wave vectors.
+  !>
   !> This routine was adapted from phonopy, by A. Togo.
   subroutine fc2_build_svec(v,c,errmsg)
     use tools, only: delaunay_reduction
+    use tools_math, only: matinv
     use types, only: realloc
     use tools_io, only: string
     class(vibrations), intent(inout) :: v
@@ -4737,6 +4746,7 @@ contains
     integer :: ia, ja, jl, js, ip, k, n1, n2, n3, n4, nc, nsv, ier
     integer :: ncel, nlat, nsat
     real*8 :: scx2c(3,3), smatr(3,3), rmat(3,4), tt(3), y(3), yx(3), r0(3), dmin
+    real*8 :: rbas(3,3), rbasi(3,3), z(3)
     real*8 :: tcand(3,3**4), tcandx(3,3**4), dcand(3**4)
     real*8, allocatable :: sv(:,:)
     logical :: found
@@ -4749,8 +4759,13 @@ contains
     scx2c = matmul(c%m_x2c,transpose(smatr))
 
     ! the candidate translations: the four Delaunay vectors of the supercell
-    ! lattice with coefficients -1, 0 and 1.
-    call delaunay_reduction(scx2c,rmat)
+    ! lattice with coefficients -1, 0 and 1. rbas is a reduced cell of the
+    ! same lattice (three of the Delaunay vectors), in supercell fractional
+    ! coordinates: integer and unimodular.
+    call delaunay_reduction(scx2c,rmat,rbas)
+    rbas = anint(rbas)
+    rbasi = rbas
+    call matinv(rbasi,3)
     nc = 0
     do n1 = -1, 1
        do n2 = -1, 1
@@ -4788,9 +4803,13 @@ contains
           ip = (js-1)*ncel + ia
           v%fc2_sptr(ip) = nsv + 1
 
-          ! the vector from atom ia to atom js, reduced into the supercell
+          ! the vector from atom ia to atom js, reduced into the reduced
+          ! cell of the supercell lattice (it differs from the reduction
+          ! into the supercell by a lattice translation only)
           y = fc2_scpos(fc2_xin(c,ja) - fc2_xin(c,ia),v%fc2_lvec(:,jl),v%fc2_madj,nlat)
-          y = y - nint(y)
+          z = matmul(rbasi,y)
+          z = z - nint(z)
+          y = matmul(rbas,z)
           r0 = matmul(scx2c,y)
           yx = matmul(y,smatr)
 
