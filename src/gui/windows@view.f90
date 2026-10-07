@@ -2566,6 +2566,7 @@ contains
       if (inp%itool == objtool_none .or. .not.associated(w%sc)) then
          w%oe%op = objop_none
          w%oe%rpress = .false.
+         w%oe%cpress = .false.
          call w%viewmode_exit_forced()
          return
       end if
@@ -2623,11 +2624,29 @@ contains
          inp%exitev = hover .and. is_bind_event(BIND_OBJEDIT_EXIT,norepeat=.true.,iview=w%id)
       end if
 
-      ! a drag with a tool that acts on a click alone rotates the
-      ! camera, as in navigation (the press still goes to the tool); a
-      ! rotation in progress ends on release even if the tool changed
-      if (objtool_isclick(w%annot%itype,inp%itool) .or. w%ilock == ilock_left) &
+      ! a tool that acts on a click alone gets it on release, if the
+      ! mouse did not move past the drag threshold since the press; past
+      ! it, the drag rotates the camera, as in navigation. A rotation in
+      ! progress ends on release even if the tool changed.
+      if (w%ilock == ilock_left) then
          call cam_rotate(BIND_NAV_ROTATE)
+      elseif (objtool_isclick(w%annot%itype,inp%itool)) then
+         if (inp%press) then
+            w%oe%cpress = .true.
+            w%oe%xc0 = inp%xm
+            inp%press = .false.
+         elseif (w%oe%cpress) then
+            if (.not.inp%down) then
+               w%oe%cpress = .false.
+               inp%press = hover
+            elseif (norm2(inp%xm - w%oe%xc0) > objedit_drag_px * inp%pxs) then
+               w%oe%cpress = .false.
+               call cam_rotate(BIND_NAV_ROTATE,start=hover)
+            end if
+         end if
+      else
+         w%oe%cpress = .false.
+      end if
 
       ! the atom tools edit the styles of the scene, not one object
       if (w%annot%itype == reptype_atoms .and. inp%itool > objtool_kind0) then
@@ -2895,12 +2914,21 @@ contains
       end if
     end subroutine cam_translate
 
-    ! rotate (arcball) the camera by dragging with the given bind
-    subroutine cam_rotate(bindid)
+    ! rotate (arcball) the camera by dragging with the given bind. If
+    ! start is given, it says whether the drag starts now instead of the
+    ! press of the bind.
+    subroutine cam_rotate(bindid,start)
       integer, intent(in) :: bindid
+      logical, intent(in), optional :: start
       real(c_float) :: axis(3), ang
+      logical :: start_
 
-      if (hover .and. is_bind_event(bindid,.false.,iview=w%id) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
+      if (present(start)) then
+         start_ = start
+      else
+         start_ = hover .and. is_bind_event(bindid,.false.,iview=w%id)
+      end if
+      if (start_ .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
          call arcball_anchor(w%mpos0_l,w%cpos0_l)
          w%ilock = ilock_left
       elseif (w%ilock == ilock_left) then
@@ -4426,6 +4454,7 @@ contains
 
     w%oe%op = objop_none
     w%oe%rpress = .false.
+    w%oe%cpress = .false.
     w%forcerender = .true.
     if (itool == objtool_none .or. .not.associated(w%sc)) then
        call w%viewmode_release_forced(w%id,vm_objedit)

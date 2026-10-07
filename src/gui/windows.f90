@@ -605,6 +605,8 @@ module windows
      logical :: rpress = .false. ! a right click may be in progress (pressed over the view)
      logical :: rmoved = .false. ! the mouse moved past the click/drag threshold since that press
      real*8 :: xr0(2) = 0d0 ! position of that right press (NDC of the render buffer)
+     logical :: cpress = .false. ! a click of a click-only tool (objtool_isclick) may be in progress
+     real*8 :: xc0(2) = 0d0 ! position of that press (NDC of the render buffer)
      logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
      type(planar_edit_state) :: planar ! 2D drawing: the shape
      type(shapes_edit_state) :: shapes ! 3D shapes: the shape
