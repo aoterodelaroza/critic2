@@ -90,15 +90,16 @@ contains
   ! shown with only its file name (last path component) unless that would
   ! collide with another system's name; in that case, the minimum number
   ! of parent directories needed to tell the clashing systems apart is
-  ! prepended. Renamed systems keep their user-given name and are ignored.
+  ! prepended, using the same number for all systems with that file
+  ! name. Renamed systems keep their user-given name and are ignored.
   module subroutine system_shorten_names()
     use tools_io, only: string
     use param, only: dirsep
 
     integer :: i, a, b, np, d, ndup, si
-    integer, allocatable :: plist(:)
+    integer, allocatable :: plist(:), dmin(:)
     logical :: unique
-    character(len=:), allocatable :: fni, fnj
+    character(len=:), allocatable :: fni, fnj, bni
 
     ! collect the participating systems (non-empty and not renamed)
     allocate(plist(nsys))
@@ -110,8 +111,9 @@ contains
        end if
     end do
 
-    ! for each system, use the shortest run of trailing path components
+    ! for each system, find the shortest run of trailing path components
     ! that is unique among the other (non-duplicate) participating systems
+    allocate(dmin(np))
     do a = 1, np
        i = plist(a)
        fni = trim(sysc(i)%fullname)
@@ -130,16 +132,28 @@ contains
                 exit
              end if
           end do
-          if (unique) then
-             sysc(i)%seed%name = fni(si:)
-             exit
-          elseif (si == 1) then
-             ! the whole path is already used (should only happen for exact
-             ! duplicates); stop here and let the duplicate pass disambiguate
-             sysc(i)%seed%name = fni
+          if (unique .or. si == 1) then
+             ! si == 1: the whole path is already used (should only happen
+             ! for exact duplicates); the duplicate pass disambiguates
+             dmin(a) = d
              exit
           end if
        end do
+    end do
+
+    ! systems sharing a file name all use the same depth (the largest
+    ! any of them needs), so that the shown parent directories are
+    ! consistent across the group
+    do a = 1, np
+       i = plist(a)
+       fni = trim(sysc(i)%fullname)
+       bni = basekey(fni)
+       d = dmin(a)
+       do b = 1, np
+          if (dmin(b) <= d) cycle
+          if (bni == basekey(trim(sysc(plist(b))%fullname))) d = dmin(b)
+       end do
+       sysc(i)%seed%name = fni(laststart(fni,d):)
     end do
 
     ! exact duplicates (same full-path name, e.g. from Duplicate or reload)
@@ -174,6 +188,17 @@ contains
          end if
       end do
     end function laststart
+
+    !> File name of a full-path name: the last path component without
+    !> the "|block" suffix of systems read from multi-structure files.
+    function basekey(str)
+      character(len=*), intent(in) :: str
+      character(len=:), allocatable :: basekey
+      integer :: p
+      basekey = str(laststart(str,1):)
+      p = index(basekey,"|")
+      if (p > 0) basekey = basekey(1:p-1)
+    end function basekey
   end subroutine system_shorten_names
 
   !> .true. if slot i holds a group header: an entry that heads a
