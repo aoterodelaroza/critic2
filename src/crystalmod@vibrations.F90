@@ -210,7 +210,7 @@ submodule (crystalmod) vibrationsmod
   ! function fc2_smatstr(m)
   ! subroutine fc2_output_template(template,icalc,otemplate,errmsg)
   ! subroutine fc2_smat_from_cell(c,scfile,smat,errmsg,ti,sco,seedo)
-  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff,nlow)
+  ! subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff,nlow,proj,fpart)
   ! subroutine lowest_modes(f,n,skip)
   ! subroutine xdebye_core(t,npoly,nein,par,f,s,cv,dfdp)
   ! subroutine xdebye_exp(z,em,om,l1em)
@@ -273,8 +273,11 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_build_dd(v,c,errmsg)
   ! subroutine fc2_prepare(v,c,errmsg)
   ! subroutine fc2_commensurate_q(v,q,errmsg)
-  ! subroutine fc2_freqs_at(v,c,qpt,freq,errmsg,irep)
+  ! subroutine fc2_freqs_at(v,c,qpt,freq,errmsg,irep,proj)
   ! subroutine fc2_check_current(v,c,errmsg)
+  ! subroutine rigid_basis(c,q,s,nt,ne,ntie)
+  ! subroutine subspace_dims(c,pdim)
+  ! subroutine eig_proj(dm,n,s,ns,eval,g,ier)
   ! subroutine read_crystal_out(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_log(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
@@ -5201,13 +5204,18 @@ contains
   !> with the supercell of the force constants, where the dynamical
   !> matrix is exact: freq(3*ncel,nlat), and the wave vectors in
   !> qpt(3,nlat) (fractional coordinates of the reciprocal cell,
-  !> reduced to [0,1)). If error, return non-zero errmsg.
-  module subroutine vibrations_commensurate_freqs(v,c,freq,qpt,errmsg)
+  !> reduced to [0,1)). If proj is present, also the projections of
+  !> each mode on the acoustic, translational and external subspaces,
+  !> proj(1:3,:,:), and the dimensions of those subspaces in pdim
+  !> (rigid_basis). If error, return non-zero errmsg.
+  module subroutine vibrations_commensurate_freqs(v,c,freq,qpt,errmsg,proj,pdim)
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, allocatable, intent(inout) :: freq(:,:)
     real*8, allocatable, intent(inout) :: qpt(:,:)
     character(len=:), allocatable, intent(out) :: errmsg
+    real*8, allocatable, intent(out), optional :: proj(:,:,:)
+    integer, intent(out), optional :: pdim(3)
 
     errmsg = ""
     call fc2_check_current(v,c,errmsg)
@@ -5223,42 +5231,52 @@ contains
     qpt = qpt - floor(qpt)
     if (allocated(freq)) deallocate(freq)
     allocate(freq(3*c%ncel,size(qpt,2)))
-    call fc2_freqs_at(v,c,qpt,freq,errmsg)
+    if (present(proj)) allocate(proj(3,3*c%ncel,size(qpt,2)))
+    if (present(pdim)) call subspace_dims(c,pdim)
+    call fc2_freqs_at(v,c,qpt,freq,errmsg,proj=proj)
 
   end subroutine vibrations_commensurate_freqs
 
   !> Frequencies (cm^-1, ascending) at the q-points qpt(:,i)
   !> (fractional), in freq(:,i), calculated in parallel. If irep is
-  !> given, only the columns with irep(i) == i are calculated. The
-  !> tables of fc2_prepare must be available before the call, or the
-  !> threads race to build them. If error, return non-zero errmsg.
-  subroutine fc2_freqs_at(v,c,qpt,freq,errmsg,irep)
+  !> given, only the columns with irep(i) == i are calculated. If proj
+  !> is given, also the projections of each mode on the acoustic,
+  !> translational and external subspaces, proj(1:3,:,i). The tables
+  !> of fc2_prepare must be available before the call, or the threads
+  !> race to build them. If error, return non-zero errmsg.
+  subroutine fc2_freqs_at(v,c,qpt,freq,errmsg,irep,proj)
     type(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: qpt(:,:)
     real*8, intent(inout) :: freq(:,:)
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(in), optional :: irep(:)
+    real*8, intent(inout), optional :: proj(:,:,:)
 
     integer :: iq
-    real*8, allocatable :: f1(:)
+    real*8, allocatable :: f1(:), p1(:,:)
     character(len=:), allocatable :: errmsg2
 
     ! every q-point writes its own column of freq, so only the error
     ! report needs serializing
     errmsg = ""
-    !$omp parallel do private(f1,errmsg2) schedule(dynamic)
+    !$omp parallel do private(f1,p1,errmsg2) schedule(dynamic)
     do iq = 1, size(qpt,2)
        if (present(irep)) then
           if (irep(iq) /= iq) cycle
        end if
-       call v%calculate_q(c,qpt(:,iq),errmsg2,freqo=f1)
+       if (present(proj)) then
+          call v%calculate_q(c,qpt(:,iq),errmsg2,freqo=f1,projo=p1)
+       else
+          call v%calculate_q(c,qpt(:,iq),errmsg2,freqo=f1)
+       end if
        if (len_trim(errmsg2) > 0) then
           !$omp critical (freqsat)
           errmsg = errmsg2
           !$omp end critical (freqsat)
        else
           freq(:,iq) = f1
+          if (present(proj)) proj(:,:,iq) = p1
        end if
     end do
     !$omp end parallel do
@@ -5322,15 +5340,276 @@ contains
 
   end subroutine fc2_check_current
 
+  !> Orthonormal bases, in the space of the eigenvectors of the
+  !> dynamical matrix at q (fractional), of the subspaces used to
+  !> classify the modes (the draft, Sec. "Band contributions"): the
+  !> rigid translations of the molecules (columns 1:nt of s), their
+  !> rigid translations and rotations (external subspace, 1:ne), and
+  !> the acoustic waves (3 columns per G, ne+1:ne+3*ntie, see below).
+  !> In the phase convention of the dynamical matrix (positions inside
+  !> the phase, displacement u(R,k) = e_k exp(2 pi i q.(R+x_k)) /
+  !> sqrt(m_k)), the rigid translation along alpha of molecule M is
+  !> sqrt(m_k) e_alpha exp(-2 pi i q.d_k) and its rotation about alpha
+  !> is sqrt(m_k) (e_alpha x d_k) exp(-2 pi i q.d_k), for the atoms k
+  !> of M, with d_k the position of k relative to the center of mass
+  !> of M. They are orthonormalized in that order, and those that
+  !> depend on the previous ones (a rotation of a single atom or about
+  !> the axis of a linear molecule) are dropped.
+  !>
+  !> The acoustic wave along alpha is the sum of the translations of
+  !> all the molecules, each with the phase of its center of mass. It
+  !> depends on which of the equivalent q + G is used, because the
+  !> centers of mass are not lattice points; the shortest one (first
+  !> Brillouin zone) is used, so that the acoustic modes near gamma have
+  !> P_A close to one wherever the mesh puts q. In the convention of the
+  !> dynamical matrix at q, the phase of atom k is then exp(-2 pi i
+  !> (q+G).d_k) exp(2 pi i G.x_k) (the translational and external
+  !> subspaces do not depend on G). On the zone boundary several q + G
+  !> are equally short: the basis of each of these ntie choices is
+  !> returned, and the caller averages the projections over them, so
+  !> that the result is the same at symmetry-equivalent q-points.
+  !>
+  !> If c is not a crystal of discrete molecules, there is no external
+  !> subspace (nt = ne = 0) and the acoustic waves are those in which
+  !> every atom moves with its own phase, sqrt(m_k) e_alpha exp(2 pi i
+  !> G.x_k).
+  subroutine rigid_basis(c,q,s,nt,ne,ntie)
+    use tools, only: delaunay_reduction
+    use tools_math, only: cross, matinv
+    use param, only: atmass, tpi, img
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: q(3)
+    complex*16, allocatable, intent(out) :: s(:,:)
+    integer, intent(out) :: nt, ne, ntie
+
+    real*8, parameter :: epsrank = 1d-6 ! relative norm below which a vector is dependent
+    real*8, parameter :: epstie = 1d-8 ! relative difference in |q+G| for a tie
+
+    integer :: n, nm, im, k, ia, al, iv, j, ipass, i1, i2, i3, it, ncol
+    real*8 :: xcm(3), ea(3), mtot, mrot, nrm, rc2x(3,3), dmin, dg(125), rmat(3,4)
+    real*8 :: rbas(3,3), rbasi(3,3), z(3), gt(3,125)
+    complex*16 :: ph
+    complex*16, allocatable :: v(:,:), w(:), sw(:,:)
+    real*8, allocatable :: vref(:), smass(:), dcar(:,:), dfrac(:,:)
+    integer, allocatable :: imol(:), iown(:)
+    logical :: ismol
+
+    n = 3 * c%ncel
+    ismol = c%ismol3d .and. c%nmol > 0
+    nm = 0
+    if (ismol) nm = c%nmol
+
+    ! the shortest q + G, and those tied with it, searched around q in
+    ! a Delaunay-reduced basis of the reciprocal lattice (rbas, integer
+    ! in the reciprocal cell basis), where a small box reaches them all
+    rc2x = transpose(c%m_c2x)
+    call delaunay_reduction(rc2x,rmat,rbas)
+    rbas = anint(rbas)
+    rbasi = rbas
+    call matinv(rbasi,3)
+    z = matmul(rbasi,q)
+    it = 0
+    do i1 = -2, 2
+       do i2 = -2, 2
+          do i3 = -2, 2
+             it = it + 1
+             gt(:,it) = matmul(rbas,real((/i1,i2,i3/),8) - anint(z))
+             dg(it) = norm2(matmul(rc2x,q + gt(:,it)))
+          end do
+       end do
+    end do
+    dmin = minval(dg)
+    ntie = 0
+    do it = 1, 125
+       if (dg(it) <= dmin + epstie * max(dmin,1d0)) then
+          ntie = ntie + 1
+          gt(:,ntie) = gt(:,it)
+       end if
+    end do
+
+    ! per atom: square root of the mass, molecule, and position relative
+    ! to the center of mass of its molecule (Cartesian and fractional)
+    allocate(smass(c%ncel),imol(c%ncel),dcar(3,c%ncel),dfrac(3,c%ncel))
+    do ia = 1, c%ncel
+       smass(ia) = sqrt(atmass(c%spc(c%atcel(ia)%is)%z))
+    end do
+    imol = 0
+    dcar = 0d0
+    dfrac = 0d0
+    do im = 1, nm
+       xcm = c%mol(im)%cmass()
+       do k = 1, c%mol(im)%nat
+          ia = c%mol(im)%at(k)%cidx
+          imol(ia) = im
+          dcar(:,ia) = c%mol(im)%at(k)%r - xcm
+          dfrac(:,ia) = c%c2x(dcar(:,ia))
+       end do
+    end do
+
+    ! the translations (1:3nm) and rotations (3nm+1:6nm) of each
+    ! molecule; vref is the natural size of each vector, against which
+    ! it is judged dependent
+    allocate(v(n,6*nm),vref(6*nm),iown(6*nm+3*ntie),w(n))
+    v = 0d0
+    do im = 1, nm
+       mtot = 0d0
+       mrot = 0d0
+       do k = 1, c%mol(im)%nat
+          ia = c%mol(im)%at(k)%cidx
+          mtot = mtot + smass(ia)**2
+          mrot = mrot + smass(ia)**2 * dot_product(dcar(:,ia),dcar(:,ia))
+          ph = exp(-img * tpi * dot_product(q,dfrac(:,ia)))
+          do al = 1, 3
+             ea = 0d0
+             ea(al) = 1d0
+             v(3*ia-2:3*ia,3*(im-1)+al) = smass(ia) * ea * ph
+             v(3*ia-2:3*ia,3*nm+3*(im-1)+al) = smass(ia) * cross(ea,dcar(:,ia)) * ph
+          end do
+       end do
+       vref(3*(im-1)+1:3*im) = sqrt(mtot)
+       vref(3*nm+3*(im-1)+1:3*nm+3*im) = sqrt(mrot)
+    end do
+
+    ! orthonormalize (modified Gram-Schmidt, twice): the molecules have
+    ! disjoint supports, so only the vectors of the same molecule
+    ! (iown) need it; a rotation of a single atom has vref = 0 and is
+    ! dropped
+    allocate(sw(n,6*nm+3*ntie))
+    ne = 0
+    nt = 0
+    do iv = 1, 6*nm
+       im = mod(iv-1,3*nm) / 3 + 1
+       w = v(:,iv)
+       do ipass = 1, 2
+          do j = 1, ne
+             if (iown(j) /= im) cycle
+             w = w - dot_product(sw(:,j),w) * sw(:,j)
+          end do
+       end do
+       nrm = sqrt(sum(abs(w)**2))
+       if (nrm > epsrank * vref(iv)) then
+          ne = ne + 1
+          sw(:,ne) = w / nrm
+          iown(ne) = im
+       end if
+       if (iv == 3*nm) nt = ne
+    end do
+
+    ! the acoustic waves for each tied G, each set orthonormalized by
+    ! itself; the phase of atom k is exp(-2 pi i (q+G).d_k) exp(2 pi i
+    ! G.x_k), and without molecules d_k = 0
+    ncol = ne
+    do it = 1, ntie
+       do al = 1, 3
+          w = 0d0
+          do ia = 1, c%ncel
+             ph = exp(-img * tpi * dot_product(q + gt(:,it),dfrac(:,ia))) *&
+                exp(img * tpi * dot_product(gt(:,it),fc2_xin(c,ia)))
+             w(3*ia-3+al) = smass(ia) * ph
+          end do
+          do ipass = 1, 2
+             do j = ncol-al+2, ncol
+                w = w - dot_product(sw(:,j),w) * sw(:,j)
+             end do
+          end do
+          ncol = ncol + 1
+          sw(:,ncol) = w / sqrt(sum(abs(w)**2))
+       end do
+    end do
+    s = sw(:,1:ncol)
+
+  end subroutine rigid_basis
+
+  !> The dimensions of the acoustic, translational and external
+  !> subspaces of rigid_basis, pdim = (3, nt, ne): they do not depend on
+  !> q, since the phases only multiply the atoms of each molecule by a
+  !> unit factor, so they are those at gamma.
+  subroutine subspace_dims(c,pdim)
+    type(crystal), intent(in) :: c
+    integer, intent(out) :: pdim(3)
+
+    integer :: ntie
+    complex*16, allocatable :: s(:,:)
+
+    pdim(1) = 3
+    call rigid_basis(c,(/0d0,0d0,0d0/),s,pdim(2),pdim(3),ntie)
+
+  end subroutine subspace_dims
+
+  !> Diagonalize the Hermitian matrix dm(n,n) (destroyed) and return
+  !> its eigenvalues in ascending order (eval) and, for each
+  !> eigenvector e(:,nu), the squared overlaps g(j,nu) = |<s_j|e>|^2
+  !> with the ns orthonormal vectors s_j. The eigenvectors are not
+  !> formed: with dm = Q T Q^H (Householder tridiagonalization) and
+  !> e = Q z, z the eigenvectors of the real tridiagonal T, <s_j|e> =
+  !> (Q^H s_j)^H z, so only the ns vectors s are transformed. Without
+  !> an external LAPACK, the eigenvectors are calculated and projected.
+  !> If error, ier is non-zero.
+  subroutine eig_proj(dm,n,s,ns,eval,g,ier)
+#ifndef HAVE_LAPACK
+    use tools_math, only: eigherm
+#endif
+    integer, intent(in) :: n, ns
+    complex*16, intent(inout) :: dm(n,n)
+    complex*16, intent(in) :: s(n,ns)
+    real*8, intent(out) :: eval(n)
+    real*8, intent(out) :: g(ns,n)
+    integer, intent(out) :: ier
+
+#ifdef HAVE_LAPACK
+    integer :: lwork, lrwork, liwork, iq(1)
+    real*8 :: e(n), rq(1)
+    complex*16 :: tau(n), wq(1)
+    complex*16, allocatable :: work(:), sp(:,:)
+    real*8, allocatable :: z(:,:), rwork(:), r1(:,:), r2(:,:)
+    integer, allocatable :: iwork(:)
+
+    allocate(sp(n,ns),z(n,n),r1(ns,n),r2(ns,n))
+
+    ! workspace
+    call zhetrd('U',n,dm,n,eval,e,tau,wq,-1,ier)
+    lwork = int(real(wq(1),8))
+    call zunmtr('L','U','C',n,ns,dm,n,tau,sp,n,wq,-1,ier)
+    lwork = max(lwork,int(real(wq(1),8)))
+    call dstedc('I',n,eval,e,z,n,rq,-1,iq,-1,ier)
+    lrwork = int(rq(1))
+    liwork = iq(1)
+    allocate(work(lwork),rwork(lrwork),iwork(liwork))
+
+    ! tridiagonalize, transform the vectors, and diagonalize T
+    call zhetrd('U',n,dm,n,eval,e,tau,work,lwork,ier)
+    if (ier /= 0) return
+    sp = s
+    call zunmtr('L','U','C',n,ns,dm,n,tau,sp,n,work,lwork,ier)
+    if (ier /= 0) return
+    call dstedc('I',n,eval,e,z,n,rwork,lrwork,iwork,liwork,ier)
+    if (ier /= 0) return
+
+    ! |sp^H z|^2, with z real
+    call dgemm('T','N',ns,n,n,1d0,real(sp,8),n,z,n,0d0,r1,ns)
+    call dgemm('T','N',ns,n,n,1d0,aimag(sp),n,z,n,0d0,r2,ns)
+    g = r1 * r1 + r2 * r2
+#else
+    call eigherm(dm,n,eval,ier,vectors=.true.)
+    if (ier /= 0) return
+    g = abs(matmul(transpose(conjg(s)),dm))**2
+#endif
+
+  end subroutine eig_proj
+
   !> Calculate frequencies and eigenvectors from the FC2 at a single
   !> q-point (fractional coordinates in reciprocal space). If the
   !> optional arguments freqo or veco are present, return the
   !> frequencies (cm-1, ascending order) in freqo and the whole
   !> (3*ncel,3*ncel) eigenvector matrix in veco (columns = modes), and
   !> leave v alone. Otherwise, add the q-point to v, where the
-  !> eigenvectors are reshaped to (3,ncel) per mode. If error, return
+  !> eigenvectors are reshaped to (3,ncel) per mode. If projo is
+  !> present (with freqo, and without veco), return in projo(1:3,:)
+  !> the projections of each mode on the acoustic, translational and
+  !> external subspaces (rigid_basis; without molecules, the last two
+  !> are zero), without forming the eigenvectors. If error, return
   !> non-zero errmsg.
-  module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco)
+  module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco,projo)
     use tools_math, only: eigherm
     use tools_io, only: string
     use types, only: realloc
@@ -5341,13 +5620,19 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     real*8, intent(inout), allocatable, optional :: freqo(:)
     complex*16, intent(inout), allocatable, optional :: veco(:,:)
+    real*8, intent(inout), allocatable, optional :: projo(:,:)
 
-    integer :: ia, ja, js, ip, i, k, n, ier, ncel, nlat, nfreq, lm
+    integer :: ia, ja, js, ip, i, k, n, ier, ncel, nlat, nfreq, lm, nt, ne, ntie
     complex*16 :: phase
     real*8, allocatable :: eval(:), sqrtm(:)
-    complex*16, allocatable :: dm(:,:), ddlr(:,:), p(:), e(:,:)
+    complex*16, allocatable :: dm(:,:), ddlr(:,:), p(:), e(:,:), sb(:,:)
+    real*8, allocatable :: gov(:,:)
 
     errmsg = ""
+    if (present(projo) .and. (present(veco) .or..not.present(freqo))) then
+       errmsg = "calculate_q: projo needs freqo and excludes veco"
+       return
+    end if
 
     ! the force constants have to belong to the structure at hand
     call fc2_check_current(v,c,errmsg)
@@ -5429,7 +5714,20 @@ contains
     ! impose hermiticity and diagonalize; the eigenvectors are skipped
     ! when only the frequencies were asked for (the mesh sampling)
     dm = 0.5d0 * (dm + transpose(conjg(dm)))
-    call eigherm(dm,nfreq,eval,ier,vectors=(present(veco).or..not.present(freqo)))
+    if (present(projo)) then
+       ! the projections: acoustic (averaged over the equally short
+       ! q+G), translational, and external (zero without molecules)
+       call rigid_basis(c,q,sb,nt,ne,ntie)
+       allocate(gov(size(sb,2),nfreq))
+       call eig_proj(dm,nfreq,sb,size(sb,2),eval,gov,ier)
+       if (allocated(projo)) deallocate(projo)
+       allocate(projo(3,nfreq))
+       projo(1,:) = sum(gov(ne+1:,:),1) / real(ntie,8)
+       projo(2,:) = sum(gov(1:nt,:),1)
+       projo(3,:) = sum(gov(1:ne,:),1)
+    else
+       call eigherm(dm,nfreq,eval,ier,vectors=(present(veco).or..not.present(freqo)))
+    end if
     if (ier /= 0) then
        errmsg = "Error diagonalizing the dynamical matrix at q = " //&
           string(q(1),'f',12,7) // string(q(2),'f',12,7) // string(q(3),'f',12,7)
@@ -5679,7 +5977,7 @@ contains
   !> have all equal weight (i.e. it is a mesh). The optional nneg,
   !> nqbad, fmin and cuteff describe the modes left out (see thermo_sum).
   module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq,&
-     nneg,nqbad,fmin,cuteff,nlow)
+     nneg,nqbad,fmin,cuteff,nlow,proj,fpart)
     class(vibrations), intent(in) :: v
     real*8, intent(in) :: t
     real*8, intent(in) :: cutoff
@@ -5690,13 +5988,15 @@ contains
     integer, intent(out), optional :: nneg, nqbad
     real*8, intent(out), optional :: fmin, cuteff
     integer, intent(in), optional :: nlow(:)
+    real*8, intent(in), optional :: proj(:,:,:)
+    real*8, intent(out), optional :: fpart(3)
 
     if (present(freqo)) then
        call thermo_sum(freqo,size(freqo,1),size(freqo,2),t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,&
-          nneg,nqbad,fmin,cuteff,nlow)
+          nneg,nqbad,fmin,cuteff,nlow,proj,fpart)
     else
        call thermo_sum(v%freq,v%nfreq,v%nqpt,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,&
-          nneg=nneg,nqbad=nqbad,fmin=fmin,cuteff=cuteff,nlow=nlow)
+          nneg=nneg,nqbad=nqbad,fmin=fmin,cuteff=cuteff,nlow=nlow,proj=proj,fpart=fpart)
     end if
 
   end subroutine vibrations_calculate_thermo
@@ -5721,10 +6021,14 @@ contains
   !> their value (in a crystal, the three acoustic modes at gamma: zero
   !> by the acoustic sum rule but numerically of either sign, and g_F
   !> and g_S diverge there). They count as left out (ntot - nused) but
-  !> not in nneg, nimag, nqbad or fmin.
+  !> not in nneg, nimag, nqbad or fmin. If proj and fpart are given,
+  !> fpart(k) is the free energy weighted by the projection of each
+  !> mode, proj(k,j,i) (the acoustic, translational and external parts
+  !> for the projections of vibrations_mesh_freqs), over the same modes.
   !>
   !> This routine was adapted from phonopy, by A. Togo.
-  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff,nlow)
+  subroutine thermo_sum(freq,nf,nq,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,wq,nneg,nqbad,fmin,cuteff,nlow,&
+     proj,fpart)
     use param, only: Rgas
     real*8, intent(in) :: freq(:,:)
     integer, intent(in) :: nf, nq
@@ -5735,12 +6039,15 @@ contains
     integer, intent(out), optional :: nneg, nqbad
     real*8, intent(out), optional :: fmin, cuteff
     integer, intent(in), optional :: nlow(:)
+    real*8, intent(in), optional :: proj(:,:,:)
+    real*8, intent(out), optional :: fpart(3)
 
     integer :: i, j, w, nneg_, nqbad_
     logical :: skip(nf)
     real*8 :: fmin_
     logical :: bad
-    real*8 :: nu, x, y, nut, nue, rt, l1mx, nutdiv, ym1, ff, cut, cutimag, rw
+    real*8 :: nu, x, y, nut, nue, rt, l1mx, nutdiv, ym1, ff, cut, cutimag, rw, gf
+    logical :: dopart
 
     real*8, parameter :: small1 = 50000d0 * cminv_to_K / huge(1d0) ! protection against zerodiv in nu/(kB*T)
     real*8, parameter :: small2 = 0.5d0 * log(huge(1d0)) ! protection against overflow in exp(nu/kB*T)**2
@@ -5759,6 +6066,8 @@ contains
     rt = Rgas / 1000d0 * t ! RT in kJ/mol
     cut = max(cutoff,thermo_epszero)
     cutimag = max(cutoff,thermo_epsimag)
+    dopart = present(proj) .and. present(fpart)
+    if (present(fpart)) fpart = 0d0
 
     ! With weights (a symmetry-reduced mesh, vibrations_mesh_freqs), a
     ! column stands for wq(i) q-points and the zero-weight columns are
@@ -5801,8 +6110,10 @@ contains
           l1mx = log(1d0 - x)
 
           ! zero-point energy and free energy
+          gf = 0.5d0 * nue + rt * l1mx
           zpe = zpe + rw * 0.5d0 * nue
-          fvib = fvib + rw * (0.5d0 * nue + rt * l1mx)
+          fvib = fvib + rw * gf
+          if (dopart) fpart = fpart + rw * gf * proj(:,j,i)
 
           ! entropy
           if (t > small1) &
@@ -5830,6 +6141,7 @@ contains
     fvib = fvib * ff
     svib = svib * ff
     cv = cv * ff
+    if (dopart) fpart = fpart * ff
 
   end subroutine thermo_sum
 
@@ -6562,9 +6874,13 @@ contains
 
   !> Calculate frequencies (cm^-1) on the uniform mesh nk(3), q = (i -
   !> 1 + qshift)/nk in fractional coordinates of the reciprocal cell.
-  !> Returns freq(3*ncel,nk(1)*nk(2)*nk(3)). No frequencies are stored
-  !> in v.
-  module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg,wq,nirr,nopmesh,nopfc2,qpt)
+  !> Returns freq(3*ncel,nk(1)*nk(2)*nk(3)) and, if proj is present,
+  !> the projections of each mode on the acoustic, translational and
+  !> external subspaces in proj(1:3,:,:) (rigid_basis), only at the
+  !> representatives of the stars (the columns with wq > 0; the others
+  !> are left undefined), and the dimensions of the subspaces in pdim.
+  !> No frequencies are stored in v.
+  module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg,wq,nirr,nopmesh,nopfc2,qpt,proj,pdim)
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     integer, intent(in) :: nk(3)
@@ -6575,6 +6891,8 @@ contains
     integer, intent(out), optional :: nirr
     integer, intent(out), optional :: nopmesh, nopfc2
     real*8, allocatable, intent(out), optional :: qpt(:,:)
+    real*8, allocatable, intent(out), optional :: proj(:,:,:)
+    integer, intent(out), optional :: pdim(3)
 
     integer :: iq, jq, nq, ierr, k, isg, nu, m(3), mm(3), nr, nkeep, nlat, madj(3,3), i, nopm
     integer :: ikeep(48), rp(3,3,48)
@@ -6660,8 +6978,20 @@ contains
        end do
     end if
 
-    ! the representatives
-    call fc2_freqs_at(v,c,qall,freq,errmsg,irep)
+    ! the representatives; the projections are calculated only there
+    ! (the sums over the mesh use the representatives with the weight of
+    ! their star, and the projections are invariant under the symmetry
+    ! operations, see rigid_basis), so the rest of the array is never
+    ! touched
+    if (present(proj)) then
+       allocate(proj(3,3*c%ncel,nq),stat=ierr)
+       if (ierr /= 0) then
+          errmsg = "Could not allocate the mode projections of the mesh"
+          return
+       end if
+    end if
+    if (present(pdim)) call subspace_dims(c,pdim)
+    call fc2_freqs_at(v,c,qall,freq,errmsg,irep,proj=proj)
     if (len_trim(errmsg) > 0) return
 
     ! the rest of each star

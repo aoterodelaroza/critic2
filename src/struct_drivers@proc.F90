@@ -3970,7 +3970,7 @@ contains
   !> VIBRATIONS ... ENDVIBRATIONS environment); this allows several
   !> operations on the same vibration data in one keyword.
   module subroutine struct_vibrations(s,line0,verbose)
-    use global, only: eval_next, dunit0, iunit, iunitname0, vib_calculator, vib_memory
+    use global, only: eval_next, dunit0, iunit, iunitname0, vib_calculator, vib_memory, fileroot
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
        equal, isinteger, string, ioj_right, fopen_write, fclose, warning
     use crystalmod, only: supercell_matrix_from_ints, nice_cell, vib_calculator_from_name,&
@@ -4005,6 +4005,11 @@ contains
     logical, allocatable :: qprint(:)
     logical :: flipped, oneline, ok, doappend, domesh, dodos, plusminus, docomm, doreal
     real*8 :: rkthermo
+    logical :: ptdo, ptmol
+    character(len=:), allocatable :: ptfile
+    real*8 :: ptdev
+    integer :: ptsum(3)
+    real*8, allocatable :: ptproj(:,:,:), ptfl(:,:)
 
     ! default name of the file where CREATE_DISPLACEMENTS records how the
     ! displaced structures were generated, and where READ_FORCES looks for it
@@ -4564,6 +4569,8 @@ contains
           xdasked = .false.
           xdnp0 = -1
           xdne0 = -1
+          ptdo = .false.
+          ptfile = ""
           if (allocated(tlist)) deallocate(tlist)
           allocate(tlist(10))
 
@@ -4644,6 +4651,13 @@ contains
                 dropfile = getword(line,lp)
                 if (len_trim(dropfile) == 0) &
                    call ferror('struct_vibrations','DISCARDED needs a file name in THERMO',faterr,line,syntax=.true.)
+             elseif (equal(mode,'partition')) then
+                ptdo = .true.
+             elseif (equal(mode,'partfile')) then
+                ptfile = getword(line,lp)
+                if (len_trim(ptfile) == 0) &
+                   call ferror('struct_vibrations','PARTFILE needs a file name in THERMO',faterr,line,syntax=.true.)
+                ptdo = .true.
              elseif (equal(mode,'dos')) then
                 dodos = .true.
              elseif (equal(mode,'dosfile')) then
@@ -4730,6 +4744,9 @@ contains
           if ((docomm .or. domesh) .and..not.s%c%vib%hasfc2) &
              call ferror('struct_vibrations','THERMO MESH, RKLENGTH and COMMENSURATE need force constants &
                 &(LOAD_FC2 or READ_FORCES)',faterr)
+          if (ptdo .and. (s%c%ismolecule .or..not.(docomm .or. domesh))) &
+             call ferror('struct_vibrations','THERMO PARTITION needs a crystal and a MESH, RKLENGTH or &
+                &COMMENSURATE sampling (the modes come from the force constants)',faterr,line,syntax=.true.)
 
           ! The frequencies: sampled here on a mesh or at the commensurate
           ! wave vectors, or the ones stored. The stored set carries no
@@ -4738,15 +4755,24 @@ contains
           ! else is THERMO MESH or COMMENSURATE.
           nrigid = 0
           if (docomm) then
-             call s%c%vib%commensurate_freqs(s%c,tfreq,tqpt,errmsg)
+             if (ptdo) then
+                call s%c%vib%commensurate_freqs(s%c,tfreq,tqpt,errmsg,proj=ptproj,pdim=ptsum)
+             else
+                call s%c%vib%commensurate_freqs(s%c,tfreq,tqpt,errmsg)
+             end if
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
              if (allocated(wq)) deallocate(wq)
              allocate(wq(size(tfreq,2)))
              wq = 1
           elseif (domesh) then
-             call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg,wq=wq,nirr=nirr,nopmesh=nopmesh,nopfc2=nopfc2,&
-                qpt=tqpt)
+             if (ptdo) then
+                call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg,wq=wq,nirr=nirr,nopmesh=nopmesh,nopfc2=nopfc2,&
+                   qpt=tqpt,proj=ptproj,pdim=ptsum)
+             else
+                call s%c%vib%mesh_freqs(s%c,nk,qshift,tfreq,errmsg,wq=wq,nirr=nirr,nopmesh=nopmesh,nopfc2=nopfc2,&
+                   qpt=tqpt)
+             end if
              if (len_trim(errmsg) > 0) &
                 call ferror("struct_vibrations",errmsg,faterr)
           else
@@ -4876,10 +4902,17 @@ contains
           ! fvib, svib and cv are meaningless (use fvibl, svibl, cvl).
           if (allocated(fvibl)) deallocate(fvibl,svibl,cvl)
           allocate(fvibl(nt),svibl(nt),cvl(nt))
+          if (allocated(ptfl)) deallocate(ptfl)
+          if (ptdo) allocate(ptfl(3,nt))
           !$omp parallel do private(zpe,fvib,svib,cv,nusedm,ntotm,nimagm)
           do i = 1, nt
-             call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq,&
-                nlow=nlowq)
+             if (ptdo) then
+                call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,&
+                   wq=wq,nlow=nlowq,proj=ptproj,fpart=ptfl(:,i))
+             else
+                call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,&
+                   wq=wq,nlow=nlowq)
+             end if
              fvibl(i) = fvib
              svibl(i) = svib
              cvl(i) = cv
@@ -4889,6 +4922,39 @@ contains
              do i = 1, nt
                 call thermo_row(uout,i,.false.)
              end do
+          end if
+
+          ! the partition of the free energy, by the projections of the
+          ! modes on the acoustic, translational and external subspaces
+          if (ptdo) then
+             ! sum rules: at every q, the projections add up to the
+             ! dimensions of the subspaces, ptsum = (3, nt, ne) from
+             ! rigid_basis; no external subspace without molecules
+             ptmol = (ptsum(3) > 0)
+             ptdev = 0d0
+             do i = 1, nqt
+                if (wq(i) == 0) cycle
+                ptdev = max(ptdev,maxval(abs(sum(ptproj(:,:,i),2) - real(ptsum,8))))
+             end do
+             if (verbose) then
+                write (uout,*)
+                call part_header(uout,.false.)
+                do i = 1, nt
+                   call part_row(uout,i,.false.)
+                end do
+             end if
+             if (len_trim(ptfile) == 0) ptfile = trim(fileroot) // "_partition.dat"
+             lu = fopen_write(ptfile,errstop=.false.)
+             if (lu < 0) &
+                call ferror('struct_vibrations','could not open the PARTITION file for writing: ' // trim(ptfile),&
+                   faterr)
+             call part_header(lu,.true.)
+             do i = 1, nt
+                call part_row(lu,i,.true.)
+             end do
+             call fclose(lu)
+             if (verbose) &
+                write (uout,'("+ Partition of the free energy written to: ",A)') trim(ptfile)
           end if
 
           ! Fit the free energy to the extended Debye-Einstein model:
@@ -5038,6 +5104,91 @@ contains
       write (u,'(A)') aux
 
     end subroutine thermo_row
+
+    !> Header of the table of the partition of the free energy, written
+    !> to unit u; isfile for the PARTITION file, which also has the
+    !> sampling and the translational/librational/internal columns.
+    subroutine part_header(u,isfile)
+      integer, intent(in) :: u
+      logical, intent(in) :: isfile
+
+      if (isfile) then
+         write (u,'("# Partition of the vibrational free energy by the character of the modes, calculated by &
+            &critic2")')
+         write (u,'("# sampling: ",A)') sampling
+      else
+         write (u,'("+ Partition of the vibrational free energy by the character of the modes (PARTITION)")')
+      end if
+      if (ptmol) then
+         write (u,'("# Each mode is split by its projections on the acoustic waves (P_A), the rigid translations &
+            &of the molecules (P_T),")')
+         write (u,'("# and their rigid translations and rotations (external, P_E): F_A = sum P_A g_F, &
+            &F_Eo = sum (P_E-P_A) g_F,")')
+         write (u,'("# F_I = sum (1-P_E) g_F, over the modes of the THERMO table (F_A + F_Eo + F_I = Fvib).")')
+         write (u,'("# Sum rules at every q-point: sum P_A = ",A,", sum P_T = ",A,", sum P_E = ",A,&
+            &" (largest deviation ",A,")")') string(ptsum(1)), string(ptsum(2)), string(ptsum(3)),&
+            string(ptdev,'e',decimal=2)
+      else
+         write (u,'("# No discrete molecules, so there is no external subspace: each mode is split by its &
+            &projection on the")')
+         write (u,'("# acoustic waves (P_A): F_A = sum P_A g_F, F_O = sum (1-P_A) g_F, over the modes of the &
+            &THERMO table (F_A + F_O = Fvib).")')
+         write (u,'("# Sum rule at every q-point: sum P_A = ",A," (largest deviation ",A,")")') &
+            string(ptsum(1)), string(ptdev,'e',decimal=2)
+      end if
+      write (u,'("# T in K; free energies in kJ/mol; Ftot = Fvib of the THERMO table")')
+      if (ptmol) then
+         if (isfile) then
+            write (u,'("# columns 2-5 per unit cell, 6-9 per formula unit (Z = ",A,"); columns 10-12 per unit &
+               &cell: translational F_T = sum P_T g_F,")') string(nz)
+            write (u,'("# librational F_L = sum (P_E-P_T) g_F, and internal F_I (F_T + F_L + F_I = Fvib)")')
+            write (u,'("#      T          Ftot/cell          FA/cell         FEo/cell          FI/cell        &
+               &Ftot/Z             FA/Z            FEo/Z             FI/Z          FT/cell          FL/cell          &
+               &FI/cell")')
+         else
+            write (u,'("# columns 2-5 per unit cell, 6-9 per formula unit (Z = ",A,")")') string(nz)
+            write (u,'("#      T          Ftot/cell          FA/cell         FEo/cell          FI/cell        &
+               &Ftot/Z             FA/Z            FEo/Z             FI/Z")')
+         end if
+      else
+         write (u,'("# columns 2-4 per unit cell, 5-7 per formula unit (Z = ",A,")")') string(nz)
+         write (u,'("#      T          Ftot/cell          FA/cell          FO/cell        Ftot/Z             FA/Z    &
+            &         FO/Z")')
+      end if
+
+    end subroutine part_header
+
+    !> Row i of the table of the partition of the free energy, written
+    !> to unit u; isfile adds the translational/librational/internal
+    !> columns.
+    subroutine part_row(u,i,isfile)
+      integer, intent(in) :: u, i
+      logical, intent(in) :: isfile
+
+      character(len=:), allocatable :: aux
+      real*8 :: x(4)
+      integer :: j, nx
+
+      if (ptmol) then
+         nx = 4
+         x = (/fvibl(i), ptfl(1,i), ptfl(3,i) - ptfl(1,i), fvibl(i) - ptfl(3,i)/)
+      else
+         nx = 3
+         x(1:3) = (/fvibl(i), ptfl(1,i), fvibl(i) - ptfl(1,i)/)
+      end if
+      aux = string(tlist(i),'f',10,3,ioj_right)
+      do j = 1, nx
+         aux = aux // " " // string(x(j),'f',16,7,ioj_right)
+      end do
+      do j = 1, nx
+         aux = aux // " " // string(x(j)/real(nz,8),'f',16,7,ioj_right)
+      end do
+      if (isfile .and. ptmol) &
+         aux = aux // " " // string(ptfl(2,i),'f',16,7,ioj_right) // " " //&
+         string(ptfl(3,i) - ptfl(2,i),'f',16,7,ioj_right) // " " // string(fvibl(i) - ptfl(3,i),'f',16,7,ioj_right)
+      write (u,'(A)') aux
+
+    end subroutine part_row
 
     !> How to use the fitted model in gibbs2, written to unit u; pre1
     !> prefixes the first line and pre the rest.

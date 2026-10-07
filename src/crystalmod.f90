@@ -1862,13 +1862,14 @@ module crystalmod
        logical, intent(in) :: verbose
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine vibrations_write_fc2
-     module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco)
+     module subroutine vibrations_calculate_q(v,c,q,errmsg,freqo,veco,projo)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        real*8, intent(in) :: q(3)
        character(len=:), allocatable, intent(out) :: errmsg
        real*8, intent(inout), allocatable, optional :: freqo(:)
        complex*16, intent(inout), allocatable, optional :: veco(:,:)
+       real*8, intent(inout), allocatable, optional :: projo(:,:)
      end subroutine vibrations_calculate_q
      module subroutine vibrations_calculate_vs(v,c,q,vs)
        class(vibrations), intent(inout) :: v
@@ -1884,7 +1885,7 @@ module crystalmod
        logical, intent(in) :: verbose
      end subroutine vibrations_calculate_vs_prepare
      module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq,&
-        nneg,nqbad,fmin,cuteff,nlow)
+        nneg,nqbad,fmin,cuteff,nlow,proj,fpart)
        class(vibrations), intent(in) :: v
        real*8, intent(in) :: t
        real*8, intent(in) :: cutoff
@@ -1895,6 +1896,8 @@ module crystalmod
        integer, intent(out), optional :: nneg, nqbad
        real*8, intent(out), optional :: fmin, cuteff
        integer, intent(in), optional :: nlow(:)
+       real*8, intent(in), optional :: proj(:,:,:)
+       real*8, intent(out), optional :: fpart(3)
      end subroutine vibrations_calculate_thermo
      module subroutine xdebye_select(nt,t,fvib,natom,f0,freq,wq,verbose,npoly,nein,par,r2,dfmax,errmsg,&
         npfix,nefix)
@@ -1925,7 +1928,7 @@ module crystalmod
        real*8, intent(in) :: par(:)
        character(len=:), allocatable :: line
      end function xdebye_line
-     module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg,wq,nirr,nopmesh,nopfc2,qpt)
+     module subroutine vibrations_mesh_freqs(v,c,nk,qshift,freq,errmsg,wq,nirr,nopmesh,nopfc2,qpt,proj,pdim)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        integer, intent(in) :: nk(3)
@@ -1936,13 +1939,17 @@ module crystalmod
        integer, intent(out), optional :: nirr
        integer, intent(out), optional :: nopmesh, nopfc2
        real*8, allocatable, intent(out), optional :: qpt(:,:)
+       real*8, allocatable, intent(out), optional :: proj(:,:,:)
+       integer, intent(out), optional :: pdim(3)
      end subroutine vibrations_mesh_freqs
-     module subroutine vibrations_commensurate_freqs(v,c,freq,qpt,errmsg)
+     module subroutine vibrations_commensurate_freqs(v,c,freq,qpt,errmsg,proj,pdim)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        real*8, allocatable, intent(inout) :: freq(:,:)
        real*8, allocatable, intent(inout) :: qpt(:,:)
        character(len=:), allocatable, intent(out) :: errmsg
+       real*8, allocatable, intent(out), optional :: proj(:,:,:)
+       integer, intent(out), optional :: pdim(3)
      end subroutine vibrations_commensurate_freqs
      module subroutine vibrations_write_dropped(v,file,cut,freq,qpt,errmsg,wq,nlow)
        class(vibrations), intent(in) :: v
