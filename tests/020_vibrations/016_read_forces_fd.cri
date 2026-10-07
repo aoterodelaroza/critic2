@@ -1,5 +1,5 @@
-## check: 016_read_forces_fd_template.dat -a1e-5
-## check: 016_read_forces_fd_list.dat -a1e-5
+## check: 016_read_forces_fd_template.dat -a1e-4
+## check: 016_read_forces_fd_list.dat -a1e-4
 ## check: 016_read_forces_fd_ref.dat -a1e-5
 ## check: 016_read_forces_fd_fc2.dat -a1e-8
 ## sed: 016_read_forces_fd_fc2.dat '1,41!d'
@@ -14,6 +14,9 @@
 ## (8.7e-3 cm^-1 leaving out the acoustic modes at gamma). The outputs
 ## are located with a * template and with a list file, which give the
 ## same force constants. The head of the written FC2 file is checked.
+## The tolerance of the frequency files is 1e-4 cm^-1 because the
+## acoustic modes at gamma are numerical zeros of a few 1e-5 cm^-1 that
+## change with the order of the sums in the dynamical matrix.
 crystal ../zz_source/critic2/vibrations-urea/urea.in
 vibrations
   calculator aims

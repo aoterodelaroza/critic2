@@ -325,6 +325,8 @@ contains
        v%fc2_m = 0d0
        if (allocated(v%fc2_svec)) deallocate(v%fc2_svec)
        if (allocated(v%fc2_sptr)) deallocate(v%fc2_sptr)
+       if (allocated(v%fc2_slat)) deallocate(v%fc2_slat)
+       v%fc2_slmax = 0
        if (allocated(v%fc2_dd)) deallocate(v%fc2_dd)
     end if
     ! the Born charges belong to the structure, not to the force
@@ -4746,7 +4748,7 @@ contains
     integer :: ia, ja, jl, js, ip, k, n1, n2, n3, n4, nc, nsv, ier
     integer :: ncel, nlat, nsat
     real*8 :: scx2c(3,3), smatr(3,3), rmat(3,4), tt(3), y(3), yx(3), r0(3), dmin
-    real*8 :: rbas(3,3), rbasi(3,3), z(3)
+    real*8 :: rbas(3,3), rbasi(3,3), z(3), dx(3)
     real*8 :: tcand(3,3**4), tcandx(3,3**4), dcand(3**4)
     real*8, allocatable :: sv(:,:)
     logical :: found
@@ -4832,6 +4834,23 @@ contains
     call realloc(sv,3,nsv)
     call move_alloc(sv,v%fc2_svec)
 
+    ! the lattice part of each image, for calculate_q: an image goes
+    ! from atom ia to a periodic copy of atom ja, so it differs from
+    ! x(ja) - x(ia) by a lattice vector
+    if (allocated(v%fc2_slat)) deallocate(v%fc2_slat)
+    allocate(v%fc2_slat(3,nsv))
+    do js = 1, nsat
+       ja = (js-1)/nlat + 1
+       do ia = 1, ncel
+          ip = (js-1)*ncel + ia
+          dx = fc2_xin(c,ja) - fc2_xin(c,ia)
+          do k = v%fc2_sptr(ip), v%fc2_sptr(ip+1)-1
+             v%fc2_slat(:,k) = nint(v%fc2_svec(:,k) - dx)
+          end do
+       end do
+    end do
+    v%fc2_slmax = maxval(abs(v%fc2_slat))
+
   end subroutine fc2_build_svec
 
   !> The reciprocal-space sum of the dipole-dipole interaction at
@@ -4851,16 +4870,27 @@ contains
 
     real*8, parameter :: epsk = 1d-6 ! a K shorter than this is q = 0 (bohr^-1)
 
-    integer :: ncel, i, n1, n2, n3, ng, nmin(3), nmax(3)
+    integer :: ncel, i, j, k, n, n1, n2, n3, ng, nmin(3), nmax(3)
     real*8 :: g(3), kc(3), kn, kek, w, a(3), rc2x(3,3)
-    complex*16 :: ph
-    complex*16, allocatable :: amat(:,:)
+    complex*16, allocatable :: amat(:,:), e(:,:,:)
 
     ncel = c%ncel
     rc2x = transpose(c%m_c2x) ! fractional reciprocal (no 2pi) to Cartesian
     do i = 1, 3
        nmin(i) = floor(-q(i) - v%born_kcut * c%aa(i))
        nmax(i) = ceiling(-q(i) + v%born_kcut * c%aa(i))
+    end do
+
+    ! the phase factorizes, exp(2 pi i G.x_i) = e(i,n1,1) e(i,n2,2)
+    ! e(i,n3,3): one exponential per lattice coordinate and per atom
+    ! instead of one per G-vector and per atom
+    allocate(e(ncel,minval(nmin):maxval(nmax),3))
+    do k = 1, 3
+       do n = nmin(k), nmax(k)
+          do i = 1, ncel
+             e(i,n,k) = exp(img * tpi * n * c%atcel(i)%x(k))
+          end do
+       end do
     end do
 
     ! the columns of amat are the K vectors, with dd = amat * amat^H
@@ -4878,8 +4908,7 @@ contains
              ng = ng + 1
              do i = 1, ncel
                 a = matmul(kc,v%born_z(:,:,i))
-                ph = exp(img * tpi * dot_product(g,c%atcel(i)%x))
-                amat(3*i-2:3*i,ng) = a * (ph * w)
+                amat(3*i-2:3*i,ng) = a * (e(i,n1,1) * e(i,n2,2) * e(i,n3,3) * w)
              end do
           end do
        end do
@@ -4890,7 +4919,17 @@ contains
     end if
     if (.not.allocated(dd)) allocate(dd(3*ncel,3*ncel))
     if (ng > 0) then
+#ifdef HAVE_LAPACK
+       ! dd is Hermitian: the upper triangle, then the lower by conjugation
+       call zherk('U','N',3*ncel,ng,1d0,amat,3*ncel,0d0,dd,3*ncel)
+       do j = 1, 3*ncel
+          do i = j+1, 3*ncel
+             dd(i,j) = conjg(dd(j,i))
+          end do
+       end do
+#else
        dd = matmul(amat(:,1:ng),transpose(conjg(amat(:,1:ng))))
+#endif
     else
        dd = 0d0
     end if
@@ -5303,10 +5342,10 @@ contains
     real*8, intent(inout), allocatable, optional :: freqo(:)
     complex*16, intent(inout), allocatable, optional :: veco(:,:)
 
-    integer :: ia, ja, jl, js, ip, i, k, ier, ncel, nlat, nfreq
-    complex*16 :: phase, dd(3,3)
+    integer :: ia, ja, js, ip, i, k, n, ier, ncel, nlat, nfreq, lm
+    complex*16 :: phase
     real*8, allocatable :: eval(:), sqrtm(:)
-    complex*16, allocatable :: dm(:,:), ddlr(:,:)
+    complex*16, allocatable :: dm(:,:), ddlr(:,:), p(:), e(:,:)
 
     errmsg = ""
 
@@ -5332,26 +5371,47 @@ contains
     do ia = 1, ncel
        sqrtm(ia) = sqrt(atmass(c%spc(c%atcel(ia)%is)%z))
     end do
-    do ia = 1, ncel
-       do ja = 1, ncel
-          dd = 0d0
-          do jl = 1, nlat
-             js = (ja-1)*nlat + jl
-             ip = (js-1)*ncel + ia
 
-             ! average the phases of the images at the same distance
-             phase = 0d0
-             do k = v%fc2_sptr(ip), v%fc2_sptr(ip+1)-1
-                phase = phase + exp(img * tpi * dot_product(q,v%fc2_svec(:,k)))
-             end do
-             phase = phase / real(v%fc2_sptr(ip+1)-v%fc2_sptr(ip),8)
-             if (v%hasborn) then
-                dd = dd + (v%fc2(:,:,ia,js) - v%fc2_dd(:,:,ia,js)) * phase
-             else
-                dd = dd + v%fc2(:,:,ia,js) * phase
-             end if
+    ! the phase of an image factorizes, exp(2 pi i q.(L + x_ja - x_ia)) =
+    ! e(L1,1) e(L2,2) e(L3,3) p_ja conj(p_ia): one exponential per atom
+    ! and per lattice coordinate instead of one per image
+    lm = v%fc2_slmax
+    allocate(p(ncel),e(-lm:lm,3))
+    do ia = 1, ncel
+       p(ia) = exp(img * tpi * dot_product(q,fc2_xin(c,ia)))
+    end do
+    do k = 1, 3
+       do n = -lm, lm
+          e(n,k) = exp(img * tpi * q(k) * n)
+       end do
+    end do
+
+    ! sum over the supercell atoms js; the cell atoms ia run fastest, so
+    ! that fc2 and fc2_dd are read in memory order
+    dm = 0d0
+    do js = 1, v%fc2_nsat
+       ja = (js-1)/nlat + 1
+       do ia = 1, ncel
+          ip = (js-1)*ncel + ia
+
+          ! average the phases of the images at the same distance
+          phase = 0d0
+          do k = v%fc2_sptr(ip), v%fc2_sptr(ip+1)-1
+             phase = phase + e(v%fc2_slat(1,k),1) * e(v%fc2_slat(2,k),2) * e(v%fc2_slat(3,k),3)
           end do
-          dm(3*ia-2:3*ia,3*ja-2:3*ja) = dd / (sqrtm(ia) * sqrtm(ja))
+          phase = phase / real(v%fc2_sptr(ip+1)-v%fc2_sptr(ip),8)
+          if (v%hasborn) then
+             dm(3*ia-2:3*ia,3*ja-2:3*ja) = dm(3*ia-2:3*ia,3*ja-2:3*ja) +&
+                (v%fc2(:,:,ia,js) - v%fc2_dd(:,:,ia,js)) * phase
+          else
+             dm(3*ia-2:3*ia,3*ja-2:3*ja) = dm(3*ia-2:3*ia,3*ja-2:3*ja) + v%fc2(:,:,ia,js) * phase
+          end if
+       end do
+    end do
+    do ja = 1, ncel
+       do ia = 1, ncel
+          dm(3*ia-2:3*ia,3*ja-2:3*ja) = dm(3*ia-2:3*ia,3*ja-2:3*ja) *&
+             (conjg(p(ia)) * p(ja) / (sqrtm(ia) * sqrtm(ja)))
        end do
     end do
 
@@ -5620,7 +5680,7 @@ contains
   !> nqbad, fmin and cuteff describe the modes left out (see thermo_sum).
   module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq,&
      nneg,nqbad,fmin,cuteff,nlow)
-    class(vibrations), intent(inout) :: v
+    class(vibrations), intent(in) :: v
     real*8, intent(in) :: t
     real*8, intent(in) :: cutoff
     real*8, intent(out) :: zpe, fvib, svib, cv

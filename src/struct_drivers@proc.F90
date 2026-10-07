@@ -4868,17 +4868,28 @@ contains
                 write (uout,'("+ Modes left out written to: ",A)') trim(dropfile)
           end if
 
-          ! the properties, temperature by temperature
+          ! the properties, temperature by temperature; the temperatures
+          ! are independent, so they run in parallel, and each sum is
+          ! serial, so the result does not depend on the number of
+          ! threads. The scalar results are private: after the loop,
+          ! zpe and the counts keep the values of the call above, and
+          ! fvib, svib and cv are meaningless (use fvibl, svibl, cvl).
           if (allocated(fvibl)) deallocate(fvibl,svibl,cvl)
           allocate(fvibl(nt),svibl(nt),cvl(nt))
+          !$omp parallel do private(zpe,fvib,svib,cv,nusedm,ntotm,nimagm)
           do i = 1, nt
              call s%c%vib%calculate_thermo(tlist(i),cutoff,zpe,fvib,svib,cv,nusedm,ntotm,nimagm,freqo=tfreq,wq=wq,&
                 nlow=nlowq)
              fvibl(i) = fvib
              svibl(i) = svib
              cvl(i) = cv
-             if (verbose) call thermo_row(uout,i,.false.)
           end do
+          !$omp end parallel do
+          if (verbose) then
+             do i = 1, nt
+                call thermo_row(uout,i,.false.)
+             end do
+          end if
 
           ! Fit the free energy to the extended Debye-Einstein model:
           ! its parameters are what gibbs2 needs to run a quasiharmonic

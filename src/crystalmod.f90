@@ -180,6 +180,9 @@ module crystalmod
      ! fc2_svec(:,k) for k in fc2_sptr(ip):fc2_sptr(ip+1)-1, with ip = (js-1)*ncel + ia.
      real*8, allocatable :: fc2_svec(:,:) ! (3,*) shortest images, cell fractional coords
      integer, allocatable :: fc2_sptr(:) ! (ncel*fc2_nsat+1) index of the first image of each pair
+     ! the lattice part of each image, fc2_svec(:,k) = fc2_slat(:,k) + x(js) - x(ia), with |fc2_slat| <= fc2_slmax
+     integer, allocatable :: fc2_slat(:,:) ! (3,*) integer cell fractional coords
+     integer :: fc2_slmax = 0
      ! long-range dipole-dipole correction (Gonze and Lee), from the Born effective charges
      logical :: hasborn = .false. ! true if the Born charges and dielectric tensor are available
      character(len=mlen) :: born_file = "" ! source file of the Born charges
@@ -1882,7 +1885,7 @@ module crystalmod
      end subroutine vibrations_calculate_vs_prepare
      module subroutine vibrations_calculate_thermo(v,t,cutoff,zpe,fvib,svib,cv,nused,ntot,nimag,freqo,wq,&
         nneg,nqbad,fmin,cuteff,nlow)
-       class(vibrations), intent(inout) :: v
+       class(vibrations), intent(in) :: v
        real*8, intent(in) :: t
        real*8, intent(in) :: cutoff
        real*8, intent(out) :: zpe, fvib, svib, cv
