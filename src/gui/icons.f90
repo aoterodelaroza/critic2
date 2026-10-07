@@ -98,7 +98,8 @@ module icons
   integer, parameter, public :: icon_at_enlarge = 63 ! make atoms larger (sphere, arrows out)
   integer, parameter, public :: icon_at_shrink = 64 ! make atoms smaller (sphere, arrows in)
   integer, parameter, public :: icon_at_hide = 65 ! hide atoms (crossed-out circle)
-  integer, parameter, public :: icon_NUM = 65
+  integer, parameter, public :: icon_at_shift = 66 ! shift atoms by a lattice vector (atom, arrow, dashed copy)
+  integer, parameter, public :: icon_NUM = 66
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

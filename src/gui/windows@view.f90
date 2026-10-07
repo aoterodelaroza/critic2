@@ -4474,6 +4474,7 @@ contains
   !> editing mode. ttshown = the tooltip flag.
   subroutine draw_annot_row(w,ttshown)
     use utils, only: iw_icon_togglebutton, iw_tooltip, iw_flyout_button, iw_text, iw_caption_below
+    use systems, only: sys
     use icons, only: icon_tex, icon_ui_objprops
     use representations, only: repflavor_name
     use tools_io, only: string
@@ -4481,7 +4482,7 @@ contains
     logical, intent(inout) :: ttshown
 
     integer :: ig, i, k, itype
-    logical :: enabled, openpop
+    logical :: enabled, openpop, ismol
     type(ImVec2) :: p0
     integer, allocatable :: tools(:), icons(:)
     character(len=2), allocatable :: falls(:)
@@ -4495,6 +4496,8 @@ contains
        w%vmdata%owner == w%id)) w%annot%itool = objtool_none
     if (.not.w%annot%shown) return
     enabled = associated(w%sc)
+    ismol = .false.
+    if (enabled) ismol = sys(w%isys)%c%ismolecule
 
     ! the editor of the object the tools work on, and the select and
     ! remove tools, for all the object types
@@ -4556,31 +4559,77 @@ contains
       logical, intent(in), optional :: inpopup
       character(len=*), intent(in), optional :: caption
 
-      logical :: armed
+      logical :: armed, dis, isshift
+      character(kind=c_char,len=:), allocatable, target :: strmenu
 
       if (itype == 0) then
          armed = (w%annot%itool == itool)
       else
          armed = (w%annot%itool == itool .and. w%annot%itype == itype)
       end if
+      ! the shift tool needs lattice vectors (but it can always be turned off)
+      isshift = (itype == reptype_atoms .and. itool == objtool_kind0+atomtool_shift)
+      dis = .not.enabled .or. (ismol .and. .not.armed .and. isshift)
+      strmenu = "##annotshiftmenu" // c_null_char
       if (iw_icon_togglebutton("##annottool" // string(itype) // "_" // string(itool),&
-         icon_tex(icon),trim(fall),state=armed,disabled=.not.enabled,sameline=sameline,&
+         icon_tex(icon),trim(fall),state=armed,disabled=dis,sameline=sameline,&
          caption=caption)) then
-         if (armed) then
-            call w%annot_set_tool(itype,itool,0)
+         if (isshift) then
+            ! the shift tool asks for its lattice direction first
+            call igOpenPopup_Str(c_loc(strmenu),ImGuiPopupFlags_None)
          else
-            call w%annot_set_tool(0,objtool_none,0)
-         end if
-         if (present(inpopup)) then
-            if (inpopup) call igCloseCurrentPopup()
+            if (armed) then
+               call w%annot_set_tool(itype,itool,0)
+            else
+               call w%annot_set_tool(0,objtool_none,0)
+            end if
+            if (present(inpopup)) then
+               if (inpopup) call igCloseCurrentPopup()
+            end if
          end if
       end if
       if (tooltip_enabled) then
          if (igIsItemHovered(ImGuiHoveredFlags_None)) &
             call iw_tooltip(objtool_hint(itype,itool) // more,ttshown)
       end if
+      if (isshift) then
+         if (shift_menu(strmenu)) then
+            if (present(inpopup)) then
+               if (inpopup) call igCloseCurrentPopup()
+            end if
+         end if
+      end if
 
     end subroutine tool_button
+
+    !> The menu of lattice directions of the shift tool (popup strmenu,
+    !> opened by its button): a choice arms the tool to shift the atoms by
+    !> that lattice vector. Returns true if a direction was chosen.
+    function shift_menu(strmenu) result(chosen)
+      use utils, only: iw_menuitem
+      character(kind=c_char,len=*), intent(in), target :: strmenu
+      logical :: chosen
+
+      integer :: k
+      logical :: armed
+
+      character(len=2), parameter :: dirs(6) = (/"+a","-a","+b","-b","+c","-c"/)
+      integer(c_int), parameter :: dirv(3,6) = reshape((/1,0,0, -1,0,0, 0,1,0, 0,-1,0,&
+         0,0,1, 0,0,-1/),shape(dirv))
+
+      chosen = .false.
+      if (.not.igBeginPopup(c_loc(strmenu),ImGuiWindowFlags_None)) return
+      armed = (w%annot%itype == reptype_atoms .and. w%annot%itool == objtool_kind0+atomtool_shift)
+      do k = 1, 6
+         if (iw_menuitem(dirs(k),selected=(armed .and. all(w%annot%shift_lvec == dirv(:,k))))) then
+            w%annot%shift_lvec = dirv(:,k)
+            call w%annot_set_tool(reptype_atoms,objtool_kind0+atomtool_shift,0)
+            chosen = .true.
+         end if
+      end do
+      call igEndPopup()
+
+    end function shift_menu
 
     !> The paint color and the reset button, in the popup of the atom
     !> tools. The reset brings the atom styles of the atom-based objects
@@ -4613,9 +4662,9 @@ contains
          w%sc%nextbuildlists_fixcam = .true.
          call igCloseCurrentPopup()
       end if
-      call iw_tooltip("Bring the colors and sizes of the atoms back to the defaults, and show &
-         &all the hidden atoms and molecules (the polyhedron tool undoes itself: click the &
-         &atom again)",ttshown)
+      call iw_tooltip("Bring the colors and sizes of the atoms back to the defaults, show &
+         &all the hidden atoms and molecules, and undo their lattice-vector shifts (the &
+         &polyhedron tool undoes itself: click the atom again)",ttshown)
 
     end subroutine atomtool_extras
   end subroutine draw_annot_row

@@ -514,7 +514,8 @@ module windows
   integer, parameter, public :: atomtool_hide = 4 ! hide the atoms (scene Display)
   integer, parameter, public :: atomtool_poly = 5 ! toggle the polyhedra centered on the atoms
   integer, parameter, public :: atomtool_label = 6 ! show or hide the labels of the atoms
-  integer, parameter, public :: atomtool_NUM = 6
+  integer, parameter, public :: atomtool_shift = 7 ! draw the atoms a lattice vector away (crystals)
+  integer, parameter, public :: atomtool_NUM = 7
 
   ! what the draw bind is doing in the object editing mode (vm_objedit)
   ! object editing in the view: pick radius of the handles and items, and
@@ -625,6 +626,7 @@ module windows
      logical :: newrep = .false. ! the first item drawn goes to a new object (Draw menu)
      integer :: face(nannot) = objtool_kind0 + 1 ! the tool on the button of each group (the last armed)
      real(c_float) :: paint_rgb(3) = (/1._c_float,0.55_c_float,0._c_float/) ! color of the paint atom tool
+     integer(c_int) :: shift_lvec(3) = (/1,0,0/) ! lattice vector of the shift atom tool
   end type annot_state
   public :: annot_state
 
@@ -1783,8 +1785,8 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_scfplot
      !xx! editrep submodule !xx!
-     module function atom_table_widget(isys,itype,typechanged,ihighlight,highlight_type,shown,rgb,rad) &
-        result(changed)
+     module function atom_table_widget(isys,itype,typechanged,ihighlight,highlight_type,shown,rgb,rad,&
+        shift) result(changed)
        integer, intent(in) :: isys
        integer, intent(inout) :: itype
        logical, intent(out) :: typechanged
@@ -1793,6 +1795,7 @@ module windows
        logical, intent(inout), optional :: shown(:)
        real(c_float), intent(inout), optional :: rgb(:,:)
        real*8, intent(inout), optional :: rad(:)
+       integer, intent(inout), optional :: shift(:,:)
        logical :: changed
      end function atom_table_widget
      module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)

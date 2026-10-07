@@ -29,6 +29,10 @@ module display
   integer(c_int), parameter, public :: pertype_none = 1 ! draw the main cell only
   integer(c_int), parameter, public :: pertype_manual = 2 ! draw a count of its own
 
+  ! largest component of the lattice-vector shifts of the atom groups
+  ! (scene_display%ashift), which bounds the work of the draw-list build
+  integer, parameter, public :: disp_maxshift = 10
+
   !> scene display: which part of the system is drawn
   type scene_display
      integer(c_int) :: ncell(3) = 1 ! number of unit cells drawn along a, b, c
@@ -38,6 +42,7 @@ module display
      ! which atoms and molecules are drawn (the masks exist once allocated)
      integer :: atype = 1 ! grouping of the atom Show mask (atlisttype_* in systems; 1 = species)
      logical, allocatable :: ashown(:) ! atom group shown, by group of atype
+     integer, allocatable :: ashift(:,:) ! atom group drawn this lattice vector away (3,group of atype; crystals)
      logical, allocatable :: mshown(:) ! molecule shown
      real*8 :: timelastreset = 0d0 ! time the show masks were last (re)made
    contains

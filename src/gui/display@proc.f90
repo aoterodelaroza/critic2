@@ -62,7 +62,8 @@ contains
   end subroutine scene_display_init
 
   !> (Re)make the atom-group and molecule Show masks of the Display for
-  !> system isys, with everything shown, and stamp them.
+  !> system isys, with everything shown, and the lattice-vector shifts of
+  !> the atom groups, all zero; stamp them.
   module subroutine scene_display_reset_shown(disp,isys)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system
@@ -70,12 +71,15 @@ contains
     integer, intent(in) :: isys
 
     if (allocated(disp%ashown)) deallocate(disp%ashown)
+    if (allocated(disp%ashift)) deallocate(disp%ashift)
     if (allocated(disp%mshown)) deallocate(disp%mshown)
     disp%timelastreset = glfwGetTime()
     if (.not.ok_system(isys,sys_ready)) return
 
-    allocate(disp%ashown(sysc(isys)%attype_number(disp%atype)),disp%mshown(sys(isys)%c%nmol))
+    allocate(disp%ashown(sysc(isys)%attype_number(disp%atype)),disp%mshown(sys(isys)%c%nmol),&
+       disp%ashift(3,sysc(isys)%attype_number(disp%atype)))
     disp%ashown = .true.
+    disp%ashift = 0
     disp%mshown = .true.
 
   end subroutine scene_display_reset_shown
@@ -100,11 +104,11 @@ contains
 
   end subroutine scene_display_update
 
-  !> The rows of the atom Show mask of the Display (system isys) that
-  !> hold the cell atoms iat(:), in irow. If the cell atoms are not
-  !> whole groups of the mask, its rows become the cell atoms first,
-  !> each shown as its group was, so that the rows change only these
-  !> atoms.
+  !> The rows of the atom Show mask and lattice-vector shifts of the
+  !> Display (system isys) that hold the cell atoms iat(:), in irow. If
+  !> the cell atoms are not whole groups of them, the rows become the
+  !> cell atoms first, each shown and shifted as its group was, so that
+  !> the rows change only these atoms.
   module subroutine scene_display_rows_for(disp,isys,iat,irow)
     use systems, only: sysc
     class(scene_display), intent(inout) :: disp
@@ -122,6 +126,7 @@ contains
     if (.not.sysc(isys)%attype_rows_whole(disp%atype,iat)) then
        k = sysc(isys)%attype_celatom_ids(disp%atype)
        disp%ashown = disp%ashown(k)
+       disp%ashift = disp%ashift(:,k)
        disp%atype = sysc(isys)%attype_celatom_type()
     end if
     irow = sysc(isys)%attype_rows(disp%atype,iat)
@@ -134,6 +139,7 @@ contains
 
     disp%timelastreset = 0d0
     if (allocated(disp%ashown)) deallocate(disp%ashown)
+    if (allocated(disp%ashift)) deallocate(disp%ashift)
     if (allocated(disp%mshown)) deallocate(disp%mshown)
 
   end subroutine scene_display_end

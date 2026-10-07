@@ -73,9 +73,11 @@ contains
             call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
          end if
 
-         ! the atom and molecule Show tables (a change of grouping remakes
-         ! the masks, and the table is drawn next frame)
-         ch = atom_table_widget(isys,disp%atype,typechanged,ihighlight,highlight_type,shown=disp%ashown)
+         ! the atom and molecule Show tables, and the lattice-vector shifts
+         ! of the atoms in a crystal (a change of grouping remakes the masks
+         ! and the shifts, and the table is drawn next frame)
+         ch = atom_table_widget(isys,disp%atype,typechanged,ihighlight,highlight_type,shown=disp%ashown,&
+            shift=disp%ashift)
          if (typechanged) call disp%reset_shown(isys)
          changed = changed .or. ch
          ch = mol_table_widget(isys,ihighlight,highlight_type,shown=disp%mshown)

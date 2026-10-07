@@ -1335,14 +1335,15 @@ contains
   !> remakes its arrays for the new one. ihighlight/highlight_type are set to the
   !> row under the mouse (and its grouping) for the scene highlight, and
   !> left alone otherwise.
-  module function atom_table_widget(isys,itype,typechanged,ihighlight,highlight_type,shown,rgb,rad) &
-     result(changed)
+  module function atom_table_widget(isys,itype,typechanged,ihighlight,highlight_type,shown,rgb,rad,&
+     shift) result(changed)
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_ang,&
        atlisttype_ncel_frac
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column
+       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column, iw_intstepper
     use tools_io, only: string, ioj_right
     use param, only: bohrtoa
+    use display, only: disp_maxshift
     integer, intent(in) :: isys
     integer, intent(inout) :: itype
     logical, intent(out) :: typechanged
@@ -1351,14 +1352,15 @@ contains
     logical, intent(inout), optional :: shown(:)
     real(c_float), intent(inout), optional :: rgb(:,:)
     real*8, intent(inout), optional :: rad(:)
+    integer, intent(inout), optional :: shift(:,:)
     logical :: changed
 
-    logical :: domol, docoord, doshown, dostyle, ch
+    logical :: domol, docoord, doshown, dostyle, doshift, ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     real*8 :: x0(3)
     type(ImVec2) :: sz0
-    integer :: ispc, i, iz, ncol, icol, ntype, itab
+    integer :: ispc, i, j, iz, ncol, icol, ntype, itab
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
 
@@ -1374,6 +1376,8 @@ contains
     typechanged = .false.
     doshown = present(shown)
     dostyle = present(rgb) .and. present(rad)
+    doshift = present(shift)
+    if (doshift) doshift = .not.sys(isys)%c%ismolecule
     if (doshown) then
        call iw_text("Shown Atoms",highlight=.true.)
     elseif (dostyle) then
@@ -1401,6 +1405,9 @@ contains
     if (dostyle) then
        if (size(rgb,2) /= ntype .or. size(rad,1) /= ntype) return
     end if
+    if (doshift) then
+       if (size(shift,2) /= ntype) return
+    end if
 
     ! whether to do the molecule column and the coordinates
     domol = (itab == atlisttype_ncel_ang)
@@ -1408,6 +1415,7 @@ contains
     ncol = 3
     if (doshown) ncol = ncol + 1 ! show
     if (dostyle) ncol = ncol + 2 ! col, radius
+    if (doshift) ncol = ncol + 1 ! lattice-vector shift
     if (domol) ncol = ncol + 1 ! mol
     if (docoord) ncol = ncol + 1 ! coordinates
 
@@ -1434,6 +1442,7 @@ contains
           call iw_table_column("Col",icol=icol)
           call iw_table_column("Radius",icol=icol)
        end if
+       if (doshift) call iw_table_column("Shift",icol=icol)
        if (domol) call iw_table_column("Mol",icol=icol)
        if (docoord) then
           if (itab == atlisttype_ncel_ang) then
@@ -1509,6 +1518,20 @@ contains
                       rad(i) = max(rad(i),0d0)
                       changed = .true.
                    end if
+                end if
+             end if
+
+             ! lattice-vector shift
+             if (doshift) then
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   do j = 1, 3
+                      ch = iw_intstepper("tableshift" // string(j) // suffix,shift(j,i),&
+                         minval=-disp_maxshift,maxval=disp_maxshift,ndigit=3,notlive=.true.,&
+                         sameline=(j > 1),tooltip="Draw these atoms this lattice vector away &
+                         &(fractional, integers)")
+                      changed = changed .or. ch
+                   end do
                 end if
              end if
 
@@ -3277,7 +3300,7 @@ contains
        icon_sh_sphere, icon_ui_cell, icon_sh_cone, icon_sh_cylinder, icon_tx_screen,&
        icon_tx_point, icon_tx_atom, icon_tx_bond, icon_ms_distance, icon_ms_angle,&
        icon_ms_dihedral, icon_ax_scene, icon_ax_window, icon_at_paint, icon_at_enlarge,&
-       icon_at_shrink, icon_at_hide, icon_ui_polyhedra, icon_ui_labels
+       icon_at_shrink, icon_at_hide, icon_ui_polyhedra, icon_ui_labels, icon_at_shift
     integer, intent(in) :: itype
     integer, allocatable, intent(out) :: tools(:)
     integer, allocatable, intent(out) :: icons(:)
@@ -3289,8 +3312,8 @@ contains
        ! the atom tools (atomtool_*), with no select or remove
        tools = (/(k, k = objtool_kind0+1, objtool_kind0+atomtool_NUM)/)
        icons = (/icon_at_paint,icon_at_enlarge,icon_at_shrink,icon_at_hide,icon_ui_polyhedra,&
-          icon_ui_labels/)
-       falls = (/"Pa","En","Sh","Hi","Po","La"/)
+          icon_ui_labels,icon_at_shift/)
+       falls = (/"Pa","En","Sh","Hi","Po","La","Lv"/)
     elseif (itype == reptype_planar) then
        ! the kinds are planarkind_*
        tools = (/(k, k = objtool_select, objtool_kind0+planarkind_NUM)/)
@@ -5361,6 +5384,8 @@ contains
        str = "Click an atom to toggle its polyhedron"
     case (atomtool_label)
        str = "Click an atom to show or hide its label"
+    case (atomtool_shift)
+       str = "Click an atom to shift it one cell"
     case default
        str = ""
     end select
@@ -5397,6 +5422,11 @@ contains
           "The labels go by the label type of the labels object (atom names if it is made " //&
           "here): with atom names, all the symmetry-equivalent atoms of a crystal change " //&
           "together. Clicking a selected atom acts on the whole selection"
+    case (atomtool_shift)
+       str = "Shift: click this button to choose a lattice direction (+a, -a, +b, -b, +c, " //&
+          "-c), then click (" // kn(BIND_OBJEDIT_DRAW) // ") atoms to draw them one cell " //&
+          "along it (crystals only); the shifts add up, so the opposite direction undoes " //&
+          "one. The Shift column of the Display Settings window shows and edits them" // sel
     case default
        str = ""
     end select

@@ -794,11 +794,12 @@ contains
   !> (objtool_kind0 + atomtool_*), with the input of this frame inp. A
   !> click on an atom paints it with the paint color of the view,
   !> enlarges or shrinks it, hides it, or shows or hides the polyhedron
-  !> centered on it or its label; a click on a selected atom does it to
-  !> the whole selection. Painting goes on while dragging, over every
+  !> centered on it or its label, or draws it a lattice vector away
+  !> (crystals); a click on a selected atom does it to the whole
+  !> selection. Painting goes on while dragging, over every
   !> other atom the mouse crosses (one by one). The tools edit the styles
   !> that already exist: the colors and radii of the atom-based objects of
-  !> the scene, the Show mask of the Display, the centers of the first
+  !> the scene, the Show mask and shifts of the Display, the centers of the first
   !> polyhedra object, and the label rows of the first labels object (the
   !> two made if there is none). Their rows become cell atoms if the atoms
   !> are not whole groups of them (rows_for), except for the labels, whose
@@ -807,6 +808,7 @@ contains
     use representations, only: reptype_is_atombased, reptype_polyhedra,&
        repflavor_polyhedra_basic, reptype_labels, repflavor_labels_basic, labels_row
     use systems, only: sys, sysc
+    use display, only: disp_maxshift
     class(window), intent(inout), target :: w
     type(objedit_input), intent(inout) :: inp
 
@@ -867,6 +869,12 @@ contains
        ! the Show mask of the Display, for all the objects
        call w%sc%disp%rows_for(w%isys,iatl,irow)
        if (size(irow,1) > 0) w%sc%disp%ashown(irow) = .false.
+    elseif (itool == atomtool_shift) then
+       ! the lattice-vector shifts of the Display, for all the objects;
+       ! they add up (the drawing ignores them in a molecule)
+       call w%sc%disp%rows_for(w%isys,iatl,irow)
+       if (size(irow,1) > 0) w%sc%disp%ashift(:,irow) = max(min(w%sc%disp%ashift(:,irow) +&
+          spread(w%annot%shift_lvec,2,size(irow,1)),disp_maxshift),-disp_maxshift)
     elseif (itool == atomtool_poly) then
        ! the first polyhedra object, made with no centers if there is
        ! none; the clicked atom says whether the polyhedra are shown or

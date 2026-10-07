@@ -881,8 +881,8 @@ contains
     logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
     logical :: doatoms, dolabels, dopolyhedra, uselshown, doghost
     logical :: atomsdrawn, markdisplay
-    logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks
-    integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
+    logical :: isvacdir, docycle, dovac(3), border, onemotif, usemasks, useshift
+    integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3), idisp, shlo(3), shhi(3)
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
     integer :: nimg, nres, nbond, mb, mbb
@@ -993,6 +993,8 @@ contains
           usemasks = .false.
           usetshift = .false.
        end if
+       ! the lattice-vector shifts of the Display (crystals only)
+       useshift = usemasks .and. .not.c%ismolecule
 
        ! calculate the periodicity
        n = disp%ncells(r%disp)
@@ -1025,6 +1027,12 @@ contains
           ! the array as needed.
           mb = 1
           if (usetshift) mb = mb + maxval(ceiling(abs(disp%tshift))) + 1
+          shlo = 0
+          shhi = 0
+          if (useshift) then
+             shlo = min(minval(disp%ashift,2),0)
+             shhi = max(maxval(disp%ashift,2),0)
+          end if
           if (onemotif) then
              mbb = 0
              do imol = 1, c%nmol
@@ -1042,7 +1050,9 @@ contains
              end do
              mb = mb + mbb
           end if
-          allocate(lshown(c%ncel,-1-mb:n(1)+mb,-1-mb:n(2)+mb,-1-mb:n(3)+mb))
+          ! the shifts of the Display extend the range on their side only
+          allocate(lshown(c%ncel,-1-mb+shlo(1):n(1)+mb+shhi(1),-1-mb+shlo(2):n(2)+mb+shhi(2),&
+             -1-mb+shlo(3):n(3)+mb+shhi(3)))
           lshown = .false.
        end if
 
@@ -1099,7 +1109,8 @@ contains
 
           ! skip the atoms and molecules hidden in the Display
           if (usemasks) then
-             if (.not.disp%ashown(sysc(r%id)%attype_celatom_to_id(disp%atype,i))) cycle
+             idisp = sysc(r%id)%attype_celatom_to_id(disp%atype,i)
+             if (.not.disp%ashown(idisp)) cycle
              if (.not.disp%mshown(imol)) cycle
           end if
 
@@ -1110,6 +1121,11 @@ contains
           ! translation across the cell in a vacuum direction
           call atom_image_range(c%atcel(i)%x,lvec,n,border,onemotif,dovac,ucini,ucend,&
              n0,n1,vacshift)
+
+          ! draw it the lattice vector away that the Display shifts it (after
+          ! the vacuum translation, which would otherwise undo a shift along
+          ! a vacuum direction)
+          if (useshift) lvec = lvec + disp%ashift(:,idisp)
 
           ! draw the spheres and cylinders
           rgb = r%atoms%style%rgb(:,id) * r%mols%style%tint_rgb(:,imol)
@@ -3636,8 +3652,8 @@ contains
     complex*16, allocatable :: vibbase(:,:)
     real*8 :: fac, xx(3), xc(3), dv(3), ucini(3), ucend(3)
     integer :: i, k, imol, nmax, lvec(3), n(3), n0(3), n1(3), ix(3), vacshift(3)
-    integer :: i1, i2, i3
-    logical :: step, border, onemotif, usemasks, usetshift, dovac(3)
+    integer :: i1, i2, i3, idisp
+    logical :: step, border, onemotif, usemasks, usetshift, dovac(3), useshift
 
     ! initialize
     nshape = 0
@@ -3672,6 +3688,7 @@ contains
     if (usemasks) usemasks = &
        (size(disp%ashown,1) == sysc(isys)%attype_number(disp%atype)) .and.&
        (size(disp%mshown,1) == c%nmol)
+    useshift = usemasks .and. .not.c%ismolecule
     n = disp%ncells(rep_display())
     call atom_image_vacuum(c,isys,dovac,ucini,ucend)
 
@@ -3716,13 +3733,16 @@ contains
 
        ! skip the atoms and molecules hidden in the Display
        if (usemasks) then
-          if (.not.disp%ashown(sysc(isys)%attype_celatom_to_id(disp%atype,i))) cycle
+          idisp = sysc(isys)%attype_celatom_to_id(disp%atype,i)
+          if (.not.disp%ashown(idisp)) cycle
           if (.not.disp%mshown(imol)) cycle
        end if
 
-       ! the range of periodic images of this atom and its vacuum translation
+       ! the range of periodic images of this atom and its vacuum
+       ! translation, and the shift of the Display
        call atom_image_range(c%atcel(i)%x,lvec,n,border,onemotif,dovac,ucini,ucend,&
           n0,n1,vacshift)
+       if (useshift) lvec = lvec + disp%ashift(:,idisp)
 
        do i1 = n0(1), n1(1)
           do i2 = n0(2), n1(2)
