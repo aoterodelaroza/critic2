@@ -117,6 +117,7 @@ module utils
   public :: iw_iconbutton_height
   public :: iw_flyout_button
   public :: iw_caption_below
+  public :: iw_caption_width
   public :: iw_push_iconrow_frame
   public :: iw_pop_iconrow_frame
   public :: iw_close_button
@@ -429,7 +430,7 @@ module utils
        logical :: iw_menuitem
      end function iw_menuitem
      module function iw_button(str,danger,sameline,disabled,siz,&
-        popupcontext,popupflags,nocapture,caption)
+        popupcontext,popupflags,nocapture,caption,selected)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: danger
        logical, intent(in), optional :: sameline
@@ -439,6 +440,7 @@ module utils
        integer(c_int), intent(in), optional :: popupflags
        logical, intent(in), optional :: nocapture
        character(len=*), intent(in), optional :: caption
+       logical, intent(in), optional :: selected
        logical :: iw_button
      end function iw_button
      module function iw_atom_button(str,rgb,havergb,sameline,disabled,inert) result(pressed)
@@ -481,6 +483,10 @@ module utils
        character(len=*), intent(in) :: str
        real(c_float), intent(in), optional :: xmin
      end subroutine iw_caption_below
+     module function iw_caption_width(str) result(wid)
+       character(len=*), intent(in) :: str
+       real(c_float) :: wid
+     end function iw_caption_width
      module function iw_flyout_button(strid,disabled) result(pressed)
        character(len=*,kind=c_char), intent(in) :: strid
        logical, intent(in), optional :: disabled

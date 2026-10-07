@@ -1952,14 +1952,17 @@ contains
 
   end function iw_menuitem
 
-  !> Draw a button. If danger, use the danger color. If sameline, draw
+  !> Draw a button. If danger, use the danger color; if selected, the
+  !> color of an armed toolbar button (iw_icon_togglebutton with state
+  !> on), for the chosen one of a row of options. If sameline, draw
   !> the button in the same line as the preceding widgets.  If
   !> disabled, disable the button. If siz, use this size for the
   !> button. If popupcontext and poupflags, open a popup context with
   !> the given flags and return the resulting bool in popupcontext.
-  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags,nocapture,caption)
+  module function iw_button(str,danger,sameline,disabled,siz,popupcontext,popupflags,nocapture,caption,&
+     selected)
     use interfaces_cimgui
-    use gui_main, only: ColorDangerButton
+    use gui_main, only: g, ColorDangerButton
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(in), optional :: danger
     logical, intent(in), optional :: sameline
@@ -1969,10 +1972,11 @@ contains
     integer(c_int), intent(in), optional :: popupflags
     logical, intent(in), optional :: nocapture
     character(len=*), intent(in), optional :: caption
+    logical, intent(in), optional :: selected
     logical :: iw_button
 
     character(len=:,kind=c_char), allocatable, target :: str1
-    logical :: danger_, sameline_, disabled_
+    logical :: danger_, sameline_, disabled_, selected_
     type(ImVec2) :: sz
 
     ! the label is the text of the table cell (an action button in a
@@ -1991,15 +1995,20 @@ contains
     if (present(danger)) danger_ = danger
     if (present(sameline)) sameline_ = sameline
     if (present(disabled)) disabled_ = disabled
+    selected_ = .false.
+    if (present(selected)) selected_ = selected
 
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
     str1 = trim(str) // c_null_char
-    if (danger_) &
+    if (selected_) then
+       call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
+    elseif (danger_) then
        call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+    end if
     call igBeginDisabled(logical(disabled_,c_bool))
     iw_button = logical(igButton(c_loc(str1),sz))
     call igEndDisabled()
-    if (danger_) &
+    if (selected_ .or. danger_) &
        call igPopStyleColor(1)
     if (present(caption)) call iw_caption_below(caption)
     if (present(popupcontext) .and. present(popupflags)) &
@@ -2244,7 +2253,7 @@ contains
 
     ! the caption, just below the item
     fs = caption_scale * g%FontSize
-    pos%x = 0.5_c_float * (p0%x + p1%x - caption_scale * iw_textwidth(str))
+    pos%x = 0.5_c_float * (p0%x + p1%x - iw_caption_width(str))
     pos%y = p1%y
     strl = str // c_null_char
     call ImDrawList_AddText_FontPtr(igGetWindowDrawList(),g%Font,fs,pos,&
@@ -2257,6 +2266,18 @@ contains
     call igItemSize_Vec2(ImVec2(0._c_float,p1%y + fs + 1._c_float - g%Style%ItemSpacing%y - top%y),-1._c_float)
 
   end subroutine iw_caption_below
+
+  !> The width of the caption str drawn by iw_caption_below (zero if
+  !> the toolbar labels are disabled in the preferences).
+  module function iw_caption_width(str) result(wid)
+    use gui_main, only: toolbar_labels
+    character(len=*), intent(in) :: str
+    real(c_float) :: wid
+
+    wid = 0._c_float
+    if (toolbar_labels) wid = caption_scale * iw_textwidth(str)
+
+  end function iw_caption_width
 
   !> A narrow button with a small triangle pointing down, as tall as the
   !> buttons of iw_icon_togglebutton, to sit right after one of them and
