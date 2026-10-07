@@ -5442,10 +5442,11 @@ contains
           "here): with atom names, all the symmetry-equivalent atoms of a crystal change " //&
           "together. Clicking a selected atom acts on the whole selection"
     case (atomtool_shift)
-       str = "Shift: click (" // kn(BIND_OBJEDIT_DRAW) // ") atoms to draw them one cell " //&
-          "along the lattice direction chosen with the Lattice Shift buttons in the arrow " //&
-          "menu of this button (+a, -a, +b, -b, +c, -c; crystals only); the shifts add up, so the opposite direction undoes " //&
-          "one. The Shift column of the Display Settings window shows and edits them" // sel
+       str = "Lattice shift: click (" // kn(BIND_OBJEDIT_DRAW) // ") atoms to draw them one " //&
+          "cell along the last lattice direction armed with the Lattice Shift buttons (+a, " //&
+          "-a, +b, -b, +c, -c) in the arrow menu of this button (crystals only); the shifts " //&
+          "add up, so the opposite direction undoes one. The Shift column of the Display " //&
+          "Settings window shows and edits them" // sel
     case default
        str = ""
     end select

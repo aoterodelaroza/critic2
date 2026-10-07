@@ -4573,6 +4573,8 @@ contains
           k = 0
           do i = 1, size(tools)
              if (tools(i) <= objtool_kind0) cycle
+             ! the shift tool is armed by its lattice directions (atomtool_extras)
+             if (itype == reptype_atoms .and. tools(i) == objtool_kind0+atomtool_shift) cycle
              k = k + 1
              call tool_button(itype,tools(i),icons(i),falls(i),k > 1,"",inpopup=.true.)
           end do
@@ -4661,8 +4663,8 @@ contains
 
     end subroutine atomtool_group_combo
 
-    !> The paint color, the lattice direction of the shift tool (the
-    !> selected one highlighted; disabled in a molecule), and the reset
+    !> The paint color, the lattice directions that arm the shift tool
+    !> (the armed one highlighted; disabled in a molecule), and the reset
     !> button, in the popup of the atom tools. The reset brings the atom
     !> styles of the atom-based objects and the Show masks of the Display
     !> back to the defaults, grouped by species. The polyhedra are left
@@ -4675,7 +4677,7 @@ contains
       use gui_main, only: g
 
       integer :: i, k
-      logical :: ldum
+      logical :: ldum, shiftarmed, sel
       real(c_float) :: pad
       type(ImVec2) :: pmin
 
@@ -4692,13 +4694,24 @@ contains
 
       call igSameLine(0._c_float,pad + g%Style%ItemSpacing%x)
       call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
-      ! the lattice directions, the selected one in the color of an
-      ! armed tool button
+      ! the lattice directions, which arm the shift tool along them (or
+      ! turn it off, if armed along it), as the tool buttons do; the
+      ! armed one in the color of an armed tool button
+      shiftarmed = (w%annot%itype == reptype_atoms .and. w%annot%itool == objtool_kind0+atomtool_shift)
       do k = 1, 6
-         if (iw_button(dirs(k) // "##annotshift",sameline=.true.,disabled=ismol,&
-            selected=all(w%annot%shift_lvec == dirv(:,k)))) w%annot%shift_lvec = dirv(:,k)
-         call iw_tooltip("Lattice direction of the shift tool: draw the clicked atoms one &
-            &cell along " // dirs(k) // " (crystals only)",ttshown,whendisabled=.true.)
+         sel = shiftarmed .and. all(w%annot%shift_lvec == dirv(:,k))
+         if (iw_button(dirs(k) // "##annotshift",sameline=.true.,disabled=ismol,selected=sel)) then
+            if (sel) then
+               call w%annot_set_tool(0,objtool_none,0)
+            else
+               w%annot%shift_lvec = dirv(:,k)
+               call w%annot_set_tool(reptype_atoms,objtool_kind0+atomtool_shift,0)
+            end if
+            call igCloseCurrentPopup()
+         end if
+         call iw_tooltip("Lattice shift: click atoms to draw them one cell along " // dirs(k) //&
+            " (crystals only). Click the armed direction again to turn the tool off",ttshown,&
+            whendisabled=.true.)
          if (k == 1) call igGetItemRectMin(pmin)
       end do
       call iw_caption_below("Lattice Shift",xmin=pmin%x)
