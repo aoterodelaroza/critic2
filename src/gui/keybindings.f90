@@ -95,8 +95,8 @@ module keybindings
   integer, parameter, public :: BIND_MOVEMOL_TRANSLATE = 42 ! move molecules: translate molecule/atom
   integer, parameter, public :: BIND_MOVEMOL_ROTATE = 43 ! move molecules: rotate molecule about its COM
   integer, parameter, public :: BIND_MOVEMOL_ROTATE_PERP = 44 ! move molecules: rotate molecule perpendicular to screen
-  integer, parameter, public :: BIND_UNDO = 45 ! undo the last geometry change
-  integer, parameter, public :: BIND_REDO = 46 ! redo the last undone geometry change
+  integer, parameter, public :: BIND_UNDO = 45 ! undo the last change to the geometry or the objects
+  integer, parameter, public :: BIND_REDO = 46 ! redo the last undone change to the geometry or the objects
   integer, parameter, public :: BIND_VIEW_TOGGLE_POLYHEDRA = 47 ! view: show/hide the polyhedra objects
   integer, parameter, public :: BIND_RECALC_BONDS = 48 ! view: recalculate bonds/connectivity
   integer, parameter, public :: BIND_VIEWMODE_MOVEATOM = 49 ! enter the move-atoms view mode (transient)
@@ -187,8 +187,8 @@ module keybindings
      "Translate molecule              ",& ! BIND_MOVEMOL_TRANSLATE
      "Rotate molecule                 ",& ! BIND_MOVEMOL_ROTATE
      "Rotate molecule (perpendicular) ",& ! BIND_MOVEMOL_ROTATE_PERP
-     "Undo geometry change            ",& ! BIND_UNDO
-     "Redo geometry change            ",& ! BIND_REDO
+     "Undo geometry or object edit    ",& ! BIND_UNDO
+     "Redo geometry or object edit    ",& ! BIND_REDO
      "Toggle display of polyhedra     ",& ! BIND_VIEW_TOGGLE_POLYHEDRA
      "Recalculate bonds               ",& ! BIND_RECALC_BONDS
      "Move atoms                      ",& ! BIND_VIEWMODE_MOVEATOM

@@ -2560,10 +2560,13 @@ contains
       integer :: irep, i
       integer(c_int) :: ibtnd, ibtne
       real*8 :: dx, dy
-      logical :: hit, created
+      logical :: hit, created, fb0
 
       inp%itool = w%annot%itool
       if (inp%itool == objtool_none .or. .not.associated(w%sc)) then
+         ! a drag cut short: its changes go to the undo history
+         if (w%oe%undo_pending .and. w%ismain) call sysc(w%isys)%undo_capture_objects(.true.)
+         w%oe%undo_pending = .false.
          w%oe%op = objop_none
          w%oe%rpress = .false.
          w%oe%cpress = .false.
@@ -2648,9 +2651,20 @@ contains
          w%oe%cpress = .false.
       end if
 
+      ! the undo history (main views): save the objects as they are
+      ! before the handler, for the edit it may make (a copy only if they
+      ! changed since the last save, here or elsewhere), except in the
+      ! frames of a drag that already changed them
+      if (inp%press) w%oe%undo_open = .false.
+      if (w%ismain .and. .not.(w%oe%undo_open .and. inp%down)) &
+         call sysc(w%isys)%undo_refresh_objects()
+
       ! the atom tools edit the styles of the scene, not one object
       if (w%annot%itype == reptype_atoms .and. inp%itool > objtool_kind0) then
+         fb0 = w%sc%forcebuildlists
+         w%sc%forcebuildlists = .false.
          call w%atomtool_events(inp)
+         call objedit_undo_commit(fb0,inp%down)
          if (inp%exitev .and. w%oe%op == objop_none) &
             call w%annot_set_tool(0,objtool_none,0)
          return
@@ -2689,7 +2703,11 @@ contains
       end if
       w%annot%irep = irep
 
-      ! the handler of the object type
+      ! the handler of the object type; a change it makes flags the
+      ! scene for a rebuild (that of a new object does not count: the
+      ! object comes with the first change, or goes away)
+      fb0 = w%sc%forcebuildlists
+      w%sc%forcebuildlists = .false.
       if (irep > 0) then
          r => w%sc%rep(irep)
          select case (r%type)
@@ -2719,12 +2737,42 @@ contains
             w%annot%irep = 0
          end if
       end if
+      call objedit_undo_commit(fb0,inp%down)
 
       ! the exit bind, if the handler did not use it
       if (inp%exitev .and. w%oe%op == objop_none) &
          call w%annot_set_tool(0,objtool_none,0)
 
     end subroutine objedit_events
+
+    !> After the handler of the object editing mode (vm_objedit): if it
+    !> changed the scene (flagged it for a rebuild), capture the
+    !> objects as a new state in the undo history of the system (main
+    !> views). The changes of the frames of a drag after the first since
+    !> the press (the draw bind still down) go to that state at the
+    !> release (down false). The rebuild flag the scene had before the
+    !> handler (fb0) is kept.
+    subroutine objedit_undo_commit(fb0,down)
+      logical, intent(in) :: fb0, down
+
+      logical :: changed
+
+      changed = w%sc%forcebuildlists
+      w%sc%forcebuildlists = fb0 .or. changed
+      if (.not.w%ismain) return
+      if (w%oe%undo_pending .and. .not.down) then
+         call sysc(w%isys)%undo_capture_objects(.true.)
+         w%oe%undo_pending = .false.
+      end if
+      if (.not.changed) return
+      if (w%oe%undo_open .and. down) then
+         w%oe%undo_pending = .true.
+      else
+         call sysc(w%isys)%undo_capture_objects(.false.)
+         w%oe%undo_open = .true.
+      end if
+
+    end subroutine objedit_undo_commit
 
     !> The builder window running a geometry edit session on the system
     !> this view shows, or 0 if there is none.
@@ -4509,7 +4557,7 @@ contains
   !> editing mode. ttshown = the tooltip flag.
   subroutine draw_annot_row(w,ttshown)
     use utils, only: iw_icon_togglebutton, iw_tooltip, iw_flyout_button, iw_text, iw_caption_below
-    use systems, only: sys
+    use systems, only: sys, sysc
     use icons, only: icon_tex, icon_ui_objprops
     use representations, only: repflavor_name
     use tools_io, only: string
@@ -4719,6 +4767,7 @@ contains
       call igSameLine(0._c_float,-1._c_float)
       call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
       if (iw_button("Reset##annotatomreset",danger=.true.,sameline=.true.)) then
+         if (w%ismain) call sysc(w%isys)%undo_refresh_objects()
          do i = 1, w%sc%nrep
             associate(r => w%sc%rep(i))
               if (.not.r%isinit .or. r%owner /= 0) cycle
@@ -4731,6 +4780,7 @@ contains
          call w%sc%disp%reset_shown(w%isys)
          w%sc%forcebuildlists = .true.
          w%sc%nextbuildlists_fixcam = .true.
+         if (w%ismain) call sysc(w%isys)%undo_capture_objects(.false.)
          call igCloseCurrentPopup()
       end if
       call iw_tooltip("Bring the colors and sizes of the atoms back to the defaults, show &

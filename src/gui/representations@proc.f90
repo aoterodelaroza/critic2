@@ -764,7 +764,7 @@ contains
     if (reptype_is_atombased(r%type) .or. r%type == reptype_gpaths) then
        doreset = .not.r%atoms%style%isinit
        if (r%owner == 0) then
-          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atoms%style%timelastreset)
+          doreset = doreset .or. (r%atoms%style%rev /= sysc(r%id)%rev_geometry)
        else
           doreset = doreset .or. (r%atoms%style%ntype /= sysc(r%id)%attype_number(r%atoms%style%type))
        end if
@@ -774,19 +774,33 @@ contains
     if (reptype_is_atombased(r%type)) then
        ! molecules: if the geometry or the bonds changed
        doreset = .not.r%mols%style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mols%style%timelastreset)
+       doreset = doreset .or. (r%mols%style%rev /= sysc(r%id)%rev_rebond)
        if (doreset) call r%mols%style%reset(r)
 
        ! styles of a single kind
        if (r%type == reptype_bonds) then
-          ! bonds: if the geometry changed
-          doreset = .not.r%bonds%style%isinit
-          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bonds%style%timelastreset)
-          if (doreset) call r%bonds%style%reset(r)
+          ! bonds: if the geometry changed, the neighbor stars again (the
+          ! bonds shown by species stay, unless the species changed)
+          if (.not.r%bonds%style%isinit) then
+             call r%bonds%style%reset(r)
+          elseif (r%bonds%style%rev /= sysc(r%id)%rev_geometry) then
+             doreset = .not.allocated(r%bonds%style%shown)
+             if (.not.doreset) doreset = (size(r%bonds%style%shown,1) /= sys(r%id)%c%nspc)
+             if (doreset) then
+                call r%bonds%style%reset(r)
+             else
+                if (r%bonds%style%use_sys_nstar) then
+                   call r%bonds%style%copy_neighstars_from_system(r%id)
+                else
+                   call r%bonds%style%generate_neighstars(r)
+                end if
+                r%bonds%style%rev = sysc(r%id)%rev_geometry
+             end if
+          end if
 
           ! bonds: if the system has been rebonded and this representation tracks
           ! the bonds in the system (%use_sys_nstar), recalculate the bond style
-          doreset = r%bonds%style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bonds%style%timelastreset)
+          doreset = r%bonds%style%use_sys_nstar .and. (r%bonds%style%rev_nstar /= sysc(r%id)%rev_rebond)
           if (doreset) call r%bonds%style%copy_neighstars_from_system(r%id)
        elseif (r%type == reptype_labels) then
           ! the field whose critical points are labeled: if it is gone
@@ -796,7 +810,7 @@ contains
 
           ! labels: if the geometry changed
           doreset = .not.r%labels%style%isinit
-          doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%labels%style%timelastreset)
+          doreset = doreset .or. (r%labels%style%rev /= sysc(r%id)%rev_geometry)
           if (doreset) call r%labels%style%reset(r)
 
           ! critical point labels: if the CP list may have changed or the
@@ -808,7 +822,7 @@ contains
           ! coordination polyhedra
           if (r%owner == 0) then
              doreset = .not.r%poly%style%isinit
-             doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%poly%style%timelastreset)
+             doreset = doreset .or. (r%poly%style%rev /= sysc(r%id)%rev_geometry)
              if (doreset) call r%poly%style%reset(r)
           elseif (r%poly%style%isinit) then
              if (r%poly%style%ntype /= sysc(r%id)%attype_number(r%poly%style%type) .or.&

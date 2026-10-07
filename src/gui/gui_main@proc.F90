@@ -1052,7 +1052,7 @@ contains
     use systems, only: sys, sysc, nsys, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
-    use windows, only: win, iwin_tree, iwin_view, iwin_console_input, wintype_display,&
+    use windows, only: win, objedit_cancel_views, iwin_tree, iwin_view, iwin_console_input, wintype_display,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
@@ -1126,13 +1126,15 @@ contains
     launchquit = is_bind_event(BIND_QUIT)
     launchnewmol = is_bind_event(BIND_NEW_MOLECULE,norepeat=.true.)
 
-    !! undo/redo the geometry of the view-selected system
+    !! undo/redo the geometry or the objects of the view-selected system
     if (isysvok .and. is_bind_event(BIND_UNDO)) then
        call sysc(isysv)%undo(errmsg)
+       call objedit_cancel_views(isysv)
        call report_errmsg("undo")
     end if
     if (isysvok .and. is_bind_event(BIND_REDO)) then
        call sysc(isysv)%redo(errmsg)
+       call objedit_cancel_views(isysv)
        call report_errmsg("redo")
     end if
 
@@ -1292,16 +1294,20 @@ contains
           ! Edit -> Undo
           if (iw_menuitem("Undo",BIND_UNDO,enabled=okundo)) then
              call sysc(isysv)%undo(errmsg)
+             call objedit_cancel_views(isysv)
              call report_errmsg("undo")
           end if
-          call iw_tooltip("Undo the last change to the geometry of this system",ttshown)
+          call iw_tooltip("Undo the last change to the geometry of this system, or to its &
+             &objects made with the tools of the annotation toolbar",ttshown)
 
           ! Edit -> Redo
           if (iw_menuitem("Redo",BIND_REDO,enabled=okredo)) then
              call sysc(isysv)%redo(errmsg)
+             call objedit_cancel_views(isysv)
              call report_errmsg("redo")
           end if
-          call iw_tooltip("Redo the last undone change to the geometry of this system",ttshown)
+          call iw_tooltip("Redo the last undone change to the geometry of this system, or to &
+             &its objects made with the tools of the annotation toolbar",ttshown)
 
           ! Edit -> Separator
           call igSeparator()

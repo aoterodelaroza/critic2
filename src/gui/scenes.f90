@@ -41,9 +41,27 @@ module scenes
   real*8, parameter, public :: anim_amplitude_max = 15d0
   real*8, parameter, public :: anim_speed_max = 50d0
 
+  !> The objects of a scene that the object editing tools change, for
+  !> the undo history of the system (systems): copies of the objects
+  !> of those kinds, with the slots they were in, and the Display (of
+  !> which only the Show masks and shifts are restored). The objects
+  !> with large caches (isosurfaces, critical points, ...) are never
+  !> copied, and neither are the neighbor stars of the bonds, which
+  !> the tools do not change. Saved iff rep is allocated. The objects
+  !> are known by their iord (unique in a scene generation).
+  type scene_objstate
+     integer :: gen = 0 ! generation of the scene it was saved from (scene%gen)
+     real*8 :: time = -1d0 ! time it was saved
+     integer, allocatable :: islot(:) ! slot of each object in the scene (rep(:))
+     type(representation), allocatable :: rep(:) ! the objects
+     type(scene_display) :: disp ! the Display
+  end type scene_objstate
+  public :: scene_objstate
+
   !> Scene: objects from the system to be drawn and plot settings
   type scene
      integer :: isinit = 0 ! 0=uninitialized, 1=initialized but not built, 2=init and built
+     integer :: gen = 0 ! generation, one more at each init (the objects of earlier ones are gone)
      integer :: id ! system ID
      integer, allocatable :: iord(:) ! the representation order
      logical :: forcesort = .false. ! force sort the representations
@@ -145,6 +163,8 @@ module scenes
      procedure :: toggle_measurement => scene_toggle_measurement
      procedure :: toggle_measurement_sel => scene_toggle_measurement_sel
      procedure :: add_representation
+     procedure :: objects_save => scene_objects_save
+     procedure :: objects_restore => scene_objects_restore
      procedure :: add_cps_maybe => scene_add_cps_maybe
      procedure :: show_cps => scene_show_cps
      procedure :: set_kind_shown => scene_set_kind_shown
@@ -273,6 +293,15 @@ module scenes
        integer, intent(in) :: flavor
        integer, intent(out), optional :: id
      end subroutine add_representation
+     module subroutine scene_objects_save(s,st)
+       class(scene), intent(inout) :: s
+       type(scene_objstate), intent(inout) :: st
+     end subroutine scene_objects_save
+     module subroutine scene_objects_restore(s,st,stfrom)
+       class(scene), intent(inout), target :: s
+       type(scene_objstate), intent(in) :: st
+       type(scene_objstate), intent(in), optional :: stfrom
+     end subroutine scene_objects_restore
      module subroutine scene_add_cps_maybe(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_add_cps_maybe

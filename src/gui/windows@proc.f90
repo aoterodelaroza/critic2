@@ -653,6 +653,27 @@ contains
 
   end subroutine invalidate_scene_reps
 
+  !> Cancel the object editing operations in progress (vm_objedit) in
+  !> the views of system isys, after an undo or redo changed their
+  !> objects under them: a drag, a shape drawn point by point, or the
+  !> changes of a drag waiting for the release to go to the undo history.
+  module subroutine objedit_cancel_views(isys)
+    integer, intent(in) :: isys
+
+    integer :: i
+
+    if (.not.allocated(win)) return
+    do i = 1, nwin
+       if (.not.win(i)%isinit .or. win(i)%type /= wintype_view) cycle
+       if (win(i)%isys /= isys) cycle
+       win(i)%oe%op = objop_none
+       win(i)%oe%cpress = .false.
+       win(i)%oe%undo_open = .false.
+       win(i)%oe%undo_pending = .false.
+    end do
+
+  end subroutine objedit_cancel_views
+
   !> Regenerate the pointers the windows hold into arrays that may have
   !> been moved by a move_alloc: the system list (sysc), a scene's
   !> representation list (sc%rep), or the window stack itself. Called

@@ -253,6 +253,7 @@ module representations
   type atom_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      integer :: type ! atom style type (attlisttype_* in systems module)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
@@ -269,6 +270,7 @@ module representations
   type mol_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: rev = -1 ! bonding revision of the system it was made for (sysconf%rev_rebond)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
      real*8, allocatable :: scale_rad(:) ! scale radius (ntype)
@@ -282,6 +284,8 @@ module representations
   type bond_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: rev = -1 ! geometry revision of the system the neighbor stars are for (sysconf%rev_geometry)
+     integer :: rev_nstar = -1 ! bonding revision of the system's stars they copy (sysconf%rev_rebond; use_sys_nstar)
      logical :: use_sys_nstar = .true. ! whether this is using the system's neighbor star
      logical, allocatable :: shown(:,:) ! by-species bond shown flags (nspc,nspc)
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
@@ -297,6 +301,7 @@ module representations
   type label_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      character*32, allocatable :: str(:) ! text
@@ -325,6 +330,7 @@ module representations
   type coordpoly_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      integer :: type = 0 ! center atom-list type (atlisttype_* in systems module; 0 = unset)
      integer :: ntype = 0 ! number of center types
      logical, allocatable :: shown(:) ! draw polyhedra for this center type (ntype)

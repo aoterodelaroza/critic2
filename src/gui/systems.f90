@@ -18,7 +18,7 @@
 ! This module handles the systems and system configurations.
 module systems
   use iso_c_binding
-  use scenes, only: scene
+  use scenes, only: scene, scene_objstate
   use dynamics, only: mdrun
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
@@ -140,6 +140,11 @@ module systems
      real*8 :: timelastchange_geometry = 0d0   ! time system last changed geometry
      real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
      real*8 :: timelastchange_cplist = 0d0     ! time a CP list of the system's fields last may have changed
+     ! revisions of the geometry and the bonding (never repeated, but an
+     ! undo goes back to the revision of the state it restores); a style
+     ! made for another revision is made again
+     integer :: rev_geometry = 0
+     integer :: rev_rebond = 0
      real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
      real*8 :: timelastchange_render = 0d0     ! time system last required a render
      ! critical points used as measurement anchors (see cp_anchor_entry)
@@ -150,8 +155,12 @@ module systems
      ! timelastchange_geometry
      integer*8, allocatable :: atsig(:)
      real*8 :: atsig_time = -1d0
-     ! undo/redo history of geometry states (see systems@proc.f90)
+     ! undo/redo history of geometry and object states (see systems@proc.f90)
      type(crystalseed), allocatable :: undo_seed(:) ! ring buffer of saved structural states (size undo_maxdepth)
+     type(scene_objstate), allocatable :: undo_obj(:) ! the objects of the main scene in each state (same slots)
+     logical, allocatable :: undo_isobj(:) ! the state comes from an object edit (no seed; same geometry as the previous)
+     integer, allocatable :: undo_rev(:,:) ! the geometry and bonding revisions of each state (2,undo_maxdepth)
+     type(scene_objstate) :: undo_objpre ! the objects before the object edit in progress (the current state takes them)
      integer :: undo_n = 0      ! number of states currently in the history
      integer :: undo_icur = 0   ! logical index of the current state in the history (1:undo_n)
      integer :: undo_ibase = 1  ! physical slot of logical state 1 (base of the ring buffer)
@@ -230,6 +239,8 @@ module systems
      ! undo/redo
      procedure :: undo_reset
      procedure :: undo_capture
+     procedure :: undo_refresh_objects
+     procedure :: undo_capture_objects
      procedure :: undo
      procedure :: redo
      procedure :: can_undo
@@ -776,6 +787,13 @@ module systems
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: time
      end subroutine undo_capture
+     module subroutine undo_refresh_objects(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine undo_refresh_objects
+     module subroutine undo_capture_objects(sysc,merge)
+       class(sysconf), intent(inout) :: sysc
+       logical, intent(in) :: merge
+     end subroutine undo_capture_objects
      module subroutine undo(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg

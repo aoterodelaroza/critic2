@@ -75,6 +75,7 @@ contains
     if (allocated(disp%mshown)) deallocate(disp%mshown)
     disp%timelastreset = glfwGetTime()
     if (.not.ok_system(isys,sys_ready)) return
+    disp%rev = sysc(isys)%rev_rebond
 
     allocate(disp%ashown(sysc(isys)%attype_number(disp%atype)),disp%mshown(sys(isys)%c%nmol),&
        disp%ashift(3,sysc(isys)%attype_number(disp%atype)))
@@ -97,7 +98,7 @@ contains
 
     if (.not.ok_system(isys,sys_ready)) return
     doreset = .not.allocated(disp%ashown) .or. .not.allocated(disp%mshown)
-    doreset = doreset .or. (sysc(isys)%timelastchange_rebond > disp%timelastreset)
+    doreset = doreset .or. (disp%rev /= sysc(isys)%rev_rebond)
     if (.not.doreset) doreset = (size(disp%ashown,1) /= sysc(isys)%attype_number(disp%atype)) .or.&
        (size(disp%mshown,1) /= sys(isys)%c%nmol)
     if (doreset) call disp%reset_shown(isys)
@@ -138,6 +139,7 @@ contains
     class(scene_display), intent(inout) :: disp
 
     disp%timelastreset = 0d0
+    disp%rev = -1
     if (allocated(disp%ashown)) deallocate(disp%ashown)
     if (allocated(disp%ashift)) deallocate(disp%ashift)
     if (allocated(disp%mshown)) deallocate(disp%mshown)

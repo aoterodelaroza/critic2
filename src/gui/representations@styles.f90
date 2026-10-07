@@ -120,6 +120,7 @@ contains
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
+    d%rev = sysc(r%id)%rev_geometry
 
     ! fill data
     d%ntype = sysc(r%id)%attype_number(d%type)
@@ -210,7 +211,7 @@ contains
   !> representation r, or leave it empty if system is uninitalized.
   module subroutine mol_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
     class(mol_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -227,6 +228,7 @@ contains
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
+    d%rev = sysc(r%id)%rev_rebond
 
     ! fill
     d%ntype = sys(r%id)%c%nmol
@@ -272,7 +274,7 @@ contains
 
   !> Copy the neighbor stars from the given system.
   module subroutine copy_neighstars_from_system(d,isys)
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
     class(bond_geom_style), intent(inout) :: d
     integer, intent(in) :: isys
 
@@ -283,6 +285,7 @@ contains
     ! copy the nstar
     if (allocated(sys(isys)%c%nstar)) &
        d%nstar = sys(isys)%c%nstar
+    d%rev_nstar = sysc(isys)%rev_rebond
 
   end subroutine copy_neighstars_from_system
 
@@ -290,7 +293,7 @@ contains
   !> representation.
   module subroutine bond_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
     class(bond_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -307,6 +310,7 @@ contains
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
+    d%rev = sysc(r%id)%rev_geometry
     d%isinit = .true.
 
     ! fill temp options
@@ -363,7 +367,7 @@ contains
   !> representation r.
   module subroutine label_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
     use tools_io, only: nameguess, string
     class(label_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
@@ -383,6 +387,7 @@ contains
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
+    d%rev = sysc(r%id)%rev_geometry
 
     ! fill according to the style
     d%isinit = .true.
@@ -586,6 +591,7 @@ contains
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
+    d%rev = sysc(r%id)%rev_geometry
 
     ! which species act as polyhedron centers and which as corners
     call coordpoly_classify_species(r%id,spccenter,spccorner)

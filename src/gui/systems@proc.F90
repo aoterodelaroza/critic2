@@ -19,6 +19,10 @@ submodule (systems) proc
   use types, only: thread_info
   implicit none
 
+  ! the last revision given to the geometry or bonding of a system
+  ! (sysconf%rev_geometry/rev_rebond); new revisions are always above it
+  integer :: rev_last = 0
+
   !xx! private procedures
   ! function initialization_thread_worker(arg)
   ! subroutine seed_from_highlighted(sysc,seed,nat,iat,molecule)
@@ -1217,6 +1221,14 @@ contains
     sysc%timelastchange_render = time
     if (level /= lastchange_render) sysc%timelastchange_buildlists = time
     if (isrebond) sysc%timelastchange_rebond = time
+    if (isrebond) then
+       rev_last = rev_last + 1
+       sysc%rev_rebond = rev_last
+    end if
+    if (isgeom) then
+       rev_last = rev_last + 1
+       sysc%rev_geometry = rev_last
+    end if
     if (level == lastchange_cplist .or. isgeom) sysc%timelastchange_cplist = time
     if (isgeom) then
        if (.not.keepfields_) &
@@ -1446,6 +1458,7 @@ contains
     sysc%undo_n = 0
     sysc%undo_icur = 0
     sysc%undo_ibase = 1
+    sysc%undo_objpre = scene_objstate()
     ! seed the history with the current geometry (undo_capture is a no-op if
     ! the system is not yet initialized); the time is irrelevant here
     call sysc%undo_capture(0d0)
@@ -1458,45 +1471,103 @@ contains
   !> time is the current GLFW time, used to coalesce rapid consecutive
   !> captures (a continuous drag produces one capture per frame) into a
   !> single history entry. Discards any redo states ahead of the current.
+  !> The objects of the state stay unsaved until an object edit saves
+  !> them (undo_refresh_objects): the scene still has the styles of the
+  !> previous geometry.
   module subroutine undo_capture(sysc,time)
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: time
 
-    integer :: isys
+    integer :: isys, islot
     logical :: copysym, coalesce
 
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
-    if (.not.allocated(sysc%undo_seed)) allocate(sysc%undo_seed(undo_maxdepth))
-
-    ! drop any redo states ahead of the current one
-    sysc%undo_n = sysc%undo_icur
 
     ! coalesce consecutive captures (frames of an interactive drag) by
     ! overwriting the current top state instead of appending a new one
+    ! (an object capture resets the time, so never into its state)
     coalesce = (sysc%undo_icur >= 1) .and. ((time - sysc%undo_lasttime) < undo_coalesce_time)
-    if (.not.coalesce) then
-       ! drop the oldest state if the history is full by advancing the base of
-       ! the ring buffer; the new state then reuses the freed (oldest) slot
-       if (sysc%undo_n >= undo_maxdepth) then
-          sysc%undo_ibase = modulo(sysc%undo_ibase,undo_maxdepth) + 1
-          sysc%undo_n = undo_maxdepth - 1
-       end if
-       sysc%undo_n = sysc%undo_n + 1
-       sysc%undo_icur = sysc%undo_n
-    end if
+    call undo_push(sysc,coalesce)
 
     ! save the current geometry into the (possibly new) top slot, inheriting
     ! both the symmetry (when available) and the bonding, so that restoring
     ! recovers the exact same system
+    islot = undo_slot(sysc,sysc%undo_icur)
     copysym = (.not.sys(isys)%c%ismolecule .and. sys(isys)%c%spgavail)
-    call sys(isys)%c%makeseed(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),copysym=copysym,&
-       copybonding=.true.)
+    call sys(isys)%c%makeseed(sysc%undo_seed(islot),copysym=copysym,copybonding=.true.)
+    sysc%undo_isobj(islot) = .false.
+    sysc%undo_rev(:,islot) = (/sysc%rev_geometry,sysc%rev_rebond/)
+    sysc%undo_obj(islot) = scene_objstate()
+    sysc%undo_objpre = scene_objstate()
     sysc%undo_lasttime = time
 
   end subroutine undo_capture
 
-  !> Restore the previous geometry state from the undo history.
+  !> Save the objects of the main scene, as they are now, as those
+  !> before an object edit that may follow (undo_objpre), unless they
+  !> are saved already: the scene was not rebuilt, and is not waiting
+  !> for a rebuild, since then (every change to the objects asks for
+  !> one). If the edit is captured, they go to the current state, so
+  !> that its undo goes back to the objects as they were then (the
+  !> changes made elsewhere since the state was captured included); if
+  !> not, the history is left as it was.
+  module subroutine undo_refresh_objects(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    if (.not.ok_system(sysc%id,sys_init)) return
+    if (allocated(sysc%undo_objpre%rep)) then
+       if (sysc%undo_objpre%gen == sysc%sc%gen .and. .not.sysc%sc%forcebuildlists .and.&
+          sysc%sc%timelastbuild <= sysc%undo_objpre%time) return
+    end if
+    call sysc%sc%objects_save(sysc%undo_objpre)
+
+  end subroutine undo_refresh_objects
+
+  !> Capture the objects of the main scene as a new state in the
+  !> undo/redo history, after an object edit; the geometry is that of
+  !> the previous state. If merge, and the current state comes from an
+  !> object edit too, overwrite it instead (the frames of a drag).
+  !> Discards any redo states ahead of the current. An edit with the
+  !> objects before it unknown (not saved by undo_refresh_objects,
+  !> nor in the current state) is not captured: its undo would do
+  !> nothing.
+  module subroutine undo_capture_objects(sysc,merge)
+    class(sysconf), intent(inout) :: sysc
+    logical, intent(in) :: merge
+
+    integer :: islot
+    logical :: coalesce
+
+    if (.not.ok_system(sysc%id,sys_init)) return
+    if (sysc%undo_icur < 1) return
+    islot = undo_slot(sysc,sysc%undo_icur)
+    coalesce = merge .and. sysc%undo_isobj(islot)
+
+    ! the objects before the edit, to the current state
+    if (.not.coalesce) then
+       if (allocated(sysc%undo_objpre%rep)) then
+          call move_alloc(sysc%undo_objpre%islot,sysc%undo_obj(islot)%islot)
+          call move_alloc(sysc%undo_objpre%rep,sysc%undo_obj(islot)%rep)
+          sysc%undo_obj(islot)%gen = sysc%undo_objpre%gen
+          sysc%undo_obj(islot)%disp = sysc%undo_objpre%disp
+       elseif (.not.allocated(sysc%undo_obj(islot)%rep)) then
+          return
+       end if
+    end if
+    call undo_push(sysc,coalesce)
+
+    islot = undo_slot(sysc,sysc%undo_icur)
+    sysc%undo_isobj(islot) = .true.
+    sysc%undo_rev(:,islot) = (/sysc%rev_geometry,sysc%rev_rebond/)
+    call sysc%sc%objects_save(sysc%undo_obj(islot))
+
+    ! a geometry capture right after this must not coalesce with it
+    sysc%undo_lasttime = -1d30
+
+  end subroutine undo_capture_objects
+
+  !> Restore the previous state from the undo history.
   module subroutine undo(sysc,errmsg)
     class(sysconf), intent(inout) :: sysc
     character(len=:), allocatable, intent(inout) :: errmsg
@@ -1504,11 +1575,11 @@ contains
     errmsg = ""
     if (.not.sysc%can_undo()) return
     sysc%undo_icur = sysc%undo_icur - 1
-    call undo_restore(sysc,errmsg)
+    call undo_restore(sysc,sysc%undo_icur+1,errmsg)
 
   end subroutine undo
 
-  !> Restore the next geometry state from the redo history.
+  !> Restore the next state from the redo history.
   module subroutine redo(sysc,errmsg)
     class(sysconf), intent(inout) :: sysc
     character(len=:), allocatable, intent(inout) :: errmsg
@@ -1516,7 +1587,7 @@ contains
     errmsg = ""
     if (.not.sysc%can_redo()) return
     sysc%undo_icur = sysc%undo_icur + 1
-    call undo_restore(sysc,errmsg)
+    call undo_restore(sysc,sysc%undo_icur-1,errmsg)
 
   end subroutine redo
 
@@ -1538,28 +1609,94 @@ contains
 
   end function can_redo
 
-  !> Rebuild the system's crystal structure from the current state in the
-  !> undo history and refresh the scene. Helper for undo/redo; the restore
-  !> posts with nocapture so it is not itself recorded as a new history entry.
-  subroutine undo_restore(sysc,errmsg)
+  !> Open a new top state in the undo history (or reuse the current
+  !> one, if coalesce), dropping any redo states ahead of the current
+  !> and, if the history is full, the oldest state. The caller fills
+  !> the top slot. Helper for the captures.
+  subroutine undo_push(sysc,coalesce)
     class(sysconf), intent(inout) :: sysc
+    logical, intent(in) :: coalesce
+
+    integer :: i0, i1
+
+    if (.not.allocated(sysc%undo_seed)) then
+       allocate(sysc%undo_seed(undo_maxdepth),sysc%undo_obj(undo_maxdepth),&
+          sysc%undo_isobj(undo_maxdepth),sysc%undo_rev(2,undo_maxdepth))
+       sysc%undo_isobj = .false.
+    end if
+
+    ! drop any redo states ahead of the current one
+    sysc%undo_n = sysc%undo_icur
+    if (coalesce) return
+
+    ! drop the oldest state if the history is full by advancing the base of
+    ! the ring buffer; the new state then reuses the freed (oldest) slot. The
+    ! new oldest state takes its geometry if it has none (object edit)
+    if (sysc%undo_n >= undo_maxdepth) then
+       i0 = undo_slot(sysc,1)
+       i1 = undo_slot(sysc,2)
+       if (sysc%undo_isobj(i1)) then
+          sysc%undo_seed(i1) = sysc%undo_seed(i0)
+          sysc%undo_isobj(i1) = .false.
+       end if
+       sysc%undo_ibase = modulo(sysc%undo_ibase,undo_maxdepth) + 1
+       sysc%undo_n = undo_maxdepth - 1
+    end if
+    sysc%undo_n = sysc%undo_n + 1
+    sysc%undo_icur = sysc%undo_n
+
+  end subroutine undo_push
+
+  !> Go to the current state of the undo history from the adjacent
+  !> state ifrom, and refresh the scene. Helper for undo/redo: between
+  !> the two, the later one says what changed. An object edit brings
+  !> the objects of the main scene back (the geometry and the fields
+  !> are left alone); a geometry change rebuilds the crystal structure
+  !> from the seed of the latest state that has one, posting with
+  !> nocapture so it is not itself recorded as a new history entry,
+  !> goes back to the geometry and bonding revisions of the state, and
+  !> brings back its objects, if it has them saved (the rebuild resets
+  !> the styles and the Display masks made for other revisions; no
+  !> object ends).
+  subroutine undo_restore(sysc,ifrom,errmsg)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: ifrom
     character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: isys
+    integer :: isys, icur, j
 
     errmsg = ""
     isys = sysc%id
+    icur = sysc%undo_icur
     if (.not.ok_system(isys,sys_init)) return
-    if (sysc%undo_icur < 1 .or. sysc%undo_icur > sysc%undo_n) return
+    if (icur < 1 .or. icur > sysc%undo_n) return
+    if (ifrom < 1 .or. ifrom > sysc%undo_n) return
 
-    call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),errmsg=errmsg)
-    if (len_trim(errmsg) > 0) return
-    sysc%sc%nextbuildlists_fixcam = .true.
-    call sysc%post_event(lastchange_geometry,nocapture=.true.)
+    if (sysc%undo_isobj(undo_slot(sysc,max(icur,ifrom)))) then
+       call sysc%sc%objects_restore(sysc%undo_obj(undo_slot(sysc,icur)),&
+          sysc%undo_obj(undo_slot(sysc,ifrom)))
+    else
+       j = icur
+       do while (j > 1 .and. sysc%undo_isobj(undo_slot(sysc,j)))
+          j = j - 1
+       end do
+       call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,j)),errmsg=errmsg)
+       if (len_trim(errmsg) > 0) return
+       sysc%sc%nextbuildlists_fixcam = .true.
+       call sysc%post_event(lastchange_geometry,nocapture=.true.)
+
+       ! the geometry is that of the state again, and so are its revisions:
+       ! its saved objects are current, the styles made since are not
+       sysc%rev_geometry = sysc%undo_rev(1,undo_slot(sysc,icur))
+       sysc%rev_rebond = sysc%undo_rev(2,undo_slot(sysc,icur))
+       call sysc%sc%objects_restore(sysc%undo_obj(undo_slot(sysc,icur)))
+    end if
 
     ! force the next edit to start a new history entry instead of coalescing
-    ! with (overwriting) the state we just restored
+    ! with (overwriting) the state we just restored; an object edit saves
+    ! its objects again
     sysc%undo_lasttime = -1d30
+    sysc%undo_objpre = scene_objstate()
 
   end subroutine undo_restore
 

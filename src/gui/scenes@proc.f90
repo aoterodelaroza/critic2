@@ -158,6 +158,7 @@ contains
     ! basic variables
     s%id = isys
     s%isinit = 1
+    s%gen = s%gen + 1
     s%iscaminit = .false.
     call s%disp%init(isys)
     s%scenerad = 10d0
@@ -2359,6 +2360,116 @@ contains
 
   end subroutine add_representation
 
+  !> Save the objects of scene s that the object editing tools change
+  !> in st (scene_objstate): the atom-based objects, the texts,
+  !> measurements, 3D shapes, 2D drawings and axes (without the
+  !> neighbor stars of the bonds), and the Display. Nothing is saved
+  !> from an uninitialized scene.
+  module subroutine scene_objects_save(s,st)
+    use interfaces_glfw, only: glfwGetTime
+    class(scene), intent(inout) :: s
+    type(scene_objstate), intent(inout) :: st
+
+    integer :: i, k
+    type(neighstar), allocatable :: nstar(:)
+
+    st = scene_objstate()
+    if (s%isinit == 0) return
+
+    st%gen = s%gen
+    st%time = glfwGetTime()
+    st%islot = pack((/(i,i=1,s%nrep)/),(/(objects_editable(s%rep(i)),i=1,s%nrep)/))
+    allocate(st%rep(size(st%islot,1)))
+    do k = 1, size(st%islot,1)
+       i = st%islot(k)
+       call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
+       st%rep(k) = s%rep(i)
+       call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
+    end do
+    st%disp = s%disp
+
+  end subroutine scene_objects_save
+
+  !> Bring the objects of scene s that the object editing tools change
+  !> back to the state st, coming from the state stfrom (both saved
+  !> with objects_save from this generation of the scene; nothing
+  !> happens otherwise): the objects in stfrom and not in st, made by
+  !> the edits in between, end (none if stfrom is not given); the
+  !> objects of st go back to their slots (or a new one, if another
+  !> object took it), keeping the neighbor stars of the bonds they
+  !> have now, and their revisions. The objects in neither are left
+  !> alone. The styles carry the revisions of the system they were
+  !> made for, so they are made again if those are no longer the
+  !> system's; the neighbor stars of a bonds object made again (which
+  !> has none) are made again too. Of the Display, the Show masks and
+  !> shifts.
+  module subroutine scene_objects_restore(s,st,stfrom)
+    class(scene), intent(inout), target :: s
+    type(scene_objstate), intent(in) :: st
+    type(scene_objstate), intent(in), optional :: stfrom
+
+    integer :: i, k, rev, rev_nstar
+    type(neighstar), allocatable :: nstar(:)
+    type(scene_display) :: disp
+
+    if (.not.allocated(st%rep) .or. st%gen /= s%gen .or. s%isinit == 0) return
+    if (present(stfrom)) then
+       if (.not.allocated(stfrom%rep) .or. stfrom%gen /= s%gen) return
+    end if
+
+    ! the objects made since
+    if (present(stfrom)) then
+       do k = 1, size(stfrom%rep,1)
+          if (any(st%rep(:)%iord == stfrom%rep(k)%iord)) cycle
+          i = slot_of(stfrom%rep(k)%iord)
+          if (i > 0) call s%rep(i)%end()
+       end do
+    end if
+
+    ! the objects of st, in their slots; the neighbor stars and their
+    ! revisions from the object there now (none if it is not this one)
+    do k = 1, size(st%rep,1)
+       i = slot_of(st%rep(k)%iord)
+       if (i == 0) then
+          i = st%islot(k)
+          if (s%rep(i)%isinit) i = s%get_new_representation_id()
+       end if
+       call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
+       rev = s%rep(i)%bonds%style%rev
+       rev_nstar = s%rep(i)%bonds%style%rev_nstar
+       s%rep(i) = st%rep(k)
+       call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
+       s%rep(i)%bonds%style%rev = rev
+       s%rep(i)%bonds%style%rev_nstar = rev_nstar
+       if (.not.allocated(s%rep(i)%bonds%style%nstar)) then
+          s%rep(i)%bonds%style%rev = -1
+          s%rep(i)%bonds%style%rev_nstar = -1
+       end if
+    end do
+
+    ! the Show masks and shifts of the Display
+    disp = st%disp
+    call disp%copy_settings(s%disp)
+    s%disp = disp
+
+    s%forcesort = .true.
+    s%forcebuildlists = .true.
+    s%nextbuildlists_fixcam = .true.
+
+  contains
+    !> The slot of the object with order integer iord in s, 0 if none.
+    function slot_of(iord) result(islot)
+      integer, intent(in) :: iord
+      integer :: islot
+
+      do islot = 1, s%nrep
+         if (s%rep(islot)%isinit .and. s%rep(islot)%iord == iord) return
+      end do
+      islot = 0
+
+    end function slot_of
+  end subroutine scene_objects_restore
+
   !> Add a critical points object to the scene the first time the
   !> system has a field with critical points other than the nuclei
   !> (checkpoint read on load, AUTO in the console,...), and a
@@ -2968,6 +3079,23 @@ contains
     end do
 
   end subroutine scene_text_box
+
+  !xx! private procedures: undo history of the objects
+
+  !> Whether the object r is one the undo history saves: a regular
+  !> object of a kind the object editing tools change (objects_save).
+  function objects_editable(r) result(ok)
+    use representations, only: reptype_is_atombased, reptype_text, reptype_measure,&
+       reptype_shapes, reptype_planar, reptype_axes
+    type(representation), intent(in) :: r
+    logical :: ok
+
+    ok = r%isinit .and. r%owner == 0
+    if (.not.ok) return
+    ok = reptype_is_atombased(r%type) .or. r%type == reptype_text .or. r%type == reptype_measure .or.&
+       r%type == reptype_shapes .or. r%type == reptype_planar .or. r%type == reptype_axes
+
+  end function objects_editable
 
   !xx! private procedures: transient representations
 
