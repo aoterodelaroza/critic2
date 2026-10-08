@@ -78,6 +78,9 @@ module representations
   real(c_float), parameter, public :: shape_alpha_def = 0.5_c_float ! opacity of a newly created shape
   real*8, parameter, public :: shape_size_def = 2d0 / bohrtoa ! size of a newly created shape (radius, cube side)
   real*8, parameter, public :: shape_edge_def = 0.05d0 / bohrtoa ! thickness of the box edges
+  real*8, parameter, public :: cone_width_frac = 0.4d0 ! base width (rad) of a new cone, as a fraction of its length
+  real*8, parameter, public :: cylinder_width_frac = 0.25d0 ! thickness (rad) of a new cylinder, as a fraction of its length
+  real*8, parameter, public :: arrow_headl_width = 1.5d0 ! head length of a new arrow, in head widths (at most half the arrow)
   !--> planar shapes (lengths in the NDC of the render buffer: the square
   !    render texture spans -1 to 1 in x and y)
   real(c_float), parameter, public :: planar_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/) ! stroke color
@@ -1039,6 +1042,7 @@ module representations
   public :: shapes_append
   public :: shapes_delete
   public :: shape_copy_style
+  public :: shape_proportions
   public :: planar_isclosed
   public :: planar_haspoints
   public :: planar_path
@@ -1122,6 +1126,9 @@ module representations
        type(rep_shape), intent(inout) :: dst
        type(rep_shape), intent(in) :: src
      end subroutine shape_copy_style
+     module subroutine shape_proportions(sh)
+       type(rep_shape), intent(inout) :: sh
+     end subroutine shape_proportions
      module function shape_differs(a,b) result(ok)
        type(rep_shape), intent(in) :: a
        type(rep_shape), intent(in) :: b

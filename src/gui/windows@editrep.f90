@@ -2634,7 +2634,7 @@ contains
     use representations, only: rep_shape, shapekind_sphere, shapekind_box, shapekind_arrow,&
        shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr,&
        shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def, shapes_delete,&
-       shape_copy_style
+       shape_copy_style, shape_proportions
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
@@ -2793,9 +2793,11 @@ contains
          ! the radius means a different thing for every kind (sphere radius,
          ! box edge thickness, shaft thickness...), so it always goes back to
          ! the default; the position is kept, and so is every vector the new
-         ! kind can use (seed_vectors only fills in the ones it lacks)
+         ! kind can use (seed_vectors only fills in the ones it lacks); a cone
+         ! or a cylinder then takes its width from its length
          call seed_radius(sh)
          call seed_vectors(sh)
+         call shape_proportions(sh)
       end if
       changed = changed .or. ch
       call iw_tooltip("Kind of 3D shape",ttshown)

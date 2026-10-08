@@ -1380,12 +1380,13 @@ contains
 
   !> The shape sh (a new one, at its anchor sh%x1) drawn out to the
   !> point p: the radius of a sphere, the end of an arrow, cone or
-  !> cylinder (constrain: along a snap axis), or the opposite corner of a
+  !> cylinder (constrain: along a snap axis; their width or arrowhead
+  !> follow the length, see shape_proportions), or the opposite corner of a
   !> box with edges along the snap axes. A box drawn on the plane facing
   !> the camera gets, along the third axis, the shorter of the two drawn
   !> edges (constrain: a cube).
   subroutine drag_new(w,sh,p,constrain)
-    use representations, only: rep_shape, shapekind_sphere, shapekind_box
+    use representations, only: rep_shape, shapekind_sphere, shapekind_box, shape_proportions
     class(window), intent(in) :: w
     type(rep_shape), intent(inout) :: sh
     real*8, intent(in) :: p(3)
@@ -1414,6 +1415,7 @@ contains
     else
        if (constrain) d = axis_snap(w,d)
        sh%v(:,1) = d
+       call shape_proportions(sh)
     end if
 
   end subroutine drag_new

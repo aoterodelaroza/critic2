@@ -3488,15 +3488,13 @@ contains
   !> selected shape in p (the defaults if none is selected), so that
   !> consecutive shapes look alike. Its geometry is empty (at the
   !> origin, zero vectors) for the caller to set. The thickness carries
-  !> over only between kinds where it means the same: the radius of a
-  !> sphere is geometry (zero here), and a box edge is thinner than a
-  !> shaft.
+  !> over only from a shape of the same kind, and not for a sphere,
+  !> whose radius is geometry (zero here); a cone or cylinder gets its
+  !> width from its length when drawn (shape_proportions).
   module function shapes_template(p,ikind) result(sh)
     type(rep_shapes), intent(in) :: p
     integer, intent(in) :: ikind
     type(rep_shape) :: sh
-
-    logical :: same
 
     sh = rep_shape()
     sh%rgb = shape_rgb_def
@@ -3516,9 +3514,7 @@ contains
          sh%rim = s0%rim
          sh%headr = s0%headr
          sh%headl = s0%headl
-         same = (s0%kind == ikind) .or. (s0%kind /= shapekind_sphere .and. s0%kind /= shapekind_box&
-            .and. ikind /= shapekind_sphere .and. ikind /= shapekind_box)
-         if (same .and. ikind /= shapekind_sphere) sh%rad = s0%rad
+         if (s0%kind == ikind .and. ikind /= shapekind_sphere) sh%rad = s0%rad
        end associate
     end if
     sh%kind = ikind
@@ -3668,6 +3664,29 @@ contains
     end if
 
   end subroutine shape_copy_style
+
+  !> Give the new shape sh the proportions of its kind for its length
+  !> (the length of v(:,1)): the base width of a cone and the thickness
+  !> of a cylinder grow with it, and the head of an arrow is a fixed
+  !> multiple of its width long, whatever the length of the arrow
+  !> (at most half of it). Spheres, boxes and degenerate shapes are left
+  !> alone. Used when the user draws a shape or changes its kind.
+  module subroutine shape_proportions(sh)
+    type(rep_shape), intent(inout) :: sh
+
+    real*8 :: len
+
+    len = norm2(sh%v(:,1))
+    if (len < 1d-6) return
+    if (sh%kind == shapekind_cone) then
+       sh%rad = cone_width_frac * len
+    elseif (sh%kind == shapekind_cylinder) then
+       sh%rad = cylinder_width_frac * len
+    elseif (sh%kind == shapekind_arrow) then
+       sh%headl = min(arrow_headl_width * sh%headr * sh%rad / len,0.5d0)
+    end if
+
+  end subroutine shape_proportions
 
   !> Whether the two geometric shapes differ in any field.
   module function shape_differs(a,b) result(ok)
