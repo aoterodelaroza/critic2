@@ -476,6 +476,7 @@ contains
                if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
                win(iview)%sc%rep(irep)%name = s
                win(iview)%sc%forcebuildlists = .true.
+               call win(iview)%sc%undo_note()
                call mo_message(w,"Created object " // s,.false.)
             else
                call mo_message(w,"Could not create the isosurface object",.true.)
@@ -693,7 +694,7 @@ contains
     if (k >= 1 .and. k <= size(c%g) .and. allocated(r%iso%ff)) then
        if (.not.allocated(c%g(k)%ff) .and. r%iso%imosel_built == id_mo_id .and.&
           r%iso%ifield_built == r%iso%ifield .and. r%iso%fieldgen_built == sys(isys)%fieldgen .and.&
-          r%iso%time_built >= r%iso%timelastapply_grid .and.&
+          r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,r%iso%rgn_x_built) .and.&
           r%iso%time_built >= sysc(isys)%timelastchange_geometry .and.&
           all(shape(r%iso%ff) == c%n)) then
           c%g(k)%ff = r%iso%ff

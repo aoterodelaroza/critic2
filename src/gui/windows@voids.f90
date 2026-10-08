@@ -374,6 +374,7 @@ contains
              win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
                 string(w%vd%iso_isoval,'f',decimal=5) // ")"
              win(iview)%sc%forcebuildlists = .true.
+             call win(iview)%sc%undo_note()
           else
              w%errmsg = "Could not create the isosurface object"
           end if

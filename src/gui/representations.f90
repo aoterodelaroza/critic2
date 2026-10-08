@@ -820,11 +820,13 @@ module representations
      integer :: ihighlight = 0 ! group drawn in rgbhl (0 = none)
      real(c_float) :: rgbhl(3) = iso_rgb_hl ! color of the highlighted group
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
-     real*8 :: timelastapply_grid = -1d0 ! time the grid + region were last applied (vs time_built)
      integer :: ihighlight_built = -1 ! highlighted group the vertex colors were made for
      integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
      integer :: imosel_built = 0 ! MO selector when the samples were taken
      integer :: imoidx_built = 0 ! MO index when the samples were taken
+     integer :: nptsxyz_built(3) = -1 ! applied grid the samples were taken on
+     integer :: iregion_built = -1 ! applied region mode the samples were taken on
+     real*8 :: rgn_x_built(3,0:3) = 0d0 ! applied region coordinates the samples were taken on
      integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
      logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
                                      ! non-partial data); gates the periodic replication and its editor UI
@@ -835,8 +837,8 @@ module representations
      ! hist_x in field units, hist_y = number of points in the bin. Stamped with the build, like frange
      ! one staircase per axis scale (hscale_*): the bins are uniform in the transformed
      ! variable, so the bars match whichever axis the user selects
-     real(c_double) :: hist_x(2*iso_nhist,hscale_num) = 0._c_double
-     real(c_double) :: hist_y(2*iso_nhist,hscale_num) = 0._c_double
+     real(c_double), allocatable :: hist_x(:,:) ! (2*iso_nhist,hscale_num); allocated if nhist > 0
+     real(c_double), allocatable :: hist_y(:,:) ! (2*iso_nhist,hscale_num)
      logical :: hist_have(hscale_num) = .false. ! which scales the data allow
      real*8 :: hist_range(2,hscale_num) = 0d0 ! bin limits of each, in transformed units
      integer :: nhist = 0 ! number of staircase points (0 = no histogram yet)
@@ -846,10 +848,13 @@ module representations
      ! the lower edge of each bin, for the readout of what the current isovalue encloses. Binned
      ! logarithmically in |f| over hist_cumrange (log10 limits), independently of the staircase
      ! above: the display bins follow the axis on screen, and near zero those are too coarse
-     real*8 :: hist_q(iso_nhist) = 0d0
-     real*8 :: hist_v(iso_nhist) = 0d0
+     real*8, allocatable :: hist_q(:) ! (iso_nhist); allocated if nhist > 0
+     real*8, allocatable :: hist_v(:) ! (iso_nhist)
      real*8 :: hist_cumrange(2) = 0d0
-     real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by ifield_built and the applied-grid stamp)
+     real*8, allocatable :: ff(:,:,:) ! cached field samples (non-grid fields; keyed by the *_built keys)
+     ! (the samples, groups, meshes, map values, histogram, and the keys
+     ! that describe them are the caches of the object: keep iso_cache and
+     ! iso_cache_take/put in sync with them)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims
      procedure :: add_iso => iso_add_iso ! add an isosurface (isovalue and color chosen if not given)
@@ -867,8 +872,35 @@ module representations
      procedure :: set_samples => iso_set_samples ! install externally supplied field samples
      procedure :: sample => iso_sample ! sample the field (or an MO) on a given grid and region
      procedure :: mo_request => iso_mo_request ! the field-evaluation request that samples the selected MO
+     procedure :: cache_take => iso_cache_take ! move the caches out (to copy the settings alone)
+     procedure :: cache_put => iso_cache_put ! move caches back in, or mark them as missing
   end type rep_isosurface
   public :: rep_isosurface
+
+  !> The caches of an isosurface object (rep_isosurface), held while
+  !> its settings are copied for the undo history: the field samples,
+  !> the groups, the triangulations and map values of the isosurfaces,
+  !> the histogram, and the keys that say what they were made for. Keep
+  !> in sync with the caches of rep_isosurface.
+  type iso_cache
+     logical :: have = .false. ! it holds the caches of an object
+     real*8, allocatable :: ff(:,:,:)
+     integer, allocatable :: lbl(:,:,:)
+     type(iso_slot), allocatable :: slot(:) ! only the mesh, map values, and keys of each
+     real(c_double), allocatable :: hist_x(:,:), hist_y(:,:)
+     real*8, allocatable :: hist_q(:), hist_v(:)
+     integer :: ifield_built = -1, imosel_built = 0, imoidx_built = 0, fieldgen_built = -1
+     integer :: ihighlight_built = -1, nptsxyz_built(3) = -1, iregion_built = -1
+     real*8 :: rgn_x_built(3,0:3) = 0d0
+     logical :: per0_built = .false., outdomain = .false.
+     real*8 :: time_built = -1d0
+     real*8 :: frange(2) = 0d0
+     logical :: hist_have(hscale_num) = .false.
+     real*8 :: hist_range(2,hscale_num) = 0d0
+     real*8 :: hist_cumrange(2) = 0d0
+     integer :: nhist = 0
+  end type iso_cache
+  public :: iso_cache
 
   ! critical point names by type (typind; the (3,-3) CPs other than the
   ! nuclei are the non-nuclear attractors) and default sphere radius
@@ -989,7 +1021,6 @@ module representations
   public :: iso_estimate_cost
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
-  public :: reptype_is_undoable
   public :: labels_row
   public :: cps_field
   public :: cps_field_default
@@ -1049,10 +1080,6 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
-     module function reptype_is_undoable(itype) result(ok)
-       integer, intent(in) :: itype
-       logical :: ok
-     end function reptype_is_undoable
      module function labels_row(r,iat) result(idl)
        type(representation), intent(in) :: r
        integer, intent(in) :: iat
@@ -1298,6 +1325,14 @@ module representations
        class(rep_isosurface), intent(inout) :: iso
        real*8, intent(in) :: ff(:,:,:)
      end subroutine iso_stamp_histogram
+     module subroutine iso_cache_take(iso,c)
+       class(rep_isosurface), intent(inout) :: iso
+       type(iso_cache), intent(inout) :: c
+     end subroutine iso_cache_take
+     module subroutine iso_cache_put(iso,c)
+       class(rep_isosurface), intent(inout) :: iso
+       type(iso_cache), intent(inout) :: c
+     end subroutine iso_cache_put
      module subroutine iso_stamp_built(iso,isys)
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys

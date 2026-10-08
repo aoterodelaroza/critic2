@@ -351,22 +351,6 @@ contains
 
   end function reptype_is_atombased
 
-  !> Whether the objects of kind itype are in the undo history of the
-  !> system (scene objects_save): the atom-based kinds, the unit cell,
-  !> the axes, the symmetry elements, and the texts, measurements, 3D
-  !> shapes and 2D drawings. Not the kinds with large caches
-  !> (isosurfaces, critical points, gradient paths), whose edits are not
-  !> recorded either.
-  module function reptype_is_undoable(itype) result(ok)
-    integer, intent(in) :: itype
-    logical :: ok
-
-    ok = reptype_is_atombased(itype) .or. itype == reptype_unitcell .or. itype == reptype_axes .or.&
-       itype == reptype_symelem .or. itype == reptype_text .or. itype == reptype_measure .or.&
-       itype == reptype_shapes .or. itype == reptype_planar
-
-  end function reptype_is_undoable
-
   !> The row of the label style of the labels object r that holds cell
   !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
   !> depending on the label type.
@@ -2111,7 +2095,8 @@ contains
       resample = resample .or. (r%iso%imosel_built /= r%iso%imosel)
       resample = resample .or. (r%iso%imoidx_built /= r%iso%imoidx)
       resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
-      resample = resample .or. (r%iso%timelastapply_grid > r%iso%time_built)
+      resample = resample .or. .not.r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,&
+         r%iso%rgn_x_built)
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
       resample = resample .or. (.not.usegrid .and. .not.allocated(r%iso%ff))
       rebuild = resample

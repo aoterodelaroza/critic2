@@ -528,7 +528,6 @@ contains
   !> (not as a Cartesian box) so it tracks later cell/molecule edits.
   !> The counterpart of grid_isapplied; keep the two in sync.
   module subroutine iso_apply_grid(iso,n,iregion,x)
-    use interfaces_glfw, only: glfwGetTime
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: n(3)
     integer, intent(in) :: iregion
@@ -537,9 +536,6 @@ contains
     iso%nptsxyz = n
     iso%iregion_ap = iregion
     iso%rgn_x_ap = x
-    ! the single writer of the applied state, so one stamp here is all the
-    ! renderer needs to know its samples are for an older grid or region
-    iso%timelastapply_grid = glfwGetTime()
 
   end subroutine iso_apply_grid
 
@@ -976,6 +972,12 @@ contains
     integer :: i, is, idef
     real*8 :: hy(iso_nhist,hscale_num), dh, e1, e2
 
+    if (.not.allocated(iso%hist_x)) then
+       allocate(iso%hist_x(2*iso_nhist,hscale_num),iso%hist_y(2*iso_nhist,hscale_num),&
+          iso%hist_q(iso_nhist),iso%hist_v(iso_nhist))
+       iso%hist_x = 0._c_double
+       iso%hist_y = 0._c_double
+    end if
     call field_stats(ff,fmin=iso%frange(1),fmax=iso%frange(2),hist=hy,&
        hrange=iso%hist_range,hhave=iso%hist_have,hcumq=iso%hist_q,&
        hcumv=iso%hist_v,hcumrange=iso%hist_cumrange,hdef=idef)
@@ -1015,11 +1017,122 @@ contains
 
   end subroutine iso_stamp_histogram
 
+  !> Move the caches of isosurface object iso into c (iso_cache): the
+  !> field samples, the groups, the meshes and map values of the
+  !> isosurfaces, the histogram, and their keys. The settings stay; put
+  !> them back with cache_put.
+  module subroutine iso_cache_take(iso,c)
+    class(rep_isosurface), intent(inout) :: iso
+    type(iso_cache), intent(inout) :: c
+
+    integer :: k
+
+    c = iso_cache()
+    c%have = .true.
+    call move_alloc(iso%ff,c%ff)
+    call move_alloc(iso%lbl,c%lbl)
+    call move_alloc(iso%hist_x,c%hist_x)
+    call move_alloc(iso%hist_y,c%hist_y)
+    call move_alloc(iso%hist_q,c%hist_q)
+    call move_alloc(iso%hist_v,c%hist_v)
+    if (allocated(iso%slot)) then
+       allocate(c%slot(size(iso%slot,1)))
+       do k = 1, size(iso%slot,1)
+          call slot_cache_move(iso%slot(k),c%slot(k))
+       end do
+    end if
+    c%ifield_built = iso%ifield_built
+    c%imosel_built = iso%imosel_built
+    c%imoidx_built = iso%imoidx_built
+    c%fieldgen_built = iso%fieldgen_built
+    c%ihighlight_built = iso%ihighlight_built
+    c%nptsxyz_built = iso%nptsxyz_built
+    c%iregion_built = iso%iregion_built
+    c%rgn_x_built = iso%rgn_x_built
+    c%per0_built = iso%per0_built
+    c%outdomain = iso%outdomain
+    c%time_built = iso%time_built
+    c%frange = iso%frange
+    c%hist_have = iso%hist_have
+    c%hist_range = iso%hist_range
+    c%hist_cumrange = iso%hist_cumrange
+    c%nhist = iso%nhist
+
+  end subroutine iso_cache_take
+
+  !> Put the caches in c (taken by cache_take, maybe from another copy of
+  !> the same object) into isosurface object iso, whose settings stay;
+  !> the keys then say what has to be made again. Each isosurface takes
+  !> the cached one at its level (the one at its own place first), so an
+  !> isosurface added or removed in between does not hand its mesh to
+  !> another; one with none is triangulated again. If c holds nothing,
+  !> the samples are taken again. c is left empty.
+  module subroutine iso_cache_put(iso,c)
+    class(rep_isosurface), intent(inout) :: iso
+    type(iso_cache), intent(inout) :: c
+
+    integer :: k, j, nc
+    logical, allocatable :: used(:)
+    type(iso_slot) :: empty
+
+    call move_alloc(c%ff,iso%ff)
+    call move_alloc(c%lbl,iso%lbl)
+    call move_alloc(c%hist_x,iso%hist_x)
+    call move_alloc(c%hist_y,iso%hist_y)
+    call move_alloc(c%hist_q,iso%hist_q)
+    call move_alloc(c%hist_v,iso%hist_v)
+    nc = 0
+    if (allocated(c%slot)) nc = size(c%slot,1)
+    allocate(used(nc))
+    used = .false.
+    if (allocated(iso%slot)) then
+       do k = 1, size(iso%slot,1)
+          j = 0
+          if (k <= nc) then
+             if (.not.used(k) .and. c%slot(k)%isoval_built == iso%slot(k)%isoval) j = k
+          end if
+          if (j == 0 .and. nc > 0) j = findloc(c%slot(:)%isoval_built == iso%slot(k)%isoval .and. .not.used,&
+             .true.,1)
+          if (j > 0) then
+             used(j) = .true.
+             call slot_cache_move(c%slot(j),iso%slot(k))
+          else
+             call slot_cache_move(empty,iso%slot(k))
+          end if
+       end do
+    end if
+
+    if (c%have) then
+       iso%ifield_built = c%ifield_built
+       iso%imosel_built = c%imosel_built
+       iso%imoidx_built = c%imoidx_built
+       iso%fieldgen_built = c%fieldgen_built
+       iso%ihighlight_built = c%ihighlight_built
+       iso%nptsxyz_built = c%nptsxyz_built
+       iso%iregion_built = c%iregion_built
+       iso%rgn_x_built = c%rgn_x_built
+       iso%per0_built = c%per0_built
+       iso%outdomain = c%outdomain
+       iso%time_built = c%time_built
+       iso%frange = c%frange
+       iso%hist_have = c%hist_have
+       iso%hist_range = c%hist_range
+       iso%hist_cumrange = c%hist_cumrange
+       iso%nhist = c%nhist
+    else
+       iso%ifield_built = -1
+       iso%nhist = 0
+    end if
+    c = iso_cache()
+
+  end subroutine iso_cache_put
+
   !> Stamp the keys of isosurface object iso in system isys that say
   !> its field samples are current: the field they were taken from, the
-  !> MO they show, the generation of the system's field set, and the
-  !> time. The single writer of the sample state, read back by the
-  !> staleness test in add_isosurface_meshes.
+  !> MO they show, the applied grid and region they were taken on, the
+  !> generation of the system's field set, and the time. The single
+  !> writer of the sample state, read back by the staleness test in
+  !> add_isosurface_meshes.
   module subroutine iso_stamp_built(iso,isys)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys
@@ -1029,6 +1142,9 @@ contains
     iso%ifield_built = iso%ifield
     iso%imosel_built = iso%imosel
     iso%imoidx_built = iso%imoidx
+    iso%nptsxyz_built = iso%nptsxyz
+    iso%iregion_built = iso%iregion_ap
+    iso%rgn_x_built = iso%rgn_x_ap
     iso%fieldgen_built = sys(isys)%fieldgen
     iso%time_built = glfwGetTime()
 
@@ -1156,5 +1272,31 @@ contains
        (iso_isgridfield(isys,iso%ifield) .and. iso%iregion_ap == iso_region_cell)
 
   end function iso_isgenerated
+
+  !> Move the cached mesh, map values, and keys of isosurface a into b
+  !> (an empty a, as built by default, marks b as not built).
+  subroutine slot_cache_move(a,b)
+    type(iso_slot), intent(inout) :: a, b
+
+    call move_alloc(a%mesh%x,b%mesh%x)
+    call move_alloc(a%mesh%nrm,b%mesh%nrm)
+    call move_alloc(a%mesh%idx,b%mesh%idx)
+    call move_alloc(a%mesh%rgbv,b%mesh%rgbv)
+    call move_alloc(a%mesh%xrep,b%mesh%xrep)
+    b%mesh%nv = a%mesh%nv
+    b%mesh%nf = a%mesh%nf
+    b%mesh%rgb = a%mesh%rgb
+    b%mesh%alpha = a%mesh%alpha
+    call move_alloc(a%mapval,b%mapval)
+    call move_alloc(a%mapok,b%mapok)
+    b%mapoutdomain = a%mapoutdomain
+    b%built = a%built
+    b%isoval_built = a%isoval_built
+    b%imap_built = a%imap_built
+    b%mapexpr_built = a%mapexpr_built
+    b%icmap_built = a%icmap_built
+    b%maprange_built = a%maprange_built
+
+  end subroutine slot_cache_move
 
 end submodule iso

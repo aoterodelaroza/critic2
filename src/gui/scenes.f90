@@ -42,12 +42,11 @@ module scenes
   real*8, parameter, public :: anim_speed_max = 50d0
 
   !> The objects of a scene in the undo history of the system
-  !> (systems): copies of the objects of the kinds it holds
-  !> (reptype_is_undoable), with the slots they were in, and the
-  !> Display. The objects with large caches (isosurfaces, critical
-  !> points, gradient paths) are never copied, and neither are the
-  !> neighbor stars of the bonds. Saved iff rep is allocated. The
-  !> objects are known by their iord (unique in a scene generation).
+  !> (systems): copies of the objects, with the slots they were in, and
+  !> the Display. The neighbor stars of the bonds, the symmetry
+  !> elements, and the caches of the isosurfaces (samples, meshes,
+  !> histogram) are never copied. Saved iff rep is allocated. The objects are known by their iord (unique in a scene
+  !> generation).
   type scene_objstate
      integer :: gen = 0 ! generation of the scene it was saved from (scene%gen)
      integer :: nbuild = -1 ! builds of the scene when it was saved (scene%nbuild)
@@ -294,9 +293,8 @@ module scenes
        integer, intent(in) :: flavor
        integer, intent(out), optional :: id
      end subroutine add_representation
-     module subroutine scene_undo_note(s,itype,gesture)
+     module subroutine scene_undo_note(s,gesture)
        class(scene), intent(inout), target :: s
-       integer, intent(in), optional :: itype
        logical, intent(in), optional :: gesture
      end subroutine scene_undo_note
      module subroutine scene_objects_save(s,st)

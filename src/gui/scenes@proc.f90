@@ -1890,7 +1890,7 @@ contains
        if (igTableSetColumnIndex(ic_viewbutton)) then
           if (iw_checkbox("##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i),s%rep(i)%shown)) then
              changed = .true.
-             call s%undo_note(s%rep(i)%type)
+             call s%undo_note()
           end if
        end if
 
@@ -1916,7 +1916,7 @@ contains
                 s%rep(id)%iord = s%icount(0)
                 s%forcesort = .true.
                 changed = .true.
-                call s%undo_note(s%rep(i)%type)
+                call s%undo_note()
              end if
              call iw_tooltip("Make a copy of this object",ttshown)
 
@@ -1924,7 +1924,7 @@ contains
              if (iw_menuitem("Show/Hide")) then
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
-                call s%undo_note(s%rep(i)%type)
+                call s%undo_note()
              end if
              call iw_tooltip("Toggle hide/show of this object",ttshown)
 
@@ -1932,7 +1932,7 @@ contains
              if (iw_beginmenu("Rename")) then
                 if (iw_inputtext("##inputrenamerep",bufsize=1023,texta=s%rep(i)%name,width=30,grabfocus=.true.,&
                    notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
-                   call s%undo_note(s%rep(i)%type)
+                   call s%undo_note()
                    call igCloseCurrentPopup()
                 end if
                 call igEndMenu()
@@ -1991,7 +1991,7 @@ contains
           if (ok .and. igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
              s%rep(i)%shown = .not.s%rep(i)%shown
              changed = .true.
-             call s%undo_note(s%rep(i)%type)
+             call s%undo_note()
           end if
 
           if (discol) call igPopStyleColor(1)
@@ -2007,7 +2007,7 @@ contains
 
        ! delete the representation if asked
        if (doerase) then
-          call s%undo_note(s%rep(i)%type)
+          call s%undo_note()
           call s%rep(i)%end()
           changed = .true.
        end if
@@ -2373,55 +2373,54 @@ contains
 
   !> Note a change the user made to the objects of scene s, for the
   !> undo history of its system, if s is the scene of the system's main
-  !> views (alternate views have their own) and, if itype is given, if
-  !> the history holds objects of that kind. gesture as in
+  !> views (alternate views have their own). gesture as in
   !> undo_note_objects.
-  module subroutine scene_undo_note(s,itype,gesture)
+  module subroutine scene_undo_note(s,gesture)
     use systems, only: sysc, nsys
-    use representations, only: reptype_is_undoable
     class(scene), intent(inout), target :: s
-    integer, intent(in), optional :: itype
     logical, intent(in), optional :: gesture
 
     class(scene), pointer :: smain
 
     if (s%id < 1 .or. s%id > nsys) return
-    if (present(itype)) then
-       if (.not.reptype_is_undoable(itype)) return
-    end if
     smain => sysc(s%id)%sc
     if (associated(smain,s)) call sysc(s%id)%undo_note_objects(gesture)
 
   end subroutine scene_undo_note
 
-  !> Save the objects of scene s that are in the undo history of the
-  !> system (reptype_is_undoable) in st (scene_objstate), without the
-  !> neighbor stars of the bonds (their bond styles are marked as having
-  !> none), and the Display. Nothing is saved from an uninitialized
-  !> scene.
+  !> Save the objects of scene s (not the transient ones) in st
+  !> (scene_objstate) for the undo history, without the neighbor stars
+  !> of the bonds or the symmetry elements (their styles are marked as
+  !> having none) or the caches of the isosurfaces (moved out while they
+  !> are copied), and the Display. Nothing is saved from an
+  !> uninitialized scene.
   module subroutine scene_objects_save(s,st)
-    use representations, only: reptype_is_undoable
+    use representations, only: iso_cache, reptype_isosurface
     class(scene), intent(inout) :: s
     type(scene_objstate), intent(inout) :: st
 
     integer :: i, k
     type(neighstar), allocatable :: nstar(:)
+    type(iso_cache) :: cache
 
     st = scene_objstate()
     if (s%isinit == 0) return
 
     st%gen = s%gen
     st%nbuild = s%nbuild
-    st%islot = pack((/(i,i=1,s%nrep)/),(/(s%rep(i)%isinit .and. s%rep(i)%owner == 0 .and.&
-       reptype_is_undoable(s%rep(i)%type),i=1,s%nrep)/))
+    st%islot = pack((/(i,i=1,s%nrep)/),(/(s%rep(i)%isinit .and. s%rep(i)%owner == 0,i=1,s%nrep)/))
     allocate(st%rep(size(st%islot,1)))
     do k = 1, size(st%islot,1)
        i = st%islot(k)
        call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
+       if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_take(cache)
        st%rep(k) = s%rep(i)
+       if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_put(cache)
        call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
        st%rep(k)%bonds%style%rev = -1
        st%rep(k)%bonds%style%rev_nstar = -1
+       call st%rep(k)%symelem%style%se%end()
+       st%rep(k)%symelem%style%rev = -1
     end do
     st%disp = s%disp
 
@@ -2435,7 +2434,10 @@ contains
   !> generation); the objects of st go back to their slots (or a new
   !> one, if another object took it). A bonds object keeps the neighbor
   !> stars it has now, with their revisions, if both copy those of the
-  !> system (else they are made again: its bonding criteria may differ). The objects in neither are left alone. The styles
+  !> system (else they are made again: its bonding criteria may differ).
+  !> An isosurface object keeps the caches it has now (and makes again
+  !> what its settings no longer match); one made again has none. The
+  !> objects keep what is under the mouse now (hover highlights). The objects in neither are left alone. The styles
   !> carry the revisions of the system they were made for, so they are
   !> made again if those are no longer the system's (and the stars of a
   !> bonds object made again, which has none). The Display too. If an
@@ -2445,15 +2447,17 @@ contains
   !> closes by itself.
   module subroutine scene_objects_restore(s,st,stfrom,done)
     use windows, only: invalidate_scene_reps
+    use representations, only: iso_cache, reptype_isosurface
     class(scene), intent(inout), target :: s
     type(scene_objstate), intent(in) :: st
     type(scene_objstate), intent(in), optional :: stfrom
     logical, intent(out), optional :: done
 
-    integer :: i, k, rev, rev_nstar
+    integer :: i, k, rev, rev_nstar, ihcps(2), ihgp(3)
     type(neighstar), allocatable :: nstar(:)
     logical, allocatable :: ended(:)
-    logical :: reused, dofrom, sysnstar
+    logical :: reused, dofrom, sysnstar, live
+    type(iso_cache) :: cache
 
     if (present(done)) done = .false.
     if (.not.allocated(st%rep) .or. st%gen /= s%gen .or. s%isinit == 0) return
@@ -2481,7 +2485,8 @@ contains
     ! revisions from the object there now, if it has them
     do k = 1, size(st%rep,1)
        i = slot_of(st%rep(k)%iord)
-       if (i == 0) then
+       live = (i > 0)
+       if (.not.live) then
           i = st%islot(k)
           if (s%rep(i)%isinit) i = s%get_new_representation_id()
           if (i <= size(ended,1)) reused = reused .or. ended(i)
@@ -2490,7 +2495,17 @@ contains
        rev = s%rep(i)%bonds%style%rev
        rev_nstar = s%rep(i)%bonds%style%rev_nstar
        sysnstar = s%rep(i)%bonds%style%use_sys_nstar
+       ihcps = 0
+       ihgp = 0
+       if (live) then
+          ihcps = s%rep(i)%cps%ihover
+          ihgp = s%rep(i)%gpaths%ihover
+          if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_take(cache)
+       end if
        s%rep(i) = st%rep(k)
+       if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_put(cache)
+       s%rep(i)%cps%ihover = ihcps
+       s%rep(i)%gpaths%ihover = ihgp
        if (allocated(nstar) .and. sysnstar .and. s%rep(i)%bonds%style%use_sys_nstar) then
           call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
           s%rep(i)%bonds%style%rev = rev

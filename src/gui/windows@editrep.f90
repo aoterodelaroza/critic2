@@ -166,7 +166,7 @@ contains
 
        ! rebuild draw lists if necessary
        if (changed) win(iview)%sc%forcebuildlists = .true.
-       if (changed .or. renamed) call win(iview)%sc%undo_note(w%rep%type)
+       if (changed .or. renamed) call win(iview)%sc%undo_note()
 
        ! right-align and bottom-align for the rest of the contents
        call iw_setpos_bottomright(10,2)
@@ -175,7 +175,7 @@ contains
        if (iw_button("Reset",danger=.true.)) then
           call w%rep%set_defaults(0)
           win(iview)%sc%forcebuildlists = .true.
-          call win(iview)%sc%undo_note(w%rep%type)
+          call win(iview)%sc%undo_note()
        end if
 
        ! close button
@@ -4714,9 +4714,10 @@ contains
     end if
 
     ! the path under the mouse in the table is highlighted in the view
+    ! (a rebuild, not an edit of the object)
     if (any(ihover /= w%rep%gpaths%ihover)) then
        w%rep%gpaths%ihover = ihover
-       changed = .true.
+       if (iview > 0) win(iview)%sc%forcebuildlists = .true.
     end if
 
     ! process transient highlights
@@ -5035,6 +5036,7 @@ contains
          call iso%apply_grid(w%editrep_pending_n,iso%iregion,iso%rgn_x)
          if (ok) call iso%set_samples(isys,ff,outdomain)
          win(iview)%sc%forcebuildlists = .true.
+         call win(iview)%sc%undo_note(gesture=.false.)
       end if
     end associate
 

@@ -4481,7 +4481,7 @@ contains
     end if
     idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
        idparent=w%id,orraise=-1)
-    if (irep > 0) call w%sc%undo_note(itype)
+    if (irep > 0) call w%sc%undo_note()
 
   end subroutine add_rep_and_edit
 
