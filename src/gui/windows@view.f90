@@ -2593,7 +2593,7 @@ contains
       integer :: irep, i
       integer(c_int) :: ibtnd, ibtne
       real*8 :: dx, dy
-      logical :: hit, created, fb0
+      logical :: hit, created, fb0, isclick
 
       inp%itool = w%annot%itool
       if (inp%itool == objtool_none .or. .not.associated(w%sc)) then
@@ -2659,11 +2659,34 @@ contains
 
       ! a tool that acts on a click alone gets it on release, if the
       ! mouse did not move past the drag threshold since the press; past
-      ! it, the drag rotates the camera, as in navigation. A rotation in
-      ! progress ends on release even if the tool changed.
+      ! it, the drag rotates the camera, as in navigation. The select
+      ! and remove tools work the same way when the press grabs nothing
+      ! in any of the objects edited in the view, and a double click
+      ! there (both presses on empty space: not the second press of a
+      ! double click that removed an item) turns them off. The click is
+      ! delivered at the position of the press. A rotation in progress
+      ! ends on release even if the tool changed.
+      isclick = objtool_isclick(w%annot%itype,inp%itool)
+      if (.not.isclick .and. inp%press .and. w%oe%op == objop_none .and. w%ilock /= ilock_left .and.&
+         (inp%itool == objtool_select .or. inp%itool == objtool_remove)) then
+         isclick = .true.
+         do i = 1, w%sc%nrep
+            if (.not.annot_valid(w,i,0)) cycle
+            if (w%objedit_hit(w%sc%rep(i),inp)) then
+               isclick = .false.
+               exit
+            end if
+         end do
+         ! a double click on empty space turns the tool off
+         if (isclick .and. inp%dbl .and. w%oe%cempty) then
+            call w%annot_set_tool(0,objtool_none,0)
+            return
+         end if
+         w%oe%cempty = isclick
+      end if
       if (w%ilock == ilock_left) then
          call cam_rotate(BIND_NAV_ROTATE)
-      elseif (objtool_isclick(w%annot%itype,inp%itool)) then
+      elseif (isclick .or. w%oe%cpress) then
          if (inp%press) then
             w%oe%cpress = .true.
             w%oe%xc0 = inp%xm
@@ -2672,6 +2695,8 @@ contains
             if (.not.inp%down) then
                w%oe%cpress = .false.
                inp%press = hover
+               inp%xm = w%oe%xc0
+               inp%tex = real(0.5d0 * (inp%xm + 1d0) * w%FBOside,c_float)
             elseif (norm2(inp%xm - w%oe%xc0) > objedit_drag_px * inp%pxs) then
                w%oe%cpress = .false.
                call cam_rotate(BIND_NAV_ROTATE,start=hover)
@@ -2712,6 +2737,11 @@ contains
                      exit
                   end if
                end do
+            end if
+            ! a press on empty space: the axes have no selected item, so
+            ! they are deselected by not being the current object
+            if (.not.hit .and. irep > 0) then
+               if (w%sc%rep(irep)%type == reptype_axes) irep = 0
             end if
          end if
       elseif (w%annot%newrep .or. .not.annot_valid(w,irep,w%annot%itype)) then
