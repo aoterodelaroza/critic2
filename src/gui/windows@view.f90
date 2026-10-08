@@ -260,7 +260,7 @@ contains
     ! that draw and edit the 2D and 3D shapes, texts, measurements and axes
     ldum = w%annot%shown
     if (iw_icon_togglebutton("annotbutton",icon_tex(icon_ui_annotate),"An",ldum,&
-       disabled=.not.enabled,caption="Annot")) call annot_toggle(w)
+       disabled=.not.enabled)) call annot_toggle(w)
     call iw_tooltip("Show or hide the annotation toolbar, with the tools that draw 2D and 3D &
        &shapes, texts, measurements, and axes in the view (" //&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ANNOTATE)) // ")",ttshown)
