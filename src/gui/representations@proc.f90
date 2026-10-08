@@ -687,26 +687,35 @@ contains
 
   end function measurement_item_anchors_xfrac
 
-  !> Copy all the style fields of src into dst (color, radii, opacities, label
-  !> size/decimals, line style, orientation, scaling). The identity fields
-  !> (shown/n/idx) are left untouched. Used by the "Apply to All" button.
+  !> Copy the style fields of src into dst: color, segment radius,
+  !> label size/decimals/scaling/offset, plus the fields both kinds
+  !> have (line style and label orientation for distances, the sector
+  !> for angles and dihedrals, the planes for dihedrals). The identity
+  !> fields (shown/n/idx) are left untouched. Used by the Apply to
+  !> Type/Apply to All buttons.
   module subroutine measurement_item_copy_style(dst,src)
     class(measurement_item), intent(inout) :: dst
     type(measurement_item), intent(in) :: src
 
     dst%rgb = src%rgb
     dst%rad = src%rad
-    dst%sectorrad = src%sectorrad
-    dst%sectoralpha = src%sectoralpha
-    dst%planealpha = src%planealpha
-    dst%planeext = src%planeext
     dst%textscale = src%textscale
     dst%ndec = src%ndec
-    dst%dashed = src%dashed
-    dst%dashlen = src%dashlen
-    dst%orient = src%orient
     dst%scalesystem = src%scalesystem
     dst%offset = src%offset
+    if (src%n == 2 .and. dst%n == 2) then
+       dst%dashed = src%dashed
+       dst%dashlen = src%dashlen
+       dst%orient = src%orient
+    end if
+    if (src%n >= 3 .and. dst%n >= 3) then
+       dst%sectorrad = src%sectorrad
+       dst%sectoralpha = src%sectoralpha
+    end if
+    if (src%n == 4 .and. dst%n == 4) then
+       dst%planealpha = src%planealpha
+       dst%planeext = src%planeext
+    end if
 
   end subroutine measurement_item_copy_style
 
@@ -3580,6 +3589,27 @@ contains
 
   end subroutine text_delete
 
+  !> Copy the style of text item src into dst: size, color and zoom
+  !> scaling, plus the offset and depth if both are placed in 3D, or the
+  !> in front/behind flag if both are on-screen. The text, placement,
+  !> position, anchors and shown flag of dst are left untouched. Used by
+  !> the Apply to Type/Apply to All buttons.
+  module subroutine text_copy_style(dst,src)
+    type(text_item), intent(inout) :: dst
+    type(text_item), intent(in) :: src
+
+    dst%scale = src%scale
+    dst%rgb = src%rgb
+    dst%scalewithzoom = src%scalewithzoom
+    if (src%placement /= textpos_screen .and. dst%placement /= textpos_screen) then
+       dst%offset = src%offset
+       dst%depth = src%depth
+    elseif (src%placement == textpos_screen .and. dst%placement == textpos_screen) then
+       dst%infront = src%infront
+    end if
+
+  end subroutine text_copy_style
+
   !> Append the shape sh to the list in p and select it.
   module subroutine shapes_append(p,sh)
     type(rep_shapes), intent(inout) :: p
@@ -3616,6 +3646,28 @@ contains
     end if
 
   end subroutine shapes_delete
+
+  !> Copy the style of shape src into dst: the color, and the fields
+  !> that mean the same thing in both kinds (the opacity of spheres and
+  !> boxes, the arrowhead of arrows, and the radius only between shapes
+  !> of the same kind, since it is a different length in each). The
+  !> position, vectors, kind and shown flag of dst are left untouched.
+  !> Used by the Apply to Type/Apply to All buttons.
+  module subroutine shape_copy_style(dst,src)
+    type(rep_shape), intent(inout) :: dst
+    type(rep_shape), intent(in) :: src
+
+    dst%rgb = src%rgb
+    if ((src%kind == shapekind_sphere .or. src%kind == shapekind_box) .and.&
+       (dst%kind == shapekind_sphere .or. dst%kind == shapekind_box)) &
+       dst%alpha = src%alpha
+    if (src%kind == dst%kind) dst%rad = src%rad
+    if (src%kind == shapekind_arrow .and. dst%kind == shapekind_arrow) then
+       dst%headr = src%headr
+       dst%headl = src%headl
+    end if
+
+  end subroutine shape_copy_style
 
   !> Whether the two geometric shapes differ in any field.
   module function shape_differs(a,b) result(ok)

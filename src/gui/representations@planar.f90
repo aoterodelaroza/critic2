@@ -458,6 +458,38 @@ contains
 
   end subroutine planar_delete
 
+  !> Copy the style of planar shape src into dst: the outline and the
+  !> in front/behind flag, plus the fill if both shapes are closed and
+  !> the arrowheads if both are arrows or curves. The geometry, kind and
+  !> shown flag of dst are left untouched. Used by the Apply to
+  !> Type/Apply to All buttons.
+  module subroutine planar_copy_style(dst,src)
+    type(planar_shape), intent(inout) :: dst
+    type(planar_shape), intent(in) :: src
+
+    dst%stroke = src%stroke
+    dst%width = src%width
+    dst%dash = src%dash
+    dst%rgb = src%rgb
+    dst%alpha = src%alpha
+    dst%infront = src%infront
+    if (planar_isclosed(src) .and. planar_isclosed(dst)) then
+       dst%filltype = src%filltype
+       dst%fillrgb = src%fillrgb
+       dst%fillalpha = src%fillalpha
+       dst%hatchang = src%hatchang
+       dst%hatchsp = src%hatchsp
+       dst%hatchw = src%hatchw
+    end if
+    if ((src%kind == planarkind_arrow .or. src%kind == planarkind_curve) .and.&
+       (dst%kind == planarkind_arrow .or. dst%kind == planarkind_curve)) then
+       dst%heads = src%heads
+       dst%headl = src%headl
+       dst%headw = src%headw
+    end if
+
+  end subroutine planar_copy_style
+
   !> Tessellate the shape sh into triangles and append them to the
   !> planar draw lists of obj (on top of everything or behind the
   !> scene). The outline is drawn with miter joins (rounded where the

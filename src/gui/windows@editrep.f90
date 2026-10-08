@@ -1775,6 +1775,29 @@ contains
 
   end function showhide_buttons
 
+  !> The Apply to Type / Apply to All button pair under the options of
+  !> the selected item of a list: the first copies the style of the
+  !> selected item to the other items of the same type (typename, plural)
+  !> and the second to every other item (items, plural). idsuffix makes
+  !> the button IDs unique. Returns 0 (no click), 1 (apply to type), or
+  !> 2 (apply to all).
+  function apply_style_buttons(idsuffix,typename,items,ttshown) result(imode)
+    use utils, only: iw_button, iw_tooltip
+    character(len=*), intent(in) :: idsuffix
+    character(len=*), intent(in) :: typename
+    character(len=*), intent(in) :: items
+    logical, intent(inout) :: ttshown
+    integer :: imode
+
+    imode = 0
+    if (iw_button("Apply to Type##applytype" // idsuffix,danger=.true.)) imode = 1
+    call iw_tooltip("Apply these style options to all the " // typename,ttshown)
+    if (iw_button("Apply to All##applyall" // idsuffix,danger=.true.,sameline=.true.)) imode = 2
+    call iw_tooltip("Apply these style options to all the " // items // ". Options that do &
+       &not apply to an item's type are left as they are.",ttshown)
+
+  end function apply_style_buttons
+
   !> Draw the editrep (Object) window, symmetry-elements class. Returns true if
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_symelem(w,ttshown) result(changed)
@@ -1915,7 +1938,7 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_text(w,ttshown) result(changed)
     use representations, only: textpos_screen, textpos_point, textpos_atom, textpos_bond,&
-       text_delete
+       text_delete, text_copy_style
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
        iw_table_column
@@ -1927,11 +1950,15 @@ contains
     logical :: changed
 
     logical :: ch, ok, okp, ldum, focus
-    integer :: i, iview, isel, idel, ipl, iplpick
+    integer :: i, iview, isel, idel, ipl, iplpick, imode
     real*8 :: xc(3)
     integer(c_int) :: flags
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
+
+    ! names of the placements (textpos_*), for the table and the Apply to Type tooltip
+    character(len=11), parameter :: placename(0:3) = (/"on-screen  ","3D position",&
+       "atom       ","bond       "/)
 
     ! initialize
     changed = .false.
@@ -2034,16 +2061,7 @@ contains
           ! placement summary; a row-spanning selectable picks the edited item,
           ! and the row being edited is shown highlighted
           if (igTableSetColumnIndex(3)) then
-             if (w%rep%text%t(i)%placement == textpos_screen) then
-                str1 = "on-screen"
-             elseif (w%rep%text%t(i)%placement == textpos_point) then
-                str1 = "3D position"
-             elseif (w%rep%text%t(i)%placement == textpos_atom) then
-                str1 = "atom"
-             else
-                str1 = "bond"
-             end if
-             call iw_text(str1,alignframe=.true.)
+             call iw_text(trim(placename(w%rep%text%t(i)%placement)),alignframe=.true.)
              ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch,&
                 selected=(i == w%rep%text%isel))
              if (ch) w%rep%text%isel = i
@@ -2161,6 +2179,17 @@ contains
        call iw_tooltip("Whether the text size scales when zooming in and out, or stays &
           &at a constant on-screen size",ttshown)
        changed = changed .or. ch
+
+       ! apply these style options to the texts with this placement, or to all
+       imode = apply_style_buttons("text","texts with " // trim(placename(ipl)) // " placement",&
+          "texts",ttshown)
+       if (imode > 0) then
+          do i = 1, w%rep%text%ntext
+             if (i == isel .or. (imode == 1 .and. w%rep%text%t(i)%placement /= ipl)) cycle
+             call text_copy_style(w%rep%text%t(i),w%rep%text%t(isel))
+          end do
+          changed = .true.
+       end if
     end if
 
   contains
@@ -2444,8 +2473,10 @@ contains
     subroutine item_options(ncat)
       integer, intent(in) :: ncat
 
-      integer :: is, j
+      integer :: is, j, imode
       integer(c_int) :: idec
+
+      character(len=9), parameter :: catname(2:4) = (/"distances","angles   ","dihedrals"/)
 
       is = w%rep%measure%isel
       if (is < 1 .or. is > w%rep%measure%nitem) return
@@ -2531,15 +2562,15 @@ contains
          changed = changed .or. iw_dragfloat_real8("Label offset (Å)##measureitemoffset",&
             x2=it%offset,speed=0.01d0,decimal=2)
          call iw_tooltip("Offset of the label from its anchor, in the screen plane (angstrom)",ttshown)
-         ! apply these style options to every measurement in this tab
-         if (iw_button("Apply to All##measureitemapply",danger=.true.)) then
+         ! apply these style options to the measurements in this tab, or to all
+         imode = apply_style_buttons("measure",trim(catname(ncat)),"measurements",ttshown)
+         if (imode > 0) then
             do j = 1, w%rep%measure%nitem
-               if (w%rep%measure%item(j)%n /= ncat .or. j == is) cycle
+               if (j == is .or. (imode == 1 .and. w%rep%measure%item(j)%n /= ncat)) cycle
                call w%rep%measure%item(j)%copy_style(it)
             end do
             changed = .true.
          end if
-         call iw_tooltip("Apply these style options to all measurements in this tab",ttshown)
       end associate
     end subroutine item_options
 
@@ -2602,19 +2633,20 @@ contains
   module function draw_editrep_shapes(w,ttshown) result(changed)
     use representations, only: rep_shape, shapekind_sphere, shapekind_box, shapekind_arrow,&
        shapekind_cone, shapekind_NUM, shapekind_name, shapekind_combostr,&
-       shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def, shapes_delete
+       shape_size_def, shape_edge_def, arrow_length_def, arrow_radius_def, shapes_delete,&
+       shape_copy_style
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
     use systems, only: sys
-    use tools_io, only: string
+    use tools_io, only: string, lower
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
     logical :: ch, ldum
-    integer :: i, k, iview, isel, idel, ikind, istat, ndec
+    integer :: i, k, iview, isel, idel, ikind, istat, ndec, imode
     real*8 :: xc(3), xdsp(3)
     integer(c_int) :: flags
     type(ImVec2) :: sz0
@@ -2846,6 +2878,16 @@ contains
          call iw_tooltip("Opacity of the object",ttshown)
          changed = changed .or. ch
       end if
+
+      ! apply these style options to the shapes of this kind, or to all
+      imode = apply_style_buttons("shapes",lower(kind_label(sh%kind)) // " shapes","shapes",ttshown)
+      if (imode > 0) then
+         do i = 1, w%rep%shapes%nshape
+            if (i == isel .or. (imode == 1 .and. w%rep%shapes%shape(i)%kind /= sh%kind)) cycle
+            call shape_copy_style(w%rep%shapes%shape(i),sh)
+         end do
+         changed = .true.
+      end if
     end associate
 
   contains
@@ -2951,7 +2993,8 @@ contains
     use representations, only: planar_shape, planarkind_name,&
        planarkind_ellipse, planarkind_rect, planarkind_arrow, planarkind_freehand,&
        planarkind_curve, planarheads_combostr, planardash_combostr, planarfill_combostr,&
-       planarfill_hatched, planarfill_crosshatched, planar_isclosed, planar_haspoints, planar_delete
+       planarfill_hatched, planarfill_crosshatched, planar_isclosed, planar_haspoints, planar_delete,&
+       planar_copy_style
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
        iw_close_button, iw_highlight_selectable, iw_table_column
@@ -2962,7 +3005,7 @@ contains
     logical :: changed
 
     logical :: ch, ldum
-    integer :: i, k, iview, isel, idel, iswap, ihead, idash, ifill
+    integer :: i, k, iview, isel, idel, iswap, ihead, idash, ifill, imode
     integer(c_int) :: flags
     real*8 :: xdsp(2), pxs, wpx, angd, dx, dy
     type(ImVec2) :: sz0
@@ -3194,6 +3237,16 @@ contains
       call iw_tooltip("Draw the shape on top of the scene (checked) or behind it, only over &
          &the background (unchecked)",ttshown)
       changed = changed .or. ch
+
+      ! apply these style options to the shapes of this kind, or to all
+      imode = apply_style_buttons("planar",lower(kind_label(sh%kind)) // " shapes","shapes",ttshown)
+      if (imode > 0) then
+         do i = 1, w%rep%planar%nshape
+            if (i == isel .or. (imode == 1 .and. w%rep%planar%shape(i)%kind /= sh%kind)) cycle
+            call planar_copy_style(w%rep%planar%shape(i),sh)
+         end do
+         changed = .true.
+      end if
     end associate
 
     ! a change in the drawing order, keeping the shape selected

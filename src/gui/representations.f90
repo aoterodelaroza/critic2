@@ -1035,8 +1035,10 @@ module representations
   public :: measure_find
   public :: text_append
   public :: text_delete
+  public :: text_copy_style
   public :: shapes_append
   public :: shapes_delete
+  public :: shape_copy_style
   public :: planar_isclosed
   public :: planar_haspoints
   public :: planar_path
@@ -1050,6 +1052,7 @@ module representations
   public :: planar_curve_default_bend
   public :: planar_append
   public :: planar_delete
+  public :: planar_copy_style
 
   ! module procedure interfaces
   interface
@@ -1098,6 +1101,10 @@ module representations
        type(rep_text), intent(inout) :: p
        integer, intent(in) :: idel
      end subroutine text_delete
+     module subroutine text_copy_style(dst,src)
+       type(text_item), intent(inout) :: dst
+       type(text_item), intent(in) :: src
+     end subroutine text_copy_style
      module function shapes_template(p,ikind) result(sh)
        type(rep_shapes), intent(in) :: p
        integer, intent(in) :: ikind
@@ -1111,6 +1118,10 @@ module representations
        type(rep_shapes), intent(inout) :: p
        integer, intent(in) :: idel
      end subroutine shapes_delete
+     module subroutine shape_copy_style(dst,src)
+       type(rep_shape), intent(inout) :: dst
+       type(rep_shape), intent(in) :: src
+     end subroutine shape_copy_style
      module function shape_differs(a,b) result(ok)
        type(rep_shape), intent(in) :: a
        type(rep_shape), intent(in) :: b
@@ -1176,6 +1187,10 @@ module representations
        type(rep_planar), intent(inout) :: p
        integer, intent(in) :: idel
      end subroutine planar_delete
+     module subroutine planar_copy_style(dst,src)
+       type(planar_shape), intent(inout) :: dst
+       type(planar_shape), intent(in) :: src
+     end subroutine planar_copy_style
      module subroutine planar_tessellate(sh,obj)
        type(planar_shape), intent(in) :: sh
        type(scene_objects), intent(inout) :: obj
