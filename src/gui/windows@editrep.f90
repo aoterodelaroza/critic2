@@ -84,8 +84,8 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview
-    logical :: doquit, ok, ldum, doper, ch
-    logical :: changed
+    logical :: doquit, ok, doper, ch
+    logical :: changed, renamed
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -115,7 +115,7 @@ contains
        ! name block (the representation type is fixed at creation and cannot be
        ! changed here)
        call iw_text("Name",highlight=.true.,alignframe=.true.)
-       ldum = iw_inputtext("##nametextinput",bufsize=1023,texta=w%rep%name,width=30,sameline=.true.)
+       renamed = iw_inputtext("##nametextinput",bufsize=1023,texta=w%rep%name,width=30,sameline=.true.)
        call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox
@@ -166,6 +166,7 @@ contains
 
        ! rebuild draw lists if necessary
        if (changed) win(iview)%sc%forcebuildlists = .true.
+       if (changed .or. renamed) call win(iview)%sc%undo_note(w%rep%type)
 
        ! right-align and bottom-align for the rest of the contents
        call iw_setpos_bottomright(10,2)
@@ -174,6 +175,7 @@ contains
        if (iw_button("Reset",danger=.true.)) then
           call w%rep%set_defaults(0)
           win(iview)%sc%forcebuildlists = .true.
+          call win(iview)%sc%undo_note(w%rep%type)
        end if
 
        ! close button

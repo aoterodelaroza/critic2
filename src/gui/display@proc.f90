@@ -63,9 +63,9 @@ contains
 
   !> (Re)make the atom-group and molecule Show masks of the Display for
   !> system isys, with everything shown, and the lattice-vector shifts of
-  !> the atom groups, all zero; stamp them.
+  !> the atom groups, all zero; they are for the bonding revision of the
+  !> system now.
   module subroutine scene_display_reset_shown(disp,isys)
-    use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system
     class(scene_display), intent(inout) :: disp
     integer, intent(in) :: isys
@@ -73,7 +73,6 @@ contains
     if (allocated(disp%ashown)) deallocate(disp%ashown)
     if (allocated(disp%ashift)) deallocate(disp%ashift)
     if (allocated(disp%mshown)) deallocate(disp%mshown)
-    disp%timelastreset = glfwGetTime()
     if (.not.ok_system(isys,sys_ready)) return
     disp%rev = sysc(isys)%rev_rebond
 
@@ -138,7 +137,6 @@ contains
   module subroutine scene_display_end(disp)
     class(scene_display), intent(inout) :: disp
 
-    disp%timelastreset = 0d0
     disp%rev = -1
     if (allocated(disp%ashown)) deallocate(disp%ashown)
     if (allocated(disp%ashift)) deallocate(disp%ashift)

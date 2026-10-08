@@ -351,6 +351,22 @@ contains
 
   end function reptype_is_atombased
 
+  !> Whether the objects of kind itype are in the undo history of the
+  !> system (scene objects_save): the atom-based kinds, the unit cell,
+  !> the axes, the symmetry elements, and the texts, measurements, 3D
+  !> shapes and 2D drawings. Not the kinds with large caches
+  !> (isosurfaces, critical points, gradient paths), whose edits are not
+  !> recorded either.
+  module function reptype_is_undoable(itype) result(ok)
+    integer, intent(in) :: itype
+    logical :: ok
+
+    ok = reptype_is_atombased(itype) .or. itype == reptype_unitcell .or. itype == reptype_axes .or.&
+       itype == reptype_symelem .or. itype == reptype_text .or. itype == reptype_measure .or.&
+       itype == reptype_shapes .or. itype == reptype_planar
+
+  end function reptype_is_undoable
+
   !> The row of the label style of the labels object r that holds cell
   !> atom iat: its species, non-equivalent atom, cell atom, or molecule,
   !> depending on the label type.
@@ -781,22 +797,14 @@ contains
        if (r%type == reptype_bonds) then
           ! bonds: if the geometry changed, the neighbor stars again (the
           ! bonds shown by species stay, unless the species changed)
-          if (.not.r%bonds%style%isinit) then
-             call r%bonds%style%reset(r)
-          elseif (r%bonds%style%rev /= sysc(r%id)%rev_geometry) then
-             doreset = .not.allocated(r%bonds%style%shown)
-             if (.not.doreset) doreset = (size(r%bonds%style%shown,1) /= sys(r%id)%c%nspc)
-             if (doreset) then
-                call r%bonds%style%reset(r)
-             else
-                if (r%bonds%style%use_sys_nstar) then
-                   call r%bonds%style%copy_neighstars_from_system(r%id)
-                else
-                   call r%bonds%style%generate_neighstars(r)
-                end if
-                r%bonds%style%rev = sysc(r%id)%rev_geometry
-             end if
+          doreset = .not.r%bonds%style%isinit
+          if (.not.doreset .and. r%bonds%style%rev /= sysc(r%id)%rev_geometry) then
+             doreset = .not.allocated(r%bonds%style%spcz)
+             if (.not.doreset) doreset = (size(r%bonds%style%spcz,1) /= sys(r%id)%c%nspc)
+             if (.not.doreset) doreset = any(r%bonds%style%spcz /= sys(r%id)%c%spc(1:sys(r%id)%c%nspc)%z)
+             if (.not.doreset) call r%bonds%style%refresh_nstar(r)
           end if
+          if (doreset) call r%bonds%style%reset(r)
 
           ! bonds: if the system has been rebonded and this representation tracks
           ! the bonds in the system (%use_sys_nstar), recalculate the bond style
@@ -835,7 +843,7 @@ contains
        ! symmetry elements: if the geometry changed (transient items are the
        ! producer's, as above)
        doreset = .not.r%symelem%style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%symelem%style%timelastreset)
+       doreset = doreset .or. (r%symelem%style%rev /= sysc(r%id)%rev_geometry)
        if (doreset .and. r%owner == 0) call r%symelem%style%reset(r)
 
     elseif (r%type == reptype_isosurface) then

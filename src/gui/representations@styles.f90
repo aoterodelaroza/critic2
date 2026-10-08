@@ -26,21 +26,20 @@ contains
   !> symmetry-element types of the system, keeping the previous
   !> visibility selection if the list has not changed size.
   module subroutine symelem_style_reset(d,r)
-    use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
     class(symelem_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
     logical, allocatable :: shownold(:)
 
-    ! reset the time and remember the previous selection
-    d%timelastreset = glfwGetTime()
+    ! remember the previous selection
     if (allocated(d%shown)) call move_alloc(d%shown,shownold)
     d%isinit = .false.
     call d%se%end()
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
+    d%rev = sysc(r%id)%rev_geometry
 
     ! recompute the element-type snapshot; the element positions are not kept
     ! here (they depend on the number of cells drawn)
@@ -67,7 +66,6 @@ contains
     class(symelem_style), intent(inout) :: d
 
     d%isinit = .false.
-    d%timelastreset = 0d0
     d%nop = 0
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%iop)) deallocate(d%iop)
@@ -97,7 +95,6 @@ contains
   !> Reset atom style to the parameters and the contents of the system
   !> point at by representation r. Uses d%type to fill the arrays.
   module subroutine atom_style_reset(d,r)
-    use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
     use gui_main, only: ColorElement
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2
@@ -114,9 +111,6 @@ contains
     d%isinit = .false.
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
-
-    ! reset the time
-    d%timelastreset = glfwGetTime()
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
@@ -153,7 +147,6 @@ contains
 
   !> Reset colors in an atom style to defaults.
   module subroutine atom_style_reset_colors(d,r)
-    use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system
     use gui_main, only: ColorElement
     class(atom_geom_style), intent(inout) :: d
@@ -201,7 +194,6 @@ contains
     class(atom_geom_style), intent(inout) :: d
 
     d%isinit = .false.
-    d%timelastreset = 0d0
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
 
@@ -210,7 +202,6 @@ contains
   !> Reset molecule style with default values. Use the information in
   !> representation r, or leave it empty if system is uninitalized.
   module subroutine mol_style_reset(d,r)
-    use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system
     class(mol_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
@@ -222,9 +213,6 @@ contains
     d%isinit = .false.
     if (allocated(d%tint_rgb)) deallocate(d%tint_rgb)
     if (allocated(d%scale_rad)) deallocate(d%scale_rad)
-
-    ! reset the time
-    d%timelastreset = glfwGetTime()
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
@@ -247,7 +235,6 @@ contains
     class(mol_geom_style), intent(inout) :: d
 
     d%isinit = .false.
-    d%timelastreset = 0d0
     if (allocated(d%tint_rgb)) deallocate(d%tint_rgb)
     if (allocated(d%scale_rad)) deallocate(d%scale_rad)
 
@@ -292,8 +279,7 @@ contains
   !> Reset bond style with default values, according to the given
   !> representation.
   module subroutine bond_style_reset(d,r)
-    use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sysc, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     class(bond_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -305,17 +291,14 @@ contains
     if (allocated(d%nstar)) deallocate(d%nstar)
     d%use_sys_nstar = .true.
 
-    ! reset the time
-    d%timelastreset = glfwGetTime()
-
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
-    d%rev = sysc(r%id)%rev_geometry
     d%isinit = .true.
 
     ! fill temp options
     allocate(d%shown(sys(r%id)%c%nspc,sys(r%id)%c%nspc))
     d%shown = .true.
+    d%spcz = sys(r%id)%c%spc(1:sys(r%id)%c%nspc)%z
 
     ! fill data according to flavor
     if (r%flavor == repflavor_bonds_vdwcontacts) then
@@ -327,7 +310,6 @@ contains
              d%shown(:,i) = .false.
           end if
        end do
-       call d%generate_neighstars(r)
     elseif (r%flavor == repflavor_bonds_hbonds) then
        ! hydrogen bonds
        d%use_sys_nstar = .false.
@@ -342,23 +324,42 @@ contains
              end if
           end do
        end do
-       call d%generate_neighstars(r)
     else
        ! other flavors are default (track system bonds)
        d%use_sys_nstar = .true.
-       call d%copy_neighstars_from_system(r%id)
     end if
+    call d%refresh_nstar(r)
 
   end subroutine bond_style_reset
+
+  !> Make the neighbor stars of bond style d again for the geometry of
+  !> the system of representation r: a copy of the system's
+  !> (use_sys_nstar), or generated with the bonding parameters of r.
+  !> The old stars go first (the system may have none).
+  module subroutine bond_style_refresh_nstar(d,r)
+    use systems, only: sysc, sys_ready, ok_system
+    class(bond_geom_style), intent(inout) :: d
+    type(representation), intent(in) :: r
+
+    if (allocated(d%nstar)) deallocate(d%nstar)
+    if (.not.ok_system(r%id,sys_ready)) return
+    if (d%use_sys_nstar) then
+       call d%copy_neighstars_from_system(r%id)
+    else
+       call d%generate_neighstars(r)
+    end if
+    d%rev = sysc(r%id)%rev_geometry
+
+  end subroutine bond_style_refresh_nstar
 
   !> Deallocate all arrays and end the bond syle.
   module subroutine bond_style_end(d)
     class(bond_geom_style), intent(inout) :: d
 
     d%isinit = .false.
-    d%timelastreset = 0d0
     d%use_sys_nstar = .true.
     if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%spcz)) deallocate(d%spcz)
     if (allocated(d%nstar)) deallocate(d%nstar)
 
   end subroutine bond_style_end
@@ -366,7 +367,6 @@ contains
   !> Reset label style with default values. Use the information in
   !> representation r.
   module subroutine label_style_reset(d,r)
-    use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system
     use tools_io, only: nameguess, string
     class(label_geom_style), intent(inout) :: d
@@ -378,9 +378,6 @@ contains
     d%isinit = .false.
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%str)) deallocate(d%str)
-
-    ! reset the time
-    d%timelastreset = glfwGetTime()
 
     ! the critical point rows depend on the label type too
     call d%reset_cps(r)
@@ -509,7 +506,6 @@ contains
     class(label_geom_style), intent(inout) :: d
 
     d%isinit = .false.
-    d%timelastreset = 0d0
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%str)) deallocate(d%str)
     d%timelastreset_cp = 0d0
@@ -524,13 +520,11 @@ contains
   !> Allocate a coordination-polyhedra style with room for ntype center
   !> types and nspc species acting as corners.
   module subroutine coordpoly_style_alloc(d,ntype,nspc)
-    use interfaces_glfw, only: glfwGetTime
     class(coordpoly_geom_style), intent(inout) :: d
     integer, intent(in) :: ntype
     integer, intent(in) :: nspc
 
     call d%end()
-    d%timelastreset = glfwGetTime()
     d%ntype = ntype
     allocate(d%shown(ntype),d%corner(nspc,ntype),d%dmin(ntype),d%dmax(ntype))
     d%shown = .false.
@@ -571,7 +565,6 @@ contains
   !> Reset the coordination-polyhedra style to defaults from the
   !> system pointed at by representation r.
   module subroutine coordpoly_style_reset(d,r)
-    use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
     use param, only: atmcov0
     use global, only: bondfactor_def
@@ -585,9 +578,8 @@ contains
     ! if not initialized, set type
     if (.not.d%isinit) d%type = atlisttype_species
 
-    ! reset the style to zero and reset the time
+    ! reset the style to zero
     call d%end()
-    d%timelastreset = glfwGetTime()
 
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
@@ -720,7 +712,6 @@ contains
     class(coordpoly_geom_style), intent(inout) :: d
 
     d%isinit = .false.
-    d%timelastreset = 0d0
     d%ntype = 0
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%corner)) deallocate(d%corner)

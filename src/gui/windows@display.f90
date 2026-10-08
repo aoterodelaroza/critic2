@@ -97,8 +97,12 @@ contains
              reshape(ColorHighlightScene,(/4,1/)))
        end if
 
-       ! rebuild the draw lists if necessary
-       if (changed) win(iview)%sc%forcebuildlists = .true.
+       ! rebuild the draw lists if necessary; the change goes to the undo
+       ! history of the system
+       if (changed) then
+          win(iview)%sc%forcebuildlists = .true.
+          call win(iview)%sc%undo_note()
+       end if
     end if
 
     ! right-align and bottom-align for the rest of the contents

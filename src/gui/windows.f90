@@ -606,8 +606,6 @@ module windows
      logical :: rmoved = .false. ! the mouse moved past the click/drag threshold since that press
      real*8 :: xr0(2) = 0d0 ! position of that right press (NDC of the render buffer)
      logical :: cpress = .false. ! a click of a click-only tool (objtool_isclick) may be in progress
-     logical :: undo_open = .false. ! the undo history has a state for the edit since the last press (drags merge into it)
-     logical :: undo_pending = .false. ! drag frames changed the objects since that state was saved (saved at the release)
      real*8 :: xc0(2) = 0d0 ! position of that press (NDC of the render buffer)
      logical :: moved = .false. ! the mouse moved past the click/drag threshold since the press
      type(planar_edit_state) :: planar ! 2D drawing: the shape
@@ -1352,6 +1350,7 @@ module windows
   public :: regenerate_window_pointers
   public :: invalidate_scene_reps
   public :: objedit_cancel_views
+  public :: objedit_busy
   public :: read_output_uout
   public :: fill_input_ci
 
@@ -1501,6 +1500,10 @@ module windows
      module subroutine objedit_cancel_views(isys)
        integer, intent(in) :: isys
      end subroutine objedit_cancel_views
+     module function objedit_busy(isys) result(busy)
+       integer, intent(in) :: isys
+       logical :: busy
+     end function objedit_busy
      module subroutine invalidate_scene_reps(s)
        type(scene), intent(in), target :: s
      end subroutine invalidate_scene_reps

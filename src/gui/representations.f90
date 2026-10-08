@@ -252,7 +252,6 @@ module representations
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
      logical :: isinit = .false. ! whether the style is intialized
-     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      integer :: type ! atom style type (attlisttype_* in systems module)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
@@ -269,7 +268,6 @@ module representations
   !> Draw style for molecules (geometry-dependent parameters)
   type mol_geom_style
      logical :: isinit = .false. ! whether the style is intialized
-     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: rev = -1 ! bonding revision of the system it was made for (sysconf%rev_rebond)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
@@ -283,15 +281,16 @@ module representations
   !> Draw style for bonds (geometry-dependent parameters)
   type bond_geom_style
      logical :: isinit = .false. ! whether the style is intialized
-     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: rev = -1 ! geometry revision of the system the neighbor stars are for (sysconf%rev_geometry)
      integer :: rev_nstar = -1 ! bonding revision of the system's stars they copy (sysconf%rev_rebond; use_sys_nstar)
      logical :: use_sys_nstar = .true. ! whether this is using the system's neighbor star
      logical, allocatable :: shown(:,:) ! by-species bond shown flags (nspc,nspc)
+     integer, allocatable :: spcz(:) ! atomic numbers of the species shown is for (nspc)
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
    contains
      procedure :: generate_neighstars
      procedure :: copy_neighstars_from_system
+     procedure :: refresh_nstar => bond_style_refresh_nstar
      procedure :: reset => bond_style_reset
      procedure :: end => bond_style_end
   end type bond_geom_style
@@ -300,7 +299,6 @@ module representations
   !> Draw style for labels (geometry-dependent parameters)
   type label_geom_style
      logical :: isinit = .false. ! whether the style is intialized
-     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
@@ -329,7 +327,6 @@ module representations
   !> polyhedron corners, and the min/max center-corner distance window.
   type coordpoly_geom_style
      logical :: isinit = .false. ! whether the style is intialized
-     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      integer :: type = 0 ! center atom-list type (atlisttype_* in systems module; 0 = unset)
      integer :: ntype = 0 ! number of center types
@@ -348,7 +345,7 @@ module representations
   !> Draw style for symmetry elements (geometry-dependent parameters).
   type symelem_style
      logical :: isinit = .false. ! whether the style is intialized
-     real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: rev = -1 ! geometry revision of the system it was made for (sysconf%rev_geometry)
      type(symelem_list) :: se ! the element types (kind/order/dir/label/dirlabel)
      logical, allocatable :: shown(:) ! per-type on/off (se%ntype)
      ! transient items: draw the elements of these symmetry operations instead
@@ -992,6 +989,7 @@ module representations
   public :: iso_estimate_cost
   public :: coordpoly_classify_species
   public :: reptype_is_atombased
+  public :: reptype_is_undoable
   public :: labels_row
   public :: cps_field
   public :: cps_field_default
@@ -1051,6 +1049,10 @@ module representations
        integer, intent(in) :: itype
        logical :: ok
      end function reptype_is_atombased
+     module function reptype_is_undoable(itype) result(ok)
+       integer, intent(in) :: itype
+       logical :: ok
+     end function reptype_is_undoable
      module function labels_row(r,iat) result(idl)
        type(representation), intent(in) :: r
        integer, intent(in) :: iat
@@ -1463,6 +1465,10 @@ module representations
        class(bond_geom_style), intent(inout) :: d
        integer, intent(in) :: isys
      end subroutine copy_neighstars_from_system
+     module subroutine bond_style_refresh_nstar(d,r)
+       class(bond_geom_style), intent(inout) :: d
+       type(representation), intent(in) :: r
+     end subroutine bond_style_refresh_nstar
      module subroutine bond_style_reset(d,r)
        class(bond_geom_style), intent(inout) :: d
        type(representation), intent(in) :: r

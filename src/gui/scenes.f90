@@ -41,17 +41,16 @@ module scenes
   real*8, parameter, public :: anim_amplitude_max = 15d0
   real*8, parameter, public :: anim_speed_max = 50d0
 
-  !> The objects of a scene that the object editing tools change, for
-  !> the undo history of the system (systems): copies of the objects
-  !> of those kinds, with the slots they were in, and the Display (of
-  !> which only the Show masks and shifts are restored). The objects
-  !> with large caches (isosurfaces, critical points, ...) are never
-  !> copied, and neither are the neighbor stars of the bonds, which
-  !> the tools do not change. Saved iff rep is allocated. The objects
-  !> are known by their iord (unique in a scene generation).
+  !> The objects of a scene in the undo history of the system
+  !> (systems): copies of the objects of the kinds it holds
+  !> (reptype_is_undoable), with the slots they were in, and the
+  !> Display. The objects with large caches (isosurfaces, critical
+  !> points, gradient paths) are never copied, and neither are the
+  !> neighbor stars of the bonds. Saved iff rep is allocated. The
+  !> objects are known by their iord (unique in a scene generation).
   type scene_objstate
      integer :: gen = 0 ! generation of the scene it was saved from (scene%gen)
-     real*8 :: time = -1d0 ! time it was saved
+     integer :: nbuild = -1 ! builds of the scene when it was saved (scene%nbuild)
      integer, allocatable :: islot(:) ! slot of each object in the scene (rep(:))
      type(representation), allocatable :: rep(:) ! the objects
      type(scene_display) :: disp ! the Display
@@ -72,6 +71,7 @@ module scenes
      integer :: buildncel = -1 ! number of cell atoms at the last build_lists (-1 = never built)
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
+     integer :: nbuild = 0 ! number of builds (of the draw lists)
      integer :: fieldgen_built = -1 ! system field-set generation at the last build (sys%fieldgen)
      real*8 :: timelastcamchange = 0d0 ! time the camera was last changed
      real*8 :: timerefanimation = 0d0 ! reference time for the animation
@@ -164,6 +164,7 @@ module scenes
      procedure :: toggle_measurement_sel => scene_toggle_measurement_sel
      procedure :: add_representation
      procedure :: objects_save => scene_objects_save
+     procedure :: undo_note => scene_undo_note
      procedure :: objects_restore => scene_objects_restore
      procedure :: add_cps_maybe => scene_add_cps_maybe
      procedure :: show_cps => scene_show_cps
@@ -293,14 +294,20 @@ module scenes
        integer, intent(in) :: flavor
        integer, intent(out), optional :: id
      end subroutine add_representation
+     module subroutine scene_undo_note(s,itype,gesture)
+       class(scene), intent(inout), target :: s
+       integer, intent(in), optional :: itype
+       logical, intent(in), optional :: gesture
+     end subroutine scene_undo_note
      module subroutine scene_objects_save(s,st)
        class(scene), intent(inout) :: s
        type(scene_objstate), intent(inout) :: st
      end subroutine scene_objects_save
-     module subroutine scene_objects_restore(s,st,stfrom)
+     module subroutine scene_objects_restore(s,st,stfrom,done)
        class(scene), intent(inout), target :: s
        type(scene_objstate), intent(in) :: st
        type(scene_objstate), intent(in), optional :: stfrom
+       logical, intent(out), optional :: done
      end subroutine scene_objects_restore
      module subroutine scene_add_cps_maybe(s)
        class(scene), intent(inout), target :: s

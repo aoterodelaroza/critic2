@@ -2565,6 +2565,7 @@ contains
                    end if
                    deallocate(smask)
                    sc%forcebuildlists = .true.
+                   call sc%undo_note()
                 end if
               end associate
            end if

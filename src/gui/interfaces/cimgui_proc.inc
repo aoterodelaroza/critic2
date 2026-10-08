@@ -2131,7 +2131,11 @@ end subroutine igSetCurrentFont
 !x! ImGuiID igGetItemID(void);
 !x! ImGuiItemStatusFlags igGetItemStatusFlags(void);
 !x! ImGuiItemFlags igGetItemFlags(void);
-!x! ImGuiID igGetActiveID(void);
+! ImGuiID igGetActiveID(void);
+function igGetActiveID() bind(c,name="igGetActiveID")
+  import c_int
+  integer(c_int) :: igGetActiveID
+end function igGetActiveID
 !x! ImGuiID igGetFocusID(void);
 !x! void igSetActiveID(ImGuiID id,ImGuiWindow* window);
 !x! void igSetFocusID(ImGuiID id,ImGuiWindow* window);

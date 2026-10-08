@@ -246,6 +246,7 @@ contains
           call apply_displayflags(atoms=changedisplay(1),bonds=changedisplay(2),&
              labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5))
           chbuild = .true.
+          call note_undo(.false.)
        end if
     end if
 
@@ -270,6 +271,7 @@ contains
        sameline=.true.,caption="Atoms")) then
        call apply_displayflags(atoms=.true.)
        chbuild = .true.
+       call note_undo()
     end if
     call iw_tooltip("Show or hide the atoms ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
@@ -278,6 +280,7 @@ contains
        sameline=.true.,caption="Bonds")) then
        call apply_displayflags(bonds=.true.)
        chbuild = .true.
+       call note_undo()
     end if
     call iw_tooltip("Show or hide the bonds ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
@@ -296,6 +299,7 @@ contains
        call cycle_labels()
        call apply_displayflags(labels=.true.)
        chbuild = .true.
+       call note_undo()
     end if
     call iw_tooltip("Cycle the labels objects: none, atom name, atom index, Wyckoff site ("//&
        trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
@@ -305,6 +309,7 @@ contains
           sameline=.true.,caption="Cell")) then
           call apply_displayflags(cell=.true.)
           chbuild = .true.
+          call note_undo()
        end if
        call iw_tooltip("Show or hide the unit cell ("//&
           trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
@@ -314,6 +319,7 @@ contains
        sameline=.true.,caption="Poly")) then
        call apply_displayflags(poly=.true.)
        chbuild = .true.
+       call note_undo()
     end if
     call iw_tooltip("Show or hide the atomic polyhedra ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
@@ -337,7 +343,10 @@ contains
        call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
        if (ok) then
           if (associated(w%sc)) then
-             if (iw_periodicity_widget(w%sc%disp%ncell,ttshown)) chbuild = .true.
+             if (iw_periodicity_widget(w%sc%disp%ncell,ttshown)) then
+                chbuild = .true.
+                call note_undo()
+             end if
 
              ! make the displayed supercell the new unit cell
              if (iw_button("Transform to Supercell##periodicity",danger=.true.,&
@@ -487,17 +496,23 @@ contains
           ! styles: whole looks for the structure, replacing the atoms and
           ! bonds objects in one go
           if (iw_beginmenu("Styles",emphasis=.true.)) then
-             if (iw_menuitem("Ball and Stick")) &
+             if (iw_menuitem("Ball and Stick")) then
                 call w%sc%set_style(repstyle_ballandstick)
+                call note_undo()
+             end if
              call iw_tooltip("Atoms as balls with covalent radii, bonds as sticks of a single color",&
                 ttshown)
 
-             if (iw_menuitem("Licorice")) &
+             if (iw_menuitem("Licorice")) then
                 call w%sc%set_style(repstyle_licorice)
+                call note_undo()
+             end if
              call iw_tooltip("Atoms and bonds with the same radius, colored by the atoms",ttshown)
 
-             if (iw_menuitem("Sticks")) &
+             if (iw_menuitem("Sticks")) then
                 call w%sc%set_style(repstyle_sticks)
+                call note_undo()
+             end if
              call iw_tooltip("Bonds only, as sticks colored by the two atoms they join",ttshown)
 
              call igEndMenu()
@@ -942,6 +957,7 @@ contains
                       w%sc%disp%ncell(i) = w%sc%disp%ncell(i) + 1
                 end do
                 w%sc%forcebuildlists = .true.
+                call note_undo(.false.)
              elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
                 do i = 1, 3
                    if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
@@ -949,6 +965,7 @@ contains
                 end do
                 w%sc%disp%ncell = max(w%sc%disp%ncell,1)
                 w%sc%forcebuildlists = .true.
+                call note_undo(.false.)
              elseif (is_bind_event(BIND_VIEW_TRANSFORM_SUPERCELL)) then
                 call transform_to_supercell()
              end if
@@ -1066,6 +1083,13 @@ contains
       end if
 
     end subroutine apply_kinds
+
+    !> Note a change of the objects of this view for the undo history
+    !> of the system (gesture as in undo_note_objects: false for keys).
+    subroutine note_undo(gesture)
+      logical, intent(in), optional :: gesture
+      if (associated(w%sc)) call w%sc%undo_note(gesture=gesture)
+    end subroutine note_undo
 
     !> Advance the label state (islabels, islabelsl host variables) one
     !> step in the cycle: none -> atom name -> atom index -> Wyckoff
@@ -2564,9 +2588,6 @@ contains
 
       inp%itool = w%annot%itool
       if (inp%itool == objtool_none .or. .not.associated(w%sc)) then
-         ! a drag cut short: its changes go to the undo history
-         if (w%oe%undo_pending .and. w%ismain) call sysc(w%isys)%undo_capture_objects(.true.)
-         w%oe%undo_pending = .false.
          w%oe%op = objop_none
          w%oe%rpress = .false.
          w%oe%cpress = .false.
@@ -2651,20 +2672,12 @@ contains
          w%oe%cpress = .false.
       end if
 
-      ! the undo history (main views): save the objects as they are
-      ! before the handler, for the edit it may make (a copy only if they
-      ! changed since the last save, here or elsewhere), except in the
-      ! frames of a drag that already changed them
-      if (inp%press) w%oe%undo_open = .false.
-      if (w%ismain .and. .not.(w%oe%undo_open .and. inp%down)) &
-         call sysc(w%isys)%undo_refresh_objects()
-
       ! the atom tools edit the styles of the scene, not one object
       if (w%annot%itype == reptype_atoms .and. inp%itool > objtool_kind0) then
          fb0 = w%sc%forcebuildlists
          w%sc%forcebuildlists = .false.
          call w%atomtool_events(inp)
-         call objedit_undo_commit(fb0,inp%down)
+         call objedit_undo_commit(fb0)
          if (inp%exitev .and. w%oe%op == objop_none) &
             call w%annot_set_tool(0,objtool_none,0)
          return
@@ -2737,7 +2750,7 @@ contains
             w%annot%irep = 0
          end if
       end if
-      call objedit_undo_commit(fb0,inp%down)
+      call objedit_undo_commit(fb0)
 
       ! the exit bind, if the handler did not use it
       if (inp%exitev .and. w%oe%op == objop_none) &
@@ -2746,31 +2759,18 @@ contains
     end subroutine objedit_events
 
     !> After the handler of the object editing mode (vm_objedit): if it
-    !> changed the scene (flagged it for a rebuild), capture the
-    !> objects as a new state in the undo history of the system (main
-    !> views). The changes of the frames of a drag after the first since
-    !> the press (the draw bind still down) go to that state at the
-    !> release (down false). The rebuild flag the scene had before the
-    !> handler (fb0) is kept.
-    subroutine objedit_undo_commit(fb0,down)
-      logical, intent(in) :: fb0, down
+    !> changed the scene (flagged it for a rebuild), note the change for
+    !> the undo history of the system (main views; the frames of a drag
+    !> make one state, captured when it is released). The rebuild flag
+    !> the scene had before the handler (fb0) is kept.
+    subroutine objedit_undo_commit(fb0)
+      logical, intent(in) :: fb0
 
       logical :: changed
 
       changed = w%sc%forcebuildlists
       w%sc%forcebuildlists = fb0 .or. changed
-      if (.not.w%ismain) return
-      if (w%oe%undo_pending .and. .not.down) then
-         call sysc(w%isys)%undo_capture_objects(.true.)
-         w%oe%undo_pending = .false.
-      end if
-      if (.not.changed) return
-      if (w%oe%undo_open .and. down) then
-         w%oe%undo_pending = .true.
-      else
-         call sysc(w%isys)%undo_capture_objects(.false.)
-         w%oe%undo_open = .true.
-      end if
+      if (changed) call w%sc%undo_note()
 
     end subroutine objedit_undo_commit
 
@@ -4481,6 +4481,7 @@ contains
     end if
     idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
        idparent=w%id,orraise=-1)
+    if (irep > 0) call w%sc%undo_note(itype)
 
   end subroutine add_rep_and_edit
 
@@ -4767,7 +4768,6 @@ contains
       call igSameLine(0._c_float,-1._c_float)
       call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
       if (iw_button("Reset##annotatomreset",danger=.true.,sameline=.true.)) then
-         if (w%ismain) call sysc(w%isys)%undo_refresh_objects()
          do i = 1, w%sc%nrep
             associate(r => w%sc%rep(i))
               if (.not.r%isinit .or. r%owner /= 0) cycle
@@ -4780,7 +4780,7 @@ contains
          call w%sc%disp%reset_shown(w%isys)
          w%sc%forcebuildlists = .true.
          w%sc%nextbuildlists_fixcam = .true.
-         if (w%ismain) call sysc(w%isys)%undo_capture_objects(.false.)
+         call w%sc%undo_note()
          call igCloseCurrentPopup()
       end if
       call iw_tooltip("Bring the colors and sizes of the atoms back to the defaults, show &

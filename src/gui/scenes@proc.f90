@@ -648,6 +648,7 @@ contains
     s%gl%inst_valid = .false.
     s%isinit = 2
     s%timelastbuild = glfwGetTime()
+    s%nbuild = s%nbuild + 1
     s%fieldgen_built = sys(s%id)%fieldgen
 
   end subroutine scene_build_lists
@@ -1822,7 +1823,8 @@ contains
   end subroutine scene_cam_rotate
 
   !> Show the representation menu (called from view). Return .true.
-  !> if the scene needs to be rendered again.
+  !> if the scene needs to be rendered again. The changes go to the undo
+  !> history of the system.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
@@ -1886,8 +1888,10 @@ contains
 
        ! view button
        if (igTableSetColumnIndex(ic_viewbutton)) then
-          if (iw_checkbox("##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i),s%rep(i)%shown)) &
+          if (iw_checkbox("##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i),s%rep(i)%shown)) then
              changed = .true.
+             call s%undo_note(s%rep(i)%type)
+          end if
        end if
 
        ! name
@@ -1912,6 +1916,7 @@ contains
                 s%rep(id)%iord = s%icount(0)
                 s%forcesort = .true.
                 changed = .true.
+                call s%undo_note(s%rep(i)%type)
              end if
              call iw_tooltip("Make a copy of this object",ttshown)
 
@@ -1919,6 +1924,7 @@ contains
              if (iw_menuitem("Show/Hide")) then
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
+                call s%undo_note(s%rep(i)%type)
              end if
              call iw_tooltip("Toggle hide/show of this object",ttshown)
 
@@ -1926,6 +1932,7 @@ contains
              if (iw_beginmenu("Rename")) then
                 if (iw_inputtext("##inputrenamerep",bufsize=1023,texta=s%rep(i)%name,width=30,grabfocus=.true.,&
                    notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
+                   call s%undo_note(s%rep(i)%type)
                    call igCloseCurrentPopup()
                 end if
                 call igEndMenu()
@@ -1984,6 +1991,7 @@ contains
           if (ok .and. igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
              s%rep(i)%shown = .not.s%rep(i)%shown
              changed = .true.
+             call s%undo_note(s%rep(i)%type)
           end if
 
           if (discol) call igPopStyleColor(1)
@@ -1999,6 +2007,7 @@ contains
 
        ! delete the representation if asked
        if (doerase) then
+          call s%undo_note(s%rep(i)%type)
           call s%rep(i)%end()
           changed = .true.
        end if
@@ -2306,6 +2315,7 @@ contains
     ! bail out if there is no valid measurement to make
     if (.not.measure_build_idx(s,idx,aidx,n)) return
     call measure_toggle(s,aidx,n)
+    call s%undo_note()
 
   end subroutine scene_toggle_measurement
 
@@ -2325,6 +2335,7 @@ contains
        aidx(:,k) = s%msel(1:4,k)
     end do
     call measure_toggle(s,aidx,n)
+    call s%undo_note()
 
   end subroutine scene_toggle_measurement_sel
 
@@ -2360,13 +2371,36 @@ contains
 
   end subroutine add_representation
 
-  !> Save the objects of scene s that the object editing tools change
-  !> in st (scene_objstate): the atom-based objects, the texts,
-  !> measurements, 3D shapes, 2D drawings and axes (without the
-  !> neighbor stars of the bonds), and the Display. Nothing is saved
-  !> from an uninitialized scene.
+  !> Note a change the user made to the objects of scene s, for the
+  !> undo history of its system, if s is the scene of the system's main
+  !> views (alternate views have their own) and, if itype is given, if
+  !> the history holds objects of that kind. gesture as in
+  !> undo_note_objects.
+  module subroutine scene_undo_note(s,itype,gesture)
+    use systems, only: sysc, nsys
+    use representations, only: reptype_is_undoable
+    class(scene), intent(inout), target :: s
+    integer, intent(in), optional :: itype
+    logical, intent(in), optional :: gesture
+
+    class(scene), pointer :: smain
+
+    if (s%id < 1 .or. s%id > nsys) return
+    if (present(itype)) then
+       if (.not.reptype_is_undoable(itype)) return
+    end if
+    smain => sysc(s%id)%sc
+    if (associated(smain,s)) call sysc(s%id)%undo_note_objects(gesture)
+
+  end subroutine scene_undo_note
+
+  !> Save the objects of scene s that are in the undo history of the
+  !> system (reptype_is_undoable) in st (scene_objstate), without the
+  !> neighbor stars of the bonds (their bond styles are marked as having
+  !> none), and the Display. Nothing is saved from an uninitialized
+  !> scene.
   module subroutine scene_objects_save(s,st)
-    use interfaces_glfw, only: glfwGetTime
+    use representations, only: reptype_is_undoable
     class(scene), intent(inout) :: s
     type(scene_objstate), intent(inout) :: st
 
@@ -2377,81 +2411,95 @@ contains
     if (s%isinit == 0) return
 
     st%gen = s%gen
-    st%time = glfwGetTime()
-    st%islot = pack((/(i,i=1,s%nrep)/),(/(objects_editable(s%rep(i)),i=1,s%nrep)/))
+    st%nbuild = s%nbuild
+    st%islot = pack((/(i,i=1,s%nrep)/),(/(s%rep(i)%isinit .and. s%rep(i)%owner == 0 .and.&
+       reptype_is_undoable(s%rep(i)%type),i=1,s%nrep)/))
     allocate(st%rep(size(st%islot,1)))
     do k = 1, size(st%islot,1)
        i = st%islot(k)
        call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
        st%rep(k) = s%rep(i)
        call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
+       st%rep(k)%bonds%style%rev = -1
+       st%rep(k)%bonds%style%rev_nstar = -1
     end do
     st%disp = s%disp
 
   end subroutine scene_objects_save
 
-  !> Bring the objects of scene s that the object editing tools change
-  !> back to the state st, coming from the state stfrom (both saved
-  !> with objects_save from this generation of the scene; nothing
-  !> happens otherwise): the objects in stfrom and not in st, made by
-  !> the edits in between, end (none if stfrom is not given); the
-  !> objects of st go back to their slots (or a new one, if another
-  !> object took it), keeping the neighbor stars of the bonds they
-  !> have now, and their revisions. The objects in neither are left
-  !> alone. The styles carry the revisions of the system they were
-  !> made for, so they are made again if those are no longer the
-  !> system's; the neighbor stars of a bonds object made again (which
-  !> has none) are made again too. Of the Display, the Show masks and
-  !> shifts.
-  module subroutine scene_objects_restore(s,st,stfrom)
+  !> Bring the objects of scene s in the undo history back to the state
+  !> st, coming from the state stfrom (both saved with objects_save; st
+  !> must be from this generation of the scene, else nothing happens and
+  !> done is false): the objects in stfrom and not in st, made by the
+  !> edits in between, end (none if stfrom is not given, or from another
+  !> generation); the objects of st go back to their slots (or a new
+  !> one, if another object took it). A bonds object keeps the neighbor
+  !> stars it has now, with their revisions, if both copy those of the
+  !> system (else they are made again: its bonding criteria may differ). The objects in neither are left alone. The styles
+  !> carry the revisions of the system they were made for, so they are
+  !> made again if those are no longer the system's (and the stars of a
+  !> bonds object made again, which has none). The Display too. If an
+  !> object made again goes to the slot of one that ended here, the
+  !> editors of the objects let go of them (the editor of the one that
+  !> ended would show the other); an editor of an object that ends
+  !> closes by itself.
+  module subroutine scene_objects_restore(s,st,stfrom,done)
+    use windows, only: invalidate_scene_reps
     class(scene), intent(inout), target :: s
     type(scene_objstate), intent(in) :: st
     type(scene_objstate), intent(in), optional :: stfrom
+    logical, intent(out), optional :: done
 
     integer :: i, k, rev, rev_nstar
     type(neighstar), allocatable :: nstar(:)
-    type(scene_display) :: disp
+    logical, allocatable :: ended(:)
+    logical :: reused, dofrom, sysnstar
 
+    if (present(done)) done = .false.
     if (.not.allocated(st%rep) .or. st%gen /= s%gen .or. s%isinit == 0) return
-    if (present(stfrom)) then
-       if (.not.allocated(stfrom%rep) .or. stfrom%gen /= s%gen) return
-    end if
+    dofrom = present(stfrom)
+    if (dofrom) dofrom = allocated(stfrom%rep)
+    if (dofrom) dofrom = (stfrom%gen == s%gen)
+    if (present(done)) done = .true.
 
     ! the objects made since
-    if (present(stfrom)) then
+    allocate(ended(s%nrep))
+    ended = .false.
+    reused = .false.
+    if (dofrom) then
        do k = 1, size(stfrom%rep,1)
           if (any(st%rep(:)%iord == stfrom%rep(k)%iord)) cycle
           i = slot_of(stfrom%rep(k)%iord)
-          if (i > 0) call s%rep(i)%end()
+          if (i > 0) then
+             call s%rep(i)%end()
+             ended(i) = .true.
+          end if
        end do
     end if
 
     ! the objects of st, in their slots; the neighbor stars and their
-    ! revisions from the object there now (none if it is not this one)
+    ! revisions from the object there now, if it has them
     do k = 1, size(st%rep,1)
        i = slot_of(st%rep(k)%iord)
        if (i == 0) then
           i = st%islot(k)
           if (s%rep(i)%isinit) i = s%get_new_representation_id()
+          if (i <= size(ended,1)) reused = reused .or. ended(i)
        end if
        call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
        rev = s%rep(i)%bonds%style%rev
        rev_nstar = s%rep(i)%bonds%style%rev_nstar
+       sysnstar = s%rep(i)%bonds%style%use_sys_nstar
        s%rep(i) = st%rep(k)
-       call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
-       s%rep(i)%bonds%style%rev = rev
-       s%rep(i)%bonds%style%rev_nstar = rev_nstar
-       if (.not.allocated(s%rep(i)%bonds%style%nstar)) then
-          s%rep(i)%bonds%style%rev = -1
-          s%rep(i)%bonds%style%rev_nstar = -1
+       if (allocated(nstar) .and. sysnstar .and. s%rep(i)%bonds%style%use_sys_nstar) then
+          call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
+          s%rep(i)%bonds%style%rev = rev
+          s%rep(i)%bonds%style%rev_nstar = rev_nstar
        end if
     end do
+    s%disp = st%disp
 
-    ! the Show masks and shifts of the Display
-    disp = st%disp
-    call disp%copy_settings(s%disp)
-    s%disp = disp
-
+    if (reused) call invalidate_scene_reps(s)
     s%forcesort = .true.
     s%forcebuildlists = .true.
     s%nextbuildlists_fixcam = .true.
@@ -3079,23 +3127,6 @@ contains
     end do
 
   end subroutine scene_text_box
-
-  !xx! private procedures: undo history of the objects
-
-  !> Whether the object r is one the undo history saves: a regular
-  !> object of a kind the object editing tools change (objects_save).
-  function objects_editable(r) result(ok)
-    use representations, only: reptype_is_atombased, reptype_text, reptype_measure,&
-       reptype_shapes, reptype_planar, reptype_axes
-    type(representation), intent(in) :: r
-    logical :: ok
-
-    ok = r%isinit .and. r%owner == 0
-    if (.not.ok) return
-    ok = reptype_is_atombased(r%type) .or. r%type == reptype_text .or. r%type == reptype_measure .or.&
-       r%type == reptype_shapes .or. r%type == reptype_planar .or. r%type == reptype_axes
-
-  end function objects_editable
 
   !xx! private procedures: transient representations
 

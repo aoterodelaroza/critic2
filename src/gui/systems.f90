@@ -161,6 +161,8 @@ module systems
      logical, allocatable :: undo_isobj(:) ! the state comes from an object edit (no seed; same geometry as the previous)
      integer, allocatable :: undo_rev(:,:) ! the geometry and bonding revisions of each state (2,undo_maxdepth)
      type(scene_objstate) :: undo_objpre ! the objects before the object edit in progress (the current state takes them)
+     logical :: undo_dirty = .false. ! the user changed the objects, and the change is not in the history yet
+     integer(c_int) :: undo_dirty_id = 0 ! active widget (ImGui ID) when they were changed (0 = none)
      integer :: undo_n = 0      ! number of states currently in the history
      integer :: undo_icur = 0   ! logical index of the current state in the history (1:undo_n)
      integer :: undo_ibase = 1  ! physical slot of logical state 1 (base of the ring buffer)
@@ -239,8 +241,9 @@ module systems
      ! undo/redo
      procedure :: undo_reset
      procedure :: undo_capture
-     procedure :: undo_refresh_objects
-     procedure :: undo_capture_objects
+     procedure :: undo_note_objects
+     procedure :: undo_frame_begin
+     procedure :: undo_frame_end
      procedure :: undo
      procedure :: redo
      procedure :: can_undo
@@ -787,13 +790,18 @@ module systems
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: time
      end subroutine undo_capture
-     module subroutine undo_refresh_objects(sysc)
+     module subroutine undo_note_objects(sysc,gesture)
        class(sysconf), intent(inout) :: sysc
-     end subroutine undo_refresh_objects
-     module subroutine undo_capture_objects(sysc,merge)
+       logical, intent(in), optional :: gesture
+     end subroutine undo_note_objects
+     module subroutine undo_frame_begin(sysc,busy)
        class(sysconf), intent(inout) :: sysc
-       logical, intent(in) :: merge
-     end subroutine undo_capture_objects
+       logical, intent(in) :: busy
+     end subroutine undo_frame_begin
+     module subroutine undo_frame_end(sysc,busy)
+       class(sysconf), intent(inout) :: sysc
+       logical, intent(in) :: busy
+     end subroutine undo_frame_end
      module subroutine undo(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg

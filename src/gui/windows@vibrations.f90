@@ -308,6 +308,7 @@ contains
           if (iw_button("Set",sameline=.true.,disabled=any(r > maxncell_suggest))) then
              win(iview)%sc%disp%ncell = int(r)
              win(iview)%sc%forcebuildlists = .true.
+             call win(iview)%sc%undo_note()
           end if
           call iw_tooltip("Change the number of unit cells represented to the suggested value &
              &(disabled above " // string(maxncell_suggest) // " cells along any direction)",ttshown)

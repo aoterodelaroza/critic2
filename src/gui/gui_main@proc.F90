@@ -87,7 +87,7 @@ contains
        wintype_console_output, wintype_about, iwin_tree, iwin_view,&
        iwin_console_input, iwin_console_output, iwin_about,&
        stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init,&
-       read_output_uout
+       read_output_uout, objedit_busy
     use global, only: critic_home, abort_requested
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: string, falloc, fdealloc, ferror, warning
@@ -419,6 +419,15 @@ contains
              call ferror('gui_start','interactive dynamics: '//trim(errmsg),warning)
        end do
 
+       ! the objects of the systems in main views, as they are before the
+       ! windows change them, for the undo history
+       do i = 1, nwin
+          if (.not.win(i)%isinit .or. win(i)%type /= wintype_view) cycle
+          if (.not.win(i)%ismain) cycle
+          if (win(i)%isys < 1 .or. win(i)%isys > nsys) cycle
+          call sysc(win(i)%isys)%undo_frame_begin(objedit_busy(win(i)%isys))
+       end do
+
        ! process the window stack
        do i = 1, nwin
           call win(i)%draw()
@@ -536,9 +545,12 @@ contains
           end if
        end if
 
-       ! commit the transient highlights accumulated by the windows this frame
+       ! commit the transient highlights accumulated by the windows this
+       ! frame, and the changes of the objects to the undo history (those
+       ! whose widget was released)
        do i = 1, nsys
           call sysc(i)%highlight_transient_commit()
+          call sysc(i)%undo_frame_end(objedit_busy(i))
        end do
 
        ! record whether a popup or menu is open, for the cancel bind

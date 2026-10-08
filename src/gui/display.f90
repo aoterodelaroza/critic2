@@ -44,7 +44,6 @@ module display
      logical, allocatable :: ashown(:) ! atom group shown, by group of atype
      integer, allocatable :: ashift(:,:) ! atom group drawn this lattice vector away (3,group of atype; crystals)
      logical, allocatable :: mshown(:) ! molecule shown
-     real*8 :: timelastreset = 0d0 ! time the show masks were last (re)made
      integer :: rev = -1 ! bonding revision of the system the masks were made for (sysconf%rev_rebond)
    contains
      procedure :: init => scene_display_init ! defaults for a system
