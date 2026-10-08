@@ -476,7 +476,7 @@ contains
                if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
                win(iview)%sc%rep(irep)%name = s
                win(iview)%sc%forcebuildlists = .true.
-               call win(iview)%sc%undo_note()
+               call win(iview)%sc%undo_note("Create MO isosurface")
                call mo_message(w,"Created object " // s,.false.)
             else
                call mo_message(w,"Could not create the isosurface object",.true.)

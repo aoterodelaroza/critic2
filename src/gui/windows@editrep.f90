@@ -166,7 +166,11 @@ contains
 
        ! rebuild draw lists if necessary
        if (changed) win(iview)%sc%forcebuildlists = .true.
-       if (changed .or. renamed) call win(iview)%sc%undo_note()
+       if (changed) then
+          call win(iview)%sc%undo_note("Edit " // trim(w%rep%name))
+       elseif (renamed) then
+          call win(iview)%sc%undo_note("Rename object")
+       end if
 
        ! right-align and bottom-align for the rest of the contents
        call iw_setpos_bottomright(10,2)
@@ -175,7 +179,7 @@ contains
        if (iw_button("Reset",danger=.true.)) then
           call w%rep%set_defaults(0)
           win(iview)%sc%forcebuildlists = .true.
-          call win(iview)%sc%undo_note()
+          call win(iview)%sc%undo_note("Reset " // trim(w%rep%name))
        end if
 
        ! close button
@@ -5036,7 +5040,7 @@ contains
          call iso%apply_grid(w%editrep_pending_n,iso%iregion,iso%rgn_x)
          if (ok) call iso%set_samples(isys,ff,outdomain)
          win(iview)%sc%forcebuildlists = .true.
-         call win(iview)%sc%undo_note(gesture=.false.)
+         call win(iview)%sc%undo_note("Calculate grid",.false.)
       end if
     end associate
 

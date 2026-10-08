@@ -139,7 +139,8 @@ module keybindings
   integer, parameter, public :: BIND_OBJEDIT_DELPOINT = 86 ! object editing: remove the last point of the item being drawn
   integer, parameter, public :: BIND_OBJEDIT_NOSNAP = 87 ! object editing: do not snap to atoms while held
   integer, parameter, public :: BIND_VIEW_TOGGLE_ANNOTATE = 88 ! view: show/hide the annotation row
-  integer, parameter, public :: BIND_NUM = 88 ! total number of binds
+  integer, parameter, public :: BIND_REDO_ALT = 89 ! redo, the second key for it
+  integer, parameter, public :: BIND_NUM = 89 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -230,7 +231,8 @@ module keybindings
      "Finish the item being drawn     ",& ! BIND_OBJEDIT_FINISH
      "Remove the last point           ",& ! BIND_OBJEDIT_DELPOINT
      "Do not snap to atoms            ",& ! BIND_OBJEDIT_NOSNAP
-     "Toggle the annotation toolbar   "&  ! BIND_VIEW_TOGGLE_ANNOTATE
+     "Toggle the annotation toolbar   ",& ! BIND_VIEW_TOGGLE_ANNOTATE
+     "Redo (second key)               "&  ! BIND_REDO_ALT
      /)
 
   ! The key associated with each bind, bind -> key
@@ -372,7 +374,8 @@ module keybindings
      group_viewmode_objedit,&     ! BIND_OBJEDIT_FINISH
      group_viewmode_objedit,&     ! BIND_OBJEDIT_DELPOINT
      group_viewmode_objedit,&     ! BIND_OBJEDIT_NOSNAP
-     group_view/)                 ! BIND_VIEW_TOGGLE_ANNOTATE
+     group_view,&                 ! BIND_VIEW_TOGGLE_ANNOTATE
+     group_global/)               ! BIND_REDO_ALT
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -466,7 +469,8 @@ module keybindings
      0,&  ! BIND_OBJEDIT_FINISH
      0,&  ! BIND_OBJEDIT_DELPOINT
      -1,& ! BIND_OBJEDIT_NOSNAP
-     0/)  ! BIND_VIEW_TOGGLE_ANNOTATE
+     0,&  ! BIND_VIEW_TOGGLE_ANNOTATE
+     0/)  ! BIND_REDO_ALT
 
   ! module procedure interfaces
   interface

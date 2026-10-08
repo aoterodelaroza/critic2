@@ -101,7 +101,7 @@ contains
        ! history of the system
        if (changed) then
           win(iview)%sc%forcebuildlists = .true.
-          call win(iview)%sc%undo_note()
+          call win(iview)%sc%undo_note("Change Display settings")
        end if
     end if
 

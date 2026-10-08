@@ -42,14 +42,18 @@ module scenes
   real*8, parameter, public :: anim_speed_max = 50d0
 
   !> The objects of a scene in the undo history of the system
-  !> (systems): copies of the objects, with the slots they were in, and
-  !> the Display. The neighbor stars of the bonds, the symmetry
-  !> elements, and the caches of the isosurfaces (samples, meshes,
-  !> histogram) are never copied. Saved iff rep is allocated. The objects are known by their iord (unique in a scene
-  !> generation).
+  !> (systems): copies of the objects, with the slots they were in, the
+  !> Display, and the background color of the scene. The neighbor
+  !> stars of the bonds, the symmetry elements, and the caches of the
+  !> isosurfaces (samples, meshes, histogram) are never copied. Saved
+  !> iff rep is allocated. The objects are known by their iord (unique
+  !> in a scene generation).
   type scene_objstate
      integer :: gen = 0 ! generation of the scene it was saved from (scene%gen)
      integer :: nbuild = -1 ! builds of the scene when it was saved (scene%nbuild)
+     ! the settings of the scene (not those of the camera, which camera
+     ! lock shares between scenes: projection, reset distance)
+     real(c_float) :: bgcolor(3) = 0._c_float ! background color
      integer, allocatable :: islot(:) ! slot of each object in the scene (rep(:))
      type(representation), allocatable :: rep(:) ! the objects
      type(scene_display) :: disp ! the Display
@@ -293,8 +297,9 @@ module scenes
        integer, intent(in) :: flavor
        integer, intent(out), optional :: id
      end subroutine add_representation
-     module subroutine scene_undo_note(s,gesture)
+     module subroutine scene_undo_note(s,label,gesture)
        class(scene), intent(inout), target :: s
+       character(len=*), intent(in) :: label
        logical, intent(in), optional :: gesture
      end subroutine scene_undo_note
      module subroutine scene_objects_save(s,st)

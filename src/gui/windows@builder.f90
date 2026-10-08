@@ -1817,7 +1817,7 @@ contains
     subroutine edit_notify()
 
       if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
-      call sysc(isys)%post_event(lastchange_geometry)
+      call sysc(isys)%post_event(lastchange_geometry,label="Build structure")
       w%edit_time = glfwGetTime()
     end subroutine edit_notify
 
@@ -2893,7 +2893,7 @@ contains
                 if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
              end if
           end if
-          call sysc(w%edit_isys)%post_event(lastchange_geometry)
+          call sysc(w%edit_isys)%post_event(lastchange_geometry,label="Move atoms")
        end if
        w%edit_dirty = .false.
     end if

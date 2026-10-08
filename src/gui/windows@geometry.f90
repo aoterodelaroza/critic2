@@ -2565,7 +2565,7 @@ contains
                    end if
                    deallocate(smask)
                    sc%forcebuildlists = .true.
-                   call sc%undo_note()
+                   call sc%undo_note("Show symmetry elements")
                 end if
               end associate
            end if

@@ -246,7 +246,7 @@ contains
           call apply_displayflags(atoms=changedisplay(1),bonds=changedisplay(2),&
              labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5))
           chbuild = .true.
-          call note_undo(.false.)
+          call note_undo("Show/hide objects",.false.)
        end if
     end if
 
@@ -271,7 +271,7 @@ contains
        sameline=.true.,caption="Atoms")) then
        call apply_displayflags(atoms=.true.)
        chbuild = .true.
-       call note_undo()
+       call note_undo("Show/hide atoms")
     end if
     call iw_tooltip("Show or hide the atoms ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
@@ -280,7 +280,7 @@ contains
        sameline=.true.,caption="Bonds")) then
        call apply_displayflags(bonds=.true.)
        chbuild = .true.
-       call note_undo()
+       call note_undo("Show/hide bonds")
     end if
     call iw_tooltip("Show or hide the bonds ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
@@ -299,7 +299,7 @@ contains
        call cycle_labels()
        call apply_displayflags(labels=.true.)
        chbuild = .true.
-       call note_undo()
+       call note_undo("Change labels")
     end if
     call iw_tooltip("Cycle the labels objects: none, atom name, atom index, Wyckoff site ("//&
        trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
@@ -309,7 +309,7 @@ contains
           sameline=.true.,caption="Cell")) then
           call apply_displayflags(cell=.true.)
           chbuild = .true.
-          call note_undo()
+          call note_undo("Show/hide unit cell")
        end if
        call iw_tooltip("Show or hide the unit cell ("//&
           trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
@@ -319,7 +319,7 @@ contains
        sameline=.true.,caption="Poly")) then
        call apply_displayflags(poly=.true.)
        chbuild = .true.
-       call note_undo()
+       call note_undo("Show/hide polyhedra")
     end if
     call iw_tooltip("Show or hide the atomic polyhedra ("//&
        trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
@@ -345,7 +345,7 @@ contains
           if (associated(w%sc)) then
              if (iw_periodicity_widget(w%sc%disp%ncell,ttshown)) then
                 chbuild = .true.
-                call note_undo()
+                call note_undo("Change number of cells")
              end if
 
              ! make the displayed supercell the new unit cell
@@ -435,7 +435,10 @@ contains
 
           ! background color
           call iw_text("Background",highlight=.true.)
-          chrender = chrender .or. iw_coloredit("Color##bgcolor",rgb=w%sc%bgcolor)
+          if (iw_coloredit("Color##bgcolor",rgb=w%sc%bgcolor)) then
+             chrender = .true.
+             call note_undo("Change background color")
+          end if
           call iw_tooltip("Change the background color of the scene",ttshown)
        end if
        call igEndPopup()
@@ -449,6 +452,9 @@ contains
        do i = 1, nsys
           if (onlysel .and. .not.sysc(i)%tselected) cycle
           if (sysc(i)%status == sys_init .and. i /= w%isys) then
+             ! the objects before, for the undo history of that system (its
+             ! scene is not in a main view, which would save them)
+             call sysc(i)%undo_frame_begin(.false.)
              ! which kinds of objects are shown (atoms, bonds, labels,
              ! polyhedra, unit cell)
              call apply_kinds(sysc(i)%sc,i,.true.,.true.,.true.,.true.,.true.)
@@ -464,6 +470,7 @@ contains
              ! only an initialized system: the initialization thread may be
              ! setting up the scene of any other
              call sysc(i)%sc%build_lists()
+             call sysc(i)%sc%undo_note("Apply settings of " // trim(sysc(w%isys)%seed%name),.false.)
           end if
        end do
     end if
@@ -498,20 +505,20 @@ contains
           if (iw_beginmenu("Styles",emphasis=.true.)) then
              if (iw_menuitem("Ball and Stick")) then
                 call w%sc%set_style(repstyle_ballandstick)
-                call note_undo()
+                call note_undo("Apply style: ball and stick")
              end if
              call iw_tooltip("Atoms as balls with covalent radii, bonds as sticks of a single color",&
                 ttshown)
 
              if (iw_menuitem("Licorice")) then
                 call w%sc%set_style(repstyle_licorice)
-                call note_undo()
+                call note_undo("Apply style: licorice")
              end if
              call iw_tooltip("Atoms and bonds with the same radius, colored by the atoms",ttshown)
 
              if (iw_menuitem("Sticks")) then
                 call w%sc%set_style(repstyle_sticks)
-                call note_undo()
+                call note_undo("Apply style: sticks")
              end if
              call iw_tooltip("Bonds only, as sticks colored by the two atoms they join",ttshown)
 
@@ -957,7 +964,7 @@ contains
                       w%sc%disp%ncell(i) = w%sc%disp%ncell(i) + 1
                 end do
                 w%sc%forcebuildlists = .true.
-                call note_undo(.false.)
+                call note_undo("Change number of cells",.false.)
              elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
                 do i = 1, 3
                    if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
@@ -965,7 +972,7 @@ contains
                 end do
                 w%sc%disp%ncell = max(w%sc%disp%ncell,1)
                 w%sc%forcebuildlists = .true.
-                call note_undo(.false.)
+                call note_undo("Change number of cells",.false.)
              elseif (is_bind_event(BIND_VIEW_TRANSFORM_SUPERCELL)) then
                 call transform_to_supercell()
              end if
@@ -1084,11 +1091,13 @@ contains
 
     end subroutine apply_kinds
 
-    !> Note a change of the objects of this view for the undo history
-    !> of the system (gesture as in undo_note_objects: false for keys).
-    subroutine note_undo(gesture)
+    !> Note a change (label) of the objects of this view for the undo
+    !> history of the system (gesture as in undo_note_objects: false for
+    !> keys).
+    subroutine note_undo(label,gesture)
+      character(len=*), intent(in) :: label
       logical, intent(in), optional :: gesture
-      if (associated(w%sc)) call w%sc%undo_note(gesture=gesture)
+      if (associated(w%sc)) call w%sc%undo_note(label,gesture)
     end subroutine note_undo
 
     !> Advance the label state (islabels, islabelsl host variables) one
@@ -1481,7 +1490,7 @@ contains
     ! the rebuild failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(w%errmsg) > 0) return
-    call sysc(isys)%post_event(lastchange_geometry)
+    call sysc(isys)%post_event(lastchange_geometry,label="Move atoms")
     w%forcerender = .true.
 
   end subroutine moveobj_end_drag
@@ -2770,7 +2779,7 @@ contains
 
       changed = w%sc%forcebuildlists
       w%sc%forcebuildlists = fb0 .or. changed
-      if (changed) call w%sc%undo_note()
+      if (changed) call w%sc%undo_note(objedit_undo_label(w%annot%itype,w%annot%itool))
 
     end subroutine objedit_undo_commit
 
@@ -3042,7 +3051,7 @@ contains
             .false.,.true.,copybonding=.true.,errmsg=w%errmsg)
          if (len_trim(w%errmsg) == 0) then
             sysc(isys)%sc%nextbuildlists_fixcam = .true.
-            call sysc(isys)%post_event(lastchange_geometry)
+            call sysc(isys)%post_event(lastchange_geometry,label="Scale cell")
          end if
          w%forcerender = .true.
       end if
@@ -4481,7 +4490,7 @@ contains
     end if
     idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
        idparent=w%id,orraise=-1)
-    if (irep > 0) call w%sc%undo_note()
+    if (irep > 0) call w%sc%undo_note("Add " // trim(w%sc%rep(irep)%name))
 
   end subroutine add_rep_and_edit
 
@@ -4780,7 +4789,7 @@ contains
          call w%sc%disp%reset_shown(w%isys)
          w%sc%forcebuildlists = .true.
          w%sc%nextbuildlists_fixcam = .true.
-         call w%sc%undo_note()
+         call w%sc%undo_note("Reset atom styles")
          call igCloseCurrentPopup()
       end if
       call iw_tooltip("Bring the colors and sizes of the atoms back to the defaults, show &
@@ -4870,6 +4879,44 @@ contains
     ig = findloc(annot_types,itype,1)
 
   end function annot_group
+
+  !> What tool itool (objtool_*, or objtool_kind0 + a kind) of the
+  !> object type itype did to the objects, for the Undo/Redo menu items
+  !> (itype = 0 for the select and remove tools of the annotation row):
+  !> the atom tools by name, the others by the kind of object.
+  function objedit_undo_label(itype,itool) result(str)
+    use representations, only: repflavor_name
+    integer, intent(in) :: itype, itool
+    character(len=:), allocatable :: str
+
+    if (itool == objtool_select) then
+       str = "Edit annotation"
+    elseif (itool == objtool_remove) then
+       str = "Remove annotation"
+    elseif (itype == reptype_atoms) then
+       select case (itool - objtool_kind0)
+       case (atomtool_paint)
+          str = "Paint atoms"
+       case (atomtool_enlarge)
+          str = "Enlarge atoms"
+       case (atomtool_shrink)
+          str = "Shrink atoms"
+       case (atomtool_hide)
+          str = "Hide atoms"
+       case (atomtool_poly)
+          str = "Show/hide polyhedra"
+       case (atomtool_label)
+          str = "Show/hide labels"
+       case (atomtool_shift)
+          str = "Shift atoms"
+       case default
+          str = "Edit atoms"
+       end select
+    else
+       str = "Edit " // trim(repflavor_name(annot_flavor(itype)))
+    end if
+
+  end function objedit_undo_label
 
   !> The flavor of the objects of type itype (one of annot_types).
   function annot_flavor(itype) result(iflv)

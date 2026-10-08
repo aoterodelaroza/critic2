@@ -70,6 +70,8 @@ module systems
 
   ! undo/redo history of geometry states
   integer, parameter, public :: undo_maxdepth = 50 ! maximum number of states kept in the history
+  integer, parameter, public :: undo_lablen = 64 ! length of the labels of the states (what made them)
+  character(len=*), parameter :: undo_label_geometry = "Change geometry" ! label of a geometry change with none
   real*8, parameter :: undo_coalesce_time = 0.5d0 ! captures closer in time than this (s) are merged (drags)
 
   ! cell transformation modes (for transform_cell)
@@ -160,9 +162,11 @@ module systems
      type(scene_objstate), allocatable :: undo_obj(:) ! the objects of the main scene in each state (same slots)
      logical, allocatable :: undo_isobj(:) ! the state comes from an object edit (no seed; same geometry as the previous)
      integer, allocatable :: undo_rev(:,:) ! the geometry and bonding revisions of each state (2,undo_maxdepth)
+     character(len=undo_lablen), allocatable :: undo_label(:) ! what made each state (the Undo/Redo menu items)
      type(scene_objstate) :: undo_objpre ! the objects before the object edit in progress (the current state takes them)
      logical :: undo_dirty = .false. ! the user changed the objects, and the change is not in the history yet
      integer(c_int) :: undo_dirty_id = 0 ! active widget (ImGui ID) when they were changed (0 = none)
+     character(len=undo_lablen) :: undo_dirty_label = "" ! what changed them
      integer :: undo_n = 0      ! number of states currently in the history
      integer :: undo_icur = 0   ! logical index of the current state in the history (1:undo_n)
      integer :: undo_ibase = 1  ! physical slot of logical state 1 (base of the ring buffer)
@@ -248,6 +252,7 @@ module systems
      procedure :: redo
      procedure :: can_undo
      procedure :: can_redo
+     procedure :: undo_labels
   end type sysconf
 
   ! system arrays
@@ -409,12 +414,13 @@ module systems
        integer, intent(in) :: ifield
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine reload_field_with_virtuals
-     module subroutine post_event(sysc,level,keepfields,nocapture,keepsel)
+     module subroutine post_event(sysc,level,keepfields,nocapture,keepsel,label)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level
        logical, intent(in), optional :: keepfields
        logical, intent(in), optional :: nocapture
        logical, intent(in), optional :: keepsel
+       character(len=*), intent(in), optional :: label
      end subroutine post_event
      module subroutine rebond(sysc)
        class(sysconf), intent(inout) :: sysc
@@ -786,14 +792,20 @@ module systems
      module subroutine undo_reset(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine undo_reset
-     module subroutine undo_capture(sysc,time)
+     module subroutine undo_capture(sysc,time,label)
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: time
+       character(len=*), intent(in) :: label
      end subroutine undo_capture
-     module subroutine undo_note_objects(sysc,gesture)
+     module subroutine undo_note_objects(sysc,label,gesture)
        class(sysconf), intent(inout) :: sysc
+       character(len=*), intent(in) :: label
        logical, intent(in), optional :: gesture
      end subroutine undo_note_objects
+     module subroutine undo_labels(sysc,lundo,lredo)
+       class(sysconf), intent(in) :: sysc
+       character(len=:), allocatable, intent(out) :: lundo, lredo
+     end subroutine undo_labels
      module subroutine undo_frame_begin(sysc,busy)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: busy

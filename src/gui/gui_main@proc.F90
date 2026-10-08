@@ -1074,7 +1074,7 @@ contains
     use utils, only: iw_beginmenu, igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
-       BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
+       BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_REDO_ALT, BIND_COPY_SELECTION,&
        BIND_CUT_SELECTION, BIND_PASTE, BIND_MANUAL, BIND_EXPORT_IMAGE, BIND_TOGGLE_TREE,&
        BIND_TOGGLE_INPCON, BIND_TOGGLE_OUTCON, BIND_SAVE_AS, BIND_BUILDER,&
        BIND_PREFERENCES, get_bind_keyname, is_bind_event
@@ -1103,7 +1103,7 @@ contains
     integer(c_int) :: idum
     logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ok
     logical :: nothreads
-    logical :: okundo, okredo
+    character(len=:), allocatable :: lundo, lredo
     integer :: isys, isysv
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -1116,13 +1116,6 @@ contains
     nothreads = .not.are_threads_running()
     isysv = win(iwin_view)%isys
     isysvok = ok_system(isysv,sys_init)
-
-    ! whether undo/redo are available for the view-selected system (guard the
-    ! sysc() access, since .and. does not short-circuit in Fortran)
-    okundo = isysvok
-    if (okundo) okundo = sysc(isysv)%can_undo()
-    okredo = isysvok
-    if (okredo) okredo = sysc(isysv)%can_redo()
 
     ! keybindings
     !! menu key bindings
@@ -1144,7 +1137,7 @@ contains
        call objedit_cancel_views(isysv)
        call report_errmsg("undo")
     end if
-    if (isysvok .and. is_bind_event(BIND_REDO)) then
+    if (isysvok .and. (is_bind_event(BIND_REDO) .or. is_bind_event(BIND_REDO_ALT))) then
        call sysc(isysv)%redo(errmsg)
        call objedit_cancel_views(isysv)
        call report_errmsg("redo")
@@ -1303,23 +1296,30 @@ contains
 
        ! Edit
        if (iw_beginmenu("Edit")) then
+          ! what undo and redo of the view-selected system take back (they
+          ! do nothing if there is none)
+          lundo = ""
+          lredo = ""
+          if (isysvok) call sysc(isysv)%undo_labels(lundo,lredo)
+
           ! Edit -> Undo
-          if (iw_menuitem("Undo",BIND_UNDO,enabled=okundo)) then
+          if (iw_menuitem(trim("Undo " // lundo) // "###menuundo",BIND_UNDO,enabled=(len(lundo) > 0))) then
              call sysc(isysv)%undo(errmsg)
              call objedit_cancel_views(isysv)
              call report_errmsg("undo")
           end if
-          call iw_tooltip("Undo the last change to the geometry of this system, or to its &
-             &objects made with the tools of the annotation toolbar",ttshown)
+          call iw_tooltip("Undo the last change to the geometry or the objects of this system",&
+             ttshown)
 
           ! Edit -> Redo
-          if (iw_menuitem("Redo",BIND_REDO,enabled=okredo)) then
+          if (iw_menuitem(trim("Redo " // lredo) // "###menuredo",enabled=(len(lredo) > 0),&
+             shortcut_text=trim(get_bind_keyname(BIND_REDO)) // ", " // trim(get_bind_keyname(BIND_REDO_ALT)))) then
              call sysc(isysv)%redo(errmsg)
              call objedit_cancel_views(isysv)
              call report_errmsg("redo")
           end if
-          call iw_tooltip("Redo the last undone change to the geometry of this system, or to &
-             &its objects made with the tools of the annotation toolbar",ttshown)
+          call iw_tooltip("Redo the last undone change to the geometry or the objects of this &
+             &system",ttshown)
 
           ! Edit -> Separator
           call igSeparator()

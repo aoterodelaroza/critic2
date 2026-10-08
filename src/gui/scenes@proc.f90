@@ -1890,7 +1890,7 @@ contains
        if (igTableSetColumnIndex(ic_viewbutton)) then
           if (iw_checkbox("##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i),s%rep(i)%shown)) then
              changed = .true.
-             call s%undo_note()
+             call s%undo_note("Show/hide " // trim(s%rep(i)%name))
           end if
        end if
 
@@ -1916,7 +1916,7 @@ contains
                 s%rep(id)%iord = s%icount(0)
                 s%forcesort = .true.
                 changed = .true.
-                call s%undo_note()
+                call s%undo_note("Duplicate " // trim(s%rep(i)%name))
              end if
              call iw_tooltip("Make a copy of this object",ttshown)
 
@@ -1924,7 +1924,7 @@ contains
              if (iw_menuitem("Show/Hide")) then
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
-                call s%undo_note()
+                call s%undo_note("Show/hide " // trim(s%rep(i)%name))
              end if
              call iw_tooltip("Toggle hide/show of this object",ttshown)
 
@@ -1932,7 +1932,7 @@ contains
              if (iw_beginmenu("Rename")) then
                 if (iw_inputtext("##inputrenamerep",bufsize=1023,texta=s%rep(i)%name,width=30,grabfocus=.true.,&
                    notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
-                   call s%undo_note()
+                   call s%undo_note("Rename object")
                    call igCloseCurrentPopup()
                 end if
                 call igEndMenu()
@@ -1991,7 +1991,7 @@ contains
           if (ok .and. igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
              s%rep(i)%shown = .not.s%rep(i)%shown
              changed = .true.
-             call s%undo_note()
+             call s%undo_note("Show/hide " // trim(s%rep(i)%name))
           end if
 
           if (discol) call igPopStyleColor(1)
@@ -2007,7 +2007,7 @@ contains
 
        ! delete the representation if asked
        if (doerase) then
-          call s%undo_note()
+          call s%undo_note("Delete " // trim(s%rep(i)%name))
           call s%rep(i)%end()
           changed = .true.
        end if
@@ -2315,7 +2315,7 @@ contains
     ! bail out if there is no valid measurement to make
     if (.not.measure_build_idx(s,idx,aidx,n)) return
     call measure_toggle(s,aidx,n)
-    call s%undo_note()
+    call s%undo_note("Add or remove measurement")
 
   end subroutine scene_toggle_measurement
 
@@ -2335,7 +2335,7 @@ contains
        aidx(:,k) = s%msel(1:4,k)
     end do
     call measure_toggle(s,aidx,n)
-    call s%undo_note()
+    call s%undo_note("Add or remove measurement")
 
   end subroutine scene_toggle_measurement_sel
 
@@ -2373,18 +2373,19 @@ contains
 
   !> Note a change the user made to the objects of scene s, for the
   !> undo history of its system, if s is the scene of the system's main
-  !> views (alternate views have their own). gesture as in
-  !> undo_note_objects.
-  module subroutine scene_undo_note(s,gesture)
+  !> views (alternate views have their own). label says what changed
+  !> them (the Undo/Redo menu items); gesture as in undo_note_objects.
+  module subroutine scene_undo_note(s,label,gesture)
     use systems, only: sysc, nsys
     class(scene), intent(inout), target :: s
+    character(len=*), intent(in) :: label
     logical, intent(in), optional :: gesture
 
     class(scene), pointer :: smain
 
     if (s%id < 1 .or. s%id > nsys) return
     smain => sysc(s%id)%sc
-    if (associated(smain,s)) call sysc(s%id)%undo_note_objects(gesture)
+    if (associated(smain,s)) call sysc(s%id)%undo_note_objects(label,gesture)
 
   end subroutine scene_undo_note
 
@@ -2423,6 +2424,7 @@ contains
        st%rep(k)%symelem%style%rev = -1
     end do
     st%disp = s%disp
+    st%bgcolor = s%bgcolor
 
   end subroutine scene_objects_save
 
@@ -2513,6 +2515,7 @@ contains
        end if
     end do
     s%disp = st%disp
+    s%bgcolor = st%bgcolor
 
     if (reused) call invalidate_scene_reps(s)
     s%forcesort = .true.

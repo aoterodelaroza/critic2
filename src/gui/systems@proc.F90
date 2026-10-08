@@ -1223,14 +1223,16 @@ contains
   !> Set the time for last change at level level and at the levels it
   !> implies (geometry -> rebond, cplist; rebond -> buildlists; cplist
   !> -> buildlists; buildlists -> render). If keepfields is present and
-  !> true, do not reset the associated fields.
-  module subroutine post_event(sysc,level,keepfields,nocapture,keepsel)
+  !> true, do not reset the associated fields. label says what changed
+  !> the geometry or the bonds, for the undo history.
+  module subroutine post_event(sysc,level,keepfields,nocapture,keepsel,label)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: level
     logical, intent(in), optional :: keepfields
     logical, intent(in), optional :: nocapture
     logical, intent(in), optional :: keepsel
+    character(len=*), intent(in), optional :: label
 
     real*8 :: time
     logical :: keepfields_, nocapture_, keepsel_, isgeom, isrebond
@@ -1276,9 +1278,14 @@ contains
     end if
 
     ! record in the undo/redo history
-    if (isrebond) then
-       if (.not.nocapture_ .and. ok_system(sysc%id,sys_init)) &
-          call sysc%undo_capture(time)
+    if (isrebond .and. .not.nocapture_ .and. ok_system(sysc%id,sys_init)) then
+       if (present(label)) then
+          call sysc%undo_capture(time,label)
+       elseif (isgeom) then
+          call sysc%undo_capture(time,undo_label_geometry)
+       else
+          call sysc%undo_capture(time,"Recalculate bonds")
+       end if
     end if
 
   end subroutine post_event
@@ -1291,7 +1298,7 @@ contains
 
     call sys(sysc%id)%c%rebond(sysc%atmcov,sysc%bondfactor,bonddelta=sysc%bonddelta,&
        allowed=sysc%bondallowed)
-    call sysc%post_event(lastchange_rebond)
+    call sysc%post_event(lastchange_rebond,label="Recalculate bonds")
 
   end subroutine rebond
 
@@ -1478,7 +1485,7 @@ contains
     ! keepsel, as in md_advance: the run moved the atoms and left the atom
     ! list alone, so the selection survives it and a resumed relaxation
     ! holds the same atoms fixed
-    call sysc%post_event(lastchange_geometry,keepsel=.true.)
+    call sysc%post_event(lastchange_geometry,keepsel=.true.,label="Run dynamics")
 
   end subroutine md_stop
 
@@ -1495,7 +1502,7 @@ contains
     sysc%undo_dirty = .false.
     ! seed the history with the current geometry (undo_capture is a no-op if
     ! the system is not yet initialized); the time is irrelevant here
-    call sysc%undo_capture(0d0)
+    call sysc%undo_capture(0d0,"")
     ! the next edit must start a new entry, not coalesce with the seed
     sysc%undo_lasttime = -1d30
 
@@ -1508,9 +1515,10 @@ contains
   !> The objects of the new state stay unsaved until an object edit saves them
   !> (undo_frame_begin): the scene still has the styles of the previous
   !> geometry.
-  module subroutine undo_capture(sysc,time)
+  module subroutine undo_capture(sysc,time,label)
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: time
+    character(len=*), intent(in) :: label
 
     integer :: isys, islot
     logical :: copysym, coalesce
@@ -1531,11 +1539,39 @@ contains
     copysym = (.not.sys(isys)%c%ismolecule .and. sys(isys)%c%spgavail)
     call sys(isys)%c%makeseed(sysc%undo_seed(islot),copysym=copysym,copybonding=.true.)
     sysc%undo_isobj(islot) = .false.
+    if (.not.coalesce) sysc%undo_label(islot) = label
     sysc%undo_obj(islot) = scene_objstate()
     sysc%undo_objpre = scene_objstate()
     sysc%undo_lasttime = time
 
   end subroutine undo_capture
+
+  !> The labels of what the next undo (lundo) and redo (lredo) take
+  !> back: a pending change of the objects that goes in the history
+  !> first, or the states they step over (empty if there is none, so
+  !> they say whether undo and redo do anything).
+  module subroutine undo_labels(sysc,lundo,lredo)
+    class(sysconf), intent(in) :: sysc
+    character(len=:), allocatable, intent(out) :: lundo, lredo
+
+    logical :: pending
+
+    lundo = ""
+    lredo = ""
+    ! a change that will go in the history first (if the objects before it
+    ! are known)
+    pending = sysc%undo_dirty .and. sysc%undo_icur >= 1
+    if (pending) pending = allocated(sysc%undo_objpre%rep) .or.&
+       allocated(sysc%undo_obj(undo_slot(sysc,sysc%undo_icur))%rep)
+    if (pending) then
+       lundo = trim(sysc%undo_dirty_label)
+    elseif (sysc%can_undo()) then
+       lundo = trim(sysc%undo_label(undo_slot(sysc,sysc%undo_icur)))
+    end if
+    if (sysc%can_redo() .and. .not.pending) &
+       lredo = trim(sysc%undo_label(undo_slot(sysc,sysc%undo_icur+1)))
+
+  end subroutine undo_labels
 
   !> Note that the user changed the objects of the main scene (any
   !> window): the change goes to the undo history as a new state when
@@ -1544,12 +1580,14 @@ contains
   !> false (a key), the widget active now, if any (a drag, a color
   !> picker, a text box), is the gesture: its frames make one state,
   !> captured when it is released.
-  module subroutine undo_note_objects(sysc,gesture)
+  module subroutine undo_note_objects(sysc,label,gesture)
     use interfaces_cimgui, only: igGetActiveID
     class(sysconf), intent(inout) :: sysc
+    character(len=*), intent(in) :: label
     logical, intent(in), optional :: gesture
 
     if (.not.ok_system(sysc%id,sys_init)) return
+    sysc%undo_dirty_label = label
     sysc%undo_dirty = .true.
     sysc%undo_dirty_id = 0
     if (present(gesture)) then
@@ -1655,7 +1693,7 @@ contains
     if (any(sysc%undo_rev(:,undo_slot(sysc,sysc%undo_icur)) /= (/sysc%rev_geometry,sysc%rev_rebond/))) then
        call objstate_move(sysc%undo_objpre,pre)
        sysc%undo_lasttime = -1d30
-       call sysc%undo_capture(glfwGetTime())
+       call sysc%undo_capture(glfwGetTime(),undo_label_geometry)
        call objstate_move(pre,sysc%undo_objpre)
     end if
 
@@ -1671,6 +1709,7 @@ contains
     call undo_push(sysc,.false.)
     islot = undo_slot(sysc,sysc%undo_icur)
     sysc%undo_isobj(islot) = .true.
+    sysc%undo_label(islot) = sysc%undo_dirty_label
     call sysc%sc%objects_save(sysc%undo_obj(islot))
 
     ! a geometry capture right after this must not coalesce with it
@@ -1699,16 +1738,20 @@ contains
 
   end subroutine undo_step
 
-  !> Move the saved objects a into b (a is left unsaved).
+  !> Move the saved objects a into b (a is left unsaved): the object
+  !> copies are moved, the rest (small) is copied.
   subroutine objstate_move(a,b)
+    use representations, only: representation
     type(scene_objstate), intent(inout) :: a, b
 
-    b = scene_objstate()
-    call move_alloc(a%islot,b%islot)
-    call move_alloc(a%rep,b%rep)
-    b%gen = a%gen
-    b%nbuild = a%nbuild
-    b%disp = a%disp
+    integer, allocatable :: islot(:)
+    type(representation), allocatable :: rep(:)
+
+    call move_alloc(a%islot,islot)
+    call move_alloc(a%rep,rep)
+    b = a
+    call move_alloc(islot,b%islot)
+    call move_alloc(rep,b%rep)
 
   end subroutine objstate_move
 
@@ -1725,8 +1768,9 @@ contains
 
     if (.not.allocated(sysc%undo_seed)) then
        allocate(sysc%undo_seed(undo_maxdepth),sysc%undo_obj(undo_maxdepth),&
-          sysc%undo_isobj(undo_maxdepth),sysc%undo_rev(2,undo_maxdepth))
+          sysc%undo_isobj(undo_maxdepth),sysc%undo_rev(2,undo_maxdepth),sysc%undo_label(undo_maxdepth))
        sysc%undo_isobj = .false.
+       sysc%undo_label = ""
     end if
 
     ! drop any redo states ahead of the current one
@@ -2245,8 +2289,19 @@ contains
 
     integer :: nat, id
     integer, allocatable :: iat(:)
+    character(len=:), allocatable :: lab
 
     errmsg = ""
+    lab = "Edit atoms"
+    if (present(remove)) then
+       if (remove) lab = "Delete atoms"
+    end if
+    if (present(merge)) then
+       if (merge) lab = "Merge atoms"
+    end if
+    if (present(duplicate)) then
+       if (duplicate) lab = "Duplicate atoms"
+    end if
 
     ! consistency checks
     id = sysc%id
@@ -2268,7 +2323,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label=lab)
 
   end subroutine edit_highlighted_atoms
 
@@ -2383,7 +2438,7 @@ contains
     end if
 
     ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Change species")
 
   end subroutine edit_highlighted_species
 
@@ -2593,7 +2648,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Change species")
 
   end subroutine set_attype_species
 
@@ -2643,7 +2698,7 @@ contains
     end if
 
     ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Rename atoms")
 
   end subroutine set_attype_name
 
@@ -2675,7 +2730,7 @@ contains
     call sys(isys)%c%set_haveocc()
 
     ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Change occupancy")
 
   end subroutine set_attype_occupancy
 
@@ -3054,7 +3109,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Add atom")
 
   end subroutine attype_add_atom
 
@@ -3087,7 +3142,7 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Reorder atoms")
 
   end subroutine attype_reorder
 
@@ -3157,7 +3212,7 @@ contains
     call sys(isys)%c%reorder_molecules(iperm,errmsg)
     deallocate(iperm)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Swap molecules")
 
   end subroutine swap_molecules
 
@@ -3255,7 +3310,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Move atom")
 
   end subroutine set_atom_position
 
@@ -3305,7 +3360,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Move molecule")
 
   end subroutine set_molecule_position
 
@@ -3336,7 +3391,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Rotate molecule")
 
   end subroutine set_molecule_rotation
 
@@ -3381,7 +3436,7 @@ contains
     ! the geometry has changed. The new element has covalent radii of its
     ! own, so the connectivity computed for the old one is only meaningful
     ! if the caller asked to keep it
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Change element")
     if (.not.copybonding_) call sysc%rebond()
 
   end subroutine set_atomic_number
@@ -3407,7 +3462,7 @@ contains
     sys(isys)%c%spc(ispc)%name = nameguess(iz,.true.)
 
     ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Add species")
 
   end subroutine add_species
 
@@ -3427,7 +3482,7 @@ contains
 
     ! remove the bond from the connectivity and signal a rebond
     call sys(isys)%c%remove_bond(iat1,iat2,lvec)
-    call sysc%post_event(lastchange_rebond)
+    call sysc%post_event(lastchange_rebond,label="Remove bond")
 
   end subroutine remove_bond
 
@@ -3448,7 +3503,7 @@ contains
 
     ! set the bond order in the connectivity and signal a rebond
     call sys(isys)%c%set_bond_order(iat1,iat2,lvec,order)
-    call sysc%post_event(lastchange_rebond)
+    call sysc%post_event(lastchange_rebond,label="Change bond order")
 
   end subroutine set_bond_order
 
@@ -3469,7 +3524,7 @@ contains
 
     ! add the bond to the connectivity and signal a rebond
     call sys(isys)%c%add_bond(iat1,iat2,lvec,order)
-    call sysc%post_event(lastchange_rebond)
+    call sysc%post_event(lastchange_rebond,label="Add bond")
 
   end subroutine add_bond
 
@@ -3612,7 +3667,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Change valence")
 
   contains
     ! Overwrite (in-place) the positions of the nmob mobile substituents.
@@ -3854,14 +3909,14 @@ contains
           copybonding=.true.)
        if (has_errmsg(errmsg)) then
           ! the bond was still created: post the connectivity change
-          call sysc%post_event(lastchange_rebond)
+          call sysc%post_event(lastchange_rebond,label="Create bond")
           return
        end if
        ! the atom list changed, so the geometry event supersedes the rebond
        ! the edit failed: do not record a geometry change over a structure
        ! that was not actually modified (it would capture a bad undo state)
        if (len_trim(errmsg) > 0) return
-       call sysc%post_event(lastchange_geometry)
+       call sysc%post_event(lastchange_geometry,label="Create bond")
     else
        call sysc%add_bond(i1,i2,lvec,1)
     end if
@@ -3891,7 +3946,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Add fragment")
 
   end subroutine add_atoms_fragment
 
@@ -3927,7 +3982,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Replace atoms")
 
   end subroutine replace_atoms_fragment
 
@@ -3956,7 +4011,7 @@ contains
     if (sysc%seed%isformat == isformat_r_derived) then
        call sys(isys)%c%struct_new(sysc%seed,errmsg=errmsg)
        if (len_trim(errmsg) > 0) return
-       call sysc%post_event(lastchange_geometry)
+       call sysc%post_event(lastchange_geometry,label="Reload geometry")
        call sysc%undo_reset()
        return
     end if
@@ -4000,7 +4055,7 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Reload geometry")
 
     ! the structure was reloaded from file: start a fresh undo history
     call sysc%undo_reset()
@@ -4099,7 +4154,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Change cell")
 
   end subroutine move_cell
 
@@ -4149,7 +4204,7 @@ contains
 
     ! the geometry has changed (only if the cell actually changed)
     if (any(abs(x0) > 1d-5)) &
-       call sysc%post_event(lastchange_geometry)
+       call sysc%post_event(lastchange_geometry,label="Transform cell")
 
   end subroutine transform_cell
 
@@ -4186,7 +4241,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Transform cell")
 
   end subroutine transform_cell_matrix
 
@@ -4254,7 +4309,7 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! the symmetry (and the non-equivalent atom list) has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Recalculate symmetry")
 
   end subroutine recalc_symmetry
 
@@ -4274,7 +4329,7 @@ contains
     call sys(isys)%clearsym()
 
     ! the symmetry (and the non-equivalent atom list) has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Clear symmetry")
 
   end subroutine clear_symmetry
 
@@ -4299,7 +4354,7 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! the symmetry (and the non-equivalent atom list) has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Reduce symmetry")
 
   end subroutine reduce_symmetry
 
@@ -4333,7 +4388,7 @@ contains
        call sys(isys)%c%calcmolsym(sys(isys)%c%pg,errmsg)
        if (len_trim(errmsg) > 0) call sys(isys)%c%pg%clear()
        errmsg = ""
-       call sysc%post_event(lastchange_geometry)
+       call sysc%post_event(lastchange_geometry,label="Refine symmetry")
     else
        ! crystals: use spglib and keep original cell
        ! refine at the chosen tolerance, keeping the original cell
@@ -4371,7 +4426,7 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! the non-equivalent atom list has changed
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Make molecules whole")
 
   end subroutine wholemols_op
 
@@ -5054,7 +5109,7 @@ contains
     ! the edit failed: do not record a geometry change over a structure
     ! that was not actually modified (it would capture a bad undo state)
     if (len_trim(errmsg) > 0) return
-    call sysc%post_event(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry,label="Delete atoms")
 
   end subroutine remove_atom_list
 
