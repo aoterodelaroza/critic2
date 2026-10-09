@@ -373,7 +373,7 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
-       axes_winfrac_def, axplace_window
+       reptype_shapes, axes_winfrac_def, axplace_window
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -409,7 +409,9 @@ contains
        atomcells = max(atomcells,s%disp%ncells(s%rep(i)%disp))
     end do
 
-    ! add the items by representation; defer reps that need the scene radius
+    ! add the items by representation; defer reps that need the scene
+    ! radius, and the 3D shapes, which look up the drawn atoms (an arrow
+    ! end on an atom goes to its surface)
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
@@ -417,6 +419,12 @@ contains
        ! add draw elements
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
+       if (s%rep(i)%type == reptype_shapes) cycle
+       call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
+          noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
+    end do
+    do i = 1, s%nrep
+       if (s%rep(i)%type /= reptype_shapes) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
     end do

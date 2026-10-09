@@ -909,7 +909,7 @@ contains
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
     logical :: hasmode ! there is a vibrational mode selected in the scene
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3), axdir(3,3)
-    real*8 :: ucini(3), ucend(3)
+    real*8 :: ucini(3), ucend(3), xa(3), xb(3), hl
     real*8 :: xmeas(3,4), xfmeas(3,4), dval
     integer :: iat, natm
     complex*16 :: xdelta1(3)
@@ -1570,7 +1570,17 @@ contains
                elseif (sh%kind == shapekind_cone) then
                   call append_cone(uoriginc,x1,sh%rad,sh%rgb)
                elseif (sh%kind == shapekind_arrow) then
-                  call append_arrow(uoriginc,x1,sh%rgb,sh%rad,sh%headr,sh%headl,.false.,0d0)
+                  ! the arrows of the user end at the surface of the atoms
+                  ! they are snapped to; the transient ones (vibrations)
+                  ! start at the atom centers
+                  if (r%owner == 0) then
+                     call arrow_to_atoms(uoriginc,x1,sh%headl,xa,xb,hl)
+                  else
+                     xa = uoriginc
+                     xb = x1
+                     hl = sh%headl
+                  end if
+                  call append_arrow(xa,xb,sh%rgb,sh%rad,sh%headr,hl,.false.,0d0)
                end if
             end if
           end associate
@@ -2916,6 +2926,48 @@ contains
          call append_cone(xbase,x2,headr * radv,rgb)
 
     end subroutine append_arrow
+
+    !> The arrow from x1 to x2 (a 3D shape) with each end that is on a
+    !> drawn atom (it was snapped to its center) moved to the surface of
+    !> that atom, in ya and yb, and its arrowhead length hl0 (a fraction
+    !> of the arrow) scaled in hl so that the head keeps its length. The
+    !> atom spheres are in obj already: the shapes are built after the
+    !> rest of the scene. An arrow that would not reach out of its atoms
+    !> is left as it is.
+    subroutine arrow_to_atoms(x1,x2,hl0,ya,yb,hl)
+      real*8, intent(in) :: x1(3), x2(3), hl0
+      real*8, intent(out) :: ya(3), yb(3), hl
+      real*8 :: u(3), len, ra, rb
+
+      ya = x1
+      yb = x2
+      hl = hl0
+      len = norm2(x2 - x1)
+      ra = atom_radius_at(x1)
+      rb = atom_radius_at(x2)
+      if (ra + rb <= 0d0 .or. len - ra - rb < 1d-6) return
+      u = (x2 - x1) / len
+      ya = x1 + ra * u
+      yb = x2 - rb * u
+      hl = min(hl0 * len / (len - ra - rb),1d0)
+
+    end subroutine arrow_to_atoms
+
+    !> Radius of the drawn atom centered at x (zero if there is none).
+    function atom_radius_at(x) result(rr)
+      real*8, intent(in) :: x(3)
+      real*8 :: rr
+      integer :: j
+
+      real*8, parameter :: eps = 1d-3
+
+      rr = 0d0
+      do j = 1, obj%nsph
+         if (obj%sph(j)%ghost .or. obj%sph(j)%idx(1) <= 0) cycle
+         if (norm2(real(obj%sph(j)%x,8) - x) < eps) rr = max(rr,real(obj%sph(j)%r,8))
+      end do
+
+    end function atom_radius_at
 
     !> Append a cone with its base center at x1 and its apex at x2, with base
     !> radius radv and color rgbc.
