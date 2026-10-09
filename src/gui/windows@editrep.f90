@@ -1281,7 +1281,7 @@ contains
     logical :: changed
 
     logical :: ch
-    integer :: iview, iheads, iunit0
+    integer :: iview, iheads, iunit0, istat
     real*8 :: pxs, wpx
 
     ! initialize
@@ -1291,24 +1291,19 @@ contains
     if (iview > 0) pxs = view_ndc_per_pixel(iview)
 
     ! handle a pending pick of the custom position, commanded to the
-    ! parent view: an accepted click (on an atom or on empty space) sets
-    ! the position of the center of the bar
-    if (w%editrep_pick_item > 0 .and. iview > 0) then
-       if (win(iview)%vmdata%owner /= w%id) then
-          ! another window took over the pick: cancel
+    ! parent view: a click (on an atom or on empty space) sets the
+    ! center of the bar. The pick is dropped if the view is gone, and
+    ! cancelled if the placement was changed while it was out.
+    if (w%editrep_pick_item > 0) then
+       if (iview == 0) then
+          w%editrep_pick_item = 0
+       elseif (w%rep%scalebar%corner /= scalepos_custom) then
           call win(iview)%viewmode_release_forced(w%id)
           w%editrep_pick_item = 0
-       elseif (win(iview)%viewmode >= 0) then
-          ! the pick finished; nothing delivered means it was cancelled
-          if (win(iview)%vmdata%flag == 1 .and. win(iview)%vmdata%bidx(1) == 0) then
-             call view_texpos_to_winfrac(iview,win(iview)%vmdata%xpos,w%rep%scalebar%winpos)
-             w%rep%scalebar%corner = scalepos_custom
-             changed = .true.
-          end if
-          w%editrep_pick_item = 0
-          win(iview)%vmdata%idx = 0
-          win(iview)%vmdata%bidx = 0
-          win(iview)%vmdata%flag = 0
+       else
+          call view_pick_winfrac(iview,w%id,istat,w%rep%scalebar%winpos)
+          if (istat == ipick_point) changed = .true.
+          if (istat /= ipick_pending) w%editrep_pick_item = 0
        end if
     end if
 
@@ -1339,6 +1334,10 @@ contains
     changed = changed .or. ch
     if (iview > 0) then
        if (iw_button("Pick##scalebarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
+          ! the pick sets a custom position: switch to it now, so that
+          ! choosing a corner while the pick is out cancels it
+          w%rep%scalebar%corner = scalepos_custom
+          changed = .true.
           w%editrep_pick_item = 1
           call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the scale bar",w%id,&
              acceptempty=.true.)
@@ -1371,6 +1370,13 @@ contains
           call iw_tooltip("Text over the bar",ttshown)
           changed = changed .or. ch
        end if
+       ch = iw_dragfloat_real8("Text size##scalebarsize",x1=w%rep%scalebar%scale,speed=0.01d0,&
+          min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Size of the text (1 = default)",ttshown)
+       changed = changed .or. ch
+       ch = iw_coloredit("Color##scalebartextrgb",rgb=w%rep%scalebar%textrgb,sameline=.true.)
+       call iw_tooltip("Color of the text",ttshown)
+       changed = changed .or. ch
     end if
 
     call iw_text("Style",highlight=.true.)
@@ -1383,11 +1389,6 @@ contains
        changed = .true.
     end if
 
-    ch = iw_dragfloat_real8("Text size##scalebarsize",x1=w%rep%scalebar%scale,speed=0.01d0,&
-       min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Size of the text (1 = default)",ttshown)
-    changed = changed .or. ch
-
     if (pxs > 0d0) then
        wpx = w%rep%scalebar%width / pxs
        ch = iw_dragfloat_real8("Width (px)##scalebarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
@@ -1399,13 +1400,8 @@ contains
        end if
     end if
 
-    call iw_text("Colors",highlight=.true.)
-    ch = iw_coloredit("Bar",rgb=w%rep%scalebar%rgb)
+    ch = iw_coloredit("Color##scalebarrgb",rgb=w%rep%scalebar%rgb)
     call iw_tooltip("Color of the bar",ttshown)
-    changed = changed .or. ch
-
-    ch = iw_coloredit("Text",rgb=w%rep%scalebar%textrgb,sameline=.true.)
-    call iw_tooltip("Color of the text",ttshown)
     changed = changed .or. ch
 
   end function draw_editrep_scalebar

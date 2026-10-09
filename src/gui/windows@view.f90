@@ -4292,6 +4292,42 @@ contains
 
   end subroutine view_pick_result
 
+  !> Read and retire the result of a forced on-screen position pick
+  !> that window idcaller commanded on view iview (viewmode_set_forced
+  !> with vm_pick_atom and acceptempty). The position does not depend
+  !> on the system or its geometry, so only a takeover loses the pick.
+  !> istat: ipick_pending, ipick_lost (taken over by another window),
+  !> ipick_cancelled, or ipick_point (finished; winfrac = the click
+  !> as fractions of the view window from the left and bottom, on an
+  !> atom or on empty space). winfrac is unchanged unless a point is
+  !> delivered. Resets the view's pick data when the pick finishes.
+  module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
+    integer, intent(in) :: iview
+    integer, intent(in) :: idcaller
+    integer, intent(out) :: istat
+    real*8, intent(inout) :: winfrac(2)
+
+    istat = ipick_pending
+    associate(v => win(iview))
+      if (v%vmdata%owner /= idcaller) then
+         ! the pick was taken over by another window
+         istat = ipick_lost
+      elseif (v%viewmode >= 0) then
+         ! the pick finished (nothing delivered, or a bond, means cancelled)
+         if (v%vmdata%flag == 1 .and. v%vmdata%bidx(1) == 0) then
+            call view_texpos_to_winfrac(iview,v%vmdata%xpos,winfrac)
+            istat = ipick_point
+         else
+            istat = ipick_cancelled
+         end if
+         v%vmdata%idx = 0
+         v%vmdata%bidx = 0
+         v%vmdata%flag = 0
+      end if
+    end associate
+
+  end subroutine view_pick_winfrac
+
   !> Export the current view to an image file with currently selected
   !> window options. The file name is file and the file format (PNG,
   !> BMP, TGA, JPE) is fformat. nsample = number of samples for

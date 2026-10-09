@@ -1725,6 +1725,12 @@ module windows
        integer, intent(out) :: istat
        real*8, intent(out) :: xc(3)
      end subroutine view_pick_result
+     module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
+       integer, intent(in) :: iview
+       integer, intent(in) :: idcaller
+       integer, intent(out) :: istat
+       real*8, intent(inout) :: winfrac(2)
+     end subroutine view_pick_winfrac
      module subroutine export_image_size(w,npixel,exportview,width,height,origin)
        class(window), intent(inout), target :: w
        integer(c_int), intent(in) :: npixel

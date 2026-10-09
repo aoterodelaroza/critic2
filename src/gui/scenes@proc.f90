@@ -1569,7 +1569,7 @@ contains
            ! line at the origin; no label, no room for it
            siz = h / (fontbakesize_large * uiscale)
            nvert = 0
-           if (len(sb%label) > 0) call calc_text_onscene_vertices(sb%label,z3,0._c_float,siz,nvert,vert)
+           call calc_text_onscene_vertices(sb%label,z3,0._c_float,siz,nvert,vert)
            wtext = 0._c_float
            if (nvert > 0) wtext = max(maxval(vert(7,1:nvert)),0._c_float)
            htxt = 0._c_float
@@ -1579,9 +1579,11 @@ contains
            ! region, or with the center of the bar at the custom position
            wblk = max(lbar,wtext)
            if (sb%corner == scalepos_custom) then
+              ! the bar and its label are kept inside the visible region
+              ! vertically (the label also horizontally, below)
               xw = overlay_ndc(s,sb%winpos)
               xc = xw(1)
-              ybar = xw(2)
+              ybar = min(max(xw(2),-vis(2) + mrg + hb),vis(2) - mrg - hb - htxt)
            else
               if (sb%corner == legcorner_topleft .or. sb%corner == legcorner_bottomleft) then
                  xc = -vis(1) + mrg + 0.5_c_float * wblk

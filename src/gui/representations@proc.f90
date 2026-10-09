@@ -3401,7 +3401,12 @@ contains
       dsb%corner = r%scalebar%corner
       dsb%winpos = real(r%scalebar%winpos,c_float)
       dsb%len = real(r%scalebar%value * scaleunit_tobohr(r%scalebar%unit),c_float)
-      dsb%h = real(legend_textheight * r%scalebar%scale,c_float)
+      ! the margins come from the text size; without text, the default size
+      if (r%scalebar%showtext) then
+         dsb%h = real(legend_textheight * r%scalebar%scale,c_float)
+      else
+         dsb%h = real(legend_textheight,c_float)
+      end if
       dsb%width = real(r%scalebar%width,c_float)
       dsb%heads = r%scalebar%heads
       dsb%rgb = r%scalebar%rgb
