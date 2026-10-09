@@ -373,7 +373,7 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
-       reptype_shapes, reptype_legend, axes_winfrac_def, axplace_window
+       reptype_shapes, reptype_legend, reptype_colorbar, axes_winfrac_def, axplace_window, colorbar_rep
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -425,6 +425,7 @@ contains
        if (s%rep(i)%type == reptype_symelem) cycle
        if (s%rep(i)%type == reptype_shapes) cycle
        if (s%rep(i)%type == reptype_legend) cycle
+       if (s%rep(i)%type == reptype_colorbar) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
     end do
@@ -438,6 +439,14 @@ contains
        else
           call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
+    end do
+
+    ! the color bars, after the isosurface objects have colored their meshes
+    do i = 1, s%nrep
+       if (s%rep(i)%type /= reptype_colorbar) cycle
+       k = colorbar_rep(s%rep(i)%colorbar,s%rep,s%nrep)
+       if (k > 0) call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,&
+          s%ifreq_selected,riso=s%rep(k))
     end do
 
     ! the atoms at the centers of the coordination polyhedra are drawn
@@ -671,7 +680,7 @@ contains
     ! flag whether any object is anchored to the window borders (the view
     ! window uses this to re-render when the window geometry changes)
     s%hasanchoredobj = (s%obj%ncylover > 0 .or. s%obj%nconeover > 0 .or. s%obj%nstringover > 0 .or.&
-       s%obj%nlegend > 0 .or. s%obj%nscalebar > 0)
+       s%obj%nlegend > 0 .or. s%obj%nscalebar > 0 .or. s%obj%ncolorbar > 0)
 
     ! rebuilding lists is done; the cached instance buffers are now stale and
     ! must be repacked/uploaded on the next render
@@ -990,9 +999,10 @@ contains
        call draw_planar(s%obj%nflatback,s%obj%nflatfront)
     end if
 
-    ! the legends and scale bars, on top of everything
+    ! the legends, scale bars, and color bars, on top of everything
     if (s%obj%nlegend > 0) call render_legend()
     if (s%obj%nscalebar > 0) call render_scalebar()
+    if (s%obj%ncolorbar > 0) call render_colorbar()
 
     ! pop the large font
     call igPopFont()
@@ -1629,6 +1639,176 @@ contains
 
     end subroutine render_scalebar
 
+    !> Render the color bars, on top of everything. Each is laid out
+    !> here, because the room for the tick values and the title depends
+    !> on the glyphs of the large font. A vertical bar has its tick
+    !> values on the right and the title on top; a horizontal bar the
+    !> tick values below and the title on top. The strip sits in a
+    !> corner of the visible region, or with its center at a custom
+    !> window position.
+    subroutine render_colorbar()
+      use shapes, only: flat_vert_nf
+      use representations, only: legcorner_topleft, legcorner_bottomleft, legcorner_bottomright,&
+         scalepos_custom, colorbar_ncol, colorbar_nticks_max
+      real(c_float) :: projover(4,4), vis(2), h, mrg, gap, tl, bw, siz, lstrip, th, wx, wy
+      real(c_float) :: xs, ys, xe, ye, xw(2), wlab, wtitle, htitle, hlab, x0, y0, xt, yt, ndc(3), bc(4)
+      real(c_float), allocatable, target :: vert(:,:)
+      real(c_float), allocatable :: flat(:,:), wk(:)
+      integer, allocatable :: iv(:)
+      integer :: il, k, nflat, nt
+      integer(c_int) :: nvert
+      real(c_float), parameter :: z3(3) = 0._c_float
+
+      ! the overlay projection; the extent of the visible region in NDC
+      call ortho_projection(s,projover,symz=.true.)
+      vis = 1._c_float - 2._c_float * s%viewuv0
+
+      call glDisable(GL_DEPTH_TEST)
+      call glDisable(GL_CULL_FACE)
+      call glEnable(GL_BLEND)
+      call glBlendEquation(GL_FUNC_ADD)
+      call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+      allocate(iv(colorbar_nticks_max+2),wk(colorbar_nticks_max+1))
+      allocate(flat(flat_vert_nf,6*(colorbar_ncol-1+4+colorbar_nticks_max)))
+      do il = 1, s%obj%ncolorbar
+         associate(cb => s%obj%colorbar(il))
+           nt = cb%ntick
+
+           ! layout, from the height of the text; (wx,wy) = strip extents
+           h = cb%h
+           mrg = 0.5_c_float * h
+           gap = 0.25_c_float * h
+           tl = 0.3_c_float * h
+           bw = merge(0.06_c_float * h,0._c_float,cb%border)
+           th = cb%thick
+           lstrip = cb%length * 2._c_float * merge(vis(2),vis(1),cb%vertical)
+           if (lstrip <= 0._c_float .or. th <= 0._c_float) cycle
+           wx = merge(th,lstrip,cb%vertical)
+           wy = merge(lstrip,th,cb%vertical)
+
+           ! the glyphs of the tick values and of the title (last), each
+           ! left-aligned with the top of the line at the origin
+           siz = h / (fontbakesize_large * uiscale)
+           nvert = 0
+           do k = 1, nt
+              iv(k) = nvert + 1
+              call calc_text_onscene_vertices(trim(cb%ticklabel(k)),z3,0._c_float,siz,nvert,vert)
+           end do
+           iv(nt+1) = nvert + 1
+           call calc_text_onscene_vertices(cb%title,z3,0._c_float,siz,nvert,vert)
+           iv(nt+2) = nvert + 1
+           do k = 1, nt + 1
+              wk(k) = 0._c_float
+              if (iv(k+1) > iv(k)) wk(k) = max(maxval(vert(7,iv(k):iv(k+1)-1)),0._c_float)
+           end do
+           wlab = maxval(wk(1:nt))
+           wtitle = wk(nt+1)
+           htitle = 0._c_float
+           if (iv(nt+2) > iv(nt+1)) htitle = h + gap
+           hlab = 0._c_float
+           if (wlab > 0._c_float) hlab = h
+
+           ! (xs,ys) = the lower left corner of the strip
+           if (cb%corner == scalepos_custom) then
+              xw = overlay_ndc(s,cb%winpos)
+              xs = xw(1) - 0.5_c_float * wx
+              ys = xw(2) - 0.5_c_float * wy
+           elseif (cb%vertical) then
+              ! the tick values overhang the ends of the strip by half a line
+              if (cb%corner == legcorner_topleft .or. cb%corner == legcorner_bottomleft) then
+                 xs = -vis(1) + mrg + bw
+              else
+                 xs = vis(1) - mrg - (th + bw + tl + gap + wlab)
+                 xs = min(xs,vis(1) - mrg - wtitle)
+              end if
+              if (cb%corner == legcorner_bottomleft .or. cb%corner == legcorner_bottomright) then
+                 ys = -vis(2) + mrg + 0.5_c_float * hlab + bw
+              else
+                 ys = vis(2) - mrg - htitle - 0.5_c_float * hlab - bw - lstrip
+              end if
+           else
+              ! the first and last tick values overhang the ends by half their width
+              if (cb%corner == legcorner_topleft .or. cb%corner == legcorner_bottomleft) then
+                 xs = -vis(1) + mrg + bw + max(0.5_c_float * wk(1) - bw,0._c_float)
+              else
+                 xs = vis(1) - mrg - bw - lstrip - max(0.5_c_float * wk(nt) - bw,0._c_float)
+              end if
+              if (cb%corner == legcorner_bottomleft .or. cb%corner == legcorner_bottomright) then
+                 ys = -vis(2) + mrg + bw
+                 if (hlab > 0._c_float) ys = ys + max(tl,bw) + gap + hlab
+              else
+                 ys = vis(2) - mrg - bw - htitle - th
+              end if
+           end if
+           ! (xe,ye) = the upper right corner of the strip
+           xe = xs + wx
+           ye = ys + wy
+
+           ! the strip: one quad per pair of consecutive colors, the colors
+           ! interpolated between them; the border and the tick marks
+           nflat = 0
+           do k = 1, colorbar_ncol - 1
+              x0 = real(k-1,c_float) / real(colorbar_ncol-1,c_float) * lstrip
+              xt = real(k,c_float) / real(colorbar_ncol-1,c_float) * lstrip
+              if (cb%vertical) then
+                 call flat_quad_grad(flat,nflat,xs,ys+x0,xe,ys+xt,cb%rgb(:,k),cb%rgb(:,k+1),.true.)
+              else
+                 call flat_quad_grad(flat,nflat,xs+x0,ys,xs+xt,ye,cb%rgb(:,k),cb%rgb(:,k+1),.false.)
+              end if
+           end do
+           if (cb%border) then
+              bc = (/cb%borderrgb,1._c_float/)
+              call flat_quad(flat,nflat,xs-bw,ys-bw,xe+bw,ys,bc)
+              call flat_quad(flat,nflat,xs-bw,ye,xe+bw,ye+bw,bc)
+              call flat_quad(flat,nflat,xs-bw,ys,xs,ye,bc)
+              call flat_quad(flat,nflat,xe,ys,xe+bw,ye,bc)
+              do k = 1, nt
+                 if (cb%vertical) then
+                    yt = ys + cb%tickpos(k) * lstrip
+                    call flat_quad(flat,nflat,xe,yt-0.5_c_float*bw,xe+bw+tl,yt+0.5_c_float*bw,bc)
+                 else
+                    xt = xs + cb%tickpos(k) * lstrip
+                    call flat_quad(flat,nflat,xt-0.5_c_float*bw,ys-bw-tl,xt+0.5_c_float*bw,ys,bc)
+                 end if
+              end do
+           end if
+           call useshader(shader_flat)
+           call s%gl%draw_flat_scratch(nflat,flat(:,1:nflat))
+
+           ! the tick values
+           do k = 1, nt
+              if (iv(k+1) <= iv(k)) cycle
+              if (cb%vertical) then
+                 yt = ys + cb%tickpos(k) * lstrip
+                 ndc = (/xs + th + bw + tl + gap, yt + 0.5_c_float * h, 0._c_float/)
+              else
+                 xt = xs + cb%tickpos(k) * lstrip
+                 ndc = (/xt - 0.5_c_float * wk(k), ys - max(tl,bw) - gap, 0._c_float/)
+              end if
+              call draw_text_anchored(iv(k+1)-iv(k),vert(:,iv(k):iv(k+1)-1),ndc,cb%textrgb,projover)
+           end do
+
+           ! the title, over the strip (and over the top tick value if vertical)
+           if (htitle > 0._c_float) then
+              if (cb%vertical) then
+                 x0 = xs - bw
+                 y0 = ys + lstrip + bw + 0.5_c_float * hlab + gap + h
+              else
+                 x0 = xs + 0.5_c_float * (lstrip - wtitle)
+                 y0 = ys + th + bw + gap + h
+              end if
+              x0 = max(min(x0,vis(1) - mrg - wtitle),-vis(1) + mrg)
+              ndc = (/x0, y0, 0._c_float/)
+              call draw_text_anchored(iv(nt+2)-iv(nt+1),vert(:,iv(nt+1):iv(nt+2)-1),ndc,cb%textrgb,projover)
+           end if
+         end associate
+      end do
+      call glDisable(GL_BLEND)
+      call glEnable(GL_CULL_FACE)
+      call glEnable(GL_DEPTH_TEST)
+
+    end subroutine render_colorbar
+
     !> Draw the n on-scene text vertices vert (calc_text_onscene_vertices,
     !> scaled to NDC) as an anchored overlay at the NDC point ndc, with
     !> color rgb and the overlay projection projover.
@@ -1680,6 +1860,42 @@ contains
       n = n + 6
 
     end subroutine flat_quad
+
+    !> Append the two triangles of the rectangle (xa,ya)-(xb,yb) to the
+    !> n flat vertices in flat, opaque, with color rgba at the low end
+    !> and rgbb at the high end: the bottom (ya) and top (yb) edges if
+    !> vertical, else the left (xa) and right (xb) edges.
+    subroutine flat_quad_grad(flat,n,xa,ya,xb,yb,rgba,rgbb,vertical)
+      use shapes, only: flat_vert_nf
+      real(c_float), intent(inout) :: flat(flat_vert_nf,*)
+      integer, intent(inout) :: n
+      real(c_float), intent(in) :: xa, ya, xb, yb, rgba(3), rgbb(3)
+      logical, intent(in) :: vertical
+
+      real(c_float) :: c(3,4)
+
+      ! colors of the corners (xa,ya), (xb,ya), (xb,yb), (xa,yb)
+      if (vertical) then
+         c = reshape((/rgba,rgba,rgbb,rgbb/),(/3,4/))
+      else
+         c = reshape((/rgba,rgbb,rgbb,rgba/),(/3,4/))
+      end if
+      flat(1:3,n+1) = (/xa,ya,0._c_float/)
+      flat(1:3,n+2) = (/xb,ya,0._c_float/)
+      flat(1:3,n+3) = (/xb,yb,0._c_float/)
+      flat(1:3,n+4) = (/xa,ya,0._c_float/)
+      flat(1:3,n+5) = (/xb,yb,0._c_float/)
+      flat(1:3,n+6) = (/xa,yb,0._c_float/)
+      flat(4:6,n+1) = c(:,1)
+      flat(4:6,n+2) = c(:,2)
+      flat(4:6,n+3) = c(:,3)
+      flat(4:6,n+4) = c(:,1)
+      flat(4:6,n+5) = c(:,3)
+      flat(4:6,n+6) = c(:,4)
+      flat(7,n+1:n+6) = 1._c_float
+      n = n + 6
+
+    end subroutine flat_quad_grad
 
     !> Last index of the run of overlay items starting at i that share the same
     !> window placement (winpos and scalewithzoom) as item i.
@@ -2220,7 +2436,7 @@ contains
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
-       reptype_scalebar
+       reptype_scalebar, reptype_colorbar
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2371,6 +2587,8 @@ contains
              str3 = "legend" // c_null_char
           elseif (s%rep(i)%type == reptype_scalebar) then
              str3 = "scale bar" // c_null_char
+          elseif (s%rep(i)%type == reptype_colorbar) then
+             str3 = "color bar" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then

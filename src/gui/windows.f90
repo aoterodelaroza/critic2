@@ -1193,6 +1193,7 @@ module windows
      procedure :: draw_editrep_planar
      procedure :: draw_editrep_legend
      procedure :: draw_editrep_scalebar
+     procedure :: draw_editrep_colorbar
      procedure :: editrep_toolbar
      procedure :: objedit_hit
      procedure :: atomtool_events
@@ -1905,6 +1906,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_scalebar
+     module function draw_editrep_colorbar(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_colorbar
      module subroutine planar_events(w,r,inp)
        class(window), intent(inout), target :: w
        type(representation), intent(inout) :: r

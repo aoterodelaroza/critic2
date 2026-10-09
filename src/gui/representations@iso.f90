@@ -91,6 +91,82 @@ contains
 
   end function iso_default_isovalue
 
+  !> Whether isosurface s of an object of system isys is colored by
+  !> the values of a field or an expression, and its colors have been
+  !> computed (the surface exists and its values could be mapped).
+  module function iso_slot_hascolors(s,isys) result(ok)
+    use systems, only: sys
+    type(iso_slot), intent(in) :: s
+    integer, intent(in) :: isys
+    logical :: ok
+
+    ok = .false.
+    if (s%imap_mode == iso_map_field) then
+       ok = sys(isys)%goodfield(s%imap)
+    elseif (s%imap_mode == iso_map_expr) then
+       ok = (len_trim(s%mapexpr) > 0 .and. len_trim(s%maperr) == 0)
+    end if
+    if (ok) ok = s%built .and. allocated(s%mesh%rgbv)
+
+  end function iso_slot_hascolors
+
+  !> The isosurface object, among the nrep objects in rep, whose colors
+  !> the color bar cb shows: the object with order integer cb%isoiord,
+  !> or the first shown isosurface object with a colored isosurface if
+  !> cb%isoiord is zero or that object is gone (order integers are not
+  !> reused, and an undo brings the object back with its own). Returns 0
+  !> if there is none.
+  module function colorbar_rep(cb,rep,nrep) result(irep)
+    type(rep_colorbar), intent(in) :: cb
+    type(representation), intent(in) :: rep(:)
+    integer, intent(in) :: nrep
+    integer :: irep
+
+    if (cb%isoiord > 0) then
+       do irep = 1, nrep
+          if (.not.rep(irep)%isinit .or. rep(irep)%type /= reptype_isosurface) cycle
+          if (rep(irep)%iord == cb%isoiord) return
+       end do
+    end if
+    do irep = 1, nrep
+       if (.not.rep(irep)%isinit .or. rep(irep)%type /= reptype_isosurface) cycle
+       if (.not.rep(irep)%shown) cycle
+       if (colorbar_slot(cb,rep(irep)) > 0) return
+    end do
+    irep = 0
+
+  end function colorbar_rep
+
+  !> The isosurface of the isosurface object riso whose colors the color
+  !> bar cb shows: isosurface cb%islot if riso is the object chosen
+  !> explicitly, else the first shown colored isosurface. Returns 0 if
+  !> the object or that isosurface is hidden (a hidden object does not
+  !> recolor its meshes, so their colors may be stale), the surfaces
+  !> are colored by grid-point groups instead of a map, or that
+  !> isosurface is not colored.
+  module function colorbar_slot(cb,riso) result(islot)
+    type(rep_colorbar), intent(in) :: cb
+    type(representation), intent(in) :: riso
+    integer :: islot
+
+    islot = 0
+    if (.not.riso%shown .or. allocated(riso%iso%lbl)) return
+    if (cb%isoiord > 0 .and. cb%isoiord == riso%iord .and. cb%islot > 0) then
+       islot = cb%islot
+       if (islot > riso%iso%niso) then
+          islot = 0
+       elseif (.not.riso%iso%slot(islot)%shown .or. .not.iso_slot_hascolors(riso%iso%slot(islot),riso%id)) then
+          islot = 0
+       end if
+    else
+       do islot = 1, riso%iso%niso
+          if (riso%iso%slot(islot)%shown .and. iso_slot_hascolors(riso%iso%slot(islot),riso%id)) return
+       end do
+       islot = 0
+    end if
+
+  end function colorbar_slot
+
   !> Edge lengths (angstrom) of the box an isosurface of system isys
   !> samples: the given region box, else the valid window of the grid
   !> domain when the target field is a grid (a partial grid's box does

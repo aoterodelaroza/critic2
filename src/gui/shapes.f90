@@ -144,6 +144,29 @@ module shapes
   end type dl_scalebar
   public :: dl_scalebar
 
+  integer, parameter, public :: colorbar_label_len = 32 ! length of the text of a color bar tick
+
+  !> color bar, laid out at render time in the NDC of the render
+  !> buffer: a strip with the colors of a colormap, from the low end
+  !> to the high end, with tick values along it and a title
+  type dl_colorbar
+     integer :: corner ! corner of the view (legcorner_* in representations), or scalepos_custom
+     real(c_float) :: winpos(2) ! scalepos_custom: center of the strip (fractions from left/bottom)
+     logical :: vertical ! vertical (low values at the bottom) or horizontal (low on the left)
+     real(c_float) :: length ! length of the strip (fraction of the visible height or width)
+     real(c_float) :: thick ! thickness of the strip (NDC)
+     real(c_float) :: h ! height of the text (NDC)
+     real(c_float) :: textrgb(3) ! text color
+     logical :: border ! draw the border of the strip and the tick marks
+     real(c_float) :: borderrgb(3) ! border and tick color
+     real(c_float), allocatable :: rgb(:,:) ! colors along the strip, low to high (3,ncol)
+     integer :: ntick = 0 ! number of ticks
+     real(c_float), allocatable :: tickpos(:) ! position of each tick along the strip (0 = low end, 1 = high)
+     character(len=colorbar_label_len), allocatable :: ticklabel(:) ! text of each tick
+     character(len=:), allocatable :: title ! title (empty = no title)
+  end type dl_colorbar
+  public :: dl_colorbar
+
   !> largest radius of the sphere of an atom image (cell atom + lattice
   !> vector, as in dl_sphere%idx) so that it fits inside the coordination
   !> polyhedron centered on it
@@ -287,6 +310,8 @@ module shapes
      type(dl_legend), allocatable :: legend(:) ! the legends (drawn on top of everything)
      integer :: nscalebar = 0 ! number of scale bars
      type(dl_scalebar), allocatable :: scalebar(:) ! the scale bars (drawn on top of everything)
+     integer :: ncolorbar = 0 ! number of color bars
+     type(dl_colorbar), allocatable :: colorbar(:) ! the color bars (drawn on top of everything)
      integer :: ncap = 0 ! number of radius caps for the polyhedra centers
      type(dl_radcap), allocatable :: cap(:) ! the radius caps (applied to the fitpoly spheres)
    contains
@@ -319,6 +344,7 @@ module shapes
      module procedure dl_append_radcap
      module procedure dl_append_legend
      module procedure dl_append_scalebar
+     module procedure dl_append_colorbar
   end interface dl_append
   public :: dl_append
 
@@ -487,6 +513,11 @@ module shapes
        integer, intent(inout) :: n
        type(dl_scalebar), intent(in) :: it
      end subroutine dl_append_scalebar
+     module subroutine dl_append_colorbar(lst,n,it)
+       type(dl_colorbar), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_colorbar), intent(in) :: it
+     end subroutine dl_append_colorbar
      module subroutine dl_append_cylinder(lst,n,it)
        type(dl_cylinder), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n

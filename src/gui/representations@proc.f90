@@ -82,7 +82,7 @@ contains
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
-  !> 17 (legend), 18 (scale bar).
+  !> 17 (legend), 18 (scale bar), 19 (color bar).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -334,6 +334,11 @@ contains
     ! scale bar
     if (itype == 0 .or. itype == 18) then
        r%scalebar = rep_scalebar()
+    end if
+
+    ! color bar
+    if (itype == 0 .or. itype == 19) then
+       r%colorbar = rep_colorbar()
     end if
 
     ! initialize the styles
@@ -760,6 +765,7 @@ contains
     r%gpaths = rep_gpaths()
     r%legend = rep_legend()
     r%scalebar = rep_scalebar()
+    r%colorbar = rep_colorbar()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -948,13 +954,13 @@ contains
   !> iqpt and frequency ifreq to animate the representation. A legend
   !> takes the atom colors from the atoms object ratoms (the element
   !> colors if not given).
-  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms)
+  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms,riso)
     use systems, only: sys, sysc
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
     use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene
-    use shapes, only: maxpie, dl_radcap, dl_legend, dl_scalebar
+    use shapes, only: maxpie, dl_radcap, dl_legend, dl_scalebar, dl_colorbar
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
@@ -967,6 +973,7 @@ contains
     integer, intent(in) :: iqpt, ifreq
     logical, intent(in), optional :: noghost
     type(representation), intent(in), optional :: ratoms
+    type(representation), intent(in), optional :: riso
 
     logical, allocatable :: lshown(:,:,:,:)
     logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
@@ -1685,6 +1692,9 @@ contains
     elseif (r%type == reptype_scalebar) then
        !!! scale bar, laid out at render time !!!
        call append_scalebar()
+    elseif (r%type == reptype_colorbar) then
+       !!! color bar of a colored isosurface, laid out at render time !!!
+       if (present(riso)) call append_colorbar()
     elseif (r%type == reptype_symelem) then
        !!! symmetry elements (planes/axes/inversion centers) !!!
        if (r%symelem%style%isinit) then
@@ -3421,6 +3431,108 @@ contains
       call dl_append(obj%scalebar,obj%nscalebar,dsb)
 
     end subroutine append_scalebar
+
+    !> Append the color bar of this object, for the colored isosurface
+    !> of the isosurface object riso it shows (colorbar_slot): the
+    !> colormap sampled from the low to the high end of the range,
+    !> evenly spaced tick values, and the title: none, the user's text,
+    !> or the field or the expression the colors come from.
+    subroutine append_colorbar()
+      use utils, only: iw_colormap_lut
+      type(dl_colorbar) :: dcb
+      integer :: islot, k, nt
+      real*8 :: lo, hi, v, step, vmax
+
+      islot = colorbar_slot(r%colorbar,riso)
+      if (islot == 0) return
+      associate(s => riso%iso%slot(islot))
+        lo = min(s%maprange(1),s%maprange(2))
+        hi = max(s%maprange(1),s%maprange(2))
+        allocate(dcb%rgb(3,colorbar_ncol))
+        call iw_colormap_lut(s%icmap,dcb%rgb)
+
+        ! the title
+        if (.not.r%colorbar%showtitle) then
+           dcb%title = ""
+        elseif (r%colorbar%customtitle) then
+           dcb%title = trim(r%colorbar%title)
+        elseif (s%imap_mode == iso_map_expr) then
+           dcb%title = trim(s%mapexpr)
+        else
+           dcb%title = trim(sys(riso%id)%f(s%imap)%name)
+        end if
+        ! the on-scene text buffer holds text_maxvert/6 glyphs: a long
+        ! field name (a file path) or expression is cut, without
+        ! splitting a UTF-8 character
+        if (len(dcb%title) > colorbar_title_max) then
+           k = colorbar_title_max - 3
+           do while (k > 1 .and. iachar(dcb%title(k+1:k+1)) >= 128 .and. iachar(dcb%title(k+1:k+1)) < 192)
+              k = k - 1
+           end do
+           dcb%title = dcb%title(1:k) // "..."
+        end if
+      end associate
+
+      ! evenly spaced ticks, with the two ends; a degenerate range has one
+      nt = max(min(r%colorbar%nticks,colorbar_nticks_max),2)
+      if (hi - lo <= 1d-10 * max(abs(lo),abs(hi),1d-300)) nt = 1
+      step = 0d0
+      if (nt > 1) step = (hi - lo) / (nt - 1)
+      vmax = max(abs(lo),abs(hi))
+      dcb%ntick = nt
+      allocate(dcb%tickpos(nt),dcb%ticklabel(nt))
+      do k = 1, nt
+         v = lo + (k-1) * step
+         if (nt > 1) then
+            dcb%tickpos(k) = real(k-1,c_float) / real(nt-1,c_float)
+         else
+            dcb%tickpos(k) = 0.5_c_float
+         end if
+         dcb%ticklabel(k) = colorbar_number(v,step,vmax)
+      end do
+
+      dcb%corner = r%colorbar%corner
+      dcb%winpos = real(r%colorbar%winpos,c_float)
+      dcb%vertical = r%colorbar%vertical
+      dcb%length = real(r%colorbar%length,c_float)
+      dcb%thick = real(r%colorbar%thick,c_float)
+      dcb%h = real(legend_textheight * r%colorbar%scale,c_float)
+      dcb%textrgb = r%colorbar%textrgb
+      dcb%border = r%colorbar%border
+      dcb%borderrgb = r%colorbar%borderrgb
+      call dl_append(obj%colorbar,obj%ncolorbar,dcb)
+
+    end subroutine append_colorbar
+
+    !> The text of the tick value v of a color bar whose ticks are step
+    !> apart and whose largest absolute value is vmax: fixed point with
+    !> as many decimals as the spacing needs, or exponential notation
+    !> if the values are very large or very small or the spacing needs
+    !> more than six decimals; there, the mantissa has as many digits
+    !> as tell the ticks apart.
+    function colorbar_number(v,step,vmax) result(str)
+      use utils, only: string_nozeros
+      real*8, intent(in) :: v, step, vmax
+      character(len=:), allocatable :: str
+
+      integer :: ndec
+
+      ndec = 2
+      if (step > 0d0) ndec = max(0,ceiling(-log10(step)) + 1)
+      if (vmax >= 1d5 .or. (vmax < 1d-3 .and. vmax > 0d0) .or. ndec > 6) then
+         ndec = 2
+         if (step > 0d0 .and. vmax > 0d0) ndec = max(2,min(10,ceiling(log10(vmax/step)) + 1))
+         str = string(v,'e',decimal=ndec)
+      else
+         ! a value that rounds to zero is written without a sign
+         if (abs(v) < 0.5d0 * 10d0**(-ndec)) then
+            str = "0"
+         else
+            str = string_nozeros(v,ndec)
+         end if
+      end if
+
+    end function colorbar_number
 
     !> Vibration displacement of the periodic image of cell atom iat at
     !> lattice translation ix; zero if there is no selected mode (the phasors

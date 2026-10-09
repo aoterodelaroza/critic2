@@ -167,6 +167,17 @@ module representations
   real*8, parameter, public :: scalebar_width_def = 0.009d0 ! line width (3 pixels in a 670-pixel view)
   real(c_float), parameter, public :: scalebar_rgb_def(3) = 0._c_float ! line color
   real(c_float), parameter, public :: scalebar_textrgb_def(3) = 0._c_float ! text color
+  !--> color bar (lengths in the NDC of the render buffer, like the legend)
+  real*8, parameter, public :: colorbar_winpos_def(2) = (/0.9d0,0.5d0/) ! default custom position
+  real*8, parameter, public :: colorbar_length_def = 0.5d0 ! length of the strip (fraction of the view side)
+  real*8, parameter, public :: colorbar_thick_def = 0.04d0 ! thickness of the strip
+  integer, parameter, public :: colorbar_nticks_def = 5 ! number of tick values (with the two ends)
+  integer, parameter, public :: colorbar_nticks_max = 21 ! most tick values
+  integer, parameter, public :: colorbar_text_len = 64 ! length of the custom title
+  integer, parameter, public :: colorbar_title_max = 100 ! longest title, in bytes (the text buffer holds 128 glyphs)
+  integer, parameter, public :: colorbar_ncol = 64 ! colors sampled from the colormap for the strip
+  real(c_float), parameter, public :: colorbar_textrgb_def(3) = 0._c_float ! text color
+  real(c_float), parameter, public :: colorbar_borderrgb_def(3) = 0._c_float ! border and tick color
   !--> measurements
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
   real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors
@@ -412,7 +423,8 @@ module representations
   integer, parameter, public :: reptype_planar = 14 ! list of planar shapes (screen coordinates)
   integer, parameter, public :: reptype_legend = 15 ! legend of the atomic species
   integer, parameter, public :: reptype_scalebar = 16 ! scale bar
-  integer, parameter, public :: reptype_NUM = 16
+  integer, parameter, public :: reptype_colorbar = 17 ! color bar of a colored isosurface
+  integer, parameter, public :: reptype_NUM = 17
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -437,7 +449,8 @@ module representations
   integer, parameter, public :: repflavor_planar = 19
   integer, parameter, public :: repflavor_legend = 20
   integer, parameter, public :: repflavor_scalebar = 21
-  integer, parameter, public :: repflavor_NUM = 21
+  integer, parameter, public :: repflavor_colorbar = 22
+  integer, parameter, public :: repflavor_NUM = 22
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -475,7 +488,8 @@ module representations
      "Gradient Paths   ",& ! repflavor_gpaths
      "2D Drawing       ",& ! repflavor_planar
      "Legend           ",& ! repflavor_legend
-     "Scale Bar        "/) ! repflavor_scalebar
+     "Scale Bar        ",& ! repflavor_scalebar
+     "Color Bar        "/) ! repflavor_colorbar
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -738,6 +752,30 @@ module representations
      real(c_float) :: textrgb(3) = scalebar_textrgb_def ! text color
   end type rep_scalebar
   public :: rep_scalebar
+
+  !> Color bar options (reptype_colorbar; accessed as r%colorbar%...).
+  !> A strip with the colormap of an isosurface colored by the values
+  !> of a field or an expression, with tick values along it and a
+  !> title, in a corner of the view.
+  type rep_colorbar
+     integer :: isoiord = 0 ! isosurface object whose colors are shown, by its iord (0 = the
+                            ! first shown one with a colored isosurface)
+     integer :: islot = 0 ! isosurface of that object (0 = its first shown colored isosurface)
+     integer :: corner = legcorner_bottomright ! corner of the view (legcorner_*), or scalepos_custom
+     real*8 :: winpos(2) = colorbar_winpos_def ! scalepos_custom: center of the strip (fractions from left/bottom)
+     logical :: vertical = .true. ! vertical (low values at the bottom) or horizontal (low on the left)
+     real*8 :: length = colorbar_length_def ! length of the strip (fraction of the height or width of the view)
+     real*8 :: thick = colorbar_thick_def ! thickness of the strip
+     integer :: nticks = colorbar_nticks_def ! number of tick values, evenly spaced, with the two ends
+     real*8 :: scale = 1d0 ! text size (1 = legend_textheight high)
+     real(c_float) :: textrgb(3) = colorbar_textrgb_def ! text color
+     logical :: border = .true. ! draw the border of the strip and the tick marks
+     real(c_float) :: borderrgb(3) = colorbar_borderrgb_def ! border and tick color
+     logical :: showtitle = .true. ! draw the title
+     logical :: customtitle = .false. ! the title is title (else the field or the expression)
+     character(len=colorbar_text_len) :: title = "" ! custom title
+  end type rep_colorbar
+  public :: rep_colorbar
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
@@ -1081,6 +1119,7 @@ module representations
      type(rep_gpaths) :: gpaths ! gradient path options
      type(rep_legend) :: legend ! legend options
      type(rep_scalebar) :: scalebar ! scale bar options
+     type(rep_colorbar) :: colorbar ! color bar options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1093,6 +1132,9 @@ module representations
   public :: representation
 
   public :: iso_default_isovalue
+  public :: iso_slot_hascolors
+  public :: colorbar_rep
+  public :: colorbar_slot
   public :: iso_grid_size
   public :: iso_level_label
   public :: iso_isgridfield
@@ -1300,6 +1342,11 @@ module representations
        integer, intent(in) :: ifield
        real*8 :: isoval
      end function iso_default_isovalue
+     module function iso_slot_hascolors(s,isys) result(ok)
+       type(iso_slot), intent(in) :: s
+       integer, intent(in) :: isys
+       logical :: ok
+     end function iso_slot_hascolors
      module function iso_grid_size(isys,ilevel,ncustom,capped,ifield,box,ptsang) result(n)
        integer, intent(in) :: isys
        integer, intent(in) :: ilevel
@@ -1557,7 +1604,7 @@ module representations
      module subroutine update_styles(r)
        class(representation), intent(inout) :: r
      end subroutine update_styles
-     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms)
+     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms,riso)
        class(representation), intent(inout) :: r
        type(scene_display), intent(in) :: disp
        type(scene_objects), intent(inout) :: obj
@@ -1565,7 +1612,19 @@ module representations
        integer, intent(in) :: iqpt, ifreq
        logical, intent(in), optional :: noghost
        type(representation), intent(in), optional :: ratoms
+       type(representation), intent(in), optional :: riso
      end subroutine add_draw_elements
+     module function colorbar_rep(cb,rep,nrep) result(irep)
+       type(rep_colorbar), intent(in) :: cb
+       type(representation), intent(in) :: rep(:)
+       integer, intent(in) :: nrep
+       integer :: irep
+     end function colorbar_rep
+     module function colorbar_slot(cb,riso) result(islot)
+       type(rep_colorbar), intent(in) :: cb
+       type(representation), intent(in) :: riso
+       integer :: islot
+     end function colorbar_slot
      module subroutine reset_all_styles(r,itype)
        class(representation), intent(inout) :: r
        integer, intent(in) :: itype

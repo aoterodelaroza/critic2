@@ -73,7 +73,7 @@ contains
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
-       reptype_planar, reptype_legend, reptype_scalebar
+       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -166,6 +166,8 @@ contains
           changed = changed .or. w%draw_editrep_legend(ttshown)
        elseif (w%rep%type == reptype_scalebar) then
           changed = changed .or. w%draw_editrep_scalebar(ttshown)
+       elseif (w%rep%type == reptype_colorbar) then
+          changed = changed .or. w%draw_editrep_colorbar(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1405,6 +1407,203 @@ contains
     changed = changed .or. ch
 
   end function draw_editrep_scalebar
+
+  !> Draw the editrep window, color bar class. Returns true if the
+  !> scene needs rebuilding.
+  module function draw_editrep_colorbar(w,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
+       iw_checkbox, iw_radiobutton, iw_inputtext, iw_button, iw_inputint
+    use representations, only: scalepos_combostr, scalepos_custom, colorbar_text_len,&
+       colorbar_nticks_max, reptype_isosurface, iso_slot_hascolors, colorbar_rep, colorbar_slot
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    integer :: iview, istat, i, n, irep, isel
+    integer(c_int) :: nticks
+    integer, allocatable :: iords(:)
+    real*8 :: pxs, wpx
+    character(len=:,kind=c_char), allocatable :: stropt
+
+    ! initialize
+    changed = .false.
+    pxs = 0d0
+    iview = w%anchor_view()
+    if (iview > 0) pxs = view_ndc_per_pixel(iview)
+
+    ! handle a pending pick of the custom position, as in the scale bar
+    if (w%editrep_pick_item > 0) then
+       if (iview == 0) then
+          w%editrep_pick_item = 0
+       elseif (w%rep%colorbar%corner /= scalepos_custom) then
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_pick_item = 0
+       else
+          call view_pick_winfrac(iview,w%id,istat,w%rep%colorbar%winpos)
+          if (istat == ipick_point) changed = .true.
+          if (istat /= ipick_pending) w%editrep_pick_item = 0
+       end if
+    end if
+
+    ! the isosurface object and the isosurface whose colors are shown
+    call iw_text("Isosurface",highlight=.true.)
+    if (iview > 0) then
+       associate(sc => win(iview)%sc)
+         ! the isosurface objects of the scene, by order integer
+         allocate(iords(sc%nrep))
+         stropt = "Automatic" // c_null_char
+         n = 0
+         isel = 0
+         do i = 1, sc%nrep
+            if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_isosurface) cycle
+            n = n + 1
+            iords(n) = sc%rep(i)%iord
+            stropt = stropt // trim(sc%rep(i)%name) // c_null_char
+            if (iords(n) == w%rep%colorbar%isoiord) isel = n
+         end do
+         ! the chosen object is gone: show and store the automatic choice
+         ! (an undo of the deletion brings back the link with the object)
+         if (isel == 0 .and. w%rep%colorbar%isoiord > 0) then
+            w%rep%colorbar%isoiord = 0
+            w%rep%colorbar%islot = 0
+         end if
+         call iw_combo_simple("Object##colorbarobject",stropt,isel,changed=ch)
+         call iw_tooltip("Isosurface object whose colors are shown. Automatic: the first shown &
+            &isosurface object with an isosurface colored by a field or an expression",ttshown)
+         if (ch) then
+            w%rep%colorbar%isoiord = 0
+            if (isel > 0) w%rep%colorbar%isoiord = iords(isel)
+            w%rep%colorbar%islot = 0
+            changed = .true.
+         end if
+
+         ! the isosurface of the chosen object
+         irep = colorbar_rep(w%rep%colorbar,sc%rep,sc%nrep)
+         if (isel > 0 .and. irep > 0) then
+            associate(ri => sc%rep(irep))
+              stropt = "First colored" // c_null_char
+              do i = 1, ri%iso%niso
+                 stropt = stropt // string(i) // ": " // string(ri%iso%slot(i)%isoval,'e',decimal=3)
+                 if (.not.iso_slot_hascolors(ri%iso%slot(i),ri%id)) stropt = stropt // " (not colored)"
+                 stropt = stropt // c_null_char
+              end do
+              isel = w%rep%colorbar%islot
+              if (isel > ri%iso%niso) isel = 0
+              call iw_combo_simple("Isovalue##colorbarslot",stropt,isel,changed=ch)
+              call iw_tooltip("Isosurface of the object whose colors are shown",ttshown)
+              if (ch) then
+                 w%rep%colorbar%islot = isel
+                 changed = .true.
+              end if
+            end associate
+         end if
+
+         ! why nothing is drawn
+         if (irep == 0) then
+            call iw_text("No shown isosurface colored by a field or an expression",danger=.true.)
+         elseif (colorbar_slot(w%rep%colorbar,sc%rep(irep)) == 0) then
+            call iw_text("Hidden, or not colored by a field or an expression",danger=.true.)
+         end if
+       end associate
+    end if
+
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_text("Placement",highlight=.true.)
+    call iw_combo_simple("##colorbarcorner",scalepos_combostr,w%rep%colorbar%corner,changed=ch)
+    call iw_tooltip("Where the color bar is drawn: in a corner of the view, or with the center &
+       &of the strip at a custom position",ttshown)
+    changed = changed .or. ch
+    if (iview > 0) then
+       if (iw_button("Pick##colorbarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
+          ! the pick sets a custom position: switch to it now, so that
+          ! choosing a corner while the pick is out cancels it
+          w%rep%colorbar%corner = scalepos_custom
+          changed = .true.
+          w%editrep_pick_item = 1
+          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the color bar",w%id,&
+             acceptempty=.true.)
+       end if
+       call iw_tooltip("Click, then pick the position of the center of the strip in the view window",ttshown)
+    end if
+    if (w%rep%colorbar%corner == scalepos_custom) then
+       ch = iw_dragfloat_real8("Position##colorbarwinpos",x2=w%rep%colorbar%winpos,&
+          speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Position of the center of the strip in the view, as fractions of the window &
+          &size from the left and bottom borders",ttshown)
+       changed = changed .or. ch
+    end if
+    ch = iw_radiobutton("Vertical##colorbarvert",bool=w%rep%colorbar%vertical,boolval=.true.)
+    call iw_tooltip("Vertical strip, low values at the bottom and the tick values on the right",ttshown)
+    changed = changed .or. ch
+    ch = iw_radiobutton("Horizontal##colorbarhorz",bool=w%rep%colorbar%vertical,boolval=.false.,&
+       sameline=.true.)
+    call iw_tooltip("Horizontal strip, low values on the left and the tick values below",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Strip",highlight=.true.)
+    ch = iw_dragfloat_real8("Length##colorbarlength",x1=w%rep%colorbar%length,speed=0.005d0,&
+       min=0.05d0,max=1d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Length of the strip, as a fraction of the height (vertical) or the width &
+       &(horizontal) of the view",ttshown)
+    changed = changed .or. ch
+    if (pxs > 0d0) then
+       wpx = w%rep%colorbar%thick / pxs
+       ch = iw_dragfloat_real8("Thickness (px)##colorbarthick",x1=wpx,speed=0.1d0,min=1d0,max=200d0,&
+          decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Thickness of the strip, in pixels of the view",ttshown)
+       if (ch) then
+          w%rep%colorbar%thick = wpx * pxs
+          changed = .true.
+       end if
+    end if
+    ch = iw_checkbox("Border and ticks##colorbarborder",w%rep%colorbar%border)
+    call iw_tooltip("Draw a border around the strip and a mark at each tick value",ttshown)
+    changed = changed .or. ch
+    if (w%rep%colorbar%border) then
+       ch = iw_coloredit("Color##colorbarborderrgb",rgb=w%rep%colorbar%borderrgb,sameline=.true.)
+       call iw_tooltip("Color of the border and the tick marks",ttshown)
+       changed = changed .or. ch
+    end if
+    nticks = int(w%rep%colorbar%nticks,c_int)
+    ch = iw_inputint("Tick values##colorbarnticks",nticks,width=8)
+    call iw_tooltip("Number of tick values, evenly spaced along the strip with the two ends",ttshown)
+    if (ch) then
+       w%rep%colorbar%nticks = max(min(int(nticks),colorbar_nticks_max),2)
+       changed = .true.
+    end if
+
+    call iw_text("Text",highlight=.true.)
+    ch = iw_dragfloat_real8("Text size##colorbarsize",x1=w%rep%colorbar%scale,speed=0.01d0,&
+       min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Size of the tick values and the title (1 = default)",ttshown)
+    changed = changed .or. ch
+    ch = iw_coloredit("Color##colorbartextrgb",rgb=w%rep%colorbar%textrgb,sameline=.true.)
+    call iw_tooltip("Color of the tick values and the title",ttshown)
+    changed = changed .or. ch
+    ch = iw_checkbox("Title##colorbarshowtitle",w%rep%colorbar%showtitle)
+    call iw_tooltip("Draw a title over the strip",ttshown)
+    changed = changed .or. ch
+    if (w%rep%colorbar%showtitle) then
+       ch = iw_radiobutton("Field##colorbarfieldtitle",bool=w%rep%colorbar%customtitle,boolval=.false.,&
+          sameline=.true.)
+       call iw_tooltip("The title is the name of the field or the expression that colors the isosurface",&
+          ttshown)
+       changed = changed .or. ch
+       ch = iw_radiobutton("Custom##colorbarcustomtitle",bool=w%rep%colorbar%customtitle,boolval=.true.,&
+          sameline=.true.)
+       call iw_tooltip("The title is a text of your choice",ttshown)
+       changed = changed .or. ch
+       if (w%rep%colorbar%customtitle) then
+          ch = iw_inputtext("##colorbartitle",bufsize=colorbar_text_len,textf=w%rep%colorbar%title,width=25)
+          call iw_tooltip("Title of the color bar",ttshown)
+          changed = changed .or. ch
+       end if
+    end if
+
+  end function draw_editrep_colorbar
 
   !> Draw the editrep window, cartesian axes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
