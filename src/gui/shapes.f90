@@ -105,8 +105,18 @@ module shapes
      logical :: ghost = .false. ! invisible pick-only target (atoms hidden, bonds shown)
      integer(c_int) :: cpidx(5) = 0 ! critical point: complete CP list index, lattice vector, and field (0 = not a CP)
      logical :: rim = .false. ! translucent: drawn as a volume, the opacity growing toward the rim
+     logical :: fitpoly = .false. ! shrink to fit inside the coordination polyhedron centered on this atom image
   end type dl_sphere
   public :: dl_sphere
+
+  !> largest radius of the sphere of an atom image (cell atom + lattice
+  !> vector, as in dl_sphere%idx) so that it fits inside the coordination
+  !> polyhedron centered on it
+  type dl_radcap
+     integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
+     real(c_float) :: r ! largest radius
+  end type dl_radcap
+  public :: dl_radcap
 
   !> cylinders for the draw list. Also used for cones (arrowheads), with
   !> x1 = base center and x2 = apex.
@@ -238,10 +248,8 @@ module shapes
      integer :: nflatfront = 0 ! number of vertices drawn on top of everything
      real(c_float), allocatable :: flatfront(:,:) ! the vertices drawn on top
      integer :: nflatshape = 0 ! number of planar shapes tessellated (sets the depth of the next)
-     ! largest radius of the atom spheres of each cell atom, so that the
-     ! centers of the coordination polyhedra fit inside them (huge = no
-     ! limit; allocated only if polyhedra are drawn)
-     real(c_float), allocatable :: radcap(:)
+     integer :: ncap = 0 ! number of radius caps for the polyhedra centers
+     type(dl_radcap), allocatable :: cap(:) ! the radius caps (applied to the fitpoly spheres)
    contains
      procedure :: reset => scene_objects_reset
      procedure :: reserve => scene_objects_reserve
@@ -269,6 +277,7 @@ module shapes
      module procedure dl_append_plane
      module procedure dl_append_triangle
      module procedure dl_append_mesh
+     module procedure dl_append_radcap
   end interface dl_append
   public :: dl_append
 
@@ -419,6 +428,11 @@ module shapes
        integer, intent(inout) :: n
        type(dl_sphere), intent(in) :: it
      end subroutine dl_append_sphere
+     module subroutine dl_append_radcap(lst,n,it)
+       type(dl_radcap), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_radcap), intent(in) :: it
+     end subroutine dl_append_radcap
      module subroutine dl_append_cylinder(lst,n,it)
        type(dl_cylinder), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n

@@ -245,7 +245,7 @@ contains
     o%nflatback = 0
     o%nflatfront = 0
     o%nflatshape = 0
-    if (allocated(o%radcap)) deallocate(o%radcap)
+    o%ncap = 0
     if (.not.allocated(o%sph)) allocate(o%sph(100))
     if (.not.allocated(o%cyl)) allocate(o%cyl(100))
     if (.not.allocated(o%cylflat)) allocate(o%cylflat(10))
@@ -333,7 +333,7 @@ contains
     if (allocated(o%cylover)) deallocate(o%cylover)
     if (allocated(o%coneover)) deallocate(o%coneover)
     if (allocated(o%stringover)) deallocate(o%stringover)
-    if (allocated(o%radcap)) deallocate(o%radcap)
+    if (allocated(o%cap)) deallocate(o%cap)
     if (allocated(o%flatback)) deallocate(o%flatback)
     if (allocated(o%flatfront)) deallocate(o%flatfront)
 
@@ -359,6 +359,24 @@ contains
     lst(n) = it
 
   end subroutine dl_append_sphere
+
+  module subroutine dl_append_radcap(lst,n,it)
+    type(dl_radcap), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_radcap), intent(in) :: it
+    type(dl_radcap), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,100)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_radcap
 
   module subroutine dl_append_cylinder(lst,n,it)
     type(dl_cylinder), allocatable, intent(inout) :: lst(:)

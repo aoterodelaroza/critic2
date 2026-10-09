@@ -880,7 +880,7 @@ contains
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
     use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene
-    use shapes, only: maxpie
+    use shapes, only: maxpie, dl_radcap
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
@@ -915,6 +915,7 @@ contains
     integer :: iat, natm
     complex*16 :: xdelta1(3)
     type(dl_sphere) :: dsph
+    type(dl_radcap) :: dcap
     type(dl_cylinder) :: dcyl
     type(dl_cylinder_over) :: dcylover
     type(dl_plane) :: dplane
@@ -1232,14 +1233,14 @@ contains
                       call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,xc,&
                          rgbface,rgbedge,r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps,okpoly,rin)
 
-                      ! the center atom is drawn inside its polyhedron (the
-                      ! scene shrinks its spheres after all objects are built)
+                      ! the center atom image is drawn inside its polyhedron
+                      ! (the scene shrinks its fitpoly spheres after all
+                      ! objects are built)
                       if (okpoly .and. rin < huge(1d0)) then
-                         if (.not.allocated(obj%radcap)) then
-                            allocate(obj%radcap(c%ncel))
-                            obj%radcap = huge(1._c_float)
-                         end if
-                         obj%radcap(i) = min(obj%radcap(i),real(poly_centerfit * rin,c_float))
+                         dcap%idx(1) = i
+                         dcap%idx(2:4) = ix
+                         dcap%r = real(poly_centerfit * rin,c_float)
+                         call dl_append(obj%cap,obj%ncap,dcap)
                       end if
 
                       ! collect this polyhedron's corner atom images to force
@@ -1276,12 +1277,14 @@ contains
                          dsph%pie_cum = piecum
                          dsph%pie_rgb = piergb
                          dsph%ghost = .false.
+                         dsph%fitpoly = r%atoms%fitpoly
                       else
                          dsph%r = real(2d0 * r%bonds%rad,c_float) ! generous click radius
                          dsph%border = 0._c_float
                          dsph%rgbborder = rgb
                          dsph%occ = 1._c_float
                          dsph%ghost = .true.
+                         dsph%fitpoly = .false.
                       end if
                       call dl_append(obj%sph,obj%nsph,dsph)
                    end if
@@ -1350,7 +1353,7 @@ contains
              call check_lshown(cornlist(1,ica),ix(1),ix(2),ix(3))
              if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3))) cycle ! already drawn
              lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = .true.
-             call append_forced_atom(cornlist(1,ica),ix,.true.)
+             call append_forced_atom(cornlist(1,ica),ix,.true.,.true.)
           end do
        end if
 
@@ -1999,7 +2002,7 @@ contains
                              call check_lshown(iend(j),lx(1),lx(2),lx(3))
                              if (.not.lshown(iend(j),lx(1),lx(2),lx(3))) then
                                 lshown(iend(j),lx(1),lx(2),lx(3)) = .true.
-                                call append_forced_atom(iend(j),lx,.false.)
+                                call append_forced_atom(iend(j),lx,.false.,.false.)
                              end if
                           end if
                        end do
@@ -3214,11 +3217,13 @@ contains
     !> with this object's atom colors and radii (r%atoms%style), border,
     !> occupancy pie, and vibration displacement; also the molecule tint
     !> and radius scale if usemol. For the atoms another kind forces into
-    !> the picture (polyhedra corners, bond path ends).
-    subroutine append_forced_atom(iat,ix,usemol)
+    !> the picture (polyhedra corners, bond path ends). If fitpoly,
+    !> the sphere is shrunk to fit inside the polyhedron centered on it.
+    subroutine append_forced_atom(iat,ix,usemol,fitpoly)
       integer, intent(in) :: iat
       integer, intent(in) :: ix(3)
       logical, intent(in) :: usemol
+      logical, intent(in) :: fitpoly
 
       integer :: idc, imolc
       real(c_float) :: occa, piecuma(3), piergba(3,3)
@@ -3243,6 +3248,7 @@ contains
       ds%occ_empty_rgb = r%atoms%occ_empty_rgb
       ds%pie_cum = piecuma
       ds%pie_rgb = piergba
+      ds%fitpoly = fitpoly
       call dl_append(obj%sph,obj%nsph,ds)
 
     end subroutine append_forced_atom

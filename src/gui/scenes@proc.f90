@@ -382,7 +382,7 @@ contains
 
     integer :: i, j, isph, nsel, nsph, k, ier, ifld, icel, loff(3)
     integer :: atomcells(3)
-    integer, allocatable :: isphrep(:,:)
+    real(c_float), allocatable :: rfit0(:) ! unshrunk radii of the spheres (apply_radcaps)
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
 
@@ -412,10 +412,7 @@ contains
 
     ! add the items by representation; defer reps that need the scene
     ! radius, and the 3D shapes, which look up the drawn atoms (an arrow
-    ! end on an atom goes to its surface). The spheres of each object are
-    ! consecutive in the draw list: isphrep has the range of each.
-    allocate(isphrep(2,s%nrep))
-    isphrep = 0
+    ! end on an atom goes to its surface).
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
@@ -424,25 +421,13 @@ contains
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        if (s%rep(i)%type == reptype_shapes) cycle
-       isphrep(1,i) = s%obj%nsph + 1
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
-       isphrep(2,i) = s%obj%nsph
     end do
 
     ! the atoms at the centers of the coordination polyhedra are drawn
-    ! inside them, by the atoms objects that say so (before the shapes:
-    ! their arrows end at the atoms)
-    if (allocated(s%obj%radcap)) then
-       do i = 1, s%nrep
-          if (s%rep(i)%type /= reptype_atoms .or. .not.s%rep(i)%atoms%fitpoly) cycle
-          do j = isphrep(1,i), isphrep(2,i)
-             if (s%obj%sph(j)%ghost .or. s%obj%sph(j)%idx(1) <= 0) cycle
-             if (s%obj%sph(j)%idx(1) > size(s%obj%radcap,1)) cycle
-             s%obj%sph(j)%r = min(s%obj%sph(j)%r,s%obj%radcap(s%obj%sph(j)%idx(1)))
-          end do
-       end do
-    end if
+    ! inside them (before the shapes: their arrows end at the atoms)
+    call apply_radcaps()
 
     do i = 1, s%nrep
        if (s%rep(i)%type /= reptype_shapes) cycle
@@ -666,6 +651,7 @@ contains
        end if
        call s%reptrans(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
+    if (s%nreptrans > 0) call apply_radcaps()
 
     ! flag whether any object is anchored to the window borders (the view
     ! window uses this to re-render when the window geometry changes)
@@ -679,6 +665,67 @@ contains
     s%timelastbuild = glfwGetTime()
     s%nbuild = s%nbuild + 1
     s%fieldgen_built = sys(s%id)%fieldgen
+
+  contains
+
+    !> Shrink the fitpoly spheres so that each fits inside the
+    !> coordination polyhedron centered on its atom image (the radius
+    !> caps), but not below a fraction of their own radius. The caps
+    !> are hashed by atom image for the lookup. The unshrunk radii are
+    !> kept in rfit0, so a second call (after the transient objects)
+    !> applies the floor to the original radius, not a shrunk one.
+    subroutine apply_radcaps()
+      use representations, only: poly_centerfit_min
+      integer :: j, k, ih, n0
+      integer, allocatable :: head(:), next(:)
+      real(c_float) :: rcap, r0
+      real(c_float), allocatable :: raux(:)
+
+      if (s%obj%ncap == 0) return
+
+      ! remember the unshrunk radii of the spheres added since the last call
+      n0 = 0
+      if (allocated(rfit0)) n0 = size(rfit0,1)
+      if (n0 < s%obj%nsph) then
+         allocate(raux(s%obj%nsph))
+         if (n0 > 0) raux(1:n0) = rfit0
+         raux(n0+1:s%obj%nsph) = s%obj%sph(n0+1:s%obj%nsph)%r
+         call move_alloc(raux,rfit0)
+      end if
+
+      ! chain the caps by the hash of their atom image
+      allocate(head(s%obj%ncap),next(s%obj%ncap))
+      head = 0
+      do k = 1, s%obj%ncap
+         ih = capkey(s%obj%cap(k)%idx,s%obj%ncap)
+         next(k) = head(ih)
+         head(ih) = k
+      end do
+
+      do j = 1, s%obj%nsph
+         if (.not.s%obj%sph(j)%fitpoly) cycle
+         rcap = huge(1._c_float)
+         k = head(capkey(s%obj%sph(j)%idx,s%obj%ncap))
+         do while (k > 0)
+            if (all(s%obj%cap(k)%idx == s%obj%sph(j)%idx)) rcap = min(rcap,s%obj%cap(k)%r)
+            k = next(k)
+         end do
+         r0 = rfit0(j)
+         if (rcap < r0) s%obj%sph(j)%r = max(rcap,real(poly_centerfit_min,c_float) * r0)
+      end do
+
+    end subroutine apply_radcaps
+
+    !> Bucket (1 to nb) of the atom image idx (cell atom + lattice vector).
+    function capkey(idx,nb) result(ih)
+      integer(c_int), intent(in) :: idx(4)
+      integer, intent(in) :: nb
+      integer :: ih
+
+      ih = int(modulo(73856093_8 * idx(1) + 19349663_8 * idx(2) + 83492791_8 * idx(3) + &
+         idx(4),int(nb,8))) + 1
+
+    end function capkey
 
   end subroutine scene_build_lists
 

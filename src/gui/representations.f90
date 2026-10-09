@@ -136,6 +136,7 @@ module representations
   logical, parameter, public :: poly_usecentercolor_edge_def = .false. ! edges take the central atom color
   logical, parameter, public :: poly_showcorners_def = .true. ! also draw the corner atoms outside the selection
   real*8, parameter, public :: poly_centerfit = 0.9d0 ! the center atom is drawn at most this fraction of the polyhedron inradius
+  real*8, parameter, public :: poly_centerfit_min = 0.35d0 ! ... but never smaller than this fraction of its own radius
   !--> measurements
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
   real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors

@@ -315,7 +315,7 @@ contains
     ! the atoms at the centers of coordination polyhedra
     changed = changed .or. iw_checkbox("Shrink atoms to fit inside polyhedra",w%rep%atoms%fitpoly)
     call iw_tooltip("Draw the atoms at the centers of the coordination polyhedra small &
-       &enough to fit inside them",ttshown)
+       &enough to fit inside them (but never smaller than about a third of their size)",ttshown)
 
     ! occupancy sectors
     if (sys(isys)%c%haveocc) then
