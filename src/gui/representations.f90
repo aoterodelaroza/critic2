@@ -142,6 +142,9 @@ module representations
   integer, parameter, public :: legcorner_topright = 1
   integer, parameter, public :: legcorner_bottomleft = 2
   integer, parameter, public :: legcorner_bottomright = 3
+  character(len=*,kind=c_char), parameter, public :: legcorner_combostr = &
+     "Top left" // c_null_char // "Top right" // c_null_char //&
+     "Bottom left" // c_null_char // "Bottom right" // c_null_char
   real*8, parameter, public :: legend_textheight = 0.055d0 ! height of a line of text at size 1
   real(c_float), parameter, public :: legend_textrgb_def(3) = 0._c_float ! text color
   real(c_float), parameter, public :: legend_bgrgb_def(3) = 1._c_float ! box background color
@@ -155,6 +158,7 @@ module representations
   character(len=*,kind=c_char), parameter, public :: scaleunit_combostr = &
      "Å" // c_null_char // "bohr" // c_null_char // "nm" // c_null_char // "pm" // c_null_char
   character(len=4), parameter, public :: scaleunit_symbol(0:3) = (/"Å  ","bohr","nm  ","pm  "/)
+  real*8, parameter, public :: scaleunit_tobohr(0:3) = (/1d0/bohrtoa, 1d0, 10d0/bohrtoa, 0.01d0/bohrtoa/)
   real*8, parameter, public :: scalebar_width_def = 0.009d0 ! line width (3 pixels in a 670-pixel view)
   real(c_float), parameter, public :: scalebar_rgb_def(3) = 0._c_float ! line color
   real(c_float), parameter, public :: scalebar_textrgb_def(3) = 0._c_float ! text color

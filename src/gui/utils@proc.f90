@@ -2721,6 +2721,26 @@ contains
 
   end function file_name_root
 
+  !> A real number x in fixed notation with decimal decimals, without
+  !> the trailing zeros (and without the point if nothing follows it).
+  module function string_nozeros(x,decimal) result(str)
+    use tools_io, only: string
+    real*8, intent(in) :: x
+    integer, intent(in) :: decimal
+    character(len=:), allocatable :: str
+
+    integer :: n
+
+    str = string(x,'f',decimal=decimal)
+    n = len(str)
+    do while (n > 1 .and. str(n:n) == "0")
+       n = n - 1
+    end do
+    if (str(n:n) == ".") n = n - 1
+    str = str(1:n)
+
+  end function string_nozeros
+
   !xx! private procedures !xx!
 
   !> Record str as the text of the current table cell while capturing

@@ -2776,16 +2776,10 @@ contains
     !> A real number in fixed notation, 10 decimals without the
     !> trailing zeros.
     function rstr(x) result(str)
+      use utils, only: string_nozeros
       real*8, intent(in) :: x
       character(len=:), allocatable :: str
-      integer :: n
-      str = string(x,'f',decimal=10)
-      n = len(str)
-      do while (n > 1 .and. str(n:n) == "0")
-         n = n - 1
-      end do
-      if (str(n:n) == ".") n = n - 1
-      str = str(1:n)
+      str = string_nozeros(x,10)
     end function rstr
     !> key followed by a position: fractional for crystals, the
     !> input-frame Cartesian position (Å, converted to the input

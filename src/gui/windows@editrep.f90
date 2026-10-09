@@ -1171,6 +1171,7 @@ contains
        iw_calcheight
     use systems, only: sys
     use shapes, only: legend_label_len
+    use representations, only: legcorner_combostr
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1189,8 +1190,7 @@ contains
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
     call iw_text("Placement",highlight=.true.)
-    call iw_combo_simple("Corner##legendcorner","Top left" // c_null_char // "Top right" // c_null_char //&
-       "Bottom left" // c_null_char // "Bottom right" // c_null_char,w%rep%legend%corner,changed=ch)
+    call iw_combo_simple("Corner##legendcorner",legcorner_combostr,w%rep%legend%corner,changed=ch)
     call iw_tooltip("Corner of the view where the legend is drawn",ttshown)
     changed = changed .or. ch
 
@@ -1273,27 +1273,21 @@ contains
   !> scene needs rebuilding.
   module function draw_editrep_scalebar(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple
-    use representations, only: scaleunit_combostr, planarheads_none, planarheads_both
+    use representations, only: scaleunit_combostr, scaleunit_tobohr, legcorner_combostr,&
+       planarheads_none, planarheads_both
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
     logical :: ch
-    integer :: iview, iheads
-    real*8 :: pxs, wpx, dx, dy
+    integer :: iview, iheads, iunit0
+    real*8 :: pxs, wpx
 
     ! initialize
     changed = .false.
-
-    ! NDC per screen pixel in the view: the render buffer spans the
-    ! longest side of the view image
     pxs = 0d0
     iview = w%anchor_view()
-    if (iview > 0) then
-       dx = win(iview)%v_rmax%x - win(iview)%v_rmin%x
-       dy = win(iview)%v_rmax%y - win(iview)%v_rmin%y
-       pxs = 2d0 / max(dx,dy,1d0)
-    end if
+    if (iview > 0) pxs = view_ndc_per_pixel(iview)
 
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
@@ -1304,14 +1298,19 @@ contains
        &is exact at the depth of the center of the scene",ttshown)
     changed = changed .or. ch
 
+    ! a new unit keeps the length of the bar: the number is converted
+    iunit0 = w%rep%scalebar%unit
     call iw_combo_simple("Unit##scalebarunit",scaleunit_combostr,w%rep%scalebar%unit,changed=ch,&
        sameline=.true.)
     call iw_tooltip("Unit of the length of the bar",ttshown)
-    changed = changed .or. ch
+    if (ch) then
+       w%rep%scalebar%value = w%rep%scalebar%value * scaleunit_tobohr(iunit0) /&
+          scaleunit_tobohr(w%rep%scalebar%unit)
+       changed = .true.
+    end if
 
     call iw_text("Placement",highlight=.true.)
-    call iw_combo_simple("Corner##scalebarcorner","Top left" // c_null_char // "Top right" // c_null_char //&
-       "Bottom left" // c_null_char // "Bottom right" // c_null_char,w%rep%scalebar%corner,changed=ch)
+    call iw_combo_simple("Corner##scalebarcorner",legcorner_combostr,w%rep%scalebar%corner,changed=ch)
     call iw_tooltip("Corner of the view where the scale bar is drawn",ttshown)
     changed = changed .or. ch
 
@@ -1942,6 +1941,20 @@ contains
   end function mol_table_widget
 
   !xx! private procedures
+
+  !> NDC of the render buffer per screen pixel in view window iview:
+  !> the render buffer spans the longest side of the view image.
+  function view_ndc_per_pixel(iview) result(pxs)
+    integer, intent(in) :: iview
+    real*8 :: pxs
+
+    real*8 :: dx, dy
+
+    dx = win(iview)%v_rmax%x - win(iview)%v_rmin%x
+    dy = win(iview)%v_rmax%y - win(iview)%v_rmin%y
+    pxs = 2d0 / max(dx,dy,1d0)
+
+  end function view_ndc_per_pixel
 
   !> The Show All / Hide All / Toggle Show/Hide button row over the mask
   !> shown; idsuffix makes the button IDs unique and what names the
@@ -3207,7 +3220,7 @@ contains
     logical :: ch, ldum
     integer :: i, k, iview, isel, idel, iswap, ihead, idash, ifill, imode
     integer(c_int) :: flags
-    real*8 :: xdsp(2), pxs, wpx, angd, dx, dy
+    real*8 :: xdsp(2), pxs, wpx, angd
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1
     type(planar_shape) :: shaux
@@ -3219,11 +3232,8 @@ contains
     iview = w%anchor_view()
     if (iview == 0) return
 
-    ! NDC per screen pixel in the view: the render buffer spans the
-    ! longest side of the view image
-    dx = win(iview)%v_rmax%x - win(iview)%v_rmin%x
-    dy = win(iview)%v_rmax%y - win(iview)%v_rmin%y
-    pxs = 2d0 / max(dx,dy,1d0)
+    ! NDC per screen pixel in the view
+    pxs = view_ndc_per_pixel(iview)
 
     ! the toolbar, which edits the drawing in the view: select, remove,
     ! and one tool per kind of shape

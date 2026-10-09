@@ -1521,9 +1521,19 @@ contains
       real(c_float), allocatable, target :: vert(:,:)
       integer :: il
       integer(c_int) :: nvert
-      type(planar_shape) :: sh
-      type(scene_objects) :: tobj
       real(c_float), parameter :: z3(3) = 0._c_float
+      ! the bar shape and its triangles, kept between frames (the render
+      ! loop is single-threaded)
+      type(planar_shape), save :: sh
+      type(scene_objects), save :: tobj
+
+      if (.not.allocated(sh%x)) then
+         sh%kind = planarkind_arrow
+         sh%npt = 2
+         sh%infront = .true.
+         allocate(sh%x(2,2))
+      end if
+      if (.not.allocated(tobj%flatfront)) allocate(tobj%flatfront(flat_vert_nf,60))
 
       ! the overlay projection; the extent of the visible region in NDC
       call ortho_projection(s,projover,symz=.true.)
@@ -1543,9 +1553,17 @@ contains
            lbar = sb%len * ndc_per_bohr(s)
            if (lbar <= 0._c_float) cycle
 
-           ! half the height of the bar (the heads are wider than the line)
+           ! the style of the bar
+           sh%width = sb%width
+           sh%rgb = sb%rgb
+           sh%heads = sb%heads
+
+           ! half the height of the bar: the heads are wider than the line,
+           ! and shrink if the bar is shorter than both together (as in
+           ! planar_tessellate)
            hb = 0.5_c_float * sb%width
-           if (sb%heads /= planarheads_none) hb = hb * real(sh%headw,c_float)
+           if (sb%heads /= planarheads_none) &
+              hb = hb * real(sh%headw * min(1d0,lbar / (2d0 * sh%headl * sh%width)),c_float)
 
            ! the glyphs of the label, left-aligned with the top of the
            ! line at the origin
@@ -1574,28 +1592,22 @@ contains
            ! round caps, so its ends are pulled in by half its width
            xl = 0.5_c_float * lbar
            if (sb%heads == planarheads_none) xl = max(xl - 0.5_c_float * sb%width,0._c_float)
-           sh%kind = planarkind_arrow
-           sh%npt = 2
-           if (allocated(sh%x)) deallocate(sh%x)
-           allocate(sh%x(2,2))
            sh%x(:,1) = (/xc - xl, ybar/)
            sh%x(:,2) = (/xc + xl, ybar/)
-           sh%width = sb%width
-           sh%rgb = sb%rgb
-           sh%heads = sb%heads
-           sh%infront = .true.
            tobj%nflatfront = 0
            tobj%nflatshape = 0
-           if (.not.allocated(tobj%flatfront)) allocate(tobj%flatfront(flat_vert_nf,60))
            call planar_tessellate(sh,tobj)
            if (tobj%nflatfront > 0) then
               call useshader(shader_flat)
               call s%gl%draw_flat_scratch(tobj%nflatfront,tobj%flatfront(:,1:tobj%nflatfront))
            end if
 
-           ! the label, centered over the bar
+           ! the label, centered over the visible part of the bar (a bar
+           ! longer than the view runs off its far side) and kept inside
+           ! the visible region
            if (nvert > 0) then
-              x0 = xc - 0.5_c_float * wtext
+              x0 = 0.5_c_float * (max(xc - xl,-vis(1) + mrg) + min(xc + xl,vis(1) - mrg)) - 0.5_c_float * wtext
+              x0 = max(min(x0,vis(1) - mrg - wtext),-vis(1) + mrg)
               ndc = (/x0, ytop, 0._c_float/)
               call draw_text_anchored(nvert,vert(:,1:nvert),ndc,sb%textrgb,projover)
            end if
@@ -2473,7 +2485,8 @@ contains
 
   !> NDC of the render buffer per bohr in the scene: uniform in the
   !> orthographic projection, and at the depth of the scene center in
-  !> the perspective projection.
+  !> the perspective projection (its eye-space depth, not its distance
+  !> to the camera, which differ after a pan).
   function ndc_per_bohr(s) result(f)
     use utils, only: mult
     class(scene), intent(in) :: s
@@ -2483,8 +2496,8 @@ contains
 
     f = s%projection(1,1)
     if (.not.s%isortho) then
-       call mult(sc,s%world,s%scenecenter)
-       f = f / max(norm2(s%campos - sc),1e-4_c_float)
+       call mult(sc,matmul(s%view,s%world),s%scenecenter)
+       f = f / max(-sc(3),1e-4_c_float)
     end if
 
   end function ndc_per_bohr

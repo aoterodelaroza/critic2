@@ -135,6 +135,7 @@ module utils
   public :: get_current_working_dir
   public :: file_name_root
   public :: file_name_base
+  public :: string_nozeros
   !xx! math submodule !xx!
   public :: infiniteperspective
   public :: ortho
@@ -558,6 +559,11 @@ module utils
        character(len=*), intent(in) :: file
        character(len=:), allocatable :: root
      end function file_name_root
+     module function string_nozeros(x,decimal) result(str)
+       real*8, intent(in) :: x
+       integer, intent(in) :: decimal
+       character(len=:), allocatable :: str
+     end function string_nozeros
      !xx! math submodule !xx!
      module subroutine infiniteperspective(m,fovy,aspect,znear)
        use iso_c_binding, only: c_float

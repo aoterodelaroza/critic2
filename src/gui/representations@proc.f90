@@ -3393,43 +3393,18 @@ contains
     !> Append the scale bar of this object: its length in bohr and its
     !> label, the length in the shortest decimal form and the unit.
     subroutine append_scalebar()
+      use utils, only: string_nozeros
       type(dl_scalebar) :: dsb
-      character(len=40) :: num
-      real*8 :: fac
-      integer :: n
 
-      select case (r%scalebar%unit)
-      case (scaleunit_bohr)
-         fac = 1d0
-      case (scaleunit_nm)
-         fac = 10d0 / bohrtoa
-      case (scaleunit_pm)
-         fac = 0.01d0 / bohrtoa
-      case default
-         fac = 1d0 / bohrtoa
-      end select
       if (r%scalebar%value <= 0d0) return
-
-      ! the number, without trailing zeros
-      write (num,'(F0.6)') r%scalebar%value
-      n = len_trim(num)
-      do while (n > 1 .and. num(n:n) == "0")
-         n = n - 1
-      end do
-      if (num(n:n) == ".") n = n - 1
-      if (num(1:1) == ".") then
-         num = "0" // num(1:n)
-         n = n + 1
-      end if
-
       dsb%corner = r%scalebar%corner
-      dsb%len = real(r%scalebar%value * fac,c_float)
+      dsb%len = real(r%scalebar%value * scaleunit_tobohr(r%scalebar%unit),c_float)
       dsb%h = real(legend_textheight * r%scalebar%scale,c_float)
       dsb%width = real(r%scalebar%width,c_float)
       dsb%heads = r%scalebar%heads
       dsb%rgb = r%scalebar%rgb
       dsb%textrgb = r%scalebar%textrgb
-      dsb%label = num(1:n) // " " // trim(scaleunit_symbol(r%scalebar%unit))
+      dsb%label = string_nozeros(r%scalebar%value,6) // " " // trim(scaleunit_symbol(r%scalebar%unit))
       call dl_append(obj%scalebar,obj%nscalebar,dsb)
 
     end subroutine append_scalebar
