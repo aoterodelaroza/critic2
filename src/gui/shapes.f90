@@ -238,6 +238,10 @@ module shapes
      integer :: nflatfront = 0 ! number of vertices drawn on top of everything
      real(c_float), allocatable :: flatfront(:,:) ! the vertices drawn on top
      integer :: nflatshape = 0 ! number of planar shapes tessellated (sets the depth of the next)
+     ! largest radius of the atom spheres of each cell atom, so that the
+     ! centers of the coordination polyhedra fit inside them (huge = no
+     ! limit; allocated only if polyhedra are drawn)
+     real(c_float), allocatable :: radcap(:)
    contains
      procedure :: reset => scene_objects_reset
      procedure :: reserve => scene_objects_reserve

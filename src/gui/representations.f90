@@ -39,6 +39,7 @@ module representations
   real*8, parameter, public :: atomconstantrad_def = 0.4_c_float / bohrtoa ! atomic radius scale factor (vdw)
   real*8, parameter, public :: atomrad_licorice_def = 0.11_c_float / bohrtoa ! atomic radius value (licorice)
   logical, parameter, public :: occ_sectors_def = .true. ! render partial occupancies as sectors
+  logical, parameter, public :: fitpoly_def = .true. ! shrink the atoms to fit inside the coordination polyhedra
   !--> bonds
   real*8, parameter, public :: bondrad_def = 0.125d0 / bohrtoa ! bond radius
   real*8, parameter, public :: bondrad_licorice_def = 0.25d0 / bohrtoa ! bond radius (licorice)
@@ -134,6 +135,7 @@ module representations
   logical, parameter, public :: poly_usecentercolor_def = .true. ! faces take the central atom color
   logical, parameter, public :: poly_usecentercolor_edge_def = .false. ! edges take the central atom color
   logical, parameter, public :: poly_showcorners_def = .true. ! also draw the corner atoms outside the selection
+  real*8, parameter, public :: poly_centerfit = 0.9d0 ! the center atom is drawn at most this fraction of the polyhedron inradius
   !--> measurements
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
   real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors
@@ -450,6 +452,7 @@ module representations
      real(c_float) :: border_rgb(3) ! atom border color
      logical :: occ_sectors ! render partial occupancies as sectors
      real(c_float) :: occ_empty_rgb(3) ! color of the empty (unoccupied) sector
+     logical :: fitpoly ! shrink the atoms at the polyhedra centers to fit inside them
   end type rep_atoms
   public :: rep_atoms
 

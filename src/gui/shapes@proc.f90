@@ -245,6 +245,7 @@ contains
     o%nflatback = 0
     o%nflatfront = 0
     o%nflatshape = 0
+    if (allocated(o%radcap)) deallocate(o%radcap)
     if (.not.allocated(o%sph)) allocate(o%sph(100))
     if (.not.allocated(o%cyl)) allocate(o%cyl(100))
     if (.not.allocated(o%cylflat)) allocate(o%cylflat(10))
@@ -332,6 +333,7 @@ contains
     if (allocated(o%cylover)) deallocate(o%cylover)
     if (allocated(o%coneover)) deallocate(o%coneover)
     if (allocated(o%stringover)) deallocate(o%stringover)
+    if (allocated(o%radcap)) deallocate(o%radcap)
     if (allocated(o%flatback)) deallocate(o%flatback)
     if (allocated(o%flatfront)) deallocate(o%flatfront)
 

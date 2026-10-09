@@ -115,6 +115,7 @@ contains
        r%atoms%border_rgb = ColorAtomBorder_def
        r%atoms%occ_sectors = occ_sectors_def
        r%atoms%occ_empty_rgb = ColorOccEmpty_def
+       r%atoms%fitpoly = fitpoly_def
        if (r%flavor == repflavor_atoms_licorice .or. r%flavor == repflavor_bonds_licorice) then
           r%atoms%radii_type = 2
           r%atoms%radii_value = atomrad_licorice_def
@@ -909,7 +910,7 @@ contains
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
     logical :: hasmode ! there is a vibrational mode selected in the scene
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), uoriginc(3), xpolyc(3), axdir(3,3)
-    real*8 :: ucini(3), ucend(3), xa(3), xb(3), hl
+    real*8 :: ucini(3), ucend(3), xa(3), xb(3), hl, rin
     real*8 :: xmeas(3,4), xfmeas(3,4), dval
     integer :: iat, natm
     complex*16 :: xdelta1(3)
@@ -1229,7 +1230,17 @@ contains
                          dvpoly(:,kp) = vibdelta(eidp(kp),lvecp(:,kp)+ix) ! per-corner vibration delta
                       end do
                       call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,xc,&
-                         rgbface,rgbedge,r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps,okpoly)
+                         rgbface,rgbedge,r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps,okpoly,rin)
+
+                      ! the center atom is drawn inside its polyhedron (the
+                      ! scene shrinks its spheres after all objects are built)
+                      if (okpoly .and. rin < huge(1d0)) then
+                         if (.not.allocated(obj%radcap)) then
+                            allocate(obj%radcap(c%ncel))
+                            obj%radcap = huge(1._c_float)
+                         end if
+                         obj%radcap(i) = min(obj%radcap(i),real(poly_centerfit * rin,c_float))
+                      end if
 
                       ! collect this polyhedron's corner atom images to force
                       ! them visible after the main loop (deduplicated there)
@@ -2993,8 +3004,11 @@ contains
     !> lists. If the vertices are coplanar to within eps, a filled
     !> polygon is drawn instead of a 3D convex hull, but only if the
     !> center atom lies in the polygon plane (to within eps) and
-    !> inside the polygon. Returns ok = .true. if anything was drawn.
-    subroutine build_polyhedron(xv,dv,nvv,xcen,rgbf,rgbe,alphaf,rade,eps,ok)
+    !> inside the polygon. Returns ok = .true. if anything was drawn,
+    !> and in rin the inradius of the 3D polyhedron seen from the center
+    !> atom (the distance to the nearest face; huge for a planar polygon,
+    !> or if the center is not inside).
+    subroutine build_polyhedron(xv,dv,nvv,xcen,rgbf,rgbe,alphaf,rade,eps,ok,rin)
       use iso_c_binding, only: c_ptr, c_int, c_float_complex
       integer, intent(in) :: nvv
       real*8, intent(in) :: xv(3,nvv)
@@ -3003,6 +3017,7 @@ contains
       real(c_float), intent(in) :: rgbf(3), rgbe(3)
       real*8, intent(in) :: alphaf, rade, eps
       logical, intent(out) :: ok
+      real*8, intent(out) :: rin
 
       real*8, parameter :: edge_coplanar_cos = 0.9986d0 ! ~3 degrees
       real*8, parameter :: onedge_eps2 = 1d-12 ! squared in-plane distance to an edge (bohr^2)
@@ -3021,6 +3036,7 @@ contains
       type(dl_cylinder) :: dedge
 
       ok = .false.
+      rin = huge(1d0)
 
       ! centroid (an interior reference point), best-fit plane unit normal, and
       ! the maximum out-of-plane deviation
@@ -3117,7 +3133,17 @@ contains
       nedge = 0
       do a = 1, ntri
          nrm_a = cross(xv(:,itri(2,a))-xv(:,itri(1,a)),xv(:,itri(3,a))-xv(:,itri(1,a)))
-         if (norm2(nrm_a) > 1d-10) nrm_a = nrm_a / norm2(nrm_a)
+
+         ! distance from the center to the plane of this face: the
+         ! centroid is on the inner side of all faces, the center too if
+         ! it is inside
+         if (norm2(nrm_a) > 1d-10) then
+            nrm_a = nrm_a / norm2(nrm_a)
+            cc = dot_product(xv(:,itri(1,a)) - cen0,nrm_a)
+            tt = dot_product(xv(:,itri(1,a)) - xcen,nrm_a)
+            if (cc < 0d0) tt = -tt
+            rin = min(rin,tt)
+         end if
          do k = 1, 3
             ip = itri(k,a)
             iq = itri(mod(k,3)+1,a)
@@ -3154,6 +3180,10 @@ contains
          dedge%x2delta = cmplx(dv(:,edgei(2,e)),kind=c_float_complex)
          call dl_append(obj%cylflat,obj%ncylflat,dedge)
       end do
+      ! a center outside the polyhedron, or on one of its faces (to within
+      ! the coplanarity tolerance, e.g. the metal of a square pyramid in
+      ! its base) does not fit inside it
+      if (rin <= eps) rin = huge(1d0)
       ok = .true.
 
     end subroutine build_polyhedron

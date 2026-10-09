@@ -382,6 +382,7 @@ contains
 
     integer :: i, j, isph, nsel, nsph, k, ier, ifld, icel, loff(3)
     integer :: atomcells(3)
+    integer, allocatable :: isphrep(:,:)
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
 
@@ -411,7 +412,10 @@ contains
 
     ! add the items by representation; defer reps that need the scene
     ! radius, and the 3D shapes, which look up the drawn atoms (an arrow
-    ! end on an atom goes to its surface)
+    ! end on an atom goes to its surface). The spheres of each object are
+    ! consecutive in the draw list: isphrep has the range of each.
+    allocate(isphrep(2,s%nrep))
+    isphrep = 0
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
@@ -420,9 +424,26 @@ contains
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        if (s%rep(i)%type == reptype_shapes) cycle
+       isphrep(1,i) = s%obj%nsph + 1
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
+       isphrep(2,i) = s%obj%nsph
     end do
+
+    ! the atoms at the centers of the coordination polyhedra are drawn
+    ! inside them, by the atoms objects that say so (before the shapes:
+    ! their arrows end at the atoms)
+    if (allocated(s%obj%radcap)) then
+       do i = 1, s%nrep
+          if (s%rep(i)%type /= reptype_atoms .or. .not.s%rep(i)%atoms%fitpoly) cycle
+          do j = isphrep(1,i), isphrep(2,i)
+             if (s%obj%sph(j)%ghost .or. s%obj%sph(j)%idx(1) <= 0) cycle
+             if (s%obj%sph(j)%idx(1) > size(s%obj%radcap,1)) cycle
+             s%obj%sph(j)%r = min(s%obj%sph(j)%r,s%obj%radcap(s%obj%sph(j)%idx(1)))
+          end do
+       end do
+    end if
+
     do i = 1, s%nrep
        if (s%rep(i)%type /= reptype_shapes) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&

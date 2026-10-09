@@ -312,6 +312,11 @@ contains
     changed = changed .or. iw_coloredit("Border Color",rgb=w%rep%atoms%border_rgb,sameline=.true.)
     call iw_tooltip("Color of the border for the atoms",ttshown)
 
+    ! the atoms at the centers of coordination polyhedra
+    changed = changed .or. iw_checkbox("Shrink atoms to fit inside polyhedra",w%rep%atoms%fitpoly)
+    call iw_tooltip("Draw the atoms at the centers of the coordination polyhedra small &
+       &enough to fit inside them",ttshown)
+
     ! occupancy sectors
     if (sys(isys)%c%haveocc) then
        changed = changed .or. iw_checkbox("Occupancy sectors",w%rep%atoms%occ_sectors)
