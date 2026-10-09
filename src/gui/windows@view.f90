@@ -84,7 +84,7 @@ contains
        reptype_measure, reptype_isosurface, repflavor_isosurface,&
        reptype_shapes, repstyle_ballandstick, repstyle_licorice,&
        repstyle_sticks, reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
-       reptype_planar, reptype_legend, repflavor_legend
+       reptype_planar, reptype_legend, repflavor_legend, reptype_scalebar, repflavor_scalebar
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -612,6 +612,11 @@ contains
           if (iw_menuitem("Legend")) &
              call w%add_rep_and_edit(reptype_legend,repflavor_legend)
           call iw_tooltip("Show a legend with the color of each atomic species in a corner of the view",&
+             ttshown)
+
+          if (iw_menuitem("Scale Bar")) &
+             call w%add_rep_and_edit(reptype_scalebar,repflavor_scalebar)
+          call iw_tooltip("Show a scale bar of a given length in a corner of the view; it follows the zoom",&
              ttshown)
        end if
        call igEndPopup()

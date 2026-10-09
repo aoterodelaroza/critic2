@@ -671,7 +671,7 @@ contains
     ! flag whether any object is anchored to the window borders (the view
     ! window uses this to re-render when the window geometry changes)
     s%hasanchoredobj = (s%obj%ncylover > 0 .or. s%obj%nconeover > 0 .or. s%obj%nstringover > 0 .or.&
-       s%obj%nlegend > 0)
+       s%obj%nlegend > 0 .or. s%obj%nscalebar > 0)
 
     ! rebuilding lists is done; the cached instance buffers are now stale and
     ! must be repacked/uploaded on the next render
@@ -990,8 +990,9 @@ contains
        call draw_planar(s%obj%nflatback,s%obj%nflatfront)
     end if
 
-    ! the legends, on top of everything
+    ! the legends and scale bars, on top of everything
     if (s%obj%nlegend > 0) call render_legend()
+    if (s%obj%nscalebar > 0) call render_scalebar()
 
     ! pop the large font
     call igPopFont()
@@ -1490,31 +1491,12 @@ contains
            end do
 
            ! labels, vertically centered in their rows
-           call useshader(shader_text_onscene)
-           call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
-           call setuniform_mat4(s%world,idxi=uniloc(u_world))
-           call setuniform_mat4(s%view,idxi=uniloc(u_view))
-           call setuniform_mat4(projover,idxi=uniloc(u_projection))
-           call setuniform_vec3(z3,idxi=uniloc(u_displ))
-           call setuniform_float(1._c_float,idxi=uniloc(u_anchored_scale))
-           call setuniform_vec3(lg%textrgb,idxi=uniloc(u_textcolor))
-           call glActiveTexture(GL_TEXTURE0)
-           call glBindVertexArray(textVAOos)
-           call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-           call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-           call glDisable(GL_MULTISAMPLE)
            do k = 1, lg%nrow
               if (iv(k+1) <= iv(k)) cycle
               yc = y1 - pad - (k - 0.5_c_float) * rowh
               ndc = (/x0 + pad + 2 * rs + gap, yc + 0.5_c_float * h, 0._c_float/)
-              call setuniform_vec3(ndc,idxi=uniloc(u_anchored_ndc))
-              call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, (iv(k+1)-iv(k))*text_vert_nf*c_sizeof(c_float),&
-                 c_loc(vert(1,iv(k))))
-              call glDrawArrays(GL_TRIANGLES, 0, int(iv(k+1)-iv(k),c_int))
+              call draw_text_anchored(iv(k+1)-iv(k),vert(:,iv(k):iv(k+1)-1),ndc,lg%textrgb,projover)
            end do
-           call glEnable(GL_MULTISAMPLE)
-           call glBindBuffer(GL_ARRAY_BUFFER, 0)
-           call glBindVertexArray(0)
          end associate
       end do
       call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
@@ -1523,6 +1505,140 @@ contains
       call glEnable(GL_DEPTH_TEST)
 
     end subroutine render_legend
+
+    !> Render the scale bars, on top of everything. The length of each
+    !> bar is its length in the scene at the current zoom (at the depth
+    !> of the scene center in perspective), so it is laid out here. The
+    !> bar is a 2D Drawing arrow (planar_tessellate) with the label
+    !> centered on top, and the block sits in a corner of the visible
+    !> region.
+    subroutine render_scalebar()
+      use shapes, only: flat_vert_nf
+      use representations, only: legcorner_topleft, legcorner_bottomleft, legcorner_bottomright,&
+         planar_shape, planarkind_arrow, planarheads_none, planar_tessellate
+      real(c_float) :: projover(4,4), vis(2), h, mrg, gap, hb, siz, wtext, lbar, wblk
+      real(c_float) :: x0, xc, xl, ybar, ytop, ndc(3)
+      real(c_float), allocatable, target :: vert(:,:)
+      integer :: il
+      integer(c_int) :: nvert
+      type(planar_shape) :: sh
+      type(scene_objects) :: tobj
+      real(c_float), parameter :: z3(3) = 0._c_float
+
+      ! the overlay projection; the extent of the visible region in NDC
+      call ortho_projection(s,projover,symz=.true.)
+      vis = 1._c_float - 2._c_float * s%viewuv0
+
+      call glDisable(GL_DEPTH_TEST)
+      call glDisable(GL_CULL_FACE)
+      call glEnable(GL_BLEND)
+      call glBlendEquation(GL_FUNC_ADD)
+      call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+      do il = 1, s%obj%nscalebar
+         associate(sb => s%obj%scalebar(il))
+           ! layout, from the height of the text and the length of the bar
+           h = sb%h
+           mrg = 0.5_c_float * h
+           gap = 0.25_c_float * h
+           lbar = sb%len * ndc_per_bohr(s)
+           if (lbar <= 0._c_float) cycle
+
+           ! half the height of the bar (the heads are wider than the line)
+           hb = 0.5_c_float * sb%width
+           if (sb%heads /= planarheads_none) hb = hb * real(sh%headw,c_float)
+
+           ! the glyphs of the label, left-aligned with the top of the
+           ! line at the origin
+           siz = h / (fontbakesize_large * uiscale)
+           nvert = 0
+           call calc_text_onscene_vertices(sb%label,z3,0._c_float,siz,nvert,vert)
+           wtext = 0._c_float
+           if (nvert > 0) wtext = max(maxval(vert(7,1:nvert)),0._c_float)
+
+           ! the block (label over the bar), in a corner of the visible region
+           wblk = max(lbar,wtext)
+           if (sb%corner == legcorner_topleft .or. sb%corner == legcorner_bottomleft) then
+              xc = -vis(1) + mrg + 0.5_c_float * wblk
+           else
+              xc = vis(1) - mrg - 0.5_c_float * wblk
+           end if
+           if (sb%corner == legcorner_bottomleft .or. sb%corner == legcorner_bottomright) then
+              ybar = -vis(2) + mrg + hb
+              ytop = ybar + hb + gap + h
+           else
+              ytop = vis(2) - mrg
+              ybar = ytop - h - gap - hb
+           end if
+
+           ! the bar, tessellated as a 2D Drawing arrow; a plain line has
+           ! round caps, so its ends are pulled in by half its width
+           xl = 0.5_c_float * lbar
+           if (sb%heads == planarheads_none) xl = max(xl - 0.5_c_float * sb%width,0._c_float)
+           sh%kind = planarkind_arrow
+           sh%npt = 2
+           if (allocated(sh%x)) deallocate(sh%x)
+           allocate(sh%x(2,2))
+           sh%x(:,1) = (/xc - xl, ybar/)
+           sh%x(:,2) = (/xc + xl, ybar/)
+           sh%width = sb%width
+           sh%rgb = sb%rgb
+           sh%heads = sb%heads
+           sh%infront = .true.
+           tobj%nflatfront = 0
+           tobj%nflatshape = 0
+           if (.not.allocated(tobj%flatfront)) allocate(tobj%flatfront(flat_vert_nf,60))
+           call planar_tessellate(sh,tobj)
+           if (tobj%nflatfront > 0) then
+              call useshader(shader_flat)
+              call s%gl%draw_flat_scratch(tobj%nflatfront,tobj%flatfront(:,1:tobj%nflatfront))
+           end if
+
+           ! the label, centered over the bar
+           if (nvert > 0) then
+              x0 = xc - 0.5_c_float * wtext
+              ndc = (/x0, ytop, 0._c_float/)
+              call draw_text_anchored(nvert,vert(:,1:nvert),ndc,sb%textrgb,projover)
+           end if
+         end associate
+      end do
+      call glDisable(GL_BLEND)
+      call glEnable(GL_CULL_FACE)
+      call glEnable(GL_DEPTH_TEST)
+
+    end subroutine render_scalebar
+
+    !> Draw the n on-scene text vertices vert (calc_text_onscene_vertices,
+    !> scaled to NDC) as an anchored overlay at the NDC point ndc, with
+    !> color rgb and the overlay projection projover.
+    subroutine draw_text_anchored(n,vert,ndc,rgb,projover)
+      integer, intent(in) :: n
+      real(c_float), intent(in), target :: vert(text_vert_nf,n)
+      real(c_float), intent(in) :: ndc(3), rgb(3), projover(4,4)
+
+      real(c_float), parameter :: z3(3) = 0._c_float
+
+      call useshader(shader_text_onscene)
+      call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+      call setuniform_mat4(s%world,idxi=uniloc(u_world))
+      call setuniform_mat4(s%view,idxi=uniloc(u_view))
+      call setuniform_mat4(projover,idxi=uniloc(u_projection))
+      call setuniform_vec3(z3,idxi=uniloc(u_displ))
+      call setuniform_float(1._c_float,idxi=uniloc(u_anchored_scale))
+      call setuniform_vec3(rgb,idxi=uniloc(u_textcolor))
+      call setuniform_vec3(ndc,idxi=uniloc(u_anchored_ndc))
+      call glActiveTexture(GL_TEXTURE0)
+      call glBindVertexArray(textVAOos)
+      call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+      call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+      call glDisable(GL_MULTISAMPLE)
+      call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, n*text_vert_nf*c_sizeof(c_float), c_loc(vert))
+      call glDrawArrays(GL_TRIANGLES, 0, int(n,c_int))
+      call glEnable(GL_MULTISAMPLE)
+      call glBindBuffer(GL_ARRAY_BUFFER, 0)
+      call glBindVertexArray(0)
+      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+
+    end subroutine draw_text_anchored
 
     !> Append the two triangles of the rectangle (xa,ya)-(xb,yb) with
     !> color rgba to the n flat vertices in flat.
@@ -2081,7 +2197,8 @@ contains
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
-       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend
+       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
+       reptype_scalebar
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2230,6 +2347,8 @@ contains
              str3 = "drawing" // c_null_char
           elseif (s%rep(i)%type == reptype_legend) then
              str3 = "legend" // c_null_char
+          elseif (s%rep(i)%type == reptype_scalebar) then
+             str3 = "scale bar" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then
@@ -2351,6 +2470,24 @@ contains
     f = hw2 / hside
 
   end function scene_overlay_zoom_factor
+
+  !> NDC of the render buffer per bohr in the scene: uniform in the
+  !> orthographic projection, and at the depth of the scene center in
+  !> the perspective projection.
+  function ndc_per_bohr(s) result(f)
+    use utils, only: mult
+    class(scene), intent(in) :: s
+    real(c_float) :: f
+
+    real(c_float) :: sc(3)
+
+    f = s%projection(1,1)
+    if (.not.s%isortho) then
+       call mult(sc,s%world,s%scenecenter)
+       f = f / max(norm2(s%campos - sc),1e-4_c_float)
+    end if
+
+  end function ndc_per_bohr
 
   !> Half of the visible window side at the reset zoom (tworld units): the
   !> quantity scene_reset uses to place the camera. Constant on-screen-size

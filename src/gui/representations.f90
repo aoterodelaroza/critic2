@@ -147,6 +147,17 @@ module representations
   real(c_float), parameter, public :: legend_bgrgb_def(3) = 1._c_float ! box background color
   real(c_float), parameter, public :: legend_bgalpha_def = 0.85_c_float ! box background opacity
   real(c_float), parameter, public :: legend_borderrgb_def(3) = 0._c_float ! box border color
+  !--> scale bar (lengths in the NDC of the render buffer, like the legend)
+  integer, parameter, public :: scaleunit_angstrom = 0
+  integer, parameter, public :: scaleunit_bohr = 1
+  integer, parameter, public :: scaleunit_nm = 2
+  integer, parameter, public :: scaleunit_pm = 3
+  character(len=*,kind=c_char), parameter, public :: scaleunit_combostr = &
+     "Å" // c_null_char // "bohr" // c_null_char // "nm" // c_null_char // "pm" // c_null_char
+  character(len=4), parameter, public :: scaleunit_symbol(0:3) = (/"Å  ","bohr","nm  ","pm  "/)
+  real*8, parameter, public :: scalebar_width_def = 0.009d0 ! line width (3 pixels in a 670-pixel view)
+  real(c_float), parameter, public :: scalebar_rgb_def(3) = 0._c_float ! line color
+  real(c_float), parameter, public :: scalebar_textrgb_def(3) = 0._c_float ! text color
   !--> measurements
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
   real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors
@@ -391,7 +402,8 @@ module representations
   integer, parameter, public :: reptype_gpaths = 13 ! gradient paths (bond paths) of a scalar field
   integer, parameter, public :: reptype_planar = 14 ! list of planar shapes (screen coordinates)
   integer, parameter, public :: reptype_legend = 15 ! legend of the atomic species
-  integer, parameter, public :: reptype_NUM = 15
+  integer, parameter, public :: reptype_scalebar = 16 ! scale bar
+  integer, parameter, public :: reptype_NUM = 16
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -415,7 +427,8 @@ module representations
   integer, parameter, public :: repflavor_gpaths = 18
   integer, parameter, public :: repflavor_planar = 19
   integer, parameter, public :: repflavor_legend = 20
-  integer, parameter, public :: repflavor_NUM = 20
+  integer, parameter, public :: repflavor_scalebar = 21
+  integer, parameter, public :: repflavor_NUM = 21
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -452,7 +465,8 @@ module representations
      "Critical Points  ",& ! repflavor_cps
      "Gradient Paths   ",& ! repflavor_gpaths
      "2D Drawing       ",& ! repflavor_planar
-     "Legend           "/) ! repflavor_legend
+     "Legend           ",& ! repflavor_legend
+     "Scale Bar        "/) ! repflavor_scalebar
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -696,6 +710,21 @@ module representations
      character(len=legend_label_len), allocatable :: label(:) ! text of each species row (nspc)
   end type rep_legend
   public :: rep_legend
+
+  !> Scale bar options (reptype_scalebar; accessed as r%scalebar%...). A
+  !> horizontal segment in a corner of the view, with its length on
+  !> top, that is value long in the scene at the current zoom.
+  type rep_scalebar
+     real*8 :: value = 1d0 ! length of the bar, in units of unit
+     integer :: unit = scaleunit_angstrom ! unit of the length (scaleunit_*)
+     integer :: heads = planarheads_none ! arrowheads (planarheads_none or planarheads_both)
+     integer :: corner = legcorner_bottomleft ! corner of the view (legcorner_*)
+     real*8 :: scale = 1d0 ! text size (1 = legend_textheight high)
+     real*8 :: width = scalebar_width_def ! line width
+     real(c_float) :: rgb(3) = scalebar_rgb_def ! line color
+     real(c_float) :: textrgb(3) = scalebar_textrgb_def ! text color
+  end type rep_scalebar
+  public :: rep_scalebar
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
@@ -1038,6 +1067,7 @@ module representations
      type(rep_cps) :: cps ! critical point options
      type(rep_gpaths) :: gpaths ! gradient path options
      type(rep_legend) :: legend ! legend options
+     type(rep_scalebar) :: scalebar ! scale bar options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1093,6 +1123,7 @@ module representations
   public :: planar_template
   public :: planar_curve_default_bend
   public :: planar_append
+  public :: planar_tessellate
   public :: planar_delete
   public :: planar_copy_style
 

@@ -73,7 +73,7 @@ contains
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
-       reptype_planar, reptype_legend
+       reptype_planar, reptype_legend, reptype_scalebar
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -164,6 +164,8 @@ contains
           changed = changed .or. w%draw_editrep_gpaths(ttshown)
        elseif (w%rep%type == reptype_legend) then
           changed = changed .or. w%draw_editrep_legend(ttshown)
+       elseif (w%rep%type == reptype_scalebar) then
+          changed = changed .or. w%draw_editrep_scalebar(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1266,6 +1268,89 @@ contains
     end if
 
   end function draw_editrep_legend
+
+  !> Draw the editrep window, scale bar class. Returns true if the
+  !> scene needs rebuilding.
+  module function draw_editrep_scalebar(w,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple
+    use representations, only: scaleunit_combostr, planarheads_none, planarheads_both
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    integer :: iview, iheads
+    real*8 :: pxs, wpx, dx, dy
+
+    ! initialize
+    changed = .false.
+
+    ! NDC per screen pixel in the view: the render buffer spans the
+    ! longest side of the view image
+    pxs = 0d0
+    iview = w%anchor_view()
+    if (iview > 0) then
+       dx = win(iview)%v_rmax%x - win(iview)%v_rmin%x
+       dy = win(iview)%v_rmax%y - win(iview)%v_rmin%y
+       pxs = 2d0 / max(dx,dy,1d0)
+    end if
+
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_text("Length",highlight=.true.)
+    ch = iw_dragfloat_real8("##scalebarvalue",x1=w%rep%scalebar%value,speed=0.01d0,&
+       min=1d-3,max=1d6,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Length of the bar in the scene. In the perspective projection, the length &
+       &is exact at the depth of the center of the scene",ttshown)
+    changed = changed .or. ch
+
+    call iw_combo_simple("Unit##scalebarunit",scaleunit_combostr,w%rep%scalebar%unit,changed=ch,&
+       sameline=.true.)
+    call iw_tooltip("Unit of the length of the bar",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Placement",highlight=.true.)
+    call iw_combo_simple("Corner##scalebarcorner","Top left" // c_null_char // "Top right" // c_null_char //&
+       "Bottom left" // c_null_char // "Bottom right" // c_null_char,w%rep%scalebar%corner,changed=ch)
+    call iw_tooltip("Corner of the view where the scale bar is drawn",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Style",highlight=.true.)
+    iheads = merge(1,0,w%rep%scalebar%heads /= planarheads_none)
+    call iw_combo_simple("Ends##scalebarheads","Plain" // c_null_char // "Arrows" // c_null_char,&
+       iheads,changed=ch)
+    call iw_tooltip("Ends of the bar: plain, or with arrowheads at both ends",ttshown)
+    if (ch) then
+       w%rep%scalebar%heads = merge(planarheads_both,planarheads_none,iheads == 1)
+       changed = .true.
+    end if
+
+    ch = iw_dragfloat_real8("Text size##scalebarsize",x1=w%rep%scalebar%scale,speed=0.01d0,&
+       min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Size of the text (1 = default)",ttshown)
+    changed = changed .or. ch
+
+    if (pxs > 0d0) then
+       wpx = w%rep%scalebar%width / pxs
+       ch = iw_dragfloat_real8("Width (px)##scalebarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
+          decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Width of the line of the bar, in pixels of the view",ttshown)
+       if (ch) then
+          w%rep%scalebar%width = wpx * pxs
+          changed = .true.
+       end if
+    end if
+
+    call iw_text("Colors",highlight=.true.)
+    ch = iw_coloredit("Bar",rgb=w%rep%scalebar%rgb)
+    call iw_tooltip("Color of the bar",ttshown)
+    changed = changed .or. ch
+
+    ch = iw_coloredit("Text",rgb=w%rep%scalebar%textrgb,sameline=.true.)
+    call iw_tooltip("Color of the text",ttshown)
+    changed = changed .or. ch
+
+  end function draw_editrep_scalebar
 
   !> Draw the editrep window, cartesian axes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.

@@ -128,6 +128,21 @@ module shapes
   end type dl_legend
   public :: dl_legend
 
+  !> scale bar, laid out at render time in the NDC of the render
+  !> buffer: a horizontal segment in a corner of the view, len bohr
+  !> long in the scene at the current zoom, with its label on top
+  type dl_scalebar
+     integer :: corner ! corner of the view (legcorner_* in representations)
+     real(c_float) :: len ! length of the bar in the scene (bohr)
+     real(c_float) :: h ! height of the text (NDC)
+     real(c_float) :: width ! line width (NDC)
+     integer :: heads ! arrowheads (planarheads_* in representations)
+     real(c_float) :: rgb(3) ! line color
+     real(c_float) :: textrgb(3) ! text color
+     character(len=:), allocatable :: label ! text on top of the bar
+  end type dl_scalebar
+  public :: dl_scalebar
+
   !> largest radius of the sphere of an atom image (cell atom + lattice
   !> vector, as in dl_sphere%idx) so that it fits inside the coordination
   !> polyhedron centered on it
@@ -269,6 +284,8 @@ module shapes
      integer :: nflatshape = 0 ! number of planar shapes tessellated (sets the depth of the next)
      integer :: nlegend = 0 ! number of legends
      type(dl_legend), allocatable :: legend(:) ! the legends (drawn on top of everything)
+     integer :: nscalebar = 0 ! number of scale bars
+     type(dl_scalebar), allocatable :: scalebar(:) ! the scale bars (drawn on top of everything)
      integer :: ncap = 0 ! number of radius caps for the polyhedra centers
      type(dl_radcap), allocatable :: cap(:) ! the radius caps (applied to the fitpoly spheres)
    contains
@@ -300,6 +317,7 @@ module shapes
      module procedure dl_append_mesh
      module procedure dl_append_radcap
      module procedure dl_append_legend
+     module procedure dl_append_scalebar
   end interface dl_append
   public :: dl_append
 
@@ -463,6 +481,11 @@ module shapes
        integer, intent(inout) :: n
        type(dl_legend), intent(in) :: it
      end subroutine dl_append_legend
+     module subroutine dl_append_scalebar(lst,n,it)
+       type(dl_scalebar), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_scalebar), intent(in) :: it
+     end subroutine dl_append_scalebar
      module subroutine dl_append_cylinder(lst,n,it)
        type(dl_cylinder), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n

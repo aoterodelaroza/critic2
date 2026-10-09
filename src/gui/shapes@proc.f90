@@ -246,6 +246,7 @@ contains
     o%nflatfront = 0
     o%nflatshape = 0
     o%nlegend = 0
+    o%nscalebar = 0
     o%ncap = 0
     if (.not.allocated(o%sph)) allocate(o%sph(100))
     if (.not.allocated(o%cyl)) allocate(o%cyl(100))
@@ -336,6 +337,7 @@ contains
     if (allocated(o%stringover)) deallocate(o%stringover)
     if (allocated(o%cap)) deallocate(o%cap)
     if (allocated(o%legend)) deallocate(o%legend)
+    if (allocated(o%scalebar)) deallocate(o%scalebar)
     if (allocated(o%flatback)) deallocate(o%flatback)
     if (allocated(o%flatfront)) deallocate(o%flatfront)
 
@@ -397,6 +399,24 @@ contains
     lst(n) = it
 
   end subroutine dl_append_legend
+
+  module subroutine dl_append_scalebar(lst,n,it)
+    type(dl_scalebar), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_scalebar), intent(in) :: it
+    type(dl_scalebar), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,10)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_scalebar
 
   module subroutine dl_append_cylinder(lst,n,it)
     type(dl_cylinder), allocatable, intent(inout) :: lst(:)

@@ -82,7 +82,7 @@ contains
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
-  !> 17 (legend).
+  !> 17 (legend), 18 (scale bar).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -329,6 +329,11 @@ contains
     ! legend
     if (itype == 0 .or. itype == 17) then
        r%legend = rep_legend()
+    end if
+
+    ! scale bar
+    if (itype == 0 .or. itype == 18) then
+       r%scalebar = rep_scalebar()
     end if
 
     ! initialize the styles
@@ -754,6 +759,7 @@ contains
     r%cps = rep_cps()
     r%gpaths = rep_gpaths()
     r%legend = rep_legend()
+    r%scalebar = rep_scalebar()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -948,7 +954,7 @@ contains
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
     use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene
-    use shapes, only: maxpie, dl_radcap, dl_legend
+    use shapes, only: maxpie, dl_radcap, dl_legend, dl_scalebar
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
@@ -1676,6 +1682,9 @@ contains
     elseif (r%type == reptype_legend) then
        !!! legend of the atomic species, laid out at render time !!!
        call append_legend()
+    elseif (r%type == reptype_scalebar) then
+       !!! scale bar, laid out at render time !!!
+       call append_scalebar()
     elseif (r%type == reptype_symelem) then
        !!! symmetry elements (planes/axes/inversion centers) !!!
        if (r%symelem%style%isinit) then
@@ -3380,6 +3389,50 @@ contains
       if (dleg%nrow > 0) call dl_append(obj%legend,obj%nlegend,dleg)
 
     end subroutine append_legend
+
+    !> Append the scale bar of this object: its length in bohr and its
+    !> label, the length in the shortest decimal form and the unit.
+    subroutine append_scalebar()
+      type(dl_scalebar) :: dsb
+      character(len=40) :: num
+      real*8 :: fac
+      integer :: n
+
+      select case (r%scalebar%unit)
+      case (scaleunit_bohr)
+         fac = 1d0
+      case (scaleunit_nm)
+         fac = 10d0 / bohrtoa
+      case (scaleunit_pm)
+         fac = 0.01d0 / bohrtoa
+      case default
+         fac = 1d0 / bohrtoa
+      end select
+      if (r%scalebar%value <= 0d0) return
+
+      ! the number, without trailing zeros
+      write (num,'(F0.6)') r%scalebar%value
+      n = len_trim(num)
+      do while (n > 1 .and. num(n:n) == "0")
+         n = n - 1
+      end do
+      if (num(n:n) == ".") n = n - 1
+      if (num(1:1) == ".") then
+         num = "0" // num(1:n)
+         n = n + 1
+      end if
+
+      dsb%corner = r%scalebar%corner
+      dsb%len = real(r%scalebar%value * fac,c_float)
+      dsb%h = real(legend_textheight * r%scalebar%scale,c_float)
+      dsb%width = real(r%scalebar%width,c_float)
+      dsb%heads = r%scalebar%heads
+      dsb%rgb = r%scalebar%rgb
+      dsb%textrgb = r%scalebar%textrgb
+      dsb%label = num(1:n) // " " // trim(scaleunit_symbol(r%scalebar%unit))
+      call dl_append(obj%scalebar,obj%nscalebar,dsb)
+
+    end subroutine append_scalebar
 
     !> Vibration displacement of the periodic image of cell atom iat at
     !> lattice translation ix; zero if there is no selected mode (the phasors
