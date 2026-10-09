@@ -3390,21 +3390,29 @@ contains
 
     end subroutine append_legend
 
-    !> Append the scale bar of this object: its length in bohr and its
-    !> label, the length in the shortest decimal form and the unit.
+    !> Append the scale bar of this object: its length in bohr, its
+    !> placement, and its label: none, the user's text, or the length in
+    !> the shortest decimal form and the unit.
     subroutine append_scalebar()
       use utils, only: string_nozeros
       type(dl_scalebar) :: dsb
 
       if (r%scalebar%value <= 0d0) return
       dsb%corner = r%scalebar%corner
+      dsb%winpos = real(r%scalebar%winpos,c_float)
       dsb%len = real(r%scalebar%value * scaleunit_tobohr(r%scalebar%unit),c_float)
       dsb%h = real(legend_textheight * r%scalebar%scale,c_float)
       dsb%width = real(r%scalebar%width,c_float)
       dsb%heads = r%scalebar%heads
       dsb%rgb = r%scalebar%rgb
       dsb%textrgb = r%scalebar%textrgb
-      dsb%label = string_nozeros(r%scalebar%value,6) // " " // trim(scaleunit_symbol(r%scalebar%unit))
+      if (.not.r%scalebar%showtext) then
+         dsb%label = ""
+      elseif (r%scalebar%customtext) then
+         dsb%label = trim(r%scalebar%text)
+      else
+         dsb%label = string_nozeros(r%scalebar%value,6) // " " // trim(scaleunit_symbol(r%scalebar%unit))
+      end if
       call dl_append(obj%scalebar,obj%nscalebar,dsb)
 
     end subroutine append_scalebar

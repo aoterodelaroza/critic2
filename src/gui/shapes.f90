@@ -132,14 +132,15 @@ module shapes
   !> buffer: a horizontal segment in a corner of the view, len bohr
   !> long in the scene at the current zoom, with its label on top
   type dl_scalebar
-     integer :: corner ! corner of the view (legcorner_* in representations)
+     integer :: corner ! corner of the view (legcorner_* in representations), or scalepos_custom
+     real(c_float) :: winpos(2) ! scalepos_custom: center of the bar (fractions from left/bottom)
      real(c_float) :: len ! length of the bar in the scene (bohr)
      real(c_float) :: h ! height of the text (NDC)
      real(c_float) :: width ! line width (NDC)
      integer :: heads ! arrowheads (planarheads_* in representations)
      real(c_float) :: rgb(3) ! line color
      real(c_float) :: textrgb(3) ! text color
-     character(len=:), allocatable :: label ! text on top of the bar
+     character(len=:), allocatable :: label ! text on top of the bar (empty = no text)
   end type dl_scalebar
   public :: dl_scalebar
 

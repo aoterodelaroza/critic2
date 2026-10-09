@@ -1272,9 +1272,10 @@ contains
   !> Draw the editrep window, scale bar class. Returns true if the
   !> scene needs rebuilding.
   module function draw_editrep_scalebar(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple
-    use representations, only: scaleunit_combostr, scaleunit_tobohr, legcorner_combostr,&
-       planarheads_none, planarheads_both
+    use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
+       iw_checkbox, iw_radiobutton, iw_inputtext, iw_button
+    use representations, only: scaleunit_combostr, scaleunit_tobohr, scalepos_combostr,&
+       scalepos_custom, scalebar_text_len, planarheads_none, planarheads_both
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -1288,6 +1289,28 @@ contains
     pxs = 0d0
     iview = w%anchor_view()
     if (iview > 0) pxs = view_ndc_per_pixel(iview)
+
+    ! handle a pending pick of the custom position, commanded to the
+    ! parent view: an accepted click (on an atom or on empty space) sets
+    ! the position of the center of the bar
+    if (w%editrep_pick_item > 0 .and. iview > 0) then
+       if (win(iview)%vmdata%owner /= w%id) then
+          ! another window took over the pick: cancel
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_pick_item = 0
+       elseif (win(iview)%viewmode >= 0) then
+          ! the pick finished; nothing delivered means it was cancelled
+          if (win(iview)%vmdata%flag == 1 .and. win(iview)%vmdata%bidx(1) == 0) then
+             call view_texpos_to_winfrac(iview,win(iview)%vmdata%xpos,w%rep%scalebar%winpos)
+             w%rep%scalebar%corner = scalepos_custom
+             changed = .true.
+          end if
+          w%editrep_pick_item = 0
+          win(iview)%vmdata%idx = 0
+          win(iview)%vmdata%bidx = 0
+          win(iview)%vmdata%flag = 0
+       end if
+    end if
 
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
@@ -1310,9 +1333,45 @@ contains
     end if
 
     call iw_text("Placement",highlight=.true.)
-    call iw_combo_simple("Corner##scalebarcorner",legcorner_combostr,w%rep%scalebar%corner,changed=ch)
-    call iw_tooltip("Corner of the view where the scale bar is drawn",ttshown)
+    call iw_combo_simple("##scalebarcorner",scalepos_combostr,w%rep%scalebar%corner,changed=ch)
+    call iw_tooltip("Where the scale bar is drawn: in a corner of the view, or with the center &
+       &of the bar at a custom position",ttshown)
     changed = changed .or. ch
+    if (iview > 0) then
+       if (iw_button("Pick##scalebarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
+          w%editrep_pick_item = 1
+          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the scale bar",w%id,&
+             acceptempty=.true.)
+       end if
+       call iw_tooltip("Click, then pick the position of the center of the bar in the view window",ttshown)
+    end if
+    if (w%rep%scalebar%corner == scalepos_custom) then
+       ch = iw_dragfloat_real8("Position##scalebarwinpos",x2=w%rep%scalebar%winpos,&
+          speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Position of the center of the bar in the view, as fractions of the window &
+          &size from the left and bottom borders",ttshown)
+       changed = changed .or. ch
+    end if
+
+    call iw_text("Text",highlight=.true.)
+    ch = iw_checkbox("Show##scalebarshowtext",w%rep%scalebar%showtext)
+    call iw_tooltip("Draw a text over the bar",ttshown)
+    changed = changed .or. ch
+    if (w%rep%scalebar%showtext) then
+       ch = iw_radiobutton("Length##scalebarlentext",bool=w%rep%scalebar%customtext,boolval=.false.,&
+          sameline=.true.)
+       call iw_tooltip("The text is the length of the bar and its unit",ttshown)
+       changed = changed .or. ch
+       ch = iw_radiobutton("Custom##scalebarcustomtext",bool=w%rep%scalebar%customtext,boolval=.true.,&
+          sameline=.true.)
+       call iw_tooltip("The text is a message of your choice",ttshown)
+       changed = changed .or. ch
+       if (w%rep%scalebar%customtext) then
+          ch = iw_inputtext("##scalebartext",bufsize=scalebar_text_len,textf=w%rep%scalebar%text,width=25)
+          call iw_tooltip("Text over the bar",ttshown)
+          changed = changed .or. ch
+       end if
+    end if
 
     call iw_text("Style",highlight=.true.)
     iheads = merge(1,0,w%rep%scalebar%heads /= planarheads_none)

@@ -159,6 +159,11 @@ module representations
      "Å" // c_null_char // "bohr" // c_null_char // "nm" // c_null_char // "pm" // c_null_char
   character(len=4), parameter, public :: scaleunit_symbol(0:3) = (/"Å  ","bohr","nm  ","pm  "/)
   real*8, parameter, public :: scaleunit_tobohr(0:3) = (/1d0/bohrtoa, 1d0, 10d0/bohrtoa, 0.01d0/bohrtoa/)
+  integer, parameter, public :: scalepos_custom = 4 ! placement: at winpos (after the legcorner_* corners)
+  character(len=*,kind=c_char), parameter, public :: scalepos_combostr = &
+     legcorner_combostr // "Custom" // c_null_char
+  real*8, parameter, public :: scalebar_winpos_def(2) = (/0.5d0,0.1d0/) ! default custom position
+  integer, parameter, public :: scalebar_text_len = 64 ! length of the custom text
   real*8, parameter, public :: scalebar_width_def = 0.009d0 ! line width (3 pixels in a 670-pixel view)
   real(c_float), parameter, public :: scalebar_rgb_def(3) = 0._c_float ! line color
   real(c_float), parameter, public :: scalebar_textrgb_def(3) = 0._c_float ! text color
@@ -722,7 +727,11 @@ module representations
      real*8 :: value = 1d0 ! length of the bar, in units of unit
      integer :: unit = scaleunit_angstrom ! unit of the length (scaleunit_*)
      integer :: heads = planarheads_none ! arrowheads (planarheads_none or planarheads_both)
-     integer :: corner = legcorner_bottomleft ! corner of the view (legcorner_*)
+     integer :: corner = legcorner_bottomleft ! corner of the view (legcorner_*), or scalepos_custom
+     real*8 :: winpos(2) = scalebar_winpos_def ! scalepos_custom: center of the bar (fractions from left/bottom)
+     logical :: showtext = .true. ! draw the text over the bar
+     logical :: customtext = .false. ! the text is text (else the length and its unit)
+     character(len=scalebar_text_len) :: text = "" ! custom text
      real*8 :: scale = 1d0 ! text size (1 = legend_textheight high)
      real*8 :: width = scalebar_width_def ! line width
      real(c_float) :: rgb(3) = scalebar_rgb_def ! line color

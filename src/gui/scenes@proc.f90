@@ -1511,13 +1511,13 @@ contains
     !> of the scene center in perspective), so it is laid out here. The
     !> bar is a 2D Drawing arrow (planar_tessellate) with the label
     !> centered on top, and the block sits in a corner of the visible
-    !> region.
+    !> region or with the center of the bar at a custom window position.
     subroutine render_scalebar()
       use shapes, only: flat_vert_nf
       use representations, only: legcorner_topleft, legcorner_bottomleft, legcorner_bottomright,&
-         planar_shape, planarkind_arrow, planarheads_none, planar_tessellate
+         planar_shape, planarkind_arrow, planarheads_none, planar_tessellate, scalepos_custom
       real(c_float) :: projover(4,4), vis(2), h, mrg, gap, hb, siz, wtext, lbar, wblk
-      real(c_float) :: x0, xc, xl, ybar, ytop, ndc(3)
+      real(c_float) :: x0, xc, xl, ybar, ytop, ndc(3), htxt, xw(2)
       real(c_float), allocatable, target :: vert(:,:)
       integer :: il
       integer(c_int) :: nvert
@@ -1566,27 +1566,35 @@ contains
               hb = hb * real(sh%headw * min(1d0,lbar / (2d0 * sh%headl * sh%width)),c_float)
 
            ! the glyphs of the label, left-aligned with the top of the
-           ! line at the origin
+           ! line at the origin; no label, no room for it
            siz = h / (fontbakesize_large * uiscale)
            nvert = 0
-           call calc_text_onscene_vertices(sb%label,z3,0._c_float,siz,nvert,vert)
+           if (len(sb%label) > 0) call calc_text_onscene_vertices(sb%label,z3,0._c_float,siz,nvert,vert)
            wtext = 0._c_float
            if (nvert > 0) wtext = max(maxval(vert(7,1:nvert)),0._c_float)
+           htxt = 0._c_float
+           if (nvert > 0) htxt = h + gap
 
-           ! the block (label over the bar), in a corner of the visible region
+           ! the block (label over the bar): in a corner of the visible
+           ! region, or with the center of the bar at the custom position
            wblk = max(lbar,wtext)
-           if (sb%corner == legcorner_topleft .or. sb%corner == legcorner_bottomleft) then
-              xc = -vis(1) + mrg + 0.5_c_float * wblk
+           if (sb%corner == scalepos_custom) then
+              xw = overlay_ndc(s,sb%winpos)
+              xc = xw(1)
+              ybar = xw(2)
            else
-              xc = vis(1) - mrg - 0.5_c_float * wblk
+              if (sb%corner == legcorner_topleft .or. sb%corner == legcorner_bottomleft) then
+                 xc = -vis(1) + mrg + 0.5_c_float * wblk
+              else
+                 xc = vis(1) - mrg - 0.5_c_float * wblk
+              end if
+              if (sb%corner == legcorner_bottomleft .or. sb%corner == legcorner_bottomright) then
+                 ybar = -vis(2) + mrg + hb
+              else
+                 ybar = vis(2) - mrg - htxt - hb
+              end if
            end if
-           if (sb%corner == legcorner_bottomleft .or. sb%corner == legcorner_bottomright) then
-              ybar = -vis(2) + mrg + hb
-              ytop = ybar + hb + gap + h
-           else
-              ytop = vis(2) - mrg
-              ybar = ytop - h - gap - hb
-           end if
+           ytop = ybar + hb + htxt
 
            ! the bar, tessellated as a 2D Drawing arrow; a plain line has
            ! round caps, so its ends are pulled in by half its width
