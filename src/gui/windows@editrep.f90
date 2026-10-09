@@ -73,7 +73,7 @@ contains
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
-       reptype_planar
+       reptype_planar, reptype_legend
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sys, sysc, sys_init, ok_system
@@ -162,6 +162,8 @@ contains
           changed = changed .or. w%draw_editrep_cps(ttshown)
        elseif (w%rep%type == reptype_gpaths) then
           changed = changed .or. w%draw_editrep_gpaths(ttshown)
+       elseif (w%rep%type == reptype_legend) then
+          changed = changed .or. w%draw_editrep_legend(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1158,6 +1160,59 @@ contains
     end if
 
   end function draw_editrep_unitcell
+
+  !> Draw the editrep window, legend class. Returns true if the scene
+  !> needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_legend(w,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_combo_simple
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    real(c_float) :: rgba(4)
+
+    ! initialize
+    changed = .false.
+
+    ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
+    ! and a widget skipped because changed is already true is a widget not drawn
+    call iw_text("Placement",highlight=.true.)
+    call iw_combo_simple("Corner##legendcorner","Top left" // c_null_char // "Top right" // c_null_char //&
+       "Bottom left" // c_null_char // "Bottom right" // c_null_char,w%rep%legend%corner,changed=ch)
+    call iw_tooltip("Corner of the view where the legend is drawn",ttshown)
+    changed = changed .or. ch
+
+    ch = iw_dragfloat_real8("Size##legendsize",x1=w%rep%legend%scale,speed=0.01d0,&
+       min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Size of the legend (1 = default)",ttshown)
+    changed = changed .or. ch
+
+    call iw_text("Colors",highlight=.true.)
+    ch = iw_coloredit("Text",rgb=w%rep%legend%textrgb)
+    call iw_tooltip("Color of the element symbols",ttshown)
+    changed = changed .or. ch
+
+    rgba = (/w%rep%legend%bgrgb,w%rep%legend%bgalpha/)
+    ch = iw_coloredit("Background",rgba=rgba,sameline=.true.)
+    call iw_tooltip("Color and opacity of the background of the legend box",ttshown)
+    if (ch) then
+       w%rep%legend%bgrgb = rgba(1:3)
+       w%rep%legend%bgalpha = rgba(4)
+       changed = .true.
+    end if
+
+    ch = iw_checkbox("Border",w%rep%legend%border)
+    call iw_tooltip("Draw the border of the legend box",ttshown)
+    changed = changed .or. ch
+    if (w%rep%legend%border) then
+       ch = iw_coloredit("Border color",rgb=w%rep%legend%borderrgb,sameline=.true.)
+       call iw_tooltip("Color of the border of the legend box",ttshown)
+       changed = changed .or. ch
+    end if
+
+  end function draw_editrep_legend
 
   !> Draw the editrep window, cartesian axes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.

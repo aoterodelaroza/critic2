@@ -137,6 +137,16 @@ module representations
   logical, parameter, public :: poly_showcorners_def = .true. ! also draw the corner atoms outside the selection
   real*8, parameter, public :: poly_centerfit = 0.9d0 ! the center atom is drawn at most this fraction of the polyhedron inradius
   real*8, parameter, public :: poly_centerfit_min = 0.35d0 ! ... but never smaller than this fraction of its own radius
+  !--> legend (lengths in the NDC of the render buffer, like the planar shapes)
+  integer, parameter, public :: legcorner_topleft = 0
+  integer, parameter, public :: legcorner_topright = 1
+  integer, parameter, public :: legcorner_bottomleft = 2
+  integer, parameter, public :: legcorner_bottomright = 3
+  real*8, parameter, public :: legend_textheight = 0.055d0 ! height of a line of text at size 1
+  real(c_float), parameter, public :: legend_textrgb_def(3) = 0._c_float ! text color
+  real(c_float), parameter, public :: legend_bgrgb_def(3) = 1._c_float ! box background color
+  real(c_float), parameter, public :: legend_bgalpha_def = 0.85_c_float ! box background opacity
+  real(c_float), parameter, public :: legend_borderrgb_def(3) = 0._c_float ! box border color
   !--> measurements
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
   real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors
@@ -380,7 +390,8 @@ module representations
   integer, parameter, public :: reptype_cps = 12 ! critical points of a scalar field
   integer, parameter, public :: reptype_gpaths = 13 ! gradient paths (bond paths) of a scalar field
   integer, parameter, public :: reptype_planar = 14 ! list of planar shapes (screen coordinates)
-  integer, parameter, public :: reptype_NUM = 14
+  integer, parameter, public :: reptype_legend = 15 ! legend of the atomic species
+  integer, parameter, public :: reptype_NUM = 15
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -403,7 +414,8 @@ module representations
   integer, parameter, public :: repflavor_cps = 17
   integer, parameter, public :: repflavor_gpaths = 18
   integer, parameter, public :: repflavor_planar = 19
-  integer, parameter, public :: repflavor_NUM = 19
+  integer, parameter, public :: repflavor_legend = 20
+  integer, parameter, public :: repflavor_NUM = 20
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -439,7 +451,8 @@ module representations
      "Isosurface       ",& ! repflavor_isosurface
      "Critical Points  ",& ! repflavor_cps
      "Gradient Paths   ",& ! repflavor_gpaths
-     "2D Drawing       "/) ! repflavor_planar
+     "2D Drawing       ",& ! repflavor_planar
+     "Legend           "/) ! repflavor_legend
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -663,6 +676,20 @@ module representations
      integer :: isel = 0 ! selected shape: edited in the object editor, handles in the view
   end type rep_planar
   public :: rep_planar
+
+  !> Legend options (reptype_legend; accessed as r%legend%...). A box in
+  !> a corner of the view with one row per atomic species: a sphere in
+  !> the atom color and the element symbol.
+  type rep_legend
+     integer :: corner = legcorner_topright ! corner of the view (legcorner_*)
+     real*8 :: scale = 1d0 ! size (1 = a line of text is legend_textheight high)
+     real(c_float) :: textrgb(3) = legend_textrgb_def ! text color
+     real(c_float) :: bgrgb(3) = legend_bgrgb_def ! box background color
+     real(c_float) :: bgalpha = legend_bgalpha_def ! box background opacity
+     logical :: border = .true. ! draw the border of the box
+     real(c_float) :: borderrgb(3) = legend_borderrgb_def ! box border color
+  end type rep_legend
+  public :: rep_legend
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
@@ -1004,6 +1031,7 @@ module representations
      type(rep_isosurface) :: iso ! isosurface options
      type(rep_cps) :: cps ! critical point options
      type(rep_gpaths) :: gpaths ! gradient path options
+     type(rep_legend) :: legend ! legend options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1479,13 +1507,14 @@ module representations
      module subroutine update_styles(r)
        class(representation), intent(inout) :: r
      end subroutine update_styles
-     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost)
+     module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms)
        class(representation), intent(inout) :: r
        type(scene_display), intent(in) :: disp
        type(scene_objects), intent(inout) :: obj
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq
        logical, intent(in), optional :: noghost
+       type(representation), intent(in), optional :: ratoms
      end subroutine add_draw_elements
      module subroutine reset_all_styles(r,itype)
        class(representation), intent(inout) :: r

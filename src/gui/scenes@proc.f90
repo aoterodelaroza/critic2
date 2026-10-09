@@ -373,7 +373,7 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use representations, only: reptype_atoms, reptype_polyhedra, reptype_axes, reptype_symelem,&
-       reptype_shapes, axes_winfrac_def, axplace_window
+       reptype_shapes, reptype_legend, axes_winfrac_def, axplace_window
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys, sys_ready, ok_system, sysc, cp_anchor_resolve
@@ -381,7 +381,7 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i, j, isph, nsel, nsph, k, ier, ifld, icel, loff(3)
-    integer :: atomcells(3)
+    integer :: atomcells(3), iatrep
     real(c_float), allocatable :: rfit0(:) ! unshrunk radii of the spheres (apply_radcaps)
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
@@ -402,12 +402,15 @@ contains
     ! everything else that forces a build)
     call vibarrow_refresh(s)
 
-    ! how many cells already have their atoms drawn
+    ! how many cells already have their atoms drawn, and the first shown
+    ! atoms object (the legends take the atom colors from it)
     atomcells = 0
+    iatrep = 0
     do i = 1, s%nrep
        if (.not.s%rep(i)%isinit .or. .not.s%rep(i)%shown) cycle
        if (s%rep(i)%type /= reptype_atoms) cycle
        atomcells = max(atomcells,s%disp%ncells(s%rep(i)%disp))
+       if (iatrep == 0) iatrep = i
     end do
 
     ! add the items by representation; defer reps that need the scene
@@ -421,8 +424,20 @@ contains
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == axplace_window) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        if (s%rep(i)%type == reptype_shapes) cycle
+       if (s%rep(i)%type == reptype_legend) cycle
        call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
           noghost=all(atomcells >= s%disp%ncells(s%rep(i)%disp)))
+    end do
+
+    ! the legends, after the atoms objects have updated their styles
+    do i = 1, s%nrep
+       if (s%rep(i)%type /= reptype_legend) cycle
+       if (iatrep > 0) then
+          call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected,&
+             ratoms=s%rep(iatrep))
+       else
+          call s%rep(i)%add_draw_elements(s%disp,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+       end if
     end do
 
     ! the atoms at the centers of the coordination polyhedra are drawn
@@ -655,7 +670,8 @@ contains
 
     ! flag whether any object is anchored to the window borders (the view
     ! window uses this to re-render when the window geometry changes)
-    s%hasanchoredobj = (s%obj%ncylover > 0 .or. s%obj%nconeover > 0 .or. s%obj%nstringover > 0)
+    s%hasanchoredobj = (s%obj%ncylover > 0 .or. s%obj%nconeover > 0 .or. s%obj%nstringover > 0 .or.&
+       s%obj%nlegend > 0)
 
     ! rebuilding lists is done; the cached instance buffers are now stale and
     ! must be repacked/uploaded on the next render
@@ -973,6 +989,9 @@ contains
        call glClear(GL_DEPTH_BUFFER_BIT)
        call draw_planar(s%obj%nflatback,s%obj%nflatfront)
     end if
+
+    ! the legends, on top of everything
+    if (s%obj%nlegend > 0) call render_legend()
 
     ! pop the large font
     call igPopFont()
@@ -1366,6 +1385,163 @@ contains
       call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
 
     end subroutine render_overlay_strings
+
+    !> Render the legends, on top of everything. Each is laid out here,
+    !> in the NDC of the render buffer, at a corner of the visible
+    !> region: a box (flat triangles), then one row per species with a
+    !> sphere (anchored impostor) and a label (anchored text), all sized
+    !> from the height of a line of text (h).
+    subroutine render_legend()
+      use shapes, only: flat_vert_nf
+      use representations, only: legcorner_topleft, legcorner_bottomleft, legcorner_bottomright
+      use gui_main, only: ColorAtomBorder_def
+      real(c_float) :: projover(4,4), vis(2), h, pad, rowh, rs, gap, bw, mrg, siz
+      real(c_float) :: wtext, x0, x1, y0, y1, yc, ndc(3)
+      real(c_float), allocatable, target :: vert(:,:)
+      real(c_float) :: flat(flat_vert_nf,30), sph(sph_inst_nf,1)
+      integer, allocatable :: iv(:)
+      integer :: il, k, nflat
+      integer(c_int) :: nvert
+      real(c_float), parameter :: z3(3) = 0._c_float, zr4(4) = 0._c_float
+      complex(c_float_complex), parameter :: zc(3) = (0._c_float,0._c_float)
+      real(c_float), parameter :: bordersph = 0.1_c_float ! sphere border (fraction of its radius)
+
+      ! the overlay projection; the extent of the visible region in NDC
+      call ortho_projection(s,projover,symz=.true.)
+      vis = 1._c_float - 2._c_float * s%viewuv0
+
+      call glDisable(GL_DEPTH_TEST)
+      call glDisable(GL_CULL_FACE)
+      call glEnable(GL_BLEND)
+      call glBlendEquation(GL_FUNC_ADD)
+      call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+      do il = 1, s%obj%nlegend
+         associate(lg => s%obj%legend(il))
+           if (lg%nrow <= 0) cycle
+
+           ! layout, from the height of a line of text
+           h = lg%h
+           pad = 0.4_c_float * h
+           rowh = 1.25_c_float * h
+           rs = 0.38_c_float * h
+           gap = 0.4_c_float * h
+           bw = merge(0.06_c_float * h,0._c_float,lg%border)
+           mrg = 0.5_c_float * h
+
+           ! the glyphs of the labels, left-aligned with the top of the
+           ! line at the origin; the widest gives the size of the box
+           siz = h / (fontbakesize_large * uiscale)
+           if (allocated(iv)) deallocate(iv)
+           allocate(iv(lg%nrow+1))
+           nvert = 0
+           do k = 1, lg%nrow
+              iv(k) = nvert + 1
+              call calc_text_onscene_vertices(trim(lg%label(k)),z3,0._c_float,siz,nvert,vert)
+           end do
+           iv(lg%nrow+1) = nvert + 1
+           wtext = 0._c_float
+           if (nvert > 0) wtext = max(maxval(vert(7,1:nvert)),0._c_float)
+
+           ! the box, in a corner of the visible region
+           if (lg%corner == legcorner_topleft .or. lg%corner == legcorner_bottomleft) then
+              x0 = -vis(1) + mrg
+              x1 = x0 + 2 * pad + 2 * rs + gap + wtext
+           else
+              x1 = vis(1) - mrg
+              x0 = x1 - (2 * pad + 2 * rs + gap + wtext)
+           end if
+           if (lg%corner == legcorner_bottomleft .or. lg%corner == legcorner_bottomright) then
+              y0 = -vis(2) + mrg
+              y1 = y0 + 2 * pad + lg%nrow * rowh
+           else
+              y1 = vis(2) - mrg
+              y0 = y1 - (2 * pad + lg%nrow * rowh)
+           end if
+
+           ! box: the background inside the border, then the four sides
+           nflat = 0
+           call flat_quad(flat,nflat,x0+bw,y0+bw,x1-bw,y1-bw,(/lg%bgrgb,lg%bgalpha/))
+           if (lg%border) then
+              call flat_quad(flat,nflat,x0,y0,x1,y0+bw,(/lg%borderrgb,1._c_float/))
+              call flat_quad(flat,nflat,x0,y1-bw,x1,y1,(/lg%borderrgb,1._c_float/))
+              call flat_quad(flat,nflat,x0,y0+bw,x0+bw,y1-bw,(/lg%borderrgb,1._c_float/))
+              call flat_quad(flat,nflat,x1-bw,y0+bw,x1,y1-bw,(/lg%borderrgb,1._c_float/))
+           end if
+           call useshader(shader_flat)
+           call s%gl%draw_flat_scratch(nflat,flat)
+
+           ! spheres: unit sphere at the anchor, scaled to radius rs
+           call useshader(shader_sphere)
+           call setuniform_mat4(s%world,idxi=uniloc(u_world))
+           call setuniform_mat4(s%view,idxi=uniloc(u_view))
+           call setuniform_mat4(projover,idxi=uniloc(u_projection))
+           call setuniform_vec3(z3,idxi=uniloc(u_displ))
+           call setuniform_int(1_c_int,idxi=uniloc(u_isortho))
+           call setuniform_int(0_c_int,idxi=uniloc(u_upick))
+           call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+           call setuniform_float(rs / projover(1,1),idxi=uniloc(u_anchored_scale))
+           do k = 1, lg%nrow
+              yc = y1 - pad - (k - 0.5_c_float) * rowh
+              ndc = (/x0 + pad + rs, yc, 0._c_float/)
+              call setuniform_vec3(ndc,idxi=uniloc(u_anchored_ndc))
+              call sphere_pack(sph(:,1),z3,1._c_float,(/lg%rgb(:,k),1._c_float/),bordersph * rs / projover(1,1),&
+                 ColorAtomBorder_def,zc,zr4,1._c_float,z3)
+              call s%gl%draw_spheres(1,sph,.true.)
+           end do
+
+           ! labels, vertically centered in their rows
+           call useshader(shader_text_onscene)
+           call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+           call setuniform_mat4(s%world,idxi=uniloc(u_world))
+           call setuniform_mat4(s%view,idxi=uniloc(u_view))
+           call setuniform_mat4(projover,idxi=uniloc(u_projection))
+           call setuniform_vec3(z3,idxi=uniloc(u_displ))
+           call setuniform_float(1._c_float,idxi=uniloc(u_anchored_scale))
+           call setuniform_vec3(lg%textrgb,idxi=uniloc(u_textcolor))
+           call glActiveTexture(GL_TEXTURE0)
+           call glBindVertexArray(textVAOos)
+           call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+           call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+           call glDisable(GL_MULTISAMPLE)
+           do k = 1, lg%nrow
+              if (iv(k+1) <= iv(k)) cycle
+              yc = y1 - pad - (k - 0.5_c_float) * rowh
+              ndc = (/x0 + pad + 2 * rs + gap, yc + 0.5_c_float * h, 0._c_float/)
+              call setuniform_vec3(ndc,idxi=uniloc(u_anchored_ndc))
+              call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, (iv(k+1)-iv(k))*text_vert_nf*c_sizeof(c_float),&
+                 c_loc(vert(1,iv(k))))
+              call glDrawArrays(GL_TRIANGLES, 0, int(iv(k+1)-iv(k),c_int))
+           end do
+           call glEnable(GL_MULTISAMPLE)
+           call glBindBuffer(GL_ARRAY_BUFFER, 0)
+           call glBindVertexArray(0)
+         end associate
+      end do
+      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+      call glDisable(GL_BLEND)
+      call glEnable(GL_CULL_FACE)
+      call glEnable(GL_DEPTH_TEST)
+
+    end subroutine render_legend
+
+    !> Append the two triangles of the rectangle (xa,ya)-(xb,yb) with
+    !> color rgba to the n flat vertices in flat.
+    subroutine flat_quad(flat,n,xa,ya,xb,yb,rgba)
+      use shapes, only: flat_vert_nf
+      real(c_float), intent(inout) :: flat(flat_vert_nf,*)
+      integer, intent(inout) :: n
+      real(c_float), intent(in) :: xa, ya, xb, yb, rgba(4)
+
+      flat(1:3,n+1) = (/xa,ya,0._c_float/)
+      flat(1:3,n+2) = (/xb,ya,0._c_float/)
+      flat(1:3,n+3) = (/xb,yb,0._c_float/)
+      flat(1:3,n+4) = (/xa,ya,0._c_float/)
+      flat(1:3,n+5) = (/xb,yb,0._c_float/)
+      flat(1:3,n+6) = (/xa,yb,0._c_float/)
+      flat(4:7,n+1:n+6) = spread(rgba,2,6)
+      n = n + 6
+
+    end subroutine flat_quad
 
     !> Last index of the run of overlay items starting at i that share the same
     !> window placement (winpos and scalewithzoom) as item i.
@@ -1905,7 +2081,7 @@ contains
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
-       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar
+       reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2052,6 +2228,8 @@ contains
              str3 = "3d shapes" // c_null_char
           elseif (s%rep(i)%type == reptype_planar) then
              str3 = "drawing" // c_null_char
+          elseif (s%rep(i)%type == reptype_legend) then
+             str3 = "legend" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then

@@ -81,7 +81,8 @@ contains
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (unused, was the rotation axis),
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
-  !> 14 (critical points), 15 (gradient paths), 16 (planar shapes).
+  !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
+  !> 17 (legend).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -323,6 +324,11 @@ contains
        r%planar%nshape = 0
        r%planar%isel = 0
        if (allocated(r%planar%shape)) deallocate(r%planar%shape)
+    end if
+
+    ! legend
+    if (itype == 0 .or. itype == 17) then
+       r%legend = rep_legend()
     end if
 
     ! initialize the styles
@@ -747,6 +753,7 @@ contains
     r%iso = rep_isosurface()
     r%cps = rep_cps()
     r%gpaths = rep_gpaths()
+    r%legend = rep_legend()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -873,14 +880,16 @@ contains
 
   !> Add the spheres, cylinder, etc. to the draw lists. Use nc number
   !> of cells and the data from representation r. If doanim, use qpt
-  !> iqpt and frequency ifreq to animate the representation.
-  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost)
+  !> iqpt and frequency ifreq to animate the representation. A legend
+  !> takes the atom colors from the atoms object ratoms (the element
+  !> colors if not given).
+  module subroutine add_draw_elements(r,disp,obj,doanim,iqpt,ifreq,noghost,ratoms)
     use systems, only: sys, sysc
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane, symop_kind_axis,&
        symop_kind_point, symelem_list, elem_box, elem_maxpt, clip_point_box,&
        clip_line_box, clip_plane_box
     use gui_main, only: ColorAxes_def, ColorElement, ColorAtomBorder_def, ColorHighlightScene
-    use shapes, only: maxpie, dl_radcap
+    use shapes, only: maxpie, dl_radcap, dl_legend
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
@@ -892,6 +901,7 @@ contains
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
     logical, intent(in), optional :: noghost
+    type(representation), intent(in), optional :: ratoms
 
     logical, allocatable :: lshown(:,:,:,:)
     logical :: step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
@@ -1604,6 +1614,9 @@ contains
        do i = 1, r%planar%nshape
           if (r%planar%shape(i)%shown) call planar_tessellate(r%planar%shape(i),obj)
        end do
+    elseif (r%type == reptype_legend) then
+       !!! legend of the atomic species, laid out at render time !!!
+       call append_legend()
     elseif (r%type == reptype_symelem) then
        !!! symmetry elements (planes/axes/inversion centers) !!!
        if (r%symelem%style%isinit) then
@@ -3252,6 +3265,67 @@ contains
       call dl_append(obj%sph,obj%nsph,ds)
 
     end subroutine append_forced_atom
+
+    !> Append the legend of this object: one row per atomic species
+    !> with its element symbol and its color in the atoms object
+    !> ratoms (the color of its first cell atom), or the element color
+    !> if there is no atoms object. Species with the same symbol and
+    !> color share a row.
+    subroutine append_legend()
+      use tools_io, only: nameguess
+      use param, only: maxzat
+      type(dl_legend) :: dleg
+      integer :: is, iat, iz, k, idc
+      character(len=10) :: lbl
+      real(c_float) :: rgbl(3)
+      logical :: found
+
+      dleg%corner = r%legend%corner
+      dleg%h = real(legend_textheight * r%legend%scale,c_float)
+      dleg%textrgb = r%legend%textrgb
+      dleg%bgrgb = r%legend%bgrgb
+      dleg%bgalpha = r%legend%bgalpha
+      dleg%border = r%legend%border
+      dleg%borderrgb = r%legend%borderrgb
+      allocate(dleg%rgb(3,c%nspc),dleg%label(c%nspc))
+      dleg%nrow = 0
+      do is = 1, c%nspc
+         ! label: the element symbol (the species name if not an element)
+         iz = c%spc(is)%z
+         if (iz >= 1 .and. iz <= maxzat) then
+            lbl = nameguess(iz,.true.)
+         else
+            lbl = c%spc(is)%name
+         end if
+
+         ! color: of the first cell atom of this species in the atoms object
+         rgbl = ColorElement(:,max(min(iz,ubound(ColorElement,2)),0))
+         if (present(ratoms)) then
+            if (ratoms%atoms%style%isinit) then
+               do iat = 1, c%ncel
+                  if (c%atcel(iat)%is /= is) cycle
+                  idc = sysc(r%id)%attype_celatom_to_id(ratoms%atoms%style%type,iat)
+                  if (idc >= 1 .and. idc <= ratoms%atoms%style%ntype) &
+                     rgbl = ratoms%atoms%style%rgb(:,idc)
+                  exit
+               end do
+            end if
+         end if
+
+         ! skip the species already in the legend
+         found = .false.
+         do k = 1, dleg%nrow
+            found = (dleg%label(k) == lbl .and. all(dleg%rgb(:,k) == rgbl))
+            if (found) exit
+         end do
+         if (found) cycle
+         dleg%nrow = dleg%nrow + 1
+         dleg%label(dleg%nrow) = lbl
+         dleg%rgb(:,dleg%nrow) = rgbl
+      end do
+      if (dleg%nrow > 0) call dl_append(obj%legend,obj%nlegend,dleg)
+
+    end subroutine append_legend
 
     !> Vibration displacement of the periodic image of cell atom iat at
     !> lattice translation ix; zero if there is no selected mode (the phasors

@@ -109,6 +109,23 @@ module shapes
   end type dl_sphere
   public :: dl_sphere
 
+  !> legend of the atomic species, laid out at render time in the NDC
+  !> of the render buffer: a box in a corner of the view, one row per
+  !> species with a sphere in the atom color and a label
+  type dl_legend
+     integer :: corner ! corner of the view (legcorner_* in representations)
+     real(c_float) :: h ! height of a line of text (NDC)
+     real(c_float) :: textrgb(3) ! text color
+     real(c_float) :: bgrgb(3) ! box background color
+     real(c_float) :: bgalpha ! box background opacity
+     logical :: border ! draw the border of the box
+     real(c_float) :: borderrgb(3) ! box border color
+     integer :: nrow = 0 ! number of rows
+     real(c_float), allocatable :: rgb(:,:) ! sphere color of each row (3,nrow)
+     character(len=10), allocatable :: label(:) ! label of each row (nrow)
+  end type dl_legend
+  public :: dl_legend
+
   !> largest radius of the sphere of an atom image (cell atom + lattice
   !> vector, as in dl_sphere%idx) so that it fits inside the coordination
   !> polyhedron centered on it
@@ -248,6 +265,8 @@ module shapes
      integer :: nflatfront = 0 ! number of vertices drawn on top of everything
      real(c_float), allocatable :: flatfront(:,:) ! the vertices drawn on top
      integer :: nflatshape = 0 ! number of planar shapes tessellated (sets the depth of the next)
+     integer :: nlegend = 0 ! number of legends
+     type(dl_legend), allocatable :: legend(:) ! the legends (drawn on top of everything)
      integer :: ncap = 0 ! number of radius caps for the polyhedra centers
      type(dl_radcap), allocatable :: cap(:) ! the radius caps (applied to the fitpoly spheres)
    contains
@@ -278,6 +297,7 @@ module shapes
      module procedure dl_append_triangle
      module procedure dl_append_mesh
      module procedure dl_append_radcap
+     module procedure dl_append_legend
   end interface dl_append
   public :: dl_append
 
@@ -298,6 +318,7 @@ module shapes
      integer(c_int) :: triinstVAO = 0, triinstVBO = 0    ! triangle mesh
      integer(c_int) :: mshVAO = 0, mshVBO = 0, mshEBO = 0 ! indexed meshes (isosurfaces)
      integer(c_int) :: flatVAO = 0, flatVBO = 0 ! planar-shape triangles (behind, then front)
+     integer(c_int) :: flatVAOscr = 0, flatVBOscr = 0 ! scratch flat triangles (re-uploaded every frame: legends)
      ! scratch instance buffers (re-uploaded every frame: measure-selection,
      ! highlights, picking, overlay)
      integer(c_int) :: sphinstVAOscr = 0, sphinstVBOscr = 0
@@ -311,6 +332,7 @@ module shapes
      integer :: msh_vcap = 0 ! vertex capacity of the indexed-mesh VBO storage
      integer :: msh_ecap = 0 ! index capacity of the indexed-mesh EBO storage
      integer :: flat_cap = 0 ! vertex capacity of the planar-shape VBO storage
+     integer :: flatscr_cap = 0 ! vertex capacity of the scratch flat VBO storage
      ! persistent CPU pack scratch (grow-only, see ensure_pack): instance data
      ! is packed here before upload, avoiding per-frame allocations
      real(c_float), allocatable :: packsph(:,:)  ! opaque sphere instances (also selections/highlights/pick)
@@ -385,6 +407,7 @@ module shapes
      procedure :: upload_text => glbuffers_upload_text
      procedure :: upload_flat => glbuffers_upload_flat
      procedure :: draw_flat => glbuffers_draw_flat
+     procedure :: draw_flat_scratch => glbuffers_draw_flat_scratch
      procedure :: redraw_spheres => glbuffers_redraw_spheres
      procedure :: redraw_cylinders => glbuffers_redraw_cylinders
      procedure :: redraw_mesh => glbuffers_redraw_mesh
@@ -433,6 +456,11 @@ module shapes
        integer, intent(inout) :: n
        type(dl_radcap), intent(in) :: it
      end subroutine dl_append_radcap
+     module subroutine dl_append_legend(lst,n,it)
+       type(dl_legend), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_legend), intent(in) :: it
+     end subroutine dl_append_legend
      module subroutine dl_append_cylinder(lst,n,it)
        type(dl_cylinder), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n
@@ -523,6 +551,11 @@ module shapes
        class(scene_glbuffers), intent(inout) :: b
        integer, intent(in) :: first, n
      end subroutine glbuffers_draw_flat
+     module subroutine glbuffers_draw_flat_scratch(b,n,buf)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: n
+       real(c_float), intent(in), target :: buf(flat_vert_nf,n)
+     end subroutine glbuffers_draw_flat_scratch
      module subroutine glbuffers_redraw_spheres(b,n)
        class(scene_glbuffers), intent(inout) :: b
        integer, intent(in) :: n
