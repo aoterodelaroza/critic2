@@ -2196,6 +2196,83 @@ contains
 
   !xx! private procedures
 
+  !> Show the colormap of the selected isosurface of the isosurface
+  !> object edited in w with a color bar object in the scene of view
+  !> iview, and open its editor. The color bar is the first one that
+  !> already shows this object, else the first one that is not tied to
+  !> an existing object (automatic, or tied to one that was deleted)
+  !> and is not showing another object automatically, else a new one.
+  !> It is linked to this object and isosurface, and shown. Adding an
+  !> object can move the objects of the scene, so this is called
+  !> outside any alias to w%rep.
+  subroutine isosurface_add_colorbar(w,iview)
+    use representations, only: reptype_colorbar, repflavor_colorbar, reptype_isosurface,&
+       colorbar_rep
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: iview
+
+    integer :: i, k, irep, ifree, iord, ciord, islot, idw
+    logical :: isnew, attached
+
+    if (iview < 1 .or. .not.associated(w%rep)) return
+    iord = w%rep%iord
+    islot = w%rep%iso%isel
+
+    ! a color bar showing this object, else the first one not tied to
+    ! an existing isosurface object
+    irep = 0
+    ifree = 0
+    associate(sc => win(iview)%sc)
+      do i = 1, sc%nrep
+         if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_colorbar) cycle
+         ciord = sc%rep(i)%colorbar%isoiord
+         if (ciord == iord) then
+            irep = i
+            exit
+         end if
+         if (ifree > 0) cycle
+         attached = .false.
+         if (ciord > 0) attached = any(sc%rep(1:sc%nrep)%isinit .and.&
+            sc%rep(1:sc%nrep)%type == reptype_isosurface .and. sc%rep(1:sc%nrep)%iord == ciord)
+         if (attached) cycle
+         ! an unattached bar follows the first colored isosurface: take
+         ! it only if that is none or this object
+         k = colorbar_rep(sc%rep(i)%colorbar,sc%rep,sc%nrep)
+         if (k == 0) then
+            ifree = i
+         elseif (sc%rep(k)%iord == iord) then
+            ifree = i
+         end if
+      end do
+    end associate
+    if (irep == 0) irep = ifree
+
+    ! else a new one (this can move the objects, and w%rep with them)
+    isnew = (irep == 0)
+    if (isnew) call win(iview)%sc%add_representation(reptype_colorbar,repflavor_colorbar,id=irep)
+    if (irep < 1) return
+
+    ! a bar already linked to this isosurface and shown: only raise its editor
+    if (.not.isnew .and. win(iview)%sc%rep(irep)%shown .and. win(iview)%sc%rep(irep)%colorbar%isoiord == iord&
+       .and. win(iview)%sc%rep(irep)%colorbar%islot == islot) then
+       idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,idparent=iview,orraise=-1)
+       return
+    end if
+
+    ! link it to this object and isosurface, and show it
+    win(iview)%sc%rep(irep)%colorbar%isoiord = iord
+    win(iview)%sc%rep(irep)%colorbar%islot = islot
+    win(iview)%sc%rep(irep)%shown = .true.
+    win(iview)%sc%forcebuildlists = .true.
+    if (isnew) then
+       call win(iview)%sc%undo_note("Add " // trim(win(iview)%sc%rep(irep)%name))
+    else
+       call win(iview)%sc%undo_note("Edit " // trim(win(iview)%sc%rep(irep)%name))
+    end if
+    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,idparent=iview,orraise=-1)
+
+  end subroutine isosurface_add_colorbar
+
   !> NDC of the render buffer per screen pixel in view window iview:
   !> the render buffer spans the longest side of the view image.
   function view_ndc_per_pixel(iview) result(pxs)
@@ -3971,7 +4048,7 @@ contains
        iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
        iso_region_point_from_cart, iso_level_ptsang,&
        iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
-       iso_ptsang_from_npts, rep_shape, shapekind_box
+       iso_ptsang_from_npts, rep_shape, shapekind_box, iso_slot_hascolors
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_textwidth,&
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
@@ -3995,7 +4072,7 @@ contains
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
     logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
-    logical :: ismapped, hascolors, plotted
+    logical :: ismapped, hascolors, plotted, addcb
     logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -4715,6 +4792,14 @@ contains
        call draw_colorbar(s%icmap,rlo,rhi,hascolors)
        if (.not.ismapped) call igEndDisabled()
 
+       ! a color bar object in the view for this isosurface; it is made
+       ! after this block, because adding an object to the scene can
+       ! move the objects (and this one with them)
+       addcb = iw_button("Add Color Bar##isoaddcolorbar",disabled=.not.iso_slot_hascolors(s,isys))
+       call iw_tooltip("Show the colormap of this isosurface in the view with a color bar &
+          &object: one already showing this object, or one that follows no object in particular, &
+          &is reused; otherwise a new one is made",ttshown,whendisabled=.true.)
+
        ! what the colors could not cover, where there are colors
        if (hascolors .and. s%mapoutdomain) then
           if (s%imap_mode == iso_map_expr) then
@@ -4726,6 +4811,7 @@ contains
           end if
        end if
     end associate
+    if (addcb) call isosurface_add_colorbar(w,iview)
 
   contains
     !> A "nice" step (1, 2 or 5 times a power of ten) that divides span
