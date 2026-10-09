@@ -20,7 +20,7 @@ module representations
   use iso_c_binding
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_over, dl_string, dl_string_over,&
-     dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append
+     dl_plane, dl_triangle, dl_mesh, scene_objects, dl_append, legend_label_len
   use param, only: bohrtoa, maxzat0, atmcov0, mlen, pi
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
@@ -688,6 +688,12 @@ module representations
      real(c_float) :: bgalpha = legend_bgalpha_def ! box background opacity
      logical :: border = .true. ! draw the border of the box
      real(c_float) :: borderrgb(3) = legend_borderrgb_def ! box border color
+     ! per-species rows (geometry-dependent; rebuilt when the species change)
+     integer :: nspc = 0 ! number of species the rows are for
+     integer, allocatable :: spcz(:) ! atomic numbers of the species the rows are for (nspc)
+     character(len=10), allocatable :: spcname(:) ! names of the species the rows are for (nspc)
+     logical, allocatable :: shown(:) ! whether each species has a row (nspc)
+     character(len=legend_label_len), allocatable :: label(:) ! text of each species row (nspc)
   end type rep_legend
   public :: rep_legend
 

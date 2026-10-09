@@ -109,6 +109,8 @@ module shapes
   end type dl_sphere
   public :: dl_sphere
 
+  integer, parameter, public :: legend_label_len = 32 ! length of the text of a legend row
+
   !> legend of the atomic species, laid out at render time in the NDC
   !> of the render buffer: a box in a corner of the view, one row per
   !> species with a sphere in the atom color and a label
@@ -122,7 +124,7 @@ module shapes
      real(c_float) :: borderrgb(3) ! box border color
      integer :: nrow = 0 ! number of rows
      real(c_float), allocatable :: rgb(:,:) ! sphere color of each row (3,nrow)
-     character(len=10), allocatable :: label(:) ! label of each row (nrow)
+     character(len=legend_label_len), allocatable :: label(:) ! label of each row (nrow)
   end type dl_legend
   public :: dl_legend
 

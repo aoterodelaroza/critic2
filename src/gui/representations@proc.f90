@@ -788,6 +788,9 @@ contains
        if (doreset) call r%atoms%style%reset(r)
     end if
 
+    ! legend: one row per species, reset if the species changed
+    if (r%type == reptype_legend) call legend_sync()
+
     if (reptype_is_atombased(r%type)) then
        ! molecules: if the geometry or the bonds changed
        doreset = .not.r%mols%style%isinit
@@ -875,6 +878,62 @@ contains
        doreset = doreset .or. (sysc(r%id)%timelastchange_cplist > r%gpaths%ptime)
        if (doreset) call r%gpaths%reset_paths(r%id)
     end if
+
+  contains
+
+    !> Rebuild the per-species rows of the legend if the species of the
+    !> system changed (atomic numbers or names). A species that was
+    !> already there keeps its row; a new one is shown, with the element
+    !> symbol as text (the species name if not an element).
+    subroutine legend_sync()
+      use tools_io, only: nameguess
+      use param, only: maxzat
+      integer :: is, j, iz
+      integer, allocatable :: spcz0(:)
+      character(len=10), allocatable :: spcname0(:)
+      logical, allocatable :: shown0(:)
+      character(len=legend_label_len), allocatable :: label0(:)
+
+      associate(c => sys(r%id)%c, lg => r%legend)
+        ! the rows are allocated together, in this routine
+        if (lg%nspc == c%nspc .and. allocated(lg%spcz)) then
+           if (all(lg%spcz(1:c%nspc) == c%spc(1:c%nspc)%z) .and.&
+              all(lg%spcname(1:c%nspc) == c%spc(1:c%nspc)%name)) return
+        end if
+
+        ! the old rows, to be matched to the new species
+        if (allocated(lg%spcz)) then
+           call move_alloc(lg%spcz,spcz0)
+           call move_alloc(lg%spcname,spcname0)
+           call move_alloc(lg%shown,shown0)
+           call move_alloc(lg%label,label0)
+        else
+           allocate(spcz0(0),spcname0(0),shown0(0),label0(0))
+        end if
+
+        lg%nspc = c%nspc
+        allocate(lg%spcz(c%nspc),lg%spcname(c%nspc),lg%shown(c%nspc),lg%label(c%nspc))
+        do is = 1, c%nspc
+           iz = c%spc(is)%z
+           lg%spcz(is) = iz
+           lg%spcname(is) = c%spc(is)%name
+           lg%shown(is) = .true.
+           if (iz >= 1 .and. iz <= maxzat) then
+              lg%label(is) = nameguess(iz,.true.)
+           else
+              lg%label(is) = c%spc(is)%name
+           end if
+           do j = 1, size(spcz0,1)
+              if (spcz0(j) == iz .and. spcname0(j) == lg%spcname(is)) then
+                 lg%shown(is) = shown0(j)
+                 lg%label(is) = label0(j)
+                 exit
+              end if
+           end do
+        end do
+      end associate
+
+    end subroutine legend_sync
 
   end subroutine update_styles
 
@@ -3266,17 +3325,15 @@ contains
 
     end subroutine append_forced_atom
 
-    !> Append the legend of this object: one row per atomic species
-    !> with its element symbol and its color in the atoms object
+    !> Append the legend of this object: one row per shown atomic
+    !> species with its text (r%legend%label) and its color in the atoms object
     !> ratoms (the color of its first cell atom), or the element color
     !> if there is no atoms object. Species with the same symbol and
     !> color share a row.
     subroutine append_legend()
-      use tools_io, only: nameguess
-      use param, only: maxzat
       type(dl_legend) :: dleg
       integer :: is, iat, iz, k, idc
-      character(len=10) :: lbl
+      character(len=legend_label_len) :: lbl
       real(c_float) :: rgbl(3)
       logical :: found
 
@@ -3289,14 +3346,11 @@ contains
       dleg%borderrgb = r%legend%borderrgb
       allocate(dleg%rgb(3,c%nspc),dleg%label(c%nspc))
       dleg%nrow = 0
+      if (r%legend%nspc /= c%nspc) return
       do is = 1, c%nspc
-         ! label: the element symbol (the species name if not an element)
+         if (.not.r%legend%shown(is)) cycle
+         lbl = r%legend%label(is)
          iz = c%spc(is)%z
-         if (iz >= 1 .and. iz <= maxzat) then
-            lbl = nameguess(iz,.true.)
-         else
-            lbl = c%spc(is)%name
-         end if
 
          ! color: of the first cell atom of this species in the atoms object
          rgbl = ColorElement(:,max(min(iz,ubound(ColorElement,2)),0))

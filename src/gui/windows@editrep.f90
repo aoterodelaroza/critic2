@@ -1165,13 +1165,21 @@ contains
   !> needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_legend(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_combo_simple
+       iw_combo_simple, iw_table_column, iw_table_headers_row, iw_inputtext, iw_calcwidth,&
+       iw_calcheight
+    use systems, only: sys
+    use shapes, only: legend_label_len
+    use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
     logical :: ch
     real(c_float) :: rgba(4)
+    character(kind=c_char,len=:), allocatable, target :: str1
+    integer(c_int) :: flags
+    integer :: is, ncol
+    type(ImVec2) :: sz
 
     ! initialize
     changed = .false.
@@ -1189,9 +1197,54 @@ contains
     call iw_tooltip("Size of the legend (1 = default)",ttshown)
     changed = changed .or. ch
 
+    ! the species rows: whether they are shown, and their text
+    call iw_text("Species",highlight=.true.)
+    if (w%rep%legend%nspc == sys(w%isys)%c%nspc .and. allocated(w%rep%legend%shown)) then
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1 = "##tablelegendspecies" // c_null_char
+       sz%x = iw_calcwidth(30,3)
+       sz%y = iw_calcheight(min(8,w%rep%legend%nspc+1),0,.false.)
+       if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+          ncol = -1
+          call iw_table_column("Species",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Text",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+          do is = 1, w%rep%legend%nspc
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+             ! species
+             if (igTableSetColumnIndex(0_c_int)) &
+                call iw_text(trim(sys(w%isys)%c%spc(is)%name),alignframe=.true.)
+
+             ! shown
+             if (igTableSetColumnIndex(1_c_int)) then
+                ch = iw_checkbox("##legendtableshown" // string(is),w%rep%legend%shown(is))
+                call iw_tooltip("Show this species in the legend",ttshown)
+                changed = changed .or. ch
+             end if
+
+             ! text
+             if (igTableSetColumnIndex(2_c_int)) then
+                ch = iw_inputtext("##legendtabletext" // string(is),bufsize=legend_label_len,&
+                   textf=w%rep%legend%label(is),width=15)
+                call iw_tooltip("Text for this species in the legend",ttshown)
+                changed = changed .or. ch
+             end if
+          end do
+          call igEndTable()
+       end if
+    end if
+
     call iw_text("Colors",highlight=.true.)
     ch = iw_coloredit("Text",rgb=w%rep%legend%textrgb)
-    call iw_tooltip("Color of the element symbols",ttshown)
+    call iw_tooltip("Color of the legend text",ttshown)
     changed = changed .or. ch
 
     rgba = (/w%rep%legend%bgrgb,w%rep%legend%bgalpha/)
