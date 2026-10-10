@@ -768,16 +768,8 @@ contains
        end if
     end if
 
-    ! terminate the system, including any interactive dynamics (it
-    ! keeps its unique identifier: it is the same system, read again)
-    uid = sysc(idx)%uid
-    call sys(idx)%end()
-    call sysc(idx)%seed%end()
-    sysc(idx)%md_run = .false.
-    call sysc(idx)%md%free()
-    sysc(idx)%status = sys_empty
-
-    ! re-read the seeds from file (derived systems already have the seed)
+    ! re-read the seeds from file (derived systems already have the seed),
+    ! before the system goes: if this fails, it stays as it was
     if (.not.derived) then
        errmsg = ""
        nseed = 0
@@ -788,6 +780,8 @@ contains
           call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
              iafield,iavib)
           if (len_trim(errmsg) > 0 .or. nseed == 0) return
+          ! the file must still have the structure the system was read from
+          if (idseed < 1 .or. idseed > nseed) return
 
           ! move the relevant seed to the first position
           if (nseed > 1) then
@@ -796,6 +790,15 @@ contains
           end if
        end if
     end if
+
+    ! terminate the system, including any interactive dynamics (it
+    ! keeps its unique identifier: it is the same system, read again)
+    uid = sysc(idx)%uid
+    call sys(idx)%end()
+    call sysc(idx)%seed%end()
+    sysc(idx)%md_run = .false.
+    call sysc(idx)%md%free()
+    sysc(idx)%status = sys_empty
 
     ! add the system again
     call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx)
@@ -923,14 +926,86 @@ contains
 
   end subroutine regenerate_system_pointers
 
+  !> Point the reference sr to the system in slot id (none if the slot
+  !> is out of range or empty).
+  module subroutine sys_ref_set(sr,id)
+    class(sys_ref), intent(inout) :: sr
+    integer, intent(in) :: id
+
+    sr%id = 0
+    sr%uid = 0
+    if (.not.ok_system(id,sys_loaded_not_init)) return
+    sr%id = id
+    sr%uid = sysc(id)%uid
+
+  end subroutine sys_ref_set
+
+  !> The slot of the system the reference sr was set to, if it is
+  !> still there and has at least status level; else 0.
+  module function sys_ref_get(sr,level) result(id)
+    class(sys_ref), intent(in) :: sr
+    integer, intent(in) :: level
+    integer :: id
+
+    id = 0
+    if (sr%ok(level)) id = sr%id
+
+  end function sys_ref_get
+
+  !> True if the system the reference sr was set to is still there,
+  !> with at least status level.
+  module function sys_ref_ok(sr,level) result(ok)
+    class(sys_ref), intent(in) :: sr
+    integer, intent(in) :: level
+    logical :: ok
+
+    ok = (sr%uid > 0)
+    if (ok) ok = ok_system(sr%id,level,uid=sr%uid)
+
+  end function sys_ref_ok
+
+  !> True if the reference sr points to the system now in slot id (not
+  !> to another one that was there before), with at least status level
+  !> (default: sys_loaded_not_init).
+  module function sys_ref_is(sr,id,level) result(is)
+    class(sys_ref), intent(in) :: sr
+    integer, intent(in) :: id
+    integer, intent(in), optional :: level
+    logical :: is
+
+    is = (sr%id == id)
+    if (.not.is) return
+    if (present(level)) then
+       is = sr%ok(level)
+    else
+       is = sr%ok(sys_loaded_not_init)
+    end if
+
+  end function sys_ref_is
+
+  !> True if the references sr and other point to the same system, by
+  !> identifier (two references to the same empty slot are the same
+  !> too, as in field_ref and rep_ref).
+  module function sys_ref_same(sr,other) result(same)
+    class(sys_ref), intent(in) :: sr
+    type(sys_ref), intent(in) :: other
+    logical :: same
+
+    same = (sr%uid == other%uid .and. (sr%uid > 0 .or. sr%id == other%id))
+
+  end function sys_ref_same
+
   !> Check that the system ID is sane and has at least the requested
-  !> initialization level.
-  module function ok_system(isys,level)
+  !> initialization level. If uid is given, the system must be the one
+  !> with that unique identifier (not another one in its slot).
+  module function ok_system(isys,level,uid)
     integer, intent(in) :: isys, level
+    integer*8, intent(in), optional :: uid
     logical :: ok_system
 
     ok_system = (isys >= 1 .and. isys <= nsys)
     if (ok_system) ok_system = (sysc(isys)%status >= level)
+    if (ok_system .and. present(uid)) ok_system = (sysc(isys)%uid == uid)
 
   end function ok_system
 

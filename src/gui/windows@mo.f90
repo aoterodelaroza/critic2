@@ -406,7 +406,7 @@ contains
             call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
             if (itrep > 0) then
                associate (r => win(iview)%sc%reptrans(itrep))
-                 if (.not.found .or. r%iso%fref%id /= iref) then
+                 if (.not.found .or. r%iso%fref%id /= iref .or. .not.r%iso%fref%ok(sys(isys))) then
                     ! a fresh slot, or the reference field changed: bind
                     ! the field and make the +/- isosurface pair
                     call r%iso%set_field(isys,iref)

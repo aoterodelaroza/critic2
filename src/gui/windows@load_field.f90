@@ -128,7 +128,7 @@ contains
 
     ! reset the per-system widget state when the system changes (or its
     ! species count does, e.g. from the geometry editor)
-    resetsys = (w%lf%isys_last /= isys) .or. .not.allocated(w%lf%zpsp)
+    resetsys = .not.w%lf%sys_last%is(isys) .or. .not.allocated(w%lf%zpsp)
     if (.not.resetsys) resetsys = (size(w%lf%zpsp) /= sys(isys)%c%nspc)
     if (resetsys) then
        w%lf%file1 = ""
@@ -137,12 +137,12 @@ contains
        w%lf%file2_set = .false.
        w%lf%file3 = ""
        w%lf%file3_set = .false.
-       w%lf%sourcefid = -1
-       w%lf%sizeoffid = -1
+       w%lf%sourceref = field_ref()
+       w%lf%sizeofref = field_ref()
        if (allocated(w%lf%zpsp)) deallocate(w%lf%zpsp)
        allocate(w%lf%zpsp(sys(isys)%c%nspc))
        w%lf%zpsp = -1
-       w%lf%isys_last = isys
+       call w%lf%sys_last%set(isys)
        call validate_expr()
     end if
 
@@ -466,7 +466,7 @@ contains
             "Gradient norm"//c_null_char//"Laplacian"//c_null_char//&
             "Potential (Poisson)"//c_null_char,w%lf%ifftop)
          call iw_tooltip("Derivative of the source field calculated via fast Fourier transform",ttshown)
-         call field_row("Source field","##loadfieldfftsource",w%lf%sourcefid,&
+         call field_row("Source field","##loadfieldfftsource",w%lf%sourceref,&
             "Grid field the operation applies to",onlygrid=.true.)
          if (w%lf%ifftop == 11) then
             ldum = iw_checkbox("Potential in Rydberg units##loadfieldfftry",w%lf%fftry)
@@ -474,7 +474,7 @@ contains
          end if
       case (1)
          ! resample
-         call field_row("Source field","##loadfieldresamplesource",w%lf%sourcefid,&
+         call field_row("Source field","##loadfieldresamplesource",w%lf%sourceref,&
             "Grid field to be resampled",onlygrid=.true.)
          call draw_grid_size()
       end select
@@ -482,17 +482,35 @@ contains
     end subroutine draw_source_transform
 
     !> Draw a labeled row with a field selector combo and a tooltip.
-    subroutine field_row(label,strid,fid,tip,onlygrid)
+    subroutine field_row(label,strid,fref,tip,onlygrid)
       character(len=*,kind=c_char), intent(in) :: label, strid, tip
-      integer, intent(inout) :: fid
+      type(field_ref), intent(inout) :: fref
       logical, intent(in) :: onlygrid
 
       call iw_text(label,alignframe=.true.)
       call igSameLine(0._c_float,-1._c_float)
-      ldum = iw_field_combo(strid,isys,fid,width=iw_calcwidth(30,1),onlygrid=onlygrid)
+      call field_ref_combo(strid,fref,iw_calcwidth(30,1),onlygrid)
       call iw_tooltip(tip,ttshown)
 
     end subroutine field_row
+
+    !> Field selector combo for the field referenced by fref.
+    subroutine field_ref_combo(strid,fref,width,onlygrid)
+      character(len=*,kind=c_char), intent(in) :: strid
+      type(field_ref), intent(inout) :: fref
+      real(c_float), intent(in) :: width
+      logical, intent(in) :: onlygrid
+
+      integer :: fid
+
+      ! a field that is gone (another one in its slot) is not offered
+      ! as the choice
+      if (.not.fref%ok(sys(isys))) fref = field_ref()
+      fid = fref%id
+      if (iw_field_combo(strid,isys,fid,width=width,onlygrid=onlygrid)) &
+         call fref%set(sys(isys),fid)
+
+    end subroutine field_ref_combo
 
     !> Draw a file button + Clear button + file name row for an
     !> auxiliary file. Opens a modal file dialog with token itok whose
@@ -589,8 +607,7 @@ contains
       call iw_tooltip("Use the same grid size as an existing grid field",ttshown)
       if (w%lf%ngridopt == 1) then
          call igSameLine(0._c_float,-1._c_float)
-         ldum = iw_field_combo("##loadfieldsizeof",isys,w%lf%sizeoffid,width=iw_calcwidth(25,1),&
-            onlygrid=.true.)
+         call field_ref_combo("##loadfieldsizeof",w%lf%sizeofref,iw_calcwidth(25,1),.true.)
       end if
 
     end subroutine draw_grid_size
@@ -782,7 +799,7 @@ contains
             reason = zpspmsg
       case (3)
          ! grid transform
-         if (.not.sys(isys)%goodfield(w%lf%sourcefid,type=type_grid)) then
+         if (.not.sys(isys)%goodfield(w%lf%sourceref%get(sys(isys)),type=type_grid)) then
             reason = "Select a source field to enable OK"
          elseif (w%lf%gtransf == 1) then
             reason = sizereason()
@@ -804,7 +821,7 @@ contains
       reason = ""
       if (w%lf%ngridopt == 0) then
          if (any(w%lf%ngrid <= 0)) reason = "The grid size must be positive"
-      elseif (.not.sys(isys)%goodfield(w%lf%sizeoffid,type=type_grid)) then
+      elseif (.not.sys(isys)%goodfield(w%lf%sizeofref%get(sys(isys)),type=type_grid)) then
          reason = "Select a grid field for the size to enable OK"
       end if
 
@@ -901,10 +918,10 @@ contains
          ! grid transform
          select case (w%lf%gtransf)
          case (0)
-            lstr = "as fft " // trim(fftopname(w%lf%ifftop)) // " " // string(w%lf%sourcefid)
+            lstr = "as fft " // trim(fftopname(w%lf%ifftop)) // " " // string(w%lf%sourceref%id)
             if (w%lf%ifftop == 11 .and. w%lf%fftry) lstr = lstr // " ry"
          case (1)
-            lstr = "as resample " // string(w%lf%sourcefid) // " " // sizestring()
+            lstr = "as resample " // string(w%lf%sourceref%id) // " " // sizestring()
          end select
       end select
 
@@ -979,7 +996,7 @@ contains
          sstr = string(w%lf%ngrid(1)) // " " // string(w%lf%ngrid(2)) // " " //&
             string(w%lf%ngrid(3))
       else
-         sstr = "sizeof " // string(w%lf%sizeoffid)
+         sstr = "sizeof " // string(w%lf%sizeofref%id)
       end if
 
     end function sizestring

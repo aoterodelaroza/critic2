@@ -88,7 +88,7 @@ contains
     ! The results describe one geometry of one system: drop them when either
     ! changes underneath them.
     if (goodsys) then
-       if (w%vd%isys /= isys) then
+       if (.not.w%vd%sys%is(isys)) then
           ! a different system: everything measured for the old one goes
           if (allocated(w%vd%pol_isc)) deallocate(w%vd%pol_isc)
           if (allocated(w%vd%pol_isv)) deallocate(w%vd%pol_isv)
@@ -96,7 +96,7 @@ contains
           w%vd%iso_spacing_auto = .true.
           w%vd%iso_secs = -1d0
           w%vd%iso_secs_ncel = -1
-          w%vd%isys = isys
+          call w%vd%sys%set(isys)
           call drop_results()
        elseif (w%vd%timelast /= sysc(isys)%timelastchange_geometry) then
           ! the same system changed, recalculate
@@ -1292,7 +1292,7 @@ contains
   !> Draw the overlay of the blocking job of the voids window
   !> (run_voids).
   module subroutine block_voids(w)
-    use systems, only: sysc, sys_init, ok_system
+    use systems, only: sysc, sys_init
     use utils, only: iw_wait_overlay
     use tools_io, only: string
     use param, only: newline
@@ -1300,10 +1300,12 @@ contains
 
     character(len=:), allocatable :: info, title
     logical :: cancellable
+    integer :: isys
 
     info = ""
-    if (ok_system(w%vd%isys,sys_init)) &
-       info = "System: " // string(w%vd%isys) // ": " // trim(sysc(w%vd%isys)%seed%name)
+    isys = w%vd%sys%get(sys_init)
+    if (isys > 0) &
+       info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
     if (w%vd%pending == voidsjob_iso) then
        title = "Calculating the voids in the promolecular density..."
        info = info // newline // "Grid:   " // string(w%vd%pending_n(1)) // " x " //&
@@ -1322,7 +1324,7 @@ contains
   !> grid and its voids, or the volume covered by the atomic spheres.
   !> Both can be cancelled with Esc (the results are discarded).
   module subroutine run_voids(w)
-    use systems, only: sys, sys_init, ok_system
+    use systems, only: sys, sys_init
     use gui_main, only: begin_cancellable, end_cancellable
     use global, only: abort_requested
     use param, only: pi
@@ -1333,10 +1335,10 @@ contains
     real*8 :: vfill
     real*8, allocatable :: f(:,:,:)
 
-    isys = w%vd%isys
+    isys = w%vd%sys%get(sys_init)
     job = w%vd%pending
     w%vd%pending = 0
-    if (.not.ok_system(isys,sys_init)) return
+    if (isys == 0) return
     w%errmsg = ""
 
     ! the results are kept until the new ones are complete: a cancel

@@ -661,14 +661,15 @@ contains
 
   !> Whether the system of demo window w (water cluster, melting) is
   !> still the one it made: not removed, and not another system loaded
-  !> into its slot.
-  module function demo_owns_system(w) result(ok)
-    use systems, only: sysc, sys_init, ok_system
+  !> into its slot. The system must have at least initialization
+  !> level (default: sys_loaded_not_init, i.e. it may be still
+  !> initializing).
+  module function demo_owns_system(w,level) result(ok)
     class(window), intent(in) :: w
+    integer, intent(in), optional :: level
     logical :: ok
 
-    ok = ok_system(w%isys,sys_init)
-    if (ok) ok = (sysc(w%isys)%uid == w%demo_sysuid)
+    ok = w%demo_sys%is(w%isys,level)
 
   end function demo_owns_system
 
@@ -827,7 +828,7 @@ contains
     ! window can tell it apart from whatever window takes its slot later
     w%uid = new_uid()
     w%isys_uid = 0
-    w%demo_sysuid = 0
+    w%demo_sys = sys_ref()
     w%vibrations_iview = 0
     w%vibrations_viewuid = 0
     if (present(isys)) w%isys = isys
@@ -835,6 +836,7 @@ contains
     if (present(idparent)) call set_window_parent(w,idparent)
     if (present(irep)) call set_window_rref(w,irep)
     if (present(itoken)) w%itoken = itoken
+    w%purpose = wpurp_unknown
     if (present(purpose)) w%purpose = purpose
     w%geometry_expression = ""
 
@@ -1090,7 +1092,7 @@ contains
        elseif (w%type == wintype_dynamics) then
           ! stop the dynamics run, rebuild the crystal, free the state
           isysd = w%isys
-          if (ok_system(isysd,sys_init)) then
+          if (ok_system(isysd,sys_init,uid=w%isys_uid)) then
              if (sysc(isysd)%md%ready) then
                 ! the window is going away, so its errmsg cannot be shown:
                 ! report a failed rebuild in the output console instead
@@ -1112,9 +1114,9 @@ contains
           ! a sampling run belongs to this window: closing it must
           ! stop the dynamics and put the sampled-from structure back
           if (w%rattle_running) then
-             isysd = w%rattle_isys
+             isysd = w%rattle_sys%get(sys_init)
              w%rattle_running = .false.
-             if (ok_system(isysd,sys_init)) then
+             if (isysd > 0) then
                 if (sysc(isysd)%md%ready) call sysc(isysd)%md%reset(sys(isysd)%c)
                 call sysc(isysd)%md_stop(errmsg)
                 if (len_trim(errmsg) > 0) &
@@ -1125,7 +1127,7 @@ contains
        elseif (w%type == wintype_water_cluster .or. w%type == wintype_melting) then
           ! the demos own the system they generate; remove it on close so it
           ! does not linger (remove_system stops and frees the run)
-          if (w%demo_owns_system()) call remove_system(w%isys)
+          if (w%demo_owns_system(sys_init)) call remove_system(w%isys)
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
           iv = w%anchor_view()
@@ -1135,7 +1137,7 @@ contains
           call w%edit_stop()
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
-          if (ok_system(w%isys,sys_init)) &
+          if (ok_system(w%isys,sys_init,uid=w%isys_uid)) &
              call sysc(w%isys)%highlight_clear(.false.)
        end if
     end if
@@ -1169,7 +1171,8 @@ contains
     w%wc_started = .false.
     w%builder_tool = it_none
     w%builder_vm = 0
-    w%builder_isys = 0
+    w%builder_sys = sys_ref()
+    call w%builder_bond%clear()
     ! (edit-session markers are cleared by the edit_stop call above, and
     ! the session payload is re-seeded by the start routines)
     w%edit_pending = .false.
@@ -1528,42 +1531,42 @@ contains
           str1 = "All files (*.*){*.*}" // c_null_char
           if (w%purpose == wpurp_dialog_openfiles) then
              ! open dialog
-             w%name = "Open File(s)##" // string(w%id)  // c_null_char
+             w%name = "Open File(s)##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfiles),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_savelogfile) then
-             w%name = "Save Log File##" // string(w%id)  // c_null_char
+             w%name = "Save Log File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose)  // c_null_char
              str2 = "file.log" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openlibraryfile) then
-             w%name = "Open Library File##" // string(w%id)  // c_null_char
+             w%name = "Open Library File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openfieldfile) then
-             w%name = "Open Field File(s)##" // string(w%id)  // c_null_char
+             w%name = "Open Field File(s)##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfieldfile),&
                 c_loc(str2),c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openvibfile) then
-             w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
+             w%name = "Open Vibration Data File(s)##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openvibfile),&
                 c_loc(str2),c_funloc(dialog_user_callback),panewidth,0_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_openonefilemodal) then
-             w%name = "Open File##" // string(w%id)  // c_null_char
+             w%name = "Open File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose)  // c_null_char
              if (allocated(w%dialog_filter)) &
                 str1 = w%dialog_filter // ",All files (*.*){*.*}" // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_saveimagefile) then
-             w%name = "Save Image File##" // string(w%id) // c_null_char
+             w%name = "Save Image File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              call dialog_initial_file(w%parent(),"image.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),dflags)
           elseif (w%purpose == wpurp_dialog_savefile .or. w%purpose == wpurp_dialog_savecpfile) then
              if (w%purpose == wpurp_dialog_savefile) then
-                w%name = "Save Structure File##" // string(w%id) // c_null_char
+                w%name = "Save Structure File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
                 str1 = "&
                    &FHIaims input (*.in) {.in},&
                    &CIF (*.cif) {.cif},&
@@ -1597,7 +1600,7 @@ contains
                    &All files (*.*){*.*}"// c_null_char
                 call dialog_initial_file(w%parent(),"structure.in",str2,str3)
              else
-                w%name = "Export Critical Points##" // string(w%id) // c_null_char
+                w%name = "Export Critical Points##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
                 str1 = "&
                    &CIF (*.cif) {.cif},&
                    &xyz (*.xyz) {.xyz},&
@@ -1618,7 +1621,7 @@ contains
              ! a table of the parent window, as text: to the file its
              ! tables were last written to, or table.txt next to its
              ! okfile
-             w%name = "Write Table to Text File##" // string(w%id) // c_null_char
+             w%name = "Write Table to Text File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              str1 = "Text (*.txt) {.txt},All files (*.*){*.*}" // c_null_char
              idp = w%parent()
              str4 = "table.txt"
@@ -1633,7 +1636,7 @@ contains
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_selectdir) then
-             w%name = "Select Directory##" // string(w%id) // c_null_char
+             w%name = "Select Directory##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              str2 = "" // c_null_char
              str3 = "./" // c_null_char
              idp = w%parent()
@@ -1893,7 +1896,7 @@ contains
       square_ = .false.
       if (present(square)) square_ = square
 
-      w%name = title // "##" // string(w%id) // c_null_char
+      w%name = title // "##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
       w%flags = ImGuiWindowFlags_None
       if (present(nx)) then
          inisize%x = nx * fontsize%x

@@ -71,7 +71,7 @@ module systemmod
      type(crystal), allocatable :: c !< Crystal structure (always allocated)
      integer :: nf = -1 !< Number of fields
      type(field), allocatable :: f(:) !< Fields for this system
-     integer :: fieldgen = 0 !< Generation counter, bumped whenever the field set changes (loaded, copied, unloaded, reset)
+     integer :: fieldgen = 0 !< Generation counter, bumped (fieldset_changed) whenever the fields change: loaded, copied, unloaded, reset, or their options set (the GUI views rebuild on it)
      logical :: refset = .false. !< Has the reference been set?
      integer :: iref = 0 !< Reference field
      integer :: npropi = 0 !< Number of integrable properties
@@ -97,6 +97,7 @@ module systemmod
      procedure :: propi_field !< Slot of the field of an integrable property (-1 if gone)
      procedure :: field_cuid !< Identifier of the data of the field in a slot (0 if none)
      procedure :: fieldset_changed !< The set of fields changed: fieldgen, and the data of the ghost fields
+     procedure :: set_field_options !< Set the options of a field (SETFIELD), with what that changes
      procedure :: getfieldnum !< Find an open slot for a new field
      procedure :: field_copy !< Copy a field from one slot to another
      procedure :: unload_field !< Unload a field
@@ -261,6 +262,12 @@ module systemmod
      module subroutine fieldset_changed(s)
        class(system), intent(inout) :: s
      end subroutine fieldset_changed
+     module subroutine set_field_options(s,id,line,errmsg)
+       class(system), intent(inout) :: s
+       integer, intent(in) :: id
+       character*(*), intent(in) :: line
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine set_field_options
      module function field_cuid(s,id) result(cuid)
        class(system), intent(in) :: s
        integer, intent(in) :: id

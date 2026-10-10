@@ -376,7 +376,7 @@ contains
       if (allocated(w%rattle_seed)) deallocate(w%rattle_seed)
       allocate(w%rattle_seed(w%rattle_ngen))
       w%rattle_running = .true.
-      w%rattle_isys = isys
+      call w%rattle_sys%set(isys)
       w%rattle_istep0 = sysc(isys)%md%istep
       w%rattle_ncoll = 0
       w%rattle_nextdue = int(w%rattle_nini) + int(w%rattle_nstride)
@@ -393,7 +393,7 @@ contains
 
       ! the view moved to another system: this run is no longer the one on
       ! screen, so end it (closing the window is handled by window_end)
-      if (w%rattle_isys /= isys) then
+      if (.not.w%rattle_sys%is(isys,sys_init)) then
          call finish_run(.true.)
          return
       end if
@@ -419,7 +419,7 @@ contains
          w%rattle_ncoll = w%rattle_ncoll + 1
          w%rattle_nextdue = nstep + int(w%rattle_nstride)
          call sys(isys)%c%makeseed(w%rattle_seed(w%rattle_ncoll),.false.)
-         w%rattle_seed(w%rattle_ncoll)%name = trim(sysc(w%rattle_isys)%seed%name) //&
+         w%rattle_seed(w%rattle_ncoll)%name = trim(sysc(w%rattle_sys%id)%seed%name) //&
             " (MD step " // string(nstep) // ")"
       end if
       if (w%rattle_ncoll >= int(w%rattle_ngen)) call finish_run(.false.)
@@ -434,16 +434,17 @@ contains
 
       integer :: is
 
-      is = w%rattle_isys
+      ! the system the run was on (not another one in its slot)
+      is = w%rattle_sys%get(sys_init)
       w%rattle_running = .false.
-      if (ok_system(is,sys_init)) then
+      if (is > 0) then
          ! the sampling must not move the structure it sampled from
          if (sysc(is)%md%ready) call sysc(is)%md%reset(sys(is)%c)
          call sysc(is)%md_stop(errmsg)
          if (len_trim(errmsg) > 0) w%errmsg = errmsg
       end if
 
-      if (w%rattle_ncoll > 0) then
+      if (w%rattle_ncoll > 0 .and. is > 0) then
          call add_group(is,"NVT MD run, " // string(nint(w%rattle_runtemp)) // " K",&
             w%rattle_seed,w%rattle_ncoll)
          if (stopped) then
@@ -451,6 +452,8 @@ contains
          else
             w%okmsg = "Generated " // string(w%rattle_ncoll) // " snapshots"
          end if
+      elseif (w%rattle_ncoll > 0) then
+         w%okmsg = "Stopped: the system was closed, the snapshots are discarded"
       elseif (stopped .and. len_trim(w%errmsg) == 0) then
          w%okmsg = "Stopped before the first snapshot"
       end if

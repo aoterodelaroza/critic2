@@ -25,7 +25,7 @@ contains
   !> the parent view's system, with controls for temperature, speed, engine, and
   !> the ability to grab and drag atoms in the view.
   module subroutine draw_dynamics(w)
-    use systems, only: sysc, sys, nsys, sys_init, ok_system, lastchange_geometry
+    use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
     use energy, only: ff_eam
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
@@ -38,6 +38,7 @@ contains
 
     logical :: doquit, goodsys, goodparent, ldum, haspress, syschanged
     integer :: isys, iview, isysold, iwrite
+    type(sys_ref) :: sysold
     integer(c_int) :: imode, tflags
     real*8 :: pgpa
     type(ImVec2) :: sz0
@@ -48,7 +49,7 @@ contains
 
     ! this window acts on the system shown in its anchor view. Keep the outgoing
     ! system: if the view switched, the run on it has to be stopped below
-    isysold = w%isys
+    sysold = sys_ref(w%isys,w%isys_uid)
     goodparent = w%anchor(iview,isys,syschanged)
 
     ! initialize state
@@ -61,8 +62,10 @@ contains
     if (.not.doquit) goodsys = ok_system(isys,sys_init)
 
     ! if the view switched systems, stop the run on the one we are leaving
-    if (.not.doquit .and. syschanged .and. isysold >= 1 .and. isysold <= nsys) then
-       if (ok_system(isysold,sys_init)) then
+    ! (if it is still there: not another system in its slot)
+    if (.not.doquit .and. syschanged) then
+       isysold = sysold%get(sys_init)
+       if (isysold > 0) then
           if (sysc(isysold)%md_run) call sysc(isysold)%md_stop(errmsg=w%errmsg)
        end if
     end if

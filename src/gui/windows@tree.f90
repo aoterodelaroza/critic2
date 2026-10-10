@@ -1276,7 +1276,7 @@ contains
 
       character(len=:), allocatable :: errmsg
 
-      call sys(i)%f(k)%set_options(opt,errmsg)
+      call sys(i)%set_field_options(k,opt,errmsg)
       if (len_trim(errmsg) > 0) then
          write (uout,'("!! Warning !! Error setting field option: ",A)') trim(errmsg)
          ! show the error transiently in the tree window, too

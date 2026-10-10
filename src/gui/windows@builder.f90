@@ -131,7 +131,7 @@ contains
     else
        if (w%builder_vm /= 0) call bondmode_stop(w,iview,.true.)
        w%builder_vm = jvm
-       w%builder_isys = isys
+       call w%builder_sys%set(isys)
        w%builder_time = glfwGetTime()
        ! no message: the bar shows the hint for this mode (viewmode_text)
        call win(iview)%viewmode_set_forced(jvm,idcaller=w%id)
@@ -148,7 +148,7 @@ contains
 
     if (goodview) call win(iview)%viewmode_release_forced(w%id,w%builder_vm)
     w%builder_vm = 0
-    w%builder_isys = 0
+    w%builder_sys = sys_ref()
     call w%builder_bond%clear()
 
   end subroutine bondmode_stop
@@ -158,7 +158,7 @@ contains
   !> over, and otherwise apply the edit for a delivered click. Does
   !> nothing if the active mode is not a bond operation.
   module subroutine bondmode_poll(w,iview,goodview)
-    use systems, only: sys, sysc
+    use systems, only: sys, sysc, sys_init
     use interfaces_glfw, only: glfwGetTime
     class(window), intent(inout), target :: w
     integer, intent(in) :: iview
@@ -174,14 +174,17 @@ contains
     ! a geometry change since an atom was staged for a new bond
     ! invalidates its index: drop it (and its highlight)
     if (w%builder_bond%is_staged()) then
-       if (w%builder_bond%is_stale(sysc(w%builder_isys)%timelastchange_geometry)) &
+       if (.not.w%builder_sys%ok(sys_init)) then
           call w%builder_bond%clear()
+       elseif (w%builder_bond%is_stale(sysc(w%builder_sys%id)%timelastchange_geometry)) then
+          call w%builder_bond%clear()
+       end if
     end if
 
     ok = goodview
     if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
        win(iview)%viewmode_owner_is(w%id) .and.&
-       win(iview)%isys == w%builder_isys
+       w%builder_sys%is(win(iview)%isys,sys_init)
     if (.not.ok) then
        ! the view is gone, the mode was exited (cancel key, mode combo),
        ! another window took over the pick, or the view shows another
@@ -199,19 +202,19 @@ contains
        win(iview)%vmdata%bidx = 0
        win(iview)%vmdata%flag = 0
        if (glfwGetTime() - w%builder_time < stale_gap .and.&
-          sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+          sysc(w%builder_sys%id)%timelastchange_geometry <= w%builder_time) then
           ! the connectivity is the authority on whether this is a bond at
           ! all: the pick buffer can be one edit out of date, and a
           ! representation can draw contacts (van der Waals, hydrogen bonds)
           ! that were never in it
-          k = sys(w%builder_isys)%c%find_bond(ibond(1),ibond(2),ibond(3:5))
+          k = sys(w%builder_sys%id)%c%find_bond(ibond(1),ibond(2),ibond(3:5))
           if (k == 0) then
              w%errmsg = "That contact is not a bond in the system connectivity"
           elseif (w%builder_vm == vm_builder_bondremove) then
-             call sysc(w%builder_isys)%remove_bond(ibond(1),ibond(2),ibond(3:5))
+             call sysc(w%builder_sys%id)%remove_bond(ibond(1),ibond(2),ibond(3:5))
           elseif (w%builder_vm == vm_builder_bondorder) then
              ! single -> double -> triple -> aromatic -> dashed -> single
-             select case (sys(w%builder_isys)%c%nstar(ibond(1))%ordcon(k))
+             select case (sys(w%builder_sys%id)%c%nstar(ibond(1))%ordcon(k))
              case (1)
                 iord = 2
              case (2)
@@ -223,7 +226,7 @@ contains
              case default
                 iord = 1
              end select
-             call sysc(w%builder_isys)%set_bond_order(ibond(1),ibond(2),ibond(3:5),iord)
+             call sysc(w%builder_sys%id)%set_bond_order(ibond(1),ibond(2),ibond(3:5),iord)
           end if
           if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
        end if
@@ -234,13 +237,13 @@ contains
        imode = win(iview)%vmdata%flag
        win(iview)%vmdata%idx = 0
        if (imode == 1 .and. glfwGetTime() - w%builder_time < stale_gap .and.&
-          sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+          sysc(w%builder_sys%id)%timelastchange_geometry <= w%builder_time) then
           if (.not.w%builder_bond%is_staged()) then
              call w%builder_bond%stage(idxpick)
           elseif (w%builder_bond%same(idxpick)) then
              call w%builder_bond%clear()
           else
-             call sysc(w%builder_isys)%create_bond(w%builder_bond%idx,idxpick,&
+             call sysc(w%builder_sys%id)%create_bond(w%builder_bond%idx,idxpick,&
                 w%builder_vm == vm_builder_bondh,w%errmsg)
              call w%builder_bond%clear()
           end if
@@ -313,11 +316,11 @@ contains
        w%errmsg = ""
        w%builder_tool = it_none
        w%builder_vm = 0
-       w%builder_isys = 0
+       w%builder_sys = sys_ref()
        w%builder_time = 0d0
        call w%builder_bond%clear()
        w%edit_kind = 0
-       w%edit_isys = 0
+       w%edit_sys = sys_ref()
        w%edit_idx = 0
        w%edit_dirty = .false.
        w%edit_time = 0d0
@@ -343,13 +346,16 @@ contains
        ! a geometry change since an atom was staged for a new bond
        ! invalidates its index: drop it (and its highlight)
        if (w%builder_bond%is_staged()) then
-          if (w%builder_bond%is_stale(sysc(w%builder_isys)%timelastchange_geometry)) &
+          if (.not.w%builder_sys%ok(sys_init)) then
              call w%builder_bond%clear()
+          elseif (w%builder_bond%is_stale(sysc(w%builder_sys%id)%timelastchange_geometry)) then
+             call w%builder_bond%clear()
+          end if
        end if
        ok = goodparent
        if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
           win(iview)%viewmode_owner_is(w%id) .and.&
-          win(iview)%isys == w%builder_isys
+          w%builder_sys%is(win(iview)%isys,sys_init)
        if (.not.ok) then
           ! The view is gone, the mode was exited (cancel key, mode combo),
           ! another window took over the pick, or the view shows another
@@ -371,14 +377,14 @@ contains
              win(iview)%vmdata%flag = 0
              win(iview)%vmdata%idx = 0
              if (glfwGetTime() - w%builder_time < stale_gap .and.&
-                sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+                sysc(w%builder_sys%id)%timelastchange_geometry <= w%builder_time) then
                 ! what was actually placed goes to the head of the recent
                 ! list, so the same choice is one click away next time
                 if (w%builder_vm == vm_builder_addatom) then
                    call addatom_apply(xclick,icel,lplaced)
                    if (lplaced) call recent_push(w%builder_addatom_z,w%builder_addatom_ig,0)
                 else
-                   call frag_place(w%builder_isys,iview,w%builder_frag_nat,&
+                   call frag_place(w%builder_sys%id,iview,w%builder_frag_nat,&
                       w%builder_frag_z(1:w%builder_frag_nat),&
                       w%builder_frag_x(:,1:w%builder_frag_nat),w%builder_frag_ianchor,&
                       w%builder_frag_iattach,(/1d0,0d0,0d0/),w%builder_frag_radius,&
@@ -399,19 +405,19 @@ contains
           imode = win(iview)%vmdata%flag
           win(iview)%vmdata%idx = 0
           if (glfwGetTime() - w%builder_time < stale_gap .and.&
-             sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+             sysc(w%builder_sys%id)%timelastchange_geometry <= w%builder_time) then
              if (w%builder_vm == vm_builder_valence) then
                 ! change valence: main pick = add a hydrogen, alternate
                 ! pick = remove one
-                call sysc(w%builder_isys)%change_valence(idxpick(1),imode,errmsg=w%errmsg)
+                call sysc(w%builder_sys%id)%change_valence(idxpick(1),imode,errmsg=w%errmsg)
              elseif (w%builder_vm == vm_builder_remove .and. imode == 1) then
                 ! remove atoms (main pick only): the atom and its
                 ! terminal hydrogens
-                call sysc(w%builder_isys)%remove_atom_hydrogens(idxpick(1))
+                call sysc(w%builder_sys%id)%remove_atom_hydrogens(idxpick(1))
              elseif (w%builder_vm == vm_builder_trim .and. imode == 1) then
                 ! trim branch (main pick only): the same, plus every
                 ! piece the removal disconnects but the main one
-                call sysc(w%builder_isys)%trim_branch(idxpick(1))
+                call sysc(w%builder_sys%id)%trim_branch(idxpick(1))
              end if
              ! hold the camera of the view the user is clicking in through
              ! the rebuild (the edit routines post the geometry event)
@@ -691,13 +697,13 @@ contains
     end if
 
     ! transient highlight of the latched atoms
-    if (w%edit_kind /= 0) &
-       call sysc(w%edit_isys)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
+    if (w%edit_kind /= 0 .and. w%edit_sys%ok(sys_init)) &
+       call sysc(w%edit_sys%id)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
 
     ! transient highlight of the atom staged for a new bond
-    if (w%builder_bond%is_staged()) &
-       call sysc(w%builder_isys)%highlight_atoms(.true.,w%builder_bond%idx(1:1),&
+    if (w%builder_bond%is_staged() .and. w%builder_sys%ok(sys_init)) &
+       call sysc(w%builder_sys%id)%highlight_atoms(.true.,w%builder_bond%idx(1:1),&
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
 
     ! error message, if any
@@ -1450,7 +1456,7 @@ contains
       logical :: ok
 
       ok = havesys
-      if (ok) ok = (isys == w%edit_isys)
+      if (ok) ok = w%edit_sys%is(isys,sys_init)
       if (ok) ok = all(w%edit_idx(1,1:w%edit_kind) >= 1) .and.&
          all(w%edit_idx(1,1:w%edit_kind) <= sys(isys)%c%ncel)
       if (ok) ok = .not.sysc(isys)%md_run
@@ -1607,7 +1613,7 @@ contains
     end subroutine edit_rotate_terminals
 
     ! Latch the ikind measure-selected atoms of the parent view into
-    ! edit_idx/edit_isys and clear the measurement. Stops any active
+    ! edit_idx/edit_sys and clear the measurement. Stops any active
     ! session first; if its uncommitted moves rebuild the crystal, the
     ! latched lattice vectors are re-derived against the rewrapped
     ! atoms.
@@ -1629,7 +1635,7 @@ contains
          end do
       end if
       w%edit_idx = ml
-      w%edit_isys = isys
+      call w%edit_sys%set(isys)
       win(iview)%sc%nmsel = 0
       win(iview)%sc%msel = 0
     end subroutine edit_latch
@@ -2068,10 +2074,10 @@ contains
       zat(1) = w%builder_addatom_z
       xat(:,1) = x0
       used = .false.
-      call addatom_cap_hydrogens(w%builder_isys,zat(1),x0,rot,nsub,tvec,used,nat,zat,xat)
+      call addatom_cap_hydrogens(w%builder_sys%id,zat(1),x0,rot,nsub,tvec,used,nat,zat,xat)
       ! placed on empty space: it bonds to nothing in the system, and the
       ! system keeps the bonds it has
-      call sysc(w%builder_isys)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat),&
+      call sysc(w%builder_sys%id)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat),&
          newbonds=nobonds,errmsg=w%errmsg)
 
     end subroutine addatom_apply
@@ -2093,7 +2099,7 @@ contains
       logical :: used(maxaddsub), lok
 
       placed = .false.
-      isysl = w%builder_isys
+      isysl = w%builder_sys%id
       if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
       if (.not.allocated(sys(isysl)%c%nstar)) return
       znew = w%builder_addatom_z
@@ -2879,24 +2885,25 @@ contains
   !> but not committed, and release the latched atoms (the start
   !> routines re-seed the rest of the session state).
   module subroutine edit_stop(w)
-    use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry
+    use systems, only: sys, sysc, sys_init, lastchange_geometry
     class(window), intent(inout) :: w
 
-    integer :: iview
+    integer :: iview, isys
 
     if (w%edit_dirty) then
-       if (ok_system(w%edit_isys,sys_init)) then
-          call sys(w%edit_isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
+       isys = w%edit_sys%get(sys_init)
+       if (isys > 0) then
+          call sys(isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
           iview = w%parent()
           if (iview > 0) then
              if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
           end if
-          call sysc(w%edit_isys)%post_event(lastchange_geometry,label="Move atoms")
+          call sysc(isys)%post_event(lastchange_geometry,label="Move atoms")
        end if
        w%edit_dirty = .false.
     end if
     w%edit_kind = 0
-    w%edit_isys = 0
+    w%edit_sys = sys_ref()
     w%edit_idx = 0
 
   end subroutine edit_stop

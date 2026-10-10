@@ -24,6 +24,7 @@ module windows
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
      reptype_atoms
   use scenes, only: scene, rep_ref
+  use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
   use meshmod, only: mesh_level_small
@@ -285,7 +286,7 @@ module windows
   !> to AUTO's defaults for the system when the window moves to another
   !> system.
   type cp_state
-     integer :: isys = 0 ! system the form is set up for
+     type(sys_ref) :: sys ! system the form is set up for
      type(field_ref) :: fref ! field to search
      type(cp_seed_ui), allocatable :: seed(:) ! the seeds
      ! advanced options: used only if the corresponding use_ is set
@@ -311,11 +312,11 @@ module windows
      integer :: pending_kind = cpjob_search ! kind of job (cpjob_*)
      character(len=:), allocatable :: pending_line ! AUTO options of the job (search, add)
      ! seed preview: the seeds (Cartesian, absolute frame, bohr) of the AUTO
-     ! options seedline, for system seedsys and field seedfield at geometry time seedtime
+     ! options seedline, for system seedsys and field data seedcuid at geometry time seedtime
      real*8, allocatable :: seedx(:,:)
      character(len=:), allocatable :: seedline
      integer :: seedsys = 0
-     integer :: seedfield = 0
+     integer*8 :: seedcuid = 0 ! data of the field (its cuid) the seeds are for
      real*8 :: seedtime = -1d0
      logical :: seednew = .false. ! seedx changed since the preview was last built
      ! estimated time of the search from seedx (text; deallocated when the seeds go stale)
@@ -380,6 +381,7 @@ module windows
      character(len=1024) :: ppexpr = ""
      integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
      integer :: hoverview = 0 ! view whose critical points object has ihover
+     integer*8 :: hoverview_uid = 0 ! ... and its uid (another window may take the slot)
      ! results table caches, valid for field tfield while the system's
      ! timelastchange_cplist is ttime
      integer :: tfield = -1
@@ -398,7 +400,7 @@ module windows
   !> are dropped when the window moves to another system (reported by
   !> w%anchor) or the geometry of the current one changes underneath them.
   type voids_state
-     integer :: isys = 0 ! system the dataset refers to (0 = none)
+     type(sys_ref) :: sys ! system the dataset refers to (none = id 0)
      real*8 :: timelast = 0d0 ! geometry-change time of the system when they were calculated
      ! isosurface tab: the form
      real*8 :: iso_isoval = 0.01d0 ! promolecular density isovalue (a.u.)
@@ -646,10 +648,10 @@ module windows
      integer :: nhidden = 0 ! systems held back by a collapsed group
      integer :: nexist = 0 ! how many of the files exist already
      integer :: ndup = 0 ! how many of the names are repeated
-     integer, allocatable :: ovrsys(:) ! systems with a hand-typed name
+     type(sys_ref), allocatable :: ovrsys(:) ! systems with a hand-typed name
      character(len=mlen), allocatable :: ovrname(:) ! that name, as a root
      integer :: novr = 0 ! how many of them there are
-     integer :: editsys = 0 ! system whose name is being edited (0 = none)
+     type(sys_ref) :: editsys ! system whose name is being edited (none = id 0)
      character(len=:), allocatable :: editbuf ! the name being edited
      logical :: editfocus = .false. ! the edit box still needs the focus
   end type savemult_state
@@ -657,7 +659,7 @@ module windows
 
   !> Per-window state of the load-field window
   type loadfield_state
-     integer :: isys_last = 0 ! system the per-system widgets were last initialized for
+     type(sys_ref) :: sys_last ! system the per-system widgets were last initialized for
      logical :: gotofile = .false. ! request: select the From File tab and pop the file dialog
      ! from a file
      character(len=:,kind=c_char), allocatable :: file1 ! first (main) file
@@ -676,11 +678,11 @@ module windows
      integer(c_int) :: gtransf = 0_c_int ! 0=fft, 1=resample
      integer(c_int) :: ifftop = 10_c_int ! fft operation (0-11 = gx,gy,gz,hxx,hxy,hxz,hyy,hyz,hzz,gmod,lap,pot)
      logical :: fftry = .false. ! potential in Ry units (fft pot only)
-     integer :: sourcefid = -1 ! source field for fft/resample/sizeof
+     type(field_ref) :: sourceref ! source field for fft/resample
      ! shared grid-size widget (expression, promolecular/core, resample)
      integer(c_int) :: ngridopt = 0_c_int ! 0=explicit size, 1=same size as field
      integer(c_int) :: ngrid(3) = (/40_c_int,40_c_int,40_c_int/) ! explicit grid size
-     integer :: sizeoffid = -1 ! field for the SIZEOF size
+     type(field_ref) :: sizeofref ! field for the SIZEOF size
      ! common options
      character(len=:,kind=c_char), allocatable :: name ! name of the new field
      integer :: iginterp = 5 ! 0=nearest, 1=trilinear, 2=trispline, 3=tricubic, 4=smoothrho,
@@ -834,8 +836,8 @@ module windows
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
-     integer*8 :: isys_uid = 0 ! uid of that system, when resolved through the anchor (window_anchor)
-     integer*8 :: demo_sysuid = 0 ! uid of the system a demo window made (water cluster, melting)
+     integer*8 :: isys_uid = 0 ! uid of that system: through the anchor (window_anchor), or the view's own
+     type(sys_ref) :: demo_sys ! the system a demo window made (water cluster, melting)
      type(rep_ref) :: rref ! the representation on which the window operates (editrep)
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
@@ -892,7 +894,7 @@ module windows
      integer :: moveobj_imol = 0 ! molecule in a move drag
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
      logical :: moveobj_dirty = .false. ! in-place move drag pending a rebuild (see moveobj_end_drag)
-     integer :: moveobj_isys = 0 ! system the pending in-place drag belongs to (may not be the one shown)
+     type(sys_ref) :: moveobj_sys ! system the pending in-place drag belongs to (may not be the one shown)
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: press_p0 ! press position (mouse/screen coords): click-vs-drag test and rubber-band anchor
      integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick, 4=alternate pick)
@@ -986,7 +988,7 @@ module windows
      integer(c_int) :: rattle_nstride = 1_c_int ! MD steps between consecutive snapshots
      logical :: rattle_closeafter = .true. ! close the window after generating
      logical :: rattle_running = .false. ! a sampling run is in progress
-     integer :: rattle_isys = 0 ! the system the run is on (a view switch aborts it)
+     type(sys_ref) :: rattle_sys ! the system the run is on (a view switch aborts it)
      integer :: rattle_istep0 = 0 ! mdrun step counter when the run started
      integer :: rattle_ncoll = 0 ! snapshots collected so far
      integer :: rattle_nextdue = 0 ! run step at which the next snapshot is due
@@ -1041,7 +1043,7 @@ module windows
      ! builder parameters
      integer :: builder_tool = it_none ! tool selected in the palette, whose options the panel shows (it_* or a vm_builder_* mode)
      integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else one of the vm_builder_* modes)
-     integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
+     type(sys_ref) :: builder_sys ! system latched for the builder picks (none = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      type(pairpick) :: builder_bond ! create bonds: staged first atom
      integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
@@ -1057,7 +1059,7 @@ module windows
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
      real(c_float) :: builder_panelh = 0._c_float ! content height of the tool panel, for sizing the window to it
      integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
-     integer :: edit_isys = 0 ! system latched for the edit session
+     type(sys_ref) :: edit_sys ! system latched for the edit session
      integer :: edit_idx(4,4) = 0 ! latched atoms (cell atom + lattice vector); for angles, column 2 is the vertex; for dihedrals, columns 2-3 are the axis
      integer :: edit_imove(4) = 0 ! per-atom move mode (0 = fixed, 1 = atom, 2 = fragment/group, 3 = dihedral half, moving the 2-3 substituents)
      logical :: edit_fragok(4) = .false. ! whether the fragment/group move option is available per atom
@@ -1507,8 +1509,9 @@ module windows
        integer, intent(in) :: isys
        logical :: busy
      end function objedit_busy
-     module function demo_owns_system(w) result(ok)
+     module function demo_owns_system(w,level) result(ok)
        class(window), intent(in) :: w
+       integer, intent(in), optional :: level
        logical :: ok
      end function demo_owns_system
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)

@@ -823,7 +823,7 @@ contains
     if (ok) then
        if (s%f(id)%guess_allelectron(rnuc,rval)) then
           ! set_options only fails for fields without a grid
-          call s%f(id)%set_options("smoothrho",errchk)
+          call s%set_field_options(id,"smoothrho",errchk)
           str = "all-electron density"
           aux = "SMOOTHRHO"
        else
@@ -1050,6 +1050,21 @@ contains
     end do
 
   end subroutine fieldset_changed
+
+  !> Set the options of field id of system s from a SETFIELD-style
+  !> string line. The values of the field change (it gets new data,
+  !> field%cuid), and so do those of the ghost fields that use it
+  !> (fieldset_changed). Callers use this, not field%set_options.
+  module subroutine set_field_options(s,id,line,errmsg)
+    class(system), intent(inout) :: s
+    integer, intent(in) :: id
+    character*(*), intent(in) :: line
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    call s%f(id)%set_options(line,errmsg)
+    call s%fieldset_changed()
+
+  end subroutine set_field_options
 
   !> Identifier of the data of the field in slot id (field%cuid), or 0
   !> if there is no field there. The key of caches of field values.

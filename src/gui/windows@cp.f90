@@ -122,8 +122,8 @@ contains
     ! a new system: the reference field and AUTO's default seeds for
     ! it, and the results table caches are stale
     if (goodsys) then
-       if (w%cp%isys /= isys .or. syschanged) then
-          w%cp%isys = isys
+       if (.not.w%cp%sys%is(isys) .or. syschanged) then
+          call w%cp%sys%set(isys)
           w%cp%fref = field_ref() ! set to the reference field below
           w%cp%tfield = -1
           call reset_seeds(w,isys)
@@ -224,7 +224,7 @@ contains
   !> Draw the overlay shown while the blocking job of the critical
   !> points window runs.
   module subroutine block_cp(w)
-    use systems, only: sys, sysc, sys_init, ok_system
+    use systems, only: sys, sysc, sys_init
     use utils, only: iw_wait_overlay
     use tools_io, only: string
     use param, only: newline
@@ -249,8 +249,8 @@ contains
 
     ! the system, field, and input
     info = ""
-    isys = w%cp%isys
-    if (ok_system(isys,sys_init)) then
+    isys = w%cp%sys%get(sys_init)
+    if (isys > 0) then
        info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
        if (sys(isys)%goodfield(w%cp%fref%id)) &
           info = info // newline // "Field:  " // string(w%cp%fref%id) // ": " //&
@@ -290,7 +290,7 @@ contains
   module subroutine run_cp_pending(w)
     use autocp, only: autocritic, autocritic_graph, cpreport
     use gui_main, only: begin_cancellable, end_cancellable
-    use systems, only: sys, sysc, sys_init, ok_system, lastchange_cplist
+    use systems, only: sys, sysc, sys_init, lastchange_cplist
     use tools_io, only: uout, string
     use fieldmod, only: cplist_backup
     class(window), intent(inout), target :: w
@@ -301,18 +301,19 @@ contains
     logical :: ok, changes, cancelled, lex
     character(len=:), allocatable :: cpfile, errmsg
 
-    isys = w%cp%isys
+    isys = w%cp%sys%get(sys_init)
     ifield = w%cp%fref%id
     iview = w%cp%pending_view
     kind = w%cp%pending_kind
-    ok = ok_system(isys,sys_init)
+    ok = (isys > 0)
     if (ok) ok = w%cp%fref%ok(sys(isys))
     if (ok) then
        if (kind == cpjob_delete) then
           ok = allocated(w%cp%pending_del)
           if (ok) ok = (size(w%cp%pending_del) == sys(isys)%f(ifield)%ncp)
        elseif (kind == cpjob_estimate) then
-          ok = allocated(w%cp%seedx) .and. (w%cp%seedsys == isys) .and. (w%cp%seedfield == ifield)
+          ok = allocated(w%cp%seedx) .and. (w%cp%seedsys == isys) .and.&
+             (w%cp%seedcuid == sys(isys)%field_cuid(ifield))
        else
           ok = allocated(w%cp%pending_line)
        end if
@@ -1748,7 +1749,7 @@ contains
     ! the time estimate is for the old seeds
     stale = .not.allocated(w%cp%seedline)
     if (.not.stale) stale = (w%cp%seedsys /= isys) .or. (w%cp%seedline /= line) .or.&
-       (w%cp%seedfield /= ifield) .or. (w%cp%seedtime /= sysc(isys)%timelastchange_geometry)
+       (w%cp%seedcuid /= sys(isys)%field_cuid(ifield)) .or. (w%cp%seedtime /= sysc(isys)%timelastchange_geometry)
     if (stale .and. allocated(w%cp%estimate)) deallocate(w%cp%estimate)
     if (.not.stale .or. .not.ok_system(isys,sys_ready) .or. are_threads_running() .or.&
        igIsAnyItemActive()) return
@@ -1762,7 +1763,7 @@ contains
     end if
     w%cp%seedline = line
     w%cp%seedsys = isys
-    w%cp%seedfield = ifield
+    w%cp%seedcuid = sys(isys)%field_cuid(ifield)
     w%cp%seedtime = sysc(isys)%timelastchange_geometry
     w%cp%seednew = .true.
 
@@ -2164,11 +2165,19 @@ contains
     integer, intent(in) :: iview
     integer, intent(in) :: ihover(2)
 
-    if (all(ihover == w%cp%ihover) .and. iview == w%cp%hoverview) return
-    call apply(w%cp%hoverview,(/0,0/))
+    if (all(ihover == w%cp%ihover) .and. iview == w%cp%hoverview) then
+       if (iview < 1 .or. iview > nwin) return
+       if (win(iview)%uid == w%cp%hoverview_uid) return
+    end if
+    ! clear the hover in the view it was set in, if it is still that view
+    if (w%cp%hoverview >= 1 .and. w%cp%hoverview <= nwin) then
+       if (win(w%cp%hoverview)%uid == w%cp%hoverview_uid) call apply(w%cp%hoverview,(/0,0/))
+    end if
     call apply(iview,ihover)
     w%cp%ihover = ihover
     w%cp%hoverview = iview
+    w%cp%hoverview_uid = 0
+    if (iview >= 1 .and. iview <= nwin) w%cp%hoverview_uid = win(iview)%uid
 
   contains
     subroutine apply(iv,ih)

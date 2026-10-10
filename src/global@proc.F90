@@ -246,7 +246,7 @@ contains
              call ferror('critic2','wrong field in setfield',faterr,line,syntax=.true.)
              cycle
           end if
-          call sy%f(id)%set_options(line(lp:),errmsg)
+          call sy%set_field_options(id,line(lp:),errmsg)
           if (len_trim(errmsg) > 0) then
              call ferror('setfield',errmsg,faterr,line,syntax=.true.)
              cycle

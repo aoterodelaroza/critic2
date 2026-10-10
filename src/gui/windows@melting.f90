@@ -101,6 +101,10 @@ contains
     ! initialize state
     if (w%firstpass) w%errmsg = ""
 
+    ! the system it made is gone (removed, or another one in its slot):
+    ! it has none, and acts on none
+    if (w%isys > 0 .and. .not.w%demo_owns_system()) w%isys = 0
+
     if (.not.doquit) then
        ! metal
        call iw_text("Metal",highlight=.true.,alignframe=.true.)
@@ -154,14 +158,14 @@ contains
 
        ! generate a new system
        if (iw_button("New system",danger=.true.)) then
-          if (w%demo_owns_system()) call remove_system(w%isys)
+          if (w%demo_owns_system(sys_init)) call remove_system(w%isys)
           w%isys = 0
           w%errmsg = ""
           ns = int(w%mt%nshell)
           if (w%mt%igeom == mtgeom_pair) ns = int(w%mt%nshellp)
           call build_melting_system(w%mt%imetal+1,int(w%mt%igeom),int(w%mt%nx),int(w%mt%ny),&
              int(w%mt%nlayer),ns,w%isys,w%errmsg)
-          if (w%isys >= 1) w%demo_sysuid = sysc(w%isys)%uid
+          call w%demo_sys%set(w%isys)
           ! show the new system in the anchor view (see build_water_cluster)
           if (w%isys > 0) call w%retarget(w%isys)
           ! the system as built: the form may be changed again while it

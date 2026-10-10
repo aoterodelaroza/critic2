@@ -168,8 +168,18 @@ contains
     ! the main view. Without this, one keypress would hit every open view.
     istarget = (w%id == view_target_window())
 
-    ! whether the selected view system is a good system, and associate the scene
+    ! whether the selected view system is a good system, and associate the
+    ! scene. Another system loaded into the slot of the one the view showed
+    ! is a change of system, as if selected (the first time, the view only
+    ! records the system it shows)
     goodsys = ok_system(w%isys,sys_init)
+    if (goodsys) then
+       if (w%isys_uid == 0) then
+          w%isys_uid = sysc(w%isys)%uid
+       elseif (w%isys_uid /= sysc(w%isys)%uid) then
+          call w%select_view(w%isys)
+       end if
+    end if
     if (goodsys) then
        if (w%ismain) then
           if (.not.associated(w%sc)) w%sc => sysc(w%isys)%sc
@@ -1269,7 +1279,7 @@ contains
 
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
-    if (w%isys == isys) return
+    if (w%isys == isys .and. w%isys_uid == sysc(isys)%uid) return
 
     ! release any interactive-MD grab on the outgoing system
     if (w%isys >= 1 .and. w%isys <= nsys) then
@@ -1286,6 +1296,7 @@ contains
 
     ! select and render the new scene
     w%isys = isys
+    w%isys_uid = sysc(isys)%uid
     if (w%ismain) then
        w%sc => sysc(w%isys)%sc
     else
@@ -1501,20 +1512,21 @@ contains
   end subroutine viewmode_to_navigate
 
   !> End an in-place move drag on the system it was started on
-  !> (moveobj_isys, not necessarily the one displayed now): rebuild the
+  !> (moveobj_sys, not necessarily the one displayed now; nothing if
+  !> that system is gone, even if another took its slot): rebuild the
   !> crystal once (symmetry, environment, molecular fragments) keeping
   !> the bonds, then post the geometry event that resets the fields and
   !> captures the undo state. A no-op if no in-place edit is pending.
   subroutine moveobj_end_drag(w)
-    use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry
+    use systems, only: sys, sysc, sys_init, lastchange_geometry
     class(window), intent(inout) :: w
 
     integer :: isys
 
     if (.not.w%moveobj_dirty) return
     w%moveobj_dirty = .false.
-    isys = w%moveobj_isys
-    if (.not.ok_system(isys,sys_init)) return
+    isys = w%moveobj_sys%get(sys_init)
+    if (isys == 0) return
 
     w%errmsg = ""
     call sys(isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
@@ -2861,7 +2873,7 @@ contains
          if (.not.win(i)%isinit .or. .not.win(i)%isopen) cycle
          if (win(i)%type /= wintype_builder) cycle
          if (win(i)%edit_kind == 0) cycle
-         if (win(i)%edit_isys /= w%isys) cycle
+         if (.not.win(i)%edit_sys%is(w%isys)) cycle
          ib = i
          return
       end do
@@ -3549,7 +3561,7 @@ contains
     ! frame by frame; they are reset once by the geometry event at the end.
     subroutine moveobj_frame_event()
       w%moveobj_dirty = .true.
-      w%moveobj_isys = isys
+      call w%moveobj_sys%set(isys)
       sysc(isys)%sc%nextbuildlists_fixcam = .true.
       call sysc(isys)%post_event(lastchange_buildlists)
       w%forcerender = .true.

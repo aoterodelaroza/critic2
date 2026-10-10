@@ -105,7 +105,7 @@ contains
        w%savemult_docell = lastdocell
        w%savemult_exist = 0
        w%sm%novr = 0
-       w%sm%editsys = 0
+       w%sm%editsys = sys_ref()
        if (allocated(lastpattern)) then
           w%savemult_pattern = lastpattern
        else
@@ -477,12 +477,12 @@ contains
 
       szero = ImVec2(0._c_float,0._c_float)
 
-      if (w%sm%editsys == isys) then
+      if (w%sm%editsys%is(isys)) then
          call igPushItemWidth(-1._c_float)
          committed = iw_inputtext("##savemultfile",bufsize=mlen-1,texta=w%sm%editbuf,&
             grabfocus=w%sm%editfocus,notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)
          if (committed) call override_set(w%sm,isys,typed_root(w%sm%editbuf,ifmt))
-         if (committed .or. igIsItemDeactivated()) w%sm%editsys = 0
+         if (committed .or. igIsItemDeactivated()) w%sm%editsys = sys_ref()
          call igPopItemWidth()
          w%sm%editfocus = .false.
       else
@@ -492,7 +492,7 @@ contains
          if (igSelectable_Bool(c_loc(strl),.false._c_bool,&
             ImGuiSelectableFlags_AllowDoubleClick,szero)) then
             if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
-               w%sm%editsys = isys
+               call w%sm%editsys%set(isys)
                w%sm%editbuf = trim(w%sm%names(i))
                w%sm%editfocus = .true.
             end if
@@ -551,7 +551,7 @@ contains
   !> when the settings it depends on change; changed reports whether it
   !> was recalculated in this pass.
   subroutine rebuild_names(w,ifmt,changed)
-    use systems, only: sysc, sys_init, sys_empty, ok_system
+    use systems, only: sysc, sys_init, sys_loaded_not_init, ok_system
     use tools_io, only: string
     class(window), intent(inout) :: w
     integer, intent(in) :: ifmt
@@ -562,14 +562,12 @@ contains
     integer :: i, j, k, n, npad
     integer*8 :: ihash
 
-    ! overrides and the edited cell are keyed by system slot, and a closed
-    ! slot is handed to the next structure loaded: drop them before that
+    ! overrides and the edited cell belong to one system: drop them when
+    ! it is gone (a closed slot is handed to the next structure loaded)
     do i = w%sm%novr, 1, -1
-       if (sysc(w%sm%ovrsys(i))%status == sys_empty) call override_set(w%sm,w%sm%ovrsys(i),"")
+       if (.not.w%sm%ovrsys(i)%ok(sys_loaded_not_init)) call override_drop(w%sm,i)
     end do
-    if (w%sm%editsys > 0) then
-       if (sysc(w%sm%editsys)%status == sys_empty) w%sm%editsys = 0
-    end if
+    if (.not.w%sm%editsys%ok(sys_loaded_not_init)) w%sm%editsys = sys_ref()
 
     ! the list of systems: a system that is not loaded yet cannot be
     ! written. The members of a collapsed group stay unloaded until
@@ -603,7 +601,7 @@ contains
     end do
     ihash = mod(ihash * 31 + w%sm%novr,sighashmod)
     do i = 1, w%sm%novr
-       ihash = mod(ihash * 31 + w%sm%ovrsys(i),sighashmod)
+       ihash = mod(ihash * 31 + mod(w%sm%ovrsys(i)%uid,sighashmod),sighashmod)
        do j = 1, len_trim(w%sm%ovrname(i))
           ihash = mod(ihash * 31 + iachar(w%sm%ovrname(i)(j:j)),sighashmod)
        end do
@@ -724,7 +722,7 @@ contains
 
     override_find = 0
     do i = 1, sm%novr
-       if (sm%ovrsys(i) == isys) then
+       if (sm%ovrsys(i)%is(isys)) then
           override_find = i
           return
        end if
@@ -740,32 +738,44 @@ contains
     integer, intent(in) :: isys
     character(len=*), intent(in) :: root
 
-    integer :: i, k
+    integer :: k
+    type(sys_ref) :: sr
 
     k = override_find(sm,isys)
 
     ! an empty name: forget the override, closing the gap it leaves
     if (len_trim(root) == 0) then
-       if (k == 0) return
-       do i = k, sm%novr-1
-          sm%ovrsys(i) = sm%ovrsys(i+1)
-          sm%ovrname(i) = sm%ovrname(i+1)
-       end do
-       sm%novr = sm%novr - 1
+       if (k > 0) call override_drop(sm,k)
        return
     end if
 
     ! replace the one that is there, or make room for a new one
     if (k == 0) then
        sm%novr = sm%novr + 1
-       call realloc(sm%ovrsys,sm%novr)
+       call sr%set(isys)
+       if (.not.allocated(sm%ovrsys)) allocate(sm%ovrsys(0))
+       sm%ovrsys = [sm%ovrsys(1:sm%novr-1), sr]
        call realloc(sm%ovrname,sm%novr)
        k = sm%novr
-       sm%ovrsys(k) = isys
     end if
     sm%ovrname(k) = root
 
   end subroutine override_set
+
+  !> Forget override k of the override list, closing the gap it leaves.
+  subroutine override_drop(sm,k)
+    type(savemult_state), intent(inout) :: sm
+    integer, intent(in) :: k
+
+    integer :: i
+
+    do i = k, sm%novr-1
+       sm%ovrsys(i) = sm%ovrsys(i+1)
+       sm%ovrname(i) = sm%ovrname(i+1)
+    end do
+    sm%novr = sm%novr - 1
+
+  end subroutine override_drop
 
   !> A file name typed by hand, as a root: with the characters that have
   !> no business in a file name replaced, and with the extension of format

@@ -256,6 +256,26 @@ module systems
      procedure :: undo_labels
   end type sysconf
 
+  !> A reference to a system (slot in sysc/sys) and the unique
+  !> identifier of the system that was in the slot when the reference
+  !> was set: it resolves to the slot only while that same system is
+  !> there, not after it is closed and another one loaded into the
+  !> slot. The methods of field_ref (systemmod) and rep_ref (scenes),
+  !> plus is; get and ok take the least status the system must have
+  !> (instead of the container: the systems are module data), and
+  !> "none" is slot 0 (as rep_ref; field_ref has -1).
+  type sys_ref
+     integer :: id = 0 ! slot of the system (0 = none)
+     integer*8 :: uid = 0 ! unique identifier of that system (0 = none)
+   contains
+     procedure :: set => sys_ref_set ! point to the system in a slot
+     procedure :: get => sys_ref_get ! its slot, if still there with at least a status; else 0
+     procedure :: ok => sys_ref_ok ! still there, with at least a status
+     procedure :: is => sys_ref_is ! it is the system now in a given slot (with at least a status)
+     procedure :: same => sys_ref_same ! both point to the same system
+  end type sys_ref
+  public :: sys_ref
+
   ! system arrays
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
@@ -308,6 +328,32 @@ module systems
 
   !xx! Interfaces
   interface
+     ! sys_ref
+     module subroutine sys_ref_set(sr,id)
+       class(sys_ref), intent(inout) :: sr
+       integer, intent(in) :: id
+     end subroutine sys_ref_set
+     module function sys_ref_get(sr,level) result(id)
+       class(sys_ref), intent(in) :: sr
+       integer, intent(in) :: level
+       integer :: id
+     end function sys_ref_get
+     module function sys_ref_ok(sr,level) result(ok)
+       class(sys_ref), intent(in) :: sr
+       integer, intent(in) :: level
+       logical :: ok
+     end function sys_ref_ok
+     module function sys_ref_is(sr,id,level) result(is)
+       class(sys_ref), intent(in) :: sr
+       integer, intent(in) :: id
+       integer, intent(in), optional :: level
+       logical :: is
+     end function sys_ref_is
+     module function sys_ref_same(sr,other) result(same)
+       class(sys_ref), intent(in) :: sr
+       type(sys_ref), intent(in) :: other
+       logical :: same
+     end function sys_ref_same
      module subroutine launch_initialization_thread()
      end subroutine launch_initialization_thread
      module subroutine kill_initialization_thread()
@@ -406,8 +452,9 @@ module systems
        integer, intent(in) :: idx(4)
        integer*8 :: stamp
      end function anchor_stamp
-     module function ok_system(isys,level)
+     module function ok_system(isys,level,uid)
        integer, intent(in) :: isys, level
+       integer*8, intent(in), optional :: uid
        logical :: ok_system
      end function ok_system
      module subroutine reload_field_with_virtuals(isys,ifield,errmsg)

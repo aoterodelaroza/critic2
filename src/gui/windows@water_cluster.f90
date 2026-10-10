@@ -69,6 +69,10 @@ contains
     ! initialize state
     if (w%firstpass) w%errmsg = ""
 
+    ! the system it made is gone (removed, or another one in its slot):
+    ! it has none, and acts on none
+    if (w%isys > 0 .and. .not.w%demo_owns_system()) w%isys = 0
+
     if (.not.doquit) then
        ! participant name
        call iw_text("Name",highlight=.true.,alignframe=.true.)
@@ -112,7 +116,7 @@ contains
        ! generate a new cluster
        if (iw_button("New cluster",danger=.true.)) then
           ! stop, free, and remove the previous cluster
-          if (w%demo_owns_system()) then
+          if (w%demo_owns_system(sys_init)) then
              sysc(w%isys)%md_run = .false.
              if (sysc(w%isys)%md%ready) call sysc(w%isys)%md%free()
              call remove_system(w%isys)
@@ -120,7 +124,7 @@ contains
           w%isys = 0
           w%errmsg = ""
           call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%isys,w%errmsg)
-          if (w%isys >= 1) w%demo_sysuid = sysc(w%isys)%uid
+          call w%demo_sys%set(w%isys)
           ! show the new cluster in the anchor view. add_systems_from_seeds
           ! selects it in the tree, but the main view only follows the tree when
           ! the "tree selects view system" preference is on
