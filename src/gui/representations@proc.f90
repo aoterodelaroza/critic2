@@ -294,7 +294,7 @@ contains
        r%iso%niso = 0
        if (allocated(r%iso%slot)) deallocate(r%iso%slot)
        call r%iso%add_iso() ! the last-resort default level; set_field overwrites it below
-       r%iso%ifield_built = -1
+       r%iso%cuid_built = -1
        if (r%type == reptype_isosurface) &
           call r%iso%set_field(isys,r%iso%fref%id)
     end if
@@ -1933,6 +1933,23 @@ contains
     end if ! reptype
   contains
 
+    !> The key of the values that color isosurface s (s%imap_built):
+    !> the data of its map field (its cuid); or, colored by an
+    !> expression, the generation of the system's field set (the fields
+    !> the expression uses), as a negative number below -1 (none), so
+    !> that the keys of the two kinds never match.
+    function map_key(s) result(key)
+      type(iso_slot), intent(in) :: s
+      integer*8 :: key
+
+      if (s%imap_mode == iso_map_expr) then
+         key = -2_8 - sys(r%id)%fieldgen
+      else
+         key = sys(r%id)%field_cuid(s%mapref%id)
+      end if
+
+    end function map_key
+
     !> Append, for the non-nuclear critical points of field ifield (the
     !> nuclei are the atoms), the spheres (mode = cpitem_sphere,
     !> critical points object), the labels (cpitem_label, labels
@@ -2234,13 +2251,12 @@ contains
       usegrid = all(r%iso%nptsxyz == 0) ! generated with no sampled grid = native grid
 
       ! decide whether the cached field samples and triangulations are
-      ! stale: the selected field, the applied grid, a geometry change, or
-      ! any change to the system's field set (a field reloaded into the
-      ! same slot has the same index but different data)
-      resample = (r%iso%ifield_built /= r%iso%fref%id)
+      ! stale: the data of the selected field (its cuid: another field,
+      ! or the same one with new data), the MO, the applied grid, or a
+      ! geometry change
+      resample = (r%iso%cuid_built /= sys(r%id)%field_cuid(r%iso%fref%id))
       resample = resample .or. (r%iso%imosel_built /= r%iso%imosel)
       resample = resample .or. (r%iso%imoidx_built /= r%iso%imoidx)
-      resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
       resample = resample .or. .not.r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,&
          r%iso%rgn_x_built)
       resample = resample .or. (sysc(r%id)%timelastchange_geometry > r%iso%time_built)
@@ -2440,7 +2456,7 @@ contains
            end if
 
            ! stage 1: the values that color the surface, at the vertices
-           doval = (s%imap_built /= s%mapref%id)
+           doval = (s%imap_built /= map_key(s))
            doval = doval .or. (s%mapexpr_built /= s%mapexpr)
            doval = doval .or. .not.allocated(s%mapval)
            if (.not.doval) doval = (size(s%mapval) /= nv)
@@ -2504,7 +2520,7 @@ contains
                  end associate
               end if
               s%mapoutdomain = linvalid
-              s%imap_built = s%mapref%id
+              s%imap_built = map_key(s)
               s%mapexpr_built = s%mapexpr
            end if
 

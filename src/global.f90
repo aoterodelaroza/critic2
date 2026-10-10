@@ -197,9 +197,8 @@ module global
   ! windows, systems). A holder of such an item keeps its UID, not
   ! (only) its slot, so the item being gone reads as gone instead of
   ! as whatever was put in the slot later. new_uid returns a positive
-  ! integer not returned before in this run (thread-safe); 0 means no
-  ! identity.
-  integer*8 :: uid_last = 0
+  ! integer not returned before in this run (thread-safe; the counter
+  ! is in uid_c.c); 0 means no identity.
 
   interface
      module subroutine critic_main()

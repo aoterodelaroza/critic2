@@ -149,7 +149,6 @@ contains
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
-    use windows, only: invalidate_scene_reps
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -184,9 +183,8 @@ contains
     s%nmsel = 0
     s%msel = 0
 
-    ! initialize representations; any edit-object window pointing into
-    ! the old list must let go of it first
-    call invalidate_scene_reps(s)
+    ! initialize representations (the editors of the old ones find
+    ! them gone the next time they look them up: their uids are not here)
     if (allocated(s%rep)) deallocate(s%rep)
     allocate(s%rep(20))
     s%nrep = 0
@@ -248,7 +246,6 @@ contains
 
   !> Terminate a scene object
   module subroutine scene_end(s)
-    use windows, only: invalidate_scene_reps
     class(scene), intent(inout), target :: s
 
     s%isinit = 0
@@ -256,7 +253,6 @@ contains
     s%id = 0
     call s%gl%end()
     call s%obj%end()
-    call invalidate_scene_reps(s)
     call s%disp%end()
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
@@ -3081,7 +3077,7 @@ contains
   !> object takes its slot (the objects are known by their uid).
   module subroutine scene_objects_restore(s,st,stfrom,done)
     use windows, only: regenerate_window_pointers
-    use representations, only: iso_cache, reptype_isosurface
+    use representations, only: rep_slot_of, iso_cache, reptype_isosurface
     class(scene), intent(inout), target :: s
     type(scene_objstate), intent(in) :: st
     type(scene_objstate), intent(in), optional :: stfrom
@@ -3103,7 +3099,7 @@ contains
     if (dofrom) then
        do k = 1, size(stfrom%rep,1)
           if (any(st%rep(:)%uid == stfrom%rep(k)%uid)) cycle
-          i = slot_of(stfrom%rep(k)%uid)
+          i = rep_slot_of(s%rep,s%nrep,stfrom%rep(k)%uid)
           if (i > 0) call s%rep(i)%end()
        end do
     end if
@@ -3111,7 +3107,7 @@ contains
     ! the objects of st, in their slots; the neighbor stars and their
     ! revisions from the object there now, if it has them
     do k = 1, size(st%rep,1)
-       i = slot_of(st%rep(k)%uid)
+       i = rep_slot_of(s%rep,s%nrep,st%rep(k)%uid)
        live = (i > 0)
        if (.not.live) then
           i = st%islot(k)
@@ -3149,18 +3145,6 @@ contains
     ! to none if they are gone
     call regenerate_window_pointers()
 
-  contains
-    !> The slot of the object with unique identifier uid in s, 0 if none.
-    function slot_of(uid) result(islot)
-      integer*8, intent(in) :: uid
-      integer :: islot
-
-      do islot = 1, s%nrep
-         if (s%rep(islot)%isinit .and. s%rep(islot)%uid == uid) return
-      end do
-      islot = 0
-
-    end function slot_of
   end subroutine scene_objects_restore
 
   !> Add a critical points object to the scene the first time the
@@ -4448,6 +4432,7 @@ contains
   !> (an undo brought the object back to another slot) the object is
   !> searched for.
   module function rep_ref_get(rr,s) result(id)
+    use representations, only: rep_slot_of
     class(rep_ref), intent(in) :: rr
     type(scene), intent(in) :: s
     integer :: id
@@ -4460,11 +4445,32 @@ contains
           return
        end if
     end if
-    do id = 1, s%nrep
-       if (s%rep(id)%isinit .and. s%rep(id)%uid == rr%uid) return
-    end do
-    id = 0
+    id = rep_slot_of(s%rep,s%nrep,rr%uid)
 
   end function rep_ref_get
+
+  !> True if the object the reference rr was set to is still in
+  !> scene s.
+  module function rep_ref_ok(rr,s) result(ok)
+    class(rep_ref), intent(in) :: rr
+    type(scene), intent(in) :: s
+    logical :: ok
+
+    ok = (rr%get(s) > 0)
+
+  end function rep_ref_ok
+
+  !> True if the references rr and other point to the same object.
+  !> Compared by identifier: the slot of one of them may be out of date
+  !> (an undo moved the object). Two references to the same empty slot
+  !> are the same too, as in field_ref.
+  module function rep_ref_same(rr,other) result(same)
+    class(rep_ref), intent(in) :: rr
+    type(rep_ref), intent(in) :: other
+    logical :: same
+
+    same = (rr%uid == other%uid .and. (rr%uid > 0 .or. rr%id == other%id))
+
+  end function rep_ref_same
 
 end submodule proc

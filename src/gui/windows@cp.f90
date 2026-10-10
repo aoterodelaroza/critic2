@@ -137,7 +137,7 @@ contains
        ! loaded into its slot)
        if (.not.w%cp%fref%ok(sys(isys))) then
           call fref%set(sys(isys),sys(isys)%iref)
-          if (fref%id /= w%cp%fref%id .or. fref%uid /= w%cp%fref%uid) then
+          if (.not.fref%same(w%cp%fref)) then
              w%cp%fref = fref
              w%cp%tfield = -1
           end if
@@ -2184,8 +2184,7 @@ contains
         do i = 1, sc%nrep
            if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_cps) cycle
            ! set it in the object of the field; clear it in all
-           if (any(ih /= 0) .and. (sc%rep(i)%cps%fref%id /= w%cp%fref%id .or.&
-              sc%rep(i)%cps%fref%uid /= w%cp%fref%uid)) cycle
+           if (any(ih /= 0) .and. .not.sc%rep(i)%cps%fref%same(w%cp%fref)) cycle
            if (all(sc%rep(i)%cps%ihover == ih)) cycle
            sc%rep(i)%cps%ihover = ih
            ch = .true.

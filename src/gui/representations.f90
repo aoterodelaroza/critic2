@@ -903,7 +903,7 @@ module representations
      type(dl_mesh) :: mesh ! the cached triangulation
      logical :: built = .false. ! whether mesh holds a triangulation
      real*8 :: isoval_built = 0d0 ! isovalue the mesh was built at
-     integer :: imap_built = -1 ! map field the values were evaluated for (-1 = none)
+     integer*8 :: imap_built = -1 ! data of the map field (its cuid) the values were evaluated for (-1 = none)
      character(len=iso_explen) :: mapexpr_built = "" ! expression the values were evaluated for
      ! state the vertex colors were computed for; a change here recolors the mesh
      integer :: icmap_built = -1
@@ -943,13 +943,12 @@ module representations
      real(c_float) :: rgbhl(3) = iso_rgb_hl ! color of the highlighted group
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
      integer :: ihighlight_built = -1 ! highlighted group the vertex colors were made for
-     integer :: ifield_built = -1 ! field id when the meshes were built (-1 means never)
+     integer*8 :: cuid_built = -1 ! data of the field (its cuid) when the meshes were built (-1 means never)
      integer :: imosel_built = 0 ! MO selector when the samples were taken
      integer :: imoidx_built = 0 ! MO index when the samples were taken
      integer :: nptsxyz_built(3) = -1 ! applied grid the samples were taken on
      integer :: iregion_built = -1 ! applied region mode the samples were taken on
      real*8 :: rgn_x_built(3,0:3) = 0d0 ! applied region coordinates the samples were taken on
-     integer :: fieldgen_built = -1 ! system field-set generation when the meshes were built
      logical :: per0_built = .false. ! whether the built meshes are periodic (whole cell of a crystal,
                                      ! non-partial data); gates the periodic replication and its editor UI
      logical :: outdomain = .false. ! some samples fell outside the field's domain (zeroed) in the last build
@@ -1011,7 +1010,8 @@ module representations
      type(iso_slot), allocatable :: slot(:) ! only the mesh, map values, and keys of each
      real(c_double), allocatable :: hist_x(:,:), hist_y(:,:)
      real*8, allocatable :: hist_q(:), hist_v(:)
-     integer :: ifield_built = -1, imosel_built = 0, imoidx_built = 0, fieldgen_built = -1
+     integer*8 :: cuid_built = -1
+     integer :: imosel_built = 0, imoidx_built = 0
      integer :: ihighlight_built = -1, nptsxyz_built(3) = -1, iregion_built = -1
      real*8 :: rgn_x_built(3,0:3) = 0d0
      logical :: per0_built = .false., outdomain = .false.
@@ -1139,6 +1139,7 @@ module representations
   public :: colorbar_rep
   public :: colorbar_slot
   public :: iso_slot_index
+  public :: rep_slot_of
   public :: iso_grid_size
   public :: iso_level_label
   public :: iso_isgridfield
@@ -1629,6 +1630,12 @@ module representations
        type(representation), intent(in) :: riso
        integer :: islot
      end function colorbar_slot
+     module function rep_slot_of(rep,nrep,uid) result(islot)
+       type(representation), intent(in) :: rep(:)
+       integer, intent(in) :: nrep
+       integer*8, intent(in) :: uid
+       integer :: islot
+     end function rep_slot_of
      module function iso_slot_index(iso,uid) result(islot)
        type(rep_isosurface), intent(in) :: iso
        integer*8, intent(in) :: uid

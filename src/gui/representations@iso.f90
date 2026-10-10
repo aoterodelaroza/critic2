@@ -122,11 +122,9 @@ contains
     integer, intent(in) :: nrep
     integer :: irep
 
-    if (cb%isouid > 0) then
-       do irep = 1, nrep
-          if (.not.rep(irep)%isinit .or. rep(irep)%type /= reptype_isosurface) cycle
-          if (rep(irep)%uid == cb%isouid) return
-       end do
+    irep = rep_slot_of(rep,nrep,cb%isouid)
+    if (irep > 0) then
+       if (rep(irep)%type == reptype_isosurface) return
     end if
     do irep = 1, nrep
        if (.not.rep(irep)%isinit .or. rep(irep)%type /= reptype_isosurface) cycle
@@ -165,6 +163,23 @@ contains
     end if
 
   end function colorbar_slot
+
+  !> The slot of the object with unique identifier uid among the nrep
+  !> objects in rep, or 0 if there is none (also if uid is 0).
+  module function rep_slot_of(rep,nrep,uid) result(islot)
+    type(representation), intent(in) :: rep(:)
+    integer, intent(in) :: nrep
+    integer*8, intent(in) :: uid
+    integer :: islot
+
+    if (uid > 0) then
+       do islot = 1, nrep
+          if (rep(islot)%isinit .and. rep(islot)%uid == uid) return
+       end do
+    end if
+    islot = 0
+
+  end function rep_slot_of
 
   !> The index of the isosurface with unique identifier uid in
   !> isosurface object iso, or 0 if it has none.
@@ -1132,10 +1147,9 @@ contains
           call slot_cache_move(iso%slot(k),c%slot(k))
        end do
     end if
-    c%ifield_built = iso%ifield_built
+    c%cuid_built = iso%cuid_built
     c%imosel_built = iso%imosel_built
     c%imoidx_built = iso%imoidx_built
-    c%fieldgen_built = iso%fieldgen_built
     c%ihighlight_built = iso%ihighlight_built
     c%nptsxyz_built = iso%nptsxyz_built
     c%iregion_built = iso%iregion_built
@@ -1194,10 +1208,9 @@ contains
     end if
 
     if (c%have) then
-       iso%ifield_built = c%ifield_built
+       iso%cuid_built = c%cuid_built
        iso%imosel_built = c%imosel_built
        iso%imoidx_built = c%imoidx_built
-       iso%fieldgen_built = c%fieldgen_built
        iso%ihighlight_built = c%ihighlight_built
        iso%nptsxyz_built = c%nptsxyz_built
        iso%iregion_built = c%iregion_built
@@ -1211,7 +1224,7 @@ contains
        iso%hist_cumrange = c%hist_cumrange
        iso%nhist = c%nhist
     else
-       iso%ifield_built = -1
+       iso%cuid_built = -1
        iso%nhist = 0
     end if
     c = iso_cache()
@@ -1219,9 +1232,9 @@ contains
   end subroutine iso_cache_put
 
   !> Stamp the keys of isosurface object iso in system isys that say
-  !> its field samples are current: the field they were taken from, the
-  !> MO they show, the applied grid and region they were taken on, the
-  !> generation of the system's field set, and the time. The single
+  !> its field samples are current: the data of the field they were
+  !> taken from (its cuid), the MO they show, the applied grid and
+  !> region they were taken on, and the time. The single
   !> writer of the sample state, read back by the staleness test in
   !> add_isosurface_meshes.
   module subroutine iso_stamp_built(iso,isys)
@@ -1230,13 +1243,12 @@ contains
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
 
-    iso%ifield_built = iso%fref%id
+    iso%cuid_built = sys(isys)%field_cuid(iso%fref%id)
     iso%imosel_built = iso%imosel
     iso%imoidx_built = iso%imoidx
     iso%nptsxyz_built = iso%nptsxyz
     iso%iregion_built = iso%iregion_ap
     iso%rgn_x_built = iso%rgn_x_ap
-    iso%fieldgen_built = sys(isys)%fieldgen
     iso%time_built = glfwGetTime()
 
   end subroutine iso_stamp_built

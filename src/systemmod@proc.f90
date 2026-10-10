@@ -148,11 +148,12 @@ contains
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
     if (uid0 == 0) uid0 = new_uid()
     s%f(0)%uid = uid0
+    s%f(0)%cuid = new_uid()
     call s%fh%init()
     call s%fh%put("rho0",0)
     call s%set_reference(0,.false.)
     s%refset = .false.
-    s%fieldgen = s%fieldgen + 1
+    call s%fieldset_changed()
 
   end subroutine reset_fields
 
@@ -463,6 +464,7 @@ contains
     s%f(id) = f
     s%f(id)%id = id
     s%f(id)%uid = new_uid()
+    s%f(id)%cuid = new_uid()
     s%f(id)%sptr = sptr
 
     ! set it as reference, if applicable
@@ -990,7 +992,8 @@ contains
        id = s%nf
     end if
     s%f(id)%uid = new_uid()
-    s%fieldgen = s%fieldgen + 1
+    s%f(id)%cuid = new_uid()
+    call s%fieldset_changed()
 
   end function getfieldnum
 
@@ -1023,10 +1026,42 @@ contains
     s%f(id1) = s%f(id0)
     s%f(id1)%id = id1
     s%f(id1)%uid = uid
+    s%f(id1)%cuid = new_uid()
     call s%f(id1)%init_cplist
-    s%fieldgen = s%fieldgen + 1
+    call s%fieldset_changed()
 
   end subroutine field_copy
+
+  !> The set of fields of system s changed (a field loaded, copied,
+  !> unloaded, or all of them reset): one more generation of the set
+  !> (fieldgen), and new data for the ghost fields, whose values come
+  !> from the others (their cuid, the key of the caches of values).
+  module subroutine fieldset_changed(s)
+    use global, only: new_uid
+    use fieldmod, only: type_ghost
+    class(system), intent(inout) :: s
+
+    integer :: i
+
+    s%fieldgen = s%fieldgen + 1
+    if (.not.allocated(s%f)) return
+    do i = lbound(s%f,1), s%nf
+       if (s%f(i)%isinit .and. s%f(i)%type == type_ghost) s%f(i)%cuid = new_uid()
+    end do
+
+  end subroutine fieldset_changed
+
+  !> Identifier of the data of the field in slot id (field%cuid), or 0
+  !> if there is no field there. The key of caches of field values.
+  module function field_cuid(s,id) result(cuid)
+    class(system), intent(in) :: s
+    integer, intent(in) :: id
+    integer*8 :: cuid
+
+    cuid = 0
+    if (s%goodfield(id)) cuid = s%f(id)%cuid
+
+  end function field_cuid
 
   !> Point the reference fr to the field in slot id of system s.
   module subroutine field_ref_set(fr,s,id)
@@ -1051,6 +1086,30 @@ contains
     if (ok) ok = s%goodfield(fr%id,uid=fr%uid)
 
   end function field_ref_ok
+
+  !> The slot in system s of the field the reference fr was set to, or
+  !> -1 if it is gone.
+  module function field_ref_get(fr,s) result(id)
+    class(field_ref), intent(in) :: fr
+    type(system), intent(in) :: s
+    integer :: id
+
+    id = -1
+    if (fr%ok(s)) id = fr%id
+
+  end function field_ref_get
+
+  !> True if the references fr and other point to the same field, by
+  !> identifier, as rep_ref (two references to the same empty slot are
+  !> the same too).
+  module function field_ref_same(fr,other) result(same)
+    class(field_ref), intent(in) :: fr
+    type(field_ref), intent(in) :: other
+    logical :: same
+
+    same = (fr%uid == other%uid .and. (fr%uid > 0 .or. fr%id == other%id))
+
+  end function field_ref_same
 
   !> Unload a field given by identifier id.
   module subroutine unload_field(s,id)
@@ -1085,7 +1144,7 @@ contains
        call s%set_reference(0,.false.)
        s%refset = .false.
     end if
-    s%fieldgen = s%fieldgen + 1
+    call s%fieldset_changed()
 
   end subroutine unload_field
 

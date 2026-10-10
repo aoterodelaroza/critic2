@@ -38,16 +38,10 @@ contains
     ! object belongs to the scene it was created in. Check the anchor, the
     ! system and the object are all still there, and close otherwise.
     isys = w%isys
-    iview = w%anchor_view()
+    iview = editrep_resolve(w)
     doquit = (iview == 0)
     if (.not.doquit) doquit = .not.ok_system(isys,sys_init)
-    ! the scene has to be checked before the representation: the view
-    ! owns the list rep points into, and tearing it down (another
-    ! system in this view, a scene reset) does not clear the pointer
-    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
     if (.not.doquit) doquit = (win(iview)%isys /= isys)
-    if (.not.doquit) doquit = .not.associated(w%rep)
-    if (.not.doquit) doquit = (w%rref%get(win(iview)%sc) == 0)
     if (.not.doquit) doquit = (w%rep%type <= 0)
 
     ! if they aren't, quit the window; a gradient path highlighted from
@@ -93,15 +87,11 @@ contains
     ! update_editrep); the last test catches the anchor view moving to another
     ! system, which leaves this object behind in the old scene
     isys = w%isys
-    iview = w%anchor_view()
+    iview = editrep_resolve(w)
     doquit = (iview == 0)
     if (.not.doquit) doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = .not.win(iview)%isopen
-    ! the scene has to be checked before the representation (see update_editrep)
-    if (.not.doquit) doquit = .not.associated(win(iview)%sc)
     if (.not.doquit) doquit = (win(iview)%isys /= isys)
-    if (.not.doquit) doquit = .not.associated(w%rep)
-    if (.not.doquit) doquit = (w%rref%get(win(iview)%sc) == 0)
     if (.not.doquit) doquit = (w%rep%type <= 0)
 
     if (.not.doquit) then
@@ -2197,6 +2187,31 @@ contains
 
   !xx! private procedures
 
+  !> Point w%rep to the object the editor w edits (w%rref), in the
+  !> scene of its anchor view, and return that view; if the view, its
+  !> scene, or the object is gone, nullify w%rep and return 0. Called
+  !> at the entry points of the editor (update, draw, block, run), and
+  !> by regenerate_window_pointers when the list of objects moves:
+  !> w%rep is good only within them.
+  module function editrep_resolve(w) result(iview)
+    class(window), intent(inout), target :: w
+    integer :: iview
+
+    integer :: irep
+
+    nullify(w%rep)
+    iview = w%anchor_view()
+    if (iview == 0) return
+    irep = 0
+    if (associated(win(iview)%sc)) irep = w%rref%get(win(iview)%sc)
+    if (irep == 0) then
+       iview = 0
+       return
+    end if
+    w%rep => win(iview)%sc%rep(irep)
+
+  end function editrep_resolve
+
   !> Show the colormap of the selected isosurface of the isosurface
   !> object edited in w with a color bar object in the scene of view
   !> iview, and open its editor. The color bar is the first one that
@@ -2208,7 +2223,7 @@ contains
   !> outside any alias to w%rep.
   subroutine isosurface_add_colorbar(w,iview)
     use representations, only: reptype_colorbar, repflavor_colorbar, reptype_isosurface,&
-       colorbar_rep
+       colorbar_rep, rep_slot_of
     class(window), intent(inout), target :: w
     integer, intent(in) :: iview
 
@@ -2236,8 +2251,8 @@ contains
          end if
          if (ifree > 0) cycle
          attached = .false.
-         if (cuid > 0) attached = any(sc%rep(1:sc%nrep)%isinit .and.&
-            sc%rep(1:sc%nrep)%type == reptype_isosurface .and. sc%rep(1:sc%nrep)%uid == cuid)
+         k = rep_slot_of(sc%rep,sc%nrep,cuid)
+         if (k > 0) attached = (sc%rep(k)%type == reptype_isosurface)
          if (attached) cycle
          ! an unattached bar follows the first colored isosurface: take
          ! it only if that is none or this object
@@ -2620,7 +2635,7 @@ contains
     if (idel > 0) then
        call text_delete(w%rep%text,idel)
        if (iview > 0) then
-          if (win(iview)%annot%rref%uid == w%rref%uid .and. win(iview)%oe%op == objop_move) &
+          if (win(iview)%annot%rref%same(w%rref) .and. win(iview)%oe%op == objop_move) &
              win(iview)%oe%op = objop_none
        end if
        if (w%editrep_pick_item == idel) then
@@ -2911,7 +2926,7 @@ contains
        call measure_delete(w%rep%measure,idel)
        w%lastselected = w%rep%measure%isel ! the same selection: the tab stays
        if (iview > 0) then
-          if (win(iview)%annot%rref%uid == w%rref%uid .and. win(iview)%oe%op /= objop_none) &
+          if (win(iview)%annot%rref%same(w%rref) .and. win(iview)%oe%op /= objop_none) &
              win(iview)%oe%op = objop_none
        end if
        ! keep a pending atom pick bound to the right item (or cancel it if that
@@ -3859,7 +3874,7 @@ contains
     ! the tool of the view, if it works on this object
     itool = objtool_none
     if (win(iview)%viewmode == vm_objedit .and. win(iview)%viewmode_owner_is(iview) .and.&
-       win(iview)%annot%rref%uid == w%rref%uid) itool = win(iview)%annot%itool
+       win(iview)%annot%rref%same(w%rref)) itool = win(iview)%annot%itool
     if (itool /= objtool_none .and. w%focused()) then
        if (is_bind_event(BIND_CANCEL,norepeat=.true.)) then
           call win(iview)%annot_set_tool(0,objtool_none,0)
@@ -5601,7 +5616,7 @@ contains
     isys = w%isys
     if (ok_system(isys,sys_init)) then
        info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
-       if (associated(w%rep)) then
+       if (editrep_resolve(w) > 0) then
           if (sys(isys)%goodfield(w%rep%iso%fref%id)) &
              info = info // newline // "Field:  " // string(w%rep%iso%fref%id) // ": " //&
              trim(sys(isys)%f(w%rep%iso%fref%id)%name)
@@ -5630,11 +5645,11 @@ contains
 
     ! the representation, its field, and its view must still be there
     isys = w%isys
-    iview = w%anchor_view()
-    if (iview == 0 .or. .not.associated(w%rep) .or. .not.ok_system(isys,sys_init)) return
-    if (.not.win(iview)%isopen .or. .not.associated(win(iview)%sc)) return
+    iview = editrep_resolve(w)
+    if (iview == 0 .or. .not.ok_system(isys,sys_init)) return
+    if (.not.win(iview)%isopen) return
     if (win(iview)%isys /= isys) return
-    if (.not.w%rep%isinit .or. w%rep%type /= reptype_isosurface) return
+    if (w%rep%type /= reptype_isosurface) return
     if (.not.w%rep%iso%fref%ok(sys(isys))) return
 
     associate(iso => w%rep%iso)

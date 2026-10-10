@@ -672,27 +672,6 @@ contains
 
   end function demo_owns_system
 
-  !> Drop the representation pointer of every edit-object window that
-  !> edits a representation of scene s, before the list of objects of
-  !> s is deallocated. (A slot taken by another object needs nothing:
-  !> the editor sees the uid of the object change, and closes.)
-  module subroutine invalidate_scene_reps(s)
-    type(scene), intent(in), target :: s
-
-    integer :: i, idp
-
-    if (.not.allocated(win)) return
-    do i = 1, nwin
-       if (.not.win(i)%isinit) cycle
-       if (win(i)%type /= wintype_editrep) cycle
-       idp = win(i)%parent()
-       if (idp == 0) cycle
-       if (.not.associated(win(idp)%sc,s)) cycle
-       nullify(win(i)%rep)
-    end do
-
-  end subroutine invalidate_scene_reps
-
   !> Cancel the object editing operations in progress (vm_objedit) in
   !> the views of system isys, after an undo or redo changed their
   !> objects under them: a drag, or a shape drawn point by point.
@@ -749,7 +728,7 @@ contains
   module subroutine regenerate_window_pointers()
     use systems, only: sysc, sys_init, ok_system
 
-    integer :: i, iv, idp, irep
+    integer :: i, iv
 
     ! the scene shown by each view window
     do i = 1, nwin
@@ -775,15 +754,7 @@ contains
     do i = 1, nwin
        if (.not.win(i)%isinit) cycle
        if (win(i)%type /= wintype_editrep) cycle
-
-       nullify(win(i)%rep)
-       idp = win(i)%parent()
-       if (idp == 0) cycle
-       if (win(idp)%type /= wintype_view) cycle
-       if (.not.associated(win(idp)%sc)) cycle
-       irep = win(i)%rref%get(win(idp)%sc)
-       if (irep < 1) cycle
-       win(i)%rep => win(idp)%sc%rep(irep)
+       iv = editrep_resolve(win(i))
     end do
 
   end subroutine regenerate_window_pointers
@@ -1687,7 +1658,11 @@ contains
        elseif (w%type == wintype_scfplot) then
           call init_window("SCF Iterations (" // string(w%isys) // ")",45,45,square=.true.)
        elseif (w%type == wintype_editrep) then
-          call init_window("Object [" // string(w%rep%name) // "]",63,46)
+          if (editrep_resolve(w) > 0) then
+             call init_window("Object [" // string(w%rep%name) // "]",63,46)
+          else
+             call init_window("Object",63,46)
+          end if
        elseif (w%type == wintype_exportimage) then
           call init_window("Export to Image",52)
        elseif (w%type == wintype_saveas) then
@@ -2236,8 +2211,7 @@ contains
     if (.not.associated(win(iview)%sc)) return
     do jrep = 1, win(iview)%sc%nrep
        if (win(iview)%sc%rep(jrep)%isinit .and. win(iview)%sc%rep(jrep)%type == reptype_cps .and.&
-          win(iview)%sc%rep(jrep)%cps%fref%id == ifield .and.&
-          win(iview)%sc%rep(jrep)%cps%fref%ok(sys(isys))) then
+          win(iview)%sc%rep(jrep)%cps%fref%get(sys(isys)) == ifield) then
           rgb = win(iview)%sc%rep(jrep)%cps%rgb(:,it)
           return
        end if

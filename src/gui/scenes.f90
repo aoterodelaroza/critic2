@@ -190,13 +190,16 @@ module scenes
   !> identifier of the object that was in the slot when the reference
   !> was set. The reference resolves to the slot only while that same
   !> object is there, not after it is removed or another object takes
-  !> the slot.
+  !> the slot. Same methods as the reference to a field (field_ref,
+  !> systemmod); "none" is slot 0 here (the objects start at 1).
   type rep_ref
      integer :: id = 0 ! slot of the object (s%rep; 0 = none)
      integer*8 :: uid = 0 ! unique identifier of that object (0 = none)
    contains
      procedure :: set => rep_ref_set ! point to the object in a slot
      procedure :: get => rep_ref_get ! the slot of the object, 0 if it is gone
+     procedure :: ok => rep_ref_ok ! the object pointed to is still there
+     procedure :: same => rep_ref_same ! both point to the same object
   end type rep_ref
   public :: rep_ref
 
@@ -409,6 +412,16 @@ module scenes
        type(scene), intent(in) :: s
        integer :: id
      end function rep_ref_get
+     module function rep_ref_ok(rr,s) result(ok)
+       class(rep_ref), intent(in) :: rr
+       type(scene), intent(in) :: s
+       logical :: ok
+     end function rep_ref_ok
+     module function rep_ref_same(rr,other) result(same)
+       class(rep_ref), intent(in) :: rr
+       type(rep_ref), intent(in) :: other
+       logical :: same
+     end function rep_ref_same
   end interface
 
 end module scenes

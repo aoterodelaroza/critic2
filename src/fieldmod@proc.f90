@@ -118,7 +118,7 @@ contains
   !> for elk/wien2k fields.
   module subroutine field_set_options(ff,line,errmsg)
     use grid1mod, only: grid1_register_core
-    use global, only: eval_next
+    use global, only: eval_next, new_uid
     use tools_io, only: string, lgetword, equal, zatguess,&
        isinteger, getword, equali
     use param, only: sqfp
@@ -132,6 +132,8 @@ contains
     real*8 :: norm
 
     errmsg = ""
+    ! the options change the values of the field: new data (cuid)
+    if (ff%cuid > 0) ff%cuid = new_uid()
     ! parse the rest of the line
     lp = 1
     do while (.true.)

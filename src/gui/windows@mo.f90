@@ -53,9 +53,10 @@ contains
   !> over a reload of field ifield of system isys that only added the
   !> virtual orbitals. The occupied orbitals come back from the file
   !> unchanged (same coefficients, same packed indices 1..nmoocc), so
-  !> their grids are still valid even though the reload counts as a
-  !> change of the field set. Without this the whole cache -- possibly
-  !> minutes of sampling -- would be dropped by the reload.
+  !> their grids are still valid even though the reload gives the field
+  !> new data (a new cuid; the field keeps its uid). Without this the
+  !> whole cache -- possibly minutes of sampling -- would be dropped by
+  !> the reload.
   module subroutine mo_cache_keep_after_reload(isys,ifield)
     use systems, only: sys, sys_init, ok_system
     integer, intent(in) :: isys
@@ -72,10 +73,10 @@ contains
        if (.not.win(i)%isinit .or. win(i)%type /= wintype_mo) cycle
        if (win(i)%isys /= isys) cycle
        if (.not.allocated(win(i)%mo_cache%g)) cycle
-       if (win(i)%mo_cache%ifield /= ifield) cycle
+       if (win(i)%mo_cache%fref%get(sys(isys)) /= ifield) cycle
 
        ! the grids describe this field's occupied orbitals still
-       win(i)%mo_cache%fieldgen = sys(isys)%fieldgen
+       win(i)%mo_cache%cuid = sys(isys)%f(ifield)%cuid
 
        ! grow the table so the orbitals that just appeared can be cached
        if (size(win(i)%mo_cache%g,1) < nmoall) then
@@ -173,9 +174,9 @@ contains
 
     ! a reloaded wavefunction: centre the table on the new boundary again
     if (mo_ok) then
-       if (w%mo_fieldgen /= sys(isys)%fieldgen) then
+       if (w%mo_cuid /= sys(isys)%field_cuid(iref)) then
           w%mo_scrolled = .false.
-          w%mo_fieldgen = sys(isys)%fieldgen
+          w%mo_cuid = sys(isys)%field_cuid(iref)
        end if
     end if
 
@@ -572,7 +573,7 @@ contains
     logical :: ok
 
     ok = allocated(c%g)
-    if (ok) ok = (c%ifield == r%iso%fref%id) .and. (c%fieldgen == sys(isys)%fieldgen) .and.&
+    if (ok) ok = (c%cuid == sys(isys)%field_cuid(r%iso%fref%id)) .and.&
        (c%timegeom == sysc(isys)%timelastchange_geometry) .and. all(c%n == n) .and.&
        (c%iregion == r%iso%iregion) .and. all(c%rgn_x == r%iso%rgn_x)
 
@@ -668,8 +669,7 @@ contains
     ! the cache describes one field, one generation of its data, one
     ! applied grid, and one geometry
     ok = allocated(c%g)
-    if (ok) ok = (c%ifield == r%iso%fref%id) .and.&
-       (c%fieldgen == sys(isys)%fieldgen) .and.&
+    if (ok) ok = (c%cuid == sys(isys)%field_cuid(r%iso%fref%id)) .and.&
        (c%timegeom == sysc(isys)%timelastchange_geometry) .and.&
        r%iso%grid_isapplied(c%n,c%iregion,c%rgn_x)
     if (.not.ok) then
@@ -678,8 +678,8 @@ contains
        c%iuse = 0
        if (sys(isys)%goodfield(r%iso%fref%id) .and. all(r%iso%nptsxyz > 0)) then
           allocate(c%g(sys(isys)%f(r%iso%fref%id)%wfn%nmoall))
-          c%ifield = r%iso%fref%id
-          c%fieldgen = sys(isys)%fieldgen
+          call c%fref%set(sys(isys),r%iso%fref%id)
+          c%cuid = sys(isys)%f(r%iso%fref%id)%cuid
           c%timegeom = sysc(isys)%timelastchange_geometry
           c%n = r%iso%nptsxyz
           c%iregion = r%iso%iregion_ap
@@ -693,7 +693,7 @@ contains
     k = r%iso%imoidx_built
     if (k >= 1 .and. k <= size(c%g) .and. allocated(r%iso%ff)) then
        if (.not.allocated(c%g(k)%ff) .and. r%iso%imosel_built == id_mo_id .and.&
-          r%iso%ifield_built == r%iso%fref%id .and. r%iso%fieldgen_built == sys(isys)%fieldgen .and.&
+          r%iso%cuid_built == sys(isys)%field_cuid(r%iso%fref%id) .and.&
           r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,r%iso%rgn_x_built) .and.&
           r%iso%time_built >= sysc(isys)%timelastchange_geometry .and.&
           all(shape(r%iso%ff) == c%n)) then
@@ -1504,13 +1504,10 @@ contains
     real*8 :: occup, ener
 
     ! nothing to do while the list still describes the field on screen
-    if (w%mo_diag%isys == isys .and. w%mo_diag%gen == sys(isys)%fieldgen .and.&
-       w%mo_diag%ifield == ifield .and. w%mo_diag%ieneunit == w%mo_ieneunit) return
+    if (w%mo_diag%cuid == sys(isys)%field_cuid(ifield) .and. w%mo_diag%ieneunit == w%mo_ieneunit) return
 
     w%mo_diag = mo_diagram_state()
-    w%mo_diag%isys = isys
-    w%mo_diag%gen = sys(isys)%fieldgen
-    w%mo_diag%ifield = ifield
+    w%mo_diag%cuid = sys(isys)%field_cuid(ifield)
     w%mo_diag%ieneunit = w%mo_ieneunit
     w%mo_diag%nch = wfn%get_mo_nchannels()
 
@@ -1804,11 +1801,8 @@ contains
   end subroutine mo_message
 
   !> Whether the cost measurement in c still describes field ifield of
-  !> system isys: same system, same field, same field-set generation, and
-  !> the geometry has not moved since. The system has to be part of the
-  !> key -- two freshly loaded systems share a field generation and a
-  !> geometry stamp, so without it a measurement made on one is taken to
-  !> hold for the other, and the window silently stops coarsening.
+  !> system isys: same data of that field (its cuid, unique across
+  !> systems), and the geometry has not moved since.
   module function mo_cost_matches(c,isys,ifield)
     use systems, only: sys, sysc
     class(mo_cost_state), intent(in) :: c
@@ -1816,8 +1810,8 @@ contains
     integer, intent(in) :: ifield
     logical :: mo_cost_matches
 
-    mo_cost_matches = (c%isys == isys .and. c%ifield == ifield .and.&
-       c%gen == sys(isys)%fieldgen .and. c%timegeom == sysc(isys)%timelastchange_geometry)
+    mo_cost_matches = (c%cuid == sys(isys)%field_cuid(ifield) .and.&
+       c%timegeom == sysc(isys)%timelastchange_geometry)
 
   end function mo_cost_matches
 
@@ -1872,9 +1866,7 @@ contains
     ! through the representation, which prices what its own sampling
     ! loop evaluates: one orbital, not the density
     w%mo_cost%secs = r%iso%measure_cost(isys,n)
-    w%mo_cost%isys = isys
-    w%mo_cost%ifield = r%iso%fref%id
-    w%mo_cost%gen = sys(isys)%fieldgen
+    w%mo_cost%cuid = sys(isys)%field_cuid(r%iso%fref%id)
     w%mo_cost%timegeom = sysc(isys)%timelastchange_geometry
 
   end subroutine mo_measure_cost

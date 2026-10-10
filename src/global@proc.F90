@@ -1121,14 +1121,20 @@ contains
   end subroutine progress_set
 
   !> A new unique identifier: a positive integer never returned
-  !> before in this run. Thread-safe.
+  !> before in this run. Thread-safe, from any thread (a C atomic
+  !> counter, uid_c.c).
   module function new_uid() result(uid)
+    use iso_c_binding, only: c_long_long
     integer*8 :: uid
 
-    !$omp atomic capture
-    uid_last = uid_last + 1
-    uid = uid_last
-    !$omp end atomic
+    interface
+       function critic2_next_uid() bind(c,name="critic2_next_uid")
+         import c_long_long
+         integer(c_long_long) :: critic2_next_uid
+       end function critic2_next_uid
+    end interface
+
+    uid = critic2_next_uid()
 
   end function new_uid
 

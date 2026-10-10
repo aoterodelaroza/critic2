@@ -95,6 +95,8 @@ module systemmod
      procedure :: goodfield !< Returns true if the field is initialized
      procedure :: fieldname_to_idx !< Find the field ID from the alias
      procedure :: propi_field !< Slot of the field of an integrable property (-1 if gone)
+     procedure :: field_cuid !< Identifier of the data of the field in a slot (0 if none)
+     procedure :: fieldset_changed !< The set of fields changed: fieldgen, and the data of the ghost fields
      procedure :: getfieldnum !< Find an open slot for a new field
      procedure :: field_copy !< Copy a field from one slot to another
      procedure :: unload_field !< Unload a field
@@ -113,12 +115,16 @@ module systemmod
   !> identifier of the field that was in the slot when the reference
   !> was set. The reference is good only while that same field is
   !> there, not after it is unloaded or another field takes the slot.
+  !> Same methods as the reference to a GUI object (rep_ref, scenes);
+  !> "none" is slot -1 here (slot 0 is the promolecular field).
   type field_ref
-     integer :: id = -1 !< slot of the field (s%f)
-     integer*8 :: uid = 0 !< unique identifier of that field (0 = the slot was empty)
+     integer :: id = -1 !< slot of the field (s%f; -1 = none)
+     integer*8 :: uid = 0 !< unique identifier of that field (0 = none)
    contains
      procedure :: set => field_ref_set !< point to the field in a slot
+     procedure :: get => field_ref_get !< the slot of the field, -1 if it is gone
      procedure :: ok => field_ref_ok !< the field pointed to is still there
+     procedure :: same => field_ref_same !< both point to the same field
   end type field_ref
   public :: field_ref
 
@@ -252,16 +258,34 @@ module systemmod
        integer, intent(in) :: id1
        logical, intent(in), optional :: keepuid
      end subroutine field_copy
+     module subroutine fieldset_changed(s)
+       class(system), intent(inout) :: s
+     end subroutine fieldset_changed
+     module function field_cuid(s,id) result(cuid)
+       class(system), intent(in) :: s
+       integer, intent(in) :: id
+       integer*8 :: cuid
+     end function field_cuid
      module subroutine field_ref_set(fr,s,id)
        class(field_ref), intent(inout) :: fr
        type(system), intent(in) :: s
        integer, intent(in) :: id
      end subroutine field_ref_set
+     module function field_ref_get(fr,s) result(id)
+       class(field_ref), intent(in) :: fr
+       type(system), intent(in) :: s
+       integer :: id
+     end function field_ref_get
      module function field_ref_ok(fr,s) result(ok)
        class(field_ref), intent(in) :: fr
        type(system), intent(in) :: s
        logical :: ok
      end function field_ref_ok
+     module function field_ref_same(fr,other) result(same)
+       class(field_ref), intent(in) :: fr
+       type(field_ref), intent(in) :: other
+       logical :: same
+     end function field_ref_same
      module subroutine unload_field(s,id)
        class(system), intent(inout) :: s
        integer, intent(in) :: id

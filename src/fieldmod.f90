@@ -71,6 +71,7 @@ module fieldmod
      type(crystal), pointer :: c => null() !< crystal
      integer :: id !< field ID
      integer*8 :: uid = 0 !< unique identifier (global new_uid; 0 = none), set by the system when the field takes its slot
+     integer*8 :: cuid = 0 !< identifier of its data (values), new each time they change: made (also keeping the uid: reset, reload), options set, or the other fields changed (ghost); the key of caches of field values
      ! general information
      logical :: isinit = .false. !< is this field initialized?
      integer :: type = type_uninit !< field type

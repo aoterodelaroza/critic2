@@ -730,8 +730,8 @@ module windows
   !> are meaningful only while g is allocated.
   type mo_cache_state
      type(mo_gridcache), allocatable :: g(:) ! one entry per MO (1:nmoall)
-     integer :: ifield = -1 ! field the grids were sampled from
-     integer :: fieldgen = -1 ! system field-set generation they were sampled at
+     type(field_ref) :: fref ! the field the grids were sampled from
+     integer*8 :: cuid = -1 ! the data of that field they were sampled from (its cuid)
      real*8 :: timegeom = -1d0 ! geometry-change stamp they were sampled at
      integer :: n(3) = 0 ! dimensions of the cached grids
      integer :: iregion = -1 ! applied region mode of the cached grids
@@ -751,9 +751,7 @@ module windows
   !> to coincide with the old one skip the measurement altogether.
   type mo_cost_state
      real*8 :: secs = -1d0 ! cost of one sample point, seconds (< 0 = not measured)
-     integer :: isys = 0 ! system it was measured for
-     integer :: ifield = -1 ! field it was measured for
-     integer :: gen = -1 ! field-set generation it was measured at
+     integer*8 :: cuid = -1 ! data of the field it was measured for (its cuid)
      real*8 :: timegeom = -1d0 ! geometry stamp it was measured at
      real*8 :: box(3,0:3) = 0d0 ! box the transient isosurface samples
      integer :: ilevel_built = -1 ! the mo_ilevel the transient grid was built for
@@ -767,9 +765,7 @@ module windows
   !> energy unit change; everything that depends on the zoom is
   !> recomputed every frame from the arrays below.
   type mo_diagram_state
-     integer :: isys = 0 ! system the list was built for
-     integer :: gen = -1 ! field-set generation it was built at
-     integer :: ifield = -1 ! field it was built from
+     integer*8 :: cuid = -1 ! data of the field it was built from (its cuid)
      integer :: ieneunit = -1 ! energy unit the energies below are in
      integer :: n = 0 ! number of levels
      integer :: nch = 0 ! spin channels (1 or 2)
@@ -1016,7 +1012,7 @@ module windows
      logical :: mo_pending_grid = .false.
      logical :: mo_scrolled(2) = .false. ! the MO tables have been centered on their HOMO/LUMO boundary
                                          ! (1 = the combined or alpha table, 2 = the beta table)
-     integer :: mo_fieldgen = -1 ! field-set generation the MO table was laid out for
+     integer*8 :: mo_cuid = -1 ! data of the field (its cuid) the MO table was laid out for
      integer(c_int) :: mo_ilevel = 0 ! grid quality of the MO isosurface (0 = automatic, else iso_level_*)
      type(mo_cost_state) :: mo_cost ! what sampling one orbital costs, and what that describes
      logical :: mo_msgbad = .true. ! the transient message reports a failure, not a success
@@ -1356,7 +1352,6 @@ module windows
   public :: okfile_default
   public :: okfile_save_dir
   public :: regenerate_window_pointers
-  public :: invalidate_scene_reps
   public :: objedit_cancel_views
   public :: objedit_busy
   public :: read_output_uout
@@ -1516,9 +1511,6 @@ module windows
        class(window), intent(in) :: w
        logical :: ok
      end function demo_owns_system
-     module subroutine invalidate_scene_reps(s)
-       type(scene), intent(in), target :: s
-     end subroutine invalidate_scene_reps
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
@@ -1854,6 +1846,10 @@ module windows
      module subroutine run_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine run_editrep
+     module function editrep_resolve(w) result(iview)
+       class(window), intent(inout), target :: w
+       integer :: iview
+     end function editrep_resolve
      module function draw_editrep_atoms(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
