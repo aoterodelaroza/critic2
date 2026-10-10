@@ -103,6 +103,7 @@ contains
     logical :: doquit, goodsys, syschanged, tabopen
     integer :: isys, iview, ihover(2)
     integer(c_int) :: flags
+    type(field_ref) :: fref
     character(kind=c_char,len=:), allocatable, target :: str1
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -123,12 +124,23 @@ contains
     if (goodsys) then
        if (w%cp%isys /= isys .or. syschanged) then
           w%cp%isys = isys
-          w%cp%ifield = sys(isys)%iref
+          w%cp%fref = field_ref() ! set to the reference field below
+          w%cp%tfield = -1
           call reset_seeds(w,isys)
           call cancel_pick(w)
           ! the default export file: <root>.cps.cif (<root>.cif could be the source file)
           w%okfile = okfile_default(isys,"structure","cps.cif")
-          w%cp%tfield = -1
+       end if
+
+       ! the field: the reference if none is chosen yet, or if the
+       ! field it was chosen for is gone (unloaded, or another field
+       ! loaded into its slot)
+       if (.not.w%cp%fref%ok(sys(isys))) then
+          call fref%set(sys(isys),sys(isys)%iref)
+          if (fref%id /= w%cp%fref%id .or. fref%uid /= w%cp%fref%uid) then
+             w%cp%fref = fref
+             w%cp%tfield = -1
+          end if
        end if
     end if
 
@@ -240,9 +252,9 @@ contains
     isys = w%cp%isys
     if (ok_system(isys,sys_init)) then
        info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
-       if (sys(isys)%goodfield(w%cp%ifield)) &
-          info = info // newline // "Field:  " // string(w%cp%ifield) // ": " //&
-          trim(sys(isys)%f(w%cp%ifield)%name)
+       if (sys(isys)%goodfield(w%cp%fref%id)) &
+          info = info // newline // "Field:  " // string(w%cp%fref%id) // ": " //&
+          trim(sys(isys)%f(w%cp%fref%id)%name)
     end if
     if (allocated(w%cp%pending_line)) then
        select case (w%cp%pending_kind)
@@ -290,11 +302,11 @@ contains
     character(len=:), allocatable :: cpfile, errmsg
 
     isys = w%cp%isys
-    ifield = w%cp%ifield
+    ifield = w%cp%fref%id
     iview = w%cp%pending_view
     kind = w%cp%pending_kind
     ok = ok_system(isys,sys_init)
-    if (ok) ok = sys(isys)%goodfield(ifield)
+    if (ok) ok = w%cp%fref%ok(sys(isys))
     if (ok) then
        if (kind == cpjob_delete) then
           ok = allocated(w%cp%pending_del)
@@ -468,7 +480,7 @@ contains
     type(ImGuiListClipper), pointer :: clipper_f
     type(ImVec2) :: sz
 
-    ifield = w%cp%ifield
+    ifield = w%cp%fref%id
     if (.not.field_cps_or_say(isys,ifield)) return
     call update_table_caches(w,isys)
     call pp_sync()
@@ -1482,7 +1494,7 @@ contains
     logical :: ldum, changed, ismol, userk, usecart, usecell
     character(len=:), allocatable :: ext, errexp, line
 
-    if (.not.field_cps_or_say(isys,w%cp%ifield)) return
+    if (.not.field_cps_or_say(isys,w%cp%fref%id)) return
 
     ! the format combo options, on first use
     if (.not.allocated(expformat_combostr)) then
@@ -1730,7 +1742,7 @@ contains
     ! the field of the window (its pseudopotential charges select the
     ! atomic grids of MESH seeds)
     ifield = sys(isys)%iref
-    if (sys(isys)%goodfield(w%cp%ifield)) ifield = w%cp%ifield
+    if (sys(isys)%goodfield(w%cp%fref%id)) ifield = w%cp%fref%id
 
     ! compute the seeds again if something changed (absolute frame);
     ! the time estimate is for the old seeds
@@ -1773,13 +1785,13 @@ contains
     if (.not.scene_ready(iview)) return
     n = min(size(w%cp%seedx,2),maxseedshow)
     if (n == 0) return
-    call win(iview)%sc%show_transient_shapes(w%id,1,found=found)
+    call win(iview)%sc%show_transient_shapes(w%uid,1,found=found)
     if (found .and. .not.w%cp%seednew) return
     allocate(shp(n))
     do i = 1, n
        shp(i) = rep_shape(kind=shapekind_sphere,x1=w%cp%seedx(:,i),rad=seed_rad,rgb=seed_rgb)
     end do
-    call win(iview)%sc%show_transient_shapes(w%id,1,shp)
+    call win(iview)%sc%show_transient_shapes(w%uid,1,shp)
     w%cp%seednew = .false.
 
   end subroutine draw_seed_preview
@@ -1807,11 +1819,11 @@ contains
          do i = 1, 3
             v(:,i) = c%m_x2c(:,i) * (x1(i) - x0(i))
          end do
-         call win(iview)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_box,&
+         call win(iview)%sc%show_transient_shapes(w%uid,2,(/rep_shape(kind=shapekind_box,&
             x1=c%x2c(x0)+c%molx0,v=v,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
       else
          x0 = form_to_cart(isys,w%cp%clipx0)
-         call win(iview)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_sphere,&
+         call win(iview)%sc%show_transient_shapes(w%uid,2,(/rep_shape(kind=shapekind_sphere,&
             x1=x0+c%molx0,rad=w%cp%cliprad/bohrtoa,rgb=region_rgb,alpha=region_alpha)/))
       end if
     end associate
@@ -1865,11 +1877,11 @@ contains
 
     call iw_text("Field",highlight=.true.,alignframe=.true.)
     call igSameLine(0._c_float,-1._c_float)
-    ifield = w%cp%ifield
+    ifield = w%cp%fref%id
     if (iw_field_combo("##cpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>")) w%cp%ifield = ifield
+       nonestr="<field not available>")) call w%cp%fref%set(sys(isys),ifield)
     call iw_tooltip("Field whose critical points are searched, shown, and exported",ttshown)
-    if (.not.sys(isys)%goodfield(w%cp%ifield)) &
+    if (.not.sys(isys)%goodfield(w%cp%fref%id)) &
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
 
   end subroutine draw_field_combo
@@ -2130,12 +2142,12 @@ contains
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
-    if (w%cp%tfield == w%cp%ifield .and. w%cp%ttime == sysc(isys)%timelastchange_cplist) return
-    w%cp%tfield = w%cp%ifield
+    if (w%cp%tfield == w%cp%fref%id .and. w%cp%ttime == sysc(isys)%timelastchange_cplist) return
+    w%cp%tfield = w%cp%fref%id
     w%cp%ttime = sysc(isys)%timelastchange_cplist
-    call cp_wyckoff(isys,w%cp%ifield,w%cp%wyc)
+    call cp_wyckoff(isys,w%cp%fref%id,w%cp%wyc)
     if (allocated(w%cp%sel)) deallocate(w%cp%sel)
-    allocate(w%cp%sel(sys(isys)%f(w%cp%ifield)%ncp))
+    allocate(w%cp%sel(sys(isys)%f(w%cp%fref%id)%ncp))
     w%cp%sel = .false.
     w%cp%sortdirty = .true.
     call w%table_write_cancel()
@@ -2172,7 +2184,8 @@ contains
         do i = 1, sc%nrep
            if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_cps) cycle
            ! set it in the object of the field; clear it in all
-           if (any(ih /= 0) .and. sc%rep(i)%cps%ifield /= w%cp%ifield) cycle
+           if (any(ih /= 0) .and. (sc%rep(i)%cps%fref%id /= w%cp%fref%id .or.&
+              sc%rep(i)%cps%fref%uid /= w%cp%fref%uid)) cycle
            if (all(sc%rep(i)%cps%ihover == ih)) cycle
            sc%rep(i)%cps%ihover = ih
            ch = .true.
@@ -2211,7 +2224,7 @@ contains
        xunit = " (fractional)"
     end if
 
-    if (.not.sys(isys)%goodfield(w%cp%ifield)) return
+    if (.not.sys(isys)%goodfield(w%cp%fref%id)) return
 
     ! a search from one point, with the advanced options below; the new
     ! critical point is added to the list
@@ -2301,7 +2314,7 @@ contains
     end if
 
     ! the critical points the field has
-    if (field_has_cps(isys,w%cp%ifield)) call draw_cp_summary(isys,w%cp%ifield)
+    if (field_has_cps(isys,w%cp%fref%id)) call draw_cp_summary(isys,w%cp%fref%id)
 
   end subroutine draw_search_tab
 

@@ -402,10 +402,10 @@ contains
 
          ! transient isosurface representation
          if (w%mo_selected > 0) then
-            call win(iview)%sc%show_transient_iso(w%id,1,itrep,found)
+            call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
             if (itrep > 0) then
                associate (r => win(iview)%sc%reptrans(itrep))
-                 if (.not.found .or. r%iso%ifield /= iref) then
+                 if (.not.found .or. r%iso%fref%id /= iref) then
                     ! a fresh slot, or the reference field changed: bind
                     ! the field and make the +/- isosurface pair
                     call r%iso%set_field(isys,iref)
@@ -572,7 +572,7 @@ contains
     logical :: ok
 
     ok = allocated(c%g)
-    if (ok) ok = (c%ifield == r%iso%ifield) .and. (c%fieldgen == sys(isys)%fieldgen) .and.&
+    if (ok) ok = (c%ifield == r%iso%fref%id) .and. (c%fieldgen == sys(isys)%fieldgen) .and.&
        (c%timegeom == sysc(isys)%timelastchange_geometry) .and. all(c%n == n) .and.&
        (c%iregion == r%iso%iregion) .and. all(c%rgn_x == r%iso%rgn_x)
 
@@ -622,8 +622,8 @@ contains
     itrep = w%mo_pending_itrep
     if (itrep < 1 .or. itrep > win(iview)%sc%nreptrans) return
     associate(r => win(iview)%sc%reptrans(itrep))
-      if (.not.r%isinit .or. r%owner /= w%id .or. r%itag /= 1 .or. r%type /= reptype_isosurface) return
-      if (.not.sys(isys)%goodfield(r%iso%ifield)) return
+      if (.not.r%isinit .or. r%owner /= w%uid .or. r%itag /= 1 .or. r%type /= reptype_isosurface) return
+      if (.not.r%iso%fref%ok(sys(isys))) return
 
       call begin_cancellable()
       call r%iso%sample(isys,w%mo_pending_n,r%iso%iregion,r%iso%rgn_x,id_mo_id,w%mo_selected,&
@@ -668,7 +668,7 @@ contains
     ! the cache describes one field, one generation of its data, one
     ! applied grid, and one geometry
     ok = allocated(c%g)
-    if (ok) ok = (c%ifield == r%iso%ifield) .and.&
+    if (ok) ok = (c%ifield == r%iso%fref%id) .and.&
        (c%fieldgen == sys(isys)%fieldgen) .and.&
        (c%timegeom == sysc(isys)%timelastchange_geometry) .and.&
        r%iso%grid_isapplied(c%n,c%iregion,c%rgn_x)
@@ -676,9 +676,9 @@ contains
        if (allocated(c%g)) deallocate(c%g)
        c%npts = 0
        c%iuse = 0
-       if (sys(isys)%goodfield(r%iso%ifield) .and. all(r%iso%nptsxyz > 0)) then
-          allocate(c%g(sys(isys)%f(r%iso%ifield)%wfn%nmoall))
-          c%ifield = r%iso%ifield
+       if (sys(isys)%goodfield(r%iso%fref%id) .and. all(r%iso%nptsxyz > 0)) then
+          allocate(c%g(sys(isys)%f(r%iso%fref%id)%wfn%nmoall))
+          c%ifield = r%iso%fref%id
           c%fieldgen = sys(isys)%fieldgen
           c%timegeom = sysc(isys)%timelastchange_geometry
           c%n = r%iso%nptsxyz
@@ -693,7 +693,7 @@ contains
     k = r%iso%imoidx_built
     if (k >= 1 .and. k <= size(c%g) .and. allocated(r%iso%ff)) then
        if (.not.allocated(c%g(k)%ff) .and. r%iso%imosel_built == id_mo_id .and.&
-          r%iso%ifield_built == r%iso%ifield .and. r%iso%fieldgen_built == sys(isys)%fieldgen .and.&
+          r%iso%ifield_built == r%iso%fref%id .and. r%iso%fieldgen_built == sys(isys)%fieldgen .and.&
           r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,r%iso%rgn_x_built) .and.&
           r%iso%time_built >= sysc(isys)%timelastchange_geometry .and.&
           all(shape(r%iso%ff) == c%n)) then
@@ -1867,13 +1867,13 @@ contains
     ! measure must be remembered as such, or it is retried every frame.
     ! The key is read off the representation that is benchmarked, so the
     ! cost cannot be stored under a field other than the one measured
-    if (w%mo_cost%matches(isys,r%iso%ifield)) return
+    if (w%mo_cost%matches(isys,r%iso%fref%id)) return
 
     ! through the representation, which prices what its own sampling
     ! loop evaluates: one orbital, not the density
     w%mo_cost%secs = r%iso%measure_cost(isys,n)
     w%mo_cost%isys = isys
-    w%mo_cost%ifield = r%iso%ifield
+    w%mo_cost%ifield = r%iso%fref%id
     w%mo_cost%gen = sys(isys)%fieldgen
     w%mo_cost%timegeom = sysc(isys)%timelastchange_geometry
 

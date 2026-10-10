@@ -40,6 +40,7 @@ contains
     logical(c_bool) :: selected
     logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset, syschanged, viewchanged
     integer :: isys, isysold, iview, iviewold, i, digits, iaux, iwrite
+    integer*8 :: uidold
     ! the tables of the window that can be written as text
     integer, parameter :: itable_qpoints = 1, itable_freqs = 2
     integer(c_int) :: flags
@@ -59,9 +60,14 @@ contains
     ! this window acts on the system shown in its anchor view
     isysold = w%isys
     iviewold = w%vibrations_iview
+    uidold = w%vibrations_viewuid
     goodparent = w%anchor(iview,isys,syschanged)
-    if (goodparent) w%vibrations_iview = iview
-    viewchanged = goodparent .and..not.w%firstpass .and. (syschanged .or. iview /= iviewold)
+    if (goodparent) then
+       w%vibrations_iview = iview
+       w%vibrations_viewuid = win(iview)%uid
+    end if
+    viewchanged = .false.
+    if (goodparent .and..not.w%firstpass) viewchanged = syschanged .or. (win(iview)%uid /= uidold)
 
     ! initialize state
     if (w%firstpass) then
@@ -80,7 +86,7 @@ contains
     ! (which now shows the new system's scene), or the old alternate view's
     ! own scene if that view still shows the old system
     if (viewchanged .and. iviewold > 0 .and. iviewold <= nwin) then
-       if (win(iviewold)%type == wintype_view .and. win(iviewold)%isinit) then
+       if (win(iviewold)%type == wintype_view .and. win(iviewold)%isinit .and. win(iviewold)%uid == uidold) then
           if (win(iviewold)%ismain) then
              if (ok_system(isysold,sys_init)) call sysc(isysold)%sc%clear_vib_mode()
           elseif (associated(win(iviewold)%sc) .and. win(iviewold)%isys == isysold) then
@@ -417,7 +423,7 @@ contains
              call iw_tooltip("Color of the arrows",ttshown)
 
              ! re-arm the transient shapes object that draws the arrows
-             call win(iview)%sc%show_transient_vibarrows(w%id,1)
+             call win(iview)%sc%show_transient_vibarrows(w%uid,1)
           end if
        end if
     end if ! vib_ok

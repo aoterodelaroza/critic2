@@ -123,6 +123,7 @@
 
 ! Scene object and GL rendering utilities
 submodule (scenes) proc
+  use global, only: new_uid
   implicit none
 
   ! some math parameters
@@ -235,9 +236,9 @@ contains
        s%lockedcam = -1
     else ! ==1, only scf
        if (sysc(isys)%collapse < 0) then
-          s%lockedcam = isys
+          s%lockedcam = sysc(isys)%uid
        elseif (sysc(isys)%collapse > 0) then
-          s%lockedcam = sysc(isys)%collapse
+          s%lockedcam = sysc(sysc(isys)%collapse)%uid
        else
           s%lockedcam = 0
        end if
@@ -2521,6 +2522,7 @@ contains
                 s%icount(s%rep(i)%flavor) = s%icount(s%rep(i)%flavor) + 1
                 s%icount(0) = s%icount(0) + 1
                 s%rep(id)%iord = s%icount(0)
+                s%rep(id)%uid = new_uid()
                 s%forcesort = .true.
                 changed = .true.
                 call s%undo_note("Duplicate " // trim(s%rep(i)%name))
@@ -3074,13 +3076,11 @@ contains
   !> objects keep what is under the mouse now (hover highlights). The objects in neither are left alone. The styles
   !> carry the revisions of the system they were made for, so they are
   !> made again if those are no longer the system's (and the stars of a
-  !> bonds object made again, which has none). The Display too. If an
-  !> object made again goes to the slot of one that ended here, the
-  !> editors of the objects let go of them (the editor of the one that
-  !> ended would show the other); an editor of an object that ends
-  !> closes by itself.
+  !> bonds object made again, which has none). The Display too. An
+  !> editor of an object that ends closes by itself, also if another
+  !> object takes its slot (the objects are known by their uid).
   module subroutine scene_objects_restore(s,st,stfrom,done)
-    use windows, only: invalidate_scene_reps
+    use windows, only: regenerate_window_pointers
     use representations, only: iso_cache, reptype_isosurface
     class(scene), intent(inout), target :: s
     type(scene_objstate), intent(in) :: st
@@ -3089,8 +3089,7 @@ contains
 
     integer :: i, k, rev, rev_nstar, ihcps(2), ihgp(3)
     type(neighstar), allocatable :: nstar(:)
-    logical, allocatable :: ended(:)
-    logical :: reused, dofrom, sysnstar, live
+    logical :: dofrom, sysnstar, live
     type(iso_cache) :: cache
 
     if (present(done)) done = .false.
@@ -3101,29 +3100,22 @@ contains
     if (present(done)) done = .true.
 
     ! the objects made since
-    allocate(ended(s%nrep))
-    ended = .false.
-    reused = .false.
     if (dofrom) then
        do k = 1, size(stfrom%rep,1)
-          if (any(st%rep(:)%iord == stfrom%rep(k)%iord)) cycle
-          i = slot_of(stfrom%rep(k)%iord)
-          if (i > 0) then
-             call s%rep(i)%end()
-             ended(i) = .true.
-          end if
+          if (any(st%rep(:)%uid == stfrom%rep(k)%uid)) cycle
+          i = slot_of(stfrom%rep(k)%uid)
+          if (i > 0) call s%rep(i)%end()
        end do
     end if
 
     ! the objects of st, in their slots; the neighbor stars and their
     ! revisions from the object there now, if it has them
     do k = 1, size(st%rep,1)
-       i = slot_of(st%rep(k)%iord)
+       i = slot_of(st%rep(k)%uid)
        live = (i > 0)
        if (.not.live) then
           i = st%islot(k)
           if (s%rep(i)%isinit) i = s%get_new_representation_id()
-          if (i <= size(ended,1)) reused = reused .or. ended(i)
        end if
        call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
        rev = s%rep(i)%bonds%style%rev
@@ -3149,19 +3141,22 @@ contains
     s%disp = st%disp
     s%bgcolor = st%bgcolor
 
-    if (reused) call invalidate_scene_reps(s)
     s%forcesort = .true.
     s%forcebuildlists = .true.
     s%nextbuildlists_fixcam = .true.
 
+    ! the editors point to their objects again (in their new slot), or
+    ! to none if they are gone
+    call regenerate_window_pointers()
+
   contains
-    !> The slot of the object with order integer iord in s, 0 if none.
-    function slot_of(iord) result(islot)
-      integer, intent(in) :: iord
+    !> The slot of the object with unique identifier uid in s, 0 if none.
+    function slot_of(uid) result(islot)
+      integer*8, intent(in) :: uid
       integer :: islot
 
       do islot = 1, s%nrep
-         if (s%rep(islot)%isinit .and. s%rep(islot)%iord == iord) return
+         if (s%rep(islot)%isinit .and. s%rep(islot)%uid == uid) return
       end do
       islot = 0
 
@@ -3195,6 +3190,7 @@ contains
   !> has bond paths, a gradient paths object for field ifield, and that
   !> they are shown (e.g. after a critical point search).
   module subroutine scene_show_cps(s,ifield)
+    use systems, only: sys
     use representations, only: reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
        field_has_cps
     class(scene), intent(inout), target :: s
@@ -3208,21 +3204,26 @@ contains
     fgp = .false.
     do i = 1, s%nrep
        if (.not.s%rep(i)%isinit) cycle
-       if (s%rep(i)%type == reptype_cps .and. s%rep(i)%cps%ifield == ifield) then
+       ! an object whose field is gone takes its fallback field first,
+       ! as on the next frame (so it is not taken for another field
+       ! in the same slot, and a second object made for that field)
+       if (s%rep(i)%type == reptype_cps .or. s%rep(i)%type == reptype_gpaths) &
+          call s%rep(i)%update()
+       if (s%rep(i)%type == reptype_cps .and. s%rep(i)%cps%fref%id == ifield) then
           s%rep(i)%shown = .true.
           fcps = .true.
-       elseif (s%rep(i)%type == reptype_gpaths .and. s%rep(i)%gpaths%ifield == ifield) then
+       elseif (s%rep(i)%type == reptype_gpaths .and. s%rep(i)%gpaths%fref%id == ifield) then
           s%rep(i)%shown = .true.
           fgp = .true.
        end if
     end do
     if (.not.fcps .and. field_has_cps(s%id,ifield)) then
        call s%add_representation(reptype_cps,repflavor_cps,id=id)
-       s%rep(id)%cps%ifield = ifield
+       call s%rep(id)%cps%fref%set(sys(s%id),ifield)
     end if
     if (.not.fgp .and. field_has_cps(s%id,ifield,withpaths=.true.)) then
        call s%add_representation(reptype_gpaths,repflavor_gpaths,id=id)
-       s%rep(id)%gpaths%ifield = ifield
+       call s%rep(id)%gpaths%fref%set(sys(s%id),ifield)
     end if
     s%forcebuildlists = .true.
 
@@ -3287,7 +3288,7 @@ contains
   !> the Display (the cell count) of the objects they replace; the rest
   !> of their settings are the defaults of the style.
   module subroutine scene_set_style(s,istyle)
-    use windows, only: invalidate_scene_reps
+    use windows, only: regenerate_window_pointers
     use representations, only: reptype_atoms, reptype_bonds, repflavor_unknown,&
        repstyle_NUM, repstyle_atomflavor, repstyle_bondflavor
     use systems, only: sys_ready, ok_system
@@ -3330,11 +3331,9 @@ contains
        call s%rep(i)%end()
     end do
 
-    ! the replacements reuse the slots just freed, so the editors of the
-    ! objects that are gone must let go of them before that happens
-    call invalidate_scene_reps(s)
-
-    ! in with the new
+    ! in with the new (they may reuse the slots just freed: the editors
+    ! of the objects that are gone close, as the new objects have new
+    ! uids, and lose their pointers at the end)
     if (repstyle_atomflavor(istyle) /= repflavor_unknown) then
        call s%add_representation(reptype_atoms,repstyle_atomflavor(istyle),id=id)
        if (iordatom > 0) then
@@ -3349,6 +3348,7 @@ contains
           s%rep(id)%iord = iordbond
        end if
     end if
+    call regenerate_window_pointers()
 
   end subroutine scene_set_style
 
@@ -3369,8 +3369,8 @@ contains
           s%reptrans(i)%armed = .false.
        else
           ! not re-armed this frame: reap (leaves a hole); if it held the
-          ! vibration arrows, forget it, or a later item of a window that
-          ! reuses the owner id would be filled with arrows
+          ! vibration arrows, forget it, or a later item of the same
+          ! owner and tag would be filled with arrows
           if (s%reptrans(i)%owner == s%vibarrow_owner .and. s%reptrans(i)%itag == s%vibarrow_tag) &
              s%vibarrow_owner = 0
           call s%reptrans(i)%end()
@@ -3399,7 +3399,7 @@ contains
   module subroutine scene_show_transient_shapes(s,owner,tag,shp,found)
     use representations, only: reptype_shapes, repflavor_shapes, shape_differs
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
     type(rep_shape), intent(in), optional :: shp(:)
     logical, intent(out), optional :: found
@@ -3446,7 +3446,7 @@ contains
   module subroutine scene_show_transient_vibarrows(s,owner,tag)
     use representations, only: reptype_shapes, repflavor_shapes, shape_differs
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
 
     integer :: id
@@ -3477,7 +3477,7 @@ contains
     use representations, only: reptype_text, repflavor_text, textpos_screen, text_item,&
        text_append
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
     character(len=*), intent(in) :: str
     real(c_float), intent(in) :: rgb(3)
@@ -3521,7 +3521,7 @@ contains
   module subroutine scene_show_transient_symelems(s,owner,tag,nop,iop)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
     integer, intent(in) :: nop
     integer, intent(in) :: iop(nop)
@@ -3562,7 +3562,7 @@ contains
   module subroutine scene_show_transient_iso(s,owner,tag,id,found)
     use representations, only: reptype_isosurface, repflavor_isosurface
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
     integer, intent(out) :: id
     logical, intent(out) :: found
@@ -3581,7 +3581,7 @@ contains
     use representations, only: reptype_polyhedra, repflavor_polyhedra_basic
     use systems, only: sys, atlisttype_species
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
     logical, intent(in) :: isc(:)
     logical, intent(in) :: isv(:)
@@ -3654,7 +3654,7 @@ contains
     use representations, only: reptype_atoms, repflavor_atoms_basic
     use systems, only: sys, atlisttype_nneq
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: tag
     real*8, intent(in) :: rad(:)
 
@@ -3715,16 +3715,17 @@ contains
   end subroutine scene_overlay_map
 
   !> The on-screen box of item item of the text representation with
-  !> order iord (the irep/item tags of its string), in the NDC of the
+  !> unique identifier uid (the repuid/item tags of its string), in the NDC of the
   !> render buffer: corners bmin and bmax, and the anchor anc the text is
   !> tied to (before its offset). ok = .false. if the item is not drawn
   !> (hidden, empty, an unset anchor) or not rendered yet. The glyphs are
   !> those of the last render; the vibration displacement is not
   !> included.
-  module subroutine scene_text_box(s,iord,item,ok,bmin,bmax,anc)
+  module subroutine scene_text_box(s,uid,item,ok,bmin,bmax,anc)
     use param, only: bohrtoa
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: iord, item
+    integer*8, intent(in) :: uid
+    integer, intent(in) :: item
     logical, intent(out) :: ok
     real(c_float), intent(out) :: bmin(2), bmax(2), anc(2)
 
@@ -3736,12 +3737,12 @@ contains
     bmin = 0._c_float
     bmax = 0._c_float
     anc = 0._c_float
-    if (iord <= 0 .or. item <= 0) return
+    if (uid <= 0 .or. item <= 0) return
 
     ! a world-anchored string: its anchor projected as in the text shader,
     ! plus the cached glyph offsets
     do i = 1, s%obj%nstring
-       if (s%obj%string(i)%irep /= iord .or. s%obj%string(i)%item /= item) cycle
+       if (s%obj%string(i)%repuid /= uid .or. s%obj%string(i)%item /= item) cycle
        if (.not.s%gl%text_valid .or. .not.allocated(s%gl%text_count)) return
        if (i > size(s%gl%text_count,1)) return
        n0 = s%gl%text_first(i)
@@ -3763,7 +3764,7 @@ contains
     ! an overlay string: at its window position, with the glyph extent of
     ! its last render
     do i = 1, s%obj%nstringover
-       if (s%obj%stringover(i)%irep /= iord .or. s%obj%stringover(i)%item /= item) cycle
+       if (s%obj%stringover(i)%repuid /= uid .or. s%obj%stringover(i)%item /= item) cycle
        if (.not.allocated(s%gl%textover_ext)) return
        if (i > size(s%gl%textover_ext,2)) return
        ! the anchor: the window position, plus the local position of the
@@ -3857,7 +3858,7 @@ contains
   function transient_claim(s,owner,itag,itype,flavor) result(id)
     use representations, only: repflavor_NUM
     class(scene), intent(inout) :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: itag
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
@@ -3909,7 +3910,7 @@ contains
   !> slot could not be initialized.
   function transient_slot(s,owner,itag,itype,flavor,found) result(id)
     class(scene), intent(inout) :: s
-    integer, intent(in) :: owner
+    integer*8, intent(in) :: owner
     integer, intent(in) :: itag
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
@@ -4425,5 +4426,45 @@ contains
     end do
 
   end function measure_has_atom
+
+  !> Point the reference rr to the object in slot id of scene s (none
+  !> if there is no object there).
+  module subroutine rep_ref_set(rr,s,id)
+    class(rep_ref), intent(inout) :: rr
+    type(scene), intent(in) :: s
+    integer, intent(in) :: id
+
+    rr%id = 0
+    rr%uid = 0
+    if (id < 1 .or. id > s%nrep) return
+    if (.not.s%rep(id)%isinit) return
+    rr%id = id
+    rr%uid = s%rep(id)%uid
+
+  end subroutine rep_ref_set
+
+  !> The slot in scene s of the object the reference rr was set to, or
+  !> 0 if it is gone. Usually the slot the reference was set to; else
+  !> (an undo brought the object back to another slot) the object is
+  !> searched for.
+  module function rep_ref_get(rr,s) result(id)
+    class(rep_ref), intent(in) :: rr
+    type(scene), intent(in) :: s
+    integer :: id
+
+    id = 0
+    if (rr%uid <= 0 .or. .not.allocated(s%rep)) return
+    if (rr%id >= 1 .and. rr%id <= s%nrep) then
+       if (s%rep(rr%id)%isinit .and. s%rep(rr%id)%uid == rr%uid) then
+          id = rr%id
+          return
+       end if
+    end if
+    do id = 1, s%nrep
+       if (s%rep(id)%isinit .and. s%rep(id)%uid == rr%uid) return
+    end do
+    id = 0
+
+  end function rep_ref_get
 
 end submodule proc

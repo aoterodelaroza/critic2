@@ -104,6 +104,7 @@ module systems
      ! system ID and properties
      integer :: id ! ID for this system
      integer :: status = sys_empty ! current status
+     integer*8 :: uid = 0 ! unique identifier of the system in this slot (global new_uid; new for each load)
      logical :: hidden = .false. ! whether it is hidden in the tree view (filter)
      logical :: showfields = .false. ! whether to show the fields in the tree view
      logical :: tselected = .false. ! whether it is selected in the tree (multi-selection)

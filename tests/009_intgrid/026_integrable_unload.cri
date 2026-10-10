@@ -1,0 +1,16 @@
+## check: 026_integrable_unload.cro -a1e-10
+## labels: regression
+
+crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+
+load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN zpsp si 4 o 6
+load ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
+
+reference 1
+
+## field 2 is integrable; once unloaded, its property must not
+## integrate the field that takes its slot later
+integrable 2
+unload 2
+load as "2*$1"
+yt

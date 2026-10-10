@@ -432,7 +432,7 @@ contains
   end subroutine label_style_reset
 
   !> Reset the critical point rows of the label style from the
-  !> non-nuclear CPs of field r%labels%ifield: one row per CP type
+  !> non-nuclear CPs of field r%labels%fref%id: one row per CP type
   !> (label type 0, text n/b/r/c), per symmetry-unique CP (1 = n/b/r/c,
   !> 4 = CP id, 8 = Wyckoff position), or per cell CP (2,3 = CP id). No
   !> rows for species, atomic number, or molecule labels. All rows
@@ -452,7 +452,7 @@ contains
     if (allocated(d%cpshown)) deallocate(d%cpshown)
     if (allocated(d%cpstr)) deallocate(d%cpstr)
     d%timelastreset_cp = glfwGetTime()
-    d%cpfield = r%labels%ifield
+    d%cpfield = r%labels%fref%id
     if (.not.ok_system(r%id,sys_ready)) return
     if (.not.field_has_cps(r%id,d%cpfield)) return
 

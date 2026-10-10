@@ -192,6 +192,15 @@ module global
   integer :: progress_total = 0
   character(len=32) :: progress_what = ""
 
+  ! unique identifiers (UIDs) for the items that live in arrays whose
+  ! slots are freed and reused (fields, GUI objects and isosurfaces,
+  ! windows, systems). A holder of such an item keeps its UID, not
+  ! (only) its slot, so the item being gone reads as gone instead of
+  ! as whatever was put in the slot later. new_uid returns a positive
+  ! integer not returned before in this run (thread-safe); 0 means no
+  ! identity.
+  integer*8 :: uid_last = 0
+
   interface
      module subroutine critic_main()
      end subroutine critic_main
@@ -228,6 +237,9 @@ module global
        integer, intent(in) :: n
        integer, intent(in), optional :: total
      end subroutine progress_set
+     module function new_uid() result(uid)
+       integer*8 :: uid
+     end function new_uid
      module subroutine critic_clearvariable(line)
        character*(*), intent(in) :: line
      end subroutine critic_clearvariable

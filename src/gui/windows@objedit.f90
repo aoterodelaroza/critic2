@@ -1718,7 +1718,7 @@ contains
 
     do k = r%text%ntext, 1, -1
        if (.not.r%text%t(k)%shown) cycle
-       if (label_hit(w,r%iord,k,x,tol)) return
+       if (label_hit(w,r%uid,k,x,tol)) return
     end do
     k = 0
 
@@ -1798,7 +1798,7 @@ contains
 
     ! the box
     call overlay_begin(w,dl,colw,colk,colh)
-    call label_box(w,dl,r%iord,r%text%isel,sh,colh,ok,b1,b2,anc)
+    call label_box(w,dl,r%uid,r%text%isel,sh,colh,ok,b1,b2,anc)
 
     ! the anchor of a world-anchored text, joined to the box if apart
     if (ok .and. r%text%t(r%text%isel)%placement /= textpos_screen) then
@@ -1878,7 +1878,7 @@ contains
 
     do k = r%measure%nitem, 1, -1
        if (.not.r%measure%item(k)%shown) cycle
-       if (label_hit(w,r%iord,k,inp%xm,objedit_hit_px*inp%pxs)) return
+       if (label_hit(w,r%uid,k,inp%xm,objedit_hit_px*inp%pxs)) return
        if (.not.measure_points(w,r%measure%item(k),xa)) cycle
        do j = 1, r%measure%item(k)%n
           c(:,j) = to_tex(w,xa(:,j))
@@ -1919,7 +1919,7 @@ contains
       ! the label box
       sh = 0d0
       if (mdrag) sh = inp%xm - w%oe%x0
-      call label_box(w,dl,r%iord,r%measure%isel,sh,colh,ok,b1,b2,anc)
+      call label_box(w,dl,r%uid,r%measure%isel,sh,colh,ok,b1,b2,anc)
 
       ! the atoms (the dragged one at its new atom, or at the mouse)
       if (hdrag) then
@@ -2009,29 +2009,31 @@ contains
   end function drag_point
 
   !> Whether the position x (NDC of the render buffer) is within tol of
-  !> the box of the label of item item of the representation with order
-  !> iord (see scene_text_box) in view w.
-  function label_hit(w,iord,item,x,tol) result(ok)
+  !> the box of the label of item item of the representation with
+  !> unique identifier uid (see scene_text_box) in view w.
+  function label_hit(w,uid,item,x,tol) result(ok)
     class(window), intent(inout), target :: w
-    integer, intent(in) :: iord, item
+    integer*8, intent(in) :: uid
+    integer, intent(in) :: item
     real*8, intent(in) :: x(2), tol
     logical :: ok
 
     real(c_float) :: bmin(2), bmax(2), anc(2)
 
-    call w%sc%text_box(iord,item,ok,bmin,bmax,anc)
+    call w%sc%text_box(uid,item,ok,bmin,bmax,anc)
     if (ok) ok = all(x >= bmin - tol) .and. all(x <= bmax + tol)
 
   end function label_hit
 
   !> Draw on dl, with color colh, the box of the label of item item of
-  !> the representation with order iord in view w, moved by sh (NDC).
+  !> the representation with unique identifier uid in view w, moved by sh (NDC).
   !> Returns whether it is drawn (ok), the moved box (b1, b2; NDC) and
   !> the anchor of the label (anc; NDC).
-  subroutine label_box(w,dl,iord,item,sh,colh,ok,b1,b2,anc)
+  subroutine label_box(w,dl,uid,item,sh,colh,ok,b1,b2,anc)
     class(window), intent(inout), target :: w
     type(c_ptr), intent(in) :: dl
-    integer, intent(in) :: iord, item
+    integer*8, intent(in) :: uid
+    integer, intent(in) :: item
     real*8, intent(in) :: sh(2)
     integer(c_int), intent(in) :: colh
     logical, intent(out) :: ok
@@ -2043,7 +2045,7 @@ contains
 
     real(c_float), parameter :: pad_px = 3._c_float
 
-    call w%sc%text_box(iord,item,ok,bmin,bmax,anc)
+    call w%sc%text_box(uid,item,ok,bmin,bmax,anc)
     b1 = bmin + sh
     b2 = bmax + sh
     if (.not.ok) return
@@ -2105,7 +2107,7 @@ contains
     if (r%axes%showlabels) then
        do k = 1, 3
           ih = 3 + k
-          if (label_hit(w,r%iord,k,x,tol)) return
+          if (label_hit(w,r%uid,k,x,tol)) return
        end do
     end if
     ih = 0
@@ -2215,7 +2217,7 @@ contains
     end if
     if (drag .and. w%oe%op == objop_handle .and. w%oe%ih > 3) then
        ! a label: its box where it goes
-       call label_box(w,dl,r%iord,w%oe%ih - 3,inp%xm - w%oe%x0,colh,ok,b1,b2,anc)
+       call label_box(w,dl,r%uid,w%oe%ih - 3,inp%xm - w%oe%x0,colh,ok,b1,b2,anc)
     elseif (drag) then
        ! the axes as they would be
        qo = ndc_to_mouse(w,o)

@@ -154,13 +154,14 @@ contains
 
        ! generate a new system
        if (iw_button("New system",danger=.true.)) then
-          if (ok_system(w%isys,sys_init)) call remove_system(w%isys)
+          if (w%demo_owns_system()) call remove_system(w%isys)
           w%isys = 0
           w%errmsg = ""
           ns = int(w%mt%nshell)
           if (w%mt%igeom == mtgeom_pair) ns = int(w%mt%nshellp)
           call build_melting_system(w%mt%imetal+1,int(w%mt%igeom),int(w%mt%nx),int(w%mt%ny),&
              int(w%mt%nlayer),ns,w%isys,w%errmsg)
+          if (w%isys >= 1) w%demo_sysuid = sysc(w%isys)%uid
           ! show the new system in the anchor view (see build_water_cluster)
           if (w%isys > 0) call w%retarget(w%isys)
           ! the system as built: the form may be changed again while it
@@ -508,11 +509,11 @@ contains
       real(c_float), parameter :: dark = 0.72_c_float ! darken for legibility
 
       ! temperature at the top
-      call sysc(is)%sc%show_transient_text(w%id,1,mt_tstring(tnow,w%mt%itempunit),rgb_dark,&
+      call sysc(is)%sc%show_transient_text(w%uid,1,mt_tstring(tnow,w%mt%itempunit),rgb_dark,&
          (/0.5d0,0.92d0/),1.5d0)
 
       ! molten fraction at the bottom, in the color of the atoms at that order
-      call sysc(is)%sc%show_transient_text(w%id,2,string(nint(100d0*w%mt%molten)) // "% molten",&
+      call sysc(is)%sc%show_transient_text(w%uid,2,string(nint(100d0*w%mt%molten)) // "% molten",&
          dark * mt_order_color(1d0-w%mt%molten),(/0.5d0,0.06d0/),1d0)
 
     end subroutine mt_update_scoreboard

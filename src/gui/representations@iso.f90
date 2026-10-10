@@ -18,6 +18,7 @@
 ! Isosurface representations (reptype_isosurface): field binding, grid
 ! regions and sizes, cost estimates, and the sampled-field bookkeeping.
 submodule (representations) iso
+  use global, only: new_uid
   implicit none
 
 contains
@@ -102,7 +103,7 @@ contains
 
     ok = .false.
     if (s%imap_mode == iso_map_field) then
-       ok = sys(isys)%goodfield(s%imap)
+       ok = s%mapref%ok(sys(isys))
     elseif (s%imap_mode == iso_map_expr) then
        ok = (len_trim(s%mapexpr) > 0 .and. len_trim(s%maperr) == 0)
     end if
@@ -111,21 +112,20 @@ contains
   end function iso_slot_hascolors
 
   !> The isosurface object, among the nrep objects in rep, whose colors
-  !> the color bar cb shows: the object with order integer cb%isoiord,
-  !> or the first shown isosurface object with a colored isosurface if
-  !> cb%isoiord is zero or that object is gone (order integers are not
-  !> reused, and an undo brings the object back with its own). Returns 0
-  !> if there is none.
+  !> the color bar cb shows: the object with unique identifier
+  !> cb%isouid, or the first shown isosurface object with a colored
+  !> isosurface if cb%isouid is zero or that object is gone (an undo
+  !> brings the object back with its own). Returns 0 if there is none.
   module function colorbar_rep(cb,rep,nrep) result(irep)
     type(rep_colorbar), intent(in) :: cb
     type(representation), intent(in) :: rep(:)
     integer, intent(in) :: nrep
     integer :: irep
 
-    if (cb%isoiord > 0) then
+    if (cb%isouid > 0) then
        do irep = 1, nrep
           if (.not.rep(irep)%isinit .or. rep(irep)%type /= reptype_isosurface) cycle
-          if (rep(irep)%iord == cb%isoiord) return
+          if (rep(irep)%uid == cb%isouid) return
        end do
     end if
     do irep = 1, nrep
@@ -138,8 +138,9 @@ contains
   end function colorbar_rep
 
   !> The isosurface of the isosurface object riso whose colors the color
-  !> bar cb shows: isosurface cb%islot if riso is the object chosen
-  !> explicitly, else the first shown colored isosurface. Returns 0 if
+  !> bar cb shows: the isosurface with unique identifier cb%slotuid if
+  !> riso is the object chosen explicitly and it has that isosurface,
+  !> else the first shown colored isosurface. Returns 0 if
   !> the object or that isosurface is hidden (a hidden object does not
   !> recolor its meshes, so their colors may be stale), the surfaces
   !> are colored by grid-point groups instead of a map, or that
@@ -151,13 +152,11 @@ contains
 
     islot = 0
     if (.not.riso%shown .or. allocated(riso%iso%lbl)) return
-    if (cb%isoiord > 0 .and. cb%isoiord == riso%iord .and. cb%islot > 0) then
-       islot = cb%islot
-       if (islot > riso%iso%niso) then
+    if (cb%isouid > 0 .and. cb%isouid == riso%uid) &
+       islot = iso_slot_index(riso%iso,cb%slotuid)
+    if (islot > 0) then
+       if (.not.riso%iso%slot(islot)%shown .or. .not.iso_slot_hascolors(riso%iso%slot(islot),riso%id)) &
           islot = 0
-       elseif (.not.riso%iso%slot(islot)%shown .or. .not.iso_slot_hascolors(riso%iso%slot(islot),riso%id)) then
-          islot = 0
-       end if
     else
        do islot = 1, riso%iso%niso
           if (riso%iso%slot(islot)%shown .and. iso_slot_hascolors(riso%iso%slot(islot),riso%id)) return
@@ -166,6 +165,22 @@ contains
     end if
 
   end function colorbar_slot
+
+  !> The index of the isosurface with unique identifier uid in
+  !> isosurface object iso, or 0 if it has none.
+  module function iso_slot_index(iso,uid) result(islot)
+    type(rep_isosurface), intent(in) :: iso
+    integer*8, intent(in) :: uid
+    integer :: islot
+
+    if (uid > 0) then
+       do islot = 1, iso%niso
+          if (iso%slot(islot)%uid == uid) return
+       end do
+    end if
+    islot = 0
+
+  end function iso_slot_index
 
   !> Edge lengths (angstrom) of the box an isosurface of system isys
   !> samples: the given region box, else the valid window of the grid
@@ -629,8 +644,8 @@ contains
     logical :: okbox
 
     if (.not.ok_system(isys,sys_init)) return
-    if (.not.sys(isys)%goodfield(iso%ifield)) return
-    if (iso_isgridfield(isys,iso%ifield)) return
+    if (.not.sys(isys)%goodfield(iso%fref%id)) return
+    if (iso_isgridfield(isys,iso%fref%id)) return
 
     ! the box the sampling covers; only a region mode needs one
     box = 0d0
@@ -690,12 +705,12 @@ contains
 
     if (ilevel > iso_nlevel .and. ic == iso_custom_ptsang) then
        if (iso%iregion == iso_region_cell) then
-          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,ifield=iso%ifield)
+          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,ifield=iso%fref%id)
        else
           n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,box=box)
        end if
     elseif (iso%iregion == iso_region_cell) then
-       n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,ifield=iso%ifield)
+       n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,ifield=iso%fref%id)
     else
        n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,box=box)
     end if
@@ -712,7 +727,7 @@ contains
     real*8 :: alen(3)
 
     if (iso%iregion == iso_region_cell) then
-       alen = iso_box_lengths(isys,ifield=iso%ifield)
+       alen = iso_box_lengths(isys,ifield=iso%fref%id)
     else
        alen = iso_box_lengths(isys,box=box)
     end if
@@ -737,9 +752,9 @@ contains
 
     if (iso%imosel /= 0) then
        request = iso%mo_request()
-       secs = iso_estimate_cost(isys,iso%ifield,iso%iregion,iso%rgn_x,n,request)
+       secs = iso_estimate_cost(isys,iso%fref%id,iso%iregion,iso%rgn_x,n,request)
     else
-       secs = iso_estimate_cost(isys,iso%ifield,iso%iregion,iso%rgn_x,n)
+       secs = iso_estimate_cost(isys,iso%fref%id,iso%iregion,iso%rgn_x,n)
     end if
 
   end function iso_measure_cost
@@ -855,7 +870,7 @@ contains
     logical, intent(out) :: pereval
     logical, intent(out) :: ok
 
-    call iso_sample_domain(isys,iso%ifield,iso%iregion_ap,iso%rgn_x_ap,iso%nptsxyz,&
+    call iso_sample_domain(isys,iso%fref%id,iso%iregion_ap,iso%rgn_x_ap,iso%nptsxyz,&
        xmat,x0c,cmat,per0,pereval,ok)
 
   end subroutine iso_sampled_box
@@ -888,7 +903,7 @@ contains
     logical :: isgrid
 
     if (.not.ok_system(isys,sys_init)) return
-    iso%ifield = max(ifield,0)
+    call iso%fref%set(sys(isys),max(ifield,0))
     ! an MO selection belongs to the previous field
     iso%imosel = 0
     iso%imoidx = 0
@@ -896,7 +911,7 @@ contains
     ! a single isosurface (with its color) at the new default level
     if (iso%niso < 1) call iso%add_iso()
     iso%niso = 1
-    iso%slot(1)%isoval = iso_default_isovalue(isys,iso%ifield)
+    iso%slot(1)%isoval = iso_default_isovalue(isys,iso%fref%id)
     iso%slot(1)%built = .false.
     ! the colors mapped on the previous field's surface describe values that
     ! are gone. Dropping them is the whole statement: it is what the editor
@@ -909,7 +924,7 @@ contains
     iso%slot(1)%icmap_auto = .true.
     iso%slot(1)%maprange_auto = .true.
     iso%slot(1)%maperr = ""
-    isgrid = iso_isgridfield(isys,iso%ifield)
+    isgrid = iso_isgridfield(isys,iso%fref%id)
     if (isgrid) then
        iso%ilevel = 0
     else
@@ -998,7 +1013,7 @@ contains
     end if
 
     ! the color: first palette entry no other isosurface is using
-    iso%slot(iso%niso) = iso_slot(isoval=val)
+    iso%slot(iso%niso) = iso_slot(uid=new_uid(),isoval=val)
     if (present(rgb)) then
        iso%slot(iso%niso)%rgb = rgb
     else
@@ -1215,7 +1230,7 @@ contains
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
 
-    iso%ifield_built = iso%ifield
+    iso%ifield_built = iso%fref%id
     iso%imosel_built = iso%imosel
     iso%imoidx_built = iso%imoidx
     iso%nptsxyz_built = iso%nptsxyz
@@ -1256,7 +1271,7 @@ contains
     type(field_evaluation_avail) :: request
 
     outdomain = .false.
-    call iso_sample_domain(isys,iso%ifield,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
+    call iso_sample_domain(isys,iso%fref%id,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
     if (.not.ok) return
     if (allocated(ff)) deallocate(ff)
     allocate(ff(n(1),n(2),n(3)))
@@ -1281,7 +1296,7 @@ contains
           do j = 1, n(1)
              xp = x0c + matmul(xmat,(/real(j-1,8)/n(1),real(k-1,8)/n(2),real(l-1,8)/n(3)/))
              if (imosel /= 0) then
-                call sys(isys)%f(iso%ifield)%grd(xp,request,res,periodic=pereval)
+                call sys(isys)%f(iso%fref%id)%grd(xp,request,res,periodic=pereval)
                 lval = res%satisfied
                 if (lval) then
                    ff(j,k,l) = res%fspc
@@ -1289,7 +1304,7 @@ contains
                    ff(j,k,l) = 0d0
                 end if
              else
-                ff(j,k,l) = sys(isys)%f(iso%ifield)%grd0(xp,periodic=pereval,valid=lval)
+                ff(j,k,l) = sys(isys)%f(iso%fref%id)%grd0(xp,periodic=pereval,valid=lval)
              end if
              linvalid = linvalid .or. .not.lval
           end do
@@ -1345,7 +1360,7 @@ contains
     logical :: gen
 
     gen = any(iso%nptsxyz /= 0) .or. &
-       (iso_isgridfield(isys,iso%ifield) .and. iso%iregion_ap == iso_region_cell)
+       (iso_isgridfield(isys,iso%fref%id) .and. iso%iregion_ap == iso_region_cell)
 
   end function iso_isgenerated
 

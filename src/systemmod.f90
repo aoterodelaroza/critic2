@@ -94,6 +94,7 @@ module systemmod
      procedure :: load_field_string !< Load a field using a command string
      procedure :: goodfield !< Returns true if the field is initialized
      procedure :: fieldname_to_idx !< Find the field ID from the alias
+     procedure :: propi_field !< Slot of the field of an integrable property (-1 if gone)
      procedure :: getfieldnum !< Find an open slot for a new field
      procedure :: field_copy !< Copy a field from one slot to another
      procedure :: unload_field !< Unload a field
@@ -107,6 +108,19 @@ module systemmod
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
   end type system
   public :: system
+
+  !> A reference to a field of a system: its slot, and the unique
+  !> identifier of the field that was in the slot when the reference
+  !> was set. The reference is good only while that same field is
+  !> there, not after it is unloaded or another field takes the slot.
+  type field_ref
+     integer :: id = -1 !< slot of the field (s%f)
+     integer*8 :: uid = 0 !< unique identifier of that field (0 = the slot was empty)
+   contains
+     procedure :: set => field_ref_set !< point to the field in a slot
+     procedure :: ok => field_ref_ok !< the field pointed to is still there
+  end type field_ref
+  public :: field_ref
 
   ! Text-mode operation. Only one crystal and one system at a time.
   type(system), allocatable, target :: sy_(:)
@@ -202,7 +216,7 @@ module systemmod
        logical, intent(in), optional :: readchk
        logical, intent(in), optional :: autointerp
      end subroutine load_field_string
-     module function goodfield(s,id,key,type,n,idout) result(ok)
+     module function goodfield(s,id,key,type,n,idout,uid) result(ok)
        use fieldmod, only: type_grid
        use tools_io, only: ferror, faterr
        class(system), intent(in) :: s
@@ -211,6 +225,7 @@ module systemmod
        integer, intent(in), optional :: type
        integer, intent(in), optional :: n(3)
        integer, intent(out), optional :: idout
+       integer*8, intent(in), optional :: uid
        logical :: ok
      end function goodfield
      module function fieldname_to_idx(s,id) result(fid)
@@ -218,19 +233,35 @@ module systemmod
        character*(*), intent(in) :: id
        integer :: fid
      end function fieldname_to_idx
+     module function propi_field(s,i) result(fid)
+       class(system), intent(in) :: s
+       integer, intent(in) :: i
+       integer :: fid
+     end function propi_field
      module function getfieldnum(s) result(id)
        use fieldmod, only: realloc_field
        use tools_io, only: string
        class(system), intent(inout) :: s
        integer :: id
      end function getfieldnum
-     module subroutine field_copy(s,id0,id1)
+     module subroutine field_copy(s,id0,id1,keepuid)
        use fieldmod, only: realloc_field
        use tools_io, only: string
        class(system), intent(inout) :: s
        integer, intent(in) :: id0
        integer, intent(in) :: id1
+       logical, intent(in), optional :: keepuid
      end subroutine field_copy
+     module subroutine field_ref_set(fr,s,id)
+       class(field_ref), intent(inout) :: fr
+       type(system), intent(in) :: s
+       integer, intent(in) :: id
+     end subroutine field_ref_set
+     module function field_ref_ok(fr,s) result(ok)
+       class(field_ref), intent(in) :: fr
+       type(system), intent(in) :: s
+       logical :: ok
+     end function field_ref_ok
      module subroutine unload_field(s,id)
        class(system), intent(inout) :: s
        integer, intent(in) :: id

@@ -711,7 +711,7 @@ contains
     write (uout,'("  an ""x"" will not be integrated.")')
     write (uout,'("# id    Label      fid  Field       Additional")')
     do i = 1, sy%npropi
-       fid = sy%propi(i)%fid
+       fid = sy%propi_field(i)
        if (.not.res(i)%done) then
           label = "--inactive--"
           cini = "x "
@@ -1255,7 +1255,7 @@ contains
           sy%propi(k)%itype == itype_lapval.or.sy%propi(k)%itype == itype_expr.or.&
           sy%propi(k)%itype == itype_mpoles) then
           ! integrate scalar fields other than volume
-          fid = sy%propi(k)%fid
+          fid = sy%propi_field(k)
           if (.not.sy%goodfield(fid)) then
              res(k)%reason = "unknown or invalid field"
              cycle
@@ -1479,7 +1479,7 @@ contains
           ! other scalar fields
 
           ! check it is a good field
-          fid = sy%propi(k)%fid
+          fid = sy%propi_field(k)
           if (.not.sy%goodfield(fid)) then
              res(k)%reason = "unknown or invalid field"
              cycle
@@ -1648,7 +1648,7 @@ contains
        if (sy%propi(l)%itype /= itype_hirshfeld_ovpop) cycle
 
        ! check it is a good field
-       fid = sy%propi(l)%fid
+       fid = sy%propi_field(l)
        if (.not.sy%goodfield(fid)) then
           res(l)%reason = "unknown or invalid field"
           cycle
@@ -1849,7 +1849,7 @@ contains
        ! check consistency of the field, if applicable
        ! assign checkpoints
        if (sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink) then
-          fid = sy%propi(l)%fid
+          fid = sy%propi_field(l)
           if (.not.sy%goodfield(fid)) then
              res(l)%reason = "unknown or invalid field"
              cycle

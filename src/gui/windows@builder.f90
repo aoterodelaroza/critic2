@@ -180,7 +180,7 @@ contains
 
     ok = goodview
     if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
-       win(iview)%vmdata%owner == w%id .and.&
+       win(iview)%viewmode_owner_is(w%id) .and.&
        win(iview)%isys == w%builder_isys
     if (.not.ok) then
        ! the view is gone, the mode was exited (cancel key, mode combo),
@@ -348,7 +348,7 @@ contains
        end if
        ok = goodparent
        if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
-          win(iview)%vmdata%owner == w%id .and.&
+          win(iview)%viewmode_owner_is(w%id) .and.&
           win(iview)%isys == w%builder_isys
        if (.not.ok) then
           ! The view is gone, the mode was exited (cancel key, mode combo),
@@ -2887,11 +2887,9 @@ contains
     if (w%edit_dirty) then
        if (ok_system(w%edit_isys,sys_init)) then
           call sys(w%edit_isys)%c%rebuild_after_move(copybonding=.true.,errmsg=w%errmsg)
-          iview = w%idparent
-          if (iview >= 1 .and. iview <= nwin) then
-             if (win(iview)%isinit) then
-                if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
-             end if
+          iview = w%parent()
+          if (iview > 0) then
+             if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
           end if
           call sysc(w%edit_isys)%post_event(lastchange_geometry,label="Move atoms")
        end if

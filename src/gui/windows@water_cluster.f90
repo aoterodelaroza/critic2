@@ -112,7 +112,7 @@ contains
        ! generate a new cluster
        if (iw_button("New cluster",danger=.true.)) then
           ! stop, free, and remove the previous cluster
-          if (ok_system(w%isys,sys_init)) then
+          if (w%demo_owns_system()) then
              sysc(w%isys)%md_run = .false.
              if (sysc(w%isys)%md%ready) call sysc(w%isys)%md%free()
              call remove_system(w%isys)
@@ -120,6 +120,7 @@ contains
           w%isys = 0
           w%errmsg = ""
           call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%isys,w%errmsg)
+          if (w%isys >= 1) w%demo_sysuid = sysc(w%isys)%uid
           ! show the new cluster in the anchor view. add_systems_from_seeds
           ! selects it in the tree, but the main view only follows the tree when
           ! the "tree selects view system" preference is on
@@ -361,18 +362,18 @@ contains
       else
          str = string(eb,'f',decimal=2)
       end if
-      call sysc(is)%sc%show_transient_text(w%id,1,str,rgb,(/0.5d0,0.90d0/),1.5d0)
+      call sysc(is)%sc%show_transient_text(w%uid,1,str,rgb,(/0.5d0,0.90d0/),1.5d0)
 
       ! the participant name, above the score
       if (len_trim(w%wc_name) > 0) &
-         call sysc(is)%sc%show_transient_text(w%id,3,trim(w%wc_name),rgb_dark,&
+         call sysc(is)%sc%show_transient_text(w%uid,3,trim(w%wc_name),rgb_dark,&
             (/0.5d0,0.97d0/),1d0)
 
       ! timed mode: the clock at the bottom, in red once the time is up
       if (w%wc_mode == 1) then
          rgbc = rgb_dark
          if (w%wc_timeup) rgbc = rgb_timeup
-         call sysc(is)%sc%show_transient_text(w%id,2,string(wc_clock(),'f',decimal=1),rgbc,&
+         call sysc(is)%sc%show_transient_text(w%uid,2,string(wc_clock(),'f',decimal=1),rgbc,&
             (/0.5d0,0.06d0/),1d0)
       end if
 

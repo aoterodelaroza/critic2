@@ -18,11 +18,12 @@
 ! The class to handle ImGui windows.
 module windows
   use crystalmod, only: nice_cell
+  use systemmod, only: field_ref
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
      reptype_atoms
-  use scenes, only: scene
+  use scenes, only: scene, rep_ref
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
   use meshmod, only: mesh_level_small
@@ -285,7 +286,7 @@ module windows
   !> system.
   type cp_state
      integer :: isys = 0 ! system the form is set up for
-     integer :: ifield = -1 ! field to search
+     type(field_ref) :: fref ! field to search
      type(cp_seed_ui), allocatable :: seed(:) ! the seeds
      ! advanced options: used only if the corresponding use_ is set
      logical :: use_gradeps = .false., use_cpeps = .false., use_nuceps = .false.
@@ -625,7 +626,7 @@ module windows
      logical :: shown = .false. ! the row is shown under the toolbar of the view
      integer :: itool = objtool_none ! the armed tool (objtool_*, or objtool_kind0 + a kind of itype)
      integer :: itype = 0 ! object type of the armed tool (0 = select and remove, from the row)
-     integer :: irep = 0 ! the object the tool works on (index in sc%rep; 0 = none yet)
+     type(rep_ref) :: rref ! the object the tool works on (none yet: id = 0)
      logical :: newrep = .false. ! the first item drawn goes to a new object (Draw menu)
      integer :: face(nannot) = objtool_kind0 + 1 ! the tool on the button of each group (the last armed)
      real(c_float) :: paint_rgb(3) = (/1._c_float,0.55_c_float,0._c_float/) ! color of the paint atom tool
@@ -801,6 +802,7 @@ module windows
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
      integer :: owner = 0 ! owner window ID
+     integer*8 :: owner_uid = 0 ! uid of the owner window (its slot may be reused)
   end type viewmode_data
 
   ! user data for the file open dialog
@@ -825,8 +827,8 @@ module windows
      integer :: type ! the window type
      integer(c_int) :: id ! internal ID for this window (index from win(:))
      integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
-     integer :: serial = 0 ! serial number of this window, never reused (see window_lastserial)
-     integer :: idparent_serial = 0 ! serial of the caller window, to detect its slot being reused
+     integer*8 :: uid = 0 ! unique identifier of this window (global new_uid)
+     integer*8 :: idparent_uid = 0 ! uid of the caller window, to detect its slot being reused
      integer :: itoken = 0 ! parent token for some dialogs functions
      integer :: purpose ! purpose of the window at creation (dialogs: wpurp_dialog_*; views: wpurp_view_*)
      integer(c_int) :: flags ! window flags
@@ -836,7 +838,9 @@ module windows
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
-     integer :: irep = 0 ! the representation on which the window operates
+     integer*8 :: isys_uid = 0 ! uid of that system, when resolved through the anchor (window_anchor)
+     integer*8 :: demo_sysuid = 0 ! uid of the system a demo window made (water cluster, melting)
+     type(rep_ref) :: rref ! the representation on which the window operates (editrep)
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
      logical :: growtofit = .false. ! grow the window to fit its content (height-only; width-only init_window)
@@ -1000,6 +1004,7 @@ module windows
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
      integer :: vibrations_iview = 0 ! anchor view in the previous frame (its scene holds the mode selection)
+     integer*8 :: vibrations_viewuid = 0 ! ... and its uid
      ! molecular orbitals window parameters
      integer(c_int) :: mo_ieneunit = 0 ! energy unit in the MO table (0 = Hartree, 1 = eV)
      integer :: mo_selected = 0 ! selected MO (packed wavefunction index; 0 = none)
@@ -1133,6 +1138,8 @@ module windows
      procedure :: viewmode_set_mode ! set the viewmode based on user keypresses
      procedure :: viewmode_set_forced ! enter a window-forced pick view mode (pick an atom, builder)
      procedure :: viewmode_release_forced ! cancel the forced view mode if owned by the caller
+     procedure :: viewmode_owner_is ! the view mode is owned by window idcaller (same window, not a later one in its slot)
+     procedure :: demo_owns_system ! the system of a demo window is still the one it made
      procedure :: viewmode_exit_forced ! exit any forced view mode, back to navigation
      procedure :: viewmode_bar_display ! bar display for the current view mode
      procedure :: viewmode_activate_picking ! activate picking by view mode
@@ -1249,9 +1256,6 @@ module windows
      procedure :: edit_stop
   end type window
   public :: window
-
-  ! Serial numbers handed out to the windows, never reused.
-  integer :: window_lastserial = 0
 
   ! the window stack and named windows
   integer, public :: nwin
@@ -1508,6 +1512,10 @@ module windows
        integer, intent(in) :: isys
        logical :: busy
      end function objedit_busy
+     module function demo_owns_system(w) result(ok)
+       class(window), intent(in) :: w
+       logical :: ok
+     end function demo_owns_system
      module subroutine invalidate_scene_reps(s)
        type(scene), intent(in), target :: s
      end subroutine invalidate_scene_reps
@@ -1627,6 +1635,11 @@ module windows
      module subroutine viewmode_exit_forced(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_exit_forced
+     module function viewmode_owner_is(w,idcaller) result(ok)
+       class(window), intent(in) :: w
+       integer, intent(in) :: idcaller
+       logical :: ok
+     end function viewmode_owner_is
      module subroutine viewmode_release_forced(w,idcaller,mode)
        class(window), intent(inout), target :: w
        integer, intent(in) :: idcaller

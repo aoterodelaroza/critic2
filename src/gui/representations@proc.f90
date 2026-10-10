@@ -18,6 +18,7 @@
 ! Scene object and GL rendering utilities
 submodule (representations) proc
   use param, only: bohrtoa
+  use global, only: new_uid
   implicit none
 
   ! extension of unit cell in the vacuum direction
@@ -70,6 +71,7 @@ contains
     ! increment global counter
     icount(0) = icount(0) + 1
     r%iord = icount(0)
+    r%uid = new_uid()
 
     ! set all default values
     call r%set_defaults(0)
@@ -182,7 +184,7 @@ contains
        r%labels%rgb = ColorLabel_def
        r%labels%const_size = .false.
        r%labels%offset = (/0d0,0d0,0d0/)
-       r%labels%ifield = -1 ! set by update_styles (cps_field_default)
+       r%labels%fref = field_ref() ! set by update_styles (cps_field_default)
     end if
 
     ! unit cell
@@ -278,7 +280,7 @@ contains
 
     ! isosurfaces
     if (itype == 0 .or. itype == 12) then
-       r%iso%ifield = max(sys(isys)%iref,0)
+       call r%iso%fref%set(sys(isys),max(sys(isys)%iref,0))
        ! the custom grid is seeded written both ways, and valid: the
        ! editor re-seeds it from the grid on screen when the custom level
        ! is picked, but a degenerate region leaves it nothing to read
@@ -294,20 +296,20 @@ contains
        call r%iso%add_iso() ! the last-resort default level; set_field overwrites it below
        r%iso%ifield_built = -1
        if (r%type == reptype_isosurface) &
-          call r%iso%set_field(isys,r%iso%ifield)
+          call r%iso%set_field(isys,r%iso%fref%id)
     end if
 
     ! critical points
     if (itype == 0 .or. itype == 14) then
        r%cps = rep_cps()
-       r%cps%ifield = cps_field_default(isys)
+       call r%cps%fref%set(sys(isys),cps_field_default(isys))
        r%cps%rgb = ColorCP
     end if
 
     ! gradient paths
     if (itype == 0 .or. itype == 15) then
        r%gpaths = rep_gpaths()
-       r%gpaths%ifield = cps_field_default(isys,withpaths=.true.)
+       call r%gpaths%fref%set(sys(isys),cps_field_default(isys,withpaths=.true.))
        r%gpaths%rgb = ColorGpath
     end if
 
@@ -746,6 +748,7 @@ contains
     r%flavor = repflavor_unknown
     r%id = 0
     r%iord = 0
+    r%uid = 0
     r%owner = 0
     r%itag = 0
     r%armed = .false.
@@ -783,6 +786,7 @@ contains
     class(representation), intent(inout) :: r
 
     logical :: doreset
+    integer :: i
 
     ! consistency checks
     if (.not.r%isinit .or. r%id == 0) return
@@ -830,7 +834,10 @@ contains
           ! the field whose critical points are labeled: if it is gone
           ! (or not set yet), the same default as a new CP object. Set
           ! first, so the resets below build the CP rows for it.
-          if (.not.sys(r%id)%goodfield(r%labels%ifield)) r%labels%ifield = cps_field_default(r%id)
+          if (.not.r%labels%fref%ok(sys(r%id))) then
+             call r%labels%fref%set(sys(r%id),cps_field_default(r%id))
+             r%labels%style%cpfield = -1
+          end if
 
           ! labels: if the geometry changed
           doreset = .not.r%labels%style%isinit
@@ -840,7 +847,7 @@ contains
           ! critical point labels: if the CP list may have changed or the
           ! field changed
           doreset = (sysc(r%id)%timelastchange_cplist > r%labels%style%timelastreset_cp)
-          doreset = doreset .or. (r%labels%style%cpfield /= r%labels%ifield)
+          doreset = doreset .or. (r%labels%style%cpfield /= r%labels%fref%id)
           if (doreset) call r%labels%style%reset_cps(r)
        elseif (r%type == reptype_polyhedra) then
           ! coordination polyhedra
@@ -868,25 +875,40 @@ contains
        ! reference field -- or if the native level is selected but the
        ! field is no longer a grid (e.g. a different field loaded into the
        ! same slot). The cached mesh goes stale in add_draw_elements.
-       if (.not.sys(r%id)%goodfield(r%iso%ifield)) then
+       if (.not.r%iso%fref%ok(sys(r%id))) then
           call r%iso%set_field(r%id,sys(r%id)%iref)
-       elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%ifield)) then
-          call r%iso%set_field(r%id,r%iso%ifield)
+       elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%fref%id)) then
+          call r%iso%set_field(r%id,r%iso%fref%id)
        end if
+
+       ! the fields that color the surfaces: if gone, the field of the
+       ! isosurface itself, as when a surface is first mapped (and the
+       ! colormap and the range follow its values)
+       do i = 1, r%iso%niso
+          if (r%iso%slot(i)%mapref%id < 0) cycle
+          if (r%iso%slot(i)%mapref%ok(sys(r%id))) cycle
+          r%iso%slot(i)%mapref = r%iso%fref
+          r%iso%slot(i)%icmap_auto = .true.
+          r%iso%slot(i)%maprange_auto = .true.
+          r%iso%slot(i)%imap_built = -1
+       end do
 
     elseif (r%type == reptype_cps) then
        ! critical points: if the selected field is gone, fall back to
        ! the same default as a new object
-       if (.not.sys(r%id)%goodfield(r%cps%ifield)) r%cps%ifield = cps_field_default(r%id)
+       if (.not.r%cps%fref%ok(sys(r%id))) &
+          call r%cps%fref%set(sys(r%id),cps_field_default(r%id))
 
     elseif (r%type == reptype_gpaths) then
        ! gradient paths: the same, preferring a field with bond paths
-       if (.not.sys(r%id)%goodfield(r%gpaths%ifield)) &
-          r%gpaths%ifield = cps_field_default(r%id,withpaths=.true.)
+       if (.not.r%gpaths%fref%ok(sys(r%id))) then
+          call r%gpaths%fref%set(sys(r%id),cps_field_default(r%id,withpaths=.true.))
+          r%gpaths%pfield = -1
+       end if
 
        ! per-path colors and radii: if the CP list may have changed or
        ! the field changed
-       doreset = (r%gpaths%pfield /= r%gpaths%ifield)
+       doreset = (r%gpaths%pfield /= r%gpaths%fref%id)
        doreset = doreset .or. (sysc(r%id)%timelastchange_cplist > r%gpaths%ptime)
        if (doreset) call r%gpaths%reset_paths(r%id)
     end if
@@ -1425,7 +1447,7 @@ contains
        end do ! loop over complete atom list (i)
 
        ! labels of the critical points
-       if (dolabels) call add_cp_items(r%labels%ifield,cpitem_label)
+       if (dolabels) call add_cp_items(r%labels%fref%id,cpitem_label)
 
        ! draw the polyhedra corner atoms that the selection did not already draw
        ! (so every drawn polyhedron shows its corner atoms)
@@ -1602,7 +1624,7 @@ contains
              dstr%str = trim(r%axes%labelstr(k))
              if (r%owner == 0) then
                 ! the label of axis k, for the editor's picks
-                dstr%irep = r%iord
+                dstr%repuid = r%uid
                 dstr%item = k
              end if
              if (fixed) then
@@ -1773,7 +1795,7 @@ contains
              dstrover%str = trim(r%text%t(i)%str)
              if (r%owner == 0) then
                 ! a text the editor can pick (not a transient one)
-                dstrover%irep = r%iord
+                dstrover%repuid = r%uid
                 dstrover%item = i
              end if
              call dl_append(obj%stringover,obj%nstringover,dstrover)
@@ -1824,7 +1846,7 @@ contains
              dstr%depth = r%text%t(i)%depth
              dstr%str = trim(r%text%t(i)%str)
              if (r%owner == 0) then
-                dstr%irep = r%iord
+                dstr%repuid = r%uid
                 dstr%item = i
              end if
              call dl_append(obj%string,obj%nstring,dstr)
@@ -1904,10 +1926,10 @@ contains
        call add_isosurface_meshes()
     elseif (r%type == reptype_cps) then
        !!! critical points of a scalar field !!!
-       call add_cp_items(r%cps%ifield,cpitem_sphere)
+       call add_cp_items(r%cps%fref%id,cpitem_sphere)
     elseif (r%type == reptype_gpaths) then
        !!! gradient paths of a scalar field !!!
-       call add_cp_items(r%gpaths%ifield,cpitem_path)
+       call add_cp_items(r%gpaths%fref%id,cpitem_path)
     end if ! reptype
   contains
 
@@ -2204,7 +2226,7 @@ contains
       real*8, allocatable :: ff(:,:,:)
       real(c_float), allocatable :: xrep(:,:)
 
-      if (.not.sys(r%id)%goodfield(r%iso%ifield)) return
+      if (.not.sys(r%id)%goodfield(r%iso%fref%id)) return
 
       ! nothing to draw until a grid has been generated: sampling can be
       ! expensive, so it waits for the editor's Calculate grid button
@@ -2215,7 +2237,7 @@ contains
       ! stale: the selected field, the applied grid, a geometry change, or
       ! any change to the system's field set (a field reloaded into the
       ! same slot has the same index but different data)
-      resample = (r%iso%ifield_built /= r%iso%ifield)
+      resample = (r%iso%ifield_built /= r%iso%fref%id)
       resample = resample .or. (r%iso%imosel_built /= r%iso%imosel)
       resample = resample .or. (r%iso%imoidx_built /= r%iso%imoidx)
       resample = resample .or. (r%iso%fieldgen_built /= sys(r%id)%fieldgen)
@@ -2236,15 +2258,15 @@ contains
             ! native grid: triangulate the grid values at their own
             ! resolution over the grid's own domain (partial grids span
             ! only part of the cell and never wrap)
-            associate(g => sys(r%id)%f(r%iso%ifield)%grid)
+            associate(g => sys(r%id)%f(r%iso%fref%id)%grid)
               call g%get_domain(xmat,x0c,cmat)
               per0 = .not.c%ismolecule .and. .not.g%partial
             end associate
             if (allocated(r%iso%ff)) deallocate(r%iso%ff)
             r%iso%outdomain = .false. ! native data needs no evaluation
             if (resample) &
-               call r%iso%stamp_histogram(sys(r%id)%f(r%iso%ifield)%grid%f)
-            call triangulate(sys(r%id)%f(r%iso%ifield)%grid%f,xmat,cmat,x0c,per0,resample)
+               call r%iso%stamp_histogram(sys(r%id)%f(r%iso%fref%id)%grid%f)
+            call triangulate(sys(r%id)%f(r%iso%fref%id)%grid%f,xmat,cmat,x0c,per0,resample)
          else
             ! sample on the applied grid; the sampled box, its
             ! periodicities (mesh and field evaluation), and the
@@ -2395,7 +2417,7 @@ contains
            goodmap = (nv > 0)
            if (goodmap) then
               if (s%imap_mode == iso_map_field) then
-                 goodmap = sys(r%id)%goodfield(s%imap)
+                 goodmap = s%mapref%ok(sys(r%id))
               elseif (s%imap_mode == iso_map_expr) then
                  goodmap = (len_trim(s%mapexpr) > 0)
               else
@@ -2418,7 +2440,7 @@ contains
            end if
 
            ! stage 1: the values that color the surface, at the vertices
-           doval = (s%imap_built /= s%imap)
+           doval = (s%imap_built /= s%mapref%id)
            doval = doval .or. (s%mapexpr_built /= s%mapexpr)
            doval = doval .or. .not.allocated(s%mapval)
            if (.not.doval) doval = (size(s%mapval) /= nv)
@@ -2471,7 +2493,7 @@ contains
                  end do
                  !$omp end parallel do
               else
-                 associate (fmap => sys(r%id)%f(s%imap))
+                 associate (fmap => sys(r%id)%f(s%mapref%id))
                    !$omp parallel do private(lval) schedule(dynamic) reduction(.or.:linvalid)
                    do j = 1, nv
                       s%mapval(j) = fmap%grd0(real(s%mesh%x(:,j),8),periodic=pereval,valid=lval)
@@ -2482,7 +2504,7 @@ contains
                  end associate
               end if
               s%mapoutdomain = linvalid
-              s%imap_built = s%imap
+              s%imap_built = s%mapref%id
               s%mapexpr_built = s%mapexpr
            end if
 
@@ -2664,7 +2686,7 @@ contains
       dsm%x = real(posc,c_float)
       if (r%owner == 0) then
          ! the label of measurement i (in the host loop), for the editor's picks
-         dsm%irep = r%iord
+         dsm%repuid = r%uid
          dsm%item = i
       end if
       dsm%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
@@ -3459,7 +3481,7 @@ contains
         elseif (s%imap_mode == iso_map_expr) then
            dcb%title = trim(s%mapexpr)
         else
-           dcb%title = trim(sys(riso%id)%f(s%imap)%name)
+           dcb%title = trim(sys(riso%id)%f(s%mapref%id)%name)
         end if
         ! the on-scene text buffer holds text_maxvert/6 glyphs: a long
         ! field name (a file path) or expression is cut, without
@@ -3759,12 +3781,12 @@ contains
 
     g%ptime = glfwGetTime()
     if (g%paths_ok(isys)) then
-       associate(f => sys(isys)%f(g%ifield))
+       associate(f => sys(isys)%f(g%fref%id))
          if (all(abs(g%pcpx - reshape((/(f%cpcel(n)%x,n=1,f%ncpcel)/),(/3,f%ncpcel/))) < 1d-8)) return
        end associate
     end if
 
-    g%pfield = g%ifield
+    g%pfield = g%fref%id
     if (allocated(g%pcpx)) deallocate(g%pcpx)
     if (allocated(g%prgb)) deallocate(g%prgb)
     if (allocated(g%prad)) deallocate(g%prad)
@@ -3772,8 +3794,8 @@ contains
     if (allocated(g%pfirst)) deallocate(g%pfirst)
     if (allocated(g%pcopy)) deallocate(g%pcopy)
     g%ihover = 0
-    if (.not.field_has_cps(isys,g%ifield,withpaths=.true.)) return
-    associate(f => sys(isys)%f(g%ifield), c => sys(isys)%c)
+    if (.not.field_has_cps(isys,g%fref%id,withpaths=.true.)) return
+    associate(f => sys(isys)%f(g%fref%id), c => sys(isys)%c)
       allocate(g%pcpx(3,f%ncpcel),g%prgb(3,2,f%ncpcel),g%prad(2,f%ncpcel),g%pshown(2,f%ncpcel))
       g%pcpx = reshape((/(f%cpcel(n)%x,n=1,f%ncpcel)/),(/3,f%ncpcel/))
 
@@ -3809,9 +3831,9 @@ contains
     integer, intent(in) :: isys
     logical :: ok
 
-    ok = allocated(g%prgb) .and. (g%pfield == g%ifield)
-    if (ok) ok = field_has_cps(isys,g%ifield,withpaths=.true.)
-    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%ifield)%ncpcel)
+    ok = allocated(g%prgb) .and. (g%pfield == g%fref%id)
+    if (ok) ok = field_has_cps(isys,g%fref%id,withpaths=.true.)
+    if (ok) ok = (size(g%prad,2) == sys(isys)%f(g%fref%id)%ncpcel)
 
   end function gpaths_paths_ok
 
@@ -3831,7 +3853,7 @@ contains
 
     iat = 0
     lvec = 0
-    associate(f => sys(isys)%f(g%ifield))
+    associate(f => sys(isys)%f(g%fref%id))
       iend = f%cpcel(icp)%ipath(j)
       if (iend < 1 .or. iend > sys(isys)%c%ncel) return
       iat = iend

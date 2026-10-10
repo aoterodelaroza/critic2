@@ -121,17 +121,23 @@ contains
   end subroutine clearsym
 
   !> Reset the fields, properties, and aliases to the promolecular
-  !> density.
+  !> density. The promolecular field (slot 0) is made again for the
+  !> current structure, but it keeps its unique identifier: it is
+  !> still the promolecular density of this system.
   module subroutine reset_fields(s)
+    use global, only: new_uid
     class(system), intent(inout) :: s
 
     integer :: i
+    integer*8 :: uid0
 
     if (.not.s%isinit) return
     if (.not.s%c%isinit) return
 
     ! set up the fields and the promolecular field
+    uid0 = 0
     if (allocated(s%f)) then
+       if (s%f(0)%isinit) uid0 = s%f(0)%uid
        do i = 0, s%nf
           call s%f(i)%end()
        end do
@@ -140,6 +146,8 @@ contains
     allocate(s%f(0:10))
     s%nf = 0
     call s%f(0)%load_promolecular(s%c,0,"<promolecular>")
+    if (uid0 == 0) uid0 = new_uid()
+    s%f(0)%uid = uid0
     call s%fh%init()
     call s%fh%put("rho0",0)
     call s%set_reference(0,.false.)
@@ -171,7 +179,10 @@ contains
 
   end subroutine set_reference
 
-  !> Reset the integrable properties to the default list
+  !> Reset the integrable properties to the default list. The
+  !> reference-field properties are not tied to the field (fuid = 0):
+  !> they follow the reference slot, and set_reference makes them
+  !> again when the reference changes.
   module subroutine set_default_integprop(s)
     class(system), intent(inout) :: s
 
@@ -315,7 +326,7 @@ contains
           else
              write (uout,'("  ",99(A,"  "))') &
                 string(i,length=3,justify=ioj_right), string(sprop,length=4,justify=ioj_center), &
-                string(s%propi(i)%fid,length=5,justify=ioj_right), string(s%propi(i)%prop_name), &
+                string(s%propi_field(i),length=5,justify=ioj_right), string(s%propi(i)%prop_name), &
                 string(stradd)
           end if
        end do
@@ -416,6 +427,7 @@ contains
   !> Add field f to system s (with C pointer sptr). Returns the new
   !> field ID and the error message (empty if no error).
   module subroutine add_field(s,sptr,f,verbose,id,errmsg)
+    use global, only: new_uid
     use iso_c_binding, only: c_loc
     use tools_io, only: uout, string
     use fieldmod, only: field
@@ -450,6 +462,7 @@ contains
     id = s%getfieldnum()
     s%f(id) = f
     s%f(id)%id = id
+    s%f(id)%uid = new_uid()
     s%f(id)%sptr = sptr
 
     ! set it as reference, if applicable
@@ -645,11 +658,11 @@ contains
           call s%f(id)%load_as_fftgrid(s%c,id,"<generated>",s%f(oid)%grid,seed%iff,seed%isry,seed%n)
        elseif (s%f(oid)%type == type_wien .and. seed%iff == ifformat_as_ft_lap) then
           id = s%getfieldnum()
-          s%f(id) = s%f(oid)
+          call s%field_copy(oid,id)
           call s%f(id)%wien%tolap()
        elseif (s%f(oid)%type == type_elk .and. seed%iff == ifformat_as_ft_lap) then
           id = s%getfieldnum()
-          s%f(id) = s%f(oid)
+          call s%field_copy(oid,id)
           call s%f(id)%elk%tolap()
        else
           if (seed%iff == ifformat_as_ft_lap) then
@@ -700,8 +713,7 @@ contains
           return
        end if
        id = s%getfieldnum()
-       s%f(id) = s%f(id1)
-       s%f(id)%id = id
+       call s%field_copy(id1,id)
        if (seed%iff == ifformat_as_clm) then
           s%f(id)%name = "<generated>, sum of $" // string(id1) // " and $" // string(id2)
        else
@@ -873,9 +885,11 @@ contains
   !> indexed by number (id) or by key (key), and one of them must be
   !> present. If type is given, the field is only good if it is of the
   !> given type. If n is given and the type is a grid the field is
-  !> only good if its grid has dimensions n. If idout is present,
-  !> return the numeric ID of the field in that variable.
-  module function goodfield(s,id,key,type,n,idout) result(ok)
+  !> only good if its grid has dimensions n. If uid is given, the
+  !> field is only good if it is the field with that unique identifier
+  !> (not another one loaded later into the same slot). If idout is
+  !> present, return the numeric ID of the field in that variable.
+  module function goodfield(s,id,key,type,n,idout,uid) result(ok)
     use fieldmod, only: type_grid
     use tools_io, only: ferror, faterr
     class(system), intent(in) :: s
@@ -884,6 +898,7 @@ contains
     integer, intent(in), optional :: type
     integer, intent(in), optional :: n(3)
     integer, intent(out), optional :: idout
+    integer*8, intent(in), optional :: uid
     logical :: ok
 
     integer :: id0
@@ -899,6 +914,9 @@ contains
     end if
     if (id0 < 0 .or. id0 > s%nf) return
     if (.not.s%f(id0)%isinit) return
+    if (present(uid)) then
+       if (s%f(id0)%uid /= uid) return
+    end if
     if (present(type)) then
        if (s%f(id0)%type /= type) return
     end if
@@ -932,8 +950,23 @@ contains
 
   end function fieldname_to_idx
 
+  !> Slot of the field integrated by integrable property i: its fid,
+  !> or -1 if the field it was defined for is no longer in that slot
+  !> (unloaded, or replaced by another field).
+  module function propi_field(s,i) result(fid)
+    class(system), intent(in) :: s
+    integer, intent(in) :: i
+    integer :: fid
+
+    fid = s%propi(i)%fid
+    if (s%propi(i)%fuid <= 0) return
+    if (.not.s%goodfield(fid,uid=s%propi(i)%fuid)) fid = -1
+
+  end function propi_field
+
   !> Find an open slot for a new field
   module function getfieldnum(s) result(id)
+    use global, only: new_uid
     use fieldmod, only: realloc_field
     use tools_io, only: string
     class(system), intent(inout) :: s
@@ -956,17 +989,25 @@ contains
        s%nf = s%nf + 1
        id = s%nf
     end if
+    s%f(id)%uid = new_uid()
     s%fieldgen = s%fieldgen + 1
 
   end function getfieldnum
 
-  !> Copy a field from one slot to another
-  module subroutine field_copy(s,id0,id1)
+  !> Copy a field from one slot to another. The copy is a new field
+  !> (new unique identifier), unless keepuid and slot id1 holds a
+  !> field: then the copy replaces it as the same field (e.g. the same
+  !> file read again), and keeps its identifier.
+  module subroutine field_copy(s,id0,id1,keepuid)
+    use global, only: new_uid
     use fieldmod, only: realloc_field
     use tools_io, only: string
     class(system), intent(inout) :: s
     integer, intent(in) :: id0
     integer, intent(in) :: id1
+    logical, intent(in), optional :: keepuid
+
+    integer*8 :: uid
 
     if (.not.allocated(s%f)) return
     if (.not.s%goodfield(id0)) return
@@ -974,13 +1015,42 @@ contains
        call realloc_field(s%f,id1)
        s%nf = id1
     end if
+    uid = new_uid()
+    if (present(keepuid)) then
+       if (keepuid .and. s%f(id1)%isinit) uid = s%f(id1)%uid
+    end if
     if (s%f(id1)%isinit) call s%f(id1)%end()
     s%f(id1) = s%f(id0)
     s%f(id1)%id = id1
+    s%f(id1)%uid = uid
     call s%f(id1)%init_cplist
     s%fieldgen = s%fieldgen + 1
 
   end subroutine field_copy
+
+  !> Point the reference fr to the field in slot id of system s.
+  module subroutine field_ref_set(fr,s,id)
+    class(field_ref), intent(inout) :: fr
+    type(system), intent(in) :: s
+    integer, intent(in) :: id
+
+    fr%id = id
+    fr%uid = 0
+    if (s%goodfield(id)) fr%uid = s%f(id)%uid
+
+  end subroutine field_ref_set
+
+  !> True if the field the reference fr was set to is still in its
+  !> slot of system s.
+  module function field_ref_ok(fr,s) result(ok)
+    class(field_ref), intent(in) :: fr
+    type(system), intent(in) :: s
+    logical :: ok
+
+    ok = (fr%uid > 0)
+    if (ok) ok = s%goodfield(fr%id,uid=fr%uid)
+
+  end function field_ref_ok
 
   !> Unload a field given by identifier id.
   module subroutine unload_field(s,id)
@@ -1098,6 +1168,7 @@ contains
     else
        s%propi(s%npropi)%used = .true.
        s%propi(s%npropi)%fid = id
+       s%propi(s%npropi)%fuid = s%f(id)%uid
        s%propi(s%npropi)%itype = itype_f
        s%propi(s%npropi)%prop_name = ""
        s%propi(s%npropi)%lmax = 5
@@ -1571,7 +1642,7 @@ contains
           if (len_trim(errmsg) > 0) &
              call ferror("grdall","Error evaluating expression: " // trim(errmsg),faterr)
        else
-          id = s%propi(i)%fid
+          id = s%propi_field(i)
           if (.not.s%goodfield(id)) cycle
           if (.not.fdone(id).and.s%propi(i)%itype /= itype_v) then
              call s%f(id)%grd(xpos,request,res(id))

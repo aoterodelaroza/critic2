@@ -319,14 +319,14 @@ contains
        call iw_tooltip("Draw the isosurface that determines the voids in the view",ttshown)
 
        if (w%vd%iso_show .and. hasview) then
-          call win(iview)%sc%show_transient_iso(w%id,1,itrep,found)
+          call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
           if (itrep > 0) then
              associate (r => win(iview)%sc%reptrans(itrep))
                ! a fresh slot, or one bound to another field: field 0 is the
                ! promolecular density, which is what the voids are defined on.
                ! set_field leaves exactly one isosurface behind, which is the
                ! one wanted here
-               if (.not.found .or. r%iso%ifield /= 0) then
+               if (.not.found .or. r%iso%fref%id /= 0) then
                   call r%iso%set_field(isys,0)
                   r%name = "Crystal voids"
                   changed = .true.
@@ -642,7 +642,7 @@ contains
     ldum = iw_checkbox("Visualize polyhedra##voidspolshow",w%vd%pol_show)
     call iw_tooltip("Draw the coordination polyhedra in the view",ttshown)
     if (w%vd%pol_show .and. hasview) &
-       call win(iview)%sc%show_transient_polyhedra(w%id,2,w%vd%pol_isc,w%vd%pol_isv,&
+       call win(iview)%sc%show_transient_polyhedra(w%uid,2,w%vd%pol_isc,w%vd%pol_isv,&
           w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,ihighlight=ihighlight)
 
     ! There is no calculate button: the volumes are recalculated as soon as
@@ -1010,7 +1010,7 @@ contains
     ldum = iw_checkbox("Visualize spheres##voidspckshow",w%vd%pck_show)
     call iw_tooltip("Draw the atomic spheres whose volume is measured in the view",ttshown)
     if (w%vd%pck_show .and. hasview) &
-       call win(iview)%sc%show_transient_spacefill(w%id,3,nneq_radii())
+       call win(iview)%sc%show_transient_spacefill(w%uid,3,nneq_radii())
 
     ! the results of the last run
     if (w%vd%pck_done) then

@@ -25,6 +25,7 @@ module representations
   use grid3mod, only: hscale_num, hscale_linear, hscale_log, hscale_asinh
   use utils, only: iw_cmap_viridis, iw_cmap_rdbu, iw_colormap_lut
   use display, only: scene_display, rep_display
+  use systemmod, only: field_ref
   use crystalmod, only: symelem_list, crystal
   use global, only: bondfactor_def, bonddelta_def
   implicit none
@@ -540,7 +541,7 @@ module representations
      real(c_float) :: rgb(3) ! color of the labels
      logical :: const_size ! whether labels scale with objects or are constant size
      real*8 :: offset(3) ! offset of the label
-     integer :: ifield = -1 ! field whose critical points are labeled
+     type(field_ref) :: fref ! field whose critical points are labeled
   end type rep_labels
   public :: rep_labels
 
@@ -758,9 +759,9 @@ module representations
   !> of a field or an expression, with tick values along it and a
   !> title, in a corner of the view.
   type rep_colorbar
-     integer :: isoiord = 0 ! isosurface object whose colors are shown, by its iord (0 = the
-                            ! first shown one with a colored isosurface)
-     integer :: islot = 0 ! isosurface of that object (0 = its first shown colored isosurface)
+     integer*8 :: isouid = 0 ! isosurface object whose colors are shown, by its uid (0 = the
+                             ! first shown one with a colored isosurface)
+     integer*8 :: slotuid = 0 ! isosurface of that object, by its uid (0 = its first shown colored isosurface)
      integer :: corner = legcorner_bottomright ! corner of the view (legcorner_*), or scalepos_custom
      real*8 :: winpos(2) = colorbar_winpos_def ! scalepos_custom: center of the strip (fractions from left/bottom)
      logical :: vertical = .true. ! vertical (low values at the bottom) or horizontal (low on the left)
@@ -882,13 +883,14 @@ module representations
   !> isosurface itself, so isosurfaces can be added, removed, and
   !> re-leveled without disturbing the meshes of the others.
   type iso_slot
+     integer*8 :: uid = 0 ! unique identifier of this isosurface (global new_uid)
      real*8 :: isoval = 0d0 ! isovalue
      logical :: shown = .true. ! whether this isosurface is drawn in the scene
      real(c_float) :: rgb(3) = iso_rgb_def ! color (imap_mode = iso_map_color)
      real(c_float) :: alpha = iso_alpha_def ! opacity (1 = opaque)
      ! coloring by the values of another field (imap_mode = iso_map_field)
      integer :: imap_mode = iso_map_color ! where the color comes from (iso_map_*)
-     integer :: imap = -1 ! field whose values color the surface (-1 = none chosen yet)
+     type(field_ref) :: mapref ! field whose values color the surface (id = -1: none chosen yet)
      character(len=iso_explen) :: mapexpr = "" ! expression whose values color the surface
      character(len=iso_explen) :: maperr = "" ! why that expression could not be used (empty = it could)
      integer :: icmap = iso_cmap_seq ! colormap (index into iw_cmap_name)
@@ -912,7 +914,7 @@ module representations
   !> Isosurface display options (reptype_isosurface; accessed as r%iso%...)
   type rep_isosurface
      ! user options
-     integer :: ifield = 0 ! field for the isosurface (index in sys(id)%f)
+     type(field_ref) :: fref ! field for the isosurface
      integer :: imosel = 0 ! sample a molecular orbital of the field instead of the field itself:
                            ! an id_mo_* selector from the types module (all negative), or 0 = the field
      integer :: imoidx = 0 ! MO index accompanying imosel (id_mo_a, id_mo_b, id_mo_id)
@@ -1037,7 +1039,7 @@ module representations
   !> 0:3 of show, rgb, and rad is the CP type (typind: n, b, r, c).
   !> The sphere radius is radscale * rad(type).
   type rep_cps
-     integer :: ifield = 0 ! field whose critical points are drawn (index in sys(id)%f)
+     type(field_ref) :: fref ! field whose critical points are drawn
      logical :: show(0:3) = .true. ! show the CPs of this type
      real(c_float) :: rgb(3,0:3) = 1._c_float ! color of each CP type
      real(c_float) :: rad(0:3) = cps_rad_def ! sphere radius of each CP type (bohr)
@@ -1062,7 +1064,7 @@ module representations
   !> showends, the atoms at the ends of the bond paths are drawn too,
   !> with this object's atom colors and radii (r%atoms%style).
   type rep_gpaths
-     integer :: ifield = 0 ! field whose gradient paths are drawn (index in sys(id)%f)
+     type(field_ref) :: fref ! field whose gradient paths are drawn
      real(c_float) :: rgb(3) = 1._c_float ! color of all paths (global)
      real(c_float) :: rad = gpaths_rad_def ! tube or sphere radius of all paths (global, bohr)
      integer :: style = gpaths_style_tube ! drawing style (gpaths_style_*)
@@ -1094,10 +1096,11 @@ module representations
      integer :: type = reptype_none ! type of representation (atoms, cell,...)
      integer :: flavor = repflavor_unknown ! flavor of the representation
      integer :: id ! system ID
-     integer :: iord = 0 ! representation order integer in menu
+     integer :: iord = 0 ! representation order integer in menu (order only: identity is uid)
+     integer*8 :: uid = 0 ! unique identifier (global new_uid): new for each object made, kept by its undo copies
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! transient-representation identity (owner > 0); unused in regular representations
-     integer :: owner = 0 ! ID of the producer (owner) window; 0 = not transient
+     integer*8 :: owner = 0 ! unique identifier (uid) of the producer (owner) window; 0 = not transient
      integer :: itag = 0 ! producer-local content tag, for dedup/update-in-place
      logical :: armed = .false. ! re-armed this frame by the producer (otherwise reaped)
      ! per-object option groups
@@ -1135,6 +1138,7 @@ module representations
   public :: iso_slot_hascolors
   public :: colorbar_rep
   public :: colorbar_slot
+  public :: iso_slot_index
   public :: iso_grid_size
   public :: iso_level_label
   public :: iso_isgridfield
@@ -1625,6 +1629,11 @@ module representations
        type(representation), intent(in) :: riso
        integer :: islot
      end function colorbar_slot
+     module function iso_slot_index(iso,uid) result(islot)
+       type(rep_isosurface), intent(in) :: iso
+       integer*8, intent(in) :: uid
+       integer :: islot
+     end function iso_slot_index
      module subroutine reset_all_styles(r,itype)
        class(representation), intent(inout) :: r
        integer, intent(in) :: itype

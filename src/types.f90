@@ -305,6 +305,7 @@ module types
      logical :: used = .false.
      integer :: itype
      integer :: fid
+     integer*8 :: fuid = 0 ! unique identifier of field fid when defined (0 = not tracked)
      character*(10) :: prop_name
      character(len=mlen) :: expr
      integer :: lmax

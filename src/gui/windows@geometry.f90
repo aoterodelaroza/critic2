@@ -252,7 +252,7 @@ contains
     if (w%geometry_addbond%is_staged()) then
        ! the isys test matters for the frame after this window retargets its
        ! view: the picked index would belong to the system the view moved to
-       ok = (win(iview)%isys == isys) .and. (win(iview)%vmdata%owner == w%id) .and.&
+       ok = (win(iview)%isys == isys) .and. (win(iview)%viewmode_owner_is(w%id)) .and.&
           .not.w%geometry_addbond%is_stale(sysc(isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the view moved to another system, another window took over the pick,
@@ -2119,7 +2119,7 @@ contains
                 rgb=ColorAxes_def(:,jm))
              stdshp(jm)%v(:,1) = stdaxlen * stdrot(:,jm)
           end do
-          call sysc(isys)%sc%show_transient_shapes(w%id,ihighlight,stdshp)
+          call sysc(isys)%sc%show_transient_shapes(w%uid,ihighlight,stdshp)
 
           if (ieuler_drag /= 0) then
              ! dragging a Euler angle: also show the rotation axis for that angle
@@ -2144,7 +2144,7 @@ contains
              rotshp(1) = rep_shape(kind=shapekind_cylinder,x1=stdcom - rotlen * rotdir,v=0d0,&
                 rad=rotaxis_radius_def,rgb=ColorRotaxis_def)
              rotshp(1)%v(:,1) = 2d0 * rotlen * rotdir
-             call sysc(isys)%sc%show_transient_shapes(w%id,-(ihighlight*4+ieuler_drag),rotshp)
+             call sysc(isys)%sc%show_transient_shapes(w%uid,-(ihighlight*4+ieuler_drag),rotshp)
           end if
        end if
     end if
@@ -2506,7 +2506,7 @@ contains
             if (.not.w%geometry_sym_sel(ihl_symop)) hovadd = ihl_symop
          end if
          tag = w%geometry_sym_selgen * (nop + 2) + (hovadd + 1)
-         call sysc(isys)%sc%show_transient_symelems(w%id,tag,n,sop(1:n))
+         call sysc(isys)%sc%show_transient_symelems(w%uid,tag,n,sop(1:n))
          deallocate(sop)
       end if
 

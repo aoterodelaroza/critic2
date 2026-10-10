@@ -418,7 +418,7 @@ contains
                    ! only the steps of one calculation share a camera; a group
                    ! of unrelated systems does not
                    if (group_is_scf(k)) then
-                      sysc(k)%sc%lockedcam = group_master(k)
+                      sysc(k)%sc%lockedcam = sysc(group_master(k))%uid
                    else
                       sysc(k)%sc%lockedcam = 0
                    end if
@@ -1306,7 +1306,7 @@ contains
     ! reset the viewmodes; the annotation tools work on the objects of
     ! the new scene
     call viewmode_to_navigate(w)
-    w%annot%irep = 0
+    w%annot%rref = rep_ref()
     w%annot%newrep = .false.
 
     ! set the time
@@ -1372,9 +1372,11 @@ contains
        id = w%vmdata%owner
        ok = (id > 0 .and. id <= nwin)
        if (ok) ok = win(id)%isinit
+       if (ok) ok = (win(id)%uid == w%vmdata%owner_uid)
        if (.not.ok) then
           call viewmode_to_navigate(w)
           w%vmdata%owner = 0
+          w%vmdata%owner_uid = 0
        end if
     end if
 
@@ -1425,6 +1427,8 @@ contains
     w%viewmode = mode
     w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
+    w%vmdata%owner_uid = 0
+    if (idcaller >= 1 .and. idcaller <= nwin) w%vmdata%owner_uid = win(idcaller)%uid
     if (allocated(w%vmdata%msg)) deallocate(w%vmdata%msg)
     if (present(message)) w%vmdata%msg = trim(message)
     w%vmdata%acceptempty = .false.
@@ -1445,6 +1449,18 @@ contains
 
   !> Release a forced view mode commanded by caller window idcaller: if that
   !> caller still owns an active forced mode, return the view to navigation.
+  !> Whether the view mode of view w is owned by window idcaller: the
+  !> window that forced it, not a later one in its slot.
+  module function viewmode_owner_is(w,idcaller) result(ok)
+    class(window), intent(in) :: w
+    integer, intent(in) :: idcaller
+    logical :: ok
+
+    ok = (w%vmdata%owner == idcaller .and. idcaller >= 1 .and. idcaller <= nwin)
+    if (ok) ok = (win(idcaller)%uid == w%vmdata%owner_uid)
+
+  end function viewmode_owner_is
+
   !> The companion to viewmode_set_forced, for cancelling a pending pick. If
   !> mode is present, release only that forced mode.
   module subroutine viewmode_release_forced(w,idcaller,mode)
@@ -1452,7 +1468,7 @@ contains
     integer, intent(in) :: idcaller
     integer, intent(in), optional :: mode
 
-    if (w%vmdata%owner == idcaller .and. vm_is_owned(w%viewmode)) then
+    if (w%viewmode_owner_is(idcaller) .and. vm_is_owned(w%viewmode)) then
        if (present(mode)) then
           if (w%viewmode /= mode) return
        end if
@@ -2062,11 +2078,14 @@ contains
       use representations, only: repflavor_name
       character(len=:), allocatable :: str
 
+      integer :: irep
+
       str = trim(vmnames(w%viewmode))
       if (w%viewmode /= vm_objedit) return
       if (w%annot%itool <= objtool_kind0) then
-         if (annot_valid(w,w%annot%irep,0)) &
-            str = trim(repflavor_name(w%sc%rep(w%annot%irep)%flavor))
+         irep = annot_irep(w)
+         if (annot_valid(w,irep,0)) &
+            str = trim(repflavor_name(w%sc%rep(irep)%flavor))
       elseif (w%annot%itype > 0) then
          str = trim(repflavor_name(annot_flavor(w%annot%itype)))
       end if
@@ -2221,6 +2240,7 @@ contains
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
        if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
+       if (ok) ok = (win(w%vmdata%owner)%uid == w%vmdata%owner_uid)
        ! The cancel keybinding exits/cancels the mode (the result stays
        ! zero). The global cancel handler (process_cancel_bind) already
        ! covers this when a view, builder, or dynamics window is focused,
@@ -2734,7 +2754,7 @@ contains
       end if
 
       ! the object the tool works on
-      irep = w%annot%irep
+      irep = annot_irep(w)
       hit = .false.
       created = .false.
       if (inp%itool == objtool_select .or. inp%itool == objtool_remove) then
@@ -2769,7 +2789,7 @@ contains
             created = .true.
          end if
       end if
-      w%annot%irep = irep
+      call w%annot%rref%set(w%sc,irep)
 
       ! the handler of the object type; a change it makes flags the
       ! scene for a rebuild (that of a new object does not count: the
@@ -2802,7 +2822,7 @@ contains
          if (created .and. w%oe%op == objop_none .and. annot_empty(r)) then
             w%sc%icount(r%flavor) = w%sc%icount(r%flavor) - 1
             call r%end()
-            w%annot%irep = 0
+            w%annot%rref = rep_ref()
          end if
       end if
       call objedit_undo_commit(fb0)
@@ -4278,7 +4298,7 @@ contains
     istat = ipick_pending
     xc = 0d0
     associate(v => win(iview))
-      if (v%vmdata%owner /= idcaller) then
+      if (.not.v%viewmode_owner_is(idcaller)) then
          ! the pick was taken over by another window
          istat = ipick_lost
       elseif (v%isys /= isys .or. pick%is_stale(sysc(isys)%timelastchange_geometry)) then
@@ -4315,7 +4335,7 @@ contains
 
     istat = ipick_pending
     associate(v => win(iview))
-      if (v%vmdata%owner /= idcaller) then
+      if (.not.v%viewmode_owner_is(idcaller)) then
          ! the pick was taken over by another window
          istat = ipick_lost
       elseif (v%viewmode >= 0) then
@@ -4608,13 +4628,13 @@ contains
     w%annot%itype = itype
     w%annot%newrep = (irep < 0)
     if (irep > 0) then
-       w%annot%irep = irep
+       call w%annot%rref%set(w%sc,irep)
     elseif (irep < 0) then
-       w%annot%irep = 0
+       w%annot%rref = rep_ref()
     end if
     ig = annot_group(itype)
     if (irep == 0 .and. ig > 0 .and. itool > objtool_kind0) then
-       if (annot_isobj(ig)) w%annot%irep = annot_find_rep(w,itype)
+       if (annot_isobj(ig)) call w%annot%rref%set(w%sc,annot_find_rep(w,itype))
     end if
     if (ig > 0 .and. itool > objtool_kind0) w%annot%face(ig) = itool
     call w%viewmode_set_forced(vm_objedit,objtool_prompt(itype,itool),w%id)
@@ -4628,10 +4648,11 @@ contains
     class(window), intent(inout), target :: w
     logical, intent(in), optional :: focustext
 
-    integer :: idw
+    integer :: idw, irep
 
-    if (.not.annot_valid(w,w%annot%irep,0)) return
-    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=w%annot%irep,&
+    irep = annot_irep(w)
+    if (.not.annot_valid(w,irep,0)) return
+    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
        idparent=w%id,orraise=-1)
     if (present(focustext)) then
        if (focustext) win(idw)%editrep_focustext = igGetFrameCount()
@@ -4668,7 +4689,7 @@ contains
 
     ! the tool goes off if the view left the mode
     if (w%annot%itool /= objtool_none .and..not.(w%viewmode == vm_objedit .and.&
-       w%vmdata%owner == w%id)) w%annot%itool = objtool_none
+       w%viewmode_owner_is(w%id))) w%annot%itool = objtool_none
     if (.not.w%annot%shown) return
     enabled = associated(w%sc)
     ismol = .false.
@@ -4677,7 +4698,7 @@ contains
     ! the editor of the object the tools work on, and the select and
     ! remove tools, for all the object types
     if (iw_icon_togglebutton("annoteditbutton",icon_tex(icon_ui_objprops),"Ed",&
-       disabled=.not.enabled .or. .not.annot_valid(w,w%annot%irep,0),caption="Edit")) &
+       disabled=.not.enabled .or. .not.annot_valid(w,annot_irep(w),0),caption="Edit")) &
        call w%annot_edit_object()
     call iw_tooltip("Open the editor of the object the tools are working on: the list of its &
        &items, and their colors, sizes, and styles",ttshown)
@@ -4935,6 +4956,17 @@ contains
 
   end function annot_valid
 
+  !> The slot of the object the annotation tool of view w works on, 0
+  !> if none (or it is gone).
+  function annot_irep(w) result(irep)
+    class(window), intent(in) :: w
+    integer :: irep
+
+    irep = 0
+    if (associated(w%sc)) irep = w%annot%rref%get(w%sc)
+
+  end function annot_irep
+
   !> The current object of type itype in the scene of view w: the one
   !> the annotation tool works on, if it has that type, else the last
   !> one of the scene. 0 if there is none.
@@ -4943,7 +4975,7 @@ contains
     integer, intent(in) :: itype
     integer :: irep
 
-    irep = w%annot%irep
+    irep = annot_irep(w)
     if (annot_valid(w,irep,itype)) return
     do irep = w%sc%nrep, 1, -1
        if (annot_valid(w,irep,itype)) return

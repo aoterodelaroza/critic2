@@ -47,7 +47,7 @@ contains
     if (.not.doquit) doquit = .not.associated(win(iview)%sc)
     if (.not.doquit) doquit = (win(iview)%isys /= isys)
     if (.not.doquit) doquit = .not.associated(w%rep)
-    if (.not.doquit) doquit = .not.w%rep%isinit
+    if (.not.doquit) doquit = (w%rref%get(win(iview)%sc) == 0)
     if (.not.doquit) doquit = (w%rep%type <= 0)
 
     ! if they aren't, quit the window; a gradient path highlighted from
@@ -101,7 +101,7 @@ contains
     if (.not.doquit) doquit = .not.associated(win(iview)%sc)
     if (.not.doquit) doquit = (win(iview)%isys /= isys)
     if (.not.doquit) doquit = .not.associated(w%rep)
-    if (.not.doquit) doquit = .not.w%rep%isinit
+    if (.not.doquit) doquit = (w%rref%get(win(iview)%sc) == 0)
     if (.not.doquit) doquit = (w%rep%type <= 0)
 
     if (.not.doquit) then
@@ -733,10 +733,10 @@ contains
     if (any(w%rep%labels%type == (/0,1,2,3,4,8/)) .and. cps_field(isys) >= 0) then
        call iw_text("Critical points of",alignframe=.true.)
        call igSameLine(0._c_float,-1._c_float)
-       ifield = w%rep%labels%ifield
+       ifield = w%rep%labels%fref%id
        if (iw_field_combo("##labelcpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
           nonestr="<field not available>")) then
-          w%rep%labels%ifield = ifield
+          call w%rep%labels%fref%set(sys(isys),ifield)
           changed = .true.
        end if
        call iw_tooltip("Field whose critical points can be labeled (rows below the atoms in the table)",ttshown)
@@ -1414,7 +1414,8 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_checkbox, iw_radiobutton, iw_inputtext, iw_button, iw_inputint
     use representations, only: scalepos_combostr, scalepos_custom, colorbar_text_len,&
-       colorbar_nticks_max, reptype_isosurface, iso_slot_hascolors, colorbar_rep, colorbar_slot
+       colorbar_nticks_max, reptype_isosurface, iso_slot_hascolors, colorbar_rep, colorbar_slot,&
+       iso_slot_index
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1423,7 +1424,7 @@ contains
     logical :: ch
     integer :: iview, istat, i, n, irep, isel
     integer(c_int) :: nticks
-    integer, allocatable :: iords(:)
+    integer*8, allocatable :: uids(:)
     real*8 :: pxs, wpx
     character(len=:,kind=c_char), allocatable :: stropt
 
@@ -1451,31 +1452,31 @@ contains
     call iw_text("Isosurface",highlight=.true.)
     if (iview > 0) then
        associate(sc => win(iview)%sc)
-         ! the isosurface objects of the scene, by order integer
-         allocate(iords(sc%nrep))
+         ! the isosurface objects of the scene, by unique identifier
+         allocate(uids(sc%nrep))
          stropt = "Automatic" // c_null_char
          n = 0
          isel = 0
          do i = 1, sc%nrep
             if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_isosurface) cycle
             n = n + 1
-            iords(n) = sc%rep(i)%iord
+            uids(n) = sc%rep(i)%uid
             stropt = stropt // trim(sc%rep(i)%name) // c_null_char
-            if (iords(n) == w%rep%colorbar%isoiord) isel = n
+            if (uids(n) == w%rep%colorbar%isouid) isel = n
          end do
          ! the chosen object is gone: show and store the automatic choice
          ! (an undo of the deletion brings back the link with the object)
-         if (isel == 0 .and. w%rep%colorbar%isoiord > 0) then
-            w%rep%colorbar%isoiord = 0
-            w%rep%colorbar%islot = 0
+         if (isel == 0 .and. w%rep%colorbar%isouid > 0) then
+            w%rep%colorbar%isouid = 0
+            w%rep%colorbar%slotuid = 0
          end if
          call iw_combo_simple("Object##colorbarobject",stropt,isel,changed=ch)
          call iw_tooltip("Isosurface object whose colors are shown. Automatic: the first shown &
             &isosurface object with an isosurface colored by a field or an expression",ttshown)
          if (ch) then
-            w%rep%colorbar%isoiord = 0
-            if (isel > 0) w%rep%colorbar%isoiord = iords(isel)
-            w%rep%colorbar%islot = 0
+            w%rep%colorbar%isouid = 0
+            if (isel > 0) w%rep%colorbar%isouid = uids(isel)
+            w%rep%colorbar%slotuid = 0
             changed = .true.
          end if
 
@@ -1489,12 +1490,12 @@ contains
                  if (.not.iso_slot_hascolors(ri%iso%slot(i),ri%id)) stropt = stropt // " (not colored)"
                  stropt = stropt // c_null_char
               end do
-              isel = w%rep%colorbar%islot
-              if (isel > ri%iso%niso) isel = 0
+              isel = iso_slot_index(ri%iso,w%rep%colorbar%slotuid)
               call iw_combo_simple("Isovalue##colorbarslot",stropt,isel,changed=ch)
               call iw_tooltip("Isosurface of the object whose colors are shown",ttshown)
               if (ch) then
-                 w%rep%colorbar%islot = isel
+                 w%rep%colorbar%slotuid = 0
+                 if (isel > 0) w%rep%colorbar%slotuid = ri%iso%slot(isel)%uid
                  changed = .true.
               end if
             end associate
@@ -2211,12 +2212,15 @@ contains
     class(window), intent(inout), target :: w
     integer, intent(in) :: iview
 
-    integer :: i, k, irep, ifree, iord, ciord, islot, idw
+    integer :: i, k, irep, ifree, idw
+    integer*8 :: uid, cuid, slotuid
     logical :: isnew, attached
 
     if (iview < 1 .or. .not.associated(w%rep)) return
-    iord = w%rep%iord
-    islot = w%rep%iso%isel
+    uid = w%rep%uid
+    slotuid = 0
+    if (w%rep%iso%isel >= 1 .and. w%rep%iso%isel <= w%rep%iso%niso) &
+       slotuid = w%rep%iso%slot(w%rep%iso%isel)%uid
 
     ! a color bar showing this object, else the first one not tied to
     ! an existing isosurface object
@@ -2225,22 +2229,22 @@ contains
     associate(sc => win(iview)%sc)
       do i = 1, sc%nrep
          if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_colorbar) cycle
-         ciord = sc%rep(i)%colorbar%isoiord
-         if (ciord == iord) then
+         cuid = sc%rep(i)%colorbar%isouid
+         if (cuid == uid) then
             irep = i
             exit
          end if
          if (ifree > 0) cycle
          attached = .false.
-         if (ciord > 0) attached = any(sc%rep(1:sc%nrep)%isinit .and.&
-            sc%rep(1:sc%nrep)%type == reptype_isosurface .and. sc%rep(1:sc%nrep)%iord == ciord)
+         if (cuid > 0) attached = any(sc%rep(1:sc%nrep)%isinit .and.&
+            sc%rep(1:sc%nrep)%type == reptype_isosurface .and. sc%rep(1:sc%nrep)%uid == cuid)
          if (attached) cycle
          ! an unattached bar follows the first colored isosurface: take
          ! it only if that is none or this object
          k = colorbar_rep(sc%rep(i)%colorbar,sc%rep,sc%nrep)
          if (k == 0) then
             ifree = i
-         elseif (sc%rep(k)%iord == iord) then
+         elseif (sc%rep(k)%uid == uid) then
             ifree = i
          end if
       end do
@@ -2253,15 +2257,15 @@ contains
     if (irep < 1) return
 
     ! a bar already linked to this isosurface and shown: only raise its editor
-    if (.not.isnew .and. win(iview)%sc%rep(irep)%shown .and. win(iview)%sc%rep(irep)%colorbar%isoiord == iord&
-       .and. win(iview)%sc%rep(irep)%colorbar%islot == islot) then
+    if (.not.isnew .and. win(iview)%sc%rep(irep)%shown .and. win(iview)%sc%rep(irep)%colorbar%isouid == uid&
+       .and. win(iview)%sc%rep(irep)%colorbar%slotuid == slotuid) then
        idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,idparent=iview,orraise=-1)
        return
     end if
 
     ! link it to this object and isosurface, and show it
-    win(iview)%sc%rep(irep)%colorbar%isoiord = iord
-    win(iview)%sc%rep(irep)%colorbar%islot = islot
+    win(iview)%sc%rep(irep)%colorbar%isouid = uid
+    win(iview)%sc%rep(irep)%colorbar%slotuid = slotuid
     win(iview)%sc%rep(irep)%shown = .true.
     win(iview)%sc%forcebuildlists = .true.
     if (isnew) then
@@ -2509,7 +2513,7 @@ contains
     ! handle a pending atom pick commanded to the parent view
     if (w%editrep_pick_item > 0) then
        ok = (w%editrep_pick_item <= w%rep%text%ntext)
-       if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
+       if (ok) ok = (win(iview)%viewmode_owner_is(w%id)) .and.&
           .not.w%editrep_pick%is_stale(sysc(w%isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the item was deleted, another window took over the pick, or the
@@ -2616,7 +2620,7 @@ contains
     if (idel > 0) then
        call text_delete(w%rep%text,idel)
        if (iview > 0) then
-          if (win(iview)%annot%irep == w%irep .and. win(iview)%oe%op == objop_move) &
+          if (win(iview)%annot%rref%uid == w%rref%uid .and. win(iview)%oe%op == objop_move) &
              win(iview)%oe%op = objop_none
        end if
        if (w%editrep_pick_item == idel) then
@@ -2829,7 +2833,7 @@ contains
     ! atom replaces that measurement atom (mirrors the text-anchor pick above)
     if (w%editrep_pick_item > 0) then
        ok = (w%editrep_pick_item <= w%rep%measure%nitem)
-       if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
+       if (ok) ok = (win(iview)%viewmode_owner_is(w%id)) .and.&
           .not.w%editrep_pick%is_stale(sysc(w%isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the item was deleted, another window took over the pick, or the
@@ -2907,7 +2911,7 @@ contains
        call measure_delete(w%rep%measure,idel)
        w%lastselected = w%rep%measure%isel ! the same selection: the tab stays
        if (iview > 0) then
-          if (win(iview)%annot%irep == w%irep .and. win(iview)%oe%op /= objop_none) &
+          if (win(iview)%annot%rref%uid == w%rref%uid .and. win(iview)%oe%op /= objop_none) &
              win(iview)%oe%op = objop_none
        end if
        ! keep a pending atom pick bound to the right item (or cancel it if that
@@ -3854,8 +3858,8 @@ contains
 
     ! the tool of the view, if it works on this object
     itool = objtool_none
-    if (win(iview)%viewmode == vm_objedit .and. win(iview)%vmdata%owner == iview .and.&
-       win(iview)%annot%irep == w%irep) itool = win(iview)%annot%itool
+    if (win(iview)%viewmode == vm_objedit .and. win(iview)%viewmode_owner_is(iview) .and.&
+       win(iview)%annot%rref%uid == w%rref%uid) itool = win(iview)%annot%itool
     if (itool /= objtool_none .and. w%focused()) then
        if (is_bind_event(BIND_CANCEL,norepeat=.true.)) then
           call win(iview)%annot_set_tool(0,objtool_none,0)
@@ -3875,7 +3879,7 @@ contains
           ! tables, which is then abandoned
           w%editrep_pick_item = 0
           if (ldum) then
-             call win(iview)%annot_set_tool(itype,k,w%irep)
+             call win(iview)%annot_set_tool(itype,k,w%rref%get(win(iview)%sc))
           else
              call win(iview)%annot_set_tool(0,objtool_none,0)
           end if
@@ -4096,7 +4100,7 @@ contains
     ! handle a pending region-point pick commanded to the anchor view
     if (w%editrep_isopick >= 0) then
        if (w%rep%iso%iregion /= w%editrep_isopick_mode .or.&
-          .not.sys(isys)%goodfield(w%rep%iso%ifield)) then
+          .not.sys(isys)%goodfield(w%rep%iso%fref%id)) then
           call win(iview)%viewmode_release_forced(w%id)
           w%editrep_isopick = -1
        else
@@ -4110,9 +4114,9 @@ contains
 
     ! field selector
     call iw_text("Field",highlight=.true.)
-    goodf = sys(isys)%goodfield(w%rep%iso%ifield)
+    goodf = sys(isys)%goodfield(w%rep%iso%fref%id)
     call igSameLine(0._c_float,-1._c_float)
-    ifield = w%rep%iso%ifield
+    ifield = w%rep%iso%fref%id
     if (iw_field_combo("##isofieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
        nonestr="<field not available>")) then
        call w%rep%iso%set_field(isys,ifield)
@@ -4129,9 +4133,9 @@ contains
     ! read the field: it may have stopped being a grid (e.g. a
     ! different field reloaded into the same slot), which invalidates
     ! the native level
-    isgrid = iso_isgridfield(isys,w%rep%iso%ifield)
+    isgrid = iso_isgridfield(isys,w%rep%iso%fref%id)
     if (.not.isgrid .and. w%rep%iso%ilevel == 0) then
-       call w%rep%iso%set_field(isys,w%rep%iso%ifield)
+       call w%rep%iso%set_field(isys,w%rep%iso%fref%id)
        w%editrep_isoline = 0
        changed = .true.
     end if
@@ -4273,7 +4277,7 @@ contains
        ! capped in total, so the two need not describe the same grid
        if (ch .and. ilevprev /= iso_level_custom) then
           if (ilevprev == 0) then
-             w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%ifield)%grid%n
+             w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%fref%id)%grid%n
           elseif (okbox) then
              w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,ilevprev,box)
           end if
@@ -4328,7 +4332,7 @@ contains
        nshow = nstage
        str2 = ""
        if (all(nstage == 0)) then
-          nshow = sys(isys)%f(w%rep%iso%ifield)%grid%n
+          nshow = sys(isys)%f(w%rep%iso%fref%id)%grid%n
           str2 = " (native)"
        elseif (capped) then
           str2 = " (capped)"
@@ -4379,7 +4383,7 @@ contains
     if (okbox .and. win(iview)%sc%isinit /= 0 .and.&
        .not.(w%rep%iso%iregion == iso_region_cell .and. .not.sys(isys)%c%ismolecule)) then
        if (w%rep%iso%iregion == iso_region_cell .and. isgrid) then
-          call sys(isys)%f(w%rep%iso%ifield)%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
+          call sys(isys)%f(w%rep%iso%fref%id)%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
           prev0 = prev0 + matmul(prevv,flo)
           do i = 1, 3
              prevv(:,i) = prevv(:,i) * (fhi(i) - flo(i))
@@ -4389,7 +4393,7 @@ contains
           prevv = box(:,1:3)
        end if
        if (sys(isys)%c%ismolecule) prev0 = prev0 + sys(isys)%c%molx0
-       call win(iview)%sc%show_transient_shapes(w%id,1,(/rep_shape(kind=shapekind_box,&
+       call win(iview)%sc%show_transient_shapes(w%uid,1,(/rep_shape(kind=shapekind_box,&
           x1=prev0,v=prevv,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
     end if
 
@@ -4604,7 +4608,7 @@ contains
                   s%imap_mode = imode
                   ! first time this isosurface is mapped: start from the
                   ! field it is an isosurface of, which always exists
-                  if (s%imap_mode == iso_map_field .and. s%imap < 0) s%imap = w%rep%iso%ifield
+                  if (s%imap_mode == iso_map_field .and. s%mapref%id < 0) s%mapref = w%rep%iso%fref
                   w%rep%iso%isel = i
                   changed = .true.
                end if
@@ -4614,7 +4618,9 @@ contains
             ! the color itself
             if (igTableSetColumnIndex(2)) then
                if (s%imap_mode == iso_map_field) then
-                  if (iw_field_combo("##isomapfield" // string(i),isys,s%imap)) then
+                  ifield = s%mapref%id
+                  if (iw_field_combo("##isomapfield" // string(i),isys,ifield)) then
+                     call s%mapref%set(sys(isys),ifield)
                      s%icmap_auto = .true.
                      s%maprange_auto = .true.
                      w%rep%iso%isel = i
@@ -4724,7 +4730,7 @@ contains
        ! go stale, is what keeps the legend from describing a surface that is
        ! gone -- a field change, or a grid that has not been calculated yet
        ismapped = (s%imap_mode == iso_map_field)
-       if (ismapped) ismapped = sys(isys)%goodfield(s%imap)
+       if (ismapped) ismapped = s%mapref%ok(sys(isys))
        if (s%imap_mode == iso_map_expr) ismapped = (len_trim(s%mapexpr) > 0)
        hascolors = ismapped
        if (hascolors) hascolors = s%built .and. allocated(s%mesh%rgbv)
@@ -5102,21 +5108,21 @@ contains
     ! field selector
     call iw_text("Field",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
-    ifield = w%rep%cps%ifield
+    ifield = w%rep%cps%fref%id
     if (iw_field_combo("##cpsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
        nonestr="<field not available>")) then
-       w%rep%cps%ifield = ifield
+       call w%rep%cps%fref%set(sys(isys),ifield)
        changed = .true.
     end if
     call iw_tooltip("Field whose critical points are displayed",ttshown)
-    if (.not.sys(isys)%goodfield(w%rep%cps%ifield)) then
+    if (.not.sys(isys)%goodfield(w%rep%cps%fref%id)) then
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
        return
     end if
 
     ! count the critical points in the cell, by type (not the nuclei)
     ncount = 0
-    associate(f => sys(isys)%f(w%rep%cps%ifield))
+    associate(f => sys(isys)%f(w%rep%cps%fref%id))
       do i = sys(isys)%c%nneq+1, f%ncp
          it = f%cp(i)%typind
          if (it >= 0 .and. it <= 3) ncount(it) = ncount(it) + f%cp(i)%mult
@@ -5193,18 +5199,18 @@ contains
 
     ! field selector
     call label("Field")
-    ifield = w%rep%gpaths%ifield
+    ifield = w%rep%gpaths%fref%id
     if (iw_field_combo("##gpathsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
        nonestr="<field not available>")) then
-       w%rep%gpaths%ifield = ifield
+       call w%rep%gpaths%fref%set(sys(isys),ifield)
        changed = .true.
     end if
     call iw_tooltip("Field whose gradient paths are displayed",ttshown)
-    if (.not.sys(isys)%goodfield(w%rep%gpaths%ifield)) then
+    if (.not.sys(isys)%goodfield(w%rep%gpaths%fref%id)) then
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
        return
     end if
-    if (.not.field_has_cps(isys,w%rep%gpaths%ifield,withpaths=.true.)) &
+    if (.not.field_has_cps(isys,w%rep%gpaths%fref%id,withpaths=.true.)) &
        call iw_text("This field has no gradient paths (run AUTO, or load a checkpoint that has them)",&
           disabled=.true.,wrap=.true.)
 
@@ -5247,7 +5253,7 @@ contains
     nuniq = 0
     ncell = 0
     if (pathsok) then
-       associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield))
+       associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%fref%id))
          ! the rows
          allocate(iuniq(2,2*f%ncp),icell(2,2*f%ncpcel))
          do i = c%nneq+1, f%ncp
@@ -5407,7 +5413,7 @@ contains
       logical :: have, ldum, lsh
       character(len=:), allocatable :: lbl
 
-      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield), g => w%rep%gpaths)
+      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%fref%id), g => w%rep%gpaths)
         ! the cell paths of the row (the first one gives the values
         ! shown), and its unique CP
         if (icp > 0) then
@@ -5466,7 +5472,7 @@ contains
         if (igTableSetColumnIndex(3_c_int)) then
            lbl = trim(f%cp(iu)%name)
            if (icp > 0) lbl = lbl // " " // string(icp)
-           call cp_badge(iview,isys,w%rep%gpaths%ifield,iu,lbl // "##gpathsend1" // suffix)
+           call cp_badge(iview,isys,w%rep%gpaths%fref%id,iu,lbl // "##gpathsend1" // suffix)
         end if
 
         ! ... and the one it ends at (a nucleus, in the color this
@@ -5488,7 +5494,7 @@ contains
                  ldum = iw_atom_button(anchor_label(isys,idx,"?",species=.true.) // "##gpathsend2" // suffix,&
                     rgb,havergb=have,inert=.true.)
               elseif (iend > c%ncel .and. iend <= f%ncpcel) then
-                 call cp_badge(iview,isys,w%rep%gpaths%ifield,f%cpcel(iend)%idx,&
+                 call cp_badge(iview,isys,w%rep%gpaths%fref%id,f%cpcel(iend)%idx,&
                     trim(f%cp(f%cpcel(iend)%idx)%name) // " " // string(iend) //&
                     lvec_str(f%cpcel(icp)%ilvec(:,j)) // "##gpathsend2" // suffix)
               else
@@ -5507,7 +5513,7 @@ contains
                  ldum = iw_atom_button(trim(c%at(iend)%name) // "##gpathsend2" // suffix,rgb,&
                     havergb=have,inert=.true.)
               elseif (iend > c%nneq .and. iend <= f%ncp) then
-                 call cp_badge(iview,isys,w%rep%gpaths%ifield,iend,trim(f%cp(iend)%name) //&
+                 call cp_badge(iview,isys,w%rep%gpaths%fref%id,iend,trim(f%cp(iend)%name) //&
                     "##gpathsend2" // suffix)
               else
                  call no_end(iend)
@@ -5529,7 +5535,7 @@ contains
       integer :: kk, a1, a2, l1(3), l2(3)
       logical :: ok
 
-      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%ifield), g => w%rep%gpaths)
+      associate(c => sys(isys)%c, f => sys(isys)%f(w%rep%gpaths%fref%id), g => w%rep%gpaths)
         ! the molecules need the molecular data of the crystal
         if (mode <= 2 .and. .not.allocated(c%idatcelmol)) return
         g%pshown = .false.
@@ -5596,9 +5602,9 @@ contains
     if (ok_system(isys,sys_init)) then
        info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
        if (associated(w%rep)) then
-          if (sys(isys)%goodfield(w%rep%iso%ifield)) &
-             info = info // newline // "Field:  " // string(w%rep%iso%ifield) // ": " //&
-             trim(sys(isys)%f(w%rep%iso%ifield)%name)
+          if (sys(isys)%goodfield(w%rep%iso%fref%id)) &
+             info = info // newline // "Field:  " // string(w%rep%iso%fref%id) // ": " //&
+             trim(sys(isys)%f(w%rep%iso%fref%id)%name)
        end if
     end if
     info = info // newline // "Grid:   " // string(w%editrep_pending_n(1)) // " x " //&
@@ -5629,7 +5635,7 @@ contains
     if (.not.win(iview)%isopen .or. .not.associated(win(iview)%sc)) return
     if (win(iview)%isys /= isys) return
     if (.not.w%rep%isinit .or. w%rep%type /= reptype_isosurface) return
-    if (.not.sys(isys)%goodfield(w%rep%iso%ifield)) return
+    if (.not.w%rep%iso%fref%ok(sys(isys))) return
 
     associate(iso => w%rep%iso)
       call begin_cancellable()

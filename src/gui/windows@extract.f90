@@ -250,7 +250,7 @@ contains
        if ((hovered .or. w%extract_picking) .and. .not.doquit) then
           if (sysc(isys)%sc%isinit /= 0) then
              rad = min(max(0.05d0 * real(sysc(isys)%sc%scenerad,8),center_radmin),center_radmax)
-             call sysc(isys)%sc%show_transient_shapes(w%id,1,(/rep_shape(kind=shapekind_sphere,&
+             call sysc(isys)%sc%show_transient_shapes(w%uid,1,(/rep_shape(kind=shapekind_sphere,&
                 x1=center_to_cart(),rad=rad,rgb=center_rgb,alpha=center_alpha)/))
           end if
        end if
@@ -261,7 +261,7 @@ contains
     if (.not.doquit) then
        if (sysc(isys)%sc%isinit /= 0) then
           if (w%extract_region == er_sphere) then
-             call sysc(isys)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_sphere,&
+             call sysc(isys)%sc%show_transient_shapes(w%uid,2,(/rep_shape(kind=shapekind_sphere,&
                 x1=center_to_cart(),rad=real(w%extract_rsph,8)/bohrtoa,rgb=region_rgb,alpha=region_alpha)/))
           else
              if (w%extract_region == er_cube) then
@@ -278,7 +278,7 @@ contains
                 x0 = 0d0
                 if (ismol) x0 = sys(isys)%c%molx0
              end if
-             call sysc(isys)%sc%show_transient_shapes(w%id,2,(/rep_shape(kind=shapekind_box,&
+             call sysc(isys)%sc%show_transient_shapes(w%uid,2,(/rep_shape(kind=shapekind_box,&
                 x1=x0,v=vbox,rad=region_edgerad,rgb=region_rgb,alpha=region_alpha)/))
           end if
        end if

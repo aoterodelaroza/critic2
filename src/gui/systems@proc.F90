@@ -17,6 +17,7 @@
 
 submodule (systems) proc
   use types, only: thread_info
+  use global, only: new_uid
   implicit none
 
   ! the last revision given to the geometry or bonding of a system
@@ -354,6 +355,7 @@ contains
     sysc(idx)%group_label = label
     sysc(idx)%group_parent = parentname
     sysc(idx)%status = sys_group
+    sysc(idx)%uid = new_uid()
     sysc(idx)%collapse = -1
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
@@ -504,6 +506,7 @@ contains
 
        ! initialization status
        sysc(idx)%status = sys_loaded_not_init
+       sysc(idx)%uid = new_uid()
        if (present(imaster)) then
           ! every system of the batch hangs from the group header, which
           ! starts collapsed
@@ -724,6 +727,7 @@ contains
     character(len=:), allocatable :: file, errmsg
     logical :: exist
     integer :: isformat, mol, iafield, iavib, nseed, icol, idseed
+    integer*8 :: uid
     type(crystalseed), allocatable :: seed(:)
     logical :: collapse, ihid, renamed, derived
     character(len=:), allocatable :: fullname
@@ -764,7 +768,9 @@ contains
        end if
     end if
 
-    ! terminate the system, including any interactive dynamics
+    ! terminate the system, including any interactive dynamics (it
+    ! keeps its unique identifier: it is the same system, read again)
+    uid = sysc(idx)%uid
     call sys(idx)%end()
     call sysc(idx)%seed%end()
     sysc(idx)%md_run = .false.
@@ -793,6 +799,7 @@ contains
 
     ! add the system again
     call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx)
+    sysc(idx)%uid = uid
     sysc(idx)%collapse = icol
     sysc(idx)%hidden = ihid
     sysc(idx)%renamed = renamed
@@ -1183,7 +1190,8 @@ contains
 
     ! move the new field into the original slot, restoring the name and
     ! the options that did not come from the file, and drop the extra slot
-    call sys(isys)%field_copy(idnew,ifield)
+    ! (same field, same identity: it keeps its unique identifier)
+    call sys(isys)%field_copy(idnew,ifield,keepuid=.true.)
     sys(isys)%f(ifield)%name = name
     sys(isys)%f(ifield)%usecore = usecore
     sys(isys)%f(ifield)%numerical = numerical

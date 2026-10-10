@@ -1120,6 +1120,18 @@ contains
 
   end subroutine progress_set
 
+  !> A new unique identifier: a positive integer never returned
+  !> before in this run. Thread-safe.
+  module function new_uid() result(uid)
+    integer*8 :: uid
+
+    !$omp atomic capture
+    uid_last = uid_last + 1
+    uid = uid_last
+    !$omp end atomic
+
+  end function new_uid
+
   !> Parse the command line and set a global variable
   module subroutine critic_setvariables(line,lp)
     use meshmod, only: mesh_type_becke, mesh_type_franchini, mesh_level_kw

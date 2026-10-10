@@ -216,7 +216,7 @@ module shapes
      logical :: oriented = .false. ! whether to orient the label along x -> x2
      real(c_float) :: x2(3) = 0._c_float ! second world point defining the on-screen orientation
      logical :: fixedscreen = .false. ! constant-size labels: clamp the reference half-width so large systems do not shrink the label
-     integer :: irep = 0 ! the text item it draws: the order (iord) of its representation...
+     integer*8 :: repuid = 0 ! the text item it draws: the uid of its representation...
      integer :: item = 0 ! ... and the item in it (0 = not a text item)
      character(len=:), allocatable :: str ! string
   end type dl_string

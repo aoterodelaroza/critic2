@@ -18,6 +18,7 @@
 ! The class to handle ImGui windows, general routines.
 submodule (windows) proc
   use interfaces_cimgui
+  use global, only: new_uid
   implicit none
 
   ! initial side for the view texture
@@ -33,6 +34,7 @@ submodule (windows) proc
 
   !xx! private procedures
   ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
+  ! subroutine set_window_rref(w,irep)
 
 contains
 
@@ -343,7 +345,10 @@ contains
              ! specific tests according to type
              if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%purpose == purpose)
              if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idparent)) then
-                ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%parent() == idparent)
+                ok = (win(i)%isys == isys .and. win(i)%parent() == idparent)
+                if (ok) ok = (idparent >= 1 .and. idparent <= nwin)
+                if (ok) ok = associated(win(idparent)%sc)
+                if (ok) ok = (win(i)%rref%get(win(idparent)%sc) == irep)
                 if (ok.and.present(itoken)) &
                    ok = (win(i)%itoken == itoken)
              end if
@@ -375,13 +380,8 @@ contains
        if (raiseid > 0 .and. raiseid <= nwin) then
           stack_create_window = raiseid
           if (present(isys)) win(raiseid)%isys = isys
-          if (present(irep)) win(raiseid)%irep = irep
-          if (present(idparent)) then
-             win(raiseid)%idparent = idparent
-             win(raiseid)%idparent_serial = 0
-             if (idparent >= 1 .and. idparent <= nwin) &
-                win(raiseid)%idparent_serial = win(idparent)%serial
-          end if
+          if (present(idparent)) call set_window_parent(win(raiseid),idparent)
+          if (present(irep)) call set_window_rref(win(raiseid),irep)
           if (present(itoken)) win(raiseid)%itoken = itoken
           call igSetWindowFocus_Str(c_loc(win(raiseid)%name))
           return
@@ -421,6 +421,31 @@ contains
     stack_create_window = id
 
   end function stack_create_window
+
+  !> Make window idparent the parent of window w, recording its uid
+  !> so that w can tell when that slot goes to another window.
+  subroutine set_window_parent(w,idparent)
+    type(window), intent(inout) :: w
+    integer, intent(in) :: idparent
+
+    w%idparent = idparent
+    w%idparent_uid = 0
+    if (idparent >= 1 .and. idparent <= nwin) w%idparent_uid = win(idparent)%uid
+
+  end subroutine set_window_parent
+
+  !> Point the object reference of window w (an object editor) to the
+  !> object in slot irep of the scene of its parent view.
+  subroutine set_window_rref(w,irep)
+    type(window), intent(inout) :: w
+    integer, intent(in) :: irep
+
+    w%rref = rep_ref()
+    if (w%idparent < 1 .or. w%idparent > nwin) return
+    if (.not.associated(win(w%idparent)%sc)) return
+    call w%rref%set(win(w%idparent)%sc,irep)
+
+  end subroutine set_window_rref
 
   !> Start writing table tid of window w as text, after its header row
   !> and before its rows. req is the choice of the table's menu in
@@ -634,8 +659,23 @@ contains
 
   end subroutine build_write_format_combo
 
+  !> Whether the system of demo window w (water cluster, melting) is
+  !> still the one it made: not removed, and not another system loaded
+  !> into its slot.
+  module function demo_owns_system(w) result(ok)
+    use systems, only: sysc, sys_init, ok_system
+    class(window), intent(in) :: w
+    logical :: ok
+
+    ok = ok_system(w%isys,sys_init)
+    if (ok) ok = (sysc(w%isys)%uid == w%demo_sysuid)
+
+  end function demo_owns_system
+
   !> Drop the representation pointer of every edit-object window that
-  !> edits a representation of scene s.
+  !> edits a representation of scene s, before the list of objects of
+  !> s is deallocated. (A slot taken by another object needs nothing:
+  !> the editor sees the uid of the object change, and closes.)
   module subroutine invalidate_scene_reps(s)
     type(scene), intent(in), target :: s
 
@@ -645,8 +685,8 @@ contains
     do i = 1, nwin
        if (.not.win(i)%isinit) cycle
        if (win(i)%type /= wintype_editrep) cycle
-       idp = win(i)%idparent
-       if (idp < 1 .or. idp > nwin) cycle
+       idp = win(i)%parent()
+       if (idp == 0) cycle
        if (.not.associated(win(idp)%sc,s)) cycle
        nullify(win(i)%rep)
     end do
@@ -709,7 +749,7 @@ contains
   module subroutine regenerate_window_pointers()
     use systems, only: sysc, sys_init, ok_system
 
-    integer :: i, iv, idp
+    integer :: i, iv, idp, irep
 
     ! the scene shown by each view window
     do i = 1, nwin
@@ -737,15 +777,13 @@ contains
        if (win(i)%type /= wintype_editrep) cycle
 
        nullify(win(i)%rep)
-       idp = win(i)%idparent
-       if (win(i)%irep < 1) cycle
-       if (idp < 1 .or. idp > nwin) cycle
-       if (.not.win(idp)%isinit) cycle
+       idp = win(i)%parent()
+       if (idp == 0) cycle
        if (win(idp)%type /= wintype_view) cycle
        if (.not.associated(win(idp)%sc)) cycle
-       if (.not.allocated(win(idp)%sc%rep)) cycle
-       if (win(i)%irep > size(win(idp)%sc%rep,1)) cycle
-       win(i)%rep => win(idp)%sc%rep(win(i)%irep)
+       irep = win(i)%rref%get(win(idp)%sc)
+       if (irep < 1) cycle
+       win(i)%rep => win(idp)%sc%rep(irep)
     end do
 
   end subroutine regenerate_window_pointers
@@ -814,17 +852,17 @@ contains
     w%dialog_data%molcubic = .false.
     w%dialog_data%rborder = rborder_def*bohrtoa
     w%plotn = 0
-    ! a serial that is never reused, so that children of this window can
-    ! tell it apart from whatever window takes its slot later
-    window_lastserial = window_lastserial + 1
-    w%serial = window_lastserial
+    ! an identifier that is never reused, so that children of this
+    ! window can tell it apart from whatever window takes its slot later
+    w%uid = new_uid()
+    w%isys_uid = 0
+    w%demo_sysuid = 0
+    w%vibrations_iview = 0
+    w%vibrations_viewuid = 0
     if (present(isys)) w%isys = isys
-    if (present(irep)) w%irep = irep
-    w%idparent_serial = 0
-    if (present(idparent)) then
-       w%idparent = idparent
-       if (idparent >= 1 .and. idparent <= nwin) w%idparent_serial = win(idparent)%serial
-    end if
+    w%idparent_uid = 0
+    if (present(idparent)) call set_window_parent(w,idparent)
+    if (present(irep)) call set_window_rref(w,irep)
     if (present(itoken)) w%itoken = itoken
     if (present(purpose)) w%purpose = purpose
     w%geometry_expression = ""
@@ -1116,7 +1154,7 @@ contains
        elseif (w%type == wintype_water_cluster .or. w%type == wintype_melting) then
           ! the demos own the system they generate; remove it on close so it
           ! does not linger (remove_system stops and frees the run)
-          if (ok_system(w%isys,sys_init)) call remove_system(w%isys)
+          if (w%demo_owns_system()) call remove_system(w%isys)
        elseif (w%type == wintype_builder) then
           ! release the forced builder mode on the parent view, if still active
           iv = w%anchor_view()
@@ -1139,7 +1177,7 @@ contains
     w%idparent = 0
     w%itoken = 0
     w%isys = 0
-    w%irep = 0
+    w%rref = rep_ref()
     w%ptr = c_null_ptr
     w%timelast_focused = 0d0
     w%lastselected = 0
@@ -1361,7 +1399,7 @@ contains
   !> Index in win(:) of the window that created this one, or zero if
   !> that window is gone. The slot index alone is not enough: an ended
   !> window's slot is handed to the next window created, so the
-  !> parent's serial, recorded at creation, has to match as well.
+  !> parent's uid, recorded at creation, has to match as well.
   module function window_parent(w) result(ip)
     class(window), intent(in) :: w
     integer :: ip
@@ -1369,7 +1407,7 @@ contains
     ip = 0
     if (w%idparent < 1 .or. w%idparent > nwin) return
     if (.not.win(w%idparent)%isinit) return
-    if (win(w%idparent)%serial /= w%idparent_serial) return
+    if (win(w%idparent)%uid /= w%idparent_uid) return
     ip = w%idparent
 
   end function window_parent
@@ -1396,6 +1434,7 @@ contains
   !> raised onto a different view by stack_create_window. The resolved
   !> system is cached in w%isys.
   module function window_anchor(w,iview,isys,changed) result(ok)
+    use systems, only: sysc, nsys
     class(window), intent(inout) :: w
     integer, intent(out) :: iview
     integer, intent(out) :: isys
@@ -1410,6 +1449,12 @@ contains
 
     isys = win(iview)%isys
     changed = (isys /= w%isys)
+    if (isys >= 1 .and. isys <= nsys) then
+       ! another system loaded into the same slot is a change too (not
+       ! on the first call, which only records the system)
+       if (w%isys_uid /= 0) changed = changed .or. (sysc(isys)%uid /= w%isys_uid)
+       w%isys_uid = sysc(isys)%uid
+    end if
     w%isys = isys
 
   end function window_anchor
@@ -2191,7 +2236,8 @@ contains
     if (.not.associated(win(iview)%sc)) return
     do jrep = 1, win(iview)%sc%nrep
        if (win(iview)%sc%rep(jrep)%isinit .and. win(iview)%sc%rep(jrep)%type == reptype_cps .and.&
-          win(iview)%sc%rep(jrep)%cps%ifield == ifield) then
+          win(iview)%sc%rep(jrep)%cps%fref%id == ifield .and.&
+          win(iview)%sc%rep(jrep)%cps%fref%ok(sys(isys))) then
           rgb = win(iview)%sc%rep(jrep)%cps%rgb(:,it)
           return
        end if

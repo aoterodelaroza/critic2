@@ -1851,7 +1851,7 @@ contains
        call ferror("taufromelf","incongruent sizes of rho and elf",faterr)
 
     ! copy the elf field for now
-    sy%f(itau) = sy%f(ielf)
+    call sy%field_copy(ielf,itau)
     if (allocated(sy%f(itau)%grid%f)) deallocate(sy%f(itau)%grid%f)
     sy%f(itau)%isinit = .true.
 

@@ -70,6 +70,7 @@ module fieldmod
      ! parent structure information
      type(crystal), pointer :: c => null() !< crystal
      integer :: id !< field ID
+     integer*8 :: uid = 0 !< unique identifier (global new_uid; 0 = none), set by the system when the field takes its slot
      ! general information
      logical :: isinit = .false. !< is this field initialized?
      integer :: type = type_uninit !< field type
