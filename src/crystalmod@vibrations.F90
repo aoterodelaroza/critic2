@@ -263,7 +263,7 @@ submodule (crystalmod) vibrationsmod
   ! subroutine fc2_fit_resid(dat,mask,rms,ncomp)
   ! subroutine fc2_cgls(dat,orb,map,lam,active,phic,gc,tol,gref,maxit,p,niter,g0,gfin)
   ! subroutine fc2_fit_random(sc,map,orb,nd,ndfit,u,f,lam0,membytes,verbose,phic,errmsg,ti)
-  ! subroutine fc2_fit_pseudorandom(z)
+  ! subroutine fc2_fit_pseudorandom(orb,z)
   ! subroutine fc2_rigid_split(sc,dat,active)
   ! subroutine fc2_build_svec(v,c,errmsg)
   ! subroutine born_ddsum(v,c,q,dd)
@@ -3398,7 +3398,7 @@ contains
     end do
     active = .false.
     active(1:ndfit) = .true.
-    call fc2_fit_pseudorandom(z)
+    call fc2_fit_pseudorandom(orb,z)
     call fc2_fit_forward(dat,orb,map,z,active,phic,qq)
     scale = qq / dot_product(z,z)
     if (verbose) then
@@ -3584,21 +3584,36 @@ contains
 
   end subroutine fc2_fit_random
 
-  !> A fixed pseudo-random vector with entries in (-1,1) (Park-Miller
+  !> A fixed pseudo-random vector z of the parameters of the pair
+  !> orbits orb: for each orbit, nine entries in (-1,1) for the
+  !> Cartesian components of its force-constant block (Park-Miller
   !> minimal standard generator, so that every run gives the same
-  !> vector).
-  subroutine fc2_fit_pseudorandom(z)
+  !> numbers), projected onto the parameters of the orbit. The basis of
+  !> an orbit spans the null space of its stabilizer constraints, and
+  !> within that space it is any orthonormal set the eigensolver
+  !> returns, which rounding decides (it differs between builds).
+  !> Drawn in the Cartesian components, the block the vector stands
+  !> for (the projection onto that space) and its norm do not depend
+  !> on that choice.
+  subroutine fc2_fit_pseudorandom(orb,z)
+    type(fc2_orbits), intent(in) :: orb
     real*8, intent(out) :: z(:)
 
     integer*8, parameter :: a = 16807_8, m = 2147483647_8
 
-    integer :: i
+    integer :: i, o, nb
     integer*8 :: state
+    real*8 :: c(9)
 
     state = 20260908_8
-    do i = 1, size(z,1)
-       state = mod(a * state, m)
-       z(i) = 2d0 * real(state,8) / real(m,8) - 1d0
+    z = 0d0
+    do o = 1, orb%norb
+       do i = 1, 9
+          state = mod(a * state, m)
+          c(i) = 2d0 * real(state,8) / real(m,8) - 1d0
+       end do
+       nb = orb%nb(o)
+       if (nb > 0) z(orb%ioff(o)+1:orb%ioff(o)+nb) = matmul(c,orb%basis(:,1:nb,o))
     end do
 
   end subroutine fc2_fit_pseudorandom
