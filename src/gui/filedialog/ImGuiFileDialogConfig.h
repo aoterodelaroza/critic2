@@ -60,24 +60,24 @@
 
 // locales string
 //#define createDirButtonString "+"
-//#define resetButtonString "R"
+#define resetButtonString "\xE2\x86\xBA" // U+21BA, reset path and reset search
 //#define drivesButtonString "Drives"
-//#define editPathButtonString "E"
-//#define searchString "Search"
+#define editPathButtonString "\xE2\x9C\x8E" // U+270E pencil
+#define searchString "Search:"
 //#define dirEntryString "[DIR] "
 //#define linkEntryString "[LINK] "
 //#define fileEntryString "[FILE] "
-//#define fileNameString "File Name : "
-//#define dirNameString "Directory Path :"
+#define fileNameString "File name:"
+#define dirNameString "Directory path:"
 //#define buttonResetSearchString "Reset search"
 //#define buttonDriveString "Drives"
 //#define buttonEditPathString "Edit path\nYou can also right click on path buttons"
 //#define buttonResetPathString "Reset to current directory"
 //#define buttonCreateDirString "Create Directory"
-//#define OverWriteDialogTitleString "The file Already Exist !"
-//#define OverWriteDialogMessageString "Would you like to OverWrite it ?"
-//#define OverWriteDialogConfirmButtonString "Confirm"
-//#define OverWriteDialogCancelButtonString "Cancel"
+#define OverWriteDialogTitleString "File exists"
+#define OverWriteDialogMessageString "Replace the existing file?"
+#define OverWriteDialogConfirmButtonString "Replace"
+#define OverWriteDialogCancelButtonString "Cancel"
 
 //Validation buttons
 //#define okButtonString " OK"

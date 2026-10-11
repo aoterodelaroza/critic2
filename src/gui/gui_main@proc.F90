@@ -296,6 +296,7 @@ contains
     range = (/32_c_short,   255_c_short,& ! default (basic latin + supplement)
              880_c_short,  1023_c_short,& ! Greek and Coptic
             8488_c_short,  8527_c_short,& ! letter-like symbols
+            8592_c_short,  8703_c_short,& ! arrows
             8704_c_short,  8959_c_short,& ! mathematical operators
             9472_c_short,  9599_c_short,& ! box drawing
             9632_c_short,  9727_c_short,& ! geometric shapes
