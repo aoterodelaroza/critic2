@@ -29,7 +29,7 @@ contains
        BIND_OK_FOCUSED_DIALOG
     use windows, only: win
     use systems, only: add_systems_from_name, launch_initialization_thread,&
-       system_shorten_names, sys_init, sys, sysc, ok_system
+       system_shorten_names, sys_init, sys, sysc, ok_system, scene_file_save
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, string, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
@@ -58,6 +58,9 @@ contains
     if (w%purpose == wpurp_dialog_openvibfile) then
        ! open vibrations file dialog => quit if the system is gone
        doquit = (.not.ok_system(w%isys,sys_init))
+    elseif (w%purpose == wpurp_dialog_savescenefile) then
+       ! save scene dialog => quit if its system is gone
+       doquit = (.not.ok_system(w%isys,sys_init,uid=w%isys_uid))
     elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
@@ -227,6 +230,18 @@ contains
                 call C_F_string_alloc(cstr,name)
                 call c_free(cstr)
                 win(idp)%okfilter = trim(name)
+             end if
+          elseif (w%purpose == wpurp_dialog_savescenefile) then
+             !! save scene dialog !!
+             cstr = IGFD_GetFilePathName(w%dptr)
+             call C_F_string_alloc(cstr,name)
+             call c_free(cstr)
+             call scene_file_save(w%isys,name,errmsg)
+             if (len_trim(errmsg) > 0) then
+                write (uout,'("WARNING : Could not save the scene to: ",A)') trim(name)
+                write (uout,'("WARNING : ",A/)') trim(errmsg)
+             else
+                write (uout,'("* Scene saved to: ",A/)') trim(name)
              end if
           elseif (w%purpose == wpurp_dialog_selectdir) then
              !! select directory dialog !!

@@ -89,6 +89,7 @@ contains
        &ADF (molden){.molden},&
        &cif (cif){.cif},&
        &CASTEP (cell|geom){.cell,.geom},&
+       &critic2 scene (scene){.scene},&
        &CRYSTAL (out){.out},&
        &cube (cube|bincube){.cube,.bincube},&
        &DFTB+ (gen){.gen},&
@@ -1452,7 +1453,8 @@ contains
     use gui_main, only: fontsize, io, g
     use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip,&
-       iw_capturing, iw_capture_abort
+       iw_capturing, iw_capture_abort, file_name_root
+    use systems, only: sysc, ok_system, sys_init
     use tools_io, only: string, ferror, faterr
     use param, only: dirsep
     class(window), intent(inout), target :: w
@@ -1633,6 +1635,20 @@ contains
                 end if
              end if
              call dialog_initial_file(idp,"table.txt",str2,str3,ref=str4)
+             call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_savescenefile) then
+             ! the scene of system w%isys: next to the file it came
+             ! from, with its name and the scene extension
+             w%name = "Save Scene##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
+             str1 = "critic2 scene (*.scene) {.scene},All files (*.*){*.*}" // c_null_char
+             if (ok_system(w%isys,sys_init)) then
+                w%isys_uid = sysc(w%isys)%uid
+                call dialog_initial_file(0,"system.scene",str2,str3,&
+                   ref=file_name_root(sysc(w%isys)%fullname) // ".scene")
+             else
+                call dialog_initial_file(0,"system.scene",str2,str3)
+             end if
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_selectdir) then

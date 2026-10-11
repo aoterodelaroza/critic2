@@ -135,6 +135,8 @@ module utils
   public :: get_current_working_dir
   public :: file_name_root
   public :: file_name_base
+  public :: file_name_dir
+  public :: file_name_abs
   public :: string_nozeros
   !xx! math submodule !xx!
   public :: infiniteperspective
@@ -559,6 +561,14 @@ module utils
        character(len=*), intent(in) :: file
        character(len=:), allocatable :: root
      end function file_name_root
+     module function file_name_dir(file) result(dir)
+       character(len=*), intent(in) :: file
+       character(len=:), allocatable :: dir
+     end function file_name_dir
+     module function file_name_abs(file) result(abs)
+       character(len=*), intent(in) :: file
+       character(len=:), allocatable :: abs
+     end function file_name_abs
      module function string_nozeros(x,decimal) result(str)
        real*8, intent(in) :: x
        integer, intent(in) :: decimal

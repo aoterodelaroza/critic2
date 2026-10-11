@@ -465,6 +465,14 @@ module representations
   integer, parameter, public :: repstyle_bondflavor(repstyle_NUM) = &
      (/repflavor_bonds_basic, repflavor_bonds_licorice, repflavor_bonds_sticks/)
 
+  ! kind of the objects of each flavor (reptype_none for repflavor_unknown)
+  integer, parameter, public :: repflavor_type(0:repflavor_NUM) = (/reptype_none,&
+     reptype_atoms, reptype_atoms, reptype_bonds, reptype_bonds, reptype_bonds, reptype_bonds,&
+     reptype_bonds, reptype_labels, reptype_polyhedra, reptype_unitcell, reptype_axes,&
+     reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
+     reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
+     reptype_colorbar/)
+
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
   character(len=17), parameter, public :: repflavor_name(0:repflavor_NUM) = (/&
@@ -1131,6 +1139,7 @@ module representations
      procedure :: add_draw_elements
      procedure :: reset_all_styles
      procedure :: uses_periodicity => representation_uses_periodicity
+     procedure :: xfer_json => representation_xfer_json ! options or style rows to/from a JSON object (scene files)
   end type representation
   public :: representation
 
@@ -1542,6 +1551,14 @@ module representations
        integer, intent(in) :: flavor
        integer, intent(inout) :: icount(0:repflavor_NUM)
      end subroutine representation_init
+     module subroutine representation_xfer_json(r,io,p,rows)
+       use jsonxfer, only: json_xfer
+       use json_module, only: json_value
+       class(representation), intent(inout) :: r
+       type(json_xfer), intent(inout) :: io
+       type(json_value), pointer, intent(in) :: p
+       logical, intent(in) :: rows
+     end subroutine representation_xfer_json
      module subroutine representation_set_defaults(r,itype)
        class(representation), intent(inout) :: r
        integer, intent(in) :: itype

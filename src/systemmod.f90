@@ -213,7 +213,7 @@ module systemmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine new_from_seed
-     module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp)
+     module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp,idwant)
        class(system), intent(inout), target :: s
        character*(*), intent(in) :: line
        logical, intent(in) :: verbose
@@ -222,6 +222,7 @@ module systemmod
        type(thread_info), intent(in), optional :: ti
        logical, intent(in), optional :: readchk
        logical, intent(in), optional :: autointerp
+       integer, intent(in), optional :: idwant
      end subroutine load_field_string
      module function goodfield(s,id,key,type,n,idout,uid) result(ok)
        use fieldmod, only: type_grid
@@ -245,10 +246,11 @@ module systemmod
        integer, intent(in) :: i
        integer :: fid
      end function propi_field
-     module function getfieldnum(s) result(id)
+     module function getfieldnum(s,idwant) result(id)
        use fieldmod, only: realloc_field
        use tools_io, only: string
        class(system), intent(inout) :: s
+       integer, intent(in), optional :: idwant
        integer :: id
      end function getfieldnum
      module subroutine field_copy(s,id0,id1,keepuid)

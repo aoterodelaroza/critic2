@@ -81,6 +81,9 @@ module fieldmod
      integer :: typnuc = -3 !< type of nuclei
      character(len=mlen) :: name = "" !< field name
      character(len=mlen) :: file = "" !< file name
+     character(len=:), allocatable :: loadcmd !< the LOAD command that made the field (load_field_string); unallocated if not known
+     character(len=mlen), allocatable :: loadfiles(:) !< the files loadcmd reads, as written in it
+     character(len=:), allocatable :: optcmd !< the options set on the field after it was made (set_field_options), in order
      ! scalar field types
      type(elkwfn), allocatable :: elk !< Elk densities
      type(wienwfn), allocatable :: wien !< WIEN2k densities

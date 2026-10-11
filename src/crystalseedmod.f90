@@ -73,6 +73,8 @@ module crystalseedmod
    contains
      procedure :: end => seed_end ! deallocate arrays and nullify variables
      procedure :: check => seed_check ! check the seed fields for internal consistency
+     procedure :: write_json => seed_write_json ! write the seed to a JSON object
+     procedure :: read_json => seed_read_json ! read the seed from a JSON object
      procedure :: parse_crystal_env ! parse a crystal environment
      procedure :: parse_molecule_env ! parse a molecular environment
      procedure :: read_library ! read a structure from the library
@@ -144,6 +146,19 @@ module crystalseedmod
        class(crystalseed), intent(in) :: seed
        character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine seed_check
+     module subroutine seed_write_json(seed,json,p)
+       use json_module, only: json_value, json_core
+       class(crystalseed), intent(in) :: seed
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(inout) :: p
+     end subroutine seed_write_json
+     module subroutine seed_read_json(seed,json,p,errmsg)
+       use json_module, only: json_value, json_core
+       class(crystalseed), intent(inout) :: seed
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(in) :: p
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine seed_read_json
      module subroutine parse_crystal_env(seed,lu,oksyn,fromlib)
        class(crystalseed), intent(inout) :: seed
        integer, intent(in) :: lu

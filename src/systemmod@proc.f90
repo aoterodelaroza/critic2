@@ -516,7 +516,7 @@ contains
   !> (<file>.chk_cps), if it exists. If autointerp (the GUI) and the new
   !> field is a grid with no interpolation keyword, use smoothrho if it
   !> looks like an all-electron density (field_guess_allelectron).
-  module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp)
+  module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp,idwant)
     use global, only: abort_requested
     use tools_io, only: getword, lgetword, equal, uout, string, ferror, warning
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
@@ -538,6 +538,7 @@ contains
     type(thread_info), intent(in), optional :: ti
     logical, intent(in), optional :: readchk
     logical, intent(in), optional :: autointerp
+    integer, intent(in), optional :: idwant
 
     integer :: i, oid, nal, id1, id2, nn, n(3)
     logical :: ok, isnewref, found, dochk
@@ -612,7 +613,7 @@ contains
           return
        end if
        if (seed%nfile == 1) then
-          id = s%getfieldnum()
+          id = s%getfieldnum(idwant)
        else
           id = s%fieldname_to_idx(seed%file(2))
           if (id < 0) then
@@ -656,14 +657,14 @@ contains
              errmsg = "the grid in source field of LOAD AS LAP/GRAD/POT is not allocated"
              return
           end if
-          id = s%getfieldnum()
+          id = s%getfieldnum(idwant)
           call s%f(id)%load_as_fftgrid(s%c,id,"<generated>",s%f(oid)%grid,seed%iff,seed%isry,seed%n)
        elseif (s%f(oid)%type == type_wien .and. seed%iff == ifformat_as_ft_lap) then
-          id = s%getfieldnum()
+          id = s%getfieldnum(idwant)
           call s%field_copy(oid,id)
           call s%f(id)%wien%tolap()
        elseif (s%f(oid)%type == type_elk .and. seed%iff == ifformat_as_ft_lap) then
-          id = s%getfieldnum()
+          id = s%getfieldnum(idwant)
           call s%field_copy(oid,id)
           call s%f(id)%elk%tolap()
        else
@@ -714,7 +715,7 @@ contains
           errmsg = "wrong field in CLM"
           return
        end if
-       id = s%getfieldnum()
+       id = s%getfieldnum(idwant)
        call s%field_copy(id1,id)
        if (seed%iff == ifformat_as_clm) then
           s%f(id)%name = "<generated>, sum of $" // string(id1) // " and $" // string(id2)
@@ -745,12 +746,13 @@ contains
           end if
        else
           errmsg = "fields in CLM must be wien or elk and the same type"
+          call s%f(id)%end()
           return
        end if
        call s%f(id)%init_cplist()
     else
        ! rest
-       id = s%getfieldnum()
+       id = s%getfieldnum(idwant)
 
        if (len_trim(seed%ids) > 0) then
           if (.not.resolve_sizeof(seed%ids,seed%n)) return
@@ -785,6 +787,17 @@ contains
           end if
        end if
     end if
+
+    ! the command that made the field and the files it read, to make
+    ! it again (GUI scene files); options set later go to optcmd. A
+    ! copy starts with the options of its source at the time it was
+    ! made (they are applied again after the source's later ones)
+    s%f(id)%loadcmd = trim(line)
+    if (allocated(s%f(id)%loadfiles)) deallocate(s%f(id)%loadfiles)
+    if (seed%iff /= ifformat_copy .and. seed%nfile > 0) then
+       if (allocated(seed%file)) s%f(id)%loadfiles = seed%file(1:seed%nfile)
+    end if
+    if (seed%iff /= ifformat_copy .and. allocated(s%f(id)%optcmd)) deallocate(s%f(id)%optcmd)
 
     ! add to the field hash
     if (len_trim(seed%fid) > 0) &
@@ -967,11 +980,12 @@ contains
   end function propi_field
 
   !> Find an open slot for a new field
-  module function getfieldnum(s) result(id)
+  module function getfieldnum(s,idwant) result(id)
     use global, only: new_uid
     use fieldmod, only: realloc_field
     use tools_io, only: string
     class(system), intent(inout) :: s
+    integer, intent(in), optional :: idwant
     integer :: id
 
     logical :: found
@@ -980,12 +994,23 @@ contains
     if (.not.allocated(s%f)) return
 
     found = .false.
-    do id = 1, s%nf
-       if (.not.s%f(id)%isinit) then
-          found = .true.
-          exit
+    if (present(idwant)) then
+       ! the slot idwant, if it is free
+       if (idwant > s%nf) then
+          call realloc_field(s%f,idwant)
+          s%nf = idwant
        end if
-    end do
+       if (idwant >= 1) found = .not.s%f(idwant)%isinit
+       if (found) id = idwant
+    end if
+    if (.not.found) then
+       do id = 1, s%nf
+          if (.not.s%f(id)%isinit) then
+             found = .true.
+             exit
+          end if
+       end do
+    end if
     if (.not.found) then
        call realloc_field(s%f,s%nf+1)
        s%nf = s%nf + 1
@@ -1063,6 +1088,15 @@ contains
 
     call s%f(id)%set_options(line,errmsg)
     call s%fieldset_changed()
+
+    ! keep the options to make the field again (GUI scene files)
+    if (len_trim(errmsg) == 0 .and. len_trim(line) > 0) then
+       if (allocated(s%f(id)%optcmd)) then
+          s%f(id)%optcmd = s%f(id)%optcmd // " " // trim(adjustl(line))
+       else
+          s%f(id)%optcmd = trim(adjustl(line))
+       end if
+    end if
 
   end subroutine set_field_options
 

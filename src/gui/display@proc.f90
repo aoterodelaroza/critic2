@@ -176,4 +176,81 @@ contains
 
   end function scene_display_ncells
 
+  !> Write the Display to a new JSON object "display" under p: the
+  !> periodic settings and the Show masks, if made.
+  module subroutine scene_display_write_json(disp,json,p)
+    use json_module, only: json_value, json_core
+    class(scene_display), intent(in) :: disp
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(inout) :: p
+
+    type(json_value), pointer :: s
+
+    call json%create_object(s,'display')
+    call json%add(p,s)
+    call json%add(s,'ncell',int(disp%ncell))
+    call json%add(s,'tshift',disp%tshift)
+    call json%add(s,'border',disp%border)
+    call json%add(s,'onemotif',disp%onemotif)
+    call json%add(s,'atype',disp%atype)
+    if (allocated(disp%ashown) .and. allocated(disp%ashift) .and. allocated(disp%mshown)) then
+       call json%add(s,'ashown',disp%ashown)
+       call json%add(s,'ashift',reshape(disp%ashift,(/size(disp%ashift)/)))
+       call json%add(s,'mshown',disp%mshown)
+    end if
+
+  end subroutine scene_display_write_json
+
+  !> Read the Display from the JSON object p (written by
+  !> scene_display_write_json) over the current one: keys that are
+  !> missing are left as they are. The masks are taken only if they
+  !> are consistent with each other, and are not stamped with a
+  !> bonding revision (rev = -1): the caller stamps them once the
+  !> system they belong to is built, and update() remakes them if
+  !> their sizes do not fit it.
+  module subroutine scene_display_read_json(disp,json,p)
+    use json_module, only: json_value, json_core
+    class(scene_display), intent(inout) :: disp
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(in) :: p
+
+    integer, allocatable :: iv(:)
+    real*8, allocatable :: rv(:)
+    logical, allocatable :: la(:), lm(:)
+    integer :: ival
+    logical :: found, lv
+
+
+    ! (the cell counts and the shifts size what the objects allocate:
+    ! they are kept in range)
+    call json%get(p,'ncell',iv,found)
+    if (found) then
+       if (size(iv) == 3) disp%ncell = int(min(max(iv,1),disp_maxncell),c_int)
+    end if
+    call json%get(p,'tshift',rv,found)
+    if (found) then
+       if (size(rv) == 3) disp%tshift = min(max(rv,-real(disp_maxshift,8)),real(disp_maxshift,8))
+    end if
+    call json%get(p,'border',lv,found)
+    if (found) disp%border = lv
+    call json%get(p,'onemotif',lv,found)
+    if (found) disp%onemotif = lv
+    call json%get(p,'atype',ival,found)
+    if (found) disp%atype = ival
+
+    ! the masks
+    disp%rev = -1
+    call json%get(p,'ashown',la,found)
+    if (.not.found) return
+    call json%get(p,'mshown',lm,found)
+    if (.not.found) return
+    call json%get(p,'ashift',iv,found)
+    if (.not.found) return
+    if (size(iv) /= 3*size(la)) return
+    disp%ashown = la
+    disp%mshown = lm
+    disp%ashift = reshape(min(max(iv,-disp_maxshift),disp_maxshift),(/3,size(la)/))
+
+  end subroutine scene_display_read_json
+
 end submodule proc

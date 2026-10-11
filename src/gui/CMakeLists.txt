@@ -24,7 +24,7 @@ set(SOURCES
 
   opengl/openglwrapper.c opengl/gl3w.c
 
-  systems.f90 systems@proc.F90
+  systems.f90 systems@proc.F90 systems@scenefile.f90
   gui_main.f90 gui_main@proc.F90
   keybindings.f90 keybindings@proc.f90 commands.f90 commands@proc.f90
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
@@ -43,8 +43,8 @@ set(SOURCES
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
   representations.f90 representations@proc.f90 representations@planar.f90
-  representations@iso.f90 representations@styles.f90
-  display.f90 display@proc.f90
+  representations@iso.f90 representations@styles.f90 representations@json.f90
+  display.f90 display@proc.f90 jsonxfer.f90 jsonxfer@proc.f90
   )
 
 ## freetype

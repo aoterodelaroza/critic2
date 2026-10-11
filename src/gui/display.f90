@@ -32,6 +32,7 @@ module display
   ! largest component of the lattice-vector shifts of the atom groups
   ! (scene_display%ashift), which bounds the work of the draw-list build
   integer, parameter, public :: disp_maxshift = 10
+  integer, parameter, public :: disp_maxncell = 100 ! largest number of cells along an axis (scene files)
 
   !> scene display: which part of the system is drawn
   type scene_display
@@ -53,6 +54,8 @@ module display
      procedure :: end => scene_display_end
      procedure :: copy_settings => scene_display_copy_settings ! take another Display's periodic settings (not its masks)
      procedure :: ncells => scene_display_ncells ! cells an object draws, honoring its override
+     procedure :: write_json => scene_display_write_json ! write the settings and masks to a JSON object
+     procedure :: read_json => scene_display_read_json ! read them back (masks unstamped)
   end type scene_display
   public :: scene_display
 
@@ -95,6 +98,18 @@ module display
        type(rep_display), intent(in) :: ovr
        integer :: n(3)
      end function scene_display_ncells
+     module subroutine scene_display_write_json(disp,json,p)
+       use json_module, only: json_value, json_core
+       class(scene_display), intent(in) :: disp
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(inout) :: p
+     end subroutine scene_display_write_json
+     module subroutine scene_display_read_json(disp,json,p)
+       use json_module, only: json_value, json_core
+       class(scene_display), intent(inout) :: disp
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(in) :: p
+     end subroutine scene_display_read_json
   end interface
 
 end module display

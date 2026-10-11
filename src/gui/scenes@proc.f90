@@ -160,6 +160,7 @@ contains
     s%isinit = 1
     s%gen = s%gen + 1
     s%iscaminit = .false.
+    if (allocated(s%campending)) deallocate(s%campending)
     call s%disp%init(isys)
     s%scenerad = 10d0
     s%scenecenter = 0d0
@@ -251,6 +252,7 @@ contains
     s%isinit = 0
     s%iscaminit = .false.
     s%id = 0
+    if (allocated(s%campending)) deallocate(s%campending)
     call s%gl%end()
     call s%obj%end()
     call s%disp%end()
@@ -2339,28 +2341,135 @@ contains
   !> recent render in group idx and, if found, copy the camera
   !> parameters from that scene.
   module subroutine scene_cam_copy(s,si)
-    use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
     type(scene), intent(in), target :: si
 
-    s%camresetdist = si%camresetdist
+    type(scene_camera) :: cam
+
     s%camratio = si%camratio
-    s%isortho = si%isortho
-    s%ortho_fov = si%ortho_fov
-    s%persp_fov = si%persp_fov
-    s%campos = si%campos
-    s%camfront = si%camfront
-    s%camup = si%camup
-    s%world = si%world
-    s%view = si%view
-    s%projection = si%projection
+    call si%cam_get(cam)
+    call s%cam_put(cam)
+
+  end subroutine scene_cam_copy
+
+  !> The camera of the scene, as it is saved.
+  module subroutine scene_cam_get(s,cam)
+    class(scene), intent(in) :: s
+    type(scene_camera), intent(out) :: cam
+
+    cam%camresetdist = s%camresetdist
+    cam%isortho = s%isortho
+    cam%ortho_fov = s%ortho_fov
+    cam%persp_fov = s%persp_fov
+    cam%campos = s%campos
+    cam%camfront = s%camfront
+    cam%camup = s%camup
+    cam%world = s%world
+
+  end subroutine scene_cam_get
+
+  !> Set the camera of the scene to cam (from scene_cam_get) and make
+  !> the view and projection matrices from it.
+  module subroutine scene_cam_put(s,cam)
+    use interfaces_glfw, only: glfwGetTime
+    class(scene), intent(inout), target :: s
+    type(scene_camera), intent(in) :: cam
+
+    s%camresetdist = cam%camresetdist
+    s%isortho = cam%isortho
+    s%ortho_fov = cam%ortho_fov
+    s%persp_fov = cam%persp_fov
+    s%campos = cam%campos
+    s%camfront = cam%camfront
+    s%camup = cam%camup
+    s%world = cam%world
     call s%update_view_matrix()
     call s%update_projection_matrix()
     s%timelastcamchange = glfwGetTime()
     s%forceresetcam = .false.
     s%iscaminit = .true.
 
-  end subroutine scene_cam_copy
+  end subroutine scene_cam_put
+
+  !> Write the camera to a new JSON object "camera" under p.
+  module subroutine scene_camera_write_json(cam,json,p)
+    use json_module, only: json_value, json_core
+    class(scene_camera), intent(in) :: cam
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(inout) :: p
+
+    type(json_value), pointer :: o
+
+    call json%create_object(o,'camera')
+    call json%add(p,o)
+    call json%add(o,'isortho',cam%isortho)
+    call json%add(o,'ortho_fov',real(cam%ortho_fov,8))
+    call json%add(o,'persp_fov',real(cam%persp_fov,8))
+    call json%add(o,'camresetdist',real(cam%camresetdist,8))
+    call json%add(o,'campos',real(cam%campos,8))
+    call json%add(o,'camfront',real(cam%camfront,8))
+    call json%add(o,'camup',real(cam%camup,8))
+    call json%add(o,'world',real(reshape(cam%world,(/16/)),8))
+
+  end subroutine scene_camera_write_json
+
+  !> Read the camera from the JSON object p (written by
+  !> scene_camera_write_json). ok is false, and the camera is not to
+  !> be used, if any of it is missing or malformed.
+  module function scene_camera_read_json(cam,json,p) result(ok)
+    use json_module, only: json_value, json_core
+    class(scene_camera), intent(inout) :: cam
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(in) :: p
+    logical :: ok
+
+    real*8 :: x(16)
+    logical :: found
+
+    ok = .false.
+    call json%get(p,'isortho',cam%isortho,found)
+    if (.not.found) return
+    if (.not.get_vec('ortho_fov',x(1:1))) return
+    cam%ortho_fov = real(x(1),c_float)
+    if (.not.get_vec('persp_fov',x(1:1))) return
+    cam%persp_fov = real(x(1),c_float)
+    if (.not.get_vec('camresetdist',x(1:1))) return
+    cam%camresetdist = real(x(1),c_float)
+    if (.not.get_vec('campos',x(1:3))) return
+    cam%campos = real(x(1:3),c_float)
+    if (.not.get_vec('camfront',x(1:3))) return
+    cam%camfront = real(x(1:3),c_float)
+    if (.not.get_vec('camup',x(1:3))) return
+    cam%camup = real(x(1:3),c_float)
+    if (.not.get_vec('world',x)) return
+    cam%world = reshape(real(x,c_float),(/4,4/))
+    ok = .true.
+
+  contains
+    ! the reals at key (a number if size(v) is 1, else an array of
+    ! that size) in v; false if missing or of another size
+    function get_vec(key,v) result(isok)
+      character*(*), intent(in) :: key
+      real*8, intent(out) :: v(:)
+      logical :: isok
+
+      real*8, allocatable :: rv(:)
+      logical :: fnd
+
+      isok = .false.
+      if (size(v) == 1) then
+         call json%get(p,key,v(1),fnd)
+         isok = fnd
+         return
+      end if
+      call json%get(p,key,rv,fnd)
+      if (.not.fnd) return
+      if (size(rv) /= size(v)) return
+      v = rv
+      isok = .true.
+
+    end function get_vec
+  end function scene_camera_read_json
 
   !> Zoom in and out towards the center of the scene by a factor equal
   !> to ratio. min_zoom and max_zoom apply.
@@ -3979,6 +4088,13 @@ contains
 
     ! if necessary, reset the camera
     if (s%forceresetcam) call s%reset()
+
+    ! the camera of a loaded scene file, over the first reset (which
+    ! would undo it if it came before)
+    if (allocated(s%campending) .and. s%iscaminit) then
+       call s%cam_put(s%campending)
+       deallocate(s%campending)
+    end if
 
   end subroutine scene_render_prepare
 

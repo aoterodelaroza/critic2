@@ -1205,6 +1205,13 @@ contains
             idum = stack_create_window(wintype_save_multiple,.true.,idparent=w%id,orraise=-1)
          call iw_tooltip("Write the structures of several systems in the tree to files",ttshown)
 
+         ! save this system as shown in its main view
+         if (iw_menuitem("Save Scene...",enabled=enabled)) &
+            idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savescenefile,isys=isys,&
+            orraise=-1)
+         call iw_tooltip("Save this system as it is shown in the main view (structure, fields,&
+            & objects, Display, and camera) to a scene file; opening the scene file recreates it",ttshown)
+
          ! destructive actions, in red at the bottom
          call igSeparator()
 
@@ -1213,7 +1220,8 @@ contains
             call reread_system_from_file(isys)
          end if
          call iw_tooltip("Read the file for this system and reopen it, discarding&
-            & the current structure (only the last structure is read)",ttshown)
+            & the current structure (only the last structure is read; a scene file&
+            & is read again with its fields and objects)",ttshown)
 
          ! close option (system). A group header can be closed even though
          ! it is not a system: that closes the systems it heads
@@ -1416,6 +1424,9 @@ contains
             call sys(i)%field_copy(k,id)
             sys(i)%f(id)%id = id
             sys(i)%f(id)%name = trim(sys(i)%f(k)%name) // " (copy)"
+            ! made again (scene files) as a copy of the field, with its options
+            sys(i)%f(id)%loadcmd = "copy " // string(k)
+            if (allocated(sys(i)%f(id)%loadfiles)) deallocate(sys(i)%f(id)%loadfiles)
             call sysc(i)%post_event(lastchange_cplist)
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)

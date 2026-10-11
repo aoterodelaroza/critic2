@@ -1066,7 +1066,7 @@ contains
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
     use windows, only: win, objedit_cancel_views, iwin_tree, iwin_view, iwin_console_input, wintype_display,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
-       wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
+       wpurp_dialog_openfiles, wpurp_dialog_savescenefile, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_melting, wintype_exportimage,&
        wintype_saveas, wintype_save_multiple, wintype_builder, paste_clipboard_fragment,&
@@ -1250,6 +1250,13 @@ contains
              idum = stack_create_window(wintype_save_multiple,.true.,idparent=iwin_tree,orraise=-1)
           call iw_tooltip("Write the structures of several systems in the tree to files&
              & in a chosen format",ttshown)
+
+          ! File -> Save scene
+          if (iw_menuitem("Save Scene...",enabled=isysvok)) &
+             idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savescenefile,isys=isysv,&
+             orraise=-1)
+          call iw_tooltip("Save the current system as it is shown (structure, fields, objects,&
+             & Display, and camera) to a scene file; opening the scene file recreates it",ttshown)
 
           ! File -> Separator
           call igSeparator()

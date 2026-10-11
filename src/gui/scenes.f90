@@ -59,6 +59,24 @@ module scenes
   end type scene_objstate
   public :: scene_objstate
 
+  !> The camera of a scene, as it is saved: what update_view_matrix
+  !> and update_projection_matrix make the view and projection
+  !> matrices from (the window ratio is the window's own).
+  type scene_camera
+     real(c_float) :: camresetdist = 0._c_float ! camera reset distance
+     logical :: isortho = .true. ! projection: .true. = orthographic, .false. = perspective
+     real(c_float) :: ortho_fov = 0._c_float ! orthographic field of view
+     real(c_float) :: persp_fov = 0._c_float ! perspective field of view
+     real(c_float) :: campos(3) = 0._c_float ! position of the camera (tworld coords)
+     real(c_float) :: camfront(3) = 0._c_float ! camera front vec (tworld coords)
+     real(c_float) :: camup(3) = 0._c_float ! camera up vec (tworld coords)
+     real(c_float) :: world(4,4) = 0._c_float ! world transform matrix
+   contains
+     procedure :: write_json => scene_camera_write_json ! write to a JSON object
+     procedure :: read_json => scene_camera_read_json ! read from a JSON object
+  end type scene_camera
+  public :: scene_camera
+
   !> Scene: objects from the system to be drawn and plot settings
   type scene
      integer :: isinit = 0 ! 0=uninitialized, 1=initialized but not built, 2=init and built
@@ -102,6 +120,7 @@ module scenes
      real(c_float) :: viewuv0(2) = 0._c_float ! texture UV of the lower corner of the visible (cropped) region
      logical :: hasanchoredobj = .false. ! true if any object is anchored to the window borders (needs re-render on resize)
      integer*8 :: lockedcam = 0 ! 0=no, -1=global locking group, else the locking group (uid of the group master system)
+     type(scene_camera), allocatable :: campending ! camera to take once the first camera reset is done (a loaded scene file)
      ! list of representations
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
@@ -153,6 +172,8 @@ module scenes
      procedure :: renderpick => scene_render_pick
      procedure :: set_style_defaults => scene_set_style_defaults
      procedure :: cam_copy => scene_cam_copy
+     procedure :: cam_get => scene_cam_get
+     procedure :: cam_put => scene_cam_put
      procedure :: cam_zoom => scene_cam_zoom
      procedure :: cam_move => scene_cam_move
      procedure :: cam_rotate => scene_cam_rotate
@@ -264,6 +285,27 @@ module scenes
        class(scene), intent(inout), target :: s
        type(scene), intent(in), target :: si
      end subroutine scene_cam_copy
+     module subroutine scene_camera_write_json(cam,json,p)
+       use json_module, only: json_value, json_core
+       class(scene_camera), intent(in) :: cam
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(inout) :: p
+     end subroutine scene_camera_write_json
+     module function scene_camera_read_json(cam,json,p) result(ok)
+       use json_module, only: json_value, json_core
+       class(scene_camera), intent(inout) :: cam
+       type(json_core), intent(inout) :: json
+       type(json_value), pointer, intent(in) :: p
+       logical :: ok
+     end function scene_camera_read_json
+     module subroutine scene_cam_get(s,cam)
+       class(scene), intent(in) :: s
+       type(scene_camera), intent(out) :: cam
+     end subroutine scene_cam_get
+     module subroutine scene_cam_put(s,cam)
+       class(scene), intent(inout), target :: s
+       type(scene_camera), intent(in) :: cam
+     end subroutine scene_cam_put
      module subroutine scene_cam_zoom(s,ratio)
        class(scene), intent(inout), target :: s
        real(c_float), intent(in) :: ratio

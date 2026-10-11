@@ -180,7 +180,7 @@ contains
   !> violation aborts the program with faterr.
   module subroutine seed_check(seed,errmsg)
     use tools_io, only: ferror, faterr
-    use tools_math, only: m_x2c_from_cellpar
+    use tools_math, only: m_x2c_from_cellpar, det3
     class(crystalseed), intent(in) :: seed !< Crystal seed
     character(len=:), allocatable, intent(out), optional :: errmsg !< error message (faterr if absent)
 
@@ -224,6 +224,11 @@ contains
           msg = "invalid cell: these cell angles do not describe a realizable cell"
           goto 999
        end if
+    elseif (seed%useabr == 2) then
+       if (abs(det3(seed%m_x2c)) < 1d-12) then
+          msg = "invalid cell: the cell vectors are linearly dependent"
+          goto 999
+       end if
     end if
 
     ! atom list kind: a non-equivalent atom list requires symmetry and a crystal.
@@ -256,6 +261,11 @@ contains
     if (seed%havesym > 0) then
        if (seed%neqv < 1 .or. seed%ncv < 1) then
           msg = "havesym>0 but neqv or ncv is not positive"
+          goto 999
+       end if
+       ! the crystal holds at most 48 rotations (crystal%rotm)
+       if (seed%neqv > 48) then
+          msg = "havesym>0 but more than 48 symmetry operations"
           goto 999
        end if
        if (.not.allocated(seed%cen) .or. .not.allocated(seed%rotm)) then
@@ -332,6 +342,333 @@ contains
        call ferror("seed_check",msg,faterr)
 
   end subroutine seed_check
+
+  !> Write the seed to a new JSON object "structure" under p: all the
+  !> information needed to rebuild the same crystal (cell, atoms in the
+  !> seed order, species, symmetry and bonding), with the reals at full
+  !> precision.
+  module subroutine seed_write_json(seed,json,p)
+    use json_module, only: json_value, json_core
+    class(crystalseed), intent(in) :: seed
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(inout) :: p
+
+    type(json_value), pointer :: s, arr, o
+    integer :: i, n
+
+    call json%create_object(s,'structure')
+    call json%add(p,s)
+
+    ! general
+    call json%add(s,'name',trim(seed%name))
+    call json%add(s,'file',trim(seed%file))
+    call json%add(s,'libname',trim(seed%libname))
+    call json%add(s,'isformat',seed%isformat)
+
+    ! cell
+    call json%add(s,'useabr',seed%useabr)
+    call json%add(s,'aa',seed%aa)
+    call json%add(s,'bb',seed%bb)
+    call json%add(s,'m_x2c',reshape(seed%m_x2c,(/9/)))
+
+    ! molecule
+    call json%add(s,'ismolecule',seed%ismolecule)
+    call json%add(s,'cubic',seed%cubic)
+    call json%add(s,'border',seed%border)
+    call json%add(s,'havex0',seed%havex0)
+    call json%add(s,'molx0',seed%molx0)
+
+    ! species
+    call json%create_array(arr,'species')
+    call json%add(s,arr)
+    do i = 1, seed%nspc
+       call json%create_object(o,'')
+       call json%add(o,'name',trim(seed%spc(i)%name))
+       call json%add(o,'z',seed%spc(i)%z)
+       call json%add(arr,o)
+    end do
+
+    ! atoms
+    n = seed%nat
+    call json%add(s,'nat',n)
+    call json%add(s,'neqlist',seed%neqlist)
+    if (n > 0) then
+       call json%add(s,'x',reshape(seed%x(:,1:n),(/3*n/)))
+       call json%add(s,'is',seed%is(1:n))
+       call json%add(s,'atname',seed%atname(1:n),trim_str=.true.)
+       if (allocated(seed%occ)) call json%add(s,'occ',seed%occ(1:n))
+       if (allocated(seed%mix)) then
+          call json%create_array(arr,'mix')
+          call json%add(s,arr)
+          do i = 1, n
+             call json%create_object(o,'')
+             if (seed%mix(i)%nocc > 0) then
+                call json%add(o,'is',seed%mix(i)%is(1:seed%mix(i)%nocc))
+                call json%add(o,'occ',seed%mix(i)%occ(1:seed%mix(i)%nocc))
+             end if
+             call json%add(arr,o)
+          end do
+       end if
+    end if
+
+    ! symmetry
+    call json%add(s,'havesym',seed%havesym)
+    call json%add(s,'findsym',seed%findsym)
+    call json%add(s,'checkrepeats',seed%checkrepeats)
+    if (seed%havesym > 0) then
+       call json%add(s,'neqv',seed%neqv)
+       call json%add(s,'ncv',seed%ncv)
+       call json%add(s,'rotm',reshape(seed%rotm(:,:,1:seed%neqv),(/12*seed%neqv/)))
+       call json%add(s,'cen',reshape(seed%cen(:,1:seed%ncv),(/3*seed%ncv/)))
+    end if
+
+    ! bonding: the neighbor star of each atom
+    call json%add(s,'havebonds',seed%havebonds)
+    if (seed%havebonds) then
+       call json%create_array(arr,'nstar')
+       call json%add(s,arr)
+       do i = 1, n
+          call json%create_object(o,'')
+          call json%add(o,'isaromatic',seed%nstar(i)%isaromatic)
+          if (seed%nstar(i)%ncon > 0) then
+             call json%add(o,'idcon',seed%nstar(i)%idcon(1:seed%nstar(i)%ncon))
+             call json%add(o,'lcon',reshape(seed%nstar(i)%lcon(:,1:seed%nstar(i)%ncon),&
+                (/3*seed%nstar(i)%ncon/)))
+             if (allocated(seed%nstar(i)%ordcon)) &
+                call json%add(o,'ordcon',seed%nstar(i)%ordcon(1:seed%nstar(i)%ncon))
+             if (allocated(seed%nstar(i)%aromdir)) &
+                call json%add(o,'aromdir',reshape(seed%nstar(i)%aromdir(:,1:seed%nstar(i)%ncon),&
+                (/3*seed%nstar(i)%ncon/)))
+          end if
+          call json%add(arr,o)
+       end do
+    end if
+
+    ! calculated properties
+    if (seed%energy /= huge(1d0)) call json%add(s,'energy',seed%energy)
+    if (seed%pressure /= huge(1d0)) call json%add(s,'pressure',seed%pressure)
+
+  end subroutine seed_write_json
+
+  !> Read the seed from the JSON object p (written by seed_write_json).
+  !> Keys that are missing take their default values. The file is user
+  !> input: the sizes, indices and ranges that would make the crystal
+  !> overrun its arrays are checked, and errmsg is non-empty if the seed
+  !> cannot be built.
+  module subroutine seed_read_json(seed,json,p,errmsg)
+    use json_module, only: json_value, json_core
+    use param, only: isformat_r_unknown, maxzat0
+    class(crystalseed), intent(inout) :: seed
+    type(json_core), intent(inout) :: json
+    type(json_value), pointer, intent(in) :: p
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(json_value), pointer :: arr, o
+    character(len=:), allocatable :: str
+    character(len=10), allocatable :: atname(:)
+    real*8, allocatable :: rv(:)
+    integer, allocatable :: iv(:)
+    integer :: i, n, nc
+    logical :: found
+
+    ! largest lattice vector of a bonded neighbor (the bond images are
+    ! drawn over a range of cells as wide as it)
+    integer, parameter :: lconmax = 10
+
+    errmsg = ""
+    call seed%end()
+    seed%isused = .true.
+    seed%aa = 0d0
+    seed%bb = 0d0
+
+    ! general
+    call json%get(p,'name',str,found)
+    if (found) seed%name = str
+    call json%get(p,'file',str,found)
+    if (found) seed%file = str
+    call json%get(p,'libname',str,found)
+    if (found) seed%libname = str
+    call json%get(p,'isformat',seed%isformat,found,default=isformat_r_unknown)
+
+    ! cell
+    call json%get(p,'useabr',seed%useabr,found,default=0)
+    call get_real3(p,'aa',seed%aa)
+    call get_real3(p,'bb',seed%bb)
+    call json%get(p,'m_x2c',rv,found)
+    seed%m_x2c = 0d0
+    if (found) then
+       if (size(rv) /= 9) goto 999
+       seed%m_x2c = reshape(rv,(/3,3/))
+    elseif (seed%useabr == 2) then
+       goto 999
+    end if
+
+    ! molecule
+    call json%get(p,'ismolecule',seed%ismolecule,found,default=.false.)
+    call json%get(p,'cubic',seed%cubic,found,default=.false.)
+    call json%get(p,'border',seed%border,found,default=0d0)
+    call json%get(p,'havex0',seed%havex0,found,default=.false.)
+    call get_real3(p,'molx0',seed%molx0)
+
+    ! species
+    call json%get(p,'species',arr,found)
+    seed%nspc = 0
+    if (found) seed%nspc = json%count(arr)
+    allocate(seed%spc(max(seed%nspc,1)))
+    do i = 1, seed%nspc
+       call json%get_child(arr,i,o,found)
+       call json%get(o,'name',str,found)
+       if (found) seed%spc(i)%name = str
+       call json%get(o,'z',seed%spc(i)%z,found,default=0)
+       if (seed%spc(i)%z < 0 .or. seed%spc(i)%z > maxzat0) goto 999
+    end do
+
+    ! atoms
+    ! (the positions are checked against nat before anything is
+    ! allocated with it)
+    call json%get(p,'nat',n,found,default=0)
+    if (n < 0) goto 999
+    seed%nat = n
+    call json%get(p,'neqlist',seed%neqlist,found,default=.false.)
+    if (n > 0) then
+       call json%get(p,'x',rv,found)
+       if (.not.found) goto 999
+       if (size(rv,kind=8) /= 3_8*n) goto 999
+    end if
+    allocate(seed%x(3,n),seed%is(n),seed%atname(n))
+    seed%atname = ""
+    if (n > 0) then
+       seed%x = reshape(rv,(/3,n/))
+       call json%get(p,'is',iv,found)
+       if (.not.found) goto 999
+       if (size(iv) /= n) goto 999
+       seed%is = iv
+       call json%get(p,'atname',atname,found)
+       if (found) then
+          if (size(atname) /= n) goto 999
+          seed%atname = atname
+       end if
+       call json%get(p,'occ',rv,found)
+       if (found) then
+          if (size(rv) /= n) goto 999
+          seed%occ = rv
+       end if
+       call json%get(p,'mix',arr,found)
+       if (found) then
+          if (json%count(arr) /= n) goto 999
+          allocate(seed%mix(n))
+          do i = 1, n
+             call json%get_child(arr,i,o,found)
+             call json%get(o,'is',iv,found)
+             if (.not.found) cycle
+             call json%get(o,'occ',rv,found)
+             if (.not.found) goto 999
+             if (size(rv) /= size(iv)) goto 999
+             if (any(iv < 1 .or. iv > seed%nspc)) goto 999
+             seed%mix(i)%nocc = size(iv)
+             seed%mix(i)%is = iv
+             seed%mix(i)%occ = rv
+          end do
+       end if
+    end if
+
+    ! symmetry
+    call json%get(p,'havesym',seed%havesym,found,default=0)
+    call json%get(p,'findsym',seed%findsym,found,default=-1)
+    call json%get(p,'checkrepeats',seed%checkrepeats,found,default=.false.)
+    if (seed%havesym > 0) then
+       call json%get(p,'neqv',seed%neqv,found,default=0)
+       call json%get(p,'ncv',seed%ncv,found,default=0)
+       if (seed%neqv < 1 .or. seed%ncv < 1) goto 999
+       call json%get(p,'rotm',rv,found)
+       if (.not.found) goto 999
+       if (size(rv) /= 12*seed%neqv) goto 999
+       seed%rotm = reshape(rv,(/3,4,seed%neqv/))
+       call json%get(p,'cen',rv,found)
+       if (.not.found) goto 999
+       if (size(rv) /= 3*seed%ncv) goto 999
+       seed%cen = reshape(rv,(/3,seed%ncv/))
+    end if
+
+    ! bonding
+    call json%get(p,'havebonds',seed%havebonds,found,default=.false.)
+    if (seed%havebonds) then
+       call json%get(p,'nstar',arr,found)
+       if (.not.found) goto 999
+       if (json%count(arr) /= n) goto 999
+       allocate(seed%nstar(n))
+       do i = 1, n
+          call json%get_child(arr,i,o,found)
+          call json%get(o,'isaromatic',seed%nstar(i)%isaromatic,found,default=.false.)
+          call json%get(o,'idcon',iv,found)
+          if (.not.found) iv = (/integer ::/)
+          nc = size(iv)
+          if (any(iv < 1 .or. iv > n)) goto 999
+          seed%nstar(i)%ncon = nc
+          seed%nstar(i)%idcon = iv
+          allocate(seed%nstar(i)%lcon(3,nc))
+          if (nc > 0) then
+             call json%get(o,'lcon',iv,found)
+             if (.not.found) goto 999
+             if (size(iv) /= 3*nc) goto 999
+             if (any(abs(iv) > lconmax)) goto 999
+             seed%nstar(i)%lcon = reshape(iv,(/3,nc/))
+          end if
+          ! the bond orders and aromatic directions; single bonds and no
+          ! direction if missing
+          call json%get(o,'ordcon',iv,found)
+          if (found) then
+             if (size(iv) /= nc) goto 999
+             seed%nstar(i)%ordcon = iv
+          else
+             allocate(seed%nstar(i)%ordcon(nc))
+             seed%nstar(i)%ordcon = 1
+          end if
+          call json%get(o,'aromdir',rv,found)
+          if (found) then
+             if (size(rv) /= 3*nc) goto 999
+             seed%nstar(i)%aromdir = reshape(rv,(/3,nc/))
+          else
+             allocate(seed%nstar(i)%aromdir(3,nc))
+             seed%nstar(i)%aromdir = 0d0
+          end if
+       end do
+    end if
+
+    ! calculated properties
+    call json%get(p,'energy',seed%energy,found,default=huge(1d0))
+    call json%get(p,'pressure',seed%pressure,found,default=huge(1d0))
+
+    ! the consistency of the whole
+    call seed%check(errmsg)
+    if (len_trim(errmsg) > 0) then
+       errmsg = "inconsistent structure: " // errmsg
+       call seed%end()
+    end if
+    return
+
+999 continue
+    ! (a value of the wrong type reads as a missing one: the getters
+    ! clear the exception when found is passed)
+    errmsg = "missing or malformed structure data"
+    call seed%end()
+
+  contains
+    ! a vector of three reals at key, unchanged if missing or malformed
+    subroutine get_real3(p,key,x)
+      type(json_value), pointer, intent(in) :: p
+      character*(*), intent(in) :: key
+      real*8, intent(inout) :: x(3)
+
+      real*8, allocatable :: rv(:)
+      logical :: found
+
+      call json%get(p,key,rv,found)
+      if (.not.found) return
+      if (size(rv) == 3) x = rv
+
+    end subroutine get_real3
+  end subroutine seed_read_json
 
   !> Parse a crystal environment
   module subroutine parse_crystal_env(seed,lu,oksyn,fromlib)

@@ -79,6 +79,9 @@ contains
     f%typnuc = -3
     f%name = ""
     f%file = ""
+    if (allocated(f%loadcmd)) deallocate(f%loadcmd)
+    if (allocated(f%loadfiles)) deallocate(f%loadfiles)
+    if (allocated(f%optcmd)) deallocate(f%optcmd)
     if (allocated(f%elk)) deallocate(f%elk)
     if (allocated(f%wien)) deallocate(f%wien)
     if (allocated(f%pi)) deallocate(f%pi)
@@ -2192,6 +2195,7 @@ contains
     logical :: ok, hasgp
 
     real*8, parameter :: eps = 1d-6
+    integer, parameter :: maxgpn = 10000000 ! largest number of points in a bond path
 
     errmsg = ""
     found = .false.
@@ -2233,6 +2237,8 @@ contains
        read (lu,iostat=ios) (cp(i),i=1,ncp)
        if (ios == 0) read (lu,iostat=ios) (cpcel(i),i=1,ncpcel)
        ok = (ios == 0)
+       ! each CP of the complete list is one of the non-equivalent CPs
+       if (ok) ok = all(cpcel(1:ncpcel)%idx >= 1 .and. cpcel(1:ncpcel)%idx <= ncp)
     end if
 
     ! read the bond paths
@@ -2245,7 +2251,7 @@ contains
           paths: do i = 1, ncp
              do j = 1, 2
                 read (lu,iostat=ios) n
-                ok = (ios == 0 .and. n >= 0)
+                ok = (ios == 0 .and. n >= 0 .and. n <= maxgpn)
                 if (.not.ok) exit paths
                 cpgp(j,i)%n = n
                 allocate(cpgp(j,i)%x(3,n))

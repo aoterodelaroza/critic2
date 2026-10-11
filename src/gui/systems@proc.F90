@@ -36,6 +36,7 @@ submodule (systems) proc
   ! subroutine capture_objects(sysc)
   ! subroutine undo_step(sysc,idir,errmsg)
   ! subroutine objstate_move(a,b)
+  ! function is_scene_file(file)
 
   ! degenerate-distance threshold shared by the geometry helpers (bohr)
   real*8, parameter :: eps_dzero = 1d-10
@@ -372,10 +373,12 @@ contains
   !> true, reorder to make the last system be first and collapse the
   !> other seeds in the tree view. If iafield, load a field from that
   !> seed. If iavib, load vibrational data from that seed. If forceidx
-  !> is present, force the system to be in the provided index.
+  !> is present, force the system to be in the provided index. If
+  !> scenefile is present, the systems take its settings (one seed,
+  !> from scene_file_load).
   module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist,&
-     noselect,imaster)
-    use utils, only: get_current_working_dir
+     noselect,imaster,scenefile)
+    use utils, only: file_name_abs
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
     use windows, only: regenerate_window_pointers, win, iwin_tree
@@ -385,7 +388,7 @@ contains
     use global, only: symprec
     use tools_io, only: uout
     use types, only: realloc
-    use param, only: dirsep, atmcov0
+    use param, only: atmcov0
     integer, intent(in) :: nseed
     type(crystalseed), allocatable, intent(in) :: seed(:)
     logical, intent(in), optional :: collapse
@@ -394,13 +397,14 @@ contains
     integer, allocatable, intent(out), optional :: idlist(:)
     logical, intent(in), optional :: noselect
     integer, intent(in), optional :: imaster
+    type(scene_pending), intent(in), optional :: scenefile
 
     logical :: noselect_
     integer :: i, j, nid, idum
     integer :: iafield_, iavib_, forceidx_
     integer :: iseed, iseed_, idx
-    character(len=:), allocatable :: errmsg, str
-    logical :: collapse_, isabspath
+    character(len=:), allocatable :: errmsg
+    logical :: collapse_
     integer, allocatable :: id(:)
 
     if (nseed == 0) then
@@ -489,23 +493,14 @@ contains
        sysc(idx)%ncpanc = 0
        if (allocated(sysc(idx)%cpanc)) deallocate(sysc(idx)%cpanc)
        if (allocated(sysc(idx)%atsig)) deallocate(sysc(idx)%atsig)
+       ! scene file settings for a previous system in this slot
+       if (allocated(sysc(idx)%scenefile)) deallocate(sysc(idx)%scenefile)
+       if (allocated(sysc(idx)%scenesrc)) deallocate(sysc(idx)%scenesrc)
 
        ! write down the full name
-       str = trim(adjustl(sysc(idx)%seed%name))
-       isabspath = (str(1:1) == dirsep .or. str(1:1) == "/")
-#ifdef _WIN32
-       if (.not.isabspath .and. len(str) >= 2) then
-          isabspath = (str(2:2) == ":")
-       end if
-#endif
-       if (isabspath) then
-          sysc(idx)%fullname = str
-       else
-          sysc(idx)%fullname = get_current_working_dir() // dirsep // str
-       end if
+       sysc(idx)%fullname = file_name_abs(sysc(idx)%seed%name)
 
-       ! initialization status
-       sysc(idx)%status = sys_loaded_not_init
+       ! identity
        sysc(idx)%uid = new_uid()
        if (present(imaster)) then
           ! every system of the batch hangs from the group header, which
@@ -546,11 +541,31 @@ contains
        ! set the iafield
        if (iseed == iavib_) sysc(idx)%has_vib = .true.
 
-       ! set the covalent radii
+       ! the bonding settings: the defaults, not those of a previous
+       ! system in this slot
        sysc(idx)%atmcov = atmcov0
+       sysc(idx)%bondfactor = bondfactor_def
+       sysc(idx)%bonddelta = bonddelta_def
+       if (allocated(sysc(idx)%bondallowed)) deallocate(sysc(idx)%bondallowed)
 
        ! set the symmetry epsilon
        sysc(idx)%symeps = symprec
+
+       ! the settings of a scene file
+       if (present(scenefile)) then
+          sysc(idx)%renamed = scenefile%renamed
+          if (scenefile%symeps > 0d0) sysc(idx)%symeps = scenefile%symeps
+          if (scenefile%bondfactor > 0d0) sysc(idx)%bondfactor = scenefile%bondfactor
+          if (scenefile%bonddelta >= 0d0) sysc(idx)%bonddelta = scenefile%bonddelta
+          if (allocated(scenefile%atmcov)) sysc(idx)%atmcov = scenefile%atmcov
+          if (allocated(scenefile%bondallowed)) sysc(idx)%bondallowed = scenefile%bondallowed
+          sysc(idx)%scenefile = scenefile
+          if (allocated(scenefile%file)) sysc(idx)%scenesrc = scenefile%file
+       end if
+
+       ! initialization status: the system is complete, and the
+       ! initialization thread may take it from here
+       sysc(idx)%status = sys_loaded_not_init
 
        ! redo everything
        call sysc(idx)%post_event(lastchange_geometry)
@@ -597,8 +612,15 @@ contains
     logical :: collapse
     character(len=:), allocatable :: errmsg
 
-    ! read all seeds from the file
+    ! a scene file
     errmsg = ""
+    if (is_scene_file(name)) then
+       call scene_file_load(name,errmsg)
+       if (len_trim(errmsg) > 0) goto 999
+       return
+    end if
+
+    ! read all seeds from the file
     nseed = 0
     allocate(seed(1))
     call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,&
@@ -718,9 +740,12 @@ contains
 
   end subroutine remove_systems
 
-  !> Re-read the system from file name of system idx
+  !> Re-read the system from file name of system idx (a system read
+  !> from a scene file reads the scene again; an in-memory system is
+  !> rebuilt from its initial seed)
   module subroutine reread_system_from_file(idx)
     use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
+    use tools_io, only: uout
     use param, only: isformat_r_from_library, isformat_r_derived
     integer, intent(in) :: idx
 
@@ -729,8 +754,9 @@ contains
     integer :: isformat, mol, iafield, iavib, nseed, icol, idseed
     integer*8 :: uid
     type(crystalseed), allocatable :: seed(:)
-    logical :: collapse, ihid, renamed, derived
-    character(len=:), allocatable :: fullname
+    type(scene_pending) :: pend
+    logical :: collapse, ihid, renamed, derived, scene
+    character(len=:), allocatable :: fullname, name, scenesrc
 
     ! the seed is available
     if (.not.ok_system(idx,sys_loaded_not_init)) return
@@ -746,15 +772,32 @@ contains
     ihid = sysc(idx)%hidden
     renamed = sysc(idx)%renamed
     fullname = sysc(idx)%fullname
+    name = sysc(idx)%seed%name
     idseed = sysc(idx)%idseed
 
     ! derived (in-memory) systems are not backed by a file: keep a copy of
     ! the initial seed and rebuild the system from it
     derived = (isformat == isformat_r_derived)
+    scene = allocated(sysc(idx)%scenesrc)
     iafield = 0
     iavib = 0
     allocate(seed(1))
-    if (derived) then
+    if (scene) then
+       ! a system read from a scene file: read the scene again, with
+       ! its fields and objects (if this fails, rebuild it from the
+       ! initial seed, like other in-memory systems)
+       call scene_file_read(sysc(idx)%scenesrc,seed,pend,errmsg)
+       if (len_trim(errmsg) > 0) then
+          write (uout,'("WARNING : Could not read the scene again from: ",A)') sysc(idx)%scenesrc
+          write (uout,'("WARNING : ",A)') trim(errmsg)
+          write (uout,'("WARNING : Restoring the structure only."/)')
+          scene = .false.
+          scenesrc = sysc(idx)%scenesrc
+          if (allocated(seed)) deallocate(seed)
+          allocate(seed(1))
+          seed(1) = sysc(idx)%seed
+       end if
+    elseif (derived) then
        seed(1) = sysc(idx)%seed
     else
        ! make sure the file exists
@@ -768,8 +811,9 @@ contains
        end if
     end if
 
-    ! re-read the seeds from file (derived systems already have the seed),
-    ! before the system goes: if this fails, it stays as it was
+    ! re-read the seeds from file (derived and scene systems already
+    ! have the seed), before the system goes: if this fails, it stays
+    ! as it was
     if (.not.derived) then
        errmsg = ""
        nseed = 0
@@ -801,12 +845,18 @@ contains
     sysc(idx)%status = sys_empty
 
     ! add the system again
-    call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx)
+    if (scene) then
+       call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx,scenefile=pend)
+    else
+       call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx)
+    end if
     sysc(idx)%uid = uid
     sysc(idx)%collapse = icol
     sysc(idx)%hidden = ihid
     sysc(idx)%renamed = renamed
     sysc(idx)%fullname = fullname
+    if (renamed) sysc(idx)%seed%name = name
+    if (allocated(scenesrc)) sysc(idx)%scenesrc = scenesrc
     sysc(idx)%idseed = idseed
 
     ! initialize
@@ -1021,9 +1071,7 @@ contains
     integer :: idx(4)
 
     integer :: k, typ
-    real*8 :: x(3), d
-    character(len=mlen) :: key
-    type(cp_anchor_entry), allocatable :: aux(:)
+    real*8 :: x(3)
 
     idx = 0
     if (.not.ok_system(isys,sys_ready)) return
@@ -1031,6 +1079,33 @@ contains
     if (icel < 1 .or. icel > sys(isys)%f(ifield)%ncpcel) return
     x = sys(isys)%f(ifield)%cpcel(icel)%x
     typ = sys(isys)%f(ifield)%cp(sys(isys)%f(ifield)%cpcel(icel)%idx)%typ
+    k = cp_anchor_add(isys,ifield,typ,x,icel)
+    if (k == 0) return
+    idx(1) = -k
+    idx(2:4) = lvec - nint(sysc(isys)%cpanc(k)%x - x)
+
+  end function cp_anchor_make
+
+  !> The entry of sysc%cpanc for the critical point of type typ at
+  !> fractional position x of field ifield of system isys: the entry
+  !> for the same CP if there is one (compared by content), else a new
+  !> one. If icel (the CP's index in the complete CP list) is given, a
+  !> new entry caches it; otherwise the CP is looked for when the
+  !> anchor is first resolved, and need not be in the list yet.
+  !> Returns k = 0 if the system or the field do not exist.
+  module function cp_anchor_add(isys,ifield,typ,x,icel) result(k)
+    integer, intent(in) :: isys, ifield, typ
+    real*8, intent(in) :: x(3)
+    integer, intent(in), optional :: icel
+    integer :: k
+
+    real*8 :: d
+    character(len=mlen) :: key
+    type(cp_anchor_entry), allocatable :: aux(:)
+
+    k = 0
+    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
     key = field_key(isys,ifield)
 
     ! an entry for the same CP, compared by content (resolving every
@@ -1039,8 +1114,6 @@ contains
        associate(e => sysc(isys)%cpanc(k))
          if (e%typ /= typ .or. e%fkey /= key) cycle
          if (.not.sys(isys)%c%are_lclose(e%x,x,eps_cpanchor,d)) cycle
-         idx(1) = -k
-         idx(2:4) = lvec - nint(e%x - x)
          return
        end associate
     end do
@@ -1054,17 +1127,13 @@ contains
     end if
     sysc(isys)%ncpanc = sysc(isys)%ncpanc + 1
     k = sysc(isys)%ncpanc
-    sysc(isys)%cpanc(k)%ifield = ifield
-    sysc(isys)%cpanc(k)%fkey = key
-    sysc(isys)%cpanc(k)%typ = typ
-    sysc(isys)%cpanc(k)%x = x
-    sysc(isys)%cpanc(k)%icel = icel
-    sysc(isys)%cpanc(k)%loff = 0
-    sysc(isys)%cpanc(k)%keytime = sysc(isys)%timelastchange_cplist
-    idx(1) = -k
-    idx(2:4) = lvec
+    sysc(isys)%cpanc(k) = cp_anchor_entry(ifield=ifield,fkey=key,typ=typ,x=x)
+    if (present(icel)) then
+       sysc(isys)%cpanc(k)%icel = icel
+       sysc(isys)%cpanc(k)%keytime = sysc(isys)%timelastchange_cplist
+    end if
 
-  end function cp_anchor_make
+  end function cp_anchor_add
 
   !> Find the critical point named by the first entry i1 (< 0) of a
   !> measurement anchor of system isys: its field (ifield), its index in
@@ -1210,7 +1279,8 @@ contains
     integer, allocatable :: zpsp(:)
     type(cp_type), allocatable :: cp(:), cpcel(:)
     type(cp_gpath), allocatable :: cpgp(:,:)
-    character(len=:), allocatable :: name, file, lstr
+    character(len=:), allocatable :: name, file, lstr, loadcmd, optcmd
+    character(len=mlen), allocatable :: loadfiles(:)
 
     errmsg = ""
     if (.not.ok_system(isys,sys_init)) then
@@ -1254,6 +1324,11 @@ contains
        return
     end if
 
+    ! how the field was made, to make it again (scene files)
+    call move_alloc(sys(isys)%f(ifield)%loadcmd,loadcmd)
+    call move_alloc(sys(isys)%f(ifield)%loadfiles,loadfiles)
+    call move_alloc(sys(isys)%f(ifield)%optcmd,optcmd)
+
     ! the virtual orbitals do not change the density, so the critical
     ! points (searched or read from a checkpoint) are kept
     ncp = sys(isys)%f(ifield)%ncp
@@ -1273,6 +1348,12 @@ contains
     sys(isys)%f(ifield)%exact = exact
     sys(isys)%f(ifield)%typnuc = typnuc
     if (allocated(zpsp)) sys(isys)%f(ifield)%zpsp = zpsp
+    ! the field is made again as before, now with the virtual orbitals
+    if (allocated(loadcmd)) then
+       sys(isys)%f(ifield)%loadcmd = loadcmd // " readvirtual"
+       call move_alloc(loadfiles,sys(isys)%f(ifield)%loadfiles)
+    end if
+    call move_alloc(optcmd,sys(isys)%f(ifield)%optcmd)
     call move_alloc(cp,sys(isys)%f(ifield)%cp)
     call move_alloc(cpcel,sys(isys)%f(ifield)%cpcel)
     call move_alloc(cpgp,sys(isys)%f(ifield)%cpgp)
@@ -4573,6 +4654,23 @@ contains
 
   !xx! private procedures
 
+  !> True if the file name has the extension of a scene file (.scene,
+  !> in any case).
+  function is_scene_file(file)
+    use tools_io, only: lower
+    character*(*), intent(in) :: file
+    logical :: is_scene_file
+
+    character(len=*), parameter :: ext = ".scene"
+    integer :: n
+
+    n = len_trim(file)
+    is_scene_file = .false.
+    if (n <= len(ext)) return
+    is_scene_file = (lower(file(n-len(ext)+1:n)) == ext)
+
+  end function is_scene_file
+
   !> Hash of the atomic numbers of the first n cell atoms of system
   !> isys, in order (0 <= hash < 2**31). Moving atoms keeps it;
   !> deleting or reordering any of the first n atoms changes it, and
@@ -4677,6 +4775,9 @@ contains
                    end if
                 end if
 
+                ! the fields of the scene file the system came from
+                call scene_file_load_fields(i,ti)
+
                 ! load vibration data
                 if (sysc(i)%has_vib) then
                    if (sysc(i)%seed%isformat == isformat_r_crystal) then
@@ -4703,6 +4804,9 @@ contains
 
                 ! post the first geometry change
                 call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
+
+                ! the settings of the scene file the system came from
+                call scene_file_apply(i)
 
                 ! this system has been initialized
                 sysc(i)%status = sys_init

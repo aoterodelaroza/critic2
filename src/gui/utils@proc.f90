@@ -2721,6 +2721,39 @@ contains
 
   end function file_name_root
 
+  !> The directory part of a file path, with its trailing separator
+  !> (empty if the path has none). Either directory separator is
+  !> accepted, as in file_name_base.
+  module function file_name_dir(file) result(dir)
+    use param, only: dirsep
+    character(len=*), intent(in) :: file
+    character(len=:), allocatable :: dir
+
+    integer :: idx
+
+    idx = max(index(file,dirsep,back=.true.),index(file,"/",back=.true.))
+    dir = file(1:idx)
+
+  end function file_name_dir
+
+  !> The absolute path of a file: the path itself if it is absolute
+  !> (or has a drive letter, on Windows), or the path relative to the
+  !> current working directory.
+  module function file_name_abs(file) result(abs)
+    use param, only: dirsep
+    character(len=*), intent(in) :: file
+    character(len=:), allocatable :: abs
+
+    logical :: isabs
+
+    abs = trim(adjustl(file))
+    isabs = .false.
+    if (len(abs) >= 1) isabs = (abs(1:1) == dirsep .or. abs(1:1) == "/")
+    if (.not.isabs .and. dirsep == "\" .and. len(abs) >= 2) isabs = (abs(2:2) == ":")
+    if (.not.isabs) abs = get_current_working_dir() // dirsep // abs
+
+  end function file_name_abs
+
   !> A real number x in fixed notation with decimal decimals, without
   !> the trailing zeros (and without the point if nothing follows it).
   module function string_nozeros(x,decimal) result(str)

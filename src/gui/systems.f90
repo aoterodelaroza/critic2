@@ -18,7 +18,8 @@
 ! This module handles the systems and system configurations.
 module systems
   use iso_c_binding
-  use scenes, only: scene, scene_objstate
+  use scenes, only: scene, scene_objstate, scene_camera
+  use display, only: scene_display
   use dynamics, only: mdrun
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
@@ -99,6 +100,45 @@ module systems
      real*8 :: keytime = -1d0
   end type cp_anchor_entry
 
+  !> A field of a scene file, waiting to be made again in the new
+  !> system (scene_pending).
+  type scene_field
+     integer :: id = -1 ! slot of the field in the saved system, also taken in the new one
+     character(len=:), allocatable :: name ! name of the field
+     character(len=:), allocatable :: load ! LOAD command (none for field 0), with the files it reads now
+     character(len=:), allocatable :: options ! options set after the field was made
+     character(len=:), allocatable :: warn ! files that changed since the scene was saved
+     character(len=:), allocatable :: cpfile ! checkpoint with its critical points (none = only the nuclei)
+  end type scene_field
+
+  !> What a scene file sets in the system it creates. The system
+  !> settings are set when the system is added (add_systems_from_seeds,
+  !> before the initialization thread can see it); the rest needs the
+  !> built system, and is set in its scene by scene_file_apply, run by
+  !> the initialization thread. Each part is in the file if allocated
+  !> (the reals: if not negative).
+  type scene_pending
+     character(len=:), allocatable :: file ! the scene file (absolute path)
+     ! system settings
+     logical :: renamed = .false. ! the system was renamed (keeps the name of the seed)
+     real*8 :: symeps = -1d0 ! symmetry tolerance
+     real*8 :: bondfactor = -1d0 ! bond factor
+     real*8 :: bonddelta = -1d0 ! bond delta
+     real*8, allocatable :: atmcov(:) ! covalent radii (0:maxzat0)
+     logical, allocatable :: bondallowed(:,:) ! per-element-pair bond mask
+     ! fields, in the order they were made, and the reference field
+     type(scene_field), allocatable :: fields(:)
+     integer :: iref = -1
+     ! the objects: the "objects" array of the file, as JSON text (read
+     ! when the system is built), and the kinds added to the scene
+     character(len=:), allocatable :: objects
+     logical, allocatable :: autoadded(:)
+     ! scene settings
+     type(scene_display), allocatable :: disp ! the Display (masks not stamped)
+     real(c_float), allocatable :: bgcolor(:) ! background color
+     type(scene_camera), allocatable :: cam ! the camera
+  end type scene_pending
+
   ! system configuration type
   type :: sysconf
      ! system ID and properties
@@ -121,6 +161,8 @@ module systems
      logical :: renamed = .false. ! true if the system has been renamed
      ! scene
      type(scene) :: sc ! scene for the system in the main view
+     type(scene_pending), allocatable :: scenefile ! scene file settings waiting for the system to be built
+     character(len=:), allocatable :: scenesrc ! the scene file the system was read from (absolute path)
      ! interactive molecular dynamics (one run per system, driven each frame)
      logical :: md_run = .false. ! whether the MD/relaxation loop advances this system
      integer :: md_backend = -1 ! requested MD energy backend (-1 = resolve with ff_backend_default on first use)
@@ -319,10 +361,15 @@ module systems
   public :: regenerate_system_pointers
   public :: ok_system
   public :: cp_anchor_make
+  public :: cp_anchor_add
   public :: cp_anchor_resolve
   public :: anchor_xfrac
   public :: anchor_stamp
   public :: reload_field_with_virtuals
+  public :: scene_file_save
+  public :: scene_file_load
+  public :: scene_file_apply
+  public :: scene_file_load_fields
   public :: paste_clipboard
   public :: clipboard_clear
 
@@ -390,7 +437,7 @@ module systems
        integer, intent(out) :: idx
      end subroutine add_group_master
      module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist,&
-        noselect,imaster)
+        noselect,imaster,scenefile)
        integer, intent(in) :: nseed
        type(crystalseed), allocatable, intent(in) :: seed(:)
        logical, intent(in), optional :: collapse
@@ -399,6 +446,7 @@ module systems
        integer, allocatable, intent(out), optional :: idlist(:)
        logical, intent(in), optional :: noselect
        integer, intent(in), optional :: imaster
+       type(scene_pending), intent(in), optional :: scenefile
      end subroutine add_systems_from_seeds
      module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic,&
         forceidx)
@@ -435,6 +483,12 @@ module systems
        integer, intent(in) :: lvec(3)
        integer :: idx(4)
      end function cp_anchor_make
+     module function cp_anchor_add(isys,ifield,typ,x,icel) result(k)
+       integer, intent(in) :: isys, ifield, typ
+       real*8, intent(in) :: x(3)
+       integer, intent(in), optional :: icel
+       integer :: k
+     end function cp_anchor_add
      module function cp_anchor_resolve(isys,i1,ifield,icel,loff) result(ok)
        integer, intent(in) :: isys, i1
        integer, intent(out) :: ifield, icel, loff(3)
@@ -457,6 +511,28 @@ module systems
        integer*8, intent(in), optional :: uid
        logical :: ok_system
      end function ok_system
+     module subroutine scene_file_save(isys,file,errmsg)
+       integer, intent(in) :: isys
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine scene_file_save
+     module subroutine scene_file_load(file,errmsg)
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine scene_file_load
+     module subroutine scene_file_read(file,seed,pend,errmsg)
+       character*(*), intent(in) :: file
+       type(crystalseed), allocatable, intent(inout) :: seed(:)
+       type(scene_pending), intent(out) :: pend
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine scene_file_read
+     module subroutine scene_file_load_fields(isys,ti)
+       integer, intent(in) :: isys
+       type(thread_info), intent(in), optional :: ti
+     end subroutine scene_file_load_fields
+     module subroutine scene_file_apply(isys)
+       integer, intent(in) :: isys
+     end subroutine scene_file_apply
      module subroutine reload_field_with_virtuals(isys,ifield,errmsg)
        integer, intent(in) :: isys
        integer, intent(in) :: ifield
