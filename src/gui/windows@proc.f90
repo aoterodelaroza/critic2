@@ -1057,6 +1057,7 @@ contains
   !> End a window and deallocate the data.
   module subroutine window_end(w)
     use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry, remove_system
+    use gui_main, only: settings_save
     use interfaces_opengl3
     use tools_io, only: ferror, warning
     class(window), intent(inout), target :: w
@@ -1079,6 +1080,9 @@ contains
        elseif (w%type == wintype_cp) then
           ! the CP under the mouse in its table is no longer highlighted
           call w%clear_cp_hover()
+       elseif (w%type == wintype_preferences) then
+          ! save the preferences, however the window was closed
+          call settings_save()
        elseif (w%type == wintype_vibrations) then
           ! reset the animation status of the parent
           isysd = w%anchor_view()
@@ -1729,6 +1733,9 @@ contains
           ! wide enough for the tool palette on a single row
           call init_window("Builder",63,30)
        end if
+       ! only the permanent windows go in the layout file: the names of
+       ! the others carry their stack slot, and would pile up entries
+       if (.not.w%permanent) w%flags = ior(w%flags,ImGuiWindowFlags_NoSavedSettings)
     end if
 
     ! Window pre-processing: some windows (scf plot, edit rep)

@@ -67,6 +67,8 @@ module gui_main
   logical, public :: tree_select_updates_inpcon = .true. ! selecting in tree chooses system in input console
   logical, public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
   integer, public :: lockbehavior = 1 ! 0=no-lock, 1=only SCF, 2=all systems
+  logical, public :: persist_settings = .true. ! read/write the preferences and window layout files (-d turns it off)
+  integer, parameter :: nlayout = 4 ! permanent windows whose open state is kept in the layout file
 
   ! GUI colors, defaults
   real(c_float), parameter, public :: ColorTableCellBg_def(4,0:8) = reshape((/& ! tree table name cell
@@ -178,6 +180,10 @@ module gui_main
   public :: set_default_interface_settings
   public :: set_default_color_settings
   public :: set_default_reader_settings
+  public :: settings_load
+  public :: settings_save
+  public :: settings_reset
+  public :: apply_color_settings
   public :: show_tools_menu
   public :: begin_cancellable
   public :: end_cancellable
@@ -202,6 +208,21 @@ module gui_main
      end subroutine set_default_color_settings
      module subroutine set_default_reader_settings()
      end subroutine set_default_reader_settings
+     module subroutine settings_load()
+     end subroutine settings_load
+     module subroutine settings_save()
+     end subroutine settings_save
+     module subroutine settings_reset()
+     end subroutine settings_reset
+     module subroutine apply_color_settings()
+     end subroutine apply_color_settings
+     module function layout_windows() result(iw)
+       integer :: iw(nlayout)
+     end function layout_windows
+     module subroutine layout_load()
+     end subroutine layout_load
+     module subroutine layout_save()
+     end subroutine layout_save
      module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
        integer, intent(in) :: isys
        integer, intent(in) :: idparent

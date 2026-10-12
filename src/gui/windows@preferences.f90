@@ -23,19 +23,18 @@ contains
 
   !> Draw the preferences window
   module subroutine draw_preferences(w)
-    use windows, only: nwin, win
     use tools_io, only: nameguess, string
     use gui_main, only: g, tooltip_enabled, toolbar_labels, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_interface_settings, set_default_color_settings,&
-       set_default_reader_settings,&
+       set_default_reader_settings, settings_reset, apply_color_settings,&
        ColorTableCellBg, ColorFieldSelected, ColorTableHighlightRow,&
        ColorTableSelectedBorder,&
        ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
        ColorElement, ColorCP, ColorGpath, uiscale
     use representations, only: iso_defaultlevel, iso_level_optstr, cps_name
-    use systems, only: nsys, sysc, always_read_virtuals
+    use systems, only: always_read_virtuals
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_table_headers_row, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth,&
@@ -49,7 +48,7 @@ contains
     logical(c_bool) :: ldum, ch
     logical :: doquit, anyrow, firstshown
     type(ImVec2) :: sz, szero
-    integer :: i, newkey, igroup, kmod, nrow, iwin, isys
+    integer :: i, newkey, igroup, kmod, nrow
     integer(c_int) :: flags
     real(c_float) :: width
 
@@ -346,7 +345,7 @@ contains
                 end if
                 if (igTableSetColumnIndex(kmod+1)) then
                    ch = iw_coloredit(nameguess(i,.true.),rgb=ColorElement(:,i))
-                   if (ch .and. w%color_preferences_reset_reps) call apply_colors()
+                   if (ch .and. w%color_preferences_reset_reps) call apply_color_settings()
                 end if
              end do
 
@@ -358,14 +357,14 @@ contains
           call igSeparator()
           do i = 0, 3
              ch = iw_coloredit(trim(cps_name(i)) // "##cpcolor" // string(i),rgb=ColorCP(:,i))
-             if (ch .and. w%color_preferences_reset_reps) call apply_colors()
+             if (ch .and. w%color_preferences_reset_reps) call apply_color_settings()
           end do
 
           ! gradient paths
           call iw_text("Gradient Paths",highlight=.true.)
           call igSeparator()
           ch = iw_coloredit("Bond paths##gpathcolor",rgb=ColorGpath)
-          if (ch .and. w%color_preferences_reset_reps) call apply_colors()
+          if (ch .and. w%color_preferences_reset_reps) call apply_color_settings()
 
        elseif (catid == 3) then
           !! readers
@@ -388,15 +387,19 @@ contains
     sz%x = 0._c_float
     sz%y = 0._c_float
     if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
-       call igSetCursorPosX(iw_calcwidth(10,2,from_end=.true.) - g%Style%ScrollbarSize)
+       call igSetCursorPosX(iw_calcwidth(27,3,from_end=.true.) - g%Style%ScrollbarSize)
+       ! reset every category, as if there were no settings file
+       if (iw_button("Reset to Defaults",danger=.true.)) call settings_reset()
+       call iw_tooltip("Reset all preferences, in every category, to their default values",ttshown)
        ! reset only the category on display, so tweaking one does not wipe the others
-       if (iw_button("Reset",danger=.true.)) then
+       if (iw_button("Reset",danger=.true.,sameline=.true.)) then
           if (catid == 0) then
              call set_default_interface_settings()
           elseif (catid == 1) then
              call set_default_keybindings()
           elseif (catid == 2) then
              call set_default_color_settings()
+             call apply_color_settings()
           elseif (catid == 3) then
              call set_default_reader_settings()
           end if
@@ -411,27 +414,13 @@ contains
     ! exit if focused and received the close keybinding
     if (iw_close_event(w%focused())) doquit = .true.
 
-    ! quit the window
+    ! quit the window (window_end saves the preferences)
     if (doquit) then
        call end_state()
        call w%end()
     end if
 
   contains
-    !> Apply the element and critical point colors to all atoms and
-    !> critical points in the open systems and alternate views.
-    subroutine apply_colors()
-      do isys = 1, nsys
-         call sysc(isys)%sc%reset_atom_colors()
-      end do
-      do iwin = 1, nwin
-         if (win(iwin)%type == wintype_view.and..not.win(iwin)%ismain.and.&
-            associated(win(iwin)%sc)) then
-            call win(iwin)%sc%reset_atom_colors()
-         end if
-      end do
-    end subroutine apply_colors
-
     ! initialize the state for this window
     subroutine init_state()
        if (c_associated(cfilter)) call ImGuiTextFilter_Clear(cfilter)

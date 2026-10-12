@@ -52,6 +52,9 @@ submodule (gui_main) proc
   ! the dockspace ID
   integer(c_int) :: iddock = 0
 
+  ! rebuild the default dock layout in the next frame (Windows > Reset Layout)
+  logical :: reset_layout = .false.
+
   ! how an error reported by the glfw error callback is handled: fatal (the
   ! default), a warning, or silently ignored.
   integer, parameter :: glfwerr_fatal = 0
@@ -63,6 +66,7 @@ submodule (gui_main) proc
   ! subroutine render_draw_data()
   ! subroutine cancel_hook()
   ! subroutine load_dropped_files()
+  ! function has_saved_settings(iw)
   ! subroutine process_arguments()
   ! subroutine process_cancel_bind()
   ! subroutine process_close_bind()
@@ -290,7 +294,10 @@ contains
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DockingEnable) ! activate docking
     io%configflags = ior(io%configflags,ImGuiConfigFlags_DpiEnableScaleFonts)
     io%configflags = ior(io%configflags,ImGuiConfigFlags_NavEnableKeyboard)
-    io%inifilename = c_null_ptr ! do not save the ini file, for now
+    ! ImGui does not read or write the layout on its own: it is read
+    ! once below (layout_load) and written only from the Windows menu
+    ! (layout_save)
+    io%inifilename = c_null_ptr
 
     ! default font, with Greek letters and letter-like symbols
     range = (/32_c_short,   255_c_short,& ! default (basic latin + supplement)
@@ -338,8 +345,9 @@ contains
     call process_arguments()
     call system_shorten_names()
 
-    ! set default UI settings
+    ! set default UI settings, then the user's
     call set_default_ui_settings()
+    call settings_load()
 
     ! create buffers for objects and compile and link shaders
     call shapes_init()
@@ -353,6 +361,9 @@ contains
     iwin_console_input = stack_create_window(wintype_console_input,.true.,permanent=.true.)
     iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
+
+    ! the window layout saved by the user, if any
+    call layout_load()
 
 
     ! start initializing the systems from the command line
@@ -448,9 +459,21 @@ contains
              call win(i)%sc%reap_transient_representations()
        end do
 
-       ! first pass: use the dock builder routines to place the windows
+       ! first pass: use the dock builder routines to place the
+       ! windows, unless the layout file had them; then start on the
+       ! tree tab and the view, as in the default layout. Also when the
+       ! user resets the layout.
        ! https://github.com/ocornut/imgui/issues/2109
        if (firstpass) then
+          reset_layout = .not.(has_saved_settings(iwin_tree) .or. has_saved_settings(iwin_view))
+          if (.not.reset_layout) then
+             call igSetWindowFocus_Str(c_loc(win(iwin_tree)%name))
+             call igSetWindowFocus_Str(c_loc(win(iwin_view)%name))
+          end if
+       end if
+       if (reset_layout) then
+          reset_layout = .false.
+          call igDockBuilderRemoveNodeChildNodes(iddock)
           ! initial tree width: enough for the icon/ID columns plus a
           ! typical file name (~30 chars), in font-size units so it tracks
           ! the font scale; capped so it is never a sliver or more than a
@@ -559,6 +582,10 @@ contains
 
        firstpass = .false.
     end do
+
+    ! save the user preferences (the layout is saved only from the
+    ! Windows menu)
+    call settings_save()
 
     ! cleanup windows
     do i = 1, nwin
@@ -926,6 +953,17 @@ contains
   end subroutine show_tools_menu
 
   !xx! private procedures
+
+  ! Whether the layout file had the settings of window iw.
+  function has_saved_settings(iw)
+    use interfaces_cimgui, only: igFindWindowSettings, igImHashStr
+    use windows, only: win
+    integer, intent(in) :: iw
+    logical :: has_saved_settings
+
+    has_saved_settings = c_associated(igFindWindowSettings(igImHashStr(c_loc(win(iw)%name),0_c_size_t,0_c_int)))
+
+  end function has_saved_settings
 
   ! Process the command-line arguments. Skip the options and load the files.
   subroutine process_arguments()
@@ -1418,6 +1456,10 @@ contains
           ! Edit -> Separator
           call igSeparator()
 
+          ! Edit -> Reset Preferences
+          if (iw_menuitem("Reset Preferences")) call settings_reset()
+          call iw_tooltip("Reset all preferences, including the key bindings, to their default values",ttshown)
+
           ! Edit -> Preferences...
           launch(d_preferences) = launch(d_preferences) .or.&
              iw_menuitem("Preferences...",BIND_PREFERENCES)
@@ -1462,6 +1504,25 @@ contains
           if (iw_menuitem("New View Window")) &
              idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
           call iw_tooltip("Open a new view window in addition to the main view",ttshown)
+
+          ! Windows -> Separator
+          call igSeparator()
+
+          ! Windows -> Save layout
+          if (iw_menuitem("Save Layout",enabled=persist_settings)) call layout_save()
+          if (persist_settings) then
+             call iw_tooltip("Save the position of the windows and which of them are open, &
+                &to be used every time the program starts",ttshown)
+          else
+             call iw_tooltip("Saving the layout was disabled with -d",ttshown)
+          end if
+
+          ! Windows -> Reset layout
+          if (iw_menuitem("Reset Layout")) then
+             win(layout_windows())%isopen = .true.
+             reset_layout = .true.
+          end if
+          call iw_tooltip("Dock the tree, view, and console windows in their default positions",ttshown)
 
           call igEndMenu()
        else

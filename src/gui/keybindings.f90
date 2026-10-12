@@ -26,6 +26,7 @@ module keybindings
   public :: erase_bind
   public :: set_bind
   public :: set_bind_from_user_input
+  public :: is_valid_bind
   public :: set_default_keybindings
   public :: is_bind_event
   public :: get_bind_keyname
@@ -486,6 +487,11 @@ module keybindings
        integer, intent(in) :: bind
        logical :: set_bind_from_user_input
      end function set_bind_from_user_input
+     module function is_valid_bind(bind,key,mod)
+       integer, intent(in) :: bind
+       integer(c_int), intent(in) :: key, mod
+       logical :: is_valid_bind
+     end function is_valid_bind
      module subroutine set_default_keybindings()
      end subroutine set_default_keybindings
      module function is_bind_event(bind,held,norepeat,iview)

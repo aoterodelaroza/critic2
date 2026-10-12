@@ -54,6 +54,7 @@ module tools_io
   public :: fopen_scratch
   public :: fclose
   public :: mkpath
+  public :: getenv_alloc
   public :: falloc
   public :: fdealloc
   public :: ferror
@@ -310,6 +311,10 @@ module tools_io
        character*(*), intent(in) :: path
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine mkpath
+     module function getenv_alloc(name) result(val)
+       character*(*), intent(in) :: name
+       character(len=:), allocatable :: val
+     end function getenv_alloc
      module function falloc(ti)
        type(thread_info), intent(in), optional :: ti
        integer :: falloc

@@ -23,7 +23,7 @@
 !
 program critic
 #ifdef HAVE_GUI
-  use gui_main, only: gui_start
+  use gui_main, only: gui_start, persist_settings
 #endif
   use spglib, only: spg_build_hall_mapping
   use systemmod, only: systemmod_init
@@ -82,7 +82,9 @@ program critic
 
   if (usegui) then
 #ifdef HAVE_GUI
-     ! the GUI
+     ! the GUI; -d = default settings, do not read or write the user's
+     ! preferences and window layout files
+     persist_settings = (index(optv,"d") == 0)
      call gui_start()
 #endif
   else

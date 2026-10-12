@@ -25,7 +25,7 @@ set(SOURCES
   opengl/openglwrapper.c opengl/gl3w.c
 
   systems.f90 systems@proc.F90 systems@scenefile.f90
-  gui_main.f90 gui_main@proc.F90
+  gui_main.f90 gui_main@proc.F90 gui_main@settings.F90
   keybindings.f90 keybindings@proc.f90 commands.f90 commands@proc.f90
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
   windows@ci.f90 windows@co.f90 windows@new_struct.f90 windows@new_struct_library.f90

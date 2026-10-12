@@ -1567,6 +1567,23 @@ contains
 
   end subroutine fclose
 
+  !> The value of environment variable name, empty if it is not set.
+  module function getenv_alloc(name) result(val)
+    character*(*), intent(in) :: name
+    character(len=:), allocatable :: val
+
+    integer :: n, istat
+
+    call get_environment_variable(name,length=n,status=istat)
+    if (istat /= 0 .or. n == 0) then
+       val = ""
+    else
+       allocate(character(len=n) :: val)
+       call get_environment_variable(name,val)
+    end if
+
+  end function getenv_alloc
+
   !> Create the directory path (and every missing parent, like mkdir
   !> -p). Nothing happens if it already exists. Both / and the
   !> platform separator are understood. Returns non-empty errmsg on

@@ -961,6 +961,8 @@ contains
     write (uout,'("   -l: critic2 always generates files in the current working directory")')
     write (uout,'("   -q: quiet mode.")')
     write (uout,'("   -t: testing mode.")')
+    write (uout,'("   -d: (GUI) use the default preferences and window layout, ignoring")')
+    write (uout,'("       and not overwriting the saved ones.")')
     write (uout,'("")')
 
   end subroutine help_me

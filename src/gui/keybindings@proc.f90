@@ -154,6 +154,32 @@ contains
 
   end function set_bind_from_user_input
 
+  ! Whether key and mod are a combination that bind could have been
+  ! given from the user input (set_bind_from_user_input) or the
+  ! defaults: no key, a non-modifier named key, or a mouse key, and
+  ! modifiers from the known ones only.
+  module function is_valid_bind(bind,key,mod)
+    use interfaces_cimgui
+    integer, intent(in) :: bind
+    integer(c_int), intent(in) :: key, mod
+    logical :: is_valid_bind
+
+    integer(c_int), parameter :: mod_all = ior(ior(mod_shift,mod_ctrl),ior(mod_alt,mod_super))
+
+    is_valid_bind = .false.
+    if (mod < 0 .or. iand(mod,not(mod_all)) /= 0) return
+    if (key == ImGuiKey_None) then
+       is_valid_bind = .true.
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END) then
+       is_valid_bind = .not.is_mod_key(key)
+       if (bindtype(bind) == -1 .and. key == ImGuiKey_Space) is_valid_bind = .false.
+    else
+       is_valid_bind = (key >= ImGuiKey_MouseLeft .and. key <= ImGuiKey_MouseMiddleHold) .or.&
+          (key == ImGuiKey_MouseScroll)
+    end if
+
+  end function is_valid_bind
+
   ! Whether the given ImGui key is a modifier key (ctrl/shift/alt/super)
   module function is_mod_key(key)
     use interfaces_cimgui

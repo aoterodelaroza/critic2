@@ -1308,10 +1308,19 @@ subroutine igSetClipboardText(text) bind(c,name="igSetClipboardText")
   import c_ptr
   type(c_ptr), intent(in), value :: text
 end subroutine igSetClipboardText
-!x! void igLoadIniSettingsFromDisk(const char* ini_filename);
+! void igLoadIniSettingsFromDisk(const char* ini_filename);
+subroutine igLoadIniSettingsFromDisk(ini_filename) bind(c,name="igLoadIniSettingsFromDisk")
+  import c_ptr
+  type(c_ptr), intent(in), value :: ini_filename
+end subroutine igLoadIniSettingsFromDisk
 !x! void igLoadIniSettingsFromMemory(const char* ini_data,size_t ini_size);
 !x! void igSaveIniSettingsToDisk(const char* ini_filename);
-!x! const char* igSaveIniSettingsToMemory(size_t* out_ini_size);
+! const char* igSaveIniSettingsToMemory(size_t* out_ini_size);
+function igSaveIniSettingsToMemory(out_ini_size) bind(c,name="igSaveIniSettingsToMemory")
+  import c_ptr, c_size_t
+  integer(c_size_t), intent(out) :: out_ini_size
+  type(c_ptr) :: igSaveIniSettingsToMemory
+end function igSaveIniSettingsToMemory
 !x! void igDebugTextEncoding(const char* text);
 !x! bool igDebugCheckVersionAndDataLayout(const char* version_str,size_t sz_io,size_t sz_style,size_t sz_vec2,size_t sz_vec4,size_t sz_drawvert,size_t sz_drawidx);
 !x! void igSetAllocatorFunctions(ImGuiMemAllocFunc alloc_func,ImGuiMemFreeFunc free_func,void* user_data);
@@ -1785,7 +1794,14 @@ end function ImFont_FindGlyph
 !x! void ImGuiPlatformImeData_destroy(ImGuiPlatformImeData* self);
 !x! int igGetKeyIndex(ImGuiKey key);
 !x! ImGuiID igImHashData(const void* data,size_t data_size,ImU32 seed);
-!x! ImGuiID igImHashStr(const char* data,size_t data_size,ImU32 seed);
+! ImGuiID igImHashStr(const char* data,size_t data_size,ImU32 seed);
+function igImHashStr(data,data_size,seed) bind(c,name="igImHashStr")
+  import c_ptr, c_size_t, c_int
+  type(c_ptr), value :: data
+  integer(c_size_t), value :: data_size
+  integer(c_int), value :: seed
+  integer(c_int) :: igImHashStr
+end function igImHashStr
 !x! void igImQsort(void* base,size_t count,size_t size_of_element,int(*compare_func)(void const*,void const*));
 !x! ImU32 igImAlphaBlendColors(ImU32 col_a,ImU32 col_b);
 !x! bool igImIsPowerOfTwo_Int(int v);
@@ -2114,7 +2130,12 @@ end subroutine igSetCurrentFont
 !x! void igMarkIniSettingsDirty_WindowPtr(ImGuiWindow* window);
 !x! void igClearIniSettings(void);
 !x! ImGuiWindowSettings* igCreateNewWindowSettings(const char* name);
-!x! ImGuiWindowSettings* igFindWindowSettings(ImGuiID id);
+! ImGuiWindowSettings* igFindWindowSettings(ImGuiID id);
+function igFindWindowSettings(id) bind(c,name="igFindWindowSettings")
+  import c_ptr, c_int
+  integer(c_int), value :: id
+  type(c_ptr) :: igFindWindowSettings
+end function igFindWindowSettings
 !x! ImGuiWindowSettings* igFindOrCreateWindowSettings(const char* name);
 !x! void igAddSettingsHandler(const ImGuiSettingsHandler* handler);
 !x! void igRemoveSettingsHandler(const char* type_name);
@@ -2300,7 +2321,11 @@ subroutine igDockBuilderRemoveNode(node_id) bind(c,name="igDockBuilderRemoveNode
   integer(c_int), value :: node_id
 end subroutine igDockBuilderRemoveNode
 !x! void igDockBuilderRemoveNodeDockedWindows(ImGuiID node_id,bool clear_settings_refs);
-!x! void igDockBuilderRemoveNodeChildNodes(ImGuiID node_id);
+! void igDockBuilderRemoveNodeChildNodes(ImGuiID node_id);
+subroutine igDockBuilderRemoveNodeChildNodes(node_id) bind(c,name="igDockBuilderRemoveNodeChildNodes")
+  import c_int
+  integer(c_int), value :: node_id
+end subroutine igDockBuilderRemoveNodeChildNodes
 !x! void igDockBuilderSetNodePos(ImGuiID node_id,ImVec2 pos);
 !x! void igDockBuilderSetNodeSize(ImGuiID node_id,ImVec2 size);
 ! ImGuiID igDockBuilderSplitNode(ImGuiID node_id,ImGuiDir split_dir,float size_ratio_for_node_at_dir,ImGuiID* out_id_at_dir,ImGuiID* out_id_at_opposite_dir);
