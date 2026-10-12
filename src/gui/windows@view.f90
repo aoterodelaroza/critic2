@@ -89,7 +89,7 @@ contains
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
-       iw_push_iconrow_frame, iw_pop_iconrow_frame
+       iw_push_iconrow_frame, iw_pop_iconrow_frame, iw_iconbutton_height
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
@@ -712,8 +712,17 @@ contains
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
 
-    ! the selected system combo
+    ! the selected system combo, filling what is left of the toolbar
+    ! row up to a cap (the popup is at least as wide as the combo); if
+    ! the row is too narrow to be useful, it goes on its own line. The
+    ! arrow button is square, as wide as the icon-row frame is tall.
     call igSameLine(0._c_float,-1._c_float)
+    call igGetContentRegionAvail(szavail)
+    if (szavail%x < iw_calcwidth(12,1) + iw_iconbutton_height()) then
+       call igNewLine()
+       call igGetContentRegionAvail(szavail)
+    end if
+    call igSetNextItemWidth(min(szavail%x,iw_calcwidth(40,1) + iw_iconbutton_height()))
     str2 = "" // c_null_char
     if (goodsys) then
        str2 = string(w%isys) // ": " // trim(sysc(w%isys)%seed%name) // c_null_char
