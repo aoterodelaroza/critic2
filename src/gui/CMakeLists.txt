@@ -41,7 +41,7 @@ set(SOURCES
   shapes.f90 shapes@proc.f90
   icons.f90 icons@proc.f90
   shaders.f90 shaders@proc.f90
-  scenes.f90 scenes@proc.f90
+  scenes.f90 scenes@proc.f90 scenes@obj.f90
   representations.f90 representations@proc.f90 representations@planar.f90
   representations@iso.f90 representations@styles.f90 representations@json.f90
   display.f90 display@proc.f90 jsonxfer.f90 jsonxfer@proc.f90

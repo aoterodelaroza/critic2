@@ -34,8 +34,9 @@ module graphics
      integer :: npoly = 0 !< Number of polygons
      integer :: nmtl = 0 !< Number of materials
      integer :: nv = 0 !< Number of vertices
+     integer :: nvn = 0 !< Number of vertex normals (obj format)
      integer :: nf = 0 !< Number of faces
-     integer, allocatable :: mtlrgb(:,:) !< Material definitions
+     integer, allocatable :: mtlrgb(:,:) !< Material definitions (rgb and opacity, 0-255)
    contains
      procedure :: open => graphics_open
      procedure :: close => graphics_close
@@ -44,6 +45,7 @@ module graphics
      procedure :: stick => graphics_stick
      procedure :: surf => graphics_surf
      procedure :: triangulation => graphics_triangulation
+     procedure :: mesh => graphics_mesh
   end type grhandle
   public :: grhandle
 
@@ -58,22 +60,25 @@ module graphics
        class(grhandle), intent(inout) :: g
        type(thread_info), intent(in), optional :: ti
      end subroutine graphics_close
-     module subroutine graphics_ball(g,x,rgb,r)
+     module subroutine graphics_ball(g,x,rgb,r,alpha)
        class(grhandle), intent(inout) :: g
        real*8, intent(in) :: x(3)
        integer, intent(in) :: rgb(3)
        real*8, intent(in) :: r
+       real*8, intent(in), optional :: alpha
      end subroutine graphics_ball
-     module subroutine graphics_polygon(g,x,rgb)
+     module subroutine graphics_polygon(g,x,rgb,alpha)
        class(grhandle), intent(inout) :: g
        real*8, intent(in) :: x(:,:)
        integer, intent(in) :: rgb(3)
+       real*8, intent(in), optional :: alpha
      end subroutine graphics_polygon
-     module subroutine graphics_stick(g,x1,x2,rgb,r)
+     module subroutine graphics_stick(g,x1,x2,rgb,r,alpha)
        class(grhandle), intent(inout) :: g
        real*8, intent(in) :: x1(3), x2(3)
        integer, intent(in) :: rgb(3)
        real*8, intent(in) :: r
+       real*8, intent(in), optional :: alpha
      end subroutine graphics_stick
      module subroutine graphics_surf(g,srf,fsurf)
        use surface, only: minisurf
@@ -88,6 +93,16 @@ module graphics
        integer, intent(in) :: if(3,nf)
        real*8, intent(in), optional :: xrho(nv)
      end subroutine graphics_triangulation
+     module subroutine graphics_mesh(g,nv,x,nrm,nf,idx,rgb,alpha,rgbv)
+       class(grhandle), intent(inout) :: g
+       integer, intent(in) :: nv, nf
+       real*8, intent(in) :: x(3,nv)
+       real*8, intent(in) :: nrm(3,nv)
+       integer, intent(in) :: idx(3,nf)
+       integer, intent(in) :: rgb(3)
+       real*8, intent(in), optional :: alpha
+       real*8, intent(in), optional :: rgbv(3,nv)
+     end subroutine graphics_mesh
   end interface
 
 end module graphics

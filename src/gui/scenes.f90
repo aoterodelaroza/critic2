@@ -204,6 +204,7 @@ module scenes
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
      procedure :: text_box => scene_text_box
      procedure :: overlay_map => scene_overlay_map
+     procedure :: export_obj => scene_export_obj
   end type scene
   public :: scene
 
@@ -464,6 +465,24 @@ module scenes
        type(rep_ref), intent(in) :: other
        logical :: same
      end function rep_ref_same
+     module subroutine cyl_bond_runs(order,r,nseg,dl,dsh)
+       integer(c_int), intent(in) :: order
+       real(c_float), intent(in) :: r
+       integer, intent(out) :: nseg
+       real(c_float), intent(out) :: dl(3)
+       logical, intent(out) :: dsh(3)
+     end subroutine cyl_bond_runs
+     module function cyl_dash_count(c) result(ndash)
+       use shapes, only: dl_cylinder
+       type(dl_cylinder), intent(in) :: c
+       integer :: ndash
+     end function cyl_dash_count
+     !xx! obj submodule !xx!
+     module subroutine scene_export_obj(s,file,errmsg)
+       class(scene), intent(inout), target :: s
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine scene_export_obj
   end interface
 
 end module scenes

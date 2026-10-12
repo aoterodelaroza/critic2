@@ -64,7 +64,8 @@ contains
     elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
-       w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile) then
+       w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
+       w%purpose == wpurp_dialog_saveobjfile) then
        ! file dialogs => quit if the caller window is gone
        doquit = (idp == 0)
     end if
@@ -242,6 +243,19 @@ contains
                 write (uout,'("WARNING : ",A/)') trim(errmsg)
              else
                 write (uout,'("* Scene saved to: ",A/)') trim(name)
+             end if
+          elseif (w%purpose == wpurp_dialog_saveobjfile) then
+             !! export to 3d model (obj) dialog: the scene of the parent view !!
+             cstr = IGFD_GetFilePathName(w%dptr)
+             call C_F_string_alloc(cstr,name)
+             call c_free(cstr)
+             errmsg = "the view is gone"
+             if (win(idp)%type == wintype_view) then
+                if (associated(win(idp)%sc)) call win(idp)%sc%export_obj(name,errmsg)
+             end if
+             if (len_trim(errmsg) > 0) then
+                write (uout,'("WARNING : Could not export the scene to: ",A)') trim(name)
+                write (uout,'("WARNING : ",A/)') trim(errmsg)
              end if
           elseif (w%purpose == wpurp_dialog_selectdir) then
              !! select directory dialog !!

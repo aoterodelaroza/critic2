@@ -1318,6 +1318,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_savecpfile = 12
   integer, parameter, public :: wpurp_dialog_savetablefile = 13
   integer, parameter, public :: wpurp_dialog_savescenefile = 14
+  integer, parameter, public :: wpurp_dialog_saveobjfile = 15
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)

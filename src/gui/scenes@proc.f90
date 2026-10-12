@@ -1091,9 +1091,9 @@ contains
       do i = 1, s%obj%ncyl
          select case (s%obj%cyl(i)%order)
          case (-1)
-            ntot = ntot + 1 + dash_count(i)
+            ntot = ntot + 1 + cyl_dash_count(s%obj%cyl(i))
          case (0)
-            ntot = ntot + dash_count(i)
+            ntot = ntot + cyl_dash_count(s%obj%cyl(i))
          case (2)
             ntot = ntot + 2
          case (3)
@@ -1118,26 +1118,8 @@ contains
          bord = s%obj%cyl(i)%border
          bcol = s%obj%cyl(i)%rgbborder
          outw = 0._c_float
-         dsh = .false.
-         select case (s%obj%cyl(i)%order)
-         case (-1) ! aromatic (1.5): solid ring exterior + dashed ring interior
-            nseg = 2
-            dl(1) = 0.75_c_float*r
-            dl(2) = -0.75_c_float*r; dsh(2) = .true.
-            outw = s%obj%cyl(i)%arvec
-         case (0) ! dashed
-            nseg = 1
-            dl(1) = 0._c_float; dsh(1) = .true.
-         case (2) ! double
-            nseg = 2
-            dl(1) = 0.75_c_float*r; dl(2) = -0.75_c_float*r
-         case (3) ! triple
-            nseg = 3
-            dl(1) = 1.35_c_float*r; dl(2) = 0._c_float; dl(3) = -1.35_c_float*r
-         case default ! single (1) or flat (< -1)
-            nseg = 1
-            dl(1) = 0._c_float
-         end select
+         if (s%obj%cyl(i)%order == -1) outw = s%obj%cyl(i)%arvec
+         call cyl_bond_runs(s%obj%cyl(i)%order,r,nseg,dl,dsh)
 
          blen = norm2(x2-x1)
          dir = 0._c_float
@@ -1148,7 +1130,7 @@ contains
                ! string of short capped cylinders (dashes); each dash carries
                ! the endpoint deltas interpolated at its fractional positions,
                ! so the dashes ride the animated bond
-               ndash = dash_count(i)
+               ndash = cyl_dash_count(s%obj%cyl(i))
                p = blen / real(ndash,c_float)
                half = 0.25_c_float * p
                do j = 0, ndash-1
@@ -1181,17 +1163,6 @@ contains
       s%gl%ncyl_inst = n
 
     end subroutine draw_all_cylinders
-
-    !> Number of dashes for the dashed expansion of bond cylinder i, from the
-    !> equilibrium bond length.
-    function dash_count(i) result(ndash)
-      integer, intent(in) :: i
-      integer :: ndash
-
-      ndash = min(64, max(1, nint(norm2(s%obj%cyl(i)%x2 - s%obj%cyl(i)%x1) / &
-         max(s%obj%cyl(i)%dashlen,1e-4_c_float))))
-
-    end function dash_count
 
     subroutine draw_all_cones()
       integer :: i, n
@@ -4588,5 +4559,52 @@ contains
     same = (rr%uid == other%uid .and. (rr%uid > 0 .or. rr%id == other%id))
 
   end function rep_ref_same
+
+  !> The parallel runs a bond cylinder of the given order and radius r
+  !> is drawn as: nseg runs at lateral offsets dl(1:nseg), each dashed
+  !> if dsh. Aromatic (-1): solid ring exterior (+) and dashed interior
+  !> (-); dashed (0); double (2); triple (3); single (1) or flat (< -1).
+  module subroutine cyl_bond_runs(order,r,nseg,dl,dsh)
+    integer(c_int), intent(in) :: order
+    real(c_float), intent(in) :: r
+    integer, intent(out) :: nseg
+    real(c_float), intent(out) :: dl(3)
+    logical, intent(out) :: dsh(3)
+
+    dl = 0._c_float
+    dsh = .false.
+    select case (order)
+    case (-1)
+       nseg = 2
+       dl(1) = 0.75_c_float*r
+       dl(2) = -0.75_c_float*r
+       dsh(2) = .true.
+    case (0)
+       nseg = 1
+       dsh(1) = .true.
+    case (2)
+       nseg = 2
+       dl(1) = 0.75_c_float*r
+       dl(2) = -0.75_c_float*r
+    case (3)
+       nseg = 3
+       dl(1) = 1.35_c_float*r
+       dl(3) = -1.35_c_float*r
+    case default
+       nseg = 1
+    end select
+
+  end subroutine cyl_bond_runs
+
+  !> Number of dashes of a dashed run of bond cylinder c, from its
+  !> length and dash period.
+  module function cyl_dash_count(c) result(ndash)
+    use shapes, only: dl_cylinder
+    type(dl_cylinder), intent(in) :: c
+    integer :: ndash
+
+    ndash = min(64, max(1, nint(norm2(c%x2 - c%x1) / max(c%dashlen,1e-4_c_float))))
+
+  end function cyl_dash_count
 
 end submodule proc

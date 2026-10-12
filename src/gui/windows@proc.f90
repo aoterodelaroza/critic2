@@ -1637,17 +1637,25 @@ contains
              call dialog_initial_file(idp,"table.txt",str2,str3,ref=str4)
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
-          elseif (w%purpose == wpurp_dialog_savescenefile) then
-             ! the scene of system w%isys: next to the file it came
-             ! from, with its name and the scene extension
-             w%name = "Save Scene##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
-             str1 = "critic2 scene (*.scene) {.scene},All files (*.*){*.*}" // c_null_char
+          elseif (w%purpose == wpurp_dialog_savescenefile .or. w%purpose == wpurp_dialog_saveobjfile) then
+             ! the scene (or 3D model) of system w%isys: next to the file
+             ! it came from, with its name and the scene (obj) extension
+             if (w%purpose == wpurp_dialog_savescenefile) then
+                w%name = "Save Scene"
+                str1 = "critic2 scene (*.scene) {.scene},All files (*.*){*.*}" // c_null_char
+                str4 = ".scene"
+             else
+                w%name = "Export to 3D Model"
+                str1 = "Wavefront obj (*.obj) {.obj},All files (*.*){*.*}" // c_null_char
+                str4 = ".obj"
+             end if
+             w%name = w%name // "##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              if (ok_system(w%isys,sys_init)) then
                 w%isys_uid = sysc(w%isys)%uid
-                call dialog_initial_file(0,"system.scene",str2,str3,&
-                   ref=file_name_root(sysc(w%isys)%fullname) // ".scene")
+                call dialog_initial_file(0,"system" // str4,str2,str3,&
+                   ref=file_name_root(sysc(w%isys)%fullname) // str4)
              else
-                call dialog_initial_file(0,"system.scene",str2,str3)
+                call dialog_initial_file(0,"system" // str4,str2,str3)
              end if
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))

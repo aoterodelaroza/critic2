@@ -28,7 +28,8 @@ submodule (graphics) proc
   ! subroutine obj_stick(g,x1,x2,rgb,r)
   ! subroutine obj_surf(g,srf,fsurf)
   ! subroutine obj_triangulation(g,srf,nv,xv,nf,if,xrho)
-  ! function register_texture(g,rgb) result(imtl)
+  ! subroutine obj_mesh(g,nv,x,nrm,nf,idx,rgb,alpha,rgbv)
+  ! function register_texture(g,rgb,alpha) result(imtl)
   ! subroutine ply_open(g,ti)
   ! subroutine ply_close(g,ti)
   ! subroutine ply_ball(g,x,rgb,r)
@@ -123,22 +124,25 @@ contains
     g%npoly = 0
     g%nmtl = 0
     g%nv = 0
+    g%nvn = 0
     g%nf = 0
     if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
 
   end subroutine graphics_close
 
   !> Write a ball to a graphics file. The center is at x (Cartesian)
-  !> and the radius is r. rgb is the color.
-  module subroutine graphics_ball(g,x,rgb,r)
+  !> and the radius is r. rgb is the color and alpha the opacity
+  !> (obj only; default opaque).
+  module subroutine graphics_ball(g,x,rgb,r,alpha)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
+    real*8, intent(in), optional :: alpha
 
     if (g%fmt == ifmt_obj) then
-       call obj_ball(g,x,rgb,r)
+       call obj_ball(g,x,rgb,r,alpha)
     elseif (g%fmt == ifmt_ply) then
        call ply_ball(g,x,rgb,r)
     elseif (g%fmt == ifmt_off) then
@@ -148,15 +152,17 @@ contains
   end subroutine graphics_ball
 
   !> Write a polygon to a graphics file.  The vertices are in x, and
-  !> are assumed to be consecutive. rgb is the color.
-  module subroutine graphics_polygon(g,x,rgb)
+  !> are assumed to be consecutive. rgb is the color and alpha the
+  !> opacity (obj only; default opaque).
+  module subroutine graphics_polygon(g,x,rgb,alpha)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
+    real*8, intent(in), optional :: alpha
 
     if (g%fmt == ifmt_obj) then
-       call obj_polygon(g,x,rgb)
+       call obj_polygon(g,x,rgb,alpha)
     elseif (g%fmt == ifmt_ply) then
        call ply_polygon(g,x,rgb)
     elseif (g%fmt == ifmt_off) then
@@ -166,16 +172,18 @@ contains
   end subroutine graphics_polygon
 
   !> Write a stick to a graphics file.  The vertices are in x, and are
-  !> assumed to be consecutive. rgb is the color.
-  module subroutine graphics_stick(g,x1,x2,rgb,r)
+  !> assumed to be consecutive. rgb is the color and alpha the
+  !> opacity (obj only; default opaque).
+  module subroutine graphics_stick(g,x1,x2,rgb,r,alpha)
     use tools_io, only: equal
     class(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
+    real*8, intent(in), optional :: alpha
 
     if (g%fmt == ifmt_obj) then
-       call obj_stick(g,x1,x2,rgb,r)
+       call obj_stick(g,x1,x2,rgb,r,alpha)
     elseif (g%fmt == ifmt_ply) then
        call ply_stick(g,x1,x2,rgb,r)
     elseif (g%fmt == ifmt_off) then
@@ -219,6 +227,27 @@ contains
     end if
 
   end subroutine graphics_triangulation
+
+  !> Write an indexed triangle mesh with vertex normals: nv vertices
+  !> x (Cartesian) with unit normals nrm, nf triangles idx (1-based
+  !> vertex indices), color rgb, opacity alpha (default opaque), and
+  !> optional per-vertex colors rgbv (0 to 1). Only the obj format
+  !> writes meshes.
+  module subroutine graphics_mesh(g,nv,x,nrm,nf,idx,rgb,alpha,rgbv)
+    class(grhandle), intent(inout) :: g
+    integer, intent(in) :: nv, nf
+    real*8, intent(in) :: x(3,nv)
+    real*8, intent(in) :: nrm(3,nv)
+    integer, intent(in) :: idx(3,nf)
+    integer, intent(in) :: rgb(3)
+    real*8, intent(in), optional :: alpha
+    real*8, intent(in), optional :: rgbv(3,nv)
+
+    if (g%fmt == ifmt_obj) then
+       call obj_mesh(g,nv,x,nrm,nf,idx,rgb,alpha,rgbv)
+    end if
+
+  end subroutine graphics_mesh
 
   !xx! private procedures
 
@@ -3026,8 +3055,9 @@ contains
     g%nball = 0
     g%nstick = 0
     g%nv = 0
+    g%nvn = 0
     if (allocated(g%mtlrgb)) deallocate(g%mtlrgb)
-    allocate(g%mtlrgb(3,10))
+    allocate(g%mtlrgb(4,10))
 
     ! write the obj header
     write (g%lu,'("# OBJ created by critic2")')
@@ -3047,9 +3077,13 @@ contains
        write (g%lumtl,'("newmtl mat",A)') string(i)
        write (g%lumtl,'("Ns 96.078")')
        write (g%lumtl,'("Ka 0.0 0.0 0.0")')
-       write (g%lumtl,'("Kd ",3(F12.5," "))') real(g%mtlrgb(:,i),8)/255d0
+       write (g%lumtl,'("Kd ",3(F12.5," "))') real(g%mtlrgb(1:3,i),8)/255d0
        write (g%lumtl,'("Ks 0.5 0.5 0.5")')
        write (g%lumtl,'("Ni 1.0")')
+       if (g%mtlrgb(4,i) < 255) then
+          write (g%lumtl,'("d ",F12.5)') real(g%mtlrgb(4,i),8)/255d0
+          write (g%lumtl,'("Tr ",F12.5)') 1d0 - real(g%mtlrgb(4,i),8)/255d0
+       end if
        write (g%lumtl,'("illum 2")')
        write (g%lumtl,*)
     end do
@@ -3059,6 +3093,7 @@ contains
     g%nball = 0
     g%nstick = 0
     g%nv = 0
+    g%nvn = 0
     deallocate(g%mtlrgb)
 
     ! close both files
@@ -3068,12 +3103,13 @@ contains
   end subroutine obj_close
 
   !> Write a ball to the obj file
-  subroutine obj_ball(g,x,rgb,r)
+  subroutine obj_ball(g,x,rgb,r,alpha)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
+    real*8, intent(in), optional :: alpha
 
     integer :: imtl, i, lvl
 
@@ -3090,7 +3126,7 @@ contains
     g%nball = g%nball + 1
     write (g%lu,'("o ball_",A)') string(g%nball)
     write (g%lu,'("s 1")')
-    imtl = register_texture(g,rgb)
+    imtl = register_texture(g,rgb,alpha)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvsph(lvl)
        write (g%lu,'("v ",3(F20.12," "))') x + r * vsph(:,i,lvl)
@@ -3104,11 +3140,12 @@ contains
 
   !> Write a polygon to the obj file. The coordinates are in array x
   !> (Cartesian), and are assumed to be in order.
-  subroutine obj_polygon(g,x,rgb)
+  subroutine obj_polygon(g,x,rgb,alpha)
     use tools_io, only: ferror, string
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x(:,:)
     integer, intent(in) :: rgb(3)
+    real*8, intent(in), optional :: alpha
 
     integer :: imtl, i, n
     character(len=:), allocatable :: str, aux
@@ -3118,7 +3155,7 @@ contains
     g%npoly = g%npoly + 1
     write (g%lu,'("o face_",A)') string(g%npoly)
     write (g%lu,'("s 1")')
-    imtl = register_texture(g,rgb)
+    imtl = register_texture(g,rgb,alpha)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, n
        write (g%lu,'("v ",3(F20.12," "))') x(:,i)
@@ -3134,13 +3171,14 @@ contains
   end subroutine obj_polygon
 
   !> Write a stick to the obj file
-  subroutine obj_stick(g,x1,x2,rgb,r)
+  subroutine obj_stick(g,x1,x2,rgb,r,alpha)
     use tools_io, only: ferror, string
     use tools_math, only: cross
     type(grhandle), intent(inout) :: g
     real*8, intent(in) :: x1(3), x2(3)
     integer, intent(in) :: rgb(3)
     real*8, intent(in) :: r
+    real*8, intent(in), optional :: alpha
 
     integer :: imtl, i, lvl
     real*8 :: dist, xd(3), v1(3), v2(3)
@@ -3175,7 +3213,7 @@ contains
     g%nstick = g%nstick + 1
     write (g%lu,'("o stick_",A)') string(g%nstick)
     write (g%lu,'("s 1")')
-    imtl = register_texture(g,rgb)
+    imtl = register_texture(g,rgb,alpha)
     write (g%lu,'("usemtl mat",A)') string(imtl)
     do i = 1, nvcyl(lvl)
        write (g%lu,'("v ",3(F20.12," "))') x1+vcyl(1,i,lvl)*v1+&
@@ -3290,24 +3328,72 @@ contains
 
   end subroutine obj_triangulation
 
+  !> Write an indexed triangle mesh with vertex normals to the obj
+  !> file (see graphics_mesh).
+  subroutine obj_mesh(g,nv,x,nrm,nf,idx,rgb,alpha,rgbv)
+    use tools_io, only: string
+    type(grhandle), intent(inout) :: g
+    integer, intent(in) :: nv, nf
+    real*8, intent(in) :: x(3,nv)
+    real*8, intent(in) :: nrm(3,nv)
+    integer, intent(in) :: idx(3,nf)
+    integer, intent(in) :: rgb(3)
+    real*8, intent(in), optional :: alpha
+    real*8, intent(in), optional :: rgbv(3,nv)
+
+    integer :: imtl, i, j
+
+    if (nv <= 0 .or. nf <= 0) return
+    g%nsurf = g%nsurf + 1
+    write (g%lu,'("o mesh_",A)') string(g%nsurf)
+    write (g%lu,'("s 1")')
+    imtl = register_texture(g,rgb,alpha)
+    write (g%lu,'("usemtl mat",A)') string(imtl)
+    if (present(rgbv)) then
+       ! vertex colors (an extension of the format read by most programs)
+       do i = 1, nv
+          write (g%lu,'("v ",3(F20.12," "),3(F8.5," "))') x(:,i), rgbv(:,i)
+       end do
+    else
+       do i = 1, nv
+          write (g%lu,'("v ",3(F20.12," "))') x(:,i)
+       end do
+    end if
+    do i = 1, nv
+       write (g%lu,'("vn ",3(F12.8," "))') nrm(:,i)
+    end do
+    do i = 1, nf
+       write (g%lu,'("f ",3(A," "))') (string(g%nv+idx(j,i)) // "//" // string(g%nvn+idx(j,i)),j=1,3)
+    end do
+    g%nv = g%nv + nv
+    g%nvn = g%nvn + nv
+
+  end subroutine obj_mesh
+
   !> Register a texture using the color triplet.
-  function register_texture(g,rgb) result(imtl)
+  function register_texture(g,rgb,alpha) result(imtl)
     use types, only: realloc
     type(grhandle), intent(inout) :: g
     integer, intent(in) :: rgb(3)
+    real*8, intent(in), optional :: alpha
     integer :: imtl
 
-    integer :: i
+    integer :: i, mtl(4)
+
+    ! the color and the opacity (0-255)
+    mtl(1:3) = rgb
+    mtl(4) = 255
+    if (present(alpha)) mtl(4) = max(min(nint(alpha * 255d0),255),0)
 
     do i = 1, g%nmtl
-       if (all(g%mtlrgb(:,i)-rgb == 0)) then
+       if (all(g%mtlrgb(:,i)-mtl == 0)) then
           imtl = i
           return
        end if
     end do
     g%nmtl = g%nmtl + 1
-    if (g%nmtl > size(g%mtlrgb,2)) call realloc(g%mtlrgb,3,2*g%nmtl)
-    g%mtlrgb(:,g%nmtl) = rgb
+    if (g%nmtl > size(g%mtlrgb,2)) call realloc(g%mtlrgb,4,2*g%nmtl)
+    g%mtlrgb(:,g%nmtl) = mtl
     imtl = g%nmtl
 
   end function register_texture

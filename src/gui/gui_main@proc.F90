@@ -1067,7 +1067,7 @@ contains
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
     use windows, only: win, objedit_cancel_views, iwin_tree, iwin_view, iwin_console_input, wintype_display,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
-       wpurp_dialog_openfiles, wpurp_dialog_savescenefile, wintype_new_struct, wintype_new_struct_library,&
+       wpurp_dialog_openfiles, wpurp_dialog_savescenefile, wpurp_dialog_saveobjfile, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster, wintype_melting, wintype_exportimage,&
        wintype_saveas, wintype_save_multiple, wintype_builder, paste_clipboard_fragment,&
@@ -1105,7 +1105,7 @@ contains
     logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ok
     logical :: nothreads
     character(len=:), allocatable :: lundo, lredo
-    integer :: isys, isysv
+    integer :: isys, isysv, iv
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1233,6 +1233,16 @@ contains
              idum = stack_create_window(wintype_exportimage,.true.,idparent=view_target_window(),&
              orraise=-1)
           call iw_tooltip("Export the current view to an image file (png)",ttshown)
+
+          ! File -> Export to 3D model
+          if (iw_menuitem("Export to 3D Model...",enabled=isysvok)) then
+             iv = view_target_window()
+             idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveobjfile,&
+                isys=win(iv)%isys,idparent=iv,orraise=-1)
+          end if
+          call iw_tooltip("Export the objects of the current view to a 3D model file&
+             & (Wavefront obj, with the colors in an mtl file). Text, 2D drawings,&
+             & legends and bars are not exported",ttshown)
 
           ! File -> Save
           launch(d_save) = launch(d_save) .or. iw_menuitem("Save",BIND_SAVE,enabled=isysok)
