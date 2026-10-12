@@ -258,6 +258,7 @@ contains
           second = first + npoints
        end do
     end if
+    call orient_faces(s)
 
   end subroutine spheresphere
 
@@ -486,6 +487,7 @@ contains
           s%f(i)%v(3) = iface(3,i,isw1)
        end do
     end if
+    call orient_faces(s)
 
   end subroutine spheretriang
 
@@ -793,6 +795,7 @@ contains
           s%f(i)%v(4) = iface(4,i,isw1)
        end do
     end if
+    call orient_faces(s)
 
   end subroutine spherecub
 
@@ -926,5 +929,36 @@ contains
     end do
 
   end subroutine lebedev_nodes
+
+  !xx! private procedures
+
+  !> Wind the faces of s counterclockwise seen from outside. The
+  !> vertices are rays from s%n, so the test uses the ray directions
+  !> (the radii may not be set yet).
+  pure subroutine orient_faces(s)
+    use tools_math, only: cross
+    type(minisurf), intent(inout) :: s
+
+    integer :: i, j, nv
+    real*8 :: u(3,4), nrm(3)
+
+    if (s%isinit <= 1) return
+    do i = 1, s%nf
+       nv = s%f(i)%nv
+       if (nv < 3) cycle
+       do j = 1, nv
+          u(:,j) = (/sin(s%th(s%f(i)%v(j))) * cos(s%ph(s%f(i)%v(j))),&
+             sin(s%th(s%f(i)%v(j))) * sin(s%ph(s%f(i)%v(j))),&
+             cos(s%th(s%f(i)%v(j)))/)
+       end do
+       nrm = 0d0
+       do j = 2, nv-1
+          nrm = nrm + cross(u(:,j)-u(:,1),u(:,j+1)-u(:,1))
+       end do
+       if (dot_product(nrm,sum(u(:,1:nv),2)) < 0d0) &
+          s%f(i)%v(1:nv) = s%f(i)%v(nv:1:-1)
+    end do
+
+  end subroutine orient_faces
 
 end submodule proc

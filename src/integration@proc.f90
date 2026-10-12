@@ -4280,14 +4280,14 @@ contains
     use systemmod, only: sy
     use global, only: fileroot
     use graphics, only: grhandle
-    use tools_math, only: m_x2c_from_cellpar, matinv, cross
+    use tools_math, only: m_x2c_from_cellpar, matinv
     use tools_io, only: string, uout, ferror, noerr, faterr, string
     use types, only: realloc, basindat
     type(basindat), intent(in) :: bas
 
     character(len=:), allocatable :: str
-    integer :: i, j, i1, i2, i3, iaux, n(3), q(3), p(3)
-    real*8 :: d2, x(3), x1(3), x2(3), xd(3), xrhotmp
+    integer :: i, j, i1, i2, i3, n(3), q(3), p(3)
+    real*8 :: d2, x(3), xd(3), xrhotmp
     real*8, allocatable :: w(:,:,:)
     integer, allocatable :: idg0(:,:,:)
     type(ytdata) :: dat
@@ -4400,22 +4400,6 @@ contains
              call ferror("int_gridbasins","qhull failed to triangulate the basin surface.",faterr)
           allocate(iface(3,nf))
           call runqhull_basintriangulate_step2(nf,iface,ctx)
-
-          ! orient the faces
-          !$omp parallel do private(x1,x2,iaux)
-          do j = 1, nf
-             x1 = xvert(:,iface(2,j)) - xvert(:,iface(1,j))
-             x2 = xvert(:,iface(3,j)) - xvert(:,iface(1,j))
-             x1 = cross(x1,x2)
-
-             x2 = (xvert(:,iface(1,j)) + xvert(:,iface(2,j)) + xvert(:,iface(3,j))) / 3d0 - x
-             if (dot_product(x1,x2) < 0d0) then
-                iaux = iface(1,j)
-                iface(1,j) = iface(2,j)
-                iface(2,j) = iaux
-             end if
-          end do
-          !$omp end parallel do
 
           ! write the triangulation to a file
           str = trim(fileroot) // "_basins-" // string(i) // "." // bas%basinfmt

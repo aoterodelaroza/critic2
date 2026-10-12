@@ -258,7 +258,7 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3],
   int *origidx;
   tri_ctx *c;
   facetT *facet;
-  vertexT *vertex, **vertexp;
+  vertexT *vertex, **vertexp, *vtx[3];
   int exitcode, curlong, totlong, i, nactual, k, v[3];
 
   *ier = 0; *nf = 0; *ctx = NULL;
@@ -297,11 +297,25 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3],
           continue;
         k = 0;
         FOREACHvertex_(facet->vertices){
-          if (k < 3)
+          if (k < 3){
+            vtx[k] = vertex;
             v[k] = origidx[qh_pointid(qh, vertex->point)] + 1;
+          }
           k++;
         }
         if (k == 3){
+          // wind the face counterclockwise seen from outside: compare with
+          // qhull's outward normal (on the joggled sphere points, so it holds
+          // for the tiny faces between near-coincident directions)
+          double *p0 = vtx[0]->point, *p1 = vtx[1]->point, *p2 = vtx[2]->point;
+          double a[3] = {p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]};
+          double b[3] = {p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]};
+          double nrm[3] = {a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]};
+          if (nrm[0]*facet->normal[0] + nrm[1]*facet->normal[1] + nrm[2]*facet->normal[2] < 0){
+            int vaux = v[1];
+            v[1] = v[2];
+            v[2] = vaux;
+          }
           tri_ctx_grow(c);
           c->f[c->nf][0] = v[0];
           c->f[c->nf][1] = v[1];
