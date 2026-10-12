@@ -1062,6 +1062,82 @@ module representations
   integer, parameter, public :: gpaths_style_tube = 0 ! continuous tube (cylinders between the points)
   integer, parameter, public :: gpaths_style_beads = 1 ! a string of spheres (one per point)
 
+  ! kinds of traced gradient path groups (gpaths_trace%kind)
+  integer, parameter, public :: gtrace_point = 1 ! paths up and/or down from a point
+  integer, parameter, public :: gtrace_sphere = 2 ! a sphere of paths leaving an NCP or a CCP
+  integer, parameter, public :: gtrace_axis = 3 ! the axial and/or in-plane paths of a BCP or an RCP
+  integer, parameter, public :: gtrace_rings = 4 ! the ring paths of all the RCPs (RCP to CCP)
+
+  ! paths of a BCP/RCP seed (gpaths_trace%iup for gtrace_axis)
+  integer, parameter, public :: gtrace_axis_both = 0 ! the axial and the in-plane paths
+  integer, parameter, public :: gtrace_axis_axial = 1 ! the two axial paths (bond paths of a BCP, ring paths of an RCP)
+  integer, parameter, public :: gtrace_axis_plane = 2 ! the paths in the plane (interatomic surface of a BCP, ring surface of an RCP)
+
+  !> A traced gradient path, in crystallographic coordinates
+  !> (continuous along the path), with the field value at each point.
+  !> If it ends at a nucleus, iend/lend give the cell atom and lattice
+  !> vector of the nucleus for each copy of its site (0 = not a nucleus).
+  type gpaths_tpath
+     integer :: n = 0 ! number of points
+     real*8, allocatable :: x(:,:) ! points (3,n), crystallographic
+     real*8, allocatable :: f(:) ! field value at the points (n)
+     integer, allocatable :: iend(:) ! cell atom at the end of each copy (ncopy)
+     integer, allocatable :: lend(:,:) ! lattice vector of that atom (3,ncopy)
+  end type gpaths_tpath
+  public :: gpaths_tpath
+
+  !> The paths traced from one seed position (site) of a trace group,
+  !> and the copies of the site that are drawn. Each copy is an affine
+  !> map in crystallographic coordinates (x -> cop(:,1:3,k) * x +
+  !> cop(:,4,k)) that takes the site into the unit cell: the identity
+  !> (with a lattice translation), or a symmetry operation.
+  type gpaths_site
+     real*8 :: x(3) = 0d0 ! seed position (crystallographic)
+     integer :: icp = 0 ! symmetry-unique CP at the seed (0 = a point)
+     integer :: ncopy = 0 ! number of copies
+     real*8, allocatable :: cop(:,:,:) ! affine maps of the copies (3,4,ncopy)
+     integer :: npath = 0 ! number of paths
+     type(gpaths_tpath), allocatable :: path(:) ! the paths (npath)
+  end type gpaths_site
+  public :: gpaths_site
+
+  !> A group of gradient paths traced with the Trace Gradient Paths
+  !> tool (one Trace): the recipe (kind, seed and options, as in
+  !> FLUXPRINT), the style of its paths, and the paths, by site. The
+  !> recipe is enough to trace them again (scene files keep only the
+  !> recipe and the style).
+  type gpaths_trace
+     integer*8 :: uid = 0 ! unique id (new_uid), matches the paths in a gpaths_cache
+     ! recipe
+     integer :: kind = gtrace_point ! kind of seed (gtrace_*)
+     real*8 :: x(3) = 0d0 ! seed point, or position of the seed cell CP (crystallographic)
+     integer :: iup = 0 ! point: +1 up, -1 down, 0 both; BCP/RCP: gtrace_axis_*
+     integer :: ntheta = 8 ! sphere: number of azimuthal angles
+     integer :: nphi = 5 ! sphere: number of polar angles
+     integer :: npts = 24 ! BCP/RCP: number of paths in the plane
+     integer :: method = 0 ! BCP/RCP: starting angles in the plane (flux_method_*)
+     logical :: sym = .true. ! draw all the symmetry-equivalent copies of the seed
+     ! style
+     real(c_float) :: rgb(3) = 1._c_float ! color of the paths
+     real(c_float) :: rad = 0.04_c_float ! tube or sphere radius (bohr)
+     logical :: shown = .true. ! whether the paths are drawn
+     character(len=:), allocatable :: label ! description (seed and number of paths)
+     ! the paths
+     logical :: traced = .false. ! the paths have been traced
+     integer :: nsite = 0 ! number of sites
+     type(gpaths_site), allocatable :: site(:) ! the sites (nsite)
+  end type gpaths_trace
+  public :: gpaths_trace
+
+  !> The paths of the traced groups of a gradient paths object, moved
+  !> out of it around a copy of the object (an undo snapshot), so that
+  !> the copies keep only the recipes and styles (gpaths_cache_take,
+  !> gpaths_cache_put).
+  type gpaths_cache
+     type(gpaths_trace), allocatable :: t(:)
+  end type gpaths_cache
+  public :: gpaths_cache
+
   !> Gradient path display options (reptype_gpaths; accessed as
   !> r%gpaths%...). The gradient paths of field ifield (for now the
   !> bond paths of its BCPs, from AUTO or the CP checkpoint, f%cpgp)
@@ -1088,12 +1164,32 @@ module representations
      integer :: ihover(3) = 0 ! path under the mouse in the editor tables, drawn highlighted: ! (j, symmetry-unique CP i, 0) highlights all its cell copies, ! (j, 0, cell CP icp) that one (0 = none)
      integer :: tablecell = 0 ! editor table: paths of the symmetry-unique CPs (0) or of the cell CPs (1)
      real(c_float) :: fthr = 0.01_c_float ! editor: field value at the BCP that selects paths above/below it
+     logical :: showbond = .true. ! draw the bond paths of the field (AUTO)
+     ! the traced gradient path groups (Trace Gradient Paths tool), for
+     ! field tfield with data tcuid, geometry revision trev and the CP list
+     ! at time ttime; they are dropped if any of these changes
+     integer :: ntrace = 0 ! number of groups
+     type(gpaths_trace), allocatable :: trace(:) ! the groups (ntrace)
+     integer :: tfield = 0
+     integer*8 :: tcuid = 0
+     integer :: trev = -1
+     real*8 :: ttime = -1d0
+     integer :: thover = 0 ! group under the mouse in a table of the groups, drawn highlighted (0 = none)
+     integer :: thowner = 0 ! window whose table set thover
    contains
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok
      procedure :: fill_rgb => gpaths_fill_rgb
      procedure :: path_end => gpaths_path_end
+     procedure :: add_trace => gpaths_add_trace
+     procedure :: remove_trace => gpaths_remove_trace
+     procedure :: drop_traces => gpaths_drop_traces
+     procedure :: run_trace => gpaths_run_trace
+     procedure :: traces_stale => gpaths_traces_stale
+     procedure :: cache_take => gpaths_cache_take
+     procedure :: cache_put => gpaths_cache_put
   end type rep_gpaths
+  public :: rep_gpaths
   public :: rep_cps
 
   !> Representation: objects to draw on the scene
@@ -1729,6 +1825,36 @@ module representations
      module subroutine gpaths_fill_rgb(g)
        class(rep_gpaths), intent(inout) :: g
      end subroutine gpaths_fill_rgb
+     module subroutine gpaths_add_trace(g,t)
+       class(rep_gpaths), intent(inout) :: g
+       type(gpaths_trace), intent(inout) :: t
+     end subroutine gpaths_add_trace
+     module subroutine gpaths_remove_trace(g,it)
+       class(rep_gpaths), intent(inout) :: g
+       integer, intent(in) :: it
+     end subroutine gpaths_remove_trace
+     module subroutine gpaths_drop_traces(g)
+       class(rep_gpaths), intent(inout) :: g
+     end subroutine gpaths_drop_traces
+     module subroutine gpaths_run_trace(g,isys,t,errmsg)
+       class(rep_gpaths), intent(inout) :: g
+       integer, intent(in) :: isys
+       type(gpaths_trace), intent(inout) :: t
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine gpaths_run_trace
+     module subroutine gpaths_cache_take(g,cache)
+       class(rep_gpaths), intent(inout) :: g
+       type(gpaths_cache), intent(inout) :: cache
+     end subroutine gpaths_cache_take
+     module subroutine gpaths_cache_put(g,cache)
+       class(rep_gpaths), intent(inout) :: g
+       type(gpaths_cache), intent(inout) :: cache
+     end subroutine gpaths_cache_put
+     module function gpaths_traces_stale(g,isys) result(stale)
+       class(rep_gpaths), intent(in) :: g
+       integer, intent(in) :: isys
+       logical :: stale
+     end function gpaths_traces_stale
      module subroutine gpaths_path_end(g,isys,icp,j,iat,lvec)
        class(rep_gpaths), intent(in) :: g
        integer, intent(in) :: isys, icp, j

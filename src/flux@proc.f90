@@ -26,12 +26,15 @@ submodule (flux) proc
   ! subroutine flx_initialize(nosym,noballs,nocell)
   ! subroutine flx_printpath(rgb0)
   ! subroutine flx_symprintpath(x,flxsym,rgb)
-  ! subroutine flx_prepareprintpath(x,title,iup,dir,icp)
+  ! subroutine flx_prepareprintpath(pa,title,icp)
+  ! subroutine flx_traceprint(seeds,title,icp,x,flxsym,rgb)
   ! subroutine flx_point(x,iup,flxsym,rgb)
   ! subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
   ! subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
   ! subroutine flx_graph(flxsym,igraph,cpid,lvec,rgb)
   ! subroutine flx_findthetagrid(lx,ly,r0,R,n,thetavec)
+  ! subroutine add_seed(seeds,s)
+  ! function cp_seed(x,dir,iup) result(s)
   ! function ball_radius(i,cel)
 
   logical :: flx_init = .false. !< is fluxprint initialized?
@@ -53,7 +56,6 @@ submodule (flux) proc
   character(len=:), allocatable :: outfile
 
   ! Gradient path info (cryst.)
-  real*8 :: flx_plen
   type(gpathp), allocatable :: flx_path(:)
 
 contains
@@ -482,6 +484,258 @@ contains
 
   end subroutine fluxprint
 
+  !> Append to seeds the gradient paths that leave point x (Cartesian,
+  !> bohr) in direction iup (+1 up, -1 down, 0 both: up first).
+  module subroutine flux_seeds_point(x,iup,seeds)
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: iup
+    type(flux_seed), allocatable, intent(inout) :: seeds(:)
+
+    if (iup /= 0) then
+       call add_seed(seeds,flux_seed(x0=x,xorig=x,iup=iup))
+    else
+       call add_seed(seeds,flux_seed(x0=x,xorig=x,iup=1))
+       call add_seed(seeds,flux_seed(x0=x,xorig=x,iup=-1))
+    end if
+
+  end subroutine flux_seeds_point
+
+  !> Append to seeds the gradient paths that leave the NCP or CCP at x
+  !> (Cartesian, bohr) in direction iup (-1 from an NCP, +1 from a
+  !> CCP): nphi x ntheta directions on a sphere around it, plus the
+  !> two poles.
+  module subroutine flux_seeds_sphere(x,iup,ntheta,nphi,seeds)
+    use param, only: pi
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: iup, ntheta, nphi
+    type(flux_seed), allocatable, intent(inout) :: seeds(:)
+
+    integer :: i, j
+    real*8 :: phi, theta, dir(3)
+
+    do i = 1, nphi
+       do j = 1, ntheta
+          phi = pi * real(i,8) / real(nphi+1,8)
+          theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
+          dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
+          call add_seed(seeds,cp_seed(x,dir,iup))
+       end do
+    end do
+
+    ! special points on the unit sphere
+    phi = 0d0
+    theta = 0d0
+    dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
+    call add_seed(seeds,cp_seed(x,dir,iup))
+    phi = pi
+    theta = 0d0
+    dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
+    call add_seed(seeds,cp_seed(x,dir,iup))
+
+  end subroutine flux_seeds_sphere
+
+  !> Append to seeds the gradient paths that leave the BCP (ircp = +1)
+  !> or RCP (ircp = -1) at x (Cartesian, bohr) of field f. iup = ircp
+  !> gives the two paths along the axis (the bond paths of a BCP), iup
+  !> = -ircp the npts paths in the perpendicular plane (the lines of
+  !> the interatomic surface of a BCP), iup = 0 both. The starting
+  !> angles in the plane are uniform (method = flux_method_braindead),
+  !> remapped using the quotient of the eigenvalues (quotient), or
+  !> found with the linearized dynamical system (dynamical; traces
+  !> 50 paths to estimate the BCP-CCP distance first, pruned with
+  !> prune; needs npts >= 4). On error, errmsg is not empty and seeds
+  !> is unchanged.
+  module subroutine flux_seeds_axis(f,x,ircp,iup,npts,method,seeds,prune,errmsg)
+    use fieldmod, only: field
+    use tools_math, only: eigsym
+    use types, only: scalar_value, field_evaluation_avail
+    use param, only: pi
+    type(field), intent(inout) :: f
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: ircp, iup, npts, method
+    type(flux_seed), allocatable, intent(inout) :: seeds(:)
+    real*8, intent(in) :: prune
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    real*8, parameter :: change = 0.1d0
+
+    real*8 :: angle, xp(3), r
+    integer :: i, n, ier, np
+    real*8 :: reval(3), evec(3,3), v1(3), v2(3), vup(3)
+    real*8 :: ev1, ev2
+    real*8, allocatable :: thetavec(:)
+    type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
+    type(flux_seed), allocatable :: sx(:)
+    type(flux_path), allocatable :: px(:)
+
+    errmsg = ""
+    if (method == flux_method_quotient .and. (iup == 0 .or. iup == -ircp) .and. npts < 4) then
+       errmsg = "The quotient method needs at least 4 paths in the plane"
+       return
+    end if
+    call request%field_nder2()
+    call f%grd(x,request,res)
+    evec = res%hf
+    call eigsym(evec,3,reval,ier)
+    if (ier /= 0) then
+       errmsg = "Error in diagonalization"
+       return
+    end if
+
+    if (ircp * reval(1) > 0) then
+       vup = evec(:,1)
+       if (ircp * reval(2) < ircp * reval(3)) then
+          v1 = evec(:,2)
+          ev1 = reval(2)
+          v2 = evec(:,3)
+          ev2 = reval(3)
+       else
+          v1 = evec(:,3)
+          ev1 = reval(3)
+          v2 = evec(:,2)
+          ev2 = reval(2)
+       end if
+    else if (ircp * reval(2) > 0) then
+       vup = evec(:,2)
+       if (ircp * reval(1) < ircp * reval(3)) then
+          v1 = evec(:,1)
+          ev1 = reval(1)
+          v2 = evec(:,3)
+          ev2 = reval(3)
+       else
+          v1 = evec(:,3)
+          ev1 = reval(3)
+          v2 = evec(:,1)
+          ev2 = reval(1)
+       end if
+    else
+       vup = evec(:,3)
+       if (ircp * reval(1) < ircp * reval(2)) then
+          v1 = evec(:,1)
+          ev1 = reval(1)
+          v2 = evec(:,2)
+          ev2 = reval(2)
+       else
+          v1 = evec(:,2)
+          ev1 = reval(2)
+          v2 = evec(:,1)
+          ev2 = reval(1)
+       end if
+    end if
+
+    v1 = v1 / norm2(v1)
+    v2 = v2 / norm2(v2)
+    vup = vup / norm2(vup)
+
+    ! the paths along the axis
+    if (iup == 0 .or. iup == ircp) then
+       call add_seed(seeds,cp_seed(x,vup,ircp))
+       call add_seed(seeds,cp_seed(x,-vup,ircp))
+    end if
+
+    ! the paths in the perpendicular plane
+    if (iup == 0 .or. iup == -ircp) then
+       if (method == flux_method_braindead) then
+          ! braindead: use an uniform distribution
+          do i = 1, npts
+             angle = 2d0 * pi * real(i-1,8)/real(npts,8)
+             call add_seed(seeds,cp_seed(x,v1 * sin(angle) + v2 * cos(angle),-ircp))
+          end do
+       else if (method == flux_method_quotient) then
+          ! use eigenvalue quotient to remap the uniform point distribution
+          n = npts / 2
+          do i = 1, n
+             angle = pi * (real(i,8)-1.d0-(real(n,8)-1.d0)*.5d0)/(real(n,8)-1.d0)
+             angle = sign(abs(angle)**(ev1/ev2) / (pi/2.d0)**(ev1/ev2-1),angle)
+             call add_seed(seeds,cp_seed(x,v1 * sin(angle) + v2 * cos(angle),-ircp))
+             angle = angle + pi
+             call add_seed(seeds,cp_seed(x,v1 * sin(angle) + v2 * cos(angle),-ircp))
+          end do
+       else
+          ! coarse exploration to determine the distance from bcp to ccps
+          do i = 1, 50
+             angle = 2d0*pi * (i-1) / 49d0
+             call add_seed(sx,cp_seed(x,v1 * cos(angle) + v2 * sin(angle),-ircp))
+          end do
+          call flux_trace(f,sx,px,prune)
+          r = 1d20
+          do i = 1, 50
+             ! last point before newton -> not converted to the main cell
+             np = size(px(i)%p,1)
+             xp = f%c%x2c(px(i)%p(max(np-1,1))%x)
+             r = min(r,sqrt((xp(1)-x(1))**2+(xp(2)-x(2))**2+(xp(3)-x(3))**2))
+          end do
+
+          ! bcp-ias using an exponentially adapted grid
+          n = max(npts/4-1,2)
+          allocate(thetavec(n))
+          call flx_findthetagrid(ev1,ev2,change,r,n,thetavec)
+          do i = 1, n
+             angle = thetavec(i)
+             call add_seed(seeds,cp_seed(x,v1 * cos(angle) + v2 * sin(angle),-ircp))
+             angle = angle + pi
+             call add_seed(seeds,cp_seed(x,v1 * cos(angle) + v2 * sin(angle),-ircp))
+             angle = -thetavec(i) + pi
+             call add_seed(seeds,cp_seed(x,v1 * cos(angle) + v2 * sin(angle),-ircp))
+             angle = angle + pi
+             call add_seed(seeds,cp_seed(x,v1 * cos(angle) + v2 * sin(angle),-ircp))
+          end do
+
+          ! manually do 0, pi/2, pi, 3pi/2
+          call add_seed(seeds,cp_seed(x,v1,-ircp))
+          call add_seed(seeds,cp_seed(x,v2,-ircp))
+          call add_seed(seeds,cp_seed(x,-v1,-ircp))
+          call add_seed(seeds,cp_seed(x,-v2,-ircp))
+       end if
+    end if
+
+  end subroutine flux_seeds_axis
+
+  !> Trace the gradient paths of field f from seeds, in parallel, and
+  !> return them in paths (same order). The points are pruned so that
+  !> they are at most prune bohr apart (prune > 0). The
+  !> end of each path is identified with a CP of the field's list:
+  !> any CP within 1e-2 bohr, or else the nearest nucleus.
+  module subroutine flux_trace(f,seeds,paths,prune)
+    use fieldmod, only: field
+    type(field), intent(inout) :: f
+    type(flux_seed), intent(in) :: seeds(:)
+    type(flux_path), allocatable, intent(inout) :: paths(:)
+    real*8, intent(in) :: prune
+
+    real*8, parameter :: cpeps = 1d-2
+
+    integer :: i, nstep, np
+    real*8 :: x(3), plen
+
+    if (allocated(paths)) deallocate(paths)
+    allocate(paths(size(seeds,1)))
+    !$omp parallel do private(x,nstep,plen,np) schedule(dynamic)
+    do i = 1, size(seeds,1)
+       paths(i)%seed = seeds(i)
+       x = seeds(i)%x0
+       if (seeds(i)%haso) then
+          call f%gradient(x,seeds(i)%iup,nstep,paths(i)%ier,.false.,plen,paths(i)%p,prune,&
+             pathini=seeds(i)%xorig)
+       else
+          call f%gradient(x,seeds(i)%iup,nstep,paths(i)%ier,.false.,plen,paths(i)%p,prune)
+       end if
+
+       ! the CP at the end of the path
+       paths(i)%icpend = 0
+       paths(i)%dend = 0d0
+       np = size(paths(i)%p,1)
+       if (np > 0) then
+          call f%nearest_cp(paths(i)%p(np)%x,paths(i)%icpend,paths(i)%dend)
+          if (paths(i)%dend > cpeps) &
+             call f%nearest_cp(paths(i)%p(np)%x,paths(i)%icpend,paths(i)%dend,type=-3)
+       end if
+    end do
+    !$omp end parallel do
+
+  end subroutine flux_trace
+
   !xx! private procedures
 
   !> Deallocate memory, end the tessel output and close files.
@@ -723,6 +977,7 @@ contains
     integer :: idx(2), cpid(2), typ(2)
     character*10 :: cpname(2), cptype(2)
 
+    lvec = 0d0
     if (outfmt == "txt") then
        if (flx_iup == 1) then
           str = "(upwards)"
@@ -921,58 +1176,72 @@ contains
 
   end subroutine flx_symprintpath
 
-  !> Fill the global variables for the current path.
-  subroutine flx_prepareprintpath(x,title,iup,dir,icp)
+  !> Fill the global variables for the current path, from the traced
+  !> path pa: title of the path and cell CP it leaves (icp, 0 = none).
+  subroutine flx_prepareprintpath(pa,title,icp)
     use systemmod, only: sy
-    use fieldmod, only: type_grid
-    use param, only: icrd_crys
-    real*8, intent(in) :: x(3)
+    type(flux_path), intent(in) :: pa
     character*(*), intent(in) :: title
-    integer, intent(in) :: iup
-    real*8, intent(in) :: dir(3)
-    integer :: icp
+    integer, intent(in) :: icp
 
     real*8 :: nn2
 
-    real*8, parameter :: cpeps = 1d-2
-
     ! fill the easy stuff
-    flx_cpos(:,1) = x
-    flx_xpos(:,1) = sy%c%c2x(x)
+    flx_cpos(:,1) = pa%seed%xorig
+    flx_xpos(:,1) = sy%c%c2x(pa%seed%xorig)
     flx_title = title
     flx_n = size(flx_path,1)
-    flx_iup = iup
-    nn2 = norm2(dir)
+    flx_iup = pa%seed%iup
+    nn2 = norm2(pa%seed%dir)
     if (nn2 > 1d-4) then
-       flx_direction = dir / nn2
+       flx_direction = pa%seed%dir / nn2
     else
        flx_direction = 0d0
     end if
     flx_cpcelid(1) = icp
 
-    ! detect if the final point in the path is a CP
-    flx_cpcelid(2) = 0
-    if (flx_n > 0) then
-       call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),flx_dendpos)
-       if (flx_dendpos <= cpeps) goto 999
-
-       call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),flx_dendpos,type=-3)
-       if (flx_cpcelid(2) > 0) goto 999
+    ! the final point in the path
+    flx_cpcelid(2) = pa%icpend
+    if (pa%icpend > 0) then
+       ! final CP found, adjust the coordinates to match the CP
+       flx_dendpos = pa%dend
+       flx_xpos(:,2) = sy%f(sy%iref)%cpcel(flx_cpcelid(2))%x
+       flx_cpos(:,2) = sy%f(sy%iref)%cpcel(flx_cpcelid(2))%r
+    else
+       ! final CP not found, use the last point in the path
+       flx_dendpos = 0d0
+       flx_xpos(:,2) = flx_path(flx_n)%x
+       flx_cpos(:,2) = flx_path(flx_n)%r
     end if
 
-    ! final CP not found, use the last point in the path
-    flx_dendpos = 0d0
-    flx_cpcelid(2) = 0
-    flx_xpos(:,2) = flx_path(flx_n)%x
-    flx_cpos(:,2) = flx_path(flx_n)%r
-    return
-
-    ! final CP found, adjust the coordinates to match the CP
-999 continue
-    flx_xpos(:,2) = sy%f(sy%iref)%cpcel(flx_cpcelid(2))%x
-    flx_cpos(:,2) = sy%f(sy%iref)%cpcel(flx_cpcelid(2))%r
-
   end subroutine flx_prepareprintpath
+
+  !> Trace the paths of seeds with the reference field and print
+  !> them, with title and the cell CP they leave (icp, 0 = none). x is
+  !> the position (cryst.) the copies of the paths are generated from
+  !> (flx_symprintpath).
+  subroutine flx_traceprint(seeds,title,icp,x,flxsym,rgb)
+    use systemmod, only: sy
+    use global, only: prunedist
+    type(flux_seed), intent(in) :: seeds(:)
+    character*(*), intent(in) :: title
+    integer, intent(in) :: icp
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: flxsym
+    integer, intent(in) :: rgb(3)
+
+    type(flux_path), allocatable :: paths(:)
+    integer :: i
+
+    call flux_trace(sy%f(sy%iref),seeds,paths,prunedist)
+    do i = 1, size(paths,1)
+       if (allocated(flx_path)) deallocate(flx_path)
+       call move_alloc(paths(i)%p,flx_path)
+       call flx_prepareprintpath(paths(i),title,icp)
+       call flx_symprintpath(x,flxsym,rgb)
+    end do
+
+  end subroutine flx_traceprint
 
   !> Print gradient paths from point x (Cartesian coords.), with step
   !> step, gradient norm criterion eps and in the iup
@@ -981,33 +1250,16 @@ contains
   !> cells.
   subroutine flx_point(x,iup,flxsym,rgb)
     use systemmod, only: sy
-    use global, only: prunedist
 
     integer, intent(in) :: iup
     real*8, dimension(3), intent(in) :: x
     integer, intent(in) :: flxsym
     integer, intent(in) :: rgb(3)
 
-    real*8 :: tempx(3), xini(3), xinic(3)
-    integer :: ier, n
+    type(flux_seed), allocatable :: seeds(:)
 
-    xini = x
-    tempx = sy%c%x2c(x)
-    xinic = tempx
-
-    if (iup /= 0) then
-       call sy%f(sy%iref)%gradient(tempx,iup,n,ier,.false.,flx_plen,flx_path,prunedist)
-       call flx_prepareprintpath(xinic,"Gradient from POINT",iup,(/0d0,0d0,0d0/),0)
-       call flx_symprintpath(xini,flxsym,rgb)
-    else
-       call sy%f(sy%iref)%gradient(tempx,1,n,ier,.false.,flx_plen,flx_path,prunedist)
-       call flx_prepareprintpath(xinic,"Gradient from POINT",1,(/0d0,0d0,0d0/),0)
-       call flx_symprintpath(xini,flxsym,rgb)
-       tempx = sy%c%x2c(x)
-       call sy%f(sy%iref)%gradient(tempx,-1,n,ier,.false.,flx_plen,flx_path,prunedist)
-       call flx_prepareprintpath(xinic,"Gradient from POINT",-1,(/0d0,0d0,0d0/),0)
-       call flx_symprintpath(xini,flxsym,rgb)
-    end if
+    call flux_seeds_point(sy%c%x2c(x),iup,seeds)
+    call flx_traceprint(seeds,"Gradient from POINT",0,x,flxsym,rgb)
 
   end subroutine flx_point
 
@@ -1018,22 +1270,16 @@ contains
   !> of flxsym unit cells.
   subroutine flx_ncp(id,ntheta,nphi,flxsym,lvec,rgb)
     use systemmod, only: sy
-    use global, only: prunedist
     use tools_io, only: ferror, faterr
-    use param, only: pi
 
     integer, intent(in) :: id, ntheta, nphi
     integer, intent(in) :: flxsym
     integer, intent(in), dimension(3), optional :: lvec
     integer, intent(in) :: rgb(3)
 
-    real*8, parameter :: change = 0.1d0
-
-    real*8, dimension(3) :: xncp, xpoint, dir
-    real*8 :: phi, theta
-    integer :: i, j, n
-    integer :: ier, iup
-    real*8, dimension(3) :: xini
+    integer :: iup
+    real*8 :: xini(3)
+    type(flux_seed), allocatable :: seeds(:)
 
     if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_ncp','CP identifier < 0 or > # of CPs',faterr)
 
@@ -1044,40 +1290,11 @@ contains
     else
        call ferror('flx_ncp','CP is not CCP or NCP',faterr)
     end if
-    xncp = sy%f(sy%iref)%cpcel(id)%x
-    if (present(lvec)) then
-       xncp = xncp + real(lvec,8)
-    end if
-    xini = xncp
-    xncp = sy%c%x2c(xncp)
+    xini = sy%f(sy%iref)%cpcel(id)%x
+    if (present(lvec)) xini = xini + real(lvec,8)
 
-    do i = 1,nphi
-       do j = 1,ntheta
-          phi = pi * real(i,8) / real(nphi+1,8)
-          theta = 2.d0 * pi * real(j,8) / real(ntheta,8)
-          dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-          xpoint = xncp + change * dir
-          call sy%f(sy%iref)%gradient(xpoint,iup,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
-          call flx_prepareprintpath(xncp,"Gradient from NCP/CCP",iup,dir,id)
-          call flx_symprintpath(xini,flxsym,rgb)
-       end do
-    end do
-
-    ! special points on the unit sphere
-    phi = 0d0
-    theta = 0d0
-    dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-    xpoint = xncp + change * dir
-    call sy%f(sy%iref)%gradient(xpoint,iup,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
-    call flx_prepareprintpath(xncp,"Gradient from NCP/CCP",iup,dir,id)
-    call flx_symprintpath(xini,flxsym,rgb)
-    phi = pi
-    theta = 0d0
-    dir = (/ cos(theta)*sin(phi), sin(theta)*sin(phi), cos(phi) /)
-    xpoint = xncp + change * dir
-    call sy%f(sy%iref)%gradient(xpoint,iup,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xncp)
-    call flx_prepareprintpath(xncp,"Gradient from NCP/CCP",iup,dir,id)
-    call flx_symprintpath(xini,flxsym,rgb)
+    call flux_seeds_sphere(sy%c%x2c(xini),iup,ntheta,nphi,seeds)
+    call flx_traceprint(seeds,"Gradient from NCP/CCP",id,xini,flxsym,rgb)
 
   end subroutine flx_ncp
 
@@ -1093,14 +1310,11 @@ contains
   !> (dynamical), use the linearized dynamical system to predict a
   !> good approximation to a grid. "h1 " (heuristic 1), experimental
   !> heuristic method, using information of the partially fluxed
-  !> initial points. (h1 and dyn are experimental)
+  !> initial points. (h1 and dyn are experimental; h1 is the same as dyn)
   subroutine flx_bcp(id,iup,npoints,flxsym,bcpmethod,lvec,rgb)
     use systemmod, only: sy
     use global, only: prunedist
-    use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
-    use param, only: pi
-    use types, only: scalar_value, field_evaluation_avail
 
     integer, intent(in) :: id, iup, npoints
     integer, intent(in) :: flxsym
@@ -1108,21 +1322,12 @@ contains
     integer, intent(in), dimension(3), optional :: lvec
     integer, intent(in) :: rgb(3)
 
-    real*8, parameter :: change = 0.1d0
-
-    real*8 :: xbcp(3), xpoint(3), xini(3)
-    real*8 :: angle, cangle, sangle
-    integer :: i
-    real*8 :: reval(3), evec(3,3), v1(3), v2(3), vup(3), v(3)
-    real*8 :: ev1, ev2
-    real*8 :: R
-    real*8, dimension(npoints) :: thetavec
-    integer :: ier, ircp, n
-    type(scalar_value) :: res
-    type(field_evaluation_avail) :: request
+    real*8 :: xini(3)
+    integer :: ircp, method
+    type(flux_seed), allocatable :: seeds(:)
+    character(len=:), allocatable :: errmsg
 
     if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_bcp','CP identifier < 0 or > # of CPs',faterr)
-    call request%field_nder2()
 
     if (sy%f(sy%iref)%cpcel(id)%typ == -1) then
        ircp = 1
@@ -1131,194 +1336,20 @@ contains
     else
        call ferror('flx_bcp','CP is not BCP or RCP',faterr)
     end if
-
-    xbcp = sy%f(sy%iref)%cpcel(id)%x
-    if (present(lvec)) then
-       xbcp = xbcp + real(lvec,8)
-    end if
-    xini = xbcp
-    xbcp = sy%c%x2c(xbcp)
-    call sy%f(sy%iref)%grd(xbcp,request,res)
-    evec = res%hf
-    call eigsym(evec,3,reval,ier)
-    if (ier /= 0) &
-       call ferror('flx_bcp','Error in diagonalization',faterr)
-
-    if (ircp * reval(1) > 0) then
-       vup = evec(:,1)
-       if (ircp * reval(2) < ircp * reval(3)) then
-          v1 = evec(:,2)
-          ev1 = reval(2)
-          v2 = evec(:,3)
-          ev2 = reval(3)
-       else
-          v1 = evec(:,3)
-          ev1 = reval(3)
-          v2 = evec(:,2)
-          ev2 = reval(2)
-       end if
-    else if (ircp * reval(2) > 0) then
-       vup = evec(:,2)
-       if (ircp * reval(1) < ircp * reval(3)) then
-          v1 = evec(:,1)
-          ev1 = reval(1)
-          v2 = evec(:,3)
-          ev2 = reval(3)
-       else
-          v1 = evec(:,3)
-          ev1 = reval(3)
-          v2 = evec(:,1)
-          ev2 = reval(1)
-       end if
+    if (bcpmethod == "bra") then
+       method = flux_method_braindead
+    elseif (bcpmethod == "quo") then
+       method = flux_method_quotient
     else
-       vup = evec(:,3)
-       if (ircp * reval(1) < ircp * reval(2)) then
-          v1 = evec(:,1)
-          ev1 = reval(1)
-          v2 = evec(:,2)
-          ev2 = reval(2)
-       else
-          v1 = evec(:,2)
-          ev1 = reval(2)
-          v2 = evec(:,1)
-          ev2 = reval(1)
-       end if
+       method = flux_method_dynamical
     end if
 
-    v1 = v1 / norm2(v1)
-    v2 = v2 / norm2(v2)
-    vup = vup / norm2(vup)
+    xini = sy%f(sy%iref)%cpcel(id)%x
+    if (present(lvec)) xini = xini + real(lvec,8)
 
-    if (iup == 0 .or. iup == ircp) then
-       xpoint = xbcp + change * vup
-       call sy%f(sy%iref)%gradient(xpoint,ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-       call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",ircp,vup,id)
-       call flx_symprintpath(xini,flxsym,rgb)
-       xpoint = xbcp - change * vup
-       call sy%f(sy%iref)%gradient(xpoint,ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-       call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",ircp,-vup,id)
-       call flx_symprintpath(xini,flxsym,rgb)
-    end if
-
-    if (iup == 0 .or. iup == -ircp) then
-       if (bcpmethod == "bra") then
-          ! braindead: use an uniform distribution
-          ! write (uout,'("+ bra : fluxing the uniform distribution.")')
-          do i = 1,npoints
-             angle = 2d0 * pi * real(i-1,8)/real(npoints,8)
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * sangle + v2 * cangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-          end do
-       else if (bcpmethod == "quo") then
-          ! use eigenvalue quotient to remap the uniform point distribution
-          ! write (uout,'("+ quo : fluxing a uniform distribution remapped with the eigen-quotient.")')
-          n = npoints / 2
-          do i = 1,n
-             angle = pi * (real(i,8)-1.d0-(real(n,8)-1.d0)*.5d0)/(real(n,8)-1.d0)
-             angle = sign(abs(angle)**(ev1/ev2) / (pi/2.d0)**(ev1/ev2-1),angle)
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * sangle + v2 * cangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-             angle = angle + pi
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * sangle + v2 * cangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-          end do
-       else
-          ! write (uout,'("+ dyn: coarse exploration to determine bcp-ccp distance")')
-          ! coarse exploration to determine the distance from bcp to ccps
-          r = 1d20
-          do i = 1,50
-             angle = 2d0*pi * (i-1) / 49d0
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * cangle + v2 * sangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             ! last point before newton -> not converted to the main cell
-             xpoint = sy%c%x2c(flx_path(size(flx_path,1)-1)%x)
-             r = min(r,sqrt((xpoint(1)-xbcp(1))**2+(xpoint(2)-xbcp(2))**2+(xpoint(3)-xbcp(3))**2))
-          end do
-
-          ! write (uout,'("+ dyn: bcp-ccp minimum distance: ",F20.10)') r
-
-          ! print bcp-ias using an exponentially adapted grid
-          n = max(npoints/4-1,2)
-          call flx_findthetagrid(ev1,ev2,change,r,n,thetavec)
-
-          ! write (uout,'("+ dyn: fluxing the remapped angles")')
-          do i = 1,n
-             angle = thetavec(i)
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * cangle + v2 * sangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-
-             angle = angle + pi
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * cangle + v2 * sangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-
-             angle = -thetavec(i) + pi
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * cangle + v2 * sangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-
-             angle = angle + pi
-             cangle = cos(angle)
-             sangle = sin(angle)
-             v = v1 * cangle + v2 * sangle
-             xpoint = xbcp + change * v
-             call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-             call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v,id)
-             call flx_symprintpath(xini,flxsym,rgb)
-          end do
-
-          ! Manually do 0, pi/2, pi, 3pi/2
-          ! write (uout,'("+ dyn: fluxing special angles.")')
-          xpoint = xbcp + change * v1
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v1,id)
-          call flx_symprintpath(xini,flxsym,rgb)
-          xpoint = xbcp + change * v2
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,v2,id)
-          call flx_symprintpath(xini,flxsym,rgb)
-          xpoint = xbcp - change * v1
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,-v1,id)
-          call flx_symprintpath(xini,flxsym,rgb)
-          xpoint = xbcp - change * v2
-          call sy%f(sy%iref)%gradient(xpoint,-ircp,n,ier,.false.,flx_plen,flx_path,prunedist,pathini=xbcp)
-          call flx_prepareprintpath(xbcp,"Gradient from BCP/RCP",-ircp,-v2,id)
-          call flx_symprintpath(xini,flxsym,rgb)
-       end if
-       ! write (uout,*)
-    end if
+    call flux_seeds_axis(sy%f(sy%iref),sy%c%x2c(xini),ircp,iup,npoints,method,seeds,prunedist,errmsg)
+    if (len(errmsg) > 0) call ferror('flx_bcp',errmsg,faterr)
+    call flx_traceprint(seeds,"Gradient from BCP/RCP",id,xini,flxsym,rgb)
 
   end subroutine flx_bcp
 
@@ -1484,6 +1515,36 @@ contains
     end do
 
   end subroutine flx_findthetagrid
+
+  !> Append seed s to the seeds array.
+  subroutine add_seed(seeds,s)
+    type(flux_seed), allocatable, intent(inout) :: seeds(:)
+    type(flux_seed), intent(in) :: s
+
+    type(flux_seed), allocatable :: aux(:)
+    integer :: n
+
+    if (.not.allocated(seeds)) allocate(seeds(0))
+    n = size(seeds,1)
+    allocate(aux(n+1))
+    aux(1:n) = seeds
+    aux(n+1) = s
+    call move_alloc(aux,seeds)
+
+  end subroutine add_seed
+
+  !> The seed of a path that leaves the CP at x (Cartesian) in
+  !> direction dir (unit vector) and direction iup.
+  function cp_seed(x,dir,iup) result(s)
+    real*8, intent(in) :: x(3), dir(3)
+    integer, intent(in) :: iup
+    type(flux_seed) :: s
+
+    real*8, parameter :: change = 0.1d0
+
+    s = flux_seed(x0=x+change*dir,xorig=x,haso=.true.,dir=dir,iup=iup)
+
+  end function cp_seed
 
   !> Given the complete or reduced list index of a CP,
   !> output the appropriate ball radius.

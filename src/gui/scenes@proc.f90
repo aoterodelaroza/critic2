@@ -3106,13 +3106,14 @@ contains
   !> are copied), and the Display. Nothing is saved from an
   !> uninitialized scene.
   module subroutine scene_objects_save(s,st)
-    use representations, only: iso_cache, reptype_isosurface
+    use representations, only: iso_cache, reptype_isosurface, gpaths_cache, reptype_gpaths
     class(scene), intent(inout) :: s
     type(scene_objstate), intent(inout) :: st
 
     integer :: i, k
     type(neighstar), allocatable :: nstar(:)
     type(iso_cache) :: cache
+    type(gpaths_cache) :: gcache
 
     st = scene_objstate()
     if (s%isinit == 0) return
@@ -3125,8 +3126,10 @@ contains
        i = st%islot(k)
        call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
        if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_take(cache)
+       if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_take(gcache)
        st%rep(k) = s%rep(i)
        if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_put(cache)
+       if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_put(gcache)
        call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
        st%rep(k)%bonds%style%rev = -1
        st%rep(k)%bonds%style%rev_nstar = -1
@@ -3157,16 +3160,18 @@ contains
   !> object takes its slot (the objects are known by their uid).
   module subroutine scene_objects_restore(s,st,stfrom,done)
     use windows, only: regenerate_window_pointers
-    use representations, only: rep_slot_of, iso_cache, reptype_isosurface
+    use representations, only: rep_slot_of, iso_cache, reptype_isosurface, gpaths_cache,&
+       reptype_gpaths
     class(scene), intent(inout), target :: s
     type(scene_objstate), intent(in) :: st
     type(scene_objstate), intent(in), optional :: stfrom
     logical, intent(out), optional :: done
 
-    integer :: i, k, rev, rev_nstar, ihcps(2), ihgp(3)
+    integer :: i, k, rev, rev_nstar, ihcps(2), ihgp(3), ihtr(2)
     type(neighstar), allocatable :: nstar(:)
     logical :: dofrom, sysnstar, live
     type(iso_cache) :: cache
+    type(gpaths_cache) :: gcache
 
     if (present(done)) done = .false.
     if (.not.allocated(st%rep) .or. st%gen /= s%gen .or. s%isinit == 0) return
@@ -3199,15 +3204,21 @@ contains
        sysnstar = s%rep(i)%bonds%style%use_sys_nstar
        ihcps = 0
        ihgp = 0
+       ihtr = 0
        if (live) then
           ihcps = s%rep(i)%cps%ihover
           ihgp = s%rep(i)%gpaths%ihover
+          ihtr = (/s%rep(i)%gpaths%thover,s%rep(i)%gpaths%thowner/)
           if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_take(cache)
+          if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_take(gcache)
        end if
        s%rep(i) = st%rep(k)
        if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_put(cache)
+       if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_put(gcache)
        s%rep(i)%cps%ihover = ihcps
        s%rep(i)%gpaths%ihover = ihgp
+       s%rep(i)%gpaths%thover = min(ihtr(1),s%rep(i)%gpaths%ntrace)
+       s%rep(i)%gpaths%thowner = ihtr(2)
        if (allocated(nstar) .and. sysnstar .and. s%rep(i)%bonds%style%use_sys_nstar) then
           call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
           s%rep(i)%bonds%style%rev = rev

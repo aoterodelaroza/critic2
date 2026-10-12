@@ -366,6 +366,7 @@ contains
              if (ok.and.type == wintype_rattle.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_cp.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -923,6 +924,10 @@ contains
        ! critical points window
        if (.not.present(idparent)) &
           call ferror('window_init','critical points requires idparent',faterr)
+    elseif (type == wintype_gpaths) then
+       ! trace gradient paths window
+       if (.not.present(idparent)) &
+          call ferror('window_init','trace gradient paths requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -1022,6 +1027,8 @@ contains
 
     if (w%type == wintype_cp) then
        call w%block_cp()
+    elseif (w%type == wintype_gpaths) then
+       call w%block_gpaths()
     elseif (w%type == wintype_load_field .or. w%type == wintype_tree) then
        ! the tree loads fields from its menu (FFT, resample)
        call w%block_load_field()
@@ -1042,6 +1049,8 @@ contains
 
     if (w%type == wintype_cp) then
        call w%run_cp_pending()
+    elseif (w%type == wintype_gpaths) then
+       call w%run_gpaths()
     elseif (w%type == wintype_load_field .or. w%type == wintype_tree) then
        call w%run_load_field()
     elseif (w%type == wintype_voids) then
@@ -1080,6 +1089,9 @@ contains
        elseif (w%type == wintype_cp) then
           ! the CP under the mouse in its table is no longer highlighted
           call w%clear_cp_hover()
+       elseif (w%type == wintype_gpaths) then
+          ! the seed CP and the group under the mouse are no longer highlighted
+          call w%clear_gpaths_hover()
        elseif (w%type == wintype_preferences) then
           ! save the preferences, however the window was closed
           call settings_save()
@@ -1623,6 +1635,13 @@ contains
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
                 ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_savegpathsfile) then
+             ! the traced gradient paths, as text
+             w%name = "Export Gradient Paths##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
+             str1 = "Text (*.txt) {.txt},All files (*.*){*.*}" // c_null_char
+             call dialog_initial_file(w%parent(),"paths.txt",str2,str3)
+             call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savetablefile) then
              ! a table of the parent window, as text: to the file its
              ! tables were last written to, or table.txt next to its
@@ -1708,6 +1727,8 @@ contains
           call init_window("Crystal Voids",62,35)
        elseif (w%type == wintype_cp) then
           call init_window("Critical Points",70,30,grow=.true.)
+       elseif (w%type == wintype_gpaths) then
+          call init_window("Trace Gradient Paths",66,34,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1847,6 +1868,8 @@ contains
                 call w%draw_voids()
              elseif (w%type == wintype_cp) then
                 call w%draw_cp()
+             elseif (w%type == wintype_gpaths) then
+                call w%draw_gpaths()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

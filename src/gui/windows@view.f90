@@ -1377,6 +1377,7 @@ contains
           if (vm_is_owned(w%viewmode)) then
              w%vmdata%idx = 0
              w%vmdata%bidx = 0
+             w%vmdata%cpidx = 0
           end if
           call viewmode_to_navigate(w)
           return
@@ -1455,6 +1456,7 @@ contains
     if (present(acceptempty)) w%vmdata%acceptempty = acceptempty
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
+    w%vmdata%cpidx = 0
     w%vmdata%xpos = 0._c_float
     w%vmdata%flag = 0
     w%vmdata%tooltip_iz = 0
@@ -1505,6 +1507,7 @@ contains
 
     w%vmdata%idx = 0
     w%vmdata%bidx = 0
+    w%vmdata%cpidx = 0
     call objedit_drop_picks(w)
     call viewmode_to_navigate(w)
     w%measure_pend = pend_none
@@ -2944,6 +2947,7 @@ contains
          ! atoms only occlude in the bond pick render, so there is no atom)
          w%vmdata%bidx = 0
          w%vmdata%idx = 0
+         w%vmdata%cpidx = 0
          if (.not.alt) then
             if (bidx(1) > 0) then
                w%vmdata%bidx = bidx
@@ -2966,10 +2970,13 @@ contains
          ! delivered (idx = 0, with the click position in texture
          ! coordinates for unprojection via view_click_frame) only if the
          ! commanding window accepts it; otherwise it aborts the pick
-         ! (flag stays 0). The mode ends either way.
+         ! (flag stays 0). A window that accepts positions also gets the
+         ! critical point under the cursor (cpidx). The mode ends either way.
          w%vmdata%idx = 0
          w%vmdata%bidx = 0
+         w%vmdata%cpidx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
+         if (idx(1) == 0 .and. w%vmdata%acceptempty) w%vmdata%cpidx = w%mousepos_cp
          if (idx(1) > 0 .or. w%vmdata%acceptempty) then
             w%vmdata%flag = 1
             w%vmdata%xpos = (/texpos%x,texpos%y/)
@@ -4258,7 +4265,8 @@ contains
   !> Point delivered by a finished vm_pick_atom pick (or a vm_pick_bond
   !> pick that accepts positions) on view iview for system isys: xc =
   !> the clicked atom's position (including its lattice translation),
-  !> the midpoint of the clicked bond, or, on an accepted empty-space
+  !> the midpoint of the clicked bond, the position of the clicked
+  !> critical point (pick that accepts positions), or, on an accepted empty-space
   !> click, the click unprojected onto the plane of the scene center, in
   !> cell-frame Cartesian bohr. ok = .false. if the pick delivered
   !> nothing (it was cancelled) or the unprojection failed. Does not
@@ -4285,8 +4293,18 @@ contains
          end associate
          ok = .true.
       else
-         ! empty space: unproject the click onto the plane of the scene center
-         call view_click_frame(iview,v%vmdata%xpos,xc,ok)
+         ! a critical point was clicked: its position (cpidx is a cell
+         ! CP of the field, possibly stale)
+         if (v%vmdata%cpidx(1) > 0 .and. sys(isys)%goodfield(v%vmdata%cpidx(5))) then
+            associate(f => sys(isys)%f(v%vmdata%cpidx(5)), cp => v%vmdata%cpidx)
+              ok = (cp(1) <= f%ncpcel)
+              if (ok) xc = sys(isys)%c%x2c(f%cpcel(cp(1))%x + cp(2:4))
+            end associate
+         end if
+
+         ! empty space (or a stale CP): unproject the click onto the
+         ! plane of the scene center
+         if (.not.ok) call view_click_frame(iview,v%vmdata%xpos,xc,ok)
       end if
     end associate
 
@@ -4302,10 +4320,12 @@ contains
   !> (finished without a point), or ipick_point (finished; xc = picked
   !> point in cell-frame Cartesian bohr: a clicked atom's position
   !> including its lattice translation, or the empty-space click
-  !> unprojected onto the plane of the scene center). Releases the
-  !> forced mode and resets the view's pick data as needed; the caller
-  !> keeps only its own pending marker and the destination of the point.
-  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc)
+  !> unprojected onto the plane of the scene center). If present,
+  !> cpidx is the clicked critical point (as dl_sphere%cpidx; zero if
+  !> none). Releases the forced mode and resets the view's pick data as
+  !> needed; the caller keeps only its own pending marker and the
+  !> destination of the point.
+  module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx)
     use systems, only: sysc
     integer, intent(in) :: iview
     integer, intent(in) :: idcaller
@@ -4313,11 +4333,13 @@ contains
     type(pairpick), intent(in) :: pick
     integer, intent(out) :: istat
     real*8, intent(out) :: xc(3)
+    integer, intent(out), optional :: cpidx(5)
 
     logical :: okp
 
     istat = ipick_pending
     xc = 0d0
+    if (present(cpidx)) cpidx = 0
     associate(v => win(iview))
       if (.not.v%viewmode_owner_is(idcaller)) then
          ! the pick was taken over by another window
@@ -4331,8 +4353,10 @@ contains
          ! the pick finished (nothing delivered means cancelled)
          call view_pick_point(iview,isys,xc,okp)
          istat = merge(ipick_point,ipick_cancelled,okp)
+         if (present(cpidx) .and. okp) cpidx = v%vmdata%cpidx
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
+         v%vmdata%cpidx = 0
          v%vmdata%flag = 0
       end if
     end associate
@@ -4369,6 +4393,7 @@ contains
          end if
          v%vmdata%idx = 0
          v%vmdata%bidx = 0
+         v%vmdata%cpidx = 0
          v%vmdata%flag = 0
       end if
     end associate

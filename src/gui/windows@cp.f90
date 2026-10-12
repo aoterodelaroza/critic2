@@ -424,6 +424,97 @@ contains
 
   end subroutine clear_cp_hover
 
+  !> The position xc (cell-frame Cartesian bohr) in the coordinates of
+  !> the form of system isys: fractional for crystals, Cartesian Å in
+  !> the frame of the input coordinates for molecules.
+  module function form_coords(isys,xc) result(x)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    real*8, intent(in) :: xc(3)
+    real*8 :: x(3)
+
+    associate(c => sys(isys)%c)
+      if (c%ismolecule) then
+         x = (xc + c%molx0) * bohrtoa
+      else
+         x = c%c2x(xc)
+      end if
+    end associate
+
+  end function form_coords
+
+  !> The position x in the coordinates of the form of system isys
+  !> (fractional for crystals, Cartesian Å in the frame of the input
+  !> coordinates for molecules) as cell-frame Cartesian bohr: the
+  !> inverse of form_coords.
+  module function form_to_cart(isys,x) result(xc)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    real*8, intent(in) :: x(3)
+    real*8 :: xc(3)
+
+    associate(c => sys(isys)%c)
+      if (c%ismolecule) then
+         xc = x / bohrtoa - c%molx0
+      else
+         xc = c%x2c(x)
+      end if
+    end associate
+
+  end function form_to_cart
+
+  !> Highlight the CP ihover (as rep_cps%ihover) in the critical points
+  !> objects of field fref in view iview, and stop highlighting the
+  !> previous one: cur, set in view hoverview with uid hoverview_uid
+  !> (the caller's state, updated here). Only changes rebuild the lists.
+  module subroutine cps_hover_set(fref,iview,ihover,cur,hoverview,hoverview_uid)
+    use representations, only: reptype_cps
+    type(field_ref), intent(in) :: fref
+    integer, intent(in) :: iview
+    integer, intent(in) :: ihover(2)
+    integer, intent(inout) :: cur(2)
+    integer, intent(inout) :: hoverview
+    integer*8, intent(inout) :: hoverview_uid
+
+    if (all(ihover == cur) .and. iview == hoverview) then
+       if (iview < 1 .or. iview > nwin) return
+       if (win(iview)%uid == hoverview_uid) return
+    end if
+    ! clear the hover in the view it was set in, if it is still that view
+    if (hoverview >= 1 .and. hoverview <= nwin) then
+       if (win(hoverview)%uid == hoverview_uid) call apply(hoverview,(/0,0/))
+    end if
+    call apply(iview,ihover)
+    cur = ihover
+    hoverview = iview
+    hoverview_uid = 0
+    if (iview >= 1 .and. iview <= nwin) hoverview_uid = win(iview)%uid
+
+  contains
+    subroutine apply(iv,ih)
+      integer, intent(in) :: iv, ih(2)
+
+      integer :: i
+      logical :: ch
+
+      if (iv < 1 .or. iv > nwin) return
+      if (.not.win(iv)%isopen .or. .not.associated(win(iv)%sc)) return
+      ch = .false.
+      associate(sc => win(iv)%sc)
+        do i = 1, sc%nrep
+           if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_cps) cycle
+           ! set it in the object of the field; clear it in all
+           if (any(ih /= 0) .and. .not.sc%rep(i)%cps%fref%same(fref)) cycle
+           if (all(sc%rep(i)%cps%ihover == ih)) cycle
+           sc%rep(i)%cps%ihover = ih
+           ch = .true.
+        end do
+        if (ch) sc%forcebuildlists = .true.
+      end associate
+
+    end subroutine apply
+  end subroutine cps_hover_set
+
   !--- private procedures ---
 
   !> The Results tab: the table of the critical points of the field,
@@ -2066,45 +2157,6 @@ contains
     end function clip_coords
   end subroutine poll_pick
 
-  !> The position xc (cell-frame Cartesian bohr) in the coordinates of
-  !> the form of system isys: fractional for crystals, Cartesian Å in
-  !> the frame of the input coordinates for molecules.
-  function form_coords(isys,xc) result(x)
-    use systems, only: sys
-    integer, intent(in) :: isys
-    real*8, intent(in) :: xc(3)
-    real*8 :: x(3)
-
-    associate(c => sys(isys)%c)
-      if (c%ismolecule) then
-         x = (xc + c%molx0) * bohrtoa
-      else
-         x = c%c2x(xc)
-      end if
-    end associate
-
-  end function form_coords
-
-  !> The position x in the coordinates of the form of system isys
-  !> (fractional for crystals, Cartesian Å in the frame of the input
-  !> coordinates for molecules) as cell-frame Cartesian bohr: the
-  !> inverse of form_coords.
-  function form_to_cart(isys,x) result(xc)
-    use systems, only: sys
-    integer, intent(in) :: isys
-    real*8, intent(in) :: x(3)
-    real*8 :: xc(3)
-
-    associate(c => sys(isys)%c)
-      if (c%ismolecule) then
-         xc = x / bohrtoa - c%molx0
-      else
-         xc = c%x2c(x)
-      end if
-    end associate
-
-  end function form_to_cart
-
   !> Request the job that adds a CP to the list by a search from xc
   !> (cell-frame Cartesian bohr), for the view iview of system isys.
   subroutine request_add(w,isys,iview,xc)
@@ -2160,48 +2212,12 @@ contains
   !> window's field) the CP ihover (as rep_cps%ihover), and stop
   !> highlighting the previous one. Only changes rebuild the lists.
   subroutine set_cp_hover(w,iview,ihover)
-    use representations, only: reptype_cps
     type(window), intent(inout), target :: w
     integer, intent(in) :: iview
     integer, intent(in) :: ihover(2)
 
-    if (all(ihover == w%cp%ihover) .and. iview == w%cp%hoverview) then
-       if (iview < 1 .or. iview > nwin) return
-       if (win(iview)%uid == w%cp%hoverview_uid) return
-    end if
-    ! clear the hover in the view it was set in, if it is still that view
-    if (w%cp%hoverview >= 1 .and. w%cp%hoverview <= nwin) then
-       if (win(w%cp%hoverview)%uid == w%cp%hoverview_uid) call apply(w%cp%hoverview,(/0,0/))
-    end if
-    call apply(iview,ihover)
-    w%cp%ihover = ihover
-    w%cp%hoverview = iview
-    w%cp%hoverview_uid = 0
-    if (iview >= 1 .and. iview <= nwin) w%cp%hoverview_uid = win(iview)%uid
+    call cps_hover_set(w%cp%fref,iview,ihover,w%cp%ihover,w%cp%hoverview,w%cp%hoverview_uid)
 
-  contains
-    subroutine apply(iv,ih)
-      integer, intent(in) :: iv, ih(2)
-
-      integer :: i
-      logical :: ch
-
-      if (iv < 1 .or. iv > nwin) return
-      if (.not.win(iv)%isopen .or. .not.associated(win(iv)%sc)) return
-      ch = .false.
-      associate(sc => win(iv)%sc)
-        do i = 1, sc%nrep
-           if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_cps) cycle
-           ! set it in the object of the field; clear it in all
-           if (any(ih /= 0) .and. .not.sc%rep(i)%cps%fref%same(w%cp%fref)) cycle
-           if (all(sc%rep(i)%cps%ihover == ih)) cycle
-           sc%rep(i)%cps%ihover = ih
-           ch = .true.
-        end do
-        if (ch) sc%forcebuildlists = .true.
-      end associate
-
-    end subroutine apply
   end subroutine set_cp_hover
 
   !> The Search tab: field, seeds, advanced options, and the Run button.

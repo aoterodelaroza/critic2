@@ -783,10 +783,13 @@ contains
   !> associated system.
   module subroutine update_styles(r)
     use systems, only: sys, sys_ready, ok_system, sysc
+    use tools_io, only: uout, string
     class(representation), intent(inout) :: r
 
     logical :: doreset
     integer :: i
+    character(len=:), allocatable :: errmsg
+    type(gpaths_trace) :: t
 
     ! consistency checks
     if (.not.r%isinit .or. r%id == 0) return
@@ -911,9 +914,51 @@ contains
        doreset = (r%gpaths%pfield /= r%gpaths%fref%id)
        doreset = doreset .or. (sysc(r%id)%timelastchange_cplist > r%gpaths%ptime)
        if (doreset) call r%gpaths%reset_paths(r%id)
+
+       ! traced paths: dropped if the field, its CP list, or the geometry
+       ! changed; those not traced yet (from a scene file or an undo) are
+       ! traced now, but those seeded at a CP only once the field has
+       ! critical points
+       if (r%gpaths%traces_stale(r%id)) then
+          write (uout,'("* Gradient paths of object ",A," removed: the field, its critical points,&
+             & or the structure changed"/)') r%name
+          call r%gpaths%drop_traces()
+       end if
+       i = 1
+       do while (i <= r%gpaths%ntrace)
+          if (.not.r%gpaths%trace(i)%traced) then
+             if (.not.trace_ready(r%gpaths%trace(i))) then
+                i = i + 1
+                cycle
+             end if
+             t = r%gpaths%trace(i)
+             call r%gpaths%run_trace(r%id,t,errmsg)
+             if (len(errmsg) > 0) then
+                write (uout,'("* Gradient paths ",A," of object ",A," removed: ",A/)') &
+                   string(i), r%name, errmsg
+                call r%gpaths%remove_trace(i)
+                cycle
+             end if
+             r%gpaths%trace(i) = t
+          end if
+          i = i + 1
+       end do
     end if
 
   contains
+
+    !> Whether the seed of traced gradient path group t of this
+    !> gradient paths object can be traced: a point, a nucleus, or a CP
+    !> of a field that has critical points other than the nuclei.
+    logical function trace_ready(t)
+      type(gpaths_trace), intent(in) :: t
+
+      trace_ready = (t%kind == gtrace_point)
+      if (.not.trace_ready) trace_ready = field_has_cps(r%id,r%gpaths%fref%id)
+      if (.not.trace_ready .and. t%kind == gtrace_sphere .and. sys(r%id)%goodfield(r%gpaths%fref%id)) &
+         trace_ready = (sys(r%id)%f(r%gpaths%fref%id)%identify_cp(t%x,1d-4) > 0)
+
+    end function trace_ready
 
     !> Rebuild the per-species rows of the legend if the species of the
     !> system changed (atomic numbers or names). A species that was
@@ -1929,7 +1974,8 @@ contains
        call add_cp_items(r%cps%fref%id,cpitem_sphere)
     elseif (r%type == reptype_gpaths) then
        !!! gradient paths of a scalar field !!!
-       call add_cp_items(r%gpaths%fref%id,cpitem_path)
+       if (r%gpaths%showbond) call add_cp_items(r%gpaths%fref%id,cpitem_path)
+       call add_traced_paths()
     end if ! reptype
   contains
 
@@ -2156,6 +2202,134 @@ contains
       end associate
 
     end subroutine add_cp_items
+
+    !> Append the traced gradient path groups of the gradient paths
+    !> object (Trace Gradient Paths tool): for each copy of each site, the
+    !> paths as tubes or strings of spheres, and the nuclei at their ends
+    !> (if showends). The images of a copy follow the Display like those
+    !> of a CP at the seed position.
+    subroutine add_traced_paths()
+      integer :: it, is, ic, j, k, n, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3, lx(3), nitem, nmax
+      logical :: bord, tsh, vac(3), beads
+      real*8 :: ui(3), ue(3), xs(3), xf(3), am(3,3), bv(3)
+      real(c_float) :: dx(3)
+      real(c_float), allocatable :: xp(:,:)
+      type(dl_cylinder) :: dpath
+
+      if (r%gpaths%ntrace == 0) return
+      if (.not.any(r%gpaths%trace(1:r%gpaths%ntrace)%traced .and. r%gpaths%trace(1:r%gpaths%ntrace)%shown)) return
+      bord = disp%border
+      tsh = any(abs(disp%tshift) > 1d-5)
+      if (r%disp%ignoresel) then
+         bord = .true.
+         tsh = .false.
+      end if
+      nc = disp%ncells(r%disp)
+      call atom_image_vacuum(c,r%id,vac,ui,ue)
+      beads = (r%gpaths%style == gpaths_style_beads)
+
+      ! presize, one item per segment or sphere (the border images are
+      ! absorbed by dl_append); and the longest path
+      nitem = 0
+      nmax = 0
+      do it = 1, r%gpaths%ntrace
+         associate(t => r%gpaths%trace(it))
+           if (.not.t%traced .or. .not.t%shown) cycle
+           do is = 1, t%nsite
+              do j = 1, t%site(is)%npath
+                 nitem = nitem + t%site(is)%path(j)%n * t%site(is)%ncopy
+                 nmax = max(nmax,t%site(is)%path(j)%n)
+              end do
+           end do
+         end associate
+      end do
+      nitem = nitem * product(nc)
+      if (beads) then
+         call obj%reserve(nsph = obj%nsph + nitem)
+      else
+         call obj%reserve(ncyl = obj%ncyl + nitem)
+      end if
+      allocate(xp(3,nmax))
+
+      ! each image of an end atom only once (shared with the bond paths)
+      if (r%gpaths%showends .and. .not.allocated(lshown)) then
+         allocate(lshown(c%ncel,-1:nc(1),-1:nc(2),-1:nc(3)))
+         lshown = .false.
+      end if
+
+      do it = 1, r%gpaths%ntrace
+         associate(t => r%gpaths%trace(it))
+           if (.not.t%traced .or. .not.t%shown) cycle
+
+           ! the style of this group (highlighted if under the mouse in a table)
+           if (r%gpaths%thover == it) then
+              dsph = dl_sphere(x=0._c_float,r=2._c_float*t%rad,rgb=ColorHighlightScene(1:3),idx=0,&
+                 xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
+                 rgbborder=ColorHighlightScene(1:3))
+           else
+              dsph = dl_sphere(x=0._c_float,r=t%rad,rgb=t%rgb,idx=0,&
+                 xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
+                 rgbborder=t%rgb)
+           end if
+           dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=dsph%r,rgb=dsph%rgb)
+
+           do is = 1, t%nsite
+              associate(s => t%site(is))
+                do ic = 1, s%ncopy
+                   ! the copy as a Cartesian affine map, and its image
+                   ! range, from the seed position
+                   am = matmul(c%m_x2c,s%cop(:,1:3,ic))
+                   bv = matmul(c%m_x2c,s%cop(:,4,ic))
+                   xs = matmul(s%cop(:,1:3,ic),s%x) + s%cop(:,4,ic)
+                   call atom_image_range(xs,(/0,0,0/),nc,bord,.false.,vac,ui,ue,m0,m1,vshift)
+                   if (tsh) then
+                      xf = xs - disp%tshift
+                      vshift = vshift + nint(xf - floor(xf) + disp%tshift - xs)
+                   end if
+
+                   do j = 1, s%npath
+                      n = s%path(j)%n
+                      if (n < 2) cycle
+                      ! the path of this copy, Cartesian
+                      xp(:,1:n) = real(matmul(am,s%path(j)%x(:,1:n)) + spread(bv,2,n),c_float)
+
+                      do j1 = m0(1), m1(1)
+                         do j2 = m0(2), m1(2)
+                            do j3 = m0(3), m1(3)
+                               dx = real(c%x2c(real((/j1,j2,j3/) + vshift,8)),c_float)
+                               if (beads) then
+                                  do k = 1, n
+                                     dsph%x = xp(:,k) + dx
+                                     call dl_append(obj%sph,obj%nsph,dsph)
+                                  end do
+                               else
+                                  do k = 1, n-1
+                                     dpath%x1 = xp(:,k) + dx
+                                     dpath%x2 = xp(:,k+1) + dx
+                                     call dl_append(obj%cyl,obj%ncyl,dpath)
+                                  end do
+                               end if
+
+                               ! the nucleus at the end of this path
+                               if (r%gpaths%showends .and. s%path(j)%iend(ic) > 0) then
+                                  lx = s%path(j)%lend(:,ic) + (/j1,j2,j3/) + vshift
+                                  call check_lshown(s%path(j)%iend(ic),lx(1),lx(2),lx(3))
+                                  if (.not.lshown(s%path(j)%iend(ic),lx(1),lx(2),lx(3))) then
+                                     lshown(s%path(j)%iend(ic),lx(1),lx(2),lx(3)) = .true.
+                                     call append_forced_atom(s%path(j)%iend(ic),lx,.false.,.false.)
+                                  end if
+                               end if
+                            end do
+                         end do
+                      end do
+                   end do
+                end do
+              end associate
+           end do
+         end associate
+      end do
+
+    end subroutine add_traced_paths
 
     !> For cell CP icp of field ifield and the add_cp_items mode: the
     !> label row if it is shown (labels), 1 if its type is shown
@@ -3891,6 +4065,391 @@ contains
 
   end subroutine gpaths_fill_rgb
 
+  !> Append the traced gradient path group t to the gradient paths
+  !> object g. t is left undefined (its paths are moved).
+  module subroutine gpaths_add_trace(g,t)
+    class(rep_gpaths), intent(inout) :: g
+    type(gpaths_trace), intent(inout) :: t
+
+    type(gpaths_trace), allocatable :: aux(:)
+    integer :: i
+
+    if (t%uid == 0) t%uid = new_uid()
+    allocate(aux(g%ntrace+1))
+    do i = 1, g%ntrace
+       call move_trace(g%trace(i),aux(i))
+    end do
+    call move_trace(t,aux(g%ntrace+1))
+    call move_alloc(aux,g%trace)
+    g%ntrace = g%ntrace + 1
+
+  end subroutine gpaths_add_trace
+
+  !> Remove the traced gradient path group it from object g.
+  module subroutine gpaths_remove_trace(g,it)
+    class(rep_gpaths), intent(inout) :: g
+    integer, intent(in) :: it
+
+    integer :: i
+
+    if (it < 1 .or. it > g%ntrace) return
+    do i = it, g%ntrace-1
+       call move_trace(g%trace(i+1),g%trace(i))
+    end do
+    g%trace(g%ntrace) = gpaths_trace()
+    g%ntrace = g%ntrace - 1
+    g%thover = 0
+
+  end subroutine gpaths_remove_trace
+
+  !> Remove all the traced gradient path groups of object g.
+  module subroutine gpaths_drop_traces(g)
+    class(rep_gpaths), intent(inout) :: g
+
+    if (allocated(g%trace)) deallocate(g%trace)
+    g%ntrace = 0
+    g%thover = 0
+
+  end subroutine gpaths_drop_traces
+
+  !> Move the paths of the traced groups of object g into cache (the
+  !> groups keep their recipe, style, and traced flag).
+  module subroutine gpaths_cache_take(g,cache)
+    class(rep_gpaths), intent(inout) :: g
+    type(gpaths_cache), intent(inout) :: cache
+
+    integer :: i
+
+    if (allocated(cache%t)) deallocate(cache%t)
+    allocate(cache%t(g%ntrace))
+    do i = 1, g%ntrace
+       cache%t(i)%uid = g%trace(i)%uid
+       cache%t(i)%traced = g%trace(i)%traced
+       cache%t(i)%nsite = g%trace(i)%nsite
+       if (allocated(g%trace(i)%site)) call move_alloc(g%trace(i)%site,cache%t(i)%site)
+    end do
+
+  end subroutine gpaths_cache_take
+
+  !> Give each traced group of object g the paths of the group with the
+  !> same uid in cache (moved); a group without them is traced again
+  !> when the object is next updated.
+  module subroutine gpaths_cache_put(g,cache)
+    class(rep_gpaths), intent(inout) :: g
+    type(gpaths_cache), intent(inout) :: cache
+
+    integer :: i, j
+
+    do i = 1, g%ntrace
+       g%trace(i)%traced = .false.
+       g%trace(i)%nsite = 0
+       if (allocated(g%trace(i)%site)) deallocate(g%trace(i)%site)
+       if (.not.allocated(cache%t)) cycle
+       j = findloc(cache%t(:)%uid,g%trace(i)%uid,1)
+       if (j == 0) cycle
+       if (.not.allocated(cache%t(j)%site)) cycle
+       call move_alloc(cache%t(j)%site,g%trace(i)%site)
+       g%trace(i)%nsite = cache%t(j)%nsite
+       g%trace(i)%traced = cache%t(j)%traced
+    end do
+    if (allocated(cache%t)) deallocate(cache%t)
+
+  end subroutine gpaths_cache_put
+
+  !> Whether the traced gradient path groups of object g (system isys)
+  !> are stale: the field, its data, the geometry, or the CP list of
+  !> the field changed since they were traced. Groups not traced yet
+  !> (read from a scene file) are not stale.
+  module function gpaths_traces_stale(g,isys) result(stale)
+    use systems, only: sys, sysc
+    class(rep_gpaths), intent(in) :: g
+    integer, intent(in) :: isys
+    logical :: stale
+
+    stale = .false.
+    if (g%ntrace == 0) return
+    if (.not.any(g%trace(1:g%ntrace)%traced)) return
+    stale = (g%tfield /= g%fref%id)
+    if (.not.stale) stale = (sys(isys)%field_cuid(g%fref%id) /= g%tcuid)
+    if (.not.stale) stale = (sysc(isys)%rev_geometry /= g%trev)
+    if (.not.stale) stale = (sysc(isys)%timelastchange_cplist > g%ttime)
+
+  end function gpaths_traces_stale
+
+  !> Trace the gradient paths of group t with the field of object g
+  !> (system isys), following its recipe; also set its label. The paths
+  !> of a CP seed are traced from its symmetry-unique CP and carried to
+  !> the cell copies (all of them if t%sym, else the one at t%x) by the
+  !> operations of the CP list; those of a point, to the
+  !> symmetry-equivalent points if t%sym. On error, errmsg is not empty
+  !> and t is not traced.
+  module subroutine gpaths_run_trace(g,isys,t,errmsg)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys, sysc
+    use flux, only: flux_seed, flux_path, flux_seeds_point, flux_seeds_sphere,&
+       flux_seeds_axis, flux_trace
+    use global, only: prunedist
+    use tools_io, only: string
+    use param, only: icrd_crys
+    class(rep_gpaths), intent(inout) :: g
+    integer, intent(in) :: isys
+    type(gpaths_trace), intent(inout) :: t
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    real*8, parameter :: eps_cp = 1d-4 ! distance to identify the seed CP (bohr)
+    real*8, parameter :: eps_end = 1d-2 ! distance from the end of a path to a nucleus (bohr)
+
+    integer :: ifield, icel, i, n, typ, npath
+    real*8 :: xl(3)
+    character(len=:), allocatable :: str
+
+    errmsg = ""
+    t%traced = .false.
+    t%nsite = 0
+    if (allocated(t%site)) deallocate(t%site)
+    ifield = g%fref%id
+    if (.not.sys(isys)%goodfield(ifield)) then
+       errmsg = "The field is not available"
+       return
+    end if
+
+    associate(f => sys(isys)%f(ifield), c => sys(isys)%c)
+      ! the seed CP, by position
+      icel = 0
+      typ = 0
+      if (t%kind == gtrace_sphere .or. t%kind == gtrace_axis) then
+         icel = f%identify_cp(t%x,eps_cp)
+         if (icel <= 0) then
+            errmsg = "The seed critical point is not in the list of the field"
+            return
+         end if
+         typ = f%cpcel(icel)%typ
+      end if
+
+      select case (t%kind)
+      case (gtrace_point)
+         allocate(t%site(1))
+         t%nsite = 1
+         t%site(1)%x = t%x
+         call point_copies(t%site(1))
+         call trace_site(t%site(1))
+         ! the point as in the form: fractional, or Cartesian Å (molecules)
+         xl = t%x
+         if (c%ismolecule) xl = (c%x2c(t%x) + c%molx0) * bohrtoa
+         str = "Point (" // string(xl(1),'f',decimal=4) // "," // string(xl(2),'f',decimal=4) //&
+            "," // string(xl(3),'f',decimal=4) // "), "
+         if (t%iup == 0) then
+            str = str // "up and down"
+         else
+            str = str // trim(merge("up  ","down",t%iup > 0))
+         end if
+
+      case (gtrace_sphere)
+         if (typ /= -3 .and. typ /= 3) then
+            errmsg = "The seed of a sphere of paths must be a nuclear or cage critical point"
+            return
+         end if
+         allocate(t%site(1))
+         t%nsite = 1
+         call cp_site(t%site(1),icel)
+         if (len(errmsg) > 0) return
+         str = cp_str(icel) // ": sphere " // string(t%ntheta) // "x" // string(t%nphi)
+
+      case (gtrace_axis)
+         if (typ /= -1 .and. typ /= 1) then
+            errmsg = "The seed of axial and plane paths must be a bond or ring critical point"
+            return
+         end if
+         allocate(t%site(1))
+         t%nsite = 1
+         call cp_site(t%site(1),icel)
+         if (len(errmsg) > 0) return
+         select case (t%iup)
+         case (gtrace_axis_axial)
+            str = cp_str(icel) // ": axis"
+         case (gtrace_axis_plane)
+            str = cp_str(icel) // ": plane (" // string(t%npts) // ")"
+         case default
+            str = cp_str(icel) // ": axis and plane (" // string(t%npts) // ")"
+         end select
+
+      case (gtrace_rings)
+         ! one site per symmetry-unique RCP, at its first cell copy
+         n = count(f%cp(c%nneq+1:f%ncp)%typ == 1)
+         if (n == 0) then
+            errmsg = "The field has no ring critical points"
+            return
+         end if
+         allocate(t%site(n))
+         t%nsite = 0
+         do i = c%nneq+1, f%ncp
+            if (f%cp(i)%typ /= 1) cycle
+            t%nsite = t%nsite + 1
+            call cp_site(t%site(t%nsite),findloc(f%cpcel(1:f%ncpcel)%idx,i,1))
+            if (len(errmsg) > 0) return
+         end do
+         str = "Ring paths (" // string(t%nsite) // " RCPs)"
+      end select
+
+      ! the number of drawn paths
+      npath = 0
+      do i = 1, t%nsite
+         npath = npath + t%site(i)%npath * t%site(i)%ncopy
+      end do
+      t%label = str // ", " // string(npath) // " paths"
+    end associate
+
+    t%traced = .true.
+    g%tfield = ifield
+    g%tcuid = sys(isys)%field_cuid(ifield)
+    g%trev = sysc(isys)%rev_geometry
+    g%ttime = glfwGetTime()
+
+  contains
+
+    !> Fill site s for the CP seed at cell CP icel: traced from its
+    !> symmetry-unique CP, with copies at the cell CPs of the same
+    !> symmetry-unique CP (all of them if t%sym, else only icel).
+    subroutine cp_site(s,icel)
+      type(gpaths_site), intent(inout) :: s
+      integer, intent(in) :: icel
+
+      integer :: k, n
+
+      associate(f => sys(isys)%f(ifield), c => sys(isys)%c)
+        s%icp = f%cpcel(icel)%idx
+        s%x = f%cp(s%icp)%x
+        n = count(f%cpcel(1:f%ncpcel)%idx == s%icp)
+        if (.not.t%sym) n = 1
+        s%ncopy = n
+        allocate(s%cop(3,4,n))
+        n = 0
+        do k = 1, f%ncpcel
+           if (f%cpcel(k)%idx /= s%icp) cycle
+           if (.not.t%sym .and. k /= icel) cycle
+           n = n + 1
+           s%cop(:,1:3,n) = c%rotm(:,1:3,f%cpcel(k)%ir)
+           s%cop(:,4,n) = c%rotm(:,4,f%cpcel(k)%ir) + c%cen(:,f%cpcel(k)%ic) + f%cpcel(k)%lvec
+        end do
+      end associate
+      call trace_site(s)
+
+    end subroutine cp_site
+
+    !> The copies of the point site s, each in the unit cell: the
+    !> symmetry-equivalent points if t%sym, else the point itself.
+    subroutine point_copies(s)
+      type(gpaths_site), intent(inout) :: s
+
+      integer :: k
+      real*8, allocatable :: vec(:,:)
+      integer, allocatable :: irotm(:), icenv(:)
+
+      associate(c => sys(isys)%c)
+        if (t%sym) then
+           call c%symeqv(s%x,s%ncopy,vec,irotm,icenv)
+           allocate(s%cop(3,4,s%ncopy))
+           do k = 1, s%ncopy
+              s%cop(:,1:3,k) = c%rotm(:,1:3,irotm(k))
+              s%cop(:,4,k) = vec(:,k) - matmul(c%rotm(:,1:3,irotm(k)),s%x)
+           end do
+        else
+           s%ncopy = 1
+           allocate(s%cop(3,4,1))
+           s%cop = 0d0
+           do k = 1, 3
+              s%cop(k,k,1) = 1d0
+           end do
+           s%cop(:,4,1) = -floor(s%x)
+        end if
+      end associate
+
+    end subroutine point_copies
+
+    !> Trace the paths of site s, from the point (point kind) or from the
+    !> CP s%icp following the recipe, and find the nucleus at the end of
+    !> each path for each copy of the site.
+    subroutine trace_site(s)
+      type(gpaths_site), intent(inout) :: s
+
+      type(flux_seed), allocatable :: seeds(:)
+      type(flux_path), allocatable :: paths(:)
+      integer :: j, k, n, iat, lv(3), ircp, iup
+      real*8 :: xc(3), y(3), dist
+      character(len=:), allocatable :: err1
+
+      associate(f => sys(isys)%f(ifield), c => sys(isys)%c)
+        xc = c%x2c(s%x)
+        if (t%kind == gtrace_point) then
+           call flux_seeds_point(xc,t%iup,seeds)
+        elseif (t%kind == gtrace_sphere) then
+           call flux_seeds_sphere(xc,merge(-1,1,f%cp(s%icp)%typ == -3),t%ntheta,t%nphi,seeds)
+        else
+           ircp = merge(1,-1,f%cp(s%icp)%typ == -1)
+           if (t%kind == gtrace_rings .or. t%iup == gtrace_axis_axial) then
+              iup = ircp
+           elseif (t%iup == gtrace_axis_plane) then
+              iup = -ircp
+           else
+              iup = 0
+           end if
+           call flux_seeds_axis(f,xc,ircp,iup,t%npts,t%method,seeds,prunedist,err1)
+           if (len(err1) > 0) then
+              errmsg = err1
+              return
+           end if
+        end if
+        if (.not.allocated(seeds)) allocate(seeds(0))
+        call flux_trace(f,seeds,paths,prunedist)
+
+        s%npath = size(paths,1)
+        allocate(s%path(s%npath))
+        do j = 1, s%npath
+           n = size(paths(j)%p,1)
+           s%path(j)%n = n
+           allocate(s%path(j)%x(3,n),s%path(j)%f(n))
+           do k = 1, n
+              s%path(j)%x(:,k) = paths(j)%p(k)%x
+              s%path(j)%f(k) = paths(j)%p(k)%f
+           end do
+
+           ! the nucleus at the end of each copy of the path
+           allocate(s%path(j)%iend(s%ncopy),s%path(j)%lend(3,s%ncopy))
+           s%path(j)%iend = 0
+           s%path(j)%lend = 0
+           if (n < 2) cycle
+           if (paths(j)%icpend < 1 .or. paths(j)%icpend > c%ncel .or. paths(j)%dend > eps_end) cycle
+           do k = 1, s%ncopy
+              y = matmul(s%cop(:,1:3,k),s%path(j)%x(:,n)) + s%cop(:,4,k)
+              iat = c%identify_atom(y,icrd_crys,lvec=lv,dist=dist,distmax=eps_end)
+              if (iat <= 0) cycle
+              s%path(j)%iend(k) = iat
+              s%path(j)%lend(:,k) = lv
+           end do
+        end do
+      end associate
+
+    end subroutine trace_site
+
+    !> Short description of cell CP icel: type and name.
+    function cp_str(icel) result(str)
+      integer, intent(in) :: icel
+      character(len=:), allocatable :: str
+
+      associate(f => sys(isys)%f(ifield))
+        associate(cp => f%cp(f%cpcel(icel)%idx))
+          if (cp%typ == -3) then
+             str = "NCP " // trim(cp%name)
+          else
+             str = cps_abbrev(cp%typind) // " " // trim(cp%name)
+          end if
+        end associate
+      end associate
+
+    end function cp_str
+
+  end subroutine gpaths_run_trace
+
   !> A new shape of kind ikind (shapekind_*) with the style of the
   !> selected shape in p (the defaults if none is selected), so that
   !> consecutive shapes look alike. Its geometry is empty (at the
@@ -4295,6 +4854,20 @@ contains
     end do
 
   end subroutine vib_phasors
+
+  !> Move the traced gradient path group a into b (a is reset).
+  subroutine move_trace(a,b)
+    type(gpaths_trace), intent(inout) :: a
+    type(gpaths_trace), intent(inout) :: b
+
+    type(gpaths_site), allocatable :: site(:)
+
+    if (allocated(a%site)) call move_alloc(a%site,site)
+    b = a
+    if (allocated(site)) call move_alloc(site,b%site)
+    a = gpaths_trace()
+
+  end subroutine move_trace
 
   !> Vacuum directions of the crystal c belonging to system isys, for the
   !> loops that draw one object per periodic image of an atom. dovac(j) is

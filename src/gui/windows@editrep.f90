@@ -57,6 +57,7 @@ contains
              sysc(isys)%sc%forcebuildlists = .true.
           end do
        end if
+       call gpaths_thover_release(w%id)
        call w%end()
     end if
 
@@ -208,6 +209,7 @@ contains
              if (win(iview)%isopen .and. associated(win(iview)%sc)) win(iview)%sc%forcebuildlists = .true.
           end if
        end if
+       call gpaths_thover_release(w%id)
        call w%end()
     end if
 
@@ -5190,6 +5192,7 @@ contains
 
     integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, ncol, ihover(3)
     integer :: nuniq, ncell
+    logical :: hov
     integer, allocatable :: iuniq(:,:), icell(:,:)
     integer(c_int) :: istyle, itable
     logical, pointer :: pshown1(:)
@@ -5328,12 +5331,23 @@ contains
           "atomic units)",ttshown)
     end if
 
+    ! the bond paths found by AUTO, and the groups of paths traced with
+    ! the Trace Gradient Paths tool
+    ch = iw_checkbox("Show the bond paths (AUTO)##gpathsshowbond",w%rep%gpaths%showbond)
+    changed = changed .or. ch
+    call iw_tooltip("Draw the bond paths that the critical point search found",ttshown)
+    if (w%rep%gpaths%ntrace > 0) then
+       call iw_text("Traced Gradient Paths",highlight=.true.)
+       changed = draw_gpaths_trace_table(w%rep%gpaths,"editrep",w%id,ttshown,hov) .or. changed
+       if (hov .and. iview > 0) win(iview)%sc%forcebuildlists = .true.
+    end if
+
     ! the atoms at the ends of the bond paths, with the colors and radii
     ! of this object (the table below, shown only when they are drawn)
     ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
     changed = changed .or. ch
-    call iw_tooltip("Also draw the atoms at the ends of the bond paths, with the colors and radii "//&
-       "in the table below.",ttshown)
+    call iw_tooltip("Also draw the atoms at the ends of the bond paths and of the traced paths that&
+       & end at a nucleus, with the colors and radii in the table below.",ttshown)
     if (w%rep%gpaths%showends) then
        ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
           rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)

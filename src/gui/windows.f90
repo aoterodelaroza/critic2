@@ -22,7 +22,7 @@ module windows
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
-     reptype_atoms
+     reptype_atoms, rep_gpaths, gtrace_axis, gtrace_axis_both, gpaths_rad_def
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
@@ -389,6 +389,39 @@ module windows
      character*1, allocatable :: wyc(:) ! Wyckoff letter of each symmetry-unique CP (crystals)
   end type cp_state
   public :: cp_state
+
+  !> Per-window state of the trace gradient paths window (Tools > Trace
+  !> Gradient Paths): the form (field, seed and its options, the style
+  !> of the next group of paths), a pending pick in the view, and the
+  !> pending trace. The paths go to a gradient paths object of the view.
+  type gpaths_state
+     type(sys_ref) :: sys ! system the form is set up for
+     type(field_ref) :: fref ! field whose gradient paths are traced
+     integer :: kind = gtrace_axis ! kind of seed (gtrace_*)
+     integer :: icel = 0 ! seed cell CP of the sphere and axis kinds (0 = none)
+     real*8 :: x(3) = 0.5d0 ! point seed (fractional for crystals, Cartesian Å for molecules)
+     integer :: iuppoint = 0 ! point seed: +1 up, -1 down, 0 both
+     integer :: iupaxis = gtrace_axis_both ! BCP/RCP seed: the paths (gtrace_axis_*)
+     integer(c_int) :: ntheta = 8 ! sphere: number of azimuthal angles
+     integer(c_int) :: nphi = 5 ! sphere: number of polar angles
+     integer(c_int) :: npts = 24 ! BCP/RCP: number of paths in the plane
+     integer(c_int) :: method = 0 ! BCP/RCP: starting angles in the plane (flux_method_*)
+     logical :: sym = .true. ! trace all the symmetry-equivalent copies
+     real(c_float) :: rgb(3) = (/0.85_c_float,0.45_c_float,0.10_c_float/) ! color of the next group
+     real(c_float) :: rad = gpaths_rad_def ! radius of the next group (bohr)
+     ! pending pick of the seed in the view
+     logical :: picking = .false.
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     ! pending trace (gui_main%pending_block_window)
+     integer :: pending_view = 0
+     ! the seed CP under the mouse in the table, highlighted in the
+     ! critical points object of the view (as rep_cps%ihover)
+     integer :: ihover(2) = 0
+     integer :: hoverview = 0
+     integer*8 :: hoverview_uid = 0
+  end type gpaths_state
+  public :: gpaths_state
 
   ! Grid spacing the crystal voids window starts from (Å)
   real*8, parameter, public :: voids_spacing_def = 0.15d0
@@ -796,6 +829,7 @@ module windows
      integer(c_int) :: idx(4) = 0 ! atom identifier under mouse position (cell index + lattice vector)
      integer(c_int) :: bidx(8) = 0 ! bond identifier under mouse position: the two atom images it
                                    ! joins, each a cell index + lattice vector (as in dl_cylinder%bidx)
+     integer(c_int) :: cpidx(5) = 0 ! critical point clicked in pick-atom mode with acceptempty (as in dl_sphere%cpidx)
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate; 0 = nothing delivered/cancelled)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms and pick-atom modes)
      logical :: acceptempty = .false. ! pick-atom mode: an empty-space click delivers a position instead of aborting
@@ -1094,6 +1128,8 @@ module windows
      type(voids_state) :: vd ! the form and results of the crystal voids window
      ! critical points window
      type(cp_state) :: cp ! the AUTO form, pending job, and results
+     ! trace gradient paths window
+     type(gpaths_state) :: gp ! the form, pick, and pending trace
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1235,6 +1271,10 @@ module windows
      procedure :: block_cp
      procedure :: run_cp_pending
      procedure :: clear_cp_hover
+     procedure :: draw_gpaths
+     procedure :: block_gpaths
+     procedure :: run_gpaths
+     procedure :: clear_gpaths_hover
      ! blocking jobs (gui_main%pending_block_window)
      procedure :: request_block => window_request_block
      procedure :: block_draw => window_block_draw
@@ -1301,6 +1341,7 @@ module windows
   integer, parameter, public :: wintype_display = 26
   integer, parameter, public :: wintype_melting = 27
   integer, parameter, public :: wintype_cp = 28
+  integer, parameter, public :: wintype_gpaths = 29
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1319,6 +1360,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_savetablefile = 13
   integer, parameter, public :: wpurp_dialog_savescenefile = 14
   integer, parameter, public :: wpurp_dialog_saveobjfile = 15
+  integer, parameter, public :: wpurp_dialog_savegpathsfile = 16
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)
@@ -1728,13 +1770,14 @@ module windows
        real*8, intent(out) :: xc(3)
        logical, intent(out) :: ok
      end subroutine view_pick_point
-     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc)
+     module subroutine view_pick_result(iview,idcaller,isys,pick,istat,xc,cpidx)
        integer, intent(in) :: iview
        integer, intent(in) :: idcaller
        integer, intent(in) :: isys
        type(pairpick), intent(in) :: pick
        integer, intent(out) :: istat
        real*8, intent(out) :: xc(3)
+       integer, intent(out), optional :: cpidx(5)
      end subroutine view_pick_result
      module subroutine view_pick_winfrac(iview,idcaller,istat,winfrac)
        integer, intent(in) :: iview
@@ -2049,6 +2092,48 @@ module windows
      module subroutine clear_cp_hover(w)
        class(window), intent(inout), target :: w
      end subroutine clear_cp_hover
+     module function form_coords(isys,xc) result(x)
+       integer, intent(in) :: isys
+       real*8, intent(in) :: xc(3)
+       real*8 :: x(3)
+     end function form_coords
+     module function form_to_cart(isys,x) result(xc)
+       integer, intent(in) :: isys
+       real*8, intent(in) :: x(3)
+       real*8 :: xc(3)
+     end function form_to_cart
+     module subroutine cps_hover_set(fref,iview,ihover,cur,hoverview,hoverview_uid)
+       type(field_ref), intent(in) :: fref
+       integer, intent(in) :: iview
+       integer, intent(in) :: ihover(2)
+       integer, intent(inout) :: cur(2)
+       integer, intent(inout) :: hoverview
+       integer*8, intent(inout) :: hoverview_uid
+     end subroutine cps_hover_set
+     !xx! gpaths submodule !xx!
+     module subroutine draw_gpaths(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_gpaths
+     module subroutine block_gpaths(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_gpaths
+     module subroutine run_gpaths(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_gpaths
+     module subroutine clear_gpaths_hover(w)
+       class(window), intent(inout), target :: w
+     end subroutine clear_gpaths_hover
+     module function draw_gpaths_trace_table(g,id,owner,ttshown,hoverchanged) result(changed)
+       type(rep_gpaths), intent(inout) :: g
+       character(len=*), intent(in) :: id
+       integer, intent(in) :: owner
+       logical, intent(inout) :: ttshown
+       logical, intent(out) :: hoverchanged
+       logical :: changed
+     end function draw_gpaths_trace_table
+     module subroutine gpaths_thover_release(owner)
+       integer, intent(in) :: owner
+     end subroutine gpaths_thover_release
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

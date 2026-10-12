@@ -65,7 +65,7 @@ contains
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
        w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
-       w%purpose == wpurp_dialog_saveobjfile) then
+       w%purpose == wpurp_dialog_saveobjfile.or.w%purpose == wpurp_dialog_savegpathsfile) then
        ! file dialogs => quit if the caller window is gone
        doquit = (idp == 0)
     end if
@@ -206,8 +206,9 @@ contains
              end if
 
           elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile.or.&
-             w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile) then
-             !! save image file, structure file, critical points file, or table dialog !!
+             w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
+             w%purpose == wpurp_dialog_savegpathsfile) then
+             !! save image file, structure file, critical points file, gradient paths, or table dialog !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)

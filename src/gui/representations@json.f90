@@ -399,6 +399,39 @@ contains
          call io%x(q,'style',r%gpaths%style,gpaths_style_tube,gpaths_style_beads)
          call io%x(q,'showends',r%gpaths%showends)
          call io%x(q,'fthr',r%gpaths%fthr)
+         call io%x(q,'showbond',r%gpaths%showbond)
+
+         ! the traced gradient paths: the recipe and style of each group,
+         ! traced again when the object is next updated
+         n = r%gpaths%ntrace
+         call io%list(q,'traces',a,n)
+         if (.not.associated(a)) return
+         if (io%reading) then
+            call r%gpaths%drop_traces()
+            allocate(r%gpaths%trace(n))
+            r%gpaths%ntrace = n
+         end if
+         do i = 1, n
+            call io%item(a,i,b)
+            if (.not.associated(b)) cycle
+            associate(t => r%gpaths%trace(i))
+              call io%x(b,'kind',t%kind,gtrace_point,gtrace_rings)
+              call io%x(b,'x',t%x)
+              call io%x(b,'iup',t%iup,-1,2)
+              call io%x(b,'ntheta',t%ntheta,1)
+              call io%x(b,'nphi',t%nphi,0)
+              call io%x(b,'npts',t%npts,0)
+              call io%x(b,'method',t%method,0,2)
+              call io%x(b,'sym',t%sym)
+              call io%x(b,'rgb',t%rgb)
+              call io%x(b,'rad',t%rad,lo=0d0)
+              call io%x(b,'shown',t%shown)
+              if (io%reading) then
+                 t%uid = new_uid()
+                 t%traced = .false.
+              end if
+            end associate
+         end do
 
       case (reptype_legend)
          call io%obj(p,'legend',q,found)

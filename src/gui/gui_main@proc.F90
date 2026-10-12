@@ -867,7 +867,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo, wintype_voids, wintype_cp
+       wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -920,6 +920,12 @@ contains
     if (iw_menuitem("Critical Points...",enabled=enabled)) &
        idum = stack_create_window(wintype_cp,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Find the critical points of a field of this system (AUTO) and inspect them",ttshown)
+
+    ! gradient paths of a field (FLUXPRINT)
+    if (iw_menuitem("Trace Gradient Paths...",enabled=enabled)) &
+       idum = stack_create_window(wintype_gpaths,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Trace gradient paths of a field of this system from points or critical points&
+       & (FLUXPRINT) and show them in the view",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &
