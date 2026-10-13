@@ -5333,7 +5333,7 @@ contains
 
     ! the bond paths found by AUTO, and the groups of paths traced with
     ! the Trace Gradient Paths tool
-    ch = iw_checkbox("Show the bond paths (AUTO)##gpathsshowbond",w%rep%gpaths%showbond)
+    ch = iw_checkbox("Show the bond paths##gpathsshowbond",w%rep%gpaths%showbond)
     changed = changed .or. ch
     call iw_tooltip("Draw the bond paths that the critical point search found",ttshown)
     if (w%rep%gpaths%ntrace > 0) then

@@ -262,7 +262,7 @@ contains
           associate(r => win(iview)%sc%rep(irep))
             call iw_text("Gradient Paths",highlight=.true.)
             call iw_text("(object: " // trim(r%name) // ")",sameline=.true.)
-            ch = iw_checkbox("Show the bond paths (AUTO)##gpshowbond",r%gpaths%showbond)
+            ch = iw_checkbox("Show the bond paths##gpshowbond",r%gpaths%showbond)
             call iw_tooltip("Also draw the bond paths that the critical point search found",ttshown)
             ch = draw_gpaths_trace_table(r%gpaths,"gpwin",w%id,ttshown,hov) .or. ch
             if (ch) call win(iview)%sc%undo_note("Edit " // trim(r%name))
