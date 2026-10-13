@@ -566,14 +566,20 @@ contains
 
     integer :: n, k, ifield, ihnuc(2), i, icp, iwrite
     integer(c_int) :: itable, flags, fixed, ncol, jc
-    logical :: ch, cell, ismol, havespg, rclick
+    logical :: ch, cell, ismol, havespg, rclick, ldum
     character(kind=c_char,len=:), allocatable, target :: str1
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     type(ImVec2) :: sz
 
     ifield = w%cp%fref%id
-    if (.not.field_cps_or_say(isys,ifield)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    ! without a search, the message and a table of the nuclei (none
+    ! in a system without atoms)
+    ldum = field_cps_or_say(isys,ifield)
+    if (sys(isys)%f(ifield)%ncp == 0) return
+    ! the field at the nuclei is calculated on first use
+    call sys(isys)%f(ifield)%init_cplist_deferred()
     call update_table_caches(w,isys)
     call pp_sync()
     ismol = sys(isys)%c%ismolecule
