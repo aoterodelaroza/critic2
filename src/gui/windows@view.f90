@@ -761,7 +761,10 @@ contains
           ! atom identities are stable, so keep the pick index (else grabbing an
           ! atom would be impossible)
           if (.not.sysc(w%isys)%md_run) w%mousepos_idx = 0
+          ! the CP list may have changed: forget the CP under the
+          ! cursor, and the one captured by a pick press
           w%mousepos_cp = 0
+          w%measure_pend_cp = 0
           w%mousepos_anchor = w%mousepos_idx
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
@@ -2232,6 +2235,7 @@ contains
     logical :: ok, dragged, forcedpick, editexit
 
     integer(c_int), parameter :: izerob(8) = 0_c_int ! "no bond", for the picks that cannot target one
+    integer(c_int), parameter :: izerocp(5) = 0_c_int ! "no critical point", likewise
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -2431,9 +2435,10 @@ contains
                 w%measure_pend = pend_pick
                 w%measure_pend_idx = w%mousepos_idx
                 w%measure_pend_bidx = w%mousepos_bidx
+                w%measure_pend_cp = w%mousepos_cp
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,.false.)
+                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,w%mousepos_cp,.false.)
              end if
           elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.,iview=w%id)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
@@ -2471,7 +2476,7 @@ contains
                    call w%sc%toggle_measurement_sel()
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_pick) then
-                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,.false.)
+                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,w%measure_pend_cp,.false.)
                 elseif (w%measure_pend == pend_pick_alt) then
                    w%measure_pend = pend_none
                    if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
@@ -2919,24 +2924,27 @@ contains
       if (exited) then
          call w%viewmode_exit_forced()
       else
-         call deliver_pick(idx,izerob,.true.)
+         call deliver_pick(idx,izerob,izerocp,.true.)
       end if
 
     end function resolve_alt_pick
 
     ! Deliver a completed pick to the commanding window. bidx is the bond
     ! under the cursor, used by the bond modes; idx the atom, used by the
-    ! rest (the two are mutually exclusive). Pick-bond mode: deliver the
-    ! bond (or nothing = cancelled; or, if the window accepts positions,
-    ! the click as an empty-space one) and exit the mode. Pick-atom mode:
-    ! deliver the atom (or zero = clicked on empty space = cancelled) and
-    ! exit the mode. Persistent builder modes: deliver only a real atom
-    ! (add-atoms also delivers empty-space clicks, with the click
-    ! position), flag whether the main or the alternate pick bind fired,
-    ! and stay in the mode for successive edits.
-    subroutine deliver_pick(idx,bidx,alt)
+    ! rest (the two are mutually exclusive); cp the critical point (as
+    ! mousepos_cp), delivered with an empty-space click. Pick-bond
+    ! mode: deliver the bond (or nothing = cancelled; or, if the window
+    ! accepts positions, the click as an empty-space one) and exit the
+    ! mode. Pick-atom mode: deliver the atom (or zero = clicked on empty
+    ! space = cancelled) and exit the mode. Persistent builder modes:
+    ! deliver only a real atom (add-atoms also delivers empty-space
+    ! clicks, with the click position), flag whether the main or the
+    ! alternate pick bind fired, and stay in the mode for successive
+    ! edits.
+    subroutine deliver_pick(idx,bidx,cp,alt)
       integer(c_int), intent(in) :: idx(4)
       integer(c_int), intent(in) :: bidx(8)
+      integer(c_int), intent(in) :: cp(5)
       logical, intent(in) :: alt
 
       if (w%viewmode == vm_pick_bond) then
@@ -2976,7 +2984,7 @@ contains
          w%vmdata%bidx = 0
          w%vmdata%cpidx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
-         if (idx(1) == 0 .and. w%vmdata%acceptempty) w%vmdata%cpidx = w%mousepos_cp
+         if (idx(1) == 0 .and. w%vmdata%acceptempty) w%vmdata%cpidx = cp
          if (idx(1) > 0 .or. w%vmdata%acceptempty) then
             w%vmdata%flag = 1
             w%vmdata%xpos = (/texpos%x,texpos%y/)

@@ -934,6 +934,7 @@ module windows
      integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick, 4=alternate pick)
      integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement/pick
      integer :: measure_pend_bidx(8) = 0 ! bond captured at the press for the pending pick
+     integer :: measure_pend_cp(5) = 0 ! critical point captured at the press for the pending pick
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
      type(dialog_userdata), pointer :: dialog_data => null() ! for the side pane callback
