@@ -410,7 +410,7 @@ module windows
      integer(c_int) :: nphi = 5 ! sphere: number of polar angles
      integer(c_int) :: npts = 24 ! BCP/RCP: number of paths in the plane
      integer(c_int) :: method = 0 ! BCP/RCP: starting angles in the plane (flux_method_*)
-     logical :: sym = .true. ! trace all the symmetry-equivalent copies
+     logical :: sym = .true. ! crystals: trace the symmetry-unique CPs and carry the paths to all their copies
      real(c_float) :: rgb(3) = (/0.85_c_float,0.45_c_float,0.10_c_float/) ! color of the next group
      real(c_float) :: rad = gpaths_rad_def ! radius of the next group (bohr)
      ! pending pick of a seed CP in the view, added to the selection

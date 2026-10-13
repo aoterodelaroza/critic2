@@ -52,7 +52,7 @@ contains
   !> (run_gpaths) into a gradient paths object of the view; the table
   !> of the groups of paths of that object; and the text export.
   module subroutine draw_gpaths(w)
-    use systems, only: sys, sysc, sys_init, ok_system, atlisttype_ncel_frac
+    use systems, only: sys, sysc, sys_init, ok_system, atlisttype_ncel_frac, atlisttype_nneq
     use representations, only: field_has_cps
     use gui_main, only: ColorGpath, ColorHighlightScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
@@ -62,7 +62,8 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, ok, ch, ldum, hov
-    integer :: isys, iview, ifield, ihover, irep, iaux
+    integer :: isys, iview, ifield, ihover(2), irep, iaux, itype
+    integer, allocatable :: irow(:)
     type(field_ref) :: fref
     character(len=:), allocatable :: formerr
 
@@ -124,9 +125,15 @@ contains
     end if
 
     if (goodsys .and. ok) then
-       ! the seed CPs: the table of the cell CPs (the nuclei only, if
-       ! there was no search), and the selection
+       ! the seed CPs: the table of the CPs (the nuclei only, if there
+       ! was no search), and the selection
        call sync_sel(w,isys)
+       if (.not.sys(isys)%c%ismolecule) then
+          if (iw_checkbox("Generate symmetry-equivalent paths##gpsym",w%gp%sym)) call sym_changed(w,isys)
+          call iw_tooltip("Trace the paths of the selected symmetry-unique critical points once and&
+             & carry them to all the symmetry-equivalent copies in the cell; otherwise, the table lists&
+             & every critical point in the cell and only the paths of the selected ones are drawn",ttshown)
+       end if
        if (.not.field_has_cps(isys,ifield)) then
           call iw_text("This field has no critical points other than the nuclei: search for them in&
              & the Critical Points window",disabled=.true.,wrap=.true.)
@@ -134,12 +141,13 @@ contains
              iaux = stack_create_window(wintype_cp,.true.,idparent=w%parent(),orraise=-1)
           call iw_tooltip("Open the critical points window for this system",ttshown)
        end if
-       call draw_cp_table(w,isys,iview,ihover)
-       if (iw_button("All##gpselall")) w%gp%sel = .true.
+       call table_rows(w,isys,irow)
+       call draw_cp_table(w,isys,iview,irow,ihover)
+       if (iw_button("All##gpselall")) w%gp%sel(irow) = .true.
        call iw_tooltip("Select all the critical points",ttshown)
        if (iw_button("None##gpselnone",sameline=.true.)) w%gp%sel = .false.
        call iw_tooltip("Unselect all the critical points",ttshown)
-       if (iw_button("Toggle##gpseltoggle",sameline=.true.)) w%gp%sel = .not.w%gp%sel
+       if (iw_button("Toggle##gpseltoggle",sameline=.true.)) w%gp%sel(irow) = .not.w%gp%sel(irow)
        call iw_tooltip("Select the critical points that are not selected, and vice versa",ttshown)
        if (iw_button("Pick##gppickcp",sameline=.true.,disabled=w%gp%picking)) call start_pick(w,iview)
        call iw_tooltip("Pick a critical point in the view and add it to the selection: click it&
@@ -180,11 +188,7 @@ contains
        w%gp%ntheta = max(w%gp%ntheta,1)
        w%gp%nphi = max(w%gp%nphi,0)
 
-       ! symmetry and style
-       ldum = iw_checkbox("All symmetry-equivalent copies##gpsym",w%gp%sym)
-       call iw_tooltip("Also draw the paths of the seeds equivalent to the selected ones by symmetry&
-          & (traced once and carried by the symmetry operations); otherwise only those of the&
-          & selected seeds",ttshown)
+       ! style
        call iw_text("Color",alignframe=.true.)
        ldum = iw_coloredit("##gprgb",rgb=w%gp%rgb,sameline=.true.)
        call iw_tooltip("Color of the new paths",ttshown)
@@ -240,14 +244,23 @@ contains
     end if
 
     ! the seed CP under the mouse in the table is highlighted in the
-    ! view; a nucleus, as its atom
+    ! view: (symmetry-unique CP,0) in symmetry mode, (0,cell CP)
+    ! otherwise; a nucleus, as its atom
     if (goodsys) then
-       if (ihover > 0 .and. ihover <= sys(isys)%c%ncel) then
-          call sysc(isys)%highlight_atoms(.true.,(/ihover/),atlisttype_ncel_frac,&
+       iaux = 0
+       if (ihover(1) > 0 .and. ihover(1) <= sys(isys)%c%nneq) then
+          iaux = 1
+          itype = atlisttype_nneq
+       elseif (ihover(2) > 0 .and. ihover(2) <= sys(isys)%c%ncel) then
+          iaux = 2
+          itype = atlisttype_ncel_frac
+       end if
+       if (iaux > 0) then
+          call sysc(isys)%highlight_atoms(.true.,ihover(iaux:iaux),itype,&
              reshape(ColorHighlightScene,(/4,1/)))
           ihover = 0
        end if
-       call cps_hover_set(w%gp%fref,iview,(/0,ihover/),w%gp%ihover,w%gp%hoverview,w%gp%hoverview_uid)
+       call cps_hover_set(w%gp%fref,iview,ihover,w%gp%ihover,w%gp%hoverview,w%gp%hoverview_uid)
     else
        call w%clear_gpaths_hover()
     end if
@@ -305,7 +318,6 @@ contains
     type(gpaths_trace) :: t, t0
     type(rep_gpaths) :: gnew
     character(len=:), allocatable :: errmsg, err1
-    logical, allocatable :: done(:)
 
     ! the system, the field, and the view
     isys = w%gp%sys%get(sys_init)
@@ -331,25 +343,19 @@ contains
     t0%nphi = w%gp%nphi
     t0%npts = w%gp%npts
     t0%method = w%gp%method
-    t0%sym = w%gp%sym
+    t0%sym = sym_mode(w,isys)
     t0%rgb = w%gp%rgb
     t0%rad = w%gp%rad
 
-    ! one group per selected CP; on error, go on with the next one and
-    ! report the first error
+    ! one group per selected CP (in symmetry mode, only the first copy
+    ! of each symmetry-unique CP can be selected); on error, go on with
+    ! the next one and report the first error
     ntraced = 0
     errmsg = ""
     associate(f => sys(isys)%f(ifield))
-      allocate(done(f%ncp))
-      done = .false.
       do k = 1, f%ncpcel
          if (.not.w%gp%sel(k)) cycle
          if (f%cpcel(k)%typ == 0) cycle
-         ! with all the copies, one group per symmetry-unique CP
-         if (w%gp%sym) then
-            if (done(f%cpcel(k)%idx)) cycle
-            done(f%cpcel(k)%idx) = .true.
-         end if
 
          ! the recipe: the seed
          t = t0
@@ -574,22 +580,25 @@ contains
 
   !xx! private procedures
 
-  !> The table of the cell CPs of the field, nuclei included, in the
-  !> colors of the view iview (the badges): a click on a row selects or
-  !> unselects the CP. Returns in ihover the cell CP
-  !> under the mouse (0 = none).
-  subroutine draw_cp_table(w,isys,iview,ihover)
-    use systems, only: sys, atlisttype_ncel_frac
+  !> The table of the CPs of the field, nuclei included, in the colors
+  !> of the view iview (the badges): the cell CPs in irow (the
+  !> symmetry-unique CPs, as their first cell copy, in symmetry mode).
+  !> A click on a row selects or unselects the CP. Returns in ihover
+  !> the CP under the mouse: (symmetry-unique CP, 0) in symmetry mode,
+  !> (0, cell CP) otherwise, (0,0) if none.
+  subroutine draw_cp_table(w,isys,iview,irow,ihover)
+    use systems, only: sys, atlisttype_ncel_frac, atlisttype_nneq
     use utils, only: iw_text, iw_highlight_selectable, iw_table_column, iw_table_headers_row,&
        iw_calcheight
     use tools_io, only: string
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
-    integer, intent(out) :: ihover
+    integer, intent(in) :: irow(:)
+    integer, intent(out) :: ihover(2)
 
-    integer :: k, j, ncol
+    integer :: kr, k, iu, j, ncol, nrow
     integer(c_int) :: flags
-    logical :: clicked
+    logical :: clicked, symm, hov
     real*8 :: x(3)
     real(c_float) :: xpos
     character(kind=c_char,len=:), allocatable, target :: str1, suffix, lbl
@@ -598,8 +607,10 @@ contains
     type(ImVec2) :: sz
 
     ihover = 0
+    nrow = size(irow,1)
+    if (nrow == 0) return
+    symm = sym_mode(w,isys)
     associate(f => sys(isys)%f(w%gp%fref%id), c => sys(isys)%c)
-      if (f%ncpcel == 0) return
       ! the field at the nuclei is calculated on first use
       call f%init_cplist_deferred()
 
@@ -611,7 +622,7 @@ contains
       flags = ior(flags,ImGuiTableFlags_ScrollY)
       str1 = "##tablegpcps" // c_null_char
       sz%x = 0._c_float
-      sz%y = iw_calcheight(min(10,f%ncpcel+1),0,.false.)
+      sz%y = iw_calcheight(min(10,nrow+1),0,.false.)
       if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
          ncol = -1
          call iw_table_column("CP",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -624,59 +635,72 @@ contains
          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
          clipper = ImGuiListClipper_ImGuiListClipper()
-         call ImGuiListClipper_Begin(clipper,f%ncpcel,-1._c_float)
+         call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
          do while(ImGuiListClipper_Step(clipper))
             call c_f_pointer(clipper,clipper_f)
-            do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+            do kr = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+               k = irow(kr)
+               iu = f%cpcel(k)%idx
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                suffix = "_" // string(k)
                if (igTableSetColumnIndex(0_c_int)) then
                   ! the row selectable selects the seed
                   xpos = igGetCursorPosX()
                   call iw_text("",alignframe=.true.)
-                  if (iw_highlight_selectable("##gpcprow" // suffix,clicked=clicked,&
-                     selected=w%gp%sel(k))) ihover = k
+                  hov = iw_highlight_selectable("##gpcprow" // suffix,clicked=clicked,selected=w%gp%sel(k))
                   call igSameLine(0._c_float,0._c_float)
                   call igSetCursorPosX(xpos)
 
                   ! the badge (an atom for the nuclei), which takes the
                   ! mouse from the selectable: it acts as the row
-                  lbl = cp_name(isys,w%gp%fref%id,k) // "##gpcpbadge" // suffix
-                  if (k <= c%ncel) then
+                  lbl = trim(f%cp(iu)%name)
+                  if (.not.symm) lbl = lbl // " " // string(k)
+                  lbl = lbl // "##gpcpbadge" // suffix
+                  if (symm .and. iu <= c%nneq) then
+                     call atom_badge(iview,isys,iu,atlisttype_nneq,lbl)
+                  elseif (k <= c%ncel) then
                      call atom_badge(iview,isys,k,atlisttype_ncel_frac,lbl)
                   else
-                     call cp_badge(iview,isys,w%gp%fref%id,f%cpcel(k)%idx,lbl)
+                     call cp_badge(iview,isys,w%gp%fref%id,iu,lbl)
                   end if
                   if (igIsItemHovered(ImGuiHoveredFlags_None)) then
-                     ihover = k
+                     hov = .true.
                      if (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) clicked = .true.
+                  end if
+                  if (hov) then
+                     if (symm) then
+                        ihover = (/iu,0/)
+                     else
+                        ihover = (/0,k/)
+                     end if
                   end if
 
                   ! a click toggles the row and anchors a range; a
                   ! shift-click selects the rows from the anchor to this one
                   if (clicked) then
                      if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
-                        w%lastselected <= f%ncpcel) then
-                        do j = min(w%lastselected,k), max(w%lastselected,k)
-                           w%gp%sel(j) = .true.
+                        w%lastselected <= nrow) then
+                        do j = min(w%lastselected,kr), max(w%lastselected,kr)
+                           w%gp%sel(irow(j)) = .true.
                         end do
                      else
                         w%gp%sel(k) = .not.w%gp%sel(k)
-                        w%lastselected = k
+                        w%lastselected = kr
                      end if
                   end if
                end if
                if (igTableSetColumnIndex(1_c_int)) then
-                  if (c%ismolecule) then
-                     x = (c%x2c(f%cpcel(k)%x) + c%molx0) * bohrtoa
+                  if (symm) then
+                     x = f%cp(iu)%x
                   else
                      x = f%cpcel(k)%x
                   end if
+                  if (c%ismolecule) x = (c%x2c(x) + c%molx0) * bohrtoa
                   call iw_text(string(x(1),'f',10,4) // " " // string(x(2),'f',10,4) // " " //&
                      string(x(3),'f',10,4))
                end if
                if (igTableSetColumnIndex(2_c_int)) &
-                  call iw_text(string(f%cp(f%cpcel(k)%idx)%s%f,'e',decimal=5))
+                  call iw_text(string(f%cp(iu)%s%f,'e',decimal=5))
             end do
          end do
          call ImGuiListClipper_End(clipper)
@@ -686,6 +710,77 @@ contains
     end associate
 
   end subroutine draw_cp_table
+
+  !> Whether the form of window w (system isys) traces the paths of
+  !> the symmetry-unique CPs and carries them to all their copies:
+  !> crystals only.
+  logical function sym_mode(w,isys)
+    use systems, only: sys
+    type(window), intent(in) :: w
+    integer, intent(in) :: isys
+
+    sym_mode = w%gp%sym .and. .not.sys(isys)%c%ismolecule
+
+  end function sym_mode
+
+  !> The cell CPs listed in the table of window w (system isys), in
+  !> irow: the first cell copy of each symmetry-unique CP in symmetry
+  !> mode, all of them otherwise.
+  subroutine table_rows(w,isys,irow)
+    use systems, only: sys
+    type(window), intent(in) :: w
+    integer, intent(in) :: isys
+    integer, allocatable, intent(out) :: irow(:)
+
+    integer :: k, n
+    logical, allocatable :: done(:)
+
+    associate(f => sys(isys)%f(w%gp%fref%id))
+      if (.not.sym_mode(w,isys)) then
+         irow = (/(k, k = 1, f%ncpcel)/)
+         return
+      end if
+      allocate(irow(f%ncpcel),done(f%ncp))
+      done = .false.
+      n = 0
+      do k = 1, f%ncpcel
+         if (done(f%cpcel(k)%idx)) cycle
+         done(f%cpcel(k)%idx) = .true.
+         n = n + 1
+         irow(n) = k
+      end do
+      irow = irow(1:n)
+    end associate
+
+  end subroutine table_rows
+
+  !> The symmetry mode of the form of window w (system isys) changed:
+  !> entering it, a symmetry-unique CP is selected if any of its copies
+  !> was (the selection moves to its first copy, the row of the
+  !> table). Clears the shift-click anchor, a row of the table.
+  subroutine sym_changed(w,isys)
+    use systems, only: sys
+    type(window), intent(inout) :: w
+    integer, intent(in) :: isys
+
+    integer :: k
+    integer, allocatable :: irow(:)
+    logical, allocatable :: usel(:)
+
+    w%lastselected = 0
+    if (.not.sym_mode(w,isys)) return
+    associate(f => sys(isys)%f(w%gp%fref%id))
+      allocate(usel(f%ncp))
+      usel = .false.
+      do k = 1, f%ncpcel
+         if (w%gp%sel(k)) usel(f%cpcel(k)%idx) = .true.
+      end do
+      call table_rows(w,isys,irow)
+      w%gp%sel = .false.
+      w%gp%sel(irow) = usel(f%cpcel(irow)%idx)
+    end associate
+
+  end subroutine sym_changed
 
   !> Keep the selection of seed CPs of window w in step with the field
   !> of the form and its CP list (system isys): unselect all if either
@@ -710,20 +805,6 @@ contains
     w%lastselected = 0
 
   end subroutine sync_sel
-
-  !> Label of cell CP icel of field ifield (system isys): the name of its
-  !> symmetry-unique CP and the cell index.
-  function cp_name(isys,ifield,icel) result(str)
-    use systems, only: sys
-    use tools_io, only: string
-    integer, intent(in) :: isys, ifield, icel
-    character(len=:), allocatable :: str
-
-    associate(f => sys(isys)%f(ifield))
-      str = trim(f%cp(f%cpcel(icel)%idx)%name) // " " // string(icel)
-    end associate
-
-  end function cp_name
 
   !> Why the form cannot be traced (empty if it can), for system isys:
   !> no CPs selected, or the selection is not for the current field
@@ -824,8 +905,13 @@ contains
          end if
        end associate
        if (k > 0) then
+          if (sym_mode(w,isys)) then
+             associate(f => sys(isys)%f(w%gp%fref%id))
+               k = findloc(f%cpcel(1:f%ncpcel)%idx,f%cpcel(k)%idx,1)
+             end associate
+          end if
           w%gp%sel(k) = .true.
-          w%lastselected = k
+          w%lastselected = 0
           w%errmsg = ""
        else
           w%errmsg = "Pick a critical point of this field, or an atom"
