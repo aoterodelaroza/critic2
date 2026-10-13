@@ -2329,7 +2329,7 @@ contains
        & until it finishes; the output goes to the output console)",ttshown)
     ok = (len(errrun) == 0) .and. allocated(w%cp%seedx) .and. (w%cp%seedsys == isys)
     if (ok) ok = (size(w%cp%seedx,2) > 0)
-    if (iw_button("Estimate time##cpestimate",sameline=.true.,disabled=.not.ok)) &
+    if (iw_button("Estimate Cost##cpestimate",sameline=.true.,disabled=.not.ok)) &
        call request_job(w,iview,cpjob_estimate)
     call iw_tooltip("Estimate how long the search takes, by timing the searches from a sample&
        & of the seeds (at most a few seconds). The tracing of the bond paths after the search&

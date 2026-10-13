@@ -54,7 +54,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ok, ch, ldum, hov
+    logical :: doquit, goodsys, syschanged, ok, ch, ldum, hov, dotrace, doest
     integer :: isys, iview, ifield, ihover(2), irep, iaux, itype
     integer, allocatable :: irow(:)
     type(field_ref) :: fref
@@ -193,16 +193,29 @@ contains
 
        ! trace
        formerr = form_error(w,isys)
-       if (iw_button("Trace##gptrace",disabled=(len(formerr) > 0 .or. w%gp%picking))) then
-          if (w%request_block()) then
-             w%gp%pending_view = iview
-             w%errmsg = ""
-          end if
-       end if
+       dotrace = iw_button("Trace##gptrace",danger=.true.,disabled=(len(formerr) > 0 .or. w%gp%picking))
        call iw_tooltip("Trace the gradient paths of the selected critical points and add them to the&
           & gradient paths object of this field in the view (created if there is none), one group&
           & per critical point (per symmetry-unique one if all the copies are drawn)",ttshown)
-       if (len(formerr) > 0) call iw_text(formerr,disabled=.true.,sameline=.true.)
+       doest = iw_button("Estimate Cost##gpestimate",sameline=.true.,&
+          disabled=(len(formerr) > 0 .or. w%gp%picking))
+       call iw_tooltip("Estimate how long the trace takes, by tracing the paths of a sample of the&
+          & selected critical points (at most a few seconds)",ttshown)
+       if (dotrace .or. doest) then
+          if (w%request_block()) then
+             w%gp%pending_view = iview
+             w%gp%pending_estimate = doest
+             w%errmsg = ""
+          end if
+       end if
+       if (allocated(w%gp%estimate)) then
+          if (.not.same_key(w%gp%estkey,estimate_key(w))) deallocate(w%gp%estimate,w%gp%estkey)
+       end if
+       if (len(formerr) > 0) then
+          call iw_text(formerr,disabled=.true.,sameline=.true.)
+       elseif (allocated(w%gp%estimate)) then
+          call iw_text(w%gp%estimate,wrap=.true.)
+       end if
 
        ! the groups of paths of the object of this field in the view
        irep = target_object(w,iview,.false.)
@@ -294,7 +307,11 @@ contains
           info = info // newline // "Field:  " // string(w%gp%fref%id) // ": " //&
           trim(sys(isys)%f(w%gp%fref%id)%name)
     end if
-    call iw_wait_overlay("Tracing gradient paths...",info,.false.)
+    if (w%gp%pending_estimate) then
+       call iw_wait_overlay("Estimating the cost of the trace...",info,.false.)
+    else
+       call iw_wait_overlay("Tracing gradient paths...",info,.false.)
+    end if
 
   end subroutine block_gpaths
 
@@ -312,6 +329,11 @@ contains
     type(gpaths_trace) :: t, t0
     type(rep_gpaths) :: gnew
     character(len=:), allocatable :: errmsg, err1
+    logical :: doest
+
+    ! the job
+    doest = w%gp%pending_estimate
+    w%gp%pending_estimate = .false.
 
     ! the system, the field, and the view
     isys = w%gp%sys%get(sys_init)
@@ -326,27 +348,19 @@ contains
     errmsg = form_error(w,isys)
     if (len(errmsg) > 0) goto 999
 
+    ! a cost estimate instead of the trace
+    if (doest) then
+       call estimate_gpaths(w,isys)
+       return
+    end if
+
     ! the object of the field in the view, settled for the current
     ! field first (an update could drop stale groups)
     irep = target_object(w,iview,.false.)
     if (irep > 0) call win(iview)%sc%rep(irep)%update()
 
-    ! the options and style shared by all the groups (neither Bond
-    ! path nor Plane only reaches here with no BCP/RCP selected)
-    if (.not.w%gp%plane) then
-       t0%iup = gtrace_axis_axial
-    elseif (.not.w%gp%bondpath) then
-       t0%iup = gtrace_axis_plane
-    else
-       t0%iup = gtrace_axis_both
-    end if
-    t0%ntheta = w%gp%ntheta
-    t0%nphi = w%gp%nphi
-    t0%npts = w%gp%npts
-    t0%method = w%gp%method
-    t0%sym = sym_mode(w,isys)
-    t0%rgb = w%gp%rgb
-    t0%rad = w%gp%rad
+    ! the options and style shared by all the groups
+    t0 = form_recipe(w,isys)
 
     ! one group per selected CP (in symmetry mode, only the first copy
     ! of each symmetry-unique CP can be selected); on error, go on with
@@ -360,11 +374,7 @@ contains
 
          ! the recipe: the seed
          t = t0
-         if (abs(f%cpcel(k)%typ) == 1) then
-            t%kind = gtrace_axis
-         else
-            t%kind = gtrace_sphere
-         end if
+         t%kind = seed_kind(f%cpcel(k)%typ)
          t%x = f%cpcel(k)%x
 
          ! trace into the object; or, if there is none, into a new one,
@@ -806,6 +816,128 @@ contains
     w%lastselected = 0
 
   end subroutine sync_sel
+
+  !> The recipe of the form (system isys) without the seed: the
+  !> options and style shared by all the groups. Neither Bond path nor
+  !> Plane checked is only traced with no BCP/RCP selected.
+  function form_recipe(w,isys) result(t0)
+    type(window), intent(in), target :: w
+    integer, intent(in) :: isys
+    type(gpaths_trace) :: t0
+
+    if (.not.w%gp%plane) then
+       t0%iup = gtrace_axis_axial
+    elseif (.not.w%gp%bondpath) then
+       t0%iup = gtrace_axis_plane
+    else
+       t0%iup = gtrace_axis_both
+    end if
+    t0%ntheta = w%gp%ntheta
+    t0%nphi = w%gp%nphi
+    t0%npts = w%gp%npts
+    t0%method = w%gp%method
+    t0%sym = sym_mode(w,isys)
+    t0%rgb = w%gp%rgb
+    t0%rad = w%gp%rad
+
+  end function form_recipe
+
+  !> The kind of trace (gtrace_*) of a seed CP of type typ (not 0).
+  function seed_kind(typ) result(kind)
+    integer, intent(in) :: typ
+    integer :: kind
+
+    if (abs(typ) == 1) then
+       kind = gtrace_axis
+    else
+       kind = gtrace_sphere
+    end if
+
+  end function seed_kind
+
+  !> Estimate the wall time of the trace of the form on system isys:
+  !> build the seeds of a sample of the selected CPs and trace them,
+  !> one CP at a time as the trace does, until all are done or the
+  !> time budget runs out, and scale the elapsed time to all the
+  !> selected CPs. The sample follows a golden-ratio sequence, so any
+  !> part of it spreads over the whole selection. The first error, if
+  !> any, goes to w%errmsg. Sets w%gp%estimate and w%gp%estkey.
+  subroutine estimate_gpaths(w,isys)
+    use systems, only: sys
+    use flux, only: flux_seed, flux_path, flux_trace
+    use global, only: prunedist
+    use tools_io, only: string
+    use utils, only: duration_string
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys
+
+    real*8, parameter :: budget = 2d0 ! seconds
+    real*8, parameter :: golden = 0.6180339887498949d0
+
+    type(gpaths_trace) :: t
+    type(flux_seed), allocatable :: seeds(:)
+    type(flux_path), allocatable :: paths(:)
+    integer, allocatable :: icel(:)
+    integer :: k, i, ifield, ncp, ndone, npath
+    integer*8 :: c0, c1, crate
+    real*8 :: tel
+    character(len=:), allocatable :: err1
+
+    ifield = w%gp%fref%id
+    t = form_recipe(w,isys)
+    associate(f => sys(isys)%f(ifield))
+      ! the selected seed CPs
+      icel = pack([(k, k=1,f%ncpcel)],w%gp%sel .and. f%cpcel(1:f%ncpcel)%typ /= 0)
+      ncp = size(icel,1)
+
+      ! trace the sample, until the budget runs out
+      ndone = 0
+      npath = 0
+      call system_clock(c0,crate)
+      do k = 1, ncp
+         i = icel(min(1 + int(ncp * modulo(k * golden,1d0)),ncp))
+         t%kind = seed_kind(f%cpcel(i)%typ)
+         if (allocated(seeds)) deallocate(seeds)
+         call t%make_seeds(isys,ifield,f%cp(f%cpcel(i)%idx)%x,f%cpcel(i)%typ,seeds,err1)
+         if (len(err1) > 0 .and. len_trim(w%errmsg) == 0) w%errmsg = err1
+         call flux_trace(f,seeds,paths,prunedist)
+         ndone = ndone + 1
+         npath = npath + size(seeds,1)
+         call system_clock(c1)
+         if (real(c1-c0,8) / real(crate,8) > budget) exit
+      end do
+      call system_clock(c1)
+      tel = real(c1-c0,8) / real(crate,8) * real(ncp,8) / real(max(ndone,1),8)
+    end associate
+
+    w%gp%estimate = "Estimated cost: ~" // duration_string(tel) // " (timed " //&
+       string(ndone) // " of " // string(ncp) // " critical points, " // string(npath) // " paths)"
+    w%gp%estkey = estimate_key(w)
+
+  end subroutine estimate_gpaths
+
+  !> The inputs of the cost estimate of the form: the options of the
+  !> trace, the field, and the selection and when it was made.
+  function estimate_key(w) result(key)
+    type(window), intent(in), target :: w
+    integer*8, allocatable :: key(:)
+
+    key = [merge(1_8,0_8,w%gp%bondpath), merge(1_8,0_8,w%gp%plane), int(w%gp%npts,8),&
+       int(w%gp%method,8), int(w%gp%ntheta,8), int(w%gp%nphi,8), w%gp%fref%uid,&
+       transfer(w%gp%seltime,1_8)]
+    if (allocated(w%gp%sel)) key = [key, merge(1_8,0_8,w%gp%sel)]
+
+  end function estimate_key
+
+  !> Whether the two keys are the same.
+  function same_key(k1,k2) result(same)
+    integer*8, intent(in) :: k1(:), k2(:)
+    logical :: same
+
+    same = (size(k1,1) == size(k2,1))
+    if (same) same = all(k1 == k2)
+
+  end function same_key
 
   !> Why the form cannot be traced (empty if it can), for system isys:
   !> no CPs selected, the selection is not for the current field and

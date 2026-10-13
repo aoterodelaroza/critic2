@@ -4179,6 +4179,45 @@ contains
 
   end function gpaths_traces_stale
 
+  !> Append to seeds the seeds of the paths of trace t from a site at
+  !> x (crystallographic) on field ifield of system isys: from the
+  !> point (point kind), or from the CP of type typ there following the
+  !> recipe. Returns a non-empty errmsg on error (no seeds added).
+  module subroutine gpaths_trace_make_seeds(t,isys,ifield,x,typ,seeds,errmsg)
+    use systems, only: sys
+    use flux, only: flux_seed, flux_seeds_point, flux_seeds_sphere, flux_seeds_axis
+    use global, only: prunedist
+    class(gpaths_trace), intent(in) :: t
+    integer, intent(in) :: isys, ifield
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: typ
+    type(flux_seed), allocatable, intent(inout) :: seeds(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: ircp, iup
+    real*8 :: xc(3)
+
+    errmsg = ""
+    xc = sys(isys)%c%x2c(x)
+    if (t%kind == gtrace_point) then
+       call flux_seeds_point(xc,t%iup,seeds)
+    elseif (t%kind == gtrace_sphere) then
+       call flux_seeds_sphere(xc,merge(-1,1,typ == -3),t%ntheta,t%nphi,seeds)
+    else
+       ircp = merge(1,-1,typ == -1)
+       if (t%kind == gtrace_rings .or. t%iup == gtrace_axis_axial) then
+          iup = ircp
+       elseif (t%iup == gtrace_axis_plane) then
+          iup = -ircp
+       else
+          iup = 0
+       end if
+       call flux_seeds_axis(sys(isys)%f(ifield),xc,ircp,iup,t%npts,t%method,seeds,prunedist,errmsg)
+    end if
+    if (.not.allocated(seeds)) allocate(seeds(0))
+
+  end subroutine gpaths_trace_make_seeds
+
   !> Trace the gradient paths of group t with the field of object g
   !> (system isys), following its recipe; also set its label. The paths
   !> of a CP seed are traced from its symmetry-unique CP and carried to
@@ -4189,8 +4228,7 @@ contains
   module subroutine gpaths_run_trace(g,isys,t,errmsg)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc
-    use flux, only: flux_seed, flux_path, flux_seeds_point, flux_seeds_sphere,&
-       flux_seeds_axis, flux_trace
+    use flux, only: flux_seed, flux_path, flux_trace
     use global, only: prunedist
     use tools_io, only: string
     use param, only: icrd_crys
@@ -4377,32 +4415,18 @@ contains
 
       type(flux_seed), allocatable :: seeds(:)
       type(flux_path), allocatable :: paths(:)
-      integer :: j, k, n, iat, lv(3), ircp, iup
-      real*8 :: xc(3), y(3), dist
+      integer :: j, k, n, iat, lv(3), typ
+      real*8 :: y(3), dist
       character(len=:), allocatable :: err1
 
       associate(f => sys(isys)%f(ifield), c => sys(isys)%c)
-        xc = c%x2c(s%x)
-        if (t%kind == gtrace_point) then
-           call flux_seeds_point(xc,t%iup,seeds)
-        elseif (t%kind == gtrace_sphere) then
-           call flux_seeds_sphere(xc,merge(-1,1,f%cp(s%icp)%typ == -3),t%ntheta,t%nphi,seeds)
-        else
-           ircp = merge(1,-1,f%cp(s%icp)%typ == -1)
-           if (t%kind == gtrace_rings .or. t%iup == gtrace_axis_axial) then
-              iup = ircp
-           elseif (t%iup == gtrace_axis_plane) then
-              iup = -ircp
-           else
-              iup = 0
-           end if
-           call flux_seeds_axis(f,xc,ircp,iup,t%npts,t%method,seeds,prunedist,err1)
-           if (len(err1) > 0) then
-              errmsg = err1
-              return
-           end if
+        typ = 0
+        if (s%icp > 0) typ = f%cp(s%icp)%typ
+        call t%make_seeds(isys,ifield,s%x,typ,seeds,err1)
+        if (len(err1) > 0) then
+           errmsg = err1
+           return
         end if
-        if (.not.allocated(seeds)) allocate(seeds(0))
         call flux_trace(f,seeds,paths,prunedist)
 
         s%npath = size(paths,1)

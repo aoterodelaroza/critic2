@@ -185,7 +185,7 @@ contains
        if (w%rattle_tinit >= 0d0) then
           if (w%rattle_esteamfile /= sysc(isys)%md_eamfile) w%rattle_tinit = -1d0
        end if
-       if (iw_button("Estimate cost##rattleestimate",sameline=.true.)) call estimate_cost()
+       if (iw_button("Estimate Cost##rattleestimate",sameline=.true.)) call estimate_cost()
        call iw_tooltip("Run a few steps of this dynamics and discard the results to&
           & measure the cost and estimate how long the whole run will take",ttshown)
        if (w%rattle_tinit >= 0d0) then

@@ -418,8 +418,13 @@ module windows
      logical :: picking = .false.
      integer :: pickview = 0
      type(pairpick) :: pick
-     ! pending trace (gui_main%pending_block_window)
+     ! pending trace or cost estimate (gui_main%pending_block_window)
      integer :: pending_view = 0
+     logical :: pending_estimate = .false.
+     ! the last cost estimate (text), for the selection and options in
+     ! estkey (deallocated when they change)
+     character(len=:), allocatable :: estimate
+     integer*8, allocatable :: estkey(:)
      ! the seed CP under the mouse in the table, highlighted in the
      ! critical points object of the view (as rep_cps%ihover)
      integer :: ihover(2) = 0

@@ -4377,7 +4377,7 @@ contains
     end if
     call iw_tooltip("Use the selected grid and region for the isosurface. The options&
        & above have no effect on the isosurface until this button is pressed",ttshown)
-    if (iw_button("Estimate cost",sameline=.true.,disabled=all(nstage == 0))) &
+    if (iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))) &
        w%rep%iso%costest = w%rep%iso%measure_cost(isys,nstage)
     call iw_tooltip("Estimate the time needed to sample the field with the selected options",ttshown)
     if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0)) &

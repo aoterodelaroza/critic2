@@ -1126,6 +1126,8 @@ module representations
      logical :: traced = .false. ! the paths have been traced
      integer :: nsite = 0 ! number of sites
      type(gpaths_site), allocatable :: site(:) ! the sites (nsite)
+   contains
+     procedure :: make_seeds => gpaths_trace_make_seeds ! the seeds of the paths from a site
   end type gpaths_trace
   public :: gpaths_trace
 
@@ -1836,6 +1838,15 @@ module representations
      module subroutine gpaths_drop_traces(g)
        class(rep_gpaths), intent(inout) :: g
      end subroutine gpaths_drop_traces
+     module subroutine gpaths_trace_make_seeds(t,isys,ifield,x,typ,seeds,errmsg)
+       use flux, only: flux_seed
+       class(gpaths_trace), intent(in) :: t
+       integer, intent(in) :: isys, ifield
+       real*8, intent(in) :: x(3)
+       integer, intent(in) :: typ
+       type(flux_seed), allocatable, intent(inout) :: seeds(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine gpaths_trace_make_seeds
      module subroutine gpaths_run_trace(g,isys,t,errmsg)
        class(rep_gpaths), intent(inout) :: g
        integer, intent(in) :: isys
