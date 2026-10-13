@@ -19,21 +19,14 @@
 ! counterpart of FLUXPRINT.
 submodule (windows) gpaths
   use interfaces_cimgui
-  use representations, only: gtrace_sphere, gtrace_axis, gtrace_axis_axial, gpaths_trace
+  use representations, only: gtrace_sphere, gtrace_axis, gtrace_axis_both, gtrace_axis_axial,&
+     gtrace_axis_plane, gpaths_trace
   use param, only: bohrtoa
   implicit none
 
-  ! paths of a BCP/RCP seed, in the order of the gtrace_axis_* values
-  character(len=*), parameter :: axis_names = "Axis and plane" // c_null_char //&
-     "Axis" // c_null_char // "Plane" // c_null_char
-  character(len=*), parameter :: axis_tooltips = &
-     "Both the paths along the axis and the paths in the perpendicular plane" // c_null_char //&
-     "The two paths along the axis of the critical point (the bond paths of a BCP)" // c_null_char //&
-     "The paths in the plane perpendicular to the axis (the interatomic surface of a BCP)" // c_null_char
-
   ! starting angles in the plane, in the order of the flux_method_* values
   character(len=*), parameter :: method_names = "Uniform" // c_null_char //&
-     "Eigenvalue quotient" // c_null_char // "Dynamical" // c_null_char
+     "Quotient" // c_null_char // "Dynamical" // c_null_char
   character(len=*), parameter :: method_tooltips = &
      "Directions spread uniformly around the critical point (BRAINDEAD)" // c_null_char //&
      "Uniform directions remapped with the quotient of the two Hessian eigenvalues in the plane,&
@@ -137,7 +130,7 @@ contains
        if (.not.field_has_cps(isys,ifield)) then
           call iw_text("This field has no critical points other than the nuclei: search for them in&
              & the Critical Points window",disabled=.true.,wrap=.true.)
-          if (iw_button("Open Critical Points...##gpopencp")) &
+          if (iw_button("Calculate Critical Points##gpopencp")) &
              iaux = stack_create_window(wintype_cp,.true.,idparent=w%parent(),orraise=-1)
           call iw_tooltip("Open the critical points window for this system",ttshown)
        end if
@@ -155,21 +148,22 @@ contains
        call iw_text("(" // string(count(w%gp%sel)) // " selected)",sameline=.true.)
 
        ! the options of the BCP/RCP seeds
-       call iw_text("BCP/RCP",alignframe=.true.)
+       call iw_text("Bond/Ring",alignframe=.true.)
        call iw_tooltip("The paths traced from the selected bond and ring critical points",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-       call igPushItemWidth(iw_calcwidth(15,1))
-       call iw_combo_simple("##gpaxis",axis_names,w%gp%iupaxis,tooltips=axis_tooltips,ttshown=ttshown)
-       call igPopItemWidth()
-       call iw_tooltip("Which paths of the critical point are traced",ttshown)
-       if (w%gp%iupaxis /= gtrace_axis_axial) then
-          ldum = iw_inputint("Number##gpnpts",w%gp%npts,sameline=.true.,width=7)
+       ldum = iw_checkbox("Bond path##gpbondpath",w%gp%bondpath,sameline=.true.)
+       call iw_tooltip("Trace the two paths along the axis of the critical point (the bond&
+          & paths of a BCP, the ring paths of an RCP)",ttshown)
+       ldum = iw_checkbox("Plane##gpplane",w%gp%plane,sameline=.true.)
+       call iw_tooltip("Trace the paths in the plane perpendicular to the axis (the&
+          & interatomic surface of a BCP, the ring surface of an RCP)",ttshown)
+       if (w%gp%plane) then
+          ldum = iw_inputint("Number##gpnpts",w%gp%npts,sameline=.true.,width=3)
           call iw_tooltip("Number of paths in the plane (the Dynamical starting angles use&
              & about this number)",ttshown)
           w%gp%npts = max(w%gp%npts,1)
           call iw_text("Angles",sameline=.true.)
           call igSameLine(0._c_float,-1._c_float)
-          call igPushItemWidth(iw_calcwidth(20,1))
+          call igPushItemWidth(iw_calcwidth(10,1))
           call iw_combo_simple("##gpmethod",method_names,w%gp%method,tooltips=method_tooltips,&
              ttshown=ttshown)
           call igPopItemWidth()
@@ -177,12 +171,12 @@ contains
        end if
 
        ! the options of the NCP/CCP seeds
-       call iw_text("NCP/CCP",alignframe=.true.)
+       call iw_text("Nuc./Cage",alignframe=.true.)
        call iw_tooltip("The paths traced from the selected nuclei and nuclear and cage critical&
           & points, in directions spread over a sphere",ttshown)
-       ldum = iw_inputint("Azimuthal##gpntheta",w%gp%ntheta,sameline=.true.,width=7)
+       ldum = iw_inputint("Azimuthal##gpntheta",w%gp%ntheta,sameline=.true.,width=3)
        call iw_tooltip("Number of azimuthal angles of the starting directions",ttshown)
-       ldum = iw_inputint("Polar##gpnphi",w%gp%nphi,sameline=.true.,width=7)
+       ldum = iw_inputint("Polar##gpnphi",w%gp%nphi,sameline=.true.,width=3)
        call iw_tooltip("Number of polar angles of the starting directions, besides the two&
           & poles",ttshown)
        w%gp%ntheta = max(w%gp%ntheta,1)
@@ -337,8 +331,15 @@ contains
     irep = target_object(w,iview,.false.)
     if (irep > 0) call win(iview)%sc%rep(irep)%update()
 
-    ! the options and style shared by all the groups
-    t0%iup = w%gp%iupaxis
+    ! the options and style shared by all the groups (neither Bond
+    ! path nor Plane only reaches here with no BCP/RCP selected)
+    if (.not.w%gp%plane) then
+       t0%iup = gtrace_axis_axial
+    elseif (.not.w%gp%bondpath) then
+       t0%iup = gtrace_axis_plane
+    else
+       t0%iup = gtrace_axis_both
+    end if
     t0%ntheta = w%gp%ntheta
     t0%nphi = w%gp%nphi
     t0%npts = w%gp%npts
@@ -359,7 +360,7 @@ contains
 
          ! the recipe: the seed
          t = t0
-         if (f%cpcel(k)%typ == -1 .or. f%cpcel(k)%typ == 1) then
+         if (abs(f%cpcel(k)%typ) == 1) then
             t%kind = gtrace_axis
          else
             t%kind = gtrace_sphere
@@ -807,8 +808,9 @@ contains
   end subroutine sync_sel
 
   !> Why the form cannot be traced (empty if it can), for system isys:
-  !> no CPs selected, or the selection is not for the current field
-  !> and CP list.
+  !> no CPs selected, the selection is not for the current field and
+  !> CP list, or a BCP/RCP is selected with neither Bond path nor
+  !> Plane checked.
   function form_error(w,isys) result(err)
     use systems, only: sys, sysc
     type(window), intent(in), target :: w
@@ -820,7 +822,13 @@ contains
     if (size(w%gp%sel,1) /= sys(isys)%f(w%gp%fref%id)%ncpcel) return
     if (w%gp%seltime /= sysc(isys)%timelastchange_cplist) return
     if (.not.w%gp%selfref%same(w%gp%fref)) return
-    if (any(w%gp%sel)) err = ""
+    if (.not.any(w%gp%sel)) return
+    err = ""
+    if (.not.w%gp%bondpath .and. .not.w%gp%plane) then
+       associate(f => sys(isys)%f(w%gp%fref%id))
+         if (any(w%gp%sel .and. abs(f%cpcel(1:f%ncpcel)%typ) == 1)) err = "Check Bond path or Plane"
+       end associate
+    end if
 
   end function form_error
 

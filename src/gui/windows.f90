@@ -22,7 +22,7 @@ module windows
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
-     reptype_atoms, rep_gpaths, gtrace_axis_both, gpaths_rad_def
+     reptype_atoms, rep_gpaths, gpaths_rad_def
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
@@ -405,7 +405,8 @@ module windows
      logical, allocatable :: sel(:)
      type(field_ref) :: selfref
      real*8 :: seltime = -1d0
-     integer :: iupaxis = gtrace_axis_both ! BCP/RCP seed: the paths (gtrace_axis_*)
+     logical :: bondpath = .true. ! BCP/RCP seed: trace the two axial paths
+     logical :: plane = .true. ! BCP/RCP seed: trace the paths in the perpendicular plane
      integer(c_int) :: ntheta = 8 ! sphere: number of azimuthal angles
      integer(c_int) :: nphi = 5 ! sphere: number of polar angles
      integer(c_int) :: npts = 24 ! BCP/RCP: number of paths in the plane
