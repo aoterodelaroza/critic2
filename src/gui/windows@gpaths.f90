@@ -42,19 +42,19 @@ contains
 
   !> Draw the trace gradient paths window: the form (field, the table
   !> of the seed CPs, the BCP/RCP and NCP/CCP options, style), traced as a blocking job of the main loop
-  !> (run_gpaths) into a gradient paths object of the view; the table
-  !> of the groups of paths of that object; and the text export.
+  !> (run_gpaths) into a gradient paths object of the view, whose
+  !> editor the Edit Gradient Paths button opens.
   module subroutine draw_gpaths(w)
     use systems, only: sys, sysc, sys_init, ok_system, atlisttype_ncel_frac, atlisttype_nneq
     use representations, only: field_has_cps
     use gui_main, only: ColorGpath, ColorHighlightScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
        iw_field_combo, iw_calcwidth, iw_combo_simple, iw_inputint, iw_checkbox, iw_coloredit,&
-       iw_dragfloat_realc, iw_inputtext
+       iw_dragfloat_realc
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ok, ch, ldum, hov, dotrace, doest
+    logical :: doquit, goodsys, syschanged, ok, ldum, dotrace, doest
     integer :: isys, iview, ifield, ihover(2), irep, iaux, itype
     integer, allocatable :: irow(:)
     type(field_ref) :: fref
@@ -74,13 +74,12 @@ contains
        w%errmsg = ""
     end if
 
-    ! a new system: the reference field, the export file
+    ! a new system: the reference field
     if (goodsys) then
        if (.not.w%gp%sys%is(isys) .or. syschanged) then
           call w%gp%sys%set(isys)
           w%gp%fref = field_ref()
           call cancel_pick(w)
-          w%okfile = okfile_default(isys,"structure","paths.txt")
        end if
        if (.not.w%gp%fref%ok(sys(isys))) then
           call fref%set(sys(isys),sys(isys)%iref)
@@ -201,6 +200,11 @@ contains
           disabled=(len(formerr) > 0 .or. w%gp%picking))
        call iw_tooltip("Estimate how long the trace takes, by tracing the paths of a sample of the&
           & selected critical points (at most a few seconds)",ttshown)
+       irep = target_object(w,iview,.false.)
+       if (iw_button("Edit Gradient Paths##gpeditobj",sameline=.true.,disabled=(irep == 0))) &
+          iaux = stack_create_window(wintype_editrep,.true.,isys=isys,irep=irep,idparent=iview,orraise=-1)
+       call iw_tooltip("Open the gradient paths object of this field in the view, with the traced&
+          & paths (created by the first trace)",ttshown)
        if (dotrace .or. doest) then
           if (w%request_block()) then
              w%gp%pending_view = iview
@@ -215,38 +219,6 @@ contains
           call iw_text(formerr,disabled=.true.,sameline=.true.)
        elseif (allocated(w%gp%estimate)) then
           call iw_text(w%gp%estimate,wrap=.true.)
-       end if
-
-       ! the groups of paths of the object of this field in the view
-       irep = target_object(w,iview,.false.)
-       if (irep > 0) then
-          associate(r => win(iview)%sc%rep(irep))
-            call iw_text("Gradient Paths",highlight=.true.)
-            call iw_text("(object: " // trim(r%name) // ")",sameline=.true.)
-            ch = iw_checkbox("Show the bond paths##gpshowbond",r%gpaths%showbond)
-            call iw_tooltip("Also draw the bond paths that the critical point search found",ttshown)
-            ch = draw_gpaths_trace_table(r%gpaths,"gpwin",w%id,ttshown,hov) .or. ch
-            if (ch) call win(iview)%sc%undo_note("Edit " // trim(r%name))
-            if (ch .or. hov) win(iview)%sc%forcebuildlists = .true.
-
-            ! export
-            if (r%gpaths%ntrace > 0) then
-               call iw_text("Export",highlight=.true.)
-               ldum = iw_inputtext("##gpexportfile",bufsize=1023,texta=w%okfile,width=36)
-               call iw_tooltip("Text file the traced gradient paths are written to",ttshown)
-               if (iw_button("Browse...##gpexportbrowse",sameline=.true.)) &
-                  iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegpathsfile,&
-                  idparent=w%id,orraise=-1)
-               call iw_tooltip("Choose the file with a file browser",ttshown)
-               if (iw_button("Write##gpexportwrite",sameline=.true.,disabled=(len_trim(w%okfile) == 0))) then
-                  call write_paths(isys,r,trim(w%okfile),w%errmsg)
-                  if (len(w%errmsg) == 0) call okfile_save_dir(w%okfile)
-               end if
-               call iw_tooltip("Write the points of the traced gradient paths (Cartesian coordinates,&
-                  & and fractional for crystals, and the field value) to the file",ttshown)
-               call w%okfile_warn_overwrite()
-            end if
-          end associate
        end if
     end if
 
@@ -425,177 +397,14 @@ contains
 
   end subroutine run_gpaths
 
-  !> Stop highlighting the seed CP and the group of paths under the
-  !> mouse in the tables of the trace gradient paths window.
+  !> Stop highlighting the seed CP under the mouse in the table of the
+  !> trace gradient paths window.
   module subroutine clear_gpaths_hover(w)
     class(window), intent(inout), target :: w
 
     call cps_hover_set(w%gp%fref,0,(/0,0/),w%gp%ihover,w%gp%hoverview,w%gp%hoverview_uid)
-    call gpaths_thover_release(w%id)
 
   end subroutine clear_gpaths_hover
-
-  !> The table of the groups of traced gradient paths of object g
-  !> (shared by the trace gradient paths window and the object editor;
-  !> id makes the ImGui IDs unique): show, color, radius, description,
-  !> and remove. The group under the mouse goes to g%thover, set by
-  !> window owner (hoverchanged: the highlight changed); the table of
-  !> another window does not clear it. Returns whether the groups
-  !> changed.
-  module function draw_gpaths_trace_table(g,id,owner,ttshown,hoverchanged) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_realc,&
-       iw_button, iw_highlight_selectable, iw_table_column, iw_table_headers_row, iw_calcheight
-    use tools_io, only: string
-    type(rep_gpaths), intent(inout) :: g
-    character(len=*), intent(in) :: id
-    integer, intent(in) :: owner
-    logical, intent(inout) :: ttshown
-    logical, intent(out) :: hoverchanged
-    logical :: changed
-
-    integer :: it, irem, ncol, ihover
-    integer(c_int) :: flags
-    real(c_float) :: xpos
-    character(kind=c_char,len=:), allocatable, target :: str1, suffix
-    type(ImVec2) :: sz
-
-    changed = .false.
-    hoverchanged = .false.
-    ihover = 0
-    if (g%ntrace == 0) then
-       call iw_text("No traced gradient paths",disabled=.true.)
-       call set_thover()
-       return
-    end if
-
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    str1 = "##tabletraces" // id // c_null_char
-    sz%x = 0._c_float
-    sz%y = iw_calcheight(min(8,g%ntrace+1),0,.false.)
-    irem = 0
-    if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
-       ncol = -1
-       call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Paths",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-       call iw_table_column("",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-
-       do it = 1, g%ntrace
-          associate(t => g%trace(it))
-            suffix = "_" // id // string(it)
-            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-
-            ! show, and the row selectable that highlights the group
-            if (igTableSetColumnIndex(0_c_int)) then
-               xpos = igGetCursorPosX()
-               call iw_text("",alignframe=.true.)
-               if (iw_highlight_selectable("##gptrrowsel" // suffix)) ihover = it
-               call igSameLine(0._c_float,0._c_float)
-               call igSetCursorPosX(xpos)
-               if (iw_checkbox("##gptrshown" // suffix,t%shown)) changed = .true.
-               call iw_tooltip("Show these gradient paths",ttshown)
-            end if
-
-            ! color and radius
-            if (igTableSetColumnIndex(1_c_int)) then
-               if (iw_coloredit("##gptrcolor" // suffix,rgb=t%rgb)) changed = .true.
-               call iw_tooltip("Color of these gradient paths",ttshown)
-            end if
-            if (igTableSetColumnIndex(2_c_int)) then
-               if (iw_dragfloat_realc("##gptrrad" // suffix,x1=t%rad,speed=0.002_c_float,&
-                  min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-                  flags=ImGuiSliderFlags_AlwaysClamp)) changed = .true.
-               call iw_tooltip("Radius of these gradient paths in Å",ttshown)
-            end if
-
-            ! description
-            if (igTableSetColumnIndex(3_c_int)) then
-               if (t%traced .and. allocated(t%label)) then
-                  call iw_text(t%label // merge(" (symmetry)","           ",t%sym))
-               else
-                  call iw_text("(not traced yet)",disabled=.true.)
-               end if
-            end if
-
-            ! remove
-            if (igTableSetColumnIndex(4_c_int)) then
-               if (iw_button("Remove##gptrrem" // suffix,danger=.true.)) irem = it
-               call iw_tooltip("Remove these gradient paths",ttshown)
-            end if
-          end associate
-       end do
-       call igEndTable()
-    end if
-    call set_thover()
-
-    ! remove the group (after the table)
-    if (irem > 0) then
-       call g%remove_trace(irem)
-       changed = .true.
-    end if
-
-    ! show or hide all
-    if (iw_button("Show All##gptrshowall" // id)) then
-       g%trace(1:g%ntrace)%shown = .true.
-       changed = .true.
-    end if
-    call iw_tooltip("Show all the traced gradient paths",ttshown)
-    if (iw_button("Hide All##gptrhideall" // id,sameline=.true.)) then
-       g%trace(1:g%ntrace)%shown = .false.
-       changed = .true.
-    end if
-    call iw_tooltip("Hide all the traced gradient paths",ttshown)
-    if (iw_button("Remove All##gptrremall" // id,sameline=.true.,danger=.true.)) then
-       call g%drop_traces()
-       changed = .true.
-    end if
-    call iw_tooltip("Remove all the traced gradient paths",ttshown)
-
-  contains
-    ! the highlighted group: set by this table, or cleared if this
-    ! table set it
-    subroutine set_thover()
-      if (ihover > 0) then
-         hoverchanged = (g%thover /= ihover)
-         g%thover = ihover
-         g%thowner = owner
-      elseif (g%thowner == owner .and. g%thover /= 0) then
-         hoverchanged = .true.
-         g%thover = 0
-         g%thowner = 0
-      end if
-    end subroutine set_thover
-  end function draw_gpaths_trace_table
-
-  !> Stop highlighting the groups of traced gradient paths highlighted
-  !> from the table of window owner, in the objects of all the views.
-  module subroutine gpaths_thover_release(owner)
-    use representations, only: reptype_gpaths
-    integer, intent(in) :: owner
-
-    integer :: iv, i
-
-    do iv = 1, nwin
-       if (.not.win(iv)%isopen .or. .not.associated(win(iv)%sc)) cycle
-       associate(sc => win(iv)%sc)
-         do i = 1, sc%nrep
-            if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_gpaths) cycle
-            if (sc%rep(i)%gpaths%thowner /= owner) cycle
-            sc%rep(i)%gpaths%thover = 0
-            sc%rep(i)%gpaths%thowner = 0
-            sc%forcebuildlists = .true.
-         end do
-       end associate
-    end do
-
-  end subroutine gpaths_thover_release
 
   !xx! private procedures
 
@@ -1085,77 +894,5 @@ contains
     if (istat /= ipick_pending) w%gp%picking = .false.
 
   end subroutine poll_pick
-
-  !> Write the points of the traced gradient paths of the gradient
-  !> paths object r (system isys) to text file file: a block per path
-  !> (each copy of each site of each group), with the Cartesian
-  !> coordinates (Å; for molecules in the frame of the input), the
-  !> fractional coordinates (crystals), and the field value. On error,
-  !> errmsg is not empty.
-  subroutine write_paths(isys,r,file,errmsg)
-    use systems, only: sys, sysc
-    use tools_io, only: fopen_write, fclose, string
-    integer, intent(in) :: isys
-    type(representation), intent(in) :: r
-    character(len=*), intent(in) :: file
-    character(len=:), allocatable, intent(inout) :: errmsg
-
-    integer :: lu, it, is, ic, j, k, n
-    real*8 :: xf(3), xc(3)
-    character(len=:), allocatable :: str
-
-    errmsg = ""
-    lu = fopen_write(file,errstop=.false.)
-    if (lu < 0) then
-       errmsg = "Could not open file: " // file
-       return
-    end if
-
-    associate(c => sys(isys)%c, g => r%gpaths)
-      write (lu,'("# Gradient paths traced with critic2 (Trace Gradient Paths)")')
-      write (lu,'("# System: ",A)') trim(sysc(isys)%seed%name)
-      if (sys(isys)%goodfield(g%fref%id)) &
-         write (lu,'("# Field: ",A,": ",A)') string(g%fref%id), trim(sys(isys)%f(g%fref%id)%name)
-      if (c%ismolecule) then
-         write (lu,'("# Columns: x y z (Cartesian, Å) field")')
-      else
-         write (lu,'("# Columns: x y z (Cartesian, Å) xf yf zf (fractional) field")')
-      end if
-      do it = 1, g%ntrace
-         associate(t => g%trace(it))
-           if (.not.t%traced) cycle
-           str = ""
-           if (allocated(t%label)) str = t%label
-           write (lu,'("#")')
-           write (lu,'("# Group ",A,": ",A)') string(it), str
-           do is = 1, t%nsite
-              associate(s => t%site(is))
-                do ic = 1, s%ncopy
-                   do j = 1, s%npath
-                      n = s%path(j)%n
-                      write (lu,'("# Path ",A," of site ",A,", copy ",A,": ",A," points")') &
-                         string(j), string(is), string(ic), string(n)
-                      do k = 1, n
-                         xf = matmul(s%cop(:,1:3,ic),s%path(j)%x(:,k)) + s%cop(:,4,ic)
-                         xc = c%x2c(xf)
-                         if (c%ismolecule) then
-                            xc = (xc + c%molx0) * bohrtoa
-                            write (lu,'(3F16.8,1X,ES18.10)') xc, s%path(j)%f(k)
-                         else
-                            xc = xc * bohrtoa
-                            write (lu,'(3F16.8,3F14.8,1X,ES18.10)') xc, xf, s%path(j)%f(k)
-                         end if
-                      end do
-                      write (lu,*)
-                   end do
-                end do
-              end associate
-           end do
-         end associate
-      end do
-    end associate
-    call fclose(lu)
-
-  end subroutine write_paths
 
 end submodule gpaths

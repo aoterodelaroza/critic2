@@ -881,6 +881,8 @@ contains
              end if
           end if
        end if
+       ! the export file of the traced gradient paths
+       w%okfile = okfile_default(isys,"structure","paths.txt")
     elseif (type == wintype_exportimage) then
        ! export image window
        if (.not.present(idparent)) &
@@ -1090,7 +1092,7 @@ contains
           ! the CP under the mouse in its table is no longer highlighted
           call w%clear_cp_hover()
        elseif (w%type == wintype_gpaths) then
-          ! the seed CP and the group under the mouse are no longer highlighted
+          ! the seed CP under the mouse is no longer highlighted
           call w%clear_gpaths_hover()
        elseif (w%type == wintype_preferences) then
           ! save the preferences, however the window was closed

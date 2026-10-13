@@ -2138,17 +2138,6 @@ module windows
      module subroutine clear_gpaths_hover(w)
        class(window), intent(inout), target :: w
      end subroutine clear_gpaths_hover
-     module function draw_gpaths_trace_table(g,id,owner,ttshown,hoverchanged) result(changed)
-       type(rep_gpaths), intent(inout) :: g
-       character(len=*), intent(in) :: id
-       integer, intent(in) :: owner
-       logical, intent(inout) :: ttshown
-       logical, intent(out) :: hoverchanged
-       logical :: changed
-     end function draw_gpaths_trace_table
-     module subroutine gpaths_thover_release(owner)
-       integer, intent(in) :: owner
-     end subroutine gpaths_thover_release
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w
