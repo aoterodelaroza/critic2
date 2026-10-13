@@ -41,7 +41,7 @@ submodule (windows) gpaths
 contains
 
   !> Draw the trace gradient paths window: the form (field, the table
-  !> of the seed CPs, the BCP/RCP and NCP/CCP options, style), traced as a blocking job of the main loop
+  !> of the seed CPs, the options of each kind of seed CP, style), traced as a blocking job of the main loop
   !> (run_gpaths) into a gradient paths object of the view, whose
   !> editor the Edit Gradient Paths button opens.
   module subroutine draw_gpaths(w)
@@ -146,40 +146,37 @@ contains
           & (or, for a nucleus, its atom)",ttshown)
        call iw_text("(" // string(count(w%gp%sel)) // " selected)",sameline=.true.)
 
-       ! the options of the BCP/RCP seeds
-       call iw_text("Bond/Ring",alignframe=.true.)
-       call iw_tooltip("The paths traced from the selected bond and ring critical points",ttshown)
-       ldum = iw_checkbox("Bond path##gpbondpath",w%gp%bondpath,sameline=.true.)
-       call iw_tooltip("Trace the two paths along the axis of the critical point (the bond&
-          & paths of a BCP, the ring paths of an RCP)",ttshown)
-       ldum = iw_checkbox("Plane##gpplane",w%gp%plane,sameline=.true.)
-       call iw_tooltip("Trace the paths in the plane perpendicular to the axis (the&
-          & interatomic surface of a BCP, the ring surface of an RCP)",ttshown)
-       if (w%gp%plane) then
-          ldum = iw_inputint("Number##gpnpts",w%gp%npts,sameline=.true.,width=3)
-          call iw_tooltip("Number of paths in the plane (the Dynamical starting angles use&
-             & about this number)",ttshown)
-          w%gp%npts = max(w%gp%npts,1)
-          call iw_text("Angles",sameline=.true.)
-          call igSameLine(0._c_float,-1._c_float)
-          call igPushItemWidth(iw_calcwidth(10,1))
-          call iw_combo_simple("##gpmethod",method_names,w%gp%method,tooltips=method_tooltips,&
-             ttshown=ttshown)
-          call igPopItemWidth()
-          call iw_tooltip("How the starting directions in the plane are chosen",ttshown)
-       end if
+       ! the options of each kind of seed CP
+       call iw_text("NCP",alignframe=.true.)
+       call iw_tooltip("The paths traced from the selected nuclei and nuclear critical points,&
+          & in directions spread over a sphere",ttshown)
+       call vsep()
+       call sphere_options("n",w%gp%ntheta_n,w%gp%nphi_n)
 
-       ! the options of the NCP/CCP seeds
-       call iw_text("Nuc./Cage",alignframe=.true.)
-       call iw_tooltip("The paths traced from the selected nuclei and nuclear and cage critical&
-          & points, in directions spread over a sphere",ttshown)
-       ldum = iw_inputint("Azimuthal##gpntheta",w%gp%ntheta,sameline=.true.,width=3)
-       call iw_tooltip("Number of azimuthal angles of the starting directions",ttshown)
-       ldum = iw_inputint("Polar##gpnphi",w%gp%nphi,sameline=.true.,width=3)
-       call iw_tooltip("Number of polar angles of the starting directions, besides the two&
-          & poles",ttshown)
-       w%gp%ntheta = max(w%gp%ntheta,1)
-       w%gp%nphi = max(w%gp%nphi,0)
+       call iw_text("BCP",alignframe=.true.)
+       call iw_tooltip("The paths traced down from the selected bond critical points, in the plane&
+          & perpendicular to the bond path (the interatomic surface; the bond paths are already&
+          & traced by the critical point search)",ttshown)
+       call vsep()
+       call iw_text("[↓]",highlight=.true.,sameline=.true.)
+       call plane_options("b",w%gp%npts_b,w%gp%method_b,1_c_int)
+
+       call iw_text("RCP",alignframe=.true.)
+       call iw_tooltip("The paths traced from the selected ring critical points: down along the&
+          & axis (the ring paths), and up in the perpendicular plane (the ring surface)",ttshown)
+       call vsep()
+       call iw_text("[↓]",highlight=.true.,sameline=.true.)
+       ldum = iw_checkbox("Ring path##gpringpath",w%gp%ringpath,sameline=.true.)
+       call iw_tooltip("Trace the two ring paths, down along the axis of the RCP",ttshown)
+       call vsep()
+       call iw_text("[↑]",highlight=.true.,sameline=.true.)
+       call plane_options("r",w%gp%npts_r,w%gp%method_r,0_c_int)
+
+       call iw_text("CCP",alignframe=.true.)
+       call iw_tooltip("The paths traced from the selected cage critical points, in directions&
+          & spread over a sphere",ttshown)
+       call vsep()
+       call sphere_options("c",w%gp%ntheta_c,w%gp%nphi_c)
 
        ! style
        call iw_text("Color",alignframe=.true.)
@@ -257,6 +254,56 @@ contains
        call w%end()
     end if
 
+  contains
+    !> A vertical separator in the current line.
+    subroutine vsep()
+
+      call igSameLine(0._c_float,-1._c_float)
+      call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
+
+    end subroutine vsep
+
+    !> The number of azimuthal and polar angles of a sphere of paths
+    !> (ImGui IDs suffixed with id).
+    subroutine sphere_options(id,ntheta,nphi)
+      character(len=*), intent(in) :: id
+      integer(c_int), intent(inout) :: ntheta, nphi
+
+      ldum = iw_inputint("Azimuthal##gpntheta" // id,ntheta,sameline=.true.,width=3)
+      call iw_tooltip("Number of azimuthal angles of the starting directions",ttshown)
+      ldum = iw_inputint("Polar##gpnphi" // id,nphi,sameline=.true.,width=3)
+      call iw_tooltip("Number of polar angles of the starting directions, besides the two&
+         & poles",ttshown)
+      ntheta = max(ntheta,1)
+      nphi = max(nphi,0)
+
+    end subroutine sphere_options
+
+    !> The number of paths in the plane (at least nmin) and their
+    !> starting angles (ImGui IDs suffixed with id).
+    subroutine plane_options(id,npts,method,nmin)
+      character(len=*), intent(in) :: id
+      integer(c_int), intent(inout) :: npts, method
+      integer(c_int), intent(in) :: nmin
+
+      ldum = iw_inputint("Number##gpnpts" // id,npts,sameline=.true.,width=3)
+      if (nmin == 0) then
+         call iw_tooltip("Number of paths in the plane, 0 for none (the Dynamical starting&
+            & angles use about this number)",ttshown)
+      else
+         call iw_tooltip("Number of paths in the plane (the Dynamical starting angles use&
+            & about this number)",ttshown)
+      end if
+      npts = max(npts,nmin)
+      call iw_text("Angles",sameline=.true.)
+      call igSameLine(0._c_float,-1._c_float)
+      call igPushItemWidth(iw_calcwidth(10,1))
+      call iw_combo_simple("##gpmethod" // id,method_names,method,tooltips=method_tooltips,&
+         ttshown=ttshown)
+      call igPopItemWidth()
+      call iw_tooltip("How the starting directions in the plane are chosen",ttshown)
+
+    end subroutine plane_options
   end subroutine draw_gpaths
 
   !> Draw the overlay of the pending trace of the trace gradient paths
@@ -302,7 +349,6 @@ contains
 
     integer :: isys, iview, ifield, irep, i, k, ntraced
     integer, allocatable :: icel(:)
-    type(gpaths_trace) :: t0
     type(gpaths_trace), allocatable :: t(:)
     type(rep_gpaths) :: gnew
     character(len=:), allocatable :: errmsg, err1
@@ -331,9 +377,6 @@ contains
        return
     end if
 
-    ! the options and style shared by all the groups
-    t0 = form_recipe(w,isys)
-
     ! one group per selected CP (in symmetry mode, only the first copy
     ! of each symmetry-unique CP can be selected), traced apart from
     ! the object so a cancel leaves it unchanged; on error, go on with
@@ -350,10 +393,9 @@ contains
          k = icel(i)
          if (abort_poll()) exit
 
-         ! the recipe: the seed
+         ! the recipe: the seed and the options of its kind
          ntraced = ntraced + 1
-         t(ntraced) = t0
-         t(ntraced)%kind = seed_kind(f%cpcel(k)%typ)
+         t(ntraced) = cp_recipe(w,isys,f%cpcel(k)%typ)
          t(ntraced)%x = f%cpcel(k)%x
 
          call gnew%run_trace(isys,t(ntraced),err1,abortable=.true.)
@@ -634,30 +676,46 @@ contains
 
   end subroutine sync_sel
 
-  !> The recipe of the form (system isys) without the seed: the
-  !> options and style shared by all the groups. Neither Bond path nor
-  !> Plane checked is only traced with no BCP/RCP selected.
-  function form_recipe(w,isys) result(t0)
+  !> The recipe of the form (system isys) for a seed CP of type typ
+  !> (not 0), without its position: the options of its kind, and the
+  !> style shared by all the groups. An RCP with neither the ring paths
+  !> nor paths in the plane is not traced (form_error).
+  function cp_recipe(w,isys,typ) result(t)
     type(window), intent(in), target :: w
-    integer, intent(in) :: isys
-    type(gpaths_trace) :: t0
+    integer, intent(in) :: isys, typ
+    type(gpaths_trace) :: t
 
-    if (.not.w%gp%plane) then
-       t0%iup = gtrace_axis_axial
-    elseif (.not.w%gp%bondpath) then
-       t0%iup = gtrace_axis_plane
-    else
-       t0%iup = gtrace_axis_both
-    end if
-    t0%ntheta = w%gp%ntheta
-    t0%nphi = w%gp%nphi
-    t0%npts = w%gp%npts
-    t0%method = w%gp%method
-    t0%sym = sym_mode(w,isys)
-    t0%rgb = w%gp%rgb
-    t0%rad = w%gp%rad
+    select case (typ)
+    case (-3)
+       t%kind = gtrace_sphere
+       t%ntheta = w%gp%ntheta_n
+       t%nphi = w%gp%nphi_n
+    case (-1)
+       t%kind = gtrace_axis
+       t%iup = gtrace_axis_plane
+       t%npts = w%gp%npts_b
+       t%method = w%gp%method_b
+    case (1)
+       t%kind = gtrace_axis
+       if (w%gp%npts_r == 0) then
+          t%iup = gtrace_axis_axial
+       elseif (w%gp%ringpath) then
+          t%iup = gtrace_axis_both
+       else
+          t%iup = gtrace_axis_plane
+       end if
+       t%npts = w%gp%npts_r
+       t%method = w%gp%method_r
+    case default
+       t%kind = gtrace_sphere
+       t%ntheta = w%gp%ntheta_c
+       t%nphi = w%gp%nphi_c
+    end select
+    t%sym = sym_mode(w,isys)
+    t%rgb = w%gp%rgb
+    t%rad = w%gp%rad
 
-  end function form_recipe
+  end function cp_recipe
 
   !> The selected seed cell CPs of the form (system isys): the
   !> selected ones, except those of type 0. The selection must be
@@ -675,19 +733,6 @@ contains
     end associate
 
   end function selected_cps
-
-  !> The kind of trace (gtrace_*) of a seed CP of type typ (not 0).
-  function seed_kind(typ) result(kind)
-    integer, intent(in) :: typ
-    integer :: kind
-
-    if (abs(typ) == 1) then
-       kind = gtrace_axis
-    else
-       kind = gtrace_sphere
-    end if
-
-  end function seed_kind
 
   !> Estimate the wall time of the trace of the form on system isys:
   !> build the seeds of a sample of the selected CPs and trace them,
@@ -718,7 +763,6 @@ contains
     character(len=:), allocatable :: err1
 
     ifield = w%gp%fref%id
-    t = form_recipe(w,isys)
     associate(f => sys(isys)%f(ifield))
       ! the selected seed CPs
       icel = selected_cps(w,isys)
@@ -730,7 +774,7 @@ contains
       call system_clock(c0,crate)
       do k = 1, ncp
          i = icel(min(1 + int(ncp * modulo(k * golden,1d0)),ncp))
-         t%kind = seed_kind(f%cpcel(i)%typ)
+         t = cp_recipe(w,isys,f%cpcel(i)%typ)
          if (allocated(seeds)) deallocate(seeds)
          call t%make_seeds(isys,ifield,f%cp(f%cpcel(i)%idx)%x,f%cpcel(i)%typ,seeds,err1)
          if (len(err1) > 0 .and. len_trim(w%errmsg) == 0) w%errmsg = err1
@@ -756,9 +800,9 @@ contains
     type(window), intent(in), target :: w
     integer*8, allocatable :: key(:)
 
-    key = [merge(1_8,0_8,w%gp%bondpath), merge(1_8,0_8,w%gp%plane), int(w%gp%npts,8),&
-       int(w%gp%method,8), int(w%gp%ntheta,8), int(w%gp%nphi,8), w%gp%fref%uid,&
-       transfer(w%gp%seltime,1_8)]
+    key = [int(w%gp%ntheta_n,8), int(w%gp%nphi_n,8), int(w%gp%npts_b,8), int(w%gp%method_b,8),&
+       merge(1_8,0_8,w%gp%ringpath), int(w%gp%npts_r,8), int(w%gp%method_r,8), int(w%gp%ntheta_c,8),&
+       int(w%gp%nphi_c,8), w%gp%fref%uid, transfer(w%gp%seltime,1_8)]
     if (allocated(w%gp%sel)) key = [key, merge(1_8,0_8,w%gp%sel)]
 
   end function estimate_key
@@ -775,8 +819,8 @@ contains
 
   !> Why the form cannot be traced (empty if it can), for system isys:
   !> no CPs selected, the selection is not for the current field and
-  !> CP list, or a BCP/RCP is selected with neither Bond path nor
-  !> Plane checked.
+  !> CP list, or an RCP is selected with neither the ring paths nor
+  !> paths in the plane.
   function form_error(w,isys) result(err)
     use systems, only: sys, sysc
     type(window), intent(in), target :: w
@@ -790,9 +834,9 @@ contains
     if (.not.w%gp%selfref%same(w%gp%fref)) return
     if (.not.any(w%gp%sel)) return
     err = ""
-    if (.not.w%gp%bondpath .and. .not.w%gp%plane) then
+    if (.not.w%gp%ringpath .and. w%gp%npts_r == 0) then
        associate(f => sys(isys)%f(w%gp%fref%id))
-         if (any(w%gp%sel .and. abs(f%cpcel(1:f%ncpcel)%typ) == 1)) err = "Check Bond path or Plane"
+         if (any(w%gp%sel .and. f%cpcel(1:f%ncpcel)%typ == 1)) err = "Check Ring path or set the RCP Number"
        end associate
     end if
 

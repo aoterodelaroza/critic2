@@ -405,12 +405,20 @@ module windows
      logical, allocatable :: sel(:)
      type(field_ref) :: selfref
      real*8 :: seltime = -1d0
-     logical :: bondpath = .true. ! BCP/RCP seed: trace the two axial paths
-     logical :: plane = .true. ! BCP/RCP seed: trace the paths in the perpendicular plane
-     integer(c_int) :: ntheta = 8 ! sphere: number of azimuthal angles
-     integer(c_int) :: nphi = 5 ! sphere: number of polar angles
-     integer(c_int) :: npts = 24 ! BCP/RCP: number of paths in the plane
-     integer(c_int) :: method = 0 ! BCP/RCP: starting angles in the plane (flux_method_*)
+     ! the options of each kind of seed CP: NCP (and nuclei) and CCP,
+     ! a sphere of paths (number of azimuthal and polar angles); BCP,
+     ! the paths in the plane (number, and starting angles,
+     ! flux_method_*); RCP, the ring paths and the paths in the plane
+     ! (none if npts_r = 0)
+     integer(c_int) :: ntheta_n = 8
+     integer(c_int) :: nphi_n = 5
+     integer(c_int) :: npts_b = 24
+     integer(c_int) :: method_b = 0
+     logical :: ringpath = .true.
+     integer(c_int) :: npts_r = 24
+     integer(c_int) :: method_r = 0
+     integer(c_int) :: ntheta_c = 8
+     integer(c_int) :: nphi_c = 5
      logical :: sym = .true. ! crystals: trace the symmetry-unique CPs and carry the paths to all their copies
      real(c_float) :: rgb(3) = (/0.85_c_float,0.45_c_float,0.10_c_float/) ! color of the next group
      real(c_float) :: rad = gpaths_rad_def ! radius of the next group (bohr)
