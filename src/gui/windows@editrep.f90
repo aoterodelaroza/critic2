@@ -52,12 +52,12 @@ contains
           do i = 1, sysc(isys)%sc%nrep
              if (.not.sysc(isys)%sc%rep(i)%isinit) cycle
              if (sysc(isys)%sc%rep(i)%type /= reptype_gpaths) cycle
-             if (all(sysc(isys)%sc%rep(i)%gpaths%ihover == 0)) cycle
+             if (all(sysc(isys)%sc%rep(i)%gpaths%ihover == 0) .and. sysc(isys)%sc%rep(i)%gpaths%thover == 0) cycle
              sysc(isys)%sc%rep(i)%gpaths%ihover = 0
+             sysc(isys)%sc%rep(i)%gpaths%thover = 0
              sysc(isys)%sc%forcebuildlists = .true.
           end do
        end if
-       call gpaths_thover_release(w%id)
        call w%end()
     end if
 
@@ -202,14 +202,17 @@ contains
           end if
        end if
 
-       ! a gradient path highlighted from the table goes back to normal
+       ! a gradient path or group highlighted from the table goes back
+       ! to normal
        if (iview > 0 .and. associated(w%rep)) then
-          if (w%rep%isinit .and. w%rep%type == reptype_gpaths .and. any(w%rep%gpaths%ihover /= 0)) then
-             w%rep%gpaths%ihover = 0
-             if (win(iview)%isopen .and. associated(win(iview)%sc)) win(iview)%sc%forcebuildlists = .true.
+          if (w%rep%isinit .and. w%rep%type == reptype_gpaths) then
+             if (any(w%rep%gpaths%ihover /= 0) .or. w%rep%gpaths%thover /= 0) then
+                w%rep%gpaths%ihover = 0
+                w%rep%gpaths%thover = 0
+                if (win(iview)%isopen .and. associated(win(iview)%sc)) win(iview)%sc%forcebuildlists = .true.
+             end if
           end if
        end if
-       call gpaths_thover_release(w%id)
        call w%end()
     end if
 
@@ -5184,7 +5187,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
        iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable, iw_button, iw_inputfloat,&
-       iw_inputtext
+       iw_inputtext, iw_close_button
     use param, only: bohrtoa
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -5192,11 +5195,9 @@ contains
     logical :: changed
 
     integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, ncol, ihover(3), idum
-    integer :: nuniq, ncell
-    logical :: hov
+    integer :: nuniq, ncell, irem, ithov
     integer, allocatable :: iuniq(:,:), icell(:,:)
     integer(c_int) :: istyle, itable
-    logical, pointer :: pshown1(:)
     logical :: ldum
     logical :: ch, typechanged, pathsok
     real(c_float) :: xcol
@@ -5266,9 +5267,9 @@ contains
        changed = .true.
     end if
 
-    ! the tables of gradient paths (for now, the two bond paths of each
-    ! BCP): one row per path of each symmetry-unique CP, and one per
-    ! path of each CP in the cell, in a second tab when there are more
+    ! the table of gradient paths: the two bond paths of each
+    ! symmetry-unique BCP (or of each cell BCP, chosen with a combo when
+    ! there are more), followed by the groups of traced paths
     nuniq = 0
     ncell = 0
     if (pathsok) then
@@ -5291,11 +5292,13 @@ contains
          end do
        end associate
     end if
-    if (nuniq > 0) then
+    irem = 0
+    ithov = 0
+    if (nuniq > 0 .or. w%rep%gpaths%ntrace > 0) then
        call iw_text("Gradient Paths",highlight=.true.)
        if (ncell > nuniq) then
-          ! which paths: symmetry-unique or cell (the combo items are
-          ! in the order of the tablecell values)
+          ! which bond paths: symmetry-unique or cell (the combo items
+          ! are in the order of the tablecell values)
           itable = int(w%rep%gpaths%tablecell,c_int)
           call iw_combo_simple("Path list##gpathstablecombo","Symmetry-unique" // c_null_char //&
              "Cell" // c_null_char,itable,changed=ch,tooltips=&
@@ -5308,10 +5311,31 @@ contains
           call draw_path_table(.false.,nuniq)
        end if
 
-       ! show/hide all paths
-       pshown1(1:size(w%rep%gpaths%pshown)) => w%rep%gpaths%pshown
-       if (showhide_buttons(pshown1,"gpaths","gradient paths",ttshown)) changed = .true.
+       ! remove a group of traced paths (after the table; the groups
+       ! are renumbered, so nothing stays highlighted)
+       if (irem > 0) then
+          call w%rep%gpaths%remove_trace(irem)
+          ithov = 0
+          changed = .true.
+       end if
 
+       ! show/hide all paths, and remove the traced ones
+       if (iw_button("Show All##gpathsshowall")) call show_all(1)
+       call iw_tooltip("Show all the gradient paths",ttshown)
+       if (iw_button("Hide All##gpathshideall",sameline=.true.)) call show_all(2)
+       call iw_tooltip("Hide all the gradient paths",ttshown)
+       if (iw_button("Toggle Show/Hide##gpathstoggleall",sameline=.true.)) call show_all(3)
+       call iw_tooltip("Toggle the show/hide status of all the gradient paths",ttshown)
+       if (w%rep%gpaths%ntrace > 0) then
+          if (iw_button("Remove All##gpathsremall",sameline=.true.,danger=.true.)) then
+             call w%rep%gpaths%drop_traces()
+             changed = .true.
+          end if
+          call iw_tooltip("Remove all the traced gradient paths",ttshown)
+       end if
+    end if
+
+    if (nuniq > 0) then
        ! show only the bond paths within or between molecules
        if (iw_button("Intramolecular##gpathsintramol")) call select_paths(1)
        call iw_tooltip("Show the bond paths between atoms of the same molecule and hide all others",ttshown)
@@ -5332,16 +5356,12 @@ contains
           "atomic units)",ttshown)
     end if
 
-    ! the bond paths found by AUTO, and the groups of paths traced with
-    ! the Trace Gradient Paths tool and their export (to okfile)
+    ! the bond paths found by AUTO, and the export of the paths traced
+    ! with the Trace Gradient Paths tool (to okfile)
     ch = iw_checkbox("Show the bond paths##gpathsshowbond",w%rep%gpaths%showbond)
     changed = changed .or. ch
     call iw_tooltip("Draw the bond paths that the critical point search found",ttshown)
     if (w%rep%gpaths%ntrace > 0) then
-       call iw_text("Traced Gradient Paths",highlight=.true.)
-       changed = draw_gpaths_trace_table(w%rep%gpaths,w%id,ttshown,hov) .or. changed
-       if (hov .and. iview > 0) win(iview)%sc%forcebuildlists = .true.
-
        ! export the traced paths
        call iw_text("Export",highlight=.true.)
        ldum = iw_inputtext("##gpathsexportfile",bufsize=1023,texta=w%okfile,width=36)
@@ -5373,10 +5393,11 @@ contains
        changed = changed .or. ch .or. typechanged
     end if
 
-    ! the path under the mouse in the table is highlighted in the view
-    ! (a rebuild, not an edit of the object)
-    if (any(ihover /= w%rep%gpaths%ihover)) then
+    ! the path or group under the mouse in the table is highlighted in
+    ! the view (a rebuild, not an edit of the object)
+    if (any(ihover /= w%rep%gpaths%ihover) .or. ithov /= w%rep%gpaths%thover) then
        w%rep%gpaths%ihover = ihover
+       w%rep%gpaths%thover = ithov
        if (iview > 0) win(iview)%sc%forcebuildlists = .true.
     end if
 
@@ -5396,14 +5417,17 @@ contains
 
     end subroutine label
 
-    !> The table of the paths of the symmetry-unique CPs (cell = .false.)
-    !> or of the cell CPs (cell = .true.), with n rows.
-    subroutine draw_path_table(cell,n)
+    !> The table of the gradient paths: the bond paths of the
+    !> symmetry-unique CPs (cell = .false.) or of the cell CPs (cell =
+    !> .true.), nb rows, followed by the groups of traced paths.
+    subroutine draw_path_table(cell,nb)
       logical, intent(in) :: cell
-      integer, intent(in) :: n
+      integer, intent(in) :: nb
 
-      integer :: k
+      integer :: k, n
       integer(c_int) :: flags
+
+      n = nb + w%rep%gpaths%ntrace
 
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -5420,11 +5444,11 @@ contains
       sz%y = iw_calcheight(min(10,n+1),0,.false.)
       if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
          ncol = -1
+         call iw_table_column("",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("End 1",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("End 2",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_column("Endpoints/Paths",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
          clipper = ImGuiListClipper_ImGuiListClipper()
@@ -5433,7 +5457,9 @@ contains
             call c_f_pointer(clipper,clipper_f)
             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-               if (cell) then
+               if (k > nb) then
+                  call draw_trace_row(k-nb)
+               elseif (cell) then
                   call draw_path_row(k,icell(1,k),0,icell(2,k))
                else
                   call draw_path_row(k,iuniq(1,k),iuniq(2,k),0)
@@ -5456,7 +5482,7 @@ contains
       integer :: iend, id, iu
       integer, allocatable :: kc(:)
       integer(c_int) :: idx(4)
-      real(c_float) :: rgb(3), rad, xpos
+      real(c_float) :: rgb(3), rad
       logical :: have, ldum, lsh
       character(len=:), allocatable :: lbl
 
@@ -5476,15 +5502,16 @@ contains
         rgb = g%prgb(:,j,kc(1))
         rad = g%prad(j,kc(1))
 
-        ! show, and the row selectable that highlights the path in the
-        ! view: first in the row, so the highlight holds while the mouse
-        ! is on the checkbox too
+        ! the row selectable that highlights the path in the view:
+        ! first in the row, so the highlight holds while the mouse is
+        ! on the widgets too (a bond path cannot be removed)
         if (igTableSetColumnIndex(0_c_int)) then
-           xpos = igGetCursorPosX()
            call iw_text("",alignframe=.true.)
            if (iw_highlight_selectable("##gpathsrowsel" // suffix)) ihover = (/j,i,icp/)
-           call igSameLine(0._c_float,0._c_float)
-           call igSetCursorPosX(xpos)
+        end if
+
+        ! show
+        if (igTableSetColumnIndex(1_c_int)) then
            if (iw_checkbox("##gpathsrowshown" // suffix,lsh)) then
               g%pshown(j,kc) = lsh
               changed = .true.
@@ -5494,7 +5521,7 @@ contains
         end if
 
         ! color and radius of this path
-        if (igTableSetColumnIndex(1_c_int)) then
+        if (igTableSetColumnIndex(2_c_int)) then
            if (iw_coloredit("##gpathsrowcolor" // suffix,rgb=rgb)) then
               g%prgb(1,j,kc) = rgb(1)
               g%prgb(2,j,kc) = rgb(2)
@@ -5504,7 +5531,7 @@ contains
            call iw_tooltip("Color of this gradient path",ttshown)
            call mixed_note(any(g%prgb(:,j,kc) /= spread(g%prgb(:,j,kc(1)),2,size(kc))))
         end if
-        if (igTableSetColumnIndex(2_c_int)) then
+        if (igTableSetColumnIndex(3_c_int)) then
            if (iw_dragfloat_realc("##gpathsrowrad" // suffix,x1=rad,speed=0.002_c_float,&
               min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
               flags=ImGuiSliderFlags_AlwaysClamp)) then
@@ -5515,17 +5542,14 @@ contains
            call mixed_note(any(g%prad(j,kc) /= g%prad(j,kc(1))))
         end if
 
-        ! the ends: the CP the path starts from (a BCP)...
-        if (igTableSetColumnIndex(3_c_int)) then
+        ! the ends: the CP the path starts from (a BCP), and the one it
+        ! ends at (a nucleus, in the color this object draws it with;
+        ! or a non-nuclear attractor; none if it leaves the molecule)
+        if (igTableSetColumnIndex(4_c_int)) then
            lbl = trim(f%cp(iu)%name)
            if (icp > 0) lbl = lbl // " " // string(icp)
            call cp_badge(iview,isys,w%rep%gpaths%fref%id,iu,lbl // "##gpathsend1" // suffix)
-        end if
-
-        ! ... and the one it ends at (a nucleus, in the color this
-        ! object draws it with; or a non-nuclear attractor; none if it
-        ! leaves the molecule)
-        if (igTableSetColumnIndex(4_c_int)) then
+           call igSameLine(0._c_float,-1._c_float)
            if (icp > 0) then
               ! cell path: the cell CP at the end, and its lattice vector
               iend = f%cpcel(icp)%ipath(j)
@@ -5570,6 +5594,84 @@ contains
       end associate
 
     end subroutine draw_path_row
+
+    !> Row of the group it of traced paths: remove, show, color,
+    !> radius, and description. The group under the mouse goes to
+    !> ithov, and a click on remove to irem.
+    subroutine draw_trace_row(it)
+      integer, intent(in) :: it
+
+      real(c_float) :: xpos
+
+      associate(t => w%rep%gpaths%trace(it))
+        suffix = "_t" // string(it)
+
+        ! remove, and the row selectable that highlights the group
+        if (igTableSetColumnIndex(0_c_int)) then
+           xpos = igGetCursorPosX()
+           call iw_text("",alignframe=.true.)
+           if (iw_highlight_selectable("##gptrrowsel" // suffix)) ithov = it
+           call igSameLine(0._c_float,0._c_float)
+           call igSetCursorPosX(xpos)
+           if (iw_close_button("##gptrrem" // suffix)) irem = it
+           call iw_tooltip("Remove these gradient paths",ttshown)
+        end if
+
+        ! show, color and radius
+        if (igTableSetColumnIndex(1_c_int)) then
+           if (iw_checkbox("##gptrshown" // suffix,t%shown)) changed = .true.
+           call iw_tooltip("Show these gradient paths",ttshown)
+        end if
+        if (igTableSetColumnIndex(2_c_int)) then
+           if (iw_coloredit("##gptrcolor" // suffix,rgb=t%rgb)) changed = .true.
+           call iw_tooltip("Color of these gradient paths",ttshown)
+        end if
+        if (igTableSetColumnIndex(3_c_int)) then
+           if (iw_dragfloat_realc("##gptrrad" // suffix,x1=t%rad,speed=0.002_c_float,&
+              min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+              flags=ImGuiSliderFlags_AlwaysClamp)) changed = .true.
+           call iw_tooltip("Radius of these gradient paths in Å",ttshown)
+        end if
+
+        ! description
+        if (igTableSetColumnIndex(4_c_int)) then
+           if (t%traced .and. allocated(t%label)) then
+              call iw_text(t%label // merge(" (symmetry)","           ",t%sym))
+           else
+              call iw_text("(not traced yet)",disabled=.true.)
+           end if
+        end if
+      end associate
+
+    end subroutine draw_trace_row
+
+    !> Show (mode 1), hide (2), or toggle (3) all the bond paths and
+    !> groups of traced paths.
+    subroutine show_all(mode)
+      integer, intent(in) :: mode
+
+      associate(g => w%rep%gpaths)
+        ! the bond paths (only if the field has them)
+        if (allocated(g%pshown)) then
+           if (mode == 1) then
+              g%pshown = .true.
+           elseif (mode == 2) then
+              g%pshown = .false.
+           else
+              g%pshown = .not.g%pshown
+           end if
+        end if
+        if (mode == 1) then
+           g%trace(1:g%ntrace)%shown = .true.
+        elseif (mode == 2) then
+           g%trace(1:g%ntrace)%shown = .false.
+        else
+           g%trace(1:g%ntrace)%shown = .not.g%trace(1:g%ntrace)%shown
+        end if
+      end associate
+      changed = .true.
+
+    end subroutine show_all
 
     !> Show only the bond paths of the BCPs that are intramolecular
     !> (mode 1: both ends are atoms of the same molecule),
@@ -6137,161 +6239,6 @@ contains
     kn = trim(get_bind_keyname(bind))
 
   end function kn
-
-  !> The table of the groups of traced gradient paths of object g (at
-  !> least one): show, color, radius, description, and remove. The
-  !> group under the mouse goes to g%thover, set by window owner
-  !> (hoverchanged: the highlight changed); the table of another window
-  !> does not clear it. Returns whether the groups changed.
-  function draw_gpaths_trace_table(g,owner,ttshown,hoverchanged) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_realc,&
-       iw_button, iw_highlight_selectable, iw_table_column, iw_table_headers_row, iw_calcheight
-    use tools_io, only: string
-    use param, only: bohrtoa
-    type(rep_gpaths), intent(inout) :: g
-    integer, intent(in) :: owner
-    logical, intent(inout) :: ttshown
-    logical, intent(out) :: hoverchanged
-    logical :: changed
-
-    integer :: it, irem, ncol, ihover
-    integer(c_int) :: flags
-    real(c_float) :: xpos
-    character(kind=c_char,len=:), allocatable, target :: str1, suffix
-    type(ImVec2) :: sz
-
-    changed = .false.
-    hoverchanged = .false.
-    ihover = 0
-
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    str1 = "##tabletraces" // c_null_char
-    sz%x = 0._c_float
-    sz%y = iw_calcheight(min(8,g%ntrace+1),0,.false.)
-    irem = 0
-    if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
-       ncol = -1
-       call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Paths",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
-       call iw_table_column("",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-
-       do it = 1, g%ntrace
-          associate(t => g%trace(it))
-            suffix = "_" // string(it)
-            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-
-            ! show, and the row selectable that highlights the group
-            if (igTableSetColumnIndex(0_c_int)) then
-               xpos = igGetCursorPosX()
-               call iw_text("",alignframe=.true.)
-               if (iw_highlight_selectable("##gptrrowsel" // suffix)) ihover = it
-               call igSameLine(0._c_float,0._c_float)
-               call igSetCursorPosX(xpos)
-               if (iw_checkbox("##gptrshown" // suffix,t%shown)) changed = .true.
-               call iw_tooltip("Show these gradient paths",ttshown)
-            end if
-
-            ! color and radius
-            if (igTableSetColumnIndex(1_c_int)) then
-               if (iw_coloredit("##gptrcolor" // suffix,rgb=t%rgb)) changed = .true.
-               call iw_tooltip("Color of these gradient paths",ttshown)
-            end if
-            if (igTableSetColumnIndex(2_c_int)) then
-               if (iw_dragfloat_realc("##gptrrad" // suffix,x1=t%rad,speed=0.002_c_float,&
-                  min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-                  flags=ImGuiSliderFlags_AlwaysClamp)) changed = .true.
-               call iw_tooltip("Radius of these gradient paths in Å",ttshown)
-            end if
-
-            ! description
-            if (igTableSetColumnIndex(3_c_int)) then
-               if (t%traced .and. allocated(t%label)) then
-                  call iw_text(t%label // merge(" (symmetry)","           ",t%sym))
-               else
-                  call iw_text("(not traced yet)",disabled=.true.)
-               end if
-            end if
-
-            ! remove
-            if (igTableSetColumnIndex(4_c_int)) then
-               if (iw_button("Remove##gptrrem" // suffix,danger=.true.)) irem = it
-               call iw_tooltip("Remove these gradient paths",ttshown)
-            end if
-          end associate
-       end do
-       call igEndTable()
-    end if
-    call set_thover()
-
-    ! remove the group (after the table)
-    if (irem > 0) then
-       call g%remove_trace(irem)
-       changed = .true.
-    end if
-
-    ! show or hide all
-    if (iw_button("Show All##gptrshowall")) then
-       g%trace(1:g%ntrace)%shown = .true.
-       changed = .true.
-    end if
-    call iw_tooltip("Show all the traced gradient paths",ttshown)
-    if (iw_button("Hide All##gptrhideall",sameline=.true.)) then
-       g%trace(1:g%ntrace)%shown = .false.
-       changed = .true.
-    end if
-    call iw_tooltip("Hide all the traced gradient paths",ttshown)
-    if (iw_button("Remove All##gptrremall",sameline=.true.,danger=.true.)) then
-       call g%drop_traces()
-       changed = .true.
-    end if
-    call iw_tooltip("Remove all the traced gradient paths",ttshown)
-
-  contains
-    ! the highlighted group: set by this table, or cleared if this
-    ! table set it
-    subroutine set_thover()
-      if (ihover > 0) then
-         hoverchanged = (g%thover /= ihover)
-         g%thover = ihover
-         g%thowner = owner
-      elseif (g%thowner == owner .and. g%thover /= 0) then
-         hoverchanged = .true.
-         g%thover = 0
-         g%thowner = 0
-      end if
-    end subroutine set_thover
-  end function draw_gpaths_trace_table
-
-  !> Stop highlighting the groups of traced gradient paths highlighted
-  !> from the table of window owner, in the objects of all the views.
-  subroutine gpaths_thover_release(owner)
-    use representations, only: reptype_gpaths
-    integer, intent(in) :: owner
-
-    integer :: iv, i
-
-    do iv = 1, nwin
-       if (.not.win(iv)%isopen .or. .not.associated(win(iv)%sc)) cycle
-       associate(sc => win(iv)%sc)
-         do i = 1, sc%nrep
-            if (.not.sc%rep(i)%isinit .or. sc%rep(i)%type /= reptype_gpaths) cycle
-            if (sc%rep(i)%gpaths%thowner /= owner) cycle
-            sc%rep(i)%gpaths%thover = 0
-            sc%rep(i)%gpaths%thowner = 0
-            sc%forcebuildlists = .true.
-         end do
-       end associate
-    end do
-
-  end subroutine gpaths_thover_release
 
   !> Write the points of the traced gradient paths of the gradient
   !> paths object r (system isys) to text file file: a block per path

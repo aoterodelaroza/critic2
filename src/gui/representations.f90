@@ -1176,8 +1176,7 @@ module representations
      integer*8 :: tcuid = 0
      integer :: trev = -1
      real*8 :: ttime = -1d0
-     integer :: thover = 0 ! group under the mouse in a table of the groups, drawn highlighted (0 = none)
-     integer :: thowner = 0 ! window whose table set thover
+     integer :: thover = 0 ! group under the mouse in the table of the edit window, drawn highlighted (0 = none)
    contains
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok
