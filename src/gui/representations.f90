@@ -1152,7 +1152,7 @@ module representations
      real(c_float) :: rgb(3) = 1._c_float ! color of all paths (global)
      real(c_float) :: rad = gpaths_rad_def ! tube or sphere radius of all paths (global, bohr)
      integer :: style = gpaths_style_tube ! drawing style (gpaths_style_*)
-     logical :: showends = .true. ! draw the atoms at the ends of the bond paths
+     logical :: showends = .true. ! draw the atoms at the ends of the bond paths (off for molecules: init)
      integer :: pfield = -1 ! field of the per-path values
      real*8 :: ptime = -1d0 ! time of the last check of the per-path values
      real*8, allocatable :: pcpx(:,:) ! positions of the cell CPs the values are for (3,ncpcel)

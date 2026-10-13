@@ -311,6 +311,9 @@ contains
        r%gpaths = rep_gpaths()
        call r%gpaths%fref%set(sys(isys),cps_field_default(isys,withpaths=.true.))
        r%gpaths%rgb = ColorGpath
+       ! the atoms at the path ends: in a molecule, the atoms object
+       ! already draws all of them
+       r%gpaths%showends = .not.sys(isys)%c%ismolecule
     end if
 
     ! geometric shapes
