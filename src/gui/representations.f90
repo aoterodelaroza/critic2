@@ -1083,6 +1083,7 @@ module representations
      real*8, allocatable :: f(:) ! field value at the points (n)
      integer, allocatable :: iend(:) ! cell atom at the end of each copy (ncopy)
      integer, allocatable :: lend(:,:) ! lattice vector of that atom (3,ncopy)
+     integer :: icpend = 0 ! symmetry-unique CP at the end of the path (0 = none)
   end type gpaths_tpath
   public :: gpaths_tpath
 
@@ -1116,12 +1117,14 @@ module representations
      integer :: nphi = 5 ! sphere: number of polar angles
      integer :: npts = 24 ! BCP/RCP: number of paths in the plane
      integer :: method = 0 ! BCP/RCP: starting angles in the plane (flux_method_*)
+     integer :: ipath = 0 ! BCP/RCP axial: only the path along +axis (1) or -axis (2); 0 = both
      logical :: sym = .true. ! draw all the symmetry-equivalent copies of the seed
      ! style
      real(c_float) :: rgb(3) = 1._c_float ! color of the paths
      real(c_float) :: rad = 0.04_c_float ! tube or sphere radius (bohr)
      logical :: shown = .true. ! whether the paths are drawn
-     character(len=:), allocatable :: label ! description (seed and number of paths)
+     character(len=:), allocatable :: label ! description of the paths, after the seed CP (if any)
+     integer :: npath = 0 ! number of drawn paths (all sites and copies)
      ! the paths
      logical :: traced = .false. ! the paths have been traced
      integer :: nsite = 0 ! number of sites
@@ -1166,7 +1169,6 @@ module representations
      integer :: ihover(3) = 0 ! path under the mouse in the editor tables, drawn highlighted: ! (j, symmetry-unique CP i, 0) highlights all its cell copies, ! (j, 0, cell CP icp) that one (0 = none)
      integer :: tablecell = 0 ! editor table: paths of the symmetry-unique CPs (0) or of the cell CPs (1)
      real(c_float) :: fthr = 0.01_c_float ! editor: field value at the BCP that selects paths above/below it
-     logical :: showbond = .true. ! draw the bond paths of the field (AUTO)
      ! the traced gradient path groups (Trace Gradient Paths tool), for
      ! field tfield with data tcuid, geometry revision trev and the CP list
      ! at time ttime; they are dropped if any of these changes

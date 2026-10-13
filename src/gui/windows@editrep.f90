@@ -5356,13 +5356,9 @@ contains
           "atomic units)",ttshown)
     end if
 
-    ! the bond paths found by AUTO, and the export of the paths traced
-    ! with the Trace Gradient Paths tool (to okfile)
-    ch = iw_checkbox("Show the bond paths##gpathsshowbond",w%rep%gpaths%showbond)
-    changed = changed .or. ch
-    call iw_tooltip("Draw the bond paths that the critical point search found",ttshown)
+    ! export the paths traced with the Trace Gradient Paths tool (to
+    ! okfile)
     if (w%rep%gpaths%ntrace > 0) then
-       ! export the traced paths
        call iw_text("Export",highlight=.true.)
        ldum = iw_inputtext("##gpathsexportfile",bufsize=1023,texta=w%okfile,width=36)
        call iw_tooltip("Text file the traced gradient paths are written to",ttshown)
@@ -5442,13 +5438,14 @@ contains
       end if
       sz%x = 0._c_float
       sz%y = iw_calcheight(min(10,n+1),0,.false.)
-      if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
+      if (igBeginTable(c_loc(str1),6,flags,sz,0._c_float)) then
          ncol = -1
          call iw_table_column("",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Color",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("Radius (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Endpoints/Paths",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_column("Paths",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Endpoints/Description",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
          clipper = ImGuiListClipper_ImGuiListClipper()
@@ -5542,10 +5539,13 @@ contains
            call mixed_note(any(g%prad(j,kc) /= g%prad(j,kc(1))))
         end if
 
+        ! number of paths: one per cell CP of the row
+        if (igTableSetColumnIndex(4_c_int)) call iw_text(string(size(kc)),alignframe=.true.)
+
         ! the ends: the CP the path starts from (a BCP), and the one it
         ! ends at (a nucleus, in the color this object draws it with;
         ! or a non-nuclear attractor; none if it leaves the molecule)
-        if (igTableSetColumnIndex(4_c_int)) then
+        if (igTableSetColumnIndex(5_c_int)) then
            lbl = trim(f%cp(iu)%name)
            if (icp > 0) lbl = lbl // " " // string(icp)
            call cp_badge(iview,isys,w%rep%gpaths%fref%id,iu,lbl // "##gpathsend1" // suffix)
@@ -5596,12 +5596,15 @@ contains
     end subroutine draw_path_row
 
     !> Row of the group it of traced paths: remove, show, color,
-    !> radius, and description. The group under the mouse goes to
-    !> ithov, and a click on remove to irem.
+    !> radius, number of paths, and description (the seed CP badge,
+    !> the label, and the end of a single path). The group under the
+    !> mouse goes to ithov, and a click on remove to irem.
     subroutine draw_trace_row(it)
       integer, intent(in) :: it
 
+      integer :: icp
       real(c_float) :: pos0(2)
+      character(len=:), allocatable :: str
 
       associate(t => w%rep%gpaths%trace(it))
         suffix = "_t" // string(it)
@@ -5635,17 +5638,53 @@ contains
            call iw_tooltip("Radius of these gradient paths in Å",ttshown)
         end if
 
-        ! description
-        if (igTableSetColumnIndex(4_c_int)) then
-           if (t%traced .and. allocated(t%label)) then
-              call iw_text(t%label // merge(" (symmetry)","           ",t%sym))
-           else
-              call iw_text("(not traced yet)",disabled=.true.)
+        ! number of paths, and description: the seed CP as a badge,
+        ! then the paths
+        if (t%traced .and. allocated(t%label)) then
+           if (igTableSetColumnIndex(4_c_int)) call iw_text(string(t%npath),alignframe=.true.)
+           if (igTableSetColumnIndex(5_c_int)) then
+              str = trace_seed_str(isys,w%rep%gpaths%fref%id,t,icp)
+              if (len(str) > 0) then
+                 call cp_badge(iview,isys,w%rep%gpaths%fref%id,icp,str // "##gptrseed" // suffix)
+                 call igSameLine(0._c_float,-1._c_float)
+              end if
+              call iw_text(t%label,alignframe=.true.)
+              ! a single path: the CP at its end, or none (to infinity
+              ! in a molecule)
+              if (t%ipath > 0 .and. t%nsite == 1) then
+                 if (t%site(1)%npath == 1) call end_badge(t%site(1)%path(1)%icpend)
+              end if
+              if (t%sym) call iw_text("(symmetry)",sameline=.true.,alignframe=.true.)
            end if
+        elseif (igTableSetColumnIndex(5_c_int)) then
+           call iw_text("(not traced yet)",disabled=.true.,alignframe=.true.)
         end if
       end associate
 
     end subroutine draw_trace_row
+
+    !> The end of a single traced path: an arrow and the badge of the
+    !> symmetry-unique CP icp, or of infinity in a molecule (icp = 0),
+    !> on the current line.
+    subroutine end_badge(icp)
+      integer, intent(in) :: icp
+
+      real(c_float) :: rgb(3)
+
+      call iw_text("→",sameline=.true.,alignframe=.true.)
+      call igSameLine(0._c_float,-1._c_float)
+      associate(f => sys(isys)%f(w%rep%gpaths%fref%id))
+        if (icp >= 1 .and. icp <= f%ncp) then
+           call cp_badge(iview,isys,w%rep%gpaths%fref%id,icp,trim(f%cp(icp)%name) // "##gptrend" // suffix)
+        elseif (sys(isys)%c%ismolecule) then
+           rgb = 0._c_float
+           ldum = iw_atom_button("∞##gptrend" // suffix,rgb,havergb=.false.,inert=.true.)
+        else
+           call iw_text("?",disabled=.true.)
+        end if
+      end associate
+
+    end subroutine end_badge
 
     !> Show (mode 1), hide (2), or toggle (3) all the bond paths and
     !> groups of traced paths.
@@ -6281,8 +6320,9 @@ contains
       do it = 1, g%ntrace
          associate(t => g%trace(it))
            if (.not.t%traced) cycle
-           str = ""
-           if (allocated(t%label)) str = t%label
+           str = trace_seed_str(isys,g%fref%id,t)
+           if (len(str) > 0) str = str // " "
+           if (allocated(t%label)) str = str // t%label
            write (lu,'("#")')
            write (lu,'("# Group ",A,": ",A)') string(it), str
            do is = 1, t%nsite
@@ -6314,5 +6354,37 @@ contains
     call fclose(lu)
 
   end subroutine write_paths
+
+  !> The seed CP of the traced group t of a gradient paths object of
+  !> field ifield (system isys), as type and name ("BCP b21"), and its
+  !> symmetry-unique index (icp); empty and 0 if the seed is not a CP
+  !> or the group has no paths.
+  function trace_seed_str(isys,ifield,t,icp) result(str)
+    use systems, only: sys
+    use representations, only: gpaths_trace, gtrace_sphere, gtrace_axis, cps_abbrev
+    integer, intent(in) :: isys, ifield
+    type(gpaths_trace), intent(in) :: t
+    integer, intent(out), optional :: icp
+    character(len=:), allocatable :: str
+
+    integer :: i
+
+    str = ""
+    if (present(icp)) icp = 0
+    if (.not.allocated(t%site) .or. t%nsite < 1) return
+    if (t%kind /= gtrace_sphere .and. t%kind /= gtrace_axis) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    i = t%site(1)%icp
+    if (i < 1 .or. i > sys(isys)%f(ifield)%ncp) return
+    if (present(icp)) icp = i
+    associate(cp => sys(isys)%f(ifield)%cp(i))
+      if (cp%typ == -3) then
+         str = "NCP " // trim(cp%name)
+      else
+         str = cps_abbrev(cp%typind) // " " // trim(cp%name)
+      end if
+    end associate
+
+  end function trace_seed_str
 
 end submodule editrep

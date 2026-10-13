@@ -350,6 +350,7 @@ contains
     integer :: isys, iview, ifield, irep, i, k, ntraced
     integer, allocatable :: icel(:)
     type(gpaths_trace), allocatable :: t(:)
+    type(gpaths_trace) :: tr
     type(rep_gpaths) :: gnew
     character(len=:), allocatable :: errmsg, err1
     logical :: doest, cancelled
@@ -378,15 +379,16 @@ contains
     end if
 
     ! one group per selected CP (in symmetry mode, only the first copy
-    ! of each symmetry-unique CP can be selected), traced apart from
-    ! the object so a cancel leaves it unchanged; on error, go on with
-    ! the next one and report the first error
+    ! of each symmetry-unique CP can be selected), except for an RCP:
+    ! one per ring path and one for the paths in the plane; traced
+    ! apart from the object so a cancel leaves it unchanged; on error,
+    ! go on with the next one and report the first error
     ntraced = 0
     errmsg = ""
     gnew%fref = w%gp%fref
     call begin_cancellable()
     icel = selected_cps(w,isys)
-    allocate(t(size(icel,1)))
+    allocate(t(3*size(icel,1)))
     call progress_start(size(icel,1),"critical points")
     associate(f => sys(isys)%f(ifield))
       do i = 1, size(icel,1)
@@ -394,16 +396,16 @@ contains
          if (abort_poll()) exit
 
          ! the recipe: the seed and the options of its kind
-         ntraced = ntraced + 1
-         t(ntraced) = cp_recipe(w,isys,f%cpcel(k)%typ)
-         t(ntraced)%x = f%cpcel(k)%x
-
-         call gnew%run_trace(isys,t(ntraced),err1,abortable=.true.)
-         call progress_step()
-         if (len(err1) > 0) then
-            if (len(errmsg) == 0) errmsg = err1
-            ntraced = ntraced - 1
+         tr = cp_recipe(w,isys,f%cpcel(k)%typ)
+         tr%x = f%cpcel(k)%x
+         if (f%cpcel(k)%typ == 1 .and. tr%iup /= gtrace_axis_plane) then
+            call trace_one(gtrace_axis_axial,1)
+            call trace_one(gtrace_axis_axial,2)
+            if (tr%iup == gtrace_axis_both) call trace_one(gtrace_axis_plane,0)
+         else
+            call trace_one(tr%iup,0)
          end if
+         call progress_step()
       end do
     end associate
     cancelled = end_cancellable()
@@ -436,6 +438,25 @@ contains
 
 999 continue
     w%errmsg = errmsg
+
+  contains
+
+    !> Trace a new group with recipe tr, with iup and ipath replaced;
+    !> on error, keep the first error message and drop the group.
+    subroutine trace_one(iup,ipath)
+      integer, intent(in) :: iup, ipath
+
+      ntraced = ntraced + 1
+      t(ntraced) = tr
+      t(ntraced)%iup = iup
+      t(ntraced)%ipath = ipath
+      call gnew%run_trace(isys,t(ntraced),err1,abortable=.true.)
+      if (len(err1) > 0) then
+         if (len(errmsg) == 0) errmsg = err1
+         ntraced = ntraced - 1
+      end if
+
+    end subroutine trace_one
 
   end subroutine run_gpaths
 

@@ -399,7 +399,6 @@ contains
          call io%x(q,'style',r%gpaths%style,gpaths_style_tube,gpaths_style_beads)
          call io%x(q,'showends',r%gpaths%showends)
          call io%x(q,'fthr',r%gpaths%fthr)
-         call io%x(q,'showbond',r%gpaths%showbond)
 
          ! the traced gradient paths: the recipe and style of each group,
          ! traced again when the object is next updated
@@ -422,6 +421,7 @@ contains
               call io%x(b,'nphi',t%nphi,0)
               call io%x(b,'npts',t%npts,0)
               call io%x(b,'method',t%method,0,2)
+              call io%x(b,'ipath',t%ipath,0,2)
               call io%x(b,'sym',t%sym)
               call io%x(b,'rgb',t%rgb)
               call io%x(b,'rad',t%rad,lo=0d0)

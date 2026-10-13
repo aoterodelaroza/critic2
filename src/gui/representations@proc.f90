@@ -1977,7 +1977,7 @@ contains
        call add_cp_items(r%cps%fref%id,cpitem_sphere)
     elseif (r%type == reptype_gpaths) then
        !!! gradient paths of a scalar field !!!
-       if (r%gpaths%showbond) call add_cp_items(r%gpaths%fref%id,cpitem_path)
+       call add_cp_items(r%gpaths%fref%id,cpitem_path)
        call add_traced_paths()
     end if ! reptype
   contains
@@ -4115,8 +4115,9 @@ contains
 
   end subroutine gpaths_drop_traces
 
-  !> Move the paths of the traced groups of object g into cache (the
-  !> groups keep their recipe, style, and traced flag).
+  !> Move the paths of the traced groups of object g into cache, with
+  !> their label and number of paths (the groups keep their recipe,
+  !> style, and traced flag).
   module subroutine gpaths_cache_take(g,cache)
     class(rep_gpaths), intent(inout) :: g
     type(gpaths_cache), intent(inout) :: cache
@@ -4129,6 +4130,8 @@ contains
        cache%t(i)%uid = g%trace(i)%uid
        cache%t(i)%traced = g%trace(i)%traced
        cache%t(i)%nsite = g%trace(i)%nsite
+       cache%t(i)%npath = g%trace(i)%npath
+       if (allocated(g%trace(i)%label)) cache%t(i)%label = g%trace(i)%label
        if (allocated(g%trace(i)%site)) call move_alloc(g%trace(i)%site,cache%t(i)%site)
     end do
 
@@ -4153,6 +4156,8 @@ contains
        if (.not.allocated(cache%t(j)%site)) cycle
        call move_alloc(cache%t(j)%site,g%trace(i)%site)
        g%trace(i)%nsite = cache%t(j)%nsite
+       g%trace(i)%npath = cache%t(j)%npath
+       if (allocated(cache%t(j)%label)) g%trace(i)%label = cache%t(j)%label
        g%trace(i)%traced = cache%t(j)%traced
     end do
     if (allocated(cache%t)) deallocate(cache%t)
@@ -4213,19 +4218,24 @@ contains
           iup = 0
        end if
        call flux_seeds_axis(sys(isys)%f(ifield),xc,ircp,iup,t%npts,t%method,seeds,prunedist,errmsg)
+       ! only one of the two axial paths (the first two seeds)
+       if (iup == ircp .and. t%ipath > 0 .and. allocated(seeds)) then
+          if (size(seeds,1) >= t%ipath) seeds = seeds(t%ipath:t%ipath)
+       end if
     end if
     if (.not.allocated(seeds)) allocate(seeds(0))
 
   end subroutine gpaths_trace_make_seeds
 
   !> Trace the gradient paths of group t with the field of object g
-  !> (system isys), following its recipe; also set its label. The paths
-  !> of a CP seed are traced from its symmetry-unique CP and carried to
-  !> the cell copies (all of them if t%sym, else the one at t%x) by the
-  !> operations of the CP list; those of a point, to the
-  !> symmetry-equivalent points if t%sym. On error, errmsg is not empty
-  !> and t is not traced. If abortable, a cancel (abort_poll) skips the
-  !> paths not yet traced (the caller then discards t).
+  !> (system isys), following its recipe; also set its label and number
+  !> of paths. The paths of a CP seed are traced from its
+  !> symmetry-unique CP and carried to the cell copies (all of them if
+  !> t%sym, else the one at t%x) by the operations of the CP list; those
+  !> of a point, to the symmetry-equivalent points if t%sym. On error,
+  !> errmsg is not empty and t is not traced. If abortable, a cancel
+  !> (abort_poll) skips the paths not yet traced (the caller then
+  !> discards t).
   module subroutine gpaths_run_trace(g,isys,t,errmsg,abortable)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc
@@ -4242,7 +4252,7 @@ contains
     real*8, parameter :: eps_cp = 1d-4 ! distance to identify the seed CP (bohr)
     real*8, parameter :: eps_end = 1d-2 ! distance from the end of a path to a nucleus (bohr)
 
-    integer :: ifield, icel, i, n, typ, npath
+    integer :: ifield, icel, i, n, typ
     real*8 :: xl(3)
     character(len=:), allocatable :: str
 
@@ -4296,7 +4306,7 @@ contains
          t%nsite = 1
          call cp_site(t%site(1),icel)
          if (len(errmsg) > 0) return
-         str = cp_str(icel) // ": sphere " // string(t%ntheta) // "x" // string(t%nphi)
+         str = "sphere " // string(t%ntheta) // "x" // string(t%nphi)
 
       case (gtrace_axis)
          if (typ /= -1 .and. typ /= 1) then
@@ -4307,13 +4317,16 @@ contains
          t%nsite = 1
          call cp_site(t%site(1),icel)
          if (len(errmsg) > 0) return
+         ! bond paths and interatomic surface (BCP), ring paths and
+         ! interring surface (RCP)
          select case (t%iup)
          case (gtrace_axis_axial)
-            str = cp_str(icel) // ": axis"
+            str = merge("bond path","ring path",typ == -1)
+            if (t%ipath == 0) str = str // "s"
          case (gtrace_axis_plane)
-            str = cp_str(icel) // ": plane (" // string(t%npts) // ")"
+            str = merge("IAS plane","ICS plane",typ == -1)
          case default
-            str = cp_str(icel) // ": axis and plane (" // string(t%npts) // ")"
+            str = merge("bond paths and IAS plane","ring paths and ICS plane",typ == -1)
          end select
 
       case (gtrace_rings)
@@ -4335,11 +4348,8 @@ contains
       end select
 
       ! the number of drawn paths
-      npath = 0
-      do i = 1, t%nsite
-         npath = npath + t%site(i)%npath * t%site(i)%ncopy
-      end do
-      t%label = str // ", " // string(npath) // " paths"
+      t%npath = sum(t%site(1:t%nsite)%npath * t%site(1:t%nsite)%ncopy)
+      t%label = str
     end associate
 
     t%traced = .true.
@@ -4442,6 +4452,12 @@ contains
               s%path(j)%f(k) = paths(j)%p(k)%f
            end do
 
+           ! the CP at the end of the path (a CP within eps_end; the
+           ! nearest nucleus otherwise, which may be far away)
+           s%path(j)%icpend = 0
+           if (n >= 2 .and. paths(j)%icpend >= 1 .and. paths(j)%icpend <= f%ncpcel .and.&
+              paths(j)%dend <= eps_end) s%path(j)%icpend = f%cpcel(paths(j)%icpend)%idx
+
            ! the nucleus at the end of each copy of the path
            allocate(s%path(j)%iend(s%ncopy),s%path(j)%lend(3,s%ncopy))
            s%path(j)%iend = 0
@@ -4459,23 +4475,6 @@ contains
       end associate
 
     end subroutine trace_site
-
-    !> Short description of cell CP icel: type and name.
-    function cp_str(icel) result(str)
-      integer, intent(in) :: icel
-      character(len=:), allocatable :: str
-
-      associate(f => sys(isys)%f(ifield))
-        associate(cp => f%cp(f%cpcel(icel)%idx))
-          if (cp%typ == -3) then
-             str = "NCP " // trim(cp%name)
-          else
-             str = cps_abbrev(cp%typind) // " " // trim(cp%name)
-          end if
-        end associate
-      end associate
-
-    end function cp_str
 
   end subroutine gpaths_run_trace
 
