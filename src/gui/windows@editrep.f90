@@ -5601,18 +5601,20 @@ contains
     subroutine draw_trace_row(it)
       integer, intent(in) :: it
 
-      real(c_float) :: xpos
+      real(c_float) :: pos0(2)
 
       associate(t => w%rep%gpaths%trace(it))
         suffix = "_t" // string(it)
 
         ! remove, and the row selectable that highlights the group
         if (igTableSetColumnIndex(0_c_int)) then
-           xpos = igGetCursorPosX()
+           pos0 = (/igGetCursorPosX(),igGetCursorPosY()/)
            call iw_text("",alignframe=.true.)
            if (iw_highlight_selectable("##gptrrowsel" // suffix)) ithov = it
+           ! the icon is a text line high, centered in the frame-high row
            call igSameLine(0._c_float,0._c_float)
-           call igSetCursorPosX(xpos)
+           call igSetCursorPosX(pos0(1))
+           call igSetCursorPosY(pos0(2) + 0.5_c_float * (igGetFrameHeight() - igGetTextLineHeight()))
            if (iw_close_button("##gptrrem" // suffix)) irem = it
            call iw_tooltip("Remove these gradient paths",ttshown)
         end if
