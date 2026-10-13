@@ -310,7 +310,7 @@ contains
     if (w%gp%pending_estimate) then
        call iw_wait_overlay("Estimating the cost of the trace...",info,.false.)
     else
-       call iw_wait_overlay("Tracing gradient paths...",info,.false.)
+       call iw_wait_overlay("Tracing gradient paths...",info,.true.)
     end if
 
   end subroutine block_gpaths
@@ -320,16 +320,21 @@ contains
   !> paths of each selected CP (of each symmetry-unique one, if all the
   !> copies are drawn) and add them, as a new group, to the gradient
   !> paths object of the field in the view the trace was requested
-  !> in (created if there is none).
+  !> in (created if there is none). The trace can be cancelled with
+  !> Esc, and then no paths are added.
   module subroutine run_gpaths(w)
     use systems, only: sys, sys_init
+    use gui_main, only: begin_cancellable, end_cancellable
+    use global, only: abort_poll, progress_start, progress_step
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview, ifield, irep, k, ntraced
-    type(gpaths_trace) :: t, t0
+    integer :: isys, iview, ifield, irep, i, k, ntraced
+    integer, allocatable :: icel(:)
+    type(gpaths_trace) :: t0
+    type(gpaths_trace), allocatable :: t(:)
     type(rep_gpaths) :: gnew
     character(len=:), allocatable :: errmsg, err1
-    logical :: doest
+    logical :: doest, cancelled
 
     ! the job
     doest = w%gp%pending_estimate
@@ -354,57 +359,60 @@ contains
        return
     end if
 
-    ! the object of the field in the view, settled for the current
-    ! field first (an update could drop stale groups)
-    irep = target_object(w,iview,.false.)
-    if (irep > 0) call win(iview)%sc%rep(irep)%update()
-
     ! the options and style shared by all the groups
     t0 = form_recipe(w,isys)
 
     ! one group per selected CP (in symmetry mode, only the first copy
-    ! of each symmetry-unique CP can be selected); on error, go on with
+    ! of each symmetry-unique CP can be selected), traced apart from
+    ! the object so a cancel leaves it unchanged; on error, go on with
     ! the next one and report the first error
     ntraced = 0
     errmsg = ""
+    gnew%fref = w%gp%fref
+    call begin_cancellable()
+    icel = selected_cps(w,isys)
+    allocate(t(size(icel,1)))
+    call progress_start(size(icel,1),"critical points")
     associate(f => sys(isys)%f(ifield))
-      do k = 1, f%ncpcel
-         if (.not.w%gp%sel(k)) cycle
-         if (f%cpcel(k)%typ == 0) cycle
+      do i = 1, size(icel,1)
+         k = icel(i)
+         if (abort_poll()) exit
 
          ! the recipe: the seed
-         t = t0
-         t%kind = seed_kind(f%cpcel(k)%typ)
-         t%x = f%cpcel(k)%x
+         ntraced = ntraced + 1
+         t(ntraced) = t0
+         t(ntraced)%kind = seed_kind(f%cpcel(k)%typ)
+         t(ntraced)%x = f%cpcel(k)%x
 
-         ! trace into the object; or, if there is none, into a new one,
-         ! made only if the trace works
-         if (irep > 0) then
-            call win(iview)%sc%rep(irep)%gpaths%run_trace(isys,t,err1)
-         else
-            gnew%fref = w%gp%fref
-            call gnew%run_trace(isys,t,err1)
-         end if
+         call gnew%run_trace(isys,t(ntraced),err1,abortable=.true.)
+         call progress_step()
          if (len(err1) > 0) then
             if (len(errmsg) == 0) errmsg = err1
-            cycle
+            ntraced = ntraced - 1
          end if
-         if (irep == 0) then
-            irep = target_object(w,iview,.true.)
-            associate(g => win(iview)%sc%rep(irep)%gpaths)
-              call win(iview)%sc%rep(irep)%update()
-              g%tfield = gnew%tfield
-              g%tcuid = gnew%tcuid
-              g%trev = gnew%trev
-              g%ttime = gnew%ttime
-            end associate
-         end if
-         call win(iview)%sc%rep(irep)%gpaths%add_trace(t)
-         ntraced = ntraced + 1
       end do
     end associate
+    cancelled = end_cancellable()
+    if (cancelled) then
+       errmsg = "The trace was cancelled: no paths were added"
+       goto 999
+    end if
 
+    ! add the groups to the object of the field in the view (created
+    ! if there is none), settled for the current field first (an
+    ! update could drop stale groups)
     if (ntraced > 0) then
+       irep = target_object(w,iview,.true.)
+       call win(iview)%sc%rep(irep)%update()
+       associate(g => win(iview)%sc%rep(irep)%gpaths)
+         g%tfield = gnew%tfield
+         g%tcuid = gnew%tcuid
+         g%trev = gnew%trev
+         g%ttime = gnew%ttime
+         do k = 1, ntraced
+            call g%add_trace(t(k))
+         end do
+       end associate
        win(iview)%sc%rep(irep)%shown = .true.
        win(iview)%sc%forcebuildlists = .true.
        call win(iview)%sc%undo_note("Trace gradient paths",.false.)
@@ -842,6 +850,23 @@ contains
 
   end function form_recipe
 
+  !> The selected seed cell CPs of the form (system isys): the
+  !> selected ones, except those of type 0. The selection must be
+  !> valid (form_error).
+  function selected_cps(w,isys) result(icel)
+    use systems, only: sys
+    type(window), intent(in), target :: w
+    integer, intent(in) :: isys
+    integer, allocatable :: icel(:)
+
+    integer :: k
+
+    associate(f => sys(isys)%f(w%gp%fref%id))
+      icel = pack([(k, k=1,f%ncpcel)],w%gp%sel .and. f%cpcel(1:f%ncpcel)%typ /= 0)
+    end associate
+
+  end function selected_cps
+
   !> The kind of trace (gtrace_*) of a seed CP of type typ (not 0).
   function seed_kind(typ) result(kind)
     integer, intent(in) :: typ
@@ -887,7 +912,7 @@ contains
     t = form_recipe(w,isys)
     associate(f => sys(isys)%f(ifield))
       ! the selected seed CPs
-      icel = pack([(k, k=1,f%ncpcel)],w%gp%sel .and. f%cpcel(1:f%ncpcel)%typ /= 0)
+      icel = selected_cps(w,isys)
       ncp = size(icel,1)
 
       ! trace the sample, until the budget runs out

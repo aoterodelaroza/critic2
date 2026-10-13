@@ -81,12 +81,13 @@ module flux
        real*8, intent(in) :: prune
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine flux_seeds_axis
-     module subroutine flux_trace(f,seeds,paths,prune)
+     module subroutine flux_trace(f,seeds,paths,prune,abortable)
        use fieldmod, only: field
        type(field), intent(inout) :: f
        type(flux_seed), intent(in) :: seeds(:)
        type(flux_path), allocatable, intent(inout) :: paths(:)
        real*8, intent(in) :: prune
+       logical, intent(in), optional :: abortable
      end subroutine flux_trace
   end interface
 

@@ -1847,11 +1847,12 @@ module representations
        type(flux_seed), allocatable, intent(inout) :: seeds(:)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine gpaths_trace_make_seeds
-     module subroutine gpaths_run_trace(g,isys,t,errmsg)
+     module subroutine gpaths_run_trace(g,isys,t,errmsg,abortable)
        class(rep_gpaths), intent(inout) :: g
        integer, intent(in) :: isys
        type(gpaths_trace), intent(inout) :: t
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: abortable
      end subroutine gpaths_run_trace
      module subroutine gpaths_cache_take(g,cache)
        class(rep_gpaths), intent(inout) :: g

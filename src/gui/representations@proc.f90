@@ -4224,8 +4224,9 @@ contains
   !> the cell copies (all of them if t%sym, else the one at t%x) by the
   !> operations of the CP list; those of a point, to the
   !> symmetry-equivalent points if t%sym. On error, errmsg is not empty
-  !> and t is not traced.
-  module subroutine gpaths_run_trace(g,isys,t,errmsg)
+  !> and t is not traced. If abortable, a cancel (abort_poll) skips the
+  !> paths not yet traced (the caller then discards t).
+  module subroutine gpaths_run_trace(g,isys,t,errmsg,abortable)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc
     use flux, only: flux_seed, flux_path, flux_trace
@@ -4236,6 +4237,7 @@ contains
     integer, intent(in) :: isys
     type(gpaths_trace), intent(inout) :: t
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: abortable
 
     real*8, parameter :: eps_cp = 1d-4 ! distance to identify the seed CP (bohr)
     real*8, parameter :: eps_end = 1d-2 ! distance from the end of a path to a nucleus (bohr)
@@ -4427,7 +4429,7 @@ contains
            errmsg = err1
            return
         end if
-        call flux_trace(f,seeds,paths,prunedist)
+        call flux_trace(f,seeds,paths,prunedist,abortable)
 
         s%npath = size(paths,1)
         allocate(s%path(s%npath))

@@ -696,24 +696,39 @@ contains
   !> return them in paths (same order). The points are pruned so that
   !> they are at most prune bohr apart (prune > 0). The
   !> end of each path is identified with a CP of the field's list:
-  !> any CP within 1e-2 bohr, or else the nearest nucleus.
-  module subroutine flux_trace(f,seeds,paths,prune)
+  !> any CP within 1e-2 bohr, or else the nearest nucleus. If
+  !> abortable, the paths not yet traced when a cancel is requested
+  !> (abort_poll) are skipped and left empty. This is opt-in, because
+  !> other callers (flux_seeds_axis) need complete paths.
+  module subroutine flux_trace(f,seeds,paths,prune,abortable)
     use fieldmod, only: field
+    use global, only: abort_poll
     type(field), intent(inout) :: f
     type(flux_seed), intent(in) :: seeds(:)
     type(flux_path), allocatable, intent(inout) :: paths(:)
     real*8, intent(in) :: prune
+    logical, intent(in), optional :: abortable
 
     real*8, parameter :: cpeps = 1d-2
 
     integer :: i, nstep, np
     real*8 :: x(3), plen
+    logical :: abortable_
+
+    abortable_ = .false.
+    if (present(abortable)) abortable_ = abortable
 
     if (allocated(paths)) deallocate(paths)
     allocate(paths(size(seeds,1)))
     !$omp parallel do private(x,nstep,plen,np) schedule(dynamic)
     do i = 1, size(seeds,1)
        paths(i)%seed = seeds(i)
+       if (abortable_) then
+          if (abort_poll()) then
+             allocate(paths(i)%p(0))
+             cycle
+          end if
+       end if
        x = seeds(i)%x0
        if (seeds(i)%haso) then
           call f%gradient(x,seeds(i)%iup,nstep,paths(i)%ier,.false.,plen,paths(i)%p,prune,&
