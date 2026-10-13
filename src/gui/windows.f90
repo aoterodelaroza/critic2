@@ -22,7 +22,7 @@ module windows
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
-     reptype_atoms, rep_gpaths, gtrace_axis, gtrace_axis_both, gpaths_rad_def
+     reptype_atoms, rep_gpaths, gtrace_axis_both, gpaths_rad_def
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
@@ -391,16 +391,20 @@ module windows
   public :: cp_state
 
   !> Per-window state of the trace gradient paths window (Tools > Trace
-  !> Gradient Paths): the form (field, seed and its options, the style
-  !> of the next group of paths), a pending pick in the view, and the
-  !> pending trace. The paths go to a gradient paths object of the view.
+  !> Gradient Paths): the form (field, the selected seed CPs and the
+  !> options, the style of the next groups of paths), a pending pick in
+  !> the view, and the pending trace. The paths go to a gradient paths
+  !> object of the view.
   type gpaths_state
      type(sys_ref) :: sys ! system the form is set up for
      type(field_ref) :: fref ! field whose gradient paths are traced
-     integer :: kind = gtrace_axis ! kind of seed (gtrace_*)
-     integer :: icel = 0 ! seed cell CP of the sphere and axis kinds (0 = none)
-     real*8 :: x(3) = 0.5d0 ! point seed (fractional for crystals, Cartesian Å for molecules)
-     integer :: iuppoint = 0 ! point seed: +1 up, -1 down, 0 both
+     ! the seed cell CPs selected in the table (size ncpcel; the
+     ! shift-click anchor is w%lastselected), unselected when the field
+     ! or its CP list changes: made for field selfref, when the system's
+     ! timelastchange_cplist was seltime
+     logical, allocatable :: sel(:)
+     type(field_ref) :: selfref
+     real*8 :: seltime = -1d0
      integer :: iupaxis = gtrace_axis_both ! BCP/RCP seed: the paths (gtrace_axis_*)
      integer(c_int) :: ntheta = 8 ! sphere: number of azimuthal angles
      integer(c_int) :: nphi = 5 ! sphere: number of polar angles
@@ -409,7 +413,7 @@ module windows
      logical :: sym = .true. ! trace all the symmetry-equivalent copies
      real(c_float) :: rgb(3) = (/0.85_c_float,0.45_c_float,0.10_c_float/) ! color of the next group
      real(c_float) :: rad = gpaths_rad_def ! radius of the next group (bohr)
-     ! pending pick of the seed in the view
+     ! pending pick of a seed CP in the view, added to the selection
      logical :: picking = .false.
      integer :: pickview = 0
      type(pairpick) :: pick
@@ -1468,6 +1472,10 @@ module windows
        integer, intent(in) :: iview, isys, ifield, icp
        character(len=*), intent(in) :: str
      end subroutine cp_badge
+     module subroutine atom_badge(iview,isys,iat,itype,str)
+       integer, intent(in) :: iview, isys, iat, itype
+       character(len=*), intent(in) :: str
+     end subroutine atom_badge
      module function lvec_str(l) result(str)
        integer, intent(in) :: l(3)
        character(len=:), allocatable :: str

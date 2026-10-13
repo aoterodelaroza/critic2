@@ -2292,6 +2292,22 @@ contains
 
   end subroutine cp_badge
 
+  !> Inert badge of atom iat of list type itype of system isys, in its
+  !> color in view iview (atom_view_rgb). str is the label and ImGui ID
+  !> ("text##id"), as in cp_badge.
+  module subroutine atom_badge(iview,isys,iat,itype,str)
+    use utils, only: iw_atom_button
+    integer, intent(in) :: iview, isys, iat, itype
+    character(len=*), intent(in) :: str
+
+    real(c_float) :: rgb(3)
+    logical :: have, ldum
+
+    have = atom_view_rgb(iview,isys,itype,iat,rgb)
+    ldum = iw_atom_button(str,rgb,havergb=have,inert=.true.)
+
+  end subroutine atom_badge
+
   !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
   module function lvec_str(l) result(str)
     use tools_io, only: string

@@ -524,7 +524,7 @@ contains
     use systems, only: sys, sysc, atlisttype_nneq, atlisttype_ncel_frac
     use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
-       iw_table_headers_row, iw_highlight_selectable, iw_atom_button, iw_cell_right,&
+       iw_table_headers_row, iw_highlight_selectable, iw_cell_right,&
        iw_close_button, iw_table_sort_specs, iw_helpermark, iw_tblwrite_none
     use systemmod, only: npointprop_keywords, pointprop_keywords, pointprop_keyword_desc
     use param, only: bohrtoa
@@ -1315,7 +1315,7 @@ contains
       character(len=:), allocatable :: suffix, lbl
       integer :: j, iu, jcp
       integer(c_int) :: jc
-      logical :: clk, selrow, drawn
+      logical :: clk, hov, selrow, drawn
 
       associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
         suffix = "_cprow" // string(merge(icp,i,icp > 0))
@@ -1323,37 +1323,15 @@ contains
         ! the row selectable, which highlights the CP in the view and,
         ! clicked, selects its symmetry-unique CP for deletion (not the
         ! nuclei), and the button that deletes it (after the selectable,
-        ! which lets the items after it take the clicks)
+        ! which lets the items after it take the clicks). The hover and
+        ! the click are handled after the badge, which acts as the row
+        hov = .false.
+        clk = .false.
         if (igTableSetColumnIndex(ic_del)) then
            call iw_text("",alignframe=.true.)
            selrow = .false.
            if (i > c%nneq) selrow = w%cp%sel(i)
-           if (iw_highlight_selectable("##cprowsel" // suffix,clicked=clk,selected=selrow)) then
-              if (i <= c%nneq) then
-                 ! a nucleus: the atom
-                 if (icp > 0) then
-                    ihnuc = (/icp,atlisttype_ncel_frac/)
-                 else
-                    ihnuc = (/i,atlisttype_nneq/)
-                 end if
-              else
-                 ihover = (/merge(0,i,icp > 0),icp/)
-              end if
-           end if
-           ! a click toggles the row and anchors a range; a shift-click
-           ! selects the rows from the anchor to this one
-           if (clk .and. i > c%nneq) then
-              if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
-                 w%lastselected <= n) then
-                 do j = min(w%lastselected,k), max(w%lastselected,k)
-                    call row_cp(w%iord(j),iu,jcp)
-                    if (iu > c%nneq) w%cp%sel(iu) = .true.
-                 end do
-              else
-                 w%cp%sel(i) = .not.w%cp%sel(i)
-                 w%lastselected = k
-              end if
-           end if
+           hov = iw_highlight_selectable("##cprowsel" // suffix,clicked=clk,selected=selrow)
            if (i > c%nneq) then
               call igSameLine(0._c_float,0._c_float)
               if (iw_close_button("##cprowdel" // suffix)) then
@@ -1373,12 +1351,45 @@ contains
            lbl = cp_label(i,icp)
            if (i <= c%nneq) then
               if (icp > 0) then
-                 call atom_badge(icp,atlisttype_ncel_frac,lbl // "##cprowcp" // suffix)
+                 call atom_badge(iview,isys,icp,atlisttype_ncel_frac,lbl // "##cprowcp" // suffix)
               else
-                 call atom_badge(i,atlisttype_nneq,lbl // "##cprowcp" // suffix)
+                 call atom_badge(iview,isys,i,atlisttype_nneq,lbl // "##cprowcp" // suffix)
               end if
            else
               call cp_badge(iview,isys,ifield,i,lbl // "##cprowcp" // suffix)
+           end if
+           if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+              hov = .true.
+              if (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) clk = .true.
+           end if
+        end if
+
+        ! the row under the mouse: highlight the CP, or the atom of a
+        ! nucleus
+        if (hov) then
+           if (i <= c%nneq) then
+              if (icp > 0) then
+                 ihnuc = (/icp,atlisttype_ncel_frac/)
+              else
+                 ihnuc = (/i,atlisttype_nneq/)
+              end if
+           else
+              ihover = (/merge(0,i,icp > 0),icp/)
+           end if
+        end if
+
+        ! a click toggles the row and anchors a range; a shift-click
+        ! selects the rows from the anchor to this one
+        if (clk .and. i > c%nneq) then
+           if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
+              w%lastselected <= n) then
+              do j = min(w%lastselected,k), max(w%lastselected,k)
+                 call row_cp(w%iord(j),iu,jcp)
+                 if (iu > c%nneq) w%cp%sel(iu) = .true.
+              end do
+           else
+              w%cp%sel(i) = .not.w%cp%sel(i)
+              w%lastselected = k
            end if
         end if
 
@@ -1500,7 +1511,7 @@ contains
       call path_end(i,icp,j,lbl,kind,id,itype)
       drawn = .true.
       if (kind == endk_atom) then
-         call atom_badge(id,itype,lbl // "##cpend" // string(j) // suffix)
+         call atom_badge(iview,isys,id,itype,lbl // "##cpend" // string(j) // suffix)
       elseif (kind == endk_cp) then
          call cp_badge(iview,isys,ifield,id,lbl // "##cpend" // string(j) // suffix)
       elseif (len(lbl) > 0) then
@@ -1510,20 +1521,6 @@ contains
       end if
 
     end subroutine path_end_badge
-
-    !> Badge of atom iat of list type itype, in its view color; str is
-    !> the label and ImGui ID ("text##id"), as in cp_badge.
-    subroutine atom_badge(iat,itype,str)
-      integer, intent(in) :: iat, itype
-      character(len=*), intent(in) :: str
-
-      real(c_float) :: rgb(3)
-      logical :: have, ldum
-
-      have = atom_view_rgb(iview,isys,itype,iat,rgb)
-      ldum = iw_atom_button(str,rgb,havergb=have,inert=.true.)
-
-    end subroutine atom_badge
 
     !> A coordinate, 4 decimals (no "-0.0000").
     function coord_str(x) result(str)
