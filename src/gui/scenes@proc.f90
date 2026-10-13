@@ -3167,7 +3167,7 @@ contains
     type(scene_objstate), intent(in), optional :: stfrom
     logical, intent(out), optional :: done
 
-    integer :: i, k, rev, rev_nstar, ihcps(2), ihgp(3), ihtr
+    integer :: i, k, rev, rev_nstar, ihcps(2), ihgp(3), ihtr(2)
     type(neighstar), allocatable :: nstar(:)
     logical :: dofrom, sysnstar, live
     type(iso_cache) :: cache
@@ -3217,7 +3217,8 @@ contains
        if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_put(gcache)
        s%rep(i)%cps%ihover = ihcps
        s%rep(i)%gpaths%ihover = ihgp
-       s%rep(i)%gpaths%thover = min(ihtr,s%rep(i)%gpaths%ntrace)
+       s%rep(i)%gpaths%thover = ihtr
+       if (ihtr(1) > s%rep(i)%gpaths%ntrace) s%rep(i)%gpaths%thover = 0
        if (allocated(nstar) .and. sysnstar .and. s%rep(i)%bonds%style%use_sys_nstar) then
           call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
           s%rep(i)%bonds%style%rev = rev

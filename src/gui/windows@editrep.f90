@@ -52,7 +52,7 @@ contains
           do i = 1, sysc(isys)%sc%nrep
              if (.not.sysc(isys)%sc%rep(i)%isinit) cycle
              if (sysc(isys)%sc%rep(i)%type /= reptype_gpaths) cycle
-             if (all(sysc(isys)%sc%rep(i)%gpaths%ihover == 0) .and. sysc(isys)%sc%rep(i)%gpaths%thover == 0) cycle
+             if (all(sysc(isys)%sc%rep(i)%gpaths%ihover == 0) .and. all(sysc(isys)%sc%rep(i)%gpaths%thover == 0)) cycle
              sysc(isys)%sc%rep(i)%gpaths%ihover = 0
              sysc(isys)%sc%rep(i)%gpaths%thover = 0
              sysc(isys)%sc%forcebuildlists = .true.
@@ -206,7 +206,7 @@ contains
        ! to normal
        if (iview > 0 .and. associated(w%rep)) then
           if (w%rep%isinit .and. w%rep%type == reptype_gpaths) then
-             if (any(w%rep%gpaths%ihover /= 0) .or. w%rep%gpaths%thover /= 0) then
+             if (any(w%rep%gpaths%ihover /= 0) .or. any(w%rep%gpaths%thover /= 0)) then
                 w%rep%gpaths%ihover = 0
                 w%rep%gpaths%thover = 0
                 if (win(iview)%isopen .and. associated(win(iview)%sc)) win(iview)%sc%forcebuildlists = .true.
@@ -5183,7 +5183,7 @@ contains
   module function draw_editrep_gpaths(w,ttshown) result(changed)
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq
     use gui_main, only: ColorHighlightScene
-    use representations, only: gpaths_rad_def, field_has_cps
+    use representations, only: gpaths_rad_def, field_has_cps, gtrace_axis, gtrace_rings
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
        iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable, iw_button, iw_inputfloat,&
@@ -5195,8 +5195,8 @@ contains
     logical :: changed
 
     integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, ncol, ihover(3), idum
-    integer :: nuniq, ncell, irem, ithov
-    integer, allocatable :: iuniq(:,:), icell(:,:)
+    integer :: nuniq, ncell, irem, ithov(2), ntu, ntc
+    integer, allocatable :: iuniq(:,:), icell(:,:), itrow(:,:)
     integer(c_int) :: istyle, itable
     logical :: ldum
     logical :: ch, typechanged, pathsok
@@ -5292,11 +5292,19 @@ contains
          end do
        end associate
     end if
+    ! the rows of the traced groups: one per group, or one per copy of
+    ! each traced group (Cell list)
+    ntu = w%rep%gpaths%ntrace
+    ntc = 0
+    do i = 1, w%rep%gpaths%ntrace
+       ntc = ntc + max(trace_ncopy(i),1)
+    end do
+
     irem = 0
     ithov = 0
     if (nuniq > 0 .or. w%rep%gpaths%ntrace > 0) then
        call iw_text("Gradient Paths",highlight=.true.)
-       if (ncell > nuniq) then
+       if (ncell > nuniq .or. ntc > ntu) then
           ! which bond paths: symmetry-unique or cell (the combo items
           ! are in the order of the tablecell values)
           itable = int(w%rep%gpaths%tablecell,c_int)
@@ -5391,7 +5399,7 @@ contains
 
     ! the path or group under the mouse in the table is highlighted in
     ! the view (a rebuild, not an edit of the object)
-    if (any(ihover /= w%rep%gpaths%ihover) .or. ithov /= w%rep%gpaths%thover) then
+    if (any(ihover /= w%rep%gpaths%ihover) .or. any(ithov /= w%rep%gpaths%thover)) then
        w%rep%gpaths%ihover = ihover
        w%rep%gpaths%thover = ithov
        if (iview > 0) win(iview)%sc%forcebuildlists = .true.
@@ -5415,15 +5423,31 @@ contains
 
     !> The table of the gradient paths: the bond paths of the
     !> symmetry-unique CPs (cell = .false.) or of the cell CPs (cell =
-    !> .true.), nb rows, followed by the groups of traced paths.
+    !> .true.), nb rows, followed by the groups of traced paths (or
+    !> their copies, if cell).
     subroutine draw_path_table(cell,nb)
       logical, intent(in) :: cell
       integer, intent(in) :: nb
 
-      integer :: k, n
+      integer :: k, n, it, kc, ntr
       integer(c_int) :: flags
 
-      n = nb + w%rep%gpaths%ntrace
+      ! the rows of the traced groups: (group, 0) or (group, copy)
+      ntr = merge(ntc,ntu,cell)
+      allocate(itrow(2,ntr))
+      ntr = 0
+      do it = 1, w%rep%gpaths%ntrace
+         if (cell .and. trace_ncopy(it) > 0) then
+            do kc = 1, trace_ncopy(it)
+               ntr = ntr + 1
+               itrow(:,ntr) = (/it,kc/)
+            end do
+         else
+            ntr = ntr + 1
+            itrow(:,ntr) = (/it,0/)
+         end if
+      end do
+      n = nb + ntr
 
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -5455,7 +5479,7 @@ contains
             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                if (k > nb) then
-                  call draw_trace_row(k-nb)
+                  call draw_trace_row(itrow(1,k-nb),itrow(2,k-nb))
                elseif (cell) then
                   call draw_path_row(k,icell(1,k),0,icell(2,k))
                else
@@ -5595,101 +5619,198 @@ contains
 
     end subroutine draw_path_row
 
-    !> Row of the group it of traced paths: remove, show, color,
-    !> radius, number of paths, and description (the seed CP badge,
-    !> the label, and the end of a single path). The group under the
-    !> mouse goes to ithov, and a click on remove to irem.
-    subroutine draw_trace_row(it)
-      integer, intent(in) :: it
+    !> Row of the group it of traced paths (kc = 0; an edit sets all
+    !> its copies), or of its copy kc (Cell list): remove (groups
+    !> only), show, color, radius, number of paths, and description
+    !> (the badges of the seed CP and, for a single path, of the CP at
+    !> its end; else the label). The row under the mouse goes to ithov,
+    !> and a click on remove to irem.
+    subroutine draw_trace_row(it,kc)
+      integer, intent(in) :: it, kc
 
-      integer :: icp
-      real(c_float) :: pos0(2)
-      character(len=:), allocatable :: str
+      integer :: is, ic, k, ncp
+      integer, allocatable :: kk(:)
+      real(c_float) :: pos0(2), rgb(3), rad
+      logical :: lsh, single
+      character(len=:), allocatable :: lbl
 
       associate(t => w%rep%gpaths%trace(it))
-        suffix = "_t" // string(it)
+        suffix = "_t" // string(it) // "_" // string(kc)
 
-        ! remove, and the row selectable that highlights the group
+        ! the copies of the row (the first one gives the values shown;
+        ! none if the group is not traced yet), and its site
+        ncp = trace_ncopy(it)
+        if (kc > 0) then
+           kk = (/kc/)
+        else
+           kk = (/(k, k=1,ncp)/)
+        end if
+        is = 1
+        ic = 1
+        if (kc > 0) call copy_site(it,kc,is,ic)
+        if (size(kk) > 0) then
+           lsh = t%cshown(kk(1))
+           rgb = t%crgb(:,kk(1))
+           rad = t%crad(kk(1))
+        else
+           lsh = t%shown
+           rgb = t%rgb
+           rad = t%rad
+        end if
+
+        ! the row selectable that highlights the group or copy, and
+        ! remove (groups only)
         if (igTableSetColumnIndex(0_c_int)) then
            pos0 = (/igGetCursorPosX(),igGetCursorPosY()/)
            call iw_text("",alignframe=.true.)
-           if (iw_highlight_selectable("##gptrrowsel" // suffix)) ithov = it
-           ! the icon is a text line high, centered in the frame-high row
-           call igSameLine(0._c_float,0._c_float)
-           call igSetCursorPosX(pos0(1))
-           call igSetCursorPosY(pos0(2) + 0.5_c_float * (igGetFrameHeight() - igGetTextLineHeight()))
-           if (iw_close_button("##gptrrem" // suffix)) irem = it
-           call iw_tooltip("Remove these gradient paths",ttshown)
+           if (iw_highlight_selectable("##gptrrowsel" // suffix)) ithov = (/it,kc/)
+           if (kc == 0) then
+              ! the icon is a text line high, centered in the frame-high row
+              call igSameLine(0._c_float,0._c_float)
+              call igSetCursorPosX(pos0(1))
+              call igSetCursorPosY(pos0(2) + 0.5_c_float * (igGetFrameHeight() - igGetTextLineHeight()))
+              if (iw_close_button("##gptrrem" // suffix)) irem = it
+              call iw_tooltip("Remove these gradient paths",ttshown)
+           end if
         end if
 
         ! show, color and radius
         if (igTableSetColumnIndex(1_c_int)) then
-           if (iw_checkbox("##gptrshown" // suffix,t%shown)) changed = .true.
+           if (iw_checkbox("##gptrshown" // suffix,lsh)) then
+              if (kc == 0) t%shown = lsh
+              if (size(kk) > 0) t%cshown(kk) = lsh
+              changed = .true.
+           end if
            call iw_tooltip("Show these gradient paths",ttshown)
+           if (size(kk) > 1) call mixed_note(any(t%cshown(kk) .neqv. t%cshown(kk(1))))
         end if
         if (igTableSetColumnIndex(2_c_int)) then
-           if (iw_coloredit("##gptrcolor" // suffix,rgb=t%rgb)) changed = .true.
+           if (iw_coloredit("##gptrcolor" // suffix,rgb=rgb)) then
+              if (kc == 0) t%rgb = rgb
+              do k = 1, size(kk)
+                 t%crgb(:,kk(k)) = rgb
+              end do
+              changed = .true.
+           end if
            call iw_tooltip("Color of these gradient paths",ttshown)
+           if (size(kk) > 1) call mixed_note(any(t%crgb(:,kk) /= spread(t%crgb(:,kk(1)),2,size(kk))))
         end if
         if (igTableSetColumnIndex(3_c_int)) then
-           if (iw_dragfloat_realc("##gptrrad" // suffix,x1=t%rad,speed=0.002_c_float,&
+           if (iw_dragfloat_realc("##gptrrad" // suffix,x1=rad,speed=0.002_c_float,&
               min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-              flags=ImGuiSliderFlags_AlwaysClamp)) changed = .true.
+              flags=ImGuiSliderFlags_AlwaysClamp)) then
+              if (kc == 0) t%rad = rad
+              if (size(kk) > 0) t%crad(kk) = rad
+              changed = .true.
+           end if
            call iw_tooltip("Radius of these gradient paths in Å",ttshown)
+           if (size(kk) > 1) call mixed_note(any(t%crad(kk) /= t%crad(kk(1))))
         end if
 
-        ! number of paths, and description: the seed CP as a badge,
-        ! then the paths
-        if (t%traced .and. allocated(t%label)) then
-           if (igTableSetColumnIndex(4_c_int)) call iw_text(string(t%npath),alignframe=.true.)
-           if (igTableSetColumnIndex(5_c_int)) then
-              str = trace_seed_str(isys,w%rep%gpaths%fref%id,t,icp)
-              if (len(str) > 0) then
-                 call cp_badge(iview,isys,w%rep%gpaths%fref%id,icp,str // "##gptrseed" // suffix)
-                 call igSameLine(0._c_float,-1._c_float)
+        ! number of paths, and description
+        if (ncp == 0) then
+           if (igTableSetColumnIndex(5_c_int)) call iw_text("(not traced yet)",disabled=.true.,alignframe=.true.)
+        else
+           if (igTableSetColumnIndex(4_c_int)) then
+              if (kc > 0) then
+                 call iw_text(string(t%site(is)%npath),alignframe=.true.)
+              else
+                 call iw_text(string(t%npath),alignframe=.true.)
               end if
-              call iw_text(t%label,alignframe=.true.)
-              ! a single path: the CP at its end, or none (to infinity
-              ! in a molecule)
-              if (t%ipath > 0 .and. t%nsite == 1) then
-                 if (t%site(1)%npath == 1) call end_badge(t%site(1)%path(1)%icpend)
-              end if
-              if (t%sym) call iw_text("(symmetry)",sameline=.true.,alignframe=.true.)
            end if
-        elseif (igTableSetColumnIndex(5_c_int)) then
-           call iw_text("(not traced yet)",disabled=.true.,alignframe=.true.)
+           if (igTableSetColumnIndex(5_c_int)) then
+              associate(s => t%site(is), f => sys(isys)%f(w%rep%gpaths%fref%id))
+                ! the seed CP (for a group, if it has only one site)
+                if (s%icp > 0 .and. (kc > 0 .or. t%nsite == 1)) then
+                   lbl = trim(f%cp(s%icp)%name)
+                   if (kc > 0) lbl = lbl // " " // string(s%icel(ic))
+                   call cp_badge(iview,isys,w%rep%gpaths%fref%id,s%icp,lbl // "##gptrseed" // suffix)
+                   call igSameLine(0._c_float,-1._c_float)
+                end if
+
+                ! a single axial path: the CP at its end, else the label
+                single = (t%kind == gtrace_axis .and. s%npath == 1 .and. (kc > 0 .or. t%nsite == 1))
+                if (single) then
+                   if (kc > 0) then
+                      call end_badge(s%path(1)%cend(ic),s%path(1)%clend(:,ic))
+                   else
+                      call end_badge(s%path(1)%icpend)
+                   end if
+                elseif (t%kind == gtrace_rings .and. kc > 0) then
+                   call iw_text("ring paths",alignframe=.true.)
+                else
+                   call iw_text(t%label,alignframe=.true.)
+                end if
+              end associate
+           end if
         end if
       end associate
 
     end subroutine draw_trace_row
 
-    !> The end of a single traced path: an arrow and the badge of the
-    !> symmetry-unique CP icp, or of infinity in a molecule (icp = 0),
-    !> on the current line.
-    subroutine end_badge(icp)
+    !> Badge of the CP at the end of a single traced path, on the
+    !> current line: the symmetry-unique CP icp (no lvec), or the cell
+    !> CP icp displaced by lattice vector lvec; infinity in a molecule
+    !> if none (icp = 0).
+    subroutine end_badge(icp,lvec)
       integer, intent(in) :: icp
+      integer, intent(in), optional :: lvec(3)
 
       real(c_float) :: rgb(3)
 
-      call iw_text("→",sameline=.true.,alignframe=.true.)
-      call igSameLine(0._c_float,-1._c_float)
       associate(f => sys(isys)%f(w%rep%gpaths%fref%id))
-        if (icp >= 1 .and. icp <= f%ncp) then
+        if (present(lvec) .and. icp >= 1 .and. icp <= f%ncpcel) then
+           call cp_badge(iview,isys,w%rep%gpaths%fref%id,f%cpcel(icp)%idx,&
+              trim(f%cp(f%cpcel(icp)%idx)%name) // " " // string(icp) // lvec_str(lvec) // "##gptrend" // suffix)
+        elseif (.not.present(lvec) .and. icp >= 1 .and. icp <= f%ncp) then
            call cp_badge(iview,isys,w%rep%gpaths%fref%id,icp,trim(f%cp(icp)%name) // "##gptrend" // suffix)
         elseif (sys(isys)%c%ismolecule) then
            rgb = 0._c_float
            ldum = iw_atom_button("∞##gptrend" // suffix,rgb,havergb=.false.,inert=.true.)
         else
-           call iw_text("?",disabled=.true.)
+           call iw_text("?",disabled=.true.,alignframe=.true.)
         end if
       end associate
 
     end subroutine end_badge
 
+    !> Number of copies of the traced group it with a style (0 if it
+    !> is not traced yet).
+    function trace_ncopy(it) result(n)
+      integer, intent(in) :: it
+      integer :: n
+
+      n = 0
+      associate(t => w%rep%gpaths%trace(it))
+        if (.not.t%traced .or. .not.allocated(t%cshown) .or. .not.allocated(t%site)) return
+        n = t%ncopy
+      end associate
+
+    end function trace_ncopy
+
+    !> The site is and the copy ic in it of copy kc of the traced group
+    !> it (the copies are numbered through the sites).
+    subroutine copy_site(it,kc,is,ic)
+      integer, intent(in) :: it, kc
+      integer, intent(out) :: is, ic
+
+      ic = kc
+      associate(t => w%rep%gpaths%trace(it))
+        do is = 1, t%nsite
+           if (ic <= t%site(is)%ncopy) return
+           ic = ic - t%site(is)%ncopy
+        end do
+        is = t%nsite
+      end associate
+
+    end subroutine copy_site
+
     !> Show (mode 1), hide (2), or toggle (3) all the bond paths and
     !> groups of traced paths.
     subroutine show_all(mode)
       integer, intent(in) :: mode
+
+      integer :: it
 
       associate(g => w%rep%gpaths)
         ! the bond paths (only if the field has them)
@@ -5702,13 +5823,24 @@ contains
               g%pshown = .not.g%pshown
            end if
         end if
-        if (mode == 1) then
-           g%trace(1:g%ntrace)%shown = .true.
-        elseif (mode == 2) then
-           g%trace(1:g%ntrace)%shown = .false.
-        else
-           g%trace(1:g%ntrace)%shown = .not.g%trace(1:g%ntrace)%shown
-        end if
+        do it = 1, g%ntrace
+           associate(t => g%trace(it))
+             if (mode == 1) then
+                t%shown = .true.
+             elseif (mode == 2) then
+                t%shown = .false.
+             else
+                t%shown = .not.t%shown
+             end if
+             if (allocated(t%cshown)) then
+                if (mode == 3) then
+                   t%cshown = .not.t%cshown
+                else
+                   t%cshown = t%shown
+                end if
+             end if
+           end associate
+        end do
       end associate
       changed = .true.
 
@@ -6356,27 +6488,23 @@ contains
   end subroutine write_paths
 
   !> The seed CP of the traced group t of a gradient paths object of
-  !> field ifield (system isys), as type and name ("BCP b21"), and its
-  !> symmetry-unique index (icp); empty and 0 if the seed is not a CP
-  !> or the group has no paths.
-  function trace_seed_str(isys,ifield,t,icp) result(str)
+  !> field ifield (system isys), as type and name ("BCP b21"); empty
+  !> if the seed is not a CP or the group has no paths.
+  function trace_seed_str(isys,ifield,t) result(str)
     use systems, only: sys
     use representations, only: gpaths_trace, gtrace_sphere, gtrace_axis, cps_abbrev
     integer, intent(in) :: isys, ifield
     type(gpaths_trace), intent(in) :: t
-    integer, intent(out), optional :: icp
     character(len=:), allocatable :: str
 
     integer :: i
 
     str = ""
-    if (present(icp)) icp = 0
     if (.not.allocated(t%site) .or. t%nsite < 1) return
     if (t%kind /= gtrace_sphere .and. t%kind /= gtrace_axis) return
     if (.not.sys(isys)%goodfield(ifield)) return
     i = t%site(1)%icp
     if (i < 1 .or. i > sys(isys)%f(ifield)%ncp) return
-    if (present(icp)) icp = i
     associate(cp => sys(isys)%f(ifield)%cp(i))
       if (cp%typ == -3) then
          str = "NCP " // trim(cp%name)

@@ -1084,6 +1084,8 @@ module representations
      integer, allocatable :: iend(:) ! cell atom at the end of each copy (ncopy)
      integer, allocatable :: lend(:,:) ! lattice vector of that atom (3,ncopy)
      integer :: icpend = 0 ! symmetry-unique CP at the end of the path (0 = none)
+     integer, allocatable :: cend(:) ! cell CP at the end of each copy (ncopy; 0 = none)
+     integer, allocatable :: clend(:,:) ! lattice vector of that CP (3,ncopy)
   end type gpaths_tpath
   public :: gpaths_tpath
 
@@ -1096,6 +1098,7 @@ module representations
      real*8 :: x(3) = 0d0 ! seed position (crystallographic)
      integer :: icp = 0 ! symmetry-unique CP at the seed (0 = a point)
      integer :: ncopy = 0 ! number of copies
+     integer, allocatable :: icel(:) ! cell CP of each copy (ncopy; 0 = a point)
      real*8, allocatable :: cop(:,:,:) ! affine maps of the copies (3,4,ncopy)
      integer :: npath = 0 ! number of paths
      type(gpaths_tpath), allocatable :: path(:) ! the paths (npath)
@@ -1119,10 +1122,15 @@ module representations
      integer :: method = 0 ! BCP/RCP: starting angles in the plane (flux_method_*)
      integer :: ipath = 0 ! BCP/RCP axial: only the path along +axis (1) or -axis (2); 0 = both
      logical :: sym = .true. ! draw all the symmetry-equivalent copies of the seed
-     ! style
+     ! style: of all the copies (that of the copies after a trace), and
+     ! of each copy, numbered through the sites (ncopy; fill_copies)
      real(c_float) :: rgb(3) = 1._c_float ! color of the paths
      real(c_float) :: rad = 0.04_c_float ! tube or sphere radius (bohr)
      logical :: shown = .true. ! whether the paths are drawn
+     integer :: ncopy = 0 ! number of copies of all the sites
+     real(c_float), allocatable :: crgb(:,:) ! color of each copy (3,ncopy)
+     real(c_float), allocatable :: crad(:) ! radius of each copy (ncopy, bohr)
+     logical, allocatable :: cshown(:) ! whether each copy is shown (ncopy)
      character(len=:), allocatable :: label ! description of the paths, after the seed CP (if any)
      integer :: npath = 0 ! number of drawn paths (all sites and copies)
      ! the paths
@@ -1131,6 +1139,7 @@ module representations
      type(gpaths_site), allocatable :: site(:) ! the sites (nsite)
    contains
      procedure :: make_seeds => gpaths_trace_make_seeds ! the seeds of the paths from a site
+     procedure :: fill_copies => gpaths_trace_fill_copies ! the style of each copy, if their number changed
   end type gpaths_trace
   public :: gpaths_trace
 
@@ -1178,7 +1187,7 @@ module representations
      integer*8 :: tcuid = 0
      integer :: trev = -1
      real*8 :: ttime = -1d0
-     integer :: thover = 0 ! group under the mouse in the table of the edit window, drawn highlighted (0 = none)
+     integer :: thover(2) = 0 ! group (1) and copy (2; 0 = all) under the mouse in the table of the edit window, drawn highlighted (0 = none)
    contains
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok
@@ -1848,6 +1857,9 @@ module representations
        type(flux_seed), allocatable, intent(inout) :: seeds(:)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine gpaths_trace_make_seeds
+     module subroutine gpaths_trace_fill_copies(t)
+       class(gpaths_trace), intent(inout) :: t
+     end subroutine gpaths_trace_fill_copies
      module subroutine gpaths_run_trace(g,isys,t,errmsg,abortable)
        class(rep_gpaths), intent(inout) :: g
        integer, intent(in) :: isys

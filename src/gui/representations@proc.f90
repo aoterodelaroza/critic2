@@ -2212,7 +2212,7 @@ contains
     !> (if showends). The images of a copy follow the Display like those
     !> of a CP at the seed position.
     subroutine add_traced_paths()
-      integer :: it, is, ic, j, k, n, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3, lx(3), nitem, nmax
+      integer :: it, is, ic, kc, j, k, n, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3, lx(3), nitem, nmax
       logical :: bord, tsh, vac(3), beads
       real*8 :: ui(3), ue(3), xs(3), xf(3), am(3,3), bv(3)
       real(c_float) :: dx(3)
@@ -2220,7 +2220,7 @@ contains
       type(dl_cylinder) :: dpath
 
       if (r%gpaths%ntrace == 0) return
-      if (.not.any(r%gpaths%trace(1:r%gpaths%ntrace)%traced .and. r%gpaths%trace(1:r%gpaths%ntrace)%shown)) return
+      if (.not.any(r%gpaths%trace(1:r%gpaths%ntrace)%traced)) return
       bord = disp%border
       tsh = any(abs(disp%tshift) > 1d-5)
       if (r%disp%ignoresel) then
@@ -2237,7 +2237,7 @@ contains
       nmax = 0
       do it = 1, r%gpaths%ntrace
          associate(t => r%gpaths%trace(it))
-           if (.not.t%traced .or. .not.t%shown) cycle
+           if (.not.t%traced) cycle
            do is = 1, t%nsite
               do j = 1, t%site(is)%npath
                  nitem = nitem + t%site(is)%path(j)%n * t%site(is)%ncopy
@@ -2262,23 +2262,29 @@ contains
 
       do it = 1, r%gpaths%ntrace
          associate(t => r%gpaths%trace(it))
-           if (.not.t%traced .or. .not.t%shown) cycle
+           if (.not.t%traced .or. .not.allocated(t%cshown)) cycle
 
-           ! the style of this group (highlighted if under the mouse in a table)
-           if (r%gpaths%thover == it) then
-              dsph = dl_sphere(x=0._c_float,r=2._c_float*t%rad,rgb=ColorHighlightScene(1:3),idx=0,&
-                 xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
-                 rgbborder=ColorHighlightScene(1:3))
-           else
-              dsph = dl_sphere(x=0._c_float,r=t%rad,rgb=t%rgb,idx=0,&
-                 xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
-                 rgbborder=t%rgb)
-           end if
-           dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=dsph%r,rgb=dsph%rgb)
-
+           kc = 0
            do is = 1, t%nsite
               associate(s => t%site(is))
                 do ic = 1, s%ncopy
+                   kc = kc + 1
+                   if (kc > t%ncopy) exit
+                   if (.not.t%cshown(kc)) cycle
+
+                   ! the style of this copy (highlighted if it or its
+                   ! group is under the mouse in a table)
+                   if (r%gpaths%thover(1) == it .and. (r%gpaths%thover(2) == 0 .or. r%gpaths%thover(2) == kc)) then
+                      dsph = dl_sphere(x=0._c_float,r=2._c_float*t%crad(kc),rgb=ColorHighlightScene(1:3),idx=0,&
+                         xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
+                         rgbborder=ColorHighlightScene(1:3))
+                   else
+                      dsph = dl_sphere(x=0._c_float,r=t%crad(kc),rgb=t%crgb(:,kc),idx=0,&
+                         xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
+                         rgbborder=t%crgb(:,kc))
+                   end if
+                   dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=dsph%r,rgb=dsph%rgb)
+
                    ! the copy as a Cartesian affine map, and its image
                    ! range, from the seed position
                    am = matmul(c%m_x2c,s%cop(:,1:3,ic))
@@ -4159,6 +4165,7 @@ contains
        g%trace(i)%npath = cache%t(j)%npath
        if (allocated(cache%t(j)%label)) g%trace(i)%label = cache%t(j)%label
        g%trace(i)%traced = cache%t(j)%traced
+       call g%trace(i)%fill_copies()
     end do
     if (allocated(cache%t)) deallocate(cache%t)
 
@@ -4226,6 +4233,29 @@ contains
     if (.not.allocated(seeds)) allocate(seeds(0))
 
   end subroutine gpaths_trace_make_seeds
+
+  !> Count the copies of all the sites of group t, and if their number
+  !> changed, give each the style of the group (rgb, rad, shown).
+  module subroutine gpaths_trace_fill_copies(t)
+    class(gpaths_trace), intent(inout) :: t
+
+    integer :: n
+
+    n = 0
+    if (allocated(t%site)) n = sum(t%site(1:t%nsite)%ncopy)
+    if (n == t%ncopy .and. allocated(t%cshown)) then
+       if (size(t%cshown,1) == n) return
+    end if
+    t%ncopy = n
+    if (allocated(t%crgb)) deallocate(t%crgb)
+    if (allocated(t%crad)) deallocate(t%crad)
+    if (allocated(t%cshown)) deallocate(t%cshown)
+    allocate(t%crgb(3,n),t%crad(n),t%cshown(n))
+    t%crgb = spread(t%rgb,2,n)
+    t%crad = t%rad
+    t%cshown = t%shown
+
+  end subroutine gpaths_trace_fill_copies
 
   !> Trace the gradient paths of group t with the field of object g
   !> (system isys), following its recipe; also set its label and number
@@ -4350,6 +4380,7 @@ contains
       ! the number of drawn paths
       t%npath = sum(t%site(1:t%nsite)%npath * t%site(1:t%nsite)%ncopy)
       t%label = str
+      call t%fill_copies()
     end associate
 
     t%traced = .true.
@@ -4375,12 +4406,13 @@ contains
         n = count(f%cpcel(1:f%ncpcel)%idx == s%icp)
         if (.not.t%sym) n = 1
         s%ncopy = n
-        allocate(s%cop(3,4,n))
+        allocate(s%cop(3,4,n),s%icel(n))
         n = 0
         do k = 1, f%ncpcel
            if (f%cpcel(k)%idx /= s%icp) cycle
            if (.not.t%sym .and. k /= icel) cycle
            n = n + 1
+           s%icel(n) = k
            s%cop(:,1:3,n) = c%rotm(:,1:3,f%cpcel(k)%ir)
            s%cop(:,4,n) = c%rotm(:,4,f%cpcel(k)%ir) + c%cen(:,f%cpcel(k)%ic) + f%cpcel(k)%lvec
         end do
@@ -4415,6 +4447,8 @@ contains
            end do
            s%cop(:,4,1) = -floor(s%x)
         end if
+        allocate(s%icel(s%ncopy))
+        s%icel = 0
       end associate
 
     end subroutine point_copies
@@ -4427,7 +4461,7 @@ contains
 
       type(flux_seed), allocatable :: seeds(:)
       type(flux_path), allocatable :: paths(:)
-      integer :: j, k, n, iat, lv(3), typ
+      integer :: j, k, n, iat, lv(3), typ, icend
       real*8 :: y(3), dist
       character(len=:), allocatable :: err1
 
@@ -4457,6 +4491,20 @@ contains
            s%path(j)%icpend = 0
            if (n >= 2 .and. paths(j)%icpend >= 1 .and. paths(j)%icpend <= f%ncpcel .and.&
               paths(j)%dend <= eps_end) s%path(j)%icpend = f%cpcel(paths(j)%icpend)%idx
+
+           ! the cell CP at the end of each copy of the path
+           allocate(s%path(j)%cend(s%ncopy),s%path(j)%clend(3,s%ncopy))
+           s%path(j)%cend = 0
+           s%path(j)%clend = 0
+           if (s%path(j)%icpend > 0) then
+              do k = 1, s%ncopy
+                 y = matmul(s%cop(:,1:3,k),s%path(j)%x(:,n)) + s%cop(:,4,k)
+                 icend = f%identify_cp(y,eps_end)
+                 if (icend <= 0) cycle
+                 s%path(j)%cend(k) = icend
+                 s%path(j)%clend(:,k) = nint(y - f%cpcel(icend)%x)
+              end do
+           end if
 
            ! the nucleus at the end of each copy of the path
            allocate(s%path(j)%iend(s%ncopy),s%path(j)%lend(3,s%ncopy))
