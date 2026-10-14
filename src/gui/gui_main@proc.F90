@@ -919,13 +919,13 @@ contains
     ! critical points of a field (AUTO)
     if (iw_menuitem("Critical Points...",enabled=enabled)) &
        idum = stack_create_window(wintype_cp,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Find the critical points of a field of this system (AUTO) and inspect them",ttshown)
+    call iw_tooltip("Find the critical points of a field of this system and inspect them",ttshown)
 
     ! gradient paths of a field (FLUXPRINT)
     if (iw_menuitem("Trace Gradient Paths...",enabled=enabled)) &
        idum = stack_create_window(wintype_gpaths,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Trace gradient paths of a field of this system from points or critical points&
-       & (FLUXPRINT) and show them in the view",ttshown)
+       & and show them in the view",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

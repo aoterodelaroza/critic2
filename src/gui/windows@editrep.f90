@@ -196,9 +196,7 @@ contains
           if (iw_button("Export to Text File",sameline=.true.,disabled=.not.ok)) &
              idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegpathsfile,&
              idparent=w%id,orraise=-1)
-          call iw_tooltip("Write the points of the gradient paths, bond and traced (Cartesian&
-             & coordinates, and fractional for crystals, and the field value) to a text file, with&
-             & the source, initial direction, and up or down direction of each path",ttshown)
+          call iw_tooltip("Write the points of the gradient paths to a text file",ttshown)
        end if
 
        ! close button
@@ -5285,8 +5283,7 @@ contains
        call w%rep%gpaths%apply_style(.true.,.true.)
        changed = .true.
     end if
-    call iw_tooltip("Reset the style of all gradient paths, bond and traced, to the defaults&
-       & (continuous path, default color and radius)",ttshown)
+    call iw_tooltip("Reset the style of all gradient paths to the defaults",ttshown)
     istyle = int(w%rep%gpaths%style,c_int)
     call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
        "String of spheres" // c_null_char,istyle,changed=ch,tooltips=&
@@ -5301,8 +5298,8 @@ contains
     ! global color and radius: set those of all paths, bond and traced
     pathsok = w%rep%gpaths%paths_ok(isys)
     ch = iw_coloredit("Color##gpathscolor",rgb=w%rep%gpaths%rgb)
-    call iw_tooltip("Color of all gradient paths, bond and traced (sets the color of every path in the&
-       & table below)",ttshown)
+    call iw_tooltip("Color of all gradient paths (sets the color of every path in the table&
+       & below)",ttshown)
     if (ch) then
        call w%rep%gpaths%apply_style(.true.,.false.)
        changed = .true.
@@ -5310,8 +5307,8 @@ contains
     ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
        min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
        sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the tubes or spheres of all gradient paths, bond and traced, in Å (sets&
-       & the radius of every "//&
+    call iw_tooltip("Radius of the tubes or spheres of all gradient paths in Å (sets the radius&
+       & of every "//&
        "path in the table below; default " // string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",&
        ttshown)
     if (ch) then
@@ -5422,8 +5419,8 @@ contains
     ! are drawn)
     ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
     changed = changed .or. ch
-    call iw_tooltip("Also draw the atoms at the ends of the bond paths and of the traced paths that&
-       & end at a nucleus, with the colors and radii in the table below.",ttshown)
+    call iw_tooltip("Draw the atoms at the ends of the paths, with the colors and radii in the&
+       & table below",ttshown)
     if (w%rep%gpaths%showends) then
        ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
           rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)

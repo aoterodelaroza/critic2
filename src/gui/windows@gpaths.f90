@@ -28,11 +28,11 @@ submodule (windows) gpaths
   character(len=*), parameter :: method_names = "Uniform" // c_null_char //&
      "Quotient" // c_null_char // "Dynamical" // c_null_char
   character(len=*), parameter :: method_tooltips = &
-     "Directions spread uniformly around the critical point (BRAINDEAD)" // c_null_char //&
+     "Directions spread uniformly around the critical point" // c_null_char //&
      "Uniform directions remapped with the quotient of the two Hessian eigenvalues in the plane,&
-     & to sample the surface evenly (QUOTIENT)" // c_null_char //&
+     & to sample the surface evenly" // c_null_char //&
      "Directions from the linearized dynamical system around the critical point; traces 50 paths&
-     & first to estimate the distance to the nearest cage (DYNAMICAL)" // c_null_char
+     & first to estimate the distance to the nearest cage" // c_null_char
 
   ! a seed CP picked as an atom in the view is the CP at the position
   ! of the atom (the nucleus), within this distance (bohr)
@@ -119,13 +119,10 @@ contains
     if (goodsys .and. ok) then
        ! single shot: the paths up and down from a picked point
        call iw_text("Single-Shot",highlight=.true.,alignframe=.true.)
-       call iw_tooltip("Trace the gradient paths up and down from one point. The new paths are added&
-          & to the traced paths",ttshown)
+       call iw_tooltip("Trace the gradient paths up and down from one point",ttshown)
        if (iw_button("Pick##gppickpoint",sameline=.true.,disabled=(w%gp%picking > 0))) &
           call start_pick(w,iview,gppick_point)
-       call iw_tooltip("Trace the gradient paths up and down from a point picked in the view: the&
-          & middle of a bond if one is clicked, otherwise the clicked point (on the plane through&
-          & the center of the scene)",ttshown)
+       call iw_tooltip("Trace the gradient paths up and down from a point picked in the view",ttshown)
 
        ! the seed CPs: the table of the CPs (the nuclei only, if there
        ! was no search), and the selection
@@ -154,8 +151,7 @@ contains
        call iw_tooltip("Select the critical points that are not selected, and vice versa",ttshown)
        if (iw_button("Pick##gppickcp",sameline=.true.,disabled=(w%gp%picking > 0))) &
           call start_pick(w,iview,gppick_cp)
-       call iw_tooltip("Pick a critical point in the view and add it to the selection: click it&
-          & (or, for a nucleus, its atom)",ttshown)
+       call iw_tooltip("Pick a critical point in the view and add it to the selection",ttshown)
        call iw_text("(" // string(count(w%gp%sel)) // " selected)",sameline=.true.)
 
        ! the options of each kind of seed CP
@@ -209,12 +205,11 @@ contains
        doest = iw_button("Estimate Cost##gpestimate",sameline=.true.,&
           disabled=(len(formerr) > 0 .or. w%gp%picking > 0))
        call iw_tooltip("Estimate how long the trace takes, by tracing the paths of a sample of the&
-          & selected critical points (at most a few seconds)",ttshown)
+          & selected critical points",ttshown)
        irep = target_object(w,iview,.false.)
        if (iw_button("Edit Gradient Paths##gpeditobj",sameline=.true.,disabled=(irep == 0))) &
           iaux = stack_create_window(wintype_editrep,.true.,isys=isys,irep=irep,idparent=iview,orraise=-1)
-       call iw_tooltip("Open the gradient paths object of this field in the view, with the traced&
-          & paths (created by the first trace)",ttshown)
+       call iw_tooltip("Open the gradient paths object of this field in the view",ttshown)
        if (dotrace) call request_job(w,iview,gpjob_trace)
        if (doest) call request_job(w,iview,gpjob_estimate)
        if (allocated(w%gp%estimate)) then
@@ -280,8 +275,7 @@ contains
       ldum = iw_inputint("Azimuthal##gpntheta" // id,ntheta,sameline=.true.,width=3)
       call iw_tooltip("Number of azimuthal angles of the starting directions",ttshown)
       ldum = iw_inputint("Polar##gpnphi" // id,nphi,sameline=.true.,width=3)
-      call iw_tooltip("Number of polar angles of the starting directions, besides the two&
-         & poles",ttshown)
+      call iw_tooltip("Number of polar angles of the starting directions",ttshown)
       ntheta = max(ntheta,1)
       nphi = max(nphi,0)
 
@@ -296,11 +290,9 @@ contains
 
       ldum = iw_inputint("Number##gpnpts" // id,npts,sameline=.true.,width=3)
       if (nmin == 0) then
-         call iw_tooltip("Number of paths in the plane, 0 for none (the Dynamical starting&
-            & angles use about this number)",ttshown)
+         call iw_tooltip("Number of paths in the plane, 0 for none",ttshown)
       else
-         call iw_tooltip("Number of paths in the plane (the Dynamical starting angles use&
-            & about this number)",ttshown)
+         call iw_tooltip("Number of paths in the plane",ttshown)
       end if
       npts = max(npts,nmin)
       call iw_text("Angles",sameline=.true.)
