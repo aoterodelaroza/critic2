@@ -172,8 +172,7 @@ contains
 
     ! cgrid is global and this routine also runs in the GUI
     ! initialization threads (ZPSP fields), so one thread at a time
-    ! (the lock needs OpenMP; without it, this is safe only with a
-    ! single initialization thread)
+    ! (the GUI is built without threads if there is no OpenMP)
     errmsg = ""
     !$omp critical (grid1_register)
     if (.not.allocated(cgrid)) allocate(cgrid(maxzat0,maxzat0))

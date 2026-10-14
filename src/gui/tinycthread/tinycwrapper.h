@@ -43,5 +43,6 @@ void *allocate_mtx();
 void deallocate_mtx(void *p);
 // threads
 int wrap_thrd_join(thrd_t *thr, int *res);
+void memory_fence();
 
 #endif

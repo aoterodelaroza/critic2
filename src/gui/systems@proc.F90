@@ -403,7 +403,7 @@ contains
     use gui_main, only: reuse_mid_empty_systems
     use windows, only: regenerate_window_pointers, win, iwin_tree
     use interfaces_glfw, only: glfwGetTime
-    use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
+    use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain, memory_fence
     use crystalseedmod, only: crystalseed
     use global, only: symprec
     use tools_io, only: uout
@@ -583,12 +583,14 @@ contains
           if (allocated(scenefile%file)) sysc(idx)%scenesrc = scenefile%file
        end if
 
-       ! initialization status: the system is complete, and the
-       ! initialization thread may take it from here
-       sysc(idx)%status = sys_loaded_not_init
-
        ! redo everything
        call sysc(idx)%post_event(lastchange_geometry)
+
+       ! initialization status: the system is complete, and the
+       ! initialization thread may take it from here (the fence makes
+       ! the system visible to it before the status)
+       call memory_fence()
+       sysc(idx)%status = sys_loaded_not_init
     end do
 
     ! Select the first new system in the tree, unless noselect
@@ -666,7 +668,25 @@ contains
   ! Remove system with index idx and leave behind a sys_empty spot. If
   ! master and collapsed, kill all dependents. If master and extended,
   ! make all dependents master.
-  recursive module subroutine remove_system(idx,kill_dependents_if_extended)
+  module subroutine remove_system(idx,kill_dependents_if_extended)
+    integer, intent(in) :: idx
+    logical, intent(in), optional :: kill_dependents_if_extended
+
+    logical :: reinit
+
+    ! the initialization threads may be working on this system (they
+    ! hold its lock, and set up its scene and undo history after
+    ! sys_ready and sys_init), so stop them while it goes away
+    reinit = are_threads_running()
+    if (reinit) call kill_initialization_thread()
+    call remove_system_now(idx,kill_dependents_if_extended)
+    if (reinit) call launch_initialization_thread()
+
+  end subroutine remove_system
+
+  !> Remove system idx, with the initialization threads stopped (see
+  !> remove_system).
+  recursive subroutine remove_system_now(idx,kill_dependents_if_extended)
     use interfaces_threads, only: deallocate_mtx
     integer, intent(in) :: idx
     logical, intent(in), optional :: kill_dependents_if_extended
@@ -699,7 +719,7 @@ contains
        do i = 1, nsys
           if (sysc(i)%status == sys_empty .or. sysc(i)%collapse /= idx) cycle
           if (icol == -1 .or. kdie) then
-             call remove_system(i)
+             call remove_system_now(i)
           else
              sysc(i)%collapse = 0
           end if
@@ -729,7 +749,7 @@ contains
        ! kill all dependents if collapsed
        do i = 1, nsys
           if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
-             call remove_system(i)
+             call remove_system_now(i)
        end do
     else
        ! make all dependents their own master if extended
@@ -742,21 +762,26 @@ contains
     ! a group header with nothing left to head goes away too
     if (imaster > 0) then
        if (sysc(imaster)%status == sys_group) then
-          if (group_nmembers(imaster) == 0) call remove_system(imaster)
+          if (group_nmembers(imaster) == 0) call remove_system_now(imaster)
        end if
     end if
 
-  end subroutine remove_system
+  end subroutine remove_system_now
 
   !> Remove systems given by indices idx.
   module subroutine remove_systems(idx)
     integer, intent(in) :: idx(:)
 
     integer :: k
+    logical :: reinit
 
+    ! stop the initialization threads once for all of them
+    reinit = are_threads_running()
+    if (reinit) call kill_initialization_thread()
     do k = 1, size(idx,1)
-       call remove_system(idx(k))
+       call remove_system_now(idx(k))
     end do
+    if (reinit) call launch_initialization_thread()
 
   end subroutine remove_systems
 
@@ -1069,6 +1094,7 @@ contains
   !> initialization level. If uid is given, the system must be the one
   !> with that unique identifier (not another one in its slot).
   module function ok_system(isys,level,uid)
+    use interfaces_threads, only: memory_fence
     integer, intent(in) :: isys, level
     integer*8, intent(in), optional :: uid
     logical :: ok_system
@@ -1076,6 +1102,10 @@ contains
     ok_system = (isys >= 1 .and. isys <= nsys)
     if (ok_system) ok_system = (sysc(isys)%status >= level)
     if (ok_system .and. present(uid)) ok_system = (sysc(isys)%uid == uid)
+
+    ! the status may have been set by an initialization thread: read
+    ! the system after it (pairs with the fence before the store)
+    call memory_fence()
 
   end function ok_system
 
@@ -1420,6 +1450,7 @@ contains
 
     real*8 :: time
     logical :: keepfields_, nocapture_, keepsel_, isgeom, isrebond
+    integer :: irev
 
     keepfields_ = .false.
     if (present(keepfields)) keepfields_ = keepfields
@@ -1440,13 +1471,20 @@ contains
     sysc%timelastchange_render = time
     if (level /= lastchange_render) sysc%timelastchange_buildlists = time
     if (isrebond) sysc%timelastchange_rebond = time
+    ! rev_last is atomic: the initialization threads post events too
     if (isrebond) then
+       !$omp atomic capture
        rev_last = rev_last + 1
-       sysc%rev_rebond = rev_last
+       irev = rev_last
+       !$omp end atomic
+       sysc%rev_rebond = irev
     end if
     if (isgeom) then
+       !$omp atomic capture
        rev_last = rev_last + 1
-       sysc%rev_geometry = rev_last
+       irev = rev_last
+       !$omp end atomic
+       sysc%rev_geometry = irev
     end if
     if (level == lastchange_cplist .or. isgeom) sysc%timelastchange_cplist = time
     if (isgeom) then
@@ -4737,7 +4775,7 @@ contains
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg) bind(c)
     use gui_main, only: force_quit_threads
-    use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
+    use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock, memory_fence
     use tools_io, only: string, uout, quoteword
     use param, only: isformat_r_crystal, isformat_r_fchk, isformat_r_gaussian, ivformat_crystal_out,&
        ivformat_gaussian_log, ivformat_gaussian_fchk, ivformat_unknown
@@ -4815,7 +4853,10 @@ contains
                    end if
                 end if
 
-                ! all data is in-place, so we flag the system as ready
+                ! all data is in-place, so we flag the system as ready (the
+                ! fence makes the data visible to the main thread before
+                ! the status)
+                call memory_fence()
                 sysc(i)%status = sys_ready
 
                 ! initialize the scene and build the initial draw list
@@ -4828,6 +4869,7 @@ contains
                 call scene_file_apply(i)
 
                 ! this system has been initialized
+                call memory_fence()
                 sysc(i)%status = sys_init
 
                 ! seed the undo/redo history with the initial geometry (must

@@ -7733,7 +7733,7 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -7890,7 +7890,7 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -8010,7 +8010,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -8149,7 +8149,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -8571,7 +8571,7 @@ contains
     nsat = c%ncel * nlat
 
     ! open the file and read the header
-    lu = fopen_read(file_,ti=ti)
+    lu = fopen_read(file_,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file_)
        goto 999
@@ -8847,7 +8847,7 @@ contains
     end if
     have = .false.
     kidx = 0
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        return
@@ -9316,7 +9316,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -9432,7 +9432,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -9591,7 +9591,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -9718,7 +9718,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999

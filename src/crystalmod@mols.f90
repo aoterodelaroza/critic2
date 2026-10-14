@@ -82,7 +82,7 @@ contains
     fr%nspc = 0
 
     errmsg = "Error reading xyz file"
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) goto 999
     read(lu,*,err=999,end=999) nat
     read(lu,*,err=999,end=999)

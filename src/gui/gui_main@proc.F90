@@ -77,7 +77,7 @@ contains
 
   ! Start the critic2 GUI.
   module subroutine gui_start()
-    use interfaces_threads, only: deallocate_mtx
+    use interfaces_threads, only: deallocate_mtx, memory_fence
     use interfaces_cimgui
     use interfaces_glfw
     use interfaces_opengl3
@@ -379,6 +379,10 @@ contains
     do while (glfwWindowShouldClose(rootwin) == 0)
        ! a launch of the initialization threads requested while they were busy
        if (init_launch_pending) call launch_initialization_thread()
+
+       ! the statuses set by the initialization threads: this frame reads
+       ! the systems after them (pairs with the fence before the store)
+       call memory_fence()
 
        ! poll events, and load the files dropped during a cancellable job
        call glfwPollEvents()

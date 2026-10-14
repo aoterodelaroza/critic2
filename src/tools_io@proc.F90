@@ -1425,13 +1425,16 @@ contains
     end if
 
     lu = falloc(ti)
-    if (present(form)) then
+    if (lu < 0) then
+       ! a thread with all its LUs in use
+       ios = 1
+    elseif (present(form)) then
        open(unit=lu,file=ofile,status='old',iostat=ios,form=form)
     else
        open(unit=lu,file=ofile,status='old',iostat=ios)
     endif
     if (ios /= 0) then
-       call fdealloc(lu)
+       if (lu >= 0) call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_read","error opening file: "//string(file),faterr)
@@ -1470,13 +1473,16 @@ contains
     end if
 
     lu = falloc(ti)
-    if (present(form)) then
+    if (lu < 0) then
+       ! a thread with all its LUs in use
+       ios = 1
+    elseif (present(form)) then
        open(unit=lu,file=ofile,status='unknown',iostat=ios,form=form)
     else
        open(unit=lu,file=ofile,status='unknown',iostat=ios)
     end if
     if (ios /= 0) then
-       call fdealloc(lu)
+       if (lu >= 0) call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_write","error opening file: "//string(file),faterr)
@@ -1513,13 +1519,16 @@ contains
     end if
 
     lu = falloc(ti)
-    if (present(form)) then
+    if (lu < 0) then
+       ! a thread with all its LUs in use
+       ios = 1
+    elseif (present(form)) then
        open(unit=lu,file=ofile,status='old',access='append',iostat=ios,form=form)
     else
        open(unit=lu,file=ofile,status='old',access='append',iostat=ios)
     end if
     if (ios /= 0) then
-       call fdealloc(lu)
+       if (lu >= 0) call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_append","error opening file: "//string(file),faterr)
@@ -1540,7 +1549,10 @@ contains
     errstop_ = .true.
     if (present(errstop)) errstop_ = errstop
     lu = falloc(ti)
-    if (present(form)) then
+    if (lu < 0) then
+       ! a thread with all its LUs in use
+       ios = 1
+    elseif (present(form)) then
        if (lower(form) == "unformatted") then
           open(unit=lu,status='scratch',form=form,access="stream",iostat=ios)
        else
@@ -1550,7 +1562,7 @@ contains
        open(unit=lu,status='scratch',form="unformatted",access="stream",iostat=ios)
     end if
     if (ios /= 0) then
-       call fdealloc(lu)
+       if (lu >= 0) call fdealloc(lu)
        lu = -1
        if (errstop_) &
           call ferror("fopen_write","error opening scratch file",faterr)
@@ -1632,7 +1644,10 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: i
+    logical :: ok
 
+    ! alloc is shared with the GUI initialization threads
+    !$omp critical (falloc)
     if (present(ti)) then
        ! the thread brings its own LUs
        falloc = -1
@@ -1642,17 +1657,21 @@ contains
              exit
           end if
        end do
-       if (falloc < 0) &
-          call ferror("falloc","could not allocate logical unit (threaded)",faterr)
+       ok = (falloc >= 0)
     else
        ! allocate a new LU
-       do falloc = 1, size(alloc)
-          if (.not.alloc(falloc)) exit
+       ok = .false.
+       do falloc = 1, ubound(alloc,1)
+          ok = .not.alloc(falloc)
+          if (ok) exit
        end do
-       if (alloc(falloc)) &
-          call ferror("falloc","could not allocate logical unit",faterr)
     end if
-    alloc(falloc) = .true.
+    if (ok) alloc(falloc) = .true.
+    !$omp end critical (falloc)
+    ! a thread returns -1 (the fopen_* routines report it as an error
+    ! opening the file); the main LU pool running out is fatal
+    if (.not.ok .and. .not.present(ti)) &
+       call ferror("falloc","could not allocate logical unit",faterr)
 
   end function falloc
 
@@ -1660,9 +1679,11 @@ contains
   module subroutine fdealloc(u)
     integer, intent(in) :: u !< LU to deallocate
 
-    if (u < 0 .or. u > size(alloc)) &
+    if (u < 0 .or. u > ubound(alloc,1)) &
        call ferror("fdealloc","could not deallocate logical unit",faterr)
+    !$omp critical (falloc)
     alloc(u)=.false.
+    !$omp end critical (falloc)
 
   end subroutine fdealloc
 

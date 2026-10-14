@@ -229,7 +229,7 @@ contains
     if (allocated(name)) deallocate(name)
 
     ! read the number of atoms
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -287,7 +287,7 @@ contains
     if (allocated(name)) deallocate(name)
 
     ! open the file
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -364,7 +364,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -423,7 +423,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -431,10 +431,11 @@ contains
 
     errmsg = "Error reading file: " // trim(file)
     ! read the number of atoms
+    n = 0
     do while (getline_raw(lu,line))
        if (equalsub(line,1,1,"<") .and. .not.equalsub(line,2,2,"/")) then
           if (trim(line) == "<Number of Nuclei>") then
-             read (lu,*) n
+             read (lu,*,err=20,end=20) n
              exit
           endif
        endif
@@ -464,7 +465,7 @@ contains
           else if (trim(line) == "<Nuclear Names>") then
              atnamefound = .true.
              do i = 1, n
-                read (lu,*) name(i)
+                read (lu,*,err=20,end=20) name(i)
              end do
           elseif (trim(line) == "<Nuclear Cartesian Coordinates>") then
              coordsfound = .true.
@@ -527,7 +528,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -613,7 +614,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -625,7 +626,8 @@ contains
     do while(next_keyword())
        if (trim(lower(keyword)) == "atoms") then
           n = 0
-          ok = getline_raw(lu,line,.true.)
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
           do while(index(lower(line),"[") == 0 .and. len(trim(line)) > 0)
              n = n + 1
              ok = getline_raw(lu,line)
@@ -717,7 +719,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -796,7 +798,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -868,7 +870,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -932,7 +934,7 @@ contains
     if (allocated(z)) deallocate(z)
     if (allocated(name)) deallocate(name)
 
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Could not open file."
        return
@@ -1004,7 +1006,7 @@ contains
     f%nedf = 0
 
     ! read number of atoms, primitives, orbitals
-    luwfn = fopen_read(file,ti=ti)
+    luwfn = fopen_read(file,errstop=.false.,ti=ti)
     if (luwfn < 0) goto 999
     read (luwfn,*,err=999,end=999)
     read (luwfn,101,err=999,end=999) orbtyp, f%nmoocc, f%npri, nat
@@ -1149,7 +1151,7 @@ contains
     f%nalpha_virt = 0
 
     ! first pass
-    luwfn = fopen_read(file,ti=ti)
+    luwfn = fopen_read(file,errstop=.false.,ti=ti)
     if (luwfn < 0) goto 999
     f%nmoocc = 0
     ncore = 0
@@ -1387,7 +1389,8 @@ contains
     f%hasene = .false.
 
     ! first pass: dimensions
-    luwfn = fopen_read(file,ti=ti)
+    luwfn = fopen_read(file,errstop=.false.,ti=ti)
+    if (luwfn < 0) goto 999
     f%wfntyp = wfn_rhf
 
     ! first pass: dimensions
@@ -1975,7 +1978,7 @@ contains
     nmf = 0
 
     ! open file
-    luwfn = fopen_read(file,ti=ti)
+    luwfn = fopen_read(file,errstop=.false.,ti=ti)
     if (luwfn < 0) goto 999
 
     ! parse the molden file, first pass -> read dimensions prior to allocation
@@ -1992,7 +1995,8 @@ contains
           if (index(line,"created by orca_2mkl") > 0) isorca = .true.
        else if (trim(keyword) == "atoms") then
           ! read the number of atoms
-          ok = getline_raw(luwfn,line,.true.)
+          ok = getline_raw(luwfn,line)
+          if (.not.ok) goto 998
           do while(index(lower(line),"[") == 0 .and. len(trim(line)) > 0)
              nat = nat + 1
              ok = getline_raw(luwfn,line,.false.)
@@ -2008,14 +2012,17 @@ contains
              goto 999
           end if
           do i = 1, nat
-             ok = getline_raw(luwfn,line,.true.)
-             ok = getline_raw(luwfn,line,.true.)
+             ok = getline_raw(luwfn,line)
+             if (.not.ok) goto 998
+             ok = getline_raw(luwfn,line)
+             if (.not.ok) goto 998
              do while (index(line,".") /= 0)
                 read (line,*,err=999,end=999) mword, idum, rdum
                 ncshel = ncshel + 1
                 nshel = nshel + idum
                 do j = 1, idum
-                   ok = getline_raw(luwfn,line,.true.)
+                   ok = getline_raw(luwfn,line)
+                   if (.not.ok) goto 998
                 end do
                 ok = getline_raw(luwfn,line,.false.)
                 if (.not.ok) exit
@@ -2031,8 +2038,8 @@ contains
              goto 999
           end if
           do while (.true.)
-             ok = getline_raw(luwfn,line,.true.)
-             if (.not.ok) exit
+             ok = getline_raw(luwfn,line)
+             if (.not.ok) goto 998
              if (index(lower(line),"[") > 0) exit
              f%npri = f%npri + 1
           end do
@@ -2049,7 +2056,8 @@ contains
              if (index(lower(line),"[") /= 0 .or. len_trim(line) == 0) exit
              if (index(lower(line),"ene=") /= 0) then
                 ! spin
-                ok = getline_raw(luwfn,line,.true.)
+                ok = getline_raw(luwfn,line)
+                if (.not.ok) goto 998
                 isalpha = (index(lower(line),"alpha") > 0)
                 if (isalpha) then
                    nalphamo = nalphamo + 1
@@ -2058,7 +2066,8 @@ contains
                 end if
 
                 ! occupation
-                ok = getline_raw(luwfn,line,.true.)
+                ok = getline_raw(luwfn,line)
+                if (.not.ok) goto 998
                 read (line,*,err=999,end=999) mword, rdum
                 idum = nint(rdum)
                 if (abs(rdum-idum) > 1d-6) then
@@ -2190,14 +2199,17 @@ contains
        allocate(exppri(nshel),ccontr(nshel))
 
        ! Basis set specification
-       do while(getline_raw(luwfn,line,.true.))
+       do while (.true.)
+          if (.not.getline_raw(luwfn,line)) goto 998
           if (trim(lower(line)) == "[gto]") exit
        end do
        ni = 0
        nj = 0
        do i = 1, nat
-          ok = getline_raw(luwfn,line,.true.)
-          ok = getline_raw(luwfn,line,.true.)
+          ok = getline_raw(luwfn,line)
+          if (.not.ok) goto 998
+          ok = getline_raw(luwfn,line)
+          if (.not.ok) goto 998
           ! atomic blocks are separated by blank lines
           do while (len_trim(line) > 0)
              ni = ni + 1
@@ -2213,7 +2225,8 @@ contains
              ! read exponents and coefficients
              do j = 1, idum
                 nj = nj + 1
-                ok = getline_raw(luwfn,line,.true.)
+                ok = getline_raw(luwfn,line)
+                if (.not.ok) goto 998
                 read(line,*,err=999,end=999) exppri(nj), ccontr(nj)
              end do
 
@@ -2269,14 +2282,16 @@ contains
        allocate(f%itype(f%npri),f%icenter(f%npri))
        allocate(f%e(f%npri),ccontr(f%npri))
 
-       do while(getline_raw(luwfn,line,.true.))
+       do while (.true.)
+          if (.not.getline_raw(luwfn,line)) goto 998
           if (trim(lower(line)) == "[sto]") exit
        end do
 
        ! Basis set specification
        f%ixmaxsto = 0
        do i = 1, f%npri
-          ok = getline_raw(luwfn,line,.true.)
+          ok = getline_raw(luwfn,line)
+          if (.not.ok) goto 998
           read(line,*,err=999,end=999) f%icenter(i), ix, iy, iz, ir, f%e(i), ccontr(i)
           f%itype(i) = ix + 100 * (iy + 100 * (iz + 100 * ir))
           f%ixmaxsto(1) = max(f%ixmaxsto(1),ix)
@@ -2292,7 +2307,8 @@ contains
     motemp = 0d0
 
     ! advance to the MO coefficients
-    do while(getline_raw(luwfn,line,.true.))
+    do while (.true.)
+       if (.not.getline_raw(luwfn,line)) goto 998
        if (trim(lower(line)) == "[mo]") exit
     end do
 
@@ -2310,7 +2326,7 @@ contains
        ! the orbital energy (comes before the occupation in each MO block)
        lp = index(lower(line),"ene=")
        if (lp > 0) then
-          read (line(lp+4:),*,err=999) enel
+          read (line(lp+4:),*,err=999,end=999) enel
        end if
 
        ! is this an alpha electron?
@@ -2354,7 +2370,7 @@ contains
                 lp2 = 1
                 ok = isinteger(idum,line,lp2)
                 if (.not.ok) exit
-                read(line,*,end=999) idum, rdum
+                read(line,*,err=999,end=999) idum, rdum
                 motemp((lnmo-1)*nbassph+idum) = rdum
              end do
           end if
@@ -2531,6 +2547,8 @@ contains
 
     errmsg = ""
     return
+998 continue
+    errmsg = "unexpected end of file"
 999 continue
     if (luwfn > 0) call fclose(luwfn)
 

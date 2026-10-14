@@ -302,8 +302,8 @@ contains
     real*8 :: x(3)
 
     errmsg = "Error reading file: " // trim(filename)
-    lu = fopen_read(filename,ti=ti)
-    if (lu < 0) goto 999
+    lu = fopen_read(filename,errstop=.false.,ti=ti)
+    if (lu < 0) return
     ! ignore the 'scale' stuff
     do i = 1, 14
        read(lu,*,err=999,end=999)
@@ -313,9 +313,9 @@ contains
     read(lu,'(3G18.10)',err=999,end=999) f%x2c(:,2)
     read(lu,'(3G18.10)',err=999,end=999) f%x2c(:,3)
 
-    ok = getline_raw(lu,line,.true.)
+    ok = getline_raw(lu,line)
     if (.not.ok) goto 999
-    ok = getline_raw(lu,line,.true.)
+    ok = getline_raw(lu,line)
     if (.not.ok) goto 999
     if (equal(line,'molecule')) then
        errmsg = "Isolated molecules not supported"
@@ -324,7 +324,7 @@ contains
 
     read(lu,'(I4)',err=999,end=999) nspecies
     do i = 1, nspecies
-       ok = getline_raw(lu,line,.true.)
+       ok = getline_raw(lu,line)
        if (.not.ok) goto 999
        lp = 1
        atname = getword(line,lp)
@@ -392,7 +392,8 @@ contains
     ! open the file
     call c_f_pointer(cptr,c)
     errmsg = "Error reading file: " // trim(filename)
-    lu = fopen_read(filename,"unformatted",ti=ti)
+    lu = fopen_read(filename,"unformatted",errstop=.false.,ti=ti)
+    if (lu < 0) return
 
     ! read header
     read(lu,err=999,end=999) vdum  ! version
@@ -593,8 +594,8 @@ contains
     ! open the file
     call c_f_pointer(cptr,c)
     errmsg = "Error reading file: " // trim(filename)
-    lu = fopen_read(filename,"unformatted",ti=ti)
-    if (lu < 0) goto 999
+    lu = fopen_read(filename,"unformatted",errstop=.false.,ti=ti)
+    if (lu < 0) return
 
     ! read header
     read(lu,err=999,end=999) lmmaxi, lmmaxo, nrmtmax, npmtmax, natmtot, ngtot, maxspecies

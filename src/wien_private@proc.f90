@@ -24,7 +24,7 @@ submodule (wien_private) proc
   ! subroutine readslm(f,lu,errmsg)
   ! subroutine readk(f,lu,errmsg)
   ! subroutine gbass(rbas,gbas)
-  ! subroutine rotdef(f)
+  ! subroutine rotdef(f,lattic,errmsg)
   ! subroutine gener(f,errmsg)
   ! subroutine sternb(f)
   ! subroutine rotator(vt,iz,tau,a)
@@ -152,7 +152,11 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! read the clmsum
-    lu = fopen_read(file,ti=ti)
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error reading file: " // trim(file)
+       return
+    end if
 
     call readslm(f,lu,errmsg)
     if (len_trim(errmsg) > 0) goto 999
@@ -513,7 +517,7 @@ contains
     real*8, dimension(:,:), allocatable :: temp_pos
 
     errmsg = "Error reading file: " // trim(file)
-    lut = fopen_read(file,ti=ti)
+    lut = fopen_read(file,errstop=.false.,ti=ti)
     if (lut < 0) goto 999
     READ(lut,102,err=999,end=999) TITEL
     READ(lut,103,err=999,end=999) LATTIC,f%NAT,cform
@@ -673,7 +677,8 @@ contains
        F%BR1(3,3)=F%A(3)
        f%ortho=.false.
     ELSE
-       STOP 'LATTIC NOT DEFINED'
+       errmsg = "Lattice type not defined: " // trim(lattic)
+       goto 999
     END IF
 
     !.calculate br3
@@ -715,6 +720,10 @@ contains
     f%iatnr(:) = temp_iatnr(1:f%ndat)
     f%pos(:,:) = temp_pos(:,1:f%ndat)
     deallocate(temp_iatnr,temp_pos)
+    if (any(abs(f%iatnr) < 1 .or. abs(f%iatnr) > f%nat)) then
+       errmsg = "Invalid atom number in struct file"
+       goto 999
+    end if
 
     !.read number of symmetry operations, sym. operations
     READ(lut,114,err=999,end=999) f%nIORD
@@ -730,7 +739,8 @@ contains
 115 FORMAT(3(3I2,F10.5,/))
 
     !.find iop matrices
-    CALL ROTDEF(f,lattic)
+    CALL ROTDEF(f,lattic,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     !.transform pos to cartesian coordinates
     DO INDEX=1,f%NDAT
@@ -744,6 +754,7 @@ contains
 
     !.generate origins of next unit cells (atp)
     CALL GENER(f,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
 
     call fclose(lut)
 
@@ -761,7 +772,7 @@ contains
     integer, intent(in) :: lu !< Input logical unit
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: jatom, jrj, l, l1, l2, ll, i
+    integer :: jatom, jrj, l, l1, l2, ll, i, ng
     integer :: mlmmax, mjrj
     integer, allocatable :: alm(:,:,:)
     integer, allocatable :: almmax(:)
@@ -792,7 +803,7 @@ contains
           READ(lu,2010,err=999,end=999) l1, l2
           f%lm(1,l,jatom) = l1
           f%lm(2,l,jatom) = l2
-          if (f%lm(1,l,jatom) > lmax2) then
+          if (abs(f%lm(1,l,jatom)) > lmax2) then
              errmsg = "Max. L in LM list (lmax2) exceeded"
              return
           end if
@@ -806,6 +817,32 @@ contains
     end DO
     f%cnorm = .true.  ! we have density normalization (/sqfp above)
 
+    ! atoms in cubic sites (positive iatnr) must have an LM list made
+    ! of the groups of cubic harmonics expected by charge()
+    do i = 1, f%ndat
+       if (f%iatnr(i) <= 0) cycle
+       jatom = f%iatnr(i)
+       l = 1
+       do while (l <= f%lmmax(jatom))
+          l1 = f%lm(1,l,jatom)
+          l2 = f%lm(2,l,jatom)
+          if ((l1 == 0 .and. l2 == 0) .or. (l1 == -3 .and. l2 == 2)) then
+             ng = 1
+          elseif (l1 == 4 .or. l1 == 6 .or. l1 == -7 .or. l1 == -9) then
+             ng = 2
+          elseif (l1 == 8 .or. l1 == 10) then
+             ng = 3
+          else
+             ng = 0
+          end if
+          if (ng == 0 .or. l+ng-1 > f%lmmax(jatom)) then
+             errmsg = "Incorrect LM list for cubic structure"
+             return
+          end if
+          l = l + ng
+       end do
+    end do
+
     ! scale back
     allocate(alm(2,mlmmax,f%nat))
     alm = f%lm(1:2,1:mlmmax,1:f%nat)
@@ -816,6 +853,7 @@ contains
     allocate(aslm(mjrj,mlmmax,f%nat))
     aslm = f%slm(1:mjrj,1:mlmmax,1:f%nat)
     call move_alloc(aslm,f%slm)
+    return
 
 118 FORMAT(/,15X,I3,//) ! new
 2032 FORMAT(//)
@@ -824,7 +862,8 @@ contains
 2031 FORMAT(/)
 2033 FORMAT(///)
 
-999 continue
+999 continue ! error condition
+    errmsg = "Error reading file (LM list, clmsum)"
 
   end subroutine readslm
 
@@ -976,17 +1015,20 @@ contains
     end DO
   end subroutine gbass
 
-  subroutine rotdef(f,lattic)
+  subroutine rotdef(f,lattic,errmsg)
     ! new version of rotdef, adapted from rotdef1.f wien2k_08.3
     ! replaces old rotdef (rotdef.f)
+    use tools_io, only: string
     class(wienwfn), intent(inout) :: f
     character*4, intent(in) :: lattic
+    character(len=:), allocatable, intent(out) :: errmsg
 
     real*8 :: toler, one, toler2
-    integer :: index, ncount, jatom, index1, m, i, j, i1
+    integer :: index, ncount, jatom, index1, m, i, j
     real*8 :: x, y, z, x1, y1, z1
 
     DATA TOLER/ 1.d-4/,ONE/1.d0/
+    errmsg = ""
     toler2=toler/2.d0
     INDEX=0
     NCOUNT=0
@@ -1069,22 +1111,17 @@ contains
               END IF
             end if
  25         CONTINUE
-            WRITE(*,*) 'NO SYMMETRY OPERATION FOUND IN ROTDEF'
-            WRITE(*,*) JATOM,INDEX
-            WRITE(*,*) (f%POS(I1,JATOM),I1=1,3)
-            WRITE(*,*) (f%POS(I1,INDEX),I1=1,3)
-            STOP 'ROTDEF'
+            errmsg = "No symmetry operation found for position " // string(index) //&
+               " of atom " // string(jatom) // " (rotdef)"
+            return
 
 !
  30      CONTINUE
  20   CONTINUE
       IF(NCOUNT.NE.INDEX) THEN
-         WRITE(6,1000) NCOUNT
-         STOP ' ROTDEF: NCOUNT NE INDEX'
+         errmsg = "Symmetry operation not found for all atoms (rotdef), ncount = " // string(ncount)
       ENDIF
       RETURN
- 1000 FORMAT(///,3X,'ERROR IN ROTDEF: ROTIJ NOT DEFINED FOR ALL ',       &
-       'ATOMS OF BASIS',/,20X,'NCOUNT=',I2)
    end subroutine rotdef
 
    SUBROUTINE GENER(f,errmsg)

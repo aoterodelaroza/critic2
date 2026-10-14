@@ -66,6 +66,9 @@ function wrap_thrd_join(thr, res) bind(c,name="wrap_thrd_join")
   integer(c_int) :: res
   integer(c_int) :: wrap_thrd_join
 end function wrap_thrd_join
+! void memory_fence();
+subroutine memory_fence() bind(c,name="memory_fence")
+end subroutine memory_fence
 !x! int thrd_sleep(const struct timespec *duration, struct timespec *remaining);
 !x! void thrd_yield(void);
 !x! int tss_create(tss_t *key, tss_dtor_t dtor);

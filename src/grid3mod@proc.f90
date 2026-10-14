@@ -529,7 +529,7 @@ contains
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     read (luc,*,err=999,end=999)
@@ -592,7 +592,7 @@ contains
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
-    luc = fopen_read(file,form="unformatted",ti=ti)
+    luc = fopen_read(file,form="unformatted",errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! read nat and grid origin
@@ -662,7 +662,7 @@ contains
     f%mode = mode_default
 
     ! open file
-    luc = fopen_read(file,'unformatted',ti=ti)
+    luc = fopen_read(file,'unformatted',errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! assume unformatted
@@ -728,7 +728,7 @@ contains
     f%mode = mode_default
 
     ! open file
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! read the header and initialize geometry
@@ -800,7 +800,7 @@ contains
     real*8, allocatable :: g(:,:,:)
 
     call f%end()
-    luc = fopen_read(file,'unformatted',ti=ti)
+    luc = fopen_read(file,'unformatted',errstop=.false.,ti=ti)
     if (luc < 0) then
        errmsg = "Error opening file"
        goto 999
@@ -861,11 +861,11 @@ contains
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     do while(.true.)
-       ok = getline_raw(luc,line,.true.)
+       ok = getline_raw(luc,line)
        if (.not.ok) goto 999
        if (len(trim(line)) == 0) exit
     end do
@@ -914,7 +914,7 @@ contains
     errmsg = ""
     return
 999 continue
-    if (luc < 0) call fclose(luc)
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_vasp
 
@@ -934,7 +934,7 @@ contains
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     read (luc,*,err=999,end=999) n
@@ -986,7 +986,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! position at the beginning of the first grid, ignore the rest
@@ -1080,7 +1080,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! skip most of the header and get the n
@@ -1147,7 +1147,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! read the number of points in each direction
@@ -1245,7 +1245,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! read the number of points in each direction
@@ -1324,7 +1324,7 @@ contains
     f%iswan = .false.
 
     ! open file
-    luc = fopen_read(fpwc,form="unformatted",ti=ti)
+    luc = fopen_read(fpwc,form="unformatted",errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! header and lattice vectors
@@ -1460,7 +1460,7 @@ contains
     errmsg = ""
     return
 999 continue
-    if (luc < 0) call fclose(luc)
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_pwc
 
@@ -1483,7 +1483,7 @@ contains
     call f%end()
 
     ! open file for reading
-    luc = fopen_read(file,ti=ti)
+    luc = fopen_read(file,errstop=.false.,ti=ti)
     if (luc < 0) goto 999
 
     ! grid dimension
@@ -1511,6 +1511,7 @@ contains
     return
 999 continue ! error condition
     errmsg = "error reading file " // trim(file)
+    if (luc > 0) call fclose(luc)
 
   end subroutine read_elk
 
@@ -1563,11 +1564,11 @@ contains
 
     ! open files and initialize
     errmsg = "Error reading file: " // trim(fileup)
-    lu(1) = fopen_read(fileup,form="unformatted",ti=ti)
+    lu(1) = fopen_read(fileup,form="unformatted",errstop=.false.,ti=ti)
     if (lu(1) < 0) goto 999
     if (nspin == 2) then
        errmsg = "Error reading file: " // trim(filedn)
-       lu(2) = fopen_read(filedn,form="unformatted",ti=ti)
+       lu(2) = fopen_read(filedn,form="unformatted",errstop=.false.,ti=ti)
        if (lu(2) < 0) goto 999
     end if
 

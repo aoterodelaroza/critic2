@@ -579,13 +579,15 @@ contains
   !> (rmat) cell, see 9.1.8 in ITC. If rbas is present, it contains
   !> the three shortest of the seven Delaunay lattice vectors that
   !> form a cell (useful to transform to one of the delaunay reduced
-  !> cells).
-  module subroutine delaunay_reduction(x2c,rmat,rbas)
+  !> cells). If errmsg is present, return errors in it instead of
+  !> stopping.
+  module subroutine delaunay_reduction(x2c,rmat,rbas,errmsg)
     use tools_math, only: det3, matinv
     use tools_io, only: faterr, ferror
     real*8, intent(in) :: x2c(3,3)
     real*8, intent(out) :: rmat(3,4)
     real*8, intent(out), optional :: rbas(3,3)
+    character(len=:), allocatable, intent(out), optional :: errmsg
 
     integer :: i, j, k, iord(7)
     real*8 :: c2x(3,3), sc(4,4), xstar(3,7), xlen(7), dd
@@ -593,6 +595,8 @@ contains
 
     real*8, parameter :: eps_scalar = 1d-10
     real*8, parameter :: eps_det = 1d-5
+
+    if (present(errmsg)) errmsg = ""
 
     ! calculate the c2x matrix
     c2x = x2c
@@ -659,8 +663,13 @@ contains
              end if
           end do
        end do iloop
-       if (.not.ok) &
+       if (.not.ok) then
+          if (present(errmsg)) then
+             errmsg = "could not find reduced basis"
+             return
+          end if
           call ferror("delaunay_reduction","could not find reduced basis",faterr)
+       end if
        if (dd < 0d0) rbas = -rbas
        do i = 1, 3
           rbas(:,i) = matmul(c2x,rbas(:,i))
@@ -678,7 +687,7 @@ contains
   !> information if requested (see below).
   module subroutine wscell(m_x2c,doreduction,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
      isortho,m_xr2x,m_x2xr,m_xr2c,m_c2xr,n2_xr2x,n2_x2xr,n2_xr2c,n2_c2xr,ineighxr,&
-     isortho_del)
+     isortho_del,errmsg)
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use tools_math, only: cross, matinv, mnorm2
     use tools_io, only: ferror, faterr
@@ -705,6 +714,7 @@ contains
     real*8, intent(out), optional :: n2_c2xr !< norm2 of cartesian -> reduced cryst
     integer, allocatable, intent(inout), optional :: ineighxr(:,:) !< WS neighbor lattice points (del cell, cryst.)
     logical, intent(out), optional :: isortho_del !< is the reduced cell orthogonal?
+    character(len=:), allocatable, intent(out), optional :: errmsg !< if present, return errors here instead of stopping
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
@@ -754,8 +764,11 @@ contains
     type(c_ptr), target :: ctx ! qhull result handle
     integer(c_int) :: ier ! qhull error flag
 
-    ! delaunay reduction
-    call delaunay_reduction(m_x2c,rmat,rbas=rdel)
+    ! delaunay reduction (sets errmsg, if present)
+    call delaunay_reduction(m_x2c,rmat,rbas=rdel,errmsg=errmsg)
+    if (present(errmsg)) then
+       if (len_trim(errmsg) > 0) return
+    end if
 
     ! construct star of lattice vectors -> use Delaunay reduction
     ! see 9.1.8 in ITC.
@@ -776,14 +789,24 @@ contains
     xstar(:,14) = -(rmat(:,2)+rmat(:,3))
     do i = 1, 14
        xstar(:,i) = matmul(m_x2c,xstar(:,i))
-       if (norm2(xstar(:,i)) < eps_dnorm) &
+       if (norm2(xstar(:,i)) < eps_dnorm) then
+          if (present(errmsg)) then
+             errmsg = "Lattice vector too short. Please, check the unit cell definition."
+             return
+          end if
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
+       end if
     end do
 
     ! determine the WS cell
     call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_,ctx,ier)
-    if (ier /= 0) &
+    if (ier /= 0) then
+       if (present(errmsg)) then
+          errmsg = "qhull failed to compute the Wigner-Seitz cell."
+          return
+       end if
        call ferror("wigner","qhull failed to compute the Wigner-Seitz cell.",faterr)
+    end if
     allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_),nside_(nf_))
     nside_ = 0
     call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,ctx)

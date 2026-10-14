@@ -358,11 +358,12 @@ contains
     allocate(f%bas(ni)%nelec(maos))
 
     !.....abrir el fichero:
-    lui=fopen_read(fichero,ti=ti)
+    lui=fopen_read(fichero,errstop=.false.,ti=ti)
     if (lui < 0) goto 999
 
     !.....Determinar la version de pi a que corresponde el fichero:
-    ok = getline_raw(lui,linea,.true.)
+    ok = getline_raw(lui,linea)
+    if (.not.ok) goto 999
     call buscapar (linea,chpar,nchpar,ipar,nipar)
     if (nchpar.le.0) goto 999
     linea=chpar(1)
@@ -373,30 +374,42 @@ contains
        style = very_old
        backspace (lui)
     else if (linea(1:3).eq.'STO') then
-    else if (linea(1:3).eq.'GTO') then
-       stop 'pi(leerion): sto/gto mixing!'
-    else if (linea(1:4).eq.'CGTO') then
-       stop 'pi(leerion): sto/gto mixing!'
+    else if (linea(1:3).eq.'GTO' .or. linea(1:4).eq.'CGTO') then
+       errmsg = 'sto/gto mixing!'
+       goto 999
     else
        errmsg = 'sto/gto incompatible with the global type!'
        goto 999
     endif
 
     !.....Leer STOs:
-    ok = getline_raw(lui,linea,.true.)
+    ok = getline_raw(lui,linea)
+    if (.not.ok) goto 999
     read (lui,'(a6,x,f10.0)',err=999,end=999) tition, zn
     read (lui,*,err=999,end=999) f%bas(ni)%nsym
-    if (f%bas(ni)%nsym.gt.msa) stop 'pi(leerion): nsym > msa !'
-    if (f%bas(ni)%nsym.lt.0) stop 'pi(leerion): nsym < 0 !'
+    if (f%bas(ni)%nsym.gt.msa) then
+       errmsg = 'nsym > msa !'
+       goto 999
+    end if
+    if (f%bas(ni)%nsym.lt.0) then
+       errmsg = 'nsym < 0 !'
+       goto 999
+    end if
     read (lui,*,err=999,end=999) (f%bas(ni)%nsto(i),i=1,f%bas(ni)%nsym)
     f%bas(ni)%nasto(1)=0
     ntsto=0
     do i=1,f%bas(ni)%nsym
        ntsto=ntsto+f%bas(ni)%nsto(i)
        if (i.gt.1) f%bas(ni)%nasto(i)=f%bas(ni)%nasto(i-1)+f%bas(ni)%nsto(i-1)
-       if (f%bas(ni)%nsto(i).gt.mstosym) stop 'pi(leerion): demasiados stos en una simetria !'
+       if (f%bas(ni)%nsto(i).gt.mstosym) then
+          errmsg = 'demasiados stos en una simetria !'
+          goto 999
+       end if
     end do
-    if (ntsto.gt.msto) stop 'pi(leerion): demasiados stos !'
+    if (ntsto.gt.msto) then
+       errmsg = 'demasiados stos !'
+       goto 999
+    end if
     read (lui,*,err=999,end=999) (f%bas(ni)%nn(k),k=1,ntsto)
     read (lui,*,err=999,end=999) (f%bas(ni)%z(k),k=1,ntsto)
     do k=1,ntsto
@@ -412,7 +425,10 @@ contains
        ntaos=ntaos+f%bas(ni)%naos(i)
        if (i.gt.1) f%bas(ni)%naaos(i)=f%bas(ni)%naaos(i-1)+f%bas(ni)%naos(i-1)
     end do
-    if (ntaos.gt.maos) stop 'pi(leerion): demasiados aos !'
+    if (ntaos.gt.maos) then
+       errmsg = 'demasiados aos !'
+       goto 999
+    end if
     read (lui,*,err=999,end=999) (f%bas(ni)%nelec(k),k=1,ntaos)
     read (lui,*,err=999,end=999) (eorb,k=1,ntaos)
     read (lui,*,err=999,end=999) (((f%bas(ni)%c(k,j+f%bas(ni)%naaos(i)),k=1,f%bas(ni)%nsto(i)),&
@@ -426,7 +442,10 @@ contains
        read (lui,*,err=999,end=999) (dumyk,i=1,10)
        read (lui,*,err=999,end=999) eef,ead
        read (lui,*,err=999,end=999) zef,ntef
-       if (ntef.gt.mtvef) stop 'pi(leerion): demasiados terminos vef'
+       if (ntef.gt.mtvef) then
+          errmsg = 'demasiados terminos vef'
+          goto 999
+       end if
        if (ntef.gt.0) then
           read (lui,*,err=999,end=999) (aef,nref,nxef,nyef,nzef,alfaef,k=1,ntef)
        endif
@@ -450,7 +469,10 @@ contains
                 openshell = .true.
              endif
           enddo
-          if (nosh .gt. 1) stop 'leerion: more than 1 open sh. per sym!'
+          if (nosh .gt. 1) then
+             errmsg = 'more than 1 open sh. per sym!'
+             goto 999
+          end if
        enddo
        if (openshell) then
           read (lui,*,err=999,end=999) nj, nk
@@ -463,7 +485,10 @@ contains
        endif
        read (lui,*,err=999,end=999) eef, ead, ecorr, ekin, epot
        read (lui,*,err=999,end=999) qclas, zef, ntef
-       if (ntef.gt.mtvef) stop 'leerion: too many terms in Vef'
+       if (ntef.gt.mtvef) then
+          errmsg = 'too many terms in Vef'
+          goto 999
+       end if
        if (ntef.gt.0) then
           do k=1,ntef
              read (lui,*,err=999,end=999) aef,nref,alfaef
@@ -481,7 +506,10 @@ contains
     do i=1,f%bas(ni)%nsym
        ndensi=ndensi+(f%bas(ni)%nsto(i)*(f%bas(ni)%nsto(i)+1))/2
     end do
-    if (ndensi.gt.mdens) stop 'pi(leerion): too many charge densities!'
+    if (ndensi.gt.mdens) then
+       errmsg = 'too many charge densities!'
+       goto 999
+    end if
     if (ndensi.gt.0.and.ileeaexch.eq.1) then
        read (lui,*,err=999,end=999) (aexch,i=1,ndensi)
     else
@@ -495,7 +523,7 @@ contains
 
     !.....error de lectura:
 999 continue
-    if (lui > 0) close (lui)
+    if (lui > 0) call fclose(lui)
 
   end subroutine read_ion
 

@@ -197,6 +197,13 @@ if (ENABLE_OPENMP)
   find_package(OpenMP MODULE COMPONENTS Fortran)
 endif()
 
+## the GUI threads rely on OpenMP critical/atomic constructs to guard
+## the shared state they touch (atomic grids, logical units, counters)
+if (ENABLE_GUI AND USE_GUI_THREADS AND NOT OPENMP_FOUND)
+  message(WARNING "The GUI threads need OpenMP: building the GUI without threads.")
+  set(USE_GUI_THREADS OFF)
+endif()
+
 ## lapack
 if (USE_EXTERNAL_LAPACK)
   set(LAPACK_FIND_QUIETLY "ON")

@@ -79,9 +79,10 @@ contains
     errmsg = "Error reading file: " // trim(filexml)
 
     ! detailed.xml, first pass
-    lu = fopen_read(filexml,ti=ti)
+    lu = fopen_read(filexml,errstop=.false.,ti=ti)
     if (lu < 0) goto 999
     iread = .false.
+    iserr = .false.
     do while (.true.)
        ok = getline_raw(lu,line)
        if (.not.ok) exit
@@ -138,7 +139,7 @@ contains
 
     ! eigenvec.bin
     errmsg = "Error reading file: " // trim(filebin)
-    lu = fopen_read(filebin,"unformatted",ti=ti)
+    lu = fopen_read(filebin,"unformatted",errstop=.false.,ti=ti)
     if (lu < 0) goto 999
     read (lu,err=999,end=999) idum ! this is the identity number
 
@@ -166,7 +167,7 @@ contains
 
     ! open the hsd file with the basis definition
     errmsg = "Error reading file: " // trim(filehsd)
-    lu = fopen_read(filehsd,ti=ti)
+    lu = fopen_read(filehsd,errstop=.false.,ti=ti)
     if (lu < 0) goto 999
     if (allocated(f%bas)) deallocate(f%bas)
     allocate(f%bas(10))
@@ -573,12 +574,13 @@ contains
 
   !xx! private procedures
 
-  !> Read the next logical value in xml format.
+  !> Read the next logical value in xml format. iserr is set to
+  !> .true. on error and left unchanged otherwise.
   function next_logical(lu,line0,key0,iserr) result(next)
     use tools_io, only: lower, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
-    logical, intent(out) :: iserr
+    logical, intent(inout) :: iserr
     logical :: next
 
     character(len=:), allocatable :: line, key, aux
@@ -587,7 +589,6 @@ contains
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
 
-    iserr = .false.
     ! lowercase and build key
     key = "<" // trim(adjustl(key0)) // ">"
     line = lower(line0)
@@ -641,12 +642,13 @@ contains
 
   end function next_logical
 
-  !> Read the next integer value in xml format.
+  !> Read the next integer value in xml format. iserr is set to
+  !> .true. on error and left unchanged otherwise.
   function next_integer(lu,line0,key0,iserr) result(next)
     use tools_io, only: lower, isinteger, getline_raw
     integer, intent(in) :: lu
     character*(*), intent(in) :: line0, key0
-    logical, intent(out) :: iserr
+    logical, intent(inout) :: iserr
     integer :: next
 
     character(len=:), allocatable :: line, key, aux
@@ -654,7 +656,6 @@ contains
     logical :: found, ok, lastpass
 
     ! see xx(note1)xx, tools_io.f90 for the use of line and aux.
-    iserr = .false.
 
     ! lowercase and build key
     key = "<" // trim(adjustl(key0)) // ">"
@@ -723,13 +724,16 @@ contains
        if (index(line,key) > 0) then
           found = .true.
           do i = 1, size(w)
-             read (lu,*) kpts(:,i), w(i)
+             read (lu,*,err=999,end=999) kpts(:,i), w(i)
           end do
           exit
        end if
     end do
 
     if (.not.found) iserr = .true.
+    return
+999 continue
+    iserr = .true.
 
   end subroutine read_kpointsandweights
 
@@ -762,7 +766,11 @@ contains
                 ! advance to the k-point with this name
                 key = "<k" // string(ik) // ">"
                 do while (.true.)
-                   ok = getline_raw(lu,line,.true.)
+                   ok = getline_raw(lu,line)
+                   if (.not.ok) then
+                      iserr = .true.
+                      return
+                   end if
                    if (index(line,key) > 0) exit
                 end do
                 ! read nstate real numbers
@@ -796,7 +804,11 @@ contains
     iserr = .false.
     kk = 0
     lp = 1
-    ok = getline_raw(lu,aux,.true.)
+    ok = getline_raw(lu,aux)
+    if (.not.ok) then
+       iserr = .true.
+       return
+    end if
     line = trim(adjustl(aux))
     do while(.true.)
        if (.not.isreal(rdum,line,lp)) then
@@ -847,7 +859,8 @@ contains
           nb = nb + 1
 
           ! read the keywords at this level: atomicnumber and orbital
-          do while(getline(lu,line,.true.))
+          do while (.true.)
+             if (.not.getline(lu,line)) goto 999
              lp = 1
              word = lgetword(line,lp)
              idx = index(word,"{")
@@ -859,13 +872,15 @@ contains
              if (equal(word,"atomicnumber")) then
                 idx = index(line,"=")
                 word = line(idx+1:)
-                read (word,*) at%z
+                read (word,*,err=999,end=999) at%z
              elseif (equal(word,"orbital")) then
                 nb = nb + 1
                 at%norb = at%norb + 1
+                if (at%norb > size(at%l,1)) goto 999
                 ! read the keywords at this level:
                 ! angularmomentum, occupation, cutoff, exponents, coefficients
-                do while(getline(lu,line,.true.))
+                do while (.true.)
+                   if (.not.getline(lu,line)) goto 999
                    lp = 1
                    word = lgetword(line,lp)
                    idx = index(word,"{")
@@ -876,15 +891,15 @@ contains
                    if (equal(word,"angularmomentum")) then
                       idx = index(line,"=")
                       word = line(idx+1:)
-                      read (word,*) at%l(at%norb)
+                      read (word,*,err=999,end=999) at%l(at%norb)
                    elseif (equal(word,"occupation")) then
                       idx = index(line,"=")
                       word = line(idx+1:)
-                      read (word,*) at%occ(at%norb)
+                      read (word,*,err=999,end=999) at%occ(at%norb)
                    elseif (equal(word,"cutoff")) then
                       idx = index(line,"=")
                       word = line(idx+1:)
-                      read (word,*) at%cutoff(at%norb)
+                      read (word,*,err=999,end=999) at%cutoff(at%norb)
                    elseif (equal(word,"exponents")) then
                       idx = index(line,"{")
                       aux = line(idx+1:)
@@ -895,11 +910,11 @@ contains
                          lp = 1
                          do while (isreal(rdum,line,lp))
                             at%nexp(at%norb) = at%nexp(at%norb) + 1
+                            if (at%nexp(at%norb) > size(at%eexp,1)) goto 999
                             at%eexp(at%nexp(at%norb),at%norb) = rdum
                          end do
                          if (index(line,"}") > 0) exit
-                         ok = getline(lu,line,.true.)
-                         if (.not.ok) exit
+                         if (.not.getline(lu,line)) goto 999
                       end do
                    elseif (equal(word,"coefficients")) then
                       if (at%nexp(at%norb) == 0) then
@@ -920,13 +935,13 @@ contains
                             caux(n) = rdum
                          end do
                          if (index(line,"}") > 0) exit
-                         ok = getline(lu,line,.true.)
-                         if (.not.ok) exit
+                         if (.not.getline(lu,line)) goto 999
                       end do
                       if (mod(n,at%nexp(at%norb)) /= 0) then
                          iserr = .true.
                          return
                       end if
+                      if (n / at%nexp(at%norb) > size(at%coef,1)) goto 999
 
                       k = 0
                       do i = 1, at%nexp(at%norb)
@@ -960,6 +975,10 @@ contains
           exit
        end if
     end do
+    return
+999 continue
+    iserr = .true.
+    ok = .false.
 
   end function next_hsd_atom
 

@@ -86,14 +86,15 @@ module tools
        integer, intent(in) :: iz, nn
        integer :: tiny_atom_type
      end function tiny_atom_type
-     module subroutine delaunay_reduction(x2c,rmat,rbas)
+     module subroutine delaunay_reduction(x2c,rmat,rbas,errmsg)
        real*8, intent(in) :: x2c(3,3)
        real*8, intent(out) :: rmat(3,4)
        real*8, intent(out), optional :: rbas(3,3)
+       character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine delaunay_reduction
      module subroutine wscell(m_x2c,doreduction,nf,nv,mnfv,iside,nside,x,ineighc,ineighx,area,&
         isortho,m_xr2x,m_x2xr,m_xr2c,m_c2xr,n2_xr2x,n2_x2xr,n2_xr2c,n2_c2xr,ineighxr,&
-        isortho_del)
+        isortho_del,errmsg)
        real*8, intent(in) :: m_x2c(3,3)
        logical, intent(in) :: doreduction
        integer, intent(out), optional :: nf
@@ -116,6 +117,7 @@ module tools
        real*8, intent(out), optional :: n2_c2xr
        integer, allocatable, intent(inout), optional :: ineighxr(:,:)
        logical, intent(out), optional :: isortho_del
+       character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine wscell
   end interface
 

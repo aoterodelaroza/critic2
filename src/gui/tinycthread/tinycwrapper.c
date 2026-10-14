@@ -44,3 +44,11 @@ void deallocate_mtx(void *p){
 int wrap_thrd_join(thrd_t *thr, int *res){
   return thrd_join(*thr,res);
 }
+
+// Full memory barrier: the writes before it are visible to other
+// threads before the writes after it, and the reads after it are not
+// done before the reads before it. Being an external call, it is also
+// a compiler barrier for the Fortran caller.
+void memory_fence(){
+  __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}

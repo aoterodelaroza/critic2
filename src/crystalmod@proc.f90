@@ -276,7 +276,8 @@ contains
     end if
 
     ! derived cell metrics + wigner-seitz reduced cell
-    call set_cell_metrics(c)
+    call set_cell_metrics(c,errmsg)
+    if (len_trim(errmsg) > 0) return
 
     !! now the atoms, we can use shortest() and related functions past this !!
 

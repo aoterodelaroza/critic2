@@ -48,6 +48,18 @@ typedef struct {
   int err;       // nonzero if an unbounded ridge was found (not a finite cell)
 } voronoi_ctx;
 
+static void voronoi_ctx_free(voronoi_ctx *c){
+  int i;
+
+  for (i = 0; i < c->nf; i++)
+    free(c->fv[i]);
+  free(c->fv);
+  free(c->ivws);
+  free(c->nfvws);
+  free(c->xvws);
+  free(c);
+}
+
 static void voronoi_ctx_grow(voronoi_ctx *c){
   if (c->nf < c->cap)
     return;
@@ -109,7 +121,8 @@ static FILE *qhull_errfile(void){
 // From a list of n vertices (xstar), calculate the Voronoi polyhedron of the
 // origin (added as input site 0) and return its number of faces (nf), number
 // of vertices (nv), maximum number of vertices per face (mnfv), and a context
-// handle (ctx) holding the full result for step2. *ier is nonzero on failure.
+// handle (ctx) holding the full result for step2. *ier is nonzero on failure
+// (the context is then freed and ctx is NULL; do not call step2).
 void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mnfv,
                             void **ctx, int *ier){
   qhT qh_qh;
@@ -188,6 +201,12 @@ void runqhull_voronoi_step1(int n, double xstar[n][3], int *nf, int *nv, int *mn
   qh_memfreeshort(qh, &curlong, &totlong);
   free(points);
 
+  // on error, the caller does not run step2: free the context here
+  if (exitcode){
+    voronoi_ctx_free(c);
+    return;
+  }
+
   *nf = c->nf;
   *nv = c->nv;
   *mnfv = c->mnfv;
@@ -218,13 +237,7 @@ void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[
     xvws[i][2] = c->xvws[3*i+2];
   }
 
-  for (i = 0; i < c->nf; i++)
-    free(c->fv[i]);
-  free(c->fv);
-  free(c->ivws);
-  free(c->nfvws);
-  free(c->xvws);
-  free(c);
+  voronoi_ctx_free(c);
 }
 
 /*=====================================================================

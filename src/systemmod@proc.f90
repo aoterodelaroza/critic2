@@ -657,6 +657,10 @@ contains
              errmsg = "the grid in source field of LOAD AS LAP/GRAD/POT is not allocated"
              return
           end if
+          if (s%f(oid)%grid%partial) then
+             errmsg = "for FFT operations, the input grid must span the periodic cell"
+             return
+          end if
           id = s%getfieldnum(idwant)
           call s%f(id)%load_as_fftgrid(s%c,id,"<generated>",s%f(oid)%grid,seed%iff,seed%isry,seed%n)
        elseif (s%f(oid)%type == type_wien .and. seed%iff == ifformat_as_ft_lap) then

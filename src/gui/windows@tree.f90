@@ -62,7 +62,7 @@ contains
        iw_inputfloat, iw_inputint, iw_checkbox
     use systems, only: nsys, sys, sysc, sys_empty, sys_group, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, are_threads_running,&
-       kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
+       kill_initialization_thread, system_shorten_names, ok_system,&
        remove_systems, reload_field_with_virtuals, lastchange_cplist
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: ColorTableCellBg, tooltip_delay, errmsg_linger,&
@@ -96,7 +96,7 @@ contains
     integer :: nshown, nshown_after_filter, maxprops, nprop, nrow, ithis_row
     logical :: hasfield, hasvib, hasocc, hascps
     logical(c_bool) :: ldum
-    logical :: hadenabledcolumn, ok, found, reinit
+    logical :: hadenabledcolumn, ok, found
     integer :: ndrawn ! icons already drawn in the current cell
     integer :: iwrite ! the table written as text (iw_tblwrite_*)
     real(c_float) :: width, pos, hbottom
@@ -273,22 +273,8 @@ contains
     !! process force options !!
     ! remove systems from the tree
     if (allocated(forceremove)) then
-       reinit = any((sysc(forceremove)%status == sys_loaded_not_init.and..not.sysc(forceremove)%hidden).or.&
-          sysc(forceremove)%status == sys_initializing)
-       ! closing a group header takes its members with it, so they decide
-       ! whether the initialization thread has to stand down as well
-       if (.not.reinit) then
-          do k = 1, size(forceremove,1)
-             if (sysc(forceremove(k))%status /= sys_group) cycle
-             reinit = any((sysc(1:nsys)%collapse == forceremove(k)) .and. &
-                (sysc(1:nsys)%status == sys_loaded_not_init .or. &
-                sysc(1:nsys)%status == sys_initializing))
-             if (reinit) exit
-          end do
-       end if
-       if (reinit) call kill_initialization_thread()
+       ! (stops the initialization threads if they are running)
        call remove_systems(forceremove)
-       if (reinit) call launch_initialization_thread()
        forceremap = .true.
        forcereassign = .true.
        deallocate(forceremove)

@@ -2202,11 +2202,13 @@ contains
 
   !> Compute the derived cell metrics (reciprocal matrices, metric tensors,
   !> volume, norms) and the Wigner-Seitz reduced cell from the already-set
-  !> c%m_x2c / c%m_c2x.
-  module subroutine set_cell_metrics(c)
+  !> c%m_x2c / c%m_c2x. If errmsg is present, a failure in the
+  !> Wigner-Seitz cell is returned in it instead of stopping.
+  module subroutine set_cell_metrics(c,errmsg)
     use tools, only: wscell
     use tools_math, only: matinv, det3, mnorm2
     class(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(out), optional :: errmsg
 
     integer :: i
     real*8 :: g(3,3)
@@ -2227,7 +2229,7 @@ contains
 
     call wscell(c%m_x2c,.not.c%ismolecule,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,&
        c%ws_x,c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
-       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
+       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del,errmsg)
 
   end subroutine set_cell_metrics
 

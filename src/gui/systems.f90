@@ -463,7 +463,7 @@ module systems
        logical, intent(in) :: molcubic
        integer, intent(in), optional :: forceidx
      end subroutine add_systems_from_name
-     recursive module subroutine remove_system(idx,kill_dependents_if_extended)
+     module subroutine remove_system(idx,kill_dependents_if_extended)
        integer, intent(in) :: idx
        logical, intent(in), optional :: kill_dependents_if_extended
      end subroutine remove_system
