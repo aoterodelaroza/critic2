@@ -79,6 +79,7 @@ contains
     end do
 #else
     idum = initialization_thread_worker(c_loc(thread_ti(1)))
+    call finish_loaded_systems()
 #endif
 
   end subroutine launch_initialization_thread
@@ -106,6 +107,53 @@ contains
 #endif
 
   end subroutine kill_initialization_thread
+
+  !> Finish the systems whose data an initialization thread has
+  !> loaded: build the scene, post the first geometry change, apply
+  !> the settings of the scene file and seed the undo history. This
+  !> runs in the main thread (top of the frame), which draws and
+  !> snapshots the scenes, so it never sees a scene half-built.
+  module subroutine finish_loaded_systems()
+    use interfaces_threads, only: thrd_success, mtx_trylock, mtx_unlock
+    integer :: i
+    integer(c_int) :: idum
+
+    do i = 1, nsys
+       if (.not.sysc(i)%loaded .or. sysc(i)%status /= sys_initializing) cycle
+#ifdef _THREADS
+       ! the worker holds the lock until after it sets the flag: taking
+       ! it orders the worker's writes before the reads below (if it is
+       ! still busy, try again in the next frame)
+       if (.not.c_associated(sysc(i)%thread_lock)) cycle
+       if (mtx_trylock(sysc(i)%thread_lock) /= thrd_success) cycle
+#endif
+       sysc(i)%loaded = .false.
+
+       ! the data is ready
+       sysc(i)%status = sys_ready
+
+       ! initialize the scene and build the initial draw list
+       call sysc(i)%sc%init(i)
+
+       ! post the first geometry change
+       call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
+
+       ! the settings of the scene file the system came from
+       call scene_file_apply(i)
+
+       ! this system has been initialized
+       sysc(i)%status = sys_init
+
+       ! seed the undo/redo history with the initial geometry (must
+       ! come after the status is set, since undo_capture only records
+       ! systems that are sys_init)
+       call sysc(i)%undo_reset()
+#ifdef _THREADS
+       idum = mtx_unlock(sysc(i)%thread_lock)
+#endif
+    end do
+
+  end subroutine finish_loaded_systems
 
   ! Returns .true. if there are any initialization threads running
   module function are_threads_running()
@@ -593,6 +641,7 @@ contains
        ! initialization status: the system is complete, and the
        ! initialization thread may take it from here (the fence makes
        ! the system visible to it before the status)
+       sysc(idx)%loaded = .false.
        call memory_fence()
        sysc(idx)%status = sys_loaded_not_init
     end do
@@ -679,8 +728,7 @@ contains
     logical :: reinit
 
     ! the initialization threads may be working on this system (they
-    ! hold its lock, and set up its scene and undo history after
-    ! sys_ready and sys_init), so stop them while it goes away
+    ! hold its lock), so stop them while it goes away
     reinit = are_threads_running()
     if (reinit) call kill_initialization_thread()
     call remove_system_now(idx,kill_dependents_if_extended)
@@ -744,6 +792,7 @@ contains
     end if
 #endif
     sysc(idx)%status = sys_empty
+    sysc(idx)%loaded = .false.
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
     sysc(idx)%tselected = .false.
@@ -897,6 +946,7 @@ contains
     sysc(idx)%md_run = .false.
     call sysc(idx)%md%free()
     sysc(idx)%status = sys_empty
+    sysc(idx)%loaded = .false.
 
     ! add the system again
     if (scene) then
@@ -4874,29 +4924,12 @@ contains
                 end if
              end if
 
-             ! all data is in-place, so we flag the system as ready (the
-             ! fence makes the data visible to the main thread before
-             ! the status)
+             ! all data is in place: the main thread builds the scene
+             ! and finishes the system (finish_loaded_systems), because
+             ! it draws and snapshots the scenes. The fence makes the
+             ! data visible to it before the flag.
              call memory_fence()
-             sysc(i)%status = sys_ready
-
-             ! initialize the scene and build the initial draw list
-             call sysc(i)%sc%init(i)
-
-             ! post the first geometry change
-             call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
-
-             ! the settings of the scene file the system came from
-             call scene_file_apply(i)
-
-             ! this system has been initialized
-             call memory_fence()
-             sysc(i)%status = sys_init
-
-             ! seed the undo/redo history with the initial geometry (must
-             ! come after the status is set, since undo_capture only records
-             ! systems that are sys_init)
-             call sysc(i)%undo_reset()
+             sysc(i)%loaded = .true.
           end if
 
 #ifdef _THREADS

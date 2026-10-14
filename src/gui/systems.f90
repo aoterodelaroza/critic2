@@ -30,7 +30,23 @@ module systems
 
   private
 
-  ! threads in execution
+  ! Number of initialization threads. Do not raise it above 1 when
+  ! compiling with gfortran (checked with versions 6 to 14). gfortran
+  ! keeps the length of the result of every call to a function that
+  ! returns character(len=:), allocatable (string, getword, quoteword,
+  ! ...) in a hidden static variable (slen.N) of the calling
+  ! routine, so two threads running the same line overwrite each
+  ! other's length: wrong strings, wrong-size allocations and heap
+  ! corruption. Every reader and struct_new are full of these calls,
+  ! so two workers loading systems at the same time corrupt each
+  ! other (this was the source of the crashes and strange errors
+  ! that made the GUI go back to a single thread in 2023). A
+  ! ThreadSanitizer run with 4 threads reported these as races on
+  ! global 'slen.N' variables, and an OpenMP test program returned
+  ! about 10% wrong strings with 8 threads. With one worker, the only
+  ! collisions left are with the main thread, which mostly runs GUI
+  ! code; a helper that both use (e.g. lgetword, formula_string) can
+  ! still collide, but rarely.
   integer, parameter, public :: nthread = 1
 
   ! Wall time (seconds) a batch of interactive-dynamics steps may take in
@@ -50,7 +66,7 @@ module systems
   integer, parameter, public :: sys_empty = 0 ! not in use
   integer, parameter, public :: sys_loaded_not_init = 1 ! the seed is available, waiting for initialization
   integer, parameter, public :: sys_initializing = 2 ! the system is initializing
-  integer, parameter, public :: sys_ready = 3 ! the data is ready but thread is still working, so not initialized yet
+  integer, parameter, public :: sys_ready = 3 ! the data is ready, the main thread is building the scene (finish_loaded_systems)
   integer, parameter, public :: sys_init = 4 ! the system is initialized
 
   ! list of changes to the system (post_event). Each change implies
@@ -161,6 +177,7 @@ module systems
      character(len=:), allocatable :: group_label ! group header: what it holds, as the caller wrote it (e.g. "dimers", "NVT MD run, 300 K")
      character(len=:), allocatable :: group_parent ! group header: name of the system it was made from
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
+     logical :: loaded = .false. ! an initialization thread loaded the data; the main thread finishes it (finish_loaded_systems)
      ! system name
      character(len=:), allocatable :: fullname ! full-path name
      logical :: renamed = .false. ! true if the system has been renamed
@@ -349,6 +366,7 @@ module systems
   public :: launch_initialization_thread
   public :: kill_initialization_thread
   public :: are_threads_running
+  public :: finish_loaded_systems
   public :: system_shorten_names
   public :: is_group_header
   public :: group_master
@@ -413,6 +431,8 @@ module systems
      module function are_threads_running()
        logical :: are_threads_running
      end function are_threads_running
+     module subroutine finish_loaded_systems()
+     end subroutine finish_loaded_systems
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
      ! Add nseed new systems from the crystal seeds. collapse groups them

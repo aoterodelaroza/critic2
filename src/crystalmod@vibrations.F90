@@ -5642,6 +5642,7 @@ contains
     real*8, allocatable :: eval(:), sqrtm(:)
     complex*16, allocatable :: dm(:,:), ddlr(:,:), p(:), e(:,:), sb(:,:)
     real*8, allocatable :: gov(:,:)
+    character(len=36) :: qstr
 
     errmsg = ""
     if (present(projo) .and. (present(veco) .or..not.present(freqo))) then
@@ -5744,8 +5745,9 @@ contains
        call eigherm(dm,nfreq,eval,ier,vectors=(present(veco).or..not.present(freqo)))
     end if
     if (ier /= 0) then
-       errmsg = "Error diagonalizing the dynamical matrix at q = " //&
-          string(q(1),'f',12,7) // string(q(2),'f',12,7) // string(q(3),'f',12,7)
+       ! no string(): may run in OpenMP regions (see nthread in gui/systems.f90)
+       write (qstr,'(3F12.7)') q
+       errmsg = "Error diagonalizing the dynamical matrix at q = " // qstr
        return
     end if
     eval = sign(sqrt(abs(eval)) * freqfactor,eval)

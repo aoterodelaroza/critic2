@@ -84,7 +84,7 @@ contains
     use interfaces_stb
     use systems, only: sys, sysc, nsys, launch_initialization_thread, system_shorten_names,&
        thread, thread_ti, nthread, are_threads_running, kill_initialization_thread,&
-       init_launch_pending
+       init_launch_pending, finish_loaded_systems
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
@@ -372,6 +372,9 @@ contains
        ! the statuses set by the initialization threads: this frame reads
        ! the systems after them (pairs with the fence before the store)
        call memory_fence()
+
+       ! build the scenes of the systems the threads have loaded
+       call finish_loaded_systems()
 
        ! poll events, and load the files dropped during a cancellable job
        call glfwPollEvents()

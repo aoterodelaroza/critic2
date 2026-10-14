@@ -1205,7 +1205,7 @@ contains
   recursive function fieldeval(fid,fder,errmsg,x0,syl,periodic)
     use systemmod, only: system
     use tools_math, only: det3sym
-    use tools_io, only: string, isinteger, lower
+    use tools_io, only: isinteger, lower
     use types, only: scalar_value, field_evaluation_avail, fieldeval_category_f,&
        fieldeval_category_spin, fieldeval_category_fder1, fieldeval_category_fder2,&
        fieldeval_category_mo, id_mo_homo, id_mo_lumo, id_mo_ahomo, id_mo_alumo,&
@@ -1229,7 +1229,7 @@ contains
     ! recover the system pointer
     if (present(syl)) then
        if (.not.syl%isinit) then
-          errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - system not initialized'
+          errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - system not initialized'
           return
        end if
     end if
@@ -1269,21 +1269,21 @@ contains
                 request%moini = id_mo_a
                 ok = isinteger(request%moend,fderl(2:))
                 if (.not.ok) then
-                   errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - wrong field modifier'
+                   errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - wrong field modifier'
                    return
                 end if
              elseif (fderl(1:1) == "b") then
                 request%moini = id_mo_b
                 ok = isinteger(request%moend,fderl(2:))
                 if (.not.ok) then
-                   errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - wrong field modifier'
+                   errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - wrong field modifier'
                    return
                 end if
              else
                 request%moini = id_mo_id
                 ok = isinteger(request%moend,fderl)
                 if (.not.ok) then
-                   errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - wrong field modifier'
+                   errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - wrong field modifier'
                    return
                 end if
              end if
@@ -1292,12 +1292,12 @@ contains
           ! run the field evaluation
           call syl%f(idx)%grd(x0,request,res,periodic=periodic)
           if (.not.res%valid) then
-             errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - invalid evaluation result'
+             errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - invalid evaluation result'
              fieldeval = 0d0
              return
           end if
           if (.not.res%satisfied) then
-             errmsg = 'field ' // string(fid) // ':' // string(fder) //&
+             errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) //&
                 ' - cannot compute the property with this field type'
              fieldeval = 0d0
              return
@@ -1359,11 +1359,11 @@ contains
              fieldeval = res%fspc
           end select
        else
-          errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - unknown field'
+          errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - unknown field'
           return
        end if
     else
-       errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - no point for field evaluation'
+       errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - no point for field evaluation'
        return
     end if
 
@@ -1879,7 +1879,6 @@ contains
   !> found. This routine is thread-safe.
   subroutine pop(q,nq,s,ns,x0,syl,periodic,errmsg)
     use systemmod, only: system
-    use tools_io, only: string
 #ifdef HAVE_LIBXC
     use iso_c_binding, only: c_size_t
     use xc_f03_lib_m
@@ -2145,7 +2144,7 @@ contains
        write (sia,'(I8)') ia
        sia = adjustl(sia)
        if (.not.syl%goodfield(key=sia)) then
-          errmsg = 'wrong field: ' // string(sia)
+          errmsg = 'wrong field: ' // trim(sia)
           return
        end if
 
