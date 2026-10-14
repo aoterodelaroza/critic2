@@ -5229,6 +5229,7 @@ contains
        iw_inputtext, iw_close_button
     use param, only: bohrtoa
     use tools_io, only: string
+    use tools, only: mergesort
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -5461,8 +5462,8 @@ contains
       logical, intent(in) :: cell
       integer, intent(in) :: nb
 
-      integer :: k, n, it, kc, ntr
-      integer, allocatable :: itrow(:,:)
+      integer :: k, kk, n, it, kc, ntr, is, ic
+      integer, allocatable :: itrow(:,:), key(:), iperm(:), firstcel(:)
       integer(c_int) :: flags
 
       ! the rows of the traced groups: (group, 0) or (group, copy)
@@ -5481,6 +5482,45 @@ contains
          end if
       end do
       n = nb + ntr
+
+      ! sort the rows by the CP they start from, in the order of the
+      ! critical point list of the Trace Gradient Paths window (a
+      ! symmetry-unique CP goes where its first cell copy is); stable,
+      ! so the bond paths go first and the groups in their order; the
+      ! groups with no CP seed, or not traced yet, go last (a stale
+      ! seed CP only misplaces its row: it is checked where it indexes)
+      allocate(key(n),iperm(n))
+      associate(f => sys(isys)%f(w%rep%gpaths%fref%id))
+        allocate(firstcel(f%ncp))
+        firstcel = huge(1)
+        do k = f%ncpcel, 1, -1
+           firstcel(f%cpcel(k)%idx) = k
+        end do
+        do k = 1, n
+           iperm(k) = k
+           key(k) = huge(1)
+           if (k <= nb) then
+              if (cell) then
+                 key(k) = icell(2,k)
+              else
+                 key(k) = firstcel(iuniq(2,k))
+              end if
+           else
+              it = itrow(1,k-nb)
+              kc = itrow(2,k-nb)
+              associate(t => w%rep%gpaths%trace(it))
+                if (trace_ncopy(it) == 0 .or. t%nsite == 0) cycle
+                if (kc > 0) then
+                   call copy_site(it,kc,is,ic)
+                   if (t%site(is)%icel(ic) > 0) key(k) = t%site(is)%icel(ic)
+                elseif (t%site(1)%icp > 0 .and. t%site(1)%icp <= f%ncp) then
+                   key(k) = firstcel(t%site(1)%icp)
+                end if
+              end associate
+           end if
+        end do
+      end associate
+      if (n > 1) call mergesort(key,iperm,1,n)
 
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -5511,12 +5551,13 @@ contains
             call c_f_pointer(clipper,clipper_f)
             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-               if (k > nb) then
-                  call draw_trace_row(itrow(1,k-nb),itrow(2,k-nb))
+               kk = iperm(k)
+               if (kk > nb) then
+                  call draw_trace_row(itrow(1,kk-nb),itrow(2,kk-nb))
                elseif (cell) then
-                  call draw_path_row(k,icell(1,k),0,icell(2,k))
+                  call draw_path_row(kk,icell(1,kk),0,icell(2,kk))
                else
-                  call draw_path_row(k,iuniq(1,k),iuniq(2,k),0)
+                  call draw_path_row(kk,iuniq(1,kk),iuniq(2,kk),0)
                end if
             end do
          end do
