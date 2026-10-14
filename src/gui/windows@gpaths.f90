@@ -19,7 +19,7 @@
 ! counterpart of FLUXPRINT.
 submodule (windows) gpaths
   use interfaces_cimgui
-  use representations, only: gtrace_sphere, gtrace_axis, gtrace_axis_both, gtrace_axis_axial,&
+  use representations, only: gtrace_point, gtrace_sphere, gtrace_axis, gtrace_axis_both, gtrace_axis_axial,&
      gtrace_axis_plane, gpaths_trace
   use param, only: bohrtoa
   implicit none
@@ -88,7 +88,7 @@ contains
     end if
 
     ! a pending pick in the view it was armed on
-    if (w%gp%picking) then
+    if (w%gp%picking > 0) then
        if (goodsys .and. iview == w%gp%pickview) then
           call poll_pick(w,isys,iview)
        else
@@ -117,6 +117,16 @@ contains
     end if
 
     if (goodsys .and. ok) then
+       ! single shot: the paths up and down from a picked point
+       call iw_text("Single-Shot",highlight=.true.,alignframe=.true.)
+       call iw_tooltip("Trace the gradient paths up and down from one point. The new paths are added&
+          & to the traced paths",ttshown)
+       if (iw_button("Pick##gppickpoint",sameline=.true.,disabled=(w%gp%picking > 0))) &
+          call start_pick(w,iview,gppick_point)
+       call iw_tooltip("Trace the gradient paths up and down from a point picked in the view: the&
+          & middle of a bond if one is clicked, otherwise the clicked point (on the plane through&
+          & the center of the scene)",ttshown)
+
        ! the seed CPs: the table of the CPs (the nuclei only, if there
        ! was no search), and the selection
        call sync_sel(w,isys)
@@ -142,7 +152,8 @@ contains
        call iw_tooltip("Unselect all the critical points",ttshown)
        if (iw_button("Toggle##gpseltoggle",sameline=.true.)) w%gp%sel(irow) = .not.w%gp%sel(irow)
        call iw_tooltip("Select the critical points that are not selected, and vice versa",ttshown)
-       if (iw_button("Pick##gppickcp",sameline=.true.,disabled=w%gp%picking)) call start_pick(w,iview)
+       if (iw_button("Pick##gppickcp",sameline=.true.,disabled=(w%gp%picking > 0))) &
+          call start_pick(w,iview,gppick_cp)
        call iw_tooltip("Pick a critical point in the view and add it to the selection: click it&
           & (or, for a nucleus, its atom)",ttshown)
        call iw_text("(" // string(count(w%gp%sel)) // " selected)",sameline=.true.)
@@ -191,12 +202,12 @@ contains
 
        ! trace
        formerr = form_error(w,isys)
-       dotrace = iw_button("Trace##gptrace",danger=.true.,disabled=(len(formerr) > 0 .or. w%gp%picking))
+       dotrace = iw_button("Trace##gptrace",danger=.true.,disabled=(len(formerr) > 0 .or. w%gp%picking > 0))
        call iw_tooltip("Trace the gradient paths of the selected critical points and add them to the&
           & gradient paths object of this field in the view (created if there is none), one group&
           & per critical point (per symmetry-unique one if all the copies are drawn)",ttshown)
        doest = iw_button("Estimate Cost##gpestimate",sameline=.true.,&
-          disabled=(len(formerr) > 0 .or. w%gp%picking))
+          disabled=(len(formerr) > 0 .or. w%gp%picking > 0))
        call iw_tooltip("Estimate how long the trace takes, by tracing the paths of a sample of the&
           & selected critical points (at most a few seconds)",ttshown)
        irep = target_object(w,iview,.false.)
@@ -204,13 +215,8 @@ contains
           iaux = stack_create_window(wintype_editrep,.true.,isys=isys,irep=irep,idparent=iview,orraise=-1)
        call iw_tooltip("Open the gradient paths object of this field in the view, with the traced&
           & paths (created by the first trace)",ttshown)
-       if (dotrace .or. doest) then
-          if (w%request_block()) then
-             w%gp%pending_view = iview
-             w%gp%pending_estimate = doest
-             w%errmsg = ""
-          end if
-       end if
+       if (dotrace) call request_job(w,iview,gpjob_trace)
+       if (doest) call request_job(w,iview,gpjob_estimate)
        if (allocated(w%gp%estimate)) then
           if (.not.same_key(w%gp%estkey,estimate_key(w))) deallocate(w%gp%estimate,w%gp%estkey)
        end if
@@ -328,7 +334,7 @@ contains
           info = info // newline // "Field:  " // string(w%gp%fref%id) // ": " //&
           trim(sys(isys)%f(w%gp%fref%id)%name)
     end if
-    if (w%gp%pending_estimate) then
+    if (w%gp%pending_kind == gpjob_estimate) then
        call iw_wait_overlay("Estimating the cost of the trace...",info,.false.)
     else
        call iw_wait_overlay("Tracing gradient paths...",info,.true.)
@@ -339,9 +345,10 @@ contains
   !> Run the pending trace of the trace gradient paths window, called
   !> by the main loop after the frame with the overlay: trace the
   !> paths of each selected CP (of each symmetry-unique one, if all the
-  !> copies are drawn) and add them, as a new group, to the gradient
-  !> paths object of the field in the view the trace was requested
-  !> in (created if there is none). The trace can be cancelled with
+  !> copies are drawn), or the paths up and down from the single-shot
+  !> point, and add them, as new groups, to the gradient paths object
+  !> of the field in the view the trace was requested in (created if
+  !> there is none). The trace can be cancelled with
   !> Esc, and then no paths are added.
   module subroutine run_gpaths(w)
     use systems, only: sys, sys_init
@@ -355,11 +362,12 @@ contains
     type(gpaths_trace) :: tr
     type(rep_gpaths) :: gnew
     character(len=:), allocatable :: errmsg, err1
-    logical :: doest, cancelled
+    integer :: kind
+    logical :: cancelled
 
     ! the job
-    doest = w%gp%pending_estimate
-    w%gp%pending_estimate = .false.
+    kind = w%gp%pending_kind
+    w%gp%pending_kind = gpjob_trace
 
     ! the system, the field, and the view
     isys = w%gp%sys%get(sys_init)
@@ -371,11 +379,13 @@ contains
     if (iview < 1 .or. iview > nwin) goto 999
     if (.not.win(iview)%isopen .or. .not.associated(win(iview)%sc)) goto 999
     if (win(iview)%isys /= isys) goto 999
-    errmsg = form_error(w,isys)
-    if (len(errmsg) > 0) goto 999
+    if (kind /= gpjob_point) then
+       errmsg = form_error(w,isys)
+       if (len(errmsg) > 0) goto 999
+    end if
 
     ! a cost estimate instead of the trace
-    if (doest) then
+    if (kind == gpjob_estimate) then
        call estimate_gpaths(w,isys)
        return
     end if
@@ -389,27 +399,43 @@ contains
     errmsg = ""
     gnew%fref = w%gp%fref
     call begin_cancellable()
-    icel = selected_cps(w,isys)
-    allocate(t(3*size(icel,1)))
-    call progress_start(size(icel,1),"critical points")
-    associate(f => sys(isys)%f(ifield))
-      do i = 1, size(icel,1)
-         k = icel(i)
-         if (abort_poll()) exit
+    if (kind == gpjob_point) then
+       ! single shot: one group, the paths up and down from the point;
+       ! none leaves it (a CP, e.g. the middle of a symmetric bond) is
+       ! an error
+       allocate(t(1))
+       tr = cp_recipe(w,isys,0)
+       tr%x = w%gp%pending_x
+       call trace_one(0,0)
+       if (ntraced > 0) then
+          if (all(t(1)%site(1)%path(1:t(1)%site(1)%npath)%n < 2)) then
+             ntraced = 0
+             errmsg = "The gradient vanishes at the picked point (a critical point?): no paths were traced"
+          end if
+       end if
+    else
+       icel = selected_cps(w,isys)
+       allocate(t(3*size(icel,1)))
+       call progress_start(size(icel,1),"critical points")
+       associate(f => sys(isys)%f(ifield))
+         do i = 1, size(icel,1)
+            k = icel(i)
+            if (abort_poll()) exit
 
-         ! the recipe: the seed and the options of its kind
-         tr = cp_recipe(w,isys,f%cpcel(k)%typ)
-         tr%x = f%cpcel(k)%x
-         if (f%cpcel(k)%typ == 1 .and. tr%iup /= gtrace_axis_plane) then
-            call trace_one(gtrace_axis_axial,1)
-            call trace_one(gtrace_axis_axial,2)
-            if (tr%iup == gtrace_axis_both) call trace_one(gtrace_axis_plane,0)
-         else
-            call trace_one(tr%iup,0)
-         end if
-         call progress_step()
-      end do
-    end associate
+            ! the recipe: the seed and the options of its kind
+            tr = cp_recipe(w,isys,f%cpcel(k)%typ)
+            tr%x = f%cpcel(k)%x
+            if (f%cpcel(k)%typ == 1 .and. tr%iup /= gtrace_axis_plane) then
+               call trace_one(gtrace_axis_axial,1)
+               call trace_one(gtrace_axis_axial,2)
+               if (tr%iup == gtrace_axis_both) call trace_one(gtrace_axis_plane,0)
+            else
+               call trace_one(tr%iup,0)
+            end if
+            call progress_step()
+         end do
+       end associate
+    end if
     cancelled = end_cancellable()
     if (cancelled) then
        errmsg = "The trace was cancelled: no paths were added"
@@ -770,15 +796,19 @@ contains
   end subroutine sync_sel
 
   !> The recipe of the form (system isys) for a seed CP of type typ
-  !> (not 0), without its position: the options of its kind, and the
-  !> style shared by all the groups. An RCP with neither the ring paths
-  !> nor paths in the plane is not traced (form_error).
+  !> (0 = a point, traced up and down), without its position: the
+  !> options of its kind, and the style shared by all the groups. An
+  !> RCP with neither the ring paths nor paths in the plane is not
+  !> traced (form_error).
   function cp_recipe(w,isys,typ) result(t)
     type(window), intent(in), target :: w
     integer, intent(in) :: isys, typ
     type(gpaths_trace) :: t
 
     select case (typ)
+    case (0)
+       t%kind = gtrace_point
+       t%iup = 0
     case (-3)
        t%kind = gtrace_sphere
        t%ntheta = w%gp%ntheta_n
@@ -966,17 +996,24 @@ contains
 
   end function target_object
 
-  !> Start a pick of a seed CP in view iview.
-  subroutine start_pick(w,iview)
+  !> Start a pick in view iview of the target kind (gppick_*): a seed
+  !> CP (a CP or an atom), or the point to trace the paths from (a
+  !> bond, its midpoint, or a point).
+  subroutine start_pick(w,iview,kind)
     type(window), intent(inout), target :: w
-    integer, intent(in) :: iview
+    integer, intent(in) :: iview, kind
 
     if (iview < 1 .or. iview > nwin) return
-    w%gp%picking = .true.
+    w%gp%picking = kind
     w%gp%pickview = iview
     call w%gp%pick%arm()
-    call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick a critical point to trace the gradient&
-       & paths from",w%id,acceptempty=.true.)
+    if (kind == gppick_point) then
+       call win(iview)%viewmode_set_forced(vm_pick_bond,"Pick a bond or point to trace the gradient&
+          & paths from",w%id,acceptempty=.true.)
+    else
+       call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick a critical point to trace the gradient&
+          & paths from",w%id,acceptempty=.true.)
+    end if
 
   end subroutine start_pick
 
@@ -984,16 +1021,34 @@ contains
   subroutine cancel_pick(w)
     type(window), intent(inout), target :: w
 
-    if (.not.w%gp%picking) return
+    if (w%gp%picking == 0) return
     if (w%gp%pickview >= 1 .and. w%gp%pickview <= nwin) &
        call win(w%gp%pickview)%viewmode_release_forced(w%id)
-    w%gp%picking = .false.
+    w%gp%picking = 0
 
   end subroutine cancel_pick
 
+  !> Request a blocking job of kind kind (gpjob_*) for view iview; x
+  !> is the single-shot point (crystallographic). The main loop runs
+  !> it after the frame with its overlay; a second request in the same
+  !> frame is ignored.
+  subroutine request_job(w,iview,kind,x)
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: iview, kind
+    real*8, intent(in), optional :: x(3)
+
+    if (.not.w%request_block()) return
+    w%gp%pending_kind = kind
+    w%gp%pending_view = iview
+    if (present(x)) w%gp%pending_x = x
+    w%errmsg = ""
+
+  end subroutine request_job
+
   !> Handle the pending pick in view iview (system isys): the clicked
   !> CP of the field, or the CP at the clicked atom (its nucleus), is
-  !> added to the selection.
+  !> added to the selection; or the single-shot trace from the picked
+  !> point is requested.
   subroutine poll_pick(w,isys,iview)
     use systems, only: sys
     type(window), intent(inout), target :: w
@@ -1003,7 +1058,9 @@ contains
     real*8 :: xc(3), d
 
     call view_pick_result(iview,w%id,isys,w%gp%pick,istat,xc,cpidx)
-    if (istat == ipick_point .and. sys(isys)%goodfield(w%gp%fref%id)) then
+    if (istat == ipick_point .and. w%gp%picking == gppick_point) then
+       call request_job(w,iview,gpjob_point,sys(isys)%c%c2x(xc))
+    elseif (istat == ipick_point .and. sys(isys)%goodfield(w%gp%fref%id)) then
        call sync_sel(w,isys)
        associate(f => sys(isys)%f(w%gp%fref%id))
          if (cpidx(1) > 0 .and. cpidx(5) == w%gp%fref%id .and. cpidx(1) <= f%ncpcel) then
@@ -1028,7 +1085,7 @@ contains
           w%errmsg = "Pick a critical point of this field, or an atom"
        end if
     end if
-    if (istat /= ipick_pending) w%gp%picking = .false.
+    if (istat /= ipick_pending) w%gp%picking = 0
 
   end subroutine poll_pick
 

@@ -240,6 +240,13 @@ module windows
   integer, parameter :: cppick_x1 = 3 ! the end of a LINE seed
   integer, parameter :: cppick_clipx0 = 4 ! the first CLIP corner, or the CLIP sphere center
   integer, parameter :: cppick_clipx1 = 5 ! the second CLIP corner
+  ! The trace gradient paths window: targets of a pick in the view
+  integer, parameter :: gppick_cp = 1 ! a seed CP, added to the selection
+  integer, parameter :: gppick_point = 2 ! a point, traced up and down
+  ! The trace gradient paths window: kinds of blocking job
+  integer, parameter :: gpjob_trace = 0 ! trace the paths of the selected CPs
+  integer, parameter :: gpjob_estimate = 1 ! time a sample of that trace
+  integer, parameter :: gpjob_point = 2 ! single shot: the paths up and down from pending_x
   type cp_seed_ui
      integer :: typ = cpseed_ws ! seed kind
      integer(c_int) :: depth = 1 ! WS/OH subdivision level (0-7)
@@ -422,13 +429,16 @@ module windows
      logical :: sym = .true. ! crystals: trace the symmetry-unique CPs and carry the paths to all their copies
      real(c_float) :: rgb(3) = (/0.85_c_float,0.45_c_float,0.10_c_float/) ! color of the next group
      real(c_float) :: rad = gpaths_rad_def ! radius of the next group (bohr)
-     ! pending pick of a seed CP in the view, added to the selection
-     logical :: picking = .false.
+     ! pending pick in the view (gppick_*, 0 = none): a seed CP, added
+     ! to the selection; or a point, traced up and down (single shot)
+     integer :: picking = 0
      integer :: pickview = 0
      type(pairpick) :: pick
-     ! pending trace or cost estimate (gui_main%pending_block_window)
+     ! pending blocking job (gpjob_*; gui_main%pending_block_window),
+     ! for view pending_view; the single-shot point (crystallographic)
+     integer :: pending_kind = gpjob_trace
      integer :: pending_view = 0
-     logical :: pending_estimate = .false.
+     real*8 :: pending_x(3) = 0d0
      ! the last cost estimate (text), for the selection and options in
      ! estkey (deallocated when they change)
      character(len=:), allocatable :: estimate

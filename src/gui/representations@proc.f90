@@ -4450,7 +4450,8 @@ contains
     end subroutine cp_site
 
     !> The copies of the point site s, each in the unit cell: the
-    !> symmetry-equivalent points if t%sym, else the point itself.
+    !> symmetry-equivalent points if t%sym, else the point itself (in a
+    !> molecule, where it is, even outside the box).
     subroutine point_copies(s)
       type(gpaths_site), intent(inout) :: s
 
@@ -4473,7 +4474,7 @@ contains
            do k = 1, 3
               s%cop(k,k,1) = 1d0
            end do
-           s%cop(:,4,1) = -floor(s%x)
+           if (.not.c%ismolecule) s%cop(:,4,1) = -floor(s%x)
         end if
         allocate(s%icel(s%ncopy))
         s%icel = 0
