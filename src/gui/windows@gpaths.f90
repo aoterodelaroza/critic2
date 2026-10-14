@@ -120,6 +120,7 @@ contains
        ! the seed CPs: the table of the CPs (the nuclei only, if there
        ! was no search), and the selection
        call sync_sel(w,isys)
+       call iw_text("Critical Points",highlight=.true.)
        if (.not.sys(isys)%c%ismolecule) then
           if (iw_checkbox("Generate symmetry-equivalent paths##gpsym",w%gp%sym)) call sym_changed(w,isys)
           call iw_tooltip("Trace the paths of the selected symmetry-unique critical points once and&
@@ -147,6 +148,7 @@ contains
        call iw_text("(" // string(count(w%gp%sel)) // " selected)",sameline=.true.)
 
        ! the options of each kind of seed CP
+       call iw_text("Traced Path Details",highlight=.true.)
        call iw_text("NCP",alignframe=.true.)
        call iw_tooltip("The paths traced from the selected nuclei and nuclear critical points,&
           & in directions spread over a sphere",ttshown)
