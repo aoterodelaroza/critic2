@@ -197,7 +197,8 @@ contains
              idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegpathsfile,&
              idparent=w%id,orraise=-1)
           call iw_tooltip("Write the points of the gradient paths, bond and traced (Cartesian&
-             & coordinates, and fractional for crystals, and the field value) to a text file",ttshown)
+             & coordinates, and fractional for crystals, and the field value) to a text file, with&
+             & the source, initial direction, and up or down direction of each path",ttshown)
        end if
 
        ! close button
@@ -6399,7 +6400,9 @@ contains
   !> each copy of each site of each group traced with the Trace Gradient
   !> Paths tool, with the Cartesian coordinates (Å; for molecules in the
   !> frame of the input), the fractional coordinates (crystals), and the
-  !> field value. On error, errmsg is not empty.
+  !> field value. The header of each path gives its source, its initial
+  !> direction, and whether it goes up or down. On error, errmsg is not
+  !> empty.
   subroutine write_paths(isys,r,file,errmsg)
     use systems, only: sys, sysc
     use tools_io, only: fopen_write, fclose, string
@@ -6410,8 +6413,8 @@ contains
     character(len=*), intent(in) :: file
     character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: lu, it, is, ic, i, j, k, n, icp, ifield
-    real*8 :: xf(3), xt(3)
+    integer :: lu, it, is, ic, i, j, k, n, icp, ifield, iup
+    real*8 :: xf(3), xs(3), xt(3), rot(3,3)
     character(len=:), allocatable :: str
 
     errmsg = ""
@@ -6440,15 +6443,20 @@ contains
            do icp = c%ncel+1, f%ncpcel
               i = f%cpcel(icp)%idx
               if (all(f%cpgp(:,i)%n < 2)) cycle
+              rot = c%rotm(1:3,1:3,f%cpcel(icp)%ir)
               xt = c%rotm(:,4,f%cpcel(icp)%ir) + c%cen(:,f%cpcel(icp)%ic) + f%cpcel(icp)%lvec
+              str = cplabel(i,icp)
+              xs = matmul(rot,f%cp(i)%x) + xt
+              iup = -sign(1,f%typnuc)
               write (lu,'("#")')
-              write (lu,'("# Bond paths of BCP ",A," ",A)') trim(f%cp(i)%name), string(icp)
+              write (lu,'("# Bond paths of ",A)') str
               do j = 1, 2
                  n = f%cpgp(j,i)%n
                  if (n < 2) cycle
                  write (lu,'("# Bond path ",A,": ",A," points")') string(j), string(n)
+                 call write_seed(str,xs,rotdir(rot,merge(1d0,-1d0,j == 1) * f%cp(i)%brvec),iup)
                  do k = 1, n
-                    xf = matmul(c%rotm(1:3,1:3,f%cpcel(icp)%ir),f%cpgp(j,i)%x(:,k)) + xt
+                    xf = matmul(rot,f%cpgp(j,i)%x(:,k)) + xt
                     call write_point(xf,f%grd0(c%x2c(xf)))
                  end do
                  write (lu,*)
@@ -6465,11 +6473,7 @@ contains
            str = ""
            if (t%nsite == 1 .and. sys(isys)%goodfield(ifield)) then
               i = t%site(1)%icp
-              if (i >= 1 .and. i <= sys(isys)%f(ifield)%ncp) then
-                 associate(cp => sys(isys)%f(ifield)%cp(i))
-                   str = merge("NCP",cps_abbrev(cp%typind),cp%typ == -3) // " " // trim(cp%name) // " "
-                 end associate
-              end if
+              if (i >= 1 .and. i <= sys(isys)%f(ifield)%ncp) str = cplabel(i,0) // " "
            end if
            if (allocated(t%label)) str = str // t%label
            write (lu,'("#")')
@@ -6477,10 +6481,16 @@ contains
            do is = 1, t%nsite
               associate(s => t%site(is))
                 do ic = 1, s%ncopy
+                   ! the source of the paths of this copy
+                   str = "point"
+                   if (s%icel(ic) > 0 .and. sys(isys)%goodfield(ifield)) &
+                      str = cplabel(sys(isys)%f(ifield)%cpcel(s%icel(ic))%idx,s%icel(ic))
+                   xs = matmul(s%cop(:,1:3,ic),s%x) + s%cop(:,4,ic)
                    do j = 1, s%npath
                       n = s%path(j)%n
                       write (lu,'("# Path ",A," of site ",A,", copy ",A,": ",A," points")') &
                          string(j), string(is), string(ic), string(n)
+                      call write_seed(str,xs,rotdir(s%cop(:,1:3,ic),s%path(j)%dir),s%path(j)%iup)
                       do k = 1, n
                          xf = matmul(s%cop(:,1:3,ic),s%path(j)%x(:,k)) + s%cop(:,4,ic)
                          call write_point(xf,s%path(j)%f(k))
@@ -6496,6 +6506,65 @@ contains
     call fclose(lu)
 
   contains
+    !> Write the seed of a path: the name of its source, the position
+    !> of the source xf (crystallographic), the initial direction dir
+    !> (Cartesian unit vector; zero = none, follows the gradient), and whether
+    !> it goes up (iup = +1) or down (-1).
+    subroutine write_seed(name,xf,dir,iup)
+      character(len=*), intent(in) :: name
+      real*8, intent(in) :: xf(3), dir(3)
+      integer, intent(in) :: iup
+
+      real*8 :: xc(3)
+
+      associate(c => sys(isys)%c)
+        xc = c%x2c(xf)
+        if (c%ismolecule) then
+           xc = (xc + c%molx0) * bohrtoa
+           write (lu,'("# Source: ",A," at ",3F14.8," (Å)")') name, xc
+        else
+           xc = xc * bohrtoa
+           write (lu,'("# Source: ",A," at ",3F14.8," (Å), ",3F12.8," (fractional)")') name, xc, xf
+        end if
+      end associate
+      if (norm2(dir) > 0d0) then
+         write (lu,'("# Initial direction: ",3F12.8," (Cartesian)")') dir
+      else
+         write (lu,'("# Initial direction: none (follows the gradient)")')
+      end if
+      if (iup > 0) then
+         write (lu,'("# Goes up (towards increasing field)")')
+      else
+         write (lu,'("# Goes down (towards decreasing field)")')
+      end if
+
+    end subroutine write_seed
+
+    !> The Cartesian vector dir carried by the crystallographic
+    !> rotation r.
+    function rotdir(r,dir)
+      real*8, intent(in) :: r(3,3), dir(3)
+      real*8 :: rotdir(3)
+
+      associate(c => sys(isys)%c)
+        rotdir = matmul(c%m_x2c,matmul(r,matmul(c%m_c2x,dir)))
+      end associate
+
+    end function rotdir
+
+    !> The label of the symmetry-unique CP i of the field: its type
+    !> and name, and the cell CP icel if icel > 0.
+    function cplabel(i,icel)
+      integer, intent(in) :: i, icel
+      character(len=:), allocatable :: cplabel
+
+      associate(cp => sys(isys)%f(ifield)%cp(i))
+        cplabel = merge("NCP",cps_abbrev(cp%typind),cp%typ == -3) // " " // trim(cp%name)
+      end associate
+      if (icel > 0) cplabel = cplabel // " (cell CP " // string(icel) // ")"
+
+    end function cplabel
+
     !> Write the point xf (crystallographic) with field value fval.
     subroutine write_point(xf,fval)
       real*8, intent(in) :: xf(3), fval

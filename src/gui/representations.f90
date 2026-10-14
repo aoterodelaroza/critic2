@@ -1074,13 +1074,16 @@ module representations
   integer, parameter, public :: gtrace_axis_plane = 2 ! the paths in the plane (interatomic surface of a BCP, ring surface of an RCP)
 
   !> A traced gradient path, in crystallographic coordinates
-  !> (continuous along the path), with the field value at each point.
+  !> (continuous along the path), with the field value at each point,
+  !> and its initial direction and sense (its source is the site).
   !> If it ends at a CP, cend/clend give the cell CP and lattice vector
   !> for each copy of its site (the cell CPs 1..ncel are the nuclei).
   type gpaths_tpath
      integer :: n = 0 ! number of points
      real*8, allocatable :: x(:,:) ! points (3,n), crystallographic
      real*8, allocatable :: f(:) ! field value at the points (n)
+     real*8 :: dir(3) = 0d0 ! initial direction (Cartesian unit vector; zero = along the gradient)
+     integer :: iup = 1 ! direction of the path (+1 up, -1 down)
      integer :: icpend = 0 ! symmetry-unique CP at the end of the path (0 = none)
      integer, allocatable :: cend(:) ! cell CP at the end of each copy (ncopy; 0 = none)
      integer, allocatable :: clend(:,:) ! lattice vector of that CP (3,ncopy)

@@ -4513,6 +4513,8 @@ contains
               s%path(j)%x(:,k) = paths(j)%p(k)%x
               s%path(j)%f(k) = paths(j)%p(k)%f
            end do
+           s%path(j)%dir = paths(j)%seed%dir
+           s%path(j)%iup = paths(j)%seed%iup
 
            ! the CP at the end of the path (a CP within eps_end; 0
            ! otherwise)
