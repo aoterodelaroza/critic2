@@ -745,7 +745,7 @@ contains
     if (doenv) then
        ! load the atomic density grids
        do i = 1, c%nspc
-          call grid1_register_ae(c%spc(i)%z)
+          call grid1_register_ae(c%spc(i)%z,ti)
        end do
 
        ! set up the block environments (unless the reduction in path B already

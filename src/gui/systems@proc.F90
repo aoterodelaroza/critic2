@@ -50,14 +50,31 @@ contains
   !> Launch the initialization threads, which will go over all systems
   !> trying to initialize them.
   module subroutine launch_initialization_thread()
-    use interfaces_threads, only: thrd_create
+    use interfaces_threads, only: thrd_create, thrd_success
     use gui_main, only: force_quit_threads
     integer :: i, idum
 
     force_quit_threads = .false.
 #ifdef _THREADS
+    ! The running threads only go over the systems that existed when
+    ! they started, and a second set of threads would share their
+    ! thread_ti (LUs and active flag). Launch again when they are done.
+    if (are_threads_running()) then
+       init_launch_pending = .true.
+       return
+    end if
+
+    ! join the threads of the previous launch (they have finished)
+    call kill_initialization_thread()
+
+    init_launch_pending = .false.
     do i = 1, nthread
+       ! active before the thread exists, so are_threads_running does
+       ! not miss a thread that has not started yet
+       thread_ti(i)%active = .true.
        idum = thrd_create(c_loc(thread(i)), c_funloc(initialization_thread_worker), c_loc(thread_ti(i)))
+       thread_joinable(i) = (idum == thrd_success)
+       thread_ti(i)%active = thread_joinable(i)
     end do
 #else
     idum = initialization_thread_worker(c_loc(thread_ti(1)))
@@ -76,7 +93,10 @@ contains
 #ifdef _THREADS
     force_quit_threads = .true.
     do i = 1, nthread
+       if (.not.thread_joinable(i)) cycle
        idum = wrap_thrd_join(c_loc(thread(i)),res)
+       thread_joinable(i) = .false.
+       thread_ti(i)%active = .false.
     end do
     force_quit_threads = .false.
 #endif
@@ -4734,9 +4754,8 @@ contains
     ! attribute must be repeated here so the poll below is not optimized away
     volatile :: force_quit_threads
 
-    ! recover the thread info pointer
+    ! recover the thread info pointer (ti%active was set by the launcher)
     call c_f_pointer(arg,ti)
-    ti%active = .true.
 
     ! run over systems
     i0 = 1

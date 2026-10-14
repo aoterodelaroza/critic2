@@ -131,7 +131,7 @@ contains
   !> parse. oksyn is true in output if the syntax was OK. dormt is
   !> true in output if the MT test discontinuity test needs to be run
   !> for elk/wien2k fields.
-  module subroutine field_set_options(ff,line,errmsg)
+  module subroutine field_set_options(ff,line,errmsg,ti)
     use grid1mod, only: grid1_register_core
     use global, only: eval_next, new_uid
     use tools_io, only: string, lgetword, equal, zatguess,&
@@ -140,6 +140,7 @@ contains
     class(field), intent(inout) :: ff
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: word, word2, aux
     integer :: lp, lp2, iz, iq, i, is
@@ -292,7 +293,7 @@ contains
           if (ff%usecore) then
              do i = 1, ff%c%nspc
                 if (ff%zpsp(i) > 0) then
-                   call grid1_register_core(ff%c%spc(i)%z,ff%zpsp(i),errmsg)
+                   call grid1_register_core(ff%c%spc(i)%z,ff%zpsp(i),errmsg,ti)
                    if (len_trim(errmsg) > 0) return
                 end if
              end do
@@ -704,7 +705,7 @@ contains
              f%name = "<generated>, promolecular grid"
           end if
        else
-          call f%set_options(seed%elseopt,errmsg) ! I need the zpsp now
+          call f%set_options(seed%elseopt,errmsg,ti) ! I need the zpsp now
           if (all(f%zpsp < 0)) then
              errmsg = "need zpsp values for load as core"
              return
@@ -795,7 +796,7 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     ! set the rest of the variables passed with the field
-    call f%set_options(seed%elseopt,errmsg)
+    call f%set_options(seed%elseopt,errmsg,ti)
     if (len_trim(errmsg) > 0) goto 999
 
     ! if this is an "as core" field, deactivate the use of an additonal core (double count)

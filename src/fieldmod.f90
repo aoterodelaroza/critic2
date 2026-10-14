@@ -157,10 +157,11 @@ module fieldmod
      module subroutine field_set_default_options(ff)
        class(field), intent(inout) :: ff
      end subroutine field_set_default_options
-     module subroutine field_set_options(ff,line,errmsg)
+     module subroutine field_set_options(ff,line,errmsg,ti)
        class(field), intent(inout) :: ff
        character*(*), intent(in) :: line
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine field_set_options
      module function field_guess_allelectron(f,rnuc,rval) result(isae)
        class(field), intent(in) :: f

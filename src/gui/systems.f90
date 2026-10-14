@@ -39,6 +39,11 @@ module systems
   real*8, parameter, public :: md_frame_budget = 0.1d0
   type(c_ptr), target, allocatable, public :: thread(:)
   type(thread_info), target, allocatable, public :: thread_ti(:)
+  ! thread(i) holds a created thread that has not been joined yet
+  logical :: thread_joinable(nthread) = .false.
+  ! a launch was requested while the threads were running; the main
+  ! loop retries it every frame until it happens
+  logical, public :: init_launch_pending = .false.
 
   ! system status (from lower to higher initialization level)
   integer, parameter, public :: sys_group = -1 ! a collapsed-group header, not a system

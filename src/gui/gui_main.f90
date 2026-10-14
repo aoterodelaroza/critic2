@@ -166,6 +166,7 @@ module gui_main
   logical, public :: in_cancellable_job = .false.
   logical, public :: job_progress_on = .false. ! the overlay of the job has a progress bar, updated during the job
   real(c_float), public :: job_progress_rect(4) = 0._c_float ! screen rectangle (x0,y0,x1,y1) of that progress bar
+  logical :: job_stopped_init = .false. ! the job stopped the initialization threads, relaunch them at the end
   type dropped_file
      character(len=:), allocatable :: name
   end type dropped_file

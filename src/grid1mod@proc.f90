@@ -164,29 +164,39 @@ contains
   !> in valence (iq = iz) has no core, and its grid is left empty.
   !> If the core is not available, the reason is returned in errmsg
   !> (empty otherwise).
-  module subroutine grid1_register_core(iz,iq,errmsg)
+  module subroutine grid1_register_core(iz,iq,errmsg,ti)
     use param, only: maxzat0, maxzat
     integer, intent(in) :: iz, iq
     character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
 
+    ! cgrid is global and this routine also runs in the GUI
+    ! initialization threads (ZPSP fields), so one thread at a time
+    ! (the lock needs OpenMP; without it, this is safe only with a
+    ! single initialization thread)
     errmsg = ""
+    !$omp critical (grid1_register)
     if (.not.allocated(cgrid)) allocate(cgrid(maxzat0,maxzat0))
-    if (iz <= 0 .or. iz > maxzat) return
-    if (iq <= 0 .or. iq >= iz) return
-    if (cgrid(iz,iq)%isinit) return
-    call cgrid(iz,iq)%read_db(iz,iq,errmsg=errmsg)
+    if (iz > 0 .and. iz <= maxzat .and. iq > 0 .and. iq < iz) then
+       if (.not.cgrid(iz,iq)%isinit) call cgrid(iz,iq)%read_db(iz,iq,ti=ti,errmsg=errmsg)
+    end if
+    !$omp end critical (grid1_register)
 
   end subroutine grid1_register_core
 
   !> Read the all-electron density from the internal density tables
   !> for atom with Z = iz.
-  module subroutine grid1_register_ae(iz)
+  module subroutine grid1_register_ae(iz,ti)
     use param, only: maxzat0, maxzat
     integer, intent(in) :: iz
+    type(thread_info), intent(in), optional :: ti
 
     integer :: i
 
     if (iz <= 0 .or. iz > maxzat) return
+
+    ! agrid is global (see grid1_register_core)
+    !$omp critical (grid1_register)
     if (.not.allocated(agrid)) then
        allocate(agrid(maxzat0))
        do i = 1, maxzat0
@@ -195,12 +205,9 @@ contains
           agrid(i)%qat = 0
        end do
     end if
-
-    if (agrid(iz)%isinit) then
-       if (agrid(iz)%z == iz) return
-    end if
-
-    call agrid(iz)%read_db(iz,0)
+    if (.not.agrid(iz)%isinit .or. agrid(iz)%z /= iz) &
+       call agrid(iz)%read_db(iz,0,ti=ti)
+    !$omp end critical (grid1_register)
 
   end subroutine grid1_register_ae
 

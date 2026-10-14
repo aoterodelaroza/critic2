@@ -85,12 +85,14 @@ module grid1mod
        real*8, intent(out) :: fp
        real*8, intent(out) :: fpp
      end subroutine interp
-     module subroutine grid1_register_core(iz,iq,errmsg)
+     module subroutine grid1_register_core(iz,iq,errmsg,ti)
        integer, intent(in) :: iz, iq
        character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
      end subroutine grid1_register_core
-     module subroutine grid1_register_ae(iz)
+     module subroutine grid1_register_ae(iz,ti)
        integer, intent(in) :: iz
+       type(thread_info), intent(in), optional :: ti
      end subroutine grid1_register_ae
      module subroutine grid1_register_states(iz)
        integer, intent(in) :: iz

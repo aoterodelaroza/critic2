@@ -83,7 +83,8 @@ contains
     use interfaces_opengl3
     use interfaces_stb
     use systems, only: sys, sysc, nsys, launch_initialization_thread, system_shorten_names,&
-       thread, thread_ti, nthread, are_threads_running, kill_initialization_thread
+       thread, thread_ti, nthread, are_threads_running, kill_initialization_thread,&
+       init_launch_pending
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
@@ -376,6 +377,9 @@ contains
     shown = .false.
     jobran = .false.
     do while (glfwWindowShouldClose(rootwin) == 0)
+       ! a launch of the initialization threads requested while they were busy
+       if (init_launch_pending) call launch_initialization_thread()
+
        ! poll events, and load the files dropped during a cancellable job
        call glfwPollEvents()
        if (ndropped > 0 .and. .not.in_cancellable_job) call load_dropped_files()
@@ -583,6 +587,10 @@ contains
        firstpass = .false.
     end do
 
+    ! stop the initialization threads before their systems go away (a
+    ! cancellable job ended by closing the window relaunches them)
+    call kill_initialization_thread()
+
     ! save the user preferences (the layout is saved only from the
     ! Windows menu)
     call settings_save()
@@ -670,8 +678,16 @@ contains
   module subroutine begin_cancellable()
     use interfaces_glfw, only: glfwGetKey, glfwSwapInterval, GLFW_KEY_ESCAPE
     use global, only: abort_requested, abort_hook, progress_start
+    use systems, only: are_threads_running, kill_initialization_thread
 
     integer(c_int) :: idum
+
+    ! The initialization threads stand down during the job: the abort
+    ! hook processes the window events and must never run in them, they
+    ! would see the job's cancel request, and the job's progress is
+    ! global. Waits for the system being initialized, if any.
+    job_stopped_init = are_threads_running()
+    if (job_stopped_init) call kill_initialization_thread()
 
     ! clear the sticky-key state of an earlier Esc (GLFW_STICKY_KEYS),
     ! and the progress of an earlier job
@@ -693,6 +709,7 @@ contains
   module function end_cancellable() result(cancelled)
     use interfaces_glfw, only: glfwSwapInterval
     use global, only: abort_requested, abort_hook
+    use systems, only: launch_initialization_thread
     logical :: cancelled
 
     cancelled = abort_requested
@@ -702,6 +719,10 @@ contains
     job_progress_on = .false.
     call glfwSwapInterval(1)
     if (cancelled) esc_swallow = esc_swallow_frames
+
+    ! restart the initialization threads stopped by begin_cancellable
+    if (job_stopped_init) call launch_initialization_thread()
+    job_stopped_init = .false.
 
   end function end_cancellable
 
