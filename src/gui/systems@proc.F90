@@ -56,9 +56,10 @@ contains
 
     force_quit_threads = .false.
 #ifdef _THREADS
-    ! The running threads only go over the systems that existed when
-    ! they started, and a second set of threads would share their
-    ! thread_ti (LUs and active flag). Launch again when they are done.
+    ! A second set of threads would share the thread_ti (LUs and
+    ! active flag) of the running ones. The running threads pick up
+    ! new systems, but they may be past their last pass: launch again
+    ! when they are done.
     if (are_threads_running()) then
        init_launch_pending = .true.
        return
@@ -91,6 +92,9 @@ contains
     integer(c_int) :: res, idum
 
 #ifdef _THREADS
+    ! a launch requested while they ran is dropped: the caller
+    ! relaunches when it wants them back
+    init_launch_pending = .false.
     force_quit_threads = .true.
     do i = 1, nthread
        if (.not.thread_joinable(i)) cycle
@@ -879,6 +883,11 @@ contains
           end if
        end if
     end if
+
+    ! the initialization threads may be working on this system, and
+    ! they must not take it before it is restored below (relaunched
+    ! at the end)
+    if (are_threads_running()) call kill_initialization_thread()
 
     ! terminate the system, including any interactive dynamics (it
     ! keeps its unique identifier: it is the same system, read again)
@@ -4783,9 +4792,10 @@ contains
     integer(c_int) :: initialization_thread_worker
     type(thread_info), pointer :: ti
 
-    integer :: i, i0, i1
+    integer :: i
     integer(c_int) :: idum
     integer :: iff, ivformat
+    logical :: again
     character(len=:), allocatable :: errmsg, str
 
     ! written by the main thread (kill_initialization_thread); the volatile
@@ -4795,95 +4805,105 @@ contains
     ! recover the thread info pointer (ti%active was set by the launcher)
     call c_f_pointer(arg,ti)
 
-    ! run over systems
-    i0 = 1
-    i1 = nsys
-    do i = i0, i1
-       ! check if they want us to quit
-       if (force_quit_threads) exit
-       ! try to grab the lock for this system
+    ! run over the systems until a pass finds none left to initialize,
+    ! so systems added while the thread runs are picked up too
+    again = .true.
+    do while (again .and. .not.force_quit_threads)
+       again = .false.
+       ! nsys may run ahead of the array while it grows (grow_system_list
+       ! stops this thread before reallocating)
+       do i = 1, min(nsys,size(sysc,1))
+          ! check if they want us to quit
+          if (force_quit_threads) exit
+
+          ! only uninitialized and not hidden; the status is stored after
+          ! the system and its lock are set up (pairs with that fence)
+          if (sysc(i)%status /= sys_loaded_not_init) cycle
+          call memory_fence()
+          if (sysc(i)%hidden) cycle
 #ifdef _THREADS
-       if (c_associated(sysc(i)%thread_lock)) then
+          ! try to grab the lock for this system
+          if (.not.c_associated(sysc(i)%thread_lock)) cycle
           idum = mtx_trylock(sysc(i)%thread_lock)
-          if (idum == thrd_success) then
+          if (idum /= thrd_success) cycle
 #endif
-             ! see if we can load it - only uninitialized and not hidden
-             if (sysc(i)%status == sys_loaded_not_init.and..not.sysc(i)%hidden) then
-                sysc(i)%status = sys_initializing
-                ! load the seed
-                call sys(i)%new_from_seed(sysc(i)%seed,errmsg,ti=ti)
-                if (len_trim(errmsg) > 0) then
-                   write (uout,'("!! Warning !! Could not build system: ",A)') string(i)
-                   write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
-                end if
-
-                ! load any fields
-                if (sysc(i)%has_field) then
-                   ! quoted so a path with blanks survives the LOAD tokenizer;
-                   ! honor the read-the-virtuals preference (a no-op for
-                   ! formats without virtual orbitals)
-                   str = quoteword(sysc(i)%seed%file)
-                   if (always_read_virtuals) str = str // " readvirtual"
-                   call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti,readchk=.true.,&
-                      autointerp=.true.)
-                   if (len_trim(errmsg) > 0) then
-                      write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
-                      write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
-                   end if
-                end if
-
-                ! the fields of the scene file the system came from
-                call scene_file_load_fields(i,ti)
-
-                ! load vibration data
-                if (sysc(i)%has_vib) then
-                   if (sysc(i)%seed%isformat == isformat_r_crystal) then
-                      ivformat = ivformat_crystal_out
-                   elseif (sysc(i)%seed%isformat == isformat_r_gaussian) then
-                      ivformat = ivformat_gaussian_log
-                   elseif (sysc(i)%seed%isformat == isformat_r_fchk) then
-                      ivformat = ivformat_gaussian_fchk
-                   else
-                      ivformat = ivformat_unknown
-                   end if
-                   call sys(i)%c%vib%read_file(sys(i)%c,sysc(i)%seed%file,"",ivformat,errmsg,ti=ti)
-                   if (len_trim(errmsg) > 0) then
-                      write (uout,'("!! Warning !! Could not read vibration data for system: ",A)') string(i)
-                      write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
-                   end if
-                end if
-
-                ! all data is in-place, so we flag the system as ready (the
-                ! fence makes the data visible to the main thread before
-                ! the status)
-                call memory_fence()
-                sysc(i)%status = sys_ready
-
-                ! initialize the scene and build the initial draw list
-                call sysc(i)%sc%init(i)
-
-                ! post the first geometry change
-                call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
-
-                ! the settings of the scene file the system came from
-                call scene_file_apply(i)
-
-                ! this system has been initialized
-                call memory_fence()
-                sysc(i)%status = sys_init
-
-                ! seed the undo/redo history with the initial geometry (must
-                ! come after the status is set, since undo_capture only records
-                ! systems that are sys_init)
-                call sysc(i)%undo_reset()
+          ! check again, in case another thread got here first
+          if (sysc(i)%status == sys_loaded_not_init.and..not.sysc(i)%hidden) then
+             again = .true.
+             sysc(i)%status = sys_initializing
+             ! load the seed
+             call sys(i)%new_from_seed(sysc(i)%seed,errmsg,ti=ti)
+             if (len_trim(errmsg) > 0) then
+                write (uout,'("!! Warning !! Could not build system: ",A)') string(i)
+                write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
              end if
 
-#ifdef _THREADS
-             ! unlock
-             idum = mtx_unlock(sysc(i)%thread_lock)
+             ! load any fields
+             if (sysc(i)%has_field) then
+                ! quoted so a path with blanks survives the LOAD tokenizer;
+                ! honor the read-the-virtuals preference (a no-op for
+                ! formats without virtual orbitals)
+                str = quoteword(sysc(i)%seed%file)
+                if (always_read_virtuals) str = str // " readvirtual"
+                call sys(i)%load_field_string(str,.false.,iff,errmsg,ti=ti,readchk=.true.,&
+                   autointerp=.true.)
+                if (len_trim(errmsg) > 0) then
+                   write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
+                   write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+                end if
+             end if
+
+             ! the fields of the scene file the system came from
+             call scene_file_load_fields(i,ti)
+
+             ! load vibration data
+             if (sysc(i)%has_vib) then
+                if (sysc(i)%seed%isformat == isformat_r_crystal) then
+                   ivformat = ivformat_crystal_out
+                elseif (sysc(i)%seed%isformat == isformat_r_gaussian) then
+                   ivformat = ivformat_gaussian_log
+                elseif (sysc(i)%seed%isformat == isformat_r_fchk) then
+                   ivformat = ivformat_gaussian_fchk
+                else
+                   ivformat = ivformat_unknown
+                end if
+                call sys(i)%c%vib%read_file(sys(i)%c,sysc(i)%seed%file,"",ivformat,errmsg,ti=ti)
+                if (len_trim(errmsg) > 0) then
+                   write (uout,'("!! Warning !! Could not read vibration data for system: ",A)') string(i)
+                   write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+                end if
+             end if
+
+             ! all data is in-place, so we flag the system as ready (the
+             ! fence makes the data visible to the main thread before
+             ! the status)
+             call memory_fence()
+             sysc(i)%status = sys_ready
+
+             ! initialize the scene and build the initial draw list
+             call sysc(i)%sc%init(i)
+
+             ! post the first geometry change
+             call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
+
+             ! the settings of the scene file the system came from
+             call scene_file_apply(i)
+
+             ! this system has been initialized
+             call memory_fence()
+             sysc(i)%status = sys_init
+
+             ! seed the undo/redo history with the initial geometry (must
+             ! come after the status is set, since undo_capture only records
+             ! systems that are sys_init)
+             call sysc(i)%undo_reset()
           end if
-       end if
+
+#ifdef _THREADS
+          ! unlock
+          idum = mtx_unlock(sysc(i)%thread_lock)
 #endif
+       end do
     end do
     initialization_thread_worker = 0
     ti%active = .false.

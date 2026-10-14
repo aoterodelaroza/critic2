@@ -28,6 +28,7 @@ submodule (tools_io) proc
 
   ! logical unit allocation
   logical :: alloc(0:300) !< allocation flag array
+  logical :: reserved(0:300) !< reserved for a thread (falloc without ti skips it)
 
 contains
 
@@ -36,6 +37,7 @@ contains
     use iso_fortran_env, only: error_unit, input_unit, output_unit
 
     alloc = .false.
+    reserved = .false.
     alloc(error_unit) = .true.
     alloc(input_unit) = .true.
     alloc(output_unit) = .true.
@@ -1662,7 +1664,7 @@ contains
        ! allocate a new LU
        ok = .false.
        do falloc = 1, ubound(alloc,1)
-          ok = .not.alloc(falloc)
+          ok = .not.alloc(falloc) .and. .not.reserved(falloc)
           if (ok) exit
        end do
     end if
@@ -1686,6 +1688,26 @@ contains
     !$omp end critical (falloc)
 
   end subroutine fdealloc
+
+  !> Reserve a free LU for a thread and return it: falloc without ti
+  !> will not return it; the thread allocates it with falloc(ti).
+  module function freserve()
+    integer :: freserve
+
+    logical :: ok
+
+    !$omp critical (falloc)
+    ok = .false.
+    do freserve = 1, ubound(alloc,1)
+       ok = .not.alloc(freserve) .and. .not.reserved(freserve)
+       if (ok) exit
+    end do
+    if (ok) reserved(freserve) = .true.
+    !$omp end critical (falloc)
+    if (.not.ok) &
+       call ferror("freserve","could not reserve logical unit",faterr)
+
+  end function freserve
 
   !> Send an error message 'message' to stdout, coming from routine
   !> 'routine'. errortype is the error code (see mod_param.f90).

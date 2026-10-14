@@ -57,6 +57,7 @@ module tools_io
   public :: getenv_alloc
   public :: falloc
   public :: fdealloc
+  public :: freserve
   public :: ferror
   public :: tictac
   public :: file_read_xy
@@ -322,6 +323,9 @@ module tools_io
      module subroutine fdealloc(u)
        integer, intent(in) :: u
      end subroutine fdealloc
+     module function freserve()
+       integer :: freserve
+     end function freserve
      module subroutine ferror(routine,message,errortype,inputline,syntax)
        character*(*), intent(in) :: routine
        character*(*), intent(in) :: message

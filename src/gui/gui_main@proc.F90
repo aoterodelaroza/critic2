@@ -95,7 +95,7 @@ contains
        read_output_uout, objedit_busy
     use global, only: critic_home, abort_requested
     use c_interface_module, only: f_c_string_dup, C_string_free
-    use tools_io, only: string, falloc, fdealloc, ferror, warning
+    use tools_io, only: string, freserve, ferror, warning
     use param, only: dirsep
     integer(c_int) :: idum, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh, iwsw, iwsh, ifbw, ifbh
@@ -109,7 +109,7 @@ contains
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
     logical :: reinit, jobran
     character(kind=c_char,len=:), allocatable, target :: strc, file
-    integer :: i, j, ludum(10), saveinpcon
+    integer :: i, j, saveinpcon
     logical :: firstpass, shown
     character(len=:), allocatable :: errmsg
     integer(c_short), allocatable, target :: range(:)
@@ -134,27 +134,16 @@ contains
     nsys = 0
     allocate(sys(initial_nsys),sysc(initial_nsys))
 
-    ! initialize threads: reserve some un-used LUs and then
-    ! deallocate them for fopen
+    ! initialize threads: each brings its own LUs, reserved so that
+    ! the main thread's falloc does not take them
     if (allocated(thread)) deallocate(thread)
     allocate(thread(nthread),thread_ti(nthread))
-    do i = 1, size(ludum,1)
-       ludum(i) = falloc()
-    end do
     do i = 1, nthread
        thread_ti(i)%id = i
+       thread(i) = c_null_ptr
        do j = 1, size(thread_ti(i)%lu,1)
-          thread_ti(i)%lu(j) = falloc()
-          thread(i) = c_null_ptr
+          thread_ti(i)%lu(j) = freserve()
        end do
-    end do
-    do i = 1, nthread
-       do j = 1, size(thread_ti(i)%lu,1)
-          call fdealloc(thread_ti(i)%lu(j))
-       end do
-    end do
-    do i = 1, size(ludum,1)
-       call fdealloc(ludum(i))
     end do
 
 #ifdef _WIN32
