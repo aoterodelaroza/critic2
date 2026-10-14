@@ -362,7 +362,7 @@ contains
        if (s%rep(irep)%type == reptype_cps) s%rep(irep)%cps%rgb = ColorCP
        if (s%rep(irep)%type == reptype_gpaths) then
           s%rep(irep)%gpaths%rgb = ColorGpath
-          call s%rep(irep)%gpaths%fill_rgb()
+          call s%rep(irep)%gpaths%apply_style(.true.,.false.)
        end if
     end do
     s%forcebuildlists = .true.

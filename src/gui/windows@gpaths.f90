@@ -215,7 +215,7 @@ contains
           if (.not.same_key(w%gp%estkey,estimate_key(w))) deallocate(w%gp%estimate,w%gp%estkey)
        end if
        if (len(formerr) > 0) then
-          call iw_text(formerr,disabled=.true.,sameline=.true.)
+          call iw_text(formerr,disabled=.true.,wrap=.true.)
        elseif (allocated(w%gp%estimate)) then
           call iw_text(w%gp%estimate,wrap=.true.)
        end if

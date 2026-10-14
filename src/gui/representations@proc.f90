@@ -311,9 +311,6 @@ contains
        r%gpaths = rep_gpaths()
        call r%gpaths%fref%set(sys(isys),cps_field_default(isys,withpaths=.true.))
        r%gpaths%rgb = ColorGpath
-       ! the atoms at the path ends: in a molecule, the atoms object
-       ! already draws all of them
-       r%gpaths%showends = .not.sys(isys)%c%ismolecule
     end if
 
     ! geometric shapes
@@ -4061,7 +4058,32 @@ contains
 
   end subroutine gpaths_path_end
 
-  !> Set the color of every path to the global color.
+  !> Give every path of object g, bond paths and all the copies of the
+  !> traced groups, the global color (color) and/or radius (radius).
+  module subroutine gpaths_apply_style(g,color,radius)
+    class(rep_gpaths), intent(inout) :: g
+    logical, intent(in) :: color, radius
+
+    integer :: i
+
+    if (color) call g%fill_rgb()
+    if (radius .and. allocated(g%prad)) g%prad = g%rad
+    do i = 1, g%ntrace
+       associate(t => g%trace(i))
+         if (color) then
+            t%rgb = g%rgb
+            if (allocated(t%crgb)) t%crgb = spread(t%rgb,2,size(t%crgb,2))
+         end if
+         if (radius) then
+            t%rad = g%rad
+            if (allocated(t%crad)) t%crad = t%rad
+         end if
+       end associate
+    end do
+
+  end subroutine gpaths_apply_style
+
+  !> Set the color of every bond path to the global color.
   module subroutine gpaths_fill_rgb(g)
     class(rep_gpaths), intent(inout) :: g
 

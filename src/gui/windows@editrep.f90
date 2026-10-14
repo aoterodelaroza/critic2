@@ -68,18 +68,18 @@ contains
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
-       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar
+       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, field_has_cps
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
-    use systems, only: sys, sysc, sys_init, ok_system
+    use systems, only: sysc, sys_init, ok_system
     use utils, only: iw_text, iw_tooltip, iw_button, iw_calcheight, iw_checkbox,&
-       iw_inputtext, iw_close_event, iw_setpos_bottomright, iw_periodicity_widget
+       iw_inputtext, iw_close_event, iw_setpos_bottomright
     use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview
-    logical :: doquit, ok, doper, ch
+    integer :: isys, iview, idum
+    logical :: doquit, ok, ch, doexport
     logical :: changed, renamed
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -113,12 +113,10 @@ contains
        changed = changed .or. iw_checkbox("Show",w%rep%shown,sameline=.true.)
        call iw_tooltip("Toggle show/hide this object",ttshown)
 
-       ! periodicity override, for the objects drawn over the cells of the
-       ! Display (atoms, unit cell, and a whole-cell isosurface) in crystals
-       doper = .not.sys(isys)%c%ismolecule
-       if (doper) doper = w%rep%uses_periodicity()
-       if (doper) then
-          ch = iw_periodicity_widget(w%rep%disp%ncell,ttshown,pertype=w%rep%disp%pertype)
+       ! periodicity override (gradient paths: after their field, in
+       ! draw_editrep_gpaths)
+       if (w%rep%type /= reptype_gpaths) then
+          ch = periodicity_widget(w,ttshown)
           changed = changed .or. ch
        end if
 
@@ -170,13 +168,30 @@ contains
        end if
 
        ! right-align and bottom-align for the rest of the contents
-       call iw_setpos_bottomright(10,2)
+       ! (gradient paths: with the export button)
+       doexport = (w%rep%type == reptype_gpaths)
+       if (doexport) then
+          call iw_setpos_bottomright(29,3)
+       else
+          call iw_setpos_bottomright(10,2)
+       end if
 
        ! reset button
        if (iw_button("Reset",danger=.true.)) then
           call w%rep%set_defaults(0)
           win(iview)%sc%forcebuildlists = .true.
           call win(iview)%sc%undo_note("Reset " // trim(w%rep%name))
+       end if
+
+       ! export the gradient paths, bond and traced, to a text file
+       ! (written by draw_editrep_gpaths when the dialog sets okfile)
+       if (doexport) then
+          ok = (w%rep%gpaths%ntrace > 0) .or. field_has_cps(isys,w%rep%gpaths%fref%id,withpaths=.true.)
+          if (iw_button("Export to Text File",sameline=.true.,disabled=.not.ok)) &
+             idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegpathsfile,&
+             idparent=w%id,orraise=-1)
+          call iw_tooltip("Write the points of the gradient paths, bond and traced (Cartesian&
+             & coordinates, and fractional for crystals, and the field value) to a text file",ttshown)
        end if
 
        ! close button
@@ -2314,6 +2329,23 @@ contains
   !> The Show All / Hide All / Toggle Show/Hide button row over the mask
   !> shown; idsuffix makes the button IDs unique and what names the
   !> items in the tooltips. Returns whether the mask changed.
+  !> Draw the periodicity override of the object of editrep window w,
+  !> for the objects drawn over the cells of the Display (atoms, unit
+  !> cell, and a whole-cell isosurface) in crystals. Returns true if it
+  !> changed.
+  function periodicity_widget(w,ttshown) result(changed)
+    use systems, only: sys
+    use utils, only: iw_periodicity_widget
+    class(window), intent(inout) :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    changed = .false.
+    if (sys(w%isys)%c%ismolecule .or. .not.w%rep%uses_periodicity()) return
+    changed = iw_periodicity_widget(w%rep%disp%ncell,ttshown,pertype=w%rep%disp%pertype)
+
+  end function periodicity_widget
+
   function showhide_buttons(shown,idsuffix,what,ttshown) result(changed)
     use utils, only: iw_button, iw_tooltip
     logical, intent(inout) :: shown(:)
@@ -5194,13 +5226,12 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, ncol, ihover(3), idum
+    integer :: isys, iview, ifield, ihighlight, highlight_type, i, j, k, ncol, ihover(3)
     integer :: nuniq, ncell, irem, ithov(2), ntc
     integer, allocatable :: iuniq(:,:), icell(:,:)
     integer(c_int) :: istyle, itable
     logical :: ldum
-    logical :: ch, typechanged, pathsok
-    real(c_float) :: xcol
+    logical :: ch, typechanged, pathsok, ok
     character(kind=c_char,len=:), allocatable, target :: str1, suffix
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -5214,11 +5245,9 @@ contains
     highlight_type = atlisttype_species
     ihover = 0
 
-    ! the widgets start at one column, after the longest label
-    xcol = igGetCursorPosX() + iw_calcwidth(len("Style "),0)
-
     ! field selector
-    call label("Field")
+    call iw_text("Field",highlight=.true.,alignframe=.true.)
+    call igSameLine(0._c_float,-1._c_float)
     ifield = w%rep%gpaths%fref%id
     if (iw_field_combo("##gpathsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
        nonestr="<field not available>")) then
@@ -5226,16 +5255,21 @@ contains
        changed = .true.
     end if
     call iw_tooltip("Field whose gradient paths are displayed",ttshown)
-    if (.not.sys(isys)%goodfield(w%rep%gpaths%fref%id)) then
+    ok = sys(isys)%goodfield(w%rep%gpaths%fref%id)
+    if (.not.ok) then
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
-       return
-    end if
-    if (.not.field_has_cps(isys,w%rep%gpaths%fref%id,withpaths=.true.)) &
+    elseif (.not.field_has_cps(isys,w%rep%gpaths%fref%id,withpaths=.true.)) then
        call iw_text("This field has no gradient paths (run AUTO, or load a checkpoint that has them)",&
           disabled=.true.,wrap=.true.)
+    end if
 
-    ! style of all paths
-    call label("Style")
+    ! periodicity override
+    ch = periodicity_widget(w,ttshown)
+    changed = changed .or. ch
+    if (.not.ok) return
+
+    ! style of all paths, bond and traced
+    call iw_text("Style",highlight=.true.)
     istyle = int(w%rep%gpaths%style,c_int)
     call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
        "String of spheres" // c_null_char,istyle,changed=ch,tooltips=&
@@ -5247,23 +5281,24 @@ contains
        changed = .true.
     end if
 
-    ! global color and radius: set those of all paths
+    ! global color and radius: set those of all paths, bond and traced
     pathsok = w%rep%gpaths%paths_ok(isys)
-    call label("Color")
-    ch = iw_coloredit("##gpathscolor",rgb=w%rep%gpaths%rgb)
-    call iw_tooltip("Color of all gradient paths (sets the color of every path in the table below)",ttshown)
+    ch = iw_coloredit("Color##gpathscolor",rgb=w%rep%gpaths%rgb)
+    call iw_tooltip("Color of all gradient paths, bond and traced (sets the color of every path in the&
+       & table below)",ttshown)
     if (ch) then
-       call w%rep%gpaths%fill_rgb()
+       call w%rep%gpaths%apply_style(.true.,.false.)
        changed = .true.
     end if
     ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
        min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
        sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the tubes or spheres of all gradient paths in Å (sets the radius of every "//&
+    call iw_tooltip("Radius of the tubes or spheres of all gradient paths, bond and traced, in Å (sets&
+       & the radius of every "//&
        "path in the table below; default " // string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",&
        ttshown)
     if (ch) then
-       if (pathsok) w%rep%gpaths%prad = w%rep%gpaths%rad
+       call w%rep%gpaths%apply_style(.false.,.true.)
        changed = .true.
     end if
 
@@ -5342,6 +5377,8 @@ contains
        end if
     end if
 
+    ! the bond paths: which are shown, and the atoms at their ends
+    call iw_text("Bond Paths",highlight=.true.)
     if (nuniq > 0) then
        ! show only the bond paths within or between molecules
        if (iw_button("Intramolecular##gpathsintramol")) call select_paths(1)
@@ -5363,28 +5400,9 @@ contains
           "atomic units)",ttshown)
     end if
 
-    ! export the paths traced with the Trace Gradient Paths tool (to
-    ! okfile)
-    if (w%rep%gpaths%ntrace > 0) then
-       call iw_text("Export",highlight=.true.)
-       ldum = iw_inputtext("##gpathsexportfile",bufsize=1023,texta=w%okfile,width=36)
-       call iw_tooltip("Text file the traced gradient paths are written to",ttshown)
-       if (iw_button("Browse...##gpathsexportbrowse",sameline=.true.)) &
-          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegpathsfile,&
-          idparent=w%id,orraise=-1)
-       call iw_tooltip("Choose the file with a file browser",ttshown)
-       if (iw_button("Write##gpathsexportwrite",sameline=.true.,disabled=(len_trim(w%okfile) == 0))) then
-          call write_paths(isys,w%rep,trim(w%okfile),w%errmsg)
-          if (len(w%errmsg) == 0) call okfile_save_dir(w%okfile)
-       end if
-       call iw_tooltip("Write the points of the traced gradient paths (Cartesian coordinates,&
-          & and fractional for crystals, and the field value) to the file",ttshown)
-       call w%okfile_warn_overwrite()
-       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
-    end if
-
-    ! the atoms at the ends of the bond paths, with the colors and radii
-    ! of this object (the table below, shown only when they are drawn)
+    ! the atoms at the ends of the bond paths (and of the traced paths),
+    ! with their own colors and radii (the table, shown only when they
+    ! are drawn)
     ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
     changed = changed .or. ch
     call iw_tooltip("Also draw the atoms at the ends of the bond paths and of the traced paths that&
@@ -5395,6 +5413,14 @@ contains
        if (typechanged) call w%rep%atoms%style%reset(w%rep)
        changed = changed .or. ch .or. typechanged
     end if
+
+    ! the file chosen with Export to Text File: write the paths
+    if (w%okfile_set) then
+       w%okfile_set = .false.
+       call write_paths(isys,w%rep,trim(w%okfile),w%errmsg)
+       if (len(w%errmsg) == 0) call okfile_save_dir(w%okfile)
+    end if
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
     ! the path or group under the mouse in the table is highlighted in
     ! the view (a rebuild, not an edit of the object)
@@ -5411,15 +5437,6 @@ contains
     end if
 
   contains
-    !> A label in the label column; the widget follows at xcol.
-    subroutine label(str)
-      character(len=*), intent(in) :: str
-
-      call iw_text(str,alignframe=.true.)
-      call igSameLine(xcol,-1._c_float)
-
-    end subroutine label
-
     !> The table of the gradient paths: the bond paths of the
     !> symmetry-unique CPs (cell = .false.) or of the cell CPs (cell =
     !> .true.), nb rows, followed by the groups of traced paths (or
@@ -6362,24 +6379,24 @@ contains
 
   end function kn
 
-  !> Write the points of the traced gradient paths of the gradient
-  !> paths object r (system isys) to text file file: a block per path
-  !> (each copy of each site of each group), with the Cartesian
-  !> coordinates (Å; for molecules in the frame of the input), the
-  !> fractional coordinates (crystals), and the field value. On error,
-  !> errmsg is not empty.
+  !> Write the gradient paths of the gradient paths object r of system
+  !> isys to a text file: the bond paths of every cell BCP (AUTO), and
+  !> each copy of each site of each group traced with the Trace Gradient
+  !> Paths tool, with the Cartesian coordinates (Å; for molecules in the
+  !> frame of the input), the fractional coordinates (crystals), and the
+  !> field value. On error, errmsg is not empty.
   subroutine write_paths(isys,r,file,errmsg)
     use systems, only: sys, sysc
     use tools_io, only: fopen_write, fclose, string
     use param, only: bohrtoa
-    use representations, only: cps_abbrev
+    use representations, only: cps_abbrev, field_has_cps
     integer, intent(in) :: isys
     type(representation), intent(in) :: r
     character(len=*), intent(in) :: file
     character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: lu, it, is, ic, i, j, k, n
-    real*8 :: xf(3), xc(3)
+    integer :: lu, it, is, ic, i, j, k, n, icp, ifield
+    real*8 :: xf(3), xt(3)
     character(len=:), allocatable :: str
 
     errmsg = ""
@@ -6389,25 +6406,52 @@ contains
        return
     end if
 
+    ifield = r%gpaths%fref%id
     associate(c => sys(isys)%c, g => r%gpaths)
-      write (lu,'("# Gradient paths traced with critic2 (Trace Gradient Paths)")')
+      write (lu,'("# Gradient paths written by critic2")')
       write (lu,'("# System: ",A)') trim(sysc(isys)%seed%name)
-      if (sys(isys)%goodfield(g%fref%id)) &
-         write (lu,'("# Field: ",A,": ",A)') string(g%fref%id), trim(sys(isys)%f(g%fref%id)%name)
+      if (sys(isys)%goodfield(ifield)) &
+         write (lu,'("# Field: ",A,": ",A)') string(ifield), trim(sys(isys)%f(ifield)%name)
       if (c%ismolecule) then
          write (lu,'("# Columns: x y z (Cartesian, Å) field")')
       else
          write (lu,'("# Columns: x y z (Cartesian, Å) xf yf zf (fractional) field")')
       end if
+
+      ! the bond paths of each cell BCP: those of its symmetry-unique
+      ! BCP, carried by the operation that generates it
+      if (field_has_cps(isys,ifield,withpaths=.true.)) then
+         associate(f => sys(isys)%f(ifield))
+           do icp = c%ncel+1, f%ncpcel
+              i = f%cpcel(icp)%idx
+              if (all(f%cpgp(:,i)%n < 2)) cycle
+              xt = c%rotm(:,4,f%cpcel(icp)%ir) + c%cen(:,f%cpcel(icp)%ic) + f%cpcel(icp)%lvec
+              write (lu,'("#")')
+              write (lu,'("# Bond paths of BCP ",A," ",A)') trim(f%cp(i)%name), string(icp)
+              do j = 1, 2
+                 n = f%cpgp(j,i)%n
+                 if (n < 2) cycle
+                 write (lu,'("# Bond path ",A,": ",A," points")') string(j), string(n)
+                 do k = 1, n
+                    xf = matmul(c%rotm(1:3,1:3,f%cpcel(icp)%ir),f%cpgp(j,i)%x(:,k)) + xt
+                    call write_point(xf,f%grd0(c%x2c(xf)))
+                 end do
+                 write (lu,*)
+              end do
+           end do
+         end associate
+      end if
+
+      ! the traced groups
       do it = 1, g%ntrace
          associate(t => g%trace(it))
            if (.not.t%traced) cycle
            ! the seed CP of a one-site group (as in the editor table), and the label
            str = ""
-           if (t%nsite == 1 .and. sys(isys)%goodfield(g%fref%id)) then
+           if (t%nsite == 1 .and. sys(isys)%goodfield(ifield)) then
               i = t%site(1)%icp
-              if (i >= 1 .and. i <= sys(isys)%f(g%fref%id)%ncp) then
-                 associate(cp => sys(isys)%f(g%fref%id)%cp(i))
+              if (i >= 1 .and. i <= sys(isys)%f(ifield)%ncp) then
+                 associate(cp => sys(isys)%f(ifield)%cp(i))
                    str = merge("NCP",cps_abbrev(cp%typind),cp%typ == -3) // " " // trim(cp%name) // " "
                  end associate
               end if
@@ -6424,14 +6468,7 @@ contains
                          string(j), string(is), string(ic), string(n)
                       do k = 1, n
                          xf = matmul(s%cop(:,1:3,ic),s%path(j)%x(:,k)) + s%cop(:,4,ic)
-                         xc = c%x2c(xf)
-                         if (c%ismolecule) then
-                            xc = (xc + c%molx0) * bohrtoa
-                            write (lu,'(3F16.8,1X,ES18.10)') xc, s%path(j)%f(k)
-                         else
-                            xc = xc * bohrtoa
-                            write (lu,'(3F16.8,3F14.8,1X,ES18.10)') xc, xf, s%path(j)%f(k)
-                         end if
+                         call write_point(xf,s%path(j)%f(k))
                       end do
                       write (lu,*)
                    end do
@@ -6442,6 +6479,26 @@ contains
       end do
     end associate
     call fclose(lu)
+
+  contains
+    !> Write the point xf (crystallographic) with field value fval.
+    subroutine write_point(xf,fval)
+      real*8, intent(in) :: xf(3), fval
+
+      real*8 :: xc(3)
+
+      associate(c => sys(isys)%c)
+        xc = c%x2c(xf)
+        if (c%ismolecule) then
+           xc = (xc + c%molx0) * bohrtoa
+           write (lu,'(3F16.8,1X,ES18.10)') xc, fval
+        else
+           xc = xc * bohrtoa
+           write (lu,'(3F16.8,3F14.8,1X,ES18.10)') xc, xf, fval
+        end if
+      end associate
+
+    end subroutine write_point
 
   end subroutine write_paths
 

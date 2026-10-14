@@ -1164,7 +1164,7 @@ module representations
      real(c_float) :: rgb(3) = 1._c_float ! color of all paths (global)
      real(c_float) :: rad = gpaths_rad_def ! tube or sphere radius of all paths (global, bohr)
      integer :: style = gpaths_style_tube ! drawing style (gpaths_style_*)
-     logical :: showends = .true. ! draw the atoms at the ends of the bond paths (off for molecules: init)
+     logical :: showends = .false. ! draw the atoms at the ends of the bond paths
      integer :: pfield = -1 ! field of the per-path values
      real*8 :: ptime = -1d0 ! time of the last check of the per-path values
      real*8, allocatable :: pcpx(:,:) ! positions of the cell CPs the values are for (3,ncpcel)
@@ -1190,6 +1190,7 @@ module representations
      procedure :: reset_paths => gpaths_reset_paths
      procedure :: paths_ok => gpaths_paths_ok
      procedure :: fill_rgb => gpaths_fill_rgb
+     procedure :: apply_style => gpaths_apply_style
      procedure :: path_end => gpaths_path_end
      procedure :: add_trace => gpaths_add_trace
      procedure :: remove_trace => gpaths_remove_trace
@@ -1832,6 +1833,10 @@ module representations
        integer, intent(in) :: isys
        logical :: ok
      end function gpaths_paths_ok
+     module subroutine gpaths_apply_style(g,color,radius)
+       class(rep_gpaths), intent(inout) :: g
+       logical, intent(in) :: color, radius
+     end subroutine gpaths_apply_style
      module subroutine gpaths_fill_rgb(g)
        class(rep_gpaths), intent(inout) :: g
      end subroutine gpaths_fill_rgb
