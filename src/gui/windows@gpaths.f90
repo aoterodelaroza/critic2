@@ -476,8 +476,11 @@ contains
   !> The table of the CPs of the field, nuclei included, in the colors
   !> of the view iview (the badges): the cell CPs in irow (the
   !> symmetry-unique CPs, as their first cell copy, in symmetry mode).
-  !> A click on a row selects or unselects the CP. Returns in ihover
-  !> the CP under the mouse: (symmetry-unique CP, 0) in symmetry mode,
+  !> A click on a row selects or unselects the CP. Arrows in the first
+  !> column mark the CPs with paths already known (the bond paths of
+  !> the field, and the traced paths of its object in the view), up
+  !> (↑) and/or down (↓). Returns in ihover the CP under the mouse:
+  !> (symmetry-unique CP, 0) in symmetry mode,
   !> (0, cell CP) otherwise, (0,0) if none.
   subroutine draw_cp_table(w,isys,iview,irow,ihover)
     use systems, only: sys
@@ -489,9 +492,10 @@ contains
     integer, intent(in) :: irow(:)
     integer, intent(out) :: ihover(2)
 
-    integer :: kr, k, iu, j, ncol, nrow
+    integer :: kr, k, iu, icp, j, ncol, nrow
     integer(c_int) :: flags
     logical :: clicked, symm, hov
+    logical, allocatable :: known(:,:)
     real*8 :: x(3)
     real(c_float) :: xpos
     character(kind=c_char,len=:), allocatable, target :: str1, suffix
@@ -506,6 +510,7 @@ contains
     associate(f => sys(isys)%f(w%gp%fref%id), c => sys(isys)%c)
       ! the field at the nuclei is calculated on first use
       call f%init_cplist_deferred()
+      call known_paths(w,isys,iview,symm,known)
 
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -516,8 +521,9 @@ contains
       str1 = "##tablegpcps" // c_null_char
       sz%x = 0._c_float
       sz%y = iw_calcheight(min(10,nrow+1),0,.false.)
-      if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+      if (igBeginTable(c_loc(str1),4,flags,sz,0._c_float)) then
          ncol = -1
+         call iw_table_column("",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column("CP",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
          if (c%ismolecule) then
             call iw_table_column("Position (Å)",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -536,6 +542,9 @@ contains
                iu = f%cpcel(k)%idx
                call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                suffix = "_" // string(k)
+               icp = merge(iu,k,symm)
+               hov = .false.
+               clicked = .false.
                if (igTableSetColumnIndex(0_c_int)) then
                   ! the row selectable selects the seed
                   xpos = igGetCursorPosX()
@@ -544,36 +553,36 @@ contains
                   call igSameLine(0._c_float,0._c_float)
                   call igSetCursorPosX(xpos)
 
+                  ! the paths from this CP that are already known, in
+                  ! two fixed slots (up, down; transparent if not known)
+                  call arrow("↑",known(1,icp),.false.)
+                  call arrow("↓",known(2,icp),.true.)
+               end if
+               if (igTableSetColumnIndex(1_c_int)) then
                   ! the badge (an atom for the nuclei), which takes the
                   ! mouse from the selectable: it acts as the row
-                  call cp_atom_badge(iview,isys,w%gp%fref%id,merge(iu,k,symm),.not.symm,"gpcpbadge" // suffix)
+                  call cp_atom_badge(iview,isys,w%gp%fref%id,icp,.not.symm,"gpcpbadge" // suffix)
                   if (igIsItemHovered(ImGuiHoveredFlags_None)) then
                      hov = .true.
                      if (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) clicked = .true.
                   end if
-                  if (hov) then
-                     if (symm) then
-                        ihover = (/iu,0/)
-                     else
-                        ihover = (/0,k/)
-                     end if
-                  end if
+               end if
+               if (hov) ihover = merge((/iu,0/),(/0,k/),symm)
 
-                  ! a click toggles the row and anchors a range; a
-                  ! shift-click selects the rows from the anchor to this one
-                  if (clicked) then
-                     if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
-                        w%lastselected <= nrow) then
-                        do j = min(w%lastselected,kr), max(w%lastselected,kr)
-                           w%gp%sel(irow(j)) = .true.
-                        end do
-                     else
-                        w%gp%sel(k) = .not.w%gp%sel(k)
-                        w%lastselected = kr
-                     end if
+               ! a click toggles the row and anchors a range; a
+               ! shift-click selects the rows from the anchor to this one
+               if (clicked) then
+                  if (igIsKeyDown(ImGuiKey_ModShift) .and. w%lastselected >= 1 .and.&
+                     w%lastselected <= nrow) then
+                     do j = min(w%lastselected,kr), max(w%lastselected,kr)
+                        w%gp%sel(irow(j)) = .true.
+                     end do
+                  else
+                     w%gp%sel(k) = .not.w%gp%sel(k)
+                     w%lastselected = kr
                   end if
                end if
-               if (igTableSetColumnIndex(1_c_int)) then
+               if (igTableSetColumnIndex(2_c_int)) then
                   if (symm) then
                      x = f%cp(iu)%x
                   else
@@ -583,7 +592,7 @@ contains
                   call iw_text(string(x(1),'f',10,4) // " " // string(x(2),'f',10,4) // " " //&
                      string(x(3),'f',10,4))
                end if
-               if (igTableSetColumnIndex(2_c_int)) &
+               if (igTableSetColumnIndex(3_c_int)) &
                   call iw_text(string(f%cp(iu)%s%f,'e',decimal=5))
             end do
          end do
@@ -593,7 +602,77 @@ contains
       end if
     end associate
 
+  contains
+    !> Draw the arrow str, highlighted if shown, transparent otherwise.
+    subroutine arrow(str,shown,sameline)
+      character(len=*), intent(in) :: str
+      logical, intent(in) :: shown, sameline
+
+      if (shown) then
+         call iw_text(str,highlight=.true.,sameline=sameline,nocapture=.true.)
+      else
+         call iw_text(str,rgba=(/0._c_float,0._c_float,0._c_float,0._c_float/),sameline=sameline,&
+            nocapture=.true.)
+      end if
+
+    end subroutine arrow
+
   end subroutine draw_cp_table
+
+  !> The CPs of the field of window w (system isys) with paths
+  !> already known: the bond paths of the field (up from a BCP), and
+  !> the paths traced in the object of the field in view iview.
+  !> known(1,i) if up, known(2,i) if down, for the symmetry-unique CP
+  !> i if symm, the cell CP i otherwise.
+  subroutine known_paths(w,isys,iview,symm,known)
+    use systems, only: sys
+    use representations, only: field_has_cps
+    type(window), intent(inout), target :: w
+    integer, intent(in) :: isys, iview
+    logical, intent(in) :: symm
+    logical, allocatable, intent(out) :: known(:,:)
+
+    integer :: irep, it, is, k, iup
+    logical :: ud(2)
+
+    associate(f => sys(isys)%f(w%gp%fref%id))
+      allocate(known(2,merge(f%ncp,f%ncpcel,symm)))
+      known = .false.
+
+      ! the bond paths of the field, traced up if the nuclei are
+      ! maxima (as in autocp and write_paths)
+      if (field_has_cps(isys,w%gp%fref%id,withpaths=.true.)) then
+         iup = merge(1,2,f%typnuc < 0)
+         do k = 1, size(known,2)
+            known(iup,k) = any(f%cpgp(:,merge(k,f%cpcel(k)%idx,symm))%n > 1)
+         end do
+      end if
+
+      ! the traced paths, by site
+      irep = target_object(w,iview,.false.)
+      if (irep == 0) return
+      associate(g => win(iview)%sc%rep(irep)%gpaths)
+        if (g%traces_stale(isys)) return
+        do it = 1, g%ntrace
+           if (.not.g%trace(it)%traced) cycle
+           do is = 1, g%trace(it)%nsite
+              associate(s => g%trace(it)%site(is))
+                if (s%icp <= 0 .or. s%npath == 0) cycle
+                ud = (/any(s%path(1:s%npath)%iup > 0),any(s%path(1:s%npath)%iup < 0)/)
+                if (symm) then
+                   known(:,s%icp) = known(:,s%icp) .or. ud
+                else
+                   do k = 1, s%ncopy
+                      known(:,s%icel(k)) = known(:,s%icel(k)) .or. ud
+                   end do
+                end if
+              end associate
+           end do
+        end do
+      end associate
+    end associate
+
+  end subroutine known_paths
 
   !> Whether the form of window w (system isys) traces the paths of
   !> the symmetry-unique CPs and carries them to all their copies:
