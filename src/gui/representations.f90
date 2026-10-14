@@ -1075,14 +1075,12 @@ module representations
 
   !> A traced gradient path, in crystallographic coordinates
   !> (continuous along the path), with the field value at each point.
-  !> If it ends at a nucleus, iend/lend give the cell atom and lattice
-  !> vector of the nucleus for each copy of its site (0 = not a nucleus).
+  !> If it ends at a CP, cend/clend give the cell CP and lattice vector
+  !> for each copy of its site (the cell CPs 1..ncel are the nuclei).
   type gpaths_tpath
      integer :: n = 0 ! number of points
      real*8, allocatable :: x(:,:) ! points (3,n), crystallographic
      real*8, allocatable :: f(:) ! field value at the points (n)
-     integer, allocatable :: iend(:) ! cell atom at the end of each copy (ncopy)
-     integer, allocatable :: lend(:,:) ! lattice vector of that atom (3,ncopy)
      integer :: icpend = 0 ! symmetry-unique CP at the end of the path (0 = none)
      integer, allocatable :: cend(:) ! cell CP at the end of each copy (ncopy; 0 = none)
      integer, allocatable :: clend(:,:) ! lattice vector of that CP (3,ncopy)

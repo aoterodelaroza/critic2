@@ -478,7 +478,7 @@ contains
   !> the CP under the mouse: (symmetry-unique CP, 0) in symmetry mode,
   !> (0, cell CP) otherwise, (0,0) if none.
   subroutine draw_cp_table(w,isys,iview,irow,ihover)
-    use systems, only: sys, atlisttype_ncel_frac, atlisttype_nneq
+    use systems, only: sys
     use utils, only: iw_text, iw_highlight_selectable, iw_table_column, iw_table_headers_row,&
        iw_calcheight
     use tools_io, only: string
@@ -492,7 +492,7 @@ contains
     logical :: clicked, symm, hov
     real*8 :: x(3)
     real(c_float) :: xpos
-    character(kind=c_char,len=:), allocatable, target :: str1, suffix, lbl
+    character(kind=c_char,len=:), allocatable, target :: str1, suffix
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     type(ImVec2) :: sz
@@ -544,16 +544,7 @@ contains
 
                   ! the badge (an atom for the nuclei), which takes the
                   ! mouse from the selectable: it acts as the row
-                  lbl = trim(f%cp(iu)%name)
-                  if (.not.symm) lbl = lbl // " " // string(k)
-                  lbl = lbl // "##gpcpbadge" // suffix
-                  if (symm .and. iu <= c%nneq) then
-                     call atom_badge(iview,isys,iu,atlisttype_nneq,lbl)
-                  elseif (k <= c%ncel) then
-                     call atom_badge(iview,isys,k,atlisttype_ncel_frac,lbl)
-                  else
-                     call cp_badge(iview,isys,w%gp%fref%id,iu,lbl)
-                  end if
+                  call cp_atom_badge(iview,isys,w%gp%fref%id,merge(iu,k,symm),.not.symm,"gpcpbadge" // suffix)
                   if (igIsItemHovered(ImGuiHoveredFlags_None)) then
                      hov = .true.
                      if (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) clicked = .true.

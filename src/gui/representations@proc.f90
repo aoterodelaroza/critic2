@@ -2212,10 +2212,10 @@ contains
     !> (if showends). The images of a copy follow the Display like those
     !> of a CP at the seed position.
     subroutine add_traced_paths()
-      integer :: it, is, ic, kc, j, k, n, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3, lx(3), nitem, nmax
+      integer :: it, is, ic, kc, j, k, n, nc(3), m0(3), m1(3), vshift(3), j1, j2, j3, lx(3), nitem, nmax, iat
       logical :: bord, tsh, vac(3), beads
       real*8 :: ui(3), ue(3), xs(3), xf(3), am(3,3), bv(3)
-      real(c_float) :: dx(3)
+      real(c_float) :: dx(3), rgb(3), rad
       real(c_float), allocatable :: xp(:,:)
       type(dl_cylinder) :: dpath
 
@@ -2262,28 +2262,26 @@ contains
 
       do it = 1, r%gpaths%ntrace
          associate(t => r%gpaths%trace(it))
-           if (.not.t%traced .or. .not.allocated(t%cshown)) cycle
+           if (.not.t%traced) cycle
 
            kc = 0
            do is = 1, t%nsite
               associate(s => t%site(is))
                 do ic = 1, s%ncopy
                    kc = kc + 1
-                   if (kc > t%ncopy) exit
                    if (.not.t%cshown(kc)) cycle
 
                    ! the style of this copy (highlighted if it or its
                    ! group is under the mouse in a table)
+                   rgb = t%crgb(:,kc)
+                   rad = t%crad(kc)
                    if (r%gpaths%thover(1) == it .and. (r%gpaths%thover(2) == 0 .or. r%gpaths%thover(2) == kc)) then
-                      dsph = dl_sphere(x=0._c_float,r=2._c_float*t%crad(kc),rgb=ColorHighlightScene(1:3),idx=0,&
-                         xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
-                         rgbborder=ColorHighlightScene(1:3))
-                   else
-                      dsph = dl_sphere(x=0._c_float,r=t%crad(kc),rgb=t%crgb(:,kc),idx=0,&
-                         xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,&
-                         rgbborder=t%crgb(:,kc))
+                      rgb = ColorHighlightScene(1:3)
+                      rad = 2._c_float * rad
                    end if
-                   dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=dsph%r,rgb=dsph%rgb)
+                   dsph = dl_sphere(x=0._c_float,r=rad,rgb=rgb,idx=0,&
+                      xdelta=cmplx(0._c_float,0._c_float,c_float_complex),border=0._c_float,rgbborder=rgb)
+                   dpath = dl_cylinder(x1=0._c_float,x2=0._c_float,r=rad,rgb=rgb)
 
                    ! the copy as a Cartesian affine map, and its image
                    ! range, from the seed position
@@ -2320,12 +2318,14 @@ contains
                                end if
 
                                ! the nucleus at the end of this path
-                               if (r%gpaths%showends .and. s%path(j)%iend(ic) > 0) then
-                                  lx = s%path(j)%lend(:,ic) + (/j1,j2,j3/) + vshift
-                                  call check_lshown(s%path(j)%iend(ic),lx(1),lx(2),lx(3))
-                                  if (.not.lshown(s%path(j)%iend(ic),lx(1),lx(2),lx(3))) then
-                                     lshown(s%path(j)%iend(ic),lx(1),lx(2),lx(3)) = .true.
-                                     call append_forced_atom(s%path(j)%iend(ic),lx,.false.,.false.)
+                               ! (the cell CPs 1..ncel are the nuclei)
+                               iat = s%path(j)%cend(ic)
+                               if (r%gpaths%showends .and. iat >= 1 .and. iat <= c%ncel) then
+                                  lx = s%path(j)%clend(:,ic) + (/j1,j2,j3/) + vshift
+                                  call check_lshown(iat,lx(1),lx(2),lx(3))
+                                  if (.not.lshown(iat,lx(1),lx(2),lx(3))) then
+                                     lshown(iat,lx(1),lx(2),lx(3)) = .true.
+                                     call append_forced_atom(iat,lx,.false.,.false.)
                                   end if
                                end if
                             end do
@@ -4156,6 +4156,8 @@ contains
        g%trace(i)%traced = .false.
        g%trace(i)%nsite = 0
        if (allocated(g%trace(i)%site)) deallocate(g%trace(i)%site)
+       ! a group not in the cache keeps its per-copy style (cshown,
+       ! crgb, crad) for the next trace
        if (.not.allocated(cache%t)) cycle
        j = findloc(cache%t(:)%uid,g%trace(i)%uid,1)
        if (j == 0) cycle
@@ -4235,7 +4237,8 @@ contains
   end subroutine gpaths_trace_make_seeds
 
   !> Count the copies of all the sites of group t, and if their number
-  !> changed, give each the style of the group (rgb, rad, shown).
+  !> changed, give each the style of the group (rgb, rad, shown): that
+  !> of its first old copy, shown if any was, if it had copies.
   module subroutine gpaths_trace_fill_copies(t)
     class(gpaths_trace), intent(inout) :: t
 
@@ -4243,13 +4246,16 @@ contains
 
     n = 0
     if (allocated(t%site)) n = sum(t%site(1:t%nsite)%ncopy)
-    if (n == t%ncopy .and. allocated(t%cshown)) then
+    if (allocated(t%cshown)) then
        if (size(t%cshown,1) == n) return
+       if (size(t%cshown,1) > 0) then
+          t%shown = any(t%cshown)
+          t%rgb = t%crgb(:,1)
+          t%rad = t%crad(1)
+       end if
+       deallocate(t%crgb,t%crad,t%cshown)
     end if
     t%ncopy = n
-    if (allocated(t%crgb)) deallocate(t%crgb)
-    if (allocated(t%crad)) deallocate(t%crad)
-    if (allocated(t%cshown)) deallocate(t%cshown)
     allocate(t%crgb(3,n),t%crad(n),t%cshown(n))
     t%crgb = spread(t%rgb,2,n)
     t%crad = t%rad
@@ -4272,7 +4278,6 @@ contains
     use flux, only: flux_seed, flux_path, flux_trace
     use global, only: prunedist
     use tools_io, only: string
-    use param, only: icrd_crys
     class(rep_gpaths), intent(inout) :: g
     integer, intent(in) :: isys
     type(gpaths_trace), intent(inout) :: t
@@ -4280,7 +4285,7 @@ contains
     logical, intent(in), optional :: abortable
 
     real*8, parameter :: eps_cp = 1d-4 ! distance to identify the seed CP (bohr)
-    real*8, parameter :: eps_end = 1d-2 ! distance from the end of a path to a nucleus (bohr)
+    real*8, parameter :: eps_end = 1d-2 ! distance from the end of a path to a CP (bohr)
 
     integer :: ifield, icel, i, n, typ
     real*8 :: xl(3)
@@ -4316,6 +4321,7 @@ contains
          t%site(1)%x = t%x
          call point_copies(t%site(1))
          call trace_site(t%site(1))
+         if (len(errmsg) > 0) return
          ! the point as in the form: fractional, or Cartesian Å (molecules)
          xl = t%x
          if (c%ismolecule) xl = (c%x2c(t%x) + c%molx0) * bohrtoa
@@ -4454,18 +4460,18 @@ contains
     end subroutine point_copies
 
     !> Trace the paths of site s, from the point (point kind) or from the
-    !> CP s%icp following the recipe, and find the nucleus at the end of
+    !> CP s%icp following the recipe, and find the cell CP at the end of
     !> each path for each copy of the site.
     subroutine trace_site(s)
       type(gpaths_site), intent(inout) :: s
 
       type(flux_seed), allocatable :: seeds(:)
       type(flux_path), allocatable :: paths(:)
-      integer :: j, k, n, iat, lv(3), typ, icend
-      real*8 :: y(3), dist
+      integer :: j, k, n, typ, icend
+      real*8 :: y(3)
       character(len=:), allocatable :: err1
 
-      associate(f => sys(isys)%f(ifield), c => sys(isys)%c)
+      associate(f => sys(isys)%f(ifield))
         typ = 0
         if (s%icp > 0) typ = f%cp(s%icp)%typ
         call t%make_seeds(isys,ifield,s%x,typ,seeds,err1)
@@ -4486,8 +4492,8 @@ contains
               s%path(j)%f(k) = paths(j)%p(k)%f
            end do
 
-           ! the CP at the end of the path (a CP within eps_end; the
-           ! nearest nucleus otherwise, which may be far away)
+           ! the CP at the end of the path (a CP within eps_end; 0
+           ! otherwise)
            s%path(j)%icpend = 0
            if (n >= 2 .and. paths(j)%icpend >= 1 .and. paths(j)%icpend <= f%ncpcel .and.&
               paths(j)%dend <= eps_end) s%path(j)%icpend = f%cpcel(paths(j)%icpend)%idx
@@ -4505,20 +4511,6 @@ contains
                  s%path(j)%clend(:,k) = nint(y - f%cpcel(icend)%x)
               end do
            end if
-
-           ! the nucleus at the end of each copy of the path
-           allocate(s%path(j)%iend(s%ncopy),s%path(j)%lend(3,s%ncopy))
-           s%path(j)%iend = 0
-           s%path(j)%lend = 0
-           if (n < 2) cycle
-           if (paths(j)%icpend < 1 .or. paths(j)%icpend > c%ncel .or. paths(j)%dend > eps_end) cycle
-           do k = 1, s%ncopy
-              y = matmul(s%cop(:,1:3,k),s%path(j)%x(:,n)) + s%cop(:,4,k)
-              iat = c%identify_atom(y,icrd_crys,lvec=lv,dist=dist,distmax=eps_end)
-              if (iat <= 0) cycle
-              s%path(j)%iend(k) = iat
-              s%path(j)%lend(:,k) = lv
-           end do
         end do
       end associate
 

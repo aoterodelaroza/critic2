@@ -50,7 +50,8 @@ contains
 
     type(json_value), pointer :: q, a, b
     integer :: i, n, labelmax
-    logical :: found
+    logical :: found, lsh
+    real(c_float) :: rgb(3), rad
 
     if (rows) then
        call xfer_rows()
@@ -423,10 +424,23 @@ contains
               call io%x(b,'method',t%method,0,2)
               call io%x(b,'ipath',t%ipath,0,2)
               call io%x(b,'sym',t%sym)
-              call io%x(b,'rgb',t%rgb)
-              call io%x(b,'rad',t%rad,lo=0d0)
-              call io%x(b,'shown',t%shown)
+              ! the style of the copies is not kept: that of the first
+              ! copy is written, shown if any copy is
+              lsh = t%shown
+              rgb = t%rgb
+              rad = t%rad
+              if (.not.io%reading .and. t%ncopy > 0) then
+                 lsh = any(t%cshown)
+                 rgb = t%crgb(:,1)
+                 rad = t%crad(1)
+              end if
+              call io%x(b,'rgb',rgb)
+              call io%x(b,'rad',rad,lo=0d0)
+              call io%x(b,'shown',lsh)
               if (io%reading) then
+                 t%shown = lsh
+                 t%rgb = rgb
+                 t%rad = rad
                  t%uid = new_uid()
                  t%traced = .false.
               end if

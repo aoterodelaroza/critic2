@@ -2310,6 +2310,42 @@ contains
 
   end subroutine atom_badge
 
+  !> Inert badge of critical point icp of field ifield of system isys:
+  !> a cell CP if cell (displaced by lattice vector lvec, if given),
+  !> else a symmetry-unique CP. A nucleus is shown as its atom, in its
+  !> color in view iview (atom_badge), and labeled as the atom
+  !> buttons do (species and cell index, or atom name); any other CP
+  !> by its name (and cell index), in the color of its type
+  !> (cp_badge). id is the ImGui ID.
+  module subroutine cp_atom_badge(iview,isys,ifield,icp,cell,id,lvec)
+    use systems, only: sys, atlisttype_nneq, atlisttype_ncel_frac
+    use tools_io, only: string
+    integer, intent(in) :: iview, isys, ifield, icp
+    logical, intent(in) :: cell
+    character(len=*), intent(in) :: id
+    integer, intent(in), optional :: lvec(3)
+
+    character(len=:), allocatable :: str
+
+    str = ""
+    if (present(lvec)) str = lvec_str(lvec)
+    str = str // "##" // id
+    associate(c => sys(isys)%c, f => sys(isys)%f(ifield))
+      if (cell .and. icp <= c%ncel) then
+         call atom_badge(iview,isys,icp,atlisttype_ncel_frac,&
+            trim(c%spc(c%atcel(icp)%is)%name) // " " // string(icp) // str)
+      elseif (cell) then
+         call cp_badge(iview,isys,ifield,f%cpcel(icp)%idx,&
+            trim(f%cp(f%cpcel(icp)%idx)%name) // " " // string(icp) // str)
+      elseif (icp <= c%nneq) then
+         call atom_badge(iview,isys,icp,atlisttype_nneq,trim(c%at(icp)%name) // str)
+      else
+         call cp_badge(iview,isys,ifield,icp,trim(f%cp(icp)%name) // str)
+      end if
+    end associate
+
+  end subroutine cp_atom_badge
+
   !> "+(l1,l2,l3)" for a nonzero lattice vector, empty otherwise.
   module function lvec_str(l) result(str)
     use tools_io, only: string

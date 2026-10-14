@@ -1490,6 +1490,12 @@ module windows
        integer, intent(in) :: iview, isys, iat, itype
        character(len=*), intent(in) :: str
      end subroutine atom_badge
+     module subroutine cp_atom_badge(iview,isys,ifield,icp,cell,id,lvec)
+       integer, intent(in) :: iview, isys, ifield, icp
+       logical, intent(in) :: cell
+       character(len=*), intent(in) :: id
+       integer, intent(in), optional :: lvec(3)
+     end subroutine cp_atom_badge
      module function lvec_str(l) result(str)
        integer, intent(in) :: l(3)
        character(len=:), allocatable :: str
