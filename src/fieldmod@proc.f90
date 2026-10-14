@@ -20,12 +20,14 @@ submodule (fieldmod) proc
   implicit none
 
   !xx! private procedures
-  ! function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
-  ! subroutine stepper_euler1(xpoint,grdt,h0,xout)
-  ! subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
-  ! subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
-  ! subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
-  ! subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
+  ! function adaptive_stepper(fid,xpoint,h0,maxstep,res,hess,hdid)
+  ! subroutine stepper_heun(fid,xpoint,grdt,h0,xout,req)
+  ! subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res,req,reqf)
+  ! subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,req)
+  ! subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res,req,reqf)
+  ! subroutine cp_lookup_build(fid,iup,up2beta,rcap,lk)
+  ! subroutine cp_lookup_nearest(fid,lk,xp,up2beta,rcap,id,dist,xc,xx)
+  ! subroutine newton_attractor(fid,x0,iup,rmax,xcp,res,ok)
   ! subroutine chk_fingerprint(f,ihdr,rhdr,str)
 
   ! eps to move to the main cell
@@ -41,6 +43,16 @@ submodule (fieldmod) proc
 
   ! first letter of the name of a non-nuclear CP, by typind
   character*(1), parameter :: smallnamecrit(0:3) = (/'n','b','r','c'/)
+
+  ! Block lookup of the non-nuclear CPs in the complete list that can
+  ! end a gradient path, on the blocks of the crystal environment
+  type cp_lookup
+     integer :: n = 0 ! number of CPs in the lookup
+     real*8 :: rmax = 0d0 ! largest capture radius
+     integer, allocatable :: iblock0(:,:,:) ! first CP in each block (complete list index)
+     integer, allocatable :: inext(:) ! next CP in the same block
+     real*8, allocatable :: xr(:,:) ! reduced crystallographic coordinates of the CPs
+  end type cp_lookup
 
 contains
 
@@ -2986,10 +2998,15 @@ contains
   !> present, prune the gradient path to have point-to-point distances
   !> equal to prune. prune also sets the maximum step size. If pathini is
   !> present, initialize the output path with this point (Cartesian).
+  !> On output, xpoint is the end of the path (Cartesian). The path
+  !> ends (ier = 0) when it enters the capture sphere of a known CP of
+  !> the right type (maxima going up, minima going down), when the
+  !> gradient vanishes, or at an attractor not in the CP list, which
+  !> is located with Newton steps when the path gets close to it.
   module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
     use types, only: scalar_value, gpathp, realloc, field_evaluation_avail
-    use param, only: icrd_crys
+    use param, only: icrd_crys, vsmall
     class(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
     integer, intent(in) :: iup
@@ -3007,19 +3024,19 @@ contains
     real*8, parameter :: hfirst = 0.01d0
 
     integer :: mstep
-    integer :: i, npath
-    real*8 :: h0, hini
-    real*8 :: dx(3), scalhist(mhist)
-    real*8 :: xlast(3), xlast2(3), dd, prune0, xcart(3), xcaux(3), xxaux(3)
-    real*8 :: sphrad, xnuc(3), xnucr(3), cprad, xcp(3), xcpr(3), dist2
-    integer :: idnuc, idcp, nhist
-    integer :: lvec(3)
-    logical :: ok, incstep
+    integer :: npath, nhist, idcp
+    real*8 :: h0, hini, hdid, prune0, rcap, rsnap, dd, rate
+    real*8 :: scalhist(mhist), hd0(3), hd1(3)
+    real*8 :: xlast(3), xlast2(3), glast(3), xcrys(3), xcaux(3)
+    real*8 :: xcp(3), xcpr(3)
+    logical :: ok, incstep, hess
     type(scalar_value) :: res, resaux
-    type(field_evaluation_avail) :: request
+    type(field_evaluation_avail) :: req1, req2
+    type(cp_lookup) :: lk
 
     ! initialization
-    call request%field_nder2()
+    call req1%field_nder1()
+    call req2%field_nder2()
     ier = 0
     hini = abs(NAV_step) * iup
     h0 = hfirst * iup
@@ -3027,6 +3044,7 @@ contains
     nhist = 0
     xlast2 = xpoint
     xlast = xpoint
+    glast = 0d0
     npath = 0
     plen = 0d0
     prune0 = -1d0
@@ -3034,146 +3052,114 @@ contains
        prune0 = prune
        hini = min(abs(hini),1.1d0*prune0) * iup
     end if
+    rcap = min(Rbetadef,0.5d0*abs(hini))
     incstep = .false.
     mstep = nint(mstep0 * 0.1d0 / abs(hini))
+
+    ! the Hessian is only needed at the step points stored in the path
+    hess = present(path) .and. prune0 < 0d0
+
+    ! block lookup of the non-nuclear CPs that can end the path, and
+    ! the distance within which an attractor found with Newton steps
+    ! is identified with a known CP
+    call cp_lookup_build(fid,iup,up2beta,rcap,lk)
+    rsnap = rcap
+    if (lk%n > 0) rsnap = min(rcap,lk%rmax)
 
     if (present(path)) then
        if (allocated(path)) deallocate(path)
        allocate(path(100))
     end if
     if (present(pathini)) then
-       xcaux = pathini
-       xxaux = fid%c%c2x(xcaux)
        if (present(path)) then
-          call fid%grd(xcaux,request,resaux)
-          call addtopath(0,xcaux,xxaux,resaux)
+          call fid%grd(pathini,req2,resaux)
+          call addtopath(0,pathini,fid%c%c2x(pathini),resaux)
        end if
        plen = norm2(xpoint - pathini)
     end if
 
     ! properties at point
-    call fid%grd(xpoint,request,res)
+    if (present(path)) then
+       call fid%grd(xpoint,req2,res)
+       call addtopath(1,xpoint,fid%c%c2x(xpoint),res)
+    else
+       call fid%grd(xpoint,req1,res)
+    end if
 
     do nstep = 1, mstep
-       ! point in cartesian and crystallographic. res contains evaluation at
-       ! this point
-       xcart = xpoint
-       xpoint = fid%c%c2x(xpoint)
-       plen = plen + norm2(xcart-xlast)
+       ! xpoint is in Cartesian coordinates, and res contains the
+       ! evaluation at this point
+       xcrys = fid%c%c2x(xpoint)
 
-       ! save to the gradient path
-       if (present(path)) then
-          if (nstep == 1) then
-             call addtopath(nstep,xcart,xpoint,res)
-          else
-             dd = norm2(xcart - path(npath)%r)
-             if (dd > prune0) then
-                if (prune0 < 0d0) then
-                   call addtopath(nstep,xcart,xpoint,res)
-                else
-                   do while (dd > prune0)
-                      xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
-                      xxaux = fid%c%c2x(xcaux)
-                      call fid%grd(xcaux,request,resaux)
-                      call addtopath(nstep,xcaux,xxaux,resaux)
-                      dd = norm2(xcart - path(npath)%r)
-                   end do
-                end if
-             end if
-          end if
-       end if
-
-       ! nearest nucleus
-       call fid%c%nearest_atom(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
-       xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x + lvec)
-       xnucr = fid%c%atcel(idnuc)%x + lvec
-       idnuc = fid%c%atcel(idnuc)%idx
-
-       ! get nearest -3 CP (idncp) and +3 CP (idccp), skip hydrogens
-       if ((fid%typnuc==-3 .and. iup==1 .or. fid%typnuc==3 .and. iup==-1) .and.&
-          fid%c%spc(fid%c%at(idnuc)%is)%z /= 1) then
-          idcp = idnuc
-          cprad = sphrad
-          xcp = xnuc
-          xcpr = xnucr
-       else
-          idcp = 0
-          cprad = 1d15
-          xcp = 0d0
-          xcpr = 0d0
-       end if
-       if (fid%ncpcel > 0) then
-          do i = 1, fid%ncpcel
-             if (.not.(fid%cpcel(i)%typ==-3 .and. iup==1 .or. fid%cpcel(i)%typ==3 .and. iup==-1)) cycle  ! only cages if down, only ncps if up
-             dx = xpoint - fid%cpcel(i)%x
-             call fid%c%shortest(dx,dist2)
-             if (dist2 < cprad) then
-                dx = fid%c%c2x(dx)
-                cprad = dist2
-                idcp = fid%cpcel(i)%idx
-                xcp = fid%c%x2c(fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx))
-                xcpr = fid%cpcel(i)%x + nint(xpoint-fid%cpcel(i)%x-dx)
-             end if
-          end do
-       end if
-
-       ! is it a nuclear position?
-       ok = .false.
-       ! beta-sphere if up2beta is activated
-       if (up2beta .and. idcp/=0) then
-          ok = ok .or. (cprad <= fid%cp(idcp)%rbeta)
-       else
-          ok = ok .or. (cprad <= min(Rbetadef,0.5d0*abs(hini)))
-       end if
-       if (ok) then
+       ! is it in the capture sphere of a known CP?
+       call known_cp(xpoint,xcrys,up2beta,rcap,idcp,xcp,xcpr)
+       if (idcp /= 0) then
           ! Found a CP as the last point in the path
           incstep = .true.
-          plen = plen + norm2(xcart - xcp)
+          plen = plen + norm2(xpoint - xcp)
           xpoint = xcp
           ier = 0
           if (present(path)) then
-             xcaux = xcp
-             xxaux = xcpr
-             call fid%grd(xcaux,request,resaux)
-             call addtopath(nstep+1,xcaux,xxaux,resaux)
+             call fid%grd(xcp,req2,resaux)
+             call addtopath(nstep+1,xcp,xcpr,resaux)
           end if
           goto 999
        end if
 
        ! is it outside the molcell?
        if (fid%c%ismolecule .and. iup==-1) then
-          if (xpoint(1) < fid%c%molborder(1) .or. xpoint(1) > (1d0-fid%c%molborder(1)) .or.&
-             xpoint(2) < fid%c%molborder(2) .or. xpoint(2) > (1d0-fid%c%molborder(2)) .or.&
-             xpoint(3) < fid%c%molborder(3) .or. xpoint(3) > (1d0-fid%c%molborder(3))) then
+          if (any(xcrys < fid%c%molborder) .or. any(xcrys > (1d0-fid%c%molborder))) then
              ! The gradient path exited the molecular cell
              ier = 3
              goto 999
           end if
        endif
 
-       ! tasks in cartesian
-       xpoint = fid%c%x2c(xpoint)
-
        ! Is it a new CP?
-       ok = (res%gfmod < NAV_gradeps)
-       if (ok) then
+       if (res%gfmod < NAV_gradeps) then
           ! Found a CP that was not on the list
           ier = 0
           if (present(path)) then
-             if (path(npath)%i /= nstep) then
-                xcaux = xpoint
-                xxaux = fid%c%c2x(xcaux)
-                call fid%grd(xcaux,request,resaux)
-                call addtopath(nstep,xcaux,xxaux,resaux)
+             if (norm2(path(npath)%r - xpoint) > 1d-10) then
+                call fid%grd(xpoint,req2,resaux)
+                call addtopath(nstep,xpoint,xcrys,resaux)
              end if
           end if
           goto 999
        end if
 
+       ! Close to an attractor that is not on the list? The distance
+       ! to it is estimated from the decrease of the gradient norm in
+       ! the last step. If it is within the next step, try to land on
+       ! it with Newton steps.
+       if (nstep > 1) then
+          dd = norm2(xpoint - xlast)
+          rate = (norm2(glast) - res%gfmod) / max(dd,vsmall)
+          if (rate > 0d0 .and. res%gfmod < rate * abs(h0)) then
+             call newton_attractor(fid,xpoint,iup,min(1.5d0*abs(h0),abs(hini)),xcaux,resaux,ok)
+             if (ok) then
+                ! if the attractor is a known CP, use its position
+                call known_cp(xcaux,fid%c%c2x(xcaux),.false.,rsnap,idcp,xcp,xcpr)
+                if (idcp /= 0) then
+                   xcaux = xcp
+                   call fid%grd(xcaux,req2,resaux)
+                end if
+                incstep = .true.
+                plen = plen + norm2(xcaux - xpoint)
+                xpoint = xcaux
+                ier = 0
+                if (present(path)) &
+                   call addtopath(nstep+1,xcaux,fid%c%c2x(xcaux),resaux)
+                goto 999
+             end if
+          end if
+       end if
+
        ! take step
        xlast2 = xlast
        xlast = xpoint
-       ok = adaptive_stepper(fid,xpoint,h0,hini,NAV_gradeps,res)
+       glast = res%gf
+       ok = adaptive_stepper(fid,xpoint,h0,hini,res,hess,hdid)
 
        ! is it outside the molcell?
        if (.not.res%valid) then
@@ -3194,6 +3180,10 @@ contains
           ier = 1
           goto 999
        end if
+
+       ! save to the gradient path
+       plen = plen + norm2(xpoint - xlast)
+       if (present(path)) call addsteptopath(nstep+1)
     end do
 
     nstep = mstep
@@ -3218,6 +3208,89 @@ contains
       path(npath)%gf = res%gf
       path(npath)%hf = res%hf
     end subroutine addtopath
+
+    !> Find the known CP of the right type (nuclei and lookup) closest
+    !> to point xc (Cartesian; xx, crystallographic) whose capture
+    !> sphere contains it. The capture radius is the beta-sphere if
+    !> beta, rc otherwise. If found, return its index (id /= 0; for
+    !> nuclei, in the atom list) and position (Cartesian, xk;
+    !> crystallographic, xkr).
+    subroutine known_cp(xc,xx,beta,rc,id,xk,xkr)
+      real*8, intent(in) :: xc(3), xx(3)
+      logical, intent(in) :: beta
+      real*8, intent(in) :: rc
+      integer, intent(out) :: id
+      real*8, intent(out) :: xk(3), xkr(3)
+
+      integer :: idnuc, lvec(3)
+      real*8 :: dnuc, rnuc, dist
+
+      id = 0
+      dist = huge(1d0)
+      xk = 0d0
+      xkr = 0d0
+      if (fid%typnuc==-3 .and. iup==1 .or. fid%typnuc==3 .and. iup==-1) then
+         call fid%c%nearest_atom(xx,icrd_crys,idnuc,dnuc,lvec=lvec)
+         rnuc = rc
+         if (beta) rnuc = fid%cp(fid%c%atcel(idnuc)%idx)%rbeta
+         if (dnuc <= rnuc) then
+            id = idnuc
+            dist = dnuc
+            xkr = fid%c%atcel(idnuc)%x + lvec
+            xk = fid%c%x2c(xkr)
+         end if
+      end if
+      call cp_lookup_nearest(fid,lk,xc,beta,rc,id,dist,xk,xkr)
+
+    end subroutine known_cp
+
+    !> Add the step from xlast to xpoint to the path. If pruning,
+    !> the points are placed along a cubic Hermite interpolant of
+    !> the step, at distance prune0 from the previous point.
+    subroutine addsteptopath(istep)
+      integer, intent(in) :: istep
+
+      integer :: k
+      real*8 :: ta, tb, tm, xp(3)
+
+      if (prune0 < 0d0) then
+         call addtopath(istep,xpoint,fid%c%c2x(xpoint),res)
+         return
+      end if
+
+      ! end tangents of the step for the Hermite interpolant
+      hd0 = hdid * glast / (norm2(glast) + vsmall)
+      hd1 = hdid * res%gf / (res%gfmod + vsmall)
+      ta = 0d0
+      do while (norm2(xpoint - path(npath)%r) > prune0)
+         ! bisect the parameter where the step crosses the sphere of
+         ! radius prune0 around the last point in the path
+         tb = 1d0
+         do k = 1, 50
+            tm = 0.5d0 * (ta + tb)
+            if (norm2(hermite(tm) - path(npath)%r) > prune0) then
+               tb = tm
+            else
+               ta = tm
+            end if
+         end do
+         xp = hermite(tb)
+         call fid%grd(xp,req2,resaux)
+         call addtopath(istep,xp,fid%c%c2x(xp),resaux)
+         ta = tb
+      end do
+
+    end subroutine addsteptopath
+
+    !> Cubic Hermite interpolant of the last step, t in [0,1].
+    function hermite(t) result(x)
+      real*8, intent(in) :: t
+      real*8 :: x(3)
+
+      x = (2d0*t**3 - 3d0*t**2 + 1d0) * xlast + (t**3 - 2d0*t**2 + t) * hd0 +&
+         (-2d0*t**3 + 3d0*t**2) * xpoint + (t**3 - t**2) * hd1
+
+    end function hermite
   end subroutine gradient
 
   !xx! private procedures
@@ -3264,137 +3337,171 @@ contains
   end subroutine rename_cps
 
 
-  !> Integration using adaptive_stepper step.
-  function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
+  !> Take an adaptive step of a gradient path from xpoint
+  !> (Cartesian). On input, res is the evaluation at xpoint and h0 the
+  !> trial step length (positive up, negative down), and maxstep is
+  !> the maximum step length. On output, if the step was successful
+  !> (adaptive_stepper = .true.), xpoint is the new point, res the
+  !> evaluation there (with the Hessian if hess), hdid the step
+  !> taken, and h0 the proposed next step. The embedded steppers
+  !> control the error transverse to the path (the error along the
+  !> path does not change its shape) and reject the steps in which
+  !> the direction reverses (overshooting a CP).
+  function adaptive_stepper(fid,xpoint,h0,maxstep,res,hess,hdid)
     use global, only: nav_stepper, nav_stepper_heun, nav_stepper_rkck, nav_stepper_dp,&
-       nav_stepper_bs, nav_stepper_euler, nav_maxerr
+       nav_stepper_euler, nav_maxerr, nav_gradeps
     use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
     logical :: adaptive_stepper
     type(field), intent(inout) :: fid
     real*8, intent(inout) :: xpoint(3)
     real*8, intent(inout) :: h0
-    real*8, intent(in) :: maxstep, eps
+    real*8, intent(in) :: maxstep
     type(scalar_value), intent(inout) :: res
+    logical, intent(in) :: hess
+    real*8, intent(out) :: hdid
 
-    integer :: ier
-    real*8 :: grdt(3), ogrdt(3)
-    real*8 :: xtemp(3), escalar, xerrv(3)
-    real*8 :: nerr
-    logical :: ok, first
-    type(field_evaluation_avail) :: request
+    real*8 :: grdt0(3), grdt(3), xtemp(3), xerrv(3), u(3)
+    real*8 :: escalar, nerr, fac, pexp
+    logical :: rejected, accept
+    type(scalar_value) :: resn
+    type(field_evaluation_avail) :: req1, reqf
 
-    real*8, parameter :: h0break = 1.d-10
+    real*8, parameter :: hmin = 1d-12 ! smallest step length
+    real*8, parameter :: safety = 0.9d0 ! safety factor in the step length control
+    real*8, parameter :: facmin = 0.2d0 ! smallest step length reduction factor
+    real*8, parameter :: facmax = 5d0 ! largest step length increase factor
 
-    call request%field_nder2()
-    adaptive_stepper = .true.
-    ier = 1
-    grdt = res%gf / (res%gfmod + VSMALL)
-    first = .true.
-    do while (ier /= 0)
-       ! calculate the new grdt
-       ogrdt = grdt
+    ! the intermediate stages need only the gradient
+    call req1%field_nder1()
+    if (hess) then
+       call reqf%field_nder2()
+    else
+       call reqf%field_nder1()
+    end if
 
-       ! new point
+    ! exponent in the step length control, 1/(p+1), with p the order
+    ! of the lower-order solution in the embedded pair
+    if (NAV_stepper == NAV_stepper_rkck .or. NAV_stepper == NAV_stepper_dp) then
+       pexp = 1d0 / 5d0
+    else
+       pexp = 1d0 / 3d0
+    end if
+
+    adaptive_stepper = .false.
+    hdid = 0d0
+    grdt0 = res%gf / (res%gfmod + VSMALL)
+    rejected = .false.
+    do while (.true.)
+       ! trial step, always from the direction at xpoint
        if (NAV_stepper == NAV_stepper_euler) then
-          call stepper_euler1(xpoint,grdt,h0,xtemp)
+          xtemp = xpoint + h0 * grdt0
+          call fid%grd(xtemp,reqf,resn)
        else if (NAV_stepper == NAV_stepper_heun) then
-          call stepper_heun(fid,xpoint,grdt,h0,xtemp,res)
+          call stepper_heun(fid,xpoint,grdt0,h0,xtemp,req1)
+          call fid%grd(xtemp,reqf,resn)
        else if (NAV_stepper == NAV_stepper_rkck) then
-          call stepper_rkck(fid,xpoint,grdt,h0,xtemp,xerrv,res)
+          call stepper_rkck(fid,xpoint,grdt0,h0,xtemp,xerrv,req1)
+          call fid%grd(xtemp,reqf,resn)
        else if (NAV_stepper == NAV_stepper_dp) then
-          call stepper_dp(fid,xpoint,grdt,h0,xtemp,xerrv,res)
-       else if (NAV_stepper == NAV_stepper_bs) then
-          call stepper_bs(fid,xpoint,grdt,h0,xtemp,xerrv,res)
+          call stepper_dp(fid,xpoint,grdt0,h0,xtemp,xerrv,resn,req1,reqf)
+       else
+          call stepper_bs(fid,xpoint,grdt0,h0,xtemp,xerrv,resn,req1,reqf)
        end if
 
-       ! FSAL for BS stepper
-       if (NAV_stepper /= NAV_stepper_bs) &
-          call fid%grd(xtemp,request,res)
-       grdt = res%gf / (res%gfmod + VSMALL)
+       ! an invalid evaluation ends the path in the caller
+       if (.not.resn%valid) then
+          xpoint = xtemp
+          res = resn
+          hdid = h0
+          adaptive_stepper = .true.
+          return
+       end if
 
-       ! poor man's adaptive step size in Euler
+       ! cosine of the angle between the directions at both ends
+       grdt = resn%gf / (resn%gfmod + VSMALL)
+       escalar = dot_product(grdt0,grdt)
+
        if (NAV_stepper == NAV_stepper_euler .or. NAV_stepper == NAV_stepper_heun) then
-          ! angle with next step
-          escalar = dot_product(ogrdt,grdt)
-
-          ! gradient eps in cartesian
-          ok = (res%gfmod < 0.99d0*eps)
-
-          ! Check if they differ in > 90 deg.
-          if (escalar < 0.d0.and..not.ok) then
-             if (abs(h0) >= h0break) then
-                h0 = 0.5d0 * h0
-                ier = 1
-             else
-                adaptive_stepper = .false.
-                return
-             end if
+          ! poor man's adaptive step size: reject if the directions
+          ! differ in more than 90 degrees or the step is much shorter
+          ! than h0 (Heun, directions cancel across a CP), unless the
+          ! new point is a CP; if the angle is favorable, take longer
+          ! steps
+          accept = (escalar >= 0d0 .and. norm2(xtemp - xpoint) >= 0.5d0*abs(h0)) .or.&
+             resn%gfmod < 0.99d0*NAV_gradeps
+          if (.not.accept) then
+             fac = 0.5d0
+          else if (escalar > 0.9d0 .and. .not.rejected) then
+             fac = 1.6d0
           else
-             ! Accept point. If angle is favorable, take longer steps
-             if (escalar > 0.9 .and. first) &
-                h0 = dsign(min(abs(maxstep), abs(1.6d0*h0)),maxstep)
-             ier = 0
-             xpoint = xtemp
+             fac = 1d0
           end if
        else
-          ! use the error estimate
+          ! error estimate, transverse to the step
+          u = xtemp - xpoint
+          if (norm2(u) > 0d0) u = u / norm2(u)
+          xerrv = xerrv - dot_product(xerrv,u) * u
           nerr = norm2(xerrv)
-          if (nerr < NAV_maxerr) then
-             ! accept point
-             ier = 0
-             xpoint = xtemp
-             ! if this is the first time through, and the norm is very small, propose a longer step
-             if (first .and. nerr < NAV_maxerr/10d0) &
-                h0 = dsign(min(abs(maxstep), abs(1.6d0*h0)),maxstep)
+          if (nerr > 0d0) then
+             fac = safety * (NAV_maxerr / nerr)**pexp
           else
-             ! propose a new shorter step using the error estimate
-             h0 = 0.9d0 * h0 * NAV_maxerr / nerr
-             if (abs(h0) < VSMALL) then
-                adaptive_stepper = .false.
-                return
-             end if
-          endif
+             fac = facmax
+          end if
+
+          accept = (nerr <= NAV_maxerr .and. escalar > 0d0)
+          if (accept) then
+             fac = min(fac,facmax)
+             if (rejected) fac = min(fac,1d0)
+          else if (escalar <= 0d0) then
+             fac = 0.5d0
+          else
+             fac = max(fac,facmin)
+          end if
        end if
-       first = .false.
+
+       if (accept) then
+          xpoint = xtemp
+          res = resn
+          hdid = h0
+          h0 = sign(min(abs(maxstep),abs(h0)*fac),maxstep)
+          adaptive_stepper = .true.
+          return
+       end if
+
+       ! reject and try again with a shorter step
+       h0 = h0 * fac
+       rejected = .true.
+       if (.not.(abs(h0) >= hmin)) return ! also catches a NaN step
     enddo
 
   end function adaptive_stepper
 
-  !> Euler stepper.
-  subroutine stepper_euler1(xpoint,grdt,h0,xout)
-
-    real*8, intent(in) :: xpoint(3), h0, grdt(3)
-    real*8, intent(out) :: xout(3)
-
-    xout = xpoint + h0 * grdt
-
-  end subroutine stepper_euler1
-
-  !> Heun stepper.
-  subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
+  !> Heun stepper. The intermediate evaluation uses request req.
+  subroutine stepper_heun(fid,xpoint,grdt,h0,xout,req)
     use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3)
-    type(scalar_value), intent(inout) :: res
+    type(field_evaluation_avail), intent(in) :: req
 
     real*8 :: ak2(3)
-    type(field_evaluation_avail) :: request
+    type(scalar_value) :: res
 
-    call request%field_nder2()
     xout = xpoint + h0 * grdt
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
 
   end subroutine stepper_heun
 
-  !> Bogacki-Shampine embedded 2(3) method, fsal
-  subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
+  !> Bogacki-Shampine embedded 2(3) method, fsal. The intermediate
+  !> evaluations use request req and the last one (at xout, returned
+  !> in res) uses reqf.
+  subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res,req,reqf)
     use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
@@ -3402,23 +3509,22 @@ contains
     real*8, intent(in) :: xpoint(3), h0, grdt(3)
     real*8, intent(out) :: xout(3), xerr(3)
     type(scalar_value), intent(inout) :: res
+    type(field_evaluation_avail), intent(in) :: req, reqf
 
     real*8, dimension(3) :: ak1, ak2, ak3, ak4
-    type(field_evaluation_avail) :: request
 
-    call request%field_nder2()
     ak1 = grdt
 
     xout = xpoint + h0 * (0.5d0*ak1)
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (2d0/9d0*ak1 + 1d0/3d0*ak2 + 4d0/9d0*ak3)
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,reqf,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
 
     xerr = xpoint + h0 * (7d0/24d0*ak1 + 1d0/4d0*ak2 + 1d0/3d0*ak3 + 1d0/8d0*ak4) - xout
@@ -3426,14 +3532,15 @@ contains
   end subroutine stepper_bs
 
   !> Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation.
-  subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
+  !> The intermediate evaluations use request req.
+  subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,req)
     use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
     type(field), intent(inout) :: fid
     real*8, intent(in) :: xpoint(3), grdt(3), h0
     real*8, intent(out) :: xout(3), xerr(3)
-    type(scalar_value), intent(inout) :: res
+    type(field_evaluation_avail), intent(in) :: req
 
     real*8, parameter :: B21=.2d0, &
          B31=3.d0/40.d0, B32=9.d0/40.d0,&
@@ -3443,36 +3550,37 @@ contains
          C1=37.d0/378.d0, C3=250.d0/621.d0, C4=125.d0/594.d0, C6=512.d0/1771.d0,&
          DC1=C1-2825.d0/27648.d0, DC3=C3-18575.d0/48384.d0, DC4=C4-13525.d0/55296.d0, DC5=-277.d0/14336.d0, DC6=C6-.25d0
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6
-    type(field_evaluation_avail) :: request
+    type(scalar_value) :: res
 
-    call request%field_nder2()
     xout = xpoint + h0*B21*grdt
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B31*grdt+B32*ak2)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B41*grdt+B42*ak2+B43*ak3)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B51*grdt+B52*ak2+B53*ak3+B54*ak4)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B61*grdt+B62*ak2+B63*ak3+B64*ak4+B65*ak5)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(C1*grdt+C3*ak3+C4*ak4+C6*ak6)
     xerr = h0*(DC1*grdt+DC3*ak3+DC4*ak4+DC5*ak5+DC6*ak6)
 
   end subroutine stepper_rkck
 
-  !> Doermand-Prince embedded 4(5)-order, local extrapolation.
-  subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
+  !> Dormand-Prince embedded 4(5)-order, local extrapolation, fsal.
+  !> The intermediate evaluations use request req and the last one
+  !> (at xout, returned in res) uses reqf.
+  subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res,req,reqf)
     use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
@@ -3480,6 +3588,7 @@ contains
     real*8, intent(in) :: xpoint(3), grdt(3), h0
     real*8, intent(out) :: xout(3), xerr(3)
     type(scalar_value), intent(inout) :: res
+    type(field_evaluation_avail), intent(in) :: req, reqf
 
     real*8, parameter :: dp_a(7,7) = reshape((/&
        0.0d0,  0d0,0d0,0d0,0d0,0d0,0d0,&
@@ -3489,44 +3598,206 @@ contains
        19372d0/6561d0, -25360d0/2187d0, 64448d0/6561d0, -212d0/729d0,  0d0,0d0,0d0,&
        9017d0/3168d0,  -355d0/33d0,     46732d0/5247d0,  49d0/176d0,  -5103d0/18656d0, 0d0,0d0,&
        35d0/384d0,      0d0,            500d0/1113d0,    125d0/192d0, -2187d0/6784d0,  11d0/84d0,      0d0&
-       /),shape(dp_a))
+       /),shape(dp_a),order=(/2,1/))
     real*8, parameter :: dp_b2(7) = (/5179d0/57600d0, 0d0, 7571d0/16695d0, 393d0/640d0,&
        -92097d0/339200d0, 187d0/2100d0, 1d0/40d0/)
     real*8, parameter :: dp_b(7) = (/ 35d0/384d0, 0d0, 500d0/1113d0, 125d0/192d0, &
        -2187d0/6784d0, 11d0/84d0, 0d0 /)
     real*8, parameter :: dp_c(7) = dp_b2 - dp_b
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6, ak7
-    type(field_evaluation_avail) :: request
 
-    call request%field_nder2()
     xout = xpoint + h0*dp_a(2,1)*grdt
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(3,1)*grdt+dp_a(3,2)*ak2)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(4,1)*grdt+dp_a(4,2)*ak2+dp_a(4,3)*ak3)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(5,1)*grdt+dp_a(5,2)*ak2+dp_a(5,3)*ak3+dp_a(5,4)*ak4)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(6,1)*grdt+dp_a(6,2)*ak2+dp_a(6,3)*ak3+dp_a(6,4)*ak4+dp_a(6,5)*ak5)
 
-    call fid%grd(xout,request,res)
+    call fid%grd(xout,req,res)
     ak6 = res%gf / (res%gfmod+VSMALL)
-    xout = xpoint + h0*(dp_b(1)*grdt+dp_b(2)*ak2+dp_b(3)*ak3+dp_b(4)*ak4+dp_b(5)*ak5+dp_b(6)*ak6)
 
-    call fid%grd(xout,request,res)
+    ! the 5th-order solution is the propagated one; the 7th stage is
+    ! evaluated at it and is the first stage of the next step
+    xout = xpoint + h0*(dp_b(1)*grdt+dp_b(2)*ak2+dp_b(3)*ak3+dp_b(4)*ak4+dp_b(5)*ak5+dp_b(6)*ak6)
+    call fid%grd(xout,reqf,res)
     ak7 = res%gf / (res%gfmod+VSMALL)
     xerr = h0*(dp_c(1)*grdt+dp_c(2)*ak2+dp_c(3)*ak3+dp_c(4)*ak4+dp_c(5)*ak5+dp_c(6)*ak6+dp_c(7)*ak7)
-    xout = xout + xerr
 
   end subroutine stepper_dp
+
+  !> Build the block lookup lk of the non-nuclear CPs in the complete
+  !> list of field fid that can end a gradient path traced in
+  !> direction iup (maxima going up, minima going down). The capture
+  !> radius of a CP is its beta-sphere if up2beta, rcap otherwise.
+  !> The blocks are those of the crystal environment.
+  subroutine cp_lookup_build(fid,iup,up2beta,rcap,lk)
+    type(field), intent(inout) :: fid
+    integer, intent(in) :: iup
+    logical, intent(in) :: up2beta
+    real*8, intent(in) :: rcap
+    type(cp_lookup), intent(inout) :: lk
+
+    integer :: i, ib(3), nb(3)
+    real*8 :: xr(3)
+
+    lk%n = 0
+    lk%rmax = 0d0
+    if (fid%ncpcel <= fid%c%ncel) return
+
+    nb = fid%c%nblock
+    allocate(lk%iblock0(0:nb(1)-1,0:nb(2)-1,0:nb(3)-1),lk%inext(fid%ncpcel),lk%xr(3,fid%ncpcel))
+    lk%iblock0 = 0
+    lk%inext = 0
+    do i = fid%c%ncel+1, fid%ncpcel
+       if (.not.(fid%cpcel(i)%typ==-3 .and. iup==1 .or. fid%cpcel(i)%typ==3 .and. iup==-1)) cycle
+       xr = fid%c%x2xr(fid%cpcel(i)%x)
+       if (.not.fid%c%ismolecule) xr = xr - floor(xr)
+       lk%xr(:,i) = xr
+       ib = min(max(floor(xr * nb),0),nb-1)
+       lk%inext(i) = lk%iblock0(ib(1),ib(2),ib(3))
+       lk%iblock0(ib(1),ib(2),ib(3)) = i
+       lk%n = lk%n + 1
+       if (up2beta) then
+          lk%rmax = max(lk%rmax,fid%cp(fid%cpcel(i)%idx)%rbeta)
+       else
+          lk%rmax = max(lk%rmax,rcap)
+       end if
+    end do
+
+  end subroutine cp_lookup_build
+
+  !> Find the CP in lookup lk of field fid closest to point xp
+  !> (Cartesian) whose capture sphere (radius: beta-sphere if
+  !> up2beta, rcap otherwise) contains it, if it is closer than
+  !> dist. If found, return its index in the complete list (id), the
+  !> distance (dist), and the position of the CP image in Cartesian
+  !> (xc) and crystallographic (xx) coordinates.
+  subroutine cp_lookup_nearest(fid,lk,xp,up2beta,rcap,id,dist,xc,xx)
+    type(field), intent(inout) :: fid
+    type(cp_lookup), intent(in) :: lk
+    real*8, intent(in) :: xp(3)
+    logical, intent(in) :: up2beta
+    real*8, intent(in) :: rcap
+    integer, intent(inout) :: id
+    real*8, intent(inout) :: dist, xc(3), xx(3)
+
+    integer :: i, j, k, idx, ib(3), i0(3), i1(3), nb(3)
+    real*8 :: xr(3), ext(3), xri(3), xci(3), d, rc
+
+    if (lk%n == 0) return
+
+    ! range of blocks within the largest capture radius
+    nb = fid%c%nblock
+    xr = fid%c%c2xr(xp)
+    do i = 1, 3
+       ext(i) = lk%rmax * norm2(fid%c%m_c2xr(i,:))
+    end do
+    i0 = floor((xr - ext) * nb)
+    i1 = floor((xr + ext) * nb)
+    if (fid%c%ismolecule) then
+       i0 = min(max(i0,0),nb-1)
+       i1 = min(max(i1,0),nb-1)
+    end if
+
+    do i = i0(1), i1(1)
+       do j = i0(2), i1(2)
+          do k = i0(3), i1(3)
+             ib = (/modulo(i,nb(1)), modulo(j,nb(2)), modulo(k,nb(3))/)
+             idx = lk%iblock0(ib(1),ib(2),ib(3))
+             do while (idx /= 0)
+                xri = lk%xr(:,idx)
+                if (.not.fid%c%ismolecule) xri = xri + ((/i,j,k/) - ib) / nb
+                xci = fid%c%xr2c(xri)
+                d = norm2(xci - xp)
+                rc = rcap
+                if (up2beta) rc = fid%cp(fid%cpcel(idx)%idx)%rbeta
+                if (d <= rc .and. d < dist) then
+                   id = idx
+                   dist = d
+                   xc = xci
+                   xx = fid%c%xr2x(xri)
+                end if
+                idx = lk%inext(idx)
+             end do
+          end do
+       end do
+    end do
+
+  end subroutine cp_lookup_nearest
+
+  !> Look for an attractor of field fid (iup = 1: maximum, iup = -1:
+  !> minimum) within a distance rmax of x0 (Cartesian) using Newton
+  !> steps. The field must have the curvature of the attractor at x0
+  !> and at every Newton iterate. If found, ok = .true., xcp is the
+  !> attractor (Cartesian) and res the evaluation (with Hessian) at it.
+  subroutine newton_attractor(fid,x0,iup,rmax,xcp,res,ok)
+    use global, only: nav_gradeps
+    use tools_math, only: matinv, det3
+    use types, only: scalar_value, field_evaluation_avail
+    type(field), intent(inout) :: fid
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: iup
+    real*8, intent(in) :: rmax
+    real*8, intent(out) :: xcp(3)
+    type(scalar_value), intent(inout) :: res
+    logical, intent(out) :: ok
+
+    integer :: it, ier
+    real*8 :: f0, hm(3,3), dx(3), dxlast
+    type(field_evaluation_avail) :: request
+
+    integer, parameter :: mit = 20
+    real*8, parameter :: dxeps = 1d-10
+
+    ok = .false.
+    call request%field_nder2()
+    xcp = x0
+    f0 = 0d0
+    dxlast = huge(1d0)
+    do it = 1, mit
+       call fid%grd(xcp,request,res)
+       if (.not.res%valid) return
+       if (it == 1) f0 = res%f
+
+       ! -iup * H must be positive definite (Sylvester's criterion)
+       hm = -iup * res%hf
+       if (hm(1,1) <= 0d0 .or. hm(1,1)*hm(2,2)-hm(1,2)*hm(2,1) <= 0d0 .or. det3(hm) <= 0d0) return
+
+       ! converged
+       if (res%gfmod < NAV_gradeps) exit
+
+       ! Newton step
+       hm = res%hf
+       call matinv(hm,3,ier)
+       if (ier /= 0) return
+       dx = -matmul(hm,res%gf)
+       if (it > 1 .and. norm2(dx) >= dxlast) return ! not converging
+       dxlast = norm2(dx)
+       xcp = xcp + dx
+       if (norm2(xcp - x0) > rmax) return
+       if (norm2(dx) < dxeps) then
+          call fid%grd(xcp,request,res)
+          if (.not.res%valid) return
+          exit
+       end if
+    end do
+    if (it > mit) return
+
+    ! the path goes uphill (iup = 1) or downhill (iup = -1)
+    ok = (iup * (res%f - f0) >= 0d0)
+
+  end subroutine newton_attractor
 
   !> Fingerprint of the field and its structure, used to check that a
   !> CP checkpoint file corresponds to them. Integer (ihdr) and real
