@@ -182,6 +182,12 @@ contains
           win(iview)%sc%forcebuildlists = .true.
           call win(iview)%sc%undo_note("Reset " // trim(w%rep%name))
        end if
+       if (doexport) then
+          call iw_tooltip("Reset all the settings of this object to their defaults, and remove all&
+             & the traced gradient paths",ttshown)
+       else
+          call iw_tooltip("Reset all the settings of this object to their defaults",ttshown)
+       end if
 
        ! export the gradient paths, bond and traced, to a text file
        ! (written by draw_editrep_gpaths when the dialog sets okfile)
@@ -5214,8 +5220,8 @@ contains
   !> the representation has changed.
   module function draw_editrep_gpaths(w,ttshown) result(changed)
     use systems, only: sys, sysc, atlisttype_species
-    use gui_main, only: ColorHighlightScene
-    use representations, only: gpaths_rad_def, field_has_cps, gtrace_axis, gtrace_rings
+    use gui_main, only: ColorHighlightScene, ColorGpath
+    use representations, only: gpaths_rad_def, field_has_cps, gtrace_axis, gtrace_rings, gpaths_style_tube
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
        iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable, iw_button, iw_inputfloat,&
@@ -5269,7 +5275,16 @@ contains
     if (.not.ok) return
 
     ! style of all paths, bond and traced
-    call iw_text("Style",highlight=.true.)
+    call iw_text("Style",highlight=.true.,alignframe=.true.)
+    if (iw_button("Reset##gpathsstylereset",sameline=.true.,danger=.true.)) then
+       w%rep%gpaths%style = gpaths_style_tube
+       w%rep%gpaths%rgb = ColorGpath
+       w%rep%gpaths%rad = gpaths_rad_def
+       call w%rep%gpaths%apply_style(.true.,.true.)
+       changed = .true.
+    end if
+    call iw_tooltip("Reset the style of all gradient paths, bond and traced, to the defaults&
+       & (continuous path, default color and radius)",ttshown)
     istyle = int(w%rep%gpaths%style,c_int)
     call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
        "String of spheres" // c_null_char,istyle,changed=ch,tooltips=&
