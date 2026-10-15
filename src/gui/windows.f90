@@ -458,7 +458,7 @@ module windows
      character*10 :: name = "" ! the point property (blank for the others)
      logical :: show = .true. ! calculate and show the property
      logical :: expo = .true. ! exponential notation (or fixed point)
-     integer(c_int) :: ndec = 9 ! number of decimal places
+     integer(c_int) :: ndec = 5 ! number of decimal places
   end type point_col
 
   !> Per-window state of the point properties window (Tools > Point
@@ -489,6 +489,7 @@ module windows
      ! them; for the inputs in key and x
      type(propty_item), allocatable :: item(:)
      integer :: nitem = 0
+     real(c_float) :: wcol(3) = 0._c_float ! widest number in each value column of the table
      character(len=:), allocatable :: errmsg
      integer*8, allocatable :: key(:)
      real*8 :: keyx(3) = 0d0

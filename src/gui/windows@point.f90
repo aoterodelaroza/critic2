@@ -28,8 +28,8 @@ submodule (windows) point
   real*8, parameter :: marker_radmin = 0.25d0
   real*8, parameter :: marker_radmax = 0.6d0
 
-  ! name and definition of the built-in properties (propid_*), for the
-  ! list of properties calculated at the point
+  ! name and definition (its tooltip) of the built-in properties
+  ! (propid_*), for the list of properties calculated at the point
   character(len=*), parameter :: propname(propid_NUM) = (/&
      "Type                         ","Field value                  ",&
      "Valence field value          ","Gradient                     ",&
@@ -59,10 +59,10 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8,&
        iw_field_combo, iw_calcwidth, iw_close_event, iw_setpos_bottomright,&
-       iw_table_column, iw_table_headers_row, iw_cell_right
+       iw_table_column, iw_table_headers_row, iw_calcheight
     use representations, only: rep_shape, shapekind_sphere
     use systemmod, only: propitem_header, propitem_row, propitem_text, propid_none, propid_type,&
-       propid_fval, propid_gfmodval, propid_lapval, propid_pointprop, propid_field
+       propid_fval, propid_gfmodval, propid_lapval, propid_ellip, propid_pointprop, propid_field
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -71,6 +71,8 @@ contains
     logical :: doquit, goodsys, syschanged, ismol, ldum, xediting
     integer :: i, isys, iview, istat, iwrite, ifield
     type(point_col) :: cc
+    character(len=:), allocatable :: hdr
+    real(c_float) :: wnew(3)
     integer(c_int) :: tflags
     real*8 :: xc(3), xrep(3), rad
     type(ImVec2) :: sz0
@@ -96,6 +98,8 @@ contains
        w%pt%col(propid_gfmodval)%show = .false.
        w%pt%col(propid_lapval)%show = .false.
        w%pt%col(propid_field)%show = .false.
+       ! the ellipticity is of order one: fixed point
+       w%pt%col(propid_ellip)%expo = .false.
        allocate(w%pt%ppcol(0))
     end if
 
@@ -180,16 +184,24 @@ contains
        tflags = ior(tflags,ImGuiTableFlags_RowBg)
        tflags = ior(tflags,ImGuiTableFlags_Borders)
        tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+       tflags = ior(tflags,ImGuiTableFlags_ScrollY)
        str1 = "##pointtable" // c_null_char
+       ! the rest of the window, as the results table of the critical
+       ! points window, leaving room for a message and Close; but at
+       ! least a few rows (the stretch beyond them is elastic)
+       call igGetContentRegionAvail(sz0)
        sz0%x = 0._c_float
-       sz0%y = 0._c_float
+       sz0%y = sz0%y - iw_calcheight(3,0,.true.)
+       sz0%y = max(sz0%y,iw_calcheight(7,0,.false.))
+       w%heightslack = sz0%y - iw_calcheight(7,0,.false.)
        if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) then
           call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
           call iw_table_column("",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
+          call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
           call w%table_write_begin(itable_point,iwrite)
+          wnew = 0._c_float
 
           ! the point of the report, with the Cartesian coordinates in
           ! the absolute frame (molecules with their origin, as POINT
@@ -201,14 +213,19 @@ contains
              call row("Coordinates (frac)",vec3(xrep,'f',7))
           call row("Coordinates (bohr)",vec3(xc,'f',7))
           call row("Coordinates (Å)",vec3(xc*bohrtoa,'f',7))
+          ! the label of a tensor goes on the row of its first line
+          hdr = ""
           do i = 1, w%pt%nitem
              associate(it => w%pt%item(i))
                if (.not.item_col(it,cc)) cycle
                select case (it%kind)
-               case (propitem_header,propitem_text)
+               case (propitem_header)
+                  hdr = it%label
+               case (propitem_text)
                   call row(it%label,"")
                case (propitem_row)
-                  call row("",nums(it%x,cc))
+                  call row(hdr,nums(it%x,cc))
+                  hdr = ""
                case default
                   if (size(it%x,1) > 0) then
                      call row(it%label,nums(it%x,cc))
@@ -219,6 +236,7 @@ contains
              end associate
           end do
 
+          w%pt%wcol = wnew
           call w%table_write_end(itable_point,table_title("Point properties",isys))
           call igEndTable()
        end if
@@ -259,7 +277,6 @@ contains
     !> it is shown and the notation and decimal places of its numbers in
     !> the table; and the form to add point properties (as POINTPROP).
     subroutine draw_props_section()
-      use utils, only: iw_calcheight
       character(kind=c_char,len=:), allocatable, target :: strsec, strtab
       integer(c_int) :: flt
       integer :: jp, ip, nrow, idel
@@ -291,15 +308,14 @@ contains
       flt = ior(flt,ImGuiTableFlags_ScrollY)
       strtab = "##tablepointprops" // c_null_char
       szt%x = 0._c_float
-      szt%y = iw_calcheight(min(nrow,8)+1,0,.false.)
+      szt%y = iw_calcheight(min(nrow,5)+1,0,.false.)
       idel = 0
-      if (igBeginTable(c_loc(strtab),6_c_int,flt,szt,0._c_float)) then
+      if (igBeginTable(c_loc(strtab),5_c_int,flt,szt,0._c_float)) then
          call iw_table_column("Show",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Property",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Definition",id=2_c_int,flags=ImGuiTableColumnFlags_WidthStretch)
-         call iw_table_column("Format",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Decimals",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("(delete)",id=5_c_int,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
+         call iw_table_column("Property",id=1_c_int,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_column("Format",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Decimals",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("(delete)",id=4_c_int,flags=ior(ImGuiTableColumnFlags_WidthFixed,&
             ImGuiTableColumnFlags_NoHeaderLabel))
          call iw_table_headers_row(freezetop=.true.)
 
@@ -316,9 +332,12 @@ contains
             associate(pp => sys(isys)%propp(ip))
               jp = ppcol_index(pp%name)
               if (pp%ispecial == 0) then
-                 call prop_row("p" // string(ip),trim(pp%name),trim(pp%expr),w%pt%ppcol(jp),del=del)
+                 call prop_row("p" // string(ip),trim(pp%name) // " (" // trim(pp%expr) // ")",&
+                    "Point property " // trim(pp%name) // ": " // trim(pp%expr),w%pt%ppcol(jp),del=del)
               else
-                 call prop_row("p" // string(ip),trim(pp%name),"stress tensor",w%pt%ppcol(jp),del=del)
+                 call prop_row("p" // string(ip),trim(pp%name) // " (stress tensor)",&
+                    "Point property " // trim(pp%name) // ": the Schrödinger stress tensor",&
+                    w%pt%ppcol(jp),del=del)
               end if
               if (del) idel = ip
             end associate
@@ -332,7 +351,7 @@ contains
       end if
       if (idel > 0) then
          ! forget its settings, so a new property with its name starts afresh
-         jp = findloc(w%pt%ppcol%name,sys(isys)%propp(idel)%name,1)
+         jp = ppcol_find(sys(isys)%propp(idel)%name)
          if (jp > 0) w%pt%ppcol = (/w%pt%ppcol(1:jp-1),w%pt%ppcol(jp+1:)/)
          call sys(isys)%delete_pointprop(idel)
       end if
@@ -347,7 +366,7 @@ contains
     end subroutine draw_props_section
 
     !> A row of the list of properties calculated at the point: label,
-    !> definition, and settings c. Without numbers, no notation and
+    !> its definition (the tooltip of the label), and settings c. Without numbers, no notation and
     !> decimals. If calc, Show also decides whether it is calculated
     !> (the others are always calculated, and only hidden). If del is
     !> present, the row has a delete button, and del is whether it was
@@ -379,9 +398,11 @@ contains
             call iw_tooltip("Show this property in the table",ttshown)
          end if
       end if
-      if (igTableSetColumnIndex(1_c_int)) call iw_text(label,alignframe=.true.)
-      if (igTableSetColumnIndex(2_c_int)) call iw_text(def,alignframe=.true.)
-      if (numbers_ .and. igTableSetColumnIndex(3_c_int)) then
+      if (igTableSetColumnIndex(1_c_int)) then
+         call iw_text(label,alignframe=.true.)
+         call iw_tooltip(def,ttshown)
+      end if
+      if (numbers_ .and. igTableSetColumnIndex(2_c_int)) then
          ifmt = merge(1,0,c%expo)
          call iw_combo_simple(suf // "fmt","Fixed" // c_null_char // "Exp" // c_null_char,&
             ifmt,changed=ch)
@@ -389,13 +410,13 @@ contains
          call iw_tooltip("Notation of the numbers of this property in the table: fixed&
             & point (0.0123) or exponential (1.23E-02)",ttshown)
       end if
-      if (numbers_ .and. igTableSetColumnIndex(4_c_int)) then
+      if (numbers_ .and. igTableSetColumnIndex(3_c_int)) then
          ldum = iw_intstepper(suf // "dec",c%ndec,minval=0_c_int,maxval=16_c_int,&
             ndigit=2,tooltip="Number of decimal places of this property in the table")
       end if
       if (present(del)) then
          del = .false.
-         if (igTableSetColumnIndex(5_c_int)) then
+         if (igTableSetColumnIndex(4_c_int)) then
             ! the close icon is one line of text high: centered on the row frames
             call igSetCursorPosY(igGetCursorPosY() + g%Style%FramePadding%y)
             del = iw_close_button(suf // "del")
@@ -441,14 +462,25 @@ contains
       character(len=*), intent(in) :: name
       integer :: ic
       type(point_col), allocatable :: aux(:)
-      ic = findloc(w%pt%ppcol%name,name,1)
+      ic = ppcol_find(name)
       if (ic > 0) return
       allocate(aux(size(w%pt%ppcol,1)+1))
       aux(1:size(w%pt%ppcol,1)) = w%pt%ppcol
-      aux(size(aux,1)) = point_col(name=name)
+      aux(size(aux,1)) = point_col(name=name,ndec=9)
       call move_alloc(aux,w%pt%ppcol)
       ic = size(w%pt%ppcol,1)
     end function ppcol_index
+
+    !> The settings of the point property with this name (0 if none). A
+    !> loop: findloc on the name component would copy it every call.
+    function ppcol_find(name) result(ic)
+      character(len=*), intent(in) :: name
+      integer :: ic
+      do ic = 1, size(w%pt%ppcol,1)
+         if (w%pt%ppcol(ic)%name == name) return
+      end do
+      ic = 0
+    end function ppcol_find
 
     !> The numbers x written with the notation and decimal places of c,
     !> separated by spaces.
@@ -465,21 +497,31 @@ contains
 
     !> A row of the report table: the label, then the value. A value
     !> with several numbers (separated by blanks) takes one column for
-    !> each, right-aligned so that the rows of a tensor line up.
+    !> each, right-aligned so that the rows of a tensor line up: on the
+    !> widest number of the column in the last frame (w%pt%wcol), not on
+    !> the column edge, so the column fits its numbers as they change.
+    !> wnew collects the widths of this frame.
     subroutine row(label,value)
       use tools_io, only: getword
+      use utils, only: iw_textwidth
       character(len=*), intent(in) :: label, value
 
       integer :: k, lp
+      real(c_float) :: tw
       character(len=:), allocatable :: word
 
       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
       if (igTableSetColumnIndex(0_c_int)) call iw_text(label)
       lp = 1
       do k = 1, 3
-         word = getword(value,lp)
+         word = trim(getword(value,lp))
          if (len(word) == 0) exit
-         if (igTableSetColumnIndex(int(k,c_int))) call iw_cell_right(word)
+         if (igTableSetColumnIndex(int(k,c_int))) then
+            tw = iw_textwidth(word)
+            wnew(k) = max(wnew(k),tw)
+            call igSetCursorPosX(igGetCursorPosX() + max(w%pt%wcol(k) - tw,0._c_float))
+            call iw_text(word)
+         end if
       end do
 
     end subroutine row
