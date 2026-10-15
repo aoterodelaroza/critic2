@@ -471,24 +471,24 @@ module windows
      type(sys_ref) :: sys ! system the form is set up for
      type(field_ref) :: fref ! field whose properties are calculated
      real*8 :: x(3) = 0d0 ! the point
-     character(len=:), allocatable :: expr ! expression evaluated at the point (empty = none)
      ! the properties calculated at the point: the built-in ones (by
-     ! propid_*; propid_field = the other fields, ALL), the point
-     ! properties of the system (by name), and the expression
+     ! propid_*; propid_field = the other fields, ALL) and the point
+     ! properties of the system (by name)
      type(point_col) :: col(propid_NUM)
      type(point_col), allocatable :: ppcol(:)
-     type(point_col) :: excol
+     ! the form to add a point property: kind (0 = expression, then the
+     ! keywords of POINTPROP), name, and expression
+     integer :: ppkind = 0
+     character(len=10) :: ppname = ""
+     character(len=1024) :: ppexpr = ""
      ! pending pick in the view
      logical :: picking = .false.
      integer :: pickview = 0
      type(pairpick) :: pick
-     ! the report: the entries for the field, the expression value, and
-     ! the error that stopped either; for the inputs in key and x
+     ! the report: the entries for the field and the error that stopped
+     ! them; for the inputs in key and x
      type(propty_item), allocatable :: item(:)
      integer :: nitem = 0
-     real*8 :: exprval = 0d0
-     character(len=:), allocatable :: exprtxt ! the expression exprval is the value of
-     logical :: exprok = .false. ! exprval is the value of the expression
      character(len=:), allocatable :: errmsg
      integer*8, allocatable :: key(:)
      real*8 :: keyx(3) = 0d0
@@ -2192,6 +2192,16 @@ module windows
        real*8, intent(in) :: x(3)
        real*8 :: xc(3)
      end function form_to_cart
+     module function pointprop_add_form(isys,ifield,kind,name,expr,suffix,atwhat,ttshown,errmsg)&
+        result(added)
+       integer, intent(in) :: isys, ifield
+       integer, intent(inout) :: kind
+       character(len=*), intent(inout) :: name, expr
+       character(len=*), intent(in) :: suffix, atwhat
+       logical, intent(inout) :: ttshown
+       character(len=:), allocatable, intent(inout) :: errmsg
+       logical :: added
+     end function pointprop_add_form
      module subroutine cps_hover_set(fref,iview,ihover,cur,hoverview,hoverview_uid)
        type(field_ref), intent(in) :: fref
        integer, intent(in) :: iview

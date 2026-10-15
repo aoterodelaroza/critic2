@@ -463,6 +463,111 @@ contains
 
   end function form_to_cart
 
+  !> The form that adds a point property to system isys (POINTPROP):
+  !> its kind (kind: 0 = an arithmetic expression, k = keyword k, for
+  !> field ifield), and the name and expression of an expression. The
+  !> widget IDs end in suffix, and atwhat says where the property is
+  !> evaluated (for the tooltips). Returns true if the Add button added
+  !> the property; then errmsg is empty, and it is the reason if the
+  !> property could not be added. The name and expression are cleared
+  !> after adding.
+  module function pointprop_add_form(isys,ifield,kind,name,expr,suffix,atwhat,ttshown,errmsg)&
+     result(added)
+    use systems, only: sys
+    use systemmod, only: npointprop_keywords, pointprop_keywords, pointprop_keyword_desc
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_combo_simple,&
+       iw_arith_help_button
+    use tools_io, only: string, equali
+    integer, intent(in) :: isys, ifield
+    integer, intent(inout) :: kind
+    character(len=*), intent(inout) :: name, expr
+    character(len=*), intent(in) :: suffix, atwhat
+    logical, intent(inout) :: ttshown
+    character(len=:), allocatable, intent(inout) :: errmsg
+    logical :: added
+
+    character(len=:), allocatable :: stropt, sttip, lname, lexpr, lerr
+    character*10 :: name10
+    integer :: k
+    logical :: ldum, clicked
+
+    added = .false.
+
+    ! the kind: an expression, or one of the keywords
+    stropt = "Expression" // c_null_char
+    sttip = "An arithmetic expression of the fields of the system" // c_null_char
+    do k = 1, npointprop_keywords
+       stropt = stropt // trim(pointprop_keywords(k)) // c_null_char
+       sttip = sttip // trim(pointprop_keyword_desc(k)) // c_null_char
+    end do
+    call iw_combo_simple("##" // suffix // "ppkind",stropt,kind,tooltips=sttip,ttshown=ttshown)
+    call iw_tooltip("The kind of point property to add: an arithmetic expression, or one of the&
+       & named functions (calculated from the field of this window)",ttshown)
+    if (kind == 0) then
+       call iw_text("Name",sameline=.true.,alignframe=.true.)
+       ldum = iw_inputtext("##" // suffix // "ppname",bufsize=11,textf=name,width=10,sameline=.true.)
+       call iw_tooltip("Name of the new property (at most 10 characters, no spaces)",ttshown)
+       call iw_text("Expression",alignframe=.true.)
+       ldum = iw_inputtext("##" // suffix // "ppexpr",bufsize=1023,textf=expr,width=36,sameline=.true.)
+       call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
+          & ""$1 - $2"" or ""-log($1)""), evaluated at " // atwhat,ttshown)
+       call iw_arith_help_button("##" // suffix // "ppexprhelp",ttshown)
+    end if
+    clicked = iw_button("Add##" // suffix // "ppadd",sameline=.true.)
+    call iw_tooltip("Add the property to the system and show it in the table",ttshown)
+    if (.not.clicked) return
+
+    ! validate the name and the expression, or build them from the keyword
+    if (kind == 0) then
+       lname = trim(adjustl(name))
+       lexpr = trim(adjustl(expr))
+       if (len(lname) == 0 .or. index(lname," ") > 0) then
+          errmsg = "The name of the property must be a single word"
+          return
+       end if
+       if (len(lexpr) == 0) then
+          errmsg = "The expression of the property is empty"
+          return
+       end if
+       call sys(isys)%check_expression(lexpr,lerr)
+       if (len_trim(lerr) > 0) then
+          errmsg = "Invalid expression: " // trim(lerr)
+          return
+       end if
+    else
+       ! a keyword: for field ifield, named after the keyword (and the
+       ! field, if it is not the reference)
+       lname = trim(pointprop_keywords(kind))
+       lexpr = lname // "(" // string(ifield) // ")"
+       if (ifield /= sys(isys)%iref) lname = lname // "_" // string(ifield)
+    end if
+    if (len(lname) > len(name10)) then
+       errmsg = "The name of the property (" // lname // ") is longer than 10 characters"
+       return
+    end if
+    name10 = lname
+    do k = 1, sys(isys)%npropp
+       if (equali(trim(sys(isys)%propp(k)%name),trim(name10))) then
+          errmsg = "There is already a point property named " // trim(name10)
+          return
+       end if
+    end do
+
+    ! add it
+    call sys(isys)%new_pointprop_string(trim(name10) // " " // lexpr,lerr)
+    if (len_trim(lerr) > 0) then
+       errmsg = "Could not add the property: " // trim(lerr)
+       return
+    end if
+    errmsg = ""
+    if (kind == 0) then
+       name = ""
+       expr = ""
+    end if
+    added = .true.
+
+  end function pointprop_add_form
+
   !> Highlight the CP ihover (as rep_cps%ihover) in the critical points
   !> objects of field fref in view iview, and stop highlighting the
   !> previous one: cur, set in view hoverview with uid hoverview_uid
@@ -526,7 +631,6 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
        iw_table_headers_row, iw_highlight_selectable, iw_cell_right,&
        iw_close_button, iw_table_sort_specs, iw_helpermark, iw_tblwrite_none
-    use systemmod, only: npointprop_keywords, pointprop_keywords, pointprop_keyword_desc
     use param, only: bohrtoa
     use tools_io, only: string
     type(window), intent(inout), target :: w
@@ -975,13 +1079,13 @@ contains
     !> the system, each with the checkbox that shows its column, and
     !> the form to add point properties (as POINTPROP).
     subroutine draw_props_section()
+      use gui_main, only: g
       use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_arith_help_button,&
          iw_intstepper
 
       character(kind=c_char,len=:), allocatable, target :: strsec, strtab
-      character(len=:), allocatable :: stropt, sttip
       integer(c_int) :: jc, flt
-      integer :: ip, idel, nrow, k, ifmt
+      integer :: ip, idel, nrow, ifmt
       logical :: ldum, ch, avail
       type(cp_ppcol), pointer :: c
       type(ImVec2) :: szt
@@ -1061,6 +1165,8 @@ contains
             end if
             if (jc >= ic_NBUILTIN) then
                if (igTableSetColumnIndex(5_c_int)) then
+                  ! the close icon is one line of text high: centered on the row frames
+                  call igSetCursorPosY(igGetCursorPosY() + g%Style%FramePadding%y)
                   if (iw_close_button("##" // suffix // "del")) idel = jc - ic_NBUILTIN + 1
                   call iw_tooltip("Remove this point property from the system",ttshown)
                end if
@@ -1075,91 +1181,12 @@ contains
 
       ! add a point property: an expression, or one of the keywords
       ! of POINTPROP, for the field of the window
-      stropt = "Expression" // c_null_char
-      sttip = "An arithmetic expression of the fields of the system" // c_null_char
-      do k = 1, npointprop_keywords
-         stropt = stropt // trim(pointprop_keywords(k)) // c_null_char
-         sttip = sttip // trim(pointprop_keyword_desc(k)) // c_null_char
-      end do
-      call iw_combo_simple("##cpppkind",stropt,w%cp%ppkind,tooltips=sttip,ttshown=ttshown)
-      call iw_tooltip("The kind of point property to add: an arithmetic expression, or one of the&
-         & named functions (calculated from the field of this window)",ttshown)
-      if (w%cp%ppkind == 0) then
-         call iw_text("Name",sameline=.true.)
-         ldum = iw_inputtext("##cpppname",bufsize=11,textf=w%cp%ppname,width=10,sameline=.true.)
-         call iw_tooltip("Name of the new property (at most 10 characters, no spaces): the&
-            & header of its column",ttshown)
-         call iw_text("Expression")
-         ldum = iw_inputtext("##cpppexpr",bufsize=1023,textf=w%cp%ppexpr,width=36,sameline=.true.)
-         call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
-            & ""$1 - $2"" or ""-log($1)""), evaluated at the critical points",ttshown)
-         call iw_arith_help_button("##cpppexprhelp",ttshown)
-      end if
-      if (iw_button("Add##cpppadd",sameline=.true.)) call add_pointprop()
-      call iw_tooltip("Add the property to the system and show it as a column of the table",ttshown)
+      if (pointprop_add_form(isys,ifield,w%cp%ppkind,w%cp%ppname,w%cp%ppexpr,"cp",&
+         "the critical points",ttshown,w%errmsg)) call pp_sync()
 
       call igTreePop()
 
     end subroutine draw_props_section
-
-    !> Add the point property of the form (w%cp%ppkind, ppname,
-    !> ppexpr) to the system, and show its column. On error, the
-    !> message goes to w%errmsg.
-    subroutine add_pointprop()
-      use tools_io, only: equali
-      character(len=:), allocatable :: name, expr, errmsg
-      character*10 :: name10
-      integer :: k
-
-      if (w%cp%ppkind == 0) then
-         name = trim(adjustl(w%cp%ppname))
-         expr = trim(adjustl(w%cp%ppexpr))
-         if (len(name) == 0 .or. index(name," ") > 0) then
-            w%errmsg = "The name of the property must be a single word"
-            return
-         end if
-         if (len(expr) == 0) then
-            w%errmsg = "The expression of the property is empty"
-            return
-         end if
-         call sys(isys)%check_expression(expr,errmsg)
-         if (len_trim(errmsg) > 0) then
-            w%errmsg = "Invalid expression: " // trim(errmsg)
-            return
-         end if
-      else
-         ! a keyword: for the field of the window, named after the
-         ! keyword (and the field, if it is not the reference)
-         k = w%cp%ppkind
-         name = trim(pointprop_keywords(k))
-         expr = name // "(" // string(ifield) // ")"
-         if (ifield /= sys(isys)%iref) name = name // "_" // string(ifield)
-      end if
-      if (len(name) > len(name10)) then
-         w%errmsg = "The name of the property (" // name // ") is longer than 10 characters"
-         return
-      end if
-      name10 = name
-      do k = 1, sys(isys)%npropp
-         if (equali(trim(sys(isys)%propp(k)%name),trim(name10))) then
-            w%errmsg = "There is already a point property named " // trim(name10)
-            return
-         end if
-      end do
-
-      call sys(isys)%new_pointprop_string(trim(name10) // " " // expr,errmsg)
-      if (len_trim(errmsg) > 0) then
-         w%errmsg = "Could not add the property: " // trim(errmsg)
-         return
-      end if
-      w%errmsg = ""
-      if (w%cp%ppkind == 0) then
-         w%cp%ppname = ""
-         w%cp%ppexpr = ""
-      end if
-      call pp_sync()
-
-    end subroutine add_pointprop
 
     !> The popup that shows and hides the columns, opened by
     !> right-clicking the header (rclick). It stays open while the
