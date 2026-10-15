@@ -62,7 +62,7 @@ contains
        iw_table_column, iw_table_headers_row, iw_calcheight
     use representations, only: rep_shape, shapekind_sphere
     use systemmod, only: propitem_header, propitem_row, propitem_text, propid_none, propid_type,&
-       propid_fval, propid_gfmodval, propid_lapval, propid_ellip, propid_pointprop, propid_field
+       propid_fval, propid_gfmodval, propid_lapval, propid_pointprop, propid_field
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -98,8 +98,9 @@ contains
        w%pt%col(propid_gfmodval)%show = .false.
        w%pt%col(propid_lapval)%show = .false.
        w%pt%col(propid_field)%show = .false.
-       ! the ellipticity is of order one: fixed point
-       w%pt%col(propid_ellip)%expo = .false.
+       ! the notation and decimals of the properties the critical
+       ! points window also has, as that window's defaults
+       call point_cols_from_cp(w%pt%col,w%pt%ppdef)
        allocate(w%pt%ppcol(0))
     end if
 
@@ -250,15 +251,9 @@ contains
        end if
     end if
 
-    ! bottom row: the equivalent command and close
-    call iw_setpos_bottomright(len("Copy Command") + len("Close"),2)
-    if (iw_button("Copy Command",disabled=.not.goodsys)) then
-       str1 = point_command() // c_null_char
-       call igSetClipboardText(c_loc(str1))
-    end if
-    if (goodsys) call iw_tooltip("Copy to the clipboard the POINT command that calculates&
-       & these properties:" // new_line('a') // point_command(),ttshown)
-    if (iw_button("Close",sameline=.true.)) doquit = .true.
+    ! bottom row: close
+    call iw_setpos_bottomright(len("Close"),1)
+    if (iw_button("Close")) doquit = .true.
 
     ! exit if focused and received the close keybinding
     if (iw_close_event(w%focused(),okcloses=.false.)) doquit = .true.
@@ -284,7 +279,9 @@ contains
       type(ImVec2) :: szt
 
       ! a framed header across the window, so it stands out
-      strsec = "Properties calculated at the point##pointprops" // c_null_char
+      ! the point properties belong to the system (shared with the
+      ! critical points window)
+      strsec = "Point properties of the system##pointprops" // c_null_char
       if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
 
       ! whether there are other fields than the one of the window
@@ -466,7 +463,8 @@ contains
       if (ic > 0) return
       allocate(aux(size(w%pt%ppcol,1)+1))
       aux(1:size(w%pt%ppcol,1)) = w%pt%ppcol
-      aux(size(aux,1)) = point_col(name=name,ndec=9)
+      aux(size(aux,1)) = w%pt%ppdef
+      aux(size(aux,1))%name = name
       call move_alloc(aux,w%pt%ppcol)
       ic = size(w%pt%ppcol,1)
     end function ppcol_index
@@ -579,37 +577,6 @@ contains
       w%pt%keyexpr = keyexpr
 
     end subroutine update_report
-
-    !> The commands that calculate the report: the point properties of
-    !> the system (POINTPROP), then POINT for the field (ALL). Molecular
-    !> coordinates in the units POINT reads them in a script: Å, the
-    !> default after MOLECULE, unless UNITS set them.
-    function point_command() result(str)
-      use global, only: iunit, iunit_isdef, iunit_bohr
-      character(len=:), allocatable :: str
-
-      character(len=:), allocatable :: sx
-      integer :: j
-
-      if (ismol .and. .not.iunit_isdef .and. iunit == iunit_bohr) then
-         sx = vec3(w%pt%x / bohrtoa,'f',10)
-      else
-         sx = vec3(w%pt%x,'f',10)
-      end if
-      str = ""
-      do j = 1, sys(isys)%npropp
-         associate(pp => sys(isys)%propp(j))
-           if (pp%ispecial == 0) then
-              str = str // "POINTPROP " // trim(pp%name) // ' "' // trim(pp%expr) // '"' // new_line('a')
-           else
-              str = str // "POINTPROP stress" // new_line('a')
-           end if
-         end associate
-      end do
-      str = str // "POINT " // sx // " FIELD " // string(w%pt%fref%id)
-      if (w%pt%col(propid_field)%show) str = str // " ALL"
-
-    end function point_command
 
     !> Three numbers separated by spaces.
     function vec3(x,fmt,ndec) result(str)

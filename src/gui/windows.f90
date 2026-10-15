@@ -476,6 +476,7 @@ module windows
      ! properties of the system (by name)
      type(point_col) :: col(propid_NUM)
      type(point_col), allocatable :: ppcol(:)
+     type(point_col) :: ppdef ! the settings a new point property starts with
      ! the form to add a point property: kind (0 = expression, then the
      ! keywords of POINTPROP), name, and expression
      integer :: ppkind = 0
@@ -2193,6 +2194,10 @@ module windows
        real*8, intent(in) :: x(3)
        real*8 :: xc(3)
      end function form_to_cart
+     module subroutine point_cols_from_cp(col,ppdef)
+       type(point_col), intent(inout) :: col(:)
+       type(point_col), intent(inout) :: ppdef
+     end subroutine point_cols_from_cp
      module function pointprop_add_form(isys,ifield,kind,name,expr,suffix,atwhat,ttshown,errmsg)&
         result(added)
        integer, intent(in) :: isys, ifield

@@ -88,6 +88,13 @@ submodule (windows) cp
   real*8, parameter :: seed_rad = 0.08d0 / bohrtoa
   real(c_float), parameter :: seed_rgb(3) = (/0.45_c_float,0.45_c_float,0.45_c_float/)
 
+  ! the columns of the results table: the built-in ones, then one for
+  ! each point property of the system (ic_NBUILTIN + ip - 1)
+  integer(c_int), parameter :: ic_del = 0, ic_cp = 1, ic_x = 2, ic_y = 3, ic_z = 4, ic_wyc = 5,&
+     ic_f = 6, ic_fval = 7, ic_grad = 8, ic_gradval = 9, ic_lap = 10, ic_lapval = 11,&
+     ic_l1 = 12, ic_l2 = 13, ic_l3 = 14, ic_ellip = 15, ic_ends = 16, ic_path = 17,&
+     ic_d1 = 18, ic_d2 = 19, ic_ang = 20, ic_NBUILTIN = 21
+
 contains
 
   !> Draw the critical points window: the AUTO form for a field of the
@@ -463,6 +470,38 @@ contains
 
   end function form_to_cart
 
+  !> The default notation and decimal places of the critical points
+  !> window, as defaults of the point properties window: in col (by
+  !> propid_*) for the properties both windows have, and in ppdef for
+  !> the point properties. The other entries of col are not changed.
+  module subroutine point_cols_from_cp(col,ppdef)
+    use systemmod, only: propid_f, propid_fval, propid_gfmod, propid_gfmodval, propid_lap,&
+       propid_lapval, propid_hesseval, propid_ellip
+    type(point_col), intent(inout) :: col(:)
+    type(point_col), intent(inout) :: ppdef
+
+    type(cp_state) :: cpdef
+    type(cp_ppcol) :: ppcp
+
+    call copyfmt(col(propid_f),cpdef%bcol(ic_f))
+    call copyfmt(col(propid_fval),cpdef%bcol(ic_fval))
+    call copyfmt(col(propid_gfmod),cpdef%bcol(ic_grad))
+    call copyfmt(col(propid_gfmodval),cpdef%bcol(ic_gradval))
+    call copyfmt(col(propid_lap),cpdef%bcol(ic_lap))
+    call copyfmt(col(propid_lapval),cpdef%bcol(ic_lapval))
+    call copyfmt(col(propid_hesseval),cpdef%bcol(ic_l1))
+    call copyfmt(col(propid_ellip),cpdef%bcol(ic_ellip))
+    call copyfmt(ppdef,ppcp)
+
+  contains
+    subroutine copyfmt(c,cp)
+      type(point_col), intent(inout) :: c
+      type(cp_ppcol), intent(in) :: cp
+      c%expo = cp%expo
+      c%ndec = cp%ndec
+    end subroutine copyfmt
+  end subroutine point_cols_from_cp
+
   !> The form that adds a point property to system isys (POINTPROP):
   !> its kind (kind: 0 = an arithmetic expression, k = keyword k, for
   !> field ifield), and the name and expression of an expression. The
@@ -638,13 +677,8 @@ contains
     integer, intent(inout) :: ihover(2)
     logical, intent(inout) :: ttshown
 
-    ! the columns of the results table: the built-in ones, then one
-    ! for each point property of the system (ic_NBUILTIN + ip - 1), up
-    ! to the columns an ImGui table can have (IMGUI_TABLE_MAX_COLUMNS)
-    integer(c_int), parameter :: ic_del = 0, ic_cp = 1, ic_x = 2, ic_y = 3, ic_z = 4, ic_wyc = 5,&
-       ic_f = 6, ic_fval = 7, ic_grad = 8, ic_gradval = 9, ic_lap = 10, ic_lapval = 11,&
-       ic_l1 = 12, ic_l2 = 13, ic_l3 = 14, ic_ellip = 15, ic_ends = 16, ic_path = 17,&
-       ic_d1 = 18, ic_d2 = 19, ic_ang = 20, ic_NBUILTIN = 21
+    ! the columns an ImGui table can have (IMGUI_TABLE_MAX_COLUMNS),
+    ! and the columns left for the point properties
     integer, parameter :: maxtablecol = 64
     integer, parameter :: maxppcol = maxtablecol - ic_NBUILTIN
 
@@ -1092,7 +1126,9 @@ contains
       character(len=:), allocatable :: suffix
 
       ! a framed header across the window, so it stands out
-      strsec = "Properties calculated at the critical points##cpprops" // c_null_char
+      ! the point properties belong to the system (shared with the
+      ! point properties window)
+      strsec = "Point properties of the system##cpprops" // c_null_char
       if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
 
       ! the table of properties: show, name, definition, notation and
