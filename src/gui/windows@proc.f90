@@ -367,6 +367,7 @@ contains
              if (ok.and.type == wintype_voids.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_cp.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -930,6 +931,10 @@ contains
        ! trace gradient paths window
        if (.not.present(idparent)) &
           call ferror('window_init','trace gradient paths requires idparent',faterr)
+    elseif (type == wintype_point) then
+       ! point properties window
+       if (.not.present(idparent)) &
+          call ferror('window_init','point properties requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -1004,6 +1009,11 @@ contains
        if (allocated(w%vd%iso_f)) deallocate(w%vd%iso_f)
        if (allocated(w%vd%iso_lbl)) deallocate(w%vd%iso_lbl)
        if (allocated(w%vd%pck_rnn2)) deallocate(w%vd%pck_rnn2)
+    elseif (w%type == wintype_point) then
+       ! the report at the point; without its key, it is calculated again
+       if (allocated(w%pt%item)) deallocate(w%pt%item)
+       w%pt%nitem = 0
+       if (allocated(w%pt%key)) deallocate(w%pt%key)
     end if
 
   end subroutine window_drop_caches
@@ -1731,6 +1741,8 @@ contains
           call init_window("Critical Points",70,30,grow=.true.)
        elseif (w%type == wintype_gpaths) then
           call init_window("Trace Gradient Paths",66,34,grow=.true.)
+       elseif (w%type == wintype_point) then
+          call init_window("Point Properties",100,30,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1872,6 +1884,8 @@ contains
                 call w%draw_cp()
              elseif (w%type == wintype_gpaths) then
                 call w%draw_gpaths()
+             elseif (w%type == wintype_point) then
+                call w%draw_point()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

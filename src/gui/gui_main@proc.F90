@@ -884,7 +884,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths
+       wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -943,6 +943,12 @@ contains
        idum = stack_create_window(wintype_gpaths,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Trace gradient paths of a field of this system from points or critical points&
        & and show them in the view",ttshown)
+
+    ! properties of the fields at a point (POINT)
+    if (iw_menuitem("Point Properties...",enabled=enabled)) &
+       idum = stack_create_window(wintype_point,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Calculate the value, gradient, Hessian, and other properties of&
+       & the fields of this system at a point",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

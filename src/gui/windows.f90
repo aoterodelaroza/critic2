@@ -18,7 +18,7 @@
 ! The class to handle ImGui windows.
 module windows
   use crystalmod, only: nice_cell
-  use systemmod, only: field_ref
+  use systemmod, only: field_ref, propty_item
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
@@ -450,6 +450,35 @@ module windows
      integer*8 :: hoverview_uid = 0
   end type gpaths_state
   public :: gpaths_state
+
+  !> Per-window state of the point properties window (Tools > Point
+  !> Properties, the POINT keyword): the form (field, position, options),
+  !> a pending pick in the view, and the report of the properties at the
+  !> point, calculated again when key (what it was made from) changes.
+  !> The position is fractional for crystals and Cartesian Å for
+  !> molecules (the frame of the POINT coordinates).
+  type point_state
+     type(sys_ref) :: sys ! system the form is set up for
+     type(field_ref) :: fref ! field whose properties are calculated
+     real*8 :: x(3) = 0d0 ! the point
+     logical :: allfields = .false. ! also the value of the other fields (ALL)
+     character(len=:), allocatable :: expr ! expression evaluated at the point (empty = none)
+     ! pending pick in the view
+     logical :: picking = .false.
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     ! the report: the entries for the field, the expression value, and
+     ! the error that stopped either; for the inputs in key and x
+     type(propty_item), allocatable :: item(:)
+     integer :: nitem = 0
+     character(len=:), allocatable :: exprval
+     character(len=:), allocatable :: errmsg
+     integer*8, allocatable :: key(:)
+     real*8 :: keyx(3) = 0d0
+     real*8 :: keytime = -1d0
+     character(len=:), allocatable :: keyexpr
+  end type point_state
+  public :: point_state
 
   ! Grid spacing the crystal voids window starts from (Å)
   real*8, parameter, public :: voids_spacing_def = 0.15d0
@@ -1159,6 +1188,8 @@ module windows
      type(cp_state) :: cp ! the AUTO form, pending job, and results
      ! trace gradient paths window
      type(gpaths_state) :: gp ! the form, pick, and pending trace
+     ! point properties window
+     type(point_state) :: pt ! the form, pick, and the report at the point
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1304,6 +1335,8 @@ module windows
      procedure :: block_gpaths
      procedure :: run_gpaths
      procedure :: clear_gpaths_hover
+     ! point properties
+     procedure :: draw_point
      ! blocking jobs (gui_main%pending_block_window)
      procedure :: request_block => window_request_block
      procedure :: block_draw => window_block_draw
@@ -1371,6 +1404,7 @@ module windows
   integer, parameter, public :: wintype_melting = 27
   integer, parameter, public :: wintype_cp = 28
   integer, parameter, public :: wintype_gpaths = 29
+  integer, parameter, public :: wintype_point = 30
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2162,6 +2196,10 @@ module windows
      module subroutine clear_gpaths_hover(w)
        class(window), intent(inout), target :: w
      end subroutine clear_gpaths_hover
+     !xx! point submodule !xx!
+     module subroutine draw_point(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_point
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

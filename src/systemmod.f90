@@ -107,6 +107,7 @@ module systemmod
      procedure :: eval => system_eval_expression !< Evaluate an arithmetic expression using the system's fields
      procedure :: check_expression => system_check_expression !< Validate an expression by evaluating it at a probe point
      procedure :: propty !< Calculate the properties of a field or all fields at a point
+     procedure :: propty_items !< The properties at a point, as a list of report entries
      procedure :: grdall !< Calculate all integrable properties at a point
      procedure :: addcp !< Add a critical point to a field's CP list, maybe with discarding expr
   end type system
@@ -128,6 +129,23 @@ module systemmod
      procedure :: same => field_ref_same !< both point to the same field
   end type field_ref
   public :: field_ref
+
+  !> One entry of the report of the properties at a point (propty_items):
+  !> a property and its value, a header (Hessian:), a row of a tensor
+  !> under the header, or a plain message. The line method gives the
+  !> entry as written to the output by propty.
+  integer, parameter, public :: propitem_value = 0 !< "label: value"
+  integer, parameter, public :: propitem_header = 1 !< "label:"
+  integer, parameter, public :: propitem_row = 2 !< "value", indented under a header
+  integer, parameter, public :: propitem_text = 3 !< "label"
+  type propty_item
+     integer :: kind = propitem_value !< kind of entry (propitem_*)
+     character(len=:), allocatable :: label !< name of the property (empty for rows)
+     character(len=:), allocatable :: value !< value(s) (empty for headers and text)
+   contains
+     procedure :: line => propty_item_line !< the entry as an output line
+  end type propty_item
+  public :: propty_item
 
   ! Text-mode operation. Only one crystal and one system at a time.
   type(system), allocatable, target :: sy_(:)
@@ -327,16 +345,31 @@ module systemmod
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine system_check_expression
-     module subroutine propty(s,id,x0,res,resinput,verbose,allfields)
+     module subroutine propty(s,id,x0,res,resinput,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s
        integer, intent(in) :: id
        real*8, dimension(:), intent(in) :: x0
        type(scalar_value), intent(inout) :: res
        logical, intent(in) :: resinput
-       logical, intent(in) :: verbose
        logical, intent(in) :: allfields
      end subroutine propty
+     module subroutine propty_items(s,id,x0,res,resinput,allfields,item,nitem,errmsg)
+       use types, only: scalar_value
+       class(system), intent(inout) :: s
+       integer, intent(in) :: id
+       real*8, dimension(:), intent(in) :: x0
+       type(scalar_value), intent(inout) :: res
+       logical, intent(in) :: resinput
+       logical, intent(in) :: allfields
+       type(propty_item), allocatable, intent(inout) :: item(:)
+       integer, intent(out) :: nitem
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine propty_items
+     module function propty_item_line(it) result(str)
+       class(propty_item), intent(in) :: it
+       character(len=:), allocatable :: str
+     end function propty_item_line
      module subroutine grdall(s,xpos,lprop,pmask)
        class(system), intent(inout) :: s
        real*8, intent(in) :: xpos(3)

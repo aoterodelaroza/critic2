@@ -161,7 +161,7 @@ contains
        endif
        if (ifi > -1) then
           write (uout,'("+ Field: ",A)') string(ifi)
-          call sy%propty(ifi,x0,res,.false.,.true.,doall)
+          call sy%propty(ifi,x0,res,.false.,doall)
        else
           rdum = sy%eval(expr,errmsg,xx)
           if (len_trim(errmsg) > 0) then

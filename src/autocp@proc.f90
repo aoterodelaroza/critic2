@@ -1992,7 +1992,7 @@ contains
           write (uout,'("  Coordinates (",A,"): ",3(A," "))') &
              iunitname0(iunit), (string(xx(j),'f',decimal=10),j=1,3)
        end if
-       call sy%propty(sy%iref,sy%f(sy%iref)%cp(i)%x,sy%f(sy%iref)%cp(i)%s,.true.,.true.,.true.)
+       call sy%propty(sy%iref,sy%f(sy%iref)%cp(i)%x,sy%f(sy%iref)%cp(i)%s,.true.,.true.)
        if (sy%f(sy%iref)%cp(i)%s%f < minden) minden = sy%f(sy%iref)%cp(i)%s%f
        if (sy%f(sy%iref)%cp(i)%s%f > maxbden .and. sy%f(sy%iref)%cp(i)%typ == -1) &
           maxbden = sy%f(sy%iref)%cp(i)%s%f

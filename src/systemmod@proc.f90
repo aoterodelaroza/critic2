@@ -1579,14 +1579,44 @@ contains
   !> the defined point properties of the system. The properties at
   !> point x0 (crystallographic) are calculated, followed by the value
   !> of all other fields at the point if allfields = .true.  Returns
-  !> the properties in res and, if verbose is .true., write to the
-  !> standard output. If resinput is .true., use the information from
-  !> the res variable instead of recalculating it.
-  module subroutine propty(s,id,x0,res,resinput,verbose,allfields)
+  !> the properties in res and writes them to the standard output. If
+  !> resinput is .true., use the information from the res variable
+  !> instead of recalculating it.
+  module subroutine propty(s,id,x0,res,resinput,allfields)
+    use tools_io, only: uout, ferror, faterr
+    use types, only: scalar_value
+    class(system), intent(inout) :: s
+    integer, intent(in) :: id
+    real*8, dimension(:), intent(in) :: x0
+    type(scalar_value), intent(inout) :: res
+    logical, intent(in) :: resinput
+    logical, intent(in) :: allfields
+
+    integer :: i, nitem
+    type(propty_item), allocatable :: item(:)
+    character(len=:), allocatable :: errmsg
+
+    ! the report, up to the first error, if any
+    call s%propty_items(id,x0,res,resinput,allfields,item,nitem,errmsg)
+    do i = 1, nitem
+       write (uout,'(A)') item(i)%line()
+    end do
+    if (len_trim(errmsg) > 0) call ferror("propty",errmsg,faterr)
+
+  end subroutine propty
+
+  !> Calculate the properties of field id at point x0 (crystallographic)
+  !> plus the defined point properties of the system and, if allfields,
+  !> the value of all other fields at the point, as the list of entries
+  !> item(1:nitem) of the report written by propty. Returns the
+  !> properties of field id in res; if resinput is .true., use the
+  !> information from res instead of recalculating it. If the
+  !> calculation of an entry fails, errmsg is the reason and the list
+  !> stops before that entry; errmsg is empty otherwise.
+  module subroutine propty_items(s,id,x0,res,resinput,allfields,item,nitem,errmsg)
     use global, only: cp_hdegen
     use tools_math, only: rsindex
-    use tools_io, only: uout, string, ferror, faterr
-    use arithmetic, only: eval
+    use tools_io, only: string
     use types, only: scalar_value, field_evaluation_avail, fieldeval_category_f,&
        fieldeval_category_fder1, fieldeval_category_fder2, fieldeval_category_gkin,&
        fieldeval_category_stress, fieldeval_category_spin
@@ -1595,15 +1625,21 @@ contains
     real*8, dimension(:), intent(in) :: x0
     type(scalar_value), intent(inout) :: res
     logical, intent(in) :: resinput
-    logical, intent(in) :: verbose
     logical, intent(in) :: allfields
+    type(propty_item), allocatable, intent(inout) :: item(:)
+    integer, intent(out) :: nitem
+    character(len=:), allocatable, intent(out) :: errmsg
 
-    real*8 :: xp(3), fres, stvec(3,3), stval(3)
+    real*8 :: xp(3), fres, stvec(3,3), stval(3), xrow(3)
     integer :: str, sts
-    integer :: i, j, k
+    integer :: i, j
     type(scalar_value) :: res2
     type(field_evaluation_avail) :: request
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: lerr
+
+    nitem = 0
+    errmsg = ""
+    if (.not.allocated(item)) allocate(item(20))
 
     ! get the scalar field properties
     xp = s%c%x2c(x0)
@@ -1612,114 +1648,187 @@ contains
        call s%f(id)%grd(xp,request,res)
     end if
 
-    if (verbose) then
-       if (.not.res%valid) then
-          write (uout,'("  Point outside scalar field definition domain.")')
+    if (.not.res%valid) then
+       call add(propitem_text,"Point outside scalar field definition domain.")
+    else
+       if (res%isnuc) then
+          call add(propitem_value,"Type ","nucleus")
        else
-          if (res%isnuc) then
-             write (uout,'("  Type : nucleus")')
-          else
-             write (uout,'("  Type : (",a,",",a,")")') string(res%r), string(res%s)
-          end if
+          call add(propitem_value,"Type ","(" // string(res%r) // "," // string(res%s) // ")")
+       end if
 
-          if (res%ev%avail(fieldeval_category_f)) then
-             write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
-             write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
-          end if
+       if (res%ev%avail(fieldeval_category_f)) then
+          call add(propitem_value,"Field value (f)",string(res%f,'e',decimal=9))
+          call add(propitem_value,"Field value, valence (fval)",string(res%fval,'e',decimal=9))
+       end if
 
-          if (res%ev%avail(fieldeval_category_fder1)) then
-             write (uout,'("  Gradient (grad f): ",3(A,"  "))') (string(res%gf(j),'e',decimal=9),j=1,3)
-             write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
-             write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
-          end if
+       if (res%ev%avail(fieldeval_category_fder1)) then
+          call add(propitem_value,"Gradient (grad f)",vec(res%gf))
+          call add(propitem_value,"Gradient norm (|grad f|)",string(res%gfmod,'e',decimal=9))
+          call add(propitem_value,"Gradient norm, valence",string(res%gfmodval,'e',decimal=9))
+       end if
 
-          if (res%ev%avail(fieldeval_category_gkin)) then
-             write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
+       if (res%ev%avail(fieldeval_category_gkin)) then
+          call add(propitem_value,"Kinetic energy density (G,tau)",string(res%gkin,'e',decimal=9))
+       end if
+
+       if (res%ev%avail(fieldeval_category_fder2)) then
+          call add(propitem_value,"Laplacian (del2 f)",string(res%del2f,'e',decimal=9))
+          call add(propitem_value,"Laplacian, valence (del2 fval)",string(res%del2fval,'e',decimal=9))
+          call add(propitem_header,"Hessian")
+          do j = 1, 3
+             xrow = res%hf(j,:)
+             call add(propitem_row,"",mrow(xrow))
+          end do
+          call add(propitem_value,"Hessian eigenvalues",vec(res%hfeval))
+          ! Write ellipticity, if it is a candidate for bond critical point
+          if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
+             call add(propitem_value,"Ellipticity (l_1/l_2 - 1)",string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9))
+          endif
+       end if
+
+       if (res%ev%avail(fieldeval_category_spin)) then
+          if (res%ev%avail(fieldeval_category_fder2)) then
+             call add(propitem_value,"Spin up   field/gradient_norm/laplacian",&
+                vec((/res%fspin(1),res%gfmodspin(1),res%lapspin(1)/)))
+          elseif (res%ev%avail(fieldeval_category_fder1)) then
+             call add(propitem_value,"Spin up   field/gradient_norm",vec((/res%fspin(1),res%gfmodspin(1)/)))
+          elseif (res%ev%avail(fieldeval_category_f)) then
+             call add(propitem_value,"Spin up   field",vec((/res%fspin(1)/)))
           end if
+          if (res%ev%avail(fieldeval_category_gkin)) &
+             call add(propitem_value,"Spin up   kinetic energy density (G)",string(res%gkinspin(1),'e',decimal=9))
 
           if (res%ev%avail(fieldeval_category_fder2)) then
-             write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
-             write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
-             write (uout,'("  Hessian:")')
-             do j = 1, 3
-                write (uout,'("    ",1p,3(A,"  "))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
-             end do
-             write (uout,'("  Hessian eigenvalues: ",3(A,"  "))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
-             ! Write ellipticity, if it is a candidate for bond critical point
-             if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
-                write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
+             call add(propitem_value,"Spin down field/gradient_norm/laplacian",&
+                vec((/res%fspin(2),res%gfmodspin(2),res%lapspin(2)/)))
+          elseif (res%ev%avail(fieldeval_category_fder1)) then
+             call add(propitem_value,"Spin down field/gradient_norm",vec((/res%fspin(2),res%gfmodspin(2)/)))
+          elseif (res%ev%avail(fieldeval_category_f)) then
+             call add(propitem_value,"Spin down field",vec((/res%fspin(2)/)))
+          end if
+          if (res%ev%avail(fieldeval_category_gkin)) &
+             call add(propitem_value,"Spin down kinetic energy density (G)",string(res%gkinspin(2),'e',decimal=9))
+       end if
+
+       ! properties at points defined by the user
+       do i = 1, s%npropp
+          if (s%propp(i)%ispecial == 0) then
+             ! ispecial=0 ... use the expression
+             fres = s%eval(s%propp(i)%expr,lerr,xp)
+             if (len_trim(lerr) > 0) then
+                errmsg = "Error evaluating expression: " // trim(lerr)
+                return
+             end if
+             call add(propitem_value,string(s%propp(i)%name) // " (" // string(s%propp(i)%expr) // ")",&
+                string(fres,'e',decimal=9))
+          else
+             ! ispecial=1 ... schrodinger stress tensor
+             if (res%ev%avail(fieldeval_category_stress)) then
+                stvec = res%stress
+                call rsindex(stvec,stval,str,sts,CP_hdegen)
+                call add(propitem_header,"Stress tensor")
+                do j = 1, 3
+                   xrow = res%stress(j,:)
+                   call add(propitem_row,"",mrow(xrow))
+                end do
+                call add(propitem_value,"Stress tensor eigenvalues",vec(stval))
+             else
+                errmsg = "Stress tensor cannot be calculated with this scalar field type"
+                return
              endif
           end if
-
-          if (res%ev%avail(fieldeval_category_spin)) then
-             if (res%ev%avail(fieldeval_category_fder2)) then
-                write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9), &
-                   string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
-             elseif (res%ev%avail(fieldeval_category_fder1)) then
-                write (uout,'("  Spin up   field/gradient_norm: ",2(A,"  "))') string(res%fspin(1),'e',decimal=9), &
-                   string(res%gfmodspin(1),'e',decimal=9)
-             elseif (res%ev%avail(fieldeval_category_f)) then
-                write (uout,'("  Spin up   field: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9)
-             end if
-             if (res%ev%avail(fieldeval_category_gkin)) &
-                write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
-
-             if (res%ev%avail(fieldeval_category_fder2)) then
-                write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9), &
-                   string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
-             elseif (res%ev%avail(fieldeval_category_fder1)) then
-                write (uout,'("  Spin down field/gradient_norm: ",2(A,"  "))') string(res%fspin(2),'e',decimal=9), &
-                   string(res%gfmodspin(2),'e',decimal=9)
-             elseif (res%ev%avail(fieldeval_category_f)) then
-                write (uout,'("  Spin down field: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9)
-             end if
-             if (res%ev%avail(fieldeval_category_gkin)) &
-                write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
-          end if
-
-          ! properties at points defined by the user
-          do i = 1, s%npropp
-             if (s%propp(i)%ispecial == 0) then
-                ! ispecial=0 ... use the expression
-                fres = s%eval(s%propp(i)%expr,errmsg,xp)
-                if (len_trim(errmsg) > 0) &
-                   call ferror("propty","Error evaluating expression: " // trim(errmsg),faterr)
-                write (uout,'("  ",A," (",A,"): ",A)') string(s%propp(i)%name),&
-                   string(s%propp(i)%expr), string(fres,'e',decimal=9)
-             else
-                ! ispecial=1 ... schrodinger stress tensor
-                if (res%ev%avail(fieldeval_category_stress)) then
-                   stvec = res%stress
-                   call rsindex(stvec,stval,str,sts,CP_hdegen)
-                   write (uout,'("  Stress tensor:")')
-                   do j = 1, 3
-                      write (uout,'("    ",1p,3(A,"  "))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
-                   end do
-                   write (uout,'("  Stress tensor eigenvalues: ",3(A,"  "))') (string(stval(j),'e',decimal=9),j=1,3)
-                else
-                   call ferror("propty","Stress tensor cannot be calculated with this scalar field type",faterr)
-                endif
-             end if
-          end do
-       end if
-
-       ! rest of fields
-       if (allfields) then
-          call request%field_nder2()
-          do i = 0, s%nf
-             if (s%goodfield(i) .and. i/=id) then
-                call s%f(i)%grd(xp,request,res2)
-                if (res2%valid) then
-                   write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,"  "))') string(i),&
-                      string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
-                      string(res2%del2f,'e',decimal=9)
-                end if
-             end if
-          end do
-       end if
+       end do
     end if
 
-  end subroutine propty
+    ! rest of fields
+    if (allfields) then
+       call request%field_nder2()
+       do i = 0, s%nf
+          if (s%goodfield(i) .and. i/=id) then
+             call s%f(i)%grd(xp,request,res2)
+             if (res2%valid) then
+                call add(propitem_value,"Field " // string(i) // " (f,|grad|,lap)",&
+                   vec((/res2%f,res2%gfmod,res2%del2f/)))
+             end if
+          end if
+       end do
+    end if
+
+  contains
+    !> Add an entry to the list.
+    subroutine add(kind,label,value)
+      integer, intent(in) :: kind
+      character(len=*), intent(in) :: label
+      character(len=*), intent(in), optional :: value
+
+      type(propty_item), allocatable :: aux(:)
+
+      if (nitem >= size(item,1)) then
+         allocate(aux(max(2*nitem,20)))
+         aux(1:nitem) = item(1:nitem)
+         call move_alloc(aux,item)
+      end if
+      nitem = nitem + 1
+      item(nitem)%kind = kind
+      item(nitem)%label = label
+      if (present(value)) then
+         item(nitem)%value = value
+      else
+         item(nitem)%value = ""
+      end if
+
+    end subroutine add
+
+    !> The components of x, each followed by two spaces.
+    function vec(x) result(vs)
+      real*8, intent(in) :: x(:)
+      character(len=:), allocatable :: vs
+
+      integer :: k
+
+      vs = ""
+      do k = 1, size(x,1)
+         vs = vs // string(x(k),'e',decimal=9) // "  "
+      end do
+
+    end function vec
+
+    !> A row of a 3x3 tensor: the components, right-justified in
+    !> columns, each followed by two spaces.
+    function mrow(x) result(vs)
+      real*8, intent(in) :: x(3)
+      character(len=:), allocatable :: vs
+
+      integer :: k
+
+      vs = ""
+      do k = 1, 3
+         vs = vs // string(x(k),'e',decimal=9,length=16,justify=4) // "  "
+      end do
+
+    end function mrow
+
+  end subroutine propty_items
+
+  !> The entry it of the report of the properties at a point, as
+  !> propty writes it to the output.
+  module function propty_item_line(it) result(str)
+    class(propty_item), intent(in) :: it
+    character(len=:), allocatable :: str
+
+    select case (it%kind)
+    case (propitem_header)
+       str = "  " // it%label // ":"
+    case (propitem_row)
+       str = "    " // it%value
+    case (propitem_text)
+       str = "  " // it%label
+    case default
+       str = "  " // it%label // ": " // it%value
+    end select
+
+  end function propty_item_line
 
   !> Calculate the value of all integrable properties at the given
   !> position xpos (Cartesian). This routine is thread-safe.
