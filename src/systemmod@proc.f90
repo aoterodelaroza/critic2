@@ -1635,7 +1635,7 @@ contains
     integer :: i, j
     type(scalar_value) :: res2
     type(field_evaluation_avail) :: request
-    character(len=:), allocatable :: lerr
+    character(len=:), allocatable :: lerr, lbl
 
     nitem = 0
     errmsg = ""
@@ -1649,66 +1649,59 @@ contains
     end if
 
     if (.not.res%valid) then
-       call add(propitem_text,"Point outside scalar field definition domain.")
+       call add(propitem_text,propid_none,"Point outside scalar field definition domain.")
     else
        if (res%isnuc) then
-          call add(propitem_value,"Type ","nucleus")
+          call add(propitem_value,propid_type,"Type ",value="nucleus")
        else
-          call add(propitem_value,"Type ","(" // string(res%r) // "," // string(res%s) // ")")
+          call add(propitem_value,propid_type,"Type ",value="(" // string(res%r) // "," // string(res%s) // ")")
        end if
 
        if (res%ev%avail(fieldeval_category_f)) then
-          call add(propitem_value,"Field value (f)",string(res%f,'e',decimal=9))
-          call add(propitem_value,"Field value, valence (fval)",string(res%fval,'e',decimal=9))
+          call add(propitem_value,propid_f,"Field value (f)",(/res%f/))
+          call add(propitem_value,propid_fval,"Field value, valence (fval)",(/res%fval/))
        end if
 
        if (res%ev%avail(fieldeval_category_fder1)) then
-          call add(propitem_value,"Gradient (grad f)",vec(res%gf))
-          call add(propitem_value,"Gradient norm (|grad f|)",string(res%gfmod,'e',decimal=9))
-          call add(propitem_value,"Gradient norm, valence",string(res%gfmodval,'e',decimal=9))
+          call add(propitem_value,propid_gf,"Gradient (grad f)",res%gf)
+          call add(propitem_value,propid_gfmod,"Gradient norm (|grad f|)",(/res%gfmod/))
+          call add(propitem_value,propid_gfmodval,"Gradient norm, valence",(/res%gfmodval/))
        end if
 
        if (res%ev%avail(fieldeval_category_gkin)) then
-          call add(propitem_value,"Kinetic energy density (G,tau)",string(res%gkin,'e',decimal=9))
+          call add(propitem_value,propid_gkin,"Kinetic energy density (G,tau)",(/res%gkin/))
        end if
 
        if (res%ev%avail(fieldeval_category_fder2)) then
-          call add(propitem_value,"Laplacian (del2 f)",string(res%del2f,'e',decimal=9))
-          call add(propitem_value,"Laplacian, valence (del2 fval)",string(res%del2fval,'e',decimal=9))
-          call add(propitem_header,"Hessian")
+          call add(propitem_value,propid_lap,"Laplacian (del2 f)",(/res%del2f/))
+          call add(propitem_value,propid_lapval,"Laplacian, valence (del2 fval)",(/res%del2fval/))
+          call add(propitem_header,propid_hess,"Hessian")
           do j = 1, 3
              xrow = res%hf(j,:)
-             call add(propitem_row,"",mrow(xrow))
+             call add(propitem_row,propid_hess,"",xrow)
           end do
-          call add(propitem_value,"Hessian eigenvalues",vec(res%hfeval))
+          call add(propitem_value,propid_hesseval,"Hessian eigenvalues",res%hfeval)
           ! Write ellipticity, if it is a candidate for bond critical point
           if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
-             call add(propitem_value,"Ellipticity (l_1/l_2 - 1)",string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9))
+             call add(propitem_value,propid_ellip,"Ellipticity (l_1/l_2 - 1)",(/res%hfeval(1)/res%hfeval(2)-1.d0/))
           endif
        end if
 
        if (res%ev%avail(fieldeval_category_spin)) then
-          if (res%ev%avail(fieldeval_category_fder2)) then
-             call add(propitem_value,"Spin up   field/gradient_norm/laplacian",&
-                vec((/res%fspin(1),res%gfmodspin(1),res%lapspin(1)/)))
-          elseif (res%ev%avail(fieldeval_category_fder1)) then
-             call add(propitem_value,"Spin up   field/gradient_norm",vec((/res%fspin(1),res%gfmodspin(1)/)))
-          elseif (res%ev%avail(fieldeval_category_f)) then
-             call add(propitem_value,"Spin up   field",vec((/res%fspin(1)/)))
-          end if
-          if (res%ev%avail(fieldeval_category_gkin)) &
-             call add(propitem_value,"Spin up   kinetic energy density (G)",string(res%gkinspin(1),'e',decimal=9))
-
-          if (res%ev%avail(fieldeval_category_fder2)) then
-             call add(propitem_value,"Spin down field/gradient_norm/laplacian",&
-                vec((/res%fspin(2),res%gfmodspin(2),res%lapspin(2)/)))
-          elseif (res%ev%avail(fieldeval_category_fder1)) then
-             call add(propitem_value,"Spin down field/gradient_norm",vec((/res%fspin(2),res%gfmodspin(2)/)))
-          elseif (res%ev%avail(fieldeval_category_f)) then
-             call add(propitem_value,"Spin down field",vec((/res%fspin(2)/)))
-          end if
-          if (res%ev%avail(fieldeval_category_gkin)) &
-             call add(propitem_value,"Spin down kinetic energy density (G)",string(res%gkinspin(2),'e',decimal=9))
+          do j = 1, 2
+             lbl = merge("Spin up  ","Spin down",j == 1)
+             if (res%ev%avail(fieldeval_category_fder2)) then
+                call add(propitem_value,propid_spin,lbl // " field/gradient_norm/laplacian",&
+                   (/res%fspin(j),res%gfmodspin(j),res%lapspin(j)/),vector=.true.)
+             elseif (res%ev%avail(fieldeval_category_fder1)) then
+                call add(propitem_value,propid_spin,lbl // " field/gradient_norm",&
+                   (/res%fspin(j),res%gfmodspin(j)/),vector=.true.)
+             elseif (res%ev%avail(fieldeval_category_f)) then
+                call add(propitem_value,propid_spin,lbl // " field",(/res%fspin(j)/),vector=.true.)
+             end if
+             if (res%ev%avail(fieldeval_category_gkin)) &
+                call add(propitem_value,propid_spingkin,lbl // " kinetic energy density (G)",(/res%gkinspin(j)/))
+          end do
        end if
 
        ! properties at points defined by the user
@@ -1720,19 +1713,19 @@ contains
                 errmsg = "Error evaluating expression: " // trim(lerr)
                 return
              end if
-             call add(propitem_value,string(s%propp(i)%name) // " (" // string(s%propp(i)%expr) // ")",&
-                string(fres,'e',decimal=9))
+             call add(propitem_value,propid_pointprop,string(s%propp(i)%name) // " (" //&
+                string(s%propp(i)%expr) // ")",(/fres/),idx=i)
           else
              ! ispecial=1 ... schrodinger stress tensor
              if (res%ev%avail(fieldeval_category_stress)) then
                 stvec = res%stress
                 call rsindex(stvec,stval,str,sts,CP_hdegen)
-                call add(propitem_header,"Stress tensor")
+                call add(propitem_header,propid_pointprop,"Stress tensor",idx=i)
                 do j = 1, 3
                    xrow = res%stress(j,:)
-                   call add(propitem_row,"",mrow(xrow))
+                   call add(propitem_row,propid_pointprop,"",xrow,idx=i)
                 end do
-                call add(propitem_value,"Stress tensor eigenvalues",vec(stval))
+                call add(propitem_value,propid_pointprop,"Stress tensor eigenvalues",stval,idx=i)
              else
                 errmsg = "Stress tensor cannot be calculated with this scalar field type"
                 return
@@ -1748,21 +1741,28 @@ contains
           if (s%goodfield(i) .and. i/=id) then
              call s%f(i)%grd(xp,request,res2)
              if (res2%valid) then
-                call add(propitem_value,"Field " // string(i) // " (f,|grad|,lap)",&
-                   vec((/res2%f,res2%gfmod,res2%del2f/)))
+                call add(propitem_value,propid_field,"Field " // string(i) // " (f,|grad|,lap)",&
+                   (/res2%f,res2%gfmod,res2%del2f/),idx=i)
              end if
           end if
        end do
     end if
 
   contains
-    !> Add an entry to the list.
-    subroutine add(kind,label,value)
-      integer, intent(in) :: kind
+    !> Add an entry to the list: its kind and property (propid_*), the
+    !> label, and the numbers x (in a row of a tensor if the kind is a
+    !> row) or else the text value; the index idx of the point property
+    !> or the field. Single numbers are written alone, unless vector.
+    subroutine add(kind,iprop,label,x,value,idx,vector)
+      integer, intent(in) :: kind, iprop
       character(len=*), intent(in) :: label
+      real*8, intent(in), optional :: x(:)
       character(len=*), intent(in), optional :: value
+      integer, intent(in), optional :: idx
+      logical, intent(in), optional :: vector
 
       type(propty_item), allocatable :: aux(:)
+      logical :: vector_
 
       if (nitem >= size(item,1)) then
          allocate(aux(max(2*nitem,20)))
@@ -1771,11 +1771,26 @@ contains
       end if
       nitem = nitem + 1
       item(nitem)%kind = kind
+      item(nitem)%iprop = iprop
+      item(nitem)%idx = 0
+      if (present(idx)) item(nitem)%idx = idx
       item(nitem)%label = label
-      if (present(value)) then
-         item(nitem)%value = value
+      vector_ = .false.
+      if (present(vector)) vector_ = vector
+      if (present(x)) then
+         item(nitem)%x = x
+         if (kind == propitem_row) then
+            item(nitem)%value = mrow(x)
+         elseif (size(x,1) == 1 .and..not.vector_) then
+            item(nitem)%value = string(x(1),'e',decimal=9)
+         else
+            item(nitem)%value = vec(x)
+         end if
       else
+         if (allocated(item(nitem)%x)) deallocate(item(nitem)%x)
+         allocate(item(nitem)%x(0))
          item(nitem)%value = ""
+         if (present(value)) item(nitem)%value = value
       end if
 
     end subroutine add
@@ -1797,13 +1812,13 @@ contains
     !> A row of a 3x3 tensor: the components, right-justified in
     !> columns, each followed by two spaces.
     function mrow(x) result(vs)
-      real*8, intent(in) :: x(3)
+      real*8, intent(in) :: x(:)
       character(len=:), allocatable :: vs
 
       integer :: k
 
       vs = ""
-      do k = 1, 3
+      do k = 1, size(x,1)
          vs = vs // string(x(k),'e',decimal=9,length=16,justify=4) // "  "
       end do
 

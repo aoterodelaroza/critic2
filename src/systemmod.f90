@@ -138,10 +138,32 @@ module systemmod
   integer, parameter, public :: propitem_header = 1 !< "label:"
   integer, parameter, public :: propitem_row = 2 !< "value", indented under a header
   integer, parameter, public :: propitem_text = 3 !< "label"
+  !> The property an entry belongs to (the entries of a tensor share it)
+  integer, parameter, public :: propid_none = 0 !< a message
+  integer, parameter, public :: propid_type = 1 !< rank and signature, or nucleus
+  integer, parameter, public :: propid_f = 2 !< field value
+  integer, parameter, public :: propid_fval = 3 !< valence field value
+  integer, parameter, public :: propid_gf = 4 !< gradient
+  integer, parameter, public :: propid_gfmod = 5 !< gradient norm
+  integer, parameter, public :: propid_gfmodval = 6 !< valence gradient norm
+  integer, parameter, public :: propid_gkin = 7 !< kinetic energy density
+  integer, parameter, public :: propid_lap = 8 !< Laplacian
+  integer, parameter, public :: propid_lapval = 9 !< valence Laplacian
+  integer, parameter, public :: propid_hess = 10 !< Hessian
+  integer, parameter, public :: propid_hesseval = 11 !< Hessian eigenvalues
+  integer, parameter, public :: propid_ellip = 12 !< ellipticity
+  integer, parameter, public :: propid_spin = 13 !< spin field, gradient norm, Laplacian
+  integer, parameter, public :: propid_spingkin = 14 !< spin kinetic energy density
+  integer, parameter, public :: propid_pointprop = 15 !< point property idx
+  integer, parameter, public :: propid_field = 16 !< another field, idx (ALL)
+  integer, parameter, public :: propid_NUM = propid_field
   type propty_item
      integer :: kind = propitem_value !< kind of entry (propitem_*)
+     integer :: iprop = propid_none !< property (propid_*)
+     integer :: idx = 0 !< point property or field (propid_pointprop, propid_field)
      character(len=:), allocatable :: label !< name of the property (empty for rows)
      character(len=:), allocatable :: value !< value(s) (empty for headers and text)
+     real*8, allocatable :: x(:) !< the numbers in value (none for type, headers, and text)
    contains
      procedure :: line => propty_item_line !< the entry as an output line
   end type propty_item

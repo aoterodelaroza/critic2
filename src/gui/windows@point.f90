@@ -28,6 +28,27 @@ submodule (windows) point
   real*8, parameter :: marker_radmin = 0.25d0
   real*8, parameter :: marker_radmax = 0.6d0
 
+  ! name and definition of the built-in properties (propid_*), for the
+  ! list of properties calculated at the point
+  character(len=*), parameter :: propname(propid_NUM) = (/&
+     "Type                         ","Field value                  ",&
+     "Valence field value          ","Gradient                     ",&
+     "Gradient norm                ","Valence gradient norm        ",&
+     "Kinetic energy density       ","Laplacian                    ",&
+     "Valence Laplacian            ","Hessian                      ",&
+     "Hessian eigenvalues          ","Ellipticity                  ",&
+     "Spin field values            ","Spin kinetic energy densities",&
+     "(point property)             ","Other fields                 "/)
+  character(len=*), parameter :: propdef(propid_NUM) = (/&
+     "rank and signature (r,s), or nucleus","f                                   ",&
+     "fval                                ","grad f                              ",&
+     "|grad f|                            ","|grad fval|                         ",&
+     "G (tau)                             ","del2 f                              ",&
+     "del2 fval                           ","d2f/dxi dxj                         ",&
+     "l1, l2, l3                          ","l1/l2 - 1 (at bond-like points)     ",&
+     "up and down: f, |grad f|, del2 f    ","up and down: G                      ",&
+     "                                    ","f, |grad f|, del2 f of each (ALL)   "/)
+
 contains
 
   !> Draw the point properties window: the properties of a field of
@@ -36,20 +57,22 @@ contains
   !> POINT calculates them.
   module subroutine draw_point(w)
     use systems, only: sys, sysc, sys_init, ok_system
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_checkbox, iw_dragfloat_real8,&
-       iw_field_combo, iw_inputtext, iw_calcwidth, iw_close_event, iw_setpos_bottomright,&
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8,&
+       iw_field_combo, iw_calcwidth, iw_close_event, iw_setpos_bottomright,&
        iw_table_column, iw_table_headers_row, iw_cell_right
     use representations, only: rep_shape, shapekind_sphere
-    use systemmod, only: propitem_header, propitem_row, propitem_text
+    use systemmod, only: propitem_header, propitem_row, propitem_text, propid_none, propid_type,&
+       propid_fval, propid_gfmodval, propid_lapval, propid_pointprop, propid_field
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     integer, parameter :: itable_point = 1 ! the table, for table_write_*
 
-    logical :: doquit, goodsys, syschanged, ismol, ldum
+    logical :: doquit, goodsys, syschanged, ismol, ldum, xediting
     integer :: i, isys, iview, istat, iwrite, ifield
+    type(point_col) :: cc
     integer(c_int) :: tflags
-    real*8 :: xc(3), rad
+    real*8 :: xc(3), xrep(3), rad
     type(ImVec2) :: sz0
     character(len=:,kind=c_char), allocatable, target :: str1
 
@@ -67,6 +90,14 @@ contains
        w%pt = point_state()
        w%pt%expr = ""
        w%errmsg = ""
+       ! hidden by default: the type and valence quantities, and the
+       ! other fields
+       w%pt%col(propid_type)%show = .false.
+       w%pt%col(propid_fval)%show = .false.
+       w%pt%col(propid_gfmodval)%show = .false.
+       w%pt%col(propid_lapval)%show = .false.
+       w%pt%col(propid_field)%show = .false.
+       allocate(w%pt%ppcol(0))
     end if
 
     ! a new system: the point goes to the center of the cell (of the
@@ -99,16 +130,13 @@ contains
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
 
-       ! the field and whether the others are reported too
+       ! the field
        call iw_text("Field",highlight=.true.,alignframe=.true.)
        call igSameLine(0._c_float,-1._c_float)
        ifield = w%pt%fref%id
        if (iw_field_combo("##pointfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
           nonestr="<field not available>")) call w%pt%fref%set(sys(isys),ifield)
        call iw_tooltip("Field whose properties are calculated at the point",ttshown)
-       ldum = iw_checkbox("All fields##pointall",w%pt%allfields,sameline=.true.)
-       call iw_tooltip("Also give the value, gradient norm, and Laplacian of all other fields&
-          & at the point (ALL)",ttshown)
 
        ! the point
        call iw_text("Point",highlight=.true.,alignframe=.true.)
@@ -126,21 +154,19 @@ contains
        else
           ldum = iw_dragfloat_real8("(frac)##pointx",x3=w%pt%x,speed=0.001d0,decimal=6,sameline=.true.)
        end if
+       ! the report waits until the coordinates are no longer being edited
+       xediting = igIsItemActive()
        call iw_tooltip("Coordinates of the point",ttshown)
 
-       ! an expression evaluated at the point
-       call iw_text("Expression",highlight=.true.,alignframe=.true.)
-       call igSameLine(0._c_float,-1._c_float)
-       ldum = iw_inputtext("##pointexpr",bufsize=2047,texta=w%pt%expr,width=40,notlive=.true.)
-       call iw_tooltip("Arithmetic expression to evaluate at the point, in addition to the&
-          & properties of the field (e.g. $1+$2, or $1:l for the Laplacian of field 1)",ttshown)
+       ! which properties are calculated, and how they are written
+       call draw_props_section()
 
        ! the point in the anchor view, for as long as the window is open
        if (associated(win(iview)%sc)) then
           if (win(iview)%sc%isinit /= 0) then
              rad = min(max(0.01d0 * real(win(iview)%sc%scenerad,8),marker_radmin),marker_radmax)
              call win(iview)%sc%show_transient_shapes(w%uid,1,(/rep_shape(kind=shapekind_sphere,&
-                x1=to_abs(),rad=rad,rgb=marker_rgb,alpha=marker_alpha)/))
+                x1=to_abs(w%pt%x),rad=rad,rgb=marker_rgb,alpha=marker_alpha)/))
           end if
        end if
 
@@ -165,32 +191,35 @@ contains
           call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown)
           call w%table_write_begin(itable_point,iwrite)
 
-          ! the Cartesian coordinates in the absolute frame (molecules
-          ! with their origin, as POINT reads and writes them)
-          xc = to_abs()
+          ! the point of the report, with the Cartesian coordinates in
+          ! the absolute frame (molecules with their origin, as POINT
+          ! reads and writes them)
+          xrep = w%pt%x
+          if (allocated(w%pt%key)) xrep = w%pt%keyx
+          xc = to_abs(xrep)
           if (.not.ismol) &
-             call row("Coordinates (frac)",vec3(w%pt%x,'f',7))
+             call row("Coordinates (frac)",vec3(xrep,'f',7))
           call row("Coordinates (bohr)",vec3(xc,'f',7))
           call row("Coordinates (Å)",vec3(xc*bohrtoa,'f',7))
-          if (sys(isys)%goodfield(w%pt%fref%id)) &
-             call row("Field",string(w%pt%fref%id) // ": " // trim(sys(isys)%f(w%pt%fref%id)%name),&
-                whole=.true.)
           do i = 1, w%pt%nitem
              associate(it => w%pt%item(i))
+               if (.not.item_col(it,cc)) cycle
                select case (it%kind)
                case (propitem_header,propitem_text)
                   call row(it%label,"")
                case (propitem_row)
-                  call row("",it%value)
+                  call row("",nums(it%x,cc))
                case default
-                  call row(it%label,it%value)
+                  if (size(it%x,1) > 0) then
+                     call row(it%label,nums(it%x,cc))
+                  else
+                     call row(it%label,it%value)
+                  end if
                end select
              end associate
           end do
-          if (allocated(w%pt%exprval)) then
-             if (len(w%pt%exprval) > 0) &
-                call row("Expression (" // trim(w%pt%expr) // ")",w%pt%exprval)
-          end if
+          if (w%pt%exprok) &
+             call row("Expression (" // w%pt%exprtxt // ")",nums((/w%pt%exprval/),w%pt%excol))
 
           call w%table_write_end(itable_point,table_title("Point properties",isys))
           call igEndTable()
@@ -223,26 +252,215 @@ contains
 
   contains
 
+    !> The collapsible list of the properties calculated at the point:
+    !> the built-in ones of the field (those in the report), the point
+    !> properties of the system, the other fields, and the expression,
+    !> each with whether it is shown and the notation and decimal places
+    !> of its numbers in the table.
+    subroutine draw_props_section()
+      use utils, only: iw_calcheight
+      character(kind=c_char,len=:), allocatable, target :: strsec, strtab
+      integer(c_int) :: flt
+      integer :: jp, ip, nrow
+      logical :: other
+      type(ImVec2) :: szt
+
+      ! a framed header across the window, so it stands out
+      strsec = "Properties calculated at the point##pointprops" // c_null_char
+      if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
+
+      ! whether there are other fields than the one of the window
+      other = .false.
+      do jp = 0, sys(isys)%nf
+         if (jp /= w%pt%fref%id .and. sys(isys)%goodfield(jp)) other = .true.
+      end do
+
+      ! the table of properties: show, name, definition, notation and
+      ! decimal places of the numbers in the table
+      nrow = sys(isys)%npropp + 1
+      if (other) nrow = nrow + 1
+      do jp = 1, propid_NUM
+         if (jp /= propid_pointprop .and. jp /= propid_field .and. in_report(jp)) nrow = nrow + 1
+      end do
+      flt = ImGuiTableFlags_None
+      flt = ior(flt,ImGuiTableFlags_NoSavedSettings)
+      flt = ior(flt,ImGuiTableFlags_RowBg)
+      flt = ior(flt,ImGuiTableFlags_Borders)
+      flt = ior(flt,ImGuiTableFlags_SizingFixedFit)
+      flt = ior(flt,ImGuiTableFlags_ScrollY)
+      strtab = "##tablepointprops" // c_null_char
+      szt%x = 0._c_float
+      szt%y = iw_calcheight(min(nrow,8)+1,0,.false.)
+      if (igBeginTable(c_loc(strtab),5_c_int,flt,szt,0._c_float)) then
+         call iw_table_column("Show",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Property",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Definition",id=2_c_int,flags=ImGuiTableColumnFlags_WidthStretch)
+         call iw_table_column("Format",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Decimals",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_headers_row(freezetop=.true.)
+
+         ! the built-in properties in the report
+         do jp = 1, propid_NUM
+            if (jp == propid_pointprop .or. jp == propid_field) cycle
+            if (.not.in_report(jp)) cycle
+            call prop_row("b" // string(jp),trim(propname(jp)),trim(propdef(jp)),w%pt%col(jp),&
+               numbers=(jp /= propid_type))
+         end do
+
+         ! the point properties of the system
+         do ip = 1, sys(isys)%npropp
+            associate(pp => sys(isys)%propp(ip))
+              jp = ppcol_index(pp%name)
+              if (pp%ispecial == 0) then
+                 call prop_row("p" // string(ip),trim(pp%name),trim(pp%expr),w%pt%ppcol(jp))
+              else
+                 call prop_row("p" // string(ip),trim(pp%name),"stress tensor",w%pt%ppcol(jp))
+              end if
+            end associate
+         end do
+
+         ! the other fields (ALL)
+         if (other) call prop_row("f",trim(propname(propid_field)),trim(propdef(propid_field)),&
+            w%pt%col(propid_field),calc=.true.)
+
+         ! the expression, edited in its definition cell
+         call prop_row("x","Expression","",w%pt%excol,expression=.true.,calc=.true.)
+
+         call igEndTable()
+      end if
+      call igTreePop()
+
+    end subroutine draw_props_section
+
+    !> A row of the list of properties calculated at the point: label,
+    !> definition, and settings c. Without numbers, no notation and
+    !> decimals. If expression, the definition is the input of the
+    !> expression. If calc, Show also decides whether it is calculated
+    !> (the others are always calculated, and only hidden).
+    subroutine prop_row(suffix,label,def,c,numbers,expression,calc)
+      use utils, only: iw_checkbox, iw_inputtext, iw_arith_help_button, iw_intstepper,&
+         iw_combo_simple
+      character(len=*), intent(in) :: suffix, label, def
+      type(point_col), intent(inout) :: c
+      logical, intent(in), optional :: numbers, expression, calc
+
+      logical :: ldum, ch, numbers_, expression_, calc_
+      integer :: ifmt
+      character(len=:), allocatable :: suf
+
+      numbers_ = .true.
+      if (present(numbers)) numbers_ = numbers
+      expression_ = .false.
+      if (present(expression)) expression_ = expression
+      calc_ = .false.
+      if (present(calc)) calc_ = calc
+      suf = "##pointprop" // suffix
+
+      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+      if (igTableSetColumnIndex(0_c_int)) then
+         ldum = iw_checkbox(suf // "show",c%show)
+         if (calc_) then
+            call iw_tooltip("Calculate this property and show it in the table",ttshown)
+         else
+            call iw_tooltip("Show this property in the table",ttshown)
+         end if
+      end if
+      if (igTableSetColumnIndex(1_c_int)) call iw_text(label,alignframe=.true.)
+      if (igTableSetColumnIndex(2_c_int)) then
+         if (expression_) then
+            ldum = iw_inputtext(suf // "expr",bufsize=2047,texta=w%pt%expr,width=30,notlive=.true.)
+            call iw_tooltip("Arithmetic expression to evaluate at the point (e.g. $1+$2,&
+               & or $1:l for the Laplacian of field 1)",ttshown)
+            call iw_arith_help_button(suf // "help",ttshown)
+         else
+            call iw_text(def,alignframe=.true.)
+         end if
+      end if
+      if (numbers_ .and. igTableSetColumnIndex(3_c_int)) then
+         ifmt = merge(1,0,c%expo)
+         call iw_combo_simple(suf // "fmt","Fixed" // c_null_char // "Exp" // c_null_char,&
+            ifmt,changed=ch)
+         if (ch) c%expo = (ifmt == 1)
+         call iw_tooltip("Notation of the numbers of this property in the table: fixed&
+            & point (0.0123) or exponential (1.23E-02)",ttshown)
+      end if
+      if (numbers_ .and. igTableSetColumnIndex(4_c_int)) then
+         ldum = iw_intstepper(suf // "dec",c%ndec,minval=0_c_int,maxval=16_c_int,&
+            ndigit=2,tooltip="Number of decimal places of this property in the table")
+      end if
+
+    end subroutine prop_row
+
+    !> Whether the report has an entry of the built-in property jp.
+    function in_report(jp)
+      integer, intent(in) :: jp
+      logical :: in_report
+      in_report = any(w%pt%item(1:w%pt%nitem)%iprop == jp)
+    end function in_report
+
+    !> The settings c of the property of report entry it (the defaults
+    !> for a message); false if it is not shown: hidden, or a point
+    !> property no longer in the system.
+    function item_col(it,c) result(ok)
+      type(propty_item), intent(in) :: it
+      type(point_col), intent(out) :: c
+      logical :: ok
+      integer :: ic
+      ok = .true.
+      if (it%iprop == propid_none) return
+      if (it%iprop == propid_pointprop) then
+         ok = (it%idx >= 1 .and. it%idx <= sys(isys)%npropp)
+         if (ok) then
+            ! ppcol_index may grow ppcol, so not in the same statement
+            ic = ppcol_index(sys(isys)%propp(it%idx)%name)
+            c = w%pt%ppcol(ic)
+         end if
+      else
+         c = w%pt%col(it%iprop)
+      end if
+      ok = ok .and. c%show
+    end function item_col
+
+    !> The settings of the point property with this name, created with
+    !> the defaults if it has none yet.
+    function ppcol_index(name) result(ic)
+      character(len=*), intent(in) :: name
+      integer :: ic
+      type(point_col), allocatable :: aux(:)
+      ic = findloc(w%pt%ppcol%name,name,1)
+      if (ic > 0) return
+      allocate(aux(size(w%pt%ppcol,1)+1))
+      aux(1:size(w%pt%ppcol,1)) = w%pt%ppcol
+      aux(size(aux,1)) = point_col(name=name)
+      call move_alloc(aux,w%pt%ppcol)
+      ic = size(w%pt%ppcol,1)
+    end function ppcol_index
+
+    !> The numbers x written with the notation and decimal places of c,
+    !> separated by spaces.
+    function nums(x,c) result(str)
+      real*8, intent(in) :: x(:)
+      type(point_col), intent(in) :: c
+      character(len=:), allocatable :: str
+      integer :: k
+      str = ""
+      do k = 1, size(x,1)
+         str = str // " " // string(x(k),merge('e','f',c%expo),decimal=int(c%ndec))
+      end do
+    end function nums
+
     !> A row of the report table: the label, then the value. A value
     !> with several numbers (separated by blanks) takes one column for
-    !> each, right-aligned so that the rows of a tensor line up. If
-    !> whole, the value is a single piece of text instead.
-    subroutine row(label,value,whole)
+    !> each, right-aligned so that the rows of a tensor line up.
+    subroutine row(label,value)
       use tools_io, only: getword
       character(len=*), intent(in) :: label, value
-      logical, intent(in), optional :: whole
 
       integer :: k, lp
       character(len=:), allocatable :: word
 
       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
       if (igTableSetColumnIndex(0_c_int)) call iw_text(label)
-      if (present(whole)) then
-         if (whole) then
-            if (igTableSetColumnIndex(1_c_int)) call iw_text(value)
-            return
-         end if
-      end if
       lp = 1
       do k = 1, 3
          word = getword(value,lp)
@@ -256,7 +474,8 @@ contains
     !> made from changed: the system, its geometry and fields (the
     !> other fields enter through ALL and the expression), the
     !> point properties, the options, and the point. Waits for the
-    !> initialization threads to finish (the last report stays).
+    !> initialization threads to finish and for the coordinates to be
+    !> no longer edited (the last report stays).
     subroutine update_report()
       use systems, only: are_threads_running
       use types, only: scalar_value
@@ -268,7 +487,8 @@ contains
       character(len=:), allocatable :: lerr, keyexpr
 
       ! the expression and the point properties, as text
-      keyexpr = w%pt%expr
+      keyexpr = ""
+      if (w%pt%excol%show) keyexpr = w%pt%expr
       do j = 1, sys(isys)%npropp
          keyexpr = keyexpr // c_null_char // trim(sys(isys)%propp(j)%name) // c_null_char //&
             trim(sys(isys)%propp(j)%expr) // c_null_char // string(sys(isys)%propp(j)%ispecial)
@@ -278,7 +498,7 @@ contains
       allocate(key(5+sys(isys)%nf+1))
       key(1) = w%pt%sys%uid
       key(2) = w%pt%fref%uid
-      key(3) = merge(1_8,0_8,w%pt%allfields)
+      key(3) = merge(1_8,0_8,w%pt%col(propid_field)%show)
       key(4) = sys(isys)%npropp
       key(5) = w%pt%fref%id
       do j = 0, sys(isys)%nf
@@ -289,23 +509,25 @@ contains
       if (.not.stale) stale = (size(w%pt%key) /= size(key))
       if (.not.stale) stale = any(w%pt%key /= key) .or. any(w%pt%keyx /= w%pt%x) .or.&
          (w%pt%keytime /= sysc(isys)%timelastchange_geometry) .or. (w%pt%keyexpr /= keyexpr)
-      if (.not.stale .or. are_threads_running()) return
+      if (.not.stale .or. xediting .or. are_threads_running()) return
 
       w%pt%nitem = 0
       w%pt%errmsg = ""
-      w%pt%exprval = ""
+      w%pt%exprok = .false.
       x0 = sys(isys)%c%c2x(form_to_cart(isys,w%pt%x))
       if (sys(isys)%goodfield(w%pt%fref%id)) &
-         call sys(isys)%propty_items(w%pt%fref%id,x0,res,.false.,w%pt%allfields,&
+         call sys(isys)%propty_items(w%pt%fref%id,x0,res,.false.,w%pt%col(propid_field)%show,&
             w%pt%item,w%pt%nitem,w%pt%errmsg)
-      if (len_trim(w%pt%expr) > 0) then
+      if (w%pt%excol%show .and. len_trim(w%pt%expr) > 0) then
          lerr = ""
          rdum = sys(isys)%eval(trim(w%pt%expr),lerr,form_to_cart(isys,w%pt%x))
          if (len_trim(lerr) > 0) then
             if (len_trim(w%pt%errmsg) > 0) w%pt%errmsg = w%pt%errmsg // new_line('a')
             w%pt%errmsg = w%pt%errmsg // "Error in the expression: " // trim(lerr)
          else
-            w%pt%exprval = string(rdum,'e',decimal=9)
+            w%pt%exprval = rdum
+            w%pt%exprtxt = trim(w%pt%expr)
+            w%pt%exprok = .true.
          end if
       end if
 
@@ -332,8 +554,8 @@ contains
          sx = vec3(w%pt%x,'f',10)
       end if
       str = "POINT " // sx // " FIELD " // string(w%pt%fref%id)
-      if (w%pt%allfields) str = str // " ALL"
-      if (len_trim(w%pt%expr) > 0) &
+      if (w%pt%col(propid_field)%show) str = str // " ALL"
+      if (w%pt%excol%show .and. len_trim(w%pt%expr) > 0) &
          str = str // new_line('a') // "POINT " // sx // ' FIELD "' // trim(w%pt%expr) // '"'
 
     end function point_command
@@ -350,11 +572,12 @@ contains
 
     end function vec3
 
-    !> The point in the absolute frame (with molx0 for molecules), for
-    !> the scene.
-    function to_abs() result(x)
+    !> The point xf of the form in the absolute frame (with molx0 for
+    !> molecules), for the scene.
+    function to_abs(xf) result(x)
+      real*8, intent(in) :: xf(3)
       real*8 :: x(3)
-      x = form_to_cart(isys,w%pt%x)
+      x = form_to_cart(isys,xf)
       if (ismol) x = x + sys(isys)%c%molx0
     end function to_abs
 

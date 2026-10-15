@@ -18,7 +18,7 @@
 ! The class to handle ImGui windows.
 module windows
   use crystalmod, only: nice_cell
-  use systemmod, only: field_ref, propty_item
+  use systemmod, only: field_ref, propty_item, propid_NUM
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
@@ -451,6 +451,16 @@ module windows
   end type gpaths_state
   public :: gpaths_state
 
+  !> Settings of a property calculated by the point properties window:
+  !> whether it is calculated and shown, and the notation and decimal
+  !> places of its numbers. Point properties are kept by name.
+  type point_col
+     character*10 :: name = "" ! the point property (blank for the others)
+     logical :: show = .true. ! calculate and show the property
+     logical :: expo = .true. ! exponential notation (or fixed point)
+     integer(c_int) :: ndec = 9 ! number of decimal places
+  end type point_col
+
   !> Per-window state of the point properties window (Tools > Point
   !> Properties, the POINT keyword): the form (field, position, options),
   !> a pending pick in the view, and the report of the properties at the
@@ -461,8 +471,13 @@ module windows
      type(sys_ref) :: sys ! system the form is set up for
      type(field_ref) :: fref ! field whose properties are calculated
      real*8 :: x(3) = 0d0 ! the point
-     logical :: allfields = .false. ! also the value of the other fields (ALL)
      character(len=:), allocatable :: expr ! expression evaluated at the point (empty = none)
+     ! the properties calculated at the point: the built-in ones (by
+     ! propid_*; propid_field = the other fields, ALL), the point
+     ! properties of the system (by name), and the expression
+     type(point_col) :: col(propid_NUM)
+     type(point_col), allocatable :: ppcol(:)
+     type(point_col) :: excol
      ! pending pick in the view
      logical :: picking = .false.
      integer :: pickview = 0
@@ -471,7 +486,9 @@ module windows
      ! the error that stopped either; for the inputs in key and x
      type(propty_item), allocatable :: item(:)
      integer :: nitem = 0
-     character(len=:), allocatable :: exprval
+     real*8 :: exprval = 0d0
+     character(len=:), allocatable :: exprtxt ! the expression exprval is the value of
+     logical :: exprok = .false. ! exprval is the value of the expression
      character(len=:), allocatable :: errmsg
      integer*8, allocatable :: key(:)
      real*8 :: keyx(3) = 0d0
