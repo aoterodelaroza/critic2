@@ -2194,6 +2194,10 @@ module windows
        real*8, intent(in) :: x(3)
        real*8 :: xc(3)
      end function form_to_cart
+     module subroutine warn_grid_interp(isys,ifield,what)
+       integer, intent(in) :: isys, ifield
+       character(len=*), intent(in) :: what
+     end subroutine warn_grid_interp
      module subroutine point_cols_from_cp(col,ppdef)
        type(point_col), intent(inout) :: col(:)
        type(point_col), intent(inout) :: ppdef

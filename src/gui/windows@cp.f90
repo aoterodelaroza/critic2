@@ -502,6 +502,42 @@ contains
     end subroutine copyfmt
   end subroutine point_cols_from_cp
 
+  !> If field ifield of system isys is a grid interpolated with
+  !> anything other than smoothrho, say that what (the locations of
+  !> its critical points, the gradient paths traced on it) is
+  !> unreliable, and where the interpolation is changed.
+  module subroutine warn_grid_interp(isys,ifield,what)
+    use systems, only: sys
+    use fieldmod, only: type_grid
+    use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic, mode_smr
+    use utils, only: iw_text
+    integer, intent(in) :: isys, ifield
+    character(len=*), intent(in) :: what
+
+    character(len=:), allocatable :: mode
+
+    if (.not.sys(isys)%goodfield(ifield)) return
+    if (sys(isys)%f(ifield)%type /= type_grid) return
+    select case (sys(isys)%f(ifield)%grid%mode)
+    case (mode_smr)
+       return
+    case (mode_nearest)
+       mode = "nearest-node"
+    case (mode_trilinear)
+       mode = "tri-linear"
+    case (mode_trispline)
+       mode = "tri-spline"
+    case (mode_tricubic)
+       mode = "tri-cubic"
+    case default
+       mode = "this"
+    end select
+    call iw_text("The interpolation method for this grid field gives unreliable &
+       &critical points and gradient paths. For all-electron densities,&
+       & switch to smoothrho (right click on the field in the tree).",danger=.true.,wrap=.true.)
+
+  end subroutine warn_grid_interp
+
   !> The form that adds a point property to system isys (POINTPROP):
   !> its kind (kind: 0 = an arithmetic expression, k = keyword k, for
   !> field ifield), and the name and expression of an expression. The
@@ -2023,7 +2059,8 @@ contains
 
   !> Draw the field combo of the critical points window, above its
   !> tabs: the field whose critical points are searched, shown, and
-  !> exported. Says so if the field is not available in system isys.
+  !> exported. Says so if the field is not available in system isys,
+  !> or if it is a grid whose interpolation makes the CPs unreliable.
   subroutine draw_field_combo(w,isys,ttshown)
     use systems, only: sys
     use utils, only: iw_text, iw_tooltip, iw_field_combo, iw_calcwidth
@@ -2041,6 +2078,7 @@ contains
     call iw_tooltip("Field whose critical points are searched, shown, and exported",ttshown)
     if (.not.sys(isys)%goodfield(w%cp%fref%id)) &
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+    call warn_grid_interp(isys,w%cp%fref%id,"the locations of the critical points")
 
   end subroutine draw_field_combo
 

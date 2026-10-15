@@ -114,6 +114,7 @@ contains
        ok = sys(isys)%goodfield(ifield)
        if (.not.ok) &
           call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
+       call warn_grid_interp(isys,ifield,"the gradient paths traced on it")
     end if
 
     if (goodsys .and. ok) then
