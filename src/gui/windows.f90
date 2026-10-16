@@ -585,6 +585,9 @@ module windows
   !> pick, and the results: the values on the grid, the contour lines,
   !> the texture of the map, and the atoms and critical points on the
   !> plane, each calculated again when the inputs it depends on change.
+  ! number of places along a contour line where its value can go
+  integer, parameter :: plane_ncand = 12
+
   type plane_state
      type(sys_ref) :: sys ! system the form is set up for
      type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
@@ -620,6 +623,17 @@ module windows
      ! the contour lines, in plot coordinates (n,2: u then v; NaN between lines)
      real(c_double), allocatable :: cpos(:,:), cneg(:,:)
      integer :: ncpos = 0, ncneg = 0
+     ! their value labels (Values), one per line, longest line first:
+     ! the places along the line where it can go (plot coordinates, at
+     ! the middle of plane_ncand equal pieces of the line) and the
+     ! direction of the line there, its length (plot units), its level,
+     ! where it is in cpos (icval(1) = 1) or cneg (2), first row and
+     ! number of points, and the index of the level (icval(4))
+     logical :: showcval = .true.
+     real(c_float) :: vscale = 1._c_float ! their size (relative to the interface font)
+     integer :: ncval = 0
+     real*8, allocatable :: xcval(:,:,:), tcval(:,:,:), lcval(:), zcval(:)
+     integer, allocatable :: icval(:,:)
      integer*8, allocatable :: keycont(:)
      character(len=:), allocatable :: keylist
      ! the texture of the map and the range of its colors
@@ -2406,7 +2420,7 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_slice
-     module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff) result(changed)
+     module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale) result(changed)
        type(plane_def), intent(inout) :: d
        integer, intent(in) :: isys
        logical, intent(inout) :: ttshown
@@ -2414,6 +2428,8 @@ module windows
        logical, intent(in) :: live
        integer, intent(out), optional :: ipick
        logical, intent(in), optional :: pickoff
+       logical, intent(inout), optional :: showval
+       real(c_float), intent(inout), optional :: valscale
        logical :: changed
      end function plane_def_form
      !xx! display submodule !xx!

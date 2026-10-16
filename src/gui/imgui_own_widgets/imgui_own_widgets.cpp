@@ -2341,3 +2341,19 @@ extern "C" ImDrawData* own_progress_bar_drawdata(float x0, float y0, float x1, f
   dd.FramebufferScale = io.DisplayFramebufferScale;
   return &dd;
 }
+
+// Add the text to draw list dl with the font at size, in color col,
+// centered on (cx,cy) and rotated by angle (radians, clockwise on the
+// screen): the text is added straight and its vertices are rotated.
+extern "C" void own_add_text_rotated(ImDrawList* dl, ImFont* font, float size, float cx, float cy,
+                                     float angle, ImU32 col, const char* text){
+  ImVec2 ts = font->CalcTextSizeA(size, FLT_MAX, 0.f, text);
+  int v0 = dl->VtxBuffer.Size;
+  dl->AddText(font, size, ImVec2(cx - 0.5f * ts.x, cy - 0.5f * ts.y), col, text);
+  float c = cosf(angle), s = sinf(angle);
+  for (int i = v0; i < dl->VtxBuffer.Size; i++){
+    ImVec2 p = dl->VtxBuffer[i].pos;
+    float x = p.x - cx, y = p.y - cy;
+    dl->VtxBuffer[i].pos = ImVec2(cx + c * x - s * y, cy + s * x + c * y);
+  }
+}

@@ -2986,3 +2986,11 @@ function own_progress_bar_drawdata(x0,y0,x1,y1,frac,text) bind(c,name="own_progr
   type(c_ptr), intent(in), value :: text
   type(c_ptr) :: own_progress_bar_drawdata
 end function own_progress_bar_drawdata
+! void own_add_text_rotated(ImDrawList* dl, ImFont* font, float size, float cx, float cy, float angle, ImU32 col, const char* text);
+subroutine own_add_text_rotated(dl,font,size,cx,cy,angle,col,text) bind(c,name="own_add_text_rotated")
+  import c_ptr, c_float, c_int
+  type(c_ptr), value :: dl, font
+  real(c_float), value :: size, cx, cy, angle
+  integer(c_int), value :: col
+  type(c_ptr), intent(in), value :: text
+end subroutine own_add_text_rotated

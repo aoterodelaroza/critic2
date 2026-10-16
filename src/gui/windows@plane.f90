@@ -127,7 +127,7 @@ contains
 
        ! the plane, the region, and the number of points
        xediting = .false.
-       if (plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking)) &
+       if (plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking,w%pl%showcval,w%pl%vscale)) &
           w%pl%viewdirty = .true.
        if (ipick > 0) then
           w%pl%picking = .true.
@@ -322,6 +322,11 @@ contains
       integer(c_int) :: flags, coltext
       real(c_double) :: xmin, xmax, ymin, ymax, crn(2,4), mu, mv
       real(c_float) :: px(4), py(4), wbar, fs
+      real(c_float), allocatable :: box(:,:), ang(:)
+      real*8, allocatable :: gap(:), sval(:)
+      integer, allocatable :: ival(:), icand(:)
+      integer :: nbox, nval, k
+      integer(c_int) :: col(2)
       type(ImVec2) :: pmin, pmax, szp, pt, tsz
       type(c_ptr) :: dl
       real*8 :: xyz(3)
@@ -380,30 +385,45 @@ contains
          end if
          call ImDrawList_PopClipRect(dl)
 
-         ! the contour lines
+         ! the labels go where their dot and text are (ImGui scales text
+         ! linearly in the font size, so the measurement at the
+         ! interface size scales with it); then the values of the
+         ! contour lines, where they do not cover a label or another
+         ! value, along the line, which has a gap under each
+         dl = igGetWindowDrawList()
+         coltext = igGetColorU32_Vec4(ImVec4(w%pl%rgblabel(1),w%pl%rgblabel(2),w%pl%rgblabel(3),1._c_float))
+         fs = w%pl%lscale * g%FontSize
+         nbox = 0
+         nval = 0
+         allocate(box(4,w%pl%nmark+w%pl%ncval),ival(w%pl%ncval),icand(w%pl%ncval),sval(w%pl%ncval),&
+            gap(w%pl%ncval),ang(w%pl%ncval))
+         if (w%pl%showlabels) then
+            do j = 1, w%pl%nmark
+               call ipPlotToPixels(w%pl%xmark(1,j),w%pl%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
+               str1 = trim(w%pl%lmark(j)) // c_null_char
+               call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+               nbox = nbox + 1
+               box(:,nbox) = (/px(1) - 3._c_float * w%pl%lscale,py(1) - (tsz%y + 1._c_float) * w%pl%lscale,&
+                  px(1) + (4._c_float + tsz%x) * w%pl%lscale,py(1) + 3._c_float * w%pl%lscale/)
+            end do
+         end if
          if (w%pl%d%showcont) then
-            if (w%pl%ncpos > 0) then
-               str1 = "##planecpos" // c_null_char
-               call ipSetNextLineStyle(ImVec4(w%pl%d%rgbpos(1),w%pl%d%rgbpos(2),w%pl%d%rgbpos(3),1._c_float),1._c_float)
-               call ipPlotLine(c_loc(str1),c_loc(w%pl%cpos(1,1)),c_loc(w%pl%cpos(1,2)),int(w%pl%ncpos,c_int),&
-                  ImPlotLineFlags_None,0_c_int)
-            end if
-            if (w%pl%ncneg > 0) then
-               str1 = "##planecneg" // c_null_char
-               call ipSetNextLineStyle(ImVec4(w%pl%d%rgbneg(1),w%pl%d%rgbneg(2),w%pl%d%rgbneg(3),1._c_float),1._c_float)
-               call ipPlotLine(c_loc(str1),c_loc(w%pl%cneg(1,1)),c_loc(w%pl%cneg(1,2)),int(w%pl%ncneg,c_int),&
-                  ImPlotLineFlags_None,0_c_int)
-            end if
+            if (w%pl%showcval .and. w%pl%ncval > 0) &
+               call place_values(pmin,pmax,box,nbox,nval,ival,icand,sval,gap,ang)
+            if (w%pl%ncpos > 0) call plot_contours(1,w%pl%d%rgbpos,w%pl%cpos,w%pl%ncpos,nval,ival,sval,gap)
+            if (w%pl%ncneg > 0) call plot_contours(2,w%pl%d%rgbneg,w%pl%cneg,w%pl%ncneg,nval,ival,sval,gap)
          end if
 
-         ! the labels: a dot and the text
-         if (w%pl%showlabels .and. w%pl%nmark > 0) then
-            dl = igGetWindowDrawList()
-            coltext = igGetColorU32_Vec4(ImVec4(w%pl%rgblabel(1),w%pl%rgblabel(2),w%pl%rgblabel(3),1._c_float))
-            call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
-            ! ImGui scales text linearly in the font size, so the
-            ! measurement at the interface size scales with it
-            fs = w%pl%lscale * g%FontSize
+         call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
+         col(1) = igGetColorU32_Vec4(ImVec4(w%pl%d%rgbpos(1),w%pl%d%rgbpos(2),w%pl%d%rgbpos(3),1._c_float))
+         col(2) = igGetColorU32_Vec4(ImVec4(w%pl%d%rgbneg(1),w%pl%d%rgbneg(2),w%pl%d%rgbneg(3),1._c_float))
+         do j = 1, nval
+            k = ival(j)
+            call ipPlotToPixels(w%pl%xcval(1,icand(j),k),w%pl%xcval(2,icand(j),k),ImAxis_X1,ImAxis_Y1,px(1),py(1))
+            str1 = fmt_level(w%pl%zcval(k)) // c_null_char
+            call own_add_text_rotated(dl,g%Font,w%pl%vscale*g%FontSize,px(1),py(1),ang(j),col(w%pl%icval(1,k)),c_loc(str1))
+         end do
+         if (w%pl%showlabels) then
             do j = 1, w%pl%nmark
                call ipPlotToPixels(w%pl%xmark(1,j),w%pl%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
                call ImDrawList_AddCircleFilled(dl,ImVec2(px(1),py(1)),3._c_float*w%pl%lscale,coltext,8_c_int)
@@ -414,8 +434,8 @@ contains
                call ImDrawList_AddText_FontPtr(dl,g%Font,fs,pt,coltext,c_loc(str1),c_null_ptr,&
                   0._c_float,c_null_ptr)
             end do
-            call ImDrawList_PopClipRect(dl)
          end if
+         call ImDrawList_PopClipRect(dl)
 
          ! the point under the mouse
          if (ipIsPlotHovered()) then
@@ -460,6 +480,235 @@ contains
       end if
 
     end subroutine draw_map
+
+    !> Where the values of the contour lines go, longest line first:
+    !> at one of the places along each line long enough for them,
+    !> inside the plot (pmin-pmax), where they do not cover a label or
+    !> come close to a value already placed (the nbox boxes in box, in
+    !> pixels: xmin, ymin, xmax, ymax). The place tried first moves
+    !> along the line from one level to the next (by the golden ratio),
+    !> so the values of nested lines do not pile up. Returns the nval
+    !> values placed: their line in the list of values (ival), the
+    !> place (icand) and its distance along the line (sval, plot
+    !> units), half the gap they leave in the line (gap, plot units),
+    !> and the angle of their text (ang, radians, clockwise on the
+    !> screen).
+    subroutine place_values(pmin,pmax,box,nbox,nval,ival,icand,sval,gap,ang)
+      use param, only: pi
+      type(ImVec2), intent(in) :: pmin, pmax
+      real(c_float), intent(inout) :: box(:,:)
+      integer, intent(inout) :: nbox
+      integer, intent(out) :: nval
+      integer, intent(out) :: ival(:), icand(:)
+      real*8, intent(out) :: sval(:), gap(:)
+      real(c_float), intent(out) :: ang(:)
+
+      real*8, parameter :: golden = 0.6180339887498949d0
+
+      character(kind=c_char,len=:), allocatable, target :: str1
+      real(c_float) :: px, py, px1, py1, scl, bx(4), pad, sep, a, hx, hy
+      type(ImVec2) :: tsz
+      integer :: i, k, l, m, k0
+      real*8 :: g, sc
+      logical :: free
+
+      ! pixels per plot unit (the axes have the same scale)
+      call ipPlotToPixels(0d0,0d0,ImAxis_X1,ImAxis_Y1,px,py)
+      call ipPlotToPixels(1d0,0d0,ImAxis_X1,ImAxis_Y1,px1,py1)
+      scl = abs(px1 - px)
+      pad = 3._c_float * w%pl%vscale
+      nval = 0
+      if (scl <= 0._c_float) return
+
+      do i = 1, w%pl%ncval
+         str1 = fmt_level(w%pl%zcval(i)) // c_null_char
+         call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+         tsz%x = tsz%x * w%pl%vscale
+         tsz%y = tsz%y * w%pl%vscale
+         if (w%pl%lcval(i) * scl < 3._c_float * tsz%x) cycle
+         g = (0.5d0 * tsz%x + pad) / scl
+         sep = tsz%y
+
+         ! the places, from the one nearest to the phase of this level,
+         ! alternating to both sides
+         k0 = floor(modulo(w%pl%icval(4,i) * golden,1d0) * plane_ncand)
+         do m = 0, plane_ncand-1
+            l = (m + 1) / 2
+            if (mod(m,2) == 1) l = -l
+            k = modulo(k0 + l,plane_ncand) + 1
+            sc = (k - 0.5d0) / plane_ncand * w%pl%lcval(i)
+            if (sc - g < 0d0 .or. sc + g > w%pl%lcval(i)) cycle
+            call ipPlotToPixels(w%pl%xcval(1,k,i),w%pl%xcval(2,k,i),ImAxis_X1,ImAxis_Y1,px,py)
+
+            ! the direction of the line on the screen (y goes down),
+            ! turned so the text reads left to right (bottom to top if
+            ! vertical)
+            a = real(atan2(-w%pl%tcval(2,k,i),w%pl%tcval(1,k,i)),c_float)
+            if (a >= 0.5_c_float * real(pi,c_float)) a = a - real(pi,c_float)
+            if (a < -0.5_c_float * real(pi,c_float)) a = a + real(pi,c_float)
+
+            ! the box around the turned text, all inside the plot
+            hx = 0.5_c_float * (abs(cos(a)) * tsz%x + abs(sin(a)) * tsz%y) + pad
+            hy = 0.5_c_float * (abs(sin(a)) * tsz%x + abs(cos(a)) * tsz%y) + pad
+            bx = (/px - hx,py - hy,px + hx,py + hy/)
+            if (bx(1) < pmin%x .or. bx(3) > pmax%x .or. bx(2) < pmin%y .or. bx(4) > pmax%y) cycle
+            free = .true.
+            do l = 1, nbox
+               if (bx(1) < box(3,l) .and. bx(3) > box(1,l) .and. bx(2) < box(4,l) .and. bx(4) > box(2,l)) then
+                  free = .false.
+                  exit
+               end if
+            end do
+            if (.not.free) cycle
+
+            ! placed; the next values keep some distance from it
+            nbox = nbox + 1
+            box(:,nbox) = (/bx(1) - sep,bx(2) - sep,bx(3) + sep,bx(4) + sep/)
+            nval = nval + 1
+            ival(nval) = i
+            icand(nval) = k
+            sval(nval) = sc
+            gap(nval) = g
+            ang(nval) = a
+            exit
+         end do
+      end do
+
+    end subroutine place_values
+
+    !> Plot the contour lines of array ia (1 = positive levels, in
+    !> cpos; 2 = the rest, in cneg), the n rows of c, in color rgb, with
+    !> a gap of half-length gap (plot units, along the line) at
+    !> distance sval along the lines of the nval values placed (ival).
+    subroutine plot_contours(ia,rgb,c,n,nval,ival,sval,gap)
+      use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+      integer, intent(in) :: ia
+      real(c_float), intent(in) :: rgb(3)
+      real(c_double), intent(in), target :: c(:,:)
+      integer, intent(in) :: n, nval
+      integer, intent(in) :: ival(:)
+      real*8, intent(in) :: sval(:), gap(:)
+
+      character(kind=c_char,len=:), allocatable, target :: str1
+      real(c_double), allocatable, target :: d(:,:)
+      integer, allocatable :: atrow(:)
+      integer :: i, j, k, r, nd, n1, ncut, istate
+      real*8 :: s, s1, ds, sa, sb, nan
+
+      str1 = "##planec" // string(ia) // c_null_char
+      call ipSetNextLineStyle(ImVec4(rgb(1),rgb(2),rgb(3),1._c_float),1._c_float)
+
+      ! the values on lines of this array: none, plot the lines as they are
+      ncut = 0
+      allocate(atrow(n))
+      atrow = 0
+      do j = 1, nval
+         k = ival(j)
+         if (w%pl%icval(1,k) /= ia) cycle
+         atrow(w%pl%icval(2,k)) = j
+         ncut = ncut + 1
+      end do
+      if (ncut == 0) then
+         call ipPlotLine(c_loc(str1),c_loc(c(1,1)),c_loc(c(1,2)),int(n,c_int),ImPlotLineFlags_None,0_c_int)
+         return
+      end if
+
+      ! copy the lines, cutting them under their values
+      nan = ieee_value(nan,ieee_quiet_nan)
+      allocate(d(n+3*ncut,2))
+      nd = 0
+      r = 1
+      do while (r <= n)
+         if (atrow(r) == 0) then
+            nd = nd + 1
+            d(nd,:) = c(r,:)
+            r = r + 1
+            cycle
+         end if
+         j = atrow(r)
+         k = ival(j)
+         n1 = w%pl%icval(3,k)
+         sa = sval(j) - gap(j)
+         sb = sval(j) + gap(j)
+         nd = nd + 1
+         d(nd,:) = c(r,:)
+         s = 0d0
+         istate = 0
+         do i = r+1, r+n1-1
+            ds = norm2(c(i,:) - c(i-1,:))
+            s1 = s + ds
+            if (istate == 0 .and. s1 >= sa) then
+               nd = nd + 1
+               d(nd,:) = c(i-1,:) + (sa - s) / max(ds,1d-40) * (c(i,:) - c(i-1,:))
+               nd = nd + 1
+               d(nd,:) = nan
+               istate = 1
+            end if
+            if (istate == 1 .and. s1 >= sb) then
+               nd = nd + 1
+               d(nd,:) = c(i-1,:) + (sb - s) / max(ds,1d-40) * (c(i,:) - c(i-1,:))
+               istate = 2
+            end if
+            if (istate /= 1) then
+               nd = nd + 1
+               d(nd,:) = c(i,:)
+            end if
+            s = s1
+         end do
+         r = r + n1
+      end do
+      call ipPlotLine(c_loc(str1),c_loc(d(1,1)),c_loc(d(1,2)),int(nd,c_int),ImPlotLineFlags_None,0_c_int)
+
+    end subroutine plot_contours
+
+    !> A contour level written with three significant digits, as %.3g.
+    function fmt_level(x) result(str)
+      real*8, intent(in) :: x
+      character(len=:), allocatable :: str
+
+      character(len=40) :: aux, fmt
+      integer :: e, idx
+
+      if (x == 0d0) then
+         str = "0"
+         return
+      end if
+      e = floor(log10(abs(x)))
+      if (e < -4 .or. e >= 3) then
+         write (aux,'(ES0.2)') x
+         idx = index(aux,"E")
+         str = strip_zeros(aux(1:idx-1)) // "e" // trim(aux(idx+1:))
+      else
+         write (fmt,'("(F0.",I0,")")') max(2 - e,0)
+         write (aux,fmt) x
+         str = strip_zeros(trim(aux))
+         if (str(1:1) == ".") then
+            str = "0" // str
+         elseif (str(1:min(2,len(str))) == "-.") then
+            str = "-0" // str(2:)
+         end if
+      end if
+
+    end function fmt_level
+
+    !> Remove the trailing zeros of the decimals of a number, and the
+    !> point if they are all zeros.
+    function strip_zeros(s0) result(str)
+      character(len=*), intent(in) :: s0
+      character(len=:), allocatable :: str
+
+      integer :: n
+
+      str = trim(s0)
+      if (index(str,".") == 0) return
+      n = len(str)
+      do while (n > 1 .and. str(n:n) == "0")
+         n = n - 1
+      end do
+      if (str(n:n) == ".") n = n - 1
+      str = str(1:n)
+
+    end function strip_zeros
 
     !> The point of the region with plot coordinates (mu,mv): whether it
     !> is on the region (inside), its position (x, cell-frame Cartesian
@@ -679,14 +928,16 @@ contains
 
     !> Calculate the contour lines again if the grid or the levels
     !> changed, in plot coordinates, the positive levels in cpos and
-    !> the rest in cneg (NaN between two lines).
+    !> the rest in cneg (NaN between two lines), and the places along
+    !> each line where its value can go, longest line first.
     subroutine update_contours()
       use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+      use tools, only: mergesort
       integer*8, allocatable :: key(:)
-      integer :: i, j, k, niso, nline, np
-      integer, allocatable :: lptr(:), liso(:)
-      real*8, allocatable :: ziso(:), xy(:,:)
-      real*8 :: off(2), rval, nan
+      integer :: i, ii, j, k, niso, nline, np
+      integer, allocatable :: lptr(:), liso(:), iord(:), il(:,:)
+      real*8, allocatable :: ziso(:), xy(:,:), ll(:)
+      real*8 :: off(2), rval, nan, dl, acc, st
       logical :: pos
 
       call w%pl%d%contkey(key)
@@ -700,6 +951,7 @@ contains
       w%pl%keylist = trim(w%pl%d%llist)
       w%pl%ncpos = 0
       w%pl%ncneg = 0
+      w%pl%ncval = 0
       if (.not.w%pl%d%showcont) return
 
       ! the lines, in the frame of the region; to plot coordinates
@@ -710,9 +962,11 @@ contains
       if (allocated(w%pl%cpos)) deallocate(w%pl%cpos)
       if (allocated(w%pl%cneg)) deallocate(w%pl%cneg)
       allocate(w%pl%cpos(size(xy,2)+nline,2),w%pl%cneg(size(xy,2)+nline,2))
+      allocate(il(3,nline))
       do i = 1, nline
          pos = (ziso(liso(i)) > 0d0)
          np = merge(w%pl%ncpos,w%pl%ncneg,pos)
+         il(:,i) = (/merge(1,2,pos),np+1,lptr(i+1)-lptr(i)/)
          do j = lptr(i), lptr(i+1)-1
             np = np + 1
             do k = 1, 2
@@ -732,6 +986,51 @@ contains
             w%pl%cneg(np,:) = nan
             w%pl%ncneg = np
          end if
+      end do
+
+      ! the length of each line, longest first, and the places along
+      ! it where its value can go, with the direction of the line there
+      allocate(ll(nline),iord(nline))
+      do i = 1, nline
+         ll(i) = 0d0
+         do j = lptr(i)+1, lptr(i+1)-1
+            ll(i) = ll(i) + norm2(xy(:,j) - xy(:,j-1))
+         end do
+         iord(i) = i
+      end do
+      call mergesort(-ll,iord,1,nline)
+      if (allocated(w%pl%xcval)) deallocate(w%pl%xcval)
+      if (allocated(w%pl%tcval)) deallocate(w%pl%tcval)
+      if (allocated(w%pl%lcval)) deallocate(w%pl%lcval)
+      if (allocated(w%pl%zcval)) deallocate(w%pl%zcval)
+      if (allocated(w%pl%icval)) deallocate(w%pl%icval)
+      allocate(w%pl%xcval(2,plane_ncand,nline),w%pl%tcval(2,plane_ncand,nline),w%pl%lcval(nline),&
+         w%pl%zcval(nline),w%pl%icval(4,nline))
+      w%pl%ncval = nline
+      do i = 1, nline
+         ii = iord(i)
+         do k = 1, plane_ncand
+            w%pl%xcval(:,k,i) = xy(:,lptr(ii))
+            w%pl%tcval(:,k,i) = (/1d0,0d0/)
+         end do
+         acc = 0d0
+         k = 1
+         do j = lptr(ii)+1, lptr(ii+1)-1
+            dl = norm2(xy(:,j) - xy(:,j-1))
+            do while (k <= plane_ncand .and. dl > 0d0)
+               st = (k - 0.5d0) / plane_ncand * ll(ii)
+               if (acc + dl < st) exit
+               w%pl%tcval(:,k,i) = (xy(:,j) - xy(:,j-1)) / dl
+               w%pl%xcval(:,k,i) = xy(:,j-1) + (st - acc) * w%pl%tcval(:,k,i)
+               k = k + 1
+            end do
+            acc = acc + dl
+         end do
+         w%pl%xcval(:,:,i) = w%pl%xcval(:,:,i) * u + spread(off,2,plane_ncand)
+         w%pl%lcval(i) = ll(ii) * u
+         w%pl%zcval(i) = ziso(liso(ii))
+         w%pl%icval(1:3,i) = il(:,ii)
+         w%pl%icval(4,i) = liso(ii)
       end do
 
     end subroutine update_contours
@@ -920,10 +1219,13 @@ contains
   !> ipick is present, each point has a Pick button: ipick is the one
   !> pressed (0 = none), and pickoff disables them. Not live, a drag
   !> counts as a change only when it ends (the map of an object is
-  !> calculated again on each change).
-  module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff) result(changed)
+  !> calculated again on each change). If showval is present, the
+  !> contour line has a Values checkbox for it (the labels of the
+  !> levels in the window, which are not part of the map), and, if
+  !> valscale is present too, a control for their size.
+  module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale) result(changed)
     use systems, only: sys
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcwidth,&
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_calcwidth,&
        iw_inputint, iw_combo_simple, iw_checkbox, iw_coloredit, iw_inputtext, iw_cmap_optstr,&
        iw_field_combo, iw_expression_helper, iw_exprctx_point
     use tools_io, only: string
@@ -934,6 +1236,8 @@ contains
     logical, intent(in) :: live
     integer, intent(out), optional :: ipick
     logical, intent(in), optional :: pickoff
+    logical, intent(inout), optional :: showval
+    real(c_float), intent(inout), optional :: valscale
     logical :: changed
 
     integer :: i, ival
@@ -1147,6 +1451,16 @@ contains
       changed = changed .or. iw_checkbox("Show##planeshowcont",d%showcont,sameline=.true.)
       call iw_tooltip("Draw contour lines on the map",ttshown)
       if (.not.d%showcont) return
+      if (present(showval)) then
+         ch = iw_checkbox("Values##planeshowcval",showval,sameline=.true.)
+         call iw_tooltip("Write the value of the level on the contour lines, in their color,&
+            & where there is room",ttshown)
+         if (showval .and. present(valscale)) then
+            ch = iw_dragfloat_realc("##planevscale",x1=valscale,speed=0.01_c_float,min=0.1_c_float,&
+               max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Size of the values, relative to the text of the interface",ttshown)
+         end if
+      end if
       ic = 0
       do while (ic < 4 .and. ctype_of_combo(ic) /= d%ctype)
          ic = ic + 1
