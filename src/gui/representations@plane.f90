@@ -431,8 +431,8 @@ contains
   !> mesh of the region and the contour lines (flat cylinders on both
   !> sides of the plane). The values, the mesh, its colors, and the
   !> lines are cached, and calculated again only if what they depend on
-  !> changed. Nothing is calculated while the initialization threads
-  !> run.
+  !> changed. The values are not calculated while the initialization
+  !> threads run, or if they are given (nocalc).
   module subroutine slice_draw(r,obj)
     use systems, only: sys, are_threads_running
     use tools_math, only: cross
@@ -446,7 +446,7 @@ contains
     type(dl_cylinder) :: dcyl
 
     isys = r%id
-    if (sys(isys)%c%ncel == 0 .or. are_threads_running()) return
+    if (sys(isys)%c%ncel == 0) return
     if (.not.allocated(r%slice%c)) allocate(r%slice%c)
 
     associate(d => r%slice%d, c => r%slice%c)
@@ -455,6 +455,9 @@ contains
       stale = .not.allocated(c%key) .or. .not.allocated(c%keyexpr)
       if (.not.stale) stale = (size(c%key) /= size(key))
       if (.not.stale) stale = any(c%key /= key) .or. (c%keyexpr /= trim(d%expr))
+      ! the values given by a window are never calculated here, nor any
+      ! while the initialization threads run (the old ones are drawn)
+      if (r%slice%nocalc .or. are_threads_running()) stale = .false.
       if (stale) then
          call move_alloc(key,c%key)
          c%keyexpr = trim(d%expr)

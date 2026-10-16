@@ -837,6 +837,12 @@ contains
           call s%gl%redraw_spheres(s%gl%nsph_inst)
        end if
        call glDisable(GL_BLEND)
+    elseif (dobuild) then
+       ! no spheres: forget the instances of the last build (else the
+       ! translucent ones, e.g. the markers of a closed tool window,
+       ! would still be drawn below)
+       s%gl%nsph_inst = 0
+       s%gl%nsphtr_inst = 0
     end if
 
     ! draw the bonds and the unit-cell edges
@@ -3655,6 +3661,22 @@ contains
     id = transient_slot(s,owner,tag,reptype_isosurface,repflavor_isosurface,found)
 
   end subroutine scene_show_transient_iso
+
+  !> Show a plane map as a transient representation identified by
+  !> (owner,tag): return the slot id in s%reptrans for the producer to
+  !> fill (0 if it could not be made), and whether it existed already
+  !> (found; its contents are those of the previous frame).
+  module subroutine scene_show_transient_slice(s,owner,tag,id,found)
+    use representations, only: reptype_slice, repflavor_slice
+    class(scene), intent(inout), target :: s
+    integer*8, intent(in) :: owner
+    integer, intent(in) :: tag
+    integer, intent(out) :: id
+    logical, intent(out) :: found
+
+    id = transient_slot(s,owner,tag,reptype_slice,repflavor_slice,found)
+
+  end subroutine scene_show_transient_slice
 
   !> Show the coordination polyhedra centered on the atoms of the species
   !> flagged in isc, with vertices on the atoms of the species flagged in

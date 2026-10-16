@@ -588,7 +588,11 @@ module windows
   type plane_state
      type(sys_ref) :: sys ! system the form is set up for
      type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
-     integer*8 :: objuid = 0 ! the plane map object made from the window (Show in View), by its uid
+     ! the map in the view (Show in View): shown, the values it has
+     ! (gen; -1 = none), and whether the form changed since it was given
+     logical :: showview = .false.
+     integer*8 :: viewgen = -1
+     logical :: viewdirty = .true.
      ! the labels of the atoms and critical points near the plane
      logical :: showlabels = .true.
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)

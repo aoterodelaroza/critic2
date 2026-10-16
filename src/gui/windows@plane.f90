@@ -64,7 +64,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover
+    logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh
     integer :: isys, iview, istat, i, ipick
     real*8 :: xc(3), rad, v(3,3), u, xhov(3), fhov
     type(ImVec2) :: sz0
@@ -98,7 +98,7 @@ contains
           call cancel_pick()
           w%errmsg = ""
           call w%pl%d%set_defaults(isys)
-          w%pl%objuid = 0
+          w%pl%viewgen = -1
        end if
        ! the reference field, if the field is gone
        if (.not.w%pl%d%fref%ok(sys(isys))) call w%pl%d%fref%set(sys(isys),sys(isys)%iref)
@@ -109,7 +109,10 @@ contains
     if (w%pl%picking) then
        if (goodsys .and. iview == w%pl%pickview) then
           call view_pick_result(iview,w%id,isys,w%pl%pick,istat,xc)
-          if (istat == ipick_point) w%pl%d%xp(:,w%pl%pickend) = form_coords(isys,xc)
+          if (istat == ipick_point) then
+             w%pl%d%xp(:,w%pl%pickend) = form_coords(isys,xc)
+             w%pl%viewdirty = .true.
+          end if
           if (istat /= ipick_pending) w%pl%picking = .false.
        else
           call cancel_pick()
@@ -124,7 +127,8 @@ contains
 
        ! the plane, the region, and the number of points
        xediting = .false.
-       ldum = plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking)
+       if (plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking)) &
+          w%pl%viewdirty = .true.
        if (ipick > 0) then
           w%pl%picking = .true.
           w%pl%pickend = ipick
@@ -141,12 +145,13 @@ contains
 
        ! the values on the plane and what is made from them, calculated
        ! again if anything they depend on changed
-       call update_grid(refit)
+       call update_grid(refit,fresh)
        if (allocated(w%pl%ff)) then
           call update_contours()
           call update_texture()
           call update_marks()
        end if
+       call sync_view(fresh)
 
        ! the map takes the rest of the window, leaving room for the
        ! readout of the point under the mouse, the table of values (if
@@ -174,7 +179,8 @@ contains
                 shp(i) = rep_shape(kind=shapekind_sphere,x1=cart_to_abs(form_to_cart(isys,w%pl%d%xp(:,i))),&
                    rad=rad,rgb=pt_rgb(:,i),alpha=marker_alpha)
              end do
-             if (allocated(w%pl%ff)) then
+             ! the region (unless the map itself is in the view)
+             if (allocated(w%pl%ff) .and. .not.(w%pl%showview .and. w%pl%viewgen >= 0)) then
                 v = 0d0
                 v(:,1) = real(size(w%pl%ff,1)-1,8) * w%pl%uu
                 v(:,2) = real(size(w%pl%ff,2)-1,8) * w%pl%vv
@@ -212,7 +218,7 @@ contains
   contains
 
     !> The labels of the atoms and critical points near the plane, and
-    !> the button that shows the map in the view.
+    !> whether the map is shown in the view.
     subroutine draw_labels_option()
       use utils, only: iw_checkbox
 
@@ -223,38 +229,59 @@ contains
          call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
             lunit() // ")",ttshown)
       end if
-      if (iw_button("Show in View##planeshow",sameline=.true.)) call show_in_view()
-      call iw_tooltip("Draw this map in the view, as a plane map object (the first press makes it,&
-         & the next ones update it; it can then be edited in its own window)",ttshown)
+      if (iw_checkbox("Show in View##planeshow",w%pl%showview,sameline=.true.)) w%pl%viewgen = -1
+      call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
+         & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
 
     end subroutine draw_labels_option
 
-    !> Make the plane map object of the window in the anchor view, or
-    !> update it, with the map of the window.
-    subroutine show_in_view()
-      use representations, only: reptype_slice, repflavor_slice
-      integer :: i, irep
+    !> Show the map of the window in the anchor view, as a transient
+    !> plane map (it goes away when the window stops showing it), armed
+    !> in every frame. fresh = the values of the window are those of the
+    !> form (else they are being edited, or wait for the threads, and
+    !> the view keeps the last map). The view is given the values of the
+    !> window (it never calculates them) when they are new, and the form
+    !> when it changed; with no values (an error), it shows nothing.
+    subroutine sync_view(fresh)
+      use representations, only: slice_cache
+      logical, intent(in) :: fresh
 
-      if (.not.associated(win(iview)%sc)) return
-      associate(sc => win(iview)%sc)
-        if (sc%isinit == 0) call sc%init(isys)
-        irep = 0
-        do i = 1, sc%nrep
-           if (.not.sc%rep(i)%isinit) cycle
-           if (sc%rep(i)%uid == w%pl%objuid .and. sc%rep(i)%type == reptype_slice) irep = i
-        end do
-        if (irep == 0) then
-           call sc%add_representation(reptype_slice,repflavor_slice,id=irep)
-           if (irep <= 0) return
-           w%pl%objuid = sc%rep(irep)%uid
+      integer :: itrep
+      logical :: found
+
+      if (.not.w%pl%showview .or. .not.associated(win(iview)%sc)) return
+      if (win(iview)%sc%isinit == 0) return
+
+      ! nothing to show: up to date but no values, or nothing given yet
+      if (fresh .and. .not.allocated(w%pl%ff)) return
+      if (.not.fresh .and. w%pl%viewgen < 0) return
+      call win(iview)%sc%show_transient_slice(w%uid,1,itrep,found)
+      if (itrep <= 0) return
+
+      associate(r => win(iview)%sc%reptrans(itrep))
+        r%slice%nocalc = .true.
+        if (.not.found) then
+           ! a new slot (or the old one was reaped): hidden until it has
+           ! the values of the window
+           w%pl%viewgen = -1
+           r%shown = .false.
         end if
-        sc%rep(irep)%slice%d = w%pl%d
-        sc%rep(irep)%shown = .true.
-        sc%forcebuildlists = .true.
-        call sc%undo_note("Show plane map " // trim(sc%rep(irep)%name))
-      end associate
+        if (.not.fresh) return
+        if (w%pl%viewgen == w%pl%gen .and. .not.w%pl%viewdirty) return
 
-    end subroutine show_in_view
+        r%name = "Plane Map"
+        r%shown = .true.
+        r%slice%d = w%pl%d
+        ! the values of the window, if they are new to the view
+        if (w%pl%viewgen /= w%pl%gen) &
+           r%slice%c = slice_cache(ff=w%pl%ff,x0=w%pl%x0,uu=w%pl%uu,vv=w%pl%vv,&
+              e1=w%pl%e1,e2=w%pl%e2,errmsg="",keyexpr=trim(w%pl%d%expr))
+      end associate
+      w%pl%viewgen = w%pl%gen
+      w%pl%viewdirty = .false.
+      win(iview)%sc%forcebuildlists = .true.
+
+    end subroutine sync_view
 
     !> The map (size sz): the colors, the contour lines, and the labels,
     !> with the color bar on its right. If refit, fit the axes to the
@@ -571,9 +598,11 @@ contains
     !> fields, or the geometry changed. Waits for the initialization
     !> threads to finish and for the inputs to be no longer edited.
     !> refit = the region changed (the plot fits the axes to it).
-    subroutine update_grid(refit)
+    !> fresh = the grid and the values (or their absence) are those of
+    !> the form (not while it is edited or the threads run).
+    subroutine update_grid(refit,fresh)
       use systems, only: are_threads_running
-      logical, intent(out) :: refit
+      logical, intent(out) :: refit, fresh
 
       integer*8, allocatable :: key(:)
       logical :: stale
@@ -581,7 +610,9 @@ contains
       integer :: oldnx, oldny
 
       refit = .false.
+      fresh = .false.
       if (xediting .or. are_threads_running()) return
+      fresh = .true.
 
       ! everything the values depend on, and the system
       call w%pl%d%key(isys,key)

@@ -199,6 +199,7 @@ module scenes
      procedure :: show_transient_text => scene_show_transient_text
      procedure :: show_transient_symelems => scene_show_transient_symelems
      procedure :: show_transient_iso => scene_show_transient_iso
+     procedure :: show_transient_slice => scene_show_transient_slice
      procedure :: show_transient_polyhedra => scene_show_transient_polyhedra
      procedure :: show_transient_spacefill => scene_show_transient_spacefill
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
@@ -428,6 +429,13 @@ module scenes
        integer, intent(out) :: id
        logical, intent(out) :: found
      end subroutine scene_show_transient_iso
+     module subroutine scene_show_transient_slice(s,owner,tag,id,found)
+       class(scene), intent(inout), target :: s
+       integer*8, intent(in) :: owner
+       integer, intent(in) :: tag
+       integer, intent(out) :: id
+       logical, intent(out) :: found
+     end subroutine scene_show_transient_slice
      module subroutine scene_show_transient_polyhedra(s,owner,tag,isc,isv,rmin,rmax,ihighlight)
        class(scene), intent(inout), target :: s
        integer*8, intent(in) :: owner

@@ -877,6 +877,7 @@ module representations
      type(plane_def) :: d ! the map
      real(c_float) :: alpha = 1._c_float ! opacity
      real*8 :: crad = slice_crad_def ! radius of the contour lines (bohr)
+     logical :: nocalc = .false. ! the values are given (c), never calculated (the map of a window)
      type(slice_cache), allocatable :: c ! the values and the lines
   end type rep_slice
   public :: rep_slice
