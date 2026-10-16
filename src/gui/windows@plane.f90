@@ -218,18 +218,22 @@ contains
   contains
 
     !> The labels of the atoms and critical points near the plane, and
-    !> whether the map is shown in the view.
+    !> (in its own line) whether the map is shown in the view.
     subroutine draw_labels_option()
       use utils, only: iw_checkbox
 
-      ldum = iw_checkbox("Labels##planeshowlabels",w%pl%showlabels)
+      call iw_text("Labels",highlight=.true.,alignframe=.true.)
+      ldum = iw_checkbox("Show##planeshowlabels",w%pl%showlabels,sameline=.true.)
       call iw_tooltip("Label the atoms and the critical points of the reference field near the plane",ttshown)
       if (w%pl%showlabels) then
          ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
          call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
             lunit() // ")",ttshown)
+         ldum = iw_checkbox("Show CPs##planeshowcps",w%pl%showcps,sameline=.true.)
+         call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
+            & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
       end if
-      if (iw_checkbox("Show in View##planeshow",w%pl%showview,sameline=.true.)) w%pl%viewgen = -1
+      if (iw_checkbox("Show in View##planeshow",w%pl%showview)) w%pl%viewgen = -1
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
          & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
 
@@ -762,7 +766,7 @@ contains
     subroutine update_marks()
       use tools_math, only: matinv, cross
       use types, only: realloc
-      integer*8 :: key(5)
+      integer*8 :: key(6)
       integer :: k, l1, l2, l3, lo(3), hi(3), nc, ier, nx, ny
       real*8 :: am(3,3), nrm(3), xq(3), s(3), fc(3,4), hb, eps
       real*8, allocatable :: xf(:,:)
@@ -770,6 +774,7 @@ contains
 
       key(1) = w%pl%gen
       key(2) = merge(1_8,0_8,w%pl%showlabels)
+      key(6) = merge(1_8,0_8,w%pl%showcps)
       key(3) = transfer(w%pl%hmax,key(3))
       key(4) = transfer(sysc(isys)%timelastchange_cplist,key(4))
       key(5) = sys(isys)%field_cuid(sys(isys)%iref)
@@ -786,7 +791,7 @@ contains
 
       ! the candidates: the atoms, and the critical points of the
       ! reference field except the nuclei (crystallographic)
-      call label_candidates(isys,nc,xf,lbl)
+      call label_candidates(isys,nc,xf,lbl,cps=w%pl%showcps,short=.true.)
 
       ! the coordinates of a point in the frame of the region: x - x0 =
       ! s1 * side1 + s2 * side2 + s3 * normal
@@ -1115,7 +1120,8 @@ contains
     subroutine draw_contours()
       integer :: ic
 
-      changed = changed .or. iw_checkbox("Contours##planeshowcont",d%showcont)
+      call iw_text("Contours",highlight=.true.,alignframe=.true.)
+      changed = changed .or. iw_checkbox("Show##planeshowcont",d%showcont,sameline=.true.)
       call iw_tooltip("Draw contour lines on the map",ttshown)
       if (.not.d%showcont) return
       ic = 0

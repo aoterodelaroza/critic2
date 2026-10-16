@@ -471,21 +471,27 @@ contains
   end function form_to_cart
 
   !> The points labeled by the line profile and plane map windows in
-  !> system isys: its atoms (by species name) and the critical points
-  !> of its reference field other than the nuclei (nnm, bcp, rcp,
-  !> ccp); nc of them, with their crystallographic coordinates in xf
-  !> and their labels in lbl.
-  module subroutine label_candidates(isys,nc,xf,lbl)
+  !> system isys: its atoms (by species name) and, unless cps is
+  !> false, the critical points of its reference field other than the
+  !> nuclei (nnm, bcp, rcp, ccp; n, b, r, c if short); nc of them, with
+  !> their crystallographic coordinates in xf and their labels in lbl.
+  module subroutine label_candidates(isys,nc,xf,lbl,cps,short)
     use systems, only: sys
     integer, intent(in) :: isys
     integer, intent(out) :: nc
     real*8, allocatable, intent(inout) :: xf(:,:)
     character(len=12), allocatable, intent(inout) :: lbl(:)
+    logical, intent(in), optional :: cps, short
 
     integer :: i, ncp
+    logical :: cps_, short_
 
+    cps_ = .true.
+    if (present(cps)) cps_ = cps
+    short_ = .false.
+    if (present(short)) short_ = short
     ncp = 0
-    if (sys(isys)%goodfield(sys(isys)%iref)) then
+    if (cps_ .and. sys(isys)%goodfield(sys(isys)%iref)) then
        if (allocated(sys(isys)%f(sys(isys)%iref)%cpcel)) ncp = sys(isys)%f(sys(isys)%iref)%ncpcel
     end if
     if (allocated(xf)) deallocate(xf)
@@ -512,6 +518,7 @@ contains
          case default
             lbl(nc) = "ccp"
          end select
+         if (short_) lbl(nc) = lbl(nc)(1:1)
        end associate
     end do
 

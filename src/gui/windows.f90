@@ -595,6 +595,7 @@ module windows
      logical :: viewdirty = .true.
      ! the labels of the atoms and critical points near the plane
      logical :: showlabels = .true.
+     logical :: showcps = .true. ! the critical points too (or only the atoms)
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
      ! pending pick in the view: the point (1-3)
      logical :: picking = .false.
@@ -2334,11 +2335,12 @@ module windows
        real*8, intent(in) :: x(3)
        real*8 :: xc(3)
      end function form_to_cart
-     module subroutine label_candidates(isys,nc,xf,lbl)
+     module subroutine label_candidates(isys,nc,xf,lbl,cps,short)
        integer, intent(in) :: isys
        integer, intent(out) :: nc
        real*8, allocatable, intent(inout) :: xf(:,:)
        character(len=12), allocatable, intent(inout) :: lbl(:)
+       logical, intent(in), optional :: cps, short
      end subroutine label_candidates
      module subroutine warn_grid_interp(isys,ifield,what)
        integer, intent(in) :: isys, ifield
