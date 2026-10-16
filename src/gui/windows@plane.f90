@@ -221,7 +221,7 @@ contains
     !> (in its own line) whether the map is shown in the view, and its
     !> opacity there.
     subroutine draw_labels_option()
-      use utils, only: iw_checkbox, iw_dragfloat_realc
+      use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit
 
       call iw_text("Labels",highlight=.true.,alignframe=.true.)
       ldum = iw_checkbox("Show##planeshowlabels",w%pl%showlabels,sameline=.true.)
@@ -233,6 +233,8 @@ contains
          ldum = iw_checkbox("Show CPs##planeshowcps",w%pl%showcps,sameline=.true.)
          call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
             & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
+         ldum = iw_coloredit("##planergblabel",rgb=w%pl%rgblabel,sameline=.true.)
+         call iw_tooltip("Color of the labels and their dots",ttshown)
       end if
       if (iw_checkbox("Show in View##planeshow",w%pl%showview)) w%pl%viewgen = -1
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
@@ -390,7 +392,7 @@ contains
          ! the labels: a dot and the text
          if (w%pl%showlabels .and. w%pl%nmark > 0) then
             dl = igGetWindowDrawList()
-            coltext = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+            coltext = igGetColorU32_Vec4(ImVec4(w%pl%rgblabel(1),w%pl%rgblabel(2),w%pl%rgblabel(3),1._c_float))
             call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
             do j = 1, w%pl%nmark
                call ipPlotToPixels(w%pl%xmark(1,j),w%pl%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))

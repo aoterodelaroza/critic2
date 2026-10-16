@@ -597,6 +597,7 @@ module windows
      ! the labels of the atoms and critical points near the plane
      logical :: showlabels = .true.
      logical :: showcps = .true. ! the critical points too (or only the atoms)
+     real(c_float) :: rgblabel(3) = (/1._c_float,1._c_float,1._c_float/) ! their color
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
      ! pending pick in the view: the point (1-3)
      logical :: picking = .false.
