@@ -221,7 +221,7 @@ contains
     !> (in its own line) whether the map is shown in the view, and its
     !> opacity there.
     subroutine draw_labels_option()
-      use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit
+      use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit, iw_combo_simple
 
       call iw_text("Labels",highlight=.true.,alignframe=.true.)
       ldum = iw_checkbox("Show##planeshowlabels",w%pl%showlabels,sameline=.true.)
@@ -235,6 +235,12 @@ contains
             & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
          ldum = iw_coloredit("##planergblabel",rgb=w%pl%rgblabel,sameline=.true.)
          call iw_tooltip("Color of the labels and their dots",ttshown)
+         call iw_combo_simple("##planeltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
+            "Atom name"//c_null_char,w%pl%ltext,sameline=.true.)
+         call iw_tooltip("Text in the labels of the atoms",ttshown)
+         ldum = iw_dragfloat_realc("##planelscale",x1=w%pl%lscale,speed=0.01_c_float,min=0.1_c_float,&
+            max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Size of the labels and their dots, relative to the text of the interface",ttshown)
       end if
       if (iw_checkbox("Show in View##planeshow",w%pl%showview)) w%pl%viewgen = -1
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
@@ -305,6 +311,7 @@ contains
     !> there (fhov), which are also written below the map.
     subroutine draw_map(sz,refit,hover,xhov,fhov)
       use utils, only: iw_colormap_id
+      use gui_main, only: g
       type(ImVec2), intent(in) :: sz
       logical, intent(in) :: refit
       logical, intent(out) :: hover
@@ -314,7 +321,7 @@ contains
       integer :: j, nx, ny
       integer(c_int) :: flags, coltext
       real(c_double) :: xmin, xmax, ymin, ymax, crn(2,4), mu, mv
-      real(c_float) :: px(4), py(4), wbar
+      real(c_float) :: px(4), py(4), wbar, fs
       type(ImVec2) :: pmin, pmax, szp, pt, tsz
       type(c_ptr) :: dl
       real*8 :: xyz(3)
@@ -394,14 +401,18 @@ contains
             dl = igGetWindowDrawList()
             coltext = igGetColorU32_Vec4(ImVec4(w%pl%rgblabel(1),w%pl%rgblabel(2),w%pl%rgblabel(3),1._c_float))
             call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
+            ! ImGui scales text linearly in the font size, so the
+            ! measurement at the interface size scales with it
+            fs = w%pl%lscale * g%FontSize
             do j = 1, w%pl%nmark
                call ipPlotToPixels(w%pl%xmark(1,j),w%pl%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
-               call ImDrawList_AddCircleFilled(dl,ImVec2(px(1),py(1)),3._c_float,coltext,8_c_int)
+               call ImDrawList_AddCircleFilled(dl,ImVec2(px(1),py(1)),3._c_float*w%pl%lscale,coltext,8_c_int)
                str1 = trim(w%pl%lmark(j)) // c_null_char
                call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-               pt%x = px(1) + 4._c_float
-               pt%y = py(1) - tsz%y - 1._c_float
-               call ImDrawList_AddText_Vec2(dl,pt,coltext,c_loc(str1),c_null_ptr)
+               pt%x = px(1) + 4._c_float * w%pl%lscale
+               pt%y = py(1) - (tsz%y + 1._c_float) * w%pl%lscale
+               call ImDrawList_AddText_FontPtr(dl,g%Font,fs,pt,coltext,c_loc(str1),c_null_ptr,&
+                  0._c_float,c_null_ptr)
             end do
             call ImDrawList_PopClipRect(dl)
          end if
@@ -777,7 +788,7 @@ contains
     subroutine update_marks()
       use tools_math, only: matinv, cross
       use types, only: realloc
-      integer*8 :: key(6)
+      integer*8 :: key(7)
       integer :: k, l1, l2, l3, lo(3), hi(3), nc, ier, nx, ny
       real*8 :: am(3,3), nrm(3), xq(3), s(3), fc(3,4), hb, eps
       real*8, allocatable :: xf(:,:)
@@ -786,6 +797,7 @@ contains
       key(1) = w%pl%gen
       key(2) = merge(1_8,0_8,w%pl%showlabels)
       key(6) = merge(1_8,0_8,w%pl%showcps)
+      key(7) = w%pl%ltext
       key(3) = transfer(w%pl%hmax,key(3))
       key(4) = transfer(sysc(isys)%timelastchange_cplist,key(4))
       key(5) = sys(isys)%field_cuid(sys(isys)%iref)
@@ -802,7 +814,7 @@ contains
 
       ! the candidates: the atoms, and the critical points of the
       ! reference field except the nuclei (crystallographic)
-      call label_candidates(isys,nc,xf,lbl,cps=w%pl%showcps,short=.true.)
+      call label_candidates(isys,nc,xf,lbl,cps=w%pl%showcps,short=.true.,atext=w%pl%ltext)
 
       ! the coordinates of a point in the frame of the region: x - x0 =
       ! s1 * side1 + s2 * side2 + s3 * normal

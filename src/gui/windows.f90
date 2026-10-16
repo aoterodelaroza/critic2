@@ -598,6 +598,8 @@ module windows
      logical :: showlabels = .true.
      logical :: showcps = .true. ! the critical points too (or only the atoms)
      real(c_float) :: rgblabel(3) = (/1._c_float,1._c_float,1._c_float/) ! their color
+     real(c_float) :: lscale = 1._c_float ! their size (relative to the interface font)
+     integer :: ltext = 0 ! the text of the atoms (0 = species name, 1 = atomic symbol, 2 = atom name)
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
      ! pending pick in the view: the point (1-3)
      logical :: picking = .false.
@@ -2337,12 +2339,13 @@ module windows
        real*8, intent(in) :: x(3)
        real*8 :: xc(3)
      end function form_to_cart
-     module subroutine label_candidates(isys,nc,xf,lbl,cps,short)
+     module subroutine label_candidates(isys,nc,xf,lbl,cps,short,atext)
        integer, intent(in) :: isys
        integer, intent(out) :: nc
        real*8, allocatable, intent(inout) :: xf(:,:)
        character(len=12), allocatable, intent(inout) :: lbl(:)
        logical, intent(in), optional :: cps, short
+       integer, intent(in), optional :: atext
      end subroutine label_candidates
      module subroutine warn_grid_interp(isys,ifield,what)
        integer, intent(in) :: isys, ifield
