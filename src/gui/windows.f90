@@ -382,10 +382,12 @@ module windows
      integer, allocatable :: ppstat(:,:)
      type(pointpropable), allocatable :: ppfor(:)
      ! the form to add a point property: kind (0 = expression, then the
-     ! keywords of POINTPROP), name, and expression
+     ! keywords of POINTPROP), name, expression, and what is wrong
+     ! with the expression (checked as it is typed)
      integer :: ppkind = 0
      character(len=10) :: ppname = ""
      character(len=1024) :: ppexpr = ""
+     character(len=1024) :: ppexprerr = ""
      integer :: ihover(2) = 0 ! CP under the mouse in the table, drawn highlighted (as rep_cps%ihover)
      integer :: hoverview = 0 ! view whose critical points object has ihover
      integer*8 :: hoverview_uid = 0 ! ... and its uid (another window may take the slot)
@@ -478,10 +480,12 @@ module windows
      type(point_col), allocatable :: ppcol(:)
      type(point_col) :: ppdef ! the settings a new point property starts with
      ! the form to add a point property: kind (0 = expression, then the
-     ! keywords of POINTPROP), name, and expression
+     ! keywords of POINTPROP), name, expression, and what is wrong
+     ! with the expression (checked as it is typed)
      integer :: ppkind = 0
      character(len=10) :: ppname = ""
      character(len=1024) :: ppexpr = ""
+     character(len=1024) :: ppexprerr = ""
      ! pending pick in the view
      logical :: picking = .false.
      integer :: pickview = 0
@@ -781,6 +785,7 @@ module windows
      character(len=:,kind=c_char), allocatable :: expr ! the expression
      integer(c_int) :: exprdom = 0_c_int ! 0=automatic, 1=ghost, 2=grid size, 3=sizeof field
      character(len=:,kind=c_char), allocatable :: exprerr ! expression validation error (empty = valid)
+     integer :: exprgridn(3) = 0 ! grid size of the automatic domain for the expression (0 = ghost)
      ! promolecular / core
      integer(c_int) :: promopt = 0_c_int ! 0=analytic promolecular, 1=promolecular grid, 2=core grid
      ! grid transform
@@ -2202,11 +2207,11 @@ module windows
        type(point_col), intent(inout) :: col(:)
        type(point_col), intent(inout) :: ppdef
      end subroutine point_cols_from_cp
-     module function pointprop_add_form(isys,ifield,kind,name,expr,suffix,atwhat,ttshown,errmsg)&
+     module function pointprop_add_form(isys,ifield,kind,name,expr,exprerr,suffix,atwhat,ttshown,errmsg)&
         result(added)
        integer, intent(in) :: isys, ifield
        integer, intent(inout) :: kind
-       character(len=*), intent(inout) :: name, expr
+       character(len=*), intent(inout) :: name, expr, exprerr
        character(len=*), intent(in) :: suffix, atwhat
        logical, intent(inout) :: ttshown
        character(len=:), allocatable, intent(inout) :: errmsg

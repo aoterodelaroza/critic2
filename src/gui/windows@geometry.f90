@@ -39,7 +39,7 @@ contains
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
        ColorHighlightBondScene2, ColorTableHighlightRow, ColorAxes_def, ColorRotaxis_def
-    use utils, only: iw_close_event, iw_table_headers_row, iw_text, iw_tooltip, iw_helpermark, iw_arith_help_button, iw_calcwidth,&
+    use utils, only: iw_close_event, iw_table_headers_row, iw_text, iw_tooltip, iw_helpermark, iw_expression_helper, iw_exprctx_atoms, iw_calcwidth,&
        iw_button, iw_calcheight, iw_capture_text,&
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
@@ -108,7 +108,7 @@ contains
     integer :: iaction, iaction_i1, iaction_i2
     real*8 :: iaction_x(3), iaction_x6(6), iaction_m(3,3)
     logical :: iaction_l
-    character(len=:), allocatable :: iaction_str
+    character(len=:), allocatable :: iaction_str, experr
     integer, parameter :: iaction_set_attype_name = 0
     integer, parameter :: iaction_set_atomic_number = 1
     integer, parameter :: iaction_add_species = 2
@@ -903,14 +903,21 @@ contains
              "- '@dnuc:2' = distance to cell atom 2"//newline//&
              "- 'log($0)' = log of the promolecular density"//newline//&
              "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
-             "Click the Help button for more info.")
+             "Use the Insert button for fields, functions, and examples.")
           if (iw_inputtext("##filtertext",bufsize=1023,width=30,texta=w%geometry_expression,&
              notlive=.true.,sameline=.true.)) then
              w%geometry_expression_ok = .true.
              w%geometry_expr_error = ""
           end if
           call iw_tooltip("Show on the table the result of using this expression at the atomic positions.",ttshown)
-          call iw_arith_help_button("##helpfilter",ttshown)
+          if (iw_expression_helper("##helpfilter",isys,iw_exprctx_atoms,texta=w%geometry_expression,&
+             ttshown=ttshown)) then
+             ! an expression built by inserting is applied when it is
+             ! valid; until then, show what is wrong with it
+             call sys(isys)%check_expression(w%geometry_expression,experr)
+             w%geometry_expr_error = experr
+             w%geometry_expression_ok = (len_trim(experr) == 0)
+          end if
           if (iw_button("Clear",sameline=.true.)) then
              w%geometry_expression_ok = .false.
              w%geometry_expression = ""

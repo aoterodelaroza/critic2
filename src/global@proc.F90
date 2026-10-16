@@ -1337,7 +1337,7 @@ contains
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,errmsg)
        if (len_trim(errmsg) > 0) then
-          call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+          call ferror('critic2','Syntax error or wrong expression: ' // errmsg,faterr,line,syntax=.true.)
           return
        end if
        call setvariable(trim(var),rdum)
@@ -1345,7 +1345,7 @@ contains
        word = string(line)
        rdum = eval(word,errmsg)
        if (len_trim(errmsg) > 0) then
-          call ferror('critic2','Syntax error or wrong expression',faterr,line,syntax=.true.)
+          call ferror('critic2','Syntax error or wrong expression: ' // errmsg,faterr,line,syntax=.true.)
           return
        end if
        if (.not.quiet) then

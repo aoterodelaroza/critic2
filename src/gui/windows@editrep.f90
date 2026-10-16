@@ -4115,7 +4115,7 @@ contains
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
-       iw_arith_help_button, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
+       iw_expression_helper, iw_exprctx_iso, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
        duration_string
     use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
     use param, only: newline
@@ -4141,7 +4141,7 @@ contains
     real(c_float) :: pxline, pyline
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    character(len=:), allocatable :: str3
+    character(len=:), allocatable :: str3, experr
     type(ImVec2) :: szero, szplot, sztab, mpos, szavail
     real(c_float) :: plotw
     real(c_double), target :: tickv(32)
@@ -4796,7 +4796,19 @@ contains
        if (s%imap_mode == iso_map_expr) then
           call iw_text("Expression",alignframe=.true.)
           call iw_helpermark(iw_arith_help)
-          call iw_arith_help_button("##isoexprhelp",ttshown)
+          if (iw_expression_helper("##isoexprhelp",isys,iw_exprctx_iso,textf=s%mapexpr,&
+             ttshown=ttshown)) then
+             ! an expression built by inserting is applied when it is
+             ! valid; until then, show what is wrong with it
+             call sys(isys)%check_expression(trim(s%mapexpr),experr)
+             s%maperr = experr
+             if (len_trim(experr) == 0) then
+                ! a new expression is a new quantity, like a new field
+                s%icmap_auto = .true.
+                s%maprange_auto = .true.
+                changed = .true.
+             end if
+          end if
        end if
        if (len_trim(s%maperr) > 0) &
           call iw_text("Error: " // trim(s%maperr),danger=.true.,wrap=.true.)

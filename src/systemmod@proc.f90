@@ -521,14 +521,13 @@ contains
     use tools_io, only: getword, lgetword, equal, uout, string, ferror, warning
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
-    use arithmetic, only: fields_in_eval
     use param, only: ifformat_copy, ifformat_as_clm, ifformat_promolecular_fragment,&
        ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_promolecular,&
        ifformat_as_core, ifformat_promolecular,&
        ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
        ifformat_as_ft_xy,ifformat_as_ft_xz,ifformat_as_ft_yy,ifformat_as_ft_yz,&
        ifformat_as_ft_zz,ifformat_as_ft_grad,ifformat_as_ft_lap,ifformat_as_ft_pot,&
-       ifformat_as, ifformat_as_resample, mlen, dirsep
+       ifformat_as, ifformat_as_resample, dirsep
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
     class(system), intent(inout), target :: s
     character*(*), intent(in) :: line
@@ -540,13 +539,12 @@ contains
     logical, intent(in), optional :: autointerp
     integer, intent(in), optional :: idwant
 
-    integer :: i, oid, nal, id1, id2, nn, n(3)
+    integer :: oid, nal, id1, id2, n(3)
     logical :: ok, isnewref, found, dochk
     real*8 :: rnuc, rval
     type(fieldseed) :: seed
     integer :: idx
     character(len=:), allocatable :: str, aux, erreval, cpfile, errchk
-    character(len=mlen), allocatable :: idlist(:)
     type(system), pointer :: syl
 
     ! is the environment sane?
@@ -576,29 +574,9 @@ contains
     ! Maybe we can load it as a grid if all the fields are grids
     ! and they are the same size
     if (seed%iff == ifformat_as_ghost.and..not.seed%ghost_explicit) then
-       syl => s
-       call fields_in_eval(seed%expr,errmsg,nn,idlist,c_loc(syl))
+       n = s%expression_grid_size(seed%expr,errmsg)
        if (len_trim(errmsg) > 0) return
-
-       ok = .true.
-       n = -1
-       do i = 1, nn
-          ok = ok.and.s%goodfield(key=idlist(i))
-          if (.not.ok) exit
-          idx = s%fieldname_to_idx(idlist(i))
-          ok = ok .and. (idx > 0 .and. idx <= s%nf)
-          if (.not.ok) exit
-          ok = ok .and. (s%f(idx)%type == type_grid)
-          if (.not.ok) exit
-          if (any(n < 0)) then
-             n = s%f(idx)%grid%n
-          else
-             ok = ok .and. all(s%f(idx)%grid%n == n)
-             if (.not.ok) exit
-          end if
-       end do
-       ok = ok .and. all(n > 0)
-       if (ok) then
+       if (all(n > 0)) then
           seed%n = n
           seed%iff = ifformat_as
        end if
@@ -1488,7 +1466,10 @@ contains
     if (.not.isstress) then
        syl => s
        call fields_in_eval(expr,errmsg,n,idlist,c_loc(syl))
-       if (len_trim(errmsg) > 0) return
+       if (len_trim(errmsg) > 0) then
+          errmsg = errmsg // " in expression: " // expr
+          return
+       end if
        do i = 1, n
           if (.not.s%goodfield(s%fieldname_to_idx(idlist(i)))) then
              errmsg = "Unknown field in arithmetic expression (POINTPROP)"
@@ -1557,9 +1538,10 @@ contains
   end function system_eval_expression
 
   !> Validate an arithmetic expression by evaluating it at an arbitrary
-  !> probe point of the system. Returns a non-empty errmsg if the
-  !> expression is invalid (wrong syntax, unknown function or field, or
-  !> a non-finite result at the probe point).
+  !> probe point of the system, close to the first atom. Returns a
+  !> non-empty errmsg if the expression is invalid (wrong syntax,
+  !> unknown function or field, or a non-finite result at the probe
+  !> point).
   module subroutine system_check_expression(s,expr,errmsg)
     class(system), intent(inout), target :: s
     character(*), intent(in) :: expr
@@ -1567,13 +1549,54 @@ contains
 
     real*8 :: xtest(3), fdum
 
-    ! an arbitrary off-symmetry point
+    ! an arbitrary off-symmetry point: near an atom, where the
+    ! densities are not zero (in a molecule, a point of the cell far
+    ! from the atoms gives, e.g., log($0) = -Inf)
     real*8, parameter :: xprobe(3) = (/0.109d0,0.217d0,0.313d0/)
 
-    xtest = s%c%x2c(xprobe)
+    if (s%c%ncel > 0) then
+       xtest = s%c%atcel(1)%r + xprobe
+    else
+       xtest = s%c%x2c(xprobe)
+    end if
     fdum = s%eval(expr,errmsg,xtest)
 
   end subroutine system_check_expression
+
+  !> If all the fields in expression expr are grids of the same size,
+  !> return that size; otherwise (other field types, different sizes,
+  !> or no fields), return zero. This is the size of the grid LOAD AS
+  !> creates for expr when neither GHOST nor a size is given. Returns
+  !> a non-empty errmsg if the fields in expr could not be read.
+  module function expression_grid_size(s,expr,errmsg) result(n)
+    use fieldmod, only: type_grid
+    use arithmetic, only: fields_in_eval
+    use param, only: mlen
+    use iso_c_binding, only: c_loc
+    class(system), intent(inout), target :: s
+    character(*), intent(in) :: expr
+    character(len=:), allocatable, intent(inout) :: errmsg
+    integer :: n(3)
+
+    integer :: i, nn, idx
+    character(len=mlen), allocatable :: idlist(:)
+    type(system), pointer :: syl
+
+    n = 0
+    syl => s
+    call fields_in_eval(expr,errmsg,nn,idlist,c_loc(syl))
+    if (len_trim(errmsg) > 0) return
+
+    ! the loop exits early (i <= nn) at the first field that is not
+    ! a grid or has a different size
+    do i = 1, nn
+       if (.not.s%goodfield(key=idlist(i),type=type_grid,idout=idx)) exit
+       if (i == 1) n = s%f(idx)%grid%n
+       if (any(s%f(idx)%grid%n /= n)) exit
+    end do
+    if (i <= nn .or. any(n <= 0)) n = 0
+
+  end function expression_grid_size
 
   !> Calculate the properties of a field or all fields at a point plus
   !> the defined point properties of the system. The properties at

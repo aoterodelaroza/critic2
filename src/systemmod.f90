@@ -106,6 +106,7 @@ module systemmod
      procedure :: delete_pointprop !< Remove a point property from the list
      procedure :: eval => system_eval_expression !< Evaluate an arithmetic expression using the system's fields
      procedure :: check_expression => system_check_expression !< Validate an expression by evaluating it at a probe point
+     procedure :: expression_grid_size !< Grid size of an expression made only of same-size grid fields
      procedure :: propty !< Calculate the properties of a field or all fields at a point
      procedure :: propty_items !< The properties at a point, as a list of report entries
      procedure :: grdall !< Calculate all integrable properties at a point
@@ -367,6 +368,12 @@ module systemmod
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine system_check_expression
+     module function expression_grid_size(s,expr,errmsg) result(n)
+       class(system), intent(inout), target :: s
+       character(*), intent(in) :: expr
+       character(len=:), allocatable, intent(inout) :: errmsg
+       integer :: n(3)
+     end function expression_grid_size
      module subroutine propty(s,id,x0,res,resinput,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s

@@ -24,6 +24,13 @@ module utils
 
   private
 
+  ! Where an expression is evaluated, for the examples of the
+  ! expression helper (iw_expression_helper)
+  integer, parameter, public :: iw_exprctx_field = 1 ! a new field, everywhere in space (LOAD AS)
+  integer, parameter, public :: iw_exprctx_point = 2 ! a property at points (POINTPROP)
+  integer, parameter, public :: iw_exprctx_atoms = 3 ! at the atomic positions (geometry filter)
+  integer, parameter, public :: iw_exprctx_iso = 4 ! on an isosurface (its colors)
+
   ! What an arithmetic expression can contain, for the tooltips of the
   ! places that take one (the atom filter, the isosurface color map,...)
   character(len=*), parameter, public :: iw_arith_help = &
@@ -125,7 +132,7 @@ module utils
   public :: iw_menuitem
   public :: iw_tooltip
   public :: iw_helpermark
-  public :: iw_arith_help_button
+  public :: iw_expression_helper
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
   public :: get_time_string
@@ -517,10 +524,16 @@ module utils
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: sameline
      end subroutine iw_helpermark
-     module subroutine iw_arith_help_button(strid,ttshown)
+     module function iw_expression_helper(strid,isys,ctx,texta,textf,ttshown,ifield) result(inserted)
        character(len=*,kind=c_char), intent(in) :: strid
+       integer, intent(in) :: isys
+       integer, intent(in) :: ctx
+       character(len=:), allocatable, intent(inout), optional :: texta
+       character(len=*), intent(inout), optional :: textf
        logical, intent(inout), optional :: ttshown
-     end subroutine iw_arith_help_button
+       integer, intent(in), optional :: ifield
+       logical :: inserted
+     end function iw_expression_helper
      module function iw_highlight_selectable(str,clicked,selected)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(out), optional :: clicked

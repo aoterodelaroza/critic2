@@ -2472,24 +2472,453 @@ contains
 
   end subroutine iw_helpermark
 
-  !> A button that opens the arithmetic expressions page of the manual,
-  !> for the widgets that take an expression from the user. strid is the
-  !> ImGui id suffix ("##...") that tells this button from the others in
-  !> the window. Companion of the iw_arith_help text.
-  module subroutine iw_arith_help_button(strid,ttshown)
+  !> The Insert button of an expression input, and its menu: the fields
+  !> of system isys with the quantities that can be taken from each
+  !> (value, gradient, Laplacian, ..., orbitals of wavefunctions, the
+  !> chemical functions it supports), the math functions, operators
+  !> and structural variables, examples for the context ctx
+  !> (iw_exprctx_*) written with the fields of the system, and the
+  !> sections of the manual. A field quantity, operator or variable is
+  !> appended to the expression (texta or textf), a math function is
+  !> applied to it, and an example replaces it. Returns true if the
+  !> expression changed. strid is the ImGui id suffix ("##...") of the
+  !> button. If ifield is given, the examples use that field instead of
+  !> the reference field.
+  module function iw_expression_helper(strid,isys,ctx,texta,textf,ttshown,ifield) result(inserted)
     use interfaces_cimgui
+    use systems, only: sys
+    use fieldmod, only: field, type_grid, type_wfn
+    use wfn_private, only: wfn_rhf, wfn_uhf
+    use arithmetic, only: arith_name, arith_names, arithkind_math, arithkind_chem,&
+       arithkind_svar, arithreq_none, arithreq_gkin, arithreq_stress, arithreq_basis,&
+       arithreq_rhf, arithreq_libxc, arith_have_libxc
+    use types, only: field_evaluation_avail, fieldeval_category_gkin, fieldeval_category_stress
+    use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: strid
+    integer, intent(in) :: isys
+    integer, intent(in) :: ctx
+    character(len=:), allocatable, intent(inout), optional :: texta
+    character(len=*), intent(inout), optional :: textf
     logical, intent(inout), optional :: ttshown
+    integer, intent(in), optional :: ifield
+    logical :: inserted
 
-    character(len=:,kind=c_char), allocatable, target :: str1
+    character(len=*), parameter :: manual = "https://aoterodelaroza.github.io/critic2/manual/arithmetics/"
+    character(len=2), parameter :: dername(9) = (/"x ","y ","z ","xx","xy","xz","yy","yz","zz"/)
+    character(len=*), parameter :: needvirt = "Needs the virtual orbitals:&
+       & load the field with 'Read virtual orbitals'"
+    character(len=*), parameter :: novirt = "The file has no virtual orbitals"
 
-    if (iw_button("Help" // strid,sameline=.true.)) then
-       str1 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
-       call openLink(c_loc(str1))
+    logical :: ok, ldum
+    integer :: i, j, ir, ir2, ireq
+    type(field_evaluation_avail) :: av
+    character(len=:), allocatable :: fi, fr, lbl, whyvirt
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    character(len=1) :: prev
+    logical :: ingrid
+    type(ImVec2) :: szero
+
+    inserted = .false.
+    ingrid = .false.
+    szero%x = 0._c_float
+    szero%y = 0._c_float
+    ldum = iw_button("Insert" // strid,sameline=.true.,popupcontext=ok,&
+       popupflags=ImGuiPopupFlags_MouseButtonLeft)
+    call iw_tooltip("Insert a field quantity, function, operator, structural variable, or an&
+       & example in the expression, or open the manual",ttshown)
+    if (.not.ok) return
+
+    ! the field the examples use: the caller's, the reference, or the
+    ! first loaded (none if only the promolecular density); and a
+    ! second one for the examples with two fields
+    ir = 0
+    if (present(ifield)) then
+       if (ifield > 0 .and. sys(isys)%goodfield(ifield)) ir = ifield
     end if
-    call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
+    if (ir == 0 .and. sys(isys)%iref > 0) then
+       if (sys(isys)%goodfield(sys(isys)%iref)) ir = sys(isys)%iref
+    end if
+    ir2 = 0
+    do i = 1, sys(isys)%nf
+       if (.not.sys(isys)%goodfield(i)) cycle
+       if (ir == 0) then
+          ir = i
+       elseif (ir2 == 0 .and. i /= ir) then
+          ir2 = i
+       end if
+    end do
+    fr = string(ir)
 
-  end subroutine iw_arith_help_button
+    ! the fields of the system and their quantities
+    call iw_text("Fields of this system",highlight=.true.)
+    do i = 0, sys(isys)%nf
+       if (.not.sys(isys)%goodfield(i)) cycle
+       fi = "$" // string(i)
+       if (i == 0) then
+          lbl = fi // ": promolecular density"
+       else
+          lbl = fi // ": " // trim(sys(isys)%f(i)%name)
+       end if
+       if (iw_beginmenu(lbl // "##exprfield" // string(i))) then
+          associate(f => sys(isys)%f(i))
+            call grid_begin("fieldq" // string(i),3)
+            call item(fi,"Value")
+            call item(fi // ":g","Gradient norm")
+            call item(fi // ":l","Laplacian")
+            call newrow()
+            do j = 1, 9
+               call item(fi // ":" // trim(dername(j)),"Derivative d/d" // trim(dername(j)))
+            end do
+            call newrow()
+            do j = 1, 3
+               call item(fi // ":h" // string(j),"Hessian eigenvalue " // string(j) // " (ascending)")
+            end do
+            call item(fi // ":hd","Hessian determinant")
+            if (i > 0) then
+               if (f%type == type_grid .and. f%usecore) then
+                  call newrow()
+                  call item(fi // ":v","Valence value")
+                  call item(fi // ":c","Core value")
+                  call item(fi // ":lv","Valence Laplacian")
+               end if
+               if (f%type == type_wfn) then
+                  if (f%has_unread_virtuals()) then
+                     whyvirt = needvirt
+                  else
+                     whyvirt = novirt
+                  end if
+                  if (f%wfn%wfntyp == wfn_rhf) then
+                     call newrow()
+                     call item(fi // ":HOMO","Highest occupied molecular orbital")
+                     call item(fi // ":LUMO","Lowest unoccupied molecular orbital",f%wfn%hasvirtual,whyvirt)
+                  elseif (f%wfn%wfntyp == wfn_uhf) then
+                     call newrow()
+                     call item(fi // ":AHOMO","Alpha highest occupied molecular orbital")
+                     call item(fi // ":BHOMO","Beta highest occupied molecular orbital")
+                     call newrow()
+                     call item(fi // ":ALUMO","Alpha lowest unoccupied molecular orbital",f%wfn%hasvirtual,whyvirt)
+                     call item(fi // ":BLUMO","Beta lowest unoccupied molecular orbital",f%wfn%hasvirtual,whyvirt)
+                     call newrow()
+                     call item(fi // ":up","Spin-up density")
+                     call item(fi // ":dn","Spin-down density")
+                     call item(fi // ":sp","Spin density (up - down)")
+                  end if
+               end if
+            end if
+            call grid_end()
+            if (iw_beginmenu("Chemical functions")) then
+               call f%eval_avail(av)
+               ireq = arithreq_none
+               call grid_begin("chem" // string(i) // "_0",4)
+               do j = 1, size(arith_names,1)
+                  if (arith_names(j)%kind /= arithkind_chem) cycle
+                  ! a separator between the any-field, wavefunction, and basis-set groups
+                  if (reqgroup(arith_names(j)%req) /= reqgroup(ireq)) then
+                     call grid_end()
+                     call igSeparator()
+                     call grid_begin("chem" // string(i) // "_" // string(reqgroup(arith_names(j)%req)),4)
+                  end if
+                  ireq = arith_names(j)%req
+                  call chemitem(arith_names(j),i,f,av)
+               end do
+               call grid_end()
+               call igEndMenu()
+            end if
+          end associate
+          call igEndMenu()
+       end if
+    end do
+
+    ! functions, operators, constants, and structural variables
+    call igSeparator()
+    if (iw_beginmenu("Math functions")) then
+       call iw_text("Applied to the whole expression",disabled=.true.)
+       call grid_begin("math",4)
+       do j = 1, size(arith_names,1)
+          if (arith_names(j)%kind /= arithkind_math) cycle
+          if (cell(trim(arith_names(j)%name),.true.,trim(arith_names(j)%desc) // ": " //&
+             trim(arith_names(j)%name) // trim(arith_names(j)%args))) &
+             call wrap(trim(arith_names(j)%name),index(arith_names(j)%args,",") > 0)
+       end do
+       call grid_end()
+       call igEndMenu()
+    end if
+    if (iw_beginmenu("Operators and constants")) then
+       call grid_begin("ops",6)
+       call item(" + ","Add")
+       call item(" - ","Subtract")
+       call item(" * ","Multiply")
+       call item(" / ","Divide")
+       call item("**","Power")
+       call item(" % ","Modulo")
+       call grid_end()
+       call igSeparator()
+       call iw_text("Comparisons give 1 if true, 0 if false",disabled=.true.)
+       call grid_begin("cmp",6)
+       call item(" == ","Equal")
+       call item(" != ","Not equal")
+       call item(" < ","Less than")
+       call item(" <= ","Less or equal")
+       call item(" > ","Greater than")
+       call item(" >= ","Greater or equal")
+       call item(" && ","And")
+       call item(" || ","Or")
+       call grid_end()
+       call igSeparator()
+       call grid_begin("const",6)
+       call item("pi","Pi")
+       call item("e","Euler's number")
+       call item("eps","Machine precision")
+       call grid_end()
+       call igEndMenu()
+    end if
+    if (iw_beginmenu("Structural variables")) then
+       call grid_begin("svar",3)
+       prev = ""
+       do j = 1, size(arith_names,1)
+          if (arith_names(j)%kind /= arithkind_svar) cycle
+          ! the x,y,z triplets in their own rows: relies on the order
+          ! of the table, where each triplet starts with an x name and
+          ! ends with a z name
+          if (arith_names(j)%name(1:1) == "x" .or. prev == "z") call newrow()
+          prev = arith_names(j)%name(1:1)
+          call item("@" // trim(arith_names(j)%name),trim(arith_names(j)%desc))
+       end do
+       call grid_end()
+       call igEndMenu()
+    end if
+
+    ! examples for this context, with the fields of the system
+    call igSeparator()
+    if (iw_beginmenu("Examples")) then
+       call iw_text("Replace the expression",disabled=.true.)
+       if (ir == 0 .and. ctx /= iw_exprctx_atoms) &
+          call iw_text("Load a field for more examples",disabled=.true.)
+       select case (ctx)
+       case (iw_exprctx_field)
+          if (ir > 0) then
+             call example("2*$" // fr,"Twice field " // fr)
+             call example("$" // fr // "-$0","Deformation density (field " // fr // " minus promolecular)")
+             if (ir2 > 0) call example("$" // fr // "-$" // string(ir2),"Difference of two fields&
+                & (e.g. spin density from the alpha and beta densities)")
+             call example("rdg(" // fr // ")","Reduced density gradient of field " // fr)
+             call example("(@idnuc==1)*$" // fr,"Field " // fr // " in the Voronoi region of atom 1")
+          end if
+          call example("(@idnuc==1)*$0","Promolecular density in the Voronoi region of atom 1")
+       case (iw_exprctx_point)
+          if (ir > 0) then
+             call example("$" // fr // ":l","Laplacian of field " // fr)
+             call example("gtf(" // fr // ")","Thomas-Fermi kinetic energy density of field " // fr)
+             call example("$" // fr // "-$0","Deformation density (field " // fr // " minus promolecular)")
+             call example("rdg(" // fr // ")","Reduced density gradient of field " // fr)
+          end if
+          call example("@dnuc","Distance to the nearest atom")
+       case (iw_exprctx_atoms)
+          call example("@dnuc:2","Distance to the nearest atom 2")
+          call example("abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2","Atoms in the (-2,2) box")
+          call example("@z > 0","Atoms above the z = 0 plane")
+          call example("log($0)","Logarithm of the promolecular density")
+       case (iw_exprctx_iso)
+          if (ir > 0) then
+             call example("$" // fr,"Field " // fr)
+             call example("$" // fr // ":l","Laplacian of field " // fr)
+             call example("$" // fr // "-$0","Deformation density (field " // fr // " minus promolecular)")
+          end if
+          call example("@dnuc","Distance to the nearest atom")
+       end select
+       call igEndMenu()
+    end if
+
+    ! the manual
+    if (iw_beginmenu("Manual")) then
+       if (iw_menuitem("Expressions: fields, modifiers, operators")) call openmanual("#c2-arithbasic")
+       if (iw_menuitem("Functions (math and chemical)")) call openmanual("#availchemfun")
+       if (iw_menuitem("Structural variables (@x, @dnuc, ...)")) call openmanual("#c2-structvar")
+       if (iw_menuitem("Exchange-correlation functionals (libxc)")) call openmanual("#libxc")
+       call igEndMenu()
+    end if
+    call igEndPopup()
+
+  contains
+    !> An entry labelled str (without the blanks) that appends str to
+    !> the expression, with the explanation tip as its tooltip. If not
+    !> enabled, greyed out, and the tooltip also gives the reason
+    !> (why).
+    subroutine item(str,tip,enabled,why)
+      character(len=*), intent(in) :: str, tip
+      logical, intent(in), optional :: enabled
+      character(len=*), intent(in), optional :: why
+      logical :: en
+      character(len=:), allocatable :: ttip
+      en = .true.
+      if (present(enabled)) en = enabled
+      ttip = tip
+      if (present(why) .and. .not.en) ttip = tip // ". " // why
+      if (cell(trim(adjustl(str)),en,ttip)) call put(str,.true.)
+    end subroutine item
+
+    !> Draw an entry with label lbl and tooltip tip: a selectable in
+    !> the next cell of the open grid, or a menu item if there is no
+    !> grid. If not en, greyed out. Returns true if clicked.
+    function cell(lbl,en,tip) result(clicked)
+      character(len=*), intent(in) :: lbl, tip
+      logical, intent(in) :: en
+      logical :: clicked
+      if (ingrid) then
+         ldum = igTableNextColumn()
+         str2 = lbl // c_null_char
+         clicked = igSelectable_Bool(c_loc(str2),.false._c_bool,&
+            merge(ImGuiSelectableFlags_Disabled,ImGuiSelectableFlags_None,.not.en),szero)
+      else
+         clicked = iw_menuitem(lbl,enabled=en)
+      end if
+      call iw_tooltip(tip,ttshown,whendisabled=.not.en)
+    end function cell
+
+    !> Begin a grid of entries with ncol columns; id is unique in the menu.
+    subroutine grid_begin(id,ncol)
+      character(len=*), intent(in) :: id
+      integer, intent(in) :: ncol
+      str2 = "##exprgrid" // id // c_null_char
+      ingrid = igBeginTable(c_loc(str2),int(ncol,c_int),&
+         ior(ImGuiTableFlags_SizingFixedFit,ImGuiTableFlags_NoHostExtendX),szero,0._c_float)
+    end subroutine grid_begin
+
+    !> Start a new row of the open grid.
+    subroutine newrow()
+      if (ingrid) call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+    end subroutine newrow
+
+    !> End the open grid.
+    subroutine grid_end()
+      if (ingrid) call igEndTable()
+      ingrid = .false.
+    end subroutine grid_end
+
+    !> A menu entry for chemical function a applied to field id,
+    !> greyed out if field f (with evaluation categories av) or critic2
+    !> does not provide what it needs.
+    subroutine chemitem(a,id,f,av)
+      type(arith_name), intent(in) :: a
+      integer, intent(in) :: id
+      type(field), intent(in) :: f
+      type(field_evaluation_avail), intent(in) :: av
+
+      logical :: en
+      character(len=:), allocatable :: str, why, tip
+
+      ! what to insert
+      if (a%name == "xhole") then
+         str = "xhole(" // string(id) // ",0,0,0)"
+      elseif (a%name == "xc") then
+         str = "xc($" // string(id) // ",1)"
+      else
+         str = trim(a%name) // "(" // string(id) // ")"
+      end if
+
+      ! is it available for this field?
+      en = .true.
+      why = ""
+      select case (a%req)
+      case (arithreq_gkin)
+         en = av%avail(fieldeval_category_gkin)
+         why = "Needs the kinetic energy density: a wavefunction field (wfn, wfx, fchk, molden,...)&
+            & or DFTB+"
+      case (arithreq_stress)
+         en = av%avail(fieldeval_category_stress)
+         why = "Needs the stress tensor: a molecular wavefunction field (wfn, wfx, fchk, molden,...)"
+      case (arithreq_basis)
+         en = (f%type == type_wfn)
+         if (en) en = allocated(f%wfn%cint)
+         why = "Needs a molecular wavefunction with the basis set (fchk or molden) and critic2&
+            & compiled with libcint"
+      case (arithreq_rhf)
+         en = (f%type == type_wfn)
+         if (en) en = (f%wfn%wfntyp == wfn_rhf)
+         why = "Needs a restricted molecular wavefunction field"
+      case (arithreq_libxc)
+         en = arith_have_libxc
+         why = "Needs critic2 compiled with libxc"
+      end select
+      tip = trim(a%desc)
+      if (a%name == "xc") tip = tip // ". xc(rho,...,idx) takes expressions (density, gradient,...)&
+         & and the libxc functional id last: xc($" // string(id) // ",1) is Slater exchange"
+      call item(str,tip,en,why)
+    end subroutine chemitem
+
+    !> The group of a chemical function in the menu, from its
+    !> requirement (arithreq_*).
+    integer function reqgroup(req)
+      integer, intent(in) :: req
+      select case (req)
+      case (arithreq_none)
+         reqgroup = 0
+      case (arithreq_gkin,arithreq_stress)
+         reqgroup = 1
+      case (arithreq_basis,arithreq_rhf)
+         reqgroup = 2
+      case default
+         reqgroup = 3
+      end select
+    end function reqgroup
+
+    !> Apply the function fname to the expression; with a second
+    !> argument (0) if twoarg.
+    subroutine wrap(fname,twoarg)
+      character(len=*), intent(in) :: fname
+      logical, intent(in) :: twoarg
+
+      character(len=:), allocatable :: cur
+
+      cur = ""
+      if (present(texta)) then
+         if (allocated(texta)) cur = trim(texta)
+      elseif (present(textf)) then
+         cur = trim(textf)
+      end if
+      if (twoarg) then
+         call put(fname // "(" // cur // ",0)",.false.)
+      else
+         call put(fname // "(" // cur // ")",.false.)
+      end if
+    end subroutine wrap
+
+    !> A menu entry that replaces the expression with the example str,
+    !> with the explanation tip as its tooltip.
+    subroutine example(str,tip)
+      character(len=*), intent(in) :: str, tip
+      if (cell(str,.true.,tip)) call put(str,.false.)
+    end subroutine example
+
+    !> Append str to the expression, or replace it.
+    subroutine put(str,append)
+      character(len=*), intent(in) :: str
+      logical, intent(in) :: append
+      if (present(texta)) then
+         if (.not.allocated(texta)) texta = ""
+         if (append) then
+            texta = texta // str
+         else
+            texta = str
+         end if
+      elseif (present(textf)) then
+         if (append) then
+            textf = trim(textf) // str
+         else
+            textf = str
+         end if
+      end if
+      inserted = .true.
+    end subroutine put
+
+    !> Open the section anchor of the manual page on expressions.
+    subroutine openmanual(anchor)
+      character(len=*), intent(in) :: anchor
+      str1 = manual // anchor // c_null_char
+      call openLink(c_loc(str1))
+    end subroutine openmanual
+
+  end function iw_expression_helper
 
   !> Create a selectable that highlights the current row. Return true
   !> if the selectable is hovered. If clicked is present, return .true.

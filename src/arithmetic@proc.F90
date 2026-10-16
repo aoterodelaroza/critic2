@@ -24,11 +24,14 @@ submodule (arithmetic) proc
   implicit none
 
   !xx! private procedures
-  ! function tokenize(expr,ntok,toklist,lpexit,syl)
+  ! function tokenize(expr,ntok,toklist,lpexit,syl,errmsg)
+  ! function loaded_fields(syl) result(str)
+  ! function arith_usage(c,arg) result(str)
   ! function iprec(c)
   ! function iassoc(c)
   ! function istype(c,type,iwantarg)
   ! function isstructvar(fid,c,fder)
+  ! function arith_find(name,kind) result(idx)
   ! recursive function fieldeval(fid,fder,errmsg,x0,sptr,periodic)
   ! function structvareval(svar,x0,syl,periodic) result(q)
   ! function isnumber(rval,expr,lp)
@@ -38,112 +41,6 @@ submodule (arithmetic) proc
   ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,errmsg)
   ! subroutine pop_grid(q,nq,s,ns,fail)
   ! function chemfunction(c,sia,x0,args,sptr,periodic,errmsg) result(q)
-
-  ! enum for operators and functions
-  integer, parameter :: fun_unknown     = 0  !< unknown operator
-  integer, parameter :: fun_openpar     = 1  !< open parenthesis
-  integer, parameter :: fun_closepar    = 2  !< close parenthesis
-  integer, parameter :: fun_uplus       = 3  !< unary +
-  integer, parameter :: fun_uminus      = 4  !< unary -
-  integer, parameter :: fun_abs         = 5  !< abs(.)
-  integer, parameter :: fun_exp         = 6  !< exp(.)
-  integer, parameter :: fun_sqrt        = 7  !< sqrt(.)
-  integer, parameter :: fun_floor       = 8  !< floor(.)
-  integer, parameter :: fun_ceiling     = 9  !< ceiling(.)
-  integer, parameter :: fun_round       = 10 !< round(.)
-  integer, parameter :: fun_log         = 11 !< log(.)
-  integer, parameter :: fun_log10       = 12 !< log10(.)
-  integer, parameter :: fun_sin         = 13 !< sin(.)
-  integer, parameter :: fun_asin        = 14 !< asin(.)
-  integer, parameter :: fun_cos         = 15 !< cos(.)
-  integer, parameter :: fun_acos        = 16 !< acos(.)
-  integer, parameter :: fun_tan         = 17 !< tan(.)
-  integer, parameter :: fun_atan        = 18 !< atan(.)
-  integer, parameter :: fun_atan2       = 19 !< atan2(.)
-  integer, parameter :: fun_sinh        = 20 !< sinh(.)
-  integer, parameter :: fun_cosh        = 21 !< cosh(.)
-  integer, parameter :: fun_erf         = 22 !< erf(.)
-  integer, parameter :: fun_erfc        = 23 !< erfc(.)
-  integer, parameter :: fun_min         = 24 !< min(.)
-  integer, parameter :: fun_max         = 25 !< max(.)
-  integer, parameter :: fun_power       = 26 !< **
-  integer, parameter :: fun_leq         = 27 !< <=
-  integer, parameter :: fun_geq         = 28 !< >=
-  integer, parameter :: fun_equal       = 29 !< ==
-  integer, parameter :: fun_neq         = 30 !< !=
-  integer, parameter :: fun_and         = 31 !< &&
-  integer, parameter :: fun_or          = 32 !< ||
-  integer, parameter :: fun_plus        = 33 !< binary +
-  integer, parameter :: fun_minus       = 34 !< binary -
-  integer, parameter :: fun_prod        = 35 !< *
-  integer, parameter :: fun_div         = 36 !< /
-  integer, parameter :: fun_modulo      = 37 !< %
-  integer, parameter :: fun_great       = 38 !< >
-  integer, parameter :: fun_less        = 39 !< <
-  integer, parameter :: fun_xc          = 40 !< xc(.,...)  (X)
-  integer, parameter :: fun_gtf         = 41 !< Thomas-Fermi kinetic energy density
-  integer, parameter :: fun_vtf         = 42 !< Potential energy density calcd using gtf and the local virial theorem
-  integer, parameter :: fun_htf         = 43 !< Total energy density calcd using gtf and the local virial theorem
-  integer, parameter :: fun_gtf_kir     = 44 !< Thomas-Fermi ked with Kirzhnits gradient correction
-  integer, parameter :: fun_vtf_kir     = 45 !< Potential energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter :: fun_htf_kir     = 46 !< Total energy density calcd using gtf_kir and the local virial theorem
-  integer, parameter :: fun_gkin        = 47 !< Kinetic energy density, G-version (grho * grho)
-  integer, parameter :: fun_kkin        = 48 !< Kinetic energy density, K-version (rho * laprho)
-  integer, parameter :: fun_l           = 49 !< Lagrangian density (-1/4 * laprho)
-  integer, parameter :: fun_elf         = 50 !< Electron localization function (ELF)
-  integer, parameter :: fun_vir         = 51 !< Electronic potential energy density, virial field
-  integer, parameter :: fun_he          = 52 !< Energy density, G + V
-  integer, parameter :: fun_lol         = 53 !< Localized-orbital locator (LOL)
-  integer, parameter :: fun_lol_kir     = 54 !< Localized-orbital locator (LOL), with Kirzhnits G
-  integer, parameter :: fun_brhole_a1   = 55 !< BR hole, A prefactor, spin up
-  integer, parameter :: fun_brhole_a2   = 56 !< BR hole, A prefactor, spin down
-  integer, parameter :: fun_brhole_a    = 57 !< BR hole, A prefactor, spin average
-  integer, parameter :: fun_brhole_alf1 = 58 !< BR hole, alpha exponent, spin up
-  integer, parameter :: fun_brhole_alf2 = 59 !< BR hole, alpha exponent, spin down
-  integer, parameter :: fun_brhole_alf  = 60 !< BR hole, alpha exponent, spin average
-  integer, parameter :: fun_brhole_b1   = 61 !< BR hole, hole distance (b), spin up
-  integer, parameter :: fun_brhole_b2   = 62 !< BR hole, hole distance (b), spin down
-  integer, parameter :: fun_brhole_b    = 63 !< BR hole, hole distance (b), spin average
-  integer, parameter :: fun_xhcurv1     = 64 !< exchange-hole curvature, spin up
-  integer, parameter :: fun_xhcurv2     = 65 !< exchange-hole curvature, spin down
-  integer, parameter :: fun_xhcurv      = 66 !< exchange-hole curvature, spin average
-  integer, parameter :: fun_dsigs1      = 67 !< leading coefficient same-spin pair density, spin up
-  integer, parameter :: fun_dsigs2      = 68 !< leading coefficient same-spin pair density, spin down
-  integer, parameter :: fun_dsigs       = 69 !< leading coefficient same-spin pair density, spin avg.
-  integer, parameter :: fun_mep         = 70 !< Molecular electrostatic potential
-  integer, parameter :: fun_uslater     = 71 !< Slater potential
-  integer, parameter :: fun_nheff       = 72 !< Effective exchange hole normalization
-  integer, parameter :: fun_xhole       = 73 !< exchange-hole
-  integer, parameter :: fun_rdg         = 74 !< reduced density gradient (RDG)
-
-  ! enum for structural variables
-  integer, parameter :: svar_dnuc    = 1  !< Distance to the closest nucleus
-  integer, parameter :: svar_xnucx   = 2  !< x of the closest nucleus (crystallographic)
-  integer, parameter :: svar_ynucx   = 3  !< y of the closest nucleus (crystallographic)
-  integer, parameter :: svar_znucx   = 4  !< z of the closest nucleus (crystallographic)
-  integer, parameter :: svar_xnucc   = 5  !< x of the closest nucleus (Cartesian)
-  integer, parameter :: svar_ynucc   = 6  !< y of the closest nucleus (Cartesian)
-  integer, parameter :: svar_znucc   = 7  !< z of the closest nucleus (Cartesian)
-  integer, parameter :: svar_x       = 8  !< x of the evaluation point (default units)
-  integer, parameter :: svar_y       = 9  !< y of the evaluation point (default units)
-  integer, parameter :: svar_z       = 10 !< z of the evaluation point (default units)
-  integer, parameter :: svar_xx      = 11 !< x of the evaluation point (crystallographic)
-  integer, parameter :: svar_yx      = 12 !< y of the evaluation point (crystallographic)
-  integer, parameter :: svar_zx      = 13 !< z of the evaluation point (crystallographic)
-  integer, parameter :: svar_xc      = 14 !< x of the evaluation point (Cartesian)
-  integer, parameter :: svar_yc      = 15 !< y of the evaluation point (Cartesian)
-  integer, parameter :: svar_zc      = 16 !< z of the evaluation point (Cartesian)
-  integer, parameter :: svar_xm      = 17 !< x of the evaluation point (Cartesian molecular)
-  integer, parameter :: svar_ym      = 18 !< y of the evaluation point (Cartesian molecular)
-  integer, parameter :: svar_zm      = 19 !< z of the evaluation point (Cartesian molecular)
-  integer, parameter :: svar_xxr     = 20 !< x of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_yxr     = 21 !< y of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_zxr     = 22 !< z of the evaluation point (reduced cryst.)
-  integer, parameter :: svar_idnuc   = 23 !< complete-list id of the closest nucleus
-  integer, parameter :: svar_nidnuc  = 24 !< non-equivalent-list id of the closest nucleus
-  integer, parameter :: svar_rho0nuc = 25 !< atomic density contribution from the closest nucleus
-  integer, parameter :: svar_spcnuc  = 26 !< species id of the closest nucleus
-  integer, parameter :: svar_zatnuc  = 27 !< atomic number of the closest nucleus
 
   ! libxc functional
 #ifdef HAVE_LIBXC
@@ -249,11 +146,8 @@ contains
        ntok = size(toklistin,1)
     else
        lp = 1
-       ok = tokenize(expr,ntok,toklist,lp,syl)
-       if (.not.ok) then
-          errmsg = 'syntax error evaluating: ' // trim(expr)
-          return
-       end if
+       ok = tokenize(expr,ntok,toklist,lp,syl,errmsg)
+       if (.not.ok) return
        tl => toklist
     end if
 
@@ -300,7 +194,7 @@ contains
               if (len_trim(errmsg) > 0) return
            end do
            if (ns == 0) then
-              errmsg = 'mismatched parentheses'
+              errmsg = "mismatched parentheses: ')' without '('"
               return
            end if
            ns = ns - 1
@@ -319,8 +213,8 @@ contains
               call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
               if (len_trim(errmsg) > 0) return
            end do
-           if (s(ns) /= fun_openpar) then
-              errmsg = 'mismatched parentheses'
+           if (ns == 0) then
+              errmsg = "comma outside the arguments of a function"
               return
            end if
         elseif (tl(i)%type == token_field) then
@@ -344,6 +238,13 @@ contains
        call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
        if (len_trim(errmsg) > 0) return
     end do
+    if (nq > 1) then
+       errmsg = "missing operator between two values, or too many arguments in a function"
+       return
+    elseif (nq == 0 .and. ntok > 0) then
+       errmsg = "missing value"
+       return
+    end if
     eval = q(1)
 
   end function eval_core
@@ -374,6 +275,7 @@ contains
     type(system), pointer :: syl
     logical :: usual_halt(3)
     integer :: nbad
+    character(len=:), allocatable :: errmsg
 
     ! suspend FPE halting while the expression is evaluated (see eval)
     call ieee_get_halting_mode(ieee_usual,usual_halt)
@@ -387,11 +289,8 @@ contains
     ! tokenize the expression in input
     iok = .true.
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,syl)
-    if (.not.ok) then
-       goto 999
-       return
-    end if
+    ok = tokenize(expr,ntok,toklist,lp,syl,errmsg)
+    if (.not.ok) goto 999
 
     ! initialize
     nq = 0
@@ -467,7 +366,7 @@ contains
              call pop_grid(q,nq,s,ns,ifail)
              if (ifail) goto 999
           end do
-          if (s(ns) /= fun_openpar) goto 999
+          if (ns == 0) goto 999
        elseif (toklist(i)%type == token_field) then
           ! a field (already made all the checks at the parsing stage)
           nq = nq + 1
@@ -484,6 +383,7 @@ contains
        call pop_grid(q,nq,s,ns,ifail)
        if (ifail) goto 999
     end do
+    if (nq /= 1) goto 999
     f = q(:,:,:,1)
     if (allocated(q)) deallocate(q)
     call ieee_set_halting_mode(ieee_usual,usual_halt)
@@ -541,11 +441,8 @@ contains
 
     ! tokenize the expression
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,syl)
-    if (.not. ok) then
-       errmsg = "syntax error"
-       return
-    end if
+    ok = tokenize(expr,ntok,toklist,lp,syl,errmsg)
+    if (.not. ok) return
 
     ! return the ids of the fields in an array
     n = 0
@@ -799,9 +696,9 @@ contains
 
     ! tokenize the expression
     lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,syl)
+    ok = tokenize(expr,ntok,toklist,lp,syl,errmsg)
     if (.not.ok) then
-       errmsg = 'syntax error in expression: ' // trim(expr)
+       errmsg = errmsg // ' in expression: ' // trim(expr)
        return
     end if
 
@@ -821,9 +718,9 @@ contains
   !> toklist and the number of tokens in ntok, and advance the string
   !> pointer lpexit. syl = calling system. This routine is
   !> thread-safe.
-  function tokenize(expr,ntok,toklist,lpexit,syl)
+  function tokenize(expr,ntok,toklist,lpexit,syl,errmsg)
     use systemmod, only: system
-    use tools_io, only: lower, isinteger
+    use tools_io, only: isinteger, string
     use param, only: vh, tab
     logical :: tokenize
     character(*), intent(in) :: expr
@@ -831,23 +728,23 @@ contains
     type(token), intent(inout), allocatable :: toklist(:)
     integer, intent(inout) :: lpexit
     type(system), intent(inout), optional :: syl
+    character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: lp, ll
+    integer :: lp, ll, lpt
     character(len=:), allocatable :: str
     character*10 :: fder
-    logical :: ok, wasop, inchem
+    logical :: ok, wasop, inchem, iskey
     real*8 :: a
-    integer :: c, npar, id, lp2
+    integer :: c, npar, id, lp2, cchem
 
-    ! recover the system pointer
-    if (present(syl)) then
-       if (.not.syl%isinit) goto 999
-    end if
+    errmsg = ""
+    lpt = lpexit
 
     ! initialize
     tokenize = .true.
     inchem = .false.
     npar = 0
+    cchem = 0
 
     ! allocate the token list
     if (allocated(toklist)) deallocate(toklist)
@@ -868,6 +765,7 @@ contains
           lp = lp + 1
           if (lp > ll) exit main
        enddo
+       lpt = lp
        if (isnumber(a,expr,lp)) then
           ! a number (without sign)
           call addtok(token_num,fval=a)
@@ -879,6 +777,7 @@ contains
           if (istype(c,'chemfunction')) then
              inchem = .true.
              npar = 0
+             cchem = c
           end if
        elseif (isoperator(c,expr,lp)) then
           ! a binary operator
@@ -906,9 +805,19 @@ contains
           ! a structural variable
           lp = lp + 1
           ok = isidentifier(str,expr,lp,fder)
-          if (.not.ok) goto 999
+          if (.not.ok) then
+             errmsg = "a structural variable name must follow @, e.g. @dnuc"
+             goto 999
+          end if
           ok = isstructvar(str,c,fder)
-          if (.not.ok) goto 999
+          if (.not.ok) then
+             if (arith_find(str,arithkind_svar) > 0) then
+                errmsg = "@" // trim(str) // " does not take a selector (:" // trim(fder) // ")"
+             else
+                errmsg = "unknown structural variable: @" // trim(str)
+             end if
+             goto 999
+          end if
           call addtok(token_structvar,ival=c,fder=fder)
           wasop=.false.
 
@@ -916,43 +825,64 @@ contains
           ! a field read the field identifier and the : identifier
           lp = lp + 1
           ok = isidentifier(str,expr,lp,fder)
-          if (.not.ok) goto 999
-          ok = .false.
+          if (.not.ok) then
+             errmsg = "a field number or name must follow $, e.g. $1"
+             goto 999
+          end if
 
           ! an integer or a known key
           lp2 = 1
           ok = isinteger(id,str,lp2)
-          if (present(syl)) ok = ok .or. syl%fh%iskey(trim(str))
-
-          if (.not.ok) goto 999
+          iskey = isfieldkey(str)
+          if (.not.ok .and. .not.iskey) then
+             errmsg = "unknown field: $" // trim(str) // loaded_fields(syl)
+             goto 999
+          end if
           if (.not.inchem) then
              ! normal interpretation
              call addtok(token_field,sval=str,fder=fder)
-          else
+          elseif (iskey) then
              ! inside a chemical function
-             if (.not.present(syl)) goto 999
-             ok = syl%fh%iskey(trim(str))
-             if (.not.ok) goto 999
-             id = syl%fh%get(trim(str),1)
-             call addtok(token_num,fval=real(id,8))
+             call addfieldnum(str)
+          else
+             if (syl%goodfield(key=str)) then
+                errmsg = arith_usage(cchem,"") // " takes a field number or name without $, e.g. " //&
+                   arith_usage(cchem,trim(str))
+             else
+                errmsg = "unknown field in " // arith_usage(cchem,"") // ": " // trim(str) // loaded_fields(syl)
+             end if
+             goto 999
           end if
           wasop = .false.
        elseif (isidentifier(str,expr,lp)) then
           if (.not.inchem) then
              ! a constant or a variable
              ok = vh%iskey(trim(str))
-             if (.not.ok) goto 999
+             if (.not.ok) then
+                if (isfieldkey(str)) then
+                   errmsg = "'" // trim(str) // "' is a field: write $" // trim(str)
+                elseif (arith_find(str,arithkind_svar) > 0) then
+                   errmsg = "'" // trim(str) // "' is a structural variable: write @" // trim(str)
+                else
+                   errmsg = "unknown name: " // trim(str)
+                end if
+                goto 999
+             end if
              call addtok(token_num,fval=vh%get(trim(str),a))
           else
              ! inside a chemical function -> field identifier
-             if (.not.present(syl)) goto 999
-             ok = syl%fh%iskey(trim(str))
-             if (.not.ok) goto 999
-             id = syl%fh%get(trim(str),1)
-             call addtok(token_num,fval=real(id,8))
+             if (.not.isfieldkey(str)) then
+                errmsg = "unknown field in " // arith_usage(cchem,"") // ": " // trim(str) // loaded_fields(syl)
+                goto 999
+             end if
+             call addfieldnum(str)
           end if
           wasop = .false.
+       elseif (expr(lp:lp) == '=') then
+          errmsg = "use == to compare two values"
+          goto 999
        else
+          errmsg = "unexpected character: " // expr(lp:lp)
           goto 999
        end if
     end do main
@@ -962,6 +892,7 @@ contains
     return
 
 999 continue ! could not tokenize
+    errmsg = errmsg // " (column " // string(lpt) // ")"
     tokenize = .false.
     return
   contains
@@ -991,7 +922,82 @@ contains
       if (present(fder)) toklist(ntok)%fder = fder
 
     end subroutine addtok
+
+    !> Is name a field name (key) in the system?
+    function isfieldkey(name)
+      character*(*), intent(in) :: name
+      logical :: isfieldkey
+
+      isfieldkey = .false.
+      if (present(syl)) isfieldkey = syl%fh%iskey(trim(name))
+
+    end function isfieldkey
+
+    !> Add the id of the field with this name as a number (the
+    !> argument of a chemical function).
+    subroutine addfieldnum(name)
+      character*(*), intent(in) :: name
+
+      integer :: idf
+
+      idf = syl%fh%get(trim(name),1)
+      call addtok(token_num,fval=real(idf,8))
+
+    end subroutine addfieldnum
   end function tokenize
+
+  !> Return the list of fields loaded in system syl, to append to
+  !> error messages ("; loaded fields: $0, $1"), or an empty string
+  !> if syl is not present. This routine is thread-safe.
+  function loaded_fields(syl) result(str)
+    use systemmod, only: system
+    use tools_io, only: string
+    type(system), intent(in), optional :: syl
+    character(len=:), allocatable :: str
+
+    integer :: i
+
+    str = ""
+    if (.not.present(syl)) return
+    if (allocated(syl%f)) then
+       do i = 0, syl%nf
+          if (.not.syl%f(i)%isinit) cycle
+          if (len(str) > 0) str = str // ", "
+          str = str // "$" // string(i)
+       end do
+    end if
+    if (len(str) == 0) then
+       str = "; no fields are loaded"
+    else
+       str = "; loaded fields: " // str
+    end if
+
+  end function loaded_fields
+
+  !> Return the name of the function with code c (fun_*) as it is
+  !> written in an expression, with its arguments: gtf(id), or with
+  !> argument arg if present: gtf(1), gtf(). This routine is
+  !> thread-safe.
+  function arith_usage(c,arg) result(str)
+    integer, intent(in) :: c
+    character*(*), intent(in), optional :: arg
+    character(len=:), allocatable :: str
+
+    integer :: i
+
+    str = "the function"
+    do i = 1, size(arith_names,1)
+       if (arith_names(i)%kind == arithkind_svar) cycle
+       if (arith_names(i)%code /= c) cycle
+       if (present(arg)) then
+          str = trim(arith_names(i)%name) // "(" // arg // ")"
+       else
+          str = trim(arith_names(i)%name) // trim(arith_names(i)%args)
+       end if
+       return
+    end do
+
+  end function arith_usage
 
   !> Return an operator precedence. This routine is thread-safe.
   function iprec(c)
@@ -1124,79 +1130,53 @@ contains
   !> .true. and the integer ID for the variable in c. Otherwise,
   !> return .false.. This routine is thread-safe.
   function isstructvar(fid,c,fder)
-    use tools_io, only: lower
     character*(*), intent(in) :: fid
     integer, intent(out) :: c
     character*(*), intent(in) :: fder
     logical :: isstructvar
-    logical :: fderallow
 
-    isstructvar = .true.
-    select case (trim(lower(fid)))
-    case("dnuc")
-       c = svar_dnuc
-    case("xnucx")
-       c = svar_xnucx
-    case("ynucx")
-       c = svar_ynucx
-    case("znucx")
-       c = svar_znucx
-    case("xnucc")
-       c = svar_xnucc
-    case("ynucc")
-       c = svar_ynucc
-    case("znucc")
-       c = svar_znucc
-    case("x")
-       c = svar_x
-    case("y")
-       c = svar_y
-    case("z")
-       c = svar_z
-    case("xx")
-       c = svar_xx
-    case("yx")
-       c = svar_yx
-    case("zx")
-       c = svar_zx
-    case("xc")
-       c = svar_xc
-    case("yc")
-       c = svar_yc
-    case("zc")
-       c = svar_zc
-    case("xm")
-       c = svar_xm
-    case("ym")
-       c = svar_ym
-    case("zm")
-       c = svar_zm
-    case("xxr")
-       c = svar_xxr
-    case("yxr")
-       c = svar_yxr
-    case("zxr")
-       c = svar_zxr
-    case("idnuc")
-       c = svar_idnuc
-    case("nidnuc")
-       c = svar_nidnuc
-    case("rho0nuc")
-       c = svar_rho0nuc
-    case("spcnuc")
-       c = svar_spcnuc
-    case("zatnuc")
-       c = svar_zatnuc
-    case default
-       isstructvar = .false.
-    end select
+    integer :: i
 
-    fderallow = (c==svar_dnuc).or.(c==svar_xnucx).or.(c==svar_ynucx).or.(c==svar_znucx).or.&
-       (c==svar_xnucc).or.(c==svar_ynucc).or.(c==svar_znucc).or.(c==svar_rho0nuc)
+    isstructvar = .false.
+    c = 0
+    i = arith_find(fid,arithkind_svar)
+    if (i == 0) return
+    c = arith_names(i)%code
 
-    if (.not.fderallow.and.len_trim(fder) > 0) isstructvar = .false.
+    ! only some take the atom selector (:n)
+    isstructvar = (len_trim(fder) == 0 .or. arith_names(i)%args == ":n")
 
   end function isstructvar
+
+  !> Find name in the table of names (arith_names) of the given kind
+  !> (arithkind_*; zero = any function, math or chemical),
+  !> case-insensitive. Returns its index in the table,
+  !> or zero if not found. This routine is thread-safe.
+  function arith_find(name,kind) result(idx)
+    use tools_io, only: lower
+    character*(*), intent(in) :: name
+    integer, intent(in) :: kind
+    integer :: idx
+
+    character(len=len(arith_names(1)%name)) :: lname
+    integer :: n
+
+    ! can run once per name token and evaluation point: keep it short
+    idx = 0
+    n = len_trim(name)
+    if (n > len(lname)) return
+    lname = lower(name(1:n))
+    do idx = 1, size(arith_names,1)
+       if (kind == 0) then
+          if (arith_names(idx)%kind == arithkind_svar) cycle
+       elseif (arith_names(idx)%kind /= kind) then
+          cycle
+       end if
+       if (lname == arith_names(idx)%name) return
+    end do
+    idx = 0
+
+  end function arith_find
 
   !> Evaluate field with identifier fid and field flag fder at point
   !> x0 and return the value. syl = calling system. If periodic is
@@ -1229,7 +1209,7 @@ contains
     ! recover the system pointer
     if (present(syl)) then
        if (.not.syl%isinit) then
-          errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - system not initialized'
+          errmsg = fnam() // ': system not initialized'
           return
        end if
     end if
@@ -1253,6 +1233,7 @@ contains
           case default
              ! this must be a molecular orbital
              request%avail(fieldeval_category_mo) = .true.
+             ok = .true.
              if (fderl == "homo") then
                 request%moini = id_mo_homo
              elseif (fderl == "lumo") then
@@ -1268,37 +1249,29 @@ contains
              elseif (fderl(1:1) == "a") then
                 request%moini = id_mo_a
                 ok = isinteger(request%moend,fderl(2:))
-                if (.not.ok) then
-                   errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - wrong field modifier'
-                   return
-                end if
              elseif (fderl(1:1) == "b") then
                 request%moini = id_mo_b
                 ok = isinteger(request%moend,fderl(2:))
-                if (.not.ok) then
-                   errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - wrong field modifier'
-                   return
-                end if
              else
                 request%moini = id_mo_id
                 ok = isinteger(request%moend,fderl)
-                if (.not.ok) then
-                   errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - wrong field modifier'
-                   return
-                end if
+             end if
+             if (.not.ok) then
+                errmsg = fnam() // ': unknown field modifier'
+                return
              end if
           end select
 
           ! run the field evaluation
           call syl%f(idx)%grd(x0,request,res,periodic=periodic)
           if (.not.res%valid) then
-             errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - invalid evaluation result'
+             errmsg = fnam() // ': invalid evaluation result'
              fieldeval = 0d0
              return
           end if
           if (.not.res%satisfied) then
-             errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) //&
-                ' - cannot compute the property with this field type'
+             errmsg = fnam() //&
+                ': cannot compute the property with this field type'
              fieldeval = 0d0
              return
           end if
@@ -1359,14 +1332,23 @@ contains
              fieldeval = res%fspc
           end select
        else
-          errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - unknown field'
+          errmsg = fnam() // ': unknown field' // loaded_fields(syl)
           return
        end if
     else
-       errmsg = 'field ' // trim(adjustl(fid)) // ':' // trim(adjustl(fder)) // ' - no point for field evaluation'
+       errmsg = fnam() // ': no point for field evaluation'
        return
     end if
 
+  contains
+    !> The field and modifier as written in the expression ($1:x).
+    function fnam() result(str)
+      character(len=:), allocatable :: str
+
+      str = "$" // trim(adjustl(fid))
+      if (len_trim(fder) > 0) str = str // ":" // trim(adjustl(fder))
+
+    end function fnam
   end function fieldeval
 
   !> Evaluate a structural variable at point x0 using the crystal/molecular
@@ -1654,15 +1636,13 @@ contains
   !> Read a unary operator (function) or return false and leave lp
   !> unchanged This routine is thread-safe.
   function isfunction(c,expr,lp,wasop)
-    use tools_io, only: lower
-
     logical :: isfunction
     character*(*), intent(in) :: expr
     integer, intent(inout) :: lp
     integer, intent(out) :: c
     logical, intent(in) :: wasop
 
-    integer :: lpo, ll
+    integer :: lpo, ll, i
     character*(len(expr)) :: word
 
     isfunction = .false.
@@ -1690,125 +1670,12 @@ contains
           lp = lp + 1
           if (lp > ll) exit
        end do
-       select case (trim(lower(word)))
-       case ("abs")
-          c = fun_abs
-       case ("exp")
-          c = fun_exp
-       case ("sqrt")
-          c = fun_sqrt
-       case ("floor")
-          c = fun_floor
-       case ("ceil")
-          c = fun_ceiling
-       case ("ceiling")
-          c = fun_ceiling
-       case ("round")
-          c = fun_round
-       case ("log")
-          c = fun_log
-       case ("log10")
-          c = fun_log10
-       case ("sin")
-          c = fun_sin
-       case ("asin")
-          c = fun_asin
-       case ("cos")
-          c = fun_cos
-       case ("acos")
-          c = fun_acos
-       case ("tan")
-          c = fun_tan
-       case ("atan")
-          c = fun_atan
-       case ("atan2")
-          c = fun_atan2
-       case ("sinh")
-          c = fun_sinh
-       case ("cosh")
-          c = fun_cosh
-       case ("erf")
-          c = fun_erf
-       case ("erfc")
-          c = fun_erfc
-       case ("min")
-          c = fun_min
-       case ("max")
-          c = fun_max
-       case ("xc")
-          c = fun_xc
-       case ("gtf")
-          c = fun_gtf
-       case ("vtf")
-          c = fun_vtf
-       case ("htf")
-          c = fun_htf
-       case ("gtf_kir")
-          c = fun_gtf_kir
-       case ("vtf_kir")
-          c = fun_vtf_kir
-       case ("htf_kir")
-          c = fun_htf_kir
-       case ("gkin")
-          c = fun_gkin
-       case ("kkin")
-          c = fun_kkin
-       case ("lag")
-          c = fun_l
-       case ("elf")
-          c = fun_elf
-       case ("vir")
-          c = fun_vir
-       case ("he")
-          c = fun_he
-       case ("lol")
-          c = fun_lol
-       case ("lol_kir")
-          c = fun_lol_kir
-       case ("rdg")
-          c = fun_rdg
-       case ("brhole_a1")
-          c = fun_brhole_a1
-       case ("brhole_a2")
-          c = fun_brhole_a2
-       case ("brhole_a")
-          c = fun_brhole_a
-       case ("brhole_alf1")
-          c = fun_brhole_alf1
-       case ("brhole_alf2")
-          c = fun_brhole_alf2
-       case ("brhole_alf")
-          c = fun_brhole_alf
-       case ("brhole_b1")
-          c = fun_brhole_b1
-       case ("brhole_b2")
-          c = fun_brhole_b2
-       case ("brhole_b")
-          c = fun_brhole_b
-       case ("xhcurv1")
-          c = fun_xhcurv1
-       case ("xhcurv2")
-          c = fun_xhcurv2
-       case ("xhcurv")
-          c = fun_xhcurv
-       case ("dsigs1")
-          c = fun_dsigs1
-       case ("dsigs2")
-          c = fun_dsigs2
-       case ("dsigs")
-          c = fun_dsigs
-       case ("mep")
-          c = fun_mep
-       case ("uslater")
-          c = fun_uslater
-       case ("xhole")
-          c = fun_xhole
-       case ("nheff")
-          c = fun_nheff
-       case default
+       i = arith_find(word,0)
+       if (i == 0) then
           lp = lpo
           return
-       end select
+       end if
+       c = arith_names(i)%code
     else
        lp = lpo
        return
@@ -1882,6 +1749,7 @@ contains
 #ifdef HAVE_LIBXC
     use iso_c_binding, only: c_size_t
     use xc_f03_lib_m
+    use tools_io, only: string
 #endif
     real*8, intent(inout) :: q(:)
     integer, intent(inout) :: s(:)
@@ -1893,6 +1761,9 @@ contains
 
     integer :: ia, iwantarg
     integer :: c, i
+#ifdef HAVE_LIBXC
+    integer :: ierr
+#endif
     real*8 :: a, b
     real*8, allocatable :: args(:)
     character*8 :: sia
@@ -1921,9 +1792,17 @@ contains
     if (c == fun_xc) then
        ! Functional from the xc library
 #ifdef HAVE_LIBXC
+       if (nq < 1) then
+          errmsg = "missing arguments in " // arith_usage(c)
+          return
+       end if
        ia = nint(q(nq))
        if (abs(q(nq) - ia) > 1d-13) then
           errmsg = "need an integer for the functional ID"
+          return
+       end if
+       if (ia < 1 .or. ia > maxfun) then
+          errmsg = "libxc functional ID out of range: " // string(ia)
           return
        end if
 
@@ -1931,19 +1810,26 @@ contains
        if (.not.ifun(ia)%init) then
           !$omp critical (ifuninit)
           if (.not.ifun(ia)%init) then
-             ifun(ia)%id = ia
-             call xc_f03_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
-             ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
-             ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
-             ifun(ia)%init = .true.
+             ! an id libxc does not know leaves the functional unusable
+             call xc_f03_func_init(ifun(ia)%conf, ia, XC_UNPOLARIZED, ierr)
+             if (ierr == 0) then
+                ifun(ia)%id = ia
+                ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
+                ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
+                ifun(ia)%init = .true.
+             end if
           end if
           !$omp end critical (ifuninit)
+          if (.not.ifun(ia)%init) then
+             errmsg = "unknown libxc functional ID: " // string(ia)
+             return
+          end if
        endif
 
        if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
           ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
           ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
-          errmsg = "insufficient argument list in xc"
+          errmsg = "missing arguments in " // arith_usage(c)
           return
        endif
 
@@ -1973,7 +1859,11 @@ contains
     elseif (istype(c,'binary')) then
        ! a binary operator or function
        if (nq < 2) then
-          errmsg = 'syntax error'
+          if (istype(c,'function')) then
+             errmsg = "missing arguments in " // arith_usage(c)
+          else
+             errmsg = "missing value next to an operator"
+          end if
           return
        end if
        a = q(nq-1)
@@ -2054,7 +1944,11 @@ contains
     elseif (istype(c,'unary')) then
        ! a unary operator or function
        if (nq < 1) then
-          errmsg = 'syntax error'
+          if (istype(c,'function')) then
+             errmsg = "missing argument in " // arith_usage(c)
+          else
+             errmsg = "missing value after a sign"
+          end if
           return
        end if
        select case(c)
@@ -2123,11 +2017,15 @@ contains
        endif
 
        ! Consume the extra arguments for this function
-       if (iwantarg > 1) then
-          if (nq < iwantarg) then
-             errmsg = 'syntax error'
-             return
+       if (nq < max(iwantarg,1)) then
+          if (iwantarg > 1) then
+             errmsg = "missing arguments in " // arith_usage(c)
+          else
+             errmsg = "missing field in " // arith_usage(c) // ", e.g. " // arith_usage(c,"1")
           end if
+          return
+       end if
+       if (iwantarg > 1) then
           allocate(args(iwantarg-1))
           do i = 1, iwantarg-1
              args(i) = q(nq - (iwantarg-1) + i)
@@ -2138,13 +2036,13 @@ contains
        ! An integer field identifier as the first argument
        ia = nint(q(nq))
        if (abs(ia - q(nq)) > 1d-13) then
-          errmsg = "an integer field is required as argument"
+          errmsg = arith_usage(c,"") // " takes a field number or name, e.g. " // arith_usage(c,"1")
           return
        end if
        write (sia,'(I8)') ia
        sia = adjustl(sia)
        if (.not.syl%goodfield(key=sia)) then
-          errmsg = 'wrong field: ' // trim(sia)
+          errmsg = "unknown field in " // arith_usage(c,"") // ": " // trim(sia) // loaded_fields(syl)
           return
        end if
 
@@ -2153,6 +2051,9 @@ contains
        if (len_trim(errmsg) > 0) return
        if (iwantarg > 1) &
           deallocate(args)
+    elseif (c == fun_openpar) then
+       errmsg = "mismatched parentheses: '(' without ')'"
+       return
     else
        errmsg = 'error in expression'
        return

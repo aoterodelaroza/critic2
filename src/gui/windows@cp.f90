@@ -546,16 +546,16 @@ contains
   !> the property; then errmsg is empty, and it is the reason if the
   !> property could not be added. The name and expression are cleared
   !> after adding.
-  module function pointprop_add_form(isys,ifield,kind,name,expr,suffix,atwhat,ttshown,errmsg)&
+  module function pointprop_add_form(isys,ifield,kind,name,expr,exprerr,suffix,atwhat,ttshown,errmsg)&
      result(added)
     use systems, only: sys
     use systemmod, only: npointprop_keywords, pointprop_keywords, pointprop_keyword_desc
     use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_combo_simple,&
-       iw_arith_help_button
+       iw_expression_helper, iw_exprctx_point
     use tools_io, only: string, equali
     integer, intent(in) :: isys, ifield
     integer, intent(inout) :: kind
-    character(len=*), intent(inout) :: name, expr
+    character(len=*), intent(inout) :: name, expr, exprerr
     character(len=*), intent(in) :: suffix, atwhat
     logical, intent(inout) :: ttshown
     character(len=:), allocatable, intent(inout) :: errmsg
@@ -564,9 +564,10 @@ contains
     character(len=:), allocatable :: stropt, sttip, lname, lexpr, lerr
     character*10 :: name10
     integer :: k
-    logical :: ldum, clicked
+    logical :: ldum, clicked, echanged
 
     added = .false.
+    echanged = .false.
 
     ! the kind: an expression, or one of the keywords
     stropt = "Expression" // c_null_char
@@ -583,13 +584,32 @@ contains
        ldum = iw_inputtext("##" // suffix // "ppname",bufsize=11,textf=name,width=10,sameline=.true.)
        call iw_tooltip("Name of the new property (at most 10 characters, no spaces)",ttshown)
        call iw_text("Expression",alignframe=.true.)
-       ldum = iw_inputtext("##" // suffix // "ppexpr",bufsize=1023,textf=expr,width=36,sameline=.true.)
+       echanged = iw_inputtext("##" // suffix // "ppexpr",bufsize=1023,textf=expr,width=36,sameline=.true.)
        call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
           & ""$1 - $2"" or ""-log($1)""), evaluated at " // atwhat,ttshown)
-       call iw_arith_help_button("##" // suffix // "ppexprhelp",ttshown)
+       if (iw_expression_helper("##" // suffix // "ppexprhelp",isys,iw_exprctx_point,textf=expr,&
+          ttshown=ttshown,ifield=ifield)) echanged = .true.
     end if
     clicked = iw_button("Add##" // suffix // "ppadd",sameline=.true.)
     call iw_tooltip("Add the property to the system and show it in the table",ttshown)
+
+    ! check the expression as it is typed
+    if (kind == 0) then
+       if (echanged) then
+          exprerr = ""
+          if (len_trim(expr) > 0) then
+             call sys(isys)%check_expression(trim(expr),lerr)
+             exprerr = lerr
+          end if
+       end if
+       if (len_trim(expr) > 0) then
+          if (len_trim(exprerr) > 0) then
+             call iw_text(trim(exprerr),danger=.true.,wrap=.true.)
+          else
+             call iw_text("valid expression",disabled=.true.)
+          end if
+       end if
+    end if
     if (.not.clicked) return
 
     ! validate the name and the expression, or build them from the keyword
@@ -638,6 +658,7 @@ contains
     if (kind == 0) then
        name = ""
        expr = ""
+       exprerr = ""
     end if
     added = .true.
 
@@ -1150,8 +1171,7 @@ contains
     !> the form to add point properties (as POINTPROP).
     subroutine draw_props_section()
       use gui_main, only: g
-      use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_arith_help_button,&
-         iw_intstepper
+      use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_intstepper
 
       character(kind=c_char,len=:), allocatable, target :: strsec, strtab
       integer(c_int) :: jc, flt
@@ -1253,7 +1273,7 @@ contains
 
       ! add a point property: an expression, or one of the keywords
       ! of POINTPROP, for the field of the window
-      if (pointprop_add_form(isys,ifield,w%cp%ppkind,w%cp%ppname,w%cp%ppexpr,"cp",&
+      if (pointprop_add_form(isys,ifield,w%cp%ppkind,w%cp%ppname,w%cp%ppexpr,w%cp%ppexprerr,"cp",&
          "the critical points",ttshown,w%errmsg)) call pp_sync()
 
       call igTreePop()

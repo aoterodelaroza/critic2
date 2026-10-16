@@ -355,7 +355,7 @@ contains
 
       ! add a point property: an expression, or one of the keywords
       ! of POINTPROP, for the field of the window
-      ldum = pointprop_add_form(isys,w%pt%fref%id,w%pt%ppkind,w%pt%ppname,w%pt%ppexpr,"point",&
+      ldum = pointprop_add_form(isys,w%pt%fref%id,w%pt%ppkind,w%pt%ppname,w%pt%ppexpr,w%pt%ppexprerr,"point",&
          "the point",ttshown,w%errmsg)
 
       call igTreePop()

@@ -35,7 +35,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright,&
        iw_helpermark, iw_begintabitem, iw_inputtext, iw_inputint, iw_inputint3,&
        iw_inputfloat, iw_checkbox, iw_combo_simple, iw_field_combo, iw_arith_help,&
-       iw_arith_help_button, iw_calcwidth
+       iw_expression_helper, iw_exprctx_field, iw_calcwidth
     use tools_io, only: string, nameguess, quoteword
     class(window), intent(inout), target :: w
 
@@ -396,8 +396,9 @@ contains
       call iw_text("Expression",highlight=.true.,alignframe=.true.)
       call iw_helpermark("Arithmetic expression used to compute the new field, typically&
          & involving the other fields of this system (e.g. $1+$2)."//newline//&
-         iw_arith_help//newline//"Click the Help button for more info.")
-      call iw_arith_help_button("##loadfieldexprhelp",ttshown)
+         iw_arith_help//newline//"Use the Insert button for fields, functions, and examples.")
+      if (iw_expression_helper("##loadfieldexprhelp",isys,iw_exprctx_field,texta=w%lf%expr,&
+         ttshown=ttshown)) call validate_expr()
       if (iw_inputtext("##loadfieldexprtext",bufsize=2047,texta=w%lf%expr)) &
          call validate_expr()
       if (len_trim(w%lf%expr) > 0) then
@@ -418,6 +419,22 @@ contains
       call iw_tooltip("Evaluate the expression once on a grid",ttshown)
       if (w%lf%exprdom == 2) &
          call draw_grid_size()
+
+      ! what the new field will be
+      if (len_trim(w%lf%expr) > 0 .and. len_trim(w%lf%exprerr) == 0) then
+         if (w%lf%exprdom == 0 .and. all(w%lf%exprgridn > 0)) then
+            call iw_text("The new field will be a " // string(w%lf%exprgridn(1)) // "x" //&
+               string(w%lf%exprgridn(2)) // "x" // string(w%lf%exprgridn(3)) //&
+               " grid, like the fields in the expression.",disabled=.true.,wrap=.true.)
+         elseif (w%lf%exprdom == 2) then
+            call iw_text("The new field will be a grid: the expression is evaluated once,&
+               & at every grid point.",disabled=.true.,wrap=.true.)
+         else
+            call iw_text("The new field will be a ghost field: the expression is evaluated&
+               & every time the field is needed, and its derivatives are numerical.",&
+               disabled=.true.,wrap=.true.)
+         end if
+      end if
 
     end subroutine draw_source_expression
 
@@ -589,9 +606,14 @@ contains
       character(len=:), allocatable :: errm
 
       w%lf%exprerr = ""
+      w%lf%exprgridn = 0
       if (len_trim(w%lf%expr) == 0) return
       call sys(isys)%check_expression(w%lf%expr,errm)
-      if (len_trim(errm) > 0) w%lf%exprerr = trim(errm)
+      if (len_trim(errm) > 0) then
+         w%lf%exprerr = trim(errm)
+      else
+         w%lf%exprgridn = sys(isys)%expression_grid_size(w%lf%expr,errm)
+      end if
 
     end subroutine validate_expr
 
