@@ -180,6 +180,45 @@ contains
     end function cart
   end subroutine plane_def_grid
 
+  !> If autonpts, the number of points along each side of the region
+  !> of the map in system isys (nx, ny): the cells of the grid are
+  !> (nearly) square, with sides of plane_auto_spacing, or less if the
+  !> longer side would have fewer than plane_auto_nmin points, or more
+  !> if there would be more than plane_auto_ntot points in all or more
+  !> than plane_npts_max along a side.
+  module subroutine plane_def_autopoints(d,isys)
+    use param, only: bohrtoa
+    class(plane_def), intent(inout) :: d
+    integer, intent(in) :: isys
+
+    real*8 :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3), l1, l2, h, t
+    character(len=:), allocatable :: errmsg
+
+    if (.not.d%autonpts) return
+    call d%grid(isys,x0,uu,vv,a0,e1,e2,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! the sides (bohr), and the spacing
+    l1 = norm2(uu) * (d%nx - 1)
+    l2 = norm2(vv) * (d%ny - 1)
+    if (max(l1,l2) <= 0d0) return
+    h = min(plane_auto_spacing / bohrtoa,max(l1,l2) / (plane_auto_nmin - 1))
+    if ((l1 / h + 1d0) * (l2 / h + 1d0) > plane_auto_ntot) &
+       h = h * sqrt((l1 / h + 1d0) * (l2 / h + 1d0) / plane_auto_ntot)
+    h = max(h,max(l1,l2) / (plane_npts_max - 1))
+
+    ! the sides come from the grid of the current nx and ny, with a
+    ! rounding error that depends on them: keep them unless they are
+    ! more than half a point away, or a side near k + 1/2 points could
+    ! alternate between two values (and the map be calculated again in
+    ! every frame)
+    t = l1 / h + 1d0
+    if (abs(t - d%nx) > 0.5d0 + 1d-6) d%nx = int(max(min(nint(t),plane_npts_max),plane_npts_min),c_int)
+    t = l2 / h + 1d0
+    if (abs(t - d%ny) > 0.5d0 + 1d-6) d%ny = int(max(min(nint(t),plane_npts_max),plane_npts_min),c_int)
+
+  end subroutine plane_def_autopoints
+
   !> Everything the values of the map in system isys depend on: the
   !> region, the number of points, the quantity, the geometry, and the
   !> fields (all of them, for an expression; which enters through the
@@ -454,6 +493,7 @@ contains
 
     associate(d => r%slice%d, c => r%slice%c)
       ! the values (and with them, the mesh and the lines go stale)
+      if (.not.r%slice%nocalc) call d%autopoints(isys)
       call d%key(isys,key)
       stale = .not.allocated(c%key) .or. .not.allocated(c%keyexpr)
       if (.not.stale) stale = (size(c%key) /= size(key))

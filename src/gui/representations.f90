@@ -803,6 +803,7 @@ module representations
      real*8 :: margin = 0d0 ! extra length added on every side (Å or bohr)
      integer(c_int) :: nx = 101 ! number of points along the first side
      integer(c_int) :: ny = 101 ! number of points along the second side
+     logical :: autonpts = .true. ! nx and ny follow from the size of the region (autopoints)
      ! the quantity: a field and its PLANE property, or an expression
      logical :: isexpr = .false.
      type(field_ref) :: fref
@@ -828,6 +829,7 @@ module representations
    contains
      procedure :: set_defaults => plane_def_set_defaults ! the plane for a new system
      procedure :: grid => plane_def_grid ! the grid of the region
+     procedure :: autopoints => plane_def_autopoints ! nx and ny from the size of the region
      procedure :: key => plane_def_key ! what the values depend on
      procedure :: values => plane_def_values ! the values on the grid
      procedure :: levels => plane_def_levels ! the contour levels
@@ -844,6 +846,12 @@ module representations
   integer(c_int), parameter, public :: plane_npts_min = 2
   integer(c_int), parameter, public :: plane_npts_max = 500 ! the values are calculated in the frame
   integer(c_int), parameter, public :: plane_nlev_max = 1000
+  ! the automatic number of points: the spacing aimed at (Å), the
+  ! smallest number of points along the longer side, and the largest
+  ! number of points in all
+  real*8, parameter, public :: plane_auto_spacing = 0.05d0
+  integer, parameter, public :: plane_auto_nmin = 101
+  integer, parameter, public :: plane_auto_ntot = 250000
 
   !> The values and the contour lines of a plane map object, cached
   !> (calculated again when their keys change; moved, not copied, by
@@ -1847,6 +1855,10 @@ module representations
        class(plane_def), intent(inout) :: d
        integer, intent(in) :: isys
      end subroutine plane_def_set_defaults
+     module subroutine plane_def_autopoints(d,isys)
+       class(plane_def), intent(inout) :: d
+       integer, intent(in) :: isys
+     end subroutine plane_def_autopoints
      module subroutine plane_def_grid(d,isys,x0,uu,vv,a0,e1,e2,errmsg)
        class(plane_def), intent(in) :: d
        integer, intent(in) :: isys

@@ -602,7 +602,7 @@ module windows
      logical :: showcps = .true. ! the critical points too (or only the atoms)
      real(c_float) :: rgblabel(3) = (/1._c_float,1._c_float,1._c_float/) ! their color
      real(c_float) :: lscale = 1._c_float ! their size (relative to the interface font)
-     integer :: ltext = 0 ! the text of the atoms (0 = species name, 1 = atomic symbol, 2 = atom name)
+     integer :: ltext = 1 ! the text of the atoms (0 = species name, 1 = atomic symbol, 2 = atom name)
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
      ! pending pick in the view: the point (1-3)
      logical :: picking = .false.
@@ -629,7 +629,7 @@ module windows
      ! direction of the line there, its length (plot units), its level,
      ! where it is in cpos (icval(1) = 1) or cneg (2), first row and
      ! number of points, and the index of the level (icval(4))
-     logical :: showcval = .true.
+     logical :: showcval = .false.
      real(c_float) :: vscale = 1._c_float ! their size (relative to the interface font)
      integer :: ncval = 0
      real*8, allocatable :: xcval(:,:,:), tcval(:,:,:), lcval(:), zcval(:)

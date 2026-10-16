@@ -502,6 +502,9 @@ contains
            call io%x(q,'margin',d%margin)
            call io%x(q,'nx',d%nx,plane_npts_min,plane_npts_max)
            call io%x(q,'ny',d%ny,plane_npts_min,plane_npts_max)
+           ! scenes written before automatic points have none
+           if (io%reading) d%autonpts = .false.
+           call io%x(q,'autonpts',d%autonpts)
            call io%x(q,'isexpr',d%isexpr)
            call xref(q,'field',d%fref)
            call io%x(q,'property',d%nti,0,11)

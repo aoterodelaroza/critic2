@@ -21,7 +21,8 @@ submodule (windows) plane
   use interfaces_cimgui
   use param, only: bohrtoa
   use tools_math, only: niso_lin, niso_log, niso_atan, niso_bader, niso_manual
-  use representations, only: plane_npts_min, plane_npts_max, plane_nlev_max
+  use representations, only: plane_npts_min, plane_npts_max, plane_nlev_max, plane_auto_spacing,&
+     plane_auto_ntot
   implicit none
 
   ! transient markers in the view: the three points (origin, end of
@@ -890,6 +891,7 @@ contains
       fresh = .true.
 
       ! everything the values depend on, and the system
+      call w%pl%d%autopoints(isys)
       call w%pl%d%key(isys,key)
       key = [key,w%pl%sys%uid]
       stale = .not.allocated(w%pl%key) .or. .not.allocated(w%pl%keyexpr)
@@ -1345,16 +1347,25 @@ contains
          "; negative removes it)",ttshown)
 
       call iw_text("Points",highlight=.true.,alignframe=.true.,sameline=.true.)
-      ch = iw_inputint("##planenx",d%nx,width=6,sameline=.true.,notlive=.true.)
-      d%nx = max(min(d%nx,plane_npts_max),plane_npts_min)
+      ch = iw_checkbox("Auto##planeautonpts",d%autonpts,sameline=.true.)
       changed = changed .or. ch
-      call iw_tooltip("Number of points along the first side (" // string(plane_npts_min) // " to " //&
-         string(plane_npts_max) // ")",ttshown)
-      ch = iw_inputint("##planeny",d%ny,width=6,sameline=.true.,notlive=.true.)
-      d%ny = max(min(d%ny,plane_npts_max),plane_npts_min)
-      changed = changed .or. ch
-      call iw_tooltip("Number of points along the second side (" // string(plane_npts_min) // " to " //&
-         string(plane_npts_max) // ")",ttshown)
+      call iw_tooltip("Choose the number of points from the size of the region: square cells&
+         & of " // string(plane_auto_spacing,'f',decimal=2) // " Å, coarser for very large&
+         & regions (at most " // string(plane_auto_ntot) // " points)",ttshown)
+      if (d%autonpts) then
+         call iw_text(string(d%nx) // " x " // string(d%ny),sameline=.true.)
+      else
+         ch = iw_inputint("##planenx",d%nx,width=6,sameline=.true.,notlive=.true.)
+         d%nx = max(min(d%nx,plane_npts_max),plane_npts_min)
+         changed = changed .or. ch
+         call iw_tooltip("Number of points along the first side (" // string(plane_npts_min) // " to " //&
+            string(plane_npts_max) // ")",ttshown)
+         ch = iw_inputint("##planeny",d%ny,width=6,sameline=.true.,notlive=.true.)
+         d%ny = max(min(d%ny,plane_npts_max),plane_npts_min)
+         changed = changed .or. ch
+         call iw_tooltip("Number of points along the second side (" // string(plane_npts_min) // " to " //&
+            string(plane_npts_max) // ")",ttshown)
+      end if
 
     end subroutine draw_region
 
