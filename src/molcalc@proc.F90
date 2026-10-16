@@ -226,15 +226,24 @@ contains
     use meshmod, only: mesh
     use global, only: mesh_type, mesh_level
     use arithmetic, only: setvariable
-    use tools_io, only: string, uout
+    use tools_io, only: string, uout, ferror, faterr
+    use types, only: vstring
     character*(*), intent(in) :: expr, savevar
 
     type(mesh) :: m
     real*8, allocatable :: ff(:)
     real*8 :: fval, fsum
     integer :: i
-    logical :: ok
-    character(len=:), allocatable :: lerrs
+    logical :: failed
+    type(vstring) :: lerrs
+    character(len=:), allocatable :: errmsg
+
+    ! errors that do not depend on the point (syntax, unknown names)
+    call sy%check_expression(expr,errmsg)
+    if (len_trim(errmsg) > 0) then
+       call ferror("molcalc_expression","error in expression " // trim(expr) // ": " // errmsg,faterr)
+       return
+    end if
 
     call m%gen(sy%c,mesh_type,mesh_level,sy%f(sy%iref)%zpsp)
 
@@ -242,14 +251,31 @@ contains
     write (uout,'("  Expression: ",A)') trim(expr)
     call m%report()
 
+    ! errors at some points (log of a negative number,...): keep
+    ! the first one and skip the remaining points. The private error
+    ! string is in a vstring: gfortran mishandles private
+    ! deferred-length character variables
     allocate(ff(m%n))
-    !$omp parallel do private(fval,ok,lerrs)
+    errmsg = ""
+    failed = .false.
+    !$omp parallel do private(fval,lerrs)
     do i = 1, m%n
-       lerrs = ""
-       fval = sy%eval(expr,lerrs,m%x(:,i))
+       if (failed) cycle
+       lerrs%s = ""
+       fval = sy%eval(expr,lerrs%s,m%x(:,i))
        ff(i) = fval
+       if (len_trim(lerrs%s) > 0) then
+          !$omp critical (molcalc_err)
+          if (.not.failed) errmsg = lerrs%s
+          failed = .true.
+          !$omp end critical (molcalc_err)
+       end if
     end do
     !$omp end parallel do
+    if (failed) then
+       call ferror("molcalc_expression","error in expression " // trim(expr) // ": " // errmsg,faterr)
+       return
+    end if
     fsum = sum(ff * m%w)
     write (uout,'("+ Integral(",A,") = ",A/)') string(expr), string(fsum,'f',14,8)
     deallocate(ff)

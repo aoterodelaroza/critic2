@@ -27,6 +27,9 @@ submodule (arithmetic) proc
   ! function tokenize(expr,ntok,toklist,lpexit,syl,errmsg)
   ! function loaded_fields(syl) result(str)
   ! function arith_usage(c,arg) result(str)
+  ! function arith_code(c) result(idx)
+  ! function arith_nargs(idx) result(n)
+  ! function check_nargs(c,na) result(errmsg)
   ! function iprec(c)
   ! function iassoc(c)
   ! function istype(c,type,iwantarg)
@@ -38,7 +41,7 @@ submodule (arithmetic) proc
   ! function isoperator(c,expr,lp)
   ! function isfunction(c,expr,lp,wasop)
   ! function isidentifier(id,expr,lp,fder)
-  ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,errmsg)
+  ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,errmsg,nargs)
   ! subroutine pop_grid(q,nq,s,ns,fail)
   ! function chemfunction(c,sia,x0,args,sptr,periodic,errmsg) result(q)
 
@@ -119,7 +122,7 @@ contains
     type(token), intent(in), optional, target :: toklistin(:)
 
     integer :: i, ntok, lp
-    integer :: c, s(100)
+    integer :: c, s(100), sb(100), nb
     logical :: again, ok
     real*8 :: q(100)
     integer :: nq, ns
@@ -183,9 +186,14 @@ contains
           ns = ns + 1
           s(ns) = c
        elseif (tl(i)%type == token_lpar) then
-          ! left parenthesis
+          ! left parenthesis; if it opens the arguments of a function,
+          ! remember the queue length to count them at the closing one
           ns = ns + 1
           s(ns) = fun_openpar
+          sb(ns) = -1
+          if (i > 1) then
+             if (tl(i-1)%type == token_fun) sb(ns) = nq
+          end if
        elseif (tl(i)%type == token_rpar) then
           ! right parenthesis
            do while (ns > 0)
@@ -197,14 +205,15 @@ contains
               errmsg = "mismatched parentheses: ')' without '('"
               return
            end if
+           nb = sb(ns)
            ns = ns - 1
-           ! if the top of the stack is a function, pop it
-           if (ns > 0) then
-              c = s(ns)
-              if (istype(c,'function')) then
-                 call pop(q,nq,s,ns,x0,syl,periodic,errmsg)
-                 if (len_trim(errmsg) > 0) return
-              end if
+           ! if these were the arguments of a function, check their
+           ! number and apply the function
+           if (nb >= 0) then
+              errmsg = check_nargs(s(ns),nq-nb)
+              if (len_trim(errmsg) > 0) return
+              call pop(q,nq,s,ns,x0,syl,periodic,errmsg,nq-nb)
+              if (len_trim(errmsg) > 0) return
            end if
         elseif (tl(i)%type == token_comma) then
            ! a comma
@@ -252,7 +261,9 @@ contains
   !> Evaluate an arithmetic expression (expr) on a grid with
   !> dimensions n. sptr = C pointer to the system. Returns the grid
   !> of values in f (and iok=.true.) if success, or zero and iok=.false.
-  !> if failed.
+  !> if failed. A failure gives no message: the callers then
+  !> evaluate the expression point by point, which reports the
+  !> errors.
   module subroutine eval_grid(n,expr,sptr,f,iok)
     use ieee_arithmetic, only: ieee_is_finite
     use ieee_exceptions, only: ieee_get_halting_mode, ieee_set_halting_mode, ieee_usual
@@ -267,7 +278,7 @@ contains
     logical, intent(out) :: iok
 
     integer :: i, ntok, lp, idx
-    integer :: c, s(100)
+    integer :: c, s(100), sb(100), nb
     logical :: again, ok, ifail
     integer :: nq, ns
     real*8, allocatable :: q(:,:,:,:)
@@ -339,9 +350,13 @@ contains
           ns = ns + 1
           s(ns) = c
        elseif (toklist(i)%type == token_lpar) then
-          ! left parenthesis
+          ! left parenthesis (see eval_core)
           ns = ns + 1
           s(ns) = fun_openpar
+          sb(ns) = -1
+          if (i > 1) then
+             if (toklist(i-1)%type == token_fun) sb(ns) = nq
+          end if
        elseif (toklist(i)%type == token_rpar) then
           ! right parenthesis
           do while (ns > 0)
@@ -350,14 +365,14 @@ contains
              if (ifail) goto 999
           end do
           if (ns == 0) goto 999
+          nb = sb(ns)
           ns = ns - 1
-          ! if the top of the stack is a function, pop it
-          if (ns > 0) then
-             c = s(ns)
-             if (istype(c,'function')) then
-                call pop_grid(q,nq,s,ns,ifail)
-                if (ifail) goto 999
-             end if
+          ! if these were the arguments of a function, check their
+          ! number and apply the function
+          if (nb >= 0) then
+             if (len_trim(check_nargs(s(ns),nq-nb)) > 0) goto 999
+             call pop_grid(q,nq,s,ns,ifail)
+             if (ifail) goto 999
           end if
        elseif (toklist(i)%type == token_comma) then
           ! a comma
@@ -405,10 +420,11 @@ contains
   end subroutine eval_grid
 
   !> Parse an expression (expr) and return the n field ids in it
-  !> (idlist).  sptr = C pointer to the calling system. This routine
-  !> is thread-safe. If error, return non-zero-length string in
-  !> errmsg.
-  module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr)
+  !> (idlist).  sptr = C pointer to the calling system. If chemargs,
+  !> include the fields given as arguments of chemical functions
+  !> (gtf(rho), gtf(2)). This routine is thread-safe. If error,
+  !> return non-zero-length string in errmsg.
+  module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr,chemargs)
     use systemmod, only: system
     use tools_io, only: string
     use types, only: realloc
@@ -419,8 +435,10 @@ contains
     integer, intent(out) :: n
     character(len=mlen), allocatable, intent(inout) :: idlist(:)
     type(c_ptr), intent(in) :: sptr
+    logical, intent(in), optional :: chemargs
 
     integer :: lp, i
+    logical :: dochem, keep
     logical :: ok
     integer :: ntok
     type(token), allocatable :: toklist(:)
@@ -445,9 +463,13 @@ contains
     if (.not. ok) return
 
     ! return the ids of the fields in an array
+    dochem = .false.
+    if (present(chemargs)) dochem = chemargs
     n = 0
     do i = 1, ntok
-       if (toklist(i)%type == token_field) then
+       keep = toklist(i)%type == token_field
+       if (dochem .and. toklist(i)%type == token_num) keep = len_trim(toklist(i)%sval) > 0
+       if (keep) then
           n = n + 1
           if (n > size(idlist)) call realloc(idlist,2*n)
           idlist(n) = trim(toklist(i)%sval)
@@ -767,8 +789,18 @@ contains
        enddo
        lpt = lp
        if (isnumber(a,expr,lp)) then
-          ! a number (without sign)
-          call addtok(token_num,fval=a)
+          ! a number (without sign); if it is the field of a chemical
+          ! function, keep it in sval for fields_in_eval, as addfieldnum
+          if (inchem .and. ntok >= 2) then
+             if (toklist(ntok)%type == token_lpar .and. toklist(ntok-1)%type == token_fun .and.&
+                toklist(ntok-1)%ival == cchem) then
+                call addtok(token_num,fval=a,sval=string(nint(a)))
+             else
+                call addtok(token_num,fval=a)
+             end if
+          else
+             call addtok(token_num,fval=a)
+          end if
           wasop = .false.
        elseif (isfunction(c,expr,lp,wasop)) then
           ! a function
@@ -791,6 +823,12 @@ contains
           npar = npar + 1
        elseif (expr(lp:lp) == ')') then
           ! a right parenthesis
+          if (ntok > 0) then
+             if (toklist(ntok)%type == token_comma) then
+                errmsg = "empty argument before ')'"
+                goto 999
+             end if
+          end if
           call addtok(token_rpar)
           wasop = .false.
           lp = lp + 1
@@ -798,6 +836,12 @@ contains
           if (npar <= 0 .and. inchem) inchem = .false.
        elseif (expr(lp:lp) == ',') then
           ! a comma
+          if (ntok > 0) then
+             if (toklist(ntok)%type == token_comma .or. toklist(ntok)%type == token_lpar) then
+                errmsg = "empty argument before ','"
+                goto 999
+             end if
+          end if
           call addtok(token_comma)
           wasop = .true.
           lp = lp + 1
@@ -934,14 +978,15 @@ contains
     end function isfieldkey
 
     !> Add the id of the field with this name as a number (the
-    !> argument of a chemical function).
+    !> argument of a chemical function). The name is kept in sval
+    !> for fields_in_eval.
     subroutine addfieldnum(name)
       character*(*), intent(in) :: name
 
       integer :: idf
 
       idf = syl%fh%get(trim(name),1)
-      call addtok(token_num,fval=real(idf,8))
+      call addtok(token_num,fval=real(idf,8),sval=trim(name))
 
     end subroutine addfieldnum
   end function tokenize
@@ -999,6 +1044,74 @@ contains
 
   end function arith_usage
 
+  !> Return the index in the table of names (arith_names) of the
+  !> function with code c (fun_*), or zero if c is not a function
+  !> (operators, parentheses). This routine is thread-safe.
+  function arith_code(c) result(idx)
+    integer, intent(in) :: c
+    integer :: idx
+
+    do idx = 1, size(arith_names,1)
+       if (arith_names(idx)%kind == arithkind_svar) cycle
+       if (arith_names(idx)%code == c) return
+    end do
+    idx = 0
+
+  end function arith_code
+
+  !> Return the number of arguments of the function with index idx
+  !> in the table of names (arith_names), from the argument list in
+  !> the table: (x) = 1, (x,y) = 2,... Returns -1 for xc(), which
+  !> takes a number that depends on the functional. This routine is
+  !> thread-safe.
+  function arith_nargs(idx) result(n)
+    integer, intent(in) :: idx
+    integer :: n
+
+    integer :: i
+
+    if (arith_names(idx)%code == fun_xc) then
+       n = -1
+       return
+    end if
+    n = 1
+    do i = 1, len_trim(arith_names(idx)%args)
+       if (arith_names(idx)%args(i:i) == ',') n = n + 1
+    end do
+
+  end function arith_nargs
+
+  !> Check that the function with code c (fun_*) was given na
+  !> arguments, and return an error message if it was not, or an
+  !> empty string if it was. xc() needs at least two here; its exact
+  !> number of arguments depends on the functional and is checked in
+  !> pop. This routine is thread-safe.
+  function check_nargs(c,na) result(errmsg)
+    integer, intent(in) :: c, na
+    character(len=:), allocatable :: errmsg
+
+    integer :: idx, want
+
+    errmsg = ""
+    idx = arith_code(c)
+    if (idx == 0) return
+    want = arith_nargs(idx)
+    if (want < 0) then
+       if (na < 2) errmsg = "missing arguments in " // arith_usage(c)
+    elseif (na > want) then
+       errmsg = "too many arguments in " // arith_usage(c)
+    elseif (na < want) then
+       if (arith_names(idx)%kind == arithkind_chem .and. want == 1) then
+          errmsg = "missing field in " // arith_usage(c) // ", e.g. " // arith_usage(c,"1")
+       elseif (want == 1) then
+          errmsg = "missing argument in " // arith_usage(c)
+       else
+          errmsg = "missing arguments in " // arith_usage(c)
+       end if
+    end if
+
+  end function check_nargs
+
   !> Return an operator precedence. This routine is thread-safe.
   function iprec(c)
     integer :: iprec
@@ -1048,81 +1161,49 @@ contains
   !> Return the type of stack element (operator, function, unary,
   !> binary). If iwantarg is present and c is a chemical function,
   !> return the number of arguments the chemical function wants;
-  !> otherwise, return zero. This routine is thread-safe.
+  !> otherwise, return zero. The functions and their arguments come
+  !> from the table of names (arith_names); xc() is not a chemical
+  !> function here because it takes field values, not a field id.
+  !> This routine is thread-safe.
   function istype(c,type,iwantarg)
     integer, intent(in) :: c
     character*(*), intent(in) :: type
     integer, intent(inout), optional :: iwantarg
     logical :: istype
 
+    integer :: idx
+
     if (present(iwantarg)) iwantarg = 0
     istype = .false.
-    if (type == 'function') then
-       istype = &
-          c == fun_abs .or. c == fun_exp .or. c == fun_sqrt .or. &
-          c == fun_floor .or. c == fun_ceiling .or. c == fun_round .or. &
-          c == fun_log .or. c == fun_log10 .or. c == fun_sin .or. &
-          c == fun_asin .or. c == fun_cos .or. c == fun_acos .or. &
-          c == fun_tan .or. c == fun_atan .or. c == fun_atan2 .or. &
-          c == fun_sinh .or. c == fun_cosh .or. c == fun_erf .or. &
-          c == fun_erfc .or. c == fun_min .or. c == fun_max .or. &
-          c == fun_xc .or. c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
-          c == fun_gtf_kir .or. c == fun_vtf_kir .or. c == fun_htf_kir .or.&
-          c == fun_gkin .or. c == fun_kkin .or. c == fun_l .or. c == fun_elf .or.&
-          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir .or.&
-          c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or. &
-          c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
-          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. &
-          c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
-          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole .or.&
-          c == fun_rdg
-    elseif (type == 'chemfunction') then
-       istype = &
-          c == fun_gtf .or. c == fun_vtf .or. c == fun_htf .or. &
-          c == fun_gtf_kir .or. c == fun_vtf_kir .or. c == fun_htf_kir .or.&
-          c == fun_gkin .or. c == fun_kkin .or. c == fun_l .or. c == fun_elf .or.&
-          c == fun_vir .or. c == fun_he .or. c == fun_lol .or. c == fun_lol_kir .or.&
-          c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or. &
-          c == fun_brhole_alf1 .or. c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. &
-          c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or.&
-          c == fun_xhcurv1 .or. c == fun_xhcurv2 .or. c == fun_xhcurv .or.&
-          c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs .or.&
-          c == fun_mep .or. c == fun_uslater .or. c == fun_nheff .or. c == fun_xhole .or.&
-          c == fun_rdg
-       if (present(iwantarg)) then
-          if (c == fun_xhole) then
-             iwantarg = 4
-          else
-             iwantarg = 1
-          end if
-       end if
 
-    elseif (type == 'operator') then
+    ! operators and signs
+    select case (type)
+    case ('operator','binary')
        istype = &
           c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
           c == fun_equal .or. c == fun_neq .or. c == fun_and .or.&
           c == fun_or .or. c == fun_plus .or. c == fun_minus .or.&
           c == fun_prod .or. c == fun_div .or. c == fun_modulo .or.&
           c == fun_great .or. c == fun_less
-    elseif (type == 'binary') then
-       istype = &
-          c == fun_atan2 .or. c == fun_min .or. c == fun_max .or.&
-          c == fun_power .or. c == fun_leq .or. c == fun_geq .or.&
-          c == fun_equal .or. c == fun_neq .or. c == fun_and .or.&
-          c == fun_or .or. c == fun_plus .or. c == fun_minus .or.&
-          c == fun_prod .or. c == fun_div .or. c == fun_modulo .or.&
-          c == fun_great .or. c == fun_less
-    elseif (type == 'unary') then
-       istype = &
-          c == fun_uplus .or. c == fun_uminus .or. c == fun_abs .or.&
-          c == fun_exp .or. c == fun_sqrt .or. c == fun_floor .or.&
-          c == fun_ceiling .or. c == fun_round .or. c == fun_log .or.&
-          c == fun_log10 .or. c == fun_sin .or. c == fun_asin .or.&
-          c == fun_cos .or. c == fun_acos .or. c == fun_tan .or.&
-          c == fun_atan .or. c == fun_sinh .or. c == fun_cosh .or.&
-          c == fun_erf .or. c == fun_erfc
-    endif
+    case ('unary')
+       istype = c == fun_uplus .or. c == fun_uminus
+    end select
+    if (istype .or. type == 'operator') return
+
+    ! functions, from the table
+    idx = arith_code(c)
+    if (idx == 0) return
+    select case (type)
+    case ('function')
+       istype = .true.
+    case ('chemfunction')
+       istype = arith_names(idx)%kind == arithkind_chem .and. c /= fun_xc
+       if (istype .and. present(iwantarg)) iwantarg = arith_nargs(idx)
+    case ('binary')
+       istype = arith_names(idx)%kind == arithkind_math .and. arith_nargs(idx) == 2
+    case ('unary')
+       istype = arith_names(idx)%kind == arithkind_math .and. arith_nargs(idx) == 1
+    end select
 
   endfunction istype
 
@@ -1298,13 +1379,13 @@ contains
              fieldeval = res%gf(3)
           case ("xx")
              fieldeval = res%hf(1,1)
-          case ("xy")
+          case ("xy","yx")
              fieldeval = res%hf(1,2)
-          case ("xz")
+          case ("xz","zx")
              fieldeval = res%hf(1,3)
           case ("yy")
              fieldeval = res%hf(2,2)
-          case ("yz")
+          case ("yz","zy")
              fieldeval = res%hf(2,3)
           case ("zz")
              fieldeval = res%hf(3,3)
@@ -1744,7 +1825,7 @@ contains
   !> is present and false, evaluate the expression at x0 considering
   !> the field as non-periodic. Return non-zero errmsg if an error was
   !> found. This routine is thread-safe.
-  subroutine pop(q,nq,s,ns,x0,syl,periodic,errmsg)
+  subroutine pop(q,nq,s,ns,x0,syl,periodic,errmsg,nargs)
     use systemmod, only: system
 #ifdef HAVE_LIBXC
     use iso_c_binding, only: c_size_t
@@ -1758,6 +1839,7 @@ contains
     type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
     character(len=:), allocatable, intent(inout) :: errmsg
+    integer, intent(in), optional :: nargs
 
     integer :: ia, iwantarg
     integer :: c, i
@@ -1826,12 +1908,26 @@ contains
           end if
        endif
 
-       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
-          ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
-          ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
-          errmsg = "missing arguments in " // arith_usage(c)
-          return
-       endif
+       ! the number of arguments between the parentheses, if known;
+       ! otherwise, the values in the queue
+       if (.not.present(nargs)) then
+          if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
+             ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
+             ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
+             errmsg = "missing arguments in " // arith_usage(c)
+             return
+          endif
+       else
+          if (ifun(ia)%family == XC_FAMILY_LDA .and. nargs /= 2) then
+             errmsg = "libxc functional " // string(ia) // " is an LDA: write xc(rho," // string(ia) // ")"
+          elseif (ifun(ia)%family == XC_FAMILY_GGA .and. nargs /= 3) then
+             errmsg = "libxc functional " // string(ia) // " is a GGA: write xc(rho,grad," // string(ia) // ")"
+          elseif (ifun(ia)%family == XC_FAMILY_MGGA .and. nargs /= 5) then
+             errmsg = "libxc functional " // string(ia) // " is a meta-GGA: write xc(rho,grad,lapl,tau," //&
+                string(ia) // ")"
+          end if
+          if (len_trim(errmsg) > 0) return
+       end if
 
        select case(ifun(ia)%family)
        case (XC_FAMILY_LDA)
@@ -1940,6 +2036,9 @@ contains
           else
              q(nq) = 0d0
           endif
+       case default
+          errmsg = "function not implemented: " // arith_usage(c)
+          return
        end select
     elseif (istype(c,'unary')) then
        ! a unary operator or function
@@ -2008,6 +2107,9 @@ contains
           q(nq) = erf(q(nq))
        case (fun_erfc)
           q(nq) = erfc(q(nq))
+       case default
+          errmsg = "function not implemented: " // arith_usage(c)
+          return
        end select
     elseif (istype(c,'chemfunction',iwantarg)) then
        ! We need a point and the evaluator
@@ -2152,6 +2254,8 @@ contains
           elsewhere
              q(:,:,:,nq) = 0d0
           end where
+       case default
+          goto 999
        end select
     elseif (istype(c,'unary')) then
        ! a unary operator or function
@@ -2197,6 +2301,8 @@ contains
           q(:,:,:,nq) = erf(q(:,:,:,nq))
        case (fun_erfc)
           q(:,:,:,nq) = erfc(q(:,:,:,nq))
+       case default
+          goto 999
        end select
     else
        goto 999
@@ -2461,6 +2567,8 @@ contains
        end if
     case (fun_mep,fun_uslater,fun_nheff,fun_xhole)
        q = res%fspc
+    case default
+       errmsg = "function not implemented: " // arith_usage(c)
     end select
 
   contains

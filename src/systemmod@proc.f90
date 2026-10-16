@@ -519,9 +519,10 @@ contains
   module subroutine load_field_string(s,line,verbose,id,errmsg,ti,readchk,autointerp,idwant)
     use global, only: abort_requested
     use tools_io, only: getword, lgetword, equal, uout, string, ferror, warning
-    use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
+    use fieldmod, only: realloc_field, type_grid, type_elk, type_wien, type_ghost
     use fieldseedmod, only: fieldseed
-    use param, only: ifformat_copy, ifformat_as_clm, ifformat_promolecular_fragment,&
+    use arithmetic, only: fields_in_eval
+    use param, only: mlen, ifformat_copy, ifformat_as_clm, ifformat_promolecular_fragment,&
        ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_promolecular,&
        ifformat_as_core, ifformat_promolecular,&
        ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
@@ -544,8 +545,9 @@ contains
     real*8 :: rnuc, rval
     type(fieldseed) :: seed
     integer :: idx
-    character(len=:), allocatable :: str, aux, erreval, cpfile, errchk
+    character(len=:), allocatable :: str, aux, erreval, cpfile, errchk, via
     type(system), pointer :: syl
+    logical, allocatable :: visited(:)
 
     ! is the environment sane?
     id = -1
@@ -740,7 +742,34 @@ contains
           if (.not.resolve_sizeof(seed%ids,seed%n)) return
        end if
 
+       ! ghost fields: test-evaluate the expression at an arbitrary
+       ! point. An invalid expression (wrong syntax, unknown function or
+       ! field, ...) is refused here; otherwise it would abort the
+       ! program the first time the field is evaluated. This runs
+       ! before the field exists, so its slot is free and an expression
+       ! that refers to it fails instead of recursing forever. Its name
+       ! can be in use (it moves to the new field), so check that the
+       ! expression does not use the name, directly or through other
+       ! ghost fields.
        syl => s
+       if (seed%iff == ifformat_as_ghost) then
+          call s%check_expression(seed%expr,erreval)
+          if (len_trim(erreval) > 0) then
+             errmsg = "invalid expression in ghost field: " // trim(erreval)
+             return
+          end if
+          if (len_trim(seed%fid) > 0) then
+             allocate(visited(0:s%nf))
+             visited = .false.
+             via = ""
+             if (uses_name(seed%expr,trim(seed%fid),visited,via)) then
+                errmsg = "ghost field " // trim(seed%fid) // " would refer to itself"
+                if (len(via) > 0) errmsg = errmsg // " through " // via
+                return
+             end if
+          end if
+       end if
+
        call s%f(id)%field_new(seed,s%c,id,c_loc(syl),errmsg,ti=ti)
        if (seed%iff /= ifformat_promolecular .and. seed%iff /= ifformat_promolecular_fragment .and.&
           seed%iff /= ifformat_as_promolecular .and. seed%iff /= ifformat_as_core.and.&
@@ -754,19 +783,6 @@ contains
        if (.not.s%f(id)%isinit .or. len_trim(errmsg) > 0) then
           call s%f(id)%end()
           return
-       end if
-
-       ! ghost fields: test-evaluate the expression at an arbitrary point.
-       ! An invalid expression (wrong syntax, unknown function or field,
-       ! ...) is refused here; otherwise it would abort the program the
-       ! first time the field is evaluated
-       if (seed%iff == ifformat_as_ghost) then
-          call s%check_expression(seed%expr,erreval)
-          if (len_trim(erreval) > 0) then
-             errmsg = "invalid expression in ghost field: " // trim(erreval)
-             call s%f(id)%end()
-             return
-          end if
        end if
     end if
 
@@ -876,6 +892,38 @@ contains
       ok = .true.
 
     end function resolve_sizeof
+
+    !> Does expression expr use the field called name, directly or
+    !> through the expressions of ghost fields? If it goes through
+    !> ghost fields, return the first of them in via ($3). visited
+    !> marks the ghost fields already looked at.
+    recursive function uses_name(expr,name,visited,via) result(uses)
+      character*(*), intent(in) :: expr, name
+      logical, intent(inout) :: visited(0:)
+      character(len=:), allocatable, intent(inout) :: via
+      logical :: uses
+
+      integer :: i, nn, idf
+      character(len=mlen), allocatable :: idlist(:)
+      character(len=:), allocatable :: errl
+
+      uses = .false.
+      call fields_in_eval(expr,errl,nn,idlist,c_loc(syl),chemargs=.true.)
+      if (len_trim(errl) > 0) return
+      do i = 1, nn
+         uses = (trim(idlist(i)) == name)
+         if (.not.uses) then
+            idf = s%fieldname_to_idx(idlist(i))
+            if (.not.s%goodfield(idf)) cycle
+            if (s%f(idf)%type /= type_ghost .or. visited(idf)) cycle
+            visited(idf) = .true.
+            uses = uses_name(s%f(idf)%expr,name,visited,via)
+            if (uses) via = "$" // trim(idlist(i))
+         end if
+         if (uses) return
+      end do
+
+    end function uses_name
   end subroutine load_field_string
 
   !> Returns true if the field is initialized. The field can be

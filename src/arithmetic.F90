@@ -280,13 +280,14 @@ module arithmetic
        real*8, intent(out) :: f(n(1),n(2),n(3))
        logical, intent(out) :: iok
      end subroutine eval_grid
-     module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr)
+     module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr,chemargs)
        use param, only: mlen
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(inout) :: errmsg
        integer, intent(out) :: n
        character(len=mlen), allocatable, intent(inout) :: idlist(:)
        type(c_ptr), intent(in) :: sptr
+       logical, intent(in), optional :: chemargs
      end subroutine fields_in_eval
      module subroutine setvariable(ikey,ival)
        character*(*), intent(in) :: ikey

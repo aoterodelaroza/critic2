@@ -165,7 +165,7 @@ contains
        else
           rdum = sy%eval(expr,errmsg,xx)
           if (len_trim(errmsg) > 0) then
-             call ferror('critic','error in expression: '//trim(expr),faterr,line,syntax=.true.)
+             call ferror('critic','error in expression ' // trim(expr) // ': ' // errmsg,faterr,line,syntax=.true.)
              return
           end if
           write (uout,'("  Expression (",A,"): ",A)') string(expr), string(rdum,'e',decimal=9)
