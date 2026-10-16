@@ -26,7 +26,8 @@ submodule (representations) plane
 
 contains
 
-  !> The map of a new system isys: a face of the cell, for crystals;
+  !> The map of a new system isys: a face of the cell (the
+  !> parallelogram region), for crystals;
   !> for molecules, the plane of the first three atoms (if they are not
   !> on a line), on the region that covers the whole molecule with some
   !> margin, or a face of the molecular box. The quantity is the value
@@ -44,7 +45,9 @@ contains
     d%isexpr = .false.
     d%nti = 0
     call d%fref%set(sys(isys),sys(isys)%iref)
-    d%region = 0
+    ! the region: the parallelogram of the cell face for crystals, a
+    ! rectangle for molecules
+    d%region = merge(0,1,sys(isys)%c%ismolecule)
 
     done = .false.
     if (sys(isys)%c%ismolecule .and. sys(isys)%c%ncel >= 3) then

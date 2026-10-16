@@ -590,7 +590,7 @@ module windows
      type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
      ! the map in the view (Show in View): shown, the values it has
      ! (gen; -1 = none), and whether the form changed since it was given
-     logical :: showview = .false.
+     logical :: showview = .true.
      integer*8 :: viewgen = -1
      logical :: viewdirty = .true.
      ! the labels of the atoms and critical points near the plane
