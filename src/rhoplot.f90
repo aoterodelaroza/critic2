@@ -24,6 +24,7 @@ module rhoplot
 
   public :: rhoplot_point
   public :: rhoplot_line
+  public :: rhoplot_line_values
   public :: rhoplot_cube
   public :: rhoplot_plane
   public :: rhoplot_grdvec
@@ -35,6 +36,15 @@ module rhoplot
      module subroutine rhoplot_line(line)
        character*(*), intent(in) :: line
      end subroutine rhoplot_line
+     module subroutine rhoplot_line_values(s,x0,x1,np,id,expr,nti,f,g,errmsg)
+       use systemmod, only: system
+       type(system), intent(inout) :: s
+       real*8, intent(in) :: x0(3), x1(3)
+       integer, intent(in) :: np, id, nti
+       character*(*), intent(in) :: expr
+       real*8, intent(out) :: f(np), g(np)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine rhoplot_line_values
      module subroutine rhoplot_cube(line)
        character*(*), intent(in) :: line
      end subroutine rhoplot_cube

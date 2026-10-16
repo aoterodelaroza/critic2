@@ -884,7 +884,8 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
-       wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point
+       wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point,&
+       wintype_line
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -949,6 +950,12 @@ contains
        idum = stack_create_window(wintype_point,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Calculate the value, gradient, Hessian, and other properties of&
        & the fields of this system at a point",ttshown)
+
+    ! profiles of the fields along a line (LINE)
+    if (iw_menuitem("Line Profile...",enabled=enabled)) &
+       idum = stack_create_window(wintype_line,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Plot the values of fields of this system, their derivatives, or&
+       & arithmetic expressions along a line between two points",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

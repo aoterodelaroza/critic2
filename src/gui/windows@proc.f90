@@ -368,6 +368,7 @@ contains
              if (ok.and.type == wintype_cp.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_line.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -935,6 +936,10 @@ contains
        ! point properties window
        if (.not.present(idparent)) &
           call ferror('window_init','point properties requires idparent',faterr)
+    elseif (type == wintype_line) then
+       ! line profile window
+       if (.not.present(idparent)) &
+          call ferror('window_init','line profile requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -997,6 +1002,8 @@ contains
   module subroutine window_drop_caches(w)
     class(window), intent(inout) :: w
 
+    integer :: i
+
     if (w%type == wintype_mo) then
        ! the per-orbital sampling grids and the diagram's level list,
        ! both rebuilt on demand
@@ -1014,6 +1021,15 @@ contains
        if (allocated(w%pt%item)) deallocate(w%pt%item)
        w%pt%nitem = 0
        if (allocated(w%pt%key)) deallocate(w%pt%key)
+    elseif (w%type == wintype_line) then
+       ! the values of the curves and the line; without their keys,
+       ! they are calculated again
+       do i = 1, w%ln%ncurve
+          if (allocated(w%ln%curve(i)%y)) deallocate(w%ln%curve(i)%y)
+          if (allocated(w%ln%curve(i)%key)) deallocate(w%ln%curve(i)%key)
+       end do
+       if (allocated(w%ln%d)) deallocate(w%ln%d)
+       w%ln%keysys = 0
     end if
 
   end subroutine window_drop_caches
@@ -1743,6 +1759,8 @@ contains
           call init_window("Trace Gradient Paths",66,34,grow=.true.)
        elseif (w%type == wintype_point) then
           call init_window("Point Properties",100,30,grow=.true.)
+       elseif (w%type == wintype_line) then
+          call init_window("Line Profile",100,40,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1886,6 +1904,8 @@ contains
                 call w%draw_gpaths()
              elseif (w%type == wintype_point) then
                 call w%draw_point()
+             elseif (w%type == wintype_line) then
+                call w%draw_line()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

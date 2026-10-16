@@ -503,6 +503,68 @@ module windows
   end type point_state
   public :: point_state
 
+  !> One curve of the line profile window (Tools > Line Profile, the
+  !> LINE keyword): a field and the quantity plotted (the LINE
+  !> property: 0 = f, 1-3 = gradient components, 4 = gradient norm,
+  !> 5-10 = Hessian components, 11 = Laplacian), or an arithmetic
+  !> expression; its color; and its values at the points of the line,
+  !> calculated again when key (what they were made from) changes.
+  type line_curve
+     integer :: uid = 0 ! identifier in the window (for the plot, which keeps per-curve state)
+     logical :: show = .true. ! drawn in the plot
+     logical :: isexpr = .false. ! an expression (or a field)
+     type(field_ref) :: fref ! the field
+     integer :: nti = 0 ! the quantity of the field (LINE property)
+     character(len=1024) :: expr = "" ! the expression
+     character(len=1024) :: exprerr = "" ! what is wrong with it (checked as it is typed)
+     real(c_float) :: rgb(3) = 0._c_float ! color
+     real(c_double), allocatable :: y(:) ! the values at the points
+     character(len=:), allocatable :: errmsg ! the error that stopped the calculation
+     integer*8, allocatable :: key(:)
+     character(len=:), allocatable :: keyexpr
+  end type line_curve
+  public :: line_curve
+
+  !> Per-window state of the line profile window: the endpoints, the
+  !> number of points, the curves, a pending pick in the view, and the
+  !> line itself (distances of the points and the atoms and critical
+  !> points on it), calculated again when the endpoints, the number of
+  !> points, or the geometry change. The endpoints are fractional for
+  !> crystals and Cartesian Å for molecules (the frame of the LINE
+  !> coordinates).
+  type line_state
+     type(sys_ref) :: sys ! system the form is set up for
+     real*8 :: xa(3) = 0d0 ! first endpoint
+     real*8 :: xb(3) = 0d0 ! second endpoint
+     integer(c_int) :: npts = 201 ! number of points
+     type(line_curve), allocatable :: curve(:) ! the curves (ncurve)
+     integer :: ncurve = 0
+     integer :: ncolor = 0 ! curves added so far, for the color and identifier of the next one
+     integer :: yscale = 0 ! the value axis: 0 = linear, 1 = symmetric log, 2 = log
+     real(c_double) :: dcur = -1d0 ! the cursor in the plot (distance; < 0 = the middle of the line)
+     logical :: showdata = .false. ! the table of values is open
+     ! pending pick in the view: the endpoint (1 = A, 2 = B)
+     logical :: picking = .false.
+     integer :: pickend = 1
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     ! the line: the distance of each point from A, and the atoms and
+     ! critical points on it (distance and label); for the inputs below
+     real(c_double), allocatable :: d(:)
+     integer :: nmark = 0
+     real*8, allocatable :: dmark(:)
+     character(len=12), allocatable :: lmark(:)
+     integer*8 :: gen = 0 ! counts the lines calculated, for the keys of the curves
+     integer*8 :: keysys = 0
+     real*8 :: keyxa(3) = 0d0
+     real*8 :: keyxb(3) = 0d0
+     integer :: keynpts = 0
+     real*8 :: keytime = -1d0
+     real*8 :: keytimecp = -1d0
+     integer*8 :: keyref = -1
+  end type line_state
+  public :: line_state
+
   ! Grid spacing the crystal voids window starts from (Å)
   real*8, parameter, public :: voids_spacing_def = 0.15d0
   ! range of that window's grid spacing control (Å)
@@ -1214,6 +1276,7 @@ module windows
      type(gpaths_state) :: gp ! the form, pick, and pending trace
      ! point properties window
      type(point_state) :: pt ! the form, pick, and the report at the point
+     type(line_state) :: ln ! the endpoints, curves, pick, and values of the line profile
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1361,6 +1424,7 @@ module windows
      procedure :: clear_gpaths_hover
      ! point properties
      procedure :: draw_point
+     procedure :: draw_line
      ! blocking jobs (gui_main%pending_block_window)
      procedure :: request_block => window_request_block
      procedure :: block_draw => window_block_draw
@@ -1429,6 +1493,7 @@ module windows
   integer, parameter, public :: wintype_cp = 28
   integer, parameter, public :: wintype_gpaths = 29
   integer, parameter, public :: wintype_point = 30
+  integer, parameter, public :: wintype_line = 31
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2242,6 +2307,10 @@ module windows
      module subroutine draw_point(w)
        class(window), intent(inout), target :: w
      end subroutine draw_point
+     !xx! line submodule !xx!
+     module subroutine draw_line(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_line
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

@@ -567,9 +567,14 @@ contains
       w%pt%nitem = 0
       w%pt%errmsg = ""
       x0 = sys(isys)%c%c2x(form_to_cart(isys,w%pt%x))
-      if (sys(isys)%goodfield(w%pt%fref%id)) &
+      ! nothing in a system without atoms (an empty system): the
+      ! evaluation of the fields needs the atomic environment
+      if (sys(isys)%c%ncel == 0) then
+         w%pt%errmsg = "This system has no atoms: there are no field values to calculate"
+      elseif (sys(isys)%goodfield(w%pt%fref%id)) then
          call sys(isys)%propty_items(w%pt%fref%id,x0,res,.false.,w%pt%col(propid_field)%show,&
             w%pt%item,w%pt%nitem,w%pt%errmsg)
+      end if
 
       call move_alloc(key,w%pt%key)
       w%pt%keyx = w%pt%x

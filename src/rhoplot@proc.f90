@@ -188,22 +188,16 @@ contains
   module subroutine rhoplot_line(line)
     use systemmod, only: sy
     use global, only: eval_next, dunit0, iunit
-    use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
-    use types, only: scalar_value, vstring, field_evaluation_avail
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
-    real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xout(3)
-    character(len=:), allocatable :: word, outfile, prop, expr
-    type(scalar_value) :: res
-    logical :: ok, iok
+    real*8 :: x0(3), x1(3), xp(3), dist, xout(3)
+    character(len=:), allocatable :: word, outfile, prop, expr, errmsg
+    logical :: ok
     integer :: i, j
     real*8, allocatable :: rhoout(:), lapout(:)
-    type(vstring) :: lerrmsg
-    character(len=:), allocatable :: lerrs
-    type(field_evaluation_avail) :: request
 
     ! read the points
     lp = 1
@@ -293,15 +287,6 @@ contains
        end if
     end do
 
-    ! request selector
-    if (nti == 0) then
-       call request%field_only()
-    elseif (nti >= 1 .and. nti <= 4) then
-       call request%field_nder1()
-    else
-       call request%field_nder2()
-    end if
-
     ! open the output
     if (len_trim(outfile) > 0) then
        luout = fopen_write(outfile)
@@ -323,61 +308,10 @@ contains
        x1 = x1 / dunit0(iunit) - sy%c%molx0
     endif
     allocate(rhoout(np),lapout(np))
-    lapout = 0d0
-
-    lerrmsg%s = ""
-    !$omp parallel do private(xp,dist,res,iok,rhopt,lappt,lerrs) schedule(dynamic)
-    do i=1,np
-       xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
-       if (id >= 0) then
-          call sy%f(id)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
-
-          rhopt = res%f
-          select case(nti)
-          case (0)
-             lappt = rhopt
-          case (1)
-             lappt = res%gf(1)
-          case (2)
-             lappt = res%gf(2)
-          case (3)
-             lappt = res%gf(3)
-          case (4)
-             lappt = res%gfmod
-          case (5)
-             lappt = res%hf(1,1)
-          case (6)
-             lappt = res%hf(1,2)
-          case (7)
-             lappt = res%hf(1,3)
-          case (8)
-             lappt = res%hf(2,2)
-          case (9)
-             lappt = res%hf(2,3)
-          case (10)
-             lappt = res%hf(3,3)
-          case (11)
-             lappt = res%del2f
-          end select
-       else
-          lerrs = ""
-          rhopt = sy%eval(expr,lerrs,xp)
-          lappt = rhopt
-       end if
-
-       rhoout(i) = rhopt
-       lapout(i) = lappt
-       if (allocated(lerrs)) then
-          if (len_trim(lerrs) > 0) then
-             !$omp critical (iowrite)
-             lerrmsg%s = lerrs
-             !$omp end critical (iowrite)
-          end if
-       end if
-    enddo
-    !$omp end parallel do
-    if (len_trim(lerrmsg%s) > 0) &
-       call ferror('rhoplot_line',lerrmsg%s,faterr)
+    if (.not.allocated(expr)) expr = ""
+    call rhoplot_line_values(sy,x0,x1,np,id,expr,nti,rhoout,lapout,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('rhoplot_line',errmsg,faterr)
 
     ! write the line to output
     do i = 1, np
@@ -407,6 +341,99 @@ contains
     deallocate(rhoout,lapout)
 
   end subroutine rhoplot_line
+
+  !> Calculate the values of a field along the line from x0 to x1
+  !> (Cartesian, bohr, cell frame of system s) at np points. If id
+  !> >= 0, use field id and return its value in f and the property
+  !> nti in g (0 = f, 1-3 = gradient components, 4 = gradient norm,
+  !> 5-10 = Hessian xx, xy, xz, yy, yz, zz, 11 = Laplacian);
+  !> otherwise, evaluate the expression expr and return its value in
+  !> both f and g. Returns a non-empty errmsg if the evaluation
+  !> failed.
+  module subroutine rhoplot_line_values(s,x0,x1,np,id,expr,nti,f,g,errmsg)
+    use systemmod, only: system
+    use types, only: scalar_value, vstring, field_evaluation_avail
+    type(system), intent(inout) :: s
+    real*8, intent(in) :: x0(3), x1(3)
+    integer, intent(in) :: np, id, nti
+    character*(*), intent(in) :: expr
+    real*8, intent(out) :: f(np), g(np)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i
+    real*8 :: xp(3), rhopt, lappt
+    type(scalar_value) :: res
+    type(vstring) :: lerrs
+    type(field_evaluation_avail) :: request
+    character(len=:), allocatable :: lerrmsg
+
+    ! request selector
+    if (nti == 0) then
+       call request%field_only()
+    elseif (nti >= 1 .and. nti <= 4) then
+       call request%field_nder1()
+    else
+       call request%field_nder2()
+    end if
+
+    ! calculate the line; the private error string is in a vstring:
+    ! gfortran mishandles private deferred-length character variables
+    lerrmsg = ""
+    f = 0d0
+    g = 0d0
+    !$omp parallel do private(xp,res,rhopt,lappt,lerrs) schedule(dynamic)
+    do i=1,np
+       xp = x0 + (x1 - x0) * real(i-1,8) / real(max(np-1,1),8)
+       lerrs%s = ""
+       if (id >= 0) then
+          call s%f(id)%grd(xp,request,res,periodic=.not.s%c%ismolecule)
+
+          rhopt = res%f
+          select case(nti)
+          case (0)
+             lappt = rhopt
+          case (1)
+             lappt = res%gf(1)
+          case (2)
+             lappt = res%gf(2)
+          case (3)
+             lappt = res%gf(3)
+          case (4)
+             lappt = res%gfmod
+          case (5)
+             lappt = res%hf(1,1)
+          case (6)
+             lappt = res%hf(1,2)
+          case (7)
+             lappt = res%hf(1,3)
+          case (8)
+             lappt = res%hf(2,2)
+          case (9)
+             lappt = res%hf(2,3)
+          case (10)
+             lappt = res%hf(3,3)
+          case (11)
+             lappt = res%del2f
+          case default
+             lappt = 0d0
+          end select
+       else
+          rhopt = s%eval(expr,lerrs%s,xp)
+          lappt = rhopt
+       end if
+
+       f(i) = rhopt
+       g(i) = lappt
+       if (len_trim(lerrs%s) > 0) then
+          !$omp critical (iowrite)
+          lerrmsg = lerrs%s
+          !$omp end critical (iowrite)
+       end if
+    enddo
+    !$omp end parallel do
+    errmsg = lerrmsg
+
+  end subroutine rhoplot_line_values
 
   ! Calculate properties on a 3d cube
   module subroutine rhoplot_cube(line)
