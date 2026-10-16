@@ -261,10 +261,12 @@ contains
 
     !> The table of the curves: whether each is shown, its color, and
     !> what it is (a field and a quantity of it, or an expression);
-    !> the buttons to add and remove curves; and the errors.
+    !> the button that adds curves, the icons that remove them, and the
+    !> errors.
     subroutine draw_curves_section()
+      use gui_main, only: g
       use utils, only: iw_checkbox, iw_coloredit, iw_field_combo, iw_inputtext,&
-         iw_expression_helper, iw_exprctx_point, iw_table_column
+         iw_expression_helper, iw_exprctx_point, iw_table_column, iw_close_button
       integer :: i, idel, ifield, ikind, iq
       logical :: echanged
       integer(c_int) :: flags
@@ -283,29 +285,40 @@ contains
       szt%y = 0._c_float
       idel = 0
       if (igBeginTable(c_loc(strtab),5,flags,szt,0._c_float)) then
-         call iw_table_column("Show",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Color",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Kind",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("Definition",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         ! the width of the close icon, also when it is not there (one
+         ! curve), so the table does not move when it appears
+         call iw_table_column("",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed,&
+            width=igGetTextLineHeight())
+         call iw_table_column("Show",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Color",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Kind",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("Definition",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          call igTableHeadersRow()
          do i = 1, w%ln%ncurve
             associate(cv => w%ln%curve(i))
               sfx = "##linecurve" // string(i)
               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
 
+              ! remove the curve (not the last one); the close icon is
+              ! one line of text high: centered on the row frames
+              if (w%ln%ncurve > 1 .and. igTableSetColumnIndex(0_c_int)) then
+                 call igSetCursorPosY(igGetCursorPosY() + g%Style%FramePadding%y)
+                 if (iw_close_button(sfx // "del")) idel = i
+                 call iw_tooltip("Remove this curve",ttshown)
+              end if
+
               ! shown, and the color
-              if (igTableSetColumnIndex(0_c_int)) then
+              if (igTableSetColumnIndex(1_c_int)) then
                  ldum = iw_checkbox(sfx // "show",cv%show)
                  call iw_tooltip("Show this curve in the plot",ttshown)
               end if
-              if (igTableSetColumnIndex(1_c_int)) then
+              if (igTableSetColumnIndex(2_c_int)) then
                  ldum = iw_coloredit(sfx // "rgb",rgb=cv%rgb,nolabel=.true.)
                  call iw_tooltip("Color of the curve",ttshown)
               end if
 
               ! a field or an expression
-              if (igTableSetColumnIndex(2_c_int)) then
+              if (igTableSetColumnIndex(3_c_int)) then
                  ikind = merge(1,0,cv%isexpr)
                  call igPushItemWidth(iw_calcwidth(10,1))
                  call iw_combo_simple(sfx // "kind","Field" // c_null_char // "Expression" // c_null_char,&
@@ -317,7 +330,7 @@ contains
 
               ! the definition: the field and the quantity, or the
               ! expression (checked as it is typed)
-              if (igTableSetColumnIndex(3_c_int)) then
+              if (igTableSetColumnIndex(4_c_int)) then
                  if (.not.cv%isexpr) then
                     ifield = cv%fref%id
                     if (iw_field_combo(sfx // "field",isys,ifield,width=iw_calcwidth(24,1),&
@@ -344,11 +357,6 @@ contains
                  end if
               end if
 
-              ! remove the curve
-              if (igTableSetColumnIndex(4_c_int)) then
-                 if (iw_button("Remove" // sfx // "del",disabled=(w%ln%ncurve <= 1))) idel = i
-                 call iw_tooltip("Remove this curve",ttshown)
-              end if
             end associate
          end do
          call igEndTable()
@@ -511,14 +519,16 @@ contains
 
     !> The collapsible table of the values along the line: the
     !> position and the distance of each point, and the value of
-    !> each curve. It can be written to the output, the console, or
-    !> a file.
+    !> each curve. The menu of the header (right click) chooses the
+    !> curves in the table and writes it to the output, the console,
+    !> or a file.
     subroutine draw_data_section()
-      use utils, only: iw_table_column, iw_table_headers_row
+      use utils, only: iw_table_column, iw_table_headers_row, iw_tblwrite_none
       integer, parameter :: itable_line = 1 ! the table, for table_write_*
       character(kind=c_char,len=:), allocatable, target :: strsec, strtab
       integer(c_int) :: flags
-      integer :: i, k, iwrite, ncol, np
+      integer :: i, k, iwrite, ncol, np, itoggle
+      logical :: rclick
       real*8 :: xp(3), xa(3), xb(3)
       type(ImVec2) :: szt
       type(c_ptr) :: clipper
@@ -533,7 +543,7 @@ contains
       np = size(w%ln%d)
       ncol = 4
       do i = 1, w%ln%ncurve
-         if (has_values(i)) ncol = ncol + 1
+         if (in_table(i)) ncol = ncol + 1
       end do
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -559,11 +569,13 @@ contains
          end if
          k = 3
          do i = 1, w%ln%ncurve
-            if (.not.has_values(i)) cycle
+            if (.not.in_table(i)) cycle
             k = k + 1
             call iw_table_column(curve_label(i),id=int(k,c_int),flags=ImGuiTableColumnFlags_WidthFixed)
          end do
-         call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
+         call iw_table_headers_row(freezetop=.true.,rclicked=rclick)
+         iwrite = iw_tblwrite_none
+         call header_menu(rclick,iwrite,itoggle)
 
          ! the rows; if the table is being written as text, they are
          ! captured as they are drawn (all of them)
@@ -595,10 +607,45 @@ contains
          call ImGuiListClipper_destroy(clipper)
          call w%table_write_end(itable_line,table_title("Line profile",isys))
          call igEndTable()
+         ! a curve toggled in the menu: its column changes in the next
+         ! frame, so the columns of this one match its cells
+         if (itoggle > 0) w%ln%curve(itoggle)%intable = .not.w%ln%curve(itoggle)%intable
       end if
       call igTreePop()
 
     end subroutine draw_data_section
+
+    !> The menu of the header of the table of values, opened by a
+    !> right click (rclick): the curves in the table (itoggle = the
+    !> curve clicked, 0 if none) and, last, the entries that ask (in
+    !> iwrite, iw_tblwrite_*) for the table to be written as text.
+    subroutine header_menu(rclick,iwrite,itoggle)
+      use utils, only: iw_menuitem, iw_table_write_items
+      logical, intent(in) :: rclick
+      integer, intent(inout) :: iwrite
+      integer, intent(out) :: itoggle
+
+      integer :: i
+      character(kind=c_char,len=:), allocatable, target :: strpop
+
+      itoggle = 0
+      strpop = "##linecolumnmenu" // c_null_char
+      if (rclick) call igOpenPopup_Str(c_loc(strpop),ImGuiPopupFlags_None)
+      if (igBeginPopup(c_loc(strpop),ImGuiWindowFlags_None)) then
+         call igPushItemFlag(ImGuiItemFlags_SelectableDontClosePopup,.true._c_bool)
+         do i = 1, w%ln%ncurve
+            if (.not.has_values(i)) cycle
+            if (iw_menuitem(curve_label(i) // "##lineintable" // string(w%ln%curve(i)%uid),&
+               selected=w%ln%curve(i)%intable)) itoggle = i
+            call iw_tooltip("Show the values of this curve in the table",ttshown)
+         end do
+         call igPopItemFlag()
+         call igSeparator()
+         call iw_table_write_items(iwrite,ttshown)
+         call igEndPopup()
+      end if
+
+    end subroutine header_menu
 
     !> The values of the curves at point ip, in the columns of the
     !> table of values after the position and the distance.
@@ -608,7 +655,7 @@ contains
 
       k = 3
       do i = 1, w%ln%ncurve
-         if (.not.has_values(i)) cycle
+         if (.not.in_table(i)) cycle
          k = k + 1
          call cell(k,string(w%ln%curve(i)%y(ip),'e',decimal=8))
       end do
@@ -634,6 +681,14 @@ contains
       has_values = (size(w%ln%curve(i)%y) == size(w%ln%d))
 
     end function has_values
+
+    !> Curve i is a column of the table of values.
+    logical function in_table(i)
+      integer, intent(in) :: i
+
+      in_table = has_values(i) .and. w%ln%curve(i)%intable
+
+    end function in_table
 
     !> The label of curve i: $n with the quantity (:lap), or the
     !> expression.

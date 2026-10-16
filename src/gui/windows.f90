@@ -512,6 +512,7 @@ module windows
   type line_curve
      integer :: uid = 0 ! identifier in the window (for the plot, which keeps per-curve state)
      logical :: show = .true. ! drawn in the plot
+     logical :: intable = .true. ! a column in the table of values
      logical :: isexpr = .false. ! an expression (or a field)
      type(field_ref) :: fref ! the field
      integer :: nti = 0 ! the quantity of the field (LINE property)
