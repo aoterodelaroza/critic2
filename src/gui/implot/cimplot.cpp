@@ -82,6 +82,17 @@ CIMGUI_API void ipSetNextLineStyle(const ImVec4 col, float weight){
 CIMGUI_API void ipSetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline){
   ImPlot::SetNextMarkerStyle(marker,size,fill,weight,outline);
 }
+CIMGUI_API void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size, const char* format, ImPlotColormap cmap){
+  ImPlot::ColormapScale(label,scale_min,scale_max,size,format,0,cmap);
+}
+CIMGUI_API void ipGetPlotMousePos(double *x, double *y){
+  ImPlotPoint p = ImPlot::GetPlotMousePos();
+  *x = p.x;
+  *y = p.y;
+}
+CIMGUI_API bool ipIsPlotHovered(){
+  return ImPlot::IsPlotHovered();
+}
 CIMGUI_API void ipShowDemoWindow(bool* p_open){
   return ImPlot::ShowDemoWindow(p_open);
 }

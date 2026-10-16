@@ -22,7 +22,7 @@ module windows
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
-     reptype_atoms, rep_gpaths, gpaths_rad_def
+     reptype_atoms, rep_gpaths, gpaths_rad_def, plane_def
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
@@ -565,6 +565,66 @@ module windows
      integer*8 :: keyref = -1
   end type line_state
   public :: line_state
+
+  ! the properties of a field for LINE and PLANE (nti = 0 to 11), in
+  ! the line profile and plane map windows: the entries of a combo,
+  ! and the short names for labels ($1:lap)
+  integer, parameter :: nquant = 12
+  character(len=*,kind=c_char), parameter :: quant_combo = &
+     "Value (f)" // c_null_char // "Gradient, x" // c_null_char // "Gradient, y" // c_null_char //&
+     "Gradient, z" // c_null_char // "Gradient norm" // c_null_char // "Hessian, xx" // c_null_char //&
+     "Hessian, xy" // c_null_char // "Hessian, xz" // c_null_char // "Hessian, yy" // c_null_char //&
+     "Hessian, yz" // c_null_char // "Hessian, zz" // c_null_char // "Laplacian" // c_null_char
+  character(len=8), parameter :: quant_short(0:nquant-1) = (/&
+     "        ",":gx     ",":gy     ",":gz     ",":g      ",":hxx    ",&
+     ":hxy    ",":hxz    ",":hyy    ",":hyz    ",":hzz    ",":lap    "/)
+
+  !> Per-window state of the plane map window (Tools > Plane Map, the
+  !> PLANE keyword): the map (plane_def: the plane, the region, the
+  !> quantity, how it is colored and contoured), the labels, a pending
+  !> pick, and the results: the values on the grid, the contour lines,
+  !> the texture of the map, and the atoms and critical points on the
+  !> plane, each calculated again when the inputs it depends on change.
+  type plane_state
+     type(sys_ref) :: sys ! system the form is set up for
+     type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
+     integer*8 :: objuid = 0 ! the plane map object made from the window (Show in View), by its uid
+     ! the labels of the atoms and critical points near the plane
+     logical :: showlabels = .true.
+     real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
+     ! pending pick in the view: the point (1-3)
+     logical :: picking = .false.
+     integer :: pickend = 1
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     logical :: showdata = .false. ! the table of values is open
+     ! the grid (cell-frame Cartesian bohr): origin and steps, the
+     ! orthonormal frame of the plot (origin a0, the first point when
+     ! the grid was calculated), the values
+     real*8 :: x0(3) = 0d0, uu(3) = 0d0, vv(3) = 0d0
+     real*8 :: a0(3) = 0d0, e1(3) = 0d0, e2(3) = 0d0
+     real(c_double), allocatable :: ff(:,:)
+     character(len=:), allocatable :: errmsg
+     integer*8 :: gen = 0 ! counts the grids calculated, for the other keys
+     integer*8, allocatable :: key(:)
+     character(len=:), allocatable :: keyexpr
+     ! the contour lines, in plot coordinates (n,2: u then v; NaN between lines)
+     real(c_double), allocatable :: cpos(:,:), cneg(:,:)
+     integer :: ncpos = 0, ncneg = 0
+     integer*8, allocatable :: keycont(:)
+     character(len=:), allocatable :: keylist
+     ! the texture of the map and the range of its colors
+     integer(c_int) :: tex = 0
+     real*8 :: tmin = 0d0, tmax = 1d0
+     integer*8, allocatable :: keytex(:)
+     ! the labels: positions in plot coordinates and text
+     integer :: nmark = 0
+     real*8, allocatable :: xmark(:,:)
+     character(len=12), allocatable :: lmark(:)
+     logical :: marksmany = .false. ! the region is too large to look for them
+     integer*8, allocatable :: keymark(:)
+  end type plane_state
+  public :: plane_state
 
   ! Grid spacing the crystal voids window starts from (Å)
   real*8, parameter, public :: voids_spacing_def = 0.15d0
@@ -1278,6 +1338,7 @@ module windows
      ! point properties window
      type(point_state) :: pt ! the form, pick, and the report at the point
      type(line_state) :: ln ! the endpoints, curves, pick, and values of the line profile
+     type(plane_state) :: pl ! the plane, quantity, pick, and maps of the plane map window
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1426,6 +1487,9 @@ module windows
      ! point properties
      procedure :: draw_point
      procedure :: draw_line
+     procedure :: draw_plane
+     procedure :: draw_editrep_slice
+     procedure :: plane_free_texture
      ! blocking jobs (gui_main%pending_block_window)
      procedure :: request_block => window_request_block
      procedure :: block_draw => window_block_draw
@@ -1495,6 +1559,7 @@ module windows
   integer, parameter, public :: wintype_gpaths = 29
   integer, parameter, public :: wintype_point = 30
   integer, parameter, public :: wintype_line = 31
+  integer, parameter, public :: wintype_plane = 32
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -2265,6 +2330,12 @@ module windows
        real*8, intent(in) :: x(3)
        real*8 :: xc(3)
      end function form_to_cart
+     module subroutine label_candidates(isys,nc,xf,lbl)
+       integer, intent(in) :: isys
+       integer, intent(out) :: nc
+       real*8, allocatable, intent(inout) :: xf(:,:)
+       character(len=12), allocatable, intent(inout) :: lbl(:)
+     end subroutine label_candidates
      module subroutine warn_grid_interp(isys,ifield,what)
        integer, intent(in) :: isys, ifield
        character(len=*), intent(in) :: what
@@ -2312,6 +2383,28 @@ module windows
      module subroutine draw_line(w)
        class(window), intent(inout), target :: w
      end subroutine draw_line
+     !xx! plane submodule !xx!
+     module subroutine draw_plane(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_plane
+     module subroutine plane_free_texture(w)
+       class(window), intent(inout), target :: w
+     end subroutine plane_free_texture
+     module function draw_editrep_slice(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_slice
+     module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff) result(changed)
+       type(plane_def), intent(inout) :: d
+       integer, intent(in) :: isys
+       logical, intent(inout) :: ttshown
+       logical, intent(inout) :: editing
+       logical, intent(in) :: live
+       integer, intent(out), optional :: ipick
+       logical, intent(in), optional :: pickoff
+       logical :: changed
+     end function plane_def_form
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

@@ -369,6 +369,7 @@ contains
              if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_line.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_plane.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -940,6 +941,10 @@ contains
        ! line profile window
        if (.not.present(idparent)) &
           call ferror('window_init','line profile requires idparent',faterr)
+    elseif (type == wintype_plane) then
+       ! plane map window
+       if (.not.present(idparent)) &
+          call ferror('window_init','plane map requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -1030,6 +1035,17 @@ contains
        end do
        if (allocated(w%ln%d)) deallocate(w%ln%d)
        w%ln%keysys = 0
+    elseif (w%type == wintype_plane) then
+       ! the contour lines and the labels; without their keys, they are
+       ! calculated again. The values on the grid are kept: they are
+       ! cheaper to copy than to calculate, and the texture is on the GPU
+       if (allocated(w%pl%cpos)) deallocate(w%pl%cpos)
+       if (allocated(w%pl%cneg)) deallocate(w%pl%cneg)
+       if (allocated(w%pl%keycont)) deallocate(w%pl%keycont)
+       if (allocated(w%pl%xmark)) deallocate(w%pl%xmark)
+       if (allocated(w%pl%lmark)) deallocate(w%pl%lmark)
+       if (allocated(w%pl%keymark)) deallocate(w%pl%keymark)
+       w%pl%nmark = 0
     end if
 
   end subroutine window_drop_caches
@@ -1117,6 +1133,9 @@ contains
        elseif (w%type == wintype_cp) then
           ! the CP under the mouse in its table is no longer highlighted
           call w%clear_cp_hover()
+       elseif (w%type == wintype_plane) then
+          ! the texture of the map
+          call w%plane_free_texture()
        elseif (w%type == wintype_gpaths) then
           ! the seed CP under the mouse is no longer highlighted
           call w%clear_gpaths_hover()
@@ -1761,6 +1780,8 @@ contains
           call init_window("Point Properties",100,30,grow=.true.)
        elseif (w%type == wintype_line) then
           call init_window("Line Profile",100,40,grow=.true.)
+       elseif (w%type == wintype_plane) then
+          call init_window("Plane Map",100,50,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1906,6 +1927,8 @@ contains
                 call w%draw_point()
              elseif (w%type == wintype_line) then
                 call w%draw_line()
+             elseif (w%type == wintype_plane) then
+                call w%draw_plane()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

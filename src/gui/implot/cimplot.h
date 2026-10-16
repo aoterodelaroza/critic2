@@ -51,6 +51,9 @@ CIMGUI_API void ipPlotStairs(const char* label_id, const double* xs, const doubl
 CIMGUI_API void ipGetPlotCurrentLimits(double *xmin,double *xmax,double *ymin,double *ymax);
 CIMGUI_API void ipSetNextLineStyle(const ImVec4 col, float weight);
 CIMGUI_API void ipSetNextMarkerStyle(ImPlotMarker marker, float size, const ImVec4 fill, float weight, const ImVec4 outline);
+CIMGUI_API void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size, const char* format, ImPlotColormap cmap);
+CIMGUI_API void ipGetPlotMousePos(double *x, double *y);
+CIMGUI_API bool ipIsPlotHovered();
 CIMGUI_API void ipShowDemoWindow(bool* p_open);
 
 #endif //CIMPLOT_INCLUDED

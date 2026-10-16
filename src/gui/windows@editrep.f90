@@ -68,7 +68,7 @@ contains
     use representations, only: representation, reptype_atoms, reptype_bonds, reptype_labels,&
        reptype_polyhedra, reptype_unitcell, reptype_axes, reptype_symelem, reptype_text,&
        reptype_measure, reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, iso_map_color,&
-       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, field_has_cps
+       reptype_planar, reptype_legend, reptype_scalebar, reptype_colorbar, reptype_slice, field_has_cps
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use systems, only: sysc, sys_init, ok_system
@@ -157,6 +157,8 @@ contains
           changed = changed .or. w%draw_editrep_scalebar(ttshown)
        elseif (w%rep%type == reptype_colorbar) then
           changed = changed .or. w%draw_editrep_colorbar(ttshown)
+       elseif (w%rep%type == reptype_slice) then
+          changed = changed .or. w%draw_editrep_slice(ttshown)
        end if
 
        ! rebuild draw lists if necessary

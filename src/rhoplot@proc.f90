@@ -23,19 +23,14 @@ submodule (rhoplot) proc
   ! subroutine contour(ff,r0,r1,r2,nx,ny,niso,ziso,rootname,dognu,dolabels)
   ! subroutine relief(rootname,outfile,zmin,zmax)
   ! subroutine colormap(rootname,outfile,cmopt,r0,r1,r2,dolabels)
-  ! subroutine hallarpuntos(ff,zc,x,y,nx,ny)
-  ! subroutine ordenarpuntos (luw,calpha,ziso)
+  ! subroutine hallarpuntos(ff,zc,x,y,nx,ny,np,xc,yc,pic,pjc)
+  ! subroutine ordenarpuntos(np,xc,yc,pic,pjc,calpha,iso,nline,npt,lptr,xy,liso)
   ! subroutine linea (x,y,n,luw,ziso)
   ! subroutine plotvec(r0,r1,r2,autocheck,udat)
   ! subroutine plotvec(r0,r1,r2,autocheck,udat)
   ! subroutine autochk(rp0)
   ! subroutine write_fichlabel(rootname)
   ! subroutine write_fichgnu(rootname,dolabels,docontour,dograds)
-
-  ! contour lines common variables.
-  integer, parameter :: nptcorte = 20000
-  integer :: npuntos
-  real*8  :: xc(nptcorte), yc(nptcorte), pic(nptcorte), pjc(nptcorte)
 
   ! gradient field walk paths database.
   integer, parameter :: MORIG = 1000
@@ -1012,28 +1007,24 @@ contains
   module subroutine rhoplot_plane(line)
     use systemmod, only: sy
     use global, only: eval_next, dunit0, iunit, fileroot, iunitname0, iunit, dunit0,&
-       abort_requested, abort_poll, progress_start, progress_step
-    use arithmetic, only: eval
+       abort_requested
     use tools_io, only: ferror, faterr, lgetword, equal, getword, &
        isexpression_or_word, fopen_write, uout, string, fclose
     use tools_math, only: plane_scale_extend, assign_ziso, niso_manual,&
        niso_lin, niso_log, niso_atan, niso_bader
-    use types, only: scalar_value, realloc, vstring, field_evaluation_avail
+    use types, only: realloc
     character*(*), intent(in) :: line
 
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
-    real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv, rhopt
+    real*8 :: x0(3), x1(3), x2(3), xp(3), du, dv
     real*8 :: uu(3), vv(3), fmin, fmax
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, zmin, zmax, rdum
     logical :: docontour, dorelief, docolormap, fset
     character(len=:), allocatable :: word, outfile, root0, expr
-    type(scalar_value) :: res
     logical :: ok
     integer :: ix, iy, cmopt
     real*8, allocatable :: ff(:,:), ziso(:)
-    type(vstring) :: lerrmsg
-    character(len=:), allocatable :: lerrs
-    type(field_evaluation_avail) :: request
+    character(len=:), allocatable :: errmsg
 
     ! read the points
     lp = 1
@@ -1257,70 +1248,12 @@ contains
     du = norm2(uu) * dunit0(iunit)
     dv = norm2(vv) * dunit0(iunit)
 
-    ! allocate space for field values on the plane
+    ! field values on the plane
+    if (.not.allocated(expr)) expr = ""
     allocate(ff(nx,ny))
-    if (nti == 0) then
-       call request%field_only()
-    elseif (nti >= 1 .and. nti <= 4) then
-       call request%field_nder1()
-    else
-       call request%field_nder2()
-    end if
-
-    lerrmsg%s = ""
-    call progress_start(nx,"rows")
-    !$omp parallel do private (xp,res,rhopt,lerrs) schedule(dynamic)
-    do ix = 1, nx
-       if (abort_poll()) cycle
-       do iy = 1, ny
-          xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-
-          if (id >= 0) then
-             call sy%f(id)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
-             select case(nti)
-             case (0)
-                rhopt = res%f
-             case (1)
-                rhopt = res%gf(1)
-             case (2)
-                rhopt = res%gf(2)
-             case (3)
-                rhopt = res%gf(3)
-             case (4)
-                rhopt = res%gfmod
-             case (5)
-                rhopt = res%hf(1,1)
-             case (6)
-                rhopt = res%hf(1,2)
-             case (7)
-                rhopt = res%hf(1,3)
-             case (8)
-                rhopt = res%hf(2,2)
-             case (9)
-                rhopt = res%hf(2,3)
-             case (10)
-                rhopt = res%hf(3,3)
-             case (11)
-                rhopt = res%del2f
-             end select
-          else
-             lerrs = ""
-             rhopt = sy%eval(expr,lerrs,xp)
-          endif
-          ff(ix,iy) = rhopt
-          if (allocated(lerrs)) then
-             if (len_trim(lerrs) > 0) then
-                !$omp critical (write)
-                lerrmsg%s = lerrs
-                !$omp end critical (write)
-             end if
-          end if
-       end do
-       call progress_step()
-    end do
-    !$omp end parallel do
-    if (len_trim(lerrmsg%s) > 0) &
-       call ferror('rhoplot_plane',lerrmsg%s,faterr)
+    call rhoplot_plane_values(sy,x0,uu,vv,nx,ny,id,expr,nti,ff,errmsg,progress=.true.)
+    if (len_trim(errmsg) > 0) &
+       call ferror('rhoplot_plane',errmsg,faterr)
     if (abort_requested) then
        write (uout,'("+ The calculation was cancelled: no file was written."/)')
        return
@@ -1374,6 +1307,161 @@ contains
     deallocate(ff)
 
   end subroutine rhoplot_plane
+
+  !> Calculate the values of a field on the points x0 + (ix-1)*uu +
+  !> (iy-1)*vv, ix = 1..nx, iy = 1..ny, of a plane (Cartesian, bohr,
+  !> cell frame of system s) in ff(nx,ny). If id >= 0, use field id
+  !> and its property nti (0 = f, 1-3 = gradient components, 4 =
+  !> gradient norm, 5-10 = Hessian xx, xy, xz, yy, yz, zz, 11 =
+  !> Laplacian); otherwise, evaluate the expression expr. Returns a
+  !> non-empty errmsg if the evaluation failed. If progress, report
+  !> the progress by rows and stop when an abort is requested (the
+  !> rows not calculated are zero).
+  module subroutine rhoplot_plane_values(s,x0,uu,vv,nx,ny,id,expr,nti,ff,errmsg,progress)
+    use systemmod, only: system
+    use types, only: scalar_value, vstring, field_evaluation_avail
+    use global, only: progress_start, progress_step, abort_poll
+    type(system), intent(inout) :: s
+    real*8, intent(in) :: x0(3), uu(3), vv(3)
+    integer, intent(in) :: nx, ny, id, nti
+    character*(*), intent(in) :: expr
+    real*8, intent(out) :: ff(nx,ny)
+    character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: progress
+
+    integer :: ix, iy
+    logical :: progress_
+    real*8 :: xp(3), rhopt
+    type(scalar_value) :: res
+    type(vstring) :: lerrs
+    type(field_evaluation_avail) :: request
+    character(len=:), allocatable :: lerrmsg
+
+    progress_ = .false.
+    if (present(progress)) progress_ = progress
+
+    ! request selector
+    if (nti == 0) then
+       call request%field_only()
+    elseif (nti >= 1 .and. nti <= 4) then
+       call request%field_nder1()
+    else
+       call request%field_nder2()
+    end if
+
+    ! calculate the plane; the private error string is in a vstring:
+    ! gfortran mishandles private deferred-length character variables
+    lerrmsg = ""
+    ff = 0d0
+    if (progress_) call progress_start(nx,"rows")
+    !$omp parallel do private(xp,res,rhopt,lerrs,iy) schedule(dynamic)
+    do ix = 1, nx
+       if (progress_) then
+          if (abort_poll()) cycle
+       end if
+       do iy = 1, ny
+          xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
+
+          lerrs%s = ""
+          if (id >= 0) then
+             call s%f(id)%grd(xp,request,res,periodic=.not.s%c%ismolecule)
+             select case(nti)
+             case (0)
+                rhopt = res%f
+             case (1)
+                rhopt = res%gf(1)
+             case (2)
+                rhopt = res%gf(2)
+             case (3)
+                rhopt = res%gf(3)
+             case (4)
+                rhopt = res%gfmod
+             case (5)
+                rhopt = res%hf(1,1)
+             case (6)
+                rhopt = res%hf(1,2)
+             case (7)
+                rhopt = res%hf(1,3)
+             case (8)
+                rhopt = res%hf(2,2)
+             case (9)
+                rhopt = res%hf(2,3)
+             case (10)
+                rhopt = res%hf(3,3)
+             case (11)
+                rhopt = res%del2f
+             case default
+                rhopt = 0d0
+             end select
+          else
+             rhopt = s%eval(expr,lerrs%s,xp)
+          endif
+          ff(ix,iy) = rhopt
+          if (len_trim(lerrs%s) > 0) then
+             !$omp critical (iowrite)
+             lerrmsg = lerrs%s
+             !$omp end critical (iowrite)
+          end if
+       end do
+       if (progress_) call progress_step()
+    end do
+    !$omp end parallel do
+    errmsg = lerrmsg
+
+  end subroutine rhoplot_plane_values
+
+  !> Contour lines of the values ff(nx,ny) on the points of a plane
+  !> with sides of length r01 (the first index) and r02 (the second)
+  !> forming an angle whose cosine is cosalfa, for the isovalues
+  !> ziso(1:niso). Returns the nline lines, in order of isovalue:
+  !> line i has the points lptr(i) to lptr(i+1)-1 of xy, which are
+  !> the coordinates (bohr) in an orthogonal frame of the plane (x
+  !> along the first side, y perpendicular to it), and the isovalue
+  !> ziso(liso(i)). A closed line repeats its first point at the end.
+  module subroutine rhoplot_contour_lines(ff,nx,ny,r01,r02,cosalfa,niso,ziso,nline,lptr,xy,liso)
+    use types, only: realloc
+    integer, intent(in) :: nx, ny
+    real*8, intent(in) :: ff(nx,ny)
+    real*8, intent(in) :: r01, r02, cosalfa
+    integer, intent(in) :: niso
+    real*8, intent(in) :: ziso(niso)
+    integer, intent(out) :: nline
+    integer, allocatable, intent(inout) :: lptr(:)
+    real*8, allocatable, intent(inout) :: xy(:,:)
+    integer, allocatable, intent(inout) :: liso(:)
+
+    integer :: i, j, npt, np0
+    real*8, allocatable :: x(:), y(:)
+    real*8, allocatable :: xc(:), yc(:), pic(:), pjc(:)
+
+    nline = 0
+    npt = 0
+    if (allocated(lptr)) deallocate(lptr)
+    if (allocated(xy)) deallocate(xy)
+    if (allocated(liso)) deallocate(liso)
+    allocate(lptr(11),xy(2,1000),liso(10))
+    lptr(1) = 1
+
+    ! the grid in each direction
+    allocate(x(nx),y(ny))
+    do i = 1, nx
+       x(i) = (i-1) * r01 / real(nx-1,8)
+    end do
+    do j = 1, ny
+       y(j) = (j-1) * r02 / real(ny-1,8)
+    end do
+
+    ! the crossings for each isovalue, joined into lines
+    allocate(xc(1000),yc(1000),pic(1000),pjc(1000))
+    do i = 1, niso
+       call hallarpuntos(ff,ziso(i),x,y,nx,ny,np0,xc,yc,pic,pjc)
+       call ordenarpuntos(np0,xc,yc,pic,pjc,cosalfa,i,nline,npt,lptr,xy,liso)
+    end do
+    call realloc(lptr,nline+1)
+    call realloc(liso,nline)
+    call realloc(xy,2,npt)
+
+  end subroutine rhoplot_contour_lines
 
   !> Plot of gradient paths and contours in the style of aimpac's grdvec.
   module subroutine rhoplot_grdvec()
@@ -1908,9 +1996,10 @@ contains
 
     character(len=:), allocatable :: root0, fichiso, fichiso1, fichgnu
     integer :: lud, lud1
-    integer :: i, j
+    integer :: i, j, nline
     real*8 :: r012, ua, va, ub, vc
-    real*8, allocatable :: x(:), y(:)
+    integer, allocatable :: lptr(:), liso(:)
+    real*8, allocatable :: xy(:,:), x(:), y(:)
 
     ! set rootname
     root0 = rootname
@@ -1963,23 +2052,18 @@ contains
     va = 0d0
     vc = r02
 
-    ! calculate grid in each direction
+    ! the contour lines: the positive isovalues in one file and the
+    ! rest in the other
     isneg = minval(ff) < 0d0
-    allocate(x(nx))
-    allocate(y(ny))
-    do i = 1, nx
-       do j = 1, ny
-          x(i) = ua + (i-1) * (ub-ua) / real(nx-1,8)
-          y(j) = va + (j-1) * (vc-va) / real(ny-1,8)
-       end do
-    end do
-
-    do i = 1, niso
-       call hallarpuntos(ff,ziso(i),x,y,nx,ny)
-       if (ziso(i).gt.0) then
-          call ordenarpuntos(lud,cosalfa,ziso(i))
+    call rhoplot_contour_lines(ff,nx,ny,ub-ua,vc-va,cosalfa,niso,ziso,nline,lptr,xy,liso)
+    do i = 1, nline
+       j = lptr(i+1) - lptr(i)
+       x = xy(1,lptr(i):lptr(i+1)-1)
+       y = xy(2,lptr(i):lptr(i+1)-1)
+       if (ziso(liso(i)).gt.0) then
+          call linea(x,y,j,lud,ziso(liso(i)))
        else
-          call ordenarpuntos(lud1,cosalfa,ziso(i))
+          call linea(x,y,j,lud1,ziso(liso(i)))
        endif
     enddo
     call fclose(lud)
@@ -1987,8 +2071,6 @@ contains
 
     if (dolabels) call write_fichlabel(root0)
     if (dognu) call write_fichgnu(root0,dolabels,.true.,.false.)
-    if (allocated(x)) deallocate(x)
-    if (allocated(y)) deallocate(y)
 
   end subroutine contour
 
@@ -2141,21 +2223,26 @@ contains
 
   end subroutine colormap
 
-  !> Find contour with value = zc on a surface given by a grid.
-  !> uses linear interpolation.
-  subroutine hallarpuntos(ff,zc,x,y,nx,ny)
+  !> Find the points of the contour with value zc on the grid ff
+  !> (coordinates x, y), using linear interpolation: np of them, in
+  !> xc, yc, with the grid indices pic, pjc (half-integer = between
+  !> two nodes). The arrays grow as needed.
+  subroutine hallarpuntos(ff,zc,x,y,nx,ny,np,xc,yc,pic,pjc)
     use param, only: zero
+    use types, only: realloc
     integer, intent(in) :: nx, ny
     real*8, intent(in) :: ff(nx,ny)
     real*8, intent(in) :: zc
     real*8, intent(in) :: x(:), y(:)
+    integer, intent(out) :: np
+    real*8, allocatable, intent(inout) :: xc(:), yc(:), pic(:), pjc(:)
 
     integer :: i, j
     real*8 :: xa, ya, za, xb, yb, zb
     real*8 :: zazc, zbzc
 
     ! initialize
-    npuntos = 0
+    np = 0
 
     ! run over columns
     do i = 1, nx
@@ -2165,16 +2252,8 @@ contains
        zazc = za-zc
 
        ! check if it is an intersection
-       if (zazc.eq.zero) then
-          npuntos = npuntos+1
-          if (npuntos.gt.size(xc)) then
-             return
-          end if
-          xc(npuntos) = xa
-          yc(npuntos) = ya
-          pic(npuntos) = i
-          pjc(npuntos) = 1d0
-       endif
+       if (zazc.eq.zero) &
+          call add_point(xa,ya,real(i,8),1d0)
 
        do j = 2,ny
           xb = x(i)
@@ -2184,23 +2263,9 @@ contains
 
           ! sign changed, interpolate and write a point
           if ((zazc*zbzc).lt.zero) then
-             npuntos = npuntos+1
-             if (npuntos.gt.size(xc)) then
-                return
-             end if
-             xc(npuntos) = xb
-             yc(npuntos) = ya-zazc*(yb-ya)/(zb-za)
-             pic(npuntos) = i
-             pjc(npuntos) = j-0.5d0
+             call add_point(xb,ya-zazc*(yb-ya)/(zb-za),real(i,8),j-0.5d0)
           else if (zbzc.eq.zero) then
-             npuntos = npuntos+1
-             if (npuntos.gt.size(xc)) then
-                return
-             end if
-             xc(npuntos) = xb
-             yc(npuntos) = yb
-             pic(npuntos) = i
-             pjc(npuntos) = j
+             call add_point(xb,yb,real(i,8),real(j,8))
           endif
           ! reassign zazc
           ya = yb
@@ -2222,16 +2287,8 @@ contains
           zb = ff(i,j)
           zbzc = zb-zc
           ! sign changed, interpolate and write a point
-          if ((zazc*zbzc).lt.zero) then
-             npuntos = npuntos+1
-             if (npuntos.gt.size(xc)) then
-                return
-             end if
-             xc(npuntos) = xa-zazc*(xb-xa)/(zb-za)
-             yc(npuntos) = yb
-             pic(npuntos) = i-0.5d0
-             pjc(npuntos) = j
-          endif
+          if ((zazc*zbzc).lt.zero) &
+             call add_point(xa-zazc*(xb-xa)/(zb-za),yb,i-0.5d0,real(j,8))
           ! reassign zazc
           xa = xb
           za = zb
@@ -2239,24 +2296,55 @@ contains
        enddo
     enddo
 
+  contains
+    subroutine add_point(xx,yy,pi,pj)
+      real*8, intent(in) :: xx, yy, pi, pj
+
+      np = np + 1
+      if (np > size(xc)) then
+         call realloc(xc,2*np)
+         call realloc(yc,2*np)
+         call realloc(pic,2*np)
+         call realloc(pjc,2*np)
+      end if
+      xc(np) = xx
+      yc(np) = yy
+      pic(np) = pi
+      pjc(np) = pj
+
+    end subroutine add_point
   end subroutine hallarpuntos
 
-  !> Determines the connectivity of the set of contour points.
-  subroutine ordenarpuntos(luw,calpha,ziso)
+  !> Determines the connectivity of the np contour points xc, yc
+  !> (grid indices pic, pjc; see hallarpuntos) and adds the lines,
+  !> with isovalue index iso, to the nline lines with npt points in
+  !> lptr, xy, liso (see rhoplot_contour_lines), in the orthogonal
+  !> frame of the plane (calpha = cosine of the angle of its sides).
+  subroutine ordenarpuntos(np,xc,yc,pic,pjc,calpha,iso,nline,npt,lptr,xy,liso)
     use param, only: one, half, zero
+    use types, only: realloc
     real*8, parameter :: eps = 0.10d0
 
-    integer, intent(in) :: luw
-    real*8, intent(in) :: calpha, ziso
+    integer, intent(in) :: np
+    real*8, intent(in) :: xc(:), yc(:), pic(:), pjc(:)
+    real*8, intent(in) :: calpha
+    integer, intent(in) :: iso
+    integer, intent(inout) :: nline, npt
+    integer, allocatable, intent(inout) :: lptr(:)
+    real*8, allocatable, intent(inout) :: xy(:,:)
+    integer, allocatable, intent(inout) :: liso(:)
 
     real*8 :: salpha
 
-    logical :: lc(size(xc)), cerrada, primerabusqueda, hallado
+    logical :: cerrada, primerabusqueda, hallado
     logical :: malla0, malla1, malla2, incompleta
-    integer :: punto(-1*size(xc)-1:size(xc)+1), puntoinicial
+    integer :: puntoinicial
     integer :: puntofinal, puntoactual, salto, nptoscurva
-    integer :: nptosestudiados
-    real*8  :: x(nptcorte+1), y(nptcorte+1)
+    integer :: nptosestudiados, npuntos
+    ! allocatable: np is not bounded, and these could not fit in the stack
+    logical, allocatable :: lc(:)
+    integer, allocatable :: punto(:)
+    real*8, allocatable :: x(:), y(:)
     integer :: k, n1
     real*8  :: pi0, pj0, pi1, pj1, pi2, pj2, si1, sj1
 
@@ -2266,6 +2354,8 @@ contains
        (abs(abs(pj0-pj1)-sj1) < eps)
 
     ! initialize
+    npuntos = np
+    allocate(lc(np),punto(-np-1:np+1),x(np+1),y(np+1))
     do k = 1, npuntos
        lc(k) = .false.
     enddo
@@ -2427,13 +2517,33 @@ contains
        x = x + y * calpha
        y = y * salpha
 
-       call linea(x,y,nptoscurva,luw,ziso)
+       call add_line(nptoscurva)
 
        ! update number of points
        if (cerrada) nptoscurva = nptoscurva-1
        nptosestudiados = nptosestudiados+nptoscurva
     enddo
 
+  contains
+    !> Add the line in x(1:n), y(1:n) to the output.
+    subroutine add_line(n)
+      integer, intent(in) :: n
+
+      integer :: kk
+
+      if (npt + n > size(xy,2)) call realloc(xy,2,max(2*size(xy,2),npt+n))
+      if (nline + 2 > size(lptr)) call realloc(lptr,2*size(lptr))
+      if (nline + 1 > size(liso)) call realloc(liso,2*size(liso))
+      do kk = 1, n
+         xy(1,npt+kk) = x(kk)
+         xy(2,npt+kk) = y(kk)
+      end do
+      npt = npt + n
+      nline = nline + 1
+      liso(nline) = iso
+      lptr(nline+1) = npt + 1
+
+    end subroutine add_line
   end subroutine ordenarpuntos
 
   !> Write (x(n),y(n)) curve in luw.

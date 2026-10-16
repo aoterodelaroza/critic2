@@ -1631,7 +1631,15 @@ subroutine ImDrawList_AddImage(self,user_texture_id,p_min,p_max,uv_min,uv_max,co
   type(ImVec2), value :: uv_max
   integer(c_int), value :: col
 end subroutine ImDrawList_AddImage
-!x! void ImDrawList_AddImageQuad(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,const ImVec2 uv1,const ImVec2 uv2,const ImVec2 uv3,const ImVec2 uv4,ImU32 col);
+! void ImDrawList_AddImageQuad(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,const ImVec2 uv1,const ImVec2 uv2,const ImVec2 uv3,const ImVec2 uv4,ImU32 col);
+subroutine ImDrawList_AddImageQuad(self,user_texture_id,p1,p2,p3,p4,uv1,uv2,uv3,uv4,col) bind(c,name="ImDrawList_AddImageQuad")
+  import c_ptr, c_intptr_t, ImVec2, c_int
+  type(c_ptr), value :: self
+  integer(c_intptr_t), value :: user_texture_id
+  type(ImVec2), value :: p1, p2, p3, p4
+  type(ImVec2), value :: uv1, uv2, uv3, uv4
+  integer(c_int), value :: col
+end subroutine ImDrawList_AddImageQuad
 !x! void ImDrawList_AddImageRounded(ImDrawList* self,ImTextureID user_texture_id,const ImVec2 p_min,const ImVec2 p_max,const ImVec2 uv_min,const ImVec2 uv_max,ImU32 col,float rounding,ImDrawFlags flags);
 !x! void ImDrawList_PathClear(ImDrawList* self);
 !x! void ImDrawList_PathLineTo(ImDrawList* self,const ImVec2 pos);
@@ -2940,6 +2948,25 @@ subroutine ipSetNextMarkerStyle(marker,size,fill,weight,outline) bind(c,name="ip
   real(c_float), value :: weight
   type(ImVec4), intent(in), value :: outline
 end subroutine ipSetNextMarkerStyle
+! void ipColormapScale(const char* label, double scale_min, double scale_max, const ImVec2 size, const char* format, ImPlotColormap cmap);
+subroutine ipColormapScale(label,scale_min,scale_max,size,format,cmap) bind(c,name="ipColormapScale")
+  import c_ptr, c_double, ImVec2, c_int
+  type(c_ptr), intent(in), value :: label
+  real(c_double), value :: scale_min, scale_max
+  type(ImVec2), intent(in), value :: size
+  type(c_ptr), intent(in), value :: format
+  integer(c_int), value :: cmap
+end subroutine ipColormapScale
+! void ipGetPlotMousePos(double *x, double *y);
+subroutine ipGetPlotMousePos(x,y) bind(c,name="ipGetPlotMousePos")
+  import c_double
+  real(c_double) :: x, y
+end subroutine ipGetPlotMousePos
+! bool ipIsPlotHovered();
+function ipIsPlotHovered() bind(c,name="ipIsPlotHovered")
+  import c_bool
+  logical(c_bool) :: ipIsPlotHovered
+end function ipIsPlotHovered
 ! void ipShowDemoWindow(bool* p_open);
 subroutine ipShowDemoWindow(p_open) bind(c,name="ipShowDemoWindow")
   import c_bool

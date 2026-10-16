@@ -27,6 +27,8 @@ module rhoplot
   public :: rhoplot_line_values
   public :: rhoplot_cube
   public :: rhoplot_plane
+  public :: rhoplot_plane_values
+  public :: rhoplot_contour_lines
   public :: rhoplot_grdvec
 
   interface
@@ -51,6 +53,27 @@ module rhoplot
      module subroutine rhoplot_plane(line)
        character*(*), intent(in) :: line
      end subroutine rhoplot_plane
+     module subroutine rhoplot_plane_values(s,x0,uu,vv,nx,ny,id,expr,nti,ff,errmsg,progress)
+       use systemmod, only: system
+       type(system), intent(inout) :: s
+       real*8, intent(in) :: x0(3), uu(3), vv(3)
+       integer, intent(in) :: nx, ny, id, nti
+       character*(*), intent(in) :: expr
+       real*8, intent(out) :: ff(nx,ny)
+       character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: progress
+     end subroutine rhoplot_plane_values
+     module subroutine rhoplot_contour_lines(ff,nx,ny,r01,r02,cosalfa,niso,ziso,nline,lptr,xy,liso)
+       integer, intent(in) :: nx, ny
+       real*8, intent(in) :: ff(nx,ny)
+       real*8, intent(in) :: r01, r02, cosalfa
+       integer, intent(in) :: niso
+       real*8, intent(in) :: ziso(niso)
+       integer, intent(out) :: nline
+       integer, allocatable, intent(inout) :: lptr(:)
+       real*8, allocatable, intent(inout) :: xy(:,:)
+       integer, allocatable, intent(inout) :: liso(:)
+     end subroutine rhoplot_contour_lines
      module subroutine rhoplot_grdvec()
      end subroutine rhoplot_grdvec
   end interface

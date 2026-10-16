@@ -425,7 +425,9 @@ module representations
   integer, parameter, public :: reptype_legend = 15 ! legend of the atomic species
   integer, parameter, public :: reptype_scalebar = 16 ! scale bar
   integer, parameter, public :: reptype_colorbar = 17 ! color bar of a colored isosurface
-  integer, parameter, public :: reptype_NUM = 17
+  integer, parameter, public :: reptype_slice = 18 ! colored map of a field on a plane ("Plane Map" in
+                                                   ! the UI, "planemap" in the scene files)
+  integer, parameter, public :: reptype_NUM = 18
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -451,7 +453,8 @@ module representations
   integer, parameter, public :: repflavor_legend = 20
   integer, parameter, public :: repflavor_scalebar = 21
   integer, parameter, public :: repflavor_colorbar = 22
-  integer, parameter, public :: repflavor_NUM = 22
+  integer, parameter, public :: repflavor_slice = 23
+  integer, parameter, public :: repflavor_NUM = 23
 
   ! predefined drawing styles: the atoms object and the bonds object that
   ! each style is made of, which together give the structure a familiar
@@ -471,7 +474,7 @@ module representations
      reptype_bonds, reptype_labels, reptype_polyhedra, reptype_unitcell, reptype_axes,&
      reptype_symelem, reptype_text, reptype_measure, reptype_shapes, reptype_isosurface,&
      reptype_cps, reptype_gpaths, reptype_planar, reptype_legend, reptype_scalebar,&
-     reptype_colorbar/)
+     reptype_colorbar, reptype_slice/)
 
   ! default name of an object, by flavor (each flavor belongs to exactly
   ! one kind, so this is also the name of the kind for its basic flavor)
@@ -498,7 +501,8 @@ module representations
      "2D Drawing       ",& ! repflavor_planar
      "Legend           ",& ! repflavor_legend
      "Scale Bar        ",& ! repflavor_scalebar
-     "Color Bar        "/) ! repflavor_colorbar
+     "Color Bar        ",& ! repflavor_colorbar
+     "Plane Map        "/) ! repflavor_slice
 
   !> Atom display options (all atom-based kinds; drawn by reptype_atoms,
   !> and the colors/radii used by the other kinds; accessed as r%atoms%...)
@@ -785,6 +789,97 @@ module representations
      character(len=colorbar_text_len) :: title = "" ! custom title
   end type rep_colorbar
   public :: rep_colorbar
+
+  !> A map of a field on a region of a plane, as PLANE calculates it:
+  !> the plane, the region, the number of points, the quantity, and how
+  !> it is colored and contoured. Shared by the plane map window and the
+  !> plane map objects (reptype_slice). The points are fractional for
+  !> crystals and Cartesian Å for molecules (as the coordinates of the
+  !> forms of the GUI): the origin, the end of the first side, and a
+  !> point on the second side.
+  type plane_def
+     real*8 :: xp(3,3) = 0d0 ! the three points
+     integer :: region = 0 ! 0 = rectangle, 1 = parallelogram (as PLANE)
+     real*8 :: margin = 0d0 ! extra length added on every side (Å or bohr)
+     integer(c_int) :: nx = 101 ! number of points along the first side
+     integer(c_int) :: ny = 101 ! number of points along the second side
+     ! the quantity: a field and its PLANE property, or an expression
+     logical :: isexpr = .false.
+     type(field_ref) :: fref
+     integer :: nti = 0
+     character(len=1024) :: expr = ""
+     character(len=1024) :: exprerr = "" ! what is wrong with it (checked as it is typed)
+     ! the colors: colormap (iw_cmap_*), scale (0 = linear, 1 = log|f|,
+     ! 2 = atan), and a fixed range
+     integer :: icmap = 1
+     integer :: cscale = 1
+     logical :: crange = .false.
+     real*8 :: cmin = 0d0, cmax = 1d0
+     ! the contour lines: shown, kind (niso_* of tools_math), number,
+     ! range, list, and colors
+     logical :: showcont = .true.
+     integer :: ctype = 2 ! niso_log
+     integer(c_int) :: nlev = 21
+     logical :: lrange = .false.
+     real*8 :: lmin = 0d0, lmax = 1d0
+     character(len=1024) :: llist = ""
+     real(c_float) :: rgbpos(3) = (/0.05_c_float,0.05_c_float,0.05_c_float/) ! positive levels
+     real(c_float) :: rgbneg(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/) ! zero and negative
+   contains
+     procedure :: set_defaults => plane_def_set_defaults ! the plane for a new system
+     procedure :: grid => plane_def_grid ! the grid of the region
+     procedure :: key => plane_def_key ! what the values depend on
+     procedure :: values => plane_def_values ! the values on the grid
+     procedure :: levels => plane_def_levels ! the contour levels
+     procedure :: contours => plane_def_contours ! the contour lines
+     procedure :: contkey => plane_def_contkey ! what the contour lines depend on (with llist)
+     procedure :: cvalue => plane_def_cvalue ! a value on the scale of the colors
+     procedure :: colors => plane_def_colors ! the colors of the values
+     procedure :: colorkey => plane_def_colorkey ! what the colors depend on
+  end type plane_def
+  public :: plane_def
+
+  ! the limits of the number of points along each side of a plane map,
+  ! and of the number of contour levels
+  integer(c_int), parameter, public :: plane_npts_min = 2
+  integer(c_int), parameter, public :: plane_npts_max = 500 ! the values are calculated in the frame
+  integer(c_int), parameter, public :: plane_nlev_max = 1000
+
+  !> The values and the contour lines of a plane map object, cached
+  !> (calculated again when their keys change; moved, not copied, by
+  !> the undo snapshots).
+  type slice_cache
+     real*8, allocatable :: ff(:,:) ! the values on the grid
+     real*8 :: x0(3) = 0d0, uu(3) = 0d0, vv(3) = 0d0 ! the grid (cell-frame Cartesian bohr)
+     real*8 :: e1(3) = 0d0, e2(3) = 0d0 ! orthonormal frame of the plane
+     character(len=:), allocatable :: errmsg ! why there are no values
+     integer*8, allocatable :: key(:)
+     character(len=:), allocatable :: keyexpr
+     ! the contour lines, in the frame of the region (as rhoplot_contour_lines)
+     integer :: nline = 0
+     integer, allocatable :: lptr(:), liso(:)
+     real*8, allocatable :: xy(:,:), ziso(:)
+     integer*8, allocatable :: keycont(:)
+     character(len=:), allocatable :: keylist
+     ! the colored mesh of the values, and what its colors are made from
+     type(dl_mesh) :: mesh
+     integer*8, allocatable :: keycolor(:)
+  end type slice_cache
+  public :: slice_cache
+
+  ! default radius of the contour lines of a plane map object (bohr)
+  real*8, parameter, public :: slice_crad_def = 0.02d0 / bohrtoa
+
+  !> Plane map options (reptype_slice; accessed as r%slice%...): a map
+  !> of a field on a region of a plane drawn in the scene, as a colored
+  !> mesh with contour lines.
+  type rep_slice
+     type(plane_def) :: d ! the map
+     real(c_float) :: alpha = 1._c_float ! opacity
+     real*8 :: crad = slice_crad_def ! radius of the contour lines (bohr)
+     type(slice_cache), allocatable :: c ! the values and the lines
+  end type rep_slice
+  public :: rep_slice
 
   !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
@@ -1241,6 +1336,7 @@ module representations
      type(rep_legend) :: legend ! legend options
      type(rep_scalebar) :: scalebar ! scale bar options
      type(rep_colorbar) :: colorbar ! color bar options
+     type(rep_slice) :: slice ! plane map options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
@@ -1746,6 +1842,64 @@ module representations
        type(representation), intent(in), optional :: ratoms
        type(representation), intent(in), optional :: riso
      end subroutine add_draw_elements
+     module subroutine plane_def_set_defaults(d,isys)
+       class(plane_def), intent(inout) :: d
+       integer, intent(in) :: isys
+     end subroutine plane_def_set_defaults
+     module subroutine plane_def_grid(d,isys,x0,uu,vv,a0,e1,e2,errmsg)
+       class(plane_def), intent(in) :: d
+       integer, intent(in) :: isys
+       real*8, intent(out) :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine plane_def_grid
+     module subroutine plane_def_key(d,isys,key)
+       class(plane_def), intent(in) :: d
+       integer, intent(in) :: isys
+       integer*8, allocatable, intent(inout) :: key(:)
+     end subroutine plane_def_key
+     module subroutine plane_def_values(d,isys,x0,uu,vv,ff,errmsg)
+       class(plane_def), intent(inout) :: d
+       integer, intent(in) :: isys
+       real*8, intent(in) :: x0(3), uu(3), vv(3)
+       real*8, allocatable, intent(inout) :: ff(:,:)
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine plane_def_values
+     module subroutine plane_def_levels(d,ff,niso,ziso)
+       class(plane_def), intent(in) :: d
+       real*8, intent(in) :: ff(:,:)
+       integer, intent(out) :: niso
+       real*8, allocatable, intent(inout) :: ziso(:)
+     end subroutine plane_def_levels
+     module subroutine plane_def_contours(d,ff,uu,vv,niso,ziso,nline,lptr,xy,liso)
+       class(plane_def), intent(in) :: d
+       real*8, intent(in) :: ff(:,:), uu(3), vv(3)
+       integer, intent(out) :: niso, nline
+       real*8, allocatable, intent(inout) :: ziso(:), xy(:,:)
+       integer, allocatable, intent(inout) :: lptr(:), liso(:)
+     end subroutine plane_def_contours
+     module subroutine plane_def_contkey(d,key)
+       class(plane_def), intent(in) :: d
+       integer*8, allocatable, intent(inout) :: key(:)
+     end subroutine plane_def_contkey
+     module subroutine plane_def_colors(d,ff,gmin,gmax,rgb)
+       class(plane_def), intent(in) :: d
+       real*8, intent(in) :: ff(:,:)
+       real*8, intent(out) :: gmin, gmax
+       real(c_float), allocatable, intent(inout) :: rgb(:,:)
+     end subroutine plane_def_colors
+     module subroutine plane_def_colorkey(d,key)
+       class(plane_def), intent(in) :: d
+       integer*8, allocatable, intent(inout) :: key(:)
+     end subroutine plane_def_colorkey
+     module function plane_def_cvalue(d,f)
+       class(plane_def), intent(in) :: d
+       real*8, intent(in) :: f
+       real*8 :: plane_def_cvalue
+     end function plane_def_cvalue
+     module subroutine slice_draw(r,obj)
+       class(representation), intent(inout) :: r
+       type(scene_objects), intent(inout) :: obj
+     end subroutine slice_draw
      module function colorbar_rep(cb,rep,nrep) result(irep)
        type(rep_colorbar), intent(in) :: cb
        type(representation), intent(in) :: rep(:)

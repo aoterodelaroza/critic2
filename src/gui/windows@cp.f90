@@ -470,6 +470,53 @@ contains
 
   end function form_to_cart
 
+  !> The points labeled by the line profile and plane map windows in
+  !> system isys: its atoms (by species name) and the critical points
+  !> of its reference field other than the nuclei (nnm, bcp, rcp,
+  !> ccp); nc of them, with their crystallographic coordinates in xf
+  !> and their labels in lbl.
+  module subroutine label_candidates(isys,nc,xf,lbl)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    integer, intent(out) :: nc
+    real*8, allocatable, intent(inout) :: xf(:,:)
+    character(len=12), allocatable, intent(inout) :: lbl(:)
+
+    integer :: i, ncp
+
+    ncp = 0
+    if (sys(isys)%goodfield(sys(isys)%iref)) then
+       if (allocated(sys(isys)%f(sys(isys)%iref)%cpcel)) ncp = sys(isys)%f(sys(isys)%iref)%ncpcel
+    end if
+    if (allocated(xf)) deallocate(xf)
+    if (allocated(lbl)) deallocate(lbl)
+    allocate(xf(3,sys(isys)%c%ncel+ncp),lbl(sys(isys)%c%ncel+ncp))
+    nc = 0
+    do i = 1, sys(isys)%c%ncel
+       nc = nc + 1
+       xf(:,nc) = sys(isys)%c%atcel(i)%x
+       lbl(nc) = sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%name
+    end do
+    do i = 1, ncp
+       associate(cp => sys(isys)%f(sys(isys)%iref)%cpcel(i))
+         if (cp%isnuc) cycle
+         nc = nc + 1
+         xf(:,nc) = cp%x
+         select case (cp%typ)
+         case (-3)
+            lbl(nc) = "nnm"
+         case (-1)
+            lbl(nc) = "bcp"
+         case (1)
+            lbl(nc) = "rcp"
+         case default
+            lbl(nc) = "ccp"
+         end select
+       end associate
+    end do
+
+  end subroutine label_candidates
+
   !> The default notation and decimal places of the critical points
   !> window, as defaults of the point properties window: in col (by
   !> propid_*) for the properties both windows have, and in ppdef for

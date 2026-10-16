@@ -84,7 +84,7 @@ contains
   !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations),
   !> 11 (measurements), 12 (isosurfaces), 13 (geometric shapes),
   !> 14 (critical points), 15 (gradient paths), 16 (planar shapes),
-  !> 17 (legend), 18 (scale bar), 19 (color bar).
+  !> 17 (legend), 18 (scale bar), 19 (color bar), 20 (plane map).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -341,6 +341,12 @@ contains
     ! color bar
     if (itype == 0 .or. itype == 19) then
        r%colorbar = rep_colorbar()
+    end if
+
+    ! plane map: the default plane of the system
+    if (itype == 0 .or. itype == 20) then
+       r%slice = rep_slice()
+       if (r%type == reptype_slice) call r%slice%d%set_defaults(isys)
     end if
 
     ! initialize the styles
@@ -769,6 +775,7 @@ contains
     r%legend = rep_legend()
     r%scalebar = rep_scalebar()
     r%colorbar = rep_colorbar()
+    r%slice = rep_slice()
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -895,6 +902,11 @@ contains
           r%iso%slot(i)%maprange_auto = .true.
           r%iso%slot(i)%imap_built = -1
        end do
+
+    elseif (r%type == reptype_slice) then
+       ! plane maps: if the field is gone, the reference field
+       if (.not.r%slice%d%fref%ok(sys(r%id))) &
+          call r%slice%d%fref%set(sys(r%id),sys(r%id)%iref)
 
     elseif (r%type == reptype_cps) then
        ! critical points: if the selected field is gone, fall back to
@@ -1762,6 +1774,9 @@ contains
     elseif (r%type == reptype_colorbar) then
        !!! color bar of a colored isosurface, laid out at render time !!!
        if (present(riso)) call append_colorbar()
+    elseif (r%type == reptype_slice) then
+       !!! map of a field on a plane !!!
+       call slice_draw(r,obj)
     elseif (r%type == reptype_symelem) then
        !!! symmetry elements (planes/axes/inversion centers) !!!
        if (r%symelem%style%isinit) then

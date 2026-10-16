@@ -1,0 +1,546 @@
+! Copyright (c) 2019-2022 Alberto Otero de la Roza <aoterodelaroza@gmail.com>,
+! Ángel Martín Pendás <angel@fluor.quimica.uniovi.es> and Víctor Luaña
+! <victor@fluor.quimica.uniovi.es>.
+!
+! critic2 is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or (at
+! your option) any later version.
+!
+! critic2 is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+! Maps of a field on a plane (the PLANE keyword): the definition shared
+! by the plane map window and the plane map objects, and the drawing of
+! the objects (reptype_slice).
+submodule (representations) plane
+  implicit none
+
+  ! the number of colors of the map
+  integer, parameter :: nlut = 256
+
+contains
+
+  !> The map of a new system isys: a face of the cell, for crystals;
+  !> for molecules, the plane of the first three atoms (if they are not
+  !> on a line), on the region that covers the whole molecule with some
+  !> margin, or a face of the molecular box. The quantity is the value
+  !> of the reference field.
+  module subroutine plane_def_set_defaults(d,isys)
+    use systems, only: sys
+    class(plane_def), intent(inout) :: d
+    integer, intent(in) :: isys
+
+    real*8, parameter :: mmol = 2d0 / bohrtoa ! margin around the molecule (bohr)
+    real*8 :: a(3,3), d1(3), c(3), e1(3), e2(3), pu, pv, umin, umax, vmin, vmax, p(3)
+    integer :: i
+    logical :: done
+
+    d%isexpr = .false.
+    d%nti = 0
+    call d%fref%set(sys(isys),sys(isys)%iref)
+    d%region = 0
+
+    done = .false.
+    if (sys(isys)%c%ismolecule .and. sys(isys)%c%ncel >= 3) then
+       do i = 1, 3
+          a(:,i) = sys(isys)%c%atcel(i)%r
+       end do
+       d1 = a(:,2) - a(:,1)
+       c = a(:,3) - a(:,1)
+       if (norm2(d1) > 1d-4) then
+          e1 = d1 / norm2(d1)
+          c = c - dot_product(c,e1) * e1
+          if (norm2(c) > 1d-4) then
+             e2 = c / norm2(c)
+             umin = huge(1d0)
+             umax = -huge(1d0)
+             vmin = huge(1d0)
+             vmax = -huge(1d0)
+             do i = 1, sys(isys)%c%ncel
+                p = sys(isys)%c%atcel(i)%r - a(:,1)
+                pu = dot_product(p,e1)
+                pv = dot_product(p,e2)
+                umin = min(umin,pu)
+                umax = max(umax,pu)
+                vmin = min(vmin,pv)
+                vmax = max(vmax,pv)
+             end do
+             p = a(:,1) + (umin - mmol) * e1 + (vmin - mmol) * e2
+             d%xp(:,1) = form(p)
+             d%xp(:,2) = form(p + (umax - umin + 2*mmol) * e1)
+             d%xp(:,3) = form(p + (vmax - vmin + 2*mmol) * e2)
+             done = .true.
+          end if
+       end if
+    end if
+
+    if (.not.done) then
+       if (sys(isys)%c%ismolecule) then
+          d%xp(:,1) = form(sys(isys)%c%x2c((/0d0,0d0,0.5d0/)))
+          d%xp(:,2) = form(sys(isys)%c%x2c((/1d0,0d0,0.5d0/)))
+          d%xp(:,3) = form(sys(isys)%c%x2c((/0d0,1d0,0.5d0/)))
+       else
+          d%xp(:,1) = (/0d0,0d0,0d0/)
+          d%xp(:,2) = (/1d0,0d0,0d0/)
+          d%xp(:,3) = (/0d0,1d0,0d0/)
+       end if
+    end if
+    ! no negative zeros in the forms
+    where (abs(d%xp) < 1d-12) d%xp = 0d0
+
+  contains
+    !> The point xc (cell-frame Cartesian bohr) in the coordinates of
+    !> the forms.
+    function form(xc) result(x)
+      real*8, intent(in) :: xc(3)
+      real*8 :: x(3)
+      if (sys(isys)%c%ismolecule) then
+         x = (xc + sys(isys)%c%molx0) * bohrtoa
+      else
+         x = sys(isys)%c%c2x(xc)
+      end if
+    end function form
+  end subroutine plane_def_set_defaults
+
+  !> The grid of the region of the map in system isys (cell-frame
+  !> Cartesian bohr): the origin x0 and the steps uu, vv (the points are
+  !> x0 + (ix-1)*uu + (iy-1)*vv), the first point a0, and the
+  !> orthonormal frame of the plane (e1 along the first side, e2
+  !> perpendicular to it toward the third point). Returns a non-empty
+  !> errmsg if the points do not define a region.
+  module subroutine plane_def_grid(d,isys,x0,uu,vv,a0,e1,e2,errmsg)
+    use systems, only: sys
+    use tools_math, only: plane_scale_extend
+    class(plane_def), intent(in) :: d
+    integer, intent(in) :: isys
+    real*8, intent(out) :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    real*8 :: x1(3), x2(3), d1(3), c(3), cperp(3), l1, h, m
+
+    errmsg = ""
+    x0 = 0d0
+    uu = 0d0
+    vv = 0d0
+    e1 = 0d0
+    e2 = 0d0
+    a0 = cart(d%xp(:,1))
+    x1 = cart(d%xp(:,2))
+    x2 = cart(d%xp(:,3))
+    d1 = x1 - a0
+    l1 = norm2(d1)
+    c = x2 - a0
+    if (l1 < 1d-8) then
+       errmsg = "The origin and the X end are the same point"
+       return
+    end if
+    e1 = d1 / l1
+    cperp = c - dot_product(c,e1) * e1
+    h = norm2(cperp)
+    if (h < 1d-8) then
+       errmsg = "The three points are on a line: they do not define a plane"
+       return
+    end if
+    e2 = cperp / h
+
+    ! the second side perpendicular to the first, or to the third
+    ! point; with the margin on every side
+    if (d%region == 0) x2 = a0 + cperp
+    m = d%margin
+    if (sys(isys)%c%ismolecule) m = m / bohrtoa
+    x0 = a0
+    call plane_scale_extend(x0,x1,x2,1d0,1d0,m,m,m,m)
+    ! a negative margin of half a side or more would turn the region over
+    if (dot_product(x1 - x0,e1) <= 1d-8 .or. dot_product(x2 - x0,e2) <= 1d-8) then
+       errmsg = "The negative margin is larger than the region"
+       return
+    end if
+    uu = (x1 - x0) / real(d%nx-1,8)
+    vv = (x2 - x0) / real(d%ny-1,8)
+
+  contains
+    !> The point x of the forms in cell-frame Cartesian bohr.
+    function cart(x) result(xc)
+      real*8, intent(in) :: x(3)
+      real*8 :: xc(3)
+      if (sys(isys)%c%ismolecule) then
+         xc = x / bohrtoa - sys(isys)%c%molx0
+      else
+         xc = sys(isys)%c%x2c(x)
+      end if
+    end function cart
+  end subroutine plane_def_grid
+
+  !> Everything the values of the map in system isys depend on: the
+  !> region, the number of points, the quantity, the geometry, and the
+  !> fields (all of them, for an expression; which enters through the
+  !> size of key). The expression itself is not in it.
+  module subroutine plane_def_key(d,isys,key)
+    use systems, only: sys, sysc
+    class(plane_def), intent(in) :: d
+    integer, intent(in) :: isys
+    integer*8, allocatable, intent(inout) :: key(:)
+
+    integer :: j, nf
+
+    nf = 0
+    if (d%isexpr) nf = sys(isys)%nf + 1
+    if (allocated(key)) deallocate(key)
+    allocate(key(19+nf))
+    key(1:9) = transfer(d%xp,key(1:9))
+    key(10) = d%region
+    key(11) = transfer(d%margin,key(11))
+    key(12) = d%nx
+    key(13) = d%ny
+    key(14) = merge(1_8,0_8,d%isexpr)
+    key(15) = d%fref%uid
+    key(16) = d%fref%id
+    key(17) = d%nti
+    key(18) = sys(isys)%field_cuid(d%fref%id)
+    key(19) = transfer(sysc(isys)%timelastchange_geometry,key(19))
+    do j = 0, nf-1
+       key(20+j) = sys(isys)%field_cuid(j)
+    end do
+
+  end subroutine plane_def_key
+
+  !> Calculate the values of the map in system isys on the grid x0,
+  !> uu, vv (see plane_def_grid) in ff (nx,ny). The expression is
+  !> checked again (the fields it uses may have come or gone). If they
+  !> cannot be calculated, ff is not allocated and errmsg says why
+  !> (empty for an empty or wrong expression: exprerr says it).
+  module subroutine plane_def_values(d,isys,x0,uu,vv,ff,errmsg)
+    use systems, only: sys
+    use rhoplot, only: rhoplot_plane_values
+    class(plane_def), intent(inout) :: d
+    integer, intent(in) :: isys
+    real*8, intent(in) :: x0(3), uu(3), vv(3)
+    real*8, allocatable, intent(inout) :: ff(:,:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: id
+    logical :: ok
+    character(len=:), allocatable :: lerr
+
+    errmsg = ""
+    if (allocated(ff)) deallocate(ff)
+    if (d%isexpr) then
+       id = -1
+       d%exprerr = ""
+       if (len_trim(d%expr) > 0) then
+          call sys(isys)%check_expression(trim(d%expr),lerr)
+          d%exprerr = lerr
+       end if
+       ok = (len_trim(d%expr) > 0 .and. len_trim(d%exprerr) == 0)
+    else
+       id = d%fref%id
+       ok = sys(isys)%goodfield(id)
+       if (.not.ok) errmsg = "The field is not available in this system"
+    end if
+    if (.not.ok) return
+
+    allocate(ff(d%nx,d%ny))
+    call rhoplot_plane_values(sys(isys),x0,uu,vv,d%nx,d%ny,id,trim(d%expr),d%nti,ff,errmsg)
+    if (len_trim(errmsg) > 0) deallocate(ff)
+
+  end subroutine plane_def_values
+
+  !> The contour levels of the map with values ff: niso of them, in
+  !> ziso (none for an empty list).
+  module subroutine plane_def_levels(d,ff,niso,ziso)
+    use tools_math, only: assign_ziso, niso_manual, niso_bader
+    use tools_io, only: isreal
+    use types, only: realloc
+    class(plane_def), intent(in) :: d
+    real*8, intent(in) :: ff(:,:)
+    integer, intent(out) :: niso
+    real*8, allocatable, intent(inout) :: ziso(:)
+
+    integer :: i, lp
+    real*8 :: fmin, fmax, rval
+    character(len=:), allocatable :: llist
+
+    niso = 0
+    if (d%ctype == niso_manual) then
+       ! a list of values, separated by spaces or commas
+       if (allocated(ziso)) deallocate(ziso)
+       allocate(ziso(10))
+       llist = d%llist
+       do i = 1, len(llist)
+          if (llist(i:i) == ",") llist(i:i) = " "
+       end do
+       lp = 1
+       do while (isreal(rval,llist,lp))
+          niso = niso + 1
+          if (niso > size(ziso)) call realloc(ziso,2*niso)
+          ziso(niso) = rval
+       end do
+       call realloc(ziso,niso)
+    else
+       if (d%lrange .and. d%ctype /= niso_bader) then
+          fmin = d%lmin
+          fmax = d%lmax
+       else
+          fmin = minval(ff)
+          fmax = maxval(ff)
+       end if
+       niso = max(d%nlev,2)
+       call assign_ziso(d%ctype,niso,ziso,fmin,fmax)
+    end if
+
+  end subroutine plane_def_levels
+
+  !> The contour lines of the map with values ff on the grid with
+  !> steps uu, vv: the niso levels (ziso) and the nline lines (see
+  !> rhoplot_contour_lines), in the frame of the region.
+  module subroutine plane_def_contours(d,ff,uu,vv,niso,ziso,nline,lptr,xy,liso)
+    use rhoplot, only: rhoplot_contour_lines
+    class(plane_def), intent(in) :: d
+    real*8, intent(in) :: ff(:,:), uu(3), vv(3)
+    integer, intent(out) :: niso, nline
+    real*8, allocatable, intent(inout) :: ziso(:), xy(:,:)
+    integer, allocatable, intent(inout) :: lptr(:), liso(:)
+
+    integer :: nx, ny
+    real*8 :: r01, r02, cosa
+
+    nline = 0
+    call d%levels(ff,niso,ziso)
+    if (niso == 0) return
+    nx = size(ff,1)
+    ny = size(ff,2)
+    r01 = norm2(uu) * (nx-1)
+    r02 = norm2(vv) * (ny-1)
+    cosa = dot_product(uu,vv) / (norm2(uu) * norm2(vv))
+    call rhoplot_contour_lines(ff,nx,ny,r01,r02,cosa,niso,ziso,nline,lptr,xy,liso)
+
+  end subroutine plane_def_contours
+
+  !> What the contour lines of the map depend on, other than the values
+  !> and the list of levels (llist): whether they are drawn, and the
+  !> levels.
+  module subroutine plane_def_contkey(d,key)
+    class(plane_def), intent(in) :: d
+    integer*8, allocatable, intent(inout) :: key(:)
+
+    if (allocated(key)) deallocate(key)
+    allocate(key(6))
+    key(1) = merge(1_8,0_8,d%showcont)
+    key(2) = d%ctype
+    key(3) = d%nlev
+    key(4) = merge(1_8,0_8,d%lrange)
+    key(5) = transfer(d%lmin,key(5))
+    key(6) = transfer(d%lmax,key(6))
+
+  end subroutine plane_def_contkey
+
+  !> The colors of the values ff of the map, in rgb (3,nx*ny; the
+  !> first index of ff runs fastest), and the range of the values on the
+  !> scale of the colors (gmin, gmax).
+  module subroutine plane_def_colors(d,ff,gmin,gmax,rgb)
+    use ieee_arithmetic, only: ieee_is_finite
+    class(plane_def), intent(in) :: d
+    real*8, intent(in) :: ff(:,:)
+    real*8, intent(out) :: gmin, gmax
+    real(c_float), allocatable, intent(inout) :: rgb(:,:)
+
+    integer :: nx, ny, ix, iy, k, il
+    real*8 :: gv
+    real*8, allocatable :: g(:,:)
+    real(c_float) :: lut(3,nlut)
+
+    ! the values on the scale of the colors, and their range
+    nx = size(ff,1)
+    ny = size(ff,2)
+    allocate(g(nx,ny))
+    gmin = huge(1d0)
+    gmax = -huge(1d0)
+    do iy = 1, ny
+       do ix = 1, nx
+          g(ix,iy) = d%cvalue(ff(ix,iy))
+          if (.not.ieee_is_finite(g(ix,iy))) cycle
+          gmin = min(gmin,g(ix,iy))
+          gmax = max(gmax,g(ix,iy))
+       end do
+    end do
+    if (d%crange) then
+       gmin = d%cvalue(d%cmin)
+       gmax = d%cvalue(d%cmax)
+    end if
+    if (gmin > gmax) then
+       gmin = 0d0
+       gmax = 1d0
+    end if
+    if (gmax <= gmin) gmax = gmin + max(abs(gmin),1d0) * 1d-6
+
+    ! the colors
+    call iw_colormap_lut(d%icmap,lut)
+    if (allocated(rgb)) deallocate(rgb)
+    allocate(rgb(3,nx*ny))
+    k = 0
+    do iy = 1, ny
+       do ix = 1, nx
+          k = k + 1
+          gv = (g(ix,iy) - gmin) / (gmax - gmin)
+          if (.not.ieee_is_finite(gv)) gv = 0d0
+          il = nint(max(min(gv,1d0),0d0) * (nlut-1)) + 1
+          rgb(:,k) = lut(:,il)
+       end do
+    end do
+
+  end subroutine plane_def_colors
+
+  !> What the colors of the map depend on, other than the values.
+  module subroutine plane_def_colorkey(d,key)
+    class(plane_def), intent(in) :: d
+    integer*8, allocatable, intent(inout) :: key(:)
+
+    if (allocated(key)) deallocate(key)
+    allocate(key(5))
+    key(1) = d%icmap
+    key(2) = d%cscale
+    key(3) = merge(1_8,0_8,d%crange)
+    key(4) = transfer(d%cmin,key(4))
+    key(5) = transfer(d%cmax,key(5))
+
+  end subroutine plane_def_colorkey
+
+  !> The value f on the scale of the colors of the map.
+  module function plane_def_cvalue(d,f)
+    class(plane_def), intent(in) :: d
+    real*8, intent(in) :: f
+    real*8 :: plane_def_cvalue
+
+    if (d%cscale == 1) then
+       plane_def_cvalue = log10(max(abs(f),1d-30))
+    elseif (d%cscale == 2) then
+       plane_def_cvalue = 2d0 / pi * atan(f)
+    else
+       plane_def_cvalue = f
+    end if
+
+  end function plane_def_cvalue
+
+  !> Add the plane map object r to the draw lists obj: the colored
+  !> mesh of the region and the contour lines (flat cylinders on both
+  !> sides of the plane). The values, the mesh, its colors, and the
+  !> lines are cached, and calculated again only if what they depend on
+  !> changed. Nothing is calculated while the initialization threads
+  !> run.
+  module subroutine slice_draw(r,obj)
+    use systems, only: sys, are_threads_running
+    use tools_math, only: cross
+    class(representation), intent(inout) :: r
+    type(scene_objects), intent(inout) :: obj
+
+    integer*8, allocatable :: key(:)
+    integer :: isys, nx, ny, ix, iy, k, i, j, niso, is
+    logical :: stale
+    real*8 :: a0(3), gmin, gmax, nrm(3), p1(3), p2(3), off(3)
+    type(dl_cylinder) :: dcyl
+
+    isys = r%id
+    if (sys(isys)%c%ncel == 0 .or. are_threads_running()) return
+    if (.not.allocated(r%slice%c)) allocate(r%slice%c)
+
+    associate(d => r%slice%d, c => r%slice%c)
+      ! the values (and with them, the mesh and the lines go stale)
+      call d%key(isys,key)
+      stale = .not.allocated(c%key) .or. .not.allocated(c%keyexpr)
+      if (.not.stale) stale = (size(c%key) /= size(key))
+      if (.not.stale) stale = any(c%key /= key) .or. (c%keyexpr /= trim(d%expr))
+      if (stale) then
+         call move_alloc(key,c%key)
+         c%keyexpr = trim(d%expr)
+         if (allocated(c%ff)) deallocate(c%ff)
+         if (allocated(c%keycont)) deallocate(c%keycont)
+         if (allocated(c%keycolor)) deallocate(c%keycolor)
+         c%mesh = dl_mesh()
+         call d%grid(isys,c%x0,c%uu,c%vv,a0,c%e1,c%e2,c%errmsg)
+         if (len_trim(c%errmsg) == 0) call d%values(isys,c%x0,c%uu,c%vv,c%ff,c%errmsg)
+      end if
+      if (.not.allocated(c%ff)) return
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+      nrm = cross(c%e1,c%e2)
+
+      ! the mesh: one vertex per point (the first index runs fastest),
+      ! two triangles per cell of the grid
+      if (c%mesh%nv == 0) then
+         c%mesh%nv = nx * ny
+         c%mesh%nf = 2 * (nx-1) * (ny-1)
+         allocate(c%mesh%x(3,c%mesh%nv),c%mesh%nrm(3,c%mesh%nv),c%mesh%idx(3,c%mesh%nf))
+         k = 0
+         do iy = 1, ny
+            do ix = 1, nx
+               k = k + 1
+               c%mesh%x(:,k) = real(c%x0 + real(ix-1,8) * c%uu + real(iy-1,8) * c%vv,c_float)
+               c%mesh%nrm(:,k) = real(nrm,c_float)
+            end do
+         end do
+         k = 0
+         do iy = 1, ny-1
+            do ix = 1, nx-1
+               i = (iy-1) * nx + ix - 1 ! 0-based index of the vertex (ix,iy)
+               c%mesh%idx(:,k+1) = int((/i, i+1, i+nx+1/),c_int)
+               c%mesh%idx(:,k+2) = int((/i, i+nx+1, i+nx/),c_int)
+               k = k + 2
+            end do
+         end do
+      end if
+
+      ! its colors
+      call d%colorkey(key)
+      stale = .not.allocated(c%keycolor) .or. .not.allocated(c%mesh%rgbv)
+      if (.not.stale) stale = any(c%keycolor /= key)
+      if (stale) then
+         call move_alloc(key,c%keycolor)
+         call d%colors(c%ff,gmin,gmax,c%mesh%rgbv)
+      end if
+      c%mesh%alpha = r%slice%alpha
+      call dl_append(obj%msh,obj%nmsh,c%mesh)
+
+      ! the contour lines
+      if (.not.d%showcont) return
+      call d%contkey(key)
+      stale = .not.allocated(c%keycont) .or. .not.allocated(c%keylist)
+      if (.not.stale) stale = any(c%keycont /= key) .or. (c%keylist /= trim(d%llist))
+      if (stale) then
+         call move_alloc(key,c%keycont)
+         c%keylist = trim(d%llist)
+         call d%contours(c%ff,c%uu,c%vv,niso,c%ziso,c%nline,c%lptr,c%xy,c%liso)
+      end if
+
+      ! one flat cylinder per segment, on each side of the plane (a
+      ! flat cylinder is drawn with half its radius); the coordinates of
+      ! the lines are in the frame of the region, from the origin of the
+      ! grid
+      dcyl%r = real(r%slice%crad,c_float)
+      do is = -1, 1, 2
+         off = real(is,8) * 0.5d0 * r%slice%crad * nrm
+         do i = 1, c%nline
+            if (c%ziso(c%liso(i)) > 0d0) then
+               dcyl%rgb = d%rgbpos
+            else
+               dcyl%rgb = d%rgbneg
+            end if
+            do j = c%lptr(i), c%lptr(i+1)-2
+               p1 = c%x0 + c%xy(1,j) * c%e1 + c%xy(2,j) * c%e2 + off
+               p2 = c%x0 + c%xy(1,j+1) * c%e1 + c%xy(2,j+1) * c%e2 + off
+               dcyl%x1 = real(p1,c_float)
+               dcyl%x2 = real(p2,c_float)
+               call dl_append(obj%cylflat,obj%ncylflat,dcyl)
+            end do
+         end do
+      end do
+    end associate
+
+  end subroutine slice_draw
+
+end submodule plane

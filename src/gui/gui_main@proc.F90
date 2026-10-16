@@ -885,7 +885,7 @@ contains
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
        wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point,&
-       wintype_line
+       wintype_line, wintype_plane
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -956,6 +956,12 @@ contains
        idum = stack_create_window(wintype_line,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Plot the values of fields of this system, their derivatives, or&
        & arithmetic expressions along a line between two points",ttshown)
+
+    ! maps of the fields on a plane (PLANE)
+    if (iw_menuitem("Plane Map...",enabled=enabled)) &
+       idum = stack_create_window(wintype_plane,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Map the values of a field of this system, one of its derivatives,&
+       & or an arithmetic expression on a plane, as colors and contour lines",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

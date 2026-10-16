@@ -1505,7 +1505,7 @@ contains
        if (allocated(ziso)) deallocate(ziso)
        allocate(ziso(niso))
        do i = 1, niso
-          ziso(i) = fmin + real(i-1,8) * (fmax - fmin) / real(niso-1,8)
+          ziso(i) = fmin + real(i-1,8) * (fmax - fmin) / real(max(niso-1,1),8)
        end do
     elseif (niso_type == niso_log) then
        if (allocated(ziso)) deallocate(ziso)
@@ -1528,7 +1528,7 @@ contains
 
           ! positive contours
           ffmin = log(eps)
-          ffmax = log(fmax)
+          ffmax = log(max(fmax,eps))
           delta = (ffmax-ffmin) / (nhalf-1)
           do i = 1, nhalf
              ziso(nhalf+1+i) = exp(ffmin+(i-1)*delta)
@@ -1538,7 +1538,7 @@ contains
           allocate(ziso(niso))
           ffmin = log(max(fmin,eps))
           ffmax = log(max(abs(fmax),eps))
-          delta = (ffmax-ffmin)/(niso-1)
+          delta = (ffmax-ffmin)/max(niso-1,1)
           do i = 1, niso
              ziso(i)=exp(ffmin+(i-1)*delta)
           enddo
@@ -1549,7 +1549,7 @@ contains
        allocate(ziso(niso))
        ffmin = 2d0/pi*atan(fmin)
        ffmax = 2d0/pi*atan(fmax)
-       delta = (ffmax-ffmin)/(niso-1)
+       delta = (ffmax-ffmin)/max(niso-1,1)
        do i = 1, niso
           ziso(i) = tan(pi*(ffmin+(i-1)*delta)/2d0)
        enddo

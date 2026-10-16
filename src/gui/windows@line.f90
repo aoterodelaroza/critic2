@@ -41,18 +41,6 @@ submodule (windows) line
      0.890_c_float,0.467_c_float,0.761_c_float, 0.090_c_float,0.745_c_float,0.812_c_float/),&
      (/3,npalette/))
 
-  ! the quantities of a field (the LINE properties, nti = 0 to 11):
-  ! the entries of the combo, and the short names for the legend
-  integer, parameter :: nquant = 12
-  character(len=*,kind=c_char), parameter :: quant_combo = &
-     "Value (f)" // c_null_char // "Gradient, x" // c_null_char // "Gradient, y" // c_null_char //&
-     "Gradient, z" // c_null_char // "Gradient norm" // c_null_char // "Hessian, xx" // c_null_char //&
-     "Hessian, xy" // c_null_char // "Hessian, xz" // c_null_char // "Hessian, yy" // c_null_char //&
-     "Hessian, yz" // c_null_char // "Hessian, zz" // c_null_char // "Laplacian" // c_null_char
-  character(len=8), parameter :: quant_short(0:nquant-1) = (/&
-     "        ",":gx     ",":gy     ",":gz     ",":g      ",":hxx    ",&
-     ":hxy    ",":hxz    ",":hyy    ",":hyz    ",":hzz    ",":lap    "/)
-
   ! an atom or a critical point is on the line if it is closer than
   ! this (bohr)
   real*8, parameter :: online_tol = 0.05d0
@@ -863,7 +851,7 @@ contains
       use types, only: realloc
       real*8, intent(in) :: dlen
 
-      integer :: i, k, is, js, ns, nc, ncp, nhit, nfound, l(3), lfound(3,27)
+      integer :: i, k, is, js, ns, nc, nhit, nfound, l(3), lfound(3,27)
       real*8 :: x0(3), x1(3), vl(3), vv, fa(3), fb(3), xs(3), xp(3), t, dd
       real*8, allocatable :: xf(:,:), dhit(:)
       integer, allocatable :: khit(:)
@@ -883,34 +871,7 @@ contains
 
       ! the candidates: the atoms, and the critical points of the
       ! reference field except the nuclei (crystallographic)
-      ncp = 0
-      if (sys(isys)%goodfield(sys(isys)%iref)) then
-         if (allocated(sys(isys)%f(sys(isys)%iref)%cpcel)) ncp = sys(isys)%f(sys(isys)%iref)%ncpcel
-      end if
-      allocate(xf(3,sys(isys)%c%ncel+ncp),lbl(sys(isys)%c%ncel+ncp))
-      nc = 0
-      do i = 1, sys(isys)%c%ncel
-         nc = nc + 1
-         xf(:,nc) = sys(isys)%c%atcel(i)%x
-         lbl(nc) = sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%name
-      end do
-      do i = 1, ncp
-         associate(cp => sys(isys)%f(sys(isys)%iref)%cpcel(i))
-           if (cp%isnuc) cycle
-           nc = nc + 1
-           xf(:,nc) = cp%x
-           select case (cp%typ)
-           case (-3)
-              lbl(nc) = "nnm"
-           case (-1)
-              lbl(nc) = "bcp"
-           case (1)
-              lbl(nc) = "rcp"
-           case default
-              lbl(nc) = "ccp"
-           end select
-         end associate
-      end do
+      call label_candidates(isys,nc,xf,lbl)
 
       ! samples along the line, at most half a cell apart in each
       ! crystallographic direction: an image of a candidate on the

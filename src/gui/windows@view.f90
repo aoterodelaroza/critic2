@@ -85,7 +85,7 @@ contains
        reptype_shapes, repstyle_ballandstick, repstyle_licorice,&
        repstyle_sticks, reptype_cps, repflavor_cps, reptype_gpaths, repflavor_gpaths,&
        reptype_planar, reptype_legend, repflavor_legend, reptype_scalebar, repflavor_scalebar,&
-       reptype_colorbar, repflavor_colorbar
+       reptype_colorbar, repflavor_colorbar, reptype_slice, repflavor_slice
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
@@ -584,6 +584,11 @@ contains
           if (iw_menuitem("Isosurface")) &
              call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
           call iw_tooltip("Display an isosurface of a scalar field",ttshown)
+
+          if (iw_menuitem("Plane Map")) &
+             call w%add_rep_and_edit(reptype_slice,repflavor_slice)
+          call iw_tooltip("Display the values of a scalar field on a plane as colors and&
+             & contour lines (as PLANE)",ttshown)
 
           if (iw_menuitem("Critical Points")) &
              call w%add_rep_and_edit(reptype_cps,repflavor_cps)

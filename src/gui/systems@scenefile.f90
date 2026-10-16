@@ -232,7 +232,11 @@ contains
     if (found) call json%print_to_string(o,pend%objects)
     call json%get(p,'objects_autoadded',lv,found)
     if (found) then
-       if (size(lv) == reptype_NUM) pend%autoadded = lv
+       ! files written before a kind was added have fewer entries: the
+       ! kinds they know
+       allocate(pend%autoadded(reptype_NUM))
+       pend%autoadded = .false.
+       pend%autoadded(1:min(size(lv),reptype_NUM)) = lv(1:min(size(lv),reptype_NUM))
     end if
 
     ! the scene settings

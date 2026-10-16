@@ -2513,7 +2513,7 @@ contains
     use representations, only: reptype_atoms, reptype_bonds, reptype_labels, reptype_polyhedra,&
        reptype_unitcell, reptype_axes, reptype_symelem, reptype_text, reptype_measure,&
        reptype_isosurface, reptype_shapes, reptype_cps, reptype_gpaths, reptype_planar, reptype_legend,&
-       reptype_scalebar, reptype_colorbar
+       reptype_scalebar, reptype_colorbar, reptype_slice
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button, iw_beginmenu
     use windows, only: stack_create_window, wintype_editrep
@@ -2667,6 +2667,8 @@ contains
              str3 = "scale bar" // c_null_char
           elseif (s%rep(i)%type == reptype_colorbar) then
              str3 = "color bar" // c_null_char
+          elseif (s%rep(i)%type == reptype_slice) then
+             str3 = "plane map" // c_null_char
           elseif (s%rep(i)%type == reptype_cps) then
              str3 = "cps" // c_null_char
           elseif (s%rep(i)%type == reptype_gpaths) then
@@ -3106,7 +3108,8 @@ contains
   !> are copied), and the Display. Nothing is saved from an
   !> uninitialized scene.
   module subroutine scene_objects_save(s,st)
-    use representations, only: iso_cache, reptype_isosurface, gpaths_cache, reptype_gpaths
+    use representations, only: iso_cache, reptype_isosurface, gpaths_cache, reptype_gpaths,&
+       slice_cache
     class(scene), intent(inout) :: s
     type(scene_objstate), intent(inout) :: st
 
@@ -3114,6 +3117,7 @@ contains
     type(neighstar), allocatable :: nstar(:)
     type(iso_cache) :: cache
     type(gpaths_cache) :: gcache
+    type(slice_cache), allocatable :: scache
 
     st = scene_objstate()
     if (s%isinit == 0) return
@@ -3127,9 +3131,11 @@ contains
        call move_alloc(s%rep(i)%bonds%style%nstar,nstar)
        if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_take(cache)
        if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_take(gcache)
+       call move_alloc(s%rep(i)%slice%c,scache)
        st%rep(k) = s%rep(i)
        if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_put(cache)
        if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_put(gcache)
+       call move_alloc(scache,s%rep(i)%slice%c)
        call move_alloc(nstar,s%rep(i)%bonds%style%nstar)
        st%rep(k)%bonds%style%rev = -1
        st%rep(k)%bonds%style%rev_nstar = -1
@@ -3161,7 +3167,7 @@ contains
   module subroutine scene_objects_restore(s,st,stfrom,done)
     use windows, only: regenerate_window_pointers
     use representations, only: rep_slot_of, iso_cache, reptype_isosurface, gpaths_cache,&
-       reptype_gpaths
+       reptype_gpaths, slice_cache
     class(scene), intent(inout), target :: s
     type(scene_objstate), intent(in) :: st
     type(scene_objstate), intent(in), optional :: stfrom
@@ -3172,6 +3178,7 @@ contains
     logical :: dofrom, sysnstar, live
     type(iso_cache) :: cache
     type(gpaths_cache) :: gcache
+    type(slice_cache), allocatable :: scache
 
     if (present(done)) done = .false.
     if (.not.allocated(st%rep) .or. st%gen /= s%gen .or. s%isinit == 0) return
@@ -3211,10 +3218,13 @@ contains
           ihtr = s%rep(i)%gpaths%thover
           if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_take(cache)
           if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_take(gcache)
+          call move_alloc(s%rep(i)%slice%c,scache)
        end if
        s%rep(i) = st%rep(k)
        if (s%rep(i)%type == reptype_isosurface) call s%rep(i)%iso%cache_put(cache)
        if (s%rep(i)%type == reptype_gpaths) call s%rep(i)%gpaths%cache_put(gcache)
+       ! the live values (their keys tell whether they still apply)
+       if (allocated(scache)) call move_alloc(scache,s%rep(i)%slice%c)
        s%rep(i)%cps%ihover = ihcps
        s%rep(i)%gpaths%ihover = ihgp
        s%rep(i)%gpaths%thover = ihtr
