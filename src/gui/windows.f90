@@ -591,6 +591,7 @@ module windows
      ! the map in the view (Show in View): shown, the values it has
      ! (gen; -1 = none), and whether the form changed since it was given
      logical :: showview = .true.
+     real(c_float) :: alpha = 1._c_float ! its opacity
      integer*8 :: viewgen = -1
      logical :: viewdirty = .true.
      ! the labels of the atoms and critical points near the plane

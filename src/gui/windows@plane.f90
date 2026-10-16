@@ -218,9 +218,10 @@ contains
   contains
 
     !> The labels of the atoms and critical points near the plane, and
-    !> (in its own line) whether the map is shown in the view.
+    !> (in its own line) whether the map is shown in the view, and its
+    !> opacity there.
     subroutine draw_labels_option()
-      use utils, only: iw_checkbox
+      use utils, only: iw_checkbox, iw_dragfloat_realc
 
       call iw_text("Labels",highlight=.true.,alignframe=.true.)
       ldum = iw_checkbox("Show##planeshowlabels",w%pl%showlabels,sameline=.true.)
@@ -236,6 +237,13 @@ contains
       if (iw_checkbox("Show in View##planeshow",w%pl%showview)) w%pl%viewgen = -1
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
          & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
+      if (w%pl%showview) then
+         call iw_text("Opacity",highlight=.true.,alignframe=.true.,sameline=.true.)
+         if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
+            max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
+            w%pl%viewdirty = .true.
+         call iw_tooltip("Opacity of the map in the view (1 = opaque; the contour lines stay opaque)",ttshown)
+      end if
 
     end subroutine draw_labels_option
 
@@ -276,6 +284,7 @@ contains
         r%name = "Plane Map"
         r%shown = .true.
         r%slice%d = w%pl%d
+        r%slice%alpha = w%pl%alpha
         ! the values of the window, if they are new to the view
         if (w%pl%viewgen /= w%pl%gen) &
            r%slice%c = slice_cache(ff=w%pl%ff,x0=w%pl%x0,uu=w%pl%uu,vv=w%pl%vv,&
