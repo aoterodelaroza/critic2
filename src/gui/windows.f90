@@ -604,6 +604,7 @@ module windows
      real(c_float) :: lscale = 1._c_float ! their size (relative to the interface font)
      integer :: ltext = 1 ! the text of the atoms (0 = species name, 1 = atomic symbol, 2 = atom name)
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
+     logical :: showdist = .false. ! the labels show the signed distance to the plane too
      ! pending pick in the view: the point (1-3)
      logical :: picking = .false.
      integer :: pickend = 1
@@ -643,7 +644,7 @@ module windows
      ! the labels: positions in plot coordinates and text
      integer :: nmark = 0
      real*8, allocatable :: xmark(:,:)
-     character(len=12), allocatable :: lmark(:)
+     character(len=24), allocatable :: lmark(:)
      logical :: marksmany = .false. ! the region is too large to look for them
      integer*8, allocatable :: keymark(:)
   end type plane_state

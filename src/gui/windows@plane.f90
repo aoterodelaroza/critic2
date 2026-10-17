@@ -218,8 +218,9 @@ contains
 
   contains
 
-    !> The labels of the atoms and critical points near the plane, and
-    !> (in its own line) whether the map is shown in the view, and its
+    !> The labels of the atoms and critical points near the plane (in
+    !> two lines: what is labeled, the color, and the size, then the
+    !> text and the distance to the plane), and whether the map is shown in the view, and its
     !> opacity there.
     subroutine draw_labels_option()
       use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit, iw_combo_simple
@@ -228,26 +229,37 @@ contains
       ldum = iw_checkbox("Show##planeshowlabels",w%pl%showlabels,sameline=.true.)
       call iw_tooltip("Label the atoms and the critical points of the reference field near the plane",ttshown)
       if (w%pl%showlabels) then
-         ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
-         call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
-            lunit() // ")",ttshown)
          ldum = iw_checkbox("Show CPs##planeshowcps",w%pl%showcps,sameline=.true.)
          call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
             & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
+         call iw_text("Color",alignframe=.true.,sameline=.true.)
          ldum = iw_coloredit("##planergblabel",rgb=w%pl%rgblabel,sameline=.true.)
          call iw_tooltip("Color of the labels and their dots",ttshown)
-         call iw_combo_simple("##planeltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
-            "Atom name"//c_null_char,w%pl%ltext,sameline=.true.)
-         call iw_tooltip("Text in the labels of the atoms",ttshown)
+         call iw_text("Size",alignframe=.true.,sameline=.true.)
          ldum = iw_dragfloat_realc("##planelscale",x1=w%pl%lscale,speed=0.01_c_float,min=0.1_c_float,&
             max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
          call iw_tooltip("Size of the labels and their dots, relative to the text of the interface",ttshown)
+
+         ! second line: the text, which atoms and critical points, and
+         ! their distance
+         call iw_text("Text",alignframe=.true.)
+         call iw_combo_simple("##planeltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
+            "Atom name"//c_null_char,w%pl%ltext,sameline=.true.)
+         call iw_tooltip("Text in the labels of the atoms",ttshown)
+         call iw_text("Distance",alignframe=.true.,sameline=.true.)
+         ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
+         call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
+            lunit() // ")",ttshown)
+         ldum = iw_checkbox("Distance in label##planeshowdist",w%pl%showdist,sameline=.true.)
+         call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
+            & plane (" // lunit() // ", positive on the side of the normal; omitted if zero to two&
+            & decimals)",ttshown)
       end if
       if (iw_checkbox("Show in View##planeshow",w%pl%showview)) w%pl%viewgen = -1
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
          & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
       if (w%pl%showview) then
-         call iw_text("Opacity",highlight=.true.,alignframe=.true.,sameline=.true.)
+         call iw_text("Opacity",alignframe=.true.,sameline=.true.)
          if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
             max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
             w%pl%viewdirty = .true.
@@ -1057,20 +1069,23 @@ contains
     !> Find the atoms, and the critical points of the reference field
     !> other than the nuclei, closer to the plane than hmax and inside
     !> the region (their lattice images, for crystals), and keep their
-    !> plot coordinates and labels.
+    !> plot coordinates and labels (with their signed distance to the
+    !> plane, if showdist).
     subroutine update_marks()
       use tools_math, only: matinv, cross
       use types, only: realloc
-      integer*8 :: key(7)
+      integer*8 :: key(8)
       integer :: k, l1, l2, l3, lo(3), hi(3), nc, ier, nx, ny
       real*8 :: am(3,3), nrm(3), xq(3), s(3), fc(3,4), hb, eps
       real*8, allocatable :: xf(:,:)
       character(len=12), allocatable :: lbl(:)
+      character(len=:), allocatable :: sdist
 
       key(1) = w%pl%gen
       key(2) = merge(1_8,0_8,w%pl%showlabels)
       key(6) = merge(1_8,0_8,w%pl%showcps)
       key(7) = w%pl%ltext
+      key(8) = merge(1_8,0_8,w%pl%showdist)
       key(3) = transfer(w%pl%hmax,key(3))
       key(4) = transfer(sysc(isys)%timelastchange_cplist,key(4))
       key(5) = sys(isys)%field_cuid(sys(isys)%iref)
@@ -1135,6 +1150,15 @@ contains
                   end if
                   w%pl%xmark(:,w%pl%nmark) = to_plot(xq)
                   w%pl%lmark(w%pl%nmark) = lbl(k)
+                  ! the signed distance to the plane, as C(+0.01), unless
+                  ! it is zero to two decimals
+                  if (w%pl%showdist) then
+                     sdist = string(s(3) * u,'f',decimal=2)
+                     if (sdist /= "0.00" .and. sdist /= "-0.00") then
+                        if (s(3) > 0d0) sdist = "+" // sdist
+                        w%pl%lmark(w%pl%nmark) = trim(lbl(k)) // "(" // sdist // ")"
+                     end if
+                  end if
                end do
             end do
          end do
@@ -1315,12 +1339,12 @@ contains
          & second is perpendicular to it, as long as needed to reach the Y point. Parallelogram:&
          & the sides go from the origin to the X end and to the Y point, as in PLANE",ttshown)
 
-      call iw_text("Margin",highlight=.true.,alignframe=.true.,sameline=.true.)
+      call iw_text("Margin",alignframe=.true.,sameline=.true.)
       call drag("##planemargin",x1=d%margin,speed=0.01d0,decimal=3,sameline=.true.)
       call iw_tooltip("Length added to the region on every side (" // un //&
          "; negative removes it)",ttshown)
 
-      call iw_text("Points",highlight=.true.,alignframe=.true.,sameline=.true.)
+      call iw_text("Points",alignframe=.true.,sameline=.true.)
       ch = iw_checkbox("Auto##planeautonpts",d%autonpts,sameline=.true.)
       changed = changed .or. ch
       call iw_tooltip("Choose the number of points from the size of the region: square cells&
@@ -1373,7 +1397,7 @@ contains
                merge("Cartesian axis","lattice vector",j <= 3) // ")",ttshown)
          end do
       end do
-      call iw_text("Step",highlight=.true.,alignframe=.true.,sameline=.true.)
+      call iw_text("Step",alignframe=.true.,sameline=.true.)
       call igPushItemWidth(iw_calcwidth(7,1))
       ch = iw_dragfloat_real8("##planestep",x1=d%step,speed=0.01d0,decimal=3,sameline=.true.,min=0d0)
       call igPopItemWidth()
@@ -1388,7 +1412,7 @@ contains
       logical :: echanged
       character(len=:), allocatable :: lerr
 
-      call iw_text("Quantity",highlight=.true.,alignframe=.true.)
+      call iw_text("Property",highlight=.true.,alignframe=.true.)
       ikind = merge(1,0,d%isexpr)
       call igSameLine(0._c_float,-1._c_float)
       call igPushItemWidth(iw_calcwidth(10,1))
@@ -1411,7 +1435,7 @@ contains
          call iw_combo_simple("##planequant",quant_combo,iq)
          changed = changed .or. (iq /= d%nti)
          d%nti = max(min(iq,nquant-1),0)
-         call iw_tooltip("Quantity of the field on the map",ttshown)
+         call iw_tooltip("Property of the field on the map",ttshown)
       else
          echanged = iw_inputtext("##planeexpr",bufsize=1023,textf=d%expr,width=36)
          call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
