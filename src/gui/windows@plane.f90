@@ -67,7 +67,7 @@ contains
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh
     integer :: isys, iview, istat, i, ipick
-    real*8 :: xc(3), rad, v(3,3), u, xhov(3), fhov
+    real*8 :: xc(3), rad, v(3,3), u, xhov(3)
     type(ImVec2) :: sz0
     real(c_float) :: htable
     type(rep_shape), allocatable :: shp(:)
@@ -155,17 +155,17 @@ contains
        call sync_view(fresh)
 
        ! the map takes the rest of the window, leaving room for the
-       ! readout of the point under the mouse, the table of values (if
+       ! note about the labels (if shown), the table of values (if
        ! open, it takes part of the space), and Close
        call igGetContentRegionAvail(sz0)
-       sz0%y = sz0%y - iw_calcheight(3,0,.true.)
+       sz0%y = sz0%y - iw_calcheight(merge(3,2,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
        htable = 0._c_float
        if (w%pl%showdata) then
           htable = max(0.35_c_float * sz0%y,iw_calcheight(4,0,.false.))
           sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
        end if
        sz0%y = max(sz0%y,iw_calcheight(8,0,.false.))
-       call draw_map(sz0,refit,hover,xhov,fhov)
+       call draw_map(sz0,refit,hover,xhov)
 
        ! the table of values
        call draw_data_section()
@@ -307,16 +307,15 @@ contains
 
     !> The map (size sz): the colors, the contour lines, and the labels,
     !> with the color bar on its right. If refit, fit the axes to the
-    !> region. Returns in hover whether the mouse is on the region, the
-    !> point under it (xhov, cell-frame Cartesian bohr), and the value
-    !> there (fhov), which are also written below the map.
-    subroutine draw_map(sz,refit,hover,xhov,fhov)
+    !> region. Returns in hover whether the mouse is on the region and
+    !> the point under it (xhov, cell-frame Cartesian bohr).
+    subroutine draw_map(sz,refit,hover,xhov)
       use utils, only: iw_colormap_id
       use gui_main, only: g
       type(ImVec2), intent(in) :: sz
       logical, intent(in) :: refit
       logical, intent(out) :: hover
-      real*8, intent(out) :: xhov(3), fhov
+      real*8, intent(out) :: xhov(3)
 
       character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
       integer :: j, nx, ny
@@ -330,11 +329,9 @@ contains
       integer(c_int) :: col(2)
       type(ImVec2) :: pmin, pmax, szp, pt, tsz
       type(c_ptr) :: dl
-      real*8 :: xyz(3)
 
       hover = .false.
       xhov = 0d0
-      fhov = 0d0
       if (.not.allocated(w%pl%ff)) return
       nx = size(w%pl%ff,1)
       ny = size(w%pl%ff,2)
@@ -441,7 +438,7 @@ contains
          ! the point under the mouse
          if (ipIsPlotHovered()) then
             call ipGetPlotMousePos(mu,mv)
-            call plot_value(mu,mv,hover,xhov,fhov)
+            call plot_point(mu,mv,hover,xhov)
          end if
          call ipEndPlot()
       end if
@@ -460,25 +457,8 @@ contains
          call iw_tooltip("Colors of the map: the value",ttshown)
       end if
 
-      ! the readout of the point under the mouse
       if (w%pl%showlabels .and. w%pl%marksmany) &
          call iw_text("(The region is too large for labels)",disabled=.true.)
-      call iw_text("Cursor",highlight=.true.)
-      if (hover) then
-         if (ismol) then
-            xyz = (xhov + sys(isys)%c%molx0) * bohrtoa
-            call iw_text("(" // string(xyz(1),'f',decimal=4) // ", " // string(xyz(2),'f',decimal=4) //&
-               ", " // string(xyz(3),'f',decimal=4) // ") Å",sameline=.true.)
-         else
-            xyz = sys(isys)%c%c2x(xhov)
-            call iw_text("(" // string(xyz(1),'f',decimal=5) // ", " // string(xyz(2),'f',decimal=5) //&
-               ", " // string(xyz(3),'f',decimal=5) // ") frac",sameline=.true.)
-         end if
-         call iw_text("value = " // string(fhov,'e',decimal=6),sameline=.true.)
-      else
-         call iw_text("move the mouse over the map to read the values there; it is also shown&
-            & in the view",disabled=.true.,sameline=.true.)
-      end if
 
     end subroutine draw_map
 
@@ -712,19 +692,17 @@ contains
     end function strip_zeros
 
     !> The point of the region with plot coordinates (mu,mv): whether it
-    !> is on the region (inside), its position (x, cell-frame Cartesian
-    !> bohr), and the value there (f), interpolated from the four
-    !> nearest points of the grid.
-    subroutine plot_value(mu,mv,inside,x,f)
+    !> is on the region (inside) and its position (x, cell-frame
+    !> Cartesian bohr).
+    subroutine plot_point(mu,mv,inside,x)
       real(c_double), intent(in) :: mu, mv
       logical, intent(out) :: inside
-      real*8, intent(out) :: x(3), f
+      real*8, intent(out) :: x(3)
 
-      integer :: nx, ny, i0, j0
-      real*8 :: d(2), m(2,2), det, s, t, si, tj
+      integer :: nx, ny
+      real*8 :: d(2), m(2,2), det, s, t
 
       inside = .false.
-      f = 0d0
       nx = size(w%pl%ff,1)
       ny = size(w%pl%ff,2)
       x = w%pl%a0 + (mu * w%pl%e1 + mv * w%pl%e2) / u
@@ -743,16 +721,7 @@ contains
       if (s < 0d0 .or. s > 1d0 .or. t < 0d0 .or. t > 1d0) return
       inside = .true.
 
-      si = s * (nx-1)
-      tj = t * (ny-1)
-      i0 = min(int(si),nx-2) + 1
-      j0 = min(int(tj),ny-2) + 1
-      si = si - (i0-1)
-      tj = tj - (j0-1)
-      f = (1d0-si) * (1d0-tj) * w%pl%ff(i0,j0) + si * (1d0-tj) * w%pl%ff(i0+1,j0) +&
-         (1d0-si) * tj * w%pl%ff(i0,j0+1) + si * tj * w%pl%ff(i0+1,j0+1)
-
-    end subroutine plot_value
+    end subroutine plot_point
 
     !> The collapsible table of the values on the plane: the position
     !> of each point (fractional for crystals, Å for molecules), its
@@ -882,7 +851,7 @@ contains
 
       integer*8, allocatable :: key(:)
       logical :: stale
-      real*8 :: oldx0(3), olduu(3), oldvv(3)
+      real*8 :: oldx0(3), olduu(3), oldvv(3), olda0(3)
       integer :: oldnx, oldny
 
       refit = .false.
@@ -903,6 +872,7 @@ contains
 
       ! the region before, to know whether the plot must fit it again
       oldx0 = w%pl%x0
+      olda0 = w%pl%a0
       olduu = w%pl%uu
       oldvv = w%pl%vv
       oldnx = 0
@@ -919,7 +889,9 @@ contains
       ! the grid and the frame of the plot
       call w%pl%d%grid(isys,w%pl%x0,w%pl%uu,w%pl%vv,w%pl%a0,w%pl%e1,w%pl%e2,w%pl%errmsg)
       if (len_trim(w%pl%errmsg) > 0) return
-      refit = (oldnx == 0) .or. any(abs(oldx0 - w%pl%x0) > 1d-10) .or. &
+      ! (relative to a0, the origin of the plot: moving the plane as
+      ! a whole keeps the axes)
+      refit = (oldnx == 0) .or. any(abs(oldx0 - olda0 - w%pl%x0 + w%pl%a0) > 1d-10) .or. &
          any(abs(olduu*(oldnx-1) - w%pl%uu*(w%pl%d%nx-1)) > 1d-10) .or.&
          any(abs(oldvv*(oldny-1) - w%pl%vv*(w%pl%d%ny-1)) > 1d-10)
 
@@ -1214,7 +1186,8 @@ contains
 
   !> The form of the map d of system isys, shared by the plane map
   !> window and the editor of the plane map objects: the three points,
-  !> the region, the margin, the number of points, the quantity, the
+  !> the region, the margin, the number of points, the buttons that
+  !> move the plane, the quantity, the
   !> colors, and the contour lines. Returns whether anything changed.
   !> editing becomes true if a value is being dragged. If live, a drag
   !> is a change in every frame. If
@@ -1262,6 +1235,7 @@ contains
        call draw_point(i)
     end do
     call draw_region()
+    call draw_move()
 
     ! the quantity, the colors, and the contour lines
     call draw_quantity()
@@ -1368,6 +1342,44 @@ contains
       end if
 
     end subroutine draw_region
+
+    !> Buttons that displace the whole plane by d%step along the
+    !> Cartesian axes and, in crystals, along the lattice vectors.
+    subroutine draw_move()
+      character(len=1), parameter :: lbl(6) = (/"x","y","z","a","b","c"/)
+      integer :: j, k
+      real*8 :: dx(3), st
+      character(len=1) :: sg
+
+      call iw_text("Move",highlight=.true.,alignframe=.true.)
+      call iw_tooltip("Displace the whole plane",ttshown)
+      do j = 1, merge(3,6,ismol)
+         do k = 1, 2
+            sg = merge("+","-",k == 1)
+            st = merge(d%step,-d%step,k == 1)
+            if (iw_button(sg // lbl(j) // "##planemove",sameline=.true.)) then
+               dx = 0d0
+               if (j <= 3) then
+                  dx(j) = st
+                  ! crystals: fractional points, displacement in bohr
+                  if (.not.ismol) dx = sys(isys)%c%c2x(dx)
+               else
+                  dx(j-3) = st / sys(isys)%c%aa(j-3)
+               end if
+               d%xp = d%xp + spread(dx,2,3)
+               changed = .true.
+            end if
+            call iw_tooltip("Displace the plane along " // sg // lbl(j) // " (" //&
+               merge("Cartesian axis","lattice vector",j <= 3) // ")",ttshown)
+         end do
+      end do
+      call iw_text("Step",highlight=.true.,alignframe=.true.,sameline=.true.)
+      call igPushItemWidth(iw_calcwidth(7,1))
+      ch = iw_dragfloat_real8("##planestep",x1=d%step,speed=0.01d0,decimal=3,sameline=.true.,min=0d0)
+      call igPopItemWidth()
+      call iw_tooltip("Length of each displacement (" // un // ")",ttshown)
+
+    end subroutine draw_move
 
     !> The quantity on the map: a field and one of its properties, or
     !> an arithmetic expression (checked as it is typed).
