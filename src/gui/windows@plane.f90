@@ -22,7 +22,7 @@ submodule (windows) plane
   use param, only: bohrtoa
   use tools_math, only: niso_lin, niso_log, niso_atan, niso_bader, niso_manual
   use representations, only: plane_npts_min, plane_npts_max, plane_nlev_max, plane_auto_spacing,&
-     plane_auto_ntot
+     plane_auto_ntot, plane_auto_tmax
   implicit none
 
   ! transient markers in the view: the three points (origin, end of
@@ -90,8 +90,9 @@ contains
        w%errmsg = ""
     end if
 
-    ! a new system: the plane goes to a face of the cell (crystals) or
-    ! to the plane of the first three atoms (molecules), and the
+    ! a new system: the plane goes to a face of the cell (crystals),
+    ! to the plane of the first three atoms (molecules), or in between
+    ! for slabs and chains (see plane_def_set_defaults), and the
     ! quantity is the value of the reference field
     if (goodsys) then
        if (.not.w%pl%sys%is(isys) .or. syschanged) then
@@ -1426,7 +1427,8 @@ contains
       changed = changed .or. ch
       call iw_tooltip("Choose the number of points from the size of the region: square cells&
          & of " // string(plane_auto_spacing,'f',decimal=2) // " Å, coarser for very large&
-         & regions (at most " // string(plane_auto_ntot) // " points)",ttshown)
+         & regions (at most " // string(plane_auto_ntot) // " points) and for slow fields (so that&
+         & a map takes at most about " // string(nint(plane_auto_tmax)) // " s)",ttshown)
 
     end subroutine draw_region
 

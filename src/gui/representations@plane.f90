@@ -23,58 +23,113 @@ submodule (representations) plane
 
   ! the number of colors of the map
   integer, parameter :: nlut = 256
+  integer, parameter :: nkeyreg = 13 ! entries of plane_def_key for the region and nx, ny; the quantity follows
 
 contains
 
-  !> The map of a new system isys: a face of the cell (the
-  !> parallelogram region), for crystals;
-  !> for molecules, the plane of the first three atoms (if they are not
-  !> on a line), on the region that covers the whole molecule with some
-  !> margin, or a face of the molecular box. The quantity is the value
-  !> of the reference field.
+  !> The map of a new system isys. The quantity is the value of the
+  !> reference field. The region: for crystals, the parallelogram of
+  !> a cell face; for molecules, the plane of the first three atoms (if
+  !> they are not on a line) on the rectangle that covers the whole
+  !> molecule with some margin, or a face of the molecular box. The
+  !> vacuum directions of a crystal (axes with a long empty gap) are
+  !> treated as in molecules: a slab gets the face of its two periodic
+  !> axes through the first atom; a chain, its periodic lattice vector
+  !> and the perpendicular direction along which the atoms spread the
+  !> most, covering them with the margin; a molecule in a box, the
+  !> plane of the molecule.
   module subroutine plane_def_set_defaults(d,isys)
     use systems, only: sys
+    use crystalmod, only: iperiod_vacthr
+    use tools_math, only: cross
     class(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
 
     real*8, parameter :: mmol = 2d0 / bohrtoa ! margin around the molecule (bohr)
-    real*8 :: a(3,3), d1(3), c(3), e1(3), e2(3), pu, pv, umin, umax, vmin, vmax, p(3)
-    integer :: i
-    logical :: done
+    real*8 :: c(3), e1(3), e2(3), f1(3), f2(3), umin, umax, vmin, vmax, p(3), xf(3)
+    real*8 :: sxx, syy, sxy, theta
+    real*8, allocatable :: xat(:,:), q(:,:)
+    integer :: i, nvac, jper(3), ncel
+    logical :: done, ismol, isvac(3)
 
     d%isexpr = .false.
     d%nti = 0
     call d%fref%set(sys(isys),sys(isys)%iref)
-    ! the region: the parallelogram of the cell face for crystals, a
-    ! rectangle for molecules
-    d%region = merge(0,1,sys(isys)%c%ismolecule)
+    ismol = sys(isys)%c%ismolecule
+    ncel = sys(isys)%c%ncel
+
+    ! the vacuum axes, and the periodic ones
+    isvac = .false.
+    if (.not.ismol) isvac = (sys(isys)%c%vaclength > iperiod_vacthr)
+    nvac = count(isvac)
+    jper = pack((/1,2,3/),.not.isvac,(/0,0,0/))
+
+    ! the atoms (cell-frame Cartesian), on the same side of the vacuum
+    ! in the vacuum axes
+    allocate(xat(3,ncel))
+    do i = 1, ncel
+       xf = sys(isys)%c%atcel(i)%x
+       xf = xf - floor(xf)
+       where (isvac .and. xf >= sys(isys)%c%vactop - 1d-10) xf = xf - 1d0
+       xat(:,i) = sys(isys)%c%x2c(xf)
+    end do
+
+    ! the region: the parallelogram of a face for crystals and slabs,
+    ! a rectangle for molecules and chains
+    d%region = merge(0,1,ismol .or. nvac >= 2)
 
     done = .false.
-    if (sys(isys)%c%ismolecule .and. sys(isys)%c%ncel >= 3) then
-       do i = 1, 3
-          a(:,i) = sys(isys)%c%atcel(i)%r
-       end do
-       d1 = a(:,2) - a(:,1)
-       c = a(:,3) - a(:,1)
-       if (norm2(d1) > 1d-4) then
-          e1 = d1 / norm2(d1)
+    if (nvac == 1) then
+       ! slab: the face of the periodic axes through the first atom
+       call face(jper(1),jper(2))
+       done = .true.
+    elseif (nvac == 2 .and. ncel >= 1) then
+       ! chain: the periodic lattice vector (from 0 to 1), and the
+       ! perpendicular direction along which the atoms spread the most
+       ! (the principal axis of their perpendicular positions; a vacuum
+       ! lattice vector if all are on the chain), covering them
+       e1 = sys(isys)%c%m_x2c(:,jper(1)) / sys(isys)%c%aa(jper(1))
+       f1 = sys(isys)%c%m_x2c(:,findloc(isvac,.true.,dim=1))
+       f1 = f1 - dot_product(f1,e1) * e1
+       f1 = f1 / norm2(f1)
+       f2 = cross(e1,f1)
+       allocate(q(2,ncel))
+       q(1,:) = matmul(f1,xat)
+       q(2,:) = matmul(f2,xat)
+       q(1,:) = q(1,:) - sum(q(1,:)) / ncel
+       q(2,:) = q(2,:) - sum(q(2,:)) / ncel
+       sxx = dot_product(q(1,:),q(1,:))
+       syy = dot_product(q(2,:),q(2,:))
+       sxy = dot_product(q(1,:),q(2,:))
+       ! (any direction if the spread is isotropic, or there is none)
+       if (abs(sxy) + abs(sxx - syy) > 1d-8) then
+          theta = 0.5d0 * atan2(2d0 * sxy,sxx - syy)
+          e2 = cos(theta) * f1 + sin(theta) * f2
+       else
+          e2 = f1
+       end if
+       call extent(e2,vmin,vmax)
+       p = xat(:,1) + (vmin - mmol) * e2
+       ! the side along the chain starts at the origin of the cell
+       xf = sys(isys)%c%c2x(p)
+       xf(jper(1)) = 0d0
+       p = sys(isys)%c%x2c(xf)
+       d%xp(:,1) = form(p)
+       d%xp(:,2) = form(p + sys(isys)%c%m_x2c(:,jper(1)))
+       d%xp(:,3) = form(p + (vmax - vmin + 2*mmol) * e2)
+       done = .true.
+    elseif ((ismol .or. nvac == 3) .and. ncel >= 3) then
+       ! molecule: the plane of the first three atoms, covering all of them
+       e1 = xat(:,2) - xat(:,1)
+       if (norm2(e1) > 1d-4) then
+          e1 = e1 / norm2(e1)
+          c = xat(:,3) - xat(:,1)
           c = c - dot_product(c,e1) * e1
           if (norm2(c) > 1d-4) then
              e2 = c / norm2(c)
-             umin = huge(1d0)
-             umax = -huge(1d0)
-             vmin = huge(1d0)
-             vmax = -huge(1d0)
-             do i = 1, sys(isys)%c%ncel
-                p = sys(isys)%c%atcel(i)%r - a(:,1)
-                pu = dot_product(p,e1)
-                pv = dot_product(p,e2)
-                umin = min(umin,pu)
-                umax = max(umax,pu)
-                vmin = min(vmin,pv)
-                vmax = max(vmax,pv)
-             end do
-             p = a(:,1) + (umin - mmol) * e1 + (vmin - mmol) * e2
+             call extent(e1,umin,umax)
+             call extent(e2,vmin,vmax)
+             p = xat(:,1) + (umin - mmol) * e1 + (vmin - mmol) * e2
              d%xp(:,1) = form(p)
              d%xp(:,2) = form(p + (umax - umin + 2*mmol) * e1)
              d%xp(:,3) = form(p + (vmax - vmin + 2*mmol) * e2)
@@ -84,14 +139,12 @@ contains
     end if
 
     if (.not.done) then
-       if (sys(isys)%c%ismolecule) then
+       if (ismol) then
           d%xp(:,1) = form(sys(isys)%c%x2c((/0d0,0d0,0.5d0/)))
           d%xp(:,2) = form(sys(isys)%c%x2c((/1d0,0d0,0.5d0/)))
           d%xp(:,3) = form(sys(isys)%c%x2c((/0d0,1d0,0.5d0/)))
        else
-          d%xp(:,1) = (/0d0,0d0,0d0/)
-          d%xp(:,2) = (/1d0,0d0,0d0/)
-          d%xp(:,3) = (/0d0,1d0,0d0/)
+          call face(1,2)
        end if
     end if
     ! no negative zeros in the forms
@@ -103,12 +156,40 @@ contains
     function form(xc) result(x)
       real*8, intent(in) :: xc(3)
       real*8 :: x(3)
-      if (sys(isys)%c%ismolecule) then
+      if (ismol) then
          x = (xc + sys(isys)%c%molx0) * bohrtoa
       else
          x = sys(isys)%c%c2x(xc)
       end if
     end function form
+
+    !> The face of the cell spanned by axes j1 and j2 (crystals), at
+    !> the coordinates of the first atom along the vacuum axes.
+    subroutine face(j1,j2)
+      integer, intent(in) :: j1, j2
+      d%xp(:,1) = 0d0
+      if (ncel > 0) then
+         xf = sys(isys)%c%c2x(xat(:,1))
+         d%xp(:,1) = merge(xf,0d0,isvac)
+         d%xp(j1,1) = 0d0
+         d%xp(j2,1) = 0d0
+      end if
+      d%xp(:,2) = d%xp(:,1)
+      d%xp(j1,2) = d%xp(j1,2) + 1d0
+      d%xp(:,3) = d%xp(:,1)
+      d%xp(j2,3) = d%xp(j2,3) + 1d0
+    end subroutine face
+
+    !> The extent of the atoms along the unit vector e, from the first
+    !> atom.
+    subroutine extent(e,emin,emax)
+      real*8, intent(in) :: e(3)
+      real*8, intent(out) :: emin, emax
+      real*8 :: pe(ncel)
+      pe = matmul(e,xat) - dot_product(e,xat(:,1))
+      emin = minval(pe)
+      emax = maxval(pe)
+    end subroutine extent
   end subroutine plane_def_set_defaults
 
   !> The grid of the region of the map in system isys (cell-frame
@@ -184,14 +265,22 @@ contains
   !> of the map in system isys (nx, ny): the cells of the grid are
   !> (nearly) square, with sides of plane_auto_spacing, or less if the
   !> longer side would have fewer than plane_auto_nmin points, or more
-  !> if there would be more than plane_auto_ntot points in all or more
-  !> than plane_npts_max along a side.
+  !> if there would be more than plane_auto_ntot points in all, more
+  !> than plane_npts_max along a side, or the map would take longer
+  !> than plane_auto_tmax (the cost of the quantity is probed on a few
+  !> points when it changes).
   module subroutine plane_def_autopoints(d,isys)
     use param, only: bohrtoa
     class(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
 
-    real*8 :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3), l1, l2, h, t
+    integer, parameter :: nprobe = 9 ! points along each side of the probe of the cost
+
+    real*8 :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3), l1, l2, h, t, np, nmax
+    real*8, allocatable :: ff(:,:)
+    integer*8, allocatable :: key(:)
+    integer*8 :: c0, c1, crate
+    logical :: stale
     character(len=:), allocatable :: errmsg
 
     if (.not.d%autonpts) return
@@ -203,8 +292,30 @@ contains
     l2 = norm2(vv) * (d%ny - 1)
     if (max(l1,l2) <= 0d0) return
     h = min(plane_auto_spacing / bohrtoa,max(l1,l2) / (plane_auto_nmin - 1))
-    if ((l1 / h + 1d0) * (l2 / h + 1d0) > plane_auto_ntot) &
-       h = h * sqrt((l1 / h + 1d0) * (l2 / h + 1d0) / plane_auto_ntot)
+
+    ! the cost of the quantity (wall time per point), measured on a
+    ! coarse grid of the region when the quantity changes
+    call d%key(isys,key)
+    stale = .not.allocated(d%tpointkey) .or. .not.allocated(d%tpointexpr)
+    if (.not.stale) stale = (size(d%tpointkey) /= size(key) - nkeyreg)
+    if (.not.stale) stale = any(d%tpointkey /= key(nkeyreg+1:)) .or. (d%tpointexpr /= trim(d%expr))
+    if (stale) then
+       d%tpointkey = key(nkeyreg+1:)
+       d%tpointexpr = trim(d%expr)
+       d%tpoint = 0d0
+       call system_clock(c0,crate)
+       call d%values(isys,x0,uu * (d%nx - 1) / (nprobe - 1),vv * (d%ny - 1) / (nprobe - 1),ff,errmsg,&
+          npts=nprobe)
+       call system_clock(c1)
+       if (allocated(ff)) d%tpoint = real(c1 - c0,8) / real(crate,8) / nprobe**2
+    end if
+
+    ! at most plane_auto_ntot points, and fewer if the map would take
+    ! longer than plane_auto_tmax
+    nmax = plane_auto_ntot
+    if (d%tpoint > 0d0) nmax = min(nmax,plane_auto_tmax / d%tpoint)
+    np = (l1 / h + 1d0) * (l2 / h + 1d0)
+    if (np > nmax) h = h * sqrt(np / nmax)
     h = max(h,max(l1,l2) / (plane_npts_max - 1))
 
     ! the sides come from the grid of the current nx and ny, with a
@@ -220,9 +331,10 @@ contains
   end subroutine plane_def_autopoints
 
   !> Everything the values of the map in system isys depend on: the
-  !> region, the number of points, the quantity, the geometry, and the
-  !> fields (all of them, for an expression; which enters through the
-  !> size of key). The expression itself is not in it.
+  !> region and the number of points (the first nkeyreg entries), then
+  !> the quantity, the geometry, and the fields (all of them, for an
+  !> expression; which enters through the size of key). The
+  !> expression itself is not in it.
   module subroutine plane_def_key(d,isys,key)
     use systems, only: sys, sysc
     class(plane_def), intent(in) :: d
@@ -256,8 +368,10 @@ contains
   !> uu, vv (see plane_def_grid) in ff (nx,ny). The expression is
   !> checked again (the fields it uses may have come or gone). If they
   !> cannot be calculated, ff is not allocated and errmsg says why
-  !> (empty for an empty or wrong expression: exprerr says it).
-  module subroutine plane_def_values(d,isys,x0,uu,vv,ff,errmsg)
+  !> (empty for an empty or wrong expression: exprerr says it). If
+  !> npts is present, the grid has npts points along each side
+  !> instead of nx and ny (the probe of the cost).
+  module subroutine plane_def_values(d,isys,x0,uu,vv,ff,errmsg,npts)
     use systems, only: sys
     use rhoplot, only: rhoplot_plane_values
     class(plane_def), intent(inout) :: d
@@ -265,13 +379,20 @@ contains
     real*8, intent(in) :: x0(3), uu(3), vv(3)
     real*8, allocatable, intent(inout) :: ff(:,:)
     character(len=:), allocatable, intent(inout) :: errmsg
+    integer, intent(in), optional :: npts
 
-    integer :: id
+    integer :: id, nx, ny
     logical :: ok
     character(len=:), allocatable :: lerr
 
     errmsg = ""
     if (allocated(ff)) deallocate(ff)
+    nx = d%nx
+    ny = d%ny
+    if (present(npts)) then
+       nx = npts
+       ny = npts
+    end if
     if (d%isexpr) then
        id = -1
        d%exprerr = ""
@@ -287,8 +408,8 @@ contains
     end if
     if (.not.ok) return
 
-    allocate(ff(d%nx,d%ny))
-    call rhoplot_plane_values(sys(isys),x0,uu,vv,d%nx,d%ny,id,trim(d%expr),d%nti,ff,errmsg)
+    allocate(ff(nx,ny))
+    call rhoplot_plane_values(sys(isys),x0,uu,vv,nx,ny,id,trim(d%expr),d%nti,ff,errmsg)
     if (len_trim(errmsg) > 0) deallocate(ff)
 
   end subroutine plane_def_values
@@ -493,7 +614,7 @@ contains
 
     associate(d => r%slice%d, c => r%slice%c)
       ! the values (and with them, the mesh and the lines go stale)
-      if (.not.r%slice%nocalc) call d%autopoints(isys)
+      if (.not.r%slice%nocalc .and. .not.are_threads_running()) call d%autopoints(isys)
       call d%key(isys,key)
       stale = .not.allocated(c%key) .or. .not.allocated(c%keyexpr)
       if (.not.stale) stale = (size(c%key) /= size(key))

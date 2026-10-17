@@ -805,6 +805,10 @@ module representations
      integer(c_int) :: nx = 101 ! number of points along the first side
      integer(c_int) :: ny = 101 ! number of points along the second side
      logical :: autonpts = .true. ! nx and ny follow from the size of the region (autopoints)
+     ! the cost of the quantity, for autopoints (probed; not saved)
+     real*8 :: tpoint = 0d0 ! wall time per point (s; 0 = unknown)
+     integer*8, allocatable :: tpointkey(:) ! the quantity it was measured for
+     character(len=:), allocatable :: tpointexpr ! ... and its expression
      ! the quantity: a field and its PLANE property, or an expression
      logical :: isexpr = .false.
      type(field_ref) :: fref
@@ -853,6 +857,7 @@ module representations
   real*8, parameter, public :: plane_auto_spacing = 0.05d0
   integer, parameter, public :: plane_auto_nmin = 101
   integer, parameter, public :: plane_auto_ntot = 250000
+  real*8, parameter, public :: plane_auto_tmax = 3d0 ! longest time of a map (s), for slow quantities
 
   !> The values and the contour lines of a plane map object, cached
   !> (calculated again when their keys change; moved, not copied, by
@@ -1871,12 +1876,13 @@ module representations
        integer, intent(in) :: isys
        integer*8, allocatable, intent(inout) :: key(:)
      end subroutine plane_def_key
-     module subroutine plane_def_values(d,isys,x0,uu,vv,ff,errmsg)
+     module subroutine plane_def_values(d,isys,x0,uu,vv,ff,errmsg,npts)
        class(plane_def), intent(inout) :: d
        integer, intent(in) :: isys
        real*8, intent(in) :: x0(3), uu(3), vv(3)
        real*8, allocatable, intent(inout) :: ff(:,:)
        character(len=:), allocatable, intent(inout) :: errmsg
+       integer, intent(in), optional :: npts
      end subroutine plane_def_values
      module subroutine plane_def_levels(d,ff,niso,ziso)
        class(plane_def), intent(in) :: d
