@@ -2213,7 +2213,7 @@ contains
     if (iw_button("Toggle##cpseltoggle",sameline=.true.)) w%cp%sel(nnuc+1:) = .not.w%cp%sel(nnuc+1:)
     call iw_tooltip("Select the critical points that are not selected, and vice versa",ttshown)
     nsel = count(w%cp%sel)
-    if (iw_button("Delete selected##cpdelete",sameline=.true.,disabled=(nsel == 0))) then
+    if (iw_button("Delete Selected##cpdelete",sameline=.true.,disabled=(nsel == 0))) then
        w%cp%pending_del = w%cp%sel
        call request_job(w,iview,cpjob_delete)
     end if
@@ -2474,12 +2474,12 @@ contains
           w%cp%seed = [w%cp%seed(:idel-1), w%cp%seed(idel+1:)]
           call cancel_seed_pick(w)
        end if
-       if (iw_button("Add seeds##cpseedadd")) call add_seed(w,isys,cpseed_point)
+       if (iw_button("Add Seeds##cpseedadd")) call add_seed(w,isys,cpseed_point)
        call iw_tooltip("Add a set of seeds. The search for critical points starts from a list of&
           & points, the seeds: each entry in the list above adds a set of seeds. A Newton-Raphson&
           & search runs from every seed, and the point it converges to is added to the list of&
           & critical points",ttshown)
-       if (iw_button("Reset seeds##cpseedreset",sameline=.true.)) then
+       if (iw_button("Reset Seeds##cpseedreset",sameline=.true.)) then
           call reset_seeds(w,isys)
           call cancel_seed_pick(w)
        end if

@@ -2710,7 +2710,7 @@ contains
                end if
             end if
             call grid_end()
-            if (iw_beginmenu("Chemical functions")) then
+            if (iw_beginmenu("Chemical Functions")) then
                call f%eval_avail(av)
                ireq = arithreq_none
                call grid_begin("chem" // string(i) // "_0",4)
@@ -2735,7 +2735,7 @@ contains
 
     ! functions, operators, constants, and structural variables
     call igSeparator()
-    if (iw_beginmenu("Math functions")) then
+    if (iw_beginmenu("Math Functions")) then
        call iw_text("Applied to the whole expression",disabled=.true.)
        call grid_begin("math",4)
        do j = 1, size(arith_names,1)
@@ -2747,7 +2747,7 @@ contains
        call grid_end()
        call igEndMenu()
     end if
-    if (iw_beginmenu("Operators and constants")) then
+    if (iw_beginmenu("Operators and Constants")) then
        call grid_begin("ops",6)
        call item(" + ","Add")
        call item(" - ","Subtract")
@@ -2776,7 +2776,7 @@ contains
        call grid_end()
        call igEndMenu()
     end if
-    if (iw_beginmenu("Structural variables")) then
+    if (iw_beginmenu("Structural Variables")) then
        call grid_begin("svar",3)
        prev = ""
        do j = 1, size(arith_names,1)
@@ -2835,10 +2835,10 @@ contains
 
     ! the manual
     if (iw_beginmenu("Manual")) then
-       if (iw_menuitem("Expressions: fields, modifiers, operators")) call openmanual("#c2-arithbasic")
-       if (iw_menuitem("Functions (math and chemical)")) call openmanual("#availchemfun")
-       if (iw_menuitem("Structural variables (@x, @dnuc, ...)")) call openmanual("#c2-structvar")
-       if (iw_menuitem("Exchange-correlation functionals (libxc)")) call openmanual("#libxc")
+       if (iw_menuitem("Expressions: Fields, Modifiers, Operators")) call openmanual("#c2-arithbasic")
+       if (iw_menuitem("Functions (Math and Chemical)")) call openmanual("#availchemfun")
+       if (iw_menuitem("Structural Variables (@x, @dnuc, ...)")) call openmanual("#c2-structvar")
+       if (iw_menuitem("Exchange-Correlation Functionals (libxc)")) call openmanual("#libxc")
        call igEndMenu()
     end if
     call igEndPopup()

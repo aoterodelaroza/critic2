@@ -417,14 +417,14 @@ contains
           ! follows the tree selection)
           if (w%ismain) then
              call iw_separatortext("Camera lock")
-             if (iw_radiobutton("Lock All##camlock",int=lockbehavior,intval=2_c_int)) then
+             if (iw_radiobutton("Lock all##camlock",int=lockbehavior,intval=2_c_int)) then
                 do k = 1, nsys
                    sysc(k)%sc%lockedcam = -1
                 end do
              end if
              call iw_tooltip("Use the same camera position for all loaded systems",ttshown)
 
-             if (iw_radiobutton("SCF Only##camlock",int=lockbehavior,intval=1_c_int,sameline=.true.)) then
+             if (iw_radiobutton("SCF only##camlock",int=lockbehavior,intval=1_c_int,sameline=.true.)) then
                 do k = 1, nsys
                    ! only the steps of one calculation share a camera; a group
                    ! of unrelated systems does not
@@ -437,7 +437,7 @@ contains
              end if
              call iw_tooltip("Use the same camera position for all SCF iterations of the same system",ttshown)
 
-             if (iw_radiobutton("Unlock All##camlock",int=lockbehavior,intval=0_c_int,sameline=.true.)) then
+             if (iw_radiobutton("Unlock all##camlock",int=lockbehavior,intval=0_c_int,sameline=.true.)) then
                 do k = 1, nsys
                    sysc(k)%sc%lockedcam = 0
                 end do

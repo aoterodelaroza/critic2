@@ -156,7 +156,7 @@ contains
           ! q-points table
           call igBeginGroup()
           call iw_text("Q-points",alignframe=.true.)
-          call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
+          call iw_combo_simple("##qptunit","Fractional" // c_null_char // "1/bohr" // c_null_char //&
              "1/Å" // c_null_char,w%iqptunit,sameline=.true.)
           call iw_tooltip("Units for the q-points",ttshown)
 
@@ -348,7 +348,7 @@ contains
           win(iview)%sc%forcebuildlists = .true.
        end if
        call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic phase",ttshown)
-       if (iw_radiobutton("Manual/Nudge Structure",int=win(iview)%sc%animation,intval=1_c_int,sameline=.true.)) then
+       if (iw_radiobutton("Manual/nudge structure",int=win(iview)%sc%animation,intval=1_c_int,sameline=.true.)) then
           win(iview)%sc%anim_amplitude = 0d0
           win(iview)%sc%anim_phase = 0d0
           win(iview)%sc%forcebuildlists = .true.

@@ -154,7 +154,7 @@ contains
        end if
     end if
     if (ok2) then
-       if (iw_menuitem("Run on all systems")) &
+       if (iw_menuitem("Run on All Systems")) &
           force_run_commands = 2
        call iw_tooltip("Run these commands on all loaded systems")
        call igEndPopup()

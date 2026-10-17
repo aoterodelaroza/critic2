@@ -157,7 +157,7 @@ contains
        end if
 
        ! generate a new system
-       if (iw_button("New system",danger=.true.)) then
+       if (iw_button("New System",danger=.true.)) then
           if (w%demo_owns_system(sys_init)) call remove_system(w%isys)
           w%isys = 0
           w%errmsg = ""

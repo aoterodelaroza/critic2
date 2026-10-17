@@ -3327,7 +3327,7 @@ contains
          call iw_tooltip("Offset of the label from its anchor, in the screen plane (angstrom)",ttshown)
          ! distances: a bond fills both ends in one pick
          if (ncat == 2) then
-            if (iw_button("Pick bond##measurepickbond",disabled=(w%editrep_pick_item > 0))) then
+            if (iw_button("Pick Bond##measurepickbond",disabled=(w%editrep_pick_item > 0))) then
                w%editrep_pick_item = is
                w%editrep_pick_slot = 0 ! a bond fills both ends, not one slot
                call w%editrep_pick%arm()
@@ -4614,7 +4614,7 @@ contains
           end if
           lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        end if
-       if (iw_button("Calculate grid",danger=.true.,disabled=.not.lapply)) then
+       if (iw_button("Calculate Grid",danger=.true.,disabled=.not.lapply)) then
           w%errmsg = ""
           if (all(nstage == 0)) then
              ! the native grid of a grid field: nothing to sample

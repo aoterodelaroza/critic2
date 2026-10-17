@@ -482,10 +482,10 @@ contains
        flags = ior(flags,ImGuiTableColumnFlags_NoSort)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
-       call iw_table_column("File Format##0",id=ic_tree_format,flags=flags,&
+       call iw_table_column("File format##0",id=ic_tree_format,flags=flags,&
           width=max(4._c_float, fontsize%y + 4._c_float))
 
-       call iw_table_column("System Properties##0",id=ic_tree_props,flags=flags)
+       call iw_table_column("System properties##0",id=ic_tree_props,flags=flags)
 
        call iw_table_column("Name##0",id=ic_tree_name,flags=ImGuiTableColumnFlags_WidthStretch)
 
@@ -1538,7 +1538,7 @@ contains
          call iw_tooltip("Method for calculating the field derivatives",ttshown)
 
          ! typnuc
-         if (iw_beginmenu("Nuclear critical point signature")) then
+         if (iw_beginmenu("Nuclear Critical Point Signature")) then
             if (iw_menuitem("-3 (maximum)",selected=(sys(i)%f(k)%typnuc == -3))) &
                call field_setopt(i,k,"typnuc -3")
             if (iw_menuitem("-1",selected=(sys(i)%f(k)%typnuc == -1))) &

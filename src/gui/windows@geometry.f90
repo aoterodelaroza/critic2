@@ -1925,7 +1925,7 @@ contains
                 if (iw_button("Refine##symrefine",sameline=.true.)) iaction = iaction_sym_refine
                 call iw_tooltip("Idealize the cell parameters and move the atoms to their ideal &
                    &symmetry positions.",ttshown)
-                if (iw_button("Whole molecules##symwholemols",sameline=.true.,&
+                if (iw_button("Whole Molecules##symwholemols",sameline=.true.,&
                    disabled=.not.sys(isys)%c%ismol3d)) iaction = iaction_sym_wholemols
                 call iw_tooltip("Choose a symmetry subgroup such that the asymmetric unit contains whole molecules &
                    &(molecular crystals only)",ttshown)

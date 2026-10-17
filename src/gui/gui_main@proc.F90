@@ -901,7 +901,7 @@ contains
     enabled = ok_system(isys,sys_init)
 
     ! recalculate the bonds
-    if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
+    if (iw_menuitem("Recalculate Bonds",BIND_RECALC_BONDS,enabled=enabled)) &
        call sysc(isys)%rebond()
     call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
 
@@ -980,7 +980,7 @@ contains
     call iw_tooltip("Tools to modify the structure in the view",ttshown)
 
     ! generate rattled/sampled structures from this one
-    if (iw_menuitem("Rattle structure...",enabled=enabled)) &
+    if (iw_menuitem("Rattle Structure...",enabled=enabled)) &
        idum = stack_create_window(wintype_rattle,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Generate new systems by displacing the atoms&
        & randomly or by sampling a molecular-dynamics run",ttshown)
@@ -988,7 +988,7 @@ contains
     ! measure the empty space in the crystal
     ok = enabled
     if (ok) ok = .not.sys(isys)%c%ismolecule
-    if (iw_menuitem("Crystal voids...",enabled=ok)) &
+    if (iw_menuitem("Crystal Voids...",enabled=ok)) &
        idum = stack_create_window(wintype_voids,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Measure the volume of the empty space (voids) in this crystal",ttshown)
 
@@ -1331,7 +1331,7 @@ contains
              & for systems read from output files, open the Save As dialog",ttshown)
 
           ! File -> Save as
-          if (iw_menuitem("Save as...",BIND_SAVE_AS,enabled=isysvok)) &
+          if (iw_menuitem("Save As...",BIND_SAVE_AS,enabled=isysvok)) &
              idum = stack_create_window(wintype_saveas,.true.,idparent=view_target_window(),&
              orraise=-1)
           call iw_tooltip("Write the structure of the current system to a file in a chosen format",ttshown)

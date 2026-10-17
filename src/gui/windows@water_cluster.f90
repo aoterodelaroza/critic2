@@ -114,7 +114,7 @@ contains
        end if
 
        ! generate a new cluster
-       if (iw_button("New cluster",danger=.true.)) then
+       if (iw_button("New Cluster",danger=.true.)) then
           ! stop, free, and remove the previous cluster
           if (w%demo_owns_system(sys_init)) then
              sysc(w%isys)%md_run = .false.
