@@ -33,7 +33,7 @@ submodule (windows) plane
   real(c_float), parameter :: pt_rgb(3,3) = reshape((/&
      0.95_c_float,0.80_c_float,0.10_c_float,&
      0.95_c_float,0.35_c_float,0.20_c_float,&
-     0.20_c_float,0.55_c_float,0.95_c_float/),(/3,3/))
+     0.80_c_float,0.45_c_float,0.95_c_float/),(/3,3/))
   real(c_float), parameter :: region_rgb(3) = (/0.60_c_float,0.60_c_float,0.60_c_float/)
   real(c_float), parameter :: cur_rgb(3) = (/0.10_c_float,0.85_c_float,0.30_c_float/)
   real(c_float), parameter :: marker_alpha = 0.8_c_float
@@ -128,8 +128,8 @@ contains
 
        ! the plane, the region, and the number of points
        xediting = .false.
-       if (plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking,w%pl%showcval,w%pl%vscale)) &
-          w%pl%viewdirty = .true.
+       if (plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking,w%pl%showcval,w%pl%vscale,&
+          w%pl%sec)) w%pl%viewdirty = .true.
        if (ipick > 0) then
           w%pl%picking = .true.
           w%pl%pickend = ipick
@@ -160,7 +160,7 @@ contains
        call igGetContentRegionAvail(sz0)
        sz0%y = sz0%y - iw_calcheight(merge(3,2,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
        htable = 0._c_float
-       if (w%pl%showdata) then
+       if (w%pl%secdata%open .and. allocated(w%pl%ff)) then
           htable = max(0.35_c_float * sz0%y,iw_calcheight(4,0,.false.))
           sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
        end if
@@ -218,53 +218,55 @@ contains
 
   contains
 
-    !> The labels of the atoms and critical points near the plane (in
-    !> two lines: what is labeled, the color, and the size, then the
-    !> text and the distance to the plane), and whether the map is shown in the view, and its
-    !> opacity there.
+    !> The Display section: the labels of the atoms and critical
+    !> points near the plane, and whether the map is shown in the
+    !> view, and its opacity there. More: what is labeled, the color
+    !> and size of the labels, their text, and the distance to the
+    !> plane.
     subroutine draw_labels_option()
-      use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit, iw_combo_simple
+      use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit, iw_combo_simple, iw_separatortext
 
-      call iw_text("Labels",highlight=.true.,alignframe=.true.)
-      ldum = iw_checkbox("Show##planeshowlabels",w%pl%showlabels,sameline=.true.)
+      call iw_separatortext("Display",w%pl%secdisp,hasmore=w%pl%showlabels)
+      if (.not.w%pl%secdisp%open) return
+      ldum = iw_checkbox("Labels##planeshowlabels",w%pl%showlabels,labelleft=.true.)
       call iw_tooltip("Label the atoms and the critical points of the reference field near the plane",ttshown)
-      if (w%pl%showlabels) then
-         ldum = iw_checkbox("Show CPs##planeshowcps",w%pl%showcps,sameline=.true.)
-         call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
-            & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
-         call iw_text("Color",alignframe=.true.,sameline=.true.)
-         ldum = iw_coloredit("##planergblabel",rgb=w%pl%rgblabel,sameline=.true.)
-         call iw_tooltip("Color of the labels and their dots",ttshown)
-         call iw_text("Size",alignframe=.true.,sameline=.true.)
-         ldum = iw_dragfloat_realc("##planelscale",x1=w%pl%lscale,speed=0.01_c_float,min=0.1_c_float,&
-            max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Size of the labels and their dots, relative to the text of the interface",ttshown)
-
-         ! second line: the text, which atoms and critical points, and
-         ! their distance
-         call iw_text("Text",alignframe=.true.)
-         call iw_combo_simple("##planeltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
-            "Atom name"//c_null_char,w%pl%ltext,sameline=.true.)
-         call iw_tooltip("Text in the labels of the atoms",ttshown)
-         call iw_text("Distance",alignframe=.true.,sameline=.true.)
-         ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
-         call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
-            lunit() // ")",ttshown)
-         ldum = iw_checkbox("Distance in label##planeshowdist",w%pl%showdist,sameline=.true.)
-         call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
-            & plane (" // lunit() // ", positive on the side of the normal; omitted if zero to two&
-            & decimals)",ttshown)
-      end if
-      if (iw_checkbox("Show in View##planeshow",w%pl%showview)) w%pl%viewgen = -1
+      if (iw_checkbox("Show in view##planeshow",w%pl%showview,gap=.true.,labelleft=.true.)) w%pl%viewgen = -1
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
          & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
       if (w%pl%showview) then
-         call iw_text("Opacity",alignframe=.true.,sameline=.true.)
+         call iw_text("Opacity",alignframe=.true.,gap=.true.)
          if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
             max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
             w%pl%viewdirty = .true.
          call iw_tooltip("Opacity of the map in the view (1 = opaque; the contour lines stay opaque)",ttshown)
       end if
+      if (.not.w%pl%secdisp%more .or. .not.w%pl%showlabels) return
+
+      ! more: what is labeled, and the color and size of the labels
+      ldum = iw_checkbox("Critical points##planeshowcps",w%pl%showcps,labelleft=.true.)
+      call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
+         & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
+      call iw_text("Color",alignframe=.true.,gap=.true.)
+      ldum = iw_coloredit("##planergblabel",rgb=w%pl%rgblabel,sameline=.true.)
+      call iw_tooltip("Color of the labels and their dots",ttshown)
+      call iw_text("Size",alignframe=.true.,gap=.true.)
+      ldum = iw_dragfloat_realc("##planelscale",x1=w%pl%lscale,speed=0.01_c_float,min=0.1_c_float,&
+         max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+      call iw_tooltip("Size of the labels and their dots, relative to the text of the interface",ttshown)
+
+      ! more: the text, and the distance to the plane
+      call iw_text("Text",alignframe=.true.)
+      call iw_combo_simple("##planeltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
+         "Atom name"//c_null_char,w%pl%ltext,sameline=.true.)
+      call iw_tooltip("Text in the labels of the atoms",ttshown)
+      call iw_text("Distance",alignframe=.true.,gap=.true.)
+      ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
+      call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
+         lunit() // ")",ttshown)
+      ldum = iw_checkbox("Show distance##planeshowdist",w%pl%showdist,gap=.true.,labelleft=.true.)
+      call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
+         & plane (" // lunit() // ", positive on the side of the normal; omitted if zero to two&
+         & decimals)",ttshown)
 
     end subroutine draw_labels_option
 
@@ -735,14 +737,15 @@ contains
 
     end subroutine plot_point
 
-    !> The collapsible table of the values on the plane: the position
-    !> of each point (fractional for crystals, Å for molecules), its
-    !> plot coordinates, and the value. The menu of the header (right
-    !> click) writes it to the output, the console, or a file.
+    !> The table of the values on the plane (opened and closed from
+    !> its title): the position of each point (fractional for crystals, Å
+    !> for molecules), its plot coordinates, and the value. The menu
+    !> of the header (right click) writes it to the output, the
+    !> console, or a file.
     subroutine draw_data_section()
-      use utils, only: iw_table_column, iw_table_headers_row
+      use utils, only: iw_table_column, iw_table_headers_row, iw_separatortext
       integer, parameter :: itable_plane = 1 ! the table, for table_write_*
-      character(kind=c_char,len=:), allocatable, target :: strsec, strtab
+      character(kind=c_char,len=:), allocatable, target :: strtab
       character(len=:), allocatable :: un
       integer(c_int) :: flags
       integer :: k, ix, iy, iwrite, nx, ny
@@ -751,11 +754,9 @@ contains
       type(c_ptr) :: clipper
       type(ImGuiListClipper), pointer :: clipper_f
 
-      w%pl%showdata = .false.
       if (.not.allocated(w%pl%ff)) return
-      strsec = "Values on the plane##planedata" // c_null_char
-      if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
-      w%pl%showdata = .true.
+      call iw_separatortext("Values on the plane",w%pl%secdata)
+      if (.not.w%pl%secdata%open) return
 
       nx = size(w%pl%ff,1)
       ny = size(w%pl%ff,2)
@@ -824,7 +825,6 @@ contains
          call w%table_write_end(itable_plane,table_title("Plane map",isys))
          call igEndTable()
       end if
-      call igTreePop()
 
     end subroutine draw_data_section
 
@@ -1222,11 +1222,11 @@ contains
   !> contour line has a Values checkbox for it (the labels of the
   !> levels in the window, which are not part of the map), and, if
   !> valscale is present too, a control for their size.
-  module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale) result(changed)
+  module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale,sec) result(changed)
     use systems, only: sys
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_calcwidth,&
        iw_inputint, iw_combo_simple, iw_checkbox, iw_coloredit, iw_inputtext, iw_cmap_optstr,&
-       iw_field_combo, iw_expression_helper, iw_exprctx_point
+       iw_field_combo, iw_expression_helper, iw_exprctx_point, iw_separatortext
     use tools_io, only: string
     type(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
@@ -1237,9 +1237,10 @@ contains
     logical, intent(in), optional :: pickoff
     logical, intent(inout), optional :: showval
     real(c_float), intent(inout), optional :: valscale
+    type(iw_section), intent(inout) :: sec(plane_nsec)
     logical :: changed
 
-    integer :: i, ival
+    integer :: i
     logical :: ismol, ch, pickoff_
     character(len=:), allocatable :: un
 
@@ -1255,16 +1256,23 @@ contains
     end if
 
     ! the plane, the region, and the number of points
-    do i = 1, 3
-       call draw_point(i)
-    end do
-    call draw_region()
-    call draw_move()
+    call iw_separatortext("Plane",sec(plane_sec_plane),hasmore=.true.)
+    if (sec(plane_sec_plane)%open) then
+       do i = 1, 3
+          call draw_point(i)
+       end do
+       call draw_move()
+       if (sec(plane_sec_plane)%more) call draw_region()
+    end if
 
-    ! the quantity, the colors, and the contour lines
-    call draw_quantity()
-    call draw_colors()
-    call draw_contours()
+    ! the quantity (nothing more for an expression), the colors, and
+    ! the contour lines (nothing more if they are not shown)
+    call iw_separatortext("Property",sec(plane_sec_property),hasmore=.not.d%isexpr)
+    if (sec(plane_sec_property)%open) call draw_quantity()
+    call iw_separatortext("Colors",sec(plane_sec_colors),hasmore=.true.)
+    if (sec(plane_sec_colors)%open) call draw_colors()
+    call iw_separatortext("Contours",sec(plane_sec_contours),hasmore=d%showcont)
+    if (sec(plane_sec_contours)%open) call draw_contours()
 
   contains
     !> A drag of a real value (x1 or the three of x3), live or not.
@@ -1289,6 +1297,26 @@ contains
       end if
 
     end subroutine drag
+
+    !> A fixed range of values: the checkbox flag and, if it is on,
+    !> the drags of xmin and xmax, with the tooltips of the three.
+    !> sfx = the ID suffix of the three widgets.
+    subroutine draw_range(sfx,flag,xmin,xmax,ttflag,ttmin,ttmax)
+      character(len=*), intent(in) :: sfx, ttflag, ttmin, ttmax
+      logical, intent(inout) :: flag
+      real*8, intent(inout) :: xmin, xmax
+
+      changed = changed .or. iw_checkbox("Fixed range##plane" // sfx // "range",flag,labelleft=.true.)
+      call iw_tooltip(ttflag,ttshown)
+      if (.not.flag) return
+      call iw_text("Min",alignframe=.true.,gap=.true.)
+      call drag("##plane" // sfx // "min",x1=xmin,speed=0.01d0,decimal=4,sameline=.true.)
+      call iw_tooltip(ttmin,ttshown)
+      call iw_text("Max",alignframe=.true.,gap=.true.)
+      call drag("##plane" // sfx // "max",x1=xmax,speed=0.01d0,decimal=4,sameline=.true.)
+      call iw_tooltip(ttmax,ttshown)
+
+    end subroutine draw_range
 
     !> One of the three points of the plane (ip = 1 origin, 2 end of
     !> the first side, 3 point on the second side): the label, the
@@ -1323,51 +1351,7 @@ contains
 
     end subroutine draw_point
 
-    !> The region of the plane (a rectangle or a parallelogram), the
-    !> margin around it, and the number of points along each side.
-    subroutine draw_region()
-
-      call iw_text("Region",highlight=.true.,alignframe=.true.)
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(14,1))
-      ival = d%region
-      call iw_combo_simple("##planeregion","Rectangle" // c_null_char // "Parallelogram" // c_null_char,&
-         d%region)
-      changed = changed .or. (ival /= d%region)
-      call igPopItemWidth()
-      call iw_tooltip("Rectangle: the first side goes from the origin to the X end, and the&
-         & second is perpendicular to it, as long as needed to reach the Y point. Parallelogram:&
-         & the sides go from the origin to the X end and to the Y point, as in PLANE",ttshown)
-
-      call iw_text("Margin",alignframe=.true.,sameline=.true.)
-      call drag("##planemargin",x1=d%margin,speed=0.01d0,decimal=3,sameline=.true.)
-      call iw_tooltip("Length added to the region on every side (" // un //&
-         "; negative removes it)",ttshown)
-
-      call iw_text("Points",alignframe=.true.,sameline=.true.)
-      ch = iw_checkbox("Auto##planeautonpts",d%autonpts,sameline=.true.)
-      changed = changed .or. ch
-      call iw_tooltip("Choose the number of points from the size of the region: square cells&
-         & of " // string(plane_auto_spacing,'f',decimal=2) // " Å, coarser for very large&
-         & regions (at most " // string(plane_auto_ntot) // " points)",ttshown)
-      if (d%autonpts) then
-         call iw_text(string(d%nx) // " x " // string(d%ny),sameline=.true.)
-      else
-         ch = iw_inputint("##planenx",d%nx,width=6,sameline=.true.,notlive=.true.)
-         d%nx = max(min(d%nx,plane_npts_max),plane_npts_min)
-         changed = changed .or. ch
-         call iw_tooltip("Number of points along the first side (" // string(plane_npts_min) // " to " //&
-            string(plane_npts_max) // ")",ttshown)
-         ch = iw_inputint("##planeny",d%ny,width=6,sameline=.true.,notlive=.true.)
-         d%ny = max(min(d%ny,plane_npts_max),plane_npts_min)
-         changed = changed .or. ch
-         call iw_tooltip("Number of points along the second side (" // string(plane_npts_min) // " to " //&
-            string(plane_npts_max) // ")",ttshown)
-      end if
-
-    end subroutine draw_region
-
-    !> Buttons that displace the whole plane by d%step along the
+    !> The buttons that displace the whole plane by d%step along the
     !> Cartesian axes and, in crystals, along the lattice vectors.
     subroutine draw_move()
       character(len=1), parameter :: lbl(6) = (/"x","y","z","a","b","c"/)
@@ -1375,7 +1359,7 @@ contains
       real*8 :: dx(3), st
       character(len=1) :: sg
 
-      call iw_text("Move",highlight=.true.,alignframe=.true.)
+      call iw_text("Move",alignframe=.true.)
       call iw_tooltip("Displace the whole plane",ttshown)
       do j = 1, merge(3,6,ismol)
          do k = 1, 2
@@ -1397,7 +1381,7 @@ contains
                merge("Cartesian axis","lattice vector",j <= 3) // ")",ttshown)
          end do
       end do
-      call iw_text("Step",alignframe=.true.,sameline=.true.)
+      call iw_text("Step",alignframe=.true.,gap=.true.)
       call igPushItemWidth(iw_calcwidth(7,1))
       ch = iw_dragfloat_real8("##planestep",x1=d%step,speed=0.01d0,decimal=3,sameline=.true.,min=0d0)
       call igPopItemWidth()
@@ -1405,39 +1389,81 @@ contains
 
     end subroutine draw_move
 
-    !> The quantity on the map: a field and one of its properties, or
-    !> an arithmetic expression (checked as it is typed).
+    !> More of the plane: the region (a rectangle or a parallelogram)
+    !> and the margin around it, then the number of points along each
+    !> side (shown, but not editable, if automatic).
+    subroutine draw_region()
+
+      call iw_text("Region",alignframe=.true.)
+      call iw_combo_simple("##planeregion","Rectangle" // c_null_char // "Parallelogram" // c_null_char,&
+         d%region,sameline=.true.,changed=ch)
+      changed = changed .or. ch
+      call iw_tooltip("Rectangle: the first side goes from the origin to the X end, and the&
+         & second is perpendicular to it, as long as needed to reach the Y point. Parallelogram:&
+         & the sides go from the origin to the X end and to the Y point, as in PLANE",ttshown)
+      call iw_text("Margin",alignframe=.true.,gap=.true.)
+      call drag("##planemargin",x1=d%margin,speed=0.01d0,decimal=3,sameline=.true.)
+      call iw_tooltip("Length added to the region on every side (" // un //&
+         "; negative removes it)",ttshown)
+
+      call iw_text("Points",alignframe=.true.)
+      if (d%autonpts) call igBeginDisabled(.true._c_bool)
+      ch = iw_inputint("##planenx",d%nx,width=6,sameline=.true.,notlive=.true.)
+      call iw_tooltip("Number of points along the first side (" // string(plane_npts_min) // " to " //&
+         string(plane_npts_max) // ")",ttshown,whendisabled=.true.)
+      call iw_text("x",alignframe=.true.,sameline=.true.)
+      ch = iw_inputint("##planeny",d%ny,width=6,sameline=.true.,notlive=.true.) .or. ch
+      call iw_tooltip("Number of points along the second side (" // string(plane_npts_min) // " to " //&
+         string(plane_npts_max) // ")",ttshown,whendisabled=.true.)
+      if (d%autonpts) then
+         call igEndDisabled()
+      else
+         d%nx = max(min(d%nx,plane_npts_max),plane_npts_min)
+         d%ny = max(min(d%ny,plane_npts_max),plane_npts_min)
+         changed = changed .or. ch
+      end if
+      ch = iw_checkbox("Automatic##planeautonpts",d%autonpts,gap=.true.,labelleft=.true.)
+      changed = changed .or. ch
+      call iw_tooltip("Choose the number of points from the size of the region: square cells&
+         & of " // string(plane_auto_spacing,'f',decimal=2) // " Å, coarser for very large&
+         & regions (at most " // string(plane_auto_ntot) // " points)",ttshown)
+
+    end subroutine draw_region
+
+    !> The quantity on the map: a field, or an arithmetic expression
+    !> (checked as it is typed). More: the property of the field.
     subroutine draw_quantity()
       integer :: ikind, ifield, iq
       logical :: echanged
       character(len=:), allocatable :: lerr
 
-      call iw_text("Property",highlight=.true.,alignframe=.true.)
+      call iw_text("Kind",alignframe=.true.)
       ikind = merge(1,0,d%isexpr)
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(10,1))
-      call iw_combo_simple("##planekind","Field" // c_null_char // "Expression" // c_null_char,ikind)
-      call igPopItemWidth()
+      call iw_combo_simple("##planekind","Field" // c_null_char // "Expression" // c_null_char,ikind,&
+         sameline=.true.)
       call iw_tooltip("A quantity of a field, or an arithmetic expression of the fields",ttshown)
       changed = changed .or. (d%isexpr .neqv. (ikind == 1))
       d%isexpr = (ikind == 1)
-      call igSameLine(0._c_float,-1._c_float)
       if (.not.d%isexpr) then
+         call iw_text("Field",alignframe=.true.,gap=.true.)
          ifield = d%fref%id
          if (iw_field_combo("##planefield",isys,ifield,width=iw_calcwidth(24,1),&
-            nonestr="<field not available>")) then
+            nonestr="<field not available>",sameline=.true.)) then
             call d%fref%set(sys(isys),ifield)
             changed = .true.
          end if
          call iw_tooltip("Field on the map",ttshown)
-         call igSameLine(0._c_float,-1._c_float)
-         iq = d%nti
-         call iw_combo_simple("##planequant",quant_combo,iq)
-         changed = changed .or. (iq /= d%nti)
-         d%nti = max(min(iq,nquant-1),0)
-         call iw_tooltip("Property of the field on the map",ttshown)
+         if (sec(plane_sec_property)%more) then
+            call iw_text("Quantity",alignframe=.true.)
+            iq = d%nti
+            call iw_combo_simple("##planequant",quant_combo,iq,sameline=.true.)
+            changed = changed .or. (iq /= d%nti)
+            d%nti = max(min(iq,nquant-1),0)
+            call iw_tooltip("Property of the field on the map",ttshown)
+         end if
       else
-         echanged = iw_inputtext("##planeexpr",bufsize=1023,textf=d%expr,width=36)
+         call iw_text("Expression",alignframe=.true.,gap=.true.)
+         echanged = iw_inputtext("##planeexpr",bufsize=1023,textf=d%expr,width=36,sameline=.true.)
          call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
             & ""$1 - $2"" or ""$1:l""), evaluated at the points of the plane",ttshown)
          if (iw_expression_helper("##planehelp",isys,iw_exprctx_point,textf=d%expr,&
@@ -1459,91 +1485,88 @@ contains
 
     end subroutine draw_quantity
 
-    !> The colors of the map.
+    !> The colors of the map. More: a fixed range of values for them.
     subroutine draw_colors()
 
-      call iw_text("Colors",highlight=.true.,alignframe=.true.)
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(10,1))
-      ival = d%icmap
-      call iw_combo_simple("##planecmap",iw_cmap_optstr,d%icmap,startsatone=.true.)
-      changed = changed .or. (ival /= d%icmap)
-      call igPopItemWidth()
+      call iw_text("Colormap",alignframe=.true.)
+      call iw_combo_simple("##planecmap",iw_cmap_optstr,d%icmap,startsatone=.true.,sameline=.true.,changed=ch)
+      changed = changed .or. ch
       call iw_tooltip("Colormap of the map",ttshown)
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(10,1))
-      ival = d%cscale
+      call iw_text("Scale",alignframe=.true.,gap=.true.)
       call iw_combo_simple("##planecscale","Linear" // c_null_char // "Log |f|" // c_null_char //&
-         "Arctangent" // c_null_char,d%cscale)
-      changed = changed .or. (ival /= d%cscale)
-      call igPopItemWidth()
+         "Arctangent" // c_null_char,d%cscale,sameline=.true.,changed=ch)
+      changed = changed .or. ch
       call iw_tooltip("How the values become colors: linearly, by the logarithm of their&
          & absolute value, or by their arctangent (as in PLANE COLORMAP)",ttshown)
-      changed = changed .or. iw_checkbox("Range##planecrange",d%crange,sameline=.true.)
-      call iw_tooltip("Colors for a fixed range of values (or the range of the values on the map)",ttshown)
-      if (d%crange) then
-         call drag("##planecmin",x1=d%cmin,speed=0.01d0,decimal=4,sameline=.true.)
-         call iw_tooltip("The value of the first color",ttshown)
-         call drag("##planecmax",x1=d%cmax,speed=0.01d0,decimal=4,sameline=.true.)
-         call iw_tooltip("The value of the last color",ttshown)
-      end if
+      if (.not.sec(plane_sec_colors)%more) return
+
+      ! more: the range
+      call draw_range("c",d%crange,d%cmin,d%cmax,&
+         "Colors for a fixed range of values (or the range of the values on the map)",&
+         "The value of the first color","The value of the last color")
 
     end subroutine draw_colors
 
-    !> The contour lines of the map.
+    !> The contour lines of the map: whether they are drawn, and the
+    !> levels. More: a fixed range for the levels, the colors of the
+    !> lines, and the values on them.
     subroutine draw_contours()
       integer :: ic
 
-      call iw_text("Contours",highlight=.true.,alignframe=.true.)
-      changed = changed .or. iw_checkbox("Show##planeshowcont",d%showcont,sameline=.true.)
+      changed = changed .or. iw_checkbox("Show##planeshowcont",d%showcont,labelleft=.true.)
       call iw_tooltip("Draw contour lines on the map",ttshown)
       if (.not.d%showcont) return
-      if (present(showval)) then
-         ch = iw_checkbox("Values##planeshowcval",showval,sameline=.true.)
-         call iw_tooltip("Write the value of the level on the contour lines, in their color,&
-            & where there is room",ttshown)
-         if (showval .and. present(valscale)) then
-            ch = iw_dragfloat_realc("##planevscale",x1=valscale,speed=0.01_c_float,min=0.1_c_float,&
-               max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("Size of the values, relative to the text of the interface",ttshown)
-         end if
-      end if
+
+      ! the levels
       ic = 0
       do while (ic < 4 .and. ctype_of_combo(ic) /= d%ctype)
          ic = ic + 1
       end do
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(12,1))
+      call iw_text("Levels",alignframe=.true.,gap=.true.)
       call iw_combo_simple("##planectype","Linear" // c_null_char // "Logarithmic" // c_null_char //&
-         "Arctangent" // c_null_char // "Bader" // c_null_char // "List" // c_null_char,ic)
-      call igPopItemWidth()
+         "Arctangent" // c_null_char // "Bader" // c_null_char // "List" // c_null_char,ic,sameline=.true.)
       changed = changed .or. (d%ctype /= ctype_of_combo(ic))
       d%ctype = ctype_of_combo(ic)
       call iw_tooltip("The contour levels, as in PLANE CONTOUR: evenly spaced, logarithmic&
          & (positive and negative), evenly spaced in the arctangent, the Bader set (1, 2, 4,&
          & 8 x 10^n), or a list of values",ttshown)
       if (d%ctype == niso_manual) then
+         call iw_text("List",alignframe=.true.,gap=.true.)
          changed = changed .or. iw_inputtext("##planellist",bufsize=1023,textf=d%llist,width=30,sameline=.true.)
          call iw_tooltip("The contour levels, separated by spaces or commas",ttshown)
       elseif (d%ctype /= niso_bader) then
+         call iw_text("Number",alignframe=.true.,gap=.true.)
          ch = iw_inputint("##planenlev",d%nlev,width=5,sameline=.true.,notlive=.true.)
          d%nlev = max(min(d%nlev,plane_nlev_max),2_c_int)
          changed = changed .or. ch
          call iw_tooltip("Number of contour levels (at least 2)",ttshown)
-         changed = changed .or. iw_checkbox("Range##planelrange",d%lrange,sameline=.true.)
-         call iw_tooltip("Contour levels in a fixed range of values (or the range of the&
-            & values on the map)",ttshown)
-         if (d%lrange) then
-            call drag("##planelmin",x1=d%lmin,speed=0.01d0,decimal=4,sameline=.true.)
-            call iw_tooltip("The lowest contour level",ttshown)
-            call drag("##planelmax",x1=d%lmax,speed=0.01d0,decimal=4,sameline=.true.)
-            call iw_tooltip("The highest contour level",ttshown)
-         end if
       end if
+      if (.not.sec(plane_sec_contours)%more) return
+
+      ! more: the range of the levels
+      if (d%ctype /= niso_manual .and. d%ctype /= niso_bader) &
+         call draw_range("l",d%lrange,d%lmin,d%lmax,&
+         "Contour levels in a fixed range of values (or the range of the values on the map)",&
+         "The lowest contour level","The highest contour level")
+
+      ! more: the colors of the lines, and the values on them
+      call iw_text("Positive color",alignframe=.true.)
       changed = changed .or. iw_coloredit("##planergbpos",rgb=d%rgbpos,sameline=.true.)
       call iw_tooltip("Color of the contour lines of the positive levels",ttshown)
+      call iw_text("Negative color",alignframe=.true.,gap=.true.)
       changed = changed .or. iw_coloredit("##planergbneg",rgb=d%rgbneg,sameline=.true.)
       call iw_tooltip("Color of the contour lines of the zero and negative levels",ttshown)
+      if (present(showval)) then
+         ch = iw_checkbox("Values##planeshowcval",showval,gap=.true.,labelleft=.true.)
+         call iw_tooltip("Write the value of the level on the contour lines, in their color,&
+            & where there is room",ttshown)
+         if (showval .and. present(valscale)) then
+            call iw_text("Size",alignframe=.true.,gap=.true.)
+            ch = iw_dragfloat_realc("##planevscale",x1=valscale,speed=0.01_c_float,min=0.1_c_float,&
+               max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Size of the values, relative to the text of the interface",ttshown)
+         end if
+      end if
 
     end subroutine draw_contours
   end function plane_def_form
@@ -1552,7 +1575,7 @@ contains
   !> opacity, the radius of the contour lines, and what is wrong with
   !> it. Returns whether anything changed.
   module function draw_editrep_slice(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc
+    use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_separatortext
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -1560,14 +1583,16 @@ contains
     logical :: editing
 
     editing = .false.
-    changed = plane_def_form(w%rep%slice%d,w%rep%id,ttshown,editing,.false.)
+    changed = plane_def_form(w%rep%slice%d,w%rep%id,ttshown,editing,.false.,sec=w%editrep_slicesec(1:plane_nsec))
 
     ! how it is drawn
-    call iw_text("Opacity",highlight=.true.,alignframe=.true.)
+    call iw_separatortext("Style",w%editrep_slicesec(plane_nsec+1))
+    if (.not.w%editrep_slicesec(plane_nsec+1)%open) return
+    call iw_text("Opacity",alignframe=.true.)
     changed = changed .or. iw_dragfloat_realc("##sliceopacity",x1=w%rep%slice%alpha,speed=0.01_c_float,&
        min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Opacity of the map (1 = opaque)",ttshown)
-    call iw_text("Line radius",highlight=.true.,alignframe=.true.,sameline=.true.)
+    call iw_text("Line radius",alignframe=.true.,gap=.true.)
     changed = changed .or. iw_dragfloat_real8("(Å)##slicecrad",x1=w%rep%slice%crad,speed=0.001d0,&
        min=0d0,scale=bohrtoa,decimal=3,sameline=.true.)
     call iw_tooltip("Radius of the contour lines",ttshown)

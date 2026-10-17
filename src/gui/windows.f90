@@ -26,6 +26,7 @@ module windows
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
+  use utils, only: iw_section
   use global, only: rborder_def
   use meshmod, only: mesh_level_small
   use crystalseedmod, only: crystalseed
@@ -587,10 +588,19 @@ module windows
   !> plane, each calculated again when the inputs it depends on change.
   ! number of places along a contour line where its value can go
   integer, parameter :: plane_ncand = 12
+  ! the sections of the plane form (plane_def_form) with a More/Less
+  ! toggle, and their number
+  integer, parameter :: plane_sec_plane = 1
+  integer, parameter :: plane_sec_property = 2
+  integer, parameter :: plane_sec_colors = 3
+  integer, parameter :: plane_sec_contours = 4
+  integer, parameter :: plane_nsec = 4
 
   type plane_state
      type(sys_ref) :: sys ! system the form is set up for
      type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
+     type(iw_section) :: sec(plane_nsec) ! the sections of the form: open, showing more
+     type(iw_section) :: secdisp ! the Display section
      ! the map in the view (Show in View): shown, the values it has
      ! (gen; -1 = none), and whether the form changed since it was given
      logical :: showview = .true.
@@ -610,7 +620,7 @@ module windows
      integer :: pickend = 1
      integer :: pickview = 0
      type(pairpick) :: pick
-     logical :: showdata = .false. ! the table of values is open
+     type(iw_section) :: secdata = iw_section(open=.false.) ! the table of values (closed to begin with)
      ! the grid (cell-frame Cartesian bohr): origin and steps, the
      ! orthonormal frame of the plot (origin a0, the first point when
      ! the grid was calculated), the values
@@ -1194,6 +1204,7 @@ module windows
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
+     type(iw_section) :: editrep_slicesec(plane_nsec+1) ! sections of the slice editor (+1: Style)
      integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
                                          ! if the staged mode no longer matches)
      integer :: editrep_pending_n(3) = 0 ! isosurface grid to sample in the blocking job (run_editrep)
@@ -2421,7 +2432,7 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_slice
-     module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale) result(changed)
+     module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale,sec) result(changed)
        type(plane_def), intent(inout) :: d
        integer, intent(in) :: isys
        logical, intent(inout) :: ttshown
@@ -2431,6 +2442,7 @@ module windows
        logical, intent(in), optional :: pickoff
        logical, intent(inout), optional :: showval
        real(c_float), intent(inout), optional :: valscale
+       type(iw_section), intent(inout) :: sec(plane_nsec)
        logical :: changed
      end function plane_def_form
      !xx! display submodule !xx!

@@ -1779,17 +1779,22 @@ contains
 
   !> Draw a checkbox with title str. The value of the checkbox is
   !> associated with bool. sameline = draw it in the same line as the
-  !> previous widget.
-  module function iw_checkbox(str,bool,sameline,highlight)
+  !> previous widget. labelleft = write the title (the part of str
+  !> before ##) to the left of the box instead of to its right, as a
+  !> label aligned to the frame. gap = in the same line, after the
+  !> wider space that separates label-widget pairs.
+  module function iw_checkbox(str,bool,sameline,highlight,labelleft,gap)
     use interfaces_cimgui
     use gui_main, only: ColorHighlightText
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout) :: bool
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: highlight
+    logical, intent(in), optional :: labelleft
+    logical, intent(in), optional :: gap
     logical :: iw_checkbox
 
-    logical :: sameline_
+    logical :: sameline_, labelleft_, gap_
     character(len=:,kind=c_char), allocatable, target :: str1
     logical(c_bool) :: bool_
     logical :: highlight_
@@ -1798,20 +1803,38 @@ contains
     bool_ = logical(bool,c_bool)
     sameline_ = .false.
     highlight_ = .false.
+    labelleft_ = .false.
+    gap_ = .false.
     if (present(sameline)) sameline_ = sameline
     if (present(highlight)) highlight_ = highlight
+    if (present(labelleft)) labelleft_ = labelleft
+    if (present(gap)) gap_ = gap
+    call pair_sameline(sameline_,gap_)
 
-    if (sameline_) &
+    ! the label on the left: the text and the box (with its label
+    ! hidden; ## + the whole str keeps the ID unique) are one item, a
+    ! group, so a tooltip covers both, and clicking the text toggles
+    ! the box
+    if (labelleft_) then
+       call igBeginGroup()
+       call iw_text(strip_id(str),alignframe=.true.,highlight=highlight_)
+       if (igIsItemHovered(ImGuiHoveredFlags_None) .and. igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) then
+          bool_ = .not.bool_
+          iw_checkbox = .true.
+       end if
        call igSameLine(0._c_float,-1._c_float)
+       str1 = "##" // str // c_null_char
+    else
+       str1 = str // c_null_char
+    end if
+
     if (highlight_) &
        call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-
-    str1 = str // c_null_char
-    iw_checkbox = igCheckbox(c_loc(str1),bool_)
+    iw_checkbox = igCheckbox(c_loc(str1),bool_) .or. iw_checkbox
     bool = logical(bool_)
-
     if (highlight_) &
        call igPopStyleColor(1)
+    if (labelleft_) call igEndGroup()
 
   end function iw_checkbox
 
@@ -1822,9 +1845,11 @@ contains
   !> = do not advance the cursor after writing. centered = center the
   !> text in the window. nocapture = the text is not part of the table
   !> cell it is in, when the table is written as text.
-  !> rgba = use this color for the text.
+  !> rgba = use this color for the text. gap = draw it in the same
+  !> line, after the wider space that separates label-widget pairs
+  !> (the text is the label of the next widget).
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,centered,alignframe,rgb,rgba,wrap,nocapture)
+     noadvance,centered,alignframe,rgb,rgba,wrap,nocapture,gap)
     use interfaces_cimgui
     use gui_main, only: g, ColorHighlightText, ColorDangerText
     character(len=*,kind=c_char), intent(in) :: str
@@ -1840,11 +1865,12 @@ contains
     real(c_float), intent(in), optional :: rgba(4)
     logical, intent(in), optional :: wrap
     logical, intent(in), optional :: nocapture
+    logical, intent(in), optional :: gap
 
     character(len=:,kind=c_char), allocatable, target :: str1
 
     logical :: highlight_, danger_, disabled_, sameline_, sameline_nospace_
-    logical :: noadvance_, centered_, alignframe_, wrap_
+    logical :: noadvance_, centered_, alignframe_, wrap_, gap_
     logical :: pushedcolor
     real(c_float) :: pos, wwidth, twidth
     type(ImVec4) :: col
@@ -1860,7 +1886,9 @@ contains
     centered_ = .false.
     alignframe_ = .false.
     wrap_ = .false.
+    gap_ = .false.
     if (present(wrap)) wrap_ = wrap
+    if (present(gap)) gap_ = gap
     if (present(highlight)) highlight_ = highlight
     if (present(danger)) danger_ = danger
     if (present(sameline)) sameline_ = sameline
@@ -1873,7 +1901,7 @@ contains
     str1 = str // c_null_char
     if (alignframe_) call igAlignTextToFramePadding()
     if (noadvance_) pos = igGetCursorPosX()
-    if (sameline_) call igSameLine(0._c_float,-1._c_float)
+    call pair_sameline(sameline_,gap_)
     if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
     if (centered_) then
        wwidth = igGetWindowWidth()
@@ -1907,6 +1935,71 @@ contains
     end if
 
   end subroutine iw_text
+
+  !> Draw a section title: the text str in the highlight color,
+  !> followed by a horizontal separator line to the right edge of the
+  !> window (like ImGui's SeparatorText), with some space above it.
+  !> If sec is present, a triangle before the title opens and closes
+  !> the section (sec%open; the caller draws the body only if open)
+  !> and, if hasmore, a More/Less button after the title of an open
+  !> section flips sec%more (the section shows its less common
+  !> settings when true).
+  module subroutine iw_separatortext(str,sec,hasmore)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    type(iw_section), intent(inout), optional :: sec
+    logical, intent(in), optional :: hasmore
+
+    type(ImVec2) :: p0, p1, avail, sz
+    integer(c_int) :: col
+    real(c_float) :: hline, pos
+    logical :: hasmore_
+    character(len=:,kind=c_char), allocatable, target :: str1
+
+    hasmore_ = .false.
+    if (present(hasmore)) hasmore_ = hasmore
+    call igSpacing()
+
+    ! the triangle that opens and closes the section: the text, with
+    ! an invisible button on it
+    if (present(sec)) then
+       pos = igGetCursorPosX()
+       call iw_text(merge("▼","▶",sec%open),highlight=.true.)
+       call igSameLine(0._c_float,-1._c_float)
+       call igSetCursorPosX(pos)
+       str1 = "##separatortextopen" // str // c_null_char
+       sz%x = iw_calcwidth(1,1)
+       sz%y = iw_calcheight(1,0)
+       if (igInvisibleButton(c_loc(str1),sz,ImGuiButtonFlags_None)) sec%open = .not.sec%open
+       call igSameLine(0._c_float,-1._c_float)
+    end if
+    call iw_text(str,highlight=.true.)
+
+    ! the More/Less button: a small button, as tall as the text
+    if (present(sec) .and. hasmore_) then
+       if (sec%open) then
+          str1 = merge("Less","More",sec%more) // "##separatortextmore" // str // c_null_char
+          call igSameLine(0._c_float,-1._c_float)
+          if (igSmallButton(c_loc(str1))) sec%more = .not.sec%more
+       end if
+    end if
+
+    ! the line, at the middle of the text, from the cursor to the
+    ! right edge (none if the window is narrower than the title)
+    call igSameLine(0._c_float,-1._c_float)
+    hline = igGetTextLineHeight()
+    call igGetCursorScreenPos(p0)
+    call igGetContentRegionAvail(avail)
+    avail%x = max(avail%x,0._c_float)
+    p0%y = p0%y + 0.5_c_float * hline
+    p1 = ImVec2(p0%x + avail%x,p0%y)
+    col = igGetColorU32_Col(ImGuiCol_Separator,1._c_float)
+    call ImDrawList_AddLine(igGetWindowDrawList(),p0,p1,col,1._c_float)
+
+    ! finish the line
+    call igDummy(ImVec2(avail%x,hline))
+
+  end subroutine iw_separatortext
 
   !> Create a menu item with the given label. If keybind is present
   !> use the key bind text as shortcut. If selected, mark the menu
@@ -3247,6 +3340,21 @@ contains
 
   !> The text of a widget label str: without its ImGui id (from "##")
   !> or a terminating null, and without leading and trailing blanks.
+  !> Put the next item in the same line as the previous one, after
+  !> the usual spacing (sameline) or after the wider space that
+  !> separates label-widget pairs (gap).
+  subroutine pair_sameline(sameline,gap)
+    use interfaces_cimgui, only: igSameLine
+    logical, intent(in) :: sameline, gap
+
+    if (gap) then
+       call igSameLine(0._c_float,iw_calcwidth(pair_gap,0))
+    elseif (sameline) then
+       call igSameLine(0._c_float,-1._c_float)
+    end if
+
+  end subroutine pair_sameline
+
   function strip_id(str) result(s)
     character(len=*), intent(in) :: str
     character(len=:), allocatable :: s
@@ -3388,7 +3496,7 @@ contains
   !> the widget width (the available content region if absent, which is
   !> what a table cell wants); nonestr is the preview shown when ifield is
   !> not a field of this system. If onlygrid, list only grid fields.
-  module function iw_field_combo(strid,isys,ifield,width,nonestr,onlygrid) result(ch)
+  module function iw_field_combo(strid,isys,ifield,width,nonestr,onlygrid,sameline) result(ch)
     use interfaces_cimgui
     use systems, only: sys
     use fieldmod, only: type_grid
@@ -3399,6 +3507,7 @@ contains
     real(c_float), intent(in), optional :: width
     character(len=*), intent(in), optional :: nonestr
     logical, intent(in), optional :: onlygrid
+    logical, intent(in), optional :: sameline
     logical :: ch
 
     integer :: i
@@ -3410,6 +3519,9 @@ contains
     ch = .false.
     onlygrid_ = .false.
     if (present(onlygrid)) onlygrid_ = onlygrid
+    if (present(sameline)) then
+       if (sameline) call igSameLine(0._c_float,-1._c_float)
+    end if
     szero%x = 0
     szero%y = 0
     if (sys(isys)%goodfield(ifield)) then

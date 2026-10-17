@@ -42,6 +42,17 @@ module utils
      "- 'log(abs($1))' = a function of a field"//newline//&
      "- '@x < 3' = a comparison (non-zero is true)"
 
+  ! the space between label-widget pairs in a line (gap option of
+  ! iw_text and iw_checkbox), in characters
+  integer, parameter :: pair_gap = 3
+
+  ! the state of a section of a form (iw_separatortext): shown, and
+  ! showing its less common settings (More/Less)
+  type, public :: iw_section
+     logical :: open = .true.
+     logical :: more = .false.
+  end type iw_section
+
   ! Continuous colormaps offered by the GUI, in the order they are shown. They
   ! are implot's own, so a mapped surface and an implot color legend come from
   ! the same table. The implot ids are bind(c) variables (not parameters), so
@@ -117,6 +128,7 @@ module utils
   public :: iw_intstepper
   public :: iw_checkbox
   public :: iw_text
+  public :: iw_separatortext
   public :: iw_button
   public :: iw_atom_button
   public :: iw_icon_button
@@ -339,13 +351,14 @@ module utils
        integer(c_int), intent(inout), optional :: pertype
        logical :: changed
      end function iw_periodicity_widget
-     module function iw_field_combo(strid,isys,ifield,width,nonestr,onlygrid) result(ch)
+     module function iw_field_combo(strid,isys,ifield,width,nonestr,onlygrid,sameline) result(ch)
        character(len=*,kind=c_char), intent(in) :: strid
        integer, intent(in) :: isys
        integer, intent(inout) :: ifield
        real(c_float), intent(in), optional :: width
        character(len=*), intent(in), optional :: nonestr
        logical, intent(in), optional :: onlygrid
+       logical, intent(in), optional :: sameline
        logical :: ch
      end function iw_field_combo
      module subroutine iw_colormap_lut(icmap,lut)
@@ -407,15 +420,17 @@ module utils
        character(len=*,kind=c_char), intent(in), optional :: tooltip
        logical :: iw_intstepper
      end function iw_intstepper
-     module function iw_checkbox(str,bool,sameline,highlight)
+     module function iw_checkbox(str,bool,sameline,highlight,labelleft,gap)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout) :: bool
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: highlight
+       logical, intent(in), optional :: labelleft
+       logical, intent(in), optional :: gap
        logical :: iw_checkbox
      end function iw_checkbox
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-        noadvance,centered,alignframe,rgb,rgba,wrap,nocapture)
+        noadvance,centered,alignframe,rgb,rgba,wrap,nocapture,gap)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: danger
@@ -429,7 +444,13 @@ module utils
        real(c_float), intent(in), optional :: rgba(4)
        logical, intent(in), optional :: wrap
        logical, intent(in), optional :: nocapture
+       logical, intent(in), optional :: gap
      end subroutine iw_text
+     module subroutine iw_separatortext(str,sec,hasmore)
+       character(len=*,kind=c_char), intent(in) :: str
+       type(iw_section), intent(inout), optional :: sec
+       logical, intent(in), optional :: hasmore
+     end subroutine iw_separatortext
      module function iw_menuitem(label,keybind,selected,enabled,shortcut_text,danger)
        character(len=*,kind=c_char), intent(in) :: label
        integer, intent(in), optional :: keybind

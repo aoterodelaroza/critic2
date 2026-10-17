@@ -1781,7 +1781,7 @@ contains
        elseif (w%type == wintype_line) then
           call init_window("Line Profile",100,40,grow=.true.)
        elseif (w%type == wintype_plane) then
-          call init_window("Plane Map",100,50,grow=.true.)
+          call init_window("Plane Map",72,50,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
