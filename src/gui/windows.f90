@@ -996,6 +996,9 @@ module windows
      ! blocking job: the LOAD options and the system to load the field into
      character(len=:), allocatable :: pending_line
      integer :: pending_isys = 0
+     ! the sections: the source (the contents of the tab), and the
+     ! options (more = the advanced options)
+     type(iw_section) :: secsource, secoptions
   end type loadfield_state
   public :: loadfield_state
 
@@ -1267,6 +1270,9 @@ module windows
      logical :: extract_picking = .false. ! a center pick in the parent view is pending
      type(pairpick) :: extract_pick ! stamp for the pending center pick (staleness check)
      ! rattle window parameters
+     type(iw_section) :: rattle_secmethod, rattle_secdetails ! the sections of the rattle window
+     type(iw_section) :: vib_secdata, vib_secanim ! the sections of the vibrations window
+     type(iw_section) :: dyn_secsim, dyn_secstatus ! the sections of the dynamics window
      integer(c_int) :: rattle_mode = 0 ! how the structures are generated (0=random displacements, 1=MD)
      integer(c_int) :: rattle_nstruct = 10 ! number of rattled structures
      real(c_float) :: rattle_mag = 0.02_c_float ! displacement of every atom in a rattled structure (Å)

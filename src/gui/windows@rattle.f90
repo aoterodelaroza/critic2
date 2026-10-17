@@ -54,7 +54,7 @@ contains
     use crystalmod, only: bulk_rattle_seeds
     use dynamics, only: md_dynamics, md_benchmark
     use energy, only: ff_eam
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_checkbox,&
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_radiobutton, iw_checkbox, iw_separatortext,&
        iw_close_event, iw_setpos_bottomright, iw_intstepper, iw_dragfloat_realc,&
        iw_dragfloat_real8, duration_string
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
@@ -110,26 +110,30 @@ contains
     ! to the other method, whose parameters it says nothing about. The
     ! parameters are fixed while a run is going
     call igBeginDisabled(logical(running,c_bool))
-    call iw_text("Method",highlight=.true.)
-    if (iw_radiobutton("Random displacements##rattlemode",int=w%rattle_mode,intval=rm_random)) &
-       call clear_msgs()
-    call iw_tooltip("Displace every atom of the structure by the same distance in a random&
-       & direction",ttshown)
-    if (iw_radiobutton("Molecular dynamics##rattlemode",int=w%rattle_mode,intval=rm_md,&
-       sameline=.true.)) call clear_msgs()
-    call iw_tooltip("Run an NVT constant-temperature molecular dynamics on this system and extract&
-       & snapshots from it",ttshown)
+    call iw_separatortext("Method",w%rattle_secmethod)
+    if (w%rattle_secmethod%open) then
+       if (iw_radiobutton("Random displacements##rattlemode",int=w%rattle_mode,intval=rm_random)) &
+          call clear_msgs()
+       call iw_tooltip("Displace every atom of the structure by the same distance in a random&
+          & direction",ttshown)
+       if (iw_radiobutton("Molecular dynamics##rattlemode",int=w%rattle_mode,intval=rm_md,&
+          sameline=.true.)) call clear_msgs()
+       call iw_tooltip("Run an NVT constant-temperature molecular dynamics on this system and extract&
+          & snapshots from it",ttshown)
+    end if
 
     ! the parameters of whichever method is selected
-    call iw_text("Details",highlight=.true.)
-    if (w%rattle_mode == rm_random) then
+    call iw_separatortext("Details",w%rattle_secdetails)
+    if (.not.w%rattle_secdetails%open) then
+       nsteptot = int(w%rattle_nini) + int(w%rattle_ngen) * int(w%rattle_nstride)
+    elseif (w%rattle_mode == rm_random) then
        call iw_text("Structures",alignframe=.true.)
        ldum = iw_intstepper("nstruct##rattlenstruct",w%rattle_nstruct,minval=1_c_int,&
           maxval=10000_c_int,notlive=.true.,sameline=.true.,&
           tooltip="Number of rattled structures to generate")
 
-       call iw_text("Displacement",alignframe=.true.)
-       ldum = iw_dragfloat_realc("(Å)##rattlemag",x1=w%rattle_mag,speed=0.005_c_float,&
+       call iw_text("Displacement (Å)",alignframe=.true.)
+       ldum = iw_dragfloat_realc("##rattlemag",x1=w%rattle_mag,speed=0.005_c_float,&
           min=0.0001_c_float,max=10._c_float,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
           sameline=.true.)
        call iw_tooltip("Distance every atom is moved; the direction is random and&
@@ -143,16 +147,16 @@ contains
        end if
 
        ! the run parameters live on the system, shared with the dynamics window
-       call iw_text("Temperature",alignframe=.true.)
-       ldum = iw_dragfloat_real8("(K)##rattletemp",x1=sysc(isys)%md%temperature,&
+       call iw_text("Temperature (K)",alignframe=.true.)
+       ldum = iw_dragfloat_real8("##rattletemp",x1=sysc(isys)%md%temperature,&
           speed=1d0,min=0d0,max=1d4,decimal=2,&
           flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Temperature of the NVT dynamics",ttshown)
 
        ! shown in fs, stored in atomic units (scale), which is what the
        ! dynamics and the STEP option to WRITE BULK MD use
-       call iw_text("Time step",alignframe=.true.)
-       ldum = iw_dragfloat_real8("(fs)##rattledt",x1=sysc(isys)%md%dt,speed=0.005d0,&
+       call iw_text("Time step (fs)",alignframe=.true.)
+       ldum = iw_dragfloat_real8("##rattledt",x1=sysc(isys)%md%dt,speed=0.005d0,&
           min=0.01d0,max=1d0,scale=autofs,decimal=4,&
           flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Integration time step of the dynamics",ttshown)
@@ -191,7 +195,7 @@ contains
        if (w%rattle_tinit >= 0d0) then
           call iw_text("Estimated cost: " //&
              duration_string(w%rattle_tinit + nsteptot * w%rattle_tstep) // " (" //&
-             duration_string(w%rattle_tstep) // " per step)",highlight=.true.)
+             duration_string(w%rattle_tstep) // " per step)")
        end if
     end if
     call igEndDisabled()
@@ -201,10 +205,10 @@ contains
        if (sysc(isys)%md%istep - w%rattle_istep0 < int(w%rattle_nini)) then
           call iw_text("Equilibrating: step " //&
              string(sysc(isys)%md%istep - w%rattle_istep0) // " of " //&
-             string(w%rattle_nini),highlight=.true.)
+             string(w%rattle_nini))
        else
           call iw_text("Sampling: " // string(w%rattle_ncoll) // " of " //&
-             string(w%rattle_ngen) // " snapshots",highlight=.true.)
+             string(w%rattle_ngen) // " snapshots")
        end if
     end if
 
@@ -212,7 +216,7 @@ contains
     if (len_trim(w%errmsg) > 0) then
        call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     elseif (len_trim(w%okmsg) > 0) then
-       call iw_text(w%okmsg,highlight=.true.,wrap=.true.)
+       call iw_text(w%okmsg,wrap=.true.)
     end if
 
     ! right-align and bottom-align for the rest of the contents: the checkbox
@@ -222,7 +226,7 @@ contains
 
     ! close after generating, next to the button it applies to
     call igBeginDisabled(logical(running,c_bool))
-    ldum = iw_checkbox("Close after generating##rattlecloseafter",w%rattle_closeafter)
+    ldum = iw_checkbox("Close after generating##rattlecloseafter",w%rattle_closeafter,labelleft=.true.)
     call iw_tooltip("If checked, generating the structures closes this window",ttshown)
     call igEndDisabled()
 

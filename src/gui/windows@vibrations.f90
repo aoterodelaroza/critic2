@@ -31,6 +31,7 @@ contains
        launch_initialization_thread, ok_system
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth, iw_combo_simple,&
        iw_radiobutton, iw_dragfloat_real8, iw_close_event, iw_setpos_bottomright, iw_table_column,&
+       iw_separatortext,&
        iw_checkbox, iw_coloredit
     use tools_math, only: rational_approx
     use tools_io, only: string, ioj_right
@@ -123,19 +124,22 @@ contains
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
 
        ! source of vibration data
-       call iw_text("Vibration data",highlight=.true.,alignframe=.true.)
-
+       call iw_separatortext("Vibrations",w%vib_secdata)
+    end if
+    if (goodsys .and. w%vib_secdata%open) then
+       call iw_text("Data",alignframe=.true.)
+       if (.not.vib_ok) then
+          if (iw_button("Load",danger=.true.,sameline=.true.)) &
+             iaux = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,isys=isys,orraise=-1)
+          call iw_tooltip("Load vibration data from a file for this system",ttshown)
+       end if
        if (iw_button("Clear",sameline=.true.,danger=.true.)) then
           call sys(isys)%c%vib%end()
           call clear_mode_selection()
           vib_ok = .false.
        end if
        call iw_tooltip("Clear vibration data for this system",ttshown)
-
        if (.not.vib_ok) then
-          if (iw_button("Load",danger=.true.,sameline=.true.)) &
-             iaux = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,isys=isys,orraise=-1)
-          call iw_tooltip("Load vibration data from a file for this system",ttshown)
           call iw_text("<none>",sameline=.true.)
        else
           call iw_text(sys(isys)%c%vib%file,sameline=.true.)
@@ -145,13 +149,13 @@ contains
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
-    ! rest of animation stuff
-    if (vib_ok) then
+    ! the modes
+    if (vib_ok .and. w%vib_secdata%open) then
 
        if (.not.sys(isys)%c%ismolecule) then
           ! q-points table
           call igBeginGroup()
-          call iw_text("Q-points",highlight=.true.,alignframe=.true.)
+          call iw_text("Q-points",alignframe=.true.)
           call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
              "1/Å" // c_null_char,w%iqptunit,sameline=.true.)
           call iw_tooltip("Units for the q-points",ttshown)
@@ -227,7 +231,7 @@ contains
        ! frequency table
        call igBeginGroup()
        ! header
-       call iw_text("Frequencies",highlight=.true.,alignframe=.true.)
+       call iw_text("Frequencies",alignframe=.true.)
        call iw_combo_simple("##frequnit","1/cm" // c_null_char // "THz" // c_null_char,&
           w%ifrequnit,sameline=.true.)
        call iw_tooltip("Units for the frequencies",ttshown)
@@ -302,7 +306,7 @@ contains
 
        ! suggested periodicity
        if (win(iview)%sc%iqpt_selected > 0 .and..not.sys(isys)%c%ismolecule) then
-          call iw_text("Suggested Periodicity:",highlight=.true.,alignframe=.true.)
+          call iw_text("Suggested periodicity",alignframe=.true.)
           do i = 1, 3
              if (abs(sys(isys)%c%vib%qpt(i,win(iview)%sc%iqpt_selected)) > rational_approx_eps) then
                 call rational_approx(sys(isys)%c%vib%qpt(i,win(iview)%sc%iqpt_selected),q,r(i),rational_approx_eps)
@@ -328,11 +332,12 @@ contains
           win(iview)%sc%anim_amplitude = anim_amplitude_default
           win(iview)%sc%forcebuildlists = .true.
        end if
-
+    end if
+    if (vib_ok) call iw_separatortext("Animation",w%vib_secanim)
+    if (vib_ok .and. w%vib_secanim%open) then
        ! animation radio buttons (no animation if no values selected). The
        ! atomic displacements are only in the draw lists if they were built
        ! while animating, so turning the animation on rebuilds them
-       call iw_text("Animation",highlight=.true.)
        if (iw_radiobutton("None",int=win(iview)%sc%animation,intval=0_c_int)) then
           win(iview)%forcerender = .true.
        end if
@@ -355,18 +360,21 @@ contains
           ! manual
           if (.not.sys(isys)%c%ismolecule) then
              ! crystals
-             if (iw_dragfloat_real8("Amplitude##amplitude",x1=win(iview)%sc%anim_amplitude,&
+             call iw_text("Amplitude",alignframe=.true.)
+             if (iw_dragfloat_real8("##amplitude",x1=win(iview)%sc%anim_amplitude,sameline=.true.,&
                 speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp))&
                 win(iview)%forcerender = .true.
              call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-             if (iw_dragfloat_real8("Phase##phase",x1=win(iview)%sc%anim_phase,speed=0.001d0,&
+             call iw_text("Phase",alignframe=.true.,gap=.true.)
+             if (iw_dragfloat_real8("##phase",x1=win(iview)%sc%anim_phase,speed=0.001d0,&
                 min=-1d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
                 win(iview)%forcerender = .true.
              call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
           else
              ! molecules
-             if (iw_dragfloat_real8("Displacement##amplitude",x1=win(iview)%sc%anim_amplitude,&
+             call iw_text("Displacement",alignframe=.true.)
+             if (iw_dragfloat_real8("##amplitude",x1=win(iview)%sc%anim_amplitude,sameline=.true.,&
                 speed=0.01d0,min=-anim_amplitude_max,max=anim_amplitude_max,decimal=2,&
                 flags=ImGuiSliderFlags_AlwaysClamp))&
                 win(iview)%forcerender = .true.
@@ -388,11 +396,13 @@ contains
 
        elseif (win(iview)%sc%animation == 2) then
           ! automatic
-          ldum = iw_dragfloat_real8("Amplitude##amplitude",x1=win(iview)%sc%anim_amplitude,&
+          call iw_text("Amplitude",alignframe=.true.)
+          ldum = iw_dragfloat_real8("##amplitude",x1=win(iview)%sc%anim_amplitude,sameline=.true.,&
              speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-          if (iw_dragfloat_real8("Speed##speed",x1=win(iview)%sc%anim_speed,speed=0.02d0,min=0.0d0,&
+          call iw_text("Speed",alignframe=.true.,gap=.true.)
+          if (iw_dragfloat_real8("##speed",x1=win(iview)%sc%anim_speed,speed=0.02d0,min=0.0d0,&
              max=anim_speed_max,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
              win(iview)%sc%timerefanimation = glfwGetTime()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
@@ -400,26 +410,30 @@ contains
 
        ! displacement arrows: shown while this window keeps them armed
        if (win(iview)%sc%iqpt_selected > 0 .and. win(iview)%sc%ifreq_selected > 0) then
-          ldum = iw_checkbox("Show displacement arrows##showvibarrows",win(iview)%sc%vibarrow_show)
+          ldum = iw_checkbox("Displacement arrows##showvibarrows",win(iview)%sc%vibarrow_show,labelleft=.true.)
           call iw_tooltip("Show an arrow on every atom, from its equilibrium position along the &
              &displacement caused by the selected mode",ttshown)
 
           if (win(iview)%sc%vibarrow_show) then
-             ldum = iw_dragfloat_real8("Length (Å)##vibarrowlength",x1=win(iview)%sc%vibarrow_length,&
+             call iw_text("Length (Å)",alignframe=.true.)
+             ldum = iw_dragfloat_real8("##vibarrowlength",x1=win(iview)%sc%vibarrow_length,sameline=.true.,&
                 speed=0.01d0,min=0d0,max=5d0,scale=bohrtoa,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Length of the arrow of the atom with the largest vibration amplitude; &
                 &the arrows show the displacements at the animation phase, so they can be shorter",ttshown)
 
-             ldum = iw_dragfloat_real8("Thickness (Å)##vibarrowradius",x1=win(iview)%sc%vibarrow%rad,&
+             call iw_text("Thickness (Å)",alignframe=.true.,gap=.true.)
+             ldum = iw_dragfloat_real8("##vibarrowradius",x1=win(iview)%sc%vibarrow%rad,&
                 speed=0.002d0,min=0d0,max=0.5d0,scale=bohrtoa,decimal=3,sameline=.true.,&
                 flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Radius of the arrow shafts",ttshown)
 
-             ldum = iw_dragfloat_real8("Head Size##vibarrowheadr",x1=win(iview)%sc%vibarrow%headr,&
+             call iw_text("Head size",alignframe=.true.)
+             ldum = iw_dragfloat_real8("##vibarrowheadr",x1=win(iview)%sc%vibarrow%headr,sameline=.true.,&
                 speed=0.02d0,min=1d0,max=6d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Width of the arrowheads, in units of the shaft radius",ttshown)
 
-             ldum = iw_coloredit("Color##vibarrowcolor",rgb=win(iview)%sc%vibarrow%rgb,sameline=.true.)
+             call iw_text("Color",alignframe=.true.,gap=.true.)
+             ldum = iw_coloredit("##vibarrowcolor",rgb=win(iview)%sc%vibarrow%rgb,sameline=.true.)
              call iw_tooltip("Color of the arrows",ttshown)
 
              ! re-arm the transient shapes object that draws the arrows

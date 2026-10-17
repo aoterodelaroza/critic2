@@ -30,7 +30,7 @@ contains
     use energy, only: ff_eam
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
        file_name_base,&
-       iw_radiobutton, iw_close_event, iw_setpos_bottomright, iw_table_column
+       iw_radiobutton, iw_close_event, iw_setpos_bottomright, iw_table_column, iw_separatortext
     use keybindings, only: get_bind_keyname, BIND_CANCEL
     use tools_io, only: string
     use param, only: kcal2ha, autofs
@@ -75,18 +75,21 @@ contains
        call iw_text("System",highlight=.true.)
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
 
-       ! method used for MD/relaxation
-       call iw_text("Method",highlight=.true.,alignframe=.true.)
+       ! the simulation: the method, the mode (dynamics vs relaxation,
+       ! bound live to the run), and the parameters
+       call iw_separatortext("Simulation",w%dyn_secsim)
+    end if
+    imode = sysc(isys)%md%mode
+    if (goodsys .and. w%dyn_secsim%open) then
+       call iw_text("Method",alignframe=.true.)
        call draw_ff_backend_combo(isys,"##dynamicsengine",21,sameline=.true.)
        call iw_tooltip("Method for the calculation of energies, forces, and stress.",ttshown)
        if (sysc(isys)%md_backend == ff_eam) then
-          call iw_text("Potential",highlight=.true.,alignframe=.true.)
+          call iw_text("Potential",alignframe=.true.)
           call draw_ff_eam_potential(w,isys,"##dynamicspotential",sameline=.true.)
        end if
 
-       ! mode (dynamics vs relaxation), bound live to the run: two radio buttons
        call igAlignTextToFramePadding()
-       imode = sysc(isys)%md%mode
        ldum = iw_radiobutton("Dynamics (NVT)",int=imode,intval=int(md_dynamics,c_int))
        call iw_tooltip("Animate the system using an NVT molecular dynamics run",ttshown)
        ldum = iw_radiobutton("Relaxation",int=imode,intval=int(md_relax,c_int),sameline=.true.)
@@ -95,16 +98,19 @@ contains
 
        ! temperature and timestep
        if (imode == md_dynamics) then
-          ! temperature
-          ldum = iw_dragfloat_real8("Temperature (K)##dynamicstemp",x1=sysc(isys)%md%temperature,&
+          call iw_text("Temperature (K)",alignframe=.true.)
+          ldum = iw_dragfloat_real8("##dynamicstemp",x1=sysc(isys)%md%temperature,sameline=.true.,&
              speed=5d0,min=0d0,max=10000d0,decimal=0,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Temperature of the thermostat",ttshown)
 
           ! speed = timestep (used live)
-          ldum = iw_dragfloat_real8("Time step (au)##dynamicsspeed",x1=sysc(isys)%md%dt,&
+          call iw_text("Time step (au)",alignframe=.true.,gap=.true.)
+          ldum = iw_dragfloat_real8("##dynamicsspeed",x1=sysc(isys)%md%dt,sameline=.true.,&
              speed=0.1d0,min=2d0,max=40d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Integration time step for the MD run, in atomic units",ttshown)
        end if
+    end if
+    if (goodsys) then
 
        ! run / pause
        if (.not.sysc(isys)%md_run) then
@@ -134,7 +140,8 @@ contains
        call iw_tooltip("Restore the initial geometry and stop all motion",ttshown)
 
        ! status: table of live run quantities
-       if (sysc(isys)%md%ready) then
+       if (sysc(isys)%md%ready) call iw_separatortext("Status",w%dyn_secstatus)
+       if (sysc(isys)%md%ready .and. w%dyn_secstatus%open) then
           tflags = ImGuiTableFlags_None
           tflags = ior(tflags,ImGuiTableFlags_NoSavedSettings)
           tflags = ior(tflags,ImGuiTableFlags_RowBg)

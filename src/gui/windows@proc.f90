@@ -1751,7 +1751,7 @@ contains
        elseif (w%type == wintype_new_struct_library) then
           call init_window("New Structure from Library",90,30)
        elseif (w%type == wintype_load_field) then
-          call init_window("Load Field",65)
+          call init_window("Load Field",72)
        elseif (w%type == wintype_scfplot) then
           call init_window("SCF Iterations (" // string(w%isys) // ")",45,45,square=.true.)
        elseif (w%type == wintype_editrep) then

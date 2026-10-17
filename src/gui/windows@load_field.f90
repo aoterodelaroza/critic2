@@ -33,7 +33,7 @@ contains
     use systems, only: nsys, sysc, sys, sys_init, ok_system
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button, iw_setpos_bottomright,&
-       iw_helpermark, iw_begintabitem, iw_inputtext, iw_inputint, iw_inputint3,&
+       iw_begintabitem, iw_inputtext, iw_inputint, iw_inputint3, iw_separatortext,&
        iw_inputfloat, iw_checkbox, iw_combo_simple, iw_field_combo, iw_arith_help,&
        iw_expression_helper, iw_exprctx_field, iw_calcwidth
     use tools_io, only: string, nameguess, quoteword
@@ -171,38 +171,46 @@ contains
           idparent=w%id,itoken=itoken_file1)
     end if
 
-    ! the source tabs
+    ! the source tabs, each a section
     str1 = "##loadfieldtabbar" // c_null_char
     tabflags = ImGuiTabItemFlags_None
     if (gotofile .or. w%firstpass) tabflags = ImGuiTabItemFlags_SetSelected
     if (igBeginTabBar(c_loc(str1),ImGuiTabBarFlags_None)) then
        if (iw_begintabitem("From File##loadfieldtab_file",flags=tabflags)) then
           sourceopt = 0
-          call draw_source_file()
+          call iw_separatortext("File",w%lf%secsource)
+          if (w%lf%secsource%open) call draw_source_file()
           call igEndTabItem()
        end if
        if (iw_begintabitem("Expression##loadfieldtab_expr")) then
           sourceopt = 1
-          call draw_source_expression()
+          call iw_separatortext("Expression",w%lf%secsource)
+          if (w%lf%secsource%open) call draw_source_expression()
           call igEndTabItem()
        end if
        if (iw_begintabitem("Promolecular##loadfieldtab_promol")) then
           sourceopt = 2
-          call draw_source_promol()
+          call iw_separatortext("Promolecular density",w%lf%secsource)
+          if (w%lf%secsource%open) call draw_source_promol()
           call igEndTabItem()
        end if
        if (iw_begintabitem("Grid Transform##loadfieldtab_transform")) then
           sourceopt = 3
-          call draw_source_transform()
+          call iw_separatortext("Transform",w%lf%secsource)
+          if (w%lf%secsource%open) call draw_source_transform()
           call igEndTabItem()
        end if
        call igEndTabBar()
     end if
 
-    ! common and advanced options
-    call draw_common_options()
-    if (sourceopt /= 3) &
-       call draw_advanced_options()
+    ! common options (more: the advanced options; none for the grid
+    ! transforms)
+    call iw_separatortext("Options",w%lf%secoptions,hasmore=(sourceopt /= 3))
+    if (w%lf%secoptions%open) then
+       call draw_common_options()
+       if (sourceopt /= 3 .and. w%lf%secoptions%more) &
+          call draw_advanced_options()
+    end if
 
     ! error message, if applicable
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
@@ -248,13 +256,22 @@ contains
       character(len=:), allocatable :: fmtkey, fmtdesc
       logical :: fmtgrid
 
-      ! source file and format
-      call iw_text("Source",highlight=.true.)
-      if (iw_button("File",danger=(w%lf%file1_format==0))) then
+      ! source file and format; the editable path: a typed or pasted
+      ! path is accepted on enter
+      call iw_text("File",alignframe=.true.)
+      if (iw_inputtext("##loadfieldpath",bufsize=4095,texta=w%lf%file1,width=36,&
+         sameline=.true.,notlive=.true.)) &
+         call intake_file1()
+      if (len_trim(w%lf%file1) > 0) then
+         call iw_tooltip(trim(w%lf%file1),ttshown)
+      else
+         call iw_tooltip("Path to the field file (type it or use the Browse button)",ttshown)
+      end if
+      if (iw_button("Browse...##loadfieldbrowse1",sameline=.true.,danger=(w%lf%file1_format==0))) then
          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile,&
             idparent=w%id,itoken=itoken_file1)
       end if
-      call iw_tooltip("File from where the field is read",ttshown)
+      call iw_tooltip("Choose the file from where the field is read",ttshown)
       if (len(w%lf%file1) > 0) then
          if (iw_button("Clear##clearfile1",sameline=.true.,danger=.true.)) then
             w%lf%file1 = ""
@@ -262,22 +279,13 @@ contains
          end if
          call iw_tooltip("Clear the file",ttshown)
       end if
-      ! editable path: a typed or pasted path is accepted on enter
-      if (iw_inputtext("##loadfieldpath",bufsize=4095,texta=w%lf%file1,width=45,&
-         sameline=.true.,notlive=.true.)) &
-         call intake_file1()
-      if (len_trim(w%lf%file1) > 0) then
-         call iw_tooltip(trim(w%lf%file1),ttshown)
-      else
-         call iw_tooltip("Path to the field file (type it or use the File button)",ttshown)
-      end if
 
       if (w%lf%file1_format /= 0) then
          call field_format_string(abs(w%lf%file1_format),fmtkey,fmtdesc,fmtgrid)
-         call iw_text("Format: ")
+         call iw_text("Format")
          call iw_text(fmtdesc,sameline=.true.)
          if (w%lf%file1_format < 0) &
-            call iw_text(" [auto-detected]",sameline=.true.)
+            call iw_text("(auto-detected)",sameline=.true.)
 
          ! propose default auxiliary files
          select case (abs(w%lf%file1_format))
@@ -360,31 +368,38 @@ contains
          end if
 
          ! pwc options
-         call iw_combo_simple("Spin channel##loadfieldpwcspin","Both"//c_null_char//"Up"//c_null_char//&
-            "Down"//c_null_char,w%lf%pwcspin)
+         call iw_text("Spin channel",alignframe=.true.)
+         call iw_combo_simple("##loadfieldpwcspin","Both"//c_null_char//"Up"//c_null_char//&
+            "Down"//c_null_char,w%lf%pwcspin,sameline=.true.)
          call iw_tooltip("Spin channel used to build the density",ttshown)
-         ldum = iw_inputtext("k-points##loadfieldpwckpt",bufsize=255,texta=w%lf%pwckpt,width=25)
+         call iw_text("k-points",alignframe=.true.)
+         ldum = iw_inputtext("##loadfieldpwckpt",bufsize=255,texta=w%lf%pwckpt,width=25,sameline=.true.)
          call iw_tooltip("Space-separated list of k-point indices used to build the density (empty = all)",ttshown)
-         ldum = iw_inputtext("Bands##loadfieldpwcband",bufsize=255,texta=w%lf%pwcband,width=25)
+         call iw_text("Bands",alignframe=.true.)
+         ldum = iw_inputtext("##loadfieldpwcband",bufsize=255,texta=w%lf%pwcband,width=25,sameline=.true.)
          call iw_tooltip("Space-separated list of band indices used to build the density (empty = all)",ttshown)
-         ldum = iw_checkbox("Energy range (eV)##loadfieldpwcuserange",w%lf%pwcuserange)
+         ldum = iw_checkbox("Energy range (eV)##loadfieldpwcuserange",w%lf%pwcuserange,labelleft=.true.)
          call iw_tooltip("Use only the states in this energy range to build the density",ttshown)
          if (w%lf%pwcuserange) then
-            ldum = iw_inputfloat("Min.##loadfieldpwcemin",w%lf%pwcemin,width=10,sameline=.true.)
-            ldum = iw_inputfloat("Max.##loadfieldpwcemax",w%lf%pwcemax,width=10,sameline=.true.)
+            call iw_text("Min",alignframe=.true.,gap=.true.)
+            ldum = iw_inputfloat("##loadfieldpwcemin",w%lf%pwcemin,width=10,sameline=.true.)
+            call iw_text("Max",alignframe=.true.,gap=.true.)
+            ldum = iw_inputfloat("##loadfieldpwcemax",w%lf%pwcemax,width=10,sameline=.true.)
          end if
       case(ifformat_vasp,ifformat_vaspnov)
-         call iw_combo_simple("Block##loadfieldvaspblk","1: density"//c_null_char//&
+         call iw_text("Block",alignframe=.true.)
+         call iw_combo_simple("##loadfieldvaspblk","1: density"//c_null_char//&
             "2: spin / x-magnetization"//c_null_char//"3: y-magnetization"//c_null_char//&
-            "4: z-magnetization"//c_null_char,w%lf%vaspblk)
+            "4: z-magnetization"//c_null_char,w%lf%vaspblk,sameline=.true.)
          call iw_tooltip("Data block read from the VASP file",ttshown)
       case(ifformat_molden,ifformat_fchk)
          if (abs(w%lf%file1_format) == ifformat_molden) then
-            call iw_combo_simple("Dialect##loadfieldmoldendialect","Auto-detect"//c_null_char//&
-               "PSI4"//c_null_char//"ORCA"//c_null_char,w%lf%moldendialect)
+            call iw_text("Dialect",alignframe=.true.)
+            call iw_combo_simple("##loadfieldmoldendialect","Auto-detect"//c_null_char//&
+               "PSI4"//c_null_char//"ORCA"//c_null_char,w%lf%moldendialect,sameline=.true.)
             call iw_tooltip("Program that generated the molden file",ttshown)
          end if
-         ldum = iw_checkbox("Read virtual orbitals##loadfieldreadvirtual",w%lf%readvirtual)
+         ldum = iw_checkbox("Read virtual orbitals##loadfieldreadvirtual",w%lf%readvirtual,labelleft=.true.)
          call iw_tooltip("Read the unoccupied (virtual) molecular orbitals as well",ttshown)
       end select
 
@@ -393,14 +408,14 @@ contains
     !> Draw the contents of the expression tab.
     subroutine draw_source_expression()
 
-      call iw_text("Expression",highlight=.true.,alignframe=.true.)
-      call iw_helpermark("Arithmetic expression used to compute the new field, typically&
+      call iw_text("Expression",alignframe=.true.)
+      if (iw_inputtext("##loadfieldexprtext",bufsize=2047,texta=w%lf%expr,width=36,sameline=.true.)) &
+         call validate_expr()
+      call iw_tooltip("Arithmetic expression used to compute the new field, typically&
          & involving the other fields of this system (e.g. $1+$2)."//newline//&
-         iw_arith_help//newline//"Use the Insert button for fields, functions, and examples.")
+         iw_arith_help//newline//"Use the Insert button for fields, functions, and examples.",ttshown)
       if (iw_expression_helper("##loadfieldexprhelp",isys,iw_exprctx_field,texta=w%lf%expr,&
          ttshown=ttshown)) call validate_expr()
-      if (iw_inputtext("##loadfieldexprtext",bufsize=2047,texta=w%lf%expr)) &
-         call validate_expr()
       if (len_trim(w%lf%expr) > 0) then
          if (len_trim(w%lf%exprerr) > 0) then
             call iw_text(w%lf%exprerr,danger=.true.,wrap=.true.)
@@ -409,8 +424,8 @@ contains
          end if
       end if
 
-      call iw_text("Domain",highlight=.true.)
-      ldum = iw_radiobutton("Automatic",int=w%lf%exprdom,intval=0_c_int)
+      call iw_text("Domain",alignframe=.true.)
+      ldum = iw_radiobutton("Automatic",int=w%lf%exprdom,intval=0_c_int,sameline=.true.)
       call iw_tooltip("New grid if all fields in the expression are grids of the same size;&
          & otherwise a ghost field evaluated on the fly",ttshown)
       ldum = iw_radiobutton("Ghost field",int=w%lf%exprdom,intval=1_c_int,sameline=.true.)
@@ -441,7 +456,6 @@ contains
     !> Draw the contents of the promolecular tab.
     subroutine draw_source_promol()
 
-      call iw_text("Density",highlight=.true.)
       ldum = iw_radiobutton("Promolecular",int=w%lf%promopt,intval=0_c_int)
       call iw_tooltip("Sum of in-vacuo atomic densities, evaluated analytically",ttshown)
       ldum = iw_radiobutton("Promolecular on a grid",int=w%lf%promopt,intval=1_c_int,sameline=.true.)
@@ -465,8 +479,9 @@ contains
     !> for this tab.
     subroutine draw_source_transform()
 
-      call iw_combo_simple("Transform##loadfieldgtransf","Fourier-transform derivative"//c_null_char//&
-         "Resample grid"//c_null_char,w%lf%gtransf,tooltips=&
+      call iw_text("Transform",alignframe=.true.)
+      call iw_combo_simple("##loadfieldgtransf","Fourier-transform derivative"//c_null_char//&
+         "Resample grid"//c_null_char,w%lf%gtransf,sameline=.true.,tooltips=&
          "A new grid field from a derivative of a grid field (gradient or Hessian components,&
          & gradient norm, Laplacian, or the potential from the Poisson equation), calculated by&
          & fast Fourier transform"//c_null_char//&
@@ -476,17 +491,18 @@ contains
       select case (w%lf%gtransf)
       case (0)
          ! fft
-         call iw_combo_simple("Operation##loadfieldfftop","Gradient x-component"//c_null_char//&
+         call iw_text("Operation",alignframe=.true.)
+         call iw_combo_simple("##loadfieldfftop","Gradient x-component"//c_null_char//&
             "Gradient y-component"//c_null_char//"Gradient z-component"//c_null_char//&
             "Hessian xx"//c_null_char//"Hessian xy"//c_null_char//"Hessian xz"//c_null_char//&
             "Hessian yy"//c_null_char//"Hessian yz"//c_null_char//"Hessian zz"//c_null_char//&
             "Gradient norm"//c_null_char//"Laplacian"//c_null_char//&
-            "Potential (Poisson)"//c_null_char,w%lf%ifftop)
+            "Potential (Poisson)"//c_null_char,w%lf%ifftop,sameline=.true.)
          call iw_tooltip("Derivative of the source field calculated via fast Fourier transform",ttshown)
          call field_row("Source field","##loadfieldfftsource",w%lf%sourceref,&
             "Grid field the operation applies to",onlygrid=.true.)
          if (w%lf%ifftop == 11) then
-            ldum = iw_checkbox("Potential in Rydberg units##loadfieldfftry",w%lf%fftry)
+            ldum = iw_checkbox("Potential in Rydberg units##loadfieldfftry",w%lf%fftry,labelleft=.true.)
             call iw_tooltip("Return the potential in Rydberg instead of Hartree units",ttshown)
          end if
       case (1)
@@ -545,7 +561,8 @@ contains
 
       danger_ = .false.
       if (present(danger)) danger_ = danger
-      if (iw_button(label,danger=danger_)) then
+      call iw_text(label,alignframe=.true.)
+      if (iw_button("Browse...##browsefile" // string(itok),sameline=.true.,danger=danger_)) then
          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
             idparent=w%id,itoken=itok,dialog_filter=filter)
       end if
@@ -637,10 +654,9 @@ contains
     !> Draw the common options (name, grid interpolation, normalization).
     subroutine draw_common_options()
 
-      call iw_text("Options",highlight=.true.)
-
       ! field name
-      ldum = iw_inputtext("Name##loadfieldname",bufsize=255,texta=w%lf%name,width=25,&
+      call iw_text("Name",alignframe=.true.)
+      ldum = iw_inputtext("##loadfieldname",bufsize=255,texta=w%lf%name,width=25,sameline=.true.,&
          flags=ImGuiInputTextFlags_CharsNoBlank)
       call iw_tooltip("Identifier for the new field, usable in expressions and keywords (optional)",ttshown)
 
@@ -648,9 +664,8 @@ contains
       if (producesgrid()) then
          ! a help marker, not a tooltip on the text: a plain text has no item id,
          ! so a delayed (ttshown) tooltip attached to it never fires
-         call iw_text("Interpolation method")
-         call iw_helpermark("Choose the interpolation method for the grid")
-         ldum = iw_radiobutton("Automatic",int=w%lf%iginterp,intval=5_c_int)
+         call iw_text("Interpolation",alignframe=.true.)
+         ldum = iw_radiobutton("Automatic",int=w%lf%iginterp,intval=5_c_int,sameline=.true.)
          call iw_tooltip("Smoothrho if the grid looks like an all-electron density, tri-cubic otherwise",ttshown)
          ldum = iw_radiobutton("Nearest",int=w%lf%iginterp,intval=0_c_int)
          call iw_tooltip("Value of the nearest grid point",ttshown)
@@ -664,7 +679,7 @@ contains
          call iw_tooltip("Polyharmonic splines + smoothing, all-electron densities only (recommended for them)",ttshown)
 
          ! normalization
-         ldum = iw_checkbox("Normalize##loadfielddonorm",w%lf%donorm)
+         ldum = iw_checkbox("Normalize##loadfielddonorm",w%lf%donorm,labelleft=.true.)
          call iw_tooltip("Rescale the grid values so its cell integral equals this value",ttshown)
          if (w%lf%donorm) then
             ldum = iw_inputfloat("##loadfieldnormval",w%lf%normval,width=10,sameline=.true.)
@@ -674,79 +689,79 @@ contains
 
     end subroutine draw_common_options
 
-    !> Draw the advanced options inside a collapsed tree node.
+    !> Draw the advanced options (the More of the Options section).
     subroutine draw_advanced_options()
-      character(len=:,kind=c_char), allocatable, target :: strad
 
-      strad = "Advanced options##loadfieldadvanced" // c_null_char
-      if (igTreeNodeEx_Str(c_loc(strad),ImGuiTreeNodeFlags_None)) then
-         ! typnuc
-         call iw_combo_simple("Nuclear critical point signature##loadfieldtypnuc",&
-            "-3 (maximum)"//c_null_char//"-1"//c_null_char//"+1"//c_null_char//&
-            "+3 (minimum)"//c_null_char,w%lf%itypnuc,tooltips=&
-            "The nuclei are maxima of the field, like in the electron density (the default)"//c_null_char//&
-            "The nuclei are (3,-1) critical points of the field"//c_null_char//&
-            "The nuclei are (3,+1) critical points of the field"//c_null_char//&
-            "The nuclei are minima of the field, like in the negative of the density"//c_null_char,&
+      ! typnuc
+      call iw_text("Nuclear critical point signature",alignframe=.true.)
+      call iw_combo_simple("##loadfieldtypnuc",&
+         "-3 (maximum)"//c_null_char//"-1"//c_null_char//"+1"//c_null_char//&
+         "+3 (minimum)"//c_null_char,w%lf%itypnuc,sameline=.true.,tooltips=&
+         "The nuclei are maxima of the field, like in the electron density (the default)"//c_null_char//&
+         "The nuclei are (3,-1) critical points of the field"//c_null_char//&
+         "The nuclei are (3,+1) critical points of the field"//c_null_char//&
+         "The nuclei are minima of the field, like in the negative of the density"//c_null_char,&
+         ttshown=ttshown)
+
+      ! numerical/analytical derivatives
+      call iw_text("Derivatives",alignframe=.true.)
+      call iw_combo_simple("##loadfieldnumana","Default"//c_null_char//&
+         "Numerical"//c_null_char//"Analytical"//c_null_char,w%lf%inumana,sameline=.true.,tooltips=&
+         "The derivatives of the field's own representation (analytical, or those of the grid&
+         & interpolant), except for fields defined by an expression (numerical)"//c_null_char//&
+         "Derivatives of the field by finite differences of its values"//c_null_char//&
+         "The analytical derivatives of the field"//c_null_char,ttshown=ttshown)
+
+      ! dftb: exact/approximate
+      if (fileformat() == ifformat_dftb) then
+         call iw_text("Sum evaluation",alignframe=.true.)
+         call iw_combo_simple("##loadfieldiexact","Default"//c_null_char//&
+            "Exact"//c_null_char//"Approximate"//c_null_char,w%lf%iexact,sameline=.true.,tooltips=&
+            "Approximate (the default)"//c_null_char//&
+            "The radial parts of the atomic orbitals calculated from their analytical form"//&
+            c_null_char//&
+            "The radial parts of the atomic orbitals interpolated on a grid (faster)"//c_null_char,&
             ttshown=ttshown)
+      end if
 
-         ! numerical/analytical derivatives
-         call iw_combo_simple("Derivatives##loadfieldnumana","Default"//c_null_char//&
-            "Numerical"//c_null_char//"Analytical"//c_null_char,w%lf%inumana,tooltips=&
-            "The derivatives of the field's own representation (analytical, or those of the grid&
-            & interpolant), except for fields defined by an expression (numerical)"//c_null_char//&
-            "Derivatives of the field by finite differences of its values"//c_null_char//&
-            "The analytical derivatives of the field"//c_null_char,ttshown=ttshown)
+      ! wien2k normalization
+      if (fileformat() == ifformat_wien) then
+         call iw_text("Normalization",alignframe=.true.)
+         call iw_combo_simple("##loadfieldwiennorm","Default"//c_null_char//&
+            "Density (RHONORM)"//c_null_char//"Potential (VNORM)"//c_null_char,w%lf%iwiennorm,&
+            sameline=.true.,tooltips="The normalization of a density (RHONORM)"//c_null_char//&
+            "The file has the normalization of a WIEN2k density (clmsum and similar)"//c_null_char//&
+            "The file has the normalization of a WIEN2k potential (vcoul, vtotal)"//c_null_char,&
+            ttshown=ttshown)
+      end if
 
-         ! dftb: exact/approximate
-         if (fileformat() == ifformat_dftb) then
-            call iw_combo_simple("Sum evaluation##loadfieldiexact","Default"//c_null_char//&
-               "Exact"//c_null_char//"Approximate"//c_null_char,w%lf%iexact,tooltips=&
-               "Approximate (the default)"//c_null_char//&
-               "The radial parts of the atomic orbitals calculated from their analytical form"//&
-               c_null_char//&
-               "The radial parts of the atomic orbitals interpolated on a grid (faster)"//c_null_char,&
-               ttshown=ttshown)
-         end if
+      ! muffin-tin discontinuity test
+      if (fileformat() == ifformat_wien .or. fileformat() == ifformat_elk) then
+         ldum = iw_checkbox("Test the muffin-tin discontinuity##loadfieldtestrmt",w%lf%testrmt,labelleft=.true.)
+         call iw_tooltip("Check the size of the discontinuity of the field&
+            & at the muffin-tin surfaces (takes time)",ttshown)
+      end if
 
-         ! wien2k normalization
-         if (fileformat() == ifformat_wien) then
-            call iw_combo_simple("Normalization##loadfieldwiennorm","Default"//c_null_char//&
-               "Density (RHONORM)"//c_null_char//"Potential (VNORM)"//c_null_char,w%lf%iwiennorm,&
-               tooltips="The normalization of a density (RHONORM)"//c_null_char//&
-               "The file has the normalization of a WIEN2k density (clmsum and similar)"//c_null_char//&
-               "The file has the normalization of a WIEN2k potential (vcoul, vtotal)"//c_null_char,&
-               ttshown=ttshown)
-         end if
+      ! smoothrho options
+      if (producesgrid() .and. w%lf%iginterp == 4) then
+         call iw_text("Environment points (NENV)",alignframe=.true.)
+         ldum = iw_inputint("##loadfieldnenv",w%lf%nenv,width=6,sameline=.true.)
+         call iw_tooltip("Number of environment grid points for the smoothrho fit (0 = default)",ttshown)
+         call iw_text("Distance factor (FDMAX)",alignframe=.true.)
+         ldum = iw_inputfloat("##loadfieldfdmax",w%lf%fdmax,width=8,sameline=.true.)
+         call iw_tooltip("Maximum distance factor for the smoothrho environment (0 = default)",ttshown)
+      end if
 
-         ! muffin-tin discontinuity test
-         if (fileformat() == ifformat_wien .or. fileformat() == ifformat_elk) then
-            ldum = iw_checkbox("Test the muffin-tin discontinuity##loadfieldtestrmt",w%lf%testrmt)
-            call iw_tooltip("Check the size of the discontinuity of the field&
-               & at the muffin-tin surfaces (takes time)",ttshown)
-         end if
-
-         ! smoothrho options
-         if (producesgrid() .and. w%lf%iginterp == 4) then
-            ldum = iw_inputint("Environment points (NENV)##loadfieldnenv",w%lf%nenv,width=6)
-            call iw_tooltip("Number of environment grid points for the smoothrho fit (0 = default)",ttshown)
-            ldum = iw_inputfloat("Distance factor (FDMAX)##loadfieldfdmax",w%lf%fdmax,width=8)
-            call iw_tooltip("Maximum distance factor for the smoothrho environment (0 = default)",ttshown)
-         end if
-
-         ! core augmentation and pseudopotential charges
-         ldum = iw_checkbox("Activate core augmentation##loadfielddocore",w%lf%docore)
-         call iw_tooltip("Augment the field with core density contributions, built from&
-            & the pseudopotential charges (ZPSP) below: the number of valence electrons&
-            & of each species (leave at -1 to skip a species)",ttshown)
-         if (w%lf%docore) then
-            do i = 1, sys(isys)%c%nspc
-               ldum = iw_inputint(trim(sys(isys)%c%spc(i)%name) // "##loadfieldzpsp" // string(i),&
-                  w%lf%zpsp(i),width=5)
-            end do
-         end if
-
-         call igTreePop()
+      ! core augmentation and pseudopotential charges
+      ldum = iw_checkbox("Activate core augmentation##loadfielddocore",w%lf%docore,labelleft=.true.)
+      call iw_tooltip("Augment the field with core density contributions, built from&
+         & the pseudopotential charges (ZPSP) below: the number of valence electrons&
+         & of each species (leave at -1 to skip a species)",ttshown)
+      if (w%lf%docore) then
+         do i = 1, sys(isys)%c%nspc
+            call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
+            ldum = iw_inputint("##loadfieldzpsp" // string(i),w%lf%zpsp(i),width=5,sameline=.true.)
+         end do
       end if
 
     end subroutine draw_advanced_options
