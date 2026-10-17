@@ -2228,7 +2228,7 @@ contains
        BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
        BIND_CANCEL, BIND_PASTE, bind_mouse_button, BIND_OBJEDIT_DRAW, BIND_OBJEDIT_EXIT,&
        BIND_OBJEDIT_TRANSLATE, BIND_OBJEDIT_ZOOM, BIND_OBJEDIT_CONSTRAIN, BIND_OBJEDIT_NOSNAP,&
-       is_bind_mod_held
+       is_bind_mod_held, BIND_EDIT_WHEEL
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry,&
        lastchange_buildlists, ok_system, sys_init
     use global, only: iunit_bohr
@@ -2356,8 +2356,10 @@ contains
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
 
-       ! camera controls: zoom, pan, rotate, perpendicular-rotate
-       call cam_zoom(BIND_NAV_ZOOM)
+       ! camera controls: zoom, pan, rotate, perpendicular-rotate. While
+       ! the builder edits a measurement of this system, the wheel steps
+       ! the measurement and does not zoom
+       if (.not.edit_wheel()) call cam_zoom(BIND_NAV_ZOOM)
        call cam_translate(BIND_NAV_TRANSLATE)
        call cam_rotate(BIND_NAV_ROTATE)
        call cam_perp(BIND_NAV_ROTATE_PERP)
@@ -3019,15 +3021,21 @@ contains
       integer, intent(in) :: bindid
       real(c_float), intent(out) :: delta
 
+      logical :: mine
+
+      ! the latch belongs to the bind that took it (several binds poll
+      ! this routine in a frame)
+      mine = (w%ilock == ilock_scroll .and. w%ilock_scroll_bind == bindid)
       delta = 0._c_float
-      if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(bindid,.false.,iview=w%id)) then
+      if (hover.and.(w%ilock == ilock_no .or. mine).and. is_bind_event(bindid,.false.,iview=w%id)) then
          if (is_bind_mousescroll(bindid)) then
             delta = io%MouseWheel
          else
             w%mpos0_s = mousepos%y
             w%ilock = ilock_scroll
+            w%ilock_scroll_bind = bindid
          end if
-      elseif (w%ilock == ilock_scroll) then
+      elseif (mine) then
          if (is_bind_event(bindid,.true.,iview=w%id)) then
             ! 10/a to make it adimensional
             delta = (w%mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
@@ -3037,6 +3045,33 @@ contains
          end if
       end if
     end subroutine scroll_amount
+
+    ! Hand the scroll of BIND_EDIT_WHEEL to the builder's edit session
+    ! on this system, if there is one with an atom set to move and its
+    ! panel is being drawn (it consumes the notches): the notches
+    ! accumulate on the builder window, which applies them on its next
+    ! frame. Returns whether the bind took the input, so the camera
+    ! zoom (usually the same wheel) stays out of it. Not in the forced
+    ! pick modes, where the measurement gestures are off.
+    function edit_wheel() result(taken)
+      logical :: taken
+
+      integer :: ib
+      real(c_float) :: delta
+
+      taken = .false.
+      if (forcedpick) return
+      if (.not.(hover .or. w%ilock == ilock_scroll)) return
+      ib = builder_editing()
+      if (ib == 0) return
+      if (.not.win(ib)%builder_shown) return
+      if (all(win(ib)%edit_imove == 0)) return
+      call scroll_amount(BIND_EDIT_WHEEL,delta)
+      taken = (delta /= 0._c_float) .or.&
+         (w%ilock == ilock_scroll .and. w%ilock_scroll_bind == BIND_EDIT_WHEEL)
+      if (delta /= 0._c_float) win(ib)%edit_wheel = win(ib)%edit_wheel + dble(delta)
+
+    end function edit_wheel
 
     ! zoom the camera with the given bind (mouse scroll, or held key + vertical drag)
     subroutine cam_zoom(bindid)

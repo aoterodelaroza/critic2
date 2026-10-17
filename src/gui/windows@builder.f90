@@ -274,7 +274,7 @@ contains
        iw_calcwidth, iw_calcheight, iw_setposx_fromend, iw_close_event, iw_table_column, iw_beginmenu
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_RECALC_BONDS, BIND_NAV_MEASURE,&
        BIND_EDIT_D_A_PHI, BIND_REOPEN, BIND_PICKATOM_EXIT, BIND_PICKATOM_ALT, BIND_CANCEL,&
-       BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE
+       BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE, BIND_EDIT_WHEEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
     use tools_math, only: cross, perpendicular, axisangle2mat
@@ -294,6 +294,12 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     real*8, parameter :: stale_gap = 1d0 ! discard clicks older than this (s)
+    ! edit session: wheel step per notch (in the units of the drag:
+    ! angstrom, degrees) and the idle time after the last notch before
+    ! the in-place moves are committed (the structure rebuilt)
+    real*8, parameter :: wheel_dstep = 0.05d0
+    real*8, parameter :: wheel_astep = 1d0
+    real*8, parameter :: wheel_commit_delay = 0.3d0
     ! bond order for each bond-combo index >= 1 (single, double, triple, dashed, aromatic)
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
     real(c_float), parameter :: palscale = 1.25_c_float ! palette icons, in standard icon sides
@@ -309,6 +315,9 @@ contains
     ! released on it
     goodparent = w%anchor(iview,isys,syschanged)
     doquit = .not.goodparent
+
+    ! the panel is being drawn this frame: the view hands it the wheel
+    w%builder_shown = .true.
 
     ! initialize the state on first pass (edit_pending is NOT reset:
     ! the view sets it right before this window's first draw)
@@ -459,6 +468,12 @@ contains
        else
           call w%edit_stop()
        end if
+    end if
+
+    ! commit the wheel steps once the wheel has been idle for a while
+    ! (a drag commits on release; the wheel has no release)
+    if (w%edit_kind /= 0 .and. w%edit_wheel_time > 0d0) then
+       if (glfwGetTime() - w%edit_wheel_time > wheel_commit_delay) call edit_commit()
     end if
 
     ! No tool is on display unless one is running
@@ -1314,12 +1329,12 @@ contains
          end do
 
          ! distance drag-float (bohr internally, shown in angstrom, no upper bound)
-         dist = norm2(edit_pos(2) - edit_pos(1))
+         dist = edit_value()
          call iw_text("Distance (Å)",alignframe=.true.)
-         if (edit_drag("##editdistdrag",dist,0.01d0,3,0.1d0,scal=bohrtoa)) &
+         if (edit_drag("##editdistdrag",dist,0.01d0,3,0.1d0,wheel_dstep,scal=bohrtoa)) &
             call editdist_apply(dist)
          call iw_tooltip("Distance between the two atoms (Å)",ttshown)
-         call edit_apply_button("","distance")
+         call edit_buttons("","distance")
       case (3)
          ! central atom combo; while the central atom moves, the
          ! terminals are held fixed (rotation needs a fixed vertex)
@@ -1355,12 +1370,12 @@ contains
          end do
 
          ! angle drag-float (degrees)
-         ang = editang_angat(edit_pos(2)) * 180d0 / pi
+         ang = edit_value() * 180d0 / pi
          call iw_text("Angle (°)",alignframe=.true.)
-         if (edit_drag("##editangdrag",ang,0.2d0,2,0d0,vmax=180d0)) &
+         if (edit_drag("##editangdrag",ang,0.2d0,2,0d0,wheel_astep,vmax=180d0)) &
             call editang_apply(ang)
          call iw_tooltip("Angle between the three atoms (degrees)",ttshown)
-         call edit_apply_button("##editang","angle")
+         call edit_buttons("##editang","angle")
       case (4)
          ! terminal atom combos (atoms 2 and 3 always stay fixed). The
          ! two group modes are offered independently, so imodes maps the
@@ -1397,35 +1412,41 @@ contains
          end do
 
          ! dihedral drag-float (degrees)
-         ang = editdih_val() * 180d0 / pi
+         ang = edit_value() * 180d0 / pi
          call iw_text("Dihedral (°)",alignframe=.true.)
-         if (edit_drag("##editdihdrag",ang,0.2d0,2,-180d0,vmax=180d0)) &
+         if (edit_drag("##editdihdrag",ang,0.2d0,2,-180d0,wheel_astep,vmax=180d0,wrap=.true.)) &
             call editdih_apply(ang)
          call iw_tooltip("Dihedral angle of the four atoms (degrees)",ttshown)
-         call edit_apply_button("##editdih","dihedral")
+         call edit_buttons("##editdih","dihedral")
       end select
-      call panel_text("Stop editing with "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//&
-         ", with "//trim(get_bind_keyname(BIND_CANCEL))//", with "//&
+      call panel_text(trim(get_bind_keyname(BIND_EDIT_WHEEL))//" in the view steps the value."//&
+         " Stop editing with "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//", with "//&
          trim(get_bind_keyname(BIND_NAV_MEASURE))//" or "//&
          trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE))//" in the view, with the Apply"//&
-         " button, or by choosing another tool. The atoms keep the geometry they have"//&
-         " when it stops.",faded=.true.)
+         " button, or by choosing another tool: the atoms keep the geometry they have."//&
+         " "//trim(get_bind_keyname(BIND_CANCEL))//" reverts the value and stops editing.",&
+         faded=.true.)
 
     end subroutine panel_edit
 
-    ! The drag-float that sets the value of the running edit session. It
-    ! is disabled while nothing is set to move, so that no value can be
-    ! applied then; releasing it commits the edit. Returns whether val
-    ! changed and the caller must apply it.
-    function edit_drag(strid,val,speed,dec,vmin,vmax,scal) result(changed)
+    ! The drag-float that sets the value of the running edit session,
+    ! and the wheel notches the view accumulated for it (BIND_EDIT_WHEEL,
+    ! wstep per notch in the units shown, clamped to [vmin,vmax] or
+    ! wrapped into it). Both are disabled while nothing is set to move,
+    ! so that no value can be applied then. Releasing the drag commits
+    ! the edit; the wheel commits once it has been idle. Returns whether
+    ! val changed and the caller must apply it.
+    function edit_drag(strid,val,speed,dec,vmin,wstep,vmax,scal,wrap) result(changed)
       character(len=*), intent(in) :: strid
       real*8, intent(inout) :: val
-      real*8, intent(in) :: speed, vmin
+      real*8, intent(in) :: speed, vmin, wstep
       integer, intent(in) :: dec
       real*8, intent(in), optional :: vmax, scal
+      logical, intent(in), optional :: wrap
       logical :: changed
 
-      logical :: locked, lcommit
+      logical :: locked, lcommit, wrap_
+      real*8 :: scal_, vd
 
       locked = all(w%edit_imove == 0)
       if (locked) call igBeginDisabled(.true._c_bool)
@@ -1435,30 +1456,79 @@ contains
       if (locked) then
          call igEndDisabled()
          changed = .false.
+         w%edit_wheel = 0d0
+         return
       elseif (lcommit) then
          call edit_commit()
       end if
 
+      ! the wheel notches
+      if (w%edit_wheel /= 0d0) then
+         scal_ = 1d0
+         if (present(scal)) scal_ = scal
+         wrap_ = .false.
+         if (present(wrap)) wrap_ = wrap
+         vd = val * scal_ + w%edit_wheel * wstep
+         w%edit_wheel = 0d0
+         if (wrap_ .and. present(vmax)) then
+            vd = vmin + modulo(vd - vmin,vmax - vmin)
+         else
+            vd = max(vd,vmin)
+            if (present(vmax)) vd = min(vd,vmax)
+         end if
+         val = vd / scal_
+         changed = .true.
+         w%edit_wheel_time = glfwGetTime()
+      end if
+
     end function edit_drag
 
-    ! The button that ends the edit session keeping the value it has
-    ! reached. noun is what is being edited (distance, angle, dihedral).
-    subroutine edit_apply_button(strid,noun)
+    ! The buttons that end the edit session keeping the value it has
+    ! reached (Apply) and that put the atoms back where they were when
+    ! the session started (Revert, keeping the session). noun is what
+    ! is being edited (distance, angle, dihedral).
+    subroutine edit_buttons(strid,noun)
       character(len=*), intent(in) :: strid, noun
 
       character(len=*), parameter :: natom(2:4) = (/"two  ","three","four "/)
-      character(len=:), allocatable :: str
+      character(len=:), allocatable :: str, val0str
 
-      ! the tooltip is built before the button: pressing it stops the
+      ! the tooltips are built before the buttons: Apply stops the
       ! session and resets edit_kind
       str = "Keep the current "//noun//" and release the "//trim(natom(w%edit_kind))//" atoms"
+      if (w%edit_kind == 2) then
+         val0str = string(w%edit_val0 * bohrtoa,'f',decimal=3) // " Å"
+      else
+         val0str = string(w%edit_val0 * 180d0 / pi,'f',decimal=2) // "°"
+      end if
       if (iw_button("Apply"//strid,danger=.true.)) then
          w%errmsg = ""
          call w%edit_stop()
       end if
       call iw_tooltip(str,ttshown)
 
-    end subroutine edit_apply_button
+      if (iw_button("Revert"//strid,danger=.true.,sameline=.true.)) then
+         call w%edit_revert()
+         if (w%edit_dirty) call edit_commit()
+      end if
+      call iw_tooltip("Set the "//noun//" back to the value it had when the edit started ("//&
+         val0str//"), keeping the session",ttshown)
+
+    end subroutine edit_buttons
+
+    ! The measurement of the session (bohr or radians) at the current
+    ! atomic positions.
+    function edit_value() result(v)
+      real*8 :: v
+
+      if (w%edit_kind == 2) then
+         v = norm2(edit_pos(2) - edit_pos(1))
+      elseif (w%edit_kind == 3) then
+         v = editang_angat(edit_pos(2))
+      else
+         v = editdih_val()
+      end if
+    end function edit_value
 
     ! Per-frame validity of the active edit session: the parent view
     ! must show the same system, the latched atoms must exist, dynamics
@@ -1548,9 +1618,19 @@ contains
          w%edit_imove(ikind) = merge(2,1,w%edit_fragok(ikind))
       end if
 
+      ! the starting positions and value, for Revert (edit_kind is set
+      ! last, but edit_value needs it)
+      w%edit_kind = ikind
+      if (allocated(w%edit_r0)) deallocate(w%edit_r0)
+      call edit_snapshot(w%edit_r0)
+      w%edit_molx0 = sys(isys)%c%molx0
+      w%edit_idx0 = w%edit_idx
+      w%edit_val0 = edit_value()
+      w%edit_wheel = 0d0
+      w%edit_wheel_time = 0d0
+
       w%edit_dirty = .false.
       w%edit_time = glfwGetTime()
-      w%edit_kind = ikind
     end subroutine edit_start
 
     ! Show the latched atoms in a one-row table, one column per atom
@@ -1780,6 +1860,7 @@ contains
       if (dcur < eps_dzero) return
       u = (rb - ra) / dcur
       delta = dnew - dcur
+      if (abs(delta) < 1d-12) return
 
       ! split the displacement among the movable sides (atom 1 moves
       ! against the bond axis, atom 2 along it)
@@ -2041,6 +2122,7 @@ contains
          end do
       end if
       w%edit_dirty = .false.
+      w%edit_wheel_time = 0d0
       call edit_notify()
     end subroutine edit_commit
 
@@ -2919,6 +3001,51 @@ contains
     w%edit_idx = 0
 
   end subroutine edit_stop
+
+  ! Put the atoms back where they were when the edit session started
+  ! (positions and latched images), in place like a drag step: the
+  ! caller commits (Revert button) or stops the session (cancel), which
+  ! rebuilds the structure. Nothing happens if they are already there.
+  ! The snapshot is carried over to the current molecular cell frame:
+  ! the rebuilds in between re-fit the cell and move its origin.
+  module subroutine edit_revert(w)
+    use systems, only: sys, sysc, sys_init, lastchange_geometry
+    use interfaces_glfw, only: glfwGetTime
+    class(window), intent(inout) :: w
+
+    integer :: isys, iview, i
+    real*8 :: dmax, shift(3)
+    real*8, allocatable :: rnew(:,:)
+
+    if (w%edit_kind == 0) return
+    isys = w%edit_sys%get(sys_init)
+    if (isys == 0) return
+    if (.not.allocated(w%edit_r0)) return
+    if (size(w%edit_r0,2) /= sys(isys)%c%ncel) return
+
+    shift = w%edit_molx0 - sys(isys)%c%molx0
+    allocate(rnew(3,sys(isys)%c%ncel))
+    dmax = 0d0
+    do i = 1, sys(isys)%c%ncel
+       rnew(:,i) = w%edit_r0(:,i) + shift
+       dmax = max(dmax,maxval(abs(sys(isys)%c%atcel(i)%r - rnew(:,i))))
+    end do
+    if (dmax < 1d-10 .and. all(w%edit_idx == w%edit_idx0)) return
+
+    call sys(isys)%c%update_positions(rnew)
+    w%edit_idx = w%edit_idx0
+    w%edit_dirty = .true.
+
+    ! hold the camera through the rebuild, post the geometry event, and
+    ! re-stamp the session heartbeat after it (same as the drag steps)
+    iview = w%parent()
+    if (iview > 0) then
+       if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+    end if
+    call sysc(isys)%post_event(lastchange_geometry,label="Build structure")
+    w%edit_time = glfwGetTime()
+
+  end subroutine edit_revert
 
   ! Add-atoms mode: number of substituents n and unit vectors v(:,1:n)
   ! for local geometry index ig (0-based, see addgeom_names). Local

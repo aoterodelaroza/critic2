@@ -141,7 +141,8 @@ module keybindings
   integer, parameter, public :: BIND_OBJEDIT_NOSNAP = 87 ! object editing: do not snap to atoms while held
   integer, parameter, public :: BIND_VIEW_TOGGLE_ANNOTATE = 88 ! view: show/hide the annotation row
   integer, parameter, public :: BIND_REDO_ALT = 89 ! redo, the second key for it
-  integer, parameter, public :: BIND_NUM = 89 ! total number of binds
+  integer, parameter, public :: BIND_EDIT_WHEEL = 90 ! view: step the distance/angle/dihedral being edited in the builder
+  integer, parameter, public :: BIND_NUM = 90 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -233,7 +234,8 @@ module keybindings
      "Remove the last point           ",& ! BIND_OBJEDIT_DELPOINT
      "Do not snap to atoms            ",& ! BIND_OBJEDIT_NOSNAP
      "Toggle the annotation toolbar   ",& ! BIND_VIEW_TOGGLE_ANNOTATE
-     "Redo (second key)               "&  ! BIND_REDO_ALT
+     "Redo (second key)               ",& ! BIND_REDO_ALT
+     "Step the edited measurement     "&  ! BIND_EDIT_WHEEL
      /)
 
   ! The key associated with each bind, bind -> key
@@ -262,12 +264,16 @@ module keybindings
   integer, parameter, public :: group_viewmode_mdinteract = 12 ! view mouse interaction modes (forced during dynamics)
   integer, parameter, public :: group_viewmode_pickatom = 13  ! view mouse interaction modes (forced atom pick)
   integer, parameter, public :: group_viewmode_objedit = 14    ! view mouse interaction modes (forced, edit an object in the view)
-  integer, parameter, public :: group_NUM = 14                ! total number of groups
+  integer, parameter, public :: group_viewmode_editmeasure = 15 ! over the navigation mode while the builder edits a measurement (takes the input first)
+  integer, parameter, public :: group_NUM = 15                ! total number of groups
 
-  ! The mutually-exclusive view mouse-interaction modes
-  integer, parameter, public :: group_mousemodes(7) = (/group_viewmode_navigation,&
+  ! The mutually-exclusive view mouse-interaction modes. The measurement
+  ! edit is a layer over navigation: its binds are polled first, so it
+  ! shares keys with the modes like one of them.
+  integer, parameter, public :: group_mousemodes(8) = (/group_viewmode_navigation,&
      group_viewmode_select, group_viewmode_movemol, group_viewmode_moveatom,&
-     group_viewmode_mdinteract, group_viewmode_pickatom, group_viewmode_objedit/)
+     group_viewmode_mdinteract, group_viewmode_pickatom, group_viewmode_objedit,&
+     group_viewmode_editmeasure/)
 
   ! Names of the keybinding groups
   character(len=32), parameter, public :: groupnames(group_NUM) = (/&
@@ -284,7 +290,8 @@ module keybindings
      "View Window: Move Atoms Mode    ",&
      "View Window: Interact (MD) Mode ",&
      "View Window: Pick Atom Mode     ",&
-     "View Window: Object Editing Mode"/)
+     "View Window: Object Editing Mode",&
+     "View Window: Measurement Edit   "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -376,7 +383,8 @@ module keybindings
      group_viewmode_objedit,&     ! BIND_OBJEDIT_DELPOINT
      group_viewmode_objedit,&     ! BIND_OBJEDIT_NOSNAP
      group_view,&                 ! BIND_VIEW_TOGGLE_ANNOTATE
-     group_global/)               ! BIND_REDO_ALT
+     group_global,&               ! BIND_REDO_ALT
+     group_viewmode_editmeasure/) ! BIND_EDIT_WHEEL
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -471,7 +479,8 @@ module keybindings
      0,&  ! BIND_OBJEDIT_DELPOINT
      -1,& ! BIND_OBJEDIT_NOSNAP
      0,&  ! BIND_VIEW_TOGGLE_ANNOTATE
-     0/)  ! BIND_REDO_ALT
+     0,&  ! BIND_REDO_ALT
+     0/)  ! BIND_EDIT_WHEEL
 
   ! module procedure interfaces
   interface

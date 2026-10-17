@@ -1065,12 +1065,14 @@ contains
        return
     end if
 
-    ! 3) stop an edit-distance/angle session in a builder of this view
+    ! 3) revert the distance/angle/dihedral being edited in a builder of
+    !    this view (same as its Revert button) and stop the session
     do i = 1, nwin
        if (.not.win(i)%isinit) cycle
        if (win(i)%type /= wintype_builder) cycle
        if (win(i)%anchor_view() /= iv) cycle
        if (win(i)%edit_kind == 0) cycle
+       call win(i)%edit_revert()
        call win(i)%edit_stop()
        return
     end do
@@ -1357,8 +1359,8 @@ contains
              idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
           call iw_tooltip("Load a scalar field for the current system",ttshown)
 
-          ! File -> Load Field From File
-          if (iw_menuitem("Load Field From File...",enabled=isysok)) then
+          ! File -> Load Field from File
+          if (iw_menuitem("Load Field from File...",enabled=isysok)) then
              idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
              win(idum)%lf%gotofile = .true.
           end if

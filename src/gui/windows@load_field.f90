@@ -162,7 +162,7 @@ contains
     end if
     w%okfile_set = .false.
 
-    ! an external request (Load Field From File...) selects the From File
+    ! an external request (Load Field from File...) selects the From File
     ! tab and pops the file dialog, as if the File button had been pressed
     gotofile = w%lf%gotofile
     w%lf%gotofile = .false.

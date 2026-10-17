@@ -303,6 +303,7 @@ contains
     call set_bind(BIND_OBJEDIT_NOSNAP,ImGuiKey_None,mod_ctrl)
     call set_bind(BIND_VIEW_TOGGLE_ANNOTATE,ImGuiKey_D,mod_none)
     call set_bind(BIND_REDO_ALT,ImGuiKey_Z,ior(mod_ctrl,mod_shift))
+    call set_bind(BIND_EDIT_WHEEL,ImGuiKey_MouseScroll,mod_none)
 
   end subroutine set_default_keybindings
 

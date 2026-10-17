@@ -1895,6 +1895,7 @@ contains
           ! must not keep the request and spring to that width the first
           ! time it is undocked, long after the user has sized it
           w%needwidth = 0._c_float
+          if (w%type == wintype_builder) w%builder_shown = .false.
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
              w%heightslack = 0._c_float ! only a body that stretches to fill sets this

@@ -1198,6 +1198,7 @@ module windows
      real(c_float) :: oldview(4,4)
      real(c_float) :: mpos0_s
      integer :: ilock = 0 ! mouse parameters -^
+     integer :: ilock_scroll_bind = 0 ! the bind holding the ilock_scroll latch (key + vertical drag)
      integer :: moveobj_icel = 0 ! cell atom in a move (molecules/atoms) drag
      integer :: moveobj_imol = 0 ! molecule in a move drag
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
@@ -1377,6 +1378,7 @@ module windows
      integer :: builder_frag_iattach = 0 ! add fragments: placeholder atom marking the attachment direction
      real*8 :: builder_frag_radius = 0d0 ! add fragments: fictitious covalent radius, bohr (ligand; <= 0 = substituent)
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
+     logical :: builder_shown = .false. ! draw_builder ran this frame (false while collapsed or behind a dock tab)
      real(c_float) :: builder_panelh = 0._c_float ! content height of the tool panel, for sizing the window to it
      integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
      type(sys_ref) :: edit_sys ! system latched for the edit session
@@ -1388,6 +1390,12 @@ module windows
      integer, allocatable :: edit_fraglv(:,:,:) ! lattice vector of each masked-fragment atom relative to its seed, so the group can be assembled in the latched image
      logical :: edit_dirty = .false. ! in-place moves applied but not yet committed (rebuild pending)
      real*8 :: edit_time = 0d0 ! time of the last edit-free poll (external-change guard)
+     real*8 :: edit_val0 = 0d0 ! value of the measurement when the session started (bohr or radians), shown by Revert
+     real*8, allocatable :: edit_r0(:,:) ! atomic positions (Cartesian, bohr) when the session started, restored by Revert
+     real*8 :: edit_molx0(3) = 0d0 ! molecular cell origin (molx0) when edit_r0 was taken: a rebuild re-fits the cell and shifts the frame
+     integer :: edit_idx0(4,4) = 0 ! edit_idx when the session started, restored with edit_r0
+     real*8 :: edit_wheel = 0d0 ! wheel notches received from the view and not yet applied (BIND_EDIT_WHEEL)
+     real*8 :: edit_wheel_time = 0d0 ! time of the last wheel step applied in place, 0 if none is pending commit
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
@@ -1588,6 +1596,7 @@ module windows
      ! builder window
      procedure :: draw_builder
      procedure :: edit_stop
+     procedure :: edit_revert
   end type window
   public :: window
 
@@ -2569,6 +2578,9 @@ module windows
      module subroutine edit_stop(w)
        class(window), intent(inout) :: w
      end subroutine edit_stop
+     module subroutine edit_revert(w)
+       class(window), intent(inout) :: w
+     end subroutine edit_revert
      module subroutine draw_ff_backend_combo(isys,strid,nchars,sameline)
        integer, intent(in) :: isys, nchars
        character(len=*), intent(in) :: strid
