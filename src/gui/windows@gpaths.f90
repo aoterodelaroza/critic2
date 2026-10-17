@@ -49,7 +49,7 @@ contains
     use representations, only: field_has_cps
     use gui_main, only: ColorGpath, ColorHighlightScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
-       iw_field_combo, iw_calcwidth, iw_combo_simple, iw_inputint, iw_checkbox, iw_coloredit,&
+       iw_field_combo, iw_calcwidth, iw_combo_simple, iw_inputint, iw_checkbox, iw_coloredit, iw_separatortext,&
        iw_dragfloat_realc
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -101,11 +101,10 @@ contains
        ! the system and the field
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
-       call iw_text("Field",highlight=.true.,alignframe=.true.)
-       call igSameLine(0._c_float,-1._c_float)
+       call iw_text("Field",alignframe=.true.)
        ifield = w%gp%fref%id
        if (iw_field_combo("##gpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-          nonestr="<field not available>")) then
+          nonestr="<field not available>",sameline=.true.)) then
           call w%gp%fref%set(sys(isys),ifield)
           call cancel_pick(w)
        end if
@@ -118,19 +117,20 @@ contains
     end if
 
     if (goodsys .and. ok) then
-       ! single shot: the paths up and down from a picked point
-       call iw_text("Single-Shot",highlight=.true.,alignframe=.true.)
+       ! the seeds: a single shot (the paths up and down from a picked
+       ! point), or the selected CPs of the table (the nuclei only, if
+       ! there was no search)
+       call sync_sel(w,isys)
+       call iw_separatortext("Seeds",w%gp%secseeds)
+    end if
+    if (goodsys .and. ok .and. w%gp%secseeds%open) then
+       call iw_text("Single shot",alignframe=.true.)
        call iw_tooltip("Trace the gradient paths up and down from one point",ttshown)
        if (iw_button("Pick##gppickpoint",sameline=.true.,disabled=(w%gp%picking > 0))) &
           call start_pick(w,iview,gppick_point)
        call iw_tooltip("Trace the gradient paths up and down from a point picked in the view",ttshown)
-
-       ! the seed CPs: the table of the CPs (the nuclei only, if there
-       ! was no search), and the selection
-       call sync_sel(w,isys)
-       call iw_text("Critical Points",highlight=.true.)
        if (.not.sys(isys)%c%ismolecule) then
-          if (iw_checkbox("Generate symmetry-equivalent paths##gpsym",w%gp%sym)) call sym_changed(w,isys)
+          if (iw_checkbox("Symmetry-equivalent paths##gpsym",w%gp%sym,labelleft=.true.)) call sym_changed(w,isys)
           call iw_tooltip("Trace the paths of the selected symmetry-unique critical points once and&
              & carry them to all the symmetry-equivalent copies in the cell; otherwise, the table lists&
              & every critical point in the cell and only the paths of the selected ones are drawn",ttshown)
@@ -154,49 +154,50 @@ contains
           call start_pick(w,iview,gppick_cp)
        call iw_tooltip("Pick a critical point in the view and add it to the selection",ttshown)
        call iw_text("(" // string(count(w%gp%sel)) // " selected)",sameline=.true.)
+    end if
 
-       ! the options of each kind of seed CP
-       call iw_text("Traced Path Details",highlight=.true.)
-       call iw_text("NCP",alignframe=.true.)
-       call iw_tooltip("The paths traced from the selected nuclei and nuclear critical points,&
-          & in directions spread over a sphere",ttshown)
-       call vsep()
-       call sphere_options("n",w%gp%ntheta_n,w%gp%nphi_n)
-
-       call iw_text("BCP",alignframe=.true.)
-       call iw_tooltip("The paths traced down from the selected bond critical points, in the plane&
-          & perpendicular to the bond path (the interatomic surface; the bond paths are already&
-          & traced by the critical point search)",ttshown)
-       call vsep()
-       call iw_text("[↓]",highlight=.true.,sameline=.true.)
-       call plane_options("b",w%gp%npts_b,w%gp%method_b,1_c_int)
-
-       call iw_text("RCP",alignframe=.true.)
-       call iw_tooltip("The paths traced from the selected ring critical points: down along the&
-          & axis (the ring paths), and up in the perpendicular plane (the ring surface)",ttshown)
-       call vsep()
-       call iw_text("[↓]",highlight=.true.,sameline=.true.)
-       ldum = iw_checkbox("Ring path##gpringpath",w%gp%ringpath,sameline=.true.)
-       call iw_tooltip("Trace the two ring paths, down along the axis of the RCP",ttshown)
-       call vsep()
-       call iw_text("[↑]",highlight=.true.,sameline=.true.)
-       call plane_options("r",w%gp%npts_r,w%gp%method_r,0_c_int)
-
-       call iw_text("CCP",alignframe=.true.)
-       call iw_tooltip("The paths traced from the selected cage critical points, in directions&
-          & spread over a sphere",ttshown)
-       call vsep()
-       call sphere_options("c",w%gp%ntheta_c,w%gp%nphi_c)
-
-       ! style
+    ! the paths: the style (more: the options of each kind of seed CP)
+    if (goodsys .and. ok) call iw_separatortext("Paths",w%gp%secpaths,hasmore=.true.)
+    if (goodsys .and. ok .and. w%gp%secpaths%open) then
        call iw_text("Color",alignframe=.true.)
        ldum = iw_coloredit("##gprgb",rgb=w%gp%rgb,sameline=.true.)
        call iw_tooltip("Color of the new paths",ttshown)
-       ldum = iw_dragfloat_realc("Radius (Å)##gprad",x1=w%gp%rad,speed=0.002_c_float,&
+       call iw_text("Radius (Å)",alignframe=.true.,gap=.true.)
+       ldum = iw_dragfloat_realc("##gprad",x1=w%gp%rad,speed=0.002_c_float,&
           min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
           sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Radius of the tubes or spheres of the new paths (Å)",ttshown)
 
+       if (w%gp%secpaths%more) then
+          call iw_text("NCP",alignframe=.true.)
+          call iw_tooltip("The paths traced from the selected nuclei and nuclear critical points,&
+             & in directions spread over a sphere",ttshown)
+          call sphere_options("n",w%gp%ntheta_n,w%gp%nphi_n)
+
+          call iw_text("BCP",alignframe=.true.)
+          call iw_tooltip("The paths traced down from the selected bond critical points, in the plane&
+             & perpendicular to the bond path (the interatomic surface; the bond paths are already&
+             & traced by the critical point search)",ttshown)
+          call iw_text("↓",alignframe=.true.,gap=.true.)
+          call plane_options("b",w%gp%npts_b,w%gp%method_b,1_c_int)
+
+          call iw_text("RCP",alignframe=.true.)
+          call iw_tooltip("The paths traced from the selected ring critical points: down along the&
+             & axis (the ring paths), and up in the perpendicular plane (the ring surface)",ttshown)
+          call iw_text("↓",alignframe=.true.,gap=.true.)
+          ldum = iw_checkbox("Ring path##gpringpath",w%gp%ringpath,sameline=.true.,labelleft=.true.)
+          call iw_tooltip("Trace the two ring paths, down along the axis of the RCP",ttshown)
+          call iw_text("↑",alignframe=.true.,gap=.true.)
+          call plane_options("r",w%gp%npts_r,w%gp%method_r,0_c_int)
+
+          call iw_text("CCP",alignframe=.true.)
+          call iw_tooltip("The paths traced from the selected cage critical points, in directions&
+             & spread over a sphere",ttshown)
+          call sphere_options("c",w%gp%ntheta_c,w%gp%nphi_c)
+       end if
+    end if
+
+    if (goodsys .and. ok) then
        ! trace
        formerr = form_error(w,isys)
        dotrace = iw_button("Trace##gptrace",danger=.true.,disabled=(len(formerr) > 0 .or. w%gp%picking > 0))
@@ -259,23 +260,17 @@ contains
     end if
 
   contains
-    !> A vertical separator in the current line.
-    subroutine vsep()
-
-      call igSameLine(0._c_float,-1._c_float)
-      call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
-
-    end subroutine vsep
-
     !> The number of azimuthal and polar angles of a sphere of paths
-    !> (ImGui IDs suffixed with id).
+    !> (ImGui IDs suffixed with id), in the current line.
     subroutine sphere_options(id,ntheta,nphi)
       character(len=*), intent(in) :: id
       integer(c_int), intent(inout) :: ntheta, nphi
 
-      ldum = iw_inputint("Azimuthal##gpntheta" // id,ntheta,sameline=.true.,width=3)
+      call iw_text("Azimuthal",alignframe=.true.,gap=.true.)
+      ldum = iw_inputint("##gpntheta" // id,ntheta,sameline=.true.,width=3)
       call iw_tooltip("Number of azimuthal angles of the starting directions",ttshown)
-      ldum = iw_inputint("Polar##gpnphi" // id,nphi,sameline=.true.,width=3)
+      call iw_text("Polar",alignframe=.true.,gap=.true.)
+      ldum = iw_inputint("##gpnphi" // id,nphi,sameline=.true.,width=3)
       call iw_tooltip("Number of polar angles of the starting directions",ttshown)
       ntheta = max(ntheta,1)
       nphi = max(nphi,0)
@@ -283,25 +278,24 @@ contains
     end subroutine sphere_options
 
     !> The number of paths in the plane (at least nmin) and their
-    !> starting angles (ImGui IDs suffixed with id).
+    !> starting angles (ImGui IDs suffixed with id), in the current
+    !> line.
     subroutine plane_options(id,npts,method,nmin)
       character(len=*), intent(in) :: id
       integer(c_int), intent(inout) :: npts, method
       integer(c_int), intent(in) :: nmin
 
-      ldum = iw_inputint("Number##gpnpts" // id,npts,sameline=.true.,width=3)
+      call iw_text("Number",alignframe=.true.,sameline=.true.)
+      ldum = iw_inputint("##gpnpts" // id,npts,sameline=.true.,width=3)
       if (nmin == 0) then
          call iw_tooltip("Number of paths in the plane, 0 for none",ttshown)
       else
          call iw_tooltip("Number of paths in the plane",ttshown)
       end if
       npts = max(npts,nmin)
-      call iw_text("Angles",sameline=.true.)
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(10,1))
+      call iw_text("Angles",alignframe=.true.,gap=.true.)
       call iw_combo_simple("##gpmethod" // id,method_names,method,tooltips=method_tooltips,&
-         ttshown=ttshown)
-      call igPopItemWidth()
+         ttshown=ttshown,sameline=.true.)
       call iw_tooltip("How the starting directions in the plane are chosen",ttshown)
 
     end subroutine plane_options

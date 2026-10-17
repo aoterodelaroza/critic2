@@ -793,7 +793,7 @@ contains
     use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_calcheight, iw_table_column,&
        iw_table_headers_row, iw_highlight_selectable, iw_cell_right,&
-       iw_close_button, iw_table_sort_specs, iw_helpermark, iw_tblwrite_none
+       iw_close_button, iw_table_sort_specs, iw_helpermark, iw_tblwrite_none, iw_separatortext
     use param, only: bohrtoa
     use tools_io, only: string
     type(window), intent(inout), target :: w
@@ -849,16 +849,25 @@ contains
     ihnuc = 0
 
     associate(f => sys(isys)%f(ifield))
-      ! the list: the symmetry-unique CPs, or the cell CPs if there are
-      ! more (the combo items are in the order of the tablecell values)
+      ! the properties, which can be added to the table (they may
+      ! change the number of columns)
+      call draw_props_section()
+      ncol = ic_NBUILTIN + int(min(sys(isys)%npropp,maxppcol),c_int)
+
+      ! the critical points: the list (the symmetry-unique CPs, or the
+      ! cell CPs if there are more; the combo items are in the order of
+      ! the tablecell values), the summary, and the table
       cell = .false.
+      call iw_separatortext("Critical points",w%cp%secresults)
+      if (.not.w%cp%secresults%open) return
       if (f%ncpcel > f%ncp) then
          itable = int(w%cp%tablecell,c_int)
-         call iw_combo_simple("Critical point list##cptablecombo","Symmetry-unique" // c_null_char //&
+         call iw_text("List",alignframe=.true.)
+         call iw_combo_simple("##cptablecombo","Symmetry-unique" // c_null_char //&
             "Cell" // c_null_char,itable,changed=ch,tooltips=&
             "The symmetry-unique critical points, one row each" // c_null_char //&
             "Every critical point in the unit cell" //&
-            c_null_char,ttshown=ttshown)
+            c_null_char,ttshown=ttshown,sameline=.true.)
          if (ch) then
             w%cp%tablecell = int(itable)
             w%cp%sortdirty = .true.
@@ -866,11 +875,6 @@ contains
          cell = (w%cp%tablecell == 1)
       end if
       n = merge(f%ncpcel,f%ncp,cell)
-
-      ! the properties, which can be added to the table (they may
-      ! change the number of columns)
-      call draw_props_section()
-      ncol = ic_NBUILTIN + int(min(sys(isys)%npropp,maxppcol),c_int)
 
       call draw_cp_summary(isys,ifield)
       call iw_helpermark("Right-click the header of the table, or open the list of properties&
@@ -1240,7 +1244,7 @@ contains
       use gui_main, only: g
       use utils, only: iw_checkbox, iw_button, iw_inputtext, iw_intstepper
 
-      character(kind=c_char,len=:), allocatable, target :: strsec, strtab
+      character(kind=c_char,len=:), allocatable, target :: strtab
       integer(c_int) :: jc, flt
       integer :: ip, idel, nrow, ifmt
       logical :: ldum, ch, avail
@@ -1248,11 +1252,10 @@ contains
       type(ImVec2) :: szt
       character(len=:), allocatable :: suffix
 
-      ! a framed header across the window, so it stands out
       ! the point properties belong to the system (shared with the
       ! point properties window)
-      strsec = "Point properties of the system##cpprops" // c_null_char
-      if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
+      call iw_separatortext("Point properties of the system",w%cp%secprops)
+      if (.not.w%cp%secprops%open) return
 
       ! the table of properties: show, name, definition, notation and
       ! decimal places of the numbers in the table, delete
@@ -1342,8 +1345,6 @@ contains
       ! of POINTPROP, for the field of the window
       if (pointprop_add_form(isys,ifield,w%cp%ppkind,w%cp%ppname,w%cp%ppexpr,w%cp%ppexprerr,"cp",&
          "the critical points",ttshown,w%errmsg)) call pp_sync()
-
-      call igTreePop()
 
     end subroutine draw_props_section
 
@@ -1763,7 +1764,7 @@ contains
   subroutine draw_export_tab(w,isys,iview,ttshown)
     use systems, only: sys
     use utils, only: iw_text, iw_button, iw_tooltip, iw_inputtext, iw_checkbox,&
-       iw_combo_simple, iw_calcwidth, iw_dragfloat_realc, file_name_root
+       iw_combo_simple, iw_dragfloat_realc, file_name_root, iw_separatortext
     use crystalmod, only: struct_detect_write_format
     use tools_io, only: lower, fopen_write, fclose, string
     use param, only: dirsep, isformat_w_unknown
@@ -1784,9 +1785,11 @@ contains
           expformat_names(iexp_vmd) // c_null_char // write_format_combostr(icombo_fmt1:)
     end if
 
-    ! file name: editable field plus browse button
-    call iw_text("File name",highlight=.true.)
-    ldum = iw_inputtext("##cpexportfile",bufsize=1023,texta=w%okfile,width=36)
+    ! the file: name (editable field plus browse button) and format
+    call iw_separatortext("File",w%cp%secfile)
+    if (.not.w%cp%secfile%open) return
+    call iw_text("Name",alignframe=.true.)
+    ldum = iw_inputtext("##cpexportfile",bufsize=1023,texta=w%okfile,width=36,sameline=.true.)
     call iw_tooltip("File the critical points are written to",ttshown)
     if (iw_button("Browse...##cpexportbrowse",sameline=.true.)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savecpfile,idparent=w%id,orraise=-1)
@@ -1794,9 +1797,9 @@ contains
     call w%okfile_warn_overwrite()
 
     ! format combo; if the user sets a format, change the extension to match
-    call igPushItemWidth(iw_calcwidth(45,1))
-    call iw_combo_simple("Format##cpexportformat",expformat_combostr,w%cp%expformat,changed=changed)
-    call igPopItemWidth()
+    call iw_text("Format",alignframe=.true.)
+    call iw_combo_simple("##cpexportformat",expformat_combostr,w%cp%expformat,changed=changed,&
+       sameline=.true.)
     call iw_tooltip("Format of the file: JSON, a VMD script, or a structure file with the critical&
        & points as extra atoms",ttshown)
     if (changed .and. w%cp%expformat > 0) &
@@ -1823,10 +1826,7 @@ contains
     ! the format written: detected or chosen
     if (w%cp%expformat == 0) then
        ichosen = idetect
-       if (ichosen > 0) then
-          call iw_text("Detected:",highlight=.true.)
-          call iw_text(expformat_name(ichosen),sameline=.true.)
-       end if
+       if (ichosen > 0) call iw_text("Detected: " // expformat_name(ichosen),disabled=.true.)
     else
        ichosen = w%cp%expformat
     end if
@@ -1843,38 +1843,43 @@ contains
     usecell = (ifmt == isformat_w_obj .or. ifmt == isformat_w_ply .or. ifmt == isformat_w_off)&
        .and. .not.ismol
     if (ichosen > 0 .and. ichosen /= iexp_json) then
-       call iw_text("Options",highlight=.true.)
-       ldum = iw_checkbox("Include the gradient paths (GRAPH)##cpexpgraph",w%cp%expgraph)
-       call iw_tooltip("Also write the points of the bond paths, as extra atoms",ttshown)
-    end if
-    if (userk) then
-       ldum = iw_dragfloat_realc("RKlength##cpexprk",x1=w%cp%exprk,speed=1._c_float,&
-          min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
-    end if
-    if (usecart) then
-       ldum = iw_checkbox("Cartesian coordinates##cpexpcartesian",w%cp%expcartesian)
-       call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
-          & fractional coordinates (atom_frac)",ttshown)
-       call iw_text("K-point grid written to " // trim(w%okfile) // "_control (overwritten if it exists)",&
-          wrap=.true.)
-    end if
-    if (usecell) then
-       ldum = iw_checkbox("Show unit cell##cpexpdocell",w%cp%expdocell)
-       call iw_tooltip("Draw the unit cell edges in the written 3D model file",ttshown)
-    end if
-    if (ichosen == iexp_vmd) then
-       ldum = iw_checkbox("Write a pdb file (PDB)##cpexppdb",w%cp%exppdb)
-       call iw_tooltip("Write the structure and the critical points to a pdb file, with the&
-          & bond critical points labeled by the atoms they join, instead of an xyz file",ttshown)
-       if (w%cp%exppdb) then
-          ldum = iw_dragfloat_realc("Strong bond density (a.u.)##cpexpstrong",x1=w%cp%expstrong,&
-             speed=0.001_c_float,min=0._c_float,max=10._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Bond critical points with a density above this value are shown as&
-             & strong bonds (STRONG)",ttshown)
+       call iw_separatortext("Options",w%cp%secoptions)
+       if (w%cp%secoptions%open) then
+          ldum = iw_checkbox("Include the gradient paths (GRAPH)##cpexpgraph",w%cp%expgraph,labelleft=.true.)
+          call iw_tooltip("Also write the points of the bond paths, as extra atoms",ttshown)
+          if (userk) then
+             call iw_text("RKlength",alignframe=.true.)
+             ldum = iw_dragfloat_realc("##cpexprk",x1=w%cp%exprk,speed=1._c_float,&
+                min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+             call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
+          end if
+          if (usecart) then
+             ldum = iw_checkbox("Cartesian coordinates##cpexpcartesian",w%cp%expcartesian,labelleft=.true.)
+             call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
+                & fractional coordinates (atom_frac)",ttshown)
+             call iw_text("K-point grid written to " // trim(w%okfile) // "_control (overwritten if it exists)",&
+                wrap=.true.)
+          end if
+          if (usecell) then
+             ldum = iw_checkbox("Show unit cell##cpexpdocell",w%cp%expdocell,labelleft=.true.)
+             call iw_tooltip("Draw the unit cell edges in the written 3D model file",ttshown)
+          end if
+          if (ichosen == iexp_vmd) then
+             ldum = iw_checkbox("Write a pdb file (PDB)##cpexppdb",w%cp%exppdb,labelleft=.true.)
+             call iw_tooltip("Write the structure and the critical points to a pdb file, with the&
+                & bond critical points labeled by the atoms they join, instead of an xyz file",ttshown)
+             if (w%cp%exppdb) then
+                call iw_text("Strong bond density (a.u.)",alignframe=.true.)
+                ldum = iw_dragfloat_realc("##cpexpstrong",x1=w%cp%expstrong,&
+                   speed=0.001_c_float,min=0._c_float,max=10._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,&
+                   sameline=.true.)
+                call iw_tooltip("Bond critical points with a density above this value are shown as&
+                   & strong bonds (STRONG)",ttshown)
+             end if
+             call iw_text("The script reads the structure from " // file_name_root(w%okfile) //&
+                merge(".pdb",".xyz",w%cp%exppdb) // ", written next to it (overwritten if it exists)",wrap=.true.)
+          end if
        end if
-       call iw_text("The script reads the structure from " // file_name_root(w%okfile) //&
-          merge(".pdb",".xyz",w%cp%exppdb) // ", written next to it (overwritten if it exists)",wrap=.true.)
     end if
 
     ! write
@@ -2132,7 +2137,7 @@ contains
     integer, intent(in) :: iview
     logical, intent(inout) :: ttshown
 
-    call iw_text("Single-Shot",highlight=.true.,alignframe=.true.)
+    call iw_text("Single shot",alignframe=.true.)
     call iw_tooltip("Search for a critical point from one point. The new critical point is added&
        & to the list",ttshown)
     if (iw_button("Pick##cpaddpick",sameline=.true.,&
@@ -2157,11 +2162,10 @@ contains
 
     integer(c_int) :: ifield
 
-    call iw_text("Field",highlight=.true.,alignframe=.true.)
-    call igSameLine(0._c_float,-1._c_float)
+    call iw_text("Field",alignframe=.true.)
     ifield = w%cp%fref%id
     if (iw_field_combo("##cpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>")) call w%cp%fref%set(sys(isys),ifield)
+       nonestr="<field not available>",sameline=.true.)) call w%cp%fref%set(sys(isys),ifield)
     call iw_tooltip("Field whose critical points are searched, shown, and exported",ttshown)
     if (.not.sys(isys)%goodfield(w%cp%fref%id)) &
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
@@ -2418,7 +2422,7 @@ contains
     use global, only: iunit
     use gui_main, only: g
     use tools_io, only: string
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_checkbox, iw_helpermark
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_checkbox, iw_separatortext
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys, iview
     logical, intent(inout) :: ttshown
@@ -2441,69 +2445,72 @@ contains
 
     if (.not.sys(isys)%goodfield(w%cp%fref%id)) return
 
-    ! a search from one point, with the advanced options below; the new
-    ! critical point is added to the list
-    call draw_single_shot(w,iview,ttshown)
+    ! the seeds: a search from one point (the new critical point is
+    ! added to the list), and the list of seeds of the search, in a
+    ! scrolling box of at most maxrow_seeds rows
+    call iw_separatortext("Seeds",w%cp%secseeds)
+    if (w%cp%secseeds%open) then
+       call draw_single_shot(w,iview,ttshown)
 
-    ! the seeds, in a scrolling box of at most maxrow_seeds rows
-    call iw_text("Seeds",highlight=.true.)
-    call iw_helpermark("The search for critical points starts from a list of points, the&
-       & seeds. Each entry in this list adds a set of seeds. A Newton-Raphson search runs from every seed, and&
-       & the point it converges to is added to the list of critical points.",sameline=.true.)
+       ! the height of the box is that of its content in the last frame
+       ! (the bundled imgui cannot fit a child to its content), from one
+       ! row to maxrow_seeds rows
+       sz%x = 0._c_float
+       sz%y = max(w%cp%seedh,igGetFrameHeightWithSpacing() + 2 * g%Style%WindowPadding%y)
+       sz%y = min(sz%y,maxrow_seeds * igGetFrameHeightWithSpacing() + 2 * g%Style%WindowPadding%y)
+       str1 = "##cpseedlist" // c_null_char
+       idel = 0
+       if (igBeginChild_Str(c_loc(str1),sz,.true._c_bool,ImGuiWindowFlags_None)) then
+          ! the parameter widgets start at one column, after the longest label
+          xcol = igGetCursorPosX() + g%Style%IndentSpacing + seed_label_width(xunit) + 2 * g%Style%ItemSpacing%x
+          do i = 1, size(w%cp%seed)
+             if (i > 1) call igSeparator()
+             if (draw_seed(w,isys,iview,i,xunit,xcol,ttshown)) idel = i
+          end do
+          w%cp%seedh = igGetCursorPosY() - g%Style%ItemSpacing%y + g%Style%WindowPadding%y
+       end if
+       call igEndChild()
+       if (idel > 0) then
+          w%cp%seed = [w%cp%seed(:idel-1), w%cp%seed(idel+1:)]
+          call cancel_seed_pick(w)
+       end if
+       if (iw_button("Add seeds##cpseedadd")) call add_seed(w,isys,cpseed_point)
+       call iw_tooltip("Add a set of seeds. The search for critical points starts from a list of&
+          & points, the seeds: each entry in the list above adds a set of seeds. A Newton-Raphson&
+          & search runs from every seed, and the point it converges to is added to the list of&
+          & critical points",ttshown)
+       if (iw_button("Reset seeds##cpseedreset",sameline=.true.)) then
+          call reset_seeds(w,isys)
+          call cancel_seed_pick(w)
+       end if
+       call iw_tooltip("Go back to the seeding AUTO uses by default for this system",ttshown)
+       ldum = iw_checkbox("Show seeds##cpshowseeds",w%cp%showseeds,gap=.true.,labelleft=.true.)
+       call iw_tooltip("Show the starting points of the searches in the view (grey spheres), after&
+          & the pruning and the clipping",ttshown)
 
-    ! the height of the box is that of its content in the last frame
-    ! (the bundled imgui cannot fit a child to its content), from one
-    ! row to maxrow_seeds rows
-    sz%x = 0._c_float
-    sz%y = max(w%cp%seedh,igGetFrameHeightWithSpacing() + 2 * g%Style%WindowPadding%y)
-    sz%y = min(sz%y,maxrow_seeds * igGetFrameHeightWithSpacing() + 2 * g%Style%WindowPadding%y)
-    str1 = "##cpseedlist" // c_null_char
-    idel = 0
-    if (igBeginChild_Str(c_loc(str1),sz,.true._c_bool,ImGuiWindowFlags_None)) then
-       ! the parameter widgets start at one column, after the longest label
-       xcol = igGetCursorPosX() + g%Style%IndentSpacing + seed_label_width(xunit) + 2 * g%Style%ItemSpacing%x
-       do i = 1, size(w%cp%seed)
-          if (i > 1) call igSeparator()
-          if (draw_seed(w,isys,iview,i,xunit,xcol,ttshown)) idel = i
-       end do
-       w%cp%seedh = igGetCursorPosY() - g%Style%ItemSpacing%y + g%Style%WindowPadding%y
+       ! the number of seeds the search would start from
+       call update_seeds(w,isys)
+       if (allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
+          str2 = "(" // string(size(w%cp%seedx,2)) // " seeds"
+          if (w%cp%showseeds .and. size(w%cp%seedx,2) > maxseedshow) &
+             str2 = str2 // ", showing " // string(maxseedshow)
+          call iw_text(str2 // ")",sameline=.true.)
+       end if
+    else
+       call update_seeds(w,isys)
     end if
-    call igEndChild()
-    if (idel > 0) then
-       w%cp%seed = [w%cp%seed(:idel-1), w%cp%seed(idel+1:)]
-       call cancel_seed_pick(w)
-    end if
-    if (iw_button("Add seeds##cpseedadd")) call add_seed(w,isys,cpseed_point)
-    call iw_tooltip("Add a set of seeds, the points where the CP searches are started from",ttshown)
-    if (iw_button("Reset seeds##cpseedreset",sameline=.true.)) then
-       call reset_seeds(w,isys)
-       call cancel_seed_pick(w)
-    end if
-    call iw_tooltip("Go back to the seeding AUTO uses by default for this system",ttshown)
-    ldum = iw_checkbox("Show seeds##cpshowseeds",w%cp%showseeds)
-    call iw_tooltip("Show the starting points of the searches in the view (grey spheres), after&
-       & the pruning and the clipping",ttshown)
 
-    ! the number of seeds the search would start from
-    call update_seeds(w,isys)
-    if (allocated(w%cp%seedx) .and. w%cp%seedsys == isys) then
-       str2 = "(" // string(size(w%cp%seedx,2)) // " seeds"
-       if (w%cp%showseeds .and. size(w%cp%seedx,2) > maxseedshow) &
-          str2 = str2 // ", showing " // string(maxseedshow)
-       call iw_text(str2 // ")",sameline=.true.)
-    end if
-
-    ! advanced options
-    call draw_advanced(w,isys,iview,xunit,ttshown)
-
-    ! run options
-    call iw_text("Run",highlight=.true.)
-    ldum = iw_checkbox("Discard the existing critical points##cpdiscardexist",w%cp%discard_existing)
+    ! the run (more: the advanced options)
+    call iw_separatortext("Run",w%cp%secrun,hasmore=.true.)
+    if (.not.w%cp%secrun%open) return
+    ldum = iw_checkbox("Discard the existing critical points##cpdiscardexist",w%cp%discard_existing,&
+       labelleft=.true.)
     call iw_tooltip("Start from the nuclei only. Otherwise, the new critical points are added to&
        & those the field already has",ttshown)
-    ldum = iw_checkbox("Do not write the checkpoint##cpnochk",w%cp%nochk)
+    ldum = iw_checkbox("Do not write the checkpoint##cpnochk",w%cp%nochk,labelleft=.true.)
     call iw_tooltip("Do not save the critical points to the checkpoint file (<field file>.chk_cps),&
        & which the GUI reads the next time the field is loaded",ttshown)
+    if (w%cp%secrun%more) call draw_advanced(w,isys,iview,xunit,ttshown)
 
     ! the form must make valid AUTO options
     if (size(w%cp%seed) == 0) then
@@ -2671,10 +2678,10 @@ contains
     end subroutine x0_widget
   end function draw_seed
 
-  !> The advanced options of AUTO, in a collapsed tree node; each one
-  !> is used only if its checkbox is set (otherwise, AUTO's default).
-  !> The labels are in one column (after the checkbox, if any), and the
-  !> widgets start at another.
+  !> The advanced options of AUTO (the More of the Run section); each
+  !> one is used only if its checkbox is set (otherwise, AUTO's
+  !> default). The labels are in one column, followed by the checkbox
+  !> if any, and the widgets start at another.
   subroutine draw_advanced(w,isys,iview,xunit,ttshown)
     use gui_main, only: g
     use utils, only: iw_tooltip, iw_checkbox, iw_inputtext, iw_dragfloat_real8,&
@@ -2684,89 +2691,85 @@ contains
     character(len=*), intent(in) :: xunit
     logical, intent(inout) :: ttshown
 
-    character(len=:,kind=c_char), allocatable, target :: strad
     character(len=:), allocatable :: tt
     logical :: ldum, ch
-    real(c_float) :: xlab, xcol
+    real(c_float) :: xcol
 
-    strad = "Advanced options##cpadvanced" // c_null_char
-    if (igTreeNodeEx_Str(c_loc(strad),ImGuiTreeNodeFlags_None)) then
-       ! the label column (after a checkbox) and the widget column
-       xlab = igGetCursorPosX() + igGetFrameHeight() + g%Style%ItemInnerSpacing%x
-       xcol = xlab + 2 * g%Style%ItemSpacing%x + max(iw_textwidth("Gradient norm (GRADEPS)"),&
-          iw_textwidth("CP distance (CPEPS, Å)"),iw_textwidth("Nucleus distance (NUCEPS, Å)"),&
-          iw_textwidth("Hydrogen distance (NUCEPSH, Å)"),iw_textwidth("Degenerate eigenvalue (EPSDEGEN)"),&
-          iw_textwidth("Discard (DISCARD)"),iw_textwidth("Clip (CLIP)"),iw_textwidth("Box corner 1" // xunit),&
-          iw_textwidth("Center" // xunit),iw_textwidth("Radius (Å)"))
+    ! the widget column: after the longest label and a checkbox
+    xcol = igGetCursorPosX() + max(iw_textwidth("Gradient norm (GRADEPS)"),&
+       iw_textwidth("CP distance (CPEPS, Å)"),iw_textwidth("Nucleus distance (NUCEPS, Å)"),&
+       iw_textwidth("Hydrogen distance (NUCEPSH, Å)"),iw_textwidth("Degenerate eigenvalue (EPSDEGEN)"),&
+       iw_textwidth("Discard (DISCARD)"),iw_textwidth("Clip (CLIP)"),iw_textwidth("Box corner 1" // xunit),&
+       iw_textwidth("Center" // xunit),iw_textwidth("Radius (Å)")) + igGetFrameHeight() +&
+       3 * g%Style%ItemSpacing%x
 
-       tt = "Maximum gradient norm of a critical point (default 1e-12)"
-       call check_label("Gradient norm (GRADEPS)##cpusegradeps",w%cp%use_gradeps,tt)
-       ldum = iw_inputtext("##cpgradeps",bufsize=31,textf=w%cp%gradeps,width=8)
-       call iw_tooltip(tt,ttshown)
+    tt = "Maximum gradient norm of a critical point (default 1e-12)"
+    call check_label("Gradient norm (GRADEPS)##cpusegradeps",w%cp%use_gradeps,tt)
+    ldum = iw_inputtext("##cpgradeps",bufsize=31,textf=w%cp%gradeps,width=8)
+    call iw_tooltip(tt,ttshown)
 
-       tt = "Two critical points closer than this are the same (default 0.0053 Å)"
-       call check_label("CP distance (CPEPS, Å)##cpusecpeps",w%cp%use_cpeps,tt)
-       ldum = iw_dragfloat_real8("##cpcpeps",x1=w%cp%cpeps,speed=0.001d0,min=0d0,max=10d0,decimal=4)
-       call iw_tooltip(tt,ttshown)
+    tt = "Two critical points closer than this are the same (default 0.0053 Å)"
+    call check_label("CP distance (CPEPS, Å)##cpusecpeps",w%cp%use_cpeps,tt)
+    ldum = iw_dragfloat_real8("##cpcpeps",x1=w%cp%cpeps,speed=0.001d0,min=0d0,max=10d0,decimal=4)
+    call iw_tooltip(tt,ttshown)
 
-       tt = "Discard critical points closer than this to a nucleus (default 0.053 Å; larger for grids)"
-       call check_label("Nucleus distance (NUCEPS, Å)##cpusenuceps",w%cp%use_nuceps,tt)
-       ldum = iw_dragfloat_real8("##cpnuceps",x1=w%cp%nuceps,speed=0.001d0,min=0d0,max=10d0,decimal=4)
-       call iw_tooltip(tt,ttshown)
+    tt = "Discard critical points closer than this to a nucleus (default 0.053 Å; larger for grids)"
+    call check_label("Nucleus distance (NUCEPS, Å)##cpusenuceps",w%cp%use_nuceps,tt)
+    ldum = iw_dragfloat_real8("##cpnuceps",x1=w%cp%nuceps,speed=0.001d0,min=0d0,max=10d0,decimal=4)
+    call iw_tooltip(tt,ttshown)
 
-       tt = "Same, for hydrogen nuclei (default 0.106 Å; larger for grids)"
-       call check_label("Hydrogen distance (NUCEPSH, Å)##cpusenucepsh",w%cp%use_nucepsh,tt)
-       ldum = iw_dragfloat_real8("##cpnucepsh",x1=w%cp%nucepsh,speed=0.001d0,min=0d0,max=10d0,decimal=4)
-       call iw_tooltip(tt,ttshown)
+    tt = "Same, for hydrogen nuclei (default 0.106 Å; larger for grids)"
+    call check_label("Hydrogen distance (NUCEPSH, Å)##cpusenucepsh",w%cp%use_nucepsh,tt)
+    ldum = iw_dragfloat_real8("##cpnucepsh",x1=w%cp%nucepsh,speed=0.001d0,min=0d0,max=10d0,decimal=4)
+    call iw_tooltip(tt,ttshown)
 
-       tt = "Hessian eigenvalues smaller than this make a degenerate critical point (default 1e-8)"
-       call check_label("Degenerate eigenvalue (EPSDEGEN)##cpuseepsdegen",w%cp%use_epsdegen,tt)
-       ldum = iw_inputtext("##cpepsdegen",bufsize=31,textf=w%cp%epsdegen,width=8)
-       call iw_tooltip(tt,ttshown)
+    tt = "Hessian eigenvalues smaller than this make a degenerate critical point (default 1e-8)"
+    call check_label("Degenerate eigenvalue (EPSDEGEN)##cpuseepsdegen",w%cp%use_epsdegen,tt)
+    ldum = iw_inputtext("##cpepsdegen",bufsize=31,textf=w%cp%epsdegen,width=8)
+    call iw_tooltip(tt,ttshown)
 
-       tt = "Discard the critical points where this expression is not zero, e.g. $0 < 1e-3 (empty = none)"
-       call label("Discard (DISCARD)",tt)
-       ldum = iw_inputtext("##cpdiscard",bufsize=1023,textf=w%cp%discard,width=30)
-       call iw_tooltip(tt,ttshown)
+    tt = "Discard the critical points where this expression is not zero, e.g. $0 < 1e-3 (empty = none)"
+    call label("Discard (DISCARD)",tt)
+    ldum = iw_inputtext("##cpdiscard",bufsize=1023,textf=w%cp%discard,width=30)
+    call iw_tooltip(tt,ttshown)
 
-       tt = "Only use the seeds inside this region"
-       call label("Clip (CLIP)",tt)
-       call iw_combo_simple("##cpclip","None" // c_null_char // "Box" // c_null_char //&
-          "Sphere" // c_null_char,w%cp%iclip,changed=ch,tooltips=&
-          "Use all the seeds" // c_null_char //&
-          "Only use the seeds inside a box, given by two opposite corners" // c_null_char //&
-          "Only use the seeds inside a sphere, given by its center and radius" // c_null_char,&
-          ttshown=ttshown)
-       if (ch) then
-          call clip_defaults(w,isys)
-          if (w%cp%picking == cppick_clipx0 .or. w%cp%picking == cppick_clipx1) call cancel_pick(w)
-       end if
-       if (w%cp%iclip == 1) then
-          call label("Box corner 1" // xunit)
-          ldum = iw_dragfloat_real8("##cpclipx0",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
-          call pick_button(w,iview,"cppickclipx0",cppick_clipx0,0,ttshown)
-          call label("Box corner 2" // xunit)
-          ldum = iw_dragfloat_real8("##cpclipx1",x3=w%cp%clipx1,speed=0.001d0,decimal=4)
-          call pick_button(w,iview,"cppickclipx1",cppick_clipx1,0,ttshown)
-       elseif (w%cp%iclip == 2) then
-          call label("Center" // xunit)
-          ldum = iw_dragfloat_real8("##cpclipx0s",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
-          call pick_button(w,iview,"cppickclipx0s",cppick_clipx0,0,ttshown)
-          call label("Radius (Å)")
-          ldum = iw_dragfloat_real8("##cpcliprad",x1=w%cp%cliprad,speed=0.01d0,min=0d0,max=100d0,decimal=3)
-       end if
-       call igTreePop()
+    tt = "Only use the seeds inside this region"
+    call label("Clip (CLIP)",tt)
+    call iw_combo_simple("##cpclip","None" // c_null_char // "Box" // c_null_char //&
+       "Sphere" // c_null_char,w%cp%iclip,changed=ch,tooltips=&
+       "Use all the seeds" // c_null_char //&
+       "Only use the seeds inside a box, given by two opposite corners" // c_null_char //&
+       "Only use the seeds inside a sphere, given by its center and radius" // c_null_char,&
+       ttshown=ttshown)
+    if (ch) then
+       call clip_defaults(w,isys)
+       if (w%cp%picking == cppick_clipx0 .or. w%cp%picking == cppick_clipx1) call cancel_pick(w)
+    end if
+    if (w%cp%iclip == 1) then
+       call label("Box corner 1" // xunit)
+       ldum = iw_dragfloat_real8("##cpclipx0",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
+       call pick_button(w,iview,"cppickclipx0",cppick_clipx0,0,ttshown)
+       call label("Box corner 2" // xunit)
+       ldum = iw_dragfloat_real8("##cpclipx1",x3=w%cp%clipx1,speed=0.001d0,decimal=4)
+       call pick_button(w,iview,"cppickclipx1",cppick_clipx1,0,ttshown)
+    elseif (w%cp%iclip == 2) then
+       call label("Center" // xunit)
+       ldum = iw_dragfloat_real8("##cpclipx0s",x3=w%cp%clipx0,speed=0.001d0,decimal=4)
+       call pick_button(w,iview,"cppickclipx0s",cppick_clipx0,0,ttshown)
+       call label("Radius (Å)")
+       ldum = iw_dragfloat_real8("##cpcliprad",x1=w%cp%cliprad,speed=0.01d0,min=0d0,max=100d0,decimal=3)
     end if
 
   contains
-    !> A checkbox carrying the label (str) of an option that is used
-    !> only if checked, with tooltip tt; the widget follows at xcol.
+    !> The label (str) of an option that is used only if its checkbox
+    !> is set, and the checkbox, with tooltip tt; the widget follows
+    !> at xcol.
     subroutine check_label(str,flag,tt)
       character(len=*), intent(in) :: str
       logical, intent(inout) :: flag
       character(len=*), intent(in) :: tt
       logical :: ld
-      ld = iw_checkbox(str,flag)
+      ld = iw_checkbox(str,flag,labelleft=.true.)
       call iw_tooltip(tt,ttshown)
       call igSameLine(xcol,-1._c_float)
     end subroutine check_label
@@ -2775,7 +2778,6 @@ contains
     subroutine label(str,tt)
       character(len=*), intent(in) :: str
       character(len=*), intent(in), optional :: tt
-      call igSetCursorPosX(xlab)
       call iw_text(str,alignframe=.true.)
       ! (no delay: text has no ID, so the delayed tooltip would not show)
       if (present(tt)) call iw_tooltip(tt)
@@ -3041,13 +3043,13 @@ contains
          if (it >= 0 .and. it <= 3) nt(it) = nt(it) + f%cp(i)%mult
       end do
     end associate
-    call iw_text("Critical points",highlight=.true.)
-    call iw_text("(n|b|r|c): " // string(nt(0)) // " | " // string(nt(1)) // " | " //&
+    call iw_text("Critical points (n|b|r|c)")
+    call iw_text(string(nt(0)) // " | " // string(nt(1)) // " | " //&
        string(nt(2)) // " | " // string(nt(3)),sameline=.true.)
     if (sys(isys)%c%ismolecule) then
-       call iw_text("Poincaré-Hopf sum:",highlight=.true.)
+       call iw_text("Poincaré-Hopf sum",gap=.true.)
     else
-       call iw_text("Morse sum:",highlight=.true.)
+       call iw_text("Morse sum",gap=.true.)
     end if
     call iw_text(string(nt(0)-nt(1)+nt(2)-nt(3)),sameline=.true.)
 

@@ -314,6 +314,11 @@ module windows
      real*8 :: cliprad = 5d0 ! sphere radius (Å)
      logical :: discard_existing = .false. ! start from the nuclei only
      logical :: nochk = .false. ! do not write the checkpoint
+     ! the sections: Search tab (seeds; run, more = advanced options),
+     ! Results tab (point properties, closed to begin with; the
+     ! critical points), Export tab (file; options)
+     type(iw_section) :: secseeds, secrun, secresults, secfile, secoptions
+     type(iw_section) :: secprops = iw_section(open=.false.)
      ! blocking job (gui_main%pending_block_window), run by the main
      ! loop after the frame with its overlay
      integer :: pending_view = 0 ! view the job was requested in
@@ -430,6 +435,7 @@ module windows
      integer(c_int) :: ntheta_c = 8
      integer(c_int) :: nphi_c = 5
      logical :: sym = .true. ! crystals: trace the symmetry-unique CPs and carry the paths to all their copies
+     type(iw_section) :: secseeds, secpaths ! the sections: the seeds, and the paths
      real(c_float) :: rgb(3) = (/0.85_c_float,0.45_c_float,0.10_c_float/) ! color of the next group
      real(c_float) :: rad = gpaths_rad_def ! radius of the next group (bohr)
      ! pending pick in the view (gppick_*, 0 = none): a seed CP, added
