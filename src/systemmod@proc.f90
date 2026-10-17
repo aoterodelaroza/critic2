@@ -576,7 +576,7 @@ contains
     ! Maybe we can load it as a grid if all the fields are grids
     ! and they are the same size
     if (seed%iff == ifformat_as_ghost.and..not.seed%ghost_explicit) then
-       n = s%expression_grid_size(seed%expr,errmsg)
+       call s%expression_grid_size(seed%expr,n,errmsg)
        if (len_trim(errmsg) > 0) return
        if (all(n > 0)) then
           seed%n = n
@@ -1612,19 +1612,19 @@ contains
   end subroutine system_check_expression
 
   !> If all the fields in expression expr are grids of the same size,
-  !> return that size; otherwise (other field types, different sizes,
-  !> or no fields), return zero. This is the size of the grid LOAD AS
-  !> creates for expr when neither GHOST nor a size is given. Returns
-  !> a non-empty errmsg if the fields in expr could not be read.
-  module function expression_grid_size(s,expr,errmsg) result(n)
+  !> return that size in n; otherwise (other field types, different
+  !> sizes, or no fields), return n = 0. This is the size of the grid
+  !> LOAD AS creates for expr when neither GHOST nor a size is given.
+  !> Returns a non-empty errmsg if the fields in expr could not be read.
+  module subroutine expression_grid_size(s,expr,n,errmsg)
     use fieldmod, only: type_grid
     use arithmetic, only: fields_in_eval
     use param, only: mlen
     use iso_c_binding, only: c_loc
     class(system), intent(inout), target :: s
     character(*), intent(in) :: expr
+    integer, intent(out) :: n(3)
     character(len=:), allocatable, intent(inout) :: errmsg
-    integer :: n(3)
 
     integer :: i, nn, idx
     character(len=mlen), allocatable :: idlist(:)
@@ -1644,7 +1644,7 @@ contains
     end do
     if (i <= nn .or. any(n <= 0)) n = 0
 
-  end function expression_grid_size
+  end subroutine expression_grid_size
 
   !> Calculate the properties of a field or all fields at a point plus
   !> the defined point properties of the system. The properties at

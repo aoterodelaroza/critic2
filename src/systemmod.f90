@@ -368,12 +368,12 @@ module systemmod
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine system_check_expression
-     module function expression_grid_size(s,expr,errmsg) result(n)
+     module subroutine expression_grid_size(s,expr,n,errmsg)
        class(system), intent(inout), target :: s
        character(*), intent(in) :: expr
+       integer, intent(out) :: n(3)
        character(len=:), allocatable, intent(inout) :: errmsg
-       integer :: n(3)
-     end function expression_grid_size
+     end subroutine expression_grid_size
      module subroutine propty(s,id,x0,res,resinput,allfields)
        use types, only: scalar_value
        class(system), intent(inout) :: s

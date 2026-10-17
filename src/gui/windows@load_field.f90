@@ -612,7 +612,7 @@ contains
       if (len_trim(errm) > 0) then
          w%lf%exprerr = trim(errm)
       else
-         w%lf%exprgridn = sys(isys)%expression_grid_size(w%lf%expr,errm)
+         call sys(isys)%expression_grid_size(w%lf%expr,w%lf%exprgridn,errm)
       end if
 
     end subroutine validate_expr
