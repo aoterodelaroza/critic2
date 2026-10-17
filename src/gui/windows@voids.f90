@@ -194,14 +194,15 @@ contains
        repflavor_isosurface
     use gui_main, only: g
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
-       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string, iw_cell_right
+       iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string, iw_cell_right,&
+       iw_separatortext
     use tools_io, only: string, ioj_right
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
     integer, intent(in) :: iview
     logical, intent(inout) :: ttshown
 
-    logical :: expensive, found, changed, hasview, ldum, isovalchanged
+    logical :: expensive, hasview, ldum, isovalchanged
     integer :: ihoverlast, iwrite
     integer, parameter :: itable_voids = 1 ! the table, for table_write_*
     integer :: i, n(3), itrep, irep
@@ -240,45 +241,102 @@ contains
     end if
     if (w%vd%iso_spacing_auto .and. w%vd%iso_secs > 0d0) call autoset_spacing()
 
-    ! the isovalue that separates a void from the rest of the cell. Changing
-    ! either of the two settings makes the results on screen stale, so they
-    ! go away until the user asks for the calculation again
-    call iw_text("Isovalue",highlight=.true.,alignframe=.true.)
-    ! acted on below, once the grid the form asks for is known
-    isovalchanged = iw_dragfloat_real8("(a.u.)##voidsisoval",x1=w%vd%iso_isoval,speed=1d-4,&
-       min=1d-6,max=1d0,decimal=5,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
-    call iw_tooltip("A point belongs to a void if the promolecular density (the sum of&
-       & the in-vacuo atomic densities) at that point is lower than this value",ttshown)
+    ! the hovered row is picked up again every frame the table is drawn
+    ihoverlast = w%vd%iso_hover
+    w%vd%iso_hover = 0
+    hasview = (iview > 0)
+    if (hasview) hasview = associated(win(iview)%sc)
 
-    ! the grid the density is sampled on, chosen by its spacing
-    call iw_text("Grid spacing",highlight=.true.,alignframe=.true.)
-    if (iw_dragfloat_real8("(Å)##voidsspacing",x1=w%vd%iso_spacing,speed=0.005d0,&
-       min=0.02d0,max=voids_spacing_max,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) then
-       w%vd%iso_done = .false.
-       w%vd%iso_spacing_auto = .false. ! the user's now; stop choosing it for them
-    end if
-    call iw_tooltip("Approximate distance between two consecutive points of the grid on&
-       & which the promolecular density is calculated. A finer grid resolves the shape of&
-       & the voids better but takes longer",ttshown)
+    ! The settings: the isovalue that separates a void from the rest of the
+    ! cell, and the grid the density is sampled on. Changing either of them
+    ! makes the results on screen stale, so they go away until the user asks
+    ! for the calculation again
+    isovalchanged = .false.
+    itrep = 0
+    ! the grid the spacing gives (again after the spacing drag below)
+    call grid_cost()
+    call iw_separatortext("Isosurface",w%vd%iso_secform)
+    if (w%vd%iso_secform%open) then
+       call iw_text("Isovalue (a.u.)",alignframe=.true.)
+       ! acted on below, once the grid the form asks for is known
+       isovalchanged = iw_dragfloat_real8("##voidsisoval",x1=w%vd%iso_isoval,speed=1d-4,&
+          min=1d-6,max=1d0,decimal=5,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+       call iw_tooltip("A point belongs to a void if the promolecular density (the sum of&
+          & the in-vacuo atomic densities) at that point is lower than this value",ttshown)
 
-    ! the point count is counted in integer*8: three grid dimensions the
-    ! spacing slider can reach overflow a default integer
-    call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
-    npts = int(n(1),8) * int(n(2),8) * int(n(3),8)
+       ! the grid, chosen by its spacing
+       call iw_text("Grid spacing (Å)",alignframe=.true.)
+       if (iw_dragfloat_real8("##voidsspacing",x1=w%vd%iso_spacing,speed=0.005d0,&
+          min=0.02d0,max=voids_spacing_max,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) then
+          w%vd%iso_done = .false.
+          w%vd%iso_spacing_auto = .false. ! the user's now; stop choosing it for them
+          call grid_cost()
+       end if
+       call iw_tooltip("Approximate distance between two consecutive points of the grid on&
+          & which the promolecular density is calculated. A finer grid resolves the shape of&
+          & the voids better but takes longer",ttshown)
 
-    ! what the grid is going to cost, and whether that is enough to warn
-    ! about. With no measurement to go on, the point count stands in for it
-    tcost = -1d0
-    if (w%vd%iso_secs > 0d0) tcost = real(npts,8) * w%vd%iso_secs
-    if (tcost > 0d0) then
-       expensive = (tcost > bigwarn_secs)
+       ! the grid that spacing gives, red when it is going to cost a lot
+       call iw_text("Grid",alignframe=.true.)
+       call iw_text(string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
+          " = " // string(npts) // " points",sameline=.true.,danger=expensive)
+
+       ! run the calculation
+       if (iw_button("Calculate##voidsisocalc",danger=.true.)) then
+          if (w%request_block()) then
+             w%vd%pending = voidsjob_iso
+             w%vd%pending_n = n
+          end if
+       end if
+       call iw_tooltip("Calculate the promolecular density on the grid and group the points&
+          & below the isovalue into voids",ttshown)
+       if (tcost > 0d0) then
+          s = "(~" // duration_string(tcost)
+          call iw_text(s // ")",sameline=.true.,danger=expensive)
+       elseif (expensive) then
+          call iw_text("(a grid this size takes a while to calculate)",sameline=.true.,danger=.true.)
+       end if
+
+       ! show the isosurface that bounds the voids in the view, and copy it
+       ! into a permanent object
+       if (allocated(w%vd%iso_f)) then
+          ldum = iw_checkbox("Visualize isosurface##voidsisoshow",w%vd%iso_show,labelleft=.true.)
+          call iw_tooltip("Draw the isosurface that determines the voids in the view",ttshown)
+          call show_iso()
+
+          if (iw_button("Create Object##voidsisocreate",sameline=.true.,disabled=(itrep == 0))) then
+             call win(iview)%sc%add_representation(reptype_isosurface,repflavor_isosurface,id=irep)
+             if (irep > 0) then
+                win(iview)%sc%rep(irep)%iso = win(iview)%sc%reptrans(itrep)%iso
+                ! The object outlives this window, so it must not carry the window's void labels
+                if (allocated(win(iview)%sc%rep(irep)%iso%lbl)) &
+                   deallocate(win(iview)%sc%rep(irep)%iso%lbl)
+                win(iview)%sc%rep(irep)%iso%ihighlight = 0
+                win(iview)%sc%rep(irep)%iso%ihighlight_built = -1
+                win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
+                   string(w%vd%iso_isoval,'f',decimal=5) // ")"
+                win(iview)%sc%forcebuildlists = .true.
+                call win(iview)%sc%undo_note("Create voids isosurface")
+             else
+                w%errmsg = "Could not create the isosurface object"
+             end if
+          end if
+          call iw_tooltip("Copy the isosurface being shown into a permanent object, editable&
+             & from the Objects menu of the view and kept after this window is closed",ttshown,&
+             whendisabled=.true.)
+
+          ! The grid is the expensive half and only Calculate samples it, so a
+          ! grid the form has moved away from is stale until Calculate is
+          ! pressed again; worded as the isosurface editor words it. The
+          ! isovalue is not in this: it costs nothing to change and is applied
+          ! as it moves
+          if (w%vd%iso_show .and. .not.have_grid(w,n)) &
+             call iw_text("settings changed",danger=.true.,sameline=.true.)
+       end if
     else
-       expensive = (npts > int(bigwarngridpts,8))
+       ! the isosurface stays in the view while the section is closed
+       call show_iso()
     end if
-
-    ! the grid, red when it is going to cost a lot
-    call iw_text(string(n(1)) // " × " // string(n(2)) // " × " // string(n(3)) //&
-       " = " // string(npts) // " points",alignframe=.true.,danger=expensive)
 
     ! The isovalue does not change the grid
     if (isovalchanged) then
@@ -289,118 +347,16 @@ contains
        end if
     end if
 
-    ! the hovered row is picked up again every frame the table is drawn
-    ihoverlast = w%vd%iso_hover
-    w%vd%iso_hover = 0
-
-    ! run the calculation
-    if (iw_button("Calculate##voidsisocalc",danger=.true.)) then
-       if (w%request_block()) then
-          w%vd%pending = voidsjob_iso
-          w%vd%pending_n = n
-       end if
-    end if
-    call iw_tooltip("Calculate the promolecular density on the grid and group the points&
-       & below the isovalue into voids",ttshown)
-    if (tcost > 0d0) then
-       s = "(~" // duration_string(tcost)
-       call iw_text(s // ")",sameline=.true.,danger=expensive)
-    elseif (expensive) then
-       call iw_text("(a grid this size takes a while to calculate)",sameline=.true.,danger=.true.)
-    end if
-
-    ! Show the isosurface that bounds the voids in the view.
-    hasview = (iview > 0)
-    if (hasview) hasview = associated(win(iview)%sc)
-    itrep = 0
-    changed = .false.
-    if (allocated(w%vd%iso_f)) then
-       ldum = iw_checkbox("Visualize isosurface##voidsisoshow",w%vd%iso_show)
-       call iw_tooltip("Draw the isosurface that determines the voids in the view",ttshown)
-
-       if (w%vd%iso_show .and. hasview) then
-          call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
-          if (itrep > 0) then
-             associate (r => win(iview)%sc%reptrans(itrep))
-               ! a fresh slot, or one bound to another field: field 0 is the
-               ! promolecular density, which is what the voids are defined on.
-               ! set_field leaves exactly one isosurface behind, which is the
-               ! one wanted here
-               if (.not.found .or. r%iso%fref%id /= 0) then
-                  call r%iso%set_field(isys,0)
-                  r%name = "Crystal voids"
-                  changed = .true.
-               end if
-               ! the isovalue and grid of the last calculation, not the ones
-               ! in the form above
-               if (r%iso%slot(1)%isoval /= w%vd%iso_isoval) then
-                  r%iso%slot(1)%isoval = w%vd%iso_isoval
-                  changed = .true.
-               end if
-               if (.not.r%iso%grid_isapplied(shape(w%vd%iso_f),iso_region_cell,xnull)) then
-                  call r%iso%apply_grid(shape(w%vd%iso_f),iso_region_cell,xnull)
-                  ! hand over the samples instead of letting the representation calculate again
-                  call r%iso%set_samples(isys,w%vd%iso_f,.false.)
-                  changed = .true.
-               end if
-               ! which void each grid point belongs to, so that the surface can pick one out.
-               if (allocated(w%vd%iso_lbl)) then
-                  if (.not.found .or. w%vd%iso_lbl_dirty) then
-                     r%iso%lbl = w%vd%iso_lbl
-                     w%vd%iso_lbl_dirty = .false.
-                     changed = .true.
-                  end if
-               end if
-               ! the void under the cursor, as of the last frame the table was drawn
-               if (r%iso%ihighlight /= ihoverlast) then
-                  r%iso%ihighlight = ihoverlast
-                  changed = .true.
-               end if
-               if (changed) win(iview)%sc%forcebuildlists = .true.
-             end associate
-          end if
-       end if
-
-       ! copy the transient isosurface into a permanent object
-       if (iw_button("Create Object##voidsisocreate",sameline=.true.,disabled=(itrep == 0))) then
-          call win(iview)%sc%add_representation(reptype_isosurface,repflavor_isosurface,id=irep)
-          if (irep > 0) then
-             win(iview)%sc%rep(irep)%iso = win(iview)%sc%reptrans(itrep)%iso
-             ! The object outlives this window, so it must not carry the window's void labels
-             if (allocated(win(iview)%sc%rep(irep)%iso%lbl)) &
-                deallocate(win(iview)%sc%rep(irep)%iso%lbl)
-             win(iview)%sc%rep(irep)%iso%ihighlight = 0
-             win(iview)%sc%rep(irep)%iso%ihighlight_built = -1
-             win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
-                string(w%vd%iso_isoval,'f',decimal=5) // ")"
-             win(iview)%sc%forcebuildlists = .true.
-             call win(iview)%sc%undo_note("Create voids isosurface")
-          else
-             w%errmsg = "Could not create the isosurface object"
-          end if
-       end if
-       call iw_tooltip("Copy the isosurface being shown into a permanent object, editable&
-          & from the Objects menu of the view and kept after this window is closed",ttshown,&
-          whendisabled=.true.)
-
-       ! The grid is the expensive half and only Calculate samples it, so a
-       ! grid the form has moved away from is stale until Calculate is
-       ! pressed again; worded as the isosurface editor words it. The
-       ! isovalue is not in this: it costs nothing to change and is applied
-       ! as it moves
-       if (w%vd%iso_show .and. .not.have_grid(w,n)) &
-          call iw_text("settings changed",danger=.true.,sameline=.true.)
-    end if
-
     ! the results of the last run
-    if (w%vd%iso_done) then
-       call iw_text("Total void volume",highlight=.true.)
+    if (w%vd%iso_done) call iw_separatortext("Results",w%vd%iso_secres)
+    if (w%vd%iso_done .and. w%vd%iso_secres%open) then
+       call iw_text("Total void volume")
        call iw_text(string(w%vd%iso_vtot*fac3,'f',decimal=4) // " Å³ (" //&
           string(w%vd%iso_vtot/sys(isys)%c%omega*100d0,'f',decimal=2) // "% of the cell)",&
           sameline=.true.)
-       call iw_text("Cell volume",highlight=.true.)
+       call iw_text("Cell volume")
        call iw_text(string(sys(isys)%c%omega*fac3,'f',decimal=4) // " Å³",sameline=.true.)
-       call iw_text("Number of voids",highlight=.true.)
+       call iw_text("Number of voids")
        call iw_text(string(w%vd%iso_nvoid),sameline=.true.)
 
        ! one row per void, largest first
@@ -497,6 +453,75 @@ contains
     end if
 
   contains
+    ! The grid the current spacing gives, its point count, what it is going
+    ! to cost, and whether that is enough to warn about. With no measurement
+    ! to go on, the point count stands in for the cost
+    subroutine grid_cost()
+
+      call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
+      ! the point count is counted in integer*8: three grid dimensions the
+      ! spacing slider can reach overflow a default integer
+      npts = int(n(1),8) * int(n(2),8) * int(n(3),8)
+      tcost = -1d0
+      if (w%vd%iso_secs > 0d0) tcost = real(npts,8) * w%vd%iso_secs
+      if (tcost > 0d0) then
+         expensive = (tcost > bigwarn_secs)
+      else
+         expensive = (npts > int(bigwarngridpts,8))
+      end if
+
+    end subroutine grid_cost
+
+    ! Show the transient isosurface that bounds the voids in the view and
+    ! keep it up to date with the form; itrep is the slot it lives in (0 =
+    ! not shown).
+    subroutine show_iso()
+      logical :: found, changed
+
+      if (.not.allocated(w%vd%iso_f) .or. .not.w%vd%iso_show .or. .not.hasview) return
+      call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
+      if (itrep == 0) return
+      changed = .false.
+      associate (r => win(iview)%sc%reptrans(itrep))
+        ! a fresh slot, or one bound to another field: field 0 is the
+        ! promolecular density, which is what the voids are defined on.
+        ! set_field leaves exactly one isosurface behind, which is the
+        ! one wanted here
+        if (.not.found .or. r%iso%fref%id /= 0) then
+           call r%iso%set_field(isys,0)
+           r%name = "Crystal voids"
+           changed = .true.
+        end if
+        ! the isovalue and grid of the last calculation, not the ones
+        ! in the form above
+        if (r%iso%slot(1)%isoval /= w%vd%iso_isoval) then
+           r%iso%slot(1)%isoval = w%vd%iso_isoval
+           changed = .true.
+        end if
+        if (.not.r%iso%grid_isapplied(shape(w%vd%iso_f),iso_region_cell,xnull)) then
+           call r%iso%apply_grid(shape(w%vd%iso_f),iso_region_cell,xnull)
+           ! hand over the samples instead of letting the representation calculate again
+           call r%iso%set_samples(isys,w%vd%iso_f,.false.)
+           changed = .true.
+        end if
+        ! which void each grid point belongs to, so that the surface can pick one out.
+        if (allocated(w%vd%iso_lbl)) then
+           if (.not.found .or. w%vd%iso_lbl_dirty) then
+              r%iso%lbl = w%vd%iso_lbl
+              w%vd%iso_lbl_dirty = .false.
+              changed = .true.
+           end if
+        end if
+        ! the void under the cursor, as of the last frame the table was drawn
+        if (r%iso%ihighlight /= ihoverlast) then
+           r%iso%ihighlight = ihoverlast
+           changed = .true.
+        end if
+        if (changed) win(iview)%sc%forcebuildlists = .true.
+      end associate
+
+    end subroutine show_iso
+
     ! Choose the grid spacing this system can afford
     subroutine autoset_spacing()
       integer :: it, na(3)
@@ -531,7 +556,8 @@ contains
     use gui_main, only: g
     use representations, only: polycoplanar_def
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable, iw_cell_right
+       iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable, iw_cell_right,&
+       iw_separatortext
     use global, only: bondfactor
     use tools_io, only: string, ioj_center
     use param, only: atmcov
@@ -570,63 +596,6 @@ contains
     if (havesel) havesel = (size(w%vd%pol_isc,1) == nspc .and. size(w%vd%pol_isv,1) == nspc)
     if (.not.havesel) call reset_species()
 
-    ! the species at the center of the polyhedra and at their vertices; any
-    ! number of them can be picked at either end. Changing the selection makes
-    ! the results on screen stale, so they are calculated again, and the
-    ! distance range follows the species
-    call iw_text("Center",highlight=.true.,alignframe=.true.)
-    call species_combo("##voidspolcenter",w%vd%pol_isc,changed)
-    if (changed) then
-       call reset_distance_range()
-       w%vd%pol_done = .false.
-    end if
-    call iw_tooltip("Species of the atoms at the center of the coordination polyhedra",ttshown)
-
-    call iw_text("Vertices",highlight=.true.,alignframe=.true.,sameline=.true.)
-    call species_combo("##voidspolvertex",w%vd%pol_isv,changed)
-    if (changed) then
-       call reset_distance_range()
-       w%vd%pol_done = .false.
-    end if
-    call iw_tooltip("Species of the atoms at the vertices of the coordination polyhedra",ttshown)
-
-    ! The distance range that decides which atoms are vertices. The value
-    ! follows the drag (so the polyhedra in the view do too), but the
-    ! volumes are recalculated when the drag is let go or the typed value
-    ! entered: the triangulation is too slow to run on every frame
-    call iw_text("Distance range",highlight=.true.,alignframe=.true.)
-    rminold = w%vd%pol_rmin
-    rmaxold = w%vd%pol_rmax
-    ldum = iw_dragfloat_real8("##voidspolrmin",x1=w%vd%pol_rmin,speed=0.01d0,min=0d0,&
-       max=voids_pol_rmax_max,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
-       notlive=.true.,committed=changed,sameline=.true.)
-    if (changed) w%vd%pol_done = .false.
-    call iw_tooltip("Shortest center-vertex distance (Å)",ttshown)
-    ldum = iw_dragfloat_real8("(Å)##voidspolrmax",x1=w%vd%pol_rmax,speed=0.01d0,min=0d0,&
-       max=voids_pol_rmax_max,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
-       notlive=.true.,committed=changed,sameline=.true.)
-    if (changed) w%vd%pol_done = .false.
-    call iw_tooltip("Longest center-vertex distance (Å)",ttshown)
-    ! An inverted range selects no vertices at all, which looks like a
-    ! system with no polyhedra in it. Instead of letting the two cross, the
-    ! one the user moved pushes the other along. Which one moved is the one
-    ! whose value changed in this frame: a value typed into the ctrl+click
-    ! box is written without the widget reporting a drag, so the return of
-    ! the widget does not say
-    if (w%vd%pol_rmin > w%vd%pol_rmax) then
-       if (w%vd%pol_rmax /= rmaxold) then
-          w%vd%pol_rmin = w%vd%pol_rmax
-       else
-          w%vd%pol_rmax = w%vd%pol_rmin
-       end if
-    end if
-    if (iw_button("Reset##voidspolreset",sameline=.true.)) then
-       call reset_species()
-       w%vd%pol_done = .false.
-    end if
-    call iw_tooltip("Restore the defaults for this system: the species at the center and&
-       & corners, and the distance range",ttshown)
-
     ! the row the mouse was on when the table was last drawn: its polyhedra
     ! are the ones picked out in the view
     ihoverlast = w%vd%pol_hover
@@ -634,13 +603,75 @@ contains
     ihighlight = 0
     if (ihoverlast > 0 .and. ihoverlast <= w%vd%pol_n) ihighlight = w%vd%pol_id(ihoverlast)
 
+    ! the species at the center of the polyhedra and at their vertices; any
+    ! number of them can be picked at either end. Changing the selection makes
+    ! the results on screen stale, so they are calculated again, and the
+    ! distance range follows the species
+    call iw_separatortext("Polyhedra",w%vd%pol_secform)
+    if (w%vd%pol_secform%open) then
+       call iw_text("Center",alignframe=.true.)
+       call species_combo("##voidspolcenter",w%vd%pol_isc,changed)
+       if (changed) then
+          call reset_distance_range()
+          w%vd%pol_done = .false.
+       end if
+       call iw_tooltip("Species of the atoms at the center of the coordination polyhedra",ttshown)
+
+       call iw_text("Vertices",alignframe=.true.,gap=.true.)
+       call species_combo("##voidspolvertex",w%vd%pol_isv,changed)
+       if (changed) then
+          call reset_distance_range()
+          w%vd%pol_done = .false.
+       end if
+       call iw_tooltip("Species of the atoms at the vertices of the coordination polyhedra",ttshown)
+
+       ! The distance range that decides which atoms are vertices. The value
+       ! follows the drag (so the polyhedra in the view do too), but the
+       ! volumes are recalculated when the drag is let go or the typed value
+       ! entered: the triangulation is too slow to run on every frame
+       call iw_text("Distance range (Å)",alignframe=.true.)
+       rminold = w%vd%pol_rmin
+       rmaxold = w%vd%pol_rmax
+       ldum = iw_dragfloat_real8("##voidspolrmin",x1=w%vd%pol_rmin,speed=0.01d0,min=0d0,&
+          max=voids_pol_rmax_max,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
+          notlive=.true.,committed=changed,sameline=.true.)
+       if (changed) w%vd%pol_done = .false.
+       call iw_tooltip("Shortest center-vertex distance (Å)",ttshown)
+       call iw_text("to",alignframe=.true.,sameline=.true.)
+       ldum = iw_dragfloat_real8("##voidspolrmax",x1=w%vd%pol_rmax,speed=0.01d0,min=0d0,&
+          max=voids_pol_rmax_max,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,&
+          notlive=.true.,committed=changed,sameline=.true.)
+       if (changed) w%vd%pol_done = .false.
+       call iw_tooltip("Longest center-vertex distance (Å)",ttshown)
+       ! An inverted range selects no vertices at all, which looks like a
+       ! system with no polyhedra in it. Instead of letting the two cross, the
+       ! one the user moved pushes the other along. Which one moved is the one
+       ! whose value changed in this frame: a value typed into the ctrl+click
+       ! box is written without the widget reporting a drag, so the return of
+       ! the widget does not say
+       if (w%vd%pol_rmin > w%vd%pol_rmax) then
+          if (w%vd%pol_rmax /= rmaxold) then
+             w%vd%pol_rmin = w%vd%pol_rmax
+          else
+             w%vd%pol_rmax = w%vd%pol_rmin
+          end if
+       end if
+       if (iw_button("Reset##voidspolreset",sameline=.true.)) then
+          call reset_species()
+          w%vd%pol_done = .false.
+       end if
+       call iw_tooltip("Restore the defaults for this system: the species at the center and&
+          & corners, and the distance range",ttshown)
+
+       ldum = iw_checkbox("Visualize polyhedra##voidspolshow",w%vd%pol_show,labelleft=.true.)
+       call iw_tooltip("Draw the coordination polyhedra in the view",ttshown)
+    end if
+
     ! Show the polyhedra in the view. The transient representation lives
     ! for as long as this tab keeps re-arming it, so it goes away when the
     ! window is closed or another tab is selected
     hasview = (iview > 0)
     if (hasview) hasview = associated(win(iview)%sc)
-    ldum = iw_checkbox("Visualize polyhedra##voidspolshow",w%vd%pol_show)
-    call iw_tooltip("Draw the coordination polyhedra in the view",ttshown)
     if (w%vd%pol_show .and. hasview) &
        call win(iview)%sc%show_transient_polyhedra(w%uid,2,w%vd%pol_isc,w%vd%pol_isv,&
           w%vd%pol_rmin/bohrtoa,w%vd%pol_rmax/bohrtoa,ihighlight=ihighlight)
@@ -667,16 +698,17 @@ contains
     end if
 
     ! the results of the last run
-    if (w%vd%pol_done) then
-       call iw_text("Inside the polyhedra",highlight=.true.)
+    if (w%vd%pol_done) call iw_separatortext("Results",w%vd%pol_secres)
+    if (w%vd%pol_done .and. w%vd%pol_secres%open) then
+       call iw_text("Inside the polyhedra")
        call iw_text(string(w%vd%pol_vtot*fac3,'f',decimal=4) // " Å³ (" //&
           string(w%vd%pol_vtot/sys(isys)%c%omega*100d0,'f',decimal=2) // "% of the cell)",&
           sameline=.true.)
-       call iw_text("Outside the polyhedra",highlight=.true.)
+       call iw_text("Outside the polyhedra")
        call iw_text(string((sys(isys)%c%omega-w%vd%pol_vtot)*fac3,'f',decimal=4) // " Å³ (" //&
           string((1d0-w%vd%pol_vtot/sys(isys)%c%omega)*100d0,'f',decimal=2) // "% of the cell)",&
           sameline=.true.)
-       call iw_text("Cell volume",highlight=.true.)
+       call iw_text("Cell volume")
        call iw_text(string(sys(isys)%c%omega*fac3,'f',decimal=4) // " Å³",sameline=.true.)
        if (w%vd%pol_n == 0) then
           call iw_text("No coordination polyhedra were found in this distance range",&
@@ -938,7 +970,7 @@ contains
   subroutine draw_packing_tab(w,isys,iview,ttshown)
     use systems, only: sys, sysc
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
-       iw_checkbox, duration_string
+       iw_checkbox, duration_string, iw_separatortext
     use tools_io, only: string
     use param, only: atmvdw, atmcov, maxzat0
     type(window), intent(inout), target :: w
@@ -952,68 +984,75 @@ contains
     call tab_explanation("Calculate the size of the voids in the crystal from &
        &the volume of overlapping atomic spheres.")
 
-    ! which spheres the atoms are
-    call iw_text("Atomic radii",highlight=.true.,alignframe=.true.)
-    call iw_combo_simple("##voidspckradii","Van der Waals" // c_null_char // "Covalent" //&
-       c_null_char // "Half the nearest-neighbor distance" // c_null_char,w%vd%pck_radii,&
-       sameline=.true.,changed=changed)
-    if (changed) w%vd%pck_done = .false.
-    call iw_tooltip("Radius assigned to each atom (the spheres may overlap)",ttshown)
-
-    ! every radius is multiplied by this factor
-    call iw_text("Scale",alignframe=.true.)
-    scalechanged = iw_dragfloat_real8("##voidspckscale",x1=w%vd%pck_scale,speed=0.01d0,&
-       min=voids_pck_scale_min,max=voids_pck_scale_max,decimal=3,&
-       flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
-    if (scalechanged) w%vd%pck_done = .false.
-    call iw_tooltip("Factor multiplying the radius of every atom",ttshown)
-
     ! The nearest-neighbor spheres never overlap, so their volume is a sum
     ! and there is nothing to sample. Scaled up they do overlap, and the
     ! volume is sampled like it is for the other two radii
     ismc = pck_is_mc(w)
+    scalechanged = .false.
 
-    ! the Monte Carlo sampling stops when it reaches this relative error
-    call igBeginDisabled(logical(.not.ismc,c_bool))
-    call iw_text("Precision",highlight=.true.,alignframe=.true.)
-    if (iw_dragfloat_real8("##voidspckprec",x1=w%vd%pck_prec,speed=1d-3,min=1d-4,&
-       max=1d-1,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
-       w%vd%pck_done = .false.
-    call iw_tooltip("The volume covered by the spheres is calculated by Monte Carlo sampling,&
-       & which stops when the standard deviation of the volume divided by the volume itself&
-       & reaches this value. A smaller value takes longer",ttshown)
-    call igEndDisabled()
+    ! which spheres the atoms are
+    call iw_separatortext("Spheres",w%vd%pck_secform)
+    if (w%vd%pck_secform%open) then
+       call iw_text("Atomic radii",alignframe=.true.)
+       call iw_combo_simple("##voidspckradii","Van der Waals" // c_null_char // "Covalent" //&
+          c_null_char // "Half the nearest-neighbor distance" // c_null_char,w%vd%pck_radii,&
+          sameline=.true.,changed=changed)
+       if (changed) w%vd%pck_done = .false.
+       call iw_tooltip("Radius assigned to each atom (the spheres may overlap)",ttshown)
 
-    ! what the sampling is going to cost: the number of points it takes to
-    ! reach the requested precision times the measured cost of one point
-    tcost = -1d0
-    if (ismc) then
-       ! not while the scale slider is being dragged: the benchmark blocks
-       ! the frame and a drag crosses several measurement bands
-       if (.not.scalechanged) call measure_cost()
-       if (w%vd%pck_secs > 0d0) tcost = mc_npoints() * w%vd%pck_secs
+       ! every radius is multiplied by this factor
+       call iw_text("Scale",alignframe=.true.)
+       scalechanged = iw_dragfloat_real8("##voidspckscale",x1=w%vd%pck_scale,speed=0.01d0,&
+          min=voids_pck_scale_min,max=voids_pck_scale_max,decimal=3,&
+          flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+       if (scalechanged) w%vd%pck_done = .false.
+       call iw_tooltip("Factor multiplying the radius of every atom",ttshown)
+       if (changed .or. scalechanged) ismc = pck_is_mc(w)
+
+       ! the Monte Carlo sampling stops when it reaches this relative error
+       call igBeginDisabled(logical(.not.ismc,c_bool))
+       call iw_text("Precision",alignframe=.true.)
+       if (iw_dragfloat_real8("##voidspckprec",x1=w%vd%pck_prec,speed=1d-3,min=1d-4,&
+          max=1d-1,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
+          w%vd%pck_done = .false.
+       call iw_tooltip("The volume covered by the spheres is calculated by Monte Carlo sampling,&
+          & which stops when the standard deviation of the volume divided by the volume itself&
+          & reaches this value. A smaller value takes longer",ttshown)
+       call igEndDisabled()
+
+       ! what the sampling is going to cost: the number of points it takes to
+       ! reach the requested precision times the measured cost of one point
+       tcost = -1d0
+       if (ismc) then
+          ! not while the scale slider is being dragged: the benchmark blocks
+          ! the frame and a drag crosses several measurement bands
+          if (.not.scalechanged) call measure_cost()
+          if (w%vd%pck_secs > 0d0) tcost = mc_npoints() * w%vd%pck_secs
+       end if
+       expensive = (tcost > bigwarn_secs)
+
+       ! run the calculation
+       if (iw_button("Calculate##voidspckcalc",danger=.true.)) call request_packing()
+       call iw_tooltip("Calculate the volume covered by the atomic spheres and the empty space&
+          & left outside them",ttshown)
+       if (tcost > 0d0) &
+          call iw_text("(~" // duration_string(tcost) // ")",sameline=.true.,danger=expensive)
+
+       ldum = iw_checkbox("Visualize spheres##voidspckshow",w%vd%pck_show,labelleft=.true.)
+       call iw_tooltip("Draw the atomic spheres whose volume is measured in the view",ttshown)
     end if
-    expensive = (tcost > bigwarn_secs)
-
-    ! run the calculation
-    if (iw_button("Calculate##voidspckcalc",danger=.true.)) call request_packing()
-    call iw_tooltip("Calculate the volume covered by the atomic spheres and the empty space&
-       & left outside them",ttshown)
-    if (tcost > 0d0) &
-       call iw_text("(~" // duration_string(tcost) // ")",sameline=.true.,danger=expensive)
 
     ! Show the spheres in the view. The transient representation lives for
     ! as long as this tab keeps re-arming it, so it goes away when the
     ! window is closed or another tab is selected
     hasview = (iview > 0)
     if (hasview) hasview = associated(win(iview)%sc)
-    ldum = iw_checkbox("Visualize spheres##voidspckshow",w%vd%pck_show)
-    call iw_tooltip("Draw the atomic spheres whose volume is measured in the view",ttshown)
     if (w%vd%pck_show .and. hasview) &
        call win(iview)%sc%show_transient_spacefill(w%uid,3,nneq_radii())
 
     ! the results of the last run
-    if (w%vd%pck_done) then
+    if (w%vd%pck_done) call iw_separatortext("Results",w%vd%pck_secres)
+    if (w%vd%pck_done .and. w%vd%pck_secres%open) then
        vvoid = sys(isys)%c%omega - w%vd%pck_vfill
        ! vdw_volume samples until the standard deviation falls to this
        ! fraction of the volume; the nearest-neighbor spheres are summed
@@ -1021,15 +1060,15 @@ contains
        perr = 0d0
        if (ismc) perr = w%vd%pck_prec * w%vd%pck_vfill
 
-       call iw_text("Volume inside the spheres",highlight=.true.)
+       call iw_text("Volume inside the spheres")
        call iw_text(string(w%vd%pck_vfill*fac3,'f',decimal=4) // pmstring(perr*fac3) //&
           " Å³",sameline=.true.)
-       call iw_text("Void (interstitial) volume",highlight=.true.)
+       call iw_text("Void (interstitial) volume")
        call iw_text(string(vvoid*fac3,'f',decimal=4) // pmstring(perr*fac3) // " Å³",&
           sameline=.true.)
-       call iw_text("Cell volume",highlight=.true.)
+       call iw_text("Cell volume")
        call iw_text(string(sys(isys)%c%omega*fac3,'f',decimal=4) // " Å³",sameline=.true.)
-       call iw_text("Packing ratio",highlight=.true.)
+       call iw_text("Packing ratio")
        call iw_text(string(w%vd%pck_vfill/sys(isys)%c%omega*100d0,'f',decimal=4) //&
           pmstring(perr/sys(isys)%c%omega*100d0) // "%",sameline=.true.)
     end if
@@ -1220,7 +1259,6 @@ contains
     character(len=*), intent(in) :: str
 
     call iw_text(str,disabled=.true.,wrap=.true.)
-    call igSeparator()
 
   end subroutine tab_explanation
 

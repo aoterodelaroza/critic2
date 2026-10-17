@@ -35,14 +35,14 @@ contains
     use windows, only: wintype_dialog, wpurp_dialog_savefile
     use systems, only: sys, sysc, sys_init, ok_system
     use crystalmod, only: struct_detect_write_format
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_checkbox,&
        iw_combo_simple, iw_dragfloat_realc, iw_close_event, iw_setpos_bottomright,&
-       iw_inputtext, file_name_root
+       iw_inputtext, file_name_root, iw_separatortext
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string, uout
     class(window), intent(inout), target :: w
 
-    logical :: doquit, ok, okvalid, syschanged, changed, ismol, userk, usecell
+    logical :: doquit, ok, okvalid, syschanged, changed, ismol, userk, usecell, showopt
     integer :: isys, iview, iaux, ifmt, idetect
     logical(c_bool) :: ldum
 
@@ -73,21 +73,25 @@ contains
     end if
 
     ! file name: editable field plus browse button
-    call iw_text("File Name",highlight=.true.)
-    ldum = iw_inputtext("##saveasfile",bufsize=1023,texta=w%okfile,width=36)
-    call iw_tooltip("File the structure will be written to (with auto-detect,&
-       & the extension selects the format)",ttshown)
-    if (iw_button("Browse...",sameline=.true.)) &
-       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savefile,idparent=w%id,orraise=-1)
-    call iw_tooltip("Choose the file with a file browser",ttshown)
-    call w%okfile_warn_overwrite()
+    changed = .false.
+    call iw_separatortext("File",w%saveas_secfile)
+    if (w%saveas_secfile%open) then
+       call iw_text("File",alignframe=.true.)
+       ldum = iw_inputtext("##saveasfile",bufsize=1023,texta=w%okfile,width=36,sameline=.true.)
+       call iw_tooltip("File the structure will be written to (with auto-detect,&
+          & the extension selects the format)",ttshown)
+       if (iw_button("Browse...",sameline=.true.)) &
+          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savefile,idparent=w%id,orraise=-1)
+       call iw_tooltip("Choose the file with a file browser",ttshown)
+       call w%okfile_warn_overwrite()
 
-    ! format combo
-    call igPushItemWidth(iw_calcwidth(45,1))
-    call iw_combo_simple("Format##saveasformat",write_format_combostr,w%saveas_format,changed=changed)
-    call igPopItemWidth()
-    call iw_tooltip("File format for the written structure. If auto-detect,&
-       & the format is chosen based on the file extension",ttshown)
+       ! format combo
+       call iw_text("Format",alignframe=.true.)
+       call iw_combo_simple("##saveasformat",write_format_combostr,w%saveas_format,changed=changed,&
+          sameline=.true.)
+       call iw_tooltip("File format for the written structure. If auto-detect,&
+          & the format is chosen based on the file extension",ttshown)
+    end if
 
     ! if the user set a format, change the file extension to match it
     if (changed .and. w%saveas_format > 0) &
@@ -100,12 +104,14 @@ contains
        ifmt = idetect
        if (ifmt == isformat_w_unknown) ifmt = isformat_w_aimsin
        ! show the detected format below the combo
-       call iw_text("Detected:",highlight=.true.)
-       call iw_text(trim(fmtnames(ifmt)),sameline=.true.)
+       if (w%saveas_secfile%open) then
+          call iw_text("Detected:")
+          call iw_text(trim(fmtnames(ifmt)),sameline=.true.)
+       end if
     else
        ifmt = fmtperm(w%saveas_format)
        ! warn if the file extension does not match the selected format
-       if (idetect /= ifmt) &
+       if (idetect /= ifmt .and. w%saveas_secfile%open) &
           call iw_text("Extension does not match the selected format",danger=.true.,wrap=.true.)
     end if
 
@@ -121,8 +127,10 @@ contains
           ifmt == isformat_w_dftbp_gen .or. ifmt == isformat_w_dftbp_hsd) then
           ismol = sys(isys)%c%ismolecule
        end if
-       call iw_text("Format:",highlight=.true.)
-       call iw_text(trim(merge("molecule","crystal ",ismol)),sameline=.true.)
+       if (w%saveas_secfile%open) then
+          call iw_text("Structure:")
+          call iw_text(trim(merge("molecule","crystal ",ismol)),sameline=.true.)
+       end if
     end if
 
     ! the k-point grid (rklength) applies to espresso, CASTEP, and to
@@ -137,14 +145,18 @@ contains
     if (usecell) usecell = .not.sys(isys)%c%ismolecule
 
     ! options, only for the formats that support them
-    if (userk .or. usecell .or. ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
-       ifmt == isformat_w_shelx) &
-       call iw_text("Options",highlight=.true.)
+    showopt = userk .or. usecell .or. write_format_usesym(ifmt)
+    if (showopt) then
+       call iw_separatortext("Options",w%saveas_secopt)
+       showopt = w%saveas_secopt%open
+    end if
 
     ! k-point grid (rklength)
-    if (userk) then
-       ldum = iw_dragfloat_realc("RKlength##saveasrk",x1=w%saveas_rk,speed=1._c_float,&
-          min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+    if (userk .and. showopt) then
+       call iw_text("RKlength",alignframe=.true.)
+       ldum = iw_dragfloat_realc("##saveasrk",x1=w%saveas_rk,speed=1._c_float,&
+          min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,&
+          sameline=.true.)
        call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
        if (ifmt == isformat_w_aimsin) then
           call iw_text("K-point grid written to a companion _control file")
@@ -160,22 +172,21 @@ contains
     end if
 
     ! do not use symmetry
-    if (ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
-       ifmt == isformat_w_shelx) then
-       ldum = iw_checkbox("Do not use symmetry##saveasnosym",w%saveas_nosym)
+    if (write_format_usesym(ifmt) .and. showopt) then
+       ldum = iw_checkbox("Do not use symmetry##saveasnosym",w%saveas_nosym,labelleft=.true.)
        call iw_tooltip("Write the structure without using the space group symmetry (P1)",ttshown)
     end if
 
     ! Cartesian coordinates (crystals only; ismol is .false. when doquit)
-    if (ifmt == isformat_w_aimsin .and. .not.ismol .and. .not.doquit) then
-       ldum = iw_checkbox("Cartesian coordinates##saveascartesian",w%saveas_cartesian)
+    if (ifmt == isformat_w_aimsin .and. .not.ismol .and. .not.doquit .and. showopt) then
+       ldum = iw_checkbox("Cartesian coordinates##saveascartesian",w%saveas_cartesian,labelleft=.true.)
        call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
           & fractional coordinates (atom_frac)",ttshown)
     end if
 
     ! show the unit cell in the 3D model
-    if (usecell) then
-       ldum = iw_checkbox("Show unit cell##saveasdocell",w%saveas_docell)
+    if (usecell .and. showopt) then
+       ldum = iw_checkbox("Show unit cell##saveasdocell",w%saveas_docell,labelleft=.true.)
        call iw_tooltip("Draw the unit cell edges in the written 3D model file&
           & (same as the CELL option to WRITE)",ttshown)
     end if

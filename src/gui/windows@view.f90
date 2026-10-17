@@ -89,7 +89,7 @@ contains
     use utils, only: iw_table_headers_row, iw_calcheight, iw_calcwidth, iw_setposx_fromend, iw_coloredit, iw_menuitem,&
        iw_dragfloat_realc, iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton,&
        iw_icon_togglebutton, iw_table_column, iw_beginmenu, iw_periodicity_widget,&
-       iw_push_iconrow_frame, iw_pop_iconrow_frame, iw_iconbutton_height
+       iw_push_iconrow_frame, iw_pop_iconrow_frame, iw_iconbutton_height, iw_separatortext
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
@@ -382,7 +382,7 @@ contains
     if (ok) then
        if (associated(w%sc)) then
           ! projection mode
-          call iw_text("Projection",highlight=.true.)
+          call iw_separatortext("Projection")
           if (iw_radiobutton("Orthographic##projortho",bool=w%sc%isortho,boolval=.true.)) then
              call w%sc%update_projection_matrix()
              chrender = .true.
@@ -395,7 +395,7 @@ contains
           call iw_tooltip("Perspective projection, with distant objects appearing smaller",ttshown)
 
           ! camera position: align view axis
-          call iw_text("Camera Position",highlight=.true.)
+          call iw_separatortext("Camera position")
           istart = 1
           if (sys(w%isys)%c%ismolecule) istart = naxal_cryst + 1 ! molecules: Cartesian axes only
           do i = istart, naxal
@@ -406,7 +406,8 @@ contains
              call iw_tooltip("Align the camera along the " // trim(axal_kind(i)) // " " // axal_label(i) //&
                 " axis (" // trim(get_bind_keyname(axal_bind(i))) // ").",ttshown)
           end do
-          ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,speed=0.01_c_float,&
+          call iw_text("Reset distance",alignframe=.true.)
+          ch = iw_dragfloat_realc("##resetdistance",x1=w%sc%camresetdist,speed=0.01_c_float,&
              min=0.1_c_float,max=8.0_c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           if (ch) chrender = .true. ! constant-size labels and the gizmo depend on camresetdist
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
@@ -415,7 +416,7 @@ contains
           ! systems (only meaningful in the main view, which is the one that
           ! follows the tree selection)
           if (w%ismain) then
-             call iw_text("Camera Lock",highlight=.true.)
+             call iw_separatortext("Camera lock")
              if (iw_radiobutton("Lock All##camlock",int=lockbehavior,intval=2_c_int)) then
                 do k = 1, nsys
                    sysc(k)%sc%lockedcam = -1
@@ -445,8 +446,9 @@ contains
           end if
 
           ! background color
-          call iw_text("Background",highlight=.true.)
-          if (iw_coloredit("Color##bgcolor",rgb=w%sc%bgcolor)) then
+          call iw_separatortext("Background")
+          call iw_text("Color",alignframe=.true.)
+          if (iw_coloredit("##bgcolor",rgb=w%sc%bgcolor,sameline=.true.)) then
              chrender = .true.
              call note_undo("Change background color")
           end if
@@ -577,9 +579,9 @@ contains
           end if
 
           if (iw_menuitem("Axes")) &
-             call annot_draw_menu(w,reptype_axes)
-          call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes, and drag them into &
-             &place with the annotation toolbar",ttshown)
+             call w%add_rep_and_edit(reptype_axes,annot_flavor(reptype_axes))
+          call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes; the editor's toolbar &
+             &drags them into place",ttshown)
 
           if (iw_menuitem("Isosurface")) &
              call w%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
@@ -649,7 +651,7 @@ contains
     call iw_tooltip("Remove and modify the objects in the view",ttshown)
     if (ok) then
        if (associated(w%sc)) then
-          call iw_text("List of Objects",highlight=.true.,alignframe=.true.)
+          call iw_separatortext("Objects")
 
           ! set table style
           sz%x = 3._c_float
@@ -4972,26 +4974,18 @@ contains
 
   end subroutine annot_toggle
 
-  !> The Draw menu entry of the object type itype, one of annot_types,
-  !> in view w: show the annotation row and arm the tool on the button
-  !> of the type, whose first item goes to a new object. The axes,
-  !> which are drawn as soon as they exist, are made right away, with
-  !> the select tool armed on them.
+  !> The Draw menu entry of the object type itype, one of annot_types
+  !> (the axes have their own editor instead), in view w: show the
+  !> annotation row and arm the tool on the button of the type, whose
+  !> first item goes to a new object.
   subroutine annot_draw_menu(w,itype)
     class(window), intent(inout), target :: w
     integer, intent(in) :: itype
 
-    integer :: irep
-
     if (.not.associated(w%sc)) return
     if (w%sc%isinit == 0) call w%sc%init(w%isys)
     w%annot%shown = .true.
-    if (itype == reptype_axes) then
-       call w%sc%add_representation(itype,annot_flavor(itype),id=irep)
-       call w%annot_set_tool(itype,objtool_select,irep)
-    else
-       call w%annot_set_tool(itype,w%annot%face(annot_group(itype)),-1)
-    end if
+    call w%annot_set_tool(itype,w%annot%face(annot_group(itype)),-1)
 
   end subroutine annot_draw_menu
 

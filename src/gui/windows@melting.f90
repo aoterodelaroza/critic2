@@ -107,7 +107,7 @@ contains
 
     if (.not.doquit) then
        ! metal
-       call iw_text("Metal",highlight=.true.,alignframe=.true.)
+       call iw_text("Metal",alignframe=.true.)
        str1 = ""
        do im = 1, mt_nmetal
           str1 = str1 // trim(mt_sym(im)) // " ("
@@ -122,7 +122,7 @@ contains
        call iw_tooltip("Metal, its crystal structure, and its experimental melting point",ttshown)
 
        ! geometry
-       call iw_text("Geometry",highlight=.true.,alignframe=.true.)
+       call iw_text("Geometry",alignframe=.true.)
        ldum = iw_radiobutton("Slab",int=w%mt%igeom,intval=int(mtgeom_slab,c_int),sameline=.true.)
        call iw_tooltip("A periodic slab with a free surface on top; the two bottom layers are held &
           &fixed as a crystalline substrate",ttshown)
@@ -227,12 +227,12 @@ contains
 
              ! temperature: a slider (not a drag widget) as tall and wide as
              ! the window allows
-             call iw_text("Temperature",highlight=.true.)
+             call iw_text("Temperature",alignframe=.true.)
              call iw_text("(melts at " // mt_tstring(mt_tm(im),w%mt%itempunit) // ")",sameline=.true.)
              call mt_temperature_slider()
 
              ! units the temperatures are shown in
-             call iw_text("Units",highlight=.true.,alignframe=.true.)
+             call iw_text("Units",alignframe=.true.)
              do i = 0, mt_nunit-1
                 ldum = iw_radiobutton(trim(mt_uname(i)),int=w%mt%itempunit,intval=int(i,c_int),&
                    sameline=.true.)

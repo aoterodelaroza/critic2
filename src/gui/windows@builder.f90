@@ -591,9 +591,10 @@ contains
        call draw_ff_backend_combo(isys,"##builderrelaxmethod",15)
        call iw_tooltip("Method for the calculation of energies and forces",ttshown)
        call row_cursor_frame()
-       ldum = iw_dragfloat_real8("Fmax (eV/Å)##relaxfconv",x1=sysc(isys)%md%fconv,&
+       call iw_text("Fmax (eV/Å)",alignframe=.true.)
+       ldum = iw_dragfloat_real8("##relaxfconv",x1=sysc(isys)%md%fconv,&
           speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,&
-          flags=ImGuiSliderFlags_AlwaysClamp)
+          flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("Stop the relaxation when the maximum force falls below this value",ttshown)
        ! the EAM potential picker does not fit on the row: below it, at the icon column
        if (sysc(isys)%md_backend == ff_eam) then
@@ -608,7 +609,7 @@ contains
           call iw_text("Energy: "//string(sysc(isys)%md%epot,'f',decimal=6)//" Ha")
           call iw_text("Max force: "//string(sysc(isys)%md%maxforce(),'f',decimal=4)//" eV/Å")
           if (.not.sysc(isys)%md_run .and. sysc(isys)%md%converged()) &
-             call iw_text("(converged)",highlight=.true.,sameline=.true.)
+             call iw_text("(converged)",sameline=.true.)
        end if
 
        ! surface force-evaluation errors from the run
@@ -1208,14 +1209,13 @@ contains
          if (okat) then
             ! name the staged atom with the inert colored button the rest of
             ! the GUI identifies atoms with
-            call iw_text("First atom:",highlight=.true.,alignframe=.true.)
+            call iw_text("First atom",alignframe=.true.)
             ldum = draw_anchor_button(iview,isys,int(w%builder_bond%idx,c_int),&
                "##builderbondatom",sameline=.true.,inert=.true.)
             ! wrapped: the panel has no horizontal scrollbar, and this row is
             ! the widest one in it (the button frame, plus a lattice vector in
             ! a crystal). alignframe would be a no-op after sameline
-            call iw_text("(click the second one)",highlight=.true.,sameline=.true.,&
-               wrap=.true.)
+            call iw_text("(click the second one)",sameline=.true.,wrap=.true.)
          end if
       end if
 
@@ -1292,9 +1292,10 @@ contains
          ! bond type combo
          ibold = editdist_bondidx()
          ibnew = ibold
-         call iw_combo_simple("Bond##editdistbond","None"//c_null_char//"Single"//c_null_char//&
+         call iw_text("Bond",alignframe=.true.)
+         call iw_combo_simple("##editdistbond","None"//c_null_char//"Single"//c_null_char//&
             "Double"//c_null_char//"Triple"//c_null_char//"Dashed"//c_null_char//&
-            "Aromatic"//c_null_char,ibnew)
+            "Aromatic"//c_null_char,ibnew,sameline=.true.)
          call iw_tooltip("Type of the bond between the two atoms",ttshown)
          if (ibnew /= ibold) call editdist_setbond(ibold,ibnew)
 
@@ -1307,13 +1308,15 @@ contains
             call add_option(stropt,stip,"Translate atom","Move only this atom, along the bond")
             if (w%edit_fragok(iside)) call add_option(stropt,stip,"Translate fragment",&
                "Move this atom with the whole fragment attached to it")
-            call iw_combo_simple("Atom "//string(iside)//"##editdistmove"//string(iside),&
-               stropt,w%edit_imove(iside),tooltips=stip,ttshown=ttshown)
+            call iw_text("Atom "//string(iside),alignframe=.true.)
+            call iw_combo_simple("##editdistmove"//string(iside),&
+               stropt,w%edit_imove(iside),tooltips=stip,ttshown=ttshown,sameline=.true.)
          end do
 
          ! distance drag-float (bohr internally, shown in angstrom, no upper bound)
          dist = norm2(edit_pos(2) - edit_pos(1))
-         if (edit_drag("Distance (Å)##editdistdrag",dist,0.01d0,3,0.1d0,scal=bohrtoa)) &
+         call iw_text("Distance (Å)",alignframe=.true.)
+         if (edit_drag("##editdistdrag",dist,0.01d0,3,0.1d0,scal=bohrtoa)) &
             call editdist_apply(dist)
          call iw_tooltip("Distance between the two atoms (Å)",ttshown)
          call edit_apply_button("","distance")
@@ -1328,8 +1331,9 @@ contains
             & stay fixed)")
          if (w%edit_fragok(2)) call add_option(stropt,stip,"Translate group",&
             "Move the central atom with the whole group attached to it")
-         call iw_combo_simple("Atom 2 (center)##editangmove2",stropt,w%edit_imove(2),&
-            tooltips=stip,ttshown=ttshown)
+         call iw_text("Atom 2 (center)",alignframe=.true.)
+         call iw_combo_simple("##editangmove2",stropt,w%edit_imove(2),&
+            tooltips=stip,ttshown=ttshown,sameline=.true.)
          if (w%edit_imove(2) > 0) then
             w%edit_imove(1) = 0
             w%edit_imove(3) = 0
@@ -1344,14 +1348,16 @@ contains
             if (w%edit_fragok(iside)) call add_option(stropt,stip,"Rotate group",&
                "Rotate this atom with the whole group attached to it about the central atom")
             if (w%edit_imove(2) > 0) call igBeginDisabled(.true._c_bool)
-            call iw_combo_simple("Atom "//string(iside)//"##editangmove"//string(iside),&
-               stropt,w%edit_imove(iside),tooltips=stip,ttshown=ttshown)
+            call iw_text("Atom "//string(iside),alignframe=.true.)
+            call iw_combo_simple("##editangmove"//string(iside),&
+               stropt,w%edit_imove(iside),tooltips=stip,ttshown=ttshown,sameline=.true.)
             if (w%edit_imove(2) > 0) call igEndDisabled()
          end do
 
          ! angle drag-float (degrees)
          ang = editang_angat(edit_pos(2)) * 180d0 / pi
-         if (edit_drag("Angle (°)##editangdrag",ang,0.2d0,2,0d0,vmax=180d0)) &
+         call iw_text("Angle (°)",alignframe=.true.)
+         if (edit_drag("##editangdrag",ang,0.2d0,2,0d0,vmax=180d0)) &
             call editang_apply(ang)
          call iw_tooltip("Angle between the three atoms (degrees)",ttshown)
          call edit_apply_button("##editang","angle")
@@ -1384,14 +1390,16 @@ contains
             do imode = 1, nmode
                if (imodes(imode) == w%edit_imove(iside)) islot = imode - 1
             end do
-            call iw_combo_simple("Atom "//string(iside)//"##editdihmove"//string(iside),&
-               stropt,islot,tooltips=stip,ttshown=ttshown)
+            call iw_text("Atom "//string(iside),alignframe=.true.)
+            call iw_combo_simple("##editdihmove"//string(iside),&
+               stropt,islot,tooltips=stip,ttshown=ttshown,sameline=.true.)
             w%edit_imove(iside) = imodes(islot+1)
          end do
 
          ! dihedral drag-float (degrees)
          ang = editdih_val() * 180d0 / pi
-         if (edit_drag("Dihedral (°)##editdihdrag",ang,0.2d0,2,-180d0,vmax=180d0)) &
+         call iw_text("Dihedral (°)",alignframe=.true.)
+         if (edit_drag("##editdihdrag",ang,0.2d0,2,-180d0,vmax=180d0)) &
             call editdih_apply(ang)
          call iw_tooltip("Dihedral angle of the four atoms (degrees)",ttshown)
          call edit_apply_button("##editdih","dihedral")
@@ -1422,7 +1430,8 @@ contains
       locked = all(w%edit_imove == 0)
       if (locked) call igBeginDisabled(.true._c_bool)
       changed = iw_dragfloat_real8(strid,x1=val,speed=speed,min=vmin,max=vmax,scale=scal,&
-         decimal=dec,notlive=.true.,committed=lcommit,flags=ImGuiSliderFlags_AlwaysClamp)
+         decimal=dec,notlive=.true.,committed=lcommit,flags=ImGuiSliderFlags_AlwaysClamp,&
+         sameline=.true.)
       if (locked) then
          call igEndDisabled()
          changed = .false.
@@ -1438,13 +1447,16 @@ contains
       character(len=*), intent(in) :: strid, noun
 
       character(len=*), parameter :: natom(2:4) = (/"two  ","three","four "/)
+      character(len=:), allocatable :: str
 
+      ! the tooltip is built before the button: pressing it stops the
+      ! session and resets edit_kind
+      str = "Keep the current "//noun//" and release the "//trim(natom(w%edit_kind))//" atoms"
       if (iw_button("Apply"//strid,danger=.true.)) then
          w%errmsg = ""
          call w%edit_stop()
       end if
-      call iw_tooltip("Keep the current "//noun//" and release the "//&
-         trim(natom(w%edit_kind))//" atoms",ttshown)
+      call iw_tooltip(str,ttshown)
 
     end subroutine edit_apply_button
 

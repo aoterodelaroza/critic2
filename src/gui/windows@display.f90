@@ -27,7 +27,7 @@ contains
     use systems, only: sys, sysc, ok_system, sys_init
     use gui_main, only: ColorHighlightScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
-       iw_checkbox, iw_dragfloat_real8, iw_periodicity_widget
+       iw_checkbox, iw_dragfloat_real8, iw_periodicity_widget, iw_separatortext
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -55,21 +55,26 @@ contains
          ! the Show masks must describe this system before they are edited
          call disp%update(isys)
 
-         if (.not.sys(isys)%c%ismolecule) then
+         if (.not.sys(isys)%c%ismolecule) call iw_separatortext("Cell",w%display_seccell)
+         if (.not.sys(isys)%c%ismolecule .and. w%display_seccell%open) then
             ! periodicity (evaluate first: the widgets must be drawn even if
             ! changed is already true, and .or. is allowed to short-circuit)
             ch = iw_periodicity_widget(disp%ncell,ttshown)
             changed = changed .or. ch
 
             ! whole molecules and cell borders
-            changed = changed .or. iw_checkbox("Show connected molecules",disp%onemotif)
+            ch = iw_checkbox("Show connected molecules",disp%onemotif,labelleft=.true.)
+            changed = changed .or. ch
             call iw_tooltip("Translate atoms to display whole molecules",ttshown)
-            changed = changed .or. iw_checkbox("Show atoms at cell edges",disp%border,sameline=.true.)
+            ch = iw_checkbox("Show atoms at cell edges",disp%border,labelleft=.true.,gap=.true.)
+            changed = changed .or. ch
             call iw_tooltip("Display atoms near the unit cell edges",ttshown)
 
             ! origin of the cell region displayed
-            changed = changed .or. iw_dragfloat_real8("Cell Origin Shift (fractional)##origincell",&
-               x3=disp%tshift,speed=0.001d0,decimal=5)
+            call iw_text("Origin shift (fractional)",alignframe=.true.)
+            ch = iw_dragfloat_real8("##origincell",x3=disp%tshift,speed=0.001d0,decimal=5,&
+               sameline=.true.)
+            changed = changed .or. ch
             call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
          end if
 

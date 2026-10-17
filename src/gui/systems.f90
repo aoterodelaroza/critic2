@@ -648,12 +648,12 @@ module systems
        logical, intent(in), optional :: remove, merge, duplicate
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine edit_highlighted_species
-     module function attype_combo_simple(sysc,label,type,allowed,units)
+     module function attype_combo_simple(sysc,label,type,allowed,units,sameline)
        class(sysconf), intent(inout) :: sysc
        character(len=*), intent(in) :: label
        integer, intent(inout) :: type
        integer, intent(in) :: allowed(:)
-       logical, intent(in), optional :: units
+       logical, intent(in), optional :: units, sameline
        logical :: attype_combo_simple
      end function attype_combo_simple
      module function attype_number(sysc,type)

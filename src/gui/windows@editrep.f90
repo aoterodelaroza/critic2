@@ -105,12 +105,12 @@ contains
 
        ! name block (the representation type is fixed at creation and cannot be
        ! changed here)
-       call iw_text("Name",highlight=.true.,alignframe=.true.)
+       call iw_text("Name",alignframe=.true.)
        renamed = iw_inputtext("##nametextinput",bufsize=1023,texta=w%rep%name,width=30,sameline=.true.)
        call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox
-       changed = changed .or. iw_checkbox("Show",w%rep%shown,sameline=.true.)
+       changed = changed .or. iw_checkbox("Show##shownobject",w%rep%shown,labelleft=.true.,gap=.true.)
        call iw_tooltip("Toggle show/hide this object",ttshown)
 
        ! periodicity override (gradient paths: after their field, in
@@ -248,7 +248,7 @@ contains
     use systems, only: sys, sysc, atlisttype_species
     use gui_main, only: ColorHighlightScene, ColorElement
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button,&
-       iw_checkbox, iw_coloredit, iw_dragfloat_real8
+       iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_separatortext
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -264,92 +264,104 @@ contains
     changed = .false.
     isys = w%isys
 
-    ! global options for atoms
-    call iw_text("Global Options",highlight=.true.,alignframe=.true.)
-    if (iw_button("Reset##resetglobalatoms",sameline=.true.,danger=.true.)) then
-       call w%rep%set_defaults(1)
-       changed = .true.
-    end if
-    call iw_tooltip("Reset to the default settings for the atom representation")
-    call iw_combo_simple("Radii ##atomradiicombo","Covalent"//c_null_char//"Van der Waals"//c_null_char//&
-       "Constant"//c_null_char,w%rep%atoms%radii_type,changed=ch)
-    call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
+    ! the style of all atoms
+    call iw_separatortext("Style",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Radii",alignframe=.true.)
+       call iw_combo_simple("##atomradiicombo","Covalent"//c_null_char//"Van der Waals"//c_null_char//&
+          "Constant"//c_null_char,w%rep%atoms%radii_type,changed=ch,sameline=.true.)
+       call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
 
-    if (w%rep%atoms%radii_type == 2) then
-       ! constant size
-       ch = ch .or. iw_dragfloat_real8("Value##atomradii",x1=w%rep%atoms%radii_value,speed=0.01d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Atomic radii (Å)",ttshown)
+       if (w%rep%atoms%radii_type == 2) then
+          ! constant size
+          call iw_text("Value (Å)",alignframe=.true.,gap=.true.)
+          ch = ch .or. iw_dragfloat_real8("##atomradii",x1=w%rep%atoms%radii_value,speed=0.01d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Atomic radii (Å)",ttshown)
 
-       if (ch) then
-          w%rep%atoms%style%rad(1:w%rep%atoms%style%ntype) = w%rep%atoms%radii_value
-          changed = .true.
+          if (ch) then
+             w%rep%atoms%style%rad(1:w%rep%atoms%style%ntype) = w%rep%atoms%radii_value
+             changed = .true.
+          end if
+       else
+          ! variable size
+          call iw_text("Scale",alignframe=.true.,gap=.true.)
+          ch = ch .or. iw_dragfloat_real8("##atomradiiscale",x1=w%rep%atoms%radii_scale,speed=0.01d0,&
+             min=0d0,max=5d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
+
+          if (ch) then
+             do i = 1, w%rep%atoms%style%ntype
+                ispc = sysc(isys)%attype_species(w%rep%atoms%style%type,i)
+                iz = sys(isys)%c%spc(ispc)%z
+                if (w%rep%atoms%radii_type == 0) then
+                   w%rep%atoms%style%rad(i) = atmcov(iz)
+                else
+                   w%rep%atoms%style%rad(i) = atmvdw(iz)
+                end if
+                w%rep%atoms%style%rad(i) = w%rep%atoms%style%rad(i) * w%rep%atoms%radii_scale
+             end do
+             changed = .true.
+          end if
        end if
-    else
-       ! variable size
-       ch = ch .or. iw_dragfloat_real8("Scale##atomradiiscale",x1=w%rep%atoms%radii_scale,speed=0.01d0,&
-          min=0d0,max=5d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
 
+       ! style buttons: set color
+       call iw_text("Colors",alignframe=.true.)
+       call iw_combo_simple("##atomcolorselect","Current defaults" // c_null_char //&
+          "jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+          w%rep%atoms%color_type,changed=ch,sameline=.true.)
+       call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
        if (ch) then
           do i = 1, w%rep%atoms%style%ntype
              ispc = sysc(isys)%attype_species(w%rep%atoms%style%type,i)
              iz = sys(isys)%c%spc(ispc)%z
-             if (w%rep%atoms%radii_type == 0) then
-                w%rep%atoms%style%rad(i) = atmcov(iz)
+             if (w%rep%atoms%color_type == 0) then
+                w%rep%atoms%style%rgb(:,i) = ColorElement(:,iz)
+             elseif (w%rep%atoms%color_type == 1) then
+                w%rep%atoms%style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
              else
-                w%rep%atoms%style%rad(i) = atmvdw(iz)
+                w%rep%atoms%style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
              end if
-             w%rep%atoms%style%rad(i) = w%rep%atoms%style%rad(i) * w%rep%atoms%radii_scale
           end do
           changed = .true.
        end if
-    end if
 
-    ! style buttons: set color
-    call iw_combo_simple("Colors ##atomcolorselect","Current defaults" // c_null_char //&
-       "jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
-       w%rep%atoms%color_type,changed=ch)
-    call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
-    if (ch) then
-       do i = 1, w%rep%atoms%style%ntype
-          ispc = sysc(isys)%attype_species(w%rep%atoms%style%type,i)
-          iz = sys(isys)%c%spc(ispc)%z
-          if (w%rep%atoms%color_type == 0) then
-             w%rep%atoms%style%rgb(:,i) = ColorElement(:,iz)
-          elseif (w%rep%atoms%color_type == 1) then
-             w%rep%atoms%style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          else
-             w%rep%atoms%style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+       ! border size and color
+       call iw_text("Border size (Å)",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##atomborder",x1=w%rep%atoms%border_size,&
+          speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,&
+          flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Change the thickness of the atom borders",ttshown)
+       call iw_text("Border color",alignframe=.true.,gap=.true.)
+       changed = changed .or. iw_coloredit("##atombordercolor",rgb=w%rep%atoms%border_rgb,sameline=.true.)
+       call iw_tooltip("Color of the border for the atoms",ttshown)
+
+       ! the atoms at the centers of coordination polyhedra
+       changed = changed .or. iw_checkbox("Shrink atoms to fit inside polyhedra",w%rep%atoms%fitpoly,&
+          labelleft=.true.)
+       call iw_tooltip("Draw the atoms at the centers of the coordination polyhedra small &
+          &enough to fit inside them (but never smaller than about a third of their size)",ttshown)
+
+       ! occupancy sectors
+       if (sys(isys)%c%haveocc) then
+          changed = changed .or. iw_checkbox("Occupancy sectors",w%rep%atoms%occ_sectors,labelleft=.true.)
+          call iw_tooltip("Draw partially occupied sites as spheres with a filled "//&
+             "sector proportional to the occupancy",ttshown)
+          if (w%rep%atoms%occ_sectors) then
+             call iw_text("Vacancy color",alignframe=.true.,gap=.true.)
+             changed = changed .or. iw_coloredit("##atomvacancycolor",rgb=w%rep%atoms%occ_empty_rgb,&
+                sameline=.true.)
+             call iw_tooltip("Color of the sector corresponding to a vacancy drawn on partially occupied atoms",&
+                ttshown)
           end if
-       end do
-       changed = .true.
-    end if
-
-    ! border size
-    changed = changed .or. iw_dragfloat_real8("Border Size (Å)",x1=w%rep%atoms%border_size,&
-       speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Change the thickness of the atom borders",ttshown)
-
-    ! color
-    changed = changed .or. iw_coloredit("Border Color",rgb=w%rep%atoms%border_rgb,sameline=.true.)
-    call iw_tooltip("Color of the border for the atoms",ttshown)
-
-    ! the atoms at the centers of coordination polyhedra
-    changed = changed .or. iw_checkbox("Shrink atoms to fit inside polyhedra",w%rep%atoms%fitpoly)
-    call iw_tooltip("Draw the atoms at the centers of the coordination polyhedra small &
-       &enough to fit inside them (but never smaller than about a third of their size)",ttshown)
-
-    ! occupancy sectors
-    if (sys(isys)%c%haveocc) then
-       changed = changed .or. iw_checkbox("Occupancy sectors",w%rep%atoms%occ_sectors)
-       call iw_tooltip("Draw partially occupied sites as spheres with a filled "//&
-          "sector proportional to the occupancy",ttshown)
-       if (w%rep%atoms%occ_sectors) then
-          changed = changed .or. iw_coloredit("Vacancy color",rgb=w%rep%atoms%occ_empty_rgb,sameline=.true.)
-          call iw_tooltip("Color of the sector corresponding to a vacancy drawn on partially occupied atoms",&
-             ttshown)
        end if
+
+       ! reset the style
+       if (iw_button("Reset##resetglobalatoms",danger=.true.)) then
+          call w%rep%set_defaults(1)
+          changed = .true.
+       end if
+       call iw_tooltip("Reset the style of the atoms to the default settings",ttshown)
     end if
 
     ! the atom and molecule style tables (a change of grouping
@@ -378,7 +390,7 @@ contains
     use systems, only: sys
     use tools_io, only: string
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight, iw_checkbox, iw_coloredit,&
+       iw_radiobutton, iw_calcheight, iw_checkbox, iw_coloredit, iw_separatortext,&
        iw_dragfloat_real8, iw_table_column
     use param, only: atmcov0, newline, bohrtoa
     use global, only: bondfactor_def, bonddelta_def
@@ -404,263 +416,268 @@ contains
     changed = .false.
     isys = w%isys
 
-    call iw_text("Global Options",highlight=.true.,alignframe=.true.)
-    if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
-       call w%rep%set_defaults(2)
-       changed = .true.
-    end if
-    call iw_tooltip("Reset to the covalent bonding for this system and the default settings")
-
-    ! rest of the options (record changes)
+    ! the style of all bonds
+    call iw_separatortext("Style",w%editrep_sec(1))
     ch = .false.
-    call iw_text("Style",alignframe=.true.)
-    call iw_combo_simple("##tablebondstyleglobalselect",&
-       "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bonds%color_style,sameline=.true.,changed=ch,&
-       tooltips="Draw each bond in a single color, the bond color"//c_null_char//&
-       "Draw each bond in the colors of its two atoms, each on its side"//c_null_char,ttshown=ttshown)
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Style",alignframe=.true.)
+       call iw_combo_simple("##tablebondstyleglobalselect",&
+          "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bonds%color_style,sameline=.true.,changed=ch,&
+          tooltips="Draw each bond in a single color, the bond color"//c_null_char//&
+          "Draw each bond in the colors of its two atoms, each on its side"//c_null_char,ttshown=ttshown)
 
-    call iw_text(" Radius (Å)",sameline=.true.)
-    ch = ch .or. iw_dragfloat_real8("##radiusbondtableglobal",x1=w%rep%bonds%rad,speed=0.005d0,&
-       min=0d0,max=2d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the bonds",ttshown)
+       call iw_text("Radius (Å)",alignframe=.true.,gap=.true.)
+       ch = ch .or. iw_dragfloat_real8("##radiusbondtableglobal",x1=w%rep%bonds%rad,speed=0.005d0,&
+          min=0d0,max=2d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radius of the bonds",ttshown)
 
-    ! border size
-    ch = ch .or. iw_dragfloat_real8("Border Size (Å)",x1=w%rep%bonds%border_size,speed=0.002d0,&
-       min=0d0,max=1d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Change the thickness of the bond borders",ttshown)
+       ! border size and color
+       call iw_text("Border size (Å)",alignframe=.true.)
+       ch = ch .or. iw_dragfloat_real8("##bondborder",x1=w%rep%bonds%border_size,speed=0.002d0,&
+          min=0d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Change the thickness of the bond borders",ttshown)
+       call iw_text("Border color",alignframe=.true.,gap=.true.)
+       ch = ch .or. iw_coloredit("##bondbordercolor",rgb=w%rep%bonds%border_rgb,sameline=.true.)
+       call iw_tooltip("Color of the border for the bonds",ttshown)
 
-    ! color
-    ch = ch .or. iw_coloredit("Border Color",rgb=w%rep%bonds%border_rgb,sameline=.true.)
-    call iw_tooltip("Color of the border for the bonds",ttshown)
+       ! color
+       call iw_text("Color",alignframe=.true.)
+       ch = ch .or. iw_coloredit("##colorbondtableglobal",rgb=w%rep%bonds%rgb,sameline=.true.)
+       call iw_tooltip("Color of the bonds",ttshown)
 
-    ! color
-    call iw_text("Color",alignframe=.true.)
-    ch = ch .or. iw_coloredit("##colorbondtableglobal",rgb=w%rep%bonds%rgb,sameline=.true.)
-    call iw_tooltip("Color of the bonds",ttshown)
+       ! order
+       call iw_text("Order",alignframe=.true.,gap=.true.)
+       call iw_combo_simple("##tablebondorderselectglobal",&
+          "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char//&
+          "Calculated"//c_null_char,&
+          w%rep%bonds%order,sameline=.true.,changed=ldum)
+       ch = ch .or. ldum
+       call iw_tooltip("Bond order: a fixed order for all bonds (dashed, single, double, triple) or the&
+          & order determined by critic2 for each bond (calculated)",ttshown)
 
-    ! order
-    call iw_text(" Order",sameline=.true.)
-    call iw_combo_simple("##tablebondorderselectglobal",&
-       "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char//&
-       "Calculated"//c_null_char,&
-       w%rep%bonds%order,sameline=.true.,changed=ldum)
-    ch = ch .or. ldum
-    call iw_tooltip("Bond order: a fixed order for all bonds (dashed, single, double, triple) or the&
-       & order determined by critic2 for each bond (calculated)",ttshown)
+       ! both atoms
+       ch = ch .or. iw_checkbox("Both atoms##bothatomstableglobal",w%rep%bonds%bothends,labelleft=.true.,&
+          gap=.true.)
+       call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
+          &one end-atom is in the scene (unchecked)",ttshown)
 
-    ! both atoms
-    call iw_text(" Both Atoms",sameline=.true.)
-    ch = ch .or. iw_checkbox("##bothatomstableglobal",w%rep%bonds%bothends,sameline=.true.)
-    call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
-       &one end-atom is in the scene (unchecked)",ttshown)
+       ! Jeffrey-Steiner hydrogen-bond strength classification
+       ch = ch .or. iw_checkbox("Hydrogen bonds##hbondclassify",w%rep%bonds%hbond_classify,labelleft=.true.)
+       call iw_tooltip("Represent only hydrogen bonds and color them by their Jeffrey-Steiner strength.",ttshown)
 
-    ! Jeffrey-Steiner hydrogen-bond strength classification
-    call iw_text("Hydrogen bonds",alignframe=.true.)
-    ch = ch .or. iw_checkbox("##hbondclassify",w%rep%bonds%hbond_classify,sameline=.true.)
-    call iw_tooltip("Represent only hydrogen bonds and color them by their Jeffrey-Steiner strength.",ttshown)
+       if (w%rep%bonds%hbond_classify) then
+          call iw_text("Strong",alignframe=.true.)
+          ch = ch .or. iw_coloredit("##hbstrongcolor",rgb=w%rep%bonds%hbond_rgb(:,1),sameline=.true.)
+          call iw_text("Moderate",alignframe=.true.,gap=.true.)
+          ch = ch .or. iw_coloredit("##hbmodcolor",rgb=w%rep%bonds%hbond_rgb(:,2),sameline=.true.)
+          call iw_text("Weak",alignframe=.true.,gap=.true.)
+          ch = ch .or. iw_coloredit("##hbweakcolor",rgb=w%rep%bonds%hbond_rgb(:,3),sameline=.true.)
 
-    if (w%rep%bonds%hbond_classify) then
-       ch = ch .or. iw_coloredit("Strong##hbstrongcolor",rgb=w%rep%bonds%hbond_rgb(:,1))
-       ch = ch .or. iw_coloredit("Moderate##hbmodcolor",rgb=w%rep%bonds%hbond_rgb(:,2),sameline=.true.)
-       ch = ch .or. iw_coloredit("Weak##hbweakcolor",rgb=w%rep%bonds%hbond_rgb(:,3),sameline=.true.)
+          call iw_text("H...A distance (Å)",alignframe=.true.)
+          ch = ch .or. iw_dragfloat_real8("strong|moderate##hbdist1",x1=w%rep%bonds%hbond_dist(1),speed=0.01d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("H...A distance class boundaries",ttshown)
+          ch = ch .or. iw_dragfloat_real8("moderate|weak##hbdist2",x1=w%rep%bonds%hbond_dist(2),speed=0.01d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("H...A distance class boundaries",ttshown)
 
-       call iw_text("H...A Distance (Å)",alignframe=.true.)
-       ch = ch .or. iw_dragfloat_real8("strong|moderate##hbdist1",x1=w%rep%bonds%hbond_dist(1),speed=0.01d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("H...A distance class boundaries",ttshown)
-       ch = ch .or. iw_dragfloat_real8("moderate|weak##hbdist2",x1=w%rep%bonds%hbond_dist(2),speed=0.01d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("H...A distance class boundaries",ttshown)
-
-       call iw_text("D-H...A Angle (°)",alignframe=.true.)
-       ch = ch .or. iw_dragfloat_real8("weak|moderate##hbang1",x1=w%rep%bonds%hbond_ang(1),speed=0.5d0,&
-          min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("D-H...A angle class boundaries",ttshown)
-       ch = ch .or. iw_dragfloat_real8("moderate|strong##hbang2",x1=w%rep%bonds%hbond_ang(2),speed=0.5d0,&
-          min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("D-H...A angle class boundaries",ttshown)
-    end if
-
-    call iw_text("Atom Pair Selection",highlight=.true.)
-
-    nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    str1="##tablespeciesbonding" // c_null_char
-    sz%x = iw_calcwidth(17,3)
-    sz%y = iw_calcheight(nspcpair,0,.false.)
-    if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
-       ! header setup
-       call iw_table_column("Atom 1",id=ic_sp1,flags=ImGuiTableColumnFlags_WidthFixed)
-
-       call iw_table_column("Atom 2",id=ic_sp2,flags=ImGuiTableColumnFlags_WidthFixed)
-
-       call iw_table_column("Show",id=ic_shown,flags=ImGuiTableColumnFlags_WidthFixed)
-
-       ! draw the header
-       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
-
-       ! start the clipper
-       nrow = sys(isys)%c%nspc * (sys(isys)%c%nspc + 1) / 2
-       clipper = ImGuiListClipper_ImGuiListClipper()
-       call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
-       allocate(indi(nrow),indj(nrow))
-       k = 0
-       do i = 1, sys(isys)%c%nspc
-          do j = i, sys(isys)%c%nspc
-             k = k + 1
-             indi(k) = i
-             indj(k) = j
-          end do
-       end do
-
-       ! draw the rows
-       do while(ImGuiListClipper_Step(clipper))
-          call c_f_pointer(clipper,clipper_f)
-          do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-             i = indi(k)
-             j = indj(k)
-
-             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             suffix = "_" // string(i) // "_" // string(j)
-
-             ! species
-             if (igTableSetColumnIndex(ic_sp1)) then
-                call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
-             end if
-             if (igTableSetColumnIndex(ic_sp2)) &
-                call iw_text(trim(sys(isys)%c%spc(j)%name))
-
-             ! shown
-             if (igTableSetColumnIndex(ic_shown)) then
-                if (iw_checkbox("##bondtableshown" // suffix,w%rep%bonds%style%shown(i,j))) then
-                   ch = .true.
-                   w%rep%bonds%style%shown(j,i) = w%rep%bonds%style%shown(i,j)
-                end if
-                call iw_tooltip("Toggle display of bonds connecting these atom types",ttshown)
-             end if
-          end do ! clipper range
-       end do ! clipper step
-
-       ! end the clipper and the table
-       deallocate(indi,indj)
-       call ImGuiListClipper_End(clipper)
-       call ImGuiListClipper_destroy(clipper)
-       call igEndTable()
-    end if ! begintable
-
-    ! style buttons: show/hide
-    if (iw_button("Show All##showallbonds")) then
-       w%rep%bonds%style%shown = .true.
-       ch = .true.
-    end if
-    call iw_tooltip("Show all bonds in the system",ttshown)
-    if (iw_button("Hide All##hideallbonds",sameline=.true.)) then
-       w%rep%bonds%style%shown = .false.
-       ch = .true.
-    end if
-    call iw_tooltip("Hide all bonds in the system",ttshown)
-    if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
-       do i = 1, sys(isys)%c%nspc
-          do j = i, sys(isys)%c%nspc
-             w%rep%bonds%style%shown(j,i) = .not.w%rep%bonds%style%shown(j,i)
-             w%rep%bonds%style%shown(i,j) = w%rep%bonds%style%shown(j,i)
-          end do
-       end do
-       ch = .true.
-    end if
-    call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
-
-    !! recalculate bonds block !!
-    call iw_text("Recalculate Bonds",highlight=.true.)
-
-    ! choose between the system's bonds and per-representation custom bonds
-    if (iw_radiobutton("System bonds",bool=w%rep%bonds%style%use_sys_nstar,boolval=.true.)) then
-       ! switched back to system bonds: re-read the system connectivity and redraw
-       call w%rep%bonds%style%copy_neighstars_from_system(w%rep%id)
-       changed = .true.
-    end if
-    call iw_tooltip("Draw the bonds calculated for the system. Use view/edit geometry window to modify.",ttshown)
-    ldum = iw_radiobutton("Custom bonds",bool=w%rep%bonds%style%use_sys_nstar,boolval=.false.,sameline=.true.)
-    call iw_tooltip("Draw bonds computed for this representation with custom distance criteria",ttshown)
-
-    ! recalculation controls, only shown for custom bonds (same
-    ! criteria as the geometry window's Recalculate Bonds section)
-    if (.not.w%rep%bonds%style%use_sys_nstar) then
-       ! explanation of the bonding criteria
-       call iw_text("Atoms A and B are bonded if:")
-       call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
-          "  A or B metal:       d < d_NN + δ"//newline//&
-          "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
-
-       ! per-species covalent radii table
-       flags = ImGuiTableFlags_None
-       flags = ior(flags,ImGuiTableFlags_Resizable)
-       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-       flags = ior(flags,ImGuiTableFlags_ScrollY)
-       flags = ior(flags,ImGuiTableFlags_ScrollX)
-       flags = ior(flags,ImGuiTableFlags_Borders)
-       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-       str1 = "##tableatomrcov_editrep" // c_null_char
-       sz%x = 0
-       sz%y = iw_calcheight(min(5,sys(isys)%c%nspc)+1,0,.false.)
-       if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
-          call iw_table_column("Atom",id=0)
-          call iw_table_column("Z",id=1)
-          call iw_table_column("Radius (Å)",id=2)
-          call iw_table_headers_row(freezetop=.true.)
-
-          do i = 1, sys(isys)%c%nspc
-             iz = sys(isys)%c%spc(i)%z
-             if (iz <= 0) cycle
-             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             if (igTableSetColumnIndex(0)) then
-                call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
-             end if
-             if (igTableSetColumnIndex(1)) then
-                call iw_text(string(iz),alignframe=.true.)
-             end if
-             if (igTableSetColumnIndex(2)) then
-                ldum = iw_dragfloat_real8("##tableradius_editrep" // string(i),x1=w%rep%bonds%atmrad(iz),&
-                   speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
-                   flags=ImGuiSliderFlags_AlwaysClamp)
-             end if
-          end do
-          call igEndTable()
+          call iw_text("D-H...A angle (°)",alignframe=.true.)
+          ch = ch .or. iw_dragfloat_real8("weak|moderate##hbang1",x1=w%rep%bonds%hbond_ang(1),speed=0.5d0,&
+             min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("D-H...A angle class boundaries",ttshown)
+          ch = ch .or. iw_dragfloat_real8("moderate|strong##hbang2",x1=w%rep%bonds%hbond_ang(2),speed=0.5d0,&
+             min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("D-H...A angle class boundaries",ttshown)
        end if
 
-       ! bond factor and bond delta
-       call igAlignTextToFramePadding()
-       ldum = iw_dragfloat_real8("Bond factor (f)##bondfactor_editrep",x1=w%rep%bonds%bfactor,&
-          speed=0.001d0,min=1d0,max=4d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Bond factor parameter (multiplicative) for non-metal bonding (see formula above)",ttshown)
-       call iw_text(" ",sameline=.true.)
-       ldum = iw_dragfloat_real8("Bond delta δ (Å)##bonddelta_editrep",x1=w%rep%bonds%bdelta,&
-          speed=0.001d0,min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,&
-          flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Distance tolerance (additive) for metal bonding (see formula above)",ttshown)
-       call iw_text(" ",sameline=.true.)
-
-       ! reset button (same line as the factor/delta drags)
-       if (iw_button("Reset##resetcustombond",sameline=.true.)) then
-          w%rep%bonds%atmrad = atmcov0
-          w%rep%bonds%bfactor = bondfactor_def
-          w%rep%bonds%bdelta = bonddelta_def
-       end if
-       call iw_tooltip("Reset covalent radii, bond factor, and bond delta to defaults",ttshown)
-
-       ! apply button
-       if (iw_button("Apply##applyglobal",danger=.true.)) then
-          call w%rep%bonds%style%generate_neighstars(w%rep)
+       ! reset the style and the bonds
+       if (iw_button("Reset##resetglobal",danger=.true.)) then
+          call w%rep%set_defaults(2)
           changed = .true.
        end if
-       call iw_tooltip("Recalculate and draw bonds using the criteria above",ttshown)
+       call iw_tooltip("Reset to the covalent bonding for this system and the default settings",ttshown)
     end if
 
+    ! the atom pairs whose bonds are shown
+    call iw_separatortext("Atom pairs",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1="##tablespeciesbonding" // c_null_char
+       sz%x = iw_calcwidth(17,3)
+       sz%y = iw_calcheight(nspcpair,0,.false.)
+       if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+          ! header setup
+          call iw_table_column("Atom 1",id=ic_sp1,flags=ImGuiTableColumnFlags_WidthFixed)
+
+          call iw_table_column("Atom 2",id=ic_sp2,flags=ImGuiTableColumnFlags_WidthFixed)
+
+          call iw_table_column("Show",id=ic_shown,flags=ImGuiTableColumnFlags_WidthFixed)
+
+          ! draw the header
+          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+
+          ! start the clipper
+          nrow = sys(isys)%c%nspc * (sys(isys)%c%nspc + 1) / 2
+          clipper = ImGuiListClipper_ImGuiListClipper()
+          call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+          allocate(indi(nrow),indj(nrow))
+          k = 0
+          do i = 1, sys(isys)%c%nspc
+             do j = i, sys(isys)%c%nspc
+                k = k + 1
+                indi(k) = i
+                indj(k) = j
+             end do
+          end do
+
+          ! draw the rows
+          do while(ImGuiListClipper_Step(clipper))
+             call c_f_pointer(clipper,clipper_f)
+             do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                i = indi(k)
+                j = indj(k)
+
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                suffix = "_" // string(i) // "_" // string(j)
+
+                ! species
+                if (igTableSetColumnIndex(ic_sp1)) then
+                   call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
+                end if
+                if (igTableSetColumnIndex(ic_sp2)) &
+                   call iw_text(trim(sys(isys)%c%spc(j)%name))
+
+                ! shown
+                if (igTableSetColumnIndex(ic_shown)) then
+                   if (iw_checkbox("##bondtableshown" // suffix,w%rep%bonds%style%shown(i,j))) then
+                      ch = .true.
+                      w%rep%bonds%style%shown(j,i) = w%rep%bonds%style%shown(i,j)
+                   end if
+                   call iw_tooltip("Toggle display of bonds connecting these atom types",ttshown)
+                end if
+             end do ! clipper range
+          end do ! clipper step
+
+          ! end the clipper and the table
+          deallocate(indi,indj)
+          call ImGuiListClipper_End(clipper)
+          call ImGuiListClipper_destroy(clipper)
+          call igEndTable()
+       end if ! begintable
+
+       ! style buttons: show/hide
+       if (iw_button("Show All##showallbonds")) then
+          w%rep%bonds%style%shown = .true.
+          ch = .true.
+       end if
+       call iw_tooltip("Show all bonds in the system",ttshown)
+       if (iw_button("Hide All##hideallbonds",sameline=.true.)) then
+          w%rep%bonds%style%shown = .false.
+          ch = .true.
+       end if
+       call iw_tooltip("Hide all bonds in the system",ttshown)
+       if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
+          do i = 1, sys(isys)%c%nspc
+             do j = i, sys(isys)%c%nspc
+                w%rep%bonds%style%shown(j,i) = .not.w%rep%bonds%style%shown(j,i)
+                w%rep%bonds%style%shown(i,j) = w%rep%bonds%style%shown(j,i)
+             end do
+          end do
+          ch = .true.
+       end if
+       call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
+    end if
+
+    !! recalculate bonds block !!
+    call iw_separatortext("Bond calculation",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       ! choose between the system's bonds and per-representation custom bonds
+       call iw_text("Bonds",alignframe=.true.)
+       if (iw_radiobutton("System",bool=w%rep%bonds%style%use_sys_nstar,boolval=.true.,sameline=.true.)) then
+          ! switched back to system bonds: re-read the system connectivity and redraw
+          call w%rep%bonds%style%copy_neighstars_from_system(w%rep%id)
+          changed = .true.
+       end if
+       call iw_tooltip("Draw the bonds calculated for the system. Use view/edit geometry window to modify.",ttshown)
+       ldum = iw_radiobutton("Custom",bool=w%rep%bonds%style%use_sys_nstar,boolval=.false.,sameline=.true.)
+       call iw_tooltip("Draw bonds computed for this representation with custom distance criteria",ttshown)
+
+       ! recalculation controls, only shown for custom bonds (same
+       ! criteria as the geometry window's Recalculate Bonds section)
+       if (.not.w%rep%bonds%style%use_sys_nstar) then
+          ! explanation of the bonding criteria
+          call iw_text("Atoms A and B are bonded if:")
+          call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
+             "  A or B metal:       d < d_NN + δ"//newline//&
+             "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
+
+          ! per-species covalent radii table
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_ScrollX)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          str1 = "##tableatomrcov_editrep" // c_null_char
+          sz%x = 0
+          sz%y = iw_calcheight(min(5,sys(isys)%c%nspc)+1,0,.false.)
+          if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+             call iw_table_column("Atom",id=0)
+             call iw_table_column("Z",id=1)
+             call iw_table_column("Radius (Å)",id=2)
+             call iw_table_headers_row(freezetop=.true.)
+
+             do i = 1, sys(isys)%c%nspc
+                iz = sys(isys)%c%spc(i)%z
+                if (iz <= 0) cycle
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                if (igTableSetColumnIndex(0)) then
+                   call iw_text(trim(sys(isys)%c%spc(i)%name),alignframe=.true.)
+                end if
+                if (igTableSetColumnIndex(1)) then
+                   call iw_text(string(iz),alignframe=.true.)
+                end if
+                if (igTableSetColumnIndex(2)) then
+                   ldum = iw_dragfloat_real8("##tableradius_editrep" // string(i),x1=w%rep%bonds%atmrad(iz),&
+                      speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
+                      flags=ImGuiSliderFlags_AlwaysClamp)
+                end if
+             end do
+             call igEndTable()
+          end if
+
+          ! bond factor and bond delta
+          call iw_text("Bond factor (f)",alignframe=.true.)
+          ldum = iw_dragfloat_real8("##bondfactor_editrep",x1=w%rep%bonds%bfactor,&
+             speed=0.001d0,min=1d0,max=4d0,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Bond factor parameter (multiplicative) for non-metal bonding (see formula above)",ttshown)
+          call iw_text("Bond delta δ (Å)",alignframe=.true.,gap=.true.)
+          ldum = iw_dragfloat_real8("##bonddelta_editrep",x1=w%rep%bonds%bdelta,&
+             speed=0.001d0,min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,&
+             flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Distance tolerance (additive) for metal bonding (see formula above)",ttshown)
+
+          ! apply and reset buttons
+          if (iw_button("Apply##applyglobal",danger=.true.)) then
+             call w%rep%bonds%style%generate_neighstars(w%rep)
+             changed = .true.
+          end if
+          call iw_tooltip("Recalculate and draw bonds using the criteria above",ttshown)
+          if (iw_button("Reset##resetcustombond",sameline=.true.)) then
+             w%rep%bonds%atmrad = atmcov0
+             w%rep%bonds%bfactor = bondfactor_def
+             w%rep%bonds%bdelta = bonddelta_def
+          end if
+          call iw_tooltip("Reset covalent radii, bond factor, and bond delta to defaults",ttshown)
+       end if
+    end if
     ! immediately update if non-distances have changed
     if (ch) changed = .true.
 
@@ -675,7 +692,7 @@ contains
     use tools_io, only: string
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox, iw_coloredit, iw_highlight_selectable,&
-       iw_dragfloat_real8, iw_inputtext, iw_table_column, iw_field_combo
+       iw_dragfloat_real8, iw_inputtext, iw_table_column, iw_field_combo, iw_separatortext
     use representations, only: cps_field, cps_abbrev
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -699,72 +716,77 @@ contains
     changed = .false.
     isys = w%isys
 
-    call iw_text("Global Options",highlight=.true.,alignframe=.true.)
-    if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
-       w%rep%labels%type = 0
-       call w%rep%set_defaults(3)
-       call w%rep%labels%style%reset(w%rep)
-       changed = .true.
-    end if
-    call iw_tooltip("Reset to the labels to the default settings")
+    ! the style of all labels
+    call iw_separatortext("Style",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Text",alignframe=.true.)
+       if (sys(isys)%c%ismolecule) then
+          lst = lsttrans(w%rep%labels%type)
+          call iw_combo_simple("##labelcontentselect","Atomic symbol"//c_null_char//&
+             "Atom name"// c_null_char//"Atom ID"// c_null_char//&
+             "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
+             lst,changed=ch,sameline=.true.)
+          w%rep%labels%type = lsttransi(lst)
+       else
+          call iw_combo_simple("##labelcontentselect","Atomic symbol"//c_null_char//&
+             "Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
+             "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
+             "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
+             "Wyckoff position"//c_null_char,&
+             w%rep%labels%type,changed=ch,sameline=.true.)
+       end if
+       if (ch) call w%rep%labels%style%reset(w%rep)
+       call iw_tooltip("Text to display in the atom labels",ttshown)
+       changed = changed .or. ch
 
-    if (sys(isys)%c%ismolecule) then
-       lst = lsttrans(w%rep%labels%type)
-       call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
-          "Atom name"// c_null_char//"Atom ID"// c_null_char//&
-          "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
-          lst,changed=ch)
-       w%rep%labels%type = lsttransi(lst)
-    else
-       call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
-          "Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
-          "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
-          "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
-          "Wyckoff position"//c_null_char,&
-          w%rep%labels%type,changed=ch)
-    end if
-    if (ch) call w%rep%labels%style%reset(w%rep)
-    call iw_tooltip("Text to display in the atom labels",ttshown)
-    changed = changed .or. ch
+       ! scale, constant size, color
+       call iw_text("Scale",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##labelscale",x1=w%rep%labels%scale,speed=0.01d0,&
+          min=0d0,max=10d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Scale factor for the atom labels",ttshown)
 
-    ! scale, constant size, color
-    changed = changed .or. iw_dragfloat_real8("Scale##labelscale",x1=w%rep%labels%scale,speed=0.01d0,&
-       min=0d0,max=10d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Scale factor for the atom labels",ttshown)
+       changed = changed .or. iw_checkbox("Constant size##labelconstsize",&
+          w%rep%labels%const_size,labelleft=.true.,gap=.true.)
+       call iw_tooltip("Labels have constant size (on) or labels scale with the&
+          & size of the associated atom (off)",ttshown)
 
-    changed = changed .or. iw_checkbox("Constant size##labelconstsize",&
-       w%rep%labels%const_size,sameline=.true.)
-    call iw_tooltip("Labels have constant size (on) or labels scale with the&
-       & size of the associated atom (off)",ttshown)
+       call iw_text("Color",alignframe=.true.,gap=.true.)
+       changed = changed .or. iw_coloredit("##labelcolor",rgb=w%rep%labels%rgb,sameline=.true.)
+       call iw_tooltip("Color of the atom labels",ttshown)
 
-    changed = changed .or. iw_coloredit("Color##labelcolor",rgb=w%rep%labels%rgb,sameline=.true.)
-    call iw_tooltip("Color of the atom labels",ttshown)
+       ! offset
+       call iw_text("Offset (Å)",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##labeloffset",x3=w%rep%labels%offset,&
+          speed=0.001d0,min=99.999d0,max=99.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
 
-    ! offset
-    changed = changed .or. iw_dragfloat_real8("Offset (Å)",x3=w%rep%labels%offset,&
-       speed=0.001d0,min=99.999d0,max=99.999d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
+       ! field whose critical points are labeled, if any field has them
+       ! and the label type has CP rows (the rows follow in update_styles)
+       if (any(w%rep%labels%type == (/0,1,2,3,4,8/)) .and. cps_field(isys) >= 0) then
+          call iw_text("Critical points of",alignframe=.true.)
+          ifield = w%rep%labels%fref%id
+          if (iw_field_combo("##labelcpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+             nonestr="<field not available>",sameline=.true.)) then
+             call w%rep%labels%fref%set(sys(isys),ifield)
+             changed = .true.
+          end if
+          call iw_tooltip("Field whose critical points can be labeled (rows below the atoms in the table)",ttshown)
 
-    ! field whose critical points are labeled, if any field has them
-    ! and the label type has CP rows (the rows follow in update_styles)
-    if (any(w%rep%labels%type == (/0,1,2,3,4,8/)) .and. cps_field(isys) >= 0) then
-       call iw_text("Critical points of",alignframe=.true.)
-       call igSameLine(0._c_float,-1._c_float)
-       ifield = w%rep%labels%fref%id
-       if (iw_field_combo("##labelcpfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-          nonestr="<field not available>")) then
-          call w%rep%labels%fref%set(sys(isys),ifield)
+          call iw_text("CP scale",alignframe=.true.,gap=.true.)
+          changed = changed .or. iw_dragfloat_real8("##labelscalecp",x1=w%rep%labels%scale_cp,&
+             speed=0.01d0,min=0d0,max=10d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Scale factor for the critical point labels",ttshown)
+       end if
+
+       ! reset the labels
+       if (iw_button("Reset##resetglobal",danger=.true.)) then
+          w%rep%labels%type = 0
+          call w%rep%set_defaults(3)
+          call w%rep%labels%style%reset(w%rep)
           changed = .true.
        end if
-       call iw_tooltip("Field whose critical points can be labeled (rows below the atoms in the table)",ttshown)
-
-       changed = changed .or. iw_dragfloat_real8("CP scale##labelscalecp",x1=w%rep%labels%scale_cp,&
-          speed=0.01d0,min=0d0,max=10d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Scale factor for the critical point labels",ttshown)
+       call iw_tooltip("Reset the labels to the default settings",ttshown)
     end if
-
-    ! table for label selection
-    call iw_text("Label Selection",highlight=.true.)
 
     ! number of entries in the table
     select case(w%rep%labels%type)
@@ -772,134 +794,138 @@ contains
        intable = atlisttype_species
        nrow = sys(isys)%c%nspc
        ncol = 5
-       call iw_text("(per species)",sameline=.true.)
+       str1 = "Labels per species"
     case (2,3)
        intable = atlisttype_ncel_ang
        nrow = sys(isys)%c%ncel
        ncol = 5
-       call iw_text("(per atom)",sameline=.true.)
+       str1 = "Labels per atom"
     case (1,4,8)
        intable = atlisttype_nneq
        nrow = sys(isys)%c%nneq
        ncol = 5
-       call iw_text("(per symmetry-unique atom)",sameline=.true.)
+       str1 = "Labels per symmetry-unique atom"
     case (7)
        intable = atlisttype_nmol
        nrow = sys(isys)%c%nmol
        ncol = 3
-       call iw_text("(per molecule)",sameline=.true.)
+       str1 = "Labels per molecule"
     end select
 
-    ! the table itself
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    str1="##tablespecieslabels" // c_null_char
-    sz%x = iw_calcwidth(30,ncol)
-    ncp = w%rep%labels%style%ncp
-    sz%y = iw_calcheight(min(8,nrow+ncp+1),0,.false.)
-    if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
-       ncol = -1
+    ! table for label selection
+    call iw_separatortext(str1,w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       ! the table itself
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1="##tablespecieslabels" // c_null_char
+       sz%x = iw_calcwidth(30,ncol)
+       ncp = w%rep%labels%style%ncp
+       sz%y = iw_calcheight(min(8,nrow+ncp+1),0,.false.)
+       if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
+          ncol = -1
 
-       ! header setup
-       call iw_table_column("Id",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          ! header setup
+          call iw_table_column("Id",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       if (intable /= atlisttype_nmol) then
-          call iw_table_column("Atom",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          if (intable /= atlisttype_nmol) then
+             call iw_table_column("Atom",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
 
-          call iw_table_column("Z ",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
-       end if
+             call iw_table_column("Z ",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          end if
 
-       call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Show",icol=ncol,flags=ImGuiTableColumnFlags_WidthFixed)
 
-       call iw_table_column("Text",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_column("Text",icol=ncol,flags=ImGuiTableColumnFlags_WidthStretch)
 
-       ! draw the header
-       call iw_table_headers_row(freezetop=.true.,autofit=.true.)
+          ! draw the header
+          call iw_table_headers_row(freezetop=.true.,autofit=.true.)
 
-       ! start the clipper
-       clipper = ImGuiListClipper_ImGuiListClipper()
-       call ImGuiListClipper_Begin(clipper,nrow+ncp,-1._c_float)
+          ! start the clipper
+          clipper = ImGuiListClipper_ImGuiListClipper()
+          call ImGuiListClipper_Begin(clipper,nrow+ncp,-1._c_float)
 
-       ! draw the rows
-       do while(ImGuiListClipper_Step(clipper))
-          call c_f_pointer(clipper,clipper_f)
-          do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+          ! draw the rows
+          do while(ImGuiListClipper_Step(clipper))
+             call c_f_pointer(clipper,clipper_f)
+             do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
 
-             ! set up the next row
-             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             suffix = "_" // string(i)
-             ncol = -1
+                ! set up the next row
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                suffix = "_" // string(i)
+                ncol = -1
 
-             ! the critical point rows come after the atoms
-             if (i > nrow) then
-                call draw_cp_row(i-nrow)
-                cycle
-             end if
-
-             ! id
-             ncol = ncol + 1
-             if (igTableSetColumnIndex(ncol)) then
-                call iw_text(string(i),alignframe=.true.)
-
-                ! the highlight selectable
-                if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
-                   ihighlight = i
-                   highlight_type = intable
+                ! the critical point rows come after the atoms
+                if (i > nrow) then
+                   call draw_cp_row(i-nrow)
+                   cycle
                 end if
-             end if
 
-             is = sysc(isys)%attype_species(intable,i)
-
-             ! atom
-             if (intable /= atlisttype_nmol) then
+                ! id
                 ncol = ncol + 1
-                if (igTableSetColumnIndex(ncol)) &
-                   call iw_text(trim(sys(isys)%c%spc(is)%name))
+                if (igTableSetColumnIndex(ncol)) then
+                   call iw_text(string(i),alignframe=.true.)
 
-                ! Z
+                   ! the highlight selectable
+                   if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
+                      ihighlight = i
+                      highlight_type = intable
+                   end if
+                end if
+
+                is = sysc(isys)%attype_species(intable,i)
+
+                ! atom
+                if (intable /= atlisttype_nmol) then
+                   ncol = ncol + 1
+                   if (igTableSetColumnIndex(ncol)) &
+                      call iw_text(trim(sys(isys)%c%spc(is)%name))
+
+                   ! Z
+                   ncol = ncol + 1
+                   if (igTableSetColumnIndex(ncol)) &
+                      call iw_text(string(sys(isys)%c%spc(is)%z))
+                end if
+
+                ! shown
                 ncol = ncol + 1
-                if (igTableSetColumnIndex(ncol)) &
-                   call iw_text(string(sys(isys)%c%spc(is)%z))
-             end if
+                if (igTableSetColumnIndex(ncol)) then
+                   changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%labels%style%shown(i))
+                   call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
+                end if
 
-             ! shown
-             ncol = ncol + 1
-             if (igTableSetColumnIndex(ncol)) then
-                changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%labels%style%shown(i))
-                call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
-             end if
+                ! text
+                ncol = ncol + 1
+                if (igTableSetColumnIndex(ncol)) then
+                   changed = changed .or. iw_inputtext("##labeltabletext" // string(i),bufsize=32,&
+                      textf=w%rep%labels%style%str(i),width=15)
+                   call iw_tooltip("Text for the atomic labels",ttshown)
+                end if
+             end do ! table rows: clipper range
+          end do ! table rows: clipper step
 
-             ! text
-             ncol = ncol + 1
-             if (igTableSetColumnIndex(ncol)) then
-                changed = changed .or. iw_inputtext("##labeltabletext" // string(i),bufsize=32,&
-                   textf=w%rep%labels%style%str(i),width=15)
-                call iw_tooltip("Text for the atomic labels",ttshown)
-             end if
-          end do ! table rows: clipper range
-       end do ! table rows: clipper step
+          ! end the clipper and the table
+          call ImGuiListClipper_End(clipper)
+          call ImGuiListClipper_destroy(clipper)
+          call igEndTable()
+       end if ! begintable
 
-       ! end the clipper and the table
-       call ImGuiListClipper_End(clipper)
-       call ImGuiListClipper_destroy(clipper)
-       call igEndTable()
-    end if ! begintable
-
-    ! style buttons: show/hide, for the atoms and for the CPs (the
-    ! labels padded to the same width)
-    call iw_text("Atoms:",alignframe=.true.)
-    call igSameLine(0._c_float,-1._c_float)
-    ch = showhide_buttons(w%rep%labels%style%shown,"labels","labels",ttshown)
-    changed = changed .or. ch
-    if (ncp > 0) then
-       call iw_text("CPs:  ",alignframe=.true.)
+       ! style buttons: show/hide, for the atoms and for the CPs (the
+       ! labels padded to the same width)
+       call iw_text("Atoms",alignframe=.true.)
        call igSameLine(0._c_float,-1._c_float)
-       ch = showhide_buttons(w%rep%labels%style%cpshown,"cplabels","critical point labels",ttshown)
+       ch = showhide_buttons(w%rep%labels%style%shown,"labels","labels",ttshown)
        changed = changed .or. ch
+       if (ncp > 0) then
+          call iw_text("CPs  ",alignframe=.true.)
+          call igSameLine(0._c_float,-1._c_float)
+          ch = showhide_buttons(w%rep%labels%style%cpshown,"cplabels","critical point labels",ttshown)
+          changed = changed .or. ch
+       end if
     end if
 
     ! process transient highlighs
@@ -964,7 +990,7 @@ contains
     use tools_io, only: string
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_table_column,&
-       iw_helpermark
+       iw_helpermark, iw_separatortext
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -992,118 +1018,135 @@ contains
        call w%rep%poly%style%reset(w%rep)
     end if
 
-    ! show the corner atoms of coordination polyhedra, with the colors and
-    ! radii of this object (the table below, shown only when they are drawn)
-    changed = changed .or. iw_checkbox("Show atoms at polyhedra corners##polyshowcorners",&
-       w%rep%poly%showcorners)
-    call iw_tooltip("Also draw the atoms at the polyhedra corners that the Display leaves out, "//&
-       "with the colors and radii in the table below.",ttshown)
+    ! the polyhedra: their centers and corners
+    call iw_separatortext("Polyhedra",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       ! center type selector
+       itype_combo = 0
+       if (w%rep%poly%style%type == atlisttype_nneq) itype_combo = 1
+       if (w%rep%poly%style%type == sysc(isys)%attype_celatom_type()) itype_combo = 2
+       call iw_text("Centers",alignframe=.true.)
+       call iw_combo_simple("##polycentertype","Species" // c_null_char //&
+          "Non-equivalent atoms" // c_null_char // "Cell atoms" // c_null_char,itype_combo,sameline=.true.)
+       call iw_tooltip("How to group the atoms that act as polyhedra centers",ttshown)
+       call iw_helpermark("In the table, each row corresponds to a polyhedron center. &
+          &For each center, the columns show the atom name, whether the polyhedron is shown (Show),&
+          & the distance range to the corners (Min/Max), and which atomic species are allowed as corners.",&
+          sameline=.true.)
+       newtype = atlisttype_species
+       if (itype_combo == 1) newtype = atlisttype_nneq
+       if (itype_combo == 2) newtype = sysc(isys)%attype_celatom_type()
+       if (newtype /= w%rep%poly%style%type) then
+          w%rep%poly%style%type = newtype
+          call w%rep%poly%style%reset(w%rep)
+          changed = .true.
+       end if
+
+       ! per-center table: each row is a center atom; the species columns
+       ! on the right select which species are its corners
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       flags = ior(flags,ImGuiTableFlags_ScrollX)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       ncol = 5 + sys(isys)%c%nspc
+       str1 = "##tablepolycenters_editrep" // c_null_char
+       sz%x = 0
+       sz%y = iw_calcheight(min(8,w%rep%poly%style%ntype)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
+          call iw_table_column("Id",id=0)
+          call iw_table_column("Atom",id=1)
+          call iw_table_column("Show",id=2)
+          call iw_table_column("Min (Å)",id=3)
+          call iw_table_column("Max (Å)",id=4)
+          do j = 1, sys(isys)%c%nspc
+             call iw_table_column(trim(sys(isys)%c%spc(j)%name),id=4+j)
+          end do
+          call igTableSetupScrollFreeze(1,1)
+          call iw_table_headers_row()
+
+          do i = 1, w%rep%poly%style%ntype
+             ispc = sysc(isys)%attype_species(w%rep%poly%style%type,i)
+             iz = sys(isys)%c%spc(ispc)%z
+             if (iz <= 0) cycle
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             if (igTableSetColumnIndex(0)) then
+                call iw_text(string(i),alignframe=.true.)
+             end if
+             if (igTableSetColumnIndex(1)) &
+                call iw_text(sysc(isys)%attype_name(w%rep%poly%style%type,i))
+             if (igTableSetColumnIndex(2)) &
+                changed = changed .or. iw_checkbox("##polyshown" // string(i),w%rep%poly%style%shown(i))
+             if (igTableSetColumnIndex(3)) &
+                changed = changed .or. iw_dragfloat_real8("##polydmin" // string(i),&
+                   x1=w%rep%poly%style%dmin(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
+                   decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+             if (igTableSetColumnIndex(4)) &
+                changed = changed .or. iw_dragfloat_real8("##polydmax" // string(i),&
+                   x1=w%rep%poly%style%dmax(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
+                   decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+             do j = 1, sys(isys)%c%nspc
+                if (igTableSetColumnIndex(4+j)) &
+                   changed = changed .or. iw_checkbox("##polycorner" // string(i) // "_" // string(j),&
+                      w%rep%poly%style%corner(j,i))
+             end do
+          end do
+          call igEndTable()
+       end if
+
+       if (iw_button("Reset##resetpolycenters",danger=.true.)) then
+          call w%rep%poly%style%reset(w%rep)
+          changed = .true.
+       end if
+       call iw_tooltip("Reset the centers, corners, and distances to defaults",ttshown)
+    end if
+
+    ! appearance
+    call iw_separatortext("Style",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       call iw_text("Face opacity",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##polyalpha",x1=w%rep%poly%alpha,&
+          speed=0.005d0,min=0d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Opacity of the polyhedron faces (0 = transparent, 1 = opaque)",ttshown)
+
+       changed = changed .or. iw_checkbox("Faces use the central atom color##polyusecen",w%rep%poly%usecentercolor,&
+          labelleft=.true.)
+       call iw_tooltip("Color the faces with the shade of the central (cation) atom",ttshown)
+       if (.not.w%rep%poly%usecentercolor) then
+          call iw_text("Face color",alignframe=.true.,gap=.true.)
+          changed = changed .or. iw_coloredit("##polyfacecolor",rgb=w%rep%poly%rgb,sameline=.true.)
+       end if
+
+       call iw_text("Edge radius (Å)",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##polyedgerad",x1=w%rep%poly%edge_rad,&
+          speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radius of the polyhedron edge cylinders",ttshown)
+
+       changed = changed .or. iw_checkbox("Edges use the central atom color##polyusecenedge",&
+          w%rep%poly%usecentercolor_edge,labelleft=.true.)
+       call iw_tooltip("Color the edges with the shade of the central (cation) atom",ttshown)
+       if (.not.w%rep%poly%usecentercolor_edge) then
+          call iw_text("Edge color",alignframe=.true.,gap=.true.)
+          changed = changed .or. iw_coloredit("##polyedgecolor",rgb=w%rep%poly%edge_rgb,sameline=.true.)
+       end if
+
+       ! show the corner atoms of coordination polyhedra, with the colors and
+       ! radii of this object (the table below, shown only when they are drawn)
+       ch = iw_checkbox("Show atoms at polyhedra corners##polyshowcorners",w%rep%poly%showcorners,&
+          labelleft=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Also draw the atoms at the polyhedra corners that the Display leaves out, "//&
+          "with the colors and radii in the table below.",ttshown)
+    end if
+
+    ! the corner atom table
     if (w%rep%poly%showcorners) then
        ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
           rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)
        if (typechanged) call w%rep%atoms%style%reset(w%rep)
        changed = changed .or. ch .or. typechanged
     end if
-
-    ! center type selector
-    call iw_text("Centers and Corners",highlight=.true.,alignframe=.true.)
-    call iw_helpermark("In the table, each row corresponds to a polyhedron center. &
-       &For each center, the columns show the atom name, whether the polyhedron is shown (Show),&
-       & the distance range to the corners (Min/Max), and which atomic species are allowed as corners.",sameline=.true.)
-    itype_combo = 0
-    if (w%rep%poly%style%type == atlisttype_nneq) itype_combo = 1
-    if (w%rep%poly%style%type == sysc(isys)%attype_celatom_type()) itype_combo = 2
-    call iw_combo_simple("Centers##polycentertype","Species" // c_null_char //&
-       "Non-equivalent atoms" // c_null_char // "Cell atoms" // c_null_char,itype_combo)
-    call iw_tooltip("How to group the atoms that act as polyhedra centers",ttshown)
-    newtype = atlisttype_species
-    if (itype_combo == 1) newtype = atlisttype_nneq
-    if (itype_combo == 2) newtype = sysc(isys)%attype_celatom_type()
-    if (newtype /= w%rep%poly%style%type) then
-       w%rep%poly%style%type = newtype
-       call w%rep%poly%style%reset(w%rep)
-       changed = .true.
-    end if
-
-    ! per-center table: each row is a center atom; the species columns
-    ! on the right select which species are its corners
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    flags = ior(flags,ImGuiTableFlags_ScrollX)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    ncol = 5 + sys(isys)%c%nspc
-    str1 = "##tablepolycenters_editrep" // c_null_char
-    sz%x = 0
-    sz%y = iw_calcheight(min(8,w%rep%poly%style%ntype)+1,0,.false.)
-    if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
-       call iw_table_column("Id",id=0)
-       call iw_table_column("Atom",id=1)
-       call iw_table_column("Show",id=2)
-       call iw_table_column("Min (Å)",id=3)
-       call iw_table_column("Max (Å)",id=4)
-       do j = 1, sys(isys)%c%nspc
-          call iw_table_column(trim(sys(isys)%c%spc(j)%name),id=4+j)
-       end do
-       call igTableSetupScrollFreeze(1,1)
-       call iw_table_headers_row()
-
-       do i = 1, w%rep%poly%style%ntype
-          ispc = sysc(isys)%attype_species(w%rep%poly%style%type,i)
-          iz = sys(isys)%c%spc(ispc)%z
-          if (iz <= 0) cycle
-          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-          if (igTableSetColumnIndex(0)) then
-             call iw_text(string(i),alignframe=.true.)
-          end if
-          if (igTableSetColumnIndex(1)) &
-             call iw_text(sysc(isys)%attype_name(w%rep%poly%style%type,i))
-          if (igTableSetColumnIndex(2)) &
-             changed = changed .or. iw_checkbox("##polyshown" // string(i),w%rep%poly%style%shown(i))
-          if (igTableSetColumnIndex(3)) &
-             changed = changed .or. iw_dragfloat_real8("##polydmin" // string(i),&
-                x1=w%rep%poly%style%dmin(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
-                decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-          if (igTableSetColumnIndex(4)) &
-             changed = changed .or. iw_dragfloat_real8("##polydmax" // string(i),&
-                x1=w%rep%poly%style%dmax(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
-                decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-          do j = 1, sys(isys)%c%nspc
-             if (igTableSetColumnIndex(4+j)) &
-                changed = changed .or. iw_checkbox("##polycorner" // string(i) // "_" // string(j),&
-                   w%rep%poly%style%corner(j,i))
-          end do
-       end do
-       call igEndTable()
-    end if
-
-    if (iw_button("Reset##resetpolycenters",danger=.true.)) then
-       call w%rep%poly%style%reset(w%rep)
-       changed = .true.
-    end if
-    call iw_tooltip("Reset the centers, corners, and distances to defaults",ttshown)
-
-    ! appearance
-    call iw_text("Appearance",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Face opacity##polyalpha",x1=w%rep%poly%alpha,&
-       speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Opacity of the polyhedron faces (0 = transparent, 1 = opaque)",ttshown)
-
-    changed = changed .or. iw_checkbox("Faces use the central atom color##polyusecen",w%rep%poly%usecentercolor)
-    call iw_tooltip("Color the faces with the shade of the central (cation) atom",ttshown)
-    if (.not.w%rep%poly%usecentercolor) &
-       changed = changed .or. iw_coloredit("Face color##polyfacecolor",rgb=w%rep%poly%rgb,sameline=.true.)
-
-    changed = changed .or. iw_dragfloat_real8("Edge radius (Å)##polyedgerad",x1=w%rep%poly%edge_rad,&
-       speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the polyhedron edge cylinders",ttshown)
-
-    changed = changed .or. iw_checkbox("Edges use the central atom color##polyusecenedge",&
-       w%rep%poly%usecentercolor_edge)
-    call iw_tooltip("Color the edges with the shade of the central (cation) atom",ttshown)
-    if (.not.w%rep%poly%usecentercolor_edge) &
-       changed = changed .or. iw_coloredit("Edge color##polyedgecolor",rgb=w%rep%poly%edge_rgb,sameline=.true.)
 
     ! process transient highlighs
     if (ihighlight > 0) then
@@ -1117,7 +1160,7 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_clamp_color3, iw_checkbox,&
-       iw_coloredit, iw_dragfloat_real8
+       iw_coloredit, iw_dragfloat_real8, iw_separatortext
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1131,52 +1174,60 @@ contains
     !! styles
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
-    call iw_text("Style",highlight=.true.)
-    ch = iw_checkbox("Color crystallographic axes",w%rep%uc%coloraxes)
-    call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
-    changed = changed .or. ch
-    ch = iw_checkbox("Hide axes in vacuum directions",w%rep%uc%vaccutsticks)
-    call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
-    changed = changed .or. ch
+    call iw_separatortext("Style",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       ch = iw_checkbox("Color crystallographic axes",w%rep%uc%coloraxes,labelleft=.true.)
+       call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
+       changed = changed .or. ch
+       ch = iw_checkbox("Hide axes in vacuum directions",w%rep%uc%vaccutsticks,labelleft=.true.)
+       call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
+       changed = changed .or. ch
 
-    ch = iw_dragfloat_real8("Radius (Å)##outer",x1=w%rep%uc%radius,speed=0.005d0,&
-       min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radii of the unit cell edges",ttshown)
-    changed = changed .or. ch
+       call iw_text("Radius (Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##outer",x1=w%rep%uc%radius,speed=0.005d0,&
+          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radii of the unit cell edges",ttshown)
+       changed = changed .or. ch
 
-    ch = iw_coloredit("Color",rgb=w%rep%uc%rgb,sameline=.true.)
-    call iw_tooltip("Color of the unit cell edges",ttshown)
-    if (ch) then
-       w%rep%uc%rgb = min(w%rep%uc%rgb,1._c_float)
-       w%rep%uc%rgb = max(w%rep%uc%rgb,0._c_float)
-       changed = .true.
+       call iw_text("Color",alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##uccolor",rgb=w%rep%uc%rgb,sameline=.true.)
+       call iw_tooltip("Color of the unit cell edges",ttshown)
+       if (ch) then
+          w%rep%uc%rgb = min(w%rep%uc%rgb,1._c_float)
+          w%rep%uc%rgb = max(w%rep%uc%rgb,0._c_float)
+          changed = .true.
+       end if
+
+       call iw_text("Origin shift (fractional)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##originuc",x3=w%rep%uc%origin,speed=0.001d0,decimal=5,sameline=.true.)
+       call iw_tooltip("Translation vector for the origin of the cell drawn (moves the cell sticks only)",ttshown)
+       changed = changed .or. ch
     end if
 
-    ch = iw_dragfloat_real8("Translate Origin (fractional)##originuc",&
-       x3=w%rep%uc%origin,speed=0.001d0,decimal=5)
-    call iw_tooltip("Translation vector for the origin of the cell drawn (moves the cell sticks only)",ttshown)
-    changed = changed .or. ch
-
     !! inner divisions
-    call iw_text("Inner Divisions",highlight=.true.)
-    ch = iw_checkbox("Display inner divisions",w%rep%uc%inner)
-    call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
-    changed = changed .or. ch
-    if (w%rep%uc%inner) then
-       ch = iw_dragfloat_real8("Radius (Å)##inner",x1=w%rep%uc%radiusinner,speed=0.005d0,&
-          min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Radii of the inner unit cell edges",ttshown)
+    call iw_separatortext("Inner divisions",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       ch = iw_checkbox("Show inner divisions",w%rep%uc%inner,labelleft=.true.)
+       call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
        changed = changed .or. ch
-
-       ch = iw_checkbox("Use dashed lines",w%rep%uc%innerstipple)
-       call iw_tooltip("Use dashed lines for the inner cell divisions",ttshown)
-       changed = changed .or. ch
-
-       if (w%rep%uc%innerstipple) then
-          ch = iw_dragfloat_real8("Dash length (Å)",x1=w%rep%uc%innersteplen,speed=0.1d0,&
-             min=0.001d0,max=100d0,scale=bohrtoa,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
+       if (w%rep%uc%inner) then
+          call iw_text("Radius (Å)",alignframe=.true.)
+          ch = iw_dragfloat_real8("##inner",x1=w%rep%uc%radiusinner,speed=0.005d0,&
+             min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Radii of the inner unit cell edges",ttshown)
           changed = changed .or. ch
+
+          ch = iw_checkbox("Dashed lines",w%rep%uc%innerstipple,labelleft=.true.)
+          call iw_tooltip("Use dashed lines for the inner cell divisions",ttshown)
+          changed = changed .or. ch
+
+          if (w%rep%uc%innerstipple) then
+             call iw_text("Dash length (Å)",alignframe=.true.,gap=.true.)
+             ch = iw_dragfloat_real8("##innerdash",x1=w%rep%uc%innersteplen,speed=0.1d0,&
+                min=0.001d0,max=100d0,scale=bohrtoa,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
+             changed = changed .or. ch
+          end if
        end if
     end if
 
@@ -1187,7 +1238,7 @@ contains
   module function draw_editrep_legend(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_combo_simple, iw_table_column, iw_table_headers_row, iw_inputtext, iw_calcwidth,&
-       iw_calcheight
+       iw_calcheight, iw_separatortext
     use systems, only: sys
     use shapes, only: legend_label_len
     use representations, only: legcorner_combostr
@@ -1208,19 +1259,24 @@ contains
 
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
-    call iw_text("Placement",highlight=.true.)
-    call iw_combo_simple("Corner##legendcorner",legcorner_combostr,w%rep%legend%corner,changed=ch)
-    call iw_tooltip("Corner of the view where the legend is drawn",ttshown)
-    changed = changed .or. ch
+    call iw_separatortext("Placement",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Corner",alignframe=.true.)
+       call iw_combo_simple("##legendcorner",legcorner_combostr,w%rep%legend%corner,changed=ch,sameline=.true.)
+       call iw_tooltip("Corner of the view where the legend is drawn",ttshown)
+       changed = changed .or. ch
 
-    ch = iw_dragfloat_real8("Size##legendsize",x1=w%rep%legend%scale,speed=0.01d0,&
-       min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Size of the legend (1 = default)",ttshown)
-    changed = changed .or. ch
+       call iw_text("Size",alignframe=.true.,gap=.true.)
+       ch = iw_dragfloat_real8("##legendsize",x1=w%rep%legend%scale,speed=0.01d0,&
+          min=0.2d0,max=5d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Size of the legend (1 = default)",ttshown)
+       changed = changed .or. ch
+    end if
 
     ! the species rows: whether they are shown, and their text
-    call iw_text("Species",highlight=.true.)
-    if (w%rep%legend%nspc == sys(w%isys)%c%nspc .and. allocated(w%rep%legend%shown)) then
+    call iw_separatortext("Species",w%editrep_sec(2))
+    if (w%rep%legend%nspc == sys(w%isys)%c%nspc .and. allocated(w%rep%legend%shown) .and.&
+       w%editrep_sec(2)%open) then
        flags = ImGuiTableFlags_None
        flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
        flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -1263,27 +1319,32 @@ contains
        end if
     end if
 
-    call iw_text("Colors",highlight=.true.)
-    ch = iw_coloredit("Text",rgb=w%rep%legend%textrgb)
-    call iw_tooltip("Color of the legend text",ttshown)
-    changed = changed .or. ch
-
-    rgba = (/w%rep%legend%bgrgb,w%rep%legend%bgalpha/)
-    ch = iw_coloredit("Background",rgba=rgba,sameline=.true.)
-    call iw_tooltip("Color and opacity of the background of the legend box",ttshown)
-    if (ch) then
-       w%rep%legend%bgrgb = rgba(1:3)
-       w%rep%legend%bgalpha = rgba(4)
-       changed = .true.
-    end if
-
-    ch = iw_checkbox("Border",w%rep%legend%border)
-    call iw_tooltip("Draw the border of the legend box",ttshown)
-    changed = changed .or. ch
-    if (w%rep%legend%border) then
-       ch = iw_coloredit("Border color",rgb=w%rep%legend%borderrgb,sameline=.true.)
-       call iw_tooltip("Color of the border of the legend box",ttshown)
+    call iw_separatortext("Colors",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       call iw_text("Text",alignframe=.true.)
+       ch = iw_coloredit("##legendtextcolor",rgb=w%rep%legend%textrgb,sameline=.true.)
+       call iw_tooltip("Color of the legend text",ttshown)
        changed = changed .or. ch
+
+       rgba = (/w%rep%legend%bgrgb,w%rep%legend%bgalpha/)
+       call iw_text("Background",alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##legendbgcolor",rgba=rgba,sameline=.true.)
+       call iw_tooltip("Color and opacity of the background of the legend box",ttshown)
+       if (ch) then
+          w%rep%legend%bgrgb = rgba(1:3)
+          w%rep%legend%bgalpha = rgba(4)
+          changed = .true.
+       end if
+
+       ch = iw_checkbox("Border##legendborder",w%rep%legend%border,labelleft=.true.)
+       call iw_tooltip("Draw the border of the legend box",ttshown)
+       changed = changed .or. ch
+       if (w%rep%legend%border) then
+          call iw_text("Border color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##legendbordercolor",rgb=w%rep%legend%borderrgb,sameline=.true.)
+          call iw_tooltip("Color of the border of the legend box",ttshown)
+          changed = changed .or. ch
+       end if
     end if
 
   end function draw_editrep_legend
@@ -1292,7 +1353,7 @@ contains
   !> scene needs rebuilding.
   module function draw_editrep_scalebar(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
-       iw_checkbox, iw_radiobutton, iw_inputtext, iw_button
+       iw_checkbox, iw_radiobutton, iw_inputtext, iw_button, iw_separatortext
     use representations, only: scaleunit_combostr, scaleunit_tobohr, scalepos_combostr,&
        scalepos_custom, scalebar_text_len, planarheads_none, planarheads_both
     class(window), intent(inout), target :: w
@@ -1328,100 +1389,117 @@ contains
 
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
-    call iw_text("Length",highlight=.true.)
-    ch = iw_dragfloat_real8("##scalebarvalue",x1=w%rep%scalebar%value,speed=0.01d0,&
-       min=1d-3,max=1d6,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Length of the bar in the scene. In the perspective projection, the length &
-       &is exact at the depth of the center of the scene",ttshown)
-    changed = changed .or. ch
+    call iw_separatortext("Bar",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Length",alignframe=.true.)
+       ch = iw_dragfloat_real8("##scalebarvalue",x1=w%rep%scalebar%value,speed=0.01d0,&
+          min=1d-3,max=1d6,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Length of the bar in the scene. In the perspective projection, the length &
+          &is exact at the depth of the center of the scene",ttshown)
+       changed = changed .or. ch
 
-    ! a new unit keeps the length of the bar: the number is converted
-    iunit0 = w%rep%scalebar%unit
-    call iw_combo_simple("Unit##scalebarunit",scaleunit_combostr,w%rep%scalebar%unit,changed=ch,&
-       sameline=.true.)
-    call iw_tooltip("Unit of the length of the bar",ttshown)
-    if (ch) then
-       w%rep%scalebar%value = w%rep%scalebar%value * scaleunit_tobohr(iunit0) /&
-          scaleunit_tobohr(w%rep%scalebar%unit)
-       changed = .true.
-    end if
-
-    call iw_text("Placement",highlight=.true.)
-    call iw_combo_simple("##scalebarcorner",scalepos_combostr,w%rep%scalebar%corner,changed=ch)
-    call iw_tooltip("Where the scale bar is drawn: in a corner of the view, or with the center &
-       &of the bar at a custom position",ttshown)
-    changed = changed .or. ch
-    if (iview > 0) then
-       if (iw_button("Pick##scalebarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
-          ! the pick sets a custom position: switch to it now, so that
-          ! choosing a corner while the pick is out cancels it
-          w%rep%scalebar%corner = scalepos_custom
+       ! a new unit keeps the length of the bar: the number is converted
+       iunit0 = w%rep%scalebar%unit
+       call iw_text("Unit",alignframe=.true.,gap=.true.)
+       call iw_combo_simple("##scalebarunit",scaleunit_combostr,w%rep%scalebar%unit,changed=ch,&
+          sameline=.true.)
+       call iw_tooltip("Unit of the length of the bar",ttshown)
+       if (ch) then
+          w%rep%scalebar%value = w%rep%scalebar%value * scaleunit_tobohr(iunit0) /&
+             scaleunit_tobohr(w%rep%scalebar%unit)
           changed = .true.
-          w%editrep_pick_item = 1
-          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the scale bar",w%id,&
-             acceptempty=.true.)
        end if
-       call iw_tooltip("Click, then pick the position of the center of the bar in the view window",ttshown)
-    end if
-    if (w%rep%scalebar%corner == scalepos_custom) then
-       ch = iw_dragfloat_real8("Position##scalebarwinpos",x2=w%rep%scalebar%winpos,&
-          speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Position of the center of the bar in the view, as fractions of the window &
-          &size from the left and bottom borders",ttshown)
+
+       iheads = merge(1,0,w%rep%scalebar%heads /= planarheads_none)
+       call iw_text("Ends",alignframe=.true.)
+       call iw_combo_simple("##scalebarheads","Plain" // c_null_char // "Arrows" // c_null_char,&
+          iheads,changed=ch,sameline=.true.)
+       call iw_tooltip("Ends of the bar: plain, or with arrowheads at both ends",ttshown)
+       if (ch) then
+          w%rep%scalebar%heads = merge(planarheads_both,planarheads_none,iheads == 1)
+          changed = .true.
+       end if
+
+       if (pxs > 0d0) then
+          wpx = w%rep%scalebar%width / pxs
+          call iw_text("Width (px)",alignframe=.true.,gap=.true.)
+          ch = iw_dragfloat_real8("##scalebarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
+             decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Width of the line of the bar, in pixels of the view",ttshown)
+          if (ch) then
+             w%rep%scalebar%width = wpx * pxs
+             changed = .true.
+          end if
+       end if
+
+       call iw_text("Color",alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##scalebarrgb",rgb=w%rep%scalebar%rgb,sameline=.true.)
+       call iw_tooltip("Color of the bar",ttshown)
        changed = changed .or. ch
     end if
 
-    call iw_text("Text",highlight=.true.)
-    ch = iw_checkbox("Show##scalebarshowtext",w%rep%scalebar%showtext)
-    call iw_tooltip("Draw a text over the bar",ttshown)
-    changed = changed .or. ch
-    if (w%rep%scalebar%showtext) then
-       ch = iw_radiobutton("Length##scalebarlentext",bool=w%rep%scalebar%customtext,boolval=.false.,&
+    call iw_separatortext("Placement",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       call iw_text("Position",alignframe=.true.)
+       call iw_combo_simple("##scalebarcorner",scalepos_combostr,w%rep%scalebar%corner,changed=ch,&
           sameline=.true.)
-       call iw_tooltip("The text is the length of the bar and its unit",ttshown)
+       call iw_tooltip("Where the scale bar is drawn: in a corner of the view, or with the center &
+          &of the bar at a custom position",ttshown)
        changed = changed .or. ch
-       ch = iw_radiobutton("Custom##scalebarcustomtext",bool=w%rep%scalebar%customtext,boolval=.true.,&
-          sameline=.true.)
-       call iw_tooltip("The text is a message of your choice",ttshown)
-       changed = changed .or. ch
-       if (w%rep%scalebar%customtext) then
-          ch = iw_inputtext("##scalebartext",bufsize=scalebar_text_len,textf=w%rep%scalebar%text,width=25)
-          call iw_tooltip("Text over the bar",ttshown)
+       if (iview > 0) then
+          if (iw_button("Pick##scalebarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
+             ! the pick sets a custom position: switch to it now, so that
+             ! choosing a corner while the pick is out cancels it
+             w%rep%scalebar%corner = scalepos_custom
+             changed = .true.
+             w%editrep_pick_item = 1
+             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the scale bar",w%id,&
+                acceptempty=.true.)
+          end if
+          call iw_tooltip("Click, then pick the position of the center of the bar in the view window",ttshown)
+       end if
+       if (w%rep%scalebar%corner == scalepos_custom) then
+          call iw_text("Center",alignframe=.true.)
+          ch = iw_dragfloat_real8("##scalebarwinpos",x2=w%rep%scalebar%winpos,&
+             speed=0.005d0,min=0d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Position of the center of the bar in the view, as fractions of the window &
+             &size from the left and bottom borders",ttshown)
           changed = changed .or. ch
        end if
-       ch = iw_dragfloat_real8("Text size##scalebarsize",x1=w%rep%scalebar%scale,speed=0.01d0,&
-          min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Size of the text (1 = default)",ttshown)
-       changed = changed .or. ch
-       ch = iw_coloredit("Color##scalebartextrgb",rgb=w%rep%scalebar%textrgb,sameline=.true.)
-       call iw_tooltip("Color of the text",ttshown)
-       changed = changed .or. ch
     end if
 
-    call iw_text("Style",highlight=.true.)
-    iheads = merge(1,0,w%rep%scalebar%heads /= planarheads_none)
-    call iw_combo_simple("Ends##scalebarheads","Plain" // c_null_char // "Arrows" // c_null_char,&
-       iheads,changed=ch)
-    call iw_tooltip("Ends of the bar: plain, or with arrowheads at both ends",ttshown)
-    if (ch) then
-       w%rep%scalebar%heads = merge(planarheads_both,planarheads_none,iheads == 1)
-       changed = .true.
-    end if
-
-    if (pxs > 0d0) then
-       wpx = w%rep%scalebar%width / pxs
-       ch = iw_dragfloat_real8("Width (px)##scalebarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
-          decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Width of the line of the bar, in pixels of the view",ttshown)
-       if (ch) then
-          w%rep%scalebar%width = wpx * pxs
-          changed = .true.
+    call iw_separatortext("Text",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       ch = iw_checkbox("Show text##scalebarshowtext",w%rep%scalebar%showtext,labelleft=.true.)
+       call iw_tooltip("Draw a text over the bar",ttshown)
+       changed = changed .or. ch
+       if (w%rep%scalebar%showtext) then
+          call iw_text("Text",alignframe=.true.,gap=.true.)
+          ch = iw_radiobutton("Length##scalebarlentext",bool=w%rep%scalebar%customtext,boolval=.false.,&
+             sameline=.true.)
+          call iw_tooltip("The text is the length of the bar and its unit",ttshown)
+          changed = changed .or. ch
+          ch = iw_radiobutton("Custom##scalebarcustomtext",bool=w%rep%scalebar%customtext,boolval=.true.,&
+             sameline=.true.)
+          call iw_tooltip("The text is a message of your choice",ttshown)
+          changed = changed .or. ch
+          if (w%rep%scalebar%customtext) then
+             ch = iw_inputtext("##scalebartext",bufsize=scalebar_text_len,textf=w%rep%scalebar%text,width=25,&
+                sameline=.true.)
+             call iw_tooltip("Text over the bar",ttshown)
+             changed = changed .or. ch
+          end if
+          call iw_text("Size",alignframe=.true.)
+          ch = iw_dragfloat_real8("##scalebarsize",x1=w%rep%scalebar%scale,speed=0.01d0,&
+             min=0.2d0,max=5d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Size of the text (1 = default)",ttshown)
+          changed = changed .or. ch
+          call iw_text("Color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##scalebartextrgb",rgb=w%rep%scalebar%textrgb,sameline=.true.)
+          call iw_tooltip("Color of the text",ttshown)
+          changed = changed .or. ch
        end if
     end if
-
-    ch = iw_coloredit("Color##scalebarrgb",rgb=w%rep%scalebar%rgb)
-    call iw_tooltip("Color of the bar",ttshown)
-    changed = changed .or. ch
 
   end function draw_editrep_scalebar
 
@@ -1429,7 +1507,7 @@ contains
   !> scene needs rebuilding.
   module function draw_editrep_colorbar(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
-       iw_checkbox, iw_radiobutton, iw_inputtext, iw_button, iw_inputint
+       iw_checkbox, iw_radiobutton, iw_inputtext, iw_button, iw_inputint, iw_separatortext
     use representations, only: scalepos_combostr, scalepos_custom, colorbar_text_len,&
        colorbar_nticks_max, reptype_isosurface, iso_slot_hascolors, colorbar_rep, colorbar_slot,&
        iso_slot_index
@@ -1466,8 +1544,8 @@ contains
     end if
 
     ! the isosurface object and the isosurface whose colors are shown
-    call iw_text("Isosurface",highlight=.true.)
-    if (iview > 0) then
+    call iw_separatortext("Isosurface",w%editrep_sec(1))
+    if (iview > 0 .and. w%editrep_sec(1)%open) then
        associate(sc => win(iview)%sc)
          ! the isosurface objects of the scene, by unique identifier
          allocate(uids(sc%nrep))
@@ -1487,7 +1565,8 @@ contains
             w%rep%colorbar%isouid = 0
             w%rep%colorbar%slotuid = 0
          end if
-         call iw_combo_simple("Object##colorbarobject",stropt,isel,changed=ch)
+         call iw_text("Object",alignframe=.true.)
+         call iw_combo_simple("##colorbarobject",stropt,isel,changed=ch,sameline=.true.)
          call iw_tooltip("Isosurface object whose colors are shown. Automatic: the first shown &
             &isosurface object with an isosurface colored by a field or an expression",ttshown)
          if (ch) then
@@ -1508,7 +1587,8 @@ contains
                  stropt = stropt // c_null_char
               end do
               isel = iso_slot_index(ri%iso,w%rep%colorbar%slotuid)
-              call iw_combo_simple("Isovalue##colorbarslot",stropt,isel,changed=ch)
+              call iw_text("Isovalue",alignframe=.true.)
+              call iw_combo_simple("##colorbarslot",stropt,isel,changed=ch,sameline=.true.)
               call iw_tooltip("Isosurface of the object whose colors are shown",ttshown)
               if (ch) then
                  w%rep%colorbar%slotuid = 0
@@ -1529,95 +1609,112 @@ contains
 
     ! each widget is evaluated into ch first: .or. is allowed to short-circuit,
     ! and a widget skipped because changed is already true is a widget not drawn
-    call iw_text("Placement",highlight=.true.)
-    call iw_combo_simple("##colorbarcorner",scalepos_combostr,w%rep%colorbar%corner,changed=ch)
-    call iw_tooltip("Where the color bar is drawn: in a corner of the view, or with the center &
-       &of the strip at a custom position",ttshown)
-    changed = changed .or. ch
-    if (iview > 0) then
-       if (iw_button("Pick##colorbarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
-          ! the pick sets a custom position: switch to it now, so that
-          ! choosing a corner while the pick is out cancels it
-          w%rep%colorbar%corner = scalepos_custom
-          changed = .true.
-          w%editrep_pick_item = 1
-          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the color bar",w%id,&
-             acceptempty=.true.)
-       end if
-       call iw_tooltip("Click, then pick the position of the center of the strip in the view window",ttshown)
-    end if
-    if (w%rep%colorbar%corner == scalepos_custom) then
-       ch = iw_dragfloat_real8("Position##colorbarwinpos",x2=w%rep%colorbar%winpos,&
-          speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Position of the center of the strip in the view, as fractions of the window &
-          &size from the left and bottom borders",ttshown)
-       changed = changed .or. ch
-    end if
-    ch = iw_radiobutton("Vertical##colorbarvert",bool=w%rep%colorbar%vertical,boolval=.true.)
-    call iw_tooltip("Vertical strip, low values at the bottom and the tick values on the right",ttshown)
-    changed = changed .or. ch
-    ch = iw_radiobutton("Horizontal##colorbarhorz",bool=w%rep%colorbar%vertical,boolval=.false.,&
-       sameline=.true.)
-    call iw_tooltip("Horizontal strip, low values on the left and the tick values below",ttshown)
-    changed = changed .or. ch
-
-    call iw_text("Strip",highlight=.true.)
-    ch = iw_dragfloat_real8("Length##colorbarlength",x1=w%rep%colorbar%length,speed=0.005d0,&
-       min=0.05d0,max=1d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Length of the strip, as a fraction of the height (vertical) or the width &
-       &(horizontal) of the view",ttshown)
-    changed = changed .or. ch
-    if (pxs > 0d0) then
-       wpx = w%rep%colorbar%thick / pxs
-       ch = iw_dragfloat_real8("Thickness (px)##colorbarthick",x1=wpx,speed=0.1d0,min=1d0,max=200d0,&
-          decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Thickness of the strip, in pixels of the view",ttshown)
-       if (ch) then
-          w%rep%colorbar%thick = wpx * pxs
-          changed = .true.
-       end if
-    end if
-    ch = iw_checkbox("Border and ticks##colorbarborder",w%rep%colorbar%border)
-    call iw_tooltip("Draw a border around the strip and a mark at each tick value",ttshown)
-    changed = changed .or. ch
-    if (w%rep%colorbar%border) then
-       ch = iw_coloredit("Color##colorbarborderrgb",rgb=w%rep%colorbar%borderrgb,sameline=.true.)
-       call iw_tooltip("Color of the border and the tick marks",ttshown)
-       changed = changed .or. ch
-    end if
-    nticks = int(w%rep%colorbar%nticks,c_int)
-    ch = iw_inputint("Tick values##colorbarnticks",nticks,width=8)
-    call iw_tooltip("Number of tick values, evenly spaced along the strip with the two ends",ttshown)
-    if (ch) then
-       w%rep%colorbar%nticks = max(min(int(nticks),colorbar_nticks_max),2)
-       changed = .true.
-    end if
-
-    call iw_text("Text",highlight=.true.)
-    ch = iw_dragfloat_real8("Text size##colorbarsize",x1=w%rep%colorbar%scale,speed=0.01d0,&
-       min=0.2d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Size of the tick values and the title (1 = default)",ttshown)
-    changed = changed .or. ch
-    ch = iw_coloredit("Color##colorbartextrgb",rgb=w%rep%colorbar%textrgb,sameline=.true.)
-    call iw_tooltip("Color of the tick values and the title",ttshown)
-    changed = changed .or. ch
-    ch = iw_checkbox("Title##colorbarshowtitle",w%rep%colorbar%showtitle)
-    call iw_tooltip("Draw a title over the strip",ttshown)
-    changed = changed .or. ch
-    if (w%rep%colorbar%showtitle) then
-       ch = iw_radiobutton("Field##colorbarfieldtitle",bool=w%rep%colorbar%customtitle,boolval=.false.,&
+    call iw_separatortext("Placement",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       call iw_text("Position",alignframe=.true.)
+       call iw_combo_simple("##colorbarcorner",scalepos_combostr,w%rep%colorbar%corner,changed=ch,&
           sameline=.true.)
-       call iw_tooltip("The title is the name of the field or the expression that colors the isosurface",&
-          ttshown)
+       call iw_tooltip("Where the color bar is drawn: in a corner of the view, or with the center &
+          &of the strip at a custom position",ttshown)
        changed = changed .or. ch
-       ch = iw_radiobutton("Custom##colorbarcustomtitle",bool=w%rep%colorbar%customtitle,boolval=.true.,&
-          sameline=.true.)
-       call iw_tooltip("The title is a text of your choice",ttshown)
-       changed = changed .or. ch
-       if (w%rep%colorbar%customtitle) then
-          ch = iw_inputtext("##colorbartitle",bufsize=colorbar_text_len,textf=w%rep%colorbar%title,width=25)
-          call iw_tooltip("Title of the color bar",ttshown)
+       if (iview > 0) then
+          if (iw_button("Pick##colorbarpick",sameline=.true.,disabled=(w%editrep_pick_item > 0))) then
+             ! the pick sets a custom position: switch to it now, so that
+             ! choosing a corner while the pick is out cancels it
+             w%rep%colorbar%corner = scalepos_custom
+             changed = .true.
+             w%editrep_pick_item = 1
+             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the position of the color bar",w%id,&
+                acceptempty=.true.)
+          end if
+          call iw_tooltip("Click, then pick the position of the center of the strip in the view window",ttshown)
+       end if
+       if (w%rep%colorbar%corner == scalepos_custom) then
+          call iw_text("Center",alignframe=.true.)
+          ch = iw_dragfloat_real8("##colorbarwinpos",x2=w%rep%colorbar%winpos,&
+             speed=0.005d0,min=0d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Position of the center of the strip in the view, as fractions of the window &
+             &size from the left and bottom borders",ttshown)
           changed = changed .or. ch
+       end if
+       call iw_text("Orientation",alignframe=.true.)
+       ch = iw_radiobutton("Vertical##colorbarvert",bool=w%rep%colorbar%vertical,boolval=.true.,sameline=.true.)
+       call iw_tooltip("Vertical strip, low values at the bottom and the tick values on the right",ttshown)
+       changed = changed .or. ch
+       ch = iw_radiobutton("Horizontal##colorbarhorz",bool=w%rep%colorbar%vertical,boolval=.false.,&
+          sameline=.true.)
+       call iw_tooltip("Horizontal strip, low values on the left and the tick values below",ttshown)
+       changed = changed .or. ch
+    end if
+
+    call iw_separatortext("Strip",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       call iw_text("Length",alignframe=.true.)
+       ch = iw_dragfloat_real8("##colorbarlength",x1=w%rep%colorbar%length,speed=0.005d0,&
+          min=0.05d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Length of the strip, as a fraction of the height (vertical) or the width &
+          &(horizontal) of the view",ttshown)
+       changed = changed .or. ch
+       if (pxs > 0d0) then
+          wpx = w%rep%colorbar%thick / pxs
+          call iw_text("Thickness (px)",alignframe=.true.,gap=.true.)
+          ch = iw_dragfloat_real8("##colorbarthick",x1=wpx,speed=0.1d0,min=1d0,max=200d0,&
+             decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Thickness of the strip, in pixels of the view",ttshown)
+          if (ch) then
+             w%rep%colorbar%thick = wpx * pxs
+             changed = .true.
+          end if
+       end if
+       ch = iw_checkbox("Border and ticks##colorbarborder",w%rep%colorbar%border,labelleft=.true.)
+       call iw_tooltip("Draw a border around the strip and a mark at each tick value",ttshown)
+       changed = changed .or. ch
+       if (w%rep%colorbar%border) then
+          call iw_text("Color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##colorbarborderrgb",rgb=w%rep%colorbar%borderrgb,sameline=.true.)
+          call iw_tooltip("Color of the border and the tick marks",ttshown)
+          changed = changed .or. ch
+       end if
+       nticks = int(w%rep%colorbar%nticks,c_int)
+       call iw_text("Tick values",alignframe=.true.)
+       ch = iw_inputint("##colorbarnticks",nticks,width=8,sameline=.true.)
+       call iw_tooltip("Number of tick values, evenly spaced along the strip with the two ends",ttshown)
+       if (ch) then
+          w%rep%colorbar%nticks = max(min(int(nticks),colorbar_nticks_max),2)
+          changed = .true.
+       end if
+    end if
+
+    call iw_separatortext("Text",w%editrep_sec(4))
+    if (w%editrep_sec(4)%open) then
+       call iw_text("Size",alignframe=.true.)
+       ch = iw_dragfloat_real8("##colorbarsize",x1=w%rep%colorbar%scale,speed=0.01d0,&
+          min=0.2d0,max=5d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Size of the tick values and the title (1 = default)",ttshown)
+       changed = changed .or. ch
+       call iw_text("Color",alignframe=.true.,gap=.true.)
+       ch = iw_coloredit("##colorbartextrgb",rgb=w%rep%colorbar%textrgb,sameline=.true.)
+       call iw_tooltip("Color of the tick values and the title",ttshown)
+       changed = changed .or. ch
+       ch = iw_checkbox("Title##colorbarshowtitle",w%rep%colorbar%showtitle,labelleft=.true.)
+       call iw_tooltip("Draw a title over the strip",ttshown)
+       changed = changed .or. ch
+       if (w%rep%colorbar%showtitle) then
+          ch = iw_radiobutton("Field##colorbarfieldtitle",bool=w%rep%colorbar%customtitle,boolval=.false.,&
+             sameline=.true.)
+          call iw_tooltip("The title is the name of the field or the expression that colors the isosurface",&
+             ttshown)
+          changed = changed .or. ch
+          ch = iw_radiobutton("Custom##colorbarcustomtitle",bool=w%rep%colorbar%customtitle,boolval=.true.,&
+             sameline=.true.)
+          call iw_tooltip("The title is a text of your choice",ttshown)
+          changed = changed .or. ch
+          if (w%rep%colorbar%customtitle) then
+             ch = iw_inputtext("##colorbartitle",bufsize=colorbar_text_len,textf=w%rep%colorbar%title,width=25,&
+                sameline=.true.)
+             call iw_tooltip("Title of the color bar",ttshown)
+             changed = changed .or. ch
+          end if
        end if
     end if
 
@@ -1629,7 +1726,7 @@ contains
     use windows, only: win
     use representations, only: axplace_scene, axplace_window
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputtext,&
-       iw_radiobutton, iw_combo_simple
+       iw_radiobutton, iw_combo_simple, iw_separatortext
     use systems, only: sys
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -1647,153 +1744,184 @@ contains
     if (w%anchor_view() > 0) &
        call w%editrep_toolbar(ttshown)
 
-    !! axes kind: cartesian (x/y/z) or crystallographic (a/b/c). Only
-    !! meaningful for crystals (molecules have no lattice vectors).
-    if (.not.sys(w%isys)%c%ismolecule) then
-       call iw_text("Type",highlight=.true.)
-       icoord = w%rep%axes%kind
-       call iw_combo_simple("##axeskind","Cartesian" // c_null_char // &
-          "Crystallographic" // c_null_char,icoord,changed=ch)
-       call iw_tooltip("Represent the cartesian (x/y/z) or crystallographic (a/b/c) axes",ttshown)
-       if (ch) then
-          w%rep%axes%kind = icoord
-          if (icoord == 0) then
-             w%rep%axes%labelstr(1) = "x"
-             w%rep%axes%labelstr(2) = "y"
-             w%rep%axes%labelstr(3) = "z"
-          else
-             w%rep%axes%labelstr(1) = "a"
-             w%rep%axes%labelstr(2) = "b"
-             w%rep%axes%labelstr(3) = "c"
+    !! placement: the kind of axes, and where they are
+    call iw_separatortext("Placement",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       ! axes kind: cartesian (x/y/z) or crystallographic (a/b/c). Only
+       ! meaningful for crystals (molecules have no lattice vectors).
+       if (.not.sys(w%isys)%c%ismolecule) then
+          icoord = w%rep%axes%kind
+          call iw_text("Type",alignframe=.true.)
+          call iw_combo_simple("##axeskind","Cartesian" // c_null_char // &
+             "Crystallographic" // c_null_char,icoord,changed=ch,sameline=.true.)
+          call iw_tooltip("Represent the cartesian (x/y/z) or crystallographic (a/b/c) axes",ttshown)
+          if (ch) then
+             w%rep%axes%kind = icoord
+             if (icoord == 0) then
+                w%rep%axes%labelstr(1) = "x"
+                w%rep%axes%labelstr(2) = "y"
+                w%rep%axes%labelstr(3) = "z"
+             else
+                w%rep%axes%labelstr(1) = "a"
+                w%rep%axes%labelstr(2) = "b"
+                w%rep%axes%labelstr(3) = "c"
+             end if
+             changed = .true.
           end if
-          changed = .true.
        end if
-    end if
 
-    !! position
-    call iw_text("Position",highlight=.true.)
-    ch = iw_radiobutton("Fixed in Window",int=w%rep%axes%placement,intval=int(axplace_window,c_int))
-    if (ch) w%rep%axes%scale_auto = .true. ! re-size the gizmo for the scene
-    changed = changed .or. ch
-    call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
-    changed = changed .or. iw_radiobutton("At Position",int=w%rep%axes%placement,&
-       intval=int(axplace_scene,c_int),sameline=.true.)
-    call iw_tooltip("Place the axes at the cartesian origin",ttshown)
-    if (w%rep%axes%placement == axplace_scene) then
-       if (sys(w%isys)%c%ismolecule) then
-          ! molecules: only cartesian options, referred to the molecular center
-          icoord = max(w%rep%axes%coordtype,1) - 1
-          call iw_combo_simple("Coordinates##axescoord","Cartesian (Å)" // c_null_char // &
-             "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
-          if (ch .or. (icoord+1) /= w%rep%axes%coordtype) changed = .true.
-          w%rep%axes%coordtype = icoord + 1
+       ! position
+       call iw_text("Position",alignframe=.true.)
+       ch = iw_radiobutton("Fixed in window",int=w%rep%axes%placement,intval=int(axplace_window,c_int),&
+          sameline=.true.)
+       if (ch) w%rep%axes%scale_auto = .true. ! re-size the gizmo for the scene
+       changed = changed .or. ch
+       call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
+       changed = changed .or. iw_radiobutton("In the scene",int=w%rep%axes%placement,&
+          intval=int(axplace_scene,c_int),sameline=.true.)
+       call iw_tooltip("Place the axes at a point of the scene",ttshown)
+       if (w%rep%axes%placement == axplace_scene) then
+          call iw_text("Coordinates",alignframe=.true.)
+          if (sys(w%isys)%c%ismolecule) then
+             ! molecules: only cartesian options, referred to the molecular center
+             icoord = max(w%rep%axes%coordtype,1) - 1
+             call iw_combo_simple("##axescoord","Cartesian (Å)" // c_null_char // &
+                "Cartesian (bohr)" // c_null_char,icoord,changed=ch,sameline=.true.)
+             if (ch .or. (icoord+1) /= w%rep%axes%coordtype) changed = .true.
+             w%rep%axes%coordtype = icoord + 1
+          else
+             icoord = w%rep%axes%coordtype
+             call iw_combo_simple("##axescoord","Crystallographic" // c_null_char // &
+                "Cartesian (Å)" // c_null_char // "Cartesian (bohr)" // c_null_char,icoord,changed=ch,&
+                sameline=.true.)
+             if (ch .or. icoord /= w%rep%axes%coordtype) changed = .true.
+             w%rep%axes%coordtype = icoord
+          end if
+          call iw_tooltip("Coordinate system in which the origin is given",ttshown)
+          call iw_text("Origin",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%axes%origin,speed=0.001d0,decimal=5,&
+             sameline=.true.)
+          call iw_tooltip("Coordinates for the origin of the axes",ttshown)
        else
-          icoord = w%rep%axes%coordtype
-          call iw_combo_simple("Coordinates##axescoord","Crystallographic" // c_null_char // &
-             "Cartesian (Å)" // c_null_char // "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
-          if (ch .or. icoord /= w%rep%axes%coordtype) changed = .true.
-          w%rep%axes%coordtype = icoord
-       end if
-       call iw_tooltip("Coordinate system in which the origin is given",ttshown)
-       changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%axes%origin,speed=0.001d0,decimal=5)
-       call iw_tooltip("Coordinates for the origin of the axes",ttshown)
-    else
-       changed = changed .or. iw_dragfloat_real8("from left##axeswinx",x1=w%rep%axes%winpos(1),speed=0.005d0,&
-          min=0d0,max=1d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Horizontal position of the axes, as a fraction of the window width from the left",ttshown)
-       changed = changed .or. iw_dragfloat_real8("from bottom##axeswiny",x1=w%rep%axes%winpos(2),speed=0.005d0,&
-          min=0d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Vertical position of the axes, as a fraction of the window height from the bottom",ttshown)
-       if (iw_checkbox("Scale with zoom##axesscalewithzoom",w%rep%axes%scalewithzoom)) then
-          changed = .true.
-          ! keep the apparent on-screen size unchanged across the toggle
-          iview = w%anchor_view()
-          if (iview > 0) then
-             zf = real(win(iview)%sc%overlay_zoom_factor(),8)
-             if (zf > 1d-10) then
-                if (w%rep%axes%scalewithzoom) then
-                   w%rep%axes%scale = w%rep%axes%scale * zf
-                else
-                   w%rep%axes%scale = w%rep%axes%scale / zf
+          call iw_text("From left",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeswinx",x1=w%rep%axes%winpos(1),speed=0.005d0,&
+             min=0d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Horizontal position of the axes, as a fraction of the window width from the left",ttshown)
+          call iw_text("From bottom",alignframe=.true.,gap=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeswiny",x1=w%rep%axes%winpos(2),speed=0.005d0,&
+             min=0d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Vertical position of the axes, as a fraction of the window height from the bottom",ttshown)
+          if (iw_checkbox("Scale with zoom##axesscalewithzoom",w%rep%axes%scalewithzoom,labelleft=.true.)) then
+             changed = .true.
+             ! keep the apparent on-screen size unchanged across the toggle
+             iview = w%anchor_view()
+             if (iview > 0) then
+                zf = real(win(iview)%sc%overlay_zoom_factor(),8)
+                if (zf > 1d-10) then
+                   if (w%rep%axes%scalewithzoom) then
+                      w%rep%axes%scale = w%rep%axes%scale * zf
+                   else
+                      w%rep%axes%scale = w%rep%axes%scale / zf
+                   end if
+                   w%rep%axes%scale_auto = .false.
                 end if
-                w%rep%axes%scale_auto = .false.
              end if
           end if
+          call iw_tooltip("Let the gizmo grow and shrink as the scene is zoomed in and out (on), or keep&
+             & it at a constant size on the window (off)",ttshown)
        end if
-       call iw_tooltip("Let the gizmo grow and shrink as the scene is zoomed in and out (on), or keep&
-          & it at a constant size on the window (off)",ttshown)
     end if
 
-    !! global scale
-    call iw_text("Scale",highlight=.true.)
-    ch = iw_dragfloat_real8("Scale##axesscale",x1=w%rep%axes%scale,speed=0.01d0,&
-       min=0.01d0,max=100d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    if (ch) w%rep%axes%scale_auto = .false. ! a manual edit disables auto-sizing
-    changed = changed .or. ch
-    call iw_tooltip("Global scale factor applied to the whole gizmo (arrows and labels)",ttshown)
+    !! style: scale, arrow geometry and colors
+    call iw_separatortext("Style",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       call iw_text("Scale",alignframe=.true.)
+       ch = iw_dragfloat_real8("##axesscale",x1=w%rep%axes%scale,speed=0.01d0,&
+          min=0.01d0,max=100d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       if (ch) w%rep%axes%scale_auto = .false. ! a manual edit disables auto-sizing
+       changed = changed .or. ch
+       call iw_tooltip("Global scale factor applied to the whole gizmo (arrows and labels)",ttshown)
 
-    !! geometry
-    call iw_text("Arrow shaft",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Length (Å)##arrowshaftlength",x1=w%rep%axes%length,speed=0.01d0,&
-       min=0d0,max=100d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Length of each cartesian axis",ttshown)
-    changed = changed .or. iw_dragfloat_real8("Radius (Å)##axesradius",x1=w%rep%axes%radius,speed=0.005d0,&
-       min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the axis shafts",ttshown)
+       ! arrow shafts
+       call iw_text("Shaft length (Å)",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##arrowshaftlength",x1=w%rep%axes%length,speed=0.01d0,&
+          min=0d0,max=100d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Length of each cartesian axis",ttshown)
+       call iw_text("Shaft radius (Å)",alignframe=.true.,gap=.true.)
+       changed = changed .or. iw_dragfloat_real8("##axesradius",x1=w%rep%axes%radius,speed=0.005d0,&
+          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radius of the axis shafts",ttshown)
 
-    !! arrowheads
-    call iw_text("Arrow head",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Length (Å)##arrowheadlength",x1=w%rep%axes%conelength,speed=0.005d0,&
-       min=0d0,max=10d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Length of the arrowhead cones (controls how pointy the arrows are)",ttshown)
-    changed = changed .or. iw_dragfloat_real8("Radius (Å)##conerad",x1=w%rep%axes%coneradius,speed=0.005d0,&
-       min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Base radius of the arrowhead cones (controls how wide the arrows are)",ttshown)
+       ! arrowheads
+       call iw_text("Head length (Å)",alignframe=.true.)
+       changed = changed .or. iw_dragfloat_real8("##arrowheadlength",x1=w%rep%axes%conelength,speed=0.005d0,&
+          min=0d0,max=10d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Length of the arrowhead cones (controls how pointy the arrows are)",ttshown)
+       call iw_text("Head radius (Å)",alignframe=.true.,gap=.true.)
+       changed = changed .or. iw_dragfloat_real8("##conerad",x1=w%rep%axes%coneradius,speed=0.005d0,&
+          min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Base radius of the arrowhead cones (controls how wide the arrows are)",ttshown)
 
-    !! colors
-    call iw_text("Colors",highlight=.true.)
-    changed = changed .or. iw_coloredit("x",rgb=w%rep%axes%rgb(:,1))
-    call iw_tooltip("Color of the x axis",ttshown)
-    changed = changed .or. iw_coloredit("y",rgb=w%rep%axes%rgb(:,2),sameline=.true.)
-    call iw_tooltip("Color of the y axis",ttshown)
-    changed = changed .or. iw_coloredit("z",rgb=w%rep%axes%rgb(:,3),sameline=.true.)
-    call iw_tooltip("Color of the z axis",ttshown)
+       ! colors
+       call iw_text("Colors",alignframe=.true.)
+       call iw_text("x",alignframe=.true.,sameline=.true.)
+       changed = changed .or. iw_coloredit("##axescolx",rgb=w%rep%axes%rgb(:,1),sameline=.true.)
+       call iw_tooltip("Color of the x axis",ttshown)
+       call iw_text("y",alignframe=.true.,gap=.true.)
+       changed = changed .or. iw_coloredit("##axescoly",rgb=w%rep%axes%rgb(:,2),sameline=.true.)
+       call iw_tooltip("Color of the y axis",ttshown)
+       call iw_text("z",alignframe=.true.,gap=.true.)
+       changed = changed .or. iw_coloredit("##axescolz",rgb=w%rep%axes%rgb(:,3),sameline=.true.)
+       call iw_tooltip("Color of the z axis",ttshown)
+    end if
 
     !! labels
-    call iw_text("Labels",highlight=.true.)
-    changed = changed .or. iw_checkbox("Show x/y/z labels",w%rep%axes%showlabels)
-    call iw_tooltip("Draw the x/y/z labels at the axis tips",ttshown)
-    if (w%rep%axes%showlabels) then
-       changed = changed .or. iw_dragfloat_real8("Label size",x1=w%rep%axes%labelscale,speed=0.01d0,&
-          min=0.1d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Scale of the axis labels",ttshown)
-       changed = changed .or. iw_coloredit("Color##axeslabel",rgb=w%rep%axes%labelrgb,sameline=.true.)
-       call iw_tooltip("Color of the axis labels",ttshown)
-       if (w%rep%axes%placement == axplace_scene) then
-          ! for the window-anchored gizmo the label zoom behavior follows the
-          ! "Scale with zoom" option above
-          changed = changed .or. iw_checkbox("Constant size##axeslabelconstsize",&
-             w%rep%axes%labelconstsize,sameline=.true.)
-          call iw_tooltip("Labels have constant size (on) or labels scale with the&
-             & size of the arrowhead (off)",ttshown)
-       end if
-       changed = changed .or. iw_inputtext("x##lblx",bufsize=31,textf=w%rep%axes%labelstr(1),width=5)
-       changed = changed .or. iw_inputtext("y##lbly",bufsize=31,textf=w%rep%axes%labelstr(2),width=5,sameline=.true.)
-       changed = changed .or. iw_inputtext("z##lblz",bufsize=31,textf=w%rep%axes%labelstr(3),width=5,sameline=.true.)
-       call iw_tooltip("Text shown for each axis label",ttshown)
+    call iw_separatortext("Labels",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       changed = changed .or. iw_checkbox("Show labels##axesshowlabels",w%rep%axes%showlabels,labelleft=.true.)
+       call iw_tooltip("Draw the x/y/z labels at the axis tips",ttshown)
+       if (w%rep%axes%showlabels) then
+          call iw_text("Size",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeslabelsize",x1=w%rep%axes%labelscale,speed=0.01d0,&
+             min=0.1d0,max=5d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Scale of the axis labels",ttshown)
+          call iw_text("Color",alignframe=.true.,gap=.true.)
+          changed = changed .or. iw_coloredit("##axeslabel",rgb=w%rep%axes%labelrgb,sameline=.true.)
+          call iw_tooltip("Color of the axis labels",ttshown)
+          if (w%rep%axes%placement == axplace_scene) then
+             ! for the window-anchored gizmo the label zoom behavior follows the
+             ! "Scale with zoom" option above
+             changed = changed .or. iw_checkbox("Constant size##axeslabelconstsize",&
+                w%rep%axes%labelconstsize,labelleft=.true.,gap=.true.)
+             call iw_tooltip("Labels have constant size (on) or labels scale with the&
+                & size of the arrowhead (off)",ttshown)
+          end if
+          call iw_text("Text",alignframe=.true.)
+          changed = changed .or. iw_inputtext("##lblx",bufsize=31,textf=w%rep%axes%labelstr(1),width=5,&
+             sameline=.true.)
+          changed = changed .or. iw_inputtext("##lbly",bufsize=31,textf=w%rep%axes%labelstr(2),width=5,&
+             sameline=.true.)
+          changed = changed .or. iw_inputtext("##lblz",bufsize=31,textf=w%rep%axes%labelstr(3),width=5,&
+             sameline=.true.)
+          call iw_tooltip("Text shown for each axis label",ttshown)
 
-       changed = changed .or. iw_dragfloat_real8("Distance to arrow head (Å)",x1=w%rep%axes%labeldistance,&
-          speed=0.01d0,scale=bohrtoa,decimal=3)
-       call iw_tooltip("Distance from the arrowhead to the label, along the axis (all axes)",ttshown)
-       changed = changed .or. iw_dragfloat_real8("x-axis offset##axeslbloffx",x3=w%rep%axes%labeloffset(:,1),&
-          speed=0.01d0,scale=bohrtoa,decimal=3)
-       call iw_tooltip("Cartesian offset (Å) of the x-axis label from its position on the axis",ttshown)
-       changed = changed .or. iw_dragfloat_real8("y-axis offset##axeslbloffy",x3=w%rep%axes%labeloffset(:,2),&
-          speed=0.01d0,scale=bohrtoa,decimal=3)
-       call iw_tooltip("Cartesian offset (Å) of the y-axis label from its position on the axis",ttshown)
-       changed = changed .or. iw_dragfloat_real8("z-axis offset##axeslbloffz",x3=w%rep%axes%labeloffset(:,3),&
-          speed=0.01d0,scale=bohrtoa,decimal=3)
-       call iw_tooltip("Cartesian offset (Å) of the z-axis label from its position on the axis",ttshown)
+          call iw_text("Distance to arrow head (Å)",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeslabeldist",x1=w%rep%axes%labeldistance,&
+             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+          call iw_tooltip("Distance from the arrowhead to the label, along the axis (all axes)",ttshown)
+          call iw_text("x offset (Å)",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeslbloffx",x3=w%rep%axes%labeloffset(:,1),&
+             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+          call iw_tooltip("Cartesian offset (Å) of the x-axis label from its position on the axis",ttshown)
+          call iw_text("y offset (Å)",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeslbloffy",x3=w%rep%axes%labeloffset(:,2),&
+             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+          call iw_tooltip("Cartesian offset (Å) of the y-axis label from its position on the axis",ttshown)
+          call iw_text("z offset (Å)",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##axeslbloffz",x3=w%rep%axes%labeloffset(:,3),&
+             speed=0.01d0,scale=bohrtoa,decimal=3,sameline=.true.)
+          call iw_tooltip("Cartesian offset (Å) of the z-axis label from its position on the axis",ttshown)
+       end if
     end if
 
   end function draw_editrep_axes
@@ -1815,7 +1943,7 @@ contains
     use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_ang,&
        atlisttype_ncel_frac
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column, iw_intstepper
+       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column, iw_intstepper, iw_separatortext
     use tools_io, only: string, ioj_right
     use param, only: bohrtoa
     use display, only: disp_maxshift
@@ -1854,9 +1982,9 @@ contains
     doshift = present(shift)
     if (doshift) doshift = .not.sys(isys)%c%ismolecule
     if (doshown) then
-       call iw_text("Shown Atoms",highlight=.true.)
+       call iw_separatortext("Shown atoms")
     elseif (dostyle) then
-       call iw_text("Atom Style",highlight=.true.)
+       call iw_separatortext("Atom style")
     end if
     if (sys(isys)%c%ismolecule) then
        atlisttype_allowed = atlisttype_allowed_mol
@@ -1867,8 +1995,9 @@ contains
     ! the grouping; a change is the caller's to apply, so this frame the
     ! table is still drawn over the grouping the arrays describe
     itab = itype
-    typechanged = sysc(isys)%attype_combo_simple("Atom types##atomtypeselection",itype,&
-       atlisttype_allowed,units=.false.)
+    call iw_text("Atom types",alignframe=.true.)
+    typechanged = sysc(isys)%attype_combo_simple("##atomtypeselection",itype,&
+       atlisttype_allowed,units=.false.,sameline=.true.)
     call iw_tooltip("Group atoms by these categories",ttshown)
     changed = changed .or. typechanged
 
@@ -2054,7 +2183,7 @@ contains
   module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
     use systems, only: sys, atlisttype_nmol
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_calcheight, iw_checkbox, iw_button, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column
+       iw_highlight_selectable, iw_dragfloat_real8, iw_table_column, iw_separatortext
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
     integer, intent(in) :: isys
@@ -2089,9 +2218,9 @@ contains
        if (size(tint,2) /= nmol .or. size(scale,1) /= nmol) return
     end if
     if (doshown) then
-       call iw_text("Shown Molecules",highlight=.true.)
+       call iw_separatortext("Shown molecules")
     elseif (dostyle) then
-       call iw_text("Molecule Style",highlight=.true.)
+       call iw_separatortext("Molecule style")
     end if
 
     ncol = 2
@@ -2407,7 +2536,7 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_symelem(w,ttshown) result(changed)
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
-       iw_button, iw_calcheight, iw_table_column
+       iw_button, iw_calcheight, iw_table_column, iw_separatortext
     use systems, only: sys
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2433,35 +2562,44 @@ contains
 
     !! origin (molecules only; in a crystal the element positions are calculated)
     if (sys(w%isys)%c%ismolecule) then
-       call iw_text("Origin",highlight=.true.)
-       ! cartesian options only (coordtype 1/2), referred to the molecular
-       ! center; the combo is 0-based, hence the +/-1 offset
-       icoord = max(w%rep%symelem%coordtype,1) - 1
-       call iw_combo_simple("Coordinates##symelemcoord","Cartesian (Å)" // c_null_char // &
-          "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
-       if (ch .or. (icoord+1) /= w%rep%symelem%coordtype) changed = .true.
-       w%rep%symelem%coordtype = icoord + 1
-       call iw_tooltip("Coordinate system in which the origin is given",ttshown)
-       changed = changed .or. iw_dragfloat_real8("##originsymelem",x3=w%rep%symelem%origin,speed=0.001d0,decimal=5)
-       call iw_tooltip("Point all the symmetry elements pass through",ttshown)
+       call iw_separatortext("Origin",w%editrep_sec(1))
+       if (w%editrep_sec(1)%open) then
+          ! cartesian options only (coordtype 1/2), referred to the molecular
+          ! center; the combo is 0-based, hence the +/-1 offset
+          icoord = max(w%rep%symelem%coordtype,1) - 1
+          call iw_text("Coordinates",alignframe=.true.)
+          call iw_combo_simple("##symelemcoord","Cartesian (Å)" // c_null_char // &
+             "Cartesian (bohr)" // c_null_char,icoord,changed=ch,sameline=.true.)
+          if (ch .or. (icoord+1) /= w%rep%symelem%coordtype) changed = .true.
+          w%rep%symelem%coordtype = icoord + 1
+          call iw_tooltip("Coordinate system in which the origin is given",ttshown)
+          call iw_text("Origin",alignframe=.true.)
+          changed = changed .or. iw_dragfloat_real8("##originsymelem",x3=w%rep%symelem%origin,speed=0.001d0,&
+             decimal=5,sameline=.true.)
+          call iw_tooltip("Point all the symmetry elements pass through",ttshown)
+       end if
     end if
 
     !! color
-    call iw_text("Color",highlight=.true.)
-    changed = changed .or. iw_checkbox("Custom color##symelemcustomrgb",w%rep%symelem%usecustomrgb)
-    call iw_tooltip("Color all elements with a single custom color. If off, mirror planes and glide &
-       &planes have colors of their own and rotation axes are colored by rotation order. A glide &
-       &plane and a screw axis also carry a dashed arrow along the translation that goes with it.",&
-       ttshown)
-    if (w%rep%symelem%usecustomrgb) &
-       changed = changed .or. iw_coloredit("##symelemrgb",rgb=w%rep%symelem%rgb,sameline=.true.)
+    call iw_separatortext("Style",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       changed = changed .or. iw_checkbox("Custom color##symelemcustomrgb",w%rep%symelem%usecustomrgb,&
+          labelleft=.true.)
+       call iw_tooltip("Color all elements with a single custom color. If off, mirror planes and glide &
+          &planes have colors of their own and rotation axes are colored by rotation order. A glide &
+          &plane and a screw axis also carry a dashed arrow along the translation that goes with it.",&
+          ttshown)
+       if (w%rep%symelem%usecustomrgb) &
+          changed = changed .or. iw_coloredit("##symelemrgb",rgb=w%rep%symelem%rgb,sameline=.true.)
+    end if
 
     !! elements
-    call iw_text("Elements",highlight=.true.)
-    call iw_tooltip("The symmetry elements of this system. Operations lists the symmetry operations &
-       &that generate each element, numbered as in the symmetry table of the View/Edit Geometry &
-       &window; one operation can generate elements with different symbols.",ttshown)
-    if (w%rep%symelem%style%isinit) then
+    call iw_separatortext("Elements",w%editrep_sec(3))
+    if (w%rep%symelem%style%isinit .and. w%editrep_sec(3)%open) then
+       call iw_text("The symmetry elements of this system. Operations lists the symmetry operations &
+          &that generate each element, numbered as in the symmetry table of the View/Edit Geometry &
+          &window; one operation can generate elements with different symbols.",disabled=.true.,wrap=.true.)
+
        ! all / none / toggle
        if (iw_button("All##symelemall")) then
           w%rep%symelem%style%shown = .true.
@@ -2546,7 +2684,7 @@ contains
        text_delete, text_copy_style
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_combo_simple,&
        iw_button, iw_calcheight, iw_inputtext, iw_close_button, iw_highlight_selectable, iw_radiobutton,&
-       iw_table_column
+       iw_table_column, iw_separatortext
     use systems, only: sys, sysc
     use tools_io, only: string
     use param, only: bohrtoa
@@ -2629,50 +2767,52 @@ contains
        call w%editrep_toolbar(ttshown)
 
     ! table of text items
-    call iw_text("Text objects",highlight=.true.)
+    call iw_separatortext("Texts",w%editrep_sec(1))
     idel = 0
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    str1 = "##texttable" // c_null_char
-    sz0%x = 0
-    sz0%y = iw_calcheight(min(w%rep%text%ntext,5)+1,0,.false.)
-    if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
-       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Text",id=2,flags=ImGuiTableColumnFlags_WidthStretch)
-       call iw_table_column("Placement",id=3,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_headers_row(freezetop=.true.)
+    if (w%editrep_sec(1)%open) then
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##texttable" // c_null_char
+       sz0%x = 0
+       sz0%y = iw_calcheight(min(w%rep%text%ntext,5)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+          call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Text",id=2,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_column("Placement",id=3,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_headers_row(freezetop=.true.)
 
-       do i = 1, w%rep%text%ntext
-          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-          ! delete button
-          if (igTableSetColumnIndex(0)) then
-             call igAlignTextToFramePadding()
-             if (iw_close_button("##textdel" // string(i))) idel = i
-             call iw_tooltip("Remove this text",ttshown)
-          end if
-          ! shown checkbox
-          if (igTableSetColumnIndex(1)) then
-             if (iw_checkbox("##textshow" // string(i),w%rep%text%t(i)%shown)) changed = .true.
-             call iw_tooltip("Toggle show/hide this text",ttshown)
-          end if
-          ! the text (first line only; edited in the box below the table)
-          if (igTableSetColumnIndex(2)) then
-             call iw_text(first_line(w%rep%text%t(i)%str),alignframe=.true.)
-          end if
-          ! placement summary; a row-spanning selectable picks the edited item,
-          ! and the row being edited is shown highlighted
-          if (igTableSetColumnIndex(3)) then
-             call iw_text(trim(placename(w%rep%text%t(i)%placement)),alignframe=.true.)
-             ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch,&
-                selected=(i == w%rep%text%isel))
-             if (ch) w%rep%text%isel = i
-          end if
-       end do
-       call igEndTable()
+          do i = 1, w%rep%text%ntext
+             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+             ! delete button
+             if (igTableSetColumnIndex(0)) then
+                call igAlignTextToFramePadding()
+                if (iw_close_button("##textdel" // string(i))) idel = i
+                call iw_tooltip("Remove this text",ttshown)
+             end if
+             ! shown checkbox
+             if (igTableSetColumnIndex(1)) then
+                if (iw_checkbox("##textshow" // string(i),w%rep%text%t(i)%shown)) changed = .true.
+                call iw_tooltip("Toggle show/hide this text",ttshown)
+             end if
+             ! the text (first line only; edited in the box below the table)
+             if (igTableSetColumnIndex(2)) then
+                call iw_text(first_line(w%rep%text%t(i)%str),alignframe=.true.)
+             end if
+             ! placement summary; a row-spanning selectable picks the edited item,
+             ! and the row being edited is shown highlighted
+             if (igTableSetColumnIndex(3)) then
+                call iw_text(trim(placename(w%rep%text%t(i)%placement)),alignframe=.true.)
+                ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch,&
+                   selected=(i == w%rep%text%isel))
+                if (ch) w%rep%text%isel = i
+             end if
+          end do
+          call igEndTable()
+       end if
     end if
 
     ! process a deletion, dropping a mouse drag on the texts in the view
@@ -2700,100 +2840,117 @@ contains
     if (w%rep%text%isel >= 1 .and. w%rep%text%isel <= w%rep%text%ntext) then
        isel = w%rep%text%isel
 
-       ! the text, edited in a multiline box
-       call iw_text("Text",highlight=.true.)
-       if (focus) call igSetWindowFocus_Nil()
-       if (iw_inputtext("##textstredit",bufsize=4095,texta=w%rep%text%t(isel)%str,nlines=3,&
-          grabfocus=focus,selectall=.true.)) changed = .true.
-       call iw_tooltip("Text of the selected annotation (multiple lines allowed)",ttshown)
-
-       ! placement
-       call iw_text("Placement",highlight=.true.,alignframe=.true.)
-       ipl = w%rep%text%t(isel)%placement
-       call iw_combo_simple("##textplacement","On-screen" // c_null_char // "3D position" // c_null_char //&
-          "Atom" // c_null_char // "Bond" // c_null_char,ipl,changed=ch,sameline=.true.)
-       changed = changed .or. ch
-       w%rep%text%t(isel)%placement = ipl
-       call iw_tooltip("Place the text: anchored to the view (on-screen), at a &
-          &3D position in the system, or tied to an atom or a bond",ttshown)
-
-       if (ipl == textpos_screen) then
-          ch = iw_dragfloat_real8("Position##textwinpos",x2=w%rep%text%t(isel)%winpos,&
-             speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Position of the text in the viewport, as fractions of the window &
-             &size from the left and bottom borders",ttshown)
-          changed = changed .or. ch
-          call text_pick_button("textpickwinpos",vm_pick_atom,"Pick the on-screen position for the text",&
-             "Click, then pick the position in the view window",acceptempty=.true.,sameline=.true.)
-          ch = iw_radiobutton("In front##textfront",bool=w%rep%text%t(isel)%infront,&
-             boolval=.true.)
-          call iw_tooltip("Draw the text in front of the scene",ttshown)
-          changed = changed .or. ch
-          ch = iw_radiobutton("Behind##textbehind",bool=w%rep%text%t(isel)%infront,&
-             boolval=.false.,sameline=.true.)
-          call iw_tooltip("Draw the text behind the scene",ttshown)
-          changed = changed .or. ch
-       elseif (ipl == textpos_point) then
-          ch = iw_dragfloat_real8("Position##textpos",x3=w%rep%text%t(isel)%pos,&
-             speed=0.001d0,decimal=5)
-          if (sys(w%isys)%c%ismolecule) then
-             call iw_tooltip("Position of the text (Cartesian coordinates, Å)",ttshown)
-          else
-             call iw_tooltip("Position of the text (fractional coordinates)",ttshown)
-          end if
-          changed = changed .or. ch
-          call text_pick_button("textpickpos",vm_pick_atom,"Pick the text position",&
-             "Click, then pick the position in the view window: an atom to use its &
-             &position, or empty space for the clicked point on the plane through the &
-             &scene center",acceptempty=.true.,sameline=.true.)
-       elseif (ipl == textpos_atom) then
-          call text_pick_button("textpickatom",vm_pick_atom,"Pick the atom to anchor the text to",&
-             "Click, then pick the anchor atom in the view window")
-          call anchor_atom_button(w%rep%text%t(isel)%idx1,"##textanchor1","Anchor atom of the text")
-       else ! textpos_bond
-          call text_pick_button("textpickbond",vm_pick_bond,"Pick the bond to anchor the text to",&
-             "Click, then pick the bond in the view window")
-          call anchor_atom_button(w%rep%text%t(isel)%idx1,"##textanchor1",&
-             "First atom of the anchor bond")
-          call anchor_atom_button(w%rep%text%t(isel)%idx2,"##textanchor2",&
-             "Second atom of the anchor bond")
+       ! the text, edited in a multiline box (opened for a focus request)
+       if (focus) w%editrep_sec(2)%open = .true.
+       call iw_separatortext("Text",w%editrep_sec(2))
+       if (w%editrep_sec(2)%open) then
+          if (focus) call igSetWindowFocus_Nil()
+          if (iw_inputtext("##textstredit",bufsize=4095,texta=w%rep%text%t(isel)%str,nlines=3,&
+             grabfocus=focus,selectall=.true.)) changed = .true.
+          call iw_tooltip("Text of the selected annotation (multiple lines allowed)",ttshown)
        end if
 
-       ! 3D placements: on-screen offset from the anchor and depth toggle
-       if (ipl /= textpos_screen) then
-          ch = iw_dragfloat_real8("Offset (Å)##textoffset",x2=w%rep%text%t(isel)%offset,&
-             speed=0.01d0,decimal=2)
-          call iw_tooltip("Offset of the text from its anchor, in on-screen (in-plane) coordinates",ttshown)
+       ! placement
+       call iw_separatortext("Placement",w%editrep_sec(3))
+       ipl = w%rep%text%t(isel)%placement
+       if (w%editrep_sec(3)%open) then
+          call iw_text("Anchor",alignframe=.true.)
+          call iw_combo_simple("##textplacement","On-screen" // c_null_char // "3D position" // c_null_char //&
+             "Atom" // c_null_char // "Bond" // c_null_char,ipl,changed=ch,sameline=.true.)
           changed = changed .or. ch
-          ch = iw_checkbox("Depth##textdepth",w%rep%text%t(isel)%depth)
-          call iw_tooltip("The text is hidden by objects in front of it. If unchecked, the &
-             &text is drawn on top of all objects.",ttshown)
-          changed = changed .or. ch
+          w%rep%text%t(isel)%placement = ipl
+          call iw_tooltip("Place the text: anchored to the view (on-screen), at a &
+             &3D position in the system, or tied to an atom or a bond",ttshown)
+
+          if (ipl == textpos_screen) then
+             call iw_text("Position",alignframe=.true.)
+             ch = iw_dragfloat_real8("##textwinpos",x2=w%rep%text%t(isel)%winpos,&
+                speed=0.005d0,min=0d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Position of the text in the viewport, as fractions of the window &
+                &size from the left and bottom borders",ttshown)
+             changed = changed .or. ch
+             call text_pick_button("textpickwinpos",vm_pick_atom,"Pick the on-screen position for the text",&
+                "Click, then pick the position in the view window",acceptempty=.true.,sameline=.true.)
+             call iw_text("Draw",alignframe=.true.)
+             ch = iw_radiobutton("In front##textfront",bool=w%rep%text%t(isel)%infront,&
+                boolval=.true.,sameline=.true.)
+             call iw_tooltip("Draw the text in front of the scene",ttshown)
+             changed = changed .or. ch
+             ch = iw_radiobutton("Behind##textbehind",bool=w%rep%text%t(isel)%infront,&
+                boolval=.false.,sameline=.true.)
+             call iw_tooltip("Draw the text behind the scene",ttshown)
+             changed = changed .or. ch
+          elseif (ipl == textpos_point) then
+             call iw_text("Position",alignframe=.true.)
+             ch = iw_dragfloat_real8("##textpos",x3=w%rep%text%t(isel)%pos,&
+                speed=0.001d0,decimal=5,sameline=.true.)
+             if (sys(w%isys)%c%ismolecule) then
+                call iw_tooltip("Position of the text (Cartesian coordinates, Å)",ttshown)
+             else
+                call iw_tooltip("Position of the text (fractional coordinates)",ttshown)
+             end if
+             changed = changed .or. ch
+             call text_pick_button("textpickpos",vm_pick_atom,"Pick the text position",&
+                "Click, then pick the position in the view window: an atom to use its &
+                &position, or empty space for the clicked point on the plane through the &
+                &scene center",acceptempty=.true.,sameline=.true.)
+          elseif (ipl == textpos_atom) then
+             call iw_text("Atom",alignframe=.true.)
+             call text_pick_button("textpickatom",vm_pick_atom,"Pick the atom to anchor the text to",&
+                "Click, then pick the anchor atom in the view window",sameline=.true.)
+             call anchor_atom_button(w%rep%text%t(isel)%idx1,"##textanchor1","Anchor atom of the text")
+          else ! textpos_bond
+             call iw_text("Bond",alignframe=.true.)
+             call text_pick_button("textpickbond",vm_pick_bond,"Pick the bond to anchor the text to",&
+                "Click, then pick the bond in the view window",sameline=.true.)
+             call anchor_atom_button(w%rep%text%t(isel)%idx1,"##textanchor1",&
+                "First atom of the anchor bond")
+             call anchor_atom_button(w%rep%text%t(isel)%idx2,"##textanchor2",&
+                "Second atom of the anchor bond")
+          end if
+
+          ! 3D placements: on-screen offset from the anchor and depth toggle
+          if (ipl /= textpos_screen) then
+             call iw_text("Offset (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8("##textoffset",x2=w%rep%text%t(isel)%offset,&
+                speed=0.01d0,decimal=2,sameline=.true.)
+             call iw_tooltip("Offset of the text from its anchor, in on-screen (in-plane) coordinates",ttshown)
+             changed = changed .or. ch
+             ch = iw_checkbox("Depth##textdepth",w%rep%text%t(isel)%depth,labelleft=.true.,gap=.true.)
+             call iw_tooltip("The text is hidden by objects in front of it. If unchecked, the &
+                &text is drawn on top of all objects.",ttshown)
+             changed = changed .or. ch
+          end if
        end if
 
        ! style
-       call iw_text("Style",highlight=.true.)
-       ch = iw_dragfloat_real8("Size##textscale",x1=w%rep%text%t(isel)%scale,&
-          speed=0.01d0,min=0.05d0,max=10d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Size of the text",ttshown)
-       changed = changed .or. ch
-       ch = iw_coloredit("Color##textcolor",rgb=w%rep%text%t(isel)%rgb,sameline=.true.)
-       call iw_tooltip("Color of the text",ttshown)
-       changed = changed .or. ch
-       ch = iw_checkbox("Scale with zoom##textzoom",w%rep%text%t(isel)%scalewithzoom)
-       call iw_tooltip("Whether the text size scales when zooming in and out, or stays &
-          &at a constant on-screen size",ttshown)
-       changed = changed .or. ch
+       call iw_separatortext("Style",w%editrep_sec(4))
+       if (w%editrep_sec(4)%open) then
+          call iw_text("Size",alignframe=.true.)
+          ch = iw_dragfloat_real8("##textscale",x1=w%rep%text%t(isel)%scale,&
+             speed=0.01d0,min=0.05d0,max=10d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Size of the text",ttshown)
+          changed = changed .or. ch
+          call iw_text("Color",alignframe=.true.,gap=.true.)
+          ch = iw_coloredit("##textcolor",rgb=w%rep%text%t(isel)%rgb,sameline=.true.)
+          call iw_tooltip("Color of the text",ttshown)
+          changed = changed .or. ch
+          ch = iw_checkbox("Scale with zoom##textzoom",w%rep%text%t(isel)%scalewithzoom,labelleft=.true.,&
+             gap=.true.)
+          call iw_tooltip("Whether the text size scales when zooming in and out, or stays &
+             &at a constant on-screen size",ttshown)
+          changed = changed .or. ch
 
-       ! apply these style options to the texts with this placement, or to all
-       imode = apply_style_buttons("text","texts with " // trim(placename(ipl)) // " placement",&
-          "texts",ttshown)
-       if (imode > 0) then
-          do i = 1, w%rep%text%ntext
-             if (i == isel .or. (imode == 1 .and. w%rep%text%t(i)%placement /= ipl)) cycle
-             call text_copy_style(w%rep%text%t(i),w%rep%text%t(isel))
-          end do
-          changed = .true.
+          ! apply these style options to the texts with this placement, or to all
+          imode = apply_style_buttons("text","texts with " // trim(placename(ipl)) // " placement",&
+             "texts",ttshown)
+          if (imode > 0) then
+             do i = 1, w%rep%text%ntext
+                if (i == isel .or. (imode == 1 .and. w%rep%text%t(i)%placement /= ipl)) cycle
+                call text_copy_style(w%rep%text%t(i),w%rep%text%t(isel))
+             end do
+             changed = .true.
+          end if
        end if
     end if
 
@@ -2863,7 +3020,7 @@ contains
     use representations, only: measurement_item, measure_delete
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_button,&
        iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable,&
-       iw_helpermark, iw_table_column, iw_begintabitem
+       iw_table_column, iw_begintabitem, iw_separatortext
     use keybindings, only: get_bind_keyname, BIND_NAV_MEASURE, BIND_NAV_MEASURE_TOGGLE
     use systems, only: sys, sysc
     use tools_io, only: string
@@ -2928,40 +3085,43 @@ contains
        call w%editrep_toolbar(ttshown)
 
     ! usage hint
-    call iw_text("Measurements",highlight=.true.)
-    call iw_helpermark("Measure with the toolbar: pick the atoms in the view window, two for a "//&
-       "distance (or a bond), three for an angle (the second atom is the vertex), four for a "//&
-       "dihedral. In navigation, "//trim(get_bind_keyname(BIND_NAV_MEASURE))//" selects atoms and "//&
-       trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE))//" on the last atom, or on empty space, "//&
-       "adds the measurement to the first measurements object; the same click again removes it.")
+    call iw_separatortext("Measurements",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Measure with the toolbar: pick the atoms in the view window, two for a "//&
+          "distance (or a bond), three for an angle (the second atom is the vertex), four for a "//&
+          "dihedral. In navigation, "//trim(get_bind_keyname(BIND_NAV_MEASURE))//" selects atoms and "//&
+          trim(get_bind_keyname(BIND_NAV_MEASURE_TOGGLE))//" on the last atom, or on empty space, "//&
+          "adds the measurement to the first measurements object; the same click again removes it.",&
+          disabled=.true.,wrap=.true.)
 
-    ! a measurement selected elsewhere (the view) brings up its tab
-    itab = 0
-    if (w%rep%measure%isel /= w%lastselected) then
-       if (w%rep%measure%isel >= 1) itab = w%rep%measure%item(w%rep%measure%isel)%n
-       w%lastselected = w%rep%measure%isel
-    end if
-    ! one tab per category: a selectable table, then the options for the
-    ! selected row underneath
-    str1 = "##editrepmeasuretabbar" // c_null_char
-    flags = ImGuiTabBarFlags_None
-    if (igBeginTabBar(c_loc(str1),flags)) then
-       if (iw_begintabitem("Distances##editrepmeasure_disttab",flags=tabflags(2))) then
-          call cat_table(2,"dist")
-          call item_options(2)
-          call igEndTabItem()
+       ! a measurement selected elsewhere (the view) brings up its tab
+       itab = 0
+       if (w%rep%measure%isel /= w%lastselected) then
+          if (w%rep%measure%isel >= 1) itab = w%rep%measure%item(w%rep%measure%isel)%n
+          w%lastselected = w%rep%measure%isel
        end if
-       if (iw_begintabitem("Angles##editrepmeasure_angtab",flags=tabflags(3))) then
-          call cat_table(3,"ang")
-          call item_options(3)
-          call igEndTabItem()
+       ! one tab per category: a selectable table, then the options for the
+       ! selected row underneath
+       str1 = "##editrepmeasuretabbar" // c_null_char
+       flags = ImGuiTabBarFlags_None
+       if (igBeginTabBar(c_loc(str1),flags)) then
+          if (iw_begintabitem("Distances##editrepmeasure_disttab",flags=tabflags(2))) then
+             call cat_table(2,"dist")
+             call item_options(2)
+             call igEndTabItem()
+          end if
+          if (iw_begintabitem("Angles##editrepmeasure_angtab",flags=tabflags(3))) then
+             call cat_table(3,"ang")
+             call item_options(3)
+             call igEndTabItem()
+          end if
+          if (iw_begintabitem("Dihedrals##editrepmeasure_dihtab",flags=tabflags(4))) then
+             call cat_table(4,"dih")
+             call item_options(4)
+             call igEndTabItem()
+          end if
+          call igEndTabBar()
        end if
-       if (iw_begintabitem("Dihedrals##editrepmeasure_dihtab",flags=tabflags(4))) then
-          call cat_table(4,"dih")
-          call item_options(4)
-          call igEndTabItem()
-       end if
-       call igEndTabBar()
     end if
 
     ! process a deletion (global item index), dropping a mouse drag on the
@@ -3089,10 +3249,12 @@ contains
 
       associate (it => w%rep%measure%item(is))
          ! color (the table has no color column for any category)
-         changed = changed .or. iw_coloredit("Color##measureitemcol",rgb=it%rgb)
+         call iw_text("Color",alignframe=.true.)
+         changed = changed .or. iw_coloredit("##measureitemcol",rgb=it%rgb,sameline=.true.)
          call iw_tooltip("Color of this measurement",ttshown)
-         ! decimals (with a trailing label to match the other options)
+         ! decimals
          idec = int(it%ndec,c_int)
+         call iw_text("Decimals",alignframe=.true.,gap=.true.)
          ! the tooltip goes on the stepper: a plain text has no item id, so a
          ! delayed (ttshown) tooltip attached to it never fires
          if (iw_intstepper("measureitemdec",idec,minval=0_c_int,maxval=8_c_int,sameline=.true.,&
@@ -3100,13 +3262,70 @@ contains
             it%ndec = idec
             changed = .true.
          end if
-         call iw_text("Decimals",sameline=.true.)
          ! segment/arm/edge radius
-         changed = changed .or. iw_dragfloat_real8("Segment radius (Å)##measureitemrad",&
-            x1=it%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&
+         call iw_text("Segment radius (Å)",alignframe=.true.,gap=.true.)
+         changed = changed .or. iw_dragfloat_real8("##measureitemrad",&
+            x1=it%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,sameline=.true.,&
             flags=ImGuiSliderFlags_AlwaysClamp)
          call iw_tooltip("Radius of the segments, arms, and dihedral edges",ttshown)
          ! distances: a bond fills both ends in one pick, then the line style
+         if (ncat == 2) then
+            changed = changed .or. iw_checkbox("Dashed line##measureitemdash",it%dashed,labelleft=.true.)
+            call iw_tooltip("Draw the segment as a dashed line instead of a solid one",ttshown)
+            if (it%dashed) then
+               call iw_text("Dash length (Å)",alignframe=.true.,gap=.true.)
+               changed = changed .or. iw_dragfloat_real8("##measureitemdashlen",&
+                  x1=it%dashlen,speed=0.005d0,min=0.02d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,&
+                  flags=ImGuiSliderFlags_AlwaysClamp)
+               call iw_tooltip("Length of each dash (and gap) along the segment",ttshown)
+            end if
+            changed = changed .or. iw_checkbox("Orient label along segment##measureitemorient",it%orient,&
+               labelleft=.true.)
+            call iw_tooltip("Run the label along the segment; if unchecked, keep it horizontal",ttshown)
+         end if
+         ! sector (angles and dihedrals)
+         if (ncat >= 3) then
+            call iw_text("Sector radius (Å)",alignframe=.true.)
+            changed = changed .or. iw_dragfloat_real8("##measureitemsrad",&
+               x1=it%sectorrad,speed=0.01d0,min=0.05d0,max=10d0,scale=bohrtoa,decimal=2,sameline=.true.,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Radius of the angle/dihedral sector",ttshown)
+            call iw_text("Sector opacity",alignframe=.true.,gap=.true.)
+            changed = changed .or. iw_dragfloat_real8("##measureitemsalpha",&
+               x1=it%sectoralpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,sameline=.true.,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Opacity of the angle/dihedral sector",ttshown)
+         end if
+         ! plane opacity and extension (dihedrals)
+         if (ncat == 4) then
+            call iw_text("Plane opacity",alignframe=.true.)
+            changed = changed .or. iw_dragfloat_real8("##measureitempalpha",&
+               x1=it%planealpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,sameline=.true.,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Opacity of the dihedral planes",ttshown)
+            call iw_text("Plane extension (%)",alignframe=.true.,gap=.true.)
+            changed = changed .or. iw_dragfloat_real8("##measureitempext",&
+               x1=it%planeext,speed=1d0,min=0d0,max=100d0,scale=100d0,decimal=0,sameline=.true.,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("How far each plane rectangle extends beyond the atoms, "//&
+               "as a percentage of its size on each side",ttshown)
+         end if
+         ! label size and scaling: constant on-screen size, or scaling with the system
+         call iw_text("Label size",alignframe=.true.)
+         changed = changed .or. iw_dragfloat_real8("##measureitemtscale",&
+            x1=it%textscale,speed=0.01d0,min=0.05d0,max=10d0,decimal=2,sameline=.true.,&
+            flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Size of the numeric label",ttshown)
+         changed = changed .or. iw_checkbox("Scale with system size##measureitemscsys",it%scalesystem,&
+            labelleft=.true.,gap=.true.)
+         call iw_tooltip("Checked: the label scales with the system (grows when zooming in). "//&
+            "Unchecked: it keeps a constant, legible on-screen size for any system size.",ttshown)
+         ! in-plane (screen-relative) offset of the label from its anchor
+         call iw_text("Label offset (Å)",alignframe=.true.)
+         changed = changed .or. iw_dragfloat_real8("##measureitemoffset",&
+            x2=it%offset,speed=0.01d0,decimal=2,sameline=.true.)
+         call iw_tooltip("Offset of the label from its anchor, in the screen plane (angstrom)",ttshown)
+         ! distances: a bond fills both ends in one pick
          if (ncat == 2) then
             if (iw_button("Pick bond##measurepickbond",disabled=(w%editrep_pick_item > 0))) then
                w%editrep_pick_item = is
@@ -3117,56 +3336,7 @@ contains
             end if
             call iw_tooltip("Click, then pick a bond in the view window: its two atoms become&
                & the ends of this distance",ttshown)
-            changed = changed .or. iw_checkbox("Dashed line##measureitemdash",it%dashed)
-            call iw_tooltip("Draw the segment as a dashed line instead of a solid one",ttshown)
-            if (it%dashed) then
-               changed = changed .or. iw_dragfloat_real8("Dash length (Å)##measureitemdashlen",&
-                  x1=it%dashlen,speed=0.005d0,min=0.02d0,max=5d0,scale=bohrtoa,decimal=2,&
-                  flags=ImGuiSliderFlags_AlwaysClamp)
-               call iw_tooltip("Length of each dash (and gap) along the segment",ttshown)
-            end if
          end if
-         ! sector (angles and dihedrals)
-         if (ncat >= 3) then
-            changed = changed .or. iw_dragfloat_real8("Sector radius (Å)##measureitemsrad",&
-               x1=it%sectorrad,speed=0.01d0,min=0.05d0,max=10d0,scale=bohrtoa,decimal=2,&
-               flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("Radius of the angle/dihedral sector",ttshown)
-            changed = changed .or. iw_dragfloat_real8("Sector opacity##measureitemsalpha",&
-               x1=it%sectoralpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
-               flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("Opacity of the angle/dihedral sector",ttshown)
-         end if
-         ! plane opacity and extension (dihedrals)
-         if (ncat == 4) then
-            changed = changed .or. iw_dragfloat_real8("Plane opacity##measureitempalpha",&
-               x1=it%planealpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
-               flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("Opacity of the dihedral planes",ttshown)
-            changed = changed .or. iw_dragfloat_real8("Plane extension (%)##measureitempext",&
-               x1=it%planeext,speed=1d0,min=0d0,max=100d0,scale=100d0,decimal=0,&
-               flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("How far each plane rectangle extends beyond the atoms, "//&
-               "as a percentage of its size on each side",ttshown)
-         end if
-         ! label orientation (distances): along the segment, or always horizontal
-         if (ncat == 2) then
-            changed = changed .or. iw_checkbox("Orient label along segment##measureitemorient",it%orient)
-            call iw_tooltip("Run the label along the segment; if unchecked, keep it horizontal",ttshown)
-         end if
-         ! label scaling: constant on-screen size, or scaling with the system
-         changed = changed .or. iw_checkbox("Scale label with system size##measureitemscsys",it%scalesystem)
-         call iw_tooltip("Checked: the label scales with the system (grows when zooming in). "//&
-            "Unchecked: it keeps a constant, legible on-screen size for any system size.",ttshown)
-         ! label size
-         changed = changed .or. iw_dragfloat_real8("Label size##measureitemtscale",&
-            x1=it%textscale,speed=0.01d0,min=0.05d0,max=10d0,decimal=2,&
-            flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Size of the numeric label",ttshown)
-         ! in-plane (screen-relative) offset of the label from its anchor
-         changed = changed .or. iw_dragfloat_real8("Label offset (Å)##measureitemoffset",&
-            x2=it%offset,speed=0.01d0,decimal=2)
-         call iw_tooltip("Offset of the label from its anchor, in the screen plane (angstrom)",ttshown)
          ! apply these style options to the measurements in this tab, or to all
          imode = apply_style_buttons("measure",trim(catname(ncat)),"measurements",ttshown)
          if (imode > 0) then
@@ -3242,7 +3412,7 @@ contains
        shape_copy_style, shape_proportions
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
-       iw_close_button, iw_highlight_selectable, iw_table_column
+       iw_close_button, iw_highlight_selectable, iw_table_column, iw_separatortext
     use systems, only: sys
     use tools_io, only: string, lower
     use param, only: bohrtoa
@@ -3312,56 +3482,58 @@ contains
        call w%editrep_toolbar(ttshown)
 
     ! table of shapes
-    call iw_text("3D Shapes",highlight=.true.)
+    call iw_separatortext("3D shapes",w%editrep_sec(1))
     idel = 0
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    str1 = "##shapestable" // c_null_char
-    sz0%x = 0
-    sz0%y = iw_calcheight(min(w%rep%shapes%nshape,5)+1,0,.false.)
-    if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
-       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Kind",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Position (" // strunit // ")",id=3,&
-          flags=ImGuiTableColumnFlags_WidthStretch)
-       call iw_table_headers_row(freezetop=.true.)
+    if (w%editrep_sec(1)%open) then
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##shapestable" // c_null_char
+       sz0%x = 0
+       sz0%y = iw_calcheight(min(w%rep%shapes%nshape,5)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+          call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Kind",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Position (" // strunit // ")",id=3,&
+             flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_headers_row(freezetop=.true.)
 
-       do i = 1, w%rep%shapes%nshape
-          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+          do i = 1, w%rep%shapes%nshape
+             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
 
-          ! delete button
-          if (igTableSetColumnIndex(0)) then
-             call igAlignTextToFramePadding()
-             if (iw_close_button("##shapedel" // string(i))) idel = i
-             call iw_tooltip("Remove this shape",ttshown)
-          end if
+             ! delete button
+             if (igTableSetColumnIndex(0)) then
+                call igAlignTextToFramePadding()
+                if (iw_close_button("##shapedel" // string(i))) idel = i
+                call iw_tooltip("Remove this shape",ttshown)
+             end if
 
-          ! shown checkbox
-          if (igTableSetColumnIndex(1)) then
-             if (iw_checkbox("##shapeshow" // string(i),w%rep%shapes%shape(i)%shown)) changed = .true.
-             call iw_tooltip("Toggle show/hide this shape",ttshown)
-          end if
+             ! shown checkbox
+             if (igTableSetColumnIndex(1)) then
+                if (iw_checkbox("##shapeshow" // string(i),w%rep%shapes%shape(i)%shown)) changed = .true.
+                call iw_tooltip("Toggle show/hide this shape",ttshown)
+             end if
 
-          ! kind
-          if (igTableSetColumnIndex(2)) &
-             call iw_text(kind_label(w%rep%shapes%shape(i)%kind),alignframe=.true.)
+             ! kind
+             if (igTableSetColumnIndex(2)) &
+                call iw_text(kind_label(w%rep%shapes%shape(i)%kind),alignframe=.true.)
 
-          ! position, and the row-spanning selectable that picks the edited shape
-          if (igTableSetColumnIndex(3)) then
-             xdsp = pos_to_display(w%rep%shapes%shape(i)%x1)
-             call iw_text("(" // string(xdsp(1),'f',decimal=ndec) // ", " //&
-                string(xdsp(2),'f',decimal=ndec) // ", " // string(xdsp(3),'f',decimal=ndec) //&
-                ")",alignframe=.true.)
-             ldum = iw_highlight_selectable("##shapesel" // string(i),clicked=ch,&
-                selected=(i == w%rep%shapes%isel))
-             if (ch) w%rep%shapes%isel = i
-          end if
-       end do
-       call igEndTable()
+             ! position, and the row-spanning selectable that picks the edited shape
+             if (igTableSetColumnIndex(3)) then
+                xdsp = pos_to_display(w%rep%shapes%shape(i)%x1)
+                call iw_text("(" // string(xdsp(1),'f',decimal=ndec) // ", " //&
+                   string(xdsp(2),'f',decimal=ndec) // ", " // string(xdsp(3),'f',decimal=ndec) //&
+                   ")",alignframe=.true.)
+                ldum = iw_highlight_selectable("##shapesel" // string(i),clicked=ch,&
+                   selected=(i == w%rep%shapes%isel))
+                if (ch) w%rep%shapes%isel = i
+             end if
+          end do
+          call igEndTable()
+       end if
     end if
 
     ! process a deletion, dropping a mouse drag on the shapes in the view
@@ -3385,105 +3557,114 @@ contains
     ! already true is a widget not drawn
     isel = w%rep%shapes%isel
     associate (sh => w%rep%shapes%shape(isel))
-      call iw_text("Shape " // string(isel) // " (" // kind_label(sh%kind) // "), positions in " //&
-         strunit,highlight=.true.)
+      call iw_separatortext("Shape " // string(isel) // " (" // kind_label(sh%kind) // ")",w%editrep_sec(2))
+      if (w%editrep_sec(2)%open) then
+         ! the kind; a shape that changes kind keeps its position and gets a
+         ! default vector if it has none to show
+         ikind = sh%kind
+         call iw_text("Kind",alignframe=.true.)
+         call iw_combo_simple("##shapekind",shapekind_combostr,ikind,changed=ch,&
+            startsatone=.true.,sameline=.true.)
+         if (ch) then
+            sh%kind = ikind
+            ! the radius means a different thing for every kind (sphere radius,
+            ! box edge thickness, shaft thickness...), so it always goes back to
+            ! the default; the position is kept, and so is every vector the new
+            ! kind can use (seed_vectors only fills in the ones it lacks); a cone
+            ! or a cylinder then takes its width from its length
+            call seed_radius(sh)
+            call seed_vectors(sh)
+            call shape_proportions(sh)
+         end if
+         changed = changed .or. ch
+         call iw_tooltip("Kind of 3D shape",ttshown)
 
-      ! the kind; a shape that changes kind keeps its position and gets a
-      ! default vector if it has none to show
-      ikind = sh%kind
-      call iw_combo_simple("Kind##shapekind",shapekind_combostr,ikind,changed=ch,&
-         startsatone=.true.)
-      if (ch) then
-         sh%kind = ikind
-         ! the radius means a different thing for every kind (sphere radius,
-         ! box edge thickness, shaft thickness...), so it always goes back to
-         ! the default; the position is kept, and so is every vector the new
-         ! kind can use (seed_vectors only fills in the ones it lacks); a cone
-         ! or a cylinder then takes its width from its length
-         call seed_radius(sh)
-         call seed_vectors(sh)
-         call shape_proportions(sh)
-      end if
-      changed = changed .or. ch
-      call iw_tooltip("Kind of 3D shape",ttshown)
+         ! the anchor; moving it translates the whole shape, since the end
+         ! points below are stored as vectors from it
+         xdsp = pos_to_display(sh%x1)
+         call iw_text("Position",alignframe=.true.)
+         ch = iw_dragfloat_real8("##shapepos",x3=xdsp,speed=0.001d0,&
+            decimal=ndec,notlive=.true.,sameline=.true.)
+         if (ch) sh%x1 = pos_from_display(xdsp)
+         call iw_tooltip("Position of the shape (" // strunit // "): the center of a sphere, a corner of a box, the &
+            &tail of an arrow, the center of the base of a cone or the first end of a cylinder",ttshown)
+         changed = changed .or. ch
+         call shape_pick_button("shapepick",0,"Pick the position for the shape")
 
-      ! the anchor; moving it translates the whole shape, since the end
-      ! points below are stored as vectors from it
-      xdsp = pos_to_display(sh%x1)
-      ch = iw_dragfloat_real8("Position##shapepos",x3=xdsp,speed=0.001d0,&
-         decimal=ndec,notlive=.true.)
-      if (ch) sh%x1 = pos_from_display(xdsp)
-      call iw_tooltip("Position of the shape: the center of a sphere, a corner of a box, the &
-         &tail of an arrow, the center of the base of a cone or the first end of a cylinder",ttshown)
-      changed = changed .or. ch
-      call shape_pick_button("shapepick",0,"Pick the position for the shape")
-
-      ! the end points, one per axis for a box and one for the rest
-      if (sh%kind == shapekind_box) then
-         do k = 1, 3
-            xdsp = pos_to_display(sh%x1 + sh%v(:,k))
-            ch = iw_dragfloat_real8("Axis-" // string(k) // " end##shapeend" // string(k),&
-               x3=xdsp,speed=0.001d0,decimal=ndec,notlive=.true.)
-            if (ch) sh%v(:,k) = pos_from_display(xdsp) - sh%x1
-            call iw_tooltip("End point of axis " // string(k) // " of the box, i.e. the corner &
-               &reached from the position along that axis",ttshown)
+         ! the end points, one per axis for a box and one for the rest
+         if (sh%kind == shapekind_box) then
+            do k = 1, 3
+               xdsp = pos_to_display(sh%x1 + sh%v(:,k))
+               call iw_text("Axis " // string(k) // " end",alignframe=.true.)
+               ch = iw_dragfloat_real8("##shapeend" // string(k),&
+                  x3=xdsp,speed=0.001d0,decimal=ndec,notlive=.true.,sameline=.true.)
+               if (ch) sh%v(:,k) = pos_from_display(xdsp) - sh%x1
+               call iw_tooltip("End point of axis " // string(k) // " of the box (" // strunit // "), i.e. the corner &
+                  &reached from the position along that axis",ttshown)
+               changed = changed .or. ch
+               call shape_pick_button("shapeendpick" // string(k),k,&
+                  "Pick the end point of axis " // string(k))
+            end do
+         elseif (sh%kind /= shapekind_sphere) then
+            xdsp = pos_to_display(sh%x1 + sh%v(:,1))
+            call iw_text("End point",alignframe=.true.)
+            ch = iw_dragfloat_real8("##shapeend1",x3=xdsp,&
+               speed=0.001d0,decimal=ndec,notlive=.true.,sameline=.true.)
+            if (ch) sh%v(:,1) = pos_from_display(xdsp) - sh%x1
+            call iw_tooltip("Tip of the arrow, apex of the cone, or the other end of the cylinder (" //&
+               strunit // ")",ttshown)
             changed = changed .or. ch
-            call shape_pick_button("shapeendpick" // string(k),k,&
-               "Pick the end point of axis " // string(k))
-         end do
-      elseif (sh%kind /= shapekind_sphere) then
-         xdsp = pos_to_display(sh%x1 + sh%v(:,1))
-         ch = iw_dragfloat_real8("End point##shapeend1",x3=xdsp,&
-            speed=0.001d0,decimal=ndec,notlive=.true.)
-         if (ch) sh%v(:,1) = pos_from_display(xdsp) - sh%x1
-         call iw_tooltip("Tip of the arrow, apex of the cone, or the other end of the cylinder",&
-            ttshown)
+            call shape_pick_button("shapeendpick1",1,"Pick the end point")
+         end if
+
+         ! the radius/thickness
+         if (sh%kind == shapekind_sphere) then
+            str1 = "Radius (Å)"
+         elseif (sh%kind == shapekind_box) then
+            str1 = "Edge thickness (Å)"
+         elseif (sh%kind == shapekind_arrow) then
+            str1 = "Shaft thickness (Å)"
+         elseif (sh%kind == shapekind_cone) then
+            str1 = "Base width (Å)"
+         else
+            str1 = "Thickness (Å)"
+         end if
+         call iw_text(str1,alignframe=.true.)
+         ch = iw_dragfloat_real8("##shaperad",x1=sh%rad,speed=0.002d0,min=0d0,max=20d0,scale=bohrtoa,&
+            decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Radius of the sphere, thickness of the box edges or of the cylinder &
+            &and the arrow shaft, or width of the base of the cone",ttshown)
          changed = changed .or. ch
-         call shape_pick_button("shapeendpick1",1,"Pick the end point")
+
+         ! the arrowhead
+         if (sh%kind == shapekind_arrow) then
+            call iw_text("Head size",alignframe=.true.)
+            ch = iw_dragfloat_real8("##shapeheadr",x1=sh%headr,speed=0.02d0,min=1d0,&
+               max=6d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Width of the arrowhead, in units of the shaft thickness",ttshown)
+            changed = changed .or. ch
+
+            call iw_text("Head length",alignframe=.true.,gap=.true.)
+            ch = iw_dragfloat_real8("##shapeheadl",x1=sh%headl,speed=0.005d0,min=0d0,&
+               max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Length of the arrowhead, as a fraction of the whole arrow",ttshown)
+            changed = changed .or. ch
+         end if
+
+         ! the color, and the opacity for the kinds that are not drawn opaque
+         call iw_text("Color",alignframe=.true.)
+         ch = iw_coloredit("##shapecolor",rgb=sh%rgb,sameline=.true.)
+         call iw_tooltip("Color of the shape",ttshown)
+         changed = changed .or. ch
+
+         if (sh%kind == shapekind_sphere .or. sh%kind == shapekind_box) then
+            call iw_text("Opacity",alignframe=.true.,gap=.true.)
+            ch = iw_dragfloat_realc("##shapealpha",x1=sh%alpha,speed=0.01_c_float,&
+               min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Opacity of the object",ttshown)
+            changed = changed .or. ch
       end if
-
-      ! the radius/thickness
-      if (sh%kind == shapekind_sphere) then
-         str1 = "Radius (Å)##shaperad"
-      elseif (sh%kind == shapekind_box) then
-         str1 = "Edge thickness (Å)##shaperad"
-      elseif (sh%kind == shapekind_arrow) then
-         str1 = "Shaft thickness (Å)##shaperad"
-      elseif (sh%kind == shapekind_cone) then
-         str1 = "Base width (Å)##shaperad"
-      else
-         str1 = "Thickness (Å)##shaperad"
-      end if
-      ch = iw_dragfloat_real8(str1,x1=sh%rad,speed=0.002d0,min=0d0,max=20d0,scale=bohrtoa,&
-         decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-      call iw_tooltip("Radius of the sphere, thickness of the box edges or of the cylinder &
-         &and the arrow shaft, or width of the base of the cone",ttshown)
-      changed = changed .or. ch
-
-      ! the arrowhead
-      if (sh%kind == shapekind_arrow) then
-         ch = iw_dragfloat_real8("Head Size##shapeheadr",x1=sh%headr,speed=0.02d0,min=1d0,&
-            max=6d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Width of the arrowhead, in units of the shaft thickness",ttshown)
-         changed = changed .or. ch
-
-         ch = iw_dragfloat_real8("Head Length##shapeheadl",x1=sh%headl,speed=0.005d0,min=0d0,&
-            max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Length of the arrowhead, as a fraction of the whole arrow",ttshown)
-         changed = changed .or. ch
-      end if
-
-      ! the color, and the opacity for the kinds that are not drawn opaque
-      ch = iw_coloredit("Color##shapecolor",rgb=sh%rgb)
-      call iw_tooltip("Color of the shape",ttshown)
-      changed = changed .or. ch
-
-      if (sh%kind == shapekind_sphere .or. sh%kind == shapekind_box) then
-         ch = iw_dragfloat_realc("Opacity##shapealpha",x1=sh%alpha,speed=0.01_c_float,&
-            min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,&
-            flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Opacity of the object",ttshown)
-         changed = changed .or. ch
       end if
 
       ! apply these style options to the shapes of this kind, or to all
@@ -3604,7 +3785,7 @@ contains
        planar_copy_style
     use utils, only: iw_table_headers_row, iw_text, iw_tooltip, iw_checkbox, iw_coloredit,&
        iw_dragfloat_real8, iw_dragfloat_realc, iw_combo_simple, iw_button, iw_calcheight,&
-       iw_close_button, iw_highlight_selectable, iw_table_column
+       iw_close_button, iw_highlight_selectable, iw_table_column, iw_separatortext
     use tools_io, only: string, lower
     use param, only: pi
     class(window), intent(inout), target :: w
@@ -3634,57 +3815,59 @@ contains
     call w%editrep_toolbar(ttshown)
 
     ! table of shapes
-    call iw_text("2D Drawing",highlight=.true.)
+    call iw_separatortext("2D drawing",w%editrep_sec(1))
     idel = 0
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_RowBg)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    str1 = "##planartable" // c_null_char
-    sz0%x = 0
-    sz0%y = iw_calcheight(min(w%rep%planar%nshape,5)+1,0,.false.)
-    if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
-       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Kind",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Position (view)",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
-       call iw_table_headers_row(freezetop=.true.)
+    if (w%editrep_sec(1)%open) then
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##planartable" // c_null_char
+       sz0%x = 0
+       sz0%y = iw_calcheight(min(w%rep%planar%nshape,5)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+          call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Show",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Kind",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Position (view)",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_headers_row(freezetop=.true.)
 
-       do i = 1, w%rep%planar%nshape
-          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+          do i = 1, w%rep%planar%nshape
+             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
 
-          ! delete button
-          if (igTableSetColumnIndex(0)) then
-             call igAlignTextToFramePadding()
-             if (iw_close_button("##planardel" // string(i))) idel = i
-             call iw_tooltip("Remove this shape",ttshown)
-          end if
-
-          ! shown checkbox
-          if (igTableSetColumnIndex(1)) then
-             if (iw_checkbox("##planarshow" // string(i),w%rep%planar%shape(i)%shown)) changed = .true.
-             call iw_tooltip("Toggle show/hide this shape",ttshown)
-          end if
-
-          ! kind
-          if (igTableSetColumnIndex(2)) &
-             call iw_text(kind_label(w%rep%planar%shape(i)%kind),alignframe=.true.)
-
-          ! position, and the row-spanning selectable that picks the edited shape
-          if (igTableSetColumnIndex(3)) then
-             xdsp = anchor_pos(w%rep%planar%shape(i))
-             call iw_text("(" // string(xdsp(1),'f',decimal=3) // ", " //&
-                string(xdsp(2),'f',decimal=3) // ")",alignframe=.true.)
-             ldum = iw_highlight_selectable("##planarsel" // string(i),clicked=ch,&
-                selected=(i == w%rep%planar%isel))
-             if (ch) then
-                w%rep%planar%isel = i
-                win(iview)%forcerender = .true.
+             ! delete button
+             if (igTableSetColumnIndex(0)) then
+                call igAlignTextToFramePadding()
+                if (iw_close_button("##planardel" // string(i))) idel = i
+                call iw_tooltip("Remove this shape",ttshown)
              end if
-          end if
-       end do
-       call igEndTable()
+
+             ! shown checkbox
+             if (igTableSetColumnIndex(1)) then
+                if (iw_checkbox("##planarshow" // string(i),w%rep%planar%shape(i)%shown)) changed = .true.
+                call iw_tooltip("Toggle show/hide this shape",ttshown)
+             end if
+
+             ! kind
+             if (igTableSetColumnIndex(2)) &
+                call iw_text(kind_label(w%rep%planar%shape(i)%kind),alignframe=.true.)
+
+             ! position, and the row-spanning selectable that picks the edited shape
+             if (igTableSetColumnIndex(3)) then
+                xdsp = anchor_pos(w%rep%planar%shape(i))
+                call iw_text("(" // string(xdsp(1),'f',decimal=3) // ", " //&
+                   string(xdsp(2),'f',decimal=3) // ")",alignframe=.true.)
+                ldum = iw_highlight_selectable("##planarsel" // string(i),clicked=ch,&
+                   selected=(i == w%rep%planar%isel))
+                if (ch) then
+                   w%rep%planar%isel = i
+                   win(iview)%forcerender = .true.
+                end if
+             end if
+          end do
+          call igEndTable()
+       end if
     end if
 
     ! process a deletion, dropping a mouse drag on the shapes in the view
@@ -3703,144 +3886,169 @@ contains
     isel = w%rep%planar%isel
     iswap = 0
     associate (sh => w%rep%planar%shape(isel))
-      call iw_text("Shape " // string(isel) // " (" // kind_label(sh%kind) // ")",highlight=.true.)
+      call iw_separatortext("Shape " // string(isel) // " (" // kind_label(sh%kind) // ")",w%editrep_sec(2))
+      if (w%editrep_sec(2)%open) then
+         ! drawing order
+         call iw_text("Order",alignframe=.true.)
+         if (iw_button("Raise##planarraise",sameline=.true.,disabled=(isel == w%rep%planar%nshape))) &
+            iswap = isel + 1
+         call iw_tooltip("Draw this shape after (on top of) the next one",ttshown)
+         if (iw_button("Lower##planarlower",sameline=.true.,disabled=(isel == 1))) &
+            iswap = isel - 1
+         call iw_tooltip("Draw this shape before (under) the previous one",ttshown)
 
-      ! drawing order
-      if (iw_button("Raise##planarraise",sameline=.true.,disabled=(isel == w%rep%planar%nshape))) &
-         iswap = isel + 1
-      call iw_tooltip("Draw this shape after (on top of) the next one",ttshown)
-      if (iw_button("Lower##planarlower",sameline=.true.,disabled=(isel == 1))) &
-         iswap = isel - 1
-      call iw_tooltip("Draw this shape before (under) the previous one",ttshown)
+         ! in front of or behind the scene
+         ch = iw_checkbox("In front of the scene##planarinfront",sh%infront,labelleft=.true.,gap=.true.)
+         call iw_tooltip("Draw the shape on top of the scene (checked) or behind it, only over &
+            &the background (unchecked)",ttshown)
+         changed = changed .or. ch
 
-      ! geometry, in view coordinates (the render buffer spans -1 to 1)
-      if (sh%kind == planarkind_ellipse .or. sh%kind == planarkind_rect) then
-         ch = iw_dragfloat_real8("Center##planarxc",x2=sh%xc,speed=0.002d0,min=-10d0,max=10d0,&
-            decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Position of the center (view coordinates: -1 to 1 across the render &
-            &buffer, which spans the longest side of the view)",ttshown)
-         changed = changed .or. ch
-         ch = iw_dragfloat_real8("Half-sizes##planarhs",x2=sh%hs,speed=0.002d0,min=0d0,max=4d0,&
-            decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Half of the width and of the height of the shape, before the rotation &
-            &(view coordinates)",ttshown)
-         changed = changed .or. ch
-         angd = sh%ang * 180d0 / pi
-         ch = iw_dragfloat_real8("Angle (°)##planarang",x1=angd,speed=0.5d0,min=-180d0,max=180d0,&
-            decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-         if (ch) sh%ang = angd * pi / 180d0
-         call iw_tooltip("Rotation of the shape, counterclockwise",ttshown)
-         changed = changed .or. ch
-      elseif (sh%kind == planarkind_freehand) then
-         call iw_text("Freehand line with " // string(sh%npt) // " points")
-      elseif (planar_haspoints(sh)) then
-         do k = 1, sh%npt
-            if (sh%kind == planarkind_curve) then
-               str1 = trim(curvept(k))
-            else
-               str1 = "Point " // string(k)
-            end if
-            ch = iw_dragfloat_real8(str1 // "##planarpt" // string(k),x2=sh%x(:,k),&
-               speed=0.002d0,min=-10d0,max=10d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-            if (sh%kind == planarkind_curve .and. k == 2) then
-               call iw_tooltip("Point midway along the curve: it sets the bend (view coordinates)",&
-                  ttshown)
-            else
-               call iw_tooltip("Position of " // lower(str1) // " (view coordinates)",ttshown)
-            end if
+         ! geometry, in view coordinates (the render buffer spans -1 to 1)
+         if (sh%kind == planarkind_ellipse .or. sh%kind == planarkind_rect) then
+            call iw_text("Center",alignframe=.true.)
+            ch = iw_dragfloat_real8("##planarxc",x2=sh%xc,speed=0.002d0,min=-10d0,max=10d0,&
+               decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Position of the center (view coordinates: -1 to 1 across the render &
+               &buffer, which spans the longest side of the view)",ttshown)
             changed = changed .or. ch
-         end do
+            call iw_text("Half-sizes",alignframe=.true.)
+            ch = iw_dragfloat_real8("##planarhs",x2=sh%hs,speed=0.002d0,min=0d0,max=4d0,&
+               decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Half of the width and of the height of the shape, before the rotation &
+               &(view coordinates)",ttshown)
+            changed = changed .or. ch
+            angd = sh%ang * 180d0 / pi
+            call iw_text("Angle (°)",alignframe=.true.)
+            ch = iw_dragfloat_real8("##planarang",x1=angd,speed=0.5d0,min=-180d0,max=180d0,&
+               decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            if (ch) sh%ang = angd * pi / 180d0
+            call iw_tooltip("Rotation of the shape, counterclockwise",ttshown)
+            changed = changed .or. ch
+         elseif (sh%kind == planarkind_freehand) then
+            call iw_text("Freehand line with " // string(sh%npt) // " points")
+         elseif (planar_haspoints(sh)) then
+            do k = 1, sh%npt
+               if (sh%kind == planarkind_curve) then
+                  str1 = trim(curvept(k))
+               else
+                  str1 = "Point " // string(k)
+               end if
+               call iw_text(str1,alignframe=.true.)
+               ch = iw_dragfloat_real8("##planarpt" // string(k),x2=sh%x(:,k),&
+                  speed=0.002d0,min=-10d0,max=10d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+               if (sh%kind == planarkind_curve .and. k == 2) then
+                  call iw_tooltip("Point midway along the curve: it sets the bend (view coordinates)",&
+                     ttshown)
+               else
+                  call iw_tooltip("Position of " // lower(str1) // " (view coordinates)",ttshown)
+               end if
+               changed = changed .or. ch
+            end do
+         end if
       end if
 
       ! the outline
-      ch = iw_checkbox("Outline##planarstroke",sh%stroke)
-      call iw_tooltip("Draw the outline of the shape",ttshown)
-      changed = changed .or. ch
-      wpx = sh%width / pxs
-      ch = iw_dragfloat_real8("Width (px)##planarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
-         decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-      if (ch) sh%width = wpx * pxs
-      call iw_tooltip("Width of the outline, in pixels of the view at its current size (it &
-         &scales with the view and the exported image)",ttshown)
-      changed = changed .or. ch
-      idash = sh%dash
-      call iw_combo_simple("Style##planardash",planardash_combostr,idash,changed=ch,sameline=.true.)
-      if (ch) sh%dash = idash
-      call iw_tooltip("Style of the outline: solid, dashed, or dotted (the dash and dot spacing &
-         &scales with the width)",ttshown)
-      changed = changed .or. ch
-      ch = iw_coloredit("Color##planarrgb",rgb=sh%rgb)
-      call iw_tooltip("Color of the outline",ttshown)
-      changed = changed .or. ch
-      ch = iw_dragfloat_realc("Opacity##planaralpha",x1=sh%alpha,speed=0.01_c_float,&
-         min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-      call iw_tooltip("Opacity of the outline",ttshown)
-      changed = changed .or. ch
-
-      ! the arrowheads
-      if (sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve) then
-         ihead = sh%heads
-         call iw_combo_simple("Heads##planarheads",planarheads_combostr,ihead,changed=ch)
-         if (ch) sh%heads = ihead
-         call iw_tooltip("Arrowheads: none (a line), at the end, at the start, or at both ends",&
-            ttshown)
+      call iw_separatortext("Outline",w%editrep_sec(3))
+      if (w%editrep_sec(3)%open) then
+         ch = iw_checkbox("Outline##planarstroke",sh%stroke,labelleft=.true.)
+         call iw_tooltip("Draw the outline of the shape",ttshown)
          changed = changed .or. ch
-         ch = iw_dragfloat_real8("Head Length##planarheadl",x1=sh%headl,speed=0.05d0,min=1d0,&
-            max=20d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Length of the arrowhead, in units of the outline width",ttshown)
+         wpx = sh%width / pxs
+         call iw_text("Width (px)",alignframe=.true.,gap=.true.)
+         ch = iw_dragfloat_real8("##planarwidth",x1=wpx,speed=0.1d0,min=0.5d0,max=100d0,&
+            decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         if (ch) sh%width = wpx * pxs
+         call iw_tooltip("Width of the outline, in pixels of the view at its current size (it &
+            &scales with the view and the exported image)",ttshown)
          changed = changed .or. ch
-         ch = iw_dragfloat_real8("Head Width##planarheadw",x1=sh%headw,speed=0.05d0,min=1d0,&
-            max=20d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Width of the arrowhead, in units of the outline width",ttshown)
+         idash = sh%dash
+         call iw_text("Style",alignframe=.true.,gap=.true.)
+         call iw_combo_simple("##planardash",planardash_combostr,idash,changed=ch,sameline=.true.)
+         if (ch) sh%dash = idash
+         call iw_tooltip("Style of the outline: solid, dashed, or dotted (the dash and dot spacing &
+            &scales with the width)",ttshown)
          changed = changed .or. ch
-      end if
-
-      ! the fill
-      if (planar_isclosed(sh)) then
-         ifill = sh%filltype
-         call iw_combo_simple("Fill##planarfilltype",planarfill_combostr,ifill,changed=ch)
-         if (ch) sh%filltype = ifill
-         call iw_tooltip("Fill of the inside of the shape: none, solid, or lines (hatched) or &
-            &crossed lines (cross-hatched) in the fill color",ttshown)
+         call iw_text("Color",alignframe=.true.)
+         ch = iw_coloredit("##planarrgb",rgb=sh%rgb,sameline=.true.)
+         call iw_tooltip("Color of the outline",ttshown)
          changed = changed .or. ch
-         ch = iw_coloredit("Fill Color##planarfillrgb",rgb=sh%fillrgb,sameline=.true.)
-         call iw_tooltip("Color of the inside of the shape",ttshown)
-         changed = changed .or. ch
-         ch = iw_dragfloat_realc("Fill Opacity##planarfillalpha",x1=sh%fillalpha,speed=0.01_c_float,&
+         call iw_text("Opacity",alignframe=.true.,gap=.true.)
+         ch = iw_dragfloat_realc("##planaralpha",x1=sh%alpha,speed=0.01_c_float,&
             min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-         call iw_tooltip("Opacity of the inside of the shape",ttshown)
+         call iw_tooltip("Opacity of the outline",ttshown)
          changed = changed .or. ch
 
-         ! the hatch lines
-         if (sh%filltype == planarfill_hatched .or. sh%filltype == planarfill_crosshatched) then
-            angd = sh%hatchang * 180d0 / pi
-            ch = iw_dragfloat_real8("Angle (°)##planarhatchang",x1=angd,speed=0.5d0,min=-90d0,&
-               max=90d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-            if (ch) sh%hatchang = angd * pi / 180d0
-            call iw_tooltip("Angle of the hatch lines, counterclockwise from the horizontal",ttshown)
-            changed = changed .or. ch
-            wpx = sh%hatchsp / pxs
-            ch = iw_dragfloat_real8("Spacing (px)##planarhatchsp",x1=wpx,speed=0.1d0,min=2d0,&
-               max=200d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-            if (ch) sh%hatchsp = wpx * pxs
-            call iw_tooltip("Distance between the hatch lines, in pixels of the view at its &
-               &current size",ttshown)
-            changed = changed .or. ch
-            wpx = sh%hatchw / pxs
-            ch = iw_dragfloat_real8("Line Width (px)##planarhatchw",x1=wpx,speed=0.05d0,min=0.5d0,&
-               max=50d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-            if (ch) sh%hatchw = wpx * pxs
-            call iw_tooltip("Width of the hatch lines, in pixels of the view at its current size",&
+         ! the arrowheads
+         if (sh%kind == planarkind_arrow .or. sh%kind == planarkind_curve) then
+            ihead = sh%heads
+            call iw_text("Heads",alignframe=.true.)
+            call iw_combo_simple("##planarheads",planarheads_combostr,ihead,changed=ch,sameline=.true.)
+            if (ch) sh%heads = ihead
+            call iw_tooltip("Arrowheads: none (a line), at the end, at the start, or at both ends",&
                ttshown)
+            changed = changed .or. ch
+            call iw_text("Head length",alignframe=.true.)
+            ch = iw_dragfloat_real8("##planarheadl",x1=sh%headl,speed=0.05d0,min=1d0,&
+               max=20d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Length of the arrowhead, in units of the outline width",ttshown)
+            changed = changed .or. ch
+            call iw_text("Head width",alignframe=.true.,gap=.true.)
+            ch = iw_dragfloat_real8("##planarheadw",x1=sh%headw,speed=0.05d0,min=1d0,&
+               max=20d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Width of the arrowhead, in units of the outline width",ttshown)
             changed = changed .or. ch
          end if
       end if
 
-      ! in front of or behind the scene
-      ch = iw_checkbox("In front of the scene##planarinfront",sh%infront)
-      call iw_tooltip("Draw the shape on top of the scene (checked) or behind it, only over &
-         &the background (unchecked)",ttshown)
-      changed = changed .or. ch
+      ! the fill
+      if (planar_isclosed(sh)) then
+         call iw_separatortext("Fill",w%editrep_sec(4))
+         if (w%editrep_sec(4)%open) then
+            ifill = sh%filltype
+            call iw_text("Fill",alignframe=.true.)
+            call iw_combo_simple("##planarfilltype",planarfill_combostr,ifill,changed=ch,sameline=.true.)
+            if (ch) sh%filltype = ifill
+            call iw_tooltip("Fill of the inside of the shape: none, solid, or lines (hatched) or &
+               &crossed lines (cross-hatched) in the fill color",ttshown)
+            changed = changed .or. ch
+            call iw_text("Color",alignframe=.true.,gap=.true.)
+            ch = iw_coloredit("##planarfillrgb",rgb=sh%fillrgb,sameline=.true.)
+            call iw_tooltip("Color of the inside of the shape",ttshown)
+            changed = changed .or. ch
+            call iw_text("Opacity",alignframe=.true.,gap=.true.)
+            ch = iw_dragfloat_realc("##planarfillalpha",x1=sh%fillalpha,speed=0.01_c_float,&
+               min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Opacity of the inside of the shape",ttshown)
+            changed = changed .or. ch
+
+            ! the hatch lines
+            if (sh%filltype == planarfill_hatched .or. sh%filltype == planarfill_crosshatched) then
+               angd = sh%hatchang * 180d0 / pi
+               call iw_text("Hatch angle (°)",alignframe=.true.)
+               ch = iw_dragfloat_real8("##planarhatchang",x1=angd,speed=0.5d0,min=-90d0,&
+                  max=90d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+               if (ch) sh%hatchang = angd * pi / 180d0
+               call iw_tooltip("Angle of the hatch lines, counterclockwise from the horizontal",ttshown)
+               changed = changed .or. ch
+               wpx = sh%hatchsp / pxs
+               call iw_text("Spacing (px)",alignframe=.true.,gap=.true.)
+               ch = iw_dragfloat_real8("##planarhatchsp",x1=wpx,speed=0.1d0,min=2d0,&
+                  max=200d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+               if (ch) sh%hatchsp = wpx * pxs
+               call iw_tooltip("Distance between the hatch lines, in pixels of the view at its &
+                  &current size",ttshown)
+               changed = changed .or. ch
+               wpx = sh%hatchw / pxs
+               call iw_text("Line width (px)",alignframe=.true.,gap=.true.)
+               ch = iw_dragfloat_real8("##planarhatchw",x1=wpx,speed=0.05d0,min=0.5d0,&
+                  max=50d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+               if (ch) sh%hatchw = wpx * pxs
+               call iw_tooltip("Width of the hatch lines, in pixels of the view at its current size",&
+                  ttshown)
+               changed = changed .or. ch
+            end if
+         end if
+      end if
 
       ! apply these style options to the shapes of this kind, or to all
       imode = apply_style_buttons("planar",lower(kind_label(sh%kind)) // " shapes","shapes",ttshown)
@@ -3897,8 +4105,8 @@ contains
   !> view. The cancel bind turns the tool off while this window has the
   !> focus (the view handles it when it does).
   module subroutine editrep_toolbar(w,ttshown)
-    use utils, only: iw_text, iw_tooltip, iw_icon_togglebutton, iw_push_iconrow_frame,&
-       iw_pop_iconrow_frame
+    use utils, only: iw_tooltip, iw_icon_togglebutton, iw_push_iconrow_frame,&
+       iw_pop_iconrow_frame, iw_separatortext
     use gui_main, only: tooltip_enabled
     use keybindings, only: is_bind_event, BIND_CANCEL
     use icons, only: icon_tex
@@ -3926,7 +4134,7 @@ contains
        end if
     end if
 
-    call iw_text("Toolbar",highlight=.true.)
+    call iw_separatortext("Toolbar")
     call iw_push_iconrow_frame()
     call objtool_list(itype,tools,icons,falls)
     do i = 1, size(tools)
@@ -4118,7 +4326,7 @@ contains
        iw_close_button, iw_table_column, iw_highlight_selectable,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
        iw_expression_helper, iw_exprctx_iso, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
-       duration_string
+       duration_string, iw_separatortext
     use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
     use param, only: newline
     use tools_io, only: string
@@ -4172,12 +4380,11 @@ contains
     end if
 
     ! field selector
-    call iw_text("Field",highlight=.true.)
+    call iw_text("Field",alignframe=.true.)
     goodf = sys(isys)%goodfield(w%rep%iso%fref%id)
-    call igSameLine(0._c_float,-1._c_float)
     ifield = w%rep%iso%fref%id
     if (iw_field_combo("##isofieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>")) then
+       nonestr="<field not available>",sameline=.true.)) then
        call w%rep%iso%set_field(isys,ifield)
        w%editrep_isoline = 0
        changed = .true.
@@ -4200,7 +4407,6 @@ contains
     end if
 
     ! region section
-    call iw_text("Region",highlight=.true.)
     if (sys(isys)%c%ismolecule) then
        iknd = iso_knd_mol
        nmode = size(iso_region_modes_mol)
@@ -4215,90 +4421,93 @@ contains
        w%rep%iso%iregion = rmodes(1)
        call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
     end if
-    call iw_text("Mode",alignframe=.true.)
-    str1 = "##isoregion" // c_null_char
-    str2 = trim(iso_region_name(w%rep%iso%iregion,iknd)) // c_null_char
-    call igSameLine(0._c_float,-1._c_float)
-    call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
-    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
-       do i = 1, nmode
-          is_selected = (w%rep%iso%iregion == rmodes(i))
-          str2 = trim(iso_region_name(rmodes(i),iknd)) // c_null_char
-          if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-             if (w%rep%iso%iregion /= rmodes(i)) then
-                w%rep%iso%iregion = rmodes(i)
-                call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
-             end if
-          end if
-          if (is_selected) &
-             call igSetItemDefaultFocus()
-       end do
-       call igEndCombo()
-    end if
-    ! the modes explained in a tooltip, one per line
-    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
-          g%LastItemData%NavRect%max,.false._c_bool)) then
-          call igBeginTooltip()
-          call iw_text("Region over which the isosurface is calculated:")
-          call iw_text("")
+    call iw_separatortext("Region",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Mode",alignframe=.true.)
+       str1 = "##isoregion" // c_null_char
+       str2 = trim(iso_region_name(w%rep%iso%iregion,iknd)) // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
+       if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
           do i = 1, nmode
-             call iw_text(trim(iso_region_name(rmodes(i),iknd)) // " = " //&
-                trim(iso_region_desc(rmodes(i))),wrap=.true.)
+             is_selected = (w%rep%iso%iregion == rmodes(i))
+             str2 = trim(iso_region_name(rmodes(i),iknd)) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+                if (w%rep%iso%iregion /= rmodes(i)) then
+                   w%rep%iso%iregion = rmodes(i)
+                   call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
+                end if
+             end if
+             if (is_selected) &
+                call igSetItemDefaultFocus()
           end do
-          call igEndTooltip()
+          call igEndCombo()
        end if
-    end if
+       ! the modes explained in a tooltip, one per line
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+             g%LastItemData%NavRect%max,.false._c_bool)) then
+             call igBeginTooltip()
+             call iw_text("Region over which the isosurface is calculated:")
+             call iw_text("")
+             do i = 1, nmode
+                call iw_text(trim(iso_region_name(rmodes(i),iknd)) // " = " //&
+                   trim(iso_region_desc(rmodes(i))),wrap=.true.)
+             end do
+             call igEndTooltip()
+          end if
+       end if
 
-    ! Region coordinates
-    if (w%rep%iso%iregion == iso_region_bbox) then
-       call iw_text("Buffer (Å)",alignframe=.true.)
-       ldum = iw_dragfloat_real8("##isorgnbuf",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
-          speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
-       w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
-       call iw_tooltip("Distance added around the bounding box of the atoms, in&
-          & every direction",ttshown)
-    elseif (w%rep%iso%iregion == iso_region_simplebox .or.&
-       w%rep%iso%iregion == iso_region_cube) then
-       ! both labels padded to the width of the longest, so the drags line up
-       ! and do not shift when the mode changes
-       if (w%rep%iso%iregion == iso_region_cube) then
-          str3 = "Half-length (Å)"
-       else
-          str3 = "Half-lengths (Å)"
-       end if
-       call iw_text(string("x0 (Å)",length=len("Half-lengths (Å)")),alignframe=.true.)
-       ldum = iw_dragfloat_real8("##isorgn0",x3=w%rep%iso%rgn_x(:,0),sameline=.true.,&
-          speed=0.05d0,decimal=3)
-       call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,0),ttshown)
-       call region_pick_button(0)
-       call iw_text(string(str3,length=len("Half-lengths (Å)")),alignframe=.true.)
-       if (w%rep%iso%iregion == iso_region_cube) then
-          ldum = iw_dragfloat_real8("##isorgn1",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
+       ! Region coordinates
+       if (w%rep%iso%iregion == iso_region_bbox) then
+          call iw_text("Buffer (Å)",alignframe=.true.)
+          ldum = iw_dragfloat_real8("##isorgnbuf",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
              speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
           w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
-       else
-          ldum = iw_dragfloat_real8("##isorgn1",x3=w%rep%iso%rgn_x(:,1),sameline=.true.,&
-             speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
-       end if
-       call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,1),ttshown)
-    elseif (w%rep%iso%iregion /= iso_region_cell) then
-       nrow = 1 ! last drag row: the far corner, or the third edge endpoint
-       if (w%rep%iso%iregion == iso_region_parallel) nrow = 3
-       do i = 0, nrow
-          str1 = "##isorgn" // string(i)
-          if (w%rep%iso%iregion == iso_region_frac) then
-             call iw_text("x" // string(i),alignframe=.true.)
-             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
-                speed=0.01d0,decimal=4)
+          call iw_tooltip("Distance added around the bounding box of the atoms, in&
+             & every direction",ttshown)
+       elseif (w%rep%iso%iregion == iso_region_simplebox .or.&
+          w%rep%iso%iregion == iso_region_cube) then
+          ! both labels padded to the width of the longest, so the drags line up
+          ! and do not shift when the mode changes
+          if (w%rep%iso%iregion == iso_region_cube) then
+             str3 = "Half-length (Å)"
           else
-             call iw_text("x" // string(i) // " (Å)",alignframe=.true.)
-             ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
-                speed=0.05d0,decimal=3)
+             str3 = "Half-lengths (Å)"
           end if
-          call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
-          call region_pick_button(i)
-       end do
+          call iw_text(string("x0 (Å)",length=len("Half-lengths (Å)")),alignframe=.true.)
+          ldum = iw_dragfloat_real8("##isorgn0",x3=w%rep%iso%rgn_x(:,0),sameline=.true.,&
+             speed=0.05d0,decimal=3)
+          call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,0),ttshown)
+          call region_pick_button(0)
+          call iw_text(string(str3,length=len("Half-lengths (Å)")),alignframe=.true.)
+          if (w%rep%iso%iregion == iso_region_cube) then
+             ldum = iw_dragfloat_real8("##isorgn1",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
+                speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+             w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
+          else
+             ldum = iw_dragfloat_real8("##isorgn1",x3=w%rep%iso%rgn_x(:,1),sameline=.true.,&
+                speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+          end if
+          call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,1),ttshown)
+       elseif (w%rep%iso%iregion /= iso_region_cell) then
+          nrow = 1 ! last drag row: the far corner, or the third edge endpoint
+          if (w%rep%iso%iregion == iso_region_parallel) nrow = 3
+          do i = 0, nrow
+             str1 = "##isorgn" // string(i)
+             if (w%rep%iso%iregion == iso_region_frac) then
+                call iw_text("x" // string(i),alignframe=.true.)
+                ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
+                   speed=0.01d0,decimal=4)
+             else
+                call iw_text("x" // string(i) // " (Å)",alignframe=.true.)
+                ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
+                   speed=0.05d0,decimal=3)
+             end if
+             call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
+             call region_pick_button(i)
+          end do
+       end if
     end if
 
     ! the region box
@@ -4306,132 +4515,136 @@ contains
     if (.not.okbox) &
        call iw_text("The region is degenerate (zero volume)",danger=.true.,wrap=.true.)
 
-    ! grid section
-    call iw_text("Grid",highlight=.true.)
-
-    ! coarseness level combo ("Native grid" only for grid fields over the
-    ! whole cell)
+    ! grid section: the coarseness level ("Native grid" only for grid
+    ! fields over the whole cell)
     navail = isgrid .and. (w%rep%iso%iregion == iso_region_cell)
     if (.not.navail .and. w%rep%iso%ilevel == 0) &
        w%rep%iso%ilevel = iso_defaultlevel
-    if (navail) then
-       str1 = "Native grid" // c_null_char // iso_level_optstr_custom
-       str2 = "The grid of the field itself" // c_null_char // iso_level_tipstr_custom
-    else
-       str1 = iso_level_optstr_custom
-       str2 = iso_level_tipstr_custom
-    end if
-    ilevprev = w%rep%iso%ilevel
-    call iw_text("Level",alignframe=.true.)
-    call iw_combo_simple("##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
-       sameline=.true.,changed=ch,tooltips=str2,ttshown=ttshown)
-
-    ! custom level: the grid given by the user, either as the number of
-    ! points along each axis or as a resolution in points per angstrom
-    if (w%rep%iso%ilevel == iso_level_custom) then
-       ! arriving at the custom level: start from the grid that was on
-       ! screen, written both ways, so either mode continues it. The
-       ! resolution is the one those dimensions amount to, not the
-       ! level's tabulated value: a named level is floored per axis and
-       ! capped in total, so the two need not describe the same grid
-       if (ch .and. ilevprev /= iso_level_custom) then
-          if (ilevprev == 0) then
-             w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%fref%id)%grid%n
-          elseif (okbox) then
-             w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,ilevprev,box)
-          end if
-          ! only where the dimensions were re-seeded: a degenerate region
-          ! leaves both alone, rather than deriving one from the other's
-          ! stale value over a zero-volume box
-          if (okbox .or. ilevprev == 0) &
-             w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
+    call iw_separatortext("Grid",w%editrep_sec(2))
+    if (w%editrep_sec(2)%open) then
+       if (navail) then
+          str1 = "Native grid" // c_null_char // iso_level_optstr_custom
+          str2 = "The grid of the field itself" // c_null_char // iso_level_tipstr_custom
+       else
+          str1 = iso_level_optstr_custom
+          str2 = iso_level_tipstr_custom
        end if
+       ilevprev = w%rep%iso%ilevel
+       call iw_text("Level",alignframe=.true.)
+       call iw_combo_simple("##isolevel",str1,w%rep%iso%ilevel,startsatone=.not.navail,&
+          sameline=.true.,changed=ch,tooltips=str2,ttshown=ttshown)
 
-       call iw_text("Given as",alignframe=.true.)
-       call iw_combo_simple("##isocustom",iso_custom_mode_optstr,w%rep%iso%icustom,&
-          sameline=.true.,changed=ch2,tooltips=iso_custom_mode_tipstr,ttshown=ttshown)
-       ! switching between the two carries the grid over, so the mode
-       ! change by itself does not move the isosurface
-       if (ch2 .and. okbox) then
+       ! custom level: the grid given by the user, either as the number of
+       ! points along each axis or as a resolution in points per angstrom
+       if (w%rep%iso%ilevel == iso_level_custom) then
+          ! arriving at the custom level: start from the grid that was on
+          ! screen, written both ways, so either mode continues it. The
+          ! resolution is the one those dimensions amount to, not the
+          ! level's tabulated value: a named level is floored per axis and
+          ! capped in total, so the two need not describe the same grid
+          if (ch .and. ilevprev /= iso_level_custom) then
+             if (ilevprev == 0) then
+                w%rep%iso%nptscustom = sys(isys)%f(w%rep%iso%fref%id)%grid%n
+             elseif (okbox) then
+                w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,ilevprev,box)
+             end if
+             ! only where the dimensions were re-seeded: a degenerate region
+             ! leaves both alone, rather than deriving one from the other's
+             ! stale value over a zero-volume box
+             if (okbox .or. ilevprev == 0) &
+                w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
+          end if
+
+          call iw_text("Given as",alignframe=.true.,gap=.true.)
+          call iw_combo_simple("##isocustom",iso_custom_mode_optstr,w%rep%iso%icustom,&
+             sameline=.true.,changed=ch2,tooltips=iso_custom_mode_tipstr,ttshown=ttshown)
+          ! switching between the two carries the grid over, so the mode
+          ! change by itself does not move the isosurface
+          if (ch2 .and. okbox) then
+             if (w%rep%iso%icustom == iso_custom_ptsang) then
+                w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
+             else
+                ! the dimensions the resolution on screen gives, which the
+                ! staged options no longer decode to now that the mode changed
+                w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,iso_level_custom,box,&
+                   icustom=iso_custom_ptsang)
+             end if
+          end if
+
           if (w%rep%iso%icustom == iso_custom_ptsang) then
-             w%rep%iso%ptsangcustom = npts_to_ptsang(w%rep%iso%nptscustom)
+             call iw_text("Resolution (pts/Å)",alignframe=.true.)
+             ldum = iw_dragfloat_real8("##isoptsang",x1=w%rep%iso%ptsangcustom,sameline=.true.,&
+                speed=0.05d0,decimal=2,min=iso_ptsang_min,max=iso_ptsang_max,&
+                flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Number of grid points per angstrom along each axis of the grid",ttshown)
           else
-             ! the dimensions the resolution on screen gives, which the
-             ! staged options no longer decode to now that the mode changed
-             w%rep%iso%nptscustom = w%rep%iso%staged_grid_size(isys,iso_level_custom,box,&
-                icustom=iso_custom_ptsang)
+             ncus = w%rep%iso%nptscustom
+             ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
+             call iw_text("Points",alignframe=.true.)
+             ldum = iw_intstepper("n1##isonpts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
+                maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+             ldum = iw_intstepper("n2##isonpts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
+                maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+             ldum = iw_intstepper("n3##isonpts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
+                maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
+             call iw_tooltip("Number of grid points along each axis of the grid",ttshown)
+             w%rep%iso%nptscustom = ncus
           end if
        end if
 
-       if (w%rep%iso%icustom == iso_custom_ptsang) then
-          call iw_text("Resolution (pts/Å)",alignframe=.true.)
-          ldum = iw_dragfloat_real8("##isoptsang",x1=w%rep%iso%ptsangcustom,sameline=.true.,&
-             speed=0.05d0,decimal=2,min=iso_ptsang_min,max=iso_ptsang_max,&
-             flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Number of grid points per angstrom along each axis of the grid",ttshown)
-       else
-          ncus = w%rep%iso%nptscustom
-          ipad = ceiling(log10(max(maxval(ncus),1) + 0.1))
-          ldum = iw_intstepper("n1##isonpts1",ncus(1),label="n1:",minval=int(iso_npts_custom_min,c_int),&
-             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.)
-          ldum = iw_intstepper("n2##isonpts2",ncus(2),label="n2:",minval=int(iso_npts_custom_min,c_int),&
-             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-          ldum = iw_intstepper("n3##isonpts3",ncus(3),label="n3:",minval=int(iso_npts_custom_min,c_int),&
-             maxval=int(iso_npts_custom_max,c_int),ndigit=ipad,notlive=.true.,sameline=.true.)
-          call iw_tooltip("Number of grid points along each axis of the grid",ttshown)
-          w%rep%iso%nptscustom = ncus
+       ! grid dimensions
+       lapply = .false.
+       nstage = 0
+       if (okbox) then
+          nstage = w%rep%iso%staged_grid_size(isys,w%rep%iso%ilevel,box,capped=capped)
+          nshow = nstage
+          str2 = ""
+          if (all(nstage == 0)) then
+             nshow = sys(isys)%f(w%rep%iso%fref%id)%grid%n
+             str2 = " (native)"
+          elseif (capped) then
+             str2 = " (capped)"
+          end if
+          if (w%rep%iso%ilevel /= iso_level_custom .or.&
+             w%rep%iso%icustom == iso_custom_ptsang .or. capped) then
+             call iw_text("Grid",alignframe=.true.)
+             call iw_text(string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
+                string(nshow(3)) // str2,sameline=.true.)
+             call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
+          end if
+          lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        end if
-    end if
+       if (iw_button("Calculate grid",danger=.true.,disabled=.not.lapply)) then
+          w%errmsg = ""
+          if (all(nstage == 0)) then
+             ! the native grid of a grid field: nothing to sample
+             call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
+             changed = .true.
+          elseif (w%request_block()) then
+             ! the field is sampled in a blocking job (run_editrep)
+             w%editrep_pending_n = nstage
+          else
+             w%errmsg = "Another calculation is starting: press the button again"
+          end if
+       end if
+       call iw_tooltip("Use the selected grid and region for the isosurface. The options&
+          & above have no effect on the isosurface until this button is pressed",ttshown)
+       if (iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))) &
+          w%rep%iso%costest = w%rep%iso%measure_cost(isys,nstage)
+       call iw_tooltip("Estimate the time needed to sample the field with the selected options",ttshown)
+       if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0)) &
+          call iw_text("~" // duration_string(w%rep%iso%costest * product(real(nstage,8))),&
+             sameline=.true.)
 
-    ! grid dimensions
-    lapply = .false.
-    nstage = 0
-    if (okbox) then
-       nstage = w%rep%iso%staged_grid_size(isys,w%rep%iso%ilevel,box,capped=capped)
-       nshow = nstage
-       str2 = ""
-       if (all(nstage == 0)) then
-          nshow = sys(isys)%f(w%rep%iso%fref%id)%grid%n
-          str2 = " (native)"
-       elseif (capped) then
-          str2 = " (capped)"
-       end if
-       if (w%rep%iso%ilevel /= iso_level_custom .or.&
-          w%rep%iso%icustom == iso_custom_ptsang .or. capped) then
-          call iw_text("Grid: " // string(nshow(1)) // " x " // string(nshow(2)) // " x " //&
-             string(nshow(3)) // str2)
-          call iw_tooltip("Dimensions of the grid that will support the isosurface",ttshown)
-       end if
-       lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
-    end if
-    if (iw_button("Calculate grid",danger=.true.,disabled=.not.lapply)) then
-       w%errmsg = ""
-       if (all(nstage == 0)) then
-          ! the native grid of a grid field: nothing to sample
-          call w%rep%iso%apply_grid(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
-          changed = .true.
-       elseif (w%request_block()) then
-          ! the field is sampled in a blocking job (run_editrep)
-          w%editrep_pending_n = nstage
-       else
-          w%errmsg = "Another calculation is starting: press the button again"
+       ! the state of the options, on the same line as the button that fixes it
+       if (okbox .and. .not.w%rep%iso%isgenerated(isys)) then
+          call iw_text("not generated",danger=.true.,sameline=.true.)
+       elseif (lapply) then ! false for a degenerate region
+          call iw_text("settings changed",danger=.true.,sameline=.true.)
        end if
     end if
-    call iw_tooltip("Use the selected grid and region for the isosurface. The options&
-       & above have no effect on the isosurface until this button is pressed",ttshown)
-    if (iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))) &
-       w%rep%iso%costest = w%rep%iso%measure_cost(isys,nstage)
-    call iw_tooltip("Estimate the time needed to sample the field with the selected options",ttshown)
-    if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0)) &
-       call iw_text("~" // duration_string(w%rep%iso%costest * product(real(nstage,8))),&
-          sameline=.true.)
-
-    ! the state of the options, on the same line as the button that fixes it
-    if (okbox .and. .not.w%rep%iso%isgenerated(isys)) then
-       call iw_text("not generated",danger=.true.,sameline=.true.)
-    elseif (lapply) then ! false for a degenerate region
-       call iw_text("settings changed",danger=.true.,sameline=.true.)
-    end if
+    ! the messages of the last grid calculation, whether or not the
+    ! section is open
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     if (w%rep%iso%outdomain) &
        call iw_text("The field could not be evaluated in part of the region",&
@@ -4457,122 +4670,310 @@ contains
     end if
 
     ! isosurface
-    call iw_text("Isosurface(s)",highlight=.true.)
-    call iw_helpermark("One row per isosurface: whether it is drawn, where its color&
-       & comes from, the value of the field on it, and what it encloses -- the fraction&
-       & of the integral of |f| and the fraction of the volume, both over the region&
-       & the isosurface was calculated on. Click a row&
-       & to edit the colors of a mapped isosurface underneath the table.",sameline=.true.)
-
-    ! histogram of the values backing the mesh, with one draggable line
-    ! per isosurface
+    call iw_separatortext("Isosurfaces",w%editrep_sec(3))
     plotted = .false.
-    if (w%rep%iso%nhist > 0) then
-       ! the width the value axis will get, for the tick spacing below
-       call igGetContentRegionAvail(szavail)
-       plotw = szavail%x - iw_calcwidth(8,0)
-       str1 = "##isohistogram" // c_null_char
-       szplot%x = -1._c_float
-       szplot%y = iw_calcheight(1,5,.false.)
-       if (ipBeginPlot(c_loc(str1),szplot,ior(ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend),&
-          ior(ImPlotFlags_NoInputs,ImPlotFlags_NoMouseText)))) then
-          plotted = .true.
-          ! no tick marks
-          str1 = "Field value" // c_null_char
-          str2 = "Points" // c_null_char
-          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_NoTickMarks,&
-             ImPlotAxisFlags_NoTickMarks)
-          call ipSetupAxisScale(ImAxis_X1,implot_scale(w%rep%iso%hist_xscale))
-          call ipSetupAxisScale(ImAxis_Y1,implot_scale(w%rep%iso%hist_yscale))
+    if (w%editrep_sec(3)%open) then
+       idel = 0
+       call iw_text("One row per isosurface: whether it is drawn, where its color comes from, the&
+          & value of the field on it, and what it encloses (the fraction of the integral of |f| and&
+          & of the volume of the region). Click a row to edit the colors of a mapped isosurface&
+          & below the table.",disabled=.true.,wrap=.true.)
 
-          ! the staircase binned to match the value axis
-          hx = w%rep%iso%hist_x(:,w%rep%iso%hist_xscale)
-          hy = w%rep%iso%hist_y(:,w%rep%iso%hist_xscale)
+       ! histogram of the values backing the mesh, with one draggable line
+       ! per isosurface
+       if (w%rep%iso%nhist > 0) then
+          ! the width the value axis will get, for the tick spacing below
+          call igGetContentRegionAvail(szavail)
+          plotw = szavail%x - iw_calcwidth(8,0)
+          str1 = "##isohistogram" // c_null_char
+          szplot%x = -1._c_float
+          szplot%y = iw_calcheight(1,5,.false.)
+          if (ipBeginPlot(c_loc(str1),szplot,ior(ior(ImPlotFlags_NoTitle,ImPlotFlags_NoLegend),&
+             ior(ImPlotFlags_NoInputs,ImPlotFlags_NoMouseText)))) then
+             plotted = .true.
+             ! no tick marks
+             str1 = "Field value" // c_null_char
+             str2 = "Points" // c_null_char
+             call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_NoTickMarks,&
+                ImPlotAxisFlags_NoTickMarks)
+             call ipSetupAxisScale(ImAxis_X1,implot_scale(w%rep%iso%hist_xscale))
+             call ipSetupAxisScale(ImAxis_Y1,implot_scale(w%rep%iso%hist_yscale))
 
-          ! explicit limits, always locked
-          xlo = w%rep%iso%frange(1)
-          xhi = w%rep%iso%frange(2)
-          if (w%rep%iso%hist_xscale == hscale_asinh .and. xlo*xhi >= 0d0) then
-             xeps = 1d-6 * max(abs(xlo),abs(xhi))
-             xlo = min(xlo,-xeps)
-             xhi = max(xhi,xeps)
-          end if
-          call ipSetupAxisLimits(ImAxis_X1,real(xlo,c_double),real(xhi,c_double),&
-             ImPlotCond_Always)
+             ! the staircase binned to match the value axis
+             hx = w%rep%iso%hist_x(:,w%rep%iso%hist_xscale)
+             hy = w%rep%iso%hist_y(:,w%rep%iso%hist_xscale)
 
-          ! decade ticks, spaced so their labels do not run into each other.
-          if (w%rep%iso%hist_xscale == hscale_log .and. xlo > 0d0) then
-             ntick = log_ticks(xlo,xhi,plotw,tickv)
-             if (ntick >= 2) &
-                call ipSetupAxisTicksValues(ImAxis_X1,c_loc(tickv),int(ntick,c_int),.false._c_bool)
-          end if
-          if (w%rep%iso%hist_yscale == hscale_log) then
-             call ipSetupAxisLimits(ImAxis_Y1,0.5_c_double,real(maxval(hy)*2d0,c_double),&
+             ! explicit limits, always locked
+             xlo = w%rep%iso%frange(1)
+             xhi = w%rep%iso%frange(2)
+             if (w%rep%iso%hist_xscale == hscale_asinh .and. xlo*xhi >= 0d0) then
+                xeps = 1d-6 * max(abs(xlo),abs(xhi))
+                xlo = min(xlo,-xeps)
+                xhi = max(xhi,xeps)
+             end if
+             call ipSetupAxisLimits(ImAxis_X1,real(xlo,c_double),real(xhi,c_double),&
                 ImPlotCond_Always)
-          else
-             call ipSetupAxisLimits(ImAxis_Y1,0._c_double,real(maxval(hy)*1.05d0,c_double),&
-                ImPlotCond_Always)
-          end if
 
-          ! outline only
-          str1 = "Distribution" // c_null_char
-          colhist = ImVec4(0.78_c_float,0.78_c_float,0.78_c_float,1._c_float)
-          call ipSetNextLineStyle(colhist,hist_lwidth)
-          call ipPlotLine(c_loc(str1),c_loc(hx),c_loc(hy),&
-             int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
+             ! decade ticks, spaced so their labels do not run into each other.
+             if (w%rep%iso%hist_xscale == hscale_log .and. xlo > 0d0) then
+                ntick = log_ticks(xlo,xhi,plotw,tickv)
+                if (ntick >= 2) &
+                   call ipSetupAxisTicksValues(ImAxis_X1,c_loc(tickv),int(ntick,c_int),.false._c_bool)
+             end if
+             if (w%rep%iso%hist_yscale == hscale_log) then
+                call ipSetupAxisLimits(ImAxis_Y1,0.5_c_double,real(maxval(hy)*2d0,c_double),&
+                   ImPlotCond_Always)
+             else
+                call ipSetupAxisLimits(ImAxis_Y1,0._c_double,real(maxval(hy)*1.05d0,c_double),&
+                   ImPlotCond_Always)
+             end if
 
-          ! one draggable line per isosurface, in its own colour
-          iheld = w%editrep_isoline ! the line held in the previous frame (0 = none)
-          iline = iheld
-          if (iline < 1 .or. iline > w%rep%iso%niso) then
-             iline = 1
-             call igGetMousePos(mpos)
-             dmin = huge(dmin)
+             ! outline only
+             str1 = "Distribution" // c_null_char
+             colhist = ImVec4(0.78_c_float,0.78_c_float,0.78_c_float,1._c_float)
+             call ipSetNextLineStyle(colhist,hist_lwidth)
+             call ipPlotLine(c_loc(str1),c_loc(hx),c_loc(hy),&
+                int(w%rep%iso%nhist,c_int),ImPlotLineFlags_None,0_c_int)
+
+             ! one draggable line per isosurface, in its own colour
+             iheld = w%editrep_isoline ! the line held in the previous frame (0 = none)
+             iline = iheld
+             if (iline < 1 .or. iline > w%rep%iso%niso) then
+                iline = 1
+                call igGetMousePos(mpos)
+                dmin = huge(dmin)
+                do i = 1, w%rep%iso%niso
+                   call ipPlotToPixels(real(w%rep%iso%slot(i)%isoval,c_double),1._c_double,&
+                      ImAxis_X1,ImAxis_Y1,pxline,pyline)
+                   dx = abs(real(pxline - mpos%x,8))
+                   if (dx < dmin) then
+                      dmin = dx
+                      iline = i
+                   end if
+                end do
+             end if
+             w%editrep_isoline = 0
              do i = 1, w%rep%iso%niso
-                call ipPlotToPixels(real(w%rep%iso%slot(i)%isoval,c_double),1._c_double,&
-                   ImAxis_X1,ImAxis_Y1,pxline,pyline)
-                dx = abs(real(pxline - mpos%x,8))
-                if (dx < dmin) then
-                   dmin = dx
-                   iline = i
-                end if
+                associate (s => w%rep%iso%slot(i))
+                  xdrag = real(s%isoval,c_double)
+                  colline = ImVec4(s%rgb(1),s%rgb(2),s%rgb(3),1._c_float)
+                  dtflags = ImPlotDragToolFlags_None
+                  if (i /= iline) dtflags = ImPlotDragToolFlags_NoInputs
+                  if (logical(ipDragLineX(int(i-1,c_int),xdrag,colline,hist_lwdrag,dtflags))) then
+                     ! keep the grab on this line for as long as it is held,
+                     ! wherever the cursor goes
+                     w%editrep_isoline = i
+                     xnew = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
+                     ! a held but motionless line changes nothing: rebuilding
+                     ! the scene for it would be pure waste
+                     if (xnew /= s%isoval) then
+                        s%isoval = xnew
+                        ! a flat isosurface is only re-triangulated, and follows
+                        ! the line as it slides. A mapped one also pays a map
+                        ! evaluation at every vertex of the new mesh, which is too
+                        ! much for every frame of a drag: it waits for the release
+                        if (s%imap_mode == iso_map_color) changed = .true.
+                     end if
+                  end if
+                end associate
              end do
+             ! the level of a mapped isosurface lands when its line is let go
+             if (iheld >= 1 .and. w%editrep_isoline == 0) then
+                if (iheld <= w%rep%iso%niso) then
+                   if (w%rep%iso%slot(iheld)%imap_mode /= iso_map_color) changed = .true.
+                end if
+             end if
+             call ipEndPlot()
           end if
-          w%editrep_isoline = 0
+          call iw_tooltip("Distribution of the values of the field over the grid data.&
+             & Drag the vertical line to change the isovalue of the isosurface drawn in that color.",ttshown)
+       end if
+
+       if (w%rep%iso%nhist > 0) then
+          ! axis scales
+          call iw_text("Scale x",alignframe=.true.)
+          nsc = 0
+          do i = 1, hscale_num
+             if (.not.w%rep%iso%hist_have(i)) cycle
+             nsc = nsc + 1
+             scmap(nsc) = i
+             if (i == w%rep%iso%hist_xscale) isc = nsc
+          end do
+          str1 = ""
+          do i = 1, nsc
+             str1 = str1 // trim(iso_hscale_name(scmap(i))) // c_null_char
+          end do
+          call iw_combo_simple("##isohistxscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
+          if (ch) w%rep%iso%hist_xscale = scmap(max(min(isc,nsc),1))
+          call iw_tooltip("Scale of the value axis",ttshown)
+
+          call iw_text("y",alignframe=.true.,gap=.true.)
+          isc = 1
+          str1 = ""
+          do i = 1, size(iso_hscale_y)
+             str1 = str1 // trim(iso_hscale_name(iso_hscale_y(i))) // c_null_char
+             if (iso_hscale_y(i) == w%rep%iso%hist_yscale) isc = i
+          end do
+          call iw_combo_simple("##isohistyscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
+          if (ch) w%rep%iso%hist_yscale = iso_hscale_y(max(min(isc,size(iso_hscale_y)),1))
+          call iw_tooltip("Scale of the count axis",ttshown)
+       else
+          call iw_text("The distribution of the values of the field appears here once the&
+             & grid has been calculated",disabled=.true.,wrap=.true.)
+       end if
+
+       ! the isosurfaces of this object: one row each
+       tflags = ImGuiTableFlags_None
+       tflags = ior(tflags,ImGuiTableFlags_RowBg)
+       tflags = ior(tflags,ImGuiTableFlags_Borders)
+       tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##isotable" // c_null_char
+       ! the table grows with the list
+       sztab%x = 0
+       sztab%y = 0
+       ! the range prefix of the level tooltips does not depend on the row
+       haverange = (w%rep%iso%frange(1) <= w%rep%iso%frange(2))
+       if (haverange) &
+          str3 = "Value of the field on this isosurface, in atomic units (data range: " //&
+          string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
+          string(w%rep%iso%frange(2),'e',decimal=4) // ")"
+       if (igBeginTable(c_loc(str1),5,tflags,sztab,0._c_float)) then
+          ! the row-control column keeps the width of its widgets even when it is empty
+          call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=max(4._c_float,iw_calcwidth(1,1,ncheck=1)))
+          call iw_table_column("Mode",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Color/map",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=iw_calcwidth(12,1))
+          ! the isovalue drag sizes itself from the integer digits of the data
+          ! range, so it takes the slack; the readout beside it is a fixed width
+          call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_column("Encloses",id=4,flags=ImGuiTableColumnFlags_WidthFixed,&
+             width=iw_calcwidth(13,0))
+          call iw_table_headers_row()
+
           do i = 1, w%rep%iso%niso
              associate (s => w%rep%iso%slot(i))
-               xdrag = real(s%isoval,c_double)
-               colline = ImVec4(s%rgb(1),s%rgb(2),s%rgb(3),1._c_float)
-               dtflags = ImPlotDragToolFlags_None
-               if (i /= iline) dtflags = ImPlotDragToolFlags_NoInputs
-               if (logical(ipDragLineX(int(i-1,c_int),xdrag,colline,hist_lwdrag,dtflags))) then
-                  ! keep the grab on this line for as long as it is held,
-                  ! wherever the cursor goes
-                  w%editrep_isoline = i
-                  xnew = max(min(real(xdrag,8),w%rep%iso%frange(2)),w%rep%iso%frange(1))
-                  ! a held but motionless line changes nothing: rebuilding
-                  ! the scene for it would be pure waste
-                  if (xnew /= s%isoval) then
-                     s%isoval = xnew
-                     ! a flat isosurface is only re-triangulated, and follows
-                     ! the line as it slides. A mapped one also pays a map
-                     ! evaluation at every vertex of the new mesh, which is too
-                     ! much for every frame of a drag: it waits for the release
-                     if (s%imap_mode == iso_map_color) changed = .true.
+               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+               ! draw this isosurface, and remove it (never the last one)
+               if (igTableSetColumnIndex(0)) then
+                  if (iw_checkbox("##isoshown" // string(i),s%shown)) changed = .true.
+                  call iw_tooltip("Draw this isosurface in the view",ttshown)
+                  if (w%rep%iso%niso > 1) then
+                     call igSameLine(0._c_float,-1._c_float)
+                     if (iw_close_button("##isodel" // string(i))) idel = i
+                     call iw_tooltip("Remove this isosurface",ttshown)
                   end if
+               end if
+               ! where the color of this isosurface comes from
+               if (igTableSetColumnIndex(1)) then
+                  imode = s%imap_mode
+                  call iw_combo_simple("##isomapmode" // string(i),iso_map_optstr,imode,changed=ch)
+                  if (ch .and. imode /= s%imap_mode) then
+                     s%imap_mode = imode
+                     ! first time this isosurface is mapped: start from the
+                     ! field it is an isosurface of, which always exists
+                     if (s%imap_mode == iso_map_field .and. s%mapref%id < 0) s%mapref = w%rep%iso%fref
+                     w%rep%iso%isel = i
+                     changed = .true.
+                  end if
+                  call iw_tooltip("Whether this isosurface has a single color or takes it&
+                     & from the values of another field or expression",ttshown)
+               end if
+               ! the color itself
+               if (igTableSetColumnIndex(2)) then
+                  if (s%imap_mode == iso_map_field) then
+                     ifield = s%mapref%id
+                     if (iw_field_combo("##isomapfield" // string(i),isys,ifield)) then
+                        call s%mapref%set(sys(isys),ifield)
+                        s%icmap_auto = .true.
+                        s%maprange_auto = .true.
+                        w%rep%iso%isel = i
+                        changed = .true.
+                     end if
+                     call iw_tooltip("Field whose values color this isosurface",ttshown)
+                  elseif (s%imap_mode == iso_map_expr) then
+                     call igGetContentRegionAvail(szavail)
+                     call igSetNextItemWidth(szavail%x)
+                     if (iw_inputtext("##isomapexpr" // string(i),bufsize=iso_explen,&
+                        textf=s%mapexpr,notlive=.true.)) then
+                        ! a new expression is a new quantity, like a new field
+                        s%maperr = ""
+                        s%icmap_auto = .true.
+                        s%maprange_auto = .true.
+                        w%rep%iso%isel = i
+                        changed = .true.
+                     end if
+                     call iw_tooltip("Expression whose values color this isosurface."//newline//&
+                        iw_arith_help,ttshown)
+                  else
+                     rgba(1:3) = s%rgb
+                     rgba(4) = s%alpha
+                     if (iw_coloredit("##isocol" // string(i),rgba=rgba)) then
+                        s%rgb = rgba(1:3)
+                        s%alpha = rgba(4)
+                        changed = .true.
+                     end if
+                     call iw_tooltip("Color and opacity of this isosurface",ttshown)
+                  end if
+               end if
+               ! the level: this widget is notlive, so its re-triangulation
+               ! runs on commit rather than on every frame of the drag
+               if (igTableSetColumnIndex(3)) then
+                  speed = max(0.01d0 * abs(s%isoval),1d-4)
+                  ! same as the histogram line: a mapped isosurface is rebuilt on
+                  ! the commit (the drag let go, or the typed value entered),
+                  ! a flat one on every step of the drag
+                  if (haverange) then
+                     ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
+                        speed=speed,decimal=6,notlive=.true.,min=w%rep%iso%frange(1),&
+                        max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp,committed=ch)
+                     if (s%imap_mode /= iso_map_color) ldum = ch
+                     changed = changed .or. ldum
+                     call iw_tooltip(str3,ttshown)
+                  else
+                     ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
+                        speed=speed,decimal=6,notlive=.true.,committed=ch)
+                     if (s%imap_mode /= iso_map_color) ldum = ch
+                     changed = changed .or. ldum
+                     call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
+                  end if
+               end if
+               ! what this isosurface encloses, the number that decides a level
+               if (igTableSetColumnIndex(4)) then
+                  ihb = hist_bin(s%isoval)
+                  if (ihb >= 1) then
+                     call iw_text(string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) // "%/" //&
+                        string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) // "%",alignframe=.true.)
+                  else
+                     call iw_text("--",alignframe=.true.)
+                  end if
+                  ! a row-spanning selectable picks the isosurface whose map
+                  ! options are shown under the table
+                  ldum = iw_highlight_selectable("##isosel" // string(i),clicked=ch,&
+                     selected=(i == w%rep%iso%isel))
+                  if (ch) w%rep%iso%isel = i
                end if
              end associate
           end do
-          ! the level of a mapped isosurface lands when its line is let go
-          if (iheld >= 1 .and. w%editrep_isoline == 0) then
-             if (iheld <= w%rep%iso%niso) then
-                if (w%rep%iso%slot(iheld)%imap_mode /= iso_map_color) changed = .true.
+
+          ! the last row adds an isosurface, with a level and a color picked
+          ! from the ones already there
+          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+          if (igTableSetColumnIndex(1)) then
+             if (iw_button("Add##isoadd")) then
+                call w%rep%iso%add_iso()
+                changed = .true.
              end if
+             call iw_tooltip("Add an isosurface to this object",ttshown)
           end if
-          call ipEndPlot()
+          call igEndTable()
        end if
-       call iw_tooltip("Distribution of the values of the field over the grid data.&
-          & Drag the vertical line to change the isovalue of the isosurface drawn in that color.",ttshown)
+       if (idel > 0) then
+          call w%rep%iso%del_iso(idel)
+          ! the slots above the deleted one moved down
+          if (idel < w%rep%iso%isel) w%rep%iso%isel = w%rep%iso%isel - 1
+          changed = .true.
+       end if
     end if
     if (.not.plotted .and. w%editrep_isoline /= 0) then
        ! the histogram did not draw this frame: treat the held line as
@@ -4581,193 +4982,6 @@ contains
           if (w%rep%iso%slot(w%editrep_isoline)%imap_mode /= iso_map_color) changed = .true.
        end if
        w%editrep_isoline = 0
-    end if
-    if (w%rep%iso%nhist > 0) then
-
-       ! axis scales
-       call iw_text("Scale x:",alignframe=.true.)
-       nsc = 0
-       do i = 1, hscale_num
-          if (.not.w%rep%iso%hist_have(i)) cycle
-          nsc = nsc + 1
-          scmap(nsc) = i
-          if (i == w%rep%iso%hist_xscale) isc = nsc
-       end do
-       str1 = ""
-       do i = 1, nsc
-          str1 = str1 // trim(iso_hscale_name(scmap(i))) // c_null_char
-       end do
-       call iw_combo_simple("##isohistxscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
-       if (ch) w%rep%iso%hist_xscale = scmap(max(min(isc,nsc),1))
-       call iw_tooltip("Scale of the value axis",ttshown)
-
-       call iw_text("y:",sameline=.true.,alignframe=.true.)
-       isc = 1
-       str1 = ""
-       do i = 1, size(iso_hscale_y)
-          str1 = str1 // trim(iso_hscale_name(iso_hscale_y(i))) // c_null_char
-          if (iso_hscale_y(i) == w%rep%iso%hist_yscale) isc = i
-       end do
-       call iw_combo_simple("##isohistyscale",str1,isc,sameline=.true.,changed=ch,startsatone=.true.)
-       if (ch) w%rep%iso%hist_yscale = iso_hscale_y(max(min(isc,size(iso_hscale_y)),1))
-       call iw_tooltip("Scale of the count axis",ttshown)
-    else
-       call iw_text("The distribution of the values of the field appears here once the&
-          & grid has been calculated",wrap=.true.)
-    end if
-
-    ! the isosurfaces of this object: one row each
-    idel = 0
-    tflags = ImGuiTableFlags_None
-    tflags = ior(tflags,ImGuiTableFlags_RowBg)
-    tflags = ior(tflags,ImGuiTableFlags_Borders)
-    tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
-    str1 = "##isotable" // c_null_char
-    ! the table grows with the list
-    sztab%x = 0
-    sztab%y = 0
-    ! the range prefix of the level tooltips does not depend on the row
-    haverange = (w%rep%iso%frange(1) <= w%rep%iso%frange(2))
-    if (haverange) &
-       str3 = "Value of the field on this isosurface, in atomic units (data range: " //&
-       string(w%rep%iso%frange(1),'e',decimal=4) // " to " //&
-       string(w%rep%iso%frange(2),'e',decimal=4) // ")"
-    if (igBeginTable(c_loc(str1),5,tflags,sztab,0._c_float)) then
-       ! the row-control column keeps the width of its widgets even when it is empty
-       call iw_table_column("",id=0,flags=ImGuiTableColumnFlags_WidthFixed,&
-          width=max(4._c_float,iw_calcwidth(1,1,ncheck=1)))
-       call iw_table_column("Mode",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
-       call iw_table_column("Color/map",id=2,flags=ImGuiTableColumnFlags_WidthFixed,&
-          width=iw_calcwidth(12,1))
-       ! the isovalue drag sizes itself from the integer digits of the data
-       ! range, so it takes the slack; the readout beside it is a fixed width
-       call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
-       call iw_table_column("Encloses",id=4,flags=ImGuiTableColumnFlags_WidthFixed,&
-          width=iw_calcwidth(13,0))
-       call iw_table_headers_row()
-
-       do i = 1, w%rep%iso%niso
-          associate (s => w%rep%iso%slot(i))
-            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-            ! draw this isosurface, and remove it (never the last one)
-            if (igTableSetColumnIndex(0)) then
-               if (iw_checkbox("##isoshown" // string(i),s%shown)) changed = .true.
-               call iw_tooltip("Draw this isosurface in the view",ttshown)
-               if (w%rep%iso%niso > 1) then
-                  call igSameLine(0._c_float,-1._c_float)
-                  if (iw_close_button("##isodel" // string(i))) idel = i
-                  call iw_tooltip("Remove this isosurface",ttshown)
-               end if
-            end if
-            ! where the color of this isosurface comes from
-            if (igTableSetColumnIndex(1)) then
-               imode = s%imap_mode
-               call iw_combo_simple("##isomapmode" // string(i),iso_map_optstr,imode,changed=ch)
-               if (ch .and. imode /= s%imap_mode) then
-                  s%imap_mode = imode
-                  ! first time this isosurface is mapped: start from the
-                  ! field it is an isosurface of, which always exists
-                  if (s%imap_mode == iso_map_field .and. s%mapref%id < 0) s%mapref = w%rep%iso%fref
-                  w%rep%iso%isel = i
-                  changed = .true.
-               end if
-               call iw_tooltip("Whether this isosurface has a single color or takes it&
-                  & from the values of another field or expression",ttshown)
-            end if
-            ! the color itself
-            if (igTableSetColumnIndex(2)) then
-               if (s%imap_mode == iso_map_field) then
-                  ifield = s%mapref%id
-                  if (iw_field_combo("##isomapfield" // string(i),isys,ifield)) then
-                     call s%mapref%set(sys(isys),ifield)
-                     s%icmap_auto = .true.
-                     s%maprange_auto = .true.
-                     w%rep%iso%isel = i
-                     changed = .true.
-                  end if
-                  call iw_tooltip("Field whose values color this isosurface",ttshown)
-               elseif (s%imap_mode == iso_map_expr) then
-                  call igGetContentRegionAvail(szavail)
-                  call igSetNextItemWidth(szavail%x)
-                  if (iw_inputtext("##isomapexpr" // string(i),bufsize=iso_explen,&
-                     textf=s%mapexpr,notlive=.true.)) then
-                     ! a new expression is a new quantity, like a new field
-                     s%maperr = ""
-                     s%icmap_auto = .true.
-                     s%maprange_auto = .true.
-                     w%rep%iso%isel = i
-                     changed = .true.
-                  end if
-                  call iw_tooltip("Expression whose values color this isosurface."//newline//&
-                     iw_arith_help,ttshown)
-               else
-                  rgba(1:3) = s%rgb
-                  rgba(4) = s%alpha
-                  if (iw_coloredit("##isocol" // string(i),rgba=rgba)) then
-                     s%rgb = rgba(1:3)
-                     s%alpha = rgba(4)
-                     changed = .true.
-                  end if
-                  call iw_tooltip("Color and opacity of this isosurface",ttshown)
-               end if
-            end if
-            ! the level: this widget is notlive, so its re-triangulation
-            ! runs on commit rather than on every frame of the drag
-            if (igTableSetColumnIndex(3)) then
-               speed = max(0.01d0 * abs(s%isoval),1d-4)
-               ! same as the histogram line: a mapped isosurface is rebuilt on
-               ! the commit (the drag let go, or the typed value entered),
-               ! a flat one on every step of the drag
-               if (haverange) then
-                  ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
-                     speed=speed,decimal=6,notlive=.true.,min=w%rep%iso%frange(1),&
-                     max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp,committed=ch)
-                  if (s%imap_mode /= iso_map_color) ldum = ch
-                  changed = changed .or. ldum
-                  call iw_tooltip(str3,ttshown)
-               else
-                  ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
-                     speed=speed,decimal=6,notlive=.true.,committed=ch)
-                  if (s%imap_mode /= iso_map_color) ldum = ch
-                  changed = changed .or. ldum
-                  call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
-               end if
-            end if
-            ! what this isosurface encloses, the number that decides a level
-            if (igTableSetColumnIndex(4)) then
-               ihb = hist_bin(s%isoval)
-               if (ihb >= 1) then
-                  call iw_text(string(100d0*w%rep%iso%hist_q(ihb),'f',decimal=1) // "%/" //&
-                     string(100d0*w%rep%iso%hist_v(ihb),'f',decimal=1) // "%",alignframe=.true.)
-               else
-                  call iw_text("--",alignframe=.true.)
-               end if
-               ! a row-spanning selectable picks the isosurface whose map
-               ! options are shown under the table
-               ldum = iw_highlight_selectable("##isosel" // string(i),clicked=ch,&
-                  selected=(i == w%rep%iso%isel))
-               if (ch) w%rep%iso%isel = i
-            end if
-          end associate
-       end do
-
-       ! the last row adds an isosurface, with a level and a color picked
-       ! from the ones already there
-       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-       if (igTableSetColumnIndex(1)) then
-          if (iw_button("Add##isoadd")) then
-             call w%rep%iso%add_iso()
-             changed = .true.
-          end if
-          call iw_tooltip("Add an isosurface to this object",ttshown)
-       end if
-       call igEndTable()
-    end if
-    if (idel > 0) then
-       call w%rep%iso%del_iso(idel)
-       ! the slots above the deleted one moved down
-       if (idel < w%rep%iso%isel) w%rep%iso%isel = w%rep%iso%isel - 1
-       changed = .true.
     end if
 
     ! the options of the field map of the selected isosurface, underneath the
@@ -4779,6 +4993,9 @@ contains
     ! it, for the help of what is being written
     if (w%rep%iso%niso < 1) return
     w%rep%iso%isel = max(min(w%rep%iso%isel,w%rep%iso%niso),1)
+    call iw_separatortext("Color map of isosurface " // string(w%rep%iso%isel),w%editrep_sec(4))
+    if (.not.w%editrep_sec(4)%open) return
+    addcb = .false.
     associate (s => w%rep%iso%slot(w%rep%iso%isel))
        ! two questions, and they are not the same one. Whether this isosurface
        ! is mapped at all decides what the user may edit -- the colormap, the
@@ -4829,7 +5046,7 @@ contains
 
        ! opacity (in color mode this lives in the color picker)
        alpha8 = real(s%alpha,8)
-       call iw_text("Opacity",sameline=.true.,alignframe=.true.)
+       call iw_text("Opacity",alignframe=.true.,gap=.true.)
        if (iw_dragfloat_real8("##isomapalpha",x1=alpha8,speed=0.01d0,min=0d0,max=1d0,&
           decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) then
           s%alpha = real(alpha8,c_float)
@@ -4838,7 +5055,7 @@ contains
        call iw_tooltip("Opacity of this isosurface (1 = opaque)",ttshown)
 
        ! the range the colormap spans, and whether it follows the data
-       ch = iw_checkbox("Auto range##isomapauto",s%maprange_auto)
+       ch = iw_checkbox("Auto range##isomapauto",s%maprange_auto,labelleft=.true.)
        if (ch) then
           ! the range is recomputed by the pass that evaluates the map
           ! field, so switching it back on asks for that pass again
@@ -4846,6 +5063,7 @@ contains
           changed = .true.
        end if
        call iw_tooltip("Span the colormap over the values the map field takes on this isosurface",ttshown)
+       call iw_text("Range",alignframe=.true.,gap=.true.)
        if (.not.s%maprange_auto) then
           maprspeed = max(0.01d0 * maxval(abs(s%maprange)),1d-6)
           if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,decimal=6,&
@@ -5162,7 +5380,7 @@ contains
     use systems, only: sys
     use representations, only: cps_rad_def, cps_name
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_realc,&
-       iw_field_combo, iw_calcwidth
+       iw_field_combo, iw_calcwidth, iw_separatortext, iw_table_column, iw_table_headers_row
     use param, only: bohrtoa
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -5171,17 +5389,19 @@ contains
 
     integer :: isys, ifield, i, it, ncount(0:3)
     logical :: ch
+    integer(c_int) :: flags
+    type(ImVec2) :: sz
+    character(kind=c_char,len=:), allocatable, target :: str1
 
     ! initialize
     changed = .false.
     isys = w%isys
 
     ! field selector
-    call iw_text("Field",highlight=.true.)
-    call igSameLine(0._c_float,-1._c_float)
+    call iw_text("Field",alignframe=.true.)
     ifield = w%rep%cps%fref%id
     if (iw_field_combo("##cpsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>")) then
+       nonestr="<field not available>",sameline=.true.)) then
        call w%rep%cps%fref%set(sys(isys),ifield)
        changed = .true.
     end if
@@ -5203,29 +5423,59 @@ contains
        call iw_text("This field has no critical points other than the nuclei (run AUTO)",&
           disabled=.true.,wrap=.true.)
 
-    ! global radius scale
-    ch = iw_dragfloat_realc("Radius scale",x1=w%rep%cps%radscale,speed=0.01_c_float,&
-       min=0.01_c_float,max=10._c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Scale factor applied to the radii of all critical points",ttshown)
-    changed = changed .or. ch
+    ! the style: a global radius scale, then the per-type show, color
+    ! and radius
+    call iw_separatortext("Style",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       call iw_text("Radius scale",alignframe=.true.)
+       ch = iw_dragfloat_realc("##cpsradscale",x1=w%rep%cps%radscale,speed=0.01_c_float,&
+          min=0.01_c_float,max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Scale factor applied to the radii of all critical points",ttshown)
+       changed = changed .or. ch
 
-    ! per-type color, radius, and show
-    call iw_text("Critical points",highlight=.true.)
-    do it = 0, 3
-       ch = iw_coloredit("##cpscolor" // string(it),rgb=w%rep%cps%rgb(:,it))
-       call iw_tooltip("Color of the critical points of this type",ttshown)
-       changed = changed .or. ch
-       ch = iw_dragfloat_realc("##cpsrad" // string(it),x1=w%rep%cps%rad(it),speed=0.002_c_float,&
-          min=0.01_c_float,max=2._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-          sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Radius of the critical points of this type in Å, before the scale (default " //&
-          string(real(cps_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
-       changed = changed .or. ch
-       ch = iw_checkbox(trim(cps_name(it)) // "##cpsshow" // string(it),w%rep%cps%show(it),sameline=.true.)
-       call iw_tooltip("Show the critical points of this type (count: number in the cell)",ttshown)
-       changed = changed .or. ch
-       call iw_text("(" // string(ncount(it)) // " in the cell)",disabled=.true.,sameline=.true.)
-    end do
+       ! one row per type: shown, color, radius, and the count in the cell
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##cpstable" // c_null_char
+       sz%x = 0
+       sz%y = 0
+       if (igBeginTable(c_loc(str1),5,flags,sz,0._c_float)) then
+          call iw_table_column("Show",id=0,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Type",id=1,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Color",id=2,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("Radius (Å)",id=3,flags=ImGuiTableColumnFlags_WidthFixed)
+          call iw_table_column("In cell",id=4,flags=ImGuiTableColumnFlags_WidthStretch)
+          call iw_table_headers_row()
+          do it = 0, 3
+             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+             if (igTableSetColumnIndex(0)) then
+                ch = iw_checkbox("##cpsshow" // string(it),w%rep%cps%show(it))
+                call iw_tooltip("Show the critical points of this type",ttshown)
+                changed = changed .or. ch
+             end if
+             if (igTableSetColumnIndex(1)) &
+                call iw_text(trim(cps_name(it)),alignframe=.true.)
+             if (igTableSetColumnIndex(2)) then
+                ch = iw_coloredit("##cpscolor" // string(it),rgb=w%rep%cps%rgb(:,it))
+                call iw_tooltip("Color of the critical points of this type",ttshown)
+                changed = changed .or. ch
+             end if
+             if (igTableSetColumnIndex(3)) then
+                ch = iw_dragfloat_realc("##cpsrad" // string(it),x1=w%rep%cps%rad(it),speed=0.002_c_float,&
+                   min=0.01_c_float,max=2._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+                   flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Radius of the critical points of this type in Å, before the scale (default " //&
+                   string(real(cps_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",ttshown)
+                changed = changed .or. ch
+             end if
+             if (igTableSetColumnIndex(4)) &
+                call iw_text(string(ncount(it)),alignframe=.true.)
+          end do
+          call igEndTable()
+       end if
+    end if
 
   end function draw_editrep_cps
 
@@ -5238,7 +5488,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_coloredit, iw_dragfloat_realc,&
        iw_field_combo, iw_calcwidth, iw_calcheight, iw_combo_simple, iw_checkbox,&
        iw_table_column, iw_table_headers_row, iw_atom_button, iw_highlight_selectable, iw_button, iw_inputfloat,&
-       iw_inputtext, iw_close_button
+       iw_inputtext, iw_close_button, iw_separatortext
     use param, only: bohrtoa
     use tools_io, only: string
     use tools, only: mergesort
@@ -5266,11 +5516,10 @@ contains
     ihover = 0
 
     ! field selector
-    call iw_text("Field",highlight=.true.,alignframe=.true.)
-    call igSameLine(0._c_float,-1._c_float)
+    call iw_text("Field",alignframe=.true.)
     ifield = w%rep%gpaths%fref%id
     if (iw_field_combo("##gpathsfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>")) then
+       nonestr="<field not available>",sameline=.true.)) then
        call w%rep%gpaths%fref%set(sys(isys),ifield)
        changed = .true.
     end if
@@ -5289,45 +5538,52 @@ contains
     if (.not.ok) return
 
     ! style of all paths, bond and traced
-    call iw_text("Style",highlight=.true.,alignframe=.true.)
-    if (iw_button("Reset##gpathsstylereset",sameline=.true.,danger=.true.)) then
-       w%rep%gpaths%style = gpaths_style_tube
-       w%rep%gpaths%rgb = ColorGpath
-       w%rep%gpaths%rad = gpaths_rad_def
-       call w%rep%gpaths%apply_style(.true.,.true.)
-       changed = .true.
-    end if
-    call iw_tooltip("Reset the style of all gradient paths to the defaults",ttshown)
-    istyle = int(w%rep%gpaths%style,c_int)
-    call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
-       "String of spheres" // c_null_char,istyle,changed=ch,tooltips=&
-       "Draw each path as a continuous tube" // c_null_char //&
-       "Draw each path as a string of spheres, one per path point" // c_null_char,ttshown=ttshown)
-    ! the combo items are in the order of the gpaths_style_* values
-    if (ch) then
-       w%rep%gpaths%style = int(istyle)
-       changed = .true.
-    end if
-
-    ! global color and radius: set those of all paths, bond and traced
     pathsok = w%rep%gpaths%paths_ok(isys)
-    ch = iw_coloredit("Color##gpathscolor",rgb=w%rep%gpaths%rgb)
-    call iw_tooltip("Color of all gradient paths (sets the color of every path in the table&
-       & below)",ttshown)
-    if (ch) then
-       call w%rep%gpaths%apply_style(.true.,.false.)
-       changed = .true.
-    end if
-    ch = iw_dragfloat_realc("Radius (Å)##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
-       min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
-       sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the tubes or spheres of all gradient paths in Å (sets the radius&
-       & of every "//&
-       "path in the table below; default " // string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",&
-       ttshown)
-    if (ch) then
-       call w%rep%gpaths%apply_style(.false.,.true.)
-       changed = .true.
+    call iw_separatortext("Style",w%editrep_sec(1))
+    if (w%editrep_sec(1)%open) then
+       istyle = int(w%rep%gpaths%style,c_int)
+       call iw_text("Style",alignframe=.true.)
+       call iw_combo_simple("##gpathsstyle","Continuous path" // c_null_char //&
+          "String of spheres" // c_null_char,istyle,changed=ch,sameline=.true.,tooltips=&
+          "Draw each path as a continuous tube" // c_null_char //&
+          "Draw each path as a string of spheres, one per path point" // c_null_char,ttshown=ttshown)
+       ! the combo items are in the order of the gpaths_style_* values
+       if (ch) then
+          w%rep%gpaths%style = int(istyle)
+          changed = .true.
+       end if
+
+       ! global color and radius: set those of all paths, bond and traced
+       call iw_text("Color",alignframe=.true.)
+       ch = iw_coloredit("##gpathscolor",rgb=w%rep%gpaths%rgb,sameline=.true.)
+       call iw_tooltip("Color of all gradient paths (sets the color of every path in the table&
+          & below)",ttshown)
+       if (ch) then
+          call w%rep%gpaths%apply_style(.true.,.false.)
+          changed = .true.
+       end if
+       call iw_text("Radius (Å)",alignframe=.true.,gap=.true.)
+       ch = iw_dragfloat_realc("##gpathsrad",x1=w%rep%gpaths%rad,speed=0.002_c_float,&
+          min=0.005_c_float,max=1._c_float,scale=real(bohrtoa,c_float),decimal=3,&
+          sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Radius of the tubes or spheres of all gradient paths in Å (sets the radius&
+          & of every "//&
+          "path in the table below; default " // string(real(gpaths_rad_def,8)*bohrtoa,'f',decimal=3) // " Å)",&
+          ttshown)
+       if (ch) then
+          call w%rep%gpaths%apply_style(.false.,.true.)
+          changed = .true.
+       end if
+
+       ! reset the style
+       if (iw_button("Reset##gpathsstylereset",danger=.true.)) then
+          w%rep%gpaths%style = gpaths_style_tube
+          w%rep%gpaths%rgb = ColorGpath
+          w%rep%gpaths%rad = gpaths_rad_def
+          call w%rep%gpaths%apply_style(.true.,.true.)
+          changed = .true.
+       end if
+       call iw_tooltip("Reset the style of all gradient paths to the defaults",ttshown)
     end if
 
     ! the table of gradient paths: the two bond paths of each
@@ -5365,76 +5621,82 @@ contains
     irem = 0
     ithov = 0
     if (nuniq > 0 .or. w%rep%gpaths%ntrace > 0) then
-       call iw_text("Gradient Paths",highlight=.true.)
-       if (ncell > nuniq .or. ntc > w%rep%gpaths%ntrace) then
-          ! which bond paths: symmetry-unique or cell (the combo items
-          ! are in the order of the tablecell values)
-          itable = int(w%rep%gpaths%tablecell,c_int)
-          call iw_combo_simple("Path list##gpathstablecombo","Symmetry-unique" // c_null_char //&
-             "Cell" // c_null_char,itable,changed=ch,tooltips=&
-             "The paths of the symmetry-unique critical points (an edit applies to all their&
-             & copies in the cell)" // c_null_char //&
-             "The paths of every critical point in the cell" // c_null_char,ttshown=ttshown)
-          if (ch) w%rep%gpaths%tablecell = int(itable)
-          call draw_path_table(w%rep%gpaths%tablecell == 1,merge(ncell,nuniq,w%rep%gpaths%tablecell == 1))
-       else
-          call draw_path_table(.false.,nuniq)
-       end if
+       call iw_separatortext("Gradient paths",w%editrep_sec(2))
+       if (w%editrep_sec(2)%open) then
+          if (ncell > nuniq .or. ntc > w%rep%gpaths%ntrace) then
+             ! which bond paths: symmetry-unique or cell (the combo items
+             ! are in the order of the tablecell values)
+             itable = int(w%rep%gpaths%tablecell,c_int)
+             call iw_text("Path list",alignframe=.true.)
+             call iw_combo_simple("##gpathstablecombo","Symmetry-unique" // c_null_char //&
+                "Cell" // c_null_char,itable,changed=ch,sameline=.true.,tooltips=&
+                "The paths of the symmetry-unique critical points (an edit applies to all their&
+                & copies in the cell)" // c_null_char //&
+                "The paths of every critical point in the cell" // c_null_char,ttshown=ttshown)
+             if (ch) w%rep%gpaths%tablecell = int(itable)
+             call draw_path_table(w%rep%gpaths%tablecell == 1,merge(ncell,nuniq,w%rep%gpaths%tablecell == 1))
+          else
+             call draw_path_table(.false.,nuniq)
+          end if
 
-       ! remove a group of traced paths (after the table; the groups
-       ! are renumbered, so nothing stays highlighted)
-       if (irem > 0) then
-          call w%rep%gpaths%remove_trace(irem)
-          ithov = 0
-          changed = .true.
-       end if
-
-       ! show/hide all paths, and remove the traced ones
-       if (iw_button("Show All##gpathsshowall")) call show_all(1)
-       call iw_tooltip("Show all the gradient paths",ttshown)
-       if (iw_button("Hide All##gpathshideall",sameline=.true.)) call show_all(2)
-       call iw_tooltip("Hide all the gradient paths",ttshown)
-       if (iw_button("Toggle Show/Hide##gpathstoggleall",sameline=.true.)) call show_all(3)
-       call iw_tooltip("Toggle the show/hide status of all the gradient paths",ttshown)
-       if (w%rep%gpaths%ntrace > 0) then
-          if (iw_button("Remove All##gpathsremall",sameline=.true.,danger=.true.)) then
-             call w%rep%gpaths%drop_traces()
+          ! remove a group of traced paths (after the table; the groups
+          ! are renumbered, so nothing stays highlighted)
+          if (irem > 0) then
+             call w%rep%gpaths%remove_trace(irem)
+             ithov = 0
              changed = .true.
           end if
-          call iw_tooltip("Remove all the traced gradient paths",ttshown)
+
+          ! show/hide all paths, and remove the traced ones
+          if (iw_button("Show All##gpathsshowall")) call show_all(1)
+          call iw_tooltip("Show all the gradient paths",ttshown)
+          if (iw_button("Hide All##gpathshideall",sameline=.true.)) call show_all(2)
+          call iw_tooltip("Hide all the gradient paths",ttshown)
+          if (iw_button("Toggle Show/Hide##gpathstoggleall",sameline=.true.)) call show_all(3)
+          call iw_tooltip("Toggle the show/hide status of all the gradient paths",ttshown)
+          if (w%rep%gpaths%ntrace > 0) then
+             if (iw_button("Remove All##gpathsremall",sameline=.true.,danger=.true.)) then
+                call w%rep%gpaths%drop_traces()
+                changed = .true.
+             end if
+             call iw_tooltip("Remove all the traced gradient paths",ttshown)
+          end if
        end if
     end if
 
     ! the bond paths: which are shown, and the atoms at their ends
-    call iw_text("Bond Paths",highlight=.true.)
-    if (nuniq > 0) then
-       ! show only the bond paths within or between molecules
-       if (iw_button("Intramolecular##gpathsintramol")) call select_paths(1)
-       call iw_tooltip("Show the bond paths between atoms of the same molecule and hide all others",ttshown)
-       if (iw_button("Intermolecular##gpathsintermol",sameline=.true.)) call select_paths(2)
-       call iw_tooltip("Show the bond paths between atoms of different molecules and hide all others",ttshown)
+    call iw_separatortext("Bond paths",w%editrep_sec(3))
+    if (w%editrep_sec(3)%open) then
+       if (nuniq > 0) then
+          ! show only the bond paths within or between molecules
+          call iw_text("Show only",alignframe=.true.)
+          if (iw_button("Intramolecular##gpathsintramol",sameline=.true.)) call select_paths(1)
+          call iw_tooltip("Show the bond paths between atoms of the same molecule and hide all others",ttshown)
+          if (iw_button("Intermolecular##gpathsintermol",sameline=.true.)) call select_paths(2)
+          call iw_tooltip("Show the bond paths between atoms of different molecules and hide all others",ttshown)
 
-       ! show only the bond paths with a field value at the BCP above
-       ! or below a threshold
-       if (iw_button("Above##gpathsabove")) call select_paths(3)
-       call iw_tooltip("Show the bond paths whose BCP has a field value above the threshold "//&
-          "and hide all others",ttshown)
-       if (iw_button("Below##gpathsbelow",sameline=.true.)) call select_paths(4)
-       call iw_tooltip("Show the bond paths whose BCP has a field value below the threshold "//&
-          "and hide all others",ttshown)
-       ldum = iw_inputfloat("Field value at the BCP##gpathsfthr",w%rep%gpaths%fthr,decimal=6,width=12,&
-          sameline=.true.)
-       call iw_tooltip("Threshold for the Above and Below buttons (field value at the bond critical point, "//&
-          "atomic units)",ttshown)
+          ! show only the bond paths with a field value at the BCP above
+          ! or below a threshold
+          call iw_text("Field value at the BCP",alignframe=.true.)
+          ldum = iw_inputfloat("##gpathsfthr",w%rep%gpaths%fthr,decimal=6,width=12,sameline=.true.)
+          call iw_tooltip("Threshold for the Above and Below buttons (field value at the bond critical point, "//&
+             "atomic units)",ttshown)
+          if (iw_button("Above##gpathsabove",sameline=.true.)) call select_paths(3)
+          call iw_tooltip("Show the bond paths whose BCP has a field value above the threshold "//&
+             "and hide all others",ttshown)
+          if (iw_button("Below##gpathsbelow",sameline=.true.)) call select_paths(4)
+          call iw_tooltip("Show the bond paths whose BCP has a field value below the threshold "//&
+             "and hide all others",ttshown)
+       end if
+
+       ! the atoms at the ends of the bond paths (and of the traced paths),
+       ! with their own colors and radii (the table, shown only when they
+       ! are drawn)
+       ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends,labelleft=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Draw the atoms at the ends of the paths, with the colors and radii in the&
+          & table below",ttshown)
     end if
-
-    ! the atoms at the ends of the bond paths (and of the traced paths),
-    ! with their own colors and radii (the table, shown only when they
-    ! are drawn)
-    ch = iw_checkbox("Show atoms at bond path ends##gpathsshowends",w%rep%gpaths%showends)
-    changed = changed .or. ch
-    call iw_tooltip("Draw the atoms at the ends of the paths, with the colors and radii in the&
-       & table below",ttshown)
     if (w%rep%gpaths%showends) then
        ch = atom_table_widget(isys,w%rep%atoms%style%type,typechanged,ihighlight,highlight_type,&
           rgb=w%rep%atoms%style%rgb,rad=w%rep%atoms%style%rad)

@@ -75,17 +75,17 @@ contains
 
     if (.not.doquit) then
        ! participant name
-       call iw_text("Name",highlight=.true.,alignframe=.true.)
+       call iw_text("Name",alignframe=.true.)
        ldum = iw_inputtext("##wcname",bufsize=63,texta=w%wc_name,sameline=.true.,width=25)
        call iw_tooltip("Name of the participant, displayed near the score",ttshown)
 
        ! number of water molecules
-       call iw_text("Number of water molecules",highlight=.true.)
+       call iw_text("Water molecules",alignframe=.true.)
        ldum = iw_intstepper("wcnwat",w%wc_nwat,minval=int(wc_nmin,c_int),maxval=int(wc_ngen_max,c_int),&
-          ndigit=3,tooltip="Number of water molecules in the cluster (2 to 100; reference energy known up to 21)")
+          ndigit=3,sameline=.true.,tooltip="Number of water molecules in the cluster (2 to 100; reference energy known up to 21)")
 
        ! initial placement
-       call iw_text("Placement",highlight=.true.,alignframe=.true.)
+       call iw_text("Placement",alignframe=.true.)
        ldum = iw_radiobutton("Random",int=w%wc_placement,intval=0_c_int,sameline=.true.)
        call iw_tooltip("Scatter the water molecules at random positions",ttshown)
        ldum = iw_radiobutton("In a row",int=w%wc_placement,intval=1_c_int,sameline=.true.)
@@ -98,7 +98,7 @@ contains
           &bonds pointing outwards",ttshown)
 
        ! run mode
-       call iw_text("Mode",highlight=.true.,alignframe=.true.)
+       call iw_text("Mode",alignframe=.true.)
        if (iw_radiobutton("Timed",int=w%wc_mode,intval=1_c_int,sameline=.true.)) &
           call wc_reset_clock()
        call iw_tooltip("Play against the clock: the timer starts when the first molecule is moved, &

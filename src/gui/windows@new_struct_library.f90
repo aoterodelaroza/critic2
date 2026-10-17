@@ -38,7 +38,7 @@ contains
     use systems, only: add_systems_from_seeds, launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
        iw_radiobutton, iw_checkbox, iw_inputfloat, iw_inputtext, iw_close_event,&
-       iw_setpos_bottomright
+       iw_setpos_bottomright, iw_separatortext, iw_separatortext_height, iw_section
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -65,6 +65,8 @@ contains
     real(c_float), save :: rborder = rborder_def*bohrtoa
     logical, save :: molcubic = .false.
     character(len=:), allocatable, save :: filter ! show only structures matching this text
+    type(iw_section), save :: seclib, secstruct, seccell ! the sections of the form
+    real(c_float) :: hbelow
 
     ! initialize
     szero%x = 0
@@ -76,7 +78,8 @@ contains
 
     ! crystal or molecule, from library
     saveismol = ismolecule
-    if (iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.)) then
+    call iw_text("Type",alignframe=.true.)
+    if (iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.,sameline=.true.)) then
        if (saveismol.and..not.w%okfile_set) w%okfile = trim(clib_file)
        w%okfile_read = .true.
     end if
@@ -87,94 +90,96 @@ contains
     end if
     call iw_tooltip("The new structure is a molecule",ttshown)
 
-    ! render the rest of the window
     ! library file
-    call iw_text("Source",highlight=.true.)
-    if (iw_button("Library file")) then
-       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile,&
-          idparent=w%id,orraise=-1)
+    call iw_separatortext("Library",seclib)
+    if (seclib%open) then
+       call iw_text("File",alignframe=.true.)
+       if (iw_button("Browse...##libraryfile",sameline=.true.)) then
+          idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile,&
+             idparent=w%id,orraise=-1)
+       end if
+       call iw_tooltip("Library file from where the structures are read",ttshown)
+       call iw_text(w%okfile,sameline=.true.)
     end if
-    call iw_tooltip("Library file from where the structures are read",ttshown)
-    call iw_text(w%okfile,sameline=.true.)
 
-    ! list box
-    call iw_text("Structures to load from the library file",highlight=.true.)
-
-    ! filter, matched against the name and all the aliases
-    call iw_text("Filter",highlight=.true.,alignframe=.true.)
-    ldum = iw_inputtext("##libraryfilter",bufsize=255,texta=filter,width=20,sameline=.true.)
-    call iw_tooltip("Show only the structures whose name or aliases contain this text",ttshown)
-    if (iw_button("Clear",sameline=.true.,disabled=(len_trim(filter) == 0))) filter = ""
-
-    ! some of the selected structures may be hidden by the filter, so keep the count visible
-    nsel = 0
-    if (allocated(lst)) nsel = count(lst(1:nst))
-    if (nsel > 0) &
-       call iw_text(string(nsel) // " selected",sameline=.true.)
-
-    str = "##listbox" // c_null_char
-    call igGetContentRegionAvail(sz)
+    ! what sits under the list: the cell section of a molecule (its
+    ! header, and its line when it is open) and the buttons
+    hbelow = iw_calcheight(1,0) + g%Style%ItemSpacing%y
     if (ismolecule) then
-       sz%y = max(sz%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
-    else
-       sz%y = max(sz%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
+       hbelow = hbelow + iw_separatortext_height()
+       if (seccell%open) hbelow = hbelow + iw_calcheight(1,0) + g%Style%ItemSpacing%y
     end if
 
+    ! the structures to load from the library file
     doubleclicked = .false.
-    nshown = 0
-    if (igBeginListBox(c_loc(str),sz)) then
-       do i = 1, nst
-          if (.not.library_matches(st(i)%s,filter)) cycle
-          nshown = nshown + 1
-          str = library_label(st(i)%s) // c_null_char
-          if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_AllowDoubleClick, szero)) then
+    call iw_separatortext("Structures",secstruct)
+    if (secstruct%open) then
+       ! filter, matched against the name and all the aliases
+       call iw_text("Filter",alignframe=.true.)
+       ldum = iw_inputtext("##libraryfilter",bufsize=255,texta=filter,width=20,sameline=.true.)
+       call iw_tooltip("Show only the structures whose name or aliases contain this text",ttshown)
+       if (iw_button("Clear",sameline=.true.,disabled=(len_trim(filter) == 0))) filter = ""
 
-             ! implement selection range with shift and control
-             if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
-                ! select a whole range, skipping the entries hidden by the filter
-                i1 = min(i,w%lastselected)
-                i2 = max(i,w%lastselected)
-                lst = .false.
-                do j = i1, i2
-                   lst(j) = library_matches(st(j)%s,filter)
-                end do
-             elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
-                ! select and individual item and accumulate
-                lst(i) = .true.
-             else
-                ! select one item, start range, remove all others
-                lst = .false.
-                lst(i) = .true.
-                w%lastselected = i
-                doubleclicked = igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)
+       ! some of the selected structures may be hidden by the filter, so keep the count visible
+       nsel = 0
+       if (allocated(lst)) nsel = count(lst(1:nst))
+       if (nsel > 0) &
+          call iw_text(string(nsel) // " selected",sameline=.true.)
+
+       str = "##listbox" // c_null_char
+       call igGetContentRegionAvail(sz)
+       sz%y = max(sz%y - hbelow,igGetTextLineHeightWithSpacing())
+
+       nshown = 0
+       if (igBeginListBox(c_loc(str),sz)) then
+          do i = 1, nst
+             if (.not.library_matches(st(i)%s,filter)) cycle
+             nshown = nshown + 1
+             str = library_label(st(i)%s) // c_null_char
+             if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_AllowDoubleClick, szero)) then
+
+                ! implement selection range with shift and control
+                if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
+                   ! select a whole range, skipping the entries hidden by the filter
+                   i1 = min(i,w%lastselected)
+                   i2 = max(i,w%lastselected)
+                   lst = .false.
+                   do j = i1, i2
+                      lst(j) = library_matches(st(j)%s,filter)
+                   end do
+                elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
+                   ! select and individual item and accumulate
+                   lst(i) = .true.
+                else
+                   ! select one item, start range, remove all others
+                   lst = .false.
+                   lst(i) = .true.
+                   w%lastselected = i
+                   doubleclicked = igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)
+                end if
              end if
-          end if
 
-          ! the label shows only the first few aliases, so give the rest in the tooltip
-          aux = library_aliases(st(i)%s)
-          if (len_trim(aux) > 0) &
-             call iw_tooltip("Also known as: " // aux,ttshown)
-       end do
-       if (nshown == 0) &
-          call iw_text("No structure matches the filter")
-       call igEndListBox()
-    end if
+             ! the label shows only the first few aliases, so give the rest in the tooltip
+             aux = library_aliases(st(i)%s)
+             if (len_trim(aux) > 0) &
+                call iw_tooltip("Also known as: " // aux,ttshown)
+          end do
+          if (nshown == 0) &
+             call iw_text("No structure matches the filter")
+          call igEndListBox()
+       end if
+    end if ! secstruct%open
 
+    ! the periodic cell of a molecule
     if (ismolecule) then
-       ! options line
-       call iw_text("Structure options",highlight=.true.)
-
-       ! cell border
-       call igIndent(0._c_float)
-       str = "Cell border (Å)" // c_null_char
-       ldum = iw_inputfloat(str,rborder,width=7)
-       call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-
-       ! cubic cell
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       ldum = iw_checkbox("Cubic cell",molcubic)
-       call iw_tooltip("New molecules are created inside a cubic periodic cell",ttshown)
+       call iw_separatortext("Cell",seccell)
+       if (seccell%open) then
+          call iw_text("Border (Å)",alignframe=.true.)
+          ldum = iw_inputfloat("##rborder",rborder,width=7,sameline=.true.)
+          call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
+          ldum = iw_checkbox("Cubic cell",molcubic,labelleft=.true.,gap=.true.)
+          call iw_tooltip("New molecules are created inside a cubic periodic cell",ttshown)
+       end if
     end if
 
     ! right-align and bottom-align for the rest of the contents
@@ -243,6 +248,9 @@ contains
     ! initialize the state for this window
     subroutine init_state()
       ttshown = .false.
+      seclib = iw_section()
+      secstruct = iw_section()
+      seccell = iw_section()
       ismolecule = .false.
       nst = 0
       w%lastselected = 0

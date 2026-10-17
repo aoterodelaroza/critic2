@@ -33,7 +33,7 @@ contains
   module subroutine draw_exportimage(w)
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, iw_checkbox,&
-       iw_close_event, iw_setpos_bottomright, iw_inputtext
+       iw_close_event, iw_setpos_bottomright, iw_inputtext, iw_separatortext
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string, uout
     use param, only: dirsep
@@ -70,73 +70,86 @@ contains
     if (.not.doquit) doquit = .not.associated(win(iview)%sc)
 
     ! file name: editable field plus browse button
-    call iw_text("File Name",highlight=.true.)
-    if (iw_inputtext("##exportimagefile",bufsize=1023,texta=w%okfile,width=36)) then
-       ! update the image format from the typed extension, if recognized
-       str1 = filter_from_extension()
-       if (len_trim(str1) > 0) w%okfilter = str1
+    call iw_separatortext("File",w%expimg_secfile)
+    if (w%expimg_secfile%open) then
+       call iw_text("File",alignframe=.true.)
+       if (iw_inputtext("##exportimagefile",bufsize=1023,texta=w%okfile,width=36,sameline=.true.)) then
+          ! update the image format from the typed extension, if recognized
+          str1 = filter_from_extension()
+          if (len_trim(str1) > 0) w%okfilter = str1
+       end if
+       call iw_tooltip("File the image will be written to (the extension selects the image format)",ttshown)
+       if (iw_button("Browse...",sameline=.true.)) &
+          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile,idparent=w%id,orraise=-1)
+       call iw_tooltip("Choose the image file with a file browser",ttshown)
+       call w%okfile_warn_overwrite()
+       if (len_trim(filter_from_extension()) == 0) &
+          call iw_text("Unknown image extension, writing " // trim(w%okfilter) // " format",&
+             danger=.true.,wrap=.true.)
     end if
-    call iw_tooltip("File the image will be written to (the extension selects the image format)",ttshown)
-    if (iw_button("Browse...",sameline=.true.)) &
-       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile,idparent=w%id,orraise=-1)
-    call iw_tooltip("Choose the image file with a file browser",ttshown)
-    call w%okfile_warn_overwrite()
-    if (len_trim(filter_from_extension()) == 0) &
-       call iw_text("Unknown image extension, writing " // trim(w%okfilter) // " format",&
-          danger=.true.,wrap=.true.)
 
     ! render settings
-    call iw_text("Render Settings",highlight=.true.)
-    str1 = "Render buffer size (pixels)" // c_null_char
-    str2 = "%d" // c_null_char
-    call igPushItemWidth(iw_calcwidth(5,1))
-    ldum = igDragInt(c_loc(str1),w%npixel,10._c_float,1_c_int,81920_c_int,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
-    call igPopItemWidth()
-    call iw_tooltip("Size of the render buffer in pixels",ttshown)
+    call iw_separatortext("Render",w%expimg_secrender)
+    if (w%expimg_secrender%open) then
+       call iw_text("Buffer size (pixels)",alignframe=.true.)
+       str1 = "##exportimagenpixel" // c_null_char
+       str2 = "%d" // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       call igPushItemWidth(iw_calcwidth(5,1))
+       ldum = igDragInt(c_loc(str1),w%npixel,10._c_float,1_c_int,81920_c_int,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+       call igPopItemWidth()
+       call iw_tooltip("Size of the render buffer in pixels",ttshown)
 
-    ! render buffer size presets, relative to the view size
-    if (.not.doquit) then
-       call iw_text("Presets:",alignframe=.true.)
-       if (iw_button("1x",sameline=.true.)) w%npixel = win(iview)%FBOside
-       call iw_tooltip("Same resolution as the current view",ttshown)
-       if (iw_button("2x",sameline=.true.)) w%npixel = 2 * win(iview)%FBOside
-       call iw_tooltip("Twice the resolution of the current view",ttshown)
-       if (iw_button("4x",sameline=.true.)) w%npixel = 4 * win(iview)%FBOside
-       call iw_tooltip("Four times the resolution of the current view",ttshown)
-    end if
+       ! render buffer size presets, relative to the view size
+       if (.not.doquit) then
+          call iw_text("Presets",alignframe=.true.,gap=.true.)
+          if (iw_button("1x",sameline=.true.)) w%npixel = win(iview)%FBOside
+          call iw_tooltip("Same resolution as the current view",ttshown)
+          if (iw_button("2x",sameline=.true.)) w%npixel = 2 * win(iview)%FBOside
+          call iw_tooltip("Twice the resolution of the current view",ttshown)
+          if (iw_button("4x",sameline=.true.)) w%npixel = 4 * win(iview)%FBOside
+          call iw_tooltip("Four times the resolution of the current view",ttshown)
+       end if
 
-    str1 = "Number of samples for anti-aliasing" // c_null_char
-    str2 = "%d" // c_null_char
-    call igPushItemWidth(iw_calcwidth(2,1))
-    ldum = igDragInt(c_loc(str1),w%nsample,1._c_float,1_c_int,32_c_int,c_loc(str2),&
-       ImGuiSliderFlags_AlwaysClamp)
-    call igPopItemWidth()
-    call iw_tooltip("Number of samples for the anti-aliasing render",ttshown)
+       call iw_text("Anti-aliasing samples",alignframe=.true.)
+       str1 = "##exportimagensample" // c_null_char
+       str2 = "%d" // c_null_char
+       call igSameLine(0._c_float,-1._c_float)
+       call igPushItemWidth(iw_calcwidth(2,1))
+       ldum = igDragInt(c_loc(str1),w%nsample,1._c_float,1_c_int,32_c_int,c_loc(str2),&
+          ImGuiSliderFlags_AlwaysClamp)
+       call igPopItemWidth()
+       call iw_tooltip("Number of samples for the anti-aliasing render",ttshown)
 
-    ldum = iw_checkbox("Export the viewport only",w%exportview)
-    call iw_tooltip("If checked, export the only the current view. Otherwise,&
-       & export the whole render buffer",ttshown)
+       ldum = iw_checkbox("Export the viewport only",w%exportview,labelleft=.true.)
+       call iw_tooltip("If checked, export the only the current view. Otherwise,&
+          & export the whole render buffer",ttshown)
 
-    ldum = iw_checkbox("Transparent background",w%transparentbg)
-    call iw_tooltip("Make the background transparent in the exported image",ttshown)
+       ldum = iw_checkbox("Transparent background",w%transparentbg,labelleft=.true.)
+       call iw_tooltip("Make the background transparent in the exported image",ttshown)
 
-    ! size of the written image
-    if (.not.doquit) then
-       call win(iview)%export_image_size(w%npixel,w%exportview,iwidth,iheight)
-       call iw_text("Output image size:",highlight=.true.)
-       call iw_text(string(iwidth) // " x " // string(iheight) // " pixels",sameline=.true.)
+       ! size of the written image
+       if (.not.doquit) then
+          call win(iview)%export_image_size(w%npixel,w%exportview,iwidth,iheight)
+          call iw_text("Output image size")
+          call iw_text(string(iwidth) // " x " // string(iheight) // " pixels",sameline=.true.)
+       end if
     end if
 
     ! image settings
     if (w%okfilter(1:3) == "JPE") then
-       call iw_text("Image Settings",highlight=.true.)
-       str1 = "JPEG Quality" // c_null_char
-       str2 = "%d" // c_null_char
-       call igPushItemWidth(iw_calcwidth(3,1))
-       ldum = igDragInt(c_loc(str1),w%jpgquality,1._c_float,1_c_int,100_c_int,c_loc(str2),&
-          ImGuiSliderFlags_AlwaysClamp)
-       call igPopItemWidth()
-       call iw_tooltip("Quality and weight of the JPEG file",ttshown)
+       call iw_separatortext("Image",w%expimg_secimage)
+       if (w%expimg_secimage%open) then
+          call iw_text("JPEG quality",alignframe=.true.)
+          str1 = "##exportimagejpgquality" // c_null_char
+          str2 = "%d" // c_null_char
+          call igSameLine(0._c_float,-1._c_float)
+          call igPushItemWidth(iw_calcwidth(3,1))
+          ldum = igDragInt(c_loc(str1),w%jpgquality,1._c_float,1_c_int,100_c_int,c_loc(str2),&
+             ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Quality and weight of the JPEG file",ttshown)
+       end if
     end if
 
     ! maybe the error message

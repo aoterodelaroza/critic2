@@ -52,10 +52,10 @@ contains
     use windows, only: wintype_dialog, wpurp_dialog_selectdir
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running,&
        launch_initialization_thread
-    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_calcwidth, iw_calcheight, iw_tooltip,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_calcheight, iw_tooltip,&
        iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event,&
        iw_setpos_bottomright, iw_inputtext, iw_table_column, iw_radiobutton,&
-       get_current_working_dir
+       get_current_working_dir, iw_separatortext
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use icons, only: icon_tex, icon_ui_cell, icon_vm_bond, rgba_fam_crys, rgba_fam_molgeom
     use gui_main, only: fontsize
@@ -73,7 +73,7 @@ contains
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: dooverwrite
     logical :: doquit, ok, okvalid, userk, usecell, changed, dirok
-    logical :: anycrystal, thisrk
+    logical :: anycrystal, thisrk, showopt
     logical(c_bool) :: ldum
     type(ImVec2) :: sz
 
@@ -121,24 +121,28 @@ contains
        if (tree_nselected() <= 1) w%savemult_scope = 1
     end if
 
-    ! the systems being written
-    call iw_text("Systems",highlight=.true.)
-    str1 = "Selected in the tree" // c_null_char // "All systems in the tree" // c_null_char
-    call igPushItemWidth(iw_calcwidth(24,1))
-    call iw_combo_simple("##savemultscope",str1,w%savemult_scope)
-    call igPopItemWidth()
-    call iw_tooltip("Systems whose structures will be written. Select systems in the&
-       & tree with control-click, shift-click, or the buttons",ttshown)
+    ! the systems being written, and the files they go to
+    call iw_separatortext("Files",w%sm%secfiles)
+    if (w%sm%secfiles%open) then
+       call iw_text("Systems",alignframe=.true.)
+       str1 = "Selected in the tree" // c_null_char // "All systems in the tree" // c_null_char
+       call iw_combo_simple("##savemultscope",str1,w%savemult_scope,sameline=.true.)
+       call iw_tooltip("Systems whose structures will be written. Select systems in the&
+          & tree with control-click, shift-click, or the buttons",ttshown)
 
-    ! the output directory
-    call iw_text("Directory",highlight=.true.)
-    ldum = iw_inputtext("##savemultdir",bufsize=1023,texta=w%okfile,width=36,notlive=.true.)
-    call iw_tooltip("Directory where the structure files will be written",ttshown)
-    if (iw_button("Browse...",sameline=.true.)) &
-       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_selectdir,idparent=w%id,orraise=-1)
-    call iw_tooltip("Choose the directory in the file browser",ttshown)
+       ! the output directory
+       call iw_text("Directory",alignframe=.true.)
+       ldum = iw_inputtext("##savemultdir",bufsize=1023,texta=w%okfile,width=36,notlive=.true.,&
+          sameline=.true.)
+       call iw_tooltip("Directory where the structure files will be written",ttshown)
+       if (iw_button("Browse...",sameline=.true.)) &
+          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_selectdir,idparent=w%id,orraise=-1)
+       call iw_tooltip("Choose the directory in the file browser",ttshown)
+    end if
     dirok = (len_trim(w%okfile) > 0)
-    if (dirok) then
+    if (.not.w%sm%secfiles%open) then
+       ! the warnings go with the directory field
+    elseif (dirok) then
        ! a missing directory is only a warning: inquire() on a directory is
        ! not portable, and the write itself reports the real error. Cached
        ! on okfile, like the other existence checks: this runs every frame,
@@ -155,20 +159,23 @@ contains
     end if
 
     ! format combo
-    call iw_text("Format",highlight=.true.)
-    call igPushItemWidth(iw_calcwidth(45,1))
-    call iw_combo_simple("##savemultformat",write_format_combostr(icombo_fmt1:),w%savemult_format,startsatone=.true.)
-    call igPopItemWidth()
-    call iw_tooltip("File format for the written structures",ttshown)
+    if (w%sm%secfiles%open) then
+       call iw_text("Format",alignframe=.true.)
+       call iw_combo_simple("##savemultformat",write_format_combostr(icombo_fmt1:),w%savemult_format,&
+          startsatone=.true.,sameline=.true.)
+       call iw_tooltip("File format for the written structures",ttshown)
+    end if
     ifmt = fmtperm(max(min(w%savemult_format,isformat_w_max),1))
 
     ! the file name pattern
-    call iw_text("File Names",highlight=.true.)
-    call draw_pattern_help()
-    ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36,&
-       notlive=.true.)
-    call iw_tooltip("Pattern for the file w%sm%names, without extension&
-       & (see the ? for the substitutions)",ttshown)
+    if (w%sm%secfiles%open) then
+       call iw_text("File names",alignframe=.true.)
+       ldum = iw_inputtext("##savemultpattern",bufsize=1023,texta=w%savemult_pattern,width=36,&
+          notlive=.true.,sameline=.true.)
+       call iw_tooltip("Pattern for the file names, without extension&
+          & (see the ? for the substitutions)",ttshown)
+       call draw_pattern_help()
+    end if
 
     ! rebuild the list of target file w%sm%names, if the settings changed
     call rebuild_names(w,ifmt,changed)
@@ -202,34 +209,37 @@ contains
        .and. anycrystal
 
     ! options, only for the formats that support them
-    if (userk .or. usecell .or. ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
-       ifmt == isformat_w_shelx) &
-       call iw_text("Options",highlight=.true.)
+    showopt = userk .or. usecell .or. write_format_usesym(ifmt)
+    if (showopt) then
+       call iw_separatortext("Options",w%sm%secopt)
+       showopt = w%sm%secopt%open
+    end if
 
     ! k-point grid (rklength)
-    if (userk) then
-       ldum = iw_dragfloat_realc("RKlength##savemultrk",x1=w%savemult_rk,speed=1._c_float,&
-          min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+    if (userk .and. showopt) then
+       call iw_text("RKlength",alignframe=.true.)
+       ldum = iw_dragfloat_realc("##savemultrk",x1=w%savemult_rk,speed=1._c_float,&
+          min=1._c_float,max=200._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,&
+          sameline=.true.)
        call iw_tooltip("Length parameter for calculating the k-point grid",ttshown)
     end if
 
     ! do not use symmetry
-    if (ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
-       ifmt == isformat_w_shelx) then
-       ldum = iw_checkbox("Do not use symmetry##savemultnosym",w%savemult_nosym)
+    if (write_format_usesym(ifmt) .and. showopt) then
+       ldum = iw_checkbox("Do not use symmetry##savemultnosym",w%savemult_nosym,labelleft=.true.)
        call iw_tooltip("Write the structures without using the space group symmetry (P1)",ttshown)
     end if
 
     ! Cartesian coordinates (crystals only)
-    if (ifmt == isformat_w_aimsin .and. anycrystal) then
-       ldum = iw_checkbox("Cartesian coordinates##savemultcartesian",w%savemult_cartesian)
+    if (ifmt == isformat_w_aimsin .and. anycrystal .and. showopt) then
+       ldum = iw_checkbox("Cartesian coordinates##savemultcartesian",w%savemult_cartesian,labelleft=.true.)
        call iw_tooltip("Write Cartesian atomic coordinates (atom) instead of&
           & fractional coordinates (atom_frac)",ttshown)
     end if
 
     ! show the unit cell in the 3D model
-    if (usecell) then
-       ldum = iw_checkbox("Show unit cell##savemultdocell",w%savemult_docell)
+    if (usecell .and. showopt) then
+       ldum = iw_checkbox("Show unit cell##savemultdocell",w%savemult_docell,labelleft=.true.)
        call iw_tooltip("Draw the unit cell edges in the written 3D model files",ttshown)
     end if
 
@@ -277,7 +287,7 @@ contains
     if (len_trim(savemsg) > 0) nbot = nbot + 1
 
     ! the list of files that will be written
-    call iw_text("Files (" // string(w%sm%nnames) // ")",highlight=.true.)
+    call iw_separatortext("Files to write (" // string(w%sm%nnames) // ")",w%sm%seclist)
     str1 = "##savemulttable" // c_null_char
     flags = ImGuiTableFlags_Borders
     flags = ior(flags,ImGuiTableFlags_Resizable)
@@ -285,7 +295,13 @@ contains
     flags = ior(flags,ImGuiTableFlags_RowBg)
     sz%x = 0._c_float
     sz%y = -iw_calcheight(nbot,0,.false.)
-    if (igBeginTable(c_loc(str1),ic_savemult_NUMCOLUMNS,flags,sz,0._c_float)) then
+    if (.not.w%sm%seclist%open) then
+       ! no table: the warnings and buttons go at the bottom all the same
+       call igGetContentRegionAvail(sz)
+       sz%y = max(sz%y - iw_calcheight(nbot,0,.false.),0._c_float)
+       sz%x = 0._c_float
+       call igDummy(sz)
+    elseif (igBeginTable(c_loc(str1),ic_savemult_NUMCOLUMNS,flags,sz,0._c_float)) then
        call iw_table_column("Id",id=ic_savemult_id,flags=ImGuiTableColumnFlags_WidthFixed)
        flags = ior(ImGuiTableColumnFlags_WidthFixed,ImGuiTableColumnFlags_NoHeaderLabel)
        call iw_table_column("(kind)##0savemultkind",id=ic_savemult_type,flags=flags,&
@@ -329,7 +345,7 @@ contains
        call iw_text(warnmsg,danger=.true.,wrap=.true.)
     end if
     if (dooverwrite) then
-       call iw_text("Write them?",highlight=.true.,alignframe=.true.)
+       call iw_text("Write them?",alignframe=.true.)
        ldum = iw_radiobutton("Overwrite##savemultexist",int=w%savemult_exist,intval=1_c_int,&
           sameline=.true.)
        call iw_tooltip("Write over the files that already exist in this directory",ttshown)
@@ -342,7 +358,7 @@ contains
     if (len_trim(w%errmsg) > 0) then
        call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     elseif (len_trim(w%okmsg) > 0) then
-       call iw_text(w%okmsg,highlight=.true.,wrap=.true.)
+       call iw_text(w%okmsg,wrap=.true.)
     end if
 
     ! why the Save button is disabled, on the line just above it
@@ -527,7 +543,7 @@ contains
       if (.not.igIsItemHovered(ImGuiHoveredFlags_None)) return
 
       call igBeginTooltip()
-      call iw_text("File Name Pattern",highlight=.true.)
+      call iw_text("File name pattern")
       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
       call iw_text("The name of each file: the extension is added automatically. Double-click&
          & a name in the table to type it by hand.")

@@ -2725,13 +2725,13 @@ contains
 
   ! Show a simple combo using the allowed atom types. Type is the
   ! initial and final atom type in the combo.
-  module function attype_combo_simple(sysc,label,type,allowed,units)
+  module function attype_combo_simple(sysc,label,type,allowed,units,sameline)
     use utils, only: iw_combo_simple
     class(sysconf), intent(inout) :: sysc
     character(len=*), intent(in) :: label
     integer, intent(inout) :: type
     integer, intent(in) :: allowed(:)
-    logical, intent(in), optional :: units
+    logical, intent(in), optional :: units, sameline
     logical :: attype_combo_simple
 
     character(len=:), allocatable :: strcombo
@@ -2825,7 +2825,7 @@ contains
     end do
 
     ! the actual combo
-    call iw_combo_simple(label,strcombo,icombo,changed=attype_combo_simple)
+    call iw_combo_simple(label,strcombo,icombo,changed=attype_combo_simple,sameline=sameline)
 
     ! decode the combo
     type = decode(icombo)

@@ -129,6 +129,7 @@ module utils
   public :: iw_checkbox
   public :: iw_text
   public :: iw_separatortext
+  public :: iw_separatortext_height
   public :: iw_button
   public :: iw_atom_button
   public :: iw_icon_button
@@ -451,6 +452,9 @@ module utils
        type(iw_section), intent(inout), optional :: sec
        logical, intent(in), optional :: hasmore
      end subroutine iw_separatortext
+     module function iw_separatortext_height()
+       real(c_float) :: iw_separatortext_height
+     end function iw_separatortext_height
      module function iw_menuitem(label,keybind,selected,enabled,shortcut_text,danger)
        character(len=*,kind=c_char), intent(in) :: label
        integer, intent(in), optional :: keybind

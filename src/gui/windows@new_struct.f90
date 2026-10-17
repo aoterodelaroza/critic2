@@ -31,9 +31,10 @@ contains
     use gui_main, only: g
     use systems, only: add_systems_from_seeds, launch_initialization_thread,&
        system_shorten_names
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_helpermark, iw_button, iw_text,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
        iw_calcheight, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox,&
-       iw_inputtext, iw_inputfloat, iw_inputfloat3, iw_close_event, iw_setpos_bottomright
+       iw_inputtext, iw_inputfloat, iw_inputfloat3, iw_close_event, iw_setpos_bottomright,&
+       iw_separatortext, iw_separatortext_height, iw_section
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -70,6 +71,8 @@ contains
     real(c_float), save :: bb(3) = 90._c_float ! cell angles
     real(c_float), save :: rborder = rborder_def*bohrtoa ! cell border, molecule (ang)
     logical, save :: molcubic = .false. ! cell for molecule is cubic
+    type(iw_section), save :: secsym, seclat, secatoms, seccell ! the sections of the form
+    real(c_float) :: hbelow
 
     ! initialize
     szero%x = 0
@@ -80,126 +83,129 @@ contains
     if (w%firstpass) call init_state()
 
     ! crystal or molecule
-    ldum = iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.)
+    call iw_text("Type",alignframe=.true.)
+    ldum = iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.,sameline=.true.)
     call iw_tooltip("The new structure is a periodic crystal",ttshown)
     ldum = iw_radiobutton("Molecule",bool=ismolecule,boolval=.true.,sameline=.true.)
     call iw_tooltip("The new structure is a molecule",ttshown)
 
     ! name
-    call iw_text("Name",highlight=.true.)
-    ldum = iw_inputtext("##name",bufsize=1024,texta=namebuf)
+    call iw_text("Name",alignframe=.true.)
+    ldum = iw_inputtext("##name",bufsize=1024,texta=namebuf,width=40,sameline=.true.)
 
     if (.not.ismolecule) then
        ! symmetry
-       call iw_text("Symmetry",highlight=.true.)
+       call iw_separatortext("Symmetry",secsym)
+       if (secsym%open) then
+          ldum = iw_radiobutton("Detect",int=symopt,intval=1_c_int)
+          call iw_tooltip("Calculate the symmetry operations from the complete list of unit cell atoms",ttshown)
+          ldum = iw_radiobutton("Space group",int=symopt,intval=2_c_int,sameline=.true.)
+          call iw_tooltip("Choose a space group from the list",ttshown)
+          ldum = iw_radiobutton("Manual",int=symopt,intval=3_c_int,sameline=.true.)
+          call iw_tooltip("Enter symmetry operations in cif-file format (e.g. -1/2+x,z,-y)",ttshown)
 
-       ldum = iw_radiobutton("Detect",int=symopt,intval=1_c_int)
-       call iw_tooltip("Calculate the symmetry operations from the complete list of unit cell atoms",ttshown)
-       ldum = iw_radiobutton("Space group",int=symopt,intval=2_c_int,sameline=.true.)
-       call iw_tooltip("Choose a space group from the list",ttshown)
-       ldum = iw_radiobutton("Manual",int=symopt,intval=3_c_int,sameline=.true.)
-       call iw_tooltip("Enter symmetry operations in cif-file format (e.g. -1/2+x,z,-y)",ttshown)
-
-       ! symmetry options
-       if (symopt == 2) then
-          call draw_spg_table(ispg_selected)
-       elseif (symopt == 3) then
-          ! manual input of symmetry operations
-          call igGetContentRegionAvail(szavail)
-          sz%x = szavail%x
-          sz%y = 9 * igGetTextLineHeightWithSpacing()
-          str = "##symopsmanual" // c_null_char
-          ldum = igInputTextMultiline(c_loc(str),c_loc(symopbuf),maxsymopbuf,sz,&
-             ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
+          ! symmetry options
+          if (symopt == 2) then
+             call draw_spg_table(ispg_selected)
+          elseif (symopt == 3) then
+             ! manual input of symmetry operations
+             call igGetContentRegionAvail(szavail)
+             sz%x = szavail%x
+             sz%y = 9 * igGetTextLineHeightWithSpacing()
+             str = "##symopsmanual" // c_null_char
+             ldum = igInputTextMultiline(c_loc(str),c_loc(symopbuf),maxsymopbuf,sz,&
+                ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
+          end if
        end if
 
-       ! lattice: header
-       call iw_text("Lattice",highlight=.true.)
+       ! lattice
+       call iw_separatortext("Lattice",seclat)
+       if (seclat%open) then
+          ldum = iw_radiobutton("Cell parameters",int=cellopt,intval=1_c_int)
+          call iw_tooltip("Lattice is calculated from the cell lengths and angles",ttshown)
+          ldum = iw_radiobutton("Lattice vectors",int=cellopt,intval=2_c_int,sameline=.true.)
+          call iw_tooltip("Lattice vectors are given explicitly",ttshown)
 
-       ldum = iw_radiobutton("Cell parameters",int=cellopt,intval=1_c_int)
-       call iw_tooltip("Lattice is calculated from the cell lengths and angles",ttshown)
-       ldum = iw_radiobutton("Lattice vectors",int=cellopt,intval=2_c_int,sameline=.true.)
-       call iw_tooltip("Lattice vectors are given explicitly",ttshown)
+          ! units and scale factor only if lattice vectors
+          if (cellopt == 2) then
+             call iw_text("Units",alignframe=.true.)
+             call iw_combo_simple("##cel","Bohr" // c_null_char // "Angstrom" // c_null_char,&
+                iunitcel,sameline=.true.)
+             call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
 
-       ! units and scale factor only if lattice vectors
-       if (cellopt == 2) then
-          call iw_combo_simple("Units##cel","Bohr" // c_null_char // "Angstrom" // c_null_char,&
-             iunitcel,sameline=.true.)
-          call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
+             call iw_text("Scale",alignframe=.true.,gap=.true.)
+             ldum = iw_inputfloat("##scale",scale,width=7,sameline=.true.)
+             call iw_tooltip("Scale factor to multiply the lattice vectors",ttshown)
+          end if
 
-          ldum = iw_inputfloat("Scale",scale,width=7,sameline=.true.)
-          call iw_tooltip("Scale factor to multiply the lattice vectors",ttshown)
-       end if
+          ! lattice: body
+          if (cellopt == 1) then
+             ! cell lengths
+             call iw_text("Cell lengths (Å)",alignframe=.true.)
+             ldum = iw_inputfloat3("##celllength3",aa,width=3*8,sameline=.true.)
 
-       ! lattice: body
-       if (cellopt == 1) then
-          ! cell lengths
-          call iw_text("Cell lengths (Å): ",alignframe=.true.)
-          ldum = iw_inputfloat3("##celllength3",aa,width=3*8,sameline=.true.)
-
-          ! cell angles
-          call iw_text("Cell angles (°):  ",alignframe=.true.)
-          ldum = iw_inputfloat3("##cellangle3",bb,width=3*8,sameline=.true.)
-       else
-          ! lattice vectors
-          call igGetContentRegionAvail(szavail)
-          sz%x = szavail%x
-          sz%y = 4 * igGetTextLineHeightWithSpacing()
-          str = "##latvecmanual" // c_null_char
-          ldum = igInputTextMultiline(c_loc(str),c_loc(latvecbuf),maxlatvecbuf,sz,&
-             ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
+             ! cell angles
+             call iw_text("Cell angles (°)",alignframe=.true.)
+             ldum = iw_inputfloat3("##cellangle3",bb,width=3*8,sameline=.true.)
+          else
+             ! lattice vectors
+             call igGetContentRegionAvail(szavail)
+             sz%x = szavail%x
+             sz%y = 4 * igGetTextLineHeightWithSpacing()
+             str = "##latvecmanual" // c_null_char
+             ldum = igInputTextMultiline(c_loc(str),c_loc(latvecbuf),maxlatvecbuf,sz,&
+                ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
+          end if
        end if
     end if ! .not.ismolecule
 
-    ! atomic positions: header
-    call iw_text("Atomic positions",highlight=.true.) ! molecule
-    call iw_helpermark("Give the atomic positions for this system as:" // newline //&
-       "  <Sy> <x> <y> <z> [occ]" // newline //&
-       "where Sy is the atomic symbol and x,y,z are the atomic coordinates." // newline //&
-       "occ is an optional site occupancy, between 0 and 1.")
+    ! what sits under the atomic positions: the cell section of a molecule
+    ! (its header, and its line when it is open) and the buttons
+    hbelow = iw_calcheight(1,0) + g%Style%ItemSpacing%y
+    if (ismolecule) then
+       hbelow = hbelow + iw_separatortext_height()
+       if (seccell%open) hbelow = hbelow + iw_calcheight(1,0) + g%Style%ItemSpacing%y
+    end if
 
-    ! units, does not apply in the case of crystal/cell parameters
-    if (ismolecule .or. cellopt == 2) then
-       call igSameLine(0._c_float,-1._c_float)
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       if (ismolecule) then
-          call iw_combo_simple("Units","Bohr" // c_null_char // "Angstrom" // c_null_char,&
-             iunitat_m,sameline=.true.)
-       else
-          call iw_combo_simple("Units","Bohr" // c_null_char // "Angstrom" // c_null_char // "Fractional" // c_null_char,&
-             iunitat_c,sameline=.true.)
+    ! atomic positions
+    call iw_separatortext("Atomic positions",secatoms)
+    if (secatoms%open) then
+       ! units, does not apply in the case of crystal/cell parameters
+       if (ismolecule .or. cellopt == 2) then
+          call iw_text("Units",alignframe=.true.)
+          if (ismolecule) then
+             call iw_combo_simple("##atunits","Bohr" // c_null_char // "Angstrom" // c_null_char,&
+                iunitat_m,sameline=.true.)
+          else
+             call iw_combo_simple("##atunits","Bohr" // c_null_char // "Angstrom" // c_null_char //&
+                "Fractional" // c_null_char,iunitat_c,sameline=.true.)
+          end if
+          call iw_tooltip("Units for the atomic coordinates",ttshown)
        end if
-       call iw_tooltip("Units for the atomic coordinates",ttshown)
+
+       ! atomic positions: body
+       call igGetContentRegionAvail(szavail)
+       sz%x = szavail%x
+       sz%y = max(szavail%y - hbelow,4 * igGetTextLineHeightWithSpacing())
+       str = "##atomicpositions" // c_null_char
+       ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
+          ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
+       call iw_tooltip("Give the atomic positions for this system as:" // newline //&
+          "  <Sy> <x> <y> <z> [occ]" // newline //&
+          "where Sy is the atomic symbol and x,y,z are the atomic coordinates." // newline //&
+          "occ is an optional site occupancy, between 0 and 1.",ttshown)
     end if
 
-    ! atomic positions: body
-    call igGetContentRegionAvail(szavail)
-    sz%x = szavail%x
+    ! the periodic cell of a molecule
     if (ismolecule) then
-       sz%y = max(szavail%y - iw_calcheight(2,1) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
-    else
-       sz%y = max(szavail%y - iw_calcheight(1,0) - g%Style%ItemSpacing%y,igGetTextLineHeightWithSpacing())
-    end if
-    str = "##atomicpositions" // c_null_char
-    ldum = igInputTextMultiline(c_loc(str),c_loc(atposbuf),maxatposbuf,sz,&
-       ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
-
-    ! options line
-    if (ismolecule) then
-       call iw_text("Structure options",highlight=.true.)
-
-       ! cell border
-       call igIndent(0._c_float)
-       str = "Cell border (Å)" // c_null_char
-       ldum = iw_inputfloat(str,rborder,width=7)
-       call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
-
-       ! cubic cell
-       call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       ldum = iw_checkbox("Cubic cell",molcubic)
-       call iw_tooltip("New molecules are created inside a cubic periodic cell",ttshown)
-       call igUnindent(0._c_float)
+       call iw_separatortext("Cell",seccell)
+       if (seccell%open) then
+          call iw_text("Border (Å)",alignframe=.true.)
+          ldum = iw_inputfloat("##rborder",rborder,width=7,sameline=.true.)
+          call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
+          ldum = iw_checkbox("Cubic cell",molcubic,labelleft=.true.,gap=.true.)
+          call iw_tooltip("New molecules are created inside a cubic periodic cell",ttshown)
+       end if
     end if
 
     ! any error from the last OK (e.g. a scratch file that could not be opened)
@@ -310,6 +316,10 @@ contains
     ! initialize the state for this window
     subroutine init_state()
       ttshown = .false.
+      secsym = iw_section()
+      seclat = iw_section()
+      secatoms = iw_section()
+      seccell = iw_section()
       ismolecule = .false.
       iunitat_c = 2
       iunitat_m = 1

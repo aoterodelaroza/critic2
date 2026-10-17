@@ -23,8 +23,6 @@ submodule (windows) mo
   real(c_float), parameter :: mo_cached_rgb(3) = (/0.45_c_float,0.75_c_float,0.45_c_float/) ! cached-grid marker
   real(c_float), parameter :: mo_mark_frac = 0.35_c_float ! cached-grid mark radius, as a fraction of the row height
   real(c_float), parameter :: mo_sep_frac = 0.20_c_float ! HOMO/LUMO separator height, as a fraction of the row height
-  character(len=2), parameter :: mo_eneunit_name(0:1) = &
-     (/ character(len=2) :: "Ha", "eV" /) ! how the energy units are written
   character(len=5), parameter :: mo_spin_name(0:2) = &
      (/ character(len=5) :: "Both", "Alpha", "Beta" /) ! how a spin channel is named
   real(c_float), parameter :: mo_sep_rgb(3) = (/0.85_c_float,0.15_c_float,0.15_c_float/) ! HOMO/LUMO separator color
@@ -100,21 +98,21 @@ contains
     use types, only: id_mo_id, field_evaluation_avail, fieldeval_category_mo
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_checkbox,&
        iw_dragfloat_real8, iw_coloredit, iw_close_event, iw_setpos_bottomright,&
-       iw_calcheight, iw_calcwidth, duration_string
+       iw_calcheight, iw_calcwidth, duration_string, iw_separatortext
     use tools_io, only: string
     use param, only: hartoev
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, havecost, needgrid,&
        okgrid
-    integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev
+    integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev, nbelow
     real*8 :: tsel, tdum
     character(kind=c_char,len=:), allocatable, target :: s
     character(len=:), allocatable :: label, whynot
     type(ImVec2) :: szavail
     real(c_float) :: width, wdiag, szrow, szrowmin, szrowtab, szbut, wtab, wid(6)
     type(ImVec2) :: szdummy
-    real*8 :: unitfactor, alpha8, occup, ener
+    real*8 :: unitfactor, alpha8
     type(field_evaluation_avail) :: av
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -187,7 +185,7 @@ contains
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
 
        ! reference field
-       call iw_text("Reference field",highlight=.true.)
+       call iw_text("Reference field")
        if (sys(isys)%goodfield(iref)) then
           call iw_text("(" // string(iref) // ") " // trim(sys(isys)%f(iref)%name),sameline=.true.)
        end if
@@ -215,7 +213,7 @@ contains
          else
             s = "fractional occupations"
          end if
-         call iw_text("Wavefunction",highlight=.true.)
+         call iw_text("Wavefunction")
          call iw_text(s // ", " // string(wfn%nmoocc) // " occupied MOs",sameline=.true.)
          if (wfn%hasvirtual) &
             call iw_text(", " // string(wfn%nmoall-wfn%nmoocc) // " virtual",sameline_nospace=.true.)
@@ -243,13 +241,15 @@ contains
          ! drop a stale selection
          if (w%mo_selected > wfn%nmoall) w%mo_selected = 0
 
-         ! orbital table header and energy units
-         call iw_text("Orbitals",highlight=.true.,alignframe=.true.)
-         if (wfn%hasene) then
+         ! the orbital shown: energy units, the selection, and the
+         ! energy-level diagram and table it is picked from
+         call iw_separatortext("Orbital",w%mo_secorb)
+         if (wfn%hasene .and. w%mo_secorb%open) then
+            call iw_text("Energy units",alignframe=.true.)
             call iw_combo_simple("##moeneunit","Hartree" // c_null_char // "eV" // c_null_char,&
                w%mo_ieneunit,sameline=.true.)
             call iw_tooltip("Units for the orbital energies",ttshown)
-            ldum = iw_checkbox("Diagram##moshowdiag",w%mo_showdiag,sameline=.true.)
+            ldum = iw_checkbox("Diagram##moshowdiag",w%mo_showdiag,labelleft=.true.,gap=.true.)
             call iw_tooltip("Show the energy-level diagram beside the orbital table",ttshown)
          end if
 
@@ -261,80 +261,75 @@ contains
             digits = 3
          end if
 
-         ! Current selection
-         call iw_text("Selected",highlight=.true.)
-         if (w%mo_selected > 0) then
-            call wfn%get_mo_info(w%mo_selected,label,occup=occup,ener=ener)
-            s = wfn%get_mo_name(w%mo_selected)
-            if (len_trim(label) > 0) s = s // " (" // trim(label) // ")"
-            s = s // ", occ. " // string(occup,'f',decimal=2)
-            if (wfn%hasene) s = s // ", " // string(ener*unitfactor,'f',decimal=digits) //&
-               " " // trim(mo_eneunit_name(w%mo_ieneunit))
-            call iw_text(s,sameline=.true.)
-         else
-            call iw_text("none",disabled=.true.,sameline=.true.)
-         end if
-
          ! The energy-level diagram, then the orbital table: one table
          ! per spin channel
-         call igGetContentRegionAvail(szavail)
-         szrowmin = iw_calcheight(10,0,.false.)
-         szrow = max(szavail%y - iw_calcheight(6,1,.true.) - g%Style%ItemSpacing%y,szrowmin)
-         w%heightslack = szrow - szrowmin
-         if (w%mo_showdiag .and. wfn%hasene) then
-            ! The tables are as wide as their own columns, so the diagram
-            ! takes everything they leave rather than a fixed share
-            if (wfn%get_mo_nchannels() > 1) then
-               call mo_table_widths(wfn,wfn_spin_alpha,wid,wtab)
-               call mo_table_widths(wfn,wfn_spin_beta,wid,width)
-               wtab = wtab + width + g%Style%ItemSpacing%x
-            else
-               call mo_table_widths(wfn,wfn_spin_all,wid,wtab)
-            end if
-            wdiag = max(szavail%x - wtab - g%Style%ItemSpacing%x,iw_calcwidth(11,2))
-
-            ! the first time round, ask for a window just wide enough for
-            ! the tables and a diagram worth looking at: how much that is
-            ! depends on the wavefunction, which init_window cannot know
-            if (w%firstpass) &
-               w%needwidth = wtab + mo_diag_wpref * fontsize%x + g%Style%ItemSpacing%x +&
-                  2._c_float * g%Style%WindowPadding%x
-            call igBeginGroup()
-            call iw_text("Diagram",highlight=.true.)
-            call mo_draw_diagram(w,wfn,isys,iref,wdiag,szrow,unitfactor,digits,changed)
-            call igEndGroup()
-            call igSameLine(0._c_float,-1._c_float)
-            szavail%x = szavail%x - wdiag - g%Style%ItemSpacing%x
-         else
-            w%mo_diag%ipress = 0 ! no diagram this frame, so no press can be pending
-         end if
-         ! The table panel carries a button row under its heading
-         szbut = igGetFrameHeight() + g%Style%ItemSpacing%y
-         szrowtab = max(szrow - szbut,4._c_float*fontsize%y)
-         szdummy%x = 0._c_float
-         szdummy%y = igGetFrameHeight()
-
          iselold = w%mo_selected
-         if (wfn%get_mo_nchannels() > 1) then
-            ! neither table is capped
-            call igBeginGroup()
-            call iw_text(trim(mo_spin_name(wfn_spin_alpha)),highlight=.true.)
-            call mo_frontier_button(w,ttshown)
-            call mo_draw_table(w,wfn,wfn_spin_alpha,0._c_float,szrowtab,unitfactor,digits,changed)
-            call igEndGroup()
-            call igSameLine(0._c_float,-1._c_float)
-            call igBeginGroup()
-            call iw_text(trim(mo_spin_name(wfn_spin_beta)),highlight=.true.)
-            call igDummy(szdummy)
-            call mo_draw_table(w,wfn,wfn_spin_beta,0._c_float,szrowtab,unitfactor,digits,changed)
-            call igEndGroup()
+         if (.not.w%mo_secorb%open) then
+            w%mo_diag%ipress = 0 ! no diagram this frame, so no press can be pending
          else
-            call igBeginGroup()
-            call iw_text("Orbitals",highlight=.true.)
-            call mo_frontier_button(w,ttshown)
-            call mo_draw_table(w,wfn,wfn_spin_all,0._c_float,szrowtab,unitfactor,digits,changed)
-            call igEndGroup()
-         end if
+            ! the rows under the tables, so they get the height they need:
+            ! the display section and the create and close buttons
+            nbelow = 3
+            if (w%mo_secdisp%open) nbelow = 6
+            call igGetContentRegionAvail(szavail)
+            szrowmin = iw_calcheight(10,0,.false.)
+            szrow = max(szavail%y - iw_calcheight(nbelow,1,.true.) - g%Style%ItemSpacing%y,szrowmin)
+            w%heightslack = szrow - szrowmin
+            if (w%mo_showdiag .and. wfn%hasene) then
+               ! The tables are as wide as their own columns, so the diagram
+               ! takes everything they leave rather than a fixed share
+               if (wfn%get_mo_nchannels() > 1) then
+                  call mo_table_widths(wfn,wfn_spin_alpha,wid,wtab)
+                  call mo_table_widths(wfn,wfn_spin_beta,wid,width)
+                  wtab = wtab + width + g%Style%ItemSpacing%x
+               else
+                  call mo_table_widths(wfn,wfn_spin_all,wid,wtab)
+               end if
+               wdiag = max(szavail%x - wtab - g%Style%ItemSpacing%x,iw_calcwidth(11,2))
+
+               ! the first time round, ask for a window just wide enough for
+               ! the tables and a diagram worth looking at: how much that is
+               ! depends on the wavefunction, which init_window cannot know
+               if (w%firstpass) &
+                  w%needwidth = wtab + mo_diag_wpref * fontsize%x + g%Style%ItemSpacing%x +&
+                     2._c_float * g%Style%WindowPadding%x
+               call igBeginGroup()
+               call iw_text("Diagram")
+               call mo_draw_diagram(w,wfn,isys,iref,wdiag,szrow,unitfactor,digits,changed)
+               call igEndGroup()
+               call igSameLine(0._c_float,-1._c_float)
+               szavail%x = szavail%x - wdiag - g%Style%ItemSpacing%x
+            else
+               w%mo_diag%ipress = 0 ! no diagram this frame, so no press can be pending
+            end if
+            ! The table panel carries a button row under its heading
+            szbut = igGetFrameHeight() + g%Style%ItemSpacing%y
+            szrowtab = max(szrow - szbut,4._c_float*fontsize%y)
+            szdummy%x = 0._c_float
+            szdummy%y = igGetFrameHeight()
+
+            if (wfn%get_mo_nchannels() > 1) then
+               ! neither table is capped
+               call igBeginGroup()
+               call iw_text(trim(mo_spin_name(wfn_spin_alpha)))
+               call mo_frontier_button(w,ttshown)
+               call mo_draw_table(w,wfn,wfn_spin_alpha,0._c_float,szrowtab,unitfactor,digits,changed)
+               call igEndGroup()
+               call igSameLine(0._c_float,-1._c_float)
+               call igBeginGroup()
+               call iw_text(trim(mo_spin_name(wfn_spin_beta)))
+               call igDummy(szdummy)
+               call mo_draw_table(w,wfn,wfn_spin_beta,0._c_float,szrowtab,unitfactor,digits,changed)
+               call igEndGroup()
+            else
+               call igBeginGroup()
+               call iw_text("Orbitals")
+               call mo_frontier_button(w,ttshown)
+               call mo_draw_table(w,wfn,wfn_spin_all,0._c_float,szrowtab,unitfactor,digits,changed)
+               call igEndGroup()
+            end if
+
+         end if ! mo_secorb%open
 
          ! the tables have had their chance to honor a scroll-to request
          ! from the diagram; it does not outlive the frame that made it
@@ -345,61 +340,66 @@ contains
             call mo_diagram_seek(w)
 
          ! display options
-         call iw_text("Display",highlight=.true.)
+         call iw_separatortext("Display",w%mo_secdisp)
+         if (w%mo_secdisp%open) then
+            ! Grid quality
+            call iw_text("Quality",alignframe=.true.)
 
-         ! Grid quality
-         call iw_text("Quality",alignframe=.true.)
-
-         ! cost calculations
-         havecost = w%mo_cost%secs > 0d0
-         if (havecost) havecost = w%mo_cost%matches(isys,iref)
-         tsel = 0d0
-         s = "Automatic"
-         if (havecost) then
-            tsel = mo_quality_cost(w,isys,0,nq)
-            s = s // " (~" // duration_string(tsel) // ")"
-         end if
-         s = s // c_null_char
-         do ilev = 1, iso_nlevel
-            s = s // iso_level_label(ilev)
+            ! cost calculations
+            havecost = w%mo_cost%secs > 0d0
+            if (havecost) havecost = w%mo_cost%matches(isys,iref)
+            tsel = 0d0
+            s = "Automatic"
             if (havecost) then
-               tdum = mo_quality_cost(w,isys,ilev,nq)
-               s = s // " (~" // duration_string(tdum) // ")"
-               if (w%mo_ilevel == ilev) tsel = tdum
+               tsel = mo_quality_cost(w,isys,0,nq)
+               s = s // " (~" // duration_string(tsel) // ")"
             end if
             s = s // c_null_char
-         end do
-         call iw_combo_simple("##molevel",s,w%mo_ilevel,sameline=.true.,changed=ldum)
-         changed = changed .or. ldum
-         call iw_tooltip("Density of the grid used to calculate the MO isosurface. Automatic &
-            &uses the default quality, coarsened if sampling one orbital would take longer &
-            &than about " // string(nint(iso_autogrid_secs)) // " seconds",ttshown)
+            do ilev = 1, iso_nlevel
+               s = s // iso_level_label(ilev)
+               if (havecost) then
+                  tdum = mo_quality_cost(w,isys,ilev,nq)
+                  s = s // " (~" // duration_string(tdum) // ")"
+                  if (w%mo_ilevel == ilev) tsel = tdum
+               end if
+               s = s // c_null_char
+            end do
+            call iw_combo_simple("##molevel",s,w%mo_ilevel,sameline=.true.,changed=ldum)
+            changed = changed .or. ldum
+            call iw_tooltip("Density of the grid used to calculate the MO isosurface. Automatic &
+               &uses the default quality, coarsened if sampling one orbital would take longer &
+               &than about " // string(nint(iso_autogrid_secs)) // " seconds",ttshown)
 
-         ! a choice well past the budget is worth saying out loud
-         if (havecost .and. tsel > 2d0 * iso_autogrid_secs) then
-            call iw_text("slow",danger=.true.,sameline=.true.)
-            call iw_tooltip("Sampling one orbital at this quality takes about " //&
-               duration_string(tsel) // ", and the window does not respond while it runs",ttshown)
-         end if
+            ! a choice well past the budget is worth saying out loud
+            if (havecost .and. tsel > 2d0 * iso_autogrid_secs) then
+               call iw_text("slow",danger=.true.,sameline=.true.)
+               call iw_tooltip("Sampling one orbital at this quality takes about " //&
+                  duration_string(tsel) // ", and the window does not respond while it runs",ttshown)
+            end if
 
-         ! isovalue
-         if (iw_dragfloat_real8("Isovalue (a.u.)##moisoval",x1=w%mo_isoval,speed=0.001d0,&
-            min=0.0001d0,max=10d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)) &
-            changed = .true.
-         call iw_tooltip("Isovalue of the positive/negative molecular orbital isosurface pair",ttshown)
+            ! isovalue and opacity
+            call iw_text("Isovalue (a.u.)",alignframe=.true.)
+            if (iw_dragfloat_real8("##moisoval",x1=w%mo_isoval,speed=0.001d0,&
+               min=0.0001d0,max=10d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
+               changed = .true.
+            call iw_tooltip("Isovalue of the positive/negative molecular orbital isosurface pair",ttshown)
+            alpha8 = real(w%mo_alpha,8)
+            call iw_text("Opacity",alignframe=.true.,gap=.true.)
+            if (iw_dragfloat_real8("##moopacity",x1=alpha8,speed=0.01d0,min=0d0,max=1d0,&
+               decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) then
+               w%mo_alpha = real(alpha8,c_float)
+               changed = .true.
+            end if
+            call iw_tooltip("Opacity of the orbital isosurfaces (1 = opaque)",ttshown)
 
-         ! lobe colors and opacity
-         if (iw_coloredit("+ lobe##mocolorpos",rgb=w%mo_rgb(:,1))) changed = .true.
-         call iw_tooltip("Color of the positive lobe of the orbital",ttshown)
-         if (iw_coloredit("- lobe##mocolorneg",rgb=w%mo_rgb(:,2),sameline=.true.)) changed = .true.
-         call iw_tooltip("Color of the negative lobe of the orbital",ttshown)
-         alpha8 = real(w%mo_alpha,8)
-         if (iw_dragfloat_real8("Opacity##moopacity",x1=alpha8,speed=0.01d0,min=0d0,max=1d0,&
-            decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) then
-            w%mo_alpha = real(alpha8,c_float)
-            changed = .true.
-         end if
-         call iw_tooltip("Opacity of the orbital isosurfaces (1 = opaque)",ttshown)
+            ! lobe colors
+            call iw_text("Positive lobe",alignframe=.true.)
+            if (iw_coloredit("##mocolorpos",rgb=w%mo_rgb(:,1),sameline=.true.)) changed = .true.
+            call iw_tooltip("Color of the positive lobe of the orbital",ttshown)
+            call iw_text("Negative lobe",alignframe=.true.,gap=.true.)
+            if (iw_coloredit("##mocolorneg",rgb=w%mo_rgb(:,2),sameline=.true.)) changed = .true.
+            call iw_tooltip("Color of the negative lobe of the orbital",ttshown)
+         end if ! mo_secdisp%open
 
          ! transient isosurface representation
          if (w%mo_selected > 0) then

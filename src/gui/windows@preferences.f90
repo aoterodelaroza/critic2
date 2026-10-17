@@ -37,9 +37,9 @@ contains
     use systems, only: always_read_virtuals
     use interfaces_cimgui
     use keybindings
-    use utils, only: iw_table_headers_row, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth,&
+    use utils, only: iw_table_headers_row, iw_tooltip, iw_button, iw_text, iw_calcwidth,&
        iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_close_event, iw_table_column,&
-       iw_combo_simple
+       iw_combo_simple, iw_separatortext
     use param, only: maxzat
     class(window), intent(inout), target :: w
 
@@ -113,57 +113,62 @@ contains
 
        if (catid == 0) then
           !! Interface
-          call iw_text("Interface",highlight=.true.)
-          call igSeparator()
+          call iw_separatortext("Interface")
 
           str = "Font scale" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_dragfloat_realc(str,x1=io%FontGlobalScale,speed=0.005_c_float,min=0.3_c_float,&
-                max=3.0_c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_text("Font scale",alignframe=.true.)
+             ldum = iw_dragfloat_realc("##preffontscale",x1=io%FontGlobalScale,speed=0.005_c_float,min=0.3_c_float,&
+                max=3.0_c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
              call iw_tooltip("Scale factor for the user interface font",ttshown)
           end if
 
           str = "Enable tooltips" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_checkbox(str,tooltip_enabled)
+             ldum = iw_checkbox("Enable tooltips##pref",tooltip_enabled,labelleft=.true.)
              call iw_tooltip("Show/hide the tooltips when hovering interface elements with the mouse",ttshown)
           end if
 
           str = "Show toolbar labels" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_checkbox(str,toolbar_labels)
+             ldum = iw_checkbox("Show toolbar labels##pref",toolbar_labels,labelleft=.true.)
              call iw_tooltip("Show the names of the toolbar buttons in small print under them",ttshown)
           end if
 
           str = "Tooltip delay (s)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_dragfloat_realc(str,x1=tooltip_delay,speed=0.1_c_float,min=0._c_float,&
-                max=5._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_text("Tooltip delay (s)",alignframe=.true.)
+             ldum = iw_dragfloat_realc("##preftooltipdelay",x1=tooltip_delay,speed=0.1_c_float,min=0._c_float,&
+                max=5._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
              call iw_tooltip("Delay for showing the tooltips",ttshown)
           end if
 
           str = "Tooltip maximum width (pixels)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_dragfloat_realc(str,x1=tooltip_wrap_factor,speed=1._c_float,&
-                min=0._c_float,max=1000._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_text("Tooltip maximum width (pixels)",alignframe=.true.)
+             ldum = iw_dragfloat_realc("##preftooltipwidth",x1=tooltip_wrap_factor,speed=1._c_float,&
+                min=0._c_float,max=1000._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
              call iw_tooltip("Width of the interface tooltips",ttshown)
           end if
 
           str = "Tree selects input console system" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_checkbox(str,tree_select_updates_inpcon)
+             ldum = iw_checkbox("Tree selects input console system##pref",tree_select_updates_inpcon,&
+                labelleft=.true.)
              call iw_tooltip("Selecting a system on the tree changes the system in the input console",ttshown)
           end if
 
           str = "Tree selects view system" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_checkbox(str,tree_select_updates_view)
+             ldum = iw_checkbox("Tree selects view system##pref",tree_select_updates_view,labelleft=.true.)
              call iw_tooltip("Selecting a system on the tree changes the system in the view window",ttshown)
           end if
 
           str = "Default isosurface grid level" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call iw_combo_simple(str,iso_level_optstr,iso_defaultlevel,startsatone=.true.)
+             call iw_text("Default isosurface grid level",alignframe=.true.)
+             call iw_combo_simple("##prefisolevel",iso_level_optstr,iso_defaultlevel,startsatone=.true.,&
+                sameline=.true.)
              call iw_tooltip("Grid coarseness level used by newly created isosurface objects",ttshown)
           end if
 
@@ -184,16 +189,15 @@ contains
              end do
              if (.not.anyrow) cycle
 
-             call iw_text(trim(groupnames(igroup)),highlight=.true.)
+             call iw_separatortext(trim(groupnames(igroup)))
              if (firstshown) then
                 firstshown = .false.
-                call iw_helpermark("Left click to assign a new binding. Right-click cycles the mouse action&
+                call iw_text("Left click to assign a new binding. Right-click cycles the mouse action&
                    & (only for mouse input): single click, double click, hold/drag. A hold/drag binding &
                    &shares its button with the plain click, so the same button can drive two events (e.g. &
                    &right-hold translates the camera while right-click adds a measurement). Middle click to &
-                   &erase the binding.")
+                   &erase the binding.",disabled=.true.,wrap=.true.)
              end if
-             call igSeparator()
 
              str = "##keybindtable" // c_null_char
              flags = ImGuiTableFlags_NoSavedSettings
@@ -271,8 +275,7 @@ contains
 
        elseif (catid == 2) then
           !! tree colors
-          call iw_text("Tree window",highlight=.true.)
-          call igSeparator()
+          call iw_separatortext("Tree window")
 
           ! color editors
           call color_edit4("Crystal","A crystal, with a three-dimensional periodic bonding network",&
@@ -296,8 +299,7 @@ contains
              & the field list shown under each expanded system",ColorFieldSelected)
 
           ! atom selection and highlights
-          call iw_text("Atom selection and highlights",highlight=.true.)
-          call igSeparator()
+          call iw_separatortext("Atom selection and highlights")
           call color_edit4("Hovered atom","Atoms hovered by mouse in a table are&
              & shown in this color in the view window",ColorHighlightScene)
           call color_edit4("Selected atom","Atoms selected in the view or edit&
@@ -312,12 +314,10 @@ contains
              & when measuring distances and angles",ColorMeasureSelect(:,4))
 
           ! elements
-          call iw_text("Elements",highlight=.true.,alignframe=.true.)
-          ldum = iw_checkbox("Apply changes immediately",w%color_preferences_reset_reps,&
-             sameline=.true.)
+          call iw_separatortext("Elements")
+          ldum = iw_checkbox("Apply changes immediately",w%color_preferences_reset_reps,labelleft=.true.)
           call iw_tooltip("If checked, changes to the element and critical point colors are&
              & immediately applied to all atoms and critical points in all open systems.")
-          call igSeparator()
 
           str = "##elementcolortable" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
@@ -353,27 +353,26 @@ contains
           end if
 
           ! critical points, one per line
-          call iw_text("Critical Points",highlight=.true.)
-          call igSeparator()
+          call iw_separatortext("Critical points")
           do i = 0, 3
-             ch = iw_coloredit(trim(cps_name(i)) // "##cpcolor" // string(i),rgb=ColorCP(:,i))
+             call iw_text(trim(cps_name(i)),alignframe=.true.)
+             ch = iw_coloredit("##cpcolor" // string(i),rgb=ColorCP(:,i),sameline=.true.)
              if (ch .and. w%color_preferences_reset_reps) call apply_color_settings()
           end do
 
           ! gradient paths
-          call iw_text("Gradient Paths",highlight=.true.)
-          call igSeparator()
-          ch = iw_coloredit("Bond paths##gpathcolor",rgb=ColorGpath)
+          call iw_separatortext("Gradient paths")
+          call iw_text("Bond paths",alignframe=.true.)
+          ch = iw_coloredit("##gpathcolor",rgb=ColorGpath,sameline=.true.)
           if (ch .and. w%color_preferences_reset_reps) call apply_color_settings()
 
        elseif (catid == 3) then
           !! readers
-          call iw_text("Readers",highlight=.true.)
-          call igSeparator()
+          call iw_separatortext("Readers")
 
           str = "Always read the virtual orbitals" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = iw_checkbox(str,always_read_virtuals)
+             ldum = iw_checkbox("Always read the virtual orbitals##pref",always_read_virtuals,labelleft=.true.)
              call iw_tooltip("Read the virtual (unoccupied) molecular orbitals whenever&
                 & a molecular wavefunction file (fchk, molden) is loaded as a field",ttshown)
           end if
@@ -443,7 +442,8 @@ contains
 
       str_ = str // c_null_char
       if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str_),c_null_ptr)) then
-         ldum = iw_coloredit(str,rgba=rgba)
+         call iw_text(str,alignframe=.true.)
+         ldum = iw_coloredit("##prefcolor" // str,rgba=rgba,sameline=.true.)
          call iw_tooltip(strtt,ttshown)
       end if
 

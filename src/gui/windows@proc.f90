@@ -664,6 +664,18 @@ contains
 
   end subroutine build_write_format_combo
 
+  !> Whether write format ifmt (isformat_w_*) writes the structure
+  !> using its space group symmetry, so that the NOSYM option applies.
+  module function write_format_usesym(ifmt)
+    use param, only: isformat_w_cif, isformat_w_crystal, isformat_w_shelx
+    integer, intent(in) :: ifmt
+    logical :: write_format_usesym
+
+    write_format_usesym = (ifmt == isformat_w_cif .or. ifmt == isformat_w_crystal .or.&
+       ifmt == isformat_w_shelx)
+
+  end function write_format_usesym
+
   !> Whether the system of demo window w (water cluster, melting) is
   !> still the one it made: not removed, and not another system loaded
   !> into its slot. The system must have at least initialization
@@ -1747,7 +1759,7 @@ contains
              call ferror('window_draw','unknown dialog purpose: ' // string(w%purpose),faterr)
           end if
        elseif (w%type == wintype_new_struct) then
-          call init_window("New Structure",90,40)
+          call init_window("New Structure",72,34)
        elseif (w%type == wintype_new_struct_library) then
           call init_window("New Structure from Library",90,30)
        elseif (w%type == wintype_load_field) then
@@ -1761,13 +1773,13 @@ contains
              call init_window("Object",63,46)
           end if
        elseif (w%type == wintype_exportimage) then
-          call init_window("Export to Image",52)
+          call init_window("Export to Image",60)
        elseif (w%type == wintype_saveas) then
-          call init_window("Save As",52)
+          call init_window("Save As",60)
        elseif (w%type == wintype_save_multiple) then
-          call init_window("Save Multiple Structures",60,36)
+          call init_window("Save Multiple Structures",64,36)
        elseif (w%type == wintype_extract) then
-          call init_window("Extract as Molecule(s)",52)
+          call init_window("Extract as Molecule(s)",60)
        elseif (w%type == wintype_rattle) then
           call init_window("Rattle Structure",55)
        elseif (w%type == wintype_voids) then
@@ -2097,14 +2109,13 @@ contains
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton, iw_combo_simple, iw_textwidth,&
-       iw_checkbox, iw_inputfloat
+       iw_checkbox, iw_inputfloat, iw_separatortext
     use interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
     type(c_ptr), value :: vUserData ! void *
     logical(c_bool) :: vCantContinue ! bool *
 
-    character(kind=c_char,len=:), allocatable, target :: str
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     integer(c_int) :: flags
@@ -2117,10 +2128,10 @@ contains
     !! common options !!
 
     ! header
-    call iw_text("Options",highlight=.true.)
+    call iw_separatortext("Options")
 
     ! show hidden files
-    if (iw_checkbox("Show hidden files",data%showhidden)) then
+    if (iw_checkbox("Show hidden files",data%showhidden,labelleft=.true.)) then
        flags = IGFD_GetFlags(data%dptr)
        if (data%showhidden) then
           flags = iand(flags,not(ImGuiFileDialogFlags_DontShowHiddenFiles))
@@ -2133,12 +2144,12 @@ contains
 
     !! options specific to the open files dialog !!
     if (data%purpose == wpurp_dialog_openfiles) then
-       ldum = iw_checkbox("Read last structure only",data%readlastonly)
+       ldum = iw_checkbox("Read last structure only",data%readlastonly,labelleft=.true.)
        call iw_tooltip("Read only the last structure in the file",ttshown)
        call igNewLine()
 
        ! radio buttons for auto/crystal/molecule
-       call iw_text("Read structures as...",highlight=.true.)
+       call iw_separatortext("Read structures as")
        ldum = iw_radiobutton("Auto-detect",int=data%mol,intval=-1_c_int)
        call iw_tooltip("Auto-detect whether new structures are read as crystals or molecules",ttshown)
        ldum = iw_radiobutton("Crystal",int=data%mol,intval=0_c_int)
@@ -2148,19 +2159,19 @@ contains
 
        ! molecular options
        call igIndent(0._c_float)
-       str = "Cell border (Å)" // c_null_char
+       call iw_text("Cell border (Å)",alignframe=.true.)
        call igPushItemWidth(iw_textwidth(string(data%rborder,'f',decimal=3)) + 2 * g%Style%FramePadding%x)
-       ldum = iw_inputfloat(str,data%rborder)
+       ldum = iw_inputfloat("##rborder",data%rborder,sameline=.true.)
        call iw_tooltip("Size of the periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
 
-       ldum = iw_checkbox("Cubic cell",data%molcubic)
+       ldum = iw_checkbox("Cubic cell",data%molcubic,labelleft=.true.)
        call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
        call igUnindent(0._c_float)
        call igNewLine()
 
        ! Input structure format (isformat)
-       call iw_text("Read file format",highlight=.true.)
+       call iw_separatortext("File format")
        data%isformat = isperm_inv_openfiles(data%isformat)
        call iw_combo_simple("##formatcombo",combostr_openfiles,data%isformat)
        call iw_tooltip("Force the new structure to be read with this file format, or auto-detect&
@@ -2170,7 +2181,7 @@ contains
 
     elseif (data%purpose == wpurp_dialog_openfieldfile) then
        ! Input field format (ifformat)
-       call iw_text("Read file format",highlight=.true.)
+       call iw_separatortext("File format")
        data%isformat = isperm_inv_openfieldfile(data%isformat)
        call iw_combo_simple("##formatcombo",combostr_openfieldfile,data%isformat)
        call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&
@@ -2180,7 +2191,7 @@ contains
 
     elseif (data%purpose == wpurp_dialog_openvibfile) then
        ! Input field format (ifformat)
-       call iw_text("Read vibration data format",highlight=.true.)
+       call iw_separatortext("Vibration data format")
        data%isformat = isperm_inv_openvibfile(data%isformat)
        call iw_combo_simple("##formatcombo",combostr_openvibfile,data%isformat)
        call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&

@@ -2001,6 +2001,17 @@ contains
 
   end subroutine iw_separatortext
 
+  !> Height taken by a section title (iw_separatortext) in a layout:
+  !> the spacing above it, the text line, and the spacing below.
+  module function iw_separatortext_height()
+    use interfaces_cimgui
+    use gui_main, only: g
+    real(c_float) :: iw_separatortext_height
+
+    iw_separatortext_height = igGetTextLineHeight() + 2._c_float * g%Style%ItemSpacing%y
+
+  end function iw_separatortext_height
+
   !> Create a menu item with the given label. If keybind is present
   !> use the key bind text as shortcut. If selected, mark the menu
   !> item as selected (default = false). If enabled, mark the menu
@@ -3024,12 +3035,13 @@ contains
     logical, intent(in), optional :: selected
     logical :: iw_highlight_selectable
 
-    type(ImVec2) :: sz1, szero
+    type(ImVec2) :: sz1, szero, cpos
     real(c_float) :: pos
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str2
     logical :: ldum
     logical(c_bool) :: sel_
+    type(ImGuiWindow), pointer :: wptr
 
     sel_ = .false._c_bool
     if (present(selected)) sel_ = logical(selected,c_bool)
@@ -3045,7 +3057,22 @@ contains
     flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
     flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
     str2 = trim(str) // c_null_char
-    call igSameLine(0._c_float,0._c_float)
+
+    ! In a table, the selectable goes at the top of the cell (where the
+    ! row's text was drawn, if the caller drew any: the table sets the
+    ! work rect to the cell when the cell begins), so it lands on its
+    ! row whether or not the caller submitted an item in the cell. A
+    ! SameLine would not do: it follows the last item submitted, which
+    ! is in the previous row when this column is clipped off the window
+    ! and the caller skipped its text. Outside a table, the selectable
+    ! shares the line of the last item
+    if (c_associated(g%CurrentTable) .and. c_associated(g%CurrentWindow)) then
+       call c_f_pointer(g%CurrentWindow,wptr)
+       call igGetCursorScreenPos(cpos)
+       call igSetCursorPosY(igGetCursorPosY() - (cpos%y - wptr%WorkRect%Min%y))
+    else
+       call igSameLine(0._c_float,0._c_float)
+    end if
     ldum = igSelectable_Bool(c_loc(str2),sel_,flags,szero)
     if (present(clicked)) clicked = ldum
     call igSetCursorPosX(pos)
@@ -3451,7 +3478,7 @@ contains
 
     changed = .false.
 
-    call iw_text("Periodicity",highlight=.true.,alignframe=.true.)
+    call iw_text("Periodicity",alignframe=.true.)
 
     ! the periodicity type, where the caller has one
     dosteppers = .true.

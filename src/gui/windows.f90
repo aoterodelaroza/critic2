@@ -179,6 +179,19 @@ module windows
   integer, parameter, public :: geomtab_cell = 2
   integer, parameter, public :: geomtab_bonds = 3
   integer, parameter, public :: geomtab_symmetry = 4
+  ! the sections of the geometry window: cell tab, bonds tab, symmetry tab
+  integer, parameter :: geomsec_latpar = 1 ! lattice parameters
+  integer, parameter :: geomsec_celltr = 2 ! cell transformations
+  integer, parameter :: geomsec_super = 3 ! supercells
+  integer, parameter :: geomsec_nice = 4 ! nice supercells
+  integer, parameter :: geomsec_bondops = 5 ! bond operations
+  integer, parameter :: geomsec_sysbonds = 6 ! system bonds
+  integer, parameter :: geomsec_bondcalc = 7 ! bond calculation
+  integer, parameter :: geomsec_symgroup = 8 ! point group or space group
+  integer, parameter :: geomsec_symops = 9 ! symmetry operations
+  integer, parameter :: geomsec_symcen = 10 ! centering vectors
+  integer, parameter :: geomsec_symanal = 11 ! space group analysis
+  integer, parameter :: geometry_nsec = 11
 
   character(len=17), parameter, public :: vmnames(vm_lo:vm_NUM) = (/&
      "Edit Object      ",& ! vm_objedit (the combo shows the object type instead)
@@ -609,6 +622,9 @@ module windows
   integer, parameter :: plane_sec_contours = 4
   integer, parameter :: plane_nsec = 4
 
+  ! the most sections an object editor (editrep window) draws
+  integer, parameter :: editrep_nsec = 4
+
   type plane_state
      type(sys_ref) :: sys ! system the form is set up for
      type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
@@ -694,6 +710,9 @@ module windows
      integer, allocatable :: iso_lbl(:,:,:) ! the void each point of that grid belongs to (0 = none)
      integer :: iso_hover = 0 ! void whose row the mouse is on (0 = none), rearmed every frame
      real(c_float) :: widthreq = 0._c_float ! window width already asked for, so it is asked once
+     type(iw_section) :: iso_secform, iso_secres ! sections of the isosurface tab (form, results)
+     type(iw_section) :: pol_secform, pol_secres ! sections of the polyhedra tab (form, results)
+     type(iw_section) :: pck_secform, pck_secres ! sections of the packing tab (form, results)
      logical :: iso_lbl_dirty = .false. ! the labels are newer than the isosurface's copy
      real*8 :: iso_secs = -1d0 ! measured cost of one grid point, seconds (< 0 = could not be measured)
      integer :: iso_secs_ncel = -1 ! number of atoms iso_secs was measured for (-1 = not measured yet)
@@ -927,6 +946,7 @@ module windows
      integer, allocatable :: nameidx(:) ! the system each one comes from
      logical, allocatable :: nameexists(:) ! whether it is on disk already
      integer :: nnames = 0 ! number of files that will be written
+     type(iw_section) :: secfiles, secopt, seclist ! the sections of the window (files, options, list)
      integer :: nloading = 0 ! systems in the list still being loaded
      integer :: nhidden = 0 ! systems held back by a collapsed group
      integer :: nexist = 0 ! how many of the files exist already
@@ -1221,6 +1241,7 @@ module windows
                                     ! every editor pick completes on one delivery
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
      type(iw_section) :: editrep_slicesec(plane_nsec+1) ! sections of the slice editor (+1: Style)
+     type(iw_section) :: editrep_sec(editrep_nsec) ! sections of the other object editors, in order of appearance
      integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
                                          ! if the staged mode no longer matches)
      integer :: editrep_pending_n(3) = 0 ! isosurface grid to sample in the blocking job (run_editrep)
@@ -1235,6 +1256,9 @@ module windows
      ! save structure as parameters
      integer(c_int) :: saveas_format ! write format combo (0 = auto-detect from extension)
      real(c_float) :: saveas_rk ! rklength for the k-point grid
+     type(iw_section) :: saveas_secfile, saveas_secopt ! the sections of the save as window
+     type(iw_section) :: expimg_secfile, expimg_secrender, expimg_secimage ! the sections of the export image window
+     type(iw_section) :: display_seccell ! the cell section of the display settings window
      logical :: saveas_nosym ! do not use symmetry in the written file
      logical :: saveas_cartesian ! write Cartesian instead of fractional coordinates
      logical :: saveas_docell ! show the unit cell in the written 3D model file
@@ -1269,6 +1293,7 @@ module windows
      real(c_float) :: extract_atdens = 0._c_float ! rough atom number density of the system (bohr^-3)
      logical :: extract_picking = .false. ! a center pick in the parent view is pending
      type(pairpick) :: extract_pick ! stamp for the pending center pick (staleness check)
+     type(iw_section) :: extract_secregion, extract_secmol ! the sections of the extract window
      ! rattle window parameters
      type(iw_section) :: rattle_secmethod, rattle_secdetails ! the sections of the rattle window
      type(iw_section) :: vib_secdata, vib_secanim ! the sections of the vibrations window
@@ -1318,6 +1343,7 @@ module windows
      real*8 :: mo_isoval = 0d0 ! isovalue of the +/- MO isosurface pair (a.u.)
      real(c_float) :: mo_rgb(3,2) = 0._c_float ! colors of the positive/negative lobes
      real(c_float) :: mo_alpha = 0._c_float ! opacity of the MO isosurfaces
+     type(iw_section) :: mo_secorb, mo_secdisp ! the sections of the MO window (orbital, display)
      ! geometry parameters
      integer(c_int) :: geometry_atomtype = 1 ! coord type for atoms [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
      integer(c_int) :: geometry_moltype = 3 ! coord type for molecules [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
@@ -1330,6 +1356,7 @@ module windows
      ! the per-cell-atom highlight, so the window keeps it (sized nspc)
      logical, allocatable :: geometry_spcsel(:)
      integer :: geometry_seltab = geomtab_none ! tab requested by another window, shown and cleared on the next pass
+     type(iw_section) :: geometry_sec(geometry_nsec) ! the sections of the cell, bonds, and symmetry tabs
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
      type(pairpick) :: geometry_addbond ! staged atom waiting for an add-bond pick
@@ -1826,6 +1853,10 @@ module windows
      end subroutine okfile_save_dir
      module subroutine build_write_format_combo()
      end subroutine build_write_format_combo
+     module function write_format_usesym(ifmt)
+       integer, intent(in) :: ifmt
+       logical :: write_format_usesym
+     end function write_format_usesym
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
      module subroutine objedit_cancel_views(isys)

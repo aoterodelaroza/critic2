@@ -44,7 +44,7 @@ contains
        iw_atom_button, iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8,&
        iw_checkbox, iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper,&
        iw_inputint, iw_inputint3, iw_icon_togglebutton, iw_setpos_bottomright, iw_table_column,&
-       iw_beginmenu, iw_begintabitem
+       iw_beginmenu, iw_begintabitem, iw_separatortext, iw_separatortext_height
     use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
@@ -337,7 +337,7 @@ contains
     ! restore, only if system is independent or master
     if (iw_button("Restore",danger=.true.)) iaction = iaction_restore
     call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
-    ldum = iw_checkbox("Keep Bonding",w%geometry_keepbonding,sameline=.true.)
+    ldum = iw_checkbox("Keep bonding",w%geometry_keepbonding,labelleft=.true.,gap=.true.)
     call iw_tooltip("Preserve bonding when the system geometry changes",ttshown)
 
     ! show the tabs
@@ -532,7 +532,9 @@ contains
           call check_changed_tab("atoms")
 
           ! group atom types
-          if (sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)) then
+          call iw_text("Types",alignframe=.true.)
+          if (sysc(isys)%attype_combo_simple("##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed,&
+             sameline=.true.)) then
              call reset_sort()
              call w%table_write_cancel()
           end if
@@ -541,16 +543,17 @@ contains
           ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
           if (w%geometry_atomtype == atlisttype_nneq) then
-             ldum = iw_checkbox("Keep Symm.",w%geometry_forcewyc,sameline=.true.)
+             ldum = iw_checkbox("Keep symmetry",w%geometry_forcewyc,labelleft=.true.,gap=.true.)
              call iw_tooltip("If checked, changes to the atomic coordinates force the atom to maintain &
                 &its current site symmetry (Wyckoff position)",ttshown)
           end if
 
           if (.not.sys(isys)%c%ismolecule) then
+             call iw_text("Spg",alignframe=.true.,gap=.true.)
              if (sys(isys)%c%spgavail) then
-                call iw_text("  Spg: " // trim(sys(isys)%c%spg%international_symbol),sameline=.true.)
+                call iw_text(trim(sys(isys)%c%spg%international_symbol),sameline=.true.)
              else
-                call iw_text("  Spg: n/a",sameline=.true.)
+                call iw_text("n/a",sameline=.true.)
              end if
           end if
 
@@ -896,7 +899,7 @@ contains
           call draw_edit_buttons()
 
           ! expression row
-          call iw_text("Expression",highlight=.true.,alignframe=.true.)
+          call iw_text("Expression",alignframe=.true.)
 
           ! filter text input
           call iw_helpermark("Examples:"//newline//&
@@ -938,265 +941,275 @@ contains
              ! check if the tab changed
              call check_changed_tab("cell")
 
-             call iw_text("Lattice Parameters",highlight=.true.)
+             call iw_separatortext("Lattice parameters",w%geometry_sec(geomsec_latpar))
+             if (w%geometry_sec(geomsec_latpar)%open) then
+                ! keep symmetry and space group
+                ldum = iw_checkbox("Keep symmetry",w%geometry_forcewyc,labelleft=.true.)
+                call iw_tooltip("If checked, force system to maintain the current space group",ttshown)
+                call iw_text("Spg",alignframe=.true.,gap=.true.)
+                if (sys(isys)%c%spgavail) then
+                   call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
+                   call iw_text(trim(sys(isys)%c%spg%international_symbol) // " (" //&
+                      string(holo_string(holo)) // ")",sameline=.true.)
+                else
+                   call iw_text("n/a",sameline=.true.)
+                end if
 
-             ! keep symmetry and space group
-             ldum = iw_checkbox("Keep Symmetry",w%geometry_forcewyc)
-             call iw_tooltip("If checked, force system to maintain the current space group",ttshown)
-             if (sys(isys)%c%spgavail) then
-                call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
-                call iw_text("  Spg: " // trim(sys(isys)%c%spg%international_symbol),sameline=.true.)
-                call iw_text("(" // string(holo_string(holo)) // ")",sameline=.true.)
-             else
-                call iw_text("  Spg: n/a",sameline=.true.)
-             end if
+                x6(1:3) = sys(isys)%c%aa
+                x6(4:6) = sys(isys)%c%bb
+                x6old = x6
 
-             x6(1:3) = sys(isys)%c%aa
-             x6(4:6) = sys(isys)%c%bb
-             x6old = x6
+                call iw_text("a/b/c (Å)",alignframe=.true.)
+                ch = .false.
+                ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                   notlive=.true.,sameline=.true.)
+                ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                   notlive=.true.,sameline=.true.)
+                ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                   notlive=.true.,sameline=.true.)
 
-             call iw_text("a/b/c (Å): ",alignframe=.true.)
-             ch = .false.
-             ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                notlive=.true.,sameline=.true.)
-             ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                notlive=.true.,sameline=.true.)
-             ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                notlive=.true.,sameline=.true.)
+                call iw_text("α/β/γ (°)",alignframe=.true.)
+                ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
+                   notlive=.true.)
+                ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
+                   notlive=.true.)
+                ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
+                   notlive=.true.)
 
-             call iw_text("α/β/γ (°): ",alignframe=.true.)
-             ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
-                notlive=.true.)
-             ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
-                notlive=.true.)
-             ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
-                notlive=.true.)
+                ! cell volume
+                call iw_text("Volume (Å³)",alignframe=.true.)
+                vol = sys(isys)%c%omega * bohrtoa**3
+                volold = vol
+                chvol = iw_dragfloat_real8("##cellvolume",x1=vol,speed=0.5d0,decimal=4,min=1d-6,&
+                   notlive=.true.,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Cell volume in Å³. Changing it scales the cell isotropically, &
+                   &compressing or expanding the crystal at constant fractional coordinates",ttshown)
 
-             ! cell volume
-             call iw_text("Volume (Å³): ",alignframe=.true.)
-             vol = sys(isys)%c%omega * bohrtoa**3
-             volold = vol
-             chvol = iw_dragfloat_real8("##cellvolume",x1=vol,speed=0.5d0,decimal=4,min=1d-6,&
-                notlive=.true.,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Cell volume in Å³. Changing it scales the cell isotropically, &
-                &compressing or expanding the crystal at constant fractional coordinates",ttshown)
-
-             if (ch .and. any(abs(x6-x6old) > epsmoved)) then
-                iaction = iaction_change_cell
-                iaction_x6 = x6
-                iaction_l = w%geometry_forcewyc
-             elseif (chvol .and. abs(vol-volold) > epsmoved .and. vol > 1d-6) then
-                ! isotropic scale factor on the lengths to reach the target volume
-                scal = (vol / volold)**(1d0/3d0)
-                iaction = iaction_change_cell
-                iaction_x6(1:3) = sys(isys)%c%aa * scal
-                iaction_x6(4:6) = sys(isys)%c%bb
-                iaction_l = w%geometry_forcewyc
+                if (ch .and. any(abs(x6-x6old) > epsmoved)) then
+                   iaction = iaction_change_cell
+                   iaction_x6 = x6
+                   iaction_l = w%geometry_forcewyc
+                elseif (chvol .and. abs(vol-volold) > epsmoved .and. vol > 1d-6) then
+                   ! isotropic scale factor on the lengths to reach the target volume
+                   scal = (vol / volold)**(1d0/3d0)
+                   iaction = iaction_change_cell
+                   iaction_x6(1:3) = sys(isys)%c%aa * scal
+                   iaction_x6(4:6) = sys(isys)%c%bb
+                   iaction_l = w%geometry_forcewyc
+                end if
              end if
 
              ! standardization and reduction of the cell
-             call iw_text("Cell Transformations",highlight=.true.)
-             if (iw_button("Conventional##celltransfstd")) then
-                iaction = iaction_transform_cell
-                iaction_i1 = celltransform_standard
+             call iw_separatortext("Cell transformations",w%geometry_sec(geomsec_celltr))
+             if (w%geometry_sec(geomsec_celltr)%open) then
+                if (iw_button("Conventional##celltransfstd")) then
+                   iaction = iaction_transform_cell
+                   iaction_i1 = celltransform_standard
+                end if
+                call iw_tooltip("Transform to the conventional cell",ttshown)
+                if (iw_button("Primitive##celltransfprim",sameline=.true.)) then
+                   iaction = iaction_transform_cell
+                   iaction_i1 = celltransform_primstd
+                end if
+                call iw_tooltip("Transform to the standard primitive cell",ttshown)
+                if (iw_button("Niggli##celltransfnig",sameline=.true.)) then
+                   iaction = iaction_transform_cell
+                   iaction_i1 = celltransform_niggli
+                end if
+                call iw_tooltip("Transform to the primitive Niggli cell",ttshown)
+                if (iw_button("Delaunay##celltransfdel",sameline=.true.)) then
+                   iaction = iaction_transform_cell
+                   iaction_i1 = celltransform_delaunay
+                end if
+                call iw_tooltip("Transform to the primitive Delaunay cell",ttshown)
              end if
-             call iw_tooltip("Transform to the conventional cell",ttshown)
-             if (iw_button("Primitive##celltransfprim",sameline=.true.)) then
-                iaction = iaction_transform_cell
-                iaction_i1 = celltransform_primstd
-             end if
-             call iw_tooltip("Transform to the standard primitive cell",ttshown)
-             if (iw_button("Niggli##celltransfnig",sameline=.true.)) then
-                iaction = iaction_transform_cell
-                iaction_i1 = celltransform_niggli
-             end if
-             call iw_tooltip("Transform to the primitive Niggli cell",ttshown)
-             if (iw_button("Delaunay##celltransfdel",sameline=.true.)) then
-                iaction = iaction_transform_cell
-                iaction_i1 = celltransform_delaunay
-             end if
-             call iw_tooltip("Transform to the primitive Delaunay cell",ttshown)
 
              ! cell transformation (simple supercell or general matrix)
-             call iw_text("Supercells",highlight=.true.,alignframe=.true.)
-             ldum = iw_radiobutton("Simple",bool=w%geometry_cell_simple,boolval=.true.,sameline=.true.)
-             call iw_tooltip("Build a supercell by repeating the cell an integer number of&
-                & times along each lattice vector",ttshown)
-             ldum = iw_radiobutton("Full",bool=w%geometry_cell_simple,boolval=.false.,sameline=.true.)
-             call iw_tooltip("General transformation: each row is a lattice vector of the new&
-                & cell, written in crystallographic coordinates of the current cell",ttshown)
+             call iw_separatortext("Supercells",w%geometry_sec(geomsec_super))
+             if (w%geometry_sec(geomsec_super)%open) then
+                call iw_text("Transformation",alignframe=.true.)
+                ldum = iw_radiobutton("Simple",bool=w%geometry_cell_simple,boolval=.true.,sameline=.true.)
+                call iw_tooltip("Build a supercell by repeating the cell an integer number of&
+                   & times along each lattice vector",ttshown)
+                ldum = iw_radiobutton("Full",bool=w%geometry_cell_simple,boolval=.false.,sameline=.true.)
+                call iw_tooltip("General transformation: each row is a lattice vector of the new&
+                   & cell, written in crystallographic coordinates of the current cell",ttshown)
 
-             if (w%geometry_cell_simple) then
-                ! simple transformation: integer multiples of the a, b, c axes
-                call iw_text("na/nb/nc: ",alignframe=.true.)
-                do jm = 1, 3
-                   ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
-                      minval=1_c_int,sameline=.true.,&
-                      tooltip="Number of times the cell is repeated along the a, b, and c lattice vectors")
-                end do
-
-                if (iw_button("Reset##cellresettransf",sameline=.true.)) then
-                   if (w%geometry_cell_simple) then
-                      w%geometry_cell_nrep = 1
-                   else
-                      w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
-                      w%geometry_cell_cen = 1
-                   end if
-                end if
-                call iw_tooltip("Reset the supercell transformation",ttshown)
-             else
-                ! arbitrary transformation matrix: each row is a lattice vector of the new
-                ! cell = integer triplet + (for centered cells) a centering vector
-                w%geometry_cell_cen = min(max(w%geometry_cell_cen,1),max(sys(isys)%c%ncv,1))
-                if (sys(isys)%c%ncv > 1) then
-                   ! build the centering options once
-                   stropt = ""
-                   do j = 1, sys(isys)%c%ncv
-                      stropt = stropt // cell_cen_label(sys(isys)%c%cen(:,j)) // c_null_char
-                   end do
-                end if
-                ! track changes to the vectors/origin to clear a stale error message
-                ch = .false.
-                do im = 1, 3
-                   if (im == 1) then
-                      call iw_text("a' ",alignframe=.true.)
-                   elseif (im == 2) then
-                      call iw_text("b' ",alignframe=.true.)
-                   else
-                      call iw_text("c' ",alignframe=.true.)
-                   end if
-                   ch = ch .or. iw_inputint3("##cellmat" // string(im),&
-                      w%geometry_cell_intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
-                   if (sys(isys)%c%ncv > 1) then
-                      call iw_text(" + ",sameline=.true.)
-                      call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
-                         changed=lch,sameline=.true.,startsatone=.true.)
-                      ch = ch .or. lch
-                      call iw_tooltip("Centering vector added to this lattice vector",ttshown)
-                   end if
-                end do
-                call iw_text("Origin",alignframe=.true.)
-                do jm = 1, 3
-                   ch = ch .or. iw_dragfloat_real8("##cellorigin" // string(jm),&
-                      x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
-                      notlive=.true.)
-                end do
-                ! if the user changed the matrix or the origin, clear the error message
-                if (ch) w%errmsg = ""
-             end if
-             ok = iw_button("Apply##celltransfapply",danger=.true.)
-             call iw_tooltip("Apply the supercell transformation",ttshown)
-             if (ok) then
-                iaction = iaction_transform_matrix
                 if (w%geometry_cell_simple) then
-                   iaction_m = 0d0
-                   iaction_m(1,1) = real(w%geometry_cell_nrep(1),8)
-                   iaction_m(2,2) = real(w%geometry_cell_nrep(2),8)
-                   iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
-                   iaction_x = 0d0
-                else
-                   do im = 1, 3
-                      iaction_m(:,im) = real(w%geometry_cell_intmat(:,im),8) + &
-                         sys(isys)%c%cen(:,w%geometry_cell_cen(im))
+                   ! simple transformation: integer multiples of the a, b, c axes
+                   call iw_text("na/nb/nc",alignframe=.true.)
+                   do jm = 1, 3
+                      ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
+                         minval=1_c_int,sameline=.true.,&
+                         tooltip="Number of times the cell is repeated along the a, b, and c lattice vectors")
                    end do
-                   iaction_x = w%geometry_cell_origin
+
+                   if (iw_button("Reset##cellresettransf",sameline=.true.)) then
+                      if (w%geometry_cell_simple) then
+                         w%geometry_cell_nrep = 1
+                      else
+                         w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+                         w%geometry_cell_cen = 1
+                      end if
+                   end if
+                   call iw_tooltip("Reset the supercell transformation",ttshown)
+                else
+                   ! arbitrary transformation matrix: each row is a lattice vector of the new
+                   ! cell = integer triplet + (for centered cells) a centering vector
+                   w%geometry_cell_cen = min(max(w%geometry_cell_cen,1),max(sys(isys)%c%ncv,1))
+                   if (sys(isys)%c%ncv > 1) then
+                      ! build the centering options once
+                      stropt = ""
+                      do j = 1, sys(isys)%c%ncv
+                         stropt = stropt // cell_cen_label(sys(isys)%c%cen(:,j)) // c_null_char
+                      end do
+                   end if
+                   ! track changes to the vectors/origin to clear a stale error message
+                   ch = .false.
+                   do im = 1, 3
+                      if (im == 1) then
+                         call iw_text("a' ",alignframe=.true.)
+                      elseif (im == 2) then
+                         call iw_text("b' ",alignframe=.true.)
+                      else
+                         call iw_text("c' ",alignframe=.true.)
+                      end if
+                      ch = ch .or. iw_inputint3("##cellmat" // string(im),&
+                         w%geometry_cell_intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
+                      if (sys(isys)%c%ncv > 1) then
+                         call iw_text(" + ",sameline=.true.)
+                         call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
+                            changed=lch,sameline=.true.,startsatone=.true.)
+                         ch = ch .or. lch
+                         call iw_tooltip("Centering vector added to this lattice vector",ttshown)
+                      end if
+                   end do
+                   call iw_text("Origin",alignframe=.true.)
+                   do jm = 1, 3
+                      ch = ch .or. iw_dragfloat_real8("##cellorigin" // string(jm),&
+                         x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
+                         notlive=.true.)
+                   end do
+                   ! if the user changed the matrix or the origin, clear the error message
+                   if (ch) w%errmsg = ""
                 end if
-                iaction_l = .false.
+                ok = iw_button("Apply##celltransfapply",danger=.true.)
+                call iw_tooltip("Apply the supercell transformation",ttshown)
+                if (ok) then
+                   iaction = iaction_transform_matrix
+                   if (w%geometry_cell_simple) then
+                      iaction_m = 0d0
+                      iaction_m(1,1) = real(w%geometry_cell_nrep(1),8)
+                      iaction_m(2,2) = real(w%geometry_cell_nrep(2),8)
+                      iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
+                      iaction_x = 0d0
+                   else
+                      do im = 1, 3
+                         iaction_m(:,im) = real(w%geometry_cell_intmat(:,im),8) + &
+                            sys(isys)%c%cen(:,w%geometry_cell_cen(im))
+                      end do
+                      iaction_x = w%geometry_cell_origin
+                   end if
+                   iaction_l = .false.
+                end if
              end if
-             if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.,sameline=.true.,wrap=.true.)
 
              ! nice supercell search
-             call iw_text("Nice supercells",highlight=.true.)
-             call iw_helpermark(&
-                "For a given n, search for the supercell containing n current cells that "//&
-                "fits inside the largest possible sphere (with radius rmax). The niceness is defined as the "//&
-                "ratio between the radius of the inscribed sphere and the maximum possible "//&
-                "ratio, equal to that of a cubic cell. Select the maximum value of n "//&
-                "and click search to find all the transformations (expensive for large maximum "//&
-                "values). Click on any of the table rows to effect the transformation.")
-             ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int,&
-                tooltip="Maximum supercell size (number of times the current cell) to consider in the search")
-             ! the criterion changed: the results (and the columns) would no longer match it
-             if (iw_checkbox("Min. displacements##cellnicemindisp",w%geometry_cell_mindisp,sameline=.true.)) &
-                call clear_nice_results()
-             call iw_tooltip("Choose, for each size, the supercell with the fewest phonon displacements&
-                & (the nicest if several tie) instead of the nicest supercell",ttshown)
-             if (iw_button("Search##cellnicesearch",sameline=.true.)) then
-                w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
-                w%errmsg = ""
-                call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),w%geometry_cell_mindisp,&
-                   w%geometry_cell_nice,w%errmsg)
-             end if
-             call iw_tooltip("Search for the nicest supercells up to the indicated&
-                & maximum size (can be expensive)",ttshown)
-
-             if (allocated(w%geometry_cell_nice)) then
-                flags = ImGuiTableFlags_RowBg
-                flags = ior(flags,ImGuiTableFlags_Borders)
-                flags = ior(flags,ImGuiTableFlags_ScrollY)
-                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-                str1 = "##cellnicetable" // c_null_char
-                sz0%x = iw_calcwidth(2,1) + iw_calcwidth(8,1) + iw_calcwidth(8,1) + iw_calcwidth(27,1) +&
-                   g%Style%ScrollbarSize + 4._c_float
-                ncol = 4
-                if (w%geometry_cell_mindisp) then
-                   ncol = 6
-                   sz0%x = sz0%x + iw_calcwidth(5,1) + iw_calcwidth(5,1)
+             call iw_separatortext("Nice supercells",w%geometry_sec(geomsec_nice))
+             if (w%geometry_sec(geomsec_nice)%open) then
+                call iw_text("For a given n, search for the supercell containing n current cells that "//&
+                   "fits inside the largest possible sphere (with radius rmax). The niceness is the "//&
+                   "ratio between the radius of the inscribed sphere and the maximum possible "//&
+                   "ratio, equal to that of a cubic cell. Click on a row of the table to apply "//&
+                   "the transformation.",disabled=.true.,wrap=.true.)
+                call iw_text("Max. size",alignframe=.true.)
+                ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,minval=1_c_int,sameline=.true.,&
+                   tooltip="Maximum supercell size (number of times the current cell) to consider in the search")
+                ! the criterion changed: the results (and the columns) would no longer match it
+                if (iw_checkbox("Min. displacements##cellnicemindisp",w%geometry_cell_mindisp,labelleft=.true.,&
+                   gap=.true.)) call clear_nice_results()
+                call iw_tooltip("Choose, for each size, the supercell with the fewest phonon displacements&
+                   & (the nicest if several tie) instead of the nicest supercell",ttshown)
+                if (iw_button("Search##cellnicesearch",sameline=.true.)) then
+                   w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
+                   w%errmsg = ""
+                   call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),w%geometry_cell_mindisp,&
+                      w%geometry_cell_nice,w%errmsg)
                 end if
-                sz0%y = igGetFrameHeight() + 11._c_float * (igGetTextLineHeight() + 2._c_float*g%Style%CellPadding%y)
-                if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
-                   call iw_table_column("n",id=0)
-                   call iw_table_column("Rmax (Å)",id=1)
-                   call iw_table_column("Niceness",id=2)
+                call iw_tooltip("Search for the nicest supercells up to the indicated&
+                   & maximum size (can be expensive)",ttshown)
+
+                if (allocated(w%geometry_cell_nice)) then
+                   flags = ImGuiTableFlags_RowBg
+                   flags = ior(flags,ImGuiTableFlags_Borders)
+                   flags = ior(flags,ImGuiTableFlags_ScrollY)
+                   flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                   str1 = "##cellnicetable" // c_null_char
+                   sz0%x = iw_calcwidth(2,1) + iw_calcwidth(8,1) + iw_calcwidth(8,1) + iw_calcwidth(27,1) +&
+                      g%Style%ScrollbarSize + 4._c_float
+                   ncol = 4
                    if (w%geometry_cell_mindisp) then
-                      call iw_table_column("Nops",id=3)
-                      call iw_table_column("Ndisp",id=4)
+                      ncol = 6
+                      sz0%x = sz0%x + iw_calcwidth(5,1) + iw_calcwidth(5,1)
                    end if
-                   call iw_table_column("Transformation",id=ncol-1)
-                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
-                   call w%table_write_begin(itable_cellnice,iwrite)
-
-                   do i = 1, size(w%geometry_cell_nice,1)
-                      if (w%geometry_cell_nice(i)%r <= 0d0) cycle
-                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-
-                      ! clickable row spanning all columns: apply this supercell
-                      if (igTableSetColumnIndex(0)) then
-                         str2 = string(i) // "##cellnicerow" // string(i) // c_null_char
-                         call iw_capture_text(str2,label=.true.)
-                         if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
-                            ImGuiSelectableFlags_SpanAllColumns,szero)) then
-                            iaction = iaction_transform_matrix
-                            iaction_m = real(w%geometry_cell_nice(i)%m,8)
-                            iaction_x = 0d0
-                            iaction_l = .false.
-                         end if
-                      end if
-                      if (igTableSetColumnIndex(1)) &
-                         call iw_text(string(w%geometry_cell_nice(i)%r*bohrtoa,'f',7,3))
-                      if (igTableSetColumnIndex(2)) &
-                         call iw_text(string(8d0*w%geometry_cell_nice(i)%r**3/(i*sys(isys)%c%omega),'f',7,5))
+                   sz0%y = igGetFrameHeight() + 11._c_float * (igGetTextLineHeight() + 2._c_float*g%Style%CellPadding%y)
+                   if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+                      call iw_table_column("n",id=0)
+                      call iw_table_column("Rmax (Å)",id=1)
+                      call iw_table_column("Niceness",id=2)
                       if (w%geometry_cell_mindisp) then
-                         if (igTableSetColumnIndex(3)) &
-                            call iw_text(string(w%geometry_cell_nice(i)%nops))
-                         if (igTableSetColumnIndex(4)) &
-                            call iw_text(string(w%geometry_cell_nice(i)%ndisp))
+                         call iw_table_column("Nops",id=3)
+                         call iw_table_column("Ndisp",id=4)
                       end if
-                      if (igTableSetColumnIndex(ncol-1)) then
-                         s = ""
-                         do im = 1, 3
-                            do jm = 1, 3
-                               s = s // string(w%geometry_cell_nice(i)%m(jm,im),length=3,justify=ioj_right)
+                      call iw_table_column("Transformation",id=ncol-1)
+                      call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                      call w%table_write_begin(itable_cellnice,iwrite)
+
+                      do i = 1, size(w%geometry_cell_nice,1)
+                         if (w%geometry_cell_nice(i)%r <= 0d0) cycle
+                         call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+
+                         ! clickable row spanning all columns: apply this supercell
+                         if (igTableSetColumnIndex(0)) then
+                            str2 = string(i) // "##cellnicerow" // string(i) // c_null_char
+                            call iw_capture_text(str2,label=.true.)
+                            if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
+                               ImGuiSelectableFlags_SpanAllColumns,szero)) then
+                               iaction = iaction_transform_matrix
+                               iaction_m = real(w%geometry_cell_nice(i)%m,8)
+                               iaction_x = 0d0
+                               iaction_l = .false.
+                            end if
+                         end if
+                         if (igTableSetColumnIndex(1)) &
+                            call iw_text(string(w%geometry_cell_nice(i)%r*bohrtoa,'f',7,3))
+                         if (igTableSetColumnIndex(2)) &
+                            call iw_text(string(8d0*w%geometry_cell_nice(i)%r**3/(i*sys(isys)%c%omega),'f',7,5))
+                         if (w%geometry_cell_mindisp) then
+                            if (igTableSetColumnIndex(3)) &
+                               call iw_text(string(w%geometry_cell_nice(i)%nops))
+                            if (igTableSetColumnIndex(4)) &
+                               call iw_text(string(w%geometry_cell_nice(i)%ndisp))
+                         end if
+                         if (igTableSetColumnIndex(ncol-1)) then
+                            s = ""
+                            do im = 1, 3
+                               do jm = 1, 3
+                                  s = s // string(w%geometry_cell_nice(i)%m(jm,im),length=3,justify=ioj_right)
+                               end do
                             end do
-                         end do
-                         call iw_text(s)
-                      end if
-                   end do
-                   call w%table_write_end(itable_cellnice,table_title("Nicest supercells",isys))
-                   call igEndTable()
+                            call iw_text(s)
+                         end if
+                      end do
+                      call w%table_write_end(itable_cellnice,table_title("Nicest supercells",isys))
+                      call igEndTable()
+                   end if
                 end if
              end if
+
+             ! the error of the last cell transformation or supercell search
+             if (len_trim(w%errmsg) > 0) &
+                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
              call igEndTabItem()
           end if
@@ -1211,10 +1224,11 @@ contains
           table_hltype = atlisttype_nmol
 
           ! coordinate type for the center of mass
-          ldum = sysc(isys)%attype_combo_simple("Center of mass##molcoordselectgeom",&
-             w%geometry_moltype,atlisttype_coord_allowed)
-          call iw_tooltip("Coordinate system for the molecular center of mass",ttshown)
-          call iw_text("(Sym./angles for discrete molecules only)",sameline=.true.)
+          call iw_text("Center of mass",alignframe=.true.)
+          ldum = sysc(isys)%attype_combo_simple("##molcoordselectgeom",&
+             w%geometry_moltype,atlisttype_coord_allowed,sameline=.true.)
+          call iw_tooltip("Coordinate system for the molecular center of mass. The point group (Sym) and &
+             &the Euler angles are shown for discrete molecules only",ttshown)
 
           ntype = sys(isys)%c%nmol
 
@@ -1472,312 +1486,321 @@ contains
           ! bond operations driven by clicking in the view window: the same
           ! three the builder offers, armed on the view showing this system,
           ! and shown as the same icon toggles (highlighted while armed)
-          call iw_text("Bond Operations",highlight=.true.,alignframe=.true.)
-          call bondmode_button("##geombondcreate",vm_builder_bond,&
-             "Create bonds: bond two atoms clicked one after the other in the view"//&
-             " window. Only the connectivity changes: no atom is moved or deleted")
-          call bondmode_button("##geombondremove",vm_builder_bondremove,&
-             "Remove bonds: remove the bond clicked in the view window")
-          call bondmode_button("##geombondorder",vm_builder_bondorder,&
-             "Bond order: cycle the order of the bond clicked in the view window:"//&
-             " single, double, triple, aromatic, dashed")
-          if (iview == 0) &
-             call iw_text("(no view window open for this system)",sameline=.true.,&
-                alignframe=.true.)
+          call iw_separatortext("Bond operations",w%geometry_sec(geomsec_bondops))
+          if (w%geometry_sec(geomsec_bondops)%open) then
+             call iw_text("In the view",alignframe=.true.)
+             call bondmode_button("##geombondcreate",vm_builder_bond,&
+                "Create bonds: bond two atoms clicked one after the other in the view"//&
+                " window. Only the connectivity changes: no atom is moved or deleted")
+             call bondmode_button("##geombondremove",vm_builder_bondremove,&
+                "Remove bonds: remove the bond clicked in the view window")
+             call bondmode_button("##geombondorder",vm_builder_bondorder,&
+                "Bond order: cycle the order of the bond clicked in the view window:"//&
+                " single, double, triple, aromatic, dashed")
+             if (iview == 0) &
+                call iw_text("(no view window open for this system)",sameline=.true.,&
+                   alignframe=.true.)
+          end if
 
-          ! blue header
-          call iw_text("System Bonds",highlight=.true.)
-          call iw_helpermark("This table shows the bonds in the current system. The bonds drawn on the view window &
-             &are usually the ones in this list. However, the user can choose to draw different bonding arrangements &
-             &using the Bonds tab in the atoms object (Recalculate Bonds). In that case, adding or removing bonds in this table &
-             &will not affect what is shown on the view.",sameline=.true.)
-
-          ! legend for the bond-type glyphs used in the Bonded atoms column
-          call iw_text("─ single   ═ double   ≡ triple   ○ aromatic   ┄ dashed",sameline=.true.)
+          ! the bonds of the system
+          call iw_separatortext("System bonds",w%geometry_sec(geomsec_sysbonds))
 
           ! number of cell atoms and digits for the Id column
           ntype = sys(isys)%c%ncel
           ndigit = ceiling(log10(ntype+0.1d0))
           table_hltype = atlisttype_ncel_frac
 
-          ! determine which atomic species are present (needed for rebond radii table height)
-          atused_bonds = .false.
-          do i = 1, sys(isys)%c%nspc
-             if (sys(isys)%c%spc(i)%z <= 0) cycle
-             atused_bonds(sys(isys)%c%spc(i)%z) = .true.
-          end do
-          natused_bonds = count(atused_bonds)
-          allocate(iat_bonds(natused_bonds),name_bonds(natused_bonds))
+          ! the atomic species present, for the radii table of the bond
+          ! calculation section (and its height, taken from the bonds table)
           natused_bonds = 0
-          do i = 1, maxzat0
-             if (atused_bonds(i)) then
-                natused_bonds = natused_bonds + 1
-                iat_bonds(natused_bonds) = i
-                name_bonds(natused_bonds) = nameguess(i,.true.)
+          if (w%geometry_sec(geomsec_bondcalc)%open) then
+             atused_bonds = .false.
+             do i = 1, sys(isys)%c%nspc
+                if (sys(isys)%c%spc(i)%z <= 0) cycle
+                atused_bonds(sys(isys)%c%spc(i)%z) = .true.
+             end do
+             natused_bonds = count(atused_bonds)
+             allocate(iat_bonds(natused_bonds),name_bonds(natused_bonds))
+             natused_bonds = 0
+             do i = 1, maxzat0
+                if (atused_bonds(i)) then
+                   natused_bonds = natused_bonds + 1
+                   iat_bonds(natused_bonds) = i
+                   name_bonds(natused_bonds) = nameguess(i,.true.)
+                end if
+             end do
+          end if
+
+          if (w%geometry_sec(geomsec_sysbonds)%open) then
+             ! legend for the bond-type glyphs used in the Bonded atoms column
+             call iw_text("─ single   ═ double   ≡ triple   ○ aromatic   ┄ dashed")
+             call iw_helpermark("This table shows the bonds in the current system. The bonds drawn on the view window &
+                &are usually the ones in this list. However, the user can choose to draw different bonding arrangements &
+                &using the Bonds tab in the atoms object (Recalculate Bonds). In that case, adding or removing bonds in this table &
+                &will not affect what is shown on the view.",sameline=.true.)
+
+             ! bonds table (height leaves room for the bond calculation section below)
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_Resizable)
+             flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
+             flags = ior(flags,ImGuiTableFlags_ScrollX)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             str1 = "##tablebonds_" // string(isys) // c_null_char
+             call igGetContentRegionAvail(sz0)
+             sz0%x = 0
+             sz0%y = sz0%y - iw_calcheight(1,0,.true.) - iw_separatortext_height()
+             if (w%geometry_sec(geomsec_bondcalc)%open) &
+                sz0%y = sz0%y - iw_calcheight(3,4,.false.) - iw_calcheight(min(5,natused_bonds)+1,0,.false.)
+             sz0%y = max(sz0%y,iw_calcheight(3,0,.false.))
+             if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                call iw_table_column("Id",id=0)
+                call iw_table_column("Atom",id=1)
+                call iw_table_column("Bonded atoms",id=2)
+                call iw_table_headers_row(freezetop=.true.,autofit=.true.,writemenu=iwrite,ttshown=ttshown)
+
+                ! draw the rows (clipped for performance; all of them if the
+                ! table is being written as text)
+                clipper = ImGuiListClipper_ImGuiListClipper()
+                call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
+                call w%table_write_begin(itable_bonds,iwrite,clipper)
+                do while(ImGuiListClipper_Step(clipper))
+                   call c_f_pointer(clipper,clipper_f)
+                   do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                      suffix = "_" // string(i)
+                      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                      icol = -1
+
+                      ! id (with a row-spanning selectable to detect hover)
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) then
+                         call iw_text(string(i,ndigit),alignframe=.true.)
+                      end if
+                      ! emit even when column 0 is clipped off-screen
+                      if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
+
+                      ! atom name
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) then
+                         call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name),alignframe=.true.)
+                      end if
+
+                      ! bonded atoms (one colored button per neighbor)
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) then
+                         ! "+" button: pick an atom in the view to add a bond to this atom
+                         if (iw_button("+##addbond" // suffix,disabled=(iview == 0),nocapture=.true.)) then
+                            call w%geometry_addbond%stage((/i,0,0,0/))
+                            call win(iview)%viewmode_set_forced(vm_pick_atom,&
+                               "Pick an atom to bond to atom " // string(i),w%id)
+                         end if
+                         call iw_tooltip("Add a bond to this atom: click, then pick an atom in the view window",ttshown)
+
+                         ncon = 0
+                         if (allocated(sys(isys)%c%nstar)) ncon = sys(isys)%c%nstar(i)%ncon
+                         do j = 1, ncon
+                            jj = sys(isys)%c%nstar(i)%idcon(j)
+                            name = trim(sys(isys)%c%at(sys(isys)%c%atcel(jj)%idx)%name)
+
+                            ! bond order -> glyph that visually depicts the bond, and word
+                            ord = sys(isys)%c%nstar(i)%ordcon(j)
+                            select case (ord)
+                            case (-1) ! aromatic (1.5)
+                               bondglyph = "○"
+                               bondword = "aromatic"
+                            case (0) ! dashed (drawing only)
+                               bondglyph = "┄"
+                               bondword = "dashed"
+                            case (1) ! single
+                               bondglyph = "─"
+                               bondword = "single"
+                            case (2) ! double
+                               bondglyph = "═"
+                               bondword = "double"
+                            case (3) ! triple
+                               bondglyph = "≡"
+                               bondword = "triple"
+                            case default
+                               bondglyph = "?"
+                               bondword = "unknown"
+                            end select
+
+                            ! the button (colored by the bonded atom's color in the
+                            ! view, prefixed by the bond-type glyph). Left-click
+                            ! opens a menu, right-click removes the bond.
+                            havergb_ = color_from_view(atlisttype_ncel_frac,jj,rgb)
+                            ldum = iw_atom_button(bondglyph // " " // string(jj) //&
+                               "##bond" // suffix // "_" // string(j),rgb,havergb=havergb_,&
+                               sameline=.true.)
+
+                            ! hovering highlights the row's atom and marks this
+                            ! neighbor, and shows a tooltip with the bond details;
+                            ! right-click removes the bond (deferred)
+                            if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+                               ihlbond = i
+                               ihlbtn = jj
+                               ! highlight the row in the table
+                               color = igGetColorU32_Vec4(ImVec4(ColorTableHighlightRow(1),&
+                                  ColorTableHighlightRow(2),ColorTableHighlightRow(3),&
+                                  ColorTableHighlightRow(4)))
+                               call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, -1)
+                               ! bond distance and sum of covalent radii (in angstrom)
+                               dbond = norm2(sys(isys)%c%atcel(jj)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(i)%lcon(:,j))) -&
+                                  sys(isys)%c%atcel(i)%r)
+                               zi = sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z
+                               zj = sys(isys)%c%spc(sys(isys)%c%atcel(jj)%is)%z
+                               call iw_tooltip(trim(name) // " (cell id " // string(jj) // "), " // bondword // " bond" // newline //&
+                                  "Bond length: " // string(dbond*bohrtoa,'f',decimal=4) // " Å")
+                               if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)) then
+                                  ibrm1 = i
+                                  ibrm2 = jj
+                                  lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
+                               end if
+                            end if
+
+                            ! left-click opens the bond menu (Order submenu + Remove)
+                            str2 = "##bondmenu" // suffix // "_" // string(j) // c_null_char
+                            if (ldum) call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
+                            if (igBeginPopup(c_loc(str2),ImGuiWindowFlags_None)) then
+                               if (iw_beginmenu("Order")) then
+                                  ! tick marks the current ordcon value for this bond
+                                  if (iw_menuitem("Single",selected=(sys(isys)%c%nstar(i)%ordcon(j)==1)))&
+                                     call defer_setorder(1)
+                                  if (iw_menuitem("Double",selected=(sys(isys)%c%nstar(i)%ordcon(j)==2)))&
+                                     call defer_setorder(2)
+                                  if (iw_menuitem("Triple",selected=(sys(isys)%c%nstar(i)%ordcon(j)==3)))&
+                                     call defer_setorder(3)
+                                  if (iw_menuitem("Dashed",selected=(sys(isys)%c%nstar(i)%ordcon(j)==0)))&
+                                     call defer_setorder(0)
+                                  if (iw_menuitem("Aromatic",selected=(sys(isys)%c%nstar(i)%ordcon(j)==-1)))&
+                                     call defer_setorder(-1)
+                                  call igEndMenu()
+                               end if
+                               if (iw_menuitem("Remove")) then
+                                  ibrm1 = i
+                                  ibrm2 = jj
+                                  lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
+                               end if
+                               call igEndPopup()
+                            end if
+                         end do
+                      end if
+                   end do
+                end do
+                ! Step() ends the clipper on its own, but the object still has to go
+                call ImGuiListClipper_destroy(clipper)
+                call w%table_write_end(itable_bonds,table_title("Bonds",isys))
+                call igEndTable()
              end if
-          end do
 
-          ! bonds table (height leaves room for rebond controls below)
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_Resizable)
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          flags = ior(flags,ImGuiTableFlags_ScrollX)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          str1 = "##tablebonds_" // string(isys) // c_null_char
-          call igGetContentRegionAvail(sz0)
-          sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(1,0,.true.) &
-             - iw_calcheight(3,4,.false.) &
-             - iw_calcheight(min(5,natused_bonds)+1,0,.false.)
-          if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-             call iw_table_column("Id",id=0)
-             call iw_table_column("Atom",id=1)
-             call iw_table_column("Bonded atoms",id=2)
-             call iw_table_headers_row(freezetop=.true.,autofit=.true.,writemenu=iwrite,ttshown=ttshown)
-
-             ! draw the rows (clipped for performance; all of them if the
-             ! table is being written as text)
-             clipper = ImGuiListClipper_ImGuiListClipper()
-             call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
-             call w%table_write_begin(itable_bonds,iwrite,clipper)
-             do while(ImGuiListClipper_Step(clipper))
-                call c_f_pointer(clipper,clipper_f)
-                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                   suffix = "_" // string(i)
-                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                   icol = -1
-
-                   ! id (with a row-spanning selectable to detect hover)
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      call iw_text(string(i,ndigit),alignframe=.true.)
-                   end if
-                   ! emit even when column 0 is clipped off-screen
-                   if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
-
-                   ! atom name
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name),alignframe=.true.)
-                   end if
-
-                   ! bonded atoms (one colored button per neighbor)
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      ! "+" button: pick an atom in the view to add a bond to this atom
-                      if (iw_button("+##addbond" // suffix,disabled=(iview == 0),nocapture=.true.)) then
-                         call w%geometry_addbond%stage((/i,0,0,0/))
-                         call win(iview)%viewmode_set_forced(vm_pick_atom,&
-                            "Pick an atom to bond to atom " // string(i),w%id)
-                      end if
-                      call iw_tooltip("Add a bond to this atom: click, then pick an atom in the view window",ttshown)
-
-                      ncon = 0
-                      if (allocated(sys(isys)%c%nstar)) ncon = sys(isys)%c%nstar(i)%ncon
-                      do j = 1, ncon
-                         jj = sys(isys)%c%nstar(i)%idcon(j)
-                         name = trim(sys(isys)%c%at(sys(isys)%c%atcel(jj)%idx)%name)
-
-                         ! bond order -> glyph that visually depicts the bond, and word
-                         ord = sys(isys)%c%nstar(i)%ordcon(j)
-                         select case (ord)
-                         case (-1) ! aromatic (1.5)
-                            bondglyph = "○"
-                            bondword = "aromatic"
-                         case (0) ! dashed (drawing only)
-                            bondglyph = "┄"
-                            bondword = "dashed"
-                         case (1) ! single
-                            bondglyph = "─"
-                            bondword = "single"
-                         case (2) ! double
-                            bondglyph = "═"
-                            bondword = "double"
-                         case (3) ! triple
-                            bondglyph = "≡"
-                            bondword = "triple"
-                         case default
-                            bondglyph = "?"
-                            bondword = "unknown"
-                         end select
-
-                         ! the button (colored by the bonded atom's color in the
-                         ! view, prefixed by the bond-type glyph). Left-click
-                         ! opens a menu, right-click removes the bond.
-                         havergb_ = color_from_view(atlisttype_ncel_frac,jj,rgb)
-                         ldum = iw_atom_button(bondglyph // " " // string(jj) //&
-                            "##bond" // suffix // "_" // string(j),rgb,havergb=havergb_,&
-                            sameline=.true.)
-
-                         ! hovering highlights the row's atom and marks this
-                         ! neighbor, and shows a tooltip with the bond details;
-                         ! right-click removes the bond (deferred)
-                         if (igIsItemHovered(ImGuiHoveredFlags_None)) then
-                            ihlbond = i
-                            ihlbtn = jj
-                            ! highlight the row in the table
-                            color = igGetColorU32_Vec4(ImVec4(ColorTableHighlightRow(1),&
-                               ColorTableHighlightRow(2),ColorTableHighlightRow(3),&
-                               ColorTableHighlightRow(4)))
-                            call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, -1)
-                            ! bond distance and sum of covalent radii (in angstrom)
-                            dbond = norm2(sys(isys)%c%atcel(jj)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(i)%lcon(:,j))) -&
-                               sys(isys)%c%atcel(i)%r)
-                            zi = sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z
-                            zj = sys(isys)%c%spc(sys(isys)%c%atcel(jj)%is)%z
-                            call iw_tooltip(trim(name) // " (cell id " // string(jj) // "), " // bondword // " bond" // newline //&
-                               "Bond length: " // string(dbond*bohrtoa,'f',decimal=4) // " Å")
-                            if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)) then
-                               ibrm1 = i
-                               ibrm2 = jj
-                               lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
-                            end if
-                         end if
-
-                         ! left-click opens the bond menu (Order submenu + Remove)
-                         str2 = "##bondmenu" // suffix // "_" // string(j) // c_null_char
-                         if (ldum) call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
-                         if (igBeginPopup(c_loc(str2),ImGuiWindowFlags_None)) then
-                            if (iw_beginmenu("Order")) then
-                               ! tick marks the current ordcon value for this bond
-                               if (iw_menuitem("Single",selected=(sys(isys)%c%nstar(i)%ordcon(j)==1)))&
-                                  call defer_setorder(1)
-                               if (iw_menuitem("Double",selected=(sys(isys)%c%nstar(i)%ordcon(j)==2)))&
-                                  call defer_setorder(2)
-                               if (iw_menuitem("Triple",selected=(sys(isys)%c%nstar(i)%ordcon(j)==3)))&
-                                  call defer_setorder(3)
-                               if (iw_menuitem("Dashed",selected=(sys(isys)%c%nstar(i)%ordcon(j)==0)))&
-                                  call defer_setorder(0)
-                               if (iw_menuitem("Aromatic",selected=(sys(isys)%c%nstar(i)%ordcon(j)==-1)))&
-                                  call defer_setorder(-1)
-                               call igEndMenu()
-                            end if
-                            if (iw_menuitem("Remove")) then
-                               ibrm1 = i
-                               ibrm2 = jj
-                               lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
-                            end if
-                            call igEndPopup()
-                         end if
-                      end do
-                   end if
-                end do
-             end do
-             ! Step() ends the clipper on its own, but the object still has to go
-             call ImGuiListClipper_destroy(clipper)
-             call w%table_write_end(itable_bonds,table_title("Bonds",isys))
-             call igEndTable()
+             ! perform deferred bond edits (after the table loop, so nstar is not
+             ! edited while being iterated)
+             if (ibrm1 > 0) call sysc(isys)%remove_bond(ibrm1,ibrm2,lbrm)
+             if (ibord1 > 0) call sysc(isys)%set_bond_order(ibord1,ibord2,lbord,ibordval)
           end if
 
-          ! perform deferred bond edits (after the table loop, so nstar is not
-          ! edited while being iterated)
-          if (ibrm1 > 0) call sysc(isys)%remove_bond(ibrm1,ibrm2,lbrm)
-          if (ibord1 > 0) call sysc(isys)%set_bond_order(ibord1,ibord2,lbord,ibordval)
+          ! recalculate bonds section
+          call iw_separatortext("Bond calculation",w%geometry_sec(geomsec_bondcalc))
+          if (w%geometry_sec(geomsec_bondcalc)%open) then
+             call iw_text("Atoms A and B are bonded if:")
+             call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
+                "  A or B metal:       d < d_NN + δ"//newline//&
+                "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
 
-          ! separator + recalculate bonds section
-          call igSeparator()
-          call iw_text("Recalculate Bonds",highlight=.true.)
-          call iw_text("Atoms A and B are bonded if:")
-          call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
-             "  A or B metal:       d < d_NN + δ"//newline//&
-             "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
-
-          ! atomic radii + allowed-bond matrix table
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_Resizable)
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          flags = ior(flags,ImGuiTableFlags_ScrollX)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          str1 = "##tableatomrcov_geom" // c_null_char
-          sz0%x = 0
-          sz0%y = iw_calcheight(min(5,natused_bonds)+1,0,.false.)
-          if (igBeginTable(c_loc(str1),3+natused_bonds,flags,sz0,0._c_float)) then
-             call iw_table_column("Atom",id=0)
-             call iw_table_column("Z",id=1)
-             call iw_table_column("Radius (Å)",id=2)
-             do j = 1, natused_bonds
-                call iw_table_column(trim(name_bonds(j)),id=2+j)
-             end do
-             call iw_table_headers_row(freezetop=.true.)
-
-             do i = 1, natused_bonds
-                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                iz = iat_bonds(i)
-                if (igTableSetColumnIndex(0)) then
-                   call iw_text(trim(name_bonds(i)),alignframe=.true.)
-                end if
-                if (igTableSetColumnIndex(1)) then
-                   call iw_text(string(iz),alignframe=.true.)
-                end if
-                if (igTableSetColumnIndex(2)) then
-                   ldum = iw_dragfloat_real8("##tableradius_geom" // string(i),x1=sysc(isys)%atmcov(iz),&
-                      speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
-                      flags=ImGuiSliderFlags_AlwaysClamp)
-                end if
-                ! allowed-bond checkboxes, one per element (symmetric mask by Z)
+             ! atomic radii + allowed-bond matrix table
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_Resizable)
+             flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
+             flags = ior(flags,ImGuiTableFlags_ScrollX)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             str1 = "##tableatomrcov_geom" // c_null_char
+             sz0%x = 0
+             sz0%y = iw_calcheight(min(5,natused_bonds)+1,0,.false.)
+             if (igBeginTable(c_loc(str1),3+natused_bonds,flags,sz0,0._c_float)) then
+                call iw_table_column("Atom",id=0)
+                call iw_table_column("Z",id=1)
+                call iw_table_column("Radius (Å)",id=2)
                 do j = 1, natused_bonds
-                   if (igTableSetColumnIndex(2+j)) then
-                      ! the mask is allocated lazily: unallocated means all pairs
-                      ! allowed, so default to checked and only allocate on a change
-                      if (allocated(sysc(isys)%bondallowed)) then
-                         ballow = sysc(isys)%bondallowed(iz,iat_bonds(j))
-                      else
-                         ballow = .true.
-                      end if
-                      if (iw_checkbox("##bondallowed_" // string(i) // "_" // string(j),ballow)) then
-                         if (.not.allocated(sysc(isys)%bondallowed)) then
-                            allocate(sysc(isys)%bondallowed(maxzat0,maxzat0))
-                            sysc(isys)%bondallowed = .true.
-                         end if
-                         sysc(isys)%bondallowed(iz,iat_bonds(j)) = ballow
-                         sysc(isys)%bondallowed(iat_bonds(j),iz) = ballow
-                      end if
-                      call iw_tooltip("Allow " // trim(name_bonds(i)) // "-" //&
-                         trim(name_bonds(j)) // " bonds to form when recalculating",ttshown)
-                   end if
+                   call iw_table_column(trim(name_bonds(j)),id=2+j)
                 end do
-             end do
-             call igEndTable()
-          end if
-          deallocate(iat_bonds,name_bonds)
+                call iw_table_headers_row(freezetop=.true.)
 
-          ! bond factor drag
-          call igAlignTextToFramePadding()
-          ldum = iw_dragfloat_real8("Bond factor (f)##bondfactor_geom",x1=sysc(isys)%bondfactor,speed=0.001d0,&
-             min=1d0,max=4d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Bond factor parameter (multiplicative) for non-metal bonding (see formula above)",ttshown)
-          call iw_text(" ",sameline=.true.)
+                do i = 1, natused_bonds
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                   iz = iat_bonds(i)
+                   if (igTableSetColumnIndex(0)) then
+                      call iw_text(trim(name_bonds(i)),alignframe=.true.)
+                   end if
+                   if (igTableSetColumnIndex(1)) then
+                      call iw_text(string(iz),alignframe=.true.)
+                   end if
+                   if (igTableSetColumnIndex(2)) then
+                      ldum = iw_dragfloat_real8("##tableradius_geom" // string(i),x1=sysc(isys)%atmcov(iz),&
+                         speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
+                         flags=ImGuiSliderFlags_AlwaysClamp)
+                   end if
+                   ! allowed-bond checkboxes, one per element (symmetric mask by Z)
+                   do j = 1, natused_bonds
+                      if (igTableSetColumnIndex(2+j)) then
+                         ! the mask is allocated lazily: unallocated means all pairs
+                         ! allowed, so default to checked and only allocate on a change
+                         if (allocated(sysc(isys)%bondallowed)) then
+                            ballow = sysc(isys)%bondallowed(iz,iat_bonds(j))
+                         else
+                            ballow = .true.
+                         end if
+                         if (iw_checkbox("##bondallowed_" // string(i) // "_" // string(j),ballow)) then
+                            if (.not.allocated(sysc(isys)%bondallowed)) then
+                               allocate(sysc(isys)%bondallowed(maxzat0,maxzat0))
+                               sysc(isys)%bondallowed = .true.
+                            end if
+                            sysc(isys)%bondallowed(iz,iat_bonds(j)) = ballow
+                            sysc(isys)%bondallowed(iat_bonds(j),iz) = ballow
+                         end if
+                         call iw_tooltip("Allow " // trim(name_bonds(i)) // "-" //&
+                            trim(name_bonds(j)) // " bonds to form when recalculating",ttshown)
+                      end if
+                   end do
+                end do
+                call igEndTable()
+             end if
 
-          ! bond delta drag
-          ldum = iw_dragfloat_real8("Bond delta δ (Å)##bonddelta_geom",x1=sysc(isys)%bonddelta,speed=0.001d0,&
-             min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Distance tolerance (additive) for metal-non-metal bonding (see formula above)",ttshown)
+             ! bond factor and bond delta drags
+             call iw_text("Bond factor (f)",alignframe=.true.)
+             ldum = iw_dragfloat_real8("##bondfactor_geom",x1=sysc(isys)%bondfactor,speed=0.001d0,&
+                min=1d0,max=4d0,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Bond factor parameter (multiplicative) for non-metal bonding (see formula above)",ttshown)
+             call iw_text("Bond delta δ (Å)",alignframe=.true.,gap=.true.)
+             ldum = iw_dragfloat_real8("##bonddelta_geom",x1=sysc(isys)%bonddelta,speed=0.001d0,&
+                min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Distance tolerance (additive) for metal-non-metal bonding (see formula above)",ttshown)
 
-          ! allow all / allow none / reset / apply buttons. The mask is freed
-          ! when it returns to fully-allowed (the unallocated = all-allowed default)
-          if (iw_button("Allow All##allowallbondtypes")) then
-             if (allocated(sysc(isys)%bondallowed)) deallocate(sysc(isys)%bondallowed)
+             ! allow all / allow none / reset / apply buttons. The mask is freed
+             ! when it returns to fully-allowed (the unallocated = all-allowed default)
+             if (iw_button("Allow All##allowallbondtypes")) then
+                if (allocated(sysc(isys)%bondallowed)) deallocate(sysc(isys)%bondallowed)
+             end if
+             call iw_tooltip("Allow all bond types to form",ttshown)
+             if (iw_button("Allow None##allownonebondtypes",sameline=.true.)) then
+                if (.not.allocated(sysc(isys)%bondallowed)) allocate(sysc(isys)%bondallowed(maxzat0,maxzat0))
+                sysc(isys)%bondallowed = .false.
+             end if
+             call iw_tooltip("Forbid all bond types from forming",ttshown)
+             if (iw_button("Reset",sameline=.true.)) then
+                sysc(isys)%atmcov = atmcov0
+                sysc(isys)%bondfactor = bondfactor_def
+                sysc(isys)%bonddelta = bonddelta_def
+                if (allocated(sysc(isys)%bondallowed)) deallocate(sysc(isys)%bondallowed)
+             end if
+             call iw_tooltip("Reset atomic radii, bond factor, bond delta, and allowed bond types to defaults",ttshown)
+             if (iw_button("Apply",danger=.true.,sameline=.true.)) &
+                call sysc(isys)%rebond()
+             call iw_tooltip("Recalculate bonds with the parameters above",ttshown)
+             deallocate(iat_bonds,name_bonds)
           end if
-          call iw_tooltip("Allow all bond types to form",ttshown)
-          if (iw_button("Allow None##allownonebondtypes",sameline=.true.)) then
-             if (.not.allocated(sysc(isys)%bondallowed)) allocate(sysc(isys)%bondallowed(maxzat0,maxzat0))
-             sysc(isys)%bondallowed = .false.
-          end if
-          call iw_tooltip("Forbid all bond types from forming",ttshown)
-          if (iw_button("Reset",sameline=.true.)) then
-             sysc(isys)%atmcov = atmcov0
-             sysc(isys)%bondfactor = bondfactor_def
-             sysc(isys)%bonddelta = bonddelta_def
-             if (allocated(sysc(isys)%bondallowed)) deallocate(sysc(isys)%bondallowed)
-          end if
-          call iw_tooltip("Reset atomic radii, bond factor, bond delta, and allowed bond types to defaults",ttshown)
-          if (iw_button("Apply",danger=.true.,sameline=.true.)) &
-             call sysc(isys)%rebond()
-          call iw_tooltip("Recalculate bonds with the parameters above",ttshown)
 
           call igEndTabItem()
        end if
@@ -1793,272 +1816,290 @@ contains
              !! symmetry: molecule !!
 
              ! current point group
-             call iw_text("Point Group",highlight=.true.)
-             if (sys(isys)%c%pg%avail) then
-                call iw_text("  Schoenflies: " // trim(sys(isys)%c%pg%symbol))
-             else
-                call iw_text("  Not available (symmetry not computed)")
-             end if
+             call iw_separatortext("Point group",w%geometry_sec(geomsec_symgroup))
+             if (w%geometry_sec(geomsec_symgroup)%open) then
+                call iw_text("Schoenflies",alignframe=.true.)
+                if (sys(isys)%c%pg%avail) then
+                   call iw_text(trim(sys(isys)%c%pg%symbol),sameline=.true.)
+                else
+                   call iw_text("not available (symmetry not computed)",sameline=.true.)
+                end if
 
-             ! symmetrize the molecular geometry
-             if (iw_button("Refine##symrefinemol")) iaction = iaction_sym_refine
-             call iw_tooltip("Move atoms to occupy their symmetry positions exactly",ttshown)
-             if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+                ! symmetrize the molecular geometry
+                if (iw_button("Refine##symrefinemol")) iaction = iaction_sym_refine
+                call iw_tooltip("Move atoms to occupy their symmetry positions exactly",ttshown)
+             end if
 
              ! symmetry operations table
              if (sys(isys)%c%pg%avail) then
-                call iw_text("Operations",highlight=.true.)
-                call iw_text("(" // string(sys(isys)%c%pg%nop) // ")",sameline=.true.)
-
-                flags = ImGuiTableFlags_None
-                flags = ior(flags,ImGuiTableFlags_RowBg)
-                flags = ior(flags,ImGuiTableFlags_Borders)
-                flags = ior(flags,ImGuiTableFlags_ScrollY)
-                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-                str1 = "##symopstablemol" // c_null_char
-                sz0%x = 0
-                ! size to fit all operations, but cap at the space left above the
-                ! Close button (then scroll) so the table never stretches past it
-                sz0%y = iw_calcheight(sys(isys)%c%pg%nop+1,0,.false.)
-                call igGetContentRegionAvail(szavail)
-                szavail%y = szavail%y - iw_calcheight(5,0,.true.)
-                if (sz0%y > szavail%y) sz0%y = szavail%y
+                call iw_separatortext("Operations (" // string(sys(isys)%c%pg%nop) // ")",w%geometry_sec(geomsec_symops))
                 call symop_ensure_sel(sys(isys)%c%pg%nop)
-                if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-                   call iw_table_column("#",id=0)
-                   call iw_table_column("Sym",id=1)
-                   call iw_table_column("Axis (Å)",id=2)
-                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
-                   call w%table_write_begin(itable_symopsmol,iwrite)
+                if (w%geometry_sec(geomsec_symops)%open) then
+                   flags = ImGuiTableFlags_None
+                   flags = ior(flags,ImGuiTableFlags_RowBg)
+                   flags = ior(flags,ImGuiTableFlags_Borders)
+                   flags = ior(flags,ImGuiTableFlags_ScrollY)
+                   flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                   str1 = "##symopstablemol" // c_null_char
+                   sz0%x = 0
+                   ! size to fit all operations, but cap at the space left above the
+                   ! Close button (then scroll) so the table never stretches past it
+                   sz0%y = iw_calcheight(sys(isys)%c%pg%nop+1,0,.false.)
+                   call igGetContentRegionAvail(szavail)
+                   szavail%y = szavail%y - iw_calcheight(5,0,.true.)
+                   if (sz0%y > szavail%y) sz0%y = szavail%y
+                   if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                      call iw_table_column("#",id=0)
+                      call iw_table_column("Sym",id=1)
+                      call iw_table_column("Axis (Å)",id=2)
+                      call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                      call w%table_write_begin(itable_symopsmol,iwrite)
 
-                   do i = 1, sys(isys)%c%pg%nop
-                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                      call symop_selectbg(i)
-                      ! axis/normal (Cartesian unit vector); identity, inversion
-                      ! and unknown operations have no meaningful axis
-                      ioptype = sys(isys)%c%pg%op(i)%type
-                      if (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation .or.&
-                         ioptype == molsymop_plane) then
-                         raxx = sys(isys)%c%pg%op(i)%axis
-                         saxx = "[" // string(raxx(1),'f',length=6,decimal=3,justify=ioj_right) // "," //&
-                            string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
-                            string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
-                      else
-                         saxx = ""
-                      end if
-                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                      ! whole-row select/hover: emit even when column 0 is clipped off-screen
-                      if (iw_highlight_selectable("##symopselectmol_" // string(i),clicked=clicked)) ihl_symop = i
-                      if (clicked) call symop_click(i)
-                      if (igTableSetColumnIndex(1)) call iw_text(trim(sys(isys)%c%pg%op(i)%sym))
-                      if (igTableSetColumnIndex(2)) call iw_text(saxx)
-                   end do
-                   call w%table_write_end(itable_symopsmol,table_title("Symmetry operations",isys))
-                   call igEndTable()
+                      do i = 1, sys(isys)%c%pg%nop
+                         call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                         call symop_selectbg(i)
+                         ! axis/normal (Cartesian unit vector); identity, inversion
+                         ! and unknown operations have no meaningful axis
+                         ioptype = sys(isys)%c%pg%op(i)%type
+                         if (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation .or.&
+                            ioptype == molsymop_plane) then
+                            raxx = sys(isys)%c%pg%op(i)%axis
+                            saxx = "[" // string(raxx(1),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                               string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                               string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
+                         else
+                            saxx = ""
+                         end if
+                         if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                         ! whole-row select/hover: emit even when column 0 is clipped off-screen
+                         if (iw_highlight_selectable("##symopselectmol_" // string(i),clicked=clicked)) ihl_symop = i
+                         if (clicked) call symop_click(i)
+                         if (igTableSetColumnIndex(1)) call iw_text(trim(sys(isys)%c%pg%op(i)%sym))
+                         if (igTableSetColumnIndex(2)) call iw_text(saxx)
+                      end do
+                      call w%table_write_end(itable_symopsmol,table_title("Symmetry operations",isys))
+                      call igEndTable()
+                   end if
+
+                   ! the selection row
+                   call symop_buttons(sys(isys)%c%pg%nop)
                 end if
 
-                ! draw the selected/hovered symmetry elements and the selection row
-                call symop_display_and_buttons(sys(isys)%c%pg%nop)
+                ! draw the selected/hovered symmetry elements in the view
+                call symop_display(sys(isys)%c%pg%nop)
              end if
           else
              !! symmetry: crystal !!
              ! current space group
-             call iw_text("Space Group",highlight=.true.)
-             if (sys(isys)%c%spgavail) then
-                call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
-                call iw_text("  Hermann-Mauguin: " // trim(sys(isys)%c%spg%international_symbol) //&
-                   " (number " // string(sys(isys)%c%spg%spacegroup_number) // ")")
-                call iw_text("  Point group: " // trim(sys(isys)%c%spg%pointgroup_symbol) //&
-                   " (" // trim(schpg) // ")")
-                call iw_text("  Holohedry: " // trim(holo_string(holo)) //&
-                   ", Laue class: " // trim(laue_string(laue)))
-             else
-                call iw_text("  Not available (symmetry not computed)")
-             end if
-
-             call igAlignTextToFramePadding()
-             if (iw_button("Recalculate##symrecalc")) iaction = iaction_sym_recalc
-             call iw_tooltip("Recalculate crystal symmetry at the given tolerance (symeps) level",ttshown)
-             call iw_text("at tolerance:",sameline=.true.)
-             str_eps = string(sysc(isys)%symeps,'e',decimal=2)
-             if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=8,sameline=.true.,notlive=.true.)) then
-                if (isreal(res,str_eps)) then
-                   if (res > 0d0) sysc(isys)%symeps = res
+             call iw_separatortext("Space group",w%geometry_sec(geomsec_symgroup))
+             if (w%geometry_sec(geomsec_symgroup)%open) then
+                if (sys(isys)%c%spgavail) then
+                   call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
+                   call iw_text("Hermann-Mauguin",alignframe=.true.)
+                   call iw_text(trim(sys(isys)%c%spg%international_symbol) //&
+                      " (number " // string(sys(isys)%c%spg%spacegroup_number) // ")",sameline=.true.)
+                   call iw_text("Point group",alignframe=.true.)
+                   call iw_text(trim(sys(isys)%c%spg%pointgroup_symbol) // " (" // trim(schpg) // ")",&
+                      sameline=.true.)
+                   call iw_text("Holohedry",alignframe=.true.)
+                   call iw_text(trim(holo_string(holo)),sameline=.true.)
+                   call iw_text("Laue class",alignframe=.true.,gap=.true.)
+                   call iw_text(trim(laue_string(laue)),sameline=.true.)
+                else
+                   call iw_text("Not available (symmetry not computed)")
                 end if
-             end if
-             call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry (symeps)",ttshown)
 
-             if (iw_button("Clear##symclear",danger=.true.)) iaction = iaction_sym_clear
-             call iw_tooltip("Remove crystal symmetry",ttshown)
-             if (iw_button("Refine##symrefine",sameline=.true.)) iaction = iaction_sym_refine
-             call iw_tooltip("Idealize the cell parameters and move the atoms to their ideal &
-                &symmetry positions.",ttshown)
-             if (iw_button("Whole molecules##symwholemols",sameline=.true.,&
-                disabled=.not.sys(isys)%c%ismol3d)) iaction = iaction_sym_wholemols
-             call iw_tooltip("Choose a symmetry subgroup such that the asymmetric unit contains whole molecules &
-                &(molecular crystals only)",ttshown)
-             if (len_trim(w%errmsg) > 0) &
-                call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+                call iw_text("Tolerance (bohr)",alignframe=.true.)
+                str_eps = string(sysc(isys)%symeps,'e',decimal=2)
+                if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=8,sameline=.true.,notlive=.true.)) then
+                   if (isreal(res,str_eps)) then
+                      if (res > 0d0) sysc(isys)%symeps = res
+                   end if
+                end if
+                call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry (symeps)",ttshown)
+                if (iw_button("Recalculate##symrecalc",sameline=.true.)) iaction = iaction_sym_recalc
+                call iw_tooltip("Recalculate crystal symmetry at the given tolerance (symeps) level",ttshown)
+
+                if (iw_button("Clear##symclear",danger=.true.)) iaction = iaction_sym_clear
+                call iw_tooltip("Remove crystal symmetry",ttshown)
+                if (iw_button("Refine##symrefine",sameline=.true.)) iaction = iaction_sym_refine
+                call iw_tooltip("Idealize the cell parameters and move the atoms to their ideal &
+                   &symmetry positions.",ttshown)
+                if (iw_button("Whole molecules##symwholemols",sameline=.true.,&
+                   disabled=.not.sys(isys)%c%ismol3d)) iaction = iaction_sym_wholemols
+                call iw_tooltip("Choose a symmetry subgroup such that the asymmetric unit contains whole molecules &
+                   &(molecular crystals only)",ttshown)
+             end if
 
              ! symmetry operations table
              neqv = sys(isys)%c%neqv
              ncv = sys(isys)%c%ncv
-             call iw_text("Operations",highlight=.true.)
-             call iw_text("(" // string(neqv*max(ncv,1)) // ")",sameline=.true.)
+             call iw_separatortext("Operations (" // string(neqv*max(ncv,1)) // ")",w%geometry_sec(geomsec_symops))
 
              if (neqv >= 1) then
-                ! the operation strings are expensive to build (axis analysis
-                ! does an eigendecomposition per operation), so cache them and
-                ! rebuild only when the symmetry changes (clear_sym_cache
-                ! invalidates the cache on any geometry change)
-                if (allocated(w%geometry_sym_ops)) then
-                   if (size(w%geometry_sym_ops,1) /= neqv*max(ncv,1)) then
-                      deallocate(w%geometry_sym_ops)
-                      if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
-                      if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
-                   end if
-                end if
-                if (.not.allocated(w%geometry_sym_ops)) then
-                   allocate(w%geometry_sym_ops(neqv*max(ncv,1)),w%geometry_sym_hm(neqv*max(ncv,1)),&
-                      w%geometry_sym_axes(3,neqv*max(ncv,1)))
-                   call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,hmsym=w%geometry_sym_hm,&
-                      axcr=w%geometry_sym_axes)
-                end if
-
-                flags = ImGuiTableFlags_None
-                flags = ior(flags,ImGuiTableFlags_RowBg)
-                flags = ior(flags,ImGuiTableFlags_Borders)
-                flags = ior(flags,ImGuiTableFlags_ScrollY)
-                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-                str1 = "##symopstable" // c_null_char
-                sz0%x = 0
-                sz0%y = iw_calcheight(min(neqv*max(ncv,1),8)+1,0,.false.)
                 call symop_ensure_sel(neqv*max(ncv,1))
-                if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
-                   call iw_table_column("#",id=0)
-                   call iw_table_column("HM",id=1)
-                   call iw_table_column("Operation",id=2)
-                   call iw_table_column("Axis (cryst.)",id=3)
-                   call iw_table_column("Axis (Cartesian)",id=4)
-                   call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
-                   call w%table_write_begin(itable_symops,iwrite)
-
-                   ! every operation, centered copies included: they are
-                   ! distinct isometries with their own symbol and elements
-                   do i = 1, neqv*max(ncv,1)
-                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                      call symop_selectbg(i)
-                      ! axis in crystallographic coordinates (cached) and Cartesian
-                      ! (computed on the fly); identity/inversion have a zero axis
-                      raxc = w%geometry_sym_axes(:,i)
-                      if (norm2(raxc) < 1d-10) then
-                         saxc = ""
-                         saxx = ""
-                      else
-                         if (all(abs(raxc - nint(raxc)) < 1d-10)) then
-                            saxc = "[" // string(nint(raxc(1)),2,justify=ioj_right) // "," //&
-                               string(nint(raxc(2)),2,justify=ioj_right) // "," //&
-                               string(nint(raxc(3)),2,justify=ioj_right) // "]"
-                         else
-                            saxc = "[" // string(raxc(1),'f',length=4,decimal=1,justify=ioj_right) // "," //&
-                               string(raxc(2),'f',length=4,decimal=1,justify=ioj_right) // "," //&
-                               string(raxc(3),'f',length=4,decimal=1,justify=ioj_right) // "]"
-                         end if
-                         raxx = sys(isys)%c%x2c(raxc)
-                         raxx = raxx / norm2(raxx)
-                         saxx = "[" // string(raxx(1),'f',length=6,decimal=3,justify=ioj_right) // "," //&
-                            string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
-                            string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
+                if (w%geometry_sec(geomsec_symops)%open) then
+                   ! the operation strings are expensive to build (axis analysis
+                   ! does an eigendecomposition per operation), so cache them and
+                   ! rebuild only when the symmetry changes (clear_sym_cache
+                   ! invalidates the cache on any geometry change)
+                   if (allocated(w%geometry_sym_ops)) then
+                      if (size(w%geometry_sym_ops,1) /= neqv*max(ncv,1)) then
+                         deallocate(w%geometry_sym_ops)
+                         if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
+                         if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
                       end if
-                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                      ! whole-row select/hover: the row-spanning selectable must be
-                      ! emitted even when column 0 is clipped (window dragged past
-                      ! the left edge), otherwise the highlight stops working
-                      if (iw_highlight_selectable("##symopselect_" // string(i),clicked=clicked)) ihl_symop = i
-                      if (clicked) call symop_click(i)
-                      if (igTableSetColumnIndex(1)) call iw_text(string(w%geometry_sym_hm(i),length=3,justify=ioj_right))
-                      if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
-                      if (igTableSetColumnIndex(3)) call iw_text(saxc)
-                      if (igTableSetColumnIndex(4)) call iw_text(saxx)
-                   end do
-                   call w%table_write_end(itable_symops,table_title("Symmetry operations",isys))
-                   call igEndTable()
+                   end if
+                   if (.not.allocated(w%geometry_sym_ops)) then
+                      allocate(w%geometry_sym_ops(neqv*max(ncv,1)),w%geometry_sym_hm(neqv*max(ncv,1)),&
+                         w%geometry_sym_axes(3,neqv*max(ncv,1)))
+                      call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,hmsym=w%geometry_sym_hm,&
+                         axcr=w%geometry_sym_axes)
+                   end if
+
+                   flags = ImGuiTableFlags_None
+                   flags = ior(flags,ImGuiTableFlags_RowBg)
+                   flags = ior(flags,ImGuiTableFlags_Borders)
+                   flags = ior(flags,ImGuiTableFlags_ScrollY)
+                   flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                   str1 = "##symopstable" // c_null_char
+                   sz0%x = 0
+                   sz0%y = iw_calcheight(min(neqv*max(ncv,1),8)+1,0,.false.)
+                   if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
+                      call iw_table_column("#",id=0)
+                      call iw_table_column("HM",id=1)
+                      call iw_table_column("Operation",id=2)
+                      call iw_table_column("Axis (cryst.)",id=3)
+                      call iw_table_column("Axis (Cartesian)",id=4)
+                      call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                      call w%table_write_begin(itable_symops,iwrite)
+
+                      ! every operation, centered copies included: they are
+                      ! distinct isometries with their own symbol and elements
+                      do i = 1, neqv*max(ncv,1)
+                         call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                         call symop_selectbg(i)
+                         ! axis in crystallographic coordinates (cached) and Cartesian
+                         ! (computed on the fly); identity/inversion have a zero axis
+                         raxc = w%geometry_sym_axes(:,i)
+                         if (norm2(raxc) < 1d-10) then
+                            saxc = ""
+                            saxx = ""
+                         else
+                            if (all(abs(raxc - nint(raxc)) < 1d-10)) then
+                               saxc = "[" // string(nint(raxc(1)),2,justify=ioj_right) // "," //&
+                                  string(nint(raxc(2)),2,justify=ioj_right) // "," //&
+                                  string(nint(raxc(3)),2,justify=ioj_right) // "]"
+                            else
+                               saxc = "[" // string(raxc(1),'f',length=4,decimal=1,justify=ioj_right) // "," //&
+                                  string(raxc(2),'f',length=4,decimal=1,justify=ioj_right) // "," //&
+                                  string(raxc(3),'f',length=4,decimal=1,justify=ioj_right) // "]"
+                            end if
+                            raxx = sys(isys)%c%x2c(raxc)
+                            raxx = raxx / norm2(raxx)
+                            saxx = "[" // string(raxx(1),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                               string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                               string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
+                         end if
+                         if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                         ! whole-row select/hover: the row-spanning selectable must be
+                         ! emitted even when column 0 is clipped (window dragged past
+                         ! the left edge), otherwise the highlight stops working
+                         if (iw_highlight_selectable("##symopselect_" // string(i),clicked=clicked)) ihl_symop = i
+                         if (clicked) call symop_click(i)
+                         if (igTableSetColumnIndex(1)) call iw_text(string(w%geometry_sym_hm(i),length=3,justify=ioj_right))
+                         if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
+                         if (igTableSetColumnIndex(3)) call iw_text(saxc)
+                         if (igTableSetColumnIndex(4)) call iw_text(saxx)
+                      end do
+                      call w%table_write_end(itable_symops,table_title("Symmetry operations",isys))
+                      call igEndTable()
+                   end if
+
+                   ! the selection row
+                   call symop_buttons(neqv*max(ncv,1))
                 end if
 
-                ! draw the selected/hovered symmetry elements and the selection row
-                call symop_display_and_buttons(neqv*max(ncv,1))
+                ! draw the selected/hovered symmetry elements in the view
+                call symop_display(neqv*max(ncv,1))
              end if
 
              ! centering vectors table
-             call iw_text("Centering Vectors",highlight=.true.)
-             call iw_text("(" // string(ncv) // ")",sameline=.true.)
-
-             flags = ImGuiTableFlags_None
-             flags = ior(flags,ImGuiTableFlags_RowBg)
-             flags = ior(flags,ImGuiTableFlags_Borders)
-             flags = ior(flags,ImGuiTableFlags_ScrollY)
-             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-             str1 = "##symcentable" // c_null_char
-             sz0%x = 0
-             sz0%y = iw_calcheight(min(ncv,4)+1,0,.false.)
-             if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
-                call iw_table_column("#",id=0)
-                call iw_table_column("Coordinates (fractional)",id=1)
-                call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
-                call w%table_write_begin(itable_symcen,iwrite)
-                do i = 1, ncv
-                   call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                   if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                   if (igTableSetColumnIndex(1)) call iw_text(cell_cen_label(sys(isys)%c%cen(:,i)))
-                end do
-                call w%table_write_end(itable_symcen,table_title("Centering vectors",isys))
-                call igEndTable()
-             end if
-
-             ! space group vs tolerance analysis
-             call iw_text("Space Group Analysis",highlight=.true.,alignframe=.true.)
-             call iw_helpermark("Calculate the space group as a function of the symmetry &
-                &tolerance (symprec). Click a row to adopt that tolerance and recalculate.")
-             if (iw_button("Analyze##symanalyze",sameline=.true.)) iaction = iaction_sym_analyze
-             call iw_tooltip("Scan the space group over a range of symmetry tolerances",ttshown)
-
-             if (allocated(w%geometry_sym_analyze_eps)) then
+             call iw_separatortext("Centering vectors (" // string(ncv) // ")",w%geometry_sec(geomsec_symcen))
+             if (w%geometry_sec(geomsec_symcen)%open) then
                 flags = ImGuiTableFlags_None
                 flags = ior(flags,ImGuiTableFlags_RowBg)
                 flags = ior(flags,ImGuiTableFlags_Borders)
                 flags = ior(flags,ImGuiTableFlags_ScrollY)
                 flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-                str1 = "##symanaltable" // c_null_char
+                str1 = "##symcentable" // c_null_char
                 sz0%x = 0
-                sz0%y = iw_calcheight(size(w%geometry_sym_analyze_eps,1)+1,0,.false.)
-                if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-                   call iw_table_column("Symprec",id=0)
-                   call iw_table_column("Space group",id=1)
-                   call iw_table_column("Number",id=2)
+                sz0%y = iw_calcheight(min(ncv,4)+1,0,.false.)
+                if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+                   call iw_table_column("#",id=0)
+                   call iw_table_column("Coordinates (fractional)",id=1)
                    call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
-                   call w%table_write_begin(itable_symanal,iwrite)
-                   do i = 1, size(w%geometry_sym_analyze_eps,1)
+                   call w%table_write_begin(itable_symcen,iwrite)
+                   do i = 1, ncv
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                      if (igTableSetColumnIndex(0)) then
-                         str2 = string(w%geometry_sym_analyze_eps(i),'e',10,2) //&
-                            "##symanalrow" // string(i) // c_null_char
-                         call iw_capture_text(str2,label=.true.)
-                         if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
-                            ImGuiSelectableFlags_SpanAllColumns,szero)) then
-                            ! adopt this row's tolerance and recalculate
-                            sysc(isys)%symeps = w%geometry_sym_analyze_eps(i)
-                            iaction = iaction_sym_recalc
-                         end if
-                      end if
-                      if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_analyze_sym(i)))
-                      if (igTableSetColumnIndex(2)) call iw_text(string(w%geometry_sym_analyze_num(i)))
+                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                      if (igTableSetColumnIndex(1)) call iw_text(cell_cen_label(sys(isys)%c%cen(:,i)))
                    end do
-                   call w%table_write_end(itable_symanal,table_title("Space group analysis",isys))
+                   call w%table_write_end(itable_symcen,table_title("Centering vectors",isys))
                    call igEndTable()
                 end if
              end if
+
+             ! space group vs tolerance analysis
+             call iw_separatortext("Space group analysis",w%geometry_sec(geomsec_symanal))
+             if (w%geometry_sec(geomsec_symanal)%open) then
+                call iw_text("Calculate the space group as a function of the symmetry &
+                   &tolerance (symprec). Click a row to adopt that tolerance and recalculate.",&
+                   disabled=.true.,wrap=.true.)
+                if (iw_button("Analyze##symanalyze")) iaction = iaction_sym_analyze
+                call iw_tooltip("Scan the space group over a range of symmetry tolerances",ttshown)
+
+                if (allocated(w%geometry_sym_analyze_eps)) then
+                   flags = ImGuiTableFlags_None
+                   flags = ior(flags,ImGuiTableFlags_RowBg)
+                   flags = ior(flags,ImGuiTableFlags_Borders)
+                   flags = ior(flags,ImGuiTableFlags_ScrollY)
+                   flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                   str1 = "##symanaltable" // c_null_char
+                   sz0%x = 0
+                   sz0%y = iw_calcheight(size(w%geometry_sym_analyze_eps,1)+1,0,.false.)
+                   if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                      call iw_table_column("Symprec",id=0)
+                      call iw_table_column("Space group",id=1)
+                      call iw_table_column("Number",id=2)
+                      call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
+                      call w%table_write_begin(itable_symanal,iwrite)
+                      do i = 1, size(w%geometry_sym_analyze_eps,1)
+                         call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                         if (igTableSetColumnIndex(0)) then
+                            str2 = string(w%geometry_sym_analyze_eps(i),'e',10,2) //&
+                               "##symanalrow" // string(i) // c_null_char
+                            call iw_capture_text(str2,label=.true.)
+                            if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
+                               ImGuiSelectableFlags_SpanAllColumns,szero)) then
+                               ! adopt this row's tolerance and recalculate
+                               sysc(isys)%symeps = w%geometry_sym_analyze_eps(i)
+                               iaction = iaction_sym_recalc
+                            end if
+                         end if
+                         if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_analyze_sym(i)))
+                         if (igTableSetColumnIndex(2)) call iw_text(string(w%geometry_sym_analyze_num(i)))
+                      end do
+                      call w%table_write_end(itable_symanal,table_title("Space group analysis",isys))
+                      call igEndTable()
+                   end if
+                end if
+             end if
           end if ! .not. ismolecule
+
+          ! the error of the last symmetry operation
+          if (len_trim(w%errmsg) > 0) &
+             call iw_text(w%errmsg,danger=.true.,wrap=.true.)
 
           call igEndTabItem()
        end if
@@ -2483,16 +2524,13 @@ contains
 
     end subroutine symop_click
 
-    ! Push the selected (and hovered) symmetry elements to the view, then draw
-    ! the Selection row (color picker + All/None/Toggle). nop is the number of
-    ! operations shown in the table.
-    subroutine symop_display_and_buttons(nop)
+    ! Push the selected (and hovered) symmetry elements to the view. nop is
+    ! the number of operations shown in the table.
+    subroutine symop_display(nop)
       integer, intent(in) :: nop
 
-      integer :: i, n, tag, hovadd, idobj, nsel
+      integer :: i, n, tag, hovadd
       integer, allocatable :: sop(:)
-      logical, allocatable :: smask(:)
-      logical :: idnew
 
       ! display the selected and hovered symmetry elements in the view; the
       ! element geometry (kind, direction, and position in the displayed cells)
@@ -2517,8 +2555,19 @@ contains
          deallocate(sop)
       end if
 
+    end subroutine symop_display
+
+    ! the selection row of the symmetry operations table (nop operations):
+    ! all/none/toggle, the object creation, and the Delete transform
+    subroutine symop_buttons(nop)
+      integer, intent(in) :: nop
+
+      integer :: i, idobj, nsel
+      logical, allocatable :: smask(:)
+      logical :: idnew
+
       ! Selection row: all/none/toggle buttons (elements use the default colors)
-      call iw_text("Selection",highlight=.true.,alignframe=.true.)
+      call iw_text("Selection",alignframe=.true.)
       if (iw_button("All##symselall",sameline=.true.)) then
          w%geometry_sym_sel = .true.
          w%geometry_sym_selgen = w%geometry_sym_selgen + 1
@@ -2592,7 +2641,7 @@ contains
       ! Delete: reduce the crystal symmetry to the largest subgroup that excludes
       ! the selected operations (crystals only; the identity cannot be deleted)
       if (.not.sys(isys)%c%ismolecule) then
-         call iw_text("Transform",highlight=.true.,alignframe=.true.)
+         call iw_text("Transform",alignframe=.true.)
 
          nsel = 0
          do i = 2, min(nop,size(w%geometry_sym_sel,1))
@@ -2604,7 +2653,7 @@ contains
             "subgroup that excludes them.",ttshown)
       end if
 
-    end subroutine symop_display_and_buttons
+    end subroutine symop_buttons
 
     ! deallocate the results of the nice-supercell search (stale after
     ! any change of the cell)
@@ -3040,7 +3089,7 @@ contains
       logical, allocatable :: tatom(:) ! the row is backed by atoms
 
       ! highlight color
-      call iw_text("Selection",highlight=.true.,alignframe=.true.)
+      call iw_text("Selection",alignframe=.true.)
       ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba,sameline=.true.)
       call iw_tooltip("Color used for highlighting atoms")
 
@@ -3178,8 +3227,7 @@ contains
       logical :: ldum, ok
       integer :: izout
 
-      ! highlight color
-      call iw_text("Edit",highlight=.true.,alignframe=.true.)
+      call iw_text("Edit",alignframe=.true.)
 
       ! Add button: reset the input fields when the popup opens
       ldum = iw_button("Add##addatom",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
@@ -3238,8 +3286,7 @@ contains
     ! draw the row of buttons for editing the molecules (molecules tab)
     subroutine draw_mol_edit_buttons()
 
-      ! Edit label
-      call iw_text("Edit",highlight=.true.,alignframe=.true.)
+      call iw_text("Edit",alignframe=.true.)
 
       ! is there a selection?
       havesel = .false.
