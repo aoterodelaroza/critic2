@@ -1777,9 +1777,9 @@ contains
        elseif (w%type == wintype_gpaths) then
           call init_window("Trace Gradient Paths",66,34,grow=.true.)
        elseif (w%type == wintype_point) then
-          call init_window("Point Properties",100,30,grow=.true.)
+          call init_window("Point Properties",76,30,grow=.true.)
        elseif (w%type == wintype_line) then
-          call init_window("Line Profile",100,40,grow=.true.)
+          call init_window("Line Profile",80,40,grow=.true.)
        elseif (w%type == wintype_plane) then
           call init_window("Plane Map",72,50,grow=.true.)
        elseif (w%type == wintype_display) then

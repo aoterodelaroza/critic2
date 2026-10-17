@@ -487,6 +487,10 @@ module windows
      character(len=10) :: ppname = ""
      character(len=1024) :: ppexpr = ""
      character(len=1024) :: ppexprerr = ""
+     ! the sections: the point, the point properties of the system
+     ! (closed to begin with), and the report
+     type(iw_section) :: secpoint, secreport
+     type(iw_section) :: secprops = iw_section(open=.false.)
      ! pending pick in the view
      logical :: picking = .false.
      integer :: pickview = 0
@@ -544,7 +548,10 @@ module windows
      integer :: ncolor = 0 ! curves added so far, for the color and identifier of the next one
      integer :: yscale = 0 ! the value axis: 0 = linear, 1 = symmetric log, 2 = log
      real(c_double) :: dcur = -1d0 ! the cursor in the plot (distance; < 0 = the middle of the line)
-     logical :: showdata = .false. ! the table of values is open
+     ! the sections: the line, the curves, the plot, and the table of
+     ! values (closed to begin with)
+     type(iw_section) :: secline, seccurves, secplot
+     type(iw_section) :: secdata = iw_section(open=.false.)
      ! pending pick in the view: the endpoint (1 = A, 2 = B)
      logical :: picking = .false.
      integer :: pickend = 1

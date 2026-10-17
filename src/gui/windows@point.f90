@@ -59,7 +59,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8,&
        iw_field_combo, iw_calcwidth, iw_close_event, iw_setpos_bottomright,&
-       iw_table_column, iw_table_headers_row, iw_calcheight
+       iw_table_column, iw_table_headers_row, iw_calcheight, iw_separatortext
     use representations, only: rep_shape, shapekind_sphere
     use systemmod, only: propitem_header, propitem_row, propitem_text, propid_none, propid_type,&
        propid_fval, propid_gfmodval, propid_lapval, propid_pointprop, propid_field
@@ -135,33 +135,35 @@ contains
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
 
-       ! the field
-       call iw_text("Field",highlight=.true.,alignframe=.true.)
-       call igSameLine(0._c_float,-1._c_float)
-       ifield = w%pt%fref%id
-       if (iw_field_combo("##pointfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-          nonestr="<field not available>")) call w%pt%fref%set(sys(isys),ifield)
-       call iw_tooltip("Field whose properties are calculated at the point",ttshown)
+       ! the field and the point
+       xediting = .false.
+       call iw_separatortext("Point",w%pt%secpoint)
+       if (w%pt%secpoint%open) then
+          call iw_text("Field",alignframe=.true.)
+          ifield = w%pt%fref%id
+          if (iw_field_combo("##pointfieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
+             nonestr="<field not available>",sameline=.true.)) call w%pt%fref%set(sys(isys),ifield)
+          call iw_tooltip("Field whose properties are calculated at the point",ttshown)
 
-       ! the point
-       call iw_text("Point",highlight=.true.,alignframe=.true.)
-       if (iw_button("Pick##pointpick",sameline=.true.,disabled=w%pt%picking)) then
-          w%pt%picking = .true.
-          w%pt%pickview = iview
-          call w%pt%pick%arm()
-          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick an atom, a critical point,&
-             & or a point in space",w%id,acceptempty=.true.)
+          call iw_text("Point",alignframe=.true.)
+          if (iw_button("Pick##pointpick",sameline=.true.,disabled=w%pt%picking)) then
+             w%pt%picking = .true.
+             w%pt%pickview = iview
+             call w%pt%pick%arm()
+             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick an atom, a critical point,&
+                & or a point in space",w%id,acceptempty=.true.)
+          end if
+          call iw_tooltip("Pick the point in the view: an atom, a critical point,&
+             & or a point in empty space",ttshown)
+          if (ismol) then
+             ldum = iw_dragfloat_real8("(Å)##pointx",x3=w%pt%x,speed=0.01d0,decimal=5,sameline=.true.)
+          else
+             ldum = iw_dragfloat_real8("(frac)##pointx",x3=w%pt%x,speed=0.001d0,decimal=6,sameline=.true.)
+          end if
+          ! the report waits until the coordinates are no longer being edited
+          xediting = igIsItemActive()
+          call iw_tooltip("Coordinates of the point",ttshown)
        end if
-       call iw_tooltip("Pick the point in the view: an atom, a critical point,&
-          & or a point in empty space",ttshown)
-       if (ismol) then
-          ldum = iw_dragfloat_real8("(Å)##pointx",x3=w%pt%x,speed=0.01d0,decimal=5,sameline=.true.)
-       else
-          ldum = iw_dragfloat_real8("(frac)##pointx",x3=w%pt%x,speed=0.001d0,decimal=6,sameline=.true.)
-       end if
-       ! the report waits until the coordinates are no longer being edited
-       xediting = igIsItemActive()
-       call iw_tooltip("Coordinates of the point",ttshown)
 
        ! which properties are calculated, and how they are written
        call draw_props_section()
@@ -179,7 +181,7 @@ contains
        call update_report()
 
        ! the report table: the position, then the properties
-       call iw_text("Properties",highlight=.true.)
+       call iw_separatortext("Properties",w%pt%secreport)
        tflags = ImGuiTableFlags_None
        tflags = ior(tflags,ImGuiTableFlags_NoSavedSettings)
        tflags = ior(tflags,ImGuiTableFlags_RowBg)
@@ -195,51 +197,8 @@ contains
        sz0%y = sz0%y - iw_calcheight(3,0,.true.)
        sz0%y = max(sz0%y,iw_calcheight(7,0,.false.))
        w%heightslack = sz0%y - iw_calcheight(7,0,.false.)
-       if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) then
-          call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_column("",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-          call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
-          call w%table_write_begin(itable_point,iwrite)
-          wnew = 0._c_float
-
-          ! the point of the report, with the Cartesian coordinates in
-          ! the absolute frame (molecules with their origin, as POINT
-          ! reads and writes them)
-          xrep = w%pt%x
-          if (allocated(w%pt%key)) xrep = w%pt%keyx
-          xc = to_abs(xrep)
-          if (.not.ismol) &
-             call row("Coordinates (frac)",vec3(xrep,'f',7))
-          call row("Coordinates (bohr)",vec3(xc,'f',7))
-          call row("Coordinates (Å)",vec3(xc*bohrtoa,'f',7))
-          ! the label of a tensor goes on the row of its first line
-          hdr = ""
-          do i = 1, w%pt%nitem
-             associate(it => w%pt%item(i))
-               if (.not.item_col(it,cc)) cycle
-               select case (it%kind)
-               case (propitem_header)
-                  hdr = it%label
-               case (propitem_text)
-                  call row(it%label,"")
-               case (propitem_row)
-                  call row(hdr,nums(it%x,cc))
-                  hdr = ""
-               case default
-                  if (size(it%x,1) > 0) then
-                     call row(it%label,nums(it%x,cc))
-                  else
-                     call row(it%label,it%value)
-                  end if
-               end select
-             end associate
-          end do
-
-          w%pt%wcol = wnew
-          call w%table_write_end(itable_point,table_title("Point properties",isys))
-          call igEndTable()
+       if (w%pt%secreport%open) then
+          if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) call draw_report_table()
        end if
        if (.not.sys(isys)%goodfield(w%pt%fref%id)) &
           call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
@@ -266,23 +225,74 @@ contains
 
   contains
 
-    !> The collapsible list of the properties calculated at the point:
-    !> the built-in ones of the field (those in the report), the point
-    !> properties of the system, and the other fields, each with whether
-    !> it is shown and the notation and decimal places of its numbers in
-    !> the table; and the form to add point properties (as POINTPROP).
+    !> The rows of the report table (the table is open): the position
+    !> of the point, then the properties.
+    subroutine draw_report_table()
+
+      call iw_table_column("Property",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+      call iw_table_column("Value",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+      call iw_table_column("",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+      call iw_table_column("",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+      call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
+      call w%table_write_begin(itable_point,iwrite)
+      wnew = 0._c_float
+
+      ! the point of the report, with the Cartesian coordinates in
+      ! the absolute frame (molecules with their origin, as POINT
+      ! reads and writes them)
+      xrep = w%pt%x
+      if (allocated(w%pt%key)) xrep = w%pt%keyx
+      xc = to_abs(xrep)
+      if (.not.ismol) &
+         call row("Coordinates (frac)",vec3(xrep,'f',7))
+      call row("Coordinates (bohr)",vec3(xc,'f',7))
+      call row("Coordinates (Å)",vec3(xc*bohrtoa,'f',7))
+      ! the label of a tensor goes on the row of its first line
+      hdr = ""
+      do i = 1, w%pt%nitem
+         associate(it => w%pt%item(i))
+           if (.not.item_col(it,cc)) cycle
+           select case (it%kind)
+           case (propitem_header)
+              hdr = it%label
+           case (propitem_text)
+              call row(it%label,"")
+           case (propitem_row)
+              call row(hdr,nums(it%x,cc))
+              hdr = ""
+           case default
+              if (size(it%x,1) > 0) then
+                 call row(it%label,nums(it%x,cc))
+              else
+                 call row(it%label,it%value)
+              end if
+           end select
+         end associate
+      end do
+
+      w%pt%wcol = wnew
+      call w%table_write_end(itable_point,table_title("Point properties",isys))
+      call igEndTable()
+
+    end subroutine draw_report_table
+
+    !> The list of the properties calculated at the point (opened and
+    !> closed from its title): the built-in ones of the field (those
+    !> in the report), the point properties of the system, and the
+    !> other fields, each with whether it is shown and the notation and
+    !> decimal places of its numbers in the table; and the form to add
+    !> point properties (as POINTPROP).
     subroutine draw_props_section()
-      character(kind=c_char,len=:), allocatable, target :: strsec, strtab
+      character(kind=c_char,len=:), allocatable, target :: strtab
       integer(c_int) :: flt
       integer :: jp, ip, nrow, idel
       logical :: other, del, ldum
       type(ImVec2) :: szt
 
-      ! a framed header across the window, so it stands out
       ! the point properties belong to the system (shared with the
       ! critical points window)
-      strsec = "Point properties of the system##pointprops" // c_null_char
-      if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
+      call iw_separatortext("Point properties of the system",w%pt%secprops)
+      if (.not.w%pt%secprops%open) return
 
       ! whether there are other fields than the one of the window
       other = .false.
@@ -357,8 +367,6 @@ contains
       ! of POINTPROP, for the field of the window
       ldum = pointprop_add_form(isys,w%pt%fref%id,w%pt%ppkind,w%pt%ppname,w%pt%ppexpr,w%pt%ppexprerr,"point",&
          "the point",ttshown,w%errmsg)
-
-      call igTreePop()
 
     end subroutine draw_props_section
 

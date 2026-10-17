@@ -59,7 +59,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8,&
        iw_calcwidth, iw_close_event, iw_setpos_bottomright, iw_calcheight,&
-       iw_inputint, iw_combo_simple
+       iw_inputint, iw_combo_simple, iw_separatortext
     use representations, only: rep_shape, shapekind_sphere, shapekind_cylinder, bondrad_def
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -129,24 +129,30 @@ contains
        call iw_text("System",highlight=.true.)
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
 
-       ! the endpoints and the number of points
+       ! the endpoints (more: the number of points)
        xediting = .false.
-       call draw_endpoint(1,w%ln%xa)
-       call draw_endpoint(2,w%ln%xb)
-       if (iw_button("Swap##lineswap")) then
-          xc = w%ln%xa
-          w%ln%xa = w%ln%xb
-          w%ln%xb = xc
+       call iw_separatortext("Line",w%ln%secline,hasmore=.true.)
+       if (w%ln%secline%open) then
+          call draw_endpoint(1,w%ln%xa)
+          call draw_endpoint(2,w%ln%xb)
+          if (iw_button("Swap##lineswap",sameline=.true.)) then
+             xc = w%ln%xa
+             w%ln%xa = w%ln%xb
+             w%ln%xb = xc
+          end if
+          call iw_tooltip("Exchange the two endpoints of the line",ttshown)
+          if (w%ln%secline%more) then
+             call iw_text("Points",alignframe=.true.)
+             ldum = iw_inputint("##linenpts",w%ln%npts,width=7,sameline=.true.,notlive=.true.)
+             w%ln%npts = max(min(w%ln%npts,npts_max),npts_min)
+             call iw_tooltip("Number of points on the line, including the endpoints (" //&
+                string(npts_min) // " to " // string(npts_max) // ")",ttshown)
+          end if
        end if
-       call iw_tooltip("Exchange the two endpoints of the line",ttshown)
-       call iw_text("Points",highlight=.true.,alignframe=.true.,sameline=.true.)
-       ldum = iw_inputint("##linenpts",w%ln%npts,width=7,sameline=.true.,notlive=.true.)
-       w%ln%npts = max(min(w%ln%npts,npts_max),npts_min)
-       call iw_tooltip("Number of points on the line, including the endpoints (" //&
-          string(npts_min) // " to " // string(npts_max) // ")",ttshown)
 
        ! the curves
-       call draw_curves_section()
+       call iw_separatortext("Curves",w%ln%seccurves)
+       if (w%ln%seccurves%open) call draw_curves_section()
        if (sys(isys)%c%ncel == 0) &
           call iw_text("This system has no atoms: there are no field values to plot",danger=.true.,wrap=.true.)
 
@@ -156,17 +162,23 @@ contains
 
        ! the plot takes the rest of the window, leaving room for the
        ! scale of the value axis, the cursor, the table of values (if
-       ! open, it takes part of the space), and Close
+       ! open, it takes part of the space; all of it if the plot is
+       ! closed), and Close
+       call iw_separatortext("Plot",w%ln%secplot)
        call igGetContentRegionAvail(sz0)
        sz0%x = -1._c_float
        sz0%y = sz0%y - iw_calcheight(5,0,.true.)
        htable = 0._c_float
-       if (w%ln%showdata) then
+       if (w%ln%secdata%open) then
           htable = max(0.4_c_float * sz0%y,iw_calcheight(4,0,.false.))
           sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
        end if
        sz0%y = max(sz0%y,iw_calcheight(6,0,.false.))
-       call draw_plot(sz0,refit)
+       if (w%ln%secplot%open) then
+          call draw_plot(sz0,refit)
+       elseif (w%ln%secdata%open) then
+          htable = htable + sz0%y
+       end if
 
        ! the table of values
        call draw_data_section()
@@ -262,7 +274,6 @@ contains
       character(len=:), allocatable :: lerr, sfx
       type(ImVec2) :: szt
 
-      call iw_text("Curves",highlight=.true.)
       flags = ImGuiTableFlags_None
       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
       flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -308,10 +319,8 @@ contains
               ! a field or an expression
               if (igTableSetColumnIndex(3_c_int)) then
                  ikind = merge(1,0,cv%isexpr)
-                 call igPushItemWidth(iw_calcwidth(10,1))
                  call iw_combo_simple(sfx // "kind","Field" // c_null_char // "Expression" // c_null_char,&
                     ikind)
-                 call igPopItemWidth()
                  call iw_tooltip("A quantity of a field, or an arithmetic expression of the fields",ttshown)
                  cv%isexpr = (ikind == 1)
               end if
@@ -324,9 +333,8 @@ contains
                     if (iw_field_combo(sfx // "field",isys,ifield,width=iw_calcwidth(24,1),&
                        nonestr="<field not available>")) call cv%fref%set(sys(isys),ifield)
                     call iw_tooltip("Field of the curve",ttshown)
-                    call igSameLine(0._c_float,-1._c_float)
                     iq = cv%nti
-                    call iw_combo_simple(sfx // "quant",quant_combo,iq)
+                    call iw_combo_simple(sfx // "quant",quant_combo,iq,sameline=.true.)
                     cv%nti = max(min(iq,nquant-1),0)
                     call iw_tooltip("Quantity of the field plotted along the line",ttshown)
                  else
@@ -384,7 +392,6 @@ contains
       character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
       integer :: i, j, np, ip
       integer(c_int) :: flags, yscale
-      integer :: iscale
       type(ImVec2) :: tsz
       real(c_double) :: xmin, xmax, ymin, ymax, ylo, yhi, dmax
       real(c_float) :: px, py, pxa, pya, pxb, pyb
@@ -398,14 +405,10 @@ contains
       dmax = w%ln%d(np)
 
       ! the value axis: linear, symmetric log, or log
-      call iw_text("Value axis",highlight=.true.,alignframe=.true.)
-      call igSameLine(0._c_float,-1._c_float)
-      call igPushItemWidth(iw_calcwidth(16,1))
-      iscale = w%ln%yscale
+      call iw_text("Value axis",alignframe=.true.)
       call iw_combo_simple("##lineyscale","Linear" // c_null_char // "Symmetric log" // c_null_char //&
-         "Log" // c_null_char,w%ln%yscale)
-      call igPopItemWidth()
-      if (w%ln%yscale /= iscale) refit = .true.
+         "Log" // c_null_char,w%ln%yscale,sameline=.true.,changed=ldum)
+      if (ldum) refit = .true.
       call iw_tooltip("Scale of the value axis. The symmetric log scale is logarithmic away from&
          & zero and linear near it, for curves that change sign",ttshown)
       if (w%ln%yscale == 1) then
@@ -484,7 +487,7 @@ contains
 
       ! the values of the curves at the cursor, interpolated between
       ! the two nearest points
-      call iw_text("Cursor",highlight=.true.)
+      call iw_text("Cursor")
       call iw_text("d = " // string(w%ln%dcur,'f',decimal=4),sameline=.true.)
       call iw_tooltip("Drag the vertical line in the plot to move the cursor, which is also&
          & shown in the view",ttshown)
@@ -505,15 +508,15 @@ contains
 
     end subroutine draw_plot
 
-    !> The collapsible table of the values along the line: the
-    !> position and the distance of each point, and the value of
-    !> each curve. The menu of the header (right click) chooses the
-    !> curves in the table and writes it to the output, the console,
-    !> or a file.
+    !> The table of the values along the line (opened and closed from
+    !> its title): the position and the distance of each point, and
+    !> the value of each curve. The menu of the header (right click)
+    !> chooses the curves in the table and writes it to the output,
+    !> the console, or a file.
     subroutine draw_data_section()
       use utils, only: iw_table_column, iw_table_headers_row, iw_tblwrite_none
       integer, parameter :: itable_line = 1 ! the table, for table_write_*
-      character(kind=c_char,len=:), allocatable, target :: strsec, strtab
+      character(kind=c_char,len=:), allocatable, target :: strtab
       integer(c_int) :: flags
       integer :: i, k, iwrite, ncol, np, itoggle
       logical :: rclick
@@ -522,11 +525,9 @@ contains
       type(c_ptr) :: clipper
       type(ImGuiListClipper), pointer :: clipper_f
 
-      w%ln%showdata = .false.
       if (.not.allocated(w%ln%d)) return
-      strsec = "Values along the line##linedata" // c_null_char
-      if (.not.igTreeNodeEx_Str(c_loc(strsec),ImGuiTreeNodeFlags_Framed)) return
-      w%ln%showdata = .true.
+      call iw_separatortext("Values along the line",w%ln%secdata)
+      if (.not.w%ln%secdata%open) return
 
       np = size(w%ln%d)
       ncol = 4
@@ -599,7 +600,6 @@ contains
          ! frame, so the columns of this one match its cells
          if (itoggle > 0) w%ln%curve(itoggle)%intable = .not.w%ln%curve(itoggle)%intable
       end if
-      call igTreePop()
 
     end subroutine draw_data_section
 

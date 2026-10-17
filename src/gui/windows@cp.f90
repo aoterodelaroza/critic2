@@ -642,11 +642,12 @@ contains
        stropt = stropt // trim(pointprop_keywords(k)) // c_null_char
        sttip = sttip // trim(pointprop_keyword_desc(k)) // c_null_char
     end do
-    call iw_combo_simple("##" // suffix // "ppkind",stropt,kind,tooltips=sttip,ttshown=ttshown)
+    call iw_text("New",alignframe=.true.)
+    call iw_combo_simple("##" // suffix // "ppkind",stropt,kind,tooltips=sttip,ttshown=ttshown,sameline=.true.)
     call iw_tooltip("The kind of point property to add: an arithmetic expression, or one of the&
        & named functions (calculated from the field of this window)",ttshown)
     if (kind == 0) then
-       call iw_text("Name",sameline=.true.,alignframe=.true.)
+       call iw_text("Name",gap=.true.,alignframe=.true.)
        ldum = iw_inputtext("##" // suffix // "ppname",bufsize=11,textf=name,width=10,sameline=.true.)
        call iw_tooltip("Name of the new property (at most 10 characters, no spaces)",ttshown)
        call iw_text("Expression",alignframe=.true.)
