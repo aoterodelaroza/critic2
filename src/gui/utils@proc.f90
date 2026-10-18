@@ -352,11 +352,14 @@ contains
   !> number of buttons shown is determined by whether the x1, x2, x3,
   !> or x4 argument is passed.  Speed = step for the dragfloat. Min
   !> and max = minimum and maximum values. scale = scale the numbers
-  !> by this value before and after the drag. sformat = C format of the
-  !> label. flags = combination of ImGuiSliderFlags_* flags. Version
+  !> by this value before and after the drag. decimal = decimals of
+  !> the fixed format of the label; sig = significant digits of a
+  !> general format instead (%g: exponent for very small or large
+  !> values; takes precedence over decimal). flags = combination of
+  !> ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
   module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-     sameline,notlive,committed,flags)
+     sameline,notlive,committed,flags,sig)
     use interfaces_cimgui
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
@@ -365,7 +368,7 @@ contains
     real*8, intent(inout), optional :: x3(3)
     real*8, intent(inout), optional :: x4(4)
     real*8, intent(in), optional :: speed, min, max, scale
-    integer, intent(in), optional :: decimal
+    integer, intent(in), optional :: decimal, sig
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: notlive
     logical, intent(out), optional :: committed
@@ -415,11 +418,19 @@ contains
        scap = ""
        do icv = 1, ncv
           if (icv > 1) scap = scap // " "
-          scap = scap // string(vcap(icv)*scale_,'f',decimal=decimal_)
+          if (present(sig)) then
+             scap = scap // string(vcap(icv)*scale_,'e',decimal=sig-1)
+          else
+             scap = scap // string(vcap(icv)*scale_,'f',decimal=decimal_)
+          end if
        end do
        call capture_cell(scap)
     end if
-    sformat_ = "%." // string(decimal_) // "f" // c_null_char
+    if (present(sig)) then
+       sformat_ = "%." // string(sig) // "g" // c_null_char
+    else
+       sformat_ = "%." // string(decimal_) // "f" // c_null_char
+    end if
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
@@ -441,7 +452,7 @@ contains
     elseif (present(x4)) then
        n = 4
     end if
-    width = dragfloat_width(n,decimal_,min_,max_,present(min),present(max))
+    width = dragfloat_width(n,decimal_,min_,max_,present(min),present(max),sig)
 
     ! draw the float
     call igPushItemWidth(width)
@@ -3424,14 +3435,16 @@ contains
   !> Reserve room for the integer part of the field's range (taken from the
   !> bounds vmin/vmax, active only if havemin/havemax) plus the decimals, so a
   !> large maximum (e.g. a temperature up to 10000) is not clipped; small-valued
-  !> fields keep the previous default of (4+decimal) characters.
-  function dragfloat_width(n,decimal,vmin,vmax,havemin,havemax) result(width)
+  !> fields keep the previous default of (4+decimal) characters. With sig
+  !> (general format with sig significant digits) the width is fixed.
+  function dragfloat_width(n,decimal,vmin,vmax,havemin,havemax,sig) result(width)
     use interfaces_cimgui
     use gui_main, only: g
     integer, intent(in) :: n
     integer, intent(in) :: decimal
     real(c_float), intent(in) :: vmin, vmax
     logical, intent(in) :: havemin, havemax
+    integer, intent(in), optional :: sig
     real(c_float) :: width
 
     integer :: nintdig, nchar
@@ -3440,20 +3453,25 @@ contains
     ! width of a single digit
     wdig = iw_textwidth("0")
 
-    ! largest absolute value the field can take
-    vabs = 1._c_float
-    if (havemax .and. abs(vmax) > vabs) vabs = abs(vmax)
-    if (havemin .and. abs(vmin) > vabs) vabs = abs(vmin)
+    if (present(sig)) then
+       ! general format: sign, the digits, the point, and the exponent (e-06)
+       nchar = sig + 6
+    else
+       ! largest absolute value the field can take
+       vabs = 1._c_float
+       if (havemax .and. abs(vmax) > vabs) vabs = abs(vmax)
+       if (havemin .and. abs(vmin) > vabs) vabs = abs(vmin)
 
-    ! integer digits (biased up near powers of ten so 10000 gets 5, never fewer
-    ! than 3 to preserve the old (4+decimal) default for small-valued fields)
-    nintdig = int(log10(vabs) + 1e-4_c_float) + 1
-    if (nintdig < 3) nintdig = 3
+       ! integer digits (biased up near powers of ten so 10000 gets 5, never fewer
+       ! than 3 to preserve the old (4+decimal) default for small-valued fields)
+       nintdig = int(log10(vabs) + 1e-4_c_float) + 1
+       if (nintdig < 3) nintdig = 3
 
-    ! characters in the widest value: sign, integer digits, decimal
-    ! point (only if there are decimals) and decimals
-    nchar = 1 + nintdig + decimal
-    if (decimal > 0) nchar = nchar + 1
+       ! characters in the widest value: sign, integer digits, decimal
+       ! point (only if there are decimals) and decimals
+       nchar = 1 + nintdig + decimal
+       if (decimal > 0) nchar = nchar + 1
+    end if
     width = nchar * wdig * n + n * (2 * g%Style%FramePadding%x) + (n-1) * g%Style%ItemInnerSpacing%x
 
   end function dragfloat_width

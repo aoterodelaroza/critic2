@@ -205,14 +205,14 @@ module utils
        logical :: iw_dragfloat_realc
      end function iw_dragfloat_realc
      module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-        sameline,notlive,committed,flags)
+        sameline,notlive,committed,flags,sig)
        character(len=*,kind=c_char), intent(in) :: str
        real*8, intent(inout), optional :: x1
        real*8, intent(inout), optional :: x2(2)
        real*8, intent(inout), optional :: x3(3)
        real*8, intent(inout), optional :: x4(4)
        real*8, intent(in), optional :: speed, min, max, scale
-       integer, intent(in), optional :: decimal
+       integer, intent(in), optional :: decimal, sig
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: notlive
        logical, intent(out), optional :: committed

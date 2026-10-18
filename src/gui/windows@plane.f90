@@ -1277,18 +1277,19 @@ contains
 
   contains
     !> A drag of a real value (x1 or the three of x3), live or not.
-    subroutine drag(str,x1,x3,speed,decimal,sameline,min)
+    subroutine drag(str,x1,x3,speed,decimal,sameline,min,sig)
       character(len=*), intent(in) :: str
       real*8, intent(inout), optional :: x1, x3(3)
       real*8, intent(in) :: speed
-      integer, intent(in) :: decimal
+      integer, intent(in), optional :: decimal
       logical, intent(in), optional :: sameline
       real*8, intent(in), optional :: min
-
+      integer, intent(in), optional :: sig
 
       logical :: ch
 
-      ch = iw_dragfloat_real8(str,x1=x1,x3=x3,speed=speed,decimal=decimal,sameline=sameline,min=min)
+      ch = iw_dragfloat_real8(str,x1=x1,x3=x3,speed=speed,decimal=decimal,sameline=sameline,min=min,&
+         sig=sig)
       editing = editing .or. igIsItemActive()
       ! not live: the change counts when the drag (or the typing) ends
       if (live) then
@@ -1307,15 +1308,25 @@ contains
       logical, intent(inout) :: flag
       real*8, intent(inout) :: xmin, xmax
 
+      real*8 :: smin, smax
+      character(len=*), parameter :: tttype = " (ctrl+click to type a value, e.g. 1e-6)"
+
       changed = changed .or. iw_checkbox("Fixed range##plane" // sfx // "range",flag,labelleft=.true.)
       call iw_tooltip(ttflag,ttshown)
       if (.not.flag) return
+      ! general format, and a drag proportional to the value (the range
+      ! may be very small, e.g. a density far from the nuclei); a zero
+      ! starts at the scale of the other bound
+      smin = abs(xmin)
+      if (smin == 0d0) smin = abs(xmax)
+      smax = abs(xmax)
+      if (smax == 0d0) smax = abs(xmin)
       call iw_text("Min",alignframe=.true.,gap=.true.)
-      call drag("##plane" // sfx // "min",x1=xmin,speed=0.01d0,decimal=4,sameline=.true.)
-      call iw_tooltip(ttmin,ttshown)
+      call drag("##plane" // sfx // "min",x1=xmin,speed=0.01d0 * max(smin,1d-6),sig=4,sameline=.true.)
+      call iw_tooltip(ttmin // tttype,ttshown)
       call iw_text("Max",alignframe=.true.,gap=.true.)
-      call drag("##plane" // sfx // "max",x1=xmax,speed=0.01d0,decimal=4,sameline=.true.)
-      call iw_tooltip(ttmax,ttshown)
+      call drag("##plane" // sfx // "max",x1=xmax,speed=0.01d0 * max(smax,1d-6),sig=4,sameline=.true.)
+      call iw_tooltip(ttmax // tttype,ttshown)
 
     end subroutine draw_range
 
