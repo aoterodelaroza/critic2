@@ -2417,6 +2417,7 @@ contains
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic,&
        mode_smr
     use tools_io, only: string
+    use param, only: bohrtoa
     integer, intent(in) :: si, fj
 
     character(kind=c_char,len=:), allocatable, target :: str, aux
@@ -2493,8 +2494,8 @@ contains
              string(f%grid%qe%nk(3)),sameline_nospace=.true.)
        end if
 
-       call iw_text("Longest Voronoi vector (bohr): ",highlight=.true.)
-       call iw_text(string(f%grid%dmax,'f',decimal=5),sameline_nospace=.true.)
+       call iw_text("Longest Voronoi vector (Å): ",highlight=.true.)
+       call iw_text(string(f%grid%dmax*bohrtoa,'f',decimal=5),sameline_nospace=.true.)
        call iw_text("Grid integral: ",highlight=.true.)
        call iw_text(string(f%grid%cell_integral(f%c%omega),'f',decimal=8),sameline_nospace=.true.)
        call iw_text("Minimum value: ",highlight=.true.)

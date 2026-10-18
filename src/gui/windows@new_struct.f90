@@ -65,7 +65,7 @@ contains
     integer, save :: symopt = 1 ! symmetry option (1 = detect, 2 = spg, 3 = manual)
     integer, save :: ispg_selected = 1 ! selected space group
     integer, save :: cellopt = 1 ! lattice option (1 = parameters, 2 = lattice-vectors)
-    integer, save :: iunitcel = 0 ! units for lattice (0 = bohr, 1 = angstrom)
+    integer, save :: iunitcel = 1 ! units for lattice (0 = bohr, 1 = angstrom)
     real(c_float), save :: scale = 1._c_float ! scale factor for lattice vectors
     real(c_float), save :: aa(3) = 10._c_float ! cell lengths
     real(c_float), save :: bb(3) = 90._c_float ! cell angles
@@ -326,7 +326,7 @@ contains
       symopt = 1
       ispg_selected = 1
       cellopt = 1
-      iunitcel = 0
+      iunitcel = 1
       scale = 1._c_float
       aa = 10._c_float
       bb = 90._c_float

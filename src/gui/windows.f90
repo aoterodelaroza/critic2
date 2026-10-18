@@ -642,7 +642,7 @@ module windows
      real(c_float) :: rgblabel(3) = (/1._c_float,1._c_float,1._c_float/) ! their color
      real(c_float) :: lscale = 1._c_float ! their size (relative to the interface font)
      integer :: ltext = 1 ! the text of the atoms (0 = species name, 1 = atomic symbol, 2 = atom name)
-     real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å or bohr)
+     real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å)
      logical :: showdist = .false. ! the labels show the signed distance to the plane too
      ! pending pick in the view: the point (1-3)
      logical :: picking = .false.

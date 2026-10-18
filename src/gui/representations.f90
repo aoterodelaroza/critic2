@@ -800,8 +800,8 @@ module representations
   type plane_def
      real*8 :: xp(3,3) = 0d0 ! the three points
      integer :: region = 0 ! 0 = rectangle, 1 = parallelogram (as PLANE)
-     real*8 :: margin = 0d0 ! extra length added on every side (Å or bohr)
-     real*8 :: step = 0.1d0 ! displacement of the Move buttons (Å or bohr; not saved)
+     real*8 :: margin = 0d0 ! extra length added on every side (Å)
+     real*8 :: step = 0.1d0 ! displacement of the Move buttons (Å; not saved)
      integer(c_int) :: nx = 101 ! number of points along the first side
      integer(c_int) :: ny = 101 ! number of points along the second side
      logical :: autonpts = .true. ! nx and ny follow from the size of the region (autopoints)

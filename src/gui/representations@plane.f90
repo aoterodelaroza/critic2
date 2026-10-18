@@ -236,8 +236,7 @@ contains
     ! the second side perpendicular to the first, or to the third
     ! point; with the margin on every side
     if (d%region == 0) x2 = a0 + cperp
-    m = d%margin
-    if (sys(isys)%c%ismolecule) m = m / bohrtoa
+    m = d%margin / bohrtoa
     x0 = a0
     call plane_scale_extend(x0,x1,x2,1d0,1d0,m,m,m,m)
     ! a negative margin of half a side or more would turn the region over

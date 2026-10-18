@@ -422,11 +422,7 @@ contains
       str1 = "##lineplot" // c_null_char
       flags = ImPlotFlags_NoTitle
       if (ipBeginPlot(c_loc(str1),sz,flags)) then
-         if (ismol) then
-            str2 = "Distance from A (Å)" // c_null_char
-         else
-            str2 = "Distance from A (bohr)" // c_null_char
-         end if
+         str2 = "Distance from A (Å)" // c_null_char
          str3 = "" // c_null_char
          call ipSetupAxes(c_loc(str2),c_loc(str3),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
          call ipSetupAxisScale(ImAxis_Y1,yscale)
@@ -549,13 +545,12 @@ contains
             call iw_table_column("x (Å)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
             call iw_table_column("y (Å)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
             call iw_table_column("z (Å)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("d (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          else
             call iw_table_column("x (frac)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
             call iw_table_column("y (frac)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
             call iw_table_column("z (frac)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("d (bohr)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          end if
+         call iw_table_column("d (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          k = 3
          do i = 1, w%ln%ncurve
             if (.not.in_table(i)) cycle
@@ -743,7 +738,7 @@ contains
       integer*8 :: keyref
       integer :: i, j, np, id
       logical :: stale, ok
-      real*8 :: x0(3), x1(3), u, dlen
+      real*8 :: x0(3), x1(3), dlen
       real*8, allocatable :: f(:)
       character(len=:), allocatable :: lerr
 
@@ -759,18 +754,16 @@ contains
          w%ln%keytimecp /= sysc(isys)%timelastchange_cplist .or. w%ln%keyref /= keyref
       if (stale) then
          np = w%ln%npts
-         u = 1d0
-         if (ismol) u = bohrtoa
          dlen = norm2(form_to_cart(isys,w%ln%xb) - form_to_cart(isys,w%ln%xa))
          if (allocated(w%ln%d)) deallocate(w%ln%d)
          allocate(w%ln%d(np))
          do i = 1, np
-            w%ln%d(i) = dlen * u * real(i-1,8) / real(np-1,8)
+            w%ln%d(i) = dlen * bohrtoa * real(i-1,8) / real(np-1,8)
          end do
          ! the cursor stays where it was if the line is long enough;
          ! otherwise, it goes to the middle
-         if (w%ln%dcur < 0d0 .or. w%ln%dcur > dlen * u) w%ln%dcur = 0.5d0 * dlen * u
-         call find_markers(dlen*u)
+         if (w%ln%dcur < 0d0 .or. w%ln%dcur > dlen * bohrtoa) w%ln%dcur = 0.5d0 * dlen * bohrtoa
+         call find_markers(dlen*bohrtoa)
          w%ln%gen = w%ln%gen + 1
          w%ln%keysys = w%ln%sys%uid
          w%ln%keyxa = w%ln%xa

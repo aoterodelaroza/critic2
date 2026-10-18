@@ -1909,14 +1909,14 @@ contains
                    call iw_text("Not available (symmetry not computed)")
                 end if
 
-                call iw_text("Tolerance (bohr)",alignframe=.true.)
-                str_eps = string(sysc(isys)%symeps,'e',decimal=2)
+                call iw_text("Tolerance (Å)",alignframe=.true.)
+                str_eps = string(sysc(isys)%symeps*bohrtoa,'e',decimal=2)
                 if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=8,sameline=.true.,notlive=.true.)) then
                    if (isreal(res,str_eps)) then
-                      if (res > 0d0) sysc(isys)%symeps = res
+                      if (res > 0d0) sysc(isys)%symeps = res / bohrtoa
                    end if
                 end if
-                call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry (symeps)",ttshown)
+                call iw_tooltip("Distance tolerance (Å) used to detect the symmetry (symeps)",ttshown)
                 if (iw_button("Recalculate##symrecalc",sameline=.true.)) iaction = iaction_sym_recalc
                 call iw_tooltip("Recalculate crystal symmetry at the given tolerance (symeps) level",ttshown)
 
@@ -2069,7 +2069,7 @@ contains
                    sz0%x = 0
                    sz0%y = iw_calcheight(size(w%geometry_sym_analyze_eps,1)+1,0,.false.)
                    if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-                      call iw_table_column("Symprec",id=0)
+                      call iw_table_column("Symprec (Å)",id=0)
                       call iw_table_column("Space group",id=1)
                       call iw_table_column("Number",id=2)
                       call iw_table_headers_row(freezetop=.true.,writemenu=iwrite,ttshown=ttshown)
@@ -2077,7 +2077,7 @@ contains
                       do i = 1, size(w%geometry_sym_analyze_eps,1)
                          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                          if (igTableSetColumnIndex(0)) then
-                            str2 = string(w%geometry_sym_analyze_eps(i),'e',10,2) //&
+                            str2 = string(w%geometry_sym_analyze_eps(i)*bohrtoa,'e',10,2) //&
                                "##symanalrow" // string(i) // c_null_char
                             call iw_capture_text(str2,label=.true.)
                             if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&

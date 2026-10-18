@@ -67,7 +67,7 @@ contains
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh
     integer :: isys, iview, istat, i, ipick
-    real*8 :: xc(3), rad, v(3,3), u, xhov(3)
+    real*8 :: xc(3), rad, v(3,3), xhov(3)
     type(ImVec2) :: sz0
     real(c_float) :: htable
     type(rep_shape), allocatable :: shp(:)
@@ -80,8 +80,6 @@ contains
     if (goodsys) goodsys = ok_system(isys,sys_init)
     ismol = .false.
     if (goodsys) ismol = sys(isys)%c%ismolecule
-    u = 1d0
-    if (ismol) u = bohrtoa
 
     ! initialize the state on the first pass
     if (w%firstpass) then
@@ -262,12 +260,11 @@ contains
       call iw_tooltip("Text in the labels of the atoms",ttshown)
       call iw_text("Distance",alignframe=.true.,gap=.true.)
       ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
-      call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (" //&
-         lunit() // ")",ttshown)
+      call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (Å)",&
+         ttshown)
       ldum = iw_checkbox("Show distance##planeshowdist",w%pl%showdist,gap=.true.,labelleft=.true.)
       call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
-         & plane (" // lunit() // ", positive on the side of the normal; omitted if zero to two&
-         & decimals)",ttshown)
+         & plane (Å, positive on the side of the normal; omitted if zero to two decimals)",ttshown)
 
     end subroutine draw_labels_option
 
@@ -367,8 +364,8 @@ contains
       flags = ior(flags,ImPlotFlags_NoLegend)
       flags = ior(flags,ImPlotFlags_Crosshairs)
       if (ipBeginPlot(c_loc(str1),szp,flags)) then
-         str2 = "u (" // lunit() // ")" // c_null_char
-         str3 = "v (" // lunit() // ")" // c_null_char
+         str2 = "u (Å)" // c_null_char
+         str3 = "v (Å)" // c_null_char
          call ipSetupAxes(c_loc(str2),c_loc(str3),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
          if (refit) then
             call ipSetupAxisLimits(ImAxis_X1,minval(crn(1,:)),maxval(crn(1,:)),ImPlotCond_Always)
@@ -720,7 +717,7 @@ contains
       inside = .false.
       nx = size(w%pl%ff,1)
       ny = size(w%pl%ff,2)
-      x = w%pl%a0 + (mu * w%pl%e1 + mv * w%pl%e2) / u
+      x = w%pl%a0 + (mu * w%pl%e1 + mv * w%pl%e2) / bohrtoa
 
       ! the grid coordinates: x - x0 = s * (nx-1) * uu + t * (ny-1) * vv
       d(1) = dot_product(x - w%pl%x0,w%pl%e1)
@@ -747,7 +744,6 @@ contains
       use utils, only: iw_table_column, iw_table_headers_row, iw_separatortext
       integer, parameter :: itable_plane = 1 ! the table, for table_write_*
       character(kind=c_char,len=:), allocatable, target :: strtab
-      character(len=:), allocatable :: un
       integer(c_int) :: flags
       integer :: k, ix, iy, iwrite, nx, ny
       real*8 :: xp(3), xq(3), pc(2)
@@ -771,7 +767,6 @@ contains
       strtab = "##planedatatable" // c_null_char
       szt%x = 0._c_float
       szt%y = htable
-      un = lunit()
       if (igBeginTable(c_loc(strtab),6_c_int,flags,szt,0._c_float)) then
          if (ismol) then
             call iw_table_column("x (Å)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
@@ -782,8 +777,8 @@ contains
             call iw_table_column("y (frac)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
             call iw_table_column("z (frac)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          end if
-         call iw_table_column("u (" // un // ")",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("v (" // un // ")",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("u (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("v (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_column(quantity_label(),id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
          call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
 
@@ -957,7 +952,7 @@ contains
          do j = lptr(i), lptr(i+1)-1
             np = np + 1
             do k = 1, 2
-               rval = xy(k,j) * u + off(k)
+               rval = xy(k,j) * bohrtoa + off(k)
                if (pos) then
                   w%pl%cpos(np,k) = rval
                else
@@ -1013,8 +1008,8 @@ contains
             end do
             acc = acc + dl
          end do
-         w%pl%xcval(:,:,i) = w%pl%xcval(:,:,i) * u + spread(off,2,plane_ncand)
-         w%pl%lcval(i) = ll(ii) * u
+         w%pl%xcval(:,:,i) = w%pl%xcval(:,:,i) * bohrtoa + spread(off,2,plane_ncand)
+         w%pl%lcval(i) = ll(ii) * bohrtoa
          w%pl%zcval(i) = ziso(liso(ii))
          w%pl%icval(1:3,i) = il(:,ii)
          w%pl%icval(4,i) = liso(ii)
@@ -1115,7 +1110,7 @@ contains
       am(:,3) = nrm
       call matinv(am,3,ier)
       if (ier /= 0) return
-      hb = w%pl%hmax / u
+      hb = w%pl%hmax / bohrtoa
       eps = 1d-6
 
       ! the lattice translations that can bring a point of the cell to
@@ -1154,7 +1149,7 @@ contains
                   ! the signed distance to the plane, as C(+0.01), unless
                   ! it is zero to two decimals
                   if (w%pl%showdist) then
-                     sdist = string(s(3) * u,'f',decimal=2)
+                     sdist = string(s(3) * bohrtoa,'f',decimal=2)
                      if (sdist /= "0.00" .and. sdist /= "-0.00") then
                         if (s(3) > 0d0) sdist = "+" // sdist
                         w%pl%lmark(w%pl%nmark) = trim(lbl(k)) // "(" // sdist // ")"
@@ -1167,28 +1162,17 @@ contains
 
     end subroutine update_marks
 
-    !> The plot coordinates (Å for molecules, bohr for crystals) of the
-    !> point x (cell-frame Cartesian bohr): along e1 and e2 from the
-    !> origin the grid was calculated for (a0).
+    !> The plot coordinates (Å) of the point x (cell-frame Cartesian
+    !> bohr): along e1 and e2 from the origin the grid was calculated
+    !> for (a0).
     function to_plot(x) result(pc)
       real*8, intent(in) :: x(3)
       real*8 :: pc(2)
 
-      pc(1) = dot_product(x - w%pl%a0,w%pl%e1) * u
-      pc(2) = dot_product(x - w%pl%a0,w%pl%e2) * u
+      pc(1) = dot_product(x - w%pl%a0,w%pl%e1) * bohrtoa
+      pc(2) = dot_product(x - w%pl%a0,w%pl%e2) * bohrtoa
 
     end function to_plot
-
-    !> The unit of lengths in the window: Å for molecules, bohr for
-    !> crystals.
-    function lunit() result(str)
-      character(len=:), allocatable :: str
-      if (ismol) then
-         str = "Å"
-      else
-         str = "bohr"
-      end if
-    end function lunit
 
     !> The point x (cell-frame Cartesian bohr) in the absolute frame
     !> (with molx0 for molecules), for the scene.
@@ -1243,18 +1227,12 @@ contains
 
     integer :: i
     logical :: ismol, ch, pickoff_
-    character(len=:), allocatable :: un
 
     changed = .false.
     if (present(ipick)) ipick = 0
     pickoff_ = .false.
     if (present(pickoff)) pickoff_ = pickoff
     ismol = sys(isys)%c%ismolecule
-    if (ismol) then
-       un = "Å"
-    else
-       un = "bohr"
-    end if
 
     ! the plane, the region, and the number of points
     call iw_separatortext("Plane",sec(plane_sec_plane),hasmore=.true.)
@@ -1381,10 +1359,10 @@ contains
                dx = 0d0
                if (j <= 3) then
                   dx(j) = st
-                  ! crystals: fractional points, displacement in bohr
-                  if (.not.ismol) dx = sys(isys)%c%c2x(dx)
+                  ! crystals: fractional points, displacement in Å
+                  if (.not.ismol) dx = sys(isys)%c%c2x(dx / bohrtoa)
                else
-                  dx(j-3) = st / sys(isys)%c%aa(j-3)
+                  dx(j-3) = st / bohrtoa / sys(isys)%c%aa(j-3)
                end if
                d%xp = d%xp + spread(dx,2,3)
                changed = .true.
@@ -1397,7 +1375,7 @@ contains
       call igPushItemWidth(iw_calcwidth(7,1))
       ch = iw_dragfloat_real8("##planestep",x1=d%step,speed=0.01d0,decimal=3,sameline=.true.,min=0d0)
       call igPopItemWidth()
-      call iw_tooltip("Length of each displacement (" // un // ")",ttshown)
+      call iw_tooltip("Length of each displacement (Å)",ttshown)
 
     end subroutine draw_move
 
@@ -1415,8 +1393,7 @@ contains
          & the sides go from the origin to the X end and to the Y point, as in PLANE",ttshown)
       call iw_text("Margin",alignframe=.true.,gap=.true.)
       call drag("##planemargin",x1=d%margin,speed=0.01d0,decimal=3,sameline=.true.)
-      call iw_tooltip("Length added to the region on every side (" // un //&
-         "; negative removes it)",ttshown)
+      call iw_tooltip("Length added to the region on every side (Å; negative removes it)",ttshown)
 
       call iw_text("Points",alignframe=.true.)
       if (d%autonpts) call igBeginDisabled(.true._c_bool)
@@ -1593,7 +1570,7 @@ contains
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: editing
+    logical :: editing, ch
 
     editing = .false.
     changed = plane_def_form(w%rep%slice%d,w%rep%id,ttshown,editing,.false.,sec=w%editrep_slicesec(1:plane_nsec))
@@ -1602,12 +1579,14 @@ contains
     call iw_separatortext("Style",w%editrep_slicesec(plane_nsec+1))
     if (.not.w%editrep_slicesec(plane_nsec+1)%open) return
     call iw_text("Opacity",alignframe=.true.)
-    changed = changed .or. iw_dragfloat_realc("##sliceopacity",x1=w%rep%slice%alpha,speed=0.01_c_float,&
+    ch = iw_dragfloat_realc("##sliceopacity",x1=w%rep%slice%alpha,speed=0.01_c_float,&
        min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    changed = changed .or. ch
     call iw_tooltip("Opacity of the map (1 = opaque)",ttshown)
     call iw_text("Line radius",alignframe=.true.,gap=.true.)
-    changed = changed .or. iw_dragfloat_real8("(Å)##slicecrad",x1=w%rep%slice%crad,speed=0.001d0,&
+    ch = iw_dragfloat_real8("(Å)##slicecrad",x1=w%rep%slice%crad,speed=0.001d0,&
        min=0d0,scale=bohrtoa,decimal=3,sameline=.true.)
+    changed = changed .or. ch
     call iw_tooltip("Radius of the contour lines",ttshown)
 
     ! what is wrong
