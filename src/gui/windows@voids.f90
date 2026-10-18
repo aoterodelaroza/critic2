@@ -259,8 +259,9 @@ contains
     if (w%vd%iso_secform%open) then
        call iw_text("Isovalue (a.u.)",alignframe=.true.)
        ! acted on below, once the grid the form asks for is known
-       isovalchanged = iw_dragfloat_real8("##voidsisoval",x1=w%vd%iso_isoval,speed=1d-4,&
-          min=1d-6,max=1d0,decimal=5,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+       isovalchanged = iw_dragfloat_real8("##voidsisoval",x1=w%vd%iso_isoval,&
+          speed=0.01d0 * max(abs(w%vd%iso_isoval),1d-6),min=1d-6,max=1d0,sig=4,&
+          flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
        call iw_tooltip("A point belongs to a void if the promolecular density (the sum of&
           & the in-vacuo atomic densities) at that point is lower than this value",ttshown)
 
@@ -314,7 +315,7 @@ contains
                 win(iview)%sc%rep(irep)%iso%ihighlight = 0
                 win(iview)%sc%rep(irep)%iso%ihighlight_built = -1
                 win(iview)%sc%rep(irep)%name = "Voids (rho = " //&
-                   string(w%vd%iso_isoval,'f',decimal=5) // ")"
+                   string(w%vd%iso_isoval,'e',decimal=3) // ")"
                 win(iview)%sc%forcebuildlists = .true.
                 call win(iview)%sc%undo_note("Create voids isosurface")
              else

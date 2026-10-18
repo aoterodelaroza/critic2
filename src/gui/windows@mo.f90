@@ -379,8 +379,8 @@ contains
 
             ! isovalue and opacity
             call iw_text("Isovalue (a.u.)",alignframe=.true.)
-            if (iw_dragfloat_real8("##moisoval",x1=w%mo_isoval,speed=0.001d0,&
-               min=0.0001d0,max=10d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
+            if (iw_dragfloat_real8("##moisoval",x1=w%mo_isoval,speed=0.01d0 * max(abs(w%mo_isoval),1d-6),&
+               min=0.0001d0,max=10d0,sig=4,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)) &
                changed = .true.
             call iw_tooltip("Isovalue of the positive/negative molecular orbital isosurface pair",ttshown)
             alpha8 = real(w%mo_alpha,8)

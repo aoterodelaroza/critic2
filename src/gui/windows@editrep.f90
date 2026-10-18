@@ -4919,20 +4919,26 @@ contains
                ! the level: this widget is notlive, so its re-triangulation
                ! runs on commit rather than on every frame of the drag
                if (igTableSetColumnIndex(3)) then
-                  speed = max(0.01d0 * abs(s%isoval),1d-4)
+                  ! a drag proportional to the level (1% per pixel); from
+                  ! zero, start at the scale of the range of the field
+                  speed = 0.01d0 * abs(s%isoval)
+                  if (s%isoval == 0d0) then
+                     speed = 1d-4
+                     if (haverange) speed = 0.01d0 * maxval(abs(w%rep%iso%frange))
+                  end if
                   ! same as the histogram line: a mapped isosurface is rebuilt on
                   ! the commit (the drag let go, or the typed value entered),
                   ! a flat one on every step of the drag
                   if (haverange) then
                      ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
-                        speed=speed,decimal=6,notlive=.true.,min=w%rep%iso%frange(1),&
+                        speed=speed,sig=4,notlive=.true.,min=w%rep%iso%frange(1),&
                         max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp,committed=ch)
                      if (s%imap_mode /= iso_map_color) ldum = ch
                      changed = changed .or. ldum
                      call iw_tooltip(str3,ttshown)
                   else
                      ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
-                        speed=speed,decimal=6,notlive=.true.,committed=ch)
+                        speed=speed,sig=4,notlive=.true.,committed=ch)
                      if (s%imap_mode /= iso_map_color) ldum = ch
                      changed = changed .or. ldum
                      call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
@@ -5066,7 +5072,7 @@ contains
        call iw_text("Range",alignframe=.true.,gap=.true.)
        if (.not.s%maprange_auto) then
           maprspeed = max(0.01d0 * maxval(abs(s%maprange)),1d-6)
-          if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,decimal=6,&
+          if (iw_dragfloat_real8("##isomaprange",x2=s%maprange,speed=maprspeed,sig=4,&
              sameline=.true.)) changed = .true.
           call iw_tooltip("Values at the two ends of the colormap",ttshown)
        elseif (hascolors) then
