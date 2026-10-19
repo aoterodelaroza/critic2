@@ -455,7 +455,7 @@ contains
     logical :: ok, doortho
     integer :: ix, iy, iz, i, j, k, ibnd, ik, inr(3), ispin
     real*8, allocatable :: lf(:,:,:), fake(:,:,:), ff(:,:,:), ff2(:,:,:)
-    logical :: dogrid, useexpr, doheader
+    logical :: dogrid, useexpr, doheader, iscell
     integer :: outform, ishift(3), dopsi
     type(grid3) :: faux
     complex*16, allocatable :: caux(:,:,:)
@@ -503,6 +503,7 @@ contains
     dogrid = .false.
     dopsi = psi_none
     doheader = .false.
+    iscell = .false.
     word = lgetword(line,lp)
     ok = eval_next(x0(1),word,lp2)
     if (ok) then
@@ -530,6 +531,7 @@ contains
        end do
     elseif (equal(word,'cell')) then
        ! whole cell, maybe non-cubic
+       iscell = .true.
        xd = eye
        x0 = 0d0
     elseif (equal(word,'grid')) then
@@ -564,6 +566,9 @@ contains
        xd = eye
        x0 = 0d0
        ispin = 1
+    else
+       call ferror('rhoplot_cube','wrong CUBE syntax',faterr,line,syntax=.true.)
+       return
     endif
 
     if (.not.dogrid) then
@@ -757,6 +762,20 @@ contains
        end if
     end do
 
+    ! the wavefunction keywords take only REAL, IMAG, and ABS, and
+    ! only they do
+    if (dopsi /= psi_none) then
+       if (nti /= nti_none .and. nti < nti_real) then
+          call ferror('rhoplot_cube','MLWF/WANNIER/UNK/PSINK in CUBE accept only REAL, IMAG, or ABS',&
+             faterr,line,syntax=.true.)
+          return
+       end if
+    elseif (nti >= nti_real) then
+       call ferror('rhoplot_cube','REAL, IMAG, and ABS in CUBE require MLWF, WANNIER, UNK, or PSINK',&
+          faterr,line,syntax=.true.)
+       return
+    end if
+
     ! calculate the distances
     x0 = cr%x2c(x0)
     do i = 1, 3
@@ -914,9 +933,10 @@ contains
           call cr%writegrid_xsf(faux%f,outfile,.false.)
        endif
     else
-       ! no special keywords used
+       ! no special keywords used; an expression of grid fields on the
+       ! whole cell is evaluated on the grids directly
        ok = .false.
-       if (useexpr) then
+       if (useexpr .and. iscell .and. .not.doortho) then
           call faux%new_eval(c_loc(sy),c_loc(cr),nn,expr,cr%m_x2c)
           ok = faux%isinit
        end if
@@ -961,6 +981,8 @@ contains
                          lappt = res%hf(3,3)
                       case (nti_lap)
                          lappt = res%del2f
+                      case default
+                         lappt = 0d0
                       end select
                    else
                       lerrs = ""
@@ -1171,6 +1193,7 @@ contains
                 call realloc(ziso,niso)
              else
                 call ferror("rhoplot_plane","Unknown contour keyword",faterr,line,syntax=.true.)
+                return
              end if
           end if
           if (niso_type == niso_lin .or. niso_type == niso_log .or. niso_type == niso_atan) then
@@ -2228,6 +2251,7 @@ contains
   !> xc, yc, with the grid indices pic, pjc (half-integer = between
   !> two nodes). The arrays grow as needed.
   subroutine hallarpuntos(ff,zc,x,y,nx,ny,np,xc,yc,pic,pjc)
+    use ieee_arithmetic, only: ieee_is_finite
     use param, only: zero
     use types, only: realloc
     integer, intent(in) :: nx, ny
@@ -2244,16 +2268,19 @@ contains
     ! initialize
     np = 0
 
+    ! A node on the level counts as above it (half-open rule): a
+    ! crossing is an edge with one end below and the other on or above
+    ! the level. Nodes exactly on the level used to be points of their
+    ! own, which turned a plateau on the level (a zero field, the
+    ! minimum of the data) into a lattice of spurious lines. The lines
+    ! do not enter a region of non-finite values.
+
     ! run over columns
     do i = 1, nx
        xa = x(i)
        ya = y(1)
        za = ff(i,1)
        zazc = za-zc
-
-       ! check if it is an intersection
-       if (zazc.eq.zero) &
-          call add_point(xa,ya,real(i,8),1d0)
 
        do j = 2,ny
           xb = x(i)
@@ -2262,11 +2289,10 @@ contains
           zbzc = zb-zc
 
           ! sign changed, interpolate and write a point
-          if ((zazc*zbzc).lt.zero) then
-             call add_point(xb,ya-zazc*(yb-ya)/(zb-za),real(i,8),j-0.5d0)
-          else if (zbzc.eq.zero) then
-             call add_point(xb,yb,real(i,8),real(j,8))
-          endif
+          if (ieee_is_finite(za) .and. ieee_is_finite(zb)) then
+             if ((zazc < zero) .neqv. (zbzc < zero)) &
+                call add_point(xb,ya-zazc*(yb-ya)/(zb-za),real(i,8),j-0.5d0)
+          end if
           ! reassign zazc
           ya = yb
           za = zb
@@ -2287,8 +2313,10 @@ contains
           zb = ff(i,j)
           zbzc = zb-zc
           ! sign changed, interpolate and write a point
-          if ((zazc*zbzc).lt.zero) &
-             call add_point(xa-zazc*(xb-xa)/(zb-za),yb,i-0.5d0,real(j,8))
+          if (ieee_is_finite(za) .and. ieee_is_finite(zb)) then
+             if ((zazc < zero) .neqv. (zbzc < zero)) &
+                call add_point(xa-zazc*(xb-xa)/(zb-za),yb,i-0.5d0,real(j,8))
+          end if
           ! reassign zazc
           xa = xb
           za = zb
@@ -2336,8 +2364,7 @@ contains
 
     real*8 :: salpha
 
-    logical :: cerrada, primerabusqueda, hallado
-    logical :: malla0, malla1, malla2, incompleta
+    logical :: cerrada, primerabusqueda, hallado, incompleta
     integer :: puntoinicial
     integer :: puntofinal, puntoactual, salto, nptoscurva
     integer :: nptosestudiados, npuntos
@@ -2356,9 +2383,7 @@ contains
     ! initialize
     npuntos = np
     allocate(lc(np),punto(-np-1:np+1),x(np+1),y(np+1))
-    do k = 1, npuntos
-       lc(k) = .false.
-    enddo
+    lc = .false.
     nptosestudiados = 0
 
     ! run over all points
@@ -2399,57 +2424,29 @@ contains
           do while (hallado)
              hallado = .false.
 
-             ! (pi1,pj1) is the last found point. Search for connection
-             ! with the rest of the points in the isoline
-             malla1 = (dabs(pi1-dint(pi1)).le.eps) .and.              &
-                &                (dabs(pj1-dint(pj1)).le.eps)
+             ! (pi1,pj1) is the last found point: a crossing of a column
+             ! (integer pi1) continues to the next column, a crossing of
+             ! a row (integer pj1) to the next row, and either to a
+             ! crossing of the other kind in the same cell
+             si1 = zero
+             sj1 = zero
+             if (abs(pi1-nint(pi1)) <= eps) si1 = one
+             if (abs(pj1-nint(pj1)) <= eps) sj1 = one
              k = n1
              do while ((.not.hallado) .and. (k.lt.npuntos))
                 k = k+1
                 if (.not.lc(k)) then
-
-                   !.search in non-connected points
                    pi2 = pic(k)
                    pj2 = pjc(k)
-                   malla2 = (dabs(pi2-dint(pi2)).le.eps) .and.        &
-                      &                      (dabs(pj2-dint(pj2)).le.eps)
-                   if (malla1 .or. malla2) then
-
-                      ! one of (pi1,pj1) and (pi2,pj2) is in the grid
-                      if (adyacentes(pi1,pj1,pi2,pj2,one,half)        &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,half,one)  &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,one,zero)  &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,zero,one)  &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,half,zero) &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,zero,half) &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,one,one)) then
-                         hallado = .true.
-                         puntoactual = puntoactual+salto
-                         punto(puntoactual) = k
-                         puntoinicial = min(puntoinicial,puntoactual)
-                         puntofinal = max(puntofinal,puntoactual)
-                         lc(k) = .true.
-                         pi1 = pi2
-                         pj1 = pj2
-                      endif
-                   else
-
-                      ! none of the points is in the grid. points are
-                      si1 = zero
-                      sj1 = zero
-                      if (dabs(pi1-dint(pi1)).le.eps) si1 = one
-                      if (dabs(pj1-dint(pj1)).le.eps) sj1 = one
-                      if (adyacentes(pi1,pj1,pi2,pj2,half,half)       &
-                         .or. adyacentes(pi1,pj1,pi2,pj2,si1,sj1)) then
-                         hallado = .true.
-                         puntoactual = puntoactual+salto
-                         punto(puntoactual) = k
-                         puntoinicial = min(puntoinicial,puntoactual)
-                         puntofinal = max(puntofinal,puntoactual)
-                         lc(k) = .true.
-                         pi1 = pi2
-                         pj1 = pj2
-                      endif
+                   if (adyacentes(pi1,pj1,pi2,pj2,half,half) .or. adyacentes(pi1,pj1,pi2,pj2,si1,sj1)) then
+                      hallado = .true.
+                      puntoactual = puntoactual+salto
+                      punto(puntoactual) = k
+                      puntoinicial = min(puntoinicial,puntoactual)
+                      puntofinal = max(puntofinal,puntoactual)
+                      lc(k) = .true.
+                      pi1 = pi2
+                      pj1 = pj2
                    endif
                 endif
              enddo
@@ -2459,32 +2456,14 @@ contains
           if ((puntofinal-puntoinicial+1).gt.2) then
              pi0 = pic(punto(puntoinicial))
              pj0 = pjc(punto(puntoinicial))
-             malla0 = (dabs(pi0-dint(pi0)).le.eps) .and.              &
-                &                (dabs(pj0-dint(pj0)).le.eps)
              pi1 = pic(punto(puntofinal))
              pj1 = pjc(punto(puntofinal))
-             malla1 = (dabs(pi1-dint(pi1)).le.eps) .and.              &
-                &                (dabs(pj1-dint(pj1)).le.eps)
-             if (malla0 .or. malla1) then
-                if (adyacentes(pi0,pj0,pi1,pj1,one,half)              &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,half,one)           &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,one,zero)           &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,zero,one)           &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,half,zero)          &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,zero,half)          &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,one,one)) then
-                   cerrada = .true.
-                endif
-             else
-                si1 = zero
-                sj1 = zero
-                if (dabs(pi1-dint(pi1)).le.eps) si1 = one
-                if (dabs(pj1-dint(pj1)).le.eps) sj1 = one
-                if (adyacentes(pi0,pj0,pi1,pj1,half,half)             &
-                   .or. adyacentes(pi0,pj0,pi1,pj1,si1,sj1)) then
-                   cerrada = .true.
-                endif
-             endif
+             si1 = zero
+             sj1 = zero
+             if (abs(pi1-nint(pi1)) <= eps) si1 = one
+             if (abs(pj1-nint(pj1)) <= eps) sj1 = one
+             if (adyacentes(pi0,pj0,pi1,pj1,half,half) .or. adyacentes(pi0,pj0,pi1,pj1,si1,sj1)) &
+                cerrada = .true.
           endif
 
           ! closed
@@ -2681,7 +2660,7 @@ contains
        if (grpatr(iorig) .eq. 1) then
           ! 3D attraction or repulsion critical points:
           do i = 1, grpup(iorig)
-             phii = (i-1) * 2d0 * pi / max(grpup(iorig)-1,1)
+             phii = real(i-1,8) * 2d0 * pi / real(grpup(iorig),8)
              u1 = gcpchange * sin(phii)
              v1 = gcpchange * cos(phii)
              u = (u1 - v1 * cotgalfa) / r01
@@ -2693,7 +2672,7 @@ contains
              ntotpts = ntotpts + nptf
           enddo
           do i = 1, grpdwn(iorig)
-             phii = (i-1) * 2d0 * pi / max(grpdwn(iorig)-1,1)
+             phii = real(i-1,8) * 2d0 * pi / real(grpdwn(iorig),8)
              u1 = gcpchange * sin(phii)
              v1 = gcpchange * cos(phii)
              u = (u1 - v1 * cotgalfa) / r01
@@ -2905,6 +2884,7 @@ contains
     type(scalar_value) :: res
     real*8 :: rp0(3)
     type(field_evaluation_avail) :: request
+    logical :: rejected(mncritp)
 
     !
     write (uout,'("+ List of candidate in-plane CPs")')
@@ -2935,14 +2915,17 @@ contains
 
     write (uout,'("+ Pruning actions on the in-plane CP list")')
     call request%field_nder2()
+    rejected(1:newncriticp) = .false.
     do i = 1, newncriticp
+       if (rejected(i)) cycle
        xp = newcriticp(:,i)
 
        !.discard repeated points
        do j = i+1, newncriticp
+          if (rejected(j)) cycle
           if (sy%c%are_close(newcriticp(:,j),xp,epsf)) then
              write (uout,'("  CP ",A," is equivalent to ",A," -> Rejected!")') string(j), string(i)
-             cycle
+             rejected(j) = .true.
           endif
        enddo
 

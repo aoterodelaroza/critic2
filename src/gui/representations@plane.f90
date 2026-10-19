@@ -452,6 +452,8 @@ contains
           fmin = minval(ff)
           fmax = maxval(ff)
        end if
+       ! a constant map has no contours
+       if (fmax <= fmin) return
        niso = max(d%nlev,2)
        call assign_ziso(d%ctype,niso,ziso,fmin,fmax)
     end if

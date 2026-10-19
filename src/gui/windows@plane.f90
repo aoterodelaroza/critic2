@@ -1226,7 +1226,7 @@ contains
     logical :: changed
 
     integer :: i
-    logical :: ismol, ch, pickoff_
+    logical :: ismol, ch, ch2, pickoff_
 
     changed = .false.
     if (present(ipick)) ipick = 0
@@ -1289,7 +1289,8 @@ contains
       real*8 :: smin, smax
       character(len=*), parameter :: tttype = " (ctrl+click to type a value, e.g. 1e-6)"
 
-      changed = changed .or. iw_checkbox("Fixed range##plane" // sfx // "range",flag,labelleft=.true.)
+      ch = iw_checkbox("Fixed range##plane" // sfx // "range",flag,labelleft=.true.)
+      changed = changed .or. ch
       call iw_tooltip(ttflag,ttshown)
       if (.not.flag) return
       ! general format, and a drag proportional to the value (the range
@@ -1401,7 +1402,7 @@ contains
       call iw_tooltip("Number of points along the first side (" // string(plane_npts_min) // " to " //&
          string(plane_npts_max) // ")",ttshown,whendisabled=.true.)
       call iw_text("x",alignframe=.true.,sameline=.true.)
-      ch = iw_inputint("##planeny",d%ny,width=6,sameline=.true.,notlive=.true.) .or. ch
+      ch2 = iw_inputint("##planeny",d%ny,width=6,sameline=.true.,notlive=.true.)
       call iw_tooltip("Number of points along the second side (" // string(plane_npts_min) // " to " //&
          string(plane_npts_max) // ")",ttshown,whendisabled=.true.)
       if (d%autonpts) then
@@ -1409,7 +1410,7 @@ contains
       else
          d%nx = max(min(d%nx,plane_npts_max),plane_npts_min)
          d%ny = max(min(d%ny,plane_npts_max),plane_npts_min)
-         changed = changed .or. ch
+         changed = changed .or. ch .or. ch2
       end if
       ch = iw_checkbox("Automatic##planeautonpts",d%autonpts,gap=.true.,labelleft=.true.)
       changed = changed .or. ch
@@ -1503,7 +1504,8 @@ contains
     subroutine draw_contours()
       integer :: ic
 
-      changed = changed .or. iw_checkbox("Show##planeshowcont",d%showcont,labelleft=.true.)
+      ch = iw_checkbox("Show##planeshowcont",d%showcont,labelleft=.true.)
+      changed = changed .or. ch
       call iw_tooltip("Draw contour lines on the map",ttshown)
       if (.not.d%showcont) return
 
@@ -1522,7 +1524,8 @@ contains
          & 8 x 10^n), or a list of values",ttshown)
       if (d%ctype == niso_manual) then
          call iw_text("List",alignframe=.true.,gap=.true.)
-         changed = changed .or. iw_inputtext("##planellist",bufsize=1023,textf=d%llist,width=30,sameline=.true.)
+         ch = iw_inputtext("##planellist",bufsize=1023,textf=d%llist,width=30,sameline=.true.)
+         changed = changed .or. ch
          call iw_tooltip("The contour levels, separated by spaces or commas",ttshown)
       elseif (d%ctype /= niso_bader) then
          call iw_text("Number",alignframe=.true.,gap=.true.)
@@ -1541,10 +1544,12 @@ contains
 
       ! more: the colors of the lines, and the values on them
       call iw_text("Positive color",alignframe=.true.)
-      changed = changed .or. iw_coloredit("##planergbpos",rgb=d%rgbpos,sameline=.true.)
+      ch = iw_coloredit("##planergbpos",rgb=d%rgbpos,sameline=.true.)
+      changed = changed .or. ch
       call iw_tooltip("Color of the contour lines of the positive levels",ttshown)
       call iw_text("Negative color",alignframe=.true.,gap=.true.)
-      changed = changed .or. iw_coloredit("##planergbneg",rgb=d%rgbneg,sameline=.true.)
+      ch = iw_coloredit("##planergbneg",rgb=d%rgbneg,sameline=.true.)
+      changed = changed .or. ch
       call iw_tooltip("Color of the contour lines of the zero and negative levels",ttshown)
       if (present(showval)) then
          ch = iw_checkbox("Values##planeshowcval",showval,gap=.true.,labelleft=.true.)
