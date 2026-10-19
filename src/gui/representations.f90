@@ -898,6 +898,7 @@ module representations
   type relief_def
      logical :: on = .false.
      real*8 :: height = slice_rheight_def ! bohr
+     logical :: flip = .false. ! the relief goes against the normal of the plane
      integer :: scale = 0
      logical :: frange = .true.
      real*8 :: fmin = 0d0, fmax = 1d0

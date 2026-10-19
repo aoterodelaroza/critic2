@@ -678,7 +678,7 @@ contains
       associate(rl => r%slice%rl)
         if (rl%on .and. rl%height > 0d0) then
            key = [1_8,transfer(rl%height,1_8),int(rl%scale,8),merge(1_8,0_8,rl%frange),&
-              transfer(rl%fmin,1_8),transfer(rl%fmax,1_8)]
+              transfer(rl%fmin,1_8),transfer(rl%fmax,1_8),merge(1_8,0_8,rl%flip)]
         else
            key = [0_8]
         end if
@@ -750,7 +750,8 @@ contains
     !> along the normal with its value on the scale of the relief, from
     !> zero at the bottom of its range (fixed, in either order, or that
     !> of the values on the map) to the height at the top (clipped to
-    !> it; zero where the value is not finite).
+    !> it; zero where the value is not finite). Against the normal if
+    !> the relief is flipped.
     subroutine slice_shape(c,rl,relief)
       type(slice_cache), intent(inout) :: c
       type(relief_def), intent(in) :: rl
@@ -787,7 +788,7 @@ contains
          if (hmax > hmin) then
             hh = (hh - hmin) / (hmax - hmin)
             where (ieee_is_finite(c%ff) .and. ieee_is_finite(hh))
-               hh = rl%height * max(min(hh,1d0),0d0)
+               hh = merge(-rl%height,rl%height,rl%flip) * max(min(hh,1d0),0d0)
             elsewhere
                hh = 0d0
             end where

@@ -529,6 +529,7 @@ contains
          associate(rl => r%slice%rl)
            call io%x(q,'relief',rl%on)
            call io%x(q,'rheight',rl%height,lo=0d0)
+           call io%x(q,'rflip',rl%flip)
            call io%x(q,'rscale',rl%scale,0,2)
            call io%x(q,'rfrange',rl%frange)
            call io%x(q,'rfmin',rl%fmin)

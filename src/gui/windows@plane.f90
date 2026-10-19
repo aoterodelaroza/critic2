@@ -1640,14 +1640,15 @@ contains
     logical :: changed
 
     changed = iw_checkbox("Relief##" // id // "relief",rl%on,gap=gap,labelleft=.true.)
-    call iw_tooltip("Draw the map as a relief: each point rises over the plane with its value&
+    call iw_tooltip("Draw the map as a relief: each point rises from the plane with its value&
        & on the scale of the relief, from the bottom of its range (on the plane) to the top",ttshown)
 
   end function relief_checkbox
 
   !> The relief of a plane map in the view (rl, of a rep_slice), if
   !> it is drawn: its height, after the previous pair in the line if
-  !> gap (else on a new line), and its scale and range. id makes the
+  !> gap (else on a new line), its side of the plane, and its scale
+  !> and range. id makes the
   !> widget IDs unique. Returns whether anything changed.
   function relief_form(rl,id,gap,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_dragfloat_real8, iw_combo_simple
@@ -1669,6 +1670,9 @@ contains
        scale=bohrtoa,decimal=2,sameline=.true.)
     changed = changed .or. ch
     call iw_tooltip("Height of the relief at the top of its range",ttshown)
+    ch = iw_checkbox("Flip##" // id // "rflip",rl%flip,gap=.true.,labelleft=.true.)
+    changed = changed .or. ch
+    call iw_tooltip("Raise the relief on the other side of the plane",ttshown)
 
     ! the scale and the range
     call iw_text("Relief scale",alignframe=.true.)
