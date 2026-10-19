@@ -506,16 +506,13 @@ contains
 
   !> The colors of the values ff of the map, in rgb (3,nx*ny; the
   !> first index of ff runs fastest), and the range of the values on the
-  !> scale of the colors (gmin, gmax). If given, gn (nx,ny) returns
-  !> the values on that scale, from 0 at gmin to 1 at gmax (clipped; 0
-  !> where not finite).
-  module subroutine plane_def_colors(d,ff,gmin,gmax,rgb,gn)
+  !> scale of the colors (gmin, gmax).
+  module subroutine plane_def_colors(d,ff,gmin,gmax,rgb)
     use ieee_arithmetic, only: ieee_is_finite
     class(plane_def), intent(in) :: d
     real*8, intent(in) :: ff(:,:)
     real*8, intent(out) :: gmin, gmax
     real(c_float), allocatable, intent(inout) :: rgb(:,:)
-    real*8, allocatable, intent(inout), optional :: gn(:,:)
 
     integer :: nx, ny, ix, iy, k, il
     real*8 :: gv
@@ -550,20 +547,14 @@ contains
     call iw_colormap_lut(d%icmap,lut)
     if (allocated(rgb)) deallocate(rgb)
     allocate(rgb(3,nx*ny))
-    if (present(gn)) then
-       if (allocated(gn)) deallocate(gn)
-       allocate(gn(nx,ny))
-    end if
     k = 0
     do iy = 1, ny
        do ix = 1, nx
           k = k + 1
           gv = (g(ix,iy) - gmin) / (gmax - gmin)
           if (.not.ieee_is_finite(gv)) gv = 0d0
-          gv = max(min(gv,1d0),0d0)
-          il = nint(gv * (nlut-1)) + 1
+          il = nint(max(min(gv,1d0),0d0) * (nlut-1)) + 1
           rgb(:,k) = lut(:,il)
-          if (present(gn)) gn(ix,iy) = gv
        end do
     end do
 
@@ -590,20 +581,14 @@ contains
     real*8, intent(in) :: f
     real*8 :: plane_def_cvalue
 
-    if (d%cscale == 1) then
-       plane_def_cvalue = log10(max(abs(f),1d-30))
-    elseif (d%cscale == 2) then
-       plane_def_cvalue = 2d0 / pi * atan(f)
-    else
-       plane_def_cvalue = f
-    end if
+    plane_def_cvalue = scale_value(f,d%cscale)
 
   end function plane_def_cvalue
 
   !> Add the plane map object r to the draw lists obj: the colored
   !> mesh of the region and the contour lines (flat cylinders on both
-  !> sides of the map). The mesh is flat, or a relief of the values on
-  !> the scale of the colors (relief). The values, the mesh, its
+  !> sides of the map). The mesh is flat, or a relief of the values
+  !> (r%slice%rl). The values, the mesh, its
   !> colors, its shape, and the lines are cached, and calculated again
   !> only if what they depend on changed. The values are not calculated
   !> while the initialization threads run, or if they are given
@@ -611,13 +596,14 @@ contains
   module subroutine slice_draw(r,obj)
     use systems, only: sys, are_threads_running
     use tools_math, only: cross
+    use ieee_arithmetic, only: ieee_is_finite
     class(representation), intent(inout) :: r
     type(scene_objects), intent(inout) :: obj
 
     integer*8, allocatable :: key(:)
     integer :: isys, nx, ny, ix, iy, k, i, j, niso, is, nab
     logical :: stale
-    real*8 :: a0(3), nrm(3), a(2,2), det, ainv(2,2), gmin, gmax, h, dd(2)
+    real*8 :: a0(3), nrm(3), a(2,2), det, ainv(2,2), gmin, gmax, dd(2)
     real*8 :: ab(2,3), pp(3,3), nn(3,3), off
     type(dl_cylinder) :: dcyl
 
@@ -675,23 +661,35 @@ contains
                k = k + 2
             end do
          end do
-         c%hshape = -1d0
+         if (allocated(c%keyshape)) deallocate(c%keyshape)
       end if
 
-      ! its colors (and the shape goes stale, for it follows them)
+      ! its colors
       call d%colorkey(key)
       stale = .not.allocated(c%keycolor) .or. .not.allocated(c%mesh%rgbv)
       if (.not.stale) stale = any(c%keycolor /= key)
       if (stale) then
          call move_alloc(key,c%keycolor)
-         call d%colors(c%ff,gmin,gmax,c%mesh%rgbv,c%gn)
-         c%hshape = -1d0
+         call d%colors(c%ff,gmin,gmax,c%mesh%rgbv)
       end if
       c%mesh%alpha = r%slice%alpha
 
       ! its shape: flat, or the relief
-      h = merge(r%slice%rheight,0d0,r%slice%relief)
-      if (c%hshape /= h) call slice_shape(c,h)
+      associate(rl => r%slice%rl)
+        if (rl%on .and. rl%height > 0d0) then
+           key = [1_8,transfer(rl%height,1_8),int(rl%scale,8),merge(1_8,0_8,rl%frange),&
+              transfer(rl%fmin,1_8),transfer(rl%fmax,1_8)]
+        else
+           key = [0_8]
+        end if
+        stale = .not.allocated(c%keyshape)
+        if (.not.stale) stale = (size(c%keyshape) /= size(key))
+        if (.not.stale) stale = any(c%keyshape /= key)
+        if (stale) then
+           call move_alloc(key,c%keyshape)
+           call slice_shape(c,rl,c%keyshape(1) == 1_8)
+        end if
+      end associate
       call dl_append(obj%msh,obj%nmsh,c%mesh)
 
       ! the contour lines
@@ -725,7 +723,7 @@ contains
             iy = min(max(floor(0.5d0 * (ab(2,1) + ab(2,2))),0),ny-2)
             dd = (ab(1,1:2) - ix) - (ab(2,1:2) - iy)
             nab = 2
-            if (c%hshape > 0d0 .and. dd(1) * dd(2) < 0d0) then
+            if (c%isrelief .and. dd(1) * dd(2) < 0d0) then
                nab = 3
                ab(:,3) = ab(:,2)
                ab(:,2) = ab(:,1) + dd(1) / (dd(1) - dd(2)) * (ab(:,3) - ab(:,1))
@@ -748,26 +746,61 @@ contains
   contains
 
     !> The shape of the mesh of the map c: the positions and normals of
-    !> its vertices. Flat (h = 0), or a relief of height h (bohr): each
-    !> point rises along the normal by h times its value on the scale of
-    !> the colors (gn).
-    subroutine slice_shape(c,h)
+    !> its vertices. Flat, or (relief) the relief rl: each point rises
+    !> along the normal with its value on the scale of the relief, from
+    !> zero at the bottom of its range (fixed, in either order, or that
+    !> of the values on the map) to the height at the top (clipped to
+    !> it; zero where the value is not finite).
+    subroutine slice_shape(c,rl,relief)
       type(slice_cache), intent(inout) :: c
-      real*8, intent(in) :: h
+      type(relief_def), intent(in) :: rl
+      logical, intent(in) :: relief
 
       integer :: nx, ny, ix, iy, k, i0, i1, j0, j1
-      real*8 :: nv(3)
-      real*8, allocatable :: xx(:,:,:)
+      real*8 :: nv(3), hmin, hmax
+      real*8, allocatable :: xx(:,:,:), hh(:,:)
+      logical, allocatable :: ok(:,:)
 
       nx = size(c%ff,1)
       ny = size(c%ff,2)
-      c%hshape = h
+      c%isrelief = relief
+
+      ! the heights; the range of the map is that of its finite values
+      ! (on the log scale, of those not zero)
+      allocate(hh(nx,ny))
+      hh = 0d0
+      if (relief) then
+         do iy = 1, ny
+            do ix = 1, nx
+               hh(ix,iy) = scale_value(c%ff(ix,iy),rl%scale)
+            end do
+         end do
+         if (rl%frange) then
+            hmin = min(scale_value(rl%fmin,rl%scale),scale_value(rl%fmax,rl%scale))
+            hmax = max(scale_value(rl%fmin,rl%scale),scale_value(rl%fmax,rl%scale))
+         else
+            ok = ieee_is_finite(c%ff) .and. ieee_is_finite(hh)
+            if (rl%scale == 1) ok = ok .and. abs(c%ff) > 1d-30
+            hmin = minval(hh,mask=ok)
+            hmax = maxval(hh,mask=ok)
+         end if
+         if (hmax > hmin) then
+            hh = (hh - hmin) / (hmax - hmin)
+            where (ieee_is_finite(c%ff) .and. ieee_is_finite(hh))
+               hh = rl%height * max(min(hh,1d0),0d0)
+            elsewhere
+               hh = 0d0
+            end where
+         else
+            hh = 0d0
+         end if
+      end if
 
       ! the positions
       allocate(xx(3,nx,ny))
       do iy = 1, ny
          do ix = 1, nx
-            xx(:,ix,iy) = c%x0 + real(ix-1,8) * c%uu + real(iy-1,8) * c%vv + h * c%gn(ix,iy) * nrm
+            xx(:,ix,iy) = c%x0 + real(ix-1,8) * c%uu + real(iy-1,8) * c%vv + hh(ix,iy) * nrm
          end do
       end do
 
@@ -779,7 +812,7 @@ contains
             k = k + 1
             c%mesh%x(:,k) = real(xx(:,ix,iy),c_float)
             nv = nrm
-            if (h > 0d0) then
+            if (relief) then
                i0 = max(ix-1,1)
                i1 = min(ix+1,nx)
                j0 = max(iy-1,1)
@@ -811,7 +844,7 @@ contains
       integer :: k, iv(3)
       real*8 :: t, s, w(3)
 
-      if (c%hshape <= 0d0) then
+      if (.not.c%isrelief) then
          p = c%x0 + ab(1) * c%uu + ab(2) * c%vv
          nl = nrm
          return
@@ -841,5 +874,22 @@ contains
     end subroutine surface_point
 
   end subroutine slice_draw
+
+  !> The value f on a scale of a plane map (0 = linear, 1 = log|f|,
+  !> 2 = atan).
+  function scale_value(f,scale)
+    real*8, intent(in) :: f
+    integer, intent(in) :: scale
+    real*8 :: scale_value
+
+    if (scale == 1) then
+       scale_value = log10(max(abs(f),1d-30))
+    elseif (scale == 2) then
+       scale_value = 2d0 / pi * atan(f)
+    else
+       scale_value = f
+    end if
+
+  end function scale_value
 
 end submodule plane

@@ -878,12 +878,10 @@ module representations
      ! the colored mesh of the values, and what its colors are made from
      type(dl_mesh) :: mesh
      integer*8, allocatable :: keycolor(:)
-     ! the values on the scale of the colors, from 0 at the bottom of
-     ! their range to 1 at the top (clipped; 0 where not finite)
-     real*8, allocatable :: gn(:,:)
-     ! the height of the relief the shape of the mesh was made for
-     ! (bohr; 0 = flat, -1 = not made yet)
-     real*8 :: hshape = -1d0
+     ! the shape of the mesh: whether it is a relief, and what it is
+     ! made from
+     logical :: isrelief = .false.
+     integer*8, allocatable :: keyshape(:)
   end type slice_cache
   public :: slice_cache
 
@@ -892,6 +890,20 @@ module representations
   ! default height of the relief of a plane map object (bohr)
   real*8, parameter, public :: slice_rheight_def = 2d0 / bohrtoa
 
+  !> The relief of a plane map: the map rises over the plane, along
+  !> its normal, with the value on its own scale (0 = linear, 1 =
+  !> log|f|, 2 = atan), from zero at the bottom of the range (fixed, or
+  !> the range of the values on the map) to the height at the top
+  !> (clipped to it).
+  type relief_def
+     logical :: on = .false.
+     real*8 :: height = slice_rheight_def ! bohr
+     integer :: scale = 0
+     logical :: frange = .true.
+     real*8 :: fmin = 0d0, fmax = 1d0
+  end type relief_def
+  public :: relief_def
+
   !> Plane map options (reptype_slice; accessed as r%slice%...): a map
   !> of a field on a region of a plane drawn in the scene, as a colored
   !> mesh with contour lines.
@@ -899,11 +911,7 @@ module representations
      type(plane_def) :: d ! the map
      real(c_float) :: alpha = 1._c_float ! opacity
      real*8 :: crad = slice_crad_def ! radius of the contour lines (bohr)
-     ! relief: the map rises over the plane, along its normal, with the
-     ! value on the scale of the colors (from zero at the bottom of the
-     ! range of the colors to rheight at the top)
-     logical :: relief = .false.
-     real*8 :: rheight = slice_rheight_def ! bohr
+     type(relief_def) :: rl ! the relief
      logical :: nocalc = .false. ! the values are given (c), never calculated (the map of a window)
      type(slice_cache), allocatable :: c ! the values and the lines
   end type rep_slice
@@ -1914,12 +1922,11 @@ module representations
        class(plane_def), intent(in) :: d
        integer*8, allocatable, intent(inout) :: key(:)
      end subroutine plane_def_contkey
-     module subroutine plane_def_colors(d,ff,gmin,gmax,rgb,gn)
+     module subroutine plane_def_colors(d,ff,gmin,gmax,rgb)
        class(plane_def), intent(in) :: d
        real*8, intent(in) :: ff(:,:)
        real*8, intent(out) :: gmin, gmax
        real(c_float), allocatable, intent(inout) :: rgb(:,:)
-       real*8, allocatable, intent(inout), optional :: gn(:,:)
      end subroutine plane_def_colors
      module subroutine plane_def_colorkey(d,key)
        class(plane_def), intent(in) :: d

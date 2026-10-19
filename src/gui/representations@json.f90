@@ -526,8 +526,14 @@ contains
          end associate
          call io%x(q,'alpha',r%slice%alpha)
          call io%x(q,'crad',r%slice%crad,lo=0d0)
-         call io%x(q,'relief',r%slice%relief)
-         call io%x(q,'rheight',r%slice%rheight,lo=0d0)
+         associate(rl => r%slice%rl)
+           call io%x(q,'relief',rl%on)
+           call io%x(q,'rheight',rl%height,lo=0d0)
+           call io%x(q,'rscale',rl%scale,0,2)
+           call io%x(q,'rfrange',rl%frange)
+           call io%x(q,'rfmin',rl%fmin)
+           call io%x(q,'rfmax',rl%fmax)
+         end associate
       end select
 
     end subroutine xfer_options
