@@ -155,15 +155,19 @@ contains
 
        ! the map takes the rest of the window, leaving room for the
        ! note about the labels (if shown), the table of values (if
-       ! open, it takes part of the space), and Close
+       ! open, it takes part of the space), and Close. The window grows
+       ! to fit its content: the stretch of the map and the table beyond
+       ! their minimum heights is elastic, not content to fit
        call igGetContentRegionAvail(sz0)
        sz0%y = sz0%y - iw_calcheight(merge(3,2,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
        htable = 0._c_float
        if (w%pl%secdata%open .and. allocated(w%pl%ff)) then
           htable = max(0.35_c_float * sz0%y,iw_calcheight(4,0,.false.))
           sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
+          w%heightslack = htable - iw_calcheight(4,0,.false.)
        end if
        sz0%y = max(sz0%y,iw_calcheight(8,0,.false.))
+       if (allocated(w%pl%ff)) w%heightslack = w%heightslack + sz0%y - iw_calcheight(8,0,.false.)
        call draw_map(sz0,refit,hover,xhov)
 
        ! the table of values

@@ -163,22 +163,28 @@ contains
        ! the plot takes the rest of the window, leaving room for the
        ! scale of the value axis, the cursor, the table of values (if
        ! open, it takes part of the space; all of it if the plot is
-       ! closed), and Close
+       ! closed), and Close. The window grows to fit its content: the
+       ! stretch of the plot and the table beyond their minimum heights
+       ! is elastic, not content to fit
        call iw_separatortext("Plot",w%ln%secplot)
        call igGetContentRegionAvail(sz0)
        sz0%x = -1._c_float
-       sz0%y = sz0%y - iw_calcheight(5,0,.true.)
        htable = 0._c_float
-       if (w%ln%secdata%open) then
-          htable = max(0.4_c_float * sz0%y,iw_calcheight(4,0,.false.))
-          sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
-       end if
-       sz0%y = max(sz0%y,iw_calcheight(6,0,.false.))
        if (w%ln%secplot%open) then
+          sz0%y = sz0%y - iw_calcheight(5,0,.true.)
+          if (w%ln%secdata%open) then
+             htable = max(0.4_c_float * sz0%y,iw_calcheight(4,0,.false.))
+             sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
+          end if
+          sz0%y = max(sz0%y,iw_calcheight(6,0,.false.))
           call draw_plot(sz0,refit)
+          if (allocated(w%ln%d)) w%heightslack = sz0%y - iw_calcheight(6,0,.false.)
        elseif (w%ln%secdata%open) then
-          htable = htable + sz0%y
+          htable = max(sz0%y - iw_calcheight(2,0,.true.) - iw_calcheight(0,0,.true.),&
+             iw_calcheight(4,0,.false.))
        end if
+       if (w%ln%secdata%open .and. allocated(w%ln%d)) &
+          w%heightslack = w%heightslack + htable - iw_calcheight(4,0,.false.)
 
        ! the table of values
        call draw_data_section()
