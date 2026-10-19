@@ -1525,7 +1525,7 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
-    use gui_main, only: fontsize, io, g
+    use gui_main, only: fontsize, io, g, mainvwp
     use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip,&
        iw_capturing, iw_capture_abort, file_name_root
@@ -1793,7 +1793,7 @@ contains
        elseif (w%type == wintype_line) then
           call init_window("Line Profile",80,40,grow=.true.)
        elseif (w%type == wintype_plane) then
-          call init_window("Plane Map",72,50,grow=.true.)
+          call init_window("Plane Map",72,70,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1855,26 +1855,41 @@ contains
           ! window to the display and scrolls for the rest: giving up on
           ! the grow instead would leave the window at whatever size it
           ! happened to have, which on a small display is the bare
-          ! minimum -- a couple of header lines and a scroll bar.
+          ! minimum -- a couple of header lines and a scroll bar. A
+          ! collapsed grow-to-fit window is left alone, and one whose
+          ! bottom would fall under the display is moved up (not past
+          ! the menu bar).
           if (.not.w%isdocked) then
              szmax%x = huge(1._c_float)
              szmax%y = huge(1._c_float)
              call clamp_to_display(szmax)
              szmin%x = min(25._c_float * fontsize%x,szmax%x)
              szmin%y = min(6._c_float * fontsize%y,szmax%y)
-             if (w%needheight > 0._c_float) then
-                hneed = min(w%needheight,szmax%y)
-                szmin%y = max(szmin%y,hneed)
-                ! the buttons are anchored to the window's bottom: raise
-                ! the window if the grown window would stick out under
-                ! the bottom edge of the display
+             if (w%growtofit .and. c_associated(w%ptr)) then
                 call c_f_pointer(w%ptr,wptr)
-                if (wptr%Pos%y + hneed > szmax%y) then
-                   pos%x = wptr%Pos%x
-                   pos%y = max(szmax%y - hneed,0._c_float)
-                   pivot%x = 0._c_float
-                   pivot%y = 0._c_float
-                   call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
+                ! a collapsed window (its title bar only) is left alone:
+                ! it does not show its content, and raising it to make
+                ! room for the content it does not show moves it every
+                ! frame
+                if (.not.wptr%Collapsed) then
+                   if (w%needheight > 0._c_float) szmin%y = max(szmin%y,min(w%needheight,szmax%y))
+                   ! the buttons and the resize grip are at the window's
+                   ! bottom: raise the window if the grown window, or the
+                   ! window itself (a tall initial size on a short
+                   ! display), would stick out under the bottom edge of
+                   ! the display, but no higher than the menu bar. Not by
+                   ! its own size while the mouse is down: moving the
+                   ! window under a resize grip that is being dragged
+                   ! makes the window grow and run up every frame
+                   hneed = szmin%y
+                   if (.not.igIsMouseDown(ImGuiMouseButton_Left)) hneed = max(hneed,min(wptr%Size%y,szmax%y))
+                   if (wptr%Pos%y + hneed > szmax%y) then
+                      pos%x = wptr%Pos%x
+                      pos%y = max(szmax%y - hneed,mainvwp%WorkPos%y)
+                      pivot%x = 0._c_float
+                      pivot%y = 0._c_float
+                      call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
+                   end if
                 end if
              end if
              call igSetNextWindowSizeConstraints(szmin,szmax,c_null_funptr,c_null_ptr)

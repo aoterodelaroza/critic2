@@ -69,10 +69,11 @@ contains
     integer :: isys, iview, istat, i, ipick
     real*8 :: xc(3), rad, v(3,3), xhov(3)
     type(ImVec2) :: sz0
-    real(c_float) :: htable
+    real(c_float) :: htable, hmap
     type(rep_shape), allocatable :: shp(:)
 
     logical, save :: ttshown = .false. ! tooltip flag
+    integer, parameter :: map_minlines = 8 ! minimum height of the map (lines)
 
     ! this window operates on the system shown by its anchor view
     doquit = .not.w%anchor(iview,isys,syschanged)
@@ -166,8 +167,9 @@ contains
           sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
           w%heightslack = htable - iw_calcheight(4,0,.false.)
        end if
-       sz0%y = max(sz0%y,iw_calcheight(8,0,.false.))
-       if (allocated(w%pl%ff)) w%heightslack = w%heightslack + sz0%y - iw_calcheight(8,0,.false.)
+       hmap = iw_calcheight(map_minlines,0,.false.)
+       sz0%y = max(sz0%y,hmap)
+       if (allocated(w%pl%ff)) w%heightslack = w%heightslack + sz0%y - hmap
        call draw_map(sz0,refit,hover,xhov)
 
        ! the table of values
@@ -223,7 +225,7 @@ contains
 
     !> The Display section: the labels of the atoms and critical
     !> points near the plane, and whether the map is shown in the
-    !> view, and its opacity there. More: what is labeled, the color
+    !> view, with its relief and opacity there. More: what is labeled, the color
     !> and size of the labels, their text, and the distance to the
     !> plane.
     subroutine draw_labels_option()
@@ -237,12 +239,13 @@ contains
       call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
          & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
       if (w%pl%showview) then
+         if (relief_checkbox(w%pl%rl,"plane",.true.,ttshown)) w%pl%viewdirty = .true.
          call iw_text("Opacity",alignframe=.true.,gap=.true.)
          if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
             max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
             w%pl%viewdirty = .true.
          call iw_tooltip("Opacity of the map in the view (1 = opaque; the contour lines stay opaque)",ttshown)
-         if (relief_form(w%pl%rl,"plane",ttshown)) w%pl%viewdirty = .true.
+         if (relief_form(w%pl%rl,"plane",.false.,ttshown)) w%pl%viewdirty = .true.
       end if
       if (.not.w%pl%secdisp%more .or. .not.w%pl%showlabels) return
 
@@ -1599,7 +1602,9 @@ contains
        min=0d0,scale=bohrtoa,decimal=3,sameline=.true.)
     changed = changed .or. ch
     call iw_tooltip("Radius of the contour lines",ttshown)
-    ch = relief_form(w%rep%slice%rl,"slice",ttshown)
+    ch = relief_checkbox(w%rep%slice%rl,"slice",.false.,ttshown)
+    changed = changed .or. ch
+    ch = relief_form(w%rep%slice%rl,"slice",.true.,ttshown)
     changed = changed .or. ch
 
     ! what is wrong
@@ -1622,14 +1627,34 @@ contains
 
   end subroutine plane_free_texture
 
-  !> The relief of a plane map in the view (rl, of a rep_slice):
-  !> whether it is drawn, its height, and its scale and range. id
-  !> makes the widget IDs unique. Returns whether anything changed.
-  function relief_form(rl,id,ttshown) result(changed)
+  !> The checkbox of the relief of a plane map in the view (rl, of a
+  !> rep_slice), after the previous pair in the line if gap. id makes
+  !> the widget ID unique. Returns whether it changed.
+  function relief_checkbox(rl,id,gap,ttshown) result(changed)
+    use utils, only: iw_tooltip, iw_checkbox
+    use representations, only: relief_def
+    type(relief_def), intent(inout) :: rl
+    character(len=*), intent(in) :: id
+    logical, intent(in) :: gap
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    changed = iw_checkbox("Relief##" // id // "relief",rl%on,gap=gap,labelleft=.true.)
+    call iw_tooltip("Draw the map as a relief: each point rises over the plane with its value&
+       & on the scale of the relief, from the bottom of its range (on the plane) to the top",ttshown)
+
+  end function relief_checkbox
+
+  !> The relief of a plane map in the view (rl, of a rep_slice), if
+  !> it is drawn: its height, after the previous pair in the line if
+  !> gap (else on a new line), and its scale and range. id makes the
+  !> widget IDs unique. Returns whether anything changed.
+  function relief_form(rl,id,gap,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_dragfloat_real8, iw_combo_simple
     use representations, only: relief_def
     type(relief_def), intent(inout) :: rl
     character(len=*), intent(in) :: id
+    logical, intent(in) :: gap
     logical, intent(inout) :: ttshown
     logical :: changed
 
@@ -1637,11 +1662,9 @@ contains
     real*8 :: smin, smax
     character(len=*), parameter :: tttype = " (ctrl+click to type a value, e.g. 1e-6)"
 
-    changed = iw_checkbox("Relief##" // id // "relief",rl%on,labelleft=.true.)
-    call iw_tooltip("Draw the map as a relief: each point rises over the plane with its value&
-       & on the scale of the relief, from the bottom of its range (on the plane) to the top",ttshown)
+    changed = .false.
     if (.not.rl%on) return
-    call iw_text("Height (Å)",alignframe=.true.,gap=.true.)
+    call iw_text("Height (Å)",alignframe=.true.,gap=gap)
     ch = iw_dragfloat_real8("##" // id // "rheight",x1=rl%height,speed=0.01d0,min=0d0,&
        scale=bohrtoa,decimal=2,sameline=.true.)
     changed = changed .or. ch

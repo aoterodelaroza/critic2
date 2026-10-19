@@ -1151,7 +1151,7 @@ module windows
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
      logical :: growtofit = .false. ! grow the window to fit its content (height-only; width-only init_window)
-     real(c_float) :: needheight = 0._c_float ! window height that shows all content; >0 while it overflows
+     real(c_float) :: needheight = 0._c_float ! window height that shows all content (grow-to-fit windows)
      real(c_float) :: heightslack = 0._c_float ! elastic height the body added beyond its minimum layout
      real(c_float) :: needwidth = 0._c_float ! one-shot: set the window to this width, then clear (see draw_mo)
      integer, allocatable :: iord(:) ! table order (multiple windows)

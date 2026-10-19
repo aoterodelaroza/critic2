@@ -325,6 +325,8 @@ contains
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
     g%Style%Colors(ImGuiCol_TabActive+1) = g%Style%Colors(ImGuiCol_TabHovered+1)
+    ! a collapsed window shows its title bar opaque, as an inactive one
+    g%Style%Colors(ImGuiCol_TitleBgCollapsed+1) = g%Style%Colors(ImGuiCol_TitleBg+1)
 
     ! scale the style (padding, spacing, rounding, ...) to the display for
     ! HiDPI; no-op at 1.0 so non-scaled displays are unaffected
