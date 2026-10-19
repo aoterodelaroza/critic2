@@ -506,13 +506,16 @@ contains
 
   !> The colors of the values ff of the map, in rgb (3,nx*ny; the
   !> first index of ff runs fastest), and the range of the values on the
-  !> scale of the colors (gmin, gmax).
-  module subroutine plane_def_colors(d,ff,gmin,gmax,rgb)
+  !> scale of the colors (gmin, gmax). If given, gn (nx,ny) returns
+  !> the values on that scale, from 0 at gmin to 1 at gmax (clipped; 0
+  !> where not finite).
+  module subroutine plane_def_colors(d,ff,gmin,gmax,rgb,gn)
     use ieee_arithmetic, only: ieee_is_finite
     class(plane_def), intent(in) :: d
     real*8, intent(in) :: ff(:,:)
     real*8, intent(out) :: gmin, gmax
     real(c_float), allocatable, intent(inout) :: rgb(:,:)
+    real*8, allocatable, intent(inout), optional :: gn(:,:)
 
     integer :: nx, ny, ix, iy, k, il
     real*8 :: gv
@@ -547,14 +550,20 @@ contains
     call iw_colormap_lut(d%icmap,lut)
     if (allocated(rgb)) deallocate(rgb)
     allocate(rgb(3,nx*ny))
+    if (present(gn)) then
+       if (allocated(gn)) deallocate(gn)
+       allocate(gn(nx,ny))
+    end if
     k = 0
     do iy = 1, ny
        do ix = 1, nx
           k = k + 1
           gv = (g(ix,iy) - gmin) / (gmax - gmin)
           if (.not.ieee_is_finite(gv)) gv = 0d0
-          il = nint(max(min(gv,1d0),0d0) * (nlut-1)) + 1
+          gv = max(min(gv,1d0),0d0)
+          il = nint(gv * (nlut-1)) + 1
           rgb(:,k) = lut(:,il)
+          if (present(gn)) gn(ix,iy) = gv
        end do
     end do
 
@@ -593,10 +602,12 @@ contains
 
   !> Add the plane map object r to the draw lists obj: the colored
   !> mesh of the region and the contour lines (flat cylinders on both
-  !> sides of the plane). The values, the mesh, its colors, and the
-  !> lines are cached, and calculated again only if what they depend on
-  !> changed. The values are not calculated while the initialization
-  !> threads run, or if they are given (nocalc).
+  !> sides of the map). The mesh is flat, or a relief of the values on
+  !> the scale of the colors (relief). The values, the mesh, its
+  !> colors, its shape, and the lines are cached, and calculated again
+  !> only if what they depend on changed. The values are not calculated
+  !> while the initialization threads run, or if they are given
+  !> (nocalc).
   module subroutine slice_draw(r,obj)
     use systems, only: sys, are_threads_running
     use tools_math, only: cross
@@ -604,9 +615,10 @@ contains
     type(scene_objects), intent(inout) :: obj
 
     integer*8, allocatable :: key(:)
-    integer :: isys, nx, ny, ix, iy, k, i, j, niso, is
+    integer :: isys, nx, ny, ix, iy, k, i, j, niso, is, nab
     logical :: stale
-    real*8 :: a0(3), gmin, gmax, nrm(3), p1(3), p2(3), off(3)
+    real*8 :: a0(3), nrm(3), a(2,2), det, ainv(2,2), gmin, gmax, h, dd(2)
+    real*8 :: ab(2,3), pp(3,3), nn(3,3), off
     type(dl_cylinder) :: dcyl
 
     isys = r%id
@@ -636,22 +648,24 @@ contains
       if (.not.allocated(c%ff)) return
       nx = size(c%ff,1)
       ny = size(c%ff,2)
+
+      ! the normal of the map, and the transformation from the frame
+      ! of the region to the coordinates of the grid (0 at its origin)
       nrm = cross(c%e1,c%e2)
+      a(1,1) = dot_product(c%uu,c%e1)
+      a(1,2) = dot_product(c%vv,c%e1)
+      a(2,1) = dot_product(c%uu,c%e2)
+      a(2,2) = dot_product(c%vv,c%e2)
+      det = a(1,1) * a(2,2) - a(1,2) * a(2,1)
+      ainv = reshape((/a(2,2), -a(2,1), -a(1,2), a(1,1)/),(/2,2/)) / det
 
       ! the mesh: one vertex per point (the first index runs fastest),
-      ! two triangles per cell of the grid
+      ! two triangles per cell of the grid; the positions and the
+      ! normals are its shape (below)
       if (c%mesh%nv == 0) then
          c%mesh%nv = nx * ny
          c%mesh%nf = 2 * (nx-1) * (ny-1)
          allocate(c%mesh%x(3,c%mesh%nv),c%mesh%nrm(3,c%mesh%nv),c%mesh%idx(3,c%mesh%nf))
-         k = 0
-         do iy = 1, ny
-            do ix = 1, nx
-               k = k + 1
-               c%mesh%x(:,k) = real(c%x0 + real(ix-1,8) * c%uu + real(iy-1,8) * c%vv,c_float)
-               c%mesh%nrm(:,k) = real(nrm,c_float)
-            end do
-         end do
          k = 0
          do iy = 1, ny-1
             do ix = 1, nx-1
@@ -661,17 +675,23 @@ contains
                k = k + 2
             end do
          end do
+         c%hshape = -1d0
       end if
 
-      ! its colors
+      ! its colors (and the shape goes stale, for it follows them)
       call d%colorkey(key)
       stale = .not.allocated(c%keycolor) .or. .not.allocated(c%mesh%rgbv)
       if (.not.stale) stale = any(c%keycolor /= key)
       if (stale) then
          call move_alloc(key,c%keycolor)
-         call d%colors(c%ff,gmin,gmax,c%mesh%rgbv)
+         call d%colors(c%ff,gmin,gmax,c%mesh%rgbv,c%gn)
+         c%hshape = -1d0
       end if
       c%mesh%alpha = r%slice%alpha
+
+      ! its shape: flat, or the relief
+      h = merge(r%slice%rheight,0d0,r%slice%relief)
+      if (c%hshape /= h) call slice_shape(c,h)
       call dl_append(obj%msh,obj%nmsh,c%mesh)
 
       ! the contour lines
@@ -685,29 +705,140 @@ contains
          call d%contours(c%ff,c%uu,c%vv,niso,c%ziso,c%nline,c%lptr,c%xy,c%liso)
       end if
 
-      ! one flat cylinder per segment, on each side of the plane (a
-      ! flat cylinder is drawn with half its radius); the coordinates of
-      ! the lines are in the frame of the region, from the origin of the
-      ! grid
+      ! one flat cylinder per segment, on each side of the map (a flat
+      ! cylinder is drawn with half its radius), off the mesh along its
+      ! normal; the coordinates of the lines are in the frame of the
+      ! region, from the origin of the grid. On a relief, a segment that
+      ! crosses the diagonal of its cell is split there, so that it
+      ! follows the two triangles of the cell.
       dcyl%r = real(r%slice%crad,c_float)
-      do is = -1, 1, 2
-         off = real(is,8) * 0.5d0 * r%slice%crad * nrm
-         do i = 1, c%nline
-            if (c%ziso(c%liso(i)) > 0d0) then
-               dcyl%rgb = d%rgbpos
-            else
-               dcyl%rgb = d%rgbneg
+      do i = 1, c%nline
+         if (c%ziso(c%liso(i)) > 0d0) then
+            dcyl%rgb = d%rgbpos
+         else
+            dcyl%rgb = d%rgbneg
+         end if
+         do j = c%lptr(i), c%lptr(i+1)-2
+            ab(:,1) = matmul(ainv,c%xy(:,j))
+            ab(:,2) = matmul(ainv,c%xy(:,j+1))
+            ix = min(max(floor(0.5d0 * (ab(1,1) + ab(1,2))),0),nx-2)
+            iy = min(max(floor(0.5d0 * (ab(2,1) + ab(2,2))),0),ny-2)
+            dd = (ab(1,1:2) - ix) - (ab(2,1:2) - iy)
+            nab = 2
+            if (c%hshape > 0d0 .and. dd(1) * dd(2) < 0d0) then
+               nab = 3
+               ab(:,3) = ab(:,2)
+               ab(:,2) = ab(:,1) + dd(1) / (dd(1) - dd(2)) * (ab(:,3) - ab(:,1))
             end if
-            do j = c%lptr(i), c%lptr(i+1)-2
-               p1 = c%x0 + c%xy(1,j) * c%e1 + c%xy(2,j) * c%e2 + off
-               p2 = c%x0 + c%xy(1,j+1) * c%e1 + c%xy(2,j+1) * c%e2 + off
-               dcyl%x1 = real(p1,c_float)
-               dcyl%x2 = real(p2,c_float)
-               call dl_append(obj%cylflat,obj%ncylflat,dcyl)
+            do k = 1, nab
+               call surface_point(c,ab(:,k),ix,iy,pp(:,k),nn(:,k))
+            end do
+            do is = -1, 1, 2
+               off = real(is,8) * 0.5d0 * r%slice%crad
+               do k = 1, nab-1
+                  dcyl%x1 = real(pp(:,k) + off * nn(:,k),c_float)
+                  dcyl%x2 = real(pp(:,k+1) + off * nn(:,k+1),c_float)
+                  call dl_append(obj%cylflat,obj%ncylflat,dcyl)
+               end do
             end do
          end do
       end do
     end associate
+
+  contains
+
+    !> The shape of the mesh of the map c: the positions and normals of
+    !> its vertices. Flat (h = 0), or a relief of height h (bohr): each
+    !> point rises along the normal by h times its value on the scale of
+    !> the colors (gn).
+    subroutine slice_shape(c,h)
+      type(slice_cache), intent(inout) :: c
+      real*8, intent(in) :: h
+
+      integer :: nx, ny, ix, iy, k, i0, i1, j0, j1
+      real*8 :: nv(3)
+      real*8, allocatable :: xx(:,:,:)
+
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+      c%hshape = h
+
+      ! the positions
+      allocate(xx(3,nx,ny))
+      do iy = 1, ny
+         do ix = 1, nx
+            xx(:,ix,iy) = c%x0 + real(ix-1,8) * c%uu + real(iy-1,8) * c%vv + h * c%gn(ix,iy) * nrm
+         end do
+      end do
+
+      ! the vertices; the normals are that of the plane if flat, else
+      ! from the differences between the neighbors along each side
+      k = 0
+      do iy = 1, ny
+         do ix = 1, nx
+            k = k + 1
+            c%mesh%x(:,k) = real(xx(:,ix,iy),c_float)
+            nv = nrm
+            if (h > 0d0) then
+               i0 = max(ix-1,1)
+               i1 = min(ix+1,nx)
+               j0 = max(iy-1,1)
+               j1 = min(iy+1,ny)
+               nv = cross(xx(:,i1,iy) - xx(:,i0,iy),xx(:,ix,j1) - xx(:,ix,j0))
+               if (norm2(nv) > 1d-12) then
+                  nv = nv / norm2(nv)
+               else
+                  nv = nrm
+               end if
+            end if
+            c%mesh%nrm(:,k) = real(nv,c_float)
+         end do
+      end do
+
+    end subroutine slice_shape
+
+    !> The point p of the mesh of the map c at the grid coordinates ab
+    !> (0 at the origin of the grid) and the normal of the mesh there
+    !> (nl). On a relief, the point is in the triangle of the cell
+    !> (ix,iy) (0-based) that holds it, and both are interpolated
+    !> linearly from the vertices of that triangle.
+    subroutine surface_point(c,ab,ix,iy,p,nl)
+      type(slice_cache), intent(in) :: c
+      real*8, intent(in) :: ab(2)
+      integer, intent(in) :: ix, iy
+      real*8, intent(out) :: p(3), nl(3)
+
+      integer :: k, iv(3)
+      real*8 :: t, s, w(3)
+
+      if (c%hshape <= 0d0) then
+         p = c%x0 + ab(1) * c%uu + ab(2) * c%vv
+         nl = nrm
+         return
+      end if
+
+      ! the triangle and the weights of its vertices
+      t = min(max(ab(1) - ix,0d0),1d0)
+      s = min(max(ab(2) - iy,0d0),1d0)
+      k = iy * nx + ix + 1 ! the vertex (ix+1,iy+1)
+      if (t >= s) then
+         iv = (/k, k+1, k+nx+1/)
+         w = (/1d0-t, t-s, s/)
+      else
+         iv = (/k, k+nx+1, k+nx/)
+         w = (/1d0-s, t, s-t/)
+      end if
+
+      ! the point and the normal
+      p = w(1) * c%mesh%x(:,iv(1)) + w(2) * c%mesh%x(:,iv(2)) + w(3) * c%mesh%x(:,iv(3))
+      nl = w(1) * c%mesh%nrm(:,iv(1)) + w(2) * c%mesh%nrm(:,iv(2)) + w(3) * c%mesh%nrm(:,iv(3))
+      if (norm2(nl) > 1d-12) then
+         nl = nl / norm2(nl)
+      else
+         nl = nrm
+      end if
+
+    end subroutine surface_point
 
   end subroutine slice_draw
 

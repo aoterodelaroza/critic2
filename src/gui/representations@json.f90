@@ -526,6 +526,8 @@ contains
          end associate
          call io%x(q,'alpha',r%slice%alpha)
          call io%x(q,'crad',r%slice%crad,lo=0d0)
+         call io%x(q,'relief',r%slice%relief)
+         call io%x(q,'rheight',r%slice%rheight,lo=0d0)
       end select
 
     end subroutine xfer_options

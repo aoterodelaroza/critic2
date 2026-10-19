@@ -22,7 +22,7 @@ module windows
   use iso_c_binding
   use representations, only: representation, planar_shape, rep_shape, text_item, measurement_item,&
      rep_axes, reptype_planar, reptype_shapes, reptype_text, reptype_measure, reptype_axes,&
-     reptype_atoms, rep_gpaths, gpaths_rad_def, plane_def
+     reptype_atoms, rep_gpaths, gpaths_rad_def, plane_def, slice_rheight_def
   use scenes, only: scene, rep_ref
   use systems, only: sys_ref
   use interfaces_cimgui, only: ImVec2
@@ -634,6 +634,8 @@ module windows
      ! (gen; -1 = none), and whether the form changed since it was given
      logical :: showview = .true.
      real(c_float) :: alpha = 1._c_float ! its opacity
+     logical :: relief = .false. ! drawn as a relief (rep_slice)
+     real*8 :: rheight = slice_rheight_def ! the height of the relief (bohr)
      integer*8 :: viewgen = -1
      logical :: viewdirty = .true.
      ! the labels of the atoms and critical points near the plane

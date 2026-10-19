@@ -238,6 +238,7 @@ contains
             max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
             w%pl%viewdirty = .true.
          call iw_tooltip("Opacity of the map in the view (1 = opaque; the contour lines stay opaque)",ttshown)
+         if (relief_form(w%pl%relief,w%pl%rheight,"plane",ttshown)) w%pl%viewdirty = .true.
       end if
       if (.not.w%pl%secdisp%more .or. .not.w%pl%showlabels) return
 
@@ -306,6 +307,8 @@ contains
         r%shown = .true.
         r%slice%d = w%pl%d
         r%slice%alpha = w%pl%alpha
+        r%slice%relief = w%pl%relief
+        r%slice%rheight = w%pl%rheight
         ! the values of the window, if they are new to the view
         if (w%pl%viewgen /= w%pl%gen) &
            r%slice%c = slice_cache(ff=w%pl%ff,x0=w%pl%x0,uu=w%pl%uu,vv=w%pl%vv,&
@@ -1593,6 +1596,8 @@ contains
        min=0d0,scale=bohrtoa,decimal=3,sameline=.true.)
     changed = changed .or. ch
     call iw_tooltip("Radius of the contour lines",ttshown)
+    ch = relief_form(w%rep%slice%relief,w%rep%slice%rheight,"slice",ttshown)
+    changed = changed .or. ch
 
     ! what is wrong
     if (allocated(w%rep%slice%c)) then
@@ -1613,5 +1618,32 @@ contains
     w%pl%tex = 0
 
   end subroutine plane_free_texture
+
+  !> The relief of a plane map in the view (rep_slice): whether it is
+  !> drawn (relief) and its height (rheight, bohr). id makes the
+  !> widget IDs unique. Returns whether anything changed.
+  function relief_form(relief,rheight,id,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_dragfloat_real8
+    logical, intent(inout) :: relief
+    real*8, intent(inout) :: rheight
+    character(len=*), intent(in) :: id
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+
+    changed = iw_checkbox("Relief##" // id // "relief",relief,labelleft=.true.)
+    call iw_tooltip("Draw the map as a relief: each point rises over the plane with its value&
+       & on the scale of the colors, from the bottom of the range of the colors (on the plane)&
+       & to the top (use a fixed range of colors to clip the peaks)",ttshown)
+    if (relief) then
+       call iw_text("Height (Å)",alignframe=.true.,gap=.true.)
+       ch = iw_dragfloat_real8("##" // id // "rheight",x1=rheight,speed=0.01d0,min=0d0,&
+          scale=bohrtoa,decimal=2,sameline=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Height of the relief at the top of the range of the colors",ttshown)
+    end if
+
+  end function relief_form
 
 end submodule plane
