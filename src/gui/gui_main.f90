@@ -19,7 +19,8 @@
 
 ! Structure class and routines for basic crystallography computations
 module gui_main
-  use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr, c_bool
+  use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr, c_bool,&
+     c_char, c_null_char, c_short
   use interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport,&
      ImFontAtlas
   use param, only: maxzat0
@@ -48,12 +49,25 @@ module gui_main
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
   type(ImGuiViewport), pointer, public :: mainvwp ! pointer to main viewport
   type(c_ptr), public :: rootwin = c_null_ptr ! the root window pointer (GLFWwindow*)
+  character(len=*,kind=c_char), parameter, public :: shader_version = "#version 330"//c_null_char ! GLSL version
   type(ImVec2), public :: fontsize ! font size (sensitive to scaling)
   real(c_float), parameter, public :: fontbakesize = 16._c_float ! normal bake size (for GUI)
   real(c_float), parameter, public :: fontbakesize_large = 128._c_float ! large bake size (for rendering)
   real(c_float), public :: uiscale = 1._c_float ! HiDPI/content UI scale
   real(c_float), parameter, public :: iconscale = 1.3_c_float ! icon button side, in text line heights
   type(c_ptr), public :: font_normal, font_large ! GUI and rendering font pointers
+  ! glyphs of the GUI fonts and of the exported plots
+  integer(c_short), target, public :: font_ranges(19) = (/&
+      32_c_short,   255_c_short,& ! default (basic latin + supplement)
+     880_c_short,  1023_c_short,& ! Greek and Coptic
+    8488_c_short,  8527_c_short,& ! letter-like symbols
+    8592_c_short,  8703_c_short,& ! arrows
+    8704_c_short,  8959_c_short,& ! mathematical operators
+    9472_c_short,  9599_c_short,& ! box drawing
+    9632_c_short,  9727_c_short,& ! geometric shapes
+    9728_c_short,  9983_c_short,& ! miscellaneous symbols
+    9984_c_short, 10175_c_short,& ! dingbats
+       0_c_short/)
 
   ! GUI control parameters
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples

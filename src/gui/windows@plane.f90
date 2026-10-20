@@ -66,7 +66,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh
-    integer :: isys, iview, istat, i, ipick
+    integer :: isys, iview, istat, i, ipick, iaux
     real*8 :: xc(3), rad, v(3,3), xhov(3)
     type(ImVec2) :: sz0
     real(c_float) :: htable, hmap
@@ -100,6 +100,8 @@ contains
           w%errmsg = ""
           call w%pl%d%set_defaults(isys)
           w%pl%viewgen = -1
+          w%okfile = okfile_default(isys,"map","png")
+          w%okfile = w%okfile(1:len(w%okfile)-4) // "_plane.png"
        end if
        ! the reference field, if the field is gone
        if (.not.w%pl%d%fref%ok(sys(isys))) call w%pl%d%fref%set(sys(isys),sys(isys)%iref)
@@ -170,7 +172,7 @@ contains
        hmap = iw_calcheight(map_minlines,0,.false.)
        sz0%y = max(sz0%y,hmap)
        if (allocated(w%pl%ff)) w%heightslack = w%heightslack + sz0%y - hmap
-       call draw_map(sz0,refit,hover,xhov)
+       call draw_map(sz0,refit,hover,xhov,.false.)
 
        ! the table of values
        call draw_data_section()
@@ -206,11 +208,18 @@ contains
        if (allocated(w%errmsg)) then
           if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
        end if
-    end if
 
-    ! bottom row: close
-    call iw_setpos_bottomright(len("Close"),1)
-    if (iw_button("Close")) doquit = .true.
+       ! the image of the map, to the file chosen in the dialog
+       if (w%okfile_set .and. allocated(w%pl%ff)) call export_map()
+    end if
+    w%okfile_set = .false.
+
+    ! bottom row: export the image, close
+    call iw_setpos_bottomright(len("Export to Image") + len("Close"),2)
+    if (iw_button("Export to Image",disabled=.not.allocated(w%pl%ff))) &
+       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
+    call iw_tooltip("Save the map, as shown in this window, to a PNG image file",ttshown)
+    if (iw_button("Close",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
     if (iw_close_event(w%focused(),okcloses=.false.)) doquit = .true.
@@ -329,12 +338,14 @@ contains
     !> The map (size sz): the colors, the contour lines, and the labels,
     !> with the color bar on its right. If refit, fit the axes to the
     !> region. Returns in hover whether the mouse is on the region and
-    !> the point under it (xhov, cell-frame Cartesian bohr).
-    subroutine draw_map(sz,refit,hover,xhov)
+    !> the point under it (xhov, cell-frame Cartesian bohr). If forprint,
+    !> draw it for export_map: with the axes as last shown in the
+    !> window and no mouse readouts.
+    subroutine draw_map(sz,refit,hover,xhov,forprint)
       use utils, only: iw_colormap_id
-      use gui_main, only: g
       type(ImVec2), intent(in) :: sz
       logical, intent(in) :: refit
+      logical, intent(in) :: forprint
       logical, intent(out) :: hover
       real*8, intent(out) :: xhov(3)
 
@@ -342,14 +353,14 @@ contains
       integer :: j, nx, ny
       integer(c_int) :: flags, coltext
       real(c_double) :: xmin, xmax, ymin, ymax, crn(2,4), mu, mv
-      real(c_float) :: px(4), py(4), wbar, fs
+      real(c_float) :: px(4), py(4), wbar, fs, fv
       real(c_float), allocatable :: box(:,:), ang(:)
       real*8, allocatable :: gap(:), sval(:)
       integer, allocatable :: ival(:), icand(:)
       integer :: nbox, nval, k
       integer(c_int) :: col(2)
       type(ImVec2) :: pmin, pmax, szp, pt, tsz
-      type(c_ptr) :: dl
+      type(c_ptr) :: dl, font
 
       hover = .false.
       xhov = 0d0
@@ -371,18 +382,27 @@ contains
       str1 = "##planemap" // c_null_char
       flags = ior(ImPlotFlags_NoTitle,ImPlotFlags_Equal)
       flags = ior(flags,ImPlotFlags_NoLegend)
-      flags = ior(flags,ImPlotFlags_Crosshairs)
+      if (forprint) then
+         flags = ior(flags,ImPlotFlags_NoInputs)
+      else
+         flags = ior(flags,ImPlotFlags_Crosshairs)
+         w%pl%szmap = (/sz%x,sz%y/)
+      end if
       if (ipBeginPlot(c_loc(str1),szp,flags)) then
          str2 = "u (Å)" // c_null_char
          str3 = "v (Å)" // c_null_char
          call ipSetupAxes(c_loc(str2),c_loc(str3),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-         if (refit) then
+         if (forprint) then
+            call ipSetupAxisLimits(ImAxis_X1,w%pl%lims(1),w%pl%lims(2),ImPlotCond_Always)
+            call ipSetupAxisLimits(ImAxis_Y1,w%pl%lims(3),w%pl%lims(4),ImPlotCond_Always)
+         elseif (refit) then
             call ipSetupAxisLimits(ImAxis_X1,minval(crn(1,:)),maxval(crn(1,:)),ImPlotCond_Always)
             call ipSetupAxisLimits(ImAxis_Y1,minval(crn(2,:)),maxval(crn(2,:)),ImPlotCond_Always)
          end if
 
          ! the colors: the texture on the region, inside the plot
          call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax)
+         if (.not.forprint) w%pl%lims = (/xmin,xmax,ymin,ymax/)
          call ipPlotToPixels(xmin,ymin,ImAxis_X1,ImAxis_Y1,px(1),py(1))
          call ipPlotToPixels(xmax,ymax,ImAxis_X1,ImAxis_Y1,px(2),py(2))
          pmin%x = min(px(1),px(2))
@@ -411,7 +431,9 @@ contains
          ! value, along the line, which has a gap under each
          dl = igGetWindowDrawList()
          coltext = igGetColorU32_Vec4(ImVec4(w%pl%rgblabel(1),w%pl%rgblabel(2),w%pl%rgblabel(3),1._c_float))
-         fs = w%pl%lscale * g%FontSize
+         font = igGetFont()
+         fs = w%pl%lscale * igGetFontSize()
+         fv = w%pl%vscale * igGetFontSize()
          nbox = 0
          nval = 0
          allocate(box(4,w%pl%nmark+w%pl%ncval),ival(w%pl%ncval),icand(w%pl%ncval),sval(w%pl%ncval),&
@@ -440,7 +462,7 @@ contains
             k = ival(j)
             call ipPlotToPixels(w%pl%xcval(1,icand(j),k),w%pl%xcval(2,icand(j),k),ImAxis_X1,ImAxis_Y1,px(1),py(1))
             str1 = fmt_level(w%pl%zcval(k)) // c_null_char
-            call own_add_text_rotated(dl,g%Font,w%pl%vscale*g%FontSize,px(1),py(1),ang(j),col(w%pl%icval(1,k)),c_loc(str1))
+            call own_add_text_rotated(dl,font,fv,px(1),py(1),ang(j),col(w%pl%icval(1,k)),c_loc(str1))
          end do
          if (w%pl%showlabels) then
             do j = 1, w%pl%nmark
@@ -450,14 +472,14 @@ contains
                call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
                pt%x = px(1) + 4._c_float * w%pl%lscale
                pt%y = py(1) - (tsz%y + 1._c_float) * w%pl%lscale
-               call ImDrawList_AddText_FontPtr(dl,g%Font,fs,pt,coltext,c_loc(str1),c_null_ptr,&
+               call ImDrawList_AddText_FontPtr(dl,font,fs,pt,coltext,c_loc(str1),c_null_ptr,&
                   0._c_float,c_null_ptr)
             end do
          end if
          call ImDrawList_PopClipRect(dl)
 
          ! the point under the mouse
-         if (ipIsPlotHovered()) then
+         if (.not.forprint .and. ipIsPlotHovered()) then
             call ipGetPlotMousePos(mu,mv)
             call plot_point(mu,mv,hover,xhov)
          end if
@@ -470,6 +492,7 @@ contains
       str2 = "%.3g" // c_null_char
       call ipColormapScale(c_loc(str1),w%pl%tmin,w%pl%tmax,ImVec2(wbar,szp%y),c_loc(str2),&
          iw_colormap_id(w%pl%d%icmap))
+      if (forprint) return
       if (w%pl%d%cscale == 1) then
          call iw_tooltip("Colors of the map: log10 of the absolute value",ttshown)
       elseif (w%pl%d%cscale == 2) then
@@ -482,6 +505,82 @@ contains
          call iw_text("(The region is too large for labels)",disabled=.true.)
 
     end subroutine draw_map
+
+    !> Save the map, as last drawn in the window, to the PNG file
+    !> w%okfile, for a publication: drawn again in a separate ImGui
+    !> context, black on white, and rendered into a framebuffer
+    !> w%pl%imgscale times larger than the window.
+    subroutine export_map()
+      use interfaces_opengl3
+      use interfaces_stb
+      use gui_main, only: shader_version, font_ranges
+      use tools_io, only: uout
+      real(c_float), parameter :: bakemax = 128._c_float ! largest size of the font atlas glyphs (pixels)
+
+      type(c_ptr) :: pc, dd
+      character(kind=c_char,len=:), allocatable, target :: str
+      character(kind=c_char), allocatable, target :: pix(:)
+      integer(c_int), target :: fbo, rbo
+      integer(c_int) :: wid, hei, idum, npix(2)
+      real(c_float) :: wsz(2), xs
+      real*8 :: xdum(3)
+      logical :: ldum
+      integer :: i
+
+      ! the map in the print context, at its size in the window (two
+      ! frames: the plot lays itself out in the first)
+      call plane_image_size(w%pl%szmap,w%pl%imgscale,wsz,xs,npix)
+      wid = npix(1)
+      hei = npix(2)
+      str = shader_version
+      pc = ipPrintContextCreate(igGetFontSize(),xs,bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
+      do i = 1, 2
+         call ipPrintFrameBegin(pc,wsz(1),wsz(2))
+         call draw_map(ImVec2(w%pl%szmap(1),w%pl%szmap(2)),.false.,ldum,xdum,.true.)
+         dd = ipPrintFrameEnd()
+      end do
+
+      ! render it to a framebuffer and read it back
+      call glGenFramebuffers(1_c_int,c_loc(fbo))
+      call glGenRenderbuffers(1_c_int,c_loc(rbo))
+      call glBindRenderbuffer(GL_RENDERBUFFER,rbo)
+      call glRenderbufferStorage(GL_RENDERBUFFER,GL_RGBA8,wid,hei)
+      call glBindRenderbuffer(GL_RENDERBUFFER,0_c_int)
+      call glBindFramebuffer(GL_FRAMEBUFFER,fbo)
+      call glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,rbo)
+      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) then
+         call glViewport(0_c_int,0_c_int,wid,hei)
+         call glClearColor(1._c_float,1._c_float,1._c_float,1._c_float)
+         call glClear(GL_COLOR_BUFFER_BIT)
+         call ImGui_ImplOpenGL3_RenderDrawData(dd)
+         allocate(pix(4*wid*hei))
+         call glReadPixels(0_c_int,0_c_int,wid,hei,GL_RGBA,GL_UNSIGNED_BYTE,c_loc(pix))
+      end if
+      call glBindFramebuffer(GL_FRAMEBUFFER,0_c_int)
+      call glDeleteFramebuffers(1_c_int,c_loc(fbo))
+      call glDeleteRenderbuffers(1_c_int,c_loc(rbo))
+      call ipPrintContextDestroy(pc)
+
+      ! write the file (the rows of the framebuffer go bottom to top)
+      if (.not.allocated(pix)) then
+         w%errmsg = "Could not create the framebuffer for the image (too large?)"
+         return
+      end if
+      pix(4::4) = char(255,c_char)
+      str = trim(w%okfile) // c_null_char
+      call stbi_flip_vertically_on_write(1_c_int)
+      idum = stbi_write_png(c_loc(str),wid,hei,4_c_int,c_loc(pix),4_c_int*wid)
+      call stbi_flip_vertically_on_write(0_c_int)
+      if (idum == 0) then
+         w%errmsg = "Error writing the image file: " // trim(w%okfile)
+      else
+         w%errmsg = ""
+         write (uout,'("* Plane map image (",A,"x",A," pixels) written to: ",A/)') string(wid), string(hei),&
+            trim(w%okfile)
+         call okfile_save_dir(w%okfile)
+      end if
+
+    end subroutine export_map
 
     !> Where the values of the contour lines go, longest line first:
     !> at one of the places along each line long enough for them,
@@ -1626,6 +1725,26 @@ contains
     w%pl%tex = 0
 
   end subroutine plane_free_texture
+
+  !> Size of the image exported from a plane map window whose plot and
+  !> color bar take szmap (pixels of the window), at the given scale:
+  !> its size in the window, with the padding of the print context
+  !> (wsz), the scale used (xs, from 1 to scale, so the image fits in
+  !> maxpix), and its size in pixels (npix).
+  module subroutine plane_image_size(szmap,scale,wsz,xs,npix)
+    real(c_float), intent(in) :: szmap(2), scale
+    real(c_float), intent(out) :: wsz(2), xs
+    integer(c_int), intent(out) :: npix(2)
+
+    real(c_float), parameter :: pad = 8._c_float ! window padding of the print context (ImGui default)
+    real(c_float), parameter :: spc = 8._c_float ! item spacing of the print context (ImGui default)
+    real(c_float), parameter :: maxpix = 8192._c_float ! largest side of the image (pixels)
+
+    wsz = szmap + (/spc + 2 * pad,2 * pad/)
+    xs = max(1._c_float,min(scale,maxpix / maxval(wsz)))
+    npix = nint(xs * wsz)
+
+  end subroutine plane_image_size
 
   !> The checkbox of the relief of a plane map in the view (rl, of a
   !> rep_slice), after the previous pair in the line if gap. id makes

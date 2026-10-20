@@ -55,5 +55,10 @@ CIMGUI_API void ipColormapScale(const char* label, double scale_min, double scal
 CIMGUI_API void ipGetPlotMousePos(double *x, double *y);
 CIMGUI_API bool ipIsPlotHovered();
 CIMGUI_API void ipShowDemoWindow(bool* p_open);
+CIMGUI_API void* ipPrintContextCreate(float fontsize, float scale, float bakemax, const char* ttf85,
+                                      const ImWchar* ranges, const char* glsl);
+CIMGUI_API void ipPrintFrameBegin(void* pc, float width, float height);
+CIMGUI_API ImDrawData* ipPrintFrameEnd();
+CIMGUI_API void ipPrintContextDestroy(void* pc);
 
 #endif //CIMPLOT_INCLUDED

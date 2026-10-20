@@ -687,6 +687,12 @@ module windows
      character(len=24), allocatable :: lmark(:)
      logical :: marksmany = .false. ! the region is too large to look for them
      integer*8, allocatable :: keymark(:)
+     ! the map as last drawn in the window: size of the plot and
+     ! color bar, and limits of the axes (xmin, xmax, ymin, ymax)
+     real(c_float) :: szmap(2) = 0._c_float
+     real*8 :: lims(4) = (/0d0,1d0,0d0,1d0/)
+     ! the exported image: pixels per pixel of the map in the window
+     real(c_float) :: imgscale = 4._c_float
   end type plane_state
   public :: plane_state
 
@@ -1122,6 +1128,8 @@ module windows
      integer(c_int) :: purpose ! the purpose of the dialog
      logical :: molcubic = .false. ! whether to read the cell as cubic in a molecule
      real(c_float) :: rborder = real(rborder_def,c_float) ! border for the cell in a molecule
+     real(c_float) :: imgscale = 4._c_float ! scale of the exported image (plane map)
+     real(c_float) :: szmap(2) = 0._c_float ! size of the map in its window (plane map)
   end type dialog_userdata
 
   ! Wrapper class to handle ImGui windows
@@ -1670,6 +1678,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_savescenefile = 14
   integer, parameter, public :: wpurp_dialog_saveobjfile = 15
   integer, parameter, public :: wpurp_dialog_savegpathsfile = 16
+  integer, parameter, public :: wpurp_dialog_savemapfile = 17
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)
@@ -2487,6 +2496,11 @@ module windows
      module subroutine plane_free_texture(w)
        class(window), intent(inout), target :: w
      end subroutine plane_free_texture
+     module subroutine plane_image_size(szmap,scale,wsz,xs,npix)
+       real(c_float), intent(in) :: szmap(2), scale
+       real(c_float), intent(out) :: wsz(2), xs
+       integer(c_int), intent(out) :: npix(2)
+     end subroutine plane_image_size
      module function draw_editrep_slice(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown

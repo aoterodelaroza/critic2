@@ -306,7 +306,11 @@ end subroutine igPushTextWrapPos
 ! void igPopTextWrapPos(void);
 subroutine igPopTextWrapPos() bind(c,name="igPopTextWrapPos")
 end subroutine igPopTextWrapPos
-!x! ImFont* igGetFont(void);
+! ImFont* igGetFont(void);
+function igGetFont() bind(c,name="igGetFont")
+  import c_ptr
+  type(c_ptr) :: igGetFont
+end function igGetFont
 ! float igGetFontSize(void);
 function igGetFontSize() bind(c,name="igGetFontSize")
   import c_float
@@ -2972,6 +2976,30 @@ subroutine ipShowDemoWindow(p_open) bind(c,name="ipShowDemoWindow")
   import c_bool
   logical(c_bool) :: p_open
 end subroutine ipShowDemoWindow
+! void* ipPrintContextCreate(float fontsize, float scale, float bakemax, const char* ttf85,
+!                            const ImWchar* ranges, const char* glsl);
+function ipPrintContextCreate(fontsize,scale,bakemax,ttf85,ranges,glsl) bind(c,name="ipPrintContextCreate")
+  import c_ptr, c_float
+  real(c_float), value :: fontsize, scale, bakemax
+  type(c_ptr), value :: ttf85, ranges, glsl
+  type(c_ptr) :: ipPrintContextCreate
+end function ipPrintContextCreate
+! void ipPrintFrameBegin(void* pc, float width, float height);
+subroutine ipPrintFrameBegin(pc,width,height) bind(c,name="ipPrintFrameBegin")
+  import c_ptr, c_float
+  type(c_ptr), value :: pc
+  real(c_float), value :: width, height
+end subroutine ipPrintFrameBegin
+! ImDrawData* ipPrintFrameEnd();
+function ipPrintFrameEnd() bind(c,name="ipPrintFrameEnd")
+  import c_ptr
+  type(c_ptr) :: ipPrintFrameEnd
+end function ipPrintFrameEnd
+! void ipPrintContextDestroy(void* pc);
+subroutine ipPrintContextDestroy(pc) bind(c,name="ipPrintContextDestroy")
+  import c_ptr
+  type(c_ptr), value :: pc
+end subroutine ipPrintContextDestroy
 !xx! own widgets (imgui_own_widgets.cpp)
 ! void own_progress_bar(float x0, float y0, float x1, float y1, float frac, const char* text);
 subroutine own_progress_bar(x0,y0,x1,y1,frac,text) bind(c,name="own_progress_bar")

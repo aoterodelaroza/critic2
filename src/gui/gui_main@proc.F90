@@ -23,7 +23,6 @@ submodule (gui_main) proc
   ! opengl & shader version
   integer, parameter :: opengl_version_major = 3
   integer, parameter :: opengl_version_minor = 3
-  character(len=*,kind=c_char), parameter :: shader_version = "#version 330"//c_null_char
 
   ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
@@ -112,7 +111,6 @@ contains
     integer :: i, j, saveinpcon
     logical :: firstpass, shown
     character(len=:), allocatable :: errmsg
-    integer(c_short), allocatable, target :: range(:)
     type(GLFWimage), target :: icon
 
     integer, parameter :: initial_nsys = 20
@@ -289,26 +287,15 @@ contains
     ! (layout_save)
     io%inifilename = c_null_ptr
 
-    ! default font, with Greek letters and letter-like symbols
-    range = (/32_c_short,   255_c_short,& ! default (basic latin + supplement)
-             880_c_short,  1023_c_short,& ! Greek and Coptic
-            8488_c_short,  8527_c_short,& ! letter-like symbols
-            8592_c_short,  8703_c_short,& ! arrows
-            8704_c_short,  8959_c_short,& ! mathematical operators
-            9472_c_short,  9599_c_short,& ! box drawing
-            9632_c_short,  9727_c_short,& ! geometric shapes
-            9728_c_short,  9983_c_short,& ! miscellaneous symbols
-            9984_c_short, 10175_c_short,& ! dingbats
-               0_c_short/)
     ! the GUI font is rasterized at framebuffer resolution and scaled back
     ! to window units, so it stays crisp when the framebuffer is larger than
     ! the window (Retina)
     font_normal = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize*uiscale*fbratio,c_null_ptr,c_loc(range))
+       fontbakesize*uiscale*fbratio,c_null_ptr,c_loc(font_ranges))
     call c_f_pointer(font_normal,fnt)
     fnt%Scale = 1._c_float / fbratio
     font_large = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize_large*uiscale,c_null_ptr,c_loc(range))
+       fontbakesize_large*uiscale,c_null_ptr,c_loc(font_ranges))
 
     ! bold font if using freetype
 #ifdef IMGUI_ENABLE_FREETYPE

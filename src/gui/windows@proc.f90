@@ -1701,6 +1701,20 @@ contains
              call dialog_initial_file(w%parent(),"paths.txt",str2,str3)
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_savemapfile) then
+             ! a plane map, as shown in its window, as a PNG image;
+             ! the pane has its scale
+             w%name = "Export to Image##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
+             str1 = "PNG (*.png) {.png}" // c_null_char
+             idp = w%parent()
+             if (idp > 0) then
+                w%dialog_data%imgscale = win(idp)%pl%imgscale
+                w%dialog_data%szmap = win(idp)%pl%szmap
+             end if
+             call dialog_initial_file(idp,"map_plane.png",str2,str3)
+             call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
+                ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savetablefile) then
              ! a table of the parent window, as text: to the file its
              ! tables were last written to, or table.txt next to its
@@ -2125,7 +2139,7 @@ contains
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton, iw_combo_simple, iw_textwidth,&
-       iw_checkbox, iw_inputfloat, iw_separatortext
+       iw_checkbox, iw_inputfloat, iw_separatortext, iw_dragfloat_realc
     use interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -2135,6 +2149,8 @@ contains
     type(dialog_userdata), pointer :: data
     logical(c_bool) :: ldum
     integer(c_int) :: flags
+    real(c_float) :: wsz(2), xs
+    integer(c_int) :: npix(2)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2214,6 +2230,19 @@ contains
           &from the extension",ttshown)
        call igNewLine()
        data%isformat = isperm_openvibfile(data%isformat)
+
+    elseif (data%purpose == wpurp_dialog_savemapfile) then
+       ! scale of the exported plane map, and the size it gives
+       call iw_separatortext("Image")
+       call iw_text("Scale",alignframe=.true.)
+       ldum = iw_dragfloat_realc("##imgscale",x1=data%imgscale,speed=0.05_c_float,min=1._c_float,&
+          max=16._c_float,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Pixels of the image per pixel of the map in the window (text and lines grow&
+          & with it)",ttshown)
+       if (all(data%szmap > 0._c_float)) then
+          call plane_image_size(data%szmap,data%imgscale,wsz,xs,npix)
+          call iw_text("Size: " // string(npix(1)) // " x " // string(npix(2)) // " pixels")
+       end if
     end if
 
   end subroutine dialog_user_callback

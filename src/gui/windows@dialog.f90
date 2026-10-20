@@ -65,7 +65,8 @@ contains
        w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal.or.&
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
        w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
-       w%purpose == wpurp_dialog_saveobjfile.or.w%purpose == wpurp_dialog_savegpathsfile) then
+       w%purpose == wpurp_dialog_saveobjfile.or.w%purpose == wpurp_dialog_savegpathsfile.or.&
+       w%purpose == wpurp_dialog_savemapfile) then
        ! file dialogs => quit if the caller window is gone
        doquit = (idp == 0)
     end if
@@ -207,8 +208,8 @@ contains
 
           elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile.or.&
              w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
-             w%purpose == wpurp_dialog_savegpathsfile) then
-             !! save image file, structure file, critical points file, gradient paths, or table dialog !!
+             w%purpose == wpurp_dialog_savegpathsfile.or.w%purpose == wpurp_dialog_savemapfile) then
+             !! save dialogs: image, structure, CPs, gradient paths, plane map image, table !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
@@ -224,6 +225,7 @@ contains
              else
                 win(idp)%okfile_set = .true.
                 win(idp)%okfile = trim(name)
+                if (w%purpose == wpurp_dialog_savemapfile) win(idp)%pl%imgscale = w%dialog_data%imgscale
              end if
 
              ! the filter carries the image format (save image file only)

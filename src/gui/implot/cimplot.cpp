@@ -21,6 +21,15 @@
 #include "../imgui/imgui_internal.h"
 #include "implot.h"
 #include "cimplot.h"
+// the OpenGL3 backend (built with C linkage, see cimgui_impl.h)
+extern "C" {
+  bool ImGui_ImplOpenGL3_Init(const char* glsl_version);
+  void ImGui_ImplOpenGL3_Shutdown(void);
+  void ImGui_ImplOpenGL3_NewFrame(void);
+}
+#ifdef IMGUI_ENABLE_FREETYPE
+#include "../imgui/imgui_freetype.h"
+#endif
 
 CIMGUI_API ImPlotContext* ipCreateContext(){
   return ImPlot::CreateContext();
@@ -95,4 +104,90 @@ CIMGUI_API bool ipIsPlotHovered(){
 }
 CIMGUI_API void ipShowDemoWindow(bool* p_open){
   return ImPlot::ShowDemoWindow(p_open);
+}
+
+// Plots for a publication: a second ImGui and ImPlot context, black
+// on white, that draws into a window covering its display and renders
+// it scale times larger (DisplayFramebufferScale), with the font (the
+// base85-compressed TTF ttf85, glyphs in ranges) baked at that size,
+// up to bakemax pixels. The contexts current before the call are
+// restored by ipPrintContextDestroy.
+struct ipPrintContext {
+  ImGuiContext *gui0, *gui;
+  ImPlotContext *plot0, *plot;
+  float scale;
+};
+CIMGUI_API void* ipPrintContextCreate(float fontsize, float scale, float bakemax, const char* ttf85,
+                                      const ImWchar* ranges, const char* glsl){
+  const ImVec4 white(1.f,1.f,1.f,1.f), black(0.f,0.f,0.f,1.f), none(0.f,0.f,0.f,0.f);
+
+  ipPrintContext *pc = IM_NEW(ipPrintContext)();
+  pc->scale = scale;
+  pc->gui0 = ImGui::GetCurrentContext();
+  pc->plot0 = ImPlot::GetCurrentContext();
+  pc->gui = ImGui::CreateContext();
+  ImGui::SetCurrentContext(pc->gui);
+  pc->plot = ImPlot::CreateContext();
+  ImPlot::SetCurrentContext(pc->plot);
+
+  ImGuiIO& io = ImGui::GetIO();
+  io.IniFilename = NULL;
+  io.LogFilename = NULL;
+#ifdef IMGUI_ENABLE_FREETYPE
+  io.Fonts->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_Bold;
+#endif
+  float bake = ImMin(fontsize * scale, ImMax(bakemax, fontsize));
+  ImFont* font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(ttf85, bake, NULL, ranges);
+  font->Scale = fontsize / bake;
+
+  ImGui::StyleColorsLight();
+  ImGuiStyle& st = ImGui::GetStyle();
+  st.WindowBorderSize = 0.f;
+  st.Colors[ImGuiCol_WindowBg] = white;
+  st.Colors[ImGuiCol_FrameBg] = white;
+  st.Colors[ImGuiCol_Text] = black;
+
+  ImPlot::StyleColorsLight();
+  ImPlotStyle& ps = ImPlot::GetStyle();
+  ps.Colors[ImPlotCol_FrameBg] = white;
+  ps.Colors[ImPlotCol_PlotBg] = white;
+  ps.Colors[ImPlotCol_PlotBorder] = black;
+  ps.Colors[ImPlotCol_AxisText] = black;
+  ps.Colors[ImPlotCol_AxisTick] = black;
+  ps.Colors[ImPlotCol_AxisGrid] = none;
+  ps.Colors[ImPlotCol_AxisBg] = none;
+  ps.Colors[ImPlotCol_AxisBgHovered] = none;
+  ps.Colors[ImPlotCol_AxisBgActive] = none;
+
+  ImGui_ImplOpenGL3_Init(glsl);
+  return pc;
+}
+CIMGUI_API void ipPrintFrameBegin(void* p, float width, float height){
+  ipPrintContext *pc = (ipPrintContext*) p;
+  ImGuiIO& io = ImGui::GetIO();
+  io.DisplaySize = ImVec2(width, height);
+  io.DisplayFramebufferScale = ImVec2(pc->scale, pc->scale);
+  io.DeltaTime = 1.f / 60.f;
+  ImGui_ImplOpenGL3_NewFrame();
+  ImGui::NewFrame();
+  ImGui::SetNextWindowPos(ImVec2(0.f, 0.f));
+  ImGui::SetNextWindowSize(ImVec2(width, height));
+  ImGui::Begin("##print", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings |
+               ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoNav);
+  // the antialiasing fringe is one pixel of the image, not of the window
+  ImGui::GetWindowDrawList()->_FringeScale = 1.f / pc->scale;
+}
+CIMGUI_API ImDrawData* ipPrintFrameEnd(){
+  ImGui::End();
+  ImGui::Render();
+  return ImGui::GetDrawData();
+}
+CIMGUI_API void ipPrintContextDestroy(void* p){
+  ipPrintContext *pc = (ipPrintContext*) p;
+  ImGui_ImplOpenGL3_Shutdown();
+  ImPlot::DestroyContext(pc->plot);
+  ImGui::DestroyContext(pc->gui);
+  ImGui::SetCurrentContext(pc->gui0);
+  ImPlot::SetCurrentContext(pc->plot0);
+  IM_DELETE(pc);
 }
