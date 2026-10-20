@@ -239,11 +239,10 @@ contains
     call iw_setpos_bottomright(len("Create Object") + len("Export to Image") + len("Close"),3)
     if (iw_button("Create Object##planecreateobj",disabled=.not.ldum)) call create_object()
     if (irobj > 0) then
-       call iw_tooltip("This map is already an object of the view, which the window edits",&
-          ttshown,whendisabled=.true.)
+       call iw_tooltip("This map is already an object of the view",ttshown,whendisabled=.true.)
     else
-       call iw_tooltip("Make this map a permanent object of the view, kept after this window is&
-          & closed; while the window is open, it edits the object",ttshown,whendisabled=.true.)
+       call iw_tooltip("Make this map a permanent object of the view, kept after this window is closed",&
+          ttshown,whendisabled=.true.)
     end if
     if (iw_button("Export to Image",sameline=.true.,disabled=.not.allocated(w%pl%ff))) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
@@ -282,7 +281,7 @@ contains
          if (iw_checkbox("Show in view##planeshow",w%pl%showview,gap=.true.,labelleft=.true.)) &
             w%pl%viewgen = -1
          call iw_tooltip("Draw this map in the view, following the changes made here, for as long&
-            & as the window is open (Create Object makes a map that stays)",ttshown)
+            & as the window is open",ttshown)
       end if
       if (w%pl%showview .or. irobj > 0) then
          if (relief_checkbox(w%pl%rl,"plane",.true.,ttshown)) w%pl%viewdirty = .true.
@@ -290,7 +289,7 @@ contains
          if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
             max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
             w%pl%viewdirty = .true.
-         call iw_tooltip("Opacity of the map in the view (1 = opaque; the contour lines stay opaque)",ttshown)
+         call iw_tooltip("Opacity of the map in the view (1 = opaque)",ttshown)
          if (relief_form(w%pl%rl,"plane",.false.,ttshown)) w%pl%viewdirty = .true.
       end if
       if (.not.w%pl%secdisp%more .or. .not.w%pl%showlabels) return
@@ -318,7 +317,7 @@ contains
          ttshown)
       ldum = iw_checkbox("Show distance##planeshowdist",w%pl%showdist,gap=.true.,labelleft=.true.)
       call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
-         & plane (Å, positive on the side of the normal; omitted if zero to two decimals)",ttshown)
+         & plane (Å)",ttshown)
 
     end subroutine draw_labels_option
 
@@ -1563,13 +1562,12 @@ contains
       sfx = "##planept" // string(ip)
       call iw_text(pt_name(ip),rgb=pt_rgb(:,ip),alignframe=.true.)
       if (ip == 1) then
-         call iw_tooltip("The origin of the plane (shown in the view in this color)",ttshown)
+         call iw_tooltip("The origin of the plane",ttshown)
       elseif (ip == 2) then
-         call iw_tooltip("The end of the first side of the plane, which starts at the origin&
-            & (shown in the view in this color)",ttshown)
+         call iw_tooltip("The end of the first side of the plane",ttshown)
       else
          call iw_tooltip("A point on the second side of the plane: its end, for the parallelogram;&
-            & the plane through it, for the rectangle (shown in the view in this color)",ttshown)
+            & the plane through it, for the rectangle",ttshown)
       end if
       if (present(ipick)) then
          if (iw_button("Pick" // sfx // "pick",sameline=.true.,disabled=pickoff_)) ipick = ip
@@ -1634,7 +1632,7 @@ contains
       changed = changed .or. ch
       call iw_tooltip("Rectangle: the first side goes from the origin to the X end, and the&
          & second is perpendicular to it, as long as needed to reach the Y point. Parallelogram:&
-         & the sides go from the origin to the X end and to the Y point, as in PLANE",ttshown)
+         & the sides go from the origin to the X end and to the Y point",ttshown)
       call iw_text("Margin",alignframe=.true.,gap=.true.)
       call drag("##planemargin",x1=d%margin,speed=0.01d0,decimal=3,sameline=.true.)
       call iw_tooltip("Length added to the region on every side (Å; negative removes it)",ttshown)
@@ -1731,7 +1729,7 @@ contains
          "Arctangent" // c_null_char,d%cscale,sameline=.true.,changed=ch)
       changed = changed .or. ch
       call iw_tooltip("How the values become colors: linearly, by the logarithm of their&
-         & absolute value, or by their arctangent (as in PLANE COLORMAP)",ttshown)
+         & absolute value, or by their arctangent",ttshown)
       if (.not.sec(plane_sec_colors)%more) return
 
       ! more: the range
@@ -1762,9 +1760,8 @@ contains
          "Arctangent" // c_null_char // "Bader" // c_null_char // "List" // c_null_char,ic,sameline=.true.)
       changed = changed .or. (d%ctype /= ctype_of_combo(ic))
       d%ctype = ctype_of_combo(ic)
-      call iw_tooltip("The contour levels, as in PLANE CONTOUR: evenly spaced, logarithmic&
-         & (positive and negative), evenly spaced in the arctangent, the Bader set (1, 2, 4,&
-         & 8 x 10^n), or a list of values",ttshown)
+      call iw_tooltip("The contour levels: evenly spaced, logarithmic (positive and negative), evenly&
+         & spaced in the arctangent, the Bader set (1, 2, 4, 8 x 10^n), or a list of values",ttshown)
       if (d%ctype == niso_manual) then
          call iw_text("List",alignframe=.true.,gap=.true.)
          ch = iw_inputtext("##planellist",bufsize=1023,textf=d%llist,width=30,sameline=.true.)
@@ -1900,7 +1897,7 @@ contains
 
     changed = iw_checkbox("Relief##" // id // "relief",rl%on,gap=gap,labelleft=.true.)
     call iw_tooltip("Draw the map as a relief: each point rises from the plane with its value&
-       & on the scale of the relief, from the bottom of its range (on the plane) to the top",ttshown)
+       & on the scale of the relief",ttshown)
 
   end function relief_checkbox
 
