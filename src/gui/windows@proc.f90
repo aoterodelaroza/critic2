@@ -370,6 +370,7 @@ contains
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_line.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_plane.and.present(idparent)) ok = (win(i)%parent() == idparent)
+             if (ok.and.type == wintype_cube.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_melting.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -957,6 +958,10 @@ contains
        ! plane map window
        if (.not.present(idparent)) &
           call ferror('window_init','plane map requires idparent',faterr)
+    elseif (type == wintype_cube) then
+       ! cube window
+       if (.not.present(idparent)) &
+          call ferror('window_init','cube window requires idparent',faterr)
     elseif (type == wintype_display) then
        ! selection window
        if (.not.present(idparent)) &
@@ -1094,6 +1099,8 @@ contains
        call w%block_editrep()
     elseif (w%type == wintype_mo) then
        call w%block_mo()
+    elseif (w%type == wintype_cube) then
+       call w%block_cube()
     end if
 
   end subroutine window_block_draw
@@ -1115,6 +1122,8 @@ contains
        call w%run_editrep()
     elseif (w%type == wintype_mo) then
        call w%run_mo()
+    elseif (w%type == wintype_cube) then
+       call w%run_cube()
     end if
 
   end subroutine window_block_run
@@ -1532,6 +1541,7 @@ contains
     use systems, only: sysc, ok_system, sys_init
     use tools_io, only: string, ferror, faterr
     use param, only: dirsep
+    use representations, only: iso_region_cell
     class(window), intent(inout), target :: w
 
     integer :: idp ! the window that opened this dialog, if still there
@@ -1715,6 +1725,21 @@ contains
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),panewidth,1_c_int,c_loc(w%dialog_data),&
                 ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
+          elseif (w%purpose == wpurp_dialog_savegridfile) then
+             ! the grid of the cube window; the XSF and VASP formats only
+             ! for grids on the whole cell
+             w%name = "Write Grid File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
+             str1 = "Gaussian cube (*.cube) {.cube},Binary cube (*.bincube) {.bincube}"
+             idp = w%parent()
+             if (idp > 0) then
+                if (win(idp)%cu%iregion == region_native .or. win(idp)%cu%iregion == iso_region_cell) &
+                   str1 = str1 // ",XSF (*.xsf) {.xsf},VASP CHGCAR (*.CHGCAR) {.CHGCAR},&
+                   &VASP ELFCAR (*.ELFCAR) {.ELFCAR}"
+             end if
+             str1 = str1 // c_null_char
+             call dialog_initial_file(idp,"grid.cube",str2,str3)
+             call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
+                1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savetablefile) then
              ! a table of the parent window, as text: to the file its
              ! tables were last written to, or table.txt next to its
@@ -1808,6 +1833,8 @@ contains
           call init_window("Line Profile",80,40,grow=.true.)
        elseif (w%type == wintype_plane) then
           call init_window("Plane Map",72,70,grow=.true.)
+       elseif (w%type == wintype_cube) then
+          call init_window("Calculate Grid",72,20,grow=.true.)
        elseif (w%type == wintype_display) then
           call init_window("Display Selection",62)
        elseif (w%type == wintype_vibrations) then
@@ -1971,6 +1998,8 @@ contains
                 call w%draw_line()
              elseif (w%type == wintype_plane) then
                 call w%draw_plane()
+             elseif (w%type == wintype_cube) then
+                call w%draw_cube()
              elseif (w%type == wintype_display) then
                 call w%draw_display()
              elseif (w%type == wintype_vibrations) then

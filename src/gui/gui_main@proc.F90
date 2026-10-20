@@ -874,7 +874,7 @@ contains
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
        wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point,&
-       wintype_line, wintype_plane
+       wintype_line, wintype_plane, wintype_cube
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
@@ -951,6 +951,13 @@ contains
        idum = stack_create_window(wintype_plane,.true.,idparent=idparent,orraise=-1)
     call iw_tooltip("Map the values of a field of this system, one of its derivatives,&
        & or an arithmetic expression on a plane, as colors and contour lines",ttshown)
+
+    ! grids of the fields written to a file (CUBE)
+    if (iw_menuitem("Calculate Grid...",enabled=enabled)) &
+       idum = stack_create_window(wintype_cube,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Calculate the values of a field of this system, one of its derivatives,&
+       & an arithmetic expression, or a wavefunction on a grid, and write them to a cube,&
+       & XSF, or VASP file",ttshown)
 
     ! vibrations
     if (iw_menuitem("Vibrations...",enabled=enabled)) &

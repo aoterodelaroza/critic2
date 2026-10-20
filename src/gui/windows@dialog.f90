@@ -66,7 +66,7 @@ contains
        w%purpose == wpurp_dialog_savefile.or.w%purpose == wpurp_dialog_selectdir.or.&
        w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
        w%purpose == wpurp_dialog_saveobjfile.or.w%purpose == wpurp_dialog_savegpathsfile.or.&
-       w%purpose == wpurp_dialog_savemapfile) then
+       w%purpose == wpurp_dialog_savemapfile.or.w%purpose == wpurp_dialog_savegridfile) then
        ! file dialogs => quit if the caller window is gone
        doquit = (idp == 0)
     end if
@@ -208,8 +208,9 @@ contains
 
           elseif (w%purpose == wpurp_dialog_saveimagefile.or.w%purpose == wpurp_dialog_savefile.or.&
              w%purpose == wpurp_dialog_savecpfile.or.w%purpose == wpurp_dialog_savetablefile.or.&
-             w%purpose == wpurp_dialog_savegpathsfile.or.w%purpose == wpurp_dialog_savemapfile) then
-             !! save dialogs: image, structure, CPs, gradient paths, plane map image, table !!
+             w%purpose == wpurp_dialog_savegpathsfile.or.w%purpose == wpurp_dialog_savemapfile.or.&
+             w%purpose == wpurp_dialog_savegridfile) then
+             !! save dialogs: image, structure, CPs, gradient paths, plane map image, grid, table !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)

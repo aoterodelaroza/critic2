@@ -1324,7 +1324,7 @@ contains
       logical :: isend, okz
       integer(c_int) :: flags, color
       type(ImVec4) :: col4
-      integer :: id, is, nd
+      integer :: id, is, nd, iwc
 
       ! start the row and color the name cell like the parent system's
       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1416,6 +1416,15 @@ contains
             call sysc(i)%post_event(lastchange_cplist)
          end if
          call iw_tooltip("Load a copy of this field as a new field",ttshown)
+
+         ! write the field to a file (the cube window, on the field's
+         ! own grid if it has one), shown in the main view
+         if (iw_menuitem("Calculate Grid...")) then
+            call win(iwin_view)%select_view(i)
+            iwc = stack_create_window(wintype_cube,.true.,idparent=iwin_view,orraise=-1)
+            if (iwc > 0) call win(iwc)%cu%req%set(sys(i),k)
+         end if
+         call iw_tooltip("Write the values of this field on a grid to a cube, XSF, or VASP file",ttshown)
 
          ! reload with virtual orbitals (wavefunction fields whose file
          ! has virtuals that were not read)

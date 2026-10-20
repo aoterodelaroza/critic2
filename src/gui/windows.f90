@@ -50,6 +50,9 @@ module windows
   real(c_float), parameter :: region_rgb(3) = (/0.35_c_float,0.75_c_float,1.0_c_float/)
   real(c_float), parameter :: region_alpha = 0.12_c_float
   real*8, parameter :: region_edgerad = 0.06d0 / bohrtoa
+  ! region mode of the cube window beyond the iso_region_* ones: the
+  ! nodes of a grid field (region_form)
+  integer, parameter :: region_native = -1
 
   ! outcomes of a forced view pick (view_pick_result)
   integer, parameter :: ipick_pending = 0 ! the pick has not finished yet
@@ -700,6 +703,73 @@ module windows
      real(c_float) :: imgscale = 4._c_float
   end type plane_state
   public :: plane_state
+
+  !> Per-window state of the cube window (Tools > Calculate Grid, the
+  !> CUBE keyword): the quantity, the wavefunction of a QE field, the
+  !> region and the grid on it, and a pending pick of a region point.
+  ! the sections of the cube window
+  integer, parameter :: cube_sec_property = 1
+  integer, parameter :: cube_sec_wfn = 2
+  integer, parameter :: cube_sec_region = 3
+  integer, parameter :: cube_sec_grid = 4
+  integer, parameter :: cube_nsec = 4
+
+  ! the grid of a region is given as the number of points or as their spacing
+  integer, parameter :: igrid_npts = 0
+  integer, parameter :: igrid_spacing = 1
+
+  type cube_state
+     type(sys_ref) :: sys ! system the form is set up for
+     type(iw_section) :: sec(cube_nsec) ! the sections: open, showing more
+     ! the quantity: a field and its property (nti, as in LINE and
+     ! PLANE), or an arithmetic expression
+     logical :: isexpr = .false.
+     type(field_ref) :: fref
+     integer :: nti = 0
+     character(len=1024) :: expr = ""
+     character(len=1024) :: exprerr = "" ! what is wrong with it (checked as it is typed)
+     ! the wavefunction of a QE grid field (cubepsi_*; none = the field
+     ! itself): band, k-point, spin, lattice translation, and part
+     ! (cubepart_*)
+     integer :: ipsi = 0
+     integer :: ibnd = 1
+     integer :: ik = 1
+     integer :: ispin = 1
+     integer :: inr(3) = 0
+     integer :: ipart = 0
+     ! the region (iso_region_* or region_native) and its coordinates
+     ! (as in iso_region_to_box)
+     integer :: iregion = 0
+     real*8 :: rgn_x(3,0:3) = 0d0
+     ! the grid on a region: given as the number of points or as
+     ! their spacing (Å)
+     integer :: igrid = igrid_spacing
+     integer :: nn(3) = 40
+     real*8 :: spacing = 0.1d0
+     ! the native grid: the shift of its nodes, and the supercell
+     integer :: ishift(3) = 0
+     logical :: dosuper = .false.
+     integer :: nsuper(3) = 1
+     logical :: header = .false. ! write only the header of the file
+     ! pending pick in the view: the region row, the mode it was armed in
+     logical :: picking = .false.
+     integer :: pickrow = 0
+     integer :: pickmode = 0
+     integer :: pickview = 0
+     type(pairpick) :: pick
+     ! a field asked for from the tree (Calculate Grid; uid 0 = none):
+     ! the window takes it on its own grid
+     type(field_ref) :: req
+     ! the job requested from the dialog (run_cube): its system, field
+     ! (-1 = the expression), and grid (points; origin and steps,
+     ! cell-frame Cartesian bohr, for a region)
+     integer :: jsys = 0
+     integer :: jfield = -1
+     integer :: jnn(3) = 0
+     real*8 :: jx0(3) = 0d0
+     real*8 :: jxd(3,3) = 0d0
+  end type cube_state
+  public :: cube_state
 
   ! Grid spacing the crystal voids window starts from (Å)
   real*8, parameter, public :: voids_spacing_def = 0.15d0
@@ -1442,6 +1512,7 @@ module windows
      type(point_state) :: pt ! the form, pick, and the report at the point
      type(line_state) :: ln ! the endpoints, curves, pick, and values of the line profile
      type(plane_state) :: pl ! the plane, quantity, pick, and maps of the plane map window
+     type(cube_state) :: cu ! the quantity, region, and grid of the cube window
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
@@ -1591,6 +1662,9 @@ module windows
      procedure :: draw_point
      procedure :: draw_line
      procedure :: draw_plane
+     procedure :: draw_cube
+     procedure :: block_cube
+     procedure :: run_cube
      procedure :: draw_editrep_slice
      procedure :: plane_free_texture
      ! blocking jobs (gui_main%pending_block_window)
@@ -1664,6 +1738,7 @@ module windows
   integer, parameter, public :: wintype_point = 30
   integer, parameter, public :: wintype_line = 31
   integer, parameter, public :: wintype_plane = 32
+  integer, parameter, public :: wintype_cube = 33
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -1684,6 +1759,7 @@ module windows
   integer, parameter, public :: wpurp_dialog_saveobjfile = 15
   integer, parameter, public :: wpurp_dialog_savegpathsfile = 16
   integer, parameter, public :: wpurp_dialog_savemapfile = 17
+  integer, parameter, public :: wpurp_dialog_savegridfile = 18
 
   ! dialog token: the EAM potential file chosen with the Browse button of
   ! draw_ff_eam_potential (any window that draws the picker may receive it)
@@ -2211,6 +2287,18 @@ module windows
        integer, intent(inout), optional :: shift(:,:)
        logical :: changed
      end function atom_table_widget
+     module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok) result(changed)
+       integer, intent(in) :: isys
+       integer, intent(inout) :: iregion
+       real*8, intent(inout) :: x(3,0:3)
+       type(iw_section), intent(inout) :: sec
+       character(len=*), intent(in) :: sfx, what
+       logical, intent(inout) :: ttshown
+       integer, intent(out) :: ipick
+       logical, intent(in), optional :: pickoff
+       logical, intent(in), optional :: nativeok
+       logical :: changed
+     end function region_form
      module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
        integer, intent(in) :: isys
        integer, intent(inout) :: ihighlight
@@ -2525,6 +2613,27 @@ module windows
        type(iw_section), intent(inout) :: sec(plane_nsec)
        logical :: changed
      end function plane_def_form
+     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,more,sfx,place,pts,ttshown) result(changed)
+       integer, intent(in) :: isys
+       logical, intent(inout) :: isexpr
+       type(field_ref), intent(inout) :: fref
+       integer, intent(inout) :: nti
+       character(len=*), intent(inout) :: expr, exprerr
+       logical, intent(in) :: more
+       character(len=*), intent(in) :: sfx, place, pts
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function quantity_form
+     !xx! cube submodule !xx!
+     module subroutine draw_cube(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_cube
+     module subroutine block_cube(w)
+       class(window), intent(inout), target :: w
+     end subroutine block_cube
+     module subroutine run_cube(w)
+       class(window), intent(inout), target :: w
+     end subroutine run_cube
      !xx! display submodule !xx!
      module subroutine draw_display(w)
        class(window), intent(inout), target :: w

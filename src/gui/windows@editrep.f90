@@ -4310,13 +4310,9 @@ contains
     use systems, only: sys
     use representations, only: iso_isgridfield, iso_level_custom,&
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
-       iso_level_tipstr_custom, iso_custom_mode_tipstr,&
-       iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
-       iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name,&
-       iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_region_desc, iso_nhist,&
-       iso_hscale_name,&
+       iso_level_tipstr_custom, iso_custom_mode_tipstr, iso_region_cell, iso_nhist, iso_hscale_name,&
        iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
-       iso_region_modes_mol, iso_region_to_box, iso_region_seed,&
+       iso_region_to_box,&
        iso_region_point_from_cart, iso_level_ptsang,&
        iso_custom_mode_optstr, iso_custom_ptsang, iso_ptsang_min, iso_ptsang_max,&
        iso_ptsang_from_npts, rep_shape, shapekind_box, iso_slot_hascolors
@@ -4325,17 +4321,17 @@ contains
        iw_calcwidth, iw_calcheight, iw_combo_simple, iw_button, iw_intstepper, iw_checkbox,&
        iw_close_button, iw_table_column, iw_highlight_selectable,&
        iw_field_combo, iw_cmap_optstr, iw_ncmap, iw_colormap_lut, iw_arith_help,&
-       iw_expression_helper, iw_exprctx_iso, iw_helpermark, iw_inputtext, igIsItemHovered_delayed,&
+       iw_expression_helper, iw_exprctx_iso, iw_helpermark, iw_inputtext,&
        duration_string, iw_separatortext
-    use gui_main, only: fontsize, g, tooltip_enabled, tooltip_delay
+    use gui_main, only: fontsize
     use param, only: newline
     use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: i, isys, iview, nstage(3), nshow(3), nrow, nmode, istat, ilevprev, ipad, ihb, iheld
-    integer :: rmodes(size(iso_region_modes_mol)), iknd, nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
+    integer :: i, isys, iview, nstage(3), nshow(3), irow, istat, ilevprev, ipad, ihb, iheld
+    integer :: nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
     integer(c_int) :: ncus(3), tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
@@ -4344,7 +4340,6 @@ contains
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
     logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
     logical :: ismapped, hascolors, plotted, addcb
-    logical(c_bool) :: is_selected
     real(c_float) :: rgba(4)
     real*8 :: speed
     real(c_double) :: xdrag
@@ -4352,7 +4347,7 @@ contains
     real(c_double), target :: hx(2*iso_nhist), hy(2*iso_nhist)
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable :: str3, experr
-    type(ImVec2) :: szero, szplot, sztab, mpos, szavail
+    type(ImVec2) :: szplot, sztab, mpos, szavail
     real(c_float) :: plotw
     real(c_double), target :: tickv(32)
     type(ImVec4) :: colline, colhist
@@ -4361,8 +4356,6 @@ contains
     changed = .false.
     isys = w%isys
     iview = w%anchor_view()
-    szero%x = 0
-    szero%y = 0
 
     ! handle a pending region-point pick commanded to the anchor view
     if (w%editrep_isopick >= 0) then
@@ -4407,107 +4400,18 @@ contains
     end if
 
     ! region section
-    if (sys(isys)%c%ismolecule) then
-       iknd = iso_knd_mol
-       nmode = size(iso_region_modes_mol)
-       rmodes(1:nmode) = iso_region_modes_mol
-    else
-       iknd = iso_knd_cry
-       nmode = size(iso_region_modes_cry)
-       rmodes(1:nmode) = iso_region_modes_cry
-    end if
-    ! reset a staged mode this system kind does not offer
-    if (all(rmodes(1:nmode) /= w%rep%iso%iregion)) then
-       w%rep%iso%iregion = rmodes(1)
-       call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
-    end if
-    call iw_separatortext("Region",w%editrep_sec(1))
-    if (w%editrep_sec(1)%open) then
-       call iw_text("Mode",alignframe=.true.)
-       str1 = "##isoregion" // c_null_char
-       str2 = trim(iso_region_name(w%rep%iso%iregion,iknd)) // c_null_char
-       call igSameLine(0._c_float,-1._c_float)
-       call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
-       if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
-          do i = 1, nmode
-             is_selected = (w%rep%iso%iregion == rmodes(i))
-             str2 = trim(iso_region_name(rmodes(i),iknd)) // c_null_char
-             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                if (w%rep%iso%iregion /= rmodes(i)) then
-                   w%rep%iso%iregion = rmodes(i)
-                   call iso_region_seed(isys,w%rep%iso%iregion,w%rep%iso%rgn_x)
-                end if
-             end if
-             if (is_selected) &
-                call igSetItemDefaultFocus()
-          end do
-          call igEndCombo()
-       end if
-       ! the modes explained in a tooltip, one per line
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
-             g%LastItemData%NavRect%max,.false._c_bool)) then
-             call igBeginTooltip()
-             call iw_text("Region over which the isosurface is calculated:")
-             call iw_text("")
-             do i = 1, nmode
-                call iw_text(trim(iso_region_name(rmodes(i),iknd)) // " = " //&
-                   trim(iso_region_desc(rmodes(i))),wrap=.true.)
-             end do
-             call igEndTooltip()
-          end if
-       end if
-
-       ! Region coordinates
-       if (w%rep%iso%iregion == iso_region_bbox) then
-          call iw_text("Buffer (Å)",alignframe=.true.)
-          ldum = iw_dragfloat_real8("##isorgnbuf",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
-             speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
-          w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
-          call iw_tooltip("Distance added around the bounding box of the atoms, in&
-             & every direction",ttshown)
-       elseif (w%rep%iso%iregion == iso_region_simplebox .or.&
-          w%rep%iso%iregion == iso_region_cube) then
-          ! both labels padded to the width of the longest, so the drags line up
-          ! and do not shift when the mode changes
-          if (w%rep%iso%iregion == iso_region_cube) then
-             str3 = "Half-length (Å)"
-          else
-             str3 = "Half-lengths (Å)"
-          end if
-          call iw_text(string("x0 (Å)",length=len("Half-lengths (Å)")),alignframe=.true.)
-          ldum = iw_dragfloat_real8("##isorgn0",x3=w%rep%iso%rgn_x(:,0),sameline=.true.,&
-             speed=0.05d0,decimal=3)
-          call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,0),ttshown)
-          call region_pick_button(0)
-          call iw_text(string(str3,length=len("Half-lengths (Å)")),alignframe=.true.)
-          if (w%rep%iso%iregion == iso_region_cube) then
-             ldum = iw_dragfloat_real8("##isorgn1",x1=w%rep%iso%rgn_x(1,1),sameline=.true.,&
-                speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
-             w%rep%iso%rgn_x(2:3,1) = w%rep%iso%rgn_x(1,1)
-          else
-             ldum = iw_dragfloat_real8("##isorgn1",x3=w%rep%iso%rgn_x(:,1),sameline=.true.,&
-                speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
-          end if
-          call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,1),ttshown)
-       elseif (w%rep%iso%iregion /= iso_region_cell) then
-          nrow = 1 ! last drag row: the far corner, or the third edge endpoint
-          if (w%rep%iso%iregion == iso_region_parallel) nrow = 3
-          do i = 0, nrow
-             str1 = "##isorgn" // string(i)
-             if (w%rep%iso%iregion == iso_region_frac) then
-                call iw_text("x" // string(i),alignframe=.true.)
-                ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
-                   speed=0.01d0,decimal=4)
-             else
-                call iw_text("x" // string(i) // " (Å)",alignframe=.true.)
-                ldum = iw_dragfloat_real8(str1,x3=w%rep%iso%rgn_x(:,i),sameline=.true.,&
-                   speed=0.05d0,decimal=3)
-             end if
-             call iw_tooltip(region_point_tooltip(w%rep%iso%iregion,i),ttshown)
-             call region_pick_button(i)
-          end do
-       end if
+    ldum = region_form(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,w%editrep_sec(1),"iso","the isosurface",&
+       ttshown,irow,pickoff=(w%editrep_isopick >= 0))
+    if (irow >= 0) then
+       ! a pick of region row irow in the anchor view; the result is
+       ! received at the top of draw_editrep_isosurface, which also
+       ! cancels it if the region mode stops matching the one stamped
+       ! here
+       w%editrep_isopick = irow
+       w%editrep_isopick_mode = w%rep%iso%iregion
+       call w%editrep_pick%arm()
+       call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the region point",w%id,&
+          acceptempty=.true.)
     end if
 
     ! the region box
@@ -5315,32 +5219,202 @@ contains
 
     end function npts_to_ptsang
 
-    !> Draw the Pick button of region coordinate row irow: arms a pick
-    !> in the anchor view that fills the row with the clicked position
-    !> (an atom, or the unprojected point for empty space); the result
-    !> is received at the top of draw_editrep_isosurface, which also
-    !> cancels the pick if the region mode stops matching the one
-    !> stamped here. One pick can be pending at a time.
-    subroutine region_pick_button(irow)
+  end function draw_editrep_isosurface
+
+  !> The Region section of a form in system isys (the isosurface
+  !> editor, the cube window): the mode iregion (an iso_region_*,
+  !> reset to the first one the system kind offers if it does not
+  !> offer it) and the coordinates x of the region, in the layout of
+  !> iso_region_to_box. sec = the state of the section; sfx = the
+  !> prefix of the widget IDs; what = what is calculated over the
+  !> region, for the tooltip of the modes ("the isosurface"). ipick:
+  !> the row whose Pick button was clicked (-1 = none; pickoff
+  !> disables them). If nativeok, the mode region_native (the nodes of
+  !> a grid field) is offered too. Returns whether anything changed.
+  module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok) result(changed)
+    use systems, only: sys
+    use representations, only: iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
+       iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name, iso_region_desc,&
+       iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_region_modes_mol, iso_region_seed
+    use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_calcwidth, iw_button, iw_separatortext,&
+       igIsItemHovered_delayed
+    use gui_main, only: g, tooltip_enabled, tooltip_delay
+    use tools_io, only: string
+    integer, intent(in) :: isys
+    integer, intent(inout) :: iregion
+    real*8, intent(inout) :: x(3,0:3)
+    type(iw_section), intent(inout) :: sec
+    character(len=*), intent(in) :: sfx, what
+    logical, intent(inout) :: ttshown
+    integer, intent(out) :: ipick
+    logical, intent(in), optional :: pickoff
+    logical, intent(in), optional :: nativeok
+    logical :: changed
+
+    integer :: i, iknd, nmode, nrow
+    integer :: rmodes(size(iso_region_modes_mol)+size(iso_region_modes_cry)+1)
+    logical :: ch, pickoff_
+    logical(c_bool) :: is_selected
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(len=:), allocatable :: str3
+    type(ImVec2) :: szero
+
+    changed = .false.
+    ipick = -1
+    pickoff_ = .false.
+    if (present(pickoff)) pickoff_ = pickoff
+    szero%x = 0
+    szero%y = 0
+
+    ! the modes this system kind offers, the native grid first
+    nmode = 0
+    if (present(nativeok)) then
+       if (nativeok) then
+          nmode = 1
+          rmodes(1) = region_native
+       end if
+    end if
+    if (sys(isys)%c%ismolecule) then
+       iknd = iso_knd_mol
+       rmodes(nmode+1:nmode+size(iso_region_modes_mol)) = iso_region_modes_mol
+       nmode = nmode + size(iso_region_modes_mol)
+    else
+       iknd = iso_knd_cry
+       rmodes(nmode+1:nmode+size(iso_region_modes_cry)) = iso_region_modes_cry
+       nmode = nmode + size(iso_region_modes_cry)
+    end if
+    ! reset a staged mode this system kind does not offer
+    if (all(rmodes(1:nmode) /= iregion)) then
+       iregion = rmodes(1)
+       if (iregion /= region_native) call iso_region_seed(isys,iregion,x)
+       changed = .true.
+    end if
+    call iw_separatortext("Region",sec)
+    if (.not.sec%open) return
+
+    call iw_text("Mode",alignframe=.true.)
+    str1 = "##" // sfx // "region" // c_null_char
+    str2 = mode_name(iregion) // c_null_char
+    call igSameLine(0._c_float,-1._c_float)
+    call igSetNextItemWidth(iw_calcwidth(len(iso_region_name)+4,0))
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nmode
+          is_selected = (iregion == rmodes(i))
+          str2 = mode_name(rmodes(i)) // c_null_char
+          if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+             if (iregion /= rmodes(i)) then
+                iregion = rmodes(i)
+                if (iregion /= region_native) call iso_region_seed(isys,iregion,x)
+                changed = .true.
+             end if
+          end if
+          if (is_selected) &
+             call igSetItemDefaultFocus()
+       end do
+       call igEndCombo()
+    end if
+    ! the modes explained in a tooltip, one per line
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+          g%LastItemData%NavRect%max,.false._c_bool)) then
+          call igBeginTooltip()
+          call iw_text("Region over which " // what // " is calculated:")
+          call iw_text("")
+          do i = 1, nmode
+             if (rmodes(i) == region_native) then
+                call iw_text(mode_name(rmodes(i)) // " = The nodes of the grid field itself",wrap=.true.)
+             else
+                call iw_text(mode_name(rmodes(i)) // " = " // trim(iso_region_desc(rmodes(i))),wrap=.true.)
+             end if
+          end do
+          call igEndTooltip()
+       end if
+    end if
+
+    ! Region coordinates
+    if (iregion == iso_region_bbox) then
+       call iw_text("Buffer (Å)",alignframe=.true.)
+       ch = iw_dragfloat_real8("##" // sfx // "rgnbuf",x1=x(1,1),sameline=.true.,&
+          speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+       changed = changed .or. ch
+       x(2:3,1) = x(1,1)
+       call iw_tooltip("Distance added around the bounding box of the atoms, in&
+          & every direction",ttshown)
+    elseif (iregion == iso_region_simplebox .or. iregion == iso_region_cube) then
+       ! both labels padded to the width of the longest, so the drags line up
+       ! and do not shift when the mode changes
+       if (iregion == iso_region_cube) then
+          str3 = "Half-length (Å)"
+       else
+          str3 = "Half-lengths (Å)"
+       end if
+       call iw_text(string("x0 (Å)",length=len("Half-lengths (Å)")),alignframe=.true.)
+       ch = iw_dragfloat_real8("##" // sfx // "rgn0",x3=x(:,0),sameline=.true.,&
+          speed=0.05d0,decimal=3)
+       changed = changed .or. ch
+       call iw_tooltip(region_point_tooltip(0),ttshown)
+       call pick_button(0)
+       call iw_text(string(str3,length=len("Half-lengths (Å)")),alignframe=.true.)
+       if (iregion == iso_region_cube) then
+          ch = iw_dragfloat_real8("##" // sfx // "rgn1",x1=x(1,1),sameline=.true.,&
+             speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+          x(2:3,1) = x(1,1)
+       else
+          ch = iw_dragfloat_real8("##" // sfx // "rgn1",x3=x(:,1),sameline=.true.,&
+             speed=0.05d0,decimal=3,min=0d0,flags=ImGuiSliderFlags_AlwaysClamp)
+       end if
+       changed = changed .or. ch
+       call iw_tooltip(region_point_tooltip(1),ttshown)
+    elseif (iregion /= iso_region_cell .and. iregion /= region_native) then
+       nrow = 1 ! last drag row: the far corner, or the third edge endpoint
+       if (iregion == iso_region_parallel) nrow = 3
+       do i = 0, nrow
+          str3 = "##" // sfx // "rgn" // string(i)
+          if (iregion == iso_region_frac) then
+             call iw_text("x" // string(i),alignframe=.true.)
+             ch = iw_dragfloat_real8(str3,x3=x(:,i),sameline=.true.,&
+                speed=0.01d0,decimal=4)
+          else
+             call iw_text("x" // string(i) // " (Å)",alignframe=.true.)
+             ch = iw_dragfloat_real8(str3,x3=x(:,i),sameline=.true.,&
+                speed=0.05d0,decimal=3)
+          end if
+          changed = changed .or. ch
+          call iw_tooltip(region_point_tooltip(i),ttshown)
+          call pick_button(i)
+       end do
+    end if
+
+  contains
+
+    !> The name of region mode im in this system kind.
+    function mode_name(im) result(str)
+      integer, intent(in) :: im
+      character(len=:), allocatable :: str
+
+      if (im == region_native) then
+         str = "Native grid"
+      else
+         str = trim(iso_region_name(im,iknd))
+      end if
+
+    end function mode_name
+
+    !> The Pick button of region coordinate row irow: the row is
+    !> returned in ipick, for the caller to arm a pick in its view.
+    subroutine pick_button(irow)
       integer, intent(in) :: irow
 
-      if (iw_button("Pick##isorgnpick" // string(irow),sameline=.true.,&
-         disabled=(w%editrep_isopick >= 0))) then
-         w%editrep_isopick = irow
-         w%editrep_isopick_mode = w%rep%iso%iregion
-         call w%editrep_pick%arm()
-         call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the region point",w%id,&
-            acceptempty=.true.)
-      end if
+      if (iw_button("Pick##" // sfx // "rgnpick" // string(irow),sameline=.true.,disabled=pickoff_)) &
+         ipick = irow
       call iw_tooltip("Pick this point in the view: click an atom to use its position,&
          & or empty space to use the clicked point",ttshown)
 
-    end subroutine region_pick_button
+    end subroutine pick_button
 
     !> Tooltip text for region coordinate row i (0 = origin/first
-    !> corner/center) of region mode iregion.
-    function region_point_tooltip(iregion,i) result(str)
-      integer, intent(in) :: iregion
+    !> corner/center) of the region mode.
+    function region_point_tooltip(i) result(str)
       integer, intent(in) :: i
       character(len=:), allocatable :: str
 
@@ -5377,7 +5451,7 @@ contains
       end if
 
     end function region_point_tooltip
-  end function draw_editrep_isosurface
+  end function region_form
 
 
   !> Draw the editrep window, critical points class. Returns true if

@@ -1453,7 +1453,7 @@ contains
     use systems, only: sys
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_calcwidth,&
        iw_inputint, iw_combo_simple, iw_checkbox, iw_coloredit, iw_inputtext, iw_cmap_optstr,&
-       iw_field_combo, iw_expression_helper, iw_exprctx_point, iw_separatortext
+       iw_separatortext
     use tools_io, only: string
     type(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
@@ -1665,55 +1665,10 @@ contains
     !> The quantity on the map: a field, or an arithmetic expression
     !> (checked as it is typed). More: the property of the field.
     subroutine draw_quantity()
-      integer :: ikind, ifield, iq
-      logical :: echanged
-      character(len=:), allocatable :: lerr
 
-      call iw_text("Kind",alignframe=.true.)
-      ikind = merge(1,0,d%isexpr)
-      call iw_combo_simple("##planekind","Field" // c_null_char // "Expression" // c_null_char,ikind,&
-         sameline=.true.)
-      call iw_tooltip("A quantity of a field, or an arithmetic expression of the fields",ttshown)
-      changed = changed .or. (d%isexpr .neqv. (ikind == 1))
-      d%isexpr = (ikind == 1)
-      if (.not.d%isexpr) then
-         call iw_text("Field",alignframe=.true.,gap=.true.)
-         ifield = d%fref%id
-         if (iw_field_combo("##planefield",isys,ifield,width=iw_calcwidth(24,1),&
-            nonestr="<field not available>",sameline=.true.)) then
-            call d%fref%set(sys(isys),ifield)
-            changed = .true.
-         end if
-         call iw_tooltip("Field on the map",ttshown)
-         if (sec(plane_sec_property)%more) then
-            call iw_text("Quantity",alignframe=.true.)
-            iq = d%nti
-            call iw_combo_simple("##planequant",quant_combo,iq,sameline=.true.)
-            changed = changed .or. (iq /= d%nti)
-            d%nti = max(min(iq,nquant-1),0)
-            call iw_tooltip("Property of the field on the map",ttshown)
-         end if
-      else
-         call iw_text("Expression",alignframe=.true.,gap=.true.)
-         echanged = iw_inputtext("##planeexpr",bufsize=1023,textf=d%expr,width=36,sameline=.true.)
-         call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
-            & ""$1 - $2"" or ""$1:l""), evaluated at the points of the plane",ttshown)
-         if (iw_expression_helper("##planehelp",isys,iw_exprctx_point,textf=d%expr,&
-            ttshown=ttshown,ifield=sys(isys)%iref)) echanged = .true.
-         if (echanged) then
-            changed = .true.
-            d%exprerr = ""
-            if (len_trim(d%expr) > 0) then
-               call sys(isys)%check_expression(trim(d%expr),lerr)
-               d%exprerr = lerr
-            end if
-         end if
-         if (len_trim(d%expr) == 0) then
-            call iw_text("The expression is empty",danger=.true.,wrap=.true.)
-         elseif (len_trim(d%exprerr) > 0) then
-            call iw_text(trim(d%exprerr),danger=.true.,wrap=.true.)
-         end if
-      end if
+      ch = quantity_form(isys,d%isexpr,d%fref,d%nti,d%expr,d%exprerr,sec(plane_sec_property)%more,&
+         "plane","the map","the plane",ttshown)
+      changed = changed .or. ch
 
     end subroutine draw_quantity
 
@@ -1959,5 +1914,80 @@ contains
     call iw_tooltip("The value at the top of the relief" // tttype,ttshown)
 
   end function relief_form
+
+  !> The quantity of a form (the plane map and the cube windows, the
+  !> plane map object editor) in system isys: a field fref, or an
+  !> arithmetic expression expr (if isexpr; checked as it is typed,
+  !> into exprerr). If more, the property nti of the field too. sfx =
+  !> the prefix of the widget IDs; place = where the quantity is (for
+  !> the tooltips: "the map"), and pts = whose points the expression
+  !> is evaluated at ("the plane"). Returns whether it changed.
+  module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,more,sfx,place,pts,ttshown) result(changed)
+    use systems, only: sys
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_combo_simple, iw_field_combo, iw_inputtext,&
+       iw_expression_helper, iw_exprctx_point
+    integer, intent(in) :: isys
+    logical, intent(inout) :: isexpr
+    type(field_ref), intent(inout) :: fref
+    integer, intent(inout) :: nti
+    character(len=*), intent(inout) :: expr, exprerr
+    logical, intent(in) :: more
+    character(len=*), intent(in) :: sfx, place, pts
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    integer :: ikind, ifield, iq
+    logical :: echanged
+    character(len=:), allocatable :: lerr
+
+    changed = .false.
+
+    call iw_text("Kind",alignframe=.true.)
+    ikind = merge(1,0,isexpr)
+    call iw_combo_simple("##" // sfx // "kind","Field" // c_null_char // "Expression" // c_null_char,ikind,&
+       sameline=.true.)
+    call iw_tooltip("A quantity of a field, or an arithmetic expression of the fields",ttshown)
+    changed = changed .or. (isexpr .neqv. (ikind == 1))
+    isexpr = (ikind == 1)
+    if (.not.isexpr) then
+       call iw_text("Field",alignframe=.true.,gap=.true.)
+       ifield = fref%id
+       if (iw_field_combo("##" // sfx // "field",isys,ifield,width=iw_calcwidth(24,1),&
+          nonestr="<field not available>",sameline=.true.)) then
+          call fref%set(sys(isys),ifield)
+          changed = .true.
+       end if
+       call iw_tooltip("Field on " // place,ttshown)
+       if (more) then
+          call iw_text("Quantity",alignframe=.true.)
+          iq = nti
+          call iw_combo_simple("##" // sfx // "quant",quant_combo,iq,sameline=.true.)
+          changed = changed .or. (iq /= nti)
+          nti = max(min(iq,nquant-1),0)
+          call iw_tooltip("Property of the field on " // place,ttshown)
+       end if
+    else
+       call iw_text("Expression",alignframe=.true.,gap=.true.)
+       echanged = iw_inputtext("##" // sfx // "expr",bufsize=1023,textf=expr,width=36,sameline=.true.)
+       call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
+          & ""$1 - $2"" or ""$1:l""), evaluated at the points of " // pts,ttshown)
+       if (iw_expression_helper("##" // sfx // "help",isys,iw_exprctx_point,textf=expr,&
+          ttshown=ttshown,ifield=sys(isys)%iref)) echanged = .true.
+       if (echanged) then
+          changed = .true.
+          exprerr = ""
+          if (len_trim(expr) > 0) then
+             call sys(isys)%check_expression(trim(expr),lerr)
+             exprerr = lerr
+          end if
+       end if
+       if (len_trim(expr) == 0) then
+          call iw_text("The expression is empty",danger=.true.,wrap=.true.)
+       elseif (len_trim(exprerr) > 0) then
+          call iw_text(trim(exprerr),danger=.true.,wrap=.true.)
+       end if
+    end if
+
+  end function quantity_form
 
 end submodule plane
