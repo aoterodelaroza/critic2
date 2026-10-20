@@ -637,6 +637,11 @@ module windows
      type(relief_def) :: rl ! its relief
      integer*8 :: viewgen = -1
      logical :: viewdirty = .true.
+     ! the object the window edits instead (Create Object; uid 0 =
+     ! none), its view, and the edit of it the window has (its stamp)
+     type(rep_ref) :: obj
+     integer :: objview = 0
+     integer*8 :: objstamp = 0
      ! the labels of the atoms and critical points near the plane
      logical :: showlabels = .true.
      logical :: showcps = .true. ! the critical points too (or only the atoms)
@@ -1979,10 +1984,11 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
-     module subroutine add_rep_and_edit(w,itype,flavor,ifield)
+     module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep)
        class(window), intent(inout), target :: w
        integer, intent(in) :: itype, flavor
        integer, intent(in), optional :: ifield
+       integer, intent(out), optional :: irep
      end subroutine add_rep_and_edit
      module subroutine annot_set_tool(w,itype,itool,irep)
        class(window), intent(inout), target :: w

@@ -346,6 +346,7 @@ contains
     ! plane map: the default plane of the system
     if (itype == 0 .or. itype == 20) then
        r%slice = rep_slice()
+       r%slice%stamp = new_uid()
        if (r%type == reptype_slice) call r%slice%d%set_defaults(isys)
     end if
 

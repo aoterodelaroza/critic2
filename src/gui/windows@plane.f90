@@ -66,7 +66,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh
-    integer :: isys, iview, istat, i, ipick, iaux
+    integer :: isys, iview, istat, i, ipick, iaux, irobj
     real*8 :: xc(3), rad, v(3,3), xhov(3)
     type(ImVec2) :: sz0
     real(c_float) :: htable, hmap
@@ -89,6 +89,8 @@ contains
        w%errmsg = ""
     end if
 
+    irobj = 0
+
     ! a new system: the plane goes to a face of the cell (crystals),
     ! to the plane of the first three atoms (molecules), or in between
     ! for slabs and chains (see plane_def_set_defaults), and the
@@ -103,6 +105,21 @@ contains
           w%okfile = okfile_default(isys,"map","png")
           w%okfile = w%okfile(1:len(w%okfile)-4) // "_plane.png"
        end if
+
+       ! the object the window edits (Create Object), if it is in the
+       ! view (it may come back with an undo); the edits made to it
+       ! elsewhere (its editor, undo) come to the form, and replace
+       ! those of the window not given to it yet
+       if (w%pl%obj%uid > 0 .and. iview == w%pl%objview) then
+          if (associated(win(iview)%sc)) irobj = w%pl%obj%get(win(iview)%sc)
+       end if
+       if (irobj > 0) then
+          if (win(iview)%sc%rep(irobj)%slice%stamp /= w%pl%objstamp) then
+             call take_map(win(iview)%sc%rep(irobj))
+             w%pl%viewdirty = .false.
+          end if
+       end if
+
        ! the reference field, if the field is gone
        if (.not.w%pl%d%fref%ok(sys(isys))) call w%pl%d%fref%set(sys(isys),sys(isys)%iref)
     end if
@@ -187,8 +204,10 @@ contains
                 shp(i) = rep_shape(kind=shapekind_sphere,x1=cart_to_abs(form_to_cart(isys,w%pl%d%xp(:,i))),&
                    rad=rad,rgb=pt_rgb(:,i),alpha=marker_alpha)
              end do
-             ! the region (unless the map itself is in the view)
-             if (allocated(w%pl%ff) .and. .not.(w%pl%showview .and. w%pl%viewgen >= 0)) then
+             ! the region (unless the map itself is in the view, as the
+             ! window's or as the object it edits)
+             if (allocated(w%pl%ff) .and. .not.(w%pl%showview .and. w%pl%viewgen >= 0) .and.&
+                irobj == 0) then
                 v = 0d0
                 v(:,1) = real(size(w%pl%ff,1)-1,8) * w%pl%uu
                 v(:,2) = real(size(w%pl%ff,2)-1,8) * w%pl%vv
@@ -214,9 +233,19 @@ contains
     end if
     w%okfile_set = .false.
 
-    ! bottom row: export the image, close
-    call iw_setpos_bottomright(len("Export to Image") + len("Close"),2)
-    if (iw_button("Export to Image",disabled=.not.allocated(w%pl%ff))) &
+    ! bottom row: create the object, export the image, close
+    ldum = goodsys .and. allocated(w%pl%ff) .and. (irobj == 0)
+    if (ldum) ldum = fresh .and. associated(win(iview)%sc)
+    call iw_setpos_bottomright(len("Create Object") + len("Export to Image") + len("Close"),3)
+    if (iw_button("Create Object##planecreateobj",disabled=.not.ldum)) call create_object()
+    if (irobj > 0) then
+       call iw_tooltip("This map is already an object of the view, which the window edits",&
+          ttshown,whendisabled=.true.)
+    else
+       call iw_tooltip("Make this map a permanent object of the view, kept after this window is&
+          & closed; while the window is open, it edits the object",ttshown,whendisabled=.true.)
+    end if
+    if (iw_button("Export to Image",sameline=.true.,disabled=.not.allocated(w%pl%ff))) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
     call iw_tooltip("Save the map, as shown in this window, to a PNG image file",ttshown)
     if (iw_button("Close",sameline=.true.)) doquit = .true.
@@ -244,10 +273,18 @@ contains
       if (.not.w%pl%secdisp%open) return
       ldum = iw_checkbox("Labels##planeshowlabels",w%pl%showlabels,labelleft=.true.)
       call iw_tooltip("Label the atoms and the critical points of the reference field near the plane",ttshown)
-      if (iw_checkbox("Show in view##planeshow",w%pl%showview,gap=.true.,labelleft=.true.)) w%pl%viewgen = -1
-      call iw_tooltip("Draw this map in the view, following the changes made here, for as long as&
-         & the window is open (Draw > Plane Map makes a map that stays)",ttshown)
-      if (w%pl%showview) then
+      if (irobj > 0) then
+         call iw_text("Object",alignframe=.true.,gap=.true.)
+         call iw_text(trim(win(iview)%sc%rep(irobj)%name),sameline=.true.)
+         call iw_tooltip("The map in the view is this object, which the window edits for as long&
+            & as it is open",ttshown)
+      else
+         if (iw_checkbox("Show in view##planeshow",w%pl%showview,gap=.true.,labelleft=.true.)) &
+            w%pl%viewgen = -1
+         call iw_tooltip("Draw this map in the view, following the changes made here, for as long&
+            & as the window is open (Create Object makes a map that stays)",ttshown)
+      end if
+      if (w%pl%showview .or. irobj > 0) then
          if (relief_checkbox(w%pl%rl,"plane",.true.,ttshown)) w%pl%viewdirty = .true.
          call iw_text("Opacity",alignframe=.true.,gap=.true.)
          if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
@@ -293,12 +330,15 @@ contains
     !> window (it never calculates them) when they are new, and the form
     !> when it changed; with no values (an error), it shows nothing.
     subroutine sync_view(fresh)
-      use representations, only: slice_cache
       logical, intent(in) :: fresh
 
       integer :: itrep
       logical :: found
 
+      if (irobj > 0) then
+         call sync_object(fresh)
+         return
+      end if
       if (.not.w%pl%showview .or. .not.associated(win(iview)%sc)) return
       if (win(iview)%sc%isinit == 0) return
 
@@ -321,13 +361,8 @@ contains
 
         r%name = "Plane Map"
         r%shown = .true.
-        r%slice%d = w%pl%d
-        r%slice%alpha = w%pl%alpha
-        r%slice%rl = w%pl%rl
         ! the values of the window, if they are new to the view
-        if (w%pl%viewgen /= w%pl%gen) &
-           r%slice%c = slice_cache(ff=w%pl%ff,x0=w%pl%x0,uu=w%pl%uu,vv=w%pl%vv,&
-              e1=w%pl%e1,e2=w%pl%e2,errmsg="",keyexpr=trim(w%pl%d%expr))
+        call give_map(r,w%pl%viewgen /= w%pl%gen)
       end associate
       w%pl%viewgen = w%pl%gen
       w%pl%viewdirty = .false.
@@ -505,6 +540,82 @@ contains
          call iw_text("(The region is too large for labels)",disabled=.true.)
 
     end subroutine draw_map
+
+    !> Give the map of the window to the object it edits (irobj), as
+    !> sync_view does to its own: when fresh, the values if they are
+    !> new, and the form if it changed (an edit for the undo history).
+    subroutine sync_object(fresh)
+      use global, only: new_uid
+      logical, intent(in) :: fresh
+
+      if (.not.fresh .or. .not.allocated(w%pl%ff)) return
+      if (w%pl%viewgen == w%pl%gen .and. .not.w%pl%viewdirty) return
+      associate(r => win(iview)%sc%rep(irobj))
+        call give_map(r,w%pl%viewgen /= w%pl%gen)
+        r%slice%stamp = new_uid()
+        w%pl%objstamp = r%slice%stamp
+        if (w%pl%viewdirty) call win(iview)%sc%undo_note("Edit " // trim(r%name))
+      end associate
+      w%pl%viewgen = w%pl%gen
+      w%pl%viewdirty = .false.
+      win(iview)%sc%forcebuildlists = .true.
+
+    end subroutine sync_object
+
+    !> Copy the map of the window into a new plane map object of the
+    !> anchor view, with the values of the window (so it is not
+    !> calculated again), and open its editor. The window then edits
+    !> the object instead of showing a map of its own.
+    subroutine create_object()
+      use representations, only: reptype_slice, repflavor_slice
+
+      integer :: irep
+
+      call win(iview)%add_rep_and_edit(reptype_slice,repflavor_slice,irep=irep)
+      if (irep <= 0) then
+         w%errmsg = "Could not create the plane map object"
+         return
+      end if
+      call w%pl%obj%set(win(iview)%sc,irep)
+      w%pl%objview = iview
+      irobj = irep
+      w%pl%viewgen = -1
+      w%pl%viewdirty = .false.
+      call sync_object(.true.)
+
+    end subroutine create_object
+
+    !> Give the map of the window to plane map r (the transient of the
+    !> view or an object): the form, the opacity and the relief, and,
+    !> if values, the values of the window and their key (the values
+    !> must be fresh, those of the form).
+    subroutine give_map(r,values)
+      use representations, only: representation, slice_cache
+      type(representation), intent(inout) :: r
+      logical, intent(in) :: values
+
+      r%slice%d = w%pl%d
+      r%slice%alpha = w%pl%alpha
+      r%slice%rl = w%pl%rl
+      if (.not.values) return
+      r%slice%c = slice_cache(ff=w%pl%ff,x0=w%pl%x0,uu=w%pl%uu,vv=w%pl%vv,&
+         e1=w%pl%e1,e2=w%pl%e2,errmsg="",keyexpr=w%pl%keyexpr)
+      call r%slice%d%key(isys,r%slice%c%key)
+
+    end subroutine give_map
+
+    !> Take the map of plane map r (the object the window edits) into
+    !> the form of the window: the reverse of give_map.
+    subroutine take_map(r)
+      use representations, only: representation
+      type(representation), intent(in) :: r
+
+      w%pl%d = r%slice%d
+      w%pl%alpha = r%slice%alpha
+      w%pl%rl = r%slice%rl
+      w%pl%objstamp = r%slice%stamp
+
+    end subroutine take_map
 
     !> Save the map, as last drawn in the window, to the PNG file
     !> w%okfile, for a publication: drawn again in a separate ImGui
@@ -1011,10 +1122,34 @@ contains
          any(abs(olduu*(oldnx-1) - w%pl%uu*(w%pl%d%nx-1)) > 1d-10) .or.&
          any(abs(oldvv*(oldny-1) - w%pl%vv*(w%pl%d%ny-1)) > 1d-10)
 
-      ! the values
+      ! the values: those of the object the window edits, if it has
+      ! them already (it calculated them for a change made elsewhere:
+      ! its editor, an undo, the geometry), else calculated
+      if (object_has_values()) then
+         w%pl%ff = win(iview)%sc%rep(irobj)%slice%c%ff
+         w%pl%viewgen = w%pl%gen
+         return
+      end if
       call w%pl%d%values(isys,w%pl%x0,w%pl%uu,w%pl%vv,w%pl%ff,w%pl%errmsg)
 
     end subroutine update_grid
+
+    !> Whether the object the window edits (irobj) has the values for
+    !> the key of the window, w%pl%key (which ends in the system).
+    function object_has_values() result(ok)
+      logical :: ok
+
+      ok = .false.
+      if (irobj <= 0) return
+      if (.not.allocated(win(iview)%sc%rep(irobj)%slice%c)) return
+      associate(c => win(iview)%sc%rep(irobj)%slice%c)
+        if (.not.allocated(c%ff) .or. .not.allocated(c%key) .or. .not.allocated(c%keyexpr)) return
+        if (any(shape(c%ff) /= (/w%pl%d%nx,w%pl%d%ny/))) return
+        if (size(c%key) /= size(w%pl%key)-1) return
+        ok = all(c%key == w%pl%key(1:size(c%key))) .and. (c%keyexpr == w%pl%keyexpr)
+      end associate
+
+    end function object_has_values
 
     !> Calculate the contour lines again if the grid or the levels
     !> changed, in plot coordinates, the positive levels in cpos and
@@ -1679,6 +1814,7 @@ contains
   !> it. Returns whether anything changed.
   module function draw_editrep_slice(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_separatortext
+    use global, only: new_uid
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -1690,21 +1826,25 @@ contains
 
     ! how it is drawn
     call iw_separatortext("Style",w%editrep_slicesec(plane_nsec+1))
-    if (.not.w%editrep_slicesec(plane_nsec+1)%open) return
-    call iw_text("Opacity",alignframe=.true.)
-    ch = iw_dragfloat_realc("##sliceopacity",x1=w%rep%slice%alpha,speed=0.01_c_float,&
-       min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-    changed = changed .or. ch
-    call iw_tooltip("Opacity of the map (1 = opaque)",ttshown)
-    call iw_text("Line radius",alignframe=.true.,gap=.true.)
-    ch = iw_dragfloat_real8("(Å)##slicecrad",x1=w%rep%slice%crad,speed=0.001d0,&
-       min=0d0,scale=bohrtoa,decimal=3,sameline=.true.)
-    changed = changed .or. ch
-    call iw_tooltip("Radius of the contour lines",ttshown)
-    ch = relief_checkbox(w%rep%slice%rl,"slice",.false.,ttshown)
-    changed = changed .or. ch
-    ch = relief_form(w%rep%slice%rl,"slice",.true.,ttshown)
-    changed = changed .or. ch
+    if (w%editrep_slicesec(plane_nsec+1)%open) then
+       call iw_text("Opacity",alignframe=.true.)
+       ch = iw_dragfloat_realc("##sliceopacity",x1=w%rep%slice%alpha,speed=0.01_c_float,&
+          min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       changed = changed .or. ch
+       call iw_tooltip("Opacity of the map (1 = opaque)",ttshown)
+       call iw_text("Line radius",alignframe=.true.,gap=.true.)
+       ch = iw_dragfloat_real8("(Å)##slicecrad",x1=w%rep%slice%crad,speed=0.001d0,&
+          min=0d0,scale=bohrtoa,decimal=3,sameline=.true.)
+       changed = changed .or. ch
+       call iw_tooltip("Radius of the contour lines",ttshown)
+       ch = relief_checkbox(w%rep%slice%rl,"slice",.false.,ttshown)
+       changed = changed .or. ch
+       ch = relief_form(w%rep%slice%rl,"slice",.true.,ttshown)
+       changed = changed .or. ch
+    end if
+
+    ! a plane map window that edits this object takes the edit
+    if (changed) w%rep%slice%stamp = new_uid()
 
     ! what is wrong
     if (allocated(w%rep%slice%c)) then

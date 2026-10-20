@@ -914,6 +914,7 @@ module representations
      real*8 :: crad = slice_crad_def ! radius of the contour lines (bohr)
      type(relief_def) :: rl ! the relief
      logical :: nocalc = .false. ! the values are given (c), never calculated (the map of a window)
+     integer*8 :: stamp = 0 ! new_uid of its last edit or reset, for the plane map window that edits it
      type(slice_cache), allocatable :: c ! the values and the lines
   end type rep_slice
   public :: rep_slice

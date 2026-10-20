@@ -4664,31 +4664,35 @@ contains
   !> Add a new representation with the given type and flavor to this
   !> view window's scene, then open the edit representation window for
   !> it. An isosurface is bound to field ifield, if given, instead of
-  !> the reference field. Does nothing if the scene is not available.
+  !> the reference field. Returns its id in irep (0 if it could not be
+  !> made). Does nothing if the scene is not available.
   !> add_representation flags the scene for rebuild.
-  module subroutine add_rep_and_edit(w,itype,flavor,ifield)
+  module subroutine add_rep_and_edit(w,itype,flavor,ifield,irep)
     use representations, only: reptype_isosurface
     class(window), intent(inout), target :: w
     integer, intent(in) :: itype, flavor
     integer, intent(in), optional :: ifield
+    integer, intent(out), optional :: irep
 
-    integer :: irep, idw
+    integer :: id, idw
 
+    if (present(irep)) irep = 0
     if (.not.associated(w%sc)) return
     if (w%sc%isinit == 0) call w%sc%init(w%isys)
-    call w%sc%add_representation(itype,flavor,id=irep)
-    if (irep > 0 .and. itype == reptype_isosurface) then
+    call w%sc%add_representation(itype,flavor,id=id)
+    if (id > 0 .and. itype == reptype_isosurface) then
        ! bind the field first: set_field re-stages an ungenerated grid,
        ! and benchmarking the reference field would price one never drawn
        if (present(ifield)) &
-          call w%sc%rep(irep)%iso%set_field(w%isys,ifield)
+          call w%sc%rep(id)%iso%set_field(w%isys,ifield)
        ! a new isosurface picks a grid it can sample quickly and draws
        ! right away, instead of waiting for the user to commit one
-       call w%sc%rep(irep)%iso%autogrid(w%isys)
+       call w%sc%rep(id)%iso%autogrid(w%isys)
     end if
-    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
+    idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=id,&
        idparent=w%id,orraise=-1)
-    if (irep > 0) call w%sc%undo_note("Add " // trim(w%sc%rep(irep)%name))
+    if (id > 0) call w%sc%undo_note("Add " // trim(w%sc%rep(id)%name))
+    if (present(irep)) irep = id
 
   end subroutine add_rep_and_edit
 
