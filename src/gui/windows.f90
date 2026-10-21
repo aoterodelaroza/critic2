@@ -746,6 +746,8 @@ module windows
      integer :: igrid = igrid_spacing
      integer :: nn(3) = 40
      real*8 :: spacing = 0.1d0
+     ! the measured cost of the quantity (s per point; -1 = not measured)
+     real*8 :: costest = -1d0
      ! the native grid: the shift of its nodes, and the supercell
      integer :: ishift(3) = 0
      logical :: dosuper = .false.

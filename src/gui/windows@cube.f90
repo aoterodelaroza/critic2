@@ -40,7 +40,8 @@ contains
        iso_region_point_from_cart, rep_shape, shapekind_box
     use rhoplot, only: cubepsi_none, cubepsi_psink, cubepsi_unk, cubepsi_wannier, cubepsi_mlwf
     use utils, only: iw_text, iw_button, iw_tooltip, iw_close_event, iw_setpos_bottomright,&
-       iw_separatortext, iw_combo_simple, iw_inputint, iw_inputint3, iw_dragfloat_real8, iw_checkbox
+       iw_separatortext, iw_combo_simple, iw_inputint, iw_inputint3, iw_dragfloat_real8, iw_checkbox,&
+       duration_string
     use global, only: precisecube
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -100,7 +101,10 @@ contains
        end if
 
        ! the reference field, if the field is gone
-       if (.not.w%cu%fref%ok(sys(isys))) call w%cu%fref%set(sys(isys),sys(isys)%iref)
+       if (.not.w%cu%fref%ok(sys(isys))) then
+          call w%cu%fref%set(sys(isys),sys(isys)%iref)
+          w%cu%costest = -1d0
+       end if
     end if
 
     ! a pending pick in the view it was armed on; dropped, releasing the
@@ -130,6 +134,8 @@ contains
        if (w%cu%sec(cube_sec_property)%open) then
           ch = quantity_form(isys,w%cu%isexpr,w%cu%fref,w%cu%nti,w%cu%expr,w%cu%exprerr,&
              w%cu%sec(cube_sec_property)%more,"cube","the grid","the grid",ttshown)
+          ! another quantity costs differently
+          if (ch) w%cu%costest = -1d0
        end if
        ifield = -1
        if (.not.w%cu%isexpr) ifield = w%cu%fref%id
@@ -151,7 +157,10 @@ contains
        ! the region: a wavefunction is on the nodes of the grid
        if (w%cu%ipsi /= cubepsi_none) w%cu%iregion = region_native
        if (region_form(isys,w%cu%iregion,w%cu%rgn_x,w%cu%sec(cube_sec_region),"cube","the grid",ttshown,&
-          irow,pickoff=w%cu%picking,nativeok=(isgrid .and. w%cu%nti == 0))) w%errmsg = ""
+          irow,pickoff=w%cu%picking,nativeok=(isgrid .and. w%cu%nti == 0))) then
+          w%errmsg = ""
+          w%cu%costest = -1d0
+       end if
        if (w%cu%ipsi /= cubepsi_none .and. w%cu%sec(cube_sec_region)%open) &
           call iw_text("A wavefunction is written on the nodes of the grid of its field",disabled=.true.,&
              wrap=.true.)
@@ -239,6 +248,7 @@ contains
       w%cu%isexpr = .false.
       w%cu%nti = 0
       w%cu%ipsi = cubepsi_none
+      w%cu%costest = -1d0
       if (nativefield(id)) w%cu%iregion = region_native
 
     end subroutine set_field
@@ -390,6 +400,18 @@ contains
                wrap=.true.)
       end if
 
+      ! the time the grid takes (not for the nodes of a field or for the
+      ! header only, which are not calculated)
+      if (w%cu%iregion /= region_native .and..not.w%cu%header) then
+         if (iw_button("Estimate Cost##cubeestimate",disabled=.not.(okbox .and. okfield))) &
+            call estimate_cost()
+         call iw_tooltip("Estimate the time needed to calculate the grid with the selected options",ttshown,&
+            whendisabled=.true.)
+         if (w%cu%costest >= 0d0 .and. all(nn > 0)) &
+            call iw_text("~" // duration_string(w%cu%costest * real(product(int(nn,8)),8)),sameline=.true.,&
+               disabled=.true.)
+      end if
+
       if (w%cu%sec(cube_sec_grid)%more) then
          ch = iw_checkbox("Header only##cubeheader",w%cu%header,labelleft=.true.)
          call iw_tooltip("Write only the header of the file (the cell and the atoms), not the values&
@@ -397,6 +419,64 @@ contains
       end if
 
     end subroutine draw_grid
+
+    !> Measure the cost (seconds per point) of calculating the quantity
+    !> on the region, into w%cu%costest: the grid is calculated on a
+    !> coarse grid over the same box, as the job does, in batches of
+    !> increasing size until the timing is meaningful. An expression
+    !> on the unit cell is first tried on the grids of its fields, as
+    !> the job does; that is timed on the whole grid.
+    subroutine estimate_cost()
+      use interfaces_glfw, only: glfwGetTime
+      use rhoplot, only: rhoplot_cube_values
+      use grid3mod, only: grid3
+      use iso_c_binding, only: c_loc
+      !$ use omp_lib, only: omp_get_max_threads
+      integer :: j, nb, np(3), nthr
+      real*8 :: t, xdp(3,3)
+      real*8, allocatable :: lf(:,:,:)
+      character(len=:), allocatable :: errmsg
+      type(grid3) :: faux
+
+      real*8, parameter :: timetarget = 0.1d0 ! measure until a batch takes this long
+      integer, parameter :: nbmax = 40 ! largest batch: nbmax**3 points
+
+      w%cu%costest = -1d0
+      w%errmsg = ""
+      if (w%cu%isexpr .and. w%cu%iregion == iso_region_cell) then
+         t = glfwGetTime()
+         call faux%new_eval(c_loc(sys(isys)),c_loc(sys(isys)%c),nn,trim(w%cu%expr),sys(isys)%c%m_x2c)
+         t = glfwGetTime() - t
+         if (faux%isinit) then
+            w%cu%costest = t / real(product(int(nn,8)),8)
+            return
+         end if
+      end if
+
+      ! the kernel runs its threads over the third axis: give it as
+      ! many planes as the job has threads
+      nthr = 1
+      !$ nthr = omp_get_max_threads()
+      nb = 4
+      do while (.true.)
+         np = min(nb,nn)
+         np(3) = min(max(nb,nthr),nn(3))
+         do j = 1, 3
+            xdp(:,j) = box(:,j) / real(np(j),8)
+         end do
+         t = glfwGetTime()
+         call rhoplot_cube_values(sys(isys),box(:,0),xdp,np,ifield,trim(w%cu%expr),w%cu%nti,.false.,lf,errmsg)
+         t = glfwGetTime() - t
+         if (len_trim(errmsg) > 0) then
+            w%errmsg = errmsg
+            return
+         end if
+         if (t >= timetarget .or. nb >= nbmax .or. all(np == nn)) exit
+         nb = min(2 * nb,nbmax)
+      end do
+      w%cu%costest = t / real(product(np),8)
+
+    end subroutine estimate_cost
 
     !> Check the file chosen in the dialog (w%okfile) against the
     !> region and request the blocking job that calculates the grid and
