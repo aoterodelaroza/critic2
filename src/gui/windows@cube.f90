@@ -17,7 +17,8 @@
 
 ! The cube window (the CUBE keyword): the values of a field, one of
 ! its derivatives, an arithmetic expression, or a wavefunction, on a
-! grid over a region, written to a cube, xsf, or VASP file.
+! grid over a region, written to a cube, xsf, or VASP file, or
+! loaded as a new field of the system.
 submodule (windows) cube
   use interfaces_cimgui
   use param, only: bohrtoa
@@ -32,7 +33,8 @@ contains
   !> by the anchor view, one of its derivatives, an arithmetic
   !> expression, or a wavefunction of a QE grid field, on a grid over
   !> a region (the isosurface regions, or the nodes of a grid field),
-  !> as CUBE calculates them, written to the file chosen in a dialog.
+  !> as CUBE calculates them, written to the file chosen in a dialog
+  !> or loaded as a new field of the system.
   module subroutine draw_cube(w)
     use systems, only: sys, sysc, sys_init, ok_system
     use fieldmod, only: type_grid
@@ -46,7 +48,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ismol, isgrid, isqe, okbox, okfield, ch
+    logical :: doquit, goodsys, syschanged, ismol, isgrid, isqe, okbox, okfield, ch, okcalc, okload
     integer :: isys, iview, istat, irow, ifield, i, nn(3)
     real*8 :: xc(3), box(3,0:3), prev0(3)
     type(field_ref) :: req
@@ -204,16 +206,32 @@ contains
        end if
 
        ! the file chosen in the dialog
-       if (w%okfile_set .and. okbox .and. okfield) call request_write()
+       if (w%okfile_set .and. okbox .and. okfield) call request_job(.false.)
     end if
     w%okfile_set = .false.
 
-    ! bottom row: write the file, close
-    call iw_setpos_bottomright(len("Write...") + len("Close"),2)
-    if (iw_button("Write...##cubewrite",disabled=.not.(goodsys .and. okbox .and. okfield))) &
+    ! bottom row: write the file, load the field, close; a field
+    ! cannot be on a supercell of the system or have only the header,
+    ! and in a crystal it spans the cell (a grid field on part of it is
+    ! only evaluated inside the main cell)
+    okcalc = goodsys
+    if (okcalc) okcalc = okbox .and. okfield
+    okload = okcalc .and..not.w%cu%header
+    if (okload .and. w%cu%iregion == region_native) then
+       okload = .not.(w%cu%dosuper .and. w%cu%ipsi == cubepsi_none .and. any(w%cu%nsuper > 1))
+    elseif (okload) then
+       okload = sys(isys)%c%ismolecule .or. w%cu%iregion == iso_region_cell
+    end if
+    call iw_setpos_bottomright(len("Write to File") + len("Load as Field") + len("Close"),3)
+    if (iw_button("Write to File##cubewrite",danger=.true.,disabled=.not.okcalc)) &
        i = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegridfile,idparent=w%id,orraise=-1)
     call iw_tooltip("Calculate the grid and write it to a file: a cube file for any region,&
        & or an XSF or VASP file for the whole cell",ttshown,whendisabled=.true.)
+    if (iw_button("Load as Field##cubeload",danger=.true.,sameline=.true.,disabled=.not.okload)) &
+       call request_job(.true.)
+    call iw_tooltip("Calculate the grid and load it as a new field of the system (not with Header&
+       & only or a supercell; in a crystal, only on the unit cell or the native grid)",ttshown,&
+       whendisabled=.true.)
     if (iw_button("Close",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
@@ -478,24 +496,28 @@ contains
 
     end subroutine estimate_cost
 
-    !> Check the file chosen in the dialog (w%okfile) against the
-    !> region and request the blocking job that calculates the grid and
-    !> writes it (run_cube), with the system, the field (-1 = the
-    !> expression) and the points of the region (the native grid is
-    !> set up by the job).
-    subroutine request_write()
+    !> Request the blocking job that calculates the grid and loads it
+    !> as a field (load) or writes it to the file chosen in the dialog
+    !> (w%okfile, checked against the region) (run_cube), with the
+    !> system, the field (-1 = the expression) and the points of the
+    !> region (the native grid is set up by the job).
+    subroutine request_job(load)
       use rhoplot, only: rhoplot_cube_outform, cubefmt_cube, cubefmt_bincube
+      logical, intent(in) :: load
       integer :: outform, j
 
       w%errmsg = ""
-      outform = rhoplot_cube_outform(w%okfile)
-      if (w%cu%iregion /= region_native .and. w%cu%iregion /= iso_region_cell .and.&
-         outform /= cubefmt_cube .and. outform /= cubefmt_bincube) then
-         w%errmsg = "XSF and VASP files hold grids on the whole cell: choose the unit cell or the native&
-            & grid as the region, or write a cube file"
-         return
+      if (.not.load) then
+         outform = rhoplot_cube_outform(w%okfile)
+         if (w%cu%iregion /= region_native .and. w%cu%iregion /= iso_region_cell .and.&
+            outform /= cubefmt_cube .and. outform /= cubefmt_bincube) then
+            w%errmsg = "XSF and VASP files hold grids on the whole cell: choose the unit cell or the native&
+               & grid as the region, or write a cube file"
+            return
+         end if
       end if
       if (.not.w%request_block()) return
+      w%cu%jload = load
       w%cu%jsys = isys
       w%cu%jfield = ifield
       w%cu%jnn = nn
@@ -506,7 +528,7 @@ contains
          end do
       end if
 
-    end subroutine request_write
+    end subroutine request_job
 
     !> Cancel a pending pick, releasing the view.
     subroutine cancel_pick()
@@ -544,11 +566,13 @@ contains
   !> Run the pending job of the cube window, called by the main loop
   !> after the frame with the overlay: calculate the grid (the nodes
   !> of the field, maybe in a supercell, or the points of the region
-  !> given by request_write) and write it to w%okfile, in the format
-  !> of its extension. The calculation can be cancelled with Esc, and
-  !> then no file is written.
+  !> given by request_job) and load it as a new field of the system
+  !> (jload) or write it to w%okfile, in the format of its
+  !> extension. The calculation can be cancelled with Esc, and then
+  !> no field is loaded and no file is written.
   module subroutine run_cube(w)
-    use systems, only: sys, ok_system, sys_init
+    use systems, only: sys, sysc, ok_system, sys_init, lastchange_cplist
+    use iso_c_binding, only: c_loc
     use crystalmod, only: crystal
     use rhoplot, only: rhoplot_cube_values, rhoplot_cube_gridcheck, rhoplot_cube_gridvalues,&
        rhoplot_cube_write, rhoplot_cube_outform, cubepsi_none, cubepsi_unk
@@ -557,11 +581,11 @@ contains
     use tools_io, only: uout, fopen_write, fopen_append, fclose, string
     class(window), intent(inout), target :: w
 
-    integer :: isys, ifield, ia(3), na(3), lu, j, ishift(3), inr(3), nn(3)
-    real*8 :: x0(3), xd(3,3), x00(3,3)
+    integer :: isys, ifield, ia(3), na(3), lu, j, ishift(3), inr(3), nn(3), id
+    real*8 :: x0(3), xd(3,3), x00(3,3), x2cl(3,3)
     real*8, allocatable :: lf(:,:,:)
     logical :: native, existed, super
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, name
     type(crystal), pointer :: cr
     type(crystal), target :: nc
 
@@ -577,17 +601,20 @@ contains
     ! the file can be written (the writers stop the program if not),
     ! checked without changing it; if it is new, it is removed again
     ! when nothing is written
-    inquire(file=trim(w%okfile),exist=existed)
-    if (existed) then
-       lu = fopen_append(trim(w%okfile),errstop=.false.)
-    else
-       lu = fopen_write(trim(w%okfile),errstop=.false.)
+    existed = .true. ! loading: no file to remove on failure
+    if (.not.w%cu%jload) then
+       inquire(file=trim(w%okfile),exist=existed)
+       if (existed) then
+          lu = fopen_append(trim(w%okfile),errstop=.false.)
+       else
+          lu = fopen_write(trim(w%okfile),errstop=.false.)
+       end if
+       if (lu < 0) then
+          w%errmsg = "Could not open the file for writing: " // trim(w%okfile)
+          return
+       end if
+       call fclose(lu)
     end if
-    if (lu < 0) then
-       w%errmsg = "Could not open the file for writing: " // trim(w%okfile)
-       return
-    end if
-    call fclose(lu)
 
     ! the grid: the nodes of the field (maybe in a supercell), or the
     ! points of the region
@@ -640,13 +667,45 @@ contains
           call rhoplot_cube_values(sys(isys),x0,xd,nn,ifield,"",w%cu%nti,.false.,lf,errmsg)
        end if
        if (end_cancellable()) then
-          call fail("The calculation was cancelled: no file was written")
+          if (w%cu%jload) then
+             call fail("The calculation was cancelled: no field was loaded")
+          else
+             call fail("The calculation was cancelled: no file was written")
+          end if
           return
        end if
        if (len_trim(errmsg) > 0) then
           call fail(errmsg)
           return
        end if
+    end if
+
+    ! the field: on the cell (the nodes of the field) or the region
+    ! (cryst. origin, Cartesian span), named as CLI LOAD AS names it;
+    ! made in its slot, so the grid is not copied again
+    if (w%cu%jload) then
+       do j = 1, 3
+          x2cl(:,j) = xd(:,j) * real(nn(j),8)
+       end do
+       if (ifield < 0) then
+          name = trim(w%cu%expr)
+       else
+          name = "$" // string(ifield) // trim(quant_short(w%cu%nti))
+          if (w%cu%ipsi /= cubepsi_none) name = name // " (band " // string(w%cu%ibnd) // ", k-point " //&
+             string(w%cu%ik) // ", spin " // string(w%cu%ispin) // ")"
+       end if
+       name = "<generated>, grid: " // name
+       id = sys(isys)%getfieldnum()
+       call sys(isys)%f(id)%load_grid_from_array3(sys(isys)%c,id,name,lf,matmul(sys(isys)%c%m_c2x,x0),x2cl)
+       deallocate(lf)
+       sys(isys)%f(id)%file = "<generated>"
+       sys(isys)%f(id)%sptr = c_loc(sys(isys))
+       call sys(isys)%set_reference(id,.true.)
+       w%errmsg = ""
+       call sysc(isys)%post_event(lastchange_cplist)
+       sysc(isys)%showfields = .true.
+       write (uout,'("* Grid loaded as field ",A,": ",A/)') string(id), name
+       return
     end if
 
     ! the file
@@ -664,8 +723,8 @@ contains
 
   contains
 
-    !> Report msg as the reason no file was written, and remove the
-    !> file if it is the empty one run_cube made.
+    !> Report msg as the reason nothing was done, and remove the file
+    !> if it is the empty one run_cube made.
     subroutine fail(msg)
       character(len=*), intent(in) :: msg
 

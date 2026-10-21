@@ -160,11 +160,12 @@ module grid3mod
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: norm
      end subroutine normalize
-     module subroutine from_array3(f,g,x2c,cptr)
+     module subroutine from_array3(f,g,x2c,cptr,x0,x2cl)
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: g(:,:,:)
        real*8, intent(in) :: x2c(3,3)
        type(c_ptr), intent(in) :: cptr
+       real*8, intent(in), optional :: x0(3), x2cl(3,3)
      end subroutine from_array3
      module subroutine read_cube(f,cptr,file,x2c,molx0,errmsg,ti)
        class(grid3), intent(inout) :: f

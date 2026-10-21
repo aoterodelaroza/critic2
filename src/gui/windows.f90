@@ -762,9 +762,11 @@ module windows
      ! a field asked for from the tree (Calculate Grid; uid 0 = none):
      ! the window takes it on its own grid
      type(field_ref) :: req
-     ! the job requested from the dialog (run_cube): its system, field
-     ! (-1 = the expression), and grid (points; origin and steps,
-     ! cell-frame Cartesian bohr, for a region)
+     ! the job requested (run_cube): load the grid as a field of the
+     ! system (or write it to the file chosen in the dialog), its
+     ! system, field (-1 = the expression), and grid (points; origin
+     ! and steps, cell-frame Cartesian bohr, for a region)
+     logical :: jload = .false.
      integer :: jsys = 0
      integer :: jfield = -1
      integer :: jnn(3) = 0

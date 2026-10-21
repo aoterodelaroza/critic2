@@ -203,12 +203,13 @@ module fieldmod
        logical, intent(in), optional :: isry_
        integer, intent(in), optional :: n(3)
      end subroutine load_as_fftgrid
-     module subroutine load_grid_from_array3(f,c,id,name,g)
+     module subroutine load_grid_from_array3(f,c,id,name,g,x0,x2cl)
        class(field), intent(inout) :: f
        type(crystal), intent(in), target :: c
        integer, intent(in) :: id
        character*(*), intent(in) :: name
        real*8, intent(in) :: g(:,:,:)
+       real*8, intent(in), optional :: x0(3), x2cl(3,3)
      end subroutine load_grid_from_array3
      recursive module subroutine grd(f,v,request,res,periodic)
        class(field), intent(inout) :: f

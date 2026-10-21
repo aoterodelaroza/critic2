@@ -485,16 +485,21 @@ contains
 
   end subroutine normalize
 
-  !> Build a grid field from a three-dimensional array
-  module subroutine from_array3(f,g,x2c,cptr)
+  !> Build a grid field from a three-dimensional array. By default,
+  !> the grid spans the cell; otherwise, its origin is x0 (cryst.
+  !> coords.) and its domain is spanned by the columns of x2cl
+  !> (Cartesian), as in a cube file.
+  module subroutine from_array3(f,g,x2c,cptr,x0,x2cl)
     use tools_math, only: matinv
     use tools_io, only: ferror, faterr
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: g(:,:,:)
     real*8, intent(in) :: x2c(3,3)
     type(c_ptr), intent(in) :: cptr
+    real*8, intent(in), optional :: x0(3), x2cl(3,3)
 
     integer :: istat, n(3)
+    real*8 :: x0l(3), x2cll(3,3)
 
     call f%end()
     f%isinit = .true.
@@ -502,7 +507,11 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
-    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
+    x0l = 0d0
+    if (present(x0)) x0l = x0
+    x2cll = x2c
+    if (present(x2cl)) x2cll = x2cl
+    call init_geometry(f,x2c,x0l,x2cll,n,cptr)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('from_array3','Error allocating grid',faterr)

@@ -936,8 +936,10 @@ contains
   !> Load field as a 3d grid given in g with dimensions n. The
   !> resulting field is returned in f. The crystal structure (c) is
   !> used to inform the transformation. id and name are the numerical
-  !> id and name of the new field.
-  module subroutine load_grid_from_array3(f,c,id,name,g)
+  !> id and name of the new field. If the grid does not span the
+  !> cell, x0 is its origin (cryst. coords.) and x2cl the vectors that
+  !> span it (Cartesian), as in grid3%from_array3.
+  module subroutine load_grid_from_array3(f,c,id,name,g,x0,x2cl)
     use iso_c_binding, only: c_loc
     use fragmentmod, only: fragment
     class(field), intent(inout) :: f !< Input/output field
@@ -945,6 +947,7 @@ contains
     integer, intent(in) :: id
     character*(*), intent(in) :: name
     real*8, intent(in) :: g(:,:,:)
+    real*8, intent(in), optional :: x0(3), x2cl(3,3)
 
     if (.not.c%isinit) return
     call f%end()
@@ -953,7 +956,7 @@ contains
     f%isinit = .true.
     f%type = type_grid
     if (.not.allocated(f%grid)) allocate(f%grid)
-    call f%grid%from_array3(g,c%m_x2c,c_loc(c))
+    call f%grid%from_array3(g,c%m_x2c,c_loc(c),x0,x2cl)
     f%numerical = .false.
     f%exact = .false.
     f%name = adjustl(name)
@@ -1111,8 +1114,9 @@ contains
     select case(f%type)
     case(type_grid)
        isgrid = .false.
-       if (nder == 0) then
-          ! maybe we can get the grid point directly
+       if (nder == 0 .and..not.f%grid%partial) then
+          ! maybe we can get the grid point directly (the nodes of a
+          ! partial grid are not fractions of the cell)
           x = modulo(wx,1d0) * f%grid%n
           idx = nint(x)
           isgrid = all(abs(x-idx) < neargrideps)
