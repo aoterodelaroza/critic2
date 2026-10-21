@@ -4400,8 +4400,13 @@ contains
     end if
 
     ! region section
+    ! the isosurface wraps only on the whole cell, and not on a grid
+    ! field that does not span it (partial)
+    ldum = .false.
+    if (isgrid) ldum = sys(isys)%f(w%rep%iso%fref%id)%grid%partial
     ldum = region_form(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,w%editrep_sec(1),"iso","the isosurface",&
-       ttshown,irow,pickoff=(w%editrep_isopick >= 0))
+       ttshown,irow,pickoff=(w%editrep_isopick >= 0),&
+       periodic=(w%rep%iso%iregion == iso_region_cell .and..not.ldum))
     if (irow >= 0) then
        ! a pick of region row irow in the anchor view; the result is
        ! received at the top of draw_editrep_isosurface, which also
@@ -5230,8 +5235,11 @@ contains
   !> region, for the tooltip of the modes ("the isosurface"). ipick:
   !> the row whose Pick button was clicked (-1 = none; pickoff
   !> disables them). If nativeok, the mode region_native (the nodes of
-  !> a grid field) is offered too. Returns whether anything changed.
-  module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok) result(changed)
+  !> a grid field) is offered too. periodic: whether the grid on the
+  !> region repeats with the lattice (default: on the whole cell and
+  !> the native grid), noted in crystals. Returns whether anything
+  !> changed.
+  module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok,periodic) result(changed)
     use systems, only: sys
     use representations, only: iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name, iso_region_desc,&
@@ -5249,11 +5257,12 @@ contains
     integer, intent(out) :: ipick
     logical, intent(in), optional :: pickoff
     logical, intent(in), optional :: nativeok
+    logical, intent(in), optional :: periodic
     logical :: changed
 
     integer :: i, iknd, nmode, nrow
     integer :: rmodes(size(iso_region_modes_mol)+size(iso_region_modes_cry)+1)
-    logical :: ch, pickoff_
+    logical :: ch, pickoff_, isper
     logical(c_bool) :: is_selected
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable :: str3
@@ -5327,7 +5336,26 @@ contains
                 call iw_text(mode_name(rmodes(i)) // " = " // trim(iso_region_desc(rmodes(i))),wrap=.true.)
              end if
           end do
+          if (.not.sys(isys)%c%ismolecule) then
+             call iw_text("")
+             call iw_text("Periodic = the grid repeats with the lattice; only the whole cell can give&
+                & a periodic grid",wrap=.true.)
+          end if
           call igEndTooltip()
+       end if
+    end if
+
+    ! in crystals, whether the grid on the region repeats with the
+    ! lattice: given by the caller, else only on the whole cell. The
+    ! explanation is in the tooltip of the modes: a delayed tooltip on
+    ! a plain text does not show
+    if (.not.sys(isys)%c%ismolecule) then
+       isper = (iregion == iso_region_cell .or. iregion == region_native)
+       if (present(periodic)) isper = periodic
+       if (isper) then
+          call iw_text("Periodic",disabled=.true.,sameline=.true.)
+       else
+          call iw_text("Not periodic",disabled=.true.,sameline=.true.)
        end if
     end if
 

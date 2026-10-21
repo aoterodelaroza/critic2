@@ -1967,7 +1967,8 @@ contains
           call iw_tooltip("Property of the field on " // place,ttshown)
        end if
     else
-       call iw_text("Expression",alignframe=.true.,gap=.true.)
+       ! on its own line, with room for the Insert button
+       call iw_text("Expression",alignframe=.true.)
        echanged = iw_inputtext("##" // sfx // "expr",bufsize=1023,textf=expr,width=36,sameline=.true.)
        call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
           & ""$1 - $2"" or ""$1:l""), evaluated at the points of " // pts,ttshown)

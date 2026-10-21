@@ -2287,7 +2287,7 @@ module windows
        integer, intent(inout), optional :: shift(:,:)
        logical :: changed
      end function atom_table_widget
-     module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok) result(changed)
+     module function region_form(isys,iregion,x,sec,sfx,what,ttshown,ipick,pickoff,nativeok,periodic) result(changed)
        integer, intent(in) :: isys
        integer, intent(inout) :: iregion
        real*8, intent(inout) :: x(3,0:3)
@@ -2297,6 +2297,7 @@ module windows
        integer, intent(out) :: ipick
        logical, intent(in), optional :: pickoff
        logical, intent(in), optional :: nativeok
+       logical, intent(in), optional :: periodic
        logical :: changed
      end function region_form
      module function mol_table_widget(isys,ihighlight,highlight_type,shown,tint,scale) result(changed)
