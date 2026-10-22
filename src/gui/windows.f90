@@ -760,8 +760,10 @@ module windows
      integer :: pickview = 0
      type(pairpick) :: pick
      ! a field asked for from the tree (Calculate Grid; uid 0 = none):
-     ! the window takes it on its own grid
+     ! the window takes it on its own grid, and then opens its file
+     ! dialog if reqwrite (Write Grid to File)
      type(field_ref) :: req
+     logical :: reqwrite = .false.
      ! the job requested (run_cube): load the grid as a field of the
      ! system (or write it to the file chosen in the dialog), its
      ! system, field (-1 = the expression), and grid (points; origin

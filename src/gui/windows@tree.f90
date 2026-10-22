@@ -1325,6 +1325,7 @@ contains
       integer(c_int) :: flags, color
       type(ImVec4) :: col4
       integer :: id, is, nd, iwc
+      logical :: docalc, dowrite, ok
 
       ! start the row and color the name cell like the parent system's
       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -1418,13 +1419,27 @@ contains
          call iw_tooltip("Load a copy of this field as a new field",ttshown)
 
          ! write the field to a file (the cube window, on the field's
-         ! own grid if it has one), shown in the main view
-         if (iw_menuitem("Calculate Grid...")) then
+         ! own grid if it has one), shown in the main view; a grid
+         ! field on the whole cell can go straight to the file dialog
+         ! (the cube window opens it once it has the field)
+         docalc = iw_menuitem("Calculate Grid...")
+         call iw_tooltip("Write the values of this field on a grid to a cube, XSF, or VASP file",ttshown)
+         dowrite = .false.
+         ok = (sys(i)%f(k)%type == type_grid)
+         if (ok) ok = allocated(sys(i)%f(k)%grid)
+         if (ok) ok = .not.sys(i)%f(k)%grid%partial
+         if (ok) then
+            dowrite = iw_menuitem("Write Grid to File...")
+            call iw_tooltip("Write this field on its own grid to a cube, XSF, or VASP file",ttshown)
+         end if
+         if (docalc .or. dowrite) then
             call win(iwin_view)%select_view(i)
             iwc = stack_create_window(wintype_cube,.true.,idparent=iwin_view,orraise=-1)
-            if (iwc > 0) call win(iwc)%cu%req%set(sys(i),k)
+            if (iwc > 0) then
+               call win(iwc)%cu%req%set(sys(i),k)
+               win(iwc)%cu%reqwrite = dowrite
+            end if
          end if
-         call iw_tooltip("Write the values of this field on a grid to a cube, XSF, or VASP file",ttshown)
 
          ! reload with virtual orbitals (wavefunction fields whose file
          ! has virtuals that were not read)

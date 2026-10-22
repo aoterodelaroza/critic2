@@ -48,7 +48,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ismol, isgrid, isqe, okbox, okfield, ch, okcalc, okload
+    logical :: doquit, goodsys, syschanged, ismol, isgrid, isqe, okbox, okfield, ch, okcalc, okload, reqwrite
     integer :: isys, iview, istat, irow, ifield, i, nn(3)
     real*8 :: xc(3), box(3,0:3), prev0(3)
     type(field_ref) :: req
@@ -69,8 +69,10 @@ contains
     ! (but for a field asked for from the tree)
     if (w%firstpass) then
        req = w%cu%req
+       reqwrite = w%cu%reqwrite
        w%cu = cube_state()
        w%cu%req = req
+       w%cu%reqwrite = reqwrite
        w%errmsg = ""
     end if
 
@@ -98,8 +100,11 @@ contains
           if (w%cu%req%ok(sys(isys))) then
              call set_field(w%cu%req%id)
              w%errmsg = ""
+             if (w%cu%reqwrite) &
+                i = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegridfile,idparent=w%id,orraise=-1)
           end if
           w%cu%req = field_ref()
+          w%cu%reqwrite = .false.
        end if
 
        ! the reference field, if the field is gone

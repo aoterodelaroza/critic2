@@ -345,6 +345,10 @@ contains
              ok = win(i)%type == type .and. win(i)%isopen
              ! specific tests according to type
              if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%purpose == purpose)
+             ! the grid file dialog belongs to its cube window
+             if (ok.and.type == wintype_dialog.and.present(purpose).and.present(idparent)) then
+                if (purpose == wpurp_dialog_savegridfile) ok = (win(i)%parent() == idparent)
+             end if
              if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idparent)) then
                 ok = (win(i)%isys == isys .and. win(i)%parent() == idparent)
                 if (ok) ok = (idparent >= 1 .and. idparent <= nwin)
