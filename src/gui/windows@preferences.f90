@@ -24,7 +24,8 @@ contains
   !> Draw the preferences window
   module subroutine draw_preferences(w)
     use tools_io, only: nameguess, string
-    use gui_main, only: g, tooltip_enabled, toolbar_labels, tooltip_delay, tooltip_wrap_factor,&
+    use gui_main, only: g, tooltip_enabled, toolbar_labels, multi_viewports, viewports_available,&
+       tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_interface_settings, set_default_color_settings,&
        set_default_reader_settings, settings_reset, apply_color_settings,&
@@ -133,6 +134,15 @@ contains
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = iw_checkbox("Show toolbar labels##pref",toolbar_labels,labelleft=.true.)
              call iw_tooltip("Show the names of the toolbar buttons in small print under them",ttshown)
+          end if
+
+          str = "Detachable windows" // c_null_char
+          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+             if (.not.viewports_available) call igBeginDisabled(.true._c_bool)
+             ldum = iw_checkbox("Detachable windows##pref",multi_viewports,labelleft=.true.)
+             if (.not.viewports_available) call igEndDisabled()
+             call iw_tooltip("Let windows be dragged out of the main window and placed anywhere&
+                & on the desktop as windows of their own (not available under Wayland)",ttshown)
           end if
 
           str = "Tooltip delay (s)" // c_null_char

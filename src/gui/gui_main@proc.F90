@@ -156,6 +156,9 @@ contains
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
     if (glfwInit() == 0) &
        call gui_fatal_startup('gui_start','Failed to initialize GLFW')
+    ! Wayland does not give window positions, which the multi-viewports
+    ! need: glfwGetWindowPos is an error there
+    viewports_available = (glfw_platform_is_wayland() == 0)
     glfw_errmode = glfwerr_warn
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
@@ -261,6 +264,14 @@ contains
     call glDisable(GL_BLEND)
     call glEnable(GL_MULTISAMPLE)
 
+    ! the backends install their multi-viewport handlers only if
+    ! ViewportsEnable is set when they are initialized; the flag is set
+    ! or cleared every frame from multi_viewports
+    ptrc = igGetIO()
+    call c_f_pointer(ptrc,io)
+    if (viewports_available) &
+       io%configflags = ior(io%configflags,ImGuiConfigFlags_ViewportsEnable)
+
     ! set up backend and renderer; the backend creates the standard mouse
     ! cursors, some of which may be missing from the cursor theme
     glfw_errmode = glfwerr_warn
@@ -364,6 +375,15 @@ contains
 
        ! build the scenes of the systems the threads have loaded
        call finish_loaded_systems()
+
+       ! windows outside the main window (toggled in the preferences);
+       ! before polling, because the backend converts the mouse positions
+       ! of the events by it
+       if (multi_viewports .and. viewports_available) then
+          io%configflags = ior(io%configflags,ImGuiConfigFlags_ViewportsEnable)
+       else
+          io%configflags = iand(io%configflags,not(ImGuiConfigFlags_ViewportsEnable))
+       end if
 
        ! poll events, and load the files dropped during a cancellable job
        call glfwPollEvents()
@@ -510,6 +530,13 @@ contains
        ! rendering
        call igRender()
        call render_draw_data()
+
+       ! windows outside the main window: the backend renders each in its
+       ! own context, then the main context is restored. Called every
+       ! frame, also with ViewportsEnable off (imgui checks it).
+       call igUpdatePlatformWindows()
+       call igRenderPlatformWindowsDefault(c_null_ptr,c_null_ptr)
+       call glfwMakeContextCurrent(rootwin)
 
        ! swap buffers
        call glfwSwapBuffers(rootwin)
@@ -828,6 +855,7 @@ contains
     io%FontGlobalScale = 1._c_float
     tooltip_enabled = .true.
     toolbar_labels = .true.
+    multi_viewports = .true.
     tooltip_delay = 0.5_c_float
     tooltip_wrap_factor = 40._c_float
     tree_select_updates_inpcon = .true.
@@ -869,13 +897,13 @@ contains
   !> the geometry window is not created here; instead, launchgeometry is
   !> set to .true. and the caller is responsible for creating it.
   module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
-    use interfaces_cimgui, only: igSeparator
+    use interfaces_cimgui, only: igSeparator, igEndMenu
     use systems, only: sys, sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
        wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point,&
        wintype_line, wintype_plane, wintype_cube
-    use utils, only: iw_tooltip, iw_menuitem
+    use utils, only: iw_tooltip, iw_menuitem, iw_beginmenu
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
     integer, intent(in) :: isys
@@ -903,6 +931,11 @@ contains
     end if
     call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
 
+    ! builder
+    if (iw_menuitem("Builder...",BIND_BUILDER,enabled=enabled)) &
+       idum = stack_create_window(wintype_builder,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Tools to modify the structure in the view",ttshown)
+
     ! extract a cluster as a new molecular system
     if (iw_menuitem("Extract Molecule(s)...",enabled=enabled)) &
        idum = stack_create_window(wintype_extract,.true.,idparent=idparent,orraise=-1)
@@ -911,82 +944,93 @@ contains
 
     call igSeparator()
 
-    ! molecular orbitals: enabled only if the reference field of the
-    ! system can calculate them
-    ok = enabled
-    if (ok) ok = sys(isys)%goodfield(sys(isys)%iref)
-    if (ok) then
-       call sys(isys)%f(sys(isys)%iref)%eval_avail(av)
-       ok = av%avail(fieldeval_category_mo)
+    ! Tools -> Dynamics
+    if (iw_beginmenu("Dynamics",enabled=enabled)) then
+       ! vibrations
+       if (iw_menuitem("Vibrations...")) &
+          idum = stack_create_window(wintype_vibrations,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
+
+       ! interactive dynamics
+       if (iw_menuitem("Dynamics...")) &
+          idum = stack_create_window(wintype_dynamics,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
+          &given temperature and drag atoms with the mouse",ttshown)
+
+       ! generate rattled/sampled structures from this one
+       if (iw_menuitem("Rattle Structure...")) &
+          idum = stack_create_window(wintype_rattle,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Generate new systems by displacing the atoms&
+          & randomly or by sampling a molecular-dynamics run",ttshown)
+       call igEndMenu()
     end if
-    if (iw_menuitem("Molecular Orbitals...",enabled=ok)) &
-       idum = stack_create_window(wintype_mo,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Display the molecular orbitals of the reference field for this system",ttshown)
 
-    ! critical points of a field (AUTO)
-    if (iw_menuitem("Critical Points...",enabled=enabled)) &
-       idum = stack_create_window(wintype_cp,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Find the critical points of a field of this system and inspect them",ttshown)
+    ! Tools -> Structure Analysis
+    if (iw_beginmenu("Structure Analysis",enabled=enabled)) then
+       ! measure the empty space in the crystal
+       ok = .not.sys(isys)%c%ismolecule
+       if (iw_menuitem("Crystal Voids...",enabled=ok)) &
+          idum = stack_create_window(wintype_voids,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Measure the volume of the empty space (voids) in this crystal",ttshown)
+       call igEndMenu()
+    end if
 
-    ! gradient paths of a field (FLUXPRINT)
-    if (iw_menuitem("Trace Gradient Paths...",enabled=enabled)) &
-       idum = stack_create_window(wintype_gpaths,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Trace gradient paths of a field of this system from points or critical points&
-       & and show them in the view",ttshown)
+    call igSeparator()
 
-    ! properties of the fields at a point (POINT)
-    if (iw_menuitem("Point Properties...",enabled=enabled)) &
-       idum = stack_create_window(wintype_point,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Calculate the value, gradient, Hessian, and other properties of&
-       & the fields of this system at a point",ttshown)
+    ! Tools -> Field Plots
+    if (iw_beginmenu("Field Plots",enabled=enabled)) then
+       ! properties of the fields at a point (POINT)
+       if (iw_menuitem("Point Properties...")) &
+          idum = stack_create_window(wintype_point,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Calculate the value, gradient, Hessian, and other properties of&
+          & the fields of this system at a point",ttshown)
 
-    ! profiles of the fields along a line (LINE)
-    if (iw_menuitem("Line Profile...",enabled=enabled)) &
-       idum = stack_create_window(wintype_line,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Plot the values of fields of this system, their derivatives, or&
-       & arithmetic expressions along a line between two points",ttshown)
+       ! profiles of the fields along a line (LINE)
+       if (iw_menuitem("Line Profile...")) &
+          idum = stack_create_window(wintype_line,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Plot the values of fields of this system, their derivatives, or&
+          & arithmetic expressions along a line between two points",ttshown)
 
-    ! maps of the fields on a plane (PLANE)
-    if (iw_menuitem("Plane Map...",enabled=enabled)) &
-       idum = stack_create_window(wintype_plane,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Map the values of a field of this system, one of its derivatives,&
-       & or an arithmetic expression on a plane, as colors and contour lines",ttshown)
+       ! maps of the fields on a plane (PLANE)
+       if (iw_menuitem("Plane Map...")) &
+          idum = stack_create_window(wintype_plane,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Map the values of a field of this system, one of its derivatives,&
+          & or an arithmetic expression on a plane, as colors and contour lines",ttshown)
 
-    ! grids of the fields written to a file (CUBE)
-    if (iw_menuitem("Calculate Grid...",enabled=enabled)) &
-       idum = stack_create_window(wintype_cube,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Calculate the values of a field of this system, one of its derivatives,&
-       & an arithmetic expression, or a wavefunction on a grid, and write them to a cube,&
-       & XSF, or VASP file",ttshown)
+       ! grids of the fields written to a file (CUBE)
+       if (iw_menuitem("Calculate Grid...")) &
+          idum = stack_create_window(wintype_cube,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Calculate the values of a field of this system, one of its derivatives,&
+          & an arithmetic expression, or a wavefunction on a grid, and write them to a cube,&
+          & XSF, or VASP file",ttshown)
 
-    ! vibrations
-    if (iw_menuitem("Vibrations...",enabled=enabled)) &
-       idum = stack_create_window(wintype_vibrations,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
+       ! molecular orbitals: enabled only if the reference field of the
+       ! system can calculate them
+       ok = sys(isys)%goodfield(sys(isys)%iref)
+       if (ok) then
+          call sys(isys)%f(sys(isys)%iref)%eval_avail(av)
+          ok = av%avail(fieldeval_category_mo)
+       end if
+       if (iw_menuitem("Molecular Orbitals...",enabled=ok)) &
+          idum = stack_create_window(wintype_mo,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Display the molecular orbitals of the reference field for this system",ttshown)
+       call igEndMenu()
+    end if
 
-    ! interactive dynamics
-    if (iw_menuitem("Dynamics...",enabled=enabled)) &
-       idum = stack_create_window(wintype_dynamics,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
-       &given temperature and drag atoms with the mouse",ttshown)
+    ! Tools -> Topology
+    if (iw_beginmenu("Topology",enabled=enabled)) then
+       ! critical points of a field (AUTO)
+       if (iw_menuitem("Critical Points...")) &
+          idum = stack_create_window(wintype_cp,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Find the critical points of a field of this system and inspect them",ttshown)
 
-    ! builder
-    if (iw_menuitem("Builder...",BIND_BUILDER,enabled=enabled)) &
-       idum = stack_create_window(wintype_builder,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Tools to modify the structure in the view",ttshown)
-
-    ! generate rattled/sampled structures from this one
-    if (iw_menuitem("Rattle Structure...",enabled=enabled)) &
-       idum = stack_create_window(wintype_rattle,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Generate new systems by displacing the atoms&
-       & randomly or by sampling a molecular-dynamics run",ttshown)
-
-    ! measure the empty space in the crystal
-    ok = enabled
-    if (ok) ok = .not.sys(isys)%c%ismolecule
-    if (iw_menuitem("Crystal Voids...",enabled=ok)) &
-       idum = stack_create_window(wintype_voids,.true.,idparent=idparent,orraise=-1)
-    call iw_tooltip("Measure the volume of the empty space (voids) in this crystal",ttshown)
+       ! gradient paths of a field (FLUXPRINT)
+       if (iw_menuitem("Trace Gradient Paths...")) &
+          idum = stack_create_window(wintype_gpaths,.true.,idparent=idparent,orraise=-1)
+       call iw_tooltip("Trace gradient paths of a field of this system from points or critical points&
+          & and show them in the view",ttshown)
+       call igEndMenu()
+    end if
 
   end subroutine show_tools_menu
 

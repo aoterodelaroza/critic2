@@ -73,6 +73,8 @@ module gui_main
   ! integer(c_int), parameter, public :: ms_samples = 1 ! number of samples in multisamples
   logical, public :: tooltip_enabled = .true. ! whether tooltips are enabled
   logical, public :: toolbar_labels = .true. ! whether the toolbar buttons show captions under them
+  logical, public :: multi_viewports = .true. ! windows can be dragged out of the main window (ImGui multi-viewports)
+  logical, public :: viewports_available = .true. ! the platform supports multi_viewports (not Wayland)
   logical, public :: stdout_console = .false. ! whether stdout is the console the GUI was launched from
   real(c_float), public :: tooltip_delay = 0.5_c_float ! tooltip delay, in seconds
   real*8, parameter, public :: errmsg_linger = 6d0 ! seconds a transient error message stays shown

@@ -913,7 +913,7 @@ contains
   !> the job at job_progress_rect) and the Esc message (in red).
   module subroutine iw_wait_overlay(title,info,cancellable)
     use interfaces_cimgui
-    use gui_main, only: io, g, job_progress_on, job_progress_rect
+    use gui_main, only: g, mainvwp, job_progress_on, job_progress_rect
     character(len=*), intent(in) :: title
     character(len=*), intent(in) :: info
     logical, intent(in) :: cancellable
@@ -943,8 +943,8 @@ contains
     end if
     sz%x = wid + 2 * g%Style%WindowPadding%x
     sz%y = sz%y + 2 * g%Style%WindowPadding%y
-    pos%x = io%DisplaySize%x * 0.5_c_float
-    pos%y = io%DisplaySize%y * 0.5_c_float
+    pos%x = mainvwp%Pos%x + mainvwp%Size%x * 0.5_c_float
+    pos%y = mainvwp%Pos%y + mainvwp%Size%y * 0.5_c_float
     pivot%x = 0.5_c_float
     pivot%y = 0.5_c_float
     call igSetNextWindowPos(pos,0,pivot)
@@ -3207,6 +3207,7 @@ contains
   module subroutine get_nice_next_window_pos(pos)
     use windows, only: nwin, win
     use interfaces_cimgui
+    use gui_main, only: mainvwp
     type(ImVec2), intent(out) :: pos
 
     integer :: i
@@ -3214,8 +3215,8 @@ contains
     logical :: found
 
     step = igGetTextLineHeightWithSpacing()
-    pos%x = step
-    pos%y = step
+    pos%x = mainvwp%Pos%x + step
+    pos%y = mainvwp%Pos%y + step
 
     found = .true.
     do while (found)

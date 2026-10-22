@@ -136,3 +136,8 @@ end subroutine glfwDestroyWindow
 ! void glfwTerminate(void)
 subroutine glfwTerminate() bind(c,name="glfwTerminate")
 end subroutine glfwTerminate
+! int glfw_platform_is_wayland() (glfwwrapper.cpp)
+function glfw_platform_is_wayland() bind(c,name="glfw_platform_is_wayland")
+  import c_int
+  integer(c_int) :: glfw_platform_is_wayland
+end function glfw_platform_is_wayland

@@ -169,7 +169,11 @@ subroutine igSetNextWindowBgAlpha(alpha) bind(c,name="igSetNextWindowBgAlpha")
   import c_float
   real(c_float), value :: alpha
 end subroutine igSetNextWindowBgAlpha
-!x! void igSetNextWindowViewport(ImGuiID viewport_id);
+! void igSetNextWindowViewport(ImGuiID viewport_id);
+subroutine igSetNextWindowViewport(viewport_id) bind(c,name="igSetNextWindowViewport")
+  import c_int
+  integer(c_int), value :: viewport_id
+end subroutine igSetNextWindowViewport
 !x! void igSetWindowPos_Vec2(const ImVec2 pos,ImGuiCond cond);
 ! void igSetWindowSize_Vec2(const ImVec2 size,ImGuiCond cond);
 subroutine igSetWindowSize_Vec2(size, cond) bind(c,name="igSetWindowSize_Vec2")
@@ -1332,8 +1336,15 @@ end function igSaveIniSettingsToMemory
 !x! void* igMemAlloc(size_t size);
 !x! void igMemFree(void* ptr);
 !x! ImGuiPlatformIO* igGetPlatformIO(void);
-!x! void igUpdatePlatformWindows(void);
-!x! void igRenderPlatformWindowsDefault(void* platform_render_arg,void* renderer_render_arg);
+! void igUpdatePlatformWindows(void);
+subroutine igUpdatePlatformWindows() bind(c,name="igUpdatePlatformWindows")
+end subroutine igUpdatePlatformWindows
+! void igRenderPlatformWindowsDefault(void* platform_render_arg,void* renderer_render_arg);
+subroutine igRenderPlatformWindowsDefault(platform_render_arg,renderer_render_arg) bind(c,name="igRenderPlatformWindowsDefault")
+  import c_ptr
+  type(c_ptr), value :: platform_render_arg
+  type(c_ptr), value :: renderer_render_arg
+end subroutine igRenderPlatformWindowsDefault
 !x! void igDestroyPlatformWindows(void);
 !x! ImGuiViewport* igFindViewportByID(ImGuiID id);
 !x! ImGuiViewport* igFindViewportByPlatformHandle(void* platform_handle);

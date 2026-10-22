@@ -380,6 +380,7 @@ contains
        call x%x(q,'font_scale',io%FontGlobalScale,0.3d0,3d0)
        call x%x(q,'tooltips',tooltip_enabled)
        call x%x(q,'toolbar_labels',toolbar_labels)
+       call x%x(q,'multi_viewports',multi_viewports)
        call x%x(q,'tooltip_delay',tooltip_delay,0d0,5d0)
        call x%x(q,'tooltip_width',tooltip_wrap_factor,0d0,1000d0)
        call x%x(q,'tree_select_updates_input_console',tree_select_updates_inpcon)

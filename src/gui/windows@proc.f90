@@ -1538,7 +1538,7 @@ contains
 
   !> Draw an ImGui window.
   module subroutine window_draw(w)
-    use gui_main, only: fontsize, io, g, mainvwp
+    use gui_main, only: fontsize, g, mainvwp, multi_viewports
     use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip,&
        iw_capturing, iw_capture_abort, file_name_root
@@ -1554,6 +1554,7 @@ contains
     character(len=:), allocatable :: str4
     integer(c_int) :: dflags
     real(c_float) :: panewidth, hneed
+    logical :: userplaced
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
     type(ImGuiWindow), pointer :: wptr
 
@@ -1608,8 +1609,8 @@ contains
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
           ! a file dialog is the widest window in the GUI: center it, or the
           ! cascade offset pushes its side pane past the edge of the display
-          pos%x = max(0.5_c_float * (io%DisplaySize%x - inisize%x),0._c_float)
-          pos%y = max(0.5_c_float * (io%DisplaySize%y - inisize%y),0._c_float)
+          pos%x = mainvwp%Pos%x + max(0.5_c_float * (mainvwp%Size%x - inisize%x),0._c_float)
+          pos%y = mainvwp%Pos%y + max(0.5_c_float * (mainvwp%Size%y - inisize%y),0._c_float)
           pivot%x = 0._c_float
           pivot%y = 0._c_float
           call igSetNextWindowPos(pos,ImGuiCond_FirstUseEver,pivot)
@@ -1927,12 +1928,17 @@ contains
                    ! the display, but no higher than the menu bar. Not by
                    ! its own size while the mouse is down: moving the
                    ! window under a resize grip that is being dragged
-                   ! makes the window grow and run up every frame
+                   ! makes the window grow and run up every frame. With
+                   ! detachable windows, positions are desktop coordinates
+                   ! (measured here from the main viewport), and a window
+                   ! being moved or in an OS window of its own is left
+                   ! where the user puts it.
                    hneed = szmin%y
                    if (.not.igIsMouseDown(ImGuiMouseButton_Left)) hneed = max(hneed,min(wptr%Size%y,szmax%y))
-                   if (wptr%Pos%y + hneed > szmax%y) then
+                   userplaced = wptr%ViewportOwned .or. (multi_viewports .and. c_associated(g%MovingWindow,w%ptr))
+                   if (.not.userplaced .and. wptr%Pos%y - mainvwp%Pos%y + hneed > szmax%y) then
                       pos%x = wptr%Pos%x
-                      pos%y = max(szmax%y - hneed,mainvwp%WorkPos%y)
+                      pos%y = max(mainvwp%Pos%y + szmax%y - hneed,mainvwp%WorkPos%y)
                       pivot%x = 0._c_float
                       pivot%y = 0._c_float
                       call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
@@ -1958,6 +1964,11 @@ contains
           ! time it is undocked, long after the user has sized it
           w%needwidth = 0._c_float
           if (w%type == wintype_builder) w%builder_shown = .false.
+          ! with detachable windows, a new window that does not fit in
+          ! the main window (a tall initial size) would open as an OS
+          ! window of its own; start it in the main window instead, where
+          ! the move-up above places it
+          if (w%firstpass) call igSetNextWindowViewport(mainvwp%ID)
           if (igBegin(c_loc(w%name),w%isopen,w%flags)) then
              w%ptr = igGetCurrentWindow()
              w%heightslack = 0._c_float ! only a body that stretches to fill sets this

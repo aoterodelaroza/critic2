@@ -125,6 +125,8 @@ struct ImGui_ImplGlfw_Data
     GLFWwindow*             KeyOwnerWindows[GLFW_KEY_LAST];
     bool                    InstalledCallbacks;
     bool                    WantUpdateMonitors;
+    bool                    MouseIgnoreButtonUpWaitForFocusLoss; // critic2: Linux drag-out workaround (see ImGui_ImplGlfw_ShowWindow)
+    bool                    MouseIgnoreButtonUp;
 
     // Chain GLFW callbacks: our callbacks will call the user's previously installed callbacks, if any.
     GLFWwindowfocusfun      PrevUserCallbackWindowFocus;
@@ -308,6 +310,19 @@ void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int acti
     if (bd->PrevUserCallbackMousebutton != NULL && window == bd->Window)
         bd->PrevUserCallbackMousebutton(window, button, action, mods);
 
+    // critic2: ignore the mouse release GLFW synthesizes when a window
+    // loses focus to a newly shown viewport window (see ImGui_ImplGlfw_ShowWindow)
+    if (button == GLFW_MOUSE_BUTTON_LEFT)
+    {
+        bd->MouseIgnoreButtonUpWaitForFocusLoss = false;
+        if (action == GLFW_RELEASE && bd->MouseIgnoreButtonUp)
+        {
+            bd->MouseIgnoreButtonUp = false;
+            return;
+        }
+        bd->MouseIgnoreButtonUp = false;
+    }
+
     ImGui_ImplGlfw_UpdateKeyModifiers(mods);
 
     ImGuiIO& io = ImGui::GetIO();
@@ -383,6 +398,15 @@ void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused)
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
     if (bd->PrevUserCallbackWindowFocus != NULL && window == bd->Window)
         bd->PrevUserCallbackWindowFocus(window, focused);
+
+    // critic2: GLFW calls this before releasing the buttons held in the
+    // window that lost focus; if a viewport window was just shown while a
+    // button was held (a window dragged out), skip that synthetic release
+    if (!focused && bd->MouseIgnoreButtonUpWaitForFocusLoss)
+    {
+        bd->MouseIgnoreButtonUpWaitForFocusLoss = false;
+        bd->MouseIgnoreButtonUp = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS);
+    }
 
     ImGuiIO& io = ImGui::GetIO();
     io.AddFocusEvent(focused != 0);
@@ -992,6 +1016,14 @@ static void ImGui_ImplGlfw_ShowWindow(ImGuiViewport* viewport)
 #endif
 #endif
 
+    // critic2: on Linux, the window manager may focus the new window even
+    // with GLFW_FOCUS_ON_SHOW off, and GLFW then releases the mouse buttons
+    // of the window losing focus, which ends the drag that created this
+    // one. Same idea as the workaround in newer imgui (#3158, #7733).
+#ifdef __linux__
+    ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
+    bd->MouseIgnoreButtonUpWaitForFocusLoss = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+#endif
     glfwShowWindow(vd->Window);
 }
 

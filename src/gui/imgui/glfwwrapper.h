@@ -37,4 +37,7 @@ extern "C" const int const_GLFW_VISIBLE;
 extern "C" const int const_GLFW_KEY_ESCAPE;
 extern "C" const int const_GLFW_PRESS;
 
+// functions //
+extern "C" int glfw_platform_is_wayland();
+
 #endif

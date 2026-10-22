@@ -36,3 +36,15 @@ const int const_GLFW_VISIBLE = GLFW_VISIBLE;
 const int const_GLFW_KEY_ESCAPE = GLFW_KEY_ESCAPE;
 const int const_GLFW_PRESS = GLFW_PRESS;
 
+// functions //
+// Nonzero if GLFW runs on Wayland, where window positions are not
+// available. glfwGetPlatform is new in GLFW 3.4; older versions
+// are assumed to run on X11.
+int glfw_platform_is_wayland(){
+#if GLFW_VERSION_MAJOR > 3 || (GLFW_VERSION_MAJOR == 3 && GLFW_VERSION_MINOR >= 4)
+  return glfwGetPlatform() == GLFW_PLATFORM_WAYLAND;
+#else
+  return 0;
+#endif
+}
+
