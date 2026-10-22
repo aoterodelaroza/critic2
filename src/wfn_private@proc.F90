@@ -1973,7 +1973,7 @@ contains
     line = ""
     issto = .false.
     isgto = .false.
-    isorca = (f%molden_type == molden_type_orca)
+    isorca = (molden_type == molden_type_orca)
     f%nedf = 0
     nmf = 0
 
