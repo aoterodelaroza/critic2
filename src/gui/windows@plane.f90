@@ -22,7 +22,7 @@ submodule (windows) plane
   use param, only: bohrtoa
   use tools_math, only: niso_lin, niso_log, niso_atan, niso_bader, niso_manual
   use representations, only: plane_npts_min, plane_npts_max, plane_nlev_max, plane_auto_spacing,&
-     plane_auto_ntot, plane_auto_tmax
+     plane_auto_ntot, plane_auto_tmax, nquant, quant_chem, quant_label
   implicit none
 
   ! transient markers in the view: the three points (origin, end of
@@ -1056,11 +1056,7 @@ contains
     function quantity_label() result(str)
       character(len=:), allocatable :: str
 
-      if (w%pl%d%isexpr) then
-         str = trim(w%pl%d%expr)
-      else
-         str = "$" // string(w%pl%d%fref%id) // trim(quant_short(w%pl%d%nti))
-      end if
+      str = quant_label(w%pl%d%isexpr,w%pl%d%expr,w%pl%d%fref%id,w%pl%d%nti)
 
     end function quantity_label
 
@@ -1486,9 +1482,9 @@ contains
        if (sec(plane_sec_plane)%more) call draw_region()
     end if
 
-    ! the quantity (nothing more for an expression), the colors, and
-    ! the contour lines (nothing more if they are not shown)
-    call iw_separatortext("Property",sec(plane_sec_property),hasmore=.not.d%isexpr)
+    ! the quantity, the colors, and the contour lines (nothing more if
+    ! they are not shown)
+    call iw_separatortext("Property",sec(plane_sec_property))
     if (sec(plane_sec_property)%open) call draw_quantity()
     call iw_separatortext("Colors",sec(plane_sec_colors),hasmore=.true.)
     if (sec(plane_sec_colors)%open) call draw_colors()
@@ -1662,12 +1658,11 @@ contains
 
     end subroutine draw_region
 
-    !> The quantity on the map: a field, or an arithmetic expression
-    !> (checked as it is typed). More: the property of the field.
+    !> The quantity on the map: a quantity of a field, or an
+    !> arithmetic expression (checked as it is typed).
     subroutine draw_quantity()
 
-      ch = quantity_form(isys,d%isexpr,d%fref,d%nti,d%expr,d%exprerr,sec(plane_sec_property)%more,&
-         "plane","the map","the plane",ttshown)
+      ch = quantity_form(isys,d%isexpr,d%fref,d%nti,d%expr,d%exprerr,"plane","the map","the plane",ttshown)
       changed = changed .or. ch
 
     end subroutine draw_quantity
@@ -1916,13 +1911,13 @@ contains
   end function relief_form
 
   !> The quantity of a form (the plane map and the cube windows, the
-  !> plane map object editor) in system isys: a field fref, or an
-  !> arithmetic expression expr (if isexpr; checked as it is typed,
-  !> into exprerr). If more, the property nti of the field too. sfx =
-  !> the prefix of the widget IDs; place = where the quantity is (for
-  !> the tooltips: "the map"), and pts = whose points the expression
-  !> is evaluated at ("the plane"). Returns whether it changed.
-  module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,more,sfx,place,pts,ttshown) result(changed)
+  !> plane map object editor) in system isys: quantity nti of a field
+  !> fref, or an arithmetic expression expr (if isexpr; checked as it
+  !> is typed, into exprerr). sfx = the prefix of the widget IDs;
+  !> place = where the quantity is (for the tooltips: "the map"), and
+  !> pts = whose points the expression is evaluated at ("the
+  !> plane"). Returns whether it changed.
+  module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown) result(changed)
     use systems, only: sys
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_combo_simple, iw_field_combo, iw_inputtext,&
        iw_expression_helper, iw_exprctx_point
@@ -1931,12 +1926,11 @@ contains
     type(field_ref), intent(inout) :: fref
     integer, intent(inout) :: nti
     character(len=*), intent(inout) :: expr, exprerr
-    logical, intent(in) :: more
     character(len=*), intent(in) :: sfx, place, pts
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer :: ikind, ifield, iq
+    integer :: ikind, ifield
     logical :: echanged
     character(len=:), allocatable :: lerr
 
@@ -1950,7 +1944,7 @@ contains
     changed = changed .or. (isexpr .neqv. (ikind == 1))
     isexpr = (ikind == 1)
     if (.not.isexpr) then
-       call iw_text("Field",alignframe=.true.,gap=.true.)
+       ! the field and its quantity, in the same line as the kind
        ifield = fref%id
        if (iw_field_combo("##" // sfx // "field",isys,ifield,width=iw_calcwidth(24,1),&
           nonestr="<field not available>",sameline=.true.)) then
@@ -1958,14 +1952,7 @@ contains
           changed = .true.
        end if
        call iw_tooltip("Field on " // place,ttshown)
-       if (more) then
-          call iw_text("Quantity",alignframe=.true.)
-          iq = nti
-          call iw_combo_simple("##" // sfx // "quant",quant_combo,iq,sameline=.true.)
-          changed = changed .or. (iq /= nti)
-          nti = max(min(iq,nquant-1),0)
-          call iw_tooltip("Property of the field on " // place,ttshown)
-       end if
+       if (quantity_combo("##" // sfx // "quant",isys,fref%id,nti,ttshown,sameline=.true.)) changed = .true.
     else
        ! on its own line, with room for the Insert button
        call iw_text("Expression",alignframe=.true.)
@@ -1990,5 +1977,76 @@ contains
     end if
 
   end function quantity_form
+
+  !> A combo for quantity nti of field ifield of system isys: its value
+  !> and derivatives, and the chemical functions the field can
+  !> evaluate (elf, lol,...), with their descriptions as tooltips. A
+  !> chemical function the field cannot evaluate goes back to the
+  !> value; while the field is not available, the choice is kept.
+  !> strid = the widget ID. Returns whether nti changed.
+  module function quantity_combo(strid,isys,ifield,nti,ttshown,sameline) result(changed)
+    use systems, only: sys
+    use arithmetic, only: arith_names
+    use types, only: field_evaluation_avail
+    use utils, only: iw_combo_simple, chemfun_avail
+    character(len=*), intent(in) :: strid
+    integer, intent(in) :: isys, ifield
+    integer, intent(inout) :: nti
+    logical, intent(inout) :: ttshown
+    logical, intent(in), optional :: sameline
+    logical :: changed
+
+    integer :: j, n, ic, nti0
+    integer :: map(0:nquant+size(arith_names,1)-1)
+    logical :: good, ch
+    character(len=:), allocatable :: str, tips, why
+    type(field_evaluation_avail) :: av
+
+    ! the value and the derivatives (nti = 0 to nquant-1), and their
+    ! descriptions
+    character(len=*,kind=c_char), parameter :: quant_combo = &
+       "Value (f)" // c_null_char // "Gradient, x" // c_null_char // "Gradient, y" // c_null_char //&
+       "Gradient, z" // c_null_char // "Gradient norm" // c_null_char // "Hessian, xx" // c_null_char //&
+       "Hessian, xy" // c_null_char // "Hessian, xz" // c_null_char // "Hessian, yy" // c_null_char //&
+       "Hessian, yz" // c_null_char // "Hessian, zz" // c_null_char // "Laplacian" // c_null_char
+    character(len=*,kind=c_char), parameter :: quant_tips = &
+       "Value of the field" // c_null_char // "x component of the gradient" // c_null_char //&
+       "y component of the gradient" // c_null_char // "z component of the gradient" // c_null_char //&
+       "Norm of the gradient" // c_null_char // "xx component of the Hessian" // c_null_char //&
+       "xy component of the Hessian" // c_null_char // "xz component of the Hessian" // c_null_char //&
+       "yy component of the Hessian" // c_null_char // "yz component of the Hessian" // c_null_char //&
+       "zz component of the Hessian" // c_null_char // "Laplacian of the field" // c_null_char
+
+    ! the entries: the properties, then the chemical functions
+    nti0 = nti
+    str = quant_combo
+    tips = quant_tips
+    do j = 0, nquant-1
+       map(j) = j
+    end do
+    n = nquant
+    good = sys(isys)%goodfield(ifield)
+    if (good) then
+       call sys(isys)%f(ifield)%eval_avail(av)
+       do j = 1, size(arith_names,1)
+          if (quant_chem(nquant+j) == 0) cycle
+          if (.not.chemfun_avail(arith_names(j),sys(isys)%f(ifield),av,why)) cycle
+          str = str // trim(arith_names(j)%name) // c_null_char
+          tips = tips // trim(arith_names(j)%desc) // " (" // trim(arith_names(j)%name) // ")" // c_null_char
+          map(n) = nquant + j
+          n = n + 1
+       end do
+    end if
+
+    ! the combo
+    ic = 0
+    do j = 0, n-1
+       if (map(j) == nti) ic = j
+    end do
+    call iw_combo_simple(strid,str,ic,sameline=sameline,changed=ch,tooltips=tips,ttshown=ttshown)
+    if (good .or. ch) nti = map(max(min(ic,n-1),0))
+    changed = (nti /= nti0)
+
+  end function quantity_combo
 
 end submodule plane

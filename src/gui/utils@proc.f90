@@ -2606,8 +2606,8 @@ contains
     use wfn_private, only: wfn_rhf, wfn_uhf
     use arithmetic, only: arith_name, arith_names, arithkind_math, arithkind_chem,&
        arithkind_svar, arithreq_none, arithreq_gkin, arithreq_stress, arithreq_basis,&
-       arithreq_rhf, arithreq_libxc, arith_have_libxc
-    use types, only: field_evaluation_avail, fieldeval_category_gkin, fieldeval_category_stress
+       arithreq_rhf
+    use types, only: field_evaluation_avail
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: strid
     integer, intent(in) :: isys
@@ -2932,29 +2932,7 @@ contains
       end if
 
       ! is it available for this field?
-      en = .true.
-      why = ""
-      select case (a%req)
-      case (arithreq_gkin)
-         en = av%avail(fieldeval_category_gkin)
-         why = "Needs the kinetic energy density: a wavefunction field (wfn, wfx, fchk, molden,...)&
-            & or DFTB+"
-      case (arithreq_stress)
-         en = av%avail(fieldeval_category_stress)
-         why = "Needs the stress tensor: a molecular wavefunction field (wfn, wfx, fchk, molden,...)"
-      case (arithreq_basis)
-         en = (f%type == type_wfn)
-         if (en) en = allocated(f%wfn%cint)
-         why = "Needs a molecular wavefunction with the basis set (fchk or molden) and critic2&
-            & compiled with libcint"
-      case (arithreq_rhf)
-         en = (f%type == type_wfn)
-         if (en) en = (f%wfn%wfntyp == wfn_rhf)
-         why = "Needs a restricted molecular wavefunction field"
-      case (arithreq_libxc)
-         en = arith_have_libxc
-         why = "Needs critic2 compiled with libxc"
-      end select
+      en = chemfun_avail(a,f,av,why)
       tip = trim(a%desc)
       if (a%name == "xc") tip = tip // ". xc(rho,...,idx) takes expressions (density, gradient,...)&
          & and the libxc functional id last: xc($" // string(id) // ",1) is Slater exchange"
@@ -3034,6 +3012,47 @@ contains
     end subroutine openmanual
 
   end function iw_expression_helper
+
+  !> Whether chemical function a (one of arith_names) can be evaluated
+  !> with field f, whose evaluation categories are av; if not, why
+  !> explains what it needs.
+  module function chemfun_avail(a,f,av,why) result(en)
+    use fieldmod, only: field, type_wfn
+    use wfn_private, only: wfn_rhf
+    use arithmetic, only: arith_name, arithreq_gkin, arithreq_stress, arithreq_basis,&
+       arithreq_rhf, arithreq_libxc, arith_have_libxc
+    use types, only: field_evaluation_avail, fieldeval_category_gkin, fieldeval_category_stress
+    type(arith_name), intent(in) :: a
+    type(field), intent(in) :: f
+    type(field_evaluation_avail), intent(in) :: av
+    character(len=:), allocatable, intent(out) :: why
+    logical :: en
+
+    en = .true.
+    why = ""
+    select case (a%req)
+    case (arithreq_gkin)
+       en = av%avail(fieldeval_category_gkin)
+       why = "Needs the kinetic energy density: a wavefunction field (wfn, wfx, fchk, molden,...)&
+          & or DFTB+"
+    case (arithreq_stress)
+       en = av%avail(fieldeval_category_stress)
+       why = "Needs the stress tensor: a molecular wavefunction field (wfn, wfx, fchk, molden,...)"
+    case (arithreq_basis)
+       en = (f%type == type_wfn)
+       if (en) en = allocated(f%wfn%cint)
+       why = "Needs a molecular wavefunction with the basis set (fchk or molden) and critic2&
+          & compiled with libcint"
+    case (arithreq_rhf)
+       en = (f%type == type_wfn)
+       if (en) en = (f%wfn%wfntyp == wfn_rhf)
+       why = "Needs a restricted molecular wavefunction field"
+    case (arithreq_libxc)
+       en = arith_have_libxc
+       why = "Needs critic2 compiled with libxc"
+    end select
+
+  end function chemfun_avail
 
   !> Create a selectable that highlights the current row. Return true
   !> if the selectable is hovered. If clicked is present, return .true.

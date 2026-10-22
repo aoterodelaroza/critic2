@@ -596,19 +596,6 @@ module windows
   end type line_state
   public :: line_state
 
-  ! the properties of a field for LINE and PLANE (nti = 0 to 11), in
-  ! the line profile and plane map windows: the entries of a combo,
-  ! and the short names for labels ($1:lap)
-  integer, parameter :: nquant = 12
-  character(len=*,kind=c_char), parameter :: quant_combo = &
-     "Value (f)" // c_null_char // "Gradient, x" // c_null_char // "Gradient, y" // c_null_char //&
-     "Gradient, z" // c_null_char // "Gradient norm" // c_null_char // "Hessian, xx" // c_null_char //&
-     "Hessian, xy" // c_null_char // "Hessian, xz" // c_null_char // "Hessian, yy" // c_null_char //&
-     "Hessian, yz" // c_null_char // "Hessian, zz" // c_null_char // "Laplacian" // c_null_char
-  character(len=8), parameter :: quant_short(0:nquant-1) = (/&
-     "        ",":gx     ",":gy     ",":gz     ",":g      ",":hxx    ",&
-     ":hxy    ",":hxz    ",":hyy    ",":hyz    ",":hzz    ",":lap    "/)
-
   !> Per-window state of the plane map window (Tools > Plane Map, the
   !> PLANE keyword): the map (plane_def: the plane, the region, the
   !> quantity, how it is colored and contoured), the labels, a pending
@@ -2620,17 +2607,24 @@ module windows
        type(iw_section), intent(inout) :: sec(plane_nsec)
        logical :: changed
      end function plane_def_form
-     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,more,sfx,place,pts,ttshown) result(changed)
+     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown) result(changed)
        integer, intent(in) :: isys
        logical, intent(inout) :: isexpr
        type(field_ref), intent(inout) :: fref
        integer, intent(inout) :: nti
        character(len=*), intent(inout) :: expr, exprerr
-       logical, intent(in) :: more
        character(len=*), intent(in) :: sfx, place, pts
        logical, intent(inout) :: ttshown
        logical :: changed
      end function quantity_form
+     module function quantity_combo(strid,isys,ifield,nti,ttshown,sameline) result(changed)
+       character(len=*), intent(in) :: strid
+       integer, intent(in) :: isys, ifield
+       integer, intent(inout) :: nti
+       logical, intent(inout) :: ttshown
+       logical, intent(in), optional :: sameline
+       logical :: changed
+     end function quantity_combo
      !xx! cube submodule !xx!
      module subroutine draw_cube(w)
        class(window), intent(inout), target :: w

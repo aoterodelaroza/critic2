@@ -790,6 +790,17 @@ module representations
   end type rep_colorbar
   public :: rep_colorbar
 
+  ! The quantity of a field in the line, plane map, and grid forms
+  ! (nti): 0 to nquant-1 = a property of the field (as in LINE, PLANE
+  ! and CUBE; short names for labels, $1:lap); nquant + j = chemical
+  ! function arith_names(j) of the field, evaluated as an expression
+  ! (elf(1)).
+  integer, parameter, public :: nquant = 12
+  character(len=8), parameter :: quant_short(0:nquant-1) = (/&
+     "        ",":gx     ",":gy     ",":gz     ",":g      ",":hxx    ",&
+     ":hxy    ",":hxz    ",":hyy    ",":hyz    ",":hzz    ",":lap    "/)
+  public :: quant_chem, quant_eval, quant_label
+
   !> A map of a field on a region of a plane, as PLANE calculates it:
   !> the plane, the region, the number of points, the quantity, and how
   !> it is colored and contoured. Shared by the plane map window and the
@@ -1880,6 +1891,23 @@ module representations
        type(representation), intent(in), optional :: ratoms
        type(representation), intent(in), optional :: riso
      end subroutine add_draw_elements
+     module function quant_chem(nti) result(j)
+       integer, intent(in) :: nti
+       integer :: j
+     end function quant_chem
+     module subroutine quant_eval(isexpr,expr,ifield,nti,id,qexpr,ntik)
+       logical, intent(in) :: isexpr
+       character(len=*), intent(in) :: expr
+       integer, intent(in) :: ifield, nti
+       integer, intent(out) :: id, ntik
+       character(len=:), allocatable, intent(out) :: qexpr
+     end subroutine quant_eval
+     module function quant_label(isexpr,expr,ifield,nti) result(str)
+       logical, intent(in) :: isexpr
+       character(len=*), intent(in) :: expr
+       integer, intent(in) :: ifield, nti
+       character(len=:), allocatable :: str
+     end function quant_label
      module subroutine plane_def_set_defaults(d,isys)
        class(plane_def), intent(inout) :: d
        integer, intent(in) :: isys

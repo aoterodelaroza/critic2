@@ -146,6 +146,7 @@ module utils
   public :: iw_tooltip
   public :: iw_helpermark
   public :: iw_expression_helper
+  public :: chemfun_avail
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
   public :: get_time_string
@@ -559,6 +560,16 @@ module utils
        integer, intent(in), optional :: ifield
        logical :: inserted
      end function iw_expression_helper
+     module function chemfun_avail(a,f,av,why) result(en)
+       use fieldmod, only: field
+       use arithmetic, only: arith_name
+       use types, only: field_evaluation_avail
+       type(arith_name), intent(in) :: a
+       type(field), intent(in) :: f
+       type(field_evaluation_avail), intent(in) :: av
+       character(len=:), allocatable, intent(out) :: why
+       logical :: en
+     end function chemfun_avail
      module function iw_highlight_selectable(str,clicked,selected)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(out), optional :: clicked

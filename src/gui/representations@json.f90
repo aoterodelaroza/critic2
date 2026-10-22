@@ -63,6 +63,9 @@ contains
 
     !> The options of the object.
     subroutine xfer_options()
+      use arithmetic, only: arith_names
+      integer :: ip, j
+      character(len=len(arith_names(1)%name)) :: fn
 
       ! common
       call io%xs(p,'name',r%name)
@@ -507,7 +510,25 @@ contains
            call io%x(q,'autonpts',d%autonpts)
            call io%x(q,'isexpr',d%isexpr)
            call xref(q,'field',d%fref)
-           call io%x(q,'property',d%nti,0,11)
+           ! the property of the field, or its chemical function by name
+           ip = d%nti
+           fn = ""
+           j = quant_chem(d%nti)
+           if (j > 0) then
+              ip = 0
+              fn = arith_names(j)%name
+           end if
+           call io%x(q,'property',ip,0,nquant-1)
+           call io%x(q,'function',fn)
+           if (io%reading) then
+              d%nti = ip
+              do j = 1, size(arith_names,1)
+                 if (len_trim(fn) > 0 .and. arith_names(j)%name == fn .and. quant_chem(nquant+j) > 0) then
+                    d%nti = nquant + j
+                    exit
+                 end if
+              end do
+           end if
            call io%x(q,'expression',d%expr)
            call io%x(q,'icmap',d%icmap,1,iw_ncmap)
            call io%x(q,'cscale',d%cscale,0,2)

@@ -27,6 +27,73 @@ submodule (representations) plane
 
 contains
 
+  !> The chemical function of quantity nti (its index in arith_names),
+  !> or zero if nti is a property of the field. Only the functions that
+  !> take just the field (elf(1)) are quantities.
+  module function quant_chem(nti) result(j)
+    use arithmetic, only: arith_names, arithkind_chem
+    integer, intent(in) :: nti
+    integer :: j
+
+    j = nti - nquant
+    if (j < 1 .or. j > size(arith_names,1)) then
+       j = 0
+    elseif (arith_names(j)%kind /= arithkind_chem .or. arith_names(j)%args /= "(id)") then
+       j = 0
+    end if
+
+  end function quant_chem
+
+  !> How the quantity of a form is evaluated by the rhoplot kernels:
+  !> the arithmetic expression expr (if isexpr), or quantity nti of
+  !> field ifield. Returns the field id and its property ntik, or (id
+  !> = -1) the expression qexpr: expr, or that of the chemical
+  !> function.
+  module subroutine quant_eval(isexpr,expr,ifield,nti,id,qexpr,ntik)
+    logical, intent(in) :: isexpr
+    character(len=*), intent(in) :: expr
+    integer, intent(in) :: ifield, nti
+    integer, intent(out) :: id, ntik
+    character(len=:), allocatable, intent(out) :: qexpr
+
+    id = -1
+    ntik = 0
+    if (isexpr) then
+       qexpr = trim(expr)
+    elseif (quant_chem(nti) > 0) then
+       qexpr = quant_label(.false.,"",ifield,nti)
+    else
+       id = ifield
+       ntik = max(min(nti,nquant-1),0)
+       qexpr = ""
+    end if
+
+  end subroutine quant_eval
+
+  !> The label of the quantity of a form: the arithmetic expression
+  !> expr (if isexpr), or quantity nti of field ifield ($1:lap, or
+  !> elf(1)).
+  module function quant_label(isexpr,expr,ifield,nti) result(str)
+    use arithmetic, only: arith_names
+    use tools_io, only: string
+    logical, intent(in) :: isexpr
+    character(len=*), intent(in) :: expr
+    integer, intent(in) :: ifield, nti
+    character(len=:), allocatable :: str
+
+    integer :: j
+
+    j = quant_chem(nti)
+    if (isexpr) then
+       str = trim(expr)
+    elseif (j > 0) then
+       str = trim(arith_names(j)%name) // "(" // string(ifield) // ")"
+    else
+       str = "$" // string(ifield) // trim(quant_short(max(min(nti,nquant-1),0)))
+    end if
+
+  end function quant_label
+
   !> The map of a new system isys. The quantity is the value of the
   !> reference field. The region: for crystals, the parallelogram of
   !> a cell face; for molecules, the plane of the first three atoms (if
@@ -380,9 +447,9 @@ contains
     character(len=:), allocatable, intent(inout) :: errmsg
     integer, intent(in), optional :: npts
 
-    integer :: id, nx, ny
+    integer :: id, nx, ny, idq, ntiq
     logical :: ok
-    character(len=:), allocatable :: lerr
+    character(len=:), allocatable :: lerr, qexpr
 
     errmsg = ""
     if (allocated(ff)) deallocate(ff)
@@ -408,7 +475,8 @@ contains
     if (.not.ok) return
 
     allocate(ff(nx,ny))
-    call rhoplot_plane_values(sys(isys),x0,uu,vv,nx,ny,id,trim(d%expr),d%nti,ff,errmsg)
+    call quant_eval(d%isexpr,d%expr,id,d%nti,idq,qexpr,ntiq)
+    call rhoplot_plane_values(sys(isys),x0,uu,vv,nx,ny,idq,qexpr,ntiq,ff,errmsg)
     if (len_trim(errmsg) > 0) deallocate(ff)
 
   end subroutine plane_def_values

@@ -19,6 +19,7 @@
 submodule (windows) line
   use interfaces_cimgui
   use param, only: bohrtoa
+  use representations, only: quant_eval, quant_label
   implicit none
 
   ! transient markers in the view: the endpoints (A, B), the segment,
@@ -273,7 +274,7 @@ contains
       use gui_main, only: g
       use utils, only: iw_checkbox, iw_coloredit, iw_field_combo, iw_inputtext,&
          iw_expression_helper, iw_exprctx_point, iw_table_column, iw_close_button
-      integer :: i, idel, ifield, ikind, iq
+      integer :: i, idel, ifield, ikind
       logical :: echanged
       integer(c_int) :: flags
       character(kind=c_char,len=:), allocatable, target :: strtab
@@ -339,10 +340,7 @@ contains
                     if (iw_field_combo(sfx // "field",isys,ifield,width=iw_calcwidth(24,1),&
                        nonestr="<field not available>")) call cv%fref%set(sys(isys),ifield)
                     call iw_tooltip("Field of the curve",ttshown)
-                    iq = cv%nti
-                    call iw_combo_simple(sfx // "quant",quant_combo,iq,sameline=.true.)
-                    cv%nti = max(min(iq,nquant-1),0)
-                    call iw_tooltip("Quantity of the field plotted along the line",ttshown)
+                    ldum = quantity_combo(sfx // "quant",isys,cv%fref%id,cv%nti,ttshown,sameline=.true.)
                  else
                     echanged = iw_inputtext(sfx // "expr",bufsize=1023,textf=cv%expr,width=36)
                     call iw_tooltip("Arithmetic expression of the fields of the system (for instance,&
@@ -686,11 +684,7 @@ contains
       character(len=:), allocatable :: str
 
       associate(cv => w%ln%curve(i))
-        if (cv%isexpr) then
-           str = trim(cv%expr)
-        else
-           str = "$" // string(cv%fref%id) // trim(quant_short(cv%nti))
-        end if
+        str = quant_label(cv%isexpr,cv%expr,cv%fref%id,cv%nti)
       end associate
 
     end function curve_label
@@ -742,11 +736,11 @@ contains
 
       integer*8, allocatable :: key(:)
       integer*8 :: keyref
-      integer :: i, j, np, id
+      integer :: i, j, np, id, idq, ntiq
       logical :: stale, ok
       real*8 :: x0(3), x1(3), dlen
       real*8, allocatable :: f(:)
-      character(len=:), allocatable :: lerr
+      character(len=:), allocatable :: lerr, qexpr
 
       refit = .false.
       if (xediting .or. are_threads_running()) return
@@ -830,7 +824,8 @@ contains
               end if
               if (ok) then
                  allocate(f(np),cv%y(np))
-                 call rhoplot_line_values(sys(isys),x0,x1,np,id,trim(cv%expr),cv%nti,f,cv%y,cv%errmsg)
+                 call quant_eval(cv%isexpr,cv%expr,id,cv%nti,idq,qexpr,ntiq)
+                 call rhoplot_line_values(sys(isys),x0,x1,np,idq,qexpr,ntiq,f,cv%y,cv%errmsg)
                  if (len_trim(cv%errmsg) > 0) deallocate(cv%y)
                  deallocate(f)
               end if

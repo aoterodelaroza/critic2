@@ -22,6 +22,7 @@
 submodule (windows) cube
   use interfaces_cimgui
   use param, only: bohrtoa
+  use representations, only: quant_eval, quant_label
   implicit none
 
   ! more points than this are warned about (a large file, a long wait)
@@ -137,10 +138,10 @@ contains
        call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
 
        ! the quantity
-       call iw_separatortext("Property",w%cu%sec(cube_sec_property),hasmore=.not.w%cu%isexpr)
+       call iw_separatortext("Property",w%cu%sec(cube_sec_property))
        if (w%cu%sec(cube_sec_property)%open) then
           ch = quantity_form(isys,w%cu%isexpr,w%cu%fref,w%cu%nti,w%cu%expr,w%cu%exprerr,&
-             w%cu%sec(cube_sec_property)%more,"cube","the grid","the grid",ttshown)
+             "cube","the grid","the grid",ttshown)
           ! another quantity costs differently
           if (ch) w%cu%costest = -1d0
        end if
@@ -455,10 +456,10 @@ contains
       use grid3mod, only: grid3
       use iso_c_binding, only: c_loc
       !$ use omp_lib, only: omp_get_max_threads
-      integer :: j, nb, np(3), nthr
+      integer :: j, nb, np(3), nthr, idq, ntiq
       real*8 :: t, xdp(3,3)
       real*8, allocatable :: lf(:,:,:)
-      character(len=:), allocatable :: errmsg
+      character(len=:), allocatable :: errmsg, qexpr
       type(grid3) :: faux
 
       real*8, parameter :: timetarget = 0.1d0 ! measure until a batch takes this long
@@ -476,6 +477,9 @@ contains
          end if
       end if
 
+      ! the quantity, as the job evaluates it
+      call quant_eval(w%cu%isexpr,w%cu%expr,ifield,w%cu%nti,idq,qexpr,ntiq)
+
       ! the kernel runs its threads over the third axis: give it as
       ! many planes as the job has threads
       nthr = 1
@@ -488,7 +492,7 @@ contains
             xdp(:,j) = box(:,j) / real(np(j),8)
          end do
          t = glfwGetTime()
-         call rhoplot_cube_values(sys(isys),box(:,0),xdp,np,ifield,trim(w%cu%expr),w%cu%nti,.false.,lf,errmsg)
+         call rhoplot_cube_values(sys(isys),box(:,0),xdp,np,idq,qexpr,ntiq,.false.,lf,errmsg)
          t = glfwGetTime() - t
          if (len_trim(errmsg) > 0) then
             w%errmsg = errmsg
@@ -586,11 +590,11 @@ contains
     use tools_io, only: uout, fopen_write, fopen_append, fclose, string
     class(window), intent(inout), target :: w
 
-    integer :: isys, ifield, ia(3), na(3), lu, j, ishift(3), inr(3), nn(3), id
+    integer :: isys, ifield, ia(3), na(3), lu, j, ishift(3), inr(3), nn(3), id, idq, ntiq
     real*8 :: x0(3), xd(3,3), x00(3,3), x2cl(3,3)
     real*8, allocatable :: lf(:,:,:)
     logical :: native, existed, super
-    character(len=:), allocatable :: errmsg, name
+    character(len=:), allocatable :: errmsg, name, qexpr
     type(crystal), pointer :: cr
     type(crystal), target :: nc
 
@@ -665,11 +669,12 @@ contains
        if (native) then
           call rhoplot_cube_gridvalues(sys(isys),ifield,ia,na,w%cu%ipsi,w%cu%ibnd,w%cu%ik,inr,&
              w%cu%ispin,w%cu%ipart,lf)
-       elseif (ifield < 0) then
-          call rhoplot_cube_values(sys(isys),x0,xd,nn,-1,trim(w%cu%expr),0,&
-             w%cu%iregion == iso_region_cell,lf,errmsg)
        else
-          call rhoplot_cube_values(sys(isys),x0,xd,nn,ifield,"",w%cu%nti,.false.,lf,errmsg)
+          ! an expression on the cell may be evaluated on the grids of
+          ! its fields (ifield = -1)
+          call quant_eval(ifield < 0,w%cu%expr,ifield,w%cu%nti,idq,qexpr,ntiq)
+          call rhoplot_cube_values(sys(isys),x0,xd,nn,idq,qexpr,ntiq,&
+             ifield < 0 .and. w%cu%iregion == iso_region_cell,lf,errmsg)
        end if
        if (end_cancellable()) then
           if (w%cu%jload) then
@@ -692,13 +697,9 @@ contains
        do j = 1, 3
           x2cl(:,j) = xd(:,j) * real(nn(j),8)
        end do
-       if (ifield < 0) then
-          name = trim(w%cu%expr)
-       else
-          name = "$" // string(ifield) // trim(quant_short(w%cu%nti))
-          if (w%cu%ipsi /= cubepsi_none) name = name // " (band " // string(w%cu%ibnd) // ", k-point " //&
-             string(w%cu%ik) // ", spin " // string(w%cu%ispin) // ")"
-       end if
+       name = quant_label(ifield < 0,w%cu%expr,ifield,w%cu%nti)
+       if (ifield >= 0 .and. w%cu%ipsi /= cubepsi_none) name = name // " (band " // string(w%cu%ibnd) //&
+          ", k-point " // string(w%cu%ik) // ", spin " // string(w%cu%ispin) // ")"
        name = "<generated>, grid: " // name
        id = sys(isys)%getfieldnum()
        call sys(isys)%f(id)%load_grid_from_array3(sys(isys)%c,id,name,lf,matmul(sys(isys)%c%m_c2x,x0),x2cl)
