@@ -590,7 +590,7 @@ contains
           if (iw_menuitem("Plane Map")) &
              call w%add_rep_and_edit(reptype_slice,repflavor_slice)
           call iw_tooltip("Display the values of a scalar field on a plane as colors and&
-             & contour lines (as PLANE)",ttshown)
+             & contour lines",ttshown)
 
           if (iw_menuitem("Critical Points")) &
              call w%add_rep_and_edit(reptype_cps,repflavor_cps)
