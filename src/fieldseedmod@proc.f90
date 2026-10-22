@@ -57,7 +57,8 @@ contains
   !> contains the new string pointer (if provided). If withoptions,
   !> read the field options from the input line, too.
   module subroutine fieldseed_parse(f,line,withoptions,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb, molden_type_unknown
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb, molden_type_pyscf,&
+       molden_type_unknown
     use global, only: eval_next
     use types, only: realloc
     use tools_io, only: getword, lower, equal, isexpression
@@ -169,6 +170,10 @@ contains
     elseif (equal(lfile,"molden_xtb")) then
        f%iff = ifformat_molden
        f%molden_type = molden_type_xtb
+       call read_next_as_file()
+    elseif (equal(lfile,"molden_pyscf")) then
+       f%iff = ifformat_molden
+       f%molden_type = molden_type_pyscf
        call read_next_as_file()
     elseif (equal(lfile,"pwc")) then
        f%iff = ifformat_pwc
@@ -512,7 +517,7 @@ contains
 
   !> Parse field options from a command.
   module subroutine fieldseed_parse_options(f,line,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb, molden_type_pyscf
     use global, only: eval_next
     use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger,&
        readintegers, isreal
@@ -666,6 +671,8 @@ contains
           f%molden_type = molden_type_orca
        elseif ((f%iff == ifformat_molden) .and. equal(lword,'xtb')) then
           f%molden_type = molden_type_xtb
+       elseif ((f%iff == ifformat_molden) .and. equal(lword,'pyscf')) then
+          f%molden_type = molden_type_pyscf
        else
           call f%end()
           f%errmsg = "unknown load keyword or file name: " // word

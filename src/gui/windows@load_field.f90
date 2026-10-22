@@ -396,7 +396,8 @@ contains
          if (abs(w%lf%file1_format) == ifformat_molden) then
             call iw_text("Dialect",alignframe=.true.)
             call iw_combo_simple("##loadfieldmoldendialect","Auto-detect"//c_null_char//&
-               "PSI4"//c_null_char//"ORCA"//c_null_char//"xtb"//c_null_char,w%lf%moldendialect,sameline=.true.)
+               "PSI4"//c_null_char//"ORCA"//c_null_char//"xtb"//c_null_char//&
+               "PySCF"//c_null_char,w%lf%moldendialect,sameline=.true.)
             call iw_tooltip("Program that generated the molden file",ttshown)
          end if
          ldum = iw_checkbox("Read virtual orbitals##loadfieldreadvirtual",w%lf%readvirtual,labelleft=.true.)
@@ -909,6 +910,8 @@ contains
                lstr = lstr // " orca"
             elseif (w%lf%moldendialect == 3) then
                lstr = lstr // " xtb"
+            elseif (w%lf%moldendialect == 4) then
+               lstr = lstr // " pyscf"
             end if
          elseif (jff == ifformat_dftb) then
             if (w%lf%iexact == 1) then

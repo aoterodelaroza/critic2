@@ -183,6 +183,7 @@ module wfn_private
   integer, parameter, public :: molden_type_adf_sto = 3
   integer, parameter, public :: molden_type_generic = 4
   integer, parameter, public :: molden_type_xtb = 5
+  integer, parameter, public :: molden_type_pyscf = 6
 
   interface
      module subroutine wfn_end(f)

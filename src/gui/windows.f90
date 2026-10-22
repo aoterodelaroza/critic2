@@ -1087,7 +1087,7 @@ module windows
      logical :: pwcuserange = .false. ! pwc: use energy range
      real(c_float) :: pwcemin = -1._c_float ! pwc energy range minimum (eV)
      real(c_float) :: pwcemax = 1._c_float ! pwc energy range maximum (eV)
-     integer(c_int) :: moldendialect = 0_c_int ! molden dialect (0=auto, 1=psi4, 2=orca, 3=xtb)
+     integer(c_int) :: moldendialect = 0_c_int ! molden dialect (0=auto, 1=psi4, 2=orca, 3=xtb, 4=pyscf)
      ! blocking job: the LOAD options and the system to load the field into
      character(len=:), allocatable :: pending_line
      integer :: pending_isys = 0

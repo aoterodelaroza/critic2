@@ -1,0 +1,67 @@
+## check: 057_load-pyscf.cro -a1e-10
+## labels: regression
+## PySCF molden files ([5d], [7f], and [9g] in separate lines for
+## spherical shells, see issue #87). The reference densities
+## calculated by PySCF are in the .rho files next to the molden files.
+
+### angular momentum, spherical and Cartesian ###
+molecule ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_spsph.molden
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_spsph.molden id spsph
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_spcar.molden id spcar
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_dsph.molden id dsph
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_dcar.molden id dcar
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_fsph.molden id fsph
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_fcar.molden id fcar
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_gsph.molden id gsph
+load ../zz_source/pyscf-2.14.0/h2o_lmax/h2o_gcar.molden id gcar
+
+point 0.158753 0.105835 0.052918 field "$spsph"
+point 0.158753 0.105835 0.052918 field "$spcar"
+point 0.158753 0.105835 0.052918 field "$dsph"
+point 0.158753 0.105835 0.052918 field "$dcar"
+point 0.158753 0.105835 0.052918 field "$fsph"
+point 0.158753 0.105835 0.052918 field "$fcar"
+point 0.158753 0.105835 0.052918 field "$gsph"
+point 0.158753 0.105835 0.052918 field "$gcar"
+
+molcalc "$spsph"
+molcalc "$spcar"
+molcalc "$dsph"
+molcalc "$dcar"
+molcalc "$fsph"
+molcalc "$fcar"
+molcalc "$gsph"
+molcalc "$gcar"
+
+### low-symmetry molecule, f and g shells ###
+molecule ../zz_source/pyscf-2.14.0/h2o2/h2o2_sph.molden
+load ../zz_source/pyscf-2.14.0/h2o2/h2o2_sph.molden id sph
+load ../zz_source/pyscf-2.14.0/h2o2/h2o2_car.molden id car
+point 0.158753 0.105835 0.052918 field "$sph"
+point 0.158753 0.105835 0.052918 field "$car"
+molcalc "$sph"
+molcalc "$car"
+
+### wavefunction types ###
+molecule ../zz_source/pyscf-2.14.0/h2o_wfntyp/h2o_rhf.molden
+load ../zz_source/pyscf-2.14.0/h2o_wfntyp/h2o_rhf.molden id rhf
+load ../zz_source/pyscf-2.14.0/h2o_wfntyp/h2o_rks.molden id rks
+load ../zz_source/pyscf-2.14.0/h2o_wfntyp/h2o_uhf.molden id uhf
+point 0.158753 0.105835 0.052918 field "$rhf"
+point 0.158753 0.105835 0.052918 field "$rks"
+point 0.158753 0.105835 0.052918 field "$uhf"
+molcalc "$rhf"
+molcalc "$rks"
+molcalc "$uhf"
+
+### the example in issue #87 ###
+molecule ../zz_source/pyscf-2.14.0/issue87/h2o.molden
+load ../zz_source/pyscf-2.14.0/issue87/h2o.molden id i87
+point 0.0 0.757 0.587 field "$i87"
+molcalc "$i87"
+
+### ECP ([core] block), valence density ###
+molecule ../zz_source/pyscf-2.14.0/hi_ecp/hi.molden
+load ../zz_source/pyscf-2.14.0/hi_ecp/hi.molden id hi
+point 0.0 0.0 0.8 field "$hi"
+molcalc "$hi"

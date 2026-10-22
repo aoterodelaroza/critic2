@@ -54,6 +54,7 @@ set(TESTS
   054_load-fftderiv        ## load as fft gradient/Hessian components
   055_load-moldenxtb_d     ## load molden file from xtb, with Cartesian d shells
   056_load-psi4_lmax       ## load psi4 molden files, Cartesian and spherical up to g
+  057_load-pyscf           ## load PySCF molden files (issue #87)
   )
 
 runtests(${TESTS})

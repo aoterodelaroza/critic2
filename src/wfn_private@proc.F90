@@ -1899,7 +1899,8 @@ contains
 
     character(len=:), allocatable :: line, keyword, word, word1
     character(len=mlen) :: mword
-    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca, ispsi4, isxtb, had1
+    logical :: kw5d, kw7f, kw5d10f
+    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca, ispsi4, isxtb, ispyscf, had1
     integer :: luwfn, ityp
     integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
@@ -1968,6 +1969,9 @@ contains
     is5d = .false.
     is7f = .false.
     is9g = .false.
+    kw5d = .false.
+    kw7f = .false.
+    kw5d10f = .false.
     nat = 0
     f%wfntyp = -1
     line = ""
@@ -1976,6 +1980,7 @@ contains
     isorca = .false.
     ispsi4 = .false.
     isxtb = .false.
+    ispyscf = .false.
     f%nedf = 0
     nmf = 0
 
@@ -1993,7 +1998,9 @@ contains
           end if
           ok = getline_raw(luwfn,line,.false.)
           ! psi4 writes no title or program line: [Atoms] (AU) comes next
+          ! pyscf writes a "made by pyscf" line
           if (trim(adjustl(lower(line))) == "[atoms] (au)") ispsi4 = .true.
+          if (index(lower(line),"made by pyscf") > 0) ispyscf = .true.
        else if (trim(keyword) == "title") then
           ! isorca = the file was written by orca_2mkl
           ! isxtb = empty title, the next keyword follows (xtb)
@@ -2107,16 +2114,20 @@ contains
           end if
 
        elseif (trim(keyword) == "5d" .or. trim(keyword) == "5d7f") then
+          ! is5d/is7f = the last keyword decides; kw* = keywords found
           is5d = .true.
           is7f = .true.
+          kw5d = .true.
           ok = getline_raw(luwfn,line,.false.)
        elseif (trim(keyword) == "5d10f") then
           is5d = .true.
           is7f = .false.
+          kw5d10f = .true.
           ok = getline_raw(luwfn,line,.false.)
        elseif (trim(keyword) == "7f") then
           is5d = .false.
           is7f = .true.
+          kw7f = .true.
           ok = getline_raw(luwfn,line,.false.)
        elseif (trim(keyword) == "9g") then
           is9g = .true.
@@ -2149,12 +2160,14 @@ contains
        f%molden_type = molden_type_orca
     elseif (isxtb) then
        f%molden_type = molden_type_xtb
+    elseif (ispyscf) then
+       f%molden_type = molden_type_pyscf
     elseif (ispsi4) then
        f%molden_type = molden_type_psi4
     else
        f%molden_type = molden_type_generic
        call ferror("read_molden","Unknown molden dialect, reading as generic molden file. &
-          &If it comes from psi4, orca, or xtb, use: LOAD file.molden {PSI4|ORCA|XTB}",warning)
+          &If it comes from psi4, orca, xtb, or pyscf, use: LOAD file.molden {PSI4|ORCA|XTB|PYSCF}",warning)
     end if
 
     ! orca always uses spherical; other files read in the orca dialect
@@ -2163,6 +2176,14 @@ contains
        is5d = .true.
        is7f = .true.
        is9g = .true.
+    end if
+
+    ! pyscf writes [5d], [7f], and [9g] in separate lines when all
+    ! shells are spherical: the keywords add up instead of the last
+    ! one deciding
+    if (f%molden_type == molden_type_pyscf) then
+       is5d = kw5d .or. kw5d10f
+       is7f = kw5d .or. kw7f
     end if
 
     ! type of wavefunction -> number of MOs

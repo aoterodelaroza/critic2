@@ -1376,7 +1376,7 @@ contains
   !> name and the system's reference field selection. On error, errmsg
   !> is non-empty and the old field is untouched.
   module subroutine reload_field_with_virtuals(isys,ifield,errmsg)
-    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb, molden_type_pyscf
     use tools_io, only: quoteword
     use types, only: cp_type, cp_gpath
     integer, intent(in) :: isys
@@ -1420,6 +1420,8 @@ contains
        lstr = lstr // " orca"
     elseif (sys(isys)%f(ifield)%wfn%molden_type == molden_type_xtb) then
        lstr = lstr // " xtb"
+    elseif (sys(isys)%f(ifield)%wfn%molden_type == molden_type_pyscf) then
+       lstr = lstr // " pyscf"
     end if
     usecore = sys(isys)%f(ifield)%usecore
     numerical = sys(isys)%f(ifield)%numerical
