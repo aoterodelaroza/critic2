@@ -1731,7 +1731,8 @@ contains
                 ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
           elseif (w%purpose == wpurp_dialog_savegridfile) then
              ! the grid of the cube window; the XSF and VASP formats only
-             ! for grids on the whole cell
+             ! for grids on the whole cell; the format follows the
+             ! extension of the name, and a chosen format sets it
              w%name = "Write Grid File##" // string(w%id) // "_" // string(w%type) // "_" // string(w%purpose) // c_null_char
              str1 = "Gaussian cube (*.cube) {.cube},Binary cube (*.bincube) {.bincube}"
              idp = w%parent()
@@ -1743,7 +1744,8 @@ contains
              str1 = str1 // c_null_char
              call dialog_initial_file(idp,"grid.cube",str2,str3)
              call IGFD_OpenDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
-                1_c_int,c_null_ptr,ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite))
+                1_c_int,c_null_ptr,ior(ior(dflags,ImGuiFileDialogFlags_ConfirmOverwrite),&
+                ImGuiFileDialogFlags_SyncFilterExtension))
           elseif (w%purpose == wpurp_dialog_savetablefile) then
              ! a table of the parent window, as text: to the file its
              ! tables were last written to, or table.txt next to its

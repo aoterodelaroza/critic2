@@ -1241,6 +1241,20 @@ namespace IGFD
 
 			if (needToApllyNewFilter)
 			{
+				// critic2: with SyncFilterExtension, the file name (the
+				// default one if empty) takes the extension of the new
+				// filter, and becomes the default name, which the rescan
+				// puts in the buffer
+				if (vFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_SyncFilterExtension)
+				{
+					auto& fdFile = vFileDialogInternal.puFileManager;
+					std::string name = fdFile.puFileNameBuffer;
+					if (name.empty())
+						name = fdFile.puDLGDefaultFileName;
+					name = SetExtentionOfSelectedFilter(name, false, false);
+					fdFile.puDLGDefaultFileName = name;
+					vFileDialogInternal.puLastSyncedFileName = name;
+				}
 				vFileDialogInternal.puFileManager.OpenCurrentPath(vFileDialogInternal);
 			}
 
@@ -1277,6 +1291,70 @@ namespace IGFD
 		}
 
 		return result;
+	}
+
+	// critic2: position of the dot that starts the extension of the
+	// file name in vFile (npos if none; not a leading dot)
+	static size_t critic2_ExtentionPoint(const std::string& vFile)
+	{
+		size_t lastSep = vFile.find_last_of("/\\");
+		size_t start = (lastSep == std::string::npos) ? 0 : lastSep + 1;
+		size_t lastPoint = vFile.find_last_of('.');
+		if (lastPoint == std::string::npos || lastPoint <= start)
+			return std::string::npos;
+		return lastPoint;
+	}
+
+	// critic2: the filter whose extensions include ext, if any (not the
+	// catch-all ones)
+	static const IGFD::FilterManager::FilterInfos* critic2_FilterOfExt(
+		const std::vector<IGFD::FilterManager::FilterInfos>& vFilters, const std::string& ext, bool vIsCaseInsensitive)
+	{
+		for (const auto& infos : vFilters)
+		{
+			if (infos.filter == ".*" || infos.filter == "*.*")
+				continue;
+			if (infos.exist(ext, vIsCaseInsensitive))
+				return &infos;
+		}
+		return nullptr;
+	}
+
+	bool IGFD::FilterManager::SelectFilterOfFileName(const std::string& vFile, bool vIsCaseInsensitive)
+	{
+		size_t lastPoint = critic2_ExtentionPoint(vFile);
+		if (lastPoint == std::string::npos)
+			return false;
+		const auto infos = critic2_FilterOfExt(prParsedFilters, vFile.substr(lastPoint), vIsCaseInsensitive);
+		if (!infos || infos->filter == prSelectedFilter.filter)
+			return false;
+		prSelectedFilter = *infos;
+		return true;
+	}
+
+	std::string IGFD::FilterManager::SetExtentionOfSelectedFilter(const std::string& vFile, bool vOnlyIfUnknown,
+		bool vIsCaseInsensitive) const
+	{
+		// the one extension of the selected filter
+		std::string ext;
+		if (prSelectedFilter.collectionfilters.size() == 1)
+			ext = *prSelectedFilter.collectionfilters.begin();
+		else if (prSelectedFilter.collectionfilters.empty())
+			ext = prSelectedFilter.filter;
+		if (vFile.empty() || ext.empty() || ext[0] != '.' || ext == ".*")
+			return vFile;
+
+		size_t lastPoint = critic2_ExtentionPoint(vFile);
+		if (vOnlyIfUnknown)
+		{
+			if (lastPoint != std::string::npos &&
+				critic2_FilterOfExt(prParsedFilters, vFile.substr(lastPoint), vIsCaseInsensitive))
+				return vFile;
+			return vFile + ext;
+		}
+		if (lastPoint == std::string::npos)
+			return vFile + ext;
+		return vFile.substr(0, lastPoint) + ext;
 	}
 
 	void IGFD::FilterManager::SetDefaultFilterIfNotDefined()
@@ -2570,6 +2648,11 @@ namespace IGFD
 	{
 		if (!puDLGDirectoryMode) // if not directory mode
 		{
+			// critic2: with SyncFilterExtension, a name whose extension
+			// is not that of a filter takes the selected filter's
+			if (vFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_SyncFilterExtension)
+				return vFileDialogInternal.puFilterManager.SetExtentionOfSelectedFilter(std::string(puFileNameBuffer), true,
+					(vFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_CaseInsensitiveExtention) != 0);
 			return vFileDialogInternal.puFilterManager.ReplaceExtentionWithCurrentFilter(std::string(puFileNameBuffer));
 		}
 
@@ -4296,6 +4379,22 @@ namespace IGFD
 		if (ImGui::GetItemID() == ImGui::GetActiveID())
 			prFileDialogInternal.puFileInputIsActive = true;
 		ImGui::PopItemWidth();
+
+		// critic2: with SyncFilterExtension, a new file name (typed or
+		// picked from the list) selects the filter of its extension; it
+		// becomes the default name, which the rescans (for the new filter,
+		// or another directory) put back in the buffer
+		if ((prFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_SyncFilterExtension) &&
+			prFileDialogInternal.puLastSyncedFileName != fdFile.puFileNameBuffer)
+		{
+			const std::string name = fdFile.puFileNameBuffer;
+			prFileDialogInternal.puLastSyncedFileName = name;
+			if (!name.empty())
+				fdFile.puDLGDefaultFileName = name;
+			if (prFileDialogInternal.puFilterManager.SelectFilterOfFileName(name,
+				(prFileDialogInternal.puDLGflags & ImGuiFileDialogFlags_CaseInsensitiveExtention) != 0))
+				fdFile.OpenCurrentPath(prFileDialogInternal);
+		}
 
 		// combobox of filters
 		prFileDialogInternal.puFilterManager.DrawFilterComboBox(prFileDialogInternal);

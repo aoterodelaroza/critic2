@@ -894,6 +894,7 @@ enum ImGuiFileDialogFlags_
 #ifdef USE_BOOKMARK
 	ImGuiFileDialogFlags_DisableBookmarkMode			= (1 << 11),	// disable the bookmark mode
 #endif // USE_BOOKMARK
+	ImGuiFileDialogFlags_SyncFilterExtension			= (1 << 12),	// critic2: the filter follows the extension of the file name, and a chosen filter sets the extension
 	ImGuiFileDialogFlags_Default = ImGuiFileDialogFlags_ConfirmOverwrite
 };
 
@@ -1106,6 +1107,9 @@ namespace IGFD
 		FilterInfos GetSelectedFilter();																	// get the current selected filter
 		std::string ReplaceExtentionWithCurrentFilter(const std::string& vFile) const;						// replace the extention of the current file by the selected filter
 		void SetDefaultFilterIfNotDefined();																// define the first filter if no filter is selected
+		bool SelectFilterOfFileName(const std::string& vFile, bool vIsCaseInsensitive);						// critic2: select the filter of the extension of vFile, true if it changed
+		std::string SetExtentionOfSelectedFilter(const std::string& vFile, bool vOnlyIfUnknown,
+			bool vIsCaseInsensitive) const;																	// critic2: vFile with the one extension of the selected filter (vOnlyIfUnknown: added if no filter has the extension of vFile)
 	};
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1489,6 +1493,7 @@ namespace IGFD
 		bool puIsOk = false;
 		bool puFileInputIsActive = false;														// when input text for file or directory is active
 		bool puFileListViewIsActive = false;													// when list view is active
+		std::string puLastSyncedFileName;														// critic2: file name last matched to the filter (SyncFilterExtension)
 		std::string puDLGkey;
 		std::string puDLGtitle;
 		ImGuiFileDialogFlags puDLGflags = ImGuiFileDialogFlags_None;

@@ -35,6 +35,7 @@ const int const_ImGuiFileDialogFlags_NoDialog = ImGuiFileDialogFlags_NoDialog;
 const int const_ImGuiFileDialogFlags_ReadOnlyFileNameField = ImGuiFileDialogFlags_ReadOnlyFileNameField;
 const int const_ImGuiFileDialogFlags_CaseInsensitiveExtention = ImGuiFileDialogFlags_CaseInsensitiveExtention;
 const int const_ImGuiFileDialogFlags_Modal = ImGuiFileDialogFlags_Modal;
+const int const_ImGuiFileDialogFlags_SyncFilterExtension = ImGuiFileDialogFlags_SyncFilterExtension;
 // enum IGFD_FileStyle
 const int const_IGFD_FileStyle_None = IGFD_FileStyle_None;
 const int const_IGFD_FileStyleByTypeFile = IGFD_FileStyleByTypeFile;

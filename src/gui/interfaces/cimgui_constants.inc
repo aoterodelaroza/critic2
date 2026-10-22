@@ -971,6 +971,8 @@
   integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_CaseInsensitiveExtention") :: &
      ImGuiFileDialogFlags_CaseInsensitiveExtention
   integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_Modal") :: ImGuiFileDialogFlags_Modal
+  integer(c_int), bind(C,name="const_ImGuiFileDialogFlags_SyncFilterExtension") :: &
+     ImGuiFileDialogFlags_SyncFilterExtension
   ! enum IGFD_FileStyle
   integer(c_int), bind(C,name="const_IGFD_FileStyle_None") :: IGFD_FileStyle_None
   integer(c_int), bind(C,name="const_IGFD_FileStyleByTypeFile") :: IGFD_FileStyleByTypeFile

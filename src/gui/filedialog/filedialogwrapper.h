@@ -36,6 +36,7 @@ extern "C" const int const_ImGuiFileDialogFlags_NoDialog;
 extern "C" const int const_ImGuiFileDialogFlags_ReadOnlyFileNameField;
 extern "C" const int const_ImGuiFileDialogFlags_CaseInsensitiveExtention;
 extern "C" const int const_ImGuiFileDialogFlags_Modal;
+extern "C" const int const_ImGuiFileDialogFlags_SyncFilterExtension;
 // enum IGFD_FileStyle
 extern "C" const int const_IGFD_FileStyle_None;
 extern "C" const int const_IGFD_FileStyleByTypeFile;
