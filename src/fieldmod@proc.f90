@@ -1750,7 +1750,8 @@ contains
   module subroutine printinfo(f,isload,isset)
     use grid3mod, only: mode_smr
     use wfn_private, only: molwfn, wfn_rhf, wfn_rohf, wfn_uhf, wfn_frac, &
-       molden_type_orca, molden_type_psi4, molden_type_adf_sto
+       molden_type_orca, molden_type_psi4, molden_type_adf_sto, molden_type_generic, &
+       molden_type_xtb
     use global, only: dunit0, iunit, iunitname0
     use tools_math, only: det3
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
@@ -1880,6 +1881,10 @@ contains
              write (uout,'("  Molden file dialect: psi4")')
           else if (f%wfn%molden_type == molden_type_adf_sto) then
              write (uout,'("  Molden file dialect: ADF (STOs)")')
+          else if (f%wfn%molden_type == molden_type_generic) then
+             write (uout,'("  Molden file dialect: generic")')
+          else if (f%wfn%molden_type == molden_type_xtb) then
+             write (uout,'("  Molden file dialect: xtb")')
           end if
           if (f%wfn%wfntyp == wfn_rhf) then
              write (uout,'("  Wavefunction type: restricted")')

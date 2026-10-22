@@ -57,7 +57,7 @@ contains
   !> contains the new string pointer (if provided). If withoptions,
   !> read the field options from the input line, too.
   module subroutine fieldseed_parse(f,line,withoptions,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_unknown
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb, molden_type_unknown
     use global, only: eval_next
     use types, only: realloc
     use tools_io, only: getword, lower, equal, isexpression
@@ -165,6 +165,10 @@ contains
     elseif (equal(lfile,"molden_orca")) then
        f%iff = ifformat_molden
        f%molden_type = molden_type_orca
+       call read_next_as_file()
+    elseif (equal(lfile,"molden_xtb")) then
+       f%iff = ifformat_molden
+       f%molden_type = molden_type_xtb
        call read_next_as_file()
     elseif (equal(lfile,"pwc")) then
        f%iff = ifformat_pwc
@@ -508,7 +512,7 @@ contains
 
   !> Parse field options from a command.
   module subroutine fieldseed_parse_options(f,line,lp0)
-    use wfn_private, only: molden_type_psi4, molden_type_orca
+    use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb
     use global, only: eval_next
     use tools_io, only: getword, isexpression_or_word, lower, equal, zatguess, isinteger,&
        readintegers, isreal
@@ -660,6 +664,8 @@ contains
           f%molden_type = molden_type_psi4
        elseif ((f%iff == ifformat_molden) .and. equal(lword,'orca')) then
           f%molden_type = molden_type_orca
+       elseif ((f%iff == ifformat_molden) .and. equal(lword,'xtb')) then
+          f%molden_type = molden_type_xtb
        else
           call f%end()
           f%errmsg = "unknown load keyword or file name: " // word
@@ -673,7 +679,7 @@ contains
 
   !> Detect the field format from the file name (extension).
   module function field_detect_format(file,molden_type)
-    use wfn_private, only: molden_type_unknown, molden_type_orca
+    use wfn_private, only: molden_type_unknown
     use tools_io, only: ferror, equal
     use param, only: dirsep,&
        ifformat_cube,ifformat_bincube,ifformat_abinit,ifformat_siestagrid,ifformat_fplogrid,&
@@ -695,7 +701,7 @@ contains
 
     idx = index(word,'.',.true.)
     if (idx > 0) then
-       extdot2 = file(index(file(1:idx-1),'.',.true.)+1:)
+       extdot2 = word(index(word(1:idx-1),'.',.true.)+1:)
        idx = max(index(extdot2,'/',.true.),index(extdot2,dirsep,.true.))
        if (idx > 0) &
           extdot2 = extdot2(idx+1:)
@@ -749,8 +755,9 @@ contains
        field_detect_format = ifformat_molden
        molden_type = molden_type_unknown
     else if (equal(extdot2,'molden.input')) then
+       ! orca or xtb; the dialect is detected from the contents
        field_detect_format = ifformat_molden
-       molden_type = molden_type_orca
+       molden_type = molden_type_unknown
     else if (equal(extdot,'clmsum').or.equal(extdot,'clmup').or.equal(extdot,'clmdn')) then
        field_detect_format = ifformat_wien
     else if (equal(extdot,'grid')) then

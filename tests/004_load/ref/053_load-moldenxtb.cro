@@ -2,7 +2,7 @@
   Name: molden.input
   Source: ../zz_source/xtb-6.7.1/benzene/molden.input
   Type: molecular wavefunction
-  Molden file dialect: orca
+  Molden file dialect: xtb
   Wavefunction type: restricted
   Number of MOs (total): 15
   Number of MOs (occupied): 15

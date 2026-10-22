@@ -2437,7 +2437,7 @@ contains
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
        type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
-       wfn_rhf, wfn_uhf, wfn_frac
+       molden_type_generic, molden_type_xtb, wfn_rhf, wfn_uhf, wfn_frac
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic,&
        mode_smr
     use tools_io, only: string
@@ -2581,6 +2581,12 @@ contains
        else if (f%wfn%molden_type == molden_type_adf_sto) then
           call iw_text("Molden file dialect: ",highlight=.true.)
           call iw_text("ADF (STOs)",sameline_nospace=.true.)
+       else if (f%wfn%molden_type == molden_type_generic) then
+          call iw_text("Molden file dialect: ",highlight=.true.)
+          call iw_text("generic",sameline_nospace=.true.)
+       else if (f%wfn%molden_type == molden_type_xtb) then
+          call iw_text("Molden file dialect: ",highlight=.true.)
+          call iw_text("xtb",sameline_nospace=.true.)
        end if
        if (f%wfn%wfntyp == wfn_rhf) then
           call iw_text("Wavefunction type: ",highlight=.true.)

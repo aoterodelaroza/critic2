@@ -1,0 +1,24 @@
+## check: 055_load-moldenxtb_d.cro -a1e-10
+## labels: regression quick
+## xtb molden files with Cartesian d shells (orca dialect from the
+## molden.input name, but Cartesian because there is no [5D] keyword)
+
+### SOCl2, GFN2-xTB ###
+molecule ../zz_source/xtb-6.7.1/socl2/molden.input
+load ../zz_source/xtb-6.7.1/socl2/molden.input id gfn2
+molcalc "$gfn2"
+molcalc "@z*$gfn2"
+point 0.1 0.2 0.3 field gfn2
+
+### SOCl2, GFN1-xTB ###
+molecule ../zz_source/xtb-6.7.1/socl2_gfn1/molden.input
+load ../zz_source/xtb-6.7.1/socl2_gfn1/molden.input id gfn1
+molcalc "$gfn1"
+molcalc "@z*$gfn1"
+point 0.1 0.2 0.3 field gfn1
+
+### Fe(CO)5, GFN2-xTB ###
+molecule ../zz_source/xtb-6.7.1/fe_co5/molden.input
+load ../zz_source/xtb-6.7.1/fe_co5/molden.input id feco5
+molcalc "$feco5"
+point 0.1 0.2 0.3 field feco5

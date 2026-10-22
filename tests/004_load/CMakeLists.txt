@@ -52,6 +52,8 @@ set(TESTS
   052_load-fplogrid        ## load grid from FPLO grid file (001)
   053_load-moldenxtb       ## load molden file from xtb
   054_load-fftderiv        ## load as fft gradient/Hessian components
+  055_load-moldenxtb_d     ## load molden file from xtb, with Cartesian d shells
+  056_load-psi4_lmax       ## load psi4 molden files, Cartesian and spherical up to g
   )
 
 runtests(${TESTS})

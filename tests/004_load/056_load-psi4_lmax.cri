@@ -1,0 +1,74 @@
+## check: 056_load-psi4_lmax.cro -a1e-10
+## labels: regression
+## psi4 molden files with Cartesian and spherical shells up to g. The
+## Cartesian MO coefficients from psi4 are for functions with the
+## normalization of x^l; the fchk files are the reference (except
+## h2o_gcar.fchk, not loaded: psi4's Cartesian g fchk does not agree
+## with psi4's own density).
+
+### psi4 1.9.1 ###
+molecule ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spsph.molden
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spsph.molden id m_spsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spsph.fchk id f_spsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spcar.molden id m_spcar
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spcar.fchk id f_spcar
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dsph.molden id m_dsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dsph.fchk id f_dsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dcar.molden id m_dcar
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dcar.fchk id f_dcar
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fsph.molden id m_fsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fsph.fchk id f_fsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fcar.molden id m_fcar
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fcar.fchk id f_fcar
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_gsph.molden id m_gsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_gsph.fchk id f_gsph
+load ../zz_source/psi4-1.9.1/h2o_lmax/h2o_gcar.molden id m_gcar
+
+point 0. 0.1 -0.0523587685 field "$m_spsph"
+point 0. 0.1 -0.0523587685 field "$f_spsph"
+point 0. 0.1 -0.0523587685 field "$m_spcar"
+point 0. 0.1 -0.0523587685 field "$f_spcar"
+point 0. 0.1 -0.0523587685 field "$m_dsph"
+point 0. 0.1 -0.0523587685 field "$f_dsph"
+point 0. 0.1 -0.0523587685 field "$m_dcar"
+point 0. 0.1 -0.0523587685 field "$f_dcar"
+point 0. 0.1 -0.0523587685 field "$m_fsph"
+point 0. 0.1 -0.0523587685 field "$f_fsph"
+point 0. 0.1 -0.0523587685 field "$m_fcar"
+point 0. 0.1 -0.0523587685 field "$f_fcar"
+point 0. 0.1 -0.0523587685 field "$m_gsph"
+point 0. 0.1 -0.0523587685 field "$f_gsph"
+point 0. 0.1 -0.0523587685 field "$m_gcar"
+
+molcalc "$m_spsph"
+molcalc "abs($m_spsph-$f_spsph)"
+molcalc "$m_spcar"
+molcalc "abs($m_spcar-$f_spcar)"
+molcalc "$m_dsph"
+molcalc "abs($m_dsph-$f_dsph)"
+molcalc "$m_dcar"
+molcalc "abs($m_dcar-$f_dcar)"
+molcalc "$m_fsph"
+molcalc "abs($m_fsph-$f_fsph)"
+molcalc "$m_fcar"
+molcalc "abs($m_fcar-$f_fcar)"
+molcalc "$m_gsph"
+molcalc "abs($m_gsph-$f_gsph)"
+molcalc "$m_gcar"
+
+### psi4 1.4, Cartesian ###
+molecule ../zz_source/psi4-1.4/h2o_lmax/h2o_spcar.molden
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_spcar.molden id c_spcar
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_dcar.molden id c_dcar
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_fcar.molden id c_fcar
+load ../zz_source/psi4-1.4/h2o_lmax/h2o_gcar.molden id c_gcar
+
+point 0. 0.1 -0.0523587685 field "$c_spcar"
+point 0. 0.1 -0.0523587685 field "$c_dcar"
+point 0. 0.1 -0.0523587685 field "$c_fcar"
+point 0. 0.1 -0.0523587685 field "$c_gcar"
+
+molcalc "$c_spcar"
+molcalc "$c_dcar"
+molcalc "$c_fcar"
+molcalc "$c_gcar"

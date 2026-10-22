@@ -1899,7 +1899,7 @@ contains
 
     character(len=:), allocatable :: line, keyword, word, word1
     character(len=mlen) :: mword
-    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca, had1
+    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca, ispsi4, isxtb, had1
     integer :: luwfn, ityp
     integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
@@ -1973,7 +1973,9 @@ contains
     line = ""
     issto = .false.
     isgto = .false.
-    isorca = (molden_type == molden_type_orca)
+    isorca = .false.
+    ispsi4 = .false.
+    isxtb = .false.
     f%nedf = 0
     nmf = 0
 
@@ -1990,9 +1992,14 @@ contains
              exit
           end if
           ok = getline_raw(luwfn,line,.false.)
-       else if (trim(keyword) == "title" .and. molden_type == molden_type_unknown) then
+          ! psi4 writes no title or program line: [Atoms] (AU) comes next
+          if (trim(adjustl(lower(line))) == "[atoms] (au)") ispsi4 = .true.
+       else if (trim(keyword) == "title") then
+          ! isorca = the file was written by orca_2mkl
+          ! isxtb = empty title, the next keyword follows (xtb)
           ok = getline_raw(luwfn,line,.false.)
           if (index(line,"created by orca_2mkl") > 0) isorca = .true.
+          if (index(adjustl(line),"[") == 1) isxtb = .true.
        else if (trim(keyword) == "atoms") then
           ! read the number of atoms
           ok = getline_raw(luwfn,line)
@@ -2121,13 +2128,6 @@ contains
        if (.not.ok) exit
     end do
 
-   ! orca always uses spherical
-    if (isorca) then
-       is5d = .true.
-       is7f = .true.
-       is9g = .true.
-    end if
-
     if (isgto.and.issto) then
        errmsg = "Both [GTO] and [STO] blocks are present"
        goto 999
@@ -2147,8 +2147,22 @@ contains
        f%molden_type = molden_type_adf_sto
     elseif (isorca) then
        f%molden_type = molden_type_orca
-    else
+    elseif (isxtb) then
+       f%molden_type = molden_type_xtb
+    elseif (ispsi4) then
        f%molden_type = molden_type_psi4
+    else
+       f%molden_type = molden_type_generic
+       call ferror("read_molden","Unknown molden dialect, reading as generic molden file. &
+          &If it comes from psi4, orca, or xtb, use: LOAD file.molden {PSI4|ORCA|XTB}",warning)
+    end if
+
+    ! orca always uses spherical; other files read in the orca dialect
+    ! follow the keywords
+    if (isorca .and. f%molden_type == molden_type_orca) then
+       is5d = .true.
+       is7f = .true.
+       is9g = .true.
     end if
 
     ! type of wavefunction -> number of MOs
@@ -2371,6 +2385,10 @@ contains
                 ok = isinteger(idum,line,lp2)
                 if (.not.ok) exit
                 read(line,*,err=999,end=999) idum, rdum
+                if (idum < 1 .or. idum > nbassph) then
+                   errmsg = "MO coefficient index out of range (spherical/Cartesian shells?)"
+                   goto 999
+                end if
                 motemp((lnmo-1)*nbassph+idum) = rdum
              end do
           end if
@@ -2475,6 +2493,22 @@ contains
     end do
     deallocate(motemp)
 
+    ! psi4 writes the MO coefficients of Cartesian shells for functions
+    ! that all carry the normalization of the x^l component in the shell
+    if (f%molden_type == molden_type_psi4) then
+       nc = 0
+       do j = 1, ncshel
+          ncar = nshlt(abs(ishlt(j)))
+          if (ishlt(j) >= 2) then
+             do k = 1, ncar
+                ityp = typtrans(jshl0(ishlt(j))+k-1)
+                mocoef(:,nc+k) = mocoef(:,nc+k) * gnorm_orca(ityp,1d0) / gnorm(ityp,1d0)
+             end do
+          end if
+          nc = nc + ncar
+       end do
+    end if
+
     ! from this point on, only Cartesians
     ishlt = abs(ishlt)
 
@@ -2496,8 +2530,8 @@ contains
           do k = 1, ishlpri(i)
              cnorm(k) = ccontr(nm+k) * gnorm(ityp,exppri(nm+k))
 
-             ! remove the normalization factor from the orca molden files
-             if (f%molden_type == molden_type_orca) then
+             ! remove the normalization factor from the orca and xtb molden files
+             if (f%molden_type == molden_type_orca .or. f%molden_type == molden_type_xtb) then
                 cnorm(k) = cnorm(k) / gnorm_orca(ityp,exppri(nm+k))
              end if
           end do

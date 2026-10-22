@@ -1,0 +1,662 @@
++ Field number 1
+  Name: h2o_spsph.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $m_spsph
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: h2o_spsph.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $f_spsph
+
++ Field number 3
+  Name: h2o_spcar.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $m_spcar
+
++ Field number 4
+  Name: h2o_spcar.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_spcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $4, $f_spcar
+
++ Field number 5
+  Name: h2o_dsph.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $5, $m_dsph
+
++ Field number 6
+  Name: h2o_dsph.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $6, $f_dsph
+
++ Field number 7
+  Name: h2o_dcar.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $7, $m_dcar
+
++ Field number 8
+  Name: h2o_dcar.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_dcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $8, $f_dcar
+
++ Field number 9
+  Name: h2o_fsph.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $9, $m_fsph
+
++ Field number 10
+  Name: h2o_fsph.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $10, $f_fsph
+
++ Field number 11
+  Name: h2o_fcar.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $11, $m_fcar
+
++ Field number 12
+  Name: h2o_fcar.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_fcar.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $12, $f_fcar
+
++ Field number 13
+  Name: h2o_gsph.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_gsph.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $13, $m_gsph
+
++ Field number 14
+  Name: h2o_gsph.fchk
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_gsph.fchk
+  Type: molecular wavefunction
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $14, $f_gsph
+
++ Field number 15
+  Name: h2o_gcar.molden
+  Source: ../zz_source/psi4-1.9.1/h2o_lmax/h2o_gcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $15, $m_gcar
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_spsph): 3.942731532E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_spsph): 3.942731532E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_spcar): 3.944095627E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_spcar): 3.944095628E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_dsph): 3.970038553E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_dsph): 3.970038560E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_dcar): 3.972794658E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_dcar): 3.972794661E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_fsph): 3.931442444E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_fsph): 3.931442450E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_fcar): 3.929929336E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_fcar): 3.929929340E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_gsph): 3.938751034E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($f_gsph): 3.938751033E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($m_gcar): 3.940581223E+00
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_spsph
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_spsph) = 10.00007051   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_spsph-$f_spsph)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_spsph-$f_spsph)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_spcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_spcar) = 10.00007147   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_spcar-$f_spcar)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_spcar-$f_spcar)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_dsph
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_dsph) = 10.00007913   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_dsph-$f_dsph)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_dsph-$f_dsph)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_dcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_dcar) = 10.00008099   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_dcar-$f_dcar)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_dcar-$f_dcar)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_fsph
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_fsph) = 10.00009349   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_fsph-$f_fsph)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_fsph-$f_fsph)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_fcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_fcar) = 10.00009559   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_fcar-$f_fcar)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_fcar-$f_fcar)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_gsph
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_gsph) = 10.00010055   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: abs($m_gsph-$f_gsph)
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(abs($m_gsph-$f_gsph)) = 0.00000001    
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $m_gcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($m_gcar) = 10.00009992   
+
++ Field number 1
+  Name: h2o_spcar.molden
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_spcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 40
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $1, $c_spcar
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: h2o_dcar.molden
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_dcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 39
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $2, $c_dcar
+
++ Field number 3
+  Name: h2o_fcar.molden
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_fcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 67
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $3, $c_fcar
+
++ Field number 4
+  Name: h2o_gcar.molden
+  Source: ../zz_source/psi4-1.4/h2o_lmax/h2o_gcar.molden
+  Type: molecular wavefunction
+  Molden file dialect: psi4
+  Wavefunction type: restricted
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (2): $4, $c_gcar
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($c_spcar): 3.944095609E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($c_dcar): 3.972794660E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($c_fcar): 3.929929341E+00
+
+* POINT 0.0000000  0.1000000  -0.0523588  
+  Coordinates (ang): 0.0000000  0.1000000  -0.0523588  
+  Expression ($c_gcar): 3.940581302E+00
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $c_spcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($c_spcar) = 10.00007147   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $c_dcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($c_dcar) = 10.00008099   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $c_fcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($c_fcar) = 10.00009559   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $c_gcar
+  Mesh size      9382
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (3 atoms, 127 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($c_gcar) = 10.00009992   
+

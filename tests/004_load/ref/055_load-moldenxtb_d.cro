@@ -1,0 +1,194 @@
++ Field number 1
+  Name: molden.input
+  Source: ../zz_source/xtb-6.7.1/socl2/molden.input
+  Type: molecular wavefunction
+  Molden file dialect: xtb
+  Wavefunction type: restricted
+  Number of MOs (total): 13
+  Number of MOs (occupied): 13
+  Number of primitives (GTO): 118
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 4
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $1, $gfn2
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $gfn2
+  Mesh size      31116
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (4 atoms, 286 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($gfn2) = 25.99998810   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: @z*$gfn2
+  Mesh size      31116
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (4 atoms, 286 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(@z*$gfn2) = 8.63693730    
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
++ Field: 1
+  Type : (3,1)
+  Field value (f): 1.119154081E-01
+  Field value, valence (fval): 1.119154081E-01
+  Gradient (grad f): 4.403664695E-02  8.072276592E-02  -3.196668278E-02  
+  Gradient norm (|grad f|): 9.735121993E-02
+  Gradient norm, valence: 9.735121993E-02
+  Kinetic energy density (G,tau): 1.190238692E-01
+  Laplacian (del2 f): -2.406351876E-01
+  Laplacian, valence (del2 fval): -2.406351876E-01
+  Hessian:
+    -6.487222478E-03  -2.581988760E-01   9.934436876E-02  
+    -2.581988760E-01  -3.185929508E-01   1.697962040E-01  
+     9.934436876E-02   1.697962040E-01   8.444498569E-02  
+  Hessian eigenvalues: -5.274643614E-01  1.382282563E-01  1.486009175E-01  
+  Spin up   field/gradient_norm/laplacian: 5.595770406E-02  4.867560996E-02  -1.203175938E-01  
+  Spin up   kinetic energy density (G): 5.951193460E-02
+  Spin down field/gradient_norm/laplacian: 5.595770406E-02  4.867560996E-02  -1.203175938E-01  
+  Spin down kinetic energy density (G): 5.951193460E-02
+
++ Field number 1
+  Name: molden.input
+  Source: ../zz_source/xtb-6.7.1/socl2_gfn1/molden.input
+  Type: molecular wavefunction
+  Molden file dialect: xtb
+  Wavefunction type: restricted
+  Number of MOs (total): 13
+  Number of MOs (occupied): 13
+  Number of primitives (GTO): 168
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 4
+  Number of critical points in the unit cell: 4
+  Alias for this field (2): $1, $gfn1
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $gfn1
+  Mesh size      31116
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (4 atoms, 286 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($gfn1) = 25.99999349   
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: @z*$gfn1
+  Mesh size      31116
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (4 atoms, 286 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral(@z*$gfn1) = 9.01387272    
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
++ Field: 1
+  Type : (3,1)
+  Field value (f): 1.787427553E-01
+  Field value, valence (fval): 1.787427553E-01
+  Gradient (grad f): 8.502876802E-02  1.583650707E-01  -7.223679158E-02  
+  Gradient norm (|grad f|): 1.937202650E-01
+  Gradient norm, valence: 1.937202650E-01
+  Kinetic energy density (G,tau): 1.955943048E-01
+  Laplacian (del2 f): -5.565566312E-01
+  Laplacian, valence (del2 fval): -5.565566312E-01
+  Hessian:
+    -1.348976041E-02  -5.650736140E-01   1.935004559E-01  
+    -5.650736140E-01  -7.339100192E-01   3.405117609E-01  
+     1.935004559E-01   3.405117609E-01   1.908431484E-01  
+  Hessian eigenvalues: -1.157552872E+00  2.935033273E-01  3.074929137E-01  
+  Spin up   field/gradient_norm/laplacian: 8.937137766E-02  9.686013251E-02  -2.782783156E-01  
+  Spin up   kinetic energy density (G): 9.779715240E-02
+  Spin down field/gradient_norm/laplacian: 8.937137766E-02  9.686013251E-02  -2.782783156E-01  
+  Spin down kinetic energy density (G): 9.779715240E-02
+
++ Field number 1
+  Name: molden.input
+  Source: ../zz_source/xtb-6.7.1/fe_co5/molden.input
+  Type: molecular wavefunction
+  Molden file dialect: xtb
+  Wavefunction type: restricted
+  Number of MOs (total): 29
+  Number of MOs (occupied): 29
+  Number of primitives (GTO): 194
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 11
+  Number of critical points in the unit cell: 11
+  Alias for this field (2): $1, $feco5
+
+* Field number 1 is now REFERENCE.
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $feco5
+  Mesh size      65498
+  Mesh type      Franchini
+  Mesh level     good
+  Atomic grids   tv-13.7-5 (11 atoms, 675 shells)
+  Please cite: 
+    V. I. Lebedev and D. N. Laikov, Dokl. Math. 59, 477 (1999).
+    Tuned atomic grids from HORTON 2.1.0: T. Verstraelen, P. Tecmer, F. Heidar-Zadeh,
+       C. E. Gonzalez-Espinoza, M. Chan, T. D. Kim, K. Boguslawski, S. Fias,
+       S. Vandenbrande, D. Berrocal, and P. W. Ayers, http://theochem.github.com/horton/ (2017).
++ Integral($feco5) = 58.00014283   
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.355068530E-01
+  Field value, valence (fval): 1.355068530E-01
+  Gradient (grad f): 1.377736851E-01  2.730659190E-01  1.483715108E-01  
+  Gradient norm (|grad f|): 3.399421857E-01
+  Gradient norm, valence: 3.399421857E-01
+  Kinetic energy density (G,tau): 7.988275463E-01
+  Laplacian (del2 f): -1.855646306E-01
+  Laplacian, valence (del2 fval): -1.855646306E-01
+  Hessian:
+     4.991189564E-01  -3.667245418E-01  -1.219634733E-01  
+    -3.667245418E-01  -6.177379704E-02  -2.434899724E-01  
+    -1.219634733E-01  -2.434899724E-01  -6.229097899E-01  
+  Hessian eigenvalues: -7.649838733E-01  -1.009227986E-01  6.803420413E-01  
+  Ellipticity (l_1/l_2 - 1): 6.579891600E+00
+  Spin up   field/gradient_norm/laplacian: 6.775342650E-02  1.699710929E-01  -9.278231530E-02  
+  Spin up   kinetic energy density (G): 3.994137731E-01
+  Spin down field/gradient_norm/laplacian: 6.775342650E-02  1.699710929E-01  -9.278231530E-02  
+  Spin down kinetic energy density (G): 3.994137731E-01
+
