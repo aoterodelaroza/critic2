@@ -1,0 +1,19 @@
+## check: 058_load-fhiaims.cro -a1e-10
+## check: 058_load-fhiaims.line1 -a1e-10
+## check: 058_load-fhiaims.line2 -a1e-10
+## labels: regression quick
+# FHI-aims molecule (real eigenvectors)
+molecule ../zz_source/fhiaims-251014/h2o/geometry.in
+load ../zz_source/fhiaims-251014/h2o/dgrid_aims.dat
+line -1.5 0 0.8 1.5 0 0.8 101 file 058_load-fhiaims.line1
+point 0.1 0.2 0.3 all
+point 0.76443318 0.0 0.58917024 all
+# FHI-aims molecule, spin-polarized
+molecule ../zz_source/fhiaims-251014/o2/geometry.in
+load fhiaims ../zz_source/fhiaims-251014/o2/dgrid_aims.dat
+point 0.1 0.2 0.3 all
+# FHI-aims crystal (2x2x2 k-points)
+crystal ../zz_source/fhiaims-251014/si/geometry.in
+load ../zz_source/fhiaims-251014/si/dgrid_aims.dat
+line 0 0 0 1 1 1 101 file 058_load-fhiaims.line2
+point 0.1 0.2 0.3 all

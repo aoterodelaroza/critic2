@@ -1,0 +1,19 @@
+## check: 060_load-fhiaims-cases.cro -a1e-10
+## check: 060_load-fhiaims-cases.line1 -a1e-10
+## check: 060_load-fhiaims-cases.line2 -a1e-10
+## labels: regression quick
+# bcc Fe: spin-polarized metal, 3x3x3 k-grid, complex eigenvectors, fractional occupations
+crystal ../zz_source/fhiaims-251014/fe/geometry.in
+load ../zz_source/fhiaims-251014/fe/dgrid_aims.dat
+line 0 0 0 0.5 0.5 0.5 51 file 060_load-fhiaims-cases.line1
+point 0.1 0.2 0.3 all
+# triclinic NaCl-like cell: two species, atom_frac with atoms outside the cell
+crystal ../zz_source/fhiaims-251014/nacl/geometry.in
+load ../zz_source/fhiaims-251014/nacl/dgrid_aims.dat
+line 0 0 0 0.5 0.5 0.5 51 file 060_load-fhiaims-cases.line2
+point 0.1 0.2 0.3 all
+# Si with the tight basis plus an h function (l = 5), shifted k-grid
+crystal ../zz_source/fhiaims-251014/si_lmax/geometry.in
+load ../zz_source/fhiaims-251014/si_lmax/dgrid_aims.dat
+point 0.1 0.2 0.3 all
+point 0.125 0.125 0.125 all

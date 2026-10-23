@@ -195,6 +195,7 @@ contains
                 &Cube file (cube){.cube},&
                 &DAT grid (DAT){.DAT},&
                 &DFTB+ (detailed.xml){.xml},&
+                &FHI-aims (dgrid_aims.dat){.dat},&
                 &elk (grid){.grid},&
                 &elk STATE.OUT (OUT){.OUT},&
                 &FPLO grid (001){.001},&
@@ -216,7 +217,7 @@ contains
     !! filter above
     itmp = (/ifformat_unknown,ifformat_abinit,ifformat_qub,ifformat_bincube,&
        ifformat_fmt,ifformat_cube,ifformat_dat,ifformat_dftb,ifformat_elkgrid,ifformat_elk,&
-       ifformat_fplogrid,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,ifformat_txt,&
+       ifformat_fhiaims,ifformat_fplogrid,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,ifformat_txt,&
        ifformat_pwc,ifformat_siestagrid,ifformat_vaspnov,ifformat_vasp,ifformat_wien,ifformat_xsf/)
     nn = size(itmp,1)
     allocate(isperm_openfieldfile(0:nn-1))

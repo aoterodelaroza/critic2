@@ -1052,7 +1052,7 @@ contains
   !> array size is exceeded and move_alloc needs to be used to
   !> allocate more memory.
   module subroutine regenerate_system_pointers()
-    use fieldmod, only: type_wfn, type_pi, type_dftb, type_elk, type_grid
+    use fieldmod, only: type_wfn, type_pi, type_dftb, type_elk, type_grid, type_fhiaims
 
     integer :: i, j
 
@@ -1070,6 +1070,8 @@ contains
              sys(i)%f(j)%pi%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_dftb) then
              sys(i)%f(j)%dftb%cptr = c_loc(sys(i)%c)
+          elseif (sys(i)%f(j)%type == type_fhiaims) then
+             sys(i)%f(j)%fhiaims%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_elk) then
              sys(i)%f(j)%elk%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_grid) then

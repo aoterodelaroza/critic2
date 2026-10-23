@@ -1,0 +1,5 @@
+## willfail: 'space-group-reduced k-grids are not supported'
+## labels: regression quick
+# FHI-aims run with symmetry_reduced_k_grid_spg: the irreducible k-points cannot give the density
+crystal ../zz_source/fhiaims-251014/si_spg/geometry.in
+load ../zz_source/fhiaims-251014/si_spg/dgrid_aims.dat

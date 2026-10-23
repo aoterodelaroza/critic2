@@ -73,7 +73,8 @@ contains
        ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost,&
        ifformat_as_ft_x, ifformat_as_ft_y, ifformat_as_ft_z, ifformat_as_ft_xx,&
        ifformat_as_ft_xy, ifformat_as_ft_xz, ifformat_as_ft_yy, ifformat_as_ft_yz,&
-       ifformat_as_ft_zz, ifformat_as_ft_grad, ifformat_as_ft_lap, ifformat_as_ft_pot
+       ifformat_as_ft_zz, ifformat_as_ft_grad, ifformat_as_ft_lap, ifformat_as_ft_pot,&
+       ifformat_fhiaims
 
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
@@ -142,6 +143,9 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"dftb")) then
        f%iff = ifformat_dftb
+       call read_next_as_file()
+    elseif (equal(lfile,"fhiaims")) then
+       f%iff = ifformat_fhiaims
        call read_next_as_file()
     elseif (equal(lfile,"pwc")) then
        f%iff = ifformat_pwc
@@ -220,7 +224,8 @@ contains
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.&
        f%iff == ifformat_fmt .or. f%iff == ifformat_txt .or. f%iff == ifformat_dat .or.&
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
-       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment) then
+       f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment .or.&
+       f%iff == ifformat_fhiaims) then
        ! formats for which only one file is needed
        nfile = 1
     elseif (f%iff == ifformat_wien) then
@@ -684,7 +689,9 @@ contains
 
   end subroutine fieldseed_parse_options
 
-  !> Detect the field format from the file name (extension).
+  !> Detect the field format from the file name (extension). The
+  !> only content check is the first line of .dat files, which tells
+  !> FHI-aims dgrid files from plain-text grids.
   module function field_detect_format(file,molden_type)
     use wfn_private, only: molden_type_unknown
     use tools_io, only: ferror, equal
@@ -693,7 +700,7 @@ contains
        ifformat_dftb,ifformat_vasp,ifformat_vaspnov,ifformat_qub,ifformat_fmt,ifformat_txt,&
        ifformat_xsf,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,&
        ifformat_molden,ifformat_wien,ifformat_elkgrid,ifformat_elk,ifformat_dat,&
-       ifformat_pi,ifformat_pwc,ifformat_unknown
+       ifformat_pi,ifformat_pwc,ifformat_fhiaims,ifformat_unknown
     character*(*), intent(in) :: file
     integer, intent(out), optional :: molden_type
     integer :: field_detect_format
@@ -752,6 +759,8 @@ contains
        field_detect_format = ifformat_txt
     else if (equal(extdot,'DAT')) then
        field_detect_format = ifformat_dat
+    else if (equal(extdot,'dat') .and. is_dgrid_file(file)) then
+       field_detect_format = ifformat_fhiaims
     else if (equal(extdot,'wfn')) then
        field_detect_format = ifformat_wfn
     else if (equal(extdot,'wfx')) then
@@ -789,7 +798,8 @@ contains
        ifformat_bincube, ifformat_abinit, ifformat_vasp, ifformat_vaspnov,&
        ifformat_qub, ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid,&
        ifformat_fplogrid, ifformat_dftb, ifformat_pwc, ifformat_wfn, ifformat_wfx,&
-       ifformat_fchk, ifformat_molden, ifformat_fmt, ifformat_txt, ifformat_dat
+       ifformat_fchk, ifformat_molden, ifformat_fmt, ifformat_txt, ifformat_dat,&
+       ifformat_fhiaims
     integer, intent(in) :: iff
     character(len=:), allocatable, intent(out) :: keyword
     character(len=:), allocatable, intent(out) :: description
@@ -852,6 +862,10 @@ contains
        keyword = "DFTB"
        description = "DFTB+ wavefunction (LCAO)"
        isgrid = .false.
+    case(ifformat_fhiaims)
+       keyword = "FHIAIMS"
+       description = "FHI-aims dgrid_aims.dat wavefunction (LCAO)"
+       isgrid = .false.
     case(ifformat_pwc)
        keyword = "PWC"
        description = "Quantum ESPRESSO pwc file (grid+wfn)"
@@ -891,5 +905,26 @@ contains
     end select
 
   end subroutine field_format_string
+
+  !xx! private procedures
+
+  !> True if the file is an FHI-aims dgrid_aims.dat file (output
+  !> dgrid), detected from its first line.
+  function is_dgrid_file(file) result(ok)
+    use tools_io, only: fopen_read, fclose, getline_raw
+    character*(*), intent(in) :: file
+    logical :: ok
+
+    integer :: lu
+    character(len=:), allocatable :: line
+
+    ok = .false.
+    lu = fopen_read(file,errstop=.false.)
+    if (lu < 0) return
+    if (getline_raw(lu,line)) &
+       ok = (index(line,"FHI-aims - DGrid Interface") > 0)
+    call fclose(lu)
+
+  end function is_dgrid_file
 
 end submodule proc

@@ -1024,6 +1024,7 @@ contains
       character(len=:,kind=c_char), allocatable :: qf
 
       qf = quoteword(file)
+      if (len(qf) == 0) return
       if (index(qf," ") > 0 .and. qf(1:1) /= '"' .and. qf(1:1) /= "'") &
          w%errmsg = "A file path cannot contain blanks and both quote characters: " // qf
 

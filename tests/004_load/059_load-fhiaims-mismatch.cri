@@ -1,0 +1,5 @@
+## willfail: 'number of atoms in the FHI-aims file does not match'
+## labels: regression quick
+# FHI-aims wavefunction loaded on the wrong structure
+molecule ../zz_source/fhiaims-251014/h2o/geometry.in
+load ../zz_source/fhiaims-251014/o2/dgrid_aims.dat

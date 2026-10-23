@@ -259,6 +259,7 @@ module param
   integer, parameter :: ifformat_as_ft_grad = 42
   integer, parameter :: ifformat_as_ft_lap = 43
   integer, parameter :: ifformat_as_ft_pot = 44
+  integer, parameter :: ifformat_fhiaims = 45
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.

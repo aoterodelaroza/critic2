@@ -2435,7 +2435,7 @@ contains
     use utils, only: iw_text
     use systems, only: sys, sys_init, ok_system
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
-       type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
+       type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost, type_fhiaims
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
        molden_type_generic, molden_type_xtb, molden_type_pyscf, wfn_rhf, wfn_uhf, wfn_frac
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic,&
@@ -2486,6 +2486,8 @@ contains
        end if
     case (type_dftb)
        str = "DFTB+, linear combination of atomic orbitals"
+    case (type_fhiaims)
+       str = "FHI-aims, numerical atomic orbitals"
     case (type_promol_frag)
        str = "Promolecular with fragment"
     case (type_ghost)
@@ -2635,6 +2637,18 @@ contains
        call iw_text(string(f%dftb%isreal),sameline_nospace=.true.)
        call iw_text("Exact calculation? ",highlight=.true.)
        call iw_text(string(f%exact),sameline_nospace=.true.)
+
+    case (type_fhiaims)
+       call iw_text("Number of states: ",highlight=.true.)
+       call iw_text(string(f%fhiaims%nstates),sameline_nospace=.true.)
+       call iw_text("Number of spin channels: ",highlight=.true.)
+       call iw_text(string(f%fhiaims%nspin),sameline_nospace=.true.)
+       call iw_text("Number of basis functions: ",highlight=.true.)
+       call iw_text(string(f%fhiaims%nbas),sameline_nospace=.true.)
+       call iw_text("Number of kpoints: ",highlight=.true.)
+       call iw_text(string(f%fhiaims%nkpt),sameline_nospace=.true.)
+       call iw_text("Real wavefunction? ",highlight=.true.)
+       call iw_text(string(f%fhiaims%isreal),sameline_nospace=.true.)
 
     case (type_promol_frag)
        call iw_text("Number of atoms in fragment: ",highlight=.true.)

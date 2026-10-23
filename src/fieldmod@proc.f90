@@ -100,6 +100,7 @@ contains
     if (allocated(f%grid)) deallocate(f%grid)
     if (allocated(f%wfn)) deallocate(f%wfn)
     if (allocated(f%dftb)) deallocate(f%dftb)
+    if (allocated(f%fhiaims)) deallocate(f%fhiaims)
     if (allocated(f%fr)) deallocate(f%fr)
     if (allocated(f%zpsp)) deallocate(f%zpsp)
     f%expr = ""
@@ -456,7 +457,7 @@ contains
        ifformat_as_ft_xy,ifformat_as_ft_xz,ifformat_as_ft_yy,ifformat_as_ft_yz,&
        ifformat_as_ft_zz,ifformat_as_ft_grad,ifformat_as_ft_lap,ifformat_as_ft_pot,&
        ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
-       ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
+       ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment, ifformat_fhiaims
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
     use types, only: vstring
@@ -623,6 +624,13 @@ contains
        call f%dftb%end()
        call f%dftb%read(c_loc(f%c),seed%file(1),seed%file(2),seed%file(3),errmsg,ti=ti)
        f%type = type_dftb
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_fhiaims) then
+       if (.not.allocated(f%fhiaims)) allocate(f%fhiaims)
+       call f%fhiaims%end()
+       call f%fhiaims%read(c_loc(f%c),seed%file(1),errmsg,ti=ti)
+       f%type = type_fhiaims
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_pwc) then
@@ -1242,11 +1250,15 @@ contains
              res%ev%avail(fieldeval_category_xhole) = .true.
        end if
 
-    case(type_dftb)
+    case(type_dftb,type_fhiaims)
        nderl = nder
        if (request%avail(fieldeval_category_gkin)) nderl = max(nderl,1)
        if (nderl >= 0) then
-          call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
+          if (f%type == type_dftb) then
+             call f%dftb%rho2(wcr,f%exact,nderl,res%f,res%gf,res%hf,res%gkin)
+          else
+             call f%fhiaims%rho2(wcr,nderl,res%f,res%gf,res%hf,res%gkin)
+          end if
           ! transformation of gf and hf to Cartesian not needed
 
           res%ev%avail(fieldeval_category_f) = .true.
@@ -1343,7 +1355,7 @@ contains
   !> per-type dispatch in grd (keep the two in sync). Categories other
   !> than the field and its derivatives require a molecular
   !> wavefunction (type_wfn), except the kinetic energy density, which
-  !> a DFTB+ field also provides.
+  !> DFTB+ and FHI-aims fields also provide.
   module subroutine eval_avail(f,av)
     use types, only: field_evaluation_avail, fieldeval_category_gkin,&
        fieldeval_category_fder1, fieldeval_category_fder2
@@ -1357,7 +1369,7 @@ contains
        call av%field_nder2()
     case (type_wfn)
        av%avail = .true.
-    case (type_dftb)
+    case (type_dftb,type_fhiaims)
        call av%field_nder2()
        av%avail(fieldeval_category_gkin) = .true.
     case (type_ghost)
@@ -1465,6 +1477,8 @@ contains
        rho = rhox(1)
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
+    case(type_fhiaims)
+       call f%fhiaims%rho2(wcr,0,rho,grad,h,gkin)
     case(type_promol)
        call f%c%promolecular_atom(wcr,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
@@ -1708,6 +1722,8 @@ contains
           s = "molecular wavefunction"
        case (type_dftb)
           s = "dftb+"
+       case (type_fhiaims)
+          s = "fhi-aims"
        case (type_promol_frag)
           s = "promolecular fragment"
        case (type_ghost)
@@ -1733,6 +1749,8 @@ contains
           s = "molwfn"
        case (type_dftb)
           s = "dftb+"
+       case (type_fhiaims)
+          s = "aims"
        case (type_promol_frag)
           s = "profrg"
        case (type_ghost)
@@ -1923,6 +1941,16 @@ contains
        end if
        if (isset) then
           write (uout,'("  Exact calculation? ",L)') f%exact
+       end if
+    elseif (f%type == type_fhiaims) then
+       if (isload) then
+          write (uout,'("  Number of states: ",A)') string(f%fhiaims%nstates)
+          write (uout,'("  Number of spin channels: ",A)') string(f%fhiaims%nspin)
+          write (uout,'("  Number of basis functions: ",A)') string(f%fhiaims%nbas)
+          write (uout,'("  Number of kpoints: ",A)') string(f%fhiaims%nkpt)
+          write (uout,'("  Real wavefunction? ",L)') f%fhiaims%isreal
+          write (uout,'("  Density matrix blocks: ",A," (",A," MB)")') string(f%fhiaims%nblk),&
+             string(size(f%fhiaims%dm,1,kind=8)*8d0/1024d0**2,'f',decimal=1)
        end if
     elseif (f%type == type_promol_frag) then
        if (isload) then

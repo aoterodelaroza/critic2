@@ -55,6 +55,10 @@ set(TESTS
   055_load-moldenxtb_d     ## load molden file from xtb, with Cartesian d shells
   056_load-psi4_lmax       ## load psi4 molden files, Cartesian and spherical up to g
   057_load-pyscf           ## load PySCF molden files (issue #87)
+  058_load-fhiaims         ## load FHI-aims dgrid_aims.dat files (molecule, spin, crystal)
+  059_load-fhiaims-mismatch ## FHI-aims wavefunction on the wrong structure
+  060_load-fhiaims-cases   ## FHI-aims: spin-polarized metal, triclinic two-species, l = 5
+  061_load-fhiaims-spgkpts ## FHI-aims with space-group-reduced k-points (refused)
   )
 
 runtests(${TESTS})

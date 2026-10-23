@@ -1141,7 +1141,7 @@ contains
   subroutine xdm_wfn(a1o,a2o,chf)
     use systemmod, only: sy
     use meshmod, only: mesh
-    use fieldmod, only: type_wfn, type_dftb
+    use fieldmod, only: type_wfn, type_dftb, type_fhiaims
     use grid1mod, only: grid1, agrid
     use global, only: mesh_type, mesh_level, abort_requested
     use tools_io, only: faterr, ferror, uout, string, fopen_scratch, warning, fclose
@@ -1163,9 +1163,10 @@ contains
     allocate(p%c6(sy%c%ncel,sy%c%ncel),p%c8(sy%c%ncel,sy%c%ncel),p%c10(sy%c%ncel,sy%c%ncel))
     allocate(p%rvdw(sy%c%ncel,sy%c%ncel))
 
-    ! only for wfn or dftb
-    if (sy%f(sy%iref)%type /= type_wfn .and. sy%f(sy%iref)%type /= type_dftb) &
-       call ferror("xdm_wfn","molecular XDM only for wfn and dftb fields",faterr)
+    ! only for wfn, dftb, or fhi-aims
+    if (sy%f(sy%iref)%type /= type_wfn .and. sy%f(sy%iref)%type /= type_dftb .and.&
+       sy%f(sy%iref)%type /= type_fhiaims) &
+       call ferror("xdm_wfn","molecular XDM only for wfn, dftb, and fhi-aims fields",faterr)
 
     ! only for closed shells
     if (sy%f(sy%iref)%type == type_wfn) then

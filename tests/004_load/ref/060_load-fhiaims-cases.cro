@@ -1,0 +1,145 @@
++ Field number 1
+  Name: dgrid_aims.dat
+  Source: ../zz_source/fhiaims-251014/fe/dgrid_aims.dat
+  Type: fhi-aims
+  Number of states: 19
+  Number of spin channels: 2
+  Number of basis functions: 31
+  Number of kpoints: 14
+  Real wavefunction? F
+  Density matrix blocks: 154 (1.1 MB)
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 1
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* LINE written to file: 060_load-fhiaims-cases.line1
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 1.0835690  0.5417845  0.0000000  
+  Coordinates (ang): 0.5734000  0.2867000  0.0000000  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 3.983391099E-01
+  Field value, valence (fval): 3.983391099E-01
+  Gradient (grad f): -1.375762398E+00  -6.691246281E-01  8.807246208E-16  
+  Gradient norm (|grad f|): 1.529852916E+00
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 1.347600771E+00
+  Laplacian (del2 f): 4.049052180E+00
+  Laplacian, valence (del2 fval): 4.049052180E+00
+  Hessian:
+     5.029103117E+00   3.098239012E+00  -4.042727122E-15  
+     3.098239012E+00   2.423120087E-01  -2.317208181E-15  
+    -4.042727122E-15  -2.317208181E-15  -1.222362946E+00  
+  Hessian eigenvalues: -1.279318268E+00  -1.222362946E+00  6.550733394E+00  
+  Ellipticity (l_1/l_2 - 1): 4.659444433E-02
+  Field 0 (f,|grad|,lap): 4.005169895E-01  1.528217413E+00  4.007344331E+00  
+
++ Field number 1
+  Name: dgrid_aims.dat
+  Source: ../zz_source/fhiaims-251014/nacl/dgrid_aims.dat
+  Type: fhi-aims
+  Number of states: 20
+  Number of spin channels: 1
+  Number of basis functions: 40
+  Number of kpoints: 8
+  Real wavefunction? T
+  Density matrix blocks: 212 (0.6 MB)
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* LINE written to file: 060_load-fhiaims-cases.line2
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 2.7306543  2.1542878  1.7763426  
+  Coordinates (ang): 1.4450000  1.1400000  0.9400000  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 4.414397995E-03
+  Field value, valence (fval): 4.414397995E-03
+  Gradient (grad f): 3.337796623E-03  -3.083239683E-03  -2.822328960E-03  
+  Gradient norm (|grad f|): 5.349092820E-03
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 2.683797409E-03
+  Laplacian (del2 f): 1.300448427E-02
+  Laplacian, valence (del2 fval): 1.300448427E-02
+  Hessian:
+     6.544145637E-03  -6.912894452E-03  -3.823108545E-03  
+    -6.912894452E-03   5.017449865E-03   2.751936472E-03  
+    -3.823108545E-03   2.751936472E-03   1.442888766E-03  
+  Hessian eigenvalues: -1.372986528E-03  -4.992794528E-05  1.442739874E-02  
+  Ellipticity (l_1/l_2 - 1): 2.649935972E+01
+  Field 0 (f,|grad|,lap): 6.468209677E-03  4.036102614E-03  1.055917554E-02  
+
++ Field number 1
+  Name: dgrid_aims.dat
+  Source: ../zz_source/fhiaims-251014/si_lmax/dgrid_aims.dat
+  Type: fhi-aims
+  Number of states: 20
+  Number of spin channels: 1
+  Number of basis functions: 100
+  Number of kpoints: 8
+  Real wavefunction? F
+  Density matrix blocks: 294 (5.6 MB)
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 2.5657757  2.0526205  1.5394654  
+  Coordinates (ang): 1.3577500  1.0862000  0.8146500  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.186023698E-01
+  Field value, valence (fval): 1.186023698E-01
+  Gradient (grad f): -2.748797532E-02  1.659251568E-01  3.434601139E-01  
+  Gradient norm (|grad f|): 3.824285506E-01
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 4.623761373E-01
+  Laplacian (del2 f): 2.060436340E+00
+  Laplacian, valence (del2 fval): 2.060436340E+00
+  Hessian:
+    -3.167659247E-01   4.475243935E-02   7.789527997E-03  
+     4.475243935E-02   2.787414509E-01   1.225280380E+00  
+     7.789527997E-03   1.225280380E+00   2.098460814E+00  
+  Hessian eigenvalues: -3.651796080E-01  -2.893843670E-01  2.715000315E+00  
+  Ellipticity (l_1/l_2 - 1): 2.619189202E-01
+  Field 0 (f,|grad|,lap): 1.245348975E-01  3.883405159E-01  1.952043218E+00  
+
+* POINT 0.1250000  0.1250000  0.1250000  
+  Coordinates (bohr): 1.2828878  1.2828878  1.2828878  
+  Coordinates (ang): 0.6788750  0.6788750  0.6788750  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 9.424930110E-02
+  Field value, valence (fval): 9.424930110E-02
+  Gradient (grad f): -7.442893258E-07  -7.442893174E-07  -7.442893173E-07  
+  Gradient norm (|grad f|): 1.289146918E-06
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 8.801491189E-03
+  Laplacian (del2 f): -1.598044088E-01
+  Laplacian, valence (del2 fval): -1.598044088E-01
+  Hessian:
+    -5.326813632E-02   3.451128656E-02   3.451128656E-02  
+     3.451128656E-02  -5.326813626E-02   3.451128633E-02  
+     3.451128656E-02   3.451128633E-02  -5.326813626E-02  
+  Hessian eigenvalues: -8.777942294E-02  -8.777942259E-02  1.575443668E-02  
+  Ellipticity (l_1/l_2 - 1): 4.027489897E-09
+  Field 0 (f,|grad|,lap): 5.639074541E-02  5.637388156E-06  4.252520057E-03  
+

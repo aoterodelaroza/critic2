@@ -26,6 +26,7 @@ module fieldmod
   use grid3mod, only: grid3
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
+  use fhiaims_private, only: fhiaimswfn
   use param, only: maxzat0, mlen, mmlen
   use types, only: cp_type, cp_gpath, scalar_value, field_evaluation_avail, gpathp, thread_info
   use hashmod, only: hash
@@ -47,6 +48,7 @@ module fieldmod
   integer, parameter, public :: type_dftb = 7 !< DFTB+ wavefunction
   integer, parameter, public :: type_promol_frag = 8 !< promolecular density from a fragment
   integer, parameter, public :: type_ghost = 9 !< a ghost field
+  integer, parameter, public :: type_fhiaims = 10 !< FHI-aims wavefunction
 
   !> A copy of the critical point list of a field (backup_cplist,
   !> restore_cplist).
@@ -91,6 +93,7 @@ module fieldmod
      type(grid3), allocatable :: grid !< Grid fields
      type(molwfn), allocatable :: wfn !< GTO/STO atom-centered wavefunctions
      type(dftbwfn), allocatable :: dftb !< DFTB wavefunctions
+     type(fhiaimswfn), allocatable :: fhiaims !< FHI-aims wavefunctions
      ! promolecular and core densities
      type(fragment), allocatable :: fr !< Fragment for the fragment-based promolecular density
      integer, allocatable :: zpsp(:) !< Pseudopotential charges (1:nspc)
