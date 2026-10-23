@@ -1,0 +1,119 @@
++ Field number 1
+  Name: dgrid_aims.dat
+  Source: ../zz_source/fhiaims-251014/nacl/dgrid_aims.dat
+  Type: fhi-aims
+  Number of states: 20
+  Number of spin channels: 1
+  Number of basis functions: 40
+  Number of kpoints: 8
+  Real wavefunction? T
+  Density matrix blocks: 212 (0.6 MB)
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 2.7306543  2.1542878  1.7763426  
+  Coordinates (ang): 1.4450000  1.1400000  0.9400000  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 4.414398077E-03
+  Field value, valence (fval): 4.414398077E-03
+  Gradient (grad f): 3.337796681E-03  -3.083239737E-03  -2.822329010E-03  
+  Gradient norm (|grad f|): 5.349092913E-03
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 2.683797462E-03
+  Laplacian (del2 f): 1.300448451E-02
+  Laplacian, valence (del2 fval): 1.300448451E-02
+  Hessian:
+     6.544145762E-03  -6.912894587E-03  -3.823108619E-03  
+    -6.912894587E-03   5.017449960E-03   2.751936522E-03  
+    -3.823108619E-03   2.751936522E-03   1.442888791E-03  
+  Hessian eigenvalues: -1.372986560E-03  -4.992794588E-05  1.442739902E-02  
+  Ellipticity (l_1/l_2 - 1): 2.649936003E+01
+  Field 0 (f,|grad|,lap): 6.468209775E-03  4.036102690E-03  1.055917574E-02  
+
++ Field number 1
+  Name: dgrid_aims.dat
+  Source: ../zz_source/fhiaims-251014/h2o/dgrid_aims.dat
+  Type: fhi-aims
+  Number of states: 11
+  Number of spin channels: 1
+  Number of basis functions: 24
+  Number of kpoints: 1
+  Real wavefunction? T
+  Density matrix blocks: 6 (0.0 MB)
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 3
+  Number of critical points in the unit cell: 3
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 7.030745319E-01
+  Field value, valence (fval): 7.030745319E-01
+  Gradient (grad f): -2.994912243E-01  -5.942412432E-01  -1.140987991E+00  
+  Gradient norm (|grad f|): 1.320860040E+00
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 1.551086863E+00
+  Laplacian (del2 f): -1.961223019E+00
+  Laplacian, valence (del2 fval): -1.961223019E+00
+  Hessian:
+    -1.344138163E+00   1.950403379E-01   9.730031311E-01  
+     1.950403379E-01  -1.427657446E+00   9.156193351E-01  
+     9.730031311E-01   9.156193351E-01   8.105725898E-01  
+  Hessian eigenvalues: -1.860260899E+00  -1.580602461E+00  1.479640342E+00  
+  Ellipticity (l_1/l_2 - 1): 1.769315465E-01
+  Field 0 (f,|grad|,lap): 7.294888282E-01  1.441319661E+00  -2.978552843E+00  
+
++ Field number 1
+  Name: dgrid_aims.dat
+  Source: ../zz_source/fhiaims-251014/si/dgrid_aims.dat
+  Type: fhi-aims
+  Number of states: 20
+  Number of spin channels: 1
+  Number of basis functions: 50
+  Number of kpoints: 8
+  Real wavefunction? T
+  Density matrix blocks: 168 (0.8 MB)
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 1
+  Number of critical points in the unit cell: 2
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 2.5657757  2.0526205  1.5394654  
+  Coordinates (ang): 1.3577500  1.0862000  0.8146500  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.185970038E-01
+  Field value, valence (fval): 1.185970038E-01
+  Gradient (grad f): -2.512803637E-02  1.664032390E-01  3.427823405E-01  
+  Gradient norm (|grad f|): 3.818654071E-01
+  Gradient norm, valence: 0.000000000E+00
+  Kinetic energy density (G,tau): 4.619826814E-01
+  Laplacian (del2 f): 2.057955028E+00
+  Laplacian, valence (del2 fval): 2.057955028E+00
+  Hessian:
+    -3.189265230E-01   4.320289013E-02   1.191013586E-02  
+     4.320289013E-02   2.797116005E-01   1.224547998E+00  
+     1.191013586E-02   1.224547998E+00   2.097169950E+00  
+  Hessian eigenvalues: -3.621756263E-01  -2.935036628E-01  2.713634317E+00  
+  Ellipticity (l_1/l_2 - 1): 2.339731056E-01
+  Field 0 (f,|grad|,lap): 1.245348988E-01  3.883405239E-01  1.952043261E+00  
+

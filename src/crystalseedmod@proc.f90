@@ -1463,7 +1463,7 @@ contains
        isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband,&
        isformat_r_sdf, isformat_r_castepcell, isformat_r_gulpin, isformat_r_gulpout,&
        isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb,&
-       isformat_r_fdf
+       isformat_r_fdf, isformat_r_dgrid
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -1614,6 +1614,9 @@ contains
 
     elseif (isformat == isformat_r_aimsout) then
        call seed%read_aimsout(file,mol,rborder_def,.false.,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_dgrid) then
+       call seed%read_dgrid(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_tinkerfrac) then
        call seed%read_tinkerfrac(file,mol,errmsg,ti=ti)
@@ -6093,6 +6096,88 @@ contains
 
   end subroutine read_aimsin
 
+  !> Read the structure from an FHI-aims dgrid_aims.dat file (output
+  !> dgrid): atoms in bohr near the top and, for crystals, the
+  !> lattice vectors at the end of the file (see fhiaims_private).
+  module subroutine read_dgrid(seed,file,mol,rborder,docube,errmsg,ti)
+    use fhiaims_private, only: dgrid_header, dgrid_read_header, dgrid_read_atoms, dgrid_read_tail
+    use tools_io, only: fopen_read, fclose, zatguess
+    use param, only: isformat_r_dgrid
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: docube
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, i, iz
+    type(dgrid_header) :: hdr
+    integer, allocatable :: ngrid(:), ispc(:)
+    real*8, allocatable :: xat(:,:), kpt(:,:), wk(:)
+    character*20, allocatable :: spcname(:)
+    real*8 :: rlat(3,3)
+    type(rawseed) :: rec
+
+    ! header and atoms
+    call seed%end()
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    call dgrid_read_header(lu,hdr,errmsg)
+    if (len_trim(errmsg) == 0) &
+       call dgrid_read_atoms(lu,hdr,ngrid,ispc,xat,spcname,errmsg)
+    call fclose(lu)
+    if (len_trim(errmsg) > 0) then
+       errmsg = trim(errmsg) // ": " // trim(file)
+       return
+    end if
+
+    ! atoms (bohr, Cartesian)
+    rec%spcmode = spc_label
+    rec%lunit = lunit_bohr
+    rec%iscart = .true.
+    rec%border = rborder
+    rec%cubic = docube
+    do i = 1, hdr%nat
+       iz = zatguess(spcname(ispc(i)))
+       if (iz <= 0) then
+          errmsg = "unknown atom type: " // trim(spcname(ispc(i)))
+          return
+       end if
+       call rawseed_add_atom(rec,iz,xat(:,i),trim(spcname(ispc(i))))
+    end do
+
+    ! periodicity and lattice vectors
+    if (hdr%nper == 0) then
+       if (.not.mol) then
+          errmsg = "tried to load a molecule as a crystal; use the MOLECULE keyword"
+          return
+       end if
+       rec%ismol = .true.
+       rec%ndim = 0
+    else
+       if (mol) then
+          errmsg = "tried to load a crystal as a molecule; use the CRYSTAL keyword"
+          return
+       end if
+       allocate(kpt(3,hdr%nkpt),wk(hdr%nkpt))
+       call dgrid_read_tail(file,hdr%nkpt,rlat,kpt,wk,errmsg)
+       if (len_trim(errmsg) > 0) then
+          errmsg = trim(errmsg) // ": " // trim(file)
+          return
+       end if
+       rec%ndim = 3
+       rec%cellmode = 2
+       rec%rv = rlat
+    end if
+
+    call rawseed_to_seed(rec,seed,mol,file,isformat_r_dgrid,errmsg)
+
+  end subroutine read_dgrid
+
   !> Read an FHI aims output file.
   module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
@@ -6477,6 +6562,7 @@ contains
   !> If alsofield is present, then return .true. if the file also
   !> contains a scalar field.
   module subroutine struct_detect_read_format(file,isformat,alsofield,ti)
+    use fhiaims_private, only: dgrid_is_file
     use param, only: isformat_r_unknown, isformat_r_cif, isformat_r_shelx,&
        isformat_r_f21, isformat_r_xyz, isformat_r_gjf,&
        isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit, isformat_r_elk,&
@@ -6487,7 +6573,7 @@ contains
        isformat_r_castepcell, isformat_r_castepgeom, isformat_r_castepphonon,&
        isformat_r_qein, isformat_r_qeout, isformat_r_xband, isformat_r_gulpin, isformat_r_gulpout,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
-       isformat_r_fdf
+       isformat_r_fdf, isformat_r_dgrid
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -6635,7 +6721,14 @@ contains
     elseif (equal(wextdot,'axsf')) then
        isformat = isformat_r_axsf
     elseif (equal(wextdot,'dat')) then
-       isformat = isformat_r_dat
+       ! FHI-aims dgrid file (output dgrid) or a psi4 output; told
+       ! apart by the first line
+       if (dgrid_is_file(file,ti)) then
+          isformat = isformat_r_dgrid
+          alsofield_ = .true.
+       else
+          isformat = isformat_r_dat
+       end if
     elseif (equal(wextdot,'frac')) then
        isformat = isformat_r_tinkerfrac
     elseif (equal(lower(wextdot),'vasp')) then
@@ -6671,6 +6764,7 @@ contains
   !> Detect whether a file with format isformat contains a molecule
   !> (ismol=.true.)  or a crystal (.false.)
   module subroutine struct_detect_ismol(file,isformat,ismol,ti)
+    use fhiaims_private, only: dgrid_header, dgrid_read_header
     use tools_io, only: fopen_read, fclose, getline, equali,&
        getline_raw, lgetword, equal, lower, isreal
     use param, only: isformat_r_cif, isformat_r_shelx, isformat_r_f21,&
@@ -6684,7 +6778,7 @@ contains
        isformat_r_castepgeom,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
        isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin,&
-       isformat_r_gulpout, isformat_r_fdf
+       isformat_r_gulpout, isformat_r_fdf, isformat_r_dgrid
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -6695,6 +6789,7 @@ contains
     character*1 :: isfrac
     logical :: ok
     real*8 :: scalexx(3)
+    type(dgrid_header) :: hdr
 
     real*8, parameter :: eps = 1d-10
 
@@ -6786,6 +6881,15 @@ contains
              exit
           end if
        end do
+       call fclose(lu)
+
+    case (isformat_r_dgrid)
+       ! FHI-aims dgrid file: periodicity from the header
+       ismol = .false.
+       lu = fopen_read(file,errstop=.false.,ti=ti)
+       if (lu < 0) return
+       call dgrid_read_header(lu,hdr,errmsg)
+       if (len_trim(errmsg) == 0) ismol = (hdr%nper == 0)
        call fclose(lu)
 
     case (isformat_r_aimsin)
@@ -6935,7 +7039,7 @@ contains
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres,&
        isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin,&
-       isformat_r_gulpout, isformat_r_fdf
+       isformat_r_gulpout, isformat_r_fdf, isformat_r_dgrid
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -7064,6 +7168,8 @@ contains
        call seed(1)%read_aimsin(file,mol,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_r_aimsout) then
        call read_all_aimsout(nseed,seed,file,errmsg,ti=ti)
+    elseif (isformat == isformat_r_dgrid) then
+       call seed(1)%read_dgrid(file,mol,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_r_tinkerfrac) then
        call seed(1)%read_tinkerfrac(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_axsf) then

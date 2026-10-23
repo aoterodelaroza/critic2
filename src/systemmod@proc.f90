@@ -566,7 +566,7 @@ contains
 
     ! Parse the line and build a field seed. Handle errors here,
     ! before allocating memory for a new field
-    call seed%parse(line,.true.)
+    call seed%parse(line,.true.,ti=ti)
     if (len_trim(seed%errmsg) > 0) then
        id = -1
        errmsg = trim(seed%errmsg)

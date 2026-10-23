@@ -95,7 +95,7 @@ contains
        &DFTB+ (gen){.gen},&
        &DMACRYS (dmain|16|21){.dmain,.16,.21},&
        &elk (OUT){.OUT},&
-       &FHIaims (in|in.next_step|out|own){.in,.next_step,.out,.own},&
+       &FHIaims (in|in.next_step|out|own|dat){.in,.next_step,.out,.own,.dat},&
        &FPLO (out){.out},&
        &Gaussian (com|gjf|zmat|log|wfn|wfx|fchk|cube){.com,.gjf,.zmat,.log,.wfn,.wfx,.fchk,.cube},&
        &GULP (gin|grs|gout|got){.gin,.grs,.gout,.got},&
@@ -130,6 +130,7 @@ contains
        // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_r_elk
        // "FHIaims input" // c_null_char &           ! isformat_r_aimsin
        // "FHIaims output" // c_null_char &          ! isformat_r_aimsout
+       // "FHIaims dgrid file" // c_null_char &      ! isformat_r_dgrid
        // "FPLO output" // c_null_char &             ! isformat_r_fploout
        // "Gaussian fchk" // c_null_char &           ! isformat_r_fchk
        // "Gaussian input" // c_null_char &          ! isformat_r_gjf
@@ -168,7 +169,7 @@ contains
     isperm_openfiles(0:nn-1) = (/isformat_r_unknown,isformat_r_abinit,isformat_r_bincube,&
        isformat_r_castepcell,isformat_r_castepgeom,isformat_r_cif,isformat_r_crystal,&
        isformat_r_cube,isformat_r_gen,isformat_r_f21,isformat_r_dmain,isformat_r_elk,&
-       isformat_r_aimsin,isformat_r_aimsout,isformat_r_fploout,isformat_r_fchk,isformat_r_gjf,&
+       isformat_r_aimsin,isformat_r_aimsout,isformat_r_dgrid,isformat_r_fploout,isformat_r_fchk,isformat_r_gjf,&
        isformat_r_gaussian,isformat_r_wfn,isformat_r_wfx,isformat_r_zmat,isformat_r_gulpin,&
        isformat_r_gulpout,isformat_r_mol2,&
        isformat_r_molden,isformat_r_orca,isformat_r_pdb,isformat_r_pgout,isformat_r_dat,&
@@ -195,7 +196,7 @@ contains
                 &Cube file (cube){.cube},&
                 &DAT grid (DAT){.DAT},&
                 &DFTB+ (detailed.xml){.xml},&
-                &FHI-aims (dgrid_aims.dat){.dat},&
+                &FHI-aims dgrid (dat){.dat},&
                 &elk (grid){.grid},&
                 &elk STATE.OUT (OUT){.OUT},&
                 &FPLO grid (001){.001},&

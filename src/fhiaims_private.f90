@@ -23,6 +23,25 @@ module fhiaims_private
 
   private
 
+  !> Header of a dgrid_aims.dat file (first three lines). The file
+  !> layout is: header; grid sizes per species; atoms; two text lines
+  !> (energy, chemical potential); radial functions; spline
+  !> coefficients; eigenvalues and occupations; eigenvectors; and,
+  !> for crystals, the lattice vectors, the reciprocal vectors and
+  !> the k-points with their weights.
+  type dgrid_header
+     integer :: nspc !< number of species
+     integer :: nat !< number of atoms
+     integer :: nstates !< number of states
+     integer :: nbas !< number of basis functions
+     integer :: nfn !< number of radial functions (all species)
+     integer :: nper !< number of periodic dimensions (0 or 3)
+     integer :: nspin !< number of spin channels
+     integer :: nkpt !< number of k-points
+     integer :: nkxyz(3) !< k-point grid
+  end type dgrid_header
+  public :: dgrid_header
+
   !> Radial function of the FHI-aims basis set: phi = u(r)/r * S_lm,
   !> where u is a cubic spline in the index of the logarithmic grid
   !> of its species, r_i = rmin * exp((i-1)*linc).
@@ -52,7 +71,8 @@ module fhiaims_private
   !> T'. Only one of each pair of transposed blocks D_ab(dT) =
   !> D_ba(-dT)^T is stored: those with a < b, or a == b and dT
   !> lexicographically non-negative. The blocks of a pair (a,b) are
-  !> contiguous in the block list.
+  !> contiguous in the block list, in increasing order of their
+  !> lattice-vector key (see find_block).
   type fhiaimswfn
      logical :: isreal !< real eigenvectors in the file
      logical :: ismol !< molecular calculation (no periodicity)
@@ -65,17 +85,17 @@ module fhiaims_private
      integer :: lmax !< maximum angular momentum over all species
      type(fhiaimsspecies), allocatable :: spc(:) !< species
      integer, allocatable :: ispc(:) !< species of each FHI-aims atom
-     real*8, allocatable :: xat(:,:) !< Cartesian coordinates of the FHI-aims atoms (bohr)
-     integer, allocatable :: ibas0(:) !< first basis function of each FHI-aims atom - 1
      ! mapping to the critic2 cell atoms
      integer, allocatable :: iaims(:) !< FHI-aims atom for each critic2 cell atom
      integer, allocatable :: ioff(:,:) !< aims position = critic2 position + ioff (lattice)
      real*8, allocatable :: spcutoff(:,:) !< cutoff for list_near_atoms (c%nspc,2)
      ! density matrix blocks
      integer :: nblk !< number of blocks
+     integer :: tmax(3) !< lattice vectors of the blocks run from -tmax to tmax
      integer, allocatable :: pair0(:,:) !< first block of pair (a,b), a <= b
      integer, allocatable :: pairn(:,:) !< number of blocks of pair (a,b), a <= b
      integer, allocatable :: blkt(:,:) !< lattice vector dT of each block (3,nblk)
+     integer, allocatable :: blkkey(:) !< integer key of dT, increasing within a pair
      integer*8, allocatable :: blkoff(:) !< offset of each block in dm
      real*8, allocatable :: dm(:) !< density matrix blocks, column-major (nbas_a,nbas_b)
      type(c_ptr) :: cptr !< pointer to the crystal structure
@@ -86,7 +106,39 @@ module fhiaims_private
   end type fhiaimswfn
   public :: fhiaimswfn
 
+  public :: dgrid_is_file
+  public :: dgrid_read_header
+  public :: dgrid_read_atoms
+  public :: dgrid_read_tail
+
   interface
+     module function dgrid_is_file(file,ti) result(ok)
+       character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
+       logical :: ok
+     end function dgrid_is_file
+     module subroutine dgrid_read_header(lu,hdr,errmsg)
+       integer, intent(in) :: lu
+       type(dgrid_header), intent(out) :: hdr
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine dgrid_read_header
+     module subroutine dgrid_read_atoms(lu,hdr,ngrid,ispc,xat,spcname,errmsg)
+       integer, intent(in) :: lu
+       type(dgrid_header), intent(in) :: hdr
+       integer, allocatable, intent(inout) :: ngrid(:)
+       integer, allocatable, intent(inout) :: ispc(:)
+       real*8, allocatable, intent(inout) :: xat(:,:)
+       character*20, allocatable, intent(inout) :: spcname(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine dgrid_read_atoms
+     module subroutine dgrid_read_tail(file,nkpt,lat,kpt,wk,errmsg)
+       character*(*), intent(in) :: file
+       integer, intent(in) :: nkpt
+       real*8, intent(out) :: lat(3,3)
+       real*8, intent(out) :: kpt(3,nkpt)
+       real*8, intent(out) :: wk(nkpt)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine dgrid_read_tail
      module subroutine fhiaims_end(f)
        class(fhiaimswfn), intent(inout) :: f
      end subroutine fhiaims_end

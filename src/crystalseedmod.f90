@@ -116,6 +116,7 @@ module crystalseedmod
      procedure :: read_pwc
      procedure :: read_axsf
      procedure :: read_aimsin
+     procedure :: read_dgrid
      procedure :: read_aimsout
      procedure :: read_tinkerfrac
      procedure :: read_xyz
@@ -451,6 +452,15 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_aimsin
+     module subroutine read_dgrid(seed,file,mol,rborder,docube,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: docube
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_dgrid
      module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

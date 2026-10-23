@@ -56,7 +56,7 @@ contains
   !> from it. lp0 is the string pointer (1 by default). In output, lp0
   !> contains the new string pointer (if provided). If withoptions,
   !> read the field options from the input line, too.
-  module subroutine fieldseed_parse(f,line,withoptions,lp0)
+  module subroutine fieldseed_parse(f,line,withoptions,lp0,ti)
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_xtb, molden_type_pyscf,&
        molden_type_unknown
     use global, only: eval_next
@@ -80,6 +80,7 @@ contains
     character*(*) :: line
     logical, intent(in) :: withoptions
     integer, intent(inout), optional :: lp0
+    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: file, lfile, extdot, extund, word, lword
     integer :: lp, nfile, i, lpo, lpo2
@@ -205,7 +206,7 @@ contains
 
     ! detect the field extension
     if (f%iff == ifformat_unknown) &
-       f%iff = field_detect_format(file,f%molden_type)
+       f%iff = field_detect_format(file,f%molden_type,ti)
     if (f%iff == ifformat_unknown) then
        call f%end()
        f%errmsg = "unknown file format"
@@ -692,7 +693,8 @@ contains
   !> Detect the field format from the file name (extension). The
   !> only content check is the first line of .dat files, which tells
   !> FHI-aims dgrid files from plain-text grids.
-  module function field_detect_format(file,molden_type)
+  module function field_detect_format(file,molden_type,ti)
+    use fhiaims_private, only: dgrid_is_file
     use wfn_private, only: molden_type_unknown
     use tools_io, only: ferror, equal
     use param, only: dirsep,&
@@ -703,6 +705,7 @@ contains
        ifformat_pi,ifformat_pwc,ifformat_fhiaims,ifformat_unknown
     character*(*), intent(in) :: file
     integer, intent(out), optional :: molden_type
+    type(thread_info), intent(in), optional :: ti
     integer :: field_detect_format
 
     character(len=:), allocatable :: extdot, extdot2, word, extund
@@ -759,7 +762,7 @@ contains
        field_detect_format = ifformat_txt
     else if (equal(extdot,'DAT')) then
        field_detect_format = ifformat_dat
-    else if (equal(extdot,'dat') .and. is_dgrid_file(file)) then
+    else if (equal(extdot,'dat') .and. dgrid_is_file(file,ti)) then
        field_detect_format = ifformat_fhiaims
     else if (equal(extdot,'wfn')) then
        field_detect_format = ifformat_wfn
@@ -864,7 +867,7 @@ contains
        isgrid = .false.
     case(ifformat_fhiaims)
        keyword = "FHIAIMS"
-       description = "FHI-aims dgrid_aims.dat wavefunction (LCAO)"
+       description = "FHI-aims dgrid wavefunction (LCAO)"
        isgrid = .false.
     case(ifformat_pwc)
        keyword = "PWC"
@@ -905,26 +908,5 @@ contains
     end select
 
   end subroutine field_format_string
-
-  !xx! private procedures
-
-  !> True if the file is an FHI-aims dgrid_aims.dat file (output
-  !> dgrid), detected from its first line.
-  function is_dgrid_file(file) result(ok)
-    use tools_io, only: fopen_read, fclose, getline_raw
-    character*(*), intent(in) :: file
-    logical :: ok
-
-    integer :: lu
-    character(len=:), allocatable :: line
-
-    ok = .false.
-    lu = fopen_read(file,errstop=.false.)
-    if (lu < 0) return
-    if (getline_raw(lu,line)) &
-       ok = (index(line,"FHI-aims - DGrid Interface") > 0)
-    call fclose(lu)
-
-  end function is_dgrid_file
 
 end submodule proc

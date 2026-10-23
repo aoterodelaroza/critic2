@@ -142,7 +142,8 @@ module param
   integer, parameter :: isformat_r_gulpin = 47
   integer, parameter :: isformat_r_gulpout = 48
   integer, parameter :: isformat_r_fdf = 49
-  integer, parameter :: isformat_r_max = isformat_r_fdf ! last reading format (update when adding formats)
+  integer, parameter :: isformat_r_dgrid = 50
+  integer, parameter :: isformat_r_max = isformat_r_dgrid ! last reading format (update when adding formats)
 
   ! Enumerate for structure formats (writing)
   integer, parameter :: isformat_w_unknown = 0

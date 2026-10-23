@@ -19,6 +19,7 @@
 
 ! Scalar field seed class.
 module fieldseedmod
+  use types, only: thread_info
   use wfn_private, only: molden_type_unknown
   use param, only: ifformat_unknown, mlen, mmlen
   implicit none
@@ -67,20 +68,22 @@ module fieldseedmod
      module subroutine fieldseed_end(f)
        class(fieldseed), intent(inout) :: f
      end subroutine fieldseed_end
-     module subroutine fieldseed_parse(f,line,withoptions,lp0)
+     module subroutine fieldseed_parse(f,line,withoptions,lp0,ti)
        class(fieldseed), intent(inout) :: f
        character*(*) :: line
        logical, intent(in) :: withoptions
        integer, intent(inout), optional :: lp0
+       type(thread_info), intent(in), optional :: ti
      end subroutine fieldseed_parse
      module subroutine fieldseed_parse_options(f,line,lp0)
        class(fieldseed), intent(inout) :: f
        character*(*) :: line
        integer, intent(inout), optional :: lp0
      end subroutine fieldseed_parse_options
-     module function field_detect_format(file,molden_type)
+     module function field_detect_format(file,molden_type,ti)
        character*(*), intent(in) :: file
        integer, intent(out), optional :: molden_type
+       type(thread_info), intent(in), optional :: ti
        integer :: field_detect_format
      end function field_detect_format
      module subroutine field_format_string(iff,keyword,description,isgrid)

@@ -59,6 +59,7 @@ set(TESTS
   059_load-fhiaims-mismatch ## FHI-aims wavefunction on the wrong structure
   060_load-fhiaims-cases   ## FHI-aims: spin-polarized metal, triclinic two-species, l = 5
   061_load-fhiaims-spgkpts ## FHI-aims with space-group-reduced k-points (refused)
+  062_load-fhiaims-struct  ## FHI-aims structure read from the dgrid file itself
   )
 
 runtests(${TESTS})

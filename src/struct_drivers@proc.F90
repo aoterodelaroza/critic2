@@ -47,7 +47,7 @@ contains
        isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb, isformat_r_zmat,&
        isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_castepphonon,&
        isformat_r_akaikkr, isformat_r_xband, isformat_r_gulpin, isformat_r_gulpout,&
-       isformat_r_fdf, isformat_r_unknown
+       isformat_r_fdf, isformat_r_dgrid, isformat_r_unknown
     use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -149,6 +149,8 @@ contains
        isformat = isformat_r_aimsin
     elseif (equal(lword,'fhiaims_out')) then
        isformat = isformat_r_aimsout
+    elseif (equal(lword,'fhiaims_dgrid')) then
+       isformat = isformat_r_dgrid
     elseif (equal(lword,'frac')) then
        isformat = isformat_r_tinkerfrac
     elseif (equal(lword,'mol2')) then
@@ -392,6 +394,9 @@ contains
 
     elseif (isformat == isformat_r_aimsin) then
        call seed%read_aimsin(word,mol,rborder,docube,errmsg)
+
+    elseif (isformat == isformat_r_dgrid) then
+       call seed%read_dgrid(word,mol,rborder,docube,errmsg)
 
     elseif (isformat == isformat_r_aimsout) then
        call seed%read_aimsout(word,mol,rborder,docube,errmsg)

@@ -1,0 +1,13 @@
+## check: 062_load-fhiaims-struct.cro -a1e-10
+## labels: regression quick
+# the structure can be read from the dgrid file itself (bohr; lattice at the end of the file)
+crystal ../zz_source/fhiaims-251014/nacl/dgrid_aims.dat
+load ../zz_source/fhiaims-251014/nacl/dgrid_aims.dat
+point 0.1 0.2 0.3 all
+molecule ../zz_source/fhiaims-251014/h2o/dgrid_aims.dat
+load ../zz_source/fhiaims-251014/h2o/dgrid_aims.dat
+point 0.1 0.2 0.3 all
+# forced format keyword
+crystal fhiaims_dgrid ../zz_source/fhiaims-251014/si/dgrid_aims.dat
+load ../zz_source/fhiaims-251014/si/dgrid_aims.dat
+point 0.1 0.2 0.3 all
