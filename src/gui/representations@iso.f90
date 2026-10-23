@@ -554,80 +554,6 @@ contains
 
   end subroutine iso_region_point_from_cart
 
-  !> Measure the field-evaluation cost (wall seconds per sample point)
-  !> of sampling field ifield of system isys over the staged options
-  !> (region mode iregion, coordinates x, n points per axis): evaluate
-  !> the field at random points of the box the build would sample --
-  !> in batches of increasing size, with the same OpenMP parallelism as
-  !> the real sampling loop, until the benchmark has run long enough to
-  !> be meaningful. The caller multiplies by its point count to show a
-  !> total. Returns a negative value if the estimate cannot be made
-  !> (bad system/field or degenerate region).
-  module function iso_estimate_cost(isys,ifield,iregion,x,n,request) result(secs)
-    use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_init, ok_system
-    use types, only: field_evaluation_avail, scalar_value
-    integer, intent(in) :: isys
-    integer, intent(in) :: ifield
-    integer, intent(in) :: iregion
-    real*8, intent(in) :: x(3,0:3)
-    integer, intent(in) :: n(3)
-    type(field_evaluation_avail), intent(in), optional :: request
-    real*8 :: secs
-
-    integer :: i, nb, ntot
-    logical :: ok, per0, pereval, useres
-    real*8 :: xmat(3,3), cmat(3,3), x0c(3), xp(3), rdum, t
-    real*8, allocatable :: xr(:,:)
-    type(scalar_value) :: res
-
-    real*8, parameter :: timetarget = 0.1d0 ! benchmark until a batch takes this long
-    integer, parameter :: nbatch0 = 32 ! initial batch size (a slow field stops after one batch)
-    integer, parameter :: nptsmax = 65536 ! total benchmark points cap (fast fields)
-
-    secs = -1d0
-    if (.not.ok_system(isys,sys_init)) return
-    if (.not.sys(isys)%goodfield(ifield)) return
-    ! benchmark over the exact box the build would sample, with the same
-    ! evaluation periodicity (iso_sample_domain owns the domain policy)
-    call iso_sample_domain(isys,ifield,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
-    if (.not.ok) return
-
-    ! batches of growing size: a slow field stops after the first one, a
-    ! fast one grows until the timing is meaningful. The rate comes from
-    ! the last batch alone, so the earlier ones (dominated by OpenMP
-    ! startup) only calibrate the batch size.
-    ! a caller that samples something other than the plain field -- a
-    ! single molecular orbital, say -- passes the same request the real
-    ! loop uses, or the benchmark would time the wrong quantity
-    useres = present(request)
-    ntot = 0
-    nb = nbatch0
-    do while (.true.)
-       allocate(xr(3,nb))
-       call random_number(xr)
-       t = glfwGetTime()
-       !$omp parallel do private(xp,res,rdum) schedule(static)
-       do i = 1, nb
-          xp = x0c + matmul(xmat,xr(:,i))
-          if (useres) then
-             call sys(isys)%f(ifield)%grd(xp,request,res,periodic=pereval)
-          else
-             rdum = sys(isys)%f(ifield)%grd0(xp,periodic=pereval)
-          end if
-       end do
-       !$omp end parallel do
-       t = glfwGetTime() - t
-       ntot = ntot + nb
-       deallocate(xr)
-       if (t >= timetarget .or. ntot >= nptsmax) exit
-       nb = min(4 * nb,nptsmax - ntot)
-    end do
-    ! seconds per sample point; the caller scales by its point count
-    secs = t / real(nb,8)
-
-  end function iso_estimate_cost
-
   !> Commit a staged sampling grid (n points per axis, region mode
   !> iregion with its staged coordinates x) as the applied state of
   !> isosurface iso. The applied region is stored as user coordinates
@@ -655,7 +581,7 @@ contains
     integer, intent(in) :: isys
 
     integer :: ilev0, n(3)
-    real*8 :: box(3,0:3), pamax, pa
+    real*8 :: box(3,0:3), pamax, pa, costest
     logical :: okbox
 
     if (.not.ok_system(isys,sys_init)) return
@@ -676,15 +602,15 @@ contains
     n = iso%staged_grid_size(isys,ilev0,box)
     if (all(n == 0)) return
 
-    ! seconds per sample point over that grid
-    iso%costest = iso%measure_cost(isys,n)
-    if (iso%costest < 0d0) return
+    ! seconds per sample point
+    costest = iso%measure_cost(isys,.true.)
+    if (costest < 0d0) return
 
     ! the resolution the budget affords. If it is the level's own, that
     ! level is what gets applied -- a named level says more in the
     ! editor than the same grid spelled out as a custom one
     pamax = iso_level_ptsang(ilev0)
-    pa = iso_auto_ptsang(iso%costest,iso%staged_box_lengths(isys,box),pamax)
+    pa = iso_auto_ptsang(costest,iso%staged_box_lengths(isys,box),pamax)
     if (pa < pamax) then
        iso%ilevel = iso_level_custom
        iso%icustom = iso_custom_ptsang
@@ -749,28 +675,28 @@ contains
 
   end function iso_staged_box_lengths
 
-  !> Benchmark the staged sampling of isosurface iso over an n(1) x
-  !> n(2) x n(3) grid and return the seconds per sample point (negative
-  !> when it cannot be measured). Prices what the sampling loop
-  !> actually evaluates: an isosurface of a single molecular orbital is
-  !> sampled with an MO request, not the plain field, and costs several
-  !> times less per point, so benchmarking the density instead would
-  !> buy the wrong grid.
-  module function iso_measure_cost(iso,isys,n) result(secs)
+  !> Seconds per point of what the sampling loop of isosurface iso of
+  !> system isys evaluates -- one orbital if an MO is selected, the
+  !> plain field otherwise -- with the current parallelism: the cost
+  !> the field has measured, measured now if there is none and measure
+  !> is set (over a representative domain, not the staged region).
+  !> Negative if unknown.
+  module function iso_measure_cost(iso,isys,measure) result(secs)
+    use systems, only: field_cost
     use types, only: field_evaluation_avail
     class(rep_isosurface), intent(in) :: iso
     integer, intent(in) :: isys
-    integer, intent(in) :: n(3)
+    logical, intent(in) :: measure
     real*8 :: secs
 
-    type(field_evaluation_avail) :: request
+    type(field_evaluation_avail) :: req
 
     if (iso%imosel /= 0) then
-       request = iso%mo_request()
-       secs = iso_estimate_cost(isys,iso%fref%id,iso%iregion,iso%rgn_x,n,request)
+       req = iso%mo_request()
     else
-       secs = iso_estimate_cost(isys,iso%fref%id,iso%iregion,iso%rgn_x,n)
+       call req%field_only()
     end if
+    secs = field_cost(isys,iso%fref%id,measure,req)
 
   end function iso_measure_cost
 
@@ -957,7 +883,6 @@ contains
        iso%iregion = iso_region_bbox
     end if
     call iso_region_seed(isys,iso%iregion,iso%rgn_x)
-    iso%costest = -1d0
     iso%outdomain = .false.
     ! the histogram and the range describe the previous field's data
     iso%nhist = 0

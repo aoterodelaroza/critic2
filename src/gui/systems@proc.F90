@@ -1151,6 +1151,26 @@ contains
 
   end function sys_ref_same
 
+  !> Seconds per point of evaluating request on field ifield of system
+  !> isys with the current parallelism: the cost the field has
+  !> measured, or measured now if there is none and measure is set
+  !> (field%cost_per_point; over a representative domain, not any
+  !> particular region). Negative if the system is not ready, the field
+  !> is not good, or the cost is unknown.
+  module function field_cost(isys,ifield,measure,request) result(secs)
+    use types, only: field_evaluation_avail
+    integer, intent(in) :: isys, ifield
+    logical, intent(in) :: measure
+    type(field_evaluation_avail), intent(in) :: request
+    real*8 :: secs
+
+    secs = -1d0
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.sys(isys)%goodfield(ifield)) return
+    secs = sys(isys)%f(ifield)%cost_per_point(request,measure)
+
+  end function field_cost
+
   !> Check that the system ID is sane and has at least the requested
   !> initialization level. If uid is given, the system must be the one
   !> with that unique identifier (not another one in its slot).

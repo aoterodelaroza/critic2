@@ -4336,7 +4336,8 @@ contains
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
     real(c_float), parameter :: hist_lwdrag = 5.5_c_float ! isovalue line width (px)
-    real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps
+    real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps, costest
+    logical :: measure
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
     logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
     logical :: ismapped, hascolors, plotted, addcb
@@ -4538,12 +4539,15 @@ contains
        end if
        call iw_tooltip("Use the selected grid and region for the isosurface. The options&
           & above have no effect on the isosurface until this button is pressed",ttshown)
-       if (iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))) &
-          w%rep%iso%costest = w%rep%iso%measure_cost(isys,nstage)
-       call iw_tooltip("Estimate the time needed to sample the field with the selected options",ttshown)
-       if (w%rep%iso%costest >= 0d0 .and. any(nstage /= 0)) &
-          call iw_text("~" // duration_string(w%rep%iso%costest * product(real(nstage,8))),&
-             sameline=.true.)
+       ! the cost is the field's (over a representative domain, not this
+       ! region): measured by the button, shown whenever the field has
+       ! one (measured here or in any other window)
+       measure = iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))
+       call iw_tooltip("Measure the cost of evaluating the field, to estimate the time the grid takes&
+          & (the measurement is kept with the field and shared by all windows)",ttshown)
+       costest = w%rep%iso%measure_cost(isys,measure)
+       if (costest >= 0d0 .and. any(nstage /= 0)) &
+          call iw_text("~" // duration_string(costest * product(real(nstage,8))),sameline=.true.)
 
        ! the state of the options, on the same line as the button that fixes it
        if (okbox .and. .not.w%rep%iso%isgenerated(isys)) then

@@ -189,9 +189,9 @@ contains
   !> Draw the isosurface tab: the voids are the connected regions where the
   !> promolecular density is lower than the isovalue.
   subroutine draw_isosurface_tab(w,isys,iview,ttshown)
-    use systems, only: sys
-    use representations, only: iso_estimate_cost, iso_region_cell, reptype_isosurface,&
-       repflavor_isosurface
+    use systems, only: sys, field_cost
+    use rhoplot, only: rhoplot_nti_request
+    use representations, only: iso_region_cell, reptype_isosurface, repflavor_isosurface
     use gui_main, only: g
     use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
        iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string, iw_cell_right,&
@@ -228,12 +228,11 @@ contains
     ! The cost of a grid point, and the spacing that cost affords. Both are
     ! settled before the form is drawn, so the spacing shown is the one the
     ! grid below is built from
-    call grid_from_spacing(sys(isys)%c%aa,w%vd%iso_spacing,n)
     if (w%vd%iso_secs <= 0d0 .or. &
        abs(sys(isys)%c%ncel - w%vd%iso_secs_ncel) > max(1,w%vd%iso_secs_ncel/4)) then
-       rdum = iso_estimate_cost(isys,0,iso_region_cell,xnull,n)
-       ! a failed measurement is not recorded, so it is retried; its
-       ! failure paths return before the benchmark loop and cost nothing
+       rdum = field_cost(isys,0,.true.,rhoplot_nti_request(0))
+       ! a failed measurement is not recorded, so it is retried; the
+       ! field returns before its benchmark loop when it cannot measure
        if (rdum > 0d0) then
           w%vd%iso_secs = rdum
           w%vd%iso_secs_ncel = sys(isys)%c%ncel

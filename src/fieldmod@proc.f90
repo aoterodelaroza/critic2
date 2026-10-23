@@ -20,6 +20,7 @@ submodule (fieldmod) proc
   implicit none
 
   !xx! private procedures
+  ! function cost_key(request) result(key)
   ! function adaptive_stepper(fid,xpoint,h0,maxstep,res,hess,hdid)
   ! subroutine stepper_heun(fid,xpoint,grdt,h0,xout,req)
   ! subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res,req,reqf)
@@ -94,6 +95,7 @@ contains
     if (allocated(f%loadcmd)) deallocate(f%loadcmd)
     if (allocated(f%loadfiles)) deallocate(f%loadfiles)
     if (allocated(f%optcmd)) deallocate(f%optcmd)
+    f%cost = field_cost()
     if (allocated(f%elk)) deallocate(f%elk)
     if (allocated(f%wien)) deallocate(f%wien)
     if (allocated(f%pi)) deallocate(f%pi)
@@ -3333,7 +3335,140 @@ contains
     end function hermite
   end subroutine gradient
 
+  !> Seconds per point of evaluating request on this field with the
+  !> current OpenMP parallelism. The value is the one measured before
+  !> for this request, if the data of the field (cuid) are still those
+  !> of the measurement. Otherwise, if measure, the evaluation is
+  !> timed on random points of a representative domain -- the cell for
+  !> a crystal, the box around the atoms plus a margin for a molecule;
+  !> not any particular region -- in batches of growing size until the
+  !> timing is meaningful, with the same OpenMP parallelism as a
+  !> sampling loop, and kept as thread-seconds per point, so a later
+  !> thread count scales it. A field without a cuid is measured but
+  !> not remembered. Returns a negative value if no cost is known.
+  module function cost_per_point(f,request,measure) result(secs)
+    use types, only: fieldeval_category_f
+    use param, only: bohrtoa
+    !$ use omp_lib, only: omp_get_max_threads
+    class(field), intent(inout) :: f
+    type(field_evaluation_avail), intent(in) :: request
+    logical, intent(in) :: measure
+    real*8 :: secs
+
+    integer :: key, i, nb, ntot, nthr
+    integer*8 :: c0, c1, crate
+    real*8 :: x0(3), x1(3), xmat(3,3), xp(3), t, rdum
+    real*8, allocatable :: xr(:,:)
+    logical :: periodic, fonly
+    type(scalar_value) :: res
+    type(field_cost_entry) :: e
+
+    real*8, parameter :: timetarget = 0.1d0 ! benchmark until a batch takes this long
+    integer, parameter :: nbatch0 = 32 ! initial batch size (a slow field stops after one batch)
+    integer, parameter :: nptsmax = 65536 ! total benchmark points cap (fast fields)
+    real*8, parameter :: molbuffer = 5d0 ! margin around the atoms of a molecule (angstrom; as the GUI's default region)
+
+    secs = -1d0
+    if (.not.f%isinit) return
+    nthr = 1
+    !$ nthr = omp_get_max_threads()
+
+    ! the measurements in hand, if they are for these data
+    if (f%cost%cuid /= f%cuid) f%cost = field_cost(cuid=f%cuid)
+    key = cost_key(request)
+    if (allocated(f%cost%e)) then
+       do i = 1, size(f%cost%e)
+          if (f%cost%e(i)%key == key) then
+             secs = f%cost%e(i)%tsec / real(nthr,8)
+             return
+          end if
+       end do
+    end if
+    if (.not.measure) return
+
+    ! the sampling domain: x0 + xmat * (0..1)^3
+    if (.not.associated(f%c)) return
+    if (f%c%ncel == 0) return
+    periodic = .not.f%c%ismolecule
+    if (periodic) then
+       x0 = 0d0
+       xmat = f%c%m_x2c
+    else
+       x0 = f%c%atcel(1)%r
+       x1 = x0
+       do i = 2, f%c%ncel
+          x0 = min(x0,f%c%atcel(i)%r)
+          x1 = max(x1,f%c%atcel(i)%r)
+       end do
+       x0 = x0 - molbuffer / bohrtoa
+       x1 = x1 + molbuffer / bohrtoa
+       xmat = 0d0
+       do i = 1, 3
+          xmat(i,i) = x1(i) - x0(i)
+       end do
+    end if
+
+    ! batches of growing size: a slow field stops after the first one, a
+    ! fast one grows until the timing is meaningful. The rate comes from
+    ! the last batch alone, so the earlier ones (dominated by OpenMP
+    ! startup) only calibrate the batch size. The plain field is
+    ! evaluated as the sampling loops do (grd0)
+    fonly = (key == ibset(0,fieldeval_category_f-1))
+    ntot = 0
+    nb = nbatch0
+    do while (.true.)
+       allocate(xr(3,nb))
+       call random_number(xr)
+       call system_clock(c0,crate)
+       !$omp parallel do private(xp,res,rdum) schedule(static)
+       do i = 1, nb
+          xp = x0 + matmul(xmat,xr(:,i))
+          if (fonly) then
+             rdum = f%grd0(xp,periodic=periodic)
+          else
+             call f%grd(xp,request,res,periodic=periodic)
+          end if
+       end do
+       !$omp end parallel do
+       call system_clock(c1)
+       t = real(c1 - c0,8) / real(crate,8)
+       ntot = ntot + nb
+       deallocate(xr)
+       if (t >= timetarget .or. ntot >= nptsmax) exit
+       nb = min(4 * nb,nptsmax - ntot)
+    end do
+    secs = max(t,epsilon(1d0)) / real(nb,8)
+
+    ! keep it, if the data can be told apart from other data
+    if (f%cuid == 0) return
+    e%key = key
+    e%tsec = secs * real(nthr,8)
+    if (allocated(f%cost%e)) then
+       f%cost%e = [f%cost%e, e]
+    else
+       f%cost%e = [e]
+    end if
+
+  end function cost_per_point
+
   !xx! private procedures
+
+  !> The categories of a request packed into an integer (the key of
+  !> the cost entries; the MO range is not part of it, its cost does
+  !> not depend on which orbital).
+  function cost_key(request) result(key)
+    use types, only: fieldeval_category_NUM
+    type(field_evaluation_avail), intent(in) :: request
+    integer :: key
+
+    integer :: i
+
+    key = 0
+    do i = 1, fieldeval_category_NUM
+       if (request%avail(i)) key = ibset(key,i-1)
+    end do
+
+  end function cost_key
 
   !> Fill the nuclear block of the complete CP list of field f:
   !> cpcel(j) is cell atom j (same order and symmetry operation), with

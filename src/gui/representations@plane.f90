@@ -336,6 +336,8 @@ contains
   !> than plane_auto_tmax (the cost of the quantity is probed on a few
   !> points when it changes).
   module subroutine plane_def_autopoints(d,isys)
+    use systems, only: sysc, field_cost
+    use rhoplot, only: rhoplot_nti_request
     use param, only: bohrtoa
     class(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
@@ -346,8 +348,9 @@ contains
     real*8, allocatable :: ff(:,:)
     integer*8, allocatable :: key(:)
     integer*8 :: c0, c1, crate
+    integer :: idq, ntiq
     logical :: stale
-    character(len=:), allocatable :: errmsg
+    character(len=:), allocatable :: errmsg, qexpr
 
     if (.not.d%autonpts) return
     call d%grid(isys,x0,uu,vv,a0,e1,e2,errmsg)
@@ -359,12 +362,24 @@ contains
     if (max(l1,l2) <= 0d0) return
     h = min(plane_auto_spacing / bohrtoa,max(l1,l2) / (plane_auto_nmin - 1))
 
-    ! the cost of the quantity (wall time per point), measured on a
-    ! coarse grid of the region when the quantity changes
-    call d%key(isys,key)
-    stale = .not.allocated(d%tpointkey) .or. .not.allocated(d%tpointexpr)
-    if (.not.stale) stale = (size(d%tpointkey) /= size(key) - nkeyreg)
-    if (.not.stale) stale = any(d%tpointkey /= key(nkeyreg+1:)) .or. (d%tpointexpr /= trim(d%expr))
+    ! the cost of the quantity (wall time per point): the cost the
+    ! field has measured for a property of a field (not measured during
+    ! a dynamics run, which resets the fields on every frame: the value
+    ! in hand is kept until there is a new one); for an expression,
+    ! measured on a coarse grid of the region when the quantity changes
+    call quant_eval(d%isexpr,d%expr,d%fref%id,d%nti,idq,qexpr,ntiq)
+    if (idq >= 0) then
+       t = field_cost(isys,idq,.not.sysc(isys)%md_run,rhoplot_nti_request(ntiq))
+       if (t > 0d0) d%tpoint = t
+       ! the probe in hand, if any, was for another quantity
+       if (allocated(d%tpointkey)) deallocate(d%tpointkey)
+       stale = .false.
+    else
+       call d%key(isys,key)
+       stale = .not.allocated(d%tpointkey) .or. .not.allocated(d%tpointexpr)
+       if (.not.stale) stale = (size(d%tpointkey) /= size(key) - nkeyreg)
+       if (.not.stale) stale = any(d%tpointkey /= key(nkeyreg+1:)) .or. (d%tpointexpr /= trim(d%expr))
+    end if
     if (stale) then
        d%tpointkey = key(nkeyreg+1:)
        d%tpointexpr = trim(d%expr)

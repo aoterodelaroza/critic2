@@ -62,6 +62,19 @@ module fieldmod
   end type cplist_backup
   public :: cplist_backup
 
+  !> Measured cost of evaluating the field (cost_per_point): one entry
+  !> per kind of request, valid while the data of the field (cuid) are
+  !> those the costs were measured for.
+  type field_cost_entry
+     integer :: key = 0 !< the request, packed (cost_key)
+     real*8 :: tsec = -1d0 !< thread-seconds per point (seconds per point times the threads used)
+  end type field_cost_entry
+  type field_cost
+     integer*8 :: cuid = 0 !< data of the field the costs are for
+     type(field_cost_entry), allocatable :: e(:) !< the entries (unallocated = none)
+  end type field_cost
+  public :: field_cost
+
   !> The field class. A field contains the information necessary to evaluate
   !> a scalar field (like the density, but can be something else) at any point
   !> in the unit cell. The class contains:
@@ -73,7 +86,7 @@ module fieldmod
      type(crystal), pointer :: c => null() !< crystal
      integer :: id !< field ID
      integer*8 :: uid = 0 !< unique identifier (global new_uid; 0 = none), set by the system when the field takes its slot
-     integer*8 :: cuid = 0 !< identifier of its data (values), new each time they change: made (also keeping the uid: reset, reload), options set, or the other fields changed (ghost); the key of caches of field values
+     integer*8 :: cuid = 0 !< identifier of its data (values), new each time they change: made (also keeping the uid: reset, reload), options set, or the other fields changed (ghost); the GUI resets the fields on geometry edits, so it covers those too; the key of caches of field values
      ! general information
      logical :: isinit = .false. !< is this field initialized?
      integer :: type = type_uninit !< field type
@@ -107,6 +120,8 @@ module fieldmod
      integer :: ncpcel = 0 !< Number of critical points (complete list)
      type(cp_type), allocatable :: cpcel(:) !< Critical points (complete list)
      type(cp_gpath), allocatable :: cpgp(:,:) !< Bond paths from the non-equivalent CPs (2,ncp); unallocated if not calculated
+     ! evaluation costs
+     type(field_cost) :: cost !< measured evaluation costs (cost_per_point)
    contains
      procedure :: end => field_end !< Deallocate data and uninitialize
      procedure :: set_default_options => field_set_default_options !< Sets field default options
@@ -138,6 +153,7 @@ module fieldmod
      procedure :: identify_cp !< Identify the CP given the position
      procedure :: testrmt !< Test for MT discontinuities
      procedure :: benchmark !< Test the speed of field evaluation
+     procedure :: cost_per_point !< Seconds per point of evaluating a request (measured once, kept)
      procedure :: newton !< Newton-Raphson search for a CP
      procedure :: addcp !< Add a new CP to the CP list
      procedure :: sortcps !< Sort the CP list by field value
@@ -334,6 +350,12 @@ module fieldmod
        class(field), intent(inout) :: f
        integer, intent(in) :: npts
      end subroutine benchmark
+     module function cost_per_point(f,request,measure) result(secs)
+       class(field), intent(inout) :: f
+       type(field_evaluation_avail), intent(in) :: request
+       logical, intent(in) :: measure
+       real*8 :: secs
+     end function cost_per_point
      module subroutine newton(f,r,gfnormeps,ier)
        class(field), intent(inout) :: f
        real*8, dimension(3), intent(inout) :: r

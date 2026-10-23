@@ -51,7 +51,8 @@ contains
 
     logical :: doquit, goodsys, syschanged, ismol, isgrid, isqe, okbox, okfield, ch, okcalc, okload, reqwrite
     integer :: isys, iview, istat, irow, ifield, i, nn(3)
-    real*8 :: xc(3), box(3,0:3), prev0(3)
+    real*8 :: xc(3), box(3,0:3), prev0(3), costest
+    logical :: measure
     type(field_ref) :: req
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -111,7 +112,6 @@ contains
        ! the reference field, if the field is gone
        if (.not.w%cu%fref%ok(sys(isys))) then
           call w%cu%fref%set(sys(isys),sys(isys)%iref)
-          w%cu%costest = -1d0
        end if
     end if
 
@@ -272,7 +272,6 @@ contains
       w%cu%isexpr = .false.
       w%cu%nti = 0
       w%cu%ipsi = cubepsi_none
-      w%cu%costest = -1d0
       if (nativefield(id)) w%cu%iregion = region_native
 
     end subroutine set_field
@@ -427,12 +426,12 @@ contains
       ! the time the grid takes (not for the nodes of a field or for the
       ! header only, which are not calculated)
       if (w%cu%iregion /= region_native .and..not.w%cu%header) then
-         if (iw_button("Estimate Cost##cubeestimate",disabled=.not.(okbox .and. okfield))) &
-            call estimate_cost()
-         call iw_tooltip("Estimate the time needed to calculate the grid with the selected options",ttshown,&
-            whendisabled=.true.)
-         if (w%cu%costest >= 0d0 .and. all(nn > 0)) &
-            call iw_text("~" // duration_string(w%cu%costest * real(product(int(nn,8)),8)),sameline=.true.,&
+         measure = iw_button("Estimate Cost##cubeestimate",disabled=.not.(okbox .and. okfield))
+         call iw_tooltip("Measure the cost of the quantity, to estimate the time the grid takes (the cost&
+            & of a field is kept with the field and shared by all windows)",ttshown,whendisabled=.true.)
+         costest = quantity_cost(measure)
+         if (costest >= 0d0 .and. all(nn > 0)) &
+            call iw_text("~" // duration_string(costest * real(product(int(nn,8)),8)),sameline=.true.,&
                disabled=.true.)
       end if
 
@@ -444,29 +443,59 @@ contains
 
     end subroutine draw_grid
 
-    !> Measure the cost (seconds per point) of calculating the quantity
-    !> on the region, into w%cu%costest: the grid is calculated on a
-    !> coarse grid over the same box, as the job does, in batches of
-    !> increasing size until the timing is meaningful. An expression
-    !> on the unit cell is first tried on the grids of its fields, as
-    !> the job does; that is timed on the whole grid.
-    subroutine estimate_cost()
+    !> The cost (seconds per point) of the quantity, if known. A
+    !> property of a field is the field's own measured cost (shared
+    !> with the other windows; measured now if measure, over a
+    !> representative domain rather than this region). An expression
+    !> is timed on this region by estimate_cost (if measure) and kept
+    !> in w%cu%costest.
+    function quantity_cost(measure) result(secs)
+      use systems, only: field_cost
+      use rhoplot, only: rhoplot_nti_request
+      logical, intent(in) :: measure
+      real*8 :: secs
+
+      integer :: idq, ntiq
+      character(len=:), allocatable :: qexpr
+
+      if (measure) w%errmsg = ""
+      call quant_eval(w%cu%isexpr,w%cu%expr,ifield,w%cu%nti,idq,qexpr,ntiq)
+      if (idq >= 0) then
+         secs = field_cost(isys,idq,measure,rhoplot_nti_request(ntiq))
+         if (measure .and. secs < 0d0) w%errmsg = "Could not measure the cost of the field"
+      else
+         if (measure) call estimate_cost(idq,qexpr,ntiq)
+         secs = w%cu%costest
+      end if
+
+    end function quantity_cost
+
+    !> Measure the cost (seconds per point) of calculating the
+    !> expression (idq, qexpr, ntiq from quant_eval) on the region,
+    !> into w%cu%costest: it is calculated on a coarse grid over the
+    !> same box, as the job does, in batches of increasing size until
+    !> the timing is meaningful. An expression on the unit cell is
+    !> first tried on the grids of its fields, as the job does; that is
+    !> timed on the whole grid.
+    subroutine estimate_cost(idq,qexpr,ntiq)
       use interfaces_glfw, only: glfwGetTime
       use rhoplot, only: rhoplot_cube_values
       use grid3mod, only: grid3
       use iso_c_binding, only: c_loc
       !$ use omp_lib, only: omp_get_max_threads
-      integer :: j, nb, np(3), nthr, idq, ntiq
+      integer, intent(in) :: idq, ntiq
+      character(len=*), intent(in) :: qexpr
+
+      integer :: j, nb, np(3), nthr
       real*8 :: t, xdp(3,3)
       real*8, allocatable :: lf(:,:,:)
-      character(len=:), allocatable :: errmsg, qexpr
+      character(len=:), allocatable :: errmsg
       type(grid3) :: faux
 
       real*8, parameter :: timetarget = 0.1d0 ! measure until a batch takes this long
       integer, parameter :: nbmax = 40 ! largest batch: nbmax**3 points
 
       w%cu%costest = -1d0
-      w%errmsg = ""
       if (w%cu%isexpr .and. w%cu%iregion == iso_region_cell) then
          t = glfwGetTime()
          call faux%new_eval(c_loc(sys(isys)),c_loc(sys(isys)%c),nn,trim(w%cu%expr),sys(isys)%c%m_x2c)
@@ -476,9 +505,6 @@ contains
             return
          end if
       end if
-
-      ! the quantity, as the job evaluates it
-      call quant_eval(w%cu%isexpr,w%cu%expr,ifield,w%cu%nti,idq,qexpr,ntiq)
 
       ! the kernel runs its threads over the third axis: give it as
       ! many planes as the job has threads

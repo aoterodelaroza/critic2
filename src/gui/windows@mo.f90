@@ -90,7 +90,7 @@ contains
   module subroutine draw_mo(w)
     use gui_main, only: g, fontsize, errmsg_linger
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals
+    use systems, only: sysc, sys, sys_init, ok_system, reload_field_with_virtuals, field_cost
     use representations, only: representation, reptype_isosurface, repflavor_isosurface,&
        iso_isoval_mo, iso_alpha_def, iso_rgb_palette,&
        iso_nlevel, iso_level_label, iso_autogrid_secs
@@ -106,14 +106,14 @@ contains
     logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, havecost, needgrid,&
        okgrid
     integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev, nbelow
-    real*8 :: tsel, tdum
+    real*8 :: tsel, tdum, secs
     character(kind=c_char,len=:), allocatable, target :: s
     character(len=:), allocatable :: label, whynot
     type(ImVec2) :: szavail
     real(c_float) :: width, wdiag, szrow, szrowmin, szrowtab, szbut, wtab, wid(6)
     type(ImVec2) :: szdummy
     real*8 :: unitfactor, alpha8
-    type(field_evaluation_avail) :: av
+    type(field_evaluation_avail) :: av, req
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -346,19 +346,21 @@ contains
             call iw_text("Quality",alignframe=.true.)
 
             ! cost calculations
-            havecost = w%mo_cost%secs > 0d0
-            if (havecost) havecost = w%mo_cost%matches(isys,iref)
+            call req%clear()
+            req%avail(fieldeval_category_mo) = .true.
+            secs = field_cost(isys,iref,.false.,req)
+            havecost = (secs > 0d0 .and. w%mo_cost%matches(isys,iref))
             tsel = 0d0
             s = "Automatic"
             if (havecost) then
-               tsel = mo_quality_cost(w,isys,0,nq)
+               tsel = mo_quality_cost(w,isys,0,nq,secs)
                s = s // " (~" // duration_string(tsel) // ")"
             end if
             s = s // c_null_char
             do ilev = 1, iso_nlevel
                s = s // iso_level_label(ilev)
                if (havecost) then
-                  tdum = mo_quality_cost(w,isys,ilev,nq)
+                  tdum = mo_quality_cost(w,isys,ilev,nq,secs)
                   s = s // " (~" // duration_string(tdum) // ")"
                   if (w%mo_ilevel == ilev) tsel = tdum
                end if
@@ -511,6 +513,7 @@ contains
   !> needed) over the staged region of r. ok is false if the region is
   !> degenerate. Nothing is applied (mo_apply_grid).
   subroutine mo_choose_grid(w,isys,r,n,ok)
+    use systems, only: sys, sysc
     use representations, only: representation, iso_grid_size, iso_region_to_box, iso_defaultlevel
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -518,7 +521,7 @@ contains
     integer, intent(out) :: n(3)
     logical, intent(out) :: ok
 
-    real*8 :: box(3,0:3), tdum
+    real*8 :: box(3,0:3), tdum, secs
 
     ! A degenerate region leaves nothing to sample.
     n = 0
@@ -529,11 +532,13 @@ contains
     end if
     w%mo_cost%box = box
 
-    ! the cost of one sample point, on a grid of the default quality,
-    ! and the grid of the selected quality
+    ! the cost of one sample point (the field's, for one orbital;
+    ! measured now if needed), and the grid of the selected quality
+    secs = r%iso%measure_cost(isys,.true.)
+    w%mo_cost%cuid = sys(isys)%field_cuid(r%iso%fref%id)
+    w%mo_cost%timegeom = sysc(isys)%timelastchange_geometry
     n = iso_grid_size(isys,iso_defaultlevel,box=box)
-    call mo_measure_cost(w,isys,r,n)
-    tdum = mo_quality_cost(w,isys,w%mo_ilevel,n)
+    tdum = mo_quality_cost(w,isys,w%mo_ilevel,n,secs)
 
   end subroutine mo_choose_grid
 
@@ -1800,7 +1805,7 @@ contains
 
   end subroutine mo_message
 
-  !> Whether the cost measurement in c still describes field ifield of
+  !> Whether the grid choice in c still describes field ifield of
   !> system isys: same data of that field (its cuid, unique across
   !> systems), and the geometry has not moved since.
   module function mo_cost_matches(c,isys,ifield)
@@ -1817,21 +1822,22 @@ contains
 
   !> Seconds to sample one orbital of the field window w is showing at
   !> quality ilevel (0 = automatic, else a named level), and the grid n
-  !> that quality resolves to. Uses the box and the per-point cost the
-  !> window has already measured, so it prices a setting without
-  !> committing to it.
-  function mo_quality_cost(w,isys,ilevel,n) result(secs)
+  !> that quality resolves to, given the cost of one sample point
+  !> (tpoint, from the field). Uses the box the window has chosen, so
+  !> it prices a setting without committing to it.
+  function mo_quality_cost(w,isys,ilevel,n,tpoint) result(secs)
     use representations, only: iso_grid_size, iso_defaultlevel, iso_npts_custom_min,&
        iso_npts_custom_max, iso_auto_ptsang, iso_level_ptsang, iso_box_lengths
     type(window), intent(in) :: w
     integer, intent(in) :: isys
     integer, intent(in) :: ilevel
     integer, intent(out) :: n(3)
+    real*8, intent(in) :: tpoint
     real*8 :: secs
 
     if (ilevel == 0) then
        n = iso_grid_size(isys,iso_defaultlevel,box=w%mo_cost%box,&
-          ptsang=iso_auto_ptsang(w%mo_cost%secs,&
+          ptsang=iso_auto_ptsang(tpoint,&
           iso_box_lengths(isys,box=w%mo_cost%box),iso_level_ptsang(iso_defaultlevel)))
        ! within the bounds a custom grid obeys, since that is what the
        ! automatic quality is recorded as
@@ -1839,37 +1845,9 @@ contains
     else
        n = iso_grid_size(isys,ilevel,box=w%mo_cost%box)
     end if
-    secs = w%mo_cost%secs * product(real(n,8))
+    secs = tpoint * product(real(n,8))
 
   end function mo_quality_cost
-
-  !> Measure the cost of one sample point of an MO of system isys, over
-  !> the box representation r samples with n points per axis, and keep it
-  !> on window w, keyed by the field r is bound to. Measured once per
-  !> field and geometry:
-  !> the benchmark itself costs about a tenth of a second, and the answer
-  !> only changes when the wavefunction or the box does.
-  subroutine mo_measure_cost(w,isys,r,n)
-    use systems, only: sys, sysc
-    use representations, only: representation
-    type(window), intent(inout) :: w
-    integer, intent(in) :: isys
-    type(representation), intent(in) :: r
-    integer, intent(in) :: n(3)
-
-    ! keyed without looking at the result: a field the benchmark cannot
-    ! measure must be remembered as such, or it is retried every frame.
-    ! The key is read off the representation that is benchmarked, so the
-    ! cost cannot be stored under a field other than the one measured
-    if (w%mo_cost%matches(isys,r%iso%fref%id)) return
-
-    ! through the representation, which prices what its own sampling
-    ! loop evaluates: one orbital, not the density
-    w%mo_cost%secs = r%iso%measure_cost(isys,n)
-    w%mo_cost%cuid = sys(isys)%field_cuid(r%iso%fref%id)
-    w%mo_cost%timegeom = sysc(isys)%timelastchange_geometry
-
-  end subroutine mo_measure_cost
 
   !> The rectangle that marks a level bar running from x0 to x1 at
   !> height y as selected or hovered.

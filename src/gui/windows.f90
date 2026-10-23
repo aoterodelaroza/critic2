@@ -733,7 +733,7 @@ module windows
      integer :: igrid = igrid_spacing
      integer :: nn(3) = 40
      real*8 :: spacing = 0.1d0
-     ! the measured cost of the quantity (s per point; -1 = not measured)
+     ! the measured cost of an expression (s per point; -1 = not measured); a field's cost is kept on the field
      real*8 :: costest = -1d0
      ! the native grid: the shift of its nodes, and the supercell
      integer :: ishift(3) = 0
@@ -1128,19 +1128,19 @@ module windows
   end type mo_cache_state
   public :: mo_cache_state
 
-  !> What the MO window measured about the cost of sampling one orbital,
-  !> and the state that measurement describes. Grouped so that a system
-  !> change resets it in one assignment: leaving part of the key behind
-  !> lets a new system whose field generation and geometry stamp happen
-  !> to coincide with the old one skip the measurement altogether.
+  !> The grid the MO window chose for sampling one orbital (its box and
+  !> quality) and the field data and geometry that choice describes;
+  !> the cost of a sample point itself is kept on the field. Grouped so
+  !> that a system change resets it in one assignment: leaving part of
+  !> the key behind lets a new system whose field generation and
+  !> geometry stamp happen to coincide with the old one keep the grid.
   type mo_cost_state
-     real*8 :: secs = -1d0 ! cost of one sample point, seconds (< 0 = not measured)
-     integer*8 :: cuid = -1 ! data of the field it was measured for (its cuid)
-     real*8 :: timegeom = -1d0 ! geometry stamp it was measured at
+     integer*8 :: cuid = -1 ! data of the field the grid was chosen for (its cuid)
+     real*8 :: timegeom = -1d0 ! geometry stamp it was chosen at
      real*8 :: box(3,0:3) = 0d0 ! box the transient isosurface samples
      integer :: ilevel_built = -1 ! the mo_ilevel the transient grid was built for
    contains
-     procedure :: matches => mo_cost_matches ! the measurement still describes this system and field
+     procedure :: matches => mo_cost_matches ! the choice still describes this system and field
   end type mo_cost_state
   public :: mo_cost_state
 

@@ -34,6 +34,7 @@ module rhoplot
   public :: rhoplot_plane
   public :: rhoplot_plane_values
   public :: rhoplot_contour_lines
+  public :: rhoplot_nti_request
   public :: rhoplot_grdvec
 
   ! formats of the files written by rhoplot_cube_write
@@ -62,6 +63,11 @@ module rhoplot
      module subroutine rhoplot_line(line)
        character*(*), intent(in) :: line
      end subroutine rhoplot_line
+     pure module function rhoplot_nti_request(nti) result(request)
+       use types, only: field_evaluation_avail
+       integer, intent(in) :: nti
+       type(field_evaluation_avail) :: request
+     end function rhoplot_nti_request
      module subroutine rhoplot_line_values(s,x0,x1,np,id,expr,nti,f,g,errmsg)
        use systemmod, only: system
        type(system), intent(inout) :: s

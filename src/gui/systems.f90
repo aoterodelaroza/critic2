@@ -383,6 +383,7 @@ module systems
   public :: add_system_empty_molecule
   public :: regenerate_system_pointers
   public :: ok_system
+  public :: field_cost
   public :: cp_anchor_make
   public :: cp_anchor_add
   public :: cp_anchor_resolve
@@ -536,6 +537,13 @@ module systems
        integer*8, intent(in), optional :: uid
        logical :: ok_system
      end function ok_system
+     module function field_cost(isys,ifield,measure,request) result(secs)
+       use types, only: field_evaluation_avail
+       integer, intent(in) :: isys, ifield
+       logical, intent(in) :: measure
+       type(field_evaluation_avail), intent(in) :: request
+       real*8 :: secs
+     end function field_cost
      module subroutine scene_file_save(isys,file,errmsg)
        integer, intent(in) :: isys
        character*(*), intent(in) :: file

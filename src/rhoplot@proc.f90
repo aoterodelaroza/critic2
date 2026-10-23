@@ -337,6 +337,25 @@ contains
 
   end subroutine rhoplot_line
 
+  !> The field request that evaluates property nti of a field: the
+  !> value (0), a first derivative (1 to 4: the gradient components and
+  !> its norm) or a second derivative (the rest; as in LINE, PLANE and
+  !> CUBE).
+  pure module function rhoplot_nti_request(nti) result(request)
+    use types, only: field_evaluation_avail
+    integer, intent(in) :: nti
+    type(field_evaluation_avail) :: request
+
+    if (nti == 0) then
+       call request%field_only()
+    elseif (nti >= 1 .and. nti <= 4) then
+       call request%field_nder1()
+    else
+       call request%field_nder2()
+    end if
+
+  end function rhoplot_nti_request
+
   !> Calculate the values of a field along the line from x0 to x1
   !> (Cartesian, bohr, cell frame of system s) at np points. If id
   !> >= 0, use field id and return its value in f and the property
@@ -362,14 +381,7 @@ contains
     type(field_evaluation_avail) :: request
     character(len=:), allocatable :: lerrmsg
 
-    ! request selector
-    if (nti == 0) then
-       call request%field_only()
-    elseif (nti >= 1 .and. nti <= 4) then
-       call request%field_nder1()
-    else
-       call request%field_nder2()
-    end if
+    request = rhoplot_nti_request(nti)
 
     ! calculate the line; the private error string is in a vstring:
     ! gfortran mishandles private deferred-length character variables
@@ -853,14 +865,7 @@ contains
        end if
     end if
 
-    ! request selector
-    if (nti == 0) then
-       call request%field_only()
-    elseif (nti >= 1 .and. nti <= 4) then
-       call request%field_nder1()
-    else
-       call request%field_nder2()
-    end if
+    request = rhoplot_nti_request(nti)
 
     ! calculate the cube; the private error string is in a vstring:
     ! gfortran mishandles private deferred-length character variables
@@ -1448,14 +1453,7 @@ contains
     progress_ = .false.
     if (present(progress)) progress_ = progress
 
-    ! request selector
-    if (nti == 0) then
-       call request%field_only()
-    elseif (nti >= 1 .and. nti <= 4) then
-       call request%field_nder1()
-    else
-       call request%field_nder2()
-    end if
+    request = rhoplot_nti_request(nti)
 
     ! calculate the plane; the private error string is in a vstring:
     ! gfortran mishandles private deferred-length character variables
@@ -2002,13 +2000,7 @@ contains
        x0 = sy%c%x2c(r0)
        uu = sy%c%x2c((r1-r0) / real(n1-1,8))
        vv = sy%c%x2c((r2-r0) / real(n2-1,8))
-       if (nfi == 0) then
-          call request%field_only()
-       else if (nfi >= 1 .and. nfi <= 4) then
-          call request%field_nder1()
-       else
-          call request%field_nder2()
-       end if
+       request = rhoplot_nti_request(nfi)
        !$omp parallel do private(xp,res,rhopt) schedule(dynamic)
        do ix = 1, n1
           do iy = 1, n2
