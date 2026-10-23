@@ -65,8 +65,13 @@ module fhiaims_private
      integer, allocatable :: ifile(:) !< file-order index (within the species block) of each local basis function
   end type fhiaimsspecies
 
-  !> FHI-aims wavefunction, stored as a block-sparse real-space
-  !> density matrix (summed over spins and k-points):
+  !> FHI-aims wavefunction. With real eigenvectors at Gamma only
+  !> (molecules, Gamma-only crystals) and fewer occupied orbitals
+  !> than local basis functions, the occupied orbitals are kept (cs,
+  !> scaled by the square root of the occupation) and rho = sum_n
+  !> |psi_n|^2 is evaluated directly. Everything else is stored as a
+  !> block-sparse real-space density matrix (summed over spins and
+  !> k-points):
   !>   rho(r) = sum_{aT,bT'} phi_aT(r) D_ab(T-T') phi_bT'(r)
   !> for basis functions on atoms a, b (FHI-aims order) in cells T,
   !> T'. Only one of each pair of transposed blocks D_ab(dT) =
@@ -86,10 +91,14 @@ module fhiaims_private
      integer :: lmax !< maximum angular momentum over all species
      type(fhiaimsspecies), allocatable :: spc(:) !< species
      integer, allocatable :: ispc(:) !< species of each FHI-aims atom
+     integer, allocatable :: ibas0(:) !< first basis function of each FHI-aims atom minus one
      ! mapping to the critic2 cell atoms
      integer, allocatable :: iaims(:) !< FHI-aims atom for each critic2 cell atom
      integer, allocatable :: ioff(:,:) !< aims position = critic2 position + ioff (lattice)
      real*8, allocatable :: spcutoff(:,:) !< cutoff for list_near_atoms (c%nspc,2)
+     ! occupied orbitals (orbital route)
+     integer :: nocc !< number of occupied orbitals (all spins)
+     real*8, allocatable :: cs(:,:) !< sqrt(occ) * coefficients (nbas,nocc), rows in local basis order
      ! density matrix blocks
      integer :: nblk !< number of blocks
      integer :: tmax(3) !< lattice vectors of the blocks run from -tmax to tmax
@@ -98,6 +107,7 @@ module fhiaims_private
      integer, allocatable :: blkt(:,:) !< lattice vector dT of each block (3,nblk)
      integer, allocatable :: blkkey(:) !< integer key of dT, increasing within a pair
      integer*8, allocatable :: blkoff(:) !< offset of each block in dm
+     real*8, allocatable :: blknorm(:) !< largest element of each block
      real*8, allocatable :: dm(:) !< density matrix blocks, column-major (nbas_a,nbas_b)
      type(c_ptr) :: cptr !< pointer to the crystal structure
    contains

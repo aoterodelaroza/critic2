@@ -1951,8 +1951,12 @@ contains
           write (uout,'("  Number of basis functions: ",A)') string(f%fhiaims%nbas)
           write (uout,'("  Number of kpoints: ",A)') string(f%fhiaims%nkpt)
           write (uout,'("  Real wavefunction? ",L)') f%fhiaims%isreal
-          write (uout,'("  Density matrix blocks: ",A," (",A," MB)")') string(f%fhiaims%nblk),&
-             string(size(f%fhiaims%dm,1,kind=8)*8d0/1024d0**2,'f',decimal=1)
+          if (allocated(f%fhiaims%cs)) then
+             write (uout,'("  Occupied orbitals: ",A)') string(f%fhiaims%nocc)
+          else
+             write (uout,'("  Density matrix blocks: ",A," (",A," MB)")') string(f%fhiaims%nblk),&
+                string(size(f%fhiaims%dm,1,kind=8)*8d0/1024d0**2,'f',decimal=1)
+          end if
        end if
     elseif (f%type == type_promol_frag) then
        if (isload) then

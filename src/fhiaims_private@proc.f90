@@ -24,7 +24,11 @@ submodule (fhiaims_private) proc
   ! subroutine check_kgrid(nkxyz,kpt,errmsg)
   ! subroutine map_atoms(f,c,lat,xat,errmsg)
   ! subroutine build_blocks(f,c,xat)
-  ! subroutine accumulate_dm(f,evk,occ,kpt,wk,nsv,ibas0)
+  ! subroutine accumulate_dm(f,evk,occ,kpt,wk,nsv)
+  ! function max_nloc(f,c) result(nloc)
+  ! subroutine block_norms(f)
+  ! subroutine blockmul(op,m,n,k,a,lda,b,ldb,beta,c,ldc)
+  ! subroutine accum_props(x,y,nder,rho,grad,h,gkin)
   ! function lexneg(t)
   ! function block_key(f,dt) result(key)
   ! function find_block(f,a,b,dt,trans) result(ib)
@@ -42,6 +46,9 @@ submodule (fhiaims_private) proc
   real*8, parameter :: occ_cutoff = 1d-14
   ! tolerance for comparing lattice vectors (bohr)
   real*8, parameter :: lat_eps = 1d-3
+  ! a pair of atoms is skipped at a point if the bound on its
+  ! contribution, |D|max * sum|p_a| * sum|p_b|, is below this
+  real*8, parameter :: dm_pairthr = 1d-14
 
 contains
 
@@ -248,6 +255,8 @@ contains
 
     if (allocated(f%spc)) deallocate(f%spc)
     if (allocated(f%ispc)) deallocate(f%ispc)
+    if (allocated(f%ibas0)) deallocate(f%ibas0)
+    if (allocated(f%cs)) deallocate(f%cs)
     if (allocated(f%iaims)) deallocate(f%iaims)
     if (allocated(f%ioff)) deallocate(f%ioff)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
@@ -256,7 +265,9 @@ contains
     if (allocated(f%blkt)) deallocate(f%blkt)
     if (allocated(f%blkkey)) deallocate(f%blkkey)
     if (allocated(f%blkoff)) deallocate(f%blkoff)
+    if (allocated(f%blknorm)) deallocate(f%blknorm)
     if (allocated(f%dm)) deallocate(f%dm)
+    f%nocc = 0
     f%nblk = 0
     f%cptr = c_null_ptr
 
@@ -264,11 +275,15 @@ contains
 
   !> Read an FHI-aims wavefunction from the dgrid_aims.dat file
   !> (output dgrid keyword in control.in), map its atoms to the
-  !> structure in cptr, and build the real-space density matrix. The
-  !> lattice vectors and k-points, which the file keeps after the
-  !> eigenvectors, are read first from the tail of the file; the
-  !> eigenvectors are then streamed one k-point and spin at a time,
-  !> so only one set of them is in memory.
+  !> structure in cptr, and build the real-space density matrix or,
+  !> when that is cheaper, keep the occupied orbitals (real
+  !> eigenvectors at Gamma only, non-negative occupations, and fewer
+  !> occupied orbitals than local basis functions at the atoms: the
+  !> orbital route costs nocc*nloc per point, the density matrix
+  !> ~nloc^2/2). The lattice vectors and k-points, which the file
+  !> keeps after the eigenvectors, are read first from the tail of
+  !> the file; the eigenvectors are then streamed one k-point and
+  !> spin at a time, so only one set of them is in memory.
   module subroutine fhiaims_read(f,cptr,file,errmsg,ti)
     use crystalmod, only: crystal
     use iso_c_binding, only: c_f_pointer
@@ -279,9 +294,9 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, i, k, is, nsv, ios
+    integer :: lu, i, k, is, nsv, ios, icol, nocc
     type(dgrid_header) :: hdr
-    integer, allocatable :: ngrid(:), ibas0(:)
+    integer, allocatable :: ngrid(:), iperm(:)
     character*20, allocatable :: spcname(:)
     real*8, allocatable :: occ(:,:,:), xat(:,:), xr(:), kpt(:,:), wk(:)
     complex*16, allocatable :: evk(:,:)
@@ -324,41 +339,64 @@ contains
        if (len_trim(errmsg) > 0) goto 999
     end if
 
-    ! map the atoms and set up the density matrix blocks
+    ! map the atoms
     call map_atoms(f,c,lat,xat,errmsg)
     if (len_trim(errmsg) > 0) goto 999
-    call build_blocks(f,c,xat)
-    allocate(ibas0(f%nat))
+    if (allocated(f%ibas0)) deallocate(f%ibas0)
+    allocate(f%ibas0(f%nat),iperm(f%nbas))
     k = 0
     do i = 1, f%nat
-       ibas0(i) = k
+       f%ibas0(i) = k
+       ! file-order index of each local (sorted) basis function
+       iperm(k+1:k+f%spc(f%ispc(i))%nbas) = k + f%spc(f%ispc(i))%ifile
        k = k + f%spc(f%ispc(i))%nbas
     end do
 
-    ! eigenvectors: accumulate the density matrix per k-point and spin
     errmsg = "Error reading the eigenvectors of the dgrid file: " // trim(file)
-    allocate(evk(f%nbas,nsv))
-    if (f%isreal) then
-       allocate(xr(f%nbas))
-    else
-       allocate(xr(2*f%nbas))
-    end if
-    do k = 1, f%nkpt
+    nocc = count(occ(:,:,1) > occ_cutoff)
+    if (f%isreal .and. f%nkpt == 1 .and. all(abs(kpt(:,1)) < 1d-10) .and. all(occ >= -occ_cutoff) .and.&
+       nocc <= max_nloc(f,c)) then
+       ! occupied orbitals, scaled by sqrt(occ), rows in local order
+       f%nocc = nocc
+       if (allocated(f%cs)) deallocate(f%cs)
+       allocate(f%cs(f%nbas,f%nocc),xr(f%nbas))
+       icol = 0
        do is = 1, f%nspin
-          ! only the states up to the last occupied one are kept
           do i = 1, f%nstates
              read (lu,*,iostat=ios) xr
              if (ios /= 0) goto 999
-             if (i > nsv) cycle
-             if (f%isreal) then
-                evk(:,i) = xr
-             else
-                evk(:,i) = cmplx(xr(1::2),xr(2::2),8)
-             end if
+             if (occ(i,is,1) <= occ_cutoff) cycle
+             icol = icol + 1
+             f%cs(:,icol) = xr(iperm) * sqrt(occ(i,is,1) * wk(1))
           end do
-          call accumulate_dm(f,evk,occ(:,is,k),kpt(:,k),wk(k),nsv,ibas0)
        end do
-    end do
+    else
+       ! density matrix, accumulated per k-point and spin
+       call build_blocks(f,c,xat)
+       allocate(evk(f%nbas,nsv))
+       if (f%isreal) then
+          allocate(xr(f%nbas))
+       else
+          allocate(xr(2*f%nbas))
+       end if
+       do k = 1, f%nkpt
+          do is = 1, f%nspin
+             ! only the states up to the last occupied one are kept
+             do i = 1, f%nstates
+                read (lu,*,iostat=ios) xr
+                if (ios /= 0) goto 999
+                if (i > nsv) cycle
+                if (f%isreal) then
+                   evk(:,i) = xr
+                else
+                   evk(:,i) = cmplx(xr(1::2),xr(2::2),8)
+                end if
+             end do
+             call accumulate_dm(f,evk,occ(:,is,k),kpt(:,k),wk(k),nsv)
+          end do
+       end do
+       call block_norms(f)
+    end if
     call fclose(lu)
 
     errmsg = ""
@@ -388,13 +426,13 @@ contains
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
     integer :: nenv, ion, nenvl, ia, is, ifn, l, m, iy, ip, im, iloc, ispl
-    integer :: nloc, nd, ie, je, ib, i, k, k1, k2, ir, ic, nr, nc, mr, mc, n, np, nbmax, maxrun, dt(3)
+    integer :: nloc, nd, ndw, ie, je, ib, k, k1, k2, ir, ic, nr, mr, mc, n, np, nbmax, maxrun, dt(3)
     logical :: trans
     real*8 :: r, tp(2), u, up, upp, rr, rp, rpp, dspl, tspl, iphas
     integer, allocatable :: eid(:), lvec(:,:), iat(:), tvec(:,:), loc0(:), nact(:)
     integer, allocatable :: pib(:), pir(:), pic(:), iord(:)
     logical, allocatable :: pboth(:)
-    real*8, allocatable :: dist(:), xenv(:,:), rc(:), p(:,:), phipp(:,:), w(:,:), g(:,:), wk(:,:)
+    real*8, allocatable :: dist(:), xenv(:,:), rc(:), psum(:), p(:,:), w(:,:), g(:,:), wk(:,:), psi(:,:)
     complex*16, allocatable :: ylm(:)
     complex*16 :: xgrad(3), xhess(6)
     type(crystal), pointer :: c
@@ -427,21 +465,19 @@ contains
     loc0(nenvl+1) = nloc
     if (nenvl == 0) return
 
-    ! values and gradients of the local basis functions: p(:,1) =
-    ! phi, p(:,2:4) = grad phi; second derivatives in phipp
+    ! values and derivatives of the local basis functions: p(:,1) =
+    ! phi, p(:,2:4) = grad phi, p(:,5:10) = second derivatives
+    ! (xx,xy,xz,yy,yz,zz)
     nd = 1
     if (nder >= 1) nd = 4
-    allocate(p(nloc,nd),ylm((f%lmax+3)**2))
+    if (nder >= 2) nd = 10
+    allocate(p(nloc,nd),ylm((f%lmax+nder+1)**2))
     p = 0d0
-    if (nder >= 2) then
-       allocate(phipp(6,nloc))
-       phipp = 0d0
-    end if
     do ie = 1, nenvl
        is = f%ispc(iat(ie))
        call tosphere(xenv(:,ie),r,tp)
        r = max(r,mindist)
-       call genylm(f%spc(is)%lmax+2,tp,ylm)
+       call genylm(f%spc(is)%lmax+nder,tp,ylm)
        call radial_index(f%spc(is),r,ispl,dspl,tspl)
 
        iloc = loc0(ie)
@@ -465,7 +501,7 @@ contains
           call ylmderiv(ylm,r,l,0,rr,rp,rpp,nder,xgrad,xhess)
           p(ip,1) = rr * real(ylm(iy),8)
           if (nder >= 1) p(ip,2:4) = real(xgrad,8)
-          if (nder >= 2) phipp(:,ip) = real(xhess,8)
+          if (nder >= 2) p(ip,5:10) = real(xhess,8)
           iphas = 1d0
           do m = 1, l
              iphas = -iphas
@@ -478,8 +514,8 @@ contains
              p(ip,2:4) = sqrt2 * real(xgrad,8)
              p(im,2:4) = sqrt2 * iphas * aimag(xgrad)
              if (nder < 2) cycle
-             phipp(:,ip) = sqrt2 * real(xhess,8)
-             phipp(:,im) = sqrt2 * iphas * aimag(xhess)
+             p(ip,5:10) = sqrt2 * real(xhess,8)
+             p(im,5:10) = sqrt2 * iphas * aimag(xhess)
           end do
           iloc = iloc + 2*l+1
        end do
@@ -487,10 +523,30 @@ contains
        nact(ie) = iloc - loc0(ie)
     end do
 
+    if (allocated(f%cs)) then
+       ! orbital route: psi(n,:) = sqrt(f_n) sum_i c_in p(i,:)
+       if (f%nocc == 0) return
+       allocate(psi(f%nocc,nd))
+       psi = 0d0
+       do ie = 1, nenvl
+          call blockmul('T',f%nocc,nd,nact(ie),f%cs(f%ibas0(iat(ie))+1,1),f%nbas,&
+             p(loc0(ie)+1,1),nloc,1d0,psi,f%nocc)
+       end do
+       call accum_props(psi,psi,nder,rho,grad,h,gkin)
+       return
+    end if
+
     ! the pairs of environment atoms that share a block: the pair
-    ! (ir,ic) reads the stored block as rows of ir and columns of ic
-    allocate(w(nloc,nd))
+    ! (ir,ic) reads the stored block as rows of ir and columns of ic;
+    ! pairs whose contribution, bounded by |D|max sum|p_a| sum|p_b|,
+    ! is below threshold are skipped (only the values and gradients
+    ! enter the products)
+    ndw = min(nd,4)
+    allocate(w(nloc,ndw),psum(nenvl))
     w = 0d0
+    do ie = 1, nenvl
+       psum(ie) = sum(abs(p(loc0(ie)+1:loc0(ie)+nact(ie),1:ndw)))
+    end do
     allocate(pib(nenvl*(nenvl+1)/2),pir(nenvl*(nenvl+1)/2),pic(nenvl*(nenvl+1)/2),pboth(nenvl*(nenvl+1)/2))
     np = 0
     do ie = 1, nenvl
@@ -499,6 +555,7 @@ contains
           dt = tvec(:,ie) - tvec(:,je)
           ib = find_block(f,iat(ie),iat(je),dt,trans)
           if (ib == 0) cycle
+          if (f%blknorm(ib) * psum(ie) * psum(je) < dm_pairthr) cycle
           np = np + 1
           pib(np) = ib
           if (trans) then
@@ -516,7 +573,9 @@ contains
     ! contract with the density matrix, w = D p, one stored block at a
     ! time for all the pairs that use it (in a small cell, several),
     ! on the leading sub-block of the functions that are non-zero at
-    ! the point; the transposed product gives the (ic,ir) contribution
+    ! the point; the transposed product gives the (ic,ir) contribution.
+    ! A block used by one pair multiplies p into w directly; several
+    ! pairs gather their columns in g and scatter the product from wk.
     allocate(iord(np))
     do k = 1, np
        iord(k) = k
@@ -529,7 +588,7 @@ contains
        maxrun = max(maxrun,k - k1 + 1)
     end do
     nbmax = maxval(f%spc(:)%nbas)
-    allocate(g(nbmax,maxrun*nd),wk(nbmax,maxrun*nd))
+    if (maxrun > 1) allocate(g(nbmax,maxrun*ndw),wk(nbmax,maxrun*ndw))
     k1 = 1
     do while (k1 <= np)
        ib = pib(iord(k1))
@@ -541,7 +600,15 @@ contains
        ir = pir(iord(k1))
        ic = pic(iord(k1))
        nr = loc0(ir+1) - loc0(ir)
-       nc = loc0(ic+1) - loc0(ic)
+       if (k2 == k1) then
+          mr = nact(ir)
+          mc = nact(ic)
+          call blockmul('N',mr,ndw,mc,f%dm(f%blkoff(ib)+1),nr,p(loc0(ic)+1,1),nloc,1d0,w(loc0(ir)+1,1),nloc)
+          if (pboth(iord(k1))) &
+             call blockmul('T',mc,ndw,mr,f%dm(f%blkoff(ib)+1),nr,p(loc0(ir)+1,1),nloc,1d0,w(loc0(ic)+1,1),nloc)
+          k1 = k2 + 1
+          cycle
+       end if
        mr = 0
        mc = 0
        do k = k1, k2
@@ -553,15 +620,15 @@ contains
        n = 0
        do k = k1, k2
           ic = pic(iord(k))
-          g(1:mc,n+1:n+nd) = p(loc0(ic)+1:loc0(ic)+mc,1:nd)
-          n = n + nd
+          g(1:mc,n+1:n+ndw) = p(loc0(ic)+1:loc0(ic)+mc,1:ndw)
+          n = n + ndw
        end do
-       call dgemm('N','N',mr,n,mc,1d0,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
+       call blockmul('N',mr,n,mc,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
        n = 0
        do k = k1, k2
           ir = pir(iord(k))
-          w(loc0(ir)+1:loc0(ir)+mr,1:nd) = w(loc0(ir)+1:loc0(ir)+mr,1:nd) + wk(1:mr,n+1:n+nd)
-          n = n + nd
+          w(loc0(ir)+1:loc0(ir)+mr,:) = w(loc0(ir)+1:loc0(ir)+mr,:) + wk(1:mr,n+1:n+ndw)
+          n = n + ndw
        end do
 
        ! columns of ic: D^T * p(ir), for the pairs of two different atoms
@@ -569,43 +636,23 @@ contains
        do k = k1, k2
           if (.not.pboth(iord(k))) cycle
           ir = pir(iord(k))
-          g(1:mr,n+1:n+nd) = p(loc0(ir)+1:loc0(ir)+mr,1:nd)
-          n = n + nd
+          g(1:mr,n+1:n+ndw) = p(loc0(ir)+1:loc0(ir)+mr,1:ndw)
+          n = n + ndw
        end do
        if (n > 0) then
-          call dgemm('T','N',mc,n,mr,1d0,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
+          call blockmul('T',mc,n,mr,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
           n = 0
           do k = k1, k2
              if (.not.pboth(iord(k))) cycle
              ic = pic(iord(k))
-             w(loc0(ic)+1:loc0(ic)+mc,1:nd) = w(loc0(ic)+1:loc0(ic)+mc,1:nd) + wk(1:mc,n+1:n+nd)
-             n = n + nd
+             w(loc0(ic)+1:loc0(ic)+mc,:) = w(loc0(ic)+1:loc0(ic)+mc,:) + wk(1:mc,n+1:n+ndw)
+             n = n + ndw
           end do
        end if
        k1 = k2 + 1
     end do
 
-    ! accumulate properties
-    rho = dot_product(p(:,1),w(:,1))
-    if (nder >= 1) then
-       do i = 1, 3
-          grad(i) = 2d0 * dot_product(p(:,1+i),w(:,1))
-          gkin = gkin + 0.5d0 * dot_product(p(:,1+i),w(:,1+i))
-       end do
-    end if
-    if (nder >= 2) then
-       do i = 1, nloc
-          h(1,1) = h(1,1) + 2d0 * (phipp(1,i) * w(i,1) + p(i,2) * w(i,2))
-          h(1,2) = h(1,2) + 2d0 * (phipp(2,i) * w(i,1) + p(i,2) * w(i,3))
-          h(1,3) = h(1,3) + 2d0 * (phipp(3,i) * w(i,1) + p(i,2) * w(i,4))
-          h(2,2) = h(2,2) + 2d0 * (phipp(4,i) * w(i,1) + p(i,3) * w(i,3))
-          h(2,3) = h(2,3) + 2d0 * (phipp(5,i) * w(i,1) + p(i,3) * w(i,4))
-          h(3,3) = h(3,3) + 2d0 * (phipp(6,i) * w(i,1) + p(i,4) * w(i,4))
-       end do
-       h(2,1) = h(1,2)
-       h(3,1) = h(1,3)
-       h(3,2) = h(2,3)
-    end if
+    call accum_props(p,w,nder,rho,grad,h,gkin)
 
   end subroutine rho2
 
@@ -967,9 +1014,8 @@ contains
   !>   D_ij(dT) += Re wk sum_n occ_n c_in c_jn^* exp(2 pi i k.dT)
   !> The real part is exact: the imaginary parts cancel in the
   !> symmetric sum over basis function pairs. Only the columns of the
-  !> atoms b >= a that share a block with a are computed. ibas0 is
-  !> the first basis function of each atom minus one.
-  subroutine accumulate_dm(f,evk,occ,kpt,wk,nsv,ibas0)
+  !> atoms b >= a that share a block with a are computed.
+  subroutine accumulate_dm(f,evk,occ,kpt,wk,nsv)
     use param, only: tpi, img
     type(fhiaimswfn), intent(inout) :: f
     complex*16, intent(in) :: evk(:,:)
@@ -977,7 +1023,6 @@ contains
     real*8, intent(in) :: kpt(3)
     real*8, intent(in) :: wk
     integer, intent(in) :: nsv
-    integer, intent(in) :: ibas0(:)
 
     integer :: a, b, na, nb, a0, b0, n, ib, ncol
     integer*8 :: off
@@ -997,7 +1042,7 @@ contains
 
     do a = 1, f%nat
        na = f%spc(f%ispc(a))%nbas
-       a0 = ibas0(a)
+       a0 = f%ibas0(a)
 
        ! gather the eigenvector rows of a and of its neighbours, in the
        ! local (sorted) order of the basis functions
@@ -1016,7 +1061,7 @@ contains
        do b = a, f%nat
           if (f%pairn(a,b) == 0) cycle
           nb = f%spc(f%ispc(b))%nbas
-          b0 = ibas0(b)
+          b0 = f%ibas0(b)
           en(col0(b)+1:col0(b)+nb,:) = evk(b0 + f%spc(f%ispc(b))%ifile,1:nsv)
        end do
 
@@ -1036,6 +1081,112 @@ contains
     end do
 
   end subroutine accumulate_dm
+
+  !> Largest number of local basis functions (those of the atoms
+  !> within their cutoff) at an atomic position, the densest points:
+  !> an estimate of nloc in rho2.
+  function max_nloc(f,c) result(nloc)
+    use crystalmod, only: crystal
+    use param, only: icrd_cart
+    type(fhiaimswfn), intent(in) :: f
+    type(crystal), intent(inout) :: c
+    integer :: nloc
+
+    integer :: e, ion, nenv, ia, n
+    integer, allocatable :: eid(:), lvec(:,:)
+    real*8, allocatable :: dist(:)
+
+    nloc = 0
+    do e = 1, c%ncel
+       call c%list_near_atoms(c%atcel(e)%r,icrd_cart,.false.,nenv,eid,dist,lvec,up2dsp=f%spcutoff)
+       n = 0
+       do ion = 1, nenv
+          ia = f%iaims(eid(ion))
+          if (dist(ion) <= f%spc(f%ispc(ia))%rcut) n = n + f%spc(f%ispc(ia))%nbas
+       end do
+       nloc = max(nloc,n)
+    end do
+
+  end function max_nloc
+
+  !> Largest element of each density matrix block, for the pair
+  !> screening in rho2.
+  subroutine block_norms(f)
+    type(fhiaimswfn), intent(inout) :: f
+
+    integer :: a, b, ib, n
+    integer*8 :: off
+
+    if (allocated(f%blknorm)) deallocate(f%blknorm)
+    allocate(f%blknorm(f%nblk))
+    do a = 1, f%nat
+       do b = a, f%nat
+          n = f%spc(f%ispc(a))%nbas * f%spc(f%ispc(b))%nbas
+          do ib = f%pair0(a,b), f%pair0(a,b) + f%pairn(a,b) - 1
+             off = f%blkoff(ib)
+             f%blknorm(ib) = maxval(abs(f%dm(off+1:off+n)))
+          end do
+       end do
+    end do
+
+  end subroutine block_norms
+
+  !> C = op(A) B + beta C, with op(A) = A (op = 'N', A is m x k) or
+  !> A^T (op = 'T', A is k x m) and B k x n. A single column goes
+  !> through dgemv: dgemm spends most of its time packing A when n
+  !> is small (per-column dgemv is slower again from n = 4).
+  subroutine blockmul(op,m,n,k,a,lda,b,ldb,beta,c,ldc)
+    character*1, intent(in) :: op
+    integer, intent(in) :: m, n, k, lda, ldb, ldc
+    real*8, intent(in) :: a(lda,*), b(ldb,*)
+    real*8, intent(in) :: beta
+    real*8, intent(inout) :: c(ldc,*)
+
+    if (n > 1) then
+       call dgemm(op,'N',m,n,k,1d0,a,lda,b,ldb,beta,c,ldc)
+    elseif (op == 'N') then
+       call dgemv('N',m,k,1d0,a,lda,b,1,beta,c,1)
+    else
+       call dgemv('T',k,m,1d0,a,lda,b,1,beta,c,1)
+    end if
+
+  end subroutine blockmul
+
+  !> Density and derivatives from two sets of columns x and y, where
+  !> column 1 is the value, 2:4 the gradient and 5:10 the second
+  !> derivatives (xx,xy,xz,yy,yz,zz), of basis functions and their
+  !> density matrix contraction (x = p, y = D p) or of the orbitals
+  !> (x = y = psi): rho = x1.y1, grad = 2 x_i.y1, G = 1/2 x_i.y_i,
+  !> H_ij = 2 (x_ij.y1 + x_i.y_j).
+  subroutine accum_props(x,y,nder,rho,grad,h,gkin)
+    real*8, intent(in) :: x(:,:), y(:,:)
+    integer, intent(in) :: nder
+    real*8, intent(out) :: rho, grad(3), h(3,3), gkin
+
+    integer :: i, j, k
+
+    rho = dot_product(x(:,1),y(:,1))
+    grad = 0d0
+    h = 0d0
+    gkin = 0d0
+    if (nder >= 1) then
+       do i = 1, 3
+          grad(i) = 2d0 * dot_product(x(:,1+i),y(:,1))
+          gkin = gkin + 0.5d0 * dot_product(x(:,1+i),y(:,1+i))
+       end do
+    end if
+    if (nder >= 2) then
+       k = 4
+       do i = 1, 3
+          do j = i, 3
+             k = k + 1
+             h(i,j) = 2d0 * (dot_product(x(:,k),y(:,1)) + dot_product(x(:,1+i),y(:,1+j)))
+             h(j,i) = h(i,j)
+          end do
+       end do
+    end if
+
+  end subroutine accum_props
 
   !> True if the first non-zero component of the integer vector is
   !> negative.
