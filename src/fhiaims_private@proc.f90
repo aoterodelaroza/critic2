@@ -377,6 +377,7 @@ contains
     use crystalmod, only: crystal
     use iso_c_binding, only: c_f_pointer
     use tools_math, only: tosphere, genylm, ylmderiv
+    use tools, only: qcksort
     use param, only: icrd_cart
     class(fhiaimswfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
@@ -387,11 +388,13 @@ contains
     real*8, intent(out) :: gkin !< G(r), kinetic energy density
 
     integer :: nenv, ion, nenvl, ia, is, ifn, l, m, iy, ip, im, iloc, ispl
-    integer :: nloc, nd, ie, je, ib, i, ir, ic, nr, nc, dt(3)
+    integer :: nloc, nd, ie, je, ib, i, k, k1, k2, ir, ic, nr, nc, mr, mc, n, np, nbmax, maxrun, dt(3)
     logical :: trans
     real*8 :: r, tp(2), u, up, upp, rr, rp, rpp, dspl, tspl, iphas
-    integer, allocatable :: eid(:), lvec(:,:), iat(:), tvec(:,:), loc0(:)
-    real*8, allocatable :: dist(:), xenv(:,:), rc(:), p(:,:), phipp(:,:), w(:,:)
+    integer, allocatable :: eid(:), lvec(:,:), iat(:), tvec(:,:), loc0(:), nact(:)
+    integer, allocatable :: pib(:), pir(:), pic(:), iord(:)
+    logical, allocatable :: pboth(:)
+    real*8, allocatable :: dist(:), xenv(:,:), rc(:), p(:,:), phipp(:,:), w(:,:), g(:,:), wk(:,:)
     complex*16, allocatable :: ylm(:)
     complex*16 :: xgrad(3), xhess(6)
     type(crystal), pointer :: c
@@ -407,7 +410,7 @@ contains
     call c_f_pointer(f%cptr,c)
     call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,up2dsp=f%spcutoff)
     if (nenv == 0) return
-    allocate(iat(nenv),tvec(3,nenv),loc0(nenv+1),xenv(3,nenv),rc(nenv))
+    allocate(iat(nenv),tvec(3,nenv),loc0(nenv+1),xenv(3,nenv),rc(nenv),nact(nenv))
     nenvl = 0
     nloc = 0
     do ion = 1, nenv
@@ -444,10 +447,8 @@ contains
        iloc = loc0(ie)
        do ifn = 1, f%spc(is)%nfn
           l = f%spc(is)%fn(ifn)%l
-          if (r > f%spc(is)%fn(ifn)%rcut) then
-             iloc = iloc + 2*l+1
-             cycle
-          end if
+          ! by decreasing outer radius: this and the rest are zero here
+          if (r > f%spc(is)%fn(ifn)%rcut) exit
 
           ! radial part, R = u/r
           call radial_eval(f%spc(is),ifn,r,ispl,dspl,tspl,nder,u,up,upp)
@@ -482,31 +483,106 @@ contains
           end do
           iloc = iloc + 2*l+1
        end do
+       ! the functions of this atom that are non-zero at the point
+       nact(ie) = iloc - loc0(ie)
     end do
 
-    ! contract with the density matrix, w = D p, one stored block at
-    ! a time; the transposed block gives the (q,p) contribution
+    ! the pairs of environment atoms that share a block: the pair
+    ! (ir,ic) reads the stored block as rows of ir and columns of ic
     allocate(w(nloc,nd))
     w = 0d0
+    allocate(pib(nenvl*(nenvl+1)/2),pir(nenvl*(nenvl+1)/2),pic(nenvl*(nenvl+1)/2),pboth(nenvl*(nenvl+1)/2))
+    np = 0
     do ie = 1, nenvl
        do je = ie, nenvl
           if (norm2(xenv(:,ie)-xenv(:,je)) > rc(ie) + rc(je)) cycle
           dt = tvec(:,ie) - tvec(:,je)
           ib = find_block(f,iat(ie),iat(je),dt,trans)
           if (ib == 0) cycle
+          np = np + 1
+          pib(np) = ib
           if (trans) then
-             ir = je
-             ic = ie
+             pir(np) = je
+             pic(np) = ie
           else
-             ir = ie
-             ic = je
+             pir(np) = ie
+             pic(np) = je
           end if
-          nr = loc0(ir+1) - loc0(ir)
-          nc = loc0(ic+1) - loc0(ic)
-          call dgemm('N','N',nr,nd,nc,1d0,f%dm(f%blkoff(ib)+1),nr,p(loc0(ic)+1,1),nloc,1d0,w(loc0(ir)+1,1),nloc)
-          if (ie /= je) &
-             call dgemm('T','N',nc,nd,nr,1d0,f%dm(f%blkoff(ib)+1),nr,p(loc0(ir)+1,1),nloc,1d0,w(loc0(ic)+1,1),nloc)
+          pboth(np) = (ie /= je)
        end do
+    end do
+    if (np == 0) return
+
+    ! contract with the density matrix, w = D p, one stored block at a
+    ! time for all the pairs that use it (in a small cell, several),
+    ! on the leading sub-block of the functions that are non-zero at
+    ! the point; the transposed product gives the (ic,ir) contribution
+    allocate(iord(np))
+    do k = 1, np
+       iord(k) = k
+    end do
+    call qcksort(pib,iord,1,np)
+    maxrun = 1
+    k1 = 1
+    do k = 2, np
+       if (pib(iord(k)) /= pib(iord(k1))) k1 = k
+       maxrun = max(maxrun,k - k1 + 1)
+    end do
+    nbmax = maxval(f%spc(:)%nbas)
+    allocate(g(nbmax,maxrun*nd),wk(nbmax,maxrun*nd))
+    k1 = 1
+    do while (k1 <= np)
+       ib = pib(iord(k1))
+       k2 = k1
+       do while (k2 < np)
+          if (pib(iord(k2+1)) /= ib) exit
+          k2 = k2 + 1
+       end do
+       ir = pir(iord(k1))
+       ic = pic(iord(k1))
+       nr = loc0(ir+1) - loc0(ir)
+       nc = loc0(ic+1) - loc0(ic)
+       mr = 0
+       mc = 0
+       do k = k1, k2
+          mr = max(mr,nact(pir(iord(k))))
+          mc = max(mc,nact(pic(iord(k))))
+       end do
+
+       ! rows of ir: D * p(ic)
+       n = 0
+       do k = k1, k2
+          ic = pic(iord(k))
+          g(1:mc,n+1:n+nd) = p(loc0(ic)+1:loc0(ic)+mc,1:nd)
+          n = n + nd
+       end do
+       call dgemm('N','N',mr,n,mc,1d0,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
+       n = 0
+       do k = k1, k2
+          ir = pir(iord(k))
+          w(loc0(ir)+1:loc0(ir)+mr,1:nd) = w(loc0(ir)+1:loc0(ir)+mr,1:nd) + wk(1:mr,n+1:n+nd)
+          n = n + nd
+       end do
+
+       ! columns of ic: D^T * p(ir), for the pairs of two different atoms
+       n = 0
+       do k = k1, k2
+          if (.not.pboth(iord(k))) cycle
+          ir = pir(iord(k))
+          g(1:mr,n+1:n+nd) = p(loc0(ir)+1:loc0(ir)+mr,1:nd)
+          n = n + nd
+       end do
+       if (n > 0) then
+          call dgemm('T','N',mc,n,mr,1d0,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
+          n = 0
+          do k = k1, k2
+             if (.not.pboth(iord(k))) cycle
+             ic = pic(iord(k))
+             w(loc0(ic)+1:loc0(ic)+mc,1:nd) = w(loc0(ic)+1:loc0(ic)+mc,1:nd) + wk(1:mc,n+1:n+nd)
+             n = n + nd
+          end do
+       end if
+       k1 = k2 + 1
     end do
 
     ! accumulate properties
@@ -552,9 +628,10 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: i, j, k, is, ios, iflag, idum
-    integer, allocatable :: fsp(:), fl(:), nfnsp(:), ifn(:)
+    integer, allocatable :: fsp(:), fl(:), nfnsp(:), ifn(:), iord(:), off(:)
     real*8, allocatable :: frc(:)
     real*8 :: rdum, rinc
+    type(fhiaimsradial), allocatable :: fsort(:)
 
     errmsg = "Error reading the basis set and occupations of the dgrid file"
     if (allocated(f%spc)) deallocate(f%spc)
@@ -597,6 +674,40 @@ contains
        allocate(f%spc(is)%fn(ifn(is))%spl(4,f%spc(is)%ngrid))
        read (lu,*,iostat=ios) f%spc(is)%fn(ifn(is))%spl
        if (ios /= 0) return
+    end do
+
+    ! the radial functions of each species by decreasing outer radius
+    ! (ties in file order), so the functions that are non-zero at a
+    ! given distance from the atom are a prefix; ifile maps the local
+    ! basis functions back to the order of the file (the eigenvectors)
+    do is = 1, f%nspc
+       associate (s => f%spc(is))
+         allocate(iord(s%nfn),off(s%nfn))
+         off(1) = 0
+         do j = 2, s%nfn
+            off(j) = off(j-1) + 2 * s%fn(j-1)%l + 1
+         end do
+         do j = 1, s%nfn
+            k = j
+            do i = j-1, 1, -1
+               if (s%fn(iord(i))%rcut >= s%fn(j)%rcut) exit
+               iord(i+1) = iord(i)
+               k = i
+            end do
+            iord(k) = j
+         end do
+         fsort = s%fn(iord)
+         call move_alloc(fsort,s%fn)
+         allocate(s%ifile(sum(2 * s%fn(:)%l + 1)))
+         i = 0
+         do k = 1, s%nfn
+            do j = 1, 2 * s%fn(k)%l + 1
+               i = i + 1
+               s%ifile(i) = off(iord(k)) + j
+            end do
+         end do
+         deallocate(iord,off)
+       end associate
     end do
     f%lmax = 0
     k = 0
@@ -871,7 +982,7 @@ contains
     integer :: a, b, na, nb, a0, b0, n, ib, ncol
     integer*8 :: off
     integer, allocatable :: col0(:)
-    complex*16, allocatable :: fw(:,:), en(:,:), pa(:,:)
+    complex*16, allocatable :: fw(:,:), fwa(:,:), en(:,:), pa(:,:)
     complex*16 :: phase
 
     complex*16, parameter :: cone = (1d0,0d0), czero = (0d0,0d0)
@@ -888,7 +999,11 @@ contains
        na = f%spc(f%ispc(a))%nbas
        a0 = ibas0(a)
 
-       ! gather the eigenvector rows of the neighbours of a
+       ! gather the eigenvector rows of a and of its neighbours, in the
+       ! local (sorted) order of the basis functions
+       if (allocated(fwa)) deallocate(fwa)
+       allocate(fwa(na,nsv))
+       fwa = fw(a0 + f%spc(f%ispc(a))%ifile,:)
        ncol = 0
        do b = a, f%nat
           if (f%pairn(a,b) == 0) cycle
@@ -902,11 +1017,11 @@ contains
           if (f%pairn(a,b) == 0) cycle
           nb = f%spc(f%ispc(b))%nbas
           b0 = ibas0(b)
-          en(col0(b)+1:col0(b)+nb,:) = evk(b0+1:b0+nb,1:nsv)
+          en(col0(b)+1:col0(b)+nb,:) = evk(b0 + f%spc(f%ispc(b))%ifile,1:nsv)
        end do
 
        ! the a-rows of the k-space density matrix, neighbour columns
-       call zgemm('N','C',na,ncol,nsv,cone,fw(a0+1,1),f%nbas,en,ncol,czero,pa,na)
+       call zgemm('N','C',na,ncol,nsv,cone,fwa,na,en,ncol,czero,pa,na)
 
        do b = a, f%nat
           if (f%pairn(a,b) == 0) cycle

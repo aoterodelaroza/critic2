@@ -61,7 +61,8 @@ module fhiaims_private
      integer :: lmax !< maximum angular momentum
      integer :: nfn !< number of radial functions
      integer :: nbas !< number of basis functions (sum over 2l+1)
-     type(fhiaimsradial), allocatable :: fn(:) !< radial functions, in file order
+     type(fhiaimsradial), allocatable :: fn(:) !< radial functions, by decreasing outer radius (ties in file order)
+     integer, allocatable :: ifile(:) !< file-order index (within the species block) of each local basis function
   end type fhiaimsspecies
 
   !> FHI-aims wavefunction, stored as a block-sparse real-space
