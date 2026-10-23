@@ -24,7 +24,10 @@ submodule (fhiaims_private) proc
   ! subroutine check_kgrid(nkxyz,kpt,errmsg)
   ! subroutine map_atoms(f,c,lat,xat,errmsg)
   ! subroutine build_blocks(f,c,xat)
-  ! subroutine accumulate_dm(f,evk,occ,kpt,wk,nsv)
+  ! subroutine sb_open(sb,file,errmsg)
+  ! subroutine sb_fill(sb,ios)
+  ! subroutine sb_values(sb,nval,ios,x)
+  ! subroutine accumulate_dm(f,evk,evr,occ,kpt,wk,nsv)
   ! function max_nloc(f,c) result(nloc)
   ! subroutine block_norms(f)
   ! subroutine blockmul(op,m,n,k,a,lda,b,ldb,beta,c,ldc)
@@ -49,6 +52,24 @@ submodule (fhiaims_private) proc
   ! a pair of atoms is skipped at a point if the bound on its
   ! contribution, |D|max * sum|p_a| * sum|p_b|, is below this
   real*8, parameter :: dm_pairthr = 1d-14
+
+  ! blank characters in the eigenvector block (space, tab, LF, CR)
+  character(len=4), parameter :: blanks = " " // char(9) // char(10) // char(13)
+
+  !> Chunked reader of the eigenvector block of a dgrid file as a
+  !> byte stream. The block is 95% of the file, and a list-directed
+  !> read of it costs several times more than the conversion of the
+  !> numbers (and most of the states are unoccupied and skipped).
+  integer, parameter :: sb_size = 1048576
+  type streambuf
+     integer :: lu = -1 !< unit (stream access), -1 if closed
+     integer*8 :: fsize !< size of the file (bytes)
+     integer*8 :: fpos !< position of the next byte to read from the file
+     integer :: n = 0 !< number of bytes in buf
+     integer :: ip = 1 !< next unread byte in buf
+     logical :: eof = .false. !< the whole file has been read into buf
+     character(len=:), allocatable :: buf !< the buffer (sb_size, plus a blank sentinel after the data)
+  end type streambuf
 
 contains
 
@@ -294,14 +315,15 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, i, k, is, nsv, ios, icol, nocc
+    integer :: lu, i, k, is, nsv, ios, icol, nocc, nval
     type(dgrid_header) :: hdr
     integer, allocatable :: ngrid(:), iperm(:)
     character*20, allocatable :: spcname(:)
-    real*8, allocatable :: occ(:,:,:), xat(:,:), xr(:), kpt(:,:), wk(:)
+    real*8, allocatable :: occ(:,:,:), xat(:,:), xr(:), kpt(:,:), wk(:), evr(:,:)
     complex*16, allocatable :: evk(:,:)
     real*8 :: lat(3,3)
     type(crystal), pointer :: c
+    type(streambuf) :: sb
 
     call c_f_pointer(cptr,c)
     f%cptr = cptr
@@ -325,6 +347,8 @@ contains
     f%ismol = (hdr%nper == 0)
     call read_basis_and_occ(lu,f,hdr,ngrid,spcname,occ,nsv,errmsg)
     if (len_trim(errmsg) > 0) goto 999
+    call fclose(lu)
+    lu = -1
 
     ! lattice vectors and k-points, from the end of the file
     allocate(kpt(3,f%nkpt),wk(f%nkpt))
@@ -352,6 +376,9 @@ contains
        k = k + f%spc(f%ispc(i))%nbas
     end do
 
+    ! the eigenvectors, as a byte stream
+    call sb_open(sb,file,errmsg)
+    if (len_trim(errmsg) > 0) goto 999
     errmsg = "Error reading the eigenvectors of the dgrid file: " // trim(file)
     nocc = count(occ(:,:,1) > occ_cutoff)
     if (f%isreal .and. f%nkpt == 1 .and. all(abs(kpt(:,1)) < 1d-10) .and. all(occ >= -occ_cutoff) .and.&
@@ -363,9 +390,13 @@ contains
        icol = 0
        do is = 1, f%nspin
           do i = 1, f%nstates
-             read (lu,*,iostat=ios) xr
+             if (occ(i,is,1) <= occ_cutoff) then
+                call sb_values(sb,f%nbas,ios)
+                if (ios /= 0) goto 999
+                cycle
+             end if
+             call sb_values(sb,f%nbas,ios,xr)
              if (ios /= 0) goto 999
-             if (occ(i,is,1) <= occ_cutoff) cycle
              icol = icol + 1
              f%cs(:,icol) = xr(iperm) * sqrt(occ(i,is,1) * wk(1))
           end do
@@ -373,36 +404,39 @@ contains
     else
        ! density matrix, accumulated per k-point and spin
        call build_blocks(f,c,xat)
-       allocate(evk(f%nbas,nsv))
        if (f%isreal) then
-          allocate(xr(f%nbas))
+          allocate(evr(f%nbas,nsv),evk(0,0))
+          nval = f%nbas
        else
-          allocate(xr(2*f%nbas))
+          allocate(evk(f%nbas,nsv),evr(0,0),xr(2*f%nbas))
+          nval = 2 * f%nbas
        end if
        do k = 1, f%nkpt
           do is = 1, f%nspin
              ! only the states up to the last occupied one are kept
-             do i = 1, f%nstates
-                read (lu,*,iostat=ios) xr
-                if (ios /= 0) goto 999
-                if (i > nsv) cycle
+             do i = 1, nsv
                 if (f%isreal) then
-                   evk(:,i) = xr
+                   call sb_values(sb,nval,ios,evr(:,i))
                 else
+                   call sb_values(sb,nval,ios,xr)
                    evk(:,i) = cmplx(xr(1::2),xr(2::2),8)
                 end if
+                if (ios /= 0) goto 999
              end do
-             call accumulate_dm(f,evk,occ(:,is,k),kpt(:,k),wk(k),nsv)
+             call sb_values(sb,(f%nstates-nsv)*nval,ios)
+             if (ios /= 0) goto 999
+             call accumulate_dm(f,evk,evr,occ(:,is,k),kpt(:,k),wk(k),nsv)
           end do
        end do
        call block_norms(f)
     end if
-    call fclose(lu)
+    close(sb%lu)
 
     errmsg = ""
     return
 999 continue
-    call fclose(lu)
+    if (lu >= 0) call fclose(lu)
+    if (sb%lu >= 0) close(sb%lu)
 
   end subroutine fhiaims_read
 
@@ -1007,18 +1041,194 @@ contains
 
   end subroutine build_blocks
 
+  !> Open file as a byte stream and position the buffer at the start
+  !> of the eigenvector block: the line after the first one that
+  !> contains "eigenvectors" (the real/complex flag line). errmsg is
+  !> empty on success.
+  subroutine sb_open(sb,file,errmsg)
+    type(streambuf), intent(inout) :: sb
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: ios, m, j, k
+    integer*8 :: fpos
+
+    errmsg = "Error locating the eigenvectors in the dgrid file: " // trim(file)
+    if (sb%lu >= 0) close(sb%lu)
+    if (.not.allocated(sb%buf)) allocate(character(len=sb_size+1) :: sb%buf)
+    inquire(file=file,size=sb%fsize)
+    if (sb%fsize < 0) return
+    open(newunit=sb%lu,file=file,access='stream',form='unformatted',status='old',action='read',iostat=ios)
+    if (ios /= 0) then
+       sb%lu = -1
+       return
+    end if
+
+    ! find the marker; chunks overlap by 64 bytes so it is never split
+    fpos = 1
+    do while (fpos <= sb%fsize)
+       m = int(min(int(sb_size,8),sb%fsize - fpos + 1))
+       read (sb%lu,pos=fpos,iostat=ios) sb%buf(1:m)
+       if (ios /= 0) return
+       j = index(sb%buf(1:m),"eigenvectors")
+       if (j > 0) then
+          k = index(sb%buf(j:m),char(10))
+          if (k == 0) then
+             ! the line runs past the chunk: reread from the marker
+             if (m < sb_size) return
+             fpos = fpos + j - 1
+             cycle
+          end if
+          sb%fpos = fpos + (j + k - 1)
+          sb%n = 0
+          sb%ip = 1
+          sb%eof = .false.
+          call sb_fill(sb,ios)
+          if (ios /= 0) return
+          errmsg = ""
+          return
+       end if
+       if (m < sb_size) exit
+       fpos = fpos + m - 64
+    end do
+
+  end subroutine sb_open
+
+  !> Move the unread part of the buffer to its start and read more
+  !> bytes from the file after it. ios is non-zero on error.
+  subroutine sb_fill(sb,ios)
+    type(streambuf), intent(inout) :: sb
+    integer, intent(out) :: ios
+
+    integer :: m
+
+    ios = 0
+    m = sb%n - sb%ip + 1
+    if (m > 0) sb%buf(1:m) = sb%buf(sb%ip:sb%n)
+    sb%n = max(m,0)
+    sb%ip = 1
+    sb%buf(sb%n+1:sb%n+1) = " "
+    m = int(min(int(sb_size - sb%n,8),sb%fsize - sb%fpos + 1))
+    if (m <= 0) then
+       sb%eof = .true.
+       return
+    end if
+    read (sb%lu,pos=sb%fpos,iostat=ios) sb%buf(sb%n+1:sb%n+m)
+    if (ios /= 0) return
+    sb%n = sb%n + m
+    sb%fpos = sb%fpos + m
+    sb%eof = (sb%fpos > sb%fsize)
+    sb%buf(sb%n+1:sb%n+1) = " "
+
+  end subroutine sb_fill
+
+  !> Read the next nval blank-separated real values of the stream into
+  !> x or, if x is absent, skip them. The values must end at a record
+  !> boundary (FHI-aims writes one state per write statement). ios is
+  !> non-zero on a malformed value, a missing record boundary or end
+  !> of file. The conversion is C strtod on the buffer (a token is
+  !> always followed by a blank, the sentinel at worst), which assumes
+  !> the C numeric locale (nothing in critic2 calls setlocale); a
+  !> token strtod does not consume whole (a D exponent, a three-digit
+  !> exponent without the letter) falls back to a list-directed read.
+  subroutine sb_values(sb,nval,ios,x)
+    use iso_c_binding, only: c_ptr, c_loc, c_intptr_t, c_char, c_double
+    type(streambuf), intent(inout), target :: sb
+    integer, intent(in) :: nval
+    integer, intent(out) :: ios
+    real*8, intent(out), optional :: x(:)
+
+    interface
+       function strtod(str,endptr) bind(C,name="strtod")
+         import c_char, c_ptr, c_double
+         character(kind=c_char), intent(in) :: str(*)
+         type(c_ptr), intent(out) :: endptr
+         real(c_double) :: strtod
+       end function strtod
+    end interface
+
+    integer, parameter :: toklen = 63
+
+    integer :: nv, i0, i1, j, k
+    type(c_ptr) :: endp
+
+    ios = 0
+    if (nval == 0) return
+    nv = 0
+    do while (nv < nval)
+       ! skip blanks
+       do
+          if (sb%ip > sb%n) then
+             call sb_fill(sb,ios)
+             if (ios /= 0) return
+             if (sb%n == 0) goto 999
+          end if
+          k = verify(sb%buf(sb%ip:sb%n),blanks)
+          if (k > 0) exit
+          sb%ip = sb%n + 1
+       end do
+       sb%ip = sb%ip + k - 1
+
+       ! the token, whole in the buffer
+       if (sb%n - sb%ip < toklen .and. .not.sb%eof) then
+          call sb_fill(sb,ios)
+          if (ios /= 0) return
+       end if
+       i0 = sb%ip
+       k = scan(sb%buf(i0:min(i0+toklen,sb%n)),blanks)
+       if (k > 0) then
+          i1 = i0 + k - 2
+       elseif (i0 + toklen > sb%n) then
+          i1 = sb%n
+       else
+          goto 999
+       end if
+       sb%ip = i1 + 1
+       nv = nv + 1
+       if (present(x)) then
+          x(nv) = strtod(sb%buf(i0:sb%n+1),endp)
+          if (transfer(endp,0_c_intptr_t) - transfer(c_loc(sb%buf(i0:i0)),0_c_intptr_t) /= i1 - i0 + 1) then
+             read (sb%buf(i0:i1),*,iostat=ios) x(nv)
+             if (ios /= 0) goto 999
+          end if
+       end if
+    end do
+
+    ! only blanks up to the end of the record (or of the file)
+    do
+       if (sb%ip > sb%n) then
+          call sb_fill(sb,ios)
+          if (ios /= 0) return
+          if (sb%n == 0) return
+       end if
+       j = index(sb%buf(sb%ip:sb%n),char(10))
+       k = verify(sb%buf(sb%ip:sb%n),blanks)
+       if (k > 0 .and. (j == 0 .or. k < j)) goto 999
+       if (j > 0) then
+          sb%ip = sb%ip + j
+          return
+       end if
+       sb%ip = sb%n + 1
+    end do
+
+999 continue
+    ios = 1
+
+  end subroutine sb_values
+
   !> Accumulate the contribution of one spin channel and k-point
   !> (fractional kpt, weight wk) to the real-space density matrix
-  !> blocks, from the eigenvectors evk (nbas,nsv) and the occupations
-  !> (occ, not k-weighted):
+  !> blocks, from the eigenvectors (evk (nbas,nsv) if complex, evr if
+  !> real) and the occupations (occ, not k-weighted):
   !>   D_ij(dT) += Re wk sum_n occ_n c_in c_jn^* exp(2 pi i k.dT)
   !> The real part is exact: the imaginary parts cancel in the
   !> symmetric sum over basis function pairs. Only the columns of the
   !> atoms b >= a that share a block with a are computed.
-  subroutine accumulate_dm(f,evk,occ,kpt,wk,nsv)
+  subroutine accumulate_dm(f,evk,evr,occ,kpt,wk,nsv)
     use param, only: tpi, img
     type(fhiaimswfn), intent(inout) :: f
     complex*16, intent(in) :: evk(:,:)
+    real*8, intent(in) :: evr(:,:)
     real*8, intent(in) :: occ(:)
     real*8, intent(in) :: kpt(3)
     real*8, intent(in) :: wk
@@ -1028,17 +1238,27 @@ contains
     integer*8 :: off
     integer, allocatable :: col0(:)
     complex*16, allocatable :: fw(:,:), fwa(:,:), en(:,:), pa(:,:)
+    real*8, allocatable :: fwr(:,:), fwar(:,:), enr(:,:), par(:,:)
     complex*16 :: phase
+    real*8 :: arg
 
     complex*16, parameter :: cone = (1d0,0d0), czero = (0d0,0d0)
 
     if (nsv == 0) return
 
     ! occupation- and weight-scaled eigenvectors
-    allocate(fw(f%nbas,nsv),col0(f%nat))
-    do n = 1, nsv
-       fw(:,n) = evk(:,n) * (occ(n) * wk)
-    end do
+    allocate(col0(f%nat))
+    if (f%isreal) then
+       allocate(fwr(f%nbas,nsv))
+       do n = 1, nsv
+          fwr(:,n) = evr(:,n) * (occ(n) * wk)
+       end do
+    else
+       allocate(fw(f%nbas,nsv))
+       do n = 1, nsv
+          fw(:,n) = evk(:,n) * (occ(n) * wk)
+       end do
+    end if
 
     do a = 1, f%nat
        na = f%spc(f%ispc(a))%nbas
@@ -1046,36 +1266,52 @@ contains
 
        ! gather the eigenvector rows of a and of its neighbours, in the
        ! local (sorted) order of the basis functions
-       if (allocated(fwa)) deallocate(fwa)
-       allocate(fwa(na,nsv))
-       fwa = fw(a0 + f%spc(f%ispc(a))%ifile,:)
        ncol = 0
        do b = a, f%nat
           if (f%pairn(a,b) == 0) cycle
           col0(b) = ncol
           ncol = ncol + f%spc(f%ispc(b))%nbas
        end do
-       if (allocated(en)) deallocate(en)
-       if (allocated(pa)) deallocate(pa)
-       allocate(en(ncol,nsv),pa(na,ncol))
+       if (f%isreal) then
+          if (allocated(fwar)) deallocate(fwar,enr,par)
+          allocate(fwar(na,nsv),enr(ncol,nsv),par(na,ncol))
+          fwar = fwr(a0 + f%spc(f%ispc(a))%ifile,:)
+       else
+          if (allocated(fwa)) deallocate(fwa,en,pa)
+          allocate(fwa(na,nsv),en(ncol,nsv),pa(na,ncol))
+          fwa = fw(a0 + f%spc(f%ispc(a))%ifile,:)
+       end if
        do b = a, f%nat
           if (f%pairn(a,b) == 0) cycle
           nb = f%spc(f%ispc(b))%nbas
           b0 = f%ibas0(b)
-          en(col0(b)+1:col0(b)+nb,:) = evk(b0 + f%spc(f%ispc(b))%ifile,1:nsv)
+          if (f%isreal) then
+             enr(col0(b)+1:col0(b)+nb,:) = evr(b0 + f%spc(f%ispc(b))%ifile,1:nsv)
+          else
+             en(col0(b)+1:col0(b)+nb,:) = evk(b0 + f%spc(f%ispc(b))%ifile,1:nsv)
+          end if
        end do
 
        ! the a-rows of the k-space density matrix, neighbour columns
-       call zgemm('N','C',na,ncol,nsv,cone,fwa,na,en,ncol,czero,pa,na)
+       if (f%isreal) then
+          call dgemm('N','T',na,ncol,nsv,1d0,fwar,na,enr,ncol,0d0,par,na)
+       else
+          call zgemm('N','C',na,ncol,nsv,cone,fwa,na,en,ncol,czero,pa,na)
+       end if
 
        do b = a, f%nat
           if (f%pairn(a,b) == 0) cycle
           nb = f%spc(f%ispc(b))%nbas
           n = na * nb
           do ib = f%pair0(a,b), f%pair0(a,b) + f%pairn(a,b) - 1
-             phase = exp(img * tpi * dot_product(kpt,real(f%blkt(:,ib),8)))
+             arg = tpi * dot_product(kpt,real(f%blkt(:,ib),8))
              off = f%blkoff(ib)
-             f%dm(off+1:off+n) = f%dm(off+1:off+n) + reshape(real(pa(:,col0(b)+1:col0(b)+nb) * phase,8),(/n/))
+             if (f%isreal) then
+                f%dm(off+1:off+n) = f%dm(off+1:off+n) + cos(arg) * reshape(par(:,col0(b)+1:col0(b)+nb),(/n/))
+             else
+                phase = exp(img * arg)
+                f%dm(off+1:off+n) = f%dm(off+1:off+n) + reshape(real(pa(:,col0(b)+1:col0(b)+nb) * phase,8),(/n/))
+             end if
           end do
        end do
     end do
