@@ -259,28 +259,29 @@ contains
     end subroutine extent
   end subroutine plane_def_set_defaults
 
-  !> The grid of the region of the map in system isys (cell-frame
-  !> Cartesian bohr): the origin x0 and the steps uu, vv (the points are
-  !> x0 + (ix-1)*uu + (iy-1)*vv), the first point a0, and the
-  !> orthonormal frame of the plane (e1 along the first side, e2
-  !> perpendicular to it toward the third point). Returns a non-empty
-  !> errmsg if the points do not define a region.
-  module subroutine plane_def_grid(d,isys,x0,uu,vv,a0,e1,e2,errmsg)
+  !> The corners of the region of the map in system isys (cell-frame
+  !> Cartesian bohr): the origin a0, the end of the first side x1,
+  !> and the end of the second side x2 (the Y point for the
+  !> parallelogram; the foot of its perpendicular to the first side,
+  !> moved to the origin, for the rectangle). Also the orthonormal
+  !> frame of the plane: e1 along the first side, e2 perpendicular to
+  !> it toward the Y point, and the normal en = e1 x e2. Returns a
+  !> non-empty errmsg if the points do not define a plane (the
+  !> vectors are zero then).
+  module subroutine plane_def_corners(d,isys,a0,x1,x2,e1,e2,en,errmsg)
     use systems, only: sys
-    use tools_math, only: plane_scale_extend
+    use tools_math, only: cross
     class(plane_def), intent(in) :: d
     integer, intent(in) :: isys
-    real*8, intent(out) :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3)
+    real*8, intent(out) :: a0(3), x1(3), x2(3), e1(3), e2(3), en(3)
     character(len=:), allocatable, intent(out) :: errmsg
 
-    real*8 :: x1(3), x2(3), d1(3), c(3), cperp(3), l1, h, m
+    real*8 :: d1(3), c(3), cperp(3), l1, h
 
     errmsg = ""
-    x0 = 0d0
-    uu = 0d0
-    vv = 0d0
     e1 = 0d0
     e2 = 0d0
+    en = 0d0
     a0 = cart(d%xp(:,1))
     x1 = cart(d%xp(:,2))
     x2 = cart(d%xp(:,3))
@@ -299,20 +300,10 @@ contains
        return
     end if
     e2 = cperp / h
+    en = cross(e1,e2)
 
-    ! the second side perpendicular to the first, or to the third
-    ! point; with the margin on every side
+    ! the second side perpendicular to the first, or to the third point
     if (d%region == 0) x2 = a0 + cperp
-    m = d%margin / bohrtoa
-    x0 = a0
-    call plane_scale_extend(x0,x1,x2,1d0,1d0,m,m,m,m)
-    ! a negative margin of half a side or more would turn the region over
-    if (dot_product(x1 - x0,e1) <= 1d-8 .or. dot_product(x2 - x0,e2) <= 1d-8) then
-       errmsg = "The negative margin is larger than the region"
-       return
-    end if
-    uu = (x1 - x0) / real(d%nx-1,8)
-    vv = (x2 - x0) / real(d%ny-1,8)
 
   contains
     !> The point x of the forms in cell-frame Cartesian bohr.
@@ -325,6 +316,41 @@ contains
          xc = sys(isys)%c%x2c(x)
       end if
     end function cart
+  end subroutine plane_def_corners
+
+  !> The grid of the region of the map in system isys (cell-frame
+  !> Cartesian bohr): the origin x0 and the steps uu, vv (the points are
+  !> x0 + (ix-1)*uu + (iy-1)*vv), the first point a0, and the
+  !> orthonormal frame of the plane (e1 along the first side, e2
+  !> perpendicular to it toward the third point). Returns a non-empty
+  !> errmsg if the points do not define a region.
+  module subroutine plane_def_grid(d,isys,x0,uu,vv,a0,e1,e2,errmsg)
+    use tools_math, only: plane_scale_extend
+    class(plane_def), intent(in) :: d
+    integer, intent(in) :: isys
+    real*8, intent(out) :: x0(3), uu(3), vv(3), a0(3), e1(3), e2(3)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    real*8 :: x1(3), x2(3), en(3), m
+
+    x0 = 0d0
+    uu = 0d0
+    vv = 0d0
+    call d%corners(isys,a0,x1,x2,e1,e2,en,errmsg)
+    if (len(errmsg) > 0) return
+
+    ! the margin on every side
+    m = d%margin / bohrtoa
+    x0 = a0
+    call plane_scale_extend(x0,x1,x2,1d0,1d0,m,m,m,m)
+    ! a negative margin of half a side or more would turn the region over
+    if (dot_product(x1 - x0,e1) <= 1d-8 .or. dot_product(x2 - x0,e2) <= 1d-8) then
+       errmsg = "The negative margin is larger than the region"
+       return
+    end if
+    uu = (x1 - x0) / real(d%nx-1,8)
+    vv = (x2 - x0) / real(d%ny-1,8)
+
   end subroutine plane_def_grid
 
   !> If autonpts, the number of points along each side of the region

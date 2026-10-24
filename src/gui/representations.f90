@@ -844,6 +844,7 @@ module representations
      real(c_float) :: rgbneg(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/) ! zero and negative
    contains
      procedure :: set_defaults => plane_def_set_defaults ! the plane for a new system
+     procedure :: corners => plane_def_corners ! the corners of the region and the frame of the plane
      procedure :: grid => plane_def_grid ! the grid of the region
      procedure :: autopoints => plane_def_autopoints ! nx and ny from the size of the region
      procedure :: key => plane_def_key ! what the values depend on
@@ -1904,6 +1905,12 @@ module representations
        class(plane_def), intent(inout) :: d
        integer, intent(in) :: isys
      end subroutine plane_def_autopoints
+     module subroutine plane_def_corners(d,isys,a0,x1,x2,e1,e2,en,errmsg)
+       class(plane_def), intent(in) :: d
+       integer, intent(in) :: isys
+       real*8, intent(out) :: a0(3), x1(3), x2(3), e1(3), e2(3), en(3)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine plane_def_corners
      module subroutine plane_def_grid(d,isys,x0,uu,vv,a0,e1,e2,errmsg)
        class(plane_def), intent(in) :: d
        integer, intent(in) :: isys

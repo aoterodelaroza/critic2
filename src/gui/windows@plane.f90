@@ -1450,7 +1450,7 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_calcwidth,&
        iw_inputint, iw_combo_simple, iw_checkbox, iw_coloredit, iw_inputtext, iw_cmap_optstr,&
        iw_separatortext
-    use tools_io, only: string
+    use tools_io, only: string, lower
     type(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
     logical, intent(inout) :: ttshown
@@ -1464,7 +1464,14 @@ contains
     logical :: changed
 
     integer :: i
-    logical :: ismol, ch, ch2, pickoff_
+    logical :: ismol, ch, ch2, pickoff_, okaxes
+    real*8 :: axes(3,0:2), a0(3), x1(3), x2(3), e2(3)
+    character(len=:), allocatable :: errmsg, noaxes
+    ! the axes of the plane for the Move and Extend buttons: 0 = its
+    ! normal, 1 = u (the first side), 2 = v (the second side)
+    character(len=1), parameter :: axlbl(0:2) = (/"n","u","v"/)
+    character(len=*), parameter :: axdesc(0:2) = [character(len=19) :: "n (its normal)",&
+       "u (its first side)","v (its second side)"]
 
     changed = .false.
     if (present(ipick)) ipick = 0
@@ -1478,6 +1485,17 @@ contains
        do i = 1, 3
           call draw_point(i)
        end do
+       ! the axes (unit vectors, Cartesian), after the points may have
+       ! changed; the buttons that use them are disabled if the points
+       ! do not define a plane
+       call d%corners(isys,a0,x1,x2,axes(:,1),e2,axes(:,0),errmsg)
+       okaxes = (len(errmsg) == 0)
+       if (okaxes) then
+          axes(:,2) = (x2 - a0) / norm2(x2 - a0)
+          noaxes = ""
+       else
+          noaxes = " (disabled: " // lower(errmsg(1:1)) // errmsg(2:) // ")"
+       end if
        call draw_move()
        if (sec(plane_sec_plane)%more) call draw_region()
     end if
@@ -1580,7 +1598,9 @@ contains
     end subroutine draw_point
 
     !> The buttons that displace the whole plane by d%step along the
-    !> Cartesian axes and, in crystals, along the lattice vectors.
+    !> Cartesian axes and, in crystals, along the lattice vectors
+    !> (first line), and along its normal and its two sides (second
+    !> line), with the step.
     subroutine draw_move()
       character(len=1), parameter :: lbl(6) = (/"x","y","z","a","b","c"/)
       integer :: j, k
@@ -1596,31 +1616,73 @@ contains
             if (iw_button(sg // lbl(j) // "##planemove",sameline=.true.)) then
                dx = 0d0
                if (j <= 3) then
-                  dx(j) = st
-                  ! crystals: fractional points, displacement in Å
-                  if (.not.ismol) dx = sys(isys)%c%c2x(dx / bohrtoa)
+                  dx(j) = st / bohrtoa
                else
-                  dx(j-3) = st / bohrtoa / sys(isys)%c%aa(j-3)
+                  ! along a lattice vector, as a unit vector
+                  dx(j-3) = 1d0
+                  dx = sys(isys)%c%x2c(dx) / sys(isys)%c%aa(j-3) * st / bohrtoa
                end if
-               d%xp = d%xp + spread(dx,2,3)
+               call shift(dx)
                changed = .true.
             end if
             call iw_tooltip("Displace the plane along " // sg // lbl(j) // " (" //&
                merge("Cartesian axis","lattice vector",j <= 3) // ")",ttshown)
          end do
       end do
-      call iw_text("Step",alignframe=.true.,gap=.true.)
+
+      ! along the normal and the sides
+      call iw_text("Normal",alignframe=.true.)
+      call iw_tooltip("Displace the whole plane along its normal (the direction of the&
+         & first side times the second)",ttshown)
+      do j = 0, 2
+         if (j == 1) then
+            call iw_text("In plane",alignframe=.true.,gap=.true.)
+            call iw_tooltip("Displace the whole plane along its sides: u is the first side and v the&
+               & second",ttshown)
+         end if
+         do k = 1, 2
+            sg = merge("+","-",k == 1)
+            st = merge(d%step,-d%step,k == 1)
+            if (iw_button(sg // axlbl(j) // "##planemove",sameline=.true.,disabled=.not.okaxes)) then
+               call shift(st / bohrtoa * axes(:,j))
+               changed = .true.
+            end if
+            call iw_tooltip("Displace the plane along " // sg // trim(axdesc(j)) // noaxes,ttshown,&
+               whendisabled=.true.)
+         end do
+      end do
+      call iw_text("Step (Å)",alignframe=.true.,gap=.true.)
       call igPushItemWidth(iw_calcwidth(7,1))
       ch = iw_dragfloat_real8("##planestep",x1=d%step,speed=0.01d0,decimal=3,sameline=.true.,min=0d0)
       call igPopItemWidth()
-      call iw_tooltip("Length of each displacement (Å)",ttshown)
+      call iw_tooltip("Length of each displacement and extension",ttshown)
 
     end subroutine draw_move
+
+    !> Displace the points ip of the plane (all three if not given)
+    !> by the Cartesian vector dxc (bohr).
+    subroutine shift(dxc,ip)
+      real*8, intent(in) :: dxc(3)
+      integer, intent(in), optional :: ip
+
+      integer :: i
+
+      do i = 1, 3
+         if (present(ip)) then
+            if (i /= ip) cycle
+         end if
+         d%xp(:,i) = form_coords(isys,form_to_cart(isys,d%xp(:,i)) + dxc)
+      end do
+
+    end subroutine shift
 
     !> More of the plane: the region (a rectangle or a parallelogram)
     !> and the margin around it, then the number of points along each
     !> side (shown, but not editable, if automatic).
     subroutine draw_region()
+      integer :: j, k
+      real*8 :: dx(3)
+      character(len=1) :: sg
 
       call iw_text("Region",alignframe=.true.)
       call iw_combo_simple("##planeregion","Rectangle" // c_null_char // "Parallelogram" // c_null_char,&
@@ -1629,9 +1691,29 @@ contains
       call iw_tooltip("Rectangle: the first side goes from the origin to the X end, and the&
          & second is perpendicular to it, as long as needed to reach the Y point. Parallelogram:&
          & the sides go from the origin to the X end and to the Y point",ttshown)
-      call iw_text("Margin",alignframe=.true.,gap=.true.)
+      call iw_text("Margin (Å)",alignframe=.true.)
       call drag("##planemargin",x1=d%margin,speed=0.01d0,decimal=3,sameline=.true.)
-      call iw_tooltip("Length added to the region on every side (Å; negative removes it)",ttshown)
+      call iw_tooltip("Length added to the region on every side (negative removes it)",ttshown)
+
+      ! extend the region by the step along its sides: + moves the end
+      ! of the side, - moves the other two points back
+      call iw_text("Extend",alignframe=.true.,gap=.true.)
+      call iw_tooltip("Lengthen the region by the step on one side: u is the first side and v the&
+         & second, + at the end of the side and - at the origin",ttshown)
+      do j = 1, 2
+         do k = 1, 2
+            sg = merge("+","-",k == 1)
+            if (iw_button(sg // axlbl(j) // "##planeextend",sameline=.true.,disabled=.not.okaxes)) then
+               dx = d%step / bohrtoa * axes(:,j)
+               if (k == 2) call shift(-dx)
+               call shift(dx,j+1)
+               changed = .true.
+            end if
+            call iw_tooltip("Extend the region by the step at the " // trim(merge("end   ","origin",k == 1)) //&
+               " of its " // trim(merge("first ","second",j == 1)) // " side (" // sg // axlbl(j) // ")" //&
+               noaxes,ttshown,whendisabled=.true.)
+         end do
+      end do
 
       call iw_text("Points",alignframe=.true.)
       if (d%autonpts) call igBeginDisabled(.true._c_bool)
