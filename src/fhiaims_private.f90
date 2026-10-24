@@ -71,7 +71,9 @@ module fhiaims_private
   !> scaled by the square root of the occupation) and rho = sum_n
   !> |psi_n|^2 is evaluated directly. Everything else is stored as a
   !> block-sparse real-space density matrix (summed over spins and
-  !> k-points):
+  !> k-points; a spin-polarized calculation keeps the spin-up matrix
+  !> next to the total one, and orders the orbitals by spin, so the
+  !> spin densities can be evaluated on request):
   !>   rho(r) = sum_{aT,bT'} phi_aT(r) D_ab(T-T') phi_bT'(r)
   !> for basis functions on atoms a, b (FHI-aims order) in cells T,
   !> T'. Only one of each pair of transposed blocks D_ab(dT) =
@@ -98,6 +100,7 @@ module fhiaims_private
      real*8, allocatable :: spcutoff(:,:) !< cutoff for list_near_atoms (c%nspc,2)
      ! occupied orbitals (orbital route)
      integer :: nocc !< number of occupied orbitals (all spins)
+     integer :: noccs(2) !< occupied orbitals of each spin channel (the spin-1 columns of cs come first)
      real*8, allocatable :: cs(:,:) !< sqrt(occ) * coefficients (nbas,nocc), rows in local basis order
      ! density matrix blocks
      integer :: nblk !< number of blocks
@@ -107,8 +110,8 @@ module fhiaims_private
      integer, allocatable :: blkt(:,:) !< lattice vector dT of each block (3,nblk)
      integer, allocatable :: blkkey(:) !< integer key of dT, increasing within a pair
      integer*8, allocatable :: blkoff(:) !< offset of each block in dm
-     real*8, allocatable :: blknorm(:) !< largest element of each block
-     real*8, allocatable :: dm(:) !< density matrix blocks, column-major (nbas_a,nbas_b)
+     real*8, allocatable :: blknorm(:,:) !< largest element of each block (nblk,nspin)
+     real*8, allocatable :: dm(:,:) !< density matrix blocks, column-major (nbas_a,nbas_b); (:,1) total, (:,2) spin up if nspin == 2
      type(c_ptr) :: cptr !< pointer to the crystal structure
    contains
      procedure :: end => fhiaims_end
@@ -160,14 +163,15 @@ module fhiaims_private
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine fhiaims_read
-     module subroutine rho2(f,xpos,nder,rho,grad,h,gkin)
+     module subroutine rho2(f,xpos,nder,dospin,rho,grad,h,gkin)
        class(fhiaimswfn), intent(inout) :: f
        real*8, intent(in) :: xpos(3)
        integer, intent(in) :: nder
-       real*8, intent(out) :: rho
-       real*8, intent(out) :: grad(3)
-       real*8, intent(out) :: h(3,3)
-       real*8, intent(out) :: gkin
+       logical, intent(in) :: dospin
+       real*8, intent(out) :: rho(3)
+       real*8, intent(out) :: grad(3,3)
+       real*8, intent(out) :: h(3,3,3)
+       real*8, intent(out) :: gkin(3)
      end subroutine rho2
   end interface
 

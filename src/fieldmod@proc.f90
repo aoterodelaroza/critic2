@@ -1007,7 +1007,7 @@ contains
     real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero, virx, stressx(3,3)
-    logical :: isgrid, per, skipvalassign, valid
+    logical :: isgrid, per, skipvalassign, valid, dospin
     character(len=:), allocatable :: errmsg
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
@@ -1190,32 +1190,21 @@ contains
           skipvalassign = .true. ! valence and core assigned here
           res%f = rhox(1)
           res%fval = rhov(1)
-          res%fspin = rhox(2:3)
-          res%fspinval = rhov(2:3)
           res%ev%avail(fieldeval_category_f) = .true.
-          res%ev%avail(fieldeval_category_spin) = .true.
           res%spinpol = (f%wfn%wfntyp == wfn_uhf)
+          call set_spin_props(res,nderl,rhox,gradx,hx,gkinx,rhov,gradv,hv)
 
           if (nderl > 0) then
              res%gf = gradx(:,1)
              res%gfmodval = norm2(gradv(:,1))
-             res%gfmodspin(1) = norm2(gradx(:,2))
-             res%gfmodspin(2) = norm2(gradx(:,3))
-             res%gfmodspinval(1) = norm2(gradv(:,2))
-             res%gfmodspinval(2) = norm2(gradv(:,3))
              res%ev%avail(fieldeval_category_fder1) = .true.
 
              res%gkin = gkinx(1)
-             res%gkinspin = gkinx(2:3)
              res%ev%avail(fieldeval_category_gkin) = .true.
 
              if (nderl > 1) then
                 res%hf = hx(:,:,1)
                 res%del2fval = hv(1,1,1)+hv(2,2,1)+hv(3,3,1)
-                res%lapspin(1) = hx(1,1,2) + hx(2,2,2) + hx(3,3,2)
-                res%lapspin(2) = hx(1,1,3) + hx(2,2,3) + hx(3,3,3)
-                res%lapspinval(1) = hv(1,1,2) + hv(2,2,2) + hv(3,3,2)
-                res%lapspinval(2) = hv(1,1,3) + hv(2,2,3) + hv(3,3,3)
                 res%ev%avail(fieldeval_category_fder2) = .true.
 
                 res%stress = stressx
@@ -1259,7 +1248,17 @@ contains
           if (f%type == type_dftb) then
              call f%dftb%rho2(wcr,f%exact,nderl,res%f,res%gf,res%hf,res%gkin)
           else
-             call f%fhiaims%rho2(wcr,nderl,res%f,res%gf,res%hf,res%gkin)
+             ! spin densities of a spin-polarized calculation, only when
+             ! asked for (twice the cost)
+             dospin = request%avail(fieldeval_category_spin) .and. f%fhiaims%nspin == 2
+             call f%fhiaims%rho2(wcr,nderl,dospin,rhox,gradx,hx,gkinx)
+             res%f = rhox(1)
+             res%gf = gradx(:,1)
+             res%hf = hx(:,:,1)
+             res%gkin = gkinx(1)
+             res%spinpol = (f%fhiaims%nspin == 2)
+             ! all-electron: the valence spin densities are the spin densities
+             if (dospin) call set_spin_props(res,nderl,rhox,gradx,hx,gkinx,rhox,gradx,hx)
           end if
           ! transformation of gf and hf to Cartesian not needed
 
@@ -1359,7 +1358,7 @@ contains
   !> wavefunction (type_wfn), except the kinetic energy density, which
   !> DFTB+ and FHI-aims fields also provide.
   module subroutine eval_avail(f,av)
-    use types, only: field_evaluation_avail, fieldeval_category_gkin,&
+    use types, only: field_evaluation_avail, fieldeval_category_gkin, fieldeval_category_spin,&
        fieldeval_category_fder1, fieldeval_category_fder2
     class(field), intent(in) :: f
     type(field_evaluation_avail), intent(out) :: av
@@ -1371,9 +1370,13 @@ contains
        call av%field_nder2()
     case (type_wfn)
        av%avail = .true.
-    case (type_dftb,type_fhiaims)
+    case (type_dftb)
        call av%field_nder2()
        av%avail(fieldeval_category_gkin) = .true.
+    case (type_fhiaims)
+       call av%field_nder2()
+       av%avail(fieldeval_category_gkin) = .true.
+       av%avail(fieldeval_category_spin) = (f%fhiaims%nspin == 2)
     case (type_ghost)
        call av%field_only()
     end select
@@ -1480,7 +1483,8 @@ contains
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_fhiaims)
-       call f%fhiaims%rho2(wcr,0,rho,grad,h,gkin)
+       call f%fhiaims%rho2(wcr,0,.false.,rhox,gradx,hx,gkinx)
+       rho = rhox(1)
     case(type_promol)
        call f%c%promolecular_atom(wcr,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
@@ -3456,6 +3460,38 @@ contains
   end function cost_per_point
 
   !xx! private procedures
+
+  !> Fill the spin-resolved properties of res (density, gradient
+  !> norm, Laplacian, kinetic energy density, up to nder) from the
+  !> all-electron (x) and valence (v) arrays, whose last index is 1
+  !> for the total, 2 for spin up and 3 for spin down, and mark the
+  !> spin category as available.
+  subroutine set_spin_props(res,nder,rhox,gradx,hx,gkinx,rhov,gradv,hv)
+    use types, only: scalar_value, fieldeval_category_spin
+    type(scalar_value), intent(inout) :: res
+    integer, intent(in) :: nder
+    real*8, intent(in) :: rhox(3), gradx(3,3), hx(3,3,3), gkinx(3), rhov(3), gradv(3,3), hv(3,3,3)
+
+    integer :: j
+
+    res%fspin = rhox(2:3)
+    res%fspinval = rhov(2:3)
+    res%ev%avail(fieldeval_category_spin) = .true.
+    if (nder > 0) then
+       do j = 1, 2
+          res%gfmodspin(j) = norm2(gradx(:,1+j))
+          res%gfmodspinval(j) = norm2(gradv(:,1+j))
+       end do
+       res%gkinspin = gkinx(2:3)
+       if (nder > 1) then
+          do j = 1, 2
+             res%lapspin(j) = hx(1,1,1+j) + hx(2,2,1+j) + hx(3,3,1+j)
+             res%lapspinval(j) = hv(1,1,1+j) + hv(2,2,1+j) + hv(3,3,1+j)
+          end do
+       end if
+    end if
+
+  end subroutine set_spin_props
 
   !> The categories of a request packed into an integer (the key of
   !> the cost entries; the MO range is not part of it, its cost does

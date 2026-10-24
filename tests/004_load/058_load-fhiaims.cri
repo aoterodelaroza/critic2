@@ -12,6 +12,9 @@ point 0.76443318 0.0 0.58917024 all
 molecule ../zz_source/fhiaims-251014/o2/geometry.in
 load fhiaims ../zz_source/fhiaims-251014/o2/dgrid_aims.dat
 point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "$1:up"
+point 0.1 0.2 0.3 field "$1:dn"
+point 0.1 0.2 0.3 field "$1:sp"
 # FHI-aims crystal (2x2x2 k-points)
 crystal ../zz_source/fhiaims-251014/si/geometry.in
 load ../zz_source/fhiaims-251014/si/dgrid_aims.dat

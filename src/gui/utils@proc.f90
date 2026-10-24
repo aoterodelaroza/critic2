@@ -2602,7 +2602,7 @@ contains
   module function iw_expression_helper(strid,isys,ctx,texta,textf,ttshown,ifield) result(inserted)
     use interfaces_cimgui
     use systems, only: sys
-    use fieldmod, only: field, type_grid, type_wfn
+    use fieldmod, only: field, type_grid, type_wfn, type_fhiaims
     use wfn_private, only: wfn_rhf, wfn_uhf
     use arithmetic, only: arith_name, arith_names, arithkind_math, arithkind_chem,&
        arithkind_svar, arithreq_none, arithreq_gkin, arithreq_stress, arithreq_basis,&
@@ -2616,7 +2616,7 @@ contains
     character(len=*), intent(inout), optional :: textf
     logical, intent(inout), optional :: ttshown
     integer, intent(in), optional :: ifield
-    logical :: inserted
+    logical :: inserted, spinpol
 
     character(len=*), parameter :: manual = "https://aoterodelaroza.github.io/critic2/manual/arithmetics/"
     character(len=2), parameter :: dername(9) = (/"x ","y ","z ","xx","xy","xz","yy","yz","zz"/)
@@ -2713,11 +2713,17 @@ contains
                      call newrow()
                      call item(fi // ":ALUMO","Alpha lowest unoccupied molecular orbital",f%wfn%hasvirtual,whyvirt)
                      call item(fi // ":BLUMO","Beta lowest unoccupied molecular orbital",f%wfn%hasvirtual,whyvirt)
-                     call newrow()
-                     call item(fi // ":up","Spin-up density")
-                     call item(fi // ":dn","Spin-down density")
-                     call item(fi // ":sp","Spin density (up - down)")
                   end if
+               end if
+               ! spin-polarized fields
+               spinpol = .false.
+               if (f%type == type_wfn) spinpol = (f%wfn%wfntyp == wfn_uhf)
+               if (f%type == type_fhiaims) spinpol = (f%fhiaims%nspin == 2)
+               if (spinpol) then
+                  call newrow()
+                  call item(fi // ":up","Spin-up density")
+                  call item(fi // ":dn","Spin-down density")
+                  call item(fi // ":sp","Spin density (up - down)")
                end if
             end if
             call grid_end()

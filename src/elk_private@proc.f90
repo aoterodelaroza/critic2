@@ -97,7 +97,7 @@ contains
   module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
     use crystalmod, only: crystal
     use iso_c_binding, only: c_f_pointer
-    use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
+    use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv_real
     use param, only: icrd_crys
     class(elkwfn), intent(in) :: f
     real(8), intent(in) :: vpl(3)
@@ -114,21 +114,11 @@ contains
     real(8) r,tp(2), t0, t1, t2
     real(8) v1(3)
     complex*16, allocatable :: ylm(:)
-    real*8 :: xrho, xgrad(3)
-    complex*16 :: xgrad1(3), xgrad2(3)
-    real*8 :: xhess(6)
-    complex*16 :: xhess1(6), xhess2(6)
+    real*8 :: xrho, xgrad(3), xhess(6)
+    real*8 :: s(2), sg(3,2), sh(6,2)
     real*8 :: isig
     type(crystal), pointer :: c
-
-    integer :: elem
-    real*8, parameter :: twopi1 = 1d0 / sqrt(2d0)
-    complex*16, parameter :: twopi1i = 1d0 / sqrt(2d0) / (0d0,1d0)
     logical :: inmt
-
-    ! inline function
-    elem(l,m)=l*(l+1)+m+1
-    !
 
     call c_f_pointer(f%cptr,c)
     frho = 0d0
@@ -160,22 +150,19 @@ contains
              isig = -isig
              lm = lm + 1
              call radial_derivs(f%rhomt(1:f%nrmt(is),lm,nid),f%spr_a(is),f%spr_b(is),r,nder,t0,t1,t2)
-             call ylmderiv(ylm,r,l,m,t0,t1,t2,nder,xgrad1,xhess1)
-             if (m /= 0) call ylmderiv(ylm,r,l,-m,t0,t1,t2,nder,xgrad2,xhess2)
-             if (m > 0) then
-                xrho = real((ylm(elem(l,m)) + isig * ylm(elem(l,-m))),8) * twopi1
-                xgrad = real(xgrad1 + isig * xgrad2,8) * twopi1
-                xhess = real(xhess1 + isig * xhess2,8) * twopi1
-             else if (m < 0) then
-                xrho = real((ylm(elem(l,m)) - isig * ylm(elem(l,-m))) * twopi1i,8)
-                xgrad = real((xgrad1 - isig * xgrad2) * twopi1i,8)
-                xhess = real((xhess1 - isig * xhess2) * twopi1i,8)
+             ! real harmonics: sqrt2 Re(Y_l|m|) for m > 0 and -(-1)^m
+             ! sqrt2 Im(Y_l|m|) for m < 0, times the radial function
+             call ylmderiv_real(ylm,r,l,abs(m),t0,t1,t2,nder,s,sg,sh)
+             if (m >= 0) then
+                xrho = s(1)
+                xgrad = sg(:,1)
+                xhess = sh(:,1)
              else
-                xrho = dble(ylm(elem(l,0)))
-                xgrad = real(xgrad1,8)
-                xhess = real(xhess1,8)
+                xrho = -isig * s(2)
+                xgrad = -isig * sg(:,2)
+                xhess = -isig * sh(:,2)
              end if
-             frho = frho + t0 * xrho
+             frho = frho + xrho
              if (nder <= 0) cycle
              gfrho = gfrho + xgrad
              if (nder <= 1) cycle

@@ -7,6 +7,9 @@ crystal ../zz_source/fhiaims-251014/fe/geometry.in
 load ../zz_source/fhiaims-251014/fe/dgrid_aims.dat
 line 0 0 0 0.5 0.5 0.5 51 file 060_load-fhiaims-cases.line1
 point 0.1 0.2 0.3 all
+point 0.1 0.2 0.3 field "$1:up"
+point 0.1 0.2 0.3 field "$1:dn"
+point 0.1 0.2 0.3 field "$1:sp"
 # triclinic NaCl-like cell: two species, atom_frac with atoms outside the cell
 crystal ../zz_source/fhiaims-251014/nacl/geometry.in
 load ../zz_source/fhiaims-251014/nacl/dgrid_aims.dat

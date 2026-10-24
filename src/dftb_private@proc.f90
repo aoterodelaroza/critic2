@@ -259,7 +259,7 @@ contains
   module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
     use crystalmod, only: crystal
     use iso_c_binding, only: c_f_pointer
-    use tools_math, only: tosphere, genylm, ylmderiv
+    use tools_math, only: tosphere, genylm, ylmderiv_real
     use param, only: img, icrd_cart
     class(dftbwfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
@@ -283,7 +283,7 @@ contains
     real*8 :: rmo, rmop(3), rmopp(6), lvecc(3)
     integer :: nenvl, ionl
     integer :: imin, ip, im, iphas
-    complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
+    real*8 :: s(2), sg(3,2), sh(6,2)
     integer :: nenv, ierr, lenv(3)
     integer, allocatable :: eid(:), lvec(:,:)
     real*8, allocatable :: dist(:)
@@ -348,36 +348,24 @@ contains
           end if
        end do
 
-       ! populate the phi array and calculate the derivatives
+       ! populate the phi array and calculate the derivatives; real
+       ! harmonics S_lm = (-1)^m sqrt2 Re(Y_lm) and S_l,-m = (-1)^m
+       ! sqrt2 Im(Y_lm) for m > 0
        do iorb = 1, f%bas(it)%norb
           l = f%bas(it)%l(iorb)
           imin = l*l+1
-
-          ! m = 0
-          ip = imin+l
-          call ylmderiv(ylm,r,l,0,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,xgrad1,xhess1)
-          phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(ylm(ip),8)
-          if (nder >= 1) &
-             phip(:,ip,iorb,nenvl) = real(xgrad1,8)
-          if (nder >= 2) &
-             phipp(:,ip,iorb,nenvl) = real(xhess1,8)
-
-          ! |m| > 0
-          do m = 1, l
+          do m = 0, l
              ip = imin + l + m
              im = imin + l - m
              iphas = (-1)**m
-             call ylmderiv(ylm,r,l, m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,xgrad1,xhess1)
-             call ylmderiv(ylm,r,l,-m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,xgrad2,xhess2)
-
-             phi(ip,iorb,nenvl) = rl(iorb,nenvl) * real(iphas*ylm(ip)+ylm(im),8) / sqrt(2d0)
-             phi(im,iorb,nenvl) = rl(iorb,nenvl) * real(-iphas*img*ylm(ip)+img*ylm(im),8) / sqrt(2d0)
-             if (nder < 1) cycle
-             phip(:,ip,iorb,nenvl) = real(iphas*xgrad1+xgrad2,8) / sqrt(2d0)
-             phip(:,im,iorb,nenvl) = real(-iphas*img*xgrad1+img*xgrad2,8) / sqrt(2d0)
-             if (nder < 2) cycle
-             phipp(:,ip,iorb,nenvl) = real(iphas*xhess1+xhess2,8) / sqrt(2d0)
-             phipp(:,im,iorb,nenvl) = real(-iphas*img*xhess1+img*xhess2,8) / sqrt(2d0)
+             call ylmderiv_real(ylm,r,l,m,rl(iorb,nenvl),rlp(iorb,nenvl),rlpp(iorb,nenvl),nder,s,sg,sh)
+             phi(ip,iorb,nenvl) = iphas * s(1)
+             if (nder >= 1) phip(:,ip,iorb,nenvl) = iphas * sg(:,1)
+             if (nder >= 2) phipp(:,ip,iorb,nenvl) = iphas * sh(:,1)
+             if (m == 0) cycle
+             phi(im,iorb,nenvl) = iphas * s(2)
+             if (nder >= 1) phip(:,im,iorb,nenvl) = iphas * sg(:,2)
+             if (nder >= 2) phipp(:,im,iorb,nenvl) = iphas * sh(:,2)
           end do
        end do
 

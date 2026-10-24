@@ -37,6 +37,7 @@ module tools_math
   public :: genylm
   public :: tosphere
   public :: ylmderiv
+  public :: ylmderiv_real
   public :: radial_derivs
   public :: ep
   public :: gcd
@@ -184,6 +185,15 @@ module tools_math
        integer, intent(in) :: nder
        complex*16, intent(out), optional :: grad(3), hess(6)
      end subroutine ylmderiv
+     module subroutine ylmderiv_real(yl,r,l,m,c,cp,cpp,nder,s,grad,hess)
+       complex*16, intent(in) :: yl(:)
+       real*8, intent(in) :: r
+       integer, intent(in) :: l, m
+       real*8, intent(in) :: c, cp, cpp
+       integer, intent(in) :: nder
+       real*8, intent(out) :: s(2)
+       real*8, intent(out), optional :: grad(3,2), hess(6,2)
+     end subroutine ylmderiv_real
      pure module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
        real*8, dimension(:), intent(in) :: rlm
        integer, intent(in) :: nder

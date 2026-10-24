@@ -586,6 +586,46 @@ contains
 
   end subroutine ylmderiv
 
+  !> Real combinations of the solid harmonic f(r) Y_lm (Condon-Shortley
+  !> Y_lm from genylm in yl) and their derivatives at distance r, for
+  !> m >= 0, from the radial function c and its derivatives cp, cpp:
+  !> for m = 0, s(1) = f Y_l0 and s(2) = 0; for m > 0, s(1) = sqrt2
+  !> Re(f Y_lm) and s(2) = sqrt2 Im(f Y_lm). The real spherical
+  !> harmonics S_lm and S_l,-m of the usual conventions are these up
+  !> to (-1)^m signs, which the caller applies. grad(:,i) and
+  !> hess(:,i) (xx,xy,xz,yy,yz,zz) are the derivatives of s(i), up to
+  !> nder. One call to ylmderiv, since f Y_l,-m = (-1)^m conj(f Y_lm).
+  module subroutine ylmderiv_real(yl,r,l,m,c,cp,cpp,nder,s,grad,hess)
+    complex*16, intent(in) :: yl(:)
+    real*8, intent(in) :: r
+    integer, intent(in) :: l, m
+    real*8, intent(in) :: c, cp, cpp
+    integer, intent(in) :: nder
+    real*8, intent(out) :: s(2)
+    real*8, intent(out), optional :: grad(3,2), hess(6,2)
+
+    complex*16 :: y, g(3), hh(6)
+    real*8 :: fac
+
+    real*8, parameter :: sqrt2 = sqrt(2d0)
+
+    y = c * yl(l*(l+1)+m+1)
+    call ylmderiv(yl,r,l,m,c,cp,cpp,nder,g,hh)
+    fac = sqrt2
+    if (m == 0) fac = 1d0
+    s(1) = fac * real(y,8)
+    s(2) = fac * aimag(y)
+    if (present(grad)) then
+       grad(:,1) = fac * real(g,8)
+       grad(:,2) = fac * aimag(g)
+    end if
+    if (present(hess)) then
+       hess(:,1) = fac * real(hh,8)
+       hess(:,2) = fac * aimag(hh)
+    end if
+
+  end subroutine ylmderiv_real
+
   !> Given the value of a function (rlm) on an exponential grid defined
   !> by r_i = a * exp((i-1)*b), calculate the interpolated value (rho)
   !> and the first (rho1) and second (rho2) derivative at the

@@ -27,11 +27,12 @@ submodule (fhiaims_private) proc
   ! subroutine sb_open(sb,file,errmsg)
   ! subroutine sb_fill(sb,ios)
   ! subroutine sb_values(sb,nval,ios,x)
-  ! subroutine accumulate_dm(f,evk,evr,occ,kpt,wk,nsv)
+  ! subroutine accumulate_dm(f,evk,evr,occ,kpt,wk,nsv,is)
   ! function max_nloc(f,c) result(nloc)
   ! subroutine block_norms(f)
   ! subroutine blockmul(op,m,n,k,a,lda,b,ldb,beta,c,ldc)
   ! subroutine accum_props(x,y,nder,rho,grad,h,gkin)
+  ! subroutine spin_fill(nsw,rho,grad,h,gkin)
   ! function lexneg(t)
   ! function block_key(f,dt) result(key)
   ! function find_block(f,a,b,dt,trans) result(ib)
@@ -289,6 +290,7 @@ contains
     if (allocated(f%blknorm)) deallocate(f%blknorm)
     if (allocated(f%dm)) deallocate(f%dm)
     f%nocc = 0
+    f%noccs = 0
     f%nblk = 0
     f%cptr = c_null_ptr
 
@@ -388,6 +390,7 @@ contains
        if (allocated(f%cs)) deallocate(f%cs)
        allocate(f%cs(f%nbas,f%nocc),xr(f%nbas))
        icol = 0
+       f%noccs = 0
        do is = 1, f%nspin
           do i = 1, f%nstates
              if (occ(i,is,1) <= occ_cutoff) then
@@ -398,6 +401,7 @@ contains
              call sb_values(sb,f%nbas,ios,xr)
              if (ios /= 0) goto 999
              icol = icol + 1
+             f%noccs(is) = f%noccs(is) + 1
              f%cs(:,icol) = xr(iperm) * sqrt(occ(i,is,1) * wk(1))
           end do
        end do
@@ -425,7 +429,7 @@ contains
              end do
              call sb_values(sb,(f%nstates-nsv)*nval,ios)
              if (ios /= 0) goto 999
-             call accumulate_dm(f,evk,evr,occ(:,is,k),kpt(:,k),wk(k),nsv)
+             call accumulate_dm(f,evk,evr,occ(:,is,k),kpt(:,k),wk(k),nsv,is)
           end do
        end do
        call block_norms(f)
@@ -443,40 +447,45 @@ contains
   !> Calculate the density and derivatives of an FHI-aims field (f)
   !> up to the nder degree (max = 2). xpos is in Cartesian
   !> coordinates. In output, the density (rho), the gradient (grad),
-  !> the Hessian (h), and the G(r) kinetic energy density (gkin).
-  !> This routine is thread-safe.
-  module subroutine rho2(f,xpos,nder,rho,grad,h,gkin)
+  !> the Hessian (h), and the G(r) kinetic energy density (gkin); the
+  !> last index is 1 for the total, 2 for spin up and 3 for spin down.
+  !> The spin components are filled only if dospin and the
+  !> calculation is spin-polarized (at twice the cost of the total
+  !> alone on the density matrix route). This routine is thread-safe.
+  module subroutine rho2(f,xpos,nder,dospin,rho,grad,h,gkin)
     use crystalmod, only: crystal
     use iso_c_binding, only: c_f_pointer
-    use tools_math, only: tosphere, genylm, ylmderiv
+    use tools_math, only: tosphere, genylm, ylmderiv_real
     use tools, only: qcksort
     use param, only: icrd_cart
     class(fhiaimswfn), intent(inout) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     integer, intent(in) :: nder  !< Number of derivatives
-    real*8, intent(out) :: rho !< Density
-    real*8, intent(out) :: grad(3) !< Gradient
-    real*8, intent(out) :: h(3,3) !< Hessian
-    real*8, intent(out) :: gkin !< G(r), kinetic energy density
+    logical, intent(in) :: dospin !< Compute the spin densities of a spin-polarized calculation
+    real*8, intent(out) :: rho(3) !< Density (total, spin up, spin down)
+    real*8, intent(out) :: grad(3,3) !< Gradient (:,1:3 = total, spin up, spin down)
+    real*8, intent(out) :: h(3,3,3) !< Hessian (:,:,1:3 = total, spin up, spin down)
+    real*8, intent(out) :: gkin(3) !< G(r), kinetic energy density (total, spin up, spin down)
 
-    integer :: nenv, ion, nenvl, ia, is, ifn, l, m, iy, ip, im, iloc, ispl
-    integer :: nloc, nd, ndw, ie, je, ib, k, k1, k2, ir, ic, nr, mr, mc, n, np, nbmax, maxrun, dt(3)
+    integer :: nenv, ion, nenvl, ia, is, ifn, l, m, ip, im, iloc, ispl
+    integer :: nloc, nd, ndw, ie, je, ib, k, k1, k2, ir, ic, nr, mr, mc, n, n2, np, nbmax, maxrun, dt(3)
+    integer :: nsw, js
     logical :: trans
     real*8 :: r, tp(2), u, up, upp, rr, rp, rpp, dspl, tspl, iphas
     integer, allocatable :: eid(:), lvec(:,:), iat(:), tvec(:,:), loc0(:), nact(:)
     integer, allocatable :: pib(:), pir(:), pic(:), iord(:)
     logical, allocatable :: pboth(:)
-    real*8, allocatable :: dist(:), xenv(:,:), rc(:), psum(:), p(:,:), w(:,:), g(:,:), wk(:,:), psi(:,:)
+    real*8, allocatable :: dist(:), xenv(:,:), rc(:), psum(:), p(:,:), w(:,:,:), g(:,:), wk(:,:), psi(:,:)
     complex*16, allocatable :: ylm(:)
-    complex*16 :: xgrad(3), xhess(6)
+    real*8 :: s(2), sg(3,2), sh(6,2)
     type(crystal), pointer :: c
-
-    real*8, parameter :: sqrt2 = sqrt(2d0)
 
     rho = 0d0
     grad = 0d0
     h = 0d0
     gkin = 0d0
+    nsw = 1
+    if (dospin .and. f%nspin == 2) nsw = 2
 
     ! atoms around the input point; keep the ones within their own cutoff
     call c_f_pointer(f%cptr,c)
@@ -530,26 +539,18 @@ contains
           ! (SHEval): S_l0 = Y_l0, S_lm = sqrt2 Re(Y_lm) and S_l-m =
           ! (-1)^m sqrt2 Im(Y_lm) for m > 0, with Condon-Shortley Y_lm.
           ! Local basis order is m = -l..l.
-          iy = l*l + l + 1
-          ip = iloc + l + 1
-          call ylmderiv(ylm,r,l,0,rr,rp,rpp,nder,xgrad,xhess)
-          p(ip,1) = rr * real(ylm(iy),8)
-          if (nder >= 1) p(ip,2:4) = real(xgrad,8)
-          if (nder >= 2) p(ip,5:10) = real(xhess,8)
-          iphas = 1d0
-          do m = 1, l
-             iphas = -iphas
+          do m = 0, l
+             iphas = real((-1)**m,8)
              ip = iloc + l + 1 + m
+             call ylmderiv_real(ylm,r,l,m,rr,rp,rpp,nder,s,sg,sh)
+             p(ip,1) = s(1)
+             if (nder >= 1) p(ip,2:4) = sg(:,1)
+             if (nder >= 2) p(ip,5:10) = sh(:,1)
+             if (m == 0) cycle
              im = iloc + l + 1 - m
-             call ylmderiv(ylm,r,l,m,rr,rp,rpp,nder,xgrad,xhess)
-             p(ip,1) = sqrt2 * rr * real(ylm(iy+m),8)
-             p(im,1) = sqrt2 * iphas * rr * aimag(ylm(iy+m))
-             if (nder < 1) cycle
-             p(ip,2:4) = sqrt2 * real(xgrad,8)
-             p(im,2:4) = sqrt2 * iphas * aimag(xgrad)
-             if (nder < 2) cycle
-             p(ip,5:10) = sqrt2 * real(xhess,8)
-             p(im,5:10) = sqrt2 * iphas * aimag(xhess)
+             p(im,1) = iphas * s(2)
+             if (nder >= 1) p(im,2:4) = iphas * sg(:,2)
+             if (nder >= 2) p(im,5:10) = iphas * sh(:,2)
           end do
           iloc = iloc + 2*l+1
        end do
@@ -566,7 +567,18 @@ contains
           call blockmul('T',f%nocc,nd,nact(ie),f%cs(f%ibas0(iat(ie))+1,1),f%nbas,&
              p(loc0(ie)+1,1),nloc,1d0,psi,f%nocc)
        end do
-       call accum_props(psi,psi,nder,rho,grad,h,gkin)
+       if (nsw == 2) then
+          ! spin up and down from their own orbitals; the total is the sum
+          n = f%noccs(1)
+          call accum_props(psi(1:n,:),psi(1:n,:),nder,rho(2),grad(:,2),h(:,:,2),gkin(2))
+          call accum_props(psi(n+1:,:),psi(n+1:,:),nder,rho(3),grad(:,3),h(:,:,3),gkin(3))
+          rho(1) = rho(2) + rho(3)
+          grad(:,1) = grad(:,2) + grad(:,3)
+          h(:,:,1) = h(:,:,2) + h(:,:,3)
+          gkin(1) = gkin(2) + gkin(3)
+       else
+          call accum_props(psi,psi,nder,rho(1),grad(:,1),h(:,:,1),gkin(1))
+       end if
        return
     end if
 
@@ -576,7 +588,7 @@ contains
     ! is below threshold are skipped (only the values and gradients
     ! enter the products)
     ndw = min(nd,4)
-    allocate(w(nloc,ndw),psum(nenvl))
+    allocate(w(nloc,ndw,nsw),psum(nenvl))
     w = 0d0
     do ie = 1, nenvl
        psum(ie) = sum(abs(p(loc0(ie)+1:loc0(ie)+nact(ie),1:ndw)))
@@ -589,7 +601,7 @@ contains
           dt = tvec(:,ie) - tvec(:,je)
           ib = find_block(f,iat(ie),iat(je),dt,trans)
           if (ib == 0) cycle
-          if (f%blknorm(ib) * psum(ie) * psum(je) < dm_pairthr) cycle
+          if (maxval(f%blknorm(ib,1:nsw)) * psum(ie) * psum(je) < dm_pairthr) cycle
           np = np + 1
           pib(np) = ib
           if (trans) then
@@ -637,9 +649,13 @@ contains
        if (k2 == k1) then
           mr = nact(ir)
           mc = nact(ic)
-          call blockmul('N',mr,ndw,mc,f%dm(f%blkoff(ib)+1),nr,p(loc0(ic)+1,1),nloc,1d0,w(loc0(ir)+1,1),nloc)
-          if (pboth(iord(k1))) &
-             call blockmul('T',mc,ndw,mr,f%dm(f%blkoff(ib)+1),nr,p(loc0(ir)+1,1),nloc,1d0,w(loc0(ic)+1,1),nloc)
+          do js = 1, nsw
+             call blockmul('N',mr,ndw,mc,f%dm(f%blkoff(ib)+1,js),nr,p(loc0(ic)+1,1),nloc,1d0,&
+                w(loc0(ir)+1,1,js),nloc)
+             if (pboth(iord(k1))) &
+                call blockmul('T',mc,ndw,mr,f%dm(f%blkoff(ib)+1,js),nr,p(loc0(ir)+1,1),nloc,1d0,&
+                w(loc0(ic)+1,1,js),nloc)
+          end do
           k1 = k2 + 1
           cycle
        end if
@@ -657,12 +673,14 @@ contains
           g(1:mc,n+1:n+ndw) = p(loc0(ic)+1:loc0(ic)+mc,1:ndw)
           n = n + ndw
        end do
-       call blockmul('N',mr,n,mc,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
-       n = 0
-       do k = k1, k2
-          ir = pir(iord(k))
-          w(loc0(ir)+1:loc0(ir)+mr,:) = w(loc0(ir)+1:loc0(ir)+mr,:) + wk(1:mr,n+1:n+ndw)
-          n = n + ndw
+       do js = 1, nsw
+          call blockmul('N',mr,n,mc,f%dm(f%blkoff(ib)+1,js),nr,g,nbmax,0d0,wk,nbmax)
+          n2 = 0
+          do k = k1, k2
+             ir = pir(iord(k))
+             w(loc0(ir)+1:loc0(ir)+mr,:,js) = w(loc0(ir)+1:loc0(ir)+mr,:,js) + wk(1:mr,n2+1:n2+ndw)
+             n2 = n2 + ndw
+          end do
        end do
 
        ! columns of ic: D^T * p(ir), for the pairs of two different atoms
@@ -674,19 +692,24 @@ contains
           n = n + ndw
        end do
        if (n > 0) then
-          call blockmul('T',mc,n,mr,f%dm(f%blkoff(ib)+1),nr,g,nbmax,0d0,wk,nbmax)
-          n = 0
-          do k = k1, k2
-             if (.not.pboth(iord(k))) cycle
-             ic = pic(iord(k))
-             w(loc0(ic)+1:loc0(ic)+mc,:) = w(loc0(ic)+1:loc0(ic)+mc,:) + wk(1:mc,n+1:n+ndw)
-             n = n + ndw
+          do js = 1, nsw
+             call blockmul('T',mc,n,mr,f%dm(f%blkoff(ib)+1,js),nr,g,nbmax,0d0,wk,nbmax)
+             n2 = 0
+             do k = k1, k2
+                if (.not.pboth(iord(k))) cycle
+                ic = pic(iord(k))
+                w(loc0(ic)+1:loc0(ic)+mc,:,js) = w(loc0(ic)+1:loc0(ic)+mc,:,js) + wk(1:mc,n2+1:n2+ndw)
+                n2 = n2 + ndw
+             end do
           end do
        end if
        k1 = k2 + 1
     end do
 
-    call accum_props(p,w,nder,rho,grad,h,gkin)
+    do js = 1, nsw
+       call accum_props(p,w(:,:,js),nder,rho(js),grad(:,js),h(:,:,js),gkin(js))
+    end do
+    call spin_fill(nsw,rho,grad,h,gkin)
 
   end subroutine rho2
 
@@ -1036,7 +1059,7 @@ contains
        end do
     end do
     if (allocated(f%dm)) deallocate(f%dm)
-    allocate(f%dm(ntot))
+    allocate(f%dm(ntot,f%nspin))
     f%dm = 0d0
 
   end subroutine build_blocks
@@ -1223,8 +1246,10 @@ contains
   !>   D_ij(dT) += Re wk sum_n occ_n c_in c_jn^* exp(2 pi i k.dT)
   !> The real part is exact: the imaginary parts cancel in the
   !> symmetric sum over basis function pairs. Only the columns of the
-  !> atoms b >= a that share a block with a are computed.
-  subroutine accumulate_dm(f,evk,evr,occ,kpt,wk,nsv)
+  !> atoms b >= a that share a block with a are computed. The
+  !> contribution goes to the total matrix and, if the calculation is
+  !> spin-polarized and is == 1, to the spin-up matrix as well.
+  subroutine accumulate_dm(f,evk,evr,occ,kpt,wk,nsv,is)
     use param, only: tpi, img
     type(fhiaimswfn), intent(inout) :: f
     complex*16, intent(in) :: evk(:,:)
@@ -1233,21 +1258,24 @@ contains
     real*8, intent(in) :: kpt(3)
     real*8, intent(in) :: wk
     integer, intent(in) :: nsv
+    integer, intent(in) :: is
 
-    integer :: a, b, na, nb, a0, b0, n, ib, ncol
+    integer :: a, b, na, nb, a0, b0, n, ib, ncol, js, nj
     integer*8 :: off
     integer, allocatable :: col0(:)
     complex*16, allocatable :: fw(:,:), fwa(:,:), en(:,:), pa(:,:)
-    real*8, allocatable :: fwr(:,:), fwar(:,:), enr(:,:), par(:,:)
+    real*8, allocatable :: fwr(:,:), fwar(:,:), enr(:,:), par(:,:), blk(:)
     complex*16 :: phase
     real*8 :: arg
 
     complex*16, parameter :: cone = (1d0,0d0), czero = (0d0,0d0)
 
     if (nsv == 0) return
+    nj = 1
+    if (f%nspin == 2 .and. is == 1) nj = 2
 
     ! occupation- and weight-scaled eigenvectors
-    allocate(col0(f%nat))
+    allocate(col0(f%nat),blk(maxval(f%spc(:)%nbas)**2))
     if (f%isreal) then
        allocate(fwr(f%nbas,nsv))
        do n = 1, nsv
@@ -1307,11 +1335,14 @@ contains
              arg = tpi * dot_product(kpt,real(f%blkt(:,ib),8))
              off = f%blkoff(ib)
              if (f%isreal) then
-                f%dm(off+1:off+n) = f%dm(off+1:off+n) + cos(arg) * reshape(par(:,col0(b)+1:col0(b)+nb),(/n/))
+                blk(1:n) = cos(arg) * reshape(par(:,col0(b)+1:col0(b)+nb),(/n/))
              else
                 phase = exp(img * arg)
-                f%dm(off+1:off+n) = f%dm(off+1:off+n) + reshape(real(pa(:,col0(b)+1:col0(b)+nb) * phase,8),(/n/))
+                blk(1:n) = reshape(real(pa(:,col0(b)+1:col0(b)+nb) * phase,8),(/n/))
              end if
+             do js = 1, nj
+                f%dm(off+1:off+n,js) = f%dm(off+1:off+n,js) + blk(1:n)
+             end do
           end do
        end do
     end do
@@ -1350,17 +1381,19 @@ contains
   subroutine block_norms(f)
     type(fhiaimswfn), intent(inout) :: f
 
-    integer :: a, b, ib, n
+    integer :: a, b, ib, n, js
     integer*8 :: off
 
     if (allocated(f%blknorm)) deallocate(f%blknorm)
-    allocate(f%blknorm(f%nblk))
+    allocate(f%blknorm(f%nblk,f%nspin))
     do a = 1, f%nat
        do b = a, f%nat
           n = f%spc(f%ispc(a))%nbas * f%spc(f%ispc(b))%nbas
           do ib = f%pair0(a,b), f%pair0(a,b) + f%pairn(a,b) - 1
              off = f%blkoff(ib)
-             f%blknorm(ib) = maxval(abs(f%dm(off+1:off+n)))
+             do js = 1, f%nspin
+                f%blknorm(ib,js) = maxval(abs(f%dm(off+1:off+n,js)))
+             end do
           end do
        end do
     end do
@@ -1423,6 +1456,22 @@ contains
     end if
 
   end subroutine accum_props
+
+  !> Complete the spin components of the rho2 output when the spin-up
+  !> part was computed (nsw == 2): spin down (index 3) is the total
+  !> minus spin up.
+  subroutine spin_fill(nsw,rho,grad,h,gkin)
+    integer, intent(in) :: nsw
+    real*8, intent(inout) :: rho(3), grad(3,3), h(3,3,3), gkin(3)
+
+    if (nsw == 2) then
+       rho(3) = rho(1) - rho(2)
+       grad(:,3) = grad(:,1) - grad(:,2)
+       h(:,:,3) = h(:,:,1) - h(:,:,2)
+       gkin(3) = gkin(1) - gkin(2)
+    end if
+
+  end subroutine spin_fill
 
   !> True if the first non-zero component of the integer vector is
   !> negative.

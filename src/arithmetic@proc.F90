@@ -2375,6 +2375,7 @@ contains
        request%avail(fieldeval_category_fder1) = .true.
        request%avail(fieldeval_category_fder2) = .true.
        request%avail(fieldeval_category_gkin) = .true.
+       request%avail(fieldeval_category_spin) = .true.
     elseif (c == fun_vir) then
        request%avail(fieldeval_category_stress) = .true.
     elseif (c == fun_he) then
