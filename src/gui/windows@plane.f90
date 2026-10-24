@@ -50,6 +50,10 @@ submodule (windows) plane
   ! most lattice translations tried for each candidate label
   integer, parameter :: maxtrans = 20000
 
+  ! the note of a map that is not updated (the Update map checkbox is off)
+  character(len=*), parameter :: noupdate_msg = "The map is not updated: check Update map to&
+     & calculate it again"
+
 contains
 
   !> Draw the plane map window: the values of a field of the system
@@ -65,10 +69,11 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh
+    logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh, mapshown
     integer :: isys, iview, istat, i, ipick, iaux, irobj
-    real*8 :: xc(3), rad, v(3,3), xhov(3)
+    real*8 :: xc(3), rad, v(3,3), xhov(3), x0(3), uu(3), vv(3), a0(3), e1(3), e2(3)
     type(ImVec2) :: sz0
+    character(len=:), allocatable :: errmsg
     real(c_float) :: htable, hmap
     type(rep_shape), allocatable :: shp(:)
 
@@ -166,7 +171,8 @@ contains
        ! the values on the plane and what is made from them, calculated
        ! again if anything they depend on changed
        call update_grid(refit,fresh)
-       if (allocated(w%pl%ff)) then
+       mapshown = allocated(w%pl%ff) .and. w%pl%d%update
+       if (mapshown) then
           call update_contours()
           call update_texture()
           call update_marks()
@@ -181,15 +187,19 @@ contains
        call igGetContentRegionAvail(sz0)
        sz0%y = sz0%y - iw_calcheight(merge(3,2,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
        htable = 0._c_float
-       if (w%pl%secdata%open .and. allocated(w%pl%ff)) then
+       if (w%pl%secdata%open .and. mapshown) then
           htable = max(0.35_c_float * sz0%y,iw_calcheight(4,0,.false.))
           sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
           w%heightslack = htable - iw_calcheight(4,0,.false.)
        end if
        hmap = iw_calcheight(map_minlines,0,.false.)
        sz0%y = max(sz0%y,hmap)
-       if (allocated(w%pl%ff)) w%heightslack = w%heightslack + sz0%y - hmap
-       call draw_map(sz0,refit,hover,xhov,.false.)
+       if (mapshown) w%heightslack = w%heightslack + sz0%y - hmap
+       if (w%pl%d%update) then
+          call draw_map(sz0,refit,hover,xhov,.false.)
+       else
+          call iw_text(noupdate_msg,wrap=.true.)
+       end if
 
        ! the table of values
        call draw_data_section()
@@ -204,15 +214,18 @@ contains
                 shp(i) = rep_shape(kind=shapekind_sphere,x1=cart_to_abs(form_to_cart(isys,w%pl%d%xp(:,i))),&
                    rad=rad,rgb=pt_rgb(:,i),alpha=marker_alpha)
              end do
-             ! the region (unless the map itself is in the view, as the
-             ! window's or as the object it edits)
-             if (allocated(w%pl%ff) .and. .not.(w%pl%showview .and. w%pl%viewgen >= 0) .and.&
-                irobj == 0) then
-                v = 0d0
-                v(:,1) = real(size(w%pl%ff,1)-1,8) * w%pl%uu
-                v(:,2) = real(size(w%pl%ff,2)-1,8) * w%pl%vv
-                shp = [shp,rep_shape(kind=shapekind_box,x1=cart_to_abs(w%pl%x0),v=v,rad=0.15d0*rad,&
-                   rgb=region_rgb,alpha=region_alpha)]
+             ! the region, from the form (it may be ahead of the map),
+             ! unless the map itself is in the view, as the window's or
+             ! as the object it edits
+             if (.not.(w%pl%showview .and. w%pl%viewgen >= 0) .and. irobj == 0) then
+                call w%pl%d%grid(isys,x0,uu,vv,a0,e1,e2,errmsg)
+                if (len(errmsg) == 0) then
+                   v = 0d0
+                   v(:,1) = real(w%pl%d%nx-1,8) * uu
+                   v(:,2) = real(w%pl%d%ny-1,8) * vv
+                   shp = [shp,rep_shape(kind=shapekind_box,x1=cart_to_abs(x0),v=v,rad=0.15d0*rad,&
+                      rgb=region_rgb,alpha=region_alpha)]
+                end if
              end if
              if (hover) &
                 shp = [shp,rep_shape(kind=shapekind_sphere,x1=cart_to_abs(xhov),&
@@ -229,7 +242,7 @@ contains
        end if
 
        ! the image of the map, to the file chosen in the dialog
-       if (w%okfile_set .and. allocated(w%pl%ff)) call export_map()
+       if (w%okfile_set .and. mapshown) call export_map()
     end if
     w%okfile_set = .false.
 
@@ -240,11 +253,14 @@ contains
     if (iw_button("Create Object##planecreateobj",disabled=.not.ldum)) call create_object()
     if (irobj > 0) then
        call iw_tooltip("This map is already an object of the view",ttshown,whendisabled=.true.)
+    elseif (.not.w%pl%d%update) then
+       call iw_tooltip("Make this map a permanent object of the view (check Update map first, to&
+          & calculate it)",ttshown,whendisabled=.true.)
     else
        call iw_tooltip("Make this map a permanent object of the view, kept after this window is closed",&
           ttshown,whendisabled=.true.)
     end if
-    if (iw_button("Export to Image",sameline=.true.,disabled=.not.allocated(w%pl%ff))) &
+    if (iw_button("Export to Image",sameline=.true.,disabled=.not.mapshown)) &
        iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
     call iw_tooltip("Save the map, as shown in this window, to a PNG image file",ttshown)
     if (iw_button("Close",sameline=.true.)) doquit = .true.
@@ -338,7 +354,13 @@ contains
          call sync_object(fresh)
          return
       end if
-      if (.not.w%pl%showview .or. .not.associated(win(iview)%sc)) return
+      ! not shown, or not updated: the transient is not armed and goes
+      ! away, and the view no longer holds the map
+      if (.not.w%pl%showview .or. .not.w%pl%d%update) then
+         w%pl%viewgen = -1
+         return
+      end if
+      if (.not.associated(win(iview)%sc)) return
       if (win(iview)%sc%isinit == 0) return
 
       ! nothing to show: up to date but no values, or nothing given yet
@@ -547,15 +569,21 @@ contains
       use global, only: new_uid
       logical, intent(in) :: fresh
 
-      if (.not.fresh .or. .not.allocated(w%pl%ff)) return
-      if (w%pl%viewgen == w%pl%gen .and. .not.w%pl%viewdirty) return
+      ! not updated: the form goes to the object when it changes (its
+      ! values stay, as when edited in its editor), never the values
+      if (.not.w%pl%d%update) then
+         if (.not.w%pl%viewdirty) return
+      else
+         if (.not.fresh .or. .not.allocated(w%pl%ff)) return
+         if (w%pl%viewgen == w%pl%gen .and. .not.w%pl%viewdirty) return
+      end if
       associate(r => win(iview)%sc%rep(irobj))
-        call give_map(r,w%pl%viewgen /= w%pl%gen)
+        call give_map(r,w%pl%d%update .and. w%pl%viewgen /= w%pl%gen)
         r%slice%stamp = new_uid()
         w%pl%objstamp = r%slice%stamp
         if (w%pl%viewdirty) call win(iview)%sc%undo_note("Edit " // trim(r%name))
       end associate
-      w%pl%viewgen = w%pl%gen
+      if (w%pl%d%update) w%pl%viewgen = w%pl%gen
       w%pl%viewdirty = .false.
       win(iview)%sc%forcebuildlists = .true.
 
@@ -969,7 +997,7 @@ contains
       type(c_ptr) :: clipper
       type(ImGuiListClipper), pointer :: clipper_f
 
-      if (.not.allocated(w%pl%ff)) return
+      if (.not.mapshown) return
       call iw_separatortext("Values on the plane",w%pl%secdata)
       if (.not.w%pl%secdata%open) return
 
@@ -1063,7 +1091,8 @@ contains
     !> Calculate the grid of the region and the values on it if the
     !> points, the region, the number of points, the quantity, the
     !> fields, or the geometry changed. Waits for the initialization
-    !> threads to finish and for the inputs to be no longer edited.
+    !> threads to finish, for the inputs to be no longer edited, and
+    !> for the map to be updated (the form's checkbox).
     !> refit = the region changed (the plot fits the axes to it).
     !> fresh = the grid and the values (or their absence) are those of
     !> the form (not while it is edited or the threads run).
@@ -1078,7 +1107,7 @@ contains
 
       refit = .false.
       fresh = .false.
-      if (xediting .or. are_threads_running()) return
+      if (xediting .or. .not.w%pl%d%update .or. are_threads_running()) return
       fresh = .true.
 
       ! everything the values depend on, and the system
@@ -1479,6 +1508,14 @@ contains
     if (present(pickoff)) pickoff_ = pickoff
     ismol = sys(isys)%c%ismolecule
 
+    ! whether the map follows the form (on again: calculated if
+    ! stale). A toggle is a change: the flag travels with the form
+    ! between a window and the object it edits
+    changed = iw_checkbox("Update map##planeupdate",d%update,labelleft=.true.)
+    call iw_tooltip("Calculate the map again whenever the plane, the property, the colors, or the&
+       & contours change. Uncheck it to make several changes without waiting for the map, then&
+       & check it again to calculate it",ttshown)
+
     ! the plane, the region, and the number of points
     call iw_separatortext("Plane",sec(plane_sec_plane),hasmore=.true.)
     if (sec(plane_sec_plane)%open) then
@@ -1874,6 +1911,9 @@ contains
 
     ! a plane map window that edits this object takes the edit
     if (changed) w%rep%slice%stamp = new_uid()
+
+    ! the map stays as it is until it is updated again
+    if (.not.w%rep%slice%d%update) call iw_text(noupdate_msg,wrap=.true.)
 
     ! what is wrong
     if (allocated(w%rep%slice%c)) then

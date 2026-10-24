@@ -711,7 +711,7 @@ contains
 
     integer*8, allocatable :: key(:)
     integer :: isys, nx, ny, ix, iy, k, i, j, niso, is, nab
-    logical :: stale
+    logical :: stale, calc
     real*8 :: a0(3), nrm(3), a(2,2), det, ainv(2,2), gmin, gmax, dd(2)
     real*8 :: ab(2,3), pp(3,3), nn(3,3), off
     type(dl_cylinder) :: dcyl
@@ -721,15 +721,17 @@ contains
     if (.not.allocated(r%slice%c)) allocate(r%slice%c)
 
     associate(d => r%slice%d, c => r%slice%c)
-      ! the values (and with them, the mesh and the lines go stale)
-      if (.not.r%slice%nocalc .and. .not.are_threads_running()) call d%autopoints(isys)
+      ! the values (and with them, the mesh and the lines go stale).
+      ! Those given by a window are never calculated here, nor any
+      ! while the initialization threads run or the map is not updated
+      ! (the old ones are drawn)
+      calc = .not.r%slice%nocalc .and. .not.are_threads_running() .and. d%update
+      if (calc) call d%autopoints(isys)
       call d%key(isys,key)
       stale = .not.allocated(c%key) .or. .not.allocated(c%keyexpr)
       if (.not.stale) stale = (size(c%key) /= size(key))
       if (.not.stale) stale = any(c%key /= key) .or. (c%keyexpr /= trim(d%expr))
-      ! the values given by a window are never calculated here, nor any
-      ! while the initialization threads run (the old ones are drawn)
-      if (r%slice%nocalc .or. are_threads_running()) stale = .false.
+      if (.not.calc) stale = .false.
       if (stale) then
          call move_alloc(key,c%key)
          c%keyexpr = trim(d%expr)
@@ -773,10 +775,13 @@ contains
          if (allocated(c%keyshape)) deallocate(c%keyshape)
       end if
 
-      ! its colors
+      ! its colors (these, the shape, and the lines wait with the
+      ! values while the map is not updated: they exist, from the
+      ! frame that calculated the values)
       call d%colorkey(key)
       stale = .not.allocated(c%keycolor) .or. .not.allocated(c%mesh%rgbv)
       if (.not.stale) stale = any(c%keycolor /= key)
+      if (.not.d%update) stale = .false.
       if (stale) then
          call move_alloc(key,c%keycolor)
          call d%colors(c%ff,gmin,gmax,c%mesh%rgbv)
@@ -794,6 +799,7 @@ contains
         stale = .not.allocated(c%keyshape)
         if (.not.stale) stale = (size(c%keyshape) /= size(key))
         if (.not.stale) stale = any(c%keyshape /= key)
+        if (.not.d%update) stale = .false.
         if (stale) then
            call move_alloc(key,c%keyshape)
            call slice_shape(c,rl,c%keyshape(1) == 1_8)
@@ -806,6 +812,7 @@ contains
       call d%contkey(key)
       stale = .not.allocated(c%keycont) .or. .not.allocated(c%keylist)
       if (.not.stale) stale = any(c%keycont /= key) .or. (c%keylist /= trim(d%llist))
+      if (.not.d%update) stale = .false.
       if (stale) then
          call move_alloc(key,c%keycont)
          c%keylist = trim(d%llist)
