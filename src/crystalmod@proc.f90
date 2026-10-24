@@ -182,9 +182,9 @@ contains
     use global, only: crsmall, molsmall, atomeps_structnew, bondfactor, symprec
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        cellpar_from_metric
-    use tools_io, only: ferror, faterr, warning, string, usegui
+    use tools_io, only: ferror, warning, string, usegui
     use types, only: realloc
-    use param, only: pi, eyet, eye, atmcov, icrd_crys
+    use param, only: eyet, eye, atmcov, icrd_crys
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     character(len=:), allocatable, intent(out) :: errmsg
@@ -194,7 +194,7 @@ contains
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
     logical :: good, good2, doenv, copybonds, envbuilt, hascoinc
     integer :: i, j, k, l, iat, newmult, nclose
-    real*8, allocatable :: atpos(:,:), deltasave(:,:), occcel(:)
+    real*8, allocatable :: atpos(:,:), occcel(:)
     integer, allocatable :: irotm(:), icenv(:), eidclose(:)
     logical, allocatable :: useatom(:)
     character*10, allocatable :: name(:)
@@ -583,10 +583,9 @@ contains
        end if
 
        ! wrap to the main cell (crystals only; molecules are not wrapped, as the
-       ! cell is just a bounding box), Cartesian and reduced coordinates. Track
-       ! the wrapping shift for the bond lattice vectors.
+       ! cell is just a bounding box), Cartesian and reduced coordinates. The
+       ! wrapping shift (lwrap) is needed below for the bond lattice vectors.
        copybonds = seed%havebonds
-       if (copybonds) allocate(deltasave(3,c%ncel))
        do i = 1, c%ncel
           if (.not.seed%ismolecule) then
              ! the shift is kept (lwrap): the input coordinates matter
@@ -594,10 +593,8 @@ contains
              delta = -floor(c%atcel(i)%x)
              c%atcel(i)%x = c%atcel(i)%x + delta
              c%atcel(i)%lwrap = nint(delta)
-             if (copybonds) deltasave(:,i) = delta
           else
              c%atcel(i)%lwrap = 0
-             if (copybonds) deltasave(:,i) = 0d0
           end if
           c%atcel(i)%r = c%x2c(c%atcel(i)%x)
           c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
@@ -762,10 +759,9 @@ contains
           c%nstar = seed%nstar
           do i = 1, c%ncel
              do j = 1, c%nstar(i)%ncon
-                c%nstar(i)%lcon(:,j) = c%nstar(i)%lcon(:,j) - deltasave(:,c%nstar(i)%idcon(j)) + deltasave(:,i)
+                c%nstar(i)%lcon(:,j) = c%nstar(i)%lcon(:,j) - c%atcel(c%nstar(i)%idcon(j))%lwrap + c%atcel(i)%lwrap
              end do
           end do
-          deallocate(deltasave)
           ! connectivity was copied, not recomputed; still refresh the derived
           ! molecular data (the post-asterism tail of the rebond sequence)
           call c%refresh_molecular_data()

@@ -2493,8 +2493,6 @@ contains
     integer, parameter :: imode_local = 1
     integer, parameter :: imode_global = 2
     integer, parameter :: final_npts = 10001
-
-    include 'nlopt.f'
 #endif
 
     ! header and initalization
@@ -3977,7 +3975,7 @@ contains
   module subroutine struct_vibrations(s,line0,verbose)
     use global, only: eval_next, dunit0, iunit, iunitname0, vib_calculator, vib_memory, fileroot
     use tools_io, only: uout, uin, ucopy, getline, lgetword, getword, ferror, faterr,&
-       equal, isinteger, string, ioj_right, fopen_write, fclose, warning
+       equal, isinteger, string, ioj_right, fopen_write, fclose
     use crystalmod, only: supercell_matrix_from_ints, nice_cell, vib_calculator_from_name,&
        xdebye_select, xdebye_eval, xdebye_line,&
        vib_calculator_name
@@ -6916,7 +6914,6 @@ contains
     use tools_math, only: matinv, cellpar_from_metric
     use tools_io, only: uout, faterr, ferror, string, ioj_right, ioj_center
     use tools, only: delaunay_reduction
-    use param, only: pi
     type(system), intent(in) :: s
 
     interface

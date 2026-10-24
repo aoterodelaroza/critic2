@@ -1184,7 +1184,7 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use interfaces_cimgui
-    use systems, only: sys, sysc, nsys, sys_init, ok_system, are_threads_running, duplicate_system,&
+    use systems, only: sysc, nsys, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
        kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
     use windows, only: win, objedit_cancel_views, iwin_tree, iwin_view, iwin_console_input, wintype_display,&

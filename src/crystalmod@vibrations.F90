@@ -4628,7 +4628,7 @@ contains
   !> force constants are certainly wrong.
   module subroutine vibrations_check_fc2(v,c,verbose,errmsg)
     use tools_math, only: eigsym
-    use tools_io, only: uout, string, ioj_right
+    use tools_io, only: uout, string
     use param, only: atmass
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -5795,6 +5795,7 @@ contains
     !! layout, in which both indices ran over the atoms of the cell. The body
     !! is kept commented out below until it is rewritten for the cell-compact
     !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    vs = 0d0
     call ferror('vibrations_calculate_vs','not yet reimplemented for the cell-compact force constants',faterr)
 
 !!    real*8 :: normq, qn(3), qthis(3) !, h, fd0(3), fdn, ratio, fdiff(3)
@@ -5857,6 +5858,7 @@ contains
     !! layout, in which both indices ran over the atoms of the cell. The body
     !! is kept commented out below until it is rewritten for the cell-compact
     !! fc2(3,3,ncel,nsat) array (second index over the supercell).
+    vs = 0d0
     call ferror('vibrations_calculate_vs_prepare','not yet reimplemented for the cell-compact force constants',faterr)
 
 !!    real*8 :: normq, qn(3), qthis(3)!, h, fd0(3), fdn, ratio, fdiff(3)
@@ -6357,6 +6359,9 @@ contains
   !> or if NLOPT is not available.
   subroutine xdebye_fit(nt,t,fdat,npoly,nein,tref,par,rms,dfmax,errmsg)
     use tools_io, only: string
+#ifdef HAVE_NLOPT
+    use nlopt_f, only: NLOPT_LD_SLSQP, NLOPT_ROUNDOFF_LIMITED
+#endif
     integer, intent(in) :: nt
     real*8, intent(in) :: t(nt), fdat(nt)
     integer, intent(in) :: npoly, nein
@@ -6376,8 +6381,6 @@ contains
     integer*8 :: opt
     real*8 :: ssq, fm, r
     real*8, allocatable :: scal(:), lb(:), ub(:), u(:)
-
-    include 'nlopt.f'
 
     integer, parameter :: maxeval = 5000 ! largest number of objective evaluations
     real*8, parameter :: ftol = 1d-14 ! relative tolerance on the sum of squares

@@ -135,7 +135,7 @@ contains
     integer(c_int) :: flags_, myid
     character(kind=c_char,len=:), allocatable, target :: label_, text_
     character(kind=c_char,len=:), allocatable :: src
-    integer :: i, ll
+    integer :: ll
     logical :: sameline_, notlive_, editing
     type(ImVec2) :: szml
 

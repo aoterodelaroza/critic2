@@ -3610,6 +3610,7 @@ contains
     integer :: i
     real*8, allocatable :: c(:,:)
 
+    allocate(c(5,n))
     c = splinefit(n,[((i-1)*delta,i=1,n)],f)
     sp = c(1:eam_nspl,:)
 

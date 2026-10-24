@@ -1649,7 +1649,7 @@ contains
     logical :: ok
 
     ! alloc is shared with the GUI initialization threads
-    !$omp critical (falloc)
+    !$omp critical (falloc_lu)
     if (present(ti)) then
        ! the thread brings its own LUs
        falloc = -1
@@ -1669,7 +1669,7 @@ contains
        end do
     end if
     if (ok) alloc(falloc) = .true.
-    !$omp end critical (falloc)
+    !$omp end critical (falloc_lu)
     ! a thread returns -1 (the fopen_* routines report it as an error
     ! opening the file); the main LU pool running out is fatal
     if (.not.ok .and. .not.present(ti)) &
@@ -1683,9 +1683,9 @@ contains
 
     if (u < 0 .or. u > ubound(alloc,1)) &
        call ferror("fdealloc","could not deallocate logical unit",faterr)
-    !$omp critical (falloc)
+    !$omp critical (falloc_lu)
     alloc(u)=.false.
-    !$omp end critical (falloc)
+    !$omp end critical (falloc_lu)
 
   end subroutine fdealloc
 
@@ -1696,14 +1696,14 @@ contains
 
     logical :: ok
 
-    !$omp critical (falloc)
+    !$omp critical (falloc_lu)
     ok = .false.
     do freserve = 1, ubound(alloc,1)
        ok = .not.alloc(freserve) .and. .not.reserved(freserve)
        if (ok) exit
     end do
     if (ok) reserved(freserve) = .true.
-    !$omp end critical (falloc)
+    !$omp end critical (falloc_lu)
     if (.not.ok) &
        call ferror("freserve","could not reserve logical unit",faterr)
 

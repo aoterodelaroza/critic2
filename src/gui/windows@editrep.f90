@@ -74,7 +74,6 @@ contains
     use systems, only: sysc, sys_init, ok_system
     use utils, only: iw_text, iw_tooltip, iw_button, iw_calcheight, iw_checkbox,&
        iw_inputtext, iw_close_event, iw_setpos_bottomright
-    use grid3mod, only: hscale_num, hscale_log, hscale_asinh
     use tools_io, only: string
     class(window), intent(inout), target :: w
 

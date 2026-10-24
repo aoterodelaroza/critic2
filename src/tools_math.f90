@@ -320,9 +320,9 @@ module tools_math
        integer, intent(in) :: m(3,3)
        integer :: idet3
      end function idet3
-     pure module function iadj3(m)
+     pure module function iadj3(m) result(adj)
        integer, intent(in) :: m(3,3)
-       integer :: iadj3(3,3)
+       integer :: adj(3,3)
      end function iadj3
      module function mat2quat(r) result(q)
        real*8, intent(in) :: r(3,3)
@@ -451,9 +451,9 @@ module tools_math
        integer, intent(out) :: nlist
        integer, allocatable, intent(inout) :: list(:,:)
      end subroutine ullmann_graph_matching
-     pure module function invert_permutation(iperm)
+     pure module function invert_permutation(iperm) result(res)
        integer, intent(in) :: iperm(:)
-       integer :: invert_permutation(size(iperm,1))
+       integer :: res(size(iperm,1))
      end function invert_permutation
      module function emd(n,mp,p,wp,mq,q,wq,distfun)
        integer, intent(in) :: n

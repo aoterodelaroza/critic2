@@ -60,7 +60,7 @@ contains
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: cellpar_from_metric
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
-    use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
+    use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
     class(crystal), intent(inout) :: c
     logical, intent(in) :: lcrys
     logical, intent(in) :: lq
@@ -1969,7 +1969,7 @@ contains
   module subroutine write_cif(c,file,usesym0,ti)
     use global, only: fileroot, testing
     use tools_io, only: fopen_write, fclose, string, nameguess, deblank, nameguess,&
-       ferror, faterr, ioj_left
+       ferror, ioj_left
     use param, only: bohrtoa, maxzat
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file

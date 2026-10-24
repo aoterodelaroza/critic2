@@ -1278,19 +1278,19 @@ contains
   end function idet3
 
   !> Adjugate of a 3x3 integer matrix: m * iadj3(m) = idet3(m) * identity.
-  pure module function iadj3(m)
+  pure module function iadj3(m) result(adj)
     integer, intent(in) :: m(3,3) !< Input matrix
-    integer :: iadj3(3,3)
+    integer :: adj(3,3)
 
-    iadj3(1,1) = m(2,2)*m(3,3) - m(2,3)*m(3,2)
-    iadj3(1,2) = m(1,3)*m(3,2) - m(1,2)*m(3,3)
-    iadj3(1,3) = m(1,2)*m(2,3) - m(1,3)*m(2,2)
-    iadj3(2,1) = m(2,3)*m(3,1) - m(2,1)*m(3,3)
-    iadj3(2,2) = m(1,1)*m(3,3) - m(1,3)*m(3,1)
-    iadj3(2,3) = m(1,3)*m(2,1) - m(1,1)*m(2,3)
-    iadj3(3,1) = m(2,1)*m(3,2) - m(2,2)*m(3,1)
-    iadj3(3,2) = m(1,2)*m(3,1) - m(1,1)*m(3,2)
-    iadj3(3,3) = m(1,1)*m(2,2) - m(1,2)*m(2,1)
+    adj(1,1) = m(2,2)*m(3,3) - m(2,3)*m(3,2)
+    adj(1,2) = m(1,3)*m(3,2) - m(1,2)*m(3,3)
+    adj(1,3) = m(1,2)*m(2,3) - m(1,3)*m(2,2)
+    adj(2,1) = m(2,3)*m(3,1) - m(2,1)*m(3,3)
+    adj(2,2) = m(1,1)*m(3,3) - m(1,3)*m(3,1)
+    adj(2,3) = m(1,3)*m(2,1) - m(1,1)*m(2,3)
+    adj(3,1) = m(2,1)*m(3,2) - m(2,2)*m(3,1)
+    adj(3,2) = m(1,2)*m(3,1) - m(1,1)*m(3,2)
+    adj(3,3) = m(1,1)*m(2,2) - m(1,2)*m(2,1)
 
   end function iadj3
 

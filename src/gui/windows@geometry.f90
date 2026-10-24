@@ -29,9 +29,8 @@ contains
     use crystalmod, only: symelem_type_mask
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
-    use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITSELECT_REMOVE,&
-       BIND_CANCEL
+    use keybindings, only: is_bind_event, get_bind_keyname, BIND_OK_FOCUSED_DIALOG,&
+       BIND_EDITSELECT_REMOVE, BIND_CANCEL
     use global, only: bondfactor_def, bonddelta_def
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&

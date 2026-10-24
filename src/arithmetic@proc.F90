@@ -2340,7 +2340,7 @@ contains
     real*8 :: br_b, br_alf, br_a, raux(3)
     integer :: idx
     logical :: dohole, use1, use2
-    type(field_evaluation_avail) :: request
+    type(field_evaluation_avail) :: request, av
 
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
@@ -2368,14 +2368,20 @@ contains
     elseif (c == fun_elf) then
        request%avail(fieldeval_category_fder1) = .true.
        request%avail(fieldeval_category_gkin) = .true.
-    elseif (c == fun_kkin .or. c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or.&
+    elseif (c == fun_kkin) then
+       request%avail(fieldeval_category_fder2) = .true.
+       request%avail(fieldeval_category_gkin) = .true.
+    elseif (c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or.&
        c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. c == fun_brhole_alf1 .or.&
        c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. c == fun_xhcurv1 .or. c == fun_xhcurv2 .or.&
        c == fun_xhcurv .or. c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
        request%avail(fieldeval_category_fder1) = .true.
        request%avail(fieldeval_category_fder2) = .true.
        request%avail(fieldeval_category_gkin) = .true.
-       request%avail(fieldeval_category_spin) = .true.
+       ! spin-resolved quantities only if the field can provide them; the
+       ! closed-shell expressions are used otherwise
+       call syl%f(idx)%eval_avail(av)
+       request%avail(fieldeval_category_spin) = av%avail(fieldeval_category_spin)
     elseif (c == fun_vir) then
        request%avail(fieldeval_category_stress) = .true.
     elseif (c == fun_he) then
@@ -2527,7 +2533,7 @@ contains
 
        if (res%ev%avail(fieldeval_category_spin)) then
           if (use1) then
-             call assign_bhole_variables(res%fspinval(1),res%lapspin(1),res%gkinspin(1),res%gfmodspinval(1),.false.)
+             call assign_bhole_variables(res%fspinval(1),res%lapspinval(1),res%gkinspin(1),res%gfmodspinval(1),.false.)
              if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
           elseif (use2) then
              call assign_bhole_variables(res%fspinval(2),res%lapspinval(2),res%gkinspin(2),res%gfmodspinval(2),.false.)

@@ -17,7 +17,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   hashmod.f90 hashmod@proc.f90
   hirshfeld.f90 hirshfeld@proc.f90 integration.f90
   integration@proc.f90 isosurfacemod.f90 isosurfacemod@proc.f90 keast.f90 meshmod.f90
-  meshmod@proc.f90 molcalc.f90 molsymmod.f90 molsymmod@proc.f90 nci.f90 nci@proc.f90
+  meshmod@proc.f90 molcalc.f90 molsymmod.f90 molsymmod@proc.f90 nci.f90 nci@proc.f90 nlopt_f.F90
   pi_private.f90 pi_private@proc.f90 qe_private.f90
   qe_private@proc.f90 qtree_basic.f90
   qtree_basic@proc.f90 qtree.f90 qtree_gpaths.f90
@@ -59,6 +59,11 @@ target_link_libraries(critic2_core PUBLIC critic2_defs)
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0
       OR "${CMAKE_Fortran_COMPILER_VERSION}" VERSION_EQUAL 10.0.0))
   set_source_files_properties(cfftnd.f90 PROPERTIES COMPILE_FLAGS "-fallow-argument-mismatch")
+endif()
+
+## keast.f90 (third-party) defines procedures critic2 does not call
+if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
+  set_source_files_properties(keast.f90 PROPERTIES COMPILE_FLAGS "-Wno-unused-function")
 endif()
 
 ## C standards
@@ -105,7 +110,7 @@ if (BUILD_LIBRARY)
   add_library(libcritic2 SHARED ${SOURCES_Fortran_Library})
   set_target_properties(libcritic2 PROPERTIES OUTPUT_NAME critic2 PUBLIC_HEADER "libcritic2.h")
   target_link_libraries(libcritic2 PRIVATE critic2_core)
-  if (CMAKE_Fortran_COMPILER_ID MATCHES "GNU|Intel")
+  if (CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
     set_source_files_properties(libcritic2@proc.f90 libcritic2.f90 PROPERTIES COMPILE_FLAGS "-fvisibility=default")
   endif()
 endif()

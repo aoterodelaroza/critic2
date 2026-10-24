@@ -1991,7 +1991,7 @@ contains
   !> for this expression. If typeok is present, only accept a CP type
   !> if the corresponding element in typeok is true.
   module subroutine addcp(s,id,x0,discard,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
-    use tools_io, only: faterr, ferror
+    use tools_io, only: ferror
     use types, only: scalar_value, field_evaluation_avail
     class(system), intent(inout) :: s
     integer, intent(in) :: id

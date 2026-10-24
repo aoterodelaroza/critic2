@@ -90,7 +90,7 @@ contains
     type(ImVec2) :: tableclip_min, tableclip_max
     logical :: havesel, havefield
     type(c_ptr) :: tabledl
-    type(ImVec4) :: col4, tintcol, nobord
+    type(ImVec4) :: col4, nobord
     integer(c_int) :: flags, color, itex
     integer :: i, j, k, jsel, iref, inext, iprev, ithis, iaux, ifmt
     integer :: nshown, nshown_after_filter, maxprops, nprop, nrow, ithis_row

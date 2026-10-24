@@ -4770,7 +4770,7 @@ contains
   !> editing mode. ttshown = the tooltip flag.
   subroutine draw_annot_row(w,ttshown)
     use utils, only: iw_icon_togglebutton, iw_tooltip, iw_flyout_button, iw_text, iw_caption_below
-    use systems, only: sys, sysc
+    use systems, only: sys
     use icons, only: icon_tex, icon_ui_objprops
     use representations, only: repflavor_name
     use tools_io, only: string

@@ -944,6 +944,7 @@ contains
     use tools, only: qcksort
     use tools_io, only: uout, file_read_xy, string
     use types, only: realloc
+    use nlopt_f, only: NLOPT_LD_CCSAQ, NLOPT_LD_MMA
 #endif
     class(xrpd_peaklist), intent(inout) :: p
     character*(*), intent(in) :: xyfile
@@ -976,8 +977,6 @@ contains
     logical :: verbose
     real*8 :: ymax_detect
     integer :: nadj
-
-    include 'nlopt.f'
 
     integer, parameter :: main_algorithm = NLOPT_LD_CCSAQ
     integer, parameter :: fallback_algorithm = NLOPT_LD_MMA
@@ -2009,6 +2008,7 @@ contains
 #ifdef HAVE_NLOPT
     use tools_io, only: uout, string
     use tools_math, only: m_x2c_from_cellpar, det3
+    use nlopt_f, only: NLOPT_LD_SLSQP, NLOPT_G_MLSL_LDS
 #endif
     type(crystal), intent(in) :: c1
     type(xrpd_peaklist), intent(in) :: p2
@@ -2055,8 +2055,6 @@ contains
     integer, parameter :: imode_sp = 0
     integer, parameter :: imode_local = 1
     integer, parameter :: imode_global = 2
-
-    include 'nlopt.f'
 
     ! consistency checks
     errmsg = ""
@@ -2314,6 +2312,9 @@ contains
   module function david_sivia_calculate_background(n,x,y,errmsg,nknot) result(yb)
     use tools_math, only: splinefit, splineval
     use tools_io, only: fopen_write, fclose
+#ifdef HAVE_NLOPT
+    use nlopt_f, only: NLOPT_LN_PRAXIS
+#endif
     integer, intent(in) :: n
     real*8, intent(in) :: x(n)
     real*8, intent(in) :: y(n)
@@ -2333,8 +2334,6 @@ contains
 
     integer, parameter :: nknot0 = 20
     real*8, parameter :: ftol_eps = 1d-8
-
-    include 'nlopt.f'
 
     ! set up the initial knots and initialize
     errmsg = ""

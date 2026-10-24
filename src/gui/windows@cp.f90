@@ -596,11 +596,11 @@ contains
     case (mode_tricubic)
        mode = "tri-cubic"
     case default
-       mode = "this"
+       mode = "current"
     end select
-    call iw_text("The interpolation method for this grid field gives unreliable &
-       &critical points and gradient paths. For all-electron densities,&
-       & switch to smoothrho (right click on the field in the tree).",danger=.true.,wrap=.true.)
+    call iw_text("The " // mode // " interpolation method for this grid field gives unreliable " //&
+       what // ". For all-electron densities, switch to smoothrho (right click on the field&
+       & in the tree).",danger=.true.,wrap=.true.)
 
   end subroutine warn_grid_interp
 
@@ -2169,7 +2169,7 @@ contains
     call iw_tooltip("Field whose critical points are searched, shown, and exported",ttshown)
     if (.not.sys(isys)%goodfield(w%cp%fref%id)) &
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
-    call warn_grid_interp(isys,w%cp%fref%id,"the locations of the critical points")
+    call warn_grid_interp(isys,w%cp%fref%id,"critical point locations")
 
   end subroutine draw_field_combo
 

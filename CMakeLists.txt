@@ -19,7 +19,6 @@ project(critic2 VERSION "${critic2_VERSION}"
   HOMEPAGE_URL "${critic2_URL}"
   LANGUAGES C Fortran)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_Fortran_VISIBILITY_PRESET hidden)
 
 ## global flags for cmake
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -150,6 +149,10 @@ elseif(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     set(FFLAGS_PROFILE "-g -pg -Og -fcheck=all -fbounds-check -Wall -Wunused-parameter -Wno-maybe-uninitialized -ffpe-trap=invalid,zero,overflow -fbacktrace -fdump-core -cpp -ffree-line-length-0")
   endif()
   set(FFLAGS_RELEASE "-O3 -ffree-line-length-0")
+  ## hidden symbols by default (libcritic2 re-exports its own); not with ifx, which
+  ## also hides the undefined bind(C) imports (malloc, strlen, readline, omp_*) and
+  ## then fails to link
+  set(CMAKE_Fortran_VISIBILITY_PRESET hidden)
   if ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_LESS 6.0.0)
     set(_message "\nA version of gfortran >=6.0 is required to compile the development version of critic2. "
       "Please, visit: https://aoterodelaroza.github.io/critic2/installation/#whichcompilerswork"
