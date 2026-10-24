@@ -4473,6 +4473,14 @@ void ImGui::NewFrame()
     g.FramerateSecPerFrameCount = ImMin(g.FramerateSecPerFrameCount + 1, IM_ARRAYSIZE(g.FramerateSecPerFrame));
     g.IO.Framerate = (g.FramerateSecPerFrameAccum > 0.0f) ? (1.0f / (g.FramerateSecPerFrameAccum / (float)g.FramerateSecPerFrameCount)) : FLT_MAX;
 
+    // Process input queue (trickle as many events as possible)
+    // critic2: moved up from just before UpdateKeyboardInputs(), as upstream did in 1.89, so g.MouseViewport
+    // is computed from this frame's hovered viewport; with the stale one, crossing from a popup into a
+    // sub-menu that is its own OS window (toolbar menus) resolved the hover inside the parent and closed it.
+    g.InputEventsTrail.resize(0);
+    UpdateInputEvents(g.IO.ConfigInputTrickleEventQueue);
+
+    // Update viewports (after processing input queue, so io.MouseHoveredViewport is set)
     UpdateViewportsNewFrame();
 
     // Setup current font and draw list shared data
@@ -4564,10 +4572,6 @@ void ImGui::NewFrame()
     // Close popups on focus lost (currently wip/opt-in)
     //if (g.IO.AppFocusLost)
     //    ClosePopupsExceptModals();
-
-    // Process input queue (trickle as many events as possible)
-    g.InputEventsTrail.resize(0);
-    UpdateInputEvents(g.IO.ConfigInputTrickleEventQueue);
 
     // Update keyboard input state
     UpdateKeyboardInputs();
