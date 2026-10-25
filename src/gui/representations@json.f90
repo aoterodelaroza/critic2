@@ -63,9 +63,6 @@ contains
 
     !> The options of the object.
     subroutine xfer_options()
-      use arithmetic, only: arith_names
-      integer :: ip, j
-      character(len=len(arith_names(1)%name)) :: fn
 
       ! common
       call io%xs(p,'name',r%name)
@@ -331,6 +328,7 @@ contains
          call io%obj(p,'isosurface',q,found)
          if (.not.found) return
          call xref(q,'field',r%iso%fref)
+         call xquant(q,r%iso%isexpr,r%iso%nti,r%iso%expr)
          call io%x(q,'imosel',r%iso%imosel,id_mo_id,0)
          call io%x(q,'imoidx',r%iso%imoidx)
          call io%x(q,'ilevel',r%iso%ilevel,0,iso_level_custom)
@@ -340,6 +338,7 @@ contains
          call io%x(q,'iregion',r%iso%iregion,0,iso_region_NUM)
          call io%x(q,'rgn_x',r%iso%rgn_x)
          call io%x(q,'nptsxyz',r%iso%nptsxyz)
+         call io%x(q,'isoval_pending',r%iso%isoval_pending)
          call io%x(q,'iregion_ap',r%iso%iregion_ap,0,iso_region_NUM)
          call io%x(q,'rgn_x_ap',r%iso%rgn_x_ap)
          call io%x(q,'ihighlight',r%iso%ihighlight,0)
@@ -508,28 +507,8 @@ contains
            ! scenes written before automatic points have none
            if (io%reading) d%autonpts = .false.
            call io%x(q,'autonpts',d%autonpts)
-           call io%x(q,'isexpr',d%isexpr)
            call xref(q,'field',d%fref)
-           ! the property of the field, or its chemical function by name
-           ip = d%nti
-           fn = ""
-           j = quant_chem(d%nti)
-           if (j > 0) then
-              ip = 0
-              fn = arith_names(j)%name
-           end if
-           call io%x(q,'property',ip,0,nquant-1)
-           call io%x(q,'function',fn)
-           if (io%reading) then
-              d%nti = ip
-              do j = 1, size(arith_names,1)
-                 if (len_trim(fn) > 0 .and. arith_names(j)%name == fn .and. quant_chem(nquant+j) > 0) then
-                    d%nti = nquant + j
-                    exit
-                 end if
-              end do
-           end if
-           call io%x(q,'expression',d%expr)
+           call xquant(q,d%isexpr,d%nti,d%expr)
            call io%x(q,'icmap',d%icmap,1,iw_ncmap)
            call io%x(q,'cscale',d%cscale,0,2)
            call io%x(q,'crange',d%crange)
@@ -605,6 +584,43 @@ contains
       end select
 
     end subroutine xfer_rows
+
+    !> The quantity of a form (quant_eval): the kind isexpr, the
+    !> property of the field or its chemical function by name (nti),
+    !> and the expression. A scene without them is the value of the
+    !> field.
+    subroutine xquant(qq,isexpr,nti,expr)
+      use arithmetic, only: arith_names
+      type(json_value), pointer, intent(in) :: qq
+      logical, intent(inout) :: isexpr
+      integer, intent(inout) :: nti
+      character(len=*), intent(inout) :: expr
+
+      integer :: ip, j
+      character(len=len(arith_names(1)%name)) :: fn
+
+      call io%x(qq,'isexpr',isexpr)
+      ip = nti
+      fn = ""
+      j = quant_chem(nti)
+      if (j > 0) then
+         ip = 0
+         fn = arith_names(j)%name
+      end if
+      call io%x(qq,'property',ip,0,nquant-1)
+      call io%x(qq,'function',fn)
+      if (io%reading) then
+         nti = ip
+         do j = 1, size(arith_names,1)
+            if (len_trim(fn) > 0 .and. arith_names(j)%name == fn .and. quant_chem(nquant+j) > 0) then
+               nti = nquant + j
+               exit
+            end if
+         end do
+      end if
+      call io%x(qq,'expression',expr)
+
+    end subroutine xquant
 
     !> A field reference, as the slot of the field (the scene files make
     !> the fields again in the same slots). On reading, a slot without

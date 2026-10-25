@@ -294,7 +294,7 @@ contains
        r%iso%niso = 0
        if (allocated(r%iso%slot)) deallocate(r%iso%slot)
        call r%iso%add_iso() ! the last-resort default level; set_field overwrites it below
-       r%iso%cuid_built = -1
+       if (allocated(r%iso%qkey_built)) deallocate(r%iso%qkey_built)
        if (r%type == reptype_isosurface) &
           call r%iso%set_field(isys,r%iso%fref%id)
     end if
@@ -883,13 +883,21 @@ contains
     elseif (r%type == reptype_isosurface) then
        ! isosurfaces: re-run the field policy (default isovalue and grid
        ! level) if the selected field is gone -- falling back to the
-       ! reference field -- or if the native level is selected but the
-       ! field is no longer a grid (e.g. a different field loaded into the
-       ! same slot). The cached mesh goes stale in add_draw_elements.
+       ! reference field -- or the quantity policy if the native level
+       ! is selected but no longer available (e.g. a different field
+       ! loaded into the same slot). An expression only names its
+       ! fields itself: the slot is rebound without touching the
+       ! object, and the samples go stale through the key of the
+       ! fields it uses. The cached mesh goes stale in
+       ! add_draw_elements.
        if (.not.r%iso%fref%ok(sys(r%id))) then
-          call r%iso%set_field(r%id,sys(r%id)%iref)
-       elseif (r%iso%ilevel == 0 .and. .not.iso_isgridfield(r%id,r%iso%fref%id)) then
-          call r%iso%set_field(r%id,r%iso%fref%id)
+          if (r%iso%isexpr) then
+             call r%iso%fref%set(sys(r%id),sys(r%id)%iref)
+          else
+             call r%iso%set_field(r%id,sys(r%id)%iref)
+          end if
+       elseif (r%iso%ilevel == 0 .and. .not.r%iso%nativeok(r%id)) then
+          call r%iso%set_quantity(r%id)
        end if
 
        ! the fields that color the surfaces: if gone, the field of the
@@ -2447,10 +2455,10 @@ contains
       usegrid = all(r%iso%nptsxyz == 0) ! generated with no sampled grid = native grid
 
       ! decide whether the cached field samples and triangulations are
-      ! stale: the data of the selected field (its cuid: another field,
-      ! or the same one with new data), the MO, the applied grid, or a
-      ! geometry change
-      resample = (r%iso%cuid_built /= sys(r%id)%field_cuid(r%iso%fref%id))
+      ! stale: the quantity (another field or property, an expression
+      ! edit, or the same field with new data: quant_stale), the MO,
+      ! the applied grid, or a geometry change
+      resample = r%iso%quant_stale(r%id)
       resample = resample .or. (r%iso%imosel_built /= r%iso%imosel)
       resample = resample .or. (r%iso%imoidx_built /= r%iso%imoidx)
       resample = resample .or. .not.r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,&

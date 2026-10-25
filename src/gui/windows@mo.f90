@@ -409,10 +409,13 @@ contains
             call win(iview)%sc%show_transient_iso(w%uid,1,itrep,found)
             if (itrep > 0) then
                associate (r => win(iview)%sc%reptrans(itrep))
-                 if (.not.found .or. r%iso%fref%id /= iref .or. .not.r%iso%fref%ok(sys(isys))) then
-                    ! a fresh slot, or the reference field changed: bind
-                    ! the field and make the +/- isosurface pair
-                    call r%iso%set_field(isys,iref)
+                 if (.not.found .or. r%iso%fref%id /= iref .or. .not.r%iso%fref%ok(sys(isys)) .or.&
+                    .not.r%iso%isvalue()) then
+                    ! a fresh slot, the reference field changed, or the
+                    ! quantity is not the value of the field (the
+                    ! orbitals are the field's): bind the field and make
+                    ! the +/- isosurface pair
+                    call r%iso%set_field(isys,iref,value=.true.)
                     r%name = "Molecular Orbital"
                     call r%iso%add_iso()
                     changed = .true.
@@ -518,7 +521,7 @@ contains
     use representations, only: representation, iso_grid_size, iso_region_to_box, iso_defaultlevel
     type(window), intent(inout), target :: w
     integer, intent(in) :: isys
-    type(representation), intent(in) :: r
+    type(representation), intent(inout) :: r ! measure_cost keeps the cost of an expression (not of an orbital)
     integer, intent(out) :: n(3)
     logical, intent(out) :: ok
 
@@ -699,7 +702,7 @@ contains
     k = r%iso%imoidx_built
     if (k >= 1 .and. k <= size(c%g) .and. allocated(r%iso%ff)) then
        if (.not.allocated(c%g(k)%ff) .and. r%iso%imosel_built == id_mo_id .and.&
-          r%iso%cuid_built == sys(isys)%field_cuid(r%iso%fref%id) .and.&
+          .not.r%iso%quant_stale(isys) .and.&
           r%iso%grid_isapplied(r%iso%nptsxyz_built,r%iso%iregion_built,r%iso%rgn_x_built) .and.&
           r%iso%time_built >= sysc(isys)%timelastchange_geometry .and.&
           all(shape(r%iso%ff) == c%n)) then

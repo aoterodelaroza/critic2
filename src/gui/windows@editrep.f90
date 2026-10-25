@@ -4329,7 +4329,7 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_isosurface(w,ttshown) result(changed)
     use systems, only: sys
-    use representations, only: iso_isgridfield, iso_level_custom,&
+    use representations, only: iso_isgridfield, iso_level_custom, quant_ready,&
        iso_npts_custom_min, iso_npts_custom_max, iso_level_optstr_custom, iso_defaultlevel,&
        iso_level_tipstr_custom, iso_custom_mode_tipstr, iso_region_cell, iso_nhist, iso_hscale_name,&
        iso_hscale_y, iso_map_color, iso_map_field, iso_map_expr, iso_map_optstr, iso_explen,&
@@ -4352,7 +4352,7 @@ contains
     logical :: changed
 
     integer :: i, isys, iview, nstage(3), nshow(3), irow, istat, ilevprev, ipad, ihb, iheld
-    integer :: nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick
+    integer :: nsc, isc, scmap(hscale_num), idel, iline, imode, ifield, ntick, nti0
     integer(c_int) :: ncus(3), tflags, dtflags
 
     real(c_float), parameter :: hist_lwidth = 4.5_c_float ! histogram curve width (px)
@@ -4360,7 +4360,7 @@ contains
     real*8 :: box(3,0:3), prev0(3), prevv(3,3), flo(3), fhi(3), xpick(3), xlo, xhi, xeps, costest
     logical :: measure
     real*8 :: xnew, dx, dmin, alpha8, maprspeed, rlo, rhi, reps
-    logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange
+    logical :: ch, ch2, ldum, goodf, isgrid, navail, okbox, capped, lapply, haverange, okquant, isexpr0
     logical :: ismapped, hascolors, plotted, addcb
     real(c_float) :: rgba(4)
     real*8 :: speed
@@ -4394,29 +4394,46 @@ contains
        end if
     end if
 
-    ! field selector
-    call iw_text("Field",alignframe=.true.)
+    ! property section: the quantity (a property of a field, or an
+    ! expression). A field change re-runs the field policy
+    ! (set_field); a new kind or property, the quantity policy
+    ! (set_quantity); an edit of the expression keeps the levels and
+    ! only defers the sampling (edit_expr). In every case nothing is
+    ! sampled until the user commits a grid
     goodf = sys(isys)%goodfield(w%rep%iso%fref%id)
-    ifield = w%rep%iso%fref%id
-    if (iw_field_combo("##isofieldcombo",isys,ifield,width=iw_calcwidth(30,1),&
-       nonestr="<field not available>",sameline=.true.)) then
-       call w%rep%iso%set_field(isys,ifield)
-       w%editrep_isoline = 0
-       changed = .true.
+    call iw_separatortext("Property",w%editrep_sec(isosec_property))
+    if (w%editrep_sec(isosec_property)%open) then
+       ifield = w%rep%iso%fref%id
+       isexpr0 = w%rep%iso%isexpr
+       nti0 = w%rep%iso%nti
+       ch = quantity_form(isys,w%rep%iso%isexpr,w%rep%iso%fref,w%rep%iso%nti,w%rep%iso%expr,&
+          w%rep%iso%exprerr,"iso","the isosurface","the grid",ttshown,fieldw=20)
+       if (ch) then
+          if (w%rep%iso%fref%id /= ifield) then
+             call w%rep%iso%set_field(isys,w%rep%iso%fref%id)
+          elseif (w%rep%iso%isexpr .neqv. isexpr0 .or. w%rep%iso%nti /= nti0) then
+             call w%rep%iso%set_quantity(isys)
+          else
+             call w%rep%iso%edit_expr()
+          end if
+          w%editrep_isoline = 0
+          changed = .true.
+       end if
     end if
-    call iw_tooltip("Field whose isosurface is displayed",ttshown)
     if (.not.goodf) then
        call iw_text("The selected field is not available in this system",danger=.true.,wrap=.true.)
        w%editrep_isoline = 0
        return
     end if
+    ! an expression has to be complete and valid to be sampled
+    okquant = quant_ready(w%rep%iso%isexpr,w%rep%iso%expr,w%rep%iso%exprerr)
 
-    ! read the field: it may have stopped being a grid (e.g. a
-    ! different field reloaded into the same slot), which invalidates
-    ! the native level
-    isgrid = iso_isgridfield(isys,w%rep%iso%fref%id)
-    if (.not.isgrid .and. w%rep%iso%ilevel == 0) then
-       call w%rep%iso%set_field(isys,w%rep%iso%fref%id)
+    ! read the field: the native level may have stopped being available
+    ! (e.g. a different field reloaded into the same slot). isgrid: the
+    ! sampling is limited to the domain of a grid field
+    isgrid = iso_isgridfield(isys,w%rep%iso%domain_field())
+    if (.not.w%rep%iso%nativeok(isys) .and. w%rep%iso%ilevel == 0) then
+       call w%rep%iso%set_quantity(isys)
        w%editrep_isoline = 0
        changed = .true.
     end if
@@ -4425,8 +4442,9 @@ contains
     ! the isosurface wraps only on the whole cell, and not on a grid
     ! field that does not span it (partial)
     ldum = .false.
-    if (isgrid) ldum = sys(isys)%f(w%rep%iso%fref%id)%grid%partial
-    ldum = region_form(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,w%editrep_sec(1),"iso","the isosurface",&
+    if (isgrid) ldum = sys(isys)%f(w%rep%iso%domain_field())%grid%partial
+    ldum = region_form(isys,w%rep%iso%iregion,w%rep%iso%rgn_x,w%editrep_sec(isosec_region),"iso",&
+       "the isosurface",&
        ttshown,irow,pickoff=(w%editrep_isopick >= 0),&
        periodic=(w%rep%iso%iregion == iso_region_cell .and..not.ldum))
     if (irow >= 0) then
@@ -4442,7 +4460,7 @@ contains
     end if
     ! the periodicity override of a whole-cell isosurface, after the
     ! region selectors
-    if (w%editrep_sec(1)%open) then
+    if (w%editrep_sec(isosec_region)%open) then
        ch = periodicity_widget(w,ttshown)
        changed = changed .or. ch
     end if
@@ -4452,13 +4470,13 @@ contains
     if (.not.okbox) &
        call iw_text("The region is degenerate (zero volume)",danger=.true.,wrap=.true.)
 
-    ! grid section: the coarseness level ("Native grid" only for grid
-    ! fields over the whole cell)
-    navail = isgrid .and. (w%rep%iso%iregion == iso_region_cell)
+    ! grid section: the coarseness level ("Native grid" only for the
+    ! value of a grid field over the whole cell)
+    navail = w%rep%iso%nativeok(isys) .and. (w%rep%iso%iregion == iso_region_cell)
     if (.not.navail .and. w%rep%iso%ilevel == 0) &
        w%rep%iso%ilevel = iso_defaultlevel
-    call iw_separatortext("Grid",w%editrep_sec(2))
-    if (w%editrep_sec(2)%open) then
+    call iw_separatortext("Grid",w%editrep_sec(isosec_grid))
+    if (w%editrep_sec(isosec_grid)%open) then
        if (navail) then
           str1 = "Native grid" // c_null_char // iso_level_optstr_custom
           str2 = "The grid of the field itself" // c_null_char // iso_level_tipstr_custom
@@ -4551,7 +4569,7 @@ contains
           end if
           lapply = .not.w%rep%iso%grid_isapplied(nstage,w%rep%iso%iregion,w%rep%iso%rgn_x)
        end if
-       if (iw_button("Calculate Grid",danger=.true.,disabled=.not.lapply)) then
+       if (iw_button("Calculate Grid",danger=.true.,disabled=.not.lapply .or. .not.okquant)) then
           w%errmsg = ""
           if (all(nstage == 0)) then
              ! the native grid of a grid field: nothing to sample
@@ -4566,12 +4584,13 @@ contains
        end if
        call iw_tooltip("Use the selected grid and region for the isosurface. The options&
           & above have no effect on the isosurface until this button is pressed",ttshown)
-       ! the cost is the field's (over a representative domain, not this
-       ! region): measured by the button, shown whenever the field has
-       ! one (measured here or in any other window)
-       measure = iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0))
-       call iw_tooltip("Measure the cost of evaluating the field, to estimate the time the grid takes&
-          & (the measurement is kept with the field and shared by all windows)",ttshown)
+       ! the cost of a field property is the field's (over a
+       ! representative domain, not this region): measured by the
+       ! button, shown whenever the field has one (measured here or in
+       ! any other window). An expression is timed on this region
+       measure = iw_button("Estimate Cost",sameline=.true.,disabled=all(nstage == 0) .or. .not.okquant)
+       call iw_tooltip("Measure the cost of evaluating the quantity, to estimate the time the grid takes&
+          & (the measurement of a field is kept with it and shared by all windows)",ttshown)
        costest = w%rep%iso%measure_cost(isys,measure)
        if (costest >= 0d0 .and. any(nstage /= 0)) &
           call iw_text("~" // duration_string(costest * product(real(nstage,8))),sameline=.true.)
@@ -4587,7 +4606,7 @@ contains
     ! section is open
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
     if (w%rep%iso%outdomain) &
-       call iw_text("The field could not be evaluated in part of the region",&
+       call iw_text("The quantity could not be evaluated in part of the region",&
           danger=.true.,wrap=.true.)
 
     ! show the staged region in the view for as long as this editor is
@@ -4595,7 +4614,7 @@ contains
     if (okbox .and. win(iview)%sc%isinit /= 0 .and.&
        .not.(w%rep%iso%iregion == iso_region_cell .and. .not.sys(isys)%c%ismolecule)) then
        if (w%rep%iso%iregion == iso_region_cell .and. isgrid) then
-          call sys(isys)%f(w%rep%iso%fref%id)%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
+          call sys(isys)%f(w%rep%iso%domain_field())%grid%get_domain(prevv,prev0,flo=flo,fhi=fhi)
           prev0 = prev0 + matmul(prevv,flo)
           do i = 1, 3
              prevv(:,i) = prevv(:,i) * (fhi(i) - flo(i))
@@ -4610,9 +4629,9 @@ contains
     end if
 
     ! isosurface
-    call iw_separatortext("Isosurfaces",w%editrep_sec(3))
+    call iw_separatortext("Isosurfaces",w%editrep_sec(isosec_isos))
     plotted = .false.
-    if (w%editrep_sec(3)%open) then
+    if (w%editrep_sec(isosec_isos)%open) then
        idel = 0
 
        ! histogram of the values backing the mesh, with one draggable line
@@ -4704,6 +4723,7 @@ contains
                      ! the scene for it would be pure waste
                      if (xnew /= s%isoval) then
                         s%isoval = xnew
+                        w%rep%iso%isoval_pending = .false. ! the user chooses the level
                         ! a flat isosurface is only re-triangulated, and follows
                         ! the line as it slides. A mapped one also pays a map
                         ! evaluation at every vertex of the new mesh, which is too
@@ -4878,12 +4898,14 @@ contains
                      ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
                         speed=speed,sig=4,notlive=.true.,min=w%rep%iso%frange(1),&
                         max=w%rep%iso%frange(2),flags=ImGuiSliderFlags_AlwaysClamp,committed=ch)
+                     if (ldum) w%rep%iso%isoval_pending = .false. ! the user chooses the level
                      if (s%imap_mode /= iso_map_color) ldum = ch
                      changed = changed .or. ldum
                      call iw_tooltip(str3,ttshown)
                   else
                      ldum = iw_dragfloat_real8("##isoval" // string(i),x1=s%isoval,&
                         speed=speed,sig=4,notlive=.true.,committed=ch)
+                     if (ldum) w%rep%iso%isoval_pending = .false. ! the user chooses the level
                      if (s%imap_mode /= iso_map_color) ldum = ch
                      changed = changed .or. ldum
                      call iw_tooltip("Value of the field on this isosurface (atomic units)",ttshown)
@@ -4944,8 +4966,8 @@ contains
     ! it, for the help of what is being written
     if (w%rep%iso%niso < 1) return
     w%rep%iso%isel = max(min(w%rep%iso%isel,w%rep%iso%niso),1)
-    call iw_separatortext("Color map of isosurface " // string(w%rep%iso%isel),w%editrep_sec(4))
-    if (.not.w%editrep_sec(4)%open) return
+    call iw_separatortext("Color map of isosurface " // string(w%rep%iso%isel),w%editrep_sec(isosec_cmap))
+    if (.not.w%editrep_sec(isosec_cmap)%open) return
     addcb = .false.
     associate (s => w%rep%iso%slot(w%rep%iso%isel))
        ! two questions, and they are not the same one. Whether this isosurface
@@ -6350,6 +6372,7 @@ contains
   !> Draw the overlay of the blocking job of the edit representation
   !> window: sampling the field of an isosurface (run_editrep).
   module subroutine block_editrep(w)
+    use representations, only: quant_label
     use systems, only: sys, sysc, sys_init, ok_system
     use utils, only: iw_wait_overlay
     use tools_io, only: string
@@ -6364,9 +6387,8 @@ contains
     if (ok_system(isys,sys_init)) then
        info = "System: " // string(isys) // ": " // trim(sysc(isys)%seed%name)
        if (editrep_resolve(w) > 0) then
-          if (sys(isys)%goodfield(w%rep%iso%fref%id)) &
-             info = info // newline // "Field:  " // string(w%rep%iso%fref%id) // ": " //&
-             trim(sys(isys)%f(w%rep%iso%fref%id)%name)
+          info = info // newline // "Quantity: " // quant_label(w%rep%iso%isexpr,w%rep%iso%expr,&
+             w%rep%iso%fref%id,w%rep%iso%nti)
        end if
     end if
     info = info // newline // "Grid:   " // string(w%editrep_pending_n(1)) // " x " //&

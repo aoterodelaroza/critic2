@@ -94,6 +94,48 @@ contains
 
   end function quant_label
 
+  !> Everything the values of a quantity in system isys depend on,
+  !> other than where they are taken: the kind, the field and its
+  !> property, and the data of the fields (the field's cuid; all of
+  !> them, for an expression, which enters through the size of key).
+  !> The expression itself is not in it.
+  module subroutine quant_key(isys,isexpr,fref,nti,key)
+    use systems, only: sys
+    integer, intent(in) :: isys
+    logical, intent(in) :: isexpr
+    type(field_ref), intent(in) :: fref
+    integer, intent(in) :: nti
+    integer*8, allocatable, intent(inout) :: key(:)
+
+    integer :: j, nf
+
+    nf = 0
+    if (isexpr) nf = sys(isys)%nf + 1
+    if (allocated(key)) deallocate(key)
+    allocate(key(5+nf))
+    key(1) = merge(1_8,0_8,isexpr)
+    key(2) = fref%uid
+    key(3) = fref%id
+    key(4) = nti
+    key(5) = sys(isys)%field_cuid(fref%id)
+    do j = 0, nf-1
+       key(6+j) = sys(isys)%field_cuid(j)
+    end do
+
+  end subroutine quant_key
+
+  !> Whether a quantity can be evaluated: a field property always, an
+  !> expression once it is complete and the checker (quantity_form)
+  !> found nothing wrong with it.
+  module function quant_ready(isexpr,expr,exprerr) result(ok)
+    logical, intent(in) :: isexpr
+    character(len=*), intent(in) :: expr, exprerr
+    logical :: ok
+
+    ok = .not.isexpr .or. (len_trim(expr) > 0 .and. len_trim(exprerr) == 0)
+
+  end function quant_ready
+
   !> The map of a new system isys. The quantity is the value of the
   !> reference field. The region: for crystals, the parallelogram of
   !> a cell face; for molecules, the plane of the first three atoms (if
@@ -439,35 +481,26 @@ contains
 
   !> Everything the values of the map in system isys depend on: the
   !> region and the number of points (the first nkeyreg entries), then
-  !> the quantity, the geometry, and the fields (all of them, for an
-  !> expression; which enters through the size of key). The
-  !> expression itself is not in it.
+  !> the geometry and the quantity with the data of its fields
+  !> (quant_key). The expression itself is not in it.
   module subroutine plane_def_key(d,isys,key)
-    use systems, only: sys, sysc
+    use systems, only: sysc
     class(plane_def), intent(in) :: d
     integer, intent(in) :: isys
     integer*8, allocatable, intent(inout) :: key(:)
 
-    integer :: j, nf
+    integer*8, allocatable :: kq(:)
 
-    nf = 0
-    if (d%isexpr) nf = sys(isys)%nf + 1
+    call quant_key(isys,d%isexpr,d%fref,d%nti,kq)
     if (allocated(key)) deallocate(key)
-    allocate(key(19+nf))
+    allocate(key(nkeyreg+1+size(kq,1)))
     key(1:9) = transfer(d%xp,key(1:9))
     key(10) = d%region
     key(11) = transfer(d%margin,key(11))
     key(12) = d%nx
     key(13) = d%ny
-    key(14) = merge(1_8,0_8,d%isexpr)
-    key(15) = d%fref%uid
-    key(16) = d%fref%id
-    key(17) = d%nti
-    key(18) = sys(isys)%field_cuid(d%fref%id)
-    key(19) = transfer(sysc(isys)%timelastchange_geometry,key(19))
-    do j = 0, nf-1
-       key(20+j) = sys(isys)%field_cuid(j)
-    end do
+    key(14) = transfer(sysc(isys)%timelastchange_geometry,key(14))
+    key(15:) = kq
 
   end subroutine plane_def_key
 

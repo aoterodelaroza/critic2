@@ -483,12 +483,12 @@ contains
       if (itrep == 0) return
       changed = .false.
       associate (r => win(iview)%sc%reptrans(itrep))
-        ! a fresh slot, or one bound to another field: field 0 is the
-        ! promolecular density, which is what the voids are defined on.
-        ! set_field leaves exactly one isosurface behind, which is the
-        ! one wanted here
-        if (.not.found .or. r%iso%fref%id /= 0) then
-           call r%iso%set_field(isys,0)
+        ! a fresh slot, or one bound to another field or quantity: the
+        ! value of field 0 is the promolecular density, which is what
+        ! the voids are defined on. set_field leaves exactly one
+        ! isosurface behind, which is the one wanted here
+        if (.not.found .or. r%iso%fref%id /= 0 .or. .not.r%iso%isvalue()) then
+           call r%iso%set_field(isys,0,value=.true.)
            r%name = "Crystal voids"
            changed = .true.
         end if

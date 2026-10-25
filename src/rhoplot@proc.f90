@@ -356,6 +356,46 @@ contains
 
   end function rhoplot_nti_request
 
+  !> The property nti of the field evaluated in res: 0 = f, 1-3 =
+  !> gradient components, 4 = gradient norm, 5-10 = Hessian xx, xy,
+  !> xz, yy, yz, zz, 11 = Laplacian; zero for any other nti.
+  pure module function rhoplot_nti_value(res,nti) result(v)
+    use types, only: scalar_value
+    type(scalar_value), intent(in) :: res
+    integer, intent(in) :: nti
+    real*8 :: v
+
+    select case(nti)
+    case (0)
+       v = res%f
+    case (1)
+       v = res%gf(1)
+    case (2)
+       v = res%gf(2)
+    case (3)
+       v = res%gf(3)
+    case (4)
+       v = res%gfmod
+    case (5)
+       v = res%hf(1,1)
+    case (6)
+       v = res%hf(1,2)
+    case (7)
+       v = res%hf(1,3)
+    case (8)
+       v = res%hf(2,2)
+    case (9)
+       v = res%hf(2,3)
+    case (10)
+       v = res%hf(3,3)
+    case (11)
+       v = res%del2f
+    case default
+       v = 0d0
+    end select
+
+  end function rhoplot_nti_value
+
   !> Calculate the values of a field along the line from x0 to x1
   !> (Cartesian, bohr, cell frame of system s) at np points. If id
   !> >= 0, use field id and return its value in f and the property
@@ -396,34 +436,7 @@ contains
           call s%f(id)%grd(xp,request,res,periodic=.not.s%c%ismolecule)
 
           rhopt = res%f
-          select case(nti)
-          case (0)
-             lappt = rhopt
-          case (1)
-             lappt = res%gf(1)
-          case (2)
-             lappt = res%gf(2)
-          case (3)
-             lappt = res%gf(3)
-          case (4)
-             lappt = res%gfmod
-          case (5)
-             lappt = res%hf(1,1)
-          case (6)
-             lappt = res%hf(1,2)
-          case (7)
-             lappt = res%hf(1,3)
-          case (8)
-             lappt = res%hf(2,2)
-          case (9)
-             lappt = res%hf(2,3)
-          case (10)
-             lappt = res%hf(3,3)
-          case (11)
-             lappt = res%del2f
-          case default
-             lappt = 0d0
-          end select
+          lappt = rhoplot_nti_value(res,nti)
        else
           rhopt = s%eval(expr,lerrs%s,xp)
           lappt = rhopt
@@ -881,34 +894,7 @@ contains
              lerrs%s = ""
              if (id >= 0) then
                 call s%f(id)%grd(xp,request,res,periodic=.not.s%c%ismolecule)
-                select case(nti)
-                case (0)
-                   lappt = res%f
-                case (1)
-                   lappt = res%gf(1)
-                case (2)
-                   lappt = res%gf(2)
-                case (3)
-                   lappt = res%gf(3)
-                case (4)
-                   lappt = res%gfmod
-                case (5)
-                   lappt = res%hf(1,1)
-                case (6)
-                   lappt = res%hf(1,2)
-                case (7)
-                   lappt = res%hf(1,3)
-                case (8)
-                   lappt = res%hf(2,2)
-                case (9)
-                   lappt = res%hf(2,3)
-                case (10)
-                   lappt = res%hf(3,3)
-                case (11)
-                   lappt = res%del2f
-                case default
-                   lappt = 0d0
-                end select
+                lappt = rhoplot_nti_value(res,nti)
              else
                 lappt = s%eval(expr,lerrs%s,xp)
              end if
@@ -1471,34 +1457,7 @@ contains
           lerrs%s = ""
           if (id >= 0) then
              call s%f(id)%grd(xp,request,res,periodic=.not.s%c%ismolecule)
-             select case(nti)
-             case (0)
-                rhopt = res%f
-             case (1)
-                rhopt = res%gf(1)
-             case (2)
-                rhopt = res%gf(2)
-             case (3)
-                rhopt = res%gf(3)
-             case (4)
-                rhopt = res%gfmod
-             case (5)
-                rhopt = res%hf(1,1)
-             case (6)
-                rhopt = res%hf(1,2)
-             case (7)
-                rhopt = res%hf(1,3)
-             case (8)
-                rhopt = res%hf(2,2)
-             case (9)
-                rhopt = res%hf(2,3)
-             case (10)
-                rhopt = res%hf(3,3)
-             case (11)
-                rhopt = res%del2f
-             case default
-                rhopt = 0d0
-             end select
+             rhopt = rhoplot_nti_value(res,nti)
           else
              rhopt = s%eval(expr,lerrs%s,xp)
           endif
@@ -2006,32 +1965,7 @@ contains
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
              call sy%f(sy%iref)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
-             select case(nfi)
-             case (0)
-                rhopt = res%f
-             case (1)
-                rhopt = res%gf(1)
-             case (2)
-                rhopt = res%gf(2)
-             case (3)
-                rhopt = res%gf(3)
-             case (4)
-                rhopt = res%gfmod
-             case (5)
-                rhopt = res%hf(1,1)
-             case (6)
-                rhopt = res%hf(1,2)
-             case (7)
-                rhopt = res%hf(1,3)
-             case (8)
-                rhopt = res%hf(2,2)
-             case (9)
-                rhopt = res%hf(2,3)
-             case (10)
-                rhopt = res%hf(3,3)
-             case (11)
-                rhopt = res%del2f
-             end select
+             rhopt = rhoplot_nti_value(res,nfi)
              ff(ix,iy) = rhopt
           end do
        end do

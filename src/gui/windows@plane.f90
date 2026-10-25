@@ -2040,7 +2040,7 @@ contains
   !> place = where the quantity is (for the tooltips: "the map"), and
   !> pts = whose points the expression is evaluated at ("the
   !> plane"). Returns whether it changed.
-  module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown) result(changed)
+  module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown,fieldw) result(changed)
     use systems, only: sys
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_combo_simple, iw_field_combo, iw_inputtext,&
        iw_expression_helper, iw_exprctx_point
@@ -2051,9 +2051,10 @@ contains
     character(len=*), intent(inout) :: expr, exprerr
     character(len=*), intent(in) :: sfx, place, pts
     logical, intent(inout) :: ttshown
+    integer, intent(in), optional :: fieldw
     logical :: changed
 
-    integer :: ikind, ifield
+    integer :: ikind, ifield, fw
     logical :: echanged
     character(len=:), allocatable :: lerr
 
@@ -2069,7 +2070,10 @@ contains
     if (.not.isexpr) then
        ! the field and its quantity, in the same line as the kind
        ifield = fref%id
-       if (iw_field_combo("##" // sfx // "field",isys,ifield,width=iw_calcwidth(24,1),&
+       ! the field combo is as wide as the window allows (fieldw characters)
+       fw = 24
+       if (present(fieldw)) fw = fieldw
+       if (iw_field_combo("##" // sfx // "field",isys,ifield,width=iw_calcwidth(fw,1),&
           nonestr="<field not available>",sameline=.true.)) then
           call fref%set(sys(isys),ifield)
           changed = .true.

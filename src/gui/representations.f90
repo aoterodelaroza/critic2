@@ -799,7 +799,7 @@ module representations
   character(len=8), parameter :: quant_short(0:nquant-1) = (/&
      "        ",":gx     ",":gy     ",":gz     ",":g      ",":hxx    ",&
      ":hxy    ",":hxz    ",":hyy    ",":hyz    ",":hzz    ",":lap    "/)
-  public :: quant_chem, quant_eval, quant_label
+  public :: quant_chem, quant_eval, quant_label, quant_key, quant_ready
 
   !> A map of a field on a region of a plane, as PLANE calculates it:
   !> the plane, the region, the number of points, the quantity, and how
@@ -1069,6 +1069,18 @@ module representations
   type rep_isosurface
      ! user options
      type(field_ref) :: fref ! field for the isosurface
+     ! the quantity: a property of the field (nti, as in LINE, PLANE
+     ! and CUBE) or an arithmetic expression (if isexpr; checked as it
+     ! is typed, into exprerr). The native grid, the MO selection, and
+     ! the default isovalue from the grid statistics are for the plain
+     ! value of the field only
+     logical :: isexpr = .false.
+     integer :: nti = 0
+     character(len=1024) :: expr = ""
+     character(len=1024) :: exprerr = ""
+     real*8 :: costest = -1d0 ! measured cost of the expression (s/point; negative = unknown; not saved)
+     logical :: isoval_pending = .false. ! the level of the isosurface is chosen from the first samples
+                                         ! (a quantity other than the value has no cheap statistics; not saved)
      integer :: imosel = 0 ! sample a molecular orbital of the field instead of the field itself:
                            ! an id_mo_* selector from the types module (all negative), or 0 = the field
      integer :: imoidx = 0 ! MO index accompanying imosel (id_mo_a, id_mo_b, id_mo_id)
@@ -1096,7 +1108,8 @@ module representations
      real(c_float) :: rgbhl(3) = iso_rgb_hl ! color of the highlighted group
      integer :: isel = 1 ! isosurface whose options are shown under the table in the editor
      integer :: ihighlight_built = -1 ! highlighted group the vertex colors were made for
-     integer*8 :: cuid_built = -1 ! data of the field (its cuid) when the meshes were built (-1 means never)
+     integer*8, allocatable :: qkey_built(:) ! the quantity the samples were taken for (quant_key; unallocated = never)
+     character(len=:), allocatable :: expr_built ! ... and its expression
      integer :: imosel_built = 0 ! MO selector when the samples were taken
      integer :: imoidx_built = 0 ! MO index when the samples were taken
      integer :: nptsxyz_built(3) = -1 ! applied grid the samples were taken on
@@ -1131,6 +1144,12 @@ module representations
      ! iso_cache_take/put in sync with them)
    contains
      procedure :: set_field => iso_set_field ! select a field: default isovalue + grid level + applied dims
+     procedure :: set_quantity => iso_set_quantity ! a new quantity of the field: default isovalue + grid level + applied dims
+     procedure :: edit_expr => iso_edit_expr ! the expression was edited: keep the levels, defer the sampling
+     procedure :: isvalue => iso_isvalue ! whether the quantity is the plain value of the field
+     procedure :: nativeok => iso_nativeok ! whether the native grid is available (the value of a grid field)
+     procedure :: domain_field => iso_domain_field ! the field whose domain limits the sampling (-1 = none)
+     procedure :: quant_stale => iso_quant_stale ! whether the samples were taken for another quantity
      procedure :: add_iso => iso_add_iso ! add an isosurface (isovalue and color chosen if not given)
      procedure :: del_iso => iso_del_iso ! remove an isosurface
      procedure :: apply_grid => iso_apply_grid ! commit a staged grid + region as the applied state
@@ -1163,7 +1182,8 @@ module representations
      type(iso_slot), allocatable :: slot(:) ! only the mesh, map values, and keys of each
      real(c_double), allocatable :: hist_x(:,:), hist_y(:,:)
      real*8, allocatable :: hist_q(:), hist_v(:)
-     integer*8 :: cuid_built = -1
+     integer*8, allocatable :: qkey_built(:)
+     character(len=:), allocatable :: expr_built
      integer :: imosel_built = 0, imoidx_built = 0
      integer :: ihighlight_built = -1, nptsxyz_built(3) = -1, iregion_built = -1
      real*8 :: rgn_x_built(3,0:3) = 0d0
@@ -1696,7 +1716,7 @@ module representations
        real*8 :: alen(3)
      end function iso_staged_box_lengths
      module function iso_measure_cost(iso,isys,measure) result(secs)
-       class(rep_isosurface), intent(in) :: iso
+       class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys
        logical, intent(in) :: measure
        real*8 :: secs
@@ -1775,11 +1795,37 @@ module representations
        integer, intent(in) :: ifield
        logical :: isg
      end function iso_isgridfield
-     module subroutine iso_set_field(iso,isys,ifield)
+     module subroutine iso_set_field(iso,isys,ifield,value)
        class(rep_isosurface), intent(inout) :: iso
        integer, intent(in) :: isys
        integer, intent(in) :: ifield
+       logical, intent(in), optional :: value
      end subroutine iso_set_field
+     module subroutine iso_set_quantity(iso,isys)
+       class(rep_isosurface), intent(inout) :: iso
+       integer, intent(in) :: isys
+     end subroutine iso_set_quantity
+     module subroutine iso_edit_expr(iso)
+       class(rep_isosurface), intent(inout) :: iso
+     end subroutine iso_edit_expr
+     module function iso_isvalue(iso) result(isv)
+       class(rep_isosurface), intent(in) :: iso
+       logical :: isv
+     end function iso_isvalue
+     module function iso_nativeok(iso,isys) result(ok)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       logical :: ok
+     end function iso_nativeok
+     module function iso_domain_field(iso) result(ifield)
+       class(rep_isosurface), intent(in) :: iso
+       integer :: ifield
+     end function iso_domain_field
+     module function iso_quant_stale(iso,isys) result(stale)
+       class(rep_isosurface), intent(in) :: iso
+       integer, intent(in) :: isys
+       logical :: stale
+     end function iso_quant_stale
      module subroutine iso_add_iso(iso,isoval,rgb)
        class(rep_isosurface), intent(inout) :: iso
        real*8, intent(in), optional :: isoval
@@ -1898,6 +1944,18 @@ module representations
        integer, intent(in) :: ifield, nti
        character(len=:), allocatable :: str
      end function quant_label
+     module subroutine quant_key(isys,isexpr,fref,nti,key)
+       integer, intent(in) :: isys
+       logical, intent(in) :: isexpr
+       type(field_ref), intent(in) :: fref
+       integer, intent(in) :: nti
+       integer*8, allocatable, intent(inout) :: key(:)
+     end subroutine quant_key
+     module function quant_ready(isexpr,expr,exprerr) result(ok)
+       logical, intent(in) :: isexpr
+       character(len=*), intent(in) :: expr, exprerr
+       logical :: ok
+     end function quant_ready
      module subroutine plane_def_set_defaults(d,isys)
        class(plane_def), intent(inout) :: d
        integer, intent(in) :: isys

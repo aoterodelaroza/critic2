@@ -612,8 +612,15 @@ module windows
   integer, parameter :: plane_sec_contours = 4
   integer, parameter :: plane_nsec = 4
 
+  ! the sections of the isosurface object editor, in order
+  integer, parameter :: isosec_property = 1
+  integer, parameter :: isosec_region = 2
+  integer, parameter :: isosec_grid = 3
+  integer, parameter :: isosec_isos = 4
+  integer, parameter :: isosec_cmap = 5
+
   ! the most sections an object editor (editrep window) draws
-  integer, parameter :: editrep_nsec = 4
+  integer, parameter :: editrep_nsec = 5
 
   type plane_state
      type(sys_ref) :: sys ! system the form is set up for
@@ -2610,7 +2617,7 @@ module windows
        type(iw_section), intent(inout) :: sec(plane_nsec)
        logical :: changed
      end function plane_def_form
-     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown) result(changed)
+     module function quantity_form(isys,isexpr,fref,nti,expr,exprerr,sfx,place,pts,ttshown,fieldw) result(changed)
        integer, intent(in) :: isys
        logical, intent(inout) :: isexpr
        type(field_ref), intent(inout) :: fref
@@ -2618,6 +2625,7 @@ module windows
        character(len=*), intent(inout) :: expr, exprerr
        character(len=*), intent(in) :: sfx, place, pts
        logical, intent(inout) :: ttshown
+       integer, intent(in), optional :: fieldw
        logical :: changed
      end function quantity_form
      module function quantity_combo(strid,isys,ifield,nti,ttshown,sameline) result(changed)

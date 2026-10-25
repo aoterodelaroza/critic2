@@ -76,19 +76,10 @@ contains
 
     if (sys(isys)%f(ifield)%guess_allelectron(rnuc,rval)) then
        isoval = iso_isoval_ae
-    elseif (max(abs(fmin),abs(fmax)) > iso_spikeratio * amean) then
-       ! qlevel is a level of |f|: use it on the side the field lives on
-       if (fmax > 0d0) then
-          isoval = qlevel
-       else
-          isoval = -qlevel
-       end if
-    elseif (fmin >= 0d0) then
-       isoval = 2d0 * fmean
+       if (isoval <= fmin .or. isoval >= fmax) isoval = 0.5d0 * (fmin + fmax)
     else
-       isoval = 2d0 * frms
+       isoval = isovalue_rule(fmin,fmax,fmean,amean,frms,qlevel)
     end if
-    if (isoval <= fmin .or. isoval >= fmax) isoval = 0.5d0 * (fmin + fmax)
 
   end function iso_default_isovalue
 
@@ -586,7 +577,7 @@ contains
 
     if (.not.ok_system(isys,sys_init)) return
     if (.not.sys(isys)%goodfield(iso%fref%id)) return
-    if (iso_isgridfield(isys,iso%fref%id)) return
+    if (iso%nativeok(isys)) return
 
     ! the box the sampling covers; only a region mode needs one
     box = 0d0
@@ -646,12 +637,12 @@ contains
 
     if (ilevel > iso_nlevel .and. ic == iso_custom_ptsang) then
        if (iso%iregion == iso_region_cell) then
-          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,ifield=iso%fref%id)
+          n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,ifield=iso%domain_field())
        else
           n = iso_grid_size(isys,ilevel,capped=capped,ptsang=iso%ptsangcustom,box=box)
        end if
     elseif (iso%iregion == iso_region_cell) then
-       n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,ifield=iso%fref%id)
+       n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,ifield=iso%domain_field())
     else
        n = iso_grid_size(isys,ilevel,iso%nptscustom,capped,box=box)
     end if
@@ -668,7 +659,7 @@ contains
     real*8 :: alen(3)
 
     if (iso%iregion == iso_region_cell) then
-       alen = iso_box_lengths(isys,ifield=iso%fref%id)
+       alen = iso_box_lengths(isys,ifield=iso%domain_field())
     else
        alen = iso_box_lengths(isys,box=box)
     end if
@@ -677,26 +668,60 @@ contains
 
   !> Seconds per point of what the sampling loop of isosurface iso of
   !> system isys evaluates -- one orbital if an MO is selected, the
-  !> plain field otherwise -- with the current parallelism: the cost
-  !> the field has measured, measured now if there is none and measure
-  !> is set (over a representative domain, not the staged region).
+  !> quantity of the field otherwise -- with the current parallelism.
+  !> A property of a field is the cost the field has measured,
+  !> measured now if there is none and measure is set (over a
+  !> representative domain, not the staged region). An expression is
+  !> timed on the staged region (if measure), in batches of increasing
+  !> size until the timing is meaningful, and kept in iso%costest.
   !> Negative if unknown.
   module function iso_measure_cost(iso,isys,measure) result(secs)
     use systems, only: field_cost
+    use rhoplot, only: rhoplot_nti_request
+    use interfaces_glfw, only: glfwGetTime
     use types, only: field_evaluation_avail
-    class(rep_isosurface), intent(in) :: iso
+    class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
     logical, intent(in) :: measure
     real*8 :: secs
 
+    integer :: idq, ntiq, nb
+    real*8 :: t
+    logical :: outdomain, ok
+    real*8, allocatable :: ff(:,:,:)
+    character(len=:), allocatable :: qexpr
     type(field_evaluation_avail) :: req
 
-    if (iso%imosel /= 0) then
-       req = iso%mo_request()
+    real*8, parameter :: timetarget = 0.1d0 ! measure until a batch takes this long
+    integer, parameter :: nbmax = 40 ! largest batch: nbmax**3 points
+
+    call quant_eval(iso%isexpr,iso%expr,iso%fref%id,iso%nti,idq,qexpr,ntiq)
+    if (idq >= 0) then
+       if (iso%imosel /= 0) then
+          req = iso%mo_request()
+       else
+          req = rhoplot_nti_request(ntiq)
+       end if
+       secs = field_cost(isys,idq,measure,req)
     else
-       call req%field_only()
+       ! an incomplete or wrong expression has no cost to measure
+       if (measure .and. quant_ready(iso%isexpr,iso%expr,iso%exprerr)) then
+          iso%costest = -1d0
+          nb = 4
+          do while (.true.)
+             t = glfwGetTime()
+             call iso%sample(isys,(/nb,nb,nb/),iso%iregion,iso%rgn_x,0,0,ff,outdomain,ok)
+             t = glfwGetTime() - t
+             if (.not.ok) exit
+             if (t >= timetarget .or. nb >= nbmax) then
+                iso%costest = t / real(nb,8)**3
+                exit
+             end if
+             nb = min(2 * nb,nbmax)
+          end do
+       end if
+       secs = iso%costest
     end if
-    secs = field_cost(isys,iso%fref%id,measure,req)
 
   end function iso_measure_cost
 
@@ -811,7 +836,7 @@ contains
     logical, intent(out) :: pereval
     logical, intent(out) :: ok
 
-    call iso_sample_domain(isys,iso%fref%id,iso%iregion_ap,iso%rgn_x_ap,iso%nptsxyz,&
+    call iso_sample_domain(isys,iso%domain_field(),iso%iregion_ap,iso%rgn_x_ap,iso%nptsxyz,&
        xmat,x0c,cmat,per0,pereval,ok)
 
   end subroutine iso_sampled_box
@@ -830,72 +855,182 @@ contains
 
   end function iso_isgridfield
 
-  !> Select field ifield of system isys for isosurface iso: seed the
-  !> default isovalue and reset the grid coarseness (native for grid
-  !> fields, the preference level otherwise) together with its applied
-  !> dimensions. All paths that change the isosurface field go through
-  !> here, so the level/field invariant lives in one place.
-  module subroutine iso_set_field(iso,isys,ifield)
+  !> Select field ifield of system isys for isosurface iso: reset the
+  !> region to the default for this system kind and re-run the
+  !> quantity policy (set_quantity: default isovalue, grid coarseness
+  !> and applied dimensions). The quantity (property or expression)
+  !> stays unless value is set, which makes it the plain value of the
+  !> field. All paths that change the isosurface field go through
+  !> here, so the field invariants live in one place.
+  module subroutine iso_set_field(iso,isys,ifield,value)
     use systems, only: sys, sys_init, ok_system
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
     integer, intent(in) :: ifield
-
-    logical :: isgrid
+    logical, intent(in), optional :: value
 
     if (.not.ok_system(isys,sys_init)) return
     call iso%fref%set(sys(isys),max(ifield,0))
+    if (present(value)) then
+       if (value) then
+          iso%isexpr = .false.
+          iso%nti = 0
+       end if
+    end if
     ! an MO selection belongs to the previous field
     iso%imosel = 0
     iso%imoidx = 0
-    ! the isovalues of the previous field mean nothing for this one: keep
-    ! a single isosurface (with its color) at the new default level
+    ! a field change resets the region to the default for this system
+    ! kind. A grid field comes with its own data domain, so the whole
+    ! cell shows it right away; a field that has to be sampled gets, in
+    ! a molecule (whose cell is an artifact), the box around the atoms
+    ! instead of that cell
+    if (iso_isgridfield(isys,iso%domain_field()) .or. .not.sys(isys)%c%ismolecule) then
+       iso%iregion = iso_region_cell
+    else
+       iso%iregion = iso_region_bbox
+    end if
+    call iso_region_seed(isys,iso%iregion,iso%rgn_x)
+    call iso%set_quantity(isys)
+
+  end subroutine iso_set_field
+
+  !> Apply a change of the quantity of isosurface iso of system isys
+  !> (its kind, property or expression; set_field for the field
+  !> itself): keep a single isosurface at the default level for it,
+  !> drop the colors, the histogram, the cost and the stale
+  !> out-of-domain warning of the previous one, and reset the grid
+  !> coarseness (native for the value of a grid field, else a sampled
+  !> level) together with its applied dimensions. The region stays.
+  !> All paths that change what the isosurface shows go through here,
+  !> so the level/quantity invariant lives in one place.
+  module subroutine iso_set_quantity(iso,isys)
+    use systems, only: sys_init, ok_system
+    class(rep_isosurface), intent(inout) :: iso
+    integer, intent(in) :: isys
+
+    if (.not.ok_system(isys,sys_init)) return
+    ! an MO is an orbital of the field itself
+    if (.not.iso%isvalue()) then
+       iso%imosel = 0
+       iso%imoidx = 0
+    end if
+    ! the isovalues of the previous quantity mean nothing for this one:
+    ! keep a single isosurface (with its color) at the new default
+    ! level. Only the value of a field has statistics to choose it from
+    ! now; any other quantity takes it from its first samples
     if (iso%niso < 1) call iso%add_iso()
     iso%niso = 1
-    iso%slot(1)%isoval = iso_default_isovalue(isys,iso%fref%id)
+    iso%isoval_pending = .not.iso%isvalue()
+    if (.not.iso%isoval_pending) iso%slot(1)%isoval = iso_default_isovalue(isys,iso%fref%id)
     iso%slot(1)%built = .false.
-    ! the colors mapped on the previous field's surface describe values that
-    ! are gone. Dropping them is the whole statement: it is what the editor
+    ! the colors mapped on the previous surface describe values that are
+    ! gone. Dropping them is the whole statement: it is what the editor
     ! reads to know it has no legend to draw, and the rest of the map state
     ! (the values, the stamps) is rebuilt by color_slots on the resample this
-    ! field change forces. A new quantity does get its colormap and its range
+    ! change forces. A new quantity does get its colormap and its range
     ! suggested again
     if (allocated(iso%slot(1)%mesh%rgbv)) deallocate(iso%slot(1)%mesh%rgbv)
     iso%slot(1)%shown = .true. ! the surviving isosurface is the only one there is
     iso%slot(1)%icmap_auto = .true.
     iso%slot(1)%maprange_auto = .true.
     iso%slot(1)%maperr = ""
-    isgrid = iso_isgridfield(isys,iso%fref%id)
-    if (isgrid) then
+    ! the native grid when there is one; otherwise a sampled level,
+    ! the one in use if it is one
+    if (iso%nativeok(isys)) then
        iso%ilevel = 0
-    else
+    elseif (iso%ilevel == 0) then
        iso%ilevel = iso_defaultlevel
     end if
-    ! a field change resets the region to the default for this system
-    ! kind, and drops the cost estimate and the stale out-of-domain
-    ! warning. A grid field comes with its own data domain, so the whole
-    ! cell shows it at its native resolution right away; a field that
-    ! has to be sampled gets, in a molecule (whose cell is an artifact),
-    ! the box around the atoms instead of that cell
-    if (isgrid .or. .not.sys(isys)%c%ismolecule) then
-       iso%iregion = iso_region_cell
-    else
-       iso%iregion = iso_region_bbox
-    end if
-    call iso_region_seed(isys,iso%iregion,iso%rgn_x)
+    iso%costest = -1d0
     iso%outdomain = .false.
-    ! the histogram and the range describe the previous field's data
+    ! the histogram and the range describe the previous quantity's data
     iso%nhist = 0
-    iso%hist_xscale = 0 ! the new field suggests its own axis scale
+    iso%hist_xscale = 0 ! the new quantity suggests its own axis scale
     iso%frange = (/1d0,-1d0/)
-    ! apply an all-zero grid: for a grid field this is the native grid
-    ! (cheap, built immediately); for any other field it means "not
+    ! apply an all-zero grid: on the native grid this is the grid itself
+    ! (cheap, built immediately); for anything else it means "not
     ! generated yet" -- sampling can be expensive, so nothing is built
     ! until the user commits a grid with the editor's Calculate grid
     ! button
     call iso%apply_grid((/0,0,0/),iso%iregion,iso%rgn_x)
 
-  end subroutine iso_set_field
+  end subroutine iso_set_quantity
+
+  !> The expression of isosurface iso was edited (a keystroke of the
+  !> editor). Unlike a new quantity (set_quantity), this keeps the
+  !> isosurfaces and their colors: the user is most likely fixing the
+  !> expression that produced them. The first level is chosen again
+  !> from the new samples, unless the user sets it before, and the
+  !> grid is un-applied so nothing is sampled at every keystroke: the
+  !> surface comes back with the editor's Calculate grid button.
+  module subroutine iso_edit_expr(iso)
+    class(rep_isosurface), intent(inout) :: iso
+
+    iso%isoval_pending = .true.
+    iso%costest = -1d0
+    iso%outdomain = .false.
+    call iso%apply_grid((/0,0,0/),iso%iregion,iso%rgn_x)
+
+  end subroutine iso_edit_expr
+
+  !> Whether the quantity of isosurface iso is the plain value of its
+  !> field: the one with a native grid, grid statistics for its
+  !> default isovalue, and molecular orbitals.
+  module function iso_isvalue(iso) result(isv)
+    class(rep_isosurface), intent(in) :: iso
+    logical :: isv
+
+    isv = .not.iso%isexpr .and. iso%nti == 0
+
+  end function iso_isvalue
+
+  !> Whether the native grid is available to isosurface iso of system
+  !> isys: its quantity is the value of a grid field.
+  module function iso_nativeok(iso,isys) result(ok)
+    class(rep_isosurface), intent(in) :: iso
+    integer, intent(in) :: isys
+    logical :: ok
+
+    ok = iso%isvalue() .and. iso_isgridfield(isys,iso%fref%id)
+
+  end function iso_nativeok
+
+  !> The field whose domain limits the sampling of isosurface iso (a
+  !> partial grid cannot be evaluated beyond its window): its field,
+  !> for a property of it; none (-1) for an expression, which is
+  !> evaluated wherever its fields allow.
+  module function iso_domain_field(iso) result(ifield)
+    class(rep_isosurface), intent(in) :: iso
+    integer :: ifield
+
+    ifield = iso%fref%id
+    if (iso%isexpr) ifield = -1
+
+  end function iso_domain_field
+
+  !> Whether the samples of isosurface iso in system isys were taken
+  !> for a quantity other than the current one (or never taken): the
+  !> keys of quant_key, and the expression itself.
+  module function iso_quant_stale(iso,isys) result(stale)
+    class(rep_isosurface), intent(in) :: iso
+    integer, intent(in) :: isys
+    logical :: stale
+
+    integer*8, allocatable :: key(:)
+
+    stale = .true.
+    if (.not.allocated(iso%qkey_built)) return
+    call quant_key(isys,iso%isexpr,iso%fref,iso%nti,key)
+    if (size(key,1) /= size(iso%qkey_built,1)) return
+    if (any(key /= iso%qkey_built)) return
+    if (iso%isexpr) then
+       if (.not.allocated(iso%expr_built)) return
+       if (iso%expr_built /= trim(iso%expr)) return
+    end if
+    stale = .false.
+
+  end function iso_quant_stale
 
   !> Add an isosurface to isosurface object iso. Without isoval, the new
   !> level is chosen from the ones already there: the negative
@@ -994,14 +1129,15 @@ contains
 
   !> Recompute the value range and the plottable histogram of
   !> isosurface object iso from the data ff. Stamped with the samples,
-  !> so it describes whatever the meshes were last built from.
+  !> so it describes whatever the meshes were last built from. A
+  !> pending default level (set_quantity) is chosen from these data.
   module subroutine iso_stamp_histogram(iso,ff)
     use grid3mod, only: field_stats
     class(rep_isosurface), intent(inout) :: iso
     real*8, intent(in) :: ff(:,:,:)
 
     integer :: i, is, idef
-    real*8 :: hy(iso_nhist,hscale_num), dh, e1, e2
+    real*8 :: hy(iso_nhist,hscale_num), dh, e1, e2, fmean, amean, frms, qlevel
 
     if (.not.allocated(iso%hist_x)) then
        allocate(iso%hist_x(2*iso_nhist,hscale_num),iso%hist_y(2*iso_nhist,hscale_num),&
@@ -1009,9 +1145,19 @@ contains
        iso%hist_x = 0._c_double
        iso%hist_y = 0._c_double
     end if
-    call field_stats(ff,fmin=iso%frange(1),fmax=iso%frange(2),hist=hy,&
+    call field_stats(ff,fmin=iso%frange(1),fmax=iso%frange(2),fmean=fmean,famean=amean,&
+       frms=frms,qlevel=qlevel,qfrac=iso_qcharge_def,hist=hy,&
        hrange=iso%hist_range,hhave=iso%hist_have,hcumq=iso%hist_q,&
        hcumv=iso%hist_v,hcumrange=iso%hist_cumrange,hdef=idef)
+    ! the default level of a quantity without grid statistics, from
+    ! its first samples (the rule of iso_default_isovalue)
+    if (iso%isoval_pending .and. iso%niso >= 1) then
+       if (iso%frange(2) > iso%frange(1)) then
+          iso%slot(1)%isoval = isovalue_rule(iso%frange(1),iso%frange(2),fmean,amean,frms,qlevel)
+          iso%slot(1)%built = .false.
+       end if
+       iso%isoval_pending = .false.
+    end if
     ! take the suggested scale while the user has not chosen one, and
     ! whenever the chosen one is not available for this data
     if (iso%hist_xscale < 1 .or. iso%hist_xscale > hscale_num) then
@@ -1072,7 +1218,8 @@ contains
           call slot_cache_move(iso%slot(k),c%slot(k))
        end do
     end if
-    c%cuid_built = iso%cuid_built
+    call move_alloc(iso%qkey_built,c%qkey_built)
+    call move_alloc(iso%expr_built,c%expr_built)
     c%imosel_built = iso%imosel_built
     c%imoidx_built = iso%imoidx_built
     c%ihighlight_built = iso%ihighlight_built
@@ -1133,7 +1280,8 @@ contains
     end if
 
     if (c%have) then
-       iso%cuid_built = c%cuid_built
+       call move_alloc(c%qkey_built,iso%qkey_built)
+       call move_alloc(c%expr_built,iso%expr_built)
        iso%imosel_built = c%imosel_built
        iso%imoidx_built = c%imoidx_built
        iso%ihighlight_built = c%ihighlight_built
@@ -1149,7 +1297,7 @@ contains
        iso%hist_cumrange = c%hist_cumrange
        iso%nhist = c%nhist
     else
-       iso%cuid_built = -1
+       if (allocated(iso%qkey_built)) deallocate(iso%qkey_built)
        iso%nhist = 0
     end if
     c = iso_cache()
@@ -1157,18 +1305,18 @@ contains
   end subroutine iso_cache_put
 
   !> Stamp the keys of isosurface object iso in system isys that say
-  !> its field samples are current: the data of the field they were
-  !> taken from (its cuid), the MO they show, the applied grid and
-  !> region they were taken on, and the time. The single
-  !> writer of the sample state, read back by the staleness test in
-  !> add_isosurface_meshes.
+  !> its field samples are current: the quantity they were taken for
+  !> (quant_key, with the data of its fields) and its expression, the
+  !> MO they show, the applied grid and region they were taken on, and
+  !> the time. The single writer of the sample state, read back by
+  !> quant_stale and the staleness test in add_isosurface_meshes.
   module subroutine iso_stamp_built(iso,isys)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys
     class(rep_isosurface), intent(inout) :: iso
     integer, intent(in) :: isys
 
-    iso%cuid_built = sys(isys)%field_cuid(iso%fref%id)
+    call quant_key(isys,iso%isexpr,iso%fref,iso%nti,iso%qkey_built)
+    iso%expr_built = trim(iso%expr)
     iso%imosel_built = iso%imosel
     iso%imoidx_built = iso%imoidx
     iso%nptsxyz_built = iso%nptsxyz
@@ -1178,18 +1326,20 @@ contains
 
   end subroutine iso_stamp_built
 
-  !> Sample the field of isosurface iso (system isys), or its MO imoidx
-  !> if imosel is nonzero, on a grid of n points over the region iregion
-  !> with coordinates x (the applied state or a staged one: iso is not
-  !> modified, so a blocking job can sample first and apply the grid
-  !> only if it was not cancelled), into ff. outdomain: some samples
-  !> fell where the field cannot be evaluated (they are zeros). ok is
-  !> false if the box is degenerate. The loop can be cancelled (ff is
-  !> then incomplete) and reports its progress.
+  !> Sample the quantity of isosurface iso (system isys), or the MO
+  !> imoidx of its field if imosel is nonzero, on a grid of n points
+  !> over the region iregion with coordinates x (the applied state or
+  !> a staged one: iso is not modified, so a blocking job can sample
+  !> first and apply the grid only if it was not cancelled), into ff.
+  !> outdomain: some samples fell where the quantity cannot be
+  !> evaluated (they are zeros). ok is false if the box is degenerate.
+  !> The loop can be cancelled (ff is then incomplete) and reports its
+  !> progress.
   module subroutine iso_sample(iso,isys,n,iregion,x,imosel,imoidx,ff,outdomain,ok)
     use systems, only: sys
+    use rhoplot, only: rhoplot_nti_request, rhoplot_nti_value
     use global, only: abort_poll, progress_start, progress_step
-    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_mo
+    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_mo, vstring
     class(rep_isosurface), intent(in) :: iso
     integer, intent(in) :: isys
     integer, intent(in) :: n(3)
@@ -1201,32 +1351,42 @@ contains
     logical, intent(out) :: outdomain
     logical, intent(out) :: ok
 
-    integer :: j, k, l
+    integer :: j, k, l, idq, ntiq
     logical :: per0, pereval, lval, linvalid
-    real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3)
+    real*8 :: xp(3), xmat(3,3), cmat(3,3), x0c(3), val
     type(scalar_value) :: res
+    type(vstring) :: lerrs
     type(field_evaluation_avail) :: request
+    character(len=:), allocatable :: qexpr
 
     outdomain = .false.
-    call iso_sample_domain(isys,iso%fref%id,iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
+    call iso_sample_domain(isys,iso%domain_field(),iregion,x,n,xmat,x0c,cmat,per0,pereval,ok)
     if (.not.ok) return
     if (allocated(ff)) deallocate(ff)
     allocate(ff(n(1),n(2),n(3)))
 
-    ! samples where the field cannot be evaluated -- outside its domain
-    ! (e.g. a region beyond the cell of a grid field) or too close to a
-    ! partial grid's edge for the interpolation stencil -- come back as
-    ! zeros; remember that it happened so the editor can warn. An MO
-    ! selection samples an orbital of the field instead of the field
-    ! itself; an MO-only request makes grd skip the density work (the
-    ! request of iso_mo_request)
-    call request%clear()
-    request%avail(fieldeval_category_mo) = .true.
-    request%moini = imosel
-    request%moend = imoidx
+    ! what is evaluated: an orbital of the field (an MO-only request
+    ! makes grd skip the density work; the request of iso_mo_request),
+    ! the value of the field, another property of it, or an
+    ! expression. Samples where it cannot be evaluated -- outside the
+    ! domain of the field (e.g. a region beyond the cell of a grid
+    ! field), too close to a partial grid's edge for the interpolation
+    ! stencil, or an expression that fails there -- come back as
+    ! zeros; remember that it happened so the editor can warn. The
+    ! private error string of the expression is in a vstring:
+    ! gfortran mishandles private deferred-length character variables
+    call quant_eval(iso%isexpr,iso%expr,iso%fref%id,iso%nti,idq,qexpr,ntiq)
+    if (imosel /= 0) then
+       call request%clear()
+       request%avail(fieldeval_category_mo) = .true.
+       request%moini = imosel
+       request%moend = imoidx
+    elseif (idq >= 0) then
+       request = rhoplot_nti_request(ntiq)
+    end if
     linvalid = .false.
     call progress_start(n(3)*n(2),"lines")
-    !$omp parallel do private(xp,res,lval) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
+    !$omp parallel do private(xp,res,lval,val,lerrs) schedule(dynamic) collapse(2) reduction(.or.:linvalid)
     do l = 1, n(3)
        do k = 1, n(2)
           if (abort_poll()) cycle
@@ -1235,13 +1395,22 @@ contains
              if (imosel /= 0) then
                 call sys(isys)%f(iso%fref%id)%grd(xp,request,res,periodic=pereval)
                 lval = res%satisfied
-                if (lval) then
-                   ff(j,k,l) = res%fspc
-                else
-                   ff(j,k,l) = 0d0
-                end if
+                val = res%fspc
+             elseif (idq < 0) then
+                lerrs%s = ""
+                val = sys(isys)%eval(qexpr,lerrs%s,xp)
+                lval = (len_trim(lerrs%s) == 0)
+             elseif (ntiq == 0) then
+                val = sys(isys)%f(idq)%grd0(xp,periodic=pereval,valid=lval)
              else
-                ff(j,k,l) = sys(isys)%f(iso%fref%id)%grd0(xp,periodic=pereval,valid=lval)
+                call sys(isys)%f(idq)%grd(xp,request,res,periodic=pereval)
+                lval = res%valid
+                val = rhoplot_nti_value(res,ntiq)
+             end if
+             if (lval) then
+                ff(j,k,l) = val
+             else
+                ff(j,k,l) = 0d0
              end if
              linvalid = linvalid .or. .not.lval
           end do
@@ -1286,8 +1455,8 @@ contains
 
   !> Return true if the applied state of isosurface iso in system isys
   !> describes a generated isosurface: a sampled grid has been
-  !> committed, or the field is a native grid shown over the whole cell
-  !> (built directly from its data). False means nothing is drawn until
+  !> committed, or the value of a grid field is shown over the whole
+  !> cell (built directly from its data). False means nothing is drawn until
   !> the user commits a grid with the editor's Calculate grid button.
   !> The single decoder of the all-zero nptsxyz sentinel; the renderer
   !> and the editor warning both call it.
@@ -1296,10 +1465,33 @@ contains
     integer, intent(in) :: isys
     logical :: gen
 
-    gen = any(iso%nptsxyz /= 0) .or. &
-       (iso_isgridfield(isys,iso%fref%id) .and. iso%iregion_ap == iso_region_cell)
+    gen = any(iso%nptsxyz /= 0) .or. (iso%nativeok(isys) .and. iso%iregion_ap == iso_region_cell)
 
   end function iso_isgenerated
+
+  !> The default isovalue for data with minimum fmin, maximum fmax,
+  !> mean fmean, mean of |f| amean, rms frms, and qlevel = the level of
+  !> |f| that encloses iso_qcharge_def of its integral: the policy of
+  !> iso_default_isovalue, for data without a nuclear-cusp test.
+  function isovalue_rule(fmin,fmax,fmean,amean,frms,qlevel) result(isoval)
+    real*8, intent(in) :: fmin, fmax, fmean, amean, frms, qlevel
+    real*8 :: isoval
+
+    if (max(abs(fmin),abs(fmax)) > iso_spikeratio * amean) then
+       ! qlevel is a level of |f|: use it on the side the field lives on
+       if (fmax > 0d0) then
+          isoval = qlevel
+       else
+          isoval = -qlevel
+       end if
+    elseif (fmin >= 0d0) then
+       isoval = 2d0 * fmean
+    else
+       isoval = 2d0 * frms
+    end if
+    if (isoval <= fmin .or. isoval >= fmax) isoval = 0.5d0 * (fmin + fmax)
+
+  end function isovalue_rule
 
   !> Move the cached mesh, map values, and keys of isosurface a into b
   !> (an empty a, as built by default, marks b as not built).
