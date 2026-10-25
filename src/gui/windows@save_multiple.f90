@@ -52,7 +52,7 @@ contains
     use windows, only: wintype_dialog, wpurp_dialog_selectdir
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running,&
        launch_initialization_thread
-    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_calcheight, iw_tooltip,&
+    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_calcheight, iw_tooltip, iw_tooltip_wrapwidth,&
        iw_checkbox, iw_combo_simple, iw_dragfloat_realc, iw_close_event,&
        iw_setpos_bottomright, iw_inputtext, iw_table_column, iw_radiobutton,&
        get_current_working_dir, iw_separatortext
@@ -525,7 +525,7 @@ contains
     !> Draw the help mark for the file name pattern: one tooltip line per
     !> substitution, laid out in two columns like the view-mode tooltip.
     subroutine draw_pattern_help()
-      use gui_main, only: tooltip_enabled, tooltip_wrap_factor
+      use gui_main, only: tooltip_enabled
 
       integer, parameter :: nsub = 6
       character(len=*), parameter :: subkey(nsub) = (/character(len=2) :: &
@@ -546,7 +546,7 @@ contains
 
       call igBeginTooltip()
       call iw_text("File name pattern")
-      call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+      call igPushTextWrapPos(iw_tooltip_wrapwidth())
       call iw_text("The name of each file: the extension is added automatically. Double-click&
          & a name in the table to type it by hand.")
       call igPopTextWrapPos()

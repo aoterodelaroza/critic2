@@ -5302,7 +5302,7 @@ contains
     use representations, only: iso_region_cell, iso_region_frac, iso_region_ortho, iso_region_parallel,&
        iso_region_simplebox, iso_region_cube, iso_region_bbox, iso_region_name, iso_region_desc,&
        iso_knd_cry, iso_knd_mol, iso_region_modes_cry, iso_region_modes_mol, iso_region_seed
-    use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_calcwidth, iw_button, iw_separatortext,&
+    use utils, only: iw_tooltip_wrapwidth, iw_text, iw_tooltip, iw_dragfloat_real8, iw_calcwidth, iw_button, iw_separatortext,&
        igIsItemHovered_delayed
     use gui_main, only: g, tooltip_enabled, tooltip_delay
     use tools_io, only: string
@@ -5385,20 +5385,26 @@ contains
        if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
           g%LastItemData%NavRect%max,.false._c_bool)) then
           call igBeginTooltip()
+          ! wrap at the width of the other tooltips, never at the window
+          ! edge: a tooltip sizes itself to its content, so edge-wrapped
+          ! text is measured one word per line in the hidden first frame
+          ! and the tooltip shows up thousands of pixels tall for a frame
+          call igPushTextWrapPos(iw_tooltip_wrapwidth())
           call iw_text("Region over which " // what // " is calculated:")
           call iw_text("")
           do i = 1, nmode
              if (rmodes(i) == region_native) then
-                call iw_text(mode_name(rmodes(i)) // " = The nodes of the grid field itself",wrap=.true.)
+                call iw_text(mode_name(rmodes(i)) // " = The nodes of the grid field itself")
              else
-                call iw_text(mode_name(rmodes(i)) // " = " // trim(iso_region_desc(rmodes(i))),wrap=.true.)
+                call iw_text(mode_name(rmodes(i)) // " = " // trim(iso_region_desc(rmodes(i))))
              end if
           end do
           if (.not.sys(isys)%c%ismolecule) then
              call iw_text("")
              call iw_text("Periodic = the grid repeats with the lattice; only the whole cell can give&
-                & a periodic grid",wrap=.true.)
+                & a periodic grid")
           end if
+          call igPopTextWrapPos()
           call igEndTooltip()
        end if
     end if

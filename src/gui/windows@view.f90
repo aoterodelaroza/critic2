@@ -1915,14 +1915,14 @@ contains
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
-    use gui_main, only: tooltip_delay, tooltip_enabled, tooltip_wrap_factor, fontsize, g
+    use gui_main, only: tooltip_delay, tooltip_enabled, g
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
        group_viewmode_objedit, groupbind, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT, BIND_NAV_MEASURE,&
        BIND_PICKATOM_EXIT, BIND_CANCEL,&
        BIND_NAV_MEASURE_TOGGLE
-    use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
+    use utils, only: iw_combo_simple, iw_tooltip, iw_tooltip_wrapwidth, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -2069,7 +2069,7 @@ contains
           call igBeginTooltip()
           call iw_text(vm_label(),highlight=.true.)
           if (len_trim(descr) > 0) then
-             call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+             call igPushTextWrapPos(iw_tooltip_wrapwidth())
              call iw_text(descr)
              call igPopTextWrapPos()
           end if
@@ -3859,9 +3859,9 @@ contains
   !> atom, or a critical point with idx(1) < 0).
   module subroutine draw_cursor_overlay(w,idx)
     use interfaces_cimgui
-    use utils, only: iw_text
+    use utils, only: iw_text, iw_tooltip_wrapwidth
     use systems, only: sys, anchor_xfrac
-    use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor, uiscale
+    use gui_main, only: fontsize, ColorMeasureSelect, uiscale
     use keybindings, only: get_bind_keyname, BIND_EDIT_D_A_PHI
     use tools_io, only: string
     use param, only: bohrtoa, pi
@@ -4009,7 +4009,7 @@ contains
     ! persistent measurement, or remove it. Only in navigation: the
     ! measurement binds do not fire in the other modes
     if (domeas .and. w%viewmode == vm_navigate) then
-       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+       call igPushTextWrapPos(iw_tooltip_wrapwidth())
        call igNewLine()
        call iw_text("Right-click stamps/removes a measurement",&
           rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))

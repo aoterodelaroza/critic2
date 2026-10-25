@@ -157,7 +157,7 @@ module utils
   public :: iw_close_button
   public :: iw_cell_right
   public :: iw_menuitem
-  public :: iw_tooltip
+  public :: iw_tooltip, iw_tooltip_wrapwidth
   public :: iw_helpermark
   public :: iw_expression_helper
   public :: chemfun_avail
@@ -572,6 +572,9 @@ module utils
        logical, intent(in), optional :: nowrap
        logical, intent(in), optional :: whendisabled
      end subroutine iw_tooltip
+     module function iw_tooltip_wrapwidth() result(w)
+       real(c_float) :: w
+     end function iw_tooltip_wrapwidth
      module subroutine iw_helpermark(str,sameline)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: sameline

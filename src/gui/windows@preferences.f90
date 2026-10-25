@@ -153,12 +153,12 @@ contains
              call iw_tooltip("Delay for showing the tooltips",ttshown)
           end if
 
-          str = "Tooltip maximum width (pixels)" // c_null_char
+          str = "Tooltip maximum width (characters)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call iw_text("Tooltip maximum width (pixels)",alignframe=.true.)
+             call iw_text("Tooltip maximum width (characters)",alignframe=.true.)
              ldum = iw_dragfloat_realc("##preftooltipwidth",x1=tooltip_wrap_factor,speed=1._c_float,&
-                min=0._c_float,max=1000._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
-             call iw_tooltip("Width of the interface tooltips",ttshown)
+                min=5._c_float,max=1000._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp,sameline=.true.)
+             call iw_tooltip("Width at which the text of the tooltips wraps, in character widths",ttshown)
           end if
 
           str = "Tree selects input console system" // c_null_char

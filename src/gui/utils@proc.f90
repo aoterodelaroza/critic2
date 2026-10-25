@@ -1940,7 +1940,12 @@ contains
   !> cell it is in, when the table is written as text.
   !> rgba = use this color for the text. gap = draw it in the same
   !> line, after the wider space that separates label-widget pairs
-  !> (the text is the label of the next widget).
+  !> (the text is the label of the next widget). wrap = wrap at the
+  !> window edge; not for tooltips or popups (auto-resize windows
+  !> measure edge-wrapped text one word per line in their hidden first
+  !> frame and show up that tall for a frame): push
+  !> igPushTextWrapPos(iw_tooltip_wrapwidth()) there instead, as
+  !> iw_tooltip does.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
      noadvance,centered,alignframe,rgb,rgba,wrap,nocapture,gap)
     use interfaces_cimgui
@@ -2601,8 +2606,7 @@ contains
   !> where the user most needs to be told why it cannot be used.
   module subroutine iw_tooltip(str,ttshown,rgba,nowrap,whendisabled)
     use interfaces_cimgui
-    use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled, fontsize,&
-       pending_block_window, force_run_commands
+    use gui_main, only: tooltip_delay, tooltip_enabled, pending_block_window, force_run_commands
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
     real(c_float), intent(in), optional :: rgba(4)
@@ -2645,13 +2649,24 @@ contains
     subroutine show_tooltip()
       strloc = trim(str) // c_null_char
       call igBeginTooltip()
-      if (.not.nowrap_) call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+      if (.not.nowrap_) call igPushTextWrapPos(iw_tooltip_wrapwidth())
       ! unformatted: the text is data, not a printf format string
       call igTextUnformatted(c_loc(strloc),c_null_ptr)
       if (.not.nowrap_) call igPopTextWrapPos()
       call igEndTooltip()
     end subroutine show_tooltip
   end subroutine iw_tooltip
+
+  !> The wrap width of the tooltips (pixels): tooltip_wrap_factor
+  !> character widths. Always positive, so that a tooltip never wraps
+  !> at its own edge (see iw_text).
+  module function iw_tooltip_wrapwidth() result(w)
+    use gui_main, only: tooltip_wrap_factor, fontsize
+    real(c_float) :: w
+
+    w = max(tooltip_wrap_factor,5._c_float) * fontsize%x
+
+  end function iw_tooltip_wrapwidth
 
   !> Draw a "(?)" help marker (in the same line as the previous widget
   !> unless sameline is present and false) and attach the tooltip str to
