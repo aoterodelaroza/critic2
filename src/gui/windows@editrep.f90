@@ -115,8 +115,9 @@ contains
        call iw_tooltip("Toggle show/hide this object",ttshown)
 
        ! periodicity override (gradient paths: after their field, in
-       ! draw_editrep_gpaths)
-       if (w%rep%type /= reptype_gpaths) then
+       ! draw_editrep_gpaths; isosurfaces: in their Region section, in
+       ! draw_editrep_isosurface)
+       if (w%rep%type /= reptype_gpaths .and. w%rep%type /= reptype_isosurface) then
           ch = periodicity_widget(w,ttshown)
           changed = changed .or. ch
        end if
@@ -4438,6 +4439,12 @@ contains
        call w%editrep_pick%arm()
        call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the region point",w%id,&
           acceptempty=.true.)
+    end if
+    ! the periodicity override of a whole-cell isosurface, after the
+    ! region selectors
+    if (w%editrep_sec(1)%open) then
+       ch = periodicity_widget(w,ttshown)
+       changed = changed .or. ch
     end if
 
     ! the region box
