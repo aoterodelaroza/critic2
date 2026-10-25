@@ -105,7 +105,7 @@ contains
 
     logical :: doquit, goodsys, mo_ok, goodparent, syschanged, changed, found, ldum, havecost, needgrid,&
        okgrid
-    integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev, nbelow
+    integer :: isys, iview, iref, itrep, irep, digits, iselold, nq(3), ilev, nbelow, idum
     real*8 :: tsel, tdum, secs
     character(kind=c_char,len=:), allocatable, target :: s
     character(len=:), allocatable :: label, whynot
@@ -485,6 +485,8 @@ contains
                win(iview)%sc%forcebuildlists = .true.
                call win(iview)%sc%undo_note("Create MO isosurface")
                call mo_message(w,"Created object " // s,.false.)
+               idum = stack_create_window(wintype_editrep,.true.,isys=isys,irep=irep,idparent=iview,&
+                  orraise=-1)
             else
                call mo_message(w,"Could not create the isosurface object",.true.)
             end if

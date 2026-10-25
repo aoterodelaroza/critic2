@@ -15,9 +15,9 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Maps of a field on a plane (the PLANE keyword): the definition shared
-! by the plane map window and the plane map objects, and the drawing of
-! the objects (reptype_slice).
+! Maps of a field on a plane (the PLANE keyword): the definition of
+! the plane map objects (reptype_slice), their values, and their
+! drawing.
 submodule (representations) plane
   implicit none
 
@@ -727,38 +727,30 @@ contains
 
   end function plane_def_cvalue
 
-  !> Add the plane map object r to the draw lists obj: the colored
-  !> mesh of the region and the contour lines (flat cylinders on both
-  !> sides of the map). The mesh is flat, or a relief of the values
-  !> (r%slice%rl). The values, the mesh, its
-  !> colors, its shape, and the lines are cached, and calculated again
-  !> only if what they depend on changed. The values are not calculated
-  !> while the initialization threads run, or if they are given
-  !> (nocalc).
-  module subroutine slice_draw(r,obj)
+  !> Calculate the values of the plane map object r on its grid
+  !> again, if what they depend on changed (the plane, the region, the
+  !> quantity, the fields, the geometry), and with them the colors of
+  !> the map and its contour lines, into its cache (r%slice%c, made
+  !> here if it does not exist). Nothing is calculated while the
+  !> initialization threads run or the map is not updated (the cache
+  !> keeps what it had). The mesh and its shape (slice_draw) go stale
+  !> with the values.
+  module subroutine slice_update_cache(r)
     use systems, only: sys, are_threads_running
-    use tools_math, only: cross
-    use ieee_arithmetic, only: ieee_is_finite
+    use global, only: new_uid
     class(representation), intent(inout) :: r
-    type(scene_objects), intent(inout) :: obj
 
     integer*8, allocatable :: key(:)
-    integer :: isys, nx, ny, ix, iy, k, i, j, niso, is, nab
+    integer :: isys, niso
     logical :: stale, calc
-    real*8 :: a0(3), nrm(3), a(2,2), det, ainv(2,2), gmin, gmax, dd(2)
-    real*8 :: ab(2,3), pp(3,3), nn(3,3), off
-    type(dl_cylinder) :: dcyl
 
     isys = r%id
     if (sys(isys)%c%ncel == 0) return
     if (.not.allocated(r%slice%c)) allocate(r%slice%c)
 
     associate(d => r%slice%d, c => r%slice%c)
-      ! the values (and with them, the mesh and the lines go stale).
-      ! Those given by a window are never calculated here, nor any
-      ! while the initialization threads run or the map is not updated
-      ! (the old ones are drawn)
-      calc = .not.r%slice%nocalc .and. .not.are_threads_running() .and. d%update
+      ! the values
+      calc = .not.are_threads_running() .and. d%update
       if (calc) call d%autopoints(isys)
       call d%key(isys,key)
       stale = .not.allocated(c%key) .or. .not.allocated(c%keyexpr)
@@ -772,9 +764,62 @@ contains
          if (allocated(c%keycont)) deallocate(c%keycont)
          if (allocated(c%keycolor)) deallocate(c%keycolor)
          c%mesh = dl_mesh()
-         call d%grid(isys,c%x0,c%uu,c%vv,a0,c%e1,c%e2,c%errmsg)
+         c%gen = new_uid()
+         call d%grid(isys,c%x0,c%uu,c%vv,c%a0,c%e1,c%e2,c%errmsg)
          if (len_trim(c%errmsg) == 0) call d%values(isys,c%x0,c%uu,c%vv,c%ff,c%errmsg)
       end if
+      if (.not.allocated(c%ff)) return
+
+      ! the colors
+      call d%colorkey(key)
+      stale = .not.allocated(c%keycolor) .or. .not.allocated(c%mesh%rgbv)
+      if (.not.stale) stale = any(c%keycolor /= key)
+      if (.not.d%update) stale = .false.
+      if (stale) then
+         call move_alloc(key,c%keycolor)
+         call d%colors(c%ff,c%cmin,c%cmax,c%mesh%rgbv)
+         c%gencolor = new_uid()
+      end if
+
+      ! the contour lines
+      if (.not.d%showcont) return
+      call d%contkey(key)
+      stale = .not.allocated(c%keycont) .or. .not.allocated(c%keylist)
+      if (.not.stale) stale = any(c%keycont /= key) .or. (c%keylist /= trim(d%llist))
+      if (.not.d%update) stale = .false.
+      if (stale) then
+         call move_alloc(key,c%keycont)
+         c%keylist = trim(d%llist)
+         call d%contours(c%ff,c%uu,c%vv,niso,c%ziso,c%nline,c%lptr,c%xy,c%liso)
+         c%gencont = new_uid()
+      end if
+    end associate
+
+  end subroutine slice_update_cache
+
+  !> Add the plane map object r to the draw lists obj: the colored
+  !> mesh of the region and the contour lines (flat cylinders on both
+  !> sides of the map). The mesh is flat, or a relief of the values
+  !> (r%slice%rl). The values, their colors, and the lines come from
+  !> the cache (slice_update_cache); the mesh and its shape are cached
+  !> too, and made again only if what they depend on changed.
+  module subroutine slice_draw(r,obj)
+    use tools_math, only: cross
+    use ieee_arithmetic, only: ieee_is_finite
+    class(representation), intent(inout) :: r
+    type(scene_objects), intent(inout) :: obj
+
+    integer*8, allocatable :: key(:)
+    integer :: nx, ny, ix, iy, k, i, j, is, nab
+    logical :: stale
+    real*8 :: nrm(3), a(2,2), det, ainv(2,2), dd(2)
+    real*8 :: ab(2,3), pp(3,3), nn(3,3), off
+    type(dl_cylinder) :: dcyl
+
+    call slice_update_cache(r)
+    if (.not.allocated(r%slice%c)) return
+
+    associate(d => r%slice%d, c => r%slice%c)
       if (.not.allocated(c%ff)) return
       nx = size(c%ff,1)
       ny = size(c%ff,2)
@@ -808,20 +853,10 @@ contains
          if (allocated(c%keyshape)) deallocate(c%keyshape)
       end if
 
-      ! its colors (these, the shape, and the lines wait with the
-      ! values while the map is not updated: they exist, from the
-      ! frame that calculated the values)
-      call d%colorkey(key)
-      stale = .not.allocated(c%keycolor) .or. .not.allocated(c%mesh%rgbv)
-      if (.not.stale) stale = any(c%keycolor /= key)
-      if (.not.d%update) stale = .false.
-      if (stale) then
-         call move_alloc(key,c%keycolor)
-         call d%colors(c%ff,gmin,gmax,c%mesh%rgbv)
-      end if
       c%mesh%alpha = r%slice%alpha
 
-      ! its shape: flat, or the relief
+      ! its shape: flat, or the relief (it waits with the values while
+      ! the map is not updated)
       associate(rl => r%slice%rl)
         if (rl%on .and. rl%height > 0d0) then
            key = [1_8,transfer(rl%height,1_8),int(rl%scale,8),merge(1_8,0_8,rl%frange),&
@@ -840,19 +875,8 @@ contains
       end associate
       call dl_append(obj%msh,obj%nmsh,c%mesh)
 
-      ! the contour lines
-      if (.not.d%showcont) return
-      call d%contkey(key)
-      stale = .not.allocated(c%keycont) .or. .not.allocated(c%keylist)
-      if (.not.stale) stale = any(c%keycont /= key) .or. (c%keylist /= trim(d%llist))
-      if (.not.d%update) stale = .false.
-      if (stale) then
-         call move_alloc(key,c%keycont)
-         c%keylist = trim(d%llist)
-         call d%contours(c%ff,c%uu,c%vv,niso,c%ziso,c%nline,c%lptr,c%xy,c%liso)
-      end if
-
-      ! one flat cylinder per segment, on each side of the map (a flat
+      ! the contour lines (from the cache): one flat cylinder per
+      ! segment, on each side of the map (a flat
       ! cylinder is drawn with half its radius), off the mesh along its
       ! normal; the coordinates of the lines are in the frame of the
       ! region, from the origin of the grid. On a relief, a segment that

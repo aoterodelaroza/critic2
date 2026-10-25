@@ -803,8 +803,8 @@ module representations
 
   !> A map of a field on a region of a plane, as PLANE calculates it:
   !> the plane, the region, the number of points, the quantity, and how
-  !> it is colored and contoured. Shared by the plane map window and the
-  !> plane map objects (reptype_slice). The points are fractional for
+  !> it is colored and contoured (the plane map objects, reptype_slice,
+  !> and their editor). The points are fractional for
   !> crystals and Cartesian Å for molecules (as the coordinates of the
   !> forms of the GUI): the origin, the end of the first side, and a
   !> point on the second side.
@@ -879,9 +879,13 @@ module representations
      real*8, allocatable :: ff(:,:) ! the values on the grid
      real*8 :: x0(3) = 0d0, uu(3) = 0d0, vv(3) = 0d0 ! the grid (cell-frame Cartesian bohr)
      real*8 :: e1(3) = 0d0, e2(3) = 0d0 ! orthonormal frame of the plane
+     real*8 :: a0(3) = 0d0 ! origin of the plot of the map (the first point when the grid was calculated)
      character(len=:), allocatable :: errmsg ! why there are no values
      integer*8, allocatable :: key(:)
      character(len=:), allocatable :: keyexpr
+     integer*8 :: gen = 0 ! uid of the last calculation of the values (new_uid; 0 = never)
+     integer*8 :: gencolor = 0, gencont = 0 ! same, of the colors and of the contour lines
+     real*8 :: cmin = 0d0, cmax = 1d0 ! the range of the colors of the map
      ! the contour lines, in the frame of the region (as rhoplot_contour_lines)
      integer :: nline = 0
      integer, allocatable :: lptr(:), liso(:)
@@ -897,6 +901,7 @@ module representations
      integer*8, allocatable :: keyshape(:)
   end type slice_cache
   public :: slice_cache
+  public :: slice_update_cache
 
   ! default radius of the contour lines of a plane map object (bohr)
   real*8, parameter, public :: slice_crad_def = 0.02d0 / bohrtoa
@@ -926,8 +931,6 @@ module representations
      real(c_float) :: alpha = 1._c_float ! opacity
      real*8 :: crad = slice_crad_def ! radius of the contour lines (bohr)
      type(relief_def) :: rl ! the relief
-     logical :: nocalc = .false. ! the values are given (c), never calculated (the map of a window)
-     integer*8 :: stamp = 0 ! new_uid of its last edit or reset, for the plane map window that edits it
      type(slice_cache), allocatable :: c ! the values and the lines
   end type rep_slice
   public :: rep_slice
@@ -2021,6 +2024,9 @@ module representations
        real*8, intent(in) :: f
        real*8 :: plane_def_cvalue
      end function plane_def_cvalue
+     module subroutine slice_update_cache(r)
+       class(representation), intent(inout) :: r
+     end subroutine slice_update_cache
      module subroutine slice_draw(r,obj)
        class(representation), intent(inout) :: r
        type(scene_objects), intent(inout) :: obj

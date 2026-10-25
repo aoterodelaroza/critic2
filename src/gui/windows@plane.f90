@@ -15,8 +15,8 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! The plane map window (the PLANE keyword), the form of the maps it
-! shares with the editor of the plane map objects, and that editor.
+! The editor of the plane map objects (the PLANE keyword): the form
+! of the map and the plot of its values.
 submodule (windows) plane
   use interfaces_cimgui
   use param, only: bohrtoa
@@ -26,10 +26,11 @@ submodule (windows) plane
   implicit none
 
   ! transient markers in the view: the three points (origin, end of
-  ! the first side, point on the second side), the region, and the
-  ! point under the mouse in the map; opacity of the markers and of
-  ! the region, and radius of the points (bohr), a fraction of the
-  ! scene radius between the two limits
+  ! the first side, point on the second side), the region (when the
+  ! map itself is not in the view), and the point under the mouse in
+  ! the map; opacity of the markers and of the region, and radius of
+  ! the points (bohr), a fraction of the scene radius between the two
+  ! limits
   real(c_float), parameter :: pt_rgb(3,3) = reshape((/&
      0.95_c_float,0.80_c_float,0.10_c_float,&
      0.95_c_float,0.35_c_float,0.20_c_float,&
@@ -56,1426 +57,17 @@ submodule (windows) plane
 
 contains
 
-  !> Draw the plane map window: the values of a field of the system
-  !> shown by the anchor view, one of its derivatives, or an
-  !> arithmetic expression, on a region of a plane (defined by three
-  !> points, typed or picked in the view), as PLANE calculates them,
-  !> shown as a colored map with contour lines.
-  module subroutine draw_plane(w)
-    use systems, only: sys, sysc, sys_init, ok_system
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8,&
-       iw_calcwidth, iw_close_event, iw_setpos_bottomright, iw_calcheight
-    use representations, only: rep_shape, shapekind_sphere, shapekind_box, bondrad_def
-    use tools_io, only: string
-    class(window), intent(inout), target :: w
-
-    logical :: doquit, goodsys, syschanged, ismol, ldum, xediting, refit, hover, fresh, mapshown
-    integer :: isys, iview, istat, i, ipick, iaux, irobj
-    real*8 :: xc(3), rad, v(3,3), xhov(3), x0(3), uu(3), vv(3), a0(3), e1(3), e2(3)
-    type(ImVec2) :: sz0
-    character(len=:), allocatable :: errmsg
-    real(c_float) :: htable, hmap
-    type(rep_shape), allocatable :: shp(:)
-
-    logical, save :: ttshown = .false. ! tooltip flag
-    integer, parameter :: map_minlines = 8 ! minimum height of the map (lines)
-
-    ! this window operates on the system shown by its anchor view
-    doquit = .not.w%anchor(iview,isys,syschanged)
-    goodsys = .not.doquit
-    if (goodsys) goodsys = ok_system(isys,sys_init)
-    ismol = .false.
-    if (goodsys) ismol = sys(isys)%c%ismolecule
-
-    ! initialize the state on the first pass
-    if (w%firstpass) then
-       call w%plane_free_texture()
-       w%pl = plane_state()
-       w%errmsg = ""
-    end if
-
-    irobj = 0
-
-    ! a new system: the plane goes to a face of the cell (crystals),
-    ! to the plane of the first three atoms (molecules), or in between
-    ! for slabs and chains (see plane_def_set_defaults), and the
-    ! quantity is the value of the reference field
-    if (goodsys) then
-       if (.not.w%pl%sys%is(isys) .or. syschanged) then
-          call w%pl%sys%set(isys)
-          call cancel_pick()
-          w%errmsg = ""
-          call w%pl%d%set_defaults(isys)
-          w%pl%viewgen = -1
-          w%okfile = okfile_default(isys,"map","png")
-          w%okfile = w%okfile(1:len(w%okfile)-4) // "_plane.png"
-       end if
-
-       ! the object the window edits (Create Object), if it is in the
-       ! view (it may come back with an undo); the edits made to it
-       ! elsewhere (its editor, undo) come to the form, and replace
-       ! those of the window not given to it yet
-       if (w%pl%obj%uid > 0 .and. iview == w%pl%objview) then
-          if (associated(win(iview)%sc)) irobj = w%pl%obj%get(win(iview)%sc)
-       end if
-       if (irobj > 0) then
-          if (win(iview)%sc%rep(irobj)%slice%stamp /= w%pl%objstamp) then
-             call take_map(win(iview)%sc%rep(irobj))
-             w%pl%viewdirty = .false.
-          end if
-       end if
-
-       ! the reference field, if the field is gone
-       if (.not.w%pl%d%fref%ok(sys(isys))) call w%pl%d%fref%set(sys(isys),sys(isys)%iref)
-    end if
-
-    ! a pending pick in the view it was armed on; dropped, releasing the
-    ! view, if the system is not ready or the window moved to another view
-    if (w%pl%picking) then
-       if (goodsys .and. iview == w%pl%pickview) then
-          call view_pick_result(iview,w%id,isys,w%pl%pick,istat,xc)
-          if (istat == ipick_point) then
-             w%pl%d%xp(:,w%pl%pickend) = form_coords(isys,xc)
-             w%pl%viewdirty = .true.
-          end if
-          if (istat /= ipick_pending) w%pl%picking = .false.
-       else
-          call cancel_pick()
-       end if
-    end if
-
-    hover = .false.
-    if (goodsys) then
-       ! the system
-       call iw_text("System",highlight=.true.)
-       call iw_text(string(isys) // ": " // trim(sysc(isys)%seed%name),sameline=.true.)
-
-       ! the plane, the region, and the number of points
-       xediting = .false.
-       if (plane_def_form(w%pl%d,isys,ttshown,xediting,.true.,ipick,w%pl%picking,w%pl%showcval,w%pl%vscale,&
-          w%pl%sec)) w%pl%viewdirty = .true.
-       if (ipick > 0) then
-          w%pl%picking = .true.
-          w%pl%pickend = ipick
-          w%pl%pickview = iview
-          call w%pl%pick%arm()
-          call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick " // trim(pt_name(ipick)) // ": an atom,&
-             & a critical point, or a point in space",w%id,acceptempty=.true.)
-       end if
-
-       ! the labels, and the map in the view
-       call draw_labels_option()
-       if (sys(isys)%c%ncel == 0) &
-          call iw_text("This system has no atoms: there are no field values to map",danger=.true.,wrap=.true.)
-
-       ! the values on the plane and what is made from them, calculated
-       ! again if anything they depend on changed
-       call update_grid(refit,fresh)
-       mapshown = allocated(w%pl%ff) .and. w%pl%d%update
-       if (mapshown) then
-          call update_contours()
-          call update_texture()
-          call update_marks()
-       end if
-       call sync_view(fresh)
-
-       ! the map takes the rest of the window, leaving room for the
-       ! note about the labels (if shown) and the table of values (if
-       ! open, it takes part of the space); Close is below the content
-       ! (see iw_bottomrow_begin). The window grows
-       ! to fit its content: the stretch of the map and the table beyond
-       ! their minimum heights is elastic, not content to fit
-       call igGetContentRegionAvail(sz0)
-       sz0%y = sz0%y - iw_calcheight(merge(1,0,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
-       htable = 0._c_float
-       if (w%pl%secdata%open .and. mapshown) then
-          htable = max(0.35_c_float * sz0%y,iw_calcheight(4,0,.false.))
-          sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
-          w%heightslack = htable - iw_calcheight(4,0,.false.)
-       end if
-       hmap = iw_calcheight(map_minlines,0,.false.)
-       sz0%y = max(sz0%y,hmap)
-       if (mapshown) w%heightslack = w%heightslack + sz0%y - hmap
-       if (w%pl%d%update) then
-          call draw_map(sz0,refit,hover,xhov,.false.)
-       else
-          call iw_text(noupdate_msg,wrap=.true.)
-       end if
-
-       ! the table of values
-       call draw_data_section()
-
-       ! the three points, the region, and the point under the mouse in
-       ! the anchor view, for as long as the window is open
-       if (associated(win(iview)%sc)) then
-          if (win(iview)%sc%isinit /= 0) then
-             rad = min(max(0.01d0 * real(win(iview)%sc%scenerad,8),marker_radmin),marker_radmax)
-             allocate(shp(3))
-             do i = 1, 3
-                shp(i) = rep_shape(kind=shapekind_sphere,x1=cart_to_abs(form_to_cart(isys,w%pl%d%xp(:,i))),&
-                   rad=rad,rgb=pt_rgb(:,i),alpha=marker_alpha)
-             end do
-             ! the region, from the form (it may be ahead of the map),
-             ! unless the map itself is in the view, as the window's or
-             ! as the object it edits
-             if (.not.(w%pl%showview .and. w%pl%viewgen >= 0) .and. irobj == 0) then
-                call w%pl%d%grid(isys,x0,uu,vv,a0,e1,e2,errmsg)
-                if (len(errmsg) == 0) then
-                   v = 0d0
-                   v(:,1) = real(w%pl%d%nx-1,8) * uu
-                   v(:,2) = real(w%pl%d%ny-1,8) * vv
-                   shp = [shp,rep_shape(kind=shapekind_box,x1=cart_to_abs(x0),v=v,rad=0.15d0*rad,&
-                      rgb=region_rgb,alpha=region_alpha)]
-                end if
-             end if
-             if (hover) &
-                shp = [shp,rep_shape(kind=shapekind_sphere,x1=cart_to_abs(xhov),&
-                   rad=max(rad,1.6d0*bondrad_def),rgb=cur_rgb,alpha=1._c_float)]
-             call win(iview)%sc%show_transient_shapes(w%uid,1,shp)
-          end if
-       end if
-
-       if (allocated(w%pl%errmsg)) then
-          if (len_trim(w%pl%errmsg) > 0) call iw_text(w%pl%errmsg,danger=.true.,wrap=.true.)
-       end if
-       if (allocated(w%errmsg)) then
-          if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
-       end if
-
-       ! the image of the map, to the file chosen in the dialog
-       if (w%okfile_set .and. mapshown) call export_map()
-    end if
-    w%okfile_set = .false.
-
-    ! bottom row: create the object, export the image, close
-    ldum = goodsys .and. allocated(w%pl%ff) .and. (irobj == 0)
-    if (ldum) ldum = fresh .and. associated(win(iview)%sc)
-    call iw_setpos_bottomright(len("Create Object") + len("Export to Image") + len("Close"),3)
-    if (iw_button("Create Object##planecreateobj",disabled=.not.ldum)) call create_object()
-    if (irobj > 0) then
-       call iw_tooltip("This map is already an object of the view",ttshown,whendisabled=.true.)
-    elseif (.not.w%pl%d%update) then
-       call iw_tooltip("Make this map a permanent object of the view (check Update map first, to&
-          & calculate it)",ttshown,whendisabled=.true.)
-    else
-       call iw_tooltip("Make this map a permanent object of the view, kept after this window is closed",&
-          ttshown,whendisabled=.true.)
-    end if
-    if (iw_button("Export to Image",sameline=.true.,disabled=.not.mapshown)) &
-       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,idparent=w%id,orraise=-1)
-    call iw_tooltip("Save the map, as shown in this window, to a PNG image file",ttshown)
-    if (iw_button("Close",sameline=.true.)) doquit = .true.
-
-    ! exit if focused and received the close keybinding
-    if (iw_close_event(w%focused(),okcloses=.false.)) doquit = .true.
-
-    ! quit = close the window
-    if (doquit) then
-       call cancel_pick()
-       call w%end()
-    end if
-
-  contains
-
-    !> The Display section: the labels of the atoms and critical
-    !> points near the plane, and whether the map is shown in the
-    !> view, with its relief and opacity there. More: what is labeled, the color
-    !> and size of the labels, their text, and the distance to the
-    !> plane.
-    subroutine draw_labels_option()
-      use utils, only: iw_checkbox, iw_dragfloat_realc, iw_coloredit, iw_combo_simple, iw_separatortext
-
-      call iw_separatortext("Display",w%pl%secdisp,hasmore=w%pl%showlabels)
-      if (.not.w%pl%secdisp%open) return
-      ldum = iw_checkbox("Labels##planeshowlabels",w%pl%showlabels,labelleft=.true.)
-      call iw_tooltip("Label the atoms and the critical points of the reference field near the plane",ttshown)
-      if (irobj > 0) then
-         call iw_text("Object",alignframe=.true.,gap=.true.)
-         call iw_text(trim(win(iview)%sc%rep(irobj)%name),sameline=.true.)
-         call iw_tooltip("The map in the view is this object, which the window edits for as long&
-            & as it is open",ttshown)
-      else
-         if (iw_checkbox("Show in view##planeshow",w%pl%showview,gap=.true.,labelleft=.true.)) &
-            w%pl%viewgen = -1
-         call iw_tooltip("Draw this map in the view, following the changes made here, for as long&
-            & as the window is open",ttshown)
-      end if
-      if (w%pl%showview .or. irobj > 0) then
-         if (relief_checkbox(w%pl%rl,"plane",.true.,ttshown)) w%pl%viewdirty = .true.
-         call iw_text("Opacity",alignframe=.true.,gap=.true.)
-         if (iw_dragfloat_realc("##planealpha",x1=w%pl%alpha,speed=0.01_c_float,min=0._c_float,&
-            max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
-            w%pl%viewdirty = .true.
-         call iw_tooltip("Opacity of the map in the view (1 = opaque)",ttshown)
-         if (relief_form(w%pl%rl,"plane",.false.,ttshown)) w%pl%viewdirty = .true.
-      end if
-      if (.not.w%pl%secdisp%more .or. .not.w%pl%showlabels) return
-
-      ! more: what is labeled, and the color and size of the labels
-      ldum = iw_checkbox("Critical points##planeshowcps",w%pl%showcps,labelleft=.true.)
-      call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
-         & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
-      call iw_text("Color",alignframe=.true.,gap=.true.)
-      ldum = iw_coloredit("##planergblabel",rgb=w%pl%rgblabel,sameline=.true.)
-      call iw_tooltip("Color of the labels and their dots",ttshown)
-      call iw_text("Size",alignframe=.true.,gap=.true.)
-      ldum = iw_dragfloat_realc("##planelscale",x1=w%pl%lscale,speed=0.01_c_float,min=0.1_c_float,&
-         max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-      call iw_tooltip("Size of the labels and their dots, relative to the text of the interface",ttshown)
-
-      ! more: the text, and the distance to the plane
-      call iw_text("Text",alignframe=.true.)
-      call iw_combo_simple("##planeltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
-         "Atom name"//c_null_char,w%pl%ltext,sameline=.true.)
-      call iw_tooltip("Text in the labels of the atoms",ttshown)
-      call iw_text("Distance",alignframe=.true.,gap=.true.)
-      ldum = iw_dragfloat_real8("##planehmax",x1=w%pl%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
-      call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (Å)",&
-         ttshown)
-      ldum = iw_checkbox("Show distance##planeshowdist",w%pl%showdist,gap=.true.,labelleft=.true.)
-      call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
-         & plane (Å)",ttshown)
-
-    end subroutine draw_labels_option
-
-    !> Show the map of the window in the anchor view, as a transient
-    !> plane map (it goes away when the window stops showing it), armed
-    !> in every frame. fresh = the values of the window are those of the
-    !> form (else they are being edited, or wait for the threads, and
-    !> the view keeps the last map). The view is given the values of the
-    !> window (it never calculates them) when they are new, and the form
-    !> when it changed; with no values (an error), it shows nothing.
-    subroutine sync_view(fresh)
-      logical, intent(in) :: fresh
-
-      integer :: itrep
-      logical :: found
-
-      if (irobj > 0) then
-         call sync_object(fresh)
-         return
-      end if
-      ! not shown, or not updated: the transient is not armed and goes
-      ! away, and the view no longer holds the map
-      if (.not.w%pl%showview .or. .not.w%pl%d%update) then
-         w%pl%viewgen = -1
-         return
-      end if
-      if (.not.associated(win(iview)%sc)) return
-      if (win(iview)%sc%isinit == 0) return
-
-      ! nothing to show: up to date but no values, or nothing given yet
-      if (fresh .and. .not.allocated(w%pl%ff)) return
-      if (.not.fresh .and. w%pl%viewgen < 0) return
-      call win(iview)%sc%show_transient_slice(w%uid,1,itrep,found)
-      if (itrep <= 0) return
-
-      associate(r => win(iview)%sc%reptrans(itrep))
-        r%slice%nocalc = .true.
-        if (.not.found) then
-           ! a new slot (or the old one was reaped): hidden until it has
-           ! the values of the window
-           w%pl%viewgen = -1
-           r%shown = .false.
-        end if
-        if (.not.fresh) return
-        if (w%pl%viewgen == w%pl%gen .and. .not.w%pl%viewdirty) return
-
-        r%name = "Plane Map"
-        r%shown = .true.
-        ! the values of the window, if they are new to the view
-        call give_map(r,w%pl%viewgen /= w%pl%gen)
-      end associate
-      w%pl%viewgen = w%pl%gen
-      w%pl%viewdirty = .false.
-      win(iview)%sc%forcebuildlists = .true.
-
-    end subroutine sync_view
-
-    !> The map (size sz): the colors, the contour lines, and the labels,
-    !> with the color bar on its right. If refit, fit the axes to the
-    !> region. Returns in hover whether the mouse is on the region and
-    !> the point under it (xhov, cell-frame Cartesian bohr). If forprint,
-    !> draw it for export_map: with the axes as last shown in the
-    !> window and no mouse readouts.
-    subroutine draw_map(sz,refit,hover,xhov,forprint)
-      use utils, only: iw_colormap_id
-      type(ImVec2), intent(in) :: sz
-      logical, intent(in) :: refit
-      logical, intent(in) :: forprint
-      logical, intent(out) :: hover
-      real*8, intent(out) :: xhov(3)
-
-      character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
-      integer :: j, nx, ny
-      integer(c_int) :: flags, coltext
-      real(c_double) :: xmin, xmax, ymin, ymax, crn(2,4), mu, mv
-      real(c_float) :: px(4), py(4), wbar, fs, fv
-      real(c_float), allocatable :: box(:,:), ang(:)
-      real*8, allocatable :: gap(:), sval(:)
-      integer, allocatable :: ival(:), icand(:)
-      integer :: nbox, nval, k
-      integer(c_int) :: col(2)
-      type(ImVec2) :: pmin, pmax, szp, pt, tsz
-      type(c_ptr) :: dl, font
-
-      hover = .false.
-      xhov = 0d0
-      if (.not.allocated(w%pl%ff)) return
-      nx = size(w%pl%ff,1)
-      ny = size(w%pl%ff,2)
-
-      ! the corners of the region in plot coordinates
-      crn(:,1) = to_plot(w%pl%x0)
-      crn(:,2) = to_plot(w%pl%x0 + real(nx-1,8) * w%pl%uu)
-      crn(:,3) = to_plot(w%pl%x0 + real(nx-1,8) * w%pl%uu + real(ny-1,8) * w%pl%vv)
-      crn(:,4) = to_plot(w%pl%x0 + real(ny-1,8) * w%pl%vv)
-
-      ! the plot leaves room for the color bar on its right
-      wbar = iw_calcwidth(10,0)
-      szp = sz
-      szp%x = max(sz%x - wbar,iw_calcwidth(20,0))
-
-      str1 = "##planemap" // c_null_char
-      flags = ior(ImPlotFlags_NoTitle,ImPlotFlags_Equal)
-      flags = ior(flags,ImPlotFlags_NoLegend)
-      if (forprint) then
-         flags = ior(flags,ImPlotFlags_NoInputs)
-      else
-         flags = ior(flags,ImPlotFlags_Crosshairs)
-         w%pl%szmap = (/sz%x,sz%y/)
-      end if
-      if (ipBeginPlot(c_loc(str1),szp,flags)) then
-         str2 = "u (Å)" // c_null_char
-         str3 = "v (Å)" // c_null_char
-         call ipSetupAxes(c_loc(str2),c_loc(str3),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
-         if (forprint) then
-            call ipSetupAxisLimits(ImAxis_X1,w%pl%lims(1),w%pl%lims(2),ImPlotCond_Always)
-            call ipSetupAxisLimits(ImAxis_Y1,w%pl%lims(3),w%pl%lims(4),ImPlotCond_Always)
-         elseif (refit) then
-            call ipSetupAxisLimits(ImAxis_X1,minval(crn(1,:)),maxval(crn(1,:)),ImPlotCond_Always)
-            call ipSetupAxisLimits(ImAxis_Y1,minval(crn(2,:)),maxval(crn(2,:)),ImPlotCond_Always)
-         end if
-
-         ! the colors: the texture on the region, inside the plot
-         call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax)
-         if (.not.forprint) w%pl%lims = (/xmin,xmax,ymin,ymax/)
-         call ipPlotToPixels(xmin,ymin,ImAxis_X1,ImAxis_Y1,px(1),py(1))
-         call ipPlotToPixels(xmax,ymax,ImAxis_X1,ImAxis_Y1,px(2),py(2))
-         pmin%x = min(px(1),px(2))
-         pmin%y = min(py(1),py(2))
-         pmax%x = max(px(1),px(2))
-         pmax%y = max(py(1),py(2))
-         dl = igGetWindowDrawList()
-         call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
-         if (w%pl%tex /= 0) then
-            do j = 1, 4
-               call ipPlotToPixels(crn(1,j),crn(2,j),ImAxis_X1,ImAxis_Y1,px(j),py(j))
-            end do
-            ! the texels are centered on the points of the grid
-            call ImDrawList_AddImageQuad(dl,int(w%pl%tex,c_intptr_t),&
-               ImVec2(px(1),py(1)),ImVec2(px(2),py(2)),ImVec2(px(3),py(3)),ImVec2(px(4),py(4)),&
-               ImVec2(0.5_c_float/nx,0.5_c_float/ny),ImVec2(1._c_float-0.5_c_float/nx,0.5_c_float/ny),&
-               ImVec2(1._c_float-0.5_c_float/nx,1._c_float-0.5_c_float/ny),&
-               ImVec2(0.5_c_float/nx,1._c_float-0.5_c_float/ny),-1_c_int)
-         end if
-         call ImDrawList_PopClipRect(dl)
-
-         ! the labels go where their dot and text are (ImGui scales text
-         ! linearly in the font size, so the measurement at the
-         ! interface size scales with it); then the values of the
-         ! contour lines, where they do not cover a label or another
-         ! value, along the line, which has a gap under each
-         dl = igGetWindowDrawList()
-         coltext = igGetColorU32_Vec4(ImVec4(w%pl%rgblabel(1),w%pl%rgblabel(2),w%pl%rgblabel(3),1._c_float))
-         font = igGetFont()
-         fs = w%pl%lscale * igGetFontSize()
-         fv = w%pl%vscale * igGetFontSize()
-         nbox = 0
-         nval = 0
-         allocate(box(4,w%pl%nmark+w%pl%ncval),ival(w%pl%ncval),icand(w%pl%ncval),sval(w%pl%ncval),&
-            gap(w%pl%ncval),ang(w%pl%ncval))
-         if (w%pl%showlabels) then
-            do j = 1, w%pl%nmark
-               call ipPlotToPixels(w%pl%xmark(1,j),w%pl%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
-               str1 = trim(w%pl%lmark(j)) // c_null_char
-               call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-               nbox = nbox + 1
-               box(:,nbox) = (/px(1) - 3._c_float * w%pl%lscale,py(1) - (tsz%y + 1._c_float) * w%pl%lscale,&
-                  px(1) + (4._c_float + tsz%x) * w%pl%lscale,py(1) + 3._c_float * w%pl%lscale/)
-            end do
-         end if
-         if (w%pl%d%showcont) then
-            if (w%pl%showcval .and. w%pl%ncval > 0) &
-               call place_values(pmin,pmax,box,nbox,nval,ival,icand,sval,gap,ang)
-            if (w%pl%ncpos > 0) call plot_contours(1,w%pl%d%rgbpos,w%pl%cpos,w%pl%ncpos,nval,ival,sval,gap)
-            if (w%pl%ncneg > 0) call plot_contours(2,w%pl%d%rgbneg,w%pl%cneg,w%pl%ncneg,nval,ival,sval,gap)
-         end if
-
-         call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
-         col(1) = igGetColorU32_Vec4(ImVec4(w%pl%d%rgbpos(1),w%pl%d%rgbpos(2),w%pl%d%rgbpos(3),1._c_float))
-         col(2) = igGetColorU32_Vec4(ImVec4(w%pl%d%rgbneg(1),w%pl%d%rgbneg(2),w%pl%d%rgbneg(3),1._c_float))
-         do j = 1, nval
-            k = ival(j)
-            call ipPlotToPixels(w%pl%xcval(1,icand(j),k),w%pl%xcval(2,icand(j),k),ImAxis_X1,ImAxis_Y1,px(1),py(1))
-            str1 = fmt_level(w%pl%zcval(k)) // c_null_char
-            call own_add_text_rotated(dl,font,fv,px(1),py(1),ang(j),col(w%pl%icval(1,k)),c_loc(str1))
-         end do
-         if (w%pl%showlabels) then
-            do j = 1, w%pl%nmark
-               call ipPlotToPixels(w%pl%xmark(1,j),w%pl%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
-               call ImDrawList_AddCircleFilled(dl,ImVec2(px(1),py(1)),3._c_float*w%pl%lscale,coltext,8_c_int)
-               str1 = trim(w%pl%lmark(j)) // c_null_char
-               call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-               pt%x = px(1) + 4._c_float * w%pl%lscale
-               pt%y = py(1) - (tsz%y + 1._c_float) * w%pl%lscale
-               call ImDrawList_AddText_FontPtr(dl,font,fs,pt,coltext,c_loc(str1),c_null_ptr,&
-                  0._c_float,c_null_ptr)
-            end do
-         end if
-         call ImDrawList_PopClipRect(dl)
-
-         ! the point under the mouse
-         if (.not.forprint .and. ipIsPlotHovered()) then
-            call ipGetPlotMousePos(mu,mv)
-            call plot_point(mu,mv,hover,xhov)
-         end if
-         call ipEndPlot()
-      end if
-
-      ! the color bar
-      call igSameLine(0._c_float,-1._c_float)
-      str1 = "##planecbar" // c_null_char
-      str2 = "%.3g" // c_null_char
-      call ipColormapScale(c_loc(str1),w%pl%tmin,w%pl%tmax,ImVec2(wbar,szp%y),c_loc(str2),&
-         iw_colormap_id(w%pl%d%icmap))
-      if (forprint) return
-      if (w%pl%d%cscale == 1) then
-         call iw_tooltip("Colors of the map: log10 of the absolute value",ttshown)
-      elseif (w%pl%d%cscale == 2) then
-         call iw_tooltip("Colors of the map: 2/pi atan of the value",ttshown)
-      else
-         call iw_tooltip("Colors of the map: the value",ttshown)
-      end if
-
-      if (w%pl%showlabels .and. w%pl%marksmany) &
-         call iw_text("(The region is too large for labels)",disabled=.true.)
-
-    end subroutine draw_map
-
-    !> Give the map of the window to the object it edits (irobj), as
-    !> sync_view does to its own: when fresh, the values if they are
-    !> new, and the form if it changed (an edit for the undo history).
-    subroutine sync_object(fresh)
-      use global, only: new_uid
-      logical, intent(in) :: fresh
-
-      ! not updated: the form goes to the object when it changes (its
-      ! values stay, as when edited in its editor), never the values
-      if (.not.w%pl%d%update) then
-         if (.not.w%pl%viewdirty) return
-      else
-         if (.not.fresh .or. .not.allocated(w%pl%ff)) return
-         if (w%pl%viewgen == w%pl%gen .and. .not.w%pl%viewdirty) return
-      end if
-      associate(r => win(iview)%sc%rep(irobj))
-        call give_map(r,w%pl%d%update .and. w%pl%viewgen /= w%pl%gen)
-        r%slice%stamp = new_uid()
-        w%pl%objstamp = r%slice%stamp
-        if (w%pl%viewdirty) call win(iview)%sc%undo_note("Edit " // trim(r%name))
-      end associate
-      if (w%pl%d%update) w%pl%viewgen = w%pl%gen
-      w%pl%viewdirty = .false.
-      win(iview)%sc%forcebuildlists = .true.
-
-    end subroutine sync_object
-
-    !> Copy the map of the window into a new plane map object of the
-    !> anchor view, with the values of the window (so it is not
-    !> calculated again), and open its editor. The window then edits
-    !> the object instead of showing a map of its own.
-    subroutine create_object()
-      use representations, only: reptype_slice, repflavor_slice
-
-      integer :: irep
-
-      call win(iview)%add_rep_and_edit(reptype_slice,repflavor_slice,irep=irep)
-      if (irep <= 0) then
-         w%errmsg = "Could not create the plane map object"
-         return
-      end if
-      call w%pl%obj%set(win(iview)%sc,irep)
-      w%pl%objview = iview
-      irobj = irep
-      w%pl%viewgen = -1
-      w%pl%viewdirty = .false.
-      call sync_object(.true.)
-
-    end subroutine create_object
-
-    !> Give the map of the window to plane map r (the transient of the
-    !> view or an object): the form, the opacity and the relief, and,
-    !> if values, the values of the window and their key (the values
-    !> must be fresh, those of the form).
-    subroutine give_map(r,values)
-      use representations, only: representation, slice_cache
-      type(representation), intent(inout) :: r
-      logical, intent(in) :: values
-
-      r%slice%d = w%pl%d
-      r%slice%alpha = w%pl%alpha
-      r%slice%rl = w%pl%rl
-      if (.not.values) return
-      r%slice%c = slice_cache(ff=w%pl%ff,x0=w%pl%x0,uu=w%pl%uu,vv=w%pl%vv,&
-         e1=w%pl%e1,e2=w%pl%e2,errmsg="",keyexpr=w%pl%keyexpr)
-      call r%slice%d%key(isys,r%slice%c%key)
-
-    end subroutine give_map
-
-    !> Take the map of plane map r (the object the window edits) into
-    !> the form of the window: the reverse of give_map.
-    subroutine take_map(r)
-      use representations, only: representation
-      type(representation), intent(in) :: r
-
-      w%pl%d = r%slice%d
-      w%pl%alpha = r%slice%alpha
-      w%pl%rl = r%slice%rl
-      w%pl%objstamp = r%slice%stamp
-
-    end subroutine take_map
-
-    !> Save the map, as last drawn in the window, to the PNG file
-    !> w%okfile, for a publication: drawn again in a separate ImGui
-    !> context, black on white, and rendered into a framebuffer
-    !> w%pl%imgscale times larger than the window.
-    subroutine export_map()
-      use interfaces_opengl3
-      use interfaces_stb
-      use gui_main, only: shader_version, font_ranges
-      use tools_io, only: uout
-      real(c_float), parameter :: bakemax = 128._c_float ! largest size of the font atlas glyphs (pixels)
-
-      type(c_ptr) :: pc, dd
-      character(kind=c_char,len=:), allocatable, target :: str
-      character(kind=c_char), allocatable, target :: pix(:)
-      integer(c_int), target :: fbo, rbo
-      integer(c_int) :: wid, hei, idum, npix(2)
-      real(c_float) :: wsz(2), xs
-      real*8 :: xdum(3)
-      logical :: ldum
-      integer :: i
-
-      ! the map in the print context, at its size in the window (two
-      ! frames: the plot lays itself out in the first)
-      call plane_image_size(w%pl%szmap,w%pl%imgscale,wsz,xs,npix)
-      wid = npix(1)
-      hei = npix(2)
-      str = shader_version
-      pc = ipPrintContextCreate(igGetFontSize(),xs,bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
-      do i = 1, 2
-         call ipPrintFrameBegin(pc,wsz(1),wsz(2))
-         call draw_map(ImVec2(w%pl%szmap(1),w%pl%szmap(2)),.false.,ldum,xdum,.true.)
-         dd = ipPrintFrameEnd()
-      end do
-
-      ! render it to a framebuffer and read it back
-      call glGenFramebuffers(1_c_int,c_loc(fbo))
-      call glGenRenderbuffers(1_c_int,c_loc(rbo))
-      call glBindRenderbuffer(GL_RENDERBUFFER,rbo)
-      call glRenderbufferStorage(GL_RENDERBUFFER,GL_RGBA8,wid,hei)
-      call glBindRenderbuffer(GL_RENDERBUFFER,0_c_int)
-      call glBindFramebuffer(GL_FRAMEBUFFER,fbo)
-      call glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,rbo)
-      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) then
-         call glViewport(0_c_int,0_c_int,wid,hei)
-         call glClearColor(1._c_float,1._c_float,1._c_float,1._c_float)
-         call glClear(GL_COLOR_BUFFER_BIT)
-         call ImGui_ImplOpenGL3_RenderDrawData(dd)
-         allocate(pix(4*wid*hei))
-         call glReadPixels(0_c_int,0_c_int,wid,hei,GL_RGBA,GL_UNSIGNED_BYTE,c_loc(pix))
-      end if
-      call glBindFramebuffer(GL_FRAMEBUFFER,0_c_int)
-      call glDeleteFramebuffers(1_c_int,c_loc(fbo))
-      call glDeleteRenderbuffers(1_c_int,c_loc(rbo))
-      call ipPrintContextDestroy(pc)
-
-      ! write the file (the rows of the framebuffer go bottom to top)
-      if (.not.allocated(pix)) then
-         w%errmsg = "Could not create the framebuffer for the image (too large?)"
-         return
-      end if
-      pix(4::4) = char(255,c_char)
-      str = trim(w%okfile) // c_null_char
-      call stbi_flip_vertically_on_write(1_c_int)
-      idum = stbi_write_png(c_loc(str),wid,hei,4_c_int,c_loc(pix),4_c_int*wid)
-      call stbi_flip_vertically_on_write(0_c_int)
-      if (idum == 0) then
-         w%errmsg = "Error writing the image file: " // trim(w%okfile)
-      else
-         w%errmsg = ""
-         write (uout,'("* Plane map image (",A,"x",A," pixels) written to: ",A/)') string(wid), string(hei),&
-            trim(w%okfile)
-         call okfile_save_dir(w%okfile)
-      end if
-
-    end subroutine export_map
-
-    !> Where the values of the contour lines go, longest line first:
-    !> at one of the places along each line long enough for them,
-    !> inside the plot (pmin-pmax), where they do not cover a label or
-    !> come close to a value already placed (the nbox boxes in box, in
-    !> pixels: xmin, ymin, xmax, ymax). The place tried first moves
-    !> along the line from one level to the next (by the golden ratio),
-    !> so the values of nested lines do not pile up. Returns the nval
-    !> values placed: their line in the list of values (ival), the
-    !> place (icand) and its distance along the line (sval, plot
-    !> units), half the gap they leave in the line (gap, plot units),
-    !> and the angle of their text (ang, radians, clockwise on the
-    !> screen).
-    subroutine place_values(pmin,pmax,box,nbox,nval,ival,icand,sval,gap,ang)
-      use param, only: pi
-      type(ImVec2), intent(in) :: pmin, pmax
-      real(c_float), intent(inout) :: box(:,:)
-      integer, intent(inout) :: nbox
-      integer, intent(out) :: nval
-      integer, intent(out) :: ival(:), icand(:)
-      real*8, intent(out) :: sval(:), gap(:)
-      real(c_float), intent(out) :: ang(:)
-
-      real*8, parameter :: golden = 0.6180339887498949d0
-
-      character(kind=c_char,len=:), allocatable, target :: str1
-      real(c_float) :: px, py, px1, py1, scl, bx(4), pad, sep, a, hx, hy
-      type(ImVec2) :: tsz
-      integer :: i, k, l, m, k0
-      real*8 :: g, sc
-      logical :: free
-
-      ! pixels per plot unit (the axes have the same scale)
-      call ipPlotToPixels(0d0,0d0,ImAxis_X1,ImAxis_Y1,px,py)
-      call ipPlotToPixels(1d0,0d0,ImAxis_X1,ImAxis_Y1,px1,py1)
-      scl = abs(px1 - px)
-      pad = 3._c_float * w%pl%vscale
-      nval = 0
-      if (scl <= 0._c_float) return
-
-      do i = 1, w%pl%ncval
-         str1 = fmt_level(w%pl%zcval(i)) // c_null_char
-         call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
-         tsz%x = tsz%x * w%pl%vscale
-         tsz%y = tsz%y * w%pl%vscale
-         if (w%pl%lcval(i) * scl < 3._c_float * tsz%x) cycle
-         g = (0.5d0 * tsz%x + pad) / scl
-         sep = tsz%y
-
-         ! the places, from the one nearest to the phase of this level,
-         ! alternating to both sides
-         k0 = floor(modulo(w%pl%icval(4,i) * golden,1d0) * plane_ncand)
-         do m = 0, plane_ncand-1
-            l = (m + 1) / 2
-            if (mod(m,2) == 1) l = -l
-            k = modulo(k0 + l,plane_ncand) + 1
-            sc = (k - 0.5d0) / plane_ncand * w%pl%lcval(i)
-            if (sc - g < 0d0 .or. sc + g > w%pl%lcval(i)) cycle
-            call ipPlotToPixels(w%pl%xcval(1,k,i),w%pl%xcval(2,k,i),ImAxis_X1,ImAxis_Y1,px,py)
-
-            ! the direction of the line on the screen (y goes down),
-            ! turned so the text reads left to right (bottom to top if
-            ! vertical)
-            a = real(atan2(-w%pl%tcval(2,k,i),w%pl%tcval(1,k,i)),c_float)
-            if (a >= 0.5_c_float * real(pi,c_float)) a = a - real(pi,c_float)
-            if (a < -0.5_c_float * real(pi,c_float)) a = a + real(pi,c_float)
-
-            ! the box around the turned text, all inside the plot
-            hx = 0.5_c_float * (abs(cos(a)) * tsz%x + abs(sin(a)) * tsz%y) + pad
-            hy = 0.5_c_float * (abs(sin(a)) * tsz%x + abs(cos(a)) * tsz%y) + pad
-            bx = (/px - hx,py - hy,px + hx,py + hy/)
-            if (bx(1) < pmin%x .or. bx(3) > pmax%x .or. bx(2) < pmin%y .or. bx(4) > pmax%y) cycle
-            free = .true.
-            do l = 1, nbox
-               if (bx(1) < box(3,l) .and. bx(3) > box(1,l) .and. bx(2) < box(4,l) .and. bx(4) > box(2,l)) then
-                  free = .false.
-                  exit
-               end if
-            end do
-            if (.not.free) cycle
-
-            ! placed; the next values keep some distance from it
-            nbox = nbox + 1
-            box(:,nbox) = (/bx(1) - sep,bx(2) - sep,bx(3) + sep,bx(4) + sep/)
-            nval = nval + 1
-            ival(nval) = i
-            icand(nval) = k
-            sval(nval) = sc
-            gap(nval) = g
-            ang(nval) = a
-            exit
-         end do
-      end do
-
-    end subroutine place_values
-
-    !> Plot the contour lines of array ia (1 = positive levels, in
-    !> cpos; 2 = the rest, in cneg), the n rows of c, in color rgb, with
-    !> a gap of half-length gap (plot units, along the line) at
-    !> distance sval along the lines of the nval values placed (ival).
-    subroutine plot_contours(ia,rgb,c,n,nval,ival,sval,gap)
-      use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
-      integer, intent(in) :: ia
-      real(c_float), intent(in) :: rgb(3)
-      real(c_double), intent(in), target :: c(:,:)
-      integer, intent(in) :: n, nval
-      integer, intent(in) :: ival(:)
-      real*8, intent(in) :: sval(:), gap(:)
-
-      character(kind=c_char,len=:), allocatable, target :: str1
-      real(c_double), allocatable, target :: d(:,:)
-      integer, allocatable :: atrow(:)
-      integer :: i, j, k, r, nd, n1, ncut, istate
-      real*8 :: s, s1, ds, sa, sb, nan
-
-      str1 = "##planec" // string(ia) // c_null_char
-      call ipSetNextLineStyle(ImVec4(rgb(1),rgb(2),rgb(3),1._c_float),1._c_float)
-
-      ! the values on lines of this array: none, plot the lines as they are
-      ncut = 0
-      allocate(atrow(n))
-      atrow = 0
-      do j = 1, nval
-         k = ival(j)
-         if (w%pl%icval(1,k) /= ia) cycle
-         atrow(w%pl%icval(2,k)) = j
-         ncut = ncut + 1
-      end do
-      if (ncut == 0) then
-         call ipPlotLine(c_loc(str1),c_loc(c(1,1)),c_loc(c(1,2)),int(n,c_int),ImPlotLineFlags_None,0_c_int)
-         return
-      end if
-
-      ! copy the lines, cutting them under their values
-      nan = ieee_value(nan,ieee_quiet_nan)
-      allocate(d(n+3*ncut,2))
-      nd = 0
-      r = 1
-      do while (r <= n)
-         if (atrow(r) == 0) then
-            nd = nd + 1
-            d(nd,:) = c(r,:)
-            r = r + 1
-            cycle
-         end if
-         j = atrow(r)
-         k = ival(j)
-         n1 = w%pl%icval(3,k)
-         sa = sval(j) - gap(j)
-         sb = sval(j) + gap(j)
-         nd = nd + 1
-         d(nd,:) = c(r,:)
-         s = 0d0
-         istate = 0
-         do i = r+1, r+n1-1
-            ds = norm2(c(i,:) - c(i-1,:))
-            s1 = s + ds
-            if (istate == 0 .and. s1 >= sa) then
-               nd = nd + 1
-               d(nd,:) = c(i-1,:) + (sa - s) / max(ds,1d-40) * (c(i,:) - c(i-1,:))
-               nd = nd + 1
-               d(nd,:) = nan
-               istate = 1
-            end if
-            if (istate == 1 .and. s1 >= sb) then
-               nd = nd + 1
-               d(nd,:) = c(i-1,:) + (sb - s) / max(ds,1d-40) * (c(i,:) - c(i-1,:))
-               istate = 2
-            end if
-            if (istate /= 1) then
-               nd = nd + 1
-               d(nd,:) = c(i,:)
-            end if
-            s = s1
-         end do
-         r = r + n1
-      end do
-      call ipPlotLine(c_loc(str1),c_loc(d(1,1)),c_loc(d(1,2)),int(nd,c_int),ImPlotLineFlags_None,0_c_int)
-
-    end subroutine plot_contours
-
-    !> A contour level written with three significant digits, as %.3g.
-    function fmt_level(x) result(str)
-      real*8, intent(in) :: x
-      character(len=:), allocatable :: str
-
-      character(len=40) :: aux, fmt
-      integer :: e, idx
-
-      if (x == 0d0) then
-         str = "0"
-         return
-      end if
-      e = floor(log10(abs(x)))
-      if (e < -4 .or. e >= 3) then
-         write (aux,'(ES0.2)') x
-         idx = index(aux,"E")
-         str = strip_zeros(aux(1:idx-1)) // "e" // trim(aux(idx+1:))
-      else
-         write (fmt,'("(F0.",I0,")")') max(2 - e,0)
-         write (aux,fmt) x
-         str = strip_zeros(trim(aux))
-         if (str(1:1) == ".") then
-            str = "0" // str
-         elseif (str(1:min(2,len(str))) == "-.") then
-            str = "-0" // str(2:)
-         end if
-      end if
-
-    end function fmt_level
-
-    !> Remove the trailing zeros of the decimals of a number, and the
-    !> point if they are all zeros.
-    function strip_zeros(s0) result(str)
-      character(len=*), intent(in) :: s0
-      character(len=:), allocatable :: str
-
-      integer :: n
-
-      str = trim(s0)
-      if (index(str,".") == 0) return
-      n = len(str)
-      do while (n > 1 .and. str(n:n) == "0")
-         n = n - 1
-      end do
-      if (str(n:n) == ".") n = n - 1
-      str = str(1:n)
-
-    end function strip_zeros
-
-    !> The point of the region with plot coordinates (mu,mv): whether it
-    !> is on the region (inside) and its position (x, cell-frame
-    !> Cartesian bohr).
-    subroutine plot_point(mu,mv,inside,x)
-      real(c_double), intent(in) :: mu, mv
-      logical, intent(out) :: inside
-      real*8, intent(out) :: x(3)
-
-      integer :: nx, ny
-      real*8 :: d(2), m(2,2), det, s, t
-
-      inside = .false.
-      nx = size(w%pl%ff,1)
-      ny = size(w%pl%ff,2)
-      x = w%pl%a0 + (mu * w%pl%e1 + mv * w%pl%e2) / bohrtoa
-
-      ! the grid coordinates: x - x0 = s * (nx-1) * uu + t * (ny-1) * vv
-      d(1) = dot_product(x - w%pl%x0,w%pl%e1)
-      d(2) = dot_product(x - w%pl%x0,w%pl%e2)
-      m(1,1) = dot_product(w%pl%uu,w%pl%e1) * (nx-1)
-      m(2,1) = dot_product(w%pl%uu,w%pl%e2) * (nx-1)
-      m(1,2) = dot_product(w%pl%vv,w%pl%e1) * (ny-1)
-      m(2,2) = dot_product(w%pl%vv,w%pl%e2) * (ny-1)
-      det = m(1,1) * m(2,2) - m(1,2) * m(2,1)
-      if (abs(det) < 1d-20) return
-      s = (d(1) * m(2,2) - d(2) * m(1,2)) / det
-      t = (m(1,1) * d(2) - m(2,1) * d(1)) / det
-      if (s < 0d0 .or. s > 1d0 .or. t < 0d0 .or. t > 1d0) return
-      inside = .true.
-
-    end subroutine plot_point
-
-    !> The table of the values on the plane (opened and closed from
-    !> its title): the position of each point (fractional for crystals, Å
-    !> for molecules), its plot coordinates, and the value. The menu
-    !> of the header (right click) writes it to the output, the
-    !> console, or a file.
-    subroutine draw_data_section()
-      use utils, only: iw_table_column, iw_table_headers_row, iw_separatortext
-      integer, parameter :: itable_plane = 1 ! the table, for table_write_*
-      character(kind=c_char,len=:), allocatable, target :: strtab
-      integer(c_int) :: flags
-      integer :: k, ix, iy, iwrite, nx, ny
-      real*8 :: xp(3), xq(3), pc(2)
-      type(ImVec2) :: szt
-      type(c_ptr) :: clipper
-      type(ImGuiListClipper), pointer :: clipper_f
-
-      if (.not.mapshown) return
-      call iw_separatortext("Values on the plane",w%pl%secdata)
-      if (.not.w%pl%secdata%open) return
-
-      nx = size(w%pl%ff,1)
-      ny = size(w%pl%ff,2)
-      flags = ImGuiTableFlags_None
-      flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-      flags = ior(flags,ImGuiTableFlags_RowBg)
-      flags = ior(flags,ImGuiTableFlags_Borders)
-      flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-      flags = ior(flags,ImGuiTableFlags_ScrollY)
-      flags = ior(flags,ImGuiTableFlags_ScrollX)
-      strtab = "##planedatatable" // c_null_char
-      szt%x = 0._c_float
-      szt%y = htable
-      if (igBeginTable(c_loc(strtab),6_c_int,flags,szt,0._c_float)) then
-         if (ismol) then
-            call iw_table_column("x (Å)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("y (Å)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("z (Å)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         else
-            call iw_table_column("x (frac)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("y (frac)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-            call iw_table_column("z (frac)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         end if
-         call iw_table_column("u (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column("v (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_column(quantity_label(),id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
-         call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
-
-         ! the rows (the second index runs fastest, as in PLANE); if the
-         ! table is being written as text, they are captured as they are
-         ! drawn (all of them)
-         clipper = ImGuiListClipper_ImGuiListClipper()
-         call ImGuiListClipper_Begin(clipper,int(nx*ny,c_int),-1._c_float)
-         call w%table_write_begin(itable_plane,iwrite,clipper)
-         do while(ImGuiListClipper_Step(clipper))
-            call c_f_pointer(clipper,clipper_f)
-            do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-               ix = (k-1) / ny + 1
-               iy = k - (ix-1) * ny
-               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-               xp = w%pl%x0 + real(ix-1,8) * w%pl%uu + real(iy-1,8) * w%pl%vv
-               pc = to_plot(xp)
-               where (abs(pc) < 1d-10) pc = 0d0
-               if (ismol) then
-                  xq = (xp + sys(isys)%c%molx0) * bohrtoa
-                  where (abs(xq) < 1d-10) xq = 0d0
-                  call cell(0,string(xq(1),'f',decimal=6))
-                  call cell(1,string(xq(2),'f',decimal=6))
-                  call cell(2,string(xq(3),'f',decimal=6))
-               else
-                  xq = sys(isys)%c%c2x(xp)
-                  ! no negative zeros from the rounding of the plane
-                  where (abs(xq) < 1d-10) xq = 0d0
-                  call cell(0,string(xq(1),'f',decimal=7))
-                  call cell(1,string(xq(2),'f',decimal=7))
-                  call cell(2,string(xq(3),'f',decimal=7))
-               end if
-               call cell(3,string(pc(1),'f',decimal=6))
-               call cell(4,string(pc(2),'f',decimal=6))
-               call cell(5,string(w%pl%ff(ix,iy),'e',decimal=8))
-            end do
-         end do
-         call ImGuiListClipper_End(clipper)
-         call ImGuiListClipper_destroy(clipper)
-         call w%table_write_end(itable_plane,table_title("Plane map",isys))
-         call igEndTable()
-      end if
-
-    end subroutine draw_data_section
-
-    !> Text str in column icol of the current row of a table.
-    subroutine cell(icol,str)
-      integer, intent(in) :: icol
-      character(len=*), intent(in) :: str
-
-      if (igTableSetColumnIndex(int(icol,c_int))) call iw_text(str)
-
-    end subroutine cell
-
-    !> The label of the quantity: $n with the property, or the
-    !> expression.
-    function quantity_label() result(str)
-      character(len=:), allocatable :: str
-
-      str = quant_label(w%pl%d%isexpr,w%pl%d%expr,w%pl%d%fref%id,w%pl%d%nti)
-
-    end function quantity_label
-
-    !> Calculate the grid of the region and the values on it if the
-    !> points, the region, the number of points, the quantity, the
-    !> fields, or the geometry changed. Waits for the initialization
-    !> threads to finish, for the inputs to be no longer edited, and
-    !> for the map to be updated (the form's checkbox).
-    !> refit = the region changed (the plot fits the axes to it).
-    !> fresh = the grid and the values (or their absence) are those of
-    !> the form (not while it is edited or the threads run).
-    subroutine update_grid(refit,fresh)
-      use systems, only: are_threads_running
-      logical, intent(out) :: refit, fresh
-
-      integer*8, allocatable :: key(:)
-      logical :: stale
-      real*8 :: oldx0(3), olduu(3), oldvv(3), olda0(3)
-      integer :: oldnx, oldny
-
-      refit = .false.
-      fresh = .false.
-      if (xediting .or. .not.w%pl%d%update .or. are_threads_running()) return
-      fresh = .true.
-
-      ! everything the values depend on, and the system
-      call w%pl%d%autopoints(isys)
-      call w%pl%d%key(isys,key)
-      key = [key,w%pl%sys%uid]
-      stale = .not.allocated(w%pl%key) .or. .not.allocated(w%pl%keyexpr)
-      if (.not.stale) stale = (size(w%pl%key) /= size(key))
-      if (.not.stale) stale = any(w%pl%key /= key) .or. (w%pl%keyexpr /= trim(w%pl%d%expr))
-      if (.not.stale) return
-      call move_alloc(key,w%pl%key)
-      w%pl%keyexpr = trim(w%pl%d%expr)
-
-      ! the region before, to know whether the plot must fit it again
-      oldx0 = w%pl%x0
-      olda0 = w%pl%a0
-      olduu = w%pl%uu
-      oldvv = w%pl%vv
-      oldnx = 0
-      oldny = 0
-      if (allocated(w%pl%ff)) then
-         oldnx = size(w%pl%ff,1)
-         oldny = size(w%pl%ff,2)
-         deallocate(w%pl%ff)
-      end if
-      w%pl%errmsg = ""
-      w%pl%gen = w%pl%gen + 1
-      if (sys(isys)%c%ncel == 0) return
-
-      ! the grid and the frame of the plot
-      call w%pl%d%grid(isys,w%pl%x0,w%pl%uu,w%pl%vv,w%pl%a0,w%pl%e1,w%pl%e2,w%pl%errmsg)
-      if (len_trim(w%pl%errmsg) > 0) return
-      ! (relative to a0, the origin of the plot: moving the plane as
-      ! a whole keeps the axes)
-      refit = (oldnx == 0) .or. any(abs(oldx0 - olda0 - w%pl%x0 + w%pl%a0) > 1d-10) .or. &
-         any(abs(olduu*(oldnx-1) - w%pl%uu*(w%pl%d%nx-1)) > 1d-10) .or.&
-         any(abs(oldvv*(oldny-1) - w%pl%vv*(w%pl%d%ny-1)) > 1d-10)
-
-      ! the values: those of the object the window edits, if it has
-      ! them already (it calculated them for a change made elsewhere:
-      ! its editor, an undo, the geometry), else calculated
-      if (object_has_values()) then
-         w%pl%ff = win(iview)%sc%rep(irobj)%slice%c%ff
-         w%pl%viewgen = w%pl%gen
-         return
-      end if
-      call w%pl%d%values(isys,w%pl%x0,w%pl%uu,w%pl%vv,w%pl%ff,w%pl%errmsg)
-
-    end subroutine update_grid
-
-    !> Whether the object the window edits (irobj) has the values for
-    !> the key of the window, w%pl%key (which ends in the system).
-    function object_has_values() result(ok)
-      logical :: ok
-
-      ok = .false.
-      if (irobj <= 0) return
-      if (.not.allocated(win(iview)%sc%rep(irobj)%slice%c)) return
-      associate(c => win(iview)%sc%rep(irobj)%slice%c)
-        if (.not.allocated(c%ff) .or. .not.allocated(c%key) .or. .not.allocated(c%keyexpr)) return
-        if (any(shape(c%ff) /= (/w%pl%d%nx,w%pl%d%ny/))) return
-        if (size(c%key) /= size(w%pl%key)-1) return
-        ok = all(c%key == w%pl%key(1:size(c%key))) .and. (c%keyexpr == w%pl%keyexpr)
-      end associate
-
-    end function object_has_values
-
-    !> Calculate the contour lines again if the grid or the levels
-    !> changed, in plot coordinates, the positive levels in cpos and
-    !> the rest in cneg (NaN between two lines), and the places along
-    !> each line where its value can go, longest line first.
-    subroutine update_contours()
-      use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
-      use tools, only: mergesort
-      integer*8, allocatable :: key(:)
-      integer :: i, ii, j, k, niso, nline, np
-      integer, allocatable :: lptr(:), liso(:), iord(:), il(:,:)
-      real*8, allocatable :: ziso(:), xy(:,:), ll(:)
-      real*8 :: off(2), rval, nan, dl, acc, st
-      logical :: pos
-
-      call w%pl%d%contkey(key)
-      key = [key,w%pl%gen]
-      if (allocated(w%pl%keycont) .and. allocated(w%pl%keylist)) then
-         if (size(w%pl%keycont) == size(key)) then
-            if (all(w%pl%keycont == key) .and. w%pl%keylist == trim(w%pl%d%llist)) return
-         end if
-      end if
-      call move_alloc(key,w%pl%keycont)
-      w%pl%keylist = trim(w%pl%d%llist)
-      w%pl%ncpos = 0
-      w%pl%ncneg = 0
-      w%pl%ncval = 0
-      if (.not.w%pl%d%showcont) return
-
-      ! the lines, in the frame of the region; to plot coordinates
-      call w%pl%d%contours(w%pl%ff,w%pl%uu,w%pl%vv,niso,ziso,nline,lptr,xy,liso)
-      if (nline == 0) return
-      off = to_plot(w%pl%x0)
-      nan = ieee_value(nan,ieee_quiet_nan)
-      if (allocated(w%pl%cpos)) deallocate(w%pl%cpos)
-      if (allocated(w%pl%cneg)) deallocate(w%pl%cneg)
-      allocate(w%pl%cpos(size(xy,2)+nline,2),w%pl%cneg(size(xy,2)+nline,2))
-      allocate(il(3,nline))
-      do i = 1, nline
-         pos = (ziso(liso(i)) > 0d0)
-         np = merge(w%pl%ncpos,w%pl%ncneg,pos)
-         il(:,i) = (/merge(1,2,pos),np+1,lptr(i+1)-lptr(i)/)
-         do j = lptr(i), lptr(i+1)-1
-            np = np + 1
-            do k = 1, 2
-               rval = xy(k,j) * bohrtoa + off(k)
-               if (pos) then
-                  w%pl%cpos(np,k) = rval
-               else
-                  w%pl%cneg(np,k) = rval
-               end if
-            end do
-         end do
-         np = np + 1
-         if (pos) then
-            w%pl%cpos(np,:) = nan
-            w%pl%ncpos = np
-         else
-            w%pl%cneg(np,:) = nan
-            w%pl%ncneg = np
-         end if
-      end do
-
-      ! the length of each line, longest first, and the places along
-      ! it where its value can go, with the direction of the line there
-      allocate(ll(nline),iord(nline))
-      do i = 1, nline
-         ll(i) = 0d0
-         do j = lptr(i)+1, lptr(i+1)-1
-            ll(i) = ll(i) + norm2(xy(:,j) - xy(:,j-1))
-         end do
-         iord(i) = i
-      end do
-      call mergesort(-ll,iord,1,nline)
-      if (allocated(w%pl%xcval)) deallocate(w%pl%xcval)
-      if (allocated(w%pl%tcval)) deallocate(w%pl%tcval)
-      if (allocated(w%pl%lcval)) deallocate(w%pl%lcval)
-      if (allocated(w%pl%zcval)) deallocate(w%pl%zcval)
-      if (allocated(w%pl%icval)) deallocate(w%pl%icval)
-      allocate(w%pl%xcval(2,plane_ncand,nline),w%pl%tcval(2,plane_ncand,nline),w%pl%lcval(nline),&
-         w%pl%zcval(nline),w%pl%icval(4,nline))
-      w%pl%ncval = nline
-      do i = 1, nline
-         ii = iord(i)
-         do k = 1, plane_ncand
-            w%pl%xcval(:,k,i) = xy(:,lptr(ii))
-            w%pl%tcval(:,k,i) = (/1d0,0d0/)
-         end do
-         acc = 0d0
-         k = 1
-         do j = lptr(ii)+1, lptr(ii+1)-1
-            dl = norm2(xy(:,j) - xy(:,j-1))
-            do while (k <= plane_ncand .and. dl > 0d0)
-               st = (k - 0.5d0) / plane_ncand * ll(ii)
-               if (acc + dl < st) exit
-               w%pl%tcval(:,k,i) = (xy(:,j) - xy(:,j-1)) / dl
-               w%pl%xcval(:,k,i) = xy(:,j-1) + (st - acc) * w%pl%tcval(:,k,i)
-               k = k + 1
-            end do
-            acc = acc + dl
-         end do
-         w%pl%xcval(:,:,i) = w%pl%xcval(:,:,i) * bohrtoa + spread(off,2,plane_ncand)
-         w%pl%lcval(i) = ll(ii) * bohrtoa
-         w%pl%zcval(i) = ziso(liso(ii))
-         w%pl%icval(1:3,i) = il(:,ii)
-         w%pl%icval(4,i) = liso(ii)
-      end do
-
-    end subroutine update_contours
-
-    !> Make the texture of the map again if the grid or the colors
-    !> changed, and keep the range of its colors in tmin, tmax.
-    subroutine update_texture()
-      use interfaces_opengl3
-      integer*8, allocatable :: key(:)
-      integer :: k, nx, ny
-      real(c_float), allocatable :: rgb(:,:)
-      character(kind=c_char), allocatable, target :: pix(:)
-
-      call w%pl%d%colorkey(key)
-      key = [key,w%pl%gen]
-      if (allocated(w%pl%keytex) .and. w%pl%tex /= 0) then
-         if (size(w%pl%keytex) == size(key)) then
-            if (all(w%pl%keytex == key)) return
-         end if
-      end if
-      call move_alloc(key,w%pl%keytex)
-
-      ! the colors, as RGBA bytes (the first index of the grid runs
-      ! fastest, along the width of the texture), and their range
-      nx = size(w%pl%ff,1)
-      ny = size(w%pl%ff,2)
-      call w%pl%d%colors(w%pl%ff,w%pl%tmin,w%pl%tmax,rgb)
-      allocate(pix(4*nx*ny))
-      do k = 1, nx*ny
-         pix(4*k-3) = char(nint(rgb(1,k) * 255))
-         pix(4*k-2) = char(nint(rgb(2,k) * 255))
-         pix(4*k-1) = char(nint(rgb(3,k) * 255))
-         pix(4*k) = char(255)
-      end do
-
-      ! upload
-      if (w%pl%tex == 0) call glGenTextures(1,c_loc(w%pl%tex))
-      call glBindTexture(GL_TEXTURE_2D,w%pl%tex)
-      call glPixelStorei(GL_UNPACK_ALIGNMENT,1)
-      call glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,int(nx,c_int),int(ny,c_int),0,GL_RGBA,&
-         GL_UNSIGNED_BYTE,c_loc(pix))
-      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
-      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
-      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)
-      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE)
-      call glBindTexture(GL_TEXTURE_2D,0)
-
-    end subroutine update_texture
-
-    !> Find the atoms, and the critical points of the reference field
-    !> other than the nuclei, closer to the plane than hmax and inside
-    !> the region (their lattice images, for crystals), and keep their
-    !> plot coordinates and labels (with their signed distance to the
-    !> plane, if showdist).
-    subroutine update_marks()
-      use tools_math, only: matinv, cross
-      use types, only: realloc
-      integer*8 :: key(8)
-      integer :: k, l1, l2, l3, lo(3), hi(3), nc, ier, nx, ny
-      real*8 :: am(3,3), nrm(3), xq(3), s(3), fc(3,4), hb, eps
-      real*8, allocatable :: xf(:,:)
-      character(len=12), allocatable :: lbl(:)
-      character(len=:), allocatable :: sdist
-
-      key(1) = w%pl%gen
-      key(2) = merge(1_8,0_8,w%pl%showlabels)
-      key(6) = merge(1_8,0_8,w%pl%showcps)
-      key(7) = w%pl%ltext
-      key(8) = merge(1_8,0_8,w%pl%showdist)
-      key(3) = transfer(w%pl%hmax,key(3))
-      key(4) = transfer(sysc(isys)%timelastchange_cplist,key(4))
-      key(5) = sys(isys)%field_cuid(sys(isys)%iref)
-      if (allocated(w%pl%keymark)) then
-         if (all(w%pl%keymark == key)) return
-      end if
-      w%pl%keymark = key
-      w%pl%nmark = 0
-      w%pl%marksmany = .false.
-      if (allocated(w%pl%xmark)) deallocate(w%pl%xmark)
-      if (allocated(w%pl%lmark)) deallocate(w%pl%lmark)
-      allocate(w%pl%xmark(2,10),w%pl%lmark(10))
-      if (.not.w%pl%showlabels) return
-
-      ! the candidates: the atoms, and the critical points of the
-      ! reference field except the nuclei (crystallographic)
-      call label_candidates(isys,nc,xf,lbl,cps=w%pl%showcps,short=.true.,atext=w%pl%ltext)
-
-      ! the coordinates of a point in the frame of the region: x - x0 =
-      ! s1 * side1 + s2 * side2 + s3 * normal
-      nx = size(w%pl%ff,1)
-      ny = size(w%pl%ff,2)
-      nrm = cross(w%pl%e1,w%pl%e2)
-      am(:,1) = w%pl%uu * (nx-1)
-      am(:,2) = w%pl%vv * (ny-1)
-      am(:,3) = nrm
-      call matinv(am,3,ier)
-      if (ier /= 0) return
-      hb = w%pl%hmax / bohrtoa
-      eps = 1d-6
-
-      ! the lattice translations that can bring a point of the cell to
-      ! the region (crystals; only the box for molecules), if there are
-      ! not too many
-      lo = 0
-      hi = 0
-      if (.not.ismol) then
-         fc(:,1) = sys(isys)%c%c2x(w%pl%x0)
-         fc(:,2) = sys(isys)%c%c2x(w%pl%x0 + w%pl%uu * (nx-1))
-         fc(:,3) = sys(isys)%c%c2x(w%pl%x0 + w%pl%vv * (ny-1))
-         fc(:,4) = sys(isys)%c%c2x(w%pl%x0 + w%pl%uu * (nx-1) + w%pl%vv * (ny-1))
-         lo = floor(minval(fc,2)) - 1
-         hi = ceiling(maxval(fc,2)) + 1
-         if (product(real(hi - lo + 1,8)) > maxtrans) then
-            w%pl%marksmany = .true.
-            return
-         end if
-      end if
-
-      do k = 1, nc
-         do l1 = lo(1), hi(1)
-            do l2 = lo(2), hi(2)
-               do l3 = lo(3), hi(3)
-                  xq = sys(isys)%c%x2c(xf(:,k) + real((/l1,l2,l3/),8))
-                  s = matmul(am,xq - w%pl%x0)
-                  if (s(1) < -eps .or. s(1) > 1d0+eps .or. s(2) < -eps .or. s(2) > 1d0+eps) cycle
-                  if (abs(s(3)) > hb + eps) cycle
-                  w%pl%nmark = w%pl%nmark + 1
-                  if (w%pl%nmark > size(w%pl%lmark)) then
-                     call realloc(w%pl%xmark,2,2*w%pl%nmark)
-                     call realloc(w%pl%lmark,2*w%pl%nmark)
-                  end if
-                  w%pl%xmark(:,w%pl%nmark) = to_plot(xq)
-                  w%pl%lmark(w%pl%nmark) = lbl(k)
-                  ! the signed distance to the plane, as C(+0.01), unless
-                  ! it is zero to two decimals
-                  if (w%pl%showdist) then
-                     sdist = string(s(3) * bohrtoa,'f',decimal=2)
-                     if (sdist /= "0.00" .and. sdist /= "-0.00") then
-                        if (s(3) > 0d0) sdist = "+" // sdist
-                        w%pl%lmark(w%pl%nmark) = trim(lbl(k)) // "(" // sdist // ")"
-                     end if
-                  end if
-               end do
-            end do
-         end do
-      end do
-
-    end subroutine update_marks
-
-    !> The plot coordinates (Å) of the point x (cell-frame Cartesian
-    !> bohr): along e1 and e2 from the origin the grid was calculated
-    !> for (a0).
-    function to_plot(x) result(pc)
-      real*8, intent(in) :: x(3)
-      real*8 :: pc(2)
-
-      pc(1) = dot_product(x - w%pl%a0,w%pl%e1) * bohrtoa
-      pc(2) = dot_product(x - w%pl%a0,w%pl%e2) * bohrtoa
-
-    end function to_plot
-
-    !> The point x (cell-frame Cartesian bohr) in the absolute frame
-    !> (with molx0 for molecules), for the scene.
-    function cart_to_abs(x) result(xa)
-      real*8, intent(in) :: x(3)
-      real*8 :: xa(3)
-      xa = x
-      if (ismol) xa = xa + sys(isys)%c%molx0
-    end function cart_to_abs
-
-    !> Forget a pending pick and release the view it was armed on.
-    subroutine cancel_pick()
-      if (.not.w%pl%picking) return
-      if (w%pl%pickview >= 1 .and. w%pl%pickview <= nwin) &
-         call win(w%pl%pickview)%viewmode_release_forced(w%id)
-      w%pl%picking = .false.
-    end subroutine cancel_pick
-
-  end subroutine draw_plane
-
-  !> The form of the map d of system isys, shared by the plane map
-  !> window and the editor of the plane map objects: the three points,
-  !> the region, the margin, the number of points, the buttons that
-  !> move the plane, the quantity, the
-  !> colors, and the contour lines. Returns whether anything changed.
-  !> editing becomes true if a value is being dragged. If live, a drag
-  !> is a change in every frame. If
-  !> ipick is present, each point has a Pick button: ipick is the one
-  !> pressed (0 = none), and pickoff disables them. Not live, a drag
-  !> counts as a change only when it ends (the map of an object is
-  !> calculated again on each change). If showval is present, the
-  !> contour line has a Values checkbox for it (the labels of the
-  !> levels in the window, which are not part of the map), and, if
-  !> valscale is present too, a control for their size.
-  module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale,sec) result(changed)
+  !> The form of the map d of system isys (the editor of the plane map
+  !> objects): the three points, the region, the margin, the number of
+  !> points, the buttons that move the plane, the quantity, the
+  !> colors, and the contour lines. Returns whether anything changed;
+  !> a drag counts as a change only when it ends (the map is
+  !> calculated again on each change). Each point has a Pick button:
+  !> ipick is the one pressed (0 = none), and pickoff disables them.
+  !> The contour lines have a Values checkbox (showval; the labels of
+  !> the levels in the plot of the map, which are not part of the map
+  !> in the view) and a control for their size (valscale).
+  module function plane_def_form(d,isys,ttshown,ipick,pickoff,showval,valscale,sec) result(changed)
     use systems, only: sys
     use utils, only: iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_calcwidth,&
        iw_inputint, iw_combo_simple, iw_checkbox, iw_coloredit, iw_inputtext, iw_cmap_optstr,&
@@ -1484,17 +76,15 @@ contains
     type(plane_def), intent(inout) :: d
     integer, intent(in) :: isys
     logical, intent(inout) :: ttshown
-    logical, intent(inout) :: editing
-    logical, intent(in) :: live
-    integer, intent(out), optional :: ipick
-    logical, intent(in), optional :: pickoff
-    logical, intent(inout), optional :: showval
-    real(c_float), intent(inout), optional :: valscale
+    integer, intent(out) :: ipick
+    logical, intent(in) :: pickoff
+    logical, intent(inout) :: showval
+    real(c_float), intent(inout) :: valscale
     type(iw_section), intent(inout) :: sec(plane_nsec)
     logical :: changed
 
     integer :: i
-    logical :: ismol, ch, ch2, pickoff_, okaxes
+    logical :: ismol, ch, ch2, okaxes
     real*8 :: axes(3,0:2), a0(3), x1(3), x2(3), e2(3)
     character(len=:), allocatable :: errmsg, noaxes
     ! the axes of the plane for the Move and Extend buttons: 0 = its
@@ -1504,9 +94,7 @@ contains
        "u (its first side)","v (its second side)"]
 
     changed = .false.
-    if (present(ipick)) ipick = 0
-    pickoff_ = .false.
-    if (present(pickoff)) pickoff_ = pickoff
+    ipick = 0
     ismol = sys(isys)%c%ismolecule
 
     ! whether the map follows the form (on again: calculated if
@@ -1548,7 +136,8 @@ contains
     if (sec(plane_sec_contours)%open) call draw_contours()
 
   contains
-    !> A drag of a real value (x1 or the three of x3), live or not.
+    !> A drag of a real value (x1 or the three of x3): a change when
+    !> the drag (or the typing) ends.
     subroutine drag(str,x1,x3,speed,decimal,sameline,min,sig)
       character(len=*), intent(in) :: str
       real*8, intent(inout), optional :: x1, x3(3)
@@ -1562,13 +151,7 @@ contains
 
       ch = iw_dragfloat_real8(str,x1=x1,x3=x3,speed=speed,decimal=decimal,sameline=sameline,min=min,&
          sig=sig)
-      editing = editing .or. igIsItemActive()
-      ! not live: the change counts when the drag (or the typing) ends
-      if (live) then
-         changed = changed .or. ch
-      else
-         changed = changed .or. igIsItemDeactivated()
-      end if
+      changed = changed .or. logical(igIsItemDeactivatedAfterEdit())
 
     end subroutine drag
 
@@ -1621,11 +204,9 @@ contains
          call iw_tooltip("A point on the second side of the plane: its end, for the parallelogram;&
             & the plane through it, for the rectangle",ttshown)
       end if
-      if (present(ipick)) then
-         if (iw_button("Pick" // sfx // "pick",sameline=.true.,disabled=pickoff_)) ipick = ip
-         call iw_tooltip("Pick this point in the view: an atom, a critical point, or a point&
-            & in empty space",ttshown)
-      end if
+      if (iw_button("Pick" // sfx // "pick",sameline=.true.,disabled=pickoff)) ipick = ip
+      call iw_tooltip("Pick this point in the view: an atom, a critical point, or a point&
+         & in empty space",ttshown)
       if (ismol) then
          call drag("(Å)" // sfx,x3=d%xp(:,ip),speed=0.01d0,decimal=5,sameline=.true.)
       else
@@ -1861,39 +442,86 @@ contains
       ch = iw_coloredit("##planergbneg",rgb=d%rgbneg,sameline=.true.)
       changed = changed .or. ch
       call iw_tooltip("Color of the contour lines of the zero and negative levels",ttshown)
-      if (present(showval)) then
-         ch = iw_checkbox("Values##planeshowcval",showval,gap=.true.,labelleft=.true.)
-         call iw_tooltip("Write the value of the level on the contour lines, in their color,&
-            & where there is room",ttshown)
-         if (showval .and. present(valscale)) then
-            call iw_text("Size",alignframe=.true.,gap=.true.)
-            ch = iw_dragfloat_realc("##planevscale",x1=valscale,speed=0.01_c_float,min=0.1_c_float,&
-               max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-            call iw_tooltip("Size of the values, relative to the text of the interface",ttshown)
-         end if
+      ch = iw_checkbox("Values##planeshowcval",showval,gap=.true.,labelleft=.true.)
+      call iw_tooltip("Write the value of the level on the contour lines, in their color,&
+         & where there is room",ttshown)
+      if (showval) then
+         call iw_text("Size",alignframe=.true.,gap=.true.)
+         ch = iw_dragfloat_realc("##planevscale",x1=valscale,speed=0.01_c_float,min=0.1_c_float,&
+            max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Size of the values, relative to the text of the interface",ttshown)
       end if
 
     end subroutine draw_contours
   end function plane_def_form
 
-  !> The editor of a plane map object (reptype_slice): the map, its
-  !> opacity, the radius of the contour lines, and what is wrong with
-  !> it. Returns whether anything changed.
+  !> The editor of a plane map object (reptype_slice): the map (the
+  !> three points, typed or picked in the view, the region, the number
+  !> of points, the quantity, the colors, and the contour lines, as
+  !> PLANE calculates them), how it is drawn in the view, the map
+  !> itself as a plot with its color bar and the labels of the atoms
+  !> and critical points near the plane, and the table of its values.
+  !> The values are those of the object (slice_update_cache), never
+  !> calculated here. Returns whether the object changed.
   module function draw_editrep_slice(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_separatortext
-    use global, only: new_uid
+    use systems, only: sys, sysc, are_threads_running
+    use gui_main, only: g
+    use representations, only: slice_cache, plane_def, slice_update_cache, rep_shape,&
+       shapekind_sphere, shapekind_box, bondrad_def
+    use utils, only: iw_text, iw_tooltip, iw_dragfloat_real8, iw_dragfloat_realc, iw_separatortext,&
+       iw_separatortext_height, iw_calcwidth, iw_calcheight, iw_checkbox, iw_coloredit, iw_combo_simple,&
+       string_nozeros
+    use tools_io, only: string
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    logical :: editing, ch
+    logical :: ch, ismol, hover, mapshown, refit, ldum
+    integer :: isys, iview, istat, i, ipick, nline
+    real*8 :: xc(3), rad, xhov(3), x0(3), uu(3), vv(3), a0(3), e1(3), e2(3), v(3,3)
+    character(len=:), allocatable :: errmsg
+    type(ImVec2) :: sz0
+    real(c_float) :: htable, hmap, hres, frac
+    type(rep_shape), allocatable :: shp(:)
+    type(slice_cache), pointer :: c
+    type(plane_def), pointer :: d
 
-    editing = .false.
-    changed = plane_def_form(w%rep%slice%d,w%rep%id,ttshown,editing,.false.,sec=w%editrep_slicesec(1:plane_nsec))
+    integer, parameter :: map_minlines = 8 ! minimum height of the map (lines)
 
-    ! how it is drawn
-    call iw_separatortext("Style",w%editrep_slicesec(plane_nsec+1))
-    if (w%editrep_slicesec(plane_nsec+1)%open) then
+    changed = .false.
+    isys = w%isys
+    iview = w%anchor_view()
+    ismol = sys(isys)%c%ismolecule
+    if (.not.allocated(w%rep%slice%c)) allocate(w%rep%slice%c)
+    c => w%rep%slice%c
+    d => w%rep%slice%d
+
+    ! a pending pick of one of the points, commanded to the anchor view
+    if (w%editrep_pick_item > 0) then
+       call view_pick_result(iview,w%id,isys,w%editrep_pick,istat,xc)
+       if (istat == ipick_point) then
+          d%xp(:,w%editrep_pick_item) = form_coords(isys,xc)
+          changed = .true.
+       end if
+       if (istat /= ipick_pending) w%editrep_pick_item = 0
+    end if
+
+    ! the map: the plane, the region, the number of points, the
+    ! quantity, the colors, and the contour lines; a Pick button arms
+    ! a pick in the view, received above
+    ch = plane_def_form(d,isys,ttshown,ipick,w%editrep_pick_item > 0,w%smap%showcval,w%smap%vscale,&
+       w%editrep_slicesec(1:plane_nsec))
+    changed = changed .or. ch
+    if (ipick > 0) then
+       w%editrep_pick_item = ipick
+       call w%editrep_pick%arm()
+       call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick " // trim(pt_name(ipick)) // ": an atom,&
+          & a critical point, or a point in space",w%id,acceptempty=.true.)
+    end if
+
+    ! how it is drawn in the view
+    call iw_separatortext("Style",w%editrep_slicesec(slicesec_style))
+    if (w%editrep_slicesec(slicesec_style)%open) then
        call iw_text("Opacity",alignframe=.true.)
        ch = iw_dragfloat_realc("##sliceopacity",x1=w%rep%slice%alpha,speed=0.01_c_float,&
           min=0._c_float,max=1._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
@@ -1910,33 +538,1045 @@ contains
        changed = changed .or. ch
     end if
 
-    ! a plane map window that edits this object takes the edit
-    if (changed) w%rep%slice%stamp = new_uid()
+    ! the values of the object: the view calculates them when it draws
+    ! the object; here if the object is hidden, while something in
+    ! this window shows them
+    if (.not.w%rep%shown .and. (w%editrep_slicesec(slicesec_map)%open .or.&
+       w%editrep_slicesec(slicesec_values)%open)) call slice_update_cache(w%rep)
+    ! a shown object whose values the view could not calculate while
+    ! the initialization threads ran gets them once they finish
+    if (w%rep%shown .and. c%gen == 0 .and. d%update .and. sys(isys)%c%ncel > 0 .and.&
+       .not.are_threads_running()) win(iview)%sc%forcebuildlists = .true.
+    mapshown = allocated(c%ff)
+    if (sys(isys)%c%ncel == 0) &
+       call iw_text("This system has no atoms: there are no field values to map",danger=.true.,wrap=.true.)
 
-    ! the map stays as it is until it is updated again
-    if (.not.w%rep%slice%d%update) call iw_text(noupdate_msg,wrap=.true.)
-
-    ! what is wrong
-    if (allocated(w%rep%slice%c)) then
-       if (allocated(w%rep%slice%c%errmsg)) then
-          if (len_trim(w%rep%slice%c%errmsg) > 0) &
-             call iw_text(w%rep%slice%c%errmsg,danger=.true.,wrap=.true.)
+    ! the map, with the labels of the atoms and critical points near
+    ! the plane (more: what is labeled and how)
+    hover = .false.
+    refit = .false.
+    call iw_separatortext("Map",w%editrep_slicesec(slicesec_map),hasmore=w%smap%showlabels)
+    if (w%editrep_slicesec(slicesec_map)%open) then
+       call draw_labels_option()
+       if (mapshown) then
+          call check_grid(refit)
+          call update_contours()
+          call update_texture()
+          call update_marks()
        end if
     end if
 
+    ! the map takes the rest of the window, leaving room for what
+    ! follows it: the note about the labels, the table of values (its
+    ! title, and the table if it is open, which takes part of the
+    ! space), the messages, and the frame of the plot. The window
+    ! grows to fit its content:
+    ! the stretch of the map and the table beyond their minimum
+    ! heights is elastic, not content to fit
+    call igGetContentRegionAvail(sz0)
+    nline = 0
+    if (w%editrep_slicesec(slicesec_map)%open .and. w%smap%showlabels .and. w%smap%marksmany) nline = nline + 1
+    if (.not.d%update) nline = nline + 1
+    if (allocated(c%errmsg)) then
+       if (len_trim(c%errmsg) > 0) nline = nline + 1
+    end if
+    if (allocated(w%errmsg)) then
+       if (len_trim(w%errmsg) > 0) nline = nline + 1
+    end if
+    hres = iw_calcheight(0,nline,.true.) + g%Style%ItemSpacing%y
+    if (mapshown) hres = hres + iw_separatortext_height()
+    htable = 0._c_float
+    if (mapshown .and. w%editrep_slicesec(slicesec_values)%open) then
+       frac = merge(0.35_c_float,1._c_float,w%editrep_slicesec(slicesec_map)%open)
+       htable = max(frac * (sz0%y - hres),iw_calcheight(4,0,.false.))
+       hres = hres + htable + iw_calcheight(0,0,.true.)
+       w%heightslack = htable - iw_calcheight(4,0,.false.)
+    end if
+    if (w%editrep_slicesec(slicesec_map)%open) then
+       hmap = iw_calcheight(map_minlines,0,.false.)
+       sz0%y = max(sz0%y - hres,hmap)
+       if (mapshown) then
+          w%heightslack = w%heightslack + sz0%y - hmap
+          call draw_map(sz0,refit,hover,xhov,.false.)
+       elseif (are_threads_running()) then
+          call iw_text("Waiting for the initialization threads to finish",disabled=.true.)
+       end if
+    end if
+
+    ! the table of values
+    call draw_data_section()
+
+    ! the three points, the region (unless the map itself is in the
+    ! view), and the point under the mouse in the anchor view, for as
+    ! long as the window is open
+    if (associated(win(iview)%sc)) then
+       if (win(iview)%sc%isinit /= 0) then
+          rad = min(max(0.01d0 * real(win(iview)%sc%scenerad,8),marker_radmin),marker_radmax)
+          allocate(shp(3))
+          do i = 1, 3
+             shp(i) = rep_shape(kind=shapekind_sphere,x1=cart_to_abs(form_to_cart(isys,d%xp(:,i))),&
+                rad=rad,rgb=pt_rgb(:,i),alpha=marker_alpha)
+          end do
+          if (.not.w%rep%shown .or. .not.mapshown) then
+             call d%grid(isys,x0,uu,vv,a0,e1,e2,errmsg)
+             if (len(errmsg) == 0) then
+                v = 0d0
+                v(:,1) = real(d%nx-1,8) * uu
+                v(:,2) = real(d%ny-1,8) * vv
+                shp = [shp,rep_shape(kind=shapekind_box,x1=cart_to_abs(x0),v=v,rad=0.15d0*rad,&
+                   rgb=region_rgb,alpha=region_alpha)]
+             end if
+          end if
+          if (hover) &
+             shp = [shp,rep_shape(kind=shapekind_sphere,x1=cart_to_abs(xhov),&
+             rad=max(rad,1.6d0*bondrad_def),rgb=cur_rgb,alpha=1._c_float)]
+          call win(iview)%sc%show_transient_shapes(w%uid,1,shp)
+       end if
+    end if
+
+    ! the map stays as it is until it is updated again, and what is wrong
+    if (.not.d%update) call iw_text(noupdate_msg,wrap=.true.)
+    if (allocated(c%errmsg)) then
+       if (len_trim(c%errmsg) > 0) call iw_text(c%errmsg,danger=.true.,wrap=.true.)
+    end if
+    if (allocated(w%errmsg)) then
+       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.,wrap=.true.)
+    end if
+
+    ! the image of the map, as drawn in the Map section this frame,
+    ! to the file chosen in the dialog
+    if (w%okfile_set .and. mapshown .and. w%editrep_slicesec(slicesec_map)%open) call export_map()
+    w%okfile_set = .false.
+
+  contains
+
+    !> The labels of the atoms and critical points near the plane.
+    !> More: what is labeled, the color and size of the labels, their
+    !> text, and the distance to the plane.
+    subroutine draw_labels_option()
+
+      ldum = iw_checkbox("Labels##slicelabels",w%smap%showlabels,labelleft=.true.)
+      call iw_tooltip("Label the atoms and the critical points of the reference field near the plane&
+         & in the map below",ttshown)
+      if (.not.w%editrep_slicesec(slicesec_map)%more .or. .not.w%smap%showlabels) return
+
+      ! more: what is labeled, and the color and size of the labels
+      ldum = iw_checkbox("Critical points##slicecps",w%smap%showcps,labelleft=.true.)
+      call iw_tooltip("Label also the critical points of the reference field other than the nuclei&
+         & (n = non-nuclear maximum, b = bond, r = ring, c = cage)",ttshown)
+      call iw_text("Color",alignframe=.true.,gap=.true.)
+      ldum = iw_coloredit("##slicergblabel",rgb=w%smap%rgblabel,sameline=.true.)
+      call iw_tooltip("Color of the labels and their dots",ttshown)
+      call iw_text("Size",alignframe=.true.,gap=.true.)
+      ldum = iw_dragfloat_realc("##slicelscale",x1=w%smap%lscale,speed=0.01_c_float,min=0.1_c_float,&
+         max=10._c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+      call iw_tooltip("Size of the labels and their dots, relative to the text of the interface",ttshown)
+
+      ! more: the text, and the distance to the plane
+      call iw_text("Text",alignframe=.true.)
+      call iw_combo_simple("##sliceltext","Species name"//c_null_char//"Atomic symbol"//c_null_char//&
+         "Atom name"//c_null_char,w%smap%ltext,sameline=.true.)
+      call iw_tooltip("Text in the labels of the atoms",ttshown)
+      call iw_text("Distance",alignframe=.true.,gap=.true.)
+      ldum = iw_dragfloat_real8("##slicehmax",x1=w%smap%hmax,speed=0.01d0,min=0d0,decimal=3,sameline=.true.)
+      call iw_tooltip("Largest distance to the plane of the labeled atoms and critical points (Å)",&
+         ttshown)
+      ldum = iw_checkbox("Show distance##sliceshowdist",w%smap%showdist,gap=.true.,labelleft=.true.)
+      call iw_tooltip("Add to each label the signed distance of the atom or critical point to the&
+         & plane (Å)",ttshown)
+
+    end subroutine draw_labels_option
+
+    !> Whether the plot must fit its axes to the region again: it is
+    !> not the one last plotted (relative to a0, the origin of the
+    !> plot: moving the plane as a whole keeps the axes). Keeps the
+    !> region plotted.
+    subroutine check_grid(refit)
+      logical, intent(out) :: refit
+
+      real*8 :: region(3,3)
+
+      region(:,1) = c%x0 - c%a0
+      region(:,2) = c%uu * (size(c%ff,1)-1)
+      region(:,3) = c%vv * (size(c%ff,2)-1)
+      refit = any(abs(region - w%smap%region) > 1d-10)
+      if (refit) w%smap%region = region
+
+    end subroutine check_grid
+
+    !> The map (size sz): the colors, the contour lines, and the labels,
+    !> with the color bar on its right. If refit, fit the axes to the
+    !> region. Returns in hover whether the mouse is on the region and
+    !> the point under it (xhov, cell-frame Cartesian bohr). If forprint,
+    !> draw it for export_map: with the axes as last shown in the
+    !> window and no mouse readouts.
+    subroutine draw_map(sz,refit,hover,xhov,forprint)
+      use utils, only: iw_colormap_id
+      type(ImVec2), intent(in) :: sz
+      logical, intent(in) :: refit
+      logical, intent(in) :: forprint
+      logical, intent(out) :: hover
+      real*8, intent(out) :: xhov(3)
+
+      character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
+      integer :: j, nx, ny
+      integer(c_int) :: flags, coltext
+      real(c_double) :: xmin, xmax, ymin, ymax, crn(2,4), mu, mv
+      real(c_float) :: px(4), py(4), wbar, fs, fv
+      real(c_float), allocatable :: box(:,:), ang(:)
+      real*8, allocatable :: gap(:), sval(:)
+      integer, allocatable :: ival(:), icand(:)
+      integer :: nbox, nval, k
+      integer(c_int) :: col(2)
+      type(ImVec2) :: pmin, pmax, szp, pt, tsz
+      type(c_ptr) :: dl, font
+
+      hover = .false.
+      xhov = 0d0
+      if (.not.allocated(c%ff)) return
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+
+      ! the corners of the region in plot coordinates
+      crn(:,1) = to_plot(c%x0)
+      crn(:,2) = to_plot(c%x0 + real(nx-1,8) * c%uu)
+      crn(:,3) = to_plot(c%x0 + real(nx-1,8) * c%uu + real(ny-1,8) * c%vv)
+      crn(:,4) = to_plot(c%x0 + real(ny-1,8) * c%vv)
+
+      ! the plot leaves room for the color bar on its right
+      wbar = iw_calcwidth(10,0)
+      szp = sz
+      szp%x = max(sz%x - wbar,iw_calcwidth(20,0))
+
+      str1 = "##planemap" // c_null_char
+      flags = ior(ImPlotFlags_NoTitle,ImPlotFlags_Equal)
+      flags = ior(flags,ImPlotFlags_NoLegend)
+      if (forprint) then
+         flags = ior(flags,ImPlotFlags_NoInputs)
+      else
+         flags = ior(flags,ImPlotFlags_Crosshairs)
+         w%smap%szmap = (/sz%x,sz%y/)
+      end if
+      if (ipBeginPlot(c_loc(str1),szp,flags)) then
+         str2 = "u (Å)" // c_null_char
+         str3 = "v (Å)" // c_null_char
+         call ipSetupAxes(c_loc(str2),c_loc(str3),ImPlotAxisFlags_None,ImPlotAxisFlags_None)
+         if (forprint) then
+            call ipSetupAxisLimits(ImAxis_X1,w%smap%lims(1),w%smap%lims(2),ImPlotCond_Always)
+            call ipSetupAxisLimits(ImAxis_Y1,w%smap%lims(3),w%smap%lims(4),ImPlotCond_Always)
+         elseif (refit) then
+            call ipSetupAxisLimits(ImAxis_X1,minval(crn(1,:)),maxval(crn(1,:)),ImPlotCond_Always)
+            call ipSetupAxisLimits(ImAxis_Y1,minval(crn(2,:)),maxval(crn(2,:)),ImPlotCond_Always)
+         end if
+
+         ! the colors: the texture on the region, inside the plot
+         call ipGetPlotCurrentLimits(xmin,xmax,ymin,ymax)
+         if (.not.forprint) w%smap%lims = (/xmin,xmax,ymin,ymax/)
+         call ipPlotToPixels(xmin,ymin,ImAxis_X1,ImAxis_Y1,px(1),py(1))
+         call ipPlotToPixels(xmax,ymax,ImAxis_X1,ImAxis_Y1,px(2),py(2))
+         pmin%x = min(px(1),px(2))
+         pmin%y = min(py(1),py(2))
+         pmax%x = max(px(1),px(2))
+         pmax%y = max(py(1),py(2))
+         dl = igGetWindowDrawList()
+         call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
+         if (w%smap%tex /= 0) then
+            do j = 1, 4
+               call ipPlotToPixels(crn(1,j),crn(2,j),ImAxis_X1,ImAxis_Y1,px(j),py(j))
+            end do
+            ! the texels are centered on the points of the grid
+            call ImDrawList_AddImageQuad(dl,int(w%smap%tex,c_intptr_t),&
+               ImVec2(px(1),py(1)),ImVec2(px(2),py(2)),ImVec2(px(3),py(3)),ImVec2(px(4),py(4)),&
+               ImVec2(0.5_c_float/nx,0.5_c_float/ny),ImVec2(1._c_float-0.5_c_float/nx,0.5_c_float/ny),&
+               ImVec2(1._c_float-0.5_c_float/nx,1._c_float-0.5_c_float/ny),&
+               ImVec2(0.5_c_float/nx,1._c_float-0.5_c_float/ny),-1_c_int)
+         end if
+         call ImDrawList_PopClipRect(dl)
+
+         ! the labels go where their dot and text are (ImGui scales text
+         ! linearly in the font size, so the measurement at the
+         ! interface size scales with it); then the values of the
+         ! contour lines, where they do not cover a label or another
+         ! value, along the line, which has a gap under each
+         dl = igGetWindowDrawList()
+         coltext = igGetColorU32_Vec4(ImVec4(w%smap%rgblabel(1),w%smap%rgblabel(2),w%smap%rgblabel(3),1._c_float))
+         font = igGetFont()
+         fs = w%smap%lscale * igGetFontSize()
+         fv = w%smap%vscale * igGetFontSize()
+         nbox = 0
+         nval = 0
+         allocate(box(4,w%smap%nmark+w%smap%ncval),ival(w%smap%ncval),icand(w%smap%ncval),sval(w%smap%ncval),&
+            gap(w%smap%ncval),ang(w%smap%ncval))
+         if (w%smap%showlabels) then
+            do j = 1, w%smap%nmark
+               call ipPlotToPixels(w%smap%xmark(1,j),w%smap%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
+               str1 = trim(w%smap%lmark(j)) // c_null_char
+               call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+               nbox = nbox + 1
+               box(:,nbox) = (/px(1) - 3._c_float * w%smap%lscale,py(1) - (tsz%y + 1._c_float) * w%smap%lscale,&
+                  px(1) + (4._c_float + tsz%x) * w%smap%lscale,py(1) + 3._c_float * w%smap%lscale/)
+            end do
+         end if
+         if (d%showcont) then
+            if (w%smap%showcval .and. w%smap%ncval > 0) &
+               call place_values(pmin,pmax,box,nbox,nval,ival,icand,sval,gap,ang)
+            if (w%smap%ncpos > 0) call plot_contours(1,d%rgbpos,w%smap%cpos,w%smap%ncpos,nval,ival,sval,gap)
+            if (w%smap%ncneg > 0) call plot_contours(2,d%rgbneg,w%smap%cneg,w%smap%ncneg,nval,ival,sval,gap)
+         end if
+
+         call ImDrawList_PushClipRect(dl,pmin,pmax,.true._c_bool)
+         col(1) = igGetColorU32_Vec4(ImVec4(d%rgbpos(1),d%rgbpos(2),d%rgbpos(3),1._c_float))
+         col(2) = igGetColorU32_Vec4(ImVec4(d%rgbneg(1),d%rgbneg(2),d%rgbneg(3),1._c_float))
+         do j = 1, nval
+            k = ival(j)
+            call ipPlotToPixels(w%smap%xcval(1,icand(j),k),w%smap%xcval(2,icand(j),k),ImAxis_X1,ImAxis_Y1,px(1),py(1))
+            str1 = fmt_level(w%smap%zcval(k)) // c_null_char
+            call own_add_text_rotated(dl,font,fv,px(1),py(1),ang(j),col(w%smap%icval(1,k)),c_loc(str1))
+         end do
+         if (w%smap%showlabels) then
+            do j = 1, w%smap%nmark
+               call ipPlotToPixels(w%smap%xmark(1,j),w%smap%xmark(2,j),ImAxis_X1,ImAxis_Y1,px(1),py(1))
+               call ImDrawList_AddCircleFilled(dl,ImVec2(px(1),py(1)),3._c_float*w%smap%lscale,coltext,8_c_int)
+               str1 = trim(w%smap%lmark(j)) // c_null_char
+               call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+               pt%x = px(1) + 4._c_float * w%smap%lscale
+               pt%y = py(1) - (tsz%y + 1._c_float) * w%smap%lscale
+               call ImDrawList_AddText_FontPtr(dl,font,fs,pt,coltext,c_loc(str1),c_null_ptr,&
+                  0._c_float,c_null_ptr)
+            end do
+         end if
+         call ImDrawList_PopClipRect(dl)
+
+         ! the point under the mouse
+         if (.not.forprint .and. ipIsPlotHovered()) then
+            call ipGetPlotMousePos(mu,mv)
+            call plot_point(mu,mv,hover,xhov)
+         end if
+         call ipEndPlot()
+      end if
+
+      ! the color bar
+      call igSameLine(0._c_float,-1._c_float)
+      str1 = "##planecbar" // c_null_char
+      str2 = "%.3g" // c_null_char
+      call ipColormapScale(c_loc(str1),w%smap%tmin,w%smap%tmax,ImVec2(wbar,szp%y),c_loc(str2),&
+         iw_colormap_id(d%icmap))
+      if (forprint) return
+      if (d%cscale == 1) then
+         call iw_tooltip("Colors of the map: log10 of the absolute value",ttshown)
+      elseif (d%cscale == 2) then
+         call iw_tooltip("Colors of the map: 2/pi atan of the value",ttshown)
+      else
+         call iw_tooltip("Colors of the map: the value",ttshown)
+      end if
+
+      if (w%smap%showlabels .and. w%smap%marksmany) &
+         call iw_text("(The region is too large for labels)",disabled=.true.)
+
+    end subroutine draw_map
+
+    !> Save the map, as last drawn in the window, to the PNG file
+    !> w%okfile, for a publication: drawn again in a separate ImGui
+    !> context, black on white, and rendered into a framebuffer
+    !> w%smap%imgscale times larger than the window.
+    subroutine export_map()
+      use interfaces_opengl3
+      use interfaces_stb
+      use gui_main, only: shader_version, font_ranges
+      use tools_io, only: uout
+      real(c_float), parameter :: bakemax = 128._c_float ! largest size of the font atlas glyphs (pixels)
+
+      type(c_ptr) :: pc, dd
+      character(kind=c_char,len=:), allocatable, target :: str
+      character(kind=c_char), allocatable, target :: pix(:)
+      integer(c_int), target :: fbo, rbo
+      integer(c_int) :: wid, hei, idum, npix(2)
+      real(c_float) :: wsz(2), xs
+      real*8 :: xdum(3)
+      logical :: ldum
+      integer :: i
+
+      ! the map in the print context, at its size in the window (two
+      ! frames: the plot lays itself out in the first)
+      call plane_image_size(w%smap%szmap,w%smap%imgscale,wsz,xs,npix)
+      wid = npix(1)
+      hei = npix(2)
+      str = shader_version
+      pc = ipPrintContextCreate(igGetFontSize(),xs,bakemax,font_dejavu_base85_ptr,c_loc(font_ranges),c_loc(str))
+      do i = 1, 2
+         call ipPrintFrameBegin(pc,wsz(1),wsz(2))
+         call draw_map(ImVec2(w%smap%szmap(1),w%smap%szmap(2)),.false.,ldum,xdum,.true.)
+         dd = ipPrintFrameEnd()
+      end do
+
+      ! render it to a framebuffer and read it back
+      call glGenFramebuffers(1_c_int,c_loc(fbo))
+      call glGenRenderbuffers(1_c_int,c_loc(rbo))
+      call glBindRenderbuffer(GL_RENDERBUFFER,rbo)
+      call glRenderbufferStorage(GL_RENDERBUFFER,GL_RGBA8,wid,hei)
+      call glBindRenderbuffer(GL_RENDERBUFFER,0_c_int)
+      call glBindFramebuffer(GL_FRAMEBUFFER,fbo)
+      call glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_RENDERBUFFER,rbo)
+      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) then
+         call glViewport(0_c_int,0_c_int,wid,hei)
+         call glClearColor(1._c_float,1._c_float,1._c_float,1._c_float)
+         call glClear(GL_COLOR_BUFFER_BIT)
+         call ImGui_ImplOpenGL3_RenderDrawData(dd)
+         allocate(pix(4*wid*hei))
+         call glReadPixels(0_c_int,0_c_int,wid,hei,GL_RGBA,GL_UNSIGNED_BYTE,c_loc(pix))
+      end if
+      call glBindFramebuffer(GL_FRAMEBUFFER,0_c_int)
+      call glDeleteFramebuffers(1_c_int,c_loc(fbo))
+      call glDeleteRenderbuffers(1_c_int,c_loc(rbo))
+      call ipPrintContextDestroy(pc)
+
+      ! write the file (the rows of the framebuffer go bottom to top)
+      if (.not.allocated(pix)) then
+         w%errmsg = "Could not create the framebuffer for the image (too large?)"
+         return
+      end if
+      pix(4::4) = char(255,c_char)
+      str = trim(w%okfile) // c_null_char
+      call stbi_flip_vertically_on_write(1_c_int)
+      idum = stbi_write_png(c_loc(str),wid,hei,4_c_int,c_loc(pix),4_c_int*wid)
+      call stbi_flip_vertically_on_write(0_c_int)
+      if (idum == 0) then
+         w%errmsg = "Error writing the image file: " // trim(w%okfile)
+      else
+         w%errmsg = ""
+         write (uout,'("* Plane map image (",A,"x",A," pixels) written to: ",A/)') string(wid), string(hei),&
+            trim(w%okfile)
+         call okfile_save_dir(w%okfile)
+      end if
+
+    end subroutine export_map
+
+    !> Where the values of the contour lines go, longest line first:
+    !> at one of the places along each line long enough for them,
+    !> inside the plot (pmin-pmax), where they do not cover a label or
+    !> come close to a value already placed (the nbox boxes in box, in
+    !> pixels: xmin, ymin, xmax, ymax). The place tried first moves
+    !> along the line from one level to the next (by the golden ratio),
+    !> so the values of nested lines do not pile up. Returns the nval
+    !> values placed: their line in the list of values (ival), the
+    !> place (icand) and its distance along the line (sval, plot
+    !> units), half the gap they leave in the line (gap, plot units),
+    !> and the angle of their text (ang, radians, clockwise on the
+    !> screen).
+    subroutine place_values(pmin,pmax,box,nbox,nval,ival,icand,sval,gap,ang)
+      use param, only: pi
+      type(ImVec2), intent(in) :: pmin, pmax
+      real(c_float), intent(inout) :: box(:,:)
+      integer, intent(inout) :: nbox
+      integer, intent(out) :: nval
+      integer, intent(out) :: ival(:), icand(:)
+      real*8, intent(out) :: sval(:), gap(:)
+      real(c_float), intent(out) :: ang(:)
+
+      real*8, parameter :: golden = 0.6180339887498949d0
+
+      character(kind=c_char,len=:), allocatable, target :: str1
+      real(c_float) :: px, py, px1, py1, scl, bx(4), pad, sep, a, hx, hy
+      type(ImVec2) :: tsz
+      integer :: i, k, l, m, k0
+      real*8 :: g, sc
+      logical :: free
+
+      ! pixels per plot unit (the axes have the same scale)
+      call ipPlotToPixels(0d0,0d0,ImAxis_X1,ImAxis_Y1,px,py)
+      call ipPlotToPixels(1d0,0d0,ImAxis_X1,ImAxis_Y1,px1,py1)
+      scl = abs(px1 - px)
+      pad = 3._c_float * w%smap%vscale
+      nval = 0
+      if (scl <= 0._c_float) return
+
+      do i = 1, w%smap%ncval
+         str1 = fmt_level(w%smap%zcval(i)) // c_null_char
+         call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+         tsz%x = tsz%x * w%smap%vscale
+         tsz%y = tsz%y * w%smap%vscale
+         if (w%smap%lcval(i) * scl < 3._c_float * tsz%x) cycle
+         g = (0.5d0 * tsz%x + pad) / scl
+         sep = tsz%y
+
+         ! the places, from the one nearest to the phase of this level,
+         ! alternating to both sides
+         k0 = floor(modulo(w%smap%icval(4,i) * golden,1d0) * plane_ncand)
+         do m = 0, plane_ncand-1
+            l = (m + 1) / 2
+            if (mod(m,2) == 1) l = -l
+            k = modulo(k0 + l,plane_ncand) + 1
+            sc = (k - 0.5d0) / plane_ncand * w%smap%lcval(i)
+            if (sc - g < 0d0 .or. sc + g > w%smap%lcval(i)) cycle
+            call ipPlotToPixels(w%smap%xcval(1,k,i),w%smap%xcval(2,k,i),ImAxis_X1,ImAxis_Y1,px,py)
+
+            ! the direction of the line on the screen (y goes down),
+            ! turned so the text reads left to right (bottom to top if
+            ! vertical)
+            a = real(atan2(-w%smap%tcval(2,k,i),w%smap%tcval(1,k,i)),c_float)
+            if (a >= 0.5_c_float * real(pi,c_float)) a = a - real(pi,c_float)
+            if (a < -0.5_c_float * real(pi,c_float)) a = a + real(pi,c_float)
+
+            ! the box around the turned text, all inside the plot
+            hx = 0.5_c_float * (abs(cos(a)) * tsz%x + abs(sin(a)) * tsz%y) + pad
+            hy = 0.5_c_float * (abs(sin(a)) * tsz%x + abs(cos(a)) * tsz%y) + pad
+            bx = (/px - hx,py - hy,px + hx,py + hy/)
+            if (bx(1) < pmin%x .or. bx(3) > pmax%x .or. bx(2) < pmin%y .or. bx(4) > pmax%y) cycle
+            free = .true.
+            do l = 1, nbox
+               if (bx(1) < box(3,l) .and. bx(3) > box(1,l) .and. bx(2) < box(4,l) .and. bx(4) > box(2,l)) then
+                  free = .false.
+                  exit
+               end if
+            end do
+            if (.not.free) cycle
+
+            ! placed; the next values keep some distance from it
+            nbox = nbox + 1
+            box(:,nbox) = (/bx(1) - sep,bx(2) - sep,bx(3) + sep,bx(4) + sep/)
+            nval = nval + 1
+            ival(nval) = i
+            icand(nval) = k
+            sval(nval) = sc
+            gap(nval) = g
+            ang(nval) = a
+            exit
+         end do
+      end do
+
+    end subroutine place_values
+
+    !> Plot the contour lines of array ia (1 = positive levels, in
+    !> cpos; 2 = the rest, in cneg), the n rows of cl, in color rgb, with
+    !> a gap of half-length gap (plot units, along the line) at
+    !> distance sval along the lines of the nval values placed (ival).
+    subroutine plot_contours(ia,rgb,cl,n,nval,ival,sval,gap)
+      use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+      integer, intent(in) :: ia
+      real(c_float), intent(in) :: rgb(3)
+      real(c_double), intent(in), target :: cl(:,:)
+      integer, intent(in) :: n, nval
+      integer, intent(in) :: ival(:)
+      real*8, intent(in) :: sval(:), gap(:)
+
+      character(kind=c_char,len=:), allocatable, target :: str1
+      real(c_double), allocatable, target :: dd(:,:)
+      integer, allocatable :: atrow(:)
+      integer :: i, j, k, r, nd, n1, ncut, istate
+      real*8 :: s, s1, ds, sa, sb, nan
+
+      str1 = "##planec" // string(ia) // c_null_char
+      call ipSetNextLineStyle(ImVec4(rgb(1),rgb(2),rgb(3),1._c_float),1._c_float)
+
+      ! the values on lines of this array: none, plot the lines as they are
+      ncut = 0
+      allocate(atrow(n))
+      atrow = 0
+      do j = 1, nval
+         k = ival(j)
+         if (w%smap%icval(1,k) /= ia) cycle
+         atrow(w%smap%icval(2,k)) = j
+         ncut = ncut + 1
+      end do
+      if (ncut == 0) then
+         call ipPlotLine(c_loc(str1),c_loc(cl(1,1)),c_loc(cl(1,2)),int(n,c_int),ImPlotLineFlags_None,0_c_int)
+         return
+      end if
+
+      ! copy the lines, cutting them under their values
+      nan = ieee_value(nan,ieee_quiet_nan)
+      allocate(dd(n+3*ncut,2))
+      nd = 0
+      r = 1
+      do while (r <= n)
+         if (atrow(r) == 0) then
+            nd = nd + 1
+            dd(nd,:) = cl(r,:)
+            r = r + 1
+            cycle
+         end if
+         j = atrow(r)
+         k = ival(j)
+         n1 = w%smap%icval(3,k)
+         sa = sval(j) - gap(j)
+         sb = sval(j) + gap(j)
+         nd = nd + 1
+         dd(nd,:) = cl(r,:)
+         s = 0d0
+         istate = 0
+         do i = r+1, r+n1-1
+            ds = norm2(cl(i,:) - cl(i-1,:))
+            s1 = s + ds
+            if (istate == 0 .and. s1 >= sa) then
+               nd = nd + 1
+               dd(nd,:) = cl(i-1,:) + (sa - s) / max(ds,1d-40) * (cl(i,:) - cl(i-1,:))
+               nd = nd + 1
+               dd(nd,:) = nan
+               istate = 1
+            end if
+            if (istate == 1 .and. s1 >= sb) then
+               nd = nd + 1
+               dd(nd,:) = cl(i-1,:) + (sb - s) / max(ds,1d-40) * (cl(i,:) - cl(i-1,:))
+               istate = 2
+            end if
+            if (istate /= 1) then
+               nd = nd + 1
+               dd(nd,:) = cl(i,:)
+            end if
+            s = s1
+         end do
+         r = r + n1
+      end do
+      call ipPlotLine(c_loc(str1),c_loc(dd(1,1)),c_loc(dd(1,2)),int(nd,c_int),ImPlotLineFlags_None,0_c_int)
+
+    end subroutine plot_contours
+
+    !> A contour level written with three significant digits, as %.3g.
+    function fmt_level(x) result(str)
+      real*8, intent(in) :: x
+      character(len=:), allocatable :: str
+
+      character(len=40) :: aux
+      integer :: e, idx
+
+      if (x == 0d0) then
+         str = "0"
+         return
+      end if
+      e = floor(log10(abs(x)))
+      if (e < -4 .or. e >= 3) then
+         write (aux,'(ES0.2)') x
+         idx = index(aux,"E")
+         str = string_nozeros(x / 10d0**e,2) // "e" // trim(aux(idx+1:))
+      else
+         str = string_nozeros(x,max(2 - e,0))
+      end if
+
+    end function fmt_level
+
+    !> The point of the region with plot coordinates (mu,mv): whether it
+    !> is on the region (inside) and its position (x, cell-frame
+    !> Cartesian bohr).
+    subroutine plot_point(mu,mv,inside,x)
+      real(c_double), intent(in) :: mu, mv
+      logical, intent(out) :: inside
+      real*8, intent(out) :: x(3)
+
+      integer :: nx, ny
+      real*8 :: dd(2), m(2,2), det, s, t
+
+      inside = .false.
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+      x = c%a0 + (mu * c%e1 + mv * c%e2) / bohrtoa
+
+      ! the grid coordinates: x - x0 = s * (nx-1) * uu + t * (ny-1) * vv
+      dd(1) = dot_product(x - c%x0,c%e1)
+      dd(2) = dot_product(x - c%x0,c%e2)
+      m(1,1) = dot_product(c%uu,c%e1) * (nx-1)
+      m(2,1) = dot_product(c%uu,c%e2) * (nx-1)
+      m(1,2) = dot_product(c%vv,c%e1) * (ny-1)
+      m(2,2) = dot_product(c%vv,c%e2) * (ny-1)
+      det = m(1,1) * m(2,2) - m(1,2) * m(2,1)
+      if (abs(det) < 1d-20) return
+      s = (dd(1) * m(2,2) - dd(2) * m(1,2)) / det
+      t = (m(1,1) * dd(2) - m(2,1) * dd(1)) / det
+      if (s < 0d0 .or. s > 1d0 .or. t < 0d0 .or. t > 1d0) return
+      inside = .true.
+
+    end subroutine plot_point
+
+    !> The table of the values on the plane (opened and closed from
+    !> its title): the position of each point (fractional for crystals, Å
+    !> for molecules), its plot coordinates, and the value. The menu
+    !> of the header (right click) writes it to the output, the
+    !> console, or a file.
+    subroutine draw_data_section()
+      use utils, only: iw_table_column, iw_table_headers_row
+      integer, parameter :: itable_plane = 1 ! the table, for table_write_*
+      character(kind=c_char,len=:), allocatable, target :: strtab
+      integer(c_int) :: flags
+      integer :: k, ix, iy, iwrite, nx, ny
+      real*8 :: xp(3), xq(3), pc(2)
+      type(ImVec2) :: szt
+      type(c_ptr) :: clipper
+      type(ImGuiListClipper), pointer :: clipper_f
+
+      if (.not.mapshown) return
+      call iw_separatortext("Values on the plane",w%editrep_slicesec(slicesec_values))
+      if (.not.w%editrep_slicesec(slicesec_values)%open) return
+
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+      flags = ImGuiTableFlags_None
+      flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+      flags = ior(flags,ImGuiTableFlags_RowBg)
+      flags = ior(flags,ImGuiTableFlags_Borders)
+      flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+      flags = ior(flags,ImGuiTableFlags_ScrollY)
+      flags = ior(flags,ImGuiTableFlags_ScrollX)
+      strtab = "##planedatatable" // c_null_char
+      szt%x = 0._c_float
+      szt%y = htable
+      if (igBeginTable(c_loc(strtab),6_c_int,flags,szt,0._c_float)) then
+         if (ismol) then
+            call iw_table_column("x (Å)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("y (Å)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("z (Å)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         else
+            call iw_table_column("x (frac)",id=0_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("y (frac)",id=1_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+            call iw_table_column("z (frac)",id=2_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         end if
+         call iw_table_column("u (Å)",id=3_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column("v (Å)",id=4_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_column(quantity_label(),id=5_c_int,flags=ImGuiTableColumnFlags_WidthFixed)
+         call iw_table_headers_row(writemenu=iwrite,ttshown=ttshown,freezetop=.true.)
+
+         ! the rows (the second index runs fastest, as in PLANE); if the
+         ! table is being written as text, they are captured as they are
+         ! drawn (all of them)
+         clipper = ImGuiListClipper_ImGuiListClipper()
+         call ImGuiListClipper_Begin(clipper,int(nx*ny,c_int),-1._c_float)
+         call w%table_write_begin(itable_plane,iwrite,clipper)
+         do while(ImGuiListClipper_Step(clipper))
+            call c_f_pointer(clipper,clipper_f)
+            do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+               ix = (k-1) / ny + 1
+               iy = k - (ix-1) * ny
+               call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+               xp = c%x0 + real(ix-1,8) * c%uu + real(iy-1,8) * c%vv
+               pc = to_plot(xp)
+               where (abs(pc) < 1d-10) pc = 0d0
+               if (ismol) then
+                  xq = (xp + sys(isys)%c%molx0) * bohrtoa
+                  where (abs(xq) < 1d-10) xq = 0d0
+                  call cell(0,string(xq(1),'f',decimal=6))
+                  call cell(1,string(xq(2),'f',decimal=6))
+                  call cell(2,string(xq(3),'f',decimal=6))
+               else
+                  xq = sys(isys)%c%c2x(xp)
+                  ! no negative zeros from the rounding of the plane
+                  where (abs(xq) < 1d-10) xq = 0d0
+                  call cell(0,string(xq(1),'f',decimal=7))
+                  call cell(1,string(xq(2),'f',decimal=7))
+                  call cell(2,string(xq(3),'f',decimal=7))
+               end if
+               call cell(3,string(pc(1),'f',decimal=6))
+               call cell(4,string(pc(2),'f',decimal=6))
+               call cell(5,string(c%ff(ix,iy),'e',decimal=8))
+            end do
+         end do
+         call ImGuiListClipper_End(clipper)
+         call ImGuiListClipper_destroy(clipper)
+         call w%table_write_end(itable_plane,table_title("Plane map",isys))
+         call igEndTable()
+      end if
+
+    end subroutine draw_data_section
+
+    !> Text str in column icol of the current row of a table.
+    subroutine cell(icol,str)
+      integer, intent(in) :: icol
+      character(len=*), intent(in) :: str
+
+      if (igTableSetColumnIndex(int(icol,c_int))) call iw_text(str)
+
+    end subroutine cell
+
+    !> The label of the quantity: $n with the property, or the
+    !> expression.
+    function quantity_label() result(str)
+      character(len=:), allocatable :: str
+
+      str = quant_label(d%isexpr,d%expr,d%fref%id,d%nti)
+
+    end function quantity_label
+
+    !> The contour lines of the object, in plot coordinates, the
+    !> positive levels in cpos and the rest in cneg (NaN between two
+    !> lines), and the places along each line where its value can go,
+    !> longest line first; made again if the lines of the object are
+    !> not those they were made from (gencont).
+    subroutine update_contours()
+      use ieee_arithmetic, only: ieee_value, ieee_quiet_nan
+      use tools, only: mergesort
+      integer :: i, ii, j, k, nline, np
+      integer, allocatable :: iord(:), il(:,:)
+      real*8, allocatable :: ll(:)
+      real*8 :: off(2), rval, nan, dl, acc, st
+      logical :: pos
+
+      if (.not.d%showcont .or. c%gencont == 0) then
+         w%smap%ncpos = 0
+         w%smap%ncneg = 0
+         w%smap%ncval = 0
+         w%smap%gencont = 0
+         return
+      end if
+      if (w%smap%gencont == c%gencont) return
+      w%smap%gencont = c%gencont
+      w%smap%ncpos = 0
+      w%smap%ncneg = 0
+      w%smap%ncval = 0
+      nline = c%nline
+      if (nline == 0) return
+
+      ! the lines, in the frame of the region; to plot coordinates
+      off = to_plot(c%x0)
+      nan = ieee_value(nan,ieee_quiet_nan)
+      if (allocated(w%smap%cpos)) deallocate(w%smap%cpos)
+      if (allocated(w%smap%cneg)) deallocate(w%smap%cneg)
+      allocate(w%smap%cpos(size(c%xy,2)+nline,2),w%smap%cneg(size(c%xy,2)+nline,2))
+      allocate(il(3,nline))
+      do i = 1, nline
+         pos = (c%ziso(c%liso(i)) > 0d0)
+         np = merge(w%smap%ncpos,w%smap%ncneg,pos)
+         il(:,i) = (/merge(1,2,pos),np+1,c%lptr(i+1)-c%lptr(i)/)
+         do j = c%lptr(i), c%lptr(i+1)-1
+            np = np + 1
+            do k = 1, 2
+               rval = c%xy(k,j) * bohrtoa + off(k)
+               if (pos) then
+                  w%smap%cpos(np,k) = rval
+               else
+                  w%smap%cneg(np,k) = rval
+               end if
+            end do
+         end do
+         np = np + 1
+         if (pos) then
+            w%smap%cpos(np,:) = nan
+            w%smap%ncpos = np
+         else
+            w%smap%cneg(np,:) = nan
+            w%smap%ncneg = np
+         end if
+      end do
+
+      ! the length of each line, longest first, and the places along
+      ! it where its value can go, with the direction of the line there
+      allocate(ll(nline),iord(nline))
+      do i = 1, nline
+         ll(i) = 0d0
+         do j = c%lptr(i)+1, c%lptr(i+1)-1
+            ll(i) = ll(i) + norm2(c%xy(:,j) - c%xy(:,j-1))
+         end do
+         iord(i) = i
+      end do
+      call mergesort(-ll,iord,1,nline)
+      if (allocated(w%smap%xcval)) deallocate(w%smap%xcval)
+      if (allocated(w%smap%tcval)) deallocate(w%smap%tcval)
+      if (allocated(w%smap%lcval)) deallocate(w%smap%lcval)
+      if (allocated(w%smap%zcval)) deallocate(w%smap%zcval)
+      if (allocated(w%smap%icval)) deallocate(w%smap%icval)
+      allocate(w%smap%xcval(2,plane_ncand,nline),w%smap%tcval(2,plane_ncand,nline),w%smap%lcval(nline),&
+         w%smap%zcval(nline),w%smap%icval(4,nline))
+      w%smap%ncval = nline
+      do i = 1, nline
+         ii = iord(i)
+         do k = 1, plane_ncand
+            w%smap%xcval(:,k,i) = c%xy(:,c%lptr(ii))
+            w%smap%tcval(:,k,i) = (/1d0,0d0/)
+         end do
+         acc = 0d0
+         k = 1
+         do j = c%lptr(ii)+1, c%lptr(ii+1)-1
+            dl = norm2(c%xy(:,j) - c%xy(:,j-1))
+            do while (k <= plane_ncand .and. dl > 0d0)
+               st = (k - 0.5d0) / plane_ncand * ll(ii)
+               if (acc + dl < st) exit
+               w%smap%tcval(:,k,i) = (c%xy(:,j) - c%xy(:,j-1)) / dl
+               w%smap%xcval(:,k,i) = c%xy(:,j-1) + (st - acc) * w%smap%tcval(:,k,i)
+               k = k + 1
+            end do
+            acc = acc + dl
+         end do
+         w%smap%xcval(:,:,i) = w%smap%xcval(:,:,i) * bohrtoa + spread(off,2,plane_ncand)
+         w%smap%lcval(i) = ll(ii) * bohrtoa
+         w%smap%zcval(i) = c%ziso(c%liso(ii))
+         w%smap%icval(1:3,i) = il(:,ii)
+         w%smap%icval(4,i) = c%liso(ii)
+      end do
+
+    end subroutine update_contours
+
+    !> The texture of the map, from the colors of the object, made
+    !> again if they are not those it was made from (gentex), and the
+    !> range of the colors in tmin, tmax.
+    subroutine update_texture()
+      use interfaces_opengl3
+      integer :: k, nx, ny
+      character(kind=c_char), allocatable, target :: pix(:)
+
+      if (c%gencolor == 0 .or. .not.allocated(c%mesh%rgbv)) return
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+      if (size(c%mesh%rgbv,2) /= nx*ny) return
+      if (w%smap%gentex == c%gencolor .and. w%smap%tex /= 0) return
+      w%smap%gentex = c%gencolor
+      w%smap%tmin = c%cmin
+      w%smap%tmax = c%cmax
+
+      ! the colors, as RGBA bytes (the first index of the grid runs
+      ! fastest, along the width of the texture)
+      allocate(pix(4*nx*ny))
+      do k = 1, nx*ny
+         pix(4*k-3) = char(nint(c%mesh%rgbv(1,k) * 255))
+         pix(4*k-2) = char(nint(c%mesh%rgbv(2,k) * 255))
+         pix(4*k-1) = char(nint(c%mesh%rgbv(3,k) * 255))
+         pix(4*k) = char(255)
+      end do
+
+      ! upload
+      if (w%smap%tex == 0) call glGenTextures(1,c_loc(w%smap%tex))
+      call glBindTexture(GL_TEXTURE_2D,w%smap%tex)
+      call glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+      call glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,int(nx,c_int),int(ny,c_int),0,GL_RGBA,&
+         GL_UNSIGNED_BYTE,c_loc(pix))
+      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
+      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)
+      call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE)
+      call glBindTexture(GL_TEXTURE_2D,0)
+
+    end subroutine update_texture
+
+    !> Find the atoms, and the critical points of the reference field
+    !> other than the nuclei, closer to the plane than hmax and inside
+    !> the region (their lattice images, for crystals), and keep their
+    !> plot coordinates and labels (with their signed distance to the
+    !> plane, if showdist).
+    subroutine update_marks()
+      use tools_math, only: matinv, cross
+      use types, only: realloc
+      integer*8 :: key(8)
+      integer :: k, l1, l2, l3, lo(3), hi(3), nc, ier, nx, ny
+      real*8 :: am(3,3), nrm(3), xq(3), s(3), fc(3,4), hb, eps
+      real*8, allocatable :: xf(:,:)
+      character(len=12), allocatable :: lbl(:)
+      character(len=:), allocatable :: sdist
+
+      key(1) = c%gen
+      key(2) = merge(1_8,0_8,w%smap%showlabels)
+      key(6) = merge(1_8,0_8,w%smap%showcps)
+      key(7) = w%smap%ltext
+      key(8) = merge(1_8,0_8,w%smap%showdist)
+      key(3) = transfer(w%smap%hmax,key(3))
+      key(4) = transfer(sysc(isys)%timelastchange_cplist,key(4))
+      key(5) = sys(isys)%field_cuid(sys(isys)%iref)
+      if (allocated(w%smap%keymark)) then
+         if (all(w%smap%keymark == key)) return
+      end if
+      w%smap%keymark = key
+      w%smap%nmark = 0
+      w%smap%marksmany = .false.
+      if (allocated(w%smap%xmark)) deallocate(w%smap%xmark)
+      if (allocated(w%smap%lmark)) deallocate(w%smap%lmark)
+      allocate(w%smap%xmark(2,10),w%smap%lmark(10))
+      if (.not.w%smap%showlabels) return
+
+      ! the candidates: the atoms, and the critical points of the
+      ! reference field except the nuclei (crystallographic)
+      call label_candidates(isys,nc,xf,lbl,cps=w%smap%showcps,short=.true.,atext=w%smap%ltext)
+
+      ! the coordinates of a point in the frame of the region: x - x0 =
+      ! s1 * side1 + s2 * side2 + s3 * normal
+      nx = size(c%ff,1)
+      ny = size(c%ff,2)
+      nrm = cross(c%e1,c%e2)
+      am(:,1) = c%uu * (nx-1)
+      am(:,2) = c%vv * (ny-1)
+      am(:,3) = nrm
+      call matinv(am,3,ier)
+      if (ier /= 0) return
+      hb = w%smap%hmax / bohrtoa
+      eps = 1d-6
+
+      ! the lattice translations that can bring a point of the cell to
+      ! the region (crystals; only the box for molecules), if there are
+      ! not too many
+      lo = 0
+      hi = 0
+      if (.not.ismol) then
+         fc(:,1) = sys(isys)%c%c2x(c%x0)
+         fc(:,2) = sys(isys)%c%c2x(c%x0 + c%uu * (nx-1))
+         fc(:,3) = sys(isys)%c%c2x(c%x0 + c%vv * (ny-1))
+         fc(:,4) = sys(isys)%c%c2x(c%x0 + c%uu * (nx-1) + c%vv * (ny-1))
+         lo = floor(minval(fc,2)) - 1
+         hi = ceiling(maxval(fc,2)) + 1
+         if (product(real(hi - lo + 1,8)) > maxtrans) then
+            w%smap%marksmany = .true.
+            return
+         end if
+      end if
+
+      do k = 1, nc
+         do l1 = lo(1), hi(1)
+            do l2 = lo(2), hi(2)
+               do l3 = lo(3), hi(3)
+                  xq = sys(isys)%c%x2c(xf(:,k) + real((/l1,l2,l3/),8))
+                  s = matmul(am,xq - c%x0)
+                  if (s(1) < -eps .or. s(1) > 1d0+eps .or. s(2) < -eps .or. s(2) > 1d0+eps) cycle
+                  if (abs(s(3)) > hb + eps) cycle
+                  w%smap%nmark = w%smap%nmark + 1
+                  if (w%smap%nmark > size(w%smap%lmark)) then
+                     call realloc(w%smap%xmark,2,2*w%smap%nmark)
+                     call realloc(w%smap%lmark,2*w%smap%nmark)
+                  end if
+                  w%smap%xmark(:,w%smap%nmark) = to_plot(xq)
+                  w%smap%lmark(w%smap%nmark) = lbl(k)
+                  ! the signed distance to the plane, as C(+0.01), unless
+                  ! it is zero to two decimals
+                  if (w%smap%showdist) then
+                     sdist = string(s(3) * bohrtoa,'f',decimal=2)
+                     if (sdist /= "0.00" .and. sdist /= "-0.00") then
+                        if (s(3) > 0d0) sdist = "+" // sdist
+                        w%smap%lmark(w%smap%nmark) = trim(lbl(k)) // "(" // sdist // ")"
+                     end if
+                  end if
+               end do
+            end do
+         end do
+      end do
+
+    end subroutine update_marks
+
+    !> The plot coordinates (Å) of the point x (cell-frame Cartesian
+    !> bohr): along e1 and e2 from the origin the grid was calculated
+    !> for (a0).
+    function to_plot(x) result(pc)
+      real*8, intent(in) :: x(3)
+      real*8 :: pc(2)
+
+      pc(1) = dot_product(x - c%a0,c%e1) * bohrtoa
+      pc(2) = dot_product(x - c%a0,c%e2) * bohrtoa
+
+    end function to_plot
+
+    !> The point x (cell-frame Cartesian bohr) in the absolute frame
+    !> (with molx0 for molecules), for the scene.
+    function cart_to_abs(x) result(xa)
+      real*8, intent(in) :: x(3)
+      real*8 :: xa(3)
+      xa = x
+      if (ismol) xa = xa + sys(isys)%c%molx0
+    end function cart_to_abs
+
   end function draw_editrep_slice
 
-  !> Delete the texture of the map of the plane map window w.
+  !> Delete the texture of the map of the editor of a plane map
+  !> object (w).
   module subroutine plane_free_texture(w)
     use interfaces_opengl3
     class(window), intent(inout), target :: w
 
-    if (w%pl%tex /= 0) call glDeleteTextures(1,c_loc(w%pl%tex))
-    w%pl%tex = 0
+    if (w%smap%tex /= 0) call glDeleteTextures(1,c_loc(w%smap%tex))
+    w%smap%tex = 0
 
   end subroutine plane_free_texture
 
-  !> Size of the image exported from a plane map window whose plot and
+  !> Size of the image exported from the editor of a plane map whose plot and
   !> color bar take szmap (pixels of the window), at the given scale:
   !> its size in the window, with the padding of the print context
   !> (wsz), the scale used (xs, from 1 to scale, so the image fits in

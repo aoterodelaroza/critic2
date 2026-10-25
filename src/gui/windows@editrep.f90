@@ -78,7 +78,8 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, idum
-    logical :: doquit, ok, ch, doexport
+    logical :: doquit, ok, ch
+    character(len=:), allocatable :: exportlbl
     logical :: changed, renamed
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -191,13 +192,11 @@ contains
        end if
 
        ! right-align and bottom-align for the rest of the contents
-       ! (gradient paths: with the export button)
-       doexport = (w%rep%type == reptype_gpaths)
-       if (doexport) then
-          call iw_setpos_bottomright(29,3)
-       else
-          call iw_setpos_bottomright(10,2)
-       end if
+       ! (gradient paths and plane maps: with their export button)
+       exportlbl = ""
+       if (w%rep%type == reptype_gpaths) exportlbl = "Export to Text File"
+       if (w%rep%type == reptype_slice) exportlbl = "Export to Image"
+       call iw_setpos_bottomright(len("Reset") + len(exportlbl) + len("Close"),merge(3,2,len(exportlbl) > 0))
 
        ! reset button
        if (iw_button("Reset",danger=.true.)) then
@@ -205,7 +204,7 @@ contains
           win(iview)%sc%forcebuildlists = .true.
           call win(iview)%sc%undo_note("Reset " // trim(w%rep%name))
        end if
-       if (doexport) then
+       if (w%rep%type == reptype_gpaths) then
           call iw_tooltip("Reset all the settings of this object to their defaults, and remove all&
              & the traced gradient paths",ttshown)
        else
@@ -214,12 +213,24 @@ contains
 
        ! export the gradient paths, bond and traced, to a text file
        ! (written by draw_editrep_gpaths when the dialog sets okfile)
-       if (doexport) then
+       if (w%rep%type == reptype_gpaths) then
           ok = (w%rep%gpaths%ntrace > 0) .or. field_has_cps(isys,w%rep%gpaths%fref%id,withpaths=.true.)
-          if (iw_button("Export to Text File",sameline=.true.,disabled=.not.ok)) &
+          if (iw_button(exportlbl,sameline=.true.,disabled=.not.ok)) &
              idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savegpathsfile,&
              idparent=w%id,orraise=-1)
           call iw_tooltip("Write the points of the gradient paths to a text file",ttshown)
+       end if
+
+       ! export the plot of a plane map to a PNG image (written by
+       ! draw_editrep_slice when the dialog sets okfile), if the
+       ! object has values and the Map section shows them
+       if (w%rep%type == reptype_slice) then
+          ok = allocated(w%rep%slice%c) .and. w%editrep_slicesec(slicesec_map)%open
+          if (ok) ok = allocated(w%rep%slice%c%ff)
+          if (iw_button(exportlbl,sameline=.true.,disabled=.not.ok)) &
+             idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savemapfile,&
+             idparent=w%id,orraise=-1)
+          call iw_tooltip("Save the plot of the map, as shown in this window, to a PNG image file",ttshown)
        end if
 
        ! close button
@@ -235,6 +246,8 @@ contains
     ! its pending rebuild here, because the release edge never fires once
     ! the window is gone
     if (doquit) then
+       ! a pick this editor commanded to the view is released
+       if (iview > 0) call win(iview)%viewmode_release_forced(w%id)
        if (w%editrep_isoline >= 1 .and. iview > 0 .and. associated(w%rep)) then
           if (w%rep%isinit .and. w%rep%type == reptype_isosurface .and.&
              win(iview)%isopen .and. associated(win(iview)%sc)) then

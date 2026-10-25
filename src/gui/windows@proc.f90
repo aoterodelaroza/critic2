@@ -375,7 +375,6 @@ contains
              if (ok.and.type == wintype_gpaths.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_point.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_line.and.present(idparent)) ok = (win(i)%parent() == idparent)
-             if (ok.and.type == wintype_plane.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_cube.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_display.and.present(idparent)) ok = (win(i)%parent() == idparent)
              if (ok.and.type == wintype_water_cluster.and.present(idparent)) ok = (win(i)%parent() == idparent)
@@ -789,6 +788,7 @@ contains
   module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken,dialog_filter)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
+    use representations, only: reptype_slice
     use systems, only: always_read_virtuals
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
@@ -804,6 +804,7 @@ contains
     character(len=*,kind=c_char), intent(in), optional :: dialog_filter
 
     character(kind=c_char,len=:), allocatable, target :: str1
+    logical :: ok
 
     ! initialization of the state
     w%isinit = .true.
@@ -906,8 +907,21 @@ contains
              end if
           end if
        end if
-       ! the export file of the traced gradient paths
-       w%okfile = okfile_default(isys,"structure","paths.txt")
+       ! the export file: the image of the plot of a plane map, or the
+       ! traced gradient paths
+       ok = .false.
+       if (associated(w%rep)) ok = (w%rep%type == reptype_slice)
+       if (ok) then
+          w%okfile = okfile_default(isys,"map","png")
+          w%okfile = w%okfile(1:len(w%okfile)-4) // "_plane.png"
+       else
+          w%okfile = okfile_default(isys,"structure","paths.txt")
+       end if
+       ! the plot of a plane map, and its table of values (closed to
+       ! begin with)
+       w%smap = slicemap_state()
+       w%editrep_slicesec = iw_section()
+       w%editrep_slicesec(slicesec_values)%open = .false.
     elseif (type == wintype_exportimage) then
        ! export image window
        if (.not.present(idparent)) &
@@ -963,10 +977,6 @@ contains
        ! line profile window
        if (.not.present(idparent)) &
           call ferror('window_init','line profile requires idparent',faterr)
-    elseif (type == wintype_plane) then
-       ! plane map window
-       if (.not.present(idparent)) &
-          call ferror('window_init','plane map requires idparent',faterr)
     elseif (type == wintype_cube) then
        ! cube window
        if (.not.present(idparent)) &
@@ -1061,17 +1071,17 @@ contains
        end do
        if (allocated(w%ln%d)) deallocate(w%ln%d)
        w%ln%keysys = 0
-    elseif (w%type == wintype_plane) then
-       ! the contour lines and the labels; without their keys, they are
-       ! calculated again. The values on the grid are kept: they are
-       ! cheaper to copy than to calculate, and the texture is on the GPU
-       if (allocated(w%pl%cpos)) deallocate(w%pl%cpos)
-       if (allocated(w%pl%cneg)) deallocate(w%pl%cneg)
-       if (allocated(w%pl%keycont)) deallocate(w%pl%keycont)
-       if (allocated(w%pl%xmark)) deallocate(w%pl%xmark)
-       if (allocated(w%pl%lmark)) deallocate(w%pl%lmark)
-       if (allocated(w%pl%keymark)) deallocate(w%pl%keymark)
-       w%pl%nmark = 0
+    elseif (w%type == wintype_editrep) then
+       ! the plot of a plane map: the contour lines and the labels;
+       ! without their keys, they are made again (the texture is on
+       ! the GPU)
+       if (allocated(w%smap%cpos)) deallocate(w%smap%cpos)
+       if (allocated(w%smap%cneg)) deallocate(w%smap%cneg)
+       w%smap%gencont = 0
+       if (allocated(w%smap%xmark)) deallocate(w%smap%xmark)
+       if (allocated(w%smap%lmark)) deallocate(w%smap%lmark)
+       if (allocated(w%smap%keymark)) deallocate(w%smap%keymark)
+       w%smap%nmark = 0
     end if
 
   end subroutine window_drop_caches
@@ -1163,8 +1173,8 @@ contains
        elseif (w%type == wintype_cp) then
           ! the CP under the mouse in its table is no longer highlighted
           call w%clear_cp_hover()
-       elseif (w%type == wintype_plane) then
-          ! the texture of the map
+       elseif (w%type == wintype_editrep) then
+          ! the texture of the plot of a plane map
           call w%plane_free_texture()
        elseif (w%type == wintype_gpaths) then
           ! the seed CP under the mouse is no longer highlighted
@@ -1551,7 +1561,7 @@ contains
     use systems, only: sysc, ok_system, sys_init
     use tools_io, only: string, ferror, faterr
     use param, only: dirsep
-    use representations, only: iso_region_cell
+    use representations, only: iso_region_cell, reptype_slice
     class(window), intent(inout), target :: w
 
     integer :: idp ! the window that opened this dialog, if still there
@@ -1728,8 +1738,8 @@ contains
              str1 = "PNG (*.png) {.png}" // c_null_char
              idp = w%parent()
              if (idp > 0) then
-                w%dialog_data%imgscale = win(idp)%pl%imgscale
-                w%dialog_data%szmap = win(idp)%pl%szmap
+                w%dialog_data%imgscale = win(idp)%smap%imgscale
+                w%dialog_data%szmap = win(idp)%smap%szmap
              end if
              call dialog_initial_file(idp,"map_plane.png",str2,str3)
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
@@ -1818,8 +1828,14 @@ contains
        elseif (w%type == wintype_scfplot) then
           call init_window("SCF Iterations (" // string(w%isys) // ")",45,45,square=.true.)
        elseif (w%type == wintype_editrep) then
+          ! a plane map editor holds the plot of the map, and grows
+          ! with it
           if (editrep_resolve(w) > 0) then
-             call init_window("Object [" // string(w%rep%name) // "]",63,46)
+             if (w%rep%type == reptype_slice) then
+                call init_window("Object [" // string(w%rep%name) // "]",72,70,grow=.true.)
+             else
+                call init_window("Object [" // string(w%rep%name) // "]",63,46)
+             end if
           else
              call init_window("Object",63,46)
           end if
@@ -1843,8 +1859,6 @@ contains
           call init_window("Point Properties",76,30,grow=.true.)
        elseif (w%type == wintype_line) then
           call init_window("Line Profile",80,40,grow=.true.)
-       elseif (w%type == wintype_plane) then
-          call init_window("Plane Map",72,70,grow=.true.)
        elseif (w%type == wintype_cube) then
           call init_window("Calculate Grid",72,20,grow=.true.)
        elseif (w%type == wintype_display) then
@@ -2051,8 +2065,6 @@ contains
                 call w%draw_point()
              elseif (w%type == wintype_line) then
                 call w%draw_line()
-             elseif (w%type == wintype_plane) then
-                call w%draw_plane()
              elseif (w%type == wintype_cube) then
                 call w%draw_cube()
              elseif (w%type == wintype_display) then

@@ -226,7 +226,7 @@ contains
              else
                 win(idp)%okfile_set = .true.
                 win(idp)%okfile = trim(name)
-                if (w%purpose == wpurp_dialog_savemapfile) win(idp)%pl%imgscale = w%dialog_data%imgscale
+                if (w%purpose == wpurp_dialog_savemapfile) win(idp)%smap%imgscale = w%dialog_data%imgscale
              end if
 
              ! the filter carries the image format (save image file only)

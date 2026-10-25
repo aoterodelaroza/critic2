@@ -902,8 +902,10 @@ contains
     use windows, only: stack_create_window, wintype_geometry,&
        wintype_vibrations, wintype_dynamics, wintype_builder, wintype_extract,&
        wintype_rattle, wintype_mo, wintype_voids, wintype_cp, wintype_gpaths, wintype_point,&
-       wintype_line, wintype_plane, wintype_cube
+       wintype_line, wintype_cube, win
     use utils, only: iw_tooltip, iw_menuitem, iw_beginmenu
+    use representations, only: reptype_slice, repflavor_slice, reptype_isosurface,&
+       repflavor_isosurface
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS, BIND_BUILDER
     use types, only: field_evaluation_avail, fieldeval_category_mo
     integer, intent(in) :: isys
@@ -991,11 +993,20 @@ contains
        call iw_tooltip("Plot the values of fields of this system, their derivatives, or&
           & arithmetic expressions along a line between two points",ttshown)
 
-       ! maps of the fields on a plane (PLANE)
+       ! maps of the fields on a plane (PLANE): a plane map object of
+       ! the view, and its editor (as Draw > Plane Map)
        if (iw_menuitem("Plane Map...")) &
-          idum = stack_create_window(wintype_plane,.true.,idparent=idparent,orraise=-1)
+          call win(idparent)%add_rep_and_edit(reptype_slice,repflavor_slice)
        call iw_tooltip("Map the values of a field of this system, one of its derivatives,&
-          & or an arithmetic expression on a plane, as colors and contour lines",ttshown)
+          & or an arithmetic expression on a plane, as colors and contour lines, as an&
+          & object of the view",ttshown)
+
+       ! isosurfaces of the fields: an isosurface object of the view,
+       ! and its editor (as Draw > Isosurface)
+       if (iw_menuitem("Isosurface...")) &
+          call win(idparent)%add_rep_and_edit(reptype_isosurface,repflavor_isosurface)
+       call iw_tooltip("Draw isosurfaces of a field of this system, one of its derivatives,&
+          & or an arithmetic expression, as an object of the view",ttshown)
 
        ! grids of the fields written to a file (CUBE)
        if (iw_menuitem("Calculate Grid...")) &

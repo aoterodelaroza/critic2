@@ -596,12 +596,12 @@ module windows
   end type line_state
   public :: line_state
 
-  !> Per-window state of the plane map window (Tools > Plane Map, the
-  !> PLANE keyword): the map (plane_def: the plane, the region, the
-  !> quantity, how it is colored and contoured), the labels, a pending
-  !> pick, and the results: the values on the grid, the contour lines,
-  !> the texture of the map, and the atoms and critical points on the
-  !> plane, each calculated again when the inputs it depends on change.
+  !> Per-window state of the editor of a plane map object
+  !> (draw_editrep_slice, slicemap_state): the plot of the map, made
+  !> from the values of the object (the contour lines and their
+  !> values, the texture, and the labels of the atoms and critical
+  !> points near the plane, each made again when what it depends on
+  !> changed), the options of the labels, and the table of values.
   ! number of places along a contour line where its value can go
   integer, parameter :: plane_ncand = 12
   ! the sections of the plane form (plane_def_form) with a More/Less
@@ -611,6 +611,12 @@ module windows
   integer, parameter :: plane_sec_colors = 3
   integer, parameter :: plane_sec_contours = 4
   integer, parameter :: plane_nsec = 4
+  ! the other sections of the editor of a plane map object, after
+  ! those of the form, and their number in all
+  integer, parameter :: slicesec_style = plane_nsec + 1
+  integer, parameter :: slicesec_map = plane_nsec + 2
+  integer, parameter :: slicesec_values = plane_nsec + 3
+  integer, parameter :: slicesec_n = plane_nsec + 3
 
   ! the sections of the isosurface object editor, in order
   integer, parameter :: isosec_property = 1
@@ -622,23 +628,7 @@ module windows
   ! the most sections an object editor (editrep window) draws
   integer, parameter :: editrep_nsec = 5
 
-  type plane_state
-     type(sys_ref) :: sys ! system the form is set up for
-     type(plane_def) :: d ! the plane, the region, the quantity, the colors, and the contours
-     type(iw_section) :: sec(plane_nsec) ! the sections of the form: open, showing more
-     type(iw_section) :: secdisp ! the Display section
-     ! the map in the view (Show in View): shown, the values it has
-     ! (gen; -1 = none), and whether the form changed since it was given
-     logical :: showview = .true.
-     real(c_float) :: alpha = 1._c_float ! its opacity
-     type(relief_def) :: rl ! its relief
-     integer*8 :: viewgen = -1
-     logical :: viewdirty = .true.
-     ! the object the window edits instead (Create Object; uid 0 =
-     ! none), its view, and the edit of it the window has (its stamp)
-     type(rep_ref) :: obj
-     integer :: objview = 0
-     integer*8 :: objstamp = 0
+  type slicemap_state
      ! the labels of the atoms and critical points near the plane
      logical :: showlabels = .true.
      logical :: showcps = .true. ! the critical points too (or only the atoms)
@@ -647,23 +637,13 @@ module windows
      integer :: ltext = 1 ! the text of the atoms (0 = species name, 1 = atomic symbol, 2 = atom name)
      real*8 :: hmax = 0.1d0 ! largest distance to the plane (Å)
      logical :: showdist = .false. ! the labels show the signed distance to the plane too
-     ! pending pick in the view: the point (1-3)
-     logical :: picking = .false.
-     integer :: pickend = 1
-     integer :: pickview = 0
-     type(pairpick) :: pick
-     type(iw_section) :: secdata = iw_section(open=.false.) ! the table of values (closed to begin with)
-     ! the grid (cell-frame Cartesian bohr): origin and steps, the
-     ! orthonormal frame of the plot (origin a0, the first point when
-     ! the grid was calculated), the values
-     real*8 :: x0(3) = 0d0, uu(3) = 0d0, vv(3) = 0d0
-     real*8 :: a0(3) = 0d0, e1(3) = 0d0, e2(3) = 0d0
-     real(c_double), allocatable :: ff(:,:)
-     character(len=:), allocatable :: errmsg
-     integer*8 :: gen = 0 ! counts the grids calculated, for the other keys
-     integer*8, allocatable :: key(:)
-     character(len=:), allocatable :: keyexpr
-     ! the contour lines, in plot coordinates (n,2: u then v; NaN between lines)
+     ! the region last plotted, to fit the axes again when it changes:
+     ! its origin from the origin of the plot, and its two sides
+     ! (cell-frame Cartesian bohr)
+     real*8 :: region(3,3) = 0d0
+     ! the contour lines, in plot coordinates (n,2: u then v; NaN
+     ! between lines), and the lines of the object they were made from
+     ! (gencont)
      real(c_double), allocatable :: cpos(:,:), cneg(:,:)
      integer :: ncpos = 0, ncneg = 0
      ! their value labels (Values), one per line, longest line first:
@@ -677,12 +657,12 @@ module windows
      integer :: ncval = 0
      real*8, allocatable :: xcval(:,:,:), tcval(:,:,:), lcval(:), zcval(:)
      integer, allocatable :: icval(:,:)
-     integer*8, allocatable :: keycont(:)
-     character(len=:), allocatable :: keylist
-     ! the texture of the map and the range of its colors
+     integer*8 :: gencont = 0
+     ! the texture of the map, the range of its colors, and the colors
+     ! of the object it was made from (gentex)
      integer(c_int) :: tex = 0
      real*8 :: tmin = 0d0, tmax = 1d0
-     integer*8, allocatable :: keytex(:)
+     integer*8 :: gentex = 0
      ! the labels: positions in plot coordinates and text
      integer :: nmark = 0
      real*8, allocatable :: xmark(:,:)
@@ -695,8 +675,8 @@ module windows
      real*8 :: lims(4) = (/0d0,1d0,0d0,1d0/)
      ! the exported image: pixels per pixel of the map in the window
      real(c_float) :: imgscale = 4._c_float
-  end type plane_state
-  public :: plane_state
+  end type slicemap_state
+  public :: slicemap_state
 
   !> Per-window state of the cube window (Tools > Calculate Grid, the
   !> CUBE keyword): the quantity, the wavefunction of a QE field, the
@@ -1328,7 +1308,7 @@ module windows
      type(pairpick) :: editrep_pick ! stamp for the pending pick (staleness check); nothing is staged,
                                     ! every editor pick completes on one delivery
      integer :: editrep_isopick = -1 ! region coordinate row awaiting a view pick (isosurface editor; -1 = idle)
-     type(iw_section) :: editrep_slicesec(plane_nsec+1) ! sections of the slice editor (+1: Style)
+     type(iw_section) :: editrep_slicesec(slicesec_n) ! sections of the slice editor (the form, then slicesec_*)
      type(iw_section) :: editrep_sec(editrep_nsec) ! sections of the other object editors, in order of appearance
      integer :: editrep_isopick_mode = 0 ! region mode when that pick was armed (the pick cancels itself
                                          ! if the staged mode no longer matches)
@@ -1514,7 +1494,7 @@ module windows
      ! point properties window
      type(point_state) :: pt ! the form, pick, and the report at the point
      type(line_state) :: ln ! the endpoints, curves, pick, and values of the line profile
-     type(plane_state) :: pl ! the plane, quantity, pick, and maps of the plane map window
+     type(slicemap_state) :: smap ! the plot of the map of a plane map object (editrep window)
      type(cube_state) :: cu ! the quantity, region, and grid of the cube window
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
@@ -1664,7 +1644,6 @@ module windows
      ! point properties
      procedure :: draw_point
      procedure :: draw_line
-     procedure :: draw_plane
      procedure :: draw_cube
      procedure :: block_cube
      procedure :: run_cube
@@ -1740,7 +1719,7 @@ module windows
   integer, parameter, public :: wintype_gpaths = 29
   integer, parameter, public :: wintype_point = 30
   integer, parameter, public :: wintype_line = 31
-  integer, parameter, public :: wintype_plane = 32
+  ! 32: unused (was the plane map window)
   integer, parameter, public :: wintype_cube = 33
 
   ! window purposes
@@ -2588,9 +2567,6 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_line
      !xx! plane submodule !xx!
-     module subroutine draw_plane(w)
-       class(window), intent(inout), target :: w
-     end subroutine draw_plane
      module subroutine plane_free_texture(w)
        class(window), intent(inout), target :: w
      end subroutine plane_free_texture
@@ -2604,16 +2580,14 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_slice
-     module function plane_def_form(d,isys,ttshown,editing,live,ipick,pickoff,showval,valscale,sec) result(changed)
+     module function plane_def_form(d,isys,ttshown,ipick,pickoff,showval,valscale,sec) result(changed)
        type(plane_def), intent(inout) :: d
        integer, intent(in) :: isys
        logical, intent(inout) :: ttshown
-       logical, intent(inout) :: editing
-       logical, intent(in) :: live
-       integer, intent(out), optional :: ipick
-       logical, intent(in), optional :: pickoff
-       logical, intent(inout), optional :: showval
-       real(c_float), intent(inout), optional :: valscale
+       integer, intent(out) :: ipick
+       logical, intent(in) :: pickoff
+       logical, intent(inout) :: showval
+       real(c_float), intent(inout) :: valscale
        type(iw_section), intent(inout) :: sec(plane_nsec)
        logical :: changed
      end function plane_def_form
