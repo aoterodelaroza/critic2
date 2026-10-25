@@ -180,12 +180,13 @@ contains
        call sync_view(fresh)
 
        ! the map takes the rest of the window, leaving room for the
-       ! note about the labels (if shown), the table of values (if
-       ! open, it takes part of the space), and Close. The window grows
+       ! note about the labels (if shown) and the table of values (if
+       ! open, it takes part of the space); Close is below the content
+       ! (see iw_bottomrow_begin). The window grows
        ! to fit its content: the stretch of the map and the table beyond
        ! their minimum heights is elastic, not content to fit
        call igGetContentRegionAvail(sz0)
-       sz0%y = sz0%y - iw_calcheight(merge(3,2,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
+       sz0%y = sz0%y - iw_calcheight(merge(1,0,w%pl%showlabels .and. w%pl%marksmany),0,.true.)
        htable = 0._c_float
        if (w%pl%secdata%open .and. mapshown) then
           htable = max(0.35_c_float * sz0%y,iw_calcheight(4,0,.false.))

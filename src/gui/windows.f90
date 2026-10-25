@@ -1206,6 +1206,7 @@ module windows
      logical :: isinit = .false. ! whether this window has been initialized
      logical :: permanent = .false. ! permanent = do not steal window's ID if it is closed
      logical :: firstpass = .true. ! true if this is the first draw() call
+     logical :: hasbottomrow = .false. ! drew a row of buttons at its bottom (iw_setpos_bottomright) in the last frame
      logical(c_bool) :: isopen ! whether the window is open
      integer :: type ! the window type
      integer(c_int) :: id ! internal ID for this window (index from win(:))
@@ -1230,6 +1231,8 @@ module windows
      real(c_float) :: needheight = 0._c_float ! window height that shows all content (grow-to-fit windows)
      real(c_float) :: heightslack = 0._c_float ! elastic height the body added beyond its minimum layout
      real(c_float) :: needwidth = 0._c_float ! one-shot: set the window to this width, then clear (see draw_mo)
+     logical :: fitting = .false. ! grow the window to its content until the user resizes it (bottom-row windows that are not grow-to-fit)
+     real(c_float) :: fitlast = 0._c_float ! the window height expected by fitting; a different one means the user resized the window
      integer, allocatable :: iord(:) ! table order (multiple windows)
      integer :: lastselected = 0 ! selectable, last element selected (multiple windows)
      character(len=:), allocatable :: tabselected ! which tab is selected (multiple windows)

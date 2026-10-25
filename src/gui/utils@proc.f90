@@ -834,6 +834,70 @@ contains
 
   end subroutine iw_setposx_fromend
 
+  !> The vertical room the row of buttons at the bottom of a window
+  !> needs under the content: iw_setpos_bottomright skips down to leave
+  !> exactly this, and iw_bottomrow_begin reserves it under the region.
+  module function iw_bottomrow_room()
+    use interfaces_cimgui
+    use gui_main, only: g
+    real(c_float) :: iw_bottomrow_room
+
+    iw_bottomrow_room = igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y
+
+  end function iw_bottomrow_room
+
+  !> Begin the scrolling child region that holds the content of a
+  !> window above its row of buttons at the bottom: it takes all the
+  !> height but the row (and the spacing between them), which
+  !> iw_setpos_bottomright places after ending the region.
+  module subroutine iw_bottomrow_begin()
+    use interfaces_cimgui
+    use gui_main, only: g
+
+    type(ImVec2) :: sz
+    character(len=:,kind=c_char), allocatable, target :: str
+    logical :: ldum
+
+    iw_bottomrow_y0 = igGetCursorPosY()
+    sz%x = 0._c_float
+    sz%y = -(iw_bottomrow_room() + g%Style%ItemSpacing%y)
+    str = "##bottomrowregion" // c_null_char
+    ldum = igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)
+    iw_bottomrow_open = .true.
+
+  end subroutine iw_bottomrow_begin
+
+  !> End the region begun by iw_bottomrow_begin, if it is open, and
+  !> record the window height that shows all of its content and the
+  !> row of buttons (iw_bottomrow_height).
+  module subroutine iw_bottomrow_end()
+    use interfaces_cimgui
+    use gui_main, only: g
+
+    if (.not.iw_bottomrow_open) return
+    ! the content (the cursor is one spacing past its last item), the
+    ! spacing before the row, the row and the bottom padding
+    iw_bottomrow_height = iw_bottomrow_y0 + igGetCursorPosY() + iw_bottomrow_room() + g%Style%WindowPadding%y
+    call igEndChild()
+    iw_bottomrow_open = .false.
+
+  end subroutine iw_bottomrow_end
+
+  !> The width of the window being drawn, also from inside a child
+  !> region such as the one above the row of buttons (igGetWindowWidth
+  !> gives the width of the region there).
+  module function iw_window_width()
+    use interfaces_cimgui
+    real(c_float) :: iw_window_width
+
+    type(ImGuiWindow), pointer :: wptr
+
+    call c_f_pointer(igGetCurrentWindow(),wptr)
+    if (c_associated(wptr%RootWindow)) call c_f_pointer(wptr%RootWindow,wptr)
+    iw_window_width = wptr%Size%x
+
+  end function iw_window_width
+
   !> Move the cursor to the bottom of the window and, unless centered, to the
   !> right, leaving room for the trailing widget row: ntext characters of text
   !> and nbutton buttons (as in iw_calcwidth). Used for the final button row of
@@ -852,6 +916,9 @@ contains
     type(ImVec2) :: szavail
     real(c_float) :: skip
 
+    ! the content above the row ends here (see iw_bottomrow_begin)
+    call iw_bottomrow_end()
+
     centered_ = .false.
     if (present(centered)) centered_ = centered
     ncheck_ = 0
@@ -868,7 +935,7 @@ contains
 
     ! vertical: skip the remaining space, if there is room for one more
     ! line (recorded in iw_bottom_skip)
-    skip = szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y
+    skip = szavail%y - iw_bottomrow_room()
     if (skip > 0._c_float) then
        call igSetCursorPosY(igGetCursorPosY() + skip)
        iw_bottom_skip = iw_bottom_skip + skip
@@ -983,8 +1050,10 @@ contains
   !> widest entry. If rclicked is present, it returns whether the
   !> header row was right-clicked, and the caller opens its own
   !> popup instead of the table's context menu (which opening a popup
-  !> in the same frame replaces).
-  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked,writemenu,ttshown)
+  !> in the same frame replaces). tooltips: one null-terminated
+  !> tooltip per column, in order (empty for none), shown on its header.
+  module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked,writemenu,ttshown,&
+     tooltips)
     use interfaces_cimgui
     integer(c_int), intent(in), optional :: icol(:)
     character(len=*,kind=c_char), intent(in), optional :: shorts
@@ -993,6 +1062,7 @@ contains
     logical, intent(out), optional :: rclicked
     integer, intent(out), optional :: writemenu
     logical, intent(inout), optional :: ttshown
+    character(len=*,kind=c_char), intent(in), optional :: tooltips
 
     integer(c_int) :: i, ncol, ihov
     integer :: k, kshort
@@ -1048,6 +1118,14 @@ contains
        else
           ! the column's own name, handed straight to imgui
           call igTableHeader(igTableGetColumnName_Int(i))
+       end if
+       ! the tooltip of the header (tooltips: one null-terminated string
+       ! per column, in order; an empty one for none)
+       if (present(tooltips)) then
+          if (igIsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup)) then
+             str = nth_label(tooltips,int(i,4)+1)
+             if (len(str) > 0) call iw_tooltip(str,ttshown)
+          end if
        end if
        call igPopID()
     end do
@@ -1509,6 +1587,7 @@ contains
     real(c_float) :: iw_calcwidth
 
     integer :: ncheck_, nitem
+    type(ImGuiWindow), pointer :: wptr
 
     ncheck_ = 0
     if (present(ncheck)) ncheck_ = ncheck
@@ -1527,7 +1606,10 @@ contains
        iw_calcwidth = iw_calcwidth + (nitem - 1) * g%Style%ItemSpacing%x
     if (present(from_end)) then
        if (from_end) then
-          iw_calcwidth = igGetWindowWidth() - g%style%WindowPadding%x - iw_calcwidth
+          ! the padding of the window being drawn: none in the region
+          ! above a row of buttons (see iw_bottomrow_begin)
+          call c_f_pointer(igGetCurrentWindow(),wptr)
+          iw_calcwidth = igGetWindowWidth() - wptr%WindowPadding%x - iw_calcwidth
        end if
     end if
     iw_calcwidth = max(iw_calcwidth,0._c_float)

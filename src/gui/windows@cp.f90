@@ -897,10 +897,11 @@ contains
       ! removed or replaced (see pp_sync)
       str1 = "##tablecpresults" // string(w%cp%tablegen) // c_null_char
       ! the rest of the window, as the tables of the geometry window,
-      ! leaving room for the selection buttons, a message, and Close
+      ! leaving room for the selection buttons and a message (Close is
+      ! below the content: see iw_bottomrow_begin)
       call igGetContentRegionAvail(sz)
       sz%x = 0._c_float
-      sz%y = sz%y - iw_calcheight(3,0,.true.)
+      sz%y = sz%y - iw_calcheight(1,0,.true.)
       ! but at least a few rows. The window grows to fit its content
       ! (opening the list of properties makes it taller): the table's
       ! stretch beyond those rows is elastic, not content to fit

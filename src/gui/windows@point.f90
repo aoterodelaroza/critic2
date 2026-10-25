@@ -190,11 +190,12 @@ contains
        tflags = ior(tflags,ImGuiTableFlags_ScrollY)
        str1 = "##pointtable" // c_null_char
        ! the rest of the window, as the results table of the critical
-       ! points window, leaving room for a message and Close; but at
-       ! least a few rows (the stretch beyond them is elastic)
+       ! points window, leaving room for a message (Close is below the
+       ! content: see iw_bottomrow_begin); but at least a few rows (the
+       ! stretch beyond them is elastic)
        call igGetContentRegionAvail(sz0)
        sz0%x = 0._c_float
-       sz0%y = sz0%y - iw_calcheight(3,0,.true.)
+       sz0%y = sz0%y - iw_calcheight(1,0,.true.)
        sz0%y = max(sz0%y,iw_calcheight(7,0,.false.))
        w%heightslack = sz0%y - iw_calcheight(7,0,.false.)
        if (w%pt%secreport%open) then

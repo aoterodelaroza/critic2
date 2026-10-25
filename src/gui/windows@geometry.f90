@@ -377,7 +377,7 @@ contains
           str1="##tablespctyles_" // string(isys) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(4,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(2,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -604,7 +604,7 @@ contains
           str1="##tableatomstyles_" // string(isys) // "_" // string(w%geometry_atomtype) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(5,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -1262,7 +1262,7 @@ contains
           str1="##tablemolecules_" // string(isys) // "_" // string(w%geometry_moltype) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(5,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -1845,7 +1845,7 @@ contains
                    ! Close button (then scroll) so the table never stretches past it
                    sz0%y = iw_calcheight(sys(isys)%c%pg%nop+1,0,.false.)
                    call igGetContentRegionAvail(szavail)
-                   szavail%y = szavail%y - iw_calcheight(5,0,.true.)
+                   szavail%y = szavail%y - iw_calcheight(3,0,.true.)
                    if (sz0%y > szavail%y) sz0%y = szavail%y
                    if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
                       call iw_table_column("#",id=0)

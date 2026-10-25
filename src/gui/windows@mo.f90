@@ -268,9 +268,10 @@ contains
             w%mo_diag%ipress = 0 ! no diagram this frame, so no press can be pending
          else
             ! the rows under the tables, so they get the height they need:
-            ! the display section and the create and close buttons
-            nbelow = 3
-            if (w%mo_secdisp%open) nbelow = 6
+            ! the display section and the create button (Close is below
+            ! the content: see iw_bottomrow_begin)
+            nbelow = 2
+            if (w%mo_secdisp%open) nbelow = 5
             call igGetContentRegionAvail(szavail)
             szrowmin = iw_calcheight(10,0,.false.)
             szrow = max(szavail%y - iw_calcheight(nbelow,1,.true.) - g%Style%ItemSpacing%y,szrowmin)

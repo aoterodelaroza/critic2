@@ -58,7 +58,7 @@ contains
        get_current_working_dir, iw_separatortext
     use keybindings, only: is_bind_event, BIND_OK_FOCUSED_DIALOG
     use icons, only: icon_tex, icon_ui_cell, icon_vm_bond, rgba_fam_crys, rgba_fam_molgeom
-    use gui_main, only: fontsize
+    use gui_main, only: fontsize, g
     use tools_io, only: string, uout
     use param, only: dirsep
     class(window), intent(inout), target :: w
@@ -68,6 +68,7 @@ contains
     integer :: i, isys, ifmt, iaux, nfail, nwritten, nskip, nleft, nbot
     integer(c_int) :: flags
     type(ImVec2) :: uv0, uv1
+    real(c_float) :: hbot
     type(ImVec4) :: nobord
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -280,7 +281,7 @@ contains
        end if
     end if
 
-    nbot = 1 ! the button row
+    nbot = 0 ! the rows below the table (the buttons are below the content: see iw_bottomrow_begin)
     if (len_trim(warnmsg) > 0) nbot = nbot + 1
     if (dooverwrite) nbot = nbot + 1
     if (len_trim(w%errmsg) > 0 .or. len_trim(w%okmsg) > 0) nbot = nbot + 1
@@ -294,11 +295,12 @@ contains
     flags = ior(flags,ImGuiTableFlags_ScrollY)
     flags = ior(flags,ImGuiTableFlags_RowBg)
     sz%x = 0._c_float
-    sz%y = -iw_calcheight(nbot,0,.false.)
+    hbot = max(iw_calcheight(nbot,0,.false.),g%Style%ItemSpacing%y)
+    sz%y = -hbot
     if (.not.w%sm%seclist%open) then
        ! no table: the warnings and buttons go at the bottom all the same
        call igGetContentRegionAvail(sz)
-       sz%y = max(sz%y - iw_calcheight(nbot,0,.false.),0._c_float)
+       sz%y = max(sz%y - hbot,0._c_float)
        sz%x = 0._c_float
        call igDummy(sz)
     elseif (igBeginTable(c_loc(str1),ic_savemult_NUMCOLUMNS,flags,sz,0._c_float)) then

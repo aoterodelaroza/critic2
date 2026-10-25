@@ -103,8 +103,9 @@ contains
     end if
 
     ! what sits under the list: the cell section of a molecule (its
-    ! header, and its line when it is open) and the buttons
-    hbelow = iw_calcheight(1,0) + g%Style%ItemSpacing%y
+    ! header, and its line when it is open); the buttons are below the
+    ! content (see iw_bottomrow_begin)
+    hbelow = g%Style%ItemSpacing%y
     if (ismolecule) then
        hbelow = hbelow + iw_separatortext_height()
        if (seccell%open) hbelow = hbelow + iw_calcheight(1,0) + g%Style%ItemSpacing%y

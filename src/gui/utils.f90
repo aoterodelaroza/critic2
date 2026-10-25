@@ -71,6 +71,17 @@ module utils
   ! (reset by window_draw); not content, for grow-to-fit windows
   real(c_float), public :: iw_bottom_skip = 0._c_float
 
+  ! The row of buttons at the bottom of a window (iw_setpos_bottomright)
+  ! stays in view however tall the content is: window_draw draws the
+  ! content in a scrolling child region that leaves room for the row
+  ! (iw_bottomrow_begin), and iw_setpos_bottomright ends the region
+  ! before placing the row in the window itself. iw_bottomrow_height:
+  ! the window height that shows all the content and the row (-1 = no
+  ! region this frame), for the windows that grow to their content
+  real(c_float), public :: iw_bottomrow_height = -1._c_float
+  logical :: iw_bottomrow_open = .false. ! the region is open
+  real(c_float) :: iw_bottomrow_y0 = 0._c_float ! where it starts in the window
+
   ! Writing a table as text: while iw_capturing, the cell widgets
   ! (iw_text, iw_button and the badges drawn with it, iw_inputtext,
   ! iw_dragfloat_real8) record the text they show in the current table
@@ -107,6 +118,9 @@ module utils
   public :: iw_colormap_id
   public :: iw_setposx_fromend
   public :: iw_setpos_bottomright
+  public :: iw_bottomrow_begin
+  public :: iw_bottomrow_end
+  public :: iw_window_width
   public :: iw_blank_background
   public :: iw_wait_overlay
   public :: iw_calcheight
@@ -284,13 +298,24 @@ module utils
        character(len=*), intent(in) :: info
        logical, intent(in) :: cancellable
      end subroutine iw_wait_overlay
+     module subroutine iw_bottomrow_begin()
+     end subroutine iw_bottomrow_begin
+     module subroutine iw_bottomrow_end()
+     end subroutine iw_bottomrow_end
+     module function iw_bottomrow_room()
+       real(c_float) :: iw_bottomrow_room
+     end function iw_bottomrow_room
+     module function iw_window_width()
+       real(c_float) :: iw_window_width
+     end function iw_window_width
      module subroutine iw_setpos_bottomright(ntext,nbutton,ncheck,centered)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton
        integer, intent(in), optional :: ncheck
        logical, intent(in), optional :: centered
      end subroutine iw_setpos_bottomright
-     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked,writemenu,ttshown)
+     module subroutine iw_table_headers_row(icol,shorts,freezetop,autofit,rclicked,writemenu,ttshown,&
+        tooltips)
        integer(c_int), intent(in), optional :: icol(:)
        character(len=*,kind=c_char), intent(in), optional :: shorts
        logical, intent(in), optional :: freezetop
@@ -298,6 +323,7 @@ module utils
        logical, intent(out), optional :: rclicked
        integer, intent(out), optional :: writemenu
        logical, intent(inout), optional :: ttshown
+       character(len=*,kind=c_char), intent(in), optional :: tooltips
      end subroutine iw_table_headers_row
      module subroutine iw_capture_begin()
      end subroutine iw_capture_begin

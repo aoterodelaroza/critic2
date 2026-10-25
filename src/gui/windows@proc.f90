@@ -816,10 +816,13 @@ contains
     w%okmsg = ""
     w%isys = 1
     w%growtofit = .false.
+    w%hasbottomrow = .false.
     w%flags = ImGuiWindowFlags_None
     w%tw = table_write_state()
     w%needheight = 0._c_float
     w%needwidth = 0._c_float
+    w%fitting = .false.
+    w%fitlast = 0._c_float
     w%sortcid = 0
     w%sortdir = 1
     w%okfile = ""
@@ -1543,7 +1546,8 @@ contains
     use gui_main, only: fontsize, g, mainvwp, multi_viewports
     use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos, iw_calcwidth, iw_bottom_skip,&
-       iw_capturing, iw_capture_abort, file_name_root
+       iw_capturing, iw_capture_abort, file_name_root, iw_bottomrow_begin, iw_bottomrow_end,&
+       iw_bottomrow_height
     use systems, only: sysc, ok_system, sys_init
     use tools_io, only: string, ferror, faterr
     use param, only: dirsep
@@ -1556,7 +1560,6 @@ contains
     character(len=:), allocatable :: str4
     integer(c_int) :: dflags
     real(c_float) :: panewidth, hneed
-    logical :: userplaced
     type(ImVec2) :: inisize, pos, pivot, szmin, szmax, szwant
     type(ImGuiWindow), pointer :: wptr
 
@@ -1869,6 +1872,15 @@ contains
           ! wide enough for the tool palette on a single row
           call init_window("Builder",63,30)
        end if
+       ! the windows with a row of buttons at the bottom
+       ! (iw_setpos_bottomright): their content goes in a scrolling
+       ! region above the row (see iw_bottomrow_begin), and those that
+       ! are not grow-to-fit grow to their content until the user
+       ! resizes them (see fitting, before igBegin)
+       w%hasbottomrow = .not.any(w%type == (/wintype_tree,wintype_view,wintype_console_input,&
+          wintype_console_output,wintype_dialog,wintype_scfplot,wintype_preferences,wintype_treeplot,&
+          wintype_builder/))
+       w%fitting = w%hasbottomrow .and. .not.w%growtofit
        ! only the permanent windows go in the layout file: the names of
        ! the others carry their stack slot, and would pile up entries
        if (.not.w%permanent) w%flags = ior(w%flags,ImGuiWindowFlags_NoSavedSettings)
@@ -1908,21 +1920,43 @@ contains
           ! minimum -- a couple of header lines and a scroll bar. A
           ! collapsed grow-to-fit window is left alone, and one whose
           ! bottom would fall under the display is moved up (not past
-          ! the menu bar).
+          ! the menu bar). A window with a row of buttons at the bottom
+          ! that is not grow-to-fit does the same with the content as a
+          ! target rather than a minimum, until the user resizes it
+          ! (fitting): it opens without a scroll bar, also when its
+          ! content arrives a few frames later (a grid computed on
+          ! opening) or changes with a tab or a section, and can be made
+          ! smaller afterwards.
           if (.not.w%isdocked) then
              szmax%x = huge(1._c_float)
              szmax%y = huge(1._c_float)
              call clamp_to_display(szmax)
              szmin%x = min(25._c_float * fontsize%x,szmax%x)
              szmin%y = min(6._c_float * fontsize%y,szmax%y)
-             if (w%growtofit .and. c_associated(w%ptr)) then
+             ! the size to set this frame, if any (a negative axis is
+             ! left as it is)
+             szwant%x = -1._c_float
+             szwant%y = -1._c_float
+             if ((w%growtofit .or. w%fitting) .and. c_associated(w%ptr)) then
                 call c_f_pointer(w%ptr,wptr)
+                ! fitting ends with a manual resize: a height other than
+                ! the one expected here (ImGui keeps whole pixels)
+                if (w%fitting .and. w%fitlast > 0._c_float .and. abs(wptr%SizeFull%y - w%fitlast) > 0.5_c_float) &
+                   w%fitting = .false.
                 ! a collapsed window (its title bar only) is left alone:
                 ! it does not show its content, and raising it to make
                 ! room for the content it does not show moves it every
                 ! frame
-                if (.not.wptr%Collapsed) then
-                   if (w%needheight > 0._c_float) szmin%y = max(szmin%y,min(w%needheight,szmax%y))
+                if (.not.wptr%Collapsed .and. (w%growtofit .or. w%fitting)) then
+                   ! the height that shows the content, at most the display
+                   hneed = szmin%y
+                   if (w%needheight > 0._c_float) hneed = max(hneed,min(w%needheight,szmax%y))
+                   if (w%growtofit) then
+                      szmin%y = hneed
+                   else
+                      if (hneed > wptr%SizeFull%y + 0.5_c_float) szwant%y = hneed
+                      w%fitlast = aint(max(hneed,wptr%SizeFull%y))
+                   end if
                    ! the buttons and the resize grip are at the window's
                    ! bottom: raise the window if the grown window, or the
                    ! window itself (a tall initial size on a short
@@ -1930,21 +1964,9 @@ contains
                    ! the display, but no higher than the menu bar. Not by
                    ! its own size while the mouse is down: moving the
                    ! window under a resize grip that is being dragged
-                   ! makes the window grow and run up every frame. With
-                   ! detachable windows, positions are desktop coordinates
-                   ! (measured here from the main viewport), and a window
-                   ! being moved or in an OS window of its own is left
-                   ! where the user puts it.
-                   hneed = szmin%y
+                   ! makes the window grow and run up every frame.
                    if (.not.igIsMouseDown(ImGuiMouseButton_Left)) hneed = max(hneed,min(wptr%Size%y,szmax%y))
-                   userplaced = wptr%ViewportOwned .or. (multi_viewports .and. c_associated(g%MovingWindow,w%ptr))
-                   if (.not.userplaced .and. wptr%Pos%y - mainvwp%Pos%y + hneed > szmax%y) then
-                      pos%x = wptr%Pos%x
-                      pos%y = max(mainvwp%Pos%y + szmax%y - hneed,mainvwp%WorkPos%y)
-                      pivot%x = 0._c_float
-                      pivot%y = 0._c_float
-                      call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
-                   end if
+                   call raise_to_fit(hneed,szmax%y)
                 end if
              end if
              call igSetNextWindowSizeConstraints(szmin,szmax,c_null_funptr,c_null_ptr)
@@ -1954,10 +1976,12 @@ contains
              ! passed to init_window is fixed before the content is
              ! known). Applied once and cleared, so the user can resize
              ! the window afterwards and keep the size.
-             if (w%needwidth > 0._c_float .and. c_associated(w%ptr)) then
-                call c_f_pointer(w%ptr,wptr)
+             if (w%needwidth > 0._c_float .and. c_associated(w%ptr)) &
                 szwant%x = min(max(w%needwidth,szmin%x),szmax%x)
-                szwant%y = wptr%Size%y
+             if (szwant%x > 0._c_float .or. szwant%y > 0._c_float) then
+                call c_f_pointer(w%ptr,wptr)
+                if (szwant%x < 0._c_float) szwant%x = wptr%SizeFull%x
+                if (szwant%y < 0._c_float) szwant%y = wptr%SizeFull%y
                 call igSetNextWindowSize(szwant,ImGuiCond_Always)
              end if
           end if
@@ -1975,6 +1999,18 @@ contains
              w%ptr = igGetCurrentWindow()
              w%heightslack = 0._c_float ! only a body that stretches to fill sets this
              iw_bottom_skip = 0._c_float ! set by iw_setpos_bottomright
+             ! the content of a window with a row of buttons at the
+             ! bottom goes in a scrolling region above the row, which
+             ! iw_setpos_bottomright ends (see iw_bottomrow_begin); not
+             ! while ImGui is still sizing a window to its content (the
+             ! first frames of a window given no initial height), when a
+             ! region that fills the window would hide the content from
+             ! that measurement
+             iw_bottomrow_height = -1._c_float
+             if (w%hasbottomrow) then
+                call c_f_pointer(w%ptr,wptr)
+                if (wptr%AutoFitFramesY <= 0) call iw_bottomrow_begin()
+             end if
              if (w%type == wintype_tree) then
                 call w%draw_tree()
              elseif (w%type == wintype_view) then
@@ -2041,6 +2077,10 @@ contains
                 call w%draw_builder()
              end if
 
+             ! the region above the row of buttons, if the body left it
+             ! open (it returned before the row)
+             call iw_bottomrow_end()
+
              ! a table that started capturing its cells but was not
              ! written (its table_write_end not reached) stops it here
              if (iw_capturing) then
@@ -2060,10 +2100,20 @@ contains
              ! in iw_bottom_skip): measured with the stretch in it, the
              ! content would grow with the window, the minimum would
              ! ratchet up to whatever height the user last set, and the
-             ! window could never be made smaller again
-             if (w%growtofit .and. .not.w%isdocked) then
+             ! window could never be made smaller again. A window with a
+             ! row of buttons that is not grow-to-fit measures its
+             ! content too, to grow to it while fitting (see fitting
+             ! before igBegin), through the region above the row.
+             if (.not.w%isdocked) then
                 w%heightslack = w%heightslack + iw_bottom_skip
-                w%needheight = igGetCursorPosY() + g%Style%WindowPadding%y - w%heightslack
+                if (iw_bottomrow_height > 0._c_float) then
+                   ! measured by the region above the row of buttons
+                   w%needheight = iw_bottomrow_height - w%heightslack
+                elseif (w%growtofit) then
+                   w%needheight = igGetCursorPosY() + g%Style%WindowPadding%y - w%heightslack
+                else
+                   w%needheight = 0._c_float
+                end if
              end if
           end if
           call igEnd()
@@ -2128,6 +2178,31 @@ contains
       end if
 
     end subroutine init_window
+
+    !> Move the window up if its bottom would fall under the display
+    !> when it is hneed tall (hmax = usable display height), but no
+    !> higher than the menu bar. With detachable windows, positions are
+    !> desktop coordinates (measured here from the main viewport), and a
+    !> window being moved or in an OS window of its own is left where
+    !> the user puts it.
+    subroutine raise_to_fit(hneed,hmax)
+      real(c_float), intent(in) :: hneed, hmax
+
+      logical :: userplaced
+      type(ImVec2) :: pos, pivot
+      type(ImGuiWindow), pointer :: wptr
+
+      call c_f_pointer(w%ptr,wptr)
+      userplaced = wptr%ViewportOwned .or. (multi_viewports .and. c_associated(g%MovingWindow,w%ptr))
+      if (.not.userplaced .and. wptr%Pos%y - mainvwp%Pos%y + hneed > hmax) then
+         pos%x = wptr%Pos%x
+         pos%y = max(mainvwp%Pos%y + hmax - hneed,mainvwp%WorkPos%y)
+         pivot%x = 0._c_float
+         pivot%y = 0._c_float
+         call igSetNextWindowPos(pos,ImGuiCond_Always,pivot)
+      end if
+
+    end subroutine raise_to_fit
 
     !> Clamp an initial window size to what fits in the application
     !> window, leaving room for the title bar and the drop shadow. A

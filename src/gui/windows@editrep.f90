@@ -97,6 +97,7 @@ contains
     if (.not.doquit) then
        ! whether the rep has changed
        changed = .false.
+       renamed = .false.
 
        ! system
        call iw_text("System",highlight=.true.)
@@ -109,7 +110,8 @@ contains
        call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox
-       changed = changed .or. iw_checkbox("Show##shownobject",w%rep%shown,labelleft=.true.,gap=.true.)
+       ch = iw_checkbox("Show##shownobject",w%rep%shown,labelleft=.true.,gap=.true.)
+       changed = changed .or. ch
        call iw_tooltip("Toggle show/hide this object",ttshown)
 
        ! periodicity override (gradient paths: after their field, in
@@ -123,42 +125,61 @@ contains
        ! atoms and molecules, then draw the type-dependent items
        call w%rep%update()
        if (w%rep%type == reptype_atoms) then
-          changed = changed .or. w%draw_editrep_atoms(ttshown)
+          ch = w%draw_editrep_atoms(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_bonds) then
-          changed = changed .or. w%draw_editrep_bonds(ttshown)
+          ch = w%draw_editrep_bonds(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_labels) then
-          changed = changed .or. w%draw_editrep_labels(ttshown)
+          ch = w%draw_editrep_labels(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_polyhedra) then
-          changed = changed .or. w%draw_editrep_polyhedra(ttshown)
+          ch = w%draw_editrep_polyhedra(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_unitcell) then
-          changed = changed .or. w%draw_editrep_unitcell(ttshown)
+          ch = w%draw_editrep_unitcell(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_axes) then
-          changed = changed .or. w%draw_editrep_axes(ttshown)
+          ch = w%draw_editrep_axes(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_symelem) then
-          changed = changed .or. w%draw_editrep_symelem(ttshown)
+          ch = w%draw_editrep_symelem(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_text) then
-          changed = changed .or. w%draw_editrep_text(ttshown)
+          ch = w%draw_editrep_text(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_measure) then
-          changed = changed .or. w%draw_editrep_measure(ttshown)
+          ch = w%draw_editrep_measure(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_isosurface) then
-          changed = changed .or. w%draw_editrep_isosurface(ttshown)
+          ch = w%draw_editrep_isosurface(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_shapes) then
-          changed = changed .or. w%draw_editrep_shapes(ttshown)
+          ch = w%draw_editrep_shapes(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_planar) then
-          changed = changed .or. w%draw_editrep_planar(ttshown)
+          ch = w%draw_editrep_planar(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_cps) then
-          changed = changed .or. w%draw_editrep_cps(ttshown)
+          ch = w%draw_editrep_cps(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_gpaths) then
-          changed = changed .or. w%draw_editrep_gpaths(ttshown)
+          ch = w%draw_editrep_gpaths(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_legend) then
-          changed = changed .or. w%draw_editrep_legend(ttshown)
+          ch = w%draw_editrep_legend(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_scalebar) then
-          changed = changed .or. w%draw_editrep_scalebar(ttshown)
+          ch = w%draw_editrep_scalebar(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_colorbar) then
-          changed = changed .or. w%draw_editrep_colorbar(ttshown)
+          ch = w%draw_editrep_colorbar(ttshown)
+          changed = changed .or. ch
        elseif (w%rep%type == reptype_slice) then
-          changed = changed .or. w%draw_editrep_slice(ttshown)
+          ch = w%draw_editrep_slice(ttshown)
+          changed = changed .or. ch
        end if
+
 
        ! rebuild draw lists if necessary
        if (changed) win(iview)%sc%forcebuildlists = .true.
@@ -4586,10 +4607,6 @@ contains
     plotted = .false.
     if (w%editrep_sec(3)%open) then
        idel = 0
-       call iw_text("One row per isosurface: whether it is drawn, where its color comes from, the&
-          & value of the field on it, and what it encloses (the fraction of the integral of |f| and&
-          & of the volume of the region). Click a row to edit the colors of a mapped isosurface&
-          & below the table.",disabled=.true.,wrap=.true.)
 
        ! histogram of the values backing the mesh, with one draggable line
        ! per isosurface
@@ -4761,7 +4778,16 @@ contains
           call iw_table_column("Isovalue",id=3,flags=ImGuiTableColumnFlags_WidthStretch)
           call iw_table_column("Encloses",id=4,flags=ImGuiTableColumnFlags_WidthFixed,&
              width=iw_calcwidth(13,0))
-          call iw_table_headers_row()
+          ! one row per isosurface; the headers explain the columns
+          call iw_table_headers_row(tooltips=c_null_char //&
+             "Where the color of each isosurface comes from: a single color, or the values of a&
+             & field or an expression mapped on it" // c_null_char //&
+             "The color of the isosurface, or the field or expression mapped on it. Click a row&
+             & to edit the colors of a mapped isosurface below the table" // c_null_char //&
+             "Value of the field on each isosurface (atomic units); the lines of the histogram&
+             & above can be dragged too" // c_null_char //&
+             "What each isosurface encloses: the fraction of the integral of |f| over the region,&
+             & and the fraction of its volume" // c_null_char,ttshown=ttshown)
 
           do i = 1, w%rep%iso%niso
              associate (s => w%rep%iso%slot(i))

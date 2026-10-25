@@ -172,7 +172,7 @@ contains
        sz0%x = -1._c_float
        htable = 0._c_float
        if (w%ln%secplot%open) then
-          sz0%y = sz0%y - iw_calcheight(5,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
           if (w%ln%secdata%open) then
              htable = max(0.4_c_float * sz0%y,iw_calcheight(4,0,.false.))
              sz0%y = sz0%y - htable - iw_calcheight(0,0,.true.)
@@ -181,7 +181,7 @@ contains
           call draw_plot(sz0,refit)
           if (allocated(w%ln%d)) w%heightslack = sz0%y - iw_calcheight(6,0,.false.)
        elseif (w%ln%secdata%open) then
-          htable = max(sz0%y - iw_calcheight(2,0,.true.) - iw_calcheight(0,0,.true.),&
+          htable = max(sz0%y - 2 * iw_calcheight(0,0,.true.),&
              iw_calcheight(4,0,.false.))
        end if
        if (w%ln%secdata%open .and. allocated(w%ln%d)) &

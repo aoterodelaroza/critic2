@@ -193,7 +193,7 @@ contains
     use rhoplot, only: rhoplot_nti_request
     use representations, only: iso_region_cell, reptype_isosurface, repflavor_isosurface
     use gui_main, only: g
-    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
+    use utils, only: iw_window_width, iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_calcheight,&
        iw_table_column, iw_checkbox, iw_highlight_selectable, duration_string, iw_cell_right,&
        iw_separatortext
     use tools_io, only: string, ioj_right
@@ -400,7 +400,7 @@ contains
        ! a one-shot request, so it fires until the window is wide enough
        ! and then stops, and the user can resize afterwards
        if (sz0%x > szavail%x) &
-          call ask_width(w,igGetWindowWidth() + (sz0%x - szavail%x))
+          call ask_width(w,iw_window_width() + (sz0%x - szavail%x))
        sz0%x = min(sz0%x,szavail%x)
        sz0%y = iw_calcheight(min(w%vd%iso_nvoid,10)+1,0,.false.)
        if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
@@ -555,7 +555,7 @@ contains
     use systems, only: sys, sysc
     use gui_main, only: g
     use representations, only: polycoplanar_def
-    use utils, only: iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
+    use utils, only: iw_window_width, iw_table_headers_row, iw_text, iw_button, iw_tooltip, iw_dragfloat_real8, iw_combo_simple,&
        iw_calcheight, iw_calcwidth, iw_table_column, iw_checkbox, iw_highlight_selectable, iw_cell_right,&
        iw_separatortext
     use global, only: bondfactor
@@ -763,7 +763,7 @@ contains
           sz0%x = tblwidth(wcol(1:6))
           if (w%vd%pol_n > 10) sz0%x = sz0%x + g%Style%ScrollbarSize
           if (sz0%x > szavail%x) then
-             call ask_width(w,igGetWindowWidth() + (sz0%x - szavail%x))
+             call ask_width(w,iw_window_width() + (sz0%x - szavail%x))
              flags = ior(flags,ImGuiTableFlags_ScrollX)
           end if
           sz0%x = min(sz0%x,szavail%x)
