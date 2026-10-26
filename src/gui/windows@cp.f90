@@ -3075,8 +3075,8 @@ contains
   end function auto_options
 
   !> Draw the summary of the critical points of field ifield of system
-  !> isys: the number of each type in the cell, and the Morse sum
-  !> (crystals) or the Poincare-Hopf sum (molecules).
+  !> isys: the number of each type in the cell, and, in the next line,
+  !> the Morse sum (crystals) or the Poincare-Hopf sum (molecules).
   subroutine draw_cp_summary(isys,ifield)
     use systems, only: sys
     use utils, only: iw_text
@@ -3096,9 +3096,9 @@ contains
     call iw_text(string(nt(0)) // " | " // string(nt(1)) // " | " //&
        string(nt(2)) // " | " // string(nt(3)),sameline=.true.)
     if (sys(isys)%c%ismolecule) then
-       call iw_text("Poincaré-Hopf sum",gap=.true.)
+       call iw_text("Poincaré-Hopf sum: ")
     else
-       call iw_text("Morse sum",gap=.true.)
+       call iw_text("Morse sum: ")
     end if
     call iw_text(string(nt(0)-nt(1)+nt(2)-nt(3)),sameline=.true.)
 
